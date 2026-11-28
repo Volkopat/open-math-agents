@@ -203,20 +203,23 @@ lemma ncard4_le (a b c d : ℝ²) : ({a, b, c, d} : Set ℝ²).ncard ≤ 4 := by
     _ ≤ ((({d} : Set ℝ²).ncard + 1) + 1) + 1 := by gcongr; exact Set.ncard_insert_le _ _
     _ = 4 := by rw [Set.ncard_singleton]
 
-lemma three_le (P : Set ℝ²) [Finite P] (s : EuclideanGeometry.Sphere ℝ²) (a b c : ℝ²)
+lemma radius_mem (P : Set ℝ²) [Finite P] (a b c z : ℝ²)
     (hab : a ≠ b) (hac : a ≠ c) (hbc : b ≠ c) (ha : a ∈ P) (hb : b ∈ P) (hc : c ∈ P)
-    (has : a ∈ s) (hbs : b ∈ s) (hcs : c ∈ s) : 3 ≤ {p ∈ P | p ∈ s}.ncard := by
-  have h3 : ({a, b, c} : Set ℝ²).ncard = 3 := Set.ncard_eq_three.mpr ⟨a, b, c, hab, hac, hbc, rfl⟩
-  rw [← h3]
+    (hz1 : d2 a z = d2 b z) (hz2 : d2 a z = d2 c z) :
+    dist a z ∈ Erdos831.circleRadii P := by
+  let s : Sphere ℝ² := ⟨z, dist a z⟩
+  refine ⟨s, ?_, rfl⟩
+  change 3 ≤ {p ∈ P | p ∈ s}.ncard
+  rw [← (Set.ncard_eq_three.mpr ⟨a, b, c, hab, hac, hbc, rfl⟩ :
+    ({a, b, c} : Set ℝ²).ncard = 3)]
   apply Set.ncard_le_ncard
   · intro p hp
     simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hp
     rcases hp with rfl | rfl | rfl
-    · exact ⟨ha, has⟩
-    · exact ⟨hb, hbs⟩
-    · exact ⟨hc, hcs⟩
-  · exact (Set.toFinite P).subset (fun p hp => hp.1)
-
+    · exact ⟨ha, mem_sphere.mpr rfl⟩
+    · exact ⟨hb, mem_sphere.mpr (dist_of_d2 hz1.symm)⟩
+    · exact ⟨hc, mem_sphere.mpr (dist_of_d2 hz2.symm)⟩
+  · exact (Set.toFinite P).subset (fun _ hp => hp.1)
 
 lemma not_col {a b c : ℝ²} (h : cr a b c ≠ 0) : ¬ Collinear ℝ ({a, b, c} : Set ℝ²) :=
   fun hc => h (cr_of_collinear a b c hc)
@@ -262,21 +265,9 @@ theorem main (x₁ x₂ x₃ : ℝ²) (hcol : ¬ Collinear ℝ ({x₁, x₂, x�
     rcases alt_cr x₂ x₃ x₁ O hO23 hO2.symm h with h' | h'
     · exact nR2 (by linear_combination h')
     · exact nR3 (by linear_combination h')
-  have hH1 : H ≠ x₁ := by
-    intro h
-    have e0 := congrArg (· 0) h; have e1 := congrArg (· 1) h
-    simp only [hH, PiLp.add_apply, PiLp.sub_apply] at e0 e1
-    exact nR1 (antipode x₁ x₂ x₃ O hO2 (by linarith) (by linarith))
-  have hH2 : H ≠ x₂ := by
-    intro h
-    have e0 := congrArg (· 0) h; have e1 := congrArg (· 1) h
-    simp only [hH, PiLp.add_apply, PiLp.sub_apply] at e0 e1
-    exact nR2 (antipode x₂ x₁ x₃ O hO2.symm (by linarith) (by linarith))
-  have hH3 : H ≠ x₃ := by
-    intro h
-    have e0 := congrArg (· 0) h; have e1 := congrArg (· 1) h
-    simp only [hH, PiLp.add_apply, PiLp.sub_apply] at e0 e1
-    exact nR3 (by linear_combination antipode x₃ x₁ x₂ O hO3.symm (by linarith) (by linarith))
+  have hH1 : H ≠ x₁ := fun h => N1 (by rw [h]; unfold cr; ring)
+  have hH2 : H ≠ x₂ := fun h => N1 (by rw [h]; unfold cr; ring)
+  have hH3 : H ≠ x₃ := fun h => N2 (by rw [h]; unfold cr; ring)
   have f12a : d2 x₁ c12 = d2 x₂ c12 := by rw [d2_r1, d2_r2]; exact hO2.symm
   have f12b : d2 x₁ c12 = d2 H c12 := by rw [d2_r1, d2_h3]; exact hO23
   have f12c : d2 x₁ c12 = d2 x₁ O := by rw [d2_r1]; exact hO2.symm
@@ -351,11 +342,7 @@ theorem main (x₁ x₂ x₃ : ℝ²) (hcol : ¬ Collinear ℝ ({x₁, x₂, x�
           | exact (sphere_rad x₂ x₃ H c23 N3 f23a f23b s (by assumption) (by assumption)
               (by assumption)).trans (dist_of_d2 f23c)
       · rintro rfl
-        refine ⟨⟨O, dist x₁ O⟩, ?_, rfl⟩
-        apply three_le _ _ x₁ x₂ x₃ h12 h13 h23 (by simp) (by simp) (by simp)
-        · exact EuclideanGeometry.mem_sphere.mpr rfl
-        · exact EuclideanGeometry.mem_sphere.mpr (dist_of_d2 hO2.symm)
-        · exact EuclideanGeometry.mem_sphere.mpr (dist_of_d2 hO3.symm)
+        exact radius_mem _ x₁ x₂ x₃ O h12 h13 h23 (by simp) (by simp) (by simp) hO2 hO3
     rw [hR, Set.ncard_singleton]
   · rintro y ⟨hy, ⟨hNT, hNF⟩, hcard⟩
     simp only [Set.mem_insert_iff, Set.mem_singleton_iff, not_or] at hy
@@ -366,11 +353,7 @@ theorem main (x₁ x₂ x₃ : ℝ²) (hcol : ¬ Collinear ℝ ({x₁, x₂, x�
       cr_ne_of_not_col (hNT (by simp) (by simp) (by simp) h13 (Ne.symm hy3) (Ne.symm hy1))
     obtain ⟨r, hr⟩ := Set.ncard_eq_one.mp hcard
     have hRmem : dist x₁ O ∈ Erdos831.circleRadii ({x₁, x₂, x₃, y} : Set ℝ²) := by
-      refine ⟨⟨O, dist x₁ O⟩, ?_, rfl⟩
-      apply three_le _ _ x₁ x₂ x₃ h12 h13 h23 (by simp) (by simp) (by simp)
-      · exact EuclideanGeometry.mem_sphere.mpr rfl
-      · exact EuclideanGeometry.mem_sphere.mpr (dist_of_d2 hO2.symm)
-      · exact EuclideanGeometry.mem_sphere.mpr (dist_of_d2 hO3.symm)
+      exact radius_mem _ x₁ x₂ x₃ O h12 h13 h23 (by simp) (by simp) (by simp) hO2 hO3
     rw [hr, Set.mem_singleton_iff] at hRmem
     have hcosp : ¬ d2 x₁ O = d2 y O := by
       intro h
@@ -395,11 +378,7 @@ theorem main (x₁ x₂ x₃ : ℝ²) (hcol : ¬ Collinear ℝ ({x₁, x₂, x�
       intro b hb1 hbO hby hbmem hcr
       obtain ⟨c, hc1, hc2⟩ := circumcenter_ex x₁ b y hcr
       have hcmem : dist x₁ c ∈ Erdos831.circleRadii ({x₁, x₂, x₃, y} : Set ℝ²) := by
-        refine ⟨⟨c, dist x₁ c⟩, ?_, rfl⟩
-        apply three_le _ _ x₁ b y hb1 (Ne.symm hy1) hby (by simp) hbmem (by simp)
-        · exact EuclideanGeometry.mem_sphere.mpr rfl
-        · exact EuclideanGeometry.mem_sphere.mpr (dist_of_d2 hc1.symm)
-        · exact EuclideanGeometry.mem_sphere.mpr (dist_of_d2 hc2.symm)
+        exact radius_mem _ x₁ b y c hb1 (Ne.symm hy1) hby (by simp) hbmem (by simp) hc1 hc2
       rw [hr, Set.mem_singleton_iff, ← hRmem] at hcmem
       rcases two_centers x₁ b c O hb1 hc1 hbO (d2_of_dist hcmem) with e | e
       · subst e; exact absurd hc2 hcosp
@@ -409,16 +388,10 @@ theorem main (x₁ x₂ x₃ : ℝ²) (hcol : ¬ Collinear ℝ ({x₁, x₂, x�
     have hcc : d2 x₁ (x₁ + x₃ - O) = d2 x₁ (x₁ + x₂ - O) := by
       rw [d2_r1, d2_r1]; exact hO3.symm.trans hO2
     rcases two_centers x₁ y (x₁ + x₃ - O) (x₁ + x₂ - O) (Ne.symm hy1) s13 s12 hcc with e | e
-    · exfalso; apply h23
-      have e0 := congrArg (· 0) e
-      have e1 := congrArg (· 1) e
-      simp only [PiLp.add_apply, PiLp.sub_apply] at e0 e1
-      exact ext2 (by linarith) (by linarith)
-    · have e0 := congrArg (· 0) e
-      have e1 := congrArg (· 1) e
-      simp only [PiLp.add_apply, PiLp.sub_apply] at e0 e1
-      exact ext2 (by simp only [hH, PiLp.add_apply, PiLp.sub_apply]; linarith)
-        (by simp only [hH, PiLp.add_apply, PiLp.sub_apply]; linarith)
+    · exfalso
+      exact h23 (by linear_combination (norm := abel) -e)
+    · rw [hH]
+      linear_combination (norm := abel) -e
 
 end OMA831
 
