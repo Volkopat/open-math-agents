@@ -1,6 +1,5 @@
 import OMAReductions.R_Erdos969_erdos_969_variants_prime_number_theorem_R1
-import Mathlib.NumberTheory.LSeries.Dirichlet
-import Mathlib.NumberTheory.LSeries.HurwitzZetaValues
+import Mathlib
 
 /-! Evaluate the absolutely convergent Möbius Dirichlet series at two. -/
 open ArithmeticFunction

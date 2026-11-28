@@ -300,12 +300,6 @@ namespace OddBarker
 /-- The sequence read on `ℕ`, zero outside `[0, n)`. -/
 def seq {n : ℕ} (h : Fin n → ℤ) (i : ℕ) : ℤ := if hi : i < n then h ⟨i, hi⟩ else 0
 
-theorem seq_eq {n : ℕ} (h : Fin n → ℤ) {i : ℕ} (hi : i < n) : seq h i = h ⟨i, hi⟩ := by
-  simp [seq, hi]
-
-theorem seq_of_le {n : ℕ} (h : Fin n → ℤ) {i : ℕ} (hi : n ≤ i) : seq h i = 0 := by
-  simp [seq, not_lt.mpr hi]
-
 theorem aperiodic_eq_sum {n : ℕ} (h : Fin n → ℤ) (k : ℕ) :
     aperiodic h k = ∑ j ∈ range (n - k), seq h j * seq h (j + k) := by
   unfold aperiodic
@@ -743,19 +737,6 @@ theorem skew_seq {n : ℕ} {h : Fin n → ℤ} (hb : IsBarker h) (hn : Odd n) {k
       obtain ⟨t, rfl⟩ := hn
       rw [pow_add, pow_add, pow_zero, (show Even k from ⟨t, by omega⟩).neg_one_pow]
 
-/-- The Challenge's `skew`. -/
-theorem skew_internal {n : ℕ} (h : Fin n → ℤ) (hn : Odd n) (hb : IsBarker h) (k : Fin n) :
-    h k * h (Fin.rev k) = (-1) ^ ((n - 1) / 2 + k.val) := by
-  have h1 : h k = seq h k.val := by rw [seq_eq h k.isLt]
-  have h2 : h (Fin.rev k) = seq h (n - 1 - k.val) := by
-    rw [seq_eq h (by omega)]
-    congr 1
-    ext
-    simp only [Fin.val_rev]
-    omega
-  rw [h1, h2]
-  exact skew_seq hb hn k.isLt
-
 /-- Sign changes mirror with a flip: for `1 ≤ s ≤ n - 1`,
 `a (s - 1) * a s = -(a (n - s - 1) * a (n - s))`. -/
 theorem skew_pair {n : ℕ} {h : Fin n → ℤ} (hb : IsBarker h) (hn : Odd n) {s : ℕ} (hs1 : 1 ≤ s)
@@ -831,20 +812,6 @@ theorem fold_seq {n : ℕ} {h : Fin n → ℤ} (hb : IsBarker h) (hn : Odd n) {w
   unfold T0
   exact fo_cancel _ _ (by rw [← mul_pow]; norm_num) hN
 
-/-- The Challenge's `fold`. -/
-theorem fold_internal {n : ℕ} (h : Fin n → ℤ) (hn : Odd n) (hb : IsBarker h) (w : ℕ) (hw : Even w)
-    (hwn : w + 3 ≤ n) :
-    ∑ k : Fin (w + 1), (-1) ^ k.val * h ⟨k.val, by omega⟩ * h ⟨w - k.val, by omega⟩ = 1 := by
-  have hT := fold_seq hb hn hw hwn
-  unfold T0 at hT
-  rw [← Fin.sum_univ_eq_sum_range (fun k => (-1 : ℤ) ^ k * seq h k * seq h (w - k)) (w + 1)] at hT
-  refine Eq.trans ?_ hT
-  apply Finset.sum_congr rfl
-  intro k _
-  have hk1 : k.val < n := by omega
-  have hk2 : w - k.val < n := by omega
-  simp only [seq_eq h hk1, seq_eq h hk2]
-
 /-- `∏_{i ≤ 2j} a i = a j` for `2j ≤ n - 3`. -/
 theorem prod_prefix {n : ℕ} {h : Fin n → ℤ} (hb : IsBarker h) (hn : Odd n) {j : ℕ}
     (hj : 2 * j + 3 ≤ n) :
@@ -917,14 +884,6 @@ theorem doubling_seq {n : ℕ} {h : Fin n → ℤ} (hb : IsBarker h) (hn : Odd n
     show 2 * (u - 1) + 1 = 2 * u - 1 by omega] at h1
   have hsq := seq_mul_self hb.1 (show u - 1 < n by omega)
   linear_combination (-seq h (u - 1)) * h1 + (seq h (2 * u - 1) * seq h (2 * u)) * hsq
-
-/-- The Challenge's `doubling`. -/
-theorem doubling_internal {n : ℕ} (h : Fin n → ℤ) (hn : Odd n) (hb : IsBarker h) (u : ℕ)
-    (hu : 1 ≤ u) (hun : 2 * u + 3 ≤ n) :
-    h ⟨u - 1, by omega⟩ * h ⟨u, by omega⟩ = h ⟨2 * u - 1, by omega⟩ * h ⟨2 * u, by omega⟩ := by
-  have hd := doubling_seq hb hn hu hun
-  rwa [seq_eq h (show u - 1 < n by omega), seq_eq h (show u < n by omega),
-    seq_eq h (show 2 * u - 1 < n by omega), seq_eq h (show 2 * u < n by omega)] at hd
 
 end OddBarker
 
@@ -1117,28 +1076,6 @@ theorem run_bounds_seq {n : ℕ} {h : Fin n → ℤ} (hb : IsBarker h) (hn : Odd
   have hqodd := q_odd hb hn h7 hpn hpB hpmin hp3 hqn hqB hpq hqmin hq
   exact ⟨hpodd, hqodd, hq,
     n_le_p_add_q_add_one hb hn h7 hpn hpB hpmin hp2 hpodd hqn hqB hpq hqmin hqodd hplq⟩
-
-/-- The Challenge's `run_bounds`. -/
-theorem run_bounds_internal {n : ℕ} (h : Fin n → ℤ) (hn : Odd n) (hb : IsBarker h) (h7 : 7 ≤ n)
-    (h01 : h ⟨0, by omega⟩ = h ⟨1, by omega⟩) (p q : ℕ)
-    (hpn : p < n) (hpB : h ⟨p, hpn⟩ ≠ h ⟨p - 1, by omega⟩)
-    (hpmin : ∀ s (hs0 : 0 < s) (hsp : s < p), h ⟨s, by omega⟩ = h ⟨s - 1, by omega⟩)
-    (hqn : q < n) (hqB : h ⟨q, hqn⟩ ≠ h ⟨q - 1, by omega⟩) (hpq : ¬ p ∣ q)
-    (hqmin : ∀ s (hs0 : 0 < s) (hsq : s < q), h ⟨s, by omega⟩ ≠ h ⟨s - 1, by omega⟩ → p ∣ s) :
-    Odd p ∧ Odd q ∧ 2 * q ≤ n + 3 ∧ n ≤ p + q + 1 := by
-  refine run_bounds_seq hb hn h7 ?_ hpn ?_ ?_ hqn ?_ hpq ?_
-  · rw [seq_eq h (by omega : 0 < n), seq_eq h (by omega : 1 < n)]
-    exact h01
-  · rw [seq_eq h hpn, seq_eq h (by omega : p - 1 < n)]
-    exact hpB
-  · intro s hs0 hsp
-    rw [seq_eq h (by omega : s < n), seq_eq h (by omega : s - 1 < n)]
-    exact hpmin s hs0 hsp
-  · rw [seq_eq h hqn, seq_eq h (by omega : q - 1 < n)]
-    exact hqB
-  · intro s hs0 hsq hc
-    rw [seq_eq h (by omega : s < n), seq_eq h (by omega : s - 1 < n)] at hc
-    exact hqmin s hs0 hsq hc
 
 end OddBarker
 
@@ -1367,12 +1304,6 @@ namespace OddBarker
 
 /-- The sequence read on `ℕ`, zero outside `[0, n)`. -/
 def seq {n : ℕ} (h : Fin n → ℤ) (i : ℕ) : ℤ := if hi : i < n then h ⟨i, hi⟩ else 0
-
-theorem seq_eq {n : ℕ} (h : Fin n → ℤ) {i : ℕ} (hi : i < n) : seq h i = h ⟨i, hi⟩ := by
-  simp [seq, hi]
-
-theorem seq_of_le {n : ℕ} (h : Fin n → ℤ) {i : ℕ} (hi : n ≤ i) : seq h i = 0 := by
-  simp [seq, not_lt.mpr hi]
 
 theorem aperiodic_eq_sum {n : ℕ} (h : Fin n → ℤ) (k : ℕ) :
     aperiodic h k = ∑ j ∈ range (n - k), seq h j * seq h (j + k) := by
@@ -1888,14 +1819,6 @@ theorem integerSignRow_iff_real [NeZero n] :
     exact hh.exists_real
   · exact ExistsRealCirculantHadamard.exists_integerSignRow
 
-/-- A direct integer autocorrelation presentation of the real matrix problem. -/
-theorem existsReal_iff_integer_autocorrelation [NeZero n] :
-    ExistsRealCirculantHadamard n ↔
-      ∃ h : Fin n → ℤ, (∀ j, IsSign (h j)) ∧
-        ∀ a : Fin n, ∑ j, h j * h (j - a) = if a = 0 then (n : ℤ) else 0 := by
-  rw [← integerSignRow_iff_real]
-  simp only [IsIntegerSignRow, gram_eq_iff_autocorrelation]
-
 end CirculantHadamard
 
 end BarkerOrderPort
@@ -1974,9 +1897,6 @@ noncomputable def ringStar {R : Type uR} [Semiring R] [StarRing R]
     {n : ℕ} [NeZero n] (f : Elem R n) (a : ZMod n) :
     (ringStar f).coeff a = star (f.coeff (-a)) := rfl
 
-theorem ringStar_eq_groupStar {R : Type uR} [Semiring R] [StarRing R]
-    {n : ℕ} [NeZero n] (f : Elem R n) : ringStar f = groupStar f := rfl
-
 @[simp] theorem ringStar_single {R : Type uR} [Semiring R] [StarRing R]
     {n : ℕ} [NeZero n] (a : ZMod n) (r : R) :
     ringStar (AddMonoidAlgebra.single a r) = AddMonoidAlgebra.single (-a) (star r) :=
@@ -2037,10 +1957,6 @@ theorem mul_apply {R : Type uR} [Semiring R] {n : ℕ} [NeZero n]
     (f g : Elem R n) (a : ZMod n) : (f * g).coeff a = ∑ j, f.coeff j * g.coeff (a - j) :=
   group_mul_apply f g a
 
-theorem mul_apply_right {R : Type uR} [Semiring R] {n : ℕ} [NeZero n]
-    (f g : Elem R n) (a : ZMod n) : (f * g).coeff a = ∑ j, f.coeff (a - j) * g.coeff j :=
-  group_mul_apply_right f g a
-
 @[simp] theorem ringStar_ringStar {R : Type uR} [Semiring R] [StarRing R]
     {n : ℕ} [NeZero n] (f : Elem R n) : ringStar (ringStar f) = f :=
   groupStar_groupStar f
@@ -2054,10 +1970,6 @@ theorem mul_apply_right {R : Type uR} [Semiring R] {n : ℕ} [NeZero n]
 
 @[simp] theorem ringStar_one {R : Type uR} [Semiring R] [StarRing R]
     {n : ℕ} [NeZero n] : ringStar (1 : Elem R n) = 1 := groupStar_one
-
-theorem ringStar_mul {R : Type uR} [Semiring R] [StarRing R]
-    {n : ℕ} [NeZero n] (f g : Elem R n) :
-    ringStar (f * g) = ringStar g * ringStar f := groupStar_mul f g
 
 @[simp] theorem ringStar_scalar {R : Type uR} [Semiring R] [StarRing R]
     {n : ℕ} [NeZero n] (r : R) : ringStar (scalar n r) = scalar n (star r) := by
@@ -2166,12 +2078,6 @@ def integerRow (f : CyclicRing.Elem ℤ n) : Fin n → ℤ :=
   funext j
   simp [integerRow]
 
-theorem sum_cyclicRow (h : Fin n → ℤ) :
-    (∑ a : ZMod n, (cyclicRow h).coeff a) = ∑ j : Fin n, h j := by
-  simpa only [cyclicRow_apply, RingEquiv.toEquiv_eq_coe, RingEquiv.coe_toEquiv,
-    RingEquiv.symm_apply_apply] using
-    ((ZMod.finEquiv n).toEquiv.sum_comp (fun a : ZMod n => (cyclicRow h).coeff a)).symm
-
 theorem cyclicSignRow_cyclicRow_iff (h : Fin n → ℤ) :
     CyclicSignRow (cyclicRow h) ↔ ∀ j, IsSign (h j) := by
   constructor
@@ -2242,24 +2148,6 @@ theorem exists_cyclicSignRow_iff_real :
 theorem cyclicNorm_identity_coeff (f : CyclicRing.Elem ℤ n) :
     (f * CyclicRing.ringStar f).coeff 0 = ∑ a : ZMod n, f.coeff a ^ 2 := by
   simp [CyclicRing.mul_ringStar_apply, pow_two]
-
-theorem cyclicSignRow_identity_coeff (f : CyclicRing.Elem ℤ n)
-    (hf : CyclicSignRow f) : (f * CyclicRing.ringStar f).coeff 0 = (n : ℤ) := by
-  rw [cyclicNorm_identity_coeff]
-  calc
-    (∑ a : ZMod n, f.coeff a ^ 2) = ∑ _a : ZMod n, (1 : ℤ) := by
-      apply Finset.sum_congr rfl
-      intro a _
-      rcases hf a with ha | ha <;> simp [ha]
-    _ = (n : ℤ) := by simp
-
-/-- Evaluating the actual cyclic norm at the trivial character gives the
-square of the coefficient sum. -/
-theorem augmentation_sum_sq_of_norm (f : CyclicRing.Elem ℤ n)
-    (hf : f * CyclicRing.ringStar f = CyclicRing.scalar n (n : ℤ)) :
-    (∑ a : ZMod n, f.coeff a) ^ 2 = (n : ℤ) := by
-  simpa only [CyclicRing.augmentation_apply] using
-    CyclicRing.augmentation_norm f (n : ℤ) hf
 
 end PositiveOrder
 
@@ -2375,19 +2263,6 @@ theorem exists_two_adic_square_decomposition_of_eq_sq {n m : ℕ}
   refine ⟨s, u, Nat.succ_le_of_lt (Nat.pos_of_ne_zero hs), huPos, hu, ?_⟩
   rw [hnm, hroot, mul_pow, ← pow_mul, Nat.mul_comm s 2]
 
-/-- Every positive even natural square has a positive odd part and a
-nonzero, even power of two. -/
-theorem exists_two_adic_square_decomposition {n : ℕ}
-    (hn : 0 < n) (hsquare : IsSquare n) (heven : Even n) :
-    ∃ s u : ℕ, 1 ≤ s ∧ 0 < u ∧ Odd u ∧ n = 2 ^ (2 * s) * u ^ 2 := by
-  obtain ⟨m, hnm⟩ := hsquare.exists_sq
-  have hm : 0 < m := by
-    apply Nat.pos_of_ne_zero
-    intro hm0
-    have hn0 : n = 0 := by simpa only [hm0, zero_pow (by decide : 2 ≠ 0)] using hnm
-    exact hn.ne' hn0
-  exact exists_two_adic_square_decomposition_of_eq_sq hm hnm heven
-
 /-- Interface for an order theorem that already supplies its positive root. -/
 theorem exists_two_adic_square_decomposition_of_positive_square {n : ℕ}
     (hsquare : ∃ m : ℕ, 0 < m ∧ n = m ^ 2) (heven : Even n) :
@@ -2421,9 +2296,6 @@ def cyclicProjection (h : m ∣ n) : Elem R n →+* Elem R m :=
 
 variable {R}
 
-theorem cyclicProjection_apply (h : m ∣ n) (F : Elem R n) :
-    cyclicProjection R h F = AddMonoidAlgebra.mapDomain (ZMod.castHom h (ZMod m)) F := rfl
-
 @[simp] theorem cyclicProjection_single (h : m ∣ n) (a : ZMod n) (r : R) :
     cyclicProjection R h (AddMonoidAlgebra.single a r) =
       AddMonoidAlgebra.single (ZMod.castHom h (ZMod m) a) r :=
@@ -2451,21 +2323,6 @@ theorem cyclicProjection_apply (h : m ∣ n) (F : Elem R n) :
   apply AddMonoidAlgebra.coeff_injective
   change Finsupp.mapDomain (ZMod.castHom (dvd_refl n) (ZMod n)) F.coeff = F.coeff
   simp [ZMod.castHom_self]
-
-theorem cyclicProjection_comp (h₁ : l ∣ m) (h₂ : m ∣ n) (F : Elem R n) :
-    cyclicProjection R h₁ (cyclicProjection R h₂ F) =
-      cyclicProjection R (dvd_trans h₁ h₂) F := by
-  apply AddMonoidAlgebra.coeff_injective
-  change Finsupp.mapDomain (ZMod.castHom h₁ (ZMod l))
-      (Finsupp.mapDomain (ZMod.castHom h₂ (ZMod m)) F.coeff) =
-    Finsupp.mapDomain (ZMod.castHom (dvd_trans h₁ h₂) (ZMod l)) F.coeff
-  rw [← Finsupp.mapDomain_comp]
-  have hcomp : (ZMod.castHom h₁ (ZMod l) : ZMod m → ZMod l) ∘
-      (ZMod.castHom h₂ (ZMod m) : ZMod n → ZMod m) =
-      (ZMod.castHom (dvd_trans h₁ h₂) (ZMod l) : ZMod n → ZMod l) :=
-    congrArg (fun f : ZMod n →+* ZMod l => (f : ZMod n → ZMod l))
-      (ZMod.castHom_comp h₁ h₂)
-  rw [hcomp]
 
 /-- Any additive coefficient evaluation factors through the quotient exactly
 when its index function is pulled back along reduction. -/
@@ -2784,19 +2641,6 @@ theorem integer_prime_pow_dvd_of_localization
   exact (Nat.prime_iff_prime_int.mp hp).pow_dvd_of_dvd_mul_right t hsprime
     ⟨a, hclear⟩
 
-/-- Prime-power divisibility of integer coefficients is unchanged by
-localization at that prime. -/
-theorem integer_prime_pow_dvd_localization_iff
-    {A : Type uA} [CommRing A] [Algebra ℤ A]
-    {P : Ideal ℤ} [P.IsPrime] [IsLocalization.AtPrime A P]
-    {p : ℕ} (hp : p.Prime) (hP : P = Ideal.span ({(p : ℤ)} : Set ℤ))
-    (t : ℕ) (x : ℤ) :
-    (p : A) ^ t ∣ algebraMap ℤ A x ↔ (p : ℤ) ^ t ∣ x := by
-  constructor
-  · exact integer_prime_pow_dvd_of_localization hp hP t x
-  · intro hx
-    simpa only [map_pow, map_natCast] using map_dvd (algebraMap ℤ A) hx
-
 end CirculantHadamard
 
 end BarkerOrderPort
@@ -2832,15 +2676,6 @@ theorem isDiscreteValuationRing_of_maximalIdeal_eq_span {π : R}
   have hprincipal : (IsLocalRing.maximalIdeal R).IsPrincipal := ⟨⟨π, hspan⟩⟩
   exact ((IsDiscreteValuationRing.TFAE R hfield).out 4 0).mp hprincipal
 
-/-- The actual chosen generator factors every nonzero element into a unit
-times a natural power. -/
-theorem eq_unit_mul_pow_of_maximalIdeal_eq_span {π x : R}
-    (hπ : π ≠ 0) (hspan : IsLocalRing.maximalIdeal R = Ideal.span {π}) (hx : x ≠ 0) :
-    ∃ (n : ℕ) (u : Rˣ), x = (u : R) * π ^ n := by
-  let : IsDiscreteValuationRing R :=
-    isDiscreteValuationRing_of_maximalIdeal_eq_span hπ hspan
-  exact eq_unit_mul_pow_irreducible hx ((irreducible_iff_uniformizer π).mpr hspan)
-
 end PrincipalMaximalIdeal
 
 section Valuation
@@ -2852,13 +2687,6 @@ theorem addVal_eq_of_unit_mul_uniformizer_pow {π p : R} {u : Rˣ} {D : ℕ}
     (hspan : IsLocalRing.maximalIdeal R = Ideal.span {π}) (hp : p = (u : R) * π ^ D) :
     addVal R p = (D : ℕ∞) :=
   addVal_def p u ((irreducible_iff_uniformizer π).mpr hspan) D hp
-
-/-- Right-unit version, convenient for the factorization of a rational prime. -/
-theorem addVal_eq_of_uniformizer_pow_mul_unit {π p b : R} {D : ℕ}
-    (hspan : IsLocalRing.maximalIdeal R = Ideal.span {π}) (hb : IsUnit b)
-    (hp : p = π ^ D * b) : addVal R p = (D : ℕ∞) := by
-  obtain ⟨u, rfl⟩ := hb
-  exact addVal_eq_of_unit_mul_uniformizer_pow hspan (hp.trans (mul_comm _ _))
 
 private theorem LocalDVR_finite_add_eq {a b : ℕ∞} {N : ℕ} (h : a + b = (N : ℕ∞)) :
     ∃ m n : ℕ, a = (m : ℕ∞) ∧ b = (n : ℕ∞) ∧ m + n = N := by
@@ -2897,23 +2725,6 @@ theorem dvd_or_dvd_of_mul_eq_pow_mul_unit {p x y b : R} {D e : ℕ}
     apply addVal_le_iff_dvd.mp
     rw [hpval, hn]
     exact_mod_cast hy
-
-/-- A product with valuation one has a unit factor. This is the unramified
-base case of the integral division argument. -/
-theorem isUnit_or_isUnit_of_mul_eq_uniformizer_mul_unit {p x y b : R}
-    (hpval : addVal R p = 1) (hb : IsUnit b) (hxy : x * y = p * b) :
-    IsUnit x ∨ IsUnit y := by
-  have hv := congrArg (addVal R) hxy
-  rw [addVal_mul, addVal_mul, hpval, addVal_eq_zero_iff.mpr hb, add_zero] at hv
-  obtain ⟨m, n, hm, hn, hmn⟩ := LocalDVR_finite_add_eq (N := 1) hv
-  have hsplit : m = 0 ∨ n = 0 := by omega
-  rcases hsplit with hx | hy
-  · left
-    apply addVal_eq_zero_iff.mp
-    simpa only [hx, Nat.cast_zero] using hm
-  · right
-    apply addVal_eq_zero_iff.mp
-    simpa only [hy, Nat.cast_zero] using hn
 
 end Valuation
 
@@ -2971,10 +2782,6 @@ theorem maximalIdeal_eq_span :
       simp only [ideal, Ideal.map_span, Set.image_singleton, map_ofNat]
 
 theorem two_ne_zero : (2 : Ring) ≠ 0 := by norm_num
-
-theorem two_not_isUnit : ¬ IsUnit (2 : Ring) := by
-  rw [← mem_nonunits_iff, ← IsLocalRing.mem_maximalIdeal, maximalIdeal_eq_span]
-  exact Ideal.mem_span_singleton_self _
 
 /-- The concrete localization is a discrete valuation ring with uniformizer
 (two); this conclusion is obtained from its proved principal maximal ideal. -/
@@ -3056,23 +2863,6 @@ theorem evaluate_trivial_eq_augmentation [NeZero n] (φ : R →+* S)
     evaluate φ (1 : Multiplicative (ZMod n) →* S) f = φ (augmentation n f) := by
   simp [evaluate_apply, augmentation_apply, map_sum]
 
-/-- Evaluation commutes with a change of target coefficient ring. -/
-theorem map_evaluate [NeZero n] (φ : R →+* S)
-    (χ : Multiplicative (ZMod n) →* S) (ψ : S →+* T) (f : Elem R n) :
-    ψ (evaluate φ χ f) = evaluate (ψ.comp φ) (ψ.toMonoidHom.comp χ) f := by
-  rw [evaluate_apply, evaluate_apply, map_sum]
-  apply Finset.sum_congr rfl
-  intro a _
-  exact map_mul ψ (φ (f.coeff a)) (χ (Multiplicative.ofAdd a))
-
-/-- Bundled naturality of character evaluation. -/
-theorem map_evaluate_hom [NeZero n] (φ : R →+* S)
-    (χ : Multiplicative (ZMod n) →* S) (ψ : S →+* T) :
-    ψ.comp (evaluate φ χ) = evaluate (ψ.comp φ) (ψ.toMonoidHom.comp χ) := by
-  apply RingHom.ext
-  intro f
-  exact map_evaluate φ χ ψ f
-
 /-- A target endomorphism intertwines evaluation and the full group-ring star
 when it intertwines the coefficient involution and character inversion. -/
 theorem evaluate_ringStar_intertwining [StarRing R] [NeZero n]
@@ -3119,16 +2909,6 @@ theorem evaluate_norm_eq [StarRing R] [StarRing S] [NeZero n]
     (f : Elem R n) (r : R) (hf : f * ringStar f = scalar n r) :
     evaluate φ χ f * star (evaluate φ χ f) = φ r := by
   rw [← evaluate_mul_ringStar φ χ hφ hχ, hf, evaluate_scalar]
-
-/-- For integer coefficients, coefficient-star compatibility is automatic. -/
-theorem evaluate_int_ringStar {A : Type uA} [CommRing A] [StarRing A] [NeZero n]
-    (χ : Multiplicative (ZMod n) →* A)
-    (hχ : ∀ a : ZMod n,
-      χ (Multiplicative.ofAdd (-a)) = star (χ (Multiplicative.ofAdd a)))
-    (f : Elem ℤ n) :
-    evaluate (Int.castRingHom A) χ (ringStar f) =
-      star (evaluate (Int.castRingHom A) χ f) := by
-  exact evaluate_ringStar (Int.castRingHom A) χ (fun r => by simp) hχ f
 
 end CirculantHadamard.CyclicRing
 
@@ -3442,11 +3222,6 @@ def cyclotomicConjugation (hn : 0 < n) : CyclotomicRing A n ≃ₐ[A] Cyclotomic
       AdjoinRoot.root (cyclotomic n A) ^ (n - 1) :=
   conjugationHom_root A n hn
 
-theorem cyclotomicConjugation_involutive (hn : 0 < n) :
-    Function.Involutive (cyclotomicConjugation A n hn) := by
-  intro x
-  exact DFunLike.congr_fun (conjugationHom_comp_self A n hn) x
-
 variable [IsDiscreteValuationRing (CyclotomicRing A n)]
 
 @[simp] theorem cyclotomicConjugation_addVal (hn : 0 < n) (x : CyclotomicRing A n) :
@@ -3615,19 +3390,6 @@ theorem map_dvd_iff_C_dvd_modByMonic (h : IsAdjoinRootMonic S f)
     algebraMap R S a ∣ h.map F ↔ C a ∣ F %ₘ f :=
   ⟨C_dvd_modByMonic_of_dvd_map h a F, dvd_map_of_C_dvd_modByMonic h a F⟩
 
-/-- Scalar divisibility is equivalent to divisibility of every coefficient
-of the canonical remainder. -/
-theorem map_dvd_iff_dvd_coeff_modByMonic (h : IsAdjoinRootMonic S f)
-    (a : R) (F : R[X]) :
-    algebraMap R S a ∣ h.map F ↔ ∀ i, a ∣ (F %ₘ f).coeff i :=
-  (map_dvd_iff_C_dvd_modByMonic h a F).trans (C_dvd_iff_dvd_coeff a (F %ₘ f))
-
-/-- Coefficient form of the forward divisibility bridge. -/
-theorem dvd_coeff_modByMonic_of_dvd_map (h : IsAdjoinRootMonic S f)
-    (a : R) (F : R[X]) (hdiv : algebraMap R S a ∣ h.map F) (i : ℕ) :
-    a ∣ (F %ₘ f).coeff i :=
-  (map_dvd_iff_dvd_coeff_modByMonic h a F).mp hdiv i
-
 /-- The actual quotient by a monic polynomial satisfies the constant-factor
 criterion, using its concrete `IsAdjoinRootMonic` constructor. -/
 theorem adjoinRoot_dvd_iff_C_dvd_modByMonic (f : R[X]) (hf : f.Monic)
@@ -3696,28 +3458,14 @@ theorem degree_coefficientPolynomial_lt (n : ℕ) (c : ℕ → R) :
   intro j hj
   simp only [coefficientPolynomial_coeff, if_neg (not_lt.mpr hj)]
 
-theorem natDegree_coefficientPolynomial_lt {n : ℕ} (hn : 0 < n) (c : ℕ → R) :
-    (coefficientPolynomial n c).natDegree < n := by
-  by_cases hzero : coefficientPolynomial n c = 0
-  · simpa only [hzero, natDegree_zero] using hn
-  · exact (natDegree_lt_iff_degree_lt hzero).mpr (degree_coefficientPolynomial_lt n c)
-
 @[simp]
 theorem remainder_coeff (m : ℕ) (c : ℕ → R) (j : ℕ) (hj : j < m) :
     (remainder m c).coeff j = c j - c (j + m) := by
   simp only [remainder, coefficientPolynomial_coeff, if_pos hj]
 
-theorem remainder_coeff_eq_zero (m : ℕ) (c : ℕ → R) (j : ℕ) (hj : m ≤ j) :
-    (remainder m c).coeff j = 0 := by
-  simp only [remainder, coefficientPolynomial_coeff, if_neg (not_lt.mpr hj)]
-
 theorem degree_remainder_lt (m : ℕ) (c : ℕ → R) :
     (remainder m c).degree < (m : WithBot ℕ) :=
   degree_coefficientPolynomial_lt m _
-
-theorem natDegree_remainder_lt {m : ℕ} (hm : 0 < m) (c : ℕ → R) :
-    (remainder m c).natDegree < m :=
-  natDegree_coefficientPolynomial_lt hm _
 
 theorem remainder_eq_sub (m : ℕ) (c : ℕ → R) :
     remainder m c = coefficientPolynomial m c -
@@ -3765,12 +3513,6 @@ theorem coefficientPolynomial_modByMonic {m : ℕ} (hm : 0 < m) (c : ℕ → R) 
     simpa only [C_1] using (degree_X_pow_add_C hm (1 : R))
   rw [hdegree]
   exact degree_remainder_lt m c
-
-/-- Coefficients below the half-length in the canonical monic remainder. -/
-theorem coefficientPolynomial_modByMonic_coeff {m : ℕ} (hm : 0 < m)
-    (c : ℕ → R) (j : ℕ) (hj : j < m) :
-    (coefficientPolynomial (2 * m) c %ₘ (X ^ m + 1)).coeff j = c j - c (j + m) := by
-  rw [coefficientPolynomial_modByMonic hm, remainder_coeff m c j hj]
 
 /-- The dyadic cyclotomic polynomial has the expected two terms. -/
 theorem cyclotomic_two_pow_succ (R : Type uR) [CommRing R] (k : ℕ) :
@@ -3877,22 +3619,6 @@ theorem cyclotomic_irreducible (hp : p.Prime) (k : ℕ)
   change Irreducible ((cyclotomic (p ^ (k + 1)) A).comp (X + C (1 : A)))
   simpa only [shifted, C_1] using shifted_irreducible A hp k hmax
 
-/-- Modulo the maximal ideal, the translated polynomial is exactly a pure power. -/
-theorem mod_maximal_shifted (hp : p.Prime) (k : ℕ)
-    (hmax : IsLocalRing.maximalIdeal A = Ideal.span {(p : A)}) :
-    (shifted A p k).map (Ideal.Quotient.mk (IsLocalRing.maximalIdeal A)) =
-      (X : (A ⧸ IsLocalRing.maximalIdeal A)[X]) ^ ((p - 1) * p ^ k) := by
-  ext i
-  rw [coeff_map, coeff_X_pow]
-  by_cases hi : i = (p - 1) * p ^ k
-  · subst i
-    rw [if_pos rfl, ← shifted_natDegree A hp k,
-      (shifted_monic A p k).coeff_natDegree, map_one]
-  · rw [if_neg hi]
-    apply Ideal.Quotient.eq_zero_iff_mem.mpr
-    apply (shifted_isEisensteinAt A hp k hmax).coeff_mem
-    simpa only [shifted_natDegree A hp k] using hi
-
 end Local
 
 section DVR
@@ -3908,23 +3634,6 @@ theorem cyclotomic_adjoinRoot_isDomain (hp : p.Prime) (k : ℕ)
     (hmax : IsLocalRing.maximalIdeal A = Ideal.span {(p : A)}) :
     IsDomain (AdjoinRoot (cyclotomic (p ^ (k + 1)) A)) :=
   AdjoinRoot.isDomain_of_prime (cyclotomic_prime A hp k hmax)
-
-/-- The minimal polynomial equality is for the actual primitive root in a
-faithful domain extension, not merely for the formal quotient root. -/
-theorem cyclotomic_eq_minpoly (hp : p.Prime) (k : ℕ)
-    (hmax : IsLocalRing.maximalIdeal A = Ideal.span {(p : A)}) {B : Type uB} [CommRing B] [IsDomain B]
-    [Algebra A B] [NoZeroSMulDivisors A B] {ξ : B}
-    (hξ : IsPrimitiveRoot ξ (p ^ (k + 1))) :
-    cyclotomic (p ^ (k + 1)) A = minpoly A ξ := by
-  have hroot : aeval ξ (cyclotomic (p ^ (k + 1)) A) = 0 := by
-    rw [aeval_def, eval₂_eq_eval_map, map_cyclotomic, ← IsRoot.def]
-    exact hξ.isRoot_cyclotomic (pow_pos hp.pos (k + 1))
-  have hi : IsIntegral A ξ := ⟨_, cyclotomic.monic _ A, hroot⟩
-  have hd : minpoly A ξ ∣ cyclotomic (p ^ (k + 1)) A :=
-    minpoly.isIntegrallyClosed_dvd hi hroot
-  exact Polynomial.eq_of_monic_of_associated (cyclotomic.monic _ A) (minpoly.monic hi)
-    ((minpoly.irreducible hi).associated_of_dvd
-      (cyclotomic_irreducible A hp k hmax) hd).symm
 
 end DVR
 
@@ -4145,19 +3854,6 @@ theorem maximalIdeal_eq_span (hp : p.Prime) (k : ℕ)
     [IsLocalRing (Extension A p k)] :
     IsLocalRing.maximalIdeal (Extension A p k) = Ideal.span {uniformizer A p k} :=
   maximal_eq_span_uniformizer A hp k hmax _
-
-theorem root_residue_eq_one (hp : p.Prime) (k : ℕ)
-    (hmax : IsLocalRing.maximalIdeal A = Ideal.span {(p : A)})
-    [IsLocalRing (Extension A p k)] :
-    Ideal.Quotient.mk (IsLocalRing.maximalIdeal (Extension A p k))
-      (AdjoinRoot.root (cyclotomic (p ^ (k + 1)) A)) = 1 := by
-  apply sub_eq_zero.mp
-  rw [← map_one (Ideal.Quotient.mk (IsLocalRing.maximalIdeal (Extension A p k))),
-    ← map_sub]
-  apply Ideal.Quotient.eq_zero_iff_mem.mpr
-  change uniformizer A p k ∈ IsLocalRing.maximalIdeal (Extension A p k)
-  rw [maximalIdeal_eq_span A hp k hmax]
-  exact Ideal.subset_span (Set.mem_singleton _)
 
 theorem exists_unit_mul_uniformizer_pow (hp : p.Prime) (k : ℕ)
     (hmax : IsLocalRing.maximalIdeal A = Ideal.span {(p : A)})
@@ -4392,14 +4088,6 @@ noncomputable def halvePairs {m : ℕ} [NeZero m] (T : Elem ℤ (2 * m)) : Elem 
     (halvePairs T).coeff j = pairAverage (T.coeff (j.val : ZMod (2 * m)))
       (T.coeff ((j.val + m : ℕ) : ZMod (2 * m))) := rfl
 
-theorem halvePairs_odd {m : ℕ} [NeZero m] (T : Elem ℤ (2 * m))
-    (hodd : ∀ j, Odd (T.coeff j))
-    (hpair : ∀ j : ZMod m, (4 : ℤ) ∣
-      T.coeff (j.val : ZMod (2 * m)) - T.coeff ((j.val + m : ℕ) : ZMod (2 * m))) :
-    ∀ j, Odd ((halvePairs T).coeff j) := by
-  intro j
-  exact odd_pairAverage (hodd _) (hpair j)
-
 /-- Cancellation takes place in each integer coefficient. A cyclic group
 ring has zero divisors, which are irrelevant to this scalar cancellation. -/
 theorem four_smul_cancel {m : ℕ} {S T : Elem ℤ m}
@@ -4582,15 +4270,6 @@ theorem odd_norm_four_impossible {n u : ℕ} [NeZero n]
   exact odd_sq_sum_ne_four_mul_nat_sq (fun a : ZMod n => T.coeff a) hodd
     (by simpa using hcard) hu hsum
 
-/-- For `k ≥ 3`, the order `2^k` meets the exact modulo-eight obstruction. -/
-theorem odd_norm_four_impossible_two_pow {k u : ℕ} [NeZero (2 ^ k)]
-    (hk : 3 ≤ k) (hu : Odd u) (T : CyclicRing.Elem ℤ (2 ^ k))
-    (hodd : ∀ a, Odd (T.coeff a))
-    (hnorm : T * CyclicRing.ringStar T =
-      CyclicRing.scalar (2 ^ k) ((4 * u ^ 2 : ℕ) : ℤ)) : False := by
-  apply odd_norm_four_impossible (u := u) ?_ hu T hodd hnorm
-  exact (show 8 ∣ 2 ^ k from pow_dvd_pow 2 hk)
-
 end CirculantHadamard
 
 end BarkerOrderPort
@@ -4643,12 +4322,6 @@ theorem odd_norm_impossible {k t u : ℕ}
               apply ih k (by omega) (by omega) U hUodd
               simpa only [Nat.add_sub_cancel] using hUnorm
 
-theorem initial_even_power_norm_impossible {s u : ℕ} (hs : 2 ≤ s) (hu : Odd u)
-    (T : Elem ℤ (2 ^ (2 * s))) (hodd : ∀ a, Odd (T.coeff a))
-    (hnorm : T * ringStar T =
-      scalar (2 ^ (2 * s)) ((2 ^ (2 * s) * u ^ 2 : ℕ) : ℤ)) : False :=
-  odd_norm_impossible (by omega) (by omega) hu T hodd hnorm
-
 end CirculantHadamard
 
 end
@@ -4682,12 +4355,6 @@ theorem order_reduction {n : ℕ} (hn : 1 < n)
       hu T hodd hTnorm
   refine ⟨u, huPos, hu, ?_⟩
   simpa [hsOne] using horder
-
-/-- The order restriction stated directly for the supplied real matrix. -/
-theorem order_reduction_of_matrix {n : ℕ} (hn : 1 < n) (H : RealMatrix n)
-    (hc : IsCirculant H) (hh : IsSignHadamard H) :
-    ∃ u : ℕ, 0 < u ∧ Odd u ∧ n = 4 * u ^ 2 :=
-  order_reduction hn ⟨H, hc, hh⟩
 
 end CirculantHadamard
 
@@ -4885,14 +4552,6 @@ theorem integerSignRow_iff_real [NeZero n] :
     exact hh.exists_real
   · exact ExistsRealCirculantHadamard.exists_integerSignRow
 
-/-- A direct integer autocorrelation presentation of the real matrix problem. -/
-theorem existsReal_iff_integer_autocorrelation [NeZero n] :
-    ExistsRealCirculantHadamard n ↔
-      ∃ h : Fin n → ℤ, (∀ j, IsSign (h j)) ∧
-        ∀ a : Fin n, ∑ j, h j * h (j - a) = if a = 0 then (n : ℤ) else 0 := by
-  rw [← integerSignRow_iff_real]
-  simp only [IsIntegerSignRow, gram_eq_iff_autocorrelation]
-
 end CirculantHadamard
 
 end OAI
@@ -4971,9 +4630,6 @@ noncomputable def ringStar {R : Type uR} [Semiring R] [StarRing R]
     {n : ℕ} [NeZero n] (f : Elem R n) (a : ZMod n) :
     (ringStar f).coeff a = star (f.coeff (-a)) := rfl
 
-theorem ringStar_eq_groupStar {R : Type uR} [Semiring R] [StarRing R]
-    {n : ℕ} [NeZero n] (f : Elem R n) : ringStar f = groupStar f := rfl
-
 @[simp] theorem ringStar_single {R : Type uR} [Semiring R] [StarRing R]
     {n : ℕ} [NeZero n] (a : ZMod n) (r : R) :
     ringStar (AddMonoidAlgebra.single a r) = AddMonoidAlgebra.single (-a) (star r) :=
@@ -5034,10 +4690,6 @@ theorem mul_apply {R : Type uR} [Semiring R] {n : ℕ} [NeZero n]
     (f g : Elem R n) (a : ZMod n) : (f * g).coeff a = ∑ j, f.coeff j * g.coeff (a - j) :=
   group_mul_apply f g a
 
-theorem mul_apply_right {R : Type uR} [Semiring R] {n : ℕ} [NeZero n]
-    (f g : Elem R n) (a : ZMod n) : (f * g).coeff a = ∑ j, f.coeff (a - j) * g.coeff j :=
-  group_mul_apply_right f g a
-
 @[simp] theorem ringStar_ringStar {R : Type uR} [Semiring R] [StarRing R]
     {n : ℕ} [NeZero n] (f : Elem R n) : ringStar (ringStar f) = f :=
   groupStar_groupStar f
@@ -5051,10 +4703,6 @@ theorem mul_apply_right {R : Type uR} [Semiring R] {n : ℕ} [NeZero n]
 
 @[simp] theorem ringStar_one {R : Type uR} [Semiring R] [StarRing R]
     {n : ℕ} [NeZero n] : ringStar (1 : Elem R n) = 1 := groupStar_one
-
-theorem ringStar_mul {R : Type uR} [Semiring R] [StarRing R]
-    {n : ℕ} [NeZero n] (f g : Elem R n) :
-    ringStar (f * g) = ringStar g * ringStar f := groupStar_mul f g
 
 @[simp] theorem ringStar_scalar {R : Type uR} [Semiring R] [StarRing R]
     {n : ℕ} [NeZero n] (r : R) : ringStar (scalar n r) = scalar n (star r) := by
@@ -5163,12 +4811,6 @@ def integerRow (f : CyclicRing.Elem ℤ n) : Fin n → ℤ :=
   funext j
   simp [integerRow]
 
-theorem sum_cyclicRow (h : Fin n → ℤ) :
-    (∑ a : ZMod n, (cyclicRow h).coeff a) = ∑ j : Fin n, h j := by
-  simpa only [cyclicRow_apply, RingEquiv.toEquiv_eq_coe, RingEquiv.coe_toEquiv,
-    RingEquiv.symm_apply_apply] using
-    ((ZMod.finEquiv n).toEquiv.sum_comp (fun a : ZMod n => (cyclicRow h).coeff a)).symm
-
 theorem cyclicSignRow_cyclicRow_iff (h : Fin n → ℤ) :
     CyclicSignRow (cyclicRow h) ↔ ∀ j, IsSign (h j) := by
   constructor
@@ -5239,24 +4881,6 @@ theorem exists_cyclicSignRow_iff_real :
 theorem cyclicNorm_identity_coeff (f : CyclicRing.Elem ℤ n) :
     (f * CyclicRing.ringStar f).coeff 0 = ∑ a : ZMod n, f.coeff a ^ 2 := by
   simp [CyclicRing.mul_ringStar_apply, pow_two]
-
-theorem cyclicSignRow_identity_coeff (f : CyclicRing.Elem ℤ n)
-    (hf : CyclicSignRow f) : (f * CyclicRing.ringStar f).coeff 0 = (n : ℤ) := by
-  rw [cyclicNorm_identity_coeff]
-  calc
-    (∑ a : ZMod n, f.coeff a ^ 2) = ∑ _a : ZMod n, (1 : ℤ) := by
-      apply Finset.sum_congr rfl
-      intro a _
-      rcases hf a with ha | ha <;> simp [ha]
-    _ = (n : ℤ) := by simp
-
-/-- Evaluating the actual cyclic norm at the trivial character gives the
-square of the coefficient sum. -/
-theorem augmentation_sum_sq_of_norm (f : CyclicRing.Elem ℤ n)
-    (hf : f * CyclicRing.ringStar f = CyclicRing.scalar n (n : ℤ)) :
-    (∑ a : ZMod n, f.coeff a) ^ 2 = (n : ℤ) := by
-  simpa only [CyclicRing.augmentation_apply] using
-    CyclicRing.augmentation_norm f (n : ℤ) hf
 
 end PositiveOrder
 
@@ -5619,13 +5243,6 @@ theorem partialEval_fourthRoot (φ : R →+* S) (i : S) (hi : i ^ 2 = -1)
 
 end Evaluation
 
-theorem partialEval_I {R : Type uR} [CommRing R] (m : ℕ) [NeZero m]
-    (φ : R →+* ℂ) (f : ProductElem R m) :
-    partialEval m φ Complex.I (by norm_num [pow_succ, Complex.I_sq]) f =
-      mappedBlock m φ f 0 + Complex.I • mappedBlock m φ f 1 -
-        mappedBlock m φ f 2 - Complex.I • mappedBlock m φ f 3 := by
-  exact partialEval_fourthRoot m φ Complex.I Complex.I_sq f
-
 section Star
 
 variable {R : Type uR} {S : Type uS} [CommRing R] [StarRing R] [CommRing S] [StarRing S]
@@ -5689,10 +5306,6 @@ theorem fourthRoot_character_star (i : S) (hi : i ^ 2 = -1) (hstar : star i = -i
 
 end Star
 
-theorem I_character_star :
-    ∀ a : ZMod 4, Complex.I ^ (-a).val = star (Complex.I ^ a.val) := by
-  exact fourthRoot_character_star Complex.I Complex.I_sq (by simp)
-
 end CirculantHadamard.BinaryBlocks
 
 end
@@ -5748,21 +5361,6 @@ noncomputable def complexify (f : G →₀ ℤ) : G →₀ ℂ := castCoeffs f
 
 @[simp] theorem complexify_apply (f : G →₀ ℤ) (x : G) :
     complexify f x = (f x : ℂ) := rfl
-
-theorem complexify_add (f h : G →₀ ℤ) :
-    complexify (f + h) = complexify f + complexify h := by
-  ext x
-  simp
-
-theorem complexify_sub (f h : G →₀ ℤ) :
-    complexify (f - h) = complexify f - complexify h := by
-  ext x
-  simp
-
-theorem complexify_int_smul (z : ℤ) (f : G →₀ ℤ) :
-    complexify (z • f) = (z : ℂ) • complexify f := by
-  ext x
-  simp [Finsupp.smul_apply, smul_eq_mul]
 
 /-- Integer real and imaginary parts interpreted in any coefficient ring.
 The linear identities do not require an equation such as `i^2 = -1`. -/
@@ -5885,21 +5483,6 @@ theorem binary_identity_over {R : Type uR} [CommRing R] (i : R)
   rw [h2, h3]
   ring
 
-theorem g_eq_ab {H : Fin 4 → (G →₀ ℤ)} (hH : Signs H) :
-    g H = complexify (a H) + Complex.I • complexify (b H) -
-      complexify (H 2) - Complex.I • complexify (H 3) :=
-  gOver_eq_ab Complex.I hH
-
-theorem two_g {H : Fin 4 → (G →₀ ℤ)} (hH : Signs H) :
-    (2 : ℂ) • g H = complexify (H 0) + Complex.I • complexify (H 1) -
-      complexify (H 2) - Complex.I • complexify (H 3) :=
-  two_gOver Complex.I hH
-
-theorem binary_identity {H : Fin 4 → (G →₀ ℤ)} (hH : Signs H) :
-    complexify (H 2) + Complex.I • complexify (H 3) =
-      (1 + Complex.I) • (J : G →₀ ℂ) + (2 : ℂ) • U H :=
-  binary_identity_over Complex.I hH
-
 end BinaryCoefficients
 end CirculantHadamard
 
@@ -5983,12 +5566,8 @@ theorem I_mem_rootRing (s : Finset ℕ) : Complex.I ∈ rootRing s :=
 theorem rho_mem_rootRing (s : Finset ℕ) (p : ℕ) (hp : p ∈ s) : rho p ∈ rootRing s :=
   Algebra.subset_adjoin (Or.inr ⟨p, hp, rfl⟩)
 
-theorem I_mem_B (u : ℕ) : Complex.I ∈ B u := I_mem_rootRing _
-
 theorem rho_mem_B (u p : ℕ) (hp : p ∈ u.primeFactors) : rho p ∈ B u :=
   rho_mem_rootRing _ _ hp
-
-theorem I_mem_awayRing (u p : ℕ) : Complex.I ∈ awayRing u p := I_mem_rootRing _
 
 theorem rho_mem_awayRing (u p q : ℕ) (hq : q ∈ u.primeFactors) (hne : q ≠ p) :
     rho q ∈ awayRing u p :=
@@ -6027,11 +5606,6 @@ def gaussianToAway (u p : ℕ) : GaussianRing →ₐ[ℤ] awayRing u p :=
     (gaussianToAway u p x).val = x.val := by
   exact Subalgebra.coe_inclusion (R := ℤ) (A := ℂ)
     (S := GaussianRing) (T := awayRing u p) (GaussianRing_le_rootRing _) x
-
-theorem gaussian_mem (s : Finset ℕ) (a b : ℤ) :
-    (a : ℂ) + (b : ℂ) * Complex.I ∈ rootRing s :=
-  (rootRing s).add_mem ((rootRing s).algebraMap_mem a)
-    ((rootRing s).mul_mem ((rootRing s).algebraMap_mem b) (I_mem_rootRing s))
 
 private theorem star_mem_adjoin {S : Set ℂ}
     (hS : ∀ z ∈ S, star z ∈ Algebra.adjoin ℤ S) {z : ℂ}
@@ -6149,16 +5723,6 @@ theorem map_star_rootRing (s : Finset ℕ) (σ : rootRing s →+* ℂ) (x : root
 theorem map_star_B (u : ℕ) (σ : B u →+* ℂ) (x : B u) :
     σ (star x) = star (σ x) := map_star_rootRing _ σ x
 
-theorem map_star_awayRing (u p : ℕ) (σ : awayRing u p →+* ℂ) (x : awayRing u p) :
-    σ (star x) = star (σ x) := map_star_rootRing _ σ x
-
-theorem map_star_GaussianRing (σ : GaussianRing →+* ℂ) (x : GaussianRing) :
-    σ (star x) = star (σ x) := by
-  apply @map_star_adjoin ({Complex.I} : Set ℂ) GaussianRingStarRing
-    coe_star_GaussianRing ?_ σ x
-  rintro z (rfl : z = Complex.I)
-  exact ⟨4, by decide, Complex.I_pow_four⟩
-
 private theorem integral_of_finite_order {z : ℂ} (h : ∃ n : ℕ, n ≠ 0 ∧ z ^ n = 1) :
     IsIntegral ℤ z := by
   obtain ⟨n, hn, hz⟩ := h
@@ -6263,9 +5827,6 @@ theorem eta_isPrimitiveRoot (u p : ℕ) (hu : Odd u) :
   · intro q hq
     exact hu.of_dvd_nat (Nat.dvd_of_mem_primeFactors (Finset.mem_of_mem_erase hq))
 
-theorem awayOrder_pos (u p : ℕ) : 0 < awayOrder u p :=
-  orderOfSet_pos _ (fun _q hq => Nat.prime_of_mem_primeFactors (Finset.mem_of_mem_erase hq))
-
 theorem awayRing_eq_singleton (u p : ℕ) (hu : Odd u) :
     awayRing u p = Algebra.adjoin ℤ ({eta u p} : Set ℂ) := by
   apply rootRing_eq_singleton
@@ -6288,26 +5849,6 @@ theorem prime_not_dvd_awayOrder (u p : ℕ) (hu : Odd u) (hp : p ∈ u.primeFact
     apply (Nat.coprime_primes hpp
       (Nat.prime_of_mem_primeFactors (Finset.mem_of_mem_erase hq))).mpr
     exact (Finset.ne_of_mem_erase hq).symm
-
-theorem B_eq_adjoin_away (u p : ℕ) (hp : p ∈ u.primeFactors) :
-    B u = (Algebra.adjoin (awayRing u p) ({rho p} : Set ℂ)).restrictScalars ℤ := by
-  change Algebra.adjoin ℤ (({Complex.I} : Set ℂ) ∪ rho '' (u.primeFactors : Set ℕ)) =
-    (Algebra.adjoin
-      (Algebra.adjoin ℤ (({Complex.I} : Set ℂ) ∪ rho '' ((u.primeFactors.erase p : Finset ℕ) : Set ℕ)))
-      ({rho p} : Set ℂ)).restrictScalars ℤ
-  rw [← Algebra.adjoin_union_eq_adjoin_adjoin]
-  congr 1
-  ext z
-  constructor
-  · rintro (hI | ⟨q, hq, rfl⟩)
-    · exact Or.inl (Or.inl hI)
-    · by_cases heq : q = p
-      · exact Or.inr (by simp [heq])
-      · exact Or.inl (Or.inr ⟨q, Finset.mem_erase.mpr ⟨heq, hq⟩, rfl⟩)
-  · rintro ((hI | ⟨q, hq, rfl⟩) | heq)
-    · exact Or.inl hI
-    · exact Or.inr ⟨q, Finset.mem_of_mem_erase hq, rfl⟩
-    · exact Or.inr ⟨p, hp, (Set.mem_singleton_iff.mp heq).symm⟩
 
 end CirculantHadamard.CyclotomicRings
 
@@ -6497,15 +6038,6 @@ theorem gOver_norm_of_product_norm {R : Type uR} [CommRing R] [StarRing R]
       (fun _ => by simp) (fourthRoot_character_star i hi hstar) f)
     (evaluation_fourthRoot_eq_two_gOver i hi f hsign)
 
-/-- The same cancellation is valid in `ℂ[C_m]`, despite that ring having zero
-divisors. This specializes the actual coefficient construction `g`. -/
-theorem g_norm_of_product_norm (u : ℕ) (f : ProductElem ℤ m)
-    (hsign : ∀ a, IsSign (f.coeff a))
-    (hnorm : f * groupStar f = ((4 * u ^ 2 : ℕ) : ProductElem ℤ m)) :
-    Mul.mul (α := Elem ℂ m) (AddMonoidAlgebra.ofCoeff (g (fun j => (blocks f j).coeff))) (ringStar (AddMonoidAlgebra.ofCoeff (g (fun j => (blocks f j).coeff)))) =
-      scalar m ((u ^ 2 : ℕ) : ℂ) :=
-  gOver_norm_of_product_norm Complex.I Complex.I_sq (by simp) u f hsign hnorm
-
 /-- Conjugation negates the imaginary unit in the actual Gaussian subring. -/
 theorem star_gaussianI : star CyclotomicRings.gaussianI = -CyclotomicRings.gaussianI := by
   apply Subtype.ext
@@ -6610,23 +6142,6 @@ theorem evaluate_trivial_eq_augmentation [NeZero n] (φ : R →+* S)
     evaluate φ (1 : Multiplicative (ZMod n) →* S) f = φ (augmentation n f) := by
   simp [evaluate_apply, augmentation_apply, map_sum]
 
-/-- Evaluation commutes with a change of target coefficient ring. -/
-theorem map_evaluate [NeZero n] (φ : R →+* S)
-    (χ : Multiplicative (ZMod n) →* S) (ψ : S →+* T) (f : Elem R n) :
-    ψ (evaluate φ χ f) = evaluate (ψ.comp φ) (ψ.toMonoidHom.comp χ) f := by
-  rw [evaluate_apply, evaluate_apply, map_sum]
-  apply Finset.sum_congr rfl
-  intro a _
-  exact map_mul ψ (φ (f.coeff a)) (χ (Multiplicative.ofAdd a))
-
-/-- Bundled naturality of character evaluation. -/
-theorem map_evaluate_hom [NeZero n] (φ : R →+* S)
-    (χ : Multiplicative (ZMod n) →* S) (ψ : S →+* T) :
-    ψ.comp (evaluate φ χ) = evaluate (ψ.comp φ) (ψ.toMonoidHom.comp χ) := by
-  apply RingHom.ext
-  intro f
-  exact map_evaluate φ χ ψ f
-
 /-- A target endomorphism intertwines evaluation and the full group-ring star
 when it intertwines the coefficient involution and character inversion. -/
 theorem evaluate_ringStar_intertwining [StarRing R] [NeZero n]
@@ -6673,16 +6188,6 @@ theorem evaluate_norm_eq [StarRing R] [StarRing S] [NeZero n]
     (f : Elem R n) (r : R) (hf : f * ringStar f = scalar n r) :
     evaluate φ χ f * star (evaluate φ χ f) = φ r := by
   rw [← evaluate_mul_ringStar φ χ hφ hχ, hf, evaluate_scalar]
-
-/-- For integer coefficients, coefficient-star compatibility is automatic. -/
-theorem evaluate_int_ringStar {A : Type uA} [CommRing A] [StarRing A] [NeZero n]
-    (χ : Multiplicative (ZMod n) →* A)
-    (hχ : ∀ a : ZMod n,
-      χ (Multiplicative.ofAdd (-a)) = star (χ (Multiplicative.ofAdd a)))
-    (f : Elem ℤ n) :
-    evaluate (Int.castRingHom A) χ (ringStar f) =
-      star (evaluate (Int.castRingHom A) χ f) := by
-  exact evaluate_ringStar (Int.castRingHom A) χ (fun r => by simp) hχ f
 
 end CirculantHadamard.CyclicRing
 
@@ -6734,10 +6239,6 @@ theorem prime_ne_two_of_odd {u p : ℕ} (hu : Odd u) (hp : p ∈ primes u) : p �
 theorem odd_of_mem {u p : ℕ} (hu : Odd u) (hp : p ∈ primes u) : Odd p :=
   (prime_of_mem hp).odd_of_ne_two (prime_ne_two_of_odd hu hp)
 
-/-- The scalar exponent in local comparison is the exponent in u². -/
-theorem exponent_eq_two_mul (u p : ℕ) : exponent u p = 2 * u.factorization p := by
-  simp only [exponent, Nat.factorization_pow, Finsupp.smul_apply, smul_eq_mul]
-
 theorem exponent_pos {u p : ℕ} (hu : 0 < u) (hp : p ∈ primes u) :
     0 < exponent u p := by
   apply (prime_of_mem hp).factorization_pos_of_dvd (pow_ne_zero 2 hu.ne')
@@ -6755,19 +6256,10 @@ theorem prime_dvd_order {u p : ℕ} (hu : 0 < u) (hp : p ∈ primes u) :
 theorem order_dvd_square (u p : ℕ) : order u p ∣ u ^ 2 :=
   Nat.ordProj_dvd (u ^ 2) p
 
-/-- This is the full primary factor: the next power does not divide u². -/
-theorem next_power_not_dvd {u p : ℕ} (hu : 0 < u) (hp : p ∈ primes u) :
-    ¬p ^ (exponent u p + 1) ∣ u ^ 2 :=
-  Nat.pow_succ_factorization_not_dvd (pow_ne_zero 2 hu.ne') (prime_of_mem hp)
-
 def cofactor (u p : ℕ) : ℕ := u ^ 2 / order u p
 
 theorem order_mul_cofactor (u p : ℕ) : order u p * cofactor u p = u ^ 2 := by
   exact Nat.mul_div_cancel' (order_dvd_square u p)
-
-theorem cofactor_not_dvd {u p : ℕ} (hu : 0 < u) (hp : p ∈ primes u) :
-    ¬p ∣ cofactor u p :=
-  Nat.not_dvd_ordCompl (prime_of_mem hp) (pow_ne_zero 2 hu.ne')
 
 theorem cofactor_coprime {u p : ℕ} (hu : 0 < u) (hp : p ∈ primes u) :
     Nat.Coprime p (cofactor u p) :=
@@ -6830,14 +6322,6 @@ def primaryGenerator (u : ℕ) (hu : 0 < u) (p : PrimeIndex u) : ZMod (u ^ 2) :=
     (p q : PrimeIndex u) (hqp : q ≠ p) :
     crt u hu (primaryGenerator u hu p) q = 0 := by
   rw [crt_primaryGenerator, Pi.single_eq_of_ne hqp]
-
-/-- The chosen primary generator has exactly the full primary order. -/
-theorem primaryGenerator_addOrderOf (u : ℕ) (hu : 0 < u) (p : PrimeIndex u) :
-    addOrderOf (primaryGenerator u hu p) = order u p.val := by
-  rw [primaryGenerator, AddEquiv.addOrderOf_eq]
-  have h := addOrderOf_injective (AddMonoidHom.single (Component u) p)
-    (Pi.single_injective p) (1 : Component u p)
-  exact h.trans (ZMod.addOrderOf_one (order u p.val))
 
 end CirculantHadamard.PrimeComponents
 
@@ -7220,12 +6704,6 @@ theorem subsetCharacter_neg (u : ℕ) (hu : 0 < u)
         (χ (Multiplicative.ofAdd a) * star (χ (Multiplicative.ofAdd a))) := by rw [hs]
     _ = star (χ (Multiplicative.ofAdd a)) := by rw [← mul_assoc, hi, one_mul]
 
-theorem subsetEvaluation_star (u : ℕ) [NeZero (u ^ 2)] (hu : 0 < u)
-    (S : Finset (PrimeIndex u)) (x : Elem GaussianRing (u ^ 2)) :
-    subsetEvaluation u hu S (ringStar x) = star (subsetEvaluation u hu S x) := by
-  exact evaluate_ringStar (gaussianToB u).toRingHom (subsetCharacter u hu S)
-    (gaussianToB_star u) (subsetCharacter_neg u hu S) x
-
 theorem subsetEvaluation_norm (u : ℕ) [NeZero (u ^ 2)] (hu : 0 < u)
     (S : Finset (PrimeIndex u)) (x : Elem GaussianRing (u ^ 2))
     (hx : x * ringStar x = scalar (u ^ 2) ((u ^ 2 : ℕ) : GaussianRing)) :
@@ -7479,18 +6957,6 @@ theorem gValue_eq {H : Fin 4 → Elem ℤ (u ^ 2)} (hH : Signs (fun j => (H j).c
   simpa [map_add, map_sub, map_ofNat, subsetEvaluation_smul, iB, gValue, aValue, bValue,
     JValue, UValue] using h
 
-theorem evaluated_norms (H : Fin 4 → Elem ℤ (u ^ 2))
-    (hc : cG H * ringStar (cG H) = scalar (u ^ 2) ((u ^ 2 : ℕ) : GaussianRing))
-    (hd : dG H * ringStar (dG H) = scalar (u ^ 2) ((u ^ 2 : ℕ) : GaussianRing))
-    (hg : gG H * ringStar (gG H) = scalar (u ^ 2) ((u ^ 2 : ℕ) : GaussianRing))
-    (S : Finset (PrimeIndex u)) :
-    cValue u hu H S * star (cValue u hu H S) = ((u ^ 2 : ℕ) : B u) ∧
-      dValue u hu H S * star (dValue u hu H S) = ((u ^ 2 : ℕ) : B u) ∧
-      gValue u hu H S * star (gValue u hu H S) = ((u ^ 2 : ℕ) : B u) :=
-  ⟨subsetEvaluation_norm u hu S (cG H) hc,
-    subsetEvaluation_norm u hu S (dG H) hd,
-    subsetEvaluation_norm u hu S (gG H) hg⟩
-
 end Values
 
 /-- All three Gaussian norm equations come from the original cyclic sign row. -/
@@ -7503,20 +6969,6 @@ theorem gaussian_norms_of_cyclic_norm {u : ℕ} [NeZero u] (hu : Odd u)
       gG H * ringStar (gG H) = scalar (u ^ 2) ((u ^ 2 : ℕ) : GaussianRing) := by
   obtain ⟨hc, hd, hg⟩ := BinaryNorms.binary_norms_of_cyclic_norm hu f hsign hnorm
   exact ⟨cG_norm _ (u ^ 2) hc, dG_norm _ (u ^ 2) hd, hg⟩
-
-/-- Actual subset evaluations of `c,d,g` all have star norm `u²`,
-without independent binary-element norm assumptions. -/
-theorem binary_evaluation_of_cyclic_norm {u : ℕ} [NeZero u] (hu : Odd u)
-    (f : Elem ℤ (4 * u ^ 2)) (hsign : ∀ a, IsSign (f.coeff a))
-    (hnorm : f * ringStar f = scalar (4 * u ^ 2) ((4 * u ^ 2 : ℕ) : ℤ))
-    (S : Finset (PrimeIndex u)) :
-    let hp : 0 < u := Nat.pos_of_ne_zero (NeZero.ne u)
-    let H := BinaryBlocks.blocks (BinaryBlocks.crt ℤ u hu f)
-    cValue u hp H S * star (cValue u hp H S) = ((u ^ 2 : ℕ) : B u) ∧
-      dValue u hp H S * star (dValue u hp H S) = ((u ^ 2 : ℕ) : B u) ∧
-      gValue u hp H S * star (gValue u hp H S) = ((u ^ 2 : ℕ) : B u) := by
-  obtain ⟨hc, hd, hg⟩ := gaussian_norms_of_cyclic_norm hu f hsign hnorm
-  exact evaluated_norms u (Nat.pos_of_ne_zero (NeZero.ne u)) _ hc hd hg S
 
 end CirculantHadamard.BinaryEvaluation
 
@@ -7549,37 +7001,6 @@ noncomputable def localizationAtComapMap (f : A →+* B) (m : Ideal B) [m.IsPrim
     localizationAtComapMap f m (algebraMap A (Localization.AtPrime (m.comap f)) a) =
       algebraMap B (Localization.AtPrime m) (f a) :=
   Localization.localRingHom_to_map (m.comap f) m f rfl a
-
-/-- Both numerator and denominator follow the coefficient inclusion. -/
-theorem localizationAtComapMap_mk' (f : A →+* B) (m : Ideal B) [m.IsPrime]
-    (a : A) (s : (m.comap f).primeCompl) :
-    localizationAtComapMap f m (IsLocalization.mk' (Localization.AtPrime (m.comap f)) a s) =
-      IsLocalization.mk' (Localization.AtPrime m) (f a)
-        (⟨f s, s.2⟩ : m.primeCompl) :=
-  Localization.localRingHom_mk' (m.comap f) m f rfl a s
-
-/-- An inclusion into a domain remains injective after the two prime
-localizations, even though the target inverts additional denominators. -/
-theorem localizationAtComapMap_injective [IsDomain B] (f : A →+* B)
-    (hf : Function.Injective f) (m : Ideal B) [m.IsPrime] :
-    Function.Injective (localizationAtComapMap f m) := by
-  apply IsLocalization.injective_of_map_algebraMap_zero
-    (M := (m.comap f).primeCompl) (Localization.AtPrime (m.comap f))
-    (localizationAtComapMap f m)
-  intro a ha
-  rw [localizationAtComapMap_algebraMap] at ha
-  have hB : Function.Injective (algebraMap B (Localization.AtPrime m)) :=
-    IsLocalization.injective (Localization.AtPrime m) m.primeCompl_le_nonZeroDivisors
-  have hfa : f a = 0 := hB (by simpa only [map_zero] using ha)
-  have haz : a = 0 := hf (by simpa only [map_zero] using hfa)
-  rw [haz, map_zero]
-
-/-- Units used by the local comparison remain units in the larger
-coefficient localization. -/
-theorem localizationAtComapMap_isUnit (f : A →+* B) (m : Ideal B) [m.IsPrime]
-    {x : Localization.AtPrime (m.comap f)} (hx : IsUnit x) :
-    IsUnit (localizationAtComapMap f m x) :=
-  hx.map (localizationAtComapMap f m)
 
 /-- Integral coefficient extensions preserve maximality on contraction. -/
 theorem maximal_comap_of_integral (f : A →+* B) (hf : f.IsIntegral)
@@ -7683,17 +7104,6 @@ theorem isUnit_of_mul_eq_odd_square {O : Type uO} [CommRing O] [IsLocalRing O]
   have hbad : (0 : IsLocalRing.ResidueField O) = 1 := by
     simpa only [map_mul, map_pow, hx, zero_mul, hu', one_pow] using h
   exact zero_ne_one hbad
-
-/-- A faithful ring embedding reflects the odd-power witness for an actual unit. -/
-theorem odd_power_of_map {O : Type uO} {F : Type uF} [CommRing O] [CommRing F]
-    (f : O →+* F) (hf : Function.Injective f) (u : Oˣ)
-    (h : ∃ m : ℕ, 0 < m ∧ Odd m ∧ (f (u : O)) ^ m = 1) :
-    ∃ m : ℕ, 0 < m ∧ Odd m ∧ u ^ m = 1 := by
-  obtain ⟨m, hm, hodd, hpow⟩ := h
-  refine ⟨m, hm, hodd, ?_⟩
-  apply Units.ext
-  apply hf
-  simpa only [Units.val_pow_eq_pow_val, Units.val_one, map_pow, map_one] using hpow
 
 end CirculantHadamard.BinaryLocalization
 
@@ -7943,11 +7353,6 @@ theorem alternatingProduct_inv (t : Finset I) (x : Finset I → G) :
     alternatingProduct t (fun S => (x S)⁻¹) = (alternatingProduct t x)⁻¹ := by
   simp only [alternatingProduct, inv_zpow, Finset.prod_inv_distrib]
 
-theorem alternatingProduct_div (t : Finset I) (x y : Finset I → G) :
-    alternatingProduct t (fun S => x S / y S) =
-      alternatingProduct t x / alternatingProduct t y := by
-  simp only [alternatingProduct, div_zpow, Finset.prod_div_distrib]
-
 /-- A single direction pairs each omitted-`p` subset with its insertion.
 The exponent at the inserted subset is the negative of the original one. -/
 theorem alternatingProduct_insert [DecidableEq I] (t : Finset I)
@@ -8008,43 +7413,13 @@ theorem map_alternatingProduct (f : G →* H) (t : Finset I) (x : Finset I → G
     f (alternatingProduct t x) = alternatingProduct t (fun S => f (x S)) := by
   simp only [alternatingProduct, map_prod, map_zpow]
 
-/-- A nonempty index set cancels every constant family, by actual subset pairing. -/
-theorem alternatingProduct_const (t : Finset I) (ht : t.Nonempty) (c : G) :
-    alternatingProduct t (fun _ => c) = 1 := by
-  classical
-  obtain ⟨p, hp⟩ := ht
-  rw [alternatingProduct_pair t (fun _ => c) p hp]
-  simp
-
-/-- Clearing the odd-subset denominator inside the group of units.
-Mapping this equality into the fraction field gives the polynomial identity
-needed before applying a homomorphism defined only on the coefficient ring. -/
-theorem alternatingProduct_mul_oddSubsetProduct (t : Finset I) (x : Finset I → G) :
-    alternatingProduct t x * oddSubsetProduct t x = evenSubsetProduct t x := by
-  rw [alternatingProduct_eq_even_div_odd, div_mul_cancel]
-
 end CommGroup
 
 section FiniteUniverse
 
 variable [Fintype I] {G : Type uG} [DivisionCommMonoid G]
 
-/-- The full prime-index product, using all subsets of the finite index type. -/
-def fullAlternatingProduct (x : Finset I → G) : G :=
-  alternatingProduct Finset.univ x
-
-theorem fullAlternatingProduct_pair [DecidableEq I] (x : Finset I → G) (p : I) :
-    fullAlternatingProduct x =
-      ∏ S ∈ ((Finset.univ : Finset I).erase p).powerset,
-        (x S / x (insert p S)) ^ subsetSign S :=
-  alternatingProduct_pair Finset.univ x p (Finset.mem_univ p)
-
 end FiniteUniverse
-
-theorem fullAlternatingProduct_const [Fintype I] [Nonempty I]
-    {G : Type uG} [CommGroup G] (c : G) :
-    fullAlternatingProduct (fun _ : Finset I => c) = 1 :=
-  alternatingProduct_const Finset.univ Finset.univ_nonempty c
 
 end CirculantHadamard
 
@@ -8177,24 +7552,11 @@ theorem character_sum_eq_zero [IsDomain R] (χ : G →* R)
   simpa only [Finset.mul_sum, ← map_mul] using
     (Group.mulLeft_bijective g).sum_comp (fun h : G => χ h)
 
-/-- The trivial character sums to the cardinality of the group. -/
-theorem character_sum_trivial (χ : G →* R) (hχ : ∀ g : G, χ g = 1) :
-    (∑ g : G, χ g) = (Fintype.card G : R) := by
-  simp [hχ]
-
 end CharacterSum
 
 section ActualGroupRing
 
 variable {A : Type uA} {R : Type uR} [CommRing A] [CommRing R] {n : ℕ} [NeZero n]
-
-/-- The coefficientwise all-ones element is literally the sum of the basis
-elements, with coefficient one at each group element. -/
-theorem JOver_eq_sum_single {G : Type uG} [Fintype G] :
-    (BinaryCoefficients.JOver A : G →₀ A) = ∑ g : G, Finsupp.single g 1 := by
-  classical
-  ext g
-  simp
 
 /-- Evaluation of the actual all-ones group-ring element is the complete
 character sum. `JOver` is not the scalar unit of the group ring. -/
@@ -8222,33 +7584,6 @@ theorem evaluate_J_trivial (φ : A →+* R) :
   simp
 
 end ActualGroupRing
-
-/-- Collapse written directly with evaluations of the actual group-ring `J`.
-Only character witnesses for nonempty subsets are used. -/
-theorem subset_evaluate_J_mul
-    {I : Type uI} {A : Type uA} {R : Type uR} [Fintype I] [DecidableEq I] [CommRing A]
-    [CommRing R] [IsDomain R] {n : ℕ} [NeZero n]
-    (φ : A →+* R) (χ : Finset I → Multiplicative (ZMod n) →* R)
-    (ε d : Finset I → R) (hε : ε ∅ = 1) (htrivial : χ ∅ = 1)
-    (hnonempty : ∀ S : Finset I, S.Nonempty →
-      ∃ g : Multiplicative (ZMod n), χ S g ≠ 1) :
-    (∑ S : Finset I, ε S * CyclicRing.evaluate φ (χ S)
-      (AddMonoidAlgebra.ofCoeff (BinaryCoefficients.JOver A) : CyclicRing.Elem A n) * d S) =
-      (n : R) * d ∅ := by
-  classical
-  calc
-    (∑ S : Finset I, ε S * CyclicRing.evaluate φ (χ S)
-        (AddMonoidAlgebra.ofCoeff (BinaryCoefficients.JOver A) : CyclicRing.Elem A n) * d S) =
-        ε ∅ * CyclicRing.evaluate φ (χ ∅)
-          (AddMonoidAlgebra.ofCoeff (BinaryCoefficients.JOver A) : CyclicRing.Elem A n) * d ∅ := by
-      apply Finset.sum_eq_single ∅
-      · intro S _ hS
-        rw [evaluate_J_eq_zero φ (χ S)
-          (hnonempty S (Finset.nonempty_iff_ne_empty.mpr hS))]
-        simp
-      · simp
-    _ = (n : R) * d ∅ := by
-      rw [hε, one_mul, htrivial, evaluate_J_trivial]
 
 /-- First prove the character sum in its domain, then change coefficient
 rings. This does not assume nontriviality of the reduced characters and also
@@ -8284,49 +7619,7 @@ section SubsetSum
 variable {I : Type uI} {G : Type uG} {R : Type uR} [Fintype I] [DecidableEq I]
     [Group G] [Fintype G] [CommRing R] [IsDomain R]
 
-/-- Only the empty subset survives. The coefficients `d S` are arbitrary;
-in particular they may be inverses of specified units. -/
-theorem subset_character_sum_mul [DecidableEq I]
-    (χ : Finset I → G →* R) (ε d : Finset I → R)
-    (hε : ε ∅ = 1) (htrivial : ∀ g : G, χ ∅ g = 1)
-    (hnonempty : ∀ S : Finset I, S.Nonempty → ∃ g : G, χ S g ≠ 1) :
-    (∑ S : Finset I, ε S * (∑ g : G, χ S g) * d S) =
-      (Fintype.card G : R) * d ∅ := by
-  classical
-  calc
-    (∑ S : Finset I, ε S * (∑ g : G, χ S g) * d S) =
-        ε ∅ * (∑ g : G, χ ∅ g) * d ∅ := by
-      apply Finset.sum_eq_single ∅
-      · intro S _ hS
-        rw [character_sum_eq_zero (χ S)
-          (hnonempty S (Finset.nonempty_iff_ne_empty.mpr hS))]
-        simp
-      · simp
-    _ = (Fintype.card G : R) * d ∅ := by
-      rw [hε, one_mul, character_sum_trivial (χ ∅) htrivial]
-
-/-- Ring-valued version of the quotient by each specified denominator unit. -/
-theorem subset_character_sum_mul_unit_inv
-    (χ : Finset I → G →* R) (ε : Finset I → R) (c : Finset I → Rˣ)
-    (hε : ε ∅ = 1) (htrivial : ∀ g : G, χ ∅ g = 1)
-    (hnonempty : ∀ S : Finset I, S.Nonempty → ∃ g : G, χ S g ≠ 1) :
-    (∑ S : Finset I, ε S * (∑ g : G, χ S g) * ↑((c S)⁻¹)) =
-      (Fintype.card G : R) * ↑((c ∅)⁻¹) :=
-  subset_character_sum_mul χ ε (fun S => ↑((c S)⁻¹)) hε htrivial hnonempty
-
 end SubsetSum
-
-/-- In a field, the same collapse is expressed using division. No
-nonvanishing assumption on nonempty-subset denominators is needed. -/
-theorem subset_character_sum_div
-    {I : Type uI} {G : Type uG} {K : Type uK} [Fintype I] [DecidableEq I] [Group G] [Fintype G] [Field K]
-    (χ : Finset I → G →* K) (ε c : Finset I → K)
-    (hε : ε ∅ = 1) (htrivial : ∀ g : G, χ ∅ g = 1)
-    (hnonempty : ∀ S : Finset I, S.Nonempty → ∃ g : G, χ S g ≠ 1) :
-    (∑ S : Finset I, ε S * (∑ g : G, χ S g) / c S) =
-      (Fintype.card G : K) / c ∅ := by
-  simpa only [div_eq_mul_inv] using
-    subset_character_sum_mul χ ε (fun S => (c S)⁻¹) hε htrivial hnonempty
 
 section Residue
 
@@ -8339,53 +7632,6 @@ theorem residue_odd_mul_unit_inv_ne_zero (φ : R →+* k) {n : ℕ}
   rw [map_mul, map_natCast,
     natCast_eq_one_of_odd_of_two_eq_zero hn (CharTwo.two_eq_zero (R := k)), one_mul]
   exact (IsUnit.map φ (c⁻¹).isUnit).ne_zero
-
-/-- The weighted sum is nonzero after reduction when the finite group has
-odd order and the empty-subset denominator is the specified unit. -/
-theorem residue_subset_character_sum_ne_zero
-    {I : Type uI} {G : Type uG} [Fintype I] [DecidableEq I] [Group G] [Fintype G] [IsDomain R]
-    (φ : R →+* k) (χ : Finset I → G →* R)
-    (ε : Finset I → R) (c : Finset I → Rˣ)
-    (hε : ε ∅ = 1) (htrivial : ∀ g : G, χ ∅ g = 1)
-    (hnonempty : ∀ S : Finset I, S.Nonempty → ∃ g : G, χ S g ≠ 1)
-    (hodd : Odd (Fintype.card G)) :
-    φ (∑ S : Finset I, ε S * (∑ g : G, χ S g) * ↑((c S)⁻¹)) ≠ 0 := by
-  rw [subset_character_sum_mul_unit_inv χ ε c hε htrivial hnonempty]
-  exact residue_odd_mul_unit_inv_ne_zero φ hodd (c ∅)
-
-/-- The residue of the actual `J` expression is nonzero. Only the denominator
-at the surviving empty subset needs to be a unit; the other coefficients are
-arbitrary because their character evaluations vanish. -/
-theorem residue_subset_evaluate_J_ne_zero
-    {I : Type uI} {A : Type uA} [Fintype I] [DecidableEq I] [CommRing A] [IsDomain R]
-    {n : ℕ} [NeZero n] (φ : A →+* R) (residue : R →+* k)
-    (χ : Finset I → Multiplicative (ZMod n) →* R)
-    (ε d : Finset I → R) (c₀ : Rˣ)
-    (hε : ε ∅ = 1) (htrivial : χ ∅ = 1)
-    (hnonempty : ∀ S : Finset I, S.Nonempty →
-      ∃ g : Multiplicative (ZMod n), χ S g ≠ 1)
-    (hd : d ∅ = ↑(c₀⁻¹)) (hodd : Odd n) :
-    residue (∑ S : Finset I, ε S * CyclicRing.evaluate φ (χ S)
-      (AddMonoidAlgebra.ofCoeff (BinaryCoefficients.JOver A) : CyclicRing.Elem A n) * d S) ≠ 0 := by
-  rw [subset_evaluate_J_mul φ χ ε d hε htrivial hnonempty, hd]
-  exact residue_odd_mul_unit_inv_ne_zero residue hodd c₀
-
-/-- Localization and residue reduction may follow the domain-valued
-character-sum proof. Only the empty-subset coefficient is constrained. -/
-theorem residue_subset_map_evaluate_J_ne_zero
-    {I : Type uI} {A : Type uA} {B : Type uB} [Fintype I] [DecidableEq I] [CommRing A]
-    [CommRing B] [IsDomain B] {n : ℕ} [NeZero n]
-    (φ : A →+* B) (ψ : B →+* R) (residue : R →+* k)
-    (χ : Finset I → Multiplicative (ZMod n) →* B)
-    (ε d : Finset I → R) (c₀ : Rˣ)
-    (hε : ε ∅ = 1) (htrivial : χ ∅ = 1)
-    (hnonempty : ∀ S : Finset I, S.Nonempty →
-      ∃ g : Multiplicative (ZMod n), χ S g ≠ 1)
-    (hd : d ∅ = ↑(c₀⁻¹)) (hodd : Odd n) :
-    residue (∑ S : Finset I, ε S * ψ (CyclicRing.evaluate φ (χ S)
-      (AddMonoidAlgebra.ofCoeff (BinaryCoefficients.JOver A) : CyclicRing.Elem A n)) * d S) ≠ 0 := by
-  rw [subset_map_evaluate_J_mul φ ψ χ ε d hε htrivial hnonempty, hd]
-  exact residue_odd_mul_unit_inv_ne_zero residue hodd c₀
 
 end Residue
 
@@ -8403,22 +7649,6 @@ theorem actual_subsetCharacter_nontrivial (u : ℕ) (hu : 0 < u)
 
 variable (u : ℕ) [NeZero (u ^ 2)] (hu : 0 < u)
 
-/-- The actual empty-subset evaluation of `J` is the order `u²`. -/
-theorem actual_subsetEvaluation_J_empty :
-    subsetEvaluation u hu ∅
-      (AddMonoidAlgebra.ofCoeff (BinaryCoefficients.JOver GaussianRing) : CyclicRing.Elem GaussianRing (u ^ 2)) =
-      (u ^ 2 : ℕ) := by
-  simp only [subsetEvaluation, subsetCharacter_empty, evaluate_J_trivial]
-
-/-- Every actual nonempty-subset evaluation of `J` vanishes. No
-nontrivial-character hypothesis is an input to this theorem. -/
-theorem actual_subsetEvaluation_J_nonempty
-    (S : Finset (PrimeIndex u)) (hS : S.Nonempty) :
-    subsetEvaluation u hu S
-      (AddMonoidAlgebra.ofCoeff (BinaryCoefficients.JOver GaussianRing) : CyclicRing.Elem GaussianRing (u ^ 2)) = 0 := by
-  exact evaluate_J_eq_zero (gaussianToB u).toRingHom (subsetCharacter u hu S)
-    (actual_subsetCharacter_nontrivial u hu S hS)
-
 /-- The actual prime-subset sum, with the literal parity signs. The target
 may be a localization: its coefficients need not belong to the original `B`. -/
 theorem actual_subset_J_sum
@@ -8431,18 +7661,6 @@ theorem actual_subset_J_sum
   exact subset_map_evaluate_J_mul (gaussianToB u).toRingHom ψ
     (subsetCharacter u hu) (fun S => (subsetSign S : T)) d (by simp)
     (subsetCharacter_empty u hu) (actual_subsetCharacter_nontrivial u hu)
-
-/-- In a field the concrete sum is exactly `|P| / c_empty`, with
-`|P| = u²`. Values at every nonempty subset were proved zero using its
-actual primitive primary component. -/
-theorem actual_subset_J_sum_div
-    {K : Type uK} [Field K] (ψ : B u →+* K)
-    (c : Finset (PrimeIndex u) → K) :
-    (∑ S : Finset (PrimeIndex u), (subsetSign S : K) *
-      ψ (subsetEvaluation u hu S
-        (AddMonoidAlgebra.ofCoeff (BinaryCoefficients.JOver GaussianRing) : CyclicRing.Elem GaussianRing (u ^ 2))) /
-      c S) = ((u ^ 2 : ℕ) : K) / c ∅ := by
-  simpa only [div_eq_mul_inv] using actual_subset_J_sum u hu ψ (fun S => (c S)⁻¹)
 
 /-- The concrete prime-character sum has nonzero characteristic-two residue.
 Oddness comes from the actual `u`; only the surviving denominator must be a
@@ -8655,16 +7873,6 @@ theorem exists_prime_power_of_residue_one {p : ℕ} [CharP K p]
   · rw [← pow_mul, ← hNm]
     exact hpow
 
-/-- The exact order is a power of the residue characteristic, including
-the zeroth power for the identity element. -/
-theorem orderOf_eq_prime_power_of_residue_one {p : ℕ} [CharP K p]
-    (f : R →+* K) (z : R) (hp : p.Prime) (hmap : f z = 1)
-    (hfinite : IsOfFinOrder z) : ∃ a : ℕ, orderOf z = p ^ a := by
-  obtain ⟨a, ha⟩ := exists_prime_power_of_residue_one f z hp hmap
-    hfinite.exists_pow_eq_one
-  obtain ⟨b, _, hb⟩ := (Nat.dvd_prime_pow hp).mp (orderOf_dvd_of_pow_eq_one ha)
-  exact ⟨b, hb⟩
-
 /-- The characteristic-two consequence needed for the two alternating
 products: a unit of odd torsion exponent and residue one equals one. -/
 theorem units_eq_one_of_residue_one_of_odd [CharP K 2]
@@ -8760,25 +7968,6 @@ theorem binary_one_add_i_ne_zero (i : O) (hi : i ^ 2 = -1)
 section Domain
 
 variable [IsDomain O]
-
-/-- The displayed coefficient is the unique coefficient along `2`. -/
-theorem binaryLr_unique (c d : Oˣ) (a b L : O)
-    (hc : (c : O) = a + b) (hd : (d : O) = a - b)
-    (h2 : (2 : O) ≠ 0)
-    (hL : ((d * c⁻¹ : Oˣ) : O) = 1 + (2 : O) * L) :
-    L = binaryLr c b := by
-  apply mul_left_cancel₀ h2
-  exact add_left_cancel (hL.symm.trans (binary_ratio_r c d a b hc hd))
-
-/-- The displayed coefficient is the unique coefficient along `1 + i`. -/
-theorem binaryLw_unique (c g : Oˣ) (a b J U i L : O)
-    (hc : (c : O) = a + b)
-    (hg : (g : O) = a + i * b - ((1 + i) * J + 2 * U))
-    (hi : i ^ 2 = -1) (h2 : (2 : O) ≠ 0)
-    (hL : ((g * c⁻¹ : Oˣ) : O) = 1 + (1 + i) * L) :
-    L = binaryLw c i b J U := by
-  apply mul_left_cancel₀ (binary_one_add_i_ne_zero i hi h2)
-  exact add_left_cancel (hL.symm.trans (binary_ratio_w c g a b J U i hc hg hi))
 
 end Domain
 
@@ -9111,29 +8300,6 @@ universe uR uK
 
 namespace CirculantHadamard
 
-/-- If every maximal ideal admits a denominator outside it taking `z` into the
-base ring's image, then `z` itself lies in that image. -/
-theorem exists_base_of_local_denominators
-    {R : Type uR} {K : Type uK} [CommRing R] [CommRing K] [Algebra R K]
-    (z : K)
-    (hz : ∀ m : MaximalSpectrum R, ∃ a s : R,
-      s ∉ m.asIdeal ∧ algebraMap R K s * z = algebraMap R K a) :
-    ∃ r : R, algebraMap R K r = z := by
-  classical
-  by_contra h
-  let denom : Ideal R :=
-    (1 : Submodule R K).comap (LinearMap.toSpanSingleton R K z)
-  have hdenom : (1 : R) ∉ denom := by
-    simpa [denom] using h
-  obtain ⟨m, hm, hle⟩ :=
-    denom.exists_le_maximal (denom.ne_top_iff_one.mpr hdenom)
-  obtain ⟨a, s, hs, hsa⟩ := hz ⟨m, hm⟩
-  apply hs
-  apply hle
-  change s • z ∈ (1 : Submodule R K)
-  apply Submodule.mem_one.mpr
-  exact ⟨a, by simpa only [Algebra.smul_def] using hsa.symm⟩
-
 section FractionField
 
 variable {R : Type uR} {K : Type uK} [CommRing R] [IsDomain R] [Field K]
@@ -9204,10 +8370,6 @@ namespace ResidueOneAssociated
 
 variable {residue : S →+* k} {x y z c x' y' : S}
 
-theorem refl (residue : S →+* k) (x : S) :
-    ResidueOneAssociated residue x x := by
-  exact ⟨1, by simp, by simp⟩
-
 theorem symm (h : ResidueOneAssociated residue x y) :
     ResidueOneAssociated residue y x := by
   obtain ⟨u, hxy, hu⟩ := h
@@ -9222,29 +8384,12 @@ theorem trans (hxy : ResidueOneAssociated residue x y)
   · simp only [Units.val_mul, hxy, hyz, mul_assoc]
   · simp only [Units.val_mul, map_mul, hu, hv, one_mul]
 
-theorem residue_eq (h : ResidueOneAssociated residue x y) : residue x = residue y := by
-  obtain ⟨u, hxy, hu⟩ := h
-  rw [hxy, map_mul, hu, one_mul]
-
 theorem mul_left (h : ResidueOneAssociated residue x y) (c : S) :
     ResidueOneAssociated residue (c * x) (c * y) := by
   obtain ⟨u, hxy, hu⟩ := h
   refine ⟨u, ?_, hu⟩
   rw [hxy]
   ac_rfl
-
-/-- A common regular scalar can be cancelled even if the ambient ring has
-zero divisors. This is the form used when comparing scalar-divided factors. -/
-theorem mul_left_iff (residue : S →+* k) (hc : IsLeftRegular c) :
-    ResidueOneAssociated residue (c * x) (c * y) ↔
-      ResidueOneAssociated residue x y := by
-  constructor
-  · rintro ⟨u, hxy, hu⟩
-    refine ⟨u, hc ?_, hu⟩
-    calc
-      c * x = (u : S) * (c * y) := hxy
-      _ = c * ((u : S) * y) := by ac_rfl
-  · exact fun h => h.mul_left c
 
 theorem mul (h : ResidueOneAssociated residue x y)
     (h' : ResidueOneAssociated residue x' y') :
@@ -9277,11 +8422,6 @@ theorem product_complement [IsDomain S] (h : ResidueOneAssociated residue x y)
     ResidueOneAssociated residue x' y' := by
   have hy : y ≠ 0 := fun hz => hne (by rw [hz, zero_mul])
   exact h.product_complement_of_regular hprod (fun _ _ h => mul_left_cancel₀ hy h)
-
-theorem mul_left_iff_of_ne_zero [IsDomain S] (residue : S →+* k) (hc : c ≠ 0) :
-    ResidueOneAssociated residue (c * x) (c * y) ↔
-      ResidueOneAssociated residue x y :=
-  mul_left_iff residue (fun _ _ h => mul_left_cancel₀ hc h)
 
 /-- Two units with the same residue differ by a unit with residue one. -/
 theorem of_isUnit_of_residue_eq (residue : S →+* k)
@@ -9352,15 +8492,6 @@ theorem isDiscreteValuationRing_of_maximalIdeal_eq_span {π : R}
   have hprincipal : (IsLocalRing.maximalIdeal R).IsPrincipal := ⟨⟨π, hspan⟩⟩
   exact ((IsDiscreteValuationRing.TFAE R hfield).out 4 0).mp hprincipal
 
-/-- The actual chosen generator factors every nonzero element into a unit
-times a natural power. -/
-theorem eq_unit_mul_pow_of_maximalIdeal_eq_span {π x : R}
-    (hπ : π ≠ 0) (hspan : IsLocalRing.maximalIdeal R = Ideal.span {π}) (hx : x ≠ 0) :
-    ∃ (n : ℕ) (u : Rˣ), x = (u : R) * π ^ n := by
-  let : IsDiscreteValuationRing R :=
-    isDiscreteValuationRing_of_maximalIdeal_eq_span hπ hspan
-  exact eq_unit_mul_pow_irreducible hx ((irreducible_iff_uniformizer π).mpr hspan)
-
 end PrincipalMaximalIdeal
 
 section Valuation
@@ -9372,13 +8503,6 @@ theorem addVal_eq_of_unit_mul_uniformizer_pow {π p : R} {u : Rˣ} {D : ℕ}
     (hspan : IsLocalRing.maximalIdeal R = Ideal.span {π}) (hp : p = (u : R) * π ^ D) :
     addVal R p = (D : ℕ∞) :=
   addVal_def p u ((irreducible_iff_uniformizer π).mpr hspan) D hp
-
-/-- Right-unit version, convenient for the factorization of a rational prime. -/
-theorem addVal_eq_of_uniformizer_pow_mul_unit {π p b : R} {D : ℕ}
-    (hspan : IsLocalRing.maximalIdeal R = Ideal.span {π}) (hb : IsUnit b)
-    (hp : p = π ^ D * b) : addVal R p = (D : ℕ∞) := by
-  obtain ⟨u, rfl⟩ := hb
-  exact addVal_eq_of_unit_mul_uniformizer_pow hspan (hp.trans (mul_comm _ _))
 
 private theorem finite_add_eq {a b : ℕ∞} {N : ℕ} (h : a + b = (N : ℕ∞)) :
     ∃ m n : ℕ, a = (m : ℕ∞) ∧ b = (n : ℕ∞) ∧ m + n = N := by
@@ -9417,23 +8541,6 @@ theorem dvd_or_dvd_of_mul_eq_pow_mul_unit {p x y b : R} {D e : ℕ}
     apply addVal_le_iff_dvd.mp
     rw [hpval, hn]
     exact_mod_cast hy
-
-/-- A product with valuation one has a unit factor. This is the unramified
-base case of the integral division argument. -/
-theorem isUnit_or_isUnit_of_mul_eq_uniformizer_mul_unit {p x y b : R}
-    (hpval : addVal R p = 1) (hb : IsUnit b) (hxy : x * y = p * b) :
-    IsUnit x ∨ IsUnit y := by
-  have hv := congrArg (addVal R) hxy
-  rw [addVal_mul, addVal_mul, hpval, addVal_eq_zero_iff.mpr hb, add_zero] at hv
-  obtain ⟨m, n, hm, hn, hmn⟩ := finite_add_eq (N := 1) hv
-  have hsplit : m = 0 ∨ n = 0 := by omega
-  rcases hsplit with hx | hy
-  · left
-    apply addVal_eq_zero_iff.mp
-    simpa only [hx, Nat.cast_zero] using hm
-  · right
-    apply addVal_eq_zero_iff.mp
-    simpa only [hy, Nat.cast_zero] using hn
 
 end Valuation
 
@@ -9488,9 +8595,6 @@ def powerBasis (hη : IsPrimitiveRoot eta L) (hL : 0 < L) :
 
 theorem order_finite (hη : IsPrimitiveRoot eta L) (hL : 0 < L) :
     Module.Finite ℤ (Order eta) := (powerBasis hη hL).finite
-
-theorem order_free (hη : IsPrimitiveRoot eta L) (hL : 0 < L) :
-    Module.Free ℤ (Order eta) := Module.Free.of_basis (powerBasis hη hL).basis
 
 theorem order_noetherian (hη : IsPrimitiveRoot eta L) (hL : 0 < L) :
     IsNoetherianRing (Order eta) := by
@@ -9627,12 +8731,6 @@ theorem maximalIdeal_eq_span (hη : IsPrimitiveRoot eta L) (hp : p.Prime)
     Int.cast_natCast] using
     hmap.symm
 
-theorem prime_not_isUnit (m : Ideal (Order eta)) [m.IsMaximal]
-    (hpm : (p : Order eta) ∈ m) : ¬ IsUnit (p : Local eta m) := by
-  have hmem := (IsLocalization.AtPrime.to_map_mem_maximal_iff (Local eta m) m
-    (p : Order eta)).mpr hpm
-  simpa only [map_natCast, IsLocalRing.mem_maximalIdeal, mem_nonunits_iff] using hmem
-
 /-- The concrete unramified localization is a discrete valuation ring. -/
 theorem isDiscreteValuationRing (hη : IsPrimitiveRoot eta L) (hp : p.Prime)
     (hpL : ¬ p ∣ L) (m : Ideal (Order eta)) [m.IsMaximal]
@@ -9734,12 +8832,6 @@ theorem awayLocal_prime_ne_zero (u p : ℕ) (hp : p ∈ u.primeFactors)
     (m : Ideal (B u)) [m.IsPrime] : (p : AwayLocal u p m) ≠ 0 :=
   Nat.cast_ne_zero.mpr (Nat.prime_of_mem_primeFactors hp).ne_zero
 
-theorem awayLocal_prime_not_isUnit (u p : ℕ) (m : Ideal (B u)) [m.IsMaximal]
-    (hpm : (p : B u) ∈ m) : ¬ IsUnit (p : AwayLocal u p m) := by
-  have hmem := (IsLocalization.AtPrime.to_map_mem_maximal_iff (AwayLocal u p m)
-    (awayPrime u p m) (p : awayRing u p)).mpr (prime_mem_awayPrime u p m hpm)
-  simpa only [map_natCast, IsLocalRing.mem_maximalIdeal, mem_nonunits_iff] using hmem
-
 theorem awayLocal_isDiscreteValuationRing (u p : ℕ) (hu : Odd u)
     (hp : p ∈ u.primeFactors) (m : Ideal (B u)) [m.IsMaximal]
     (hpm : (p : B u) ∈ m) : IsDiscreteValuationRing (AwayLocal u p m) :=
@@ -9775,9 +8867,6 @@ def cyclicProjection (h : m ∣ n) : Elem R n →+* Elem R m :=
 
 variable {R}
 
-theorem cyclicProjection_apply (h : m ∣ n) (F : Elem R n) :
-    cyclicProjection R h F = AddMonoidAlgebra.mapDomain (ZMod.castHom h (ZMod m)) F := rfl
-
 @[simp] theorem cyclicProjection_single (h : m ∣ n) (a : ZMod n) (r : R) :
     cyclicProjection R h (AddMonoidAlgebra.single a r) =
       AddMonoidAlgebra.single (ZMod.castHom h (ZMod m) a) r :=
@@ -9805,21 +8894,6 @@ theorem cyclicProjection_apply (h : m ∣ n) (F : Elem R n) :
   apply AddMonoidAlgebra.coeff_injective
   change Finsupp.mapDomain (ZMod.castHom (dvd_refl n) (ZMod n)) F.coeff = F.coeff
   simp [ZMod.castHom_self]
-
-theorem cyclicProjection_comp (h₁ : l ∣ m) (h₂ : m ∣ n) (F : Elem R n) :
-    cyclicProjection R h₁ (cyclicProjection R h₂ F) =
-      cyclicProjection R (dvd_trans h₁ h₂) F := by
-  apply AddMonoidAlgebra.coeff_injective
-  change Finsupp.mapDomain (ZMod.castHom h₁ (ZMod l))
-      (Finsupp.mapDomain (ZMod.castHom h₂ (ZMod m)) F.coeff) =
-    Finsupp.mapDomain (ZMod.castHom (dvd_trans h₁ h₂) (ZMod l)) F.coeff
-  rw [← Finsupp.mapDomain_comp]
-  have hcomp : (ZMod.castHom h₁ (ZMod l) : ZMod m → ZMod l) ∘
-      (ZMod.castHom h₂ (ZMod m) : ZMod n → ZMod m) =
-      (ZMod.castHom (dvd_trans h₁ h₂) (ZMod l) : ZMod n → ZMod l) :=
-    congrArg (fun f : ZMod n →+* ZMod l => (f : ZMod n → ZMod l))
-      (ZMod.castHom_comp h₁ h₂)
-  rw [hcomp]
 
 /-- Any additive coefficient evaluation factors through the quotient exactly
 when its index function is pulled back along reduction. -/
@@ -9893,35 +8967,6 @@ section DivisionExists
 
 variable {R : Type uR} {G : Type uG} [CommRing R] [AddMonoid G] [finiteG : Finite G]
 
-/-- Coefficientwise divisibility produces an actual element of the finite
-group algebra whose scalar multiple is the original element. -/
-theorem scalar_division_exists (p : R) (F : AddMonoidAlgebra R G)
-    (hF : ∀ g, p ∣ F.coeff g) :
-    ∃ F' : AddMonoidAlgebra R G, F = AddMonoidAlgebra.single (0 : G) p * F' := by
-  classical
-  let d : G → R := fun g => Classical.choose (hF g)
-  refine ⟨AddMonoidAlgebra.ofCoeff (Finsupp.equivFunOnFinite.symm d), ?_⟩
-  apply AddMonoidAlgebra.coeff_injective
-  apply Finsupp.ext
-  intro g
-  rw [AddMonoidAlgebra.coeff_single_zero_mul]
-  exact Classical.choose_spec (hF g)
-
-/-- Multiplication by a scalar makes every coefficient divisible by that scalar. -/
-theorem scalar_division_coefficients [Finite G] (p : R) (F : AddMonoidAlgebra R G) :
-    ∀ g, p ∣ (AddMonoidAlgebra.single (0 : G) p * F).coeff g := by
-  intro g
-  rw [AddMonoidAlgebra.coeff_single_zero_mul]
-  exact dvd_mul_right p (F.coeff g)
-
-theorem scalar_division_iff (p : R) (F : AddMonoidAlgebra R G) :
-    (∀ g, p ∣ F.coeff g) ↔
-      ∃ F' : AddMonoidAlgebra R G, F = AddMonoidAlgebra.single (0 : G) p * F' := by
-  constructor
-  · exact scalar_division_exists p F
-  · rintro ⟨F', rfl⟩
-    exact scalar_division_coefficients p F'
-
 end DivisionExists
 
 section Cancellation
@@ -9940,18 +8985,6 @@ theorem scalar_mul_left_cancel (p : R) (hp : p ≠ 0)
   apply mul_left_cancel₀ hp
   simpa only [AddMonoidAlgebra.coeff_single_zero_mul] using
     congrArg (fun H : AddMonoidAlgebra R G => H.coeff g) h
-
-theorem scalar_mul_left_injective (p : R) (hp : p ≠ 0) :
-    Function.Injective
-      (fun F : AddMonoidAlgebra R G => AddMonoidAlgebra.single (0 : G) p * F) :=
-  fun _ _ h => scalar_mul_left_cancel p hp h
-
-/-- The element obtained by coefficientwise division is unique. -/
-theorem scalar_division_unique (p : R) (hp : p ≠ 0)
-    {F F₁ F₂ : AddMonoidAlgebra R G}
-    (h₁ : F = AddMonoidAlgebra.single (0 : G) p * F₁)
-    (h₂ : F = AddMonoidAlgebra.single (0 : G) p * F₂) : F₁ = F₂ :=
-  scalar_mul_left_cancel p hp (h₁.symm.trans h₂)
 
 /-- Cancelling one regular scalar lowers the exponent of the norm equation
 by exactly one. This is valid although the group algebra has zero divisors. -/
@@ -10041,20 +9074,6 @@ theorem isUnit_or_isUnit_of_mul_prime_unit {p x y : A} (hp : Prime p)
         _ = x * y := by rw [← hz]
         _ = p * (b : A) := hxy
     exact Or.inl (isUnit_of_mul_isUnit_left (hxz.symm ▸ b.isUnit))
-
-/-- Both augmentations in the comparison theorem are nonzero. -/
-theorem augmentation_ne_zero_of_scalar_product {p : ℕ} {e : ℕ}
-    (hp : (p : A) ≠ 0) (b : Aˣ) (F K : Elem A (p ^ e))
-    (hFK : F * K = scalar (p ^ e) ((p : A) ^ e * (b : A))) :
-    augmentation (p ^ e) F ≠ 0 ∧ augmentation (p ^ e) K ≠ 0 := by
-  have haug : augmentation (p ^ e) F * augmentation (p ^ e) K =
-      (p : A) ^ e * (b : A) := by
-    simpa only [map_mul, augmentation_scalar] using
-      congrArg (augmentation (p ^ e)) hFK
-  have hne : augmentation (p ^ e) F * augmentation (p ^ e) K ≠ 0 := by
-    rw [haug]
-    exact mul_ne_zero (pow_ne_zero _ hp) b.ne_zero
-  exact mul_ne_zero_iff.mp hne
 
 /-- The exponent-one base case, using the actual residue field of `S`. -/
 theorem comparison_base (n p : ℕ) (φ : A →+* S) (hp : Prime (p : A))
@@ -10300,30 +9319,6 @@ theorem evaluateAt_apply (n : ℕ) [NeZero n] (x : S) (hx : x ^ n = 1)
     evaluateAt n (1 : S) (one_pow n) f = algebraMap A S (augmentation n f) := by
   simp [evaluateAt_apply, augmentation_apply, map_sum]
 
-/-- Naturality under an algebra homomorphism that sends the chosen root to the
-chosen target root.  Both root equations remain explicit proved hypotheses. -/
-theorem map_evaluateAt_hom (n : ℕ) [NeZero n]
-    (x : S) (hx : x ^ n = 1) (y : T) (hy : y ^ n = 1)
-    (ψ : S →ₐ[A] T) (hxy : ψ x = y) :
-    ψ.comp (evaluateAt n x hx) = evaluateAt n y hy := by
-  apply AddMonoidAlgebra.algHom_ext
-  · intro a
-    simp [AlgHom.comp_apply, evaluateAt_single, hxy]
-  · exact Subsingleton.elim _ _
-
-theorem map_evaluateAt (n : ℕ) [NeZero n]
-    (x : S) (hx : x ^ n = 1) (y : T) (hy : y ^ n = 1)
-    (ψ : S →ₐ[A] T) (hxy : ψ x = y) (f : Elem A n) :
-    ψ (evaluateAt n x hx f) = evaluateAt n y hy f :=
-  DFunLike.congr_fun (map_evaluateAt_hom n x hx y hy ψ hxy) f
-
-/-- In particular, a residue map sending the root to one sends evaluation to
-the residue of augmentation. -/
-theorem map_evaluateAt_of_map_eq_one (n : ℕ) [NeZero n]
-    (x : S) (hx : x ^ n = 1) (ψ : S →ₐ[A] T) (hx1 : ψ x = 1) (f : Elem A n) :
-    ψ (evaluateAt n x hx f) = algebraMap A T (augmentation n f) := by
-  rw [map_evaluateAt n x hx 1 (one_pow n) ψ hx1, evaluateAt_one]
-
 end CirculantHadamard.CyclicRing
 
 end
@@ -10376,19 +9371,6 @@ theorem map_dvd_iff_C_dvd_modByMonic (h : IsAdjoinRootMonic S f)
     (a : R) (F : R[X]) :
     algebraMap R S a ∣ h.map F ↔ C a ∣ F %ₘ f :=
   ⟨C_dvd_modByMonic_of_dvd_map h a F, dvd_map_of_C_dvd_modByMonic h a F⟩
-
-/-- Scalar divisibility is equivalent to divisibility of every coefficient
-of the canonical remainder. -/
-theorem map_dvd_iff_dvd_coeff_modByMonic (h : IsAdjoinRootMonic S f)
-    (a : R) (F : R[X]) :
-    algebraMap R S a ∣ h.map F ↔ ∀ i, a ∣ (F %ₘ f).coeff i :=
-  (map_dvd_iff_C_dvd_modByMonic h a F).trans (C_dvd_iff_dvd_coeff a (F %ₘ f))
-
-/-- Coefficient form of the forward divisibility bridge. -/
-theorem dvd_coeff_modByMonic_of_dvd_map (h : IsAdjoinRootMonic S f)
-    (a : R) (F : R[X]) (hdiv : algebraMap R S a ∣ h.map F) (i : ℕ) :
-    a ∣ (F %ₘ f).coeff i :=
-  (map_dvd_iff_dvd_coeff_modByMonic h a F).mp hdiv i
 
 /-- The actual quotient by a monic polynomial satisfies the constant-factor
 criterion, using its concrete `IsAdjoinRootMonic` constructor. -/
@@ -10729,22 +9711,6 @@ theorem cyclotomic_irreducible (hp : p.Prime) (k : ℕ)
   change Irreducible ((cyclotomic (p ^ (k + 1)) A).comp (X + C (1 : A)))
   simpa only [shifted, C_1] using shifted_irreducible A hp k hmax
 
-/-- Modulo the maximal ideal, the translated polynomial is exactly a pure power. -/
-theorem mod_maximal_shifted (hp : p.Prime) (k : ℕ)
-    (hmax : IsLocalRing.maximalIdeal A = Ideal.span {(p : A)}) :
-    (shifted A p k).map (Ideal.Quotient.mk (IsLocalRing.maximalIdeal A)) =
-      (X : (A ⧸ IsLocalRing.maximalIdeal A)[X]) ^ ((p - 1) * p ^ k) := by
-  ext i
-  rw [coeff_map, coeff_X_pow]
-  by_cases hi : i = (p - 1) * p ^ k
-  · subst i
-    rw [if_pos rfl, ← shifted_natDegree A hp k,
-      (shifted_monic A p k).coeff_natDegree, map_one]
-  · rw [if_neg hi]
-    apply Ideal.Quotient.eq_zero_iff_mem.mpr
-    apply (shifted_isEisensteinAt A hp k hmax).coeff_mem
-    simpa only [shifted_natDegree A hp k] using hi
-
 end Local
 
 section DVR
@@ -10760,23 +9726,6 @@ theorem cyclotomic_adjoinRoot_isDomain (hp : p.Prime) (k : ℕ)
     (hmax : IsLocalRing.maximalIdeal A = Ideal.span {(p : A)}) :
     IsDomain (AdjoinRoot (cyclotomic (p ^ (k + 1)) A)) :=
   AdjoinRoot.isDomain_of_prime (cyclotomic_prime A hp k hmax)
-
-/-- The minimal polynomial equality is for the actual primitive root in a
-faithful domain extension, not merely for the formal quotient root. -/
-theorem cyclotomic_eq_minpoly (hp : p.Prime) (k : ℕ)
-    (hmax : IsLocalRing.maximalIdeal A = Ideal.span {(p : A)}) {B : Type uB} [CommRing B] [IsDomain B]
-    [Algebra A B] [NoZeroSMulDivisors A B] {ξ : B}
-    (hξ : IsPrimitiveRoot ξ (p ^ (k + 1))) :
-    cyclotomic (p ^ (k + 1)) A = minpoly A ξ := by
-  have hroot : aeval ξ (cyclotomic (p ^ (k + 1)) A) = 0 := by
-    rw [aeval_def, eval₂_eq_eval_map, map_cyclotomic, ← IsRoot.def]
-    exact hξ.isRoot_cyclotomic (pow_pos hp.pos (k + 1))
-  have hi : IsIntegral A ξ := ⟨_, cyclotomic.monic _ A, hroot⟩
-  have hd : minpoly A ξ ∣ cyclotomic (p ^ (k + 1)) A :=
-    minpoly.isIntegrallyClosed_dvd hi hroot
-  exact Polynomial.eq_of_monic_of_associated (cyclotomic.monic _ A) (minpoly.monic hi)
-    ((minpoly.irreducible hi).associated_of_dvd
-      (cyclotomic_irreducible A hp k hmax) hd).symm
 
 end DVR
 
@@ -10998,19 +9947,6 @@ theorem maximalIdeal_eq_span (hp : p.Prime) (k : ℕ)
     IsLocalRing.maximalIdeal (Extension A p k) = Ideal.span {uniformizer A p k} :=
   maximal_eq_span_uniformizer A hp k hmax _
 
-theorem root_residue_eq_one (hp : p.Prime) (k : ℕ)
-    (hmax : IsLocalRing.maximalIdeal A = Ideal.span {(p : A)})
-    [IsLocalRing (Extension A p k)] :
-    Ideal.Quotient.mk (IsLocalRing.maximalIdeal (Extension A p k))
-      (AdjoinRoot.root (cyclotomic (p ^ (k + 1)) A)) = 1 := by
-  apply sub_eq_zero.mp
-  rw [← map_one (Ideal.Quotient.mk (IsLocalRing.maximalIdeal (Extension A p k))),
-    ← map_sub]
-  apply Ideal.Quotient.eq_zero_iff_mem.mpr
-  change uniformizer A p k ∈ IsLocalRing.maximalIdeal (Extension A p k)
-  rw [maximalIdeal_eq_span A hp k hmax]
-  exact Ideal.subset_span (Set.mem_singleton _)
-
 theorem exists_unit_mul_uniformizer_pow (hp : p.Prime) (k : ℕ)
     (hmax : IsLocalRing.maximalIdeal A = Ideal.span {(p : A)})
     [IsLocalRing (Extension A p k)] :
@@ -11210,14 +10146,6 @@ theorem local_character_comparison (p : ℕ) [NeZero p] (hp : p.Prime)
     apply (IsLocalRing.residue_eq_zero_iff _).mp
     rw [map_sub, hres, map_one, sub_self]
   exact ⟨toCompared hc.1, toCompared hc.2⟩
-
-/-- The augmentation denominators used in the corresponding ratio statement
-are nonzero in the coefficient DVR. -/
-theorem local_character_comparison_denominators [IsDiscreteValuationRing A] (p : ℕ) (hp : p.Prime)
-    (e : ℕ) (b : Aˣ) (F K : Elem A (p ^ (e + 1)))
-    (hFK : F * K = scalar (p ^ (e + 1)) ((p : A) ^ (e + 1) * (b : A))) :
-    augmentation (p ^ (e + 1)) F ≠ 0 ∧ augmentation (p ^ (e + 1)) K ≠ 0 :=
-  augmentation_ne_zero_of_scalar_product (Nat.cast_ne_zero.mpr hp.ne_zero) b F K hFK
 
 end DVR
 
@@ -11426,22 +10354,6 @@ theorem residue_unit_eq_one_of_span {S : Type uS} {L : Type uL} [CommRing S] [Co
   change g ((v : S) - 1) = 0 at hz
   have hval : g (v : S) = 1 := sub_eq_zero.mp (by simpa only [map_sub, map_one] using hz)
   exact hval
-
-theorem map_residueOneAssociated {S : Type uS} {L : Type uL} [CommRing S] [CommRing L]
-    [IsLocalRing S] [IsLocalRing L] (f : S →+* L) (rho : S)
-    (hmax : IsLocalRing.maximalIdeal S = Ideal.span ({rho - 1} : Set S))
-    (hrho : IsLocalRing.residue L (f rho) = 1) {a b : S}
-    (hab : LocalComparison.ResidueOneAssociated (IsLocalRing.residue S) a b) :
-    LocalComparison.ResidueOneAssociated (IsLocalRing.residue L) (f a) (f b) := by
-  obtain ⟨v, hv, hres⟩ := hab
-  have hspan : (v : S) - 1 ∈ Ideal.span ({rho - 1} : Set S) := by
-    rw [← hmax]
-    apply (IsLocalRing.residue_eq_zero_iff _).mp
-    rw [map_sub, map_one, hres, sub_self]
-  refine ⟨Units.map f.toMonoidHom v, ?_,
-    residue_unit_eq_one_of_span f rho v hspan hrho⟩
-  change f a = f (v : S) * f b
-  simpa only [map_mul, Units.coe_map] using congrArg f hv
 
 end ActualComparisonMap
 
@@ -11919,12 +10831,6 @@ theorem integral {s : Set ℂ}
     Algebra.IsIntegral.adjoin (fun ζ hζ => root_integral ℤ (hroots ζ hζ))
   exact Algebra.isIntegral_def.mp hA z
 
-/-- In particular the corresponding actual complex number is integral. -/
-theorem integral_coe {s : Set ℂ}
-    (hroots : ∀ ζ ∈ s, ∃ n : ℕ, 0 < n ∧ ζ ^ n = 1)
-    (z : Ring s) : IsIntegral ℤ (z : ℂ) :=
-  map_isIntegral_int (Algebra.adjoin ℤ s).val (integral hroots z)
-
 /-- Integrality of the element after its literal inclusion into the field. -/
 theorem inclusion_integral {s : Set ℂ}
     (hroots : ∀ ζ ∈ s, ∃ n : ℕ, 0 < n ∧ ζ ^ n = 1)
@@ -12120,23 +11026,6 @@ theorem alternatingProduct_odd_torsion (u : ℕ) [NeZero (u ^ 2)]
   obtain ⟨p, hp⟩ := primes_nonempty hu
   obtain ⟨a, ha⟩ := alternatingProduct_prime_power_torsion u hu huodd x hx' ⟨p, hp⟩
   exact ⟨p ^ a, pow_pos (prime_of_mem hp).pos _, (odd_of_mem huodd hp).pow, ha⟩
-
-/-- With two distinct prime directions the single fixed product is one. -/
-theorem alternatingProduct_eq_one_of_two_primes (u : ℕ) [NeZero (u ^ 2)]
-    (hu : 1 < u) (huodd : Odd u) (x : CyclicRing.Elem GaussianRing (u ^ 2))
-    (hx : x * CyclicRing.ringStar x =
-      CyclicRing.scalar (u ^ 2) ((u ^ 2 : ℕ) : GaussianRing))
-    (p q : PrimeIndex u) (hpq : p ≠ q) :
-    alternatingValue u (lt_trans Nat.zero_lt_one hu) x = 1 := by
-  obtain ⟨a, ha⟩ := alternatingProduct_prime_power_torsion u hu huodd x hx p
-  obtain ⟨b, hb⟩ := alternatingProduct_prime_power_torsion u hu huodd x hx q
-  have hcop : Nat.Coprime (p.val ^ a) (q.val ^ b) :=
-    Nat.coprime_pow_primes a b (prime_of_mem p.property) (prime_of_mem q.property)
-      (fun h => hpq (Subtype.ext h))
-  have hd := Nat.dvd_gcd (orderOf_dvd_of_pow_eq_one ha) (orderOf_dvd_of_pow_eq_one hb)
-  have hd1 : orderOf (alternatingValue u (lt_trans Nat.zero_lt_one hu) x) ∣ 1 := by
-    simpa only [hcop.gcd_eq_one] using hd
-  exact orderOf_eq_one_iff.mp (Nat.dvd_one.mp hd1)
 
 end CirculantHadamard
 

@@ -1,141 +1,93 @@
 import FormalConjectures.Wikipedia.RamseyNumbers
 
-/-! The parity argument forces R(3,4) ≤ 9. Splitting into neighbors and
-non-neighbors gives R(4,4) ≤ 18, and the Paley graph on 17 vertices
-certifies sharpness. Credit: @Deldor14. -/
+/-! Shorter proof of R(4,4) = 18 via parity for R(3,4) ≤ 9 and the Paley(17) graph. -/
+
 open SimpleGraph Finset RamseyNumbers
 namespace OMA.Ramsey44
 
-private lemma two (l : ℕ) : IsGraphRamsey l 2 l := by
-  intro G ⟨hg,hc⟩
-  rw [cliqueFree_two] at hg
-  subst G
-  apply hc univ
-  refine ⟨?_, by simp⟩
-  intro x _ y _ h
-  simpa using h
+private lemma two (l : ℕ) : IsGraphRamsey l 2 l := fun G ⟨hg, hc⟩ => by
+  rw [cliqueFree_two] at hg; subst G
+  exact hc univ ⟨fun _ _ _ _ h => by simpa using h, by simp⟩
 
-private lemma degree_bound {V : Type*} [Fintype V] [DecidableEq V] (G : SimpleGraph V)
-    [DecidableRel G.Adj] {k l r : ℕ} (hR : IsGraphRamsey r k l)
-    (hG : G.CliqueFree (k+1)) (hGc : Gᶜ.CliqueFree l) (v : V) : G.degree v < r := by
+private lemma deg {n k l r : ℕ} (G : SimpleGraph (Fin n)) [DecidableRel G.Adj]
+    (hR : IsGraphRamsey r k l) (hG : G.CliqueFree (k + 1)) (hGc : Gᶜ.CliqueFree l) (v : Fin n) :
+    G.degree v < r := by
   classical
-  by_contra! hdeg
+  by_contra! h
   obtain ⟨e, he⟩ := Function.Embedding.exists_of_card_le_finset
-    (s := G.neighborFinset v) (α := Fin r) (by simpa using hdeg)
-  let H := G.comap e
-  let emb : H ↪g G := Embedding.comap e G
-  apply hR H
-  constructor
-  · intro s hs
-    have hs' : G.IsNClique k (s.map e) := IsNClique.mono (map_comap_le e G) hs.map
-    apply hG (insert v (s.map e))
-    apply hs'.insert
-    rintro w hw
-    obtain ⟨i,_,rfl⟩ := mem_map.mp hw
-    exact (G.mem_neighborFinset v _).mp (he ⟨i,rfl⟩)
-  · exact CliqueFree.comap (Embedding.complEquiv.toFun emb).isContained hGc
+    (s := G.neighborFinset v) (α := Fin r) (by simpa using h)
+  exact hR (G.comap e) ⟨fun s hs => hG (insert v (s.map e)) <|
+      (IsNClique.mono (map_comap_le e G) hs.map).insert fun w hw => by
+        obtain ⟨i, _, rfl⟩ := mem_map.mp hw
+        exact (G.mem_neighborFinset v _).mp (he ⟨i, rfl⟩),
+    CliqueFree.comap (Embedding.complEquiv (Embedding.comap e G)).isContained hGc⟩
 
-private lemma sym_degree {V : Type*} [Fintype V] [DecidableEq V] (G : SimpleGraph V)
-    [DecidableRel G.Adj] {k l r : ℕ} (hR : IsGraphRamsey r l k)
-    (hG : G.CliqueFree k) (hGc : Gᶜ.CliqueFree (l+1)) (v : V) :
-    Fintype.card V - 1 - G.degree v < r := by
-  classical
-  rw [← degree_compl]
-  exact degree_bound Gᶜ hR hGc (by simpa using hG) v
+private lemma sdeg {n k l r : ℕ} (G : SimpleGraph (Fin n)) [DecidableRel G.Adj]
+    (hR : IsGraphRamsey r l k) (hG : G.CliqueFree k) (hGc : Gᶜ.CliqueFree (l + 1)) (v : Fin n) :
+    n - 1 - G.degree v < r := by
+  classical have h := deg Gᶜ hR hGc (by simpa using hG) v; simpa [degree_compl] using h
 
-private lemma three_three : IsGraphRamsey 6 3 3 := by
-  intro G ⟨hG,hGc⟩
-  classical
-  have hA := degree_bound G (two 3) hG hGc 0
-  have hB := sym_degree G (two 3) hG hGc 0
-  simp only [Fintype.card_fin] at hB
-  omega
+private lemma r33 : IsGraphRamsey 6 3 3 := fun G ⟨h1, h2⟩ => by
+  classical have := deg G (two 3) h1 h2 0; have := sdeg G (two 3) h1 h2 0; omega
 
-private lemma three_four : IsGraphRamsey 9 3 4 := by
-  intro G ⟨hG,hGc⟩
+private lemma r34 : IsGraphRamsey 9 3 4 := fun G ⟨h1, h2⟩ => by
   classical
   have hd (v : Fin 9) : G.degree v = 3 := by
-    have hA := degree_bound G (two 4) hG hGc v
-    have hB := sym_degree G three_three hG hGc v
-    simp only [Fintype.card_fin] at hB
-    omega
-  have h := G.sum_degrees_eq_twice_card_edges
-  simp [hd] at h
-  omega
+    have := deg G (two 4) h1 h2 v; have := sdeg G r33 h1 h2 v; omega
+  have := G.sum_degrees_eq_twice_card_edges; simp [hd] at this; omega
 
-private lemma upper : IsGraphRamsey 18 4 4 := by
-  intro G ⟨hG,hGc⟩
-  classical
-  have hA := degree_bound G three_four hG hGc 0
-  have hB := sym_degree G three_four hG hGc 0
-  simp only [Fintype.card_fin] at hB
-  omega
+private lemma upper : IsGraphRamsey 18 4 4 := fun G ⟨h1, h2⟩ => by
+  classical have := deg G r34 h1 h2 0; have := sdeg G r34 h1 h2 0; omega
 
-private def linked (x y : Fin 17) : Bool :=
-  Nat.testBit 107286 ((17 + y.val - x.val) % 17)
+private def adj (x y : Fin 17) : Bool := Nat.testBit 107286 ((17 + y.val - x.val) % 17)
 
 private def P : SimpleGraph (Fin 17) where
-  Adj x y := linked x y = true
-  symm := by
-    have h : ∀ x y : Fin 17, linked x y = linked y x := by decide +kernel
-    constructor
-    intro x y hx; rwa [← h]
-  loopless := ⟨by
-    intro x
-    have h : ∀ y : Fin 17, linked y y = false := by decide +kernel
+  Adj x y := adj x y = true
+  symm := ⟨by
+    have h : ∀ x y, adj x y = adj y x := by decide +kernel
+    intro x y hx; rwa [← h]⟩
+  loopless := ⟨fun x => by
+    have h : ∀ y, adj y y = false := by decide +kernel
     simp [h]⟩
 
-private def search {V : Type*} [LinearOrder V] (adj : V → V → Bool) :
-    ℕ → List V → Bool
+private def find (a : Fin 17 → Fin 17 → Bool) : ℕ → List (Fin 17) → Bool
   | 0, _ => true
-  | n+1, L => L.any fun u => search adj n (L.filter fun v => decide (u < v) && adj u v)
+  | n + 1, L => L.any fun u => find a n (L.filter fun v => decide (u < v) && a u v)
 
-private lemma search_complete {V : Type*} [LinearOrder V] (G : SimpleGraph V)
-    (adj : V → V → Bool) (hadj : ∀ ⦃u v⦄, G.Adj u v → adj u v = true)
-    {n : ℕ} {s : Finset V} {L : List V} (hs : G.IsNClique n s) (hL : ∀ x ∈ s, x ∈ L) :
-    search adj n L = true := by
+private lemma find_ok (G : SimpleGraph (Fin 17)) (a : Fin 17 → Fin 17 → Bool)
+    (ha : ∀ ⦃u v⦄, G.Adj u v → a u v = true) {n : ℕ} {s : Finset (Fin 17)} {L : List (Fin 17)}
+    (hs : G.IsNClique n s) (hL : ∀ x ∈ s, x ∈ L) : find a n L = true := by
   induction n generalizing s L with
   | zero => rfl
   | succ n ih =>
     have hne : s.Nonempty := card_pos.mp (hs.card_eq ▸ Nat.succ_pos _)
     let u := s.min' hne
-    have hu : u ∈ s := s.min'_mem hne
-    apply List.any_eq_true.mpr
-    refine ⟨u, hL u hu, ih (s := s.erase u) (by simpa using hs.erase_of_mem hu) ?_⟩
-    intro x hx
-    obtain ⟨hxne,hxs⟩ := mem_erase.mp hx
-    have hux : u < x := lt_of_le_of_ne (s.min'_le x hxs) hxne.symm
-    exact List.mem_filter.mpr ⟨hL x hxs, by simp [hux,hadj (hs.isClique hu hxs hxne.symm)]⟩
+    have hu := s.min'_mem hne
+    refine List.any_eq_true.mpr ⟨u, hL u hu, ih (by simpa using hs.erase_of_mem hu) fun x hx => ?_⟩
+    obtain ⟨hne', hxs⟩ := mem_erase.mp hx
+    exact List.mem_filter.mpr ⟨hL x hxs, by
+      simp [u, lt_of_le_of_ne (s.min'_le x hxs) hne'.symm, ha (hs.isClique hu hxs hne'.symm)]⟩
 
-private def vertices : List (Fin 17) := List.finRange 17
+private def na (u v : Fin 17) : Bool := decide (u ≠ v) && !adj u v
 
-private def nonedge (u v : Fin 17) : Bool := decide (u ≠ v) && !(linked u v)
-private lemma lower : ¬ IsGraphRamsey 17 4 4 := by
-  intro h
-  apply h P
-  constructor
-  · intro s hs
-    have z := search_complete P linked (fun {_ _} h => h) hs (L := vertices)
-      (fun x _ => by simp [vertices])
-    have test : search linked 4 vertices = false := by decide +kernel
-    rw [test] at z; contradiction
-  · intro s hs
-    have z := search_complete Pᶜ nonedge (fun {u v} h => by
-      have hn : ¬ linked u v = true := h.2
-      simp [nonedge,h.1,Bool.eq_false_iff.mpr hn]) hs (L := vertices)
-      (fun x _ => by simp [vertices])
-    have test : search nonedge 4 vertices = false := by decide +kernel
-    rw [test] at z; contradiction
+private lemma lower : ¬ IsGraphRamsey 17 4 4 := fun h => h P
+  ⟨fun _ hs => by
+    have t : find adj 4 (List.finRange 17) = false := by decide +kernel
+    have := find_ok P adj (fun _ _ h => h) hs (fun _ _ => List.mem_finRange _)
+    simp_all,
+   fun _ hs => by
+    have t : find na 4 (List.finRange 17) = false := by decide +kernel
+    have := find_ok Pᶜ na (fun _ _ ⟨h1, h2⟩ => by simp [na, h1, Bool.eq_false_iff.mpr h2]) hs
+      (fun _ _ => List.mem_finRange _)
+    simp_all⟩
+
 end OMA.Ramsey44
 
 open OMA.Ramsey44 in
 theorem OMA.solution : type_of% @RamseyNumbers.ramsey_number_four_four := by
   rw [classicalRamsey_eq_sInf]
-  let S := {n : ℕ | IsGraphRamsey n 4 4}
-  have hm : sInf S ∈ S := Nat.sInf_mem ⟨18,upper⟩
-  apply le_antisymm (Nat.sInf_le upper)
+  refine le_antisymm (Nat.sInf_le upper) ?_
   by_contra! h
-  have mono : Monotone (fun n => IsGraphRamsey n 4 4) := by
-    apply monotone_nat_of_le_succ
-    exact fun n => IsGraphRamsey.succ n 4 4
-  exact lower (mono (show sInf S ≤ 17 by dsimp [S]; omega) hm)
+  exact lower (monotone_nat_of_le_succ (f := fun n => IsGraphRamsey n 4 4)
+    (fun n => IsGraphRamsey.succ n 4 4) (show sInf {n | IsGraphRamsey n 4 4} ≤ 17 by omega)
+    (Nat.sInf_mem (s := {n | IsGraphRamsey n 4 4}) ⟨18, upper⟩))

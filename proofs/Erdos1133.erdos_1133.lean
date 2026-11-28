@@ -141,44 +141,6 @@ theorem norm_coefficient_le (f : CircleFunction) (n : ℤ) :
 noncomputable def circleConvolution (f g : CircleFunction) :
     FourierCircle → ℂ := fun x => ∫ y, f y * g (x-y) ∂circleMeasure
 
-theorem convolution_finiteFourier (s t : Finset ℤ) (c d : ℤ → ℂ)
-    (x : FourierCircle) :
-    circleConvolution (finiteFourier s c) (finiteFourier t d) x =
-      ∑ n ∈ s ∩ t, c n * d n * character n x := by
-  classical
-  unfold circleConvolution
-  simp only [finiteFourier_apply, sum_mul_sum]
-  rw [integral_finsetSum]
-  · have hInt (j k : ℤ) : Integrable
-        (fun y : FourierCircle => c j * character j y * (d k * character k (x-y)))
-        circleMeasure :=
-      (by fun_prop : Continuous fun y : FourierCircle =>
-        c j * character j y * (d k * character k (x-y))).integrable_of_hasCompactSupport
-          (HasCompactSupport.of_compactSpace _)
-    have hInner (j : ℤ) := integral_finsetSum t (fun k _ => hInt j k)
-    simp_rw [hInner]
-    have he (j k : ℤ) :
-        (∫ y, (c j * character j y) * (d k * character k (x-y))
-          ∂circleMeasure) =
-        if j = k then c j * d k * character k x else 0 := by
-      simp_rw [character_sub]
-      rw [show (fun y => c j * character j y *
-            (d k * (character k x * character (-k) y))) =
-          fun y => (c j*d k*character k x) *
-            (character j y * character (-k) y) by funext y; ring,
-        integral_const_mul, integral_character_mul]
-      by_cases hjk : j = k
-      · simp [hjk]
-      · have hne : j + -k ≠ 0 := by
-          simpa only [← sub_eq_add_neg] using sub_ne_zero.mpr hjk
-        simp [hjk, hne]
-    simp_rw [he]
-    simp [sum_ite_irrel, sum_filter]
-  · intro j hj
-    exact (by fun_prop : Continuous fun y : FourierCircle =>
-      ∑ k ∈ t, c j * character j y * (d k * character k (x-y))).integrable_of_hasCompactSupport
-        (HasCompactSupport.of_compactSpace _)
-
 /-- A real nonnegative convolution kernel has operator bound equal to its mass. -/
 theorem norm_convolution_le (f g : CircleFunction) (C : ℝ)
     (hC : ∀ y, ‖g y‖ ≤ C) :
@@ -636,12 +598,6 @@ theorem vallee_high_character (L : ℕ) (n : ℤ)
     circleConvolution (valleeKernel L) (character n) x = 0 := by
   simp [convolution_character, coefficient_valleeKernel_high L n hn]
 
-/-- Norm at most three, with no dependence on the trigonometric degree. -/
-theorem vallee_operator_bound (L : ℕ) [NeZero L] (f : CircleFunction)
-    (x : FourierCircle) : ‖circleConvolution (valleeKernel L) f x‖ ≤ 3*‖f‖ := by
-  exact (norm_convolution_le _ _ ‖f‖ (fun y => f.norm_coe_le_norm y) x).trans
-    (mul_le_mul_of_nonneg_right (integral_norm_valleeKernel_le L) (norm_nonneg _))
-
 end OMA.Port1.E1152
 end
 end
@@ -1072,10 +1028,6 @@ theorem privalov_split_bound (A : ℕ) {t : ℝ} (ht : |t|≤ Real.pi) :
           · exact harmonicSine_bound A ht
     _ = 2*(1+Real.pi) := by ring
 
-theorem privalovLow_zero (A : ℕ) :
-    privalovLow A 0 = ∑j∈range A,(1:ℝ)/(j+1:ℕ) := by
-  simp [privalovLow]
-
 end OMA.Port1.E1152
 end
 end
@@ -1124,12 +1076,6 @@ noncomputable def harmonicHeight (A : ℕ) : ℝ := ∑j∈range A,(1:ℝ)/(j+1:
 
 theorem probeNormalization_pos : 0< probeNormalization := by
   unfold probeNormalization; positivity
-
-theorem probeLow_zero (A d : ℕ) : probeLow A d 0=(harmonicHeight A:ℂ) := by
-  simp [probeLow,cosineCharacter,harmonicHeight,div_eq_mul_inv,character_at_zero]
-  apply Finset.sum_congr rfl
-  intro j hj
-  ring
 
 theorem harmonicHeight_nonneg (A : ℕ) : 0≤ harmonicHeight A := by
   unfold harmonicHeight
@@ -1229,10 +1175,6 @@ theorem exists_privalov_grid (A d m : ℕ) (hA : 0< A) (hm : 0< m)
     hQp,hQn,?_⟩
   intro q hq j
   exact congrFun hΨ (⟨q,hq⟩,j)
-
-private theorem shifted_modulation (v : FourierCircle) (n : ℤ) (Q : CircleFunction) :
-    translateCircle v (character n)*Q=character n v • (character n*Q) := by
-  rw [translate_character,smul_mul_assoc]
 
 private theorem shifted_cosine (v : FourierCircle) (n : ℤ) (Q : CircleFunction) :
     translateCircle v (cosineCharacter n)*Q =
@@ -2914,11 +2856,6 @@ theorem circleNodePolynomial_natDegree (Γ : Finset FourierCircle) :
   simp [circleNodePolynomial, Polynomial.natDegree_prod_of_monic,
     Polynomial.monic_X_sub_C]
 
-theorem circleNodeProduct_band (N : ℕ) (Γ : Finset FourierCircle)
-    (hΓ : Γ.card = 2 * N) : circleNodeProduct N Γ ∈ bandSpace N := by
-  apply polynomialCircle_band
-  simp [hΓ, circleNodePolynomial_natDegree]
-
 theorem circleNodeProduct_eq_zero_iff (N : ℕ) (Γ : Finset FourierCircle)
     (x : FourierCircle) : circleNodeProduct N Γ x = 0 ↔ x ∈ Γ := by
   classical
@@ -3331,19 +3268,6 @@ theorem choose_alternating_peak_signs (s : Finset ℤ) {k : ℕ}
     (alternating_direction_positive (hv _ (s.orderEmbOfFin_mem hs i.castSucc)) _ hleft)
     (alternating_direction_positive (hv _ (s.orderEmbOfFin_mem hs i.succ)) _ hright)
 
-theorem separated_peaks_strictMono (s : Finset ℤ) {k : ℕ}
-    (hs : s.card = k) (c p : ℤ → ℝ) {D ρ : ℝ} (hgap : 2*ρ < D)
-    (hcenters : ∀ i ∈ s, ∀ j ∈ s, i < j → D ≤ c j-c i)
-    (hp : ∀ j ∈ s, |p j-c j| ≤ ρ) :
-    StrictMono (fun i : Fin k => p (s.orderEmbOfFin hs i)) := by
-  intro i j hij
-  have hi := s.orderEmbOfFin_mem hs i
-  have hj := s.orderEmbOfFin_mem hs j
-  have hc := hcenters _ hi _ hj ((s.orderEmbOfFin hs).strictMono hij)
-  have hpi := abs_le.mp (hp _ hi)
-  have hpj := abs_le.mp (hp _ hj)
-  linarith
-
 theorem peak_not_mem_nodes (Γ : Finset ℝ) (g : ℂ → ℂ) (p : ℝ)
     (hnodes : ∀ x ∈ Γ, ‖g x‖ ≤ 1) (hpeak : 1 < (g p).re) : p ∉ Γ := by
   intro hp
@@ -3608,71 +3532,6 @@ theorem periodize_strip_bound (g : ℂ → ℂ) {C σ T R : ℝ}
     _ ≤ ∑' k : ℤ, A * sixthLatticeWeight k :=
       Summable.tsum_le_tsum (periodize_term_strip_bound g hC hT hR hg z hz) hn hmaj
     _ = _ := by rw [tsum_mul_left]; dsimp [A]; ring
-
-theorem periodize_term_tail_bound (g : ℂ → ℂ) {C σ T : ℝ}
-    (hC : 0 ≤ C) (hT : 0 < T)
-    (hg : ∀ z : ℂ, ‖g z‖ ≤ C * Real.exp (σ * |z.im|) / (1 + ‖z‖) ^ 6)
-    (x : ℝ) (hx : |x| ≤ T / 2) (k : ℤ) (hk : k ≠ 0) :
-    ‖g ((x + T * (k : ℝ) : ℝ) : ℂ)‖ ≤
-      (4096 * C / T ^ 6) * sixthLatticeWeight k := by
-  have hk1 : (1 : ℝ) ≤ |(k : ℝ)| := by
-    have hh : (0 : ℤ) < |k| := abs_pos.mpr hk
-    exact_mod_cast (show (1 : ℤ) ≤ |k| by omega)
-  have htri : T * |(k : ℝ)| ≤ |x + T * (k : ℝ)| + |x| := by
-    have ht : |(x + T * (k : ℝ)) - x| ≤ |x + T * (k : ℝ)| + |x| := by
-      simpa using abs_sub_le (x + T * (k : ℝ)) 0 x
-    simpa [abs_mul, abs_of_pos hT] using ht
-  have hden : T * (1 + |(k : ℝ)|) ≤ 4 * (1 + |x + T * (k : ℝ)|) := by
-    nlinarith [mul_le_mul_of_nonneg_left hk1 hT.le]
-  have hr : (1 + |(k : ℝ)|) / (1 + |x + T * (k : ℝ)|) ≤ 4 / T := by
-    apply (div_le_div_iff₀ (by positivity) hT).2
-    nlinarith
-  have hr6 := pow_le_pow_left₀ (by positivity : 0 ≤
-    (1 + |(k : ℝ)|) / (1 + |x + T * (k : ℝ)|)) hr 6
-  have hreal : ‖g ((x + T * (k : ℝ) : ℝ) : ℂ)‖ ≤ C / (1 + |x + T * (k : ℝ)|) ^ 6 := by
-    simpa only [Complex.ofReal_im, abs_zero, mul_zero, Real.exp_zero, mul_one,
-      Complex.norm_real, Real.norm_eq_abs] using hg ((x + T * (k : ℝ) : ℝ) : ℂ)
-  calc
-    _ ≤ C / (1 + |x + T * (k : ℝ)|) ^ 6 := hreal
-    _ = (C * ((1 + |(k : ℝ)|) / (1 + |x + T * (k : ℝ)|)) ^ 6) * sixthLatticeWeight k := by
-      unfold sixthLatticeWeight
-      field_simp
-    _ ≤ (C * (4 / T) ^ 6) * sixthLatticeWeight k :=
-      mul_le_mul_of_nonneg_right (mul_le_mul_of_nonneg_left hr6 hC) (sixthLatticeWeight_nonneg k)
-    _ = _ := by ring
-
-/-- Uniform error on the central period interval, sufficient to preserve peaks
-and bounded labels when the period tends to infinity. -/
-theorem periodize_real_error (g : ℂ → ℂ) {C σ T : ℝ}
-    (hC : 0 ≤ C) (hσ : 0 ≤ σ) (hT : 0 < T)
-    (hg : ∀ z : ℂ, ‖g z‖ ≤ C * Real.exp (σ * |z.im|) / (1 + ‖z‖) ^ 6)
-    (x : ℝ) (hx : |x| ≤ T / 2) :
-    ‖periodize g T x - g x‖ ≤
-      (4096 * C / T ^ 6) * ∑' k : ℤ, sixthLatticeWeight k := by
-  let r : ℤ → ℂ := fun k => if k = 0 then 0 else g ((x + T * (k : ℝ) : ℝ) : ℂ)
-  have hbound : ∀ k : ℤ, ‖r k‖ ≤ (4096 * C / T ^ 6) * sixthLatticeWeight k := by
-    intro k
-    by_cases hk : k = 0
-    · simp only [r, hk, if_pos rfl, norm_zero]
-      exact mul_nonneg (by positivity) (sixthLatticeWeight_nonneg 0)
-    · simpa [r, hk] using periodize_term_tail_bound g hC hT hg x hx k hk
-  have hmaj := sixthLatticeWeight_summable.mul_left (4096 * C / T ^ 6)
-  have hn : Summable fun k : ℤ => ‖r k‖ :=
-    Summable.of_nonneg_of_le (fun k => norm_nonneg _) hbound hmaj
-  have hsum : periodize g T x - g x = ∑' k : ℤ, r k := by
-    have heq := (periodize_summable g hC hσ hT hg (x : ℂ)).tsum_eq_add_tsum_ite 0
-    simp only [Int.cast_zero, mul_zero, Complex.ofReal_zero, add_zero] at heq
-    have hre : (fun k : ℤ => if k = 0 then 0 else g ((x : ℂ) + ((T * (k : ℝ) : ℝ) : ℂ))) = r := by
-      funext k
-      simp [r]
-    rw [hre] at heq
-    exact eq_sub_iff_add_eq.mpr (by simpa [periodize, add_comm] using heq.symm) |>.symm
-  rw [hsum]
-  calc
-    ‖∑' k : ℤ, r k‖ ≤ ∑' k : ℤ, ‖r k‖ := norm_tsum_le_tsum_norm hn
-    _ ≤ ∑' k : ℤ, (4096 * C / T ^ 6) * sixthLatticeWeight k :=
-      Summable.tsum_le_tsum hbound hn hmaj
-    _ = _ := tsum_mul_left
 
 /-- Vertical contour translation for an entire periodic function: the two
 vertical sides cancel exactly. -/
@@ -4017,34 +3876,6 @@ theorem multipeak_shift_norm_bound (s : Finset ℤ) (c : ℤ → ℝ)
     simp only [he, sum_empty]
     exact mul_nonneg (mul_nonneg (by positivity) squareTailMass_nonneg) (by positivity)
 
-/-- The whole real tail of the periodized packet family. Its constant does
-not depend on the number of centers or on their locations. -/
-theorem multipeak_period_tail_bound (s : Finset ℤ) (c : ℤ → ℝ)
-    (g : ℤ → ℂ → ℂ) {C D N : ℝ} (hC : 0 ≤ C) (hD : 1 ≤ D)
-    (hbound : ∀ j ∈ s, c j ∈ Icc (-N+2*D) (N-2*D))
-    (horder : ∀ i ∈ s, ∀ j ∈ s, i ≤ j → D*((j-i:ℤ):ℝ) ≤ c j-c i)
-    (hdecay : ∀ j ∈ s, ∀ t : ℝ, ‖g j t‖ ≤ C/(1+|t-c j|)^6)
-    (x : ℝ) (hx : |x| ≤ N) :
-    (Summable fun k : ℤ => if k=0 then 0 else ∑ j ∈ s, ‖g j ((x+2*N*k:ℝ):ℂ)‖) ∧
-    (∑' k : ℤ, if k=0 then 0 else ∑ j ∈ s, ‖g j ((x+2*N*k:ℝ):ℂ)‖) ≤
-      (C/D^2)*squareTailMass^2 := by
-  let A := (C/D^2)*squareTailMass
-  have hA : 0 ≤ A := mul_nonneg (by positivity) squareTailMass_nonneg
-  have hmaj := summable_squareTail.mul_left A
-  have hp : ∀ k : ℤ,
-      (if k=0 then 0 else ∑ j ∈ s, ‖g j ((x+2*N*k:ℝ):ℂ)‖) ≤ A*(1/(k:ℝ)^2) := by
-    intro k
-    by_cases hk : k=0
-    · simp [hk]
-    · simpa [hk, A] using multipeak_shift_norm_bound s c g hC hD hbound horder hdecay x hx k hk
-  have hn : Summable fun k : ℤ => if k=0 then 0 else ∑ j ∈ s, ‖g j ((x+2*N*k:ℝ):ℂ)‖ :=
-    Summable.of_nonneg_of_le (fun k => by split_ifs <;> positivity) hp hmaj
-  refine ⟨hn, ?_⟩
-  calc
-    _ ≤ ∑' k : ℤ, A*(1/(k:ℝ)^2) := hn.tsum_le_tsum hp hmaj
-    _ = A*squareTailMass := by rw [tsum_mul_left]; rfl
-    _ = _ := by dsimp [A]; ring
-
 /-- The signed sum incurs only a uniformly small real error when periodized.
 Only the centered real-axis decay enters this bound. -/
 theorem multipeak_periodize_error (s : Finset ℤ) (c ψ : ℤ → ℝ)
@@ -4232,50 +4063,6 @@ theorem normalizeNode_mem_normalizedNodes_iff {r : ℝ} (hr : 0 < r)
     simpa [this] using hy
   · intro hxΓ
     exact mem_normalizedNodes_iff.mpr ⟨x, hxΓ, rfl⟩
-
-theorem contracted_node_mem_period {r β x : ℝ} (hr : 0 < r) (hβ : β < 1)
-    (hx : x ∈ Icc (-β * r) (β * r)) : x ∈ Ico (-r) r := by
-  have hsmall : β * r < r := by nlinarith
-  constructor <;> nlinarith [hx.1, hx.2]
-
-def indexedRealNodes {k : ℕ} (t : Fin k → ℝ) : Finset ℝ := univ.image t
-
-theorem indexedRealNodes_card {k : ℕ} {t : Fin k → ℝ} (ht : Function.Injective t) :
-    (indexedRealNodes t).card = k := by
-  simpa [indexedRealNodes] using Finset.card_image_of_injective univ ht
-
-theorem mem_indexedRealNodes {k : ℕ} {t : Fin k → ℝ} {x : ℝ} :
-    x ∈ indexedRealNodes t ↔ ∃ i, t i = x := by
-  simp [indexedRealNodes]
-
-theorem indexedRealNodes_mem_period {r β : ℝ} {k : ℕ}
-    (hr : 0 < r) (hβ : β < 1) (t : Fin k → ℝ)
-    (ht : ∀ i, t i ∈ Icc (-β * r) (β * r)) :
-    ∀ x ∈ indexedRealNodes t, x ∈ Ico (-r) r := by
-  intro x hx
-  obtain ⟨i, rfl⟩ := mem_indexedRealNodes.mp hx
-  exact contracted_node_mem_period hr hβ (ht i)
-
-theorem normalized_indexed_card {r β : ℝ} {k : ℕ}
-    (hr : 0 < r) (hβ : β < 1) (t : Fin k → ℝ) (hi : Function.Injective t)
-    (ht : ∀ i, t i ∈ Icc (-β * r) (β * r)) :
-    (normalizedNodes r (indexedRealNodes t)).card = k := by
-  rw [normalizedNodes_card hr _ (indexedRealNodes_mem_period hr hβ t ht)]
-  exact indexedRealNodes_card hi
-
-theorem normalizeNode_comp_injective {r β : ℝ} {k : ℕ}
-    (hr : 0 < r) (hβ : β < 1) (t : Fin k → ℝ) (hi : Function.Injective t)
-    (ht : ∀ i, t i ∈ Icc (-β * r) (β * r)) :
-    Function.Injective (fun i => normalizeNode r (t i)) := by
-  intro i j hij
-  apply hi
-  exact normalizeNode_injOn hr (contracted_node_mem_period hr hβ (ht i))
-    (contracted_node_mem_period hr hβ (ht j)) hij
-
-theorem normalized_indexed_mem_iff {r : ℝ} {k : ℕ} {t : Fin k → ℝ}
-    {z : FourierCircle} :
-    z ∈ normalizedNodes r (indexedRealNodes t) ↔ ∃ i, normalizeNode r (t i) = z := by
-  simp [normalizedNodes, indexedRealNodes, Finset.mem_image]
 
 end OMA.Port1.E1133
 end
@@ -4587,23 +4374,6 @@ theorem separated_sparse_cells (ρ K : ℕ) (hK : 0 < K) :
     dsimp [c, L]
     push_cast
     ring
-
-/-- Leaving a `2D` margin at both ends prevents collisions across every
-nonzero translate of the period, not just the immediately adjacent copy. -/
-theorem center_gap_across_period {N D a b : ℝ} (hN : 0 ≤ N)
-    (ha : -N+2*D ≤ a ∧ a ≤ N-2*D)
-    (hb : -N+2*D ≤ b ∧ b ≤ N-2*D) (q : ℤ) (hq : q ≠ 0) :
-    4*D ≤ |b-a+2*N*q| := by
-  rcases lt_or_gt_of_ne hq with hq | hq
-  · have hqi : q ≤ -1 := by omega
-    have hq' : (q : ℝ) ≤ -1 := by exact_mod_cast hqi
-    have hshift : 2*N*(q : ℝ) ≤ -2*N := by nlinarith
-    have hs : 4*D ≤ -(b-a+2*N*q) := by linarith [ha.1, hb.2]
-    exact hs.trans (neg_le_abs _)
-  · have hq' : (1 : ℝ) ≤ q := by exact_mod_cast hq
-    have hshift : 2*N ≤ 2*N*(q : ℝ) := by nlinarith
-    have hs : 4*D ≤ b-a+2*N*q := by linarith [ha.2, hb.1]
-    exact hs.trans (le_abs_self _)
 
 end OMA.Port1.E1133
 end
@@ -5007,16 +4777,6 @@ theorem bernsteinReflection_entire {f : ℂ → ℂ} (hf : Differentiable ℂ f)
   intro z
   exact differentiableAt_conj_conj_iff.mpr (hf (conj z))
 
-theorem IsBernsteinFunction.reflection {σ H : ℝ} {f : ℂ → ℂ}
-    (hf : IsBernsteinFunction σ H f) :
-    IsBernsteinFunction σ H (bernsteinReflection f) := by
-  rcases hf with ⟨hd, hr, K, hK, hbound⟩
-  refine ⟨bernsteinReflection_entire hd, ?_, K, hK, ?_⟩
-  · intro t
-    simpa [bernsteinReflection] using hr t
-  · intro z
-    simpa [bernsteinReflection] using hbound (conj z)
-
 def bernsteinRealification (f : ℂ → ℂ) (z : ℂ) : ℂ :=
   (f z + bernsteinReflection f z) / 2
 
@@ -5094,85 +4854,6 @@ theorem finiteObstruction_of_injective {H : ℝ} {k : ℕ}
     have hone : f (t j) = 1 := by simpa [y, Ne.symm hne] using hfit j
     have : (0 : ℂ) = 1 := hzero.symm.trans ((congrArg (fun x : ℝ => f x) hij).trans hone)
     exact zero_ne_one this
-
-/-- Centered distinct-node form, with the slightly enlarged bandwidth needed
-to compress an interval of length `k + 1` into one of length `k`. -/
-def CenteredBernsteinObstruction (H : ℝ) (k : ℕ) : Prop :=
-  ∀ (t : Fin k → ℝ), Function.Injective t →
-    (∀ i, t i ∈ Icc (-(k : ℝ) / 2) ((k : ℝ) / 2)) →
-    ∃ y : Fin k → Icc (-1 : ℝ) 1,
-      ∀ f : ℂ → ℂ, IsBernsteinFunction (Real.pi * (1 + 1 / (k : ℝ))) H f →
-        ∃ i, f (t i) ≠ ((y i : ℝ) : ℂ)
-
-/-- The core need only obstruct functions that are real on the real axis. -/
-def CenteredRealBernsteinObstruction (H : ℝ) (k : ℕ) : Prop :=
-  ∀ (t : Fin k → ℝ), Function.Injective t →
-    (∀ i, t i ∈ Icc (-(k : ℝ) / 2) ((k : ℝ) / 2)) →
-    ∃ y : Fin k → Icc (-1 : ℝ) 1,
-      ∀ f : ℂ → ℂ, IsBernsteinFunction (Real.pi * (1 + 1 / (k : ℝ))) H f →
-        (∀ x : ℝ, (f x).im = 0) →
-        ∃ i, f (t i) ≠ ((y i : ℝ) : ℂ)
-
-theorem centeredObstruction_of_real {H : ℝ} {k : ℕ}
-    (h : CenteredRealBernsteinObstruction H k) : CenteredBernsteinObstruction H k := by
-  classical
-  intro t ht hloc
-  obtain ⟨y, hy⟩ := h t ht hloc
-  refine ⟨y, ?_⟩
-  intro f hf
-  obtain ⟨i, hi⟩ := hy (bernsteinRealification f) hf.realification
-    (bernsteinRealification_im f)
-  exact ⟨i, fun heq => hi (bernsteinRealification_real_value heq)⟩
-
-theorem injectiveObstruction_of_centered {H : ℝ} {k : ℕ} (hk : 0 < k)
-    (h : CenteredBernsteinObstruction H k) : InjectiveBernsteinObstruction H k := by
-  classical
-  intro t hinj a ht
-  have hkR : 0 < (k : ℝ) := by exact_mod_cast hk
-  let c : ℝ := 1 + 1 / (k : ℝ)
-  let b : ℝ := a + ((k : ℝ) + 1) / 2
-  have hc : 0 < c := by dsimp [c]; positivity
-  have hck : c * (k : ℝ) = (k : ℝ) + 1 := by
-    dsimp [c]
-    field_simp
-  let s : Fin k → ℝ := fun i => (t i - b) / c
-  have hs : Function.Injective s := by
-    intro i j hij
-    apply hinj
-    have heq : t i - b = t j - b := (div_left_inj' hc.ne').mp hij
-    linarith
-  have hloc : ∀ i, s i ∈ Icc (-(k : ℝ) / 2) ((k : ℝ) / 2) := by
-    intro i
-    obtain ⟨hil, hir⟩ := ht i
-    constructor
-    · apply (le_div_iff₀ hc).mpr
-      dsimp [b]
-      nlinarith
-    · apply (div_le_iff₀ hc).mpr
-      dsimp [b]
-      nlinarith
-  obtain ⟨y, hy⟩ := h s hs hloc
-  refine ⟨y, ?_⟩
-  intro f hf
-  have hfa : IsBernsteinFunction (Real.pi * (1 + 1 / (k : ℝ))) H
-      (bernsteinAffine f c b) := by
-    simpa only [abs_of_pos hc] using hf.affine c b
-  obtain ⟨i, hi⟩ := hy (bernsteinAffine f c b) hfa
-  refine ⟨i, ?_⟩
-  have harg : bernsteinAffine f c b (s i) = f (t i) := by
-    unfold bernsteinAffine
-    rw [← Complex.ofReal_mul, ← Complex.ofReal_add]
-    congr 1
-    congr 1
-    dsimp [s]
-    field_simp
-    ring
-  simpa only [harg] using hi
-
-theorem finiteObstruction_of_centered_real {H : ℝ} {k : ℕ} (hk : 0 < k)
-    (h : CenteredRealBernsteinObstruction H k) : FiniteBernsteinObstruction H k :=
-  finiteObstruction_of_injective
-    (injectiveObstruction_of_centered hk (centeredObstruction_of_real h))
 
 /-- A freely chosen shorter centered interval leaves a gap at the period ends.
 The bandwidth exactly compensates for the affine compression. -/
@@ -5351,9 +5032,6 @@ def realFourierBand (m : ℕ) : Submodule ℝ CircleFunction where
     change ((c : ℂ) * f x).im = 0
     simp [hf.2]
 
-theorem mem_realFourierBand (m : ℕ) (f : CircleFunction) :
-    f ∈ realFourierBand m ↔ f ∈ bandSpace m ∧ ∀ x, (f x).im = 0 := Iff.rfl
-
 /-- Closure is proved from the finite spanning family of characters, rather
 than postulated as part of the interpolation hypothesis. -/
 theorem realFourierBand_isClosed (m : ℕ) : IsClosed (realFourierBand m : Set CircleFunction) := by
@@ -5377,35 +5055,6 @@ def circleSampleMap {ι : Type*} [Fintype ι] (node : ι → FourierCircle) :
 theorem circleSampleMap_apply {ι : Type*} [Fintype ι]
     (node : ι → FourierCircle) (f : CircleFunction) (i : ι) :
     circleSampleMap node f i = (f (node i)).re := rfl
-
-/-- Relative-error approximate real trigonometric interpolation yields exact
-interpolation of every data vector with the geometric-series norm bound. -/
-theorem exact_real_trig_interpolation_of_approx
-    {ι : Type*} [Fintype ι] (node : ι → FourierCircle) (m : ℕ)
-    (K q : ℝ) (hK : 0 ≤ K) (hq : 0 ≤ q) (hq1 : q < 1)
-    (happrox : ∀ d : ι → ℝ, ∃ f : CircleFunction,
-      f ∈ bandSpace m ∧ (∀ x, (f x).im = 0) ∧
-      ‖f‖ ≤ K * ‖d‖ ∧ ∀ i, |(f (node i)).re - d i| ≤ q * ‖d‖)
-    (d : ι → ℝ) :
-    ∃ f : CircleFunction, f ∈ bandSpace m ∧ (∀ x, (f x).im = 0) ∧
-      (∀ i, f (node i) = (d i : ℂ)) ∧ ‖f‖ ≤ K / (1 - q) * ‖d‖ := by
-  have ha : ∀ y : ι → ℝ, ∃ f ∈ realFourierBand m,
-      ‖f‖ ≤ K * ‖y‖ ∧ ‖y - circleSampleMap node f‖ ≤ q * ‖y‖ := by
-    intro y
-    obtain ⟨f, hfb, hfr, hfn, hfe⟩ := happrox y
-    refine ⟨f, ⟨hfb, hfr⟩, hfn, ?_⟩
-    apply (pi_norm_le_iff_of_nonneg (mul_nonneg hq (norm_nonneg y))).mpr
-    intro i
-    simpa only [Pi.sub_apply, circleSampleMap_apply, Real.norm_eq_abs, abs_sub_comm]
-      using hfe i
-  obtain ⟨f, hf, he, hn⟩ := exists_exact_preimage_of_approx
-    (circleSampleMap node) (realFourierBand m) (realFourierBand_isClosed m)
-    K q hK hq hq1 ha d
-  refine ⟨f, hf.1, hf.2, ?_, hn⟩
-  intro i
-  apply Complex.ext
-  · exact congrFun he i
-  · exact hf.2 (node i)
 
 /-- The unit-data form needed after windowing and periodization. Its conclusion
 applies to all data vectors, so it also supplies every residual correction. -/
@@ -5529,34 +5178,6 @@ theorem compressed_bandwidth_budget {δ : ℝ} {n : ℕ} (hδ : 0 < δ)
   · have hc : (Nat.ceil b : ℝ) < b+1 := Nat.ceil_lt_add_one (hn0.le.trans hb)
     change (Nat.ceil b : ℝ) ≤ _
     nlinarith
-
-/-- A deliberately loose asymptotic estimate suffices for all window errors.
-Its threshold is explicit and no convergence theorem is assumed. -/
-theorem linear_over_sixth_eventually_small {A d ε : ℝ}
-    (hA : 0 ≤ A) (hd : 0 < d) (hε : 0 < ε) :
-    ∃ n₀ : ℕ, ∀ n : ℕ, n₀ ≤ n → 0 < n ∧ A*n/(d*n)^6 ≤ ε := by
-  obtain ⟨n₀, hn₀⟩ := exists_nat_gt (max 1 (A/(d^6*ε)))
-  refine ⟨n₀, ?_⟩
-  intro n hn
-  have hnn : (n₀ : ℝ) ≤ n := by exact_mod_cast hn
-  have hn1 : (1 : ℝ) ≤ n := (le_max_left _ _).trans (hn₀.le.trans hnn)
-  have hn0 : (0 : ℝ) < n := by linarith
-  have hthreshold : A/(d^6*ε) ≤ n := (le_max_right _ _).trans (hn₀.le.trans hnn)
-  have hA' : A ≤ (n : ℝ)*(d^6*ε) :=
-    (div_le_iff₀ (by positivity : 0 < d^6*ε)).mp hthreshold
-  refine ⟨by exact_mod_cast hn0, ?_⟩
-  have hpow : (n : ℝ) ≤ (n : ℝ)^5 := by
-    simpa using pow_le_pow_right₀ hn1 (show 1 ≤ (5 : ℕ) by omega)
-  have heq : A*(n : ℝ)/(d*n)^6 = (A/d^6)/(n : ℝ)^5 := by
-    field_simp
-  rw [heq]
-  calc
-    (A/d^6)/(n : ℝ)^5 ≤ (A/d^6)/(n : ℝ) :=
-      div_le_div_of_nonneg_left (by positivity) hn0 hpow
-    _ ≤ ε := by
-      apply (div_le_iff₀ hn0).mpr
-      apply (div_le_iff₀ (by positivity : 0 < d^6)).mpr
-      nlinarith
 
 end OMA.Port1.E1133
 end
@@ -5785,12 +5406,6 @@ theorem plateauWindow_complex_decay {α τ : ℝ} (hα : 0 < α) (hτ : 0 ≤ τ
     _ ≤ α*(C*|τ-(-τ)|) := mul_le_mul_of_nonneg_left hi hα.le
     _ = _ := by rw [abs_of_nonneg (by linarith : 0 ≤ τ-(-τ))]; dsimp [C]; ring
 
-theorem plateauWindow_exponential_type {α τ : ℝ} (hα : 0 < α) (hτ : 0 < τ) :
-    ∃ C > 0, ∀ z : ℂ, ‖plateauWindow α τ z‖ ≤ C*Real.exp (6*α*|z.im|) := by
-  refine ⟨2*α*τ*((2/min 1 α)*(1+τ))^6, by positivity, fun z => ?_⟩
-  exact (plateauWindow_complex_decay hα hτ.le z).trans
-    (div_le_self (by positivity) (one_le_pow₀ (by linarith [norm_nonneg z])))
-
 theorem sinc_sixth_tail {α d : ℝ} (hα : 0 < α) (hd : d ≠ 0) :
     Real.sinc (α*d)^6 ≤ (1/(α*|d|))^6 := by
   have h : |Real.sinc (α*d)| ≤ 1/(α*|d|) := by
@@ -5870,12 +5485,6 @@ local instance : Fact (0 < 2*Real.pi) := ⟨by positivity⟩
 nonuniform complex growth prefactor of the entire interpolant. -/
 def plateauPeriodError (α τ T H : ℝ) : ℝ :=
   (2*H*α*τ)*(2/(α*(T/2-τ)))^6 * ∑' k : ℤ, sixthLatticeWeight k
-
-theorem plateauPeriodError_nonneg {α τ T H : ℝ}
-    (hα : 0 ≤ α) (hτ : 0 ≤ τ) (hH : 0 ≤ H) :
-    0 ≤ plateauPeriodError α τ T H := by
-  unfold plateauPeriodError
-  exact mul_nonneg (by positivity) (tsum_nonneg sixthLatticeWeight_nonneg)
 
 theorem windowed_translate_bound {f : ℂ → ℂ} {α τ T H : ℝ}
     (hα : 0 < α) (hτ : 0 ≤ τ) (hgap : τ < T/2) (hH : 0 ≤ H)
@@ -6443,16 +6052,6 @@ theorem exists_grouping_by_bins {β : Type*} [Fintype β] [DecidableEq β]
     rw [hpartition, Finset.sum_add_distrib, ← Finset.mul_sum, ← hgroupscard] at hsum
     simpa [mul_comm] using hsum
 
-/-- The finite-index form used by the angular-bin proof. -/
-theorem group_indices {n N k : ℕ} (b : Fin n → Fin N) (hk : 0 < k) :
-    ∃ G : Finset (Finset (Fin n)),
-      (∀ g ∈ G, g.card = k ∧ ∃ j : Fin N, ∀ i ∈ g, b i = j) ∧
-      (G : Set (Finset (Fin n))).Pairwise Disjoint ∧ n - (k - 1) * N ≤ k * G.card := by
-  obtain ⟨G, hG, hd, hb⟩ := exists_grouping_by_bins Finset.univ b k hk
-  refine ⟨G, fun g hg => (hG g hg).2, hd, ?_⟩
-  simp only [Finset.card_univ, Fintype.card_fin] at hb
-  omega
-
 /-- Independently selected local data on disjoint groups define one global
 label vector, before any approximating polynomial is considered. -/
 theorem glue_group_labels (G : Finset (Finset α))
@@ -6516,13 +6115,6 @@ theorem obstructionEpsilon_pos {k : ℕ} (hk : 2 ≤ k) :
   unfold obstructionEpsilon
   have : (0 : ℝ) < k := by exact_mod_cast (by omega : 0 < k)
   positivity
-
-theorem obstructionEpsilon_lt_one {k : ℕ} (hk : 2 ≤ k) :
-    obstructionEpsilon k < 1 := by
-  have hkR : (2 : ℝ) ≤ k := by exact_mod_cast hk
-  unfold obstructionEpsilon
-  rw [div_lt_one (by positivity : (0 : ℝ) < 8 * (k : ℝ)^2)]
-  nlinarith
 
 /-- The exact elementary estimate used after partitioning the angular interval. -/
 theorem robust_group_budget {k n q : ℕ} (hk : 2 ≤ k) (hn : 4*k^2 ≤ n)
@@ -6686,23 +6278,6 @@ theorem erdos_1133 :
               (1-ε)*(n : ℝ) →
             ∃ z ∈ Icc (-1 : ℝ) 1, |P.eval z| > C :=
   robustInterpolation_of_finiteObstructions finite_bernstein_obstruction
-
-/-- An explicit threshold in terms of the finite obstruction size, together
-with the nontrivial range `0 < ε < 1`. -/
-theorem erdos_1133_with_threshold (C : ℝ) (hC : 0 < C) :
-    ∃ k : ℕ, 2 ≤ k ∧ 0 < obstructionEpsilon k ∧ obstructionEpsilon k < 1 ∧
-      ∀ n : ℕ, 4*k^2 ≤ n →
-        ∀ x : Fin n → Icc (-1 : ℝ) 1,
-          ∃ y : Fin n → Icc (-1 : ℝ) 1,
-            ∀ P : Polynomial ℝ,
-              (P.natDegree : ℝ) < (1+obstructionEpsilon k)*(n : ℝ) →
-              ((Finset.univ.filter (fun i => P.eval (x i : ℝ)=(y i : ℝ))).card : ℝ) ≥
-                (1-obstructionEpsilon k)*(n : ℝ) →
-              ∃ z ∈ Icc (-1 : ℝ) 1, |P.eval z| > C := by
-  obtain ⟨k,hk,hcore⟩ := finite_bernstein_obstruction C hC
-  refine ⟨k,hk,obstructionEpsilon_pos hk,obstructionEpsilon_lt_one hk,?_⟩
-  intro n hn x
-  exact robust_labels_of_finite_obstruction hk hn hcore x
 
 end OMA.Port1.E1133
 end

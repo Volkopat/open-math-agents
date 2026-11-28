@@ -7,10 +7,8 @@ Proof that a finite abelian group is a Leinster group if and only if it is cycli
 and its order is a perfect number (Leinster 2001, Theorem 2.1).
 -/
 
--- Problem: Leinster Groups — abelian is leinster iff cyclic perfect
--- Upstream: formal-conjectures FormalConjectures/Wikipedia/LeinsterGroup.lean:86 (declaration LeinsterGroup.abelian_is_leinster_iff_cyclic_perfect)
--- Credit: @TheWaler (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Original Lean proof by @TheWaler (PR #220).
+-- Standard subgroup and coprime-product APIs replace preliminary constructions.
 
 open scoped Classical
 
@@ -25,28 +23,9 @@ private lemma isLeinster_iff_sum_subgroup (G : Type*) [CommGroup G] [Fintype G] 
     exact Fintype.sum_equiv (Equiv.subtypeUnivEquiv fun H : Subgroup G =>
       H.normal_of_isMulCommutative) _ _ fun _ => rfl
 
-private def subgroupEquivAddSubgroup (G : Type*) [Group G] :
-    Subgroup G ≃ AddSubgroup (Additive G) where
-  toFun H :=
-    { carrier := Additive.toMul ⁻¹' (H : Set G)
-      zero_mem' := H.one_mem
-      add_mem' := fun ha hb => H.mul_mem ha hb
-      neg_mem' := fun ha => H.inv_mem ha }
-  invFun K :=
-    { carrier := Additive.ofMul ⁻¹' (K : Set (Additive G))
-      one_mem' := K.zero_mem
-      mul_mem' := fun ha hb => K.add_mem ha hb
-      inv_mem' := fun ha => K.neg_mem ha }
-  left_inv H := by
-    ext x
-    rfl
-  right_inv K := by
-    ext x
-    rfl
-
 private lemma sum_subgroup_eq_sum_addSubgroup (G : Type*) [CommGroup G] [Fintype G] :
     (∑ H : Subgroup G, Nat.card H) = ∑ H : AddSubgroup (Additive G), Nat.card H := by
-  refine Fintype.sum_equiv (subgroupEquivAddSubgroup G) _ _ fun H => ?_
+  refine Fintype.sum_equiv (Subgroup.toAddSubgroup (G := G)).toEquiv _ _ fun H => ?_
   exact Nat.card_congr (Equiv.subtypeEquiv Additive.ofMul fun _ => Iff.rfl)
 
 private lemma sum_subgroup_of_isCyclic (G : Type*) [CommGroup G] [Fintype G] [IsCyclic G] :
@@ -62,16 +41,8 @@ private lemma sum_subgroup_of_isCyclic (G : Type*) [CommGroup G] [Fintype G] [Is
       exact congrArg Subtype.val h1
     have hcard : Nat.card H = Nat.card (powMonoidHom (α := G) (Nat.card H)).ker := by
       rw [IsCyclic.card_powMonoidHom_ker, Nat.gcd_eq_right (Subgroup.card_subgroup_dvd_card H)]
-    have hfin : (H : Set G).toFinset =
-        ((powMonoidHom (α := G) (Nat.card H)).ker : Set G).toFinset := by
-      apply Finset.eq_of_subset_of_card_le
-      · intro x hx
-        exact Set.mem_toFinset.mpr (hle (Set.mem_toFinset.mp hx))
-      · rw [Set.toFinset_card, Set.toFinset_card,
-          ← Nat.card_eq_fintype_card, ← Nat.card_eq_fintype_card]
-        exact hcard.ge
-    ext x
-    simpa [Set.mem_toFinset] using Finset.ext_iff.mp hfin x
+    exact Subgroup.eq_of_le_of_card_ge hle hcard.ge
+
   refine Finset.sum_bij (fun H _ => Nat.card H) ?_ ?_ ?_ (fun _ _ => rfl)
   · intro H _
     rw [Nat.mem_divisors]
@@ -83,22 +54,6 @@ private lemma sum_subgroup_of_isCyclic (G : Type*) [CommGroup G] [Fintype G] [Is
     rw [Nat.mem_divisors] at hd
     refine ⟨(powMonoidHom (α := G) d).ker, Finset.mem_univ _, ?_⟩
     rw [IsCyclic.card_powMonoidHom_ker, Nat.card_eq_fintype_card, Nat.gcd_eq_right hd.1]
-
-private lemma finset_prod_dvd_of_coprime {ι : Type*} {n : ι → ℕ} {m : ℕ}
-    (s : Finset ι) (hcop : (s : Set ι).Pairwise fun i j => (n i).Coprime (n j))
-    (hdvd : ∀ i ∈ s, n i ∣ m) : (∏ i ∈ s, n i) ∣ m := by
-  induction s using Finset.cons_induction with
-  | empty => simp
-  | cons a s ha ih =>
-    rw [Finset.prod_cons]
-    have h1 : n a ∣ m := hdvd a (Finset.mem_cons_self a s)
-    have h2 : (∏ i ∈ s, n i) ∣ m :=
-      ih (hcop.mono (by simp)) (fun i hi => hdvd i (Finset.mem_cons_of_mem hi))
-    have h3 : (n a).Coprime (∏ i ∈ s, n i) :=
-      Nat.Coprime.prod_right fun i hi =>
-        hcop (Finset.mem_cons_self a s) (Finset.mem_cons_of_mem hi)
-          (ne_of_mem_of_not_mem hi ha).symm
-    exact h3.mul_dvd_of_dvd_of_dvd h1 h2
 
 private lemma isAddCyclic_pi_zmod {ι : Type*} [Fintype ι] {n : ι → ℕ}
     (hn : ∀ i, n i ≠ 0) (hcop : Pairwise fun i j => (n i).Coprime (n j)) :
@@ -113,7 +68,8 @@ private lemma isAddCyclic_pi_zmod {ι : Type*} [Fintype ι] {n : ι → ℕ}
       simpa [g] using congrFun h0 i
     exact (ZMod.natCast_eq_zero_iff (addOrderOf g) (n i)).mp hi
   have hprod : (∏ i : ι, n i) ∣ addOrderOf g :=
-    finset_prod_dvd_of_coprime Finset.univ (fun i _ j _ hij => hcop hij) (fun i _ => hdvd i)
+    Fintype.prod_dvd_of_isRelPrime (fun _ _ hij =>
+      Nat.coprime_iff_isRelPrime.mp (hcop hij)) hdvd
   have hcard : Nat.card (∀ i : ι, ZMod (n i)) = ∏ i : ι, n i := by
     rw [Nat.card_eq_fintype_card, Fintype.card_pi]
     simp [ZMod.card]

@@ -83,13 +83,6 @@ set_option maxHeartbeats 12800000 in
 def IsClique (H : KUniformHypergraph α k) (S : Finset α) : Prop :=
   H.IsComplete S ∧ ∀ T : Finset α, S ⊂ T → ¬H.IsComplete T
 
-omit [DecidableEq α] in
-set_option maxHeartbeats 12800000 in
-/-- Subsets of complete sets are complete. -/
-lemma IsComplete.mono {H : KUniformHypergraph α k} {S T : Finset α}
-    (hST : S ⊆ T) (hT : H.IsComplete T) : H.IsComplete S :=
-  fun e he hk => hT e (he.trans hST) hk
-
 end KUniformHypergraph
 
 /-! ## Rooted Trees with Ordered Vertices -/
@@ -185,15 +178,6 @@ lemma all_depth_zero_implies_singleton {t : ℕ} (T : OrderedRootedTree t)
   have h3 := T.depth_zero_is_root ⟨1, by omega⟩ h1
   simp at h3
 
-set_option maxHeartbeats 12800000 in
-/-- If i has depth ≤ 1 and i ≠ root, then parent(i) = root. -/
-lemma depth_one_parent_is_root {t : ℕ} (T : OrderedRootedTree t)
-    (i : Fin (t + 1)) (hi : 0 < i.val) (hd : T.depth i ≤ 1) :
-    T.parent i = ⟨0, Nat.zero_lt_succ t⟩ := by
-  rw [T.depth_pos i hi] at hd
-  have : T.depth (T.parent i) = 0 := by omega
-  exact T.depth_zero_is_root _ this
-
 end OrderedRootedTree
 
 /-! ## Layered tree bounds -/
@@ -207,47 +191,6 @@ theorem layered_tree_bounded_zero (C : ℕ) :
   have := T.all_depth_zero_implies_singleton hdepth
   omega
 
-/-
-**Base case k=1**: A (1,C)-layered tree has at most 2^C + 1 vertices.
-    All non-root vertices are children of the root, and the root has degree ≤ 2^C.
--/
-set_option maxHeartbeats 12800000 in
-theorem layered_tree_bounded_one (C : ℕ) :
-    ∀ t : ℕ, ∀ T : OrderedRootedTree t,
-      IsKCLayeredTree 1 C T → t + 1 ≤ 2^C + 1 := by
-  intro t T hT
-  obtain ⟨h_depth, h_degree⟩ := hT
-  -- Since every non-root vertex is a child of the root, the non-root vertices
-  -- are exactly the children of the root.
-  have h_num_children :
-      (Finset.univ.filter (fun j => T.parent j = ⟨0, Nat.zero_lt_succ t⟩ ∧
-        j ≠ ⟨0, Nat.zero_lt_succ t⟩)).card = t := by
-    convert
-      Finset.card_erase_of_mem
-        (Finset.mem_univ (⟨0, Nat.zero_lt_succ t⟩ : Fin (t + 1)))
-      using 2
-    · ext j
-      simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_erase,
-        and_true]
-      constructor
-      · exact fun hj => hj.2
-      · intro hj
-        have hj_pos : 0 < j.val := by
-          apply Nat.pos_of_ne_zero
-          intro hj_zero
-          apply hj
-          exact Fin.ext hj_zero
-        exact ⟨OrderedRootedTree.depth_one_parent_is_root T j hj_pos (h_depth j), hj⟩
-    · simp +decide [ Finset.card_univ ]
-  have h_degree_root :
-      (Finset.univ.filter (fun j => T.parent j = ⟨0, Nat.zero_lt_succ t⟩ ∧
-        j ≠ ⟨0, Nat.zero_lt_succ t⟩)).card ≤ 2 ^ C := by
-    specialize h_degree ⟨0, Nat.zero_lt_succ t⟩
-    simpa [OrderedRootedTree.degree, OrderedRootedTree.numChildren] using h_degree
-  omega
-
--- The general `layered_tree_bounded` is proved in LayeredTreeGeneral.lean
-
 end
 
 /-! ========== TreeContraction.lean ========== -/
@@ -260,137 +203,6 @@ between the first and second children of the root yields a (k, C+1)-layered tree
 -/
 
 noncomputable section
-
-set_option maxHeartbeats 12800000 in
-/-- In an OrderedRootedTree, v₁ is always a child of the root (since parent(1) < 1 means
-    parent(1) = 0). -/
-lemma first_vertex_is_child_of_root {t : ℕ} (T : OrderedRootedTree t) (ht : 0 < t) :
-    T.parent ⟨1, by omega⟩ = ⟨0, Nat.zero_lt_succ t⟩ := by
-  have h := T.parent_lt ⟨1, by omega⟩ (by simp)
-  ext; simp at h ⊢; omega
-
-/-
-The first block {v₁, ..., v_{c₂-1}} (between the first and second children of root)
-    forms an OrderedRootedTree that is (k, C+1)-layered.
-
-    Given a (k+1, C)-layered tree T and c₂ (the index of the second child of root,
-    or t+1 if there is only one child), the restriction of T to {v₁, ..., v_{c₂-1}}
-    with shifted indices is a valid (k, C+1)-layered tree.
--/
-set_option maxHeartbeats 12800000 in
-theorem first_block_layered {t k C : ℕ} (T : OrderedRootedTree t)
-    (hT : IsKCLayeredTree (k + 1) C T)
-    (c₂ : ℕ) (hc₂_ge : 2 ≤ c₂) (hc₂_le : c₂ ≤ t + 1)
-    (h_no_child : ∀ j : ℕ, 1 < j → j < c₂ →
-      (hj : j < t + 1) → T.parent ⟨j, hj⟩ ≠ ⟨0, Nat.zero_lt_succ t⟩) :
-    ∃ T' : OrderedRootedTree (c₂ - 2), IsKCLayeredTree k (C + 1) T' := by
-  -- Define the new tree T' with vertices {0, 1, ..., c₂-2} and parent
-  -- function T'.parent(i) = (T.parent ⟨i+1, _⟩).val - 1.
-  set T' : OrderedRootedTree (c₂ - 2) := ⟨fun i => ⟨(T.parent ⟨i.val + 1, by
-    omega⟩).val - 1, by
-    all_goals generalize_proofs at *
-    have := T.parent_lt ⟨ i + 1, by linarith ⟩ ( Nat.succ_pos _ )
-    grind⟩, by
-    have := first_vertex_is_child_of_root T ( by omega ) ; aesop;, by
-    intro i hi
-    have := T.parent_lt
-      ⟨ i + 1, by
-        linarith [ Fin.is_lt i, Nat.sub_add_cancel ( by linarith : 2 ≤ c₂ ) ] ⟩
-      ( by simp )
-    grind⟩
-  generalize_proofs at *
-  refine ⟨ T', ⟨ ?_, ?_ ⟩ ⟩ <;> intro i <;> simp_all +decide [ IsKCLayeredTree ]
-  · have h_depth_T' : ∀ i : Fin (c₂ - 2 + 1), T'.depth i + 1 ≤ T.depth ⟨i.val + 1, by
-      grind⟩ := by
-      intro i
-      rcases i with ⟨i, hi⟩
-      generalize_proofs at *
-      induction i using Nat.strong_induction_on with
-      | h i ih =>
-        generalize_proofs at *
-        unfold OrderedRootedTree.depth; simp +decide [ * ]
-        split_ifs <;> (simp_all +decide; try omega)
-        convert ih (T'.parent ⟨i, hi⟩).val
-          _
-          (Nat.le_of_lt_succ (T'.parent ⟨i, hi⟩).isLt)
-          (by
-            have hp_lt := (T'.parent ⟨i, hi⟩).isLt
-            omega) using 1
-        all_goals generalize_proofs at *
-        · congr! 1
-          generalize_proofs at *
-          exact Eq.symm ( Fin.ext <| Nat.succ_pred_eq_of_pos <| Nat.pos_of_ne_zero <| by
-            exact fun h =>
-              h_no_child ( i + 1 )
-                ( Nat.succ_lt_succ ( Nat.pos_of_ne_zero ‹_› ) )
-                ( by omega ) ( by omega ) ( Fin.ext <| by aesop ) )
-        · exact T'.parent_lt ⟨i, hi⟩ (Nat.pos_of_ne_zero (by assumption))
-    generalize_proofs at *
-    linarith [
-      h_depth_T' i,
-      hT.1 ⟨ i + 1, by
-        linarith [ Fin.is_lt i, Nat.sub_add_cancel ( by linarith : 2 ≤ c₂ ) ] ⟩ ]
-  · refine le_trans ?_
-      ( pow_le_pow_right₀ ( by decide )
-        ( show C + 1 + ( i : ℕ ) ≥ C + ( i + 1 : ℕ ) by linarith ) )
-    refine le_trans ?_
-      ( hT.2 ⟨ i + 1, by
-        linarith [ Fin.is_lt i, Nat.sub_add_cancel ( by linarith : 2 ≤ c₂ ) ] ⟩ )
-    refine add_le_add ?_ ?_
-    · refine le_trans
-        (b := (Finset.image
-          ( fun j : Fin ( c₂ - 2 + 1 ) =>
-            ⟨ j + 1, by
-              linarith [ Fin.is_lt j, Nat.sub_add_cancel ( by linarith : 2 ≤ c₂ ) ] ⟩ )
-          ( Finset.filter ( fun j : Fin ( c₂ - 2 + 1 ) =>
-            T'.parent j = i ∧ j ≠ i ) Finset.univ )).card)
-        ?_ ( Finset.card_mono ?_ )
-      · rw [
-          Finset.card_image_of_injective _ fun x y hxy => by
-            simpa [ Fin.ext_iff ] using hxy ]
-        aesop
-      · intro x hx
-        simp only [Finset.mem_image, Finset.mem_filter, Finset.mem_univ, true_and] at hx
-        rcases hx with ⟨j, hj, rfl⟩
-        rcases hj with ⟨hj_parent, hj_ne⟩
-        simp only [Finset.mem_filter, Finset.mem_univ, true_and]
-        constructor
-        · ext
-          let jUp : Fin (t + 1) :=
-            ⟨j.val + 1, by
-              have hc₂ : 2 ≤ c₂ := by linarith
-              linarith [Fin.is_lt j, Nat.sub_add_cancel hc₂]⟩
-          have hparent_val :
-              (T.parent jUp).val - 1 = i.val := by
-            simpa [jUp] using congrArg Fin.val hj_parent
-          have hj_pos : 0 < j.val := by
-            by_contra hj_nonpos
-            have hj_zero : j = ⟨0, by omega⟩ := by
-              ext
-              exact Nat.eq_zero_of_not_pos hj_nonpos
-            have hi_zero : i = ⟨0, by omega⟩ := by
-              have hroot : T'.parent j = ⟨0, by omega⟩ := by
-                simpa [hj_zero] using T'.root_self
-              exact hj_parent ▸ hroot
-            exact hj_ne (by simp [hj_zero, hi_zero])
-          have hparent_ne_root :
-              T.parent jUp ≠ ⟨0, Nat.zero_lt_succ t⟩ := by
-            simpa [jUp] using h_no_child (j.val + 1) (by omega) (by omega) (by omega)
-          have hparent_pos :
-              0 < (T.parent jUp).val := by
-            exact Nat.pos_of_ne_zero (fun h0 => hparent_ne_root (Fin.ext h0))
-          change
-            (T.parent jUp).val = i.val + 1
-          calc
-            (T.parent jUp).val = (T.parent jUp).val - 1 + 1 := by
-              exact (Nat.succ_pred_eq_of_pos hparent_pos).symm
-            _ = i.val + 1 := by rw [hparent_val]
-        · intro hx_eq
-          exact hj_ne (Fin.ext (by
-            have := congrArg Fin.val hx_eq
-            simp at this
-            omega))
-    · grind (gen := 12)
 
 end
 
@@ -1203,9 +1015,6 @@ def iterBoundFn (C : ℕ) (boundK : ℕ → ℕ) (j : ℕ) : ℕ :=
   Nat.rec (0 : ℕ) (fun j prev => prev + 2 ^ (C + (boundK (2 ^ C + C + prev) + j))) j
 
 set_option maxHeartbeats 12800000 in
-lemma iterBoundFn_zero (C : ℕ) (boundK : ℕ → ℕ) : iterBoundFn C boundK 0 = 0 := rfl
-
-set_option maxHeartbeats 12800000 in
 lemma iterBoundFn_succ (C : ℕ) (boundK : ℕ → ℕ) (j : ℕ) :
     iterBoundFn C boundK (j + 1) =
     iterBoundFn C boundK j + 2 ^ (C + (boundK (2 ^ C + C + iterBoundFn C boundK j) + j)) := rfl
@@ -1508,12 +1317,6 @@ For any k and C, there exists N₀ such that every (k,C)-layered tree has at mos
 -/
 
 noncomputable section
-
-set_option maxHeartbeats 12800000 in
-/-- A (k, C)-layered tree is also (k, C')-layered for C' ≥ C. -/
-lemma IsKCLayeredTree.mono_C {k C C' : ℕ} {t : ℕ} {T : OrderedRootedTree t}
-    (hT : IsKCLayeredTree k C T) (hCC' : C ≤ C') : IsKCLayeredTree k C' T :=
-  ⟨hT.1, fun i => le_trans (hT.2 i) (Nat.pow_le_pow_right (by omega) (by omega))⟩
 
 set_option maxHeartbeats 12800000 in
 /-- The root has at most 2^C children in a (k, C)-layered tree. -/
@@ -1988,32 +1791,6 @@ lemma clParent_iterate_lt' {n : ℕ} (X : ℕ → Finset (Fin n)) (r d : ℕ)
   rw [Function.iterate_succ_apply']
   exact clParent_lt X _ hd
 
-set_option maxHeartbeats 12800000 in
-lemma clParent_iterate_strict_anti {n : ℕ} (X : ℕ → Finset (Fin n)) (r : ℕ)
-    {d₁ d₂ : ℕ} (h : d₁ < d₂) (hd : 0 < (clParent X)^[d₁] r) :
-    (clParent X)^[d₂] r < (clParent X)^[d₁] r := by
-  -- By induction on $d₂ - d₁$, the iterated parent strictly decreases.
-  have h_ind :
-      ∀ d₁ d₂, d₁ < d₂ → 0 < (clParent X)^[d₁] r →
-        (clParent X)^[d₂] r < (clParent X)^[d₁] r := by
-    intros d₁ d₂ h_lt h_pos
-    induction h_lt
-    · simpa only [ Function.iterate_succ_apply' ] using clParent_iterate_lt' X r d₁ h_pos
-    · rename_i d₂ h_lt ih
-      rw [ Function.iterate_succ_apply' ]
-      exact lt_of_le_of_lt ( clParent_le _ _ ) ih
-  exact h_ind d₁ d₂ h hd
-
-set_option maxHeartbeats 12800000 in
-lemma clParent_iterate_injective {n : ℕ} (X : ℕ → Finset (Fin n)) (r : ℕ)
-    {d₁ d₂ : ℕ} (h : (clParent X)^[d₁] r = (clParent X)^[d₂] r)
-    (h_pos : 0 < (clParent X)^[d₁] r) :
-    d₁ = d₂ := by
-  by_contra h_contra
-  cases lt_or_gt_of_ne h_contra <;> simp_all +decide
-  · exact absurd h ( ne_of_gt ( clParent_iterate_strict_anti X r ‹_› ( by linarith ) ) )
-  · exact absurd h ( ne_of_lt ( clParent_iterate_strict_anti X r ‹_› h_pos ) )
-
 /-! ### Walk-down descendant property -/
 
 /-
@@ -2329,54 +2106,6 @@ lemma path_iterate_pos_of_depth {n t : ℕ} (X : ℕ → Finset (Fin n))
     · rw [← Function.iterate_succ_apply (f := clParent X) (n := m) (x := i.val)]
       rw [Function.iterate_succ_apply' (f := clParent X) (n := m) (x := i.val)]
       exact hm
-
-/-
-Chain matching: if x ∈ X(parent(v)) ∩ B(y_s) for s ≥ 2, then x ∈ X(y_r)
-    for any r ≤ s-1. Uses walkdown_ancestor_matching at each step.
--/
-set_option maxHeartbeats 12800000 in
-lemma matching_chain_gives_membership {n : ℕ} (X : ℕ → Finset (Fin n))
-    (v : ℕ) (hv : 0 < v) (h_parent_pos : 0 < clParent X v)
-    (s : ℕ) (hs : 2 ≤ s)
-    (h_path_pos : ∀ m, 1 ≤ m → m ≤ s - 1 → 0 < (clParent X)^[m] v)
-    (x : Fin n)
-    (hx1 : x ∈ X (clParent X v))
-    (hxB : x ∈ clSetB X ((clParent X)^[s] v))
-    (r : ℕ) (hr : r ≤ s - 1) :
-    x ∈ X ((clParent X)^[r] v) := by
-  induction r
-  · have h_chain_matching :
-        X v ∩ clSetB X ((clParent X)^[s] v) =
-          X (clParent X v) ∩ clSetB X ((clParent X)^[s] v) := by
-      convert
-        walkdown_ancestor_matching X ( clParent X v ) v hv h_parent_pos
-          ( by linarith [ clParent_lt X v hv ] ) rfl
-          ( s - 1 ) ( Nat.sub_pos_of_lt hs )
-        using 1
-      · cases s <;> aesop
-      · cases s <;> aesop
-    replace h_chain_matching := Finset.ext_iff.mp h_chain_matching x; aesop
-  · rename_i r ih
-    have h_chain_matching_step :
-        X ((clParent X)^[r] v) ∩ clSetB X ((clParent X)^[s] v) =
-          X ((clParent X)^[r + 1] v) ∩ clSetB X ((clParent X)^[s] v) := by
-      have := walkdown_ancestor_matching X
-        ( ( clParent X ) ^[ r + 1 ] v ) ( ( clParent X ) ^[ r ] v ) ?_ ?_ ?_ ?_
-      · convert this ( s - r - 1 ) ( Nat.sub_pos_of_lt ( by omega ) ) using 1
-        · rw [ ← Function.iterate_add_apply, Nat.sub_sub, Nat.sub_add_cancel ( by omega ) ]
-        · rw [ ← Function.iterate_add_apply, Nat.sub_sub, Nat.sub_add_cancel ( by omega ) ]
-      · exact if hr0 : r = 0 then by
-          aesop
-        else
-          h_path_pos r ( Nat.pos_of_ne_zero hr0 ) ( by linarith )
-      · exact h_path_pos _ le_add_self hr
-      · convert clParent_lt X _ _ using 1
-        · exact Function.iterate_succ_apply' _ _ _
-        · exact if hr0 : 1 ≤ r then h_path_pos r hr0 ( by linarith ) else by aesop
-      · rw [ Function.iterate_succ_apply' ]
-    exact Finset.mem_of_mem_inter_left
-      ( h_chain_matching_step ▸
-        Finset.mem_inter_of_mem ( ih ( Nat.le_of_succ_le hr ) ) hxB )
 
 /-
 Element a is in X of all path cliques except X(parent(i)).

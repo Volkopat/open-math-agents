@@ -204,11 +204,6 @@ end Naturality
 noncomputable def tensorComponent : (N →ₗ[R] R) →ₗ[R] M ⊗[R] N →ₗ[R] M :=
   (compRight R (TensorProduct.rid R M).toLinearMap).comp (lTensorHom M)
 
-/-- Contraction is the tensor product of the functional with the identity, followed by the
-right tensor unitor. -/
-theorem tensorComponent_def (phi : N →ₗ[R] R) :
-    tensorComponent (M := M) phi = (TensorProduct.rid R M).toLinearMap ∘ₗ phi.lTensor M := (rfl)
-
 /-- A right tensor component sends a pure tensor to the corresponding scalar multiple. -/
 @[simp]
 theorem tensorComponent_tmul (phi : N →ₗ[R] R) (m : M) (n : N) :
@@ -429,23 +424,6 @@ theorem sum_mul_tmul_eq_sum_tmul_mul {ι : Type*} [Fintype ι] (φ : A →ₗ[k]
 
 end Casimir
 
-/-- If `c : M →ₗ[R] N` has a left inverse `l` and `c.lTensor κ = 0`, then `κ ⊗[R] M` is
-trivial. -/
-theorem subsingleton_tensor_of_lTensor_eq_zero {R M N κ : Type*} [CommSemiring R]
-    [AddCommMonoid κ] [Module R κ] [AddCommMonoid M] [Module R M] [AddCommMonoid N] [Module R N]
-    (c : M →ₗ[R] N) (l : N →ₗ[R] M) (hl : l ∘ₗ c = LinearMap.id) (h : c.lTensor κ = 0) :
-    Subsingleton (κ ⊗[R] M) := by
-  have hinjective : Function.Injective (c.lTensor κ) := by
-    intro x y hxy
-    have h := congrArg (l.lTensor κ) hxy
-    simpa only [← LinearMap.comp_apply, ← LinearMap.lTensor_comp, hl,
-      LinearMap.lTensor_id, LinearMap.id_apply] using h
-  constructor
-  intro x y
-  apply hinjective
-  rw [h]
-  rfl
-
 end LinearMap
 
 namespace TensorProduct
@@ -480,31 +458,6 @@ theorem exists_eq_sum_tmul_of_span_eq_top {κ : Type*} [Fintype κ] {n : κ → 
     obtain ⟨m, rfl⟩ := hx
     obtain ⟨m', rfl⟩ := hy
     exact ⟨m + m', by simp [add_tmul, Finset.sum_add_distrib]⟩
-
-/-- Splitting `F ⊗ F - id - (D ⊗ id + id ⊗ D)` into the terms in which one factor is the defect
-`F - id - D` and the term `(F - id) ⊗ (F - id)` in which both factors move. -/
-theorem map_sub_sub_add_eq {R : Type*} [CommSemiring R] {P : Type*} [AddCommGroup P] [Module R P]
-    (F D : P →ₗ[R] P) (w : P ⊗[R] P) :
-    map F F w - w - (LinearMap.rTensor _ D w + LinearMap.lTensor _ D w) =
-      map (F - LinearMap.id - D) LinearMap.id w +
-        map LinearMap.id (F - LinearMap.id - D) w +
-        map (F - LinearMap.id) (F - LinearMap.id) w := by
-  have hr : map (F - LinearMap.id) (LinearMap.id (M := P)) =
-      map (F - LinearMap.id - D) LinearMap.id + map D LinearMap.id := by
-    rw [← map_add_left]
-    congr 1
-    abel
-  have hl : map (LinearMap.id (M := P)) (F - LinearMap.id) =
-      map LinearMap.id (F - LinearMap.id - D) + map LinearMap.id D := by
-    rw [← map_add_right]
-    congr 1
-    abel
-  conv_lhs => rw [← add_sub_cancel LinearMap.id F]
-  rw [map_add_left, map_add_right, map_add_right,
-    map_id, hr, hl]
-  simp only [LinearMap.add_apply, LinearMap.id_apply, LinearMap.rTensor_def,
-    LinearMap.lTensor_def]
-  abel
 
 /-- Negating the left map of `TensorProduct.map` negates the tensor-product map. -/
 @[simp]
@@ -804,14 +757,6 @@ theorem Subalgebra.toSubmodule_baseChange {R S : Type*} [CommSemiring R] [Semiri
   -- The algebra tensor map and the base change of the linear inclusion have the same function.
   rfl
 
-/-- Base change of subalgebras is monotone. -/
-theorem Subalgebra.baseChange_mono {R S : Type*} [CommSemiring R] [Semiring S] [Algebra R S]
-    (T : Type*) [CommSemiring T] [Algebra R T] {C D : Subalgebra R S} (h : C ≤ D) :
-    C.baseChange T ≤ D.baseChange T := by
-  rw [← Subalgebra.toSubmodule.le_iff_le, Subalgebra.toSubmodule_baseChange,
-    Subalgebra.toSubmodule_baseChange]
-  exact Submodule.baseChange_mono T (Subalgebra.toSubmodule.monotone h)
-
 /-- The base change of the bottom subalgebra is the bottom subalgebra: `t ⊗ r = (r t) ⊗ 1` for
 `r` in the image of `R`. -/
 @[simp]
@@ -974,21 +919,6 @@ theorem liftRingHom_comp_includeRight :
 
 end LiftRingHom
 
-/-- Applying `liftRingHom` after tensor reassociation separates the first factor from the
-remaining two factors. -/
-theorem liftRingHom_assoc_symm_tmul {R A B C T : Type*} [CommSemiring R]
-    [Semiring A] [Algebra R A] [Semiring B] [Algebra R B] [Semiring C] [Algebra R C]
-    [CommSemiring T] (x : A ⊗[R] B →+* T) (τ : C →+* T)
-    (hτ : x.comp (algebraMap R (A ⊗[R] B)) = τ.comp (algebraMap R C)) (a : A) (v : B ⊗[R] C) :
-    liftRingHom x τ hτ ((_root_.TensorProduct.assoc R A B C).symm (a ⊗ₜ v)) =
-      x (a ⊗ₜ 1) * liftRingHom (x.comp (includeRight : B →ₐ[R] A ⊗[R] B).toRingHom) τ
-        -- `includeRight` is an `R`-algebra map, so `x ∘ includeRight` agrees with `τ` on `R`
-        (by rw [RingHom.comp_assoc, AlgHom.toRingHom_eq_coe, AlgHom.comp_algebraMap, hτ]) v := by
-  induction v using TensorProduct.induction_on with
-  | zero => simp
-  | add v v' hv hv' => simp [mul_add, tmul_add, hv, hv']
-  | tmul b c => simp [← mul_assoc, ← map_mul, Algebra.TensorProduct.tmul_mul_tmul]
-
 variable {R S A B : Type*} [CommSemiring R] [CommSemiring S] [Semiring A] [Algebra R A]
   [Semiring B] [Algebra R B]
 
@@ -1044,14 +974,6 @@ end AssocInclude
 
 variable [Algebra S B]
 
-/-- The image of `S` in the right factor is central in `A ⊗[R] B`. -/
-theorem commute_one_tmul_algebraMap (x : A ⊗[R] B) (t : S) :
-    Commute x (1 ⊗ₜ algebraMap S B t) := by
-  induction x using TensorProduct.induction_on with
-  | zero => simp
-  | tmul a b => exact (Commute.one_right a).tmul (Algebra.commute_algebraMap_right t b)
-  | add x y hx hy => exact hx.add_left hy
-
 variable [Algebra R S] [IsScalarTower R S B]
 
 /-- The multiplication map `S ⊗[R] B →ₐ[S] B`, `s ⊗ b ↦ s • b`, for an `S`-algebra `B` which
@@ -1095,11 +1017,6 @@ noncomputable def mulRight : B ⊗[R] S →ₐ[S] B :=
 theorem mulRight_tmul (b : B) (t : S) :
     (mulRight (b ⊗ₜ[R] t) : B) = b * algebraMap S B t := by
   simp [mulRight]
-
-/-- Multiplication on a self-tensor product is surjective. -/
-theorem lmul'_surjective (R A : Type*) [CommSemiring R] [CommSemiring A] [Algebra R A] :
-    Function.Surjective (lmul' R : A ⊗[R] A →ₐ[R] A) :=
-  fun x ↦ ⟨x ⊗ₜ[R] 1, by simp⟩
 
 /-- Multiplication on a self-tensor product is natural in the algebra. -/
 @[simp]
@@ -1295,72 +1212,6 @@ end SemilinearTwist
 end AlgHom
 
 namespace AlgHom
-
-/-- Extending scalars preserves centrality of the image of an algebra map. -/
-theorem tensorProductMap_mul_comm
-    {R T B C : Type*} [CommSemiring R] [CommSemiring T] [Semiring B] [Semiring C]
-    [Algebra R T] [Algebra R B] [Algebra R C] (φ : B →ₐ[R] C)
-    (hφ : ∀ b c, φ b * c = c * φ b)
-    (x : TensorProduct R T B) (y : TensorProduct R T C) :
-    Algebra.TensorProduct.map (AlgHom.id R T) φ x * y =
-      y * Algebra.TensorProduct.map (AlgHom.id R T) φ x := by
-  induction x using TensorProduct.induction_on with
-  | zero => simp
-  | tmul t b =>
-    induction y using TensorProduct.induction_on with
-    | zero => simp
-    | tmul t' c =>
-      simp only [Algebra.TensorProduct.map_tmul, AlgHom.id_apply,
-        Algebra.TensorProduct.tmul_mul_tmul, hφ, mul_comm t t']
-    | add y z hy hz => simp only [mul_add, add_mul, hy, hz]
-  | add x y hx hy => simp only [map_add, add_mul, mul_add, hx, hy]
-
-/-- Generators of an algebra relative to an algebra map remain generators after scalar
-extension, over the scalar extension of its coefficient algebra. The central-image hypothesis
-supplies the coefficient-algebra structures even when the target semiring is noncommutative. -/
-theorem adjoin_one_tmul_image_eq_top_of_map
-    {R T B C : Type*} [CommSemiring R] [CommSemiring T] [CommSemiring B] [Semiring C]
-    [Algebra R T] [Algebra R B] [Algebra R C] (φ : B →ₐ[R] C)
-    (hφ : ∀ b c, φ b * c = c * φ b) (s : Set C)
-    (hs : letI := φ.toRingHom.toAlgebra' hφ; Algebra.adjoin B s = ⊤) :
-    let ψ := Algebra.TensorProduct.map (AlgHom.id R T) φ
-    letI := ψ.toRingHom.toAlgebra' (φ.tensorProductMap_mul_comm hφ)
-    Algebra.adjoin (TensorProduct R T B)
-      ((fun c ↦ TensorProduct.tmul R (1 : T) c) '' s) = ⊤ := by
-  let ψ := Algebra.TensorProduct.map (AlgHom.id R T) φ
-  let := ψ.toRingHom.toAlgebra' (φ.tensorProductMap_mul_comm hφ)
-  let D := Algebra.adjoin (TensorProduct R T B)
-    ((fun c ↦ TensorProduct.tmul R (1 : T) c) '' s)
-  have hright (c : C) : TensorProduct.tmul R (1 : T) c ∈ D := by
-    let := φ.toRingHom.toAlgebra' hφ
-    have hc : c ∈ Algebra.adjoin B s := by rw [hs]; trivial
-    induction hc using Algebra.adjoin_induction with
-    | mem x hx => exact Algebra.subset_adjoin ⟨x, hx, rfl⟩
-    | algebraMap b =>
-      exact D.algebraMap_mem (TensorProduct.tmul R (1 : T) b)
-    | add x y _ _ ihx ihy =>
-      simpa only [TensorProduct.tmul_add] using D.add_mem ihx ihy
-    | mul x y _ _ ihx ihy =>
-      simpa only [Algebra.TensorProduct.tmul_mul_tmul, one_mul] using D.mul_mem ihx ihy
-  apply top_unique
-  intro z _
-  change z ∈ D -- Expose membership in the named adjoin before tensor induction.
-  induction z using TensorProduct.induction_on with
-  | zero => simp
-  | tmul t c =>
-    have ht : TensorProduct.tmul R t (1 : C) ∈ D := by
-      have heq :
-          algebraMap (TensorProduct R T B) (TensorProduct R T C)
-            (TensorProduct.tmul R t (1 : B)) =
-          TensorProduct.tmul R t (1 : C) := by
-        -- Expose the algebra map induced by the relative tensor homomorphism.
-        change ψ (TensorProduct.tmul R t (1 : B)) = _
-        simp only [ψ, Algebra.TensorProduct.map_tmul, AlgHom.id_apply, map_one]
-      rw [← heq]
-      exact D.algebraMap_mem _
-    simpa only [Algebra.TensorProduct.tmul_mul_tmul, mul_one, one_mul] using
-      D.mul_mem ht (hright c)
-  | add x y ihx ihy => exact D.add_mem (ihx trivial) (ihy trivial)
 
 end AlgHom
 
@@ -1989,18 +1840,6 @@ theorem tensorShearMulRightBaseChange_symm_tmul (a : A) (g h : H) :
           (Coalgebra.comul (R := R) h))) := by
   simp [tensorShearMulRightBaseChange, tensorShearMulRightBaseChangeAux]
 
-/-- On tensors from `A ⊗[R] H` included in the first and last factors, the scalar-extended shear
-is comultiplication of the `H` factor: it sends the image of `a ⊗ h` to `(a ⊗ h₍₁₎) ⊗ h₍₂₎`. -/
-theorem tensorShearMulRightBaseChange_rTensor_includeLeft (z : A ⊗[R] H) :
-    tensorShearMulRightBaseChange A
-        (Algebra.TensorProduct.rTensor H (includeLeft : A →ₐ[R] A ⊗[R] H) z) =
-      (Algebra.TensorProduct.assoc R R R A H H).symm
-        ((Coalgebra.comul (R := R) (A := H)).lTensor A z) := by
-  induction z with
-  | zero => simp_all
-  | tmul a h => simp [← Algebra.TensorProduct.one_def]
-  | add x y hx hy => simp only [map_add, hx, hy]
-
 end BaseChange
 
 /-- The mirror tensor shear, which pulls back along `(g, h) ↦ (g h, h⁻¹)`. -/
@@ -2543,26 +2382,11 @@ noncomputable def pointsBaseChange : WithConv (A →ₐ[k] k) →* WithConv (K �
   (baseChangePointsMulEquiv (k := k) (K := K) (A := A) (R := K)).toMonoidHom.comp
     (AlgHom.mapValue (Algebra.ofId k K))
 
-/-- Base change of base-valued points is `AlgHom.mapValue (Algebra.ofId k K)` followed by the
-base-change point equivalence. -/
-lemma pointsBaseChange_def :
-    pointsBaseChange (k := k) (A := A) K =
-      (baseChangePointsMulEquiv (k := k) (K := K) (A := A) (R := K)).toMonoidHom.comp
-        (AlgHom.mapValue (Algebra.ofId k K)) :=
-  (rfl)
-
 /-- The base change of a point `f` sends `s ⊗ a` to `s * f a`. -/
 @[simp]
 lemma pointsBaseChange_apply_tmul (f : WithConv (A →ₐ[k] k)) (s : K) (a : A) :
     pointsBaseChange K f (s ⊗ₜ[k] a) = s * algebraMap k K (f.ofConv a) := by
   simp [pointsBaseChange, smul_eq_mul]
-
-/-- The base change of a point `f` is the base change `AlgHom.sectionBaseChange` of the section
-`f` of `Spec A → Spec k`. -/
-lemma ofConv_pointsBaseChange (f : WithConv (A →ₐ[k] k)) :
-    (pointsBaseChange K f).ofConv = f.ofConv.sectionBaseChange K := by
-  ext a
-  simp
 
 variable {T : Type*} [CommSemiring T] [Algebra k T]
 

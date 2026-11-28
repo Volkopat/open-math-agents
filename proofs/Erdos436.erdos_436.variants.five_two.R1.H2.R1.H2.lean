@@ -470,25 +470,6 @@ theorem tendsto_log_one_div_sub_one_atTop :
         linarith)
   simpa only [one_div] using! h1.inv_tendsto_nhdsGT_zero
 
-theorem tendsto_ratio_one_of_div_atTop_pm_bounded
-    {l : Filter ℝ} {g f : ℝ → ℝ} (hg : Tendsto g l atTop)
-    (h_le : ∃ C : ℝ, ∀ᶠ s in l, f s ≤ g s + C)
-    (h_lower : ∃ C : ℝ, ∀ᶠ s in l, g s - C ≤ f s) :
-    Tendsto (fun s : ℝ ↦ f s / g s) l (𝓝 1) := by
-  obtain ⟨C₁, hle⟩ := h_le
-  obtain ⟨C₂, hlower⟩ := h_lower
-  have h0 : Tendsto (fun s ↦ (f s - g s) / g s) l (𝓝 0) :=
-    tendsto_bdd_div_atTop_nhds_zero (b := -C₂) (B := C₁)
-      (hlower.mono fun s h ↦ by linarith) (hle.mono fun s h ↦ by linarith) hg
-  refine (add_zero (1 : ℝ) ▸ h0.const_add 1).congr' ?_
-  filter_upwards [hg.eventually_gt_atTop 0] with s h
-  rw [add_div_eq_mul_add_div _ _ h.ne', one_mul, add_sub_cancel]
-
-theorem tendsto_ratio_one_of_log_pm_bounded (f : ℝ → ℝ)
-    (h_le : ∃ C : ℝ, ∀ᶠ s in 𝓝[>] (1 : ℝ), f s ≤ Real.log (1 / (s - 1)) + C)
-    (h_lower : ∃ C : ℝ, ∀ᶠ s in 𝓝[>] (1 : ℝ), Real.log (1 / (s - 1)) - C ≤ f s) :
-    Tendsto (fun s : ℝ ↦ f s / Real.log (1 / (s - 1))) (𝓝[>] 1) (𝓝 1) :=
-  tendsto_ratio_one_of_div_atTop_pm_bounded tendsto_log_one_div_sub_one_atTop h_le h_lower
 end
 noncomputable section
 
@@ -510,14 +491,6 @@ lemma idealNormMultiplicity_zero : idealNormMultiplicity L 0 = 0 := by
   unfold idealNormMultiplicity
   rw [Nat.card_eq_zero]
   exact Or.inl ⟨fun ⟨⟨I, hI⟩, hnorm⟩ ↦ hI (Ideal.absNorm_eq_zero_iff.mp hnorm)⟩
-
-lemma idealNormMultiplicity_one : idealNormMultiplicity L 1 = 1 := by
-  unfold idealNormMultiplicity
-  have : Unique {I : NonzeroIdeal L // Ideal.absNorm I.1 = 1} :=
-    { default := ⟨⟨⊤, by simp⟩, Ideal.absNorm_top⟩
-      uniq := fun ⟨⟨I, hI⟩, hnorm⟩ ↦
-        Subtype.ext (Subtype.ext (Ideal.absNorm_eq_one_iff.mp hnorm)) }
-  exact Nat.card_unique
 
 lemma dedekindZeta_eq_tsum_idealNormMultiplicity {s : ℂ} (hs : 1 < s.re) :
     NumberField.dedekindZeta L s =
@@ -701,27 +674,6 @@ lemma norm_absNorm_cpow_neg_lt_one {s : ℂ} (hs : 1 < s.re)
   have h2 : 2 ≤ Ideal.absNorm 𝔭.1 := by lia
   rw [Complex.norm_natCast_cpow_of_pos (by lia), Complex.neg_re]
   exact Real.rpow_lt_one_of_one_lt_of_neg (by exact_mod_cast h2.trans_lt' one_lt_two) (by linarith)
-
-theorem prod_eulerFactor_eq_tsum_exponentVector {s : ℂ} (hs : 1 < s.re)
-    (S : Finset {𝔭 : Ideal (𝓞 L) // 𝔭.IsPrime ∧ 𝔭 ≠ ⊥}) :
-    (∏ 𝔭 ∈ S, (1 - (Ideal.absNorm 𝔭.1 : ℂ) ^ (-s))⁻¹) =
-      ∑' e : S →₀ ℕ, ∏ 𝔭 ∈ S.attach, (Ideal.absNorm 𝔭.1.1 : ℂ) ^ (-(e 𝔭 : ℂ) * s) := by
-  classical
-  have hg : ∀ 𝔭 : {𝔭 : Ideal (𝓞 L) // 𝔭.IsPrime ∧ 𝔭 ≠ ⊥},
-      ‖(Ideal.absNorm 𝔭.1 : ℂ) ^ (-s)‖ < 1 := norm_absNorm_cpow_neg_lt_one L hs
-  have hHS := (finsetGeometricProd_summable_and_hasSum
-    (fun 𝔭 : {𝔭 : Ideal (𝓞 L) // 𝔭.IsPrime ∧ 𝔭 ≠ ⊥} ↦ (Ideal.absNorm 𝔭.1 : ℂ) ^ (-s)) hg S).2
-  have hrw : ∀ e : S → ℕ,
-      (∏ 𝔭 ∈ S.attach, ((Ideal.absNorm 𝔭.1.1 : ℂ) ^ (-s)) ^ e 𝔭) =
-        ∏ 𝔭 ∈ S.attach, (Ideal.absNorm 𝔭.1.1 : ℂ) ^ (-(e 𝔭 : ℂ) * s) := fun e ↦
-    Finset.prod_congr rfl fun 𝔭 _ ↦ by
-      rw [← Complex.cpow_nat_mul]
-      ring_nf
-  rw [← hHS.tsum_eq, ← (Finsupp.equivFunOnFinite (α := S) (M := ℕ)).tsum_eq
-    (fun e : S → ℕ ↦ ∏ 𝔭 ∈ S.attach, ((Ideal.absNorm 𝔭.1.1 : ℂ) ^ (-s)) ^ e 𝔭)]
-  refine tsum_congr fun e ↦ ?_
-  simp only [Finsupp.equivFunOnFinite_apply]
-  rw [hrw]
 
 theorem absNorm_prod_pow_of_primeIdeal
     (S : Finset {𝔭 : Ideal (𝓞 L) // 𝔭.IsPrime ∧ 𝔭 ≠ ⊥}) (e : S → ℕ) :
@@ -1037,34 +989,6 @@ theorem dedekindZeta_eq_tprod_primeIdeal {s : ℂ} (hs : 1 < s.re) :
   simp only [one_mul] at hw
   exact (hw.trans (hasSum_nonzeroIdeal_absNorm_cpow L hs).tsum_eq).symm
 
-theorem dedekindZeta_re_pos_of_one_lt (s : ℝ) (hs : 1 < s) :
-    0 < (NumberField.dedekindZeta L (s : ℂ)).re := by
-  have hs' : (1 : ℝ) < ((s : ℂ)).re := by simpa using hs
-  set g : ℕ → ℝ := fun n ↦ (idealNormMultiplicity L n : ℝ) * (n : ℝ) ^ (-s) with hg
-  have key : ∀ n : ℕ,
-      (idealNormMultiplicity L n : ℂ) * (n : ℂ) ^ (-(s : ℂ)) = ((g n : ℝ) : ℂ) := by
-    intro n
-    have hcast : ((n : ℝ) ^ (-s) : ℝ) = ((n : ℂ) ^ (-(s : ℂ))) := by
-      rw [Complex.ofReal_cpow (Nat.cast_nonneg n) (-s)]
-      norm_cast
-    rw [hg]
-    push_cast [hcast]
-    ring
-  have hsumC : Summable
-      fun n : ℕ ↦ (idealNormMultiplicity L n : ℂ) * (n : ℂ) ^ (-(s : ℂ)) :=
-    (summable_idealNormMultiplicity_mul_cpow_neg L hs').of_norm
-  have hsumR : Summable g := Complex.summable_ofReal.mp (by simpa only [key] using hsumC)
-  have hre : (NumberField.dedekindZeta L (s : ℂ)).re = ∑' n : ℕ, g n := by
-    rw [dedekindZeta_eq_tsum_idealNormMultiplicity L hs']
-    simp_rw [key]
-    rw [Complex.re_tsum (by simpa only [key] using hsumC)]
-    simp
-  rw [hre]
-  refine hsumR.tsum_pos (fun n ↦ ?_) 1 ?_
-  · exact mul_nonneg (Nat.cast_nonneg _) (Real.rpow_nonneg (Nat.cast_nonneg _) _)
-  · rw [hg]
-    simp [idealNormMultiplicity_one]
-
 end NumberFieldEulerProduct
 
 end Chebotarev
@@ -1102,28 +1026,6 @@ theorem summable_prime_absNorm_rpow (S : Set (Ideal (𝓞 K))) {s : ℝ} (hs : 1
     fun a b hab ↦ Subtype.ext (Subtype.mk_eq_mk.mp hab)
   exact ((summable_nonzeroIdeal_absNorm_rpow hs).comp_injective hi).congr fun _ ↦ rfl
 
-private theorem primeIdealZetaSum_nonneg (S : Set (Ideal (𝓞 K))) (s : ℝ) :
-    0 ≤ primeIdealZetaSum S s :=
-  tsum_nonneg fun _ ↦ by positivity
-
-private theorem primeIdealZetaSum_le_univ {s : ℝ} (hs : 1 < s) :
-    primeIdealZetaSum S s ≤ primeIdealZetaSum (univ : Set (Ideal (𝓞 K))) s := by
-  rw [primeIdealZetaSum_def, primeIdealZetaSum_def]
-  refine (summable_prime_absNorm_rpow S hs).tsum_le_tsum_of_inj
-    (fun 𝔭 ↦ ⟨𝔭.1, ⟨mem_univ _, 𝔭.2.2.1, 𝔭.2.2.2⟩⟩)
-    (fun a b hab ↦ Subtype.ext (Subtype.mk_eq_mk.mp hab))
-    (fun c _ ↦ Real.rpow_nonneg (Nat.cast_nonneg _) _)
-    (fun 𝔭 ↦ le_of_eq rfl) (summable_prime_absNorm_rpow (univ : Set (Ideal (𝓞 K))) hs)
-
-theorem primeIdealZetaSum_le_of_subset {T : Set (Ideal (𝓞 K))} (hST : S ⊆ T) {s : ℝ} (hs : 1 < s) :
-    primeIdealZetaSum S s ≤ primeIdealZetaSum T s := by
-  rw [primeIdealZetaSum_def, primeIdealZetaSum_def]
-  refine (summable_prime_absNorm_rpow S hs).tsum_le_tsum_of_inj
-    (fun 𝔭 ↦ ⟨𝔭.1, hST 𝔭.2.1, 𝔭.2.2.1, 𝔭.2.2.2⟩)
-    (fun a b hab ↦ Subtype.ext (Subtype.mk_eq_mk.mp hab))
-    (fun c _ ↦ Real.rpow_nonneg (Nat.cast_nonneg _) _)
-    (fun _ ↦ le_rfl) (summable_prime_absNorm_rpow T hs)
-
 theorem primeIdealZetaSum_union_of_disjoint {T : Set (Ideal (𝓞 K))} (hDisj : Disjoint S T) {s : ℝ}
     (hs : 1 < s) :
     primeIdealZetaSum (S ∪ T) s = primeIdealZetaSum S s + primeIdealZetaSum T s := by
@@ -1145,36 +1047,6 @@ theorem primeIdealZetaSum_union_of_disjoint {T : Set (Ideal (𝓞 K))} (hDisj : 
       {x | (x.1 : Ideal (𝓞 K)) ∈ S},
     ← eS.tsum_eq (fun x ↦ (Ideal.absNorm (x.1 : Ideal (𝓞 K)) : ℝ) ^ (-s)),
     ← eT.tsum_eq (fun x ↦ (Ideal.absNorm (x.1 : Ideal (𝓞 K)) : ℝ) ^ (-s))]
-  rfl
-
-theorem primeIdealZetaSum_empty (s : ℝ) : primeIdealZetaSum (∅ : Set (Ideal (𝓞 K))) s = 0 := by
-  have : IsEmpty {𝔭 : Ideal (𝓞 K) // 𝔭 ∈ (∅ : Set (Ideal (𝓞 K))) ∧ 𝔭.IsPrime ∧ 𝔭 ≠ ⊥} :=
-    ⟨fun x ↦ x.2.1⟩
-  rw [primeIdealZetaSum_def, tsum_empty]
-
-theorem primeIdealZetaSum_biUnion_of_pairwiseDisjoint {ι : Type*} (t : Finset ι)
-    (g : ι → Set (Ideal (𝓞 K))) (hg : (t : Set ι).PairwiseDisjoint g) {s : ℝ} (hs : 1 < s) :
-    primeIdealZetaSum (⋃ i ∈ t, g i) s = ∑ i ∈ t, primeIdealZetaSum (g i) s := by
-  classical
-  induction t using Finset.induction with
-  | empty => simp [primeIdealZetaSum_empty]
-  | insert a t ha ih =>
-      have hdisj : Disjoint (g a) (⋃ i ∈ t, g i) :=
-        disjoint_iUnion₂_right.2 fun i hi ↦
-          hg (Finset.mem_insert_self a t) (Finset.mem_insert_of_mem hi)
-            (fun h ↦ ha (h ▸ hi))
-      rw [Finset.set_biUnion_insert, primeIdealZetaSum_union_of_disjoint hdisj hs,
-        Finset.sum_insert ha, ih (hg.subset (Finset.coe_subset.mpr (Finset.subset_insert a t)))]
-
-theorem primeIdealZetaSum_eq_univ_of_forall_prime_mem
-    (hS : ∀ 𝔭 : Ideal (𝓞 K), 𝔭.IsPrime → 𝔭 ≠ ⊥ → 𝔭 ∈ S) (s : ℝ) :
-    primeIdealZetaSum S s = primeIdealZetaSum (univ : Set (Ideal (𝓞 K))) s := by
-  let e : {𝔭 : Ideal (𝓞 K) // 𝔭 ∈ S ∧ 𝔭.IsPrime ∧ 𝔭 ≠ ⊥} ≃
-      {𝔭 : Ideal (𝓞 K) // 𝔭 ∈ (univ : Set (Ideal (𝓞 K))) ∧ 𝔭.IsPrime ∧ 𝔭 ≠ ⊥} :=
-    Equiv.subtypeEquivRight fun 𝔭 ↦
-      ⟨fun h ↦ ⟨mem_univ _, h.2⟩, fun h ↦ ⟨hS 𝔭 h.2.1 h.2.2, h.2⟩⟩
-  rw [primeIdealZetaSum_def, primeIdealZetaSum_def,
-    ← e.tsum_eq (fun 𝔭 ↦ (Ideal.absNorm (𝔭.1 : Ideal (𝓞 K)) : ℝ) ^ (-s))]
   rfl
 
 variable (K)
@@ -1390,26 +1262,6 @@ theorem primeIdealZetaSum_le_log_plus_bounded :
   refine ⟨C₁ + C₂, ?_⟩
   filter_upwards [h₁, h₂] with s hs₁ hs₂
   linarith [abs_le.mp hs₁, abs_le.mp hs₂]
-
-theorem primeIdealZetaSum_univ_tendsto_log :
-    Tendsto
-      (fun s : ℝ ↦ primeIdealZetaSum (univ : Set (Ideal (𝓞 K))) s
-        / Real.log (1 / (s - 1)))
-      (𝓝[>] 1) (𝓝 1) :=
-  tendsto_ratio_one_of_log_pm_bounded
-    (primeIdealZetaSum (univ : Set (Ideal (𝓞 K))))
-    (primeIdealZetaSum_le_log_plus_bounded K)
-    (log_minus_bounded_le_primeIdealZetaSum K)
-
-theorem primeIdealZetaSum_univ_tendsto_atTop :
-    Tendsto (primeIdealZetaSum (univ : Set (Ideal (𝓞 K)))) (𝓝[>] 1) atTop := by
-  have hL := tendsto_log_one_div_sub_one_atTop
-  have hhalf : Tendsto (fun s : ℝ ↦ (1 / 2 : ℝ) * Real.log (1 / (s - 1))) (𝓝[>] 1) atTop :=
-    hL.const_mul_atTop (by norm_num)
-  refine tendsto_atTop_mono' _ ?_ hhalf
-  filter_upwards [(primeIdealZetaSum_univ_tendsto_log K).eventually
-      (Ioi_mem_nhds (show (1 / 2 : ℝ) < 1 by norm_num)), hL.eventually_gt_atTop 0] with s hs hpos
-  exact ((lt_div_iff₀ hpos).mp (mem_Ioi.mp hs)).le
 
 end Chebotarev
 end

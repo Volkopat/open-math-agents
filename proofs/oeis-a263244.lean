@@ -2,7 +2,7 @@ import OMAStatements.S_oeis_a263244
 
 -- Problem: A263244: Binary representation of the n-th iteration of the Rule 155 elementary cellular automaton starting with a single ON (black) cell
 -- Upstream: formal-conjectures statements/oeis-a263244.lean:0 (declaration OMA.S_oeis_a263244.main)
--- Credit: @marcelopierry (the owner of the agent is credited as the solver)
+-- Shorter version of the merged proof (the first solve keeps its credit).
 -- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
 
 namespace OMA.Proof_oeis_a263244
@@ -10,135 +10,25 @@ namespace OMA.Proof_oeis_a263244
 open OMA.S_oeis_a263244
 open PowerSeries
 
-private lemma ruleOut_155 (l c r : Bool) :
-    ruleOut 155 l c r =
-      match l, c, r with
-      | false, false, false => true
-      | false, false, true  => true
-      | false, true,  false => false
-      | false, true,  true  => true
-      | true,  false, false => true
-      | true,  false, true  => false
-      | true,  true,  false => false
-      | true,  true,  true  => true := by
-  cases l <;> cases c <;> cases r <;> decide
 
-private lemma cell_155_step_odd (p i : ℤ) :
-    ruleOut 155 (decide (i - 1 ≠ p)) (decide (i ≠ p)) (decide (i + 1 ≠ p)) =
-      decide (i ≠ p - 1 ∧ i ≠ p) := by
-  by_cases h1 : i = p - 1
-  · rw [h1]
-    have ha : p - 1 - 1 ≠ p := by omega
-    have hb : p - 1 ≠ p := by omega
-    have hc : p - 1 + 1 = p := by omega
-    simp [ruleOut_155, ha, hb, hc]
-  · by_cases h2 : i = p
-    · rw [h2]
-      have ha : p - 1 ≠ p := by omega
-      have hc : p + 1 ≠ p := by omega
-      simp [ruleOut_155, ha, hc]
-    · by_cases h3 : i = p + 1
-      · rw [h3]
-        have ha : p + 1 - 1 = p := by omega
-        have hb : p + 1 ≠ p := by omega
-        have hc : p + 1 + 1 ≠ p := by omega
-        have hd : p + 1 ≠ p - 1 := by omega
-        simp [ruleOut_155, ha, hb, hc, hd]
-      · have ha : i - 1 ≠ p := by omega
-        have hc : i + 1 ≠ p := by omega
-        simp [ruleOut_155, ha, h2, hc, h1]
+lemma r (l c r : Bool) : ruleOut 155 l c r = ((!c || r) && (!l || c || !r)) := by
+  cases l <;> cases c <;> cases r <;> rfl
 
-private lemma cell_155_step_even (p i : ℤ) :
-    ruleOut 155 (decide (i - 1 ≠ p ∧ i - 1 ≠ p + 1))
-      (decide (i ≠ p ∧ i ≠ p + 1))
-      (decide (i + 1 ≠ p ∧ i + 1 ≠ p + 1)) =
-      decide (i ≠ p - 1) := by
-  by_cases h1 : i = p - 1
-  · rw [h1]
-    have ha1 : p - 1 - 1 ≠ p := by omega
-    have ha2 : p - 1 - 1 ≠ p + 1 := by omega
-    have hb1 : p - 1 ≠ p := by omega
-    have hb2 : p - 1 ≠ p + 1 := by omega
-    have hc1 : p - 1 + 1 = p := by omega
-    simp [ruleOut_155, ha1, ha2, hb1, hb2, hc1]
-  · by_cases h2 : i = p
-    · rw [h2]
-      have ha1 : p - 1 ≠ p := by omega
-      have ha2 : p - 1 ≠ p + 1 := by omega
-      have hd : p ≠ p - 1 := by omega
-      simp [ruleOut_155, ha1, ha2, hd]
-    · by_cases h3 : i = p + 1
-      · rw [h3]
-        have ha1 : p + 1 - 1 = p := by omega
-        have hc1 : p + 1 + 1 ≠ p := by omega
-        have hc2 : p + 1 + 1 ≠ p + 1 := by omega
-        have hd : p + 1 ≠ p - 1 := by omega
-        simp [ruleOut_155, ha1, hc1, hc2, hd]
-      · by_cases h4 : i = p + 2
-        · rw [h4]
-          have ha2 : p + 2 - 1 = p + 1 := by omega
-          have hb1 : p + 2 ≠ p := by omega
-          have hb2 : p + 2 ≠ p + 1 := by omega
-          have hc1 : p + 2 + 1 ≠ p := by omega
-          have hc2 : p + 2 + 1 ≠ p + 1 := by omega
-          have hd : p + 2 ≠ p - 1 := by omega
-          simp [ruleOut_155, ha2, hb1, hb2, hc1, hc2, hd]
-        · have ha1 : i - 1 ≠ p := by omega
-          have ha2 : i - 1 ≠ p + 1 := by omega
-          have hc1 : i + 1 ≠ p := by omega
-          have hc2 : i + 1 ≠ p + 1 := by omega
-          simp [ruleOut_155, ha1, ha2, h2, h3, hc1, hc2, h1]
+-- after t + 1 steps the only OFF cells are -t and, for odd t, 1 - t
+lemma cf (t : ℕ) : cell 155 (t + 1) = fun i : ℤ => decide (i ≠ -t ∧ (i ≠ 1 - t ∨ t % 2 = 0)) := by
+  induction t with
+  | zero => ext i; rw [Bool.eq_iff_iff]; simp [cell, r]; omega
+  | succ t ih => rw [cell, ih]; ext i; rw [Bool.eq_iff_iff]; simp [r]; omega
 
 private lemma cell_155_formula :
     ∀ t : ℕ, 1 ≤ t → ∀ i : ℤ,
       cell 155 t i =
         if Odd t then decide (i ≠ 1 - (t : ℤ))
         else decide (i ≠ 1 - (t : ℤ) ∧ i ≠ 2 - (t : ℤ)) := by
-  intro t ht
-  induction t with
-  | zero => omega
-  | succ t ih =>
-    cases t with
-    | zero =>
-      intro i
-      change ruleOut 155 (decide (i - 1 = 0)) (decide (i = 0)) (decide (i + 1 = 0)) =
-        if Odd (1 : ℕ) then decide (i ≠ 1 - ((1 : ℕ) : ℤ))
-        else decide (i ≠ 1 - ((1 : ℕ) : ℤ) ∧ i ≠ 2 - ((1 : ℕ) : ℤ))
-      simp only [Nat.cast_one, sub_self, show Odd (1 : ℕ) from ⟨0, rfl⟩, ite_true]
-      by_cases h0 : i = 0
-      · rw [h0]; simp [ruleOut_155]
-      · by_cases hm : i = -1
-        · rw [hm]; simp [ruleOut_155]
-        · by_cases hp : i = 1
-          · rw [hp]; simp [ruleOut_155]
-          · have h1 : i - 1 ≠ 0 := by omega
-            have h2 : i + 1 ≠ 0 := by omega
-            simp [ruleOut_155, h0, h1, h2]
-    | succ t =>
-      have hprev := ih (by omega)
-      intro i
-      change ruleOut 155 (cell 155 (t + 1) (i - 1)) (cell 155 (t + 1) i)
-          (cell 155 (t + 1) (i + 1)) = _
-      rw [hprev, hprev, hprev]
-      by_cases hodd : Odd (t + 1)
-      · have hnot : ¬ Odd (t + 2) := by
-          obtain ⟨k, hk⟩ := hodd
-          intro ⟨m, hm⟩
-          omega
-        simp only [hodd, hnot, ite_true, ite_false]
-        rw [cell_155_step_odd (1 - ((t + 1 : ℕ) : ℤ)) i]
-        have hp1 : 1 - ((t + 1 : ℕ) : ℤ) - 1 = 1 - ((t + 2 : ℕ) : ℤ) := by push_cast; omega
-        have hp2 : 1 - ((t + 1 : ℕ) : ℤ) = 2 - ((t + 2 : ℕ) : ℤ) := by push_cast; omega
-        rw [hp1, hp2]
-      · have hodd2 : Odd (t + 2) := by
-          rcases Nat.even_or_odd (t + 1) with ⟨k, hk⟩ | h
-          · exact ⟨k, by omega⟩
-          · exact (hodd h).elim
-        simp only [hodd, hodd2, ite_true, ite_false]
-        have hp2 : 2 - ((t + 1 : ℕ) : ℤ) = (1 - ((t + 1 : ℕ) : ℤ)) + 1 := by omega
-        rw [hp2, cell_155_step_even (1 - ((t + 1 : ℕ) : ℤ)) i]
-        have hp1 : 1 - ((t + 1 : ℕ) : ℤ) - 1 = 1 - ((t + 2 : ℕ) : ℤ) := by push_cast; omega
-        rw [hp1]
+  intro t ht i
+  obtain ⟨t, rfl⟩ : ∃ s, t = s + 1 := ⟨t - 1, by omega⟩
+  rw [cf]
+  split_ifs with h <;> rw [Bool.eq_iff_iff] <;> simp [Nat.odd_iff] at * <;> omega
 
 private lemma sum_ten_pow_rev (m : ℕ) :
     9 * ∑ j ∈ Finset.range (m + 1), (10 : ℤ) ^ (m - j) = 10 ^ (m + 1) - 1 := by

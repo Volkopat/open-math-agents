@@ -56,77 +56,32 @@ private def red : SimpleGraph (Fin 15) := fromRel redForward
 private instance : DecidableRel red.Adj :=
   inferInstanceAs (DecidableRel (fromRel redForward).Adj)
 
-private theorem red_degree : ∀ v : Fin 15, red.degree v = if v = 0 then 8 else 7 := by
-  decide +kernel
-
-private theorem blue_degree : ∀ v : Fin 15, redᶜ.degree v < 8 := by
-  decide +kernel
-
-private theorem red_outside_degree :
-    ∀ v : Fin 15, red.Adj 0 v →
-      ((univ : Finset (Fin 15)).filter fun w => red.Adj v w ∧ ¬ red.Adj 0 w ∧ w ≠ 0).card ≤ 2 := by
-  decide +kernel
-
-private lemma right_leaves {G : SimpleGraph (Fin 15)} (f : doubleStar.Copy G) :
-    (univ.image fun j : Fin 8 => f (.inr j)).card = 8 := by
-  have hinj : Function.Injective (fun j : Fin 8 => f (.inr j)) :=
-    fun _ _ h => Sum.inr.inj (f.injective h)
-  rw [card_image_of_injective _ hinj]
-  simp
-
-private lemma right_leaves_subset {G : SimpleGraph (Fin 15)} [DecidableRel G.Adj]
-    (f : doubleStar.Copy G) :
-    (univ.image fun j : Fin 8 => f (.inr j)) ⊆ G.neighborFinset (f (.inl 0)) := by
-  intro v hv
-  obtain ⟨j, -, rfl⟩ := mem_image.mp hv
-  simpa only [mem_neighborFinset, Copy.toHom_apply] using f.toHom.map_adj (star_first j)
-
-private lemma no_red_copy : ¬ doubleStar.IsContained red := by
+-- A copy forces eight neighbors of its first center, and every vertex of
+-- the copy lies in the union of the two centers' neighbor sets.
+private lemma exclude (G : SimpleGraph (Fin 15)) [DecidableRel G.Adj]
+    (bound : ∀ a b, G.Adj a b → 8 ≤ G.degree a →
+      (G.neighborFinset a ∪ G.neighborFinset b).card < 12) :
+    ¬ doubleStar.IsContained G := by
   rintro ⟨f⟩
-  have hc := right_leaves f
-  have hs := right_leaves_subset f
-  have hdeg := card_le_card hs
-  rw [hc, card_neighborFinset_eq_degree, red_degree] at hdeg
-  have hv : f (.inl 0) = 0 := by
-    by_contra hne
-    simp [hne] at hdeg
-  have hright : (univ.image fun j : Fin 8 => f (.inr j)) =
-      red.neighborFinset (f (.inl 0)) := by
-    refine eq_of_subset_of_card_le hs ?_
-    rw [hc, card_neighborFinset_eq_degree, red_degree, hv, if_pos rfl]
-  let leftLeaves := univ.image fun i : Fin 3 => f (.inl i.succ)
-  have hlcard : leftLeaves.card = 3 := by
-    dsimp [leftLeaves]
-    have hinj : Function.Injective (fun i : Fin 3 => f (.inl i.succ)) :=
-      fun _ _ h => Fin.succ_injective _ (Sum.inl.inj (f.injective h))
-    rw [card_image_of_injective _ hinj]
-    simp
-  let otherCenter := f (.inr 0)
-  have hadj : red.Adj 0 otherCenter := by
-    rw [← hv]
-    exact f.toHom.map_adj (star_first 0)
-  have hsub : leftLeaves ⊆
-      (univ : Finset (Fin 15)).filter fun w => red.Adj otherCenter w ∧ ¬ red.Adj 0 w ∧ w ≠ 0 := by
-    intro w hw
-    obtain ⟨i, -, rfl⟩ := mem_image.mp hw
-    refine mem_filter.mpr ⟨mem_univ _, (f.toHom.map_adj (star_second i.succ)).symm, ?_, ?_⟩
-    · intro ha
-      have hmem : f (.inl i.succ) ∈ red.neighborFinset (f (.inl 0)) :=
-        by simpa only [mem_neighborFinset, hv] using ha
-      rw [← hright] at hmem
-      obtain ⟨j, -, heq⟩ := mem_image.mp hmem
-      exact (by simp : (Sum.inr j : Fin 4 ⊕ Fin 8) ≠ Sum.inl i.succ) (f.injective heq)
-    · intro heq
-      have h := Sum.inl.inj (f.injective (heq.trans hv.symm))
-      exact (Fin.succ_ne_zero i) h
-  have hle := (card_le_card hsub).trans (red_outside_degree _ hadj)
-  omega
-
-private lemma no_blue_copy : ¬ doubleStar.IsContained redᶜ := by
-  rintro ⟨f⟩
-  have hle := card_le_card (right_leaves_subset f)
-  rw [right_leaves f, card_neighborFinset_eq_degree] at hle
-  exact (not_le_of_gt (blue_degree _)) hle
+  let a := f (.inl 0)
+  let b := f (.inr 0)
+  have right (j : Fin 8) : f (.inr j) ∈ G.neighborFinset a :=
+    (G.mem_neighborFinset a _).mpr (f.toHom.map_adj (star_first j))
+  have left (i : Fin 4) : f (.inl i) ∈ G.neighborFinset b :=
+    (G.mem_neighborFinset b _).mpr (f.toHom.map_adj (star_second i)).symm
+  have deg : 8 ≤ G.degree a := by
+    let e : Fin 8 ↪ G.neighborFinset a :=
+      ⟨fun j => ⟨_, right j⟩, fun i j h => Sum.inr.inj (f.injective (congrArg Subtype.val h))⟩
+    simpa only [Fintype.card_fin, Fintype.card_coe, card_neighborFinset_eq_degree] using Fintype.card_le_of_embedding e
+  let U := G.neighborFinset a ∪ G.neighborFinset b
+  have cover (v : Fin 4 ⊕ Fin 8) : f v ∈ U := by
+    cases v with
+    | inl i => exact mem_union_right _ (left i)
+    | inr j => exact mem_union_left _ (right j)
+  let e : (Fin 4 ⊕ Fin 8) ↪ U :=
+    ⟨fun v => ⟨_, cover v⟩, fun _ _ h => f.injective (congrArg Subtype.val h)⟩
+  have large : 12 ≤ U.card := by simpa using Fintype.card_le_of_embedding e
+  exact (Nat.not_lt_of_ge large) (bound a b (f.toHom.map_adj (star_first 0)) deg)
 
 theorem OMA.solution : type_of% @Erdos549.erdos_549 := by
   intro h
@@ -141,4 +96,4 @@ theorem OMA.solution : type_of% @Erdos549.erdos_549 := by
     rw [Set.not_nonempty_iff_eq_empty.mp hS, Nat.sInf_empty] at hramsey
     omega
   have hmem : 15 ∈ S := hramsey ▸ Nat.sInf_mem hnonempty
-  exact (hmem red).elim no_red_copy no_blue_copy
+  exact (hmem red).elim (exclude red (by decide +kernel)) (exclude redᶜ (by decide +kernel))

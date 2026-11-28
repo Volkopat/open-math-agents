@@ -19,27 +19,6 @@ def primitiveCharacters (q : Nat) : Finset (DirichletCharacter Complex q) := by
   exact Finset.univ.filter DirichletCharacter.IsPrimitive
 
 
-def intervalCharacterSum (a : Int -> Complex) (M : Int) (N q : Nat)
-    (chi : DirichletCharacter Complex q) : Complex :=
-  ∑ n ∈ Ioc M (M + (N : Int)), a n * chi (n : ZMod q)
-
-
-def unitCharacterSum {q : Nat} (a : (ZMod q)ˣ -> Complex)
-    (chi : DirichletCharacter Complex q) : Complex := by
-  letI : Fintype (ZMod q)ˣ := Fintype.ofFinite _
-  exact ∑ x, a x * chi (x : ZMod q)
-
-
-def CharacterLargeSieveStatement : Prop :=
-  Exists fun C : Real =>
-    0 < C ∧
-      ∀ (M : Int) (N Q : Nat) (a : Int -> Complex), 1 <= Q ->
-        ∑ q ∈ Icc 1 Q, ((q : Real) / (q.totient : Real)) *
-            ∑ chi ∈ primitiveCharacters q,
-              ‖intervalCharacterSum a M N q chi‖ ^ 2 <=
-          C * ((N : Real) + (Q : Real) ^ 2) *
-            ∑ n ∈ Ioc M (M + (N : Int)), ‖a n‖ ^ 2
-
 end BombieriVinogradov.LargeSieve
 end
 
@@ -63,70 +42,6 @@ def maximalPsiNorm (x : Real) {q : Nat}
     (chi : DirichletCharacter Complex q) : Real :=
   (range (⌊x⌋₊ + 1)).sup' (by simp) fun y => ‖psiCharacterSum y q chi‖
 
-
-def primitivePsiMean (x : Real) (Q : Nat) : Real :=
-  ∑ q ∈ Icc 1 Q, ((q : Real) / (q.totient : Real)) *
-    ∑ chi ∈ primitiveCharacters q, maximalPsiNorm x chi
-
-
-def basicMeanValueMajorant (x : Real) (Q : Nat) : Real :=
-  (x + x ^ (5 / 6 : Real) * (Q : Real) +
-      x ^ (1 / 2 : Real) * (Q : Real) ^ 2) *
-    Real.log (x * (Q : Real)) ^ 3
-
-
-def VaughanMeanValueStatement : Prop :=
-  Exists fun C : Real =>
-    0 < C ∧ ∀ (x : Real) (Q : Nat), 2 <= x -> 1 <= Q ->
-      primitivePsiMean x Q <= C * basicMeanValueMajorant x Q
-
-
-def restrictedBilinearCharacterSum (a b : Nat -> Complex)
-    (M N Y q : Nat) (chi : DirichletCharacter Complex q) : Complex :=
-  ∑ m ∈ Icc 1 M, ∑ n ∈ Icc 1 N,
-    if m * n <= Y then a m * b n * chi ((m * n : Nat) : ZMod q) else 0
-
-
-def maximalBilinearNorm (a b : Nat -> Complex)
-    (M N X : Nat) {q : Nat} (chi : DirichletCharacter Complex q) : Real :=
-  (range (X + 1)).sup' (by simp) fun Y =>
-    ‖restrictedBilinearCharacterSum a b M N Y q chi‖
-
-
-def coefficientMass (a : Nat -> Complex) (M : Nat) : Real :=
-  ∑ m ∈ Icc 1 M, ‖a m‖ ^ 2
-
-
-def MaximalBilinearLargeSieveStatement : Prop :=
-  Exists fun C : Real =>
-    0 < C ∧
-      ∀ (X M N Q : Nat) (a b : Nat -> Complex),
-        2 <= X -> 1 <= M -> 1 <= N -> 1 <= Q ->
-          ∑ q ∈ Icc 1 Q, ((q : Real) / (q.totient : Real)) *
-              ∑ chi ∈ primitiveCharacters q,
-                maximalBilinearNorm a b M N X chi <=
-            C * Real.log ((X * M * N : Nat) : Real) *
-              Real.sqrt (((M : Real) + (Q : Real) ^ 2) *
-                ((N : Real) + (Q : Real) ^ 2) *
-                coefficientMass a M * coefficientMass b N)
-
-
-def positiveIntervalCoefficients (a : Nat -> Complex) (n : Int) : Complex :=
-  a n.toNat
-
-
-def positiveCharacterSum (a : Nat -> Complex) (M q : Nat)
-    (chi : DirichletCharacter Complex q) : Complex :=
-  intervalCharacterSum (positiveIntervalCoefficients a) 0 M q chi
-
-
-def positiveCoefficientMass (a : Nat -> Complex) (M : Nat) : Real :=
-  ∑ n ∈ Ioc (0 : Int) (M : Int), ‖positiveIntervalCoefficients a n‖ ^ 2
-
-
-def bilinearCharacterProduct (a b : Nat -> Complex) (M N q : Nat)
-    (chi : DirichletCharacter Complex q) : Complex :=
-  positiveCharacterSum a M q chi * positiveCharacterSum b N q chi
 
 end BombieriVinogradov.VaughanMeanValue
 end
@@ -206,12 +121,6 @@ theorem nonprincipalPrimitiveMaximalSum_nonneg (X : Real) (q : Nat) :
   unfold nonprincipalPrimitiveMaximalSum
   exact Finset.sum_nonneg (fun chi _ => VaughanMeanValue.maximalPsiNorm_nonneg X chi)
 
-
-theorem primitiveConductorMean_nonneg (X : Real) (Q : Nat) :
-    0 <= primitiveConductorMean X Q := by
-  unfold primitiveConductorMean
-  exact Finset.sum_nonneg (fun d _ =>
-    div_nonneg (nonprincipalPrimitiveMaximalSum_nonneg X d) (Nat.cast_nonneg d.totient))
 
 end BombieriVinogradov.WeightedBombieriVinogradov
 end
@@ -611,19 +520,6 @@ section
 namespace BombieriVinogradov.DirichletCharacter
 
 
-theorem three_le_level_of_ne_one {N : Nat} [NeZero N]
-    (chi : _root_.DirichletCharacter Complex N) (hchi : chi ≠ 1) : 3 ≤ N := by
-  by_contra hN
-  have hNle : N ≤ 2 := by omega
-  interval_cases N
-  · exact (NeZero.ne 0) rfl
-  · exact hchi (Subsingleton.elim _ _)
-  · apply hchi
-    ext x
-    have hx : x = 1 := Subsingleton.elim _ _
-    subst x
-    simp
-
 theorem primitiveCharacter_ne_one_of_ne_one {N : Nat} [NeZero N]
     (chi : _root_.DirichletCharacter Complex N) (hchi : chi ≠ 1) :
     chi.primitiveCharacter ≠ 1 := by
@@ -631,50 +527,6 @@ theorem primitiveCharacter_ne_one_of_ne_one {N : Nat} [NeZero N]
   apply hchi
   rw [← chi.changeLevel_primitiveCharacter, hprimitive]
   simp
-
-theorem primitiveCharacter_pow_ne_one_of_pow_ne_one
-    {N m : Nat} [NeZero N] (chi : _root_.DirichletCharacter Complex N)
-    (hchi : chi ^ m ≠ 1) : chi.primitiveCharacter ^ m ≠ 1 := by
-  intro hPrimitive
-  apply hchi
-  let lift : _root_.DirichletCharacter Complex chi.conductor →*
-      _root_.DirichletCharacter Complex N :=
-    _root_.DirichletCharacter.changeLevel (R := Complex)
-      chi.conductor_dvd_level
-  have hLift : lift chi.primitiveCharacter = chi :=
-    chi.changeLevel_primitiveCharacter
-  calc
-    chi ^ m = (lift chi.primitiveCharacter) ^ m := by rw [hLift]
-    _ = lift (chi.primitiveCharacter ^ m) := by
-      rw [map_pow]
-    _ = lift 1 := by
-      rw [hPrimitive]
-    _ = 1 := by
-      rw [map_one]
-
-theorem inv_eq_self_of_sq_eq_one {N : Nat} [NeZero N]
-    (chi : _root_.DirichletCharacter Complex N) (hchi : chi ^ 2 = 1) :
-    chi⁻¹ = chi := by
-  have hProduct : chi * chi = 1 := by
-    simpa [pow_two] using hchi
-  exact (eq_inv_of_mul_eq_one_left hProduct).symm
-
-theorem primitiveCharacter_pow_eq_one_of_pow_eq_one
-    {N m : Nat} [NeZero N] (chi : _root_.DirichletCharacter Complex N)
-    (hchi : chi ^ m = 1) : chi.primitiveCharacter ^ m = 1 := by
-  apply _root_.DirichletCharacter.changeLevel_injective chi.conductor_dvd_level
-  rw [map_pow, chi.changeLevel_primitiveCharacter, hchi, map_one]
-
-theorem conductor_le_level {N : Nat} [NeZero N]
-    (chi : _root_.DirichletCharacter Complex N) : chi.conductor ≤ N :=
-  Nat.le_of_dvd (NeZero.pos N) chi.conductor_dvd_level
-
-theorem three_le_conductor_of_ne_one {N : Nat} [NeZero N]
-    (chi : _root_.DirichletCharacter Complex N) (hchi : chi ≠ 1) :
-    3 ≤ chi.conductor := by
-  let _ : NeZero chi.conductor := ⟨chi.conductor_ne_zero⟩
-  exact three_le_level_of_ne_one chi.primitiveCharacter
-    (primitiveCharacter_ne_one_of_ne_one chi hchi)
 
 end BombieriVinogradov.DirichletCharacter
 end
@@ -1435,31 +1287,10 @@ section
 namespace BombieriVinogradov.PrimeCountingConversion
 
 
-noncomputable def thetaGlobalNat (N : Nat) : Real :=
-  Finset.sum (Finset.Icc 1 N) (fun n => if n.Prime then Real.log (n : Real) else 0)
-
-
-noncomputable def thetaProgressionNat (N q : Nat) (a : ZMod q) : Real :=
-  Finset.sum (Finset.Icc 1 N)
-    (fun n : Nat => if And n.Prime ((n : ZMod q) = a) then Real.log (n : Real) else 0)
-
-
-def primeProgressionNat (N q : Nat) (a : ZMod q) : Nat :=
-  ((Finset.Icc 1 N).filter (fun n : Nat => And n.Prime ((n : ZMod q) = a))).card
-
-
-def primeGlobalNat (N : Nat) : Nat :=
-  ((Finset.Icc 1 N).filter Nat.Prime).card
-
-
 noncomputable def centeredPsiCoefficient (n q : Nat) (a : ZMod q) : Real :=
   (if a = (n : ZMod q) then ArithmeticFunction.vonMangoldt n else 0) -
     ArithmeticFunction.vonMangoldt n / (q.totient : Real)
 
-
-noncomputable def centeredThetaCoefficient (n q : Nat) (a : ZMod q) : Real :=
-  (if And n.Prime ((n : ZMod q) = a) then Real.log (n : Real) else 0) -
-    (if n.Prime then Real.log (n : Real) else 0) / (q.totient : Real)
 
 end BombieriVinogradov.PrimeCountingConversion
 end
@@ -1476,22 +1307,6 @@ theorem sum_centeredPsiCoefficient (N q : Nat) (a : ZMod q) :
     WeightedBombieriVinogradov.psiGlobal
   rw [Finset.sum_sub_distrib, Finset.sum_div]
 
-
-theorem sum_centeredThetaCoefficient (N q : Nat) (a : ZMod q) :
-    Finset.sum (Finset.Icc 1 N) (fun n => centeredThetaCoefficient n q a) =
-      thetaProgressionNat N q a - thetaGlobalNat N / (q.totient : Real) := by
-  unfold centeredThetaCoefficient thetaProgressionNat thetaGlobalNat
-  rw [Finset.sum_sub_distrib, Finset.sum_div]
-
-
-theorem centeredPsiCoefficient_one (q : Nat) (a : ZMod q) :
-    centeredPsiCoefficient 1 q a = 0 := by
-  simp [centeredPsiCoefficient]
-
-
-theorem centeredThetaCoefficient_one (q : Nat) (a : ZMod q) :
-    centeredThetaCoefficient 1 q a = 0 := by
-  simp [centeredThetaCoefficient]
 
 end BombieriVinogradov.PrimeCountingConversion
 end

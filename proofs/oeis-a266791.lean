@@ -1,0 +1,277 @@
+import OMAStatements.S_oeis_a266791
+
+namespace OMA.S_oeis_a266791
+
+open PowerSeries
+
+
+
+
+
+lemma state_succ (t : ℕ) (i : ℤ) :
+    state (t + 1) i = rule (state t (i - 1)) (state t i) (state t (i + 1)) := rfl
+
+/-- Relative ON cells of the even stages and relative OFF cells of the odd stages. -/
+def E : List ℤ := [(0 : ℤ), 1, 2, 3, 5]
+def O : List ℤ := [(-1 : ℤ), 1, 2, 3]
+
+lemma s1 (i : ℤ) : state 1 i = decide (i ∉ [(-1 : ℤ)]) := by
+  show rule (decide (i - 1 = 0)) (decide (i = 0)) (decide (i + 1 = 0)) = _
+  rcases (by omega : i ≤ -2 ∨ (-1 ≤ i ∧ i ≤ 1) ∨ 2 ≤ i) with h | ⟨h1, h2⟩ | h
+  · rw [decide_eq_false (by omega : ¬ i - 1 = 0), decide_eq_false (by omega : ¬ i = 0),
+      decide_eq_false (by omega : ¬ i + 1 = 0), decide_eq_true (by simp <;> omega)]; decide
+  · interval_cases i <;> decide
+  · rw [decide_eq_false (by omega : ¬ i - 1 = 0), decide_eq_false (by omega : ¬ i = 0),
+      decide_eq_false (by omega : ¬ i + 1 = 0), decide_eq_true (by simp <;> omega)]; decide
+
+lemma s2 (i : ℤ) : state 2 i = decide (i ∈ [(-1 : ℤ), 0]) := by
+  rw [state_succ, s1, s1, s1]
+  rcases (by omega : i ≤ -3 ∨ (-2 ≤ i ∧ i ≤ 2) ∨ 3 ≤ i) with h | ⟨h1, h2⟩ | h
+  · rw [decide_eq_true (by simp <;> omega), decide_eq_true (by simp <;> omega),
+      decide_eq_true (by simp <;> omega), decide_eq_false (by simp <;> omega)]; decide
+  · interval_cases i <;> decide
+  · rw [decide_eq_true (by simp <;> omega), decide_eq_true (by simp <;> omega),
+      decide_eq_true (by simp <;> omega), decide_eq_false (by simp <;> omega)]; decide
+
+lemma s3 (i : ℤ) : state 3 i = decide (i ∉ [(-2 : ℤ), 0]) := by
+  rw [state_succ, s2, s2, s2]
+  rcases (by omega : i ≤ -4 ∨ (-3 ≤ i ∧ i ≤ 3) ∨ 4 ≤ i) with h | ⟨h1, h2⟩ | h
+  · rw [decide_eq_false (by simp <;> omega), decide_eq_false (by simp <;> omega),
+      decide_eq_false (by simp <;> omega), decide_eq_true (by simp <;> omega)]; decide
+  · interval_cases i <;> decide
+  · rw [decide_eq_false (by simp <;> omega), decide_eq_false (by simp <;> omega),
+      decide_eq_false (by simp <;> omega), decide_eq_true (by simp <;> omega)]; decide
+
+lemma s4 (i : ℤ) : state 4 i = decide (i ∈ [(-2 : ℤ), -1, 0, 1]) := by
+  rw [state_succ, s3, s3, s3]
+  rcases (by omega : i ≤ -5 ∨ (-4 ≤ i ∧ i ≤ 4) ∨ 5 ≤ i) with h | ⟨h1, h2⟩ | h
+  · rw [decide_eq_true (by simp <;> omega), decide_eq_true (by simp <;> omega),
+      decide_eq_true (by simp <;> omega), decide_eq_false (by simp <;> omega)]; decide
+  · interval_cases i <;> decide
+  · rw [decide_eq_true (by simp <;> omega), decide_eq_true (by simp <;> omega),
+      decide_eq_true (by simp <;> omega), decide_eq_false (by simp <;> omega)]; decide
+
+lemma s5 (i : ℤ) : state 5 i = decide (i + 2 ∉ O) := by
+  rw [state_succ, s4, s4, s4]
+  rcases (by omega : i ≤ -6 ∨ (-5 ≤ i ∧ i ≤ 5) ∨ 6 ≤ i) with h | ⟨h1, h2⟩ | h
+  · rw [decide_eq_false (by simp <;> omega), decide_eq_false (by simp <;> omega),
+      decide_eq_false (by simp <;> omega), decide_eq_true (by simp [E, O] <;> omega)]; decide
+  · interval_cases i <;> decide
+  · rw [decide_eq_false (by simp <;> omega), decide_eq_false (by simp <;> omega),
+      decide_eq_false (by simp <;> omega), decide_eq_true (by simp [E, O] <;> omega)]; decide
+
+/-- Even stage to the next odd stage, relative position e. -/
+lemma stepEO (e : ℤ) :
+    rule (decide (e - 1 ∈ E)) (decide (e ∈ E)) (decide (e + 1 ∈ E)) = decide (e ∉ O) := by
+  rcases (by omega : e ≤ -5 ∨ (-4 ≤ e ∧ e ≤ 8) ∨ 9 ≤ e) with h | ⟨h1, h2⟩ | h
+  · rw [decide_eq_false (by simp [E]; omega), decide_eq_false (by simp [E]; omega),
+      decide_eq_false (by simp [E]; omega), decide_eq_true (by simp [O]; omega)]; decide
+  · interval_cases e <;> decide
+  · rw [decide_eq_false (by simp [E]; omega), decide_eq_false (by simp [E]; omega),
+      decide_eq_false (by simp [E]; omega), decide_eq_true (by simp [O]; omega)]; decide
+
+/-- Odd stage to the next even stage, relative position e (the frame moves by one). -/
+lemma stepOE (e : ℤ) :
+    rule (decide (e - 1 ∉ O)) (decide (e ∉ O)) (decide (e + 1 ∉ O)) = decide (e + 1 ∈ E) := by
+  rcases (by omega : e ≤ -5 ∨ (-4 ≤ e ∧ e ≤ 8) ∨ 9 ≤ e) with h | ⟨h1, h2⟩ | h
+  · rw [decide_eq_true (by simp [O]; omega), decide_eq_true (by simp [O]; omega),
+      decide_eq_true (by simp [O]; omega), decide_eq_false (by simp [E]; omega)]; decide
+  · interval_cases e <;> decide
+  · rw [decide_eq_true (by simp [O]; omega), decide_eq_true (by simp [O]; omega),
+      decide_eq_true (by simp [O]; omega), decide_eq_false (by simp [E]; omega)]; decide
+
+lemma odd_of_even (s : ℕ) (h : ∀ i, state (2 * s) i = decide (i + (s : ℤ) ∈ E)) :
+    ∀ i, state (2 * s + 1) i = decide (i + (s : ℤ) ∉ O) := by
+  intro i
+  rw [state_succ, h, h, h]
+  have e1 : i - 1 + (s : ℤ) = (i + (s : ℤ)) - 1 := by ring
+  have e2 : i + 1 + (s : ℤ) = (i + (s : ℤ)) + 1 := by ring
+  rw [e1, e2, stepEO]
+
+lemma even_of_odd (s : ℕ) (h : ∀ i, state (2 * s + 1) i = decide (i + (s : ℤ) ∉ O)) :
+    ∀ i, state (2 * (s + 1)) i = decide (i + ((s + 1 : ℕ) : ℤ) ∈ E) := by
+  intro i
+  rw [show 2 * (s + 1) = (2 * s + 1) + 1 by ring, state_succ, h, h, h]
+  have e1 : i - 1 + (s : ℤ) = (i + (s : ℤ)) - 1 := by ring
+  have e2 : i + 1 + (s : ℤ) = (i + (s : ℤ)) + 1 := by ring
+  have e3 : i + ((s + 1 : ℕ) : ℤ) = (i + (s : ℤ)) + 1 := by push_cast; ring
+  rw [e1, e2, e3, stepOE]
+
+/-- The glider: stages 2s + 1 and 2s + 2 for s >= 2. -/
+lemma pattern (s : ℕ) (hs : 2 ≤ s) :
+    (∀ i, state (2 * s + 1) i = decide (i + (s : ℤ) ∉ O)) ∧
+      (∀ i, state (2 * (s + 1)) i = decide (i + ((s + 1 : ℕ) : ℤ) ∈ E)) := by
+  induction s, hs using Nat.le_induction with
+  | base =>
+    have hb : ∀ i, state (2 * 2 + 1) i = decide (i + ((2 : ℕ) : ℤ) ∉ O) := fun i => by
+      rw [s5]; norm_num
+    exact ⟨hb, even_of_odd 2 hb⟩
+  | succ s hs ih =>
+    have ho := odd_of_even (s + 1) ih.2
+    exact ⟨ho, even_of_odd (s + 1) ho⟩
+
+lemma state_odd (s : ℕ) (hs : 2 ≤ s) (i : ℤ) : state (2 * s + 1) i = decide (i + (s : ℤ) ∉ O) :=
+  (pattern s hs).1 i
+
+lemma state_even (s : ℕ) (hs : 3 ≤ s) (i : ℤ) : state (2 * s) i = decide (i + (s : ℤ) ∈ E) := by
+  obtain ⟨r, rfl⟩ : ∃ r, s = r + 1 := ⟨s - 1, by omega⟩
+  exact (pattern r (by omega)).2 i
+
+lemma mid_even (s : ℕ) (hs : 3 ≤ s) : mid (2 * s) = if (s : ℤ) ∈ E then 1 else 0 := by
+  unfold mid
+  rw [state_even s hs 0]
+  simp
+
+lemma mid_odd (s : ℕ) (hs : 2 ≤ s) : mid (2 * s + 1) = if (s : ℤ) ∈ O then 0 else 1 := by
+  unfold mid
+  rw [state_odd s hs 0]
+  by_cases h : (s : ℤ) ∈ O <;> simp [h]
+
+lemma mid_even_big (s : ℕ) (hs : 6 ≤ s) : mid (2 * s) = 0 := by
+  rw [mid_even s (by omega), if_neg]
+  simp only [E, List.mem_cons, List.mem_nil_iff, or_false]
+  omega
+
+lemma mid_odd_big (s : ℕ) (hs : 4 ≤ s) : mid (2 * s + 1) = 1 := by
+  rw [mid_odd s (by omega), if_neg]
+  simp only [O, List.mem_cons, List.mem_nil_iff, or_false]
+  omega
+
+/-- The middle column from stage 11 on. -/
+lemma mid_big (n : ℕ) (hn : 11 ≤ n) : (mid n : ℚ) = (1 - (-1) ^ n) / 2 := by
+  rcases Nat.even_or_odd n with ⟨s, hs⟩ | ⟨s, hs⟩
+  · rw [show n = 2 * s by omega, mid_even_big s (by omega), pow_mul]
+    norm_num
+  · rw [hs, mid_odd_big s (by omega), pow_succ, pow_mul]
+    norm_num
+
+lemma mid_rec (n : ℕ) (hn : 13 ≤ n) : mid n = mid (n - 2) := by
+  rcases Nat.even_or_odd n with ⟨s, hs⟩ | ⟨s, hs⟩
+  · rw [show n = 2 * s by omega, show 2 * s - 2 = 2 * (s - 1) by omega,
+      mid_even_big s (by omega), mid_even_big (s - 1) (by omega)]
+  · rw [hs, show 2 * s + 1 - 2 = 2 * (s - 1) + 1 by omega,
+      mid_odd_big s (by omega), mid_odd_big (s - 1) (by omega)]
+
+lemma mid_values : mid 0 = 1 ∧ mid 1 = 1 ∧ mid 2 = 1 ∧ mid 3 = 0 ∧ mid 4 = 1 ∧ mid 5 = 0 ∧
+    mid 6 = 1 ∧ mid 7 = 0 ∧ mid 8 = 0 ∧ mid 9 = 1 ∧ mid 10 = 1 ∧ mid 11 = 1 ∧ mid 12 = 0 := by
+  have h1 : mid 1 = 1 := by unfold mid; rw [s1]; decide
+  have h2 : mid 2 = 1 := by unfold mid; rw [s2]; decide
+  have h3 : mid 3 = 0 := by unfold mid; rw [s3]; decide
+  have h4 : mid 4 = 1 := by unfold mid; rw [s4]; decide
+  refine ⟨by decide, h1, h2, h3, h4, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · rw [show 5 = 2 * 2 + 1 from rfl, mid_odd 2 le_rfl]; decide
+  · rw [show 6 = 2 * 3 from rfl, mid_even 3 le_rfl]; decide
+  · rw [show 7 = 2 * 3 + 1 from rfl, mid_odd 3 (by norm_num)]; decide
+  · rw [show 8 = 2 * 4 from rfl, mid_even 4 (by norm_num)]; decide
+  · rw [show 9 = 2 * 4 + 1 from rfl, mid_odd 4 (by norm_num)]; decide
+  · rw [show 10 = 2 * 5 from rfl, mid_even 5 (by norm_num)]; decide
+  · rw [show 11 = 2 * 5 + 1 from rfl, mid_odd 5 (by norm_num)]; decide
+  · rw [show 12 = 2 * 6 from rfl, mid_even 6 (by norm_num)]; decide
+
+lemma a_zero : a 0 = mid 0 := by simp [a]
+
+lemma a_succ (n : ℕ) : a (n + 1) = 2 * a n + mid (n + 1) := by
+  unfold a
+  rw [Finset.sum_range_succ, Nat.sub_self, pow_zero, mul_one, Finset.mul_sum]
+  congr 1
+  refine Finset.sum_congr rfl (fun k hk => ?_)
+  rw [Finset.mem_range] at hk
+  rw [show n + 1 - k = (n - k) + 1 by omega, pow_succ]
+  ring
+
+lemma values : a 0 = 1 ∧ a 1 = 3 ∧ a 2 = 7 ∧ a 3 = 14 ∧ a 4 = 29 ∧ a 5 = 58 ∧ a 6 = 117 ∧
+    a 7 = 234 ∧ a 8 = 468 ∧ a 9 = 937 ∧ a 10 = 1875 ∧ a 11 = 3751 ∧ a 12 = 7502 := by
+  obtain ⟨m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12⟩ := mid_values
+  have h0 : a 0 = 1 := by rw [a_zero, m0]
+  have h1 : a 1 = 3 := by rw [a_succ, h0, m1]
+  have h2 : a 2 = 7 := by rw [a_succ, h1, m2]
+  have h3 : a 3 = 14 := by rw [a_succ, h2, m3]
+  have h4 : a 4 = 29 := by rw [a_succ, h3, m4]
+  have h5 : a 5 = 58 := by rw [a_succ, h4, m5]
+  have h6 : a 6 = 117 := by rw [a_succ, h5, m6]
+  have h7 : a 7 = 234 := by rw [a_succ, h6, m7]
+  have h8 : a 8 = 468 := by rw [a_succ, h7, m8]
+  have h9 : a 9 = 937 := by rw [a_succ, h8, m9]
+  have h10 : a 10 = 1875 := by rw [a_succ, h9, m10]
+  have h11 : a 11 = 3751 := by rw [a_succ, h10, m11]
+  have h12 : a 12 = 7502 := by rw [a_succ, h11, m12]
+  exact ⟨h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12⟩
+
+/-- Barker's closed form, for n > 9. -/
+theorem closed_form (n : ℕ) (hn : 9 < n) :
+    (a n : ℚ) = (-(-1) ^ n + 5627 * 2 ^ (n - 9) - 3) / 6 := by
+  induction n, hn using Nat.le_induction with
+  | base =>
+    rw [values.2.2.2.2.2.2.2.2.2.2.1]
+    norm_num
+  | succ n hn ih =>
+    have hexp : (2 : ℚ) ^ (n + 1 - 9) = 2 * 2 ^ (n - 9) := by
+      rw [show n + 1 - 9 = (n - 9) + 1 by omega, pow_succ]; ring
+    rw [a_succ, hexp]
+    push_cast
+    rw [ih, mid_big (n + 1) (by omega), pow_succ]
+    ring
+
+/-- Barker's g.f., as an identity in Q[[x]]. -/
+theorem gf : PowerSeries.mk (fun n => (a n : ℚ)) =
+    (1 + X - X ^ 3 - X ^ 8 + X ^ 9 + X ^ 10 - X ^ 12) *
+      ((1 - X) * (1 + X) * (1 - 2 * X))⁻¹ := by
+  set A : ℚ⟦X⟧ := PowerSeries.mk (fun n => (a n : ℚ)) with hA
+  have hden : constantCoeff ((1 - X) * (1 + X) * (1 - 2 * X) : ℚ⟦X⟧) ≠ 0 := by simp
+  have key : A * ((1 - X) * (1 + X) * (1 - 2 * X)) =
+      1 + X - X ^ 3 - X ^ 8 + X ^ 9 + X ^ 10 - X ^ 12 := by
+    have e1 : A * ((1 - X) * (1 + X) * (1 - 2 * X)) =
+        A - C 2 * (A * X ^ 1) - A * X ^ 2 + C 2 * (A * X ^ 3) := by
+      simp only [map_ofNat]; ring
+    have e2 : (1 + X - X ^ 3 - X ^ 8 + X ^ 9 + X ^ 10 - X ^ 12 : ℚ⟦X⟧) =
+        1 + X ^ 1 - X ^ 3 - X ^ 8 + X ^ 9 + X ^ 10 - X ^ 12 := by ring
+    rw [e1, e2]
+    ext n
+    simp only [map_sub, map_add, coeff_C_mul, coeff_mul_X_pow', coeff_one, coeff_X_pow, hA,
+      coeff_mk]
+    obtain ⟨v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12⟩ := values
+    rcases Nat.lt_or_ge n 13 with hn | hn
+    · interval_cases n <;> simp [v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12] <;>
+        norm_num
+    · rw [if_pos (by omega), if_pos (by omega), if_pos (by omega)]
+      simp only [show n ≠ 0 by omega, show n ≠ 1 by omega, show n ≠ 3 by omega,
+        show n ≠ 8 by omega, show n ≠ 9 by omega, show n ≠ 10 by omega, show n ≠ 12 by omega,
+        if_false]
+      obtain ⟨m, rfl⟩ : ∃ m, n = m + 3 := ⟨n - 3, by omega⟩
+      have r1 := a_succ (m + 2)
+      have r2 := a_succ m
+      have hm := mid_rec (m + 3) (by omega)
+      rw [show m + 3 - 2 = m + 1 by omega] at hm
+      rw [show m + 3 - 1 = m + 2 by omega, show m + 3 - 2 = m + 1 by omega,
+        show m + 3 - 3 = m by omega]
+      rw [show m + 2 + 1 = m + 3 by omega] at r1
+      have q1 : (a (m + 3) : ℚ) = 2 * a (m + 2) + mid (m + 3) := by exact_mod_cast r1
+      have q2 : (a (m + 1) : ℚ) = 2 * a m + mid (m + 1) := by exact_mod_cast r2
+      have q3 : (mid (m + 3) : ℚ) = mid (m + 1) := by exact_mod_cast hm
+      rw [q1, q2, q3]
+      ring
+  rw [← key, mul_assoc, PowerSeries.mul_inv_cancel _ hden, mul_one]
+
+/-- Controls: the entry's data a(0..15). -/
+theorem controls : a 0 = 1 ∧ a 1 = 3 ∧ a 2 = 7 ∧ a 3 = 14 ∧ a 4 = 29 ∧ a 5 = 58 ∧ a 6 = 117 ∧
+    a 7 = 234 ∧ a 8 = 468 ∧ a 9 = 937 ∧ a 10 = 1875 ∧ a 11 = 3751 ∧ a 12 = 7502 ∧
+    a 13 = 15005 ∧ a 14 = 30010 ∧ a 15 = 60021 := by
+  obtain ⟨v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12⟩ := values
+  have h13 : (a 13 : ℚ) = 15005 := by rw [closed_form 13 (by norm_num)]; norm_num
+  have h14 : (a 14 : ℚ) = 30010 := by rw [closed_form 14 (by norm_num)]; norm_num
+  have h15 : (a 15 : ℚ) = 60021 := by rw [closed_form 15 (by norm_num)]; norm_num
+  exact ⟨v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, by exact_mod_cast h13,
+    by exact_mod_cast h14, by exact_mod_cast h15⟩
+
+/-- Both of Barker's conjectures. -/
+theorem conjecture :
+    (∀ n : ℕ, 9 < n → (a n : ℚ) = (-(-1) ^ n + 5627 * 2 ^ (n - 9) - 3) / 6) ∧
+    PowerSeries.mk (fun n => (a n : ℚ)) =
+      (1 + X - X ^ 3 - X ^ 8 + X ^ 9 + X ^ 10 - X ^ 12) *
+        ((1 - X) * (1 + X) * (1 - 2 * X))⁻¹ :=
+  ⟨closed_form, gf⟩
+
+end OMA.S_oeis_a266791
+
+theorem OMA.solution : type_of% @OMA.S_oeis_a266791.main :=
+  OMA.S_oeis_a266791.conjecture

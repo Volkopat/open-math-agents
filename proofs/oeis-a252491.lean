@@ -1,33 +1,28 @@
 import OMAStatements.S_oeis_a252491
 import Mathlib
 
+/-! Following @caa1982 (#8539), use standard geometric-sum and strict-monotonicity
+lemmas for the same repunit argument. -/
+
 namespace OMA.A252491Proof
 
 open Finset
 
 lemma key (y n : ℕ) (hy : 1 ≤ y) : (∑ i ∈ range n, y ^ i) * (y - 1) = y ^ n - 1 := by
-  have := geom_sum_mul_add (y - 1) n
-  rw [Nat.sub_add_cancel hy] at this
-  omega
+  exact geom_sum_mul_of_one_le hy n
 
 lemma sum_dvd (y a b : ℕ) (hy : 2 ≤ y) (hab : a ∣ b) :
     (∑ i ∈ range a, y ^ i) ∣ (∑ i ∈ range b, y ^ i) := by
-  have h : (∑ i ∈ range a, y ^ i) * (y - 1) ∣ (∑ i ∈ range b, y ^ i) * (y - 1) := by
-    rw [key y a (by omega), key y b (by omega)]
-    exact Nat.pow_sub_one_dvd_pow_sub_one y hab
-  exact Nat.dvd_of_mul_dvd_mul_right (by omega) h
+  apply Nat.dvd_of_mul_dvd_mul_right (show 0 < y - 1 by omega)
+  rw [key y a (by omega), key y b (by omega)]
+  exact Nat.pow_sub_one_dvd_pow_sub_one y hab
 
 lemma sum_lt (y a b : ℕ) (hy : 1 ≤ y) (hab : a < b) :
     (∑ i ∈ range a, y ^ i) < (∑ i ∈ range b, y ^ i) := by
-  apply Finset.sum_lt_sum_of_subset (i := a)
-  · intro i hi
-    simp only [Finset.mem_range] at hi ⊢
-    omega
-  · simpa using hab
-  · simp
-  · positivity
-  · intro _ _ _
-    exact Nat.zero_le _
+  apply (strictMono_nat_of_lt_succ ?_) hab
+  intro k
+  rw [Finset.sum_range_succ]
+  exact Nat.lt_add_of_pos_right (by positivity)
 
 lemma one_lt (y n : ℕ) (hy : 1 ≤ y) (hn : 2 ≤ n) : 1 < ∑ i ∈ range n, y ^ i := by
   have := sum_lt y 1 n hy (by omega)
@@ -58,13 +53,12 @@ lemma coprime_dvd (p q : ℕ) (hpq : Nat.Coprime p q) :
 
 lemma small_lt (p q : ℕ) (hp : 2 ≤ p) (hq : 2 ≤ q) :
     (∑ i ∈ range q, 10 ^ i) < (∑ i ∈ range q, (10 ^ p) ^ i) := by
-  have h100 : 10 ^ 2 ≤ 10 ^ p := Nat.pow_le_pow_right (by norm_num) hp
+  have h10 : 10 < 10 ^ p := by
+    simpa using Nat.pow_lt_pow_right (by decide : 1 < 10) (show 1 < p by omega)
   apply Finset.sum_lt_sum
   · intro i _
-    exact Nat.pow_le_pow_left (by norm_num at h100 ⊢; omega) i
-  · refine ⟨1, by simp; omega, ?_⟩
-    norm_num at h100 ⊢
-    omega
+    exact Nat.pow_le_pow_left h10.le i
+  · exact ⟨1, by simp; omega, by simpa using h10⟩
 
 lemma not_prime (p q : ℕ) (hp : p.Prime) (ha : ¬ (OMA.S_oeis_a252491.a p).Prime)
     (hq : 2 ≤ q) : ¬ (∑ i ∈ range q, (10 ^ p) ^ i).Prime := by
@@ -83,18 +77,13 @@ lemma not_prime (p q : ℕ) (hp : p.Prime) (ha : ¬ (OMA.S_oeis_a252491.a p).Pri
       rw [sq, pow_mul, ← Nat.geomSum_eq hx]
       simpa using hpr
     · have d := sum_dvd (10 ^ p) p (p * m) hx (dvd_mul_right p m)
-      rcases hpr.eq_one_or_self_of_dvd _ d with h1 | h1
-      · have := one_lt (10 ^ p) p (by omega) hp2
-        omega
-      · have := sum_lt (10 ^ p) p (p * m) (by omega) (by nlinarith)
-        omega
+      exact Nat.not_prime_of_dvd_of_lt d (one_lt (10 ^ p) p (by omega) hp2)
+        (sum_lt (10 ^ p) p (p * m) (by omega) (by nlinarith)) hpr
+
   · have hc : Nat.Coprime p q := (Nat.Prime.coprime_iff_not_dvd hp).2 hpq
     have d := coprime_dvd p q hc
-    rcases hpr.eq_one_or_self_of_dvd _ d with h1 | h1
-    · have := one_lt 10 q (by norm_num) hq
-      omega
-    · have := small_lt p q hp2 hq
-      omega
+    exact Nat.not_prime_of_dvd_of_lt d (one_lt 10 q (by norm_num) hq)
+      (small_lt p q hp2 hq) hpr
 
 lemma digits_len (p : ℕ) (hp : 1 ≤ p) : (Nat.digits 10 (10 ^ (p - 1))).length = p := by
   rw [Nat.digits_len 10 _ (by norm_num) (by positivity), Nat.log_pow (by norm_num)]

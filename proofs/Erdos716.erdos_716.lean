@@ -1,247 +1,112 @@
 import FormalConjectures.ErdosProblems.«716»
 
--- Problem: Erdős Problem 716
--- Upstream: formal-conjectures FormalConjectures/ErdosProblems/716.lean:46 (declaration Erdos716.erdos_716)
--- Credit: @senamakel (the owner of the agent is credited as the solver)
--- Reference: Ruzsa and Szemerédi, Triple systems with no six points carrying three triangles (1978).
-
 /-!
 # Erdős Problem 716 (Ruzsa–Szemerédi (6,3) theorem)
 
-Remove the edges that share two vertices with another edge (at most `2(n+1)` of them). The rest
-form a linear family, whose shadow graph has exactly these edges as triangles, so its triangles
-are edge-disjoint and number at most `n^2`. Mathlib's triangle removal lemma then bounds the
-linear part by `ε n^2` for large `n`.
+Every pair of vertices lies in at most two edges of a `(6,3)`-free `3`-uniform hypergraph `H`,
+and every triangle of its shadow graph `G` belongs to `H`. Thus deleting edges to destroy all
+triangles in `G` removes at least `#H / 2` edges, giving both `#H ≤ n ^ 2` (using `G' = ⊥`) and
+`#H ≤ c * n ^ 2` for large `n` via `SimpleGraph.triangle_removal`.
 -/
 
-open Filter Asymptotics Finset
-
-namespace E716
-
-variable {n : ℕ} {H : Finset (Finset (Fin n))}
-
-lemma three_eq
-    (hF : ∀ S : Finset (Fin n), S.card = 6 → #{e ∈ H | e ⊆ S} < 3) (hn : 6 ≤ n)
-    {a b c : Finset (Fin n)} (ha : a ∈ H) (hb : b ∈ H) (hc : c ∈ H)
-    (hT : (a ∪ b ∪ c).card ≤ 6) : a = b ∨ a = c ∨ b = c := by
-  by_contra h
-  push Not at h
-  obtain ⟨hab, hac, hbc⟩ := h
-  obtain ⟨S, hTS, hS⟩ := Finset.exists_superset_card_eq hT (by simpa using hn)
-  have h3 : ({a, b, c} : Finset (Finset (Fin n))).card = 3 :=
-    Finset.card_eq_three.mpr ⟨a, b, c, hab, hac, hbc, rfl⟩
-  have hsub : ({a, b, c} : Finset (Finset (Fin n))) ⊆ {e ∈ H | e ⊆ S} := by
-    intro e he
-    simp only [mem_insert, mem_singleton] at he
-    rw [mem_filter]
-    rcases he with rfl | rfl | rfl
-    · exact ⟨ha, fun x hx => hTS (by simp [hx])⟩
-    · exact ⟨hb, fun x hx => hTS (by simp [hx])⟩
-    · exact ⟨hc, fun x hx => hTS (by simp [hx])⟩
-  have := card_le_card hsub
-  have := hF S hS
-  omega
-
-lemma card_union_le_of_mem {a b : Finset (Fin n)} {x : Fin n} (hxa : x ∈ a) (hxb : x ∈ b) :
-    (a ∪ b).card + 1 ≤ a.card + b.card := by
-  have h := card_union_add_card_inter a b
-  have : 1 ≤ (a ∩ b).card := card_pos.mpr ⟨x, mem_inter.mpr ⟨hxa, hxb⟩⟩
-  omega
-
-lemma card_union_le_of_two {a b : Finset (Fin n)} {x y : Fin n} (hxy : x ≠ y)
-    (hxa : x ∈ a) (hxb : x ∈ b) (hya : y ∈ a) (hyb : y ∈ b) :
-    (a ∪ b).card + 2 ≤ a.card + b.card := by
-  have h := card_union_add_card_inter a b
-  have : 2 ≤ (a ∩ b).card := by
-    have : ({x, y} : Finset (Fin n)) ⊆ a ∩ b := by
-      intro z hz
-      simp only [mem_insert, mem_singleton] at hz
-      rcases hz with rfl | rfl <;> simp [*]
-    have h2 := card_le_card this
-    rwa [card_pair hxy] at h2
-  omega
-
-
-lemma bad_card (hU : ∀ e ∈ H, e.card = 3)
-    (hF : ∀ S : Finset (Fin n), S.card = 6 → #{e ∈ H | e ⊆ S} < 3) (hn : 6 ≤ n) :
-    #(H.filter (fun e => ¬ ∀ f ∈ H, f ≠ e → (e ∩ f).card ≤ 1)) ≤ 2 * (n + 1) := by
-  set B := H.filter (fun e => ¬ ∀ f ∈ H, f ≠ e → (e ∩ f).card ≤ 1) with hB
-  -- two bad edges through a common vertex are partners
-  have key : ∀ e1 ∈ B, ∀ e2 ∈ B, ∀ e3 ∈ B, ∀ v, v ∈ e1 → v ∈ e2 → v ∈ e3 →
-      e1 ≠ e2 → e1 ≠ e3 → e2 = e3 := by
-    intro e1 h1 e2 h2 e3 h3 v hv1 hv2 hv3 h12 h13
-    rw [hB, mem_filter] at h1 h2 h3
-    obtain ⟨h1H, h1b⟩ := h1
-    push Not at h1b
-    obtain ⟨f, hfH, hfe, hf2⟩ := h1b
-    have hcf : (e1 ∪ f).card ≤ 4 := by
-      have h := card_union_add_card_inter e1 f
-      rw [hU _ h1H, hU _ hfH] at h
-      omega
-    have part : ∀ g ∈ H, v ∈ g → g ≠ e1 → g = f := by
-      intro g hg hvg hge
-      by_contra hgf
-      have hu := card_union_le_of_mem (a := e1 ∪ f) (b := g) (mem_union_left _ hv1) hvg
-      rw [hU _ hg] at hu
-      rcases three_eq hF hn h1H hfH hg (by omega) with h | h | h
-      · exact hfe h.symm
-      · exact hge h.symm
-      · exact hgf h.symm
-    rw [part e2 h2.1 hv2 (Ne.symm h12), part e3 h3.1 hv3 (Ne.symm h13)]
-  have hfib : ∀ b ∈ B.image (fun e => e.min), #{a ∈ B | a.min = b} ≤ 2 := by
-    intro b _
-    by_contra hlt
-    push Not at hlt
-    obtain ⟨x, hx, y, hy, z, hz, hxy, hxz, hyz⟩ := Finset.two_lt_card.mp hlt
-    rw [mem_filter] at hx hy hz
-    have hxne : x.Nonempty := by
-      rw [← card_pos, hU _ (mem_filter.mp hx.1).1]; norm_num
-    obtain ⟨v, hv⟩ := Finset.min_of_nonempty hxne
-    have hvx := Finset.mem_of_min hv
-    have hvy : v ∈ y := Finset.mem_of_min (by rw [hy.2, ← hx.2, hv])
-    have hvz : v ∈ z := Finset.mem_of_min (by rw [hz.2, ← hx.2, hv])
-    exact hyz (key x hx.1 y hy.1 z hz.1 v hvx hvy hvz hxy hxz)
-  calc #B ≤ 2 * #(B.image (fun e => e.min)) := card_le_mul_card_image B 2 hfib
-    _ ≤ 2 * (n + 1) := by
-      gcongr
-      exact (card_le_univ _).trans (by
-        rw [show Fintype.card (WithTop (Fin n)) = Fintype.card (Option (Fin n)) from rfl,
-          Fintype.card_option, Fintype.card_fin])
-
-lemma lin_bound (hU : ∀ e ∈ H, e.card = 3)
-    (hF : ∀ S : Finset (Fin n), S.card = 6 → #{e ∈ H | e ⊆ S} < 3) (hn : 6 ≤ n) (ε : ℝ)
-    (hL : ε * ((n ^ 2 : ℕ) : ℝ) ≤ #(H.filter (fun e => ∀ f ∈ H, f ≠ e → (e ∩ f).card ≤ 1))) :
-    SimpleGraph.triangleRemovalBound ε * (n : ℝ) ^ 3 ≤ (n : ℝ) ^ 2 := by
-  classical
-  set L := H.filter (fun e => ∀ f ∈ H, f ≠ e → (e ∩ f).card ≤ 1) with hLdef
-  have hLH : ∀ e ∈ L, e ∈ H := fun e he => (mem_filter.mp he).1
-  have hLU : ∀ e ∈ L, e.card = 3 := fun e he => hU e (hLH e he)
-  let G : SimpleGraph (Fin n) := SimpleGraph.fromRel (fun x y => ∃ e ∈ L, x ∈ e ∧ y ∈ e)
-  have hadj : ∀ x y, G.Adj x y ↔ x ≠ y ∧ ∃ e ∈ L, x ∈ e ∧ y ∈ e := by
-    intro x y
-    simp only [G, SimpleGraph.fromRel_adj]
-    constructor
-    · rintro ⟨h, ⟨e, he, a, b⟩ | ⟨e, he, a, b⟩⟩
-      · exact ⟨h, e, he, a, b⟩
-      · exact ⟨h, e, he, b, a⟩
-    · rintro ⟨h, e, he, a, b⟩
-      exact ⟨h, Or.inl ⟨e, he, a, b⟩⟩
-  have hLsub : L ⊆ G.cliqueFinset 3 := by
-    intro e he
-    obtain ⟨x, y, z, hxy, hxz, hyz, rfl⟩ := card_eq_three.mp (hLU e he)
-    rw [SimpleGraph.mem_cliqueFinset_iff, SimpleGraph.is3Clique_triple_iff]
-    refine ⟨(hadj _ _).2 ⟨hxy, _, he, by simp, by simp⟩,
-      (hadj _ _).2 ⟨hxz, _, he, by simp, by simp⟩, (hadj _ _).2 ⟨hyz, _, he, by simp, by simp⟩⟩
-  have hcl : G.cliqueFinset 3 ⊆ L := by
-    intro t ht
-    rw [SimpleGraph.mem_cliqueFinset_iff, SimpleGraph.is3Clique_iff] at ht
-    obtain ⟨x, y, z, hxy, hxz, hyz, rfl⟩ := ht
-    obtain ⟨hne1, e1, he1, hx1, hy1⟩ := (hadj _ _).1 hxy
-    obtain ⟨hne2, e2, he2, hx2, hz2⟩ := (hadj _ _).1 hxz
-    obtain ⟨hne3, e3, he3, hy3, hz3⟩ := (hadj _ _).1 hyz
-    have tri : ∀ e ∈ L, x ∈ e → y ∈ e → z ∈ e → ({x, y, z} : Finset (Fin n)) ∈ L := by
-      intro e he a b c
-      have hsub : ({x, y, z} : Finset (Fin n)) ⊆ e := by
-        intro w hw
-        simp only [mem_insert, mem_singleton] at hw
-        rcases hw with rfl | rfl | rfl <;> assumption
-      have h3 : ({x, y, z} : Finset (Fin n)).card = 3 :=
-        card_eq_three.mpr ⟨x, y, z, hne1, hne2, hne3, rfl⟩
-      rwa [eq_of_subset_of_card_le hsub (by rw [hLU e he, h3])]
-    have u1 := card_union_le_of_mem hx1 hx2
-    have u2 := card_union_le_of_two hne3 (mem_union_left _ hy1) hy3 (mem_union_right _ hz2) hz3
-    rw [hLU _ he1, hLU _ he2] at u1
-    rw [hLU _ he3] at u2
-    rcases three_eq hF hn (hLH _ he1) (hLH _ he2) (hLH _ he3) (by omega) with h | h | h
-    · subst h; exact tri e1 he1 hx1 hy1 hz2
-    · subst h; exact tri e1 he1 hx1 hy1 hz3
-    · subst h; exact tri e2 he2 hx2 hy3 hz2
-  have pd : (L : Set (Finset (Fin n))).Pairwise fun x y ↦ (x ∩ y : Set (Fin n)).Subsingleton := by
-    intro s hs t ht hst
-    have h := (mem_filter.mp hs).2 t (hLH t ht) (Ne.symm hst)
-    intro a ha b hb
-    exact card_le_one.mp h a (by simpa using ha) b (by simpa using hb)
-  have hEDT : G.EdgeDisjointTriangles := by
-    intro s hs t ht hst
-    rw [SimpleGraph.mem_cliqueSet_iff, ← SimpleGraph.mem_cliqueFinset_iff] at hs ht
-    exact pd (hcl hs) (hcl ht) hst
-  have hfar : G.FarFromTriangleFree ε :=
-    SimpleGraph.farFromTriangleFree_of_disjoint_triangles L hLsub pd
-      (by rw [Fintype.card_fin]; exact hL)
-  have h1 := hfar.le_card_cliqueFinset
-  have h2 := hEDT.card_edgeFinset_le
-  have h3 := G.card_edgeFinset_le_card_choose_two
-  have h4 : n.choose 2 ≤ n ^ 2 := Nat.choose_le_pow n 2
-  rw [Fintype.card_fin] at h1 h3
-  have h5 : #(G.cliqueFinset 3) ≤ n ^ 2 := by omega
-  calc _ ≤ (#(G.cliqueFinset 3) : ℝ) := h1
-    _ ≤ _ := by exact_mod_cast h5
-
-end E716
+open Filter Asymptotics Finset SimpleGraph
 
 theorem OMA.solution : type_of% @Erdos716.erdos_716 := by
   classical
   rw [isLittleO_iff]
   intro c hc
-  set ε := c / 2 with hε
-  have hεp : 0 < ε := by positivity
-  set δ := SimpleGraph.triangleRemovalBound ε with hδ
-  have hδp : 0 < δ := SimpleGraph.triangleRemovalBound_pos hεp
-  filter_upwards [eventually_ge_atTop (⌈2 / δ⌉₊ + ⌈8 / c⌉₊ + 6)] with n hn
-  have hn6 : 6 ≤ n := by omega
-  have hnδ : 2 / δ ≤ (n : ℝ) := by
-    have := Nat.le_ceil (2 / δ)
-    have : (⌈2 / δ⌉₊ : ℝ) ≤ n := by exact_mod_cast (show ⌈2 / δ⌉₊ ≤ n by omega)
-    linarith
-  have hnc : 8 / c ≤ (n : ℝ) := by
-    have := Nat.le_ceil (8 / c)
-    have : (⌈8 / c⌉₊ : ℝ) ≤ n := by exact_mod_cast (show ⌈8 / c⌉₊ ≤ n by omega)
-    linarith
-  have hn6r : (6 : ℝ) ≤ n := by exact_mod_cast hn6
-  have hnpos : (0 : ℝ) < n := by linarith
-  have hbound : ∀ H : Finset (Finset (Fin n)), (∀ e ∈ H, e.card = 3) →
-      (∀ S : Finset (Fin n), S.card = 6 → #{e ∈ H | e ⊆ S} < 3) →
-      (#H : ℝ) ≤ c * (n : ℝ) ^ 2 := by
-    intro H hU hF
-    have hsplit := card_filter_add_card_filter_not
-      (s := H) (fun e => ∀ f ∈ H, f ≠ e → (e ∩ f).card ≤ 1)
-    have hB := E716.bad_card hU hF hn6
-    have hL : (#(H.filter (fun e => ∀ f ∈ H, f ≠ e → (e ∩ f).card ≤ 1)) : ℝ) < ε * (n : ℝ) ^ 2 := by
-      by_contra hcon
-      push Not at hcon
-      have := E716.lin_bound hU hF hn6 ε (by push_cast; exact hcon)
-      have h2 : δ * (n : ℝ) ≤ 1 := by
-        have : (n : ℝ) ^ 2 * (δ * n) ≤ (n : ℝ) ^ 2 * 1 := by nlinarith
-        exact le_of_mul_le_mul_left this (by positivity)
-      have : 2 ≤ δ * (n : ℝ) := by
-        rw [div_le_iff₀ hδp] at hnδ; linarith
-      linarith
-    have hBr : (#(H.filter (fun e => ¬ ∀ f ∈ H, f ≠ e → (e ∩ f).card ≤ 1)) : ℝ) ≤ 2 * ((n : ℝ) + 1) := by
-      exact_mod_cast hB
-    have hcn : 8 ≤ c * (n : ℝ) := by rw [div_le_iff₀ hc] at hnc; linarith
-    have : 2 * ((n : ℝ) + 1) ≤ ε * (n : ℝ) ^ 2 := by
-      rw [hε]; nlinarith
-    have hsum : (#H : ℝ) = (#(H.filter (fun e => ∀ f ∈ H, f ≠ e → (e ∩ f).card ≤ 1)) : ℝ) +
-        (#(H.filter (fun e => ¬ ∀ f ∈ H, f ≠ e → (e ∩ f).card ≤ 1)) : ℝ) := by
-      exact_mod_cast hsplit.symm
-    rw [hsum]
-    have : ε * (n : ℝ) ^ 2 + ε * (n : ℝ) ^ 2 = c * (n : ℝ) ^ 2 := by rw [hε]; ring
-    linarith
-  have hsup : Hypergraph.configurationExtremalNumber n 3 6 3 ≤ ⌊c * (n : ℝ) ^ 2⌋₊ := by
-    unfold Hypergraph.configurationExtremalNumber Hypergraph.extremalNumber
-    apply Finset.sup_le
-    intro H hH
-    simp only [Finset.mem_filter, Finset.mem_powerset] at hH
-    obtain ⟨hsub, hnot⟩ := hH
-    apply Nat.le_floor
-    apply hbound H
-    · intro e he
-      exact (mem_powersetCard.mp (hsub he)).2
-    · intro S hS
-      by_contra hcon
-      push Not at hcon
-      exact hnot ⟨S, hS, hcon⟩
-  rw [Real.norm_of_nonneg (by positivity), Real.norm_of_nonneg (by positivity)]
-  calc (Hypergraph.configurationExtremalNumber n 3 6 3 : ℝ) ≤ (⌊c * (n : ℝ) ^ 2⌋₊ : ℝ) := by
-        exact_mod_cast hsup
-    _ ≤ c * (n : ℝ) ^ 2 := Nat.floor_le (by positivity)
+  set δ := triangleRemovalBound (c / 2)
+  have hδ : 0 < δ := triangleRemovalBound_pos (by positivity)
+  filter_upwards [eventually_ge_atTop (⌊1 / δ⌋₊ + 7)] with n hn
+  rw [Real.norm_of_nonneg (by positivity), Real.norm_of_nonneg (by positivity),
+    Hypergraph.configurationExtremalNumber, Hypergraph.extremalNumber]
+  refine (Nat.cast_le.2 (Finset.sup_le fun H hH ↦ Nat.le_floor ?_)).trans (Nat.floor_le (by positivity))
+  simp only [mem_filter, mem_powerset, ContainsSubgraph, not_exists, not_and, not_le] at hH
+  have hU : ∀ e ∈ H, #e = 3 := fun e he ↦ (mem_powersetCard.1 (hH.1 he)).2
+  have h3 : ∀ a ∈ H, ∀ b ∈ H, ∀ d ∈ H, ∀ u v w,
+      u ∈ a → u ∈ b → v ∈ a ∪ b → v ∈ d → w ∈ a ∪ b → w ∈ d → v ≠ w →
+      a = b ∨ a = d ∨ b = d := by
+    intro a ha b hb d hd u v w hua hub hva hvd hwa hwd hvw
+    have := card_union_add_card_inter a b
+    have := card_union_add_card_inter (a ∪ b) d
+    have : 1 ≤ #(a ∩ b) := card_pos.2 ⟨u, mem_inter.2 ⟨hua, hub⟩⟩
+    have : 2 ≤ #((a ∪ b) ∩ d) := card_pair hvw ▸
+      card_le_card (by simp [insert_subset_iff, hva, hvd, hwa, hwd])
+    have := hU a ha; have := hU b hb; have := hU d hd
+    have h6 : #(a ∪ b ∪ d) ≤ 6 := by omega
+    by_contra! h
+    obtain ⟨S, hTS, hS⟩ := exists_superset_card_eq h6 (by simp; omega)
+    have : #({a, b, d} : Finset _) ≤ #{e ∈ H | e ⊆ S} := card_le_card fun e he ↦ by
+      simp only [mem_insert, mem_singleton] at he
+      rcases he with rfl | rfl | rfl <;> exact mem_filter.2 ⟨‹_›, fun x hx ↦ hTS (by simp [hx])⟩
+    have := card_eq_three.2 ⟨a, b, d, h.1, h.2.1, h.2.2, rfl⟩
+    have := hH.2 S hS; omega
+  let G : SimpleGraph (Fin n) :=
+    { Adj x y := x ≠ y ∧ ∃ e ∈ H, x ∈ e ∧ y ∈ e
+      symm := ⟨fun _ _ ⟨h, e, he, hx, hy⟩ ↦ ⟨h.symm, e, he, hy, hx⟩⟩
+      loopless := ⟨fun _ h ↦ h.1 rfl⟩ }
+  have hcl : G.cliqueFinset 3 ⊆ H := by
+    intro t ht
+    obtain ⟨x, y, z, ⟨hxy, a, ha, hxa, hya⟩, ⟨hxz, b, hb, hxb, hzb⟩, ⟨hyz, d, hd, hyd, hzd⟩, rfl⟩ :=
+      is3Clique_iff.1 (mem_cliqueFinset_iff.1 ht)
+    have tri : ∀ e ∈ H, x ∈ e → y ∈ e → z ∈ e → ({x, y, z} : Finset (Fin n)) ∈ H := fun e he hx hy hz ↦ by
+      have heq : ({x, y, z} : Finset (Fin n)) = e := eq_of_subset_of_card_le
+        (by simp [insert_subset_iff, hx, hy, hz])
+        (by rw [hU e he, card_eq_three.2 ⟨x, y, z, hxy, hxz, hyz, rfl⟩])
+      simpa only [heq] using he
+    rcases h3 a ha b hb d hd x y z hxa hxb (mem_union_left _ hya) hyd (mem_union_right _ hzb) hzd hyz
+      with rfl | rfl | rfl
+    · exact tri a ha hxa hya hzb
+    · exact tri a ha hxa hya hzd
+    · exact tri b hb hxb hyd hzb
+  have hdel : ∀ G' ≤ G, ∀ [DecidableRel G'.Adj], G'.CliqueFree 3 →
+      #H ≤ (#G.edgeFinset - #G'.edgeFinset) * 2 := by
+    intro G' hle _ hcf
+    rw [← card_sdiff_of_subset (edgeFinset_mono hle)]
+    simpa using card_mul_le_card_mul (s := H) (t := G.edgeFinset \ G'.edgeFinset)
+      (fun e p ↦ p ∈ e.sym2) (m := 1) (n := 2)
+      (fun e he ↦ card_pos.2 <| by
+        have : ¬ (e : Set (Fin n)).Pairwise G'.Adj := fun hp ↦ hcf e ⟨hp, hU e he⟩
+        simp only [Set.Pairwise, mem_coe, not_forall] at this
+        obtain ⟨x, hx, y, hy, hxy, hna⟩ := this
+        exact ⟨s(x, y), (mem_bipartiteAbove _).2 ⟨mem_sdiff.2
+          ⟨mem_edgeFinset.2 ⟨hxy, e, he, hx, hy⟩, by simpa using hna⟩,
+          by simp [hx, hy]⟩⟩)
+      (fun p hp ↦ by
+        induction p using Sym2.ind with | _ x y =>
+        have hadj : G.Adj x y := mem_edgeFinset.1 (mem_sdiff.1 hp).1
+        have hxy : x ≠ y := hadj.1
+        by_contra! hlt
+        obtain ⟨a, ha, b, hb, d, hd, hab, had, hbd⟩ := two_lt_card.1 hlt
+        simp only [mem_bipartiteBelow, mem_sym2_iff, Sym2.mem_iff, forall_eq_or_imp, forall_eq] at ha hb hd
+        rcases h3 a ha.1 b hb.1 d hd.1 x x y ha.2.1 hb.2.1
+          (mem_union_left _ ha.2.1) hd.2.1 (mem_union_left _ ha.2.2) hd.2.2 hxy
+          with h | h | h <;> contradiction)
+  have hHle : #H ≤ n ^ 2 := by
+    have h1 : #H ≤ #G.edgeFinset * 2 :=
+      (hdel ⊥ bot_le (cliqueFree_bot (by decide))).trans
+        (Nat.mul_le_mul_right 2 (Nat.sub_le _ _))
+    have h2 : #G.edgeFinset ≤ n.choose 2 := by simpa using G.card_edgeFinset_le_card_choose_two
+    have h3 : n.choose 2 * 2 ≤ n ^ 2 := by
+      rw [Nat.choose_two_right, sq]
+      exact (Nat.div_mul_le_self _ _).trans (Nat.mul_le_mul_left _ (Nat.sub_le _ _))
+    exact h1.trans ((Nat.mul_le_mul_right 2 h2).trans h3)
+  obtain ⟨G', hle, _, hlt, hcf⟩ := G.triangle_removal (ε := c / 2) <| by
+    rw [Fintype.card_fin]
+    have h1 : 1 / δ < (n : ℝ) :=
+      (Nat.lt_floor_add_one _).trans_le (by exact_mod_cast (show ⌊1 / δ⌋₊ + 1 ≤ n by omega))
+    have h2 : (1 : ℝ) < δ * n := by rwa [div_lt_iff₀ hδ, mul_comm] at h1
+    have h3 : (#(G.cliqueFinset 3) : ℝ) ≤ (n : ℝ) ^ 2 := by
+      exact_mod_cast (card_le_card hcl).trans hHle
+    have hnpos : (0 : ℝ) < n := by exact_mod_cast (show 0 < n by omega)
+    change (#(G.cliqueFinset 3) : ℝ) < δ * (n : ℝ) ^ 3
+    calc
+      _ ≤ (n : ℝ) ^ 2 := h3
+      _ = 1 * (n : ℝ) ^ 2 := (one_mul _).symm
+      _ < (δ * n) * (n : ℝ) ^ 2 := mul_lt_mul_of_pos_right h2 (pow_pos hnpos 2)
+      _ = _ := by ring
+  have hbd : (#H : ℝ) ≤ ((#G.edgeFinset : ℝ) - #G'.edgeFinset) * 2 := by
+    rw [← Nat.cast_sub (card_le_card (edgeFinset_mono hle))]
+    exact_mod_cast hdel G' hle hcf
+  simp only [Fintype.card_fin, Nat.cast_pow] at hlt
+  linarith

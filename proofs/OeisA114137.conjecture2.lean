@@ -29,40 +29,9 @@ private def primesA : List ℕ :=
 
 private theorem coverA (n : ℕ) :
     ∃ p ∈ primesA, p ∣ 2 ^ n + gap := by
-  have h2 : n % 2 = 0 ∨ n % 2 = 1 := by omega
-  rcases h2 with h2 | h2
-  · have h4 : n % 4 = 0 ∨ n % 4 = 2 := by omega
-    rcases h4 with h4 | h4
-    · exact ⟨5, by decide, row_divides (d := 4) (r := 0) (by omega) (by decide) (by decide)⟩
-    · have h8 : n % 8 = 2 ∨ n % 8 = 6 := by omega
-      rcases h8 with h8 | h8
-      · exact ⟨17, by decide, row_divides (d := 8) (r := 2) (by omega) (by decide) (by decide)⟩
-      · have h24 : n % 24 = 6 ∨ n % 24 = 14 ∨ n % 24 = 22 := by omega
-        rcases h24 with h24 | h24 | h24
-        · exact ⟨241, by decide, row_divides (d := 24) (r := 6) (by omega) (by decide) (by decide)⟩
-        · exact ⟨7, by decide, row_divides (d := 3) (r := 2) (by omega) (by decide) (by decide)⟩
-        · exact ⟨13, by decide, row_divides (d := 12) (r := 10) (by omega) (by decide) (by decide)⟩
-  · have h6 : n % 6 = 1 ∨ n % 6 = 3 ∨ n % 6 = 5 := by omega
-    rcases h6 with h6 | h6 | h6
-    · have h18 : n % 18 = 1 ∨ n % 18 = 7 ∨ n % 18 = 13 := by omega
-      rcases h18 with h18 | h18 | h18
-      · have h36 : n % 36 = 1 ∨ n % 36 = 19 := by omega
-        rcases h36 with h36 | h36
-        · exact ⟨109, by decide, row_divides (d := 36) (r := 1) (by omega) (by decide) (by decide)⟩
-        · exact ⟨37, by decide, row_divides (d := 36) (r := 19) (by omega) (by decide) (by decide)⟩
-      · exact ⟨19, by decide, row_divides (d := 18) (r := 7) (by omega) (by decide) (by decide)⟩
-      · exact ⟨73, by decide, row_divides (d := 9) (r := 4) (by omega) (by decide) (by decide)⟩
-    · have h30 : n % 30 = 3 ∨ n % 30 = 9 ∨ n % 30 = 15 ∨ n % 30 = 21 ∨ n % 30 = 27 := by omega
-      rcases h30 with h30 | h30 | h30 | h30 | h30
-      · have h60 : n % 60 = 3 ∨ n % 60 = 33 := by omega
-        rcases h60 with h60 | h60
-        · exact ⟨61, by decide, row_divides (d := 60) (r := 3) (by omega) (by decide) (by decide)⟩
-        · exact ⟨41, by decide, row_divides (d := 20) (r := 13) (by omega) (by decide) (by decide)⟩
-      · exact ⟨331, by decide, row_divides (d := 30) (r := 9) (by omega) (by decide) (by decide)⟩
-      · exact ⟨11, by decide, row_divides (d := 10) (r := 5) (by omega) (by decide) (by decide)⟩
-      · exact ⟨31, by decide, row_divides (d := 5) (r := 1) (by omega) (by decide) (by decide)⟩
-      · exact ⟨151, by decide, row_divides (d := 15) (r := 12) (by omega) (by decide) (by decide)⟩
-    · exact ⟨7, by decide, row_divides (d := 3) (r := 2) (by omega) (by decide) (by decide)⟩
+  obtain ⟨p, hp, h⟩ := (by decide +kernel : ∀ r < 360, ∃ p ∈ primesA, 2 ^ 360 ≡ 1 [MOD p] ∧
+    2 ^ r + gap ≡ 0 [MOD p]) _ (n.mod_lt (by omega))
+  exact ⟨p, hp, row_divides rfl h.1 h.2⟩
 
 private def primesB : List ℕ :=
   [3, 23, 29, 43, 67, 71, 89, 97, 113, 127, 257, 281, 337, 353, 397, 433, 449, 577, 641, 673, 683, 1153, 1429, 2113, 2689, 5153, 5419, 6337, 7393, 20857, 38737, 65537, 86171, 122921, 312709, 599479, 6700417, 7416361, 15790321]

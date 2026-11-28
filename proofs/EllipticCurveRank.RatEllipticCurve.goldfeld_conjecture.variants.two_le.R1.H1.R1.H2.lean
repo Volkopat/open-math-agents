@@ -87,12 +87,6 @@ private lemma scalePoint_add (A B u : ℚ) (hu : u ≠ 0)
           simp only [addY, negY, negAddY, addX, shortCurve]
           ring
 
-private def scaleHom (A B u : ℚ) (hu : u ≠ 0) :
-    (shortCurve A B).Point →+ (shortCurve (u ^ 4 * A) (u ^ 6 * B)).Point where
-  toFun := scalePoint A B u hu
-  map_zero' := rfl
-  map_add' := scalePoint_add A B u hu
-
 private lemma scalePoint_bijective (A B u : ℚ) (hu : u ≠ 0) :
     Function.Bijective (scalePoint A B u hu) := by
   constructor
@@ -120,7 +114,10 @@ private lemma scalePoint_bijective (A B u : ℚ) (hu : u ≠ 0) :
 
 private noncomputable def scaleEquiv (A B u : ℚ) (hu : u ≠ 0) :
     (shortCurve A B).Point ≃+ (shortCurve (u ^ 4 * A) (u ^ 6 * B)).Point :=
-  AddEquiv.ofBijective (scaleHom A B u hu) (scalePoint_bijective A B u hu)
+  AddEquiv.ofBijective
+    ({ toFun := scalePoint A B u hu, map_zero' := rfl, map_add' := scalePoint_add A B u hu } :
+      (shortCurve A B).Point →+ (shortCurve (u ^ 4 * A) (u ^ 6 * B)).Point)
+    (scalePoint_bijective A B u hu)
 
 end OMA.TwistScaling
 
@@ -128,12 +125,7 @@ open OMA.TwistScaling in
 theorem OMA.solution : OMA.R_EllipticCurveRank_RatEllipticCurve_goldfeld_conjecture_variants_two_le_R1_H1_R1.H2 := by
   intro E a b _ha hb
   have hu : (b : ℚ) ≠ 0 := by exact_mod_cast (Nat.ne_of_gt hb)
-  have hbase : E.quadraticTwist (a : ℤ) =
-      shortCurve ((a : ℚ) ^ 2 * E.A) ((a : ℚ) ^ 3 * E.B) := by
-    ext <;> simp [EllipticCurveRank.RatEllipticCurve.quadraticTwist, shortCurve]
-  have hscaled : E.quadraticTwist ((b ^ 2 * a : ℕ) : ℤ) =
-      shortCurve ((b : ℚ) ^ 4 * ((a : ℚ) ^ 2 * E.A))
-        ((b : ℚ) ^ 6 * ((a : ℚ) ^ 3 * E.B)) := by
-    ext <;> simp [EllipticCurveRank.RatEllipticCurve.quadraticTwist, shortCurve] <;> ring
-  rw [hscaled, hbase]
-  exact ⟨(scaleEquiv _ _ _ hu).symm⟩
+  convert Nonempty.intro
+    (scaleEquiv ((a : ℚ) ^ 2 * E.A) ((a : ℚ) ^ 3 * E.B) (b : ℚ) hu).symm using 1 <;>
+    congr 2 <;> ext <;>
+    simp [EllipticCurveRank.RatEllipticCurve.quadraticTwist, shortCurve] <;> ring

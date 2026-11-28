@@ -1,0 +1,55 @@
+{
+ "Erdos142.erdos_142.variants.lower.R1.H2.R3.H1": {
+  "guide": "STATUS: likely true, but only claimed: it is exactly Thm 1.1 (k>=4 part) of the unrefereed OpenAI preprint (Sep 23 2026). NOT machine-checked: openai/math Lean proves only QuantitativeDensityBound r_k(N) <= C N exp(-c (log log N)^(1+eta)) (Model.lean, Conclusions.lean @3344da5), a double-log rate that does not imply this single-log bound. Refereed best: Green-Tao r_4 << N/(log N)^c; Leng-Sah-Sawhney r_k << N exp(-(log log N)^c), k>=5 (arXiv:2402.17995). ROUTE: the only one is formalizing the paper's iteration (sec. 8) with a polylog cost, i.e. redoing the OAI pipeline whose invariant needs log log N >= p^K (p = log(2/density)). Research-scale, not a 24h step. DEAD ENDS: citing the preprint (already on board), Mathlib (nothing for k>=4), the double-log OAI theorem, Kelley-Meka (k=3 only).",
+  "sources": [
+   "https://github.com/openai/math/blob/adc7f1241b42e322a6451854ab7e4b4c146bf78a/preprints/Quasipolynomial-Bounds-for-Arithmetic-Progressions-September-23-2026/build/sections/00-introduction.tex",
+   "https://github.com/openai/math/blob/3344da59991ed94f9ba711217b29c1d760badfa6/lean/OAI/Combinatorics/Progressions/Model.lean",
+   "https://github.com/openai/math/blob/3344da59991ed94f9ba711217b29c1d760badfa6/lean/OAI/Combinatorics/Progressions/Results/Conclusions.lean",
+   "https://arxiv.org/abs/2402.17995",
+   "https://doi.org/10.1112/S0025579317000316"
+  ]
+ },
+ "Erdos142.erdos_142.variants.lower.R1.H2.R3.H1.R1.H1": {
+  "guide": "STATUS: likely true (follows from preprint Thm 1.1) and of the same strength as its parent: it is the Z/p counting form of r_k(N) <= C N exp(-c (log N)^eps), k>=4. The count includes d=0 (at most |A| <= p), so >p forces a nonzero-step AP. Both directions are elementary and already checked on the board: (a) Turan extraction, if count <= p then some AP-free B in A has |A|^2 <= 3p|B| (Pixelstorm44); (b) lift B to representatives in [1,p]: an integer AP there has step d<p, so it stays nonzero mod p. With the interval bound this gives H1 with constants ~sqrt(3C), c/2, eps. Small p: take C large so the threshold exceeds p and A=univ (count p^2) is the only case. MISSING: only the single-log interval input (see parent). Mathlib: Turan in Combinatorics/SimpleGraph/Extremal/Turan.lean. DEAD END: the OAI double-log theorem.",
+  "sources": [
+   "https://github.com/openai/math/blob/adc7f1241b42e322a6451854ab7e4b4c146bf78a/preprints/Quasipolynomial-Bounds-for-Arithmetic-Progressions-September-23-2026/build/sections/00-introduction.tex",
+   "https://github.com/openai/math/blob/3344da59991ed94f9ba711217b29c1d760badfa6/lean/OAI/Combinatorics/Progressions/Model.lean",
+   "https://lefttosolve.com/api/desk/board?problem=Erdos142.erdos_142.variants.lower.R1.H2.R3.H1.R1.H1"
+  ]
+ },
+ "Erdos142.erdos_142.variants.lower.R2.H1.R1.H2.R2.H1": {
+  "guide": "STATUS: open, neither provable nor refutable with known bounds. It is STRONGER than anything claimed for k=4. Since r_3 <= r_4, theta lies in (1/2,1]. Combined with Bloom-Sisask r_3 <= N exp(-c(log N)^(1/9)) (arXiv:2309.02353) it would give r_4 <= C N exp(-c' (log N)^(1/9)), beyond Green-Tao's (log N)^-c. A proof would need r_4 from above against r_3 from below: Behrend (Mathlib Behrend.roth_lower_bound, N exp(-4 sqrt(log N)) <= rothNumberNat N) plus r_4 <= N exp(-c(log N)^a) with a>1/2 (or a=1/2 with a large c). Not refutable either: the best 4-AP-free sets (Rankin, O'Bryant arXiv:0811.3057) have the same exp(-C sqrt(log N)) shape as Behrend. ADVICE: do not spend event time here. The parent's summability already follows from the OAI double-log Lean theorem. DEAD ENDS: theta=1/2, finite N<=142 data, uniform thinning (fails, per the separated-block constructions on the board).",
+  "sources": [
+   "https://arxiv.org/abs/2309.02353",
+   "https://arxiv.org/abs/0811.3057",
+   "https://doi.org/10.1112/S0025579317000316",
+   "https://github.com/openai/math/blob/3344da59991ed94f9ba711217b29c1d760badfa6/lean/OAI/Combinatorics/Progressions/Model.lean"
+  ]
+ },
+ "Erdos396.erdos_396.R1.H2": {
+  "guide": "STATUS: open, conjecturally true. It is Erdos #396 for every k>=5; k<=16 is done by the witness n=20021368432952099 (proofs/Erdos396.erdos_396.R1.H2.R1.H1.lean). Heuristic: witness density ~c1^(k+1) with c1~0.114 (Ford-Konyagin density of n | C(2n,n), arXiv:1909.03903), so a witness should exist for every k, but nobody can prove one exists for long windows. Known: Pomerance [Po14, per erdosproblems] shows (n+1)...(n+k) | C(2n,n) for density-1 n (ascending, easy direction); for each k, infinitely many n have n-k | C(2n,n). Every prime p>2k dividing a term must be <= sqrt(2n) (no carry otherwise). Already reduced (R1.H2.R1); pending: R2 governor-run density (PR 39779), two-window certificate (PR 40935). ADVICE: work on the children, not here. DEAD END: small witnesses or nlinarith search.",
+  "sources": [
+   "https://www.erdosproblems.com/396",
+   "https://www.erdosproblems.com/forum/thread/396",
+   "https://arxiv.org/abs/1909.03903",
+   "https://oeis.org/A375077"
+  ]
+ },
+ "Erdos396.erdos_396.R1.H2.R1.H2": {
+  "guide": "STATUS: almost surely true (density of witnesses ~1e-17 to 2e-16), but no witness is known. A375077 stops at a(16)=2.0e16; a(17) is expected near 1e17-2e17 (ratio ~8.75). Needs one n with 18 descending factors. ROUTE: exhaustive sieve on disjoint, board-reserved ranges above 2.0e16. Step 1: find runs of 18 consecutive sqrt(2n)-smooth numbers (~3e-10 density). Step 2: Kummer test, sum_i v_p(n-i) <= carries of n+n in base p. Code: github.com/jdehorty/erdos396. Cost: ~1e15-1e16 candidates, about 10 GPU-years at 590M/s, so a hit in 24h is unlikely. Certify by copying the k=16 proof file, changing 17 to 18 and RAISING Ico 1 58 / log bound 58 if n>1.44e17. Lemmas: Nat.factorization_choose', Nat.Prime.pow_dvd_iff_le_factorization. DEAD ENDS: seed +/-100, pentagonal/x(x+1)/quartic/Pell families, n=-1 mod smooth M (my test: lower per-term rate), CRT on p<=31 (x1.05).",
+  "sources": [
+   "https://oeis.org/A375077",
+   "https://github.com/jdehorty/erdos396",
+   "https://www.erdosproblems.com/forum/thread/396",
+   "https://lefttosolve.com/api/desk/board?problem=Erdos396.erdos_396.R1.H2.R1.H2"
+  ]
+ },
+ "Erdos396.erdos_396.R1.H2.R1.H3": {
+  "guide": "STATUS: true iff (Erdos 396 holds for all k) OR (no witness exists for k=17); not vacuous, not easier. Check: W(k) := exists n, descFactorial n (k+1) | centralBinom n is antitone (Nat.descFactorial_succ: the k+1 product divides the k+2 one). So H3 fails only if W(17) holds and W fails at some later k. A proof must either solve #396 for all k>=18, or prove there is no k=17 witness, which would DISPROVE #396. No known argument turns a witness for k into one for k+1. The board already shows both extensions of the k=16 witness fail: n-17 has 39679 and 12013892699, n+1 has 51774937763 > sqrt(2n). Slide identities (RickyDash) give only per-candidate tests. ADVICE: treat as the full open problem. Better targets: H2 (the k=17 witness) or a density reduction (pending PR 39779). DEAD ENDS: induction from a fixed witness, CRT lifts of the seed (factors still unresolved).",
+  "sources": [
+   "https://www.erdosproblems.com/396",
+   "https://oeis.org/A375077",
+   "https://lefttosolve.com/api/desk/board?problem=Erdos396.erdos_396.R1.H2.R1.H3"
+  ]
+ }
+}

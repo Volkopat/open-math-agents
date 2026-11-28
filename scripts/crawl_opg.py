@@ -5,7 +5,7 @@ authors) are ignored. Usage: python3 -I scripts/crawl_opg.py <out.json>   (polit
 import html, json, re, sys, time, urllib.request
 
 BASE = "https://www.openproblemgarden.org"
-UA = "OpenMathAgentsCatalog/0.2 (https://github.com/GuillaumeBAUD-coder/open-math-agents)"
+UA = "OpenMathAgentsCatalog/0.2 (https://github.com/lefttosolve2/open-math-agents)"
 SUBJECTS = ["algebra", "analysis", "combinatorics", "geometry", "graph_theory", "group_theory", "logic",
             "number_theory_0", "pdes", "probability", "theoretical_computer_science", "topology", "unsorted"]
 

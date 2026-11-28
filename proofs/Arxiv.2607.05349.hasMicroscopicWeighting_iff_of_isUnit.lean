@@ -15,9 +15,10 @@ When `D = distanceMatrix X` is invertible, set `v = D⁻¹ *ᵥ 1` and `s = ∑ 
      `∑ w = v ⬝ᵥ (D *ᵥ w) = 0`, a contradiction.
 -/
 
--- Problem: The microscopic weighting on a metric space — hasMicroscopicWeighting iff of isUnit
--- Upstream: formal-conjectures FormalConjectures/Arxiv/2607.05349/MicroscopicWeighting.lean:165 (declaration Arxiv.«2607.05349».hasMicroscopicWeighting_iff_of_isUnit)
--- Credit: @TheWaler (the owner of the agent is credited as the solver)
+-- Original formalization by @TheWaler, PR #367.
+-- Determinant-limit argument adapted from @luciusacarr’s forward implication,
+-- PR #636. Continuity helpers simplified using Mathlib’s matrix inverse,
+-- matrix-vector multiplication, dot-product continuity, and right-slope APIs.
 
 namespace MicroscopicWeightingProof
 
@@ -76,80 +77,47 @@ private lemma hasFiniteConcentration_iff_sum_ne_zero
 private lemma eventually_isUnit_det_similarityMatrix
     {X : Type*} [Fintype X] [DecidableEq X] [MetricSpace X] :
     ∀ᶠ t in 𝓝[>] (0 : ℝ), IsUnit (similarityMatrix X t).det := by
-  let f : ℝ → ℝ := fun t => (similarityMatrix X t).det
-  have hf_eq : ∀ t : ℝ, f t =
-      ∑ σ : Equiv.Perm X, ((Equiv.Perm.sign σ : ℤ) : ℝ) *
-        ∏ i : X, Real.exp (-t * dist i (σ i)) := by
-    intro t
-    change (similarityMatrix X t).det = _
-    rw [Matrix.det_apply]
-    refine Finset.sum_congr rfl ?_
-    intro σ _
-    rw [Units.smul_def, zsmul_eq_mul]
-    congr 1
-    refine Finset.prod_congr rfl ?_
-    intro i _
-    simp [similarityMatrix, dist_comm]
-  have hf_an : AnalyticOnNhd ℝ f Set.univ := by
-    intro t0 _
-    have hf_fun : f = ∑ σ : Equiv.Perm X,
-        (fun _ : ℝ => ((Equiv.Perm.sign σ : ℤ) : ℝ)) *
-          ∏ i : X, (fun t : ℝ => Real.exp (-t * dist i (σ i))) := by
+  suffices hz : ∀ᶠ t in 𝓝[>] (0 : ℝ), (similarityMatrix X t).det ≠ 0 by
+    exact hz.mono fun _ ht => isUnit_iff_ne_zero.mpr ht
+  classical
+  let f := fun t => (similarityMatrix X t).det
+  have ha : AnalyticOnNhd ℝ f Set.univ := by
+    intro t _
+    unfold f
+    rw [show (fun t => (similarityMatrix X t).det) =
+        fun t => ∑ σ : Equiv.Perm X, (Equiv.Perm.sign σ : ℝ) *
+          ∏ i, Real.exp (-t * dist (σ i) i) by
       ext t
-      rw [hf_eq t]
-      simp [Finset.sum_apply, Finset.prod_apply]
-    rw [hf_fun]
-    refine Finset.analyticAt_sum Finset.univ fun σ _ => ?_
-    refine analyticAt_const.mul (Finset.analyticAt_prod Finset.univ fun i _ => ?_)
-    exact (analyticAt_id.neg.mul analyticAt_const).rexp
-  have hf_top : Tendsto f atTop (𝓝 1) := by
-    have hsum_lim : Tendsto (fun t => ∑ σ : Equiv.Perm X,
-        ((Equiv.Perm.sign σ : ℤ) : ℝ) * ∏ i : X, Real.exp (-t * dist i (σ i)))
-        atTop (𝓝 (∑ σ : Equiv.Perm X, if σ = 1 then (1 : ℝ) else 0)) := by
-      refine tendsto_finsetSum Finset.univ fun σ _ => ?_
-      by_cases hσ : σ = 1
-      · subst hσ
-        simp
-      · rw [if_neg hσ]
-        have hex : ∃ i0 : X, σ i0 ≠ i0 := by
-          by_contra hall
-          push Not at hall
-          exact hσ (Equiv.ext hall)
-        rcases hex with ⟨i0, hi0⟩
-        set S : ℝ := ∑ i : X, dist i (σ i)
-        have hS_pos : 0 < S := by
-          have h0 : 0 < dist i0 (σ i0) := dist_pos.mpr (Ne.symm hi0)
-          exact lt_of_lt_of_le h0
-            (Finset.single_le_sum (f := fun i => dist i (σ i)) (fun i _ => dist_nonneg)
-              (Finset.mem_univ i0))
-        have hprod : ∀ t : ℝ, ∏ i : X, Real.exp (-t * dist i (σ i)) = Real.exp (-t * S) := by
-          intro t
-          rw [← Real.exp_sum, ← Finset.mul_sum]
-        have hexp : Tendsto (fun t : ℝ => Real.exp (-t * S)) atTop (𝓝 0) := by
-          have hneg : Tendsto (fun t : ℝ => -t * S) atTop atBot :=
-            tendsto_neg_atTop_atBot.atBot_mul_const hS_pos
-          exact Real.tendsto_exp_atBot.comp hneg
-        have hmul : Tendsto (fun t : ℝ => ((Equiv.Perm.sign σ : ℤ) : ℝ) * Real.exp (-t * S))
-            atTop (𝓝 0) := by
-          simpa using hexp.const_mul ((Equiv.Perm.sign σ : ℤ) : ℝ)
-        exact hmul.congr fun t => by rw [hprod t]
-    have h1 : (∑ σ : Equiv.Perm X, if σ = 1 then (1 : ℝ) else 0) = 1 := by simp
-    rw [h1] at hsum_lim
-    exact hsum_lim.congr (fun t => (hf_eq t).symm)
-  have hex_ne : ∃ t1 : ℝ, f t1 ≠ 0 := by
-    have hev : ∀ᶠ t in atTop, (0 : ℝ) < f t := hf_top.eventually (Ioi_mem_nhds one_pos)
-    rcases hev.exists with ⟨t1, ht1⟩
-    exact ⟨t1, ht1.ne'⟩
-  have hnot_freq : ¬ ∃ᶠ t in 𝓝[≠] (0 : ℝ), f t = 0 := by
-    intro hfreq
-    have hzero := hf_an.eqOn_zero_of_preconnected_of_frequently_eq_zero
-      isPreconnected_univ (Set.mem_univ (0 : ℝ)) hfreq
-    rcases hex_ne with ⟨t1, ht1⟩
-    exact ht1 (hzero (Set.mem_univ t1))
-  have hev_ne : ∀ᶠ t in 𝓝[≠] (0 : ℝ), f t ≠ 0 := Filter.not_frequently.mp hnot_freq
-  have hev_gt : ∀ᶠ t in 𝓝[>] (0 : ℝ), f t ≠ 0 :=
-    hev_ne.filter_mono (nhdsWithin_mono 0 fun _ ht => ne_of_gt ht)
-  exact hev_gt.mono fun _ ht => isUnit_iff_ne_zero.mpr ht
+      simp [Matrix.det_apply, similarityMatrix, Units.smul_def]]
+    fun_prop
+  have hmat : Tendsto (fun (t : ℝ) (i j : X) => Real.exp (-t * dist i j))
+      atTop (𝓝 (fun i j => (1 : Matrix X X ℝ) i j)) := by
+    apply tendsto_pi_nhds.mpr
+    intro i
+    apply tendsto_pi_nhds.mpr
+    intro j
+    by_cases hij : i = j
+    · subst j
+      simp
+    · have hdist : 0 < dist i j := dist_pos.mpr hij
+      have hneg : Tendsto (fun t : ℝ => -t * dist i j) atTop atBot :=
+        (tendsto_neg_atTop_atBot.comp (tendsto_id.const_mul_atTop hdist)).congr
+          fun t => by simp; ring
+      simpa [Function.comp_def, Matrix.one_apply, hij] using Real.tendsto_exp_atBot.comp hneg
+  have hlim : Tendsto f atTop (𝓝 1) := by
+    have hc : Continuous (fun M : Matrix X X ℝ => M.det) := continuous_id.matrix_det
+    have hmat' : Tendsto (similarityMatrix X) atTop (𝓝 (1 : Matrix X X ℝ)) := hmat
+    simpa [f, Function.comp_def] using
+      (hc.continuousAt (x := (1 : Matrix X X ℝ))).tendsto.comp hmat'
+  have hnzero : ¬ Set.EqOn f 0 Set.univ := by
+    intro h
+    have hzero : Tendsto f atTop (𝓝 0) :=
+      tendsto_const_nhds.congr fun t => (h (Set.mem_univ t)).symm
+    exact one_ne_zero (tendsto_nhds_unique hlim hzero)
+  rcases (ha 0 (Set.mem_univ 0)).eventually_eq_zero_or_eventually_ne_zero with h | h
+  · exact False.elim (hnzero (ha.eqOn_zero_of_preconnected_of_eventuallyEq_zero
+      isPreconnected_univ (Set.mem_univ 0) h))
+  · exact h.filter_mono (nhdsGT_le_nhdsNE 0)
 
 private lemma tendsto_scaledDiffMat {X : Type*} [Fintype X] [MetricSpace X] :
     Tendsto (scaledDiffMat X) (𝓝[>] (0 : ℝ)) (𝓝 (distanceMatrix X)) := by
@@ -159,14 +127,8 @@ private lemma tendsto_scaledDiffMat {X : Type*} [Fintype X] [MetricSpace X] :
     have h1 : HasDerivAt (fun t : ℝ => -t * d) (-d) 0 := by
       simpa using (hasDerivAt_id (0 : ℝ)).neg.mul_const d
     simpa [Real.exp_zero] using h1.exp
-  have hslope := (hasDerivAt_iff_tendsto_slope_zero.mp hd).neg
-  have hslope' : Tendsto (fun t : ℝ => (1 - Real.exp (-t * d)) / t) (𝓝[≠] (0 : ℝ)) (𝓝 d) := by
-    refine (by simpa using hslope : Tendsto (fun t : ℝ => -(t⁻¹ • (Real.exp (-(0 + t) * d) -
-        Real.exp (-(0 : ℝ) * d)))) (𝓝[≠] (0 : ℝ)) (𝓝 d)).congr ?_
-    intro t
-    simp only [zero_add, neg_zero, zero_mul, Real.exp_zero, smul_eq_mul]
-    ring
-  exact hslope'.mono_left (nhdsWithin_mono 0 fun _ ht => ne_of_gt ht)
+  simpa [scaledDiffMat, distanceMatrix, Pi.neg_apply, sub_eq_add_neg,
+    div_eq_mul_inv, smul_eq_mul, mul_comm, add_comm] using hd.neg.tendsto_slope_zero_right
 
 private lemma tendsto_similarityMatrix {X : Type*} [Fintype X] [MetricSpace X] :
     Tendsto (similarityMatrix X) (𝓝[>] (0 : ℝ)) (𝓝 (onesMat X)) := by
@@ -179,30 +141,16 @@ private lemma tendsto_similarityMatrix {X : Type*} [Fintype X] [MetricSpace X] :
 private lemma tendsto_scaledDiffMat_inv {X : Type*} [Fintype X] [DecidableEq X] [MetricSpace X]
     (h : IsUnit (distanceMatrix X).det) :
     Tendsto (fun t => (scaledDiffMat X t)⁻¹) (𝓝[>] (0 : ℝ)) (𝓝 (distanceMatrix X)⁻¹) := by
-  have hA := tendsto_scaledDiffMat (X := X)
-  have hdet : Tendsto (fun t => (scaledDiffMat X t).det) (𝓝[>] (0 : ℝ))
-      (𝓝 (distanceMatrix X).det) :=
-    (continuous_id.matrix_det.tendsto (distanceMatrix X)).comp hA
-  have hdet_inv : Tendsto (fun t => ((scaledDiffMat X t).det)⁻¹) (𝓝[>] (0 : ℝ))
-      (𝓝 ((distanceMatrix X).det)⁻¹) :=
-    hdet.inv₀ h.ne_zero
-  have hadj : Tendsto (fun t => (scaledDiffMat X t).adjugate) (𝓝[>] (0 : ℝ))
-      (𝓝 (distanceMatrix X).adjugate) :=
-    (continuous_id.matrix_adjugate.tendsto (distanceMatrix X)).comp hA
-  simpa only [Matrix.inv_def, Ring.inverse_eq_inv'] using hdet_inv.smul hadj
+  exact (continuousAt_matrix_inv _ (by
+    simpa only [Ring.inverse_eq_inv'] using continuousAt_inv₀ h.ne_zero)).tendsto.comp
+      (tendsto_scaledDiffMat (X := X))
 
 private lemma tendsto_mulVec {X : Type*} [Fintype X] {l : Filter ℝ}
     {M : ℝ → Matrix X X ℝ} {M0 : Matrix X X ℝ} {u : ℝ → X → ℝ} {u0 : X → ℝ}
     (hM : Tendsto M l (𝓝 M0)) (hu : Tendsto u l (𝓝 u0)) :
     Tendsto (fun t => M t *ᵥ u t) l (𝓝 (M0 *ᵥ u0)) := by
-  rw [tendsto_pi_nhds]
-  intro i
-  simp only [Matrix.mulVec, dotProduct]
-  refine tendsto_finsetSum Finset.univ fun j _ => ?_
-  have hMij : Tendsto (fun t => M t i j) l (𝓝 (M0 i j)) :=
-    ((tendsto_pi_nhds.mp ((tendsto_pi_nhds.mp hM) i)) j)
-  have huj : Tendsto (fun t => u t j) l (𝓝 (u0 j)) := (tendsto_pi_nhds.mp hu) j
-  exact hMij.mul huj
+  exact (continuous_fst.matrix_mulVec continuous_snd).continuousAt.tendsto.comp
+    (hM.prodMk_nhds hu)
 
 end MicroscopicWeightingProof
 
@@ -251,11 +199,8 @@ theorem OMA.solution : type_of% @Arxiv.«2607.05349».hasMicroscopicWeighting_if
       exact (mul_eq_zero.mp hmul).resolve_left ht_ne
     have hdot_lim : Tendsto (fun t => v ⬝ᵥ (scaledDiffMat X t *ᵥ weighting X t))
         (𝓝[>] (0 : ℝ)) (𝓝 (v ⬝ᵥ (D *ᵥ w))) := by
-      have hAw : Tendsto (fun t => scaledDiffMat X t *ᵥ weighting X t)
-          (𝓝[>] (0 : ℝ)) (𝓝 (D *ᵥ w)) := tendsto_mulVec hA_lim hw
-      simp only [dotProduct]
-      refine tendsto_finsetSum Finset.univ fun i _ => ?_
-      exact ((tendsto_pi_nhds.mp hAw) i).const_mul (v i)
+      exact (continuous_const.dotProduct continuous_id).tendsto _ |>.comp
+        (tendsto_mulVec hA_lim hw)
     have hdot_zero : v ⬝ᵥ (D *ᵥ w) = 0 :=
       tendsto_nhds_unique hdot_lim (tendsto_const_nhds.congr' (hdot_ev.mono fun _ ht => ht.symm))
     have hdot_eq_sum : v ⬝ᵥ (D *ᵥ w) = ∑ j, w j := by

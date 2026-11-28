@@ -8,6 +8,5 @@ asks for `0 < k < m` with `k + m = 0`, which is impossible. Hence the statement 
 
 theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a261387.main) := by
   intro h
-  have h0 : (0 : ℕ) ∉ ({1, 2, 8} : Finset ℕ) := by decide
-  obtain ⟨k, m, hk, hkm, hsum, _⟩ := (h.1 0).mpr h0
+  obtain ⟨k, m, hk, hkm, hsum, -⟩ := (h.1 0).mpr (by decide)
   omega

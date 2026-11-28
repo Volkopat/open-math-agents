@@ -92,34 +92,13 @@ lemma admissible_empty (N : ℕ) : Admissible N (∅ : Finset ℕ) := by
     cases i with
     | mk q hq => simp at hq
 
-lemma admissible_singleton {N q : ℕ} (hq1 : 1 ≤ q) (hqN : q ≤ N) :
-    Admissible N ({q} : Finset ℕ) := by
-  constructor
-  · intro r hr
-    rw [Finset.mem_singleton] at hr
-    subst r
-    exact ⟨hq1, hqN⟩
-  · refine ⟨fun _ => 0, ?_⟩
-    intro i j hij
-    have hi : i.1 = q := Finset.mem_singleton.mp i.2
-    have hj : j.1 = q := Finset.mem_singleton.mp j.2
-    exact False.elim (hij (Subtype.ext (hi.trans hj.symm)))
-
 lemma possibleCard_zero (N : ℕ) : PossibleCard N 0 :=
   ⟨∅, admissible_empty N, by simp⟩
-
-lemma possibleCard_one {N : ℕ} (hN : 1 ≤ N) : PossibleCard N 1 :=
-  ⟨{N}, admissible_singleton hN le_rfl, by simp⟩
 
 lemma possibleCard_le {N r : ℕ} (hr : PossibleCard N r) : r ≤ N := by
   rcases hr with ⟨Q, hQ, hcard⟩
   rw [← hcard]
   exact admissible_card_le hQ
-
-lemma f_le (N : ℕ) : f N ≤ N := by
-  classical
-  unfold f
-  exact Nat.findGreatest_le N
 
 lemma possibleCard_f (N : ℕ) : PossibleCard N (f N) := by
   classical
@@ -131,9 +110,6 @@ lemma le_f_of_possibleCard {N r : ℕ} (hr : PossibleCard N r) : r ≤ f N := by
   classical
   unfold f
   exact Nat.le_findGreatest (P := PossibleCard N) (possibleCard_le hr) hr
-
-lemma one_le_f {N : ℕ} (hN : 1 ≤ N) : 1 ≤ f N :=
-  le_f_of_possibleCard (possibleCard_one hN)
 
 lemma exists_admissible_card_f (N : ℕ) :
     ∃ Q : Finset ℕ, Admissible N Q ∧ Q.card = f N :=
@@ -219,13 +195,6 @@ lemma Mscale_mul_loglog_eq_Zscale {N : ℕ} (hN : Real.exp 1 < (N : ℝ)) :
   · have hright_nonneg : 0 ≤ Zscale N := Zscale_nonneg N
     nlinarith
 
-lemma Zscale_div_Mscale_eq_loglog {N : ℕ} (hN : Real.exp 1 < (N : ℝ)) :
-    Zscale N / Mscale N = Real.log (Real.log (N : ℝ)) := by
-  have hMll := Mscale_mul_loglog_eq_Zscale hN
-  have hMpos := Mscale_pos_of_exp_one_lt_nat hN
-  rw [← hMll]
-  field_simp [hMpos.ne']
-
 lemma Mscale_mul_Zscale_eq_log {N : ℕ} (hN : Real.exp 1 < (N : ℝ)) :
     Mscale N * Zscale N = Real.log (N : ℝ) := by
   have hNpos : 0 < (N : ℝ) := (Real.exp_pos 1).trans hN
@@ -272,30 +241,6 @@ lemma eventually_sqrt_loglog_ge (A : ℝ) :
     ∀ᶠ N : ℕ in atTop, A ≤ Real.sqrt (Real.log (Real.log (N : ℝ))) :=
   tendsto_sqrt_loglog_nat_atTop.eventually_ge_atTop A
 
-lemma eventually_Mscale_le_log :
-    ∀ᶠ N : ℕ in atTop, Mscale N ≤ Real.log (N : ℝ) := by
-  filter_upwards [eventually_sqrt_loglog_ge 1,
-      Filter.eventually_gt_atTop (Nat.ceil (Real.exp 1))] with N hsqrt hNlarge_nat
-  have hNlarge : Real.exp 1 < (N : ℝ) :=
-    lt_of_le_of_lt (Nat.le_ceil _) (by exact_mod_cast hNlarge_nat)
-  have hNpos : 0 < (N : ℝ) := (Real.exp_pos 1).trans hNlarge
-  have hlog_gt_one : 1 < Real.log (N : ℝ) :=
-    (Real.lt_log_iff_exp_lt hNpos).2 hNlarge
-  have hlog_nonneg : 0 ≤ Real.log (N : ℝ) := (zero_lt_one.trans hlog_gt_one).le
-  have hloglog_pos : 0 < Real.log (Real.log (N : ℝ)) :=
-    Real.log_pos hlog_gt_one
-  have hloglog_ge_one : 1 ≤ Real.log (Real.log (N : ℝ)) := by
-    rw [← Real.one_le_sqrt]
-    exact hsqrt
-  rw [Mscale]
-  rw [Real.sqrt_le_left hlog_nonneg]
-  have hquot_le_log :
-      Real.log (N : ℝ) / Real.log (Real.log (N : ℝ)) ≤ Real.log (N : ℝ) := by
-    exact (div_le_iff₀ hloglog_pos).2 (by nlinarith [hlog_nonneg, hloglog_ge_one])
-  have hlog_le_sq : Real.log (N : ℝ) ≤ (Real.log (N : ℝ)) ^ 2 := by
-    nlinarith [hlog_gt_one.le]
-  exact hquot_le_log.trans hlog_le_sq
-
 lemma eventually_Mscale_ge (A : ℝ) (hA : 0 < A) :
     ∀ᶠ N : ℕ in atTop, A ≤ Mscale N := by
   have hA2 : 0 < A ^ 2 := sq_pos_of_pos hA
@@ -333,9 +278,6 @@ lemma Lscale_pos (α : ℝ) (N : ℕ) : 0 < Lscale α N :=
 lemma Lscale_nonneg (α : ℝ) (N : ℕ) : 0 ≤ Lscale α N :=
   (Lscale_pos α N).le
 
-lemma Lscale_zero (N : ℕ) : Lscale 0 N = 1 := by
-  simp [Lscale]
-
 lemma Lscale_add (α β : ℝ) (N : ℕ) :
     Lscale (α + β) N = Lscale α N * Lscale β N := by
   simp [Lscale, add_mul, Real.exp_add]
@@ -349,95 +291,9 @@ lemma Lscale_mono_in_alpha {α β : ℝ} (hαβ : α ≤ β) (N : ℕ) :
     Lscale α N ≤ Lscale β N := by
   exact Real.exp_le_exp.2 (mul_le_mul_of_nonneg_right hαβ (Zscale_nonneg N))
 
-lemma Lscale_neg_le_one {α : ℝ} (hα : 0 ≤ α) (N : ℕ) :
-    Lscale (-α) N ≤ 1 := by
-  simpa [Lscale_zero] using Lscale_mono_in_alpha (α := -α) (β := 0) (by linarith) N
-
-lemma log_nat_mul_Lscale {N : ℕ} (hN : 0 < N) (α : ℝ) :
-    Real.log ((N : ℝ) * Lscale α N) = Real.log (N : ℝ) + α * Zscale N := by
-  have hNreal : (N : ℝ) ≠ 0 := by exact_mod_cast hN.ne'
-  have hL : Lscale α N ≠ 0 := (Lscale_pos α N).ne'
-  rw [Real.log_mul hNreal hL, Lscale, Real.log_exp]
-
 /- ## §3 The sharp asymptotic -/
 
-/-- `F : ℕ → ℕ` satisfies `F N = N · exp(-(1 + o(1)) · sqrt(log N · log log N))`,
-in epsilon form: for every `ε > 0`, eventually
-`N · L(-(1+ε), N) ≤ F N ≤ N · L(-(1-ε), N)`. -/
-def HasErdos202Asymptotic (F : ℕ → ℕ) : Prop :=
-  ∀ ε : ℝ, 0 < ε → ∀ᶠ N : ℕ in atTop,
-    (N : ℝ) * Lscale (-(1 + ε)) N ≤ (F N : ℝ) ∧
-    (F N : ℝ) ≤ (N : ℝ) * Lscale (-(1 - ε)) N
-
-/-- **Erdős Problem 202.** The sharp BFV-conjectured asymptotic for the
-extremal function `f`. Statement layer only. -/
-def Erdos202Statement : Prop :=
-  HasErdos202Asymptotic f
-
 /- ## §4 The non-coprime gcd criterion (foundational lemma) -/
-
-/-- The gcd intersection criterion: residue classes `a mod q` and `b mod r`
-intersect iff `a ≡ b mod gcd(q, r)`. This is the formal version of equation
-(7) in the PDF and underlies the entire chain construction. -/
-lemma residueClass_inter_nonempty_iff
-    {q r : ℕ} (_hq : 0 < q) (_hr : 0 < r) (a b : ℤ) :
-    (residueClass q a ∩ residueClass r b).Nonempty ↔
-      a ≡ b [ZMOD (Nat.gcd q r : ℤ)] := by
-  constructor
-  · rintro ⟨n, hnq, hnr⟩
-    rw [residueClass, Set.mem_setOf_eq, Int.modEq_iff_dvd] at hnq hnr
-    rw [Int.modEq_iff_dvd]
-    have hdq : (Nat.gcd q r : ℤ) ∣ (q : ℤ) := by
-      exact_mod_cast Nat.gcd_dvd_left q r
-    have hdr : (Nat.gcd q r : ℤ) ∣ (r : ℤ) := by
-      exact_mod_cast Nat.gcd_dvd_right q r
-    have hqa : (Nat.gcd q r : ℤ) ∣ a - n := dvd_trans hdq hnq
-    have hrb : (Nat.gcd q r : ℤ) ∣ b - n := dvd_trans hdr hnr
-    have hsub : (Nat.gcd q r : ℤ) ∣ (b - n) - (a - n) := dvd_sub hrb hqa
-    convert hsub using 1
-    ring
-  · intro hab
-    rw [Int.modEq_iff_dvd] at hab
-    rcases hab with ⟨k, hk⟩
-    let n : ℤ := a + (q : ℤ) * Nat.gcdA q r * k
-    refine ⟨n, ?_, ?_⟩
-    · rw [residueClass, Set.mem_setOf_eq, Int.modEq_iff_dvd]
-      refine ⟨-(Nat.gcdA q r * k), ?_⟩
-      simp [n]
-      ring
-    · rw [residueClass, Set.mem_setOf_eq, Int.modEq_iff_dvd]
-      refine ⟨Nat.gcdB q r * k, ?_⟩
-      have hbez := Nat.gcd_eq_gcd_ab q r
-      calc
-        b - n = (b - a) - (q : ℤ) * Nat.gcdA q r * k := by
-          simp [n]
-          ring
-        _ = ((Nat.gcd q r : ℤ) * k) - (q : ℤ) * Nat.gcdA q r * k := by
-          rw [hk]
-        _ = ((q : ℤ) * Nat.gcdA q r + (r : ℤ) * Nat.gcdB q r) * k
-              - (q : ℤ) * Nat.gcdA q r * k := by
-          rw [hbez]
-        _ = (r : ℤ) * (Nat.gcdB q r * k) := by
-          ring
-
-/-- Disjointness form of the gcd criterion. -/
-lemma residueClass_disjoint_iff
-    {q r : ℕ} (hq : 0 < q) (hr : 0 < r) (a b : ℤ) :
-    Disjoint (residueClass q a) (residueClass r b) ↔
-      ¬ a ≡ b [ZMOD (Nat.gcd q r : ℤ)] := by
-  rw [Set.disjoint_iff_inter_eq_empty]
-  constructor
-  · intro h hmod
-    have hne : (residueClass q a ∩ residueClass r b).Nonempty :=
-      (residueClass_inter_nonempty_iff hq hr a b).2 hmod
-    exact hne.ne_empty h
-  · intro hmod
-    ext n
-    constructor
-    · intro hn
-      exact False.elim (hmod ((residueClass_inter_nonempty_iff hq hr a b).1 ⟨n, hn⟩))
-    · intro hn
-      cases hn
 
 end Erdos202
 namespace Erdos202
@@ -1788,77 +1644,6 @@ lemma Zscale_eq_exp_half_loglog_mul_sqrt_loglog {N : ℕ}
     rw [hlog_eq, ← Real.exp_half]
   rw [Zscale_eq_sqrt_log_mul_sqrt_loglog hNlarge, hsqrt_log]
 
-lemma eventually_log_eight_mul_Zscale_le
-    (δ : ℝ) (hδ : 0 < δ) :
-    ∀ᶠ N : ℕ in atTop,
-      Real.log (8 * Zscale N) ≤
-        ((1 + δ) / 2) * Real.log (Real.log (N : ℝ)) := by
-  have hδ2 : 0 < δ / 2 := by positivity
-  filter_upwards [Filter.eventually_gt_atTop (Nat.ceil (Real.exp 1)),
-      eventually_log_const_mul_sqrt_loglog_le_mul_loglog 8 (δ / 2)
-        (by norm_num) hδ2,
-      tendsto_loglog_nat_atTop.eventually_ge_atTop 1] with
-    N hNlarge_nat hlog_extra hYge_one
-  have hNlarge : Real.exp 1 < (N : ℝ) :=
-    lt_of_le_of_lt (Nat.le_ceil _) (by exact_mod_cast hNlarge_nat)
-  set Y := Real.log (Real.log (N : ℝ))
-  have hY_pos : 0 < Y := zero_lt_one.trans_le (by simpa [Y] using hYge_one)
-  have hsqrt_pos : 0 < Real.sqrt Y := Real.sqrt_pos.2 hY_pos
-  have hZeq := Zscale_eq_exp_half_loglog_mul_sqrt_loglog hNlarge
-  calc
-    Real.log (8 * Zscale N)
-        = Real.log (Real.exp (Y / 2) * (8 * Real.sqrt Y)) := by
-            congr 1
-            rw [hZeq]
-            ring
-    _ = Y / 2 + Real.log (8 * Real.sqrt Y) := by
-            rw [Real.log_mul (Real.exp_ne_zero _) (mul_pos (by norm_num) hsqrt_pos).ne',
-              Real.log_exp]
-    _ ≤ Y / 2 + (δ / 2) * Y := by
-            have hlog_extraY :
-                Real.log (8 * Real.sqrt Y) ≤ (δ / 2) * Y := by
-              simpa [Y] using hlog_extra
-            nlinarith
-    _ = ((1 + δ) / 2) * Y := by ring
-
-lemma eventually_lowerPathR_mul_log_eightZ_le_mul_Zscale
-    (δ : ℝ) (hδ : 0 < δ) :
-    ∀ᶠ N : ℕ in atTop,
-      (lowerPathR N : ℝ) * Real.log (8 * Zscale N) ≤
-        (1 + δ) * Zscale N := by
-  filter_upwards [Filter.eventually_gt_atTop (Nat.ceil (Real.exp 1)),
-      eventually_log_eight_mul_Zscale_le δ hδ,
-      eventually_Zscale_ge_const_path (1 / 8)] with N hNlarge_nat hlog_le hZge
-  have hNlarge : Real.exp 1 < (N : ℝ) :=
-    lt_of_le_of_lt (Nat.le_ceil _) (by exact_mod_cast hNlarge_nat)
-  set M := Mscale N
-  set Y := Real.log (Real.log (N : ℝ))
-  have hM_nonneg : 0 ≤ M := by
-    dsimp [M]
-    exact Mscale_nonneg N
-  have hY_nonneg : 0 ≤ Y := by
-    have hNpos : 0 < (N : ℝ) := (Real.exp_pos 1).trans hNlarge
-    have hlog_gt_one : 1 < Real.log (N : ℝ) :=
-      (Real.lt_log_iff_exp_lt hNpos).2 hNlarge
-    exact (Real.log_pos hlog_gt_one).le
-  have hMY : M * Y = Zscale N := by
-    dsimp [M, Y]
-    exact Mscale_mul_loglog_eq_Zscale hNlarge
-  have hr_le : (lowerPathR N : ℝ) ≤ 2 * M := by
-    dsimp [lowerPathR, M]
-    exact Nat.floor_le (by positivity : 0 ≤ 2 * Mscale N)
-  have hbase_ge_one : 1 ≤ 8 * Zscale N := by nlinarith
-  have hlog_nonneg : 0 ≤ Real.log (8 * Zscale N) :=
-    Real.log_nonneg hbase_ge_one
-  calc
-    (lowerPathR N : ℝ) * Real.log (8 * Zscale N)
-        ≤ (2 * M) * Real.log (8 * Zscale N) := by
-            exact mul_le_mul_of_nonneg_right hr_le hlog_nonneg
-    _ ≤ (2 * M) * (((1 + δ) / 2) * Y) := by
-            exact mul_le_mul_of_nonneg_left hlog_le (by positivity)
-    _ = (1 + δ) * (M * Y) := by ring
-    _ = (1 + δ) * Zscale N := by rw [hMY]
-
 end Erdos202
 namespace Erdos202
 
@@ -1973,10 +1758,6 @@ lemma dyadicPrimeIntervalConstant_lt_one :
   unfold dyadicPrimeIntervalConstant
   nlinarith
 
-lemma lowerPathChebEta_pos : 0 < lowerPathChebEta := by
-  unfold lowerPathChebEta
-  linarith [dyadicPrimeIntervalConstant_lt_one]
-
 noncomputable def lowerPathDenominatorConstant : ℝ :=
   4 / dyadicPrimeIntervalConstant
 
@@ -2000,34 +1781,6 @@ lemma lowerPath_half_le_floor_of_two_le {x : ℝ} (hx : 2 ≤ x) :
     Nat.lt_floor_add_one x
   have hx_half_le_sub : x / 2 ≤ x - 1 := by linarith
   linarith
-
-lemma lowerPath_two_le_half_mul_div_log_of_ge_64 {y : ℝ} (hy : 64 ≤ y) :
-    2 ≤ ((1 / 2 : ℝ) * y) / Real.log y := by
-  have hy_nonneg : 0 ≤ y := by linarith
-  have hy_pos : 0 < y := by linarith
-  have hy_gt_one : 1 < y := by linarith
-  have hlog_pos : 0 < Real.log y := Real.log_pos hy_gt_one
-  have hlog_le : Real.log y ≤ 2 * Real.sqrt y := by
-    have h :=
-      Real.log_le_rpow_div (x := y) (ε := (1 / 2 : ℝ)) hy_nonneg (by norm_num)
-    rw [← Real.sqrt_eq_rpow] at h
-    calc
-      Real.log y ≤ Real.sqrt y / (1 / 2 : ℝ) := h
-      _ = 2 * Real.sqrt y := by ring
-  have hsqrt_ge : 8 ≤ Real.sqrt y := by
-    refine (Real.le_sqrt (by norm_num : (0 : ℝ) ≤ 8) hy_nonneg).2 ?_
-    norm_num
-    exact hy
-  have hsqrt_sq : Real.sqrt y ^ 2 = y := Real.sq_sqrt hy_nonneg
-  have hfourlog : 4 * Real.log y ≤ y := by
-    nlinarith
-  have hden_pos : 0 < 2 * Real.log y := by positivity
-  have hmain : 2 ≤ y / (2 * Real.log y) :=
-    (le_div_iff₀ hden_pos).2 (by nlinarith [hfourlog])
-  calc
-    2 ≤ y / (2 * Real.log y) := hmain
-    _ = ((1 / 2 : ℝ) * y) / Real.log y := by
-          field_simp [hlog_pos.ne']
 
 lemma lowerPath_two_le_cheb_mul_div_log_of_ge {y : ℝ}
     (hy : (4 / dyadicPrimeIntervalConstant) ^ 2 ≤ y) :
@@ -2342,14 +2095,6 @@ lemma lowerPathQ_moduli_in_range_of_root_scale {N : ℕ} (hNpos : 0 < (N : ℝ))
   intro q hq
   rcases Finset.mem_image.1 hq with ⟨P, _hP, rfl⟩
   exact ⟨lowerPathModulus_pos N P, lowerPathModulus_le_N_of_root_scale hNpos hY0 P⟩
-
-theorem lowerPathQ_moduli_in_range_eventually :
-    ∀ᶠ N : ℕ in atTop,
-      ∀ q ∈ lowerPathQ N, 1 ≤ q ∧ q ≤ N := by
-  filter_upwards [Filter.eventually_gt_atTop 0,
-      eventually_lowerPathY_zero_ge_one] with N hNpos_nat hY0
-  have hNpos : 0 < (N : ℝ) := by exact_mod_cast hNpos_nat
-  exact lowerPathQ_moduli_in_range_of_root_scale hNpos hY0
 
 /- ## Eventual separation and root coprimality -/
 
@@ -2849,10 +2594,6 @@ lemma lowerPathChoiceOfQ_exists (N : ℕ) (q : {q : ℕ // q ∈ lowerPathQ N}) 
 noncomputable def lowerPathChoiceOfQ (N : ℕ) (q : {q : ℕ // q ∈ lowerPathQ N}) :
     LowerPathPrimeChoice N :=
   Classical.choose (lowerPathChoiceOfQ_exists N q)
-
-lemma lowerPathChoiceOfQ_mem (N : ℕ) (q : {q : ℕ // q ∈ lowerPathQ N}) :
-    lowerPathChoiceOfQ N q ∈ lowerPathChoices N :=
-  (Classical.choose_spec (lowerPathChoiceOfQ_exists N q)).1
 
 lemma lowerPathChoiceOfQ_modulus (N : ℕ) (q : {q : ℕ // q ∈ lowerPathQ N}) :
     lowerPathModulus N (lowerPathChoiceOfQ N q) = q.1 :=
@@ -3401,27 +3142,15 @@ noncomputable def reciprocalSum (Q : Finset ℕ) : ℝ :=
 
 /- The next four aliases match the notation used in the PDF-roadmap notes. -/
 
-/-- Alias for `reciprocalSum`, matching the shorter roadmap name. -/
-noncomputable abbrev recipSum : Finset ℕ → ℝ :=
-  reciprocalSum
-
 /-- A 1190-admissible tail family: all moduli are strictly larger than `m`, and
 some choice of residue classes modulo those moduli is pairwise disjoint. -/
 def TailAdmissible (m : ℕ) (Q : Finset ℕ) : Prop :=
   (∀ q ∈ Q, m < q) ∧
   ∃ a : ResidueAssignment Q, PairwiseDisjointResidues Q a
 
-/-- Alias for `TailAdmissible`, matching the roadmap name. -/
-abbrev AdmissibleAbove : ℕ → Finset ℕ → Prop :=
-  TailAdmissible
-
 /-- The set of reciprocal sums appearing in Problem 1190. -/
 noncomputable def reciprocalSums1190 (m : ℕ) : Set ℝ :=
   {s : ℝ | ∃ Q : Finset ℕ, TailAdmissible m Q ∧ reciprocalSum Q = s}
-
-/-- Alias for `reciprocalSums1190`, matching the roadmap name. -/
-noncomputable abbrev eps1190Set : ℕ → Set ℝ :=
-  reciprocalSums1190
 
 /-- Erdős's `ε_m`: the supremum of reciprocal sums over all finite
 1190-admissible tail families. -/
@@ -3432,69 +3161,7 @@ noncomputable def epsilon1190 (m : ℕ) : ℝ :=
 noncomputable abbrev eps1190 : ℕ → ℝ :=
   epsilon1190
 
-/-- PDF Corollary 1.2 in epsilon form:
-`ε_m = exp(-(1+o(1)) sqrt(log m log log m))`. -/
-def HasErdos1190Asymptotic : Prop :=
-  ∀ ε : ℝ, 0 < ε → ∀ᶠ m : ℕ in atTop,
-    Lscale (-(1 + ε)) m ≤ epsilon1190 m ∧
-    epsilon1190 m ≤ Lscale (-(1 - ε)) m
-
-/-- Public statement name for Erdős Problem 1190. -/
-def Erdos1190Statement : Prop :=
-  HasErdos1190Asymptotic
-
 /- ## Elementary API for the 1190 supremum -/
-
-lemma reciprocalSum_empty : reciprocalSum (∅ : Finset ℕ) = 0 := by
-  simp [reciprocalSum]
-
-lemma reciprocalSum_nonneg (Q : Finset ℕ) : 0 ≤ reciprocalSum Q := by
-  classical
-  unfold reciprocalSum
-  exact Finset.sum_nonneg fun q _hq =>
-    inv_nonneg.2 (by exact_mod_cast Nat.zero_le q)
-
-lemma reciprocalSum_mono {Q Q' : Finset ℕ} (hsub : Q' ⊆ Q) :
-    reciprocalSum Q' ≤ reciprocalSum Q := by
-  classical
-  unfold reciprocalSum
-  exact Finset.sum_le_sum_of_subset_of_nonneg hsub (by
-    intro q _hq _hq'
-    exact inv_nonneg.2 (by exact_mod_cast Nat.zero_le q))
-
-lemma reciprocalSum_filter_add_filter_not
-    (Q : Finset ℕ) (p : ℕ → Prop) [DecidablePred p] :
-    reciprocalSum (Q.filter p) + reciprocalSum (Q.filter fun q => ¬ p q) =
-      reciprocalSum Q := by
-  classical
-  simpa [reciprocalSum] using
-    (Finset.sum_filter_add_sum_filter_not (s := Q) (p := p)
-      (f := fun q : ℕ => (q : ℝ)⁻¹))
-
-lemma tailAdmissible_empty (m : ℕ) : TailAdmissible m (∅ : Finset ℕ) := by
-  constructor
-  · intro q hq
-    simp at hq
-  · refine ⟨fun _ => 0, ?_⟩
-    intro i _j _hij
-    cases i with
-    | mk q hq => simp at hq
-
-lemma reciprocalSums1190_nonempty (m : ℕ) :
-    (reciprocalSums1190 m).Nonempty := by
-  refine ⟨0, ?_⟩
-  exact ⟨∅, tailAdmissible_empty m, reciprocalSum_empty⟩
-
-lemma eps1190Set_nonempty (m : ℕ) : (eps1190Set m).Nonempty := by
-  simpa [eps1190Set] using reciprocalSums1190_nonempty m
-
-lemma reciprocalSums1190_nonneg {m : ℕ} {s : ℝ}
-    (hs : s ∈ reciprocalSums1190 m) : 0 ≤ s := by
-  rcases hs with ⟨Q, _hQ, rfl⟩
-  exact reciprocalSum_nonneg Q
-
-lemma epsilon1190_nonneg (m : ℕ) : 0 ≤ epsilon1190 m := by
-  exact Real.sSup_nonneg (fun _s hs => reciprocalSums1190_nonneg hs)
 
 lemma le_epsilon1190_of_tailAdmissible
     {m : ℕ} {Q : Finset ℕ}
@@ -3502,28 +3169,6 @@ lemma le_epsilon1190_of_tailAdmissible
     (hbdd : BddAbove (reciprocalSums1190 m)) :
     reciprocalSum Q ≤ epsilon1190 m := by
   exact le_csSup hbdd ⟨Q, hQ, rfl⟩
-
-lemma le_eps1190_of_admissibleAbove
-    {m : ℕ} {Q : Finset ℕ}
-    (hQ : AdmissibleAbove m Q)
-    (hbdd : BddAbove (eps1190Set m)) :
-    recipSum Q ≤ eps1190 m := by
-  exact le_epsilon1190_of_tailAdmissible hQ hbdd
-
-lemma epsilon1190_le_of_all_sums_le
-    {m : ℕ} {B : ℝ}
-    (hB : ∀ Q : Finset ℕ, TailAdmissible m Q → reciprocalSum Q ≤ B) :
-    epsilon1190 m ≤ B := by
-  refine csSup_le (reciprocalSums1190_nonempty m) ?_
-  intro s hs
-  rcases hs with ⟨Q, hQ, rfl⟩
-  exact hB Q hQ
-
-lemma eps1190_le_of_all_sums_le
-    {m : ℕ} {B : ℝ}
-    (hB : ∀ Q : Finset ℕ, AdmissibleAbove m Q → recipSum Q ≤ B) :
-    eps1190 m ≤ B := by
-  exact epsilon1190_le_of_all_sums_le hB
 
 lemma eventually_Lscale_neg_le_const_1190 {A c : ℝ}
     (hA : 0 < A) (hc : 0 < c) :
@@ -3715,10 +3360,6 @@ lemma lift1190N_ge_self (m : ℕ) :
     exact le_mul_of_one_le_right (by positivity) hL
   have hceil := lift1190N_ge_mul_Lscale m
   exact_mod_cast hmul.trans hceil
-
-lemma tendsto_lift1190N_atTop :
-    Tendsto lift1190N atTop atTop := by
-  exact tendsto_atTop_mono lift1190N_ge_self tendsto_id
 
 lemma log_lift1190N_le_one_plus_mul_log
     (η : ℝ) (hη : 0 < η) :

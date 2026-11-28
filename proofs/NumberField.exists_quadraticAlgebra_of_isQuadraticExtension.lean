@@ -1,5 +1,7 @@
 import FormalConjectures.Wikipedia.WallSunSun
 
+/-! Obtain a quadratic relation from a basis extending 1, then retain the squarefree normalization. -/
+
 -- Problem: Infinitude of Wall–Sun–Sun primes — exists quadraticAlgebra of isQuadraticExtension
 -- Upstream: formal-conjectures FormalConjectures/Wikipedia/WallSunSun.lean:78 (declaration NumberField.exists_quadraticAlgebra_of_isQuadraticExtension)
 -- Credit: @Genbox (the owner of the agent is credited as the solver)
@@ -10,37 +12,25 @@ open Polynomial
 theorem OMA.solution : type_of% @NumberField.exists_quadraticAlgebra_of_isQuadraticExtension := by
   intro K _ _ _
   have hfr : Module.finrank ℚ K = 2 := Algebra.IsQuadraticExtension.finrank_eq_two ℚ K
-  have hex : ∃ α : K, α ∉ (algebraMap ℚ K).range := by
-    by_contra h
-    push_neg at h
-    have htop : (⊥ : Subalgebra ℚ K) = ⊤ := by
-      ext x
-      simp only [Algebra.mem_top, iff_true]
-      obtain ⟨q, rfl⟩ := h x
-      exact Subalgebra.algebraMap_mem _ q
-    have h1 : Module.finrank ℚ (⊥ : Subalgebra ℚ K) = 1 := Subalgebra.finrank_bot
-    rw [htop, Subalgebra.topEquiv.toLinearEquiv.finrank_eq, hfr] at h1
-    omega
-  obtain ⟨α, hα⟩ := hex
-  have hint : IsIntegral ℚ α := Algebra.IsIntegral.isIntegral α
-  have hdeg : (minpoly ℚ α).natDegree = 2 := by
-    have h1 := minpoly.natDegree_le (A := ℚ) α
-    rw [hfr] at h1
-    have h2 : (minpoly ℚ α).natDegree ≠ 1 := fun h => hα (minpoly.natDegree_eq_one_iff.mp h)
-    have h3 : 0 < (minpoly ℚ α).natDegree := minpoly.natDegree_pos hint
-    omega
-  have hmon : (minpoly ℚ α).coeff 2 = 1 := by
-    have := (minpoly.monic hint).leadingCoeff
-    rwa [Polynomial.leadingCoeff, hdeg] at this
-  set c0 := (minpoly ℚ α).coeff 0
-  set c1 := (minpoly ℚ α).coeff 1
+  obtain ⟨α, hlin⟩ := exists_linearIndependent_pair_of_one_lt_finrank
+    (show 1 < Module.finrank ℚ K by omega) (one_ne_zero : (1 : K) ≠ 0)
+  have hα : α ∉ (algebraMap ℚ K).range := by
+    rintro ⟨q, hq⟩
+    have hh := LinearIndependent.pair_iff.mp hlin q (-1)
+      (by simp [Algebra.smul_def, hq])
+    norm_num at hh
+  let B := Module.Basis.mk hlin
+    (hlin.span_eq_top_of_card_eq_finrank (by simp [hfr])).ge
+  have hb (i) : B i = ![(1 : K), α] i := by simp [B]
+  let c0 := -(B.repr (α ^ 2) 0)
+  let c1 := -(B.repr (α ^ 2) 1)
   have hrel : α ^ 2 + algebraMap ℚ K c1 * α + algebraMap ℚ K c0 = 0 := by
-    have := minpoly.aeval ℚ α
-    rw [aeval_eq_sum_range, hdeg] at this
-    simp only [Finset.sum_range_succ, Finset.sum_range_zero, hmon, Algebra.smul_def] at this
-    rw [← this]
-    simp only [pow_zero, pow_one, map_one, mul_one, one_mul, zero_add]
-    ring
+    have hs := B.sum_repr (α ^ 2)
+    rw [Fin.sum_univ_two, hb, hb] at hs
+    simp only [Matrix.cons_val_zero, Matrix.cons_val_one, Algebra.smul_def, mul_one] at hs
+    dsimp [c0, c1]
+    rw [map_neg, map_neg]
+    linear_combination -hs
   set β : K := 2 * α + algebraMap ℚ K c1 with hβdef
   set r : ℚ := c1 ^ 2 - 4 * c0 with hr
   have hβsq : β ^ 2 = algebraMap ℚ K r := by

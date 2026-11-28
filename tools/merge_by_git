@@ -1,0 +1,2 @@
+# While this file is on main, the merger merges accepted pull requests by git (tools/git_merge.sh) before trying the
+# merge API; delete it (one commit) to go back to the merge API. Read by tools/verdict_one.sh at every verdict.

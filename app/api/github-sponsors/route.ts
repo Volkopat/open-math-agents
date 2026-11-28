@@ -18,7 +18,13 @@ export async function POST(req: Request) {
   const event = req.headers.get("x-github-event") ?? "";
   if (event === "ping") return json({ ok: true });
   if (event !== "sponsorship") return json({ ok: true, ignored: event });
-  const p = JSON.parse(body) as { action?: string; sponsorship?: { privacy_level?: string; sponsor?: { login?: string }; tier?: { is_one_time?: boolean } } };
+  type Payload = { action?: string; sponsorship?: { privacy_level?: string; sponsor?: { login?: string }; tier?: { is_one_time?: boolean } } };
+  let p: Payload;
+  try {
+    p = JSON.parse(body) as Payload;
+  } catch {
+    return json({ error: "bad_payload" }, 400);
+  }
   const login = p.sponsorship?.sponsor?.login ?? "";
   if (p.action !== "created" || p.sponsorship?.privacy_level !== "public" || !HANDLE_RE.test(login)) return json({ ok: true, badge: false });
   await addSupporter({ handle: login, since: new Date().toISOString().slice(0, 10), via: "GitHub Sponsors", monthly: !p.sponsorship?.tier?.is_one_time });

@@ -84,38 +84,24 @@ lemma OMA.tent_fourier (t : ℝ) :
   ring
 
 lemma OMA.tent_decay (x : ℝ) : |OMA.tent x| ≤ 18 / (1 + |x|) ^ 2 := by
-  have hd : 0 < (1 + |x|) ^ 2 := by positivity
-  apply (le_div_iff₀ hd).mpr
-  unfold OMA.tent
-  rw [abs_of_nonneg (le_max_left _ _)]
-  by_cases hx : |x| ≤ 2
-  · rw [max_eq_right (sub_nonneg.mpr hx)]
-    have hpow : (1 + |x|) ^ 2 ≤ (3 : ℝ) ^ 2 :=
-      pow_le_pow_left₀ (by positivity) (by linarith) _
-    calc
-      (2 - |x|) * (1 + |x|) ^ 2 ≤ 2 * (1 + |x|) ^ 2 :=
-        mul_le_mul_of_nonneg_right (by linarith [abs_nonneg x]) hd.le
-      _ ≤ 18 := by linarith
-  · rw [max_eq_left (by linarith)]
-    norm_num
+  rw [OMA.tent, abs_of_nonneg (le_max_left _ _), max_le_iff]
+  refine ⟨by positivity, (le_div_iff₀ (by positivity)).mpr ?_⟩
+  nlinarith [sq_nonneg (|x| - 1), mul_nonneg (abs_nonneg x) (sq_nonneg (|x| - 1))]
 
 lemma OMA.sinc_decay (t : ℝ) : |Real.sinc (-2 * Real.pi * t)| ≤ 2 / (1 + |t|) := by
-  have hd : 0 < 1 + |t| := by positivity
-  by_cases ht : |t| ≤ 1
-  · exact (Real.abs_sinc_le_one _).trans ((le_div_iff₀ hd).mpr (by linarith))
-  · have ht' : 1 < |t| := lt_of_not_ge ht
-    have hnz : t ≠ 0 := by intro h; norm_num [h] at ht'
-    have hp : 0 < 2 * Real.pi := Real.two_pi_pos
-    rw [Real.sinc_of_ne_zero (mul_ne_zero (by linarith) hnz), abs_div, abs_mul,
-      show -2 * Real.pi = -(2 * Real.pi) by ring, abs_neg, abs_of_pos hp]
-    have hπ : |t| ≤ (2 * Real.pi) * |t| := by
-      have h : (1 : ℝ) ≤ 2 * Real.pi := by linarith [Real.pi_gt_three]
-      simpa using mul_le_mul_of_nonneg_right h (abs_nonneg t)
-    calc
-      |Real.sin (-(2 * Real.pi) * t)| / ((2 * Real.pi) * |t|) ≤
-          1 / ((2 * Real.pi) * |t|) :=
-        div_le_div_of_nonneg_right (Real.abs_sin_le_one _) (by positivity)
-      _ ≤ 2 / (1 + |t|) := (div_le_div_iff₀ (by positivity) hd).mpr (by linarith)
+  let u := -2 * Real.pi * t
+  have h : |Real.sinc u| * |u| ≤ 1 := by
+    by_cases hu : u = 0
+    · simp [hu]
+    rw [Real.sinc_of_ne_zero hu, abs_div, div_mul_cancel₀ _ (abs_ne_zero.mpr hu)]
+    exact Real.abs_sin_le_one u
+  have ht : |t| ≤ |u| := by
+    simp only [u, abs_mul, abs_neg, abs_of_nonneg (by norm_num : (0 : ℝ) ≤ 2),
+      abs_of_pos Real.pi_pos]
+    exact le_mul_of_one_le_left (abs_nonneg _) (by linarith [Real.pi_gt_three])
+  apply (le_div_iff₀ (by positivity)).mpr
+  change |Real.sinc u| * (1 + |t|) ≤ 2
+  linarith [Real.abs_sinc_le_one u, mul_le_mul_of_nonneg_left ht (abs_nonneg (Real.sinc u))]
 
 lemma OMA.tent_hat_decay (t : ℝ) : |Green42.fHat OMA.tent t| ≤ 18 / (1 + |t|) ^ 2 := by
   rw [OMA.tent_fourier, abs_sq]

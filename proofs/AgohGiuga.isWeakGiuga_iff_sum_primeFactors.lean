@@ -26,45 +26,12 @@ open scoped Nat
 private lemma one_lt_of_composite {n : ℕ} (hn : n.Composite) : 1 < n := by
   exact hn.1
 
-private lemma prod_primeFactors_of_squarefree {n : ℕ} (hn0 : n ≠ 0) (hsq : Squarefree n) :
-    ∏ p ∈ n.primeFactors, p = n := by
-  have h1 : ∀ p ∈ n.primeFactors, n.factorization p = 1 := by
-    intro p hp
-    have hp_prime : p.Prime := Nat.prime_of_mem_primeFactors hp
-    have hge1 : 1 ≤ n.factorization p :=
-      (hp_prime.dvd_iff_one_le_factorization hn0).mp (Nat.dvd_of_mem_primeFactors hp)
-    have hle1 : n.factorization p ≤ 1 := by
-      by_contra hgt
-      have h2 : 2 ≤ n.factorization p := by omega
-      have hsq_dvd : p * p ∣ n := by
-        rw [← sq]
-        exact (pow_dvd_pow p h2).trans (n.ordProj_dvd p)
-      exact (Nat.squarefree_iff_prime_squarefree.mp hsq p hp_prime) hsq_dvd
-    omega
-  conv_rhs => rw [← Nat.prod_factorization_pow_eq_self hn0, Finsupp.prod, Nat.support_factorization]
-  refine Finset.prod_congr rfl fun p hp => ?_
-  rw [h1 p hp, pow_one]
-
-private lemma dvd_of_squarefree_forall_primeFactors_dvd {n m : ℕ} (hn0 : n ≠ 0) (hsq : Squarefree n)
-    (h : ∀ p ∈ n.primeFactors, p ∣ m) : n ∣ m := by
-  rw [← prod_primeFactors_of_squarefree hn0 hsq]
-  have haux : ∀ s : Finset ℕ, (∀ p ∈ s, p.Prime ∧ p ∣ m) → ∏ p ∈ s, p ∣ m := by
-    intro s
-    induction s using Finset.induction_on with
-    | empty =>
-      intro _
-      simp
-    | @insert a s ha ih =>
-      intro hs
-      rw [Finset.prod_insert ha]
-      have ha_p : a.Prime := (hs a (Finset.mem_insert_self a s)).1
-      have ha_d : a ∣ m := (hs a (Finset.mem_insert_self a s)).2
-      have hs_d : ∏ p ∈ s, p ∣ m := ih fun p hp => hs p (Finset.mem_insert_of_mem hp)
-      have hcop : Nat.Coprime a (∏ p ∈ s, p) := Nat.Coprime.prod_right fun p hp =>
-        (Nat.coprime_primes ha_p (hs p (Finset.mem_insert_of_mem hp)).1).mpr
-          (fun hEq => ha (hEq ▸ hp))
-      exact hcop.mul_dvd_of_dvd_of_dvd ha_d hs_d
-  exact haux n.primeFactors fun p hp => ⟨Nat.prime_of_mem_primeFactors hp, h p hp⟩
+private lemma dvd_of_squarefree_forall_primeFactors_dvd {n m : ℕ} (_hn0 : n ≠ 0)
+    (hsq : Squarefree n) (h : ∀ p ∈ n.primeFactors, p ∣ m) : n ∣ m := by
+  by_cases hm : m = 0
+  · simp [hm]
+  rw [← Nat.prod_primeFactors_of_squarefree hsq, Nat.prod_primeFactors_dvd_iff hm]
+  exact fun p hp => Nat.mem_primeFactors.mpr ⟨Nat.prime_of_mem_primeFactors hp, h p hp, hm⟩
 
 private lemma squarefree_of_forall_primeFactors_dvd_div_sub_one {n : ℕ} (hn0 : n ≠ 0)
     (h : ∀ p ∈ n.primeFactors, p ∣ n / p - 1) : Squarefree n := by

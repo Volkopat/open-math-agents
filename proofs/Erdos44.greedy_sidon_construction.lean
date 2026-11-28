@@ -1,4 +1,5 @@
 import FormalConjectures.ErdosProblems.«44»
+open Finset
 
 -- Problem: Erdős Problem 44: Extending Sidon Sets — greedy sidon construction
 -- Upstream: formal-conjectures FormalConjectures/ErdosProblems/44.lean:138 (declaration Erdos44.greedy_sidon_construction)
@@ -11,27 +12,25 @@ lemma OMA.sidon_blocked {A : Finset ℕ} (hA : IsSidon (A : Set ℕ)) {x : ℕ} 
     (hins : ¬ IsSidon ((insert x A : Finset ℕ) : Set ℕ)) :
     (∃ a ∈ A, ∃ b ∈ A, ∃ c ∈ A, a ≠ b ∧ x + a = b + c) ∨
       (∃ b ∈ A, ∃ c ∈ A, b ≠ c ∧ 2 * x = b + c) := by
-  have one : ∀ a ∈ A, ∀ b ∈ A, ∀ c ∈ A, x + a = b + c →
-      ((∃ a ∈ A, ∃ b ∈ A, ∃ c ∈ A, a ≠ b ∧ x + a = b + c) ∨
-        (∃ b ∈ A, ∃ c ∈ A, b ≠ c ∧ 2 * x = b + c)) := by
+  let P : Prop :=
+    (∃ a ∈ A, ∃ b ∈ A, ∃ c ∈ A, a ≠ b ∧ x + a = b + c) ∨
+      (∃ b ∈ A, ∃ c ∈ A, b ≠ c ∧ 2 * x = b + c)
+  change P
+  have one : ∀ a ∈ A, ∀ b ∈ A, ∀ c ∈ A, x + a = b + c → P := by
     intro a ha b hb c hc h
     by_cases hab : a = b
-    · have hxc : x = c := by omega
-      exact absurd (hxc ▸ hc) hx
+    · exact absurd ((show x = c by omega) ▸ hc) hx
     · exact Or.inl ⟨a, ha, b, hb, c, hc, hab, h⟩
-  have two : ∀ b ∈ A, ∀ c ∈ A, 2 * x = b + c →
-      ((∃ a ∈ A, ∃ b ∈ A, ∃ c ∈ A, a ≠ b ∧ x + a = b + c) ∨
-        (∃ b ∈ A, ∃ c ∈ A, b ≠ c ∧ 2 * x = b + c)) := by
+  have two : ∀ b ∈ A, ∀ c ∈ A, 2 * x = b + c → P := by
     intro b hb c hc h
     by_cases hbc : b = c
-    · have hxb : x = b := by omega
-      exact absurd (hxb ▸ hb) hx
+    · exact absurd ((show x = b by omega) ▸ hb) hx
     · exact Or.inr ⟨b, hb, c, hc, hbc, h⟩
   have mem_abs : ∀ a ∈ A, a = x → False := fun a ha h => hx (h ▸ ha)
   unfold IsSidon at hins
   push_neg at hins
   obtain ⟨i1, hi1, j1, hj1, i2, hi2, j2, hj2, heq, hne1, hne2⟩ := hins
-  simp only [Finset.coe_insert, Set.mem_insert_iff, Finset.mem_coe] at hi1 hj1 hi2 hj2
+  simp only [Finset.coe_insert, Set.mem_insert_iff, mem_coe] at hi1 hj1 hi2 hj2
   rcases hi1 with e1 | m1 <;> rcases hj1 with e2 | m2 <;> rcases hi2 with e3 | m3 <;>
     rcases hj2 with e4 | m4
   · exfalso; omega
@@ -66,23 +65,23 @@ theorem OMA.solution : type_of% @Erdos44.greedy_sidon_construction := by
       (fun A : Finset ℕ => IsSidon (A : Set ℕ))).Nonempty := by
     refine ⟨∅, ?_⟩
     simp [IsSidon]
-  obtain ⟨A, hAS, hmax⟩ := Finset.exists_max_image _ Finset.card hS
-  rw [Finset.mem_filter, Finset.mem_powerset] at hAS
+  obtain ⟨A, hAS, hmax⟩ := exists_max_image _ Finset.card hS
+  rw [mem_filter, mem_powerset] at hAS
   obtain ⟨hAsub, hAsid⟩ := hAS
   refine ⟨A, hAsub, hAsid, ?_⟩
   have hcover : Finset.Icc 1 N ⊆ (A ×ˢ A ×ˢ A).image OMA.blocked := by
     intro x hx
-    rw [Finset.mem_image]
+    rw [mem_image]
     by_cases hxA : x ∈ A
     · exact ⟨(x, x, x), by simp [hxA], by simp [OMA.blocked]⟩
     · have hins : ¬ IsSidon ((insert x A : Finset ℕ) : Set ℕ) := by
         intro hs
         have hmem : insert x A ∈ (Finset.Icc 1 N).powerset.filter
             (fun A : Finset ℕ => IsSidon (A : Set ℕ)) := by
-          rw [Finset.mem_filter, Finset.mem_powerset]
-          exact ⟨Finset.insert_subset hx hAsub, hs⟩
+          rw [mem_filter, mem_powerset]
+          exact ⟨insert_subset hx hAsub, hs⟩
         have hle := hmax _ hmem
-        rw [Finset.card_insert_of_notMem hxA] at hle
+        rw [card_insert_of_notMem hxA] at hle
         omega
       rcases OMA.sidon_blocked hAsid hxA hins with
         ⟨a, ha, b, hb, c, hc, hab, h⟩ | ⟨b, hb, c, hc, hbc, h⟩
@@ -92,10 +91,7 @@ theorem OMA.solution : type_of% @Erdos44.greedy_sidon_construction := by
       · refine ⟨(b, b, c), by simp [hb, hc], ?_⟩
         simp only [OMA.blocked, if_true, if_neg hbc]
         omega
-  have h3 : (A ×ˢ A ×ˢ A).card = A.card ^ 3 := by
-    rw [Finset.card_product, Finset.card_product]
-    ring
   calc N = (Finset.Icc 1 N).card := by simp
-    _ ≤ ((A ×ˢ A ×ˢ A).image OMA.blocked).card := Finset.card_le_card hcover
-    _ ≤ (A ×ˢ A ×ˢ A).card := Finset.card_image_le
-    _ = A.card ^ 3 := h3
+    _ ≤ ((A ×ˢ A ×ˢ A).image OMA.blocked).card := card_le_card hcover
+    _ ≤ (A ×ˢ A ×ˢ A).card := card_image_le
+    _ = A.card ^ 3 := by simp only [card_product]; ring

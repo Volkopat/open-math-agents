@@ -19,16 +19,14 @@ lemma OMA.periodic_hasPosDensity {p : ℕ → Prop} {d : ℕ}
   have hdensity_le : density ≤ 1 := by
     apply (div_le_one hd').mpr
     exact_mod_cast Nat.count_le (p := p) (n := d)
-  have hshift (n : ℕ) : Nat.count (fun i ↦ p (i + d)) n = count n :=
-    congrArg (fun q : ℕ → Prop => Nat.count q n) (funext hp)
   have hblocks (q r : ℕ) : count (q * d + r) = q * count d + count r := by
+    dsimp only [count]
     induction q with
     | zero => simp
     | succ q ih =>
-      change Nat.count p ((q + 1) * d + r) = (q + 1) * count d + count r
-      rw [Nat.succ_mul, add_right_comm (q * d) d r, Nat.count_add', hshift]
-      change count (q * d + r) + count d = (q + 1) * count d + count r
-      rw [ih, Nat.succ_mul, add_right_comm]
+      rw [Nat.succ_mul, add_right_comm (q * d) d r, Nat.count_add',
+        congrArg (fun a : ℕ → Prop => Nat.count a (q * d + r)) (funext hp), ih,
+        Nat.succ_mul, add_right_comm]
   have hncard (n : ℕ) : ({m : ℕ | p m} ∩ Set.Iio n).ncard = count n := by
     rw [show {m : ℕ | p m} ∩ Set.Iio n =
         (↑((Finset.range n).filter p) : Set ℕ) by ext m; simp [and_comm],
@@ -62,12 +60,8 @@ lemma OMA.periodic_hasPosDensity {p : ℕ → Prop} {d : ℕ}
     · have h := mul_nonneg (Nat.cast_nonneg (α := ℝ) r) hdensity.le
       linarith
   have ht : Tendsto (fun n : ℕ ↦ (count n : ℝ) / (n : ℝ) - density) atTop (𝓝 0) := by
-    have hu := tendsto_const_div_atTop_nhds_zero_nat (d : ℝ)
-    have hl : Tendsto (fun n : ℕ ↦ -((d : ℝ) / n)) atTop (𝓝 0) := by
-      simpa only [neg_zero] using hu.neg
-    refine hl.squeeze' hu ?_ ?_
-    · exact herr.mono fun n hn ↦ (abs_le.mp hn).1
-    · exact herr.mono fun n hn ↦ (abs_le.mp hn).2
+    apply squeeze_zero_norm' ?_ (tendsto_const_div_atTop_nhds_zero_nat (d : ℝ))
+    simpa only [Real.norm_eq_abs] using herr
   refine ⟨density, hdensity, ?_⟩
   simpa [Set.HasDensity, Set.partialDensity, hncard] using ht.add_const density
 

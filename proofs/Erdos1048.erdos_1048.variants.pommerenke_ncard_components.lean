@@ -1,17 +1,20 @@
 import FormalConjectures.ErdosProblems.«1048»
 
--- Problem: Erdős Problem 1048 — pommerenke ncard components
--- Upstream: formal-conjectures FormalConjectures/ErdosProblems/1048.lean:68 (declaration Erdos1048.erdos_1048.variants.pommerenke_ncard_components)
--- Credit: @michielkosters (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+/-!
+# The n components of Pommerenke's polynomial level set
+
+Retains @michielkosters's proof from open-math-agents PR #589. The original
+construction and connected-component argument are preserved. Standard
+primitive-root APIs enumerate the branches and establish their disjointness.
+
+Target: Erdos1048.erdos_1048.variants.pommerenke_ncard_components.
+-/
 
 theorem OMA.solution : type_of% @Erdos1048.erdos_1048.variants.pommerenke_ncard_components := by
   intro r hr n hn f hf
   let w0 : ℂ := (r : ℂ) ^ n
   let B : Set ℂ := Metric.closedBall w0 1
   have hhn : (n : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr (by omega)
-  have hpi : (2 * Real.pi * Complex.I : ℂ) ≠ 0 := by
-    simp [Real.pi_ne_zero, Complex.I_ne_zero]
   have hrn : (1 : ℝ) < r ^ n := one_lt_pow₀ hr (by omega)
   have hB_re : ∀ w ∈ B, (0 : ℝ) < w.re := by
     intro w hw
@@ -34,25 +37,18 @@ theorem OMA.solution : type_of% @Erdos1048.erdos_1048.variants.pommerenke_ncard_
     rw [hf]
     simp only [Erdos1043.levelSet, Set.mem_ofPred_eq, Polynomial.eval_sub, Polynomial.eval_pow,
       Polynomial.eval_X, Polynomial.eval_C, B, Metric.mem_closedBall, Complex.dist_eq, w0]
+  let : NeZero n := ⟨by omega⟩
+  let ζ := Complex.exp (2 * Real.pi * Complex.I / (n : ℂ))
+  have hζ : IsPrimitiveRoot ζ n := Complex.isPrimitiveRoot_exp n (by omega)
   let g : Fin n → ℂ → ℂ := fun k w =>
-    Complex.exp (2 * Real.pi * Complex.I * ((k : ℕ) : ℂ) / (n : ℂ)) *
+    ζ ^ (k : ℕ) *
       Complex.exp (Complex.log w / (n : ℂ))
   have hg_pow : ∀ k w, w ∈ B → (g k w) ^ n = w := by
     intro k w hw
-    simp only [g, mul_pow, ← Complex.exp_nat_mul]
-    have ha : Complex.exp ((n : ℂ) * (2 * Real.pi * Complex.I * ((k : ℕ) : ℂ) / (n : ℂ))) = 1 := by
-      have hmul : (n : ℂ) * (2 * Real.pi * Complex.I * ((k : ℕ) : ℂ) / (n : ℂ)) =
-          (((k : ℕ) : ℤ) : ℂ) * (2 * Real.pi * Complex.I) := by
-        push_cast
-        field_simp [hhn]
-      rw [hmul]
-      exact Complex.exp_eq_one_iff.mpr ⟨((k : ℕ) : ℤ), rfl⟩
-    have hb : Complex.exp ((n : ℂ) * (Complex.log w / (n : ℂ))) = w := by
-      have hmul : (n : ℂ) * (Complex.log w / (n : ℂ)) = Complex.log w := by
-        field_simp [hhn]
-      rw [hmul]
-      exact Complex.exp_log (hB_ne w hw)
-    rw [ha, hb, one_mul]
+    simp only [g, mul_pow]
+    rw [← pow_mul, Nat.mul_comm, pow_mul, hζ.pow_eq_one, one_pow, one_mul,
+      ← Complex.exp_nat_mul]
+    rw [mul_div_cancel₀ _ hhn, Complex.exp_log (hB_ne w hw)]
   let C : Fin n → Set ℂ := fun k => g k '' B
   have hg_cont : ∀ k, ContinuousOn (g k) B := by
     intro k
@@ -78,37 +74,8 @@ theorem OMA.solution : type_of% @Erdos1048.erdos_1048.variants.pommerenke_ncard_
       rw [← hz2] at h1
       exact h1.symm.trans h2
     subst hw12
-    have hce : Complex.exp (2 * Real.pi * Complex.I * ((j : ℕ) : ℂ) / (n : ℂ)) =
-        Complex.exp (2 * Real.pi * Complex.I * ((k : ℕ) : ℂ) / (n : ℂ)) :=
-      mul_right_cancel₀ (Complex.exp_ne_zero _) hz2.symm
-    have h1 : Complex.exp (2 * Real.pi * Complex.I * (((j : ℕ) : ℂ) - ((k : ℕ) : ℂ)) / (n : ℂ)) = 1 := by
-      have hsub : 2 * Real.pi * Complex.I * (((j : ℕ) : ℂ) - ((k : ℕ) : ℂ)) / (n : ℂ) =
-          2 * Real.pi * Complex.I * ((j : ℕ) : ℂ) / (n : ℂ) -
-            2 * Real.pi * Complex.I * ((k : ℕ) : ℂ) / (n : ℂ) := by
-        ring
-      rw [hsub, Complex.exp_sub, hce, div_self (Complex.exp_ne_zero _)]
-    rcases Complex.exp_eq_one_iff.mp h1 with ⟨m, hm⟩
-    have hm' : ((j : ℕ) : ℂ) - ((k : ℕ) : ℂ) = (m : ℂ) * (n : ℂ) := by
-      have hmul : (2 * Real.pi * Complex.I) * (((j : ℕ) : ℂ) - ((k : ℕ) : ℂ)) =
-          (2 * Real.pi * Complex.I) * ((m : ℂ) * (n : ℂ)) := by
-        calc (2 * Real.pi * Complex.I) * (((j : ℕ) : ℂ) - ((k : ℕ) : ℂ))
-            = (2 * Real.pi * Complex.I * (((j : ℕ) : ℂ) - ((k : ℕ) : ℂ)) / (n : ℂ)) * (n : ℂ) := by
-                field_simp [hhn]
-          _ = ((m : ℂ) * (2 * Real.pi * Complex.I)) * (n : ℂ) := by rw [hm]
-          _ = (2 * Real.pi * Complex.I) * ((m : ℂ) * (n : ℂ)) := by ring
-      exact mul_left_cancel₀ hpi hmul
-    have hm_int : ((j : ℕ) : ℤ) - ((k : ℕ) : ℤ) = m * (n : ℤ) := by exact_mod_cast hm'
-    have hm0 : m = 0 := by
-      by_contra hne
-      rcases lt_or_gt_of_ne hne with hlt | hgt
-      · have : m ≤ -1 := by omega
-        nlinarith [j.isLt, k.isLt]
-      · have : 1 ≤ m := by omega
-        nlinarith [j.isLt, k.isLt]
-    rw [hm0, zero_mul] at hm_int
-    apply hjk
-    ext
-    omega
+    exact hjk (Fin.ext (hζ.pow_inj j.isLt k.isLt
+      (mul_right_cancel₀ (Complex.exp_ne_zero _) hz2.symm)))
   have h_union : Erdos1043.levelSet f = ⋃ k : Fin n, C k := by
     ext z
     rw [Set.mem_iUnion, hmem_level]
@@ -122,40 +89,12 @@ theorem OMA.solution : type_of% @Erdos1048.erdos_1048.variants.pommerenke_ncard_
         have hmul : (n : ℂ) * (Complex.log w / (n : ℂ)) = Complex.log w := by field_simp [hhn]
         rw [hmul, Complex.exp_log (hB_ne w hwB)]
         exact div_self (hB_ne w hwB)
-      have hu_ne : u ≠ 0 := by
-        intro h0
-        rw [h0, zero_pow (by omega)] at hu_pow
-        exact zero_ne_one hu_pow
-      have hu_exp : Complex.exp ((n : ℂ) * Complex.log u) = 1 := by
-        rw [Complex.exp_nat_mul, Complex.exp_log hu_ne, hu_pow]
-      rcases Complex.exp_eq_one_iff.mp hu_exp with ⟨m, hm⟩
-      let q : ℤ := m / (n : ℤ)
-      let rem : ℤ := m % (n : ℤ)
-      have hrem_nonneg : 0 ≤ rem := Int.emod_nonneg m (by omega)
-      have hrem_lt : rem < (n : ℤ) := Int.emod_lt_of_pos m (by omega)
-      let k : Fin n := ⟨rem.toNat, by omega⟩
-      have hk_eq : ((k : ℕ) : ℤ) = rem := Int.toNat_of_nonneg hrem_nonneg
-      have hm_eq : m = ((k : ℕ) : ℤ) + (n : ℤ) * q := by
-        rw [hk_eq]
-        exact (Int.emod_add_mul_ediv m (n : ℤ)).symm
-      have hlog_u : Complex.log u =
-          2 * Real.pi * Complex.I * ((k : ℕ) : ℂ) / (n : ℂ) + (q : ℂ) * (2 * Real.pi * Complex.I) := by
-        have hm_c : (m : ℂ) = ((k : ℕ) : ℂ) + (n : ℂ) * (q : ℂ) := by exact_mod_cast hm_eq
-        calc Complex.log u
-            = ((n : ℂ) * Complex.log u) / (n : ℂ) := by field_simp [hhn]
-          _ = ((m : ℂ) * (2 * Real.pi * Complex.I)) / (n : ℂ) := by rw [hm]
-          _ = ((((k : ℕ) : ℂ) + (n : ℂ) * (q : ℂ)) * (2 * Real.pi * Complex.I)) / (n : ℂ) := by
-                rw [hm_c]
-          _ = 2 * Real.pi * Complex.I * ((k : ℕ) : ℂ) / (n : ℂ) + (q : ℂ) * (2 * Real.pi * Complex.I) := by
-                field_simp [hhn]
-      have hu_eq : u = Complex.exp (2 * Real.pi * Complex.I * ((k : ℕ) : ℂ) / (n : ℂ)) := by
-        rw [← Complex.exp_log hu_ne, hlog_u, Complex.exp_add]
-        have hq1 : Complex.exp ((q : ℂ) * (2 * Real.pi * Complex.I)) = 1 :=
-          Complex.exp_eq_one_iff.mpr ⟨q, rfl⟩
-        rw [hq1, mul_one]
+      obtain ⟨i, hi, hiu⟩ := hζ.eq_pow_of_pow_eq_one hu_pow
+      let k : Fin n := ⟨i, hi⟩
       refine ⟨k, w, hwB, ?_⟩
       dsimp only [g]
-      rw [← hu_eq]
+      change ζ ^ i * Complex.exp (Complex.log w / (n : ℂ)) = z
+      rw [hiu]
       exact div_mul_cancel₀ z (Complex.exp_ne_zero _)
     · rintro ⟨k, w, hw, rfl⟩
       rw [hg_pow k w hw]

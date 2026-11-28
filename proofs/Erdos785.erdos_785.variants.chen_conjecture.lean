@@ -701,53 +701,6 @@ lemma count_after_lower {A B : Set ℕ} {n₀ x y t : ℕ}
     Finset.card_sdiff_add_card_eq_card (initial_mono A (by omega))
   omega
 
-/-- Reverse matching for the upper half of the first estimate. -/
-lemma count_after_upper {A B : Set ℕ} {n₀ x y t : ℕ}
-    (hr : UniqueFrom A B n₀) (hxy : x < y)
-    (hcons : ∀ a ∈ A, x < a → y ≤ a) (hy : n₀ ≤ y) :
-    (initial A (y + t)).card ≤ (initial A x).card + (initial A t).card + n₀ := by
-  classical
-  let fresh := initial A (y + t) \ initial A x
-  let core := fresh.filter (fun c => c + n₀ ≤ y + t)
-  have hnew : ∀ c ∈ fresh, c ∈ A ∧ y ≤ c ∧ c ≤ y + t := by
-    intro c hc
-    obtain ⟨hu, hl⟩ := Finset.mem_sdiff.mp hc
-    obtain ⟨hcA, ht'⟩ := mem_initial.mp hu
-    refine ⟨hcA, hcons _ hcA ?_, ht'⟩
-    by_contra! he
-    exact hl (mem_initial.mpr ⟨hcA, he⟩)
-  have hsubset : fresh ⊆ core ∪ Finset.Ioc (y + t - n₀) (y + t) := by
-    intro c hc
-    by_cases he : c + n₀ ≤ y + t
-    · exact Finset.mem_union_left _ (Finset.mem_filter.mpr ⟨hc, he⟩)
-    exact Finset.mem_union_right _ (Finset.mem_Ioc.mpr ⟨by omega, (hnew c hc).2.2⟩)
-  have hb := (Finset.card_le_card hsubset).trans (Finset.card_union_le _ _)
-  simp only [Nat.card_Ioc] at hb
-  let f := fun c => pairAt A B (y + t - c)
-  have hrep : ∀ c ∈ core, c ∈ A ∧ (f c).1 ∈ initial A t ∧ (f c).2 ∈ B ∧
-      c + (f c).1 + (f c).2 = y + t := by
-    intro c hc
-    obtain ⟨hf, hl⟩ := Finset.mem_filter.mp hc
-    obtain ⟨hcA, hyc, hc'⟩ := hnew c hf
-    have ⟨hA, hB, hs⟩ := pairAt_spec hr (n := y + t - c) (by omega)
-    change (f c).1 + (f c).2 = y + t - c at hs
-    exact ⟨hcA, mem_initial.mpr ⟨hA, by omega⟩, hB, by omega⟩
-  have hmatch : core.card ≤ (initial A t).card := by
-    apply Finset.card_le_card_of_injOn (fun c => (f c).1)
-    · intro c hc
-      exact (hrep c hc).2.1
-    · intro c hc d hd he
-      change (f c).1 = (f d).1 at he
-      obtain ⟨hcA, _, hB, hs⟩ := hrep c hc
-      obtain ⟨hdA, _, hB',hs'⟩ := hrep d hd
-      have hyc := (hnew c (Finset.mem_filter.mp hc).1).2.1
-      have eq : (c, (f c).2) = (d, (f d).2) :=
-        (hr (c + (f c).2) (by omega)).unique ⟨hcA, hB, rfl⟩ ⟨hdA, hB',by change d + (f d).2 = c + (f c).2; omega⟩
-      exact congrArg Prod.fst eq
-  have hsplit : fresh.card + (initial A x).card = (initial A (y + t)).card :=
-    Finset.card_sdiff_add_card_eq_card (initial_mono A (by omega))
-  omega
-
 /-- The rectangle covers every sum in [n₀,y). Its large sums occur once and
 the exceptional pairs both have coordinates below n₀. -/
 lemma gap_rectangle {A B : Set ℕ} {n₀ x y t : ℕ}

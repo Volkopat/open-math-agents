@@ -25,11 +25,6 @@ instance : DecidableRel G.Adj := fun u v => (inferInstance : Decidable (adj u v)
 lemma deg_eq : ∀ v : Fin 34, G.degree v = if v.val < 20 then 15 else 20 := by
   decide +kernel
 
-lemma tri : ∀ a b c : Fin 34, adj a b → adj b c → adj a c →
-    (if a.val < 20 then 15 else 20) + (if b.val < 20 then 15 else 20) +
-      (if c.val < 20 then 15 else 20) ≤ 50 := by
-  decide +kernel
-
 end OMA
 
 theorem OMA.solution : type_of% @Erdos1033.erdos_1033.variants.three_halves := by
@@ -45,7 +40,8 @@ theorem OMA.solution : type_of% @Erdos1033.erdos_1033.variants.three_halves := b
   have h1 : OMA.adj a b := hc (by simp) (by simp) hab
   have h2 : OMA.adj b c := hc (by simp) (by simp) hbc
   have h3 : OMA.adj a c := hc (by simp) (by simp) hac
-  have key := OMA.tri a b c h1 h2 h3
   rw [Finset.sum_insert (by simp [hab, hac]), Finset.sum_insert (by simp [hbc]),
     Finset.sum_singleton, OMA.deg_eq, OMA.deg_eq, OMA.deg_eq] at hs
-  omega
+  -- Two vertices in the second part can never be adjacent.
+  unfold OMA.adj at h1 h2 h3
+  split at hs <;> split at hs <;> split at hs <;> omega

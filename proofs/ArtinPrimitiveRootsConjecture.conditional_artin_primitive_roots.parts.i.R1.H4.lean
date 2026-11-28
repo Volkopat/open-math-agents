@@ -298,11 +298,6 @@ lemma exists_int_pow_of_prime_dvd (hk : k ≠ 0) {ζ α : KField a k} {d : ℕ}
     (pow_mem hmem _) ?_
   rw [← pow_mul, ← pow_mul, ← hα]; congr 1; rw [hm]; ring
 set_option synthInstance.maxHeartbeats 400000 in
-theorem kummerDegree_le (ha : a ≠ 0) (hk : k ≠ 0) : kummerDegree a k ≤ k * k.totient := by
-  obtain ⟨ζ, α, d, hζ, hα, hdk, -, hdeg, -⟩ := exists_structure ha hk
-  rw [hdeg, mul_comm]
-  exact Nat.mul_le_mul_right _ (Nat.le_of_dvd (Nat.pos_of_ne_zero hk) hdk)
-set_option synthInstance.maxHeartbeats 400000 in
 lemma le_four_pow_of_squarefree {m N : ℕ} (hm : Squarefree m) (h : ∀ q, q.Prime → q ∣ m → q ≤ N) :
     m ≤ 4 ^ N := by
   have hm0 : m ≠ 0 := hm.ne_zero
@@ -336,12 +331,6 @@ theorem mul_totient_le_kummerDegree (ha0 : a ≠ 0) (ha1 : a ≠ 1) (ha2 : a ≠
   calc k * k.totient = m * (k.totient * d) := by rw [hm]; ring
     _ ≤ 4 ^ a.natAbs * (k.totient * d) := Nat.mul_le_mul_right _ hmle
 set_option synthInstance.maxHeartbeats 400000 in
-theorem exists_mul_totient_le_kummerDegree (ha0 : a ≠ 0) (ha1 : a ≠ 1) (ha2 : a ≠ -1) :
-    ∃ c : ℝ, 0 < c ∧ ∀ k : ℕ, Squarefree k → 1 ≤ k →
-      (k * k.totient : ℝ) ≤ c * kummerDegree a k :=
-  ⟨4 ^ a.natAbs, by positivity, fun k hk _ => by
-    exact_mod_cast mul_totient_le_kummerDegree ha0 ha1 ha2 hk⟩
-set_option synthInstance.maxHeartbeats 400000 in
 def NotPerfectPower (a : ℤ) : Prop := ∀ (b : ℤ) (n : ℕ), 2 ≤ n → b ^ n ≠ a
 set_option synthInstance.maxHeartbeats 400000 in
 open Classical in
@@ -351,17 +340,8 @@ set_option synthInstance.maxHeartbeats 400000 in
 lemma kummerEps_of_odd (hk : ¬ 2 ∣ k) : kummerEps a k = 1 := by
   simp [kummerEps, hk]
 set_option synthInstance.maxHeartbeats 400000 in
-lemma kummerEps_eq_one_or_two : kummerEps a k = 1 ∨ kummerEps a k = 2 := by
-  unfold kummerEps; split_ifs <;> simp
-set_option synthInstance.maxHeartbeats 400000 in
 lemma NotPerfectPower.ne_zero (h : NotPerfectPower a) : a ≠ 0 := by
   rintro rfl; exact h 0 2 le_rfl (by simp)
-set_option synthInstance.maxHeartbeats 400000 in
-lemma NotPerfectPower.ne_one (h : NotPerfectPower a) : a ≠ 1 := by
-  rintro rfl; exact h 1 2 le_rfl (by simp)
-set_option synthInstance.maxHeartbeats 400000 in
-lemma NotPerfectPower.ne_neg_one (h : NotPerfectPower a) : a ≠ -1 := by
-  rintro rfl; exact h (-1) 3 (by norm_num) (by norm_num)
 set_option synthInstance.maxHeartbeats 400000 in
 lemma exists_sq_iff (hk : k ≠ 0) {ζ : KField a k} (hζ : IsPrimitiveRoot ζ k) :
     (∃ β ∈ ℚ⟮ζ⟯, β ^ 2 = (a : KField a k)) ↔ ∃ β : CyclotomicField k ℚ, β ^ 2 = a := by
@@ -378,76 +358,6 @@ lemma exists_sq_iff (hk : k ≠ 0) {ζ : KField a k} (hζ : IsPrimitiveRoot ζ k
     refine ⟨(e.symm γ : KField a k), (e.symm γ).2, ?_⟩
     have : (e.symm γ) ^ 2 = (a : ℚ⟮ζ⟯) := by rw [← map_pow, h]; simp
     simpa using congrArg (fun x : ℚ⟮ζ⟯ => (x : KField a k)) this
-set_option synthInstance.maxHeartbeats 400000 in
-theorem kummerDegree_mul_kummerEps (hpp : NotPerfectPower a) (hk : Squarefree k) :
-    kummerDegree a k * kummerEps a k = k * k.totient := by
-  have ha0 := hpp.ne_zero
-  have hk0 : k ≠ 0 := hk.ne_zero
-  obtain ⟨ζ, α, d, hζ, hα, ⟨m, hm⟩, hd0, hdeg, hmem, hmin⟩ := exists_structure ha0 hk0
-  have hmk : m = k / d := by rw [hm, Nat.mul_div_cancel_left _ hd0]
-  have hmsq : Squarefree m := hk.squarefree_of_dvd ⟨d, by rw [hm, mul_comm]⟩
-  have hm2 : m ∣ 2 := by
-    rw [← Nat.prod_primeFactors_of_squarefree hmsq]
-    calc ∏ p ∈ m.primeFactors, p ∣ ∏ p ∈ ({2} : Finset ℕ), p := by
-          apply Finset.prod_dvd_prod_of_subset
-          intro q hq
-          have hq' := Nat.mem_primeFactors.1 hq
-          by_contra hq2
-          rw [Finset.mem_singleton] at hq2
-          obtain ⟨c, hc⟩ := exists_int_pow_of_prime_dvd hk0 hζ hα ⟨m, hm⟩ hmem hq'.1 hq2
-            (hmk ▸ hq'.2.1)
-          exact hpp c q hq'.1.two_le hc
-      _ = 2 := by simp
-  rw [hdeg]
-  rcases (Nat.dvd_prime Nat.prime_two).1 hm2 with rfl | rfl
-  ·
-    rw [mul_one] at hm
-    subst hm
-    have : kummerEps a k = 1 := by
-      unfold kummerEps
-      split_ifs with h
-      swap; · rfl
-      exfalso
-      obtain ⟨⟨j, hj⟩, hsq⟩ := h
-      obtain ⟨β, hβ, hβ2⟩ := (exists_sq_iff hk0 hζ).2 hsq
-      have hj0 : 0 < j := by omega
-      have h2 : (α ^ j) ^ 2 = β ^ 2 := by
-        rw [hβ2, ← pow_mul, ← hα]; congr 1; rw [hj, mul_comm]
-      have hmemj : α ^ j ∈ ℚ⟮ζ⟯ := by
-        rcases sq_eq_sq_iff_eq_or_eq_neg.1 h2 with h | h <;> rw [h]
-        · exact hβ
-        · exact neg_mem hβ
-      have := hmin j hj0 hmemj
-      omega
-    rw [this]; ring
-  ·
-    have : kummerEps a k = 2 := by
-      unfold kummerEps
-      split_ifs with h
-      · rfl
-      refine absurd ⟨⟨d, by rw [hm, mul_comm]⟩, (exists_sq_iff hk0 hζ).1 ⟨α ^ d, hmem, ?_⟩⟩ h
-      rw [← pow_mul, ← hα]; congr 1; exact hm.symm
-    rw [this, hm]; ring
-set_option synthInstance.maxHeartbeats 400000 in
-lemma kummerEps_two (hpp : NotPerfectPower a) : kummerEps a 2 = 1 := by
-  unfold kummerEps
-  split_ifs with h
-  swap; · rfl
-  exfalso
-  obtain ⟨-, γ, hγ⟩ := h
-  let _ : Algebra ℚ (CyclotomicField 2 ℚ) := CyclotomicField.algebra 2 ℚ
-  have hfin : Module.finrank ℚ (CyclotomicField 2 ℚ) = 1 := by
-    rw [IsCyclotomicExtension.finrank (CyclotomicField 2 ℚ)
-      (Polynomial.cyclotomic.irreducible_rat (by norm_num : 0 < 2)), Nat.totient_two]
-  have htop : (⊤ : Subalgebra ℚ (CyclotomicField 2 ℚ)) = ⊥ := by
-    exact (Subalgebra.bot_eq_top_iff_finrank_eq_one.2 hfin).symm
-  have : γ ∈ (⊥ : Subalgebra ℚ (CyclotomicField 2 ℚ)) := htop ▸ Algebra.mem_top
-  obtain ⟨r, rfl⟩ := Algebra.mem_bot.1 this
-  have hr : r ^ 2 = (a : ℚ) := by
-    apply (algebraMap ℚ (CyclotomicField 2 ℚ)).injective
-    rw [map_pow, hγ]; simp
-  obtain ⟨c, hc⟩ := exists_int_pow_of_rat_pow two_ne_zero hr
-  exact hpp c 2 le_rfl hc
 set_option synthInstance.maxHeartbeats 400000 in
 open Classical in
 noncomputable def kummerM (a : ℤ) (k : ℕ) : ℕ :=
@@ -791,7 +701,6 @@ lemma sqfreeWeight_nonneg (k : ℕ) : 0 ≤ sqfreeWeight k := by
   split_ifs
   · exact prod_nonneg fun p hp => inv_mul_pred_nonneg (Nat.prime_of_mem_primeFactors hp).one_le
   · exact le_rfl
-lemma sqfreeWeight_one : sqfreeWeight 1 = 1 := by simp [sqfreeWeight]
 lemma sqfreeWeight_eq {k : ℕ} (hk : Squarefree k) :
     sqfreeWeight k = ((k : ℝ) * k.totient)⁻¹ := by
   have hk0 : k ≠ 0 := hk.ne_zero
@@ -943,42 +852,9 @@ lemma tsum_oddWeight_lt_one : ∑' k, oddWeight k < 1 := by
 noncomputable def kummerDensity (a : ℤ) : ℝ :=
   ∑' k : ℕ, (moebius k : ℝ) / kummerDegree a k
 variable {a : ℤ}
-lemma moebius_div_kummerDegree_of_squarefree (hpp : NotPerfectPower a) {k : ℕ}
-    (hk : Squarefree k) :
-    (moebius k : ℝ) / kummerDegree a k = moebius k * kummerEps a k * sqfreeWeight k := by
-  have h := kummerDegree_mul_kummerEps hpp hk
-  have hk0 : (0 : ℝ) < k := by exact_mod_cast Nat.pos_of_ne_zero hk.ne_zero
-  have ht0 : (0 : ℝ) < k.totient := by exact_mod_cast Nat.totient_pos.2 (Nat.pos_of_ne_zero hk.ne_zero)
-  have hdeg : (kummerDegree a k : ℝ) * kummerEps a k = k * k.totient := by exact_mod_cast h
-  have hd0 : (kummerDegree a k : ℝ) ≠ 0 := by
-    intro h0; rw [h0, zero_mul] at hdeg; nlinarith
-  rw [sqfreeWeight_eq hk, ← hdeg]
-  field_simp
-  have he : (kummerEps a k : ℝ) ≠ 0 := by
-    rcases kummerEps_eq_one_or_two (a := a) (k := k) with h | h <;> rw [h] <;> norm_num
-  field_simp
 lemma moebius_div_kummerDegree_of_not_squarefree {k : ℕ} (hk : ¬ Squarefree k) :
     (moebius k : ℝ) / kummerDegree a k = 0 := by
   simp [moebius_eq_zero_of_not_squarefree hk]
-lemma abs_moebius_div_kummerDegree_le (hpp : NotPerfectPower a) (k : ℕ) :
-    |(moebius k : ℝ) / kummerDegree a k| ≤ 2 * sqfreeWeight k := by
-  by_cases hk : Squarefree k
-  · rw [moebius_div_kummerDegree_of_squarefree hpp hk, abs_mul, abs_mul,
-      abs_of_nonneg (sqfreeWeight_nonneg k)]
-    have hμ : |(moebius k : ℝ)| ≤ 1 := by exact_mod_cast abs_moebius_le_one
-    have hε : |(kummerEps a k : ℝ)| ≤ 2 := by
-      rcases kummerEps_eq_one_or_two (a := a) (k := k) with h | h <;> rw [h] <;> norm_num
-    calc |(moebius k : ℝ)| * |(kummerEps a k : ℝ)| * sqfreeWeight k
-        ≤ (1 * 2) * sqfreeWeight k :=
-          mul_le_mul_of_nonneg_right (mul_le_mul hμ hε (abs_nonneg _) zero_le_one)
-            (sqfreeWeight_nonneg k)
-      _ = 2 * sqfreeWeight k := by ring
-  · rw [moebius_div_kummerDegree_of_not_squarefree hk, abs_zero]
-    exact mul_nonneg zero_le_two (sqfreeWeight_nonneg k)
-theorem summable_moebius_div_kummerDegree (hpp : NotPerfectPower a) :
-    Summable fun k : ℕ => (moebius k : ℝ) / kummerDegree a k :=
-  Summable.of_norm_bounded (summable_sqfreeWeight.mul_left 2)
-    fun k => by rw [Real.norm_eq_abs]; exact abs_moebius_div_kummerDegree_le hpp k
 lemma not_squarefree_two_mul_of_even {j : ℕ} (hj : Even j) : ¬ Squarefree (2 * j) := by
   obtain ⟨i, rfl⟩ := hj
   intro h
@@ -986,82 +862,6 @@ lemma not_squarefree_two_mul_of_even {j : ℕ} (hj : Even j) : ¬ Squarefree (2 
   exact absurd this (by decide)
 lemma squarefree_two_mul {j : ℕ} (hj : Odd j) (hsq : Squarefree j) : Squarefree (2 * j) :=
   Nat.squarefree_mul_iff.2 ⟨(Nat.coprime_two_left.2 hj), Nat.squarefree_two, hsq⟩
-lemma sqfreeWeight_two_mul {j : ℕ} (hj : Odd j) (hsq : Squarefree j) :
-    sqfreeWeight (2 * j) = sqfreeWeight j / 2 := by
-  rw [sqfreeWeight_eq (squarefree_two_mul hj hsq), sqfreeWeight_eq hsq,
-    Nat.totient_mul (Nat.coprime_two_left.2 hj), Nat.totient_two]
-  push_cast
-  field_simp
-lemma moebius_two_mul {j : ℕ} (hj : Odd j) : (moebius (2 * j) : ℝ) = - moebius j := by
-  rw [isMultiplicative_moebius.map_mul_of_coprime (Nat.coprime_two_left.2 hj),
-    moebius_apply_prime Nat.prime_two]
-  push_cast; ring
-lemma pair_lower_bound (hpp : NotPerfectPower a) (j : ℕ) :
-    (if j = 1 then (1 / 2 : ℝ) else 0) - oddWeight j / 2 ≤
-      (moebius (2 * j) : ℝ) / kummerDegree a (2 * j) +
-        (if Odd j then (moebius j : ℝ) / kummerDegree a j else 0) := by
-  by_cases hgood : Odd j ∧ Squarefree j
-  · obtain ⟨hj, hsq⟩ := hgood
-    simp only [hj, ↓reduceIte]
-    rw [moebius_div_kummerDegree_of_squarefree hpp (squarefree_two_mul hj hsq),
-      moebius_div_kummerDegree_of_squarefree hpp hsq, kummerEps_of_odd (Nat.not_even_iff_odd.2 hj
-        ∘ even_iff_two_dvd.2), sqfreeWeight_two_mul hj hsq, moebius_two_mul hj]
-    have hw := sqfreeWeight_nonneg j
-    have hμ : |(moebius j : ℝ)| ≤ 1 := by exact_mod_cast abs_moebius_le_one
-    rw [abs_le] at hμ
-    by_cases h1 : j = 1
-    · subst h1
-      simp only [↓reduceIte, mul_one, sqfreeWeight_one, moebius_apply_one, Int.cast_one,
-        kummerEps_two hpp, oddWeight]
-      norm_num
-    · simp only [h1, ↓reduceIte]
-      have hodd : oddWeight j = sqfreeWeight j := by simp [oddWeight, hj, h1]
-      rw [hodd]
-      rcases kummerEps_eq_one_or_two (a := a) (k := 2 * j) with h | h <;> rw [h] <;> push_cast <;>
-        nlinarith
-  · have hj1 : j ≠ 1 := by rintro rfl; exact hgood ⟨odd_one, squarefree_one⟩
-    have h2j : ¬ Squarefree (2 * j) := by
-      intro h
-      by_cases hj : Odd j
-      · exact hgood ⟨hj, h.squarefree_of_dvd (dvd_mul_left j 2)⟩
-      · exact not_squarefree_two_mul_of_even (Nat.not_odd_iff_even.1 hj) h
-    rw [moebius_div_kummerDegree_of_not_squarefree h2j]
-    simp only [hj1, ↓reduceIte]
-    have : (if Odd j then (moebius j : ℝ) / kummerDegree a j else 0) = 0 := by
-      split_ifs with hj
-      · exact moebius_div_kummerDegree_of_not_squarefree fun h => hgood ⟨hj, h⟩
-      · rfl
-    rw [this]
-    linarith [oddWeight_nonneg j]
-theorem kummerDensity_pos (hpp : NotPerfectPower a) : 0 < kummerDensity a := by
-  set f : ℕ → ℝ := fun k => (moebius k : ℝ) / kummerDegree a k with hf_def
-  have hf : Summable f := summable_moebius_div_kummerDegree hpp
-  have hs_e : Summable fun j => f (2 * j) :=
-    hf.comp_injective (mul_right_injective₀ two_ne_zero)
-  have hs_o : Summable fun j => f (2 * j + 1) :=
-    hf.comp_injective fun x y h => by simpa using h
-  set ind : ℕ → ℝ := fun j => if Odd j then f j else 0
-  have hs_i : Summable ind :=
-    Summable.of_norm_bounded hf.norm fun j => by
-      simp only [ind]; split_ifs <;> simp
-  have hind : ∑' j, ind j = ∑' j, f (2 * j + 1) := by
-    rw [← tsum_even_add_odd (hs_i.comp_injective (mul_right_injective₀ two_ne_zero))
-      (hs_i.comp_injective fun x y h => by simpa using h)]
-    have he : ∀ j, ind (2 * j) = 0 := fun j => by simp [ind]
-    have ho : ∀ j, ind (2 * j + 1) = f (2 * j + 1) := fun j => by simp [ind]
-    simp only [he, ho, tsum_zero, zero_add]
-  have hsum : kummerDensity a = ∑' j, (f (2 * j) + ind j) := by
-    rw [kummerDensity, ← hf_def, ← tsum_even_add_odd hs_e hs_o, ← hind, hs_e.tsum_add hs_i]
-  have hlow : Summable fun j : ℕ => (if j = 1 then (1 / 2 : ℝ) else 0) - oddWeight j / 2 :=
-    ((summable_of_ne_finset_zero (s := {1}) fun j hj => by
-      rw [Finset.mem_singleton] at hj; simp [hj])).sub (summable_oddWeight.div_const 2)
-  have hle := hlow.tsum_le_tsum (fun j => pair_lower_bound hpp j) (hs_e.add hs_i)
-  rw [hsum]
-  refine lt_of_lt_of_le ?_ hle
-  rw [Summable.tsum_sub (summable_of_ne_finset_zero (s := {1}) fun j hj => by
-      rw [Finset.mem_singleton] at hj; simp [hj]) (summable_oddWeight.div_const 2),
-    tsum_ite_eq 1 (fun _ => (1 / 2 : ℝ)), tsum_div_const]
-  linarith [tsum_oddWeight_lt_one]
 theorem summable_moebius_div_kummerDegree_of_ne (ha0 : a ≠ 0) (ha1 : a ≠ 1) (ha2 : a ≠ -1) :
     Summable fun k : ℕ => (moebius k : ℝ) / kummerDegree a k := by
   refine Summable.of_norm_bounded (summable_sqfreeWeight.mul_left ((4 : ℝ) ^ a.natAbs)) fun k => ?_

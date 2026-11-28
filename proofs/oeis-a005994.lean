@@ -3,7 +3,7 @@ import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Linarith
 
 -- Problem: oeis-a005994 (Mathar's identity relating A005994 and zero-sum array counts A203286).
--- Credit: @Need17Bread
+-- Shorter version of the merged proof (the first solve keeps its credit).
 --
 -- Subtracting total p.1 = total p.2 from weight p.1 = weight p.2 gives
 --   p.1.two + 2 * p.1.three = p.2.two + 2 * p.2.three.
@@ -138,12 +138,6 @@ private lemma card_slicePos (m d : ℕ) : (slicePos m d).card = (m - 2 * d + 3).
   simp only [Prod.mk.injEq, Counts.mk.injEq] at h
   exact Prod.ext h.1.1 (Prod.ext (Nat.add_right_cancel h.1.2.1) h.1.2.2)
 
-private lemma card_sliceNeg (m d : ℕ) : (sliceNeg m d).card = (m - 2 * d + 3).choose 3 := by
-  rw [sliceNeg, card_image_of_injective, card_triplesLe]
-  intro ⟨a1, b1, c1⟩ ⟨a2, b2, c2⟩ h
-  simp only [Prod.mk.injEq, Counts.mk.injEq] at h
-  exact Prod.ext h.2.1 (Prod.ext (Nat.add_right_cancel h.2.2.1) h.2.2.2)
-
 private def allPos (m : ℕ) : Finset (Counts × Counts) :=
   (Icc 1 (m / 2)).biUnion (slicePos m)
 
@@ -193,20 +187,9 @@ private lemma card_allPos (m : ℕ) :
 
 private lemma card_allNeg (m : ℕ) :
     (allNeg m).card = ∑ d ∈ Icc 1 (m / 2), (m + 3 - 2 * d).choose 3 := by
-  rw [allNeg, card_biUnion]
-  · refine sum_congr rfl fun d hd => ?_
-    rw [mem_Icc] at hd
-    rw [card_sliceNeg]
-    congr 1; omega
-  · intro d1 _ d2 _ hne
-    dsimp only [Function.onFun]
-    rw [disjoint_left]
-    intro p h1 h2
-    simp only [sliceNeg, mem_image] at h1 h2
-    rcases h1 with ⟨⟨x1, y1, z1⟩, _, rfl⟩
-    rcases h2 with ⟨⟨x2, y2, z2⟩, _, h2⟩
-    simp only [Prod.mk.injEq, Counts.mk.injEq] at h2
-    omega
+  rw [← card_allPos, show allNeg m = (allPos m).image Prod.swap by
+    simp only [allPos, biUnion_image, slicePos, image_image]; rfl,
+    card_image_of_injective _ Prod.swap_injective]
 
 private lemma card_configFinset (m : ℕ) :
     (configFinset m).card =
@@ -275,12 +258,7 @@ private lemma telescope (n k : ℕ) :
   | zero => simp
   | succ k ih =>
     rw [sum_range_succ, sum_range_succ]
-    have hstep := choose3_step n k
-    have hmul :
-        (2 * k + 1) * (n + 4 - 2 * k).choose 3 =
-          (2 * k + 1) * (n + 4 - 2 * (k + 1)).choose 3 +
-            (2 * k + 1) * (triangle n k + triangle (n + 1) k) := by
-      rw [hstep]; ring
+    rw [choose3_step n k] at ih
     linarith
 
 end OeisA005994Proof

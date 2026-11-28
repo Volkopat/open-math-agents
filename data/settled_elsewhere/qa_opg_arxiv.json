@@ -1,0 +1,750 @@
+{
+ "about": "Open Problem Garden, MathOverflow, Mathematics Stack Exchange and arXiv-abstract problems in the catalogue that are already settled elsewhere, so scripts/build_data.mjs stops listing them as open (formalized ones become known results, unformalized ones are dropped). MathOverflow and Math.SE: status checked through the Stack Exchange API on 2026-11-28; a question counts as settled when it has an accepted answer, an upvoted answer (score >= 3, or citing a published resolution) that settles it, or when it was closed as a duplicate of a settled question; partial, hedged or conditional answers were not counted. Open Problem Garden and arXiv: settled only with an explicit public source (paper, OPG comment citing one, or follow-up paper). Problems proved in this repository (proofs/<id>.lean) are excluded.",
+ "entries": {
+  "arxiv-1803.02550": {
+   "reason": "Proved: broadcast domination number is at most twice the multipacking number for every graph.",
+   "source": "https://arxiv.org/abs/2608.20036",
+   "date": "2026-08"
+  },
+  "arxiv-1804.03752": {
+   "reason": "Proved: omega >= n/(n - sqrt(s+)), strengthening Wilf's bound and resolving the Elphick-Wocjan conjecture.",
+   "source": "https://arxiv.org/abs/2607.18044",
+   "date": "2026-07"
+  },
+  "arxiv-1903.11484": {
+   "reason": "Proved: Chudnovsky, Norin, Seymour and Turcotte showed every connected P5-free graph has cop number at most 2, and 2K2-free graphs are P5-free.",
+   "source": "https://doi.org/10.1137/23m1549912",
+   "date": "2024"
+  },
+  "arxiv-1905.06208": {
+   "reason": "Proved: Vlassis and Thomas proved Gaffke's conjecture that the Dirichlet statistic K(X) is a valid p-value; inverting these tests gives exactly this interval, so its coverage is guaranteed.",
+   "source": "https://arxiv.org/abs/2607.08415",
+   "date": "2026-07"
+  },
+  "arxiv-1905.06692": {
+   "reason": "Settled: Chen, Dong and Tang prove the gamma-positivity conjecture for [k] x P and give connected Peck posets whose antichain polynomials are not unimodal, disproving the log-concavity conjecture.",
+   "source": "https://arxiv.org/abs/2609.28983",
+   "date": "2026-09"
+  },
+  "arxiv-1907.11668": {
+   "reason": "Proved by Wang, Wang and Jin: under the degree condition, every partition |W| = n_1+...+n_k with n_i >= 3 is realized by k disjoint directed cycles (SIAM J. Discrete Math. 2023).",
+   "source": "https://doi.org/10.1137/21m1460594",
+   "date": "2023"
+  },
+  "arxiv-1911.02332": {
+   "reason": "Proved: every graph with minimum degree at least 2 has an induced linear forest of order at least sum 2/(d_i+1) (SIAM J. Discrete Math. 2025).",
+   "source": "https://doi.org/10.1137/24m1650740",
+   "date": "2025"
+  },
+  "arxiv-2001.06839": {
+   "reason": "Solved in the paper itself: Ekhad and Zeilberger find the explicit probability generating function that Henze and Last had left open.",
+   "source": "https://arxiv.org/abs/2001.06839",
+   "date": "2020-01"
+  },
+  "arxiv-2112.10140": {
+   "reason": "Proved by Gao: Hodge-Tate prismatic crystals are determined by the Sen operator, via Sen theory over the Kummer tower.",
+   "source": "https://arxiv.org/abs/2201.10136",
+   "date": "2022-01"
+  },
+  "arxiv-2309.16252": {
+   "reason": "Proved: Pagano and Shusterman construct the universal d-generated perfect profinite group (finite quotients exactly the finite d-generated perfect groups), with a balanced d-generator presentation, settling Nikolov's conjecture.",
+   "source": "https://arxiv.org/abs/2609.30200",
+   "date": "2026-09"
+  },
+  "arxiv-2311.10069": {
+   "reason": "Disproved: there is a finite planar unit-distance graph with independence ratio strictly below 1/4.",
+   "source": "https://arxiv.org/abs/2606.28157",
+   "date": "2026-06"
+  },
+  "arxiv-2311.18050": {
+   "reason": "Proved: in finite dimensions the asymptotics of the moment-map (Kempf-Ness) flow are determined by the iterated balancing filtration.",
+   "source": "https://arxiv.org/abs/2606.09235",
+   "date": "2026-06"
+  },
+  "arxiv-2401.12397": {
+   "reason": "Proved: the Kozma-Nitzan correlation inequality was proved (OpenAI), giving theta(p_c) = 0; this note presents a human-readable proof.",
+   "source": "https://arxiv.org/abs/2610.10502",
+   "date": "2026-10"
+  },
+  "arxiv-2401.13143": {
+   "reason": "Answered: the low-degree Fourier threshold for random Boolean functions was determined, resolving Vershynin's question (Electron. Commun. Probab. 2026).",
+   "source": "https://doi.org/10.1214/26-ecp808",
+   "date": "2026"
+  },
+  "arxiv-2403.04101": {
+   "reason": "Proved: Schur log-concavity of derivative sequences of Schur polynomials follows from the theory of Hodge-Riemann polynomials, confirming the Ross-Wu conjecture.",
+   "source": "https://arxiv.org/abs/2506.16992",
+   "date": "2025-06"
+  },
+  "arxiv-2406.01778": {
+   "reason": "Proved: the planar case of the van den Berg-Buttazzo-Pratelli conjecture on the Polya functional (Conjecture 1.1 of Banuelos-Mariano).",
+   "source": "https://arxiv.org/abs/2609.13221",
+   "date": "2026-08"
+  },
+  "arxiv-2409.06655": {
+   "reason": "Settled: Yang determined the structure of monotone Hurwitz numbers with varying genus, proving one and disproving the other conjecture of Do, He and Robertson.",
+   "source": "https://arxiv.org/abs/2503.01920",
+   "date": "2025-03"
+  },
+  "arxiv-2411.17604": {
+   "reason": "Disproved: the hyperkahler period-index conjecture ind | per^(dim X/2) is false.",
+   "source": "https://arxiv.org/abs/2608.09436",
+   "date": "2026-08"
+  },
+  "arxiv-2510.01110": {
+   "reason": "Proved: a necessary and sufficient condition for H-realizable degree sequences for every h, confirming the Briggs-McDonald-Shan conjecture.",
+   "source": "https://arxiv.org/abs/2604.11939",
+   "date": "2026-04"
+  },
+  "arxiv-2511.14526": {
+   "reason": "Disproved in general (and confirmed for graphic and Lawrence oriented matroids): the minimum-length conjecture of Berczi and Nador on embracing exchange sequences is false.",
+   "source": "https://arxiv.org/abs/2606.19573",
+   "date": "2026-06"
+  },
+  "arxiv-2511.15920": {
+   "reason": "Proved: Han, Ma and Sun prove Makhija's conjecture on Schubert polynomials that are products of elementary symmetric polynomials in initial alphabets.",
+   "source": "https://arxiv.org/abs/2610.36993",
+   "date": "2026-10"
+  },
+  "arxiv-2606.18654": {
+   "reason": "Proved: joint Gaussianity of one pair forces an infinite exchangeable sequence to be Gaussian, settling Newman's conjecture (Electron. Commun. Probab. 2026).",
+   "source": "https://doi.org/10.1214/26-ecp830",
+   "date": "2026"
+  },
+  "arxiv-2607.14837": {
+   "reason": "Proved: Wang's planar D-colouring conjecture holds for all maximum degrees, including the remaining cases 6 <= Delta <= 32.",
+   "source": "https://arxiv.org/abs/2610.33322",
+   "date": "2026-10"
+  },
+  "arxiv-2607.19412": {
+   "reason": "Proved: Z(P(n,3)) = 8 for all n >= 13 (Krishnan's Conjecture 5).",
+   "source": "https://arxiv.org/abs/2610.24059",
+   "date": "2026-10"
+  },
+  "arxiv-2609.31489": {
+   "reason": "Proved: Hu showed that the Welch function is not third-order sum-free, confirming the Hou-Zhao conjecture.",
+   "source": "https://arxiv.org/abs/2610.15694",
+   "date": "2026-10"
+  },
+  "mo-10356": {
+   "reason": "Answered negatively: W. B. Johnson builds, from the Mazur map between the unit balls of l2 and l1, a map that is norm and weak*-continuous but not weakly continuous.",
+   "source": "https://mathoverflow.net/a/11649",
+   "date": "2010-01-13"
+  },
+  "mo-122221": {
+   "reason": "Answered (upvoted answer): yes: an explicit monoid embedded in a free group whose classifying space is not that of the group, via Brown's theorem on rewriting systems.",
+   "source": "https://mathoverflow.net/a/516114",
+   "date": "2026-10-16"
+  },
+  "mo-126184": {
+   "reason": "Accepted answer: it settles convergence of the alternating sums (absolute for s > 1, conditional at s = 1) and gives the closed forms that exist.",
+   "source": "https://mathoverflow.net/a/517014",
+   "date": "2026-11-19"
+  },
+  "mo-129605": {
+   "reason": "Answered negatively: there are regular ccc spaces with an uncountable closed discrete subset as described, so no uncountable family of disjoint open sets need exist.",
+   "source": "https://mathoverflow.net/a/129734",
+   "date": "2013-05-05"
+  },
+  "mo-130316": {
+   "reason": "Answered: by Stroeker-Tijdeman (1982) f(n) is 0 or 1 for n > 13, f(5) = 2, f is never infinite, f(n) = 1 never occurs twice in a row and zeros have density 1.",
+   "source": "https://mathoverflow.net/a/130344",
+   "date": "2013-05-11"
+  },
+  "mo-132269": {
+   "reason": "An answer evaluates 3F2(1,1,9/4;2,2;-1) in elementary terms via DLMF 16.5.2 and shows the result is equivalent to the conjectured formula.",
+   "source": "https://mathoverflow.net/a/132275",
+   "date": "2013-05-29"
+  },
+  "mo-147407": {
+   "reason": "The weaker statement follows from the 1-2-3 conjecture itself (take the labels 1, 2, 3), which Keusch proved for all graphs without a K2 component.",
+   "source": "https://arxiv.org/abs/2303.02611",
+   "date": "2023-03"
+  },
+  "mo-164362": {
+   "reason": "Accepted answer: the construction is in Chazelle, Filtering Search (SIAM J. Comput. 1986), section 4.3.",
+   "source": "https://mathoverflow.net/a/516773",
+   "date": "2026-11-08"
+  },
+  "mo-179206": {
+   "reason": "Answered: the problem is solvable in polynomial time, since a maximum-weight bipartite matching of bidders to items is always attainable by an auction order.",
+   "source": "https://mathoverflow.net/a/179300",
+   "date": "2014-08-24"
+  },
+  "mo-18264": {
+   "reason": "Disproved: Lin-Sternfeld gives a Lipschitz fixed-point-free self-map of the l2 ball in the l3 metric, and spreading coordinates over m blocks turns it into a fixed-point-free T with ||Tx-Ty||_4 <= ||x-y||_3.",
+   "source": "https://mathoverflow.net/a/513300",
+   "date": "2026-07-16"
+  },
+  "mo-191942": {
+   "reason": "Answered (upvoted answer): yes: an explicit orientation-reversing homeomorphism of R^2 with a 3-cycle and no fixed point, built on the pillowcase.",
+   "source": "https://mathoverflow.net/a/516586",
+   "date": "2026-10-31"
+  },
+  "mo-195054": {
+   "reason": "Accepted answer: an exact k-fold cover by n rectangles can be replaced by a partition into floor(n/k) rectangles (Kalinowski 2009, Corollary 1).",
+   "source": "https://mathoverflow.net/a/516783",
+   "date": "2026-11-08"
+  },
+  "mo-224886": {
+   "reason": "Accepted answer: yes, by the answerer's paper with Gitik, Adding minimal fresh subsets to aleph_omega (equiconsistent with one measurable).",
+   "source": "https://mathoverflow.net/a/516835",
+   "date": "2026-11-11"
+  },
+  "mo-227666": {
+   "reason": "Accepted answer: the determinant is evaluated exactly with the matrix determinant lemma, and the count is corrected.",
+   "source": "https://mathoverflow.net/a/516176",
+   "date": "2026-10-19"
+  },
+  "mo-228441": {
+   "reason": "Accepted answer: the decision problem is NP-complete when collinear points and degree 0 are allowed.",
+   "source": "https://mathoverflow.net/a/516761",
+   "date": "2026-11-08"
+  },
+  "mo-244971": {
+   "reason": "Answered (upvoted answer): Glazer's paper 'Ordinal-definable families in Cohen, random, and collapse extensions' answers it.",
+   "source": "https://mathoverflow.net/a/516196",
+   "date": "2026-10-20"
+  },
+  "mo-251557": {
+   "reason": "The tentative subconjecture fails: for the property 'has exactly two vertices', connected locally-P graphs are cycles (Hamiltonian), but C4 is not pancyclic.",
+   "source": "https://mathoverflow.net/a/515978",
+   "date": "2026-10-12"
+  },
+  "mo-253088": {
+   "reason": "This is the two-envelope paradox, resolved in the answer: the switching argument conditions on an unobserved value, or needs a prior on the amounts.",
+   "source": "https://mathoverflow.net/a/253099",
+   "date": "2016-10-26"
+  },
+  "mo-282596": {
+   "reason": "Kwasnicki and Simon characterised the bell-shaped functions (arXiv:1910.07752), as the asker reports in an answer.",
+   "source": "https://mathoverflow.net/a/344072",
+   "date": "2019-10-18"
+  },
+  "mo-289869": {
+   "reason": "Answered (upvoted answer): not in general: an orthonormal sequence in L^2 can have dense span in L^p without being a Schauder basis there.",
+   "source": "https://mathoverflow.net/a/289882",
+   "date": "2018-01-03"
+  },
+  "mo-29000": {
+   "reason": "Schramm's question has a positive answer: Arman, Bondarenko, Nazarov, Prymak and Radchenko constructed bodies of constant width with volume below 0.9^n times that of the ball of the same width (arXiv:2405.18501), as the answer reports.",
+   "source": "https://mathoverflow.net/a/472375",
+   "date": "2024-05"
+  },
+  "mo-295380": {
+   "reason": "Answered (upvoted answer): yes, classically, via the lambda-I calculus, where normalizing terms are strongly normalizing and all recursive functions are definable (Barendregt 9.1.5, 9.2).",
+   "source": "https://mathoverflow.net/a/515896",
+   "date": "2026-10-10"
+  },
+  "mo-313560": {
+   "reason": "Accepted answer: both inequalities are proved, by reduction to a polynomial statement proved by induction.",
+   "source": "https://mathoverflow.net/a/515313",
+   "date": "2026-09-17"
+  },
+  "mo-325977": {
+   "reason": "Accepted answer: the proposed bound fails already for k = 4 and the exact threshold is 2^(k-1).",
+   "source": "https://mathoverflow.net/a/516759",
+   "date": "2026-11-08"
+  },
+  "mo-337847": {
+   "reason": "Accepted answer: it constructs a finitely additive extension of Lebesgue measure for which the density theorem fails.",
+   "source": "https://mathoverflow.net/a/337870",
+   "date": "2019-08-07"
+  },
+  "mo-341362": {
+   "reason": "Answered: Burton tabulated all prime knots up to 19 crossings (352,152,252 knots, SoCG 2020), so the 17-crossing tabulation is done.",
+   "source": "https://mathoverflow.net/a/341432",
+   "date": "2019-09-12"
+  },
+  "mo-365696": {
+   "reason": "Answered (upvoted answer): no: an explicit real-linear map of R^2 violates the Riesz-Thorin bound.",
+   "source": "https://mathoverflow.net/a/500168",
+   "date": "2025-09-09"
+  },
+  "mo-371070": {
+   "reason": "Answered (upvoted answer): no such family exists in general (Hartshorne, Deformation Theory, Remark 26.3.1).",
+   "source": "https://mathoverflow.net/a/389732",
+   "date": "2021-04-09"
+  },
+  "mo-388960": {
+   "reason": "Accepted answer: it proves that l_inf^n has a non-extremal basis only for n <= 2.",
+   "source": "https://mathoverflow.net/a/515305",
+   "date": "2026-09-16"
+  },
+  "mo-405162": {
+   "reason": "Accepted answer: the equation is solvable in Q_p for every prime p, by Hensel lifting from the point at infinity, as Elkies indicated.",
+   "source": "https://mathoverflow.net/a/516550",
+   "date": "2026-10-30"
+  },
+  "mo-412763": {
+   "reason": "Answered with the reference: Day and Street, Lax monoids, pseudo-operads, and convolution, section 1, give the correspondence.",
+   "source": "https://mathoverflow.net/a/516739",
+   "date": "2026-11-06"
+  },
+  "mo-414216": {
+   "reason": "Accepted answer: the cited preprints parametrize all integer solutions of the listed equations.",
+   "source": "https://mathoverflow.net/a/516557",
+   "date": "2026-10-30"
+  },
+  "mo-415671": {
+   "reason": "Answered (upvoted answer): yes: McNew and Pomerance proved that matchable integers have density prod(1 - p^-p) = 0.72... > 1/2.",
+   "source": "https://mathoverflow.net/a/516494",
+   "date": "2026-10-28"
+  },
+  "mo-415812": {
+   "reason": "Accepted answer: (-1,1) and (0,1) are the only rational points, by Chabauty-Coleman at 5 and a Mordell-Weil sieve.",
+   "source": "https://mathoverflow.net/a/516553",
+   "date": "2026-10-30"
+  },
+  "mo-418389": {
+   "reason": "Accepted answer: the free-forgetful adjunction is comonadic, by Mesablishvili's Proposition 3.21.",
+   "source": "https://mathoverflow.net/a/516737",
+   "date": "2026-11-06"
+  },
+  "mo-420253": {
+   "reason": "Answered: the integrand oscillates about 2^n times over the period, so Monte Carlo or numerical integration cannot separate I = 0 from I >= 1 in time polynomial in the input size.",
+   "source": "https://mathoverflow.net/a/420256",
+   "date": "2022-04-12"
+  },
+  "mo-426476": {
+   "reason": "Answered (upvoted answer): the ZF proof goes through in NF(U) after adjustments for stratification.",
+   "source": "https://mathoverflow.net/a/440343",
+   "date": "2023-02-07"
+  },
+  "mo-435410": {
+   "reason": "Accepted answer: the Moebius strip, a quotient of the Lie monoid S^1 x R, is a non-parallelizable Lie monoid.",
+   "source": "https://mathoverflow.net/a/516128",
+   "date": "2026-10-17"
+  },
+  "mo-435725": {
+   "reason": "Answered: such edge elimination is known (reduced-cost fixing, Dantzig-Fulkerson-Johnson 1954; Hougardy-Schroeder 2014) and does not make the problem polynomial.",
+   "source": "https://mathoverflow.net/a/435759",
+   "date": "2022-12-02"
+  },
+  "mo-438613": {
+   "reason": "Accepted answer: Hjelmslev's Beitraege zur nicht-Eudoxischen Geometrie, section 3(2), solves the problem.",
+   "source": "https://mathoverflow.net/a/516957",
+   "date": "2026-11-17"
+  },
+  "mo-440173": {
+   "reason": "Accepted answer: NF is interpreted in NF-0 through a stratified bijection V -> V minus the empty set.",
+   "source": "https://mathoverflow.net/a/515966",
+   "date": "2026-10-12"
+  },
+  "mo-442444": {
+   "reason": "Accepted answer: a preprint constructs a torsion-free hyperbolic group that is not residually finite (checked in Lean).",
+   "source": "https://mathoverflow.net/a/516108",
+   "date": "2026-10-16"
+  },
+  "mo-452461": {
+   "reason": "Accepted answer: it gives explicit parametrizations of all rational solutions of the three equations, with proofs.",
+   "source": "https://mathoverflow.net/a/516407",
+   "date": "2026-10-26"
+  },
+  "mo-456412": {
+   "reason": "Accepted answer: yes for the localisation at quasi-equivalences, via the equivalence with dg-categories (arXiv:2404.06610, Thm A) and Tabuada's model structure.",
+   "source": "https://mathoverflow.net/a/515004",
+   "date": "2026-09-07"
+  },
+  "mo-461220": {
+   "reason": "Accepted answer: the equivalence holds for G = SO(3) and fails in general (revised arXiv:2403.04572).",
+   "source": "https://mathoverflow.net/a/516300",
+   "date": "2026-10-23"
+  },
+  "mo-462095": {
+   "reason": "Accepted answer: no: the 12-colouring n -> floor(12 {n/sqrt 2}) has no such repetition.",
+   "source": "https://mathoverflow.net/a/516794",
+   "date": "2026-11-09"
+  },
+  "mo-466776": {
+   "reason": "Accepted answer: yes: three edge-coloured square prototiles (rotations allowed) that cannot all be used together while any two tile.",
+   "source": "https://mathoverflow.net/a/516776",
+   "date": "2026-11-08"
+  },
+  "mo-468334": {
+   "reason": "Accepted answer: no: the inclusion of a category that is not Cauchy complete into its Cauchy completion is pseudomonic and pseudoepic but not an equivalence.",
+   "source": "https://mathoverflow.net/a/516747",
+   "date": "2026-11-07"
+  },
+  "mo-471198": {
+   "reason": "Accepted answer: it settles the question by expressing the coefficients through triple quantum structure constants.",
+   "source": "https://mathoverflow.net/a/516390",
+   "date": "2026-10-25"
+  },
+  "mo-475391": {
+   "reason": "Accepted answer: the asker accepted an implemented algorithm (nauty-style canonical form) for the lexicographically largest matrix.",
+   "source": "https://mathoverflow.net/a/516915",
+   "date": "2026-11-15"
+  },
+  "mo-482126": {
+   "reason": "Answered (upvoted answer): no: Uspenskii's dense subspaces of Sigma-products (unions of countably many closed discrete sets) are W-spaces with points G_delta that are not first countable.",
+   "source": "https://mathoverflow.net/a/484867",
+   "date": "2024-12-27"
+  },
+  "mo-483085": {
+   "reason": "Both conjectures are proved in an answer: a(W(n)) = W(n) - 3 phi(W(n))/n, which is odd and nonzero (checked numerically here for odd n <= 35).",
+   "source": "https://mathoverflow.net/a/513641",
+   "date": "2026-07-27"
+  },
+  "mo-483588": {
+   "reason": "Accepted answer: no: a Cayley graph of a virtually free group is a counterexample.",
+   "source": "https://mathoverflow.net/a/517019",
+   "date": "2026-11-19"
+  },
+  "mo-489507": {
+   "reason": "Accepted answer: the asker's preprint (Theorem 1.5) gives the combinatorially Schubert-positive formula.",
+   "source": "https://mathoverflow.net/a/516848",
+   "date": "2026-11-11"
+  },
+  "mo-491104": {
+   "reason": "Accepted answer: the asker's 2026 paper with Fernandez-Delgado gives tubes with compression (log 1/delta)^-(d-1).",
+   "source": "https://mathoverflow.net/a/516949",
+   "date": "2026-11-17"
+  },
+  "mo-492477": {
+   "reason": "Answered (upvoted answer): the statement is proved in Krause's lecture notes on the nilpotence theorem, Theorem 6.24.",
+   "source": "https://mathoverflow.net/a/515737",
+   "date": "2026-10-05"
+  },
+  "mo-497111": {
+   "reason": "Answered (upvoted answer): solved by Kutin, Smithline and Vatter, Permutation Wordle (arXiv:2609.01874): CircularShift is optimal.",
+   "source": "https://mathoverflow.net/a/516105",
+   "date": "2026-10-16"
+  },
+  "mo-500224": {
+   "reason": "Answered (upvoted answer): the condition in Beardon's book contains a typo, which the answer identifies and corrects.",
+   "source": "https://mathoverflow.net/a/500408",
+   "date": "2025-09-15"
+  },
+  "mo-503437": {
+   "reason": "The conjecture is false: n = 825,439,453,250 gives 10 S_5(n) + 12 S_2(n) - 5 S_3(n) = -12 < 0.",
+   "source": "https://mathoverflow.net/a/506237",
+   "date": "2025-12-22"
+  },
+  "mo-506109": {
+   "reason": "Answered (upvoted answer): the equation already appears in Marshall and Smith, 'Feedback, Control, and the Distribution of Prime Numbers' (Mathematics Magazine).",
+   "source": "https://mathoverflow.net/a/516478",
+   "date": "2026-10-28"
+  },
+  "mo-509886": {
+   "reason": "Accepted answer: the sifted colimits follow from two CatDat implications (essentially finite EI-categories are generalized inverse, hence have sifted colimits).",
+   "source": "https://mathoverflow.net/a/518120",
+   "date": "2026-11-23"
+  },
+  "mo-509920": {
+   "reason": "Proved in the answer: repeatedly merging the largest pair of consecutive Fibonacci numbers turns any Fibonacci decomposition into the Zeckendorf one while keeping the required partition.",
+   "source": "https://mathoverflow.net/a/509921",
+   "date": "2026-04-06"
+  },
+  "mo-511201": {
+   "reason": "Accepted answer: no: it constructs a simple manifold containing a geodesic net, which also answers Uhlmann's question.",
+   "source": "https://mathoverflow.net/a/516782",
+   "date": "2026-11-08"
+  },
+  "mo-511573": {
+   "reason": "Accepted answer: FreeAb is not coaccessible, since every kappa-copresentable free abelian group is trivial.",
+   "source": "https://mathoverflow.net/a/516487",
+   "date": "2026-10-28"
+  },
+  "mo-514052": {
+   "reason": "Accepted answer: the Descartes form is the shifted K4 Laplacian M = L_K4 - 2I, and the answer explains where it comes from.",
+   "source": "https://mathoverflow.net/a/515217",
+   "date": "2026-09-14"
+  },
+  "mo-514650": {
+   "reason": "Accepted answer: the conjecture is proved by reduction to Lenart's single-alphabet theorem.",
+   "source": "https://mathoverflow.net/a/515862",
+   "date": "2026-10-08"
+  },
+  "mo-514742": {
+   "reason": "Accepted answer: the first player wins for every n >= 5 (arXiv:2610.22410, proofs formalized in Lean).",
+   "source": "https://mathoverflow.net/a/516169",
+   "date": "2026-10-19"
+  },
+  "mo-68595": {
+   "reason": "Accepted answer: it reports a proof of the conjecture (Integrality of iterated averages and pointwise prime powers).",
+   "source": "https://mathoverflow.net/a/516467",
+   "date": "2026-10-27"
+  },
+  "mo-70391": {
+   "reason": "Nazarov, Ryabogin and Zvavitch constructed in odd dimensions a convex body other than a ball whose maximal hyperplane sections all have the same volume (arXiv:1201.0393), answering Klee's question.",
+   "source": "https://mathoverflow.net/a/84849",
+   "date": "2012-01-04"
+  },
+  "mo-84259": {
+   "reason": "Answered (upvoted answer): yes: 'The enriched Thomason model structure on 2-categories' makes 2-categories a model for (infinity,1)-categories.",
+   "source": "https://mathoverflow.net/a/433568",
+   "date": "2022-10-31"
+  },
+  "mo-8729": {
+   "reason": "Answered negatively: the identity components of C(S^m,S^m) and C(S^n,S^n) have different rational homotopy groups, so the spaces are not homeomorphic in general.",
+   "source": "https://mathoverflow.net/a/8732",
+   "date": "2009-12-13"
+  },
+  "mse-122690": {
+   "reason": "Answered: verifiers for L1, L2 and their complements combine into verifiers for the symmetric difference and its complement.",
+   "source": "https://math.stackexchange.com/a/122729",
+   "date": "2012-03-21"
+  },
+  "mse-1294014": {
+   "reason": "Answered: yes, e.g. for a decidable statement such as the primality of a large Fermat number, one of the two proofs exists although nobody knows which.",
+   "source": "https://math.stackexchange.com/a/1294024",
+   "date": "2015-05-22"
+  },
+  "mse-1395811": {
+   "reason": "Disproved: the q^27 coefficient for p = 3 and the q^65 coefficient for p = 5 are counterexamples.",
+   "source": "https://math.stackexchange.com/a/1397372",
+   "date": "2015-08-14"
+  },
+  "mse-1414857": {
+   "reason": "The proposed equidistant-runner statement is false for three runners (speeds 1, 2, 4), so the strategy fails.",
+   "source": "https://math.stackexchange.com/a/1415350",
+   "date": "2015-08-31"
+  },
+  "mse-1731766": {
+   "reason": "Answered: the argument is correct but only proves the special case of speeds 1/m_i with pairwise coprime m_i.",
+   "source": "https://math.stackexchange.com/a/1731784",
+   "date": "2016-04-07"
+  },
+  "mse-1804411": {
+   "reason": "Answered: Damgard, Landrock and Pomerance (Math. Comp. 1993) prove that the error probability of the one-base strong test on random b-bit numbers tends to 0.",
+   "source": "https://math.stackexchange.com/a/1806261",
+   "date": "2016-05-30"
+  },
+  "mse-1870482": {
+   "reason": "An answer proves the general statement: if every prime appears in |G| with exponent at most 3, then the Frattini subgroup is cyclic.",
+   "source": "https://math.stackexchange.com/a/3107751",
+   "date": "2019-02-10"
+  },
+  "mse-2271294": {
+   "reason": "Answered: TSP with precedence constraints is NP-hard, since with no constraints it is the TSP.",
+   "source": "https://math.stackexchange.com/a/3574011",
+   "date": "2020-03-08"
+  },
+  "mse-2363374": {
+   "reason": "Disproved: the numbers of monomials are 1,1,2,3,5,8,14,24,... (OEIS A290075), not Fibonacci numbers.",
+   "source": "https://math.stackexchange.com/a/2363447",
+   "date": "2017-07-19"
+  },
+  "mse-2476338": {
+   "reason": "Answered: the generalized Rogers-Ramanujan continued fraction F(a,q) is the odd part of H(a,q), so the two agree.",
+   "source": "https://math.stackexchange.com/a/2479258",
+   "date": "2017-10-18"
+  },
+  "mse-3142145": {
+   "reason": "Answered by the asker: the inverse is only shown to be a polynomial in f^-1(y), not in y, so the argument proves nothing.",
+   "source": "https://math.stackexchange.com/a/3142274",
+   "date": "2019-03-10"
+  },
+  "mse-3241568": {
+   "reason": "An answer proves the expansion and gives every coefficient through Bell polynomials of c_m = -2^(2m) Gamma(m) zeta(2m)/(2^(2m)-1).",
+   "source": "https://math.stackexchange.com/a/3241900",
+   "date": "2019-05-27"
+  },
+  "mse-3290080": {
+   "reason": "Closed as a duplicate of a question whose accepted answer proves x^y - y^x = x + y has only the solution (2,5).",
+   "source": "https://math.stackexchange.com/a/2457272",
+   "date": "2017-10-04"
+  },
+  "mse-3371305": {
+   "reason": "Closed as a duplicate: since log10 2 is irrational, 2^k begins with any given digit string for some k (equidistribution).",
+   "source": "https://math.stackexchange.com/a/13134",
+   "date": "2010-12-05"
+  },
+  "mse-3626640": {
+   "reason": "Answered: van der Poorten's Notes on Fermat's last theorem (1996) records that Beukers' computer search found four of the large solutions and Zagier's the fifth.",
+   "source": "https://math.stackexchange.com/a/3638161",
+   "date": "2020-04-22"
+  },
+  "mse-3679252": {
+   "reason": "Answered: the answer checks the proof, fixes the second part and shows A is the frontier of X minus A.",
+   "source": "https://math.stackexchange.com/a/3679481",
+   "date": "2020-05-17"
+  },
+  "mse-3767162": {
+   "reason": "Closed as a duplicate of a question whose accepted answer proves it: an integer is a sum of two rational squares iff it is a sum of two integer squares.",
+   "source": "https://math.stackexchange.com/a/582194",
+   "date": "2013-11-26"
+  },
+  "mse-4110221": {
+   "reason": "The continued fraction is a known result: Batut and Olivier (1980) derive it by accelerating the series for 7 zeta(3)/8, as the answer shows.",
+   "source": "https://math.stackexchange.com/a/4128536",
+   "date": "2021-05-05"
+  },
+  "mse-4781908": {
+   "reason": "Answered: the problem is NP-hard, by a reduction from minimum dominating set on a doubled graph.",
+   "source": "https://math.stackexchange.com/a/4782098",
+   "date": "2023-10-06"
+  },
+  "mse-4782732": {
+   "reason": "Closed as a duplicate: Helfgott proved the weak Goldbach conjecture (arXiv:1312.7748, 2013).",
+   "source": "https://math.stackexchange.com/questions/3164020",
+   "date": "2013"
+  },
+  "mse-4804070": {
+   "reason": "Answered: removing a constant fraction of edges leaves an exponential algorithm exponential, so it gives no polynomial-time method.",
+   "source": "https://math.stackexchange.com/a/4804135",
+   "date": "2023-11-10"
+  },
+  "mse-4847208": {
+   "reason": "Answered: the idea does not make sense, since an NP problem is a language and nondeterminism involves no randomness.",
+   "source": "https://math.stackexchange.com/a/4847235",
+   "date": "2024-01-18"
+  },
+  "mse-4948667": {
+   "reason": "False: for every parity pattern there are (uncountably many) alpha > 1 with floor(alpha^n) following it, by nested intervals.",
+   "source": "https://math.stackexchange.com/a/4948707",
+   "date": "2024-07-21"
+  },
+  "mse-4973515": {
+   "reason": "Answered: P vs NP is a formal question about step counts of Turing machines, so relativistic time has no bearing on it.",
+   "source": "https://math.stackexchange.com/a/4973520",
+   "date": "2024-09-19"
+  },
+  "mse-698138": {
+   "reason": "Answered: an argument using a fixed finite set of congruence conditions cannot work, since twin primes have density zero among the primes.",
+   "source": "https://math.stackexchange.com/a/721740",
+   "date": "2014-03-22"
+  },
+  "opg-a-game-on-an-n-x-n-grid": {
+   "reason": "Solved: the first player wins the square achievement game if and only if n >= 5 (Reid, with Lean-formalized proofs).",
+   "source": "https://arxiv.org/abs/2610.22410",
+   "date": "2026-10"
+  },
+  "opg-are-critical-k-forests-tight": {
+   "reason": "Disproved: Gebauer, Gundert, Moser and Okamoto give a saturated (critical) 3-forest that is not tight, resolving Strausz's problem.",
+   "source": "https://arxiv.org/abs/1109.3390",
+   "date": "2011"
+  },
+  "opg-bene-conjecture-graph-theoretic-form-0": {
+   "reason": "Disproved: for every N >= 2 there is a simple N-regular ordered two-stage graph L_N with F(L_N) = 2 and R(L_N) >= N, refuting R(L) <= 2F(L) as stated on OPG (the companion partition-stabilizer form is already recorded as known).",
+   "source": "https://arxiv.org/abs/2607.15296",
+   "date": "2026-07"
+  },
+  "opg-book-thickness-of-subdivisions": {
+   "reason": "Disproved: Dujmovic, Eppstein, Hickingbotham, Morin and Wood construct graphs of queue-number at most 4 and unbounded stack-number, resolving the Blankenship-Oporowski problem (Combinatorica 2022).",
+   "source": "https://arxiv.org/abs/2011.04195",
+   "date": "2020"
+  },
+  "opg-chromatic-number-of-common-graphs": {
+   "reason": "Answered negatively: Kral, Volec and Wei construct common graphs of arbitrarily large chromatic number.",
+   "source": "https://arxiv.org/abs/2206.05800",
+   "date": "2022"
+  },
+  "opg-complete-bipartite-subgraphs-of-perfect-graphs": {
+   "reason": "Proved by Scott, Seymour and Spirkl (Pure pairs V, Combinatorica 2023): every perfect graph has a pure pair of sizes at least eps n^(1-c), i.e. a large complete bipartite subgraph in G or its complement.",
+   "source": "https://arxiv.org/abs/2105.03956",
+   "date": "2021"
+  },
+  "opg-cores-of-strongly-regular-graphs": {
+   "reason": "Proved by Roberson: every endomorphism of a primitive strongly regular graph is an automorphism or a colouring, so its core is itself or complete (confirming Cameron-Kazanidis).",
+   "source": "https://arxiv.org/abs/1601.00969",
+   "date": "2016"
+  },
+  "opg-covering-systems-with-big-moduli": {
+   "reason": "Answered negatively: Hough proved that the least modulus of a covering system with distinct moduli is at most 10^18 (Annals 2015).",
+   "source": "https://arxiv.org/abs/1307.0874",
+   "date": "2013"
+  },
+  "opg-erdos-posa-property-for-long-directed-cycles": {
+   "reason": "Proved as a consequence of the directed grid theorem: Kawarabayashi and Kreutzer show that directed cycles of length at least l have the (vertex) Erdos-Posa property for every l (STOC 2015).",
+   "source": "https://arxiv.org/abs/1411.5681",
+   "date": "2014-11"
+  },
+  "opg-every-prism-over-a-3-connected-planar-graph-is-hamiltonian": {
+   "reason": "Disproved: Spacapan constructed a 3-connected planar graph whose prism is not Hamiltonian (J. Combin. Theory Ser. B 2021).",
+   "source": "https://arxiv.org/abs/1906.06683",
+   "date": "2019"
+  },
+  "opg-extremal-problem-on-the-number-of-tree-endomorphism": {
+   "reason": "Proved by Csikvari and Lin: among trees on m vertices the path has the fewest and the star the most endomorphisms.",
+   "source": "https://arxiv.org/abs/1307.6721",
+   "date": "2013"
+  },
+  "opg-finite-satisfiability-of-positive-horn-logic-entailment": {
+   "reason": "Solved by Bova and Mogavero (LICS 2017): via finite quasi-Herbrand models, entailment and finite entailment for positive Horn (quantified conjunctive) sentences coincide, answering Chen-Madelaine-Martin.",
+   "source": "https://doi.org/10.1109/LICS.2017.8005073",
+   "date": "2017"
+  },
+  "opg-goldbergs-conjecture": {
+   "reason": "Proved by Chen, Jing and Zang (Proof of the Goldberg-Seymour conjecture, J. Comb. Optim. 50 (2025)).",
+   "source": "https://arxiv.org/abs/1901.10316",
+   "date": "2019"
+  },
+  "opg-grunbaums-conjecture": {
+   "reason": "Disproved: Kochol constructed snarks with polyhedral embeddings in every orientable surface of genus at least 5, whose duals are triangulations that are not 3-edge-colourable (as the OPG comments record).",
+   "source": "https://www.ams.org/journals/proc/2009-137-05/S0002-9939-08-09698-6",
+   "date": "2009"
+  },
+  "opg-highly-arc-transitive-two-ended-digraphs": {
+   "reason": "Disproved: DeVos, Mohar and Samal construct two-ended highly arc-transitive digraphs whose tiles are not disjoint unions of complete bipartite graphs.",
+   "source": "https://arxiv.org/abs/1110.2945",
+   "date": "2011"
+  },
+  "opg-laplacian-degrees-of-a-graph": {
+   "reason": "Proved by Brouwer and Haemers: the j-th largest Laplacian eigenvalue of a connected graph is at least d_j - j + 2 (Linear Algebra Appl. 429 (2008) 2131-2135).",
+   "source": "https://doi.org/10.1016/j.laa.2008.06.008",
+   "date": "2008"
+  },
+  "opg-number-of-cliques-in-minor-closed-classes": {
+   "reason": "Answered positively by Lee and Oum: graphs with no K_t subdivision (hence no K_t minor) have at most 2^(50t) n cliques; Fox and Wei later found the sharp constant.",
+   "source": "https://arxiv.org/abs/1407.7707",
+   "date": "2014"
+  },
+  "opg-ptas-for-feedback-arc-set-in-tournaments": {
+   "reason": "Answered: Kenyon-Mathieu and Schudy gave a PTAS for (weighted) feedback arc set in tournaments (STOC 2007).",
+   "source": "https://eccc.weizmann.ac.il/report/2006/144/",
+   "date": "2006"
+  },
+  "opg-rank-vs-genus": {
+   "reason": "Answered: Tao Li constructed closed hyperbolic 3-manifolds whose rank is smaller than their Heegaard genus, with arbitrarily large discrepancy (J. Amer. Math. Soc. 2013).",
+   "source": "https://arxiv.org/abs/1106.6302",
+   "date": "2011"
+  },
+  "opg-real-roots-of-the-flow-polynomial": {
+   "reason": "False: there are flow polynomials with real roots above 4 (Royle 2009), and Jacobsen and Salas found graphs whose flow roots exceed 5.",
+   "source": "https://arxiv.org/abs/1009.4062",
+   "date": "2010"
+  },
+  "opg-seymours-self-minor-conjecture": {
+   "reason": "Disproved as stated (every infinite graph): Oporowski gave an uncountable graph that is not a proper minor of itself (J. Graph Theory 14 (1990) 521-524); the countable case is a different, still open question.",
+   "source": "https://doi.org/10.1002/jgt.3190140502",
+   "date": "1990"
+  },
+  "opg-shuffle-exchange-conjecture": {
+   "reason": "Disproved as stated (for all k, n >= 2): d(k,3) = 6 > 2n-1 = 5 for every k >= 3; the binary case k = 2 is not decided by this.",
+   "source": "https://arxiv.org/abs/2607.15296",
+   "date": "2026-07"
+  },
+  "opg-shuffle-exchange-conjecture-graph-theoretic-form": {
+   "reason": "Disproved as stated: for the directed shuffle-exchange network d(k,3) = 6 for every k >= 3, not 2n-1 = 5; the binary case k = 2 is not decided by this.",
+   "source": "https://arxiv.org/abs/2607.15296",
+   "date": "2026-07"
+  },
+  "opg-snevilys-conjecture": {
+   "reason": "Proved by Arsovski (Israel J. Math. 182 (2011), 505-508); Harcos, Karolyi and Kos give a shortened proof.",
+   "source": "https://arxiv.org/abs/1004.0253",
+   "date": "2009"
+  },
+  "opg-subgroup-formed-by-elements-of-order-dividing-n": {
+   "reason": "Frobenius' conjecture was proved by Iiyori and Yamaki using the classification of finite simple groups (Bull. Amer. Math. Soc. 25 (1991)), as the OPG comments cite.",
+   "source": "https://doi.org/10.1090/S0273-0979-1991-16084-2",
+   "date": "1991"
+  },
+  "opg-textbf-convex-fair-partitions-of-convex-polygons": {
+   "reason": "Proved by Akopyan, Avvakumov and Karasev: every planar convex body can be partitioned into m convex pieces of equal area and perimeter for every m >= 2.",
+   "source": "https://arxiv.org/abs/1804.03057",
+   "date": "2018"
+  },
+  "opg-universal-highly-arc-transitive-digraphs": {
+   "reason": "Answered positively: DeVos, Mohar and Samal construct a locally finite highly arc-transitive digraph with universal reachability relation.",
+   "source": "https://arxiv.org/abs/1110.2945",
+   "date": "2011"
+  },
+  "opg-what-is-the-largest-graph-of-positive-curvature": {
+   "reason": "Answered by Ghidelli: every planar PCC graph has at most 208 vertices, and 208 is attained (Nicholson-Sneddon).",
+   "source": "https://arxiv.org/abs/1708.08502",
+   "date": "2017"
+  }
+ }
+}

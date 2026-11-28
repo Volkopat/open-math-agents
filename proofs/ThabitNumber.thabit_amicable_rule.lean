@@ -1,100 +1,62 @@
 import FormalConjectures.Wikipedia.ThabitNumber
 
--- Problem: Thābit ibn Qurra's amicable number theorem
--- Upstream: formal-conjectures FormalConjectures/Wikipedia/ThabitNumber.lean:76 (declaration ThabitNumber.thabit_amicable_rule)
--- Credit: @philipsaint (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+/-!
+# Thābit ibn Qurra's construction of amicable numbers
 
-/-- The sum of divisors of a power of two: `σ(2^k) + 1 = 2^(k+1)`. -/
-theorem OMA.sigma_two_pow (k : ℕ) :
-    ArithmeticFunction.sigma 1 (2 ^ k) + 1 = 2 ^ (k + 1) := by
-  rw [ArithmeticFunction.sigma_one_apply, Nat.sum_divisors_prime_pow Nat.prime_two]
-  induction k with
-  | zero => simp
-  | succ k ih =>
-    rw [Finset.sum_range_succ, pow_succ 2 (k + 1)]
-    omega
+We calculate the common divisor sum once for two products of primes and a power of two,
+then specialize the resulting criterion to the Thābit numbers.
+-/
 
-/-- The sum of divisors of a prime `p` is `p + 1`. -/
-theorem OMA.sigma_prime {p : ℕ} (hp : p.Prime) :
-    ArithmeticFunction.sigma 1 p = p + 1 := by
-  rw [ArithmeticFunction.sigma_one_apply, hp.sum_divisors]
+open ArithmeticFunction ThabitNumber
 
-/-- The arithmetic core of Thābit's rule, with `t = 2^(n-1)`, `N = 2^n`, `S = σ(N)`. -/
-theorem OMA.thabit_core {t N P Q R : ℕ} (ht : 2 ≤ t) (hN : N = 2 * t)
-    (hS : ArithmeticFunction.sigma 1 N + 1 = 4 * t)
-    (hNP : Nat.Coprime N P) (hNQ : Nat.Coprime N Q) (hNR : Nat.Coprime N R)
-    (hP : P + 1 = 3 * t) (hQ : Q + 1 = 6 * t) (hR : R + 1 = 18 * (t * t))
-    (hp : P.Prime) (hq : Q.Prime) (hr : R.Prime) :
-    IsAmicable (N * P * Q) (N * R) := by
-  have hPQ : Nat.Coprime P Q := (Nat.coprime_primes hp hq).2 (by omega)
-  have hsA : ArithmeticFunction.sigma 1 (N * P * Q)
-      = ArithmeticFunction.sigma 1 N * (P + 1) * (Q + 1) := by
-    rw [ArithmeticFunction.isMultiplicative_sigma.map_mul_of_coprime
-        (Nat.Coprime.mul_left hNQ hPQ),
-      ArithmeticFunction.isMultiplicative_sigma.map_mul_of_coprime hNP,
-      OMA.sigma_prime hp, OMA.sigma_prime hq]
-  have hsB : ArithmeticFunction.sigma 1 (N * R)
-      = ArithmeticFunction.sigma 1 N * (R + 1) := by
-    rw [ArithmeticFunction.isMultiplicative_sigma.map_mul_of_coprime hNR,
-      OMA.sigma_prime hr]
-  generalize ArithmeticFunction.sigma 1 N = S at hS hsA hsB
-  have zS : (S : ℤ) = 4 * t - 1 := by have : (S : ℤ) + 1 = 4 * t := by exact_mod_cast hS
-                                      linarith
-  have zP : (P : ℤ) = 3 * t - 1 := by have : (P : ℤ) + 1 = 3 * t := by exact_mod_cast hP
-                                      linarith
-  have zQ : (Q : ℤ) = 6 * t - 1 := by have : (Q : ℤ) + 1 = 6 * t := by exact_mod_cast hQ
-                                      linarith
-  have zR : (R : ℤ) = 18 * (t * t) - 1 := by
-    have : (R : ℤ) + 1 = 18 * (t * t) := by exact_mod_cast hR
-    linarith
+private lemma sigma_mul_prime {a p : ℕ} (hp : p.Prime) (h : a.Coprime p) :
+    sigma 1 (a * p) = sigma 1 a * (p + 1) := by
+  rw [isMultiplicative_sigma.map_mul_of_coprime h,
+    show sigma 1 p = p + 1 by rw [sigma_one_apply, hp.sum_divisors]]
+
+/-- Both candidates have the same divisor sum. The balance condition identifies it with their sum. -/
+theorem OMA.amicable_of_balance {k p q r : ℕ} (hp : p.Prime) (hq : q.Prime) (hr : r.Prime)
+    (hp2 : 2 < p) (hpq : p < q) (hprod : (p + 1) * (q + 1) = r + 1)
+    (hbal : 2 ^ k * ((p + 1) + (q + 1)) = r + 1) :
+    IsAmicable (2 ^ k * p * q) (2 ^ k * r) := by
+  have cop {x : ℕ} (hx : x.Prime) (hne : 2 ≠ x) : (2 ^ k).Coprime x :=
+    ((Nat.coprime_primes Nat.prime_two hx).2 hne).pow_left k
+  have hs : sigma 1 (2 ^ k) + 1 = 2 * 2 ^ k := by
+    rw [sigma_one_apply_prime_pow Nat.prime_two]
+    simpa [pow_succ'] using geom_sum_mul_add (1 : ℕ) (k + 1)
+  have he : p * q + p + q = r := by nlinarith only [hprod]
+  have total : sigma 1 (2 ^ k) * (r + 1) = 2 ^ k * p * q + 2 ^ k * r := by
+    nlinarith only [congrArg (fun a : ℕ => a * (r + 1)) hs,
+      congrArg (fun a : ℕ => 2 ^ k * a) he, hbal]
   refine ⟨?_, ?_, ?_⟩
-  · rw [hsA, hN]
-    zify
-    rw [zS, zP, zQ, zR]
-    ring
-  · rw [hsB, hN]
-    zify
-    rw [zS, zP, zQ, zR]
-    ring
-  · intro h
-    have h2 : P * Q = R := by
-      have hN0 : 0 < N := by omega
-      have : N * (P * Q) = N * R := by rw [← mul_assoc]; exact h
-      exact Nat.eq_of_mul_eq_mul_left hN0 this
-    have z2 : (P : ℤ) * Q = R := by exact_mod_cast h2
-    rw [zP, zQ, zR] at z2
-    have ht' : (2 : ℤ) ≤ t := by exact_mod_cast ht
-    nlinarith
+  · rw [sigma_mul_prime hq ((cop hq (by omega)).mul_left ((Nat.coprime_primes hp hq).2 hpq.ne)),
+      sigma_mul_prime hp (cop hp (by omega)), mul_assoc, hprod]
+    exact total
+  · rw [sigma_mul_prime hr (cop hr (by omega))]
+    exact total
+  · rw [mul_assoc]
+    exact (Nat.mul_lt_mul_of_pos_left (by omega : p * q < r) (by positivity)).ne
 
 theorem OMA.solution : type_of% @ThabitNumber.thabit_amicable_rule := by
   intro n hn hp hq hr
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
-  have hm : 1 ≤ m := by omega
-  rw [Nat.add_sub_cancel] at hp
-  have ht : 2 ≤ 2 ^ m := by
-    calc 2 = 2 ^ 1 := by norm_num
-      _ ≤ 2 ^ m := Nat.pow_le_pow_right (by norm_num) hm
-  have e1 : 2 ^ (m + 1) = 2 * 2 ^ m := by rw [pow_succ]; ring
-  have e2 : 2 ^ (2 * (m + 1) - 1) = 2 * (2 ^ m * 2 ^ m) := by
-    have : 2 * (m + 1) - 1 = m + m + 1 := by omega
-    rw [this, pow_succ, pow_add]; ring
-  have hS : ArithmeticFunction.sigma 1 (2 ^ (m + 1)) + 1 = 4 * 2 ^ m := by
-    rw [OMA.sigma_two_pow, pow_succ, pow_succ]; ring
-  unfold ThabitNumber.thabitNumber at hp hq ⊢
-  rw [e2] at hr ⊢
-  have hP : 3 * 2 ^ m - 1 + 1 = 3 * 2 ^ m := by omega
-  have hQ : 3 * 2 ^ (m + 1) - 1 + 1 = 6 * 2 ^ m := by omega
-  have hR : 9 * (2 * (2 ^ m * 2 ^ m)) - 1 + 1 = 18 * (2 ^ m * 2 ^ m) := by
-    have : 0 < 2 ^ m * 2 ^ m := by positivity
+  let t : ℕ := 2 ^ m
+  have ht : 2 ≤ t := Nat.pow_le_pow_right (by decide : 0 < 2) (by omega : 1 ≤ m)
+  have hn' : 2 ^ (m + 1) = 2 * t := pow_succ' 2 m
+  have he : 2 ^ (2 * (m + 1) - 1) = (2 * t) * t := by
+    rw [show 2 * (m + 1) - 1 = (m + 1) + m by omega, pow_add, hn']
+  have hP : thabitNumber (m + 1 - 1) + 1 = 3 * t := by
+    simp only [Nat.add_sub_cancel, thabitNumber]
+    change 3 * t - 1 + 1 = 3 * t
     omega
-  have odd_cop : ∀ {x : ℕ}, x.Prime → x ≠ 2 → Nat.Coprime (2 ^ (m + 1)) x := by
-    intro x hx hx2
-    exact Nat.Coprime.pow_left _ ((Nat.coprime_primes Nat.prime_two hx).2 (Ne.symm hx2))
-  have hp2 : 3 * 2 ^ m - 1 ≠ 2 := by omega
-  have hq2 : 3 * 2 ^ (m + 1) - 1 ≠ 2 := by omega
-  have hr2 : 9 * (2 * (2 ^ m * 2 ^ m)) - 1 ≠ 2 := by
-    have : 4 ≤ 2 ^ m * 2 ^ m := Nat.mul_le_mul ht ht
+  have hQ : thabitNumber (m + 1) + 1 = 6 * t := by
+    rw [thabitNumber, hn']
     omega
-  exact OMA.thabit_core ht e1 hS (odd_cop hp hp2) (odd_cop hq hq2)
-    (odd_cop hr hr2) hP hQ hR hp hq hr
+  have hR : 9 * 2 ^ (2 * (m + 1) - 1) - 1 + 1 = 18 * (t * t) := by
+    rw [he, Nat.sub_add_cancel (Nat.succ_le_of_lt (by positivity))]
+    ring
+  apply OMA.amicable_of_balance hp hq hr (by omega) (by omega)
+  · rw [hP, hQ, hR]
+    ring
+  · rw [hP, hQ, hR, hn']
+    ring

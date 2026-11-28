@@ -60,27 +60,6 @@ theorem iso_of_mul_equiv {G H : FiniteGrp} (e : G ≃ H)
   let f : G ≃* H := { e with map_mul' := h }
   exact ⟨InducedCategory.isoMk (F := FiniteGrp.toGrp) f.toGrpIso⟩
 
-/-- Equality of the isomorphism classes is exactly simultaneous relabeling
-of the two input positions and the output by one permutation. -/
-theorem groupClass_eq_iff {n : ℕ} (s t : GroupTable n) :
-    groupClass s = groupClass t ↔
-      ∃ e : Equiv.Perm (Fin n), ∀ a b, e (s.val a b) = t.val (e a) (e b) := by
-  constructor
-  · intro h
-    obtain ⟨i⟩ := Quotient.exact h
-    let e := ((inducedFunctor FiniteGrp.toGrp).mapIso i).groupIsoToMulEquiv
-    refine ⟨e.toEquiv, fun a b => ?_⟩
-    have hmul (a b : model s) :
-        e (product (model s) a b) = product (model t) (e a) (e b) := e.map_mul a b
-    exact (congrArg (fun z => e z) (model_mul s a b)).symm.trans
-      ((hmul a b).trans (model_mul t (e a) (e b)))
-  · rintro ⟨e,h⟩
-    apply Quotient.sound
-    apply iso_of_mul_equiv e
-    intro a b
-    exact (congrArg (fun z => e z) (model_mul s a b)).trans
-      ((h a b).trans (model_mul t (e a) (e b)).symm)
-
 /-- Every group of order n can be labeled with the elements of Fin n. -/
 theorem range_groupClass (n : ℕ) : Set.range (@groupClass n) = orderClasses n := by
   ext c
@@ -97,41 +76,9 @@ theorem range_groupClass (n : ℕ) : Set.range (@groupClass n) = orderClasses n 
     intro a b
     exact (congrArg (fun z => e z) (model_mul t a b)).trans (e.apply_symm_apply (e a * e b))
 
-/-- The kernel relation has the explicit relabeling description in
-`groupClass_eq_iff`. -/
-noncomputable def relabelSetoid (n : ℕ) : Setoid (GroupTable n) :=
-  Setoid.ker (@groupClass n)
-
-/-- Group isomorphism classes of order n are in bijection with group
-multiplication tables on n labels up to relabeling. -/
-noncomputable def tablesEquivClasses (n : ℕ) :
-    Quotient (relabelSetoid n) ≃ orderClasses n :=
-  (Setoid.quotientKerEquivRange (@groupClass n)).trans (Equiv.setCongr (range_groupClass n))
-
-theorem g_eq_card_tables (n : ℕ) : Erdos1160.g n = Nat.card (Quotient (relabelSetoid n)) :=
-  (Nat.card_congr (tablesEquivClasses n)).symm
-
-/-- A coarse upper bound obtained by ignoring the group axioms and counting all
-binary operations on the labeled carrier. -/
-theorem g_le_table_count (n : ℕ) : Erdos1160.g n ≤ n ^ (n * n) := by
-  rw [g_eq_card_tables]
-  calc
-    Nat.card (Quotient (relabelSetoid n)) ≤ Nat.card (GroupTable n) :=
-      Nat.card_le_card_of_surjective _ Quotient.mk_surjective
-    _ ≤ Nat.card (Fin n → Fin n → Fin n) :=
-      Nat.card_le_card_of_injective Subtype.val Subtype.val_injective
-    _ = n ^ (n * n) := by rw [Nat.card_fun, Nat.card_fun, Nat.card_fin, pow_mul]
-
 theorem orderClasses_finite (n : ℕ) : (orderClasses n).Finite := by
   rw [← range_groupClass]
   exact Set.finite_range _
-
-theorem g_pos {n : ℕ} (hn : 0 < n) : 0 < Erdos1160.g n := by
-  let : NeZero n := ⟨hn.ne'⟩
-  let G := @FiniteGrp.of (Multiplicative (Fin n)) inferInstance (inferInstanceAs (Finite (Fin n)))
-  change 0 < (orderClasses n).ncard
-  exact ((Set.ncard_pos (orderClasses_finite n)).2
-    ⟨Quotient.mk _ G, G, Nat.card_fin n, rfl⟩)
 
 end Erdos1160.Tables
 
@@ -342,9 +289,6 @@ def doubleClass : GroupClass → GroupClass :=
     let f : withC2 G ≃* withC2 H := e.prodCongr (MulEquiv.refl C₂)
     exact ⟨InducedCategory.isoMk (F := FiniteGrp.toGrp) f.toGrpIso⟩)
 
-lemma doubleClass_mk (G : FiniteGrp.{0}) :
-    doubleClass (Quotient.mk _ G) = Quotient.mk _ (withC2 G) := rfl
-
 lemma doubleClass_injective : Function.Injective doubleClass := by
   intro x y
   induction x, y using Quotient.inductionOn₂ with
@@ -361,18 +305,6 @@ lemma doubleClass_maps (n : ℕ) : Set.MapsTo doubleClass (orderClasses n) (orde
   change Nat.card (G × C₂) = n * 2
   rw [Nat.card_prod, show Nat.card G = n from hG]
   exact congrArg (n * ·) (Nat.card_fin 2)
-
-lemma mem_doubleClass_image_iff (n : ℕ) (y : GroupClass) :
-    y ∈ doubleClass '' orderClasses n ↔ ∃ G : FiniteGrp.{0}, Nat.card G = n ∧
-      Quotient.mk _ (withC2 G) = y := by
-  constructor
-  · rintro ⟨_, ⟨G,hG,rfl⟩, h⟩
-    exact ⟨G,hG,h⟩
-  · rintro ⟨G,hG,rfl⟩
-    exact ⟨Quotient.mk _ G, ⟨G,hG,rfl⟩, rfl⟩
-
-lemma ncard_doubleClass_image (n : ℕ) : (doubleClass '' orderClasses n).ncard = g n :=
-  (Set.injOn_of_injective doubleClass_injective).ncard_image
 
 theorem g_le_g_double (n : ℕ) : g n ≤ g (n * 2) :=
   Set.ncard_le_ncard_of_injOn doubleClass (doubleClass_maps n)
@@ -428,11 +360,6 @@ instance : Group (BilinearExtension B) where
     apply BilinearExtension.ext <;> simp
   inv_mul_cancel x := by
     apply BilinearExtension.ext <;> simp
-
-def projection (B : V →+ V →+ W) : BilinearExtension B →* Multiplicative V where
-  toFun x := Multiplicative.ofAdd x.base
-  map_mul' _ _ := rfl
-  map_one' := rfl
 
 def coordinateEquiv (B : V →+ V →+ W) : BilinearExtension B ≃ V × W where
   toFun x := (x.base, x.fiber)
@@ -502,16 +429,6 @@ theorem commutator_YX (t : T d) (i j : Fin d) :
   rw [cross_form]
   have hz : form t (basis j, 0) (0, basis i) = 0 := by funext k; simp [form]
   rw [hz, sub_zero]
-
-lemma XYZ_normal (t : T d) (x y z : V d) :
-    X t x * Y t y * Z t z = ⟨(x,y),z⟩ := by
-  apply BilinearExtension.ext
-  · simp [X,Y,Z]
-  · rw [BilinearExtension.mul_fiber, BilinearExtension.mul_fiber]
-    simp [X, Y, Z, form]
-    funext k; simp
-
-theorem Z_injective (t : T d) : Function.Injective (Z t) := fun _ _ h => congrArg BilinearExtension.fiber h
 
 lemma Z_add (t : T d) (u v : V d) : Z t (u + v) = Z t u * Z t v := by
   apply BilinearExtension.ext <;> simp [Z]

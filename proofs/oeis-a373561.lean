@@ -1,8 +1,5 @@
 import OMAStatements.S_oeis_a373561
-import Mathlib.Algebra.BigOperators.Group.Finset.Piecewise
-import Mathlib.Algebra.BigOperators.Ring.Finset
-import Mathlib.Tactic.LinearCombination
-import Mathlib.Tactic.Ring
+import Mathlib
 
 namespace OMA.S_oeis_a373561
 

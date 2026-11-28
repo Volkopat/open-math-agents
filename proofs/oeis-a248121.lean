@@ -151,28 +151,15 @@ private lemma tail_bounds (n : ℕ) :
 
 private def b (n : ℕ) : ℤ := (6 * (n : ℤ) ^ 2 + 2 * (n : ℤ)) / 3
 
+-- omega treats m ^ 2 as an atom once ring_nf has expanded the square
 private lemma b_mod_zero (m : ℕ) : b (3 * m) = 18 * (m : ℤ) ^ 2 + 2 * (m : ℤ) := by
-  simp only [b]
-  push_cast
-  have h : 6 * (3 * (m : ℤ)) ^ 2 + 2 * (3 * (m : ℤ)) =
-      (18 * (m : ℤ) ^ 2 + 2 * (m : ℤ)) * 3 := by ring
-  rw [h, Int.mul_ediv_cancel _ (by norm_num)]
+  simp only [b]; push_cast; ring_nf; omega
 
 private lemma b_mod_one (m : ℕ) : b (3 * m + 1) = 18 * (m : ℤ) ^ 2 + 14 * (m : ℤ) + 2 := by
-  simp only [b]
-  push_cast
-  have h : 6 * (3 * (m : ℤ) + 1) ^ 2 + 2 * (3 * (m : ℤ) + 1) =
-      2 + (18 * (m : ℤ) ^ 2 + 14 * (m : ℤ) + 2) * 3 := by ring
-  rw [h, Int.add_mul_ediv_right _ _ (by norm_num)]
-  norm_num
+  simp only [b]; push_cast; ring_nf; omega
 
 private lemma b_mod_two (m : ℕ) : b (3 * m + 2) = 18 * (m : ℤ) ^ 2 + 26 * (m : ℤ) + 9 := by
-  simp only [b]
-  push_cast
-  have h : 6 * (3 * (m : ℤ) + 2) ^ 2 + 2 * (3 * (m : ℤ) + 2) =
-      1 + (18 * (m : ℤ) ^ 2 + 26 * (m : ℤ) + 9) * 3 := by ring
-  rw [h, Int.add_mul_ediv_right _ _ (by norm_num)]
-  norm_num
+  simp only [b]; push_cast; ring_nf; omega
 
 private lemma a_eq_b (n : ℕ) : OMA.S_oeis_a248121.a n = b n := by
   by_cases hn : n = 0
@@ -297,30 +284,15 @@ private lemma a_eq_b (n : ℕ) : OMA.S_oeis_a248121.a n = b n := by
       exact hmul_lo
 
 private lemma b_add_three (n : ℕ) : b (n + 3) = b n + 12 * (n : ℤ) + 20 := by
-  simp only [b]
-  push_cast
-  have h : 6 * ((n : ℤ) + 3) ^ 2 + 2 * ((n : ℤ) + 3) =
-      (6 * (n : ℤ) ^ 2 + 2 * (n : ℤ)) + (12 * (n : ℤ) + 20) * 3 := by ring
-  rw [h, Int.add_mul_ediv_right _ _ (by norm_num)]
-  ring
+  simp only [b]; push_cast; ring_nf; omega
 
 private lemma b_rec (n : ℕ) (hn : 5 < n) :
     b n = 2 * b (n - 1) - b (n - 2) + b (n - 3) - 2 * b (n - 4) + b (n - 5) := by
   obtain ⟨k, rfl⟩ : ∃ k, n = k + 5 := ⟨n - 5, by omega⟩
-  have h1 := b_add_three (k + 2)
-  have h2 := b_add_three (k + 1)
-  have h3 := b_add_three k
-  have hk2 : k + 2 + 3 = k + 5 := by omega
-  have hk1 : k + 1 + 3 = k + 4 := by omega
-  rw [hk2] at h1
-  rw [hk1] at h2
-  have s1 : k + 5 - 1 = k + 4 := by omega
-  have s2 : k + 5 - 2 = k + 3 := by omega
-  have s3 : k + 5 - 3 = k + 2 := by omega
-  have s4 : k + 5 - 4 = k + 1 := by omega
-  have s5 : k + 5 - 5 = k := by omega
-  rw [s1, s2, s3, s4, s5]
-  push_cast at h1 h2 h3
+  have := b_add_three (k + 2)
+  have := b_add_three (k + 1)
+  have := b_add_three k
+  simp at *
   linarith
 
 end

@@ -15,21 +15,17 @@ theorem OMA.solution : OMA.R_PoincareConjecture_poincare_conjecture_variants_dim
   choose! V hKV hVo hVc hVe using hyp
   let L : ℕ → Set N := fun j => Nat.rec (compactCovering N 0)
     (fun j W => closure (V W) ∪ compactCovering N (j+1)) j
-  have hL0 : L 0 = compactCovering N 0 := rfl
-  have hLs : ∀ j, L (j+1) = closure (V (L j)) ∪ compactCovering N (j+1) := fun j => rfl
-  have hLc : ∀ j, IsCompact (L j) := by
-    intro j
+  have compact (j : ℕ) : IsCompact (L j) := by
     induction j with
-    | zero => rw [hL0]; exact isCompact_compactCovering N 0
-    | succ j ih => rw [hLs]; exact (hVc _ ih).union (isCompact_compactCovering N _)
-  have hcov : ∀ j, compactCovering N j ⊆ L j := by
-    intro j
+    | zero => exact isCompact_compactCovering N 0
+    | succ j ih => exact (hVc _ ih).union (isCompact_compactCovering N _)
+  have cover (j : ℕ) : compactCovering N j ⊆ L j := by
     cases j with
-    | zero => rw [hL0]
-    | succ j => rw [hLs]; exact subset_union_right
-  refine ⟨fun j => V (L j), fun j => ⟨hVo _ (hLc j), hVe _ (hLc j)⟩, ?_, ?_⟩
+    | zero => exact fun _ hx => hx
+    | succ j => exact subset_union_right
+  refine ⟨fun j => V (L j), fun j => ⟨hVo _ (compact j), hVe _ (compact j)⟩, ?_, ?_⟩
   · intro j
-    exact (hLs j ▸ subset_union_left).trans (hKV _ (hLc (j+1)))
-  · refine eq_univ_of_forall fun x => ?_
-    obtain ⟨j, hj⟩ := mem_iUnion.mp ((iUnion_compactCovering N).symm ▸ mem_univ x : x ∈ ⋃ j, compactCovering N j)
-    exact mem_iUnion.mpr ⟨j, hKV _ (hLc j) (hcov j hj)⟩
+    exact subset_union_left.trans (hKV _ (compact (j+1)))
+  · apply eq_univ_of_univ_subset
+    rw [← iUnion_compactCovering N]
+    exact iUnion_mono fun j => (cover j).trans (hKV _ (compact j))

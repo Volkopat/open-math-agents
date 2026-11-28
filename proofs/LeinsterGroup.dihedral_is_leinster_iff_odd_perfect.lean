@@ -12,7 +12,7 @@ index-2 normal subgroups push the sum of normal subgroup orders to at least `5n 
 -- Problem: Leinster Groups — dihedral is leinster iff odd perfect
 -- Upstream: formal-conjectures FormalConjectures/Wikipedia/LeinsterGroup.lean:114 (declaration LeinsterGroup.dihedral_is_leinster_iff_odd_perfect)
 -- Credit: @TheWaler (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Original proof: @TheWaler (#346); subgroup transport uses Mathlib APIs.
 
 open scoped Classical
 
@@ -59,12 +59,7 @@ private lemma normal_of_le_rotHom_range {n : ℕ} {H : Subgroup (DihedralGroup n
 
 private lemma card_map_rotHom {n : ℕ} (K : Subgroup (Multiplicative (ZMod n))) :
     Nat.card (K.map (rotHom n)) = Nat.card K :=
-  Nat.card_congr (Equiv.ofBijective
-    (fun x : K => (⟨rotHom n x.1, Subgroup.mem_map_of_mem _ x.2⟩ : K.map (rotHom n)))
-    ⟨fun a b h => Subtype.ext (rotHom_injective n (congrArg Subtype.val h)),
-     fun ⟨y, hy⟩ => by
-       obtain ⟨x, hx, rfl⟩ := hy
-       exact ⟨⟨x, hx⟩, rfl⟩⟩).symm
+  Subgroup.card_map_of_injective (rotHom_injective n)
 
 private lemma sum_subgroup_of_isCyclic (G : Type*) [CommGroup G] [Fintype G] [IsCyclic G] :
     (∑ H : Subgroup G, Nat.card H) = ∑ d ∈ (Fintype.card G).divisors, d := by
@@ -79,16 +74,7 @@ private lemma sum_subgroup_of_isCyclic (G : Type*) [CommGroup G] [Fintype G] [Is
       exact congrArg Subtype.val h1
     have hcard : Nat.card H = Nat.card (powMonoidHom (α := G) (Nat.card H)).ker := by
       rw [IsCyclic.card_powMonoidHom_ker, Nat.gcd_eq_right (Subgroup.card_subgroup_dvd_card H)]
-    have hfin : (H : Set G).toFinset =
-        ((powMonoidHom (α := G) (Nat.card H)).ker : Set G).toFinset := by
-      apply Finset.eq_of_subset_of_card_le
-      · intro x hx
-        exact Set.mem_toFinset.mpr (hle (Set.mem_toFinset.mp hx))
-      · rw [Set.toFinset_card, Set.toFinset_card,
-          ← Nat.card_eq_fintype_card, ← Nat.card_eq_fintype_card]
-        exact hcard.ge
-    ext x
-    simpa [Set.mem_toFinset] using Finset.ext_iff.mp hfin x
+    exact Subgroup.eq_of_le_of_card_ge hle hcard.ge
   refine Finset.sum_bij (fun H _ => Nat.card H) ?_ ?_ ?_ (fun _ _ => rfl)
   · intro H _
     rw [Nat.mem_divisors]
@@ -298,19 +284,8 @@ theorem OMA.solution : type_of% @LeinsterGroup.dihedral_is_leinster_iff_odd_perf
       ⟨K.map (rotHom n), normal_of_le_rotHom_range (by
         rintro _ ⟨x, _, rfl⟩
         exact ⟨x, rfl⟩)⟩
-    have htoNorm_inj : Function.Injective toNorm := by
-      intro K₁ K₂ h
-      have hmap : K₁.map (rotHom n) = K₂.map (rotHom n) := congrArg Subtype.val h
-      ext x
-      have hx := SetLike.ext_iff.mp hmap (rotHom n x)
-      simp only [Subgroup.mem_map] at hx
-      constructor
-      · intro hx1
-        obtain ⟨y, hy, hyx⟩ := hx.mp ⟨x, hx1, rfl⟩
-        rwa [rotHom_injective n hyx] at hy
-      · intro hx2
-        obtain ⟨y, hy, hyx⟩ := hx.mpr ⟨x, hx2, rfl⟩
-        rwa [rotHom_injective n hyx] at hy
+    have htoNorm_inj : Function.Injective toNorm := fun _ _ h =>
+      Subgroup.map_injective (rotHom_injective n) (congrArg Subtype.val h)
     let Htop : {H : Subgroup (DihedralGroup n) // H.Normal} := ⟨⊤, inferInstance⟩
     have htop_notMem : Htop ∉ Finset.univ.image toNorm := by
       simp only [Finset.mem_image, Finset.mem_univ, true_and, not_exists]
@@ -327,14 +302,7 @@ theorem OMA.solution : type_of% @LeinsterGroup.dihedral_is_leinster_iff_odd_perf
       simp only [Finset.mem_univ, Finset.mem_insert, Finset.mem_image, true_and, true_iff]
       by_cases hle : H ≤ (rotHom n).range
       · right
-        refine ⟨H.comap (rotHom n), Subtype.ext ?_⟩
-        ext g
-        constructor
-        · rintro ⟨x, hx, rfl⟩
-          exact hx
-        · intro hg
-          obtain ⟨x, rfl⟩ := hle hg
-          exact ⟨x, hg, rfl⟩
+        exact ⟨H.comap (rotHom n), Subtype.ext (Subgroup.map_comap_eq_self hle)⟩
       · left
         exact Subtype.ext (normal_eq_top_of_odd_not_le_rot hodd hle)
     have hsum : (∑ H : {H : Subgroup (DihedralGroup n) // H.Normal}, Nat.card H.1) =

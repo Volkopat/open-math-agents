@@ -76,21 +76,9 @@ theorem OMA.solution : type_of% @Erdos359.erdos_359.variants.isGoodFor_1_low_val
       | succ j =>
         exact OMA359.step A hL j (by omega)
           (fun i hi => ih i (by omega) (by omega))
-  ext x
-  constructor
-  · rintro ⟨i, hi, rfl⟩
-    have hi' : i ≤ 7 := hi
-    rw [all i hi']
-    interval_cases i <;> simp [OMA359.B]
-  · intro hx
-    have hx' : x = 1 ∨ x = 2 ∨ x = 4 ∨ x = 5 ∨ x = 8 ∨ x = 10 ∨ x = 14 ∨ x = 15 := by
-      simpa using hx
-    rcases hx' with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-    · exact ⟨0, by simp, by rw [all 0 (by omega)]; rfl⟩
-    · exact ⟨1, by simp, by rw [all 1 (by omega)]; rfl⟩
-    · exact ⟨2, by simp, by rw [all 2 (by omega)]; rfl⟩
-    · exact ⟨3, by simp, by rw [all 3 (by omega)]; rfl⟩
-    · exact ⟨4, by simp, by rw [all 4 (by omega)]; rfl⟩
-    · exact ⟨5, by simp, by rw [all 5 (by omega)]; rfl⟩
-    · exact ⟨6, by simp, by rw [all 6 (by omega)]; rfl⟩
-    · exact ⟨7, by simp, by rw [all 7 (by omega)]; rfl⟩
+  have indices : (Set.Iic 7 : Set ℕ) = {0, 1, 2, 3, 4, 5, 6, 7} := by
+    ext i
+    simp only [Set.mem_Iic, Set.mem_insert_iff, Set.mem_singleton_iff]
+    omega
+  rw [Set.image_congr (s := Set.Iic 7) all, indices]
+  simp [Set.image_insert_eq, OMA359.B]

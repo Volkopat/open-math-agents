@@ -19,25 +19,12 @@ open scoped Arxiv.«0805.3777»
 
 namespace OMAProofGenRank
 
--- adapted from earlier formalisation by the same author (Matrix.range_add_le, Matrix.rank_add_le)
-theorem range_add_le {m n : Type*} [Fintype n] (A B : Matrix m n ℂ) :
-    LinearMap.range (A + B).mulVecLin
-      ≤ LinearMap.range A.mulVecLin ⊔ LinearMap.range B.mulVecLin := by
-  rintro y ⟨v, rfl⟩
-  have : (A + B).mulVecLin v = A.mulVecLin v + B.mulVecLin v := by
-    simp [Matrix.mulVecLin, Matrix.add_mulVec]
-  rw [this]
-  exact Submodule.add_mem_sup ⟨v, rfl⟩ ⟨v, rfl⟩
-
--- adapted from earlier formalisation by the same author
+-- Matrix rank subadditivity from the linear-map range API.
 theorem rank_add_le {m n : Type*} [Fintype n] (A B : Matrix m n ℂ) :
-    (A + B).rank ≤ A.rank + B.rank := by
-  classical
-  have h1 : (A + B).rank
-      ≤ Module.finrank ℂ (LinearMap.range A.mulVecLin ⊔ LinearMap.range B.mulVecLin :
-          Submodule ℂ (m → ℂ)) :=
-    Submodule.finrank_mono (range_add_le A B)
-  exact le_trans h1 (Submodule.finrank_add_le_finrank_add_finrank _ _)
+    (A + B).rank ≤ A.rank + B.rank :=
+  (Submodule.finrank_mono (by
+    simpa only [Matrix.mulVecLin_add] using LinearMap.range_add_le A.mulVecLin B.mulVecLin)).trans
+    (Submodule.finrank_add_le_finrank_add_finrank _ _)
 
 variable {m n : ℕ}
 
@@ -205,20 +192,10 @@ lemma le_rank_of_det_mul' {k l : ℕ} (A : Matrix (Fin l) (Fin k) ℂ) (Q : Matr
 
 lemma eventually_det_ne {k : ℕ} (B : Matrix (Fin k) (Fin k) ℂ) :
     ∀ᶠ t in 𝓝[≠] (0 : ℂ), (B + t • (1 : Matrix (Fin k) (Fin k) ℂ)).det ≠ 0 := by
-  set p := (-B).charpoly with hp
-  have hpe : ∀ t : ℂ, p.eval t = (B + t • (1 : Matrix (Fin k) (Fin k) ℂ)).det := by
-    intro t
-    rw [hp, Matrix.eval_charpoly, sub_neg_eq_add, add_comm, Matrix.scalar_apply,
-      ← Matrix.smul_one_eq_diagonal]
-  have hp0 : p ≠ 0 := (Matrix.charpoly_monic (-B)).ne_zero
-  have hF : {t : ℂ | p.IsRoot t}.Finite := Polynomial.finite_setOfPred_isRoot hp0
-  have hopen : IsOpen ({t : ℂ | p.IsRoot t} \ {0})ᶜ :=
-    (hF.subset Set.sdiff_subset).isClosed.isOpen_compl
-  have h0 : (0 : ℂ) ∈ ({t : ℂ | p.IsRoot t} \ {0})ᶜ := by simp
-  filter_upwards [nhdsWithin_le_nhds (hopen.mem_nhds h0), self_mem_nhdsWithin] with t ht ht0
-  rw [← hpe]
-  intro hz
-  exact ht ⟨hz, ht0⟩
+  have h := (Polynomial.eventually_cofinite_not_isRoot (Matrix.charpoly_monic (-B)).ne_zero).filter_mono
+    (nhdsNE_le_cofinite (0 : ℂ))
+  simpa only [Polynomial.IsRoot, Matrix.eval_charpoly, sub_neg_eq_add, Matrix.scalar_apply,
+    ← Matrix.smul_one_eq_diagonal, add_comm] using h
 
 /-- the k x l matrix selecting the first k coordinates -/
 def Sel (k l : ℕ) (h : k ≤ l) : Matrix (Fin k) (Fin l) ℂ :=

@@ -50,24 +50,11 @@ lemma nbr_empty (F : SimpleGraph V) : nbr F ∅ = ∅ := by
   ext y
   simp [mem_nbr]
 
-lemma nbr_singleton (F : SimpleGraph V) (x : V) :
-    nbr F {x} = Finset.univ.filter (fun y => F.Adj x y) := by
-  classical
-  ext y
-  simp [mem_nbr]
-
 /-- The external neighbourhood: neighbours that do not belong to the set itself. -/
 noncomputable def ext (F : SimpleGraph V) (X : Finset V) : Finset V := nbr F X \ X
 
 /-- The external neighbourhood inside a fixed ambient set `W`. -/
 noncomputable def extIn (F : SimpleGraph V) (W X : Finset V) : Finset V := (nbr F X \ X) ∩ W
-
-lemma extIn_univ (F : SimpleGraph V) (X : Finset V) : extIn F Finset.univ X = ext F X := by
-  classical simp [extIn, ext]
-
-lemma extIn_card_le_ext (F : SimpleGraph V) (W X : Finset V) :
-    (extIn F W X).card ≤ (ext F X).card := by
-  classical exact Finset.card_le_card Finset.inter_subset_left
 
 /-- Submodularity of the size of neighbourhoods after removing a fixed set. -/
 lemma nbr_sdiff_submod (F : SimpleGraph V) (W A B : Finset V) :
@@ -86,19 +73,6 @@ lemma nbr_sdiff_submod (F : SimpleGraph V) (W A B : Finset V) :
   have h := Finset.card_union_add_card_inter (nbr F A \ W) (nbr F B \ W)
   rw [hun]
   omega
-
-/-- The external neighbourhood of a union is contained in the union of the pieces. -/
-lemma extIn_union_sub (F : SimpleGraph V) (W S X : Finset V) (hSW : S ⊆ W) (hXW : X ⊆ W) :
-    extIn F W (S ∪ X) ⊆ extIn F W S ∪ extIn F (W \ S) X := by
-  classical
-  intro y hy
-  simp only [extIn, Finset.mem_inter, Finset.mem_sdiff, Finset.mem_union, mem_nbr] at hy ⊢
-  obtain ⟨⟨⟨x, hx, hxy⟩, hyNot⟩, hyW⟩ := hy
-  have hyS : y ∉ S := fun h => hyNot (Or.inl h)
-  have hyX : y ∉ X := fun h => hyNot (Or.inr h)
-  rcases hx with hx | hx
-  · exact Or.inl ⟨⟨⟨x, hx, hxy⟩, hyS⟩, hyW⟩
-  · exact Or.inr ⟨⟨⟨x, hx, hxy⟩, hyX⟩, hyW, hyS⟩
 
 lemma nbr_card_le_insert (F : SimpleGraph V) (X W : Finset V) (y : V) :
     (nbr F X \ W).card ≤ (nbr F X \ insert y W).card + 1 := by
@@ -119,19 +93,6 @@ def HoleFree (F : SimpleGraph V) (m : ℕ) : Prop :=
 /-- `F` expands by a factor `k` on all sets of size at most `s` inside `U`. -/
 def IsExpOn (F : SimpleGraph V) (U : Finset V) (s k : ℕ) : Prop :=
   ∀ X : Finset V, X ⊆ U → X.card ≤ s → k * X.card ≤ (extIn F U X).card
-
-lemma not_exp_iff {F : SimpleGraph V} {U : Finset V} {s k : ℕ} :
-    ¬ IsExpOn F U s k ↔
-      ∃ X : Finset V, X ⊆ U ∧ X.card ≤ s ∧ (extIn F U X).card < k * X.card := by
-  constructor
-  · intro h
-    by_contra hc
-    apply h
-    intro X hXU hXs
-    by_contra hlt
-    exact hc ⟨X, hXU, hXs, not_le.mp hlt⟩
-  · rintro ⟨X, hXU, hXs, hlt⟩ hE
-    exact absurd (hE X hXU hXs) (not_le.mpr hlt)
 
 end Basics
 
@@ -158,15 +119,6 @@ def Inv (F : SimpleGraph V) (T : SimpleGraph β) (S : Finset β) (φ : β → V)
 def Tight (F : SimpleGraph V) (T : SimpleGraph β) (S : Finset β) (φ : β → V) (d n : ℕ)
     (X : Finset V) : Prop :=
   (d + 1) * X.card = (nbr F X \ S.image φ).card + Dsum T S φ X
-
-lemma Dsum_mono (T : SimpleGraph β) (S : Finset β) (φ : β → V) {X Y : Finset V} (h : X ⊆ Y) :
-    Dsum T S φ X ≤ Dsum T S φ Y := by
-  classical
-  refine Finset.sum_le_sum (fun a _ => ?_)
-  by_cases hX : φ a ∈ X
-  · rw [if_pos hX, if_pos (h hX)]
-  · rw [if_neg hX]
-    exact Nat.zero_le _
 
 lemma Dsum_union_inter (T : SimpleGraph β) (S : Finset β) (φ : β → V) (A B : Finset V) :
     Dsum T S φ (A ∪ B) + Dsum T S φ (A ∩ B) = Dsum T S φ A + Dsum T S φ B := by
@@ -668,15 +620,6 @@ variable {β : Type*} [Fintype β] [DecidableEq β]
 def Expander (F : SimpleGraph α) (d n : ℕ) : Prop :=
   ∀ X : Finset α, X.card ≤ 2 * n → (d + 2) * X.card ≤ (ext F X).card
 
-/-- `IsExpOn` on the whole vertex set is the same as being an expander. -/
-lemma expander_iff_isExpOn_univ (F : SimpleGraph α) (d n : ℕ) :
-    Expander F d n ↔ IsExpOn F Finset.univ (2 * n) (d + 2) := by
-  unfold Expander IsExpOn
-  refine forall_congr' (fun X => ?_)
-  have hU : X ⊆ (Finset.univ : Finset α) := Finset.subset_univ X
-  rw [extIn_univ]
-  exact ⟨fun h _ hc => h hc, fun h hc => h hU hc⟩
-
 /-- The external neighbourhood of an induced subgraph, mapped back to the ambient vertex type. -/
 lemma image_ext_induce (F : SimpleGraph α) (U : Finset α) (X : Finset ↥U) :
     (ext (F.induce (U : Set α)) X).image Subtype.val = extIn F U (X.image Subtype.val) := by
@@ -790,38 +733,6 @@ lemma card_funTuples (N r : ℕ) :
   rw [Finset.prod_congr rfl (fun i _ => h i), Finset.prod_const, Finset.card_univ,
     Fintype.card_fin]
   rw [← pow_mul, Nat.mul_comm]
-
-/-- The number of self-maps of `Fin N` that avoid `B` on all of `A`, crudely bounded. -/
-lemma goodFun_card_le {N n : ℕ} {A B : Finset (Fin N)} (hA : A.card = n) (hB : B.card = n) :
-    (Finset.univ.filter (fun g : Fin N → Fin N => ∀ a ∈ A, g a ∉ B)).card
-      ≤ (N - n) ^ n * N ^ (N - n) := by
-  classical
-  have hcompB : ((Finset.univ : Finset (Fin N)) \ B).card = N - n := by
-    rw [Finset.card_sdiff, Finset.inter_univ, Finset.card_univ, Fintype.card_fin, hB]
-  have hAcard : Aᶜ.card = N - n := by
-    rw [Finset.card_compl, Fintype.card_fin, hA]
-  have hinj : Function.Injective
-      (fun g : ↥(Finset.univ.filter (fun g : Fin N → Fin N => ∀ a ∈ A, g a ∉ B)) =>
-        ((fun a : ↥A => (⟨g.1 a.1, Finset.mem_sdiff.mpr ⟨Finset.mem_univ _,
-              (Finset.mem_filter.mp g.2).2 a.1 a.2⟩⟩ :
-            ↥((Finset.univ : Finset (Fin N)) \ B))),
-         (fun x : ↥(Aᶜ) => g.1 x.1))) := by
-    rintro g g' h
-    simp only [Prod.mk.injEq] at h
-    obtain ⟨h1, h2⟩ := h
-    refine Subtype.ext (funext fun x => ?_)
-    by_cases hx : x ∈ A
-    · have hh := congrFun h1 ⟨x, hx⟩
-      simpa using congrArg Subtype.val hh
-    · have hh := congrFun h2 ⟨x, Finset.mem_compl.mpr hx⟩
-      simpa using hh
-  rw [← Fintype.card_coe (Finset.univ.filter (fun g : Fin N → Fin N => ∀ a ∈ A, g a ∉ B))]
-  calc Fintype.card ↥(Finset.univ.filter (fun g : Fin N → Fin N => ∀ a ∈ A, g a ∉ B))
-      ≤ Fintype.card ((↥A → ↥((Finset.univ : Finset (Fin N)) \ B)) × (↥(Aᶜ) → Fin N)) :=
-        Fintype.card_le_of_injective _ hinj
-    _ = (N - n) ^ n * N ^ (N - n) := by
-        rw [Fintype.card_prod, Fintype.card_fun, Fintype.card_fun, Fintype.card_coe,
-          Fintype.card_coe, Fintype.card_coe, Fintype.card_fin, hA, hcompB, hAcard]
 
 /-- The same bound for tuples of `r` self-maps: the constraint decouples over the `r` coordinates. -/
 lemma badTuple_card_le {N r n : ℕ} {A B : Finset (Fin N)} (hA : A.card = n) (hB : B.card = n) :

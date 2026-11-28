@@ -34,14 +34,9 @@ theorem OMA.squarefree_pair_equal {a b : ℕ} (ha : Squarefree a) (hb : Squarefr
 theorem OMA.squarefree_extremal_eq (N : ℕ) :
     Erdos121.F 2 N = (OMA.squarefree_up_to N).card := by
   classical
-  have hinterval : Finset.Icc 1 N = Finset.Ioc 0 N := by
-    ext d
-    simp only [Finset.mem_Icc, Finset.mem_Ioc]
-    omega
   let B := OMA.squarefree_up_to N
-  have hsub : B ⊆ Finset.Icc 1 N := by
-    rw [hinterval]
-    exact Finset.filter_subset _ _
+  have hsub : B ⊆ Finset.Icc 1 N := fun _ h =>
+    Finset.mem_Icc.mpr (Finset.mem_Ioc.mp (Finset.mem_filter.mp h).1)
   have hB (S : Finset ℕ) (hSB : S ⊆ B) (hcard : S.card = 2) :
       ¬IsSquare (∏ n ∈ S, n) := by
     obtain ⟨a, b, hab, rfl⟩ := Finset.card_eq_two.mp hcard
@@ -49,38 +44,26 @@ theorem OMA.squarefree_extremal_eq (N : ℕ) :
     have hb := (Finset.mem_filter.mp (hSB (by simp : b ∈ ({a, b} : Finset ℕ)))).2
     rw [Finset.prod_pair hab]
     exact fun hs => hab (OMA.squarefree_pair_equal ha hb hs)
-  let T : Set ℕ := {m | ∃ A : Finset ℕ, A ⊆ Finset.Icc 1 N ∧
-    (∀ S ⊆ A, S.card = 2 → ¬ IsSquare (∏ a ∈ S, a)) ∧ A.card = m}
-  change sSup T = B.card
-  have hBT : B.card ∈ T := ⟨B, hsub, hB, rfl⟩
-  refine le_antisymm (csSup_le ⟨_, hBT⟩ ?_) (le_csSup ?_ hBT)
-  · rintro m ⟨A, hA, hAsq, rfl⟩
-    have hdecomp (a : A) : ∃ q r : ℕ, 0 < q ∧ 0 < r ∧ r ^ 2 * q = a.val ∧ Squarefree q :=
-      Nat.sq_mul_squarefree_of_pos ((Finset.mem_Icc.mp (hA a.prop)).1.trans_lt' Nat.zero_lt_one)
-    choose q r hq hr hprod hsf using hdecomp
-    let f (a : A) : B := ⟨q a, by
-      refine Finset.mem_filter.mpr ⟨Finset.mem_Ioc.mpr ⟨hq a, ?_⟩, hsf a⟩
-      have hdiv : q a ∣ a.val := ⟨r a ^ 2, by rw [← hprod a, mul_comm]⟩
-      have ha := Finset.mem_Icc.mp (hA a.prop)
-      exact (Nat.le_of_dvd (by omega) hdiv).trans ha.2⟩
-    have hf : Function.Injective f := by
-      intro a b hf
-      by_contra hab
-      have hn : a.val ≠ b.val := fun he => hab (Subtype.ext he)
-      have hqeq : q a = q b := congrArg Subtype.val hf
-      let P : Finset ℕ := {a.val, b.val}
-      have hP : P ⊆ A := Finset.insert_subset a.prop (Finset.singleton_subset_iff.mpr b.prop)
-      have hPc : P.card = 2 := Finset.card_pair hn
-      apply hAsq P hP hPc
-      change IsSquare (∏ n ∈ ({a.val, b.val} : Finset ℕ), n)
-      rw [Finset.prod_pair hn]
-      refine ⟨r a * r b * q a, ?_⟩
-      rw [← hprod a, ← hprod b, ← hqeq]
-      ring
-    simpa only [Fintype.card_coe] using Fintype.card_le_of_injective f hf
-  · refine ⟨(Finset.Icc 1 N).card, ?_⟩
-    rintro m ⟨A, hA, -, rfl⟩
-    exact Finset.card_le_card hA
+  change sSup {m | ∃ A : Finset ℕ, A ⊆ Finset.Icc 1 N ∧
+    (∀ S ⊆ A, S.card = 2 → ¬ IsSquare (∏ a ∈ S, a)) ∧ A.card = m} = B.card
+  refine IsGreatest.csSup_eq ⟨⟨B, hsub, hB, rfl⟩, ?_⟩
+  rintro m ⟨A, hA, hAsq, rfl⟩
+  choose q r hprod hsf using fun a : A => Nat.sq_mul_squarefree a.val
+  let f (a : A) : B := ⟨q a, by
+    have ha := Finset.mem_Icc.mp (hA a.prop)
+    have hdiv : q a ∣ a.val := ⟨r a ^ 2, by rw [← hprod a, mul_comm]⟩
+    exact Finset.mem_filter.mpr ⟨Finset.mem_Ioc.mpr
+      ⟨Nat.pos_of_ne_zero (hsf a).ne_zero, (Nat.le_of_dvd ha.1 hdiv).trans ha.2⟩, hsf a⟩⟩
+  have hf : Function.Injective f := by
+    intro a b hf
+    by_contra hab
+    have hn : a.val ≠ b.val := fun he => hab (Subtype.ext he)
+    have hqeq : q a = q b := congrArg Subtype.val hf
+    have hP : ({a.val, b.val} : Finset ℕ) ⊆ A := Finset.insert_subset a.prop (Finset.singleton_subset_iff.mpr b.prop)
+    apply hAsq _ hP (Finset.card_pair hn)
+    rw [Finset.prod_pair hn]
+    exact ⟨r a * r b * q a, by rw [← hprod a, ← hprod b, ← hqeq]; ring⟩
+  simpa only [Fintype.card_coe] using Fintype.card_le_of_injective f hf
 
 theorem OMA.squarefree_moebius_indicator (n N : ℕ) (hn : 0 < n) (hN : n ≤ N) :
     (if Squarefree n then (1 : ℝ) else 0) =
@@ -107,12 +90,8 @@ theorem OMA.squarefree_moebius_indicator (n N : ℕ) (hn : 0 < n) (hN : n ≤ N)
     · exact fun hd => ⟨hd.2, hr.ne'⟩
     · intro hd
       exact ⟨⟨Nat.pos_of_dvd_of_pos hd.1 hr, (Nat.le_of_dvd hr hd.1).trans (hrle.trans hN)⟩, hd.1⟩
-  have hif : (if Squarefree n then (1 : ℝ) else 0) = (if r = 1 then 1 else 0) := by
-    by_cases he : r = 1
-    · simp [he, hfree.mpr he]
-    · have hf : ¬Squarefree n := fun hs => he (hfree.mp hs)
-      simp [he, hf]
-  rw [hif, ← Finset.sum_filter, hfilter]
+  simp only [hfree]
+  rw [← Finset.sum_filter, hfilter]
   have hm := congrArg (fun f : ArithmeticFunction ℤ => f r) moebius_mul_coe_zeta
   change (μ * ArithmeticFunction.zeta : ArithmeticFunction ℤ) r = (1 : ArithmeticFunction ℤ) r at hm
   rw [coe_mul_zeta_apply, one_apply] at hm

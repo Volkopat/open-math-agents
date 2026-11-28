@@ -77,38 +77,6 @@ theorem numerator_precision (hf : ∀ i < q, p ∣ coeff i f)
 
 end Coefficients
 
-/-- Coprime polynomial coordinates satisfying f(1/t)=1/f(t) have leading
-numerator coefficient of square one when the denominator at zero is one.
-The crossed product is the polynomial form of the rational-function identity. -/
-theorem reciprocal_square {K : Type*} [Field K] {q : ℕ}
-    (U V : Polynomial K) (hu : U ≠ 0) (hc : IsCoprime U V)
-    (hdeg : U.natDegree = q) (hvdeg : V.natDegree ≤ q) (hv0 : V.coeff 0 = 1)
-    (hs : U * U.reflect q = V * V.reflect q) : (U.coeff q)^2 = 1 := by
-  have hd : U ∣ V.reflect q := hc.dvd_of_dvd_mul_left (hs ▸ dvd_mul_right U _)
-  obtain ⟨B,hB⟩ := hd
-  have hR : V.reflect q ≠ 0 := by
-    intro hz
-    have hV := Polynomial.reflect_eq_zero_iff.mp hz
-    simp [hV] at hv0
-  have hB0 : B ≠ 0 := by
-    intro hz
-    simp only [hz, mul_zero] at hB
-    exact hR hB
-  have hbound : (V.reflect q).natDegree ≤ q :=
-    Polynomial.natDegree_reflect_le.trans (max_le le_rfl hvdeg)
-  rw [hB, Polynomial.natDegree_mul hu hB0, hdeg] at hbound
-  have hconst := Polynomial.eq_C_of_natDegree_le_zero (p := B) (by omega)
-  let c := B.coeff 0
-  have hb : V.reflect q = U * Polynomial.C c := hB.trans (congrArg (U * ·) hconst)
-  have hcanc : U.reflect q = V * Polynomial.C c := by
-    apply mul_left_cancel₀ hu
-    rw [hs,hb]
-    ring
-  have h1 := congrArg (fun A : Polynomial K => A.coeff q) hb
-  have h2 := congrArg (fun A : Polynomial K => A.coeff 0) hcanc
-  simp [Polynomial.coeff_mul_C, hv0] at h1 h2
-  simpa only [pow_two, ← h2] using h1.symm
-
 /-- Dividing the m-th logarithm term can cost at most m-2 powers of p. -/
 theorem log_denominator (p m : ℕ) [Fact p.Prime] (hp : 3 ≤ p) (hm : 2 ≤ m) :
     padicValNat p m + 2 ≤ m := by
@@ -208,31 +176,6 @@ theorem log_tail (hp : 3 ≤ p)
     exact Finset.sum_congr rfl (fun m _ => hz m.1 m.2)
   exact ⟨total,hsum⟩
 
-/-- The order dichotomy for elliptic multiplication, combined with the
-degree-p coefficient of L(f)=pL, forces the supersingular branch when p∣b_p. -/
-theorem supersingular_coefficients (hp : 3 ≤ p)
-    (units : ∀ u : ℕ, ¬ p ∣ u → (u : K)⁻¹ ∈ R)
-    (f : PowerSeries R) (b : ℕ → R)
-    (h0 : constantCoeff f = 0) (hb : (p:R) ∣ b p)
-    (order : ((∀ i < p, (p:R) ∣ coeff i f) ∧ ¬ (p:R) ∣ coeff p f) ∨
-      (∀ i < p^2, (p:R) ∣ coeff i f))
-    (hlog : (b p : K) = ((coeff (R := R) p f : R) : K) +
-      ∑ m ∈ Finset.Icc 2 p, (b m : K) *
-        ((coeff (R := R) p (f^m) : R) : K) / (m:K)) :
-    ∀ i < p^2, (p:R) ∣ coeff i f := by
-  rcases order with ⟨hlo,hpcoeff⟩ | hss
-  · obtain ⟨z,hz⟩ := log_tail R hp units p f b hlo h0
-    rw [hz] at hlog
-    obtain ⟨w,hw⟩ := hb
-    exfalso
-    apply hpcoeff
-    use w-(p:R)*z
-    apply Subtype.ext
-    have hcast := congrArg (fun a : R => (a : K)) hw
-    push_cast at hcast ⊢
-    linear_combination hcast - hlog
-  · exact hss
-
 /-- The coefficient-of-degree-p² consequence of L(f)=pL, given the
 good-reduction coefficient conditions on f and V. Here b(m) is the coefficient
 of the invariant differential, so L has coefficient b(m)/m. -/
@@ -258,91 +201,6 @@ theorem logarithm_precision (hp : 3 ≤ p)
 
 end Logarithm
 
-/-- The Weierstrass equation is Y²=(X−2x)(X−2)(X+2). -/
-def cubic {R : Type*} [CommRing R] (x : R) : WeierstrassCurve.Affine R :=
-  ⟨0, -2*x, 0, -4, 8*x⟩
-
-theorem cubic_discriminant {R : Type*} [CommRing R] (x : R) :
-    (cubic x).Δ = 2^12*(x^2-1)^2 := by
-  simp only [WeierstrassCurve.Δ, WeierstrassCurve.b₂, WeierstrassCurve.b₄,
-    WeierstrassCurve.b₆, WeierstrassCurve.b₈, cubic]
-  ring
-
-theorem cubic_isElliptic {R : Type*} [CommRing R] (x : R)
-    (h2 : IsUnit (2:R)) (hx : IsUnit (x^2-1)) : (cubic x).IsElliptic := by
-  constructor
-  rw [cubic_discriminant]
-  exact (h2.pow 12).mul (hx.pow 2)
-
-/-- Independent check of reciprocity using the cubic chord law. For T=(2,0)
-and P=(X,Y), the product t(P)t(T−P) is one on the common affine chart.
-The conclusion clears the denominators in t=2(X−2x)/Y. -/
-theorem reciprocal_chart {K : Type*} [Field K] [DecidableEq K] [CharZero K] (x X Y : K)
-    (hX : X ≠ 2) (hE : Y^2 = (X-2*x)*(X^2-4)) :
-    let W := cubic x
-    let slope := W.slope 2 X 0 (W.negY X Y)
-    let X' := W.addX 2 X slope
-    let Y' := W.addY 2 X 0 slope
-    4 * (X-2*x) * (X'-2*x) = Y * Y' := by
-  let s := Y/(2-X)
-  have hden : 2-X ≠ 0 := sub_ne_zero.mpr hX.symm
-  have hs : (cubic x).slope 2 X 0 ((cubic x).negY X Y) = s := by
-    simp [WeierstrassCurve.Affine.slope_of_X_ne hX.symm, cubic, s]
-  have hcoord : (cubic x).addX 2 X s = 2 - 8*(1-x)/(2-X) := by
-    simp only [WeierstrassCurve.Affine.addX, cubic, s, zero_mul, add_zero]
-    field_simp
-    linear_combination hE
-  dsimp only
-  rw [hs]
-  simp only [WeierstrassCurve.Affine.addY, WeierstrassCurve.Affine.negAddY,
-    WeierstrassCurve.Affine.negY, hcoord]
-  change _ = Y * (-(s * ((2-8*(1-x)/(2-X))-2) + 0) - 0 * _ - 0)
-  dsimp [s]
-  field_simp
-  linear_combination 8*(x-1)*hE
-
-/-- The companion reflection T₀−P for T₀=(2x,0) preserves t.
-This is the cleared-denominator form of t(T₀−P)=t(P). -/
-theorem deck_chart {K : Type*} [Field K] [DecidableEq K] (x X Y : K)
-    (hX : 2*x ≠ X) :
-    let W := cubic x
-    let e := 2*x
-    let l := W.slope e X 0 (W.negY X Y)
-    let X' := W.addX e X l
-    let Y' := W.addY e X 0 l
-    (X'-e)*Y = (X-e)*Y' := by
-  dsimp only
-  rw [WeierstrassCurve.Affine.slope_of_X_ne hX]
-  simp only [WeierstrassCurve.Affine.addY, WeierstrassCurve.Affine.negY,
-    WeierstrassCurve.Affine.negAddY, cubic, zero_mul, sub_zero, zero_sub,
-    neg_neg, add_zero]
-  have hn : 2*x-X ≠ 0 := sub_ne_zero.mpr hX
-  field_simp
-  ring
-
-/-- A reflection P ↦ T−P with 2T=0 commutes with odd multiplication. -/
-theorem odd_commutes_reflection {G : Type*} [AddCommGroup G] (T P : G)
-    (hT : 2 • T = 0) (n : ℕ) (hn : Odd n) : n • (T-P) = T - n • P := by
-  obtain ⟨k,rfl⟩ := hn
-  rw [nsmul_sub, add_smul, one_smul, mul_comm 2 k, mul_smul, hT, smul_zero, zero_add]
-
-/-- On the chart t ≠ 0, the substituted coordinates give an actual point
-of Y²=(X−2x)(X²−4), and tY=2(X−2x) recovers the local parameter. -/
-theorem cubic_chart {K : Type*} [Field K] [CharZero K] (x t y : K) (ht : t ≠ 0)
-    (hc : y^2 = 1-2*x*t^2+t^4) :
-    let X := 2*(y+1)/t^2
-    let Y := t*(X^2-4)/2
-    Y^2 = (X-2*x)*(X^2-4) ∧ t*Y = 2*(X-2*x) := by
-  let X := 2*(y+1)/t^2
-  have h : t^2*(X^2-4) = 4*(X-2*x) := by
-    dsimp [X]
-    field_simp
-    linear_combination 4*hc
-  change (t*(X^2-4)/2)^2 = _ ∧ t*(t*(X^2-4)/2) = _
-  constructor
-  · linear_combination ((X^2-4)/4)*h
-  · linear_combination h/2
-
 /-- Squaring εp modulo p³ gives p² modulo p⁴ when ε²=1. -/
 theorem square_precision {R : Type*} [CommRing R] (p e b : R)
     (hs : e^2 = 1) (hb : p^3 ∣ b-e*p) : p^4 ∣ b^2-p^2 := by
@@ -351,49 +209,6 @@ theorem square_precision {R : Type*} [CommRing R] (p e b : R)
   have he : b = e*p+p^3*k := by linear_combination hk
   rw [he]
   linear_combination p^2*hs
-
-/-- Conditional elliptic reduction. The hypotheses are geometric or normalization
-data for the multiplication map. The conclusion has the desired fourth power.
-The theorem does not assume either of the Legendre congruences at degree p². -/
-theorem elliptic_arithmetic {K : Type*} [Field K] [CharZero K] (R : Subring K)
-    (p : ℕ) [Fact p.Prime] (hp : 3 ≤ p)
-    (units : ∀ u : ℕ, ¬ p ∣ u → (u : K)⁻¹ ∈ R)
-    (f v : PowerSeries R) (L : PowerSeries K) (b : ℕ → R)
-    (hf0 : constantCoeff f = 0) (hv0 : coeff 0 v = 1)
-    (hb1 : b 1 = 1) (hbp : (p:R) ∣ b p)
-    (hL : ∀ m, coeff m L = (b m : K) / (m:K))
-    (hMul : L.subst (PowerSeries.map R.subtype f) = C (p:K) * L)
-    (order : ((∀ i < p, (p:R) ∣ coeff i f) ∧ ¬ (p:R) ∣ coeff p f) ∨
-      (∀ i < p^2, (p:R) ∣ coeff i f))
-    (good : (∀ i < p^2, (p:R) ∣ coeff i f) →
-      ∀ j, 0 < j → j ≤ p^2 → (p:R) ∣ coeff j v)
-    (U V : Polynomial K) (hu : U ≠ 0) (hc : IsCoprime U V)
-    (hdegree : U.natDegree = p^2) (hvdegree : V.natDegree ≤ p^2) (hV : V.coeff 0 = 1)
-    (hrec : U * U.reflect (p^2) = V * V.reflect (p^2))
-    (hnum : U.coeff (p^2) = ((coeff (R := R) (p^2) (f*v) : R) : K)) :
-    (p:R)^4 ∣ (b (p^2))^2 - (p:R)^2 := by
-  have hn : (p:K) ≠ 0 := by exact_mod_cast (show p ≠ 0 by omega)
-  have hzero : constantCoeff (PowerSeries.map R.subtype f) = 0 := by
-    rw [← coeff_zero_eq_constantCoeff_apply, coeff_map, coeff_zero_eq_constantCoeff_apply,hf0]
-    rfl
-  have hcoeff (n : ℕ) : (p:K) * ((b n:K)/(n:K)) =
-      ((coeff (R := R) n f : R) : K) + ∑ m ∈ Finset.Icc 2 n,
-        (b m:K) * ((coeff (R := R) n (f^m) : R) : K) / (m:K) := by
-    have he := coefficient_identity L (PowerSeries.map R.subtype f) (p:K) hzero
-      (by simp [hL]) (by simp [hL,hb1]) hMul n
-    simp only [hL, ← map_pow, coeff_map, Subring.coe_subtype, div_mul_eq_mul_div] at he
-    exact he
-  have hs := supersingular_coefficients R hp units f b hf0 hbp order (by
-    simpa [mul_div_cancel₀ _ hn, mul_div_assoc', hn] using hcoeff p)
-  have hd := logarithm_precision R hp units f v b hs hf0 (good hs) hv0 (by
-    rw [← hcoeff (p^2)]
-    push_cast
-    field_simp)
-  have he := reciprocal_square U V hu hc hdegree hvdegree hV hrec
-  rw [hnum] at he
-  apply square_precision (p:R) (coeff (p^2) (f*v)) (b (p^2))
-  · exact_mod_cast he
-  · simpa only [mul_comm (p:R)] using hd
 
 /-- An upper-half units digit forces a carry in k+k. -/
 theorem upper_half_carry (p k : ℕ) [Fact p.Prime] (h : p ≤ 2*(k%p)) :
@@ -693,22 +508,6 @@ end BalaHasse
 namespace BalaReduction
 open PowerSeries
 
-/-- A smooth special fiber exists for every eligible prime, over its algebraic closure. -/
-theorem eligible_special_fiber (p : ℕ) (eligible : OeisA3625.A p) :
-    let _ : Fact p.Prime := ⟨eligible.1⟩
-    ∃ x : AlgebraicClosure (ZMod p), x^2 = -63 ∧ (BalaAudit.cubic x).IsElliptic := by
-  let _ : Fact p.Prime := ⟨eligible.1⟩
-  let F := AlgebraicClosure (ZMod p)
-  obtain ⟨x,hx⟩ := IsAlgClosed.exists_pow_nat_eq (k := F) (-63) (by decide : 0 < 2)
-  have hp2 : p ≠ 2 := by
-    intro he; subst p; norm_num [OeisA3625.A] at eligible
-  have h2p : ¬ p ∣ 2 := fun hd => hp2 ((Nat.prime_dvd_prime_iff_eq eligible.1 Nat.prime_two).mp hd)
-  have h2 : (2:F) ≠ 0 := by
-    simpa only [Nat.cast_ofNat] using (CharP.cast_eq_zero_iff F p 2).not.mpr h2p
-  refine ⟨x,hx, BalaAudit.cubic_isElliptic x h2.isUnit ?_⟩
-  rw [hx, show (-63:F)-1 = -(2:F)^6 by norm_num]
-  exact (h2.isUnit.pow 6).neg
-
 /-- The quartic whose inverse square root gives the invariant differential. -/
 noncomputable def quartic {k : Type*} [CommRing k] (x : k) : Polynomial k :=
   1 - Polynomial.C (2*x)*Polynomial.X^2 + Polynomial.X^4
@@ -770,22 +569,6 @@ theorem differential_extract {k : Type*} [CommRing k] (p : ℕ)
       exact False.elim (hnot (Finset.HasAntidiagonal.mem_antidiagonal.mpr (by dsimp [ij]; omega)))
   exact hextract n hn
 
-/-- In characteristic p, one vanishing coefficient of the differential forces
-every coefficient with index congruent to p−1 modulo p to vanish. -/
-theorem differential_vanishing {k : Type*} [CommRing k] (p : ℕ) [Fact p.Prime] [CharP k p]
-    (h : ℕ) (ph : p=2*h+1) (x : k) (B : PowerSeries k)
-    (hsqrt : (quartic x : PowerSeries k)*B^2=1) (hb0 : coeff 0 B = 1)
-    (hshort : coeff (p-1) B = 0) :
-    ∀ n, p ∣ n+1 → coeff n B = 0 := by
-  let A := (quartic x)^h
-  have hextract := differential_extract p h ph x B hsqrt
-  have hpos := (Fact.out : p.Prime).pos
-  have hbase := hextract (p-1) (by simp [Nat.sub_add_cancel (by omega : 1 ≤ p)])
-  have ha : A.coeff (p-1) = 0 := by
-    simpa [hshort,coeff_zero_eq_constantCoeff_apply, show constantCoeff B = 1 from (coeff_zero_eq_constantCoeff_apply B) ▸ hb0] using hbase.symm
-  intro n hn
-  rw [hextract n hn, ha, zero_mul]
-
 /-- Algebraic construction of the normalized reciprocal square root over any
 coefficient ring in which two is a unit, including the special fiber. -/
 theorem inverse_sqrt {R : Type*} [CommRing R] (Q : PowerSeries R)
@@ -833,32 +616,6 @@ theorem quartic_hasse (p h : ℕ) [Fact p.Prime] {k : Type*} [Field k] [CharP k 
   rw [BalaHasse.eligible_quadratic_hasse p h eligible ph s hs] at hh
   simpa [G] using hh
 
-/-- The special fiber and an actual normalized invariant differential, with
-every Cartier coefficient vanishing. No geometric or logarithm hypotheses. -/
-theorem eligible_reduction (p : ℕ) (eligible : OeisA3625.A p) :
-    let _ : Fact p.Prime := ⟨eligible.1⟩
-    ∃ (x : AlgebraicClosure (ZMod p)) (B : PowerSeries (AlgebraicClosure (ZMod p))),
-      x^2= -63 ∧ (BalaAudit.cubic x).IsElliptic ∧ constantCoeff B=1 ∧
-      (quartic x : PowerSeries _) * B^2=1 ∧ ∀ n, p ∣ n+1 → coeff n B=0 := by
-  let _ : Fact p.Prime := ⟨eligible.1⟩
-  let F := AlgebraicClosure (ZMod p)
-  obtain ⟨s,hs⟩ := IsAlgClosed.exists_pow_nat_eq (k:=F) (-7) (by decide : 0<2)
-  have hp2 : p ≠ 2 := by rintro rfl; norm_num [OeisA3625.A] at eligible
-  have hodd := (Nat.Prime.mod_two_eq_one_iff_ne_two eligible.1).mpr hp2
-  have ph : p=2*(p/2)+1 := by omega
-  have two : (2:F) ≠ 0 := by
-    simpa only [Nat.cast_ofNat] using (CharP.cast_eq_zero_iff F p 2).not.mpr
-      (fun hd => hp2 ((Nat.prime_dvd_prime_iff_eq eligible.1 Nat.prime_two).mp hd))
-  have hx : (3*s)^2= -63 := by linear_combination 9*hs
-  obtain ⟨B,h0,he⟩ := inverse_sqrt (quartic (3*s) : PowerSeries F)
-    (by simp [quartic]) two.isUnit
-  refine ⟨3*s,B,hx,BalaAudit.cubic_isElliptic _ two.isUnit ?_,h0,he,?_⟩
-  · rw [hx,show (-63:F)-1 = -(2:F)^6 by ring]
-    exact (two.isUnit.pow 6).neg
-  · intro n hn
-    rw [differential_extract p (p/2) ph (3*s) B he n hn,
-      quartic_hasse p (p/2) eligible ph s hs,zero_mul]
-
 section Lift
 variable {K : Type*} [Field K] [CharZero K] (R : Subring K)
 variable {k : Type*} [CommRing k] {p : ℕ} [Fact p.Prime] [CharP k p]
@@ -892,56 +649,6 @@ theorem truncated_log_integral (ρ : R →+* k)
     rw [he]
     exact R.mul_mem w.property hi
   · simpa only [div_eq_mul_inv] using R.mul_mem (b n).property (units n hd)
-
-/-- This bypasses the geometric height dichotomy. A logarithm integral through
-degree q−1 with unit linear term forces its p-series to vanish there modulo p. -/
-theorem order_from_log (hp : 3 ≤ p) (units : ∀ u : ℕ, ¬p ∣ u → (u:K)⁻¹ ∈ R)
-    (q : ℕ) (f : PowerSeries R) (L : PowerSeries K) (b : ℕ → R)
-    (hf0 : constantCoeff f = 0) (hb1 : b 1 = 1)
-    (hL : ∀ m, coeff m L = (b m:K)/(m:K))
-    (hmul : L.subst (PowerSeries.map R.subtype f) = C (p:K)*L)
-    (hint : ∀ m < q, coeff m L ∈ R) :
-    ∀ n < q, (p:R) ∣ coeff n f := by
-  have hzero : constantCoeff (PowerSeries.map R.subtype f) = 0 := by
-    rw [← coeff_zero_eq_constantCoeff_apply, coeff_map, coeff_zero_eq_constantCoeff_apply,hf0]
-    rfl
-  intro n
-  induction n using Nat.strong_induction_on with
-  | h n ih =>
-    intro hn
-    have hl := BalaAudit.coefficient_identity L (PowerSeries.map R.subtype f) (p:K) hzero
-      (by simp [hL]) (by simp [hL,hb1]) hmul n
-    simp only [← map_pow, coeff_map, Subring.coe_subtype] at hl
-    obtain ⟨z,hz⟩ := BalaAudit.log_tail R hp units n f b
-      (fun j hj => ih j hj (hj.trans hn)) hf0
-    simp_rw [hL, div_mul_eq_mul_div] at hl
-    rw [hz] at hl
-    let a : R := ⟨coeff n L, hint n hn⟩
-    use a-(p:R)*z
-    apply Subtype.ext
-    push_cast
-    change _ = (p:K)*(coeff n L - (p:K)*(z:K))
-    rw [hL]
-    linear_combination -hl
-
-/-- For the quartic, reduction of the differential and the logarithm identity
-alone force divisibility of every coefficient of [p] below p². -/
-theorem quartic_order (ρ : R →+* k) (ker : ∀ a : R, ρ a = 0 ↔ (p:R) ∣ a)
-    (hp : 3 ≤ p) (h : ℕ) (ph : p=2*h+1)
-    (units : ∀ u : ℕ, ¬p ∣ u → (u:K)⁻¹ ∈ R)
-    (x : k) (B : PowerSeries k) (hsqrt : (quartic x : PowerSeries k)*B^2=1)
-    (f : PowerSeries R) (L : PowerSeries K) (b : ℕ → R)
-    (hb : ∀ n, coeff n B = ρ (b (n+1)))
-    (hf0 : constantCoeff f=0) (hb1 : b 1=1) (hbp : (p:R) ∣ b p)
-    (hL : ∀ m, coeff m L = (b m:K)/(m:K))
-    (hmul : L.subst (PowerSeries.map R.subtype f) = C (p:K)*L) :
-    ∀ n < p^2, (p:R) ∣ coeff n f := by
-  have hv := differential_vanishing p h ph x B hsqrt (by simp [hb,hb1])
-    (by rw [hb,Nat.sub_add_cancel (by omega : 1 ≤ p)]; exact (ker _).mpr hbp)
-  apply order_from_log R hp units _ f L b hf0 hb1 hL hmul
-  intro n hn
-  rw [hL]
-  exact truncated_log_integral R ρ ker units b (fun j hj => hb j ▸ hv j hj) n hn
 
 end Lift
 

@@ -17,14 +17,7 @@ variable {V : Type*} {G : SimpleGraph V}
 lemma cycle_adj_iff_succ {n : ℕ} [NeZero n] (hn : 2 ≤ n) (i j : Fin n) :
     (cycleGraph n).Adj i j ↔ i + 1 = j ∨ j + 1 = i := by
   obtain ⟨m, rfl⟩ := Nat.exists_eq_add_of_le' hn
-  simp only [cycleGraph_adj, sub_eq_iff_eq_add]
-  constructor
-  · rintro (h | h)
-    · exact Or.inr (by simpa [add_comm] using h.symm)
-    · exact Or.inl (by simpa [add_comm] using h.symm)
-  · rintro (h | h)
-    · exact Or.inr (by simpa [add_comm] using h.symm)
-    · exact Or.inl (by simpa [add_comm] using h.symm)
+  simp only [cycleGraph_adj, sub_eq_iff_eq_add, add_comm, eq_comm, or_comm]
 
 lemma cycle_getVert_succ {a : V} (p : G.Walk a a) [NeZero p.length] (hp : p.IsCycle) (i : Fin p.length) :
     p.getVert (i + 1 : Fin p.length).val = p.getVert (i.val + 1) := by
@@ -164,16 +157,9 @@ lemma exists_minimal_separator (G : SimpleGraph V) (S : Finset V) (a b : V)
     intro w hw
     obtain ⟨x, hx, hxa, hxb⟩ := walk_has_interior hab hnab w
     exact ⟨x, hx, mem_sdiff.mpr ⟨hw x hx, by simp [hxa, hxb]⟩⟩
-  let family := S.powerset.filter (fun C => Separates G S C a b)
-  have hfamily : family.Nonempty :=
-    ⟨S \ {a, b}, mem_filter.mpr ⟨mem_powerset.mpr sdiff_subset, hfull⟩⟩
-  obtain ⟨C, hC, hmin⟩ := exists_min_image family Finset.card hfamily
-  have hsep : Separates G S C a b := (mem_filter.mp hC).2
-  refine ⟨C, hsep, ?_⟩
-  intro D hDC hD
-  have hcD : C.card ≤ D.card :=
-    hmin D (mem_filter.mpr ⟨mem_powerset.mpr hD.1, hD⟩)
-  exact (Finset.eq_of_subset_of_card_le hDC hcD).ge
+  obtain ⟨C, hC, hmin⟩ := exists_minimal_of_wellFoundedLT
+    (fun C : Finset V => Separates G S C a b) ⟨S \ {a, b}, hfull⟩
+  exact ⟨C, hC, fun D hDC hD => hmin hD hDC⟩
 
 lemma separator_sides [DecidableEq V] (G : SimpleGraph V) (S C : Finset V) (a b : V)
     (ha : a ∈ S) (hb : b ∈ S) (hsep : Separates G S C a b) :
@@ -190,10 +176,7 @@ lemma separator_sides [DecidableEq V] (G : SimpleGraph V) (S C : Finset V) (a b 
     exact (hw x w.end_mem_support).2
   have haL : a ∈ L := by
     refine mem_filter.mpr ⟨ha, .intro .nil ?_⟩
-    intro x hx
-    have hxa : x = a := by simpa using hx
-    subst x
-    exact ⟨ha, hsep.2.1⟩
+    simpa using And.intro ha hsep.2.1
   have hbL : b ∉ L := by
     intro hbL
     obtain ⟨w, hw⟩ := (mem_filter.mp hbL).2
@@ -201,25 +184,13 @@ lemma separator_sides [DecidableEq V] (G : SimpleGraph V) (S C : Finset V) (a b 
     exact (hw x hx).2 hxC
   refine ⟨L, R, ?_, ?_, ?_, ?_, haL, ?_, ?_⟩
   · ext x
+    have hxL : x ∈ L → x ∈ S := fun h => hLS h
+    have hxC : x ∈ C → x ∈ S := fun h => hsep.1 h
     simp only [mem_union, R, mem_sdiff]
-    constructor
-    · intro hx
-      by_cases hxL : x ∈ L
-      · exact Or.inl (Or.inl hxL)
-      · by_cases hxC : x ∈ C
-        · exact Or.inr hxC
-        · exact Or.inl (Or.inr ⟨hx, by simp [hxL, hxC]⟩)
-    · rintro ((hx | hx) | hx)
-      · exact hLS hx
-      · exact hx.1
-      · exact hsep.1 hx
-  · apply Finset.disjoint_left.mpr
-    intro x hxL hxR
-    exact (mem_sdiff.mp hxR).2 (mem_union_left C hxL)
+    tauto
+  · simp [R, Finset.disjoint_left] <;> tauto
   · exact Finset.disjoint_left.mpr (fun x hxL hxC => hLC x hxL hxC)
-  · apply Finset.disjoint_left.mpr
-    intro x hxR hxC
-    exact (mem_sdiff.mp hxR).2 (mem_union_right L hxC)
+  · simp [R, Finset.disjoint_left]
   · exact mem_sdiff.mpr ⟨hb, by simp [hbL, hsep.2.2.1]⟩
   · intro x hxL y hyR hxy
     obtain ⟨w, hw⟩ := (mem_filter.mp hxL).2
@@ -307,11 +278,8 @@ lemma path_stays_side {S L R C : Finset V}
       have hdS := (hw' d w.start_mem_support).1
       rw [hS] at hdS
       have hdL : d ∈ L := by
-        rcases mem_union.mp hdS with hd | hd
-        · rcases mem_union.mp hd with hd | hd
-          · exact hd
-          · exact (hcross a ha d hd had).elim
-        · exact (hdC hd).elim
+        exact ((mem_union.mp hdS).resolve_right hdC |> mem_union.mp).resolve_right
+          (fun hd => hcross a ha d hd had)
       intro x hx
       simp only [Walk.support_cons, List.mem_cons] at hx
       rcases hx with rfl | hx
@@ -479,6 +447,19 @@ private lemma simplicial_outside_clique {n : ℕ} (G : SimpleGraph (Fin n))
     · exact ⟨y, hy, fun hyC => hna (hC hxC hyC hxy), hsy⟩
     · exact ⟨x, hx, hxC, hsx⟩
 
+private lemma lift_side_clique {V : Type*} [DecidableEq V] {G : SimpleGraph V}
+    [DecidableRel G.Adj] {S L R C : Finset V} {u : V}
+    (hS : S = L ∪ R ∪ C) (hcross : ∀ x ∈ L, ∀ y ∈ R, ¬ G.Adj x y) (hu : u ∈ L)
+    (hc : G.IsClique (((L ∪ C).filter (G.Adj u)) : Set V)) :
+    G.IsClique ((S.filter (G.Adj u)) : Set V) := by
+  apply Set.Pairwise.mono _ hc
+  intro x hx
+  obtain ⟨hxS, hux⟩ := mem_filter.mp hx
+  have hxR : x ∉ R := fun h => hcross u hu x h hux
+  rw [hS] at hxS
+  simp only [mem_union] at hxS
+  exact mem_filter.mpr ⟨by simpa [hxR] using hxS, hux⟩
+
 end OMA.ChordalSeparators
 
 open OMA.ChordalSeparators Finset SimpleGraph
@@ -496,29 +477,21 @@ theorem OMA.solution : OMA.R_Erdos81_erdos_81_R1.H1 := by
     have haC : a ∉ C := fun h => Finset.disjoint_left.mp hLC haL h
     have hbC : b ∉ C := fun h => Finset.disjoint_left.mp hRC hbR h
     have hleft : L ∪ C ⊂ S := by
-      apply Finset.ssubset_iff_subset_ne.mpr
-      refine ⟨?_, ?_⟩
-      · intro x hx
+      apply (ssubset_iff_of_subset (by
         rw [hS]
+        intro x hx
         simp only [mem_union] at hx ⊢
-        tauto
-      · intro he
-        have hb' : b ∈ L ∪ C := he.symm ▸ hb
-        rcases mem_union.mp hb' with hbL | hbC'
-        · exact Finset.disjoint_left.mp hLR hbL hbR
-        · exact hbC hbC'
+        tauto)).mpr
+      exact ⟨b, hb, fun h => (mem_union.mp h).elim
+        (fun h => Finset.disjoint_left.mp hLR h hbR) hbC⟩
     have hright : R ∪ C ⊂ S := by
-      apply Finset.ssubset_iff_subset_ne.mpr
-      refine ⟨?_, ?_⟩
-      · intro x hx
+      apply (ssubset_iff_of_subset (by
         rw [hS]
+        intro x hx
         simp only [mem_union] at hx ⊢
-        tauto
-      · intro he
-        have ha' : a ∈ R ∪ C := he.symm ▸ ha
-        rcases mem_union.mp ha' with haR | haC'
-        · exact Finset.disjoint_left.mp hLR haL haR
-        · exact haC haC'
+        tauto)).mpr
+      exact ⟨a, ha, fun h => (mem_union.mp h).elim
+        (fun h => Finset.disjoint_left.mp hLR haL h) haC⟩
     obtain ⟨u, hu, huC, hus⟩ := simplicial_outside_clique G (L ∪ C) C hC
       ⟨a, mem_union_left C haL, haC⟩ (ih (L ∪ C) hleft)
     obtain ⟨v, hv, hvC, hvs⟩ := simplicial_outside_clique G (R ∪ C) C hC
@@ -528,22 +501,6 @@ theorem OMA.solution : OMA.R_Erdos81_erdos_81_R1.H1 := by
     refine ⟨u, hleft.subset hu, v, hright.subset hv, ?_, hcross u huL v hvR, ?_, ?_⟩
     · intro huv
       exact Finset.disjoint_left.mp hLR huL (huv.symm ▸ hvR)
-    · apply Set.Pairwise.mono _ hus
-      intro x hx
-      obtain ⟨hxS, hux⟩ := mem_filter.mp hx
-      rw [hS] at hxS
-      rcases mem_union.mp hxS with hxLR | hxC
-      · rcases mem_union.mp hxLR with hxL | hxR
-        · exact mem_filter.mpr ⟨mem_union_left C hxL, hux⟩
-        · exact (hcross u huL x hxR hux).elim
-      · exact mem_filter.mpr ⟨mem_union_right L hxC, hux⟩
-    · apply Set.Pairwise.mono _ hvs
-      intro x hx
-      obtain ⟨hxS, hvx⟩ := mem_filter.mp hx
-      rw [hS] at hxS
-      rcases mem_union.mp hxS with hxLR | hxC
-      · rcases mem_union.mp hxLR with hxL | hxR
-        · exact (hcross x hxL v hvR hvx.symm).elim
-        · exact mem_filter.mpr ⟨mem_union_left C hxR, hvx⟩
-      · exact mem_filter.mpr ⟨mem_union_right R hxC, hvx⟩
-
+    · exact lift_side_clique hS hcross huL hus
+    · exact lift_side_clique (by rw [hS, union_comm L R])
+        (fun x hx y hy h => hcross y hy x hx h.symm) hvR hvs

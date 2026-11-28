@@ -333,53 +333,57 @@ lemma oma_key (n : ℕ) (hn : 268435456 ≤ n)
     exact a1
   linarith
 
+lemma K {n : ℕ} (q : ℕ) (hq : q.Prime := by norm_num) (h4 : q % 4 = 3 := by norm_num)
+    (h2 : n < 2 * q := by omega) (hle : q ≤ n := by omega) :
+    ∃ q : ℕ, q.Prime ∧ q % 4 = 3 ∧ n < 2 * q ∧ q ≤ n := ⟨q, hq, h4, h2, hle⟩
+
 lemma oma_chain (n : ℕ) (h100 : 100 < n) (hn : n < 268435456) :
     ∃ q : ℕ, q.Prime ∧ q % 4 = 3 ∧ n < 2 * q ∧ q ≤ n := by
-  rcases lt_or_ge n 134 with h | h0
-  · exact ⟨67, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 262 with h | h1
-  · exact ⟨131, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 502 with h | h2
-  · exact ⟨251, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 998 with h | h3
-  · exact ⟨499, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 1982 with h | h4
-  · exact ⟨991, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 3958 with h | h5
-  · exact ⟨1979, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 7894 with h | h6
-  · exact ⟨3947, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 15766 with h | h7
-  · exact ⟨7883, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 31478 with h | h8
-  · exact ⟨15739, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 62782 with h | h9
-  · exact ⟨31391, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 125486 with h | h10
-  · exact ⟨62743, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 250942 with h | h11
-  · exact ⟨125471, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 501838 with h | h12
-  · exact ⟨250919, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 1003654 with h | h13
-  · exact ⟨501827, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 2007262 with h | h14
-  · exact ⟨1003631, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 4014518 with h | h15
-  · exact ⟨2007259, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 8029006 with h | h16
-  · exact ⟨4014503, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 16057966 with h | h17
-  · exact ⟨8028983, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 32115838 with h | h18
-  · exact ⟨16057919, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 64231598 with h | h19
-  · exact ⟨32115799, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 128463094 with h | h20
-  · exact ⟨64231547, by norm_num, by norm_num, by omega, by omega⟩
-  rcases lt_or_ge n 256926182 with h | h21
-  · exact ⟨128463091, by norm_num, by norm_num, by omega, by omega⟩
-  exact ⟨256926143, by norm_num, by norm_num, by omega, by omega⟩
+  by_cases h : n < 134
+  · exact K 67
+  by_cases h : n < 262
+  · exact K 131
+  by_cases h : n < 502
+  · exact K 251
+  by_cases h : n < 998
+  · exact K 499
+  by_cases h : n < 1982
+  · exact K 991
+  by_cases h : n < 3958
+  · exact K 1979
+  by_cases h : n < 7894
+  · exact K 3947
+  by_cases h : n < 15766
+  · exact K 7883
+  by_cases h : n < 31478
+  · exact K 15739
+  by_cases h : n < 62782
+  · exact K 31391
+  by_cases h : n < 125486
+  · exact K 62743
+  by_cases h : n < 250942
+  · exact K 125471
+  by_cases h : n < 501838
+  · exact K 250919
+  by_cases h : n < 1003654
+  · exact K 501827
+  by_cases h : n < 2007262
+  · exact K 1003631
+  by_cases h : n < 4014518
+  · exact K 2007259
+  by_cases h : n < 8029006
+  · exact K 4014503
+  by_cases h : n < 16057966
+  · exact K 8028983
+  by_cases h : n < 32115838
+  · exact K 16057919
+  by_cases h : n < 64231598
+  · exact K 32115799
+  by_cases h : n < 128463094
+  · exact K 64231547
+  by_cases h : n < 256926182
+  · exact K 128463091
+  exact K 256926143
 
 theorem oma_main : ∀ n : ℕ, 100 < n →
     ∃ q : ℕ, q.Prime ∧ q % 4 = 3 ∧ n < 2 * q ∧ q ≤ n := by

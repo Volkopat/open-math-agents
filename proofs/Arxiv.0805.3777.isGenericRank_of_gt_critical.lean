@@ -139,46 +139,6 @@ lemma eval_substitution {I J : Type} (F : J → MvPolynomial I ℂ) (x : I → �
     simp [MvPolynomial.aeval_eq_eval]
   exact DFunLike.congr_fun he P
 
-lemma vanishing_on_polynomial_image {I J : Type} [Fintype I] [Fintype J]
-    (hd : Fintype.card I < Fintype.card J) (F : J → MvPolynomial I ℂ) :
-    ∃ P : MvPolynomial J ℂ, P ≠ 0 ∧
-      ∀ x : I → ℂ, MvPolynomial.eval (fun j => MvPolynomial.eval x (F j)) P = 0 := by
-  classical
-  have hn : ¬ AlgebraicIndependent ℂ F := by
-    intro h
-    have hc := h.cardinalMk_le_trdeg
-    rw [MvPolynomial.trdeg_of_isDomain] at hc
-    have : Fintype.card J ≤ Fintype.card I := by simpa [Cardinal.mk_fintype] using hc
-    omega
-  rw [algebraicIndependent_iff] at hn
-  push Not at hn
-  obtain ⟨P, ha, hP⟩ := hn
-  refine ⟨P, hP, ?_⟩
-  intro x
-  rw [← eval_substitution F x P, ha, map_zero]
-
-/-- Agreement with a lower-dimensional chart on a product of infinite subsets
-extends to a polynomial identity on the entire parameter space. -/
-lemma generic_chart_relation {I J K : Type} [Fintype I] [Fintype J]
-    (hd : Fintype.card I < Fintype.card J) (chart : J → MvPolynomial I ℂ)
-    (full : J → MvPolynomial K ℂ)
-    (hnormal : ∀ x : K → ℂ, (∀ i, x i ≠ 0) →
-      ∃ y : I → ℂ, ∀ j, MvPolynomial.eval x (full j) = MvPolynomial.eval y (chart j)) :
-    ∃ P : MvPolynomial J ℂ, P ≠ 0 ∧
-      ∀ x : K → ℂ, MvPolynomial.eval (fun j => MvPolynomial.eval x (full j)) P = 0 := by
-  classical
-  obtain ⟨P, hP, hvanish⟩ := vanishing_on_polynomial_image hd chart
-  have hpoly : MvPolynomial.aeval full P = 0 := by
-    apply MvPolynomial.funext_set (fun _ : K => ({0}ᶜ : Set ℂ))
-      (fun _ => (Set.finite_singleton (0 : ℂ)).infinite_compl)
-    intro x hx
-    have hx0 (i : K) : x i ≠ 0 := hx i (Set.mem_univ _)
-    obtain ⟨y, hy⟩ := hnormal x hx0
-    rw [eval_substitution full x P, funext hy, map_zero]
-    exact hvanish y
-  refine ⟨P, hP, fun x => ?_⟩
-  rw [← eval_substitution full x P, hpoly, map_zero]
-
 def index_cons_equiv (n : ℕ) (ds : List ℕ) : HolorIndex (n :: ds) ≃ Fin n × HolorIndex ds where
   toFun
     | ⟨i :: is, h⟩ => (⟨i, (List.forall₂_cons.mp h).1⟩, ⟨is, (List.forall₂_cons.mp h).2⟩)
@@ -190,20 +150,6 @@ def index_cons_equiv (n : ℕ) (ds : List ℕ) : HolorIndex (n :: ds) ≃ Fin n 
     | nil => cases h
     | cons i is => rfl
   right_inv := by rintro ⟨⟨i, hi⟩, ⟨is, his⟩⟩; rfl
-
-def vector_index_equiv (n : ℕ) : HolorIndex [n] ≃ Fin n where
-  toFun i := ((index_cons_equiv n []) i).1
-  invFun i := ⟨[i.val], .cons i.isLt .nil⟩
-  left_inv := by
-    rintro ⟨l, h⟩
-    cases h with
-    | cons _ h => cases h; rfl
-  right_inv := by intro i; rfl
-
-def indexEquiv (n : ℕ) : HolorIndex [3, n, n] ≃ Fin 3 × Fin n × Fin n :=
-  (index_cons_equiv 3 [n, n]).trans (Equiv.prodCongr (Equiv.refl _)
-    ((index_cons_equiv n [n]).trans (Equiv.prodCongr (Equiv.refl _) (vector_index_equiv n))))
-
 
 end Dimension
 
@@ -682,19 +628,9 @@ theorem headI_lt {d : ℕ} {ds : List ℕ} (t : HolorIndex (d :: ds)) : t.1.head
   cases h with
   | cons ha _ => exact ha
 
-theorem forall₂_tail {d : ℕ} {ds : List ℕ} (t : HolorIndex (d :: ds)) :
-    List.Forall₂ (· < ·) t.1.tail ds := by
-  obtain ⟨l, h⟩ := t
-  cases h with
-  | cons _ h => exact h
-
 /-- The first coordinate of a holor index. -/
 def idxHead {d : ℕ} {ds : List ℕ} (t : HolorIndex (d :: ds)) : Fin d :=
   ⟨t.1.headI, headI_lt t⟩
-
-/-- The remaining coordinates of a holor index. -/
-def idxTail {d : ℕ} {ds : List ℕ} (t : HolorIndex (d :: ds)) : HolorIndex ds :=
-  ⟨t.1.tail, forall₂_tail t⟩
 
 /-- A vector as a one-dimensional holor. -/
 def vec {k : ℕ} (u : Fin k → ℂ) : Holor ℂ [k] := fun t => u (idxHead t)

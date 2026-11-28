@@ -42,22 +42,10 @@ private lemma classified {n p : ℕ} (h : p ∈ triangularPrimes n) : p ∈ divi
 
 private lemma yes_triangular {n p : ℕ} (h : p ∈ divisorPrimes n) : p ∈ triangularPrimes n := by
   obtain ⟨hp, d, r, rfl, h | h | h | h⟩ := h
-  · refine ⟨hp, 2*r, half_product ?_⟩
-    calc
-      (2*r)*(2*r+1) = (2*r)*(d*p) := by rw [h]
-      _ = 2*((d*r)*p) := by ring
-  · refine ⟨hp, d*p, half_product ?_⟩
-    calc
-      (d*p)*(d*p+1) = (d*p)*(2*r) := by rw [h]
-      _ = 2*((d*r)*p) := by ring
-  · refine ⟨hp, r, half_product ?_⟩
-    calc
-      r*(r+1) = r*(2*(d*p)) := by rw [h]
-      _ = 2*((d*r)*p) := by ring
-  · refine ⟨hp, 2*(d*p), half_product ?_⟩
-    calc
-      (2*(d*p))*(2*(d*p)+1) = (2*(d*p))*r := by rw [h]
-      _ = 2*((d*r)*p) := by ring
+  · exact ⟨hp, 2*r, half_product (by rw [← h]; ring)⟩
+  · exact ⟨hp, d*p, half_product (by rw [h]; ring)⟩
+  · exact ⟨hp, r, half_product (by rw [← h]; ring)⟩
+  · exact ⟨hp, 2*(d*p), half_product (by rw [h]; ring)⟩
 
 private lemma bounded {n : ℕ} (hn : 0 < n) : (divisorPrimes n).Finite := by
   refine (Set.finite_Iic (2*n+1)).subset ?_

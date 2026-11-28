@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
 import { getSolved, getSteps } from "@/lib/db";
 import { getProblem, getFullMany } from "@/lib/catalog";
+import { parseStep } from "@/lib/steps";
 import { outcomeOf, outcomeCounts, variantNote } from "@/lib/outcome";
 
 export async function GET() {
   const [rows, steps] = await Promise.all([getSolved(), getSteps()]);
-  const st = new Map(steps.map((s) => [s.id, s]));
-  const state = new Map((await getFullMany(rows.map((r) => r.problem_id)).catch(() => [])).map((f) => [f.id, f.erdosState]));
+  const known = new Map(steps.map((s) => [s.id, s]));
+  // A step the database has not registered (its reduction's credit was lost) is still a step: its id says so.
+  const stepOf = (id: string) => known.get(id) ?? (getProblem(id) ? undefined : parseStep(id) ?? undefined);
+  const st = { has: (id: string) => Boolean(stepOf(id)) };
+  // Only variant ids need the upstream state (variantOf note); capped in time like /solved.
+  const timeout = new Promise<[]>((r) => setTimeout(() => r([]), 800));
+  const state = new Map((await Promise.race([getFullMany(rows.map((r) => r.problem_id).filter((id) => /\.variants?\./.test(id))).catch(() => []), timeout])).map((f) => [f.id, f.erdosState]));
   const title = (id: string) => {
     const p = getProblem(id);
     if (p) return p.title;
-    const s = st.get(id);
+    const s = stepOf(id);
     return s ? `Step H${s.k} of ${getProblem(s.parent)?.title ?? s.parent}` : id;
   };
   return NextResponse.json(

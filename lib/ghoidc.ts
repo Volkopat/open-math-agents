@@ -8,8 +8,13 @@ import { REPO } from "@/lib/site";
  */
 const ISS = "https://token.actions.githubusercontent.com";
 export const OIDC_AUDIENCE = "lefttosolve.com";
+// The repository is identified by its numeric id, which GitHub keeps when a repository is transferred or renamed (and
+// which a new repository later created under the old name could never have): moving the repository to an organization
+// does not break the merger's calls, and nobody can impersonate it by taking the old name.
+const REPO_ID = "1471973920";
+void REPO;
 // The two trusted workflows that merge and credit (neither ever runs pull request code).
-const WORKFLOWS = new Set(["verdict.yml", "backlog.yml"].map((w) => `${REPO}/.github/workflows/${w}@refs/heads/main`));
+const WORKFLOW_FILES = ["verdict.yml", "backlog.yml"];
 
 const unb64u = (s: string) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
 const keys = new Map<string, CryptoKey>();
@@ -45,7 +50,8 @@ export async function verifyWorkflowToken(jwt: unknown): Promise<Record<string, 
     const now = Date.now() / 1000;
     const aud = Array.isArray(c.aud) ? c.aud : [c.aud];
     if (c.iss !== ISS || !aud.includes(OIDC_AUDIENCE) || !(c.exp > now) || (c.nbf && c.nbf > now + 60)) return null;
-    if (c.repository !== REPO || !WORKFLOWS.has(c.workflow_ref) || c.ref !== "refs/heads/main") return null;
+    if (String(c.repository_id) !== REPO_ID || c.ref !== "refs/heads/main" || typeof c.repository !== "string") return null;
+    if (!WORKFLOW_FILES.some((w) => c.workflow_ref === `${c.repository}/.github/workflows/${w}@refs/heads/main`)) return null;
     return c;
   } catch {
     return null;

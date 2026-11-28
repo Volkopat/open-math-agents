@@ -1,212 +1,90 @@
 import FormalConjectures.ErdosProblems.«1182»
 
-/-! The tree case of the triangle Ramsey bound, using a leaf extension and a bipartite coloring. -/
+/-! Chvátal: R(K₃, T) = 2n - 1 for every tree T on n vertices.
 
--- The following lemmas adapt Genbox workspace proof agent-tree-ramsey.lean for F_ge_pred.
+Upper bound: let C be triangle-free on 2n - 1 vertices. If some vertex has C-degree at least n,
+its C-neighbourhood is a clique of size n in Cᶜ, which contains T. Otherwise every vertex has
+a Cᶜ-neighbour outside any set of at most n - 1 vertices, and T embeds greedily leaf by leaf
+(`OMA.emb`).
+
+Lower bound: on N < 2n - 1 vertices, split the vertices into two blocks of size at most n - 1
+(via `Fin N ↪ Fin 2 × Fin (n - 1)`) and let C be the complete bipartite graph between them.
+C has no triangle, and a connected copy of T in Cᶜ would sit inside one block. -/
+
 open SimpleGraph
 
-lemma OMA.tree_copy_of_degree {V : Type} [Fintype V] [Nonempty V]
-    (H : SimpleGraph V) [DecidableRel H.Adj] (U : Type) [Fintype U] (T : SimpleGraph U)
-    (hT : T.IsTree) (hd : ∀ v, Fintype.card U - 1 ≤ H.degree v) : T ⊑ H := by
+/-- Greedy tree embedding: if every vertex of `H` has a neighbour outside every set of at most
+`k` vertices containing it, then every tree on `k + 1` vertices is contained in `H`. -/
+lemma OMA.emb {V : Type} (H : SimpleGraph V) (x : V) (k : ℕ)
+    (hd : ∀ s : Finset V, s.card ≤ k → ∀ v ∈ s, ∃ w ∉ s, H.Adj v w) :
+    ∀ (A : Type) [Fintype A] (G : SimpleGraph A), Fintype.card A = k + 1 → G.IsTree → G ⊑ H := by
   classical
-  have hall (k : ℕ) : ∀ (A : Type) [Fintype A] (G : SimpleGraph A),
-      Fintype.card A = k → G.IsTree → (∀ v, k - 1 ≤ H.degree v) → G ⊑ H := by
-    induction k using Nat.strong_induction_on with
-    | h k ih =>
-      intro A _ G hcard hG hdeg
-      by_cases hk : k ≤ 1
-      · let : Subsingleton A := Fintype.card_le_one_iff_subsingleton.mp (hcard.trans_le hk)
-        obtain ⟨w⟩ := ‹Nonempty V›
-        refine ⟨⟨⟨fun _ => w, ?_⟩, ?_⟩⟩
-        · intro a b hab
-          exact (hab.ne (Subsingleton.elim a b)).elim
-        · intro a b _
-          exact Subsingleton.elim a b
-      have hk' : 1 < k := by omega
-      let : Nontrivial A := Fintype.one_lt_card_iff_nontrivial.mp (hcard.symm ▸ hk')
-      obtain ⟨v, hv⟩ := hG.exists_vert_degree_one_of_nontrivial
-      obtain ⟨u, hu, huniq⟩ := degree_eq_one_iff_existsUnique_adj.mp hv
-      let S : Set A := {v}ᶜ
-      have hS : (G.induce S).IsTree :=
-        ⟨hG.connected.induce_compl_singleton_of_degree_eq_one hv, hG.isAcyclic.induce S⟩
-      have hS_card : Fintype.card S = k - 1 := by
-        change Fintype.card (({v} : Set A)ᶜ : Set A) = k - 1
-        rw [Fintype.card_compl_set, hcard]
-        simp
-      obtain ⟨f⟩ := ih (Fintype.card S) (by omega) S (G.induce S) rfl hS
-        (fun w => (Nat.sub_le _ _).trans (hS_card.symm ▸ hdeg w))
-      let u' : S := ⟨u, hu.ne.symm⟩
-      let used : Finset V := Finset.univ.image (fun a : S => f a)
-      have hused : used.card = Fintype.card S := by
-        calc
-          used.card = (Finset.univ : Finset S).card :=
-            Finset.card_image_of_injective _ f.injective
-          _ = _ := Finset.card_univ
-      have hcenter : f u' ∈ used := Finset.mem_image.mpr ⟨u', Finset.mem_univ _, rfl⟩
-      let N := H.neighborFinset (f u')
-      have hN : N.card = H.degree (f u') := H.card_neighborFinset_eq_degree _
-      have hNself : f u' ∉ N := H.notMem_neighborFinset_self _
-      have hlarge : used.card < (insert (f u') N).card := by
-        rw [Finset.card_insert_of_notMem hNself, hused, hS_card, hN]
-        exact Nat.lt_succ_of_le (hdeg _)
-      obtain ⟨w, hw, hnew⟩ := Finset.exists_mem_notMem_of_card_lt_card hlarge
-      have hwN : w ∈ N := (Finset.mem_insert.mp hw).resolve_left
-        (fun h => hnew (h.symm ▸ hcenter))
-      have hwadj : H.Adj (f u') w := (H.mem_neighborFinset _ _).mp hwN
-      let g (a : A) : V := if ha : a = v then w else f ⟨a, ha⟩
-      have gv : g v = w := by simp [g]
-      have gn (a : A) (ha : a ≠ v) : g a = f ⟨a, ha⟩ := by simp [g, ha]
-      refine ⟨⟨⟨g, ?_⟩, ?_⟩⟩
-      · intro a b hab
-        by_cases ha : a = v
-        · subst a
-          have hbu : b = u := huniq b hab
-          rw [hbu, gv, gn u hu.ne.symm]
-          exact hwadj.symm
-        · by_cases hb : b = v
-          · subst b
-            have hau : a = u := huniq a hab.symm
-            rw [hau, gn u hu.ne.symm, gv]
-            exact hwadj
-          · rw [gn a ha, gn b hb]
-            exact f.toHom.map_adj (show (G.induce S).Adj ⟨a, ha⟩ ⟨b, hb⟩ from hab)
-      · intro a b heq
-        change g a = g b at heq
-        by_cases ha : a = v
-        · by_cases hb : b = v
-          · exact ha.trans hb.symm
-          · subst a
-            exfalso
-            apply hnew
-            exact Finset.mem_image.mpr ⟨⟨b, hb⟩, Finset.mem_univ _,
-              by simpa only [gv, gn b hb] using heq.symm⟩
-        · by_cases hb : b = v
-          · subst b
-            exfalso
-            apply hnew
-            exact Finset.mem_image.mpr ⟨⟨a, ha⟩, Finset.mem_univ _,
-              by simpa only [gv, gn a ha] using heq⟩
-          · rw [gn a ha, gn b hb] at heq
-            exact congrArg Subtype.val (f.injective heq)
-  exact hall (Fintype.card U) U T rfl hT hd
-
-lemma OMA.tree_ramsey_upper (n : ℕ) (hn : 2 ≤ n) {T : SimpleGraph (Fin n)}
-    (hT : T.IsTree) (C : SimpleGraph (Fin (2 * n - 1))) :
-    (⊤ : SimpleGraph (Fin 3)) ⊑ C ∨ T ⊑ Cᶜ := by
-  classical
-  by_cases htri : (⊤ : SimpleGraph (Fin 3)) ⊑ C
-  · exact Or.inl htri
-  right
-  have hcf : C.CliqueFree 3 := by
-    by_contra hc
-    exact htri (by simpa only [completeGraph_eq_top] using
-      (not_cliqueFree_iff_top_isContained 3).mp hc)
-  by_cases hdegree : ∀ v, n - 1 ≤ Cᶜ.degree v
-  · have : Nonempty (Fin (2 * n - 1)) := ⟨⟨0, by omega⟩⟩
-    exact OMA.tree_copy_of_degree Cᶜ (Fin n) T hT (by simpa using hdegree)
-  push Not at hdegree
-  obtain ⟨v, hv⟩ := hdegree
-  let S := C.neighborFinset v
-  have hcard : n ≤ Fintype.card S := by
-    have h := C.degree_compl v
-    rw [Fintype.card_fin] at h
-    rw [Fintype.card_coe, C.card_neighborFinset_eq_degree]
-    omega
-  have hclique : Cᶜ.IsClique (S : Set (Fin (2 * n - 1))) := by
-    rw [isClique_compl]
-    simpa only [S, coe_neighborFinset] using isIndepSet_neighborSet_of_triangleFree C hcf v
-  let f : Fin n ↪ S := (Fin.castLEEmb hcard).trans (Fintype.equivFin S).symm.toEmbedding
-  refine ⟨⟨⟨fun a => (f a).val, ?_⟩, ?_⟩⟩
-  · intro a b hab
-    exact hclique (f a).property (f b).property
-      (fun he => hab.ne (f.injective (Subtype.ext he)))
-  · intro a b he
-    exact f.injective (Subtype.ext he)
-
-lemma OMA.tree_ramsey_lower_witness (n N : ℕ) (hn : 2 ≤ n) (hN : N < 2 * n - 1)
-    (T : SimpleGraph (Fin n)) (hT : T.Connected) :
-    ∃ C : SimpleGraph (Fin N), ¬ ((⊤ : SimpleGraph (Fin 3)) ⊑ C) ∧ ¬ (T ⊑ Cᶜ) := by
-  classical
-  let color (v : Fin N) : Bool := decide (v.val < n - 1)
-  let C : SimpleGraph (Fin N) := (⊤ : SimpleGraph Bool).comap color
-  refine ⟨C, ?_, ?_⟩
-  · rintro ⟨f⟩
-    have hinj : Function.Injective (fun i : Fin 3 => color (f i)) := by
-      intro i j he
-      by_contra hij
-      have hadj : (⊤ : SimpleGraph (Fin 3)).Adj i j := hij
-      have himg : C.Adj (f i) (f j) := f.toHom.map_adj hadj
-      exact himg he
-    have hcard := Fintype.card_le_of_injective _ hinj
-    norm_num at hcard
-  · rintro ⟨f⟩
-    have hlab (i j : Fin n) : color (f i) = color (f j) := by
-      obtain ⟨w⟩ := hT.preconnected i j
-      induction w with
-      | nil => rfl
-      | cons h _ ih =>
-        exact (not_ne_iff.mp (f.toHom.map_adj h).2).trans ih
-    have hclass (i j : Fin n) : ((f i).val < n - 1) ↔ ((f j).val < n - 1) :=
-      decide_eq_decide.mp (hlab i j)
-    let g (i : Fin n) : Fin (n - 1) :=
-      ⟨if (f i).val < n - 1 then (f i).val else (f i).val - (n - 1), by
-        have hi := (f i).isLt
-        split <;> omega⟩
-    have hg : Function.Injective g := by
-      intro i j he
-      have heq := congrArg Fin.val he
-      change (if (f i).val < n - 1 then (f i).val else (f i).val - (n - 1)) =
-        (if (f j).val < n - 1 then (f j).val else (f j).val - (n - 1)) at heq
-      apply f.injective
-      change f i = f j
-      apply Fin.ext
-      by_cases hi : (f i).val < n - 1
-      · simpa only [if_pos hi, if_pos ((hclass i j).mp hi)] using heq
-      · have hj : ¬ (f j).val < n - 1 := fun h => hi ((hclass i j).mpr h)
-        simp only [if_neg hi, if_neg hj] at heq
-        omega
-    have hcard := Fintype.card_le_of_injective g hg
-    simp only [Fintype.card_fin] at hcard
-    omega
-
-lemma OMA.tree_triangle_good (n : ℕ) (hn : 2 ≤ n) (T : SimpleGraph (Fin n))
-    (hT : T.IsTree) : Erdos1182.IsTriangleGood T := by
-  unfold Erdos1182.IsTriangleGood graphRamsey
-  let good : Set ℕ := {N | ∀ C : SimpleGraph (Fin N), (⊤ : SimpleGraph (Fin 3)) ⊑ C ∨ T ⊑ Cᶜ}
-  change sInf good = 2 * n - 1
-  have h : 2 * n - 1 ∈ good := OMA.tree_ramsey_upper n hn (T := T) hT
-  apply le_antisymm (Nat.sInf_le h)
-  refine le_csInf ⟨2 * n - 1, h⟩ ?_
-  intro N hN
-  by_contra! hlt
-  obtain ⟨C, hC1, hC2⟩ := OMA.tree_ramsey_lower_witness n N hn hlt T hT.connected
-  change ∀ C : SimpleGraph (Fin N), (⊤ : SimpleGraph (Fin 3)) ⊑ C ∨ T ⊑ Cᶜ at hN
-  exact (hN C).elim hC1 hC2
+  induction k with
+  | zero =>
+    intro A _ G hA _
+    obtain ⟨y, hy⟩ := Fintype.card_eq_one_iff.mp hA
+    exact ⟨⟨⟨fun _ => x, fun h => (h.ne ((hy _).trans (hy _).symm)).elim⟩,
+      fun a b _ => (hy a).trans (hy b).symm⟩⟩
+  | succ k ih =>
+    intro A _ G hA hG
+    have := Fintype.one_lt_card_iff_nontrivial.mp (by omega : 1 < Fintype.card A)
+    -- remove a leaf `v` with unique neighbour `u`, embed the rest, then place `v` at a fresh
+    -- neighbour `w` of the image of `u`
+    obtain ⟨v, hv⟩ := hG.exists_vert_degree_one_of_nontrivial
+    obtain ⟨u, hu, hU⟩ := degree_eq_one_iff_existsUnique_adj.mp hv
+    have hS : Fintype.card ({v}ᶜ : Set A) = k + 1 := by rw [Fintype.card_compl_set]; simp [hA]
+    obtain ⟨f⟩ := ih (fun s hs => hd s (by omega)) _ _ hS
+      ⟨hG.1.induce_compl_singleton_of_degree_eq_one hv, hG.2.induce _⟩
+    obtain ⟨w, hn, hw⟩ := hd (Finset.univ.map f.toEmbedding) (by simp [hS]) (f ⟨u, hu.ne'⟩)
+      (Finset.mem_map_of_mem _ (Finset.mem_univ _))
+    refine ⟨⟨⟨fun a => if h : a = v then w else f ⟨a, h⟩, fun {a b} hab => ?_⟩, fun a b hab => ?_⟩⟩
+    · split_ifs with ha hb hb
+      · exact absurd (ha.trans hb.symm) hab.ne
+      · subst ha
+        obtain rfl := hU b hab
+        exact hw.symm
+      · subst hb
+        obtain rfl := hU a hab.symm
+        exact hw
+      · exact f.toHom.map_adj hab
+    · dsimp at hab
+      split_ifs at hab with ha hb hb
+      · exact ha.trans hb.symm
+      · exact (hn (hab ▸ Finset.mem_map_of_mem _ (Finset.mem_univ _))).elim
+      · exact (hn (hab ▸ Finset.mem_map_of_mem _ (Finset.mem_univ _))).elim
+      · exact congrArg Subtype.val (f.injective hab)
 
 theorem OMA.solution : type_of% @Erdos1182.erdos_1182.variants.chvatal := by
   classical
   intro n T hT
-  by_cases hn : 2 ≤ n
-  · exact OMA.tree_triangle_good n hn T hT
-  obtain ⟨v⟩ := hT.connected.nonempty
-  have hpos := v.isLt
-  have hn1 : n = 1 := by omega
-  subst n
-  unfold Erdos1182.IsTriangleGood graphRamsey
-  change sInf {N : ℕ | ∀ C : SimpleGraph (Fin N), (⊤ : SimpleGraph (Fin 3)) ⊑ C ∨ T ⊑ Cᶜ} = 1
-  have hone : 1 ∈ {N : ℕ | ∀ C : SimpleGraph (Fin N), (⊤ : SimpleGraph (Fin 3)) ⊑ C ∨
-      T ⊑ Cᶜ} := by
-    intro C
-    refine Or.inr (isContained_iff_exists_le_comap.mpr ⟨Function.Embedding.refl _, ?_⟩)
-    intro a b hab
-    exact (hab.ne (Subsingleton.elim a b)).elim
-  apply le_antisymm (Nat.sInf_le hone) (le_csInf ⟨1, hone⟩ ?_)
-  intro N hN
-  cases N with
-  | zero =>
-    rcases hN (⊥ : SimpleGraph (Fin 0)) with h | h
-    · obtain ⟨f⟩ := h
-      exact Fin.elim0 (f 0)
-    · obtain ⟨f⟩ := h
-      exact Fin.elim0 (f 0)
-  | succ N => omega
+  obtain ⟨x⟩ := hT.1.2
+  have := x.2
+  refine IsLeast.csInf_eq ⟨fun C => ?_, fun N hN => ?_⟩
+  · by_cases h3 : C.CliqueFree 3
+    · right
+      by_cases hd : ∀ v, C.degree v < n
+      · refine OMA.emb _ ⟨0, by omega⟩ (n - 1) (fun s hs v hv => ?_) _ T (by simp; omega) hT
+        obtain ⟨w, h1, h2⟩ := Finset.exists_mem_notMem_of_card_lt_card (s := C.neighborFinset v)
+          (t := sᶜ) (by rw [Finset.card_compl, card_neighborFinset_eq_degree]; simp; have := hd v; omega)
+        exact ⟨w, by simpa using h1, by simp at h1 h2; exact ⟨fun h => h1 (h ▸ hv), h2⟩⟩
+      · push Not at hd
+        obtain ⟨v, hv⟩ := hd
+        obtain ⟨t, ht, hc⟩ :=
+          Finset.exists_subset_card_eq (hv.trans_eq (card_neighborFinset_eq_degree C v).symm)
+        exact (IsContained.of_le le_top).trans ((not_cliqueFree_iff_top_isContained n).mp fun h =>
+          h t ⟨((isClique_compl C).2 (isIndepSet_neighborSet_of_triangleFree C h3 v)).subset
+            (Set.subset_toFinset.1 ht), hc⟩)
+    · exact .inl ((not_cliqueFree_iff_top_isContained 3).mp h3)
+  · by_contra! h
+    have e := (Fin.castLEEmb (by omega : N ≤ 2 * (n - 1))).trans finProdFinEquiv.symm.toEmbedding
+    rcases hN ((⊤ : SimpleGraph (Fin 2)).comap fun v => (e v).1) with ⟨⟨f⟩⟩ | ⟨⟨f⟩⟩
+    · exact absurd (Fin.le_of_injective (fun i => (e (f i)).1)
+        fun i j h => by_contra fun hij => f.toHom.map_adj hij h) (by omega)
+    · have k (i j) : (e (f i)).1 = (e (f j)).1 := by
+        obtain ⟨w⟩ := hT.1.1 i j
+        induction w with
+        | nil => rfl
+        | cons h _ ih => exact (not_ne_iff.mp (f.toHom.map_adj h).2).trans ih
+      have := Fin.le_of_injective (fun i => (e (f i)).2)
+        fun i j h => f.injective (e.injective (Prod.ext (k i j) h))
+      omega

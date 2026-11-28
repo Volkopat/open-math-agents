@@ -4,6 +4,7 @@ import Mathlib.Algebra.Polynomial.Taylor
 import Mathlib.Tactic.Ring
 
 -- Formal proof of Federico Provvedi’s A030433 factorization criterion.
+-- Original proof: @anmolspace (#7813); translation and characteristic-five steps simplified.
 
 open Polynomial UniqueFactorizationMonoid
 namespace OMA.P_oeis_a030433
@@ -32,28 +33,25 @@ private theorem shift_card (p : ℕ) [Fact p.Prime] :
   let E := normalizedFactorsEquiv (f:=e) (translate_normalize _) q
   rw [quadraticFactors,shift_eq]
   symm
-  refine Finset.card_bij' (fun f _ => e f) (fun g _ => e.symm g) ?_ ?_ ?_ ?_
-  · intro f hf
-    obtain ⟨hf,hd⟩ := Finset.mem_filter.mp hf
-    exact Finset.mem_filter.mpr ⟨Multiset.mem_toFinset.mpr (E ⟨f,Multiset.mem_toFinset.mp hf⟩).property,
-      (natDegree_taylor f _).trans hd⟩
-  · intro g hg
-    obtain ⟨hg,hd⟩ := Finset.mem_filter.mp hg
-    exact Finset.mem_filter.mpr ⟨Multiset.mem_toFinset.mpr (E.symm ⟨g,Multiset.mem_toFinset.mp hg⟩).property,
-      (natDegree_taylor g _).trans hd⟩
-  · intro f _; exact e.symm_apply_apply f
-  · intro g _; exact e.apply_symm_apply g
+  refine Finset.card_equiv e.toEquiv (fun f => ?_)
+  simp only [Finset.mem_filter, Multiset.mem_toFinset]
+  constructor
+  · rintro ⟨hf, hd⟩
+    exact ⟨(E ⟨f, hf⟩).property, (natDegree_taylor f _).trans hd⟩
+  · rintro ⟨hf, hd⟩
+    exact ⟨by simpa [E, e] using (E.symm ⟨e f, hf⟩).property,
+      (natDegree_taylor f _).symm.trans hd⟩
 
 set_option maxHeartbeats 1000000 in
 private theorem exceptional [Fact (Nat.Prime 5)] : (quadraticFactors 5).card = 0 := by
   classical
+  have hc : cyclotomic 5 (ZMod 5) = (X - 1)^4 := by
+    simpa using cyclotomic_mul_prime_eq_pow_of_not_dvd (ZMod 5) (p := 5) (n := 1) (by decide)
   have shift : shiftedQuotient 5 = (X : (ZMod 5)[X])^4 := by
-    have five : (5:(ZMod 5)[X]) = 0 := CharP.cast_eq_zero _ 5
-    calc
-      shiftedQuotient 5 = (X:(ZMod 5)[X])^4 + 5*(X^3+2*X^2+2*X+1) := by
-        simp only [shiftedQuotient,Finset.sum_range_succ,Finset.sum_range_zero]
-        ring
-      _ = X^4 := by rw [five,zero_mul,add_zero]
+    rw [shift_eq, hc]
+    rw [map_pow, map_sub, map_one]
+    change (taylor 1 X - 1)^4 = _
+    simp [taylor_X]
   rw [quadraticFactors,shift,(irreducible_X (R:=ZMod 5)).normalizedFactors_pow]
   have normalX : normalize (X:(ZMod 5)[X]) = X := monic_X.normalize_eq_self
   simp [normalX]

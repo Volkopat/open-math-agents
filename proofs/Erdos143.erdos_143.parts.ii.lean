@@ -37,37 +37,13 @@ def totalWeight (A : Set ℚ) : ℝ≥0∞ := ∑' a : A, weight a
 def Primitive (P : Set ℕ) : Prop :=
   ∀ m ∈ P, ∀ n ∈ P, m ∣ n → m = n
 
-/-- Every bounded initial interval contains only finitely many points. -/
-def LocallyFiniteAbove (A : Set ℚ) : Prop :=
-  ∀ x : ℚ, (A ∩ Set.Iic x).Finite
-
 /-- The additional small positive displacement in the candidate. -/
 def TinyPositiveDisplacement (a : ℚ) : Prop :=
   ∃ m : ℕ, 2 ≤ m ∧ 0 < a - m ∧ a - m ≤ 1 / (2 * (m : ℚ) ^ 12)
 
-/-- The exact main existence claim. No proof is supplied by this definition. -/
-def MainConclusion : Prop :=
-  ∃ A : Set ℚ, A.Countable ∧ (∀ a ∈ A, (2 : ℚ) ≤ a) ∧
-    Original A ∧ totalWeight A = ⊤
-
-/-- The stronger existence claim made by the manuscript. -/
-def StrongConclusion : Prop :=
-  ∃ A : Set ℚ, A.Countable ∧ (∀ a ∈ A, (2 : ℚ) ≤ a) ∧
-    Original A ∧ totalWeight A = ⊤ ∧ LocallyFiniteAbove A ∧
-    ∀ a ∈ A, TinyPositiveDisplacement a
-
 /-- Free lattice labels; the half-open interval is deliberately asymmetric. -/
 def RightFree (F : Set ℚ) (D : ℕ) (n : ℕ) : Prop :=
   ∀ a ∈ F, ∀ k : ℤ, ¬ ((-1 : ℚ) < k * a - D * n ∧ k * a - D * n ≤ 1)
-
-/-- The analytic finite-selection interface, proved by `periodicPrimitiveSelection_proved`. -/
-def PeriodicPrimitiveSelection : Prop :=
-  ∀ (L : ℕ) (_ : 0 < L) (S : Finset (Fin L)),
-    (2 / 3 : ℚ) < (S.card : ℚ) / L →
-    ∀ N : ℕ, 2 ≤ N → ∃ P : Finset ℕ,
-      (∀ n ∈ P, N ≤ n ∧ (⟨n % L, Nat.mod_lt _ ‹0 < L›⟩ : Fin L) ∈ S) ∧
-      Primitive (P : Set ℕ) ∧
-      (1 / 6 : ℝ≥0∞) < ∑ n ∈ P, weight n
 
 end Apicella143
 
@@ -135,10 +111,6 @@ noncomputable section
 open scoped BigOperators ENNReal
 
 namespace Apicella143
-
-lemma original_mono {A B : Set ℚ} (hB : Original B) (hAB : A ⊆ B) : Original A := by
-  intro a ha b hb hab k hk
-  exact hB a (hAB ha) b (hAB hb) hab k hk
 
 lemma original_empty : Original ∅ := by
   intro a ha
@@ -269,21 +241,6 @@ lemma private_grid_separated {H t q n D : ℕ} {a : ℚ} (hH : H.Prime)
   rw [hid, abs_mul, abs_of_nonneg haspace]
   nlinarith
 
-/-- The natural-number formulation has exactly the same positive-integer quantifiers. -/
-lemma original_iff_integer_multipliers (A : Set ℚ) :
-    Original A ↔ ∀ a ∈ A, ∀ b ∈ A, a ≠ b →
-      ∀ k : ℤ, 1 ≤ k → 1 ≤ |(k : ℚ) * a - b| := by
-  constructor
-  · intro h a ha b hb hab k hk
-    have hk0 : 0 ≤ k := by omega
-    have hcast : ((k.toNat : ℕ) : ℚ) = (k : ℚ) := by
-      exact_mod_cast Int.toNat_of_nonneg hk0
-    have hkn : 1 ≤ k.toNat := by omega
-    simpa [hcast] using h a ha b hb hab k.toNat hkn
-  · intro h a ha b hb hab k hk
-    have hkZ : (1 : ℤ) ≤ k := by exact_mod_cast hk
-    simpa using h a ha b hb hab (k : ℤ) hkZ
-
 /-- The rational inequalities are exactly the corresponding inequalities in the reals. -/
 lemma original_iff_real_inequalities (A : Set ℚ) :
     Original A ↔ ∀ a ∈ A, ∀ b ∈ A, a ≠ b →
@@ -376,19 +333,6 @@ lemma scaled_real_weight_lower_bound {c D n : ℝ} (hc : 1 < c) (hc2 : c < 2)
     _ ≤ 1 / ((c * D * n) * Real.log (c * D * n)) :=
       one_div_le_one_div_of_le (by positivity) hden
 
-/-- Positivity ensures that `ofReal` does not discard any term in the requested range. -/
-lemma real_weight_pos {a : ℚ} (ha : (2 : ℚ) ≤ a) :
-    0 < 1 / ((a : ℝ) * Real.log a) := by
-  have haR : (2 : ℝ) ≤ (a : ℝ) := by exact_mod_cast ha
-  have hlog : 0 < Real.log (a : ℝ) := Real.log_pos (by linarith)
-  positivity
-
-lemma weight_pos {a : ℚ} (ha : (2 : ℚ) ≤ a) : 0 < weight a := by
-  exact ENNReal.ofReal_pos.mpr (real_weight_pos ha)
-
-/-- Every individual term is finite; divergence cannot come from an infinite summand. -/
-lemma weight_ne_top (a : ℚ) : weight a ≠ ⊤ := ENNReal.ofReal_ne_top
-
 /-- A complete round contains enough blocks for the uniform gain. -/
 lemma round_blocks_lower_bound {D : ℕ} (hD : 48 ≤ D) : (D : ℚ) / 24 ≤ ((D / 12 : ℕ) : ℚ) := by
   have hq : D < 12 * (D / 12 + 1) := Nat.lt_mul_div_succ D (by decide : 0 < 12)
@@ -454,21 +398,6 @@ lemma totalWeight_iUnion_eq_top_of_unbounded {F : ℕ → Set ℚ}
   intro n
   obtain ⟨i, hi⟩ := hF n
   exact hi.le.trans (totalWeight_mono (Set.subset_iUnion F i))
-
-/-- The manuscript's precise round bound suffices; 576 is kept explicit. -/
-lemma totalWeight_iUnion_eq_top_of_round_bound {F : ℕ → Set ℚ}
-    (hF : ∀ R : ℕ, 1 ≤ R → (R : ℝ≥0∞) / 576 < totalWeight (F R)) :
-    totalWeight (⋃ i, F i) = ⊤ := by
-  apply totalWeight_iUnion_eq_top_of_unbounded
-  intro n
-  refine ⟨(n + 1) * 576, ?_⟩
-  have hR : 1 ≤ (n + 1) * 576 := by omega
-  have h := hF ((n + 1) * 576) hR
-  have heq : (((n + 1) * 576 : ℕ) : ℝ≥0∞) / 576 = (n : ℝ≥0∞) + 1 := by
-    push_cast
-    exact ENNReal.mul_div_cancel_right (by norm_num) (by norm_num)
-  rw [heq] at h
-  exact (le_add_right le_rfl).trans_lt h
 
 /-- For a finite prefix the subtype sum is exactly its usual finite sum. -/
 lemma totalWeight_finset (F : Finset ℚ) : totalWeight (F : Set ℚ) = ∑ a ∈ F, weight a := by
@@ -621,14 +550,6 @@ lemma rpow_one_add_le_linear {u x : ℝ} (hu0 : 0 ≤ u) (hu1 : u ≤ 1) (hx : 0
   simp only [Real.one_rpow, one_mul, mul_one] at h
   nlinarith
 
-lemma rpow_one_sub_le_linear {u x : ℝ} (hu0 : 0 ≤ u) (hu1 : u ≤ 1) (hx : x < 1) :
-    (1 - x) ^ u ≤ 1 - u * x := by
-  have h := Real.geom_mean_le_arith_mean2_weighted
-    (w₁ := 1 - u) (w₂ := u) (p₁ := 1) (p₂ := 1 - x)
-    (by linarith) hu0 (by norm_num) (by linarith) (by ring)
-  simp only [Real.one_rpow, one_mul, mul_one] at h
-  nlinarith
-
 /-- Lower comparison of the positive generating-function Euler factor with a squarefree factor. -/
 lemma positive_euler_factor_lower {u x : ℝ} (hu0 : 0 ≤ u) (hu1 : u ≤ 1)
     (hx0 : 0 ≤ x) (hx1 : x < 1) : (1 + x) ^ u ≤ (1 - u * x)⁻¹ := by
@@ -639,13 +560,6 @@ lemma positive_euler_factor_lower {u x : ℝ} (hu0 : 0 ≤ u) (hu1 : u ≤ 1)
     _ ≤ (1 - u * x)⁻¹ := by
       rw [← one_div, le_div_iff₀ hden]
       nlinarith [sq_nonneg (u * x)]
-
-/-- Upper comparison with the u-th power of the ordinary Euler factor. -/
-lemma positive_euler_factor_upper {u x : ℝ} (hu0 : 0 ≤ u) (hu1 : u ≤ 1)
-    (hx1 : x < 1) : (1 - u * x)⁻¹ ≤ ((1 - x) ^ u)⁻¹ := by
-  have hp : 0 < (1 - x) ^ u := Real.rpow_pos_of_pos (by linarith) _
-  have hle := rpow_one_sub_le_linear hu0 hu1 hx1
-  simpa only [one_div] using one_div_le_one_div_of_le hp hle
 
 lemma complex_norm_sq_interpolation (u : ℝ) (z : ℂ) :
     ‖1 - (u : ℂ) * z‖ ^ 2 =
@@ -712,25 +626,6 @@ lemma complex_finite_euler_product_upper {ι : Type*} (S : Finset ι)
     (fun i hi => complex_inverse_euler_factor_upper hu0 hu1 (hz i hi))
   simpa only [Finset.prod_mul_distrib, Finset.prod_pow, Real.finset_prod_rpow S
     (fun i => ‖(1 - z i)⁻¹‖) (fun _ _ => norm_nonneg _) (2 * u), norm_prod] using h
-
-/-- Passing the finite comparison to convergent products does not need nonvanishing of L.
-The rpow exponent is nonnegative, so the limiting norm may even be zero. -/
-lemma complex_euler_product_upper {ι : Type*} {u : ℝ} (hu0 : 0 ≤ u) (hu1 : u ≤ 1)
-    (z : ι → ℂ) (hz : ∀ i, ‖z i‖ ≤ 1 / 2) {F L : ℂ} {Q : ℝ}
-    (hF : HasProd (fun i => (1 - (u : ℂ) * z i)⁻¹) F)
-    (hL : HasProd (fun i => (1 - z i)⁻¹) L)
-    (hQ : HasProd (fun i => (1 - ‖z i‖ ^ 2)⁻¹) Q) :
-    ‖F‖ ^ 2 ≤ ‖L‖ ^ (2 * u) * Q := by
-  change Filter.Tendsto (fun S : Finset ι => ∏ i ∈ S, (1 - (u : ℂ) * z i)⁻¹)
-    Filter.atTop (nhds F) at hF
-  change Filter.Tendsto (fun S : Finset ι => ∏ i ∈ S, (1 - z i)⁻¹)
-    Filter.atTop (nhds L) at hL
-  change Filter.Tendsto (fun S : Finset ι => ∏ i ∈ S, (1 - ‖z i‖ ^ 2)⁻¹)
-    Filter.atTop (nhds Q) at hQ
-  exact le_of_tendsto_of_tendsto (hF.norm.pow 2)
-    ((hL.norm.rpow_const (Or.inr (by positivity : (0 : ℝ) ≤ 2 * u))).mul hQ)
-    (Filter.Eventually.of_forall (fun S => complex_finite_euler_product_upper S hu0 hu1 z
-      (fun i _ => hz i)))
 
 end Apicella143
 
@@ -982,13 +877,6 @@ of the bespoke weighted periodic-selection lemma.
 -/
 
 namespace Apicella143
-
-/-- Nonvanishing on the real segment, including its endpoint at 1. -/
-lemma nonprincipal_LFunction_nonzero_segment {L : ℕ} [NeZero L]
-    (χ : DirichletCharacter ℂ L) (hχ : χ ≠ 1) {t : ℝ} (ht : 0 ≤ t) :
-    χ.LFunction (1 + (t : ℂ)) ≠ 0 := by
-  apply χ.LFunction_ne_zero_of_one_le_re (Or.inl hχ)
-  simpa using ht
 
 /-- Continuation near the segment is available as an entire function for a nonprincipal character. -/
 lemma nonprincipal_LFunction_continuous {L : ℕ} [NeZero L]
@@ -1627,27 +1515,6 @@ lemma generatingValue_sub_one_integrable {N : ℕ} (χ : DirichletCharacter ℂ 
   · intro t ht
     exact generatingValue_tail_bound χ hu ht
 
-/-- For a nonprincipal character the endpoint u=1 is also integrable, using the uniform
-boundedness proved directly from L-function continuity. -/
-lemma nonprincipal_generatingValue_sub_one_integrable {N : ℕ} [NeZero N]
-    (χ : DirichletCharacter ℂ N) (hχ : χ ≠ 1) {u : ℝ} (hu0 : 0 ≤ u) (hu1 : u ≤ 1) :
-    IntegrableOn (fun t : ℝ => generatingValue χ (u : ℂ) (1 + (t : ℂ)) - 1) (Ioi 0) := by
-  have hu : ‖(u : ℂ)‖ ≤ 1 := by rw [Complex.norm_of_nonneg hu0]; exact hu1
-  have hcont := (generatingValue_continuousOn_positive χ hu).sub (continuousOn_const (c := (1 : ℂ)))
-  obtain ⟨C, _hC0, hC⟩ := nonprincipal_generatingValue_bounded χ hχ
-  apply integrableOn_Ioi_of_power_exp_bounds hcont (eps := 1) (by norm_num) (by norm_num)
-    (a := 0) (by norm_num) (Real.log_pos (by norm_num : (1 : ℝ) < 2))
-    (C := 0) (D := C + 1) (E := tailMajorantConst)
-  · intro t ht ht1
-    simp only [Pi.sub_apply]
-    have hb := hC u hu0 hu1 t ht ht1
-    have hnorm := norm_sub_le (generatingValue χ (u : ℂ) (1 + (t : ℂ))) (1 : ℂ)
-    simp only [norm_one] at hnorm
-    simp only [Real.rpow_zero, mul_one, zero_add]
-    linarith
-  · intro t ht
-    exact generatingValue_tail_bound χ hu ht
-
 /-- The integrated generating function used by the Abel proof. -/
 def integratedGeneratingValue {N : ℕ} (χ : DirichletCharacter ℂ N) (u : ℝ) : ℂ :=
   ∫ t : ℝ in Ioi 0, generatingValue χ (u : ℂ) (1 + (t : ℂ)) - 1
@@ -1674,16 +1541,6 @@ lemma summable_integral_of_integrable_tsum_nonneg {α : Type*} [MeasurableSpace 
   apply integral_mono_ae (integrable_finset_sum S (fun n _ => hF n)) hInt
   filter_upwards [hsum] with x hx
   exact hx.sum_le_tsum S (fun n _ => hnonneg n x)
-
-lemma integral_tsum_nonneg_of_integrable_tsum {α : Type*} [MeasurableSpace α]
-    {μ : Measure α} (F : ℕ → α → ℝ) (hF : ∀ n, Integrable (F n) μ)
-    (hnonneg : ∀ n x, 0 ≤ F n x) (hsum : ∀ᵐ x ∂μ, Summable (fun n => F n x))
-    (hInt : Integrable (fun x => ∑' n, F n x) μ) :
-    (∑' n, ∫ x, F n x ∂μ) = ∫ x, ∑' n, F n x ∂μ := by
-  have hint := summable_integral_of_integrable_tsum_nonneg F hF hnonneg hsum hInt
-  have hnorm : Summable (fun n => ∫ x, ‖F n x‖ ∂μ) := by
-    simpa only [Real.norm_eq_abs, abs_of_nonneg (hnonneg _ _)] using hint
-  exact integral_tsum_of_summable_integral_norm hF hnorm
 
 end Apicella143
 
@@ -1894,12 +1751,6 @@ lemma natWeight_nonneg (n : ℕ) : 0 ≤ natWeight n := by
     unfold natWeight
     positivity
 
-lemma natWeight_pos {n : ℕ} (hn : 2 ≤ n) : 0 < natWeight n := by
-  have hnR : (2 : ℝ) ≤ n := by exact_mod_cast hn
-  have hlog := Real.log_pos (show (1 : ℝ) < n by linarith)
-  unfold natWeight
-  positivity
-
 lemma weight_nat_eq_ofReal (n : ℕ) : weight n = ENNReal.ofReal (natWeight n) := by
   simp [weight, natWeight]
 
@@ -1974,9 +1825,6 @@ lemma progressionTerm_summable {N : ℕ} (b : ZMod N) {u : ℝ} (hu0 : 0 ≤ u) 
   split_ifs
   · exact le_rfl
   · exact realAbelTerm_nonneg hu0 n
-
-lemma progressionMass_nonneg {N : ℕ} (b : ZMod N) {u : ℝ} (hu : 0 ≤ u) :
-    0 ≤ progressionMass N b u := tsum_nonneg (progressionTerm_nonneg b hu)
 
 lemma progressionTerm_orthogonality {N : ℕ} [NeZero N] {b : ZMod N} (hb : IsUnit b)
     (u : ℝ) (n : ℕ) :
@@ -3029,29 +2877,6 @@ lemma periodic_primitive_selection (L : ℕ) [NeZero L] (S : Finset (ZMod L))
   simpa only [weight_nat_eq_ofReal, ENNReal.ofReal_div_of_pos (by norm_num : (0 : ℝ) < 6),
     ENNReal.ofReal_one, ENNReal.ofReal_ofNat] using h
 
-/-- This closes exactly the finite-period interface stated at the start of the project,
-including its original `Fin L` residue encoding and rational density comparison. -/
-theorem periodicPrimitiveSelection_proved : PeriodicPrimitiveSelection := by
-  intro L hL S hd N hN
-  cases L with
-  | zero => omega
-  | succ L =>
-    have hdR : (2 / 3 : ℝ) < (S.card : ℝ) / (L + 1 : ℕ) := by
-      have hcast : (((2 / 3 : ℚ) : ℝ)) < (((S.card : ℚ) / (L + 1 : ℕ) : ℚ) : ℝ) :=
-        Rat.cast_lt.mpr hd
-      push_cast at hcast
-      simpa only [Nat.cast_add, Nat.cast_one] using hcast
-    obtain ⟨P, hP, hprim, hw⟩ := periodic_primitive_selection (L + 1) S hdR N hN
-    refine ⟨P, ?_, hprim, hw⟩
-    intro n hn
-    refine ⟨(hP n hn).1, ?_⟩
-    have heq : (n : ZMod (L + 1)) =
-        (⟨n % (L + 1), Nat.mod_lt n hL⟩ : Fin (L + 1)) := by
-      apply Fin.ext
-      exact ZMod.val_natCast (L + 1) n
-    rw [← heq]
-    exact (hP n hn).2
-
 end Apicella143
 
 end
@@ -3810,34 +3635,6 @@ end
 noncomputable section
 namespace Apicella143
 
-/-- The unit-distance condition at k = 1 already makes integer parts injective. -/
-lemma original_floor_injOn {A : Set ℚ} (hA : Original A) : Set.InjOn Int.floor A := by
-  intro a ha b hb hab
-  by_contra hne
-  have hdist := hA a ha b hb hne 1 (by omega)
-  norm_num at hdist
-  have hla := Int.floor_le a
-  have hlb := Int.floor_le b
-  have hua := Int.lt_floor_add_one a
-  have hub := Int.lt_floor_add_one b
-  rw [hab] at hla hua
-  have hsmall : |a - b| < 1 := by
-    rw [abs_lt]
-    constructor <;> linarith
-  linarith
-
-/-- In the lower-bounded setting no separate growth assumption is needed for local finiteness. -/
-lemma original_locallyFiniteAbove {A : Set ℚ} (hA : Original A)
-    (hlower : ∀ a ∈ A, (2 : ℚ) ≤ a) : LocallyFiniteAbove A := by
-  intro x
-  have hmap : Set.MapsTo Int.floor (A ∩ Set.Iic x) (Set.Icc (2 : ℤ) ⌊x⌋) := by
-    intro a ha
-    constructor
-    · simpa using Int.floor_mono (hlower a ha.1)
-    · exact Int.floor_mono ha.2
-  exact (Set.finite_Icc (2 : ℤ) ⌊x⌋).of_injOn hmap
-    ((original_floor_injOn hA).mono Set.inter_subset_left)
-
 end Apicella143
 
 end
@@ -3893,11 +3690,6 @@ lemma constructedSet_original : Original constructedSet :=
 lemma constructedSet_lower : ∀ a ∈ constructedSet, (2 : ℚ) ≤ a :=
   lower_bound_iUnion (fun n => (stateSequence n).property.lower)
 
-lemma constructedSet_tiny : ∀ a ∈ constructedSet, TinyPositiveDisplacement a := by
-  intro a ha
-  obtain ⟨n, hn⟩ := Set.mem_iUnion.mp ha
-  exact (stateSequence n).property.tiny a hn
-
 lemma constructedSet_weight_diverges : totalWeight constructedSet = ⊤ := by
   apply totalWeight_iUnion_eq_top_of_unbounded
   intro n
@@ -3913,19 +3705,6 @@ lemma constructedSet_weight_diverges : totalWeight constructedSet = ⊤ := by
   change (n : ℝ≥0∞) < totalWeight ((stateSequence ((n + 1) * 576)).val.points : Set ℚ)
   rw [totalWeight_finset]
   exact hlt.trans_le hmass
-
-/-- The exact requested existence theorem, with no unproved analytic or construction interface. -/
-theorem mainConclusion_proved : MainConclusion := by
-  exact ⟨constructedSet, rational_set_countable _, constructedSet_lower,
-    constructedSet_original, constructedSet_weight_diverges⟩
-
-/-- The stronger manuscript conclusion also includes local finiteness and the
-specified twelfth-power positive displacement from the integer lattice. -/
-theorem strongConclusion_proved : StrongConclusion := by
-  exact ⟨constructedSet, rational_set_countable _, constructedSet_lower,
-    constructedSet_original, constructedSet_weight_diverges,
-    original_locallyFiniteAbove constructedSet_original constructedSet_lower,
-    constructedSet_tiny⟩
 
 end Apicella143
 
