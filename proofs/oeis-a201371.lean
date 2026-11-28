@@ -1,5 +1,7 @@
 import OMAStatements.S_oeis_a201371
 
+-- Original proof by @jleguina.
+
 namespace OMA.S_oeis_a201371
 
 open PowerSeries Finset
@@ -681,154 +683,34 @@ theorem controls :
     a 22 = 22605 ∧ a 23 = 26864 ∧ a 24 = 31696 ∧ a 25 = 37150 ∧ a 26 = 43277 ∧ a 27 = 50130 ∧
     a 28 = 57764 ∧ a 29 = 66236 ∧ a 30 = 75605 ∧ a 31 = 85932 ∧ a 32 = 97280 ∧ a 33 = 109714 ∧
     a 34 = 123301 ∧ a 35 = 138110 ∧ a 36 = 154212 ∧ a 37 = 171680 ∧ a 38 = 190589 ∧ a 39 = 211016 := by
-  have key : ∀ f : ℕ → ℕ, f 1 = 2 → f 2 = 5 → f 3 = 14 → f 4 = 36 → f 5 = 80 →
-      (∀ n, f (n + 6) + 10 * f (n + 4) + 5 * f (n + 2) = 5 * f (n + 5) + 10 * f (n + 3) + f (n + 1)) →
-        f 1 = 2 ∧ f 2 = 5 ∧ f 3 = 14 ∧ f 4 = 36 ∧ f 5 = 80 ∧ f 6 = 157 ∧ f 7 = 280 ∧ f 8 = 464 ∧
-        f 9 = 726 ∧ f 10 = 1085 ∧ f 11 = 1562 ∧ f 12 = 2180 ∧ f 13 = 2964 ∧ f 14 = 3941 ∧
-        f 15 = 5140 ∧ f 16 = 6592 ∧ f 17 = 8330 ∧ f 18 = 10389 ∧ f 19 = 12806 ∧ f 20 = 15620 ∧
-        f 21 = 18872 ∧ f 22 = 22605 ∧ f 23 = 26864 ∧ f 24 = 31696 ∧ f 25 = 37150 ∧ f 26 = 43277 ∧
-        f 27 = 50130 ∧ f 28 = 57764 ∧ f 29 = 66236 ∧ f 30 = 75605 ∧ f 31 = 85932 ∧ f 32 = 97280 ∧
-        f 33 = 109714 ∧ f 34 = 123301 ∧ f 35 = 138110 ∧ f 36 = 154212 ∧ f 37 = 171680 ∧
-        f 38 = 190589 ∧ f 39 = 211016 := by
-    intro f h1 h2 h3 h4 h5 hr
-    have h6 : f 6 = 157 := by
-      have r := hr 0
-      simp only [Nat.reduceAdd, Nat.reduceMul, h1, h2, h3, h4, h5] at r
-      omega
-    have h7 : f 7 = 280 := by
-      have r := hr 1
-      simp only [Nat.reduceAdd, Nat.reduceMul, h2, h3, h4, h5, h6] at r
-      omega
-    have h8 : f 8 = 464 := by
-      have r := hr 2
-      simp only [Nat.reduceAdd, Nat.reduceMul, h3, h4, h5, h6, h7] at r
-      omega
-    have h9 : f 9 = 726 := by
-      have r := hr 3
-      simp only [Nat.reduceAdd, Nat.reduceMul, h4, h5, h6, h7, h8] at r
-      omega
-    have h10 : f 10 = 1085 := by
-      have r := hr 4
-      simp only [Nat.reduceAdd, Nat.reduceMul, h5, h6, h7, h8, h9] at r
-      omega
-    have h11 : f 11 = 1562 := by
-      have r := hr 5
-      simp only [Nat.reduceAdd, Nat.reduceMul, h6, h7, h8, h9, h10] at r
-      omega
-    have h12 : f 12 = 2180 := by
-      have r := hr 6
-      simp only [Nat.reduceAdd, Nat.reduceMul, h7, h8, h9, h10, h11] at r
-      omega
-    have h13 : f 13 = 2964 := by
-      have r := hr 7
-      simp only [Nat.reduceAdd, Nat.reduceMul, h8, h9, h10, h11, h12] at r
-      omega
-    have h14 : f 14 = 3941 := by
-      have r := hr 8
-      simp only [Nat.reduceAdd, Nat.reduceMul, h9, h10, h11, h12, h13] at r
-      omega
-    have h15 : f 15 = 5140 := by
-      have r := hr 9
-      simp only [Nat.reduceAdd, Nat.reduceMul, h10, h11, h12, h13, h14] at r
-      omega
-    have h16 : f 16 = 6592 := by
-      have r := hr 10
-      simp only [Nat.reduceAdd, Nat.reduceMul, h11, h12, h13, h14, h15] at r
-      omega
-    have h17 : f 17 = 8330 := by
-      have r := hr 11
-      simp only [Nat.reduceAdd, Nat.reduceMul, h12, h13, h14, h15, h16] at r
-      omega
-    have h18 : f 18 = 10389 := by
-      have r := hr 12
-      simp only [Nat.reduceAdd, Nat.reduceMul, h13, h14, h15, h16, h17] at r
-      omega
-    have h19 : f 19 = 12806 := by
-      have r := hr 13
-      simp only [Nat.reduceAdd, Nat.reduceMul, h14, h15, h16, h17, h18] at r
-      omega
-    have h20 : f 20 = 15620 := by
-      have r := hr 14
-      simp only [Nat.reduceAdd, Nat.reduceMul, h15, h16, h17, h18, h19] at r
-      omega
-    have h21 : f 21 = 18872 := by
-      have r := hr 15
-      simp only [Nat.reduceAdd, Nat.reduceMul, h16, h17, h18, h19, h20] at r
-      omega
-    have h22 : f 22 = 22605 := by
-      have r := hr 16
-      simp only [Nat.reduceAdd, Nat.reduceMul, h17, h18, h19, h20, h21] at r
-      omega
-    have h23 : f 23 = 26864 := by
-      have r := hr 17
-      simp only [Nat.reduceAdd, Nat.reduceMul, h18, h19, h20, h21, h22] at r
-      omega
-    have h24 : f 24 = 31696 := by
-      have r := hr 18
-      simp only [Nat.reduceAdd, Nat.reduceMul, h19, h20, h21, h22, h23] at r
-      omega
-    have h25 : f 25 = 37150 := by
-      have r := hr 19
-      simp only [Nat.reduceAdd, Nat.reduceMul, h20, h21, h22, h23, h24] at r
-      omega
-    have h26 : f 26 = 43277 := by
-      have r := hr 20
-      simp only [Nat.reduceAdd, Nat.reduceMul, h21, h22, h23, h24, h25] at r
-      omega
-    have h27 : f 27 = 50130 := by
-      have r := hr 21
-      simp only [Nat.reduceAdd, Nat.reduceMul, h22, h23, h24, h25, h26] at r
-      omega
-    have h28 : f 28 = 57764 := by
-      have r := hr 22
-      simp only [Nat.reduceAdd, Nat.reduceMul, h23, h24, h25, h26, h27] at r
-      omega
-    have h29 : f 29 = 66236 := by
-      have r := hr 23
-      simp only [Nat.reduceAdd, Nat.reduceMul, h24, h25, h26, h27, h28] at r
-      omega
-    have h30 : f 30 = 75605 := by
-      have r := hr 24
-      simp only [Nat.reduceAdd, Nat.reduceMul, h25, h26, h27, h28, h29] at r
-      omega
-    have h31 : f 31 = 85932 := by
-      have r := hr 25
-      simp only [Nat.reduceAdd, Nat.reduceMul, h26, h27, h28, h29, h30] at r
-      omega
-    have h32 : f 32 = 97280 := by
-      have r := hr 26
-      simp only [Nat.reduceAdd, Nat.reduceMul, h27, h28, h29, h30, h31] at r
-      omega
-    have h33 : f 33 = 109714 := by
-      have r := hr 27
-      simp only [Nat.reduceAdd, Nat.reduceMul, h28, h29, h30, h31, h32] at r
-      omega
-    have h34 : f 34 = 123301 := by
-      have r := hr 28
-      simp only [Nat.reduceAdd, Nat.reduceMul, h29, h30, h31, h32, h33] at r
-      omega
-    have h35 : f 35 = 138110 := by
-      have r := hr 29
-      simp only [Nat.reduceAdd, Nat.reduceMul, h30, h31, h32, h33, h34] at r
-      omega
-    have h36 : f 36 = 154212 := by
-      have r := hr 30
-      simp only [Nat.reduceAdd, Nat.reduceMul, h31, h32, h33, h34, h35] at r
-      omega
-    have h37 : f 37 = 171680 := by
-      have r := hr 31
-      simp only [Nat.reduceAdd, Nat.reduceMul, h32, h33, h34, h35, h36] at r
-      omega
-    have h38 : f 38 = 190589 := by
-      have r := hr 32
-      simp only [Nat.reduceAdd, Nat.reduceMul, h33, h34, h35, h36, h37] at r
-      omega
-    have h39 : f 39 = 211016 := by
-      have r := hr 33
-      simp only [Nat.reduceAdd, Nat.reduceMul, h34, h35, h36, h37, h38] at r
-      omega
-    exact ⟨h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, h15, h16, h17, h18, h19, h20, h21, h22, h23, h24, h25, h26, h27, h28, h29, h30, h31, h32, h33, h34, h35, h36, h37, h38, h39⟩
-  exact key a a_v1 a_v2 a_v3 a_v4 a_v5 a_rel
+  let p (k : ℤ) := k ^ 4 + 8 * k ^ 3 + 5 * k ^ 2 + 22 * k + 24
+  have key (f : ℕ → ℕ) (h1 : f 1 = 2) (h2 : f 2 = 5) (h3 : f 3 = 14)
+      (h4 : f 4 = 36) (h5 : f 5 = 80)
+      (hr : ∀ n, f (n + 6) + 10 * f (n + 4) + 5 * f (n + 2) =
+        5 * f (n + 5) + 10 * f (n + 3) + f (n + 1)) (k : ℕ) :
+      12 * (f (k + 1) : ℤ) = p k := by
+    induction k using Nat.strong_induction_on
+    rename_i k ih
+    rcases Nat.lt_or_ge k 5 with hk | hk
+    · interval_cases k <;> norm_num [p, h1, h2, h3, h4, h5]
+    · obtain ⟨m, rfl⟩ : ∃ m, k = m + 5 := ⟨k - 5, by omega⟩
+      have e0 := ih m (by omega)
+      have e1 := ih (m + 1) (by omega)
+      have e2 := ih (m + 2) (by omega)
+      have e3 := ih (m + 3) (by omega)
+      have e4 := ih (m + 4) (by omega)
+      have r : (f (m + 6) : ℤ) + 10 * f (m + 4) + 5 * f (m + 2) =
+          5 * f (m + 5) + 10 * f (m + 3) + f (m + 1) := by
+        exact_mod_cast hr m
+      dsimp only [p] at e0 e1 e2 e3 e4 ⊢
+      push_cast at e1 e2 e3 e4 ⊢
+      linear_combination 12 * r + 5 * e4 - 10 * e3 + 10 * e2 - 5 * e1 + e0
+  have value (n v : ℕ) (hn : 0 < n) (hv : p (↑(n - 1) : ℤ) = 12 * (v : ℤ)) : a n = v := by
+    have h := key a a_v1 a_v2 a_v3 a_v4 a_v5 a_rel (n - 1)
+    rw [Nat.sub_add_cancel hn, hv] at h
+    omega
+  repeat' apply And.intro
+  all_goals apply value <;> decide
 
 /-- Control by direct enumeration of all arrays with two rows: a(2) = 5. -/
 theorem control_direct : ((univ : Finset (Fin 2 → Fin 4 → Fin 2)).filter good).card = 5 := by
