@@ -1,41 +1,34 @@
 import OMAStatements.S_mse_5025318
 
-open MvPolynomial
+/-!
+Retains @romechenko’s counterexample proof #16491. Standard localization clears
+both polynomial denominators simultaneously; the modular collision argument is
+unchanged. Statement: @pyaf, #12730.
+-/
 
-private theorem clearDenominators (f : MvPolynomial (Fin 2) ℚ) :
-    ∃ d : ℕ, 0 < d ∧ ∃ F : MvPolynomial (Fin 2) ℤ,
-      map (Int.castRingHom ℚ) F = C (d : ℚ) * f := by
-  induction f using MvPolynomial.induction_on with
-  | C a =>
-    refine ⟨a.den, a.den_pos, C a.num, ?_⟩
-    rw [map_C, ← map_mul]
-    congr 1
-    change (a.num : ℚ) = (a.den : ℚ) * a
-    have hd : (a.den : ℚ) ≠ 0 := by positivity
-    exact ((div_eq_iff hd).mp a.num_div_den).trans (mul_comm _ _)
-  | add f g hf hg =>
-    obtain ⟨d, hd, F, hF⟩ := hf
-    obtain ⟨e, he, G, hG⟩ := hg
-    refine ⟨d * e, Nat.mul_pos hd he, C (e : ℤ) * F + C (d : ℤ) * G, ?_⟩
-    simp only [map_add, map_mul, map_C, Int.coe_castRingHom, Int.cast_natCast,
-      hF, hG, Nat.cast_mul]
-    ring
-  | mul_X f i hf =>
-    obtain ⟨d, hd, F, hF⟩ := hf
-    refine ⟨d, hd, F * X i, ?_⟩
-    simp only [map_mul, map_X, hF, mul_assoc]
+open MvPolynomial
 
 private theorem clearPair (f g : MvPolynomial (Fin 2) ℚ) :
     ∃ d : ℕ, 0 < d ∧ ∃ F G : MvPolynomial (Fin 2) ℤ,
       map (Int.castRingHom ℚ) F = C (d : ℚ) * f ∧
       map (Int.castRingHom ℚ) G = C (d : ℚ) * g := by
-  obtain ⟨d, hd, F, hF⟩ := clearDenominators f
-  obtain ⟨e, he, G, hG⟩ := clearDenominators g
-  refine ⟨d * e, Nat.mul_pos hd he, C (e : ℤ) * F, C (d : ℤ) * G, ?_, ?_⟩
-  · simp only [map_mul, map_C, Int.coe_castRingHom, Int.cast_natCast, hF, Nat.cast_mul]
-    ring
-  · simp only [map_mul, map_C, Int.coe_castRingHom, Int.cast_natCast, hG, Nat.cast_mul]
-    ring
+  let := MvPolynomial.algebraMvPolynomial (σ := Fin 2) (R := ℤ) (S := ℚ)
+  obtain ⟨⟨_, z, hz, rfl⟩, h⟩ :=
+    IsLocalization.exist_integer_multiples_of_finite
+      ((nonZeroDivisors ℤ).map (C (σ := Fin 2))) ![f, g]
+  obtain ⟨F, hF⟩ := h 0
+  obtain ⟨G, hG⟩ := h 1
+  have hz0 : z ≠ 0 := mem_nonZeroDivisors_iff_ne_zero.mp hz
+  simp only [Algebra.smul_def, MvPolynomial.algebraMap_def, map_C,
+    Matrix.cons_val_zero, Matrix.cons_val_one] at hF hG
+  change map (Int.castRingHom ℚ) F = C (z : ℚ) * f at hF
+  change map (Int.castRingHom ℚ) G = C (z : ℚ) * g at hG
+  refine ⟨z.natAbs ^ 2, pow_pos (Int.natAbs_pos.mpr hz0) _, C z * F, C z * G, ?_, ?_⟩
+  all_goals
+    simp only [map_mul, map_C, hF, hG]
+    rw [← mul_assoc, ← map_mul]
+    congr 2
+    simp [Nat.cast_natAbs, ← sq, sq_abs]
 
 private noncomputable def value (F : MvPolynomial (Fin 2) ℤ) (x y : ℤ) : ℤ :=
   eval ![x, y] F

@@ -1,4 +1,5 @@
 import FormalConjectures.ErdosProblems.«189»
+import Mathlib.Tactic.Abel
 
 /-
 The core of this file (namespace E189P) is adapted from the formalization of Erdős Problem 189
@@ -507,7 +508,6 @@ Proof idea:
 open Complex EuclideanGeometry
 
 set_option maxHeartbeats 1000000 in
--- Generated coordinate case analysis exceeds the default heartbeat limit.
 lemma is_rectangle_of_erdos (a b c d : ℝ²)
   (h_ccw : IsCcwConvexPolygon ![a, b, c, d])
   (h_perp1 : line[ℝ, a, b].direction ⟂ line[ℝ, b, c].direction)
@@ -515,71 +515,26 @@ lemma is_rectangle_of_erdos (a b c d : ℝ²)
   (h_perp3 : line[ℝ, c, d].direction ⟂ line[ℝ, d, a].direction)
   (h_area : dist a b * dist b c = 1) :
   IsRectangleArea1 {toComplex a, toComplex b, toComplex c, toComplex d} := by
-    refine ⟨toComplex a, toComplex b, toComplex c, toComplex d, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
-      simp_all +decide [IsCcwConvexPolygon, dist_eq_norm, EuclideanSpace.norm_eq]
-    · intro h
-      simp_all +decide [toComplex]
-    · intro heq
-      simp_all +decide [Fin.forall_fin_succ, Complex.ext_iff]
-      norm_num [show a = c from by
-        ext i
-        fin_cases i
-        · aesop
-        · aesop] at *
-    · intro h
-      simp_all +decide [Fin.forall_fin_succ, Complex.ext_iff]
-      unfold toComplex at h
-      simp_all only [Fin.isValue]
-      obtain ⟨left, right⟩ := h_ccw
-      obtain ⟨left_1, right_1⟩ := h
-      obtain ⟨left, right_2⟩ := left
-      obtain ⟨left, right_3⟩ := left
-      norm_num [show a = d from by ext i; fin_cases i <;> assumption] at *
-    · intro h
-      have := congr_arg Complex.re h
-      have := congr_arg Complex.im h
-      simp_all +decide [toComplex]
-    · refine ⟨?_, ?_, ?_, ?_, ?_⟩
-      · intro h
-        simp_all +decide [toComplex]
-        norm_num [show b = d from by ext i; fin_cases i <;> tauto] at *
-        simp_all +decide [Fin.forall_fin_succ]
-      · norm_num [Complex.ext_iff, toComplex]
-        intro h₀ h₁
-        simp_all +decide [Fin.forall_fin_succ]
-        simp_all +decide [show c = d from by ext i; fin_cases i <;> assumption]
-      · have h_par : b - a = c - d := by
-          apply parallelogram_of_rect a b c d h_ccw h_perp1 h_perp2 h_perp3
-        exact toComplex_sub b a ▸ toComplex_sub c d ▸ congr_arg toComplex h_par
-      · have h_inner : inner ℝ (d - a) (b - a) = 0 := by
-          have h_inner : inner ℝ (c - d) (d - a) = 0 := by
-            simp_all +decide [direction_affineSpan]
-            simp_all +decide [vectorSpan_pair]
-          have h_inner : b - a = c - d := by
-            apply parallelogram_of_rect
-            · exact h_ccw
-            · assumption
-            · assumption
-            · assumption
-          rw [h_inner, real_inner_comm]
-          simp_all only [Fin.isValue]
-        simp_all +decide [toComplex, inner]
-        linarith
-      · unfold toComplex
-        simp_all +decide [Complex.normSq, sq]
-        -- By definition of $d$, we know that $d = a + (c - b)$.
-        have hd : d = a + (c - b) := by
-          have := parallelogram_of_rect a b c d h_ccw h_perp1 h_perp2 h_perp3
-          exact eq_add_of_sub_eq' (by
-            ext i
-            have := congr_arg (fun x : ℝ² => x i) this
-            norm_num at *
-            linarith)
-        rw [← Real.sqrt_mul <| by nlinarith] at h_area
-        rw [Real.sqrt_eq_one] at h_area
-        subst hd
-        simp_all only [Fin.isValue, PiLp.add_apply, PiLp.sub_apply, add_sub_cancel_left]
-        nlinarith
+  have h012 : (∡ a b c).sign = 1 := @h_ccw 0 1 2 (by decide) (by decide)
+  have h013 : (∡ a b d).sign = 1 := @h_ccw 0 1 3 (by decide) (by decide)
+  have h123 : (∡ b c d).sign = 1 := @h_ccw 1 2 3 (by decide) (by decide)
+  obtain ⟨hab, hac, had, hbc, hbd, hcd⟩ :
+      a ≠ b ∧ a ≠ c ∧ a ≠ d ∧ b ≠ c ∧ b ≠ d ∧ c ≠ d := by
+    refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩ <;> rintro rfl <;> simp_all only
+      [oangle_self_left, oangle_self_right, oangle_self_left_right, Real.Angle.sign_zero, zero_ne_one]
+  have hpar := parallelogram_of_rect a b c d h_ccw h_perp1 h_perp2 h_perp3
+  have hd : d - a = c - b := by
+    calc
+      _ = (c - b) + (b - a) - (c - d) := by abel
+      _ = _ := by rw [hpar, add_sub_cancel_right]
+  refine ⟨toComplex a, toComplex b, toComplex c, toComplex d, rfl, toComplex_inj.ne hab,
+    toComplex_inj.ne hac, toComplex_inj.ne had, toComplex_inj.ne hbc, toComplex_inj.ne hbd,
+    toComplex_inj.ne hcd, ?_, ?_, ?_⟩
+  · rw [← toComplex_sub, ← toComplex_sub, hpar]
+  · rw [← toComplex_sub, ← toComplex_sub, ← toComplex_inner, hd]
+    exact (perp_iff_inner_eq_zero a b c).mp h_perp1
+  · rw [← toComplex_sub, ← toComplex_sub, ← toComplex_normSq, ← toComplex_normSq, hd, ← mul_pow,
+      ← dist_eq_norm b a, ← dist_eq_norm c b, dist_comm b a, dist_comm c b, h_area, one_pow]
 
 end AristotleLemmas
 

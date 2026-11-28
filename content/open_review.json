@@ -23617,6 +23617,47 @@
     "https://oeis.org/A059661"
    ],
    "reason": "The disproof exploits a range slip at the first index: it fails only at n=2, where a(2)=2 but A059661(2)-A059661(1)=3-2=1, because the partial sums of A073923 start at 1 while A059661 starts at 2. By the statement's own check the identity holds for 3<=n<=12, so Mathar's evident intended claim (the identity for n>=3) remains unaddressed."
+  },
+  "oeis-a022292": {
+   "date": "2026-11-28",
+   "pr": 14453,
+   "evidence": [
+    "https://oeis.org/A022292"
+   ],
+   "reason": "The disproof exploits a definitional bug: IsKolakoski only constrains K inside runs, so K = 0 (every run empty, runStart identically 0) satisfies it vacuously, has no balanced prefixes, and refutes 'infinitely many'. The statement's claim that exactly one K satisfies the predicate is false. Nothing about the real Kolakoski sequence is shown; the conjecture remains open."
+  },
+  "opg-the-bermond-thomassen-conjecture": {
+   "date": "2026-11-28",
+   "pr": 32851,
+   "evidence": [
+    "https://www.openproblemgarden.org/op/the_bermond_thomassen_conjecture"
+   ],
+   "reason": "The 'disproof' takes the empty digraph on Empty: the out-degree hypothesis holds vacuously, but k=1 disjoint cycles cannot exist. This exploits a degenerate empty object the source never intends (a digraph with minimum out-degree >= 2k-1 is nonempty), so it says nothing about the open conjecture. The statement needed Nonempty V."
+  },
+  "mo-408662": {
+   "date": "2026-11-28",
+   "pr": 33046,
+   "evidence": [
+    "https://mathoverflow.net/questions/408662"
+   ],
+   "reason": "The source is an open-ended question (how do the singular values of a cyclic Hankel matrix change when the sampling rate doubles, and are there bounds?). The statement substitutes its own answer made of classical facts: singular values of a circulant-type Hankel matrix are |DFT| values, the Danielson-Lanczos even/odd split with triangle bounds, and polynomial interpolation to show no bound in general. It is a self-chosen formalization of an unformalized question, not a resolution."
+  },
+  "mo-316142": {
+   "date": "2026-11-28",
+   "pr": 33025,
+   "evidence": [
+    "https://mathoverflow.net/questions/316142",
+    "https://mathoverflow.net/questions/316143"
+   ],
+   "reason": "The disproof takes n = 2, F = Z/5, A = {0,1,2}: S(A) = {0,1,2,4} has 4 elements against the bound 5. The bound already fails at n = 2 over Q (A = {1,2,3} gives {4,5,7,8}), so the n = 2 case of Sun's formula is a slip. In the companion question 316143, posted an hour later, Sun states the general version only for n >= 3. The disproof exploits that edge case; the substantive conjecture (n >= 3) is untouched."
+  },
+  "oeis-a326397": {
+   "date": "2026-11-28",
+   "pr": 14994,
+   "evidence": [
+    "https://oeis.org/A326397"
+   ],
+   "reason": "The entry prints two incompatible formulas for T(n,n-3): a cubic 'conjectured' and a quartic 'for n>4'. The first is evidently a mislabelled T(n,n-2) formula. The statement keeps both in one conjunction, and the disproof only shows they disagree at n = 5 (h.2.1 5 vs h.2.2 5). It exploits a printed index slip and settles nothing about the seating counts or the row-mean conjecture."
   }
  },
  "known": {
@@ -44527,6 +44568,417 @@
     "https://www.openproblemgarden.org/op/seymours_second_neighbourhood_conjecture"
    ],
    "reason": "The proof file says its combinatorial core is taken unchanged from the site's earlier merged proof of opg-seymours-second-neighbourhood-conjecture (PR 6468, merged 2026-11-27); only the final bridge is new. That earlier statement is the same conjecture (finite nonempty oriented graph, out-degree <= second out-degree). So this is a duplicate of an earlier site solve. Given how famous the conjecture is, PR 6468 itself deserves separate scrutiny."
+  },
+  "oeis-a268543": {
+   "date": "2026-11-28",
+   "pr": 33347,
+   "evidence": [
+    "https://oeis.org/A268543"
+   ],
+   "reason": "Mathar's 2016 three-term recurrence is stated faithfully over Bala's binomial-sum formula a(n) = C(2n,n) Sum_k C(n,k) C(2n+k,k), for n >= 2. The entry itself already settles it: Peter Bala (Jan 27 2018) writes 'Using this binomial sum, Maple confirms the above recurrence of Mathar' (a Zeilberger-type verification), the same standard as earlier 'known' verdicts such as A217596 and A026019."
+  },
+  "oeis-a225008": {
+   "date": "2026-11-28",
+   "pr": 33320,
+   "evidence": [
+    "https://oeis.org/A225010",
+    "https://oeis.org/A071920"
+   ],
+   "reason": "Barker's g.f. and recurrence for column 6 of A225010 are stated faithfully; my count matches the data. But the parent carries Alois P. Heinz's (Sep 22 2013) closed formula T(n,k) = Sum_{j=0..n} C(k+2j-1,2j), linked to the unimodal-function table A071920 with the same formula. For k = 6 that is Sum_j C(2j+5,5), a degree-6 polynomial, and the g.f. and recurrence follow at once."
+  },
+  "oeis-a009190": {
+   "date": "2026-11-28",
+   "pr": 16843,
+   "evidence": [
+    "https://oeis.org/A009190",
+    "https://oeis.org/A058989"
+   ],
+   "reason": "The weak conjecture (Sloane, 2020) that no 2p-twin peak exists for p = prime(14..19) is stated faithfully. The entry already contains the settling criterion: Jinyuan Wang (Nov 27 2024) notes a(n) = -1 when A058989(n-1) < 2 prime(n) - 1. The Jacobsthal-type values A058989(13..18) = 73, 89, 99, 105, 117, 131 (computed exactly, Hagedorn 2009 and b-file) are below 85, 93, 105, 117, 121, 133, so all six cases follow at once."
+  },
+  "oeis-a272261": {
+   "date": "2026-11-28",
+   "pr": 33318,
+   "evidence": [
+    "https://oeis.org/A272261",
+    "https://oeis.org/A000806"
+   ],
+   "reason": "Mathar's recurrence a(n) = 2(2n-1)a(n-1) + 4a(n-2) is stated faithfully over Irwin's e.g.f. exp(sqrt(1-4x)-1)/sqrt(1-4x). The entry gives a(n) = |A000806(n)| 2^n, and A000806 (Bessel polynomials y_n(-1)) carries the classical recurrence a(n) = (1-2n)a(n-1) + a(n-2) (Noe 2006). Rescaling by 2^n with the alternating sign gives Mathar's recurrence directly, so it was settled by sister-entry formulas."
+  },
+  "oeis-a174016": {
+   "date": "2026-11-28",
+   "pr": 19727,
+   "evidence": [
+    "https://isitsolved.com/journal/376c7d060532",
+    "https://oeis.org/A174016"
+   ],
+   "reason": "Mathar's recurrence is stated faithfully over the entry's algebraic g.f., for n >= 4. iis:2611.00219 (submitted 2026-11-28 03:18 UTC) decides A174016 exactly from the g.f. ('true, all n >= 4'), before the site proof commit (2026-11-28 15:12 UTC)."
+  },
+  "mo-293857": {
+   "date": "2026-11-28",
+   "pr": 33288,
+   "evidence": [
+    "https://mathoverflow.net/questions/293857"
+   ],
+   "reason": "The formalization (exists Borel P with E0-invariant sections, not all equal, every section-constant set meagre and null for every atomless measure) is a reasonable 'no' reading. But the counterexample used, P = E0 itself (sections are countable E0-classes), is exactly the one given in the first comment on the question ('Isn't the equivalence relation E0 a counterexample?'), which the asker accepted ('I see ... it is')."
+  },
+  "mo-151738": {
+   "date": "2026-11-28",
+   "pr": 30518,
+   "evidence": [
+    "https://mathoverflow.net/questions/151738"
+   ],
+   "reason": "Disproof with M = [[1,1],[0,-1]]: diagonal blocks of order 2, diagonalizable, nonzero off-diagonal entry. The question already has this answer: a comment notes any upper triangular matrix with distinct diagonal entries is diagonalizable, and the only answer explains you can put anything above the diagonal blocks when the characteristic polynomial is multiplicity-free. The formalization over C is faithful."
+  },
+  "oeis-a084017": {
+   "date": "2026-11-28",
+   "pr": 31907,
+   "evidence": [
+    "https://zenodo.org/records/24076141",
+    "https://zenodo.org/records/24589127",
+    "https://oeis.org/A084017"
+   ],
+   "reason": "Murthy-Srikanth's non-vanishing conjecture, stated faithfully and slightly strengthened (the trailing-zero count is pinned to v10(n)). The five leaf proofs and two reductions have no sorry. But the same author (Frederic Gaudin) published a complete Lean proof on Zenodo on 2026-11-15 (record 24076141, same 2^a 5^b 3^v m decomposition and residual 11|m / 101|m family) and a preprint with the pinned reading on 2026-11-27. Both predate the site merge of 2026-11-28, so the result was public before this PR; the credit question is for the owner."
+  },
+  "oeis-a386834": {
+   "date": "2026-11-28",
+   "pr": 33281,
+   "evidence": [
+    "https://oeis.org/A386834"
+   ],
+   "reason": "Mathar's order-3 recurrence (Aug 2025) is stated faithfully (coefficients expanded and checked symbolically). The entry also has Kotesovec's (Nov 09 2025) order-2 recurrence, not marked as a conjecture, and the proof shows Mathar's operator is a left multiple of it: d(m) conj(m+4) is a combination of Z(m) and Z(m+1). So the conjecture follows at once from a recurrence already in the entry, like A217596. Mark it uncertain instead if Kotesovec's unannotated recurrence is not accepted as proved."
+  },
+  "oeis-a022693": {
+   "date": "2026-11-28",
+   "pr": 33279,
+   "evidence": [
+    "https://oeis.org/A022693",
+    "https://oeis.org/A368091"
+   ],
+   "reason": "Irwin's 'conjecture' is the trivial expansion of Product 1/(1+m q^m) as a signed sum over partitions of the product of parts. It was already recorded as a plain formula by Alois P. Heinz (Mar 10 2026): a(n) = Sum_k (-1)^k A368091(n,k), where A368091(n,k) is the sum over partitions of n into k parts of the product of parts. That is the same identity, and it predates the site proof."
+  },
+  "oeis-a380680": {
+   "date": "2026-11-28",
+   "pr": 33253,
+   "evidence": [
+    "https://oeis.org/A380680",
+    "https://data.palomar-registry.org/api/v1/results?q=A380680"
+   ],
+   "reason": "The printed conjecture (a(n) = 2 mod 4 iff n is a square) fails at once at n = 1, where the data give a(1) = 4; the true pattern is n = twice a square (a(2) = 6). The disproof uses only this printed slip at n = 1. Dev D. Goyal's Palomar entry 'Proofs and corrections of OEIS conjectures' (PALOMAR-2026-10-27-000006, published 2026-10-27) already proves the corrected mod-4 square pattern for A380680, and the A-number is also in the trureturing library."
+  },
+  "oeis-a338636": {
+   "date": "2026-11-28",
+   "pr": 33240,
+   "evidence": [
+    "https://oeis.org/A338636",
+    "https://doi.org/10.5281/zenodo.23520531"
+   ],
+   "reason": "The claim a(n) = 0 mod 8 for n > 1 is stated faithfully. The entry itself carries the proof: Lien-Hung Su (Nov 12 2026), 'Modulo 8, all odd-square weights equal 1, so all tails coincide and A(x) == 1+x', with the linked Zenodo paper 'Integral Square Roots and Digital Congruences of Formal Generating Functions'. The A-number is also in trureturing's id list."
+  },
+  "oeis-a204187": {
+   "date": "2026-11-28",
+   "pr": 33242,
+   "evidence": [
+    "https://oeis.org/A204187",
+    "https://oeis.org/A204187/a204187_1.txt"
+   ],
+   "reason": "Neretin's conjecture a(n) = n/2 iff n = 2 mod 4, stated faithfully. The entry already contains Bernard Schott's linked proof (Dec 29 2021) that a(4k+2) = 2k+1, and the formula line a(4n) = 0. Odd n cannot satisfy 2a(n) = n. So both directions follow from material already in the entry."
+  },
+  "oeis-a197879": {
+   "date": "2026-11-28",
+   "pr": 33239,
+   "evidence": [
+    "https://oeis.org/A197879"
+   ],
+   "reason": "Both parts (a(n) = 1 iff frac(n sqrt 2) > 1/2, and no three consecutive equal terms) are Andres Cicuttin's 2019 comment, with its argument from 5/4 < sqrt 2 < 7/4 sketched in the entry. Kimberling's formula a(n) = 2<n sqrt2> - <2n sqrt2> also gives the first part immediately. The statement file itself labels it a known result."
+  },
+  "oeis-a197657": {
+   "date": "2026-11-28",
+   "pr": 33232,
+   "evidence": [
+    "https://oeis.org/A197657",
+    "https://oeis.org/A110707"
+   ],
+   "reason": "Mathar's recurrence over Alekseyev's formula a(n) = (Franel(n) + Franel(n+1))/3 is stated faithfully. The sister A110707(n) = 2 Franel(n-1) + 2 Franel(n) = 6 a(n-1) carries the same Mathar conjecture shifted by one and scaled by 6. It was proved on this site earlier the same day (proofs/oeis-a110707.lean, commit 2026-11-28 13:32 UTC, before this proof at 16:20 UTC), so this is a duplicate up to scaling and shift."
+  },
+  "oeis-a397245": {
+   "date": "2026-11-28",
+   "pr": 33222,
+   "evidence": [
+    "https://github.com/umaia1234/agentic-conjectures/tree/main/problems/oeis-a397245",
+    "https://zenodo.org/records/23282853"
+   ],
+   "reason": "Hanna's two mod-3 classifications are stated faithfully over the entry's recursion (formula (6) form). umaia1234/agentic-conjectures (problems/oeis-a397245, PROOF.md dated 2026-08-11, status 'proved') gives a complete proof of both, via A(x) = (T + T^2 - x)/x^2 in F_3[[x]] with T = Sum x^(3^j). Stephen Lamb's Zenodo record 23282853 (2026-10-10) cites it."
+  },
+  "oeis-a208378": {
+   "date": "2026-11-28",
+   "pr": 33274,
+   "evidence": [
+    "https://isitsolved.com/journal/849ff39de7ae",
+    "https://oeis.org/A208378"
+   ],
+   "reason": "Barker's g.f. and order-4 recurrence (n > 5) for n X 7 arrays (rows avoid 000/111, columns avoid 001/101) are stated faithfully. iis:2611.00300 (width-7 round 11, submitted 2026-11-28 11:52 UTC) lists A208378 as 'Barker g.f. proved; Barker recurrence (n>5) proved' by exact transfer matrices. That is before the site proof commit at 16:02 UTC."
+  },
+  "oeis-a208639": {
+   "date": "2026-11-28",
+   "pr": 33277,
+   "evidence": [
+    "https://isitsolved.com/journal/e9039b327f56",
+    "https://oeis.org/A208639"
+   ],
+   "reason": "Barker's g.f. and closed form (n > 1) for 4 X n row-major-order arrays are stated faithfully. iis:2611.00264 (width-4 round 7, submitted 2026-11-28 08:32 UTC) lists A208639 as 'Barker g.f. proved'. The closed form follows from the g.f. by partial fractions. That paper predates the site proof commit at 16:58 UTC."
+  },
+  "oeis-a208634": {
+   "date": "2026-11-28",
+   "pr": 33276,
+   "evidence": [
+    "https://isitsolved.com/journal/5512caf326aa",
+    "https://oeis.org/A208634"
+   ],
+   "reason": "Barker's g.f. and sqrt(2) closed form for n X 5 row-major-order arrays are stated faithfully. iis:2611.00284 (width-5 round 9, submitted 2026-11-28 09:48 UTC) lists A208634 as 'Barker g.f. proved; Hardin recurrence (n>3) proved'. The closed form follows from the g.f. That paper predates the site proof commit at 16:25 UTC."
+  },
+  "oeis-a078533": {
+   "date": "2026-11-28",
+   "pr": 32914,
+   "evidence": [
+    "https://oeis.org/A078533",
+    "https://oeis.org/A078534"
+   ],
+   "reason": "The conjecture a(n-1)=n^(2n-3), a(2n-1)=n^(4n-2) is proved in the entry itself: Emeric Deutsch (Dec 10 2002) gives the closed form a(k)=n^(2k)*binomial(k/n+1/n+k-1,k)/(k+1) and notes the conjecture follows. The site statement is also character-for-character identical to oeis-a078534, whose proof was merged 37 seconds earlier."
+  },
+  "oeis-a078534": {
+   "date": "2026-11-28",
+   "pr": 32888,
+   "evidence": [
+    "https://oeis.org/A078534"
+   ],
+   "reason": "The general claim (coefficients n^(2n-3) and n^(4n-2) of the series with A^n - n^2 x A^(n+1) = 1) is proved in the entry's own comments by Emeric Deutsch (Dec 10 2002) through the closed form n^(2k) binomial(k/n+1/n+k-1,k)/(k+1), a routine Lagrange inversion. The proof here redoes that Lagrange inversion. The statement is faithful."
+  },
+  "oeis-a078122": {
+   "date": "2026-11-28",
+   "pr": 32827,
+   "evidence": [
+    "https://github.com/the-omega-institute/trureturing/blob/dev/Problems/hanna-a078122.md",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S3/Combinatorics/Partitions/HannaA078122TernaryCoefficient.lean"
+   ],
+   "reason": "Hanna's coefficient formula M(n,k)=[x^(3^n-3^(n-k))] 1/prod_{j<=n-k}(1-x^(3^j)) is already proved in trureturing (HannaA078122TernaryCoefficient.result, issue #23570, kernel-checked, std axioms), with the same first-column convention M(k,0)=1. That file was in the trureturing tree listing before the site proof was merged (14:43 UTC Nov 28). The statement is faithful."
+  },
+  "oeis-a078124": {
+   "date": "2026-11-28",
+   "pr": 32836,
+   "evidence": [
+    "https://oeis.org/A078124",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/Problems/hanna-a078122.md"
+   ],
+   "reason": "The claim M(n+1,1) = [x^(2*3^n)] prod_{j<=n} 1/(1-x^(3^j)) is exactly the k=1 case of Hanna's A078122 formula (3^(n+1)-3^n = 2*3^n), which trureturing proved (HannaA078122TernaryCoefficient.result, issue #23570) before this site proof. Truncating the product at j=n is harmless because 3^(n+1) > 2*3^n. Faithful."
+  },
+  "oeis-a258899": {
+   "date": "2026-11-28",
+   "pr": 32865,
+   "evidence": [
+    "https://github.com/the-omega-institute/trureturing/blob/dev/Problems/bala-a258899-totient-period.md"
+   ],
+   "reason": "Bala's totient-period conjecture for A258899 (and A258903) is proved in trureturing (BalaDivisorFactorialTotientPeriod.result, issue #24054), with onset N=2m+4 and period totient(m). That is the same argument: only the d=1 and d=n divisor terms survive mod m. The site statement (period totient k, eventual) is the same claim. Faithful."
+  },
+  "oeis-a060693": {
+   "date": "2026-11-28",
+   "pr": 32870,
+   "evidence": [
+    "https://github.com/the-omega-institute/trureturing/blob/dev/Problems/oeis-a060693-schroeder-peak-alternating-quadratic-moment.md",
+    "https://oeis.org/A060693"
+   ],
+   "reason": "Schulte's identity sum (-1)^k T(n,k)(n+1-k)^2 = 1+n+n^2 is proved in trureturing (SchroederPeakAlternatingQuadraticMoment.schulte_a060693, preregistered Sep 2026) with a Schroeder-path model. The site statement uses the entry's own formula T(n,k)=C(n,k)C(2n-k,n)/(n-k+1), so it is faithful but the result was already public."
+  },
+  "opg-edge-antipodal-colorings-of-cubes": {
+   "date": "2026-11-28",
+   "pr": 32886,
+   "evidence": [
+    "https://arxiv.org/abs/2607.19276",
+    "https://arxiv.org/abs/2611.16243",
+    "https://www.openproblemgarden.org/op/edge_antipodal_colorings_of_cubes"
+   ],
+   "reason": "The proof file says it follows V. Djaljapayan, arXiv:2611.16243, which reproves the theorem of H. Wu and N. Yang (arXiv:2607.19276) settling Norine's conjecture. The formalization is a Lean port of a published proof, so the result was known. The statement itself looks faithful (Q_d, antipodal edges get different colors, a monochromatic antipodal path)."
+  },
+  "oeis-a127749": {
+   "date": "2026-11-28",
+   "pr": 29456,
+   "evidence": [
+    "https://oeis.org/A127749",
+    "https://oeis.org/A111967",
+    "https://oeis.org/A111967/a111967.pdf"
+   ],
+   "reason": "The first conjunct is word-for-word the merged site statement oeis-a127750 (proof merged 05:27 UTC Nov 28, before this one), and Mathar's comment in A127749 says it is equivalent to the A111967 row-sum conjecture, which his linked 2021 note proves. The second conjunct follows from T(n,k)=(2k+1)A111967(n,k) together with the same note's description of the rows of A111967 as zeros and (-1,+1) pairs, so the entries are in {-1,0,1} and |entry| = entry mod 2. Faithful, but the content was already public."
+  },
+  "oeis-a071307": {
+   "date": "2026-11-28",
+   "pr": 32926,
+   "evidence": [
+    "https://oeis.org/A071307",
+    "https://arxiv.org/abs/2303.11981"
+   ],
+   "reason": "Marcus's conjecture |O_n(Z/9)| = 3^(n(n-1)/2) |O_n(Z/3)| is the k=2, p=3 case of the classical Hensel-lifting count of orthogonal groups over Z/p^k for odd p, where the kernel of reduction has order p^(n(n-1)/2). That count is due to Watson (1976) and is restated as Theorem 3.5 of Brandhorst-Veniani, Math. Comp. 2024. The proof file does the lifting bijection directly. The statement is faithful (both counts halved)."
+  },
+  "oeis-a060294": {
+   "date": "2026-11-28",
+   "pr": 32881,
+   "evidence": [
+    "https://oeis.org/A060294",
+    "https://en.wikipedia.org/wiki/Equidistribution_theorem"
+   ],
+   "reason": "For a nonzero integer m, m/pi is irrational, so km mod pi is equidistributed (Weyl 1916). The Cesaro means of the continuous function |sin| (or |cos|) then tend to its mean (1/pi) * integral_0^pi |sin x| dx = 2/pi. Papadopoulos's 'conjectured' formula is a textbook corollary. Faithful statement, valid proof, but not new."
+  },
+  "oeis-a003722": {
+   "date": "2026-11-28",
+   "pr": 32819,
+   "evidence": [
+    "https://oeis.org/A003722",
+    "https://dlmf.nist.gov/10.35"
+   ],
+   "reason": "Yanev's formula is the classical Bessel-I generating function: e^(z cos t) = sum I_n(z) e^(int) with t = pi/2 + i u gives sin(z sinh u) = 2 sum_k (-1)^k I_(2k+1)(z) sinh((2k+1)u) (DLMF 10.35). Differentiating 2n+1 times at u=0 with z=1 is exactly the conjecture. The re-indexing (k>=0, (-1)^(k+1), 2k+1) matches the source, and besselI is the standard series."
+  },
+  "oeis-a274232": {
+   "date": "2026-11-28",
+   "pr": 32866,
+   "evidence": [
+    "https://oeis.org/A274232",
+    "https://oeis.org/A001399"
+   ],
+   "reason": "a(n) = A001399(2^n), and the number of partitions of N into at most 3 parts is the classical round((N+3)^2/12). For N = 2^n with n>0 this is exactly (4^n + 6*2^n + 8)/12, and the order-3 recurrence follows. Barker's 'conjectures' are an immediate corollary of a long-known formula in the parent entry. Faithful but not new."
+  },
+  "oeis-a257743": {
+   "date": "2026-11-28",
+   "pr": 32619,
+   "evidence": [
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/Sorry/NumberComplexity/A257743OddPartThere.lean",
+    "https://oeis.org/A257743"
+   ],
+   "reason": "thatnealpatel/proofs (retrieved 2026-10-21, file has 0 sorry, theorem `conjecture`) already proves Shevelev's unboundedness: for every N there is n whose first N iterates of x->(3x+1)' avoid 1 and primes. That file reads a non-halting orbit as a(n) = infinity. The site uses sInf of empty = 0, so its version also needs the orbit to reach a prime eventually, which it gets by building composite preimages back from 25 -> 19. That is a minor strengthening of an already public settlement."
+  },
+  "mse-2937341": {
+   "date": "2026-11-28",
+   "pr": 32893,
+   "evidence": [
+    "https://math.stackexchange.com/questions/2937341",
+    "https://math.stackexchange.com/questions/3793472/axiomizing-volume-over-rationals/3820542#3820542"
+   ],
+   "reason": "A comment on the question (Alex Ravsky, 2020) links his MSE answer 3820542. There, amenability of Q/Z gives an invariant finitely additive probability on Q cap [0,1), extended to Q by summing over unit translates, with the right values on intervals. That is a public construction answering the question positively. The site proof uses an ultrafilter limit of uniform measures on factorial grids instead, the same idea in a different guise. The statement is faithful to the seven listed properties (all subsets of Q, translation by rationals)."
+  },
+  "mo-404448": {
+   "date": "2026-11-28",
+   "pr": 32843,
+   "evidence": [
+    "https://mathoverflow.net/questions/404448"
+   ],
+   "reason": "The question's comments already settle it. One applies the Kuratowski-Ryll-Nardzewski measurable selection theorem to the closed multimap M -> {(U,D,V): M=UDV*}; another takes continuous local SVDs on a locally finite cover and picks the first chart. The site proof is a measurable selection (least Cantor code in each compact fiber), i.e. the suggested argument. The statement is faithful: Borel-measurable F giving unitary, nonnegative real rectangular diagonal and unitary factors, all dimensions including 0."
+  },
+  "oeis-a301310": {
+   "date": "2026-11-28",
+   "pr": 33101,
+   "evidence": [
+    "https://oeis.org/A301310",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S3/ArithSums/HannaA301310Divisibility.lean"
+   ],
+   "reason": "Hanna's conjecture (a(m) divisible by 10 for m>0) was proved sorry-free in trureturing (HannaA301310Divisibility.lean, theorem result, file first committed 2026-11-05; admission note 'open-problem-resolution (#21832; Proved)'). The site proof was merged 2026-11-28. Statement faithful (HasSum of the coefficient series equals 10k)."
+  },
+  "oeis-a027182": {
+   "date": "2026-11-28",
+   "pr": 33086,
+   "evidence": [
+    "https://oeis.org/A027182",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S1/Recurrence/MatharA027182SelfConvolution.lean"
+   ],
+   "reason": "Mathar's recurrence for the self-convolution of A027170 rows is proved sorry-free in trureturing (MatharA027182SelfConvolution.lean, theorem result; same t, T and the identical recurrence for n>=6; first committed 2026-10-31). The site proof came 2026-11-28."
+  },
+  "oeis-a027179": {
+   "date": "2026-11-28",
+   "pr": 33077,
+   "evidence": [
+    "https://oeis.org/A027179",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S1/Recurrence/MatharA027182HalfRow.lean"
+   ],
+   "reason": "The half-row-sum recurrence is proved sorry-free in trureturing (MatharA027182HalfRow.lean, theorem half_row_recurrence, b n = sum_{k<=n/2} T(n,k), docstring names OEIS A027179; identical seven-term recurrence for n>=6; first committed 2026-11-19). Site proof 2026-11-28. Not found by A-number list because the file is named after A027182."
+  },
+  "oeis-a001722": {
+   "date": "2026-11-28",
+   "pr": 33058,
+   "evidence": [
+    "https://oeis.org/A001722",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S3/Combinatorics/BinomialBases/MatharA001722.lean"
+   ],
+   "reason": "Mathar's recurrence for the Crstici signed Stirling sum is proved sorry-free in trureturing (MatharA001722.lean, theorem result covers the same recurrence for n>=3 and D-finiteness; first committed 2026-11-08). Site proof 2026-11-27."
+  },
+  "mo-302956": {
+   "date": "2026-11-28",
+   "pr": 33084,
+   "evidence": [
+    "https://mathoverflow.net/questions/302956"
+   ],
+   "reason": "The 'if' direction is refuted by the counterexample n=3, x=(9,2,2), y=(6,6,1), given by Darij Grinberg in a comment under the question (2018); the site statement itself cites that comment. The Lean file only checks this known counterexample."
+  },
+  "oeis-a400825": {
+   "date": "2026-11-28",
+   "pr": 33080,
+   "evidence": [
+    "https://oeis.org/A400825",
+    "https://mathrelated.co.uk/index.php/2026/10/05/type-1-plus-4-proving-prime/",
+    "https://math.stackexchange.com/questions/5151272"
+   ],
+   "reason": "Statement faithful (only the sufficiency direction). The conjecture's author, Gary Wright, says in the blog post linked from the entry (Oct 2026) that this direction is proved by adapting N. Skirrow's Sept 2026 proof (replace k+2 by k+3). His MSE question 5151272 sketches the same Pocklington bound p > 2^(k+j-1), N < 2^(2k+j). The site proof is that standard order-of-2 argument."
+  },
+  "oeis-a104896": {
+   "date": "2026-11-28",
+   "pr": 15017,
+   "evidence": [
+    "https://oeis.org/A104896",
+    "https://oeis.org/A029858",
+    "https://oeis.org/A052379"
+   ],
+   "reason": "Wajnberg's conjecture that 7+7^2+...+7^n numbers below 10^n avoid the digits 0,1,2 is the standard count of n-digit words over a 7-letter alphabet. The same Wajnberg conjecture for another digit set is marked 'easily verified to be true' in sister A029858, and A052379 has the analogue. Folklore-trivial; the statement is faithful."
+  },
+  "mo-76624": {
+   "date": "2026-11-28",
+   "pr": 33057,
+   "evidence": [
+    "https://mathoverflow.net/questions/76624",
+    "https://mathoverflow.net/a/76647"
+   ],
+   "reason": "The implication is refuted in the source: Anthony Quas's comment gives the random-interval indicator counterexample, and Jeff Schenker's answer gives a tent-function counterexample (even under the edited modulus condition). The site disproof formalizes this known negative answer."
+  },
+  "mo-459055": {
+   "date": "2026-11-28",
+   "pr": 33048,
+   "evidence": [
+    "https://mathoverflow.net/questions/459055",
+    "https://mathoverflow.net/a/459089"
+   ],
+   "reason": "The law is given in the source. Answer 459089, with the comment's correction swapping d0 and L-d0, says d0 - H(new) is a difference of independent Bernoulli(mu) and Bernoulli(mu/(k-1)) sums. The Lean statement is exactly that law written as a generating polynomial. Routine."
+  },
+  "mo-195973": {
+   "date": "2026-11-28",
+   "pr": 33016,
+   "evidence": [
+    "https://mathoverflow.net/questions/195973",
+    "https://mathoverflow.net/a/195983"
+   ],
+   "reason": "The answer in the source (2015) shows c = 1 cannot be improved: for a fair coin flip, E|X-X'| = E|X-m| = 1/2 for every median m. The site disproof formalizes that answer."
+  },
+  "mo-380394": {
+   "date": "2026-11-28",
+   "pr": 16411,
+   "evidence": [
+    "https://mathoverflow.net/questions/380394",
+    "https://mathoverflow.net/a/392530"
+   ],
+   "reason": "The source's answer (Max Alekseyev, 2021) already gives the smallest counterexample n = 30 (nu_2(w_30) = 10, while 2s(31)-3 = 7). The site disproof reproves this known negative answer."
+  },
+  "oeis-a005243": {
+   "date": "2026-11-28",
+   "pr": 17492,
+   "evidence": [
+    "https://oeis.org/A005243",
+    "https://cs.uwaterloo.ca/journals/JIS/VOL29/Tang/tang14.html",
+    "https://arxiv.org/abs/2603.09939"
+   ],
+   "reason": "That Hofstadter's consecutive-sum sequence omits infinitely many positive integers was proved by Quanyu Tang (arXiv:2603.09939, Mar 2026; JIS 29 (2026) Art. 26.6.1). The site proof file itself cites this, giving a quantitative version (a missing integer in (K, 8(K+2)^4]). Statement faithful."
   }
  },
  "reviewed": "2026-11-28"

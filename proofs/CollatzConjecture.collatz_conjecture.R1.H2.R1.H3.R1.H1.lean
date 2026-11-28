@@ -1,63 +1,60 @@
 import OMAReductions.R_CollatzConjecture_collatz_conjecture_R1_H2_R1_H3_R1
-import Mathlib
 
 -- Step CollatzConjecture.collatz_conjecture.R1.H2.R1.H3.R1.H1: hypothesis H1 of reduction CollatzConjecture.collatz_conjecture.R1.H2.R1.H3.R1
--- Credit: @Raimo33
+-- Credit: @Raimo33 (first proof); shorter proof by @conormcfarland
 
-namespace OMAE_Col
-
-lemma aux (o E : ℕ) (h1 : 2 ^ E ≤ 3 ^ o) (h2 : 3001 ^ o < 1000 ^ o * 2 ^ (E + 1)) (e : ℕ)
-    (h : 3 ^ o < 2 ^ e) : 3001 ^ o < 1000 ^ o * 2 ^ e := by
-  have hE : E < e := by
-    by_contra hc
-    push_neg at hc
-    have := Nat.pow_le_pow_right (by norm_num : 1 ≤ 2) hc
-    omega
-  calc 3001 ^ o < 1000 ^ o * 2 ^ (E + 1) := h2
-    _ ≤ 1000 ^ o * 2 ^ e := Nat.mul_le_mul_left _ (Nat.pow_le_pow_right (by norm_num) hE)
-
-end OMAE_Col
+/-! For each 0 < o < 41 let E be the least exponent with 3^o < 2^E. Any 2^e above 3^o is at
+least 2^E, and 3001^o < 1000^o * 2^E is checked numerically case by case
+(tightest case o = 29, E = 46, margin about 1.5%). -/
 
 theorem OMA.solution : OMA.R_CollatzConjecture_collatz_conjecture_R1_H2_R1_H3_R1.H1 := by
   intro o e ho ho41 h
+  have H (E : ℕ) (h1 : 2 ^ E ≤ 2 * 3 ^ o) (h2 : 3001 ^ o < 1000 ^ o * 2 ^ E) :
+      3001 ^ o < 1000 ^ o * 2 ^ e := by
+    have hE : E ≤ e := by
+      by_contra hc
+      have h3 : 2 ^ (e + 1) ≤ 2 ^ E := Nat.pow_le_pow_right (by norm_num) (by omega)
+      rw [pow_succ] at h3
+      omega
+    exact lt_of_lt_of_le h2 (Nat.mul_le_mul_left _ (Nat.pow_le_pow_right (by norm_num) hE))
   interval_cases o
-  · exact OMAE_Col.aux _ 1 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 3 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 4 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 6 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 7 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 9 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 11 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 12 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 14 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 15 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 17 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 19 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 20 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 22 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 23 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 25 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 26 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 28 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 30 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 31 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 33 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 34 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 36 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 38 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 39 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 41 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 42 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 44 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 45 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 47 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 49 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 50 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 52 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 53 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 55 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 57 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 58 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 60 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 61 (by norm_num) (by norm_num) e h
-  · exact OMAE_Col.aux _ 63 (by norm_num) (by norm_num) e h
+  · exact H 2 (by norm_num) (by norm_num)
+  · exact H 4 (by norm_num) (by norm_num)
+  · exact H 5 (by norm_num) (by norm_num)
+  · exact H 7 (by norm_num) (by norm_num)
+  · exact H 8 (by norm_num) (by norm_num)
+  · exact H 10 (by norm_num) (by norm_num)
+  · exact H 12 (by norm_num) (by norm_num)
+  · exact H 13 (by norm_num) (by norm_num)
+  · exact H 15 (by norm_num) (by norm_num)
+  · exact H 16 (by norm_num) (by norm_num)
+  · exact H 18 (by norm_num) (by norm_num)
+  · exact H 20 (by norm_num) (by norm_num)
+  · exact H 21 (by norm_num) (by norm_num)
+  · exact H 23 (by norm_num) (by norm_num)
+  · exact H 24 (by norm_num) (by norm_num)
+  · exact H 26 (by norm_num) (by norm_num)
+  · exact H 27 (by norm_num) (by norm_num)
+  · exact H 29 (by norm_num) (by norm_num)
+  · exact H 31 (by norm_num) (by norm_num)
+  · exact H 32 (by norm_num) (by norm_num)
+  · exact H 34 (by norm_num) (by norm_num)
+  · exact H 35 (by norm_num) (by norm_num)
+  · exact H 37 (by norm_num) (by norm_num)
+  · exact H 39 (by norm_num) (by norm_num)
+  · exact H 40 (by norm_num) (by norm_num)
+  · exact H 42 (by norm_num) (by norm_num)
+  · exact H 43 (by norm_num) (by norm_num)
+  · exact H 45 (by norm_num) (by norm_num)
+  · exact H 46 (by norm_num) (by norm_num)
+  · exact H 48 (by norm_num) (by norm_num)
+  · exact H 50 (by norm_num) (by norm_num)
+  · exact H 51 (by norm_num) (by norm_num)
+  · exact H 53 (by norm_num) (by norm_num)
+  · exact H 54 (by norm_num) (by norm_num)
+  · exact H 56 (by norm_num) (by norm_num)
+  · exact H 58 (by norm_num) (by norm_num)
+  · exact H 59 (by norm_num) (by norm_num)
+  · exact H 61 (by norm_num) (by norm_num)
+  · exact H 62 (by norm_num) (by norm_num)
+  · exact H 64 (by norm_num) (by norm_num)

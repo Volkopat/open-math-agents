@@ -11,8 +11,6 @@ import Mathlib
 -- conjectured recurrence is an explicit linear combination, with polynomial coefficients in n, of
 -- shifted instances of rel1 and rel2 (the certificate was found by exact linear algebra).
 
-namespace OMA.P_oeis_a191786
-
 open OMA.S_oeis_a191786 PowerSeries
 
 theorem hR1 : HasSubst (R - 1) := HasSubst.of_constantCoeff_zero' (by simp [R])
@@ -93,15 +91,7 @@ theorem rel1 (m : ℕ) : (2 : ℚ) * coeff (m + 6) F + (-2 : ℚ) * coeff (m + 5
   rw [show m + 6 - 1 = m + 5 from by omega, show m + 6 - 2 = m + 4 from by omega, show m + 6 - 3 = m + 3 from by omega] at h
   linear_combination h
 
-theorem main' : ∀ n : ℕ, 8 ≤ n → (-13 * (n : ℚ) ^ 2 + 31 * (n : ℚ) + 210) * a n
-      + (-13 * (n : ℚ) ^ 2 + 19 * (n : ℚ) - 102) * a (n - 1)
-      + (65 * (n : ℚ) ^ 2 - 221 * (n : ℚ) - 516) * a (n - 2)
-      + (65 * (n : ℚ) ^ 2 - 197 * (n : ℚ) + 288) * a (n - 3)
-      + (-13 * (n : ℚ) ^ 2 + 19 * (n : ℚ) + 582) * a (n - 4)
-      + (-39 * (n : ℚ) ^ 2 + 105 * (n : ℚ) - 210) * a (n - 5)
-      + (-169 * (n : ℚ) ^ 2 + 1201 * (n : ℚ) - 2208) * a (n - 6)
-      + (-117 * (n : ℚ) ^ 2 + 945 * (n : ℚ) - 1800) * a (n - 7)
-      + (-78 * (n : ℚ) ^ 2 + 618 * (n : ℚ) - 900) * a (n - 8) = 0 := by
+theorem OMA.solution : type_of% @OMA.S_oeis_a191786.main := by
   intro n hn
   obtain ⟨k, rfl⟩ : ∃ k, n = k + 8 := ⟨n - 8, by omega⟩
   rw [show k + 8 - 1 = k + 7 from by omega, show k + 8 - 2 = k + 6 from by omega, show k + 8 - 3 = k + 5 from by omega, show k + 8 - 4 = k + 4 from by omega, show k + 8 - 5 = k + 3 from by omega, show k + 8 - 6 = k + 2 from by omega, show k + 8 - 7 = k + 1 from by omega, show k + 8 - 8 = k from by omega]
@@ -120,6 +110,3 @@ theorem main' : ∀ n : ℕ, 8 ≤ n → (-13 * (n : ℚ) ^ 2 + 31 * (n : ℚ) +
   push_cast at r1_45 r1_46 r1_47 r1_48 r1_49 r1_50 r2_46 r2_47 r2_48 r2_49 ⊢
   linear_combination ((450 : ℚ) + (-309 : ℚ) * ((k : ℚ) + 8) ^ 1 + (39 : ℚ) * ((k : ℚ) + 8) ^ 2) * r1_45 + ((450 : ℚ) + (-327 / 2 : ℚ) * ((k : ℚ) + 8) ^ 1 + (39 / 2 : ℚ) * ((k : ℚ) + 8) ^ 2) * r1_46 + ((204 : ℚ) + (-128 : ℚ) * ((k : ℚ) + 8) ^ 1 + (26 : ℚ) * ((k : ℚ) + 8) ^ 2) * r1_47 + ((-99 : ℚ) + (-70 : ℚ) * ((k : ℚ) + 8) ^ 1 + (13 : ℚ) * ((k : ℚ) + 8) ^ 2) * r1_48 + ((54 : ℚ) + (25 : ℚ) * ((k : ℚ) + 8) ^ 1 + (-13 : ℚ) * ((k : ℚ) + 8) ^ 2) * r1_49 + ((105 : ℚ) + (31 / 2 : ℚ) * ((k : ℚ) + 8) ^ 1 + (-13 / 2 : ℚ) * ((k : ℚ) + 8) ^ 2) * r1_50 + ((25 / 2 : ℚ) + (-13 / 2 : ℚ) * ((k : ℚ) + 8) ^ 1) * r2_46 + ((30 : ℚ) + (-39 / 4 : ℚ) * ((k : ℚ) + 8) ^ 1) * r2_47 + ((159 / 4 : ℚ) + (-39 / 4 : ℚ) * ((k : ℚ) + 8) ^ 1) * r2_48 + ((35 / 2 : ℚ) + (-13 / 4 : ℚ) * ((k : ℚ) + 8) ^ 1) * r2_49
 
-end OMA.P_oeis_a191786
-
-theorem OMA.solution : type_of% @OMA.S_oeis_a191786.main := OMA.P_oeis_a191786.main'
