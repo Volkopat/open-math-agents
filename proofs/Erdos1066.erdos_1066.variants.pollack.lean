@@ -10,29 +10,31 @@ open scoped EuclideanGeometry Topology
 
 namespace OMA
 
+open Real
+
 theorem sq_dist (p q : ℝ²) : dist p q ^ 2 = (p 0 - q 0) ^ 2 + (p 1 - q 1) ^ 2 := by
-  rw [EuclideanSpace.dist_eq, Real.sq_sqrt (Finset.sum_nonneg (fun i _ => sq_nonneg _)),
+  rw [EuclideanSpace.dist_eq, sq_sqrt (Finset.sum_nonneg (fun i _ => sq_nonneg _)),
     Fin.sum_univ_two, Real.dist_eq, Real.dist_eq, sq_abs, sq_abs]
 
 /-- Two unit vectors in the closed upper half plane with inner product at most 1/2 have
 arccos-angles at least π/3 apart. -/
 theorem angle_sep (x1 y1 x2 y2 : ℝ) (h1 : x1 ^ 2 + y1 ^ 2 = 1) (h2 : x2 ^ 2 + y2 ^ 2 = 1)
     (hy1 : 0 ≤ y1) (hy2 : 0 ≤ y2) (hdot : x1 * x2 + y1 * y2 ≤ 1 / 2) :
-    Real.pi / 3 ≤ |Real.arccos x1 - Real.arccos x2| := by
+    Real.pi / 3 ≤ |arccos x1 - arccos x2| := by
   have hx1 : -1 ≤ x1 ∧ x1 ≤ 1 := by constructor <;> nlinarith
   have hx2 : -1 ≤ x2 ∧ x2 ≤ 1 := by constructor <;> nlinarith
-  have hs1 : Real.sin (Real.arccos x1) = y1 := by
-    rw [Real.sin_arccos, show 1 - x1 ^ 2 = y1 ^ 2 by linarith, Real.sqrt_sq hy1]
-  have hs2 : Real.sin (Real.arccos x2) = y2 := by
-    rw [Real.sin_arccos, show 1 - x2 ^ 2 = y2 ^ 2 by linarith, Real.sqrt_sq hy2]
-  have hcos : Real.cos (Real.arccos x1 - Real.arccos x2) = x1 * x2 + y1 * y2 := by
-    rw [Real.cos_sub, Real.cos_arccos hx1.1 hx1.2, Real.cos_arccos hx2.1 hx2.2, hs1, hs2]
+  have hs1 : sin (arccos x1) = y1 := by
+    rw [sin_arccos, show 1 - x1 ^ 2 = y1 ^ 2 by linarith, sqrt_sq hy1]
+  have hs2 : sin (arccos x2) = y2 := by
+    rw [sin_arccos, show 1 - x2 ^ 2 = y2 ^ 2 by linarith, sqrt_sq hy2]
+  have hcos : cos (arccos x1 - arccos x2) = x1 * x2 + y1 * y2 := by
+    rw [cos_sub, cos_arccos hx1.1 hx1.2, cos_arccos hx2.1 hx2.2, hs1, hs2]
   by_contra hlt
   push Not at hlt
-  have hpi := Real.pi_pos
-  have := Real.cos_lt_cos_of_nonneg_of_le_pi (abs_nonneg (Real.arccos x1 - Real.arccos x2))
+  have hpi := pi_pos
+  have := cos_lt_cos_of_nonneg_of_le_pi (abs_nonneg (arccos x1 - arccos x2))
     (by linarith : Real.pi / 3 ≤ Real.pi) hlt
-  rw [Real.cos_abs, hcos, Real.cos_pi_div_three] at this
+  rw [cos_abs, hcos, cos_pi_div_three] at this
   linarith
 
 /-- The lowest point has at most three neighbours. -/
@@ -43,10 +45,10 @@ theorem few_nbrs (X : Finset ℝ²) (hX : (X : Set ℝ²).Pairwise (fun x y ↦ 
   by_contra hcard
   push Not at hcard
   obtain ⟨S, hSsub, hScard⟩ := Finset.exists_subset_card_eq (show 4 ≤ _ from hcard)
-  have hpi := Real.pi_pos
+  have hpi := pi_pos
   -- data of each neighbour
   have hdata : ∀ p ∈ S, (p 0 - v 0) ^ 2 + (p 1 - v 1) ^ 2 = 1 ∧ 0 ≤ p 1 - v 1 ∧
-      Real.arccos (p 0 - v 0) < Real.pi := by
+      arccos (p 0 - v 0) < Real.pi := by
     intro p hp
     have hpN := hSsub hp
     rw [Finset.mem_filter] at hpN
@@ -54,14 +56,14 @@ theorem few_nbrs (X : Finset ℝ²) (hX : (X : Set ℝ²).Pairwise (fun x y ↦ 
       rw [← sq_dist, hpN.2]; norm_num
     have hm := hmin p hpN.1
     refine ⟨hd, by rcases hm with h | h <;> linarith, ?_⟩
-    rw [Real.arccos_lt_pi]
+    rw [arccos_lt_pi]
     rcases hm with h | h
     · nlinarith
     · have h0 : p 1 - v 1 = 0 := by linarith
       rw [h0] at hd
       nlinarith
   have hsep : ∀ p ∈ S, ∀ q ∈ S, p ≠ q →
-      Real.pi / 3 ≤ |Real.arccos (p 0 - v 0) - Real.arccos (q 0 - v 0)| := by
+      Real.pi / 3 ≤ |arccos (p 0 - v 0) - arccos (q 0 - v 0)| := by
     intro p hp q hq hpq
     obtain ⟨hp1, hp2, -⟩ := hdata p hp
     obtain ⟨hq1, hq2, -⟩ := hdata q hq
@@ -73,25 +75,25 @@ theorem few_nbrs (X : Finset ℝ²) (hX : (X : Set ℝ²).Pairwise (fun x y ↦ 
     apply angle_sep _ _ _ _ hp1 hq1 hp2 hq2
     nlinarith
   -- pigeonhole on buckets
-  have hbucket : ∀ p ∈ S, ⌊Real.arccos (p 0 - v 0) / (Real.pi / 3)⌋₊ ∈ Finset.range 3 := by
+  have hbucket : ∀ p ∈ S, ⌊arccos (p 0 - v 0) / (Real.pi / 3)⌋₊ ∈ Finset.range 3 := by
     intro p hp
     obtain ⟨-, -, hlt⟩ := hdata p hp
-    rw [Finset.mem_range, Nat.floor_lt (div_nonneg (Real.arccos_nonneg _) (by positivity))]
+    rw [Finset.mem_range, Nat.floor_lt (div_nonneg (arccos_nonneg _) (by positivity))]
     rw [div_lt_iff₀ (by positivity)]
     push_cast
     linarith
   obtain ⟨p, hp, q, hq, hpq, hfl⟩ := Finset.exists_ne_map_eq_of_card_lt_of_maps_to
     (by rw [hScard, Finset.card_range]; norm_num) hbucket
   have hsp := hsep p hp q hq hpq
-  have hp0 := div_nonneg (Real.arccos_nonneg (p 0 - v 0)) (by positivity : (0 : ℝ) ≤ Real.pi / 3)
-  have hq0 := div_nonneg (Real.arccos_nonneg (q 0 - v 0)) (by positivity : (0 : ℝ) ≤ Real.pi / 3)
-  have a1 := Nat.floor_le hp0
-  have a2 := Nat.lt_floor_add_one (Real.arccos (p 0 - v 0) / (Real.pi / 3))
-  have b1 := Nat.floor_le hq0
-  have b2 := Nat.lt_floor_add_one (Real.arccos (q 0 - v 0) / (Real.pi / 3))
-  rw [hfl] at a1 a2
-  have hdiff : |Real.arccos (p 0 - v 0) / (Real.pi / 3) - Real.arccos (q 0 - v 0) / (Real.pi / 3)| < 1 := by
-    rw [abs_lt]; constructor <;> linarith
+  have close {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) (heq : ⌊a⌋₊ = ⌊b⌋₊) :
+      |a - b| < 1 := by
+    have h₁ := Nat.floor_le ha
+    have h₂ := Nat.lt_floor_add_one a
+    rw [heq] at h₁ h₂
+    rw [abs_lt]
+    constructor <;> linarith [Nat.floor_le hb, Nat.lt_floor_add_one b]
+  have hdiff := close (div_nonneg (arccos_nonneg _) (by positivity))
+    (div_nonneg (arccos_nonneg _) (by positivity)) hfl
   rw [← sub_div, abs_div, abs_of_pos (by positivity : (0 : ℝ) < Real.pi / 3),
     div_lt_one (by positivity)] at hdiff
   linarith
@@ -207,18 +209,13 @@ end OMA
 
 theorem OMA.solution : type_of% @Erdos1066.erdos_1066.variants.pollack := by
   intro n
-  have hmem : (n + 3) / 4 ∈ {m : ℕ | ∀ X : Finset ℝ², X.card = n →
-      (X : Set ℝ²).Pairwise (fun x y ↦ 1 ≤ dist x y) →
-        m ≤ (SimpleGraph.UnitDistancePlaneGraph (X : Set ℝ²)).indepNum} := by
-    intro X hXn hX
-    have := OMA.indep_bound X hX
-    omega
-  have hbdd : BddAbove {m : ℕ | ∀ X : Finset ℝ², X.card = n →
-      (X : Set ℝ²).Pairwise (fun x y ↦ 1 ≤ dist x y) →
-        m ≤ (SimpleGraph.UnitDistancePlaneGraph (X : Set ℝ²)).indepNum} := by
-    obtain ⟨X0, hX0n, hX0⟩ := OMA.exists_config n
-    exact ⟨_, fun m hm => hm X0 hX0n hX0⟩
-  have hle : (n + 3) / 4 ≤ Erdos1066.g n := le_csSup hbdd hmem
-  have h4 : n ≤ 4 * Erdos1066.g n := by omega
-  have h4R : (n : ℝ) ≤ 4 * (Erdos1066.g n : ℝ) := by exact_mod_cast h4
-  linarith
+  have hle : (n + 3) / 4 ≤ Erdos1066.g n := by
+    unfold Erdos1066.g
+    apply le_csSup
+    · obtain ⟨X, hn, hX⟩ := OMA.exists_config n
+      exact ⟨_, fun m hm => hm X hn hX⟩
+    · intro X hn hX
+      have := OMA.indep_bound X hX
+      omega
+  rw [div_le_iff₀ (by norm_num)]
+  exact_mod_cast (show n ≤ Erdos1066.g n * 4 by omega)

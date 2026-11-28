@@ -111,10 +111,6 @@ lemma spiralSet_norm_bounds (k : ℕ) {T : ℝ} (hT : 0 ≤ T) {z : ℂ}
   · simpa [mul_comm] using mul_le_mul_of_nonneg_left hs.1 hT
   · simpa [mul_comm] using mul_le_mul_of_nonneg_left hs.2 hT
 
-lemma isCompact_spiralSet (k : ℕ) (T : ℝ) : IsCompact (spiralSet k T) := by
-  unfold spiralSet spiralPoint
-  exact isCompact_Icc.image (by fun_prop)
-
 /-- The uniform closure, on `K`, of restrictions of complex polynomials.  Encoding approximation
 this way makes the algebra and limit closure needed in Runge's pole-moving argument automatic. -/
 noncomputable def polynomialUniformClosure (K : Set ℂ) [CompactSpace K] : Subalgebra ℂ C(K, ℂ) :=
@@ -327,47 +323,6 @@ lemma isOpen_goodPoleSet (K : Set ℂ) [CompactSpace K] : IsOpen (goodPoleSet K)
   change poleResolventMap K b ∈ polynomialUniformClosure K
   rwa [poleResolventMap_eq_resolvent K b hbK]
 
-/-- Runge's pole-moving conclusion: if the complement of a nonempty compact set is connected,
-every resolvent with pole in that complement is a uniform limit of polynomial restrictions. -/
-lemma resolvent_mem_uniformClosure_of_connected_compl {K : Set ℂ} [CompactSpace K] [Nonempty K]
-    (hconn : IsConnected (Kᶜ)) {a : ℂ} (ha : a ∉ K) :
-    resolventOn K a ha ∈ polynomialUniformClosure K := by
-  let : ConnectedSpace (Kᶜ : Set ℂ) := Subtype.connectedSpace hconn
-  have hKcompact : IsCompact K := isCompact_iff_compactSpace.mpr inferInstance
-  obtain ⟨R, hR⟩ := hKcompact.isBounded.subset_ball (0 : ℂ)
-  obtain ⟨z₀⟩ := ‹Nonempty K›
-  have hRp : 0 < R := by
-    have hz : dist (z₀ : ℂ) 0 < R := hR z₀.property
-    exact lt_of_le_of_lt dist_nonneg hz
-  let b : ℂ := (R + 1 : ℝ)
-  have hb_norm : ‖b‖ = R + 1 := by
-    calc
-      ‖b‖ = ‖((R + 1 : ℝ) : ℂ)‖ := by simp [b]
-      _ = |R + 1| := Complex.norm_real _
-      _ = R + 1 := abs_of_pos (by linarith)
-  have hbK : b ∉ K := by
-    intro hb
-    have hlt := hR hb
-    simp only [Metric.mem_ball, dist_zero_right, hb_norm] at hlt
-    linarith
-  have hbfar : ∀ z : K, ‖(z : ℂ)‖ < ‖b‖ := by
-    intro z
-    have hlt := hR z.property
-    simp only [Metric.mem_ball, dist_zero_right, hb_norm] at hlt ⊢
-    linarith
-  let b' : (Kᶜ : Set ℂ) := ⟨b, hbK⟩
-  have hbGood : b' ∈ goodPoleSet K := by
-    change poleResolventMap K b' ∈ polynomialUniformClosure K
-    rw [poleResolventMap_eq_resolvent K b' hbK]
-    exact resolvent_mem_of_norm_lt hbK hbfar
-  have hclopen : IsClopen (goodPoleSet K) :=
-    ⟨isClosed_goodPoleSet K, isOpen_goodPoleSet K⟩
-  have hgood_univ : goodPoleSet K = Set.univ := hclopen.eq_univ ⟨b', hbGood⟩
-  let a' : (Kᶜ : Set ℂ) := ⟨a, ha⟩
-  have haGood : a' ∈ goodPoleSet K := by rw [hgood_univ]; trivial
-  change poleResolventMap K a' ∈ polynomialUniformClosure K at haGood
-  rwa [poleResolventMap_eq_resolvent K a' ha] at haGood
-
 /-- A path in the complement suffices for pole-moving; global connectedness is unnecessary. -/
 lemma resolvent_mem_uniformClosure_of_joined {K : Set ℂ} [CompactSpace K] [Nonempty K]
     {a b : ℂ} (ha : a ∉ K) (hb : b ∉ K) (hbfar : ∀ z : K, ‖(z : ℂ)‖ < ‖b‖)
@@ -444,25 +399,10 @@ lemma polynomialReciprocal_mem_uniformClosure_of_resolvents
   rw [heq]
   exact hq
 
-/-- The reciprocal of any nonzero polynomial whose roots lie in the connected complement belongs
-to the polynomial uniform closure. -/
-lemma polynomialReciprocal_mem_uniformClosure {K : Set ℂ} [CompactSpace K] [Nonempty K]
-    (hconn : IsConnected (Kᶜ)) (p : Polynomial ℂ) (hp0 : p ≠ 0)
-    (hroots : ∀ a ∈ p.roots, a ∉ K) :
-    polynomialReciprocalOn K p (fun z hz ↦
-      hroots z (Polynomial.mem_roots hp0 |>.mpr hz) z.property) ∈
-      polynomialUniformClosure K := by
-  apply polynomialReciprocal_mem_uniformClosure_of_resolvents p hp0 hroots
-  intro a ha
-  exact resolvent_mem_uniformClosure_of_connected_compl hconn (hroots a ha)
-
 /-- The compact set on which a barrier polynomial is prescribed: the unit disk together with one
 spiral wall. -/
 noncomputable def spiralApproximationSet (k : ℕ) : Set ℂ :=
   Metric.closedBall 0 1 ∪ spiralSet k 1
-
-lemma isCompact_spiralApproximationSet (k : ℕ) : IsCompact (spiralApproximationSet k) :=
-  (isCompact_closedBall 0 1).union (isCompact_spiralSet k 1)
 
 instance instNonemptySpiralApproximationSet (k : ℕ) : Nonempty (spiralApproximationSet k) :=
   ⟨⟨0, by left; simp⟩⟩
@@ -473,117 +413,6 @@ lemma norm_bounds_of_mem_spiralApproximationSet {k : ℕ} {z : ℂ}
   rcases hz with hz | hz
   · exact Or.inl (by simpa [Metric.mem_closedBall, Complex.dist_eq] using hz)
   · exact Or.inr (by simpa using spiralSet_norm_bounds k (by positivity) hz)
-
-/-- A radial graph half a turn away from the barrier spiral.  It gives an explicit route for
-moving every separator pole from radius `3/2` to radius `7/2`. -/
-noncomputable def oppositeSpiralPoint (k : ℕ) (r : ℝ) : ℂ :=
-  (r : ℂ) * Complex.exp
-    ((((2 * Real.pi * (k : ℝ) * (r - 2) + Real.pi : ℝ) : ℂ) * Complex.I))
-
-lemma norm_oppositeSpiralPoint (k : ℕ) {r : ℝ} (hr : 0 ≤ r) :
-    ‖oppositeSpiralPoint k r‖ = r := by
-  simp [oppositeSpiralPoint, Complex.norm_exp, abs_of_nonneg hr]
-
-lemma oppositeSpiralPoint_ne_spiralPoint (k : ℕ) {r : ℝ} (hr : r ≠ 0) :
-    oppositeSpiralPoint k r ≠ spiralPoint k 1 r := by
-  intro h
-  have hcancel : Complex.exp
-      (((2 * Real.pi * (k : ℝ) * (r - 2) + Real.pi : ℝ) : ℂ) * Complex.I) =
-      Complex.exp (((2 * Real.pi * (k : ℝ) * (r - 2) : ℝ) : ℂ) * Complex.I) := by
-    apply mul_left_cancel₀ (Complex.ofReal_ne_zero.mpr hr)
-    simpa [oppositeSpiralPoint, spiralPoint] using h
-  rw [show (((2 * Real.pi * (k : ℝ) * (r - 2) + Real.pi : ℝ) : ℂ) * Complex.I) =
-      (((2 * Real.pi * (k : ℝ) * (r - 2) : ℝ) : ℂ) * Complex.I) +
-        (Real.pi : ℂ) * Complex.I by push_cast; ring,
-    Complex.exp_add, Complex.exp_pi_mul_I] at hcancel
-  have hzero : Complex.exp
-      (((2 * Real.pi * (k : ℝ) * (r - 2) : ℝ) : ℂ) * Complex.I) = 0 := by
-    linear_combination (-1 / 2 : ℂ) * hcancel
-  exact Complex.exp_ne_zero _ hzero
-
-lemma oppositeSpiralPoint_not_mem_approximationSet (k : ℕ) {r : ℝ}
-    (hr₁ : 1 < r) (_hr₂ : r < 4) :
-    oppositeSpiralPoint k r ∉ spiralApproximationSet k := by
-  intro hmem
-  rcases hmem with hdisk | hspiral
-  · have hnorm_le : ‖oppositeSpiralPoint k r‖ ≤ 1 := by
-      simpa only [Metric.mem_closedBall, Complex.dist_eq, sub_zero] using hdisk
-    rw [norm_oppositeSpiralPoint k (le_trans zero_le_one hr₁.le)] at hnorm_le
-    linarith
-  · obtain ⟨s, hs, heq⟩ := hspiral
-    have hs0 : 0 ≤ s := by linarith [hs.1]
-    have hnormeq := congrArg norm heq
-    rw [norm_spiralPoint k (by positivity) hs0,
-      norm_oppositeSpiralPoint k (le_trans zero_le_one hr₁.le)] at hnormeq
-    have hsr : s = r := by linarith
-    subst s
-    exact oppositeSpiralPoint_ne_spiralPoint k (ne_of_gt (lt_trans zero_lt_one hr₁)) heq.symm
-
-lemma joinedIn_oppositeSpiral (k : ℕ) :
-    JoinedIn (spiralApproximationSet k)ᶜ
-      (oppositeSpiralPoint k (3 / 2)) (oppositeSpiralPoint k (7 / 2)) := by
-  let g : ℝ → ℂ := fun t ↦ oppositeSpiralPoint k (3 / 2 + 2 * t)
-  refine JoinedIn.ofLine (f := g) (by dsimp [g, oppositeSpiralPoint]; fun_prop) ?_ ?_ ?_
-  · norm_num [g]
-  · norm_num [g]
-  · rintro z ⟨t, ht, rfl⟩
-    exact oppositeSpiralPoint_not_mem_approximationSet k (by
-      linarith [ht.1]) (by
-      linarith [ht.2])
-
-lemma joinedIn_radius_three_halves_to_opposite (k : ℕ) {a : ℂ}
-    (ha : ‖a‖ = 3 / 2) :
-    JoinedIn (spiralApproximationSet k)ᶜ a (oppositeSpiralPoint k (3 / 2)) := by
-  have hrank : 1 < Module.rank ℝ ℂ := by
-    rw [Complex.rank_real_complex]
-    norm_num
-  have hpath := isPathConnected_sphere hrank (0 : ℂ) (r := 3 / 2) (by norm_num)
-  have haSphere : a ∈ Metric.sphere (0 : ℂ) (3 / 2) := by
-    simpa only [Metric.mem_sphere, dist_zero_right] using ha
-  have hcSphere : oppositeSpiralPoint k (3 / 2) ∈ Metric.sphere (0 : ℂ) (3 / 2) := by
-    rw [Metric.mem_sphere, dist_zero_right,
-      norm_oppositeSpiralPoint k (r := 3 / 2) (by norm_num)]
-  apply (hpath.joinedIn a haSphere (oppositeSpiralPoint k (3 / 2)) hcSphere).mono
-  intro z hz
-  have hnorm : ‖z‖ = 3 / 2 := by
-    simpa only [Metric.mem_sphere, dist_zero_right] using hz
-  intro hK
-  rcases norm_bounds_of_mem_spiralApproximationSet hK with hsmall | hlarge
-  · linarith
-  · linarith [hlarge.1]
-
-lemma resolvent_mem_spiralApproximationSet_of_norm_eq_three_halves (k : ℕ) {a : ℂ}
-    (ha_norm : ‖a‖ = 3 / 2) :
-    letI : CompactSpace (spiralApproximationSet k) :=
-      isCompact_iff_compactSpace.mp (isCompact_spiralApproximationSet k)
-    resolventOn (spiralApproximationSet k) a (by
-      intro haK
-      rcases norm_bounds_of_mem_spiralApproximationSet haK with hsmall | hlarge
-      · linarith
-      · linarith [hlarge.1]) ∈
-      polynomialUniformClosure (spiralApproximationSet k) := by
-  let : CompactSpace (spiralApproximationSet k) :=
-    isCompact_iff_compactSpace.mp (isCompact_spiralApproximationSet k)
-  have haK : a ∉ spiralApproximationSet k := by
-    intro haK
-    rcases norm_bounds_of_mem_spiralApproximationSet haK with hsmall | hlarge
-    · linarith
-    · linarith [hlarge.1]
-  let b : ℂ := oppositeSpiralPoint k (7 / 2)
-  have hb_norm : ‖b‖ = 7 / 2 := by
-    exact norm_oppositeSpiralPoint k (r := 7 / 2) (by norm_num)
-  have hbK : b ∉ spiralApproximationSet k := by
-    exact oppositeSpiralPoint_not_mem_approximationSet k (r := 7 / 2) (by norm_num) (by norm_num)
-  have hbfar : ∀ z : spiralApproximationSet k, ‖(z : ℂ)‖ < ‖b‖ := by
-    intro z
-    rw [hb_norm]
-    rcases norm_bounds_of_mem_spiralApproximationSet z.property with hsmall | hlarge
-    · linarith
-    · linarith [hlarge.2]
-  have hjoin : JoinedIn (spiralApproximationSet k)ᶜ b a :=
-    (joinedIn_oppositeSpiral k).symm.trans
-      (joinedIn_radius_three_halves_to_opposite k ha_norm).symm
-  exact resolvent_mem_uniformClosure_of_joined haK hbK hbfar hjoin
 
 /-- Denominator of the explicit rational separator
 `1 / (1 + (2z/3)^N)`. -/
@@ -635,45 +464,6 @@ noncomputable def separatorRationalOn (k N : ℕ) (hN : N ≠ 0) :
         (((z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N))⁻¹) := by
   simp [separatorRationalOn, separatorDenominator]
 
-lemma separatorRational_mem_uniformClosure (k : ℕ) {N : ℕ} (hN : N ≠ 0) :
-    letI : CompactSpace (spiralApproximationSet k) :=
-      isCompact_iff_compactSpace.mp (isCompact_spiralApproximationSet k)
-    separatorRationalOn k N hN ∈ polynomialUniformClosure (spiralApproximationSet k) := by
-  let : CompactSpace (spiralApproximationSet k) :=
-    isCompact_iff_compactSpace.mp (isCompact_spiralApproximationSet k)
-  have hroots : ∀ a ∈ (separatorDenominator N).roots,
-      a ∉ spiralApproximationSet k := by
-    intro a ha haK
-    have hnorm := norm_eq_three_halves_of_mem_separatorDenominator_roots hN ha
-    rcases norm_bounds_of_mem_spiralApproximationSet haK with hsmall | hlarge
-    · linarith
-    · linarith [hlarge.1]
-  have hrec := polynomialReciprocal_mem_uniformClosure_of_resolvents
-    (separatorDenominator N) (separatorDenominator_ne_zero hN) hroots (by
-      intro a ha
-      exact resolvent_mem_spiralApproximationSet_of_norm_eq_three_halves k
-        (norm_eq_three_halves_of_mem_separatorDenominator_roots hN ha))
-  exact (polynomialUniformClosure (spiralApproximationSet k)).smul_mem hrec
-    (((3 / 2 : ℝ) : ℂ) ^ N)
-
-/-- A globally continuous radial cutoff which is exactly one on the disk component and zero on the
-spiral component of `spiralApproximationSet`. -/
-noncomputable def spiralTargetOn (k : ℕ) : C(spiralApproximationSet k, ℂ) where
-  toFun z := ((max 0 (min 1 (2 - ‖(z : ℂ)‖)) : ℝ) : ℂ)
-  continuous_toFun := by fun_prop
-
-lemma spiralTargetOn_eq_one {k : ℕ} (z : spiralApproximationSet k) (hz : ‖(z : ℂ)‖ ≤ 1) :
-    spiralTargetOn k z = 1 := by
-  change ((max 0 (min 1 (2 - ‖(z : ℂ)‖)) : ℝ) : ℂ) = 1
-  rw [min_eq_left (by linarith), max_eq_right (by norm_num)]
-  norm_num
-
-lemma spiralTargetOn_eq_zero {k : ℕ} (z : spiralApproximationSet k) (hz : 2 ≤ ‖(z : ℂ)‖) :
-    spiralTargetOn k z = 0 := by
-  change ((max 0 (min 1 (2 - ‖(z : ℂ)‖)) : ℝ) : ℂ) = 0
-  rw [min_eq_right (by linarith), max_eq_left (by linarith)]
-  norm_num
-
 lemma div_sub_le_three_mul_div {A C : ℝ} (hA : 0 ≤ A) (hC : 0 < C)
     (hAC : A ≤ (2 / 3) * C) :
     A / (C - A) ≤ 3 * A / C := by
@@ -689,225 +479,6 @@ lemma div_sub_le_four_mul_div {A C : ℝ} (hC : 0 ≤ C) (hA : 0 < A)
   rw [div_le_iff₀ hden]
   rw [div_mul_eq_mul_div, le_div_iff₀ hA]
   nlinarith
-
-lemma separatorRational_sub_one_norm_le (k : ℕ) {N : ℕ} (hN : 0 < N)
-    (z : spiralApproximationSet k) (hz : ‖(z : ℂ)‖ ≤ 1) :
-    ‖separatorRationalOn k N hN.ne' z - 1‖ ≤ 4 * (3 / 4 : ℝ) ^ N := by
-  let A : ℝ := ‖(z : ℂ) ^ N‖
-  let C : ℝ := (3 / 2 : ℝ) ^ N
-  have hA0 : 0 ≤ A := norm_nonneg _
-  have hA1 : A ≤ 1 := by
-    dsimp [A]
-    rw [norm_pow]
-    exact pow_le_one₀ (norm_nonneg _) hz
-  have hCp : 0 < C := pow_pos (by norm_num) _
-  have hCbig : 3 / 2 ≤ C := by
-    calc
-      (3 / 2 : ℝ) = (3 / 2 : ℝ) ^ 1 := by ring
-      _ ≤ (3 / 2 : ℝ) ^ N := pow_le_pow_right₀ (by norm_num) hN
-  have hAC : A ≤ (2 / 3 : ℝ) * C := by nlinarith
-  have hdenpos : 0 < C - A := by nlinarith
-  have hden : C - A ≤
-      ‖(z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N)‖ := by
-    calc
-      C - A = ‖(((3 / 2 : ℝ) : ℂ) ^ N)‖ - ‖(z : ℂ) ^ N‖ := by
-        simp [C, A]
-      _ ≤ ‖(((3 / 2 : ℝ) : ℂ) ^ N) - (-((z : ℂ) ^ N))‖ :=
-        by simpa only [norm_neg] using
-          norm_sub_norm_le (((3 / 2 : ℝ) : ℂ) ^ N) (-((z : ℂ) ^ N))
-      _ = ‖(z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N)‖ := by ring_nf
-  have hdenzero : (z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N) ≠ 0 := by
-    simpa [separatorDenominator] using separatorDenominator_eval_ne_zero k hN.ne' z
-  have hformula : separatorRationalOn k N hN.ne' z - 1 =
-      (-((z : ℂ) ^ N)) *
-        (((z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N))⁻¹) := by
-    rw [separatorRationalOn_apply]
-    field_simp
-    ring
-  rw [hformula, norm_mul, norm_neg, norm_inv]
-  change A * ‖(z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N)‖⁻¹ ≤ _
-  rw [← div_eq_mul_inv]
-  calc
-    A / ‖(z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N)‖ ≤ A / (C - A) := by
-      exact div_le_div_of_nonneg_left hA0 hdenpos hden
-    _ ≤ 3 * A / C := div_sub_le_three_mul_div hA0 hCp hAC
-    _ ≤ 3 * (2 / 3 : ℝ) ^ N := by
-      have hcinv : C⁻¹ = (2 / 3 : ℝ) ^ N := by
-        dsimp [C]
-        rw [← inv_pow]
-        congr 1
-        all_goals norm_num
-      rw [div_eq_mul_inv, hcinv]
-      have h3A : 3 * A ≤ 3 := by nlinarith
-      exact mul_le_mul_of_nonneg_right h3A
-        (pow_nonneg (by norm_num : (0 : ℝ) ≤ 2 / 3) N)
-    _ ≤ 4 * (3 / 4 : ℝ) ^ N := by
-      have hpows : (2 / 3 : ℝ) ^ N ≤ (3 / 4 : ℝ) ^ N := by
-        exact pow_le_pow_left₀ (by norm_num) (by norm_num) _
-      nlinarith [pow_nonneg (by norm_num : (0 : ℝ) ≤ 3 / 4) N]
-
-lemma separatorRational_norm_le (k : ℕ) {N : ℕ} (hN : 0 < N)
-    (z : spiralApproximationSet k) (hz : 2 ≤ ‖(z : ℂ)‖) :
-    ‖separatorRationalOn k N hN.ne' z‖ ≤ 4 * (3 / 4 : ℝ) ^ N := by
-  let A : ℝ := ‖(z : ℂ) ^ N‖
-  let C : ℝ := (3 / 2 : ℝ) ^ N
-  let q : ℝ := (3 / 4 : ℝ) ^ N
-  have hApos : 0 < A := by
-    dsimp [A]
-    rw [norm_pow]
-    exact pow_pos (lt_of_lt_of_le (by norm_num) hz) _
-  have hC0 : 0 ≤ C := (pow_pos (by norm_num) _).le
-  have hq0 : 0 ≤ q := pow_nonneg (by norm_num) _
-  have hCqA : C ≤ q * A := by
-    have hbase : (3 / 2 : ℝ) ≤ (3 / 4 : ℝ) * ‖(z : ℂ)‖ := by nlinarith
-    have hp := pow_le_pow_left₀ (by norm_num : (0 : ℝ) ≤ 3 / 2) hbase N
-    simpa only [mul_pow, norm_pow, C, q, A] using hp
-  have hqle : q ≤ 3 / 4 := by
-    exact pow_le_of_le_one (by norm_num) (by norm_num) hN.ne'
-  have hCA : C ≤ (3 / 4 : ℝ) * A :=
-    hCqA.trans (mul_le_mul_of_nonneg_right hqle hApos.le)
-  have hdenpos : 0 < A - C := by nlinarith
-  have hden : A - C ≤
-      ‖(z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N)‖ := by
-    calc
-      A - C = ‖(z : ℂ) ^ N‖ - ‖(((3 / 2 : ℝ) : ℂ) ^ N)‖ := by
-        simp [C, A]
-      _ ≤ ‖(z : ℂ) ^ N - (-(((3 / 2 : ℝ) : ℂ) ^ N))‖ := by
-        simpa only [norm_neg] using
-          norm_sub_norm_le ((z : ℂ) ^ N) (-(((3 / 2 : ℝ) : ℂ) ^ N))
-      _ = ‖(z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N)‖ := by ring_nf
-  rw [separatorRationalOn_apply, norm_mul, norm_pow, Complex.norm_real,
-    Real.norm_eq_abs, abs_of_pos (by norm_num : (0 : ℝ) < 3 / 2), norm_inv]
-  change C * ‖(z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N)‖⁻¹ ≤ _
-  rw [← div_eq_mul_inv]
-  calc
-    C / ‖(z : ℂ) ^ N + (((3 / 2 : ℝ) : ℂ) ^ N)‖ ≤ C / (A - C) := by
-      exact div_le_div_of_nonneg_left hC0 hdenpos hden
-    _ ≤ 4 * C / A := div_sub_le_four_mul_div hC0 hApos hCA
-    _ ≤ 4 * q := by
-      rw [div_le_iff₀ hApos]
-      nlinarith
-    _ = 4 * (3 / 4 : ℝ) ^ N := rfl
-
-lemma separatorRational_sub_target_norm_le (k : ℕ) {N : ℕ} (hN : 0 < N) :
-    letI : CompactSpace (spiralApproximationSet k) :=
-      isCompact_iff_compactSpace.mp (isCompact_spiralApproximationSet k)
-    ‖separatorRationalOn k N hN.ne' - spiralTargetOn k‖ ≤
-      4 * (3 / 4 : ℝ) ^ N := by
-  let : CompactSpace (spiralApproximationSet k) :=
-    isCompact_iff_compactSpace.mp (isCompact_spiralApproximationSet k)
-  rw [ContinuousMap.norm_le _ (by positivity)]
-  intro z
-  rcases norm_bounds_of_mem_spiralApproximationSet z.property with hsmall | hlarge
-  · rw [ContinuousMap.sub_apply, spiralTargetOn_eq_one z hsmall]
-    exact separatorRational_sub_one_norm_le k hN z hsmall
-  · rw [ContinuousMap.sub_apply, spiralTargetOn_eq_zero z hlarge.1, sub_zero]
-    exact separatorRational_norm_le k hN z hlarge.1
-
-lemma spiralTarget_mem_uniformClosure (k : ℕ) :
-    letI : CompactSpace (spiralApproximationSet k) :=
-      isCompact_iff_compactSpace.mp (isCompact_spiralApproximationSet k)
-    spiralTargetOn k ∈ polynomialUniformClosure (spiralApproximationSet k) := by
-  let : CompactSpace (spiralApproximationSet k) :=
-    isCompact_iff_compactSpace.mp (isCompact_spiralApproximationSet k)
-  let F : ℕ → C(spiralApproximationSet k, ℂ) := fun n ↦
-    separatorRationalOn k (n + 1) (Nat.succ_ne_zero n)
-  have hbound : ∀ n,
-      ‖F n - spiralTargetOn k‖ ≤ 4 * (3 / 4 : ℝ) ^ (n + 1) := by
-    intro n
-    exact separatorRational_sub_target_norm_le k (Nat.succ_pos n)
-  have hscalar : Tendsto (fun n : ℕ ↦ 4 * (3 / 4 : ℝ) ^ (n + 1)) atTop (𝓝 0) := by
-    have hp : Tendsto (fun n : ℕ ↦ (3 / 4 : ℝ) ^ n) atTop (𝓝 0) :=
-      tendsto_pow_atTop_nhds_zero_of_lt_one (by norm_num) (by norm_num)
-    simpa [pow_succ, mul_assoc, mul_left_comm, mul_comm] using
-      hp.const_mul (4 * (3 / 4 : ℝ))
-  have hnorm : Tendsto (fun n ↦ ‖F n - spiralTargetOn k‖) atTop (𝓝 0) :=
-    squeeze_zero (fun n ↦ norm_nonneg _) hbound hscalar
-  have hlim : Tendsto F atTop (𝓝 (spiralTargetOn k)) :=
-    tendsto_iff_norm_sub_tendsto_zero.mpr hnorm
-  have hclosed : IsClosed
-      (polynomialUniformClosure (spiralApproximationSet k) :
-        Set C(spiralApproximationSet k, ℂ)) := by
-    unfold polynomialUniformClosure
-    exact Subalgebra.isClosed_topologicalClosure _
-  apply hclosed.mem_of_tendsto hlim
-  filter_upwards [] with n
-  exact separatorRational_mem_uniformClosure k (Nat.succ_ne_zero n)
-
-/-- The normalized polynomial separator used in every stage of the Gol'dberg--Eremenko product. -/
-theorem exists_barrierPolynomial (k : ℕ) {ε : ℝ} (hε : 0 < ε) :
-    ∃ P : Polynomial ℂ,
-      P.eval 0 = 1 ∧
-      (∀ z : ℂ, ‖z‖ ≤ 1 → ‖P.eval z - 1‖ < ε) ∧
-      (∀ z ∈ spiralSet k 1, ‖P.eval z‖ < ε) := by
-  let : CompactSpace (spiralApproximationSet k) :=
-    isCompact_iff_compactSpace.mp (isCompact_spiralApproximationSet k)
-  let δ : ℝ := min (ε / 8) (1 / 8)
-  have hδp : 0 < δ := lt_min (by positivity) (by norm_num)
-  have hδε : δ ≤ ε / 8 := min_le_left _ _
-  have hδeight : δ ≤ 1 / 8 := min_le_right _ _
-  obtain ⟨q, hq⟩ := exists_polynomial_near_of_mem_uniformClosure
-    (spiralApproximationSet k) (spiralTargetOn k)
-      (spiralTarget_mem_uniformClosure k) hδp
-  have hpoint : ∀ z : spiralApproximationSet k,
-      ‖q.eval (z : ℂ) - spiralTargetOn k z‖ < δ := by
-    intro z
-    have hzle := ContinuousMap.norm_coe_le_norm
-      (q.toContinuousMapOn (spiralApproximationSet k) - spiralTargetOn k) z
-    exact lt_of_le_of_lt (by simpa using hzle) hq
-  let z₀ : spiralApproximationSet k := ⟨0, by
-    left
-    simp⟩
-  have htarget0 : spiralTargetOn k z₀ = 1 :=
-    spiralTargetOn_eq_one z₀ (by simp [z₀])
-  have hq0 : ‖q.eval 0 - 1‖ < δ := by
-    simpa [z₀, htarget0] using hpoint z₀
-  have hq0norm : 1 / 2 < ‖q.eval 0‖ := by
-    have hrev : 1 - ‖q.eval 0‖ ≤ ‖q.eval 0 - 1‖ := by
-      simpa [norm_sub_rev] using norm_sub_norm_le (1 : ℂ) (q.eval 0)
-    linarith
-  have hq0ne : q.eval 0 ≠ 0 := norm_pos_iff.mp (lt_trans (by norm_num) hq0norm)
-  let P : Polynomial ℂ := (q.eval 0)⁻¹ • q
-  refine ⟨P, ?_, ?_, ?_⟩
-  · simp [P, hq0ne]
-  · intro z hz
-    let z' : spiralApproximationSet k := ⟨z, by
-      left
-      simpa [spiralApproximationSet, Metric.mem_closedBall, Complex.dist_eq] using hz⟩
-    have htarget : spiralTargetOn k z' = 1 := spiralTargetOn_eq_one z' hz
-    have hqz : ‖q.eval z - 1‖ < δ := by
-      simpa [z', htarget] using hpoint z'
-    have hdiff : ‖q.eval z - q.eval 0‖ < 2 * δ := by
-      calc
-        ‖q.eval z - q.eval 0‖ = ‖(q.eval z - 1) - (q.eval 0 - 1)‖ := by ring_nf
-        _ ≤ ‖q.eval z - 1‖ + ‖q.eval 0 - 1‖ := norm_sub_le _ _
-        _ < 2 * δ := by linarith
-    have hinv : ‖(q.eval 0)⁻¹‖ < 2 := by
-      rw [norm_inv, inv_lt_iff_one_lt_mul₀ (norm_pos_iff.mpr hq0ne)]
-      linarith
-    have heq : P.eval z - 1 = (q.eval 0)⁻¹ * (q.eval z - q.eval 0) := by
-      simp only [P, Polynomial.eval_smul, smul_eq_mul]
-      field_simp
-    rw [heq, norm_mul]
-    have hprod : ‖(q.eval 0)⁻¹‖ * ‖q.eval z - q.eval 0‖ < 2 * (2 * δ) :=
-      mul_lt_mul_of_le_of_lt_of_nonneg_of_pos hinv.le hdiff (norm_nonneg _) (by norm_num)
-    nlinarith
-  · intro z hz
-    let z' : spiralApproximationSet k := ⟨z, Or.inr hz⟩
-    have hlarge : 2 ≤ ‖z‖ := by
-      have h := (spiralSet_norm_bounds k (by positivity) hz).1
-      norm_num at h ⊢
-      exact h
-    have htarget : spiralTargetOn k z' = 0 := spiralTargetOn_eq_zero z' hlarge
-    have hqz : ‖q.eval z‖ < δ := by
-      simpa [z', htarget] using hpoint z'
-    have hinv : ‖(q.eval 0)⁻¹‖ < 2 := by
-      rw [norm_inv, inv_lt_iff_one_lt_mul₀ (norm_pos_iff.mpr hq0ne)]
-      linarith
-    simp only [P, Polynomial.eval_smul, smul_eq_mul, norm_mul]
-    have hprod : ‖(q.eval 0)⁻¹‖ * ‖q.eval z‖ < 2 * δ :=
-      mul_lt_mul_of_le_of_lt_of_nonneg_of_pos hinv.le hqz (norm_nonneg _) (by norm_num)
-    nlinarith
 
 /-!
 ## A finite circular labyrinth
@@ -1627,11 +1198,6 @@ lemma baseLabyrinthPolynomial_zero (n : ℕ) :
   (Classical.choose_spec
     (exists_labyrinthPolynomial (n + 2) (by norm_num : (0 : ℝ) < 1 / 4))).1
 
-lemma baseLabyrinthPolynomial_disk (n : ℕ) {z : ℂ} (hz : ‖z‖ ≤ 1) :
-    ‖(baseLabyrinthPolynomial n).eval z - 1‖ < 1 / 4 :=
-  (Classical.choose_spec
-    (exists_labyrinthPolynomial (n + 2) (by norm_num : (0 : ℝ) < 1 / 4))).2.1 z hz
-
 lemma baseLabyrinthPolynomial_wall (n : ℕ) {z : ℂ}
     (hz : z ∈ labyrinthSet (n + 2) 1) :
     ‖(baseLabyrinthPolynomial n).eval z‖ < 1 / 4 :=
@@ -2088,11 +1654,6 @@ lemma nextProductStage_Q (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
       scaledPolynomialFactor (baseLabyrinthPolynomial n)
         (nextProductStage φ hφ n prev).T (nextProductStage φ hφ n prev).q := rfl
 
-lemma nextProductStage_T (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
-    (n : ℕ) (prev : ProductStage) :
-    (nextProductStage φ hφ n prev).T =
-      exponentialScale (stageA prev.Q) (nextProductStage φ hφ n prev).q := rfl
-
 lemma nextProductStage_factor_close (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
     (n : ℕ) (prev : ProductStage) {z : ℂ} (hz : ‖z‖ ≤ 3 * prev.T) :
     ‖(scaledPolynomialFactor (baseLabyrinthPolynomial n)
@@ -2184,120 +1745,6 @@ lemma nextProductStage_wall (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
       mul_le_mul_of_nonneg_left hfactor
         (mul_nonneg (polynomialBound_pos _).le (pow_nonneg (by positivity) _))
     _ ≤ 1 / 4 := hspec.2.2.2.2.1
-
-lemma nextProductStage_growth (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
-    (n : ℕ) (prev : ProductStage) {r : ℝ}
-    (hr : (nextProductStage φ hφ n prev).T ≤ r) {z : ℂ} (hz : ‖z‖ ≤ r) :
-    ‖(nextProductStage φ hφ n prev).Q.eval z‖ ≤
-      Real.exp ((nextProductStage φ hφ n prev).C * (Real.log r) ^ 2) := by
-  let next := nextProductStage φ hφ n prev
-  let p := baseLabyrinthPolynomial n
-  let A := stageA prev.Q
-  let x := Real.log r
-  have hspec := nextProductStage_spec φ hφ n prev
-  have hTpos : 0 < next.T := next.T_pos
-  have hT1 : 1 < next.T :=
-    lt_trans (lt_trans (by norm_num) Real.exp_one_gt_two) hspec.2.1
-  have hr1 : 1 < r := lt_of_lt_of_le hT1 hr
-  have hrpos : 0 < r := lt_trans zero_lt_one hr1
-  have hlogTle : Real.log next.T ≤ x :=
-    Real.strictMonoOn_log.monotoneOn hTpos hrpos hr
-  have hx1 : 1 ≤ x := by
-    have hlogT : 1 < Real.log next.T := by
-      rw [nextProductStage_T, exponentialScale, Real.log_exp]
-      have hqA : stageA prev.Q < (next.q : ℝ) := by
-        have hscale := hspec.2.1
-        rw [nextProductStage_T, exponentialScale, Real.exp_lt_exp] at hscale
-        change stageA prev.Q < ((nextProductStage φ hφ n prev).q : ℝ)
-        simpa only [one_mul] using (lt_div_iff₀ (stageA_pos prev.Q)).mp hscale
-      apply (lt_div_iff₀ (stageA_pos prev.Q)).2
-      simpa only [one_mul] using hqA
-    exact (hlogT.trans_le hlogTle).le
-  have hqeq : (next.q : ℝ) = A * Real.log next.T := by
-    change ((nextProductStage φ hφ n prev).q : ℝ) =
-      A * Real.log (nextProductStage φ hφ n prev).T
-    rw [nextProductStage_T, exponentialScale, Real.log_exp]
-    dsimp [A]
-    field_simp [stageA_pos prev.Q |>.ne']
-  have hqle : (next.q : ℝ) ≤ A * x := by
-    rw [hqeq]
-    exact mul_le_mul_of_nonneg_left hlogTle (stageA_pos prev.Q).le
-  have hmaxz : max 1 ‖z‖ ≤ r := max_le hr1.le hz
-  have hQ := polynomial_eval_norm_le prev.Q z
-  have hQ' : ‖prev.Q.eval z‖ ≤ polynomialBound prev.Q * r ^ prev.Q.natDegree :=
-    hQ.trans (mul_le_mul_of_nonneg_left
-      (pow_le_pow_left₀ (by positivity) hmaxz _) (polynomialBound_pos _).le)
-  have hinvT : next.T⁻¹ ≤ 1 := (inv_le_one₀ hTpos).2 hT1.le
-  have hw : ‖(((next.T⁻¹ : ℝ) : ℂ) * z)‖ ≤ r := by
-    rw [norm_mul, Complex.norm_real, Real.norm_eq_abs, abs_inv, abs_of_pos hTpos]
-    calc
-      next.T⁻¹ * ‖z‖ ≤ 1 * ‖z‖ :=
-        mul_le_mul_of_nonneg_right hinvT (norm_nonneg z)
-      _ ≤ r := by simpa using hz
-  have hmaxw : max 1 ‖(((next.T⁻¹ : ℝ) : ℂ) * z)‖ ≤ r := max_le hr1.le hw
-  have hp := polynomial_eval_norm_le p (((next.T⁻¹ : ℝ) : ℂ) * z)
-  have hp' : ‖p.eval (((next.T⁻¹ : ℝ) : ℂ) * z)‖ ≤
-      polynomialBound p * r ^ p.natDegree :=
-    hp.trans (mul_le_mul_of_nonneg_left
-      (pow_le_pow_left₀ (by positivity) hmaxw _) (polynomialBound_pos _).le)
-  have hfactor : ‖(scaledPolynomialFactor p next.T next.q).eval z‖ ≤
-      (polynomialBound p * r ^ p.natDegree) ^ next.q := by
-    rw [scaledPolynomialFactor_eval, norm_pow]
-    exact pow_le_pow_left₀ (norm_nonneg _) hp' _
-  have hraw : ‖next.Q.eval z‖ ≤
-      polynomialBound prev.Q * r ^ prev.Q.natDegree *
-        (polynomialBound p * r ^ p.natDegree) ^ next.q := by
-    rw [nextProductStage_Q, Polynomial.eval_mul, norm_mul]
-    exact mul_le_mul hQ' hfactor (norm_nonneg _)
-      (mul_nonneg (polynomialBound_pos _).le (pow_nonneg hrpos.le _))
-  let E : ℝ := Real.log (polynomialBound prev.Q) + (prev.Q.natDegree : ℝ) * x +
-    (next.q : ℝ) * Real.log (polynomialBound p) +
-      (next.q : ℝ) * (p.natDegree : ℝ) * x
-  have hUeq : polynomialBound prev.Q * r ^ prev.Q.natDegree *
-        (polynomialBound p * r ^ p.natDegree) ^ next.q = Real.exp E := by
-    have hBQ : polynomialBound prev.Q = Real.exp (Real.log (polynomialBound prev.Q)) :=
-      (Real.exp_log (polynomialBound_pos prev.Q)).symm
-    have hBp : polynomialBound p = Real.exp (Real.log (polynomialBound p)) :=
-      (Real.exp_log (polynomialBound_pos p)).symm
-    have hrE : r = Real.exp x := by
-      exact (Real.exp_log hrpos).symm
-    rw [hBQ, hBp, hrE]
-    simp only [← Real.exp_nat_mul, ← Real.exp_add]
-    congr 1
-    simp only [E]
-    ring
-  have hlQ : 0 ≤ Real.log (polynomialBound prev.Q) :=
-    Real.log_nonneg (one_le_polynomialBound prev.Q)
-  have hlp : 0 ≤ Real.log (polynomialBound p) :=
-    Real.log_nonneg (one_le_polynomialBound p)
-  have hA : 0 ≤ A := (stageA_pos prev.Q).le
-  have hD : 0 ≤ (prev.Q.natDegree : ℝ) := by positivity
-  have hd : 0 ≤ (p.natDegree : ℝ) := by positivity
-  have hx0 : 0 ≤ x := le_trans zero_le_one hx1
-  have hxx : x ≤ x ^ 2 := by nlinarith
-  have hterm1 : Real.log (polynomialBound prev.Q) ≤
-      Real.log (polynomialBound prev.Q) * x ^ 2 := by nlinarith
-  have hterm2 : (prev.Q.natDegree : ℝ) * x ≤
-      (prev.Q.natDegree : ℝ) * x ^ 2 :=
-    mul_le_mul_of_nonneg_left hxx hD
-  have hterm3 : (next.q : ℝ) * Real.log (polynomialBound p) ≤
-      (A * Real.log (polynomialBound p)) * x ^ 2 := by
-    calc
-      _ ≤ (A * x) * Real.log (polynomialBound p) :=
-        mul_le_mul_of_nonneg_right hqle hlp
-      _ ≤ (A * Real.log (polynomialBound p)) * x ^ 2 := by
-        simpa [mul_assoc, mul_left_comm, mul_comm] using
-          mul_le_mul_of_nonneg_left hxx (mul_nonneg hA hlp)
-  have hterm4 : (next.q : ℝ) * (p.natDegree : ℝ) * x ≤
-      (A * (p.natDegree : ℝ)) * x ^ 2 := by
-    have := mul_le_mul_of_nonneg_right hqle (mul_nonneg hd hx0)
-    nlinarith
-  have hEle : E ≤ next.C * x ^ 2 := by
-    have hC : next.C = stageGrowthConstant prev.Q p := rfl
-    rw [hC]
-    simp only [stageGrowthConstant, E]
-    nlinarith
-  exact hraw.trans (by rw [hUeq]; exact Real.exp_le_exp.mpr hEle)
 
 lemma nextProductStage_growth_from_activation (φ : ℝ → ℝ)
     (hφ : Tendsto φ atTop atTop) (n : ℕ) (prev : ProductStage) {r : ℝ}
@@ -2450,13 +1897,6 @@ lemma constructionStage_eq_next (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop
     constructionStage φ hφ n =
       nextProductStage φ hφ n (constructionStages φ hφ n) := rfl
 
-lemma constructionStage_Q (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
-    (n : ℕ) :
-    (constructionStage φ hφ n).Q =
-      (constructionStages φ hφ n).Q * constructionFactor φ hφ n := by
-  rw [constructionStage_eq_next, nextProductStage_Q]
-  rfl
-
 lemma constructionStages_Q_eq_prod (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
     (N : ℕ) :
     (constructionStages φ hφ N).Q =
@@ -2507,11 +1947,6 @@ lemma constructionStage_T_growth (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTo
     (n : ℕ) :
     3 * (constructionStages φ hφ n).T < (constructionStage φ hφ n).T :=
   (constructionStage_spec φ hφ n).2.2.1
-
-lemma constructionStage_T_gt_exp_one (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
-    (n : ℕ) :
-    Real.exp 1 < (constructionStage φ hφ n).T :=
-  (constructionStage_spec φ hφ n).2.1
 
 lemma constructionStage_factor_close (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
     (n : ℕ) {z : ℂ}
@@ -2571,14 +2006,6 @@ lemma constructionStage_wall (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
     ‖(constructionStage φ hφ n).Q.eval z‖ ≤ 1 / 4 := by
   rw [constructionStage_eq_next] at hz ⊢
   exact nextProductStage_wall φ hφ n (constructionStages φ hφ n) hz
-
-lemma constructionStage_growth (φ : ℝ → ℝ) (hφ : Tendsto φ atTop atTop)
-    (n : ℕ) {r : ℝ} (hr : (constructionStage φ hφ n).T ≤ r)
-    {z : ℂ} (hz : ‖z‖ ≤ r) :
-    ‖(constructionStage φ hφ n).Q.eval z‖ ≤
-      Real.exp ((constructionStage φ hφ n).C * (Real.log r) ^ 2) := by
-  rw [constructionStage_eq_next] at hr ⊢
-  exact nextProductStage_growth φ hφ n (constructionStages φ hφ n) hr hz
 
 lemma constructionStage_growth_from_activation (φ : ℝ → ℝ)
     (hφ : Tendsto φ atTop atTop) (n : ℕ) {r : ℝ}
@@ -3005,13 +2432,6 @@ lemma counterexampleFunction_maximumModulus_growth (φ : ℝ → ℝ)
   · rw [hzero, Real.log_zero]
     exact mul_nonneg hphi (sq_nonneg _)
   · exact (Real.log_le_iff_le_exp (lt_of_le_of_ne hM0 (Ne.symm hzero))).2 hM
-
-lemma counterexampleFunction_hasGrowth (φ : ℝ → ℝ)
-    (hφ : Tendsto φ atTop atTop) :
-    HasGolbergEremenkoGrowth φ (counterexampleFunction φ hφ) := by
-  refine ⟨1, zero_le_one, ?_⟩
-  filter_upwards [eventually_ge_atTop (constructionActivation φ hφ 0)] with r hr
-  simpa using counterexampleFunction_maximumModulus_growth φ hφ hr
 
 noncomputable def slowGrowth (φ : ℝ → ℝ) : ℝ → ℝ :=
   fun r ↦ min (φ r) r

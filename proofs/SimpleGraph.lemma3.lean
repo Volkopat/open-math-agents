@@ -12,7 +12,7 @@ namespace OMA
 open SimpleGraph Finset
 
 def blockAdj {n : ℕ} (left right : Fin 4 × Fin n) : Prop :=
-  (left.1 = right.1 ∧ right.2 ≤ left.2) ∨
+  (left.1 = right.1 ∧ left.2.rev ≤ right.2) ∨
   (left.1 = 2 ∧ right.1 ≠ 2) ∨
   (left.1 = 3 ∧ right.1 ≠ 3) ∨
   (left.1 < 2 ∧ right.1 = 3)
@@ -31,15 +31,9 @@ def blockGraph (n : ℕ) : SimpleGraph ((Fin 4 × Fin n) ⊕ (Fin 4 × Fin n)) w
     intro u
     cases u <;> exact id
 
-lemma card_le_index {n : ℕ} (i : Fin n) :
-    (univ.filter fun j : Fin n ↦ j ≤ i).card = (i : ℕ) + 1 := by
-  have h : (univ.filter fun j : Fin n ↦ j ≤ i) = Iic i := by ext; simp
-  rw [h, Fin.card_Iic]
-
 lemma card_ge_index {n : ℕ} (i : Fin n) :
     (univ.filter fun j : Fin n ↦ i ≤ j).card = n - (i : ℕ) := by
-  have h : (univ.filter fun j : Fin n ↦ i ≤ j) = Ici i := by ext; simp
-  rw [h, Fin.card_Ici]
+  simpa only [filter_le_eq_Ici] using Fin.card_Ici i
 
 def leftBase (b : Fin 4) : ℕ :=
   if b < 2 then 1 else 3
@@ -60,15 +54,16 @@ lemma blockGraph_degree_left {n : ℕ} [DecidableRel (blockGraph n).Adj]
   rw [degree_as_sum (blockGraph n), Fintype.sum_sum_type,
     Fintype.sum_prod_type, Fintype.sum_prod_type]
   fin_cases b <;>
-    simp [Fin.sum_univ_four, blockGraph, blockAdj, leftBase, card_le_index] <;> omega
+    simp [Fin.sum_univ_four, blockGraph, blockAdj, leftBase, card_ge_index, Fin.val_rev] <;> omega
 
 lemma blockGraph_degree_right {n : ℕ} [DecidableRel (blockGraph n).Adj]
     (b : Fin 4) (i : Fin n) :
-    (blockGraph n).degree (.inr (b, i)) = rightBase b * n + (n - (i : ℕ)) := by
+    (blockGraph n).degree (.inr (b, i)) = rightBase b * n + (i : ℕ) + 1 := by
+  have h (j : Fin n) : j.rev ≤ i ↔ i.rev ≤ j := Fin.rev_le_iff
   rw [degree_as_sum (blockGraph n), Fintype.sum_sum_type,
     Fintype.sum_prod_type, Fintype.sum_prod_type]
   fin_cases b <;>
-    simp [Fin.sum_univ_four, blockGraph, blockAdj, rightBase, card_ge_index] <;> omega
+    simp [Fin.sum_univ_four, blockGraph, blockAdj, rightBase, h, card_ge_index, Fin.val_rev] <;> omega
 
 lemma blockGraph_bipartite (n : ℕ) : (blockGraph n).IsBipartite := by
   refine isBipartite_iff_exists_isBipartiteWith.mpr
@@ -82,37 +77,17 @@ lemma blockGraph_bipartite (n : ℕ) : (blockGraph n).IsBipartite := by
 lemma sum_degree_interval (n base d : ℕ) :
     (∑ i : Fin n, if base + (i : ℕ) + 1 = d then 1 else 0) =
       if base < d ∧ d ≤ base + n then 1 else 0 := by
-  split_ifs with h
-  · let i : Fin n := ⟨d - base - 1, by omega⟩
-    rw [Finset.sum_eq_single i]
-    · have hi : base + (i : ℕ) + 1 = d := by dsimp [i]; omega
-      simp [hi]
-    · intro j _ hj
-      have hne : base + (j : ℕ) + 1 ≠ d := by
-        intro he
-        apply hj
-        apply Fin.ext
-        dsimp [i]
-        omega
-      simp [hne]
-    · simp
-  · apply Finset.sum_eq_zero
-    intro i _
-    have hi := i.isLt
-    have hne : base + (i : ℕ) + 1 ≠ d := by omega
-    simp [hne]
-
-lemma sum_reverse_degree_interval (n base d : ℕ) :
-    (∑ i : Fin n, if base + (n - (i : ℕ)) = d then 1 else 0) =
-      if base < d ∧ d ≤ base + n then 1 else 0 := by
-  rw [← sum_degree_interval]
-  apply Fintype.sum_equiv Fin.revPerm
-  intro i
-  have hi := i.isLt
-  have h : base + (n - (i : ℕ)) = base + (↑(Fin.revPerm i) : ℕ) + 1 := by
-    rw [Fin.revPerm_apply, Fin.val_rev]
-    omega
-  simp [h]
+  rw [Fintype.sum_ite_eq_ite_exists _ (by
+    intro i j hi hj
+    exact Fin.ext (by omega))]
+  have range : (∃ i : Fin n, base + (i : ℕ) + 1 = d) ↔ base < d ∧ d ≤ base + n := by
+    constructor
+    · rintro ⟨i, hi⟩
+      have := i.isLt
+      omega
+    · intro h
+      exact ⟨⟨d - base - 1, by omega⟩, by dsimp; omega⟩
+  simp only [range]
 
 lemma blockGraph_count {n : ℕ} [DecidableRel (blockGraph n).Adj] (d : ℕ) :
     countDegreeK (blockGraph n) d =
@@ -122,7 +97,7 @@ lemma blockGraph_count {n : ℕ} [DecidableRel (blockGraph n).Adj] (d : ℕ) :
   unfold countDegreeK
   rw [Finset.card_filter, Fintype.sum_sum_type, Fintype.sum_prod_type, Fintype.sum_prod_type]
   simp only [blockGraph_degree_left, blockGraph_degree_right, sum_degree_interval,
-    sum_reverse_degree_interval, Fin.sum_univ_four, leftBase, rightBase]
+    Fin.sum_univ_four, leftBase, rightBase]
   norm_num
   split_ifs <;> omega
 
@@ -132,10 +107,8 @@ lemma multiplicity_eq_three {V : Type*} [Fintype V] [DecidableEq V]
     degreeSequenceMultiplicity G = 3 := by
   let ds := degreeSequence G
   have hCount (e : ℕ) : ds.count e = countDegreeK G e := by
-    have hSort : (↑ds : Multiset ℕ) = Finset.univ.val.map (G.degree ·) := by
-      simp [ds, degreeSequence]
-    rw [← Multiset.coe_count, hSort, Multiset.count_map]
-    simp only [countDegreeK, ← Finset.filter_val, Finset.card_val, eq_comm]
+    simp [ds, degreeSequence, ← Multiset.coe_count, Multiset.count_map,
+      countDegreeK, ← Finset.filter_val, Finset.card_val, eq_comm]
   have hdMem : d ∈ ds := List.count_pos_iff.mp (by rw [hCount, hd]; decide)
   have hMax : (ds.map (fun e ↦ ds.count e)).max? = some 3 := by
     refine List.max?_eq_some_iff.mpr ⟨List.mem_map.mpr ⟨d, hdMem, (hCount d).trans hd⟩, ?_⟩
@@ -157,11 +130,9 @@ theorem OMA.solution : type_of% @SimpleGraph.lemma3 := by
   let G := (OMA.blockGraph n).comap e
   let hDec : DecidableRel G.Adj := Classical.decRel _
   let hBlockDec : DecidableRel (OMA.blockGraph n).Adj := Classical.decRel _
-  have hDegree (v : Fin (8 * n)) : G.degree v = (OMA.blockGraph n).degree (e v) := by
-    rw [OMA.degree_as_sum G, OMA.degree_as_sum (OMA.blockGraph n)]
-    apply Fintype.sum_equiv e
-    intro w
-    rfl
+  have hDegree (v : Fin (8 * n)) : G.degree v = (OMA.blockGraph n).degree (e v) :=
+    ((Iso.comap e (OMA.blockGraph n)).degree_eq v).symm
+
   have hCount (d : ℕ) : countDegreeK G d = countDegreeK (OMA.blockGraph n) d := by
     simp only [countDegreeK, Finset.card_filter]
     apply Fintype.sum_equiv e
@@ -177,13 +148,9 @@ theorem OMA.solution : type_of% @SimpleGraph.lemma3 := by
       simp [first, OMA.blockGraph_degree_left, OMA.leftBase]
     · intro v
       rw [hDegree]
-      rcases e v with ⟨b, i⟩ | ⟨b, i⟩
-      · rw [OMA.blockGraph_degree_left]
-        simp only [OMA.leftBase]
-        split_ifs <;> omega
-      · rw [OMA.blockGraph_degree_right]
-        have hi := i.isLt
-        simp only [OMA.rightBase]
+      rcases e v with ⟨b, i⟩ | ⟨b, i⟩ <;>
+        simp only [OMA.blockGraph_degree_left, OMA.blockGraph_degree_right,
+          OMA.leftBase, OMA.rightBase] <;>
         split_ifs <;> omega
   · refine OMA.multiplicity_eq_three G (d := n + 1) ?_ ?_
     · rw [hCount, OMA.blockGraph_count]
@@ -191,5 +158,3 @@ theorem OMA.solution : type_of% @SimpleGraph.lemma3 := by
     · intro d
       rw [hCount, OMA.blockGraph_count]
       split_ifs <;> omega
-
-

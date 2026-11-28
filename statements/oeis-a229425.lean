@@ -1,0 +1,80 @@
+import Mathlib
+
+/-!
+# OEIS A229425: Barker's g.f. and recurrence for n X 5 0..2 arrays with differences mod 3 restricted and lexicographically ordered rows and columns
+
+Source: https://oeis.org/A229425 (OEIS Foundation, CC BY-SA 4.0).
+Formalization: AI-generated with Claude Code (model claude-opus-5-5), submitted by @jleguina.
+
+Entry A229425 (R. H. Hardin, Sep 22 2013), offset 1: Number of n X 5 0..2 arrays with horizontal
+differences mod 3 never 1, vertical differences mod 3 never -1, rows lexicographically
+nondecreasing, and columns lexicographically nonincreasing. Column 5 of A229428.
+Formula section:
+Conjectures from Colin Barker, Sep 15 2018:
+G.f.: x*(17 - 85*x + 337*x^2 - 755*x^3 + 1172*x^4 - 1284*x^5 + 987*x^6 - 525*x^7 + 186*x^8 - 40*x^9
++ 4*x^10) / (1 - x)^11.
+a(n) = 11*a(n-1) - 55*a(n-2) + 165*a(n-3) - 330*a(n-4) + 462*a(n-5) - 462*a(n-6) + 330*a(n-7) -
+165*a(n-8) + 55*a(n-9) - 11*a(n-10) + a(n-11) for n>11.
+
+Formalization notes:
+* An array is x : Fin n → Fin 5 → Fin 3 (n rows, 5 columns), x i j being the entry in row i (counted
+  from the top) and column j
+  (counted from the left).
+* A horizontal difference is x i j' - x i j for horizontally adjacent entries (j' = j + 1, the
+  entry on the right minus the entry on the left); a vertical difference is x i' j - x i j for
+  vertically adjacent entries (i' = i + 1, the lower entry minus the upper one). Both are computed
+  in the integers and compared modulo 3: horizontal differences are never 1 mod 3 and vertical
+  differences never -1 mod 3 (Int.ModEq). Of the four choices of sign for the two differences only
+  this one reproduces the data, and with it a brute force reproduces every cell with at most 8
+  entries of the tables A229428 (columns nonincreasing) and A229445 (rows and columns
+  nondecreasing).
+* lexLE u v is the lexicographic order on words of the same length: u = v, or u has the smaller
+  letter at the first position where they differ. Rows are lexicographically nondecreasing:
+  lexLE (x i) (x i') for consecutive rows. Columns, read from the top, are lexicographically
+  nonincreasing from left to right: lexLE (column j+1) (column j) for consecutive columns.
+* The g.f. is stated as A(x) (1 - x)^11 = numerator in the formal power series ring over the
+  rationals, with A(x) = Sum_{n >= 1} a(n) x^n (offset 1, so the constant term is 0). The
+  denominator (1 - x)^11 has constant term 1 and is invertible, so this is the entry's quotient.
+  The recurrence is stated in the integers for every n > 11.
+* main is the conjunction of Barker's two conjectures.
+* Controls proved in the proof file: a(1..25) = 17, 102, 524, 2204, 7816, 24126, 66503, 166972,
+  387738, 842802, 1731129, 3385828, 6344979, 11451106, 19987862, 33864276, 55858927, 89938670,
+  141669058, 218736396, 331604442, 494332150, 725582545, 1049856844, 1498992304 (the entry's data),
+  and a(1) = 17 by direct enumeration of all arrays with n = 1.
+-/
+
+namespace OMA.S_oeis_a229425
+
+open PowerSeries Finset
+
+/-- u ≤ v in the lexicographic order: u = v, or at the first index where they differ u is
+smaller. -/
+def lexLE {m q : ℕ} (u v : Fin m → Fin q) : Prop :=
+  u = v ∨ ∃ i : Fin m, (∀ j : Fin m, j < i → u j = v j) ∧ u i < v i
+
+instance {m q : ℕ} : DecidableRel (@lexLE m q) := fun u v => by unfold lexLE; infer_instance
+
+/-- The array x (row i, column j): every horizontal difference x i j' - x i j (j' = j + 1) is not 1
+mod 3, every vertical difference x i' j - x i j (i' = i + 1) is not -1 mod 3, the rows are
+lexicographically nondecreasing from the top, and the columns (read from the top) are
+lexicographically nonincreasing from the left. -/
+def good {n : ℕ} (x : Fin n → Fin 5 → Fin 3) : Prop :=
+  (∀ i : Fin n, ∀ j j' : Fin 5, j.val + 1 = j'.val → ¬ ((x i j' : ℤ) - x i j ≡ 1 [ZMOD 3])) ∧
+  (∀ i i' : Fin n, ∀ j : Fin 5, i.val + 1 = i'.val → ¬ ((x i' j : ℤ) - x i j ≡ -1 [ZMOD 3])) ∧
+  (∀ i i' : Fin n, i.val + 1 = i'.val → lexLE (x i) (x i')) ∧
+  (∀ j j' : Fin 5, j.val + 1 = j'.val → lexLE (fun i => x i j') (fun i => x i j))
+
+instance {n : ℕ} : DecidablePred (@good n) := fun x => by unfold good; infer_instance
+
+/-- A229425(n): the number of good n X 5 arrays with entries 0..2. -/
+def a (n : ℕ) : ℕ := (univ.filter (fun x : Fin n → Fin 5 → Fin 3 => good x)).card
+
+/-- Barker's conjectures: the g.f. and the recurrence for n > 11. -/
+theorem main :
+    PowerSeries.mk (fun n => if n = 0 then (0 : ℚ) else (a n : ℚ)) * (1 - X) ^ 11 =
+      X * (17 - 85 * X + 337 * X ^ 2 - 755 * X ^ 3 + 1172 * X ^ 4 - 1284 * X ^ 5 + 987 * X ^ 6 - 525 * X ^ 7 + 186 * X ^ 8 - 40 * X ^ 9 + 4 * X ^ 10) ∧
+    ∀ n : ℕ, 11 < n →
+      (a n : ℤ) = 11 * a (n - 1) - 55 * a (n - 2) + 165 * a (n - 3) - 330 * a (n - 4) + 462 * a (n - 5) - 462 * a (n - 6) + 330 * a (n - 7) - 165 * a (n - 8) + 55 * a (n - 9) - 11 * a (n - 10) + a (n - 11) := by
+  sorry
+
+end OMA.S_oeis_a229425

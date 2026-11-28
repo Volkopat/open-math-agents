@@ -1,44 +1,31 @@
 import OMAStatements.S_mo_187311
 import Mathlib
 
+-- Original proof by @zarnab222-dev (PR #9118; statement #8402), shortened
+-- by @ppleskov (PR #12828). The constant sum-of-squares helper now uses
+-- Mathlib degree cancellation directly.
+
 open Polynomial
 
 namespace OMA.P187311
 
 lemma natDegree_sq_add_sq (f g : ℤ[X]) (h : (f ^ 2 + g ^ 2).natDegree = 0) :
     f.natDegree = 0 ∧ g.natDegree = 0 := by
-  by_contra hc
-  have hf : f.natDegree ≤ max f.natDegree g.natDegree := le_max_left _ _
-  have hg : g.natDegree ≤ max f.natDegree g.natDegree := le_max_right _ _
-  have hdpos : 0 < max f.natDegree g.natDegree := by
-    rcases Nat.eq_zero_or_pos (max f.natDegree g.natDegree) with h0 | h0
-    · exfalso
-      apply hc
-      constructor <;> omega
-    · exact h0
-  have c1 : (f ^ 2 + g ^ 2).coeff (max f.natDegree g.natDegree + max f.natDegree g.natDegree)
-      = f.coeff (max f.natDegree g.natDegree) ^ 2 + g.coeff (max f.natDegree g.natDegree) ^ 2 := by
-    rw [coeff_add, pow_two, pow_two, coeff_mul_add_eq_of_natDegree_le hf hf,
-      coeff_mul_add_eq_of_natDegree_le hg hg]
-    ring
-  have c2 : (f ^ 2 + g ^ 2).coeff (max f.natDegree g.natDegree + max f.natDegree g.natDegree)
-      = 0 := coeff_eq_zero_of_natDegree_lt (by omega)
-  rw [c1] at c2
-  have hf0 : f.coeff (max f.natDegree g.natDegree) = 0 := by
-    nlinarith [sq_nonneg (f.coeff (max f.natDegree g.natDegree)),
-      sq_nonneg (g.coeff (max f.natDegree g.natDegree))]
-  have hg0 : g.coeff (max f.natDegree g.natDegree) = 0 := by
-    nlinarith [sq_nonneg (f.coeff (max f.natDegree g.natDegree)),
-      sq_nonneg (g.coeff (max f.natDegree g.natDegree))]
-  rcases max_cases f.natDegree g.natDegree with ⟨h1, _⟩ | ⟨h1, _⟩
-  · rw [h1] at hf0 hdpos
-    have hz : f = 0 := leadingCoeff_eq_zero.mp hf0
-    rw [hz] at hdpos
-    simp at hdpos
-  · rw [h1] at hg0 hdpos
-    have hz : g = 0 := leadingCoeff_eq_zero.mp hg0
-    rw [hz] at hdpos
-    simp at hdpos
+  have heq : f.natDegree = g.natDegree := by
+    have hd := natDegree_eq_of_natDegree_add_eq_zero (f ^ 2) (g ^ 2) h
+    simp only [natDegree_pow] at hd
+    omega
+  suffices hf : f.natDegree = 0 from ⟨hf, heq.symm.trans hf⟩
+  by_contra hf
+  have hc := coeff_eq_zero_of_natDegree_lt (p := f ^ 2 + g ^ 2)
+    (n := f.natDegree + f.natDegree) (by omega)
+  rw [coeff_add, pow_two, pow_two,
+    coeff_mul_add_eq_of_natDegree_le le_rfl le_rfl,
+    coeff_mul_add_eq_of_natDegree_le heq.ge heq.ge] at hc
+  have hz : f.leadingCoeff = 0 := by
+    change f.coeff f.natDegree = 0
+    nlinarith [sq_nonneg (g.coeff f.natDegree)]
+  exact hf (by rw [leadingCoeff_eq_zero.mp hz]; simp)
 
 lemma sharp_key (a₁ a₂ a₃ a₄ m n r s : ℤ[X])
     (h1 : a₁ - a₃ = m * n) (h2 : a₁ + a₃ = r * s) (h3 : a₄ - a₂ = m * r) (h4 : a₄ + a₂ = n * s)
@@ -166,97 +153,3 @@ theorem OMA.solution : type_of% @OMA.S_mo_187311.main := by
   intro a b c d h₁ h₂ h₃ h₄ h₅ h₆ h₇ h₈ h₉ h₁₀ h₁₁ h₁₂ he hi
   have h := OMA.content_at_least_five a b c d h₁ h₂ h₃ h₄ h₅ h₆ h₇ h₈ h₉ h₁₀ h₁₁ h₁₂ he hi
   omega
-
-namespace MO187311Eisen
-
-noncomputable def F (m : ℕ) : ℤ[X] := X ^ (2 * m) + 2 * X ^ m + 2
-
-private theorem lower_degree (m : ℕ) (hm : 0 < m) :
-    (2 * X ^ m + 2 : ℤ[X]).natDegree < 2 * m := by
-  calc
-    _ ≤ max (2 * X ^ m : ℤ[X]).natDegree (2 : ℤ[X]).natDegree := natDegree_add_le ..
-    _ ≤ m := by simp [natDegree_mul]
-    _ < _ := by omega
-
-theorem monic (m : ℕ) (hm : 0 < m) : (F m).Monic := by
-  rw [F, add_assoc]
-  apply monic_X_pow_add
-  exact lt_of_le_of_lt degree_le_natDegree (WithBot.coe_lt_coe.mpr (lower_degree m hm))
-
-theorem natDegree_F (m : ℕ) (hm : 0 < m) : (F m).natDegree = 2 * m := by
-  rw [F, add_assoc, natDegree_add_eq_left_of_natDegree_lt, natDegree_X_pow]
-  simpa using lower_degree m hm
-
-theorem irreducible_map (m : ℕ) (hm : 0 < m) :
-    Irreducible ((F m).map (Int.castRingHom ℚ)) := by
-  have hmon := monic m hm
-  have hd : (F m).degree = (2 * m : ℕ) := by
-    rw [degree_eq_natDegree hmon.ne_zero, natDegree_F m hm]
-  have hpos : 0 < 2 * m := by omega
-  apply (IsPrimitive.Int.irreducible_iff_irreducible_map_cast hmon.isPrimitive).mp
-  apply irreducible_of_eisenstein_criterion
-    (Ideal.isPrime_span_singleton_of_prime (show Prime (2 : ℤ) by norm_num))
-  · rw [hmon.leadingCoeff, Ideal.mem_span_singleton]
-    decide
-  · intro k hk
-    rw [hd] at hk
-    have hkNat : k < 2 * m := WithBot.coe_lt_coe.mp hk
-    rw [Ideal.mem_span_singleton]
-    cases k with
-    | zero => simp [F, coeff_X_pow, hm.ne, hpos.ne]
-    | succ k =>
-      simp [F, coeff_X_pow, hkNat.ne]
-      split <;> simp
-  · rw [hd]
-    exact_mod_cast hpos
-  · rw [Ideal.span_singleton_pow, Ideal.mem_span_singleton]
-    simp [F, coeff_X_pow, hm.ne, hpos.ne]
-  · exact hmon.isPrimitive
-
-end MO187311Eisen
-
-namespace MO187311Family
-open Polynomial
-
-/-- Two inequivalent representations with the primitive factor written explicitly. -/
-theorem representations (m : ℕ) :
-    ∃ a b c d : ℤ[X],
-      (a ≠ b ∧ a ≠ -b ∧ a ≠ c ∧ a ≠ -c ∧ a ≠ d ∧ a ≠ -d ∧
-       b ≠ c ∧ b ≠ -c ∧ b ≠ d ∧ b ≠ -d ∧ c ≠ d ∧ c ≠ -d) ∧
-      a^2+b^2 = C 5 * (X^(2*m)+2*X^m+2) ∧ c^2+d^2 = a^2+b^2 := by
-  let t : ℤ[X] := X^m + 1
-  refine ⟨t+2,2*t-1,t-2,2*t+1,?_,?_,?_⟩
-  · have ht : t.eval 1 = 2 := by simp [t]
-    repeat' constructor
-    all_goals
-      intro h
-      have he := congrArg (Polynomial.eval (1 : ℤ)) h
-      norm_num [eval_add, eval_sub, eval_mul, eval_neg, ht] at he
-  · dsimp [t]
-    rw [show 2*m=m+m by omega, pow_add]
-    norm_num
-    ring
-  · ring
-
-end MO187311Family
-
-namespace MO187311Family
-open Polynomial MO187311Eisen
-
-/-- The examples in the question exist in every positive even degree. -/
-theorem all_even_degrees (m : ℕ) (hm : 0 < m) :
-    ∃ a b c d p : ℤ[X],
-      (a ≠ b ∧ a ≠ -b ∧ a ≠ c ∧ a ≠ -c ∧ a ≠ d ∧ a ≠ -d ∧
-       b ≠ c ∧ b ≠ -c ∧ b ≠ d ∧ b ≠ -d ∧ c ≠ d ∧ c ≠ -d) ∧
-      a^2+b^2 = p ∧ c^2+d^2 = p ∧ p.natDegree = 2*m ∧
-      p.content = 5 ∧ Irreducible (p.map (Int.castRingHom ℚ)) := by
-  obtain ⟨a,b,c,d,hd,h₁,h₂⟩ := representations m
-  change a^2+b^2 = C 5 * F m at h₁
-  refine ⟨a,b,c,d,C 5 * F m,hd,h₁,h₂.trans h₁,?_,?_,?_⟩
-  · rw [natDegree_C_mul (by norm_num : (5:ℤ) ≠ 0), natDegree_F m hm]
-  · rw [content_C_mul, (monic m hm).isPrimitive.content_eq_one, mul_one]
-    decide
-  · rw [Polynomial.map_mul, map_C, irreducible_mul_iff]
-    exact Or.inr ⟨irreducible_map m hm, isUnit_C.mpr (isUnit_iff_ne_zero.mpr (by norm_num))⟩
-
-end MO187311Family

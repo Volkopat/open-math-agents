@@ -30,29 +30,30 @@ lemma mem_range_of_pow_card_eq {F K : Type*} [Field F] [Field K] [Algebra F K] [
   have := Fintype.ofFinite F
   have hq : 1 < Fintype.card F := Fintype.one_lt_card
   rw [Nat.card_eq_fintype_card] at hx
-  have hP0 : (Polynomial.X ^ Fintype.card F - Polynomial.X : Polynomial K) ≠ 0 :=
+  let P : Polynomial K := Polynomial.X ^ Fintype.card F - Polynomial.X
+  have hP0 : P ≠ 0 :=
     FiniteField.X_pow_card_sub_X_ne_zero K hq
-  have hdeg : (Polynomial.X ^ Fintype.card F - Polynomial.X : Polynomial K).natDegree
+  have hdeg : P.natDegree
       = Fintype.card F := FiniteField.X_pow_card_sub_X_natDegree_eq K hq
   have hroot : ∀ y : K, y ^ Fintype.card F = y →
-      y ∈ (Polynomial.X ^ Fintype.card F - Polynomial.X : Polynomial K).roots.toFinset := by
+      y ∈ P.roots.toFinset := by
     intro y hy
     rw [Multiset.mem_toFinset, Polynomial.mem_roots hP0, Polynomial.IsRoot.def]
-    simp only [Polynomial.eval_sub, Polynomial.eval_pow, Polynomial.eval_X]
+    simp only [P, Polynomial.eval_sub, Polynomial.eval_pow, Polynomial.eval_X]
     rw [hy, sub_self]
   have hsub : (Finset.univ.image (algebraMap F K)) ⊆
-      (Polynomial.X ^ Fintype.card F - Polynomial.X : Polynomial K).roots.toFinset := by
+      P.roots.toFinset := by
     intro y hy
     obtain ⟨a, -, rfl⟩ := Finset.mem_image.1 hy
     apply hroot
     rw [← map_pow, FiniteField.pow_card]
-  have hcard : (Polynomial.X ^ Fintype.card F - Polynomial.X : Polynomial K).roots.toFinset.card
+  have hcard : P.roots.toFinset.card
       ≤ (Finset.univ.image (algebraMap F K)).card := by
     rw [Finset.card_image_of_injective _ (algebraMap F K).injective, Finset.card_univ]
-    calc (Polynomial.X ^ Fintype.card F - Polynomial.X : Polynomial K).roots.toFinset.card
-        ≤ (Polynomial.X ^ Fintype.card F - Polynomial.X : Polynomial K).roots.card :=
+    calc P.roots.toFinset.card
+        ≤ P.roots.card :=
           Multiset.toFinset_card_le _
-      _ ≤ (Polynomial.X ^ Fintype.card F - Polynomial.X : Polynomial K).natDegree :=
+      _ ≤ P.natDegree :=
           Polynomial.card_roots' _
       _ = Fintype.card F := hdeg
   have heq := Finset.eq_of_subset_of_card_le hsub hcard
@@ -81,11 +82,12 @@ lemma exists_gen (K : Type*) [Field K] [Finite K] :
 
 lemma exists_plane {F K : Type*} [Field F] [Field K] [Algebra F K] [Module.Finite F K]
     (h3 : Module.finrank F K = 3) : ∃ W : Submodule F K, Module.finrank F W = 2 := by
+  let b := Module.finBasisOfFinrankEq F K h3
   have hli : LinearIndependent F
-      (fun i : Fin 2 => (Module.finBasisOfFinrankEq F K h3) (Fin.castSucc i)) :=
-    (Module.finBasisOfFinrankEq F K h3).linearIndependent.comp _ (Fin.castSucc_injective 2)
+      (fun i : Fin 2 => (b) (Fin.castSucc i)) :=
+    (b).linearIndependent.comp _ (Fin.castSucc_injective 2)
   exact ⟨Submodule.span F
-    (Set.range (fun i : Fin 2 => (Module.finBasisOfFinrankEq F K h3) (Fin.castSucc i))), by
+    (Set.range (fun i : Fin 2 => (b) (Fin.castSucc i))), by
       rw [finrank_span_eq_card hli, Fintype.card_fin]⟩
 
 /-- A plane is not stable under multiplication by an element outside the base field. -/
@@ -133,28 +135,21 @@ lemma key_exists {F K : Type*} [Field F] [Field K] [Algebra F K] [Module.Finite 
   have hinj : Function.Injective (LinearMap.mulLeft F c) := by
     intro x y hxy
     exact mul_left_cancel₀ hc0 hxy
-  have h1 : Module.finrank F
-      (W.map ((LinearEquiv.ofInjectiveEndo (LinearMap.mulLeft F c) hinj : K ≃ₗ[F] K) :
-        K →ₗ[F] K)) = 2 := by
+  let E : K ≃ₗ[F] K := LinearEquiv.ofInjectiveEndo (LinearMap.mulLeft F c) hinj
+  let U : Submodule F K := W.map (E : K →ₗ[F] K)
+  have h1 : Module.finrank F U = 2 := by
+    dsimp [U]
     rw [LinearEquiv.finrank_map_eq, hW]
-  have h2 := Submodule.finrank_sup_add_finrank_inf_eq W
-    (W.map ((LinearEquiv.ofInjectiveEndo (LinearMap.mulLeft F c) hinj : K ≃ₗ[F] K) :
-      K →ₗ[F] K))
-  have h4 : Module.finrank F
-      ↥(W ⊔ W.map ((LinearEquiv.ofInjectiveEndo (LinearMap.mulLeft F c) hinj : K ≃ₗ[F] K) :
-        K →ₗ[F] K)) ≤ 3 := by
+  have h2 := Submodule.finrank_sup_add_finrank_inf_eq W U
+  have h4 : Module.finrank F ↥(W ⊔ U) ≤ 3 := by
     rw [← h3]
     exact Submodule.finrank_le _
-  have hpos : 0 < Module.finrank F
-      ↥(W ⊓ W.map ((LinearEquiv.ofInjectiveEndo (LinearMap.mulLeft F c) hinj : K ≃ₗ[F] K) :
-        K →ₗ[F] K)) := by omega
+  have hpos : 0 < Module.finrank F ↥(W ⊓ U) := by omega
   obtain ⟨⟨x, hx⟩, hx0⟩ := Module.finrank_pos_iff_exists_ne_zero.1 hpos
   have hx' : x ≠ 0 := fun h => hx0 (Subtype.ext h)
   rw [Submodule.mem_inf, Submodule.mem_map] at hx
   obtain ⟨hxW, y, hyW, hyx⟩ := hx
-  have hcy : c * y = x := by
-    rw [← hyx]
-    rfl
+  have hcy : c * y = x := hyx
   refine ⟨y, hyW, ?_, ?_⟩
   · rintro rfl
     exact hx' (by rw [← hcy, mul_zero])
@@ -166,18 +161,19 @@ lemma key_unique {F K : Type*} [Field F] [Field K] [Algebra F K] [Module.Finite 
     (h3 : Module.finrank F K = 3) (W : Submodule F K) (hW : Module.finrank F W = 2)
     (c : K) (hc : c ∉ (algebraMap F K).range) {y y' : K} (hy : y ∈ W) (hy0 : y ≠ 0)
     (hcy : c * y ∈ W) (hy' : y' ∈ W) (hcy' : c * y' ∈ W) : ∃ a : F, y' = a • y := by
-  have hne : W ⊓ W.comap (LinearMap.mulLeft F c) ≠ W := by
+  let U : Submodule F K := W ⊓ W.comap (LinearMap.mulLeft F c)
+  have hne : U ≠ W := by
     intro h
     apply not_stable h3 W hW c hc
     intro w hw
     rw [← h] at hw
     exact (Submodule.mem_inf.1 hw).2
-  have hlt : W ⊓ W.comap (LinearMap.mulLeft F c) < W := lt_of_le_of_ne inf_le_left hne
+  have hlt : U < W := lt_of_le_of_ne inf_le_left hne
   have hfr := Submodule.finrank_lt_finrank_of_lt hlt
-  have hle1 : Module.finrank F ↥(W ⊓ W.comap (LinearMap.mulLeft F c)) ≤ 1 := by omega
+  have hle1 : Module.finrank F ↥U ≤ 1 := by omega
   obtain ⟨v, hv⟩ := finrank_le_one_iff.1 hle1
-  have hyU : y ∈ W ⊓ W.comap (LinearMap.mulLeft F c) := Submodule.mem_inf.2 ⟨hy, hcy⟩
-  have hyU' : y' ∈ W ⊓ W.comap (LinearMap.mulLeft F c) := Submodule.mem_inf.2 ⟨hy', hcy'⟩
+  have hyU : y ∈ U := Submodule.mem_inf.2 ⟨hy, hcy⟩
+  have hyU' : y' ∈ U := Submodule.mem_inf.2 ⟨hy', hcy'⟩
   obtain ⟨t, ht⟩ := hv ⟨y, hyU⟩
   obtain ⟨t', ht'⟩ := hv ⟨y', hyU'⟩
   have ht0 : t ≠ 0 := by
@@ -265,16 +261,18 @@ theorem core {F K : Type*} [Field F] [Field K] [Finite F] [Finite K] [Algebra F 
       have h' := hrel1 i j
       rw [h] at h'
       exact (mul_right_cancel₀ (pow_ne_zero i hγ0) h').symm
-    have h2 := hA1 _ a h1
-    have h3' : ((j + M' * i : ℕ) : ZMod n) = 0 := (ZMod.natCast_eq_zero_iff _ _).2 h2
+    have h3' : ((j + M' * i : ℕ) : ZMod n) = 0 :=
+      (ZMod.natCast_eq_zero_iff _ _).2 (hA1 _ a h1)
     rw [hrel2] at h3'
     exact sub_eq_zero.1 h3'
   have hQ : ∀ i j : ℕ, (j : ZMod n) = (i : ZMod n) →
       ∃ a : F, γ ^ j = algebraMap F K a * γ ^ i := by
     intro i j h
-    have h1 : ((j + M' * i : ℕ) : ZMod n) = 0 := by rw [hrel2, h, sub_self]
-    obtain ⟨a, ha⟩ := hA2 _ ((ZMod.natCast_eq_zero_iff _ _).1 h1)
-    exact ⟨a, by rw [ha, hrel1]⟩
+    have hdiv : n ∣ j + M' * i := by
+      apply (ZMod.natCast_eq_zero_iff _ _).1
+      rw [hrel2 i j, h, sub_self]
+    obtain ⟨a, ha⟩ := hA2 (j + M' * i) hdiv
+    exact ⟨a, by rw [ha]; exact (hrel1 i j).symm⟩
   have hWmod : ∀ i j : ℕ, (j : ZMod n) = (i : ZMod n) → γ ^ i ∈ W → γ ^ j ∈ W := by
     intro i j h hi
     obtain ⟨a, ha⟩ := hQ i j h
@@ -285,11 +283,8 @@ theorem core {F K : Type*} [Field F] [Field K] [Finite F] [Finite K] [Algebra F 
     have h' := (ZMod.natCast_eq_natCast_iff' a b n).1 h
     rwa [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at h'
   -- the difference set
-  obtain ⟨B, hB⟩ : ∃ B : Set ℕ, B = {i : ℕ | i < n ∧ γ ^ i ∈ W} := ⟨_, rfl⟩
-  have hBmem : ∀ i : ℕ, i ∈ B ↔ i < n ∧ γ ^ i ∈ W := by
-    intro i
-    rw [hB]
-    rfl
+  let B : Set ℕ := {i : ℕ | i < n ∧ γ ^ i ∈ W}
+  have hBmem : ∀ i : ℕ, i ∈ B ↔ i < n ∧ γ ^ i ∈ W := fun _ => Iff.rfl
   have hpds : IsPerfectDifferenceSet B n := by
     refine ⟨?_, ?_, ?_⟩
     · rintro ⟨a, b⟩ hab
@@ -356,23 +351,21 @@ theorem core {F K : Type*} [Field F] [Field K] [Finite F] [Finite K] [Algebra F 
       have h' := hpds.injOn.ncard_image
       rw [hpds.image_eq] at h'
       rw [← h']
-      have h0 : {x : ZMod n | x ≠ 0} = ({0} : Set (ZMod n))ᶜ := by
-        ext x
-        simp
+      have h0 : {x : ZMod n | x ≠ 0} = ({0} : Set (ZMod n))ᶜ := by ext x; simp
       rw [h0, Set.ncard_compl, Set.ncard_singleton, Nat.card_zmod]
-    clear hB hBmem
-    lift B to Finset ℕ using hfin
+    clear hBmem
+    let Bf : Finset ℕ := hfin.toFinset
+    have hBf : (↑Bf : Set ℕ) = B := by ext x; simp [Bf]
+    rw [← hBf] at h1 ⊢
     rw [← Finset.coe_offDiag, Set.ncard_coe_finset, Finset.offDiag_card] at h1
     rw [Set.ncard_coe_finset]
-    have hk : B.card * B.card = q ^ 2 + q + B.card := by
-      have := Nat.le_mul_self B.card
+    have hk : Bf.card * Bf.card = q ^ 2 + q + Bf.card := by
+      have := Nat.le_mul_self Bf.card
       omega
-    have hz : ((B.card : ℤ) - (q + 1)) * ((B.card : ℤ) + q) = 0 := by
-      have hk' : (B.card : ℤ) * B.card = q ^ 2 + q + B.card := by exact_mod_cast hk
+    have hz : ((Bf.card : ℤ) - (q + 1)) * ((Bf.card : ℤ) + q) = 0 := by
+      have hk' : (Bf.card : ℤ) * Bf.card = q ^ 2 + q + Bf.card := by exact_mod_cast hk
       linear_combination hk'
-    rcases mul_eq_zero.1 hz with h | h
-    · omega
-    · omega
+    rcases mul_eq_zero.1 hz with h | h <;> omega
   exact ⟨B, hpds, hcard⟩
 
 end Erdos707Singer

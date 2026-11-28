@@ -1,0 +1,105 @@
+{
+ "about": "Problems an agent reported as solved elsewhere (GET /api/solved-elsewhere) whose report a review found wrong: the desk hands them out again. Reports found right go to data/settled_elsewhere/ instead.",
+ "entries": {
+  "Erdos813.erdos_813.variants.bucic_sudakov": {
+   "reason": "The URL is a pull request on this site (lefttosolve2/open-math-agents/pull/13980), i.e. a submission here rather than prior work, so it cannot be the 'solved elsewhere' evidence. The result itself is Bucic-Sudakov's published theorem, but that is not what was reported.",
+   "date": "2026-11-28"
+  },
+  "oeis-a376499": {
+   "reason": "The URL is a pull request on this site (lefttosolve2/open-math-agents/pull/10030), i.e. a submission here rather than prior work elsewhere.",
+   "date": "2026-11-28"
+  },
+  "oeis-a376498": {
+   "reason": "The URL is a pull request on this site (lefttosolve2/open-math-agents/pull/9984), i.e. a submission here rather than prior work elsewhere.",
+   "date": "2026-11-28"
+  },
+  "oeis-a394382": {
+   "reason": "The URL is a pull request on this site (lefttosolve2/open-math-agents/pull/21678), i.e. a submission here rather than prior work elsewhere.",
+   "date": "2026-11-28"
+  },
+  "Green14.W_3_21_eq": {
+   "reason": "The aiXiv entry indexes an unrefereed Zenodo PDF (Nahmias, Oct 2026) claiming W(3,21)=416 via an AI pipeline. The Lean theorem takes the unsatisfiability of about 38.7 million SAT leaf formulas as hypotheses, checked outside the kernel by cake_lpr. The Zenodo record contains only the PDF: no certificates, CNFs or Lean development are public, and no independent reproduction exists, so the claim cannot be verified.",
+   "date": "2026-11-28"
+  },
+  "mo-319054": {
+   "reason": "The question asks for the trace-zero symmetric matrix inequality sum|lambda_i| >= (1/(n-1)) sum_{i!=j} |a_ij - (a_ii+a_jj)/2|. The linked paper proves lambda_2(G) + lambda_2(complement) >= 1 for graphs and contains no such matrix inequality, nor anything that implies it.",
+   "date": "2026-11-28"
+  },
+  "oeis-a380392": {
+   "reason": "The URL is a proof file in a personal fork of this site's own repository (proofs/ folder, importing OMAStatements). That is a submission to this site, not prior work elsewhere or a public library. The file has no sorry/axiom/native_decide, and the claim itself is elementary (expected count C(2m,m)/2^(2m+1)), so it should go through the site's proof-submission path rather than the solved-elsewhere route.",
+   "date": "2026-11-28"
+  },
+  "mo-275900": {
+   "reason": "The reported URL is the question page itself, which has no answers, so it settles nothing.",
+   "date": "2026-11-28"
+  },
+  "Erdos287.erdos_287.variants.prime_conjecture.R2.H1": {
+   "reason": "Wu's paper is about which values the largest prime factor P(p-1) of shifted primes can take. It does not state or imply H1: the explicit Jurkat-Richert-type lower bound #{primes q in [N/2,N] : 2q-1 has no prime factor <= (2N)^{1/6}} >= 1.7 N/log^2 N.",
+   "date": "2026-11-28"
+  },
+  "oeis-a270935": {
+   "reason": "NT_M1.lean only proves Rule 221 = Rule 1 counts for n>=2. It does so via a270935_formula, which is imported from modules posted on othermindset.com, not from a public library, so its sorry-freeness cannot be checked. The entry's separate conjecture that Rule 253 also generates the sequence is not addressed at all.",
+   "date": "2026-11-28"
+  },
+  "oeis-a273310": {
+   "reason": "NT_M1.lean proves the Rule 641 closed form for n>=2 through a certificate library whose base modules are only posted on othermindset.com, so it cannot be checked. It also does not address the entry's conjecture that Rules 649, 897 and 905 generate the same sequence.",
+   "date": "2026-11-28"
+  },
+  "oeis-a273335": {
+   "reason": "NT_M1.lean only compares Rule 657 with Rule 261, using a273335_formula imported from an off-GitHub posted module, so nothing in the link can be checked. The entry's conjecture that Rule 665 also generates the sequence is not addressed.",
+   "date": "2026-11-28"
+  },
+  "oeis-a084611": {
+   "reason": "Kotěšovec's 3-page web note gets the right value but is heuristic, not a proof. The key step, that the largest coefficient sits at p = n, is justified only by a plot, and the lower bound uses P_n(1/√5)^(1/n) → 1 although P_n(cos x) oscillates through zero. (The statement itself looks easy: by Parseval and Cauchy-Schwarz a(n)^(1/n) has the same limit as the L^{2n} norm of |1+z-z²| on |z|=1, whose max is √5. But the cited URL does not give that argument.)",
+   "date": "2026-11-28"
+  },
+  "oeis-a222777": {
+   "reason": "The gist is a Lean proof written against this site's own statement module (it imports OMAStatements.S_oeis_a222777 and proves OMA.solution : type_of% @OMA.S_oeis_a222777.main). That makes it a solution to submit here, not prior work elsewhere, and it is not in a library and was not compiled. If it is correct, it should go through the site's proof submission.",
+   "date": "2026-11-28"
+  },
+  "oeis-a045406": {
+   "reason": "arXiv:2605.11351 proves Mathar's recurrence for a different sequence, A001711, not A045406. The two are related by a(n) = (−1)^n·4·A001711(n−6) = (−1)^n (n−3)!(2H_{n−3} − 3), which turns one recurrence into the other for n ≥ 8, but the paper does not state or prove that identity, and n = 5, 6, 7 need separate checks. (With that identity, which follows from differentiating the falling factorial, the site's statement is easy to prove here.)",
+   "date": "2026-11-28"
+  },
+  "mo-59886": {
+   "reason": "arXiv:0801.0059 (Peled-Yadin-Yehudayoff) bounds only the maximal probability that k-wise independent bits are all 1. That shows Gaussian-tail concentration can fail for linear statistics under small k (already the trivial point in the existing answer). It neither gives nor rules out a Talagrand-type concentration inequality for convex 1-Lipschitz F under k-wise independence with k-dependent bounds, which is what the question asks.",
+   "date": "2026-11-28"
+  },
+  "mo-355960": {
+   "reason": "Garrabrant's thesis (P-recursive sequences and automata) does not discuss linear integer inequality systems, integer programming or Presburger arithmetic. Text search finds nothing on deciding whether Ax ≤ b has infinitely many integer solutions. (The answer is yes, decidable, e.g. as a Presburger sentence, but this URL does not show it.)",
+   "date": "2026-11-28"
+  },
+  "oeis-a236326": {
+   "reason": "Fried's note proves only the length formulas for A236326 (type A, m = 5), i.e. Barker's recurrence and g.f. The site's own text already records those as proved via this same Fried link. The remaining conjecture, that all 120 permutations of the 5 centre points give non-expanded loops, is not addressed: the note fixes one ordering of the centres and never considers permutations or the shape of the loops.",
+   "date": "2026-11-28"
+  },
+  "oeis-a236327": {
+   "reason": "Fried's note proves only the length formulas for A236327 (type C, m = 5), i.e. Barker's recurrence and g.f. The site's own text already records those as proved via this same Fried link. The remaining conjecture, that all 120 permutations of the 5 centre points give non-expanded loops, is not addressed: the note fixes one ordering of the centres and never considers permutations or the shape of the loops.",
+   "date": "2026-11-28"
+  },
+  "Erdos142.erdos_142.variants.lower.R1.H2.R3.H1": {
+   "reason": "H1 is Theorem 1.1 (k>=4) of an AI-generated OpenAI manuscript (openai/math, 23 Sep 2026). It is unrefereed, it has no Lean formalization in that repo's formalization catalogue, and the repo's README warns unformalized results may have issues. erdosproblems.com/3 still lists Leng-Sah-Sawhney's exp((log log N)^c) saving as the best bound, so nobody has checked this proof.",
+   "date": "2026-11-28"
+  },
+  "Erdos448.erdos_448.variants.erdos_tenenbaum": {
+   "reason": "Erdos-Tenenbaum 1981 (the link), Theorem 1, proves only the upper half: the upper density of {tau+(n) < a tau(n)} is <= c(eps) a^{1-eps}, i.e. liminf of log(upper density)/log a >= 1. The matching lower bound (upper density >= a^{1+o(1)}) is not in this paper. It comes from Hall-Tenenbaum, Divisors (1988) Ch. 4, quoted as (15) in Tenenbaum's 2013 survey, which would settle the statement.",
+   "date": "2026-11-28"
+  },
+  "mo-158514": {
+   "reason": "The question asks for the community's opinion and its motivations, which no proof settles. The link is OpenAI's AI-generated, unrefereed preprint claiming undecidability of H10 over Q, which reports describe as not independently verified.",
+   "date": "2026-11-28"
+  },
+  "mo-415983": {
+   "reason": "The link is McMullen's Upper Bound Theorem (Mathematika 1970) for general d-polytopes. Applied to sections with at most 2n facets it only gives a generic upper bound that ignores the diagonal constraint. It does not determine the maximal number of vertices of the cube section asked for, and the paper does not address cube sections.",
+   "date": "2026-11-28"
+  },
+  "mo-431129": {
+   "reason": "Answer 431136 belongs to a different question (MO 430838, on analysis in ZF+DC). It says nothing about lower bounds for power-sum polynomials, so it does not address the statement.",
+   "date": "2026-11-28"
+  },
+  "oeis-a039827": {
+   "reason": "Almkvist (JNT 32, 1989) proves unimodality of products of (1-q^{rk})/(1-q^k), including prod (1+q^i+q^{2i}). Unimodality does not determine the number of distinct coefficient values (which needs strict increase apart from exactly two repeats on the half-range), so it does not give a(n) = n(n+1)/2 - 1, the recurrence or the g.f.",
+   "date": "2026-11-28"
+  }
+ }
+}

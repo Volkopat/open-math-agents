@@ -18,17 +18,13 @@ We prove `LeinsterGroup.exists_nonabelian_leinster_group` using the group
 -- Problem: Leinster Groups — exists nonabelian leinster group
 -- Upstream: formal-conjectures FormalConjectures/Wikipedia/LeinsterGroup.lean:98 (declaration LeinsterGroup.exists_nonabelian_leinster_group)
 -- Credit: @TheWaler (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Original proof: @TheWaler (#340); finite-group APIs replace preliminary constructions.
 
 namespace LeinsterNonabelianProof
 
 private abbrev D3 := DihedralGroup 3
 private abbrev C5 := Multiplicative (ZMod 5)
 private abbrev G30 := D3 × C5
-
-private lemma zmod3_add_self_three (i : ZMod 3) : i + i + i = 0 := by
-  revert i
-  decide
 
 private lemma zmod3_sub_two (k : ZMod 3) : k - 1 + -1 = k + 1 := by
   revert k
@@ -42,39 +38,11 @@ private lemma zmod3_cases (j : ZMod 3) : j = 0 ∨ j = 1 ∨ j = 2 := by
   revert j
   decide
 
-private lemma zmod5_ne_zero (x : ZMod 5) (h : x ≠ 0) :
-    x = 1 ∨ x = 2 ∨ x = 3 ∨ x = 4 := by
-  revert x h
-  decide
-
 private lemma d3_pow_six (a : D3) : a ^ 6 = 1 := by
-  cases a with
-  | r i =>
-    have h3 : (DihedralGroup.r i : D3) ^ 3 = 1 := by
-      rw [pow_succ, pow_succ, pow_one]
-      change DihedralGroup.r (i + i + i) = DihedralGroup.r 0
-      rw [zmod3_add_self_three]
-    have h6 : (DihedralGroup.r i : D3) ^ 6 = ((DihedralGroup.r i : D3) ^ 3) ^ 2 := by
-      rw [← pow_mul]
-    rw [h6, h3, one_pow]
-  | sr i =>
-    have h2 : (DihedralGroup.sr i : D3) ^ 2 = 1 := by
-      rw [sq]
-      change DihedralGroup.r (i - i) = DihedralGroup.r 0
-      simp
-    have h6 : (DihedralGroup.sr i : D3) ^ 6 = ((DihedralGroup.sr i : D3) ^ 2) ^ 3 := by
-      rw [← pow_mul]
-    rw [h6, h2, one_pow]
+  simpa [D3, DihedralGroup.card] using (pow_card_eq_one (x := a))
 
 private lemma c5_pow_five (b : C5) : b ^ 5 = 1 := by
-  have hb : b = Multiplicative.ofAdd (Multiplicative.toAdd b) := rfl
-  rw [hb, ← ofAdd_nsmul]
-  have hz : 5 • Multiplicative.toAdd b = (0 : ZMod 5) := by
-    generalize Multiplicative.toAdd b = x
-    revert x
-    decide
-  rw [hz]
-  rfl
+  simpa [C5] using (pow_card_eq_one (x := b))
 
 private def rotSubgroup : Subgroup D3 where
   carrier := { g | ∃ i : ZMod 3, g = DihedralGroup.r i }
@@ -180,52 +148,16 @@ private lemma d3_normal_classification (N : Subgroup D3) (hN : N.Normal) :
               exact absurd this (by decide)⟩
 
 private lemma c5_subgroup_classification (K : Subgroup C5) : K = ⊥ ∨ K = ⊤ := by
-  by_cases hbot : K = ⊥
-  · exact Or.inl hbot
-  · right
-    have hex : ∃ b : C5, b ∈ K ∧ b ≠ 1 := by
-      by_contra hall
-      push Not at hall
-      apply hbot
-      ext b
-      simp only [Subgroup.mem_bot]
-      exact ⟨hall b, fun h => h ▸ K.one_mem⟩
-    rcases hex with ⟨b, hbK, hb1⟩
-    let x : ZMod 5 := Multiplicative.toAdd b
-    have hx0 : x ≠ 0 := fun h => hb1 h
-    have hpow_one : ∃ k : ℕ, b ^ k = Multiplicative.ofAdd (1 : ZMod 5) := by
-      rcases zmod5_ne_zero x hx0 with h | h | h | h
-      · exact ⟨1, by rw [pow_one]; exact h⟩
-      · refine ⟨3, ?_⟩
-        change Multiplicative.ofAdd (3 • x) = Multiplicative.ofAdd 1
-        rw [h]; rfl
-      · refine ⟨2, ?_⟩
-        change Multiplicative.ofAdd (2 • x) = Multiplicative.ofAdd 1
-        rw [h]; rfl
-      · refine ⟨4, ?_⟩
-        change Multiplicative.ofAdd (4 • x) = Multiplicative.ofAdd 1
-        rw [h]; rfl
-    rcases hpow_one with ⟨k, hk⟩
-    have hgen : Multiplicative.ofAdd (1 : ZMod 5) ∈ K := hk ▸ K.pow_mem hbK k
-    ext c
-    simp only [Subgroup.mem_top, iff_true]
-    let y : ZMod 5 := Multiplicative.toAdd c
-    have hy : (Multiplicative.ofAdd (1 : ZMod 5)) ^ y.val = c := by
-      change Multiplicative.ofAdd (y.val • (1 : ZMod 5)) = Multiplicative.ofAdd y
-      congr 1
-      simp
-    exact hy ▸ K.pow_mem hgen y.val
+  have : Fact (Nat.card C5).Prime := ⟨by norm_num [C5, Nat.card_eq_fintype_card]⟩
+  exact K.eq_bot_or_eq_top_of_prime_card
 
 private lemma g30_normal_split (H : Subgroup G30) (hH : H.Normal) :
     ∃ (N₁ : Subgroup D3) (N₂ : Subgroup C5), N₁.Normal ∧ H = N₁.prod N₂ := by
   let N₁ : Subgroup D3 := H.comap (MonoidHom.inl D3 C5)
   let N₂ : Subgroup C5 := H.comap (MonoidHom.inr D3 C5)
   have hN₁ : N₁.Normal := by
-    constructor
-    intro a ha g
-    have hconj : (g, (1 : C5)) * (a, (1 : C5)) * (g, (1 : C5))⁻¹ ∈ H :=
-      hH.conj_mem (a, 1) ha (g, 1)
-    simpa [N₁] using hconj
+    have := hH
+    infer_instance
   refine ⟨N₁, N₂, hN₁, ?_⟩
   ext ⟨a, b⟩
   constructor
@@ -259,38 +191,19 @@ private lemma g30_normal_split (H : Subgroup G30) (hH : H.Normal) :
 private lemma subgroup_prod_normal {A B : Type*} [Group A] [Group B]
     (N₁ : Subgroup A) (N₂ : Subgroup B) [N₁.Normal] [N₂.Normal] :
     (N₁.prod N₂).Normal := by
-  constructor
-  rintro ⟨a, b⟩ ⟨ha, hb⟩ ⟨g₁, g₂⟩
-  exact ⟨Subgroup.Normal.conj_mem ‹_› a ha g₁, Subgroup.Normal.conj_mem ‹_› b hb g₂⟩
+  infer_instance
 
 private lemma card_subgroup_prod {A B : Type*} [Group A] [Group B]
     (N₁ : Subgroup A) (N₂ : Subgroup B) :
     Nat.card (N₁.prod N₂) = Nat.card N₁ * Nat.card N₂ := by
-  let e : ↥(N₁.prod N₂) ≃ ↥N₁ × ↥N₂ :=
-    { toFun := fun x => (⟨x.1.1, x.2.1⟩, ⟨x.1.2, x.2.2⟩)
-      invFun := fun p => ⟨(p.1.1, p.2.1), ⟨p.1.2, p.2.2⟩⟩
-      left_inv := fun ⟨⟨_, _⟩, ⟨_, _⟩⟩ => rfl
-      right_inv := fun ⟨⟨_, _⟩, ⟨_, _⟩⟩ => rfl }
-  rw [Nat.card_congr e, Nat.card_prod]
+  rw [Nat.card_congr (N₁.prodEquiv N₂).toEquiv, Nat.card_prod]
 
 private lemma card_bot_eq_one {A : Type*} [Group A] : Nat.card (⊥ : Subgroup A) = 1 := by
-  let e : ↥(⊥ : Subgroup A) ≃ Unit :=
-    { toFun := fun _ => ()
-      invFun := fun _ => ⟨1, Subgroup.one_mem _⟩
-      left_inv := fun ⟨x, hx⟩ => by
-        rw [Subgroup.mem_bot] at hx
-        exact Subtype.ext hx.symm
-      right_inv := fun ⟨⟩ => rfl }
-  rw [Nat.card_congr e, Nat.card_unique]
+  exact Subgroup.card_bot
 
 private lemma card_top_eq {A : Type*} [Group A] [Fintype A] :
     Nat.card (⊤ : Subgroup A) = Fintype.card A := by
-  let e : ↥(⊤ : Subgroup A) ≃ A :=
-    { toFun := fun x => x.1
-      invFun := fun x => ⟨x, trivial⟩
-      left_inv := fun ⟨_, _⟩ => rfl
-      right_inv := fun _ => rfl }
-  rw [Nat.card_congr e, Nat.card_eq_fintype_card]
+  rw [Subgroup.card_top, Nat.card_eq_fintype_card]
 
 private lemma card_rotSubgroup : Nat.card rotSubgroup = 3 := by
   let e : ZMod 3 ≃ ↥rotSubgroup :=
@@ -303,20 +216,10 @@ private lemma card_rotSubgroup : Nat.card rotSubgroup = 3 := by
   rw [← Nat.card_congr e, Nat.card_zmod]
 
 private lemma card_d3 : Fintype.card D3 = 6 := by
-  let e : D3 ≃ ZMod 3 ⊕ ZMod 3 :=
-    { toFun := fun g => match g with
-        | DihedralGroup.r i => Sum.inl i
-        | DihedralGroup.sr i => Sum.inr i
-      invFun := fun s => match s with
-        | Sum.inl i => DihedralGroup.r i
-        | Sum.inr i => DihedralGroup.sr i
-      left_inv := fun g => by cases g <;> rfl
-      right_inv := fun s => by cases s <;> rfl }
-  rw [Fintype.card_congr e, Fintype.card_sum, ZMod.card]
+  simp [D3, DihedralGroup.card]
 
 private lemma card_c5 : Fintype.card C5 = 5 := by
-  have e : C5 ≃ ZMod 5 := Multiplicative.toAdd
-  rw [Fintype.card_congr e, ZMod.card]
+  simp [C5]
 
 private def d3NormalList : Fin 3 → Subgroup D3
   | 0 => ⊥

@@ -63,67 +63,6 @@ namespace Dirichlet
 
 open Finset Function
 
-theorem exists_prime_with_residues (n : ℕ) (hn : Squarefree n)
-    (hodd : ¬ 2 ∣ n) (hpos : 0 < n) (c : ZMod 8) (hc : IsUnit c)
-    (b : ∀ i : n.primeFactors, ZMod (i : ℕ)) (hb : ∀ i, b i ≠ 0) (N₀ : ℕ) :
-    ∃ q : ℕ, q.Prime ∧ N₀ < q ∧ (q : ZMod 8) = c ∧
-      ∀ i : n.primeFactors, (q : ZMod (i : ℕ)) = b i := by
-  classical
-  have hprime : ∀ i : n.primeFactors, Nat.Prime (i : ℕ) := fun i =>
-    Nat.prime_of_mem_primeFactors i.2
-  set a : n.primeFactors → ℕ := fun i => (i : ℕ) with ha
-  have hprod : ∏ i, a i = n := by
-    rw [ha]
-    calc (∏ i : n.primeFactors, ((i : ℕ) : ℕ))
-        = ∏ p ∈ n.primeFactors, p :=
-          Finset.prod_coe_sort n.primeFactors (fun p => p)
-      _ = n := Nat.prod_primeFactors_of_squarefree hn
-  have hcop : Pairwise (Nat.Coprime on a) := by
-    intro i j hij
-    have hne : (i : ℕ) ≠ (j : ℕ) := fun hc' => hij (Subtype.ext hc')
-    exact (Nat.coprime_primes (hprime i) (hprime j)).mpr hne
-  have h8P : Nat.Coprime 8 (∏ i, a i) := by
-    rw [hprod]
-    have h2 : Nat.Coprime 2 n := (Nat.Prime.coprime_iff_not_dvd Nat.prime_two).mpr hodd
-    have := h2.pow_left 3
-    norm_num at this
-    exact this
-  haveI : NeZero (8 * ∏ i, a i) :=
-    ⟨by rw [hprod]; exact Nat.mul_ne_zero (by norm_num) hpos.ne'⟩
-  set eP := ZMod.prodEquivPi a hcop with heP
-  set e2 := ZMod.chineseRemainder h8P with he2
-  set β : ZMod (∏ i, a i) := eP.symm b with hβ
-  set α : ZMod (8 * ∏ i, a i) := e2.symm (c, β) with hα
-  have hunitβ : IsUnit β := by
-    refine IsUnit.map eP.symm ?_
-    rw [Pi.isUnit_iff]
-    intro i
-    haveI : Fact (Nat.Prime (i : ℕ)) := ⟨hprime i⟩
-    exact isUnit_iff_ne_zero.mpr (hb i)
-  have hunitα : IsUnit α := by
-    refine IsUnit.map e2.symm ?_
-    rw [Prod.isUnit_iff]
-    exact ⟨hc, hunitβ⟩
-  obtain ⟨q, hqgt, hqp, hqeq⟩ :=
-    Nat.forall_exists_prime_gt_and_eq_mod hunitα N₀
-  refine ⟨q, hqp, hqgt, ?_, ?_⟩
-  all_goals
-    have hsplit : ((q : ZMod 8), (q : ZMod (∏ i, a i))) = (c, β) := by
-      have h1 : e2 ((q : ℕ) : ZMod (8 * ∏ i, a i)) = (c, β) := by
-        rw [hqeq, hα, RingEquiv.apply_symm_apply]
-      rw [map_natCast] at h1
-      rw [← h1, Prod.ext_iff]
-      exact ⟨(Prod.fst_natCast q).symm, (Prod.snd_natCast q).symm⟩
-  · exact (Prod.mk.injEq _ _ _ _).mp hsplit |>.1
-  · intro i
-    have hβq : (q : ZMod (∏ i, a i)) = β :=
-      (Prod.mk.injEq _ _ _ _).mp hsplit |>.2
-    have h2 : eP ((q : ℕ) : ZMod (∏ i, a i)) = b := by
-      rw [hβq, hβ, RingEquiv.apply_symm_apply]
-    rw [map_natCast] at h2
-    have := congrFun h2 i
-    simpa using this
-
 end Dirichlet
 
 namespace Ankeny

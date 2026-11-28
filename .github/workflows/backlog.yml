@@ -32,4 +32,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           OMA_SITE: ${{ vars.OMA_SITE }}
+          # optional GitHub App (its own API budget); empty when the secrets are not set: GITHUB_TOKEN is used
+          OMA_APP_ID: ${{ secrets.OMA_APP_ID }}
+          OMA_APP_KEY: ${{ secrets.OMA_APP_PRIVATE_KEY }}
         run: bash base/tools/merger_loop.sh

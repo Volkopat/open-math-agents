@@ -43,55 +43,30 @@ lemma dist_sq (p q : ℝ²) : dist p q ^ 2 = (p 0 - q 0) ^ 2 + (p 1 - q 1) ^ 2 :
 /-- Four points of the plane determine at least two distinct distances. -/
 lemma two_le_distinctDistances (S : Finset ℝ²) (hS : S.card = 4) :
     2 ≤ distinctDistances S := by
-  by_contra hlt
-  have hcard : (distanceSet S).card ≤ 1 := by
-    unfold distinctDistances at hlt
-    omega
-  -- Name the four points `a`, `b`, `c`, `d`.
-  obtain ⟨a, t, hat, rfl, ht⟩ := Finset.card_eq_succ.mp hS
-  obtain ⟨b, c, d, hbc, hbd, hcd, rfl⟩ := Finset.card_eq_three.mp ht
-  have hab : a ≠ b := by
-    rintro rfl
-    exact hat (by simp)
-  have hac : a ≠ c := by
-    rintro rfl
-    exact hat (by simp)
-  have had : a ≠ d := by
-    rintro rfl
-    exact hat (by simp)
-  -- With at most one distance, every pair of distinct points is as far apart as `a` and `b`.
-  have key : ∀ p q : ℝ², p ∈ insert a ({b, c, d} : Finset ℝ²) →
-      q ∈ insert a ({b, c, d} : Finset ℝ²) → p ≠ q → dist p q ^ 2 = dist a b ^ 2 := by
-    intro p q hp hq hpq
-    congr 1
-    apply Finset.card_le_one.mp hcard
-    · exact Finset.mem_image.mpr ⟨(p, q), Finset.mem_offDiag.mpr ⟨hp, hq, hpq⟩, rfl⟩
-    · exact Finset.mem_image.mpr ⟨(a, b), Finset.mem_offDiag.mpr ⟨by simp, by simp, hab⟩, rfl⟩
-  have eab := dist_sq a b
-  have eac := (key a c (by simp) (by simp) hac).symm.trans (dist_sq a c)
-  have ead := (key a d (by simp) (by simp) had).symm.trans (dist_sq a d)
-  have ebc := (key b c (by simp) (by simp) hbc).symm.trans (dist_sq b c)
-  have ebd := (key b d (by simp) (by simp) hbd).symm.trans (dist_sq b d)
-  have ecd := (key c d (by simp) (by simp) hcd).symm.trans (dist_sq c d)
-  -- Apply the Gram argument to the vectors `b - a`, `c - a`, `d - a`.
-  have hD : dist a b ^ 2 = 0 :=
-    gram_aux (b 0 - a 0) (b 1 - a 1) (c 0 - a 0) (c 1 - a 1) (d 0 - a 0) (d 1 - a 1) (dist a b ^ 2)
-      (by linear_combination -eab) (by linear_combination -eac) (by linear_combination -ead)
-      (by linear_combination (-1 / 2 : ℝ) * eab - (1 / 2 : ℝ) * eac + (1 / 2 : ℝ) * ebc)
-      (by linear_combination (-1 / 2 : ℝ) * eab - (1 / 2 : ℝ) * ead + (1 / 2 : ℝ) * ebd)
-      (by linear_combination (-1 / 2 : ℝ) * eac - (1 / 2 : ℝ) * ead + (1 / 2 : ℝ) * ecd)
-  have hpos : 0 < dist a b := dist_pos.mpr hab
-  exact absurd hD (pow_pos hpos 2).ne'
-
-/-- A nonnegative real whose square is `1` or `2` is `1` or `√2`. -/
-lemma mem_of_sq (r : ℝ) (hr : 0 ≤ r) (h : r ^ 2 = 1 ∨ r ^ 2 = 2) :
-    r ∈ ({1, Real.sqrt 2} : Finset ℝ) := by
-  rw [Finset.mem_insert, Finset.mem_singleton]
-  rcases h with h | h
-  · left
-    rw [← Real.sqrt_sq hr, h, Real.sqrt_one]
-  · right
-    rw [← Real.sqrt_sq hr, h]
+  by_contra! h
+  have hc : (distanceSet S).card ≤ 1 := Nat.le_of_lt_succ h
+  let e : Fin 4 ≃ S := (Fintype.equivFinOfCardEq (by simpa using hS)).symm
+  let p (i : Fin 4) : ℝ² := (e i).1
+  have hi : Function.Injective p := Subtype.val_injective.comp e.injective
+  let D := dist (p 0) (p 1)^2
+  have hd (i j : Fin 4) (hne : i ≠ j) : dist (p i) (p j) ∈ distanceSet S :=
+    Finset.mem_image.mpr ⟨(p i, p j), Finset.mem_offDiag.mpr ⟨(e i).2, (e j).2, hi.ne hne⟩, rfl⟩
+  have he (i j : Fin 4) (hne : i ≠ j) : (p i 0 - p j 0)^2 + (p i 1 - p j 1)^2 = D := by
+    rw [← dist_sq]
+    exact congrArg (·^2) (Finset.card_le_one.mp hc _ (hd i j hne) _ (hd 0 1 (by decide)))
+  have e01 := he 0 1 (by decide)
+  have e02 := he 0 2 (by decide)
+  have e03 := he 0 3 (by decide)
+  have e12 := he 1 2 (by decide)
+  have e13 := he 1 3 (by decide)
+  have e23 := he 2 3 (by decide)
+  exact pow_ne_zero 2 (dist_ne_zero.mpr (hi.ne (by decide : (0 : Fin 4) ≠ 1))) <|
+    gram_aux (p 1 0 - p 0 0) (p 1 1 - p 0 1) (p 2 0 - p 0 0) (p 2 1 - p 0 1)
+      (p 3 0 - p 0 0) (p 3 1 - p 0 1) D
+      (by linear_combination e01) (by linear_combination e02) (by linear_combination e03)
+      (by linear_combination (e01 + e02 - e12) / 2)
+      (by linear_combination (e01 + e03 - e13) / 2)
+      (by linear_combination (e02 + e03 - e23) / 2)
 
 /-- The unit square has four points. -/
 lemma card_unitSquare : Erdos91.unitSquare.card = 4 := by
@@ -105,8 +80,7 @@ lemma distanceSet_unitSquare_subset :
   simp only [Erdos91.unitSquare, Finset.mem_offDiag, Finset.mem_insert,
     Finset.mem_singleton] at hpq
   obtain ⟨hp, hq, hne⟩ := hpq
-  apply mem_of_sq _ dist_nonneg
-  rw [dist_sq]
+  rw [← Real.sqrt_sq (dist_nonneg : 0 ≤ dist p q), dist_sq]
   rcases hp with rfl | rfl | rfl | rfl <;> rcases hq with rfl | rfl | rfl | rfl <;>
     first
     | exact absurd rfl hne

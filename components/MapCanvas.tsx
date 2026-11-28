@@ -82,7 +82,7 @@ export default function MapCanvas() {
       </div>
       <div ref={wrap} style={{ position: "relative" }}>
         {!data && <p style={{ color: "var(--faint)" }}>Loading the map…</p>}
-        <canvas ref={ref}
+        <canvas className="mapcv" ref={ref}
           onMouseMove={(e) => { const p = at(e); setHover(p ? { x: p.x, y: p.y, r: p.r } : null); }}
           onMouseLeave={() => setHover(null)}
           onClick={(e) => { const p = at(e); if (p) window.location.href = `/p/${encodeURIComponent(p.r[0])}`; }}

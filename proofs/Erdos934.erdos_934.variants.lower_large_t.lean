@@ -267,31 +267,6 @@ lemma maxDegreeLE_lineGraph {V : Type u} [Finite V] {G : SimpleGraph V} {d : ℕ
     _ = Nat.card {v : V // v ∈ e.1} * d := by simp
     _ = 2 * d := by rw [natCard_endpoints_eq_two]
 
-/-- A finite simple graph of order `n`, maximum degree at most `d`, and diameter at most `k`.
-
-The quantified vertex type is kept native instead of transporting every construction to `Fin n`.
-`Finite V` makes `Nat.card V` and the set cardinalities mathematically meaningful. -/
-noncomputable def OrderAdmissible (k d n : ℕ) : Prop :=
-  ∃ (V : Type) (G : SimpleGraph V),
-    Finite V ∧ Nat.card V = n ∧ MaxDegreeLE G d ∧ G.ediam ≤ (k : ℕ∞)
-
-lemma orderAdmissible_le_coarseBound {k d n : ℕ} (hn : OrderAdmissible k d n) :
-    n ≤ (d + 1) ^ k := by
-  rcases hn with ⟨V, G, hfinite, hcard, hdegree, hdiam⟩
-  letI : Finite V := hfinite
-  rw [← hcard]
-  exact natCard_le_add_one_pow_of_ediam_le' hdegree hdiam
-
-/-- The defining set for `nKD` is bounded, unconditionally. -/
-lemma orderAdmissible_set_bddAbove (k d : ℕ) :
-    BddAbove {n : ℕ | OrderAdmissible k d n} :=
-  ⟨(d + 1) ^ k, fun _ hn ↦ orderAdmissible_le_coarseBound hn⟩
-
-/-- The degree--diameter extremal order.  The specification lemmas below require (and later the
-Moore bound supplies) boundedness of the defining set. -/
-noncomputable def nKD (k d : ℕ) : ℕ :=
-  sSup {n : ℕ | OrderAdmissible k d n}
-
 /-- A finite simple graph with `m` edges, maximum degree at most `d`, and line-graph diameter at
 most `ell`. -/
 noncomputable def EdgeAdmissible (ell d m : ℕ) : Prop :=
@@ -310,11 +285,6 @@ lemma edgeAdmissible_le_coarseBound {ell d m : ℕ} (hm : EdgeAdmissible ell d m
     _ ≤ (2 * d + 1) ^ ell :=
       natCard_le_add_one_pow_of_ediam_le' (maxDegreeLE_lineGraph hdegree) hdiam
 
-/-- The defining edge-count set is bounded, unconditionally. -/
-lemma edgeAdmissible_set_bddAbove (ell d : ℕ) :
-    BddAbove {m : ℕ | EdgeAdmissible ell d m} :=
-  ⟨(2 * d + 1) ^ ell, fun _ hm ↦ edgeAdmissible_le_coarseBound hm⟩
-
 /-- The paper defines `h_ell(d) - 1` as the maximum admissible edge count, so we define `h` to be
 one plus that maximum. -/
 noncomputable def h (ell d : ℕ) : ℕ :=
@@ -327,117 +297,6 @@ def mooreBound (k d : ℕ) : ℕ :=
 lemma maxDegreeLE_mono {V : Type*} {G : SimpleGraph V} {d d' : ℕ}
     (hdd' : d ≤ d') (hG : MaxDegreeLE G d) : MaxDegreeLE G d' :=
   fun v ↦ (hG v).trans hdd'
-
-lemma orderAdmissible_mono_degree {k d d' n : ℕ} (hdd' : d ≤ d')
-    (hn : OrderAdmissible k d n) : OrderAdmissible k d' n := by
-  rcases hn with ⟨V, G, hV, hcard, hdeg, hdiam⟩
-  exact ⟨V, G, hV, hcard, maxDegreeLE_mono hdd' hdeg, hdiam⟩
-
-lemma orderAdmissible_mono_diameter {k k' d n : ℕ} (hkk' : k ≤ k')
-    (hn : OrderAdmissible k d n) : OrderAdmissible k' d n := by
-  rcases hn with ⟨V, G, hV, hcard, hdeg, hdiam⟩
-  exact ⟨V, G, hV, hcard, hdeg, hdiam.trans (by exact_mod_cast hkk')⟩
-
-lemma edgeAdmissible_mono_degree {ell d d' m : ℕ} (hdd' : d ≤ d')
-    (hm : EdgeAdmissible ell d m) : EdgeAdmissible ell d' m := by
-  rcases hm with ⟨V, G, hV, hcard, hdeg, hdiam⟩
-  exact ⟨V, G, hV, hcard, maxDegreeLE_mono hdd' hdeg, hdiam⟩
-
-lemma edgeAdmissible_mono_diameter {ell ell' d m : ℕ} (hell : ell ≤ ell')
-    (hm : EdgeAdmissible ell d m) : EdgeAdmissible ell' d m := by
-  rcases hm with ⟨V, G, hV, hcard, hdeg, hdiam⟩
-  exact ⟨V, G, hV, hcard, hdeg, hdiam.trans (by exact_mod_cast hell)⟩
-
-/-- The admissible-order set is always nonempty; the one-vertex edgeless graph is a witness. -/
-lemma orderAdmissible_set_nonempty (k d : ℕ) :
-    ({n : ℕ | OrderAdmissible k d n} : Set ℕ).Nonempty := by
-  refine ⟨1, Unit, (⊥ : SimpleGraph Unit), inferInstance, ?_, ?_, ?_⟩
-  · simp
-  · intro v
-    simp
-  · calc
-      (⊥ : SimpleGraph Unit).ediam = 0 := SimpleGraph.ediam_eq_zero_of_subsingleton
-      _ ≤ (k : ℕ∞) := bot_le
-
-/-- The admissible-edge-count set is always nonempty; an edgeless graph is a witness. -/
-lemma edgeAdmissible_set_nonempty (ell d : ℕ) :
-    ({m : ℕ | EdgeAdmissible ell d m} : Set ℕ).Nonempty := by
-  refine ⟨0, Unit, (⊥ : SimpleGraph Unit), inferInstance, ?_, ?_, ?_⟩
-  · simp
-  · intro v
-    simp
-  · calc
-      (⊥ : SimpleGraph Unit).lineGraph.ediam = 0 :=
-        SimpleGraph.ediam_eq_zero_of_subsingleton
-      _ ≤ (ell : ℕ∞) := bot_le
-
-/-- Any admissible order is at most the extremal value, once boundedness has been established. -/
-lemma le_nKD_of_bddAbove {k d n : ℕ}
-    (hbdd : BddAbove {n : ℕ | OrderAdmissible k d n})
-    (hn : OrderAdmissible k d n) : n ≤ nKD k d := by
-  exact le_csSup hbdd hn
-
-/-- Under boundedness, `nKD` is itself attained by a finite simple graph. -/
-lemma nKD_admissible_of_bddAbove (k d : ℕ)
-    (hbdd : BddAbove {n : ℕ | OrderAdmissible k d n}) :
-    OrderAdmissible k d (nKD k d) := by
-  exact Nat.sSup_mem (orderAdmissible_set_nonempty k d) hbdd
-
-/-- Conditional maximum specification for `nKD`. -/
-lemma nKD_isGreatest_of_bddAbove (k d : ℕ)
-    (hbdd : BddAbove {n : ℕ | OrderAdmissible k d n}) :
-    IsGreatest {n : ℕ | OrderAdmissible k d n} (nKD k d) := by
-  refine ⟨nKD_admissible_of_bddAbove k d hbdd, ?_⟩
-  intro n hn
-  exact le_nKD_of_bddAbove hbdd hn
-
-/-- Unconditional extremal specification, using the coarse breadth-first bound above. -/
-lemma le_nKD {k d n : ℕ} (hn : OrderAdmissible k d n) : n ≤ nKD k d :=
-  le_nKD_of_bddAbove (orderAdmissible_set_bddAbove k d) hn
-
-lemma nKD_admissible (k d : ℕ) : OrderAdmissible k d (nKD k d) :=
-  nKD_admissible_of_bddAbove k d (orderAdmissible_set_bddAbove k d)
-
-lemma nKD_isGreatest (k d : ℕ) :
-    IsGreatest {n : ℕ | OrderAdmissible k d n} (nKD k d) :=
-  nKD_isGreatest_of_bddAbove k d (orderAdmissible_set_bddAbove k d)
-
-/-- Any admissible edge count is at most `h ell d - 1`, once boundedness has been established. -/
-lemma le_h_sub_one_of_bddAbove {ell d m : ℕ}
-    (hbdd : BddAbove {m : ℕ | EdgeAdmissible ell d m})
-    (hm : EdgeAdmissible ell d m) : m ≤ h ell d - 1 := by
-  have hm' : m ≤ sSup {m : ℕ | EdgeAdmissible ell d m} := le_csSup hbdd hm
-  simpa [h] using hm'
-
-/-- Under boundedness, `h ell d - 1` is itself attained. -/
-lemma h_sub_one_admissible_of_bddAbove (ell d : ℕ)
-    (hbdd : BddAbove {m : ℕ | EdgeAdmissible ell d m}) :
-    EdgeAdmissible ell d (h ell d - 1) := by
-  have hs : EdgeAdmissible ell d (sSup {m : ℕ | EdgeAdmissible ell d m}) :=
-    Nat.sSup_mem (edgeAdmissible_set_nonempty ell d) hbdd
-  simpa [h] using hs
-
-/-- Conditional maximum specification for the paper's edge extremum `h ell d - 1`. -/
-lemma h_sub_one_isGreatest_of_bddAbove (ell d : ℕ)
-    (hbdd : BddAbove {m : ℕ | EdgeAdmissible ell d m}) :
-    IsGreatest {m : ℕ | EdgeAdmissible ell d m} (h ell d - 1) := by
-  refine ⟨h_sub_one_admissible_of_bddAbove ell d hbdd, ?_⟩
-  intro m hm
-  exact le_h_sub_one_of_bddAbove hbdd hm
-
-/-- Unconditional edge-extremum specifications, using the coarse line-graph bound above. -/
-lemma le_h_sub_one {ell d m : ℕ} (hm : EdgeAdmissible ell d m) : m ≤ h ell d - 1 :=
-  le_h_sub_one_of_bddAbove (edgeAdmissible_set_bddAbove ell d) hm
-
-lemma h_sub_one_admissible (ell d : ℕ) : EdgeAdmissible ell d (h ell d - 1) :=
-  h_sub_one_admissible_of_bddAbove ell d (edgeAdmissible_set_bddAbove ell d)
-
-lemma h_sub_one_isGreatest (ell d : ℕ) :
-    IsGreatest {m : ℕ | EdgeAdmissible ell d m} (h ell d - 1) :=
-  h_sub_one_isGreatest_of_bddAbove ell d (edgeAdmissible_set_bddAbove ell d)
-
-lemma h_sub_one_le_coarseBound (ell d : ℕ) : h ell d - 1 ≤ (2 * d + 1) ^ ell :=
-  edgeAdmissible_le_coarseBound (h_sub_one_admissible ell d)
 
 end DegreeDiameter
 
@@ -510,11 +369,6 @@ def bipartiteEdge (H : SimpleGraph V) (x y : V) (hxy : Linked H x y) :
 @[simp] lemma bipartiteEdge_val (H : SimpleGraph V) (x y : V) (hxy : Linked H x y) :
     (bipartiteEdge H x y hxy : Sym2 (V ⊕ V)) = s(.inl x, .inr y) :=
   rfl
-
-lemma setOf_linked_eq_insert_neighborSet (H : SimpleGraph V) (x : V) :
-    {y : V | Linked H x y} = insert x (H.neighborSet x) := by
-  ext y
-  simp [Linked, eq_comm]
 
 lemma neighborSet_bipartiteExpansion_inl (H : SimpleGraph V) (x : V) :
     (bipartiteExpansion H).neighborSet (.inl x) =
@@ -739,16 +593,6 @@ theorem zigFirst_of_odd (H : SimpleGraph V) {x y : V} {n : ℕ}
     ∃ b', ∃ hb' : Linked H y b', zigFirst H p a ha = bipartiteEdge H y b' hb' :=
   ((zig_terminal H p).1 a ha).2 hn
 
-theorem zigSecond_of_even (H : SimpleGraph V) {x y : V} {n : ℕ}
-    (p : Route H x y n) (b : V) (hb : Linked H x b) (hn : Even n) :
-    ∃ b', ∃ hb' : Linked H y b', zigSecond H p b hb = bipartiteEdge H y b' hb' :=
-  ((zig_terminal H p).2 b hb).1 hn
-
-theorem zigSecond_of_odd (H : SimpleGraph V) {x y : V} {n : ℕ}
-    (p : Route H x y n) (b : V) (hb : Linked H x b) (hn : Odd n) :
-    ∃ a', ∃ ha' : Linked H a' y, zigSecond H p b hb = bipartiteEdge H a' y ha' :=
-  ((zig_terminal H p).2 b hb).2 hn
-
 /-- Both alternating coordinate routes cost no more than one line-graph step per route step. -/
 theorem edist_zig_le (H : SimpleGraph V) {x y : V} {n : ℕ} (p : Route H x y n) :
     (∀ a (ha : Linked H a x),
@@ -795,12 +639,6 @@ theorem edist_zigFirst_le (H : SimpleGraph V) {x y : V} {n : ℕ}
     (bipartiteExpansion H).lineGraph.edist
         (bipartiteEdge H a x ha) (zigFirst H p a ha) ≤ (n : ℕ∞) :=
   (edist_zig_le H p).1 a ha
-
-theorem edist_zigSecond_le (H : SimpleGraph V) {x y : V} {n : ℕ}
-    (p : Route H x y n) (b : V) (hb : Linked H x b) :
-    (bipartiteExpansion H).lineGraph.edist
-        (bipartiteEdge H x b hb) (zigSecond H p b hb) ≤ (n : ℕ∞) :=
-  (edist_zig_le H p).2 b hb
 
 /-- A diameter bound in `H` supplies an exact-length padded route between every two vertices. -/
 lemma nonempty_route_of_ediam_le (H : SimpleGraph V) (k : ℕ)
@@ -857,15 +695,6 @@ types without adding nonemptiness hypotheses. -/
 theorem lemma_4_1_le (H : SimpleGraph V) (k : ℕ) (hdiam : H.ediam ≤ (k : ℕ∞)) :
     (bipartiteExpansion H).lineGraph.ediam ≤ ((k + 1 : ℕ) : ℕ∞) :=
   SimpleGraph.ediam_le_of_edist_le (lineGraph_edist_bipartiteExpansion_le H k hdiam)
-
-/-- Lemma 4.1 exactly as an inequality of extended diameters. -/
-theorem lemma_4_1 (H : SimpleGraph V) :
-    (bipartiteExpansion H).lineGraph.ediam ≤ H.ediam + 1 := by
-  by_cases htop : H.ediam = ⊤
-  · simp [htop]
-  · have h := lemma_4_1_le H H.ediam.toNat <| by
-      rw [ENat.coe_toNat htop]
-    simpa [ENat.coe_toNat htop] using h
 
 end DegreeDiameter
 
@@ -1204,19 +1033,6 @@ theorem natCard_le_mooreBound_of_ediam_le' {V : Type u} [Finite V]
   cases isEmpty_or_nonempty V
   · simp
   · exact natCard_le_mooreBound_of_ediam_le hdegree hdiam
-
-/-- Every graph order admitted in the definition of `nKD` obeys the exact
-Moore bound. -/
-theorem orderAdmissible_le_mooreBound {k d n : ℕ}
-    (hn : OrderAdmissible k d n) : n ≤ mooreBound k d := by
-  rcases hn with ⟨V, G, hfinite, hcard, hdegree, hdiam⟩
-  letI : Finite V := hfinite
-  rw [← hcard]
-  exact natCard_le_mooreBound_of_ediam_le' hdegree hdiam
-
-/-- The exact paper inequality `n_k(d) ≤ 1 + d ∑_{j<k}(d-1)^j`. -/
-theorem nKD_le_mooreBound (k d : ℕ) : nKD k d ≤ mooreBound k d :=
-  orderAdmissible_le_mooreBound (nKD_admissible k d)
 
 end DegreeDiameter
 
@@ -2417,16 +2233,6 @@ theorem permOfList_apply {n : ℕ} (l : List (Fin n))
   simp [permOfList, List.Nodup.getEquivOfForallMemList_apply,
     List.get_eq_getElem]
 
-theorem permOfList_map_finRange {n : ℕ} (σ : Equiv.Perm (Fin n)) :
-    permOfList ((List.finRange n).map σ) σ.map_finRange_perm = σ := by
-  ext i
-  rw [permOfList_apply]
-  simp
-
-theorem permOfList_finRange {n : ℕ} :
-    permOfList (List.finRange n) (.refl _) = Equiv.refl _ := by
-  simpa using permOfList_map_finRange (Equiv.refl (Fin n))
-
 def PrefixSet2 {n : ℕ} (σ : Equiv.Perm (Fin n)) (i : Fin (n + 1)) : Set (Fin n) :=
   σ '' {j | j.castSucc < i}
 
@@ -3027,20 +2833,6 @@ noncomputable def rankPotential {V : Type*} [AddCommGroup V] [Module K V]
     (P : EvenPartialFlag (K := K) (V := V) (n := 2 * k + 1)) : ℕ :=
   2 * (evenEntryBlock k e P - 1)
 
-/-- Adjacent vertices have paper-potential values differing by at most two. -/
-theorem rankPotential_dist_adjacent
-    {V : Type*} [AddCommGroup V] [Module K V]
-    (k : ℕ) (e : V)
-    {P P' : EvenPartialFlag (K := K) (V := V) (n := 2 * k + 1)}
-    (h : (halvedFlagGraph (K := K) (V := V) (n := 2 * k + 1)).Adj P P') :
-    Nat.dist (rankPotential k e P) (rankPotential k e P') ≤ 2 := by
-  have hforward := evenEntryBlock_adjacent k e h
-  have hbackward := evenEntryBlock_adjacent k e h.symm
-  have hP := one_le_evenEntryBlock k e P
-  have hP' := one_le_evenEntryBlock k e P'
-  simp only [rankPotential, Nat.dist]
-  omega
-
 /-- Along a walk, the entry block changes by no more than its length. -/
 theorem evenEntryBlock_walk_le
     {V : Type*} [AddCommGroup V] [Module K V]
@@ -3183,34 +2975,6 @@ theorem halvedFlagGraph_ediam_eq_ofBasis (k : ℕ) (hk : 1 ≤ k)
 end BasisEndpoints
 
 section CoordinateFlags
-
-/-- The coordinate space used for the concrete graph `H_{k,q}`. -/
-abbrev CoordinateFlagSpace (K : Type*) (k : ℕ) := Fin (2 * k + 1) → K
-
-/-- The standard coordinate basis `e₁,...,eₜ`. -/
-noncomputable def coordinateBasis (k : ℕ) :
-    Basis (Fin (2 * k + 1)) K (CoordinateFlagSpace K k) :=
-  Pi.basisFun K (Fin (2 * k + 1))
-
-/-- The vector called `e₁` in the paper. -/
-noncomputable def firstCoordinate (k : ℕ) : CoordinateFlagSpace K k :=
-  coordinateBasis k 0
-
-/-- The even part of the standard complete flag `A`. -/
-noncomputable def standardEvenFlag (k : ℕ) :
-    EvenPartialFlag (K := K) (V := CoordinateFlagSpace K k) (n := 2 * k + 1) :=
-  PartialFlag.ofComplete 0 (CompleteFlag.ofBasis (coordinateBasis k))
-
-/-- The even part of the reverse-coordinate complete flag `C`. -/
-noncomputable def oppositeEvenFlag (k : ℕ) :
-    EvenPartialFlag (K := K) (V := CoordinateFlagSpace K k) (n := 2 * k + 1) :=
-  PartialFlag.ofComplete 0
-    (CompleteFlag.ofBasis ((coordinateBasis k).reindex Fin.revPerm))
-
-theorem coordinate_halvedFlagGraph_ediam_eq (k : ℕ) (hk : 1 ≤ k) :
-    (halvedFlagGraph (K := K) (V := CoordinateFlagSpace K k)
-      (n := 2 * k + 1)).ediam = (k : ℕ∞) :=
-  halvedFlagGraph_ediam_eq_ofBasis k hk (coordinateBasis k)
 
 end CoordinateFlags
 
@@ -3423,14 +3187,6 @@ theorem natCard_intermediate_eq
     Nat.card (IntermediateSubspace U W) = Nat.card (ℙ K qW) :=
       Nat.card_congr (intermediateSubspaceEquivProjectiveLine hUW hW)
     _ = Nat.card K + 1 := Projectivization.card_of_finrank_two K qW hqW_two
-
-/-- There are at most `|K| + 1` possible intermediate subspaces. -/
-theorem natCard_intermediate_le
-    [Finite K] [Finite V]
-    {U W : Submodule K V}
-    (hUW : U ≤ W) (hW : finrank K W = finrank K U + 2) :
-    Nat.card (IntermediateSubspace U W) ≤ Nat.card K + 1 := by
-  exact (natCard_intermediate_eq hUW hW).le
 
 end ProjectiveLine
 
@@ -4192,23 +3948,6 @@ theorem halvedFlagGraph_natCard_neighborSet_le_sharp (k : ℕ)
     _ ≤ A * (A - 1) := Nat.mul_le_mul_right (A - 1) (natCard_odd_compatible_le k P)
     _ = ((Nat.card K + 1) ^ k) * (((Nat.card K + 1) ^ k) - 1) := rfl
 
-/-- The coarser square cap retained as a convenient corollary. -/
-theorem halvedFlagGraph_natCard_neighborSet_le (k : ℕ)
-    (P : EvenPartialFlag (K := K) (V := V) (n := 2 * k + 1)) :
-    Nat.card ((halvedFlagGraph (K := K) (V := V) (n := 2 * k + 1)).neighborSet P) ≤
-      ((Nat.card K + 1) ^ k) * ((Nat.card K + 1) ^ k) := by
-  exact (halvedFlagGraph_natCard_neighborSet_le_sharp k P).trans
-    (Nat.mul_le_mul_left _ (Nat.sub_le _ _))
-
-theorem halvedFlagGraph_degree_le (k : ℕ)
-    (P : EvenPartialFlag (K := K) (V := V) (n := 2 * k + 1))
-    [Fintype ((halvedFlagGraph (K := K) (V := V) (n := 2 * k + 1)).neighborSet P)] :
-    (halvedFlagGraph (K := K) (V := V) (n := 2 * k + 1)).degree P ≤
-      ((Nat.card K + 1) ^ k) * ((Nat.card K + 1) ^ k) := by
-  rw [← (halvedFlagGraph (K := K) (V := V) (n := 2 * k + 1)).card_neighborSet_eq_degree,
-    ← Nat.card_eq_fintype_card]
-  exact halvedFlagGraph_natCard_neighborSet_le k P
-
 end PartialFlagCompletions
 
 end DegreeDiameter
@@ -4292,18 +4031,6 @@ instance flagSpaceFinite [Finite K] : ∀ k : ℕ, Finite (FlagSpace K k)
   | k + 1 =>
       letI := flagSpaceFinite k
       inferInstanceAs (Finite ((Fin 2 → K) × FlagSpace K k))
-
-theorem natCard_flagSpace [Finite K] (k : ℕ) :
-    Nat.card (FlagSpace K k) = Nat.card K ^ flagDim k := by
-  induction k with
-  | zero => simp [FlagSpace, flagDim, Nat.card_fun]
-  | succ k ih =>
-      simp only [FlagSpace, flagDim, Nat.card_prod, ih]
-      rw [Nat.card_fun]
-      simp
-      rw [← pow_add]
-      congr 1
-      omega
 
 end Cardinality
 
@@ -4677,14 +4404,6 @@ theorem natCard_completeFlag_of_finrank {n : ℕ}
     _ = A * qFactorial q n := hfactor
     _ = qFactorial q n * A := Nat.mul_comm _ _
 
-/-- Coordinate-space specialization of `natCard_completeFlag_of_finrank`.
-This is the literal formula `|Flag(K^n)| = [n]_(|K|)!`. -/
-theorem natCard_completeFlag_finFun (n : ℕ) :
-    Nat.card (CompleteFlag K (Fin n → K) n) =
-      qFactorial (Nat.card K) n := by
-  apply natCard_completeFlag_of_finrank
-  simp
-
 end CompleteFlagCount
 
 end DegreeDiameter
@@ -4859,15 +4578,6 @@ noncomputable def card (M : FiniteFieldModel) : ℕ :=
 
 end FiniteFieldModel
 
-/-- The cardinality of every finite field is a prime power.  Together with
-`exists_finiteFieldModel_of_isPrimePow` below, this records both directions
-of the correspondence used by the prime-power indexing. -/
-theorem isPrimePow_natCard_finiteField (K : Type*) [Field K] [Finite K] :
-    IsPrimePow (Nat.card K) := by
-  letI : Fintype K := Fintype.ofFinite K
-  rw [Nat.card_eq_fintype_card]
-  exact FiniteField.isPrimePow_card K
-
 /-- Every natural-number prime power is the cardinality of an explicitly
 packaged finite field.  The field is the Mathlib Galois field `GF(p^e)`. -/
 theorem exists_finiteFieldModel_of_isPrimePow (q : ℕ) (hq : IsPrimePow q) :
@@ -4881,16 +4591,6 @@ theorem exists_finiteFieldModel_of_isPrimePow (q : ℕ) (hq : IsPrimePow q) :
   refine ⟨M, ?_⟩
   simpa only [FiniteFieldModel.card, M] using
     (GaloisField.card p e he.ne')
-
-/-- A natural number is a prime power exactly when it occurs as the
-cardinality of an explicitly packaged finite field. -/
-theorem isPrimePow_iff_exists_finiteFieldModel (q : ℕ) :
-    IsPrimePow q ↔ ∃ M : FiniteFieldModel, M.card = q := by
-  constructor
-  · exact exists_finiteFieldModel_of_isPrimePow q
-  · rintro ⟨M, rfl⟩
-    simpa only [FiniteFieldModel.card] using
-      (@isPrimePow_natCard_finiteField M.carrier M.field M.finite)
 
 /-- Natural numbers that are positive powers of a prime.  Its inherited
 order is the order of the underlying cardinalities. -/
@@ -4937,13 +4637,6 @@ theorem natCard_primePowerField (q : PrimePowerIndex) :
     Nat.card (PrimePowerField q) = q.1 := by
   simpa only [FiniteFieldModel.card] using
     finiteFieldModelOfPrimePower_card q
-
-/-- The cardinalities of the chosen fields tend to infinity along the
-prime-power index. -/
-theorem tendsto_natCard_primePowerField :
-    Tendsto (fun q : PrimePowerIndex ↦ Nat.card (PrimePowerField q))
-      atTop atTop := by
-  simpa only [natCard_primePowerField] using tendsto_primePowerIndex_val
 
 end DegreeDiameter
 
@@ -5088,16 +4781,6 @@ theorem Compatible.map
   · exact (PartialFlag.map_ofComplete e F).symm.trans (congrArg (PartialFlag.map e) hEven)
   · exact (PartialFlag.map_ofComplete e F).symm.trans (congrArg (PartialFlag.map e) hOdd)
 
-theorem compatible_map_iff (e : V ≃ₗ[K] V)
-    (P : EvenPartialFlag (K := K) (V := V) (n := n))
-    (Q : OddPartialFlag (K := K) (V := V) (n := n)) :
-    Compatible (P.map e) (Q.map e) ↔ Compatible P Q := by
-  constructor
-  · intro h
-    simpa using h.map e.symm
-  · intro h
-    exact h.map e
-
 /-- Every linear equivalence acts by an automorphism of the halved graph. -/
 noncomputable def halvedFlagGraphIso (e : V ≃ₗ[K] V) :
     halvedFlagGraph (K := K) (V := V) (n := n) ≃g
@@ -5159,18 +4842,6 @@ theorem halvedFlagGraph_natCard_neighborSet_eq
       Nat.card ((halvedFlagGraph (K := K) (V := V) (n := n)).neighborSet P') := by
   obtain ⟨φ, hφ⟩ := exists_halvedFlagGraphIso_map_eq P P'
   simpa [hφ] using Nat.card_congr (φ.mapNeighborSet P)
-
-/-- A common natural-number degree for all vertices, stated without making
-the particular `Fintype` structures on neighbor sets part of the theorem. -/
-theorem exists_halvedFlagGraph_common_degree
-    [Finite K] [Finite V]
-    [Nonempty (EvenPartialFlag (K := K) (V := V) (n := n))] :
-    ∃ Δ : ℕ, ∀ P : EvenPartialFlag (K := K) (V := V) (n := n),
-      Nat.card ((halvedFlagGraph (K := K) (V := V) (n := n)).neighborSet P) = Δ := by
-  classical
-  let P₀ : EvenPartialFlag (K := K) (V := V) (n := n) := Classical.choice inferInstance
-  exact ⟨Nat.card ((halvedFlagGraph (K := K) (V := V) (n := n)).neighborSet P₀),
-    fun P ↦ halvedFlagGraph_natCard_neighborSet_eq P P₀⟩
 
 end DegreeDiameter
 

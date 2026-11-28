@@ -1,6 +1,7 @@
 import FormalConjectures.Wikipedia.AlonSaksSeymourConjecture
 
-/-! The quadratic form of the complete graph detects the kernel of the side-sum map. -/
+/-! The quadratic form of the complete graph detects the kernel of the side-sum map.
+Original proof by @Genbox (PR #117); finite-sum and infimum steps simplified using Mathlib. -/
 
 open AlonSaksSeymourConjecture Finset SimpleGraph
 open scoped BigOperators Classical
@@ -18,13 +19,7 @@ noncomputable def OMA.gpWeight {n : ℕ} (A : Finset (Fin n)) (x : Fin n → ℝ
 
 lemma OMA.gpWeight_sum {n : ℕ} (A : Finset (Fin n)) (x : Fin n → ℝ) :
     (∑ v, OMA.gpWeight A x v) = OMA.gpSum A x := by
-  rw [OMA.gpSum_apply]
-  have hfilter : (Finset.univ.filter fun v => v ∈ A) = A := by
-    ext v
-    simp
-  calc
-    _ = ∑ v ∈ Finset.univ.filter (fun v => v ∈ A), x v := (Finset.sum_filter ..).symm
-    _ = _ := by rw [hfilter]
+  simp [OMA.gpWeight, OMA.gpSum_apply]
 
 lemma OMA.gpTerm {n : ℕ} {A B : Finset (Fin n)} (h : Disjoint A B)
     (x : Fin n → ℝ) (u v : Fin n) :
@@ -64,15 +59,10 @@ lemma OMA.gpQuadratic {n k : ℕ} {A B : Fin k → Finset (Fin n)}
         + OMA.gpSum (B i) x * OMA.gpSum (A i) x) := by
   calc
     _ = ∑ u, ∑ v, if u = v then 0 else x u * x v := by
-      rw [Finset.sum_mul, ← Finset.sum_sub_distrib]
-      apply Finset.sum_congr rfl
-      intro u _
-      have hdiag : (∑ v : Fin n, if u = v then x u * x v else 0) = x u * x u := by
-        simp
-      rw [Finset.mul_sum, ← hdiag, ← Finset.sum_sub_distrib]
-      apply Finset.sum_congr rfl
-      intro v _
-      by_cases huv : u = v <;> simp [huv]
+      have hi (u v : Fin n) : (if u = v then 0 else x u * x v) =
+          x u * x v - (if u = v then x u * x v else 0) := by
+        split_ifs <;> simp
+      simp [hi, Finset.sum_sub_distrib, ← Finset.mul_sum, ← Finset.sum_mul]
     _ = ∑ u, ∑ v, ∑ i,
         (OMA.gpWeight (A i) x u * OMA.gpWeight (B i) x v
           + OMA.gpWeight (B i) x u * OMA.gpWeight (A i) x v) := by
@@ -151,9 +141,6 @@ lemma OMA.gpUpper (n : ℕ) :
 theorem OMA.solution : type_of% @AlonSaksSeymourConjecture.alon_saks_seymour_conjecture.variants.graham_pollak := by
   intro n
   have hUpper := OMA.gpUpper n
-  refine le_antisymm (Nat.sInf_le hUpper) ?_
-  have hmin : bicliquePartitionNumber (completeGraph (Fin n)) ∈
-      {k | ∃ A B : Fin k → Finset (Fin n), IsBicliquePartition (completeGraph (Fin n)) k A B} :=
-    Nat.sInf_mem ⟨n - 1, hUpper⟩
-  obtain ⟨A, B, h⟩ := hmin
+  refine le_antisymm (Nat.sInf_le hUpper) (le_csInf ⟨n - 1, hUpper⟩ ?_)
+  rintro k ⟨A, B, h⟩
   exact OMA.gpLower h

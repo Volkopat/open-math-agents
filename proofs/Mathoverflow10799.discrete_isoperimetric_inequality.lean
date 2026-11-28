@@ -3,7 +3,7 @@ import FormalConjectures.Mathoverflow.«10799»
 -- Problem: Optimal monotone families for the discrete isoperimetric inequality
 -- Upstream: formal-conjectures FormalConjectures/Mathoverflow/10799.lean:238 (declaration Mathoverflow10799.discrete_isoperimetric_inequality)
 -- Credit: @Genbox (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Original proof: @Genbox, PR #341. Finite-sum bridges use standard Mathlib identities.
 
 namespace OMA10799
 open Finset Real
@@ -66,10 +66,10 @@ noncomputable def I (p : ℝ) (U : Finset α) (P : Finset α → Prop) : ℝ :=
   ∑ S ∈ U.powerset, mu p U S * ∑ i ∈ U, (if Xor (P S) (P (symmDiff S {i})) then (1:ℝ) else 0)
 
 lemma sd1 {a : α} {S : Finset α} (h : a ∉ S) : symmDiff S {a} = insert a S := by
-  ext x; simp only [mem_symmDiff, mem_singleton, mem_insert]; by_cases hx : x = a <;> simp_all
+  simpa using (disjoint_singleton_right.mpr h).symmDiff_eq_sup
 
 lemma sd2 {a : α} {S : Finset α} (h : a ∉ S) : symmDiff (insert a S) {a} = S := by
-  ext x; simp only [mem_symmDiff, mem_singleton, mem_insert]; by_cases hx : x = a <;> simp_all
+  rw [← sd1 h, symmDiff_symmDiff_cancel_right]
 
 lemma sd3 {a i : α} {S : Finset α} (h : i ≠ a) :
     symmDiff (insert a S) {i} = insert a (symmDiff S {i}) := by
@@ -167,19 +167,15 @@ theorem OMA.solution : type_of% @Mathoverflow10799.discrete_isoperimetric_inequa
   have hM : OMA10799.M p univ (fun S => S ∈ F) = Mathoverflow10799.μFamily p F := by
     unfold OMA10799.M Mathoverflow10799.μFamily
     simp only [powerset_univ]
-    have e : ∀ S : Finset (Fin n), OMA10799.mu p univ S = Mathoverflow10799.μ p S := fun S => by
-      simp [OMA10799.mu, Mathoverflow10799.μ]
-    trans ∑ x : Finset (Fin n), if x ∈ F then Mathoverflow10799.μ p x else 0
-    · exact sum_congr rfl fun x _ => by split_ifs <;> simp [e]
-    · rw [Finset.sum_ite_mem, univ_inter]
+    convert! Fintype.sum_ite_mem F (Mathoverflow10799.μ p) using 1
+    congr!
+    ext
+    simp [OMA10799.mu, Mathoverflow10799.μ]
   have hI : OMA10799.I p univ (fun S => S ∈ F) = Mathoverflow10799.edgeBoundary n p F := by
-    unfold OMA10799.I Mathoverflow10799.edgeBoundary Mathoverflow10799.boundaryCount
-    rw [powerset_univ]
-    refine sum_congr rfl fun S _ => ?_
-    simp only [OMA10799.mu, Mathoverflow10799.μ, card_univ, Fintype.card_fin]
-    congr 1
-    rw [Finset.natCast_card_filter]
-    exact Finset.sum_congr rfl fun x _ => by split_ifs <;> rfl
+    simp only [OMA10799.I, Mathoverflow10799.edgeBoundary, Mathoverflow10799.boundaryCount,
+      OMA10799.mu, Mathoverflow10799.μ, powerset_univ, card_univ, Fintype.card_fin,
+      Finset.natCast_card_filter]
+    congr!
   show Mathoverflow10799.edgeBoundary n p F ≥ _
   rw [← hM, ← hI, ge_iff_le, div_le_iff₀ hp]
   have := h; unfold OMA10799.f at this; linarith

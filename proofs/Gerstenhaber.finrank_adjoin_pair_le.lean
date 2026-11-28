@@ -22,10 +22,9 @@ following Wadsworth's (1990) module-theoretic proof:
    `K[X] ⧸ (p^{e_k}) ↠ C_{k+1} / C_k` and hence `finrank K C_r ≤ ∑_k finrank K (K[X] ⧸ (p^{e_k})) = finrank K M`.
 -/
 
--- Problem: Gerstenhaber's theorem
--- Upstream: formal-conjectures FormalConjectures/Other/GerstenhaberThreeMatrices.lean:51 (declaration Gerstenhaber.finrank_adjoin_pair_le)
--- Credit: @TheWaler (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Original formalization by @TheWaler, PR #778, following Wadsworth (1990).
+-- The finitely generated module Cayley–Hamilton helper now uses Mathlib’s
+-- representing-matrix algebra and its surjective map to module endomorphisms.
 
 namespace GerstenhaberProof
 
@@ -46,65 +45,16 @@ private lemma exists_monic_annihilating {R N : Type*} [CommRing R] [Nontrivial R
     [AddCommGroup N] [Module R N] (g : N →ₗ[R] N) {k : ℕ} (v : Fin k → N)
     (hv : Submodule.span R (Set.range v) = ⊤) :
     ∃ c : Fin k → R, g ^ k + ∑ m : Fin k, c m • g ^ m.1 = 0 := by
-  have hrep : ∀ j : Fin k, ∃ col : Fin k → R, g (v j) = ∑ i : Fin k, col i • v i := by
-    intro j
-    have hmem : g (v j) ∈ Submodule.span R (Set.range v) := hv.symm ▸ Submodule.mem_top
-    rw [Submodule.mem_span_range_iff_exists_fun] at hmem
-    rcases hmem with ⟨col, hcol⟩
-    exact ⟨col, hcol.symm⟩
-  let T : Matrix (Fin k) (Fin k) R := fun i j => Classical.choose (hrep j) i
-  have hTv : ∀ j : Fin k, g (v j) = ∑ i : Fin k, T i j • v i := fun j =>
-    Classical.choose_spec (hrep j)
-  have hpow : ∀ (d : ℕ) (j : Fin k), (g ^ d) (v j) = ∑ i : Fin k, (T ^ d) i j • v i := by
-    intro d
-    induction d with
-    | zero =>
-      intro j
-      simp [Matrix.one_apply]
-    | succ d ih =>
-      intro j
-      rw [pow_succ', Module.End.mul_apply, ih, map_sum]
-      calc
-        (∑ l : Fin k, g ((T ^ d) l j • v l))
-            = ∑ l : Fin k, (T ^ d) l j • ∑ i : Fin k, T i l • v i := by
-              refine Finset.sum_congr rfl fun l _ => ?_
-              rw [map_smul, hTv l]
-        _ = ∑ l : Fin k, ∑ i : Fin k, (T i l * (T ^ d) l j) • v i := by
-              refine Finset.sum_congr rfl fun l _ => ?_
-              rw [Finset.smul_sum]
-              refine Finset.sum_congr rfl fun i _ => ?_
-              rw [smul_smul, mul_comm]
-        _ = ∑ i : Fin k, ∑ l : Fin k, (T i l * (T ^ d) l j) • v i := Finset.sum_comm
-        _ = ∑ i : Fin k, (T ^ (d + 1)) i j • v i := by
-              refine Finset.sum_congr rfl fun i _ => ?_
-              rw [← Finset.sum_smul, pow_succ', Matrix.mul_apply]
-  have haeval : ∀ (Q : R[X]) (j : Fin k),
-      Polynomial.aeval g Q (v j) = ∑ i : Fin k, (Polynomial.aeval T Q) i j • v i := by
-    intro Q
-    induction Q using Polynomial.induction_on' with
-    | add Q₁ Q₂ ih₁ ih₂ =>
-      intro j
-      simp only [map_add, LinearMap.add_apply, Matrix.add_apply, add_smul, Finset.sum_add_distrib,
-        ih₁, ih₂]
-    | monomial d r =>
-      intro j
-      rw [Polynomial.aeval_monomial, Polynomial.aeval_monomial, ← Algebra.smul_def, ← Algebra.smul_def]
-      simp only [LinearMap.smul_apply, Matrix.smul_apply, hpow d j, Finset.smul_sum, smul_smul,
-        smul_eq_mul]
-  let P : R[X] := T.charpoly
-  have hP_zero : Polynomial.aeval T P = 0 := Matrix.aeval_self_charpoly T
-  have hP_monic : P.Monic := Matrix.charpoly_monic T
-  have hP_deg : P.natDegree = k := by
-    simp [P]
-  have hPg_v : ∀ j : Fin k, Polynomial.aeval g P (v j) = 0 := fun j => by
-    rw [haeval P j, hP_zero]
-    simp
+  obtain ⟨A, hA⟩ := Matrix.isRepresentation.toEnd_surjective R v hv g
+  let P : R[X] := A.val.charpoly
+  have hP_monic : P.Monic := Matrix.charpoly_monic A.val
+  have hP_deg : P.natDegree = k := by simp [P]
   have hPg_zero : Polynomial.aeval g P = 0 := by
-    ext x
-    have hx : x ∈ Submodule.span R (Set.range v) := hv.symm ▸ Submodule.mem_top
-    rw [Submodule.mem_span_range_iff_exists_fun] at hx
-    rcases hx with ⟨a, rfl⟩
-    simp [map_sum, map_smul, hPg_v]
+    rw [← hA, Polynomial.aeval_algHom_apply,
+      ← map_zero (Matrix.isRepresentation.toEnd R v hv)]
+    congr 1
+    ext1
+    rw [Polynomial.aeval_subalgebra_coe, Matrix.aeval_self_charpoly, Subalgebra.coe_zero]
   have hP_expand : P = X ^ k + ∑ m : Fin k, C (P.coeff m.1) * X ^ m.1 := by
     conv_lhs => rw [P.as_sum_range_C_mul_X_pow]
     rw [hP_deg, Finset.sum_range_succ, ← Fin.sum_univ_eq_sum_range]

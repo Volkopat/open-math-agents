@@ -1,109 +1,49 @@
 import FormalConjectures.Paper.BurningNumberConjecture
-import Mathlib.Data.Nat.Sqrt
-import Mathlib.Order.Interval.Finset.Nat
 
-/-! The burning number of a path, by covering it with intervals. -/
-
-open SimpleGraph BurningNumberConjecture
-open scoped BigOperators
+open SimpleGraph BurningNumberConjecture Finset
 
 theorem OMA.solution : type_of% @BurningNumberConjecture.burning_number_conjecture.variants.path := by
   intro n hn
-  have hreach := pathGraph_preconnected n
-  have hwalk {a b : Fin n} (p : (pathGraph n).Walk a b) :
-      a.val ≤ b.val + p.length ∧ b.val ≤ a.val + p.length := by
-    induction p with
-    | nil => simp
-    | @cons a u b hadj p ih =>
-      have h := pathGraph_adj.mp hadj
-      simp only [Walk.length_cons]
-      omega
-  have hdistLower (a b : Fin n) :
-      a.val ≤ b.val + (pathGraph n).dist a b ∧
-        b.val ≤ a.val + (pathGraph n).dist a b := by
-    obtain ⟨p, hp⟩ := (hreach a b).exists_walk_length_eq_dist
-    rw [← hp]
-    exact hwalk p
-  have hdistIncreasing (a : Fin n) : ∀ (d : ℕ) (b : Fin n), b.val = a.val + d →
-      (pathGraph n).dist a b ≤ d := by
-    intro d
+  let P := pathGraph n
+  have hdl (a b : Fin n) : a.1 ≤ b.1 + P.dist a b ∧ b.1 ≤ a.1 + P.dist a b := by
+    obtain ⟨p, hp⟩ := (pathGraph_preconnected n a b).exists_walk_length_eq_dist
+    rw [← hp]; clear hp
+    induction p with | nil => simp | cons h _ ih => have := pathGraph_adj.mp h; simp; omega
+  have hdi (d : ℕ) : ∀ a b : Fin n, b.1 = a.1 + d → P.dist a b ≤ d := by
     induction d with
-    | zero =>
-      intro b hb
-      have hab : a = b := Fin.ext (by omega)
-      simp [hab]
+    | zero => intro a b h; simp [Fin.ext (by omega : a.1 = b.1)]
     | succ d ih =>
-      intro b hb
-      let u : Fin n := ⟨a.val + d, by have := b.isLt; omega⟩
-      have hadj : (pathGraph n).Adj u b := pathGraph_adj.mpr
-        (Or.inl (by change a.val + d + 1 = b.val; omega))
-      have hstep : (pathGraph n).dist u b = 1 := dist_eq_one_iff_adj.mpr hadj
-      have hu := ih u rfl
-      have htriangle := hadj.reachable.dist_triangle_right a
-      omega
-  have hdistUpper (a b : Fin n) (r : ℕ) (ha : a.val ≤ b.val + r)
-      (hb : b.val ≤ a.val + r) : (pathGraph n).dist a b ≤ r := by
-    by_cases hab : a.val ≤ b.val
-    · exact (hdistIncreasing a (b.val - a.val) b (by omega)).trans (by omega)
-    · rw [dist_comm]
-      exact (hdistIncreasing b (a.val - b.val) a (by omega)).trans (by omega)
-  have hceil (k : ℕ) : ⌈Real.sqrt n⌉₊ ≤ k ↔ n ≤ k ^ 2 := by
-    rw [Nat.ceil_le, Real.sqrt_le_left (by positivity), ← Nat.cast_pow, Nat.cast_le]
+      intro a b h
+      have e : P.Adj ⟨a.1 + d, by omega⟩ b := pathGraph_adj.mpr (.inl (by dsimp; omega))
+      have := e.reachable.dist_triangle_right a; have := dist_eq_one_iff_adj.mpr e
+      have := ih a ⟨a.1 + d, by omega⟩ rfl; omega
   let k := ⌈Real.sqrt n⌉₊
-  have hnk : n ≤ k ^ 2 := (hceil k).mp le_rfl
-  have hcover : ∃ x : Fin k → Fin n, IsBurningSequence (pathGraph n) x := by
-    -- The radius-r fire covers the block starting at r², truncated by the end of the path.
-    let center (i : Fin k) : Fin n :=
-      ⟨min (i.rev.val ^ 2 + i.rev.val) (n - 1),
-        (min_le_right _ _).trans_lt (by omega)⟩
-    refine ⟨center, fun v => ?_⟩
-    let r : Fin k := ⟨Nat.sqrt v.val, Nat.sqrt_lt'.mpr (v.isLt.trans_le hnk)⟩
-    refine ⟨r.rev, hreach _ _, ?_⟩
-    have hrlo : r.val ^ 2 ≤ v.val := Nat.sqrt_le' _
-    have hrhi : v.val < (r.val + 1) ^ 2 := Nat.lt_succ_sqrt' _
-    have hrhi' : v.val ≤ r.val ^ 2 + 2 * r.val := by nlinarith
-    have hc : (center r.rev).val = min (r.val ^ 2 + r.val) (n - 1) := by
-      simp [center]
-    have hv := v.isLt
-    have hd := hdistUpper (center r.rev) v r.val (by omega) (by omega)
-    have hr := r.isLt
-    have hrev := Fin.val_rev r
-    omega
-  refine le_antisymm (Nat.sInf_le hcover) ?_
-  have hfeasible : {j | ∃ y : Fin j → Fin n, IsBurningSequence (pathGraph n) y}.Nonempty :=
-    ⟨k, hcover⟩
-  have hminimal := Nat.sInf_mem hfeasible
-  change ∃ x : Fin (burningNumber (pathGraph n)) → Fin n,
-    IsBurningSequence (pathGraph n) x at hminimal
-  obtain ⟨x, hx⟩ := hminimal
-  let m := burningNumber (pathGraph n)
-  apply (hceil m).mpr
-  let interval (r : Fin m) :=
-    Finset.Icc ((x r.rev).val - r.val) ((x r.rev).val + r.val)
-  have hcard : n ≤ ((Finset.univ : Finset (Fin m)).biUnion interval).card := by
-    have hmap : Set.MapsTo (fun v : Fin n => v.val)
-        (Finset.univ : Finset (Fin n)) ((Finset.univ : Finset (Fin m)).biUnion interval) := by
-      intro v _
-      obtain ⟨i, _, hi⟩ := hx v
-      have hd := hdistLower (x i) v
-      have hrev := Fin.val_rev i
-      refine Finset.mem_biUnion.mpr ⟨i.rev, Finset.mem_univ _, ?_⟩
-      simp only [interval, Fin.rev_rev, Finset.mem_Icc]
-      omega
-    simpa using Finset.card_le_card_of_injOn _ hmap Fin.val_injective.injOn
-  have hsum : ∀ t : ℕ, (∑ j ∈ Finset.range t, (2 * j + 1)) = t ^ 2 := by
-    intro t
-    induction t with
-    | zero => simp
-    | succ t ih =>
-      rw [Finset.sum_range_succ, ih]
-      ring
-  calc
-    n ≤ ((Finset.univ : Finset (Fin m)).biUnion interval).card := hcard
-    _ ≤ ∑ r : Fin m, (interval r).card := Finset.card_biUnion_le
-    _ ≤ ∑ r : Fin m, (2 * r.val + 1) := by
-      apply Finset.sum_le_sum
-      intro r _
-      simp only [interval, Nat.card_Icc]
-      omega
-    _ = m ^ 2 := (Fin.sum_univ_eq_sum_range (fun j : ℕ => 2 * j + 1) m).trans (hsum m)
+  have hc (t : ℕ) : k ≤ t ↔ n ≤ t ^ 2 := by
+    rw [Nat.ceil_le, Real.sqrt_le_left (by positivity), ← Nat.cast_pow, Nat.cast_le]
+  have hcov : ∃ x : Fin k → Fin n, IsBurningSequence P x := by
+    let c (i : Fin k) : Fin n := ⟨min (i.rev.1 ^ 2 + i.rev.1) (n - 1), by omega⟩
+    refine ⟨c, fun v => ?_⟩
+    let r : Fin k := ⟨Nat.sqrt v.1, Nat.sqrt_lt'.mpr (v.2.trans_le ((hc k).1 le_rfl))⟩
+    refine ⟨r.rev, pathGraph_preconnected n _ _, ?_⟩
+    have : r.1 ^ 2 ≤ v.1 := Nat.sqrt_le' _
+    have : v.1 ≤ r.1 ^ 2 + 2 * r.1 := by have := Nat.lt_succ_sqrt' v.1; dsimp [r]; nlinarith
+    have : (c r.rev).1 = min (r.1 ^ 2 + r.1) (n - 1) := by simp [c]
+    have hd : P.dist (c r.rev) v ≤ r.1 := by
+      rcases le_total (c r.rev).1 v.1 with h | h
+      · exact (hdi (v.1 - (c r.rev).1) _ v (by omega)).trans (by omega)
+      · rw [SimpleGraph.dist_comm]; exact (hdi ((c r.rev).1 - v.1) v _ (by omega)).trans (by omega)
+    have := Fin.val_rev r; omega
+  refine le_antisymm (Nat.sInf_le hcov) ((hc _).2 ?_)
+  let m := burningNumber P
+  obtain ⟨x, hx⟩ : ∃ x : Fin m → Fin n, IsBurningSequence P x :=
+    Nat.sInf_mem (s := {j | ∃ y : Fin j → Fin n, IsBurningSequence P y}) ⟨k, hcov⟩
+  let I (r : Fin m) := Icc ((x r.rev).1 - r.1) ((x r.rev).1 + r.1)
+  have hsub : range n ⊆ univ.biUnion I := fun v hv => by
+    obtain ⟨i, _, hi⟩ := hx ⟨v, mem_range.mp hv⟩
+    have h := hdl (x i) ⟨v, mem_range.mp hv⟩; dsimp at h; have := Fin.val_rev i; have := i.2
+    exact mem_biUnion.mpr ⟨i.rev, mem_univ _, by simp [I]; omega⟩
+  have hsum (t : ℕ) : ∑ j ∈ range t, (2 * j + 1) = t ^ 2 := by
+    induction t with | zero => rfl | succ t ih => rw [sum_range_succ, ih]; ring
+  exact ((card_range n).symm.trans_le (card_le_card hsub)).trans <| card_biUnion_le.trans <|
+    (sum_le_sum fun r _ => by simp [I]; omega).trans
+      ((Fin.sum_univ_eq_sum_range _ m).trans (hsum m)).le

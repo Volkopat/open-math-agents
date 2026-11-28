@@ -1,5 +1,6 @@
 import OMAReductions.R_Erdos1057_erdos_1057_variants_agp_lower_bound_R1
 
+open Finset
 /-!
 # Counting bounded product-one subsets
 
@@ -25,35 +26,35 @@ private lemma decompose {A P : Finset ℕ} {M n t : ℕ} (sub : A ⊆ P)
   classical
   let F := A.powerset.filter (fun I => (∏ p ∈ I, p) ≡ 1 [MOD M])
   have empty : ∅ ∈ F := by
-    refine Finset.mem_filter.mpr ⟨Finset.mem_powerset.mpr (Finset.empty_subset A), ?_⟩
-    simpa only [Finset.prod_empty] using (show 1 ≡ 1 [MOD M] from rfl)
-  obtain ⟨I, hi, hmax⟩ := Finset.exists_max_image F Finset.card ⟨∅,empty⟩
-  obtain ⟨subA, one⟩ := Finset.mem_filter.mp hi
-  have ia := Finset.mem_powerset.mp subA
+    refine mem_filter.mpr ⟨mem_powerset.mpr (empty_subset A), ?_⟩
+    simpa only [prod_empty] using (show 1 ≡ 1 [MOD M] from rfl)
+  obtain ⟨I, hi, hmax⟩ := exists_max_image F card ⟨∅,empty⟩
+  obtain ⟨subA, one⟩ := mem_filter.mp hi
+  have ia := mem_powerset.mp subA
   have small : (A \ I).card ≤ n := by
     by_contra! large
-    obtain ⟨J,hj,hjpos,oneJ⟩ := extract (A \ I) (Finset.sdiff_subset.trans sub) large
-    have dis : Disjoint I J := Finset.disjoint_left.mpr (fun x hx hxj =>
-      (Finset.mem_sdiff.mp (hj hxj)).2 hx)
+    obtain ⟨J,hj,hjpos,oneJ⟩ := extract (A \ I) (sdiff_subset.trans sub) large
+    have dis : Disjoint I J := disjoint_left.mpr (fun x hx hxj =>
+      (mem_sdiff.mp (hj hxj)).2 hx)
     have together : I ∪ J ∈ F := by
-      refine Finset.mem_filter.mpr ⟨Finset.mem_powerset.mpr
-        (Finset.union_subset ia (hj.trans Finset.sdiff_subset)), ?_⟩
-      rw [Finset.prod_union dis]
+      refine mem_filter.mpr ⟨mem_powerset.mpr
+        (union_subset ia (hj.trans sdiff_subset)), ?_⟩
+      rw [prod_union dis]
       simpa only [one_mul] using one.mul oneJ
     have bigger := hmax (I ∪ J) together
-    rw [Finset.card_union_of_disjoint dis] at bigger
-    have nonzero := Finset.card_pos.mpr hjpos
+    rw [card_union_of_disjoint dis] at bigger
+    have nonzero := card_pos.mpr hjpos
     omega
-  obtain ⟨D,rest,da,dsize⟩ := Finset.exists_subsuperset_card_eq
-    (show A \ I ⊆ A from Finset.sdiff_subset) small (by omega)
-  have ilo := Finset.card_sdiff_of_subset ia
-  have ihi := Finset.card_le_card ia
+  obtain ⟨D,rest,da,dsize⟩ := exists_subsuperset_card_eq
+    (show A \ I ⊆ A from sdiff_subset) small (by omega)
+  have ilo := card_sdiff_of_subset ia
+  have ihi := card_le_card ia
   refine ⟨I,D,ia.trans sub,by omega,by omega,one,da.trans sub,dsize,?_⟩
-  apply Finset.Subset.antisymm (Finset.union_subset ia da)
+  apply Subset.antisymm (union_subset ia da)
   intro a ha
   by_cases h : a ∈ I
-  · exact Finset.mem_union.mpr (Or.inl h)
-  · exact Finset.mem_union.mpr (Or.inr (rest (Finset.mem_sdiff.mpr ⟨ha,h⟩)))
+  · exact mem_union.mpr (Or.inl h)
+  · exact mem_union.mpr (Or.inr (rest (mem_sdiff.mpr ⟨ha,h⟩)))
 
 theorem counted : OMA.R_Erdos1057_erdos_1057_variants_agp_lower_bound_R1.H2 := by
   classical
@@ -64,13 +65,13 @@ theorem counted : OMA.R_Erdos1057_erdos_1057_variants_agp_lower_bound_R1.H2 := b
   let join (z : Finset ℕ × Finset ℕ) := z.1 ∪ z.2
   have cover : P.powersetCard t ⊆ pairs.image join := by
     intro A ha
-    obtain ⟨sub, size⟩ := Finset.mem_powersetCard.mp ha
+    obtain ⟨sub, size⟩ := mem_powersetCard.mp ha
     obtain ⟨I,D,ip,lo,hi,one,dp,dsize,un⟩ := decompose sub size hnt extract
-    refine Finset.mem_image.mpr ⟨(I,D), Finset.mem_product.mpr ⟨?_, ?_⟩, un⟩
-    · exact Finset.mem_filter.mpr ⟨Finset.mem_powerset.mpr ip,lo,hi,one⟩
-    · exact Finset.mem_powersetCard.mpr ⟨dp,dsize⟩
-  have bound := (Finset.card_le_card cover).trans (Finset.card_image_le (s := pairs) (f := join))
-  simpa only [pairs, Finset.card_product, Finset.card_powersetCard, G] using bound
+    refine mem_image.mpr ⟨(I,D), mem_product.mpr ⟨?_, ?_⟩, un⟩
+    · exact mem_filter.mpr ⟨mem_powerset.mpr ip,lo,hi,one⟩
+    · exact mem_powersetCard.mpr ⟨dp,dsize⟩
+  have bound := (card_le_card cover).trans (card_image_le (s := pairs) (f := join))
+  simpa only [pairs, card_product, card_powersetCard, G] using bound
 
 end OMA.CarmichaelSubsets
 

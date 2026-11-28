@@ -1,118 +1,62 @@
 import FormalConjectures.WrittenOnTheWallII.GraphConjecture3
 import Mathlib.Combinatorics.SimpleGraph.Star
 
-/-! A spanning tree containing the star at a vertex has at least as many
-leaves as that vertex has neighbors. An independent dominating set containing
-the vertex avoids its entire neighborhood. Credit: @Deldor14. -/
+/-! Shorter proof of `WrittenOnTheWallII.GraphConjecture3.conjecture3`. -/
+
 open SimpleGraph Finset
-namespace OMA.Temperature
-variable {V : Type*} [Fintype V] [DecidableEq V] [Nontrivial V] {G : SimpleGraph V}
-open scoped Classical in
-private lemma leaves_bound [DecidableRel G.Adj] (T : SimpleGraph V) (ht : T ≤ G)
-    (hT : T.IsTree) (s : Finset V) (hs : ∀ v ∈ s, (G.toSubgraph T ht).degree v = 1) :
-    (s.card : ℝ) ≤ Ls G := by
-  classical
-  let S := G.toSubgraph T ht
-  let leaves (Z : G.Subgraph) := Z.verts.toFinset.filter (fun v => Z.degree v = 1)
-  have iso : S.coe ≃g T :=
-    { toEquiv := Equiv.Set.univ V
-      map_rel_iff' := by intros; rfl }
-  have hS : S.IsSpanning ∧ S.coe.IsTree := ⟨SimpleGraph.toSubgraph.isSpanning T ht, iso.isTree_iff.mpr hT⟩
-  have hj : s ⊆ leaves S := by
-    intro v hv; exact Finset.mem_filter.mpr ⟨by simp [S], hs v hv⟩
-  have hb : (s.card : ℝ) ≤ (leaves S).card := by exact_mod_cast Finset.card_le_card hj
-  unfold Ls
-  apply hb.trans
-  apply le_csSup
-  · refine ⟨(Fintype.card V : ℝ), ?_⟩
-    rintro _ ⟨Z, _,rfl⟩
-    dsimp only
-    exact Nat.cast_le.mpr (Finset.card_le_univ _)
-  · exact ⟨S,hS,rfl⟩
 
-
-private lemma tree_degree_le [DecidableRel G.Adj] (ht : G.IsTree) (a : V) :
-    G.degree a ≤ (univ.filter (fun v => G.degree v = 1)).card := by
-  classical
-  have hw (v : V) : (2 : ℕ) + (if v = a then G.degree a else 0) ≤
-      G.degree v + (if G.degree v = 1 then 1 else 0) + (if v = a then 2 else 0) := by
-    have hpos := ht.connected.preconnected.degree_pos_of_nontrivial v
-    by_cases hv : v = a
-    · subst v; simp only [if_true]; split <;> omega
-    · by_cases h1 : G.degree v = 1 <;> simp only [if_neg hv, h1, if_true, if_false, add_zero] <;> omega
-  have hsum := Finset.sum_le_sum (s := univ) (fun v _ => hw v)
-  simp only [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, nsmul_eq_mul,
-    Finset.sum_ite_eq', Finset.mem_univ, if_true, Finset.sum_boole] at hsum
-  have hdeg := G.sum_degrees_eq_twice_card_edges
-  have hedge := ht.card_edgeFinset
-  simp at hsum
-  omega
-
-private lemma degree_le_leaves [DecidableRel G.Adj] (hc : G.Connected) (v : V) :
-    (G.degree v : ℝ) ≤ Ls G := by
-  classical
-  let H := G ⊓ starGraph v
-  have hH : H.IsAcyclic := (isTree_starGraph v).isAcyclic.anti inf_le_right
-  obtain ⟨T,hHT,hTG,ht⟩ := hc.exists_isTree_le_of_le_of_isAcyclic (show H ≤ G from inf_le_left) hH
-  have he : G.neighborFinset v ⊆ T.neighborFinset v := by
-    intro w hw
-    have ha := (G.mem_neighborFinset v w).mp hw
-    exact (T.mem_neighborFinset v w).mpr (hHT ⟨ha,starGraph_center_adj ha.ne⟩)
-  have hdeg : G.degree v ≤ T.degree v := Finset.card_le_card he
-  have bound := leaves_bound T hTG ht (univ.filter fun x => T.degree x = 1)
-    (fun w hw => by rw [SimpleGraph.degree_toSubgraph]; exact (mem_filter.mp hw).2)
-  exact (show (G.degree v : ℝ) ≤ ((univ.filter fun x => T.degree x = 1).card : ℕ) by
-    exact_mod_cast hdeg.trans (tree_degree_le ht v)).trans bound
-
-private lemma domination_bound [DecidableRel G.Adj] (v : V) :
-    G.indepDominationNumber + G.degree v ≤ Fintype.card V := by
-  classical
-  let A := univ.filter fun s : Finset V => G.IsIndepSet s
-  have hseed : {v} ∈ A := by
-    simp only [A, mem_filter, mem_univ, true_and]
-    intro a ha b hb hab
-    simp only [Finset.mem_coe, Finset.mem_singleton] at ha hb
-    exact (hab (ha.trans hb.symm)).elim
-  obtain ⟨s,hvs,hmax⟩ := A.exists_le_maximal hseed
-  have hs : G.IsIndepSet s := (mem_filter.mp hmax.prop).2
-  have hv : v ∈ s := hvs (by simp)
-  have hdom : G.IsDominating s := by
-    intro x
-    by_contra! h
-    have hext : insert x s ∈ A := by
-      apply mem_filter.mpr ⟨mem_univ _,?_⟩
-      intro a ha b hb hab had
-      simp only [mem_coe, mem_insert] at ha hb
-      rcases ha with rfl | ha <;> rcases hb with rfl | hb
-      · exact hab rfl
-      · exact h.2 b hb had
-      · exact h.2 a ha had.symm
-      · exact hs ha hb hab had
-    exact h.1 (hmax.2 hext (subset_insert _ _) (mem_insert_self ..))
-  have hsmall : G.indepDominationNumber ≤ s.card :=
-    Nat.sInf_le (show ∃ D : Finset V, G.IsNIndepDominatingSet s.card D from ⟨s,hs,hdom,rfl⟩)
-  have hd : Disjoint s (G.neighborFinset v) := by
-    apply Finset.disjoint_left.mpr
-    intro w hw hw'
-    have had := (G.mem_neighborFinset v w).mp hw'
-    exact hs hv hw had.ne had
-  have hcard := (s ∪ G.neighborFinset v).card_le_univ
-  rw [card_union_of_disjoint hd, card_neighborFinset_eq_degree] at hcard
-  omega
-end OMA.Temperature
-
-open OMA.Temperature in
 theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture3.conjecture3 := by
   intro V _ _ G _ _ hc
   classical
-  obtain ⟨v,_,he⟩ := Finset.mem_image.mp
-    (Finset.max'_mem (Finset.univ.image (temp_v G)) (Finset.image_nonempty.mpr Finset.univ_nonempty))
-  have hv : temp_v G v = MaxTemp G := he
-  rw [← hv]
+  obtain ⟨v, -, hv⟩ := mem_image.mp (max'_mem (univ.image (temp_v G)) (image_nonempty.mpr univ_nonempty))
+  have h1 : (G.degree v : ℝ) ≤ Ls G := by
+    obtain ⟨T, hHT, hTG, ht⟩ := hc.exists_isTree_le_of_le_of_isAcyclic
+      (H := G ⊓ starGraph v) inf_le_left ((isTree_starGraph v).isAcyclic.anti inf_le_right)
+    have hdeg : G.degree v ≤ T.degree v := card_le_card fun w hw =>
+      (T.mem_neighborFinset v w).mpr (hHT ⟨(G.mem_neighborFinset v w).mp hw,
+        starGraph_center_adj ((G.mem_neighborFinset v w).mp hw).ne⟩)
+    have hw (u : V) : 2 + (if u = v then T.degree v else 0) ≤
+        T.degree u + (if T.degree u = 1 then 1 else 0) + (if u = v then 2 else 0) := by
+      have := ht.connected.preconnected.degree_pos_of_nontrivial u
+      by_cases hu : u = v
+      · subst u; simp; split <;> omega
+      · by_cases h1 : T.degree u = 1 <;> simp [hu, h1]
+        omega
+    have hsum := sum_le_sum (s := univ) fun u _ => hw u
+    simp only [sum_add_distrib, sum_const, card_univ, nsmul_eq_mul, sum_ite_eq', mem_univ,
+      if_true, sum_boole] at hsum
+    have := T.sum_degrees_eq_twice_card_edges; have := ht.card_edgeFinset
+    simp at hsum
+    let S := G.toSubgraph T hTG
+    have iso : S.coe ≃g T := { toEquiv := Equiv.Set.univ V, map_rel_iff' := by intros; rfl }
+    have hS : S.IsSpanning ∧ S.coe.IsTree := ⟨toSubgraph.isSpanning T hTG, iso.isTree_iff.mpr ht⟩
+    have hj : (univ.filter fun x => T.degree x = 1) ⊆ S.verts.toFinset.filter (fun x => S.degree x = 1) :=
+      fun w hw => mem_filter.mpr ⟨by simp [S], by rw [degree_toSubgraph]; exact (mem_filter.mp hw).2⟩
+    have hcard : G.degree v ≤ (S.verts.toFinset.filter fun x => S.degree x = 1).card :=
+      le_trans (by omega) (card_le_card hj)
+    refine le_trans (Nat.cast_le.mpr hcard) ?_
+    exact le_csSup ⟨Fintype.card V, by rintro _ ⟨Z, _, rfl⟩; exact Nat.cast_le.mpr (card_le_univ _)⟩
+      ⟨S, hS, rfl⟩
+  have h2 : (G.indepDominationNumber : ℝ) + G.degree v ≤ Fintype.card V := by
+    let A := univ.filter fun s : Finset V => G.IsIndepSet s
+    obtain ⟨s, hvs, hmax⟩ := A.exists_le_maximal (a := {v}) (by simp [A, SimpleGraph.IsIndepSet])
+    have hs : G.IsIndepSet s := (mem_filter.mp hmax.prop).2
+    have hdom : G.IsDominating s := fun x => by
+      by_contra! h
+      refine h.1 (hmax.2 (mem_filter.mpr ⟨mem_univ _, ?_⟩)
+        (subset_insert _ _) (mem_insert_self ..))
+      rw [coe_insert]
+      exact hs.insert fun a ha _ => ⟨h.2 a ha, fun h' => h.2 a ha h'.symm⟩
+    have hsmall : G.indepDominationNumber ≤ s.card := Nat.sInf_le ⟨s, hs, hdom, rfl⟩
+    have hd : Disjoint s (G.neighborFinset v) := disjoint_left.mpr fun w hw hw' =>
+      hs (hvs (by simp)) hw ((G.mem_neighborFinset v w).mp hw').ne ((G.mem_neighborFinset v w).mp hw')
+    have hcu := (s ∪ G.neighborFinset v).card_le_univ
+    rw [card_union_of_disjoint hd, card_neighborFinset_eq_degree] at hcu
+    exact_mod_cast (by omega : G.indepDominationNumber + G.degree v ≤ Fintype.card V)
   have hn := G.degree_lt_card_verts v
-  have hn' : (0:ℝ) < Fintype.card V - (G.degree v : ℝ) := sub_pos.mpr (by exact_mod_cast hn)
-  have hid : (G.indepDominationNumber : ℝ) + G.degree v ≤ Fintype.card V := by
-    exact_mod_cast domination_bound (G := G) v
-  apply le_trans _ (degree_le_leaves hc v)
-  rw [temp_v, if_neg (Ne.symm hn.ne), ← mul_div_assoc, div_le_iff₀ hn']
-  nlinarith [mul_le_mul_of_nonneg_right hid (Nat.cast_nonneg (α := ℝ) (G.degree v))]
+  have hn' : (0 : ℝ) < Fintype.card V - G.degree v := sub_pos.mpr (by exact_mod_cast hn)
+  have hv' : temp_v G v = MaxTemp G := hv
+  rw [← hv']
+  refine le_trans ?_ h1
+  rw [temp_v, if_neg hn.ne', ← mul_div_assoc, div_le_iff₀ hn']
+  nlinarith [mul_le_mul_of_nonneg_right h2 (Nat.cast_nonneg (α := ℝ) (G.degree v))]

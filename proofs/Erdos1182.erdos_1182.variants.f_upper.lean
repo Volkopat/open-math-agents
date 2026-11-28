@@ -6,21 +6,6 @@ open scoped Classical
 
 namespace OMA
 
-lemma weight_total {V : Type*} [Fintype V] [DecidableEq V] (p : ℝ) :
-    ∑ S ∈ (Finset.univ : Finset (Sym2 V)).powerset,
-        p ^ S.card * (1 - p) ^ (Fintype.card (Sym2 V) - S.card) = 1 := by
-  let E : Finset (Sym2 V) := Finset.univ
-  calc
-    ∑ S ∈ E.powerset, p ^ S.card * (1 - p) ^ (E.card - S.card) =
-        ∑ S ∈ E.powerset, (∏ i ∈ S, p) * ∏ i ∈ E \ S, (1 - p) := by
-          apply Finset.sum_congr rfl
-          intro S hS
-          have hsub : S ⊆ E := Finset.mem_powerset.mp hS
-          rw [Finset.prod_const, Finset.prod_const, Finset.card_sdiff_of_subset hsub]
-    _ = ∏ i ∈ E, (p + (1 - p)) := (Finset.prod_add (fun _ : Sym2 V => p)
-        (fun _ : Sym2 V => 1 - p) E).symm
-    _ = 1 := by simp [E]
-
 lemma weight_subset {V : Type*} [Fintype V] [DecidableEq V] (p : ℝ)
     (T : Finset (Sym2 V)) :
     ∑ S ∈ (Finset.univ : Finset (Sym2 V)).powerset.filter (fun S => T ⊆ S),
@@ -137,20 +122,16 @@ lemma weight_chernoff {V : Type*} [Fintype V] [DecidableEq V] (p : ℝ)
       rw [Finset.prod_ite_mem_eq]
       simp
 
-end OMA
-
-namespace OMA
-
-def tripleEdges {N : ℕ} (abc : Fin N × Fin N × Fin N) : Finset (Sym2 (Fin N)) :=
+def tE {N : ℕ} (abc : Fin N × Fin N × Fin N) : Finset (Sym2 (Fin N)) :=
   {s(abc.1, abc.2.1), s(abc.1, abc.2.2), s(abc.2.1, abc.2.2)}
 
-def triples (N : ℕ) : Finset (Fin N × Fin N × Fin N) :=
+def ts (N : ℕ) : Finset (Fin N × Fin N × Fin N) :=
   Finset.univ.filter fun abc => abc.1 ≠ abc.2.1 ∧ abc.1 ≠ abc.2.2 ∧ abc.2.1 ≠ abc.2.2
 
 lemma tripleEdges_card {N : ℕ} {abc : Fin N × Fin N × Fin N}
-    (h : abc ∈ triples N) : (tripleEdges abc).card = 3 := by
+    (h : abc ∈ ts N) : (tE abc).card = 3 := by
   rcases abc with ⟨a, b, c⟩
-  simp only [triples, Finset.mem_filter, Finset.mem_univ, true_and] at h
+  simp only [ts, Finset.mem_filter, Finset.mem_univ, true_and] at h
   have hab_ac : s(a, b) ≠ s(a, c) := by
     intro heq
     rw [Sym2.eq_iff] at heq
@@ -163,95 +144,45 @@ lemma tripleEdges_card {N : ℕ} {abc : Fin N × Fin N × Fin N}
     intro heq
     rw [Sym2.eq_iff] at heq
     rcases heq with ⟨hab, _⟩ | ⟨hac, hcb⟩ <;> subst_vars <;> simp_all
-  simp [tripleEdges, hab_ac, hab_bc, hac_bc]
+  simp [tE, hab_ac, hab_bc, hac_bc]
 
 lemma weight_triples {N : ℕ} (p : ℝ) :
     ∑ S ∈ (Finset.univ : Finset (Sym2 (Fin N))).powerset,
         p ^ S.card * (1 - p) ^ (Fintype.card (Sym2 (Fin N)) - S.card) *
-          ((triples N).filter (fun abc => tripleEdges abc ⊆ S)).card =
-      ((triples N).card : ℝ) * p ^ 3 := by
+          ((ts N).filter (fun abc => tE abc ⊆ S)).card =
+      ((ts N).card : ℝ) * p ^ 3 := by
   classical
   let Ω := (Finset.univ : Finset (Sym2 (Fin N))).powerset
   let w : Finset (Sym2 (Fin N)) → ℝ := fun S =>
     p ^ S.card * (1 - p) ^ (Fintype.card (Sym2 (Fin N)) - S.card)
   calc
-    ∑ S ∈ Ω, w S * ((triples N).filter (fun abc => tripleEdges abc ⊆ S)).card =
-        ∑ S ∈ Ω, w S * ∑ abc ∈ triples N,
-          (if tripleEdges abc ⊆ S then (1 : ℝ) else 0) := by
+    ∑ S ∈ Ω, w S * ((ts N).filter (fun abc => tE abc ⊆ S)).card =
+        ∑ S ∈ Ω, w S * ∑ abc ∈ ts N,
+          (if tE abc ⊆ S then (1 : ℝ) else 0) := by
             apply Finset.sum_congr rfl
             intro S hS
-            rw [← Finset.sum_boole (fun abc => tripleEdges abc ⊆ S) (triples N)]
-    _ = ∑ abc ∈ triples N, ∑ S ∈ Ω,
-          w S * (if tripleEdges abc ⊆ S then (1 : ℝ) else 0) := by
+            rw [← Finset.sum_boole (fun abc => tE abc ⊆ S) (ts N)]
+    _ = ∑ abc ∈ ts N, ∑ S ∈ Ω,
+          w S * (if tE abc ⊆ S then (1 : ℝ) else 0) := by
             rw [Finset.sum_comm]
             apply Finset.sum_congr rfl
             intro abc habc
             rw [Finset.mul_sum]
-    _ = ∑ abc ∈ triples N, p ^ 3 := by
+    _ = ∑ abc ∈ ts N, p ^ 3 := by
             apply Finset.sum_congr rfl
             intro abc habc
             have hcard := tripleEdges_card habc
             calc
-              ∑ S ∈ Ω, w S * (if tripleEdges abc ⊆ S then (1 : ℝ) else 0) =
-                  ∑ S ∈ Ω.filter (fun S => tripleEdges abc ⊆ S), w S := by
+              ∑ S ∈ Ω, w S * (if tE abc ⊆ S then (1 : ℝ) else 0) =
+                  ∑ S ∈ Ω.filter (fun S => tE abc ⊆ S), w S := by
                     rw [Finset.sum_filter]
                     apply Finset.sum_congr rfl
                     intro S hS
-                    by_cases h : tripleEdges abc ⊆ S <;> simp [h]
-              _ = p ^ (tripleEdges abc).card := by
-                    simpa [Ω, w] using weight_subset p (tripleEdges abc)
+                    by_cases h : tE abc ⊆ S <;> simp [h]
+              _ = p ^ (tE abc).card := by
+                    simpa [Ω, w] using weight_subset p (tE abc)
               _ = p ^ 3 := by rw [hcard]
-    _ = ((triples N).card : ℝ) * p ^ 3 := by simp
-
-end OMA
-
-namespace OMA
-
-lemma chernoff_tail {V : Type*} [Fintype V] [DecidableEq V]
-    (p : ℝ) (hp0 : 0 ≤ p) (hp1 : p ≤ 1) (F : Finset (Sym2 V)) (m : ℕ) :
-    ∑ S ∈ (Finset.univ : Finset (Sym2 V)).powerset.filter
-        (fun S => (S ∩ F).card ≤ m),
-        p ^ S.card * (1 - p) ^ (Fintype.card (Sym2 V) - S.card) ≤
-      (2 : ℝ) ^ m * (1 - p / 2) ^ F.card := by
-  classical
-  let Ω := (Finset.univ : Finset (Sym2 V)).powerset
-  let w : Finset (Sym2 V) → ℝ := fun S =>
-    p ^ S.card * (1 - p) ^ (Fintype.card (Sym2 V) - S.card)
-  have hw : ∀ S, 0 ≤ w S := by
-    intro S
-    dsimp [w]
-    positivity
-  have hterm : ∀ S ∈ Ω.filter (fun S => (S ∩ F).card ≤ m),
-      w S ≤ (2 : ℝ) ^ m * (w S * (1 / 2 : ℝ) ^ (S ∩ F).card) := by
-    intro S hS
-    have hk : (S ∩ F).card ≤ m := (Finset.mem_filter.mp hS).2
-    have hpow : 1 ≤ (2 : ℝ) ^ m * (1 / 2 : ℝ) ^ (S ∩ F).card := by
-      have hm : m = (m - (S ∩ F).card) + (S ∩ F).card := by omega
-      rw [hm, pow_add]
-      have hbase : (2 : ℝ) ^ (m - (S ∩ F).card) ≥ 1 := by
-        exact one_le_pow₀ (by norm_num : (1 : ℝ) ≤ 2)
-      have hcancel : (2 : ℝ) ^ (S ∩ F).card * (1 / 2 : ℝ) ^ (S ∩ F).card = 1 := by
-        rw [← mul_pow]
-        norm_num
-      rw [mul_assoc, hcancel, mul_one]
-      exact hbase
-    have hw0 := hw S
-    nlinarith
-  calc
-    ∑ S ∈ Ω.filter (fun S => (S ∩ F).card ≤ m), w S ≤
-        ∑ S ∈ Ω.filter (fun S => (S ∩ F).card ≤ m),
-          (2 : ℝ) ^ m * (w S * (1 / 2 : ℝ) ^ (S ∩ F).card) := by
-            exact Finset.sum_le_sum hterm
-    _ ≤ ∑ S ∈ Ω, (2 : ℝ) ^ m * (w S * (1 / 2 : ℝ) ^ (S ∩ F).card) := by
-            apply Finset.sum_le_sum_of_subset_of_nonneg
-            · intro S hS; exact (Finset.mem_filter.mp hS).1
-            · intro S hS hnot
-              positivity
-    _ = (2 : ℝ) ^ m * ∑ S ∈ Ω,
-          w S * (1 / 2 : ℝ) ^ (S ∩ F).card := by rw [Finset.mul_sum]
-    _ = (2 : ℝ) ^ m * (1 - p / 2) ^ F.card := by
-          rw [show ∑ S ∈ Ω, w S * (1 / 2 : ℝ) ^ (S ∩ F).card =
-            (1 - p / 2) ^ F.card by simpa [Ω, w] using weight_chernoff p F]
+    _ = ((ts N).card : ℝ) * p ^ 3 := by simp
 
 lemma embedding_card_le (n N : ℕ) : Fintype.card (Fin n ↪ Fin N) ≤ N ^ n := by
   calc
@@ -262,10 +193,6 @@ lemma embedding_card_le (n N : ℕ) : Fintype.card (Fin n ↪ Fin N) ≤ N ^ n :
       exact congrArg Fin.val (congrFun h i)
     _ = N ^ n := by simp
 
-end OMA
-
-namespace OMA
-
 noncomputable def Astat (n : ℕ) : ℝ := (n : ℝ) ^ (5 / 3 : ℝ) * (Real.log n) ^ (2 / 3 : ℝ)
 
 lemma astat_pos (n : ℕ) (hn : 2 ≤ n) : 0 < Astat n := by
@@ -274,56 +201,18 @@ lemma astat_pos (n : ℕ) (hn : 2 ≤ n) : 0 < Astat n := by
   have hlpos : 0 < Real.log n := Real.log_pos (by exact_mod_cast hn)
   positivity
 
-lemma astat_cube (n : ℕ) (hn : 2 ≤ n) :
-    (Astat n) ^ 3 = (n : ℝ) ^ 5 * (Real.log n) ^ 2 := by
-  have hnpos : 0 < (n : ℝ) := by positivity
-  have hlpos : 0 < Real.log n := Real.log_pos (by exact_mod_cast hn)
-  unfold Astat
-  have hn3 : ((n : ℝ) ^ (5/3:ℝ)) ^ 3 = (n : ℝ) ^ 5 := by
-    calc
-      ((n : ℝ) ^ (5/3:ℝ)) ^ 3 = ((n : ℝ) ^ (5/3:ℝ)) ^ (3:ℝ) :=
-        (Real.rpow_natCast ((n : ℝ) ^ (5/3:ℝ)) 3).symm
-      _ = (n : ℝ) ^ ((5/3:ℝ) * 3) := (Real.rpow_mul hnpos.le (5/3:ℝ) (3:ℝ)).symm
-      _ = (n : ℝ) ^ (5:ℝ) := by norm_num
-      _ = (n : ℝ) ^ 5 := Real.rpow_natCast (n : ℝ) 5
-  have hl3 : (Real.log n ^ (2/3:ℝ)) ^ 3 = (Real.log n) ^ 2 := by
-    calc
-      (Real.log n ^ (2/3:ℝ)) ^ 3 = (Real.log n ^ (2/3:ℝ)) ^ (3:ℝ) :=
-        (Real.rpow_natCast (Real.log n ^ (2/3:ℝ)) 3).symm
-      _ = (Real.log n) ^ ((2/3:ℝ) * 3) := (Real.rpow_mul hlpos.le (2/3:ℝ) (3:ℝ)).symm
-      _ = (Real.log n) ^ (2:ℝ) := by norm_num
-      _ = (Real.log n) ^ 2 := Real.rpow_natCast (Real.log n) 2
-  rw [mul_pow, hn3, hl3]
-
 lemma log_le_sq (n : ℕ) : Real.log n ≤ (n : ℝ) ^ 2 := by
   by_cases h0 : n = 0
   · subst n
     norm_num
-  · have hp : 0 < (n : ℝ) := by exact_mod_cast (Nat.pos_of_ne_zero h0)
+  · have hp : 0 < (n : ℝ) := by norm_cast; omega
     have h := Real.log_le_sub_one_of_pos hp
     nlinarith [sq_nonneg ((n : ℝ) - 1)]
-
-lemma astat_ge (n : ℕ) (hn : 2 ≤ n) : (n : ℝ) * Real.log n ≤ Astat n := by
-  have hnpos : 0 < (n : ℝ) := by positivity
-  have hlpos : 0 < Real.log n := Real.log_pos (by exact_mod_cast hn)
-  have hlogle := log_le_sq n
-  have hcub : ((n : ℝ) * Real.log n) ^ 3 ≤ (Astat n) ^ 3 := by
-    rw [mul_pow, astat_cube n hn]
-    have h1 : (Real.log n) ^ 3 ≤ (n : ℝ) ^ 2 * (Real.log n) ^ 2 := by
-      have hmul := mul_le_mul_of_nonneg_right hlogle (sq_nonneg (Real.log n))
-      simpa [pow_succ, pow_two, mul_assoc, mul_left_comm, mul_comm] using hmul
-    have h2 := mul_le_mul_of_nonneg_left h1 (by positivity : 0 ≤ (n : ℝ) ^ 3)
-    nlinarith
-  exact (pow_le_pow_iff_left₀ (by positivity) (astat_pos n hn).le (by norm_num : (3 : ℕ) ≠ 0)).mp hcub
-
-end OMA
-
-namespace OMA
 
 lemma not_good_of_sample (n N : ℕ) (hn : 2 ≤ n) (hN : N = 2 * n - 1)
     (G : SimpleGraph (Fin n))
     (S0 : Finset (Sym2 (Fin N)))
-    (htri : (((triples N).filter (fun abc => tripleEdges abc ⊆ S0)).card : ℝ) <
+    (htri : (((ts N).filter (fun abc => tE abc ⊆ S0)).card : ℝ) <
       10 * (n : ℝ) * Real.log n)
     (hF : ∀ φ : Fin n ↪ Fin N,
       10 * (n : ℝ) * Real.log n <
@@ -332,15 +221,15 @@ lemma not_good_of_sample (n N : ℕ) (hn : 2 ≤ n) (hN : N = 2 * n - 1)
   classical
   subst N
   let N : ℕ := 2 * n - 1
-  let Bad := (triples N).filter (fun abc => tripleEdges abc ⊆ S0)
+  let Bad := (ts N).filter (fun abc => tE abc ⊆ S0)
   let D : Finset (Sym2 (Fin N)) := Bad.image (fun abc => s(abc.1, abc.2.1))
   let S1 : Finset (Sym2 (Fin N)) := S0 \ D
   let H : SimpleGraph (Fin N) := SimpleGraph.fromEdgeSet (S1 : Set (Sym2 (Fin N)))
   have hDs0 : D ⊆ S0 := by
     intro e he
     obtain ⟨abc, habc, rfl⟩ := Finset.mem_image.mp he
-    have hsub : tripleEdges abc ⊆ S0 := (Finset.mem_filter.mp habc).2
-    exact hsub (by simp [tripleEdges])
+    have hsub : tE abc ⊆ S0 := (Finset.mem_filter.mp habc).2
+    exact hsub (by simp [tE])
   have hDcard : D.card ≤ Bad.card := Finset.card_image_le
   have hS1tri : ∀ {a b c : Fin N}, a ≠ b → a ≠ c → b ≠ c →
       ¬ (s(a, b) ∈ S1 ∧ s(a, c) ∈ S1 ∧ s(b, c) ∈ S1) := by
@@ -349,9 +238,9 @@ lemma not_good_of_sample (n N : ℕ) (hn : 2 ≤ n) (hN : N = 2 * n - 1)
     have habc : abc ∈ Bad := by
       apply Finset.mem_filter.mpr
       constructor
-      · simp [abc, triples, hab, hac, hbc]
+      · simp [abc, ts, hab, hac, hbc]
       · intro e he
-        simp only [tripleEdges, Finset.mem_insert, Finset.mem_singleton] at he
+        simp only [tE, Finset.mem_insert, Finset.mem_singleton] at he
         rcases he with rfl | rfl | rfl
         · exact (Finset.mem_sdiff.mp hmem.1).1
         · exact (Finset.mem_sdiff.mp hmem.2.1).1
@@ -446,10 +335,6 @@ lemma not_good_of_sample (n N : ℕ) (hn : 2 ≤ n) (hN : N = 2 * n - 1)
     simp at heq
     omega
 
-end OMA
-
-namespace OMA
-
 noncomputable def prob (n : ℕ) : ℝ :=
   (n : ℝ) ^ (-2 / 3 : ℝ) * (Real.log n) ^ (1 / 3 : ℝ)
 
@@ -500,36 +385,29 @@ lemma prob_mul_astat (n : ℕ) (hn : 2 ≤ n) :
   have hlpos : 0 < Real.log n := Real.log_pos (by exact_mod_cast hn)
   unfold prob Astat
   calc
-    ((n : ℝ) ^ (-2 / 3 : ℝ) * (Real.log n) ^ (1 / 3 : ℝ)) *
-        ((n : ℝ) ^ (5 / 3 : ℝ) * (Real.log n) ^ (2 / 3 : ℝ)) =
-        ((n : ℝ) ^ (-2 / 3 : ℝ) * (n : ℝ) ^ (5 / 3 : ℝ)) *
+    _ = ((n : ℝ) ^ (-2 / 3 : ℝ) * (n : ℝ) ^ (5 / 3 : ℝ)) *
           ((Real.log n) ^ (1 / 3 : ℝ) * (Real.log n) ^ (2 / 3 : ℝ)) := by ring
-    _ = (n : ℝ) ^ (1 : ℝ) * (Real.log n) ^ (1 : ℝ) := by
+    _ = _ := by
       rw [← Real.rpow_add hnpos, ← Real.rpow_add hlpos]
-      norm_num
-    _ = (n : ℝ) * Real.log n := by simp
-
-end OMA
-
-namespace OMA
+      norm_num <;> simp
 
 lemma triangle_expect_bound (n : ℕ) (hn : 2 ≤ n) :
     let N := 2 * n - 1
     let Ω := (Finset.univ : Finset (Sym2 (Fin N))).powerset
     ∑ S ∈ Ω, (prob n) ^ S.card * (1 - prob n) ^ (Fintype.card (Sym2 (Fin N)) - S.card) *
-      ((triples N).filter (fun abc => tripleEdges abc ⊆ S)).card ≤
+      ((ts N).filter (fun abc => tE abc ⊆ S)).card ≤
         8 * (n : ℝ) * Real.log n := by
   classical
   dsimp only
   let N := 2 * n - 1
-  have htri_card : (triples N).card ≤ N ^ 3 := by
+  have htri_card : (ts N).card ≤ N ^ 3 := by
     calc
-      (triples N).card ≤ (Finset.univ : Finset (Fin N × Fin N × Fin N)).card :=
+      (ts N).card ≤ (Finset.univ : Finset (Fin N × Fin N × Fin N)).card :=
         Finset.card_le_card (by intro x hx; simp)
       _ = N ^ 3 := by simp [pow_succ, mul_assoc]
   have hNle : N ≤ 2 * n := by dsimp [N]; omega
-  have htriR : ((triples N).card : ℝ) ≤ 8 * (n : ℝ) ^ 3 := by
-    have h1 : ((triples N).card : ℝ) ≤ (N : ℝ) ^ 3 := by exact_mod_cast htri_card
+  have htriR : ((ts N).card : ℝ) ≤ 8 * (n : ℝ) ^ 3 := by
+    have h1 : ((ts N).card : ℝ) ≤ (N : ℝ) ^ 3 := by exact_mod_cast htri_card
     have h2 : (N : ℝ) ^ 3 ≤ (2 * (n : ℝ)) ^ 3 := by
       gcongr
       exact_mod_cast hNle
@@ -539,8 +417,8 @@ lemma triangle_expect_bound (n : ℕ) (hn : 2 ≤ n) :
   calc
     ∑ S ∈ (Finset.univ : Finset (Sym2 (Fin N))).powerset,
         (prob n) ^ S.card * (1 - prob n) ^ (Fintype.card (Sym2 (Fin N)) - S.card) *
-          ((triples N).filter (fun abc => tripleEdges abc ⊆ S)).card =
-        ((triples N).card : ℝ) * (prob n) ^ 3 := hexp
+          ((ts N).filter (fun abc => tE abc ⊆ S)).card =
+        ((ts N).card : ℝ) * (prob n) ^ 3 := hexp
     _ ≤ (8 * (n : ℝ) ^ 3) * (prob n) ^ 3 := by
       exact mul_le_mul_of_nonneg_right htriR (pow_nonneg (prob_nonneg n) 3)
     _ = 8 * ((n : ℝ) ^ 3 * (prob n) ^ 3) := by ring
@@ -552,7 +430,7 @@ lemma triangle_bad_weight (n : ℕ) (hn : 2 ≤ n) :
     let Ω := (Finset.univ : Finset (Sym2 (Fin N))).powerset
     let c : ℝ := 10 * (n : ℝ) * Real.log n
     ∑ S ∈ Ω.filter (fun S => c ≤
-        (((triples N).filter (fun abc => tripleEdges abc ⊆ S)).card : ℝ)),
+        (((ts N).filter (fun abc => tE abc ⊆ S)).card : ℝ)),
         (prob n) ^ S.card * (1 - prob n) ^ (Fintype.card (Sym2 (Fin N)) - S.card) ≤ 4 / 5 := by
   classical
   dsimp only
@@ -563,7 +441,7 @@ lemma triangle_bad_weight (n : ℕ) (hn : 2 ≤ n) :
     p ^ S.card * (1 - p) ^ (Fintype.card (Sym2 (Fin N)) - S.card)
   let c : ℝ := 10 * (n : ℝ) * Real.log n
   let T : Finset (Sym2 (Fin N)) → ℕ := fun S =>
-    ((triples N).filter (fun abc => tripleEdges abc ⊆ S)).card
+    ((ts N).filter (fun abc => tE abc ⊆ S)).card
   have hp0 : 0 ≤ p := by dsimp [p]; exact prob_nonneg n
   have hp1 : p ≤ 1 := by dsimp [p]; exact prob_le_one n hn
   have hw : ∀ S, 0 ≤ w S := by
@@ -599,10 +477,6 @@ lemma triangle_bad_weight (n : ℕ) (hn : 2 ≤ n) :
   have hres : ∑ S ∈ Ω.filter (fun S => c ≤ (T S : ℝ)), w S ≤ 4 / 5 := by
     nlinarith
   simpa [Ω, w, p, T, c, N] using hres
-
-end OMA
-
-namespace OMA
 
 lemma chernoff_tail_real {V : Type*} [Fintype V] [DecidableEq V]
     (p : ℝ) (hp0 : 0 ≤ p) (hp1 : p ≤ 1) (F : Finset (Sym2 V)) (m : ℝ) (_hm0 : 0 ≤ m) :
@@ -742,17 +616,10 @@ lemma embeddings_le_exp (n : ℕ) (hn : 2 ≤ n) :
     nlinarith
   exact le_trans (le_trans hcardR hpowN) (by rw [hpoweq]; exact hpowle)
 
-end OMA
-
-namespace OMA
-
 lemma edgeFinset_card_eq_ncard {n : ℕ} (G : SimpleGraph (Fin n)) :
     G.edgeFinset.card = G.edgeSet.ncard := by
   classical
-  rw [Set.ncard_eq_toFinset_card G.edgeSet]
-  congr 1
-  ext e
-  simp [SimpleGraph.edgeFinset]
+  simpa [SimpleGraph.edgeFinset] using (Set.ncard_eq_toFinset_card G.edgeSet).symm
 
 lemma exp_small (n : ℕ) (hn : 2 ≤ n) :
     Real.exp (-488 * (n : ℝ) * Real.log n) < 1 / 5 := by
@@ -785,7 +652,7 @@ lemma exp_small (n : ℕ) (hn : 2 ≤ n) :
 lemma sample_exists (n : ℕ) (hn : 2 ≤ n) (G : SimpleGraph (Fin n))
     (hq : 1000 * Astat n ≤ (G.edgeSet.ncard : ℝ)) :
     ∃ S0 ∈ (Finset.univ : Finset (Sym2 (Fin (2 * n - 1)))).powerset,
-      (((triples (2 * n - 1)).filter (fun abc => tripleEdges abc ⊆ S0)).card : ℝ) <
+      (((ts (2 * n - 1)).filter (fun abc => tE abc ⊆ S0)).card : ℝ) <
         10 * (n : ℝ) * Real.log n ∧
       ∀ φ : Fin n ↪ Fin (2 * n - 1),
         10 * (n : ℝ) * Real.log n <
@@ -798,7 +665,7 @@ lemma sample_exists (n : ℕ) (hn : 2 ≤ n) (G : SimpleGraph (Fin n))
     p ^ S.card * (1 - p) ^ (Fintype.card (Sym2 (Fin N)) - S.card)
   let c : ℝ := 10 * (n : ℝ) * Real.log n
   let T : Finset (Sym2 (Fin N)) → ℕ := fun S =>
-    ((triples N).filter (fun abc => tripleEdges abc ⊆ S)).card
+    ((ts N).filter (fun abc => tE abc ⊆ S)).card
   let Fφ : (Fin n ↪ Fin N) → Finset (Sym2 (Fin N)) := fun φ =>
     G.edgeFinset.image (Sym2.map (φ : Fin n → Fin N))
   let Bφ : (Fin n ↪ Fin N) → Finset (Finset (Sym2 (Fin N))) := fun φ =>
@@ -900,31 +767,12 @@ lemma sample_exists (n : ℕ) (hn : 2 ≤ n) (G : SimpleGraph (Fin n))
     · obtain ⟨φ, -, hSφ⟩ := Finset.mem_biUnion.mp hSB
       exact (Finset.mem_filter.mp hSφ).1
   have hABsum : ∑ S ∈ A ∪ B, w S ≤ ∑ S ∈ A, w S + ∑ S ∈ B, w S := by
-    calc
-      ∑ S ∈ A ∪ B, w S ≤ ∑ S ∈ A ∪ B,
-          ((if S ∈ A then w S else 0) + (if S ∈ B then w S else 0)) := by
-        apply Finset.sum_le_sum
-        intro S hS
-        rcases Finset.mem_union.mp hS with hSA | hSB
-        · by_cases hSB : S ∈ B <;> simp [hSA, hSB, hw S]
-        · by_cases hSA : S ∈ A <;> simp [hSA, hSB, hw S]
-      _ = (∑ S ∈ A ∪ B, if S ∈ A then w S else 0) +
-          (∑ S ∈ A ∪ B, if S ∈ B then w S else 0) := by
-        rw [Finset.sum_add_distrib]
-      _ = (∑ S ∈ (A ∪ B).filter (fun S => S ∈ A), w S) +
-          (∑ S ∈ (A ∪ B).filter (fun S => S ∈ B), w S) := by
-        rw [Finset.sum_filter, Finset.sum_filter]
-      _ = (∑ S ∈ A, w S) + (∑ S ∈ B, w S) := by
-        congr 1
-        · congr 1
-          ext S
-          simp
-        · congr 1
-          ext S
-          simp
+    rw [← Finset.sum_union_inter]
+    exact le_add_of_nonneg_right (Finset.sum_nonneg fun S _ => hw S)
   have hABlt : ∑ S ∈ A ∪ B, w S < 1 := by nlinarith
   have htotal : ∑ S ∈ Ω, w S = 1 := by
-    simpa [Ω, w, p] using weight_total p
+    simpa [Ω, w, p] using
+      (weight_chernoff p (∅ : Finset (Sym2 (Fin N))))
   have hcomp : 0 < ∑ S ∈ Ω \ (A ∪ B), w S := by
     have hsplit : (∑ S ∈ Ω \ (A ∪ B), w S) + (∑ S ∈ A ∪ B, w S) =
         ∑ S ∈ Ω, w S := Finset.sum_sdiff hABsub
@@ -955,10 +803,6 @@ lemma sample_exists (n : ℕ) (hn : 2 ≤ n) (G : SimpleGraph (Fin n))
         Finset.mem_filter.mpr ⟨hS0Ω, hle⟩⟩
     have hgt : c < ((S0 ∩ Fφ φ).card : ℝ) := lt_of_not_ge hnotle
     simpa [Fφ, c, N] using hgt
-
-end OMA
-
-namespace OMA
 
 lemma not_good_large (n : ℕ) (hn : 2 ≤ n) (G : SimpleGraph (Fin n))
     (hq : 1000 * Astat n ≤ (G.edgeSet.ncard : ℝ)) : ¬ Erdos1182.IsTriangleGood G := by

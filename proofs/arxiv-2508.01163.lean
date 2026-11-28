@@ -2,6 +2,11 @@ import OMAStatements.S_arxiv_2508_01163
 import Mathlib
 
 /-!
+Original Lean proof by @TheWaler (PR #6158). This revision replaces the manual
+fourfold finite-sum expansion of the certified quadratic form with matrix
+multiplication and dot-product identities. The original graph, integer certificate,
+and spectral dimension argument are retained.
+
 Disproof of the graph inertia conjecture from arXiv:2508.01163 (Akbari, Elphick, Kumar, Pragada):
   2 * nPos G <= nNeg G * (nNeg G + 1).
 
@@ -148,67 +153,28 @@ private noncomputable def liftLin : (Fin 11 → ℝ) →ₗ[ℝ] EuclideanSpace 
 private lemma quad_liftLin (c : Fin 11 → ℝ) :
     inner ℝ (liftLin c) (Matrix.toEuclideanLin (w5Graph.adjMatrix ℝ) (liftLin c)) =
       ∑ k : Fin 11, (diagVal k : ℝ) * (c k) ^ 2 := by
-  have hL : inner ℝ (liftLin c) (Matrix.toEuclideanLin (w5Graph.adjMatrix ℝ) (liftLin c)) =
-      ∑ u : Fin 15, ∑ v : Fin 15,
-        (∑ i : Fin 11, c i * (bRows i u : ℝ)) * (w5Graph.adjMatrix ℝ u v) *
-          (∑ j : Fin 11, c j * (bRows j v : ℝ)) := by
-    simp only [EuclideanSpace.inner_eq_star_dotProduct, star_trivial, dotProduct, liftLin,
-      LinearMap.coe_mk, AddHom.coe_mk, Matrix.toEuclideanLin, Matrix.toLpLin_apply,
-      Matrix.mulVec]
-    refine Finset.sum_congr rfl fun u _ => ?_
-    rw [Finset.sum_mul]
-    refine Finset.sum_congr rfl fun v _ => ?_
-    ring
-  rw [hL]
-  have hexp :
-      (∑ u : Fin 15, ∑ v : Fin 15,
-        (∑ i : Fin 11, c i * (bRows i u : ℝ)) * (w5Graph.adjMatrix ℝ u v) *
-          (∑ j : Fin 11, c j * (bRows j v : ℝ))) =
-      ∑ i : Fin 11, ∑ j : Fin 11,
-        c i * c j * (∑ u : Fin 15, ∑ v : Fin 15,
-          (bRows i u : ℝ) * (w5Graph.adjMatrix ℝ u v) * (bRows j v : ℝ)) := by
-    let F : Fin 15 → Fin 15 → Fin 11 → Fin 11 → ℝ := fun u v i j =>
-      c i * c j * ((bRows i u : ℝ) * (w5Graph.adjMatrix ℝ u v) * (bRows j v : ℝ))
-    have hstep1 :
-        (∑ u : Fin 15, ∑ v : Fin 15,
-          (∑ i : Fin 11, c i * (bRows i u : ℝ)) * (w5Graph.adjMatrix ℝ u v) *
-            (∑ j : Fin 11, c j * (bRows j v : ℝ))) =
-        ∑ u : Fin 15, ∑ v : Fin 15, ∑ i : Fin 11, ∑ j : Fin 11, F u v i j := by
-      refine Finset.sum_congr rfl fun u _ => Finset.sum_congr rfl fun v _ => ?_
-      rw [Finset.sum_mul, Finset.sum_mul]
-      refine Finset.sum_congr rfl fun i _ => ?_
-      rw [Finset.mul_sum]
-      refine Finset.sum_congr rfl fun j _ => ?_
-      dsimp [F]; ring
-    have hstep2 :
-        (∑ u : Fin 15, ∑ v : Fin 15, ∑ i : Fin 11, ∑ j : Fin 11, F u v i j) =
-        ∑ i : Fin 11, ∑ j : Fin 11, ∑ u : Fin 15, ∑ v : Fin 15, F u v i j := by
-      calc
-        ∑ u : Fin 15, ∑ v : Fin 15, ∑ i : Fin 11, ∑ j : Fin 11, F u v i j
-            = ∑ u : Fin 15, ∑ i : Fin 11, ∑ v : Fin 15, ∑ j : Fin 11, F u v i j := by
-              refine Finset.sum_congr rfl fun u _ => Finset.sum_comm
-        _ = ∑ i : Fin 11, ∑ u : Fin 15, ∑ v : Fin 15, ∑ j : Fin 11, F u v i j := Finset.sum_comm
-        _ = ∑ i : Fin 11, ∑ u : Fin 15, ∑ j : Fin 11, ∑ v : Fin 15, F u v i j := by
-              refine Finset.sum_congr rfl fun i _ => Finset.sum_congr rfl fun u _ => Finset.sum_comm
-        _ = ∑ i : Fin 11, ∑ j : Fin 11, ∑ u : Fin 15, ∑ v : Fin 15, F u v i j := by
-              refine Finset.sum_congr rfl fun i _ => Finset.sum_comm
-    rw [hstep1, hstep2]
-    refine Finset.sum_congr rfl fun i _ => Finset.sum_congr rfl fun j _ => ?_
-    dsimp [F]
-    rw [Finset.mul_sum]
-    refine Finset.sum_congr rfl fun u _ => ?_
-    rw [Finset.mul_sum]
-  rw [hexp]
-  refine Finset.sum_congr rfl fun i _ => ?_
-  have hgram : ∀ j : Fin 11,
-      (∑ u : Fin 15, ∑ v : Fin 15,
-        (bRows i u : ℝ) * (w5Graph.adjMatrix ℝ u v) * (bRows j v : ℝ)) =
-      if i = j then (diagVal i : ℝ) else 0 := by
-    intro j
-    rw [← gramInt_eq_sum, gramInt_eq]
-    split_ifs <;> simp
-  simp_rw [hgram]
-  simp [sq, mul_comm]
+  let B : Matrix (Fin 11) (Fin 15) ℝ := fun i j => bRows i j
+  have hG : B * w5Graph.adjMatrix ℝ * Bᵀ = diagonal (fun i => (diagVal i : ℝ)) := by
+    rw [Matrix.mul_assoc]
+    ext i j
+    have h := congrArg (fun z : ℤ => (z : ℝ)) (gramInt_eq i j)
+    rw [gramInt_eq_sum] at h
+    change (∑ u : Fin 15, (bRows i u : ℝ) *
+      ∑ v : Fin 15, w5Graph.adjMatrix ℝ u v * (bRows j v : ℝ)) = _
+    simpa only [Finset.mul_sum, mul_assoc, Matrix.diagonal_apply,
+      Int.cast_ite, Int.cast_zero] using h
+  have hL : (liftLin c).ofLp = Bᵀ *ᵥ c := by
+    ext u
+    change (∑ k : Fin 11, c k * (bRows k u : ℝ)) = ∑ k : Fin 11, (bRows k u : ℝ) * c k
+    simp only [mul_comm]
+  rw [EuclideanSpace.inner_eq_star_dotProduct, star_trivial,
+    Matrix.ofLp_toEuclideanLin_apply, hL, dotProduct_comm, Matrix.dotProduct_mulVec,
+    Matrix.vecMul_mulVec, transpose_transpose, ← Matrix.dotProduct_mulVec,
+    Matrix.mulVec_mulVec, hG]
+  simp only [dotProduct, Matrix.mulVec_diagonal]
+  apply Finset.sum_congr rfl
+  intro i _
+  ring
 
 private lemma quad_spectral (v : EuclideanSpace ℝ (Fin 15)) :
     inner ℝ v (Matrix.toEuclideanLin (w5Graph.adjMatrix ℝ) v) =
@@ -314,3 +280,4 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_arxiv_2508_01163.main) := by
     exact le_trans (Finset.card_le_univ _) (by simp)
   have hneg : OMA.S_arxiv_2508_01163.nNeg OMA.Arxiv250801163Disproof.w5Graph ≤ 4 := by omega
   nlinarith
+

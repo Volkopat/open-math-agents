@@ -1,9 +1,8 @@
 import FormalConjectures.ErdosProblems.«1»
+import Mathlib.Algebra.BigOperators.Fin
 
 -- Problem: Erdős Problem 1 — lb
--- Upstream: formal-conjectures FormalConjectures/ErdosProblems/1.lean:91 (declaration Erdos1.erdos_1.variants.lb)
--- Credit: @michielkosters (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- The variance identity and the integer spacing lemma are from @michielkosters's proof.
 
 lemma oma_variance_identity (A : Finset ℕ) :
     ∑ S ∈ A.powerset, (2 * (∑ a ∈ S, (a : ℝ)) - ∑ a ∈ A, (a : ℝ)) ^ 2 =
@@ -52,15 +51,6 @@ lemma oma_variance_identity (A : Finset ℕ) :
     push_cast
     ring
 
-lemma oma_sum_odd_sq (m : ℕ) :
-    ∑ k ∈ Finset.range m, ((2 * k + 1 : ℕ) : ℝ) ^ 2 = (m : ℝ) * (4 * (m : ℝ) ^ 2 - 1) / 3 := by
-  induction m with
-  | zero => simp
-  | succ m ih =>
-    rw [Finset.sum_range_succ, ih]
-    push_cast
-    ring
-
 lemma oma_strictMono_diff {m : ℕ} (g : Fin m → ℕ) (hg : StrictMono g) :
     ∀ i j : ℕ, (hij : i ≤ j) → (hj : j < m) → g ⟨i, hij.trans_lt hj⟩ + (j - i) ≤ g ⟨j, hj⟩ := by
   intro i j hij hj
@@ -78,137 +68,104 @@ lemma oma_strictMono_diff {m : ℕ} (g : Fin m → ℕ) (hg : StrictMono g) :
       have hlt : g ⟨j, hj'⟩ < g ⟨j + 1, hj⟩ := hg (Fin.mk_lt_mk.mpr (Nat.lt_succ_self j))
       omega
 
-theorem OMA.solution : type_of% @Erdos1.erdos_1.variants.lb := by
-  refine ⟨fun _ => (0 : ℝ), by simp, ?_⟩
-  intro N A ⟨hAsub, hAinj⟩
-  simp only [sub_zero]
+/-- Pair each of the first m integers in the ordered list with the entry m places later. -/
+lemma OMA.half_pair_energy {m : ℕ} (g : Fin (m + m) → ℕ) (hg : StrictMono g) (center : ℝ) :
+    2 * (m : ℝ) ^ 3 ≤ ∑ i, (2 * (g i : ℝ) - center) ^ 2 := by
+  let cost (i : Fin (m + m)) : ℝ := (2 * (g i : ℝ) - center) ^ 2
+  have pairCost (i : Fin m) :
+      2 * (m : ℝ) ^ 2 ≤ cost (Fin.castAdd m i) + cost (Fin.natAdd m i) := by
+    have h := oma_strictMono_diff g hg i.val (m + i.val) (by omega)
+      (Nat.add_lt_add_left i.isLt m)
+    rw [show m + i.val - i.val = m by omega] at h
+    have gap : g (Fin.castAdd m i) + m ≤ g (Fin.natAdd m i) := h
+    have gapR : (g (Fin.castAdd m i) : ℝ) + m ≤ (g (Fin.natAdd m i) : ℝ) := by
+      exact_mod_cast gap
+    have diff : (m : ℝ) ≤ (g (Fin.natAdd m i) : ℝ) - (g (Fin.castAdd m i) : ℝ) := by
+      linarith
+    have gapSq := (sq_le_sq₀ (Nat.cast_nonneg m) ((Nat.cast_nonneg m).trans diff)).2 diff
+    dsimp only [cost]
+    nlinarith [sq_nonneg ((g (Fin.castAdd m i) : ℝ) + (g (Fin.natAdd m i) : ℝ) - center)]
+  change 2 * (m : ℝ) ^ 3 ≤ ∑ i, cost i
+  rw [Fin.sum_univ_add, ← Finset.sum_add_distrib]
+  calc
+    2 * (m : ℝ) ^ 3 = ∑ _i : Fin m, 2 * (m : ℝ) ^ 2 := by
+      simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+      ring
+    _ ≤ _ := Finset.sum_le_sum fun i _ => pairCost i
+
+/-- The pairing gives the uniform coefficient 1/2 for sets with distinct subset sums. -/
+lemma OMA.sumDistinct_half_bound (N : ℕ) (A : Finset ℕ) (hA : Erdos1.IsSumDistinctSet A N) :
+    (1 / 2 : ℝ) * 2 ^ A.card / Real.sqrt (A.card : ℝ) ≤ N := by
+  classical
+  obtain ⟨hAsub, hAinj⟩ := hA
   set n := A.card
-  by_cases hn0 : n = 0
-  · simp [hn0]
-  by_cases hn1 : n = 1
-  · have hne : A.Nonempty := Finset.card_pos.mp (by omega)
-    rcases hne with ⟨a, ha⟩
-    have haIcc := Finset.mem_Icc.mp (hAsub ha)
-    have hN1 : (1 : ℝ) ≤ (N : ℝ) := by exact_mod_cast le_trans haIcc.1 haIcc.2
-    rw [hn1]
-    norm_num
-    linarith
-  have hn2 : 2 ≤ n := by omega
-  set M : ℝ := ∑ a ∈ A, (a : ℝ)
-  have hvar := oma_variance_identity A
-  have hupper : ∑ S ∈ A.powerset, (2 * (∑ a ∈ S, (a : ℝ)) - M) ^ 2 ≤
-      (2 : ℝ) ^ n * (n : ℝ) * (N : ℝ) ^ 2 := by
-    rw [hvar]
-    have hsq : ∑ a ∈ A, (a : ℝ) ^ 2 ≤ (n : ℝ) * (N : ℝ) ^ 2 := by
-      calc ∑ a ∈ A, (a : ℝ) ^ 2
-        _ ≤ ∑ _a ∈ A, (N : ℝ) ^ 2 := by
-          refine Finset.sum_le_sum fun a ha => ?_
-          have haN : (a : ℝ) ≤ (N : ℝ) := by
-            exact_mod_cast (Finset.mem_Icc.mp (hAsub ha)).2
-          nlinarith [show (0 : ℝ) ≤ (a : ℝ) from Nat.cast_nonneg a]
-        _ = (n : ℝ) * (N : ℝ) ^ 2 := by simp [n]
-    have h2pos : (0 : ℝ) ≤ (2 : ℝ) ^ n := by positivity
-    nlinarith
+  by_cases hn : n = 0
+  · simp [hn]
+  let m : ℕ := 2 ^ (n - 1)
+  have h2m : 2 * m = 2 ^ n := by
+    change 2 * 2 ^ (n - 1) = 2 ^ n
+    rw [← pow_succ']
+    congr 1
+    omega
+  have hreal : (2 : ℝ) ^ n = 2 * (m : ℝ) := by exact_mod_cast h2m.symm
   let T : Finset ℕ := A.powerset.image (fun S => S.sum id)
   have hinj_set : Set.InjOn (fun S : Finset ℕ => S.sum id) (A.powerset : Set (Finset ℕ)) := by
     intro S hS T' hT' hST
     have := @hAinj ⟨S, Finset.mem_coe.mp hS⟩ ⟨T', Finset.mem_coe.mp hT'⟩ hST
     exact congrArg Subtype.val this
-  have hTcard : T.card = 2 ^ n := by
-    rw [Finset.card_image_of_injOn hinj_set, Finset.card_powerset]
-  have hsum_eq : ∑ S ∈ A.powerset, (2 * (∑ a ∈ S, (a : ℝ)) - M) ^ 2 =
-      ∑ x ∈ T, (2 * (x : ℝ) - M) ^ 2 := by
-    dsimp [T]
-    rw [Finset.sum_image hinj_set]
-    refine Finset.sum_congr rfl fun S _ => ?_
-    simp [Nat.cast_sum]
+  have hTcard : T.card = m + m := by
+    calc
+      T.card = 2 ^ n := by rw [Finset.card_image_of_injOn hinj_set, Finset.card_powerset]
+      _ = m + m := h2m.symm.trans (two_mul m)
   let e := T.orderIsoOfFin hTcard
-  let g : Fin (2 ^ n) → ℕ := fun i => (e i : ℕ)
+  let g : Fin (m + m) → ℕ := fun i => (e i : ℕ)
   have hg : StrictMono g := fun i j hij => e.strictMono hij
-  have hsum_fin : ∑ x ∈ T, (2 * (x : ℝ) - M) ^ 2 =
-      ∑ i : Fin (2 ^ n), (2 * (g i : ℝ) - M) ^ 2 := by
-    rw [← Finset.sum_coe_sort T]
-    exact (Fintype.sum_equiv e.toEquiv _ _ (fun _ => rfl)).symm
-  set m : ℕ := 2 ^ (n - 1)
-  have h2m : 2 * m = 2 ^ n := by
-    rw [← pow_succ']
-    congr 1
-    omega
-  have hm_pos : 1 ≤ m := Nat.one_le_pow _ _ (by decide)
-  let h_fn : ℕ → ℝ := fun i => if h : i < 2 ^ n then (2 * (g ⟨i, h⟩ : ℝ) - M) ^ 2 else 0
-  have hsum_range : ∑ i : Fin (2 ^ n), (2 * (g i : ℝ) - M) ^ 2 = ∑ i ∈ Finset.range (2 * m), h_fn i := by
-    rw [h2m, ← Fin.sum_univ_eq_sum_range h_fn]
-    refine Finset.sum_congr rfl fun i _ => ?_
-    simp [h_fn, i.isLt]
-  have h_double : 2 * ∑ i ∈ Finset.range (2 * m), h_fn i =
-      ∑ i ∈ Finset.range (2 * m), (h_fn i + h_fn (2 * m - 1 - i)) := by
-    rw [two_mul, Finset.sum_add_distrib]
-    congr 1
-    exact (Finset.sum_range_reflect h_fn (2 * m)).symm
-  have h_pair_bound : ∑ i ∈ Finset.range m, 2 * ((2 * m - 1 - 2 * i : ℕ) : ℝ) ^ 2 ≤
-      ∑ i ∈ Finset.range (2 * m), (h_fn i + h_fn (2 * m - 1 - i)) := by
-    have hsub_sum : ∑ i ∈ Finset.range m, (h_fn i + h_fn (2 * m - 1 - i)) ≤
-        ∑ i ∈ Finset.range (2 * m), (h_fn i + h_fn (2 * m - 1 - i)) := by
-      refine Finset.sum_le_sum_of_subset_of_nonneg (Finset.range_mono (by omega)) ?_
-      intro i _ _
-      have : ∀ k, 0 ≤ h_fn k := fun k => by
-        dsimp [h_fn]
-        split_ifs <;> positivity
-      exact add_nonneg (this i) (this (2 * m - 1 - i))
-    refine le_trans ?_ hsub_sum
-    refine Finset.sum_le_sum fun i hi => ?_
-    rw [Finset.mem_range] at hi
-    have hi1 : i < 2 ^ n := by omega
-    have hi2 : 2 * m - 1 - i < 2 ^ n := by omega
-    have hle_idx : i ≤ 2 * m - 1 - i := by omega
-    have hdiff := oma_strictMono_diff g hg i (2 * m - 1 - i) hle_idx hi2
-    have hdiff_r : ((2 * m - 1 - 2 * i : ℕ) : ℝ) ≤ (g ⟨2 * m - 1 - i, hi2⟩ : ℝ) - (g ⟨i, hi1⟩ : ℝ) := by
-      have : g ⟨i, hi1⟩ + (2 * m - 1 - 2 * i) ≤ g ⟨2 * m - 1 - i, hi2⟩ := by
-        simpa [show 2 * m - 1 - i - i = 2 * m - 1 - 2 * i by omega] using hdiff
-      have hcast : (g ⟨i, hi1⟩ : ℝ) + ((2 * m - 1 - 2 * i : ℕ) : ℝ) ≤ (g ⟨2 * m - 1 - i, hi2⟩ : ℝ) := by
-        exact_mod_cast this
-      linarith
-    have hsq_diff : ((2 * m - 1 - 2 * i : ℕ) : ℝ) ^ 2 ≤
-        ((g ⟨2 * m - 1 - i, hi2⟩ : ℝ) - (g ⟨i, hi1⟩ : ℝ)) ^ 2 := by
-      nlinarith [show (0 : ℝ) ≤ ((2 * m - 1 - 2 * i : ℕ) : ℝ) from Nat.cast_nonneg _]
-    have h_alg : 2 * ((g ⟨2 * m - 1 - i, hi2⟩ : ℝ) - (g ⟨i, hi1⟩ : ℝ)) ^ 2 ≤
-        (2 * (g ⟨i, hi1⟩ : ℝ) - M) ^ 2 + (2 * (g ⟨2 * m - 1 - i, hi2⟩ : ℝ) - M) ^ 2 := by
-      nlinarith [sq_nonneg (2 * (g ⟨i, hi1⟩ : ℝ) + 2 * (g ⟨2 * m - 1 - i, hi2⟩ : ℝ) - 2 * M)]
-    simp only [h_fn, dif_pos hi1, dif_pos hi2]
-    linarith
-  have h_sum_eval : ∑ i ∈ Finset.range m, 2 * ((2 * m - 1 - 2 * i : ℕ) : ℝ) ^ 2 =
-      2 * ((m : ℝ) * (4 * (m : ℝ) ^ 2 - 1) / 3) := by
-    rw [← Finset.mul_sum]
-    congr 1
-    have hrefl := Finset.sum_range_reflect (fun k : ℕ => ((2 * k + 1 : ℕ) : ℝ) ^ 2) m
-    rw [oma_sum_odd_sq m] at hrefl
-    rw [← hrefl]
-    refine Finset.sum_congr rfl fun i hi => ?_
-    rw [Finset.mem_range] at hi
-    congr 2
-    omega
-  have hm_sq : (m : ℝ) ^ 3 ≤ (m : ℝ) * (4 * (m : ℝ) ^ 2 - 1) / 3 := by
-    have hm1 : (1 : ℝ) ≤ (m : ℝ) := by exact_mod_cast hm_pos
-    nlinarith
-  have hlower : (m : ℝ) ^ 3 ≤ ∑ S ∈ A.powerset, (2 * (∑ a ∈ S, (a : ℝ)) - M) ^ 2 := by
-    rw [hsum_eq, hsum_fin, hsum_range]
-    linarith
-  have h_m_eq : (2 : ℝ) * (m : ℝ) = (2 : ℝ) ^ n := by exact_mod_cast h2m
-  have h_pow_ineq : (2 : ℝ) ^ (2 * n) / 8 ≤ (n : ℝ) * (N : ℝ) ^ 2 := by
-    have h2npos : (0 : ℝ) < (2 : ℝ) ^ n := by positivity
-    have h2sq : (2 : ℝ) ^ (2 * n) = ((2 : ℝ) ^ n) ^ 2 := by rw [mul_comm, pow_mul]
-    have hm3 : (m : ℝ) ^ 3 = (2 : ℝ) ^ n * (2 : ℝ) ^ (2 * n) / 8 := by
-      have : (m : ℝ) = (2 : ℝ) ^ n / 2 := by linarith
-      rw [this, h2sq]
+  let center : ℝ := ∑ a ∈ A, (a : ℝ)
+  have hmass : 2 * (m : ℝ) ^ 3 ≤ (2 : ℝ) ^ n * ∑ a ∈ A, (a : ℝ) ^ 2 := by
+    calc
+      _ ≤ ∑ i : Fin (m + m), (2 * (g i : ℝ) - center) ^ 2 :=
+        OMA.half_pair_energy g hg center
+      _ = ∑ x ∈ T, (2 * (x : ℝ) - center) ^ 2 := by
+        rw [← Finset.sum_coe_sort T]
+        exact Fintype.sum_equiv e.toEquiv _ _ (fun _ => rfl)
+      _ = ∑ S ∈ A.powerset, (2 * (∑ a ∈ S, (a : ℝ)) - center) ^ 2 := by
+        dsimp only [T]
+        rw [Finset.sum_image hinj_set]
+        refine Finset.sum_congr rfl fun S _ => ?_
+        simp [Nat.cast_sum]
+      _ = _ := oma_variance_identity A
+  have hupper : (∑ a ∈ A, (a : ℝ) ^ 2) ≤ (n : ℝ) * (N : ℝ) ^ 2 := by
+    calc
+      _ ≤ ∑ _a ∈ A, (N : ℝ) ^ 2 := by
+        refine Finset.sum_le_sum fun a ha => ?_
+        apply (sq_le_sq₀ (Nat.cast_nonneg a) (Nat.cast_nonneg N)).2
+        exact_mod_cast (Finset.mem_Icc.mp (hAsub ha)).2
+      _ = _ := by simp [n]
+  have hmpos : 0 < m := by dsimp [m]; positivity
+  have hmposR : (0 : ℝ) < 2 * (m : ℝ) := mul_pos (by norm_num) (by exact_mod_cast hmpos)
+  rw [hreal] at hmass
+  have hcancel : (2 * (m : ℝ)) * (m : ℝ) ^ 2 ≤
+      (2 * (m : ℝ)) * (∑ a ∈ A, (a : ℝ) ^ 2) := by
+    calc
+      _ = 2 * (m : ℝ) ^ 3 := by ring
+      _ ≤ _ := hmass
+  have hsquare := (le_of_mul_le_mul_left hcancel hmposR).trans hupper
+  have hnR : 0 < (n : ℝ) := by exact_mod_cast Nat.pos_of_ne_zero hn
+  rw [div_le_iff₀ (Real.sqrt_pos.2 hnR), hreal,
+    show (1 / 2 : ℝ) * (2 * (m : ℝ)) = m by ring]
+  have hnonneg : 0 ≤ (N : ℝ) * Real.sqrt (n : ℝ) := by positivity
+  apply (sq_le_sq₀ (Nat.cast_nonneg m) hnonneg).mp
+  calc
+    (m : ℝ) ^ 2 ≤ (n : ℝ) * (N : ℝ) ^ 2 := hsquare
+    _ = ((N : ℝ) * Real.sqrt (n : ℝ)) ^ 2 := by
+      rw [mul_pow, Real.sq_sqrt hnR.le]
       ring
-    have h1 : (2 : ℝ) ^ n * ((2 : ℝ) ^ (2 * n) / 8) ≤ (2 : ℝ) ^ n * ((n : ℝ) * (N : ℝ) ^ 2) := by
-      linarith
-    exact le_of_mul_le_mul_left h1 h2npos
-  have h_sq_bound : ((1 / 4 : ℝ) * (2 : ℝ) ^ n / Real.sqrt (n : ℝ)) ^ 2 ≤ (N : ℝ) ^ 2 := by
-    have hn_pos : (0 : ℝ) < (n : ℝ) := by exact_mod_cast (by omega : 0 < n)
-    rw [div_pow, mul_pow, Real.sq_sqrt hn_pos.le, ← pow_mul, mul_comm n 2]
-    rw [div_le_iff₀ hn_pos]
-    nlinarith [show (0 : ℝ) ≤ (2 : ℝ) ^ (2 * n) by positivity]
-  have h_lhs_nonneg : 0 ≤ (1 / 4 : ℝ) * (2 : ℝ) ^ n / Real.sqrt (n : ℝ) := by positivity
-  have h_rhs_nonneg : 0 ≤ (N : ℝ) := Nat.cast_nonneg N
-  exact (sq_le_sq₀ h_lhs_nonneg h_rhs_nonneg).mp h_sq_bound
+
+theorem OMA.solution : type_of% @Erdos1.erdos_1.variants.lb := by
+  refine ⟨fun _ => (0 : ℝ), by simp, ?_⟩
+  intro N A h
+  simp only [sub_zero]
+  exact (div_le_div_of_nonneg_right
+    (mul_le_mul_of_nonneg_right (by norm_num : (1 / 4 : ℝ) ≤ 1 / 2)
+      (by positivity : (0 : ℝ) ≤ 2 ^ A.card)) (Real.sqrt_nonneg _)).trans
+    (OMA.sumDistinct_half_bound N A h)

@@ -12,8 +12,7 @@ lemma div_lt_div_of_lcm (N a b : ℕ) (ha : 0 < a) (hab : a < b) (hl : Nat.lcm a
   obtain ⟨c, rfl⟩ : ∃ c, b = a + c := ⟨b - a, by omega⟩
   have hc : 0 < c := by omega
   have hdvd : Nat.gcd a (a + c) ∣ c := by
-    have h := Nat.dvd_sub (Nat.gcd_dvd_right a (a + c)) (Nat.gcd_dvd_left a (a + c))
-    rwa [Nat.add_sub_cancel_left] at h
+    simpa using Nat.dvd_sub (Nat.gcd_dvd_right a (a + c)) (Nat.gcd_dvd_left a (a + c))
   have hd : Nat.gcd a (a + c) ≤ c := Nat.le_of_dvd hc hdvd
   have hm : Nat.gcd a (a + c) * Nat.lcm a (a + c) = a * (a + c) := Nat.gcd_mul_lcm a (a + c)
   have key : a * (a + c) ≤ c * N := by
@@ -33,39 +32,30 @@ lemma bound (N : ℕ) (A : Finset ℕ) (hA : A ⊆ Finset.Icc 1 N)
   classical
   rw [← Finset.card_filter_add_card_filter_not (fun a => a * a ≤ N)]
   have h1 : (A.filter (fun a => a * a ≤ N)).card ≤ Nat.sqrt N := by
-    calc (A.filter (fun a => a * a ≤ N)).card ≤ (Finset.Icc 1 (Nat.sqrt N)).card := by
-          apply Finset.card_le_card
-          intro a ha
-          rw [Finset.mem_filter] at ha
-          have h := hA ha.1
-          rw [Finset.mem_Icc] at h ⊢
-          exact ⟨h.1, Nat.le_sqrt.2 ha.2⟩
-      _ = Nat.sqrt N := by simp
+    refine (Finset.card_le_card fun a ha => ?_).trans (Nat.card_Icc 1 _).le
+    rw [Finset.mem_filter] at ha
+    exact Finset.mem_Icc.2 ⟨(Finset.mem_Icc.1 (hA ha.1)).1, Nat.le_sqrt.2 ha.2⟩
   have h2 : (A.filter (fun a => ¬ a * a ≤ N)).card ≤ Nat.sqrt N := by
-    calc (A.filter (fun a => ¬ a * a ≤ N)).card ≤ (Finset.Icc 1 (Nat.sqrt N)).card := by
-          apply Finset.card_le_card_of_injOn (fun a => N / a)
-          · intro a ha
-            rw [Finset.mem_coe, Finset.mem_filter] at ha
-            have h := hA ha.1
-            rw [Finset.mem_Icc] at h
-            rw [Finset.mem_coe, Finset.mem_Icc]
-            have hlt : N / a < a := (Nat.div_lt_iff_lt_mul (by omega)).2 (by omega)
-            refine ⟨Nat.div_pos h.2 (by omega), Nat.le_sqrt.2 ?_⟩
-            calc N / a * (N / a) ≤ N / a * a := Nat.mul_le_mul_left _ hlt.le
-              _ ≤ N := Nat.div_mul_le_self N a
-          · intro a ha b hb hab
-            rw [Finset.mem_coe, Finset.mem_filter] at ha hb
-            have ha1 := hA ha.1
-            have hb1 := hA hb.1
-            rw [Finset.mem_Icc] at ha1 hb1
-            simp only at hab
-            rcases lt_trichotomy a b with h | h | h
-            · have := div_lt_div_of_lcm N a b (by omega) h (hl a ha.1 b hb.1)
-              omega
-            · exact h
-            · have := div_lt_div_of_lcm N b a (by omega) h (hl b hb.1 a ha.1)
-              omega
-      _ = Nat.sqrt N := by simp
+    refine (Finset.card_le_card_of_injOn (fun a => N / a) ?_ ?_).trans (Nat.card_Icc 1 _).le
+    · intro a ha
+      rw [Finset.mem_coe, Finset.mem_filter] at ha
+      have h := Finset.mem_Icc.1 (hA ha.1)
+      rw [Finset.mem_coe, Finset.mem_Icc]
+      have hlt : N / a < a := (Nat.div_lt_iff_lt_mul (by omega)).2 (by omega)
+      refine ⟨Nat.div_pos h.2 (by omega), Nat.le_sqrt.2 ?_⟩
+      calc N / a * (N / a) ≤ N / a * a := Nat.mul_le_mul_left _ hlt.le
+        _ ≤ N := Nat.div_mul_le_self N a
+    · intro a ha b hb hab
+      rw [Finset.mem_coe, Finset.mem_filter] at ha hb
+      have ha1 := Finset.mem_Icc.1 (hA ha.1)
+      have hb1 := Finset.mem_Icc.1 (hA hb.1)
+      simp only at hab
+      rcases lt_trichotomy a b with h | h | h
+      · have := div_lt_div_of_lcm N a b (by omega) h (hl a ha.1 b hb.1)
+        omega
+      · exact h
+      · have := div_lt_div_of_lcm N b a (by omega) h (hl b hb.1 a ha.1)
+        omega
   omega
 
 end OMA.E441

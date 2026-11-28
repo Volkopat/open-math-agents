@@ -1,6 +1,8 @@
 import OMAStatements.S_oeis_a280321
 import Mathlib
 
+-- Credit: @AkiRA-COM-FP
+
 namespace OMAProofA280321
 
 def Z (n : ℕ) : Finset (ℕ × ℕ) :=
@@ -64,10 +66,6 @@ end OMAProofA280321
 theorem OMA.solution : type_of% @OMA.S_oeis_a280321.main := by
   refine ⟨OMAProofA280321.closed, ?_⟩
   intro n hn
-  rw [OMAProofA280321.closed n (by omega), OMAProofA280321.closed (n - 1) (by omega),
-    OMAProofA280321.closed (n - 2) (by omega), OMAProofA280321.closed (n - 3) (by omega)]
-  obtain ⟨m, rfl⟩ : ∃ m, n = m + 3 := ⟨n - 3, by omega⟩
-  rw [show m + 3 - 1 = m + 2 by omega, show m + 3 - 2 = m + 1 by omega,
-    show m + 3 - 3 = m by omega]
-  push_cast
+  simp (disch := omega) only [OMAProofA280321.closed, Nat.cast_pow, Nat.cast_add,
+    Nat.cast_mul, Nat.cast_sub, Nat.cast_ofNat]
   ring

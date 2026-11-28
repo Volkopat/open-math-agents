@@ -71,51 +71,26 @@ private lemma interval_unique (m : ℕ → ℕ) {k₁ k₂ t : ℕ}
 private lemma count_degreeSequence {β : Type*} [Fintype β] [DecidableEq β]
     (H : SimpleGraph β) [DecidableRel H.Adj] (d : ℕ) :
     (degreeSequence H).count d = (Finset.univ.filter (fun v : β => H.degree v = d)).card := by
-  have h1 : (degreeSequence H).count d = ((degreeSequence H : Multiset ℕ)).count d := by
-    rw [Multiset.coe_count]
-  rw [h1]
-  unfold degreeSequence
-  rw [Multiset.sort_eq]
-  have hgen : ∀ s : Finset β,
-      (s.val.map (fun v => H.degree v)).count d =
-        (s.filter (fun v => H.degree v = d)).card := by
-    intro s
-    induction s using Finset.induction_on with
-    | empty => simp
-    | @insert x s hx ih =>
-      rw [Finset.insert_val_of_notMem hx, Multiset.map_cons, Multiset.count_cons,
-        Finset.filter_insert]
-      by_cases h : H.degree x = d
-      · rw [if_pos h.symm, if_pos h, Finset.card_insert_of_notMem (by simp [hx]), ih]
-      · rw [if_neg (Ne.symm h), if_neg h, ih, add_zero]
-  exact hgen Finset.univ
+  classical
+  simp [degreeSequence, ← Multiset.coe_count, Multiset.count_map,
+    ← Finset.filter_val, Finset.card_val, eq_comm]
 
 private lemma degreeSequenceMultiplicity_eq_of_bounds {β : Type*} [Fintype β] [DecidableEq β]
     (H : SimpleGraph β) [DecidableRel H.Adj] (M_val : ℕ)
     (hle : ∀ d : ℕ, (Finset.univ.filter (fun v : β => H.degree v = d)).card ≤ 3)
     (heq : (Finset.univ.filter (fun v : β => H.degree v = M_val)).card = 3) :
     degreeSequenceMultiplicity H = 3 := by
-  let ds : List ℕ := degreeSequence H
-  have hcnt_le : ∀ d : ℕ, ds.count d ≤ 3 := fun d => by
-    dsimp only [ds]; rw [count_degreeSequence]; exact hle d
-  have hcnt_M : ds.count M_val = 3 := by
-    dsimp only [ds]; rw [count_degreeSequence]; exact heq
-  have hM_mem : M_val ∈ ds := List.count_pos_iff.mp (by omega)
-  have h3_mem : 3 ∈ ds.map (fun d => ds.count d) :=
-    List.mem_map.mpr ⟨M_val, hM_mem, hcnt_M⟩
-  have hne : ds.map (fun d => ds.count d) ≠ [] := List.ne_nil_of_mem h3_mem
-  obtain ⟨m, hmax⟩ := Option.ne_none_iff_exists'.mp (List.max?_eq_none_iff.not.mpr hne)
-  have hm_spec := List.max?_eq_some_iff.mp hmax
-  have h3_le : 3 ≤ m := hm_spec.2 3 h3_mem
-  have hm_le : m ≤ 3 := by
-    obtain ⟨d, _, hd⟩ := List.mem_map.mp hm_spec.1
-    rw [← hd]
-    exact hcnt_le d
-  have hm3 : m = 3 := by omega
-  unfold degreeSequenceMultiplicity
-  change (List.max? (ds.map (fun d => ds.count d))).getD 0 = 3
-  rw [hmax, hm3]
-  rfl
+  let ds := degreeSequence H
+  have hCount (d : ℕ) : ds.count d = (Finset.univ.filter (fun v : β => H.degree v = d)).card :=
+    count_degreeSequence H d
+  have hdMem : M_val ∈ ds := List.count_pos_iff.mp (by rw [hCount, heq]; decide)
+  have hMax : (ds.map (fun d ↦ ds.count d)).max? = some 3 := by
+    refine List.max?_eq_some_iff.mpr ⟨List.mem_map.mpr ⟨M_val, hdMem, (hCount M_val).trans heq⟩, ?_⟩
+    intro d hd
+    obtain ⟨a, _, rfl⟩ := List.mem_map.mp hd
+    simpa [hCount] using hle a
+  change ((ds.map (fun d ↦ ds.count d)).max?).getD 0 = 3
+  simp [hMax]
 
 /- ### Section 3: Explicit triangle-free supergraph construction -/
 
@@ -352,26 +327,17 @@ private lemma exists_fin_extension {n : ℕ} (hn : 1 ≤ n)
       exact absurd h (by simp)
     have hL_card : ((Finset.univ : Finset (Fin M)).filter
         (fun ℓ => a + S u.1 ≤ ℓ.1 ∧ ℓ.1 < a + S (u.1 + 1))).card = m u.1 := by
-      have hle_M : a + S (u.1 + 1) ≤ M := by
-        have := hS_le_P (u.1 + 1) u.2
-        omega
-      have hbij : ((Finset.univ : Finset (Fin M)).filter
-          (fun ℓ => a + S u.1 ≤ ℓ.1 ∧ ℓ.1 < a + S (u.1 + 1))).card =
-          (Finset.range (m u.1)).card := by
-        refine Finset.card_bij (fun ℓ _ => ℓ.1 - (a + S u.1))
-          (fun ℓ hℓ => Finset.mem_range.mpr (by
-            simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hℓ
-            have := hS_succ u.1; omega))
-          (fun ℓ₁ hℓ₁ ℓ₂ hℓ₂ heq => by
-            simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hℓ₁ hℓ₂
-            exact Fin.ext (by omega))
-          (fun t ht => by
-            have ht' := Finset.mem_range.mp ht
-            have := hS_succ u.1
-            refine ⟨⟨a + S u.1 + t, by omega⟩, ?_, by dsimp; omega⟩
-            simp only [Finset.mem_filter, Finset.mem_univ, true_and]
-            omega)
-      rw [hbij, Finset.card_range]
+      have hle := hS_le_P (u.1 + 1) u.2
+      let lo : Fin M := ⟨a + S u.1, by have := hS_le_P u.1 (by omega); omega⟩
+      let hi : Fin M := ⟨a + S (u.1 + 1), by omega⟩
+      have hset : (Finset.univ.filter (fun ℓ : Fin M =>
+          a + S u.1 ≤ ℓ.1 ∧ ℓ.1 < a + S (u.1 + 1))) = Finset.Ico lo hi := by
+        ext ℓ
+        simp [lo, hi, Fin.le_def, Fin.lt_def]
+      rw [hset, Fin.card_Ico]
+      dsimp [lo, hi]
+      have := hS_succ u.1
+      omega
     rw [hnb, Finset.card_union_of_disjoint hdisj,
       Finset.card_image_of_injective _ Sum.inl_injective,
       Finset.card_image_of_injective _ (fun _ _ h => Sum.inl.inj (Sum.inr.inj h)),
@@ -413,17 +379,8 @@ private lemma exists_fin_extension {n : ℕ} (hn : 1 ≤ n)
       obtain ⟨_, _, h⟩ := Finset.mem_image.mp h2
       exact absurd h (by simp)
     have hR_card : R_nb.card = ℓ.1 + 1 := by
-      have hbij : R_nb.card = (Finset.range (ℓ.1 + 1)).card := by
-        refine Finset.card_bij (fun r _ => r.1)
-          (fun r hr => Finset.mem_range.mpr (by
-            simp only [R_nb, Finset.mem_filter, Finset.mem_univ, true_and] at hr; omega))
-          (fun _ _ _ _ h => Fin.ext h)
-          (fun t ht => by
-            have ht' := Finset.mem_range.mp ht
-            refine ⟨⟨t, by have := ℓ.2; omega⟩, ?_, rfl⟩
-            simp only [R_nb, Finset.mem_filter, Finset.mem_univ, true_and]
-            omega)
-      rw [hbij, Finset.card_range]
+      change (Finset.univ.filter fun r : Fin M => r ≤ ℓ).card = ℓ.1 + 1
+      simpa only [filter_ge_eq_Iic] using Fin.card_Iic ℓ
     have hA_card : A_nb.card = if a ≤ ℓ.1 ∧ ℓ.1 < b then 1 else 0 := by
       split_ifs with hab
       · obtain ⟨k, hk, h1, h2⟩ :=
@@ -474,20 +431,8 @@ private lemma exists_fin_extension {n : ℕ} (hn : 1 ≤ n)
           simp only [Sum.inr.injEq, reduceCtorEq, and_false, exists_false]
           rfl
     have hL_card : L_nb.card = M - r.1 := by
-      have hbij : L_nb.card = (Finset.range (M - r.1)).card := by
-        refine Finset.card_bij (fun ℓ _ => ℓ.1 - r.1)
-          (fun ℓ hℓ => Finset.mem_range.mpr (by
-            simp only [L_nb, Finset.mem_filter, Finset.mem_univ, true_and] at hℓ
-            have := ℓ.2; omega))
-          (fun ℓ₁ hℓ₁ ℓ₂ hℓ₂ h => by
-            simp only [L_nb, Finset.mem_filter, Finset.mem_univ, true_and] at hℓ₁ hℓ₂
-            exact Fin.ext (by omega))
-          (fun t ht => by
-            have ht' := Finset.mem_range.mp ht
-            refine ⟨⟨r.1 + t, by omega⟩, ?_, by dsimp; omega⟩
-            simp only [L_nb, Finset.mem_filter, Finset.mem_univ, true_and]
-            omega)
-      rw [hbij, Finset.card_range]
+      change (Finset.univ.filter fun ℓ : Fin M => r ≤ ℓ).card = M - r.1
+      simpa only [filter_le_eq_Ici] using Fin.card_Ici r
     rw [hnb, Finset.card_image_of_injective _ (fun _ _ h => Sum.inl.inj (Sum.inr.inj h)), hL_card]
   -- Count vertices of degree d across the three disjoint parts Fin n, L, R
   have hcount_split : ∀ d : ℕ,

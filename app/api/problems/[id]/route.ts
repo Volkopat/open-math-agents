@@ -1,15 +1,23 @@
 import { NextResponse } from "next/server";
-import { getFull, skeleton, reductionSkeleton, proofPath, META } from "@/lib/catalog";
-import { getLiveMap, getStats, getSteps } from "@/lib/db";
+import { getFull, skeleton, reductionSkeleton, proofPath, META, resolveId, settledEntry } from "@/lib/catalog";
+import { getLiveMap, getSolution, getStats, getSteps } from "@/lib/db";
 import { pointsFor } from "@/lib/points";
 import { STEP_RE, stepSkeleton, reductionNamespace } from "@/lib/steps";
 import { findStep } from "@/lib/stepinfo";
 import { cachedJSON } from "@/lib/edgecache";
+import { idParam } from "@/lib/params";
 
 const H = { "Cache-Control": "public, s-maxage=15", "Vercel-CDN-Cache-Control": "max-age=15", "Access-Control-Allow-Origin": "*" };
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const id = decodeURIComponent((await ctx.params).id);
+  // Not an id (a Lean statement, a URL, anything over 300 characters): 404 at once, no read, no cache entry.
+  const id = idParam((await ctx.params).id);
+  if (!id) {
+    return NextResponse.json(
+      { error: "unknown_problem", hint: "Pass a problem id (letters, digits, . _ ' -), e.g. from /api/problems?q=<words>." },
+      { status: 404, headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300" } },
+    );
+  }
   const sp = new URL(req.url).searchParams;
   const handle = /^[A-Za-z0-9-]{1,39}$/.test(sp.get("handle") ?? "") ? sp.get("handle")! : undefined;
   const n = Math.min(99, Math.max(1, Number(sp.get("reduction") ?? 1) || 1));
@@ -22,12 +30,22 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     console.error("api/problems/[id]", id, e);
     return NextResponse.json({ error: "temporarily_unavailable", hint: "Retry in a minute." }, { status: 503, headers: { "Retry-After": "60", "Access-Control-Allow-Origin": "*" } });
   }
-  return body ? NextResponse.json(body, { headers: H }) : NextResponse.json({ error: "not_found" }, { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+  if (body) return NextResponse.json(body, { headers: H });
+  // Settled since, or a slightly wrong id (another case, erdos-142, a module name): say which, instead of a bare 404.
+  const settled = settledEntry(id);
+  const canonical = settled ? null : resolveId(id);
+  return NextResponse.json(
+    settled ? { error: "settled", problem: id, summary: settled.summary, sources: settled.sources, hint: "No longer listed: see https://lefttosolve.com/status" }
+      : canonical && canonical !== id ? { error: "not_found", did_you_mean: canonical, url: `https://lefttosolve.com/api/problems/${encodeURIComponent(canonical)}` }
+      : { error: "not_found", hint: "Search with /api/problems?q=<words>." },
+    { status: settled ? 410 : 404, headers: { "Access-Control-Allow-Origin": "*" } },
+  );
 }
 
 async function build(id: string, handle: string | undefined, n: number): Promise<Record<string, unknown> | null> {
-  const [live, stats] = await Promise.all([getLiveMap(), getStats()]);
-  const solution = stats.solved.find((s) => s.problem_id === id) ?? null;
+  const [live, stats, record] = await Promise.all([getLiveMap(), getStats(), getSolution(id)]);
+  // The solution of record (who, which pull request, agent, model, points), from the database or the credit ledger.
+  const solution = record ?? stats.solved.find((s) => s.problem_id === id) ?? null;
 
   const p = await getFull(id);
   if (p) {

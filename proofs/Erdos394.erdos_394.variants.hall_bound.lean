@@ -43,12 +43,6 @@ def FirstQuestion : Prop :=
     (fun x : ℝ ↦ Tsum 2 x) =O[atTop]
       (fun x : ℝ ↦ x ^ 2 / (Real.log x) ^ c)
 
-/-- The affirmative assertion in the second question. -/
-def SecondQuestion : Prop :=
-  ∀ k : ℕ, k ≥ 2 →
-    (fun x : ℝ ↦ Tsum (k + 1) x) =o[atTop]
-      (fun x : ℝ ↦ Tsum k x)
-
 end HallBoundProof
 
 end
@@ -68,25 +62,6 @@ theorem start_dvd_consecutiveProduct {k m : ℕ} (hk : 0 < k) :
     (Finset.dvd_prod_of_mem (fun i : ℕ ↦ m + i)
       (show 0 ∈ Finset.range k by simp [hk]))
 
-/-- For positive parameters, the set whose infimum defines `t` is nonempty. -/
-theorem admissibleSet_nonempty {k n : ℕ} (hk : 0 < k) (hn : 0 < n) :
-    {m : ℕ | 0 < m ∧ n ∣ consecutiveProduct k m}.Nonempty := by
-  exact ⟨n, hn, start_dvd_consecutiveProduct hk⟩
-
-/-- The minimum `t k n` itself is an admissible starting value. -/
-theorem t_mem {k n : ℕ} (hk : 0 < k) (hn : 0 < n) :
-    0 < t k n ∧ n ∣ consecutiveProduct k (t k n) := by
-  exact Nat.sInf_mem (admissibleSet_nonempty hk hn)
-
-/-- `t k n` is positive for positive parameters. -/
-theorem t_pos {k n : ℕ} (hk : 0 < k) (hn : 0 < n) : 0 < t k n :=
-  (t_mem hk hn).1
-
-/-- The defining divisibility condition holds at `t k n`. -/
-theorem t_dvd {k n : ℕ} (hk : 0 < k) (hn : 0 < n) :
-    n ∣ consecutiveProduct k (t k n) :=
-  (t_mem hk hn).2
-
 /-- Every admissible start is at least `t k n`. -/
 theorem t_min {k n m : ℕ} (hm : 0 < m)
     (hdiv : n ∣ consecutiveProduct k m) : t k n ≤ m := by
@@ -95,32 +70,6 @@ theorem t_min {k n m : ℕ} (hm : 0 < m)
 /-- The elementary universal upper bound `t k n ≤ n`. -/
 theorem t_le_self {k n : ℕ} (hk : 0 < k) (hn : 0 < n) : t k n ≤ n := by
   exact t_min (m := n) hn (start_dvd_consecutiveProduct hk)
-
-/-- Appending one term multiplies the consecutive product by that term. -/
-theorem consecutiveProduct_succ (k m : ℕ) :
-    consecutiveProduct (k + 1) m = consecutiveProduct k m * (m + k) := by
-  simp [consecutiveProduct, Finset.prod_range_succ]
-
-/-- Increasing the block length by one cannot increase the least start. -/
-theorem t_succ_le {k n : ℕ} (hk : 0 < k) (hn : 0 < n) :
-    t (k + 1) n ≤ t k n := by
-  apply t_min (t_pos hk hn)
-  rw [consecutiveProduct_succ]
-  exact dvd_mul_of_dvd_left (t_dvd hk hn) _
-
-/-- Starting at one works exactly for the divisors of `k!`. -/
-theorem t_eq_one_iff {k n : ℕ} (hk : 0 < k) (hn : 0 < n) :
-    t k n = 1 ↔ n ∣ k ! := by
-  have hprod : consecutiveProduct k 1 = k ! := by
-    simp [consecutiveProduct, add_comm]
-  constructor
-  · intro ht
-    simpa [ht, hprod] using t_dvd hk hn
-  · intro hdiv
-    apply Nat.le_antisymm
-    · apply t_min (by simp)
-      simpa [hprod] using hdiv
-    · exact t_pos hk hn
 
 end HallBoundProof
 
@@ -137,49 +86,6 @@ namespace HallBoundProof
 theorem consecutiveProduct_two (m : ℕ) :
     consecutiveProduct 2 m = m * (m + 1) := by
   simp [consecutiveProduct, Finset.prod_range_succ]
-
-/--
-A modulus divides `m(m+1)` exactly when it splits into coprime factors assigned
-to the two consecutive integers.
--/
-theorem dvd_consecutiveProduct_two_iff {n m : ℕ} :
-    n ∣ consecutiveProduct 2 m ↔
-      ∃ a d : ℕ, a.Coprime d ∧ n = a * d ∧ a ∣ m ∧ d ∣ m + 1 := by
-  rw [consecutiveProduct_two]
-  constructor
-  · intro h
-    obtain ⟨a, d, ha, hd, hn⟩ := exists_dvd_and_dvd_of_dvd_mul h
-    refine ⟨a, d, ?_, hn, ha, hd⟩
-    apply Nat.Coprime.of_dvd ha hd
-    simp
-  · rintro ⟨a, d, _, rfl, ha, hd⟩
-    exact mul_dvd_mul ha hd
-
-/-- Every two-term solution determines a unitary (coprime-factor) split. -/
-theorem t_two_has_coprime_split {n : ℕ} (hn : 0 < n) :
-    ∃ a d : ℕ, a.Coprime d ∧ n = a * d ∧ a ∣ t 2 n ∧ d ∣ t 2 n + 1 := by
-  exact (dvd_consecutiveProduct_two_iff.mp (t_dvd (by omega) hn))
-
-/-- The split may equivalently be written as a positive Bézout relation. -/
-theorem t_two_has_bezout_coordinates {n : ℕ} (hn : 0 < n) :
-    ∃ a d r s : ℕ, a.Coprime d ∧ n = a * d ∧
-      t 2 n = a * r ∧ t 2 n + 1 = d * s := by
-  obtain ⟨a, d, had, hn', ha, hd⟩ := t_two_has_coprime_split hn
-  obtain ⟨r, hr⟩ := ha
-  obtain ⟨s, hs⟩ := hd
-  exact ⟨a, d, r, s, had, hn', hr, hs⟩
-
-/-- Conversely, every coprime split with the displayed Bézout relation gives
-an upper bound for `t₂`. -/
-theorem t_two_le_of_bezout {n a d r s : ℕ} (hn : n = a * d)
-    (hm : a * r + 1 = d * s) (har : 0 < a * r) :
-    t 2 n ≤ a * r := by
-  apply t_min har
-  apply dvd_consecutiveProduct_two_iff.mpr
-  refine ⟨a, d, ?_, hn, dvd_mul_right a r, ?_⟩
-  · apply Nat.Coprime.of_dvd (dvd_mul_right a r) (hm ▸ dvd_mul_right d s)
-    simp
-  · exact hm ▸ dvd_mul_right d s
 
 end HallBoundProof
 
@@ -621,26 +527,6 @@ noncomputable instance involutionSubgroupFintype (q : ℕ) :
 /-- Standard least-nonnegative-residue coordinate on units modulo `q`. -/
 def unitResidue (q : ℕ) (a : (ZMod q)ˣ) : ℕ := (a.1 : ZMod q).val
 
-/-- The abstract coset identity specialized to square roots of one modulo `q`.
-This is the group-theoretic core of the exact restricted-root mean. -/
-theorem involution_coset_gap_identity (q : ℕ) (hq : 0 < q) :
-    Fintype.card (involutionSubgroup q) *
-        (∑ a : (ZMod q)ˣ,
-          abstractCosetGap q (unitResidue q) (involutionSubgroup q) a) =
-      q * q.totient := by
-  let : NeZero q := ⟨Nat.ne_of_gt hq⟩
-  have hv : Function.Injective (unitResidue q) := by
-    intro a b hab
-    apply Units.ext
-    apply ZMod.val_injective q
-    exact hab
-  have hvlt : ∀ a : (ZMod q)ˣ, unitResidue q a < q := by
-    intro a
-    exact ZMod.val_lt (a.1 : ZMod q)
-  rw [← ZMod.card_units_eq_totient q]
-  exact card_mul_sum_abstractCosetGap q (unitResidue q) hv hvlt
-    (involutionSubgroup q)
-
 end ZModInvolutions
 
 end HallBoundProof
@@ -697,19 +583,6 @@ noncomputable def involutionChineseRemainder {m n : ℕ} (h : m.Coprime n) :
     apply Prod.ext <;> apply Subtype.ext
     · exact congrArg Prod.fst ((unitsChineseRemainder h).apply_symm_apply (z.1.1, z.2.1))
     · exact congrArg Prod.snd ((unitsChineseRemainder h).apply_symm_apply (z.1.1, z.2.1))
-
-/-- The number of square roots of one is multiplicative on coprime moduli. -/
-theorem card_involutionSubgroup_mul {m n : ℕ} (h : m.Coprime n) :
-    Fintype.card (involutionSubgroup (m * n)) =
-      Fintype.card (involutionSubgroup m) * Fintype.card (involutionSubgroup n) := by
-  rw [← Fintype.card_prod]
-  exact Fintype.card_congr (involutionChineseRemainder h)
-
-/-- Modulo one there is one square root of one. -/
-theorem card_involutionSubgroup_one :
-    Fintype.card (involutionSubgroup 1) = 1 := by
-  rw [Fintype.card_eq_one_iff]
-  exact ⟨⟨1, by simp [involutionSubgroup]⟩, fun _ ↦ Subsingleton.elim _ _⟩
 
 /-- The distinguished square root `-1`. -/
 def negOneInvolution (q : ℕ) : involutionSubgroup q :=
@@ -836,17 +709,6 @@ theorem card_involutionSubgroup_odd_squarefree {q : ℕ}
       apply hodd.not_two_dvd_nat
       exact hp2 ▸ Nat.dvd_of_mem_primeFactors hpq
 
-/-- Exact coset-gap total for an odd squarefree modulus, now with the subgroup
-cardinality evaluated explicitly. -/
-theorem odd_squarefree_involution_coset_gap_identity {q : ℕ}
-    (hsq : Squarefree q) (hodd : Odd q) :
-    2 ^ q.primeFactors.card *
-        (∑ a : (ZMod q)ˣ,
-          abstractCosetGap q (unitResidue q) (involutionSubgroup q) a) =
-      q * q.totient := by
-  rw [← card_involutionSubgroup_odd_squarefree hsq hodd]
-  exact involution_coset_gap_identity q hodd.pos
-
 end HallBoundProof
 
 end
@@ -908,25 +770,6 @@ theorem natCast_positiveZModResidue {q : ℕ} (hq : 0 < q) (x : ZMod q) :
   · simp [positiveZModResidue, hx]
   · simp only [positiveZModResidue, if_neg hx]
     exact ZMod.natCast_zmod_val x
-
-/-- A representative in `[1,q]` is uniquely the least positive representative
-of its residue. -/
-theorem positiveZModResidue_eq_of_natCast_eq {q j : ℕ} (hq : 0 < q)
-    (hjpos : 0 < j) (hjle : j ≤ q) (x : ZMod q) (hjx : (j : ZMod q) = x) :
-    positiveZModResidue q x = j := by
-  let : NeZero q := ⟨Nat.ne_of_gt hq⟩
-  by_cases hjq : j = q
-  · subst j
-    rw [← hjx, ZMod.natCast_self]
-    simp [positiveZModResidue]
-  · have hjlt : j < q := by omega
-    have hjne : (j : ZMod q) ≠ 0 := by
-      intro hz
-      have hv := congrArg ZMod.val hz
-      rw [ZMod.val_natCast_of_lt hjlt, ZMod.val_zero] at hv
-      omega
-    rw [← hjx]
-    simp [positiveZModResidue, hjne, ZMod.val_natCast_of_lt hjlt]
 
 /-- The least positive representative lies in `[1,q]`. -/
 theorem positiveZModResidue_pos_le {q : ℕ} (hq : 0 < q) (x : ZMod q) :
@@ -1018,56 +861,6 @@ theorem mem_involutionDifferenceSet_imp_restrictedRoot {q j : ℕ}
   rw [hcast]
   exact involutionDifference_is_restrictedRoot q hodd h u
 
-/-- Conversely, every representative in `[1,q]` satisfying the restricted
-quadratic equation comes from a unique involution-coset difference. -/
-theorem restrictedRoot_mem_involutionDifferenceSet {q j : ℕ}
-    (hodd : Odd q) (h : (ZMod q)ˣ) (hjpos : 0 < j) (hjle : j ≤ q)
-    (hroot :
-      (j : ZMod q) * (((h : (ZMod q)ˣ) : ZMod q) * (j : ZMod q) + 1) = 0) :
-    j ∈ involutionDifferenceSet q hodd h := by
-  classical
-  let : NeZero q := ⟨Nat.ne_of_gt hodd.pos⟩
-  let z : ZMod q := 2 * ((h : (ZMod q)ˣ) : ZMod q) * (j : ZMod q) + 1
-  have h2 : IsUnit (2 : ZMod q) := by
-    simpa using (twoUnitOfOdd q hodd).isUnit
-  have hh : IsUnit ((h : (ZMod q)ˣ) : ZMod q) := h.isUnit
-  have hzsq : z ^ 2 = 1 := by
-    apply (affine_square_eq_one_iff
-      ((h : (ZMod q)ˣ) : ZMod q) (j : ZMod q) h2 hh).mpr
-    exact hroot
-  let zu : (ZMod q)ˣ := Units.mk z z
-    (by simpa [pow_two] using hzsq)
-    (by simpa [pow_two] using hzsq)
-  have hzusq : zu ^ 2 = 1 := by
-    apply Units.ext
-    simpa [zu] using hzsq
-  let u : involutionSubgroup q := ⟨zu, hzusq⟩
-  refine Finset.mem_image.mpr ⟨u, Finset.mem_univ _, ?_⟩
-  let a : ZMod q := (restrictedRootBase q hodd h : (ZMod q)ˣ)
-  apply positiveZModResidue_eq_of_natCast_eq hodd.pos hjpos hjle
-  have hat : a * (2 * ((h : (ZMod q)ˣ) : ZMod q)) = 1 := by
-    have hu : restrictedRootBase q hodd h * (twoUnitOfOdd q hodd * h) = 1 := by
-      simp [restrictedRootBase]
-    simpa [a, mul_assoc] using congrArg (fun w : (ZMod q)ˣ ↦ (w : ZMod q)) hu
-  change (j : ZMod q) = a * (zu : ZMod q) - a
-  calc
-    (j : ZMod q) = (a * (2 * ((h : (ZMod q)ˣ) : ZMod q))) * (j : ZMod q) := by
-      rw [hat, one_mul]
-    _ = a * (z : ZMod q) - a := by dsimp [z]; ring
-    _ = a * (zu : ZMod q) - a := by rfl
-
-/-- Exact characterization of the finite difference set by the restricted
-quadratic congruence. -/
-theorem mem_involutionDifferenceSet_iff_restrictedRoot {q j : ℕ}
-    (hodd : Odd q) (h : (ZMod q)ˣ) :
-    j ∈ involutionDifferenceSet q hodd h ↔
-      0 < j ∧ j ≤ q ∧
-        (j : ZMod q) * (((h : (ZMod q)ˣ) : ZMod q) * (j : ZMod q) + 1) = 0 := by
-  constructor
-  · exact mem_involutionDifferenceSet_imp_restrictedRoot hodd h
-  · rintro ⟨hjpos, hjle, hroot⟩
-    exact restrictedRoot_mem_involutionDifferenceSet hodd h hjpos hjle hroot
-
 /-- The involution-difference set is nonempty. -/
 theorem involutionDifferenceSet_nonempty (q : ℕ) (hodd : Odd q)
     (h : (ZMod q)ˣ) : (involutionDifferenceSet q hodd h).Nonempty := by
@@ -1147,17 +940,6 @@ theorem restrictedRootMin_spec (q : ℕ) (hodd : Odd q) (h : (ZMod q)ˣ) :
   exact (involutionDifferenceSet q hodd h).min'_mem
     (involutionDifferenceSet_nonempty q hodd h)
 
-/-- Every positive representative satisfying the restricted congruence is at
-least the restricted minimum. -/
-theorem restrictedRootMin_le {q j : ℕ} (hodd : Odd q) (h : (ZMod q)ˣ)
-    (hjpos : 0 < j) (hjle : j ≤ q)
-    (hroot :
-      (j : ZMod q) * (((h : (ZMod q)ˣ) : ZMod q) * (j : ZMod q) + 1) = 0) :
-    restrictedRootMin q hodd h ≤ j := by
-  rw [restrictedRootMin_eq_min'_involutionDifferenceSet q hodd h]
-  apply Finset.min'_le
-  exact restrictedRoot_mem_involutionDifferenceSet hodd h hjpos hjle hroot
-
 /-- For a natural residue `m` coprime to odd `q`, the formal restricted
 minimum satisfies the original natural-number divisibility condition. -/
 theorem restrictedRootMin_nat_dvd {m q : ℕ} (hodd : Odd q)
@@ -1169,17 +951,6 @@ theorem restrictedRootMin_nat_dvd {m q : ℕ} (hodd : Odd q)
   have hz : ((j * (m * j + 1) : ℕ) : ZMod q) = 0 := by
     simpa [j, ZMod.coe_unitOfCoprime] using hroot
   exact (ZMod.natCast_eq_zero_iff (j * (m * j + 1)) q).mp hz
-
-/-- The same restricted minimum is minimal among positive natural
-representatives satisfying the original divisibility condition. -/
-theorem restrictedRootMin_le_of_nat_dvd {m q j : ℕ} (hodd : Odd q)
-    (hcop : m.Coprime q) (hjpos : 0 < j) (hjle : j ≤ q)
-    (hdiv : q ∣ j * (m * j + 1)) :
-    restrictedRootMin q hodd (ZMod.unitOfCoprime m hcop) ≤ j := by
-  apply restrictedRootMin_le hodd (ZMod.unitOfCoprime m hcop) hjpos hjle
-  have hz : ((j * (m * j + 1) : ℕ) : ZMod q) = 0 :=
-    (ZMod.natCast_eq_zero_iff (j * (m * j + 1)) q).mpr hdiv
-  simpa [ZMod.coe_unitOfCoprime] using hz
 
 /-- The exact restricted minimum gives an admissible start for `t₂(mq)`. -/
 theorem t_two_mul_le_restrictedRootMin {m q : ℕ} (hm : 0 < m)
@@ -2887,20 +2658,6 @@ theorem primeProduct_injective_on_prime_sets {T U : Finset ℕ}
     _ = (primeProduct U).primeFactors := by rw [hprod]
     _ = U := primeFactors_primeProduct U hU
 
-/-- The product is at most `y` to the cardinality when every factor is at
-most `y`. -/
-theorem primeProduct_le_pow_card (T : Finset ℕ) {y : ℕ}
-    (hTy : ∀ p ∈ T, p ≤ y) :
-    primeProduct T ≤ y ^ T.card := by
-  unfold primeProduct
-  calc
-    (∏ p ∈ T, p) ≤ ∏ _p ∈ T, y := by
-      apply Finset.prod_le_prod
-      · intro p hp
-        omega
-      · exact hTy
-    _ = y ^ T.card := by simp
-
 /-- Real Euler product formula for the totient of a finite prime product. -/
 theorem totient_primeProduct_real (T : Finset ℕ)
     (hprime : ∀ p ∈ T, p.Prime) :
@@ -4440,73 +4197,6 @@ theorem log_sub_harmonic_div_le_sum_Ico {J₀ J : ℕ}
   rw [hsum]
   linarith
 
-/-- From some fixed geometric block onward, the reciprocal mass of primes
-between `16^J₀` and `16^J` grows at least logarithmically in the exponent `J`.
-This is a deliberately weak Mertens-type lower bound requiring only
-Chebyshev's estimates. -/
-theorem exists_geometric_primeReciprocal_log_lower :
-    ∃ J₀ : ℕ, 0 < J₀ ∧ ∀ J : ℕ, J₀ ≤ J →
-      (Real.log J - (harmonic (J₀ - 1) : ℝ)) / 64 ≤
-        primeReciprocalSum (16 ^ J) - primeReciprocalSum (16 ^ J₀) := by
-  have hblocks :=
-    eventually_one_div_sixtyfour_le_primeReciprocal_pow_block
-  rw [eventually_atTop] at hblocks
-  obtain ⟨J₁, hJ₁⟩ := hblocks
-  let J₀ := max J₁ 1
-  refine ⟨J₀, by simp [J₀], ?_⟩
-  intro J hJ
-  apply (log_sub_harmonic_div_le_sum_Ico (by simp [J₀]) hJ).trans
-  apply sum_one_div_sixtyfour_le_primeReciprocal_pow_sub hJ
-  intro j hj
-  apply hJ₁
-  exact (le_max_left J₁ 1).trans (Finset.mem_Ico.mp hj).1
-
-/-- From some fixed geometric block onward, the reciprocal mass between two
-powers of `16` is at most a constant times the logarithm of the upper
-exponent. -/
-theorem exists_geometric_primeReciprocal_log_upper :
-    ∃ J₀ : ℕ, 0 < J₀ ∧ ∀ J : ℕ, J₀ ≤ J →
-      primeReciprocalSum (16 ^ J) - primeReciprocalSum (16 ^ J₀) ≤
-        12 * (1 + Real.log J) := by
-  have hblocks := eventually_primeReciprocal_pow_block_le_twelve_div
-  rw [eventually_atTop] at hblocks
-  obtain ⟨J₁, hJ₁⟩ := hblocks
-  let J₀ := max J₁ 1
-  refine ⟨J₀, by simp [J₀], ?_⟩
-  intro J hJ
-  calc
-    primeReciprocalSum (16 ^ J) - primeReciprocalSum (16 ^ J₀) =
-        ∑ j ∈ Finset.Ico J₀ J,
-          (primeReciprocalSum (16 ^ (j + 1)) -
-            primeReciprocalSum (16 ^ j)) :=
-      (Finset.sum_Ico_sub (fun j ↦ primeReciprocalSum (16 ^ j)) hJ).symm
-    _ ≤ ∑ j ∈ Finset.Ico J₀ J, (12 : ℝ) / j := by
-      apply Finset.sum_le_sum
-      intro j hj
-      apply hJ₁
-      exact (le_max_left J₁ 1).trans (Finset.mem_Ico.mp hj).1
-    _ ≤ ∑ j ∈ Finset.range (J + 1), (12 : ℝ) / j := by
-      apply Finset.sum_le_sum_of_subset_of_nonneg
-      · intro j hj
-        have hjlt : j < J := (Finset.mem_Ico.mp hj).2
-        exact Finset.mem_range.mpr (hjlt.trans (Nat.lt_succ_self J))
-      · intro j _ _
-        positivity
-    _ = 12 * (harmonic J : ℝ) := by
-      calc
-        (∑ j ∈ Finset.range (J + 1), (12 : ℝ) / j) =
-            12 * (∑ j ∈ Finset.range (J + 1), (1 : ℝ) / j) := by
-              rw [Finset.mul_sum]
-              apply Finset.sum_congr rfl
-              intro j _
-              ring
-        _ = 12 * (harmonic J : ℝ) := by
-          rw [sum_range_one_div_natCast]
-          simp
-    _ ≤ 12 * (1 + Real.log J) := by
-      gcongr
-      exact harmonic_le_one_add_log J
-
 /-- Uniform weak Mertens bounds between any two sufficiently late geometric
 endpoints. -/
 theorem exists_geometric_interval_primeReciprocal_bounds :
@@ -4722,38 +4412,6 @@ theorem exp_neg_two_primeReciprocal_sub_le_localEulerProduct
   have h := exp_neg_two_sum_le_localEulerProduct
     (primeInterval a b) (fun p ↦ 1 / (p : ℝ)) hx0 hxhalf
   rwa [sum_primeInterval_one_div hab] at h
-
-/-- Along geometric endpoints, the combined Euler factor has a fixed positive
-power saving in the upper exponent. -/
-theorem exists_geometric_combinedEuler_decay :
-    ∃ J₀ : ℕ, 0 < J₀ ∧ ∀ J : ℕ, J₀ ≤ J →
-      localEulerProduct (primeInterval (16 ^ J₀) (16 ^ J))
-          (fun p ↦ 1 / (p : ℝ)) *
-          (∏ p ∈ primeInterval (16 ^ J₀) (16 ^ J),
-            (1 + (1 / (p : ℝ)) / 2)) ≤
-        Real.exp (-((Real.log J - (harmonic (J₀ - 1) : ℝ)) / 128)) := by
-  obtain ⟨J₀, hJ₀, hrecip⟩ := exists_geometric_primeReciprocal_log_lower
-  refine ⟨J₀, hJ₀, ?_⟩
-  intro J hJ
-  have hpow : 16 ^ J₀ ≤ 16 ^ J := Nat.pow_le_pow_right (by omega) hJ
-  apply (primeInterval_combinedEuler_le_exp hpow).trans
-  apply Real.exp_le_exp.mpr
-  nlinarith [hrecip J hJ]
-
-/-- Along geometric endpoints the local sieve density is no smaller than a
-fixed negative power of the upper exponent. -/
-theorem exists_geometric_localEulerProduct_lower :
-    ∃ J₀ : ℕ, 0 < J₀ ∧ ∀ J : ℕ, J₀ ≤ J →
-      Real.exp (-24 * (1 + Real.log J)) ≤
-        localEulerProduct (primeInterval (16 ^ J₀) (16 ^ J))
-          (fun p ↦ 1 / (p : ℝ)) := by
-  obtain ⟨J₀, hJ₀, hrecip⟩ := exists_geometric_primeReciprocal_log_upper
-  refine ⟨J₀, hJ₀, ?_⟩
-  intro J hJ
-  have hpow : 16 ^ J₀ ≤ 16 ^ J := Nat.pow_le_pow_right (by omega) hJ
-  apply (Real.exp_le_exp.mpr ?_).trans
-    (exp_neg_two_primeReciprocal_sub_le_localEulerProduct hpow)
-  nlinarith [hrecip J hJ]
 
 /-- Uniform combined-decay and sieve-density bounds between any two
 sufficiently late powers of `16`. -/

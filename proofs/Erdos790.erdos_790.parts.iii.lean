@@ -203,11 +203,6 @@ theorem distance_lists (A : Finset ℤ) {a b : ℤ} (ha : a ∈ A) (hb : b ∈ A
   · exact ⟨e - a, Or.inl hDa, hc, by linarith⟩
   · exact ⟨-(e - b), Or.inr hDb, by linarith, by linarith⟩
 
-theorem card_Dset_le (A : Finset ℤ) (a : ℤ) : (Dset A a).card ≤ Nat.clog 2 A.card := by
-  unfold Dset
-  refine Finset.card_image_le.trans ?_
-  exact (Finset.card_filter_le _ _).trans (Finset.card_range _).le
-
 end OMA790
 end
 
@@ -254,9 +249,6 @@ theorem lt_two_mul_of_dyIdx_eq {z b : ℤ} (hz : 0 < z) (hb : 0 < b) (h : dyIdx 
   rw [h, pow_succ] at h1
   linarith
 
-theorem dyIdx_le_topIdx {A : Finset ℤ} {z : ℤ} (hz : z ∈ A) : dyIdx z ≤ topIdx A :=
-  Finset.le_sup (f := dyIdx) hz
-
 end OMA790
 end
 
@@ -279,34 +271,6 @@ theorem mem_window_of (A : Finset ℤ) (N : ℕ) {z δ : ℤ} (hzA : z ∈ A) (h
   have : 2 * (N : ℤ) * z ≤ 2 * (N : ℤ) * 2 ^ (dyIdx z + 1) :=
     mul_le_mul_of_nonneg_left hhi'.le (by positivity)
   linarith
-
-theorem card_window_le (N : ℕ) (hN : 1 ≤ N) (δ : ℤ) (M : ℕ) :
-    (window N δ M).card ≤ Nat.clog 2 N + 5 := by
-  rcases (window N δ M).eq_empty_or_nonempty with h | h
-  · simp [h]
-  set a := (window N δ M).min' h
-  have ha := Finset.min'_mem _ h
-  have haw : δ ≤ 2 * (N : ℤ) * 2 ^ (a + 1) := by
-    have := ha; unfold window at this; rw [Finset.mem_filter] at this; exact this.2.1
-  have hNc : (N : ℤ) ≤ 2 ^ Nat.clog 2 N := by exact_mod_cast Nat.le_pow_clog (by norm_num) N
-  have hsub : window N δ M ⊆ Finset.Icc a (a + Nat.clog 2 N + 3) := by
-    intro j hj
-    have hmin : a ≤ j := Finset.min'_le _ _ hj
-    have hj' := hj
-    unfold window at hj'; rw [Finset.mem_filter] at hj'
-    have h2 : (2 : ℤ) ^ j ≤ 2 * δ := hj'.2.2
-    have key : (2 : ℤ) ^ j ≤ 2 ^ (a + Nat.clog 2 N + 3) := by
-      have e : (2 : ℤ) ^ (a + Nat.clog 2 N + 3) = 4 * 2 ^ Nat.clog 2 N * 2 ^ (a + 1) := by
-        ring
-      have hp : (0 : ℤ) ≤ 2 ^ (a + 1) := by positivity
-      have : 2 * (2 * (N : ℤ) * 2 ^ (a + 1)) ≤ 4 * 2 ^ Nat.clog 2 N * 2 ^ (a + 1) := by
-        nlinarith
-      linarith
-    have : j ≤ a + Nat.clog 2 N + 3 := (pow_le_pow_iff_right₀ (by norm_num : (1 : ℤ) < 2)).1 key
-    exact Finset.mem_Icc.2 ⟨hmin, this⟩
-  calc (window N δ M).card ≤ (Finset.Icc a (a + Nat.clog 2 N + 3)).card := Finset.card_le_card hsub
-    _ = Nat.clog 2 N + 4 := by simp; omega
-    _ ≤ _ := by omega
 
 end OMA790
 end
@@ -360,23 +324,6 @@ theorem card_Fset_le (A : Finset ℤ) (hA : 1 ≤ A.card) (a : ℤ) :
     _ = (Dplus A a).card * (Nat.clog 2 A.card + 5) := by
         rw [Finset.sum_const, smul_eq_mul]
     _ ≤ _ := Nat.mul_le_mul_right _ (card_Dplus_le A a)
-
-theorem lt_of_mem_Fset {A : Finset ℤ} {a : ℤ} {j : ℕ} (hj : j ∈ Fset A a) :
-    j < topIdx A + 1 := by
-  unfold Fset at hj
-  obtain ⟨_, hj⟩ := Finset.mem_erase.1 hj
-  obtain ⟨δ, _, hj⟩ := Finset.mem_biUnion.1 hj
-  unfold window at hj
-  exact Finset.mem_range.1 (Finset.mem_filter.1 hj).1
-
-theorem dyIdx_not_mem_Fset (A : Finset ℤ) (a : ℤ) : dyIdx a ∉ Fset A a := by
-  unfold Fset
-  exact Finset.notMem_erase _ _
-
-theorem fs_mem_Fset_of {A : Finset ℤ} {a δ : ℤ} {j : ℕ} (hδ : δ ∈ Dplus A a)
-    (hj : j ∈ window A.card δ (topIdx A)) (hne : j ≠ dyIdx a) : j ∈ Fset A a := by
-  unfold Fset
-  exact Finset.mem_erase.2 ⟨hne, Finset.mem_biUnion.2 ⟨δ, hδ, hj⟩⟩
 
 end OMA790
 end

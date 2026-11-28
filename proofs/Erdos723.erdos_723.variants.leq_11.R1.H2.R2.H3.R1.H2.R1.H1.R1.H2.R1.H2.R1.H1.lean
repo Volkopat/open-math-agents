@@ -1,14 +1,5 @@
 import OMAReductions.R_Erdos723_erdos_723_variants_leq_11_R1_H2_R2_H3_R1_H2_R1_H1_R1_H2_R1_H2_R1
-import Mathlib.Algebra.BigOperators.Group.Finset.Basic
-import Mathlib.Data.Finset.Card
-import Mathlib.Data.Finset.Powerset
-import Mathlib.Data.Fintype.EquivFin
-import Mathlib.Data.Fintype.Fin
-import Mathlib.Data.Fintype.Prod
-import Mathlib.Data.Fintype.Sum
-import Mathlib.Data.List.Basic
-import Mathlib.Data.Nat.Bitwise
-import Mathlib.Data.Nat.Choose.Basic
+import Mathlib
 
 -- Credit: @avivorly
 namespace WeightSixteenSecantIndexGeneric

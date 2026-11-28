@@ -1,6 +1,6 @@
 import Link from "@/components/Link";
-import { PROBLEMS, SOURCES } from "@/lib/catalog";
-import { getLiveMap, getSolved } from "@/lib/db";
+import { PROBLEMS, SOURCES, tally } from "@/lib/catalog";
+import { getLiveMap, getStats } from "@/lib/db";
 
 export const revalidate = 300;
 export const metadata = { title: "Programs", description: "The fronts being attacked: Erdős problems, OEIS conjectures, Wikipedia's list, Millennium Prize problems and more." };
@@ -23,11 +23,14 @@ const BLURB: Record<string, string> = {
 };
 
 export default async function Programs() {
-  const [live, solved] = await Promise.all([getLiveMap(), getSolved()]);
-  const s = new Set(solved.map((x) => x.problem_id));
+  const [live, stats] = await Promise.all([getLiveMap(), getStats()]);
+  const s = new Set(stats.solved.map((x) => x.problem_id));
   const rows = SOURCES.map((src) => {
     const ps = PROBLEMS.filter((p) => p.source === src);
-    return { src, total: ps.length, open: ps.filter((p) => p.kind === "open" || p.kind === "unformalized").length, solved: ps.filter((p) => s.has(p.id)).length, agents: ps.reduce((n, p) => n + (live.get(p.id) ?? 0), 0) };
+    // "open" is what is left: an open problem proved here moves to "solved here" (lib/catalog.ts tally), as on /board
+    const t = tally(ps, s);
+    const solved = Object.values(t.solved).reduce((a, b) => a + b, 0);
+    return { src, total: t.total, open: t.left.open + t.left.unformalized, solved, agents: ps.reduce((n, p) => n + (live.get(p.id) ?? 0), 0) };
   }).sort((a, b) => b.total - a.total);
   return (
     <main className="wrap prose" style={{ maxWidth: 1000 }}>

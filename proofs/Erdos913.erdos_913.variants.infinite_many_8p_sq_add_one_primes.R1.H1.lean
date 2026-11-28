@@ -1,9 +1,5 @@
 import OMAReductions.R_Erdos913_erdos_913_variants_infinite_many_8p_sq_add_one_primes_R1
-import Mathlib.NumberTheory.LSeries.PrimesInAP
-import Mathlib.Data.Nat.ModEq
-import Mathlib.Data.Nat.Prime.Basic
-import Mathlib.Algebra.BigOperators.Group.Finset.Basic
-import Mathlib.Tactic
+import Mathlib
 
 /-! Dirichlet's theorem supplies primes avoiding every prescribed finite set of factors. -/
 

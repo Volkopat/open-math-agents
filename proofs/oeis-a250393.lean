@@ -1,0 +1,1815 @@
+import OMAStatements.S_oeis_a250393
+
+/-!
+A250393: exact ten-position/seven-window adaptation of the threshold-chain proof
+by @Salofe for A250064, PR #23285, commit bd4969a8ddc52c3bd7f8d30008570b9868fd00b6.
+Related checked specialization: our A250390 proof, PR #26510.
+Conjecture: Colin Barker (2017); registered statement: @clementtrecourt, PR #19434.
+The finite tables certify a recurrence on every subset state; linearity then proves
+it for all levels. All computations are kernel checked.
+-/
+
+namespace OMA.A250393
+
+open OMA.S_oeis_a250393 Finset
+
+/-! ### The window condition -/
+
+/-- The condition of the statement on 4 values (without the bound on `v`). -/
+def Cy (y : Fin 4 → ℕ) : Prop :=
+  ∃ S ∈ (univ : Finset (Fin 4)).powersetCard 2, ∃ v, (∀ t ∈ S, y t ≤ v) ∧ (∃ t ∈ S, y t = v) ∧
+    (∀ t ∉ S, v ≤ y t) ∧ (∃ t ∉ S, y t = v)
+
+theorem cy_to (y : Fin 4 → ℕ) (h : Cy y) (w : ℕ) : (univ.filter (fun t => y t ≤ w)).card ≠ 2 := by
+  obtain ⟨S, hS, v, h1, ⟨s, hs, hsv⟩, h3, ⟨t0, ht0, ht0v⟩⟩ := h
+  have hc : S.card = 2 := (Finset.mem_powersetCard.1 hS).2
+  by_cases hw : w < v
+  · have hsub : univ.filter (fun t => y t ≤ w) ⊆ S.erase s := by
+      intro t ht
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ht
+      have htS : t ∈ S := by
+        by_contra hn
+        have := h3 t hn
+        omega
+      refine Finset.mem_erase.2 ⟨?_, htS⟩
+      rintro rfl
+      omega
+    have h1' := Finset.card_le_card hsub
+    rw [Finset.card_erase_of_mem hs, hc] at h1'
+    omega
+  · have hsub : insert t0 S ⊆ univ.filter (fun t => y t ≤ w) := by
+      intro t ht
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+      rcases Finset.mem_insert.1 ht with rfl | ht'
+      · omega
+      · have := h1 t ht'
+        omega
+    have h1' := Finset.card_le_card hsub
+    rw [Finset.card_insert_of_notMem ht0, hc] at h1'
+    omega
+
+theorem cy_of (y : Fin 4 → ℕ) (h : ∀ w : ℕ, (univ.filter (fun t => y t ≤ w)).card ≠ 2) :
+    Cy y := by
+  set U := univ.filter (fun s => 2 ≤ (univ.filter (fun t => y t ≤ y s)).card) with hU
+  have hUne : U.Nonempty := by
+    obtain ⟨m, _, hm⟩ := Finset.exists_max_image (univ : Finset (Fin 4)) y Finset.univ_nonempty
+    refine ⟨m, ?_⟩
+    rw [hU, Finset.mem_filter]
+    refine ⟨Finset.mem_univ _, ?_⟩
+    have : univ.filter (fun t => y t ≤ y m) = univ := by
+      apply Finset.filter_true_of_mem
+      intro t _
+      exact hm t (Finset.mem_univ t)
+    rw [this]
+    simp
+  obtain ⟨s, hsU, hmin⟩ := Finset.exists_min_image U y hUne
+  have hs2 : 2 ≤ (univ.filter (fun t => y t ≤ y s)).card := by
+    rw [hU, Finset.mem_filter] at hsU
+    exact hsU.2
+  have hs3 : 3 ≤ (univ.filter (fun t => y t ≤ y s)).card := by
+    have := h (y s)
+    omega
+  set L := univ.filter (fun t => y t < y s) with hL
+  set E := univ.filter (fun t => y t = y s) with hE
+  have hLc : L.card ≤ 1 := by
+    by_cases hLne : L.Nonempty
+    · obtain ⟨l, hl, hlmax⟩ := Finset.exists_max_image L y hLne
+      have hyl : y l < y s := by
+        rw [hL, Finset.mem_filter] at hl
+        exact hl.2
+      have hlU : l ∉ U := by
+        intro hlU
+        have := hmin l hlU
+        omega
+      have hcl : (univ.filter (fun t => y t ≤ y l)).card ≤ 1 := by
+        rw [hU, Finset.mem_filter] at hlU
+        have : ¬ 2 ≤ (univ.filter (fun t => y t ≤ y l)).card :=
+          fun h2 => hlU ⟨Finset.mem_univ _, h2⟩
+        omega
+      have hsub : L ⊆ univ.filter (fun t => y t ≤ y l) := by
+        intro t ht
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+        exact hlmax t ht
+      exact le_trans (Finset.card_le_card hsub) hcl
+    · rw [Finset.not_nonempty_iff_eq_empty.mp hLne]
+      simp
+  have hsplit : (univ.filter (fun t => y t ≤ y s)) ⊆ L ∪ E := by
+    intro t ht
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ht
+    rw [Finset.mem_union, hL, hE, Finset.mem_filter, Finset.mem_filter]
+    rcases Nat.lt_or_ge (y t) (y s) with h' | h'
+    · exact Or.inl ⟨Finset.mem_univ _, h'⟩
+    · exact Or.inr ⟨Finset.mem_univ _, by omega⟩
+  have hcard := le_trans (Finset.card_le_card hsplit) (Finset.card_union_le L E)
+  have hsE : s ∈ E := by
+    rw [hE, Finset.mem_filter]
+    exact ⟨Finset.mem_univ _, rfl⟩
+  have hnotL : ∀ t, ¬ y t < y s → t ∉ L := by
+    intro t ht htL
+    rw [hL, Finset.mem_filter] at htL
+    exact ht htL.2
+  rcases Nat.lt_or_ge 0 L.card with hpos | hzero
+  · -- one value below `y s`
+    obtain ⟨l, hLl⟩ := Finset.card_eq_one.1 (by omega : L.card = 1)
+    have hlL : l ∈ L := by rw [hLl]; exact Finset.mem_singleton_self l
+    have hyl : y l < y s := by
+      rw [hL, Finset.mem_filter] at hlL
+      exact hlL.2
+    have hE1 : 1 ≤ (E.erase s).card := by
+      rw [Finset.card_erase_of_mem hsE]
+      omega
+    obtain ⟨e, he⟩ := Finset.card_pos.1 (by omega : 0 < (E.erase s).card)
+    have hes : e ≠ s := (Finset.mem_erase.1 he).1
+    have hye : y e = y s := by
+      have := (Finset.mem_erase.1 he).2
+      rw [hE, Finset.mem_filter] at this
+      exact this.2
+    have hls : l ≠ s := by
+      rintro rfl
+      omega
+    refine ⟨{l, s}, ?_, y s, ?_, ⟨s, by simp, rfl⟩, ?_, ⟨e, ?_, hye⟩⟩
+    · rw [Finset.mem_powersetCard]
+      exact ⟨Finset.subset_univ _, Finset.card_pair hls⟩
+    · intro t ht
+      rcases Finset.mem_insert.1 ht with rfl | ht'
+      · omega
+      · rw [Finset.mem_singleton.1 ht']
+    · intro t ht
+      by_contra hlt
+      rw [not_le] at hlt
+      have htL : t ∈ L := by
+        rw [hL, Finset.mem_filter]
+        exact ⟨Finset.mem_univ _, hlt⟩
+      rw [hLl, Finset.mem_singleton] at htL
+      apply ht
+      rw [htL]
+      exact Finset.mem_insert_self l {s}
+    · intro he'
+      rcases Finset.mem_insert.1 he' with rfl | he''
+      · omega
+      · exact hes (Finset.mem_singleton.1 he'')
+  · -- no value below `y s`
+    have hL0 : L.card = 0 := by omega
+    have hE3 : 3 ≤ E.card := by omega
+    have hE2 : 1 < (E.erase s).card := by
+      rw [Finset.card_erase_of_mem hsE]
+      omega
+    obtain ⟨e1, he1, e2, he2, he12⟩ := Finset.one_lt_card.1 hE2
+    have he1s : e1 ≠ s := (Finset.mem_erase.1 he1).1
+    have he2s : e2 ≠ s := (Finset.mem_erase.1 he2).1
+    have hye1 : y e1 = y s := by
+      have := (Finset.mem_erase.1 he1).2
+      rw [hE, Finset.mem_filter] at this
+      exact this.2
+    have hye2 : y e2 = y s := by
+      have := (Finset.mem_erase.1 he2).2
+      rw [hE, Finset.mem_filter] at this
+      exact this.2
+    have hLempty : L = ∅ := Finset.card_eq_zero.1 hL0
+    refine ⟨{s, e1}, ?_, y s, ?_, ⟨s, by simp, rfl⟩, ?_, ⟨e2, ?_, hye2⟩⟩
+    · rw [Finset.mem_powersetCard]
+      exact ⟨Finset.subset_univ _, Finset.card_pair he1s.symm⟩
+    · intro t ht
+      rcases Finset.mem_insert.1 ht with rfl | ht'
+      · exact le_rfl
+      · rw [Finset.mem_singleton.1 ht', hye1]
+    · intro t _
+      by_contra hlt
+      rw [not_le] at hlt
+      have htL : t ∈ L := by
+        rw [hL, Finset.mem_filter]
+        exact ⟨Finset.mem_univ _, hlt⟩
+      rw [hLempty] at htL
+      exact Finset.notMem_empty t htL
+    · intro he'
+      rcases Finset.mem_insert.1 he' with h' | h'
+      · exact he2s h'
+      · exact he12 (Finset.mem_singleton.1 h').symm
+
+theorem window_iff (y : Fin 4 → ℕ) :
+    Cy y ↔ ∀ v : ℕ, (univ.filter (fun t => y t ≤ v)).card ≠ 2 :=
+  ⟨cy_to y, cy_of y⟩
+
+/-! ### Negated window condition as a condition on consecutive strict threshold counts -/
+
+theorem not_cy_iff (y : Fin 4 → ℕ) :
+    ¬ Cy y ↔ ∀ v : ℕ, ¬ ((univ.filter (fun t => y t < v)).card ≤ 1 ∧
+      3 ≤ (univ.filter (fun t => y t < v + 1)).card) := by
+  rw [window_iff, not_forall]
+  simp only [ne_eq, not_not]
+  constructor
+  · rintro ⟨w, hw⟩ v ⟨h1, h3⟩
+    rcases Nat.lt_or_ge w v with h | h
+    · have hsub : univ.filter (fun t => y t ≤ w) ⊆ univ.filter (fun t => y t < v) := by
+        intro t ht
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ht ⊢
+        omega
+      have := Finset.card_le_card hsub
+      omega
+    · have hsub : univ.filter (fun t => y t < v + 1) ⊆ univ.filter (fun t => y t ≤ w) := by
+        intro t ht
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ht ⊢
+        omega
+      have := Finset.card_le_card hsub
+      omega
+  · intro h
+    by_contra hne
+    simp only [not_exists] at hne
+    have key : ∀ v, (univ.filter (fun t => y t < v)).card ≤ 1 := by
+      intro v
+      induction v with
+      | zero => simp
+      | succ v ih =>
+        have h1 := h v
+        have h2 := hne v
+        have e : univ.filter (fun t => y t < v + 1) = univ.filter (fun t => y t ≤ v) := by
+          ext t
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          omega
+        rw [e] at h1 ⊢
+        by_contra hc
+        exact h1 ⟨ih, by omega⟩
+    have hall : univ.filter (fun t => y t < univ.sup y + 1) = univ := by
+      apply Finset.filter_true_of_mem
+      intro t _
+      have := Finset.le_sup (f := y) (Finset.mem_univ t)
+      omega
+    have := key (univ.sup y + 1)
+    rw [hall] at this
+    simp at this
+
+/-! ### Strict threshold sets -/
+
+/-- Entry `k` of a set of positions (`false` past the end). -/
+def fget (f : Fin 10 → Bool) (k : ℕ) : Bool := if h : k < 10 then f ⟨k, h⟩ else false
+
+/-- Number of positions of window `i` lying in the set `f`. -/
+def cntW (f : Fin 10 → Bool) (i : ℕ) : ℕ :=
+  (univ.filter (fun t : Fin 4 => fget f (i + t) = true)).card
+
+/-- Two consecutive strict threshold sets: no window goes from at most one position to at least
+three positions. -/
+def Comp (S T : Fin 10 → Bool) : Prop := ∀ i < (7 : ℕ), ¬ (cntW S i ≤ 1 ∧ 3 ≤ cntW T i)
+
+instance decComp (S T : Fin 10 → Bool) : Decidable (Comp S T) := by
+  unfold Comp
+  infer_instance
+
+/-- The positions where `x` is below `v`. -/
+def Lt {n : ℕ} (x : Fin 10 → Fin (n + 1)) (v : ℕ) : Fin 10 → Bool :=
+  fun p => decide ((x p : ℕ) < v)
+
+theorem get_le {n : ℕ} (x : Fin 10 → Fin (n + 1)) (k : ℕ) : OMA.S_oeis_a250393.get x k ≤ n := by
+  unfold OMA.S_oeis_a250393.get
+  split_ifs
+  · have := (x ⟨k, by assumption⟩).isLt
+    omega
+  · omega
+
+theorem cnt_univ : ∀ i < (7 : ℕ), cntW (fun _ => true) i = 4 := by
+  decide
+
+theorem good_iff {n : ℕ} (x : Fin 10 → Fin (n + 1)) :
+    good x = true ↔ ∀ v ≤ n, Comp (Lt x v) (Lt x (v + 1)) := by
+  have step1 : good x = true ↔
+      ∀ i < (7 : ℕ), ¬ Cy (fun t : Fin 4 => OMA.S_oeis_a250393.get x (i + t)) := by
+    unfold good
+    rw [decide_eq_true_iff]
+    refine forall_congr' fun i => imp_congr_right fun _ => not_congr ?_
+    constructor
+    · rintro ⟨S, hS, v, _, h1, h2, h3, h4⟩
+      exact ⟨S, hS, v, h1, h2, h3, h4⟩
+    · rintro ⟨S, hS, v, h1, ⟨t, ht, htv⟩, h3, h4⟩
+      refine ⟨S, hS, v, ?_, h1, ⟨t, ht, htv⟩, h3, h4⟩
+      rw [← htv]
+      exact Nat.lt_succ_of_le (get_le x _)
+  have step2 : ∀ i < (7 : ℕ), ∀ v : ℕ,
+      (univ.filter (fun t : Fin 4 => OMA.S_oeis_a250393.get x (i + t) < v)).card = cntW (Lt x v) i := by
+    intro i hi v
+    unfold cntW
+    congr 1
+    ext t
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+    have ht : i + (t : ℕ) < 10 := by have := t.isLt; omega
+    unfold OMA.S_oeis_a250393.get fget Lt
+    rw [dif_pos ht, dif_pos ht, decide_eq_true_iff]
+  have hfull : ∀ w, n < w → Lt x w = fun _ => true := by
+    intro w hw
+    funext p
+    unfold Lt
+    have := (x p).isLt
+    simp only [decide_eq_true_iff]
+    omega
+  rw [step1]
+  constructor
+  · intro h v _ i hi
+    have := (not_cy_iff _).1 (h i hi) v
+    simp only [step2 i hi v, step2 i hi (v + 1)] at this
+    exact this
+  · intro h i hi
+    rw [not_cy_iff]
+    intro v
+    simp only [step2 i hi v, step2 i hi (v + 1)]
+    by_cases hv : v ≤ n
+    · exact h v hv i hi
+    · rw [hfull v (by omega), cnt_univ i hi]
+      omega
+
+/-! ### Chains of strict threshold sets -/
+
+/-- Arrays with entries in `0..n` whose consecutive strict threshold sets are compatible, with
+`Lt x n ⊆ T` and `Lt x n` compatible with `T`. -/
+noncomputable def M (n : ℕ) (T : Fin 10 → Bool) : ℕ := by
+  classical
+  exact ((univ : Finset (Fin 10 → Fin (n + 1))).filter
+    (fun x => (∀ p, Lt x n p = true → T p = true) ∧ (∀ v < n, Comp (Lt x v) (Lt x (v + 1))) ∧
+      Comp (Lt x n) T)).card
+
+theorem Lt_zero {n : ℕ} (x : Fin 10 → Fin (n + 1)) : Lt x 0 = fun _ => false := by
+  funext p
+  unfold Lt
+  simp
+
+theorem M_zero (T : Fin 10 → Bool) : M 0 T = if Comp (fun _ => false) T then 1 else 0 := by
+  classical
+  unfold M
+  split_ifs with h
+  · rw [Finset.filter_true_of_mem]
+    · simp
+    · intro x _
+      refine ⟨fun p hp => ?_, fun v hv => absurd hv (Nat.not_lt_zero _), ?_⟩
+      · rw [Lt_zero] at hp
+        exact absurd hp (by simp)
+      · rw [Lt_zero]
+        exact h
+  · rw [Finset.card_eq_zero, Finset.filter_eq_empty_iff]
+    intro x _ hx
+    apply h
+    rw [← Lt_zero x]
+    exact hx.2.2
+
+/-- Restriction of an array with entries in `0..n+1` to entries in `0..n`. -/
+def lower {n : ℕ} (x : Fin 10 → Fin (n + 2)) : Fin 10 → Fin (n + 1) :=
+  fun p => ⟨min (x p : ℕ) n, by omega⟩
+
+/-- Extension of an array with entries in `0..n` by the top value `n + 1` outside `S`. -/
+def raise {n : ℕ} (S : Fin 10 → Bool) (x : Fin 10 → Fin (n + 1)) : Fin 10 → Fin (n + 2) :=
+  fun p => if S p = true then ⟨x p, by omega⟩ else ⟨n + 1, by omega⟩
+
+theorem Lt_lower {n : ℕ} (x : Fin 10 → Fin (n + 2)) (v : ℕ) (hv : v ≤ n) :
+    Lt (lower x) v = Lt x v := by
+  funext p
+  show decide (min (x p : ℕ) n < v) = decide ((x p : ℕ) < v)
+  rw [decide_eq_decide]
+  constructor <;> intro h <;> omega
+
+theorem raise_val {n : ℕ} (S : Fin 10 → Bool) (x : Fin 10 → Fin (n + 1)) (p : Fin 10) :
+    ((raise S x p : Fin (n + 2)) : ℕ) = if S p = true then (x p : ℕ) else n + 1 := by
+  unfold raise
+  split_ifs <;> rfl
+
+theorem M_succ (n : ℕ) (T : Fin 10 → Bool) :
+    M (n + 1) T = ∑ S : Fin 10 → Bool,
+      if Comp S T ∧ (∀ p, S p = true → T p = true) then M n S else 0 := by
+  classical
+  unfold M
+  rw [Finset.card_eq_sum_card_fiberwise (f := fun x => Lt x (n + 1)) (t := univ)
+    (fun x _ => Finset.mem_univ _)]
+  refine Finset.sum_congr rfl fun S _ => ?_
+  rw [Finset.filter_filter]
+  split_ifs with hS
+  · apply Finset.card_bij' (fun x _ => lower x) (fun x _ => raise S x)
+    · intro x hx
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢
+      obtain ⟨⟨_, h2, _⟩, h3⟩ := hx
+      refine ⟨fun p hp => ?_, fun v hv => ?_, ?_⟩
+      · rw [Lt_lower x n le_rfl] at hp
+        rw [← h3]
+        have hp' : (x p : ℕ) < n := of_decide_eq_true hp
+        exact decide_eq_true (by omega)
+      · rw [Lt_lower x v (by omega), Lt_lower x (v + 1) (by omega)]
+        exact h2 v (by omega)
+      · rw [Lt_lower x n le_rfl, ← h3]
+        exact h2 n (by omega)
+    · intro x hx
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢
+      obtain ⟨h1, h2, h3⟩ := hx
+      have hTS : Lt (raise S x) (n + 1) = S := by
+        funext p
+        show decide (((raise S x p : Fin (n + 2)) : ℕ) < n + 1) = S p
+        rw [raise_val]
+        by_cases hp : S p = true
+        · rw [if_pos hp, hp]
+          have := (x p).isLt
+          exact decide_eq_true (by omega)
+        · rw [if_neg hp]
+          simp only [Bool.not_eq_true] at hp
+          rw [hp]
+          exact decide_eq_false (by omega)
+      have hlow : ∀ v ≤ n, Lt (raise S x) v = Lt x v := by
+        intro v hv
+        funext p
+        show decide (((raise S x p : Fin (n + 2)) : ℕ) < v) = decide ((x p : ℕ) < v)
+        rw [raise_val]
+        split_ifs with hp
+        · rfl
+        · have hxp : ¬ (x p : ℕ) < n := fun h => hp (h1 p (decide_eq_true h))
+          rw [decide_eq_decide]
+          omega
+      refine ⟨⟨?_, fun v hv => ?_, ?_⟩, hTS⟩
+      · rw [hTS]
+        exact hS.2
+      · rcases Nat.lt_or_ge v n with hv' | hv'
+        · rw [hlow v (by omega), hlow (v + 1) (by omega)]
+          exact h2 v hv'
+        · obtain rfl : v = n := by omega
+          rw [hlow v le_rfl, hTS]
+          exact h3
+      · rw [hTS]
+        exact hS.1
+    · intro x hx
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx
+      obtain ⟨_, h3⟩ := hx
+      funext p
+      apply Fin.ext
+      rw [raise_val]
+      have hiff : S p = true ↔ (x p : ℕ) < n + 1 := by
+        rw [← h3]
+        exact decide_eq_true_iff
+      split_ifs with hp
+      · show min (x p : ℕ) n = x p
+        have := hiff.1 hp
+        omega
+      · have : ¬ (x p : ℕ) < n + 1 := fun h => hp (hiff.2 h)
+        have := (x p).isLt
+        omega
+    · intro x hx
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx
+      obtain ⟨h1, _⟩ := hx
+      funext p
+      apply Fin.ext
+      show min ((raise S x p : Fin (n + 2)) : ℕ) n = x p
+      rw [raise_val]
+      split_ifs with hp
+      · have := (x p).isLt
+        omega
+      · have hxp : ¬ (x p : ℕ) < n := fun h => hp (h1 p (decide_eq_true h))
+        have := (x p).isLt
+        omega
+  · rw [Finset.card_eq_zero, Finset.filter_eq_empty_iff]
+    intro x _
+    rintro ⟨⟨h1, _, h3⟩, h4⟩
+    apply hS
+    rw [← h4]
+    exact ⟨h3, h1⟩
+
+/-! ### Codes -/
+
+/-- The set of positions with code `u`: position `p` is in it iff bit `p` of `u` is set. -/
+def row (u : Fin 1024) : Fin 10 → Bool := fun p => Nat.testBit u.val p.val
+
+/-- The code of a set of positions. -/
+def code (f : Fin 10 → Bool) : ℕ := ∑ p : Fin 10, if f p = true then 2 ^ p.val else 0
+
+theorem code_row : ∀ u : Fin 1024, code (row u) = u.val := by
+  decide +kernel
+
+theorem row_injective : Function.Injective row := by
+  intro a b h
+  apply Fin.ext
+  rw [← code_row a, ← code_row b, h]
+
+theorem row_bijective : Function.Bijective row := by
+  rw [Fintype.bijective_iff_injective_and_card]
+  exact ⟨row_injective, by simp⟩
+
+/-- Number of set bits among the low 10 bits. -/
+def pcb (m : ℕ) : ℕ :=
+  m % 2 + m / 2 % 2 + m / 4 % 2 + m / 8 % 2 + m / 16 % 2 + m / 32 % 2 + m / 64 % 2 + m / 128 % 2 + m / 256 % 2 + m / 512 % 2
+
+theorem cnt_row : ∀ u : Fin 1024, cntW (row u) 0 = pcb (u.val &&& 15) ∧
+    cntW (row u) 1 = pcb (u.val &&& 30) ∧
+    cntW (row u) 2 = pcb (u.val &&& 60) ∧
+    cntW (row u) 3 = pcb (u.val &&& 120) ∧
+    cntW (row u) 4 = pcb (u.val &&& 240) ∧
+    cntW (row u) 5 = pcb (u.val &&& 480) ∧
+    cntW (row u) 6 = pcb (u.val &&& 960) := by
+  decide +kernel
+
+def compc (s t : ℕ) : Bool :=
+  decide (¬ (pcb (s &&& 15) ≤ 1 ∧ 3 ≤ pcb (t &&& 15)) ∧
+    ¬ (pcb (s &&& 30) ≤ 1 ∧ 3 ≤ pcb (t &&& 30)) ∧
+    ¬ (pcb (s &&& 60) ≤ 1 ∧ 3 ≤ pcb (t &&& 60)) ∧
+    ¬ (pcb (s &&& 120) ≤ 1 ∧ 3 ≤ pcb (t &&& 120)) ∧
+    ¬ (pcb (s &&& 240) ≤ 1 ∧ 3 ≤ pcb (t &&& 240)) ∧
+    ¬ (pcb (s &&& 480) ≤ 1 ∧ 3 ≤ pcb (t &&& 480)) ∧
+    ¬ (pcb (s &&& 960) ≤ 1 ∧ 3 ≤ pcb (t &&& 960)))
+
+theorem forall_lt_nw (P : ℕ → Prop) : (∀ i < (7 : ℕ), P i) ↔ P 0 ∧ P 1 ∧ P 2 ∧ P 3 ∧ P 4 ∧ P 5 ∧ P 6 := by
+  constructor
+  · intro h
+    exact ⟨h 0 (by norm_num), h 1 (by norm_num), h 2 (by norm_num), h 3 (by norm_num), h 4 (by norm_num), h 5 (by norm_num), h 6 (by norm_num)⟩
+  · rintro ⟨h0, h1, h2, h3, h4, h5, h6⟩ i hi
+    interval_cases i <;> assumption
+
+theorem compc_iff (s t : Fin 1024) : Comp (row s) (row t) ↔ compc s.val t.val = true := by
+  obtain ⟨a0, a1, a2, a3, a4, a5, a6⟩ := cnt_row s
+  obtain ⟨b0, b1, b2, b3, b4, b5, b6⟩ := cnt_row t
+  unfold Comp compc
+  refine (forall_lt_nw _).trans ?_
+  rw [decide_eq_true_iff, a0, a1, a2, a3, a4, a5, a6, b0, b1, b2, b3, b4, b5, b6]
+
+theorem sub_iff (w u : Fin 1024) : (∀ p, row w p = true → row u p = true) ↔
+    (w.val &&& u.val == w.val) = true := by
+  rw [beq_iff_eq]
+  constructor
+  · intro h
+    apply Nat.eq_of_testBit_eq
+    intro i
+    rw [Nat.testBit_land]
+    by_cases hi : i < 10
+    · have := h ⟨i, hi⟩
+      unfold row at this
+      cases hw : w.val.testBit i <;> simp_all
+    · have hw : w.val.testBit i = false := by
+        apply Nat.testBit_eq_false_of_lt
+        have h1 : (1024 : ℕ) ≤ 2 ^ i := by
+          calc (1024 : ℕ) = 2 ^ 10 := by norm_num
+            _ ≤ 2 ^ i := Nat.pow_le_pow_right (by norm_num) (by omega)
+        have := w.isLt
+        omega
+      simp [hw]
+  · intro h p hp
+    unfold row at hp ⊢
+    rw [← h, Nat.testBit_land] at hp
+    simp only [Bool.and_eq_true] at hp
+    exact hp.2
+
+/-- The codes of the subsets of the set with code `u`. -/
+def subs (u : Fin 1024) : Finset (Fin 1024) :=
+  univ.filter (fun w : Fin 1024 => (w.val &&& u.val == w.val) = true)
+
+/-- The chain recursion on codes. -/
+def G : ℕ → Fin 1024 → ℕ
+  | 0, u => if compc 0 u.val = true then 1 else 0
+  | n + 1, u => ∑ w ∈ subs u, if compc w.val u.val = true then G n w else 0
+
+theorem row_zero : row 0 = fun _ => false := by
+  funext p
+  simp [row]
+
+theorem M_eq_G (n : ℕ) : ∀ u : Fin 1024, M n (row u) = G n u := by
+  induction n with
+  | zero =>
+    intro u
+    rw [M_zero, ← row_zero, G]
+    exact if_congr (compc_iff 0 u) rfl rfl
+  | succ n ih =>
+    intro u
+    rw [M_succ, ← row_bijective.sum_comp]
+    simp only [G, subs]
+    rw [Finset.sum_filter]
+    refine Finset.sum_congr rfl fun w _ => ?_
+    rw [ih w]
+    by_cases h1 : (w.val &&& u.val == w.val) = true
+    · rw [if_pos h1]
+      exact if_congr ((and_iff_left ((sub_iff w u).2 h1)).trans (compc_iff w u)) rfl rfl
+    · rw [if_neg h1, if_neg (fun h => h1 ((sub_iff w u).1 h.2))]
+
+theorem row_full : ∀ p, row 1023 p = true := by
+  decide
+
+theorem a_eq_G (n : ℕ) : a n = (G n 1023 : ℤ) := by
+  classical
+  have h1 : (univ.filter (fun x : Fin 10 → Fin (n + 1) => good x)) =
+      univ.filter (fun x => (∀ p, Lt x n p = true → row 1023 p = true) ∧
+        (∀ v < n, Comp (Lt x v) (Lt x (v + 1))) ∧ Comp (Lt x n) (row 1023)) := by
+    apply Finset.filter_congr
+    intro x _
+    rw [good_iff]
+    have hr : row 1023 = fun _ => true := funext row_full
+    have hn : Lt x (n + 1) = row 1023 := by
+      rw [hr]
+      funext p
+      unfold Lt
+      have := (x p).isLt
+      simp only [decide_eq_true_iff]
+      omega
+    constructor
+    · intro h
+      refine ⟨fun p _ => row_full p, fun v hv => h v (by omega), ?_⟩
+      rw [← hn]
+      exact h n le_rfl
+    · rintro ⟨_, h2, h3⟩ v hv
+      rcases Nat.lt_or_ge v n with h | h
+      · exact h2 v h
+      · obtain rfl : v = n := by omega
+        rw [hn]
+        exact h3
+  unfold a
+  rw [h1, ← M_eq_G]
+  unfold M
+  congr 2
+
+/-! ### The recurrence -/
+
+theorem G_succ (n : ℕ) (u : Fin 1024) :
+    G (n + 1) u = ∑ w ∈ subs u, if compc w.val u.val = true then G n w else 0 :=
+  rfl
+
+
+/-! Packed tables certify the recursion on every state. -/
+def tb (T w : ℕ) : ℕ := (T >>> (36 * w)) % 2 ^ 36
+
+def tabT : ℕ → ℕ
+  | 0 => 0x1000000001000000001000000001000000000000000000000000000000000000000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000001000000001000000000000000000000000001000000001000000001000000001000000001000000001000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000001000000001000000000000000000000000001000000001000000001000000001000000001000000001000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000001000000001000000001000000001000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000001000000001000000000000000000000000000000000000000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000001000000001000000000000000000000000001000000001000000001000000001000000001000000001000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000000000000000000000001000000001000000001000000001000000001000000001000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000001000000001000000001000000001000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000001000000001000000000000000000000000000000000000000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000001000000001000000000000000000000000001000000001000000001000000001000000001000000001000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000001000000001000000000000000000000000001000000001000000001000000001000000001000000001000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000001000000001000000001000000001000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000001000000001000000001000000000000000000000000000000000000000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001000000000000000000000000000000000000000000000000000000000000001000000001000000000000000000000000001000000001000000001000000001000000001000000001000000000000000000000000000000000001000000000000000001000000001000000001000000000000000001000000001000000001000000001000000001000000001000000001
+  | 1 => 0x600000000300000000300000000300000000300000000300000000600000000300000000300000000300000000600000000300000000C00000000600000000600000000300000000300000000300000000300000000300000000500000000600000000600000000300000000900000000C00000000C00000000600000000C00000000600000000600000000300000000300000000100000000300000000300000000300000000300000000600000000300000000500000000500000000C00000000600000000C00000000600000000600000000300000000900000000900000000900000000C00000000900000000C00000000C00000000600000000900000000C00000000C00000000600000000C00000000600000000600000000300000000300000000100000000100000000100000000300000000300000000600000000300000000300000000300000000600000000300000000C00000000600000000600000000300000000500000000500000000500000000500000000900000000C00000000C00000000600000000900000000C00000000C00000000600000000C00000000600000000600000000300000000900000000300000000900000000900000000900000000900000001800000000C00000000900000000900000001800000000C00000001800000000C00000000C00000000600000000900000000900000000900000000C00000000900000000C00000000C00000000600000000900000000C00000000C00000000600000000C00000000600000000600000000300000000300000000100000000100000000100000000100000000100000000200000000100000000300000000300000000600000000300000000C00000000600000000600000000300000000300000000300000000300000000300000000500000000600000000600000000300000000900000000C00000000C00000000600000000C00000000600000000600000000300000000500000000200000000500000000500000000500000000500000000A00000000500000000900000000900000001800000000C00000001800000000C00000000C00000000600000000900000000900000000900000000C00000000900000000C00000000C00000000600000000900000000C00000000C00000000600000000C00000000600000000600000000300000000C00000000400000000400000000400000000C00000000C00000001800000000C00000000C00000000C00000001800000000C00000004000000002000000002000000001000000000C00000000C00000000C00000000C00000001800000002000000002000000001000000001800000002000000002000000001000000002000000001000000001000000000800000000C00000000400000000C00000000C00000000C00000000C00000002000000001000000000C00000000C00000002000000001000000002000000001000000001000000000800000000C00000000C00000000C00000001000000000C00000001000000001000000000800000000C00000001000000001000000000800000001000000000800000000800000000400000000300000000300000000100000000100000000100000000100000000200000000100000000100000000100000000200000000100000000400000000200000000200000000100000000300000000300000000300000000300000000500000000600000000600000000300000000900000000C00000000C00000000600000000C00000000600000000600000000300000000300000000100000000300000000300000000300000000300000000600000000300000000500000000500000000C00000000600000000C00000000600000000600000000300000000900000000900000000900000000C00000000900000000C00000000C00000000600000000900000000C00000000C00000000600000000C00000000600000000600000000300000000600000000200000000200000000200000000600000000600000000C00000000600000000600000000600000000C00000000600000001800000000C00000000C00000000600000000C00000000C00000000C00000000C00000001800000002000000002000000001000000001800000002000000002000000001000000002000000001000000001000000000800000000C00000000400000000C00000000C00000000C00000000C00000002000000001000000000C00000000C00000002000000001000000002000000001000000001000000000800000000C00000000C00000000C00000001000000000C00000001000000001000000000800000000C00000001000000001000000000800000001000000000800000000800000000400000000600000000200000000200000000200000000200000000200000000400000000200000000600000000600000000C00000000600000001800000000C00000000C00000000600000000600000000600000000600000000600000000A00000000C00000000C00000000600000001800000002000000002000000001000000002000000001000000001000000000800000000600000000200000000600000000600000000600000000600000000C00000000600000000C00000000C00000002000000001000000002000000001000000001000000000800000000C00000000C00000000C00000001000000000C00000001000000001000000000800000000C00000001000000001000000000800000001000000000800000000800000000400000000600000000200000000200000000200000000600000000600000000C00000000600000000600000000600000000C00000000600000002000000001000000001000000000800000000600000000600000000600000000600000000C00000001000000001000000000800000000C00000001000000001000000000800000001000000000800000000800000000400000000600000000200000000600000000600000000600000000600000001000000000800000000600000000600000001000000000800000001000000000800000000800000000400000000600000000600000000600000000800000000600000000800000000800000000400000000600000000800000000800000000400000000800000000400000000400000000200000000300000000100000000300000000300000000100000000100000000200000000100000000100000000100000000200000000100000000400000000200000000200000000100000000100000000100000000100000000100000000200000000200000000200000000100000000300000000400000000400000000200000000400000000200000000200000000100000000300000000100000000300000000300000000300000000300000000600000000300000000500000000500000000C00000000600000000C00000000600000000600000000300000000900000000900000000900000000C00000000900000000C00000000C00000000600000000900000000C00000000C00000000600000000C00000000600000000600000000300000000300000000100000000100000000100000000300000000300000000600000000300000000300000000300000000600000000300000000C00000000600000000600000000300000000500000000500000000500000000500000000900000000C00000000C00000000600000000900000000C00000000C00000000600000000C00000000600000000600000000300000000C00000000400000000C00000000C00000000C00000000C00000002000000001000000000C00000000C00000002000000001000000002000000001000000001000000000800000000C00000000C00000000C00000001000000000C00000001000000001000000000800000000C00000001000000001000000000800000001000000000800000000800000000400000000300000000100000000100000000100000000100000000100000000200000000100000000300000000300000000600000000300000000C00000000600000000600000000300000000300000000300000000300000000300000000500000000600000000600000000300000000900000000C00000000C00000000600000000C00000000600000000600000000300000000600000000200000000600000000600000000600000000600000000C00000000600000000C00000000C00000002000000001000000002000000001000000001000000000800000000C00000000C00000000C00000001000000000C00000001000000001000000000800000000C00000001000000001000000000800000001000000000800000000800000000400000000600000000200000000200000000200000000600000000600000000C00000000600000000600000000600000000C00000000600000002000000001000000001000000000800000000600000000600000000600000000600000000C00000001000000001000000000800000000C00000001000000001000000000800000001000000000800000000800000000400000000600000000200000000600000000600000000600000000600000001000000000800000000600000000600000001000000000800000001000000000800000000800000000400000000600000000600000000600000000800000000600000000800000000800000000400000000600000000800000000800000000400000000800000000400000000400000000200000000300000000300000000100000000100000000100000000100000000200000000100000000100000000100000000200000000100000000400000000200000000200000000100000000300000000300000000300000000300000000500000000600000000600000000300000000900000000C00000000C00000000600000000C00000000600000000600000000300000000300000000100000000300000000300000000300000000300000000600000000300000000500000000500000000C00000000600000000C00000000600000000600000000300000000C00000000C00000000C00000001000000000C00000001000000001000000000800000000C00000001000000001000000000800000001000000000800000000800000000400000000300000000100000000100000000100000000300000000300000000600000000300000000300000000300000000600000000300000000C00000000600000000600000000300000000600000000600000000600000000600000000C00000001000000001000000000800000000C00000001000000001000000000800000001000000000800000000800000000400000000600000000200000000600000000600000000600000000600000001000000000800000000600000000600000001000000000800000001000000000800000000800000000400000000600000000600000000600000000800000000600000000800000000800000000400000000600000000800000000800000000400000000800000000400000000400000000200000000300000000100000000100000000100000000100000000100000000200000000100000000300000000300000000600000000300000000C00000000600000000600000000300000000300000000300000000300000000300000000500000000600000000600000000300000000C000000010000000010000000008000000010000000008000000008000000004000000003000000001000000003000000003000000003000000003000000006000000003000000006000000006000000010000000008000000010000000008000000008000000004000000006000000006000000006000000008000000006000000008000000008000000004000000006000000008000000008000000004000000008000000004000000004000000002000000003000000001000000001000000001000000003000000003000000006000000003000000003000000003000000006000000003000000010000000008000000008000000004000000003000000003000000003000000003000000006000000008000000008000000004000000006000000008000000008000000004000000008000000004000000004000000002000000003000000001000000003000000003000000003000000003000000008000000004000000003000000003000000008000000004000000008000000004000000004000000002000000003000000003000000003000000004000000003000000004000000004000000002000000003000000004000000004000000002000000004000000002000000002000000001
+  | 2 => 0x71800000027D0000002990000001530000002B100000016300000021F0000000B50000002C200000016D0000002340000000BC0000003600000001200000001200000000600000002B40000001770000001770000000C200000020600000012C00000012C0000000640000002FD0000001CB0000001CB0000000990000001CB0000000990000000990000000330000002B40000000EB0000001810000000C70000001810000000C70000001350000000670000002170000001120000001DD00000009F0000001DD00000009F00000009F0000000350000002D90000001950000001950000000F30000001950000000F30000000F30000000510000001950000000F30000000F30000000510000000F300000005100000005100000001B0000002C20000000D50000000FE00000007F0000001940000000D100000014400000006C0000001940000000D100000014400000006C0000001F80000000A80000000A80000000380000002170000001250000001250000000960000001B30000001050000001050000000570000001B300000010500000010500000005700000010500000005700000005700000001D0000002FD0000000FF0000001B30000000E10000001B30000000E10000001950000000870000001B30000000E100000019500000008700000019500000008700000008700000002D0000001950000000E10000000E10000000870000000E100000008700000008700000002D0000000E100000008700000008700000002D00000008700000002D00000002D00000000F0000002B10000000CF0000000DC00000006E0000001080000000860000000C90000000430000001940000000D100000014400000006C0000001F80000000A80000000A80000000380000001810000000D10000000D100000006C0000001210000000A80000000A80000000380000001B300000010500000010500000005700000010500000005700000005700000001D0000002060000000B20000001210000000960000001210000000960000000E700000004D0000001B30000000E100000019500000008700000019500000008700000008700000002D0000001950000000E10000000E10000000870000000E100000008700000008700000002D0000000E100000008700000008700000002D00000008700000002D00000002D00000000F0000003600000001050000001320000000990000001F80000001050000001950000000870000001F80000001050000001950000000870000002D90000000F30000000F30000000510000001DD0000001050000001050000000870000001950000000F30000000F30000000510000001950000000F30000000F30000000510000000F300000005100000005100000001B0000001CB0000000990000001050000000870000001050000000870000000F30000000510000001050000000870000000F30000000510000000F300000005100000005100000001B0000000F300000008700000008700000005100000008700000005100000005100000001B00000008700000005100000005100000001B00000005100000001B00000001B0000000090000002990000001110000000CD00000006A0000000DC0000000740000000AE00000003A0000000FE0000000860000000CC0000000440000001320000000660000000660000000220000001810000000D10000000D100000006C0000001210000000A80000000A80000000380000001B300000010500000010500000005700000010500000005700000005700000001D00000017700000007F0000000D100000006C0000000D100000006C0000000A800000003800000012500000009600000010500000005700000010500000005700000005700000001D0000001950000000E10000000E10000000870000000E100000008700000008700000002D0000000E100000008700000008700000002D00000008700000002D00000002D00000000F0000002340000000AE0000000CC0000000660000001440000000A80000001050000000570000001440000000A800000010500000005700000019500000008700000008700000002D0000001DD0000001050000001050000000870000001950000000F30000000F30000000510000001950000000F30000000F30000000510000000F300000005100000005100000001B0000001CB0000000990000001050000000870000001050000000870000000F30000000510000001050000000870000000F30000000510000000F300000005100000005100000001B0000000F300000008700000008700000005100000008700000005100000005100000001B00000008700000005100000005100000001B00000005100000001B00000001B00000000900000021F0000000A50000000AE0000000570000000C90000000660000000990000000330000001440000000A800000010500000005700000019500000008700000008700000002D0000001350000000A80000000A80000000570000000E700000008700000008700000002D0000001950000000F30000000F30000000510000000F300000005100000005100000001B00000012C0000000660000000A80000000570000000A800000005700000008700000002D0000001050000000870000000F30000000510000000F300000005100000005100000001B0000000F300000008700000008700000005100000008700000005100000005100000001B00000008700000005100000005100000001B00000005100000001B00000001B0000000090000001200000000570000000660000000330000000A800000005700000008700000002D0000000A800000005700000008700000002D0000000F300000005100000005100000001B00000009F00000005700000005700000002D00000008700000005100000005100000001B00000008700000005100000005100000001B00000005100000001B00000001B00000000900000009900000003300000005700000002D00000005700000002D00000005100000001B00000005700000002D00000005100000001B00000005100000001B00000001B00000000900000005100000002D00000002D00000001B00000002D00000001B00000001B00000000900000002D00000001B00000001B00000000900000001B00000000900000000900000000300000027D0000000E700000011100000008C0000000CF00000006A0000000A50000000370000000D500000006E0000000AE00000003A00000010500000005700000005700000001D0000000EB00000007F00000007F0000000430000000B20000000660000000660000000220000000FF00000009900000009900000003300000009900000003300000003300000001100000017700000007F0000000D100000006C0000000D100000006C0000000A800000003800000012500000009600000010500000005700000010500000005700000005700000001D0000001950000000E10000000E10000000870000000E100000008700000008700000002D0000000E100000008700000008700000002D00000008700000002D00000002D00000000F00000016D00000006E0000000860000000430000000D100000006C0000000A80000000380000000D100000006C0000000A800000003800000010500000005700000005700000001D00000011200000009600000009600000004D0000000E100000008700000008700000002D0000000E100000008700000008700000002D00000008700000002D00000002D00000000F0000001CB0000000990000001050000000870000001050000000870000000F30000000510000001050000000870000000F30000000510000000F300000005100000005100000001B0000000F300000008700000008700000005100000008700000005100000005100000001B00000008700000005100000005100000001B00000005100000001B00000001B00000000900000016300000006A00000007400000003A0000000860000000440000000660000000220000000D100000006C0000000A800000003800000010500000005700000005700000001D0000000C700000006C00000006C00000003800000009600000005700000005700000001D0000000E100000008700000008700000002D00000008700000002D00000002D00000000F00000012C0000000660000000A80000000570000000A800000005700000008700000002D0000001050000000870000000F30000000510000000F300000005100000005100000001B0000000F300000008700000008700000005100000008700000005100000005100000001B00000008700000005100000005100000001B00000005100000001B00000001B0000000090000001200000000570000000660000000330000000A800000005700000008700000002D0000000A800000005700000008700000002D0000000F300000005100000005100000001B00000009F00000005700000005700000002D00000008700000005100000005100000001B00000008700000005100000005100000001B00000005100000001B00000001B00000000900000009900000003300000005700000002D00000005700000002D00000005100000001B00000005700000002D00000005100000001B00000005100000001B00000001B00000000900000005100000002D00000002D00000001B00000002D00000001B00000001B00000000900000002D00000001B00000001B00000000900000001B00000000900000000900000000300000015300000008C00000006A00000003700000006E00000003A00000005700000001D00000007F0000000430000000660000000220000000990000000330000000330000000110000000C700000006C00000006C00000003800000009600000005700000005700000001D0000000E100000008700000008700000002D00000008700000002D00000002D00000000F0000000C200000004300000006C00000003800000006C00000003800000005700000001D00000009600000004D00000008700000002D00000008700000002D00000002D00000000F0000000F300000008700000008700000005100000008700000005100000005100000001B00000008700000005100000005100000001B00000005100000001B00000001B0000000090000000BC00000003A00000004400000002200000006C00000003800000005700000001D00000006C00000003800000005700000001D00000008700000002D00000002D00000000F00000009F00000005700000005700000002D00000008700000005100000005100000001B00000008700000005100000005100000001B00000005100000001B00000001B00000000900000009900000003300000005700000002D00000005700000002D00000005100000001B00000005700000002D00000005100000001B00000005100000001B00000001B00000000900000005100000002D00000002D00000001B00000002D00000001B00000001B00000000900000002D00000001B00000001B00000000900000001B0000000090000000090000000030000000B500000003700000003A00000001D00000004300000002200000003300000001100000006C00000003800000005700000001D00000008700000002D00000002D00000000F00000006700000003800000003800000001D00000004D00000002D00000002D00000000F00000008700000005100000005100000001B00000005100000001B00000001B00000000900000006400000002200000003800000001D00000003800000001D00000002D00000000F00000005700000002D00000005100000001B00000005100000001B00000001B00000000900000005100000002D00000002D00000001B00000002D00000001B00000001B00000000900000002D00000001B00000001B00000000900000001B00000000900000000900000000300000006000000001D00000002200000001100000003800000001D00000002D00000000F00000003800000001D00000002D00000000F00000005100000001B00000001B00000000900000003500000001D00000001D00000000F00000002D00000001B00000001B00000000900000002D00000001B00000001B00000000900000001B00000000900000000900000000300000003300000001100000001D00000000F00000001D00000000F00000001B00000000900000001D00000000F00000001B00000000900000001B00000000900000000900000000300000001B00000000F00000000F00000000900000000F00000000900000000900000000300000000F000000009000000009000000003000000009000000003000000003000000001
+  | 3 => 0x12320000004D5F00000515D000001B9A000005475000001D090000027680000009DA000005749000001E0F000002954000000A55000003820000000E08000000E08000000382000005620000001F1B000001F1B000000AB7000002753000000EBC000000EBC0000003AF000003480000001400000001400000000500000001400000000500000000500000000140000005620000001757000002034000000B16000002034000000B16000000F480000003D20000028EE000000E010000015000000005400000015000000005400000005400000001500000032C40000012B40000012B40000007200000012B40000007200000007200000001C80000012B40000007200000007200000001C80000007200000001C80000001C800000007200000574900000159C00000192100000086F0000021CC000000BA40000010080000004020000021CC000000BA40000010080000004020000016200000005880000005880000001620000028EE000000EDA000000EDA0000005150000014040000007A00000007A00000001E80000014040000007A00000007A00000001E80000007A00000001E80000001E800000007A000003480000000E1C0000014040000006E40000014040000006E4000000A800000002A00000014040000006E4000000A800000002A0000000A800000002A00000002A00000000A80000012B40000006E40000006E40000002A00000006E40000002A00000002A00000000A80000006E40000002A00000002A00000000A80000002A00000000A80000000A800000002A0000054750000014D90000016370000007730000019940000008BA000000BB80000002EE0000021CC000000BA4000001008000000402000001620000000588000000588000000162000002034000000BA4000000BA4000000402000000EBC0000005880000005880000001620000014040000007A00000007A00000001E80000007A00000001E80000001E800000007A000002753000000AB4000000EBC000000515000000EBC0000005150000006F80000001BE0000014040000006E4000000A800000002A0000000A800000002A00000002A00000000A80000012B40000006E40000006E40000002A00000006E40000002A00000002A00000000A80000006E40000002A00000002A00000000A80000002A00000000A80000000A800000002A000003820000000DE00000010000000005600000016200000007A0000000A800000002A00000016200000007A0000000A800000002A00000010000000004000000004000000001000000015000000007A00000007A00000002A0000000A80000000400000000400000000100000000A800000004000000004000000001000000004000000001000000001000000000400000014000000005600000007A00000002A00000007A00000002A00000004000000001000000007A00000002A00000004000000001000000004000000001000000001000000000400000007200000002A00000002A00000001000000002A00000001000000001000000000400000002A000000010000000010000000004000000010000000004000000004000000001000000515D0000016B400000150600000072A0000016370000007B6000000A580000002960000019210000008BA000000BE80000002FA000001000000000400000000400000000100000002034000000BA4000000BA4000000402000000EBC0000005880000005880000001620000014040000007A00000007A00000001E80000007A00000001E80000001E800000007A000001F1B00000086F000000BA4000000402000000BA4000000402000000588000000162000000EDA0000005150000007A00000001E80000007A00000001E80000001E800000007A0000012B40000006E40000006E40000002A00000006E40000002A00000002A00000000A80000006E40000002A00000002A00000000A80000002A00000000A80000000A800000002A000002954000000A58000000BE80000004000000010080000005880000007A00000001E80000010080000005880000007A00000001E8000000A800000002A00000002A00000000A80000015000000007A00000007A00000002A0000000A80000000400000000400000000100000000A800000004000000004000000001000000004000000001000000001000000000400000014000000005600000007A00000002A00000007A00000002A00000004000000001000000007A00000002A00000004000000001000000004000000001000000001000000000400000007200000002A00000002A00000001000000002A00000001000000001000000000400000002A00000001000000001000000000400000001000000000400000000400000000100000027680000009C8000000A58000000378000000BB80000004000000005600000001580000010080000005880000007A00000001E8000000A800000002A00000002A00000000A8000000F480000005880000005880000001E80000006F80000002A00000002A00000000A8000000A80000000400000000400000000100000000400000000100000000100000000040000000EBC0000004000000005880000001E80000005880000001E80000002A00000000A80000007A00000002A00000004000000001000000004000000001000000001000000000400000007200000002A00000002A00000001000000002A00000001000000001000000000400000002A0000000100000000100000000040000000100000000040000000040000000010000000E080000003780000004000000001580000005880000001E80000002A00000000A80000005880000001E80000002A00000000A80000004000000001000000001000000000400000005400000001E80000001E80000000A80000002A00000001000000001000000000400000002A00000001000000001000000000400000001000000000400000000400000000100000005000000001580000001E80000000A80000001E80000000A80000001000000000400000001E80000000A80000001000000000400000001000000000400000000400000000100000001C80000000A80000000A80000000400000000A80000000400000000400000000100000000A8000000040000000040000000010000000040000000010000000010000000004000004D5F0000015060000016B40000007BC0000014D900000072A0000009C800000027200000159C000000773000000A58000000296000000DE00000003780000003780000000DE00000175700000086F00000086F0000002EE000000AB4000000400000000400000000100000000E1C000000560000000560000000158000000560000000158000000158000000056000001F1B00000086F000000BA4000000402000000BA4000000402000000588000000162000000EDA0000005150000007A00000001E80000007A00000001E80000001E800000007A0000012B40000006E40000006E40000002A00000006E40000002A00000002A00000000A80000006E40000002A00000002A00000000A80000002A00000000A80000000A800000002A000001E0F0000007730000008BA0000002EE000000BA4000000402000000588000000162000000BA40000004020000005880000001620000007A00000001E80000001E800000007A000000E010000005150000005150000001BE0000006E40000002A00000002A00000000A80000006E40000002A00000002A00000000A80000002A00000000A80000000A800000002A0000014000000005600000007A00000002A00000007A00000002A00000004000000001000000007A00000002A00000004000000001000000004000000001000000001000000000400000007200000002A00000002A00000001000000002A00000001000000001000000000400000002A0000000100000000100000000040000000100000000040000000040000000010000001D0900000072A0000007B60000002960000008BA0000002FA000000400000000100000000BA40000004020000005880000001620000007A00000001E80000001E800000007A000000B160000004020000004020000001620000005150000001E80000001E800000007A0000006E40000002A00000002A00000000A80000002A00000000A80000000A800000002A000000EBC0000004000000005880000001E80000005880000001E80000002A00000000A80000007A00000002A00000004000000001000000004000000001000000001000000000400000007200000002A00000002A00000001000000002A00000001000000001000000000400000002A0000000100000000100000000040000000100000000040000000040000000010000000E080000003780000004000000001580000005880000001E80000002A00000000A80000005880000001E80000002A00000000A80000004000000001000000001000000000400000005400000001E80000001E80000000A80000002A00000001000000001000000000400000002A00000001000000001000000000400000001000000000400000000400000000100000005000000001580000001E80000000A80000001E80000000A80000001000000000400000001E80000000A80000001000000000400000001000000000400000000400000000100000001C80000000A80000000A80000000400000000A80000000400000000400000000100000000A8000000040000000040000000010000000040000000010000000010000000004000001B9A0000007BC00000072A0000002720000007730000002960000003780000000DE00000086F0000002EE000000400000000100000000560000000158000000158000000056000000B160000004020000004020000001620000005150000001E80000001E800000007A0000006E40000002A00000002A00000000A80000002A00000000A80000000A800000002A000000AB70000002EE0000004020000001620000004020000001620000001E800000007A0000005150000001BE0000002A00000000A80000002A00000000A80000000A800000002A0000007200000002A00000002A00000001000000002A00000001000000001000000000400000002A0000000100000000100000000040000000100000000040000000040000000010000000A550000002960000002FA0000001000000004020000001620000001E800000007A0000004020000001620000001E800000007A0000002A00000000A80000000A800000002A0000005400000001E80000001E80000000A80000002A00000001000000001000000000400000002A00000001000000001000000000400000001000000000400000000400000000100000005000000001580000001E80000000A80000001E80000000A80000001000000000400000001E80000000A80000001000000000400000001000000000400000000400000000100000001C80000000A80000000A80000000400000000A80000000400000000400000000100000000A80000000400000000400000000100000000400000000100000000100000000040000009DA0000002720000002960000000DE0000002EE0000001000000001580000000560000004020000001620000001E800000007A0000002A00000000A80000000A800000002A0000003D200000016200000016200000007A0000001BE0000000A80000000A800000002A0000002A00000001000000001000000000400000001000000000400000000400000000100000003AF00000010000000016200000007A00000016200000007A0000000A800000002A0000001E80000000A80000001000000000400000001000000000400000000400000000100000001C80000000A80000000A80000000400000000A80000000400000000400000000100000000A80000000400000000400000000100000000400000000100000000100000000040000003820000000DE00000010000000005600000016200000007A0000000A800000002A00000016200000007A0000000A800000002A00000010000000004000000004000000001000000015000000007A00000007A00000002A0000000A80000000400000000400000000100000000A800000004000000004000000001000000004000000001000000001000000000400000014000000005600000007A00000002A00000007A00000002A00000004000000001000000007A00000002A00000004000000001000000004000000001000000001000000000400000007200000002A00000002A00000001000000002A00000001000000001000000000400000002A000000010000000010000000004000000010000000004000000004000000001
+  | 4 => 0x11BC3400003C48500003F4010000100D200004187F000010D7A0000155F9000004465000043BF30000116E00000166570000047AB00001C6E2000005AFA000005AFA00000123200004331900001208D00001208D000004A3F000015ABD000005F69000005F6900000131500001B3F00000079180000079180000018380000079180000018380000018380000004D800004331900000EB36000012A97000004CCB000012A97000004CCB0000062D40000013C400001682C000005C41000007EF4000001964000007EF400000196400000196400000051400001A96400000740400000740400000203A00000740400000203A00000203A00000067200000740400000203A00000203A00000067200000203A00000067200000067200000014A000043BF300000DD6600000FA8A000003F2C0000137A600000502E0000067200000014A00000137A600000502E0000067200000014A00000084D0000001A90000001A9000000055000001682C0000060E60000060E60000018D3000007B0C00000222E00000222E0000006D6000007B0C00000222E00000222E0000006D600000222E0000006D60000006D600000015E00001B3F0000005EEC000007B0C000001FA4000007B0C000001FA4000002BF20000008CA000007B0C000001FA4000002BF20000008CA000002BF20000008CA0000008CA0000001C2000007404000001FA4000001FA40000008CA000001FA40000008CA0000008CA0000001C2000001FA40000008CA0000008CA0000001C20000008CA0000001C20000001C200000005A00004187F00000D5AA00000E24100000390200000FD040000040BD0000051A40000010540000137A600000502E0000067200000014A00000084D0000001A90000001A90000000550000012A9700000502E00000502E0000014A000000606D000001A90000001A90000000550000007B0C00000222E00000222E0000006D600000222E0000006D60000006D600000015E000015ABD000004C0600000606D0000018D300000606D0000018D3000001FD600000065E000007B0C000001FA4000002BF20000008CA000002BF20000008CA0000008CA0000001C2000007404000001FA4000001FA40000008CA000001FA40000008CA0000008CA0000001C2000001FA40000008CA0000008CA0000001C20000008CA0000001C20000001C200000005A00001C6E2000005CC600000687E000001A5E0000084D000000222E000002BF20000008CA0000084D000000222E000002BF20000008CA000003D09000000C35000000C35000000271000007EF400000222E00000222E0000008CA000002BF2000000C35000000C35000000271000002BF2000000C35000000C35000000271000000C3500000027100000027100000007D000007918000001A5E00000222E0000008CA00000222E0000008CA000000C3500000027100000222E0000008CA000000C35000000271000000C3500000027100000027100000007D00000203A0000008CA0000008CA0000002710000008CA00000027100000027100000007D0000008CA00000027100000027100000007D00000027100000007D00000007D00000001900003F40100000DB5600000D8140000036EE00000E241000003A700000049A2000000EBA00000FA8A0000040BD0000052D000000109000000687E0000014E60000014E600000042E000012A9700000502E00000502E0000014A000000606D000001A90000001A90000000550000007B0C00000222E00000222E0000006D600000222E0000006D60000006D600000015E00001208D000003F2C00000502E0000014A000000502E0000014A0000001A900000005500000060E60000018D300000222E0000006D600000222E0000006D60000006D600000015E000007404000001FA4000001FA40000008CA000001FA40000008CA0000008CA0000001C2000001FA40000008CA0000008CA0000001C20000008CA0000001C20000001C200000005A0000166570000049A20000052D00000014E6000006720000001A9000000222E0000006D6000006720000001A9000000222E0000006D6000002BF20000008CA0000008CA0000001C2000007EF400000222E00000222E0000008CA000002BF2000000C35000000C35000000271000002BF2000000C35000000C35000000271000000C3500000027100000027100000007D000007918000001A5E00000222E0000008CA00000222E0000008CA000000C3500000027100000222E0000008CA000000C35000000271000000C3500000027100000027100000007D00000203A0000008CA0000008CA0000002710000008CA00000027100000027100000007D0000008CA00000027100000027100000007D00000027100000007D00000007D0000000190000155F90000045E20000049A200000128E0000051A40000014E6000001A5E000000546000006720000001A9000000222E0000006D6000002BF20000008CA0000008CA0000001C20000062D4000001A90000001A900000006D6000001FD60000008CA0000008CA0000001C2000002BF2000000C35000000C35000000271000000C3500000027100000027100000007D000005F690000014E6000001A900000006D6000001A900000006D60000008CA0000001C200000222E0000008CA000000C35000000271000000C3500000027100000027100000007D00000203A0000008CA0000008CA0000002710000008CA00000027100000027100000007D0000008CA00000027100000027100000007D00000027100000007D00000007D000000019000005AFA00000128E0000014E6000000546000001A900000006D60000008CA0000001C2000001A900000006D60000008CA0000001C2000000C3500000027100000027100000007D0000019640000006D60000006D60000001C20000008CA00000027100000027100000007D0000008CA00000027100000027100000007D00000027100000007D00000007D0000000190000018380000005460000006D60000001C20000006D60000001C200000027100000007D0000006D60000001C200000027100000007D00000027100000007D00000007D0000000190000006720000001C20000001C200000007D0000001C200000007D00000007D0000000190000001C200000007D00000007D00000001900000007D00000001900000001900000000500003C48500000CF6600000DB560000037CE00000D5AA0000036EE0000045E2000000DFA00000DD660000039020000049A2000000EBA000005CC600000128E00000128E0000003B600000EB36000003F2C000003F2C000001054000004C060000014E60000014E600000042E000005EEC000001A5E000001A5E000000546000001A5E00000054600000054600000010E00001208D000003F2C00000502E0000014A000000502E0000014A0000001A900000005500000060E60000018D300000222E0000006D600000222E0000006D60000006D600000015E000007404000001FA4000001FA40000008CA000001FA40000008CA0000008CA0000001C2000001FA40000008CA0000008CA0000001C20000008CA0000001C20000001C200000005A0000116E00000039020000040BD00000105400000502E0000014A0000001A9000000055000000502E0000014A0000001A9000000055000000222E0000006D60000006D600000015E000005C410000018D30000018D300000065E000001FA40000008CA0000008CA0000001C2000001FA40000008CA0000008CA0000001C20000008CA0000001C20000001C200000005A000007918000001A5E00000222E0000008CA00000222E0000008CA000000C3500000027100000222E0000008CA000000C35000000271000000C3500000027100000027100000007D00000203A0000008CA0000008CA0000002710000008CA00000027100000027100000007D0000008CA00000027100000027100000007D00000027100000007D00000007D000000019000010D7A0000036EE000003A70000000EBA0000040BD0000010900000014E600000042E00000502E0000014A0000001A9000000055000000222E0000006D60000006D600000015E000004CCB0000014A00000014A00000005500000018D30000006D60000006D600000015E000001FA40000008CA0000008CA0000001C20000008CA0000001C20000001C200000005A000005F690000014E6000001A900000006D6000001A900000006D60000008CA0000001C200000222E0000008CA000000C35000000271000000C3500000027100000027100000007D00000203A0000008CA0000008CA0000002710000008CA00000027100000027100000007D0000008CA00000027100000027100000007D00000027100000007D00000007D000000019000005AFA00000128E0000014E6000000546000001A900000006D60000008CA0000001C2000001A900000006D60000008CA0000001C2000000C3500000027100000027100000007D0000019640000006D60000006D60000001C20000008CA00000027100000027100000007D0000008CA00000027100000027100000007D00000027100000007D00000007D0000000190000018380000005460000006D60000001C20000006D60000001C200000027100000007D0000006D60000001C200000027100000007D00000027100000007D00000007D0000000190000006720000001C20000001C200000007D0000001C200000007D00000007D0000000190000001C200000007D00000007D00000001900000007D0000000190000000190000000050000100D20000037CE0000036EE000000DFA000003902000000EBA00000128E0000003B6000003F2C0000010540000014E600000042E000001A5E00000054600000054600000010E000004CCB0000014A00000014A00000005500000018D30000006D60000006D600000015E000001FA40000008CA0000008CA0000001C20000008CA0000001C20000001C200000005A000004A3F0000010540000014A00000005500000014A00000005500000006D600000015E0000018D300000065E0000008CA0000001C20000008CA0000001C20000001C200000005A00000203A0000008CA0000008CA0000002710000008CA00000027100000027100000007D0000008CA00000027100000027100000007D00000027100000007D00000007D0000000190000047AB000000EBA00000109000000042E0000014A00000005500000006D600000015E0000014A00000005500000006D600000015E0000008CA0000001C20000001C200000005A0000019640000006D60000006D60000001C20000008CA00000027100000027100000007D0000008CA00000027100000027100000007D00000027100000007D00000007D0000000190000018380000005460000006D60000001C20000006D60000001C200000027100000007D0000006D60000001C200000027100000007D00000027100000007D00000007D0000000190000006720000001C20000001C200000007D0000001C200000007D00000007D0000000190000001C200000007D00000007D00000001900000007D000000019000000019000000005000004465000000DFA000000EBA0000003B600000105400000042E00000054600000010E0000014A00000005500000006D600000015E0000008CA0000001C20000001C200000005A0000013C400000055000000055000000015E00000065E0000001C20000001C200000005A0000008CA00000027100000027100000007D00000027100000007D00000007D00000001900000131500000042E00000055000000015E00000055000000015E0000001C200000005A0000006D60000001C200000027100000007D00000027100000007D00000007D0000000190000006720000001C20000001C200000007D0000001C200000007D00000007D0000000190000001C200000007D00000007D00000001900000007D0000000190000000190000000050000012320000003B600000042E00000010E00000055000000015E0000001C200000005A00000055000000015E0000001C200000005A00000027100000007D00000007D00000001900000051400000015E00000015E00000005A0000001C200000007D00000007D0000000190000001C200000007D00000007D00000001900000007D0000000190000000190000000050000004D800000010E00000015E00000005A00000015E00000005A00000007D00000001900000015E00000005A00000007D00000001900000007D00000001900000001900000000500000014A00000005A00000005A00000001900000005A00000001900000001900000000500000005A000000019000000019000000005000000019000000005000000005000000001
+  | 5 => 0x9BB0560001B75DE0001CB26A00005D0550001DA5B00000613620000762D2000013B230001E97300000645FA00007B69C00001491A0000960E40000190260000190260000042B10001E6ECB000067A12000067A1200001540C00007880E00001A22000001A2200000045B00000919FB00001FC5C00001FC5C0000054BA00001FC5C0000054BA0000054BA000000E1F0001E6ECB00005880400006AF63000015EDB00006AF63000015EDB00001AFD60000047F900007CB850000197F00000212DC00000587A0000212DC00000587A00000587A000000EBF00008EE0900001ED1100001ED11000006B9400001ED11000006B94000006B940000011EE00001ED11000006B94000006B940000011EE000006B940000011EE0000011EE0000002FD0001E97300000543E100005D6AA000012D8800006F0B7000016C5700001C03E000004AB500006F0B7000016C5700001C03E000004AB50000227F4000005BFE000005BFE000000F5500007CB8500001A94700001A9470000056F40000206D90000071340000071340000012DE0000206D90000071340000071340000012DE0000071340000012DE0000012DE0000003250000919FB00001A62B0000206D9000006A590000206D9000006A59000008B380000017340000206D9000006A59000008B38000001734000008B380000017340000017340000003DE00001ED11000006A59000006A59000001734000006A590000017340000017340000003DE000006A590000017340000017340000003DE0000017340000003DE0000003DE0000000A50001DA5B0000051802000055BB400001149400005DFF5000013351000017412000003E0300006F0B7000016C5700001C03E000004AB50000227F4000005BFE000005BFE000000F5500006AF63000016C57000016C57000004AB500001A7E3000005BFE000005BFE000000F550000206D90000071340000071340000012DE0000071340000012DE0000012DE00000032500007880E000015EDE00001A7E30000056F400001A7E30000056F4000006AC20000011CB0000206D9000006A59000008B38000001734000008B380000017340000017340000003DE00001ED11000006A59000006A59000001734000006A590000017340000017340000003DE000006A590000017340000017340000003DE0000017340000003DE0000003DE0000000A50000960E4000019CBC00001C854000005C1C0000227F4000007134000008B380000017340000227F4000007134000008B3800000173400000B640000001E60000001E600000005100000212DC000007134000007134000001734000008B38000001E60000001E60000000510000008B38000001E60000001E60000000510000001E600000005100000005100000000D800001FC5C000005C1C000007134000001734000007134000001734000001E60000000510000007134000001734000001E60000000510000001E600000005100000005100000000D8000006B940000017340000017340000005100000017340000005100000005100000000D80000017340000005100000005100000000D80000005100000000D80000000D80000000240001CB26A000051CBD00005267F000010B53000055BB40000119EF0000155220000038DB00005D6AA0000133510000178C2000003ECB00001C854000004C0E000004C0E000000CAD00006AF63000016C57000016C57000004AB500001A7E3000005BFE000005BFE000000F550000206D90000071340000071340000012DE0000071340000012DE0000012DE000000325000067A12000012D88000016C57000004AB5000016C57000004AB5000005BFE000000F5500001A9470000056F40000071340000012DE0000071340000012DE0000012DE00000032500001ED11000006A59000006A59000001734000006A590000017340000017340000003DE000006A590000017340000017340000003DE0000017340000003DE0000003DE0000000A500007B69C0000155220000178C2000004C0E00001C03E000005BFE0000071340000012DE00001C03E000005BFE0000071340000012DE000008B380000017340000017340000003DE0000212DC000007134000007134000001734000008B38000001E60000001E60000000510000008B38000001E60000001E60000000510000001E600000005100000005100000000D800001FC5C000005C1C000007134000001734000007134000001734000001E60000000510000007134000001734000001E60000000510000001E600000005100000005100000000D8000006B940000017340000017340000005100000017340000005100000005100000000D80000017340000005100000005100000000D80000005100000000D80000000D80000000240000762D20000145620000155220000044CA000017412000004C0E000005C1C000000F5A00001C03E000005BFE0000071340000012DE000008B380000017340000017340000003DE00001AFD6000005BFE000005BFE0000012DE000006AC20000017340000017340000003DE000008B38000001E60000001E60000000510000001E600000005100000005100000000D800001A220000004C0E000005BFE0000012DE000005BFE0000012DE0000017340000003DE000007134000001734000001E60000000510000001E600000005100000005100000000D8000006B940000017340000017340000005100000017340000005100000005100000000D80000017340000005100000005100000000D80000005100000000D80000000D80000000240000190260000044CA000004C0E000000F5A000005BFE0000012DE0000017340000003DE000005BFE0000012DE0000017340000003DE000001E600000005100000005100000000D800000587A0000012DE0000012DE0000003DE0000017340000005100000005100000000D80000017340000005100000005100000000D80000005100000000D80000000D80000000240000054BA000000F5A0000012DE0000003DE0000012DE0000003DE0000005100000000D80000012DE0000003DE0000005100000000D80000005100000000D80000000D80000000240000011EE0000003DE0000003DE0000000D80000003DE0000000D80000000D80000000240000003DE0000000D80000000D80000000240000000D80000000240000000240000000060001B75DE00004E0CF000051CBD000010993000051802000010B5300001456200000363B0000543E10000114940000155220000038DB000019CBC0000044CA0000044CA000000B77000058804000012D88000012D88000003E03000015EDE000004C0E000004C0E000000CAD00001A62B000005C1C000005C1C000000F5A000005C1C000000F5A000000F5A00000028F000067A12000012D88000016C57000004AB5000016C57000004AB5000005BFE000000F5500001A9470000056F40000071340000012DE0000071340000012DE0000012DE00000032500001ED11000006A59000006A59000001734000006A590000017340000017340000003DE000006A590000017340000017340000003DE0000017340000003DE0000003DE0000000A50000645FA000011494000013351000003E03000016C57000004AB5000005BFE000000F55000016C57000004AB5000005BFE000000F550000071340000012DE0000012DE0000003250000197F00000056F40000056F40000011CB000006A590000017340000017340000003DE000006A590000017340000017340000003DE0000017340000003DE0000003DE0000000A500001FC5C000005C1C000007134000001734000007134000001734000001E60000000510000007134000001734000001E60000000510000001E600000005100000005100000000D8000006B940000017340000017340000005100000017340000005100000005100000000D80000017340000005100000005100000000D80000005100000000D80000000D8000000024000061362000010B530000119EF0000038DB000013351000003ECB000004C0E000000CAD000016C57000004AB5000005BFE000000F550000071340000012DE0000012DE000000325000015EDB000004AB5000004AB5000000F550000056F40000012DE0000012DE000000325000006A590000017340000017340000003DE0000017340000003DE0000003DE0000000A500001A220000004C0E000005BFE0000012DE000005BFE0000012DE0000017340000003DE000007134000001734000001E60000000510000001E600000005100000005100000000D8000006B940000017340000017340000005100000017340000005100000005100000000D80000017340000005100000005100000000D80000005100000000D80000000D80000000240000190260000044CA000004C0E000000F5A000005BFE0000012DE0000017340000003DE000005BFE0000012DE0000017340000003DE000001E600000005100000005100000000D800000587A0000012DE0000012DE0000003DE0000017340000005100000005100000000D80000017340000005100000005100000000D80000005100000000D80000000D80000000240000054BA000000F5A0000012DE0000003DE0000012DE0000003DE0000005100000000D80000012DE0000003DE0000005100000000D80000005100000000D80000000D80000000240000011EE0000003DE0000003DE0000000D80000003DE0000000D80000000D80000000240000003DE0000000D80000000D80000000240000000D800000002400000002400000000600005D055000010993000010B5300000363B0000114940000038DB0000044CA000000B77000012D88000003E03000004C0E000000CAD000005C1C000000F5A000000F5A00000028F000015EDB000004AB5000004AB5000000F550000056F40000012DE0000012DE000000325000006A590000017340000017340000003DE0000017340000003DE0000003DE0000000A500001540C000003E03000004AB5000000F55000004AB5000000F550000012DE0000003250000056F40000011CB0000017340000003DE0000017340000003DE0000003DE0000000A5000006B940000017340000017340000005100000017340000005100000005100000000D80000017340000005100000005100000000D80000005100000000D80000000D800000002400001491A0000038DB000003ECB000000CAD000004AB5000000F550000012DE000000325000004AB5000000F550000012DE0000003250000017340000003DE0000003DE0000000A500000587A0000012DE0000012DE0000003DE0000017340000005100000005100000000D80000017340000005100000005100000000D80000005100000000D80000000D80000000240000054BA000000F5A0000012DE0000003DE0000012DE0000003DE0000005100000000D80000012DE0000003DE0000005100000000D80000005100000000D80000000D80000000240000011EE0000003DE0000003DE0000000D80000003DE0000000D80000000D80000000240000003DE0000000D80000000D80000000240000000D8000000024000000024000000006000013B2300000363B0000038DB000000B77000003E03000000CAD000000F5A00000028F000004AB5000000F550000012DE0000003250000017340000003DE0000003DE0000000A50000047F9000000F55000000F550000003250000011CB0000003DE0000003DE0000000A50000017340000005100000005100000000D80000005100000000D80000000D80000000240000045B0000000CAD000000F55000000325000000F550000003250000003DE0000000A50000012DE0000003DE0000005100000000D80000005100000000D80000000D80000000240000011EE0000003DE0000003DE0000000D80000003DE0000000D80000000D80000000240000003DE0000000D80000000D80000000240000000D80000000240000000240000000060000042B1000000B77000000CAD00000028F000000F550000003250000003DE0000000A5000000F550000003250000003DE0000000A50000005100000000D80000000D8000000024000000EBF0000003250000003250000000A50000003DE0000000D80000000D80000000240000003DE0000000D80000000D80000000240000000D8000000024000000024000000006000000E1F00000028F0000003250000000A50000003250000000A50000000D80000000240000003250000000A50000000D80000000240000000D80000000240000000240000000060000002FD0000000A50000000A50000000240000000A50000000240000000240000000060000000A5000000024000000024000000006000000024000000006000000006000000001
+  | 6 => 0x3A7700C0008CD3880009293EE00018B4B100097002000019B7250001E57A60000455AA0009B6E6D0001A7BA30001F91BF00004828900025410200005526E00005526E00000C2A20009AE86F0001B45A00001B45A000004A5970001EFE41000058A21000058A2100000CA97000246B9700006897700006897700000EF1100006897700000EF1100000EF110000022270009AE86F00017FD6F0001C11FE00004C8120001C11FE00004C81200005B43D00000D09B0001FF731000056F0100006CC7500000F8A300006CC7500000F8A300000F8A300000238500023DC090000662CD0000662CD00001256D0000662CD00001256D00001256D0000029EB0000662CD00001256D00001256D0000029EB00001256D0000029EB0000029EB0000005FD0009B6E6D00017040F0001924AA0000439B10001D032A00004F16300005E50C00000D7940001D032A00004F16300005E50C00000D7940000708C00000101400000101400000024C00001FF73100005A1EB00005A1EB00000F52300006AD730000132D30000132D3000002BD500006AD730000132D30000132D3000002BD50000132D3000002BD5000002BD5000000643000246B9700005A0B700006AD7300001232100006AD73000012321000016DC700000344100006AD73000012321000016DC7000003441000016DC70000034410000034410000007770000662CD00001232100001232100000344100001232100000344100000344100000077700001232100000344100000344100000077700000344100000077700000077700000011100097002000016544B000175ABD00003EC56000194010000044A97000050C9100000B8A70001D032A00004F16300005E50C00000D7940000708C00000101400000101400000024C00001C11FE00004F16300004F16300000D794000059E8E0000101400000101400000024C000006AD730000132D30000132D3000002BD50000132D3000002BD5000002BD50000006430001EFE4100004CDB4000059E8E00000F523000059E8E00000F5230000123E50000029B300006AD73000012321000016DC7000003441000016DC70000034410000034410000007770000662CD0000123210000123210000034410000123210000034410000034410000007770000123210000034410000034410000007770000034410000007770000007770000001110002541020000582DB0000602240000102970000708C00000132D3000016DC70000034410000708C00000132D3000016DC700000344100001CB910000041A70000041A700000096100006CC750000132D30000132D3000003441000016DC70000041A70000041A7000000961000016DC70000041A70000041A70000009610000041A70000009610000009610000001570000689770000102970000132D30000034410000132D30000034410000041A70000009610000132D30000034410000041A70000009610000041A700000096100000096100000015700001256D0000034410000034410000009610000034410000009610000009610000001570000034410000009610000009610000001570000009610000001570000001570000000310009293EE000163121000168F1500003CDC4000175ABD00003FC2400004AFBC00000AB640001924AA000044A97000051AEC00000BAB400006022400000DBBC00000DBBC000001F640001C11FE00004F16300004F16300000D794000059E8E0000101400000101400000024C000006AD730000132D30000132D3000002BD50000132D3000002BD5000002BD50000006430001B45A00000439B100004F16300000D79400004F16300000D7940000101400000024C000005A1EB00000F5230000132D3000002BD50000132D3000002BD5000002BD50000006430000662CD0000123210000123210000034410000123210000034410000034410000007770000123210000034410000034410000007770000034410000007770000007770000001110001F91BF00004AFBC000051AEC00000DBBC00005E50C0000101400000132D3000002BD500005E50C0000101400000132D3000002BD5000016DC700000344100000344100000077700006CC750000132D30000132D3000003441000016DC70000041A70000041A7000000961000016DC70000041A70000041A70000009610000041A70000009610000009610000001570000689770000102970000132D30000034410000132D30000034410000041A70000009610000132D30000034410000041A70000009610000041A700000096100000096100000015700001256D0000034410000034410000009610000034410000009610000009610000001570000034410000009610000009610000001570000009610000001570000001570000000310001E57A6000047DC700004AFBC00000C98D000050C9100000DBBC0000102970000024F100005E50C0000101400000132D3000002BD5000016DC700000344100000344100000077700005B43D000010140000010140000002BD50000123E5000003441000003441000000777000016DC70000041A70000041A70000009610000041A7000000961000000961000000157000058A2100000DBBC000010140000002BD5000010140000002BD50000034410000007770000132D30000034410000041A70000009610000041A700000096100000096100000015700001256D00000344100000344100000096100000344100000096100000096100000015700000344100000096100000096100000015700000096100000015700000015700000003100005526E00000C98D00000DBBC0000024F1000010140000002BD5000003441000000777000010140000002BD50000034410000007770000041A700000096100000096100000015700000F8A3000002BD5000002BD500000077700000344100000096100000096100000015700000344100000096100000096100000015700000096100000015700000015700000003100000EF110000024F1000002BD5000000777000002BD5000000777000000961000000157000002BD50000007770000009610000001570000009610000001570000001570000000310000029EB0000007770000007770000001570000007770000001570000001570000000310000007770000001570000001570000000310000001570000000310000000310000000070008CD388000154C3500016312100003BE9E00016544B00003CDC4000047DC700000A44100017040F00003EC5600004AFBC00000AB640000582DB00000C98D00000C98D000001CCB00017FD6F0000439B10000439B100000B8A700004CDB400000DBBC00000DBBC000001F6400005A0B70000102970000102970000024F10000102970000024F10000024F10000005470001B45A00000439B100004F16300000D79400004F16300000D7940000101400000024C000005A1EB00000F5230000132D3000002BD50000132D3000002BD5000002BD50000006430000662CD0000123210000123210000034410000123210000034410000034410000007770000123210000034410000034410000007770000034410000007770000007770000001110001A7BA300003EC56000044A9700000B8A700004F16300000D7940000101400000024C000004F16300000D7940000101400000024C00000132D3000002BD5000002BD5000000643000056F0100000F52300000F5230000029B30000123210000034410000034410000007770000123210000034410000034410000007770000034410000007770000007770000001110000689770000102970000132D30000034410000132D30000034410000041A70000009610000132D30000034410000041A70000009610000041A700000096100000096100000015700001256D00000344100000344100000096100000344100000096100000096100000015700000344100000096100000096100000015700000096100000015700000015700000003100019B72500003CDC400003FC2400000AB64000044A9700000BAB400000DBBC000001F6400004F16300000D7940000101400000024C00000132D3000002BD5000002BD500000064300004C81200000D79400000D7940000024C000000F523000002BD5000002BD5000000643000012321000003441000003441000000777000003441000000777000000777000000111000058A2100000DBBC000010140000002BD5000010140000002BD50000034410000007770000132D30000034410000041A70000009610000041A700000096100000096100000015700001256D00000344100000344100000096100000344100000096100000096100000015700000344100000096100000096100000015700000096100000015700000015700000003100005526E00000C98D00000DBBC0000024F1000010140000002BD5000003441000000777000010140000002BD50000034410000007770000041A700000096100000096100000015700000F8A3000002BD5000002BD500000077700000344100000096100000096100000015700000344100000096100000096100000015700000096100000015700000015700000003100000EF110000024F1000002BD5000000777000002BD5000000777000000961000000157000002BD50000007770000009610000001570000009610000001570000001570000000310000029EB00000077700000077700000015700000077700000015700000015700000003100000077700000015700000015700000003100000015700000003100000003100000000700018B4B100003BE9E00003CDC400000A44100003EC5600000AB6400000C98D000001CCB0000439B100000B8A700000DBBC000001F640000102970000024F10000024F100000054700004C81200000D79400000D7940000024C000000F523000002BD5000002BD500000064300001232100000344100000344100000077700000344100000077700000077700000011100004A59700000B8A700000D7940000024C000000D7940000024C0000002BD500000064300000F5230000029B300000344100000077700000344100000077700000077700000011100001256D00000344100000344100000096100000344100000096100000096100000015700000344100000096100000096100000015700000096100000015700000015700000003100004828900000AB6400000BAB4000001F6400000D7940000024C0000002BD500000064300000D7940000024C0000002BD500000064300000344100000077700000077700000011100000F8A3000002BD5000002BD500000077700000344100000096100000096100000015700000344100000096100000096100000015700000096100000015700000015700000003100000EF110000024F1000002BD5000000777000002BD5000000777000000961000000157000002BD50000007770000009610000001570000009610000001570000001570000000310000029EB0000007770000007770000001570000007770000001570000001570000000310000007770000001570000001570000000310000001570000000310000000310000000070000455AA00000A44100000AB64000001CCB00000B8A7000001F640000024F100000054700000D7940000024C0000002BD500000064300000344100000077700000077700000011100000D09B0000024C00000024C00000006430000029B300000077700000077700000011100000344100000096100000096100000015700000096100000015700000015700000003100000CA97000001F640000024C00000006430000024C0000000643000000777000000111000002BD50000007770000009610000001570000009610000001570000001570000000310000029EB00000077700000077700000015700000077700000015700000015700000003100000077700000015700000015700000003100000015700000003100000003100000000700000C2A2000001CCB000001F640000005470000024C00000006430000007770000001110000024C00000006430000007770000001110000009610000001570000001570000000310000023850000006430000006430000001110000007770000001570000001570000000310000007770000001570000001570000000310000001570000000310000000310000000070000022270000005470000006430000001110000006430000001110000001570000000310000006430000001110000001570000000310000001570000000310000000310000000070000005FD000000111000000111000000031000000111000000031000000031000000007000000111000000031000000031000000007000000031000000007000000007000000001
+  | 7 => 0x10CAE00000233FF7A00248EC4600054656400259046E00057877E0006509E00000CA13C0026935F600059EBAA00068C3300000D186600078F1000000F1E200000F1E2000001E3C400267D2280005C5FB20005C5FB20000D754200067376A0000FAE100000FAE1000001F5C200076CAA0000121A00000121A00000024340000121A0000002434000002434000000486800267D22800052EDDA0005ED5500000DD0340005ED5500000DD034000101A200000203440006A21840000F6F1E00012C20000002584000012C200000025840000025840000004B08000753F9000011C3D000011C3D000002B50000011C3D000002B50000002B5000000056A000011C3D000002B50000002B5000000056A000002B5000000056A00000056A0000000AD40026935F6000500580000566ED60000C719A00061A9600000E3A300001094A000002129400061A9600000E3A300001094A0000021294000135500000026AA0000026AA0000004D540006A21840000FEDD40000FEDD4000025116000127B9000002D10000002D100000005A20000127B9000002D10000002D100000005A2000002D100000005A20000005A20000000B4400076CAA00000FF870000127B9000002B110000127B9000002B110000034800000006900000127B9000002B110000034800000006900000034800000006900000006900000000D2000011C3D000002B11000002B11000000690000002B110000006900000006900000000D2000002B110000006900000006900000000D20000006900000000D20000000D200000001A400259046E0004DD6A60005106EA0000BA97200056B3400000C9B8C0000E85E000001D0BC00061A9600000E3A300001094A0000021294000135500000026AA0000026AA0000004D540005ED5500000E3A300000E3A300000212940000FE6B8000026AA0000026AA0000004D54000127B9000002D10000002D100000005A2000002D100000005A20000005A20000000B4400067376A0000DE8280000FE6B80000251160000FE6B800002511600002B26000000564C000127B9000002B110000034800000006900000034800000006900000006900000000D2000011C3D000002B11000002B11000000690000002B110000006900000006900000000D2000002B110000006900000006900000000D20000006900000000D20000000D200000001A400078F1000000FAB0000010E600000026F0000013550000002D10000003480000000690000013550000002D10000003480000000690000004000000000800000000800000000100000012C20000002D10000002D100000006900000034800000008000000008000000001000000034800000008000000008000000001000000008000000001000000001000000000200000121A00000026F0000002D10000000690000002D10000000690000000800000000100000002D10000000690000000800000000100000000800000000100000000100000000020000002B50000000690000000690000000100000000690000000100000000100000000020000000690000000100000000100000000020000000100000000020000000020000000004000248EC460004D02D80004E91BC0000B56B40005106EA0000BD0FC0000D9B6000001B36C000566ED60000C9B8C0000EAAA000001D55400010E600000021CC0000021CC00000043980005ED5500000E3A300000E3A300000212940000FE6B8000026AA0000026AA0000004D54000127B9000002D10000002D100000005A2000002D100000005A20000005A20000000B440005C5FB20000C719A0000E3A300000212940000E3A30000021294000026AA0000004D540000FEDD400002511600002D100000005A2000002D100000005A20000005A20000000B4400011C3D000002B11000002B11000000690000002B110000006900000006900000000D2000002B110000006900000006900000000D20000006900000000D20000000D200000001A400068C3300000D9B600000EAAA0000021CC00001094A0000026AA000002D100000005A200001094A0000026AA000002D100000005A20000034800000006900000006900000000D2000012C20000002D10000002D100000006900000034800000008000000008000000001000000034800000008000000008000000001000000008000000001000000001000000000200000121A00000026F0000002D10000000690000002D10000000690000000800000000100000002D10000000690000000800000000100000000800000000100000000100000000020000002B5000000069000000069000000010000000069000000010000000010000000002000000069000000010000000010000000002000000010000000002000000002000000000400006509E00000D18200000D9B6000001F5600000E85E0000021CC0000026F00000004DE00001094A0000026AA000002D100000005A20000034800000006900000006900000000D20000101A20000026AA0000026AA0000005A2000002B260000006900000006900000000D200000348000000080000000080000000010000000080000000010000000010000000002000000FAE10000021CC0000026AA0000005A20000026AA0000005A20000006900000000D2000002D10000000690000000800000000100000000800000000100000000100000000020000002B5000000069000000069000000010000000069000000010000000010000000002000000069000000010000000010000000002000000010000000002000000002000000000400000F1E2000001F560000021CC0000004DE0000026AA0000005A20000006900000000D20000026AA0000005A20000006900000000D20000008000000001000000001000000000200000025840000005A20000005A20000000D20000006900000001000000001000000000200000006900000001000000001000000000200000001000000000200000000200000000040000024340000004DE0000005A20000000D20000005A20000000D20000001000000000200000005A20000000D200000010000000002000000010000000002000000002000000000400000056A0000000D20000000D20000000200000000D20000000200000000200000000040000000D2000000020000000020000000004000000020000000004000000004000000000800233FF7A0004A399C0004D02D80000B1ED00004DD6A60000B56B40000D182000001A3040005005800000BA9720000D9B6000001B36C0000FAB0000001F56000001F560000003EAC00052EDDA0000C719A0000C719A00001D0BC0000DE828000021CC0000021CC00000043980000FF870000026F00000026F00000004DE0000026F00000004DE0000004DE00000009BC0005C5FB20000C719A0000E3A300000212940000E3A30000021294000026AA0000004D540000FEDD400002511600002D100000005A2000002D100000005A20000005A20000000B4400011C3D000002B11000002B11000000690000002B110000006900000006900000000D2000002B110000006900000006900000000D20000006900000000D20000000D200000001A400059EBAA0000BA9720000C9B8C00001D0BC0000E3A30000021294000026AA0000004D540000E3A30000021294000026AA0000004D5400002D100000005A20000005A20000000B440000F6F1E00002511600002511600000564C00002B110000006900000006900000000D2000002B110000006900000006900000000D20000006900000000D20000000D200000001A4000121A00000026F0000002D10000000690000002D10000000690000000800000000100000002D10000000690000000800000000100000000800000000100000000100000000020000002B50000000690000000690000000100000000690000000100000000100000000020000000690000000100000000100000000020000000100000000020000000020000000004000057877E0000B56B40000BD0FC00001B36C0000C9B8C00001D554000021CC00000043980000E3A30000021294000026AA0000004D5400002D100000005A20000005A20000000B440000DD034000021294000021294000004D54000025116000005A20000005A20000000B4400002B110000006900000006900000000D20000006900000000D20000000D200000001A40000FAE10000021CC0000026AA0000005A20000026AA0000005A20000006900000000D2000002D10000000690000000800000000100000000800000000100000000100000000020000002B5000000069000000069000000010000000069000000010000000010000000002000000069000000010000000010000000002000000010000000002000000002000000000400000F1E2000001F560000021CC0000004DE0000026AA0000005A20000006900000000D20000026AA0000005A20000006900000000D20000008000000001000000001000000000200000025840000005A20000005A20000000D20000006900000001000000001000000000200000006900000001000000001000000000200000001000000000200000000200000000040000024340000004DE0000005A20000000D20000005A20000000D20000001000000000200000005A20000000D200000010000000002000000010000000002000000002000000000400000056A0000000D20000000D20000000200000000D20000000200000000200000000040000000D200000002000000002000000000400000002000000000400000000400000000080005465640000B1ED00000B56B400001A3040000BA97200001B36C00001F560000003EAC0000C719A00001D0BC000021CC0000004398000026F00000004DE0000004DE00000009BC0000DD034000021294000021294000004D54000025116000005A20000005A20000000B4400002B110000006900000006900000000D20000006900000000D20000000D200000001A40000D754200001D0BC000021294000004D54000021294000004D54000005A20000000B4400002511600000564C000006900000000D20000006900000000D20000000D200000001A400002B5000000069000000069000000010000000069000000010000000010000000002000000069000000010000000010000000002000000010000000002000000002000000000400000D186600001B36C00001D554000004398000021294000004D54000005A20000000B44000021294000004D54000005A20000000B44000006900000000D20000000D200000001A4000025840000005A20000005A20000000D20000006900000001000000001000000000200000006900000001000000001000000000200000001000000000200000000200000000040000024340000004DE0000005A20000000D20000005A20000000D20000001000000000200000005A20000000D200000010000000002000000010000000002000000002000000000400000056A0000000D20000000D20000000200000000D20000000200000000200000000040000000D200000002000000002000000000400000002000000000400000000400000000080000CA13C00001A30400001B36C000003EAC00001D0BC000004398000004DE00000009BC000021294000004D54000005A20000000B44000006900000000D20000000D200000001A4000020344000004D54000004D54000000B4400000564C000000D20000000D200000001A400000690000000100000000100000000020000000100000000020000000020000000004000001F5C2000004398000004D54000000B44000004D54000000B44000000D200000001A4000005A20000000D200000010000000002000000010000000002000000002000000000400000056A0000000D20000000D20000000200000000D20000000200000000200000000040000000D2000000020000000020000000004000000020000000004000000004000000000800001E3C4000003EAC0000043980000009BC000004D54000000B44000000D200000001A4000004D54000000B44000000D200000001A4000001000000000200000000200000000040000004B08000000B44000000B440000001A4000000D20000000200000000200000000040000000D200000002000000002000000000400000002000000000400000000400000000080000048680000009BC000000B440000001A4000000B440000001A4000000200000000040000000B440000001A4000000200000000040000000200000000040000000040000000008000000AD40000001A40000001A40000000400000001A40000000400000000400000000080000001A4000000040000000040000000008000000040000000008000000008000000001
+  | 8 => 0x3F3C6B2800758FD3600798AEC6000F54324007C9AC0A000FD92B40011FD5BE0001FFB4E007FB10AA00103EDE0001298952000210F4200151C23C00025875C00025875C000042B7C007F7F2B60010A6FEE0010A6FEE00021E5DA00125DEBE00026CDAE00026CDAE000044FBE0014CD1E00002C0CB80002C0CB800004E4F80002C0CB800004E4F800004E4F8000008B38007F7F2B6000F2C5A400110E9F200022B73200110E9F200022B73200027C150000046AD00012D63080002649F60002D80D0000050E500002D80D0000050E50000050E50000008FD00014915100002B5E100002B5E1000005BD640002B5E1000005BD6400005BD6400000A3440002B5E1000005BD6400005BD6400000A34400005BD6400000A34400000A344000001224007FB10AA000EB4A0C000FBE8840001FB79800118391400023A63C00028D10000004890000118391400023A63C00028D1000000489000002EBFC00000531C00000531C00000093C00012D630800027615C00027615C0000500E20002CEFB000005F28C00005F28C00000A92C0002CEFB000005F28C00005F28C00000A92C00005F28C00000A92C00000A92C0000012CC0014CD1E0000278EB00002CEFB000005B7100002CEFB000005B71000006CEC400000C1A40002CEFB000005B71000006CEC400000C1A400006CEC400000C1A400000C1A40000015840002B5E1000005B71000005B71000000C1A400005B71000000C1A400000C1A400000158400005B71000000C1A400000C1A400000158400000C1A4000001584000001584000000264007C9AC0A000E5674C000EDDDBE0001DF124000FC7FC80002013F6000245A90000040A1000118391400023A63C00028D1000000489000002EBFC00000531C00000531C00000093C000110E9F200023A63C00023A63C0000489000002753BE0000531C00000531C00000093C00002CEFB000005F28C00005F28C00000A92C00005F28C00000A92C00000A92C0000012CC00125DEBE00022FC740002753BE0000500E20002753BE0000500E200005B92C00000A2CC0002CEFB000005B71000006CEC400000C1A400006CEC400000C1A400000C1A40000015840002B5E1000005B71000005B71000000C1A400005B71000000C1A400000C1A400000158400005B71000000C1A400000C1A400000158400000C1A400000158400000158400000026400151C23C00026DF9C0002992A4000053C4C0002EBFC000005F28C00006CEC400000C1A40002EBFC000005F28C00006CEC400000C1A4000081BF100000E6A900000E6A90000019A10002D80D000005F28C00005F28C00000C1A400006CEC400000E6A900000E6A90000019A100006CEC400000E6A900000E6A90000019A100000E6A90000019A10000019A10000002D90002C0CB8000053C4C00005F28C00000C1A400005F28C00000C1A400000E6A90000019A100005F28C00000C1A400000E6A90000019A100000E6A90000019A10000019A10000002D900005BD6400000C1A400000C1A40000019A100000C1A40000019A10000019A10000002D900000C1A40000019A10000019A10000002D90000019A10000002D90000002D900000005100798AEC6000E27E14000E75E500001D2EE4000EDDDBE0001E48C0000224FDC00003CFFC000FBE8840002013F600024AD400000413400002992A4000049E84000049E8400000836400110E9F200023A63C00023A63C0000489000002753BE0000531C00000531C00000093C00002CEFB000005F28C00005F28C00000A92C00005F28C00000A92C00000A92C0000012CC0010A6FEE0001FB79800023A63C00004890000023A63C0000489000000531C00000093C000027615C0000500E200005F28C00000A92C00005F28C00000A92C00000A92C0000012CC0002B5E1000005B71000005B71000000C1A400005B71000000C1A400000C1A400000158400005B71000000C1A400000C1A400000158400000C1A4000001584000001584000000264001298952000224FDC00024AD40000049E8400028D1000000531C000005F28C00000A92C00028D1000000531C000005F28C00000A92C00006CEC400000C1A400000C1A40000015840002D80D000005F28C00005F28C00000C1A400006CEC400000E6A900000E6A90000019A100006CEC400000E6A900000E6A90000019A100000E6A90000019A10000019A10000002D90002C0CB8000053C4C00005F28C00000C1A400005F28C00000C1A400000E6A90000019A100005F28C00000C1A400000E6A90000019A100000E6A90000019A10000019A10000002D900005BD6400000C1A400000C1A40000019A100000C1A40000019A10000019A10000002D900000C1A40000019A10000019A10000002D90000019A10000002D90000002D90000000510011FD5BE0002122A4000224FDC0000451BC000245A90000049E84000053C4C0000094EC00028D1000000531C000005F28C00000A92C00006CEC400000C1A400000C1A400000158400027C1500000531C00000531C000000A92C00005B92C00000C1A400000C1A400000158400006CEC400000E6A900000E6A90000019A100000E6A90000019A10000019A10000002D900026CDAE000049E840000531C000000A92C0000531C000000A92C00000C1A400000158400005F28C00000C1A400000E6A90000019A100000E6A90000019A10000019A10000002D900005BD6400000C1A400000C1A40000019A100000C1A40000019A10000019A10000002D900000C1A40000019A10000019A10000002D90000019A10000002D90000002D900000005100025875C0000451BC000049E840000094EC0000531C000000A92C00000C1A40000015840000531C000000A92C00000C1A400000158400000E6A90000019A10000019A10000002D9000050E5000000A92C00000A92C00000158400000C1A40000019A10000019A10000002D900000C1A40000019A10000019A10000002D90000019A10000002D90000002D900000005100004E4F80000094EC00000A92C00000158400000A92C0000015840000019A10000002D900000A92C0000015840000019A10000002D90000019A10000002D90000002D900000005100000A3440000015840000015840000002D90000015840000002D90000002D90000000510000015840000002D90000002D90000000510000002D900000005100000005100000000900758FD36000DB0C0C000E27E140001C94F4000E5674C0001D2EE40002122A400003AE84000EB4A0C0001DF124000224FDC00003CFFC00026DF9C0000451BC0000451BC000007ADC000F2C5A40001FB7980001FB798000040A1000022FC74000049E84000049E84000008364000278EB0000053C4C000053C4C0000094EC000053C4C0000094EC0000094EC00000108C0010A6FEE0001FB79800023A63C00004890000023A63C0000489000000531C00000093C000027615C0000500E200005F28C00000A92C00005F28C00000A92C00000A92C0000012CC0002B5E1000005B71000005B71000000C1A400005B71000000C1A400000C1A400000158400005B71000000C1A400000C1A400000158400000C1A400000158400000158400000026400103EDE00001DF1240002013F6000040A1000023A63C0000489000000531C00000093C000023A63C0000489000000531C00000093C000005F28C00000A92C00000A92C0000012CC0002649F60000500E20000500E200000A2CC00005B71000000C1A400000C1A400000158400005B71000000C1A400000C1A400000158400000C1A40000015840000015840000002640002C0CB8000053C4C00005F28C00000C1A400005F28C00000C1A400000E6A90000019A100005F28C00000C1A400000E6A90000019A100000E6A90000019A10000019A10000002D900005BD6400000C1A400000C1A40000019A100000C1A40000019A10000019A10000002D900000C1A40000019A10000019A10000002D90000019A10000002D90000002D9000000051000FD92B40001D2EE40001E48C000003CFFC0002013F6000041340000049E8400000836400023A63C0000489000000531C00000093C000005F28C00000A92C00000A92C0000012CC00022B7320000489000000489000000093C00000500E200000A92C00000A92C0000012CC00005B71000000C1A400000C1A400000158400000C1A400000158400000158400000026400026CDAE000049E840000531C000000A92C0000531C000000A92C00000C1A400000158400005F28C00000C1A400000E6A90000019A100000E6A90000019A10000019A10000002D900005BD6400000C1A400000C1A40000019A100000C1A40000019A10000019A10000002D900000C1A40000019A10000019A10000002D90000019A10000002D90000002D900000005100025875C0000451BC000049E840000094EC0000531C000000A92C00000C1A40000015840000531C000000A92C00000C1A400000158400000E6A90000019A10000019A10000002D9000050E5000000A92C00000A92C00000158400000C1A40000019A10000019A10000002D900000C1A40000019A10000019A10000002D90000019A10000002D90000002D900000005100004E4F80000094EC00000A92C00000158400000A92C0000015840000019A10000002D900000A92C0000015840000019A10000002D90000019A10000002D90000002D900000005100000A3440000015840000015840000002D90000015840000002D90000002D90000000510000015840000002D90000002D90000000510000002D9000000051000000051000000009000F543240001C94F40001D2EE400003AE840001DF12400003CFFC0000451BC000007ADC0001FB798000040A10000049E84000008364000053C4C0000094EC0000094EC00000108C00022B7320000489000000489000000093C00000500E200000A92C00000A92C0000012CC00005B71000000C1A400000C1A400000158400000C1A400000158400000158400000026400021E5DA000040A100000489000000093C00000489000000093C000000A92C0000012CC0000500E200000A2CC00000C1A400000158400000C1A400000158400000158400000026400005BD6400000C1A400000C1A40000019A100000C1A40000019A10000019A10000002D900000C1A40000019A10000019A10000002D90000019A10000002D90000002D9000000051000210F4200003CFFC0000413400000083640000489000000093C000000A92C0000012CC0000489000000093C000000A92C0000012CC00000C1A4000001584000001584000000264000050E5000000A92C00000A92C00000158400000C1A40000019A10000019A10000002D900000C1A40000019A10000019A10000002D90000019A10000002D90000002D900000005100004E4F80000094EC00000A92C00000158400000A92C0000015840000019A10000002D900000A92C0000015840000019A10000002D90000019A10000002D90000002D900000005100000A3440000015840000015840000002D90000015840000002D90000002D90000000510000015840000002D90000002D90000000510000002D90000000510000000510000000090001FFB4E00003AE8400003CFFC000007ADC000040A100000083640000094EC00000108C0000489000000093C000000A92C0000012CC00000C1A4000001584000001584000000264000046AD00000093C00000093C00000012CC00000A2CC00000158400000158400000026400000C1A40000019A10000019A10000002D90000019A10000002D90000002D9000000051000044FBE0000083640000093C00000012CC0000093C00000012CC00000158400000026400000A92C0000015840000019A10000002D90000019A10000002D90000002D900000005100000A3440000015840000015840000002D90000015840000002D90000002D90000000510000015840000002D90000002D90000000510000002D9000000051000000051000000009000042B7C000007ADC00000836400000108C0000093C00000012CC0000015840000002640000093C00000012CC0000015840000002640000019A10000002D90000002D9000000051000008FD00000012CC0000012CC0000002640000015840000002D90000002D90000000510000015840000002D90000002D90000000510000002D9000000051000000051000000009000008B3800000108C0000012CC0000002640000012CC0000002640000002D90000000510000012CC0000002640000002D90000000510000002D9000000051000000051000000009000001224000000264000000264000000051000000264000000051000000051000000009000000264000000051000000051000000009000000051000000009000000009000000001
+  | 9 => 0xCC39D2C601549985D015F2F1ED0027562D7016752D2900288F56D002D6EDDE00048B163016F89BD900297F1F5002ED71620004AF1BD00347865C00053F3D600053F3D600008652F016F285CB002A74325002A743250004CB129002E58AAB0005691EA0005691EA00008A8310033D27C500060FA2C00060FA2C00009B29E00060FA2C00009B29E00009B29E00000F843016F285CB00271F39B002B66A2B0004E6423002B66A2B0004E64230005883F600008D9FF002F6D7F50005593A700063E82C00009FD9E00063E82C00009FD9E00009FD9E00000FFC300334F4F10005FB1C10005FB1C10000B313C0005FB1C10000B313C0000B313C000011E860005FB1C10000B313C0000B313C000011E860000B313C000011E86000011E86000001CA7016F89BD900260BF89002872B6F0004864E3002C74563000504D230005AA8660000910D7002C74563000504D230005AA8660000910D70006660FC0000A3CE60000A3CE6000010617002F6D7F500057C54900057C54900009E61F00062D3510000B8EFC0000B8EFC0000127E600062D3510000B8EFC0000B8EFC0000127E60000B8EFC0000127E60000127E6000001D970033D27C500058420B00062D3510000B279100062D3510000B27910000D0BD8000014DFC00062D3510000B27910000D0BD8000014DFC0000D0BD8000014DFC000014DFC0000021660005FB1C10000B27910000B2791000014DFC0000B2791000014DFC000014DFC0000021660000B2791000014DFC000014DFC000002166000014DFC000002166000002166000000357016752D2900252B97F00266A70B00044BE4B002885C31000491E7100051CCD2000082E15002C74563000504D230005AA8660000910D70006660FC0000A3CE60000A3CE6000010617002B66A2B000504D23000504D230000910D700057AD190000A3CE60000A3CE600001061700062D3510000B8EFC0000B8EFC0000127E60000B8EFC0000127E60000127E6000001D97002E58AAB0004F091A00057AD1900009E61F00057AD1900009E61F0000B2ACA000011DE100062D3510000B27910000D0BD8000014DFC0000D0BD8000014DFC000014DFC0000021660005FB1C10000B27910000B2791000014DFC0000B2791000014DFC000014DFC0000021660000B2791000014DFC000014DFC000002166000014DFC00000216600000216600000035700347865C00056DC540005C43240000A52940006660FC0000B8EFC0000D0BD8000014DFC0006660FC0000B8EFC0000D0BD8000014DFC0000F42400000186A00000186A000000271000063E82C0000B8EFC0000B8EFC000014DFC0000D0BD80000186A00000186A00000027100000D0BD80000186A00000186A00000027100000186A00000027100000027100000003E800060FA2C0000A52940000B8EFC000014DFC0000B8EFC000014DFC0000186A00000027100000B8EFC000014DFC0000186A00000027100000186A00000027100000027100000003E80000B313C000014DFC000014DFC000002710000014DFC0000027100000027100000003E8000014DFC0000027100000027100000003E80000027100000003E80000003E8000000064015F2F1ED0024AA9AF00257636D00043246500266A70B000456F2D0004DA97200007C425002872B6F000491E71000527592000083EF50005C43240000939EA0000939EA00000EC31002B66A2B000504D23000504D230000910D700057AD190000A3CE60000A3CE600001061700062D3510000B8EFC0000B8EFC0000127E60000B8EFC0000127E60000127E6000001D97002A743250004864E3000504D230000910D7000504D230000910D70000A3CE600001061700057C54900009E61F0000B8EFC0000127E60000B8EFC0000127E60000127E6000001D970005FB1C10000B27910000B2791000014DFC0000B2791000014DFC000014DFC0000021660000B2791000014DFC000014DFC000002166000014DFC000002166000002166000000357002ED71620004DA9720005275920000939EA0005AA8660000A3CE60000B8EFC0000127E60005AA8660000A3CE60000B8EFC0000127E60000D0BD8000014DFC000014DFC00000216600063E82C0000B8EFC0000B8EFC000014DFC0000D0BD80000186A00000186A00000027100000D0BD80000186A00000186A00000027100000186A00000027100000027100000003E800060FA2C0000A52940000B8EFC000014DFC0000B8EFC000014DFC0000186A00000027100000B8EFC000014DFC0000186A00000027100000186A00000027100000027100000003E80000B313C000014DFC000014DFC000002710000014DFC0000027100000027100000003E8000014DFC0000027100000027100000003E80000027100000003E80000003E8000000064002D6EDDE0004B39120004DA97200008AFA200051CCD20000939EA0000A52940000108420005AA8660000A3CE60000B8EFC0000127E60000D0BD8000014DFC000014DFC0000021660005883F60000A3CE60000A3CE60000127E60000B2ACA000014DFC000014DFC0000021660000D0BD80000186A00000186A00000027100000186A00000027100000027100000003E80005691EA0000939EA0000A3CE60000127E60000A3CE60000127E6000014DFC0000021660000B8EFC000014DFC0000186A00000027100000186A00000027100000027100000003E80000B313C000014DFC000014DFC000002710000014DFC0000027100000027100000003E8000014DFC0000027100000027100000003E80000027100000003E80000003E800000006400053F3D600008AFA20000939EA0000108420000A3CE60000127E6000014DFC0000021660000A3CE60000127E6000014DFC0000021660000186A00000027100000027100000003E800009FD9E0000127E60000127E6000002166000014DFC0000027100000027100000003E8000014DFC0000027100000027100000003E80000027100000003E80000003E800000006400009B29E0000108420000127E60000021660000127E60000021660000027100000003E80000127E60000021660000027100000003E80000027100000003E80000003E8000000064000011E860000021660000021660000003E80000021660000003E80000003E80000000640000021660000003E80000003E80000000640000003E800000006400000006400000000A01549985D00238FCAD0024AA9AF00041BE1B00252B97F0004324650004B39120000785B500260BF8900044BE4B0004DA97200007C42500056DC5400008AFA200008AFA200000DE5D00271F39B0004864E30004864E3000082E150004F091A0000939EA0000939EA00000EC3100058420B0000A52940000A52940000108420000A5294000010842000010842000001A6D002A743250004864E3000504D230000910D7000504D230000910D70000A3CE600001061700057C54900009E61F0000B8EFC0000127E60000B8EFC0000127E60000127E6000001D970005FB1C10000B27910000B2791000014DFC0000B2791000014DFC000014DFC0000021660000B2791000014DFC000014DFC000002166000014DFC00000216600000216600000035700297F1F500044BE4B000491E71000082E15000504D230000910D70000A3CE6000010617000504D230000910D70000A3CE60000106170000B8EFC0000127E60000127E6000001D970005593A700009E61F00009E61F000011DE10000B2791000014DFC000014DFC0000021660000B2791000014DFC000014DFC000002166000014DFC00000216600000216600000035700060FA2C0000A52940000B8EFC000014DFC0000B8EFC000014DFC0000186A00000027100000B8EFC000014DFC0000186A00000027100000186A00000027100000027100000003E80000B313C000014DFC000014DFC000002710000014DFC0000027100000027100000003E8000014DFC0000027100000027100000003E80000027100000003E80000003E800000006400288F56D000432465000456F2D00007C425000491E71000083EF50000939EA00000EC31000504D230000910D70000A3CE60000106170000B8EFC0000127E60000127E6000001D970004E64230000910D70000910D700001061700009E61F0000127E60000127E6000001D970000B2791000014DFC000014DFC000002166000014DFC0000021660000021660000003570005691EA0000939EA0000A3CE60000127E60000A3CE60000127E6000014DFC0000021660000B8EFC000014DFC0000186A00000027100000186A00000027100000027100000003E80000B313C000014DFC000014DFC000002710000014DFC0000027100000027100000003E8000014DFC0000027100000027100000003E80000027100000003E80000003E800000006400053F3D600008AFA20000939EA0000108420000A3CE60000127E6000014DFC0000021660000A3CE60000127E6000014DFC0000021660000186A00000027100000027100000003E800009FD9E0000127E60000127E6000002166000014DFC0000027100000027100000003E8000014DFC0000027100000027100000003E80000027100000003E80000003E800000006400009B29E0000108420000127E60000021660000127E60000021660000027100000003E80000127E60000021660000027100000003E80000027100000003E80000003E8000000064000011E860000021660000021660000003E80000021660000003E80000003E80000000640000021660000003E80000003E80000000640000003E800000006400000006400000000A0027562D700041BE1B0004324650000785B500044BE4B00007C42500008AFA200000DE5D0004864E3000082E150000939EA00000EC310000A5294000010842000010842000001A6D0004E64230000910D70000910D700001061700009E61F0000127E60000127E6000001D970000B2791000014DFC000014DFC000002166000014DFC0000021660000021660000003570004CB129000082E150000910D70000106170000910D70000106170000127E6000001D9700009E61F000011DE1000014DFC000002166000014DFC0000021660000021660000003570000B313C000014DFC000014DFC000002710000014DFC0000027100000027100000003E8000014DFC0000027100000027100000003E80000027100000003E80000003E80000000640004AF1BD00007C425000083EF500000EC310000910D70000106170000127E6000001D970000910D70000106170000127E6000001D97000014DFC00000216600000216600000035700009FD9E0000127E60000127E6000002166000014DFC0000027100000027100000003E8000014DFC0000027100000027100000003E80000027100000003E80000003E800000006400009B29E0000108420000127E60000021660000127E60000021660000027100000003E80000127E60000021660000027100000003E80000027100000003E80000003E8000000064000011E860000021660000021660000003E80000021660000003E80000003E80000000640000021660000003E80000003E80000000640000003E800000006400000006400000000A00048B1630000785B500007C42500000DE5D000082E1500000EC31000010842000001A6D0000910D70000106170000127E6000001D97000014DFC00000216600000216600000035700008D9FF000010617000010617000001D97000011DE1000002166000002166000000357000014DFC0000027100000027100000003E80000027100000003E80000003E800000006400008A83100000EC31000010617000001D97000010617000001D970000021660000003570000127E60000021660000027100000003E80000027100000003E80000003E8000000064000011E860000021660000021660000003E80000021660000003E80000003E80000000640000021660000003E80000003E80000000640000003E800000006400000006400000000A00008652F00000DE5D00000EC31000001A6D000010617000001D97000002166000000357000010617000001D970000021660000003570000027100000003E80000003E800000006400000FFC3000001D97000001D970000003570000021660000003E80000003E80000000640000021660000003E80000003E80000000640000003E800000006400000006400000000A00000F843000001A6D000001D97000000357000001D970000003570000003E8000000064000001D970000003570000003E80000000640000003E800000006400000006400000000A000001CA700000035700000035700000006400000035700000006400000006400000000A00000035700000006400000006400000000A00000006400000000A00000000A000000001
+  | 10 => 0x247D644E00372A52DF038BF485F005B778DF039F69E13005E177A7006844D1900097A9EB03B30F2A400601A481006B404E60009C00720076DB20C000ACE1A4000ACE1A40000FB76C03B26726E0062279B50062279B50009F5D48006A43E70000B1DAFA000B1DAFA000102B2E007597089000C51A6B000C51A6B00011EB21000C51A6B00011EB2100011EB2100001A10303B26726E005B4188300642CBAF000A29FB100642CBAF000A29FB1000B589ED0001080E7006C8AB63000B00EF4000CA9635000126ABF000CA9635000126ABF000126ABF00001AC9D00748D2A1000C2D50D000C2D50D000146937000C2D50D00014693700014693700001DB05000C2D50D00014693700014693700001DB0500014693700001DB0500001DB05000002B2F03B30F2A40058FE679005E118FE0009775AB006665898000A63E45000B98DF400010DE5C006665898000A63E45000B98DF400010DE5C000CF280800012D51800012D51800001B648006C8AB63000B42861000B428610001243DC000C8A5EB00015053100015053100001E933000C8A5EB00015053100015053100001E93300015053100001E93300001E933000002C79007597089000B54307000C8A5EB000145B09000C8A5EB000145B090001775190000221EB000C8A5EB000145B090001775190000221EB0001775190000221EB0000221EB0000031A1000C2D50D000145B09000145B090000221EB000145B090000221EB0000221EB0000031A1000145B090000221EB0000221EB0000031A10000221EB0000031A10000031A1000000483039F69E13005718CC70059C49B2000908326005E3538800098D04C000A92B210000F6103006665898000A63E45000B98DF400010DE5C000CF280800012D51800012D51800001B64800642CBAF000A63E45000A63E4500010DE5C000B3FFE700012D51800012D51800001B648000C8A5EB00015053100015053100001E93300015053100001E93300001E933000002C79006A43E70000A3FA7E000B3FFE70001243DC000B3FFE70001243DC000145FC300001DA29000C8A5EB000145B090001775190000221EB0001775190000221EB0000221EB0000031A1000C2D50D000145B09000145B090000221EB000145B090000221EB0000221EB0000031A1000145B090000221EB0000221EB0000031A10000221EB0000031A10000031A10000004830076DB20C000B29F21000BCACBE00012FD45000CF28080001505310001775190000221EB000CF28080001505310001775190000221EB0001B082900002751B00002751B000003931000CA96350001505310001505310000221EB00017751900002751B00002751B00000393100017751900002751B00002751B00000393100002751B000003931000003931000000533000C51A6B00012FD450001505310000221EB0001505310000221EB00002751B0000039310001505310000221EB00002751B00000393100002751B0000039310000039310000005330001469370000221EB0000221EB0000039310000221EB0000039310000039310000005330000221EB000003931000003931000000533000003931000000533000000533000000079038BF485F0055E51810057B9A850008D67060059C49B200091CEF4000A162E20000EABE6005E118FE00098D04C000AA6A2C0000F7E04000BCACBE0001126FA0001126FA000018F2E00642CBAF000A63E45000A63E4500010DE5C000B3FFE700012D51800012D51800001B648000C8A5EB00015053100015053100001E93300015053100001E93300001E933000002C790062279B50009775AB000A63E4500010DE5C000A63E4500010DE5C00012D51800001B648000B428610001243DC00015053100001E93300015053100001E93300001E933000002C79000C2D50D000145B09000145B090000221EB000145B090000221EB0000221EB0000031A1000145B090000221EB0000221EB0000031A10000221EB0000031A10000031A1000000483006B404E6000A162E2000AA6A2C0001126FA000B98DF400012D51800015053100001E933000B98DF400012D51800015053100001E9330001775190000221EB0000221EB0000031A1000CA96350001505310001505310000221EB00017751900002751B00002751B00000393100017751900002751B00002751B00000393100002751B000003931000003931000000533000C51A6B00012FD450001505310000221EB0001505310000221EB00002751B0000039310001505310000221EB00002751B00000393100002751B0000039310000039310000005330001469370000221EB0000221EB0000039310000221EB0000039310000039310000005330000221EB000003931000003931000000533000003931000000533000000533000000079006844D190009CB789000A162E2000103D03000A92B210001126FA00012FD4500001B9EF000B98DF400012D51800015053100001E9330001775190000221EB0000221EB0000031A1000B589ED00012D51800012D51800001E933000145FC30000221EB0000221EB0000031A100017751900002751B00002751B00000393100002751B000003931000003931000000533000B1DAFA0001126FA00012D51800001E93300012D51800001E9330000221EB0000031A10001505310000221EB00002751B00000393100002751B0000039310000039310000005330001469370000221EB0000221EB0000039310000221EB0000039310000039310000005330000221EB000003931000003931000000533000003931000000533000000533000000079000ACE1A4000103D030001126FA00001B9EF00012D51800001E9330000221EB0000031A100012D51800001E9330000221EB0000031A100002751B000003931000003931000000533000126ABF00001E93300001E9330000031A10000221EB0000039310000039310000005330000221EB00000393100000393100000053300000393100000053300000053300000007900011EB2100001B9EF00001E9330000031A100001E9330000031A100000393100000053300001E9330000031A100000393100000053300000393100000053300000053300000007900001DB050000031A10000031A10000005330000031A10000005330000005330000000790000031A100000053300000053300000007900000053300000007900000007900000000B0372A52DF005381AA30055E51810008A7F68005718CC70008D67060009CB7890000E3F3B0058FE679000908326000A162E20000EABE6000B29F21000103D03000103D030000179E9005B418830009775AB0009775AB0000F6103000A3FA7E0001126FA0001126FA000018F2E000B5430700012FD4500012FD4500001B9EF00012FD4500001B9EF00001B9EF00000282D0062279B50009775AB000A63E4500010DE5C000A63E4500010DE5C00012D51800001B648000B428610001243DC00015053100001E93300015053100001E93300001E933000002C79000C2D50D000145B09000145B090000221EB000145B090000221EB0000221EB0000031A1000145B090000221EB0000221EB0000031A10000221EB0000031A10000031A100000048300601A48100090832600098D04C0000F6103000A63E4500010DE5C00012D51800001B648000A63E4500010DE5C00012D51800001B64800015053100001E93300001E933000002C79000B00EF40001243DC0001243DC00001DA29000145B090000221EB0000221EB0000031A1000145B090000221EB0000221EB0000031A10000221EB0000031A10000031A1000000483000C51A6B00012FD450001505310000221EB0001505310000221EB00002751B0000039310001505310000221EB00002751B00000393100002751B0000039310000039310000005330001469370000221EB0000221EB0000039310000221EB0000039310000039310000005330000221EB000003931000003931000000533000003931000000533000000533000000079005E177A70008D670600091CEF40000EABE600098D04C0000F7E040001126FA000018F2E000A63E4500010DE5C00012D51800001B64800015053100001E93300001E933000002C79000A29FB100010DE5C00010DE5C00001B6480001243DC00001E93300001E933000002C79000145B090000221EB0000221EB0000031A10000221EB0000031A10000031A1000000483000B1DAFA0001126FA00012D51800001E93300012D51800001E9330000221EB0000031A10001505310000221EB00002751B00000393100002751B0000039310000039310000005330001469370000221EB0000221EB0000039310000221EB0000039310000039310000005330000221EB000003931000003931000000533000003931000000533000000533000000079000ACE1A4000103D030001126FA00001B9EF00012D51800001E9330000221EB0000031A100012D51800001E9330000221EB0000031A100002751B000003931000003931000000533000126ABF00001E93300001E9330000031A10000221EB0000039310000039310000005330000221EB00000393100000393100000053300000393100000053300000053300000007900011EB2100001B9EF00001E9330000031A100001E9330000031A100000393100000053300001E9330000031A100000393100000053300000393100000053300000053300000007900001DB050000031A10000031A10000005330000031A10000005330000005330000000790000031A100000053300000053300000007900000053300000007900000007900000000B005B778DF0008A7F680008D67060000E3F3B0009083260000EABE6000103D030000179E90009775AB0000F61030001126FA000018F2E00012FD4500001B9EF00001B9EF00000282D000A29FB100010DE5C00010DE5C00001B6480001243DC00001E93300001E933000002C79000145B090000221EB0000221EB0000031A10000221EB0000031A10000031A10000004830009F5D480000F610300010DE5C00001B64800010DE5C00001B64800001E933000002C790001243DC00001DA290000221EB0000031A10000221EB0000031A10000031A10000004830001469370000221EB0000221EB0000039310000221EB0000039310000039310000005330000221EB0000039310000039310000005330000039310000005330000005330000000790009C00720000EABE60000F7E04000018F2E00010DE5C00001B64800001E933000002C7900010DE5C00001B64800001E933000002C790000221EB0000031A10000031A1000000483000126ABF00001E93300001E9330000031A10000221EB0000039310000039310000005330000221EB00000393100000393100000053300000393100000053300000053300000007900011EB2100001B9EF00001E9330000031A100001E9330000031A100000393100000053300001E9330000031A100000393100000053300000393100000053300000053300000007900001DB050000031A10000031A10000005330000031A10000005330000005330000000790000031A100000053300000053300000007900000053300000007900000007900000000B00097A9EB0000E3F3B0000EABE60000179E90000F6103000018F2E00001B9EF00000282D00010DE5C00001B64800001E933000002C790000221EB0000031A10000031A10000004830001080E700001B64800001B648000002C7900001DA290000031A10000031A10000004830000221EB000003931000003931000000533000003931000000533000000533000000079000102B2E000018F2E00001B648000002C7900001B648000002C790000031A100000048300001E9330000031A100000393100000053300000393100000053300000053300000007900001DB050000031A10000031A10000005330000031A10000005330000005330000000790000031A100000053300000053300000007900000053300000007900000007900000000B0000FB76C0000179E9000018F2E00000282D00001B648000002C790000031A100000048300001B648000002C790000031A100000048300000393100000053300000053300000007900001AC9D000002C79000002C790000004830000031A10000005330000005330000000790000031A100000053300000053300000007900000053300000007900000007900000000B00001A10300000282D000002C79000000483000002C79000000483000000533000000079000002C7900000048300000053300000007900000053300000007900000007900000000B000002B2F00000048300000048300000007900000048300000007900000007900000000B00000048300000007900000007900000000B00000007900000000B00000000B000000001
+  | 11 => 0x5E78B75A008296BAE10860FD8DB00C4533DE088BB31FB00C98CDDF00DD5F6080012729D608B6D2CB700CD8E08100E33FAE40012EFF9300F99B1600014CCEC80014CCEC80001BBBE608B5D29F800D1A2AD500D1A2AD500135106100E16642500155B02C00155B02C0001C795900F746610001774F80001774F800001F46A0001774F800001F46A00001F46A0000029B3808B5D29F800C44C11900D5A2C940013AEDAA00D5A2C940013AEDAA0015C3E880001D053600E5DC212001529AF700180FA800002014E000180FA800002014E00002014E000002AC6800F54D3A4001737C54001737C54000233D60001737C54000233D60000233D6000002EFC8001737C54000233D60000233D6000002EFC8000233D6000002EFC800002EFC8000003EA608B6D2CB700BFDDC2C00C9D796F00127527100D9FF01C0014160440016355880001D9C7600D9FF01C0014160440016355880001D9C7600188F46000020BF0800020BF0800002BA9600E5DC21200159D32E00159D32E0001FD7630017DAD640002434E00002434E00000304680017DAD640002434E00002434E00000304680002434E000003046800003046800000405E00F7466100015C0B7C0017DAD640002329440017DAD640002329440002806800000355E00017DAD640002329440002806800000355E00002806800000355E00000355E0000004728001737C540002329440002329440000355E00002329440000355E00000355E00000047280002329440000355E00000355E00000047280000355E00000047280000047280000005EE088BB31FB00BC109B700C1610E90011AE6ED00CA167E400129B4E600146B5780001B39CA00D9FF01C0014160440016355880001D9C7600188F46000020BF0800020BF0800002BA9600D5A2C940014160440014160440001D9C760015992A400020BF0800020BF0800002BA960017DAD640002434E00002434E00000304680002434E000003046800003046800000405E00E1664250013D881C0015992A40001FD7630015992A40001FD763000232FF800002EEAA0017DAD640002329440002806800000355E00002806800000355E00000355E0000004728001737C540002329440002329440000355E00002329440000355E00000355E00000047280002329440000355E00000355E00000047280000355E00000047280000047280000005EE00F99B160001575BA000169008000021042000188F4600002434E00002806800000355E000188F4600002434E00002806800000355E00002D900000003CC0000003CC0000000510000180FA800002434E00002434E00000355E000028068000003CC0000003CC0000000510000028068000003CC0000003CC0000000510000003CC000000051000000051000000006C0001774F800002104200002434E00000355E00002434E00000355E000003CC000000051000002434E00000355E000003CC0000000510000003CC000000051000000051000000006C0000233D600000355E00000355E00000051000000355E00000051000000051000000006C00000355E00000051000000051000000006C00000051000000006C00000006C00000000900860FD8DB00B97C63C00BD51C22001153FDE00C1610E90011D315200138EE980001A13E200C9D796F00129B4E600148ECA80001B690E0016900800001E15600001E15600000281C800D5A2C940014160440014160440001D9C760015992A400020BF0800020BF0800002BA960017DAD640002434E00002434E00000304680002434E000003046800003046800000405E00D1A2AD50012752710014160440001D9C760014160440001D9C7600020BF0800002BA9600159D32E0001FD7630002434E00000304680002434E000003046800003046800000405E001737C540002329440002329440000355E00002329440000355E00000355E00000047280002329440000355E00000355E00000047280000355E00000047280000047280000005EE00E33FAE400138EE9800148ECA80001E156000163558800020BF080002434E000003046800163558800020BF080002434E00000304680002806800000355E00000355E000000472800180FA800002434E00002434E00000355E000028068000003CC0000003CC0000000510000028068000003CC0000003CC0000000510000003CC000000051000000051000000006C0001774F800002104200002434E00000355E00002434E00000355E000003CC000000051000002434E00000355E000003CC0000000510000003CC000000051000000051000000006C0000233D600000355E00000355E00000051000000355E00000051000000051000000006C00000355E00000051000000051000000006C00000051000000006C00000006C000000009000DD5F608001308B8800138EE980001C9CF800146B5780001E156000021042000002C05800163558800020BF080002434E00000304680002806800000355E00000355E00000047280015C3E8800020BF0800020BF08000030468000232FF80000355E00000355E000000472800028068000003CC0000003CC0000000510000003CC000000051000000051000000006C000155B02C0001E156000020BF0800003046800020BF080000304680000355E00000047280002434E00000355E000003CC0000000510000003CC000000051000000051000000006C0000233D600000355E00000355E00000051000000355E00000051000000051000000006C00000355E00000051000000051000000006C00000051000000006C00000006C00000000900014CCEC80001C9CF80001E156000002C05800020BF080000304680000355E000000472800020BF080000304680000355E000000472800003CC000000051000000051000000006C00002014E00000304680000304680000047280000355E00000051000000051000000006C00000355E00000051000000051000000006C00000051000000006C00000006C00000000900001F46A000002C0580000304680000047280000304680000047280000051000000006C00000304680000047280000051000000006C00000051000000006C00000006C000000009000002EFC80000047280000047280000006C00000047280000006C00000006C00000000900000047280000006C00000006C00000000900000006C000000009000000009000000000C08296BAE100B4B2CC200B97C63C0010FB5FC00BC109B7001153FDE001308B880001960F600BFDDC2C0011AE6ED00138EE980001A13E2001575BA00001C9CF80001C9CF800002626A00C44C1190012752710012752710001B39CA0013D881C0001E15600001E15600000281C80015C0B7C00021042000021042000002C05800021042000002C05800002C058000003AB200D1A2AD50012752710014160440001D9C760014160440001D9C7600020BF0800002BA9600159D32E0001FD7630002434E00000304680002434E000003046800003046800000405E001737C540002329440002329440000355E00002329440000355E00000355E00000047280002329440000355E00000355E00000047280000355E00000047280000047280000005EE00CD8E0810011AE6ED00129B4E60001B39CA0014160440001D9C7600020BF0800002BA960014160440001D9C7600020BF0800002BA960002434E000003046800003046800000405E001529AF70001FD7630001FD76300002EEAA0002329440000355E00000355E00000047280002329440000355E00000355E00000047280000355E00000047280000047280000005EE001774F800002104200002434E00000355E00002434E00000355E000003CC000000051000002434E00000355E000003CC0000000510000003CC000000051000000051000000006C0000233D600000355E00000355E00000051000000355E00000051000000051000000006C00000355E00000051000000051000000006C00000051000000006C00000006C000000009000C98CDDF001153FDE0011D31520001A13E200129B4E60001B690E0001E15600000281C80014160440001D9C7600020BF0800002BA960002434E000003046800003046800000405E0013AEDAA0001D9C760001D9C7600002BA960001FD76300003046800003046800000405E0002329440000355E00000355E00000047280000355E00000047280000047280000005EE00155B02C0001E156000020BF0800003046800020BF080000304680000355E00000047280002434E00000355E000003CC0000000510000003CC000000051000000051000000006C0000233D600000355E00000355E00000051000000355E00000051000000051000000006C00000355E00000051000000051000000006C00000051000000006C00000006C00000000900014CCEC80001C9CF80001E156000002C05800020BF080000304680000355E000000472800020BF080000304680000355E000000472800003CC000000051000000051000000006C00002014E00000304680000304680000047280000355E00000051000000051000000006C00000355E00000051000000051000000006C00000051000000006C00000006C00000000900001F46A000002C0580000304680000047280000304680000047280000051000000006C00000304680000047280000051000000006C00000051000000006C00000006C000000009000002EFC80000047280000047280000006C00000047280000006C00000006C00000000900000047280000006C00000006C00000000900000006C000000009000000009000000000C00C4533DE0010FB5FC001153FDE0001960F60011AE6ED0001A13E20001C9CF800002626A0012752710001B39CA0001E15600000281C800021042000002C05800002C058000003AB20013AEDAA0001D9C760001D9C7600002BA960001FD76300003046800003046800000405E0002329440000355E00000355E00000047280000355E00000047280000047280000005EE0013510610001B39CA0001D9C7600002BA960001D9C7600002BA9600003046800000405E0001FD76300002EEAA0000355E00000047280000355E00000047280000047280000005EE000233D600000355E00000355E00000051000000355E00000051000000051000000006C00000355E00000051000000051000000006C00000051000000006C00000006C00000000900012EFF930001A13E20001B690E0000281C80001D9C7600002BA9600003046800000405E0001D9C7600002BA9600003046800000405E0000355E00000047280000047280000005EE0002014E00000304680000304680000047280000355E00000051000000051000000006C00000355E00000051000000051000000006C00000051000000006C00000006C00000000900001F46A000002C0580000304680000047280000304680000047280000051000000006C00000304680000047280000051000000006C00000051000000006C00000006C000000009000002EFC80000047280000047280000006C00000047280000006C00000006C00000000900000047280000006C00000006C00000000900000006C000000009000000009000000000C0012729D60001960F60001A13E200002626A0001B39CA0000281C800002C058000003AB20001D9C7600002BA9600003046800000405E0000355E00000047280000047280000005EE0001D053600002BA9600002BA9600000405E00002EEAA0000047280000047280000005EE0000355E00000051000000051000000006C00000051000000006C00000006C00000000900001C79590000281C800002BA9600000405E00002BA9600000405E0000047280000005EE0000304680000047280000051000000006C00000051000000006C00000006C000000009000002EFC80000047280000047280000006C00000047280000006C00000006C00000000900000047280000006C00000006C00000000900000006C000000009000000009000000000C0001BBBE600002626A0000281C8000003AB200002BA9600000405E0000047280000005EE00002BA9600000405E0000047280000005EE0000051000000006C00000006C000000009000002AC6800000405E00000405E0000005EE0000047280000006C00000006C00000000900000047280000006C00000006C00000000900000006C000000009000000009000000000C000029B38000003AB200000405E0000005EE00000405E0000005EE0000006C000000009000000405E0000005EE0000006C00000000900000006C000000009000000009000000000C000003EA60000005EE0000005EE0000000900000005EE00000009000000009000000000C0000005EE00000009000000009000000000C00000009000000000C00000000C000000001
+  | _ => 0
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def base_T : ∀ u : Fin 1024, G 0 u = tb (tabT 0) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_0 : ∀ u : Fin 1024, u.val / 8 = 0 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_1 : ∀ u : Fin 1024, u.val / 8 = 1 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_2 : ∀ u : Fin 1024, u.val / 8 = 2 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_3 : ∀ u : Fin 1024, u.val / 8 = 3 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_4 : ∀ u : Fin 1024, u.val / 8 = 4 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_5 : ∀ u : Fin 1024, u.val / 8 = 5 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_6 : ∀ u : Fin 1024, u.val / 8 = 6 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_7 : ∀ u : Fin 1024, u.val / 8 = 7 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_8 : ∀ u : Fin 1024, u.val / 8 = 8 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_9 : ∀ u : Fin 1024, u.val / 8 = 9 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_10 : ∀ u : Fin 1024, u.val / 8 = 10 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_11 : ∀ u : Fin 1024, u.val / 8 = 11 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_12 : ∀ u : Fin 1024, u.val / 8 = 12 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_13 : ∀ u : Fin 1024, u.val / 8 = 13 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_14 : ∀ u : Fin 1024, u.val / 8 = 14 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_15 : ∀ u : Fin 1024, u.val / 8 = 15 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_16 : ∀ u : Fin 1024, u.val / 8 = 16 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_17 : ∀ u : Fin 1024, u.val / 8 = 17 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_18 : ∀ u : Fin 1024, u.val / 8 = 18 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_19 : ∀ u : Fin 1024, u.val / 8 = 19 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_20 : ∀ u : Fin 1024, u.val / 8 = 20 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_21 : ∀ u : Fin 1024, u.val / 8 = 21 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_22 : ∀ u : Fin 1024, u.val / 8 = 22 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_23 : ∀ u : Fin 1024, u.val / 8 = 23 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_24 : ∀ u : Fin 1024, u.val / 8 = 24 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_25 : ∀ u : Fin 1024, u.val / 8 = 25 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_26 : ∀ u : Fin 1024, u.val / 8 = 26 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_27 : ∀ u : Fin 1024, u.val / 8 = 27 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_28 : ∀ u : Fin 1024, u.val / 8 = 28 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_29 : ∀ u : Fin 1024, u.val / 8 = 29 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_30 : ∀ u : Fin 1024, u.val / 8 = 30 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_31 : ∀ u : Fin 1024, u.val / 8 = 31 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_32 : ∀ u : Fin 1024, u.val / 8 = 32 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_33 : ∀ u : Fin 1024, u.val / 8 = 33 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_34 : ∀ u : Fin 1024, u.val / 8 = 34 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_35 : ∀ u : Fin 1024, u.val / 8 = 35 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_36 : ∀ u : Fin 1024, u.val / 8 = 36 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_37 : ∀ u : Fin 1024, u.val / 8 = 37 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_38 : ∀ u : Fin 1024, u.val / 8 = 38 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_39 : ∀ u : Fin 1024, u.val / 8 = 39 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_40 : ∀ u : Fin 1024, u.val / 8 = 40 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_41 : ∀ u : Fin 1024, u.val / 8 = 41 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_42 : ∀ u : Fin 1024, u.val / 8 = 42 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_43 : ∀ u : Fin 1024, u.val / 8 = 43 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_44 : ∀ u : Fin 1024, u.val / 8 = 44 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_45 : ∀ u : Fin 1024, u.val / 8 = 45 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_46 : ∀ u : Fin 1024, u.val / 8 = 46 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_47 : ∀ u : Fin 1024, u.val / 8 = 47 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_48 : ∀ u : Fin 1024, u.val / 8 = 48 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_49 : ∀ u : Fin 1024, u.val / 8 = 49 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_50 : ∀ u : Fin 1024, u.val / 8 = 50 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_51 : ∀ u : Fin 1024, u.val / 8 = 51 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_52 : ∀ u : Fin 1024, u.val / 8 = 52 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_53 : ∀ u : Fin 1024, u.val / 8 = 53 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_54 : ∀ u : Fin 1024, u.val / 8 = 54 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_55 : ∀ u : Fin 1024, u.val / 8 = 55 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_56 : ∀ u : Fin 1024, u.val / 8 = 56 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_57 : ∀ u : Fin 1024, u.val / 8 = 57 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_58 : ∀ u : Fin 1024, u.val / 8 = 58 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_59 : ∀ u : Fin 1024, u.val / 8 = 59 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_60 : ∀ u : Fin 1024, u.val / 8 = 60 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_61 : ∀ u : Fin 1024, u.val / 8 = 61 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_62 : ∀ u : Fin 1024, u.val / 8 = 62 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_63 : ∀ u : Fin 1024, u.val / 8 = 63 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_64 : ∀ u : Fin 1024, u.val / 8 = 64 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_65 : ∀ u : Fin 1024, u.val / 8 = 65 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_66 : ∀ u : Fin 1024, u.val / 8 = 66 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_67 : ∀ u : Fin 1024, u.val / 8 = 67 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_68 : ∀ u : Fin 1024, u.val / 8 = 68 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_69 : ∀ u : Fin 1024, u.val / 8 = 69 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_70 : ∀ u : Fin 1024, u.val / 8 = 70 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_71 : ∀ u : Fin 1024, u.val / 8 = 71 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_72 : ∀ u : Fin 1024, u.val / 8 = 72 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_73 : ∀ u : Fin 1024, u.val / 8 = 73 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_74 : ∀ u : Fin 1024, u.val / 8 = 74 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_75 : ∀ u : Fin 1024, u.val / 8 = 75 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_76 : ∀ u : Fin 1024, u.val / 8 = 76 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_77 : ∀ u : Fin 1024, u.val / 8 = 77 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_78 : ∀ u : Fin 1024, u.val / 8 = 78 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_79 : ∀ u : Fin 1024, u.val / 8 = 79 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_80 : ∀ u : Fin 1024, u.val / 8 = 80 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_81 : ∀ u : Fin 1024, u.val / 8 = 81 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_82 : ∀ u : Fin 1024, u.val / 8 = 82 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_83 : ∀ u : Fin 1024, u.val / 8 = 83 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_84 : ∀ u : Fin 1024, u.val / 8 = 84 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_85 : ∀ u : Fin 1024, u.val / 8 = 85 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_86 : ∀ u : Fin 1024, u.val / 8 = 86 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_87 : ∀ u : Fin 1024, u.val / 8 = 87 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_88 : ∀ u : Fin 1024, u.val / 8 = 88 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_89 : ∀ u : Fin 1024, u.val / 8 = 89 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_90 : ∀ u : Fin 1024, u.val / 8 = 90 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_91 : ∀ u : Fin 1024, u.val / 8 = 91 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_92 : ∀ u : Fin 1024, u.val / 8 = 92 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_93 : ∀ u : Fin 1024, u.val / 8 = 93 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_94 : ∀ u : Fin 1024, u.val / 8 = 94 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_95 : ∀ u : Fin 1024, u.val / 8 = 95 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_96 : ∀ u : Fin 1024, u.val / 8 = 96 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_97 : ∀ u : Fin 1024, u.val / 8 = 97 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_98 : ∀ u : Fin 1024, u.val / 8 = 98 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_99 : ∀ u : Fin 1024, u.val / 8 = 99 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_100 : ∀ u : Fin 1024, u.val / 8 = 100 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_101 : ∀ u : Fin 1024, u.val / 8 = 101 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_102 : ∀ u : Fin 1024, u.val / 8 = 102 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_103 : ∀ u : Fin 1024, u.val / 8 = 103 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_104 : ∀ u : Fin 1024, u.val / 8 = 104 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_105 : ∀ u : Fin 1024, u.val / 8 = 105 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_106 : ∀ u : Fin 1024, u.val / 8 = 106 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_107 : ∀ u : Fin 1024, u.val / 8 = 107 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_108 : ∀ u : Fin 1024, u.val / 8 = 108 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_109 : ∀ u : Fin 1024, u.val / 8 = 109 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_110 : ∀ u : Fin 1024, u.val / 8 = 110 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_111 : ∀ u : Fin 1024, u.val / 8 = 111 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_112 : ∀ u : Fin 1024, u.val / 8 = 112 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_113 : ∀ u : Fin 1024, u.val / 8 = 113 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_114 : ∀ u : Fin 1024, u.val / 8 = 114 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_115 : ∀ u : Fin 1024, u.val / 8 = 115 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_116 : ∀ u : Fin 1024, u.val / 8 = 116 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_117 : ∀ u : Fin 1024, u.val / 8 = 117 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_118 : ∀ u : Fin 1024, u.val / 8 = 118 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_119 : ∀ u : Fin 1024, u.val / 8 = 119 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_120 : ∀ u : Fin 1024, u.val / 8 = 120 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_121 : ∀ u : Fin 1024, u.val / 8 = 121 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_122 : ∀ u : Fin 1024, u.val / 8 = 122 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_123 : ∀ u : Fin 1024, u.val / 8 = 123 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_124 : ∀ u : Fin 1024, u.val / 8 = 124 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_125 : ∀ u : Fin 1024, u.val / 8 = 125 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_126 : ∀ u : Fin 1024, u.val / 8 = 126 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def chunk_127 : ∀ u : Fin 1024, u.val / 8 = 127 → ∀ n < (11 : ℕ),
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  decide +kernel
+
+theorem step_all (n : ℕ) (hn : n < 11) (u : Fin 1024) :
+    (∑ w ∈ subs u, if compc w.val u.val = true then tb (tabT n) w.val else 0) =
+      tb (tabT (n + 1)) u.val := by
+  have hu := u.isLt
+  obtain ⟨c, hc⟩ : ∃ c, u.val / 8 = c := ⟨_, rfl⟩
+  have hc2 : c < 128 := by omega
+  interval_cases c
+  · exact chunk_0 u hc n hn
+  · exact chunk_1 u hc n hn
+  · exact chunk_2 u hc n hn
+  · exact chunk_3 u hc n hn
+  · exact chunk_4 u hc n hn
+  · exact chunk_5 u hc n hn
+  · exact chunk_6 u hc n hn
+  · exact chunk_7 u hc n hn
+  · exact chunk_8 u hc n hn
+  · exact chunk_9 u hc n hn
+  · exact chunk_10 u hc n hn
+  · exact chunk_11 u hc n hn
+  · exact chunk_12 u hc n hn
+  · exact chunk_13 u hc n hn
+  · exact chunk_14 u hc n hn
+  · exact chunk_15 u hc n hn
+  · exact chunk_16 u hc n hn
+  · exact chunk_17 u hc n hn
+  · exact chunk_18 u hc n hn
+  · exact chunk_19 u hc n hn
+  · exact chunk_20 u hc n hn
+  · exact chunk_21 u hc n hn
+  · exact chunk_22 u hc n hn
+  · exact chunk_23 u hc n hn
+  · exact chunk_24 u hc n hn
+  · exact chunk_25 u hc n hn
+  · exact chunk_26 u hc n hn
+  · exact chunk_27 u hc n hn
+  · exact chunk_28 u hc n hn
+  · exact chunk_29 u hc n hn
+  · exact chunk_30 u hc n hn
+  · exact chunk_31 u hc n hn
+  · exact chunk_32 u hc n hn
+  · exact chunk_33 u hc n hn
+  · exact chunk_34 u hc n hn
+  · exact chunk_35 u hc n hn
+  · exact chunk_36 u hc n hn
+  · exact chunk_37 u hc n hn
+  · exact chunk_38 u hc n hn
+  · exact chunk_39 u hc n hn
+  · exact chunk_40 u hc n hn
+  · exact chunk_41 u hc n hn
+  · exact chunk_42 u hc n hn
+  · exact chunk_43 u hc n hn
+  · exact chunk_44 u hc n hn
+  · exact chunk_45 u hc n hn
+  · exact chunk_46 u hc n hn
+  · exact chunk_47 u hc n hn
+  · exact chunk_48 u hc n hn
+  · exact chunk_49 u hc n hn
+  · exact chunk_50 u hc n hn
+  · exact chunk_51 u hc n hn
+  · exact chunk_52 u hc n hn
+  · exact chunk_53 u hc n hn
+  · exact chunk_54 u hc n hn
+  · exact chunk_55 u hc n hn
+  · exact chunk_56 u hc n hn
+  · exact chunk_57 u hc n hn
+  · exact chunk_58 u hc n hn
+  · exact chunk_59 u hc n hn
+  · exact chunk_60 u hc n hn
+  · exact chunk_61 u hc n hn
+  · exact chunk_62 u hc n hn
+  · exact chunk_63 u hc n hn
+  · exact chunk_64 u hc n hn
+  · exact chunk_65 u hc n hn
+  · exact chunk_66 u hc n hn
+  · exact chunk_67 u hc n hn
+  · exact chunk_68 u hc n hn
+  · exact chunk_69 u hc n hn
+  · exact chunk_70 u hc n hn
+  · exact chunk_71 u hc n hn
+  · exact chunk_72 u hc n hn
+  · exact chunk_73 u hc n hn
+  · exact chunk_74 u hc n hn
+  · exact chunk_75 u hc n hn
+  · exact chunk_76 u hc n hn
+  · exact chunk_77 u hc n hn
+  · exact chunk_78 u hc n hn
+  · exact chunk_79 u hc n hn
+  · exact chunk_80 u hc n hn
+  · exact chunk_81 u hc n hn
+  · exact chunk_82 u hc n hn
+  · exact chunk_83 u hc n hn
+  · exact chunk_84 u hc n hn
+  · exact chunk_85 u hc n hn
+  · exact chunk_86 u hc n hn
+  · exact chunk_87 u hc n hn
+  · exact chunk_88 u hc n hn
+  · exact chunk_89 u hc n hn
+  · exact chunk_90 u hc n hn
+  · exact chunk_91 u hc n hn
+  · exact chunk_92 u hc n hn
+  · exact chunk_93 u hc n hn
+  · exact chunk_94 u hc n hn
+  · exact chunk_95 u hc n hn
+  · exact chunk_96 u hc n hn
+  · exact chunk_97 u hc n hn
+  · exact chunk_98 u hc n hn
+  · exact chunk_99 u hc n hn
+  · exact chunk_100 u hc n hn
+  · exact chunk_101 u hc n hn
+  · exact chunk_102 u hc n hn
+  · exact chunk_103 u hc n hn
+  · exact chunk_104 u hc n hn
+  · exact chunk_105 u hc n hn
+  · exact chunk_106 u hc n hn
+  · exact chunk_107 u hc n hn
+  · exact chunk_108 u hc n hn
+  · exact chunk_109 u hc n hn
+  · exact chunk_110 u hc n hn
+  · exact chunk_111 u hc n hn
+  · exact chunk_112 u hc n hn
+  · exact chunk_113 u hc n hn
+  · exact chunk_114 u hc n hn
+  · exact chunk_115 u hc n hn
+  · exact chunk_116 u hc n hn
+  · exact chunk_117 u hc n hn
+  · exact chunk_118 u hc n hn
+  · exact chunk_119 u hc n hn
+  · exact chunk_120 u hc n hn
+  · exact chunk_121 u hc n hn
+  · exact chunk_122 u hc n hn
+  · exact chunk_123 u hc n hn
+  · exact chunk_124 u hc n hn
+  · exact chunk_125 u hc n hn
+  · exact chunk_126 u hc n hn
+  · exact chunk_127 u hc n hn
+
+theorem G_eq_T (n : ℕ) (hn : n ≤ 11) : ∀ u : Fin 1024, G n u = tb (tabT n) u.val := by
+  induction n with
+  | zero => exact base_T
+  | succ n ih =>
+    intro u
+    rw [G_succ]
+    have ih' := ih (by omega)
+    simp only [ih']
+    exact step_all n (by omega) u
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+def tab_base : ∀ u : Fin 1024,
+    tb (tabT 11) u.val + 55 * tb (tabT 9) u.val + 330 * tb (tabT 7) u.val + 462 * tb (tabT 5) u.val + 165 * tb (tabT 3) u.val + 11 * tb (tabT 1) u.val =
+      11 * tb (tabT 10) u.val + 165 * tb (tabT 8) u.val + 462 * tb (tabT 6) u.val + 330 * tb (tabT 4) u.val + 55 * tb (tabT 2) u.val + tb (tabT 0) u.val := by
+  decide +kernel
+
+theorem G_base : ∀ u : Fin 1024,
+    G 11 u + 55 * G 9 u + 330 * G 7 u + 462 * G 5 u + 165 * G 3 u + 11 * G 1 u =
+      11 * G 10 u + 165 * G 8 u + 462 * G 6 u + 330 * G 4 u + 55 * G 2 u + G 0 u := by
+  intro u
+  rw [G_eq_T 11 (by norm_num) u, G_eq_T 10 (by norm_num) u, G_eq_T 9 (by norm_num) u, G_eq_T 8 (by norm_num) u, G_eq_T 7 (by norm_num) u, G_eq_T 6 (by norm_num) u, G_eq_T 5 (by norm_num) u, G_eq_T 4 (by norm_num) u, G_eq_T 3 (by norm_num) u, G_eq_T 2 (by norm_num) u, G_eq_T 1 (by norm_num) u, G_eq_T 0 (by norm_num) u]
+  exact tab_base u
+
+theorem G_rec (m : ℕ) : ∀ u : Fin 1024,
+    G (m + 11) u + 55 * G (m + 9) u + 330 * G (m + 7) u + 462 * G (m + 5) u + 165 * G (m + 3) u + 11 * G (m + 1) u =
+      11 * G (m + 10) u + 165 * G (m + 8) u + 462 * G (m + 6) u + 330 * G (m + 4) u + 55 * G (m + 2) u + G m u := by
+  induction m with
+  | zero => exact G_base
+  | succ m ih =>
+    intro u
+    rw [show m + 1 + 2 = (m + 2) + 1 by omega, show m + 1 + 3 = (m + 3) + 1 by omega, show m + 1 + 4 = (m + 4) + 1 by omega, show m + 1 + 5 = (m + 5) + 1 by omega, show m + 1 + 6 = (m + 6) + 1 by omega, show m + 1 + 7 = (m + 7) + 1 by omega, show m + 1 + 8 = (m + 8) + 1 by omega, show m + 1 + 9 = (m + 9) + 1 by omega, show m + 1 + 10 = (m + 10) + 1 by omega, show m + 1 + 11 = (m + 11) + 1 by omega]
+    rw [G_succ (m + 11), G_succ (m + 9), G_succ (m + 7), G_succ (m + 5), G_succ (m + 3), G_succ (m + 1), G_succ (m + 10), G_succ (m + 8), G_succ (m + 6), G_succ (m + 4), G_succ (m + 2), G_succ m]
+    simp only [Finset.mul_sum, ← Finset.sum_add_distrib]
+    refine Finset.sum_congr rfl fun w _ => ?_
+    split_ifs
+    · exact ih w
+    · rfl
+
+theorem a_rec (m : ℕ) :
+    a (m + 11) + 55 * a (m + 9) + 330 * a (m + 7) + 462 * a (m + 5) + 165 * a (m + 3) + 11 * a (m + 1) =
+      11 * a (m + 10) + 165 * a (m + 8) + 462 * a (m + 6) + 330 * a (m + 4) + 55 * a (m + 2) + a m := by
+  simp only [a_eq_G]
+  exact_mod_cast G_rec m 1023
+
+theorem G_vals : G 1 1023 = 6 ∧ G 2 1023 = 1816 ∧ G 3 1023 = 74528 ∧ G 4 1023 = 1162292 ∧ G 5 1023 = 10203222 ∧ G 6 1023 = 61304844 ∧ G 7 1023 = 281731072 ∧ G 8 1023 = 1060924200 ∧ G 9 1023 = 3426341574 ∧ G 10 1023 = 9795159264 ∧ G 11 1023 = 25359512992 := by
+  rw [G_eq_T 1 (by norm_num), G_eq_T 2 (by norm_num), G_eq_T 3 (by norm_num), G_eq_T 4 (by norm_num), G_eq_T 5 (by norm_num), G_eq_T 6 (by norm_num), G_eq_T 7 (by norm_num), G_eq_T 8 (by norm_num), G_eq_T 9 (by norm_num), G_eq_T 10 (by norm_num), G_eq_T 11 (by norm_num)]
+  decide +kernel
+
+theorem a_vals : a 1 = 6 ∧ a 2 = 1816 ∧ a 3 = 74528 ∧ a 4 = 1162292 ∧ a 5 = 10203222 ∧ a 6 = 61304844 ∧ a 7 = 281731072 ∧ a 8 = 1060924200 ∧ a 9 = 3426341574 ∧ a 10 = 9795159264 ∧ a 11 = 25359512992 := by
+  obtain ⟨h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11⟩ := G_vals
+  simp only [a_eq_G, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11]
+  norm_num
+
+theorem recurrence (n : ℕ) (hn : 12 ≤ n) :
+    (a n : ℚ) = 11 * a (n - 1) - 55 * a (n - 2) + 165 * a (n - 3) - 330 * a (n - 4) + 462 * a (n - 5) - 462 * a (n - 6) + 330 * a (n - 7) - 165 * a (n - 8) + 55 * a (n - 9) - 11 * a (n - 10) + a (n - 11) := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 11 := ⟨n - 11, by omega⟩
+  have h := a_rec m
+  have hq : ((a (m + 11) + 55 * a (m + 9) + 330 * a (m + 7) + 462 * a (m + 5) + 165 * a (m + 3) + 11 * a (m + 1) : ℤ) : ℚ) =
+      ((11 * a (m + 10) + 165 * a (m + 8) + 462 * a (m + 6) + 330 * a (m + 4) + 55 * a (m + 2) + a m : ℤ) : ℚ) := by
+    rw [h]
+  push_cast at hq
+  rw [show m + 11 - 1 = (m + 10) by omega, show m + 11 - 2 = (m + 9) by omega, show m + 11 - 3 = (m + 8) by omega, show m + 11 - 4 = (m + 7) by omega, show m + 11 - 5 = (m + 6) by omega, show m + 11 - 6 = (m + 5) by omega, show m + 11 - 7 = (m + 4) by omega, show m + 11 - 8 = (m + 3) by omega, show m + 11 - 9 = (m + 2) by omega, show m + 11 - 10 = (m + 1) by omega, show m + 11 - 11 = m by omega]
+  linarith
+
+open PowerSeries in
+theorem gen_fun :
+    PowerSeries.mk (fun n => if n < 1 then 0 else (a n : ℚ)) * ((1 - X) ^ 11 : PowerSeries ℚ) =
+      2 * X * (3 + 875 * X + 27441 * X ^ 2 + 220687 * X ^ 3 + 609695 * X ^ 4 + 647425 * X ^ 5 + 267419 * X ^ 6 + 39317 * X ^ 7 + 1538 * X ^ 8) := by
+  set F : ℕ → ℚ := fun n => if n < 1 then 0 else (a n : ℚ) with hF
+  obtain ⟨v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11⟩ := a_vals
+  have key : PowerSeries.mk F * (1 - X) ^ 11 =
+      C 1 * (PowerSeries.mk F * X ^ 0) - C 11 * (PowerSeries.mk F * X ^ 1) + C 55 * (PowerSeries.mk F * X ^ 2) - C 165 * (PowerSeries.mk F * X ^ 3) + C 330 * (PowerSeries.mk F * X ^ 4) - C 462 * (PowerSeries.mk F * X ^ 5) + C 462 * (PowerSeries.mk F * X ^ 6) - C 330 * (PowerSeries.mk F * X ^ 7) + C 165 * (PowerSeries.mk F * X ^ 8) - C 55 * (PowerSeries.mk F * X ^ 9) + C 11 * (PowerSeries.mk F * X ^ 10) - C 1 * (PowerSeries.mk F * X ^ 11) := by
+    simp only [map_one, map_ofNat]
+    ring
+  have hrhs : (2 * X * (3 + 875 * X + 27441 * X ^ 2 + 220687 * X ^ 3 + 609695 * X ^ 4 + 647425 * X ^ 5 + 267419 * X ^ 6 + 39317 * X ^ 7 + 1538 * X ^ 8) : ℚ⟦X⟧) =
+      C 6 * X ^ 1 + C 1750 * X ^ 2 + C 54882 * X ^ 3 + C 441374 * X ^ 4 + C 1219390 * X ^ 5 + C 1294850 * X ^ 6 + C 534838 * X ^ 7 + C 78634 * X ^ 8 + C 3076 * X ^ 9 := by
+    simp only [map_ofNat, map_one]
+    ring
+  rw [key, hrhs]
+  ext k
+  simp only [map_sub, map_add, coeff_C_mul_X_pow]
+  simp only [coeff_C_mul, coeff_mul_X_pow', coeff_mk]
+  by_cases hk : k < 12
+  · interval_cases k <;> norm_num [hF, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11]
+  · obtain ⟨j, rfl⟩ : ∃ j, k = j + 12 := ⟨k - 12, by omega⟩
+    have hr := recurrence (j + 12) (by omega)
+    simp only [show j + 12 - 1 = j + 11 by omega, show j + 12 - 2 = j + 10 by omega, show j + 12 - 3 = j + 9 by omega, show j + 12 - 4 = j + 8 by omega, show j + 12 - 5 = j + 7 by omega, show j + 12 - 6 = j + 6 by omega, show j + 12 - 7 = j + 5 by omega, show j + 12 - 8 = j + 4 by omega, show j + 12 - 9 = j + 3 by omega, show j + 12 - 10 = j + 2 by omega, show j + 12 - 11 = j + 1 by omega] at hr
+    simp only [show 0 ≤ j + 12 by omega,
+      show 1 ≤ j + 12 by omega,
+      show 2 ≤ j + 12 by omega,
+      show 3 ≤ j + 12 by omega,
+      show 4 ≤ j + 12 by omega,
+      show 5 ≤ j + 12 by omega,
+      show 6 ≤ j + 12 by omega,
+      show 7 ≤ j + 12 by omega,
+      show 8 ≤ j + 12 by omega,
+      show 9 ≤ j + 12 by omega,
+      show 10 ≤ j + 12 by omega,
+      show 11 ≤ j + 12 by omega,
+      show j + 12 - 0 = j + 12 by omega,
+      show j + 12 - 1 = j + 11 by omega,
+      show j + 12 - 2 = j + 10 by omega,
+      show j + 12 - 3 = j + 9 by omega,
+      show j + 12 - 4 = j + 8 by omega,
+      show j + 12 - 5 = j + 7 by omega,
+      show j + 12 - 6 = j + 6 by omega,
+      show j + 12 - 7 = j + 5 by omega,
+      show j + 12 - 8 = j + 4 by omega,
+      show j + 12 - 9 = j + 3 by omega,
+      show j + 12 - 10 = j + 2 by omega,
+      show j + 12 - 11 = j + 1 by omega,
+      show ¬ (j + 12 = 1) by omega,
+      show ¬ (j + 12 = 2) by omega,
+      show ¬ (j + 12 = 3) by omega,
+      show ¬ (j + 12 = 4) by omega,
+      show ¬ (j + 12 = 5) by omega,
+      show ¬ (j + 12 = 6) by omega,
+      show ¬ (j + 12 = 7) by omega,
+      show ¬ (j + 12 = 8) by omega,
+      show ¬ (j + 12 = 9) by omega,
+      show ¬ (j + 12 < 1) by omega,
+      show ¬ (j + 11 < 1) by omega,
+      show ¬ (j + 10 < 1) by omega,
+      show ¬ (j + 9 < 1) by omega,
+      show ¬ (j + 8 < 1) by omega,
+      show ¬ (j + 7 < 1) by omega,
+      show ¬ (j + 6 < 1) by omega,
+      show ¬ (j + 5 < 1) by omega,
+      show ¬ (j + 4 < 1) by omega,
+      show ¬ (j + 3 < 1) by omega,
+      show ¬ (j + 2 < 1) by omega,
+      show ¬ (j + 1 < 1) by omega,
+      if_true, if_false, hF]
+    linarith
+
+end OMA.A250393
+
+theorem OMA.solution : type_of% @OMA.S_oeis_a250393.main :=
+  ⟨OMA.A250393.gen_fun, OMA.A250393.recurrence⟩

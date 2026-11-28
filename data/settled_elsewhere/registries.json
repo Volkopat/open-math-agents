@@ -1,0 +1,125 @@
+{
+ "about": "Catalogue problems settled according to upstream sources and public proof registries (scan of 28 Nov 2026): formal-conjectures main against the pinned commit, erdosproblems.com, the Palomar registry (Lean proofs whose Challenge statement and definitions match the formal-conjectures statement), VibeMathed entries resolved and independently confirmed, and Wikipedia's list of unsolved problems. Announced but unverified results (including OpenAI's openai/math release) are recorded as 'claimed' in data/status_overrides.json instead. Problems proved here (proofs/<id>.lean) are left out.",
+ "entries": {
+  "MovingSofa.ambidextrousSofaConstant_eq_romiksSofa_area": {
+   "reason": "formal-conjectures now marks it research solved, linking the Palomar-registered Lean proof (vltanh/lean4-ambidextrous-sofa) that Romik's ambidextrous sofa is optimal and unique.",
+   "source": "https://github.com/google-deepmind/formal-conjectures/commit/6b5ad581b8ad064801c6d9fabf7d5d285239a9d5",
+   "date": "2026-10-13"
+  },
+  "Green64.green_64": {
+   "reason": "formal-conjectures now marks Green's Problem 64 research solved, linking the Palomar-registered Lean proof (Inozemtsev, with GPT-6 Astra) that Ω(p − 2) is odd for infinitely many primes p.",
+   "source": "https://github.com/google-deepmind/formal-conjectures/commit/671def1a08bcd6a5455f0b4c14dd9c68a9d0ce1a",
+   "date": "2026-11-13"
+  },
+  "Erdos623.erdos_623": {
+   "reason": "erdosproblems.com records Erdős Problem 623 as independent of ZFC, so the statement can be neither proved nor disproved.",
+   "source": "https://www.erdosproblems.com/623",
+   "date": "2026-10-26"
+  },
+  "Erdos173.erdos_173": {
+   "reason": "Lean proof registered on Palomar (plasma-ai/erdos-173) of exactly the formal-conjectures statement: in every two-colouring of the plane every triangle except possibly one equilateral one has a monochromatic congruent copy.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-10-19-000008&version=1",
+   "date": "2026-10-19"
+  },
+  "Erdos408.erdos_408.parts.i": {
+   "reason": "Lean proof registered on Palomar (plasma-ai/erdos-408) of exactly the formal-conjectures statement: f(n)/log n, for f(n) the least k with φ_k(n) = 1, has a limiting distribution.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-10-19-000009&version=1",
+   "date": "2026-10-19"
+  },
+  "Erdos408.erdos_408.parts.ii": {
+   "reason": "Lean proof registered on Palomar (plasma-ai/erdos-408) of exactly the formal-conjectures statement: f(n) has normal order α log n.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-10-19-000009&version=1",
+   "date": "2026-10-19"
+  },
+  "Erdos111.erdos_111.variants.erdos_conjecture": {
+   "reason": "Lean proof registered on Palomar (tanclary/erdos-111-palomar) of exactly the formal-conjectures statement: for every ε > 0 there is a graph of chromatic number ℵ₁ with h_G(n) = O(n^(1+ε)).",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-27-000058&version=1",
+   "date": "2026-11-27"
+  },
+  "Erdos1182.erdos_1182.parts.i": {
+   "reason": "Lean proof registered on Palomar (Liesegang/erdos-1182-lean) of the formal-conjectures statement with the answer f(n) = Θ(n^(3/2) (log n)^(1/2)); the upper bound is new and AI-produced.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-28-000021&version=1",
+   "date": "2026-11-28"
+  },
+  "LennonPittel.lennon_pittel_conjecture": {
+   "reason": "Lean proof registered on Palomar (bocowgill/lennon-pittel) of exactly the formal-conjectures statement: the number of stable matchings is at least ε_n times its expectation with probability tending to one.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-07-000001&version=3",
+   "date": "2026-11-07"
+  },
+  "OpenQuantumProblem23.sicPOVMs": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.sicPOVMs; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_56": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_56; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_58": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_58; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_59": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_59; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_60": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_60; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_64": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_64; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_68": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_68; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_69": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_69; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_70": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_70; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_71": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_71; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_72": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_72; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "OpenQuantumProblem23.hasSICPOVM_75": {
+   "reason": "Lean 4 proof registered on Palomar (Hertaspace/sic-povm-lean, kernel-checked with only propext, Quot.sound and Classical.choice) of exactly the formal-conjectures statement OpenQuantumProblem23.hasSICPOVM_75; it formalizes the Radchenko–Wheeler Stark-unit results and the Appleby–Flammia–Kopp ghost-SIC construction, so SIC-POVMs exist in every dimension.",
+   "source": "https://palomar-registry.org/entry.html?id=PALOMAR-2026-11-26-000040&version=1",
+   "date": "2026-11-26"
+  },
+  "wp-goldberg-seymour-conjecture": {
+   "reason": "Wikipedia's list now gives it among the problems solved since 2015 and no longer lists it as open (Chen, Jing and Zang, arXiv:1901.10316).",
+   "source": "https://en.wikipedia.org/wiki/List_of_unsolved_problems_in_mathematics#Problems_solved_since_2015",
+   "date": "2019-01-29"
+  },
+  "wp-does-every-convex-polyhedron-have-rupert-s-property": {
+   "reason": "Answered no: the Wikipedia article records that Steininger and Yurkevich disproved it in 2025 with a convex polyhedron without Rupert's property (the noperthedron).",
+   "source": "https://en.wikipedia.org/wiki/Prince_Rupert%27s_cube",
+   "date": "2025-08"
+  },
+  "mo-1973": {
+   "reason": "Wikipedia's list now records the existence of a complex structure on S^6 among the problems solved (Levent Alpöge, 2026, with Claude; write-up also by Philip Engel) and no longer lists it as open.",
+   "source": "https://en.wikipedia.org/wiki/List_of_unsolved_problems_in_mathematics#Problems_solved_since_2015",
+   "date": "2026-08-23"
+  }
+ }
+}

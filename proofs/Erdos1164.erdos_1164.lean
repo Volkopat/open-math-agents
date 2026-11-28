@@ -564,21 +564,6 @@ lemma renewal_subset (n k : ℕ) (hk : 1 ≤ k) :
       have hab' : a - t = b - t := hab
       omega
 
-lemma lastexit_subset (n : ℕ) :
-    Set.univ ⊆ {y | ∃ t ∈ Finset.range (n + 1), y ∈ {y | pos y t = 0} ∧ sh t y ∈ NoRet (n - t)} := by
-  intro y _
-  set V := (Finset.range (n + 1)).filter fun t ↦ pos y t = 0 with hV
-  have h0 : 0 ∈ V := Finset.mem_filter.mpr ⟨by simp, pos_zero y⟩
-  have hne : V.Nonempty := ⟨0, h0⟩
-  set t := V.max' hne with ht
-  have htV := Finset.mem_filter.mp (Finset.max'_mem V hne)
-  refine ⟨t, htV.1, htV.2, fun s h1 h2 hs ↦ ?_⟩
-  rw [pos_sh y htV.2] at hs
-  have htn : t < n + 1 := Finset.mem_range.mp htV.1
-  have hsV : t + s ∈ V := Finset.mem_filter.mpr ⟨Finset.mem_range.mpr (by omega), hs⟩
-  have := Finset.le_max' V (t + s) hsV
-  omega
-
 variable {Ω : Type} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     {X : ℕ → Ω → ℤ × ℤ}
 
@@ -637,20 +622,6 @@ lemma renewal (hX : IsSimpleRandomWalkSteps X) (n : ℕ) :
     gcongr
     exact renewal hX n k
 
-lemma lastexit (hX : IsSimpleRandomWalkSteps X) (n : ℕ) :
-    1 ≤ ∑ t ∈ Finset.range (n + 1),
-      ℙ {ω | pos (path X ω) t = 0} * ℙ {ω | path X ω ∈ NoRet (n - t)} := by
-  calc (1 : ℝ≥0∞) = ℙ (Set.univ : Set Ω) := measure_univ.symm
-    _ ≤ ℙ (⋃ t ∈ Finset.range (n + 1),
-          {ω | path X ω ∈ {y | pos y t = 0} ∧ sh t (path X ω) ∈ NoRet (n - t)}) := by
-        refine measure_mono fun ω _ ↦ ?_
-        obtain ⟨t, ht, h⟩ := lastexit_subset n (Set.mem_univ (path X ω))
-        exact Set.mem_iUnion₂.mpr ⟨t, ht, h⟩
-    _ ≤ ∑ t ∈ Finset.range (n + 1),
-          ℙ {ω | path X ω ∈ {y | pos y t = 0} ∧ sh t (path X ω) ∈ NoRet (n - t)} :=
-        measure_biUnion_finset_le _ _
-    _ = _ := Finset.sum_congr rfl fun t _ ↦ prob_block hX (det_pos t 0) (det_noRet (n - t))
-
 end OMA.H1Proof
 
 namespace OMA.H1Proof
@@ -686,78 +657,6 @@ lemma green_le (u : ℕ → ℝ) (hu0 : ∀ t, 0 ≤ u t) (hu00 : u 0 ≤ 1)
   have : (harmonic n : ℝ) / π ≤ (1 + Real.log n) / π := by gcongr
   linarith
 
-/-- the two-scale lower bound on the escape probability -/
-lemma q_lower (u q : ℕ → ℝ) (hu0 : ∀ t, 0 ≤ u t) (hu00 : u 0 ≤ 1)
-    (hut : ∀ t : ℕ, 1 ≤ t → u t ≤ 2 / (π * t))
-    (hpair : ∀ j : ℕ, u (2 * j + 1) + u (2 * j + 2) ≤ 1 / (π * ((j : ℝ) + 1)))
-    (hq0 : ∀ m, 0 ≤ q m) (hq1 : ∀ m, q m ≤ 1) (hqa : Antitone q)
-    (hle : ∀ n, 1 ≤ ∑ t ∈ Finset.range (n + 1), u t * q (n - t))
-    (L : ℕ) (hL : 2 ≤ L) (m : ℕ) (hm : 1 ≤ m) :
-    (1 - 2 / (π * ((L : ℝ) - 1))) * π ≤ q m * (π + 1 + Real.log L + Real.log m) := by
-  set n := m * L with hn
-  have hmn : m ≤ n := by rw [hn]; nlinarith
-  have hsplit := Finset.sum_range_add_sum_Ico (fun t ↦ u t * q (n - t))
-    (show n - m + 1 ≤ n + 1 by omega)
-  have hL1 : (1 : ℝ) ≤ (L : ℝ) - 1 := by
-    have : (2 : ℝ) ≤ L := by exact_mod_cast hL
-    linarith
-  have hm1 : (1 : ℝ) ≤ m := by exact_mod_cast hm
-  have hpi := Real.pi_pos
-  -- the near part
-  have hnear : ∑ t ∈ Finset.Ico (n - m + 1) (n + 1), u t * q (n - t) ≤
-      2 / (π * ((L : ℝ) - 1)) := by
-    have hb : ∀ t ∈ Finset.Ico (n - m + 1) (n + 1), u t * q (n - t) ≤ 2 / (π * (m * ((L : ℝ) - 1))) := by
-      intro t ht
-      have ht' := Finset.mem_Ico.mp ht
-      have hnat : m * (L - 1) ≤ t := by
-        have : m * (L - 1) = n - m := by rw [hn, Nat.mul_sub_one]
-        omega
-      have hreal : (m : ℝ) * ((L : ℝ) - 1) ≤ t := by
-        have := (Nat.cast_le (α := ℝ)).mpr hnat
-        push_cast [Nat.cast_sub (show 1 ≤ L by omega)] at this
-        exact this
-      calc u t * q (n - t) ≤ u t * 1 := by gcongr; exact hu0 t; exact hq1 _
-        _ = u t := mul_one _
-        _ ≤ 2 / (π * t) := hut t (by
-            have : 1 ≤ m * (L - 1) := Nat.one_le_iff_ne_zero.mpr (mul_ne_zero (by omega) (by omega))
-            omega)
-        _ ≤ 2 / (π * (m * ((L : ℝ) - 1))) := by gcongr
-    refine (Finset.sum_le_sum hb).trans (le_of_eq ?_)
-    rw [Finset.sum_const, Nat.card_Ico, nsmul_eq_mul,
-      show n + 1 - (n - m + 1) = m by omega]
-    rw [mul_div_assoc', div_eq_div_iff (by positivity) (by positivity)]
-    ring
-  -- the far part
-  have hfar : ∑ t ∈ Finset.range (n - m + 1), u t * q (n - t) ≤
-      q m * (1 + (1 + Real.log n) / π) := by
-    calc ∑ t ∈ Finset.range (n - m + 1), u t * q (n - t)
-        ≤ ∑ t ∈ Finset.range (n - m + 1), u t * q m := by
-          refine Finset.sum_le_sum fun t ht ↦ ?_
-          have := Finset.mem_range.mp ht
-          gcongr
-          · exact hu0 t
-          · exact hqa (by omega)
-      _ ≤ ∑ t ∈ Finset.range (n + 1), u t * q m :=
-          Finset.sum_le_sum_of_subset_of_nonneg (Finset.range_mono (by omega))
-            fun t _ _ ↦ mul_nonneg (hu0 t) (hq0 m)
-      _ = q m * ∑ t ∈ Finset.range (n + 1), u t := by rw [Finset.mul_sum]; simp [mul_comm]
-      _ ≤ q m * (1 + (1 + Real.log n) / π) := by
-          gcongr
-          · exact hq0 m
-          · exact green_le u hu0 hu00 hpair n
-  have h1 := hle n
-  rw [← hsplit] at h1
-  have hlogn : Real.log n = Real.log m + Real.log L := by
-    rw [hn, Nat.cast_mul, Real.log_mul (by positivity) (by positivity)]
-  rw [hlogn] at hfar
-  have key : 1 - 2 / (π * ((L : ℝ) - 1)) ≤
-      q m * (1 + (1 + (Real.log m + Real.log L)) / π) := by linarith
-  have e : q m * (1 + (1 + (Real.log m + Real.log L)) / π) * π =
-      q m * (π + 1 + Real.log L + Real.log m) := by
-    rw [mul_assoc, add_mul, div_mul_cancel₀ _ hpi.ne']; ring
-  rw [← e]
-  exact mul_le_mul_of_nonneg_right key hpi.le
-
 end OMA.H1Proof
 
 namespace OMA.H1Proof
@@ -784,29 +683,6 @@ lemma q_anti : Antitone (q X) := by
   unfold q
   refine ENNReal.toReal_mono (measure_ne_top _ _) (measure_mono fun ω hω s h1 h2 ↦ ?_)
   exact hω s h1 (h2.trans hab)
-
-lemma q_lastexit (hX : IsSimpleRandomWalkSteps X) (n : ℕ) :
-    1 ≤ ∑ t ∈ Finset.range (n + 1), u X t * q X (n - t) := by
-  have h := lastexit hX n
-  have hne : ∑ t ∈ Finset.range (n + 1),
-      ℙ {ω | pos (path X ω) t = 0} * ℙ {ω | path X ω ∈ NoRet (n - t)} ≠ ⊤ :=
-    ENNReal.sum_ne_top.mpr fun t _ ↦ ENNReal.mul_ne_top (measure_ne_top _ _) (measure_ne_top _ _)
-  have h' := ENNReal.toReal_mono hne h
-  rw [ENNReal.toReal_sum fun t _ ↦ ENNReal.mul_ne_top (measure_ne_top _ _) (measure_ne_top _ _)]
-    at h'
-  simp only [ENNReal.toReal_one, ENNReal.toReal_mul] at h'
-  exact h'
-
-lemma tail (hX : IsSimpleRandomWalkSteps X) (n j : ℕ) :
-    ℙ {ω | path X ω ∈ Vis n (j + 1)} ≤ ENNReal.ofReal ((1 - q X n) ^ j) := by
-  refine (renewal hX n j).trans (le_of_eq ?_)
-  have hmeas : MeasurableSet {ω | path X ω ∈ NoRet n} := by
-    rw [path_eq]; exact det_meas hX (det_noRet n) 0
-  rw [prob_compl_eq_one_sub hmeas, ENNReal.ofReal_pow (by linarith [q_le_one (X := X) n])]
-  congr 1
-  unfold q
-  rw [ENNReal.ofReal_sub _ ENNReal.toReal_nonneg, ENNReal.ofReal_one,
-    ENNReal.ofReal_toReal (measure_ne_top _ _)]
 
 end OMA.H1Proof
 
@@ -1069,54 +945,8 @@ lemma visits_sh_le (y : ℕ → ℤ × ℤ) {t n N : ℕ} (ht : 1 ≤ t) (hp : p
   have hpos : 0 < V.card := Finset.card_pos.mpr ⟨0, h0⟩
   omega
 
-lemma det_compl {m : ℕ} {A : Set (ℕ → ℤ × ℤ)} (hA : Det m A) : Det m Aᶜ :=
-  fun y y' h hy hy' ↦ hy (hA y' y (fun i hi ↦ (h i hi).symm) hy')
-
-lemma sh_sh (a b : ℕ) (y : ℕ → ℤ × ℤ) : sh a (sh b y) = sh (b + a) y :=
-  funext fun i ↦ by simp [sh, add_assoc]
-
-/-- no block of length `M` among the first `N` blocks has `v` visits to its start -/
-def Bad (M v N : ℕ) : Set (ℕ → ℤ × ℤ) := {y | ∀ i < N, sh (i * M) y ∉ Vis M v}
-
-lemma det_bad (M v N : ℕ) : Det (N * M) (Bad M v N) := by
-  intro y y' h hy i hi hv
-  apply hy i hi
-  refine det_vis M v _ _ (fun j hj ↦ ?_) hv
-  simp only [sh]
-  have : i * M + j < N * M := by
-    have : (i + 1) * M ≤ N * M := Nat.mul_le_mul_right M hi
-    nlinarith
-  exact (h _ this).symm
-
-lemma bad_succ (M v N : ℕ) :
-    Bad M v (N + 1) = {y | y ∈ (Vis M v)ᶜ ∧ sh M y ∈ Bad M v N} := by
-  ext y
-  simp only [Bad, Set.mem_setOf_eq, Set.mem_compl_iff]
-  constructor
-  · intro h
-    refine ⟨?_, fun i hi ↦ ?_⟩
-    · have := h 0 (by omega)
-      rwa [Nat.zero_mul, sh_zero] at this
-    rw [sh_sh, show M + i * M = (i + 1) * M by ring]
-    exact h (i + 1) (by omega)
-  · rintro ⟨h0, h⟩ i hi
-    rcases i with _ | i
-    · rw [Nat.zero_mul, sh_zero]; exact h0
-    · have := h i (by omega)
-      rwa [sh_sh, show M + i * M = (i + 1) * M by ring] at this
-
 variable {Ω : Type} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     {X : ℕ → Ω → ℤ × ℤ}
-
-lemma prob_bad (hX : IsSimpleRandomWalkSteps X) (M v : ℕ) :
-    ∀ N, ℙ {ω | path X ω ∈ Bad M v N} = ℙ {ω | path X ω ∈ (Vis M v)ᶜ} ^ N
-  | 0 => by
-    have : {ω | path X ω ∈ Bad M v 0} = Set.univ := by
-      ext ω; simp [Bad]
-    rw [this, measure_univ, pow_zero]
-  | N + 1 => by
-    rw [bad_succ, pow_succ', ← prob_bad hX M v N]
-    exact prob_block hX (det_compl (det_vis M v)) (det_bad M v N)
 
 omit [IsProbabilityMeasure (ℙ : Measure Ω)] in
 lemma compl_noRet (hX : IsSimpleRandomWalkSteps X) (n : ℕ) :
@@ -1190,117 +1020,10 @@ end OMA.H3Proof
 namespace OMA.H3Proof
 open Real
 
-lemma one_sub_ge_exp {x : ℝ} (h1 : x < 1) : Real.exp (-(x / (1 - x))) ≤ 1 - x := by
-  have hp : 0 < 1 - x := by linarith
-  have h := Real.add_one_le_exp (x / (1 - x))
-  have e : x / (1 - x) + 1 = 1 / (1 - x) := by
-    rw [div_add_one hp.ne', show x + (1 - x) = 1 by ring]
-  rw [e] at h
-  rw [Real.exp_neg]
-  calc (Real.exp (x / (1 - x)))⁻¹ ≤ (1 / (1 - x))⁻¹ := by
-        gcongr
-    _ = 1 - x := by rw [one_div, inv_inv]
-
-lemma fail_bound (b k N : ℕ) (hb : 2 ≤ b) (θ ℓ q : ℝ) (hθ0 : 0 ≤ θ) (hθ : 2 * b ≤ (1 - θ) * b ^ 2)
-    (hℓ : b * π + 1 ≤ ℓ) (hk : (k : ℝ) * π ≤ θ * b ^ 2 * ℓ ^ 2 + π) (hq0 : 0 ≤ q)
-    (hq : q * ((b - 1) * ℓ) ≤ π) (hN : (N : ℝ) = Real.exp (b * ℓ)) :
-    (1 - (1 - q) ^ k) ^ N ≤ Real.exp (-(ℓ / 2)) := by
-  have hpi := Real.pi_pos
-  have hpi3 := Real.pi_gt_three
-  have hb' : (2 : ℝ) ≤ b := by exact_mod_cast hb
-  have hℓ0 : 0 < ℓ := by nlinarith
-  have hD : 0 < (b - 1) * ℓ := by nlinarith
-  set x := π / ((b - 1) * ℓ) with hx
-  have hqx : q ≤ x := by rw [hx, le_div_iff₀ hD]; exact hq
-  have hx1 : x < 1 := by
-    rw [hx, div_lt_one hD]; nlinarith
-  have hx0 : 0 ≤ x := by positivity
-  have hD2 : 0 < (b - 1) * ℓ - π := by nlinarith
-  -- k x/(1-x) ≤ (b - 1/2) ℓ
-  have hkx : (k : ℝ) * (x / (1 - x)) ≤ (b - 1 / 2) * ℓ := by
-    have e : x / (1 - x) = π / ((b - 1) * ℓ - π) := by
-      rw [hx, one_sub_div hD.ne', div_div_div_cancel_right₀ hD.ne']
-    rw [e, mul_div_assoc', div_le_iff₀ hD2]
-    have hgap : 1 ≤ ((b : ℝ) - 1 / 2) * (b - 1) - θ * b ^ 2 := by nlinarith
-    have hl : (b : ℝ) * π * ℓ + π ≤ ℓ ^ 2 := by nlinarith
-    nlinarith
-  have hpow : Real.exp (-((b - 1 / 2) * ℓ)) ≤ (1 - q) ^ k := by
-    calc Real.exp (-((b - 1 / 2) * ℓ)) ≤ Real.exp (-((k : ℝ) * (x / (1 - x)))) :=
-          Real.exp_le_exp.mpr (by linarith)
-      _ = Real.exp (-(x / (1 - x))) ^ k := by rw [← Real.exp_nat_mul]; ring_nf
-      _ ≤ (1 - x) ^ k := pow_le_pow_left₀ (by positivity) (one_sub_ge_exp hx1) k
-      _ ≤ (1 - q) ^ k := pow_le_pow_left₀ (by linarith) (by linarith) k
-  have hr1 : (1 - q) ^ k ≤ 1 := by
-    rcases le_or_gt q 1 with h | h
-    · exact pow_le_one₀ (by linarith) (by linarith)
-    · linarith [hqx]
-  have hbase : 1 - (1 - q) ^ k ≤ Real.exp (-Real.exp (-((b - 1 / 2) * ℓ))) := by
-    have := Real.one_sub_le_exp_neg (Real.exp (-((b - 1 / 2) * ℓ)))
-    linarith
-  calc (1 - (1 - q) ^ k) ^ N ≤ Real.exp (-Real.exp (-((b - 1 / 2) * ℓ))) ^ N :=
-        pow_le_pow_left₀ (by linarith) hbase N
-    _ = Real.exp (-(N * Real.exp (-((b - 1 / 2) * ℓ)))) := by rw [← Real.exp_nat_mul]; ring_nf
-    _ = Real.exp (-Real.exp (ℓ / 2)) := by
-        rw [hN, ← Real.exp_add]; ring_nf
-    _ ≤ Real.exp (-(ℓ / 2)) := by
-        have := Real.add_one_le_exp (ℓ / 2)
-        exact Real.exp_le_exp.mpr (by linarith)
-
 end OMA.H3Proof
 
 namespace OMA.H3Proof
 open OMA.H1Proof Real Filter
-
-lemma interp_lower (f : ℕ → ℕ) (hf : Monotone f) (B : ℕ) (hB : 2 ≤ B) {κ κ1 ε : ℝ}
-    (hε : 0 < ε) (hκ0 : 0 < κ) (hκ1 : κ1 = κ + ε / 2) (hκ : κ < 1)
-    (h : ∀ᶠ j : ℕ in atTop, κ1 * Real.log ((B ^ j : ℕ) : ℝ) ^ 2 ≤ f (B ^ j)) :
-    ∀ᶠ n : ℕ in atTop, κ * Real.log n ^ 2 ≤ f n := by
-  obtain ⟨J, hJ⟩ := eventually_atTop.mp h
-  set J2 := max J (⌈6 / ε⌉₊ + 1)
-  refine eventually_atTop.mpr ⟨B ^ J2, fun n hn ↦ ?_⟩
-  set j := Nat.log B n
-  have hjJ : J2 ≤ j := Nat.le_log_of_pow_le (by omega) hn
-  have hn0 : n ≠ 0 := by
-    have : 0 < B ^ J2 := by positivity
-    omega
-  have hlow : B ^ j ≤ n := Nat.pow_log_le_self B hn0
-  have hup : n < B ^ (j + 1) := Nat.lt_pow_succ_log_self (by omega) n
-  have hfj := hJ j (le_trans (le_max_left _ _) hjJ)
-  have hfn : (f (B ^ j) : ℝ) ≤ f n := by exact_mod_cast hf hlow
-  have hLB : 0 < Real.log B := Real.log_pos (by exact_mod_cast (show 1 < B by omega))
-  have hlogj : Real.log ((B ^ j : ℕ) : ℝ) = j * Real.log B := by
-    push_cast; rw [Real.log_pow]
-  have hlogn : Real.log n ≤ (j + 1) * Real.log B := by
-    calc Real.log n ≤ Real.log ((B ^ (j + 1) : ℕ) : ℝ) :=
-          Real.log_le_log (by positivity) (by exact_mod_cast hup.le)
-      _ = (j + 1) * Real.log B := by push_cast; rw [Real.log_pow]; push_cast; ring
-  have hlog0 : 0 ≤ Real.log n := Real.log_nonneg (by exact_mod_cast Nat.one_le_iff_ne_zero.mpr hn0)
-  have hj6 : 6 / ε ≤ (j : ℝ) := by
-    have h1 : ⌈6 / ε⌉₊ + 1 ≤ j := le_trans (le_max_right _ _) hjJ
-    have h2 : (6 / ε) ≤ (⌈6 / ε⌉₊ : ℝ) := Nat.le_ceil _
-    have h3 : ((⌈6 / ε⌉₊ : ℕ) : ℝ) + 1 ≤ (j : ℝ) := by exact_mod_cast h1
-    linarith
-  have hej : 6 ≤ ε * j := by
-    have := (div_le_iff₀ hε).mp hj6
-    linarith
-  have hj0 : (0 : ℝ) ≤ j := by positivity
-  have hsq : κ * ((j : ℝ) + 1) ^ 2 ≤ κ1 * (j : ℝ) ^ 2 := by
-    have hj1 : (1 : ℝ) ≤ j := by
-      have hne : j ≠ 0 := by
-        rintro h0
-        rw [h0, Nat.cast_zero, mul_zero] at hej
-        linarith
-      exact_mod_cast Nat.one_le_iff_ne_zero.mpr hne
-    have h3j : 3 * (j : ℝ) ≤ ε / 2 * (j : ℝ) ^ 2 := by nlinarith
-    have hk2 : κ * (2 * j + 1) ≤ 2 * j + 1 := by nlinarith
-    rw [hκ1]; nlinarith
-  calc κ * Real.log n ^ 2 ≤ κ * (((j : ℝ) + 1) * Real.log B) ^ 2 := by
-        gcongr
-    _ = κ * ((j : ℝ) + 1) ^ 2 * Real.log B ^ 2 := by ring
-    _ ≤ κ1 * (j : ℝ) ^ 2 * Real.log B ^ 2 := by gcongr
-    _ = κ1 * Real.log ((B ^ j : ℕ) : ℝ) ^ 2 := by rw [hlogj]; ring
-    _ ≤ f (B ^ j) := hfj
-    _ ≤ f n := hfn
 
 end OMA.H3Proof
 
