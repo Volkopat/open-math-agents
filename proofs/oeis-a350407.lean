@@ -55,4 +55,3 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a350407.main) := by
   have := h 1 1 5 (by norm_num) (by norm_num) (by norm_num) (by norm_num)
   norm_num [a5, a1, Int.ModEq] at this
 
-#print axioms OMA.disproof
