@@ -1,249 +1,240 @@
 import OMAStatements.S_oeis_a199705
 
-namespace OMA.S_oeis_a199705
+-- Original proof and statement by @jleguina in #13565.
+-- Count the zero-sum triples, then remove the two equal-neighbor classes.
 
+namespace OMA.A199705
 
-/-- The admissible first entries for middle entry `y`. -/
-noncomputable def c (n : ℕ) (y : ℤ) : ℕ :=
-  ((Finset.Icc (-(n : ℤ)) n).filter
-    (fun x => -(n : ℤ) ≤ x + y ∧ x + y ≤ n ∧ x ≠ y ∧ x + 2 * y ≠ 0)).card
+abbrev Triple := ℤ × ℤ × ℤ
 
-lemma a_eq_sum (n : ℕ) : a n = ∑ y ∈ Finset.Icc (-(n : ℤ)) n, c n y := by
-  unfold a
-  rw [Finset.card_eq_sum_card_fiberwise (f := fun p : ℤ × ℤ × ℤ => p.2.1)
-    (t := Finset.Icc (-(n : ℤ)) n)]
-  · refine Finset.sum_congr rfl fun y hy => ?_
-    unfold c
-    refine Finset.card_nbij' (fun p => p.1) (fun x => (x, y, -x - y)) ?_ ?_ ?_ ?_
-    · intro p hp
-      simp only [Finset.mem_filter, Finset.mem_product, Finset.mem_Icc, Finset.coe_filter,
-        Set.mem_setOf_eq] at hp ⊢
-      obtain ⟨⟨⟨h1, h2, h3⟩, h4, h5, h6⟩, h7⟩ := hp
-      subst h7
-      refine ⟨h1, by omega, by omega, h5, by omega⟩
-    · intro x hx
-      simp only [Finset.mem_filter, Finset.mem_product, Finset.mem_Icc, Finset.coe_filter,
-        Set.mem_setOf_eq] at hx ⊢
-      obtain ⟨h1, h2, h3, h4, h5⟩ := hx
-      exact ⟨⟨⟨h1, Finset.mem_Icc.mp hy, by omega, by omega⟩, by ring, h4, by omega⟩, trivial⟩
-    · intro p hp
-      obtain ⟨u, v, w⟩ := p
-      simp only [Finset.mem_filter, Finset.mem_product, Finset.mem_Icc, Finset.coe_filter,
-        Set.mem_setOf_eq] at hp
-      obtain ⟨⟨_, h4, _, _⟩, h7⟩ := hp
-      show (u, y, -u - y) = (u, v, w)
-      have hw : w = -u - y := by omega
-      have hv : v = y := by simpa using h7
-      rw [hv, hw]
-    · intro x _
-      rfl
-  · intro p hp
-    simp only [Finset.coe_filter, Set.mem_setOf_eq, Finset.mem_coe, Finset.mem_filter,
-      Finset.mem_product] at hp ⊢
-    exact hp.1.2.1
+noncomputable def zeroSumTriples (n : ℕ) : Finset Triple :=
+  ((Finset.Icc (-(n : ℤ)) n ×ˢ Finset.Icc (-(n : ℤ)) n ×ˢ Finset.Icc (-(n : ℤ)) n).filter
+    (fun p : Triple => p.1 + p.2.1 + p.2.2 = 0))
 
-/-- Closed form of `c n y` for `|y| ≤ n`. -/
-lemma c_eq (n : ℕ) (y : ℤ) (hy1 : -(n : ℤ) ≤ y) (hy2 : y ≤ n) :
-    (c n y : ℤ) = 2 * n + 1 - |y| - (if 2 * |y| ≤ n then 2 else 0) + (if y = 0 then 1 else 0) := by
-  unfold c
-  -- the admissible `x` are `[lo, hi]` minus the bad points `y` and `-2y`
-  obtain ⟨lo, hi, hlohi, hIccdef, hlen⟩ : ∃ lo hi : ℤ, lo ≤ hi + 1 ∧
-      (∀ x : ℤ, ((-(n : ℤ) ≤ x ∧ x ≤ n) ∧ -(n : ℤ) ≤ x + y ∧ x + y ≤ n) ↔ (lo ≤ x ∧ x ≤ hi)) ∧
-      hi + 1 - lo = 2 * n + 1 - |y| := by
-    rcases le_or_gt 0 y with h0 | h0
-    · exact ⟨-(n : ℤ), n - y, by omega, fun x => by omega, by rw [abs_of_nonneg h0]; ring⟩
-    · exact ⟨-(n : ℤ) - y, n, by omega, fun x => by omega, by rw [abs_of_neg h0]; ring⟩
-  have hset : (Finset.Icc (-(n : ℤ)) n).filter
-      (fun x => -(n : ℤ) ≤ x + y ∧ x + y ≤ n ∧ x ≠ y ∧ x + 2 * y ≠ 0) =
-      (Finset.Icc lo hi).filter (fun x => ¬ (x = y ∨ x + 2 * y = 0)) := by
-    ext x
-    have := hIccdef x
-    simp only [Finset.mem_filter, Finset.mem_Icc]
-    constructor
-    · rintro ⟨h1, h2, h3, h4, h5⟩
-      exact ⟨this.mp ⟨h1, h2, h3⟩, by omega⟩
-    · rintro ⟨h1, h2⟩
-      have := this.mpr h1
-      exact ⟨this.1, this.2.1, this.2.2, by omega, by omega⟩
-  have hs := Finset.card_filter_add_card_filter_not (s := Finset.Icc lo hi)
-    (fun x => x = y ∨ x + 2 * y = 0)
-  have hyin : 2 * |y| ≤ n → (lo ≤ y ∧ y ≤ hi) ∧ (lo ≤ -2 * y ∧ -2 * y ≤ hi) := by
-    intro h
-    have hy' := abs_le.mp (show |y| ≤ n by omega)
-    have h2 : -(n : ℤ) ≤ 2 * y ∧ 2 * y ≤ n := by
-      constructor <;> cases abs_cases y <;> omega
-    exact ⟨(hIccdef y).mp ⟨⟨hy1, hy2⟩, by omega, by omega⟩,
-      (hIccdef (-2 * y)).mp ⟨⟨by omega, by omega⟩, by omega, by omega⟩⟩
-  have hyout : ¬ (2 * |y| ≤ n) → ∀ x, (lo ≤ x ∧ x ≤ hi) → ¬ (x = y ∨ x + 2 * y = 0) := by
-    intro h x hx hxy
-    have h2 : ¬ (-(n : ℤ) ≤ 2 * y ∧ 2 * y ≤ n) := by
-      intro h'
-      apply h
-      cases abs_cases y <;> omega
-    have := (hIccdef x).mpr hx
-    rcases hxy with rfl | hx2
-    · exact h2 ⟨by omega, by omega⟩
-    · exact h2 ⟨by omega, by omega⟩
-  have hb : (((Finset.Icc lo hi).filter (fun x => x = y ∨ x + 2 * y = 0)).card : ℤ) =
-      (if 2 * |y| ≤ n then 2 else 0) - (if y = 0 then 1 else 0) := by
-    by_cases h2 : 2 * |y| ≤ n
-    · obtain ⟨⟨a1, a2⟩, ⟨b1, b2⟩⟩ := hyin h2
-      by_cases h0 : y = 0
-      · subst h0
-        have : (Finset.Icc lo hi).filter (fun x => x = 0 ∨ x + 2 * 0 = 0) = {0} := by
-          ext x; simp only [Finset.mem_filter, Finset.mem_Icc, Finset.mem_singleton]; omega
-        rw [this, if_pos h2]; simp
-      · have : (Finset.Icc lo hi).filter (fun x => x = y ∨ x + 2 * y = 0) = {y, -2 * y} := by
-          ext x; simp only [Finset.mem_filter, Finset.mem_Icc, Finset.mem_insert,
-            Finset.mem_singleton]; omega
-        rw [this, Finset.card_pair (by omega), if_pos h2, if_neg h0]; norm_num
-    · have : (Finset.Icc lo hi).filter (fun x => x = y ∨ x + 2 * y = 0) = ∅ := by
-        ext x
-        simp only [Finset.mem_filter, Finset.mem_Icc, Finset.notMem_empty, iff_false, not_and]
-        intro h1 h1'
-        exact hyout h2 x h1 h1'
-      have hy0 : y ≠ 0 := by intro h; subst h; simp at h2
-      rw [this, if_neg h2, if_neg hy0]; simp
-  have hcard : ((Finset.Icc lo hi).card : ℤ) = 2 * n + 1 - |y| := by
-    rw [Int.card_Icc, ← hlen]; omega
-  rw [hset]
+end OMA.A199705
+
+namespace OMA.A199705
+
+open Finset
+
+private abbrev tuples (s : ℕ) := Finset.Nat.antidiagonalTuple 3 s
+
+private theorem all_card (s : ℕ) : (tuples s).card = (s + 2).choose 2 := by
+  change (List.Nat.antidiagonalTuple 3 s).length = _
+  rw [List.Nat.antidiagonalTuple, List.length_flatMap]
+  simp only [List.length_map, List.Nat.antidiagonalTuple_two, List.Nat.length_antidiagonal]
+  induction s with
+  | zero => decide
+  | succ s ih =>
+    rw [List.Nat.antidiagonal_succ, List.map_cons, List.sum_cons, List.map_map]
+    change s + 2 + ((List.Nat.antidiagonal s).map (fun p => p.2 + 1)).sum = _
+    rw [ih, Nat.choose_succ_succ (s + 2), Nat.choose_one_right]
+
+private theorem bounded_card (n : ℕ) :
+    (zeroSumTriples n).card = ((tuples (3 * n)).filter (fun f => ∀ i, f i ≤ 2 * n)).card := by
+  unfold zeroSumTriples
+  refine card_nbij' (fun t => ![(t.1 + n).toNat, (t.2.1 + n).toNat, (t.2.2 + n).toNat])
+    (fun f => ((f 0 : ℤ) - n, (f 1 : ℤ) - n, (f 2 : ℤ) - n)) ?_ ?_ ?_ ?_
+  · rintro ⟨x,y,z⟩ h
+    simp only [mem_coe, mem_filter, mem_product, mem_Icc] at h
+    rcases h with ⟨⟨⟨hx, hx'⟩, ⟨hy, hy'⟩, ⟨hz, hz'⟩⟩, hs⟩
+    simp only [mem_coe, mem_filter, Finset.Nat.mem_antidiagonalTuple, Fin.sum_univ_three]
+    refine ⟨?_, fun i => ?_⟩
+    · change (x + n).toNat + (y + n).toNat + (z + n).toNat = _
+      omega
+    · fin_cases i <;> simp <;> omega
+  · intro f h
+    simp only [mem_coe, mem_filter, Finset.Nat.mem_antidiagonalTuple, Fin.sum_univ_three] at h
+    simp only [mem_coe, mem_filter, mem_product, mem_Icc]
+    have h0 := h.2 0
+    have h1 := h.2 1
+    have h2 := h.2 2
+    omega
+  · rintro ⟨x,y,z⟩ h
+    simp only [mem_coe, mem_filter, mem_product, mem_Icc] at h
+    rcases h with ⟨⟨⟨hx, _⟩, ⟨hy, _⟩, ⟨hz, _⟩⟩, _⟩
+    change (((x + n).toNat : ℤ) - n, ((y + n).toNat : ℤ) - n,
+      ((z + n).toNat : ℤ) - n) = (x, y, z)
+    simp only [Prod.mk.injEq]
+    omega
+  · intro f _
+    funext i
+    fin_cases i <;> simp
+
+private def overflow (n : ℕ) (i : Fin 3) := (tuples (3 * n)).filter (fun f => 2 * n < f i)
+
+-- Removing 2n+1 stars from the overflowing coordinate leaves a tuple of sum n-1.
+private theorem overflow_card (n : ℕ) (hn : 0 < n) (i : Fin 3) :
+    (overflow n i).card = (n + 1).choose 2 := by
+  rw [show n + 1 = n - 1 + 2 by omega, ← all_card]
+  have hsplit (f : Fin 3 → ℕ) : (∑ k, f k) = f i + ∑ k ∈ univ \ {i}, f k := by
+    simpa using sum_update_of_mem (mem_univ i) f (f i)
+  refine card_nbij' (fun f => Function.update f i (f i - (2 * n + 1)))
+    (fun f => Function.update f i (f i + (2 * n + 1))) ?_ ?_ ?_ ?_
+  · intro f hf
+    simp only [mem_coe, overflow, mem_filter, Finset.Nat.mem_antidiagonalTuple] at hf ⊢
+    rw [hsplit f] at hf
+    rw [sum_update_of_mem (mem_univ i)]
+    omega
+  · intro f hf
+    simp only [mem_coe, overflow, mem_filter, Finset.Nat.mem_antidiagonalTuple] at hf ⊢
+    rw [hsplit f] at hf
+    rw [sum_update_of_mem (mem_univ i)]
+    simp only [Function.update_self]
+    omega
+  · intro f hf
+    have hf := (mem_filter.mp hf).2
+    funext j
+    by_cases h : j = i
+    · simp [h]
+      omega
+    · simp [h]
+  · intro f _
+    funext j
+    by_cases h : j = i <;> simp [h]
+
+private theorem count_add (n : ℕ) (hn : 0 < n) :
+    (zeroSumTriples n).card + 3 * (n + 1).choose 2 = (3 * n + 2).choose 2 := by
+  have hbad : ((tuples (3 * n)).filter (fun f => ¬ ∀ i, f i ≤ 2 * n)) =
+      univ.biUnion (overflow n) := by
+    ext f
+    simp [overflow, not_le]
+  have hd : ((univ : Finset (Fin 3)) : Set (Fin 3)).PairwiseDisjoint (overflow n) := by
+    intro i _ j _ hij
+    refine disjoint_left.mpr ?_
+    intro f hi hj
+    rw [overflow, mem_filter, Finset.Nat.mem_antidiagonalTuple] at hi hj
+    have h := sum_le_sum_of_subset_of_nonneg (f := f)
+      (subset_univ ({i, j} : Finset (Fin 3))) (fun k _ _ => Nat.zero_le (f k))
+    simp [hij, hi.1] at h
+    omega
+  have h := card_filter_add_card_filter_not (s := tuples (3 * n)) (fun f => ∀ i, f i ≤ 2 * n)
+  rw [← bounded_card n, hbad, card_biUnion hd, all_card] at h
+  simpa [overflow_card n hn, Nat.mul_comm] using h
+
+theorem count_all (n : ℕ) : (zeroSumTriples n).card = 3 * n ^ 2 + 3 * n + 1 := by
+  by_cases hn : 0 < n
+  · have h := congrArg (fun x : ℕ => (x : ℚ)) (count_add n hn)
+    have hp := congrArg (fun x : ℕ => (x : ℚ)) (Nat.descFactorial_eq_factorial_mul_choose (3*n+2) 2)
+    have hm := congrArg (fun x : ℕ => (x : ℚ)) (Nat.descFactorial_eq_factorial_mul_choose (n+1) 2)
+    norm_num [Nat.descFactorial_succ, Nat.factorial_succ,
+      show 3 * n + 2 - 1 = 3 * n + 1 by omega] at h hp hm
+    have he : ((zeroSumTriples n).card : ℚ) = 3 * (n : ℚ) ^ 2 + 3 * (n : ℚ) + 1 := by
+      linear_combination (2 * h - hp + 3 * hm) / 2
+    exact_mod_cast he
+  · obtain rfl : n = 0 := by omega
+    decide
+
+end OMA.A199705
+
+namespace OMA.A199705
+
+open Finset
+
+private lemma mem_zeroSumTriples {n : ℕ} {x y z : ℤ} :
+    (x, y, z) ∈ zeroSumTriples n ↔
+      -(n : ℤ) ≤ x ∧ x ≤ n ∧ -(n : ℤ) ≤ y ∧ y ≤ n ∧
+        -(n : ℤ) ≤ z ∧ z ≤ n ∧ x + y + z = 0 := by
+  simp only [zeroSumTriples, mem_filter, mem_product, mem_Icc, and_assoc]
+
+private lemma card_equal_neighbor (n : ℕ) (left : Bool) :
+    ((zeroSumTriples n).filter fun p => if left then p.1 = p.2.1 else p.2.1 = p.2.2).card =
+      2 * (n / 2) + 1 := by
+  let I := Icc (-((n : ℤ) / 2)) ((n : ℤ) / 2)
+  let trip (t : ℤ) : Triple := if left then (t, t, -2 * t) else (-2 * t, t, t)
+  have h := card_nbij' trip (fun p : Triple => p.2.1)
+    (s := I) (t := (zeroSumTriples n).filter fun p =>
+      if left then p.1 = p.2.1 else p.2.1 = p.2.2) ?_ ?_ ?_ ?_
+  · rw [← h]
+    change (Icc _ _).card = _
+    rw [Int.card_Icc]
+    omega
+  · intro t ht
+    change t ∈ I at ht
+    rw [show I = Icc (-((n : ℤ) / 2)) ((n : ℤ) / 2) by rfl, mem_Icc] at ht
+    cases left <;> simp [trip, mem_zeroSumTriples] <;> omega
+  · rintro ⟨x, y, z⟩ hp
+    change (x, y, z) ∈ (zeroSumTriples n).filter _ at hp
+    change y ∈ I
+    cases left <;> simp [I, mem_zeroSumTriples] at hp ⊢ <;> omega
+  · intro t _
+    cases left <;> rfl
+  · rintro ⟨x, y, z⟩ hp
+    change (x, y, z) ∈ (zeroSumTriples n).filter _ at hp
+    change trip y = (x, y, z)
+    cases left <;> simp [trip, mem_zeroSumTriples] at hp ⊢ <;> omega
+
+theorem a_formula (h : ∀ n : ℕ, (zeroSumTriples n).card = 3 * n ^ 2 + 3 * n + 1) (n : ℕ) :
+    (OMA.S_oeis_a199705.a n : ℤ) = (n : ℤ) + 3 * (n : ℤ) ^ 2 + 2 * (↑(n % 2) : ℤ) := by
+  let L := (zeroSumTriples n).filter fun p => p.1 = p.2.1
+  let R := (zeroSumTriples n).filter fun p => p.2.1 = p.2.2
+  let bad (p : Triple) := p.1 = p.2.1 ∨ p.2.1 = p.2.2
+  have hL : L.card = 2 * (n / 2) + 1 := card_equal_neighbor n true
+  have hR : R.card = 2 * (n / 2) + 1 := card_equal_neighbor n false
+  have hmeet : L ∩ R = {(0, 0, 0)} := by
+    ext p
+    rcases p with ⟨x, y, z⟩
+    simp only [L, R, mem_inter, mem_filter, mem_singleton, mem_zeroSumTriples, Prod.mk.injEq]
+    omega
+  have hgood : OMA.S_oeis_a199705.a n = ((zeroSumTriples n) \ (zeroSumTriples n).filter bad).card := by
+    unfold OMA.S_oeis_a199705.a
+    congr 1
+    ext p
+    simp only [mem_sdiff, mem_filter, zeroSumTriples, bad]
+    tauto
+  have hadd := card_sdiff_add_card_eq_card (filter_subset bad (zeroSumTriples n))
+  rw [← hgood, show (zeroSumTriples n).filter bad = L ∪ R from filter_or _ _ _] at hadd
+  have hunion := card_union_add_card_inter L R
+  rw [hmeet, card_singleton, hL, hR] at hunion
+  have hc : OMA.S_oeis_a199705.a n + 2 * (2 * (n / 2) + 1) = 3 * n ^ 2 + 3 * n + 2 := by
+    have := h n
+    omega
+  have hz := congrArg (fun x : ℕ => (x : ℤ)) hc
+  push_cast at hz
   omega
 
-/-- The closed form of `c`, as a function. -/
-def f (m : ℕ) (y : ℤ) : ℤ :=
-  2 * m + 1 - |y| - (if 2 * |y| ≤ m then 2 else 0) + (if y = 0 then 1 else 0)
+end OMA.A199705
 
-lemma a_eq_range (m : ℕ) : (a m : ℤ) = ∑ k ∈ Finset.range (2 * m + 1), f m ((k : ℤ) - m) := by
-  rw [a_eq_sum]
-  push_cast
-  rw [Finset.sum_congr rfl fun y hy => c_eq m y (Finset.mem_Icc.mp hy).1 (Finset.mem_Icc.mp hy).2]
-  refine Finset.sum_nbij' (fun y => (y + m).toNat) (fun k => (k : ℤ) - m) ?_ ?_ ?_ ?_ ?_
-  · intro y hy
-    simp only [Finset.mem_Icc, Finset.mem_range] at hy ⊢
-    omega
-  · intro k hk
-    simp only [Finset.mem_Icc, Finset.mem_range] at hk ⊢
-    omega
-  · intro y hy
-    simp only [Finset.mem_Icc] at hy
-    omega
-  · intro k hk
-    simp only [Finset.mem_range] at hk
-    omega
-  · intro y hy
-    simp only [Finset.mem_Icc] at hy
-    rw [show ((y + m).toNat : ℤ) - m = y by omega]
-    rfl
+namespace OMA.A199705
 
-lemma f_succ (n : ℕ) (y : ℤ) :
-    f (n + 1) y = f n y + 2 - (if 2 * |y| = n + 1 then 2 else 0) := by
-  unfold f
-  push_cast
-  split_ifs <;> omega
+open PowerSeries OMA.S_oeis_a199705
 
-lemma count_half (n : ℕ) :
-    ∑ k ∈ Finset.range (2 * n + 1), (if 2 * |(k : ℤ) - n| = n + 1 then (2 : ℤ) else 0) =
-      if n % 2 = 1 then 4 else 0 := by
-  rw [← Finset.sum_filter, Finset.sum_const, nsmul_eq_mul]
-  rcases Nat.mod_two_eq_zero_or_one n with h | h
-  · have : (Finset.range (2 * n + 1)).filter (fun k : ℕ => 2 * |(k : ℤ) - n| = n + 1) = ∅ := by
-      ext k
-      simp only [Finset.mem_filter, Finset.mem_range, Finset.notMem_empty, iff_false, not_and]
-      intro _ hk
-      cases abs_cases ((k : ℤ) - n) <;> omega
-    rw [this, if_neg (by omega)]; simp
-  · have : (Finset.range (2 * n + 1)).filter (fun k : ℕ => 2 * |(k : ℤ) - n| = n + 1) =
-        {n - (n + 1) / 2, n + (n + 1) / 2} := by
-      ext k
-      simp only [Finset.mem_filter, Finset.mem_range, Finset.mem_insert, Finset.mem_singleton]
-      constructor
-      · rintro ⟨hk, h2⟩
-        cases abs_cases ((k : ℤ) - n) <;> omega
-      · rintro (rfl | rfl)
-        · refine ⟨by omega, ?_⟩
-          rw [abs_of_nonpos (by omega)]; omega
-        · refine ⟨by omega, ?_⟩
-          rw [abs_of_nonneg (by omega)]; omega
-    rw [this, Finset.card_pair (by omega), if_pos h]; norm_num
-
-/-- `a(n+1) = a(n) + 6n + 6 - 4 [n odd]`. -/
-lemma a_succ (n : ℕ) : (a (n + 1) : ℤ) = a n + 6 * n + 6 - (if n % 2 = 1 then 4 else 0) := by
-  rw [a_eq_range, a_eq_range, show 2 * (n + 1) + 1 = (2 * n + 1) + 1 + 1 by ring,
-    Finset.sum_range_succ, Finset.sum_range_succ']
-  have hmid : ∑ k ∈ Finset.range (2 * n + 1), f (n + 1) (((k + 1 : ℕ) : ℤ) - (n + 1 : ℕ)) =
-      ∑ k ∈ Finset.range (2 * n + 1), f n ((k : ℤ) - n) + 2 * (2 * n + 1) - (if n % 2 = 1 then 4 else 0) := by
-    rw [← count_half n]
-    have e : ∀ k ∈ Finset.range (2 * n + 1), f (n + 1) (((k + 1 : ℕ) : ℤ) - (n + 1 : ℕ)) =
-        f n ((k : ℤ) - n) + 2 - (if 2 * |(k : ℤ) - n| = n + 1 then 2 else 0) := by
-      intro k _
-      rw [show (((k + 1 : ℕ) : ℤ) - (n + 1 : ℕ)) = (k : ℤ) - n by push_cast; ring, f_succ]
-    rw [Finset.sum_congr rfl e, Finset.sum_sub_distrib, Finset.sum_add_distrib, Finset.sum_const,
-      Finset.card_range, nsmul_eq_mul]
-    push_cast; ring
-  rw [hmid]
-  have h0 : f (n + 1) (((0 : ℕ) : ℤ) - (n + 1 : ℕ)) = n + 2 := by
-    unfold f
-    push_cast
-    rw [abs_of_neg (by omega), if_neg (by omega), if_neg (by omega)]; ring
-  have htop : f (n + 1) (((2 * n + 1 + 1 : ℕ) : ℤ) - (n + 1 : ℕ)) = n + 2 := by
-    unfold f
-    push_cast
-    rw [abs_of_pos (by omega), if_neg (by omega), if_neg (by omega)]; ring
-  rw [h0, htop]
-  ring
-
-/-- Barker's formulas: `a(n) = n + 3n^2` for even `n`, `a(n) = 2 + n + 3n^2` for odd `n`. -/
-theorem formula (n : ℕ) : (a n : ℤ) = n + 3 * n ^ 2 + (if n % 2 = 1 then 2 else 0) := by
-  induction n with
-  | zero => rw [a_eq_range]; simp [f]
-  | succ n ih =>
-    rw [a_succ, ih]
-    push_cast
-    rcases Nat.mod_two_eq_zero_or_one n with h | h
-    · rw [if_neg (by omega), if_neg (by omega), if_pos (by omega)]; ring
-    · rw [if_pos h, if_pos h, if_neg (by omega)]; ring
-
-theorem even_formula (n : ℕ) (he : n % 2 = 0) : (a n : ℤ) = n + 3 * n ^ 2 := by
-  rw [formula, if_neg (by omega)]; ring
-
-theorem odd_formula (n : ℕ) (ho : n % 2 = 1) : (a n : ℤ) = 2 + n + 3 * n ^ 2 := by
-  rw [formula, if_pos ho]; ring
-
-open PowerSeries in
-/-- Barker's g.f. `2x(3 + x + 2x^2)/((1-x)^3(1+x))` (offset 1; `a 0 = 0`), in `ℚ⟦X⟧`. -/
-theorem gf : PowerSeries.mk (fun n => (a n : ℚ)) =
-    (2 * X * (3 + X + 2 * X ^ 2)) * ((1 - X) ^ 3 * (1 + X))⁻¹ := by
-  set A : ℚ⟦X⟧ := PowerSeries.mk (fun n => (a n : ℚ))
-  have hden : constantCoeff ((1 - X) ^ 3 * (1 + X) : ℚ⟦X⟧) ≠ 0 := by simp
-  have hq : ∀ n, (a n : ℚ) = n + 3 * n ^ 2 + (if n % 2 = 1 then 2 else 0) := by
-    intro n; have := formula n; split_ifs at this ⊢ <;> exact_mod_cast this
-  have key : A * ((1 - X) ^ 3 * (1 + X)) =
-      X ^ 1 + X ^ 1 + X ^ 1 + X ^ 1 + X ^ 1 + X ^ 1 + X ^ 2 + X ^ 2 + X ^ 3 + X ^ 3 + X ^ 3
-        + X ^ 3 := by
-    have e1 : A * ((1 - X) ^ 3 * (1 + X)) =
-        A - A * X ^ 1 - A * X ^ 1 + A * X ^ 3 + A * X ^ 3 - A * X ^ 4 := by ring
-    rw [e1]
+theorem main_of_formula (h : ∀ n : ℕ,
+    (a n : ℤ) = (n : ℤ) + 3 * (n : ℤ) ^ 2 + 2 * (↑(n % 2) : ℤ)) :
+    type_of% @OMA.S_oeis_a199705.main := by
+  have hc (n : ℕ) : (a n : ℚ) = (n : ℚ) + 3 * (n : ℚ) ^ 2 + 2 * (↑(n % 2) : ℚ) := by
+    exact_mod_cast h n
+  refine ⟨?_, ?_, ?_⟩
+  · rw [eq_mul_inv_iff_mul_eq (by simp)]
+    let A := mk (fun n => (a n : ℚ))
+    have hd : A * ((1 - X) ^ 3 * (1 + X)) =
+        A - C 2 * (X ^ 1 * A) + C 2 * (X ^ 3 * A) - X ^ 4 * A := by
+      rw [map_ofNat C 2]
+      ring
+    have hn : (2 * X * (3 + X + 2 * X ^ 2) : ℚ⟦X⟧) =
+        C 6 * X ^ 1 + C 2 * X ^ 2 + C 4 * X ^ 3 := by
+      simp only [map_ofNat]
+      ring
+    change A * _ = _
+    rw [hd, hn]
     ext n
-    simp only [map_sub, map_add, coeff_mul_X_pow', coeff_X_pow, A, coeff_mk]
-    rcases Nat.lt_or_ge n 4 with hn | hn
-    · interval_cases n <;> simp [hq] <;> norm_num
-    · rw [if_pos (by omega), if_pos (by omega), if_pos (by omega)]
-      simp only [show n ≠ 1 by omega, show n ≠ 2 by omega, show n ≠ 3 by omega, if_false]
-      rw [hq n, hq (n - 1), hq (n - 3), hq (n - 4)]
-      obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
-      simp only [show m + 4 - 1 = m + 3 by omega, show m + 4 - 3 = m + 1 by omega,
-        show m + 4 - 4 = m by omega]
-      push_cast
-      rcases Nat.mod_two_eq_zero_or_one m with h | h
-      · rw [if_neg (by omega), if_pos (by omega), if_pos (by omega), if_neg (by omega)]; ring
-      · rw [if_pos (by omega), if_neg (by omega), if_neg (by omega), if_pos (by omega)]; ring
-  have hN : (2 * X * (3 + X + 2 * X ^ 2) : ℚ⟦X⟧) =
-      X ^ 1 + X ^ 1 + X ^ 1 + X ^ 1 + X ^ 1 + X ^ 1 + X ^ 2 + X ^ 2 + X ^ 3 + X ^ 3 + X ^ 3
-        + X ^ 3 := by ring
-  rw [hN, ← key, mul_assoc, PowerSeries.mul_inv_cancel _ hden, mul_one]
+    simp only [map_add, map_sub, coeff_C_mul, coeff_X_pow_mul', coeff_X_pow, A, coeff_mk]
+    by_cases hs : n < 4
+    · interval_cases n <;> norm_num [hc]
+    · obtain ⟨k, rfl⟩ : ∃ k, n = k + 4 := ⟨n - 4, by omega⟩
+      simp (disch := omega) [Nat.add_sub_assoc, Nat.cast_add, hc,
+        show (k + 4) % 2 = k % 2 by omega,
+        show (k + 3) % 2 = (k + 1) % 2 by omega]
+      ring
+  · intro n _ hn
+    simpa [hn] using h n
+  · intro n _ hn
+    have hh := h n
+    rw [hn] at hh
+    omega
 
-end OMA.S_oeis_a199705
+end OMA.A199705
 
+open OMA.A199705 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a199705.main :=
-  ⟨OMA.S_oeis_a199705.gf, fun n _ he => OMA.S_oeis_a199705.even_formula n he,
-    fun n _ ho => OMA.S_oeis_a199705.odd_formula n ho⟩
+  main_of_formula (a_formula count_all)
