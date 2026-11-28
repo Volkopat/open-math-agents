@@ -2,7 +2,7 @@ import OMAStatements.S_oeis_a000139
 
 -- Problem: A000139
 -- Statement: statements/oeis-a000139.lean
--- Credit: @Heart-galaxy
+-- Shorter version of the merged proof (the first solve keeps its credit).
 
 /-!
 The factorial quotient has the same parity as `Nat.choose (3 * n) (n + 1)`.
@@ -16,51 +16,25 @@ namespace OMA.S_oeis_a000139
 private lemma quotient_identity (n : ℕ) :
     a n + 8 * (3 * n + 1).choose n =
       9 * (3 * n).choose n + (3 * n + 1).choose (n + 1) := by
-  let D := (2 * n + 1).factorial * (n + 1).factorial
-  let F := (3 * n).factorial
-  have hd : 0 < D := Nat.mul_pos (Nat.factorial_pos _) (Nat.factorial_pos _)
-  have hc := Nat.choose_mul_factorial_mul_factorial (show n ≤ 3 * n by omega)
-  rw [show 3 * n - n = 2 * n by omega] at hc
-  have hb := Nat.choose_mul_factorial_mul_factorial (show n ≤ 3 * n + 1 by omega)
-  rw [show 3 * n + 1 - n = 2 * n + 1 by omega] at hb
-  have he := Nat.choose_mul_factorial_mul_factorial (show n + 1 ≤ 3 * n + 1 by omega)
-  rw [show 3 * n + 1 - (n + 1) = 2 * n by omega] at he
-  have hc' : D * (3 * n).choose n = (2 * n + 1) * (n + 1) * F := by
-    dsimp [D, F]
-    rw [Nat.factorial_succ, Nat.factorial_succ]
-    calc
-      _ = (2 * n + 1) * (n + 1) * ((3 * n).choose n * n.factorial * (2 * n).factorial) :=
-        by ring
-      _ = _ := by rw [hc]
-  have hb' : D * (3 * n + 1).choose n = (3 * n + 1) * (n + 1) * F := by
-    dsimp [D, F]
-    rw [show (n + 1).factorial = (n + 1) * n.factorial by rw [Nat.factorial_succ]]
-    calc
-      _ = (n + 1) * ((3 * n + 1).choose n * n.factorial * (2 * n + 1).factorial) := by ring
-      _ = _ := by rw [hb, Nat.factorial_succ]; ring
-  have he' : D * (3 * n + 1).choose (n + 1) = (3 * n + 1) * (2 * n + 1) * F := by
-    dsimp [D, F]
-    rw [show (2 * n + 1).factorial = (2 * n + 1) * (2 * n).factorial by rw [Nat.factorial_succ]]
-    calc
-      _ = (2 * n + 1) * ((3 * n + 1).choose (n + 1) * (n + 1).factorial * (2 * n).factorial) :=
-        by ring
-      _ = _ := by rw [he, Nat.factorial_succ]; ring
-  let T := 9 * (3 * n).choose n + (3 * n + 1).choose (n + 1)
-  let U := 8 * (3 * n + 1).choose n
-  have hscale : D * T = 2 * F + D * U := by
-    dsimp [T, U]
-    rw [mul_add, show D * (9 * (3 * n).choose n) = 9 * (D * (3 * n).choose n) by ring,
-      show D * (8 * (3 * n + 1).choose n) = 8 * (D * (3 * n + 1).choose n) by ring,
-      hc', hb', he']
-    ring
-  have hut : U ≤ T := by nlinarith
-  have hquot : 2 * F / D = T - U := by
-    have hprod : 2 * F = D * (T - U) := by
-      rw [Nat.mul_sub_left_distrib]
-      omega
-    rw [hprod, Nat.mul_div_right _ hd]
-  change 2 * F / D + U = T
-  rw [hquot, Nat.sub_add_cancel hut]
+  have h1 := Nat.choose_mul_factorial_mul_factorial (show n ≤ 3 * n by omega)
+  have h2 := Nat.choose_mul_factorial_mul_factorial (show n ≤ 3 * n + 1 by omega)
+  have h3 := Nat.choose_mul_factorial_mul_factorial (show n + 1 ≤ 3 * n + 1 by omega)
+  rw [show 3 * n - n = 2 * n by omega] at h1
+  rw [show 3 * n + 1 - n = 2 * n + 1 by omega] at h2
+  rw [show 3 * n + 1 - (n + 1) = 2 * n by omega] at h3
+  unfold a
+  generalize hD : (2 * n + 1).factorial * (n + 1).factorial = D
+  have key : 2 * (3 * n).factorial + D * (8 * (3 * n + 1).choose n) =
+      D * (9 * (3 * n).choose n + (3 * n + 1).choose (n + 1)) := by
+    subst hD
+    simp only [Nat.factorial_succ] at h2 h3 ⊢
+    zify at h1 h2 h3 ⊢
+    linear_combination 8 * ((n : ℤ) + 1) * h2 - 9 * (2 * (n : ℤ) + 1) * ((n : ℤ) + 1) * h1 -
+      (2 * (n : ℤ) + 1) * h3
+  have hd : D ∣ 2 * (3 * n).factorial :=
+    (Nat.dvd_add_left (dvd_mul_right _ _)).mp (key ▸ dvd_mul_right _ _)
+  apply Nat.eq_of_mul_eq_mul_left (show 0 < D by rw [← hD]; positivity)
+  rw [mul_add, Nat.mul_div_cancel' hd, key]
 
 private lemma factorial_parity (n : ℕ) : Odd (a n) ↔ Odd ((3 * n).choose (n + 1)) := by
   have h := quotient_identity n

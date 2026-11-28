@@ -1,45 +1,23 @@
 import OMAReductions.R_LatinSquare_numTransversalsZn_R1
 
--- Step LatinSquare.numTransversalsZn.R1.H3
--- Credit: @caa1982
-
+/-! The shifted sequence together with its limit is compact and stays in the open unit interval. -/
 open Filter Set
 open scoped Topology
 
 theorem OMA.solution : OMA.R_LatinSquare_numTransversalsZn_R1.H3 := by
   intro u x hu hx hub
-  let a₀ : ℝ := x / 2
-  let b₀ : ℝ := (x + 1) / 2
-  have ha₀ : 0 < a₀ := by dsimp [a₀]; linarith [hx.1]
-  have ha₀x : a₀ < x := by dsimp [a₀]; linarith [hx.1]
-  have hxb₀ : x < b₀ := by dsimp [b₀]; linarith [hx.2]
-  have hb₀ : b₀ < 1 := by dsimp [b₀]; linarith [hx.2]
-  have hev : ∀ᶠ n in atTop, u n ∈ Ioo a₀ b₀ := hu.eventually (Ioo_mem_nhds ha₀x hxb₀)
-  obtain ⟨N, hN⟩ := eventually_atTop.mp hev
-  let S : Finset ℝ := insert a₀ ((Finset.Ico 1 N).image u)
-  let T : Finset ℝ := insert b₀ ((Finset.Ico 1 N).image u)
-  let a : ℝ := S.min' (Finset.insert_nonempty _ _)
-  let b : ℝ := T.max' (Finset.insert_nonempty _ _)
-  have ha_le : a ≤ a₀ := Finset.min'_le S a₀ (Finset.mem_insert_self _ _)
-  have hb_ge : b₀ ≤ b := Finset.le_max' T b₀ (Finset.mem_insert_self _ _)
-  refine ⟨a, b, ?_, ?_, by linarith, ?_⟩
-  · rw [Finset.lt_min'_iff]
-    intro y hy
-    rcases Finset.mem_insert.mp hy with rfl | hy'
-    · exact ha₀
-    · obtain ⟨n, hn, rfl⟩ := Finset.mem_image.mp hy'
-      exact (hub n (Finset.mem_Ico.mp hn).1).1
-  · rw [Finset.max'_lt_iff]
-    intro y hy
-    rcases Finset.mem_insert.mp hy with rfl | hy'
-    · exact hb₀
-    · obtain ⟨n, hn, rfl⟩ := Finset.mem_image.mp hy'
-      exact (hub n (Finset.mem_Ico.mp hn).1).2
-  · intro n hn
-    by_cases hlt : n < N
-    · have hmem : u n ∈ (Finset.Ico 1 N).image u :=
-        Finset.mem_image.mpr ⟨n, Finset.mem_Ico.mpr ⟨hn, hlt⟩, rfl⟩
-      exact ⟨Finset.min'_le S _ (Finset.mem_insert_of_mem hmem),
-        Finset.le_max' T _ (Finset.mem_insert_of_mem hmem)⟩
-    · have hmem := hN n (not_lt.mp hlt)
-      exact ⟨le_trans ha_le hmem.1.le, le_trans hmem.2.le hb_ge⟩
+  let S := insert x (range (fun n : ℕ => u (n + 1)))
+  have hc : IsCompact S := (hu.comp (tendsto_add_atTop_nat 1)).isCompact_insert_range
+  have hi : ∀ y ∈ S, y ∈ Ioo (0 : ℝ) 1 := by
+    rintro y (rfl | ⟨n, rfl⟩)
+    · exact hx
+    · exact hub _ (by omega)
+  obtain ⟨a, ha, hamin⟩ := hc.exists_isLeast (insert_nonempty _ _)
+  obtain ⟨b, hb, hbmax⟩ := hc.exists_isGreatest (insert_nonempty _ _)
+  obtain ⟨hap, ha1⟩ := hi a ha
+  obtain ⟨hbp, hb1⟩ := hi b hb
+  have hab := hamin hb
+  refine ⟨a / 2, (b + 1) / 2, by linarith, by linarith, by linarith, ?_⟩
+  intro n hn
+  have hm : u n ∈ S := Or.inr ⟨n - 1, by simp [Nat.sub_add_cancel hn]⟩
+  exact ⟨by linarith [hamin hm], by linarith [hbmax hm]⟩

@@ -3,6 +3,8 @@ import Mathlib.Tactic
 
 namespace OMA.Wheel254211
 open OMA.S_oeis_a254211
+lemma np {m n : ℕ} (h1 : m ∣ n := by omega) (h2 : 2 ≤ m := by decide) (h3 : m < n := by omega) :
+    ¬ n.Prime := Nat.not_prime_of_dvd_of_lt h1 h2 h3
 
 def copies (pattern : List ℕ) (k : ℕ) : List ℕ :=
   (List.replicate k pattern).flatten
@@ -41,9 +43,9 @@ lemma forward_sums (k s : ℕ) (tail : List ℕ) (hs : 6 ∣ s) (hp : 6 ≤ s)
   | succ k ih =>
     rw [copies_succ, List.append_assoc]
     change ¬ (s+3).Prime ∧ ¬ (s+3+1).Prime ∧ ¬ (s+3+1+2).Prime ∧ _
-    refine ⟨Nat.not_prime_of_dvd_of_lt (m:=3) (by omega) (by decide) (by omega),
-      Nat.not_prime_of_dvd_of_lt (m:=2) (by omega) (by decide) (by omega),
-      Nat.not_prime_of_dvd_of_lt (m:=2) (by omega) (by decide) (by omega), ?_⟩
+    refine ⟨np (m:=3),
+      np (m:=2),
+      np (m:=2), ?_⟩
     apply ih (s+3+1+2) (by omega) (by omega)
     convert h using 1
     omega
@@ -55,9 +57,9 @@ lemma backward_sums (k s : ℕ) (tail : List ℕ) (hs : 6 ∣ s) (hp : 6 ≤ s)
   | succ k ih =>
     rw [copies_succ, List.append_assoc]
     change ¬ (s+2).Prime ∧ ¬ (s+2+1).Prime ∧ ¬ (s+2+1+3).Prime ∧ _
-    refine ⟨Nat.not_prime_of_dvd_of_lt (m:=2) (by omega) (by decide) (by omega),
-      Nat.not_prime_of_dvd_of_lt (m:=3) (by omega) (by decide) (by omega),
-      Nat.not_prime_of_dvd_of_lt (m:=2) (by omega) (by decide) (by omega), ?_⟩
+    refine ⟨np (m:=2),
+      np (m:=3),
+      np (m:=2), ?_⟩
     apply ih (s+2+1+3) (by omega) (by omega)
     convert h using 1
     omega
@@ -89,18 +91,18 @@ lemma word_sums (t : ℕ) : avoids 0 (word (35*t+11)) := by
     ¬ (s+3+2+3+2).Prime ∧ ¬ (s+3+2+3+2+3).Prime ∧
     ¬ (s+3+2+3+2+3+2).Prime ∧ ¬ (s+3+2+3+2+3+2+3).Prime ∧ _
   dsimp [s]
-  refine ⟨Nat.not_prime_of_dvd_of_lt (m:=3) (by omega) (by decide) (by omega),
-    Nat.not_prime_of_dvd_of_lt (m:=7) (by omega) (by decide) (by omega),
-    Nat.not_prime_of_dvd_of_lt (m:=2) (by omega) (by decide) (by omega),
-    Nat.not_prime_of_dvd_of_lt (m:=2) (by omega) (by decide) (by omega),
-    Nat.not_prime_of_dvd_of_lt (m:=5) (by omega) (by decide) (by omega),
-    Nat.not_prime_of_dvd_of_lt (m:=3) (by omega) (by decide) (by omega),
-    Nat.not_prime_of_dvd_of_lt (m:=2) (by omega) (by decide) (by omega), ?_⟩
+  refine ⟨np (m:=3),
+    np (m:=7),
+    np (m:=2),
+    np (m:=2),
+    np (m:=5),
+    np (m:=3),
+    np (m:=2), ?_⟩
   apply backward_sums (35*t+11) _ _ (by omega) (by omega)
   change ¬ (_+2).Prime ∧ ¬ (_+2+3).Prime ∧ ¬ (_+2+3+1).Prime ∧ True
-  exact ⟨Nat.not_prime_of_dvd_of_lt (m:=2) (by omega) (by decide) (by omega),
-    Nat.not_prime_of_dvd_of_lt (m:=7) (by omega) (by decide) (by omega),
-    Nat.not_prime_of_dvd_of_lt (m:=2) (by omega) (by decide) (by omega), trivial⟩
+  exact ⟨np (m:=2),
+    np (m:=7),
+    np (m:=2), trivial⟩
 
 end OMA.Wheel254211
 

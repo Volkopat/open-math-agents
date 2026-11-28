@@ -1,5 +1,5 @@
 import OMAReductions.R_Erdos687_erdos_687_variants_maier_pomerance_R1
-import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
+import Mathlib
 
 open Asymptotics Filter
 

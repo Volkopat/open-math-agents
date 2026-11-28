@@ -40,9 +40,6 @@ def Representable (p q n : Nat) : Prop :=
 def Nonrepresentable (p q n : Nat) : Prop :=
   ¬ Representable p q n
 
-def PairwiseCoprimeOn (P : Nat → Prop) : Prop :=
-  ∀ F : List Nat, ∃ n : Nat, 0 < n ∧ P n ∧ ∀ m, m ∈ F → Nat.Coprime n m
-
 def PairwiseCoprimeNonrepSeq (p q : Nat) (f : Nat → Nat) : Prop :=
   (∀ n, 1 < f n ∧ Nonrepresentable p q (f n) ∧ Nat.Coprime (f n) (p * q)) ∧
   (∀ ⦃m n⦄, m ≠ n → Nat.Coprime (f m) (f n))
@@ -65,18 +62,6 @@ theorem mem_term_le_sum
           dsimp [SumTerms] at ih ⊢
           simp
           exact Nat.le_trans ih (Nat.le_add_left _ _)
-
-theorem antichain_not_coordLe
-    {A : List Point} (hA : IsAntichain A)
-    {x y : Point} (hx : x ∈ A) (hy : y ∈ A) (hne : x ≠ y) :
-    ¬ CoordLe x y :=
-  hA.2 hx hy hne
-
-theorem antichain_incomparable
-    {A : List Point} (hA : IsAntichain A)
-    {x y : Point} (hx : x ∈ A) (hy : y ∈ A) (hne : x ≠ y) :
-    ¬ CoordLe x y ∧ ¬ CoordLe y x :=
-  ⟨hA.2 hx hy hne, hA.2 hy hx (fun hyx => hne hyx.symm)⟩
 
 theorem antichain_same_first_eq
     {A : List Point} (hA : IsAntichain A)
@@ -134,72 +119,11 @@ theorem antichain_second_strictAnti_of_first_lt
   exact Nat.lt_of_not_le fun hxy2 =>
     hA.2 hx hy hxy_ne ⟨Nat.le_of_lt hfirst, hxy2⟩
 
-theorem antichain_first_strictAnti_of_second_lt
-    {A : List Point} (hA : IsAntichain A)
-    {x y : Point} (hx : x ∈ A) (hy : y ∈ A)
-    (hsecond : x.2 < y.2) :
-    y.1 < x.1 := by
-  have hxy_ne : x ≠ y := by
-    intro hxy
-    rw [hxy] at hsecond
-    exact (Nat.lt_irrefl y.2) hsecond
-  exact Nat.lt_of_not_le fun hxy1 =>
-    hA.2 hx hy hxy_ne ⟨hxy1, Nat.le_of_lt hsecond⟩
-
 theorem coordLe_term_dvd
     {p q : Nat} {x y : Point}
     (hxy : CoordLe x y) :
     Term p q x ∣ Term p q y := by
   exact Nat.mul_dvd_mul (Nat.pow_dvd_pow p hxy.1) (Nat.pow_dvd_pow q hxy.2)
-
-theorem pow_mul_pow_dvd_first_le
-    {r s i j i' j' : Nat}
-    (hr : 1 < r) (hrs : Nat.Coprime r s)
-    (hdiv : r ^ i * s ^ j ∣ r ^ i' * s ^ j') :
-    i ≤ i' := by
-  by_cases hle : i ≤ i'
-  · exact hle
-  have hi'i : i' < i := Nat.lt_of_not_ge hle
-  let d := i - i'
-  have hdpos : 0 < d := Nat.sub_pos_of_lt hi'i
-  have hr_pos : 0 < r := Nat.lt_trans Nat.zero_lt_one hr
-  have hi'_le_i : i' ≤ i := Nat.le_of_lt hi'i
-  have hsplit : r ^ i = r ^ i' * r ^ d := by
-    have hadd : i' + d = i := Nat.add_sub_of_le hi'_le_i
-    rw [← hadd, Nat.pow_add]
-  have hri_dvd_target : r ^ i ∣ r ^ i' * s ^ j' :=
-    Nat.dvd_trans (Nat.dvd_mul_right _ _) hdiv
-  have hcancel : r ^ d ∣ s ^ j' := by
-    have hri'_pos : 0 < r ^ i' := (Nat.pow_pos hr_pos : 0 < r ^ i')
-    exact (Nat.mul_dvd_mul_iff_left hri'_pos).mp (by
-      simpa [hsplit] using hri_dvd_target)
-  have hcop : Nat.Coprime (r ^ d) (s ^ j') :=
-    (hrs.pow_left d).pow_right j'
-  have hgcd_left : Nat.gcd (r ^ d) (s ^ j') = r ^ d :=
-    Nat.gcd_eq_left hcancel
-  have hgcd_one : Nat.gcd (r ^ d) (s ^ j') = 1 :=
-    Nat.Coprime.gcd_eq_one hcop
-  have hrd_eq_one : r ^ d = 1 := hgcd_left.symm.trans hgcd_one
-  have hone_lt : 1 < r ^ d := Nat.one_lt_pow (Nat.ne_of_gt hdpos) hr
-  rw [hrd_eq_one] at hone_lt
-  exact False.elim ((Nat.lt_irrefl 1) hone_lt)
-
-theorem term_dvd_coordLe
-    {p q : Nat} {x y : Point}
-    (hp : 1 < p) (hq : 1 < q) (hpq : Nat.Coprime p q)
-    (hdiv : Term p q x ∣ Term p q y) :
-    CoordLe x y := by
-  constructor
-  · exact pow_mul_pow_dvd_first_le hp hpq (by simpa [Term] using hdiv)
-  · have hdiv' : q ^ x.2 * p ^ x.1 ∣ q ^ y.2 * p ^ y.1 := by
-      simpa [Term, Nat.mul_comm] using hdiv
-    exact pow_mul_pow_dvd_first_le hq hpq.symm hdiv'
-
-theorem term_dvd_iff_coordLe
-    {p q : Nat} {x y : Point}
-    (hp : 1 < p) (hq : 1 < q) (hpq : Nat.Coprime p q) :
-    Term p q x ∣ Term p q y ↔ CoordLe x y :=
-  ⟨term_dvd_coordLe hp hq hpq, coordLe_term_dvd⟩
 
 theorem antichain_filter
     {A : List Point} (hA : IsAntichain A) (P : Point → Bool) :
@@ -953,9 +877,6 @@ namespace Apiros1110
 def ColumnsBelow (A : List Point) (B : Nat) : Prop :=
   ∀ x, x ∈ A → x.1 < B
 
-def Represents (p q n : Nat) (A : List Point) : Prop :=
-  IsAntichain A ∧ SumTerms p q A = n
-
 def RepresentsWithin (p q n B : Nat) (A : List Point) : Prop :=
   IsAntichain A ∧ SumTerms p q A = n ∧ ColumnsBelow A B
 
@@ -964,27 +885,6 @@ def RepWithin (p q n B : Nat) : Prop :=
 
 def IsMinBound (p q n B : Nat) : Prop :=
   RepWithin p q n B ∧ ∀ C : Nat, RepWithin p q n C → B ≤ C
-
-/-- A representation with column bound zero exists exactly for zero. -/
-theorem repWithin_zero_bound_iff {p q n : Nat} :
-    RepWithin p q n 0 ↔ n = 0 := by
-  constructor
-  · rintro ⟨A, _hanti, hsum, hcols⟩
-    have hnil : A = [] := by
-      apply list_eq_nil_of_forall_not_mem
-      intro x hx
-      exact Nat.not_lt_zero x.1 (hcols x hx)
-    subst A
-    simpa [SumTerms] using hsum.symm
-  · rintro rfl
-    refine ⟨[], ?_⟩
-    simp [RepresentsWithin, IsAntichain, SumTerms, ColumnsBelow]
-
-/-- A positive natural has no representation with column bound zero. -/
-theorem not_repWithin_pos_zero {p q n : Nat} (hn : 0 < n) :
-    ¬ RepWithin p q n 0 := by
-  rw [repWithin_zero_bound_iff]
-  exact Nat.ne_of_gt hn
 
 def shiftUpCoord (x : Point) : Point :=
   (x.1, x.2 + 1)
@@ -997,21 +897,6 @@ def shiftDownCoord (x : Point) : Point :=
 
 def shiftDown (A : List Point) : List Point :=
   A.map shiftDownCoord
-
-theorem representsWithin_represents
-    {p q n B : Nat} {A : List Point}
-    (h : RepresentsWithin p q n B A) :
-    Represents p q n A :=
-  ⟨h.1, h.2.1⟩
-
-theorem repWithin_mono
-    {p q n B C : Nat}
-    (h : RepWithin p q n B) (hBC : B ≤ C) :
-    RepWithin p q n C := by
-  rcases h with ⟨A, hA, hsum, hcols⟩
-  refine ⟨A, hA, hsum, ?_⟩
-  intro x hx
-  exact Nat.lt_of_lt_of_le (hcols x hx) hBC
 
 theorem antichain_shiftUp
     {A : List Point} (hA : IsAntichain A) :
@@ -1439,46 +1324,6 @@ theorem parent_representsWithin
   refine ⟨parent_antichain hA.1 hA.2.2, ?_, parent_columnsBelow hA.2.2 heB⟩
   rw [parent_sum, hA.2.1]
 
-/-- If an attachment has minimum column bound `e + 1`, then an algebraically
-equal attachment at a lower column `f` cannot have its child represented
-within `f`. -/
-theorem not_repWithin_lower_child_of_isMinBound
-    {p q e m f r : Nat}
-    (hmin : IsMinBound p q (p ^ e + q * m) (e + 1))
-    (hf : f < e)
-    (heq : p ^ e + q * m = p ^ f + q * r) :
-    ¬ RepWithin p q r f := by
-  intro hr
-  rcases hr with ⟨A, hA⟩
-  have hlower : RepWithin p q (p ^ e + q * m) (f + 1) := by
-    refine ⟨(f, 0) :: shiftUp A, ?_⟩
-    rw [heq]
-    exact parent_representsWithin hA (Nat.lt_succ_self f)
-  have hle := hmin.2 (f + 1) hlower
-  omega
-
-theorem repWithin_not_dvd_iff
-    {p q n B : Nat}
-    (_hp : 1 < p) (_hq : 1 < q)
-    (_hpq : Nat.Coprime p q)
-    (hqn : ¬ q ∣ n) :
-    RepWithin p q n B ↔
-      ∃ e : Nat, e < B ∧
-      ∃ m : Nat, n = p ^ e + q * m ∧
-        RepWithin p q m e := by
-  constructor
-  · intro h
-    rcases h with ⟨A, hA⟩
-    rcases source_decomp_not_q_dvd hqn hA with
-      ⟨e, m, heB, heq, hm, _heA⟩
-    exact ⟨e, heB, m, heq, hm⟩
-  · intro h
-    rcases h with ⟨e, heB, m, heq, hm⟩
-    rcases hm with ⟨A, hA⟩
-    refine ⟨(e, 0) :: shiftUp A, ?_⟩
-    rw [heq]
-    exact parent_representsWithin hA heB
-
 theorem source_columnsBound_exists :
     ∀ A : List Point, ∃ B : Nat, ColumnsBelow A B
   | [] => by
@@ -1520,20 +1365,6 @@ theorem exists_minBound
   intro C hC
   exact Nat.find_min' hex hC
 
-theorem minBound_unique
-    {p q n B C : Nat}
-    (hB : IsMinBound p q n B)
-    (hC : IsMinBound p q n C) :
-    B = C :=
-  Nat.le_antisymm (hB.2 C hC.1) (hC.2 B hB.1)
-
-theorem exists_unique_minBound
-    {p q n : Nat}
-    (hn : Representable p q n) :
-    ∃! B : Nat, IsMinBound p q n B := by
-  rcases exists_minBound hn with ⟨B, hB⟩
-  exact ⟨B, hB, fun C hC => minBound_unique hC hB⟩
-
 theorem minBound_mul_q
     {p q m B : Nat}
     (hp : 1 < p) (hq : 1 < q)
@@ -1544,17 +1375,6 @@ theorem minBound_mul_q
   · exact (repWithin_mul_q_iff hp hq hpq).mpr hmin.1
   · intro C hC
     exact hmin.2 C ((repWithin_mul_q_iff hp hq hpq).mp hC)
-
-theorem minBound_of_mul_q
-    {p q m B : Nat}
-    (hp : 1 < p) (hq : 1 < q)
-    (hpq : Nat.Coprime p q)
-    (hmin : IsMinBound p q (q * m) B) :
-    IsMinBound p q m B := by
-  constructor
-  · exact (repWithin_mul_q_iff hp hq hpq).mp hmin.1
-  · intro C hC
-    exact hmin.2 C ((repWithin_mul_q_iff hp hq hpq).mpr hC)
 
 theorem repWithin_of_row_zero
     {p q n B e : Nat} {A : List Point}
@@ -1621,38 +1441,6 @@ inductive IsCanonicalSource (p q : Nat) :
         (p ^ e + q * m)
         ((e, 0) :: shiftUp A)
 
-theorem represents_shiftUp
-    {p q m : Nat} {A : List Point}
-    (hA : Represents p q m A) :
-    Represents p q (q * m) (shiftUp A) := by
-  exact ⟨antichain_shiftUp hA.1, by rw [sourceSum_shiftUp, hA.2]⟩
-
-theorem canonical_represents
-    {p q n : Nat} {A : List Point}
-    (hcan : IsCanonicalSource p q n A) :
-    Represents p q n A := by
-  induction hcan with
-  | zero =>
-      simp [Represents, IsAntichain, SumTerms]
-  | scale hm hcan ih =>
-      exact represents_shiftUp ih
-  | attach hnot hmin hcan hcols ih =>
-      exact ⟨parent_antichain ih.1 hcols, by rw [parent_sum, ih.2]⟩
-
-theorem canonical_target_eq_sourceSum
-    {p q n : Nat} {A : List Point}
-    (hcan : IsCanonicalSource p q n A) :
-    SumTerms p q A = n :=
-  (canonical_represents hcan).2
-
-theorem canonical_same_source_target_eq
-    {p q n n' : Nat} {A : List Point}
-    (hcan : IsCanonicalSource p q n A)
-    (hcan' : IsCanonicalSource p q n' A) :
-    n = n' := by
-  rw [← canonical_target_eq_sourceSum hcan,
-    ← canonical_target_eq_sourceSum hcan']
-
 theorem zero_minBound (p q : Nat) :
     IsMinBound p q 0 0 := by
   constructor
@@ -1663,30 +1451,6 @@ theorem zero_minBound (p q : Nat) :
       cases hx
   · intro C _hC
     exact Nat.zero_le C
-
-theorem canonical_has_minBound
-    {p q n : Nat} {A : List Point}
-    (hp : 1 < p) (hq : 1 < q)
-    (hpq : Nat.Coprime p q)
-    (hcan : IsCanonicalSource p q n A) :
-    ∃ B : Nat,
-      IsMinBound p q n B ∧
-      ColumnsBelow A B := by
-  induction hcan with
-  | zero =>
-      exact ⟨0, zero_minBound p q, by intro x hx; cases hx⟩
-  | scale hm hcan ih =>
-      rcases ih with ⟨B, hmin, hcols⟩
-      exact ⟨B, minBound_mul_q hp hq hpq hmin,
-        columnsBelow_shiftUp.mpr hcols⟩
-  | attach hnot hmin hcan hcols ih =>
-      exact ⟨_, hmin, parent_columnsBelow hcols (Nat.lt_succ_self _)⟩
-
-theorem representable_of_canonical
-    {p q n : Nat} {A : List Point}
-    (hcan : IsCanonicalSource p q n A) :
-    Representable p q n := by
-  exact ⟨A, (canonical_represents hcan).1, (canonical_represents hcan).2⟩
 
 theorem mul_child_lt
     {q m : Nat} (hq : 1 < q) (hm : 0 < m) :
@@ -1766,189 +1530,6 @@ theorem exists_canonical_of_representable
           IsCanonicalSource.attach htarget_not htarget_min hcanC hcols_e
       · simpa [hnEq] using htarget_min
       · exact parent_columnsBelow hcols_e (Nat.lt_succ_self e)
-
-theorem term_pos_of_pos_bases
-    {p q : Nat}
-    (hp : 0 < p) (hq : 0 < q)
-    (x : Point) :
-    0 < Term p q x := by
-  cases x with
-  | mk i j =>
-      exact Nat.mul_pos
-        (Nat.pow_pos hp : 0 < p ^ i)
-        (Nat.pow_pos hq : 0 < q ^ j)
-
-theorem canonical_zero_eq_empty
-    {p q : Nat} {A : List Point}
-    (hp : 1 < p) (hq : 1 < q)
-    (hcan : IsCanonicalSource p q 0 A) :
-    A = [] := by
-  apply list_eq_nil_of_forall_not_mem
-  intro x hx
-  have hsum : SumTerms p q A = 0 := canonical_target_eq_sourceSum hcan
-  have hle : Term p q x ≤ SumTerms p q A := mem_term_le_sum hx
-  rw [hsum] at hle
-  have hp_pos : 0 < p := Nat.lt_trans Nat.zero_lt_one hp
-  have hq_pos : 0 < q := Nat.lt_trans Nat.zero_lt_one hq
-  have hterm_pos : 0 < Term p q x := term_pos_of_pos_bases hp_pos hq_pos x
-  exact (Nat.not_lt_zero _ (Nat.lt_of_lt_of_le hterm_pos hle))
-
-theorem canonical_scale_cases
-    {p q n : Nat} {A : List Point}
-    (_hq : 1 < q)
-    (hnpos : 0 < n)
-    (hdiv : q ∣ n)
-    (hcan : IsCanonicalSource p q n A) :
-    ∃ m C,
-      0 < m ∧
-      n = q * m ∧
-      IsCanonicalSource p q m C ∧
-      A = shiftUp C := by
-  cases hcan with
-  | zero =>
-      omega
-  | scale hm hcan =>
-      exact ⟨_, _, hm, rfl, hcan, rfl⟩
-  | attach hnot hmin hcan hcols =>
-      exact False.elim (hnot hdiv)
-
-theorem canonical_attach_cases
-    {p q n : Nat} {A : List Point}
-    (hnotn : ¬ q ∣ n)
-    (hcan : IsCanonicalSource p q n A) :
-    ∃ e m C,
-      n = p ^ e + q * m ∧
-      ¬ q ∣ p ^ e + q * m ∧
-      IsMinBound p q (p ^ e + q * m) (e + 1) ∧
-      IsCanonicalSource p q m C ∧
-      ColumnsBelow C e ∧
-      A = ((e, 0) :: shiftUp C) := by
-  cases hcan with
-  | zero =>
-      exact False.elim (hnotn (Nat.dvd_zero q))
-  | scale hm hcan =>
-      exact False.elim (hnotn (Nat.dvd_mul_right q _))
-  | attach hnot hmin hcan hcols =>
-      exact ⟨_, _, _, rfl, hnot, hmin, hcan, hcols, rfl⟩
-
-theorem canonical_unique_aux
-    {p q : Nat}
-    (hp : 1 < p) (hq : 1 < q)
-    (_hpq : Nat.Coprime p q) :
-    ∀ n : Nat, ∀ A A' : List Point,
-      IsCanonicalSource p q n A →
-      IsCanonicalSource p q n A' →
-      A = A' := by
-  classical
-  intro n
-  refine Nat.strong_induction_on n ?_
-  intro n ih A A' hA hA'
-  by_cases hnzero : n = 0
-  · subst n
-    rw [canonical_zero_eq_empty hp hq hA, canonical_zero_eq_empty hp hq hA']
-  · have hnpos : 0 < n := Nat.pos_of_ne_zero hnzero
-    by_cases hdiv : q ∣ n
-    · rcases canonical_scale_cases hq hnpos hdiv hA with
-        ⟨m, C, hmpos, hmEq, hcanC, hAeq⟩
-      rcases canonical_scale_cases hq hnpos hdiv hA' with
-        ⟨m', C', hmpos', hmEq', hcanC', hAeq'⟩
-      have hqpos : 0 < q := Nat.lt_trans Nat.zero_lt_one hq
-      have hmm' : m = m' := by
-        apply Nat.mul_left_cancel hqpos
-        rw [← hmEq, ← hmEq']
-      subst m'
-      have hm_lt : m < n := by
-        rw [hmEq]
-        exact mul_child_lt hq hmpos
-      have hCC' : C = C' := ih m hm_lt C C' hcanC hcanC'
-      rw [hAeq, hAeq', hCC']
-    · rcases canonical_attach_cases hdiv hA with
-        ⟨e, m, C, hnEq, hnot, hmin, hcanC, hcols, hAeq⟩
-      rcases canonical_attach_cases hdiv hA' with
-        ⟨e', m', C', hnEq', hnot', hmin', hcanC', hcols', hAeq'⟩
-      have hminN : IsMinBound p q n (e + 1) := by
-        simpa [hnEq] using hmin
-      have hminN' : IsMinBound p q n (e' + 1) := by
-        simpa [hnEq'] using hmin'
-      have hsucc : e + 1 = e' + 1 := minBound_unique hminN hminN'
-      have heq : e = e' := Nat.succ.inj hsucc
-      subst e'
-      have hmm' : m = m' := by
-        have hadd : q * m = q * m' := by
-          have hbig : p ^ e + q * m = p ^ e + q * m' := by
-            rw [← hnEq, ← hnEq']
-          exact Nat.add_left_cancel hbig
-        have hqpos : 0 < q := Nat.lt_trans Nat.zero_lt_one hq
-        exact Nat.mul_left_cancel hqpos hadd
-      subst m'
-      have hm_lt : m < n := by
-        rw [hnEq]
-        exact attach_child_lt hp hq
-      have hCC' : C = C' := ih m hm_lt C C' hcanC hcanC'
-      rw [hAeq, hAeq', hCC']
-
-theorem canonical_unique
-    {p q n : Nat} {A A' : List Point}
-    (hp : 1 < p) (hq : 1 < q)
-    (hpq : Nat.Coprime p q)
-    (hA : IsCanonicalSource p q n A)
-    (hA' : IsCanonicalSource p q n A') :
-    A = A' :=
-  canonical_unique_aux hp hq hpq n A A' hA hA'
-
-theorem representable_iff_existsUnique_canonical
-    {p q n : Nat}
-    (hp : 1 < p) (hq : 1 < q)
-    (hpq : Nat.Coprime p q) :
-    Representable p q n ↔
-      ∃! A : List Point, IsCanonicalSource p q n A := by
-  constructor
-  · intro hn
-    rcases exists_canonical_of_representable hp hq hpq hn with
-      ⟨A, _B, hcan, _hmin, _hcols⟩
-    exact ⟨A, hcan, fun A' hcan' => canonical_unique hp hq hpq hcan' hcan⟩
-  · intro h
-    rcases h with ⟨A, hcan, _huniq⟩
-    exact representable_of_canonical hcan
-
-theorem not_q_dvd_attach_target
-    {p q e m : Nat}
-    (hq : 1 < q) (hpq : Nat.Coprime p q) :
-    ¬ q ∣ p ^ e + q * m :=
-  not_q_dvd_p_pow_add_q_mul hq hpq
-
-theorem minBound_attach_iff
-    {p q e m : Nat}
-    (hp : 1 < p) (hq : 1 < q)
-    (hpq : Nat.Coprime p q)
-    (hm : RepWithin p q m e) :
-    IsMinBound p q (p ^ e + q * m) (e + 1) ↔
-      ∀ f : Nat, f < e →
-      ∀ r : Nat, p ^ e + q * m = p ^ f + q * r →
-        ¬ RepWithin p q r f := by
-  constructor
-  · intro hmin f hf r heq hr
-    rcases hr with ⟨R, hR⟩
-    have hsmall : RepWithin p q (p ^ e + q * m) (f + 1) := by
-      rw [heq]
-      exact ⟨(f, 0) :: shiftUp R,
-        parent_representsWithin hR (Nat.lt_succ_self f)⟩
-    have hle : e + 1 ≤ f + 1 := hmin.2 (f + 1) hsmall
-    omega
-  · intro hexcl
-    have hnot : ¬ q ∣ p ^ e + q * m :=
-      not_q_dvd_attach_target hq hpq
-    constructor
-    · rcases hm with ⟨A, hA⟩
-      exact ⟨(e, 0) :: shiftUp A,
-        parent_representsWithin hA (Nat.lt_succ_self e)⟩
-    · intro C hC
-      rcases (repWithin_not_dvd_iff hp hq hpq hnot).mp hC with
-        ⟨f, hfC, r, heq, hr⟩
-      by_cases hCe : C ≤ e
-      · have hfe : f < e := Nat.lt_of_lt_of_le hfC hCe
-        exact False.elim ((hexcl f hfe r heq) hr)
-      · exact Nat.succ_le_of_lt (Nat.lt_of_not_ge hCe)
 
 end Apiros1110
 
@@ -2039,21 +1620,6 @@ theorem representable_comm
     {p q n : Nat} :
     Representable p q n ↔ Representable q p n :=
   ⟨representable_swap, representable_swap⟩
-
-theorem representableCount_comm
-    (p q X : Nat) :
-    representableCount p q X = representableCount q p X := by
-  classical
-  unfold representableCount
-  congr 1
-  apply List.filter_congr
-  intro n hn
-  apply Bool.decide_congr
-  constructor
-  · intro h
-    exact ⟨h.1, representable_swap h.2⟩
-  · intro h
-    exact ⟨h.1, representable_swap h.2⟩
 
 namespace DensityDecoderCert
 
@@ -2317,13 +1883,6 @@ theorem exists_duplicate_get_of_length_gt_bound
     omega
   · exact exists_duplicate_get_of_not_nodup l hnod
 
-theorem get_power_residues {b D : Nat}
-    (i : Fin ((List.range (D + 1)).map (fun n => b ^ n % D)).length) :
-    ((List.range (D + 1)).map (fun n => b ^ n % D)).get i = b ^ i.1 % D := by
-  rw [List.get_eq_getElem]
-  rw [List.getElem_map]
-  rw [List.getElem_range]
-
 theorem exists_power_mod_repeat
     {b D : Nat} (hDpos : 0 < D) :
     ∃ i j : Nat, i < j ∧ j ≤ D ∧ b ^ i % D = b ^ j % D := by
@@ -2491,14 +2050,6 @@ theorem basicPeriodProvider_of_pos
   basicPeriodProvider_of_coprimeBasePeriodProviders
     (coprimeBasePeriodProvider_of_pos hp_pos)
     (coprimeBasePeriodProvider_of_pos hq_pos)
-
-theorem periodProvider_of_coprimeBasePeriodProviders
-    {p q : Nat}
-    (p_period : CoprimeBasePeriodProvider p)
-    (q_period : CoprimeBasePeriodProvider q) :
-    PeriodProvider p q :=
-  periodProvider_of_basicPeriodProvider
-    (basicPeriodProvider_of_coprimeBasePeriodProviders p_period q_period)
 
 theorem periodProvider_of_pos
     {p q : Nat}
@@ -2964,35 +2515,6 @@ def EmbeddingProvider (p q c : Nat) : Prop :=
       Nonrepresentable p q (p ^ a + c * q ^ M) ∧
       Nat.Coprime (p ^ a + c * q ^ M) (p * q)
 
-def PeriodWindowEmbeddingAmplification : Prop :=
-  ∀ ⦃p q c : Nat⦄,
-    ValidBases p q → GoodSeed p q c →
-      PeriodProvider p q ∧ PowerWindowProvider p q c ∧ EmbeddingProvider p q c
-
-def PeriodWindowAmplification : Prop :=
-  ∀ ⦃p q c : Nat⦄,
-    ValidBases p q → GoodSeed p q c →
-      PeriodProvider p q ∧ PowerWindowProvider p q c
-
-def WindowAmplification : Prop :=
-  ∀ ⦃p q c : Nat⦄,
-    ValidBases p q → GoodSeed p q c →
-      PowerWindowProvider p q c
-
-def PeriodWindowLowRowAmplification : Prop :=
-  ∀ ⦃p q c : Nat⦄,
-    ValidBases p q → GoodSeed p q c →
-      PeriodProvider p q ∧ PowerWindowProvider p q c ∧ LowRowSyncProvider p q
-
-def FreshExtensionAmplification : Prop :=
-  ∀ ⦃p q c : Nat⦄,
-    ValidBases p q → GoodSeed p q c → FreshExtensionProvider p q c
-
-def GoodSeedAmplification : Prop :=
-  ∀ ⦃p q c : Nat⦄,
-    ValidBases p q → GoodSeed p q c →
-      ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq p q f
-
 theorem lowRowSyncProvider_of_residual
     {p q : Nat}
     (residual : LowRowResidualProvider p q) :
@@ -3404,105 +2926,6 @@ theorem goodSeedAmplification_of_period_window_embedding
   goodSeedAmplification_of_congruentExtensionProvider hb hs
     (congruentExtensionProvider_of_period_window_embedding hb period window embed)
 
-theorem goodSeedAmplification_of_window
-    {p q c : Nat}
-    (hb : ValidBases p q)
-    (hs : GoodSeed p q c)
-    (window : PowerWindowProvider p q c) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq p q f :=
-  goodSeedAmplification_of_period_window_embedding hb hs
-    (periodProvider_of_pos
-      (Nat.lt_trans Nat.zero_lt_one hb.one_lt_p)
-      (Nat.lt_trans Nat.zero_lt_one hb.one_lt_q))
-    window
-    (embeddingProvider_core hb hs)
-
-theorem freshExtensionAmplification_of_periodWindowEmbeddingAmplification
-    (amp : PeriodWindowEmbeddingAmplification) :
-    FreshExtensionAmplification := by
-  intro p q c hb hs
-  rcases amp hb hs with ⟨period, window, embed⟩
-  exact freshExtensionProvider_of_congruentExtensionProvider hs
-    (congruentExtensionProvider_of_period_window_embedding hb period window embed)
-
-theorem periodWindowEmbeddingAmplification_of_periodWindowAmplification
-    (amp : PeriodWindowAmplification) :
-    PeriodWindowEmbeddingAmplification := by
-  intro p q c hb hs
-  rcases amp hb hs with ⟨period, window⟩
-  exact ⟨period, window, embeddingProvider_core hb hs⟩
-
-theorem periodWindowAmplification_of_windowAmplification
-    (amp : WindowAmplification) :
-    PeriodWindowAmplification := by
-  intro p q c hb hs
-  exact ⟨periodProvider_of_pos
-      (Nat.lt_trans Nat.zero_lt_one hb.one_lt_p)
-      (Nat.lt_trans Nat.zero_lt_one hb.one_lt_q),
-    amp hb hs⟩
-
-theorem periodWindowLowRowAmplification_of_periodWindowAmplification
-    (amp : PeriodWindowAmplification) :
-    PeriodWindowLowRowAmplification := by
-  intro p q c hb hs
-  rcases amp hb hs with ⟨period, window⟩
-  exact ⟨period, window, lowRowSyncProvider_core⟩
-
-theorem periodWindowEmbeddingAmplification_of_periodWindowLowRowAmplification
-    (amp : PeriodWindowLowRowAmplification) :
-    PeriodWindowEmbeddingAmplification := by
-  intro p q c hb hs
-  rcases amp hb hs with ⟨period, window, sync⟩
-  exact ⟨period, window, embeddingProvider_of_lowRowSync hb hs sync⟩
-
-theorem freshExtensionAmplification_of_periodWindowAmplification
-    (amp : PeriodWindowAmplification) :
-    FreshExtensionAmplification :=
-  freshExtensionAmplification_of_periodWindowEmbeddingAmplification
-    (periodWindowEmbeddingAmplification_of_periodWindowAmplification amp)
-
-theorem freshExtensionAmplification_of_windowAmplification
-    (amp : WindowAmplification) :
-    FreshExtensionAmplification :=
-  freshExtensionAmplification_of_periodWindowAmplification
-    (periodWindowAmplification_of_windowAmplification amp)
-
-theorem freshExtensionAmplification_of_periodWindowLowRowAmplification
-    (amp : PeriodWindowLowRowAmplification) :
-    FreshExtensionAmplification :=
-  freshExtensionAmplification_of_periodWindowEmbeddingAmplification
-    (periodWindowEmbeddingAmplification_of_periodWindowLowRowAmplification amp)
-
-theorem goodSeedAmplification_of_freshExtensionAmplification
-    (freshAmp : FreshExtensionAmplification) :
-    GoodSeedAmplification := by
-  intro p q c hb hs
-  exact infinite_pairwise_nonrep_of_freshExtensionProvider (freshAmp hb hs)
-
-theorem goodSeedAmplification_of_periodWindowEmbeddingAmplification
-    (amp : PeriodWindowEmbeddingAmplification) :
-    GoodSeedAmplification :=
-  goodSeedAmplification_of_freshExtensionAmplification
-    (freshExtensionAmplification_of_periodWindowEmbeddingAmplification amp)
-
-theorem goodSeedAmplification_of_periodWindowAmplification
-    (amp : PeriodWindowAmplification) :
-    GoodSeedAmplification :=
-  goodSeedAmplification_of_freshExtensionAmplification
-    (freshExtensionAmplification_of_periodWindowAmplification amp)
-
-theorem goodSeedAmplification_of_windowAmplification
-    (amp : WindowAmplification) :
-    GoodSeedAmplification := by
-  intro p q c hb hs
-  exact goodSeedAmplification_of_window hb hs (amp hb hs)
-
-theorem goodSeedAmplification_of_periodWindowLowRowAmplification
-    (amp : PeriodWindowLowRowAmplification) :
-    GoodSeedAmplification :=
-  goodSeedAmplification_of_freshExtensionAmplification
-    (freshExtensionAmplification_of_periodWindowLowRowAmplification amp)
-
 /- ## Explicit infinitude consequences -/
 
 /-- A pairwise-coprime nonrepresentable sequence is injective. -/
@@ -3517,27 +2940,6 @@ theorem pairwiseCoprimeNonrepSeq_injective
   rw [hmn] at hcop
   have hself : f n = 1 := by simpa using hcop
   exact (Nat.ne_of_gt (hf.1 n).1) hself
-
-/-- The sequence conclusion witnesses infinitely many distinct positive
-nonrepresentables coprime to both bases. -/
-theorem infinite_coprime_nonrepresentables_of_erdos1110Conclusion
-    {p q : Nat} (h : Apiros1110Conclusion p q) :
-    Set.Infinite (fun n : Nat =>
-      1 < n ∧ Nonrepresentable p q n ∧ Nat.Coprime n (p * q)) := by
-  rcases h with ⟨f, hf⟩
-  have hinfinite : Set.Infinite (Set.range f) :=
-    Set.infinite_range_of_injective (pairwiseCoprimeNonrepSeq_injective hf)
-  apply hinfinite.mono
-  intro n hn
-  rcases hn with ⟨i, rfl⟩
-  exact hf.1 i
-
-/-- In particular, the set of all nonrepresentable integers is infinite. -/
-theorem infinite_nonrepresentables_of_erdos1110Conclusion
-    {p q : Nat} (h : Apiros1110Conclusion p q) :
-    Set.Infinite (fun n : Nat => Nonrepresentable p q n) := by
-  exact (infinite_coprime_nonrepresentables_of_erdos1110Conclusion h).mono
-    (by intro n hn; exact hn.2.1)
 
 end Apiros1110
 
@@ -3567,19 +2969,6 @@ def RepresentableDensityZero (p q : Nat) : Prop :=
   ∀ K : Nat, 0 < K →
     ∃ X₀ : Nat, ∀ X ≥ X₀,
       K * representableCount p q X ≤ X
-
-theorem representableDensityZero_comm
-    {p q : Nat} :
-    RepresentableDensityZero p q ↔ RepresentableDensityZero q p := by
-  constructor <;> intro h K hK
-  · rcases h K hK with ⟨X₀, hX₀⟩
-    refine ⟨X₀, ?_⟩
-    intro X hX
-    simpa [representableCount_comm] using hX₀ X hX
-  · rcases h K hK with ⟨X₀, hX₀⟩
-    refine ⟨X₀, ?_⟩
-    intro X hX
-    simpa [representableCount_comm] using hX₀ X hX
 
 private theorem residue_one_coprime
     {M t : Nat} :
@@ -4364,17 +3753,6 @@ theorem representableCount_point99_of_seven_le_three
       (Nat.pow_le_pow_left hp 30)
   · norm_num
 
-/-- The coefficient-one `X^0.99` bound throughout the quantitative
-Yu--Chen range with second base at least three. -/
-theorem representableCount_point99_yuChen_q_ge_three
-    {p q : Nat} (hq : 3 ≤ q) (hpq : q < p)
-    (hq3 : q = 3 → 7 ≤ p) :
-    RepresentableCountPoint99Bound p q := by
-  by_cases h : q = 3
-  · subst q
-    exact representableCount_point99_of_seven_le_three (hq3 rfl)
-  · exact representableCount_point99_of_four_le_lt (by omega) hpq
-
 theorem representableDensityZero_of_four_le_lt
     {p q : Nat} (hq : 4 ≤ q) (hpq : q < p) :
     RepresentableDensityZero p q :=
@@ -4386,13 +3764,6 @@ theorem representableDensityZero_of_seven_le_three
     RepresentableDensityZero p 3 :=
   representableDensityZero_of_point99Bound
     (representableCount_point99_of_seven_le_three hp)
-
-theorem representableDensityZero_yuChen_q_ge_three
-    {p q : Nat} (hq : 3 ≤ q) (hpq : q < p)
-    (hq3 : q = 3 → 7 ≤ p) :
-    RepresentableDensityZero p q :=
-  representableDensityZero_of_point99Bound
-    (representableCount_point99_yuChen_q_ge_three hq hpq hq3)
 
 end Apiros1110
 
@@ -4727,20 +4098,6 @@ section
 
 namespace Apiros1110
 
-theorem corrected_embedding_bound_for_examples :
-    (5 ^ 2 < 2 ^ 5 ∧ 3 * 2 ^ 5 < 4 * 5 ^ 2) ∧
-    (9 ^ 2 < 2 ^ 7 ∧ 5 * 2 ^ 7 < 8 * 9 ^ 2) ∧
-    (5 < 3 ^ 2 ∧ 3 ^ 2 < 2 * 5) := by
-  decide
-
-theorem supplied_embedding_bound_is_false_for_5_2 :
-    ¬ (5 ^ 2 < 2 ^ 5 ∧ 4 * 2 ^ 5 < 3 * 5 ^ 2) := by
-  decide
-
-theorem supplied_embedding_bound_is_false_for_9_2 :
-    ¬ (9 ^ 2 < 2 ^ 7 ∧ 8 * 2 ^ 7 < 5 * 9 ^ 2) := by
-  decide
-
 private theorem one_le_of_pos {n : Nat} (h : 0 < n) : 1 ≤ n :=
   h
 
@@ -4946,56 +4303,6 @@ theorem seed_5_3 : GoodSeed 5 3 2 where
   coprime_pq := by decide
   support_succ := by simpa using support_3_within_15
 
-theorem exceptional_5_2_from_goodSeed_amplification
-    (amplify : GoodSeedAmplification) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f :=
-  amplify validBases_5_2 seed_5_2
-
-theorem exceptional_9_2_from_goodSeed_amplification
-    (amplify : GoodSeedAmplification) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f :=
-  amplify validBases_9_2 seed_9_2
-
-theorem exceptional_5_3_from_goodSeed_amplification
-    (amplify : GoodSeedAmplification) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f :=
-  amplify validBases_5_3 seed_5_3
-
-theorem exceptional_cases_from_goodSeed_amplification
-    (amplify : GoodSeedAmplification) :
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f) := by
-  exact ⟨exceptional_5_2_from_goodSeed_amplification amplify,
-    exceptional_9_2_from_goodSeed_amplification amplify,
-    exceptional_5_3_from_goodSeed_amplification amplify⟩
-
-theorem exceptional_5_2_from_freshExtension_amplification
-    (freshAmp : FreshExtensionAmplification) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f :=
-  exceptional_5_2_from_goodSeed_amplification
-    (goodSeedAmplification_of_freshExtensionAmplification freshAmp)
-
-theorem exceptional_9_2_from_freshExtension_amplification
-    (freshAmp : FreshExtensionAmplification) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f :=
-  exceptional_9_2_from_goodSeed_amplification
-    (goodSeedAmplification_of_freshExtensionAmplification freshAmp)
-
-theorem exceptional_5_3_from_freshExtension_amplification
-    (freshAmp : FreshExtensionAmplification) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f :=
-  exceptional_5_3_from_goodSeed_amplification
-    (goodSeedAmplification_of_freshExtensionAmplification freshAmp)
-
-theorem exceptional_cases_from_freshExtension_amplification
-    (freshAmp : FreshExtensionAmplification) :
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f) :=
-  exceptional_cases_from_goodSeed_amplification
-    (goodSeedAmplification_of_freshExtensionAmplification freshAmp)
-
 theorem exceptional_5_2_from_period_window
     (period : PeriodProvider 5 2)
     (window : PowerWindowProvider 5 2 3) :
@@ -5020,94 +4327,6 @@ theorem exceptional_5_3_from_period_window
     validBases_5_3 seed_5_3 period window
     (embeddingProvider_core validBases_5_3 seed_5_3)
 
-theorem exceptional_cases_from_period_window
-    (period_5_2 : PeriodProvider 5 2)
-    (window_5_2 : PowerWindowProvider 5 2 3)
-    (period_9_2 : PeriodProvider 9 2)
-    (window_9_2 : PowerWindowProvider 9 2 5)
-    (period_5_3 : PeriodProvider 5 3)
-    (window_5_3 : PowerWindowProvider 5 3 2) :
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f) :=
-  ⟨exceptional_5_2_from_period_window period_5_2 window_5_2,
-    exceptional_9_2_from_period_window period_9_2 window_9_2,
-    exceptional_5_3_from_period_window period_5_3 window_5_3⟩
-
-theorem exceptional_5_2_from_basic_period_window
-    (period : BasicPeriodProvider 5 2)
-    (window : PowerWindowProvider 5 2 3) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f :=
-  exceptional_5_2_from_period_window
-    (periodProvider_of_basicPeriodProvider period) window
-
-theorem exceptional_9_2_from_basic_period_window
-    (period : BasicPeriodProvider 9 2)
-    (window : PowerWindowProvider 9 2 5) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f :=
-  exceptional_9_2_from_period_window
-    (periodProvider_of_basicPeriodProvider period) window
-
-theorem exceptional_5_3_from_basic_period_window
-    (period : BasicPeriodProvider 5 3)
-    (window : PowerWindowProvider 5 3 2) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f :=
-  exceptional_5_3_from_period_window
-    (periodProvider_of_basicPeriodProvider period) window
-
-theorem exceptional_cases_from_basic_period_window
-    (period_5_2 : BasicPeriodProvider 5 2)
-    (window_5_2 : PowerWindowProvider 5 2 3)
-    (period_9_2 : BasicPeriodProvider 9 2)
-    (window_9_2 : PowerWindowProvider 9 2 5)
-    (period_5_3 : BasicPeriodProvider 5 3)
-    (window_5_3 : PowerWindowProvider 5 3 2) :
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f) :=
-  ⟨exceptional_5_2_from_basic_period_window period_5_2 window_5_2,
-    exceptional_9_2_from_basic_period_window period_9_2 window_9_2,
-    exceptional_5_3_from_basic_period_window period_5_3 window_5_3⟩
-
-theorem exceptional_5_2_from_base_period_window
-    (period5 : CoprimeBasePeriodProvider 5)
-    (period2 : CoprimeBasePeriodProvider 2)
-    (window : PowerWindowProvider 5 2 3) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f :=
-  exceptional_5_2_from_period_window
-    (periodProvider_of_coprimeBasePeriodProviders period5 period2) window
-
-theorem exceptional_9_2_from_base_period_window
-    (period9 : CoprimeBasePeriodProvider 9)
-    (period2 : CoprimeBasePeriodProvider 2)
-    (window : PowerWindowProvider 9 2 5) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f :=
-  exceptional_9_2_from_period_window
-    (periodProvider_of_coprimeBasePeriodProviders period9 period2) window
-
-theorem exceptional_5_3_from_base_period_window
-    (period5 : CoprimeBasePeriodProvider 5)
-    (period3 : CoprimeBasePeriodProvider 3)
-    (window : PowerWindowProvider 5 3 2) :
-    ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f :=
-  exceptional_5_3_from_period_window
-    (periodProvider_of_coprimeBasePeriodProviders period5 period3) window
-
-theorem exceptional_cases_from_base_period_window
-    (period2 : CoprimeBasePeriodProvider 2)
-    (period3 : CoprimeBasePeriodProvider 3)
-    (period5 : CoprimeBasePeriodProvider 5)
-    (period9 : CoprimeBasePeriodProvider 9)
-    (window_5_2 : PowerWindowProvider 5 2 3)
-    (window_9_2 : PowerWindowProvider 9 2 5)
-    (window_5_3 : PowerWindowProvider 5 3 2) :
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f) :=
-  ⟨exceptional_5_2_from_base_period_window period5 period2 window_5_2,
-    exceptional_9_2_from_base_period_window period9 period2 window_9_2,
-    exceptional_5_3_from_base_period_window period5 period3 window_5_3⟩
-
 theorem exceptional_5_2_from_window
     (window : PowerWindowProvider 5 2 3) :
     ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f :=
@@ -5128,41 +4347,6 @@ theorem exceptional_5_3_from_window
   exceptional_5_3_from_period_window
     (periodProvider_of_pos (p := 5) (q := 3) (by decide) (by decide))
     window
-
-theorem exceptional_cases_from_window
-    (window_5_2 : PowerWindowProvider 5 2 3)
-    (window_9_2 : PowerWindowProvider 9 2 5)
-    (window_5_3 : PowerWindowProvider 5 3 2) :
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f) :=
-  ⟨exceptional_5_2_from_window window_5_2,
-    exceptional_9_2_from_window window_9_2,
-    exceptional_5_3_from_window window_5_3⟩
-
-theorem exceptional_cases_from_window_amplification
-    (amp : WindowAmplification) :
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f) :=
-  exceptional_cases_from_goodSeed_amplification
-    (goodSeedAmplification_of_windowAmplification amp)
-
-theorem exceptional_cases_from_periodWindow_amplification
-    (amp : PeriodWindowAmplification) :
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f) :=
-  exceptional_cases_from_goodSeed_amplification
-    (goodSeedAmplification_of_periodWindowAmplification amp)
-
-theorem exceptional_cases_from_periodWindowLowRow_amplification
-    (amp : PeriodWindowLowRowAmplification) :
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f) :=
-  exceptional_cases_from_goodSeed_amplification
-    (goodSeedAmplification_of_periodWindowLowRowAmplification amp)
 
 end Apiros1110
 
@@ -5230,23 +4414,6 @@ theorem range_split
         by_cases hp5 : p = 5
         · exact Or.inr (Or.inr (Or.inr ⟨hp5, rfl⟩))
         · exact Or.inl (Or.inr (Or.inl ⟨rfl, hp5⟩))
-
-theorem erdos1110_unconditional_bridge
-    (yuChen : ∀ ⦃p q : Nat⦄,
-      Nat.Coprime p q → p > q → q ≥ 2 → YuChenRange p q →
-        Apiros1110Conclusion p q)
-    (exceptional : ∀ ⦃p q : Nat⦄,
-      Nat.Coprime p q → p > q → q ≥ 2 → MissingPair p q →
-        Apiros1110Conclusion p q)
-    {p q : Nat}
-    (hpq_coprime : Nat.Coprime p q)
-    (hpq : p > q)
-    (hq : q ≥ 2)
-    (hnot32 : ¬ (p = 3 ∧ q = 2)) :
-    Apiros1110Conclusion p q := by
-  cases range_split hpq hq hnot32 with
-  | inl hYC => exact yuChen hpq_coprime hpq hq hYC
-  | inr hMissing => exact exceptional hpq_coprime hpq hq hMissing
 
 end Apiros1110
 
@@ -5608,12 +4775,6 @@ theorem exceptional_5_3_unconditional :
     ∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f :=
   exceptional_5_3_from_window powerWindow_5_3
 
-theorem exceptional_cases_unconditional :
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 9 2 f) ∧
-    (∃ f : Nat → Nat, PairwiseCoprimeNonrepSeq 5 3 f) :=
-  exceptional_cases_from_window powerWindow_5_2 powerWindow_9_2 powerWindow_5_3
-
 theorem missingPair_unconditional
     {p q : Nat} (hMissing : MissingPair p q) :
     Apiros1110Conclusion p q := by
@@ -5625,21 +4786,6 @@ theorem missingPair_unconditional
       exact exceptional_9_2_unconditional
     · rcases h53 with ⟨rfl, rfl⟩
       exact exceptional_5_3_unconditional
-
-theorem erdos1110_from_yuChen
-    (yuChen : ∀ ⦃p q : Nat⦄,
-      Nat.Coprime p q → p > q → q ≥ 2 → YuChenRange p q →
-        Apiros1110Conclusion p q)
-    {p q : Nat}
-    (hpq_coprime : Nat.Coprime p q)
-    (hpq : p > q)
-    (hq : q ≥ 2)
-    (hnot32 : ¬ (p = 3 ∧ q = 2)) :
-    Apiros1110Conclusion p q :=
-  erdos1110_unconditional_bridge yuChen
-    (fun {p q} _ _ _ hMissing =>
-      missingPair_unconditional (p := p) (q := q) hMissing)
-    hpq_coprime hpq hq hnot32
 
 end
 
@@ -5750,43 +4896,6 @@ same pairwise-coprime nonrepresentable sequence.
 
 namespace Apiros1110
 
-/-- A witness sequence also works after the two bases are exchanged. -/
-theorem erdos1110Conclusion_swap {p q : Nat}
-    (h : Apiros1110Conclusion p q) : Apiros1110Conclusion q p := by
-  rcases h with ⟨f, hf⟩
-  refine ⟨f, ?_⟩
-  constructor
-  · intro n
-    rcases hf.1 n with ⟨hpos, hnonrep, hcop⟩
-    refine ⟨hpos, ?_, ?_⟩
-    · intro hrep
-      exact hnonrep (representable_swap hrep)
-    · simpa [Nat.mul_comm] using hcop
-  · intro m n hne
-    exact hf.2 hne
-
-/-- The unordered version: every coprime pair of bases at least two, apart
-from `{2,3}`, has an infinite pairwise-coprime nonrepresentable sequence. -/
-theorem erdos1110_unordered
-    {p q : Nat}
-    (hpq_coprime : Nat.Coprime p q)
-    (hp : 2 ≤ p)
-    (hq : 2 ≤ q)
-    (hnot23 : ¬ ((p = 2 ∧ q = 3) ∨ (p = 3 ∧ q = 2))) :
-    Apiros1110Conclusion p q := by
-  rcases lt_trichotomy p q with hlt | heq | hgt
-  · have hnot32 : ¬ (q = 3 ∧ p = 2) := by
-      intro h
-      exact hnot23 (Or.inl ⟨h.2, h.1⟩)
-    exact erdos1110Conclusion_swap
-      (erdos1110_unconditional hpq_coprime.symm hlt hp hnot32)
-  · subst q
-    have hself : Nat.gcd p p = 1 := hpq_coprime
-    have hpone : p = 1 := by simpa using hself
-    omega
-  · exact erdos1110_unconditional hpq_coprime hgt hq
-      (fun h => hnot23 (Or.inr h))
-
 end Apiros1110
 
 end
@@ -5825,18 +4934,6 @@ theorem erdos1110_setConclusion_of_sequence {p q : Nat}
   · intro n hn
     rcases hn with ⟨i, rfl⟩
     exact (hf.1 i).2.1
-
-/-- The set-form theorem for either order of the bases. -/
-theorem erdos1110_setConclusion_unordered
-    {p q : Nat}
-    (hpq_coprime : Nat.Coprime p q)
-    (hp : 2 ≤ p)
-    (hq : 2 ≤ q)
-    (hnot23 : ¬ ((p = 2 ∧ q = 3) ∨ (p = 3 ∧ q = 2))) :
-    ∃ A : Set Nat, A.Infinite ∧ A.Pairwise Nat.Coprime ∧
-      ∀ n ∈ A, ¬ Representable p q n :=
-  erdos1110_setConclusion_of_sequence
-    (erdos1110_unordered hpq_coprime hp hq hnot23)
 
 end Apiros1110
 
@@ -5931,72 +5028,6 @@ theorem representable_of_valueRepresentable
     rw [hsumAttach]
     exact hsum
 
-private theorem sum_toFinset_of_nodup (l : List Nat) (hl : l.Nodup) :
-    l.toFinset.sum id = l.sum := by
-  classical
-  induction l with
-  | nil => simp
-  | cons a as ih =>
-      have ha : a ∉ as := (List.nodup_cons.mp hl).1
-      have has : as.Nodup := (List.nodup_cons.mp hl).2
-      have haFin : a ∉ as.toFinset := by simpa using ha
-      rw [List.toFinset_cons, Finset.sum_insert haFin]
-      simpa [id] using congrArg (a + ·) (ih has)
-
-/-- For coprime bases above one, distinct exponent pairs have distinct
-term values. -/
-theorem term_injective_of_coprime
-    {p q : Nat} (hp : 1 < p) (hq : 1 < q)
-    (hpq : Nat.Coprime p q) :
-    Function.Injective (Term p q) := by
-  intro x y hxy
-  have hdivxy : Term p q x ∣ Term p q y := by rw [hxy]
-  have hdivyx : Term p q y ∣ Term p q x := by rw [← hxy]
-  have hcxy : CoordLe x y := term_dvd_coordLe hp hq hpq hdivxy
-  have hcyx : CoordLe y x := term_dvd_coordLe hp hq hpq hdivyx
-  exact Prod.ext (Nat.le_antisymm hcxy.1 hcyx.1)
-    (Nat.le_antisymm hcxy.2 hcyx.2)
-
-/-- Reverse bridge: a coordinate antichain becomes a finite divisibility
-antichain of distinct term values, with the same sum. -/
-theorem valueRepresentable_of_representable
-    {p q n : Nat} (hp : 1 < p) (hq : 1 < q)
-    (hpq : Nat.Coprime p q)
-    (h : Representable p q n) : ValueRepresentable p q n := by
-  classical
-  rcases h with ⟨A, hanti, hsum⟩
-  let values : List Nat := A.map (Term p q)
-  let s : Finset Nat := values.toFinset
-  have hvaluesNodup : values.Nodup :=
-    hanti.1.map (term_injective_of_coprime hp hq hpq)
-  refine ⟨s, ?_, ?_, ?_⟩
-  · intro v hv
-    have hvList : v ∈ values := by simpa [s] using hv
-    rcases List.mem_map.mp hvList with ⟨x, _hx, rfl⟩
-    exact ⟨x.1, x.2, by simp [Term]⟩
-  · change (s : Set Nat).Pairwise (fun v w => ¬ v ∣ w)
-    intro v hv w hw hvw hdiv
-    have hvList : v ∈ values := by simpa [s] using hv
-    have hwList : w ∈ values := by simpa [s] using hw
-    rcases List.mem_map.mp hvList with ⟨x, hx, rfl⟩
-    rcases List.mem_map.mp hwList with ⟨y, hy, rfl⟩
-    have hxy : x ≠ y := by
-      intro h
-      exact hvw (congrArg (Term p q) h)
-    exact hanti.2 hx hy hxy (term_dvd_coordLe hp hq hpq hdiv)
-  · have hsumValues : s.sum id = values.sum :=
-      sum_toFinset_of_nodup values hvaluesNodup
-    exact hsumValues.trans hsum
-
-/-- The local finite-value predicate and the repository's coordinate-source
-predicate agree for valid coprime bases. -/
-theorem valueRepresentable_iff_representable
-    {p q n : Nat} (hp : 1 < p) (hq : 1 < q)
-    (hpq : Nat.Coprime p q) :
-    ValueRepresentable p q n ↔ Representable p q n :=
-  ⟨representable_of_valueRepresentable,
-    valueRepresentable_of_representable hp hq hpq⟩
-
 end Apiros1110.ValuePredicateBridge
 
 end
@@ -6040,18 +5071,6 @@ theorem erdos1110_valueSetConclusion_normalized
       ∀ n ∈ A, ¬ ValueRepresentable p q n :=
   erdos1110_valueSetConclusion_of_sequence
     (erdos1110_unconditional hpq_coprime hqp hq hnot32)
-
-/-- The same finite-value conclusion for either base order. -/
-theorem erdos1110_valueSetConclusion_unordered
-    {p q : Nat}
-    (hpq_coprime : Nat.Coprime p q)
-    (hp : 2 ≤ p)
-    (hq : 2 ≤ q)
-    (hnot23 : ¬ ((p = 2 ∧ q = 3) ∨ (p = 3 ∧ q = 2))) :
-    ∃ A : Set Nat, A.Infinite ∧ A.Pairwise Nat.Coprime ∧
-      ∀ n ∈ A, ¬ ValueRepresentable p q n :=
-  erdos1110_valueSetConclusion_of_sequence
-    (erdos1110_unordered hpq_coprime hp hq hnot23)
 
 end Apiros1110
 

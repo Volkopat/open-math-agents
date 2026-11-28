@@ -758,31 +758,6 @@ lemma eval_matrix {G : Type} [DecidableEq G] (z : Param G → ℂ) (g h : G) :
   · by_cases hu : u=j <;> simp [Matrix.map_apply,mat,a,c,hu]
   · by_cases hu : u=k <;> simp [Matrix.map_apply,mat,a,b,hu]
 
-lemma common {G : Type} [Fintype G] [DecidableEq G]
-    (diag : ∃ a : Fin 3 → Fin 3 → ℂ, ∃ b c : Fin 3 → Fin 2 → ℂ, Cell True a a b c)
-    (off : ∃ a₁ a₂ : Fin 3 → Fin 3 → ℂ, ∃ b c : Fin 3 → Fin 2 → ℂ, Cell False a₁ a₂ b c) :
-    ∃ z : Param G → ℂ, ∀ g h : G, Cell (g=h) (a z g) (a z h) (b z g) (c z h) := by
-  classical
-  have separate (r : G×G) : ∃ z : Param G → ℂ, Function.Surjective
-      ((mat (MvPolynomial.X : Param G → MvPolynomial (Param G) ℂ) r.1 r.2).map (eval z)).mulVec := by
-    obtain ⟨g,h⟩ := r
-    by_cases he : g=h
-    · subst h
-      obtain ⟨aa,bb,cc,hh⟩ := diag
-      let z : Param G → ℂ := fun t => t.2.elim (aa t.1.2) (Sum.elim (bb t.1.2) (cc t.1.2))
-      refine ⟨z,?_⟩
-      rw [eval_matrix,← cell_iff]
-      simpa [Cell,z,a,b,c] using hh
-    · obtain ⟨a₁,a₂,bb,cc,hh⟩ := off
-      let z : Param G → ℂ := fun t => t.2.elim (fun i => if t.1.1=g then a₁ t.1.2 i else a₂ t.1.2 i)
-        (Sum.elim (bb t.1.2) (cc t.1.2))
-      refine ⟨z,?_⟩
-      rw [eval_matrix,← cell_iff]
-      simpa [Cell,z,a,b,c,he,Ne.symm he] using hh
-  obtain ⟨z,_,hz⟩ := simultaneous_surjectivity (fun r : G×G => mat (MvPolynomial.X : Param G → MvPolynomial (Param G) ℂ) r.1 r.2) separate 1 one_ne_zero
-  refine ⟨z,fun g h => (cell_iff z g h).mpr ?_⟩
-  simpa only [eval_matrix] using hz (g,h)
-
 def pad {G : Type} [DecidableEq G] (g : G) (f : Fin 2 → ℂ) (i : G×Fin 2) := if g=i.1 then f i.2 else 0
 
 lemma assemble {G : Type} [Fintype G] [DecidableEq G] (z : Param G → ℂ)
@@ -801,28 +776,6 @@ lemma assemble {G : Type} [Fintype G] [DecidableEq G] (z : Param G → ℂ)
   · subst h
     simp [Fintype.sum_prod_type,pad,Finset.sum_add_distrib,ite_mul,mul_ite,Finset.sum_ite_irrel]
   · simp [Fintype.sum_prod_type,pad,he,Ne.symm he,Finset.sum_add_distrib,ite_mul,mul_ite,Finset.sum_ite_irrel]
-
-lemma spans_of_cells (p : ℕ)
-    (diag : ∃ a : Fin 3 → Fin 3 → ℂ, ∃ b c : Fin 3 → Fin 2 → ℂ, Cell True a a b c)
-    (off : ∃ a₁ a₂ : Fin 3 → Fin 3 → ℂ, ∃ b c : Fin 3 → Fin 2 → ℂ, Cell False a₁ a₂ b c) :
-    Spans p := by
-  classical
-  obtain ⟨z,hz⟩ := common (G:=Fin p) diag off
-  let er : Fin (3*p) ≃ Fin p × Fin 3 := Fintype.equivOfCardEq (by simp [Nat.mul_comm])
-  let ei : Fin (2*p) ≃ Fin p × Fin 2 := Fintype.equivOfCardEq (by simp [Nat.mul_comm])
-  let a₀ (t : Fin (3*p)) := a z (er t).1 (er t).2
-  let b₀ (t : Fin (3*p)) (j : Fin (2*p)) := pad (er t).1 (b z (er t).1 (er t).2) (ei j)
-  let c₀ (t : Fin (3*p)) (k : Fin (2*p)) := pad (er t).1 (c z (er t).1 (er t).2) (ei k)
-  refine ⟨a₀,b₀,c₀,?_⟩
-  intro T
-  obtain ⟨u,v,w,hu⟩ := assemble z hz (fun i j k => T i (ei.symm j) (ei.symm k))
-  refine ⟨fun t => u (er t),fun t j => v (er t) (ei j),fun t k => w (er t) (ei k),?_⟩
-  intro i j k
-  have h := hu i (ei j) (ei k)
-  simp only [Equiv.symm_apply_apply] at h
-  exact h.trans ((er.sum_comp fun t => u t i * (pad t.1 (b z t.1 t.2) (ei j) * pad t.1 (c z t.1 t.2) (ei k)) +
-    a z t.1 t.2 i * (v t (ei j) * pad t.1 (c z t.1 t.2) (ei k)) +
-    a z t.1 t.2 i * (pad t.1 (b z t.1 t.2) (ei j) * w t (ei k))).symm)
 
 end ThreeEven.Grid
 
@@ -937,46 +890,6 @@ lemma eval_substitution {I J : Type} (F : J → MvPolynomial I ℂ) (x : I → �
     simp [MvPolynomial.aeval_eq_eval]
   exact DFunLike.congr_fun he P
 
-lemma vanishing_on_polynomial_image {I J : Type} [Fintype I] [Fintype J]
-    (hd : Fintype.card I < Fintype.card J) (F : J → MvPolynomial I ℂ) :
-    ∃ P : MvPolynomial J ℂ, P ≠ 0 ∧
-      ∀ x : I → ℂ, MvPolynomial.eval (fun j => MvPolynomial.eval x (F j)) P = 0 := by
-  classical
-  have hn : ¬ AlgebraicIndependent ℂ F := by
-    intro h
-    have hc := h.cardinalMk_le_trdeg
-    rw [MvPolynomial.trdeg_of_isDomain] at hc
-    have : Fintype.card J ≤ Fintype.card I := by simpa [Cardinal.mk_fintype] using hc
-    omega
-  rw [algebraicIndependent_iff] at hn
-  push Not at hn
-  obtain ⟨P, ha, hP⟩ := hn
-  refine ⟨P, hP, ?_⟩
-  intro x
-  rw [← eval_substitution F x P, ha, map_zero]
-
-/-- Agreement with a lower-dimensional chart on a product of infinite subsets
-extends to a polynomial identity on the entire parameter space. -/
-lemma generic_chart_relation {I J K : Type} [Fintype I] [Fintype J]
-    (hd : Fintype.card I < Fintype.card J) (chart : J → MvPolynomial I ℂ)
-    (full : J → MvPolynomial K ℂ)
-    (hnormal : ∀ x : K → ℂ, (∀ i, x i ≠ 0) →
-      ∃ y : I → ℂ, ∀ j, MvPolynomial.eval x (full j) = MvPolynomial.eval y (chart j)) :
-    ∃ P : MvPolynomial J ℂ, P ≠ 0 ∧
-      ∀ x : K → ℂ, MvPolynomial.eval (fun j => MvPolynomial.eval x (full j)) P = 0 := by
-  classical
-  obtain ⟨P, hP, hvanish⟩ := vanishing_on_polynomial_image hd chart
-  have hpoly : MvPolynomial.aeval full P = 0 := by
-    apply MvPolynomial.funext_set (fun _ : K => ({0}ᶜ : Set ℂ))
-      (fun _ => (Set.finite_singleton (0 : ℂ)).infinite_compl)
-    intro x hx
-    have hx0 (i : K) : x i ≠ 0 := hx i (Set.mem_univ _)
-    obtain ⟨y, hy⟩ := hnormal x hx0
-    rw [eval_substitution full x P, funext hy, map_zero]
-    exact hvanish y
-  refine ⟨P, hP, fun x => ?_⟩
-  rw [← eval_substitution full x P, hpoly, map_zero]
-
 def index_cons_equiv (n : ℕ) (ds : List ℕ) : HolorIndex (n :: ds) ≃ Fin n × HolorIndex ds where
   toFun
     | ⟨i :: is, h⟩ => (⟨i, (List.forall₂_cons.mp h).1⟩, ⟨is, (List.forall₂_cons.mp h).2⟩)
@@ -988,20 +901,6 @@ def index_cons_equiv (n : ℕ) (ds : List ℕ) : HolorIndex (n :: ds) ≃ Fin n 
     | nil => cases h
     | cons i is => rfl
   right_inv := by rintro ⟨⟨i, hi⟩, ⟨is, his⟩⟩; rfl
-
-def vector_index_equiv (n : ℕ) : HolorIndex [n] ≃ Fin n where
-  toFun i := ((index_cons_equiv n []) i).1
-  invFun i := ⟨[i.val], .cons i.isLt .nil⟩
-  left_inv := by
-    rintro ⟨l, h⟩
-    cases h with
-    | cons _ h => cases h; rfl
-  right_inv := by intro i; rfl
-
-def indexEquiv (n : ℕ) : HolorIndex [3, n, n] ≃ Fin 3 × Fin n × Fin n :=
-  (index_cons_equiv 3 [n, n]).trans (Equiv.prodCongr (Equiv.refl _)
-    ((index_cons_equiv n [n]).trans (Equiv.prodCongr (Equiv.refl _) (vector_index_equiv n))))
-
 
 end Dimension
 

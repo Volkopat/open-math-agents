@@ -1,6 +1,4 @@
 import FormalConjectures.ErdosProblems.«723»
-import Mathlib.FieldTheory.Finite.GaloisField
-import Mathlib.LinearAlgebra.Projectivization.Cardinality
 
 /-! Count the points of the projective plane over the finite field of the prescribed size. -/
 

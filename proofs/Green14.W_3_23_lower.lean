@@ -189,65 +189,33 @@ open scoped Classical
 
 namespace Green14
 
-/-- If an interval forces a mixed monochromatic progression, every larger
-interval forces one as well. -/
 theorem mixedMonoAPGuaranteeSet_upward (k r : ℕ) {M N : ℕ} (hMN : M ≤ N)
     (hM : M ∈ mixedMonoAPGuaranteeSet k r) :
     N ∈ mixedMonoAPGuaranteeSet k r := by
-  intro coloring
-  let emb : Icc 1 M ↪ Icc 1 N :=
-    ⟨fun x ↦ ⟨x, x.2.1, x.2.2.trans hMN⟩, by
-      intro x y h
-      apply Subtype.ext
-      exact congrArg (fun z : Icc 1 N ↦ (z : Nat)) h⟩
-  let restricted : Icc 1 M → Fin 2 := fun x ↦ coloring (emb x)
-  rcases hM restricted with hzero | hone
-  · left
-    rcases hzero with ⟨s, hsAP, hsColor⟩
-    let t : Finset (Icc 1 N) := s.map emb
-    have hsets : ({(x : Nat) | x ∈ t} : Set Nat) = {(x : Nat) | x ∈ s} := by
+  intro c
+  let e : Icc 1 M ↪ Icc 1 N :=
+    ⟨fun x ↦ ⟨x, x.2.1, x.2.2.trans hMN⟩, fun _ _ h ↦ by simpa [Subtype.ext_iff] using h⟩
+  have H (i L) : (∃ s : Finset (Icc 1 M), {(x : ℕ) | x ∈ s}.IsAPOfLength L ∧ ∀ x ∈ s, c (e x) = i) →
+      ∃ s : Finset (Icc 1 N), {(x : ℕ) | x ∈ s}.IsAPOfLength L ∧ ∀ x ∈ s, c x = i :=
+    fun ⟨s, h1, h2⟩ ↦ ⟨s.map e, by
+      convert h1 using 2
       ext z
       constructor
-      · rintro ⟨x,hx,rfl⟩
-        obtain ⟨y,hy,rfl⟩ := Finset.mem_map.mp hx
-        exact ⟨y,hy,rfl⟩
-      · rintro ⟨y,hy,rfl⟩
-        exact ⟨emb y,Finset.mem_map.mpr ⟨y,hy,rfl⟩,rfl⟩
-    refine ⟨t, ?_, ?_⟩
-    · rw [hsets]
-      exact hsAP
-    · intro x hx
-      rcases Finset.mem_map.mp hx with ⟨y, hy, rfl⟩
-      simpa [restricted] using hsColor y hy
-  · right
-    rcases hone with ⟨s, hsAP, hsColor⟩
-    let t : Finset (Icc 1 N) := s.map emb
-    have hsets : ({(x : Nat) | x ∈ t} : Set Nat) = {(x : Nat) | x ∈ s} := by
-      ext z
-      constructor
-      · rintro ⟨x,hx,rfl⟩
-        obtain ⟨y,hy,rfl⟩ := Finset.mem_map.mp hx
-        exact ⟨y,hy,rfl⟩
-      · rintro ⟨y,hy,rfl⟩
-        exact ⟨emb y,Finset.mem_map.mpr ⟨y,hy,rfl⟩,rfl⟩
-    refine ⟨t, ?_, ?_⟩
-    · rw [hsets]
-      exact hsAP
-    · intro x hx
-      rcases Finset.mem_map.mp hx with ⟨y, hy, rfl⟩
-      simpa [restricted] using hsColor y hy
+      · rintro ⟨_, h, rfl⟩
+        obtain ⟨y, hy, rfl⟩ := Finset.mem_map.1 h
+        exact ⟨y, hy, rfl⟩
+      · rintro ⟨y, hy, rfl⟩
+        exact ⟨e y, Finset.mem_map_of_mem e hy, rfl⟩, fun x hx ↦ by
+      obtain ⟨y, hy, rfl⟩ := Finset.mem_map.1 hx
+      exact h2 y hy⟩
+  exact (hM (c ∘ e)).imp (H 0 k) (H 1 r)
 
 /-- One bad coloring of `{1, ..., N}` proves the numerical lower bound
 `W(k,r) ≥ N+1`. -/
 theorem W_ge_succ_of_not_mem (k r N : ℕ) (hk : 1 ≤ k) (hr : 1 ≤ r)
-    (hbad : N ∉ mixedMonoAPGuaranteeSet k r) :
-    N + 1 ≤ W k r := by
-  rw [W]
-  apply le_csInf (mixedMonoAPGuaranteeSet_nonempty k r hk hr)
-  intro b hb
-  by_contra hle
-  have hbN : b ≤ N := Nat.lt_succ_iff.mp (Nat.lt_of_not_ge hle)
-  exact hbad (mixedMonoAPGuaranteeSet_upward k r hbN hb)
+    (hbad : N ∉ mixedMonoAPGuaranteeSet k r) : N + 1 ≤ W k r :=
+  le_csInf (mixedMonoAPGuaranteeSet_nonempty k r hk hr) fun _ hb ↦
+    Nat.lt_of_not_le fun h ↦ hbad (mixedMonoAPGuaranteeSet_upward k r h hb)
 
 end Green14
 

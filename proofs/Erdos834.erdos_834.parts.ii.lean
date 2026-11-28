@@ -1,82 +1,60 @@
 import FormalConjectures.ErdosProblems.«834»
 
--- Problem: Erdős Problem 834 — ii
--- Upstream: formal-conjectures FormalConjectures/ErdosProblems/834.lean:60 (declaration Erdos834.erdos_834.parts.ii)
--- Credit: @LordMike (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
-
 namespace OMA
 
-/-- The 9-vertex 3-uniform hypergraph of R. Li (arXiv 2512.24850), vertices shifted down by one. -/
-abbrev LiH : Finset (Finset (Fin 9)) :=
-  {{0, 1, 2}, {0, 1, 8}, {0, 2, 7}, {0, 3, 5}, {0, 3, 7}, {0, 3, 8}, {0, 4, 6}, {0, 4, 7}, {0, 4, 8}, {0, 5, 6}, {1, 2, 5}, {1, 2, 6}, {1, 3, 8}, {1, 4, 8}, {1, 5, 6}, {2, 3, 7}, {2, 4, 7}, {2, 5, 6}, {3, 5, 7}, {3, 5, 8}, {4, 6, 7}, {4, 6, 8}}
+/-- Li's nine-vertex hypergraph (arXiv:2512.24850). Each triple is paired with
+a binary coloring that becomes proper when that triple is removed. -/
+private def rows : List (Finset (Fin 9) × ℕ) := [
+  ({0,1,2},31), ({0,1,8},60), ({0,2,7},58), ({0,3,5},59),
+  ({0,3,7},203), ({0,3,8},178), ({0,4,6},91), ({0,4,7},179),
+  ({0,4,8},202), ({0,5,6},30), ({1,2,5},62), ({1,2,6},94),
+  ({1,3,8},53), ({1,4,8},77), ({1,5,6},29), ({2,3,7},51),
+  ({2,4,7},75), ({2,5,6},27), ({3,5,7},186), ({3,5,8},195),
+  ({4,6,7},218), ({4,6,8},163)]
 
-theorem liH_not_two : ¬ ∃ c : Fin 9 → Fin 2, LiH.IsProperHypergraphColoring c := by
-  unfold Finset.IsProperHypergraphColoring
-  decide +kernel
+private def LiH : Finset (Finset (Fin 9)) := (rows.map Prod.fst).toFinset
 
-set_option maxHeartbeats 4000000 in
-theorem liH_edge : ∀ e ∈ LiH, (LiH.erase e).HypergraphColorable 2 := by
+private def color (mask : ℕ) (vertex : Fin 9) : Fin 2 :=
+  if mask.testBit vertex.val then 1 else 0
+
+set_option maxRecDepth 10000 in
+set_option maxHeartbeats 2000000 in
+private theorem edges_colorable : ∀ e ∈ LiH, (LiH.erase e).HypergraphColorable 2 := by
+  have certificates : ∀ p ∈ rows, (LiH.erase p.1).IsProperHypergraphColoring (color p.2) := by
+    unfold Finset.IsProperHypergraphColoring
+    decide +kernel
   intro e he
-  simp only [LiH, Finset.mem_insert, Finset.mem_singleton] at he
-  rcases he with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl
-  · exact ⟨![1, 1, 1, 1, 1, 0, 0, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![0, 0, 1, 1, 1, 1, 0, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![0, 1, 0, 1, 1, 1, 0, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 1, 0, 1, 1, 1, 0, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 1, 0, 1, 0, 0, 1, 1, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![0, 1, 0, 0, 1, 1, 0, 1, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 1, 0, 1, 1, 0, 1, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 1, 0, 0, 1, 1, 0, 1, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![0, 1, 0, 1, 0, 0, 1, 1, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![0, 1, 1, 1, 1, 0, 0, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![0, 1, 1, 1, 1, 1, 0, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![0, 1, 1, 1, 1, 0, 1, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 0, 1, 0, 1, 1, 0, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 0, 1, 1, 0, 0, 1, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 0, 1, 1, 1, 0, 0, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 1, 0, 0, 1, 1, 0, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 1, 0, 1, 0, 0, 1, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 1, 0, 1, 1, 0, 0, 0, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![0, 1, 0, 1, 1, 1, 0, 1, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 1, 0, 0, 0, 0, 1, 1, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![0, 1, 0, 1, 1, 0, 1, 1, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · exact ⟨![1, 1, 0, 0, 0, 1, 0, 1, 0], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-
-theorem vertex_of_edge {e : Finset (Fin 9)} {v : Fin 9} (hv : v ∈ e) (he : e ∈ LiH) :
-    (LiH.filter (fun f ↦ v ∉ f)).HypergraphColorable 2 := by
-  obtain ⟨c, hc⟩ := liH_edge e he
-  refine ⟨c, fun f hf ↦ hc f ?_⟩
-  rw [Finset.mem_filter] at hf
-  rw [Finset.mem_erase]
-  exact ⟨fun h ↦ hf.2 (h ▸ hv), hf.1⟩
+  obtain ⟨p,hp,rfl⟩ := List.mem_map.mp (List.mem_toFinset.mp he)
+  exact ⟨_,certificates p hp⟩
 
 end OMA
 
+open OMA in
 theorem OMA.solution : type_of% @Erdos834.erdos_834.parts.ii := by
-  refine ⟨9, OMA.LiH, ?_, ⟨?_, ?_⟩, OMA.liH_edge, ?_, ?_⟩
-  · unfold Finset.IsUniform; decide +kernel
-  · exact ⟨![0, 0, 1, 0, 0, 1, 2, 1, 1], by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
-  · intro j hj
-    interval_cases j
-    · rintro ⟨c, -⟩
-      exact (c 0).elim0
-    · rintro ⟨c, hc⟩
-      obtain ⟨x, -, y, -, hxy⟩ := hc {0, 1, 2} (by decide +kernel)
-      exact hxy (Subsingleton.elim _ _)
-    · exact OMA.liH_not_two
-  · intro v
-    fin_cases v
-    · exact OMA.vertex_of_edge (e := {0, 1, 2}) (by decide +kernel) (by decide +kernel)
-    · exact OMA.vertex_of_edge (e := {0, 1, 2}) (by decide +kernel) (by decide +kernel)
-    · exact OMA.vertex_of_edge (e := {0, 1, 2}) (by decide +kernel) (by decide +kernel)
-    · exact OMA.vertex_of_edge (e := {0, 3, 5}) (by decide +kernel) (by decide +kernel)
-    · exact OMA.vertex_of_edge (e := {0, 4, 6}) (by decide +kernel) (by decide +kernel)
-    · exact OMA.vertex_of_edge (e := {0, 3, 5}) (by decide +kernel) (by decide +kernel)
-    · exact OMA.vertex_of_edge (e := {0, 4, 6}) (by decide +kernel) (by decide +kernel)
-    · exact OMA.vertex_of_edge (e := {0, 2, 7}) (by decide +kernel) (by decide +kernel)
-    · exact OMA.vertex_of_edge (e := {0, 1, 8}) (by decide +kernel) (by decide +kernel)
-  · intro v
+  have degree : ∀ v : Fin 9, 7 ≤ LiH.hypergraphDegree v := by
     unfold Finset.hypergraphDegree
-    revert v
     decide +kernel
+  refine ⟨9,LiH,?_,⟨?_,?_⟩,edges_colorable,?_,degree⟩
+  · unfold Finset.IsUniform
+    decide +kernel
+  · exact ⟨![0,0,1,0,0,1,2,1,1],by unfold Finset.IsProperHypergraphColoring; decide +kernel⟩
+  · have no : ¬LiH.HypergraphColorable 2 := by
+      unfold Finset.HypergraphColorable Finset.IsProperHypergraphColoring
+      decide +kernel
+    rintro k hk ⟨c,pc⟩
+    let embed (x : Fin k) : Fin 2 := ⟨x.val,by have := x.isLt; omega⟩
+    apply no
+    refine ⟨embed ∘ c,?_⟩
+    intro e he
+    obtain ⟨x,hx,y,hy,diff⟩ := pc e he
+    exact ⟨x,hx,y,hy,fun eq => diff (Fin.ext (congrArg (fun z : Fin 2 => z.val) eq))⟩
+  · intro v
+    have positive : 0 < (LiH.filter (fun e => v ∈ e)).card := by
+      have h := degree v
+      change 7 ≤ (LiH.filter (fun e => v ∈ e)).card at h
+      omega
+    obtain ⟨e,he,hv⟩ := Finset.filter_nonempty_iff.mp (Finset.card_pos.mp positive)
+    obtain ⟨c,works⟩ := edges_colorable e he
+    refine ⟨c,fun f hf => works f ?_⟩
+    obtain ⟨member,apart⟩ := Finset.mem_filter.mp hf
+    exact Finset.mem_erase.mpr ⟨fun eq => apart (eq ▸ hv),member⟩

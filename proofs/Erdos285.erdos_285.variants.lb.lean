@@ -1,5 +1,6 @@
 import FormalConjectures.ErdosProblems.«285»
 
+open Real
 -- Problem: Erdős Problem 285 — lb
 -- Upstream: formal-conjectures FormalConjectures/ErdosProblems/285.lean:67 (declaration Erdos285.erdos_285.variants.lb)
 -- Credit: @Rahul-007afk (the owner of the agent is credited as the solver)
@@ -24,10 +25,10 @@ lemma OMA.strictMono_gap {k : ℕ} (n : Fin (k + 1) → ℕ) (hn : StrictMono n)
     omega
 
 /-- `1 / x` dominates the increment of the logarithm. -/
-lemma OMA.log_step (x : ℝ) (hx : 0 < x) : Real.log (x + 1) - Real.log x ≤ 1 / x := by
-  have h1 : Real.log ((x + 1) / x) ≤ (x + 1) / x - 1 :=
-    Real.log_le_sub_one_of_pos (by positivity)
-  rw [Real.log_div (by positivity) (ne_of_gt hx)] at h1
+lemma OMA.log_step (x : ℝ) (hx : 0 < x) : log (x + 1) - log x ≤ 1 / x := by
+  have h1 : log ((x + 1) / x) ≤ (x + 1) / x - 1 :=
+    log_le_sub_one_of_pos (by positivity)
+  rw [log_div (by positivity) (ne_of_gt hx)] at h1
   have h2 : (x + 1) / x - 1 = 1 / x := by field_simp; ring
   linarith
 
@@ -36,7 +37,7 @@ denominator `N`, then the denominators are at most `N - k, …, N`, so the sum i
 `log ((N + 1) / (N - k))`, whence `N + 1 ≤ e * (N - k)`. -/
 lemma OMA.key {k : ℕ} (n : Fin (k + 1) → ℕ) (hn : StrictMono n) (h0 : 0 ∉ Set.range n)
     (hsum : 1 = ∑ i, (1 : ℝ) / n i) :
-    Real.exp 1 * ((k : ℝ) + 1) - (Real.exp 1 - 1) ≤ (Real.exp 1 - 1) * (n (Fin.last k) : ℝ) := by
+    exp 1 * ((k : ℝ) + 1) - (exp 1 - 1) ≤ (exp 1 - 1) * (n (Fin.last k) : ℝ) := by
   have hpos : ∀ i, 1 ≤ n i := by
     intro i
     by_contra hcon
@@ -52,7 +53,7 @@ lemma OMA.key {k : ℕ} (n : Fin (k + 1) → ℕ) (hn : StrictMono n) (h0 : 0 �
   obtain ⟨m, hm⟩ : ∃ m, m = n (Fin.last k) - k := ⟨_, rfl⟩
   have hm1 : 1 ≤ m := by omega
   have hterm : ∀ i : Fin (k + 1),
-      Real.log ((m : ℝ) + ((i.val + 1 : ℕ) : ℝ)) - Real.log ((m : ℝ) + ((i.val : ℕ) : ℝ)) ≤
+      log ((m : ℝ) + ((i.val + 1 : ℕ) : ℝ)) - log ((m : ℝ) + ((i.val : ℕ) : ℝ)) ≤
         (1 : ℝ) / n i := by
     intro i
     have hle : n i ≤ m + i.val := by have := hgap i; have := i.isLt; omega
@@ -67,27 +68,27 @@ lemma OMA.key {k : ℕ} (n : Fin (k + 1) → ℕ) (hn : StrictMono n) (h0 : 0 �
     rw [h3]
     linarith
   have hsumle : ∑ i : Fin (k + 1),
-      (Real.log ((m : ℝ) + ((i.val + 1 : ℕ) : ℝ)) - Real.log ((m : ℝ) + ((i.val : ℕ) : ℝ))) ≤
+      (log ((m : ℝ) + ((i.val + 1 : ℕ) : ℝ)) - log ((m : ℝ) + ((i.val : ℕ) : ℝ))) ≤
         ∑ i : Fin (k + 1), (1 : ℝ) / n i :=
     Finset.sum_le_sum (fun i _ => hterm i)
   have htel : ∑ i : Fin (k + 1),
-      (Real.log ((m : ℝ) + ((i.val + 1 : ℕ) : ℝ)) - Real.log ((m : ℝ) + ((i.val : ℕ) : ℝ))) =
-        Real.log ((m : ℝ) + ((k + 1 : ℕ) : ℝ)) - Real.log ((m : ℝ) + ((0 : ℕ) : ℝ)) := by
+      (log ((m : ℝ) + ((i.val + 1 : ℕ) : ℝ)) - log ((m : ℝ) + ((i.val : ℕ) : ℝ))) =
+        log ((m : ℝ) + ((k + 1 : ℕ) : ℝ)) - log ((m : ℝ) + ((0 : ℕ) : ℝ)) := by
     rw [Fin.sum_univ_eq_sum_range
-      (fun i : ℕ => Real.log ((m : ℝ) + ((i + 1 : ℕ) : ℝ)) - Real.log ((m : ℝ) + ((i : ℕ) : ℝ)))
+      (fun i : ℕ => log ((m : ℝ) + ((i + 1 : ℕ) : ℝ)) - log ((m : ℝ) + ((i : ℕ) : ℝ)))
       (k + 1)]
-    exact Finset.sum_range_sub (fun i : ℕ => Real.log ((m : ℝ) + ((i : ℕ) : ℝ))) (k + 1)
+    exact Finset.sum_range_sub (fun i : ℕ => log ((m : ℝ) + ((i : ℕ) : ℝ))) (k + 1)
   have hmpos : (0 : ℝ) < m := by exact_mod_cast hm1
-  have hlog : Real.log ((m : ℝ) + ((k + 1 : ℕ) : ℝ)) ≤ 1 + Real.log (m : ℝ) := by
+  have hlog : log ((m : ℝ) + ((k + 1 : ℕ) : ℝ)) ≤ 1 + log (m : ℝ) := by
     have e0 : (m : ℝ) + ((0 : ℕ) : ℝ) = m := by simp
     rw [htel, e0] at hsumle
     linarith
-  have hexp : (m : ℝ) + ((k + 1 : ℕ) : ℝ) ≤ Real.exp 1 * m := by
+  have hexp : (m : ℝ) + ((k + 1 : ℕ) : ℝ) ≤ exp 1 * m := by
     have hpos' : (0 : ℝ) < (m : ℝ) + ((k + 1 : ℕ) : ℝ) := by positivity
-    calc (m : ℝ) + ((k + 1 : ℕ) : ℝ) = Real.exp (Real.log ((m : ℝ) + ((k + 1 : ℕ) : ℝ))) :=
-          (Real.exp_log hpos').symm
-      _ ≤ Real.exp (1 + Real.log (m : ℝ)) := Real.exp_le_exp.2 hlog
-      _ = Real.exp 1 * m := by rw [Real.exp_add, Real.exp_log hmpos]
+    calc (m : ℝ) + ((k + 1 : ℕ) : ℝ) = exp (log ((m : ℝ) + ((k + 1 : ℕ) : ℝ))) :=
+          (exp_log hpos').symm
+      _ ≤ exp (1 + log (m : ℝ)) := exp_le_exp.2 hlog
+      _ = exp 1 * m := by rw [exp_add, exp_log hmpos]
   have hmN : (m : ℝ) = (n (Fin.last k) : ℝ) - (k : ℝ) := by
     rw [hm, Nat.cast_sub (by omega)]
   rw [hmN] at hexp
@@ -96,15 +97,15 @@ lemma OMA.key {k : ℕ} (n : Fin (k + 1) → ℕ) (hn : StrictMono n) (h0 : 0 �
 
 theorem OMA.solution : type_of% @Erdos285.erdos_285.variants.lb := by
   intro f S hS h
-  have he : (1 : ℝ) < Real.exp 1 := by
-    have := Real.add_one_lt_exp (show (1 : ℝ) ≠ 0 by norm_num)
+  have he : (1 : ℝ) < exp 1 := by
+    have := add_one_lt_exp (show (1 : ℝ) ≠ 0 by norm_num)
     linarith
-  refine ⟨fun k => (-(Real.exp 1 - 1) / Real.exp 1) / ((k : ℝ) + 1), ?_, ?_⟩
-  · show (fun k : ℕ => (-(Real.exp 1 - 1) / Real.exp 1) / ((k : ℝ) + 1)) =o[Filter.atTop]
+  refine ⟨fun k => (-(exp 1 - 1) / exp 1) / ((k : ℝ) + 1), ?_, ?_⟩
+  · show (fun k : ℕ => (-(exp 1 - 1) / exp 1) / ((k : ℝ) + 1)) =o[Filter.atTop]
       (fun _ : ℕ => (1 : ℝ))
     rw [Asymptotics.isLittleO_one_iff]
     have h1 := (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)).const_mul
-      (-(Real.exp 1 - 1) / Real.exp 1)
+      (-(exp 1 - 1) / exp 1)
     rw [mul_zero] at h1
     refine h1.congr (fun k => ?_)
     ring
@@ -113,14 +114,14 @@ theorem OMA.solution : type_of% @Erdos285.erdos_285.variants.lb := by
     have hkey := OMA.key n hn h0 hsum
     rw [hlast] at hkey
     have hk1 : (0 : ℝ) < (k : ℝ) + 1 := by positivity
-    have he1 : (0 : ℝ) < Real.exp 1 - 1 := by linarith
-    have hepos : (0 : ℝ) < Real.exp 1 := by linarith
-    have heq : (1 + (-(Real.exp 1 - 1) / Real.exp 1) / ((k : ℝ) + 1)) * Real.exp 1 /
-        (Real.exp 1 - 1) * ((k : ℝ) + 1) =
-        (Real.exp 1 * ((k : ℝ) + 1) - (Real.exp 1 - 1)) / (Real.exp 1 - 1) := by
+    have he1 : (0 : ℝ) < exp 1 - 1 := by linarith
+    have hepos : (0 : ℝ) < exp 1 := by linarith
+    have heq : (1 + (-(exp 1 - 1) / exp 1) / ((k : ℝ) + 1)) * exp 1 /
+        (exp 1 - 1) * ((k : ℝ) + 1) =
+        (exp 1 * ((k : ℝ) + 1) - (exp 1 - 1)) / (exp 1 - 1) := by
       field_simp
       ring
-    show (1 + (-(Real.exp 1 - 1) / Real.exp 1) / ((k : ℝ) + 1)) * Real.exp 1 /
-        (Real.exp 1 - 1) * ((k : ℝ) + 1) ≤ (f k : ℝ)
+    show (1 + (-(exp 1 - 1) / exp 1) / ((k : ℝ) + 1)) * exp 1 /
+        (exp 1 - 1) * ((k : ℝ) + 1) ≤ (f k : ℝ)
     rw [heq, div_le_iff₀ he1]
     linarith

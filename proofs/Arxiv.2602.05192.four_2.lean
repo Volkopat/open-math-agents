@@ -22,21 +22,9 @@ theorem invPhi (a b : ℝ) : 1 / Φ ((X - C a) * (X - C b)) = ENNReal.ofReal ((a
     rw [if_pos hnd]
     have ht : ({a, b} : Multiset ℝ).toFinset = {a, b} := by ext; simp
     simp only [ht]
-    have e1 : ({a, b} : Finset ℝ).erase a = {b} := by
-      ext x; simp only [Finset.mem_erase, Finset.mem_insert, Finset.mem_singleton]
-      constructor
-      · rintro ⟨h1, h2 | h2⟩
-        · exact absurd h2 h1
-        · exact h2
-      · rintro rfl; exact ⟨Ne.symm hab, Or.inr rfl⟩
-    have e2 : ({a, b} : Finset ℝ).erase b = {a} := by
-      ext x; simp only [Finset.mem_erase, Finset.mem_insert, Finset.mem_singleton]
-      constructor
-      · rintro ⟨h1, h2 | h2⟩
-        · exact h2
-        · exact absurd h2 h1
-      · rintro rfl; exact ⟨hab, Or.inl rfl⟩
-    rw [Finset.sum_pair hab, e1, e2]
+    have erase_root {x y : ℝ} (h : x ≠ y) : ({x, y} : Finset ℝ).erase x = {y} :=
+      Finset.erase_insert (by simpa using h)
+    rw [Finset.sum_pair hab, erase_root hab, Finset.pair_comm a b, erase_root (Ne.symm hab)]
     simp only [Finset.sum_singleton]
     have hd : (a - b) ≠ 0 := sub_ne_zero.mpr hab
     have hpos : 0 < (a - b) ^ 2 := by positivity

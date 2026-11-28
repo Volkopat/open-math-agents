@@ -1212,202 +1212,162 @@ set_option maxRecDepth 4096 in
 set_option maxHeartbeats 2000000 in
 private theorem fermatBucket_31_ok : fermatBucket_31.all fermat2Fail = true := rfl
 
-private theorem divChunk_0_len : divChunk_0.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_0_ok : checkDivChunk 1 divChunk_0 = true := rfl
 
-private theorem divChunk_1_len : divChunk_1.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_1_ok : checkDivChunk 101 divChunk_1 = true := rfl
 
-private theorem divChunk_2_len : divChunk_2.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_2_ok : checkDivChunk 201 divChunk_2 = true := rfl
 
-private theorem divChunk_3_len : divChunk_3.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_3_ok : checkDivChunk 301 divChunk_3 = true := rfl
 
-private theorem divChunk_4_len : divChunk_4.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_4_ok : checkDivChunk 401 divChunk_4 = true := rfl
 
-private theorem divChunk_5_len : divChunk_5.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_5_ok : checkDivChunk 501 divChunk_5 = true := rfl
 
-private theorem divChunk_6_len : divChunk_6.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_6_ok : checkDivChunk 601 divChunk_6 = true := rfl
 
-private theorem divChunk_7_len : divChunk_7.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_7_ok : checkDivChunk 701 divChunk_7 = true := rfl
 
-private theorem divChunk_8_len : divChunk_8.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_8_ok : checkDivChunk 801 divChunk_8 = true := rfl
 
-private theorem divChunk_9_len : divChunk_9.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_9_ok : checkDivChunk 901 divChunk_9 = true := rfl
 
-private theorem divChunk_10_len : divChunk_10.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_10_ok : checkDivChunk 1001 divChunk_10 = true := rfl
 
-private theorem divChunk_11_len : divChunk_11.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_11_ok : checkDivChunk 1101 divChunk_11 = true := rfl
 
-private theorem divChunk_12_len : divChunk_12.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_12_ok : checkDivChunk 1201 divChunk_12 = true := rfl
 
-private theorem divChunk_13_len : divChunk_13.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_13_ok : checkDivChunk 1301 divChunk_13 = true := rfl
 
-private theorem divChunk_14_len : divChunk_14.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_14_ok : checkDivChunk 1401 divChunk_14 = true := rfl
 
-private theorem divChunk_15_len : divChunk_15.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_15_ok : checkDivChunk 1501 divChunk_15 = true := rfl
 
-private theorem divChunk_16_len : divChunk_16.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_16_ok : checkDivChunk 1601 divChunk_16 = true := rfl
 
-private theorem divChunk_17_len : divChunk_17.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_17_ok : checkDivChunk 1701 divChunk_17 = true := rfl
 
-private theorem divChunk_18_len : divChunk_18.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_18_ok : checkDivChunk 1801 divChunk_18 = true := rfl
 
-private theorem divChunk_19_len : divChunk_19.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_19_ok : checkDivChunk 1901 divChunk_19 = true := rfl
 
-private theorem divChunk_20_len : divChunk_20.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_20_ok : checkDivChunk 2001 divChunk_20 = true := rfl
 
-private theorem divChunk_21_len : divChunk_21.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_21_ok : checkDivChunk 2101 divChunk_21 = true := rfl
 
-private theorem divChunk_22_len : divChunk_22.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_22_ok : checkDivChunk 2201 divChunk_22 = true := rfl
 
-private theorem divChunk_23_len : divChunk_23.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_23_ok : checkDivChunk 2301 divChunk_23 = true := rfl
 
-private theorem divChunk_24_len : divChunk_24.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_24_ok : checkDivChunk 2401 divChunk_24 = true := rfl
 
-private theorem divChunk_25_len : divChunk_25.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_25_ok : checkDivChunk 2501 divChunk_25 = true := rfl
 
-private theorem divChunk_26_len : divChunk_26.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_26_ok : checkDivChunk 2601 divChunk_26 = true := rfl
 
-private theorem divChunk_27_len : divChunk_27.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_27_ok : checkDivChunk 2701 divChunk_27 = true := rfl
 
-private theorem divChunk_28_len : divChunk_28.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_28_ok : checkDivChunk 2801 divChunk_28 = true := rfl
 
-private theorem divChunk_29_len : divChunk_29.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_29_ok : checkDivChunk 2901 divChunk_29 = true := rfl
 
-private theorem divChunk_30_len : divChunk_30.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_30_ok : checkDivChunk 3001 divChunk_30 = true := rfl
 
-private theorem divChunk_31_len : divChunk_31.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_31_ok : checkDivChunk 3101 divChunk_31 = true := rfl
 
-private theorem divChunk_32_len : divChunk_32.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_32_ok : checkDivChunk 3201 divChunk_32 = true := rfl
 
-private theorem divChunk_33_len : divChunk_33.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_33_ok : checkDivChunk 3301 divChunk_33 = true := rfl
 
-private theorem divChunk_34_len : divChunk_34.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_34_ok : checkDivChunk 3401 divChunk_34 = true := rfl
 
-private theorem divChunk_35_len : divChunk_35.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_35_ok : checkDivChunk 3501 divChunk_35 = true := rfl
 
-private theorem divChunk_36_len : divChunk_36.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_36_ok : checkDivChunk 3601 divChunk_36 = true := rfl
 
-private theorem divChunk_37_len : divChunk_37.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_37_ok : checkDivChunk 3701 divChunk_37 = true := rfl
 
-private theorem divChunk_38_len : divChunk_38.length = 100 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_38_ok : checkDivChunk 3801 divChunk_38 = true := rfl
 
-private theorem divChunk_39_len : divChunk_39.length = 95 := rfl
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
 private theorem divChunk_39_ok : checkDivChunk 3901 divChunk_39 = true := rfl
@@ -1450,126 +1410,131 @@ private lemma checkDivChunk_sound :
       have hlen' : (k0 + 1) + ws.length ≤ 3996 := by simp at hlen; omega
       exact checkDivChunk_sound ws (k0 + 1) k htail (by omega) hlen' hk1' hk2'
 
+private lemma disp (n : Nat) {ws : List Nat} {k0 k : Nat} (h : checkDivChunk k0 ws = true)
+    (hk : 1 ≤ k0 ∧ k0 + n ≤ 3996 ∧ k0 ≤ k ∧ k < k0 + n) (hl : ws.length = n := by decide +kernel) :
+    ¬ Nat.Prime (k * (k + 1) ^ ((3998 - k).totient / 2) - 1) :=
+  by subst hl; exact checkDivChunk_sound ws k0 k h hk.1 hk.2.1 hk.2.2.1 hk.2.2.2
+
 private lemma not_prime_all_range (k : Nat) (hk1 : 1 ≤ k) (hk2 : k ≤ 3995) :
     ¬ Nat.Prime (k * (k + 1) ^ ((3998 - k).totient / 2) - 1) := by
   if h0 : k ≤ 100 then
-    exact checkDivChunk_sound divChunk_0 1 k divChunk_0_ok (by omega) (by have := divChunk_0_len; omega) (by omega) (by have := divChunk_0_len; omega)
+    exact disp 100 divChunk_0_ok (by omega)
   else
   if h1 : k ≤ 200 then
-    exact checkDivChunk_sound divChunk_1 101 k divChunk_1_ok (by omega) (by have := divChunk_1_len; omega) (by omega) (by have := divChunk_1_len; omega)
+    exact disp 100 divChunk_1_ok (by omega)
   else
   if h2 : k ≤ 300 then
-    exact checkDivChunk_sound divChunk_2 201 k divChunk_2_ok (by omega) (by have := divChunk_2_len; omega) (by omega) (by have := divChunk_2_len; omega)
+    exact disp 100 divChunk_2_ok (by omega)
   else
   if h3 : k ≤ 400 then
-    exact checkDivChunk_sound divChunk_3 301 k divChunk_3_ok (by omega) (by have := divChunk_3_len; omega) (by omega) (by have := divChunk_3_len; omega)
+    exact disp 100 divChunk_3_ok (by omega)
   else
   if h4 : k ≤ 500 then
-    exact checkDivChunk_sound divChunk_4 401 k divChunk_4_ok (by omega) (by have := divChunk_4_len; omega) (by omega) (by have := divChunk_4_len; omega)
+    exact disp 100 divChunk_4_ok (by omega)
   else
   if h5 : k ≤ 600 then
-    exact checkDivChunk_sound divChunk_5 501 k divChunk_5_ok (by omega) (by have := divChunk_5_len; omega) (by omega) (by have := divChunk_5_len; omega)
+    exact disp 100 divChunk_5_ok (by omega)
   else
   if h6 : k ≤ 700 then
-    exact checkDivChunk_sound divChunk_6 601 k divChunk_6_ok (by omega) (by have := divChunk_6_len; omega) (by omega) (by have := divChunk_6_len; omega)
+    exact disp 100 divChunk_6_ok (by omega)
   else
   if h7 : k ≤ 800 then
-    exact checkDivChunk_sound divChunk_7 701 k divChunk_7_ok (by omega) (by have := divChunk_7_len; omega) (by omega) (by have := divChunk_7_len; omega)
+    exact disp 100 divChunk_7_ok (by omega)
   else
   if h8 : k ≤ 900 then
-    exact checkDivChunk_sound divChunk_8 801 k divChunk_8_ok (by omega) (by have := divChunk_8_len; omega) (by omega) (by have := divChunk_8_len; omega)
+    exact disp 100 divChunk_8_ok (by omega)
   else
   if h9 : k ≤ 1000 then
-    exact checkDivChunk_sound divChunk_9 901 k divChunk_9_ok (by omega) (by have := divChunk_9_len; omega) (by omega) (by have := divChunk_9_len; omega)
+    exact disp 100 divChunk_9_ok (by omega)
   else
   if h10 : k ≤ 1100 then
-    exact checkDivChunk_sound divChunk_10 1001 k divChunk_10_ok (by omega) (by have := divChunk_10_len; omega) (by omega) (by have := divChunk_10_len; omega)
+    exact disp 100 divChunk_10_ok (by omega)
   else
   if h11 : k ≤ 1200 then
-    exact checkDivChunk_sound divChunk_11 1101 k divChunk_11_ok (by omega) (by have := divChunk_11_len; omega) (by omega) (by have := divChunk_11_len; omega)
+    exact disp 100 divChunk_11_ok (by omega)
   else
   if h12 : k ≤ 1300 then
-    exact checkDivChunk_sound divChunk_12 1201 k divChunk_12_ok (by omega) (by have := divChunk_12_len; omega) (by omega) (by have := divChunk_12_len; omega)
+    exact disp 100 divChunk_12_ok (by omega)
   else
   if h13 : k ≤ 1400 then
-    exact checkDivChunk_sound divChunk_13 1301 k divChunk_13_ok (by omega) (by have := divChunk_13_len; omega) (by omega) (by have := divChunk_13_len; omega)
+    exact disp 100 divChunk_13_ok (by omega)
   else
   if h14 : k ≤ 1500 then
-    exact checkDivChunk_sound divChunk_14 1401 k divChunk_14_ok (by omega) (by have := divChunk_14_len; omega) (by omega) (by have := divChunk_14_len; omega)
+    exact disp 100 divChunk_14_ok (by omega)
   else
   if h15 : k ≤ 1600 then
-    exact checkDivChunk_sound divChunk_15 1501 k divChunk_15_ok (by omega) (by have := divChunk_15_len; omega) (by omega) (by have := divChunk_15_len; omega)
+    exact disp 100 divChunk_15_ok (by omega)
   else
   if h16 : k ≤ 1700 then
-    exact checkDivChunk_sound divChunk_16 1601 k divChunk_16_ok (by omega) (by have := divChunk_16_len; omega) (by omega) (by have := divChunk_16_len; omega)
+    exact disp 100 divChunk_16_ok (by omega)
   else
   if h17 : k ≤ 1800 then
-    exact checkDivChunk_sound divChunk_17 1701 k divChunk_17_ok (by omega) (by have := divChunk_17_len; omega) (by omega) (by have := divChunk_17_len; omega)
+    exact disp 100 divChunk_17_ok (by omega)
   else
   if h18 : k ≤ 1900 then
-    exact checkDivChunk_sound divChunk_18 1801 k divChunk_18_ok (by omega) (by have := divChunk_18_len; omega) (by omega) (by have := divChunk_18_len; omega)
+    exact disp 100 divChunk_18_ok (by omega)
   else
   if h19 : k ≤ 2000 then
-    exact checkDivChunk_sound divChunk_19 1901 k divChunk_19_ok (by omega) (by have := divChunk_19_len; omega) (by omega) (by have := divChunk_19_len; omega)
+    exact disp 100 divChunk_19_ok (by omega)
   else
   if h20 : k ≤ 2100 then
-    exact checkDivChunk_sound divChunk_20 2001 k divChunk_20_ok (by omega) (by have := divChunk_20_len; omega) (by omega) (by have := divChunk_20_len; omega)
+    exact disp 100 divChunk_20_ok (by omega)
   else
   if h21 : k ≤ 2200 then
-    exact checkDivChunk_sound divChunk_21 2101 k divChunk_21_ok (by omega) (by have := divChunk_21_len; omega) (by omega) (by have := divChunk_21_len; omega)
+    exact disp 100 divChunk_21_ok (by omega)
   else
   if h22 : k ≤ 2300 then
-    exact checkDivChunk_sound divChunk_22 2201 k divChunk_22_ok (by omega) (by have := divChunk_22_len; omega) (by omega) (by have := divChunk_22_len; omega)
+    exact disp 100 divChunk_22_ok (by omega)
   else
   if h23 : k ≤ 2400 then
-    exact checkDivChunk_sound divChunk_23 2301 k divChunk_23_ok (by omega) (by have := divChunk_23_len; omega) (by omega) (by have := divChunk_23_len; omega)
+    exact disp 100 divChunk_23_ok (by omega)
   else
   if h24 : k ≤ 2500 then
-    exact checkDivChunk_sound divChunk_24 2401 k divChunk_24_ok (by omega) (by have := divChunk_24_len; omega) (by omega) (by have := divChunk_24_len; omega)
+    exact disp 100 divChunk_24_ok (by omega)
   else
   if h25 : k ≤ 2600 then
-    exact checkDivChunk_sound divChunk_25 2501 k divChunk_25_ok (by omega) (by have := divChunk_25_len; omega) (by omega) (by have := divChunk_25_len; omega)
+    exact disp 100 divChunk_25_ok (by omega)
   else
   if h26 : k ≤ 2700 then
-    exact checkDivChunk_sound divChunk_26 2601 k divChunk_26_ok (by omega) (by have := divChunk_26_len; omega) (by omega) (by have := divChunk_26_len; omega)
+    exact disp 100 divChunk_26_ok (by omega)
   else
   if h27 : k ≤ 2800 then
-    exact checkDivChunk_sound divChunk_27 2701 k divChunk_27_ok (by omega) (by have := divChunk_27_len; omega) (by omega) (by have := divChunk_27_len; omega)
+    exact disp 100 divChunk_27_ok (by omega)
   else
   if h28 : k ≤ 2900 then
-    exact checkDivChunk_sound divChunk_28 2801 k divChunk_28_ok (by omega) (by have := divChunk_28_len; omega) (by omega) (by have := divChunk_28_len; omega)
+    exact disp 100 divChunk_28_ok (by omega)
   else
   if h29 : k ≤ 3000 then
-    exact checkDivChunk_sound divChunk_29 2901 k divChunk_29_ok (by omega) (by have := divChunk_29_len; omega) (by omega) (by have := divChunk_29_len; omega)
+    exact disp 100 divChunk_29_ok (by omega)
   else
   if h30 : k ≤ 3100 then
-    exact checkDivChunk_sound divChunk_30 3001 k divChunk_30_ok (by omega) (by have := divChunk_30_len; omega) (by omega) (by have := divChunk_30_len; omega)
+    exact disp 100 divChunk_30_ok (by omega)
   else
   if h31 : k ≤ 3200 then
-    exact checkDivChunk_sound divChunk_31 3101 k divChunk_31_ok (by omega) (by have := divChunk_31_len; omega) (by omega) (by have := divChunk_31_len; omega)
+    exact disp 100 divChunk_31_ok (by omega)
   else
   if h32 : k ≤ 3300 then
-    exact checkDivChunk_sound divChunk_32 3201 k divChunk_32_ok (by omega) (by have := divChunk_32_len; omega) (by omega) (by have := divChunk_32_len; omega)
+    exact disp 100 divChunk_32_ok (by omega)
   else
   if h33 : k ≤ 3400 then
-    exact checkDivChunk_sound divChunk_33 3301 k divChunk_33_ok (by omega) (by have := divChunk_33_len; omega) (by omega) (by have := divChunk_33_len; omega)
+    exact disp 100 divChunk_33_ok (by omega)
   else
   if h34 : k ≤ 3500 then
-    exact checkDivChunk_sound divChunk_34 3401 k divChunk_34_ok (by omega) (by have := divChunk_34_len; omega) (by omega) (by have := divChunk_34_len; omega)
+    exact disp 100 divChunk_34_ok (by omega)
   else
   if h35 : k ≤ 3600 then
-    exact checkDivChunk_sound divChunk_35 3501 k divChunk_35_ok (by omega) (by have := divChunk_35_len; omega) (by omega) (by have := divChunk_35_len; omega)
+    exact disp 100 divChunk_35_ok (by omega)
   else
   if h36 : k ≤ 3700 then
-    exact checkDivChunk_sound divChunk_36 3601 k divChunk_36_ok (by omega) (by have := divChunk_36_len; omega) (by omega) (by have := divChunk_36_len; omega)
+    exact disp 100 divChunk_36_ok (by omega)
   else
   if h37 : k ≤ 3800 then
-    exact checkDivChunk_sound divChunk_37 3701 k divChunk_37_ok (by omega) (by have := divChunk_37_len; omega) (by omega) (by have := divChunk_37_len; omega)
+    exact disp 100 divChunk_37_ok (by omega)
   else
   if h38 : k ≤ 3900 then
-    exact checkDivChunk_sound divChunk_38 3801 k divChunk_38_ok (by omega) (by have := divChunk_38_len; omega) (by omega) (by have := divChunk_38_len; omega)
+    exact disp 100 divChunk_38_ok (by omega)
   else
-    exact checkDivChunk_sound divChunk_39 3901 k divChunk_39_ok (by omega) (by have := divChunk_39_len; omega) (by omega) (by have := divChunk_39_len; omega)
+    exact disp 95 divChunk_39_ok (by omega)
 
 private lemma not_sq_3997 (r : Nat) : r ^ 2 ≠ 3997 := by
   intro h

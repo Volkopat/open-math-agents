@@ -294,8 +294,8 @@ def difficulty(e, em):
 def kind_of(cat):
     if cat == "research open":
         return "open"
-    if cat in ("research solved", "research formally solved"):
-        return "known"  # known result, formal proof missing
+    if cat in ("research solved", "research formally solved", "textbook"):
+        return "known"  # known result, formal proof missing ("textbook" = a known theorem, not an easy exercise)
     return "warmup"
 
 

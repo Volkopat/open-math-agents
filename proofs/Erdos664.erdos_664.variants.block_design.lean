@@ -62,20 +62,6 @@ def restrict (H : DesignHypergraph V) (X : Finset V) : DesignHypergraph V :=
     e ∈ H.restrict X ↔ e ∈ H ∧ e ⊆ X := by
   simp [restrict]
 
-theorem restrict_subset (H : DesignHypergraph V) (X : Finset V) : H.restrict X ⊆ H := by
-  intro e he
-  exact (mem_restrict.mp he).1
-
-theorem restrict_mono_right (H : DesignHypergraph V) {X Y : Finset V} (hXY : X ⊆ Y) :
-    H.restrict X ⊆ H.restrict Y := by
-  intro e he
-  exact mem_restrict.mpr ⟨(mem_restrict.mp he).1, (mem_restrict.mp he).2.trans hXY⟩
-
-theorem restrict_mono_left {H K : DesignHypergraph V} (hHK : H ⊆ K) (X : Finset V) :
-    H.restrict X ⊆ K.restrict X := by
-  intro e he
-  exact mem_restrict.mpr ⟨hHK (mem_restrict.mp he).1, (mem_restrict.mp he).2⟩
-
 @[simp] theorem restrict_empty (H : DesignHypergraph V) :
     H.restrict ∅ = H.filter (fun e => e = ∅) := by
   ext e
@@ -104,11 +90,6 @@ def trace (H : DesignHypergraph V) (X : Finset V) : DesignHypergraph V :=
 @[simp] theorem mem_trace {H : DesignHypergraph V} {X t : Finset V} :
     t ∈ H.trace X ↔ ∃ e ∈ H, e ∩ X = t := by
   simp [trace]
-
-theorem trace_edge_subset {H : DesignHypergraph V} {X t : Finset V} (ht : t ∈ H.trace X) :
-    t ⊆ X := by
-  obtain ⟨e, he, rfl⟩ := mem_trace.mp ht
-  exact Finset.inter_subset_right
 
 @[simp] theorem trace_empty (H : DesignHypergraph V) : H.trace ∅ = {∅} ↔ H.Nonempty := by
   constructor
@@ -194,16 +175,6 @@ def vertices (H : DesignHypergraph V) : Finset V :=
     v ∈ H.vertices ↔ ∃ e ∈ H, v ∈ e := by
   simp [vertices]
 
-theorem edge_subset_vertices {H : DesignHypergraph V} {e : Finset V} (he : e ∈ H) :
-    e ⊆ H.vertices := by
-  intro v hv
-  exact mem_vertices.mpr ⟨e, he, hv⟩
-
-theorem vertices_mono {H K : DesignHypergraph V} (hHK : H ⊆ K) : H.vertices ⊆ K.vertices := by
-  intro v hv
-  obtain ⟨e, he, hve⟩ := mem_vertices.mp hv
-  exact mem_vertices.mpr ⟨e, hHK he, hve⟩
-
 @[simp] theorem vertices_empty : (DesignHypergraph.vertices (∅ : DesignHypergraph V)) = ∅ := by
   ext v
   simp
@@ -214,23 +185,6 @@ def degree (H : DesignHypergraph V) (S : Finset V) : ℕ :=
 
 @[simp] theorem degree_empty (H : DesignHypergraph V) : H.degree ∅ = H.card := by
   simp [degree]
-
-theorem degree_mono_left {H K : DesignHypergraph V} (hHK : H ⊆ K) (S : Finset V) :
-    H.degree S ≤ K.degree S := by
-  apply Finset.card_le_card
-  intro e he
-  obtain ⟨heH, hSe⟩ := Finset.mem_filter.mp he
-  exact Finset.mem_filter.mpr ⟨hHK heH, hSe⟩
-
-theorem degree_anti_right (H : DesignHypergraph V) {S T : Finset V} (hST : S ⊆ T) :
-    H.degree T ≤ H.degree S := by
-  apply Finset.card_le_card
-  intro e he
-  obtain ⟨heH, hTe⟩ := Finset.mem_filter.mp he
-  exact Finset.mem_filter.mpr ⟨heH, hST.trans hTe⟩
-
-theorem degree_le_card (H : DesignHypergraph V) (S : Finset V) : H.degree S ≤ H.card := by
-  exact Finset.card_filter_le _ _
 
 end Basic
 
@@ -262,40 +216,10 @@ theorem strictLink_subset_link (H : DesignHypergraph V) (S : Finset V) :
   ext t
   simp
 
-theorem link_mono_left {H K : DesignHypergraph V} (hHK : H ⊆ K) (S : Finset V) :
-    H.link S ⊆ K.link S := by
-  intro t ht
-  obtain ⟨e, he, hSe, rfl⟩ := mem_link.mp ht
-  exact mem_link.mpr ⟨e, hHK he, hSe, rfl⟩
-
-theorem strictLink_mono_left {H K : DesignHypergraph V} (hHK : H ⊆ K) (S : Finset V) :
-    H.strictLink S ⊆ K.strictLink S := by
-  intro t ht
-  rw [mem_strictLink] at ht ⊢
-  obtain ⟨e, he, hSe, het⟩ := ht.2
-  exact ⟨ht.1, e, hHK he, hSe, het⟩
-
 theorem link_edge_disjoint {H : DesignHypergraph V} {S t : Finset V} (ht : t ∈ H.link S) :
     Disjoint t S := by
   obtain ⟨e, he, hSe, rfl⟩ := mem_link.mp ht
   exact Finset.disjoint_sdiff.symm
-
-theorem link_card_le_degree (H : DesignHypergraph V) (S : Finset V) :
-    (H.link S).card ≤ H.degree S := by
-  exact Finset.card_image_le
-
-theorem mem_link_iff_union_mem_of_disjoint {H : DesignHypergraph V} {S t : Finset V}
-    (hdis : Disjoint t S) : t ∈ H.link S ↔ S ∪ t ∈ H := by
-  constructor
-  · intro ht
-    obtain ⟨e, he, hSe, het⟩ := mem_link.mp ht
-    have hdecomp : S ∪ (e \ S) = e := Finset.union_sdiff_of_subset hSe
-    have heq : S ∪ t = e := by simpa [het] using hdecomp
-    rwa [heq]
-  · intro h
-    refine mem_link.mpr ⟨S ∪ t, h, Finset.subset_union_left, ?_⟩
-    rw [Finset.union_sdiff_left]
-    exact Finset.sdiff_eq_self_of_disjoint hdis
 
 end Links
 
@@ -322,18 +246,6 @@ def strictUpClosure (H : DesignHypergraph V) : DesignHypergraph V :=
 theorem subset_upClosure (H : DesignHypergraph V) : H ⊆ H.upClosure := by
   intro e he
   exact mem_upClosure.mpr ⟨e, he, Finset.Subset.rfl⟩
-
-theorem strictUpClosure_subset_upClosure (H : DesignHypergraph V) :
-    H.strictUpClosure ⊆ H.upClosure := by
-  intro S hS
-  obtain ⟨e, he, hes⟩ := mem_strictUpClosure.mp hS
-  exact mem_upClosure.mpr ⟨e, he, hes.1⟩
-
-theorem upClosure_mono {H K : DesignHypergraph V} (hHK : H ⊆ K) :
-    H.upClosure ⊆ K.upClosure := by
-  intro S hS
-  obtain ⟨e, he, heS⟩ := mem_upClosure.mp hS
-  exact mem_upClosure.mpr ⟨e, hHK he, heS⟩
 
 theorem upClosure_upward {H : DesignHypergraph V} {S T : Finset V}
     (hS : S ∈ H.upClosure) (hST : S ⊆ T) : T ∈ H.upClosure := by
@@ -362,19 +274,6 @@ variable [DecidableEq V]
 def Covers (C H : DesignHypergraph V) : Prop :=
   ∀ e ∈ H, ∃ c ∈ C, c ⊆ e
 
-theorem covers_iff_subset_upClosure [Fintype V] {C H : DesignHypergraph V} :
-    C.Covers H ↔ H ⊆ C.upClosure := by
-  constructor
-  · intro h e he
-    exact mem_upClosure.mpr (h e he)
-  · intro h e he
-    exact mem_upClosure.mp (h he)
-
-omit [DecidableEq V] in
-theorem Covers.refl (H : DesignHypergraph V) : H.Covers H := by
-  intro e he
-  exact ⟨e, he, Finset.Subset.rfl⟩
-
 omit [DecidableEq V] in
 theorem Covers.trans {A B C : DesignHypergraph V} (hAB : A.Covers B) (hBC : B.Covers C) :
     A.Covers C := by
@@ -383,33 +282,9 @@ theorem Covers.trans {A B C : DesignHypergraph V} (hAB : A.Covers B) (hBC : B.Co
   obtain ⟨a, ha, hab⟩ := hAB b hb
   exact ⟨a, ha, hab.trans hbe⟩
 
-omit [DecidableEq V] in
-theorem Covers.mono_left {C D H : DesignHypergraph V} (hCD : C ⊆ D) (h : C.Covers H) :
-    D.Covers H := by
-  intro e he
-  obtain ⟨c, hc, hce⟩ := h e he
-  exact ⟨c, hCD hc, hce⟩
-
-omit [DecidableEq V] in
-theorem Covers.mono_right {C H K : DesignHypergraph V} (hHK : H ⊆ K) (h : C.Covers K) :
-    C.Covers H := by
-  intro e he
-  exact h e (hHK he)
-
 /-- A set is independent when it contains no edge. -/
 def IsIndependent (H : DesignHypergraph V) (A : Finset V) : Prop :=
   ∀ e ∈ H, ¬ e ⊆ A
-
-omit [DecidableEq V] in
-theorem not_isIndependent_iff {H : DesignHypergraph V} {A : Finset V} :
-    ¬ H.IsIndependent A ↔ ∃ e ∈ H, e ⊆ A := by
-  classical
-  simp [IsIndependent]
-
-theorem isIndependent_iff_not_mem_upClosure [Fintype V]
-    {H : DesignHypergraph V} {A : Finset V} :
-    H.IsIndependent A ↔ A ∉ H.upClosure := by
-  simp [IsIndependent]
 
 omit [DecidableEq V] in
 theorem IsIndependent.mono {H : DesignHypergraph V} {A B : Finset V}
@@ -422,13 +297,6 @@ theorem IsIndependent.anti_hypergraph {H K : DesignHypergraph V} {A : Finset V}
     (hK : K.IsIndependent A) (hHK : H ⊆ K) : H.IsIndependent A := by
   intro e he
   exact hK e (hHK he)
-
-omit [DecidableEq V] in
-theorem Covers.independent_of {C H : DesignHypergraph V} (hCH : C.Covers H)
-    {A : Finset V} (hA : C.IsIndependent A) : H.IsIndependent A := by
-  intro e he heA
-  obtain ⟨c, hc, hce⟩ := hCH e he
-  exact hA c hc (hce.trans heA)
 
 end CoverAndIndependence
 
@@ -445,49 +313,9 @@ omit [DecidableEq V] in
     t ∈ H.map f ↔ ∃ e ∈ H, e.image f = t := by
   simp [map]
 
-omit [DecidableEq V] in
-theorem map_mono {f : V → W} {H K : DesignHypergraph V} (hHK : H ⊆ K) :
-    H.map f ⊆ K.map f := by
-  classical
-  intro t ht
-  obtain ⟨e, he, rfl⟩ := mem_map.mp ht
-  exact mem_map.mpr ⟨e, hHK he, rfl⟩
-
 @[simp] theorem map_id (H : DesignHypergraph V) : H.map id = H := by
   ext e
   simp
-
-omit [DecidableEq V] in
-theorem map_comp (g : W → U) (f : V → W) (H : DesignHypergraph V) :
-    (H.map f).map g = H.map (g ∘ f) := by
-  classical
-  ext t
-  simp only [mem_map]
-  constructor
-  · rintro ⟨s, ⟨e, he, rfl⟩, rfl⟩
-    exact ⟨e, he, by rw [Finset.image_image]⟩
-  · rintro ⟨e, he, rfl⟩
-    exact ⟨e.image f, ⟨e, he, rfl⟩, by rw [Finset.image_image]⟩
-
-omit [DecidableEq V] in
-theorem card_map_le (f : V → W) (H : DesignHypergraph V) :
-    (H.map f).card ≤ H.card := by
-  exact Finset.card_image_le
-
-omit [DecidableEq V] in
-theorem edge_card_map_le {f : V → W} {H : DesignHypergraph V} {t : Finset W}
-    (ht : t ∈ H.map f) : ∃ e ∈ H, t.card ≤ e.card := by
-  classical
-  obtain ⟨e, he, rfl⟩ := mem_map.mp ht
-  exact ⟨e, he, Finset.card_image_le⟩
-
-omit [DecidableEq V] in
-theorem edge_card_map_eq_of_injective {f : V → W} (hf : Function.Injective f)
-    {H : DesignHypergraph V} {t : Finset W} (ht : t ∈ H.map f) :
-    ∃ e ∈ H, t.card = e.card := by
-  classical
-  obtain ⟨e, he, rfl⟩ := mem_map.mp ht
-  exact ⟨e, he, Finset.card_image_of_injective e hf⟩
 
 /-- Pull a hypergraph back along `f`, considering every subset of the finite domain. -/
 def comap [Fintype V] (f : V → W) (K : DesignHypergraph W) : DesignHypergraph V :=
@@ -497,21 +325,6 @@ omit [DecidableEq V] in
 @[simp] theorem mem_comap [Fintype V] {f : V → W} {K : DesignHypergraph W}
     {e : Finset V} : e ∈ K.comap f ↔ e.image f ∈ K := by
   simp [comap]
-
-omit [DecidableEq V] in
-theorem map_comap_subset [Fintype V] (f : V → W) (K : DesignHypergraph W) :
-    (K.comap f).map f ⊆ K := by
-  classical
-  intro t ht
-  obtain ⟨e, he, rfl⟩ := mem_map.mp ht
-  exact mem_comap.mp he
-
-omit [DecidableEq V] in
-theorem subset_comap_map [Fintype V] (f : V → W) (H : DesignHypergraph V) :
-    H ⊆ (H.map f).comap f := by
-  classical
-  intro e he
-  exact mem_comap.mpr (mem_map.mpr ⟨e, he, rfl⟩)
 
 end Maps
 
@@ -532,13 +345,6 @@ omit [DecidableEq V] in
 @[simp] theorem weight_zero {R : Type*} [AddCommMonoid R] (H : DesignHypergraph V) :
     H.weight (fun _ => (0 : R)) = 0 := by
   simp [weight]
-
-omit [DecidableEq V] in
-theorem weight_congr {R : Type*} [AddCommMonoid R] {H K : DesignHypergraph V}
-    {w z : Finset V → R} (hHK : H = K)
-    (hw : ∀ e ∈ K, w e = z e) : H.weight w = K.weight z := by
-  subst H
-  exact Finset.sum_congr rfl hw
 
 theorem weight_union {R : Type*} [AddCommMonoid R] {H K : DesignHypergraph V}
     (hdis : Disjoint H K) (w : Finset V → R) :
@@ -910,14 +716,6 @@ def exact_pairwise_design (R : Finset (Point q))
 theorem retained_card_le (R : Finset (Point q)) : R.card ≤ q ^ 2 := by
   simpa only [point_card] using Finset.card_le_univ R
 
-/-- Lower bounds on ambient traces are exactly lower bounds on every actual
-block of the retained exact design. -/
-theorem traces_card_lower (R : Finset (Point q)) (b : ℕ)
-    (hR : ∀ l : Line q, b ≤ (points l ∩ R).card)
-    {B : Finset (Point q)} (hB : B ∈ traces R) : b ≤ B.card := by
-  obtain ⟨l, _, rfl⟩ := Finset.mem_image.mp hB
-  exact hR l
-
 /-- No line contains `k` members of a `k`-arc. -/
 def IsArc (k : ℕ) (A : Finset (Point q)) : Prop :=
   ∀ l : Line q, (A ∩ points l).card < k
@@ -1132,26 +930,6 @@ theorem card_lt_mul_succ : X.card < gamma * (P.chunks.card + 1) := by
       Nat.add_lt_add_left P.remainder_card_lt _
     _ = gamma * (P.chunks.card + 1) := by ring
 
-/-- Every chunk partition has exactly the integer quotient number of chunks. -/
-theorem chunks_card_eq_div : P.chunks.card = X.card / gamma := by
-  have hgamma : 0 < gamma :=
-    lt_of_le_of_lt (Nat.zero_le P.remainder.card) P.remainder_card_lt
-  calc
-    P.chunks.card = P.remainder.card / gamma + P.chunks.card := by
-      rw [Nat.div_eq_of_lt P.remainder_card_lt, zero_add]
-    _ = (P.remainder.card + gamma * P.chunks.card) / gamma :=
-      (Nat.add_mul_div_left _ _ hgamma).symm
-    _ = X.card / gamma := by
-      rw [Nat.add_comm, ← P.card_eq]
-
-/-- The remainder has the unique Euclidean remainder cardinality. -/
-theorem remainder_card_eq_mod : P.remainder.card = X.card % gamma := by
-  have hcount := P.card_eq
-  have hdiv := P.chunks_card_eq_div
-  have hEuclid := Nat.mod_add_div X.card gamma
-  rw [hdiv] at hcount
-  omega
-
 end ChunkPartition
 
 end JSP539
@@ -1328,15 +1106,6 @@ theorem powersetCard_degree_le (C S : Finset V) (k : ℕ) (hSC : S ⊆ C) :
     _ ≤ ((C \ S).powersetCard (k - S.card)).card := Finset.card_le_card himage
     _ = (C.card - S.card).choose (k - S.card) := by
       rw [Finset.card_powersetCard, Finset.card_sdiff_of_subset hSC]
-
-/-- If the required set is not contained in the chunk, its degree is zero. -/
-theorem powersetCard_degree_eq_zero (C S : Finset V) (k : ℕ) (hSC : ¬ S ⊆ C) :
-    ((C.powersetCard k).filter (fun e => S ⊆ e)).card = 0 := by
-  apply Finset.card_eq_zero.mpr
-  apply Finset.eq_empty_iff_forall_notMem.mpr
-  intro e he
-  obtain ⟨heC, hSe⟩ := Finset.mem_filter.mp he
-  exact hSC (hSe.trans (Finset.mem_powersetCard.mp heC).1)
 
 /-- A finite union of powerset layers. -/
 def chunkHypergraph (chunks : Finset (Finset V)) (k : ℕ) : DesignHypergraph V :=
@@ -1780,12 +1549,6 @@ omit [DecidableEq V] [Fintype V] in
     e ∈ H.update F ↔ (e ∈ H ∧ e ∉ F.upClosure) ∨ e ∈ F := by
   simp [update]
 
-/-- Filter presentation used by the executable container state machine. -/
-theorem update_eq_filter_union (H F : DesignHypergraph V) :
-    H.update F = (H.filter fun E => ¬ ∃ A ∈ F, A ⊆ E) ∪ F := by
-  ext E
-  simp [update]
-
 omit [DecidableEq V] [Fintype V] in
 theorem IsUniform.isAntichain {H : DesignHypergraph V} {s : ℕ}
     (hH : H.IsUniform s) : H.IsAntichain := by
@@ -1837,11 +1600,6 @@ theorem upRank_lt_update {H F : DesignHypergraph V}
     (hnew : ∃ A ∈ F, A ∉ H.upClosure) :
     H.upRank < (H.update F).upRank := by
   exact Finset.card_lt_card (upClosure_ssubset_update hnew)
-
-theorem upRank_le_two_pow (H : DesignHypergraph V) :
-    H.upRank ≤ 2 ^ Fintype.card V := by
-  simpa [upRank, Fintype.card_finset] using
-    (Finset.card_le_card (Finset.subset_univ H.upClosure))
 
 /-- The exact antichain invariant for a replacement step.  The hypothesis
 `houtside` is essential in the old-edge/new-edge orientation. -/
@@ -1956,14 +1714,6 @@ theorem link_layer_isUniform (H : DesignHypergraph V) (a : ℕ) (L : Finset V) :
   rw [Finset.card_sdiff_of_subset hLE, (mem_layer.mp hE).2]
 
 omit [Fintype V] in
-theorem link_layer_isAntichain [Finite V] (H : DesignHypergraph V) (a : ℕ) (L : Finset V) :
-    ((H.layer a).link L).IsAntichain := by
-  classical
-  let := Fintype.ofFinite V
-  exact
-    (link_layer_isUniform H a L).isAntichain
-
-omit [Fintype V] in
 theorem link_layer_hasNonemptyEdges {H : DesignHypergraph V} {a : ℕ} {L : Finset V}
     (hLnot : L ∉ H) : ((H.layer a).link L).HasNonemptyEdges := by
   intro F hF
@@ -2061,23 +1811,6 @@ theorem link_singleton_of_not_subset {E L : Finset V} (hLE : ¬ L ⊆ E) :
     (({E} : DesignHypergraph V).link L) = ∅ := by
   ext t
   simp [mem_link, hLE]
-
-/-- The number of strict update rounds is bounded by the number of subsets of
-the vertex type. -/
-theorem strict_upRank_chain_length_le {f : ℕ → DesignHypergraph V} {k : ℕ}
-    (hstep : ∀ i < k, (f i).upRank < (f (i + 1)).upRank) :
-    k ≤ 2 ^ Fintype.card V := by
-  have hsum : (f 0).upRank + k ≤ (f k).upRank := by
-    induction k with
-    | zero => simp
-    | succ k ih =>
-        have ih' : (f 0).upRank + k ≤ (f k).upRank :=
-          ih (fun i hi => hstep i (hi.trans (Nat.lt_succ_self k)))
-        have hk : (f k).upRank < (f (k + 1)).upRank :=
-          hstep k (Nat.lt_succ_self k)
-        omega
-  have hbound := upRank_le_two_pow (f k)
-  omega
 
 end DesignHypergraph
 end Erdos565
@@ -2329,17 +2062,6 @@ theorem seed_mul_pWeight_strictLink [Finite V] (H : DesignHypergraph V) (L : Fin
         (strictLink_subset_link H L hF)).symm
     rw [Finset.card_union_of_disjoint hdis, pow_add]
 
-omit [Fintype V] in
-/-- The fixed-layer identity above is also an immediate upper bound whenever
-one has a numerical degree estimate. -/
-theorem pWeight_strictLink_layer_le [Finite V] {H : DesignHypergraph V} {a : ℕ}
-    {L : Finset V} (hLa : L.card < a) {p R : ℝ}
-    (hdegree : ((H.layer a).degree L : ℝ) * p ^ (a - L.card) ≤ R) :
-    ((H.layer a).strictLink L).pWeight p ≤ R := by
-  classical
-  let := Fintype.ofFinite V
-  rwa [pWeight_strictLink_layer hLa]
-
 /-- Edges of rank strictly below `s`. -/
 def belowRank (H : DesignHypergraph V) (s : ℕ) : DesignHypergraph V :=
   H.filter fun E => E.card < s
@@ -2553,104 +2275,6 @@ theorem pWeight_retained_inserted_le [Finite V] {H D C K : DesignHypergraph V}
   have hdecomp := pWeight_sdiff_add hDH p
   nlinarith
 
-omit [Fintype V] in
-/-- One accepting step gains at least `1/(8s)` in below-rank weight once
-the replacement has weight at least `1/(4s)` and at most half of it is
-charged to deleted edges. -/
-theorem accepting_step_gain [Finite V] {H D C K : DesignHypergraph V} {s : ℕ}
-    (hs : 0 < s) {p : ℝ} (hp : 0 ≤ p) (hDH : D ⊆ H)
-    (hkeep : H \ D ⊆ K) (hinsert : C ⊆ K)
-    (hdis : Disjoint (H \ D) C)
-    (hremoved : D.pWeight p ≤ (1 / 2 : ℝ) * C.pWeight p)
-    (hreplacement : 1 / (4 * (s : ℝ)) ≤ C.pWeight p) :
-    H.pWeight p + 1 / (8 * (s : ℝ)) ≤ K.pWeight p := by
-  classical
-  let := Fintype.ofFinite V
-  have hbase := pWeight_retained_inserted_le hp hDH hkeep hinsert hdis
-  have hsR : (0 : ℝ) < s := by exact_mod_cast hs
-  have hfour : (0 : ℝ) < 4 * s := mul_pos (by norm_num) hsR
-  have height : (0 : ℝ) < 8 * s := mul_pos (by norm_num) hsR
-  have hhalf : (1 / 2 : ℝ) * (1 / (4 * (s : ℝ))) =
-      1 / (8 * (s : ℝ)) := by
-    rw [one_div_mul_one_div]
-    congr 1
-    ring
-  nlinarith [mul_le_mul_of_nonneg_left hreplacement (by norm_num : (0 : ℝ) ≤ 1 / 2)]
-
-/-- Telescoping a finite list of one-step gain inequalities. -/
-theorem telescope_step_gains {w gain : ℕ → ℝ} {k : ℕ}
-    (hstep : ∀ j < k, w j + gain j ≤ w (j + 1)) :
-    w 0 + ∑ j ∈ Finset.range k, gain j ≤ w k := by
-  induction k with
-  | zero => simp
-  | succ k ih =>
-      rw [Finset.sum_range_succ]
-      have hih : w 0 + ∑ j ∈ Finset.range k, gain j ≤ w k :=
-        ih (fun j hj => hstep j (hj.trans (Nat.lt_succ_self k)))
-      have hk := hstep k (Nat.lt_succ_self k)
-      have : w 0 + (∑ j ∈ Finset.range k, gain j) + gain k ≤ w (k + 1) := by
-        nlinarith
-      simpa [Nat.succ_eq_add_one, add_assoc] using this
-
-/-- A convenient accepted-step form of telescoping. -/
-theorem telescope_accepting_steps {w : ℕ → ℝ} {accepted : Finset ℕ}
-    {k : ℕ} {d : ℝ} (hacc : accepted ⊆ Finset.range k)
-    (hstep : ∀ j < k, w j + (if j ∈ accepted then d else 0) ≤ w (j + 1)) :
-    w 0 + (accepted.card : ℝ) * d ≤ w k := by
-  have htel := telescope_step_gains hstep
-  calc
-    w 0 + (accepted.card : ℝ) * d =
-        w 0 + ∑ j ∈ Finset.range k, if j ∈ accepted then d else 0 := by
-      congr 1
-      rw [← Finset.sum_filter]
-      have heq : (Finset.range k).filter (fun j => j ∈ accepted) = accepted := by
-        ext j
-        simp only [Finset.mem_filter, Finset.mem_range]
-        constructor
-        · exact fun h => h.2
-        · intro hj
-          exact ⟨Finset.mem_range.mp (hacc hj), hj⟩
-      rw [heq]
-      simp
-    _ ≤ w k := htel
-
-/-- Numerical consequence of telescoping accepting gains. -/
-theorem accepting_count_bound {w : ℕ → ℝ} {accepted : Finset ℕ}
-    {k s : ℕ} {M : ℝ} (hs : 0 < s) (hacc : accepted ⊆ Finset.range k)
-    (hstep : ∀ j < k,
-      w j + (if j ∈ accepted then 1 / (8 * (s : ℝ)) else 0) ≤ w (j + 1))
-    (hw0 : 0 ≤ w 0) (hwk : w k ≤ M) :
-    (accepted.card : ℝ) ≤ 8 * (s : ℝ) * M := by
-  have htel := telescope_accepting_steps hacc hstep
-  have hsR : (0 : ℝ) < s := by exact_mod_cast hs
-  have hden : (0 : ℝ) < 8 * s := mul_pos (by norm_num) hsR
-  rw [div_eq_mul_inv] at htel
-  have : (accepted.card : ℝ) * (8 * (s : ℝ))⁻¹ ≤ M := by nlinarith
-  calc
-    (accepted.card : ℝ) =
-        ((accepted.card : ℝ) * (8 * (s : ℝ))⁻¹) *
-          (8 * (s : ℝ)) := by
-      rw [mul_assoc, inv_mul_cancel₀ hden.ne']
-      ring
-    _ ≤ M * (8 * (s : ℝ)) := mul_le_mul_of_nonneg_right this hden.le
-    _ = 8 * (s : ℝ) * M := by ring
-
-omit [DecidableEq V] [Fintype V] in
-/-- If every accepting seed has at most `s` vertices, the union fingerprint
-has the advertised `8s²M` bound. -/
-theorem fingerprint_card_bound {S : Finset V} {accepted : Finset ℕ}
-    {s : ℕ} {M : ℝ}
-    (hScard : (S.card : ℝ) ≤ (s : ℝ) * accepted.card)
-    (haccept : (accepted.card : ℝ) ≤ 8 * (s : ℝ) * M)
-    (_ : 0 ≤ M) :
-    (S.card : ℝ) ≤ 8 * (s : ℝ) ^ 2 * M := by
-  have hs0 : (0 : ℝ) ≤ s := by positivity
-  calc
-    (S.card : ℝ) ≤ (s : ℝ) * accepted.card := hScard
-    _ ≤ (s : ℝ) * (8 * (s : ℝ) * M) :=
-      mul_le_mul_of_nonneg_left haccept hs0
-    _ = 8 * (s : ℝ) ^ 2 * M := by ring
-
 /-- Vertices which do occur as singleton edges. -/
 def forbiddenVertices (H : DesignHypergraph V) : Finset V :=
   Finset.univ.filter fun v => ({v} : Finset V) ∈ H
@@ -2693,16 +2317,6 @@ theorem pWeight_layer_one (H : DesignHypergraph V) (p : ℝ) :
   rw [pWeight_layer, card_layer_one_eq_forbiddenVertices]
   simp
   ring
-
-/-- Equivalent terminal singleton formula in terms of the available
-container vertices. -/
-theorem pWeight_layer_one_eq_complement (H : DesignHypergraph V) (p : ℝ) :
-    (H.layer 1).pWeight p =
-      p * ((Fintype.card V - (availableVertices H).card : ℕ) : ℝ) := by
-  have hcard := card_forbidden_add_available H
-  have heq : (forbiddenVertices H).card =
-      Fintype.card V - (availableVertices H).card := by omega
-  rw [pWeight_layer_one, heq]
 
 omit [Fintype V] in
 /-- A hypergraph with no empty edge is the disjoint union of its singleton
@@ -3127,11 +2741,6 @@ structure Selector (p : ℝ) (s : ℕ) where
   choose : ∀ H : DesignHypergraph V, H.IsAntichain → H.IsBounded s → ¬ Stop p H →
     Choice H p s
 
-noncomputable def canonicalSelector (p : ℝ) (s : ℕ) (hs : 0 < s) (hp : 0 < p) :
-    Selector (V := V) p s where
-  choose _ hanti hbounded hstop :=
-    Classical.choice (exists_choice_of_not_stop hs hp hanti hbounded hstop)
-
 /-! ## Preservation of the low-link invariant -/
 
 /-- Every proper lower-rank nonempty seed has small link weight. -/
@@ -3460,13 +3069,6 @@ def run {State : Type*} (terminal : State → Prop) [DecidablePred terminal]
     (hstate : ¬ terminal state) :
     run terminal next (fuel + 1) state = run terminal next fuel (next state) := by
   simp [run, hstate]
-
-/-- Once a run has reached a terminal state, extra fuel does not change it. -/
-theorem run_eq_of_terminal {State : Type*} (terminal : State → Prop)
-    [DecidablePred terminal] (next : State → State) {state : State}
-    (hstate : terminal state) : ∀ fuel, run terminal next fuel state = state
-  | 0 => rfl
-  | _ + 1 => run_succ_of_terminal terminal next hstate
 
 /-- If the final state of a run of length `fuel` is still nonterminal, then a
 natural-valued rank which strictly increases at every nonterminal step has
@@ -4110,16 +3712,6 @@ lemma output_reconstruct (q : Parameters) (H : DesignHypergraph V)
   apply run_replay
   · exact output_fingerprint_subset q H hH I
   · exact Finset.Subset.rfl
-
-lemma output_consistent (q : Parameters) (H : DesignHypergraph V)
-    (hH : H.IsUniform q.rank) {I J : Finset V}
-    (hS : (output q H hH I).fingerprint = (output q H hH J).fingerprint) :
-    output q H hH I = output q H hH J := by
-  calc
-    output q H hH I = output q H hH (output q H hH I).fingerprint :=
-      (output_reconstruct q H hH I).symm
-    _ = output q H hH (output q H hH J).fingerprint := congrArg _ hS
-    _ = output q H hH J := output_reconstruct q H hH J
 
 lemma output_fingerprint_bound (q : Parameters) (H : DesignHypergraph V)
     (hH : H.IsUniform q.rank) (I : Finset V) :
@@ -5175,17 +4767,6 @@ theorem fraction_eq_sum (P : A → Prop) :
   rw [← Finset.sum_filter]
   simp [fraction, div_eq_mul_inv]
 
-theorem fraction_nonneg (P : A → Prop) : 0 ≤ fraction P := by
-  unfold fraction
-  positivity
-
-theorem fraction_le_one (P : A → Prop) : fraction P ≤ 1 := by
-  by_cases hA : Fintype.card A = 0
-  · simp [fraction, hA]
-  · have hcard : ((Finset.univ.filter P).card : ℝ) ≤ Fintype.card A := by
-      exact_mod_cast Finset.card_filter_le (Finset.univ : Finset A) P
-    exact (div_le_one (by exact_mod_cast Nat.pos_of_ne_zero hA)).mpr hcard
-
 @[simp] theorem fraction_false : fraction (fun _ : A => False) = 0 := by
   simp [fraction]
 
@@ -5262,11 +4843,6 @@ theorem exists_neither_of_add_lt_one [Nonempty A] (P Q : A → Prop)
   obtain ⟨x, hx⟩ := exists_not_of_fraction_lt_one _ hbad
   exact ⟨x, not_or.mp hx⟩
 
-theorem average_nonneg {f : A → ℝ} (hf : ∀ a, 0 ≤ f a) :
-    0 ≤ average f := by
-  unfold average
-  exact div_nonneg (Finset.sum_nonneg fun a _ => hf a) (by positivity)
-
 theorem average_mono {f g : A → ℝ} (hfg : ∀ a, f a ≤ g a) :
     average f ≤ average g := by
   exact div_le_div_of_nonneg_right (Finset.sum_le_sum fun a _ => hfg a) (by positivity)
@@ -5282,16 +4858,6 @@ theorem average_mul_const (f : A → ℝ) (t : ℝ) :
   unfold average
   rw [← Finset.sum_mul]
   ring
-
-theorem average_const [Nonempty A] (t : ℝ) :
-    average (fun _ : A => t) = t := by
-  have hA : (Fintype.card A : ℝ) ≠ 0 := by
-    exact_mod_cast Fintype.card_ne_zero
-  simp [average, hA]
-
-theorem average_add (f g : A → ℝ) :
-    average (fun a => f a + g a) = average f + average g := by
-  simp [average, Finset.sum_add_distrib, add_div]
 
 theorem average_equiv {B : Type*} [Fintype B] [DecidableEq B]
     (e : A ≃ B) (f : B → ℝ) : average (fun a => f (e a)) = average f := by
@@ -6367,11 +5933,6 @@ theorem indexedBlock_card (i : Fin D.blocks.card) :
     (D.indexedBlock i).card = (D.originalBlock i).card :=
   D.relabel_card _ (D.block_subset _ (D.originalBlock_mem i))
 
-theorem indexedBlock_card_ge_two (i : Fin D.blocks.card) :
-    2 ≤ (D.indexedBlock i).card := by
-  rw [D.indexedBlock_card]
-  exact D.block_card_ge_two _ (D.originalBlock_mem i)
-
 /-- Send a candidate transversal back to the original ground set. -/
 noncomputable def lift (Q : Finset (Fin D.ground.card)) : Finset V :=
   Q.image D.point
@@ -6415,23 +5976,6 @@ theorem indexed_pair_exactly_once (x y : Fin D.ground.card) (hxy : x ≠ y) :
     exact (huniq _ ⟨D.originalBlock_mem j,
       (D.mem_indexedBlock j x).mp hj.1,
       (D.mem_indexedBlock j y).mp hj.2⟩).trans hi.symm
-
-/-- Exact pair uniqueness itself forces two distinct actual blocks to meet in at
-most one point; the minimum block size is not needed for this implication. -/
-theorem block_intersection_card_le_one {B C : Finset V}
-    (hB : B ∈ D.blocks) (hC : C ∈ D.blocks) (hBC : B ≠ C) :
-    (B ∩ C).card ≤ 1 := by
-  apply Finset.card_le_one.mpr
-  intro x hx y hy
-  by_contra hxy
-  obtain ⟨E, hE, huniq⟩ := D.pair_exactly_once x
-    (D.block_subset B hB (Finset.mem_inter.mp hx).1) y
-    (D.block_subset B hB (Finset.mem_inter.mp hy).1) hxy
-  apply hBC
-  exact (huniq B ⟨hB, (Finset.mem_inter.mp hx).1,
-    (Finset.mem_inter.mp hy).1⟩).trans
-    (huniq C ⟨hC, (Finset.mem_inter.mp hx).2,
-      (Finset.mem_inter.mp hy).2⟩).symm
 
 theorem indexed_intersection_card_le_one (i j : Fin D.blocks.card) (hij : i ≠ j) :
     (D.indexedBlock i ∩ D.indexedBlock j).card ≤ 1 := by

@@ -34,6 +34,13 @@ export function outcomeOf(kind: string | undefined | null, id?: string | null): 
   return kind === "known" ? "known" : kind === "warmup" ? "warmup" : "step";
 }
 
+/** Shown as solved in lists: a Lean proof, and for an open problem also both statement reviews (a proof of a misstated
+ * or placeholder statement, or one still under review, is not shown as "Solved"). */
+export function shownSolved(solved: Set<string>, kind: string | undefined | null, id: string): boolean {
+  if (!solved.has(id)) return false;
+  return !(kind === "open" || kind === "unformalized") || outcomeOf(kind, id) === "open";
+}
+
 const TEXT: Record<Outcome, { badge: string; refuted: string; verb: string; short: string; explain: string; section: string }> = {
   open: {
     badge: "Open problem solved", refuted: "Open problem refuted", verb: "SOLVED AN OPEN PROBLEM:", short: "open problem solved",

@@ -28,55 +28,42 @@ lemma two_sets {s t : Finset V} (hs : G.IsIndepSet s) (ht : G.IsIndepSet t)
   · exact ⟨Fintype.card V, fun _ ⟨z, _, hz⟩ => hz ▸ z.card_le_univ⟩
   · exact ⟨s ∪ t, hb, Finset.card_union_of_disjoint hd⟩
 
+private lemma place {a b : V} (p : G.Walk a b) (hp : p.length = G.dist a b)
+    (i : ℕ) (hi : i ≤ p.length) : G.dist a (p.getVert i) = i := by
+  have h := length_eq_dist_of_subwalk hp (p.isSubwalk_take i)
+  simpa [Walk.take_length, Nat.min_eq_left hi] using h.symm
+
 lemma extra_vertices (s : Finset V) (hs : G.IsIndepSet s) {a b : V}
     (p : G.Walk a b) (hp : p.length = G.dist a b) :
     ∃ t : Finset V, Disjoint s t ∧ G.IsIndepSet t ∧ t.card = (p.length + 2) / 3 := by
-  classical
   let k := (p.length + 2) / 3
-  have len (i : Fin k) : 3 * i.val + 1 ≤ p.length := by
-    have hi := i.isLt
-    dsimp [k] at hi
-    omega
-  have place (n : ℕ) (hn : n ≤ p.length) : G.dist a (p.getVert n) = n := by
-    have h := length_eq_dist_of_subwalk hp (p.isSubwalk_take n)
-    simpa [Walk.take_length, Nat.min_eq_left hn] using h.symm
   have pair (i : Fin k) : ∃ v ∉ s, 3*i.val ≤ G.dist a v ∧ G.dist a v ≤ 3*i.val+1 := by
-    let n := 3*i.val
-    have hn : n+1 ≤ p.length := len i
-    have he := p.adj_getVert_succ (show n < p.length by omega)
-    by_cases h0 : p.getVert n ∈ s
-    · refine ⟨p.getVert (n+1), fun h1 => hs h0 h1 he.ne he, ?_⟩
-      rw [place _ hn]
-      dsimp [n]
-      omega
-    · refine ⟨p.getVert n, h0, ?_⟩
-      rw [place _ (by omega)]
-      dsimp [n]
-      omega
+    have hi := i.isLt
+    have hn : 3*i.val+1 ≤ p.length := by dsimp [k] at hi; omega
+    have he := p.adj_getVert_succ (show 3*i.val < p.length by omega)
+    by_cases h : p.getVert (3*i.val) ∈ s
+    · exact ⟨_, fun hv => hs h hv he.ne he, by rw [place p hp _ hn]; omega⟩
+    · exact ⟨_, h, by rw [place p hp _ (by omega)]; omega⟩
   choose f outside lower upper using pair
-  have inj : Function.Injective f := by
-    intro i j hij
-    have he := congrArg (G.dist a) hij
+  have hinj : Function.Injective f := by
+    intro i j h
+    have := congrArg (G.dist a) h
     have := lower i
     have := upper i
     have := lower j
     have := upper j
-    apply Fin.ext
-    omega
-  let e : Fin k ↪ V := ⟨f,inj⟩
-  let t := Finset.univ.map e
-  refine ⟨t, ?_, ?_, by simp [t,k]⟩
-  · apply Finset.disjoint_left.mpr
-    intro v hv ht
+    exact Fin.ext (by omega)
+  let e : Fin k ↪ V := ⟨f,hinj⟩
+  refine ⟨Finset.univ.map e, Finset.disjoint_left.mpr ?_, ?_, by simp [k]⟩
+  · intro v hv ht
     obtain ⟨i, _, rfl⟩ := Finset.mem_map.mp ht
     exact outside i hv
   · intro u hu v hv huv h
     obtain ⟨i, _, rfl⟩ := Finset.mem_map.mp hu
     obtain ⟨j, _, rfl⟩ := Finset.mem_map.mp hv
-    have hne : i.val ≠ j.val := fun h => huv (congrArg e (Fin.ext h))
+    have hne : i.val ≠ j.val := fun hij => huv (congrArg e (Fin.ext hij))
     have gap := h.symm.diff_dist_adj (u := a)
-    change G.dist a (f i) = G.dist a (f j) ∨ G.dist a (f i) = G.dist a (f j) + 1 ∨
-      G.dist a (f i) = G.dist a (f j) - 1 at gap
+    dsimp [e] at gap
     have := lower i
     have := upper i
     have := lower j
@@ -85,47 +72,33 @@ lemma extra_vertices (s : Finset V) (hs : G.IsIndepSet s) {a b : V}
 
 variable [DecidableRel G.Adj]
 
-private lemma place {a b : V} (p : G.Walk a b) (hp : p.length = G.dist a b)
-    (i : ℕ) (hi : i ≤ p.length) : G.dist a (p.getVert i) = i := by
-  have h := length_eq_dist_of_subwalk hp (p.isSubwalk_take i)
-  simpa [Walk.take_length, Nat.min_eq_left hi] using h.symm
-
 -- A maximum-degree vertex whose component extends beyond its closed neighborhood
 -- has two nonadjacent neighbors: otherwise its first neighbor on a geodesic
 -- would have strictly larger degree.
 private lemma two_neighbors {a b : V} (hc : G.Connected) (ha : G.degree a = G.maxDegree)
     (hab : 2 ≤ G.dist a b) :
     ∃ x y, G.Adj a x ∧ G.Adj a y ∧ x ≠ y ∧ ¬ G.Adj x y := by
-  classical
   obtain ⟨p, hp⟩ := hc.exists_walk_length_eq_dist a b
   let x := p.getVert 1
   let z := p.getVert 2
   have hx : G.Adj a x := by simpa [x] using p.adj_getVert_succ (show 0 < p.length by omega)
   have hz : G.Adj x z := p.adj_getVert_succ (show 1 < p.length by omega)
-  have hdist : G.dist a z = 2 := place p hp 2 (by omega)
+  have hd : G.dist a z = 2 := place p hp 2 (by omega)
   by_contra! h
   let C (v : V) := insert v (G.neighborFinset v)
-  have cardC (v : V) : (C v).card = G.degree v + 1 := by simp [C]
-  have hsub : C a ⊂ C x := by
-    apply Finset.ssubset_iff_subset_ne.mpr
-    constructor
-    · intro w hw
-      simp only [C, Finset.mem_insert, mem_neighborFinset] at hw ⊢
-      rcases hw with rfl | hw
-      · exact Or.inr hx.symm
-      · by_cases he : x = w
-        · exact Or.inl he.symm
-        · exact Or.inr (h x w hx hw he)
-    · intro he
-      have hz' : z ∈ C a := he ▸ (show z ∈ C x by simp [C,hz])
-      simp only [C, Finset.mem_insert, mem_neighborFinset] at hz'
-      rcases hz' with heq | hz'
-      · rw [heq] at hdist; simp at hdist
-      · rw [dist_eq_one_iff_adj.mpr hz'] at hdist; omega
-  have hgt := Finset.card_lt_card hsub
-  rw [cardC, cardC, ha] at hgt
-  have := G.degree_le_maxDegree x
-  omega
+  have sub : C a ⊆ C x := by
+    intro w hw
+    simp only [C, Finset.mem_insert, mem_neighborFinset] at hw ⊢
+    grind [adj_comm]
+  have hz' : z ∉ C a := by
+    simp only [C, Finset.mem_insert, mem_neighborFinset]
+    rintro (he | h')
+    · simp [he] at hd
+    · rw [dist_eq_one_iff_adj.mpr h'] at hd; omega
+  have hlt := Finset.card_lt_card ((Finset.ssubset_iff_of_subset sub).2
+    ⟨z, by simp [C,hz], hz'⟩)
+  simp [C, ha] at hlt
+  exact (Nat.not_lt_of_ge (G.degree_le_maxDegree x)) hlt
 
 private lemma outside_near (s : Finset V) (hs : G.IsIndepSet s) {a b : V}
     (hc : G.Connected) (hd : 0 < G.dist a b) : ∃ w ∉ s, G.dist a w ≤ 1 := by
@@ -238,14 +211,13 @@ theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture18.conjecture
   suffices h : ∃ k : ℕ, s.card + k ≤ G.largestInducedBipartiteSubgraphSize ∧
       G.dist a b ≤ k*k by
     obtain ⟨k,hk,hk'⟩ := h
-    have hroot : Real.sqrt (G.dist a b : ℝ) ≤ (k : ℝ) := by
+    have hceil : ⌈Real.sqrt (G.dist a b : ℝ)⌉ ≤ (k : ℤ) := Int.ceil_le.2 <| by
       apply Real.sqrt_le_iff.mpr
       exact ⟨by positivity, by exact_mod_cast (show G.dist a b ≤ k^2 by simpa [pow_two] using hk')⟩
-    have hceil : ⌈Real.sqrt (G.dist a b : ℝ)⌉ ≤ (k : ℤ) := Int.ceil_le.mpr (by simpa using hroot)
-    have hceil' : (⌈Real.sqrt (G.dist a b : ℝ)⌉ : ℝ) ≤ (k : ℝ) := by exact_mod_cast hceil
     rw [hs.card_eq] at hk
-    have hreal : (G.indepNum : ℝ) + k ≤ G.b := by unfold SimpleGraph.b; exact_mod_cast hk
-    linarith
+    unfold SimpleGraph.b
+    norm_cast
+    omega
   by_cases h2 : 2 ≤ G.dist a b
   · obtain ⟨two,three⟩ := small_distance s hs.isIndepSet hc ha hb h2
     by_cases h4 : G.dist a b ≤ 4

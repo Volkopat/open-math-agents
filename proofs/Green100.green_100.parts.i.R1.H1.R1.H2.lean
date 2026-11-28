@@ -70,30 +70,6 @@ lemma projector_idempotent (χ : A →* Kˣ) (hcard : (Fintype.card A : K) ≠ 0
   rw [projector_mul]
   simp [hcard]
 
-lemma projector_orthogonal (χ ψ : A →* Kˣ) (hne : χ ≠ ψ) :
-    projector χ * projector ψ = 0 := by
-  rw [projector_mul]
-  have hn : χ * ψ⁻¹ ≠ 1 := by
-    intro h
-    apply hne
-    apply MonoidHom.ext
-    intro a
-    have hh := congrArg (fun f : A →* Kˣ => f a) h
-    exact mul_inv_eq_one.mp hh
-  have h := sum_character_eq_zero (χ * ψ⁻¹) hn
-  simpa using congrArg (fun c : K => ((Fintype.card A : K)⁻¹ * c) • projector χ) h
-
-lemma projector_one_coeff (χ : A →* Kˣ) :
-    (projector χ).coeff 1 = (Fintype.card A : K)⁻¹ := by
-  simp [projector, MonoidAlgebra.coeff_sum, MonoidAlgebra.coeff_smul, Finsupp.single_apply]
-
-lemma projector_ne_zero (χ : A →* Kˣ) (hcard : (Fintype.card A : K) ≠ 0) :
-    projector χ ≠ 0 := by
-  intro h
-  have := congrArg (fun p : MonoidAlgebra K A => p.coeff 1) h
-  rw [projector_one_coeff] at this
-  exact (inv_ne_zero hcard) this
-
 def pushed (f : A →* G) (χ : A →* Kˣ) : MonoidAlgebra K G :=
   MonoidAlgebra.mapDomainAlgHom K K f (projector χ)
 
@@ -107,16 +83,6 @@ lemma pushed_idempotent (f : A →* G) (χ : A →* Kˣ)
     pushed f χ * pushed f χ = pushed f χ := by
   unfold pushed
   rw [← map_mul, projector_idempotent χ hc]
-
-lemma pushed_orthogonal (f : A →* G) (χ ψ : A →* Kˣ) (hne : χ ≠ ψ) :
-    pushed f χ * pushed f ψ = 0 := by
-  unfold pushed
-  rw [← map_mul, projector_orthogonal χ ψ hne, map_zero]
-
-lemma pushed_ne_zero (f : A →* G) (hf : Function.Injective f) (χ : A →* Kˣ)
-    (hc : (Fintype.card A : K) ≠ 0) : pushed f χ ≠ 0 := by
-  intro h
-  exact projector_ne_zero χ hc ((MonoidAlgebra.mapDomain_injective hf) (h.trans (MonoidAlgebra.mapDomain_zero f).symm))
 
 lemma pushed_mul_single (f : A →* G) (χ : A →* Kˣ) (b : A) :
     pushed f χ * MonoidAlgebra.single (f b) 1 = (χ b : K) • pushed f χ := by
@@ -139,12 +105,6 @@ lemma pushed_central (f : A →* G) (χ : A →* Kˣ)
       (hf a g).eq]
   | add x y hx hy => exact hx.add_right hy
   | smul r x hx => exact hx.smul_right r
-
-lemma lift_pushed (f : A →* G) (χ : A →* Kˣ) (ρ : G →* K)
-    (hρ : ∀ a, ρ (f a) = (χ a : K)) (hc : (Fintype.card A : K) ≠ 0) :
-    MonoidAlgebra.lift K K G ρ (pushed f χ) = 1 := by
-  rw [pushed_eq_sum]
-  simp [map_sum, MonoidAlgebra.lift_single, hρ, hc]
 
 end OddKaplansky.CharacterIdempotents
 
@@ -176,9 +136,6 @@ lemma character_apply (lmb a : A (E := E) M) :
     character M hζ lmb a = cyclicCharacter M hζ (Multiplicative.ofAdd
       (∑ e, (lmb e).toAdd * (a e).toAdd)) := rfl
 
-lemma character_symm (lmb a : A (E := E) M) : character M hζ lmb a = character M hζ a lmb := by
-  simp only [character_apply, mul_comm]
-
 lemma character_mul (lmb μ : A (E := E) M) :
     character M hζ (lmb * μ) = character M hζ lmb * character M hζ μ := by
   apply MonoidHom.ext
@@ -207,41 +164,6 @@ lemma character_injective : Function.Injective (character (E := E) M hζ) := by
   ext a
   simp [character_apply]
 
-lemma character_ne_one (a : A (E := E) M) (ha : a ≠ 1) : character M hζ a ≠ 1 := by
-  intro hh
-  exact ha (character_injective M hζ (hh.trans (character_one M hζ).symm))
-
-lemma sum_inverse_characters (a : A (E := E) M) (ha : a ≠ 1) :
-    ∑ lmb : A (E := E) M, ((character M hζ lmb a : K)⁻¹) = 0 := by
-  have hχ : (character M hζ a)⁻¹ ≠ 1 := by
-    intro h
-    apply character_ne_one M hζ a ha
-    apply MonoidHom.ext
-    intro b
-    have hh := congrArg (fun χ : A (E := E) M →* Kˣ => (χ b)⁻¹) h
-    simpa using hh
-  simpa only [MonoidHom.inv_apply, Units.val_inv_eq_inv_val, character_symm] using
-    CharacterIdempotents.sum_character_eq_zero ((character M hζ a)⁻¹) hχ
-
-lemma sum_projector (hc : (Fintype.card (A (E := E) M) : K) ≠ 0) :
-    ∑ lmb : A (E := E) M, CharacterIdempotents.projector (character M hζ lmb) = 1 := by
-  have hp (lmb a : A (E := E) M) :
-      (CharacterIdempotents.projector (character M hζ lmb)).coeff a =
-        (Fintype.card (A (E := E) M) : K)⁻¹ * ((character M hζ lmb a : K)⁻¹) := by
-    simp [CharacterIdempotents.projector, MonoidAlgebra.coeff_sum,
-      MonoidAlgebra.coeff_smul, Finsupp.single_apply]
-  ext a
-  rw [MonoidAlgebra.coeff_sum, Finset.sum_apply']
-  simp_rw [hp]
-  rw [← Finset.mul_sum]
-  by_cases ha : a = 1
-  · subst a
-    simp only [map_one, Units.val_one, inv_one, Finset.sum_const, Finset.card_univ,
-      nsmul_eq_mul, mul_one, MonoidAlgebra.coeff_one_one]
-    exact inv_mul_cancel₀ hc
-  · rw [sum_inverse_characters M hζ a ha]
-    simp [MonoidAlgebra.one_def, ha]
-
 end
 end OddKaplansky.Fourier
 
@@ -269,9 +191,6 @@ lemma dot_mul_right (y x s : Z M q) : dot M q y (x*s) = dot M q y x * dot M q y 
   apply Multiplicative.toAdd.injective
   simp [dot,mul_add,Finset.sum_add_distrib]
 lemma dot_inv_left (y x : Z M q) : dot M q y⁻¹ x = (dot M q y x)⁻¹ := by
-  apply Multiplicative.toAdd.injective
-  simp [dot,Finset.sum_neg_distrib]
-lemma dot_inv_right (y x : Z M q) : dot M q y x⁻¹ = (dot M q y x)⁻¹ := by
   apply Multiplicative.toAdd.injective
   simp [dot,Finset.sum_neg_distrib]
 lemma dot_symm (y x : Z M q) : dot M q y x=dot M q x y := by simp [dot,mul_comm]
@@ -320,14 +239,9 @@ def Y : Z M q →* GroupData M q where
   toFun y := ⟨1,y,1⟩
   map_one' := rfl
   map_mul' a b := by apply GroupData.ext <;> simp [dot_one_right]
-lemma central_injective : Function.Injective (central M q) := fun _ _ he => congrArg GroupData.k he
 lemma central_commute (c : Fourier.C M) (g : GroupData M q) : Commute (central M q c) g := by
   change central M q c*g=g*central M q c
   apply GroupData.ext <;> simp [central,dot_one_left,dot_one_right,mul_comm]
-lemma YX (y x : Z M q) : Y M q y * X M q x = central M q (dot M q y x) * (X M q x * Y M q y) := by
-  apply GroupData.ext <;> simp [central,X,Y,dot_one_left,dot_one_right]
-lemma normal (g : GroupData M q) : g=central M q g.k * (X M q g.x * Y M q g.y) := by
-  apply GroupData.ext <;> simp [central,X,Y,dot_one_left,dot_one_right]
 end
 end OddKaplansky.Heisenberg
 
@@ -374,7 +288,6 @@ lemma ρ_single (g : GroupData M q) (c : K) (u s : Z M q) :
   split_ifs <;> simp [mul_assoc]
 def f : MonoidAlgebra K (GroupData M q) := CharacterIdempotents.pushed (central M q) (Fourier.cyclicCharacter M hζ)
 lemma f_idempotent (hc : (Fintype.card (Fourier.C M) : K) ≠ 0) : f M q hζ*f M q hζ=f M q hζ := CharacterIdempotents.pushed_idempotent _ _ hc
-lemma f_ne_zero (hc : (Fintype.card (Fourier.C M) : K) ≠ 0) : f M q hζ ≠ 0 := CharacterIdempotents.pushed_ne_zero _ (central_injective M q) _ hc
 lemma f_central (a : MonoidAlgebra K (GroupData M q)) : Commute (f M q hζ) a := CharacterIdempotents.pushed_central _ _ (central_commute M q) a
 lemma ρ_f (hc : (Fintype.card (Fourier.C M) : K) ≠ 0) : ρ M q hζ (f M q hζ)=1 := by
   ext u s
@@ -447,11 +360,6 @@ variable (M q : ℕ) [NeZero M] {K : Type portUniverse1} [Field K] {ζ : K} (hζ
 variable (hc : (Fintype.card (Fourier.C M) : K) ≠ 0) (hz : (Fintype.card (Z M q) : K) ≠ 0)
 abbrev Sector := LinearMap.range (Algebra.lmul K (MonoidAlgebra K (GroupData M q)) (f M q hζ))
 lemma mem_sector_of_fixed {a : MonoidAlgebra K (GroupData M q)} (ha : f M q hζ*a=a) : a ∈ Sector M q hζ := ⟨a,ha⟩
-include hc in
-lemma fixed_of_mem_sector {a : MonoidAlgebra K (GroupData M q)} (ha : a ∈ Sector M q hζ) : f M q hζ*a=a := by
-  obtain ⟨a,rfl⟩ := ha
-  change f M q hζ*(f M q hζ*a)=f M q hζ*a
-  rw [← mul_assoc,f_idempotent M q hζ hc]
 include hc in
 lemma Ω_fixed (u v : Z M q) : f M q hζ*Ω M q hζ u v=Ω M q hζ u v := by
   unfold Ω D
@@ -529,29 +437,11 @@ lemma Ω_mul (u v s t : Z M q) : Ω M q hζ u v*Ω M q hζ s t=if v=s then Ω M 
       ext a b
       simp [Matrix.mul_apply,Matrix.single_apply,ite_and,mul_ite,hv] <;> split_ifs <;> rfl
 include hc hz in
-lemma Ω_sum : ∑ u : Z M q, Ω M q hζ u u=f M q hζ := by
-  apply ρ_injective_on_sector M q hζ hc hz
-  · apply mem_sector_of_fixed
-    simp only [Finset.mul_sum,Ω_fixed M q hζ hc]
-  · exact ⟨1,by simp⟩
-  · rw [map_sum,ρ_f M q hζ hc]
-    simp only [ρ_Ω M q hζ hc hz]
-    ext a b
-    simp [Matrix.sum_apply,Matrix.single_apply,Matrix.one_apply,ite_and,eq_comm]
-include hc hz in
 lemma Ω_ne_zero (u v : Z M q) : Ω M q hζ u v≠0 := by
   intro he
   have hh := congrArg (fun a => ρ M q hζ a u v) he
   rw [ρ_Ω M q hζ hc hz,map_zero] at hh
   simp at hh
-include hc hz in
-lemma encode_mul (T S : Matrix (Z M q) (Z M q) K) : encode M q hζ (T*S)=encode M q hζ T*encode M q hζ S := by
-  apply ρ_injective_on_sector M q hζ hc hz
-  · exact mem_sector_of_fixed _ _ _ (encode_fixed M q hζ hc _)
-  · apply mem_sector_of_fixed
-    rw [← mul_assoc,encode_fixed M q hζ hc]
-  · have hh : ρ M q hζ (encode M q hζ T*encode M q hζ S)=ρ M q hζ (encode M q hζ T)*ρ M q hζ (encode M q hζ S) := map_mul (ρ M q hζ) _ _
-    rw [hh,ρ_encode M q hζ hc hz,ρ_encode M q hζ hc hz,ρ_encode M q hζ hc hz]
 end
 end OddKaplansky.Heisenberg
 
@@ -574,14 +464,8 @@ variable (f : S →+* R) (q : m → m → R)
 
 def block (X : Matrix m m S) : R := ∑ i, ∑ j, f (X i j) * q i j
 
-lemma block_zero : block f q 0 = 0 := by simp [block]
-lemma block_add (X Y : Matrix m m S) : block f q (X + Y) = block f q X + block f q Y := by
-  simp [block, add_mul, Finset.sum_add_distrib]
 lemma block_sub (X Y : Matrix m m S) : block f q (X - Y) = block f q X - block f q Y := by
   simp [block, sub_mul, Finset.sum_sub_distrib]
-lemma block_one : block f q 1 = ∑ i, q i i := by
-  simp [block, Matrix.one_apply, apply_ite]
-
 variable (hqq : ∀ i j k r, q i j * q k r = if j = k then q i r else 0)
 variable (hcomm : ∀ x i j, Commute (f x) (q i j))
 include hqq hcomm
@@ -637,36 +521,6 @@ lemma block_injective (hpure : ∀ x i j, f x * q i j = 0 → x = 0) :
     apply hpure _ i j
     rw [← block_sandwich f q hqq hcomm, hz, mul_zero, zero_mul]
   exact sub_eq_zero.mp hXY
-
-theorem scalar_witnesses
-    (hpure : ∀ x i j, f x * q i j = 0 → x = 0)
-    (a b : Matrix m m S) (hab : a * b = 1) (hba : b * a ≠ 1) :
-    ∃ a' b' : R, a' * b' = 1 ∧ b' * a' ≠ 1 := by
-  let e := block f q 1
-  let a' := 1 - e + block f q a
-  let b' := 1 - e + block f q b
-  have he : e * e = e := by rw [← block_mul f q hqq hcomm, mul_one]
-  have hea : e * block f q a = block f q a := by rw [← block_mul f q hqq hcomm, one_mul]
-  have hae : block f q a * e = block f q a := by rw [← block_mul f q hqq hcomm, mul_one]
-  have heb : e * block f q b = block f q b := by rw [← block_mul f q hqq hcomm, one_mul]
-  have hbe : block f q b * e = block f q b := by rw [← block_mul f q hqq hcomm, mul_one]
-  have hab' : block f q a * block f q b = e := by rw [← block_mul f q hqq hcomm, hab]
-  refine ⟨a',b',?_,?_⟩
-  · dsimp [a',b']
-    noncomm_ring [he, hea, hae, heb, hbe, hab']
-  · intro h
-    have h' : block f q b * block f q a = e := by
-      apply add_left_cancel (a := 1 - e)
-      calc
-        1 - e + block f q b * block f q a =
-            (1 - e + block f q b) * (1 - e + block f q a) := by
-          noncomm_ring [he, hea, hae, heb, hbe]
-        _ = 1 := h
-        _ = 1 - e + e := by abel
-    apply hba
-    apply block_injective f q hqq hcomm hpure
-    rw [block_mul f q hqq hcomm]
-    exact h'
 
 end OddKaplansky.MatrixBlock
 namespace OddKaplansky.ProductAlgebras
@@ -736,10 +590,6 @@ variable (f : S →+* R) (q : m → m → R)
 
 def output (X : Matrix m m S) : R := 1 - block f q 1 + block f q X
 
-lemma output_formula (X : Matrix m m S) :
-    output f q X = 1 - ∑ i, q i i + ∑ i, ∑ j, f (X i j)*q i j := by
-  rw [output,block_one,block]
-
 variable (hqq : ∀ i j k r, q i j * q k r = if j = k then q i r else 0)
 variable (hcomm : ∀ x i j, Commute (f x) (q i j))
 
@@ -795,12 +645,6 @@ noncomputable section
 open scoped Classical BigOperators Matrix
 variable (M q : ℕ) [NeZero M] {K : Type portUniverse1} [Field K] {ζ : K} (hζ : IsPrimitiveRoot ζ M)
 variable (hc : (Fintype.card (Fourier.C M) : K) ≠ 0) (hz : (Fintype.card (Z M q) : K) ≠ 0)
-def matrixEquiv : Matrix (Z M q) (Z M q) K ≃ₗ[K] Sector M q hζ :=
-  (LinearEquiv.ofInjective (encode M q hζ) (encode_injective M q hζ hc hz)).trans
-    (LinearEquiv.ofEq _ _ (encode_range M q hζ hc hz))
-lemma matrixEquiv_mul (T S : Matrix (Z M q) (Z M q) K) :
-    (matrixEquiv M q hζ hc hz (T*S)).val=(matrixEquiv M q hζ hc hz T).val*(matrixEquiv M q hζ hc hz S).val := encode_mul M q hζ hc hz T S
-
 def scalar {L : Type portUniverse2} [Group L] (T : Matrix (Z M q) (Z M q) (MonoidAlgebra K L)) : MonoidAlgebra K (L×GroupData M q) :=
   MatrixBlock.output (ProductAlgebras.leftMap (K := K) (G := L) (H := GroupData M q)).toRingHom
     (fun u v => ProductAlgebras.rightMap (G := L) (Ω M q hζ u v)) T
@@ -818,12 +662,6 @@ lemma scalar_products {L : Type portUniverse3} [Group L] (A B : Matrix (Z M q) (
     exact ProductAlgebras.product_ne_zero hx (Ω_ne_zero M q hζ hc hz u v) he
   · convert hAB using 1 ; congr ; exact Subsingleton.elim _ _
   · convert hBA using 1 ; congr ; exact Subsingleton.elim _ _
-include hc hz in
-lemma scalar_formula {L : Type portUniverse4} [Group L] (T : Matrix (Z M q) (Z M q) (MonoidAlgebra K L)) :
-    scalar M q hζ T=ProductAlgebras.rightMap (G := L) (1-f M q hζ)+
-      ∑ u,∑ v,ProductAlgebras.leftMap (T u v)*ProductAlgebras.rightMap (Ω M q hζ u v) := by
-  rw [scalar,MatrixBlock.output_formula,← map_sum,Ω_sum M q hζ hc hz,map_sub,map_one]
-  rfl
 end
 end OddKaplansky.Heisenberg
 
@@ -869,7 +707,6 @@ lemma power_search : ∃ q, r≤M^q := by
   exact (Nat.le_of_lt (Nat.lt_two_pow_self (n := r))).trans (Nat.pow_le_pow_left hM r)
 def leastQ : ℕ := Nat.find (power_search M hM r)
 lemma leastQ_spec : r≤M^(leastQ M hM r) := Nat.find_spec (power_search M hM r)
-lemma leastQ_min {q : ℕ} (hq : r≤M^q) : leastQ M hM r≤q := Nat.find_min' (power_search M hM r) hq
 variable [NeZero M] {K : Type portUniverse8} [Field K] {ζ : K} (hζ : IsPrimitiveRoot ζ M)
 variable (hc : (M : K)≠0)
 def indices : (Fin r⊕Fin (M^(leastQ M hM r)-r)) ≃ Heisenberg.Z M (leastQ M hM r) :=

@@ -37,28 +37,21 @@ lemma oddPower (m : ℕ) : A ^ (2*m+1) = O (scale m) := by
   rw [pow_succ, evenPower]
   ext i j
   fin_cases i <;> fin_cases j <;>
-    norm_num [E, A, O, Matrix.mul_apply, Fin.sum_univ_three] <;> ring
+    norm_num [E, A, O, Matrix.mul_apply, Fin.sum_univ_three, div_eq_mul_inv]
 
 lemma perron : IsPositivePerronRoot A 1 := by
-  have h : A.charpoly = (X - 1) * (X^2 - C (1/4 : ℝ)) := by
+  have h : A.charpoly = (X - 1) * (X - C (1/2 : ℝ)) * (X + C (1/2 : ℝ)) := by
     rw [Matrix.charpoly, Matrix.det_fin_three]
-    have h01 : (0 : Fin 3) ≠ 1 := by decide
-    have h12 : (1 : Fin 3) ≠ 2 := by decide
-    have h02 : (0 : Fin 3) ≠ 2 := by decide
-    simp [Matrix.charmatrix_apply, Matrix.diagonal, A, h01, h01.symm, h12, h12.symm,
-      h02, h02.symm]
-    ring
+    norm_num [Matrix.charmatrix_apply, Matrix.diagonal, A, Fin.ext_iff]
+    have hhalf : (C (1/2 : ℝ))^2 = C (1/4 : ℝ) := by
+      rw [← map_pow]
+      norm_num
+    linear_combination (X - 1) * hhalf
   refine ⟨zero_lt_one, ?_, ?_⟩
   · simp [h]
   · intro z hz
-    simp [h, mul_eq_zero] at hz
-    rcases hz with hz | hz
-    · have : z = 1 := by linear_combination hz
-      simp [this]
-    · have he : z^2 = 1/4 := by linear_combination hz
-      have hr := congrArg norm he
-      norm_num [norm_pow, norm_div] at hr
-      nlinarith [norm_nonneg z]
+    simp [h, mul_eq_zero, sub_eq_zero, add_eq_zero_iff_eq_neg] at hz
+    rcases hz with (rfl | rfl) | rfl <;> norm_num [norm_div]
 
 noncomputable def s (k : ℕ) : Fin 3 → ℝ :=
   ![1, (scale (k/2))^2, if k%2 = 0 then (scale (k/2))^2 else (scale (k/2))^2/16]
@@ -66,21 +59,16 @@ noncomputable def s (k : ℕ) : Fin 3 → ℝ :=
 lemma scaleBounds (m : ℕ) : 0 < scale m ∧ scale m ≤ 1 := by
   exact ⟨by unfold scale; positivity, pow_le_one₀ (by norm_num) (by norm_num)⟩
 
-/-- The source's proposed spectral bound holds for this example at every time. -/
-lemma spectrumBounds (k : ℕ) (i : Fin 3) : 0 ≤ s k i ∧ s k i ≤ 1 := by
-  have h := scaleBounds (k/2)
-  have hs : (scale (k/2))^2 ≤ 1 := by nlinarith [mul_nonneg h.1.le (sub_nonneg.mpr h.2)]
-  by_cases hk : k % 2 = 0 <;> fin_cases i <;>
-    norm_num [s, hk, abs_of_pos h.1] <;>
-    first | constructor <;> nlinarith [sq_nonneg (scale (k/2))] | nlinarith
-
 lemma spectrumOrder (k : ℕ) : Antitone (s k) := by
-  have h := scaleBounds (k/2)
-  have hs : (scale (k/2))^2 ≤ 1 := by nlinarith [mul_nonneg h.1.le (sub_nonneg.mpr h.2)]
-  intro i j hij
-  by_cases hk : k % 2 = 0 <;> fin_cases i <;> fin_cases j <;>
-    try (exfalso; revert hij; decide)
-  all_goals norm_num [s, hk, abs_of_pos h.1] <;> nlinarith [sq_nonneg (scale (k/2))]
+  have h := scaleBounds (k / 2)
+  rw [Fin.antitone_iff_succ_le]
+  intro i
+  fin_cases i
+  · simpa [s] using pow_le_one₀ h.1.le h.2 (n := 2)
+  · dsimp [s]
+    split_ifs
+    · rfl
+    · nlinarith [sq_nonneg (scale (k / 2))]
 
 lemma spectrum (k : ℕ) : IsOrderedSpectrum (normalizedGram A 1 k) (s k) := by
   refine ⟨spectrumOrder k, ?_⟩

@@ -379,30 +379,17 @@ def star (D : Family ι) (i : ι) : Family ι := D.filter (i ∈ ·)
     S ∈ D.star i ↔ S ∈ D ∧ i ∈ S := by
   simp [star]
 
-/-- A star is a subfamily of its ambient family, as used in Theorem 1.1. -/
-theorem star_subset (D : Family ι) (i : ι) : D.star i ⊆ D :=
-  Finset.filter_subset _ _
-
 /-- Every star is intersecting; this is the last observation in the proof of
 Proposition 5.3, and explains why stars are competitors in Chvátal's conjecture. -/
 theorem star_isIntersecting (D : Family ι) (i : ι) : (D.star i).IsIntersecting := by
   intro S hS T hT hdisj
   exact Finset.disjoint_left.mp hdisj (mem_star.mp hS).2 (mem_star.mp hT).2
 
-/-- Intersecting families cannot contain the empty set (Section 4's convention). -/
-theorem IsIntersecting.empty_not_mem {B : Family ι} (hB : B.IsIntersecting) : ∅ ∉ B :=
-  hB.bot_notMem
-
 /-- Membership in an intersecting family guarantees that the member is nonempty,
 including when the two members in the definition coincide. -/
 theorem IsIntersecting.nonempty {B : Family ι} (hB : B.IsIntersecting)
     {S : Finset ι} (hS : S ∈ B) : S.Nonempty :=
   Finset.nonempty_iff_ne_empty.mpr (hB.ne_bot hS)
-
-/-- An intersecting subfamily remains intersecting; this is used when restricting
-a maximal intersecting family to a hereditary family in Section 4. -/
-theorem IsIntersecting.mono {B C : Family ι} (hC : C.IsIntersecting)
-    (hBC : B ⊆ C) : B.IsIntersecting := Set.Intersecting.mono hBC hC
 
 /-- Every intersecting family has a maximal intersecting extension, as used at
 the end of Section 4 and in the proof of Proposition 5.3. This also holds in dimension
@@ -439,30 +426,11 @@ Sections 1–3. -/
 it, as defined immediately before Proposition 4.1. -/
 def IsAntipodal (B : Family ι) : Prop := ∀ S : Finset ι, S ∈ B ↔ Sᶜ ∉ B
 
-/-- Antipodality is the self-duality condition used in Section 4. -/
-theorem isAntipodal_iff_dual_eq (B : Family ι) : B.IsAntipodal ↔ B.dual = B := by
-  simp only [IsAntipodal, Finset.ext_iff, mem_dual]
-  exact forall_congr' fun S => iff_comm
-
 /-- Duality preserves increasing families, as used for `𝒢*` in Section 3. -/
 theorem IsIncreasing.dual {B : Family ι} (hB : B.IsIncreasing) : B.dual.IsIncreasing := by
   intro S T hST hS
   simp only [Finset.mem_coe, mem_dual] at hS ⊢
   exact fun hTc => hS (hB (compl_le_compl hST) hTc)
-
-/-- Complementing membership in a hereditary family gives an increasing family;
-this is the family underlying `f = 1 - 𝟙_D` in Section 4. -/
-theorem IsHereditary.isIncreasing_compl {D : Family ι} (hD : D.IsHereditary) :
-    Dᶜ.IsIncreasing := by
-  intro S T hST hS
-  simp only [Finset.mem_coe, Finset.mem_compl] at hS ⊢
-  exact fun hT => hS (hD hST hT)
-
-/-- The cardinality bound for intersecting families used by Proposition 4.1,
-written without division so it remains valid in dimension zero. -/
-theorem IsIntersecting.two_mul_card_le {B : Family ι} (hB : B.IsIntersecting) :
-    2 * B.card ≤ 2 ^ Fintype.card ι := by
-  simpa only [Fintype.card_finset] using hB.card_le
 
 /-- The equality case in Proposition 4.1, in the division-free form
 `2 |B| = 2^n`. The ground type must be nonempty. -/
@@ -527,26 +495,6 @@ theorem isMaximalIntersecting_iff [Nonempty ι] (B : Family ι) :
     B.IsMaximalIntersecting ↔ B.IsIncreasing ∧ B.IsAntipodal :=
   ⟨fun hB => ⟨hB.isIncreasing, hB.isAntipodal⟩,
     fun hB => hB.1.isMaximalIntersecting_of_isAntipodal hB.2⟩
-
-/-- A full-cube star is increasing, as used among the examples in Section 5. -/
-theorem univ_star_isIncreasing (i : ι) :
-    (star (Finset.univ : Family ι) i).IsIncreasing := by
-  intro S T hST hS
-  exact mem_star.mpr ⟨Finset.mem_univ _, hST (mem_star.mp hS).2⟩
-
-/-- A full-cube star selects exactly one member of each complementary pair;
-this is the simplest antipodal family in Proposition 4.1. -/
-theorem univ_star_isAntipodal (i : ι) :
-    (star (Finset.univ : Family ι) i).IsAntipodal := by
-  intro S
-  simp
-
-/-- Full-cube stars are maximal intersecting, the basic extremal examples in
-Sections 4 and 5. -/
-theorem univ_star_isMaximalIntersecting (i : ι) :
-    (star (Finset.univ : Family ι) i).IsMaximalIntersecting :=
-  (univ_star_isIncreasing i).isMaximalIntersecting_of_isAntipodal
-    (univ_star_isAntipodal i)
 
 /-- The last reduction in Section 4: to prove the star bound inside `D`, it
 suffices to bound `D ∩ B` for each maximal intersecting family `B`. This lemma
@@ -860,49 +808,6 @@ theorem fourier_const (c : ℝ) (S : Finset ι) :
   rw [fourier, cubeMean_mul_left, cubeMean_walsh]
   split_ifs <;> simp
 
-/-- Subtracting the mean removes exactly the constant Fourier coefficient. -/
-theorem fourier_sub_mean (f : Finset ι → ℝ) (S : Finset ι) :
-    fourier (fun x => f x - cubeMean f) S =
-      if S = ∅ then 0 else fourier f S := by
-  rw [fourier_sub, fourier_const]
-  split_ifs with h
-  · subst S; simp
-  · simp
-
-/-- The Fourier transform is injective, a direct consequence of the inversion formula. -/
-theorem fourier_injective : Function.Injective (fourier (ι := ι)) := by
-  intro f g h
-  funext x
-  rw [← fourier_inversion f x, ← fourier_inversion g x, h]
-
-/-- Complementation multiplies a Walsh character by the parity of its index. -/
-theorem walsh_compl (S x : Finset ι) :
-    walsh S xᶜ = (-1 : ℝ) ^ S.card * walsh S x := by
-  have hx : xᶜ = x ∆ Finset.univ := by
-    ext i
-    simp [Finset.mem_symmDiff]
-  rw [hx, walsh_symmDiff_right]
-  simp [walsh, mul_comm]
-
-/-- Complementing the argument multiplies Fourier coefficients by index parity. -/
-theorem fourier_compl (f : Finset ι → ℝ) (S : Finset ι) :
-    fourier (fun x => f xᶜ) S = (-1 : ℝ) ^ S.card * fourier f S := by
-  have h := cubeMean_compl (fun x => f x * walsh S xᶜ)
-  simp only [compl_compl] at h
-  unfold fourier
-  rw [h]
-  simp_rw [walsh_compl, ← mul_assoc, mul_comm (f _), mul_assoc]
-  rw [cubeMean_mul_left]
-  simp [mul_comm]
-
-/-- The nonconstant Fourier coefficients of the dual, recalled in Section 2. -/
-theorem fourier_dual_of_nonempty (f : Finset ι → ℝ) {S : Finset ι}
-    (hS : S.Nonempty) :
-    fourier (dual f) S = -((-1 : ℝ) ^ S.card * fourier f S) := by
-  unfold dual
-  rw [fourier_sub, fourier_const, fourier_compl]
-  simp [hS.ne_empty]
-
 /-- Covariance is the sum of the products of the nonconstant Fourier coefficients. -/
 theorem covariance_fourier (f g : Finset ι → ℝ) :
     covariance f g = ∑ S ∈ Finset.univ.erase ∅, fourier f S * fourier g S := by
@@ -911,17 +816,6 @@ theorem covariance_fourier (f g : Finset ι → ℝ) :
     (fun S => fourier f S * fourier g S) (by simp : (∅ : Finset ι) ∈ Finset.univ)
   simp only [fourier_empty] at h
   linarith
-
-/-- The alternating Fourier expression for covariance with the dual, used in Theorem 1.2. -/
-theorem covariance_dual_fourier (f : Finset ι → ℝ) :
-    covariance f (dual f) = ∑ S ∈ Finset.univ.erase ∅,
-      -(-1 : ℝ) ^ S.card * fourier f S ^ 2 := by
-  rw [covariance_fourier]
-  apply Finset.sum_congr rfl
-  intro S hS
-  rw [fourier_dual_of_nonempty f
-    (Finset.nonempty_iff_ne_empty.mpr (Finset.mem_erase.mp hS).1)]
-  ring
 
 /-- Pointwise nonnegativity implies nonnegative uniform expectation. -/
 theorem cubeMean_nonneg {f : Finset ι → ℝ} (hf : ∀ x, 0 ≤ f x) :
@@ -1249,11 +1143,6 @@ theorem linearIndependent_monomial [Finite ι] :
   rw [Fintype.linearIndependent_iff]
   exact monomial_coefficients_eq_zero
 
-/-- Lemma 3.1(iii) for any specified subfamily of monomials. -/
-theorem linearIndependent_monomial_subfamily [Finite ι] (A : Set (Finset ι)) :
-    LinearIndependent ℝ (fun S : A => monomial S.1) :=
-  linearIndependent_monomial.comp Subtype.val Subtype.val_injective
-
 /-- A monomial is unchanged when a coordinate outside its index is toggled.
 This gives its Fourier support in the discussion preceding Lemma 3.1. -/
 theorem monomial_toggle {S : Finset ι} {i : ι} (hi : i ∉ S) (x : Finset ι) :
@@ -1347,42 +1236,6 @@ theorem fourier_twistedMonomial_eq_zero_of_not_mem {G : Family ι}
     fourier (twistedMonomial S) T = 0 :=
   fourier_twistedMonomial_eq_zero (fun hST => hT (hG hST hS))
 
-/-- The multiplicative recursion for the Boolean monomials in Section 3.1. -/
-theorem monomial_insert (i : ι) (S x : Finset ι) :
-    monomial (insert i S) x = if i ∈ x then monomial S x else 0 := by
-  simp only [monomial, Finset.insert_subset_iff]
-  split_ifs <;> simp_all
-
-/-- Equation (9), multiplied by `2^|S|`: the finite Walsh expansion of a
-Boolean monomial. This proof follows the coordinate product expansion. -/
-theorem monomial_expansion_scaled (S x : Finset ι) :
-    (∑ T ∈ S.powerset, (-1 : ℝ) ^ T.card * walsh T x) =
-      (2 : ℝ) ^ S.card * monomial S x := by
-  induction S using Finset.induction_on with
-  | empty => simp [monomial]
-  | @insert i S hi ih =>
-    rw [Finset.sum_powerset_insert hi]
-    have hsum :
-        (∑ T ∈ S.powerset, (-1 : ℝ) ^ (insert i T).card * walsh (insert i T) x) =
-          -(if i ∈ x then (-1 : ℝ) else 1) *
-            (∑ T ∈ S.powerset, (-1 : ℝ) ^ T.card * walsh T x) := by
-      rw [Finset.mul_sum]
-      apply Finset.sum_congr rfl
-      intro T hT
-      have hiT : i ∉ T := fun h => hi ((Finset.mem_powerset.mp hT) h)
-      rw [Finset.card_insert_of_notMem hiT, walsh_insert hiT, pow_succ]
-      ring
-    rw [hsum, ih, Finset.card_insert_of_notMem hi, pow_succ, monomial_insert]
-    by_cases hix : i ∈ x <;> simp [hix]
-    ring
-
-/-- Equation (9): the normalized Fourier–Walsh expansion of `M_S`. -/
-theorem monomial_expansion (S x : Finset ι) :
-    monomial S x = ((2 : ℝ) ^ S.card)⁻¹ *
-      ∑ T ∈ S.powerset, (-1 : ℝ) ^ T.card * walsh T x := by
-  rw [monomial_expansion_scaled]
-  simp
-
 /-- Scalar linearity of the Fourier transform, used when preserving support
 under the Gram–Schmidt process in Corollary 3.2. -/
 theorem fourier_smul_function (c : ℝ) (f : Finset ι → ℝ) (S : Finset ι) :
@@ -1437,14 +1290,6 @@ orders in the combined orthonormal family of Corollary 3.2. -/
 theorem uniformInner_comm (f g : Finset ι → ℝ) : uniformInner f g = uniformInner g f := by
   simp only [uniformInner, mul_comm]
 
-/-- Lemma 3.1(iv) for the particular two monomial families in the paper. -/
-theorem monomial_twistedMonomial_orthogonal {G : Family ι} (hG : G.IsIncreasing)
-    {S T : Finset ι} (hS : S ∉ G) (hT : Tᶜ ∈ G) :
-    uniformInner (monomial S) (twistedMonomial T) = 0 :=
-  uniformInner_eq_zero_of_fourier_support G
-    (fun _ h => fourier_monomial_eq_zero_of_mem hG hS h)
-    (fun _ h => fourier_twistedMonomial_eq_zero_of_not_mem hG hT h)
-
 /-- Corollary 3.2: orthonormal auxiliary families with the paper's exact index
 sets and both required support conditions. The sum type joins the two families
 into a single orthonormal system, including when either index set is empty. -/
@@ -1495,70 +1340,6 @@ theorem auxiliary_orthonormal_system (F G : Family ι)
     | inl j => simpa [uniformInner_comm] using huv j i
     | inr j =>
       by_cases hij : i = j <;> simpa [hij] using hv i j
-
-/-- The exact coefficient formula from equation (9). In particular, every subset
-of `S` occurs with a nonzero Fourier coefficient. -/
-theorem fourier_monomial (S T : Finset ι) :
-    fourier (monomial S) T =
-      if T ⊆ S then ((2 : ℝ) ^ S.card)⁻¹ * (-1 : ℝ) ^ T.card else 0 := by
-  unfold fourier
-  simp_rw [monomial_expansion S]
-  simp_rw [mul_assoc, Finset.sum_mul, mul_assoc]
-  rw [cubeMean_mul_left, cubeMean_sum]
-  simp_rw [cubeMean_mul_left, walsh_orthogonality]
-  by_cases hTS : T ⊆ S <;> simp [hTS, mul_ite]
-
-/-- The exact Fourier support calculation for the first family preceding Lemma 3.1. -/
-theorem fourier_monomial_ne_zero_iff (S T : Finset ι) :
-    fourier (monomial S) T ≠ 0 ↔ T ⊆ S := by
-  rw [fourier_monomial]
-  split_ifs with h <;> simp [h]
-
-/-- The exact coefficients of the second auxiliary family, obtained by
-complementing Fourier indices as in the discussion preceding Lemma 3.1. -/
-theorem fourier_twistedMonomial (S T : Finset ι) :
-    fourier (twistedMonomial S) T =
-      if Sᶜ ⊆ T then ((2 : ℝ) ^ S.card)⁻¹ * (-1 : ℝ) ^ Tᶜ.card else 0 := by
-  change fourier (fun x => monomial S x * walsh Finset.univ x) T = _
-  rw [fourier_mul_walsh]
-  have hcomp : T ∆ Finset.univ = Tᶜ := by ext i; simp [Finset.mem_symmDiff]
-  rw [hcomp, fourier_monomial]
-  have hsub : Tᶜ ⊆ S ↔ Sᶜ ⊆ T := by
-    constructor <;> intro h <;> simpa using compl_le_compl h
-  simp only [hsub]
-
-/-- The exact Fourier support calculation for the second family preceding
-Lemma 3.1: its support is the upper interval above the complementary index. -/
-theorem fourier_twistedMonomial_ne_zero_iff (S T : Finset ι) :
-    fourier (twistedMonomial S) T ≠ 0 ↔ Sᶜ ⊆ T := by
-  rw [fourier_twistedMonomial]
-  split_ifs with h <;> simp [h]
-
-/-- The physical support equality for monomials stated before Lemma 3.1. -/
-theorem support_monomial (S : Finset ι) :
-    Function.support (monomial S) = {x | S ⊆ x} := by
-  ext x; simp [Function.mem_support]
-
-/-- The Fourier support equality for monomials stated before Lemma 3.1. -/
-theorem support_fourier_monomial (S : Finset ι) :
-    Function.support (fourier (monomial S)) = {T | T ⊆ S} := by
-  ext T; simp [Function.mem_support, fourier_monomial_ne_zero_iff]
-
-/-- Multiplication by the full character does not change physical support,
-as stated before Lemma 3.1. -/
-theorem support_twistedMonomial (S : Finset ι) :
-    Function.support (twistedMonomial S) = {x | S ⊆ x} := by
-  ext x
-  have hw : walsh Finset.univ x ≠ 0 := by
-    intro h
-    have hsq := walsh_sq Finset.univ x
-    simp [h] at hsq
-  simp [Function.mem_support, hw]
-
-/-- The Fourier support equality for twisted monomials stated before Lemma 3.1. -/
-theorem support_fourier_twistedMonomial (S : Finset ι) :
-    Function.support (fourier (twistedMonomial S)) = {T | Sᶜ ⊆ T} := by
-  ext T; simp [Function.mem_support, fourier_twistedMonomial_ne_zero_iff]
 
 end Chvatal
 
@@ -1645,10 +1426,6 @@ theorem monotone_dual {f : Finset ι → ℝ} (hf : Monotone f) : Monotone (dual
   intro x y hxy
   exact sub_le_sub_left (hf (compl_le_compl hxy)) 1
 
-/-- Boolean values lie in the unit interval; used in the pointwise estimates of Section 3. -/
-theorem IsBoolean.nonneg {f : Finset ι → ℝ} (hf : IsBoolean f) (x : Finset ι) :
-    0 ≤ f x := by rcases hf x with h | h <;> simp [h]
-
 /-- Squaring a Boolean value leaves it unchanged, as used in Parseval's variance formula. -/
 theorem IsBoolean.sq {f : Finset ι → ℝ} (hf : IsBoolean f) (x : Finset ι) :
     f x ^ 2 = f x := by rcases hf x with h | h <;> simp [h]
@@ -1661,10 +1438,6 @@ theorem influence_eq_mean_indicator {f : Finset ι → ℝ} (hf : IsBoolean f) (
   congr 1
   funext x
   rcases hf x with h | h <;> rcases hf (x ∆ {i}) with k | k <;> simp [h, k]
-
-/-- Influences are nonnegative, including in the degenerate cases of Theorem 1.2. -/
-theorem influence_nonneg (f : Finset ι → ℝ) (i : ι) : 0 ≤ influence f i :=
-  cubeMean_nonneg fun _ => sq_nonneg _
 
 /-- Flipping a set containing `i` reverses `2xᵢ - 1`, as in the proof of Lemma 3.3. -/
 theorem coordinateSign_symmDiff {T : Finset ι} {i : ι} (hi : i ∈ T) (x : Finset ι) :
@@ -1838,12 +1611,6 @@ theorem indicator_inter (D B : Family ι) :
   funext x
   by_cases hD : x ∈ D <;> by_cases hB : x ∈ B <;> simp [indicator, hD, hB]
 
-/-- Complementing family membership gives the function `1 - 𝟙_D` of Section 4. -/
-theorem indicator_compl (D : Family ι) :
-    Dᶜ.indicator = fun x => 1 - D.indicator x := by
-  funext x
-  by_cases hx : x ∈ D <;> simp [indicator, hx]
-
 /-- An increasing family has an increasing indicator, as used for `g = 𝟙_B`
 in Section 4. -/
 theorem IsIncreasing.monotone_indicator {B : Family ι} (hB : B.IsIncreasing) :
@@ -1907,16 +1674,6 @@ theorem covariance_one_sub_indicator {D B : Family ι} (hB : B.IsAntipodal) :
     hB.cubeMean_indicator, cubeMean_indicator, cubeMean_indicator]
   ring
 
-/-- The converse indicator bridge in Section 4: a self-dual family indicator
-comes from an antipodal family. -/
-theorem isAntipodal_iff_dual_indicator (B : Family ι) :
-    B.IsAntipodal ↔ Chvatal.dual B.indicator = B.indicator := by
-  refine ⟨IsAntipodal.dual_indicator, ?_⟩
-  intro h x
-  have hx := congrFun h x
-  by_cases hmem : x ∈ B <;> by_cases hcomp : xᶜ ∈ B <;>
-    simp_all [Chvatal.dual, indicator]
-
 /-- The support of the value one, used in Section 4 to pass from increasing
 Boolean functions back to set families. -/
 noncomputable def oneSupport (f : Finset ι → ℝ) : Family ι := by
@@ -1948,14 +1705,6 @@ theorem isIncreasing_oneSupport {f : Finset ι → ℝ}
     rw [hx', hy] at this
     norm_num at this
   · exact mem_oneSupport.mpr hy
-
-/-- The complement of an increasing family is hereditary, used for
-`D = supp (1 - f)` in Section 4's converse. -/
-theorem IsIncreasing.isHereditary_compl {B : Family ι} (hB : B.IsIncreasing) :
-    Bᶜ.IsHereditary := by
-  intro x y hxy hy
-  simp only [Finset.mem_coe, Finset.mem_compl] at hy ⊢
-  exact fun hx => hy (hB hxy hx)
 
 /-- A family indicator is Boolean-valued, as required when invoking
 Corollary 1.3 in Section 4. -/
@@ -2004,33 +1753,6 @@ theorem covariance_sub_quarter_influence {D B : Family ι}
       ((D.star i).card - (D ∩ B).card : ℝ) / Fintype.card (Finset ι) := by
   rw [covariance_one_sub_indicator hB, influence_one_sub_indicator hD]
   ring
-
-/-- Equation (17) of Section 4, with its finite minimum of influences and
-maximum of star cardinalities. A nonempty coordinate type makes the minimum
-well-defined. -/
-theorem covariance_sub_quarter_min_influence [Nonempty ι] {D B : Family ι}
-    (hD : D.IsHereditary) (hB : B.IsAntipodal) :
-    covariance (fun x => 1 - D.indicator x) B.indicator -
-      (Finset.univ.inf' Finset.univ_nonempty (influence (fun x => 1 - D.indicator x))) / 4 =
-      (((Finset.univ.sup fun i => (D.star i).card : ℕ) : ℝ) - (D ∩ B).card) /
-        Fintype.card (Finset ι) := by
-  obtain ⟨i, _, hi⟩ := Finset.exists_max_image Finset.univ
-    (fun i : ι => (D.star i).card) Finset.univ_nonempty
-  have hmax : (Finset.univ.sup fun j => (D.star j).card) = (D.star i).card := by
-    exact le_antisymm (Finset.sup_le hi) (Finset.le_sup (f := fun j => (D.star j).card)
-      (Finset.mem_univ i))
-  have hmin : Finset.univ.inf' Finset.univ_nonempty
-      (influence (fun x => 1 - D.indicator x)) =
-      influence (fun x => 1 - D.indicator x) i := by
-    apply le_antisymm (Finset.inf'_le _ (Finset.mem_univ i))
-    apply Finset.le_inf'
-    intro j hj
-    rw [influence_one_sub_indicator hD, influence_one_sub_indicator hD]
-    apply div_le_div_of_nonneg_right _ (cube_card_pos (ι := ι)).le
-    have hij : ((D.star j).card : ℝ) ≤ (D.star i).card := by exact_mod_cast hi j hj
-    linarith
-  rw [hmax, hmin]
-  exact covariance_sub_quarter_influence hD hB i
 
 /-- Equation (17) turns a coordinate's influence bound into the corresponding
 star bound, in either direction. -/
@@ -2084,42 +1806,6 @@ theorem chvatal_of_antipodal_correlation [Nonempty ι]
     (Family.isBoolean_indicator B) hB.isIncreasing.monotone_indicator
     hB.isAntipodal.dual_indicator
   exact ⟨i, (Family.influence_le_four_covariance_iff hD hB.isAntipodal i).mp hi⟩
-
-/-- Section 4's converse: a star bound for every hereditary family implies the
-antipodal correlation bound, using `D = supp(1-f)` and `B = supp(g)`. -/
-theorem antipodal_correlation_of_chvatal
-    (hstar : ∀ D : Family ι, D.IsHereditary → D.HasStarProperty) :
-    AntipodalCorrelationBound ι := by
-  intro f g hf hfm hg hgm hdual
-  let D : Family ι := (Family.oneSupport f)ᶜ
-  let B : Family ι := Family.oneSupport g
-  have hD : D.IsHereditary :=
-    (Family.isIncreasing_oneSupport hf hfm).isHereditary_compl
-  have hfD : (fun x => 1 - D.indicator x) = f := by
-    dsimp [D]
-    rw [Family.indicator_compl, Family.indicator_oneSupport hf]
-    funext x
-    ring
-  have hgB : B.indicator = g := Family.indicator_oneSupport hg
-  have hincB : B.IsIncreasing := Family.isIncreasing_oneSupport hg hgm
-  have hantiB : B.IsAntipodal := by
-    rw [Family.isAntipodal_iff_dual_indicator, hgB]
-    exact hdual
-  have hint : (D ∩ B).IsIntersecting :=
-    (hincB.isIntersecting_of_isAntipodal hantiB).mono Finset.inter_subset_right
-  obtain ⟨i, hi⟩ := hstar D hD (D ∩ B) Finset.inter_subset_left hint
-  have hbound := (Family.influence_le_four_covariance_iff hD hantiB i).mpr hi
-  rw [hfD, hgB] at hbound
-  exact ⟨i, hbound⟩
-
-/-- The equivalence recalled in Section 4 between Chvátal's star assertion and
-Corollary 1.3's antipodal correlation assertion. Both sides remain explicit
-propositions; no direction relies on an unproved result. -/
-theorem chvatal_iff_antipodal_correlation [Nonempty ι] :
-    (∀ D : Family ι, D.IsHereditary → D.HasStarProperty) ↔
-      AntipodalCorrelationBound ι :=
-  ⟨antipodal_correlation_of_chvatal,
-    fun h _ hD => chvatal_of_antipodal_correlation h hD⟩
 
 end Chvatal
 
@@ -2264,16 +1950,6 @@ theorem auxiliaryKernel_norm_sq (F : Family ι) (q : Finset ι → ℝ) (y : Fin
   simp only [uniformInner, heq, ← Finset.mul_sum]
   simp only [Finset.sum_ite_mem, Finset.univ_inter]
   rw [pow_two, mul_assoc, mul_div_cancel_left₀ _ (ne_of_gt (cube_card_pos (ι := ι)))]
-
-/-- Equation (7): the squared Fourier kernel on `F × F` is the average,
-with factor `2^{-n}`, of the squared norms of the auxiliary kernels. -/
-theorem auxiliaryKernel_energy_identity (F : Family ι) (q : Finset ι → ℝ) :
-    (∑ x ∈ F, ∑ y ∈ F, fourier q (x ∆ y) ^ 2) =
-      (∑ y ∈ F, uniformInner (auxiliaryKernel F q y) (auxiliaryKernel F q y)) /
-        Fintype.card (Finset ι) := by
-  simp_rw [auxiliaryKernel_norm_sq]
-  rw [← Finset.mul_sum,
-    mul_div_cancel_left₀ _ (ne_of_gt (cube_card_pos (ι := ι))), Finset.sum_comm]
 
 /-- A probability-unit function supported on `F` has unnormalized squared sum
 `2^n` on `F`, as used immediately before equation (14). -/
@@ -2727,13 +2403,6 @@ theorem influence_le_maxInfluence (f : Finset ι → ℝ) {S : Finset ι} {i : �
   rw [maxInfluence_of_nonempty f ⟨i, hi⟩]
   exact Finset.le_sup' (influence f) hi
 
-/-- The spectral weights in Theorem 1.2 are nonnegative. -/
-theorem maxInfluence_nonneg (f : Finset ι → ℝ) (S : Finset ι) : 0 ≤ maxInfluence f S := by
-  by_cases hS : S.Nonempty
-  · obtain ⟨i, hi⟩ := hS
-    exact (influence_nonneg f i).trans (influence_le_maxInfluence f hi)
-  · simp [maxInfluence, hS]
-
 /-- Lemma 3.3 in its stated maximum-over-coordinates form. -/
 theorem maxInfluence_le_flip_energy {f : Finset ι → ℝ} (hf : IsBoolean f)
     (hm : Monotone f) (T : Finset ι) :
@@ -2767,10 +2436,6 @@ theorem spectralWeight_eq_sum_nonempty (f g : Finset ι → ℝ) :
     (fun S => fourier g S ^ 2 * maxInfluence f S) (Finset.mem_univ (∅ : Finset ι))
   simp only [maxInfluence_empty, mul_zero, add_zero] at h
   exact h.symm
-
-/-- Nonnegativity of the left side of Theorem 1.2, used when a covariance vanishes. -/
-theorem spectralWeight_nonneg (f g : Finset ι → ℝ) : 0 ≤ spectralWeight f g := by
-  exact Finset.sum_nonneg fun S _ => mul_nonneg (sq_nonneg _) (maxInfluence_nonneg f S)
 
 /-- Equation (16): multiply Lemma 3.3 by the squared Fourier coefficient and sum. -/
 theorem spectralWeight_le_four_spectral {f : Finset ι → ℝ} (hf : IsBoolean f)
@@ -3031,155 +2696,6 @@ noncomputable def andFunction (x : Finset ι) : ℝ := if x = Finset.univ then 1
 /-- The function `OR_n` in Section 5, defined as the dual of `AND_n`. -/
 noncomputable def orFunction : Finset ι → ℝ := dual andFunction
 
-/-- AND is Boolean, as required for the sharpness examples in Section 5. -/
-theorem isBoolean_andFunction : IsBoolean (andFunction (ι := ι)) := by
-  intro x
-  simp only [andFunction]
-  split_ifs <;> simp
-
-/-- AND is increasing, as required for Proposition 5.1. -/
-theorem monotone_andFunction : Monotone (andFunction (ι := ι)) := by
-  intro x y hxy
-  by_cases hx : x = Finset.univ
-  · subst x
-    have hy : y = Finset.univ := Finset.univ_subset_iff.mp hxy
-    simp [hy, andFunction]
-  · simp only [andFunction, if_neg hx]
-    split_ifs <;> norm_num
-
-/-- OR is Boolean, as required for Remark 5.2. -/
-theorem isBoolean_orFunction : IsBoolean (orFunction (ι := ι)) :=
-  isBoolean_andFunction.dual
-
-/-- OR is increasing, as required for Remark 5.2. -/
-theorem monotone_orFunction : Monotone (orFunction (ι := ι)) :=
-  monotone_dual monotone_andFunction
-
-/-- Integrating against AND evaluates at the top point, the counting calculation
-in Proposition 5.1. -/
-theorem cubeMean_andFunction_mul (g : Finset ι → ℝ) :
-    cubeMean (fun x => andFunction x * g x) =
-      g Finset.univ / Fintype.card (Finset ι) := by
-  simp [cubeMean, andFunction, ite_mul]
-
-/-- The quantity `a = 2^{-n}` in Proposition 5.1 is the mean of AND. -/
-theorem cubeMean_andFunction :
-    cubeMean (andFunction (ι := ι)) = 1 / Fintype.card (Finset ι) := by
-  simp [cubeMean, andFunction]
-
-/-- Every coordinate of AND has influence `2a`, as computed in Proposition 5.1. -/
-theorem influence_andFunction (i : ι) :
-    influence andFunction i = 2 / Fintype.card (Finset ι) := by
-  have ht : (Finset.univ : Finset ι) ∆ {i} ≠ Finset.univ := by
-    intro h
-    have hi : i ∈ (Finset.univ : Finset ι) ∆ {i} := h.symm ▸ Finset.mem_univ i
-    simp [Finset.mem_symmDiff] at hi
-  have hp (x : Finset ι) : (andFunction x - andFunction (x ∆ {i})) ^ 2 =
-      andFunction x + andFunction (x ∆ {i}) := by
-    by_cases hx : x = Finset.univ
-    · subst x
-      simp [andFunction, ht]
-    · simp only [andFunction, if_neg hx]
-      split_ifs <;> norm_num
-  unfold influence
-  simp_rw [hp]
-  rw [cubeMean_add, cubeMean_symmDiff, cubeMean_andFunction]
-  ring
-
-/-- AND has the same maximum influence on every nonempty Fourier index. -/
-theorem maxInfluence_andFunction {S : Finset ι} (hS : S.Nonempty) :
-    maxInfluence andFunction S = 2 / Fintype.card (Finset ι) := by
-  rw [maxInfluence_of_nonempty _ hS]
-  simp_rw [influence_andFunction]
-  exact Finset.sup'_const hS (2 / (Fintype.card (Finset ι) : ℝ))
-
-/-- Proposition 5.1: the AND spectral weight is `2a` times the variance of `g`. -/
-theorem spectralWeight_andFunction (g : Finset ι → ℝ) :
-    spectralWeight andFunction g =
-      (2 / Fintype.card (Finset ι)) * covariance g g := by
-  rw [spectralWeight_eq_sum_nonempty, covariance_fourier, Finset.mul_sum]
-  apply Finset.sum_congr rfl
-  intro S hS
-  rw [maxInfluence_andFunction
-    (Finset.nonempty_iff_ne_empty.mpr (Finset.mem_erase.mp hS).1)]
-  ring
-
-/-- The variance of a Boolean function is `b(1-b)`, the Parseval calculation
-used in Proposition 5.1. -/
-theorem covariance_self_boolean {g : Finset ι → ℝ} (hg : IsBoolean g) :
-    covariance g g = cubeMean g * (1 - cubeMean g) := by
-  have hsq : (fun x => g x * g x) = g := by
-    funext x
-    simpa [pow_two] using hg.sq x
-  rw [covariance, hsq]
-  ring
-
-/-- The covariance of AND with any function, prior to using the endpoint values
-in Proposition 5.1. -/
-theorem covariance_andFunction (g : Finset ι → ℝ) :
-    covariance andFunction g =
-      (1 / Fintype.card (Finset ι)) * (g Finset.univ - cubeMean g) := by
-  rw [covariance, cubeMean_andFunction_mul, cubeMean_andFunction]
-  ring
-
-/-- The covariance of AND with the dual, in the endpoint form used by
-Proposition 5.1. -/
-theorem covariance_andFunction_dual (g : Finset ι → ℝ) :
-    covariance andFunction (dual g) =
-      (1 / Fintype.card (Finset ι)) * (cubeMean g - g ∅) := by
-  rw [covariance_andFunction, cubeMean_dual]
-  simp only [dual, Finset.compl_univ]
-  ring
-
-/-- An increasing Boolean function is constant or has the two endpoint values
-used in the nonconstant case of Proposition 5.1. -/
-theorem monotone_boolean_endpoints {g : Finset ι → ℝ} (hg : IsBoolean g)
-    (hm : Monotone g) :
-    g = (fun _ => 0) ∨ g = (fun _ => 1) ∨ (g ∅ = 0 ∧ g Finset.univ = 1) := by
-  rcases hg Finset.univ with htop | htop
-  · left
-    funext x
-    have hle := hm (Finset.subset_univ x)
-    have hnonneg := hg.nonneg x
-    simp only [htop] at hle
-    linarith
-  · rcases hg ∅ with hbot | hbot
-    · exact Or.inr (Or.inr ⟨hbot, htop⟩)
-    · right; left
-      funext x
-      have hle := hm (Finset.empty_subset x)
-      rcases hg x with hx | hx
-      · rw [hbot, hx] at hle
-        norm_num at hle
-      · exact hx
-
-/-- Proposition 5.1: AND attains equality in the harmonic correlation bound
-for every increasing Boolean second function, including constant functions. -/
-theorem andFunction_sharp {g : Finset ι → ℝ} (hg : IsBoolean g) (hm : Monotone g) :
-    spectralWeight andFunction g =
-      2 * covariance andFunction g * covariance andFunction (dual g) /
-        (covariance andFunction g + covariance andFunction (dual g)) := by
-  rw [spectralWeight_andFunction, covariance_self_boolean hg,
-    covariance_andFunction, covariance_andFunction_dual]
-  rcases monotone_boolean_endpoints hg hm with h | h | ⟨hbot, htop⟩
-  · subst g
-    simp
-  · subst g
-    simp
-  · rw [hbot, htop]
-    have hN : (Fintype.card (Finset ι) : ℝ) ≠ 0 := ne_of_gt cube_card_pos
-    have hsum : (1 / (Fintype.card (Finset ι) : ℝ)) * (1 - cubeMean g) +
-        (1 / (Fintype.card (Finset ι) : ℝ)) * (cubeMean g - 0) =
-        1 / Fintype.card (Finset ι) := by ring
-    rw [hsum]
-    field_simp
-    ring
-
-/-- The mean of OR is `1 - 2^{-n}`, used in Remark 5.2. -/
-theorem cubeMean_orFunction :
-    cubeMean (orFunction (ι := ι)) = 1 - 1 / Fintype.card (Finset ι) := by
-  rw [orFunction, cubeMean_dual, cubeMean_andFunction]
-
 /-- OR vanishes at the bottom cube point, including in dimension zero. -/
 @[simp] theorem orFunction_empty : orFunction (∅ : Finset ι) = 0 := by
   simp [orFunction, dual, andFunction]
@@ -3188,69 +2704,6 @@ theorem cubeMean_orFunction :
 @[simp] theorem orFunction_univ [Nonempty ι] :
     orFunction (Finset.univ : Finset ι) = 1 := by
   simp [orFunction, dual, andFunction, Finset.univ_nonempty.ne_empty.symm]
-
-/-- Remark 5.2: the exact two-coordinate AND/OR counterexample. The spectral
-weight exceeds covariance, so removing antipodality from the stronger bound fails. -/
-theorem and_or_two_example :
-    covariance (andFunction (ι := Fin 2)) orFunction = 1 / 16 ∧
-    covariance (andFunction (ι := Fin 2)) (dual orFunction) = 3 / 16 ∧
-    spectralWeight (andFunction (ι := Fin 2)) orFunction = 3 / 32 ∧
-    covariance (andFunction (ι := Fin 2)) orFunction <
-      spectralWeight (andFunction (ι := Fin 2)) orFunction := by
-  norm_num [covariance_andFunction, covariance_andFunction_dual,
-    spectralWeight_andFunction, covariance_self_boolean isBoolean_orFunction,
-    cubeMean_orFunction, Fintype.card_finset]
-  norm_num [dual]
-
-/-- On a single coordinate AND is antipodal, providing the extremizer for the
-optimal constant asserted in Proposition 5.1. -/
-theorem andFunction_one_antipodal :
-    dual (andFunction (ι := Fin 1)) = andFunction := by
-  have heq (x : Finset (Fin 1)) : x = Finset.univ ↔ (0 : Fin 1) ∈ x := by
-    constructor
-    · intro h; simp [h]
-    · intro h
-      apply Finset.eq_univ_of_forall
-      intro i
-      simpa only [Subsingleton.elim i 0] using h
-  funext x
-  simp only [dual, andFunction, heq, Finset.mem_compl]
-  by_cases hx : (0 : Fin 1) ∈ x <;> simp [hx]
-
-/-- The one-coordinate extremizer has covariance one quarter and influence one,
-so the coefficient in Corollary 1.3 cannot be increased. -/
-theorem andFunction_one_values :
-    covariance (andFunction (ι := Fin 1)) andFunction = 1 / 4 ∧
-      influence (andFunction (ι := Fin 1)) 0 = 1 := by
-  rw [covariance_self_boolean isBoolean_andFunction, cubeMean_andFunction,
-    influence_andFunction]
-  norm_num [Fintype.card_finset]
-
-/-- Proposition 5.1, antipodal case: AND attains the factor one quarter for
-every coordinate and every increasing antipodal Boolean second function. -/
-theorem andFunction_antipodal_sharp {g : Finset ι → ℝ} (hg : IsBoolean g)
-    (hm : Monotone g) (hdual : dual g = g) (i : ι) :
-    covariance andFunction g = influence andFunction i / 4 := by
-  have h := andFunction_sharp hg hm
-  rw [hdual, harmonic_self] at h
-  rw [← h, spectralWeight_andFunction, variance_eq_quarter_of_antipodal hg hdual,
-    influence_andFunction]
-  ring
-
-/-- Proposition 5.1, optimality: a coefficient valid for all increasing Boolean
-pairs with an antipodal second function, even just on the one-coordinate cube,
-cannot exceed `1/4`. The finite infimum is the minimum influence from (2). -/
-theorem quarter_coefficient_optimal (c : ℝ)
-    (hc : ∀ (f g : Finset (Fin 1) → ℝ), IsBoolean f → Monotone f →
-      IsBoolean g → Monotone g → dual g = g →
-        c * Finset.univ.inf' Finset.univ_nonempty (influence f) ≤ covariance f g) :
-    c ≤ 1 / 4 := by
-  have h := hc andFunction andFunction isBoolean_andFunction monotone_andFunction
-    isBoolean_andFunction monotone_andFunction andFunction_one_antipodal
-  rw [andFunction_one_values.1] at h
-  simp_rw [influence_andFunction] at h
-  norm_num [Fintype.card_finset] at h
-  exact h
 
 end Chvatal
 
@@ -3309,82 +2762,6 @@ open scoped BigOperators
 namespace Chvatal
 
 variable {α : Type*} [Fintype α] [Preorder α]
-
-/-- The finite layer-cake principle used in Section 5 (Proposition 5.3): if a
-signed function has nonnegative sum on every lower set, then its scalar product
-with every nonnegative antitone weight is nonnegative. This also covers an empty
-underlying type. -/
-theorem sum_mul_antitone_nonneg_of_lowerSets (c : α → ℝ)
-    (hc : ∀ D : Finset α, IsLowerSet (D : Set α) → 0 ≤ ∑ x ∈ D, c x)
-    (ω : α → ℝ) (hω : ∀ x, 0 ≤ ω x) (hanti : Antitone ω) :
-    0 ≤ ∑ x, c x * ω x := by
-  classical
-  suffices hmain : ∀ n (w : α → ℝ),
-      (Finset.univ.filter (fun x => 0 < w x)).card = n →
-      (∀ x, 0 ≤ w x) → Antitone w → 0 ≤ ∑ x, c x * w x by
-    exact hmain _ ω rfl hω hanti
-  intro n
-  induction n using Nat.strong_induction_on with
-  | h n ih =>
-    intro w hn hw hwanti
-    let D := Finset.univ.filter (fun x => 0 < w x)
-    have hDlower : IsLowerSet (D : Set α) := by
-      intro x y hxy hy
-      simp only [D, Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hy ⊢
-      exact lt_of_lt_of_le hy (hwanti hxy)
-    by_cases hD : D.Nonempty
-    · obtain ⟨a, ha, hamin⟩ := Finset.exists_min_image D w hD
-      have ha_pos : 0 < w a := (Finset.mem_filter.mp ha).2
-      let w' : α → ℝ := fun x => max (w x - w a) 0
-      have hw' : ∀ x, 0 ≤ w' x := fun x => le_max_right _ _
-      have hw'anti : Antitone w' := by
-        intro x y hxy
-        exact max_le_max (sub_le_sub_right (hwanti hxy) (w a)) le_rfl
-      have hw'le (x) : w' x ≤ w x :=
-        max_le (sub_le_self _ ha_pos.le) (hw x)
-      have hsmaller : (Finset.univ.filter (fun x => 0 < w' x)).card < n := by
-        rw [← hn]
-        apply Finset.card_lt_card
-        refine Finset.ssubset_iff_subset_ne.mpr ⟨?_, ?_⟩
-        · intro x hx
-          simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢
-          exact lt_of_lt_of_le hx (hw'le x)
-        · intro heq
-          have ha' : a ∈ Finset.univ.filter (fun x => 0 < w' x) := by
-            rw [heq]
-            exact ha
-          simpa [w'] using (Finset.mem_filter.mp ha').2
-      have hrec : 0 ≤ ∑ x, c x * w' x := ih _ hsmaller w' rfl hw' hw'anti
-      have hdecomp (x) : w x = w' x + if x ∈ D then w a else 0 := by
-        by_cases hx : x ∈ D
-        · have hax : w a ≤ w x := hamin x hx
-          simp only [w', max_eq_left (sub_nonneg.mpr hax), if_pos hx]
-          ring
-        · have hxzero : w x = 0 := by
-            have hxle : w x ≤ 0 := by simpa [D] using hx
-            exact le_antisymm hxle (hw x)
-          simp [w', hx, hxzero, ha_pos.le]
-      have hsum : (∑ x, c x * w x) =
-          (∑ x, c x * w' x) + w a * ∑ x ∈ D, c x := by
-        have hpoint (x) : c x * w x =
-            c x * w' x + c x * (if x ∈ D then w a else 0) := by
-          rw [hdecomp x, mul_add]
-        simp_rw [hpoint]
-        rw [Finset.sum_add_distrib]
-        congr 1
-        simp only [mul_ite, mul_zero, Finset.sum_ite_mem, Finset.univ_inter]
-        rw [Finset.mul_sum]
-        apply Finset.sum_congr rfl
-        intro x _
-        ring
-      rw [hsum]
-      exact add_nonneg hrec (mul_nonneg ha_pos.le (hc D hDlower))
-    · have hwzero (x) : w x = 0 := by
-        have hx : ¬0 < w x := by
-          intro hx
-          exact hD ⟨x, Finset.mem_filter.mpr ⟨Finset.mem_univ _, hx⟩⟩
-        exact le_antisymm (le_of_not_gt hx) (hw x)
-      simp [hwzero]
 
 end Chvatal
 
@@ -3445,299 +2822,6 @@ open scoped BigOperators
 namespace Chvatal
 
 variable {ι : Type*} [Fintype ι] [DecidableEq ι]
-
-/-- Proposition 5.3's coefficients `λ_i`: four times the nonconstant Fourier
-mass assigned to coordinate `i`. The selector is fixed independently of the
-weight or hereditary family under consideration. -/
-noncomputable def spectralWeights (g : Finset ι → ℝ) (select : Finset ι → ι) (i : ι) : ℝ :=
-  4 * ∑ S ∈ Finset.univ.erase ∅, if select S = i then fourier g S ^ 2 else 0
-
-/-- Nonnegativity of every coefficient in Proposition 5.3. -/
-theorem spectralWeights_nonneg (g : Finset ι → ℝ) (select : Finset ι → ι) (i : ι) :
-    0 ≤ spectralWeights g select i := by
-  apply mul_nonneg (by norm_num)
-  exact Finset.sum_nonneg fun S _ => by split_ifs <;> positivity
-
-/-- Regrouping Fourier sets according to their selected coordinate, the
-partition-of-mass step in Proposition 5.3. -/
-theorem sum_spectralWeights_mul (g : Finset ι → ℝ) (select : Finset ι → ι)
-    (a : ι → ℝ) :
-    (∑ i, spectralWeights g select i * a i) =
-      4 * ∑ S ∈ Finset.univ.erase ∅, fourier g S ^ 2 * a (select S) := by
-  simp only [spectralWeights, Finset.mul_sum, Finset.sum_mul]
-  rw [Finset.sum_comm]
-  apply Finset.sum_congr rfl
-  intro S hS
-  simp [mul_assoc, mul_ite, ite_mul]
-
-/-- The coefficients in Proposition 5.3 sum to one, by Parseval and the
-variance-one-quarter identity for an antipodal Boolean function. -/
-theorem sum_spectralWeights {g : Finset ι → ℝ} (hg : IsBoolean g)
-    (hdual : dual g = g) (select : Finset ι → ι) :
-    ∑ i, spectralWeights g select i = 1 := by
-  have hsum := sum_spectralWeights_mul g select (fun _ => 1)
-  simp only [mul_one] at hsum
-  have hmass : (∑ S ∈ Finset.univ.erase ∅, fourier g S ^ 2) = covariance g g := by
-    rw [covariance_fourier]
-    simp only [pow_two]
-  rw [hmass, variance_eq_quarter_of_antipodal hg hdual] at hsum
-  norm_num at hsum ⊢
-  exact hsum
-
-/-- A fixed total order gives the selector `max_≺ S` used in Proposition 5.3.
-The value at the empty set is irrelevant because the coefficients omit it. -/
-noncomputable def orderedSelector [LinearOrder ι] [Nonempty ι] (S : Finset ι) : ι :=
-  if hS : S.Nonempty then S.max' hS else Classical.choice inferInstance
-
-/-- The ordered selector lies in each nonempty set, the property of the
-paper's `max_≺` used in the weighted argument. -/
-theorem orderedSelector_mem [LinearOrder ι] [Nonempty ι] {S : Finset ι}
-    (hS : S.Nonempty) : orderedSelector S ∈ S := by
-  simp only [orderedSelector, dif_pos hS]
-  exact Finset.max'_mem _ _
-
-/-- The hereditary-family inequality in the proof of Proposition 5.3, deduced
-from the selected-coordinate spectral lower bound. This hypothesis is explicit
-so the counting reduction is independent of the analytic proof. -/
-theorem hereditary_bound_of_selected_correlation {g : Finset ι → ℝ}
-    (hg : IsBoolean g) (hdual : dual g = g) (select : Finset ι → ι)
-    (hcor : ∀ f : Finset ι → ℝ, IsBoolean f → Monotone f →
-      (∑ S ∈ Finset.univ.erase ∅, fourier g S ^ 2 * influence f (select S)) ≤
-        covariance f g)
-    {D : Family ι} (hD : D.IsHereditary) :
-    ((D ∩ Family.oneSupport g).card : ℝ) ≤
-      ∑ i, spectralWeights g select i * (D.star i).card := by
-  let B := Family.oneSupport g
-  have hgB : B.indicator = g := Family.indicator_oneSupport hg
-  have hanti : B.IsAntipodal := by
-    rw [Family.isAntipodal_iff_dual_indicator, hgB]
-    exact hdual
-  have hsum := sum_spectralWeights hg hdual select
-  have hbound := hcor (fun x => 1 - D.indicator x)
-    (Family.isBoolean_one_sub_indicator D) hD.monotone_one_sub_indicator
-  have hweighted : (∑ i, spectralWeights g select i *
-      influence (fun x => 1 - D.indicator x) i) ≤
-      4 * covariance (fun x => 1 - D.indicator x) g := by
-    rw [sum_spectralWeights_mul]
-    linarith
-  have hcount : (∑ i, spectralWeights g select i *
-      influence (fun x => 1 - D.indicator x) i) =
-      (2 * (D.card : ℝ) - 4 * ∑ i, spectralWeights g select i * (D.star i).card) /
-        Fintype.card (Finset ι) := by
-    calc
-      _ = (∑ i, ((2 * (D.card : ℝ)) * spectralWeights g select i -
-          4 * (spectralWeights g select i * (D.star i).card))) /
-          Fintype.card (Finset ι) := by
-        rw [Finset.sum_div]
-        apply Finset.sum_congr rfl
-        intro i hi
-        rw [Family.influence_one_sub_indicator hD]
-        ring
-      _ = _ := by
-        rw [Finset.sum_sub_distrib, ← Finset.mul_sum, ← Finset.mul_sum, hsum]
-        ring
-  have hcov := Family.covariance_one_sub_indicator (D := D) hanti
-  rw [hgB] at hcov
-  rw [hcount, hcov] at hweighted
-  have hN := cube_card_pos (ι := ι)
-  have hnum := (div_le_div_iff_of_pos_right hN).mp
-    (show (2 * (D.card : ℝ) - 4 * ∑ i, spectralWeights g select i * (D.star i).card) /
-        Fintype.card (Finset ι) ≤
-      (4 * ((D.card : ℝ) / 2 - (D ∩ B).card)) / Fintype.card (Finset ι) by
-      simpa only [mul_div_assoc] using hweighted)
-  dsimp [B] at hnum
-  linarith
-
-/-- The fractional star function `q(x) = ∑_i λ_i x_i` from the proof of
-Proposition 5.3. -/
-noncomputable def starMixture (weights : ι → ℝ) (x : Finset ι) : ℝ :=
-  ∑ i, if i ∈ x then weights i else 0
-
-/-- Counting the fractional star function on a family gives the corresponding
-weighted combination of its star cardinalities (Proposition 5.3). -/
-theorem sum_starMixture (weights : ι → ℝ) (D : Family ι) :
-    (∑ x ∈ D, starMixture weights x) =
-      ∑ i, weights i * (D.star i).card := by
-  unfold starMixture
-  rw [Finset.sum_comm]
-  apply Finset.sum_congr rfl
-  intro i hi
-  simp [Family.star, ← Finset.sum_filter, mul_comm]
-
-/-- Summing a family indicator over another family counts their intersection,
-the second counting step for the defect in Proposition 5.3. -/
-theorem sum_indicator_on_family (B D : Family ι) :
-    (∑ x ∈ D, B.indicator x) = ((D ∩ B).card : ℝ) := by
-  simp [Family.indicator]
-
-/-- The mean-zero defect in Proposition 5.3, summed on a hereditary family.
-The identity itself holds for every family. -/
-theorem sum_starMixture_sub_indicator (weights : ι → ℝ) (B D : Family ι) :
-    (∑ x ∈ D, (starMixture weights x - B.indicator x)) =
-      (∑ i, weights i * (D.star i).card) - (D ∩ B).card := by
-  rw [Finset.sum_sub_distrib, sum_starMixture, sum_indicator_on_family]
-
-/-- The weighted form of the same defect, obtained by interchanging finite
-sums. This is the finite counterpart of the layer-cake calculation in (18). -/
-theorem sum_defect_mul (weights : ι → ℝ) (B : Family ι) (ω : Finset ι → ℝ) :
-    (∑ x, (starMixture weights x - B.indicator x) * ω x) =
-      (∑ i, weights i * ∑ x ∈ Family.star Finset.univ i, ω x) - ∑ x ∈ B, ω x := by
-  simp only [sub_mul, Finset.sum_sub_distrib]
-  congr 1
-  · unfold starMixture
-    simp only [Finset.sum_mul]
-    rw [Finset.sum_comm]
-    apply Finset.sum_congr rfl
-    intro i hi
-    simp [Family.star, Finset.sum_filter, Finset.mul_sum, ite_mul]
-  · simp [Family.indicator, ite_mul]
-
-/-- Finite layer-cake lifting in Proposition 5.3: domination on every
-hereditary family implies domination for every nonnegative decreasing weight. -/
-theorem weighted_bound_of_hereditary_bound (weights : ι → ℝ) (B : Family ι)
-    (hbound : ∀ D : Family ι, D.IsHereditary →
-      ((D ∩ B).card : ℝ) ≤ ∑ i, weights i * (D.star i).card)
-    (ω : Finset ι → ℝ) (hω : ∀ x, 0 ≤ ω x) (hanti : Antitone ω) :
-    (∑ x ∈ B, ω x) ≤ ∑ i, weights i * ∑ x ∈ Family.star Finset.univ i, ω x := by
-  have h := sum_mul_antitone_nonneg_of_lowerSets
-    (fun x => starMixture weights x - B.indicator x)
-    (fun D hD => by
-      rw [sum_starMixture_sub_indicator]
-      exact sub_nonneg.mpr (hbound D hD)) ω hω hanti
-  rw [sum_defect_mul] at h
-  exact sub_nonneg.mp h
-
-/-- The selected-coordinate expression in Proposition 5.3 is bounded by the
-spectral expression in Theorem 1.2, because the selector belongs to its set. -/
-theorem selected_spectral_le (f g : Finset ι → ℝ) (select : Finset ι → ι)
-    (hselect : ∀ S : Finset ι, S.Nonempty → select S ∈ S) :
-    (∑ S ∈ Finset.univ.erase ∅, fourier g S ^ 2 * influence f (select S)) ≤
-      spectralWeight f g := by
-  rw [spectralWeight_eq_sum_nonempty]
-  apply Finset.sum_le_sum
-  intro S hS
-  exact mul_le_mul_of_nonneg_left (influence_le_maxInfluence f
-    (hselect S (Finset.nonempty_iff_ne_empty.mpr (Finset.mem_erase.mp hS).1)))
-    (sq_nonneg _)
-
-/-- The first inequality of Proposition 5.3 deduced from the antipodal spectral
-bound, keeping the analytic dependency explicit. -/
-theorem weighted_bound_of_spectral_bound [Nonempty ι] {B : Family ι}
-    (hB : B.IsMaximalIntersecting) (select : Finset ι → ι)
-    (hselect : ∀ S : Finset ι, S.Nonempty → select S ∈ S)
-    (hspectral : ∀ f : Finset ι → ℝ, IsBoolean f → Monotone f →
-      spectralWeight f B.indicator ≤ covariance f B.indicator)
-    (ω : Finset ι → ℝ) (hω : ∀ x, 0 ≤ ω x) (hanti : Antitone ω) :
-    (∑ x ∈ B, ω x) ≤
-      ∑ i, spectralWeights B.indicator select i * ∑ x ∈ Family.star Finset.univ i, ω x := by
-  apply weighted_bound_of_hereditary_bound _ B ?_ ω hω hanti
-  intro D hD
-  have hsupport : Family.oneSupport B.indicator = B := by
-    ext x
-    by_cases hx : x ∈ B <;> simp [Family.indicator, hx]
-  have h := hereditary_bound_of_selected_correlation (Family.isBoolean_indicator B)
-    hB.isAntipodal.dual_indicator select
-    (fun f hf hm => (selected_spectral_le f B.indicator select hselect).trans
-      (hspectral f hf hm)) hD
-  simpa only [hsupport] using h
-
-/-- Proposition 5.3's first inequality, proved from the antipodal case of
-Theorem 1.2. It holds for any fixed selector belonging to each nonempty index. -/
-theorem weighted_star_mixture_bound [Nonempty ι] {B : Family ι}
-    (hB : B.IsMaximalIntersecting) (select : Finset ι → ι)
-    (hselect : ∀ S : Finset ι, S.Nonempty → select S ∈ S)
-    (ω : Finset ι → ℝ) (hω : ∀ x, 0 ≤ ω x) (hanti : Antitone ω) :
-    (∑ x ∈ B, ω x) ≤
-      ∑ i, spectralWeights B.indicator select i * ∑ x ∈ Family.star Finset.univ i, ω x :=
-  weighted_bound_of_spectral_bound hB select hselect
-    (fun _ hf hmf => antipodal_spectral_bound hf hmf (Family.isBoolean_indicator B)
-      hB.isIncreasing.monotone_indicator hB.isAntipodal.dual_indicator) ω hω hanti
-
-/-- A convex combination of star weights is at most their maximum, the second
-inequality in equation (18). -/
-theorem star_mixture_le_max [Nonempty ι] (weights : ι → ℝ)
-    (hweights : ∀ i, 0 ≤ weights i) (hsum : ∑ i, weights i = 1)
-    (ω : Finset ι → ℝ) :
-    (∑ i, weights i * ∑ x ∈ Family.star Finset.univ i, ω x) ≤
-      Finset.univ.sup' Finset.univ_nonempty
-        (fun i => ∑ x ∈ Family.star Finset.univ i, ω x) := by
-  let M := Finset.univ.sup' Finset.univ_nonempty
-    (fun i => ∑ x ∈ Family.star Finset.univ i, ω x)
-  calc
-    _ ≤ ∑ i, weights i * M := by
-      apply Finset.sum_le_sum
-      intro i _
-      apply mul_le_mul_of_nonneg_left _ (hweights i)
-      exact Finset.le_sup' (fun j : ι => ∑ x ∈ Family.star Finset.univ j, ω x)
-        (Finset.mem_univ i)
-    _ = M := by rw [← Finset.sum_mul, hsum, one_mul]
-
-/-- Proposition 5.3 in the paper's exact ordered-selector formulation: the
-spectral coefficients are nonnegative, sum to one, and satisfy both inequalities
-in equation (18). The total order represents the paper's fixed permutation. -/
-theorem kleitman_weighted_bound [LinearOrder ι] [Nonempty ι] {B : Family ι}
-    (hB : B.IsMaximalIntersecting) (ω : Finset ι → ℝ)
-    (hω : ∀ x, 0 ≤ ω x) (hanti : Antitone ω) :
-    (∀ i, 0 ≤ spectralWeights B.indicator orderedSelector i) ∧
-    (∑ i, spectralWeights B.indicator orderedSelector i) = 1 ∧
-    (∑ x ∈ B, ω x) ≤
-      (∑ i, spectralWeights B.indicator orderedSelector i *
-        ∑ x ∈ Family.star Finset.univ i, ω x) ∧
-    (∑ i, spectralWeights B.indicator orderedSelector i *
-        ∑ x ∈ Family.star Finset.univ i, ω x) ≤
-      Finset.univ.sup' Finset.univ_nonempty
-        (fun i => ∑ x ∈ Family.star Finset.univ i, ω x) := by
-  have hweights := spectralWeights_nonneg B.indicator orderedSelector
-  have hsum := sum_spectralWeights (Family.isBoolean_indicator B)
-    hB.isAntipodal.dual_indicator orderedSelector
-  exact ⟨hweights, hsum,
-    weighted_star_mixture_bound hB orderedSelector (fun _ => orderedSelector_mem) ω hω hanti,
-    star_mixture_le_max _ hweights hsum ω⟩
-
-/-- The final conclusion of Proposition 5.3 for one intersecting family:
-its total nonnegative decreasing weight is bounded by some full-cube star. -/
-theorem exists_weighted_star_bound [Nonempty ι] {A : Family ι}
-    (hA : A.IsIntersecting) (ω : Finset ι → ℝ)
-    (hω : ∀ x, 0 ≤ ω x) (hanti : Antitone ω) :
-    ∃ i : ι, (∑ x ∈ A, ω x) ≤ ∑ x ∈ Family.star Finset.univ i, ω x := by
-  classical
-  obtain ⟨B, hAB, hB⟩ := hA.exists_maximal_extension
-  let select : Finset ι → ι := fun S =>
-    if hS : S.Nonempty then hS.choose else Classical.choice inferInstance
-  have hselect : ∀ S : Finset ι, S.Nonempty → select S ∈ S := by
-    intro S hS
-    simp only [select, dif_pos hS]
-    exact hS.choose_spec
-  obtain ⟨i, _, hi⟩ := Finset.exists_max_image Finset.univ
-    (fun i => ∑ x ∈ Family.star Finset.univ i, ω x) Finset.univ_nonempty
-  refine ⟨i, ?_⟩
-  calc
-    (∑ x ∈ A, ω x) ≤ ∑ x ∈ B, ω x :=
-      Finset.sum_le_sum_of_subset_of_nonneg hAB (fun x _ _ => hω x)
-    _ ≤ ∑ j, spectralWeights B.indicator select j *
-        ∑ x ∈ Family.star Finset.univ j, ω x :=
-      weighted_star_mixture_bound hB select hselect ω hω hanti
-    _ ≤ Finset.univ.sup' Finset.univ_nonempty
-        (fun j => ∑ x ∈ Family.star Finset.univ j, ω x) :=
-      star_mixture_le_max _ (spectralWeights_nonneg _ _)
-        (sum_spectralWeights (Family.isBoolean_indicator B) hB.isAntipodal.dual_indicator
-          select) ω
-    _ ≤ ∑ x ∈ Family.star Finset.univ i, ω x := Finset.sup'_le _ _ hi
-
-/-- The final maximum-attainment statement of Proposition 5.3: one star
-simultaneously dominates every intersecting family for a fixed nonnegative
-decreasing weight, and that star is itself intersecting. -/
-theorem exists_largest_weighted_intersecting_star [Nonempty ι]
-    (ω : Finset ι → ℝ) (hω : ∀ x, 0 ≤ ω x) (hanti : Antitone ω) :
-    ∃ i : ι, (Family.star (Finset.univ : Family ι) i).IsIntersecting ∧
-      ∀ A : Family ι, A.IsIntersecting →
-        (∑ x ∈ A, ω x) ≤ ∑ x ∈ Family.star Finset.univ i, ω x := by
-  obtain ⟨i, _, hi⟩ := Finset.exists_max_image Finset.univ
-    (fun i => ∑ x ∈ Family.star Finset.univ i, ω x) Finset.univ_nonempty
-  refine ⟨i, Family.star_isIntersecting Finset.univ i, ?_⟩
-  intro A hA
-  obtain ⟨j, hj⟩ := exists_weighted_star_bound hA ω hω hanti
-  exact hj.trans (hi j (Finset.mem_univ j))
 
 end Chvatal
 
@@ -3833,114 +2917,6 @@ theorem IsSignedBoolean.booleanPart {h : Finset ι → ℝ} (hh : IsSignedBoolea
     IsBoolean (booleanPart h) := by
   intro x
   rcases hh x with hx | hx <;> simp [Chvatal.booleanPart, hx]
-
-/-- The convention change in Section 5 preserves increasing functions. -/
-theorem monotone_signLift {g : Finset ι → ℝ} (hg : Monotone g) :
-    Monotone (signLift g) := by
-  intro x y hxy
-  dsimp [signLift]
-  linarith [hg hxy]
-
-/-- The inverse convention change also preserves increasing functions. -/
-theorem monotone_booleanPart {h : Finset ι → ℝ} (hh : Monotone h) :
-    Monotone (booleanPart h) := by
-  intro x y hxy
-  dsimp [booleanPart]
-  linarith [hh hxy]
-
-/-- Section 5: a self-dual Boolean function lifts to an odd function under
-antipodal complementation, `h(xᶜ) = -h(x)`. -/
-theorem signLift_compl {g : Finset ι → ℝ} (hg : dual g = g) (x : Finset ι) :
-    signLift g xᶜ = -signLift g x := by
-  have hx := congrFun hg x
-  dsimp [dual] at hx
-  dsimp [signLift]
-  linarith
-
-/-- The inverse of the preceding antipodality conversion. -/
-theorem dual_booleanPart {h : Finset ι → ℝ} (hh : ∀ x, h xᶜ = -h x) :
-    dual (booleanPart h) = booleanPart h := by
-  funext x
-  simp only [dual, booleanPart, hh]
-  ring
-
-/-- The identity `h_+² = g` explicitly stated in the final paragraph of Section 5. -/
-theorem signLift_positivePart_sq {g : Finset ι → ℝ} (hg : IsBoolean g) (x : Finset ι) :
-    max (signLift g x) 0 ^ 2 = g x := by
-  rcases hg x with hx | hx <;> norm_num [signLift, hx]
-
-/-- The positive-part identity for an arbitrary signed Boolean function. -/
-theorem IsSignedBoolean.positivePart_sq {h : Finset ι → ℝ} (hh : IsSignedBoolean h)
-    (x : Finset ι) : max (h x) 0 ^ 2 = Chvatal.booleanPart h x := by
-  rcases hh x with hx | hx <;> norm_num [Chvatal.booleanPart, hx]
-
-/-- Fourier coefficients under the affine convention change of Section 5,
-including the exceptional constant coefficient. -/
-theorem fourier_signLift (g : Finset ι → ℝ) (S : Finset ι) :
-    fourier (signLift g) S = 2 * fourier g S - if S = ∅ then 1 else 0 := by
-  change fourier (fun x => 2 * g x - 1) S = _
-  rw [fourier_sub, fourier_const]
-  congr 1
-  simp only [fourier, mul_assoc, cubeMean_mul_left]
-
-/-- Section 5's formula `ĥ(S) = 2ĝ(S)` for every nonempty Fourier index. -/
-theorem fourier_signLift_of_nonempty (g : Finset ι → ℝ) {S : Finset ι}
-    (hS : S.Nonempty) : fourier (signLift g) S = 2 * fourier g S := by
-  simp [fourier_signLift, hS.ne_empty]
-
-/-- The coefficients in the final displayed equation of Section 5, in the
-signed Boolean convention. Choosing `orderedSelector` gives the paper's order. -/
-noncomputable def signedSpectralWeights (h : Finset ι → ℝ) (select : Finset ι → ι) (i : ι) : ℝ :=
-  ∑ S ∈ Finset.univ.erase ∅, if select S = i then fourier h S ^ 2 else 0
-
-/-- Section 5: the signed Fourier formula gives exactly the same coefficients
-`λ_i` as Proposition 5.3, with its factor of four absorbed by the convention change. -/
-theorem spectralWeights_eq_signed (g : Finset ι → ℝ) (select : Finset ι → ι) (i : ι) :
-    spectralWeights g select i = signedSpectralWeights (signLift g) select i := by
-  rw [spectralWeights, signedSpectralWeights, Finset.mul_sum]
-  apply Finset.sum_congr rfl
-  intro S hS
-  rw [fourier_signLift_of_nonempty g
-    (Finset.nonempty_iff_ne_empty.mpr (Finset.mem_erase.mp hS).1)]
-  split_ifs <;> ring
-
-/-- Nonnegativity of the signed coefficients in the closing Section 5 formulation. -/
-theorem signedSpectralWeights_nonneg (h : Finset ι → ℝ) (select : Finset ι → ι) (i : ι) :
-    0 ≤ signedSpectralWeights h select i := by
-  exact Finset.sum_nonneg fun S _ => by split_ifs <;> positivity
-
-/-- The signed coefficients sum to one for every antipodal signed Boolean function. -/
-theorem sum_signedSpectralWeights {h : Finset ι → ℝ} (hh : IsSignedBoolean h)
-    (hanti : ∀ x, h xᶜ = -h x) (select : Finset ι → ι) :
-    (∑ i, signedSpectralWeights h select i) = 1 := by
-  have hsum := sum_spectralWeights hh.booleanPart (dual_booleanPart hanti) select
-  simpa only [spectralWeights_eq_signed, signLift_booleanPart] using hsum
-
-/-- The weighted star inequality in the signed Boolean convention of Section 5's
-closing paragraph. Its left side uses exactly the stated positive-part square,
-and its coefficients use the stated squared signed Fourier coefficients. -/
-theorem signed_weighted_star_bound [Nonempty ι] {h : Finset ι → ℝ}
-    (hh : IsSignedBoolean h) (hm : Monotone h) (hanti : ∀ x, h xᶜ = -h x)
-    (select : Finset ι → ι) (hselect : ∀ S : Finset ι, S.Nonempty → select S ∈ S)
-    (ω : Finset ι → ℝ) (hω : ∀ x, 0 ≤ ω x) (hωanti : Antitone ω) :
-    (∑ x, max (h x) 0 ^ 2 * ω x) ≤
-      ∑ i, signedSpectralWeights h select i * ∑ x ∈ Family.star Finset.univ i, ω x := by
-  let B := Family.oneSupport (booleanPart h)
-  have hBindicator : B.indicator = booleanPart h := Family.indicator_oneSupport hh.booleanPart
-  have hBmono : B.IsIncreasing := Family.isIncreasing_oneSupport hh.booleanPart
-    (monotone_booleanPart hm)
-  have hBanti : B.IsAntipodal := by
-    rw [Family.isAntipodal_iff_dual_indicator, hBindicator]
-    exact dual_booleanPart hanti
-  have hbound := weighted_star_mixture_bound
-    (hBmono.isMaximalIntersecting_of_isAntipodal hBanti) select hselect ω hω hωanti
-  rw [hBindicator] at hbound
-  simp only [spectralWeights_eq_signed, signLift_booleanPart] at hbound
-  have hsum : (∑ x, max (h x) 0 ^ 2 * ω x) = ∑ x ∈ B, ω x := by
-    simp_rw [hh.positivePart_sq]
-    rw [← hBindicator, sum_indicator_mul]
-  rw [hsum]
-  exact hbound
 
 end Chvatal
 

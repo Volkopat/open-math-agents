@@ -44,20 +44,8 @@ lemma row_eq {n m : ℕ} (A : Matrix (Fin n) (Fin m) ℝ) (S : Finset (Fin n)) (
 
 lemma frob_eq {n m : ℕ} (A : Matrix (Fin n) (Fin m) ℝ) (S : Finset (Fin n)) :
     squaredFrobenius (A - retain A S) = (∑ i, rowEnergy A i) - ∑ i ∈ S, rowEnergy A i := by
-  unfold squaredFrobenius
-  have h1 := Finset.sum_sdiff (Finset.subset_univ S)
-    (f := fun i => rowEnergy (A - retain A S) i)
-  have h2 := Finset.sum_sdiff (Finset.subset_univ S) (f := fun i => rowEnergy A i)
-  have h3 : ∑ i ∈ S, rowEnergy (A - retain A S) i = 0 := by
-    apply Finset.sum_eq_zero
-    intro i hi
-    rw [row_eq, if_pos hi]
-  have h4 : ∑ i ∈ Finset.univ \ S, rowEnergy (A - retain A S) i =
-      ∑ i ∈ Finset.univ \ S, rowEnergy A i := by
-    apply Finset.sum_congr rfl
-    intro i hi
-    rw [row_eq, if_neg (Finset.mem_sdiff.mp hi).2]
-  linarith
+  rw [eq_sub_iff_add_eq]
+  simp [squaredFrobenius, row_eq, Finset.sum_ite, Finset.filter_not]
 
 end MO270743
 

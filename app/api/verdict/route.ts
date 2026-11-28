@@ -7,6 +7,9 @@ import { REDUCTION_FILE_RE, STEP_RE, parseStep, reductionHypotheses, reductionMo
 import { reductionFile } from "@/lib/stepinfo";
 import { REPO } from "@/lib/site";
 import { verifyWorkflowToken } from "@/lib/ghoidc";
+import { creditCandidates, verdict3 } from "@/lib/team";
+import { usedNotes } from "@/lib/snippet";
+import { dbDown } from "@/lib/deskoffline";
 
 const GH = "https://api.github.com";
 const ghHeaders: Record<string, string> = {
@@ -79,12 +82,13 @@ async function post(req: Request) {
 
   // The pull request as GitHub describes it: sent by the verdict workflow with an OIDC token proving where it comes
   // from (the workflow read it with its own token), or else asked from the GitHub API here.
-  type PR = { merged: boolean; base: string; handle: string; body: string; mergeSha: string; url: string; files: { filename: string; status: string }[] };
+  type PR = { merged: boolean; base: string; handle: string; body: string; mergeSha: string; url: string; openedAt: string | null; files: { filename: string; status: string }[] };
+  const when = (x: unknown) => (typeof x === "string" && !Number.isNaN(Date.parse(x)) ? new Date(x).toISOString() : null);
   let pr: PR;
   if (((maintainer && Array.isArray(b.files)) || (b.oidc && (await verifyWorkflowToken(b.oidc)))) && Array.isArray(b.files) && b.pr === n) {
     pr = {
       merged: b.merged === true, base: String(b.base), handle: String(b.handle ?? "unknown"), body: String(b.body ?? ""),
-      mergeSha: String(b.mergeSha ?? ""), url: String(b.url ?? ""),
+      mergeSha: String(b.mergeSha ?? ""), url: String(b.url ?? ""), openedAt: when(b.openedAt),
       files: b.files.map((f: { filename?: unknown; status?: unknown }) => ({ filename: String(f.filename), status: String(f.status) })),
     };
     if (!/^[0-9a-f]{40}$/.test(pr.mergeSha) || pr.url !== `https://github.com/${REPO}/pull/${n}`) return json({ error: "bad_request" }, 400);
@@ -95,7 +99,7 @@ async function post(req: Request) {
     const g = await prRes.json();
     const filesRes = await fetch(`${GH}/repos/${REPO}/pulls/${n}/files`, { headers: ghHeaders, cache: "no-store" });
     if (!filesRes.ok) return githubBusy(filesRes.status);
-    pr = { merged: !!g.merged, base: g.base?.ref, handle: String(g.user?.login ?? "unknown"), body: String(g.body ?? ""), mergeSha: g.merge_commit_sha, url: g.html_url, files: await filesRes.json() };
+    pr = { merged: !!g.merged, base: g.base?.ref, handle: String(g.user?.login ?? "unknown"), body: String(g.body ?? ""), mergeSha: g.merge_commit_sha, url: g.html_url, openedAt: when(g.created_at), files: await filesRes.json() };
   }
   if (!pr.merged || pr.base !== "main") return json({ error: "not_merged" }, 409);
   const files = pr.files;
@@ -106,6 +110,8 @@ async function post(req: Request) {
   const path = files[0].filename;
 
   const raw = await fetch(`https://raw.githubusercontent.com/${REPO}/${pr.mergeSha}/${path}`, { cache: "no-store" });
+  // GitHub busy (429, 5xx): retry later, never read as an empty file (that refused a merged reduction as bad_reduction)
+  if (!raw.ok && raw.status !== 404) return githubBusy(raw.status);
   const src = raw.ok ? await raw.text() : "";
   const handle = pr.handle.slice(0, 39);
   const body = pr.body;
@@ -151,6 +157,31 @@ async function post(req: Request) {
     points = step.points;
   } else return json({ error: "unknown_problem", id }, 409);
 
+  // Teammates whose DONE lemmas the merged proof uses get a share of it, out of the author's (lib/snippet.ts usedNotes;
+  // every rule is checked again by oma_verdict3). Only once the task board is switched on (022): before that, and if
+  // anything but a database outage goes wrong on that path, the credit is recorded exactly as before.
+  const helps = await teamHelps(id, src, body, pr.openedAt);
+  if (helps.length) {
+    try {
+      return json(await verdict3({ problem: id, handle, pr: pr.url, verdict: "accepted", polarity, agent, model, points, helps, before: pr.openedAt }));
+    } catch (e) {
+      if (dbDown(e)) throw e;
+      console.error("verdict3", id, e);
+    }
+  }
   return json(await verdict2({ problem: id, handle, pr: pr.url, verdict: "accepted", polarity, agent, model, points }));
+}
+
+/** Note ids of teammates' DONE lemmas the merged file uses, posted before the pull request was opened. */
+async function teamHelps(id: string, src: string, body: string, before: string | null): Promise<number[]> {
+  try {
+    const cands = await creditCandidates(id, before);
+    return cands?.length ? usedNotes(src, body, cands) : [];
+  } catch (e) {
+    // the database is down: the whole credit is retried later (the merger keeps it); anything else: no shares
+    if (dbDown(e)) throw e;
+    console.error("credit candidates", id, e);
+    return [];
+  }
 }
 export const POST = guarded(post);

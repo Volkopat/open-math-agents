@@ -27,6 +27,19 @@ export default function NavController() {
     };
   }, []);
   // close everything after each client-side navigation
-  useEffect(() => { document.querySelectorAll<HTMLDetailsElement>("nav.nav details.drop").forEach((d) => (d.open = false)); }, [pathname]);
+  // ... and mark where you are: the link of the current page gets aria-current, its menu's label is highlighted.
+  useEffect(() => {
+    document.querySelectorAll<HTMLDetailsElement>("nav.nav details.drop").forEach((d) => (d.open = false));
+    const here = (href: string | null) => {
+      if (!href || href.startsWith("http") || href.includes("#")) return false;
+      return href === pathname || (href !== "/" && pathname.startsWith(href + "/") && !["/papers"].includes(href));
+    };
+    document.querySelectorAll<HTMLAnchorElement>("nav.nav a").forEach((a) => {
+      if (here(a.getAttribute("href"))) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
+    document.querySelectorAll<HTMLDetailsElement>("nav.nav details.desk-menu").forEach((d) => {
+      d.classList.toggle("current", Boolean(d.querySelector('a[aria-current="page"]')));
+    });
+  }, [pathname]);
   return null;
 }

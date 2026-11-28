@@ -1,3352 +1,2202 @@
 import FormalConjectures.Wikipedia.GyarfasSumnerConjecture
-import Mathlib.Combinatorics.SimpleGraph.Acyclic
-import Mathlib.Combinatorics.SimpleGraph.Clique
-import Mathlib.Combinatorics.SimpleGraph.Coloring.Vertex
-import Mathlib.Combinatorics.SimpleGraph.Copy
-import Mathlib.Combinatorics.SimpleGraph.Metric
-import Mathlib.Combinatorics.SimpleGraph.Paths
-import Mathlib.Tactic
+import Mathlib
 
 /-!
-# Kierstead-Penrice (1994): Radius-Two Trees Specify Chi-Bounded Classes
+Kierstead and Penrice (1994): trees of radius two specify chi-bounded classes.
 
-Proof of `GyarfasSumnerConjecture.gyarfas_sumner_conjecture.variants.radius_two`
-via the template method of Kierstead-Penrice (1994) and Scott-Seymour (2023).
+Proof outline (formalized below, following the template method as presented by Scott and
+Seymour, Polynomial bounds for chromatic number V, arXiv 2202.05557, Sections 3 and 4, with a
+self-contained Rodl-type base case and with all polynomial bookkeeping replaced by existence):
+* every tree of radius at most two is an induced subgraph of the complete radius-two tree H_s;
+* Theorem A, by induction on the clique number: H_s-free graphs have chromatic number bounded
+  by a function of the clique number;
+* inner induction on d: no stable (t,d)-core forces bounded chromatic number; the base d = 2 is a
+  Rodl-type argument (Ramsey, pigeonhole, pure pairs), the step uses a greedy template sequence
+  and the chain of 1-nice ... 8-nice reductions, each Hs-finding step ending in one embedding lemma.
+Credit: @peyton-thalman (agent claude-code / claude-opus-5-5).
 -/
 
-open SimpleGraph
 
-/- ## Section 1: Coloring and Ramsey Combinators on Finsets -/
+/-! # Toolbox for the Kierstead–Penrice theorem (radius-two trees are χ-bounding). -/
 
-private def ColorableOn {V : Type*} (G : SimpleGraph V) (S : Finset V) (c : ℕ) : Prop :=
-  ∃ col : V → ℕ, (∀ v ∈ S, col v < c) ∧ ∀ u ∈ S, ∀ v ∈ S, G.Adj u v → col u ≠ col v
+open Finset
 
-private lemma colorableOn_empty {V : Type*} (G : SimpleGraph V) (c : ℕ) :
-    ColorableOn G ∅ c :=
+namespace GS
+
+section Generic
+variable {α : Type*} [DecidableEq α]
+
+/-- A proper colouring of `X` for the relation `E`, with natural-number colours `< k`. -/
+def PCol (E : α → α → Prop) (X : Finset α) (k : ℕ) : Prop :=
+  ∃ c : α → ℕ, (∀ x ∈ X, c x < k) ∧ ∀ x ∈ X, ∀ y ∈ X, E x y → c x ≠ c y
+
+theorem PCol.mono {E : α → α → Prop} {X Y : Finset α} {k k' : ℕ} (h : PCol E X k)
+    (hY : Y ⊆ X) (hk : k ≤ k') : PCol E Y k' := by
+  obtain ⟨c, hc, hp⟩ := h
+  exact ⟨c, fun x hx => (hc x (hY hx)).trans_le hk, fun x hx y hy => hp x (hY hx) y (hY hy)⟩
+
+/-- Degeneracy colouring. -/
+theorem deg_col (E : α → α → Prop) [DecidableRel E] (hirr : ∀ x, ¬ E x x)
+    (hsym : ∀ x y, E x y → E y x) (D : ℕ) :
+    ∀ X : Finset α, (∀ Y ⊆ X, Y.Nonempty → ∃ y ∈ Y, (Y.filter (E y)).card < D) →
+      PCol E X D := by
+  intro X
+  induction X using Finset.strongInduction with
+  | H X ih =>
+    intro hdeg
+    rcases X.eq_empty_or_nonempty with rfl | hne
+    · exact ⟨fun _ => 0, by simp, by simp⟩
+    obtain ⟨y, hy, hyd⟩ := hdeg X subset_rfl hne
+    obtain ⟨c, hc, hp⟩ := ih (X.erase y) (erase_ssubset hy)
+      (fun Y hY hYne => hdeg Y (hY.trans (erase_subset _ _)) hYne)
+    have himg : ((X.filter (E y)).image c).card < D := card_image_le.trans_lt hyd
+    obtain ⟨m, hm, hmn⟩ : ∃ m ∈ range D, m ∉ (X.filter (E y)).image c := by
+      by_contra hcon
+      push_neg at hcon
+      have := card_le_card (show range D ⊆ (X.filter (E y)).image c from fun m hm => hcon m hm)
+      simp only [card_range] at this
+      omega
+    refine ⟨Function.update c y m, ?_, ?_⟩
+    · intro x hx
+      by_cases hxy : x = y
+      · subst hxy; simpa using hm
+      · rw [Function.update_of_ne hxy]; exact hc x (mem_erase.mpr ⟨hxy, hx⟩)
+    · intro x hx z hz hE
+      by_cases hxy : x = y
+      · subst hxy
+        have hzy : z ≠ x := fun h => hirr x (h ▸ hE)
+        rw [Function.update_self, Function.update_of_ne hzy]
+        intro h; apply hmn; exact mem_image.mpr ⟨z, mem_filter.mpr ⟨hz, hE⟩, h.symm⟩
+      · by_cases hzy : z = y
+        · subst hzy
+          rw [Function.update_self, Function.update_of_ne hxy]
+          intro h; apply hmn
+          exact mem_image.mpr ⟨x, mem_filter.mpr ⟨hx, hsym _ _ hE⟩, h⟩
+        · rw [Function.update_of_ne hxy, Function.update_of_ne hzy]
+          exact hp x (mem_erase.mpr ⟨hxy, hx⟩) z (mem_erase.mpr ⟨hzy, hz⟩) hE
+
+/-- Bounded degree colouring. -/
+theorem col_of_deg_lt (E : α → α → Prop) [DecidableRel E] (hirr : ∀ x, ¬ E x x)
+    (hsym : ∀ x y, E x y → E y x) (D : ℕ) (X : Finset α)
+    (h : ∀ x ∈ X, (X.filter (E x)).card < D) : PCol E X D :=
+  deg_col E hirr hsym D X fun Y hY ⟨y, hy⟩ =>
+    ⟨y, hy, (card_le_card (filter_subset_filter _ hY)).trans_lt (h y (hY hy))⟩
+
+/-- Out-degree partition: a relation with out-degrees `< D` splits into `2D-1` arc-free classes. -/
+theorem outdeg_col (A : α → α → Prop) [DecidableRel A] (D : ℕ) (X : Finset α)
+    (h : ∀ x ∈ X, (X.filter (fun y => y ≠ x ∧ A x y)).card < D) :
+    PCol (fun x y => x ≠ y ∧ A x y) X (2 * D - 1) := by
+  classical
+  let E : α → α → Prop := fun x y => x ≠ y ∧ (A x y ∨ A y x)
+  have hE : PCol E X (2 * D - 1) := by
+    refine deg_col E (fun x h => h.1 rfl) (fun x y h => ⟨h.1.symm, h.2.symm⟩) _ X ?_
+    intro Y hY hYne
+    by_contra hcon
+    push_neg at hcon
+    have hD : 1 ≤ D := by
+      obtain ⟨y, hy⟩ := hYne
+      have := h y (hY hy); omega
+    -- double counting
+    have hout : ∀ y ∈ Y, (Y.filter (fun z => z ≠ y ∧ A y z)).card ≤ D - 1 := fun y hy => by
+      have := (card_le_card (filter_subset_filter (fun z => z ≠ y ∧ A y z) hY)).trans_lt (h y (hY hy))
+      omega
+    have hsplit : ∀ y ∈ Y, (Y.filter (E y)).card ≤
+        (Y.filter (fun z => z ≠ y ∧ A y z)).card + (Y.filter (fun z => z ≠ y ∧ A z y)).card := by
+      intro y _
+      refine (card_le_card ?_).trans (card_union_le _ _)
+      intro z hz
+      obtain ⟨hzY, hne, hA⟩ := mem_filter.mp hz
+      rcases hA with hA | hA
+      · exact mem_union_left _ (mem_filter.mpr ⟨hzY, hne.symm, hA⟩)
+      · exact mem_union_right _ (mem_filter.mpr ⟨hzY, hne.symm, hA⟩)
+    have hswap : ∑ y ∈ Y, (Y.filter (fun z => z ≠ y ∧ A z y)).card =
+        ∑ y ∈ Y, (Y.filter (fun z => z ≠ y ∧ A y z)).card := by
+      simp only [card_filter]
+      rw [Finset.sum_comm]
+      refine sum_congr rfl fun y _ => sum_congr rfl fun z _ => ?_
+      simp only [ne_comm]
+    have hsum : ∑ y ∈ Y, (Y.filter (E y)).card ≤ ∑ y ∈ Y, 2 * (D - 1) := by
+      calc ∑ y ∈ Y, (Y.filter (E y)).card
+          ≤ ∑ y ∈ Y, ((Y.filter (fun z => z ≠ y ∧ A y z)).card +
+              (Y.filter (fun z => z ≠ y ∧ A z y)).card) := sum_le_sum hsplit
+        _ = 2 * ∑ y ∈ Y, (Y.filter (fun z => z ≠ y ∧ A y z)).card := by
+              rw [sum_add_distrib, hswap]; ring
+        _ ≤ 2 * ∑ y ∈ Y, (D - 1) := Nat.mul_le_mul_left _ (sum_le_sum hout)
+        _ = ∑ y ∈ Y, 2 * (D - 1) := by rw [mul_sum]
+    have hlt : ∑ y ∈ Y, 2 * (D - 1) < ∑ y ∈ Y, (Y.filter (E y)).card :=
+      sum_lt_sum_of_nonempty hYne fun y hy => by have := hcon y hy; omega
+    omega
+  obtain ⟨c, hc, hp⟩ := hE
+  exact ⟨c, hc, fun x hx y hy hA => hp x hx y hy ⟨hA.1, Or.inl hA.2⟩⟩
+
+/-- A large arc-free subset. -/
+theorem outdeg_arcfree (A : α → α → Prop) [DecidableRel A] (D m : ℕ) (X : Finset α)
+    (hD : 1 ≤ D) (h : ∀ x ∈ X, (X.filter (fun y => y ≠ x ∧ A x y)).card < D)
+    (hX : (2 * D - 1) * m ≤ X.card) :
+    ∃ I ⊆ X, I.card = m ∧ ∀ x ∈ I, ∀ y ∈ I, x ≠ y → ¬ A x y := by
+  classical
+  obtain ⟨c, hc, hp⟩ := outdeg_col A D X h
+  rcases Nat.eq_zero_or_pos m with rfl | hm
+  · exact ⟨∅, empty_subset _, rfl, by simp⟩
+  have hne : (range (2 * D - 1)).Nonempty := by
+    rcases X.eq_empty_or_nonempty with hX0 | ⟨x, hx⟩
+    · exfalso; rw [hX0, card_empty] at hX
+      have : 1 ≤ (2 * D - 1) * m := Nat.mul_pos (by omega) hm
+      omega
+    · exact ⟨c x, mem_range.mpr (hc x hx)⟩
+  obtain ⟨k, _, hk⟩ := exists_le_card_fiber_of_mul_le_card_of_maps_to
+    (f := c) (s := X) (t := range (2 * D - 1)) (n := m)
+    (fun x hx => mem_range.mpr (hc x hx)) hne (by simpa [card_range] using hX)
+  obtain ⟨I, hIsub, hIcard⟩ := exists_subset_card_eq hk
+  refine ⟨I, hIsub.trans (filter_subset _ _), hIcard, fun x hx y hy hxy hA => ?_⟩
+  have hx' := mem_filter.mp (hIsub hx)
+  have hy' := mem_filter.mp (hIsub hy)
+  exact hp x hx'.1 y hy'.1 ⟨hxy, hA⟩ (hx'.2.trans hy'.2.symm)
+
+end Generic
+
+section Graph
+variable {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
+
+/-- `S` is properly `k`-colourable (colours are naturals `< k`). -/
+def col (S : Finset V) (k : ℕ) : Prop := PCol G.Adj S k
+
+def IsStab (X : Finset V) : Prop := ∀ u ∈ X, ∀ v ∈ X, ¬ G.Adj u v
+def IsClq (X : Finset V) : Prop := ∀ u ∈ X, ∀ v ∈ X, u ≠ v → G.Adj u v
+/-- `S` contains no clique with more than `ω` vertices. -/
+def Small (S : Finset V) (ω : ℕ) : Prop := ∀ X ⊆ S, IsClq G X → X.card ≤ ω
+def nb (x : V) : Finset V := univ.filter (G.Adj x)
+
+variable {G}
+
+@[simp] theorem mem_nb {x y : V} : y ∈ nb G x ↔ G.Adj x y := by simp [nb]
+
+theorem col.mono {S T : Finset V} {k k' : ℕ} (h : col G S k) (hT : T ⊆ S) (hk : k ≤ k') :
+    col G T k' := PCol.mono h hT hk
+
+theorem col_union {S T : Finset V} {a b : ℕ} (hS : col G S a) (hT : col G T b) :
+    col G (S ∪ T) (a + b) := by
+  obtain ⟨c₁, h₁, p₁⟩ := hS
+  obtain ⟨c₂, h₂, p₂⟩ := hT
+  refine ⟨fun v => if v ∈ S then c₁ v else a + c₂ v, ?_, ?_⟩
+  · intro v hv
+    by_cases hvS : v ∈ S
+    · simp only [hvS, if_true]; have := h₁ v hvS; omega
+    · simp only [hvS, if_false]
+      have := h₂ v ((mem_union.mp hv).resolve_left hvS); omega
+  · intro u hu v hv huv
+    by_cases huS : u ∈ S <;> by_cases hvS : v ∈ S <;> simp only [huS, hvS, if_true, if_false]
+    · exact p₁ u huS v hvS huv
+    · have := h₁ u huS; omega
+    · have := h₁ v hvS; omega
+    · have hu' := (mem_union.mp hu).resolve_left huS
+      have hv' := (mem_union.mp hv).resolve_left hvS
+      have := p₂ u hu' v hv' huv; omega
+
+theorem col_empty (k : ℕ) : col G ∅ k := ⟨fun _ => 0, by simp, by simp⟩
+
+theorem col_biUnion {ι : Type*} [DecidableEq ι] (I : Finset ι) (P : ι → Finset V) (k : ℕ)
+    (h : ∀ i ∈ I, col G (P i) k) : col G (I.biUnion P) (I.card * k) := by
+  induction I using Finset.induction_on with
+  | empty => simpa using col_empty 0
+  | insert i I hi ih =>
+    rw [biUnion_insert, card_insert_of_notMem hi]
+    have := col_union (h i (mem_insert_self _ _)) (ih fun j hj => h j (mem_insert_of_mem hj))
+    exact this.mono subset_rfl (by ring_nf; omega)
+
+theorem col_singleton (x : V) : col G {x} 1 :=
   ⟨fun _ => 0, by simp, by simp⟩
 
-private lemma colorableOn_mono_set {V : Type*} {G : SimpleGraph V} {S₁ S₂ : Finset V} {c : ℕ}
-    (hsub : S₁ ⊆ S₂) (hcol : ColorableOn G S₂ c) : ColorableOn G S₁ c := by
-  obtain ⟨col, hlt, hadj⟩ := hcol
-  exact ⟨col, fun v hv => hlt v (hsub hv), fun u hu v hv => hadj u (hsub hu) v (hsub hv)⟩
-
-private lemma colorableOn_mono_num {V : Type*} {G : SimpleGraph V} {S : Finset V} {c₁ c₂ : ℕ}
-    (hle : c₁ ≤ c₂) (hcol : ColorableOn G S c₁) : ColorableOn G S c₂ := by
-  obtain ⟨col, hlt, hadj⟩ := hcol
-  exact ⟨col, fun v hv => lt_of_lt_of_le (hlt v hv) hle, hadj⟩
-
-private lemma colorableOn_edgeless {V : Type*} {G : SimpleGraph V} {S : Finset V}
-    (hno : ∀ u ∈ S, ∀ v ∈ S, ¬ G.Adj u v) : ColorableOn G S 1 :=
-  ⟨fun _ => 0, fun _ _ => Nat.zero_lt_one, fun u hu v hv huv => absurd huv (hno u hu v hv)⟩
-
-private lemma colorableOn_of_card_le {V : Type*} [DecidableEq V] (G : SimpleGraph V)
-    (S : Finset V) {c : ℕ} (hcard : S.card ≤ c) : ColorableOn G S c := by
-  induction S using Finset.induction_on generalizing c with
-  | empty => exact colorableOn_empty G c
-  | insert a s has ih =>
-    rw [Finset.card_insert_of_notMem has] at hcard
-    obtain ⟨col, hlt, hadj⟩ := ih (c := c - 1) (by omega)
-    let col' : V → ℕ := fun x => if x = a then c - 1 else col x
-    refine ⟨col', ?_, ?_⟩
-    · intro v hv
-      dsimp [col']
-      rcases Finset.mem_insert.mp hv with rfl | hvs
-      · rw [if_pos rfl]; omega
-      · have hne : v ≠ a := fun h => has (h ▸ hvs)
-        rw [if_neg hne]
-        have := hlt v hvs
-        omega
-    · intro u hu v hv huv
-      dsimp [col']
-      have hne_uv : u ≠ v := G.ne_of_adj huv
-      by_cases hua : u = a
-      · subst hua
-        have hva : v ≠ u := hne_uv.symm
-        have hvs : v ∈ s := (Finset.mem_insert.mp hv).resolve_left hva
-        rw [if_pos rfl, if_neg hva]
-        have := hlt v hvs
-        omega
-      · by_cases hva : v = a
-        · subst hva
-          have hus : u ∈ s := (Finset.mem_insert.mp hu).resolve_left hua
-          rw [if_neg hua, if_pos rfl]
-          have := hlt u hus
-          omega
-        · have hus : u ∈ s := (Finset.mem_insert.mp hu).resolve_left hua
-          have hvs : v ∈ s := (Finset.mem_insert.mp hv).resolve_left hva
-          rw [if_neg hua, if_neg hva]
-          exact hadj u hus v hvs huv
-
-private lemma colorableOn_union_add {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    {A B : Finset V} {a b : ℕ} (hA : ColorableOn G A a) (hB : ColorableOn G B b) :
-    ColorableOn G (A ∪ B) (a + b) := by
-  obtain ⟨colA, hltA, hadjA⟩ := hA
-  obtain ⟨colB, hltB, hadjB⟩ := hB
-  let col : V → ℕ := fun x => if x ∈ A then colA x else a + colB x
-  refine ⟨col, ?_, ?_⟩
+/-- Product colouring (T3): a colouring proper on "same block" edges and one proper on the others. -/
+theorem col_prod {S : Finset V} (same : V → V → Prop) {a b : ℕ}
+    (h₁ : PCol (fun u v => G.Adj u v ∧ same u v) S a)
+    (h₂ : PCol (fun u v => G.Adj u v ∧ ¬ same u v) S b) : col G S (a * b) := by
+  obtain ⟨c₁, hc₁, p₁⟩ := h₁
+  obtain ⟨c₂, hc₂, p₂⟩ := h₂
+  refine ⟨fun v => c₁ v * b + c₂ v, ?_, ?_⟩
   · intro v hv
-    dsimp [col]
-    by_cases hvA : v ∈ A
-    · rw [if_pos hvA]; have := hltA v hvA; omega
-    · have hvB : v ∈ B := (Finset.mem_union.mp hv).resolve_left hvA
-      rw [if_neg hvA]; have := hltB v hvB; omega
-  · intro u hu v hv huv
-    dsimp [col]
-    by_cases huA : u ∈ A
-    · by_cases hvA : v ∈ A
-      · rw [if_pos huA, if_pos hvA]; exact hadjA u huA v hvA huv
-      · rw [if_pos huA, if_neg hvA]; have := hltA u huA; omega
-    · have huB : u ∈ B := (Finset.mem_union.mp hu).resolve_left huA
-      by_cases hvA : v ∈ A
-      · rw [if_neg huA, if_pos hvA]; have := hltA v hvA; omega
-      · have hvB : v ∈ B := (Finset.mem_union.mp hv).resolve_left hvA
-        rw [if_neg huA, if_neg hvA]
-        have := hadjB u huB v hvB huv
-        omega
+    have h1 := hc₁ v hv; have h2 := hc₂ v hv
+    calc c₁ v * b + c₂ v < c₁ v * b + b := by omega
+      _ = (c₁ v + 1) * b := by ring
+      _ ≤ a * b := Nat.mul_le_mul_right _ h1
+  · intro u hu v hv huv heq
+    have hu2 := hc₂ u hu; have hv2 := hc₂ v hv
+    dsimp only at heq
+    have e1 : c₁ u = c₁ v := by
+      rcases lt_trichotomy (c₁ u) (c₁ v) with h | h | h
+      · exfalso
+        have : (c₁ u + 1) * b ≤ c₁ v * b := Nat.mul_le_mul_right _ h
+        nlinarith
+      · exact h
+      · exfalso
+        have : (c₁ v + 1) * b ≤ c₁ u * b := Nat.mul_le_mul_right _ h
+        nlinarith
+    have e2 : c₂ u = c₂ v := by rw [e1] at heq; omega
+    by_cases hs : same u v
+    · exact p₁ u hu v hv ⟨huv, hs⟩ e1
+    · exact p₂ u hu v hv ⟨huv, hs⟩ e2
 
-private lemma colorableOn_biUnion_self {V α : Type*} [DecidableEq V] [DecidableEq α]
-    {G : SimpleGraph V} (J : Finset α) (F : α → Finset V) {m : ℕ}
-    (hF : ∀ j ∈ J, ColorableOn G (F j) m) :
-    ColorableOn G (J.biUnion F) (J.card * m) := by
-  induction J using Finset.induction_on with
-  | empty => simpa using colorableOn_empty G 0
-  | insert a s has ih =>
-    rw [Finset.biUnion_insert, Finset.card_insert_of_notMem has, Nat.add_one_mul, add_comm]
-    exact colorableOn_union_add
-      (hF a (Finset.mem_insert_self a s))
-      (ih (fun j hj => hF j (Finset.mem_insert_of_mem hj)))
+/-! ### Ramsey -/
 
-private lemma colorableOn_biUnion {V α : Type*} [DecidableEq V] [DecidableEq α]
-    {G : SimpleGraph V} {S : Finset V} (J : Finset α) (F : α → Finset V) {m : ℕ}
-    (hsub : S ⊆ J.biUnion F) (hF : ∀ j ∈ J, ColorableOn G (F j) m) :
-    ColorableOn G S (J.card * m) :=
-  colorableOn_mono_set hsub (colorableOn_biUnion_self J F hF)
+theorem ramsey_aux : ∀ n a b : ℕ, a + b = n → ∀ X : Finset V, 2 ^ (a + b) ≤ X.card →
+    (∃ Y ⊆ X, Y.card = a ∧ IsClq G Y) ∨ (∃ Y ⊆ X, Y.card = b ∧ IsStab G Y) := by
+  intro n
+  induction n with
+  | zero =>
+    intro a b hab X _
+    left; exact ⟨∅, empty_subset _, by simp; omega, by simp [IsClq]⟩
+  | succ n ih =>
+    intro a b hab X hX
+    rcases Nat.eq_zero_or_pos a with rfl | ha
+    · left; exact ⟨∅, empty_subset _, by simp, by simp [IsClq]⟩
+    rcases Nat.eq_zero_or_pos b with rfl | hb
+    · right; exact ⟨∅, empty_subset _, by simp, by simp [IsStab]⟩
+    have hXne : X.Nonempty := card_pos.mp (lt_of_lt_of_le (Nat.one_le_two_pow) hX)
+    obtain ⟨x, hx⟩ := hXne
+    let A := (X.erase x).filter (G.Adj x)
+    let B := (X.erase x).filter (fun y => ¬ G.Adj x y)
+    have hAB : A.card + B.card = X.card - 1 := by
+      rw [card_filter_add_card_filter_not, card_erase_of_mem hx]
+    have hpow : 2 ^ (a + b) = 2 ^ (a - 1 + b) + 2 ^ (a + (b - 1)) := by
+      have e1 : a + b = (a - 1 + b) + 1 := by omega
+      have e2 : a - 1 + b = a + (b - 1) := by omega
+      rw [e1, pow_succ, ← e2]; ring
+    by_cases hA : 2 ^ (a - 1 + b) ≤ A.card
+    · rcases ih (a - 1) b (by omega) A hA with ⟨Y, hY, hYc, hYq⟩ | ⟨Y, hY, hYc, hYs⟩
+      · left
+        have hxY : x ∉ Y := fun h => by have := hY h; simp [A] at this
+        refine ⟨insert x Y, insert_subset hx (hY.trans ((filter_subset _ _).trans (erase_subset _ _))),
+          by rw [card_insert_of_notMem hxY, hYc]; omega, ?_⟩
+        have hxadj : ∀ y ∈ Y, G.Adj x y := fun y hy => (mem_filter.mp (hY hy)).2
+        intro u hu v hv huv
+        rcases mem_insert.mp hu with h1 | h1 <;> rcases mem_insert.mp hv with h2 | h2
+        · exact absurd (h1.trans h2.symm) huv
+        · rw [h1]; exact hxadj v h2
+        · rw [h2]; exact (hxadj u h1).symm
+        · exact hYq u h1 v h2 huv
+      · right
+        exact ⟨Y, hY.trans ((filter_subset _ _).trans (erase_subset _ _)), hYc, hYs⟩
+    · have hB : 2 ^ (a + (b - 1)) ≤ B.card := by omega
+      rcases ih a (b - 1) (by omega) B hB with ⟨Y, hY, hYc, hYq⟩ | ⟨Y, hY, hYc, hYs⟩
+      · left
+        exact ⟨Y, hY.trans ((filter_subset _ _).trans (erase_subset _ _)), hYc, hYq⟩
+      · right
+        have hxY : x ∉ Y := fun h => by have := hY h; simp [B] at this
+        refine ⟨insert x Y, insert_subset hx (hY.trans ((filter_subset _ _).trans (erase_subset _ _))),
+          by rw [card_insert_of_notMem hxY, hYc]; omega, ?_⟩
+        have hxn : ∀ y ∈ Y, ¬ G.Adj x y := fun y hy => (mem_filter.mp (hY hy)).2
+        intro u hu v hv
+        rcases mem_insert.mp hu with h1 | h1 <;> rcases mem_insert.mp hv with h2 | h2
+        · rw [h1, h2]; exact G.irrefl
+        · rw [h1]; exact hxn v h2
+        · rw [h2]; exact fun h => hxn u h1 h.symm
+        · exact hYs u h1 v h2
 
-private lemma colorableOn_insert_of_deg_lt {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {S : Finset V} {v : V} {c : ℕ}
-    (hcol : ColorableOn G S c) (hdeg : (S.filter (G.Adj v)).card < c) :
-    ColorableOn G (insert v S) c := by
-  obtain ⟨col, hlt, hadj⟩ := hcol
-  let used : Finset ℕ := (S.filter (G.Adj v)).image col
-  have hused_lt : used.card < (Finset.range c).card := by
-    rw [Finset.card_range]
-    exact lt_of_le_of_lt Finset.card_image_le hdeg
-  have hex : ∃ col_v ∈ Finset.range c, col_v ∉ used := by
-    by_contra hall
-    have hsub : Finset.range c ⊆ used := fun x hx => by
-      by_contra hxnot
-      exact hall ⟨x, hx, hxnot⟩
-    exact absurd (Finset.card_le_card hsub) (not_le.mpr hused_lt)
-  obtain ⟨col_v, hcv_lt, hcv_not⟩ := hex
-  let col' : V → ℕ := fun x => if x = v then col_v else col x
-  refine ⟨col', ?_, ?_⟩
-  · intro x hx
-    dsimp [col']
-    by_cases hxv : x = v
-    · rw [if_pos hxv]; exact Finset.mem_range.mp hcv_lt
-    · rw [if_neg hxv]
-      exact hlt x ((Finset.mem_insert.mp hx).resolve_left hxv)
-  · intro x hx y hy hxy
-    dsimp [col']
-    have hne : x ≠ y := G.ne_of_adj hxy
-    by_cases hxv : x = v
-    · subst hxv
-      have hyv : y ≠ x := hne.symm
-      have hyS : y ∈ S := (Finset.mem_insert.mp hy).resolve_left hyv
-      rw [if_pos rfl, if_neg hyv]
-      intro heq
-      exact hcv_not (Finset.mem_image.mpr ⟨y, Finset.mem_filter.mpr ⟨hyS, hxy⟩, heq.symm⟩)
-    · by_cases hyv : y = v
-      · subst hyv
-        have hxS : x ∈ S := (Finset.mem_insert.mp hx).resolve_left hxv
-        rw [if_neg hxv, if_pos rfl]
-        intro heq
-        exact hcv_not (Finset.mem_image.mpr ⟨x, Finset.mem_filter.mpr ⟨hxS, hxy.symm⟩, heq⟩)
-      · have hxS : x ∈ S := (Finset.mem_insert.mp hx).resolve_left hxv
-        have hyS : y ∈ S := (Finset.mem_insert.mp hy).resolve_left hyv
-        rw [if_neg hxv, if_neg hyv]
-        exact hadj x hxS y hyS hxy
+/-- The Ramsey number bound used throughout: `r ω b = 2^(ω+1+b)`. -/
+def rr (ω b : ℕ) : ℕ := 2 ^ (ω + 1 + b)
 
-private lemma colorableOn_max_deg {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] (S : Finset V) (k : ℕ)
-    (hdeg : ∀ v ∈ S, (S.filter (G.Adj v)).card ≤ k) :
-    ColorableOn G S (k + 1) := by
-  induction S using Finset.induction_on with
-  | empty => exact colorableOn_empty G (k + 1)
-  | insert v s hvs ih =>
-    have hs_deg : ∀ u ∈ s, (s.filter (G.Adj u)).card ≤ k := by
-      intro u hu
-      refine le_trans (Finset.card_le_card ?_) (hdeg u (Finset.mem_insert_of_mem hu))
-      intro z hz
-      obtain ⟨hzs, hzu⟩ := Finset.mem_filter.mp hz
-      exact Finset.mem_filter.mpr ⟨Finset.mem_insert_of_mem hzs, hzu⟩
-    have hv_deg : (s.filter (G.Adj v)).card < k + 1 := by
-      have hle : (s.filter (G.Adj v)).card ≤ ((insert v s).filter (G.Adj v)).card := by
-        apply Finset.card_le_card
-        intro z hz
-        obtain ⟨hzs, hzv⟩ := Finset.mem_filter.mp hz
-        exact Finset.mem_filter.mpr ⟨Finset.mem_insert_of_mem hzs, hzv⟩
-      have := hdeg v (Finset.mem_insert_self v s)
-      omega
-    exact colorableOn_insert_of_deg_lt (ih hs_deg) hv_deg
+/-- (R): inside an `ω`-small set, `rr ω b` vertices contain a stable `b`-set. -/
+theorem ramsey_stable {S X : Finset V} {ω b : ℕ} (hS : Small G S ω) (hX : X ⊆ S)
+    (hc : rr ω b ≤ X.card) : ∃ Y ⊆ X, Y.card = b ∧ IsStab G Y := by
+  rcases ramsey_aux (G := G) _ (ω + 1) b rfl X hc with ⟨Y, hY, hYc, hYq⟩ | h
+  · have := hS Y (hY.trans hX) hYq; omega
+  · exact h
 
-private lemma digraph_coloring {α : Type*} [DecidableEq α] (I : Finset α)
-    (D : α → α → Prop) [DecidableRel D] (k : ℕ)
-    (hout : ∀ i ∈ I, (I.filter (fun j => j ≠ i ∧ D i j)).card ≤ k) :
-    ∃ col : α → Fin (2 * k + 1),
-      ∀ i ∈ I, ∀ j ∈ I, i ≠ j → D i j → col i ≠ col j := by
-  have hstrong : ∀ m : ℕ, ∀ J : Finset α, J.card ≤ m →
-      (∀ i ∈ J, (J.filter (fun j => j ≠ i ∧ D i j)).card ≤ k) →
-      ∃ col : α → Fin (2 * k + 1),
-        ∀ i ∈ J, ∀ j ∈ J, i ≠ j → D i j → col i ≠ col j := by
-    intro m
-    induction m with
-    | zero =>
-      intro J hcard _
-      rw [Finset.card_eq_zero.mp (Nat.le_zero.mp hcard)]
-      exact ⟨fun _ => ⟨0, by omega⟩, by simp⟩
-    | succ m ih =>
-      intro J hcard houtJ
-      rcases J.eq_empty_or_nonempty with rfl | hJne
-      · exact ⟨fun _ => ⟨0, by omega⟩, by simp⟩
-      · let E := (J ×ˢ J).filter (fun p => p.1 ≠ p.2 ∧ D p.1 p.2)
-        have hE_out : E.card = ∑ i ∈ J, (J.filter (fun j => j ≠ i ∧ D i j)).card := by
-          have hbij : E = J.biUnion (fun i =>
-              (J.filter (fun j => j ≠ i ∧ D i j)).image (fun j => (i, j))) := by
-            ext ⟨a, b⟩
-            simp only [E, Finset.mem_filter, Finset.mem_product, Finset.mem_biUnion,
-              Finset.mem_image]
-            constructor
-            · rintro ⟨⟨ha, hb⟩, hne, hd⟩
-              exact ⟨a, ha, b, ⟨hb, hne.symm, hd⟩, rfl⟩
-            · rintro ⟨a', ha', b', ⟨hb', hne, hd⟩, hab⟩
-              cases hab
-              exact ⟨⟨ha', hb'⟩, hne.symm, hd⟩
-          rw [hbij, Finset.card_biUnion]
-          · refine Finset.sum_congr rfl fun i _ => Finset.card_image_of_injective _ ?_
-            intro x y hxy
-            exact (Prod.mk.inj hxy).2
-          · intro i _ j _ hij
-            dsimp [Function.onFun]
-            rw [Finset.disjoint_left]
-            intro p hp1 hp2
-            obtain ⟨b1, _, rfl⟩ := Finset.mem_image.mp hp1
-            obtain ⟨b2, _, heq⟩ := Finset.mem_image.mp hp2
-            exact hij (Prod.mk.inj heq).1.symm
-        have hE_in : E.card = ∑ j ∈ J, (J.filter (fun i => i ≠ j ∧ D i j)).card := by
-          have hbij : E = J.biUnion (fun j =>
-              (J.filter (fun i => i ≠ j ∧ D i j)).image (fun i => (i, j))) := by
-            ext ⟨a, b⟩
-            simp only [E, Finset.mem_filter, Finset.mem_product, Finset.mem_biUnion,
-              Finset.mem_image]
-            constructor
-            · rintro ⟨⟨ha, hb⟩, hne, hd⟩
-              exact ⟨b, hb, a, ⟨ha, hne, hd⟩, rfl⟩
-            · rintro ⟨b', hb', a', ⟨ha', hne, hd⟩, hab⟩
-              cases hab
-              exact ⟨⟨ha', hb'⟩, hne, hd⟩
-          rw [hbij, Finset.card_biUnion]
-          · refine Finset.sum_congr rfl fun j _ => Finset.card_image_of_injective _ ?_
-            intro x y hxy
-            exact (Prod.mk.inj hxy).1
-          · intro i _ j _ hij
-            dsimp [Function.onFun]
-            rw [Finset.disjoint_left]
-            intro p hp1 hp2
-            obtain ⟨a1, _, rfl⟩ := Finset.mem_image.mp hp1
-            obtain ⟨a2, _, heq⟩ := Finset.mem_image.mp hp2
-            exact hij (Prod.mk.inj heq).2.symm
-        have hE_le : E.card ≤ J.card * k := by
-          rw [hE_out]
-          calc ∑ i ∈ J, (J.filter (fun j => j ≠ i ∧ D i j)).card
-              ≤ ∑ _i ∈ J, k := Finset.sum_le_sum houtJ
-            _ = J.card * k := by simp
-        have hsum_deg : (∑ x ∈ J, (J.filter (fun y => y ≠ x ∧ (D x y ∨ D y x))).card) ≤
-            J.card * (2 * k) := by
-          have hmul2 : J.card * (2 * k) = J.card * k + J.card * k := by ring
-          calc ∑ x ∈ J, (J.filter (fun y => y ≠ x ∧ (D x y ∨ D y x))).card
-              ≤ ∑ x ∈ J, ((J.filter (fun y => y ≠ x ∧ D x y)).card +
-                  (J.filter (fun y => y ≠ x ∧ D y x)).card) := by
-                refine Finset.sum_le_sum fun x _ => ?_
-                have hsub : J.filter (fun y => y ≠ x ∧ (D x y ∨ D y x)) ⊆
-                    J.filter (fun y => y ≠ x ∧ D x y) ∪
-                      J.filter (fun y => y ≠ x ∧ D y x) := by
-                  intro y hy
-                  obtain ⟨hyJ, hne, hd⟩ := Finset.mem_filter.mp hy
-                  rcases hd with h1 | h2
-                  · exact Finset.mem_union_left _ (Finset.mem_filter.mpr ⟨hyJ, hne, h1⟩)
-                  · exact Finset.mem_union_right _ (Finset.mem_filter.mpr ⟨hyJ, hne, h2⟩)
-                exact (Finset.card_le_card hsub).trans (Finset.card_union_le _ _)
-            _ = E.card + E.card := by rw [Finset.sum_add_distrib, ← hE_out, ← hE_in]
-            _ ≤ J.card * (2 * k) := by omega
-        have hex_min : ∃ x ∈ J,
-            (J.filter (fun y => y ≠ x ∧ (D x y ∨ D y x))).card ≤ 2 * k := by
-          by_contra hall
-          have hgt : J.card * (2 * k + 1) ≤
-              ∑ x ∈ J, (J.filter (fun y => y ≠ x ∧ (D x y ∨ D y x))).card := by
-            calc J.card * (2 * k + 1)
-                = ∑ _x ∈ J, (2 * k + 1) := by simp
-              _ ≤ ∑ x ∈ J, (J.filter (fun y => y ≠ x ∧ (D x y ∨ D y x))).card := by
-                  refine Finset.sum_le_sum fun x hx => ?_
-                  by_contra hlt
-                  exact hall ⟨x, hx, by omega⟩
-          have hJpos : 0 < J.card := Finset.card_pos.mpr hJne
-          have hmul : J.card * (2 * k) < J.card * (2 * k + 1) := by
-            rw [Nat.mul_add, Nat.mul_one]
-            omega
-          omega
-        obtain ⟨x, hxJ, hxdeg⟩ := hex_min
-        let J' := J.erase x
-        have hJ'card : J'.card ≤ m := by
-          have her := Finset.card_erase_of_mem hxJ
-          have hJpos : 0 < J.card := Finset.card_pos.mpr hJne
-          dsimp [J']
-          omega
-        have houtJ' : ∀ i ∈ J', (J'.filter (fun j => j ≠ i ∧ D i j)).card ≤ k := by
-          intro i hi
-          refine le_trans (Finset.card_le_card ?_) (houtJ i (Finset.mem_erase.mp hi).2)
-          intro j hj
-          obtain ⟨hjJ', hji⟩ := Finset.mem_filter.mp hj
-          exact Finset.mem_filter.mpr ⟨(Finset.mem_erase.mp hjJ').2, hji⟩
-        obtain ⟨col', hcol'⟩ := ih J' hJ'card houtJ'
-        let N_x := J'.filter (fun y => D x y ∨ D y x)
-        have hNx_card : N_x.card ≤ 2 * k := by
-          refine le_trans (Finset.card_le_card ?_) hxdeg
-          intro y hy
-          obtain ⟨hyJ', hd⟩ := Finset.mem_filter.mp hy
-          obtain ⟨hyne, hyJ⟩ := Finset.mem_erase.mp hyJ'
-          exact Finset.mem_filter.mpr ⟨hyJ, hyne, hd⟩
-        let used : Finset (Fin (2 * k + 1)) := N_x.image col'
-        have hused_lt : used.card < (Finset.univ : Finset (Fin (2 * k + 1))).card := by
-          rw [Finset.card_univ, Fintype.card_fin]
-          exact lt_of_le_of_lt Finset.card_image_le (by omega)
-        have hex_c : ∃ c₀ : Fin (2 * k + 1), c₀ ∉ used := by
-          by_contra hall
-          have hsub : (Finset.univ : Finset (Fin (2 * k + 1))) ⊆ used := fun c _ => by
-            by_contra hnc; exact hall ⟨c, hnc⟩
-          exact absurd (Finset.card_le_card hsub) (not_le.mpr hused_lt)
-        obtain ⟨c₀, hc₀⟩ := hex_c
-        let colNew : α → Fin (2 * k + 1) := fun z => if z = x then c₀ else col' z
-        refine ⟨colNew, ?_⟩
-        intro i hi j hj hij hdij
-        dsimp [colNew]
-        by_cases hix : i = x
-        · subst hix
-          have hjx : j ≠ i := hij.symm
-          have hjJ' : j ∈ J' := Finset.mem_erase.mpr ⟨hjx, hj⟩
-          rw [if_pos rfl, if_neg hjx]
-          intro heq
-          exact hc₀ (Finset.mem_image.mpr ⟨j, Finset.mem_filter.mpr ⟨hjJ', Or.inl hdij⟩, heq.symm⟩)
-        · by_cases hjx : j = x
-          · subst hjx
-            have hiJ' : i ∈ J' := Finset.mem_erase.mpr ⟨hix, hi⟩
-            rw [if_neg hix, if_pos rfl]
-            intro heq
-            exact hc₀ (Finset.mem_image.mpr ⟨i, Finset.mem_filter.mpr ⟨hiJ', Or.inr hdij⟩, heq⟩)
-          · rw [if_neg hix, if_neg hjx]
-            exact hcol' i (Finset.mem_erase.mpr ⟨hix, hi⟩) j (Finset.mem_erase.mpr ⟨hjx, hj⟩)
-              hij hdij
-  exact hstrong I.card I le_rfl hout
+theorem IsStab.mono {X Y : Finset V} (h : IsStab G X) (hY : Y ⊆ X) : IsStab G Y :=
+  fun u hu v hv => h u (hY hu) v (hY hv)
 
-private lemma exists_indep_of_digraph {α : Type*} [DecidableEq α] (I : Finset α)
-    (D : α → α → Prop) [DecidableRel D] (k : ℕ)
-    (hout : ∀ i ∈ I, (I.filter (fun j => j ≠ i ∧ D i j)).card ≤ k) :
-    ∃ J ⊆ I, I.card ≤ (2 * k + 1) * J.card ∧ ∀ i ∈ J, ∀ j ∈ J, i ≠ j → ¬ D i j := by
-  obtain ⟨col, hcol⟩ := digraph_coloring I D k hout
-  have hsum : I.card = ∑ c : Fin (2 * k + 1), (I.filter (fun i => col i = c)).card :=
-    Finset.card_eq_sum_card_fiberwise (fun i _ => Finset.mem_univ (col i))
-  by_contra hall
-  have hle_sum : ∑ c : Fin (2 * k + 1), (2 * k + 1) * (I.filter (fun i => col i = c)).card <
-      ∑ _c : Fin (2 * k + 1), I.card := by
-    refine Finset.sum_lt_sum_of_nonempty Finset.univ_nonempty fun c _ => ?_
-    by_contra hge
-    have hind : ∀ i ∈ I.filter (fun i => col i = c),
-        ∀ j ∈ I.filter (fun i => col i = c), i ≠ j → ¬ D i j := by
-      intro i hi j hj hij hd
-      obtain ⟨hiI, hic⟩ := Finset.mem_filter.mp hi
-      obtain ⟨hjI, hjc⟩ := Finset.mem_filter.mp hj
-      exact hcol i hiI j hjI hij hd (hic.trans hjc.symm)
-    exact hall ⟨I.filter (fun i => col i = c), Finset.filter_subset _ _, by omega, hind⟩
-  rw [← Finset.mul_sum, ← hsum, Finset.sum_const, Finset.card_univ, Fintype.card_fin,
-    smul_eq_mul] at hle_sum
-  exact lt_irrefl _ hle_sum
+theorem Small.mono {S T : Finset V} {ω : ℕ} (h : Small G S ω) (hT : T ⊆ S) : Small G T ω :=
+  fun X hX hq => h X (hX.trans hT) hq
 
-private lemma colorableOn_of_digraph_blocks {V α : Type*} [DecidableEq V] [DecidableEq α]
-    {G : SimpleGraph V} (I : Finset α) (P : α → Finset V)
-    (D : α → α → Prop) [DecidableRel D] (k M : ℕ)
-    (hout : ∀ i ∈ I, (I.filter (fun j => j ≠ i ∧ D i j)).card ≤ k)
-    (hind : ∀ J ⊆ I, (∀ i ∈ J, ∀ j ∈ J, i ≠ j → ¬ D i j) → ColorableOn G (J.biUnion P) M) :
-    ColorableOn G (I.biUnion P) ((2 * k + 1) * M) := by
-  obtain ⟨col, hcol⟩ := digraph_coloring I D k hout
-  let F : Fin (2 * k + 1) → Finset V := fun c => (I.filter (fun i => col i = c)).biUnion P
-  have hsub : I.biUnion P ⊆ Finset.univ.biUnion F := by
-    intro v hv
-    obtain ⟨i, hiI, hvPi⟩ := Finset.mem_biUnion.mp hv
-    exact Finset.mem_biUnion.mpr ⟨col i, Finset.mem_univ _,
-      Finset.mem_biUnion.mpr ⟨i, Finset.mem_filter.mpr ⟨hiI, rfl⟩, hvPi⟩⟩
-  have hcard : (Finset.univ : Finset (Fin (2 * k + 1))).card = 2 * k + 1 := by simp
-  rw [← hcard]
-  refine colorableOn_biUnion Finset.univ F hsub fun c _ => hind _ (Finset.filter_subset _ _) ?_
-  intro i hi j hj hij hd
-  obtain ⟨hiI, hic⟩ := Finset.mem_filter.mp hi
-  obtain ⟨hjI, hjc⟩ := Finset.mem_filter.mp hj
-  exact hcol i hiI j hjI hij hd (hic.trans hjc.symm)
-
-private lemma colorableOn_product_blocks {V α : Type*} [DecidableEq V] [DecidableEq α]
-    {G : SimpleGraph V} [DecidableRel G.Adj] (I : Finset α) (P : α → Finset V) (M₁ M₂ : ℕ)
-    (hdisj : ∀ i ∈ I, ∀ j ∈ I, i ≠ j → Disjoint (P i) (P j))
-    (hinner : ∀ i ∈ I, ColorableOn G (P i) M₁)
-    (hcross : ∀ i ∈ I, ∀ v ∈ P i, ((I.biUnion P \ P i).filter (G.Adj v)).card ≤ M₂) :
-    ColorableOn G (I.biUnion P) (M₁ * (M₂ + 1)) := by
-  classical
-  let U := I.biUnion P
-  have hex1 : ∃ col₁ : V → ℕ, (∀ v ∈ U, col₁ v < M₁) ∧
-      ∀ i ∈ I, ∀ u ∈ P i, ∀ v ∈ P i, G.Adj u v → col₁ u ≠ col₁ v := by
-    choose f hf_lt hf_adj using fun i : {x // x ∈ I} => hinner i.1 i.2
-    let idxOf : V → Option {x // x ∈ I} := fun v =>
-      if hv : ∃ i ∈ I, v ∈ P i then some ⟨Classical.choose hv, (Classical.choose_spec hv).1⟩
-      else none
-    have hidx_eq : ∀ (i : α) (hi : i ∈ I) (v : V), v ∈ P i → idxOf v = some ⟨i, hi⟩ := by
-      intro i hi v hv
-      have hex : ∃ j ∈ I, v ∈ P j := ⟨i, hi, hv⟩
-      dsimp [idxOf]
-      rw [dif_pos hex]
-      congr 1
-      apply Subtype.ext
-      by_contra hne
-      have hj := Classical.choose_spec hex
-      exact Finset.disjoint_left.mp (hdisj _ hj.1 i hi hne) hj.2 hv
-    let col₁ : V → ℕ := fun v => match idxOf v with | some j => f j v | none => 0
-    refine ⟨col₁, ?_, ?_⟩
-    · intro v hv
-      obtain ⟨i, hiI, hvPi⟩ := Finset.mem_biUnion.mp hv
-      dsimp [col₁]
-      rw [hidx_eq i hiI v hvPi]
-      exact hf_lt ⟨i, hiI⟩ v hvPi
-    · intro i hiI u hu v hv huv
-      dsimp [col₁]
-      rw [hidx_eq i hiI u hu, hidx_eq i hiI v hv]
-      exact hf_adj ⟨i, hiI⟩ u hu v hv huv
-  obtain ⟨col₁, hlt₁, hadj₁⟩ := hex1
-  let crossAdj : V → V → Prop := fun u v =>
-    G.Adj u v ∧ ∃ i ∈ I, ∃ j ∈ I, i ≠ j ∧ u ∈ P i ∧ v ∈ P j
-  let G_cross : SimpleGraph V :=
-    { Adj := crossAdj
-      symm := ⟨fun _ _ ⟨huv, i, hi, j, hj, hij, hu, hv⟩ =>
-        ⟨huv.symm, j, hj, i, hi, hij.symm, hv, hu⟩⟩
-      loopless := ⟨fun v ⟨hvv, _⟩ => G.loopless.irrefl v hvv⟩ }
-  have hcross_deg : ∀ v ∈ U, (U.filter (G_cross.Adj v)).card ≤ M₂ := by
-    intro v hv
-    obtain ⟨i, hiI, hvPi⟩ := Finset.mem_biUnion.mp hv
-    refine le_trans (Finset.card_le_card ?_) (hcross i hiI v hvPi)
-    intro w hw
-    obtain ⟨hwU, hvw, i', hi'I, j', hj'I, hij', hvi', hwj'⟩ := Finset.mem_filter.mp hw
-    have hii' : i = i' := by
-      by_contra hne
-      exact Finset.disjoint_left.mp (hdisj i hiI i' hi'I hne) hvPi hvi'
-    subst hii'
-    have hw_not_Pi : w ∉ P i := fun hwPi =>
-      Finset.disjoint_left.mp (hdisj i hiI j' hj'I hij') hwPi hwj'
-    exact Finset.mem_filter.mpr ⟨Finset.mem_sdiff.mpr ⟨hwU, hw_not_Pi⟩, hvw⟩
-  obtain ⟨col₂, hlt₂, hadj₂⟩ := colorableOn_max_deg (G := G_cross) U M₂ hcross_deg
-  let colProd : V → ℕ := fun x => (M₂ + 1) * col₁ x + col₂ x
-  refine ⟨colProd, ?_, ?_⟩
-  · intro v hv
-    dsimp [colProd]
-    have h1 := hlt₁ v hv
-    have h2 := hlt₂ v hv
-    calc (M₂ + 1) * col₁ v + col₂ v
-        < (M₂ + 1) * col₁ v + (M₂ + 1) := by omega
-      _ = (col₁ v + 1) * (M₂ + 1) := by ring
-      _ ≤ M₁ * (M₂ + 1) := Nat.mul_le_mul_right (M₂ + 1) (by omega)
-  · intro u hu v hv huv
-    dsimp [colProd]
-    obtain ⟨i, hiI, huPi⟩ := Finset.mem_biUnion.mp hu
-    obtain ⟨j, hjI, hvPj⟩ := Finset.mem_biUnion.mp hv
-    by_cases hij : i = j
-    · subst hij
-      have hne1 := hadj₁ i hiI u huPi v hvPj huv
-      have h2u := hlt₂ u hu
-      have h2v := hlt₂ v hv
-      intro heq
-      have hdiv : ((M₂ + 1) * col₁ u + col₂ u) / (M₂ + 1) =
-          ((M₂ + 1) * col₁ v + col₂ v) / (M₂ + 1) := congr_arg (· / (M₂ + 1)) heq
-      rw [Nat.mul_add_div (by omega), Nat.mul_add_div (by omega),
-        Nat.div_eq_zero_iff.mpr (Or.inr h2u), Nat.div_eq_zero_iff.mpr (Or.inr h2v)] at hdiv
-      omega
-    · have hcr : G_cross.Adj u v := ⟨huv, i, hiI, j, hjI, hij, huPi, hvPj⟩
-      have hne2 := hadj₂ u hu v hv hcr
-      have h2u := hlt₂ u hu
-      have h2v := hlt₂ v hv
-      intro heq
-      have hmod : ((M₂ + 1) * col₁ u + col₂ u) % (M₂ + 1) =
-          ((M₂ + 1) * col₁ v + col₂ v) % (M₂ + 1) := congr_arg (· % (M₂ + 1)) heq
-      rw [Nat.mul_add_mod, Nat.mul_add_mod,
-        Nat.mod_eq_of_lt h2u, Nat.mod_eq_of_lt h2v] at hmod
-      exact hne2 hmod
-
-private lemma indep_of_colorableOn {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    {S : Finset V} {C w : ℕ} (hC : 1 ≤ C) (hcol : ColorableOn G S C) (hcard : C * w ≤ S.card) :
-    ∃ B ⊆ S, B.card = w ∧ ∀ u ∈ B, ∀ v ∈ B, ¬ G.Adj u v := by
-  obtain ⟨col, hlt, hadj⟩ := hcol
-  have hsum : S.card = ∑ c ∈ Finset.range C, (S.filter (fun v => col v = c)).card :=
-    Finset.card_eq_sum_card_fiberwise (fun v hv => Finset.mem_range.mpr (hlt v hv))
-  have hex_c : ∃ c ∈ Finset.range C, w ≤ (S.filter (fun v => col v = c)).card := by
-    by_contra hall
-    have hlt_sum : ∑ c ∈ Finset.range C, (S.filter (fun v => col v = c)).card <
-        ∑ _c ∈ Finset.range C, w := by
-      refine Finset.sum_lt_sum_of_nonempty (Finset.nonempty_range_iff.mpr (by omega)) fun c hc => ?_
-      by_contra hge
-      exact hall ⟨c, hc, by omega⟩
-    rw [← hsum, Finset.sum_const, Finset.card_range, smul_eq_mul] at hlt_sum
-    omega
-  obtain ⟨c, _, hwc⟩ := hex_c
-  obtain ⟨B, hBsub, hBcard⟩ := Finset.exists_subset_card_eq hwc
-  refine ⟨B, hBsub.trans (Finset.filter_subset _ _), hBcard, ?_⟩
+/-- Neighbourhoods inside an `(ω+1)`-small set are `ω`-small. -/
+theorem Small.nb {S : Finset V} {ω : ℕ} (h : Small G S (ω + 1)) {x : V} (hx : x ∈ S) :
+    Small G (nb G x ∩ S) ω := by
+  intro X hX hq
+  have hxX : x ∉ X := fun hxX => G.irrefl (mem_nb.mp (mem_inter.mp (hX hxX)).1)
+  have := h (insert x X) (insert_subset hx (hX.trans inter_subset_right)) ?_
+  · rw [card_insert_of_notMem hxX] at this; omega
   intro u hu v hv huv
-  obtain ⟨huS, huc⟩ := Finset.mem_filter.mp (hBsub hu)
-  obtain ⟨hvS, hvc⟩ := Finset.mem_filter.mp (hBsub hv)
-  exact hadj u huS v hvS huv (huc.trans hvc.symm)
+  have hadj : ∀ y ∈ X, G.Adj x y := fun y hy => mem_nb.mp (mem_inter.mp (hX hy)).1
+  rcases mem_insert.mp hu with h1 | h1 <;> rcases mem_insert.mp hv with h2 | h2
+  · exact absurd (h1.trans h2.symm) huv
+  · rw [h1]; exact hadj v h2
+  · rw [h2]; exact (hadj u h1).symm
+  · exact hq u h1 v h2 huv
 
-private def ramseyNum : ℕ → ℕ → ℕ
-  | 0, _ => 0
-  | _ + 1, 0 => 0
-  | p + 1, q + 1 => ramseyNum p (q + 1) + ramseyNum (p + 1) q + 1
+/-- T6: a set covered by `k` closed neighbourhoods inside `S` is `k(ℓ+1)`-colourable, given
+colourings of the neighbourhoods. -/
+theorem col_nbhds {S P K : Finset V} {ℓ : ℕ} (hOIH : ∀ x ∈ S, col G (nb G x ∩ S) ℓ)
+    (hK : K ⊆ S) (hP : P ⊆ S) (hcov : ∀ v ∈ P, v ∈ K ∨ ∃ x ∈ K, G.Adj x v) :
+    col G P (K.card * (ℓ + 1)) := by
+  have hsub : P ⊆ K.biUnion (fun x => insert x (nb G x ∩ S)) := by
+    intro v hv
+    rcases hcov v hv with h | ⟨x, hx, hxv⟩
+    · exact mem_biUnion.mpr ⟨v, h, mem_insert_self _ _⟩
+    · exact mem_biUnion.mpr ⟨x, hx, mem_insert_of_mem (mem_inter.mpr ⟨mem_nb.mpr hxv, hP hv⟩)⟩
+  refine (col_biUnion K _ (ℓ + 1) fun x hx => ?_).mono hsub le_rfl
+  have : insert x (nb G x ∩ S) = {x} ∪ (nb G x ∩ S) := by rw [insert_eq]
+  rw [this]
+  exact (col_union (col_singleton x) (hOIH x (hK hx))).mono subset_rfl (by omega)
 
-private lemma ramsey_clique_or_indep {V : Type*} [DecidableEq V] (G : SimpleGraph V)
-    [DecidableRel G.Adj] (p q : ℕ) (S : Finset V) (hcard : ramseyNum p q ≤ S.card) :
-    (∃ K ⊆ S, K.card = p ∧ G.IsClique (K : Set V)) ∨
-    (∃ I ⊆ S, I.card = q ∧ ∀ u ∈ I, ∀ v ∈ I, ¬ G.Adj u v) := by
-  induction p generalizing q S with
-  | zero => exact Or.inl ⟨∅, Finset.empty_subset _, Finset.card_empty, by simp⟩
-  | succ p ihp =>
-    induction q generalizing S with
-    | zero => exact Or.inr ⟨∅, Finset.empty_subset _, Finset.card_empty, by simp⟩
-    | succ q ihq =>
-      rw [ramseyNum] at hcard
-      have hne : S.Nonempty := Finset.card_pos.mp (by omega)
-      obtain ⟨v, hvS⟩ := hne
-      let S' := S.erase v
-      let N := S'.filter (G.Adj v)
-      let M := S'.filter (fun u => ¬ G.Adj v u)
-      have hS'card : S'.card = S.card - 1 := Finset.card_erase_of_mem hvS
-      have hNM : N.card + M.card = S'.card := by
-        have hdisj : Disjoint N M := Finset.disjoint_left.mpr fun x hxN hxM =>
-          (Finset.mem_filter.mp hxM).2 (Finset.mem_filter.mp hxN).2
-        have hunion : N ∪ M = S' := by
-          ext x
-          simp only [N, M, Finset.mem_union, Finset.mem_filter]
-          by_cases h : G.Adj v x <;> simp [h]
-        rw [← Finset.card_union_of_disjoint hdisj, hunion]
-      by_cases hN : ramseyNum p (q + 1) ≤ N.card
-      · rcases ihp (q + 1) N hN with ⟨K, hKN, hKc, hKcl⟩ | ⟨I, hIN, hIc, hIi⟩
-        · left
-          have hvK : v ∉ K := fun hv =>
-            (Finset.mem_erase.mp (Finset.filter_subset _ _ (hKN hv))).1 rfl
-          refine ⟨insert v K, Finset.insert_subset_iff.mpr
-            ⟨hvS, hKN.trans ((Finset.filter_subset _ _).trans (Finset.erase_subset _ _))⟩,
-            by rw [Finset.card_insert_of_notMem hvK, hKc], ?_⟩
-          rw [Finset.coe_insert]
-          exact hKcl.insert fun u hu _ => (Finset.mem_filter.mp (hKN hu)).2
-        · exact Or.inr ⟨I, hIN.trans ((Finset.filter_subset _ _).trans (Finset.erase_subset _ _)),
-            hIc, hIi⟩
-      · have hM : ramseyNum (p + 1) q ≤ M.card := by omega
-        rcases ihq M hM with ⟨K, hKM, hKc, hKcl⟩ | ⟨I, hIM, hIc, hIi⟩
-        · exact Or.inl ⟨K, hKM.trans ((Finset.filter_subset _ _).trans (Finset.erase_subset _ _)),
-            hKc, hKcl⟩
-        · right
-          have hvI : v ∉ I := fun hv =>
-            (Finset.mem_erase.mp (Finset.filter_subset _ _ (hIM hv))).1 rfl
-          refine ⟨insert v I, Finset.insert_subset_iff.mpr
-            ⟨hvS, hIM.trans ((Finset.filter_subset _ _).trans (Finset.erase_subset _ _))⟩,
-            by rw [Finset.card_insert_of_notMem hvI, hIc], ?_⟩
-          intro x hx y hy hxy
-          rcases Finset.mem_insert.mp hx with rfl | hxI
-          · rcases Finset.mem_insert.mp hy with rfl | hyI
-            · exact G.loopless.irrefl _ hxy
-            · exact (Finset.mem_filter.mp (hIM hyI)).2 hxy
-          · rcases Finset.mem_insert.mp hy with rfl | hyI
-            · exact (Finset.mem_filter.mp (hIM hxI)).2 hxy.symm
-            · exact hIi x hxI y hyI hxy
+end Graph
 
-private lemma indep_index_of_cliqueFreeOn {V α : Type*} [DecidableEq V] [DecidableEq α]
-    {G : SimpleGraph V} [DecidableRel G.Adj] {V₀ : Finset V} {ω s : ℕ}
-    (hcf : G.CliqueFreeOn (V₀ : Set V) (ω + 1))
-    (J : Finset α) (g : α → V)
-    (hmem : ∀ i ∈ J, g i ∈ V₀)
-    (hinj : ∀ i ∈ J, ∀ j ∈ J, g i = g j → i = j)
-    (hcard : ramseyNum (ω + 1) s ≤ J.card) :
-    ∃ I' ⊆ J, I'.card = s ∧ ∀ i ∈ I', ∀ j ∈ I', ¬ G.Adj (g i) (g j) := by
-  let S := J.image g
-  have hScard : S.card = J.card := Finset.card_image_of_injOn hinj
-  rcases ramsey_clique_or_indep G (ω + 1) s S (by omega) with
-    ⟨K, hKS, hKc, hKcl⟩ | ⟨B, hBS, hBc, hBi⟩
-  · exfalso
-    have hKV₀ : (K : Set V) ⊆ (V₀ : Set V) := by
-      intro x hx
-      obtain ⟨i, hiJ, rfl⟩ := Finset.mem_image.mp (hKS (Finset.mem_coe.mp hx))
-      exact Finset.mem_coe.mpr (hmem i hiJ)
-    exact hcf hKV₀ ⟨hKcl, hKc⟩
-  · let I' := J.filter (fun i => g i ∈ B)
-    have hBij : B = I'.image g := by
-      ext x
-      simp only [I', Finset.mem_image, Finset.mem_filter]
-      constructor
-      · intro hxB
-        obtain ⟨i, hiJ, rfl⟩ := Finset.mem_image.mp (hBS hxB)
-        exact ⟨i, ⟨hiJ, hxB⟩, rfl⟩
-      · rintro ⟨i, ⟨_, hgiB⟩, rfl⟩
-        exact hgiB
-    have hI'card : I'.card = s := by
-      have hinj' : Set.InjOn g (I' : Set α) := fun i hi j hj hij =>
-        hinj i (Finset.mem_filter.mp (Finset.mem_coe.mp hi)).1
-          j (Finset.mem_filter.mp (Finset.mem_coe.mp hj)).1 hij
-      have hc := Finset.card_image_of_injOn hinj'
-      rw [← hBij, hBc] at hc
-      exact hc.symm
-    refine ⟨I', Finset.filter_subset (fun i => g i ∈ B) J, hI'card, ?_⟩
-    intro i hi j hj
-    exact hBi (g i) (Finset.mem_filter.mp hi).2 (g j) (Finset.mem_filter.mp hj).2
+end GS
 
-/- ## Section 2: Universal Radius-Two Model Tree and Embedding -/
 
-private abbrev RadTwoVert (s : ℕ) : Type := Unit ⊕ Fin s ⊕ (Fin s × Fin s)
+open Finset
 
-private def modelTreeAdj (s : ℕ) : RadTwoVert s → RadTwoVert s → Prop
-  | Sum.inl (), Sum.inr (Sum.inl _) => True
-  | Sum.inr (Sum.inl _), Sum.inl () => True
-  | Sum.inr (Sum.inl i), Sum.inr (Sum.inr p) => i = p.1
-  | Sum.inr (Sum.inr p), Sum.inr (Sum.inl i) => i = p.1
+namespace GS
+
+/-! ## The complete radius-two tree `H_s` -/
+
+abbrev HV (s : ℕ) := Unit ⊕ Fin s ⊕ (Fin s × Fin s)
+
+def HAdj {s : ℕ} : HV s → HV s → Prop
+  | .inl _, .inr (.inl _) => True
+  | .inr (.inl _), .inl _ => True
+  | .inr (.inl i), .inr (.inr p) => p.1 = i
+  | .inr (.inr p), .inr (.inl i) => p.1 = i
   | _, _ => False
 
-private def modelTree (s : ℕ) : SimpleGraph (RadTwoVert s) where
-  Adj := modelTreeAdj s
-  symm := ⟨by
-    intro x y h
-    rcases x with (_ | i | p) <;> rcases y with (_ | j | q) <;> simp_all [modelTreeAdj]⟩
-  loopless := ⟨by intro x; rcases x with (_ | i | p) <;> simp [modelTreeAdj]⟩
+def Hs (s : ℕ) : SimpleGraph (HV s) where
+  Adj := HAdj
+  symm := ⟨fun x y h => by
+    rcases x with _ | i | p <;> rcases y with _ | j | q <;> simp_all [HAdj]⟩
+  loopless := ⟨fun x h => by rcases x with _ | i | p <;> simp_all [HAdj]⟩
 
-private def HasModelTreeOn {V : Type*} (G : SimpleGraph V) (U : Finset V) (s : ℕ) : Prop :=
-  ∃ (r₀ : V) (a : Fin s → V) (b : Fin s → Fin s → V),
-    r₀ ∈ U ∧
-    (∀ i, a i ∈ U) ∧
-    (∀ i j, b i j ∈ U) ∧
-    (∀ i j j', j ≠ j' → b i j ≠ b i j') ∧
-    (∀ i, G.Adj r₀ (a i)) ∧
-    (∀ i j, ¬ G.Adj r₀ (b i j)) ∧
-    (∀ i j, i ≠ j → ¬ G.Adj (a i) (a j)) ∧
-    (∀ i i' j, G.Adj (a i) (b i' j) ↔ i = i') ∧
-    (∀ i j i' j', (i, j) ≠ (i', j') → ¬ G.Adj (b i j) (b i' j'))
+section Embed
+variable {V : Type} [Fintype V] [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
 
-private lemma hasModelTreeOn_mono {V : Type*} {G : SimpleGraph V} {U₁ U₂ : Finset V} {s : ℕ}
-    (hsub : U₁ ⊆ U₂) (h : HasModelTreeOn G U₁ s) : HasModelTreeOn G U₂ s := by
-  obtain ⟨r₀, a, b, hr, ha, hb, hdist, h1, h2, h3, h4, h5⟩ := h
-  exact ⟨r₀, a, b, hsub hr, fun i => hsub (ha i), fun i j => hsub (hb i j),
-    hdist, h1, h2, h3, h4, h5⟩
+def embF {s : ℕ} (r : V) (a : Fin s → V) (y : Fin s → Fin s → V) : HV s → V
+  | .inl _ => r
+  | .inr (.inl i) => a i
+  | .inr (.inr p) => y p.1 p.2
 
-private def modelTreePhi {V : Type*} {s : ℕ} (r₀ : V) (a : Fin s → V) (b : Fin s → Fin s → V) :
-    RadTwoVert s → V
-  | Sum.inl () => r₀
-  | Sum.inr (Sum.inl i) => a i
-  | Sum.inr (Sum.inr p) => b p.1 p.2
-
-private lemma isIndContained_of_hasModelTreeOn {V : Type*} {G : SimpleGraph V} {U : Finset V}
-    {s : ℕ} (hs : 2 ≤ s) (h : HasModelTreeOn G U s) :
-    SimpleGraph.IsIndContained (modelTree s) G := by
-  obtain ⟨r₀, a, b, _, _, _, hb_ne, hr_a, hr_b, ha_a, ha_b, hb_b⟩ := h
-  let φ := modelTreePhi r₀ a b
-  have hinj : Function.Injective φ := by
-    intro x y hxy
-    rcases x with (_ | i | ⟨i, j⟩) <;> rcases y with (_ | i' | ⟨i', j'⟩) <;>
-      dsimp [φ, modelTreePhi] at hxy
+/-- T8, functional form. -/
+theorem embed_Hs {s : ℕ} (r : V) (a : Fin s → V) (y : Fin s → Fin s → V)
+    (h1 : ∀ i, G.Adj r (a i))
+    (h2 : ∀ i j, i ≠ j → ¬ G.Adj (a i) (a j))
+    (h2' : Function.Injective a)
+    (h3a : ∀ i j, G.Adj (a i) (y i j))
+    (h3b : ∀ i j, ¬ G.Adj r (y i j))
+    (h3c : ∀ i j, y i j ≠ r)
+    (h3d : ∀ i j k, ¬ G.Adj (y i j) (y i k))
+    (h3e : ∀ i, Function.Injective (y i))
+    (h4 : ∀ i j k, i ≠ j → ¬ G.Adj (a j) (y i k))
+    (h5 : ∀ i j k l, i ≠ j → ¬ G.Adj (y i k) (y j l)) : (Hs s).IsIndContained G := by
+  have hra : ∀ i, a i ≠ r := fun i h => G.irrefl (h ▸ h1 i)
+  have hya : ∀ i j k, y i j ≠ a k := by
+    intro i j k h
+    by_cases hik : i = k
+    · subst hik; exact G.irrefl (h ▸ h3a i j)
+    · exact h2 i k hik (h ▸ h3a i j)
+  have hyy : ∀ i j i' k, i ≠ i' → y i j ≠ y i' k := by
+    intro i j i' k hii h
+    exact h4 i i' j hii (h ▸ h3a i' k)
+  have hiff : ∀ x z, G.Adj (embF r a y x) (embF r a y z) ↔ (Hs s).Adj x z := by
+    intro x z
+    rcases x with _ | i | ⟨i, j⟩ <;> rcases z with _ | k | ⟨k, l⟩ <;>
+      simp only [embF, Hs, HAdj]
+    · simp [G.irrefl]
+    · simp [h1 k]
+    · simp [h3b k l]
+    · simp [(h1 i).symm]
+    · simp only [iff_false]
+      by_cases hik : i = k
+      · subst hik; exact G.irrefl
+      · exact h2 i k hik
+    · constructor
+      · intro h
+        by_contra hki
+        exact h4 k i l hki h
+      · intro h; subst h; exact h3a k l
+    · simp only [iff_false]; exact fun h => h3b i j h.symm
+    · constructor
+      · intro h
+        by_contra hik
+        exact h4 i k j hik h.symm
+      · intro h; subst h; exact (h3a i j).symm
+    · simp only [iff_false]
+      by_cases hik : i = k
+      · subst hik; exact h3d i j l
+      · exact h5 i k j l hik
+  have hinj : Function.Injective (embF r a y) := by
+    intro x z hxz
+    rcases x with _ | i | ⟨i, j⟩ <;> rcases z with _ | k | ⟨k, l⟩ <;> simp only [embF] at hxz
     · rfl
-    · exfalso; have h1 := hr_a i'; rw [← hxy] at h1; exact G.loopless.irrefl r₀ h1
-    · exfalso
-      by_cases hi0 : i'.val = 0
-      · have hk : (⟨1, hs⟩ : Fin s) ≠ i' := by
-          intro heq; have := congr_arg Fin.val heq; dsimp at this; omega
-        have hadj : G.Adj (a ⟨1, hs⟩) r₀ := (hr_a ⟨1, hs⟩).symm
-        rw [hxy] at hadj
-        exact hk ((ha_b ⟨1, hs⟩ i' j').mp hadj)
-      · have hk : (⟨0, by omega⟩ : Fin s) ≠ i' := by
-          intro heq; have := congr_arg Fin.val heq; dsimp at this; omega
-        have hadj : G.Adj (a ⟨0, by omega⟩) r₀ := (hr_a ⟨0, by omega⟩).symm
-        rw [hxy] at hadj
-        exact hk ((ha_b ⟨0, by omega⟩ i' j').mp hadj)
-    · exfalso; have h1 := hr_a i; rw [hxy] at h1; exact G.loopless.irrefl r₀ h1
-    · congr 2
+    · exact absurd hxz.symm (hra k)
+    · exact absurd hxz.symm (h3c k l)
+    · exact absurd hxz (hra i)
+    · rw [h2' hxz]
+    · exact absurd hxz.symm (hya k l i)
+    · exact absurd hxz (h3c i j)
+    · exact absurd hxz (hya i j k)
+    · by_cases hik : i = k
+      · subst hik; rw [h3e i hxz]
+      · exact absurd hxz (hyy i j k l hik)
+  exact ⟨⟨⟨embF r a y, hinj⟩, fun {x z} => hiff x z⟩⟩
+
+theorem exists_enum {Y : Finset V} {s : ℕ} (h : Y.card = s) :
+    ∃ f : Fin s → V, Function.Injective f ∧ ∀ j, f j ∈ Y := by
+  refine ⟨fun j => (Y.equivFin.symm (Fin.cast h.symm j)).1, ?_, fun j => (Y.equivFin.symm _).2⟩
+  intro j k hjk
+  have := Subtype.val_injective hjk
+  have := Y.equivFin.symm.injective this
+  exact Fin.cast_injective _ this
+
+theorem exists_enum' {ι : Type*} {I : Finset ι} {s : ℕ} (h : I.card = s) :
+    ∃ f : Fin s → ι, Function.Injective f ∧ ∀ j, f j ∈ I := by
+  classical
+  refine ⟨fun j => (I.equivFin.symm (Fin.cast h.symm j)).1, ?_, fun j => (I.equivFin.symm _).2⟩
+  intro j k hjk
+  have := Subtype.val_injective hjk
+  have := I.equivFin.symm.injective this
+  exact Fin.cast_injective _ this
+
+/-- T8, Finset form: root `r`, children `a i` (`i ∈ I`), leaf sets `Y i`. -/
+theorem embed_HsF {ι : Type*} [DecidableEq ι] {s : ℕ} (I : Finset ι) (hI : I.card = s)
+    (r : V) (a : ι → V) (Y : ι → Finset V)
+    (hY : ∀ i ∈ I, (Y i).card = s)
+    (h1 : ∀ i ∈ I, G.Adj r (a i))
+    (h2 : ∀ i ∈ I, ∀ j ∈ I, i ≠ j → ¬ G.Adj (a i) (a j) ∧ a i ≠ a j)
+    (h3 : ∀ i ∈ I, ∀ y ∈ Y i, G.Adj (a i) y ∧ ¬ G.Adj r y ∧ y ≠ r)
+    (h3s : ∀ i ∈ I, IsStab G (Y i))
+    (h4 : ∀ i ∈ I, ∀ j ∈ I, i ≠ j → ∀ y ∈ Y i, ¬ G.Adj (a j) y)
+    (h5 : ∀ i ∈ I, ∀ j ∈ I, i ≠ j → ∀ y ∈ Y i, ∀ z ∈ Y j, ¬ G.Adj y z) : (Hs s).IsIndContained G := by
+  obtain ⟨e, he, heI⟩ := exists_enum' hI
+  have hy : ∀ i : Fin s, ∃ f : Fin s → V, Function.Injective f ∧ ∀ j, f j ∈ Y (e i) :=
+    fun i => exists_enum (hY (e i) (heI i))
+  choose y hyinj hyY using hy
+  refine embed_Hs r (a ∘ e) y (fun i => h1 _ (heI i))
+    (fun i j hij => (h2 _ (heI i) _ (heI j) (he.ne hij)).1)
+    (fun i j hij => by
       by_contra hne
-      have hadj : G.Adj (a i) (b i ⟨0, by omega⟩) := (ha_b i i ⟨0, by omega⟩).mpr rfl
-      rw [hxy] at hadj
-      exact hne ((ha_b i' i ⟨0, by omega⟩).mp hadj).symm
-    · exfalso
-      have hadj : G.Adj (a i') (b i' j') := (ha_b i' i' j').mpr rfl
-      rw [← hxy] at hadj
-      by_cases hii' : i = i'
-      · subst hii'; exact G.loopless.irrefl (a i) hadj
-      · exact ha_a i' i (Ne.symm hii') hadj
-    · exfalso
-      by_cases hi0 : i.val = 0
-      · have hk : (⟨1, hs⟩ : Fin s) ≠ i := by
-          intro heq; have := congr_arg Fin.val heq; dsimp at this; omega
-        have hadj : G.Adj (a ⟨1, hs⟩) r₀ := (hr_a ⟨1, hs⟩).symm
-        rw [← hxy] at hadj
-        exact hk ((ha_b ⟨1, hs⟩ i j).mp hadj)
-      · have hk : (⟨0, by omega⟩ : Fin s) ≠ i := by
-          intro heq; have := congr_arg Fin.val heq; dsimp at this; omega
-        have hadj : G.Adj (a ⟨0, by omega⟩) r₀ := (hr_a ⟨0, by omega⟩).symm
-        rw [← hxy] at hadj
-        exact hk ((ha_b ⟨0, by omega⟩ i j).mp hadj)
-    · exfalso
-      have hadj : G.Adj (a i) (b i j) := (ha_b i i j).mpr rfl
-      rw [hxy] at hadj
-      by_cases hii' : i = i'
-      · subst hii'; exact G.loopless.irrefl (a i) hadj
-      · exact ha_a i i' hii' hadj
-    · congr 2
-      have hii' : i = i' := by
-        have hadj : G.Adj (a i) (b i j) := (ha_b i i j).mpr rfl
-        rw [hxy] at hadj
-        exact (ha_b i i' j').mp hadj
-      subst hii'
-      refine Prod.ext rfl ?_
-      by_contra hjj'
-      exact hb_ne i j j' hjj' hxy
-  refine ⟨⟨⟨φ, hinj⟩, ?_⟩⟩
-  intro x y
-  rcases x with (_ | i | ⟨i, j⟩) <;> rcases y with (_ | i' | ⟨i', j'⟩) <;>
-    dsimp [φ, modelTreePhi, modelTree, modelTreeAdj]
-  · simp
-  · simp [hr_a i']
-  · simp [hr_b i' j']
-  · simp [(hr_a i).symm]
-  · constructor
-    · intro h
-      by_cases hii' : i = i'
-      · subst hii'; exact G.loopless.irrefl (a i) h
-      · exact ha_a i i' hii' h
-    · exact False.elim
-  · exact ha_b i i' j'
-  · constructor
-    · intro h; exact hr_b i j h.symm
-    · exact False.elim
-  · constructor
-    · intro h; exact (ha_b i' i j).mp h.symm
-    · rintro rfl; exact ((ha_b i' i' j).mpr rfl).symm
-  · constructor
-    · intro h
-      by_cases heq : (i, j) = (i', j')
-      · cases heq; exact G.loopless.irrefl (b i j) h
-      · exact hb_b i j i' j' heq h
-    · exact False.elim
+      exact (h2 _ (heI i) _ (heI j) (fun h => hne (he h))).2 hij)
+    (fun i j => (h3 _ (heI i) _ (hyY i j)).1)
+    (fun i j => (h3 _ (heI i) _ (hyY i j)).2.1)
+    (fun i j => (h3 _ (heI i) _ (hyY i j)).2.2)
+    (fun i j k => h3s _ (heI i) _ (hyY i j) _ (hyY i k))
+    hyinj
+    (fun i j k hij => h4 _ (heI i) _ (heI j) (he.ne hij) _ (hyY i k))
+    (fun i j k l hij => h5 _ (heI i) _ (heI j) (he.ne hij) _ (hyY i k) _ (hyY j l))
 
-private lemma tree_rad_two_indContained_modelTree
-    {W : Type*} [Fintype W] [DecidableEq W] (T : SimpleGraph W)
-    (hT : T.IsTree) (c : W) (hrad : ∀ w : W, T.dist c w ≤ 2) :
-    SimpleGraph.IsIndContained T (modelTree (max (Fintype.card W) 2)) := by
+end Embed
+
+/-! ## Reduction of a radius-≤2 tree to `H_s` -/
+
+section Tree
+variable {W : Type} [Fintype W] [DecidableEq W] {T : SimpleGraph W}
+
+theorem bridge_false (hT : T.IsAcyclic) {u v : W} (huv : T.Adj u v)
+    (h : (T.deleteEdges {s(u, v)}).Reachable u v) : False :=
+  (SimpleGraph.isAcyclic_iff_forall_adj_isBridge.mp hT huv) h
+
+theorem del_adj {u v a b : W} (hab : T.Adj a b)
+    (hne : ¬ ((a = u ∧ b = v) ∨ (a = v ∧ b = u))) :
+    (T.deleteEdges {s(u, v)}).Adj a b := by
+  rw [SimpleGraph.deleteEdges_adj]
+  refine ⟨hab, ?_⟩
+  rw [Set.mem_singleton_iff, Sym2.eq_iff]
+  exact hne
+
+theorem tree_le_Hs (hT : T.IsTree) (c : W) (hc : ∀ w, T.dist c w ≤ 2) (s : ℕ)
+    (hs : Fintype.card W ≤ s) : T.IsIndContained (Hs s) := by
   classical
-  let s := max (Fintype.card W) 2
-  have hle_s : Fintype.card W ≤ s := le_max_left _ _
-  let eW : W ↪ Fin s := (Fintype.equivFin W).toEmbedding.trans (Fin.castLEEmb hle_s)
-  have hconn : T.Connected := hT.connected
-  have hdist0 : ∀ w : W, T.dist c w = 0 ↔ w = c := by
-    intro w
-    rw [hconn.dist_eq_zero_iff, eq_comm]
-  have hdist1 : ∀ w : W, T.dist c w = 1 ↔ T.Adj c w := fun _ => T.dist_eq_one_iff_adj
-  have hex_parent : ∀ w : W, w ≠ c → ¬ T.Adj c w → ∃ u : W, T.Adj c u ∧ T.Adj u w := by
-    intro w hwc hncw
-    have hd0 : T.dist c w ≠ 0 := fun h => hwc ((hdist0 w).mp h)
-    have hd1 : T.dist c w ≠ 1 := fun h => hncw ((hdist1 w).mp h)
-    have hd2 : T.dist c w = 2 := by have := hrad w; omega
-    obtain ⟨p, _, hp_len⟩ := hconn.exists_path_of_dist c w
-    rw [hd2] at hp_len
-    rcases p with _ | ⟨h1, _ | ⟨h2, _ | _⟩⟩
-    · simp at hp_len
-    · simp at hp_len
-    · exact ⟨_, h1, h2⟩
-    · simp at hp_len
-  have hno_adj_d1 : ∀ u₁ u₂ : W, T.Adj c u₁ → T.Adj c u₂ → ¬ T.Adj u₁ u₂ := by
-    intro u₁ u₂ hu₁ hu₂ hu₁₂
-    have hne12 : u₁ ≠ u₂ := T.ne_of_adj hu₁₂
-    have hcu₁ : c ≠ u₁ := T.ne_of_adj hu₁
-    have hcu₂ : c ≠ u₂ := T.ne_of_adj hu₂
-    let p₁ : T.Walk c u₂ := Walk.cons hu₂ Walk.nil
-    let p₂ : T.Walk c u₂ := Walk.cons hu₁ (Walk.cons hu₁₂ Walk.nil)
-    have hp₁ : p₁.IsPath := by
-      rw [Walk.isPath_def]; simp [p₁, hcu₂]
-    have hp₂ : p₂.IsPath := by
-      rw [Walk.isPath_def]; simp [p₂, hcu₁, hcu₂, hne12]
-    have heq := (hT.existsUnique_path c u₂).unique hp₁ hp₂
-    have hlen := congr_arg Walk.length heq
-    simp [p₁, p₂] at hlen
-  have huniq_parent : ∀ w u₁ u₂ : W, w ≠ c → ¬ T.Adj c w →
-      T.Adj c u₁ → T.Adj u₁ w → T.Adj c u₂ → T.Adj u₂ w → u₁ = u₂ := by
-    intro w u₁ u₂ hwc _ hcu₁ hu₁w hcu₂ hu₂w
-    let p₁ : T.Walk c w := Walk.cons hcu₁ (Walk.cons hu₁w Walk.nil)
-    let p₂ : T.Walk c w := Walk.cons hcu₂ (Walk.cons hu₂w Walk.nil)
-    have hp₁ : p₁.IsPath := by
-      rw [Walk.isPath_def]
-      simp [p₁, T.ne_of_adj hcu₁, hwc.symm, T.ne_of_adj hu₁w]
-    have hp₂ : p₂.IsPath := by
-      rw [Walk.isPath_def]
-      simp [p₂, T.ne_of_adj hcu₂, hwc.symm, T.ne_of_adj hu₂w]
-    have heq := (hT.existsUnique_path c w).unique hp₁ hp₂
-    have hget := congr_arg (fun q => q.getVert 1) heq
-    simpa [p₁, p₂] using hget
-  have hno_adj_d2 : ∀ w₁ w₂ : W, w₁ ≠ c → ¬ T.Adj c w₁ → w₂ ≠ c → ¬ T.Adj c w₂ →
-      ¬ T.Adj w₁ w₂ := by
-    intro w₁ w₂ hw₁c hncw₁ hw₂c hncw₂ hw₁₂
-    obtain ⟨u₁, hcu₁, hu₁w₁⟩ := hex_parent w₁ hw₁c hncw₁
-    obtain ⟨u₂, hcu₂, hu₂w₂⟩ := hex_parent w₂ hw₂c hncw₂
-    let p₁ : T.Walk c w₂ := Walk.cons hcu₂ (Walk.cons hu₂w₂ Walk.nil)
-    let p₂ : T.Walk c w₂ := Walk.cons hcu₁ (Walk.cons hu₁w₁ (Walk.cons hw₁₂ Walk.nil))
-    have hp₁ : p₁.IsPath := by
-      rw [Walk.isPath_def]
-      simp [p₁, T.ne_of_adj hcu₂, hw₂c.symm, T.ne_of_adj hu₂w₂]
-    have hp₂ : p₂.IsPath := by
-      rw [Walk.isPath_def]
-      have hu₁w₂ : u₁ ≠ w₂ := fun h => hncw₂ (h ▸ hcu₁)
-      simp [p₂, T.ne_of_adj hcu₁, hw₁c.symm, hw₂c.symm, T.ne_of_adj hu₁w₁, hu₁w₂,
-        T.ne_of_adj hw₁₂]
-    have heq := (hT.existsUnique_path c w₂).unique hp₁ hp₂
-    have hlen := congr_arg Walk.length heq
-    simp [p₁, p₂] at hlen
-  let ψ : W → RadTwoVert s := fun w =>
-    if hwc : w = c then
-      Sum.inl ()
-    else if hcw : T.Adj c w then
-      Sum.inr (Sum.inl (eW w))
-    else
-      Sum.inr (Sum.inr (eW (Classical.choose (hex_parent w hwc hcw)), eW w))
-  have hψ_root : ψ c = Sum.inl () := by
-    dsimp [ψ]; rw [dif_pos rfl]
-  have hψ_d1 : ∀ w : W, T.Adj c w → ψ w = Sum.inr (Sum.inl (eW w)) := by
-    intro w hcw
-    have hwc : w ≠ c := (T.ne_of_adj hcw).symm
-    dsimp [ψ]; rw [dif_neg hwc, dif_pos hcw]
-  have hψ_d2 : ∀ (w : W) (hwc : w ≠ c) (hncw : ¬ T.Adj c w),
-      ψ w = Sum.inr (Sum.inr (eW (Classical.choose (hex_parent w hwc hncw)), eW w)) := by
-    intro w hwc hncw
-    dsimp [ψ]; rw [dif_neg hwc, dif_neg hncw]
-  have hinj : Function.Injective ψ := by
-    intro x y hxy
-    by_cases hxc : x = c
-    · rw [hxc, hψ_root] at hxy
-      by_cases hyc : y = c
-      · exact hxc.trans hyc.symm
-      · by_cases hcy : T.Adj c y
-        · rw [hψ_d1 y hcy] at hxy; cases hxy
-        · rw [hψ_d2 y hyc hcy] at hxy; cases hxy
-    · by_cases hcx : T.Adj c x
-      · rw [hψ_d1 x hcx] at hxy
-        by_cases hyc : y = c
-        · rw [hyc, hψ_root] at hxy; cases hxy
-        · by_cases hcy : T.Adj c y
-          · rw [hψ_d1 y hcy] at hxy
-            exact eW.injective (Sum.inl.inj (Sum.inr.inj hxy))
-          · rw [hψ_d2 y hyc hcy] at hxy; cases hxy
-      · rw [hψ_d2 x hxc hcx] at hxy
-        by_cases hyc : y = c
-        · rw [hyc, hψ_root] at hxy; cases hxy
-        · by_cases hcy : T.Adj c y
-          · rw [hψ_d1 y hcy] at hxy; cases hxy
-          · rw [hψ_d2 y hyc hcy] at hxy
-            exact eW.injective (Prod.mk.inj (Sum.inr.inj (Sum.inr.inj hxy))).2
-  refine ⟨⟨⟨ψ, hinj⟩, ?_⟩⟩
-  intro x y
-  change (modelTree s).Adj (ψ x) (ψ y) ↔ T.Adj x y
-  by_cases hxc : x = c
-  · rw [hxc, hψ_root]
-    by_cases hyc : y = c
-    · rw [hyc, hψ_root]; simp [modelTree]
-    · by_cases hcy : T.Adj c y
-      · rw [hψ_d1 y hcy]; simp [modelTree, modelTreeAdj, hcy]
-      · rw [hψ_d2 y hyc hcy]; simp [modelTree, modelTreeAdj, hcy]
-  · by_cases hcx : T.Adj c x
-    · rw [hψ_d1 x hcx]
-      by_cases hyc : y = c
-      · rw [hyc, hψ_root]; simp [modelTree, modelTreeAdj, hcx.symm]
-      · by_cases hcy : T.Adj c y
-        · rw [hψ_d1 y hcy]; simp [modelTree, modelTreeAdj, hno_adj_d1 x y hcx hcy]
-        · rw [hψ_d2 y hyc hcy]
-          have hu_spec := Classical.choose_spec (hex_parent y hyc hcy)
-          simp only [modelTree, modelTreeAdj, EmbeddingLike.apply_eq_iff_eq]
-          constructor
-          · rintro rfl; exact hu_spec.2
-          · intro hxy; exact huniq_parent y x _ hyc hcy hcx hxy hu_spec.1 hu_spec.2
-    · rw [hψ_d2 x hxc hcx]
-      by_cases hyc : y = c
-      · rw [hyc, hψ_root]
-        have hncx : ¬ T.Adj x c := fun h => hcx h.symm
-        simp [modelTree, modelTreeAdj, hncx]
-      · by_cases hcy : T.Adj c y
-        · rw [hψ_d1 y hcy]
-          have hu_spec := Classical.choose_spec (hex_parent x hxc hcx)
-          simp only [modelTree, modelTreeAdj, EmbeddingLike.apply_eq_iff_eq]
-          constructor
-          · rintro rfl; exact hu_spec.2.symm
-          · intro hxy; exact huniq_parent x y _ hxc hcx hcy hxy.symm hu_spec.1 hu_spec.2
-        · rw [hψ_d2 y hyc hcy]
-          simp [modelTree, modelTreeAdj, hno_adj_d2 x y hxc hcx hyc hcy]
-
-/- ## Section 3: Biclique-Free Base Case (Rodl Leaf-Peeling) -/
-
-private def HasCore {V : Type*} (G : SimpleGraph V) (U : Finset V) (d w : ℕ) : Prop :=
-  ∃ A : Fin d → Finset V,
-    (∀ p, A p ⊆ U) ∧
-    (∀ p, (A p).card = w) ∧
-    (∀ p q, p ≠ q → Disjoint (A p) (A q)) ∧
-    (∀ p q, p ≠ q → ∀ u ∈ A p, ∀ v ∈ A q, G.Adj u v)
-
-private lemma hasCore_mono {V : Type*} {G : SimpleGraph V} {U₁ U₂ : Finset V} {d w : ℕ}
-    (hsub : U₁ ⊆ U₂) (h : HasCore G U₁ d w) : HasCore G U₂ d w := by
-  obtain ⟨A, hAU, hAc, hAd, hAadj⟩ := h
-  exact ⟨A, fun p => (hAU p).trans hsub, hAc, hAd, hAadj⟩
-
-private def enumVert (s : ℕ) (hs : 1 ≤ s) (k : Fin (1 + s + s * s)) : RadTwoVert s :=
-  if h0 : k.val = 0 then
-    Sum.inl ()
-  else if h1 : k.val ≤ s then
-    Sum.inr (Sum.inl ⟨k.val - 1, by omega⟩)
-  else
-    Sum.inr (Sum.inr (⟨(k.val - (1 + s)) / s,
-      (Nat.div_lt_iff_lt_mul (by omega)).mpr (by have := k.isLt; omega)⟩,
-      ⟨(k.val - (1 + s)) % s, Nat.mod_lt _ (by omega)⟩))
-
-private lemma enumVert_zero {s : ℕ} (hs : 1 ≤ s) {k : Fin (1 + s + s * s)} (h0 : k.val = 0) :
-    enumVert s hs k = Sum.inl () := by
-  unfold enumVert
-  rw [dif_pos h0]
-
-private lemma enumVert_d1 {s : ℕ} (hs : 1 ≤ s) {k : Fin (1 + s + s * s)}
-    (h0 : k.val ≠ 0) (h1 : k.val ≤ s) :
-    enumVert s hs k = Sum.inr (Sum.inl ⟨k.val - 1, by omega⟩) := by
-  unfold enumVert
-  rw [dif_neg h0, dif_pos h1]
-
-private lemma enumVert_d2 {s : ℕ} (hs : 1 ≤ s) {k : Fin (1 + s + s * s)} (h1 : ¬ k.val ≤ s) :
-    enumVert s hs k = Sum.inr (Sum.inr (⟨(k.val - (1 + s)) / s,
-      (Nat.div_lt_iff_lt_mul (by omega)).mpr (by have := k.isLt; omega)⟩,
-      ⟨(k.val - (1 + s)) % s, Nat.mod_lt _ (by omega)⟩)) := by
-  have h0 : k.val ≠ 0 := by omega
-  unfold enumVert
-  rw [dif_neg h0, dif_neg h1]
-
-private def parentIdx (s : ℕ) (hs : 1 ≤ s) (m : ℕ) (hm : m + 1 < 1 + s + s * s) : Fin (m + 1) :=
-  if _ : m + 1 ≤ s then
-    ⟨0, by omega⟩
-  else
-    ⟨1 + ((m + 1) - (1 + s)) / s, by
-      have hdiv : ((m + 1) - (1 + s)) / s < s := (Nat.div_lt_iff_lt_mul (by omega)).mpr (by omega)
-      omega⟩
-
-private lemma parentIdx_spec (s : ℕ) (hs : 1 ≤ s) (m : ℕ) (hm : m + 1 < 1 + s + s * s)
-    (x : Fin (m + 1)) :
-    (modelTree s).Adj (enumVert s hs ⟨x.val, by omega⟩) (enumVert s hs ⟨m + 1, hm⟩) ↔
-      x = parentIdx s hs m hm := by
-  have hm0 : (⟨m + 1, hm⟩ : Fin (1 + s + s * s)).val ≠ 0 := by dsimp; omega
-  by_cases hms : m + 1 ≤ s
-  · unfold parentIdx
-    rw [dif_pos hms, enumVert_d1 hs hm0 hms]
-    by_cases hx0 : x.val = 0
-    · rw [enumVert_zero hs hx0]
-      have hxeq : x = ⟨0, by omega⟩ := Fin.ext hx0
-      simp [modelTree, modelTreeAdj, hxeq]
-    · have hxs : x.val ≤ s := by omega
-      rw [enumVert_d1 hs hx0 hxs]
-      have hxne : x ≠ ⟨0, by omega⟩ := fun h => hx0 (congr_arg Fin.val h)
-      exact ⟨False.elim, fun h => absurd h hxne⟩
-  · unfold parentIdx
-    have hm_d2 : enumVert s hs ⟨m + 1, hm⟩ = Sum.inr (Sum.inr (⟨((m + 1) - (1 + s)) / s,
-        (Nat.div_lt_iff_lt_mul (by omega)).mpr (by omega)⟩,
-        ⟨((m + 1) - (1 + s)) % s, Nat.mod_lt _ (by omega)⟩)) :=
-      enumVert_d2 (k := ⟨m + 1, hm⟩) hs hms
-    rw [dif_neg hms, hm_d2]
-    have hdiv_lt : ((m + 1) - (1 + s)) / s < s :=
-      (Nat.div_lt_iff_lt_mul (by omega)).mpr (by omega)
-    by_cases hx0 : x.val = 0
-    · rw [enumVert_zero hs hx0]
-      have hxne : x ≠ ⟨1 + ((m + 1) - (1 + s)) / s, by omega⟩ := by
-        intro h
-        have hval : x.val = 1 + ((m + 1) - (1 + s)) / s := congr_arg Fin.val h
-        rw [hx0, Nat.add_comm] at hval
-        exact Nat.succ_ne_zero _ hval.symm
-      exact ⟨False.elim, fun h => absurd h hxne⟩
-    · by_cases hxs : x.val ≤ s
-      · rw [enumVert_d1 hs hx0 hxs]
-        simp only [modelTree, modelTreeAdj, Fin.ext_iff]
-        omega
-      · rw [enumVert_d2 hs hxs]
-        have hxne : x ≠ ⟨1 + ((m + 1) - (1 + s)) / s, by omega⟩ := by
-          intro h; have := congr_arg Fin.val h; dsimp at this; omega
-        exact ⟨False.elim, fun h => absurd h hxne⟩
-
-private def HasPartialModel {V : Type*} (G : SimpleGraph V) (S : Finset V) (s : ℕ) (hs : 1 ≤ s)
-    (k : ℕ) (hk : k ≤ 1 + s + s * s) : Prop :=
-  ∃ f : Fin k → V,
-    Function.Injective f ∧
-    (∀ x : Fin k, f x ∈ S) ∧
-    ∀ x y : Fin k, G.Adj (f x) (f y) ↔
-      (modelTree s).Adj (enumVert s hs ⟨x.val, by omega⟩) (enumVert s hs ⟨y.val, by omega⟩)
-
-private lemma hasPartialModel_mono {V : Type*} {G : SimpleGraph V} {S₁ S₂ : Finset V}
-    {s : ℕ} {hs : 1 ≤ s} {k : ℕ} {hk : k ≤ 1 + s + s * s}
-    (hsub : S₁ ⊆ S₂) (h : HasPartialModel G S₁ s hs k hk) :
-    HasPartialModel G S₂ s hs k hk := by
-  obtain ⟨f, hinj, hmem, hadj⟩ := h
-  exact ⟨f, hinj, fun x => hsub (hmem x), hadj⟩
-
-private lemma hasModelTreeOn_of_fullPartialModel {V : Type*} {G : SimpleGraph V} {S : Finset V}
-    {s : ℕ} (hs : 1 ≤ s) (h : HasPartialModel G S s hs (1 + s + s * s) le_rfl) :
-    HasModelTreeOn G S s := by
-  obtain ⟨f, hinj, hmem, hadj⟩ := h
-  let idxR : Fin (1 + s + s * s) := ⟨0, by omega⟩
-  let idxA : Fin s → Fin (1 + s + s * s) := fun i => ⟨1 + i.val, by omega⟩
-  let idxB : Fin s → Fin s → Fin (1 + s + s * s) := fun i j =>
-    ⟨1 + s + i.val * s + j.val, by nlinarith [i.isLt, j.isLt]⟩
-  have heR : enumVert s hs ⟨idxR.val, by omega⟩ = Sum.inl () :=
-    enumVert_zero hs rfl
-  have heA : ∀ i : Fin s, enumVert s hs ⟨(idxA i).val, by omega⟩ = Sum.inr (Sum.inl i) := by
-    intro i
-    rw [enumVert_d1 hs (by dsimp [idxA]; omega) (by dsimp [idxA]; omega)]
-    congr 2; ext; dsimp [idxA]; omega
-  have heB : ∀ i j : Fin s,
-      enumVert s hs ⟨(idxB i j).val, by omega⟩ = Sum.inr (Sum.inr (i, j)) := by
-    intro i j
-    rw [enumVert_d2 hs (by dsimp [idxB]; omega)]
-    have hsub : (idxB i j).val - (1 + s) = i.val * s + j.val := by dsimp [idxB]; omega
-    have hdiv : ((idxB i j).val - (1 + s)) / s = i.val := by
-      rw [hsub, mul_comm, Nat.mul_add_div (by omega), Nat.div_eq_zero_iff.mpr (Or.inr j.isLt),
-        add_zero]
-    have hmod : ((idxB i j).val - (1 + s)) % s = j.val := by
-      rw [hsub, mul_comm, Nat.mul_add_mod, Nat.mod_eq_of_lt j.isLt]
-    congr 2
-    exact Prod.ext (Fin.ext hdiv) (Fin.ext hmod)
-  refine ⟨f idxR, fun i => f (idxA i), fun i j => f (idxB i j),
-    hmem idxR, fun i => hmem (idxA i), fun i j => hmem (idxB i j), ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · intro i j j' hjj' heq
-    have hidx := congr_arg Fin.val (hinj heq)
-    dsimp [idxB] at hidx
-    exact hjj' (Fin.ext (by omega))
-  · intro i
-    rw [hadj idxR (idxA i), heR, heA i]
-    trivial
-  · intro i j
-    rw [hadj idxR (idxB i j), heR, heB i j]
-    simp [modelTree, modelTreeAdj]
-  · intro i j _
-    rw [hadj (idxA i) (idxA j), heA i, heA j]
-    simp [modelTree, modelTreeAdj]
-  · intro i i' j
-    rw [hadj (idxA i) (idxB i' j), heA i, heB i' j]
-    simp [modelTree, modelTreeAdj]
-  · intro i j i' j' _
-    rw [hadj (idxB i j) (idxB i' j'), heB i j, heB i' j']
-    simp [modelTree, modelTreeAdj]
-
-private lemma exists_max_disjoint_family {V : Type*} [DecidableEq V] (P : Finset V → Prop)
-    (bound : ℕ)
-    (hno : ¬ ∃ X : Fin (bound + 1) → Finset V,
-      (∀ a b, a ≠ b → Disjoint (X a) (X b)) ∧ ∀ a, P (X a)) :
-    ∃ r ≤ bound, ∃ X : Fin r → Finset V,
-      (∀ a b, a ≠ b → Disjoint (X a) (X b)) ∧
-      (∀ a, P (X a)) ∧
-      ∀ Z : Finset V, P Z → ¬ Disjoint Z (Finset.univ.biUnion X) := by
-  induction bound with
-  | zero =>
-    refine ⟨0, le_rfl, Fin.elim0, fun a => a.elim0, fun a => a.elim0, ?_⟩
-    intro Z hPZ _
-    exact hno ⟨fun _ => Z, fun a b hab => absurd (Fin.ext (by omega)) hab, fun _ => hPZ⟩
-  | succ bound ih =>
-    by_cases hex : ∃ X : Fin (bound + 1) → Finset V,
-        (∀ a b, a ≠ b → Disjoint (X a) (X b)) ∧ ∀ a, P (X a)
-    · obtain ⟨X, hdisj, hP⟩ := hex
-      refine ⟨bound + 1, le_rfl, X, hdisj, hP, ?_⟩
-      intro Z hPZ hZdisj
-      apply hno
-      let X' : Fin (bound + 2) → Finset V := Fin.snoc X Z
-      refine ⟨X', ?_, ?_⟩
-      · intro a b hab
-        induction a using Fin.lastCases with
-        | last =>
-          induction b using Fin.lastCases with
-          | last => exact absurd rfl hab
-          | cast b₀ =>
-            simp only [X', Fin.snoc_last, Fin.snoc_castSucc]
-            exact Finset.disjoint_left.mpr fun x hxZ hxXb =>
-              Finset.disjoint_left.mp hZdisj hxZ
-                (Finset.mem_biUnion.mpr ⟨b₀, Finset.mem_univ _, hxXb⟩)
-        | cast a₀ =>
-          induction b using Fin.lastCases with
-          | last =>
-            simp only [X', Fin.snoc_last, Fin.snoc_castSucc]
-            exact (Finset.disjoint_left.mpr fun x hxZ hxXa =>
-              Finset.disjoint_left.mp hZdisj hxZ
-                (Finset.mem_biUnion.mpr ⟨a₀, Finset.mem_univ _, hxXa⟩)).symm
-          | cast b₀ =>
-            simp only [X', Fin.snoc_castSucc]
-            exact hdisj a₀ b₀ (fun h => hab (congr_arg Fin.castSucc h))
-      · intro a
-        induction a using Fin.lastCases with
-        | last => simpa [X'] using hPZ
-        | cast a₀ => simpa [X'] using hP a₀
-    · obtain ⟨r, hr, X, hdisj, hP, hmax⟩ := ih hex
-      exact ⟨r, by omega, X, hdisj, hP, hmax⟩
-
-private def rodlStepBound (t k cPrev : ℕ) : ℕ :=
-  max (t * k + t * k ^ (t - 1)) ((2 * ((t - 2) * k) + 1) * cPrev)
-
-private def rodlPartialBound (t : ℕ) : ℕ → ℕ
-  | 0 => 1
-  | m + 1 => rodlStepBound t (m + 1) (rodlPartialBound t m)
-
-private lemma colorableOn_of_no_partialModel_bicliqueFree {V : Type*} [DecidableEq V]
-    {G : SimpleGraph V} [DecidableRel G.Adj] {s : ℕ} (hs : 1 ≤ s) {t : ℕ} (ht : 1 ≤ t)
-    (m : ℕ) : ∀ (hm : m + 2 ≤ 1 + s + s * s) (S : Finset V),
-      ¬ HasCore G S 2 t →
-      ¬ HasPartialModel G S s hs (m + 2) hm →
-      ColorableOn G S (rodlPartialBound t m) := by
-  induction m with
-  | zero =>
-    intro hm S _ hno2
-    refine colorableOn_edgeless fun u hu v hv huv => hno2 ?_
-    have hne : u ≠ v := G.ne_of_adj huv
-    let f : Fin 2 → V := ![u, v]
-    have hf_inj : Function.Injective f := by
-      intro a b hab
-      fin_cases a <;> fin_cases b
-      · rfl
-      · exact absurd hab hne
-      · exact absurd hab hne.symm
-      · rfl
-    refine ⟨f, hf_inj, ?_, ?_⟩
-    · intro x; fin_cases x <;> simp [f, hu, hv]
-    · intro x y
-      fin_cases x <;> fin_cases y
-      · simp
-      · change G.Adj u v ↔
-          (modelTree s).Adj (enumVert s hs ⟨0, by omega⟩) (enumVert s hs ⟨1, by omega⟩)
-        rw [enumVert_zero (k := ⟨0, by omega⟩) hs rfl,
-          enumVert_d1 (k := ⟨1, by omega⟩) hs (by simp) hs]
-        simp [huv, modelTree, modelTreeAdj]
-      · change G.Adj v u ↔
-          (modelTree s).Adj (enumVert s hs ⟨1, by omega⟩) (enumVert s hs ⟨0, by omega⟩)
-        rw [enumVert_d1 (k := ⟨1, by omega⟩) hs (by simp) hs,
-          enumVert_zero (k := ⟨0, by omega⟩) hs rfl]
-        simp [huv.symm, modelTree, modelTreeAdj]
-      · simp
-  | succ m ihm =>
-    intro hm S hnoCore hnoNext
-    let k := m + 1
-    have hk_pos : 1 ≤ k := Nat.le_add_left 1 m
-    let cPrev := rodlPartialBound t m
-    let cNext := rodlStepBound t k cPrev
-    change ColorableOn G S cNext
-    by_cases ht1 : t = 1
-    · subst ht1
-      have hc1 : 1 ≤ cNext := by
-        dsimp [cNext, rodlStepBound]
-        omega
-      refine colorableOn_mono_num hc1 (colorableOn_edgeless fun u hu v hv huv => hnoCore ?_)
-      have hne : u ≠ v := G.ne_of_adj huv
-      refine ⟨![{u}, {v}], ?_, ?_, ?_, ?_⟩
-      · intro p; fin_cases p <;> simp [hu, hv]
-      · intro p; fin_cases p <;> simp
-      · intro p q hpq
-        fin_cases p <;> fin_cases q
-        · exact absurd rfl hpq
-        · simp [hne]
-        · simp [hne.symm]
-        · exact absurd rfl hpq
-      · intro p q hpq x hx y hy
-        fin_cases p <;> fin_cases q
-        · exact absurd rfl hpq
-        · simp at hx hy; subst hx; subst hy; exact huv
-        · simp at hx hy; subst hx; subst hy; exact huv.symm
-        · exact absurd rfl hpq
-    · have ht2 : 2 ≤ t := by omega
-      have haux : ∀ n : ℕ, ∀ S' : Finset V, S'.card ≤ n → S' ⊆ S → ColorableOn G S' cNext := by
-        intro n
-        induction n with
-        | zero =>
-          intro S' hcard _
-          rw [Finset.card_eq_zero.mp (Nat.le_zero.mp hcard)]
-          exact colorableOn_empty G cNext
-        | succ n ih =>
-          intro S' hcard hS'S
-          by_cases hlow : ∃ v ∈ S', (S'.filter (G.Adj v)).card < cNext
-          · obtain ⟨v, hvS', hvdeg⟩ := hlow
-            have hcard_er : (S'.erase v).card ≤ n := by
-              have := Finset.card_erase_of_mem hvS'
-              have : 0 < S'.card := Finset.card_pos.mpr ⟨v, hvS'⟩
-              omega
-            have hcol_er := ih (S'.erase v) hcard_er ((Finset.erase_subset _ _).trans hS'S)
-            have hvdeg_er : ((S'.erase v).filter (G.Adj v)).card < cNext := by
-              refine lt_of_le_of_lt (Finset.card_le_card ?_) hvdeg
-              intro z hz
-              obtain ⟨hzE, hzv⟩ := Finset.mem_filter.mp hz
-              exact Finset.mem_filter.mpr ⟨(Finset.mem_erase.mp hzE).2, hzv⟩
-            have hins := colorableOn_insert_of_deg_lt hcol_er hvdeg_er
-            rwa [Finset.insert_erase hvS'] at hins
-          · simp only [not_exists, not_and, not_lt] at hlow
-            let q : Fin (k + 1) := parentIdx s hs k (by omega)
-            let IsBag : V → Finset V → Prop := fun v X =>
-              X ⊆ S'.erase v ∧ X.card = k ∧
-              ∃ f : Fin (k + 1) → V,
-                Function.Injective f ∧
-                (∀ x, f x ∈ S') ∧
-                (∀ x y : Fin (k + 1), G.Adj (f x) (f y) ↔
-                  (modelTree s).Adj (enumVert s hs ⟨x.val, by omega⟩)
-                    (enumVert s hs ⟨y.val, by omega⟩)) ∧
-                f q = v ∧
-                (Finset.univ.erase q).image f = X
-            have hbag_hit : ∀ v ∈ S', ∀ X : Finset V, IsBag v X →
-                ∀ u ∈ S'.filter (G.Adj v), u ∉ X → ∃ z ∈ X, G.Adj z u := by
-              intro v _ X ⟨_, _, f, hfinj, hfmem, hfadj, hfq, hfX⟩ u huN huX
-              by_contra hno_z
-              simp only [not_exists, not_and] at hno_z
-              apply hnoNext
-              refine hasPartialModel_mono hS'S ?_
-              let f' : Fin (k + 2) → V := fun x =>
-                if hx : x.val < k + 1 then f ⟨x.val, hx⟩ else u
-              have huS' : u ∈ S' := (Finset.mem_filter.mp huN).1
-              have hvu : G.Adj v u := (Finset.mem_filter.mp huN).2
-              have hu_ne_v : u ≠ v := (G.ne_of_adj hvu).symm
-              have hu_ne_f : ∀ x : Fin (k + 1), f x ≠ u := by
-                intro x heq
-                by_cases hxq : x = q
-                · subst hxq; exact hu_ne_v (heq.symm.trans hfq)
-                · exact huX (hfX ▸ Finset.mem_image.mpr
-                    ⟨x, Finset.mem_erase.mpr ⟨hxq, Finset.mem_univ _⟩, heq⟩)
-              refine ⟨f', ?_, ?_, ?_⟩
-              · intro a b hab
-                dsimp [f'] at hab
-                split_ifs at hab with ha hb hb
-                · have hval := congr_arg Fin.val (hfinj hab)
-                  dsimp at hval
-                  exact Fin.ext hval
-                · exact absurd hab (hu_ne_f _)
-                · exact absurd hab.symm (hu_ne_f _)
-                · exact Fin.ext (by omega)
-              · intro x
-                dsimp [f']
-                split_ifs with hx
-                · exact hfmem ⟨x.val, hx⟩
-                · exact huS'
-              · intro a b
-                dsimp [f']
-                split_ifs with ha hb hb
-                · exact hfadj ⟨a.val, ha⟩ ⟨b.val, hb⟩
-                · have hb_eq : b.val = k + 1 := by omega
-                  have he_b : (⟨b.val, by omega⟩ : Fin (1 + s + s * s)) = ⟨k + 1, hm⟩ :=
-                    Fin.ext hb_eq
-                  rw [he_b, parentIdx_spec s hs k (by omega) ⟨a.val, ha⟩]
-                  constructor
-                  · intro hadj_au
-                    by_contra hneq
-                    have haX : f ⟨a.val, ha⟩ ∈ X :=
-                      hfX ▸ Finset.mem_image.mpr
-                        ⟨⟨a.val, ha⟩, Finset.mem_erase.mpr ⟨hneq, Finset.mem_univ _⟩, rfl⟩
-                    exact hno_z _ haX hadj_au
-                  · intro heq_q
-                    rw [heq_q, hfq]
-                    exact hvu
-                · have ha_eq : a.val = k + 1 := by omega
-                  have he_a : (⟨a.val, by omega⟩ : Fin (1 + s + s * s)) = ⟨k + 1, hm⟩ :=
-                    Fin.ext ha_eq
-                  rw [he_a, adj_comm, (modelTree s).adj_comm,
-                    parentIdx_spec s hs k (by omega) ⟨b.val, hb⟩]
-                  constructor
-                  · intro hadj_bu
-                    by_contra hneq
-                    have hbX : f ⟨b.val, hb⟩ ∈ X :=
-                      hfX ▸ Finset.mem_image.mpr
-                        ⟨⟨b.val, hb⟩, Finset.mem_erase.mpr ⟨hneq, Finset.mem_univ _⟩, rfl⟩
-                    exact hno_z _ hbX hadj_bu
-                  · intro heq_q
-                    rw [heq_q, hfq]
-                    exact hvu
-                · have hab_eq : (⟨a.val, by omega⟩ : Fin (1 + s + s * s)) = ⟨b.val, by omega⟩ :=
-                    Fin.ext (by dsimp; omega)
-                  rw [hab_eq]
-                  simp
-            have hno_t_minus_1 : ∀ v ∈ S', ¬ ∃ X : Fin (t - 1) → Finset V,
-                (∀ a b, a ≠ b → Disjoint (X a) (X b)) ∧ ∀ a, IsBag v (X a) := by
-              intro v hvS' ⟨X, hXdisj, hXbag⟩
-              let U_bags := Finset.univ.biUnion X
-              have hU_card : U_bags.card ≤ (t - 1) * k := by
-                calc U_bags.card
-                    ≤ ∑ a : Fin (t - 1), (X a).card := Finset.card_biUnion_le
-                  _ = ∑ _a : Fin (t - 1), k := Finset.sum_congr rfl fun a _ => (hXbag a).2.1
-                  _ = (t - 1) * k := by simp
-              let Nv := S'.filter (G.Adj v)
-              let remN := Nv \ U_bags
-              have hex_nb : ∀ u : {x // x ∈ remN}, ∀ a : Fin (t - 1),
-                  ∃ z : {y // y ∈ X a}, G.Adj z.1 u.1 := by
-                intro ⟨u, hu⟩ a
-                obtain ⟨huNv, huNotU⟩ := Finset.mem_sdiff.mp hu
-                have huNotXa : u ∉ X a := fun h =>
-                  huNotU (Finset.mem_biUnion.mpr ⟨a, Finset.mem_univ _, h⟩)
-                obtain ⟨z, hzXa, hzu⟩ := hbag_hit v hvS' (X a) (hXbag a) u huNv huNotXa
-                exact ⟨⟨z, hzXa⟩, hzu⟩
-              classical
-              choose φ hφ using fun (u : {x // x ∈ remN}) (a : Fin (t - 1)) => hex_nb u a
-              let Tup := ∀ a : Fin (t - 1), {y // y ∈ X a}
-              have hTup_card : Fintype.card Tup = k ^ (t - 1) := by
-                dsimp [Tup]
-                rw [Fintype.card_pi]
-                calc ∏ a : Fin (t - 1), Fintype.card {y // y ∈ X a}
-                    = ∏ a : Fin (t - 1), (X a).card :=
-                      Finset.prod_congr rfl fun a _ => Fintype.card_coe (X a)
-                  _ = ∏ _a : Fin (t - 1), k := Finset.prod_congr rfl fun a _ => (hXbag a).2.1
-                  _ = k ^ (t - 1) := by simp
-              have hfiber_lt : ∀ g : Tup,
-                  (Finset.univ.filter (fun u : {x // x ∈ remN} => φ u = g)).card ≤ t - 1 := by
-                intro g
-                by_contra hge
-                have hgt : t ≤ (Finset.univ.filter (fun u : {x // x ∈ remN} => φ u = g)).card :=
-                  by omega
-                obtain ⟨Bsub, hBsub, hBcard⟩ := Finset.exists_subset_card_eq hgt
-                let B₀ : Finset V := Bsub.image Subtype.val
-                have hB₀_card : B₀.card = t := by
-                  rw [Finset.card_image_of_injective _ Subtype.val_injective, hBcard]
-                let imgG : Finset V := Finset.univ.image (fun a : Fin (t - 1) => (g a).1)
-                have himgG_card : imgG.card = t - 1 := by
-                  rw [Finset.card_image_of_injective]
-                  · simp
-                  · intro a b hab
-                    dsimp at hab
-                    by_contra hne
-                    have hga_in_b : (g a).1 ∈ X b := by rw [hab]; exact (g b).2
-                    exact Finset.disjoint_left.mp (hXdisj a b hne) (g a).2 hga_in_b
-                have hv_not_imgG : v ∉ imgG := by
-                  intro hvi
-                  obtain ⟨a, _, hva⟩ := Finset.mem_image.mp hvi
-                  exact (Finset.mem_erase.mp ((hXbag a).1 (g a).2)).1 hva
-                let A₀ : Finset V := insert v imgG
-                have hA₀_card : A₀.card = t := by
-                  rw [Finset.card_insert_of_notMem hv_not_imgG, himgG_card]
-                  omega
-                have hA₀S : A₀ ⊆ S := by
-                  refine Finset.insert_subset_iff.mpr ⟨hS'S hvS', ?_⟩
-                  intro x hx
-                  obtain ⟨a, _, rfl⟩ := Finset.mem_image.mp hx
-                  exact hS'S ((Finset.mem_erase.mp ((hXbag a).1 (g a).2)).2)
-                have hB₀S : B₀ ⊆ S := by
-                  intro x hx
-                  obtain ⟨u, _, rfl⟩ := Finset.mem_image.mp hx
-                  exact hS'S (Finset.mem_filter.mp (Finset.mem_sdiff.mp u.2).1).1
-                have hAB_adj : ∀ x ∈ A₀, ∀ y ∈ B₀, G.Adj x y := by
-                  intro x hx y hy
-                  obtain ⟨u, huB, rfl⟩ := Finset.mem_image.mp hy
-                  have hφu : φ u = g := (Finset.mem_filter.mp (hBsub huB)).2
-                  rcases Finset.mem_insert.mp hx with rfl | hxI
-                  · exact (Finset.mem_filter.mp (Finset.mem_sdiff.mp u.2).1).2
-                  · obtain ⟨a, _, rfl⟩ := Finset.mem_image.mp hxI
-                    rw [← hφu]
-                    exact hφ u a
-                have hAB_disj : Disjoint A₀ B₀ :=
-                  Finset.disjoint_left.mpr fun x hxA hxB =>
-                    G.loopless.irrefl x (hAB_adj x hxA x hxB)
-                apply hnoCore
-                refine ⟨![A₀, B₀], ?_, ?_, ?_, ?_⟩
-                · intro p; fin_cases p <;> simp [hA₀S, hB₀S]
-                · intro p; fin_cases p <;> simp [hA₀_card, hB₀_card]
-                · intro p q hpq
-                  fin_cases p <;> fin_cases q
-                  · exact absurd rfl hpq
-                  · exact hAB_disj
-                  · exact hAB_disj.symm
-                  · exact absurd rfl hpq
-                · intro p q hpq x hx y hy
-                  fin_cases p <;> fin_cases q
-                  · exact absurd rfl hpq
-                  · exact hAB_adj x hx y hy
-                  · exact (hAB_adj y hy x hx).symm
-                  · exact absurd rfl hpq
-              have hrem_card : remN.card ≤ k ^ (t - 1) * (t - 1) := by
-                have h1 : remN.card = (Finset.univ : Finset {x // x ∈ remN}).card := by
-                  rw [Finset.card_univ, Fintype.card_coe]
-                have h2 : (Finset.univ : Finset {x // x ∈ remN}).card =
-                    ∑ g : Tup, (Finset.univ.filter (fun u : {x // x ∈ remN} => φ u = g)).card :=
-                  Finset.card_eq_sum_card_fiberwise (fun u _ => Finset.mem_univ (φ u))
-                rw [h1, h2]
-                calc ∑ g : Tup, (Finset.univ.filter (fun u : {x // x ∈ remN} => φ u = g)).card
-                    ≤ ∑ _g : Tup, (t - 1) := Finset.sum_le_sum fun g _ => hfiber_lt g
-                  _ = Fintype.card Tup * (t - 1) := by simp
-                  _ = k ^ (t - 1) * (t - 1) := by rw [hTup_card]
-              have hNv_le : Nv.card ≤ (t - 1) * k + (t - 1) * k ^ (t - 1) := by
-                have hsub_u : Nv ⊆ U_bags ∪ remN := fun x hx => by
-                  by_cases hxU : x ∈ U_bags
-                  · exact Finset.mem_union_left _ hxU
-                  · exact Finset.mem_union_right _ (Finset.mem_sdiff.mpr ⟨hx, hxU⟩)
-                have hc := (Finset.card_le_card hsub_u).trans (Finset.card_union_le _ _)
-                have hcomm : k ^ (t - 1) * (t - 1) = (t - 1) * k ^ (t - 1) := mul_comm _ _
-                omega
-              have hNv_ge : t * k + t * k ^ (t - 1) ≤ Nv.card :=
-                le_trans (le_max_left _ _) (hlow v hvS')
-              have hkpow_pos : 1 ≤ k ^ (t - 1) := Nat.one_le_pow _ _ hk_pos
-              have hlt1 : (t - 1) * k < t * k := by
-                have : t * k = (t - 1) * k + k := by
-                  calc t * k = ((t - 1) + 1) * k := by congr 1; omega
-                    _ = (t - 1) * k + k := by ring
-                omega
-              have hle2 : (t - 1) * k ^ (t - 1) ≤ t * k ^ (t - 1) :=
-                Nat.mul_le_mul_right _ (by omega)
-              omega
-            have hex_Yv : ∀ v ∈ S', ∃ Yv : Finset V,
-                Yv.card ≤ (t - 2) * k ∧ ∀ X : Finset V, IsBag v X → ¬ Disjoint X Yv := by
-              intro v hvS'
-              have hno_bound : ¬ ∃ X : Fin ((t - 2) + 1) → Finset V,
-                  (∀ a b, a ≠ b → Disjoint (X a) (X b)) ∧ ∀ a, IsBag v (X a) := by
-                have heq_t : (t - 2) + 1 = t - 1 := by omega
-                rw [heq_t]
-                exact hno_t_minus_1 v hvS'
-              obtain ⟨r, hr, X, _, hXbag, hhit⟩ :=
-                exists_max_disjoint_family (IsBag v) (t - 2) hno_bound
-              refine ⟨Finset.univ.biUnion X, ?_, hhit⟩
-              calc (Finset.univ.biUnion X).card
-                  ≤ ∑ a : Fin r, (X a).card := Finset.card_biUnion_le
-                _ = ∑ _a : Fin r, k := Finset.sum_congr rfl fun a _ => (hXbag a).2.1
-                _ = r * k := by simp
-                _ ≤ (t - 2) * k := Nat.mul_le_mul_right k hr
-            classical
-            let Yv : V → Finset V := fun v =>
-              if hv : v ∈ S' then Classical.choose (hex_Yv v hv) else ∅
-            let D : V → V → Prop := fun v y => y ∈ Yv v
-            have hout_D : ∀ v ∈ S', (S'.filter (fun y => y ≠ v ∧ D v y)).card ≤ (t - 2) * k := by
-              intro v hvS'
-              have hspec := Classical.choose_spec (hex_Yv v hvS')
-              refine le_trans (Finset.card_le_card ?_) hspec.1
-              intro y hy
-              obtain ⟨_, _, hyYv⟩ := Finset.mem_filter.mp hy
-              simpa [D, Yv, hvS'] using hyYv
-            have hind_D : ∀ Z ⊆ S', (∀ u ∈ Z, ∀ w ∈ Z, u ≠ w → ¬ D u w) →
-                ColorableOn G (Z.biUnion (fun x => ({x} : Finset V))) cPrev := by
-              intro Z hZS' hZind
-              have hbi : Z.biUnion (fun x => ({x} : Finset V)) = Z := by
-                ext x; simp
-              rw [hbi]
-              refine ihm (by omega) Z
-                (fun hc => hnoCore (hasCore_mono (hZS'.trans hS'S) hc)) ?_
-              rintro ⟨f, hfinj, hfZ, hfadj⟩
-              let v := f q
-              have hvZ : v ∈ Z := hfZ q
-              have hvS' : v ∈ S' := hZS' hvZ
-              let X := (Finset.univ.erase q).image f
-              have hXbag_v : IsBag v X := by
-                refine ⟨?_, ?_, f, hfinj, fun x => hZS' (hfZ x), hfadj, rfl, rfl⟩
-                · intro y hy
-                  obtain ⟨x, hx, rfl⟩ := Finset.mem_image.mp hy
-                  have hxq : x ≠ q := (Finset.mem_erase.mp hx).1
-                  exact Finset.mem_erase.mpr ⟨fun h => hxq (hfinj h), hZS' (hfZ x)⟩
-                · rw [Finset.card_image_of_injective _ hfinj,
-                    Finset.card_erase_of_mem (Finset.mem_univ q), Finset.card_univ, Fintype.card_fin]
-                  omega
-              have hspec := Classical.choose_spec (hex_Yv v hvS')
-              have hnot_disj := hspec.2 X hXbag_v
-              rw [Finset.not_disjoint_iff] at hnot_disj
-              obtain ⟨y, hyX, hyYv⟩ := hnot_disj
-              obtain ⟨x, hx_er, rfl⟩ := Finset.mem_image.mp hyX
-              have hxq : x ≠ q := (Finset.mem_erase.mp hx_er).1
-              have hne_vx : v ≠ f x := fun h => hxq (hfinj h.symm)
-              have hDvx : D v (f x) := by simpa [D, Yv, hvS'] using hyYv
-              exact hZind v hvZ (f x) (hfZ x) hne_vx hDvx
-            have hcol_bi := colorableOn_of_digraph_blocks S' (fun x => ({x} : Finset V)) D
-              ((t - 2) * k) cPrev hout_D hind_D
-            have hbiS' : S'.biUnion (fun x => ({x} : Finset V)) = S' := by ext x; simp
-            rw [hbiS'] at hcol_bi
-            exact colorableOn_mono_num (le_max_right _ _) hcol_bi
-      exact haux S.card S le_rfl (Finset.Subset.refl S)
-
-private def rodlBound (s t : ℕ) : ℕ :=
-  rodlPartialBound t (s + s * s - 1)
-
-private lemma colorableOn_bicliqueFree_no_modelTree {V : Type*} [DecidableEq V]
-    {G : SimpleGraph V} [DecidableRel G.Adj] {s : ℕ} (hs : 2 ≤ s) {t : ℕ} (ht : 1 ≤ t)
-    (U : Finset V) (hnoTree : ¬ HasModelTreeOn G U s) (hnoBiclique : ¬ HasCore G U 2 t) :
-    ColorableOn G U (rodlBound s t) := by
-  have hs1 : 1 ≤ s := by omega
-  have hspos : 1 ≤ s + s * s := by omega
-  have hm : (s + s * s - 1) + 2 = 1 + s + s * s := by omega
-  refine colorableOn_of_no_partialModel_bicliqueFree hs1 ht (s + s * s - 1) (by omega) U
-    hnoBiclique ?_
-  intro hp
-  have hp' : HasPartialModel G U s hs1 (1 + s + s * s) le_rfl := by
-    obtain ⟨f, hfinj, hfU, hfadj⟩ := hp
-    refine ⟨f ∘ Fin.cast hm.symm, hfinj.comp (Fin.cast_injective _), fun x => hfU _, ?_⟩
-    intro x y
-    exact hfadj (Fin.cast hm.symm x) (Fin.cast hm.symm y)
-  exact hnoTree (hasModelTreeOn_of_fullPartialModel hs1 hp')
-
-
-/- ## Section 4: Cores, Templates, and Inductive Chi-Boundedness -/
-
-private lemma exists_fin_emb_of_card {V : Type*} [DecidableEq V] (S : Finset V) {k : ℕ}
-    (hk : k ≤ S.card) :
-    ∃ f : Fin k → V, Function.Injective f ∧ ∀ i, f i ∈ S := by
-  classical
-  have hle : k ≤ Fintype.card {x // x ∈ S} := by rwa [Fintype.card_coe]
-  let e : Fin k ↪ {x // x ∈ S} :=
-    (Fin.castLEEmb hle).trans (Fintype.equivFin {x // x ∈ S}).symm.toEmbedding
-  exact ⟨fun i => (e i).1, fun i j h => e.injective (Subtype.ext h), fun i => (e i).2⟩
-
-private lemma hasCore_snoc {V : Type*} {G : SimpleGraph V} {U S K₀ : Finset V} {d t : ℕ}
-    (hSU : S ⊆ U) (hKU : K₀ ⊆ U) (hKcard : K₀.card = t) (hdisjSK : Disjoint S K₀)
-    (hcomp : ∀ u ∈ S, ∀ v ∈ K₀, G.Adj u v) (hcore : HasCore G S d t) :
-    HasCore G U (d + 1) t := by
-  obtain ⟨B, hBS, hBcard, hBdisj, hBadj⟩ := hcore
-  refine ⟨Fin.snoc B K₀, ?_, ?_, ?_, ?_⟩
-  · intro p
-    induction p using Fin.lastCases with
-    | last => simpa using hKU
-    | cast p₀ => simpa using (hBS p₀).trans hSU
-  · intro p
-    induction p using Fin.lastCases with
-    | last => simpa using hKcard
-    | cast p₀ => simpa using hBcard p₀
-  · intro p q hpq
-    induction p using Fin.lastCases with
-    | last =>
-      induction q using Fin.lastCases with
-      | last => exact absurd rfl hpq
-      | cast q₀ =>
-        simp only [Fin.snoc_last, Fin.snoc_castSucc]
-        exact (Disjoint.mono_left (hBS q₀) hdisjSK).symm
-    | cast p₀ =>
-      induction q using Fin.lastCases with
-      | last =>
-        simp only [Fin.snoc_last, Fin.snoc_castSucc]
-        exact Disjoint.mono_left (hBS p₀) hdisjSK
-      | cast q₀ =>
-        simp only [Fin.snoc_castSucc]
-        exact hBdisj p₀ q₀ (fun h => hpq (congr_arg Fin.castSucc h))
-  · intro p q hpq u hu v hv
-    induction p using Fin.lastCases with
-    | last =>
-      induction q using Fin.lastCases with
-      | last => exact absurd rfl hpq
-      | cast q₀ =>
-        simp only [Fin.snoc_last, Fin.snoc_castSucc] at hu hv
-        exact (hcomp v (hBS q₀ hv) u hu).symm
-    | cast p₀ =>
-      induction q using Fin.lastCases with
-      | last =>
-        simp only [Fin.snoc_last, Fin.snoc_castSucc] at hu hv
-        exact hcomp u (hBS p₀ hu) v hv
-      | cast q₀ =>
-        simp only [Fin.snoc_castSucc] at hu hv
-        exact hBadj p₀ q₀ (fun h => hpq (congr_arg Fin.castSucc h)) u hu v hv
-
-private lemma cliqueFreeOn_of_not_hasCore {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    {U : Finset V} {d t : ℕ} (hno : ¬ HasCore G U d t) :
-    G.CliqueFreeOn (U : Set V) (d * t) := by
-  intro K hKU ⟨hKcl, hKcard⟩
-  apply hno
-  have hKU' : K ⊆ U := fun x hx => Finset.mem_coe.mp (hKU (Finset.mem_coe.mpr hx))
-  obtain ⟨e, he_inj, he_mem⟩ := exists_fin_emb_of_card K (le_of_eq hKcard.symm)
-  let A : Fin d → Finset V := fun p =>
-    (Finset.univ : Finset (Fin t)).image (fun j => e ⟨p.val * t + j.val, by nlinarith [p.isLt, j.isLt]⟩)
-  have hidx_ne : ∀ (p q : Fin d), p ≠ q → ∀ (j₁ j₂ : Fin t),
-      (⟨p.val * t + j₁.val, by nlinarith [p.isLt, j₁.isLt]⟩ : Fin (d * t)) ≠
-      ⟨q.val * t + j₂.val, by nlinarith [q.isLt, j₂.isLt]⟩ := by
-    intro p q hpq j₁ j₂ heq
-    have hval := congr_arg Fin.val heq
-    dsimp at hval
-    apply hpq
-    apply Fin.ext
+  have hconn := hT.isConnected
+  have hacyc := hT.IsAcyclic
+  have hpar : ∀ w, w ≠ c → ¬ T.Adj c w → ∃ u, T.Adj c u ∧ T.Adj u w := by
+    intro w hwc hcw
+    have hd : T.dist c w = 2 := by
+      have h0 : T.dist c w ≠ 0 := fun h => hwc ((hconn.dist_eq_zero_iff).mp h).symm
+      have h1 : T.dist c w ≠ 1 := fun h => hcw (SimpleGraph.dist_eq_one_iff_adj.mp h)
+      have := hc w; omega
+    obtain ⟨p, hp⟩ := hconn.exists_walk_length_eq_dist c w
+    rw [hd] at hp
+    cases p with
+    | nil => simp at hp
+    | cons h p =>
+      cases p with
+      | nil => simp at hp
+      | cons h' p =>
+        cases p with
+        | nil => exact ⟨_, h, h'⟩
+        | cons _ _ => simp at hp
+  let par : W → W := fun w => if h : w ≠ c ∧ ¬ T.Adj c w then Classical.choose (hpar w h.1 h.2) else c
+  have hpar1 : ∀ w, w ≠ c → ¬ T.Adj c w → T.Adj c (par w) ∧ T.Adj (par w) w := by
+    intro w h1 h2
+    have := Classical.choose_spec (hpar w h1 h2)
+    simp only [par, dif_pos (show w ≠ c ∧ ¬ T.Adj c w from ⟨h1, h2⟩)]
+    exact this
+  -- tree facts
+  have fa : ∀ u u', T.Adj c u → T.Adj c u' → ¬ T.Adj u u' := by
+    intro u u' hu hu' huu
+    apply bridge_false hacyc huu
+    have hcu : c ≠ u := T.ne_of_adj hu
+    have hcu' : c ≠ u' := T.ne_of_adj hu'
+    refine (SimpleGraph.Adj.reachable (del_adj hu.symm ?_)).trans
+      (SimpleGraph.Adj.reachable (del_adj hu' ?_))
+    · rintro (⟨_, h⟩ | ⟨h, _⟩)
+      · exact hcu' h
+      · exact (T.ne_of_adj huu) h
+    · rintro (⟨h, _⟩ | ⟨h, _⟩)
+      · exact hcu h
+      · exact hcu' h
+  have fb : ∀ w u, w ≠ c → ¬ T.Adj c w → T.Adj c u → T.Adj u w → u = par w := by
+    intro w u hwc hcw hcu huw
     by_contra hne
-    rcases lt_or_gt_of_ne hne with hlt | hgt
-    · have : (p.val + 1) * t ≤ q.val * t := Nat.mul_le_mul_right t hlt
-      nlinarith [j₁.isLt, j₂.isLt]
-    · have : (q.val + 1) * t ≤ p.val * t := Nat.mul_le_mul_right t hgt
-      nlinarith [j₁.isLt, j₂.isLt]
-  refine ⟨A, ?_, ?_, ?_, ?_⟩
-  · intro p x hx
-    obtain ⟨j, _, rfl⟩ := Finset.mem_image.mp hx
-    exact hKU' (he_mem _)
-  · intro p
-    dsimp [A]
-    rw [Finset.card_image_of_injective]
-    · simp
-    · intro j₁ j₂ hj
-      have hval := congr_arg Fin.val (he_inj hj)
-      dsimp at hval
-      exact Fin.ext (by omega)
-  · intro p q hpq
-    rw [Finset.disjoint_left]
-    intro x hxp hxq
-    obtain ⟨j₁, _, rfl⟩ := Finset.mem_image.mp hxp
-    obtain ⟨j₂, _, heq⟩ := Finset.mem_image.mp hxq
-    exact hidx_ne p q hpq j₁ j₂ (he_inj heq).symm
-  · intro p q hpq u hu v hv
-    obtain ⟨j₁, _, rfl⟩ := Finset.mem_image.mp hu
-    obtain ⟨j₂, _, rfl⟩ := Finset.mem_image.mp hv
-    exact hKcl (Finset.mem_coe.mpr (he_mem _)) (Finset.mem_coe.mpr (he_mem _))
-      (fun heq => hidx_ne p q hpq j₁ j₂ (he_inj heq))
+    obtain ⟨hp1, hp2⟩ := hpar1 w hwc hcw
+    apply bridge_false hacyc huw
+    have hcu' : c ≠ u := T.ne_of_adj hcu
+    refine (SimpleGraph.Adj.reachable (del_adj hcu.symm ?_)).trans
+      ((SimpleGraph.Adj.reachable (del_adj hp1 ?_)).trans
+        (SimpleGraph.Adj.reachable (del_adj hp2 ?_)))
+    · rintro (⟨_, h⟩ | ⟨h, _⟩)
+      · exact hwc h.symm
+      · exact (T.ne_of_adj huw) h
+    · rintro (⟨h, _⟩ | ⟨h, _⟩)
+      · exact hcu' h
+      · exact hwc h.symm
+    · rintro (⟨h, _⟩ | ⟨_, h⟩)
+      · exact hne h.symm
+      · exact (T.ne_of_adj huw) h.symm
+  have fc : ∀ w w', w ≠ c → ¬ T.Adj c w → w' ≠ c → ¬ T.Adj c w' → ¬ T.Adj w w' := by
+    intro w w' hwc hcw hwc' hcw' hww
+    obtain ⟨hp1, hp2⟩ := hpar1 w hwc hcw
+    obtain ⟨hq1, hq2⟩ := hpar1 w' hwc' hcw'
+    apply bridge_false hacyc hww
+    refine (SimpleGraph.Adj.reachable (del_adj hp2.symm ?_)).trans
+      ((SimpleGraph.Adj.reachable (del_adj hp1.symm ?_)).trans
+        ((SimpleGraph.Adj.reachable (del_adj hq1 ?_)).trans
+          (SimpleGraph.Adj.reachable (del_adj hq2 ?_))))
+    · rintro (⟨_, h⟩ | ⟨h, _⟩)
+      · exact hcw' (h ▸ hp1)
+      · exact (T.ne_of_adj hww) h
+    · rintro (⟨_, h⟩ | ⟨_, h⟩)
+      · exact hwc' h.symm
+      · exact hwc h.symm
+    · rintro (⟨h, _⟩ | ⟨h, _⟩)
+      · exact hwc h.symm
+      · exact hwc' h.symm
+    · rintro (⟨h, _⟩ | ⟨_, h⟩)
+      · exact hcw (h ▸ hq1)
+      · exact (T.ne_of_adj hww) h.symm
+  -- the embedding
+  let ι : W ↪ Fin s := (Fintype.equivFin W).toEmbedding.trans (Fin.castLEEmb hs)
+  let φ : W → HV s := fun w =>
+    if w = c then .inl () else if T.Adj c w then .inr (.inl (ι w)) else .inr (.inr (ι (par w), ι w))
+  have trich : ∀ x, x = c ∨ (x ≠ c ∧ T.Adj c x) ∨ (x ≠ c ∧ ¬ T.Adj c x) := by
+    intro x; by_cases h : x = c
+    · exact Or.inl h
+    · by_cases h' : T.Adj c x
+      · exact Or.inr (Or.inl ⟨h, h'⟩)
+      · exact Or.inr (Or.inr ⟨h, h'⟩)
+  have hφ0 : φ c = .inl () := by simp [φ]
+  have hφ1 : ∀ x, x ≠ c → T.Adj c x → φ x = .inr (.inl (ι x)) := by
+    intro x h1 h2; simp [φ, h1, h2]
+  have hφ2 : ∀ x, x ≠ c → ¬ T.Adj c x → φ x = .inr (.inr (ι (par x), ι x)) := by
+    intro x h1 h2; simp [φ, h1, h2]
+  have hinj : Function.Injective φ := by
+    intro x z hxz
+    rcases trich x with hx | ⟨hx, hx'⟩ | ⟨hx, hx'⟩ <;>
+    rcases trich z with hz | ⟨hz, hz'⟩ | ⟨hz, hz'⟩
+    · rw [hx, hz]
+    · rw [hx, hφ0, hφ1 z hz hz'] at hxz; cases hxz
+    · rw [hx, hφ0, hφ2 z hz hz'] at hxz; cases hxz
+    · rw [hz, hφ0, hφ1 x hx hx'] at hxz; cases hxz
+    · rw [hφ1 x hx hx', hφ1 z hz hz'] at hxz
+      simp only [Sum.inr.injEq, Sum.inl.injEq] at hxz
+      exact ι.injective hxz
+    · rw [hφ1 x hx hx', hφ2 z hz hz'] at hxz; simp at hxz
+    · rw [hz, hφ0, hφ2 x hx hx'] at hxz; cases hxz
+    · rw [hφ2 x hx hx', hφ1 z hz hz'] at hxz; simp at hxz
+    · rw [hφ2 x hx hx', hφ2 z hz hz'] at hxz
+      simp only [Sum.inr.injEq, Prod.mk.injEq] at hxz
+      exact ι.injective hxz.2
+  have hiff : ∀ x z, (Hs s).Adj (φ x) (φ z) ↔ T.Adj x z := by
+    intro x z
+    rcases trich x with hx | ⟨hx, hx'⟩ | ⟨hx, hx'⟩ <;>
+    rcases trich z with hz | ⟨hz, hz'⟩ | ⟨hz, hz'⟩
+    · rw [hx, hz, hφ0]; simp [Hs, HAdj, T.irrefl]
+    · rw [hx, hφ0, hφ1 z hz hz']; simp [Hs, HAdj, hz']
+    · rw [hx, hφ0, hφ2 z hz hz']; simp [Hs, HAdj, hz']
+    · rw [hz, hφ0, hφ1 x hx hx']; simp [Hs, HAdj, hx'.symm]
+    · rw [hφ1 x hx hx', hφ1 z hz hz']; simp only [Hs, HAdj, false_iff]; exact fa x z hx' hz'
+    · rw [hφ1 x hx hx', hφ2 z hz hz']; simp only [Hs, HAdj]
+      constructor
+      · intro h
+        have := ι.injective h
+        rw [← this]; exact (hpar1 z hz hz').2
+      · intro h
+        rw [fb z x hz hz' hx' h]
+    · rw [hz, hφ0, hφ2 x hx hx']; simp only [Hs, HAdj, false_iff]; exact fun h => hx' h.symm
+    · rw [hφ2 x hx hx', hφ1 z hz hz']; simp only [Hs, HAdj]
+      constructor
+      · intro h
+        have := ι.injective h
+        rw [← this]; exact (hpar1 x hx hx').2.symm
+      · intro h
+        rw [fb x z hx hx' hz' h.symm]
+    · rw [hφ2 x hx hx', hφ2 z hz hz']; simp only [Hs, HAdj, false_iff]
+      exact fc x z hx hx' hz hz'
+  exact ⟨⟨⟨φ, hinj⟩, fun {x z} => hiff x z⟩⟩
 
-private structure StableCore {V : Type*} (G : SimpleGraph V) (U : Finset V) (d w : ℕ) where
-  part : Fin d → Finset V
-  part_sub : ∀ p, part p ⊆ U
-  part_card : ∀ p, (part p).card = w
-  part_disj : ∀ p q, p ≠ q → Disjoint (part p) (part q)
-  part_adj : ∀ p q, p ≠ q → ∀ u ∈ part p, ∀ v ∈ part q, G.Adj u v
-  part_indep : ∀ p, ∀ u ∈ part p, ∀ v ∈ part p, ¬ G.Adj u v
+end Tree
 
-private def StableCore.verts {V : Type*} [DecidableEq V] {G : SimpleGraph V} {U : Finset V}
-    {d w : ℕ} (C : StableCore G U d w) : Finset V :=
-  Finset.univ.biUnion C.part
+end GS
 
-private lemma StableCore.verts_sub {V : Type*} [DecidableEq V] {G : SimpleGraph V} {U : Finset V}
-    {d w : ℕ} (C : StableCore G U d w) : C.verts ⊆ U :=
-  Finset.biUnion_subset.mpr fun p _ => C.part_sub p
 
-private lemma StableCore.part_sub_verts {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    {U : Finset V} {d w : ℕ} (C : StableCore G U d w) (p : Fin d) : C.part p ⊆ C.verts :=
-  fun _ hx => Finset.mem_biUnion.mpr ⟨p, Finset.mem_univ p, hx⟩
+open Finset
 
-private lemma StableCore.verts_card {V : Type*} [DecidableEq V] {G : SimpleGraph V} {U : Finset V}
-    {d w : ℕ} (C : StableCore G U d w) : C.verts.card = d * w := by
-  unfold StableCore.verts
-  rw [Finset.card_biUnion (fun p _ q _ hpq => C.part_disj p q hpq)]
-  simp [C.part_card]
+namespace GS
 
-private def StableCore.mono {V : Type*} {G : SimpleGraph V} {U₁ U₂ : Finset V} {d w : ℕ}
-    (hsub : U₁ ⊆ U₂) (C : StableCore G U₁ d w) : StableCore G U₂ d w where
-  part := C.part
-  part_sub := fun p => (C.part_sub p).trans hsub
-  part_card := C.part_card
-  part_disj := C.part_disj
-  part_adj := C.part_adj
-  part_indep := C.part_indep
+section Defs
+variable {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
 
-private lemma colorableOn_of_isEmpty_stableCore {V : Type*} [DecidableEq V]
-    {G : SimpleGraph V} [DecidableRel G.Adj] {U₀ U : Finset V}
-    {s d t w M : ℕ} (hs : 2 ≤ s) (ht : 1 ≤ t) (hw : 1 ≤ w)
-    (hUU₀ : U ⊆ U₀)
-    (hnoTree : ¬ HasModelTreeOn G U₀ s)
-    (hnoCore : ¬ HasCore G U₀ (d + 1) t)
-    (hemp : IsEmpty (StableCore G U d w))
-    (hM : ¬ HasCore G U d (max (rodlBound s t) t * w) → ColorableOn G U M) :
-    ColorableOn G U M := by
-  apply hM
-  intro ⟨A, hAU, hAcard, hAdisj, hAadj⟩
-  let cB := max (rodlBound s t) t
-  have hcB1 : 1 ≤ cB := le_trans ht (le_max_right _ _)
-  have ht_le_A : ∀ p : Fin d, t ≤ (A p).card := by
-    intro p
-    rw [hAcard p]
-    calc t = t * 1 := (Nat.mul_one t).symm
-      _ ≤ cB * w := Nat.mul_le_mul (le_max_right _ _) hw
-  have hnoBi : ∀ i : Fin d, ¬ HasCore G (A i) 2 t := by
-    intro i ⟨D, hDA, hDcard, hDdisj, hDadj⟩
-    apply hnoCore
-    classical
-    choose E hEA hEcard using fun p : Fin d => Finset.exists_subset_card_eq (ht_le_A p)
-    let C' : Fin (d + 1) → Finset V :=
-      Fin.snoc (fun p : Fin d => if p = i then D 0 else E p) (D 1)
-    refine ⟨C', ?_, ?_, ?_, ?_⟩
-    · intro p
-      induction p using Fin.lastCases with
-      | last => simpa [C'] using (hDA 1).trans ((hAU i).trans hUU₀)
-      | cast p₀ =>
-        simp only [C', Fin.snoc_castSucc]
-        split_ifs with hp
-        · exact (hDA 0).trans ((hAU i).trans hUU₀)
-        · exact (hEA p₀).trans ((hAU p₀).trans hUU₀)
-    · intro p
-      induction p using Fin.lastCases with
-      | last => simpa [C'] using hDcard 1
-      | cast p₀ =>
-        simp only [C', Fin.snoc_castSucc]
-        split_ifs
-        · exact hDcard 0
-        · exact hEcard p₀
-    · intro p q hpq
-      induction p using Fin.lastCases with
-      | last =>
-        induction q using Fin.lastCases with
-        | last => exact absurd rfl hpq
-        | cast q₀ =>
-          simp only [C', Fin.snoc_last, Fin.snoc_castSucc]
-          split_ifs with hq
-          · exact hDdisj 1 0 (by decide)
-          · exact Disjoint.mono (hDA 1) (hEA q₀) (hAdisj i q₀ (Ne.symm hq))
-      | cast p₀ =>
-        induction q using Fin.lastCases with
-        | last =>
-          simp only [C', Fin.snoc_last, Fin.snoc_castSucc]
-          split_ifs with hp
-          · exact hDdisj 0 1 (by decide)
-          · exact Disjoint.mono (hEA p₀) (hDA 1) (hAdisj p₀ i hp)
-        | cast q₀ =>
-          simp only [C', Fin.snoc_castSucc]
-          have hpq₀ : p₀ ≠ q₀ := fun h => hpq (congr_arg Fin.castSucc h)
-          split_ifs with hp hq hq
-          · exact absurd (hp.trans hq.symm) hpq₀
-          · subst hp; exact Disjoint.mono (hDA 0) (hEA q₀) (hAdisj p₀ q₀ hpq₀)
-          · subst hq; exact Disjoint.mono (hEA p₀) (hDA 0) (hAdisj p₀ q₀ hpq₀)
-          · exact Disjoint.mono (hEA p₀) (hEA q₀) (hAdisj p₀ q₀ hpq₀)
-    · intro p q hpq u hu v hv
-      induction p using Fin.lastCases with
-      | last =>
-        induction q using Fin.lastCases with
-        | last => exact absurd rfl hpq
-        | cast q₀ =>
-          simp only [C', Fin.snoc_last, Fin.snoc_castSucc] at hu hv
-          split_ifs at hv with hq
-          · exact hDadj 1 0 (by decide) u hu v hv
-          · exact hAadj i q₀ (Ne.symm hq) u (hDA 1 hu) v (hEA q₀ hv)
-      | cast p₀ =>
-        induction q using Fin.lastCases with
-        | last =>
-          simp only [C', Fin.snoc_last, Fin.snoc_castSucc] at hu hv
-          split_ifs at hu with hp
-          · exact hDadj 0 1 (by decide) u hu v hv
-          · exact hAadj p₀ i hp u (hEA p₀ hu) v (hDA 1 hv)
-        | cast q₀ =>
-          simp only [C', Fin.snoc_castSucc] at hu hv
-          have hpq₀ : p₀ ≠ q₀ := fun h => hpq (congr_arg Fin.castSucc h)
-          split_ifs at hu hv with hp hq hq
-          · exact absurd (hp.trans hq.symm) hpq₀
-          · subst hp; exact hAadj p₀ q₀ hpq₀ u (hDA 0 hu) v (hEA q₀ hv)
-          · subst hq; exact hAadj p₀ q₀ hpq₀ u (hEA p₀ hu) v (hDA 0 hv)
-          · exact hAadj p₀ q₀ hpq₀ u (hEA p₀ hu) v (hEA q₀ hv)
-  have hexB : ∀ i : Fin d, ∃ B ⊆ A i, B.card = w ∧ ∀ u ∈ B, ∀ v ∈ B, ¬ G.Adj u v := by
-    intro i
-    have hnoT_i : ¬ HasModelTreeOn G (A i) s :=
-      fun h => hnoTree (hasModelTreeOn_mono ((hAU i).trans hUU₀) h)
-    have hcol_i : ColorableOn G (A i) cB :=
-      colorableOn_mono_num (le_max_left _ _)
-        (colorableOn_bicliqueFree_no_modelTree hs ht (A i) hnoT_i (hnoBi i))
-    exact indep_of_colorableOn hcB1 hcol_i (le_of_eq (hAcard i).symm)
-  classical
-  choose B hBA hBcard hBind using hexB
-  exact hemp.false
-    { part := B
-      part_sub := fun p => (hBA p).trans (hAU p)
-      part_card := hBcard
-      part_disj := fun p q hpq => Disjoint.mono (hBA p) (hBA q) (hAdisj p q hpq)
-      part_adj := fun p q hpq u hu v hv => hAadj p q hpq u (hBA p hu) v (hBA q hv)
-      part_indep := hBind }
+def Compl (X Y : Finset V) : Prop := ∀ x ∈ X, ∀ y ∈ Y, G.Adj x y
+def Anti (X Y : Finset V) : Prop := ∀ x ∈ X, ∀ y ∈ Y, ¬ G.Adj x y
 
-private structure Template {V : Type*} [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
-    (U₀ : Finset V) (s d t wBase : ℕ) where
-  core : StableCore G U₀ d (wBase * t)
-  P : Finset V
-  P_sub : P ⊆ U₀
-  verts_sub_P : core.verts ⊆ P
-  dense_part : ∀ v ∈ P \ core.verts,
-    ∃ p : Fin d, s * t ^ (s - 1) ≤ ((core.part p).filter (G.Adj v)).card
-  nonadj_part : ∀ v ∈ P \ core.verts,
-    ∃ p : Fin d, wBase ≤ ((core.part p).filter (fun x => ¬ G.Adj v x)).card
+/-- No "K-pair": two disjoint `T₀`-subsets of `S`, complete to each other. -/
+def NoKPair (S : Finset V) (T₀ : ℕ) : Prop :=
+  ∀ X ⊆ S, ∀ Y ⊆ S, Disjoint X Y → X.card = T₀ → Y.card = T₀ → ¬ Compl G X Y
 
-private lemma colorableOn_template {V : Type*} [DecidableEq V]
-    {G : SimpleGraph V} [DecidableRel G.Adj] {U₀ : Finset V}
-    {s d t wBase Mf : ℕ} (hs : 2 ≤ s) (ht : 1 ≤ t)
-    (hnoCore : ¬ HasCore G U₀ (d + 1) t)
-    (hf : ∀ S ⊆ U₀, ¬ HasCore G S d t → ColorableOn G S Mf)
-    (T : Template G U₀ s d t wBase) :
-    ColorableOn G T.P (d * (wBase * t) + 2 ^ (d * (wBase * t)) * Mf) := by
-  have hPsub : T.P ⊆ T.core.verts ∪ (T.P \ T.core.verts) := fun x hx => by
-    by_cases hxC : x ∈ T.core.verts
-    · exact Finset.mem_union_left _ hxC
-    · exact Finset.mem_union_right _ (Finset.mem_sdiff.mpr ⟨hx, hxC⟩)
-  have hcolC : ColorableOn G T.core.verts (d * (wBase * t)) :=
-    colorableOn_of_card_le G T.core.verts (le_of_eq T.core.verts_card)
-  let F : Finset V → Finset V := fun X =>
-    (T.P \ T.core.verts).filter (fun v => T.core.verts.filter (G.Adj v) = X)
-  have hsubF : T.P \ T.core.verts ⊆ T.core.verts.powerset.biUnion F := by
-    intro v hv
-    exact Finset.mem_biUnion.mpr ⟨T.core.verts.filter (G.Adj v),
-      Finset.mem_powerset.mpr (Finset.filter_subset _ _),
-      Finset.mem_filter.mpr ⟨hv, rfl⟩⟩
-  have hpow_card : T.core.verts.powerset.card = 2 ^ (d * (wBase * t)) := by
-    rw [Finset.card_powerset, T.core.verts_card]
-  have hcolRem : ColorableOn G (T.P \ T.core.verts) (2 ^ (d * (wBase * t)) * Mf) := by
-    rw [← hpow_card]
-    refine colorableOn_biUnion T.core.verts.powerset F hsubF fun X hX => ?_
-    rcases (F X).eq_empty_or_nonempty with hFemp | ⟨v₀, hv₀⟩
-    · rw [hFemp]
-      exact colorableOn_empty G Mf
-    · obtain ⟨hv₀P, hXv₀⟩ := Finset.mem_filter.mp hv₀
-      obtain ⟨p, hp_card⟩ := T.dense_part v₀ hv₀P
-      have ht_le_st : t ≤ s * t ^ (s - 1) := by
-        have hpow : t ≤ t ^ (s - 1) := by
-          have hs1 : s - 1 = (s - 2) + 1 := by omega
-          rw [hs1, pow_succ]
-          exact Nat.le_mul_of_pos_left t (Nat.one_le_pow (s - 2) t ht)
-        calc t = 1 * t := (Nat.one_mul t).symm
-          _ ≤ s * t ^ (s - 1) := Nat.mul_le_mul (by omega) hpow
-      have hsubX : (T.core.part p).filter (G.Adj v₀) ⊆ X := by
-        rw [← hXv₀]
-        intro x hx
-        obtain ⟨hxp, hxv₀⟩ := Finset.mem_filter.mp hx
-        exact Finset.mem_filter.mpr ⟨T.core.part_sub_verts p hxp, hxv₀⟩
-      have ht_le_X : t ≤ X.card :=
-        le_trans ht_le_st (le_trans hp_card (Finset.card_le_card hsubX))
-      obtain ⟨K₀, hK₀X, hK₀card⟩ := Finset.exists_subset_card_eq ht_le_X
-      have hFX_U : F X ⊆ U₀ :=
-        (Finset.filter_subset _ _).trans (Finset.sdiff_subset.trans T.P_sub)
-      have hK₀_C : K₀ ⊆ T.core.verts := hK₀X.trans (Finset.mem_powerset.mp hX)
-      have hdisj : Disjoint (F X) K₀ := Finset.disjoint_left.mpr fun u hu huk =>
-        (Finset.mem_sdiff.mp (Finset.mem_filter.mp hu).1).2 (hK₀_C huk)
-      have hcomp : ∀ u ∈ F X, ∀ x ∈ K₀, G.Adj u x := by
-        intro u hu x hx
-        have hXu : T.core.verts.filter (G.Adj u) = X := (Finset.mem_filter.mp hu).2
-        have hx' : x ∈ T.core.verts.filter (G.Adj u) := hXu ▸ hK₀X hx
-        exact (Finset.mem_filter.mp hx').2
-      exact hf (F X) hFX_U fun hc =>
-        hnoCore (hasCore_snoc hFX_U (hK₀_C.trans T.core.verts_sub) hK₀card hdisj hcomp hc)
-  exact colorableOn_mono_set hPsub (colorableOn_union_add hcolC hcolRem)
+/-- A stable `(w,d)`-core inside `S`. -/
+def HasCore (S : Finset V) (w d : ℕ) : Prop :=
+  ∃ A : Fin d → Finset V, (∀ i, A i ⊆ S ∧ (A i).card = w ∧ IsStab G (A i)) ∧
+    ∀ i j, i ≠ j → Disjoint (A i) (A j) ∧ Compl G (A i) (A j)
 
-private lemma few_nonadj_card_lt {V : Type*} [DecidableEq V]
-    {G : SimpleGraph V} [DecidableRel G.Adj] {U₀ : Finset V}
-    {d t wBase : ℕ} (hwBase : 1 ≤ wBase)
-    (hnoCore : ¬ HasCore G U₀ (d + 1) t)
-    (C : StableCore G U₀ d (wBase * t)) :
-    ((U₀ \ C.verts).filter
-      (fun v => ∀ p : Fin d, ((C.part p).filter (fun x => ¬ G.Adj v x)).card < wBase)).card < t := by
-  by_contra hge
-  have hle : t ≤ ((U₀ \ C.verts).filter
-      (fun v => ∀ p : Fin d, ((C.part p).filter (fun x => ¬ G.Adj v x)).card < wBase)).card := by
-    omega
-  obtain ⟨K₀, hK₀Q, hK₀card⟩ := Finset.exists_subset_card_eq hle
-  have hexB : ∀ p : Fin d, ∃ B ⊆ C.part p, B.card = t ∧ ∀ x ∈ B, ∀ v ∈ K₀, G.Adj x v := by
-    intro p
-    let Bad := K₀.biUnion (fun v => (C.part p).filter (fun x => ¬ G.Adj v x))
-    have hBad_card : Bad.card ≤ t * (wBase - 1) := by
-      calc Bad.card
-          ≤ ∑ v ∈ K₀, ((C.part p).filter (fun x => ¬ G.Adj v x)).card := Finset.card_biUnion_le
-        _ ≤ ∑ _v ∈ K₀, (wBase - 1) := by
-            refine Finset.sum_le_sum fun v hv => ?_
-            have hlt := (Finset.mem_filter.mp (hK₀Q hv)).2 p
-            omega
-        _ = t * (wBase - 1) := by simp [hK₀card]
-    have hpart_sub : C.part p ⊆ (C.part p \ Bad) ∪ Bad := fun x hx => by
-      by_cases hxB : x ∈ Bad
-      · exact Finset.mem_union_right _ hxB
-      · exact Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨hx, hxB⟩)
-    have hsum_eq : t * (wBase - 1) + t = wBase * t := by
-      cases wBase with
-      | zero => omega
-      | succ wb => simp; ring
-    have hgood_card : t ≤ (C.part p \ Bad).card := by
-      have hc := (Finset.card_le_card hpart_sub).trans (Finset.card_union_le _ _)
-      have hp := C.part_card p
-      omega
-    obtain ⟨B, hBsub, hBcard⟩ := Finset.exists_subset_card_eq hgood_card
-    refine ⟨B, hBsub.trans Finset.sdiff_subset, hBcard, ?_⟩
-    intro x hx v hv
-    have hxNotBad : x ∉ Bad := (Finset.mem_sdiff.mp (hBsub hx)).2
-    have hxPart : x ∈ C.part p := (Finset.mem_sdiff.mp (hBsub hx)).1
-    by_contra hnad
-    exact hxNotBad (Finset.mem_biUnion.mpr ⟨v, hv,
-      Finset.mem_filter.mpr ⟨hxPart, fun h => hnad h.symm⟩⟩)
-  classical
-  choose B hBpart hBcard hBadj using hexB
-  have hK₀_sub : K₀ ⊆ U₀ :=
-    hK₀Q.trans ((Finset.filter_subset _ _).trans Finset.sdiff_subset)
-  have hdisjCK : Disjoint C.verts K₀ := Finset.disjoint_left.mpr fun x hxC hxK =>
-    (Finset.mem_sdiff.mp (Finset.mem_filter.mp (hK₀Q hxK)).1).2 hxC
-  have hCoreB : HasCore G (Finset.univ.biUnion B) d t :=
-    ⟨B, fun p x hx => Finset.mem_biUnion.mpr ⟨p, Finset.mem_univ p, hx⟩, hBcard,
-      fun p q hpq => Disjoint.mono (hBpart p) (hBpart q) (C.part_disj p q hpq),
-      fun p q hpq u hu v hv => C.part_adj p q hpq u (hBpart p hu) v (hBpart q hv)⟩
-  have hbiB_sub : Finset.univ.biUnion B ⊆ U₀ :=
-    (Finset.biUnion_subset.mpr fun p _ => (hBpart p).trans (C.part_sub_verts p)).trans C.verts_sub
-  have hdisjBK : Disjoint (Finset.univ.biUnion B) K₀ :=
-    Disjoint.mono_left
-      (Finset.biUnion_subset.mpr fun p _ => (hBpart p).trans (C.part_sub_verts p)) hdisjCK
-  have hcompBK : ∀ u ∈ Finset.univ.biUnion B, ∀ v ∈ K₀, G.Adj u v := by
-    intro u hu v hv
-    obtain ⟨p, _, hup⟩ := Finset.mem_biUnion.mp hu
-    exact hBadj p u hup v hv
-  exact hnoCore (hasCore_snoc hbiB_sub hK₀_sub hK₀card hdisjBK hcompBK hCoreB)
+end Defs
 
-private def seqSupp {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    (Tseq : Fin n → Template G U₀ s d t wBase) (I : Finset (Fin n)) : Finset V :=
-  I.biUnion (fun i => (Tseq i).P)
+section Lemmas
+variable {V : Type} [Fintype V] [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
 
-private def IsTemplateSeq {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    (Tseq : Fin n → Template G U₀ s d t wBase) (I : Finset (Fin n)) : Prop :=
-  (∀ i ∈ I, ∀ j ∈ I, i ≠ j → Disjoint (Tseq i).P (Tseq j).P) ∧
-  (∀ i ∈ I, ∀ j ∈ I, i < j → ∀ v ∈ (Tseq j).P,
-    (∀ p : Fin d, (((Tseq i).core.part p).filter (G.Adj v)).card < s * t ^ (s - 1)) ∨
-    (∀ p : Fin d, (((Tseq i).core.part p).filter (fun x => ¬ G.Adj v x)).card < wBase))
+theorem Anti.symm {X Y : Finset V} (h : Anti G X Y) : Anti G Y X :=
+  fun y hy x hx hyx => h x hx y hy hyx.symm
 
-private lemma isTemplateSeq_mono {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {U₀ : Finset V} {s d t wBase n : ℕ}
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I₁ I₂ : Finset (Fin n)}
-    (hsub : I₁ ⊆ I₂) (hseq : IsTemplateSeq Tseq I₂) : IsTemplateSeq Tseq I₁ :=
-  ⟨fun i hi j hj => hseq.1 i (hsub hi) j (hsub hj),
-   fun i hi j hj => hseq.2 i (hsub hi) j (hsub hj)⟩
+theorem Anti.mono {X Y X' Y' : Finset V} (h : Anti G X Y) (hX : X' ⊆ X) (hY : Y' ⊆ Y) :
+    Anti G X' Y' := fun x hx y hy => h x (hX hx) y (hY hy)
 
-private lemma seqSupp_sub {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    (Tseq : Fin n → Template G U₀ s d t wBase) (I : Finset (Fin n)) :
-    seqSupp Tseq I ⊆ U₀ :=
-  Finset.biUnion_subset.mpr fun i _ => (Tseq i).P_sub
+theorem Compl.mono {X Y X' Y' : Finset V} (h : Compl G X Y) (hX : X' ⊆ X) (hY : Y' ⊆ Y) :
+    Compl G X' Y' := fun x hx y hy => h x (hX hx) y (hY hy)
 
-private lemma exists_maximal_templateSeq {V : Type*} [DecidableEq V]
-    (G : SimpleGraph V) [DecidableRel G.Adj] (U₀ : Finset V)
-    {s d t wBase : ℕ} (hd : 1 ≤ d) (ht : 1 ≤ t) (hwBase : 1 ≤ wBase) :
-    ∃ (n : ℕ) (Tseq : Fin n → Template G U₀ s d t wBase),
-      IsTemplateSeq Tseq Finset.univ ∧
-      IsEmpty (StableCore G (U₀ \ seqSupp Tseq Finset.univ) d (wBase * t)) := by
-  have haux : ∀ (m : ℕ) (rem : Finset V), rem.card ≤ m → rem ⊆ U₀ →
-      ∃ (n : ℕ) (Tseq : Fin n → Template G U₀ s d t wBase),
-        (∀ i, (Tseq i).P ⊆ rem) ∧
-        IsTemplateSeq Tseq Finset.univ ∧
-        IsEmpty (StableCore G (rem \ seqSupp Tseq Finset.univ) d (wBase * t)) := by
-    intro m
-    induction m with
-    | zero =>
-      intro rem hcard _
-      rw [Finset.card_eq_zero.mp (Nat.le_zero.mp hcard)]
-      refine ⟨0, Fin.elim0, fun i => i.elim0, ⟨fun i => i.elim0, fun i => i.elim0⟩, ⟨fun C => ?_⟩⟩
-      have h0 : (C.part ⟨0, hd⟩).card = 0 :=
-        Finset.card_eq_zero.mpr (Finset.subset_empty.mp (C.part_sub ⟨0, hd⟩))
-      have hw : 1 ≤ wBase * t := Nat.mul_pos hwBase ht
-      rw [C.part_card ⟨0, hd⟩] at h0
-      omega
-    | succ m ih =>
-      intro rem hcard hremU
-      by_cases hex : Nonempty (StableCore G rem d (wBase * t))
-      · obtain ⟨C₀⟩ := hex
-        let cand := (rem \ C₀.verts).filter (fun v =>
-          (∃ p : Fin d, s * t ^ (s - 1) ≤ ((C₀.part p).filter (G.Adj v)).card) ∧
-          (∃ p : Fin d, wBase ≤ ((C₀.part p).filter (fun x => ¬ G.Adj v x)).card))
-        let P₀ : Finset V := C₀.verts ∪ cand
-        have hP₀_rem : P₀ ⊆ rem :=
-          Finset.union_subset C₀.verts_sub ((Finset.filter_subset _ _).trans Finset.sdiff_subset)
-        have hC₀_pos : 1 ≤ P₀.card := by
-          have hw : 1 ≤ d * (wBase * t) := Nat.mul_pos hd (Nat.mul_pos hwBase ht)
-          calc 1 ≤ C₀.verts.card := by rw [C₀.verts_card]; exact hw
-            _ ≤ P₀.card := Finset.card_le_card Finset.subset_union_left
-        have hrem'_card : (rem \ P₀).card ≤ m := by
-          have hdisj : Disjoint (rem \ P₀) P₀ := Finset.sdiff_disjoint
-          have hunion : (rem \ P₀) ∪ P₀ = rem := Finset.sdiff_union_of_subset hP₀_rem
-          have hsum := Finset.card_union_of_disjoint hdisj
-          rw [hunion] at hsum
-          omega
-        let T₀ : Template G U₀ s d t wBase :=
-          { core := C₀.mono hremU
-            P := P₀
-            P_sub := hP₀_rem.trans hremU
-            verts_sub_P := Finset.subset_union_left
-            dense_part := fun v hv => by
-              obtain ⟨hvP, hvNotC⟩ := Finset.mem_sdiff.mp hv
-              have hvcand : v ∈ cand := (Finset.mem_union.mp hvP).resolve_left hvNotC
-              exact (Finset.mem_filter.mp hvcand).2.1
-            nonadj_part := fun v hv => by
-              obtain ⟨hvP, hvNotC⟩ := Finset.mem_sdiff.mp hv
-              have hvcand : v ∈ cand := (Finset.mem_union.mp hvP).resolve_left hvNotC
-              exact (Finset.mem_filter.mp hvcand).2.2 }
-        obtain ⟨n', Tseq', hPrem', hSeq', hEmp'⟩ :=
-          ih (rem \ P₀) hrem'_card (Finset.sdiff_subset.trans hremU)
-        let Tseq : Fin (n' + 1) → Template G U₀ s d t wBase := fun i =>
-          if hi : i.val = 0 then T₀ else Tseq' ⟨i.val - 1, by omega⟩
-        refine ⟨n' + 1, Tseq, ?_, ?_, ?_⟩
-        · intro i
-          dsimp [Tseq]
-          split_ifs with hi
-          · exact hP₀_rem
-          · exact (hPrem' _).trans Finset.sdiff_subset
-        · refine ⟨?_, ?_⟩
-          · intro i _ j _ hij
-            dsimp [Tseq]
-            split_ifs with hi hj hj
-            · exact absurd (Fin.ext (hi.trans hj.symm)) hij
-            · exact (Disjoint.mono_left (hPrem' _) Finset.sdiff_disjoint).symm
-            · exact Disjoint.mono_left (hPrem' _) Finset.sdiff_disjoint
-            · refine hSeq'.1 _ (Finset.mem_univ _) _ (Finset.mem_univ _) ?_
-              intro heq
-              have hval := congr_arg Fin.val heq
-              dsimp at hval
-              exact hij (Fin.ext (by omega))
-          · intro i _ j _ hij v hv
-            dsimp [Tseq] at hv ⊢
-            split_ifs at hv ⊢ with hi hj hj
-            · exact absurd (Fin.ext (hi.trans hj.symm)) (ne_of_lt hij)
-            · have hv_rem_sdiff : v ∈ rem \ P₀ := hPrem' ⟨j.val - 1, by omega⟩ hv
-              obtain ⟨hv_rem, hv_not_P₀⟩ := Finset.mem_sdiff.mp hv_rem_sdiff
-              have hv_not_C₀ : v ∉ C₀.verts :=
-                fun h => hv_not_P₀ (Finset.mem_union_left _ h)
-              have hv_not_cand : v ∉ cand :=
-                fun h => hv_not_P₀ (Finset.mem_union_right _ h)
-              have hnot_both : ¬ ((∃ p : Fin d, s * t ^ (s - 1) ≤ ((C₀.part p).filter (G.Adj v)).card) ∧
-                  (∃ p : Fin d, wBase ≤ ((C₀.part p).filter (fun x => ¬ G.Adj v x)).card)) :=
-                fun hb => hv_not_cand (Finset.mem_filter.mpr ⟨Finset.mem_sdiff.mpr ⟨hv_rem, hv_not_C₀⟩, hb⟩)
-              rw [not_and_or] at hnot_both
-              rcases hnot_both with h1 | h2
-              · left
-                intro p
-                exact lt_of_not_ge fun hp => h1 ⟨p, hp⟩
-              · right
-                intro p
-                exact lt_of_not_ge fun hp => h2 ⟨p, hp⟩
-            · exfalso; have : i.val < j.val := hij; omega
-            · have hlt' : (⟨i.val - 1, by omega⟩ : Fin n') < ⟨j.val - 1, by omega⟩ := by
-                change i.val - 1 < j.val - 1
-                have : i.val < j.val := hij
-                omega
-              exact hSeq'.2 _ (Finset.mem_univ _) _ (Finset.mem_univ _) hlt' v hv
-        · have hsupp_eq : rem \ seqSupp Tseq Finset.univ =
-              (rem \ P₀) \ seqSupp Tseq' Finset.univ := by
-            ext x
-            simp only [Finset.mem_sdiff, seqSupp, Finset.mem_biUnion, Finset.mem_univ, true_and]
-            constructor
-            · rintro ⟨hx_rem, hnot⟩
-              refine ⟨⟨hx_rem, fun hxP₀ => hnot ⟨⟨0, by omega⟩, by simpa [Tseq] using hxP₀⟩⟩, ?_⟩
-              rintro ⟨k, hxk⟩
-              exact hnot ⟨⟨k.val + 1, by omega⟩, by simp [Tseq, hxk]⟩
-            · rintro ⟨⟨hx_rem, hxNotP₀⟩, hnot'⟩
-              refine ⟨hx_rem, ?_⟩
-              rintro ⟨i, hxi⟩
-              dsimp [Tseq] at hxi
-              split_ifs at hxi with hi
-              · exact hxNotP₀ hxi
-              · exact hnot' ⟨⟨i.val - 1, by omega⟩, hxi⟩
-          rw [hsupp_eq]
-          exact hEmp'
-      · refine ⟨0, Fin.elim0, fun i => i.elim0, ⟨fun i => i.elim0, fun i => i.elim0⟩, ?_⟩
-        have hsupp_emp : rem \ seqSupp (Fin.elim0 : Fin 0 → Template G U₀ s d t wBase) Finset.univ = rem := by
-          ext x; simp [seqSupp]
-        rw [hsupp_emp]
-        exact ⟨fun C => hex ⟨C⟩⟩
-  obtain ⟨n, Tseq, _, hSeq, hEmp⟩ := haux U₀.card U₀ le_rfl (Finset.Subset.refl U₀)
-  exact ⟨n, Tseq, hSeq, hEmp⟩
+/-- T7: in an `ω`-small set with no stable `(t,2)`-core there is no K-pair for `rr ω t`. -/
+theorem noKPair_of_noCore {S : Finset V} {ω t : ℕ} (hS : Small G S ω) (hc : ¬ HasCore G S t 2) :
+    NoKPair G S (rr ω t) := by
+  intro X hX Y hY hXY hXc hYc hcomp
+  obtain ⟨X', hX', hX'c, hX's⟩ := ramsey_stable hS hX hXc.ge
+  obtain ⟨Y', hY', hY'c, hY's⟩ := ramsey_stable hS hY hYc.ge
+  apply hc
+  refine ⟨![X', Y'], ?_, ?_⟩
+  · intro i
+    fin_cases i
+    · exact ⟨hX'.trans hX, hX'c, hX's⟩
+    · exact ⟨hY'.trans hY, hY'c, hY's⟩
+  · intro i j hij
+    fin_cases i <;> fin_cases j
+    · exact absurd rfl hij
+    · exact ⟨Disjoint.mono hX' hY' hXY, hcomp.mono hX' hY'⟩
+    · exact ⟨(Disjoint.mono hX' hY' hXY).symm,
+        fun y hy x hx => (hcomp x (hX' hx) y (hY' hy)).symm⟩
+    · exact absurd rfl hij
 
-private def tplR (d t s : ℕ) : ℕ := ramseyNum ((d + 1) * t) s
+/-- Lemma 5.1 (bipartite pure pair). -/
+theorem br_lemma {S X Y : Finset V} {T₀ p : ℕ} (hK : NoKPair G S T₀) (hX : X ⊆ S) (hY : Y ⊆ S)
+    (hXY : Disjoint X Y) (hXc : X.card = p + T₀ - 1) (hT : 1 ≤ T₀)
+    (hYc : max p T₀ * 2 ^ X.card ≤ Y.card) :
+    ∃ X' ⊆ X, ∃ Y' ⊆ Y, X'.card = p ∧ Y'.card = p ∧ Anti G X' Y' := by
+  obtain ⟨Wt, hWt, hfib⟩ := exists_le_card_fiber_of_mul_le_card_of_maps_to
+    (f := fun y => X.filter (G.Adj y)) (s := Y) (t := X.powerset) (n := max p T₀)
+    (fun y _ => mem_powerset.mpr (filter_subset _ _)) ⟨∅, empty_mem_powerset _⟩
+    (by rw [card_powerset, mul_comm]; exact hYc)
+  set F := Y.filter (fun y => X.filter (G.Adj y) = Wt) with hF
+  have hWtX : Wt ⊆ X := mem_powerset.mp hWt
+  have hFW : ∀ y ∈ F, ∀ x ∈ X, G.Adj y x ↔ x ∈ Wt := by
+    intro y hy x hx
+    have := (mem_filter.mp hy).2
+    rw [← this]; simp [hx]
+  have hWsmall : Wt.card < T₀ := by
+    by_contra hcon
+    push_neg at hcon
+    obtain ⟨W₁, hW₁, hW₁c⟩ := exists_subset_card_eq hcon
+    obtain ⟨F₁, hF₁, hF₁c⟩ := exists_subset_card_eq ((le_max_right p T₀).trans hfib)
+    apply hK W₁ ((hW₁.trans hWtX).trans hX) F₁ ((hF₁.trans (filter_subset _ _)).trans hY)
+      (Disjoint.mono (hW₁.trans hWtX) (hF₁.trans (filter_subset _ _)) hXY) hW₁c hF₁c
+    intro x hx y hy
+    exact ((hFW y (hF₁ hy) x (hWtX (hW₁ hx))).mpr (hW₁ hx)).symm
+  have hcomp : p ≤ (X \ Wt).card := by
+    rw [card_sdiff_of_subset hWtX]; omega
+  obtain ⟨X', hX', hX'c⟩ := exists_subset_card_eq hcomp
+  obtain ⟨Y', hY', hY'c⟩ := exists_subset_card_eq ((le_max_left p T₀).trans hfib)
+  refine ⟨X', hX'.trans sdiff_subset, Y', hY'.trans (filter_subset _ _), hX'c, hY'c, ?_⟩
+  intro x hx y hy hxy
+  have hx' := mem_sdiff.mp (hX' hx)
+  exact hx'.2 ((hFW y (hY' hy) x hx'.1).mp hxy.symm)
 
-private lemma tplR_pos {d t s : ℕ} (ht : 1 ≤ t) (hs : 1 ≤ s) : 1 ≤ tplR d t s := by
-  unfold tplR
-  have hdt : 1 ≤ (d + 1) * t := Nat.mul_pos (Nat.succ_pos d) ht
-  rcases Nat.exists_eq_succ_of_ne_zero (by omega : (d + 1) * t ≠ 0) with ⟨p, hp⟩
-  rcases Nat.exists_eq_succ_of_ne_zero (by omega : s ≠ 0) with ⟨q, hq⟩
-  rw [hp, hq, ramseyNum]
-  omega
-
-private def tplR4 (d t s : ℕ) : ℕ := tplR d t s + s
-private def tplR6 (d t s : ℕ) : ℕ := (2 * tplR4 d t s + 1) * tplR d t s + tplR4 d t s
-private def tplL4 (d t s : ℕ) : ℕ := (2 * (s * tplR6 d t s) + 1) * tplR d t s + tplR6 d t s
-private def tplL2 (d t s w : ℕ) : ℕ := d * w * tplL4 d t s + d * w
-private def tplR7 (d t s w : ℕ) : ℕ := (2 * tplR6 d t s + 1) * tplL2 d t s w
-
-private def tplWBase (s t : ℕ) : ℕ :=
-  1 + s + (s + 1) * (s + 1) * (s * t ^ (s - 1)) + s * (s ^ 3 * t ^ (s - 1))
-
-private lemma tplWBase_pos (s t : ℕ) : 1 ≤ tplWBase s t := by
-  unfold tplWBase; omega
-
-private lemma card_sdiff_adj_ge {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] (S X : Finset V) (k B : ℕ)
-    (hdeg : ∀ u ∈ X, (S.filter (G.Adj u)).card ≤ B)
-    (hS : k + X.card * B ≤ S.card) :
-    k ≤ (S.filter (fun z => ∀ u ∈ X, ¬ G.Adj u z)).card := by
-  let Bad := X.biUnion (fun u => S.filter (G.Adj u))
-  have hBad : Bad.card ≤ X.card * B := by
-    calc Bad.card
-        ≤ ∑ u ∈ X, (S.filter (G.Adj u)).card := Finset.card_biUnion_le
-      _ ≤ ∑ _u ∈ X, B := Finset.sum_le_sum hdeg
-      _ = X.card * B := by simp
-  have hsub : S ⊆ S.filter (fun z => ∀ u ∈ X, ¬ G.Adj u z) ∪ Bad := by
-    intro z hz
-    by_cases hall : ∀ u ∈ X, ¬ G.Adj u z
-    · exact Finset.mem_union_left _ (Finset.mem_filter.mpr ⟨hz, hall⟩)
-    · have hex : ∃ u ∈ X, G.Adj u z := by
-        by_contra hno
-        exact hall fun u hu huz => hno ⟨u, hu, huz⟩
-      obtain ⟨u, huX, huz⟩ := hex
-      exact Finset.mem_union_right _
-        (Finset.mem_biUnion.mpr ⟨u, huX, Finset.mem_filter.mpr ⟨hz, huz⟩⟩)
-  have hc := (Finset.card_le_card hsub).trans (Finset.card_union_le _ _)
-  omega
-
-private def Nice1 {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    (Tseq : Fin n → Template G U₀ s d t wBase) (I : Finset (Fin n)) : Prop :=
-  IsTemplateSeq Tseq I ∧
-  ∀ i ∈ I, ∀ j ∈ I, i ≠ j → ∀ v ∈ (Tseq j).P,
-    ∃ p : Fin d, wBase ≤ (((Tseq i).core.part p).filter (fun x => ¬ G.Adj v x)).card
-
-private lemma nice1_mono {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I₁ I₂ : Finset (Fin n)}
-    (hsub : I₁ ⊆ I₂) (h : Nice1 Tseq I₂) : Nice1 Tseq I₁ :=
-  ⟨isTemplateSeq_mono hsub h.1, fun i hi j hj => h.2 i (hsub hi) j (hsub hj)⟩
-
-private lemma nice1_lt_adj {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I : Finset (Fin n)}
-    (h1 : Nice1 Tseq I) {i j : Fin n} (hi : i ∈ I) (hj : j ∈ I) (hij : i < j)
-    {v : V} (hv : v ∈ (Tseq j).P) (p : Fin d) :
-    (((Tseq i).core.part p).filter (G.Adj v)).card < s * t ^ (s - 1) := by
-  rcases h1.1.2 i hi j hj hij v hv with hlt | hnon
-  · exact hlt p
-  · obtain ⟨q, hq⟩ := h1.2 i hi j hj (ne_of_lt hij) v hv
-    exact absurd (hnon q) (not_lt.mpr hq)
-
-private lemma nice1_nonadj_of_notMem_core {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {U₀ : Finset V} {s d t wBase n : ℕ}
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I : Finset (Fin n)}
-    (h1 : Nice1 Tseq I) {v : V} (hv : v ∈ seqSupp Tseq I) {i : Fin n} (hi : i ∈ I)
-    (hvC : v ∉ (Tseq i).core.verts) :
-    ∃ p : Fin d, wBase ≤ (((Tseq i).core.part p).filter (fun x => ¬ G.Adj v x)).card := by
-  obtain ⟨j, hjI, hvPj⟩ := Finset.mem_biUnion.mp hv
-  by_cases hij : i = j
-  · subst hij
-    exact (Tseq i).nonadj_part v (Finset.mem_sdiff.mpr ⟨hvPj, hvC⟩)
-  · exact h1.2 i hi j hjI hij v hvPj
-
-private lemma mem_P_unique {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I : Finset (Fin n)}
-    (hseq : IsTemplateSeq Tseq I) {i j : Fin n} (hi : i ∈ I) (hj : j ∈ I) (hij : i ≠ j)
-    {v : V} (hv : v ∈ (Tseq i).P) : v ∉ (Tseq j).P :=
-  Finset.disjoint_left.mp (hseq.1 i hi j hj hij) hv
-
-private def Nice2 {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    (Tseq : Fin n → Template G U₀ s d t wBase) (I : Finset (Fin n)) : Prop :=
-  Nice1 Tseq I ∧
-  ∀ v ∈ seqSupp Tseq I,
-    (I.filter (fun i => v ∉ (Tseq i).core.verts ∧
-      ∃ p : Fin d, s ^ 3 * t ^ (s - 1) ≤ (((Tseq i).core.part p).filter (G.Adj v)).card)).card < s
-
-private lemma nice2_mono {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I₁ I₂ : Finset (Fin n)}
-    (hsub : I₁ ⊆ I₂) (h : Nice2 Tseq I₂) : Nice2 Tseq I₁ := by
-  refine ⟨nice1_mono hsub h.1, fun v hv => ?_⟩
-  have hv₂ : v ∈ seqSupp Tseq I₂ := by
-    obtain ⟨i, hi, hvi⟩ := Finset.mem_biUnion.mp hv
-    exact Finset.mem_biUnion.mpr ⟨i, hsub hi, hvi⟩
-  exact lt_of_le_of_lt (Finset.card_le_card (Finset.filter_subset_filter _ hsub)) (h.2 v hv₂)
-
-private lemma nice1_imp_nice2 {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {U₀ : Finset V} {s d t n : ℕ}
-    (hs : 2 ≤ s) (hd : 2 ≤ d) (ht : 1 ≤ t)
-    (hnoTree : ¬ HasModelTreeOn G U₀ s)
-    {Tseq : Fin n → Template G U₀ s d t (tplWBase s t)} {I : Finset (Fin n)}
-    (h1 : Nice1 Tseq I) : Nice2 Tseq I := by
-  refine ⟨h1, fun v hv => ?_⟩
-  by_contra hge
-  let M₁ := s ^ 3 * t ^ (s - 1)
-  let M₂ := s + (s - 1) * (s + 1) * (s * t ^ (s - 1))
-  let Bad := I.filter (fun i => v ∉ (Tseq i).core.verts ∧
-    ∃ p : Fin d, M₁ ≤ (((Tseq i).core.part p).filter (G.Adj v)).card)
-  have hs_le : s ≤ Bad.card := le_of_not_gt hge
-  obtain ⟨I', hI'sub, hI'card⟩ := Finset.exists_subset_card_eq hs_le
-  let emb := I'.orderEmbOfFin hI'card
-  let idx : Fin s → Fin n := fun r => emb ⟨s - 1 - r.val, by omega⟩
-  have hidx_Bad : ∀ r : Fin s, idx r ∈ Bad :=
-    fun r => hI'sub (Finset.orderEmbOfFin_mem I' hI'card _)
-  have hidx_I : ∀ r : Fin s, idx r ∈ I :=
-    fun r => (Finset.mem_filter.mp (hidx_Bad r)).1
-  have hidx_anti : ∀ r₁ r₂ : Fin s, r₁ < r₂ → idx r₂ < idx r₁ := by
-    intro r₁ r₂ hlt
-    exact emb.strictMono (by
-      change s - 1 - r₂.val < s - 1 - r₁.val
-      have : r₁.val < r₂.val := hlt
-      omega)
-  have hM₂_le_wb : M₂ ≤ tplWBase s t := by
-    dsimp [M₂, tplWBase]
-    have hmul : (s - 1) * (s + 1) ≤ (s + 1) * (s + 1) :=
-      Nat.mul_le_mul_right (s + 1) (by omega)
-    have hmul2 := Nat.mul_le_mul_right (s * t ^ (s - 1)) hmul
-    omega
-  have hM₁₂_le_w : M₁ + M₂ ≤ tplWBase s t * t := by
-    have hwb_le_w : tplWBase s t ≤ tplWBase s t * t := Nat.le_mul_of_pos_right _ ht
-    have hM₁_le : M₁ ≤ s * (s ^ 3 * t ^ (s - 1)) := Nat.le_mul_of_pos_left _ (by omega)
-    have hsum_le : M₁ + M₂ ≤ tplWBase s t := by
-      dsimp [M₁, M₂, tplWBase]
-      have hmul : (s - 1) * (s + 1) ≤ (s + 1) * (s + 1) :=
-        Nat.mul_le_mul_right (s + 1) (by omega)
-      have hmul2 := Nat.mul_le_mul_right (s * t ^ (s - 1)) hmul
-      omega
-    exact le_trans hsum_le hwb_le_w
-  have hex_parts : ∀ r : Fin s, ∃ q₁ q₂ : Fin d, q₁ ≠ q₂ ∧
-      M₁ ≤ (((Tseq (idx r)).core.part q₁).filter (G.Adj v)).card ∧
-      M₂ ≤ (((Tseq (idx r)).core.part q₂).filter (fun x => ¬ G.Adj v x)).card := by
-    intro r
-    obtain ⟨hv_notC, p₁, hp₁⟩ := (Finset.mem_filter.mp (hidx_Bad r)).2
-    obtain ⟨p₂, hp₂⟩ := nice1_nonadj_of_notMem_core h1 hv (hidx_I r) hv_notC
-    by_cases hp12 : p₁ = p₂
-    · let p' : Fin d := if p₁.val = 0 then ⟨1, hd⟩ else ⟨0, by omega⟩
-      have hp'ne : p' ≠ p₁ := by
-        by_cases hp0 : p₁.val = 0
-        · dsimp [p']; rw [if_pos hp0]
-          intro heq; have := congr_arg Fin.val heq; dsimp at this; omega
-        · dsimp [p']; rw [if_neg hp0]
-          intro heq; have := congr_arg Fin.val heq; dsimp at this; omega
-      let P' := (Tseq (idx r)).core.part p'
-      have hpart_sum : (P'.filter (G.Adj v)).card +
-          (P'.filter (fun x => ¬ G.Adj v x)).card = P'.card := by
-        have hdisj : Disjoint (P'.filter (G.Adj v)) (P'.filter (fun x => ¬ G.Adj v x)) :=
-          Finset.disjoint_left.mpr fun _ hx1 hx2 =>
-            (Finset.mem_filter.mp hx2).2 (Finset.mem_filter.mp hx1).2
-        have hunion : P'.filter (G.Adj v) ∪ P'.filter (fun x => ¬ G.Adj v x) = P' := by
-          ext x
-          simp only [Finset.mem_union, Finset.mem_filter]
-          by_cases h : G.Adj v x <;> simp [h]
-        rw [← Finset.card_union_of_disjoint hdisj, hunion]
-      have hP'card : P'.card = tplWBase s t * t := (Tseq (idx r)).core.part_card p'
-      by_cases hM₂_p' : M₂ ≤ (P'.filter (fun x => ¬ G.Adj v x)).card
-      · exact ⟨p₁, p', hp'ne.symm, hp₁, hM₂_p'⟩
-      · have hM₁_p' : M₁ ≤ (P'.filter (G.Adj v)).card := by omega
-        exact ⟨p', p₂, hp12 ▸ hp'ne, hM₁_p', le_trans hM₂_le_wb hp₂⟩
-    · exact ⟨p₁, p₂, hp12, hp₁, le_trans hM₂_le_wb hp₂⟩
-  classical
-  choose q₁ q₂ hq_ne hq₁ hq₂ using hex_parts
-  have hM₁_bound : 1 + (s - 1) * (s + 1) * (s * t ^ (s - 1)) ≤ M₁ := by
-    obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le hs
-    have hsub : 2 + k - 1 = k + 1 := by omega
-    have ht_pos : 1 ≤ t ^ (k + 1) := Nat.one_le_pow _ _ ht
-    have hid : (2 + k) ^ 3 * t ^ (k + 1) =
-        (k + 1) * (2 + k + 1) * ((2 + k) * t ^ (k + 1)) + (2 + k) * t ^ (k + 1) := by
-      ring
-    dsimp [M₁]
-    rw [hsub, hid]
-    have hpos2 : 1 ≤ (2 + k) * t ^ (k + 1) := Nat.mul_pos (by omega) ht_pos
-    omega
-  have hstep : ∀ m : ℕ, ∀ (hm : m ≤ s),
-      ∃ (a : Fin m → V) (b : Fin m → Fin s → V),
-        (∀ r : Fin m, a r ∈
-          (((Tseq (idx ⟨r.val, by omega⟩)).core.part (q₁ ⟨r.val, by omega⟩)).filter (G.Adj v))) ∧
-        (∀ r : Fin m, ∀ j : Fin s, b r j ∈
-          (((Tseq (idx ⟨r.val, by omega⟩)).core.part (q₂ ⟨r.val, by omega⟩)).filter
-            (fun x => ¬ G.Adj v x))) ∧
-        (∀ r : Fin m, Function.Injective (b r)) ∧
-        (∀ r₁ r₂ : Fin m, r₁ < r₂ → ¬ G.Adj (a r₁) (a r₂)) ∧
-        (∀ r₁ r₂ : Fin m, r₁ ≠ r₂ → ∀ j : Fin s, ¬ G.Adj (a r₁) (b r₂ j)) ∧
-        (∀ r₁ r₂ : Fin m, r₁ < r₂ → ∀ j₁ j₂ : Fin s, ¬ G.Adj (b r₁ j₁) (b r₂ j₂)) := by
-    intro m
-    induction m with
-    | zero =>
-      intro _
-      exact ⟨Fin.elim0, Fin.elim0, fun r => r.elim0, fun r => r.elim0,
-        fun r => r.elim0, fun r => r.elim0, fun r => r.elim0, fun r => r.elim0⟩
-    | succ m ih =>
-      intro hm
-      obtain ⟨a, b, ha_mem, hb_mem, hb_inj, ha_na, hab_na, hbb_na⟩ := ih (by omega)
-      let rNew : Fin s := ⟨m, hm⟩
-      let X : Finset V := (Finset.univ : Finset (Fin m)).image a ∪
-        (Finset.univ : Finset (Fin m × Fin s)).image (fun p => b p.1 p.2)
-      have hX_card : X.card ≤ (s - 1) * (s + 1) := by
-        calc X.card
-            ≤ ((Finset.univ : Finset (Fin m)).image a).card +
-                ((Finset.univ : Finset (Fin m × Fin s)).image (fun p => b p.1 p.2)).card :=
-              Finset.card_union_le _ _
-          _ ≤ m + m * s := add_le_add
-              (le_trans Finset.card_image_le (by simp))
-              (le_trans Finset.card_image_le (by simp))
-          _ = m * (s + 1) := by ring
-          _ ≤ (s - 1) * (s + 1) := Nat.mul_le_mul_right (s + 1) (by omega)
-      have hX_deg : ∀ u ∈ X, ∀ p : Fin d,
-          (((Tseq (idx rNew)).core.part p).filter (G.Adj u)).card ≤ s * t ^ (s - 1) := by
-        intro u hu p
-        rcases Finset.mem_union.mp hu with hua | hub
-        · obtain ⟨r, _, rfl⟩ := Finset.mem_image.mp hua
-          let r' : Fin s := ⟨r.val, by omega⟩
-          have hr_lt : r' < rNew := r.isLt
-          have huP : a r ∈ (Tseq (idx r')).P :=
-            (Tseq (idx r')).verts_sub_P
-              ((Tseq (idx r')).core.part_sub_verts _ (Finset.mem_filter.mp (ha_mem r)).1)
-          exact le_of_lt (nice1_lt_adj h1 (hidx_I rNew) (hidx_I r') (hidx_anti r' rNew hr_lt) huP p)
-        · obtain ⟨⟨r, j⟩, _, rfl⟩ := Finset.mem_image.mp hub
-          let r' : Fin s := ⟨r.val, by omega⟩
-          have hr_lt : r' < rNew := r.isLt
-          have huP : b r j ∈ (Tseq (idx r')).P :=
-            (Tseq (idx r')).verts_sub_P
-              ((Tseq (idx r')).core.part_sub_verts _ (Finset.mem_filter.mp (hb_mem r j)).1)
-          exact le_of_lt (nice1_lt_adj h1 (hidx_I rNew) (hidx_I r') (hidx_anti r' rNew hr_lt) huP p)
-      let NA := ((Tseq (idx rNew)).core.part (q₁ rNew)).filter (G.Adj v)
-      let NonB := ((Tseq (idx rNew)).core.part (q₂ rNew)).filter (fun x => ¬ G.Adj v x)
-      have hNA_good : 1 ≤ (NA.filter (fun z => ∀ u ∈ X, ¬ G.Adj u z)).card := by
-        refine card_sdiff_adj_ge NA X 1 (s * t ^ (s - 1)) (fun u hu => ?_) ?_
-        · exact le_trans
-            (Finset.card_le_card (Finset.filter_subset_filter _ (Finset.filter_subset _ _)))
-            (hX_deg u hu (q₁ rNew))
-        · calc 1 + X.card * (s * t ^ (s - 1))
-              ≤ 1 + (s - 1) * (s + 1) * (s * t ^ (s - 1)) :=
-                Nat.add_le_add_left (Nat.mul_le_mul_right _ hX_card) 1
-            _ ≤ M₁ := hM₁_bound
-            _ ≤ NA.card := hq₁ rNew
-      obtain ⟨aNew, haNew_f⟩ := Finset.card_pos.mp hNA_good
-      obtain ⟨haNew_NA, haNew_X⟩ := Finset.mem_filter.mp haNew_f
-      have hNonB_good : s ≤ (NonB.filter (fun z => ∀ u ∈ X, ¬ G.Adj u z)).card := by
-        refine card_sdiff_adj_ge NonB X s (s * t ^ (s - 1)) (fun u hu => ?_) ?_
-        · exact le_trans
-            (Finset.card_le_card (Finset.filter_subset_filter _ (Finset.filter_subset _ _)))
-            (hX_deg u hu (q₂ rNew))
-        · calc s + X.card * (s * t ^ (s - 1))
-              ≤ s + (s - 1) * (s + 1) * (s * t ^ (s - 1)) :=
-                Nat.add_le_add_left (Nat.mul_le_mul_right _ hX_card) s
-            _ = M₂ := rfl
-            _ ≤ NonB.card := hq₂ rNew
-      obtain ⟨bNew, hbNew_inj, hbNew_f⟩ :=
-        exists_fin_emb_of_card (NonB.filter (fun z => ∀ u ∈ X, ¬ G.Adj u z)) hNonB_good
-      let a' : Fin (m + 1) → V := fun r => if hr : r.val < m then a ⟨r.val, hr⟩ else aNew
-      let b' : Fin (m + 1) → Fin s → V := fun r => if hr : r.val < m then b ⟨r.val, hr⟩ else bNew
-      refine ⟨a', b', ?_, ?_, ?_, ?_, ?_, ?_⟩
-      · intro r
-        dsimp [a']
-        split_ifs with hr
-        · exact ha_mem ⟨r.val, hr⟩
-        · have hreq : (⟨r.val, by omega⟩ : Fin s) = rNew := Fin.ext (by dsimp [rNew]; omega)
-          rwa [hreq]
-      · intro r j
-        dsimp [b']
-        split_ifs with hr
-        · exact hb_mem ⟨r.val, hr⟩ j
-        · have hreq : (⟨r.val, by omega⟩ : Fin s) = rNew := Fin.ext (by dsimp [rNew]; omega)
-          rw [hreq]
-          exact (Finset.mem_filter.mp (hbNew_f j)).1
-      · intro r
-        dsimp [b']
-        split_ifs with hr
-        · exact hb_inj ⟨r.val, hr⟩
-        · exact hbNew_inj
-      · intro r₁ r₂ hr₁₂
-        dsimp [a']
-        split_ifs with h1r h2r h2r
-        · exact ha_na ⟨r₁.val, h1r⟩ ⟨r₂.val, h2r⟩ hr₁₂
-        · exact haNew_X (a ⟨r₁.val, h1r⟩)
-            (Finset.mem_union_left _ (Finset.mem_image.mpr ⟨⟨r₁.val, h1r⟩, Finset.mem_univ _, rfl⟩))
-        · exfalso; have : r₁.val < r₂.val := hr₁₂; omega
-        · exfalso; have : r₁.val < r₂.val := hr₁₂; omega
-      · intro r₁ r₂ hr₁₂ j
-        dsimp [a', b']
-        split_ifs with h1r h2r h2r
-        · exact hab_na ⟨r₁.val, h1r⟩ ⟨r₂.val, h2r⟩
-            (fun h => hr₁₂ (Fin.ext (Fin.mk.inj h))) j
-        · exact (Finset.mem_filter.mp (hbNew_f j)).2 (a ⟨r₁.val, h1r⟩)
-            (Finset.mem_union_left _ (Finset.mem_image.mpr ⟨⟨r₁.val, h1r⟩, Finset.mem_univ _, rfl⟩))
-        · intro hadj
-          exact haNew_X (b ⟨r₂.val, h2r⟩ j)
-            (Finset.mem_union_right _
-              (Finset.mem_image.mpr ⟨(⟨r₂.val, h2r⟩, j), Finset.mem_univ _, rfl⟩))
-            hadj.symm
-        · exact absurd (Fin.ext (by omega : r₁.val = r₂.val)) hr₁₂
-      · intro r₁ r₂ hr₁₂ j₁ j₂
-        dsimp [b']
-        split_ifs with h1r h2r h2r
-        · exact hbb_na ⟨r₁.val, h1r⟩ ⟨r₂.val, h2r⟩ hr₁₂ j₁ j₂
-        · exact (Finset.mem_filter.mp (hbNew_f j₂)).2 (b ⟨r₁.val, h1r⟩ j₁)
-            (Finset.mem_union_right _
-              (Finset.mem_image.mpr ⟨(⟨r₁.val, h1r⟩, j₁), Finset.mem_univ _, rfl⟩))
-        · exfalso; have : r₁.val < r₂.val := hr₁₂; omega
-        · exfalso; have : r₁.val < r₂.val := hr₁₂; omega
-  obtain ⟨a, b, ha_mem, hb_mem, hb_inj, ha_na, hab_na, hbb_na⟩ := hstep s le_rfl
-  apply hnoTree
-  refine ⟨v, a, b, seqSupp_sub Tseq I hv, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · intro r
-    exact (Tseq (idx r)).core.part_sub (q₁ r) (Finset.mem_filter.mp (ha_mem r)).1
-  · intro r j
-    exact (Tseq (idx r)).core.part_sub (q₂ r) (Finset.mem_filter.mp (hb_mem r j)).1
-  · intro r j j' hjj' heq
-    exact hjj' (hb_inj r heq)
-  · intro r
-    exact (Finset.mem_filter.mp (ha_mem r)).2
-  · intro r j
-    exact (Finset.mem_filter.mp (hb_mem r j)).2
-  · intro r₁ r₂ hr₁₂
-    rcases lt_or_gt_of_ne hr₁₂ with hlt | hgt
-    · exact ha_na r₁ r₂ hlt
-    · exact fun h => ha_na r₂ r₁ hgt h.symm
-  · intro r₁ r₂ j
-    constructor
-    · intro hadj
-      by_contra hne
-      exact hab_na r₁ r₂ hne j hadj
-    · rintro rfl
-      exact (Tseq (idx r₁)).core.part_adj (q₁ r₁) (q₂ r₁) (hq_ne r₁)
-        (a r₁) (Finset.mem_filter.mp (ha_mem r₁)).1
-        (b r₁ j) (Finset.mem_filter.mp (hb_mem r₁ j)).1
-  · intro r₁ j₁ r₂ j₂ hne
-    by_cases hr : r₁ = r₂
-    · subst hr
-      exact (Tseq (idx r₁)).core.part_indep (q₂ r₁)
-        (b r₁ j₁) (Finset.mem_filter.mp (hb_mem r₁ j₁)).1
-        (b r₁ j₂) (Finset.mem_filter.mp (hb_mem r₁ j₂)).1
-    · rcases lt_or_gt_of_ne hr with hlt | hgt
-      · exact hbb_na r₁ r₂ hlt j₁ j₂
-      · exact fun h => hbb_na r₂ r₁ hgt j₂ j₁ h.symm
-
-private lemma indep_index_of_no_hasCore {V α : Type*} [DecidableEq V] [DecidableEq α]
-    {G : SimpleGraph V} [DecidableRel G.Adj] {U₀ : Finset V} {d t s : ℕ}
-    (ht : 1 ≤ t) (hnoCore : ¬ HasCore G U₀ (d + 1) t)
-    (J : Finset α) (g : α → V)
-    (hmem : ∀ i ∈ J, g i ∈ U₀)
-    (hinj : ∀ i ∈ J, ∀ j ∈ J, g i = g j → i = j)
-    (hcard : tplR d t s ≤ J.card) :
-    ∃ I' ⊆ J, I'.card = s ∧ ∀ i ∈ I', ∀ j ∈ I', ¬ G.Adj (g i) (g j) := by
-  have hpos : 1 ≤ (d + 1) * t := Nat.mul_pos (Nat.succ_pos d) ht
-  have heq : ((d + 1) * t - 1) + 1 = (d + 1) * t := by omega
-  have hcf : G.CliqueFreeOn (U₀ : Set V) (((d + 1) * t - 1) + 1) := by
-    rw [heq]
-    exact cliqueFreeOn_of_not_hasCore hnoCore
-  have hcard' : ramseyNum (((d + 1) * t - 1) + 1) s ≤ J.card := by
-    rw [heq]
-    exact hcard
-  exact indep_index_of_cliqueFreeOn hcf J g hmem hinj hcard'
-
-private def Nice3 {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    (Tseq : Fin n → Template G U₀ s d t wBase) (I : Finset (Fin n)) : Prop :=
-  Nice2 Tseq I ∧
-  ∀ i ∈ I, ∀ j ∈ I, i ≠ j → ∀ v ∈ (Tseq i).core.verts, ∀ p : Fin d,
-    (((Tseq j).core.part p).filter (G.Adj v)).card < s ^ 3 * t ^ (s - 1)
-
-private lemma colorable_nice2_of_nice3 {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {U₀ : Finset V} {s d t wBase n M : ℕ}
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I : Finset (Fin n)}
-    (h2 : Nice2 Tseq I)
-    (h3col : ∀ J ⊆ I, Nice3 Tseq J → ColorableOn G (seqSupp Tseq J) M) :
-    ColorableOn G (seqSupp Tseq I) ((2 * (d * (wBase * t) * (s - 1)) + 1) * M) := by
-  classical
-  let D : Fin n → Fin n → Prop := fun i j =>
-    ∃ v ∈ (Tseq i).core.verts, ∃ p : Fin d,
-      s ^ 3 * t ^ (s - 1) ≤ (((Tseq j).core.part p).filter (G.Adj v)).card
-  have hout : ∀ i ∈ I, (I.filter (fun j => j ≠ i ∧ D i j)).card ≤ d * (wBase * t) * (s - 1) := by
-    intro i hi
-    let F : V → Finset (Fin n) := fun v =>
-      I.filter (fun j => v ∉ (Tseq j).core.verts ∧
-        ∃ p : Fin d, s ^ 3 * t ^ (s - 1) ≤ (((Tseq j).core.part p).filter (G.Adj v)).card)
-    have hsub : I.filter (fun j => j ≠ i ∧ D i j) ⊆ ((Tseq i).core.verts).biUnion F := by
-      intro j hj
-      obtain ⟨hjI, hji, v, hvCi, p, hp⟩ := Finset.mem_filter.mp hj
-      have hvPi : v ∈ (Tseq i).P := (Tseq i).verts_sub_P hvCi
-      have hvNotPj : v ∉ (Tseq j).P := mem_P_unique h2.1.1 hi hjI hji.symm hvPi
-      have hvNotCj : v ∉ (Tseq j).core.verts := fun h => hvNotPj ((Tseq j).verts_sub_P h)
-      exact Finset.mem_biUnion.mpr ⟨v, hvCi, Finset.mem_filter.mpr ⟨hjI, hvNotCj, p, hp⟩⟩
-    calc (I.filter (fun j => j ≠ i ∧ D i j)).card
-        ≤ (((Tseq i).core.verts).biUnion F).card := Finset.card_le_card hsub
-      _ ≤ ∑ v ∈ (Tseq i).core.verts, (F v).card := Finset.card_biUnion_le
-      _ ≤ ∑ _v ∈ (Tseq i).core.verts, (s - 1) := by
-          refine Finset.sum_le_sum fun v hv => ?_
-          have hvSupp : v ∈ seqSupp Tseq I :=
-            Finset.mem_biUnion.mpr ⟨i, hi, (Tseq i).verts_sub_P hv⟩
-          have hlt : (F v).card < s := h2.2 v hvSupp
-          omega
-      _ = ((Tseq i).core.verts).card * (s - 1) := by simp
-      _ = d * (wBase * t) * (s - 1) := by rw [(Tseq i).core.verts_card]
-  refine colorableOn_of_digraph_blocks I (fun i => (Tseq i).P) D
-    (d * (wBase * t) * (s - 1)) M hout fun J hJI hind => h3col J hJI ⟨nice2_mono hJI h2, ?_⟩
-  intro i hi j hj hij v hv p
-  exact lt_of_not_ge fun hp => hind i hi j hj hij ⟨v, hv, p, hp⟩
-
-private def Nice4 {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    (Tseq : Fin n → Template G U₀ s d t wBase) (I : Finset (Fin n)) : Prop :=
-  Nice3 Tseq I ∧
-  ∀ v ∈ seqSupp Tseq I,
-    (I.filter (fun i => v ∉ (Tseq i).P ∧
-      ∃ x ∈ (Tseq i).core.verts, G.Adj v x)).card < tplR4 d t s
-
-private lemma nice4_mono {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I₁ I₂ : Finset (Fin n)}
-    (hsub : I₁ ⊆ I₂) (h : Nice4 Tseq I₂) : Nice4 Tseq I₁ := by
-  refine ⟨⟨nice2_mono hsub h.1.1, fun i hi j hj => h.1.2 i (hsub hi) j (hsub hj)⟩, fun v hv => ?_⟩
-  have hv₂ : v ∈ seqSupp Tseq I₂ := by
-    obtain ⟨i, hi, hvi⟩ := Finset.mem_biUnion.mp hv
-    exact Finset.mem_biUnion.mpr ⟨i, hsub hi, hvi⟩
-  exact lt_of_le_of_lt (Finset.card_le_card (Finset.filter_subset_filter _ hsub)) (h.2 v hv₂)
-
-private lemma nice3_imp_nice4 {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {U₀ : Finset V} {s d t n : ℕ}
-    (hs : 2 ≤ s) (hd : 2 ≤ d) (ht : 1 ≤ t)
-    (hnoTree : ¬ HasModelTreeOn G U₀ s)
-    (hnoCore : ¬ HasCore G U₀ (d + 1) t)
-    {Tseq : Fin n → Template G U₀ s d t (tplWBase s t)} {I : Finset (Fin n)}
-    (h3 : Nice3 Tseq I) : Nice4 Tseq I := by
-  refine ⟨h3, fun v hv => ?_⟩
-  by_contra hge
-  let NC := I.filter (fun i => v ∉ (Tseq i).P ∧ ∃ x ∈ (Tseq i).core.verts, G.Adj v x)
-  have hNC_ge : tplR d t s + s ≤ NC.card := le_of_not_gt hge
-  let BadV := I.filter (fun i => v ∉ (Tseq i).core.verts ∧
-    ∃ p : Fin d, s ^ 3 * t ^ (s - 1) ≤ (((Tseq i).core.part p).filter (G.Adj v)).card)
-  have hBadV_lt : BadV.card < s := h3.1.2 v hv
-  let I₁ := NC \ BadV
-  have hI₁_card : tplR d t s ≤ I₁.card := by
-    have hsub : NC ⊆ I₁ ∪ BadV := fun x hx => by
-      by_cases hxB : x ∈ BadV
-      · exact Finset.mem_union_right _ hxB
-      · exact Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨hx, hxB⟩)
-    have hc := (Finset.card_le_card hsub).trans (Finset.card_union_le _ _)
-    omega
-  classical
-  let a₀ : Fin n → V := fun i =>
-    if hi : i ∈ I₁ then
-      Classical.choose (Finset.mem_filter.mp (Finset.mem_sdiff.mp hi).1).2.2
-    else v
-  have ha₀_spec : ∀ i ∈ I₁, a₀ i ∈ (Tseq i).core.verts ∧ G.Adj v (a₀ i) := by
-    intro i hi
-    dsimp [a₀]
-    rw [dif_pos hi]
-    exact Classical.choose_spec (Finset.mem_filter.mp (Finset.mem_sdiff.mp hi).1).2.2
-  have ha₀_U : ∀ i ∈ I₁, a₀ i ∈ U₀ :=
-    fun i hi => (Tseq i).core.verts_sub (ha₀_spec i hi).1
-  have ha₀_inj : ∀ i ∈ I₁, ∀ j ∈ I₁, a₀ i = a₀ j → i = j := by
-    intro i hi j hj heq
-    by_contra hij
-    have hiI : i ∈ I := (Finset.mem_filter.mp (Finset.mem_sdiff.mp hi).1).1
-    have hjI : j ∈ I := (Finset.mem_filter.mp (Finset.mem_sdiff.mp hj).1).1
-    have haiP : a₀ i ∈ (Tseq i).P := (Tseq i).verts_sub_P (ha₀_spec i hi).1
-    have hajP : a₀ j ∈ (Tseq j).P := (Tseq j).verts_sub_P (ha₀_spec j hj).1
-    rw [heq] at haiP
-    exact mem_P_unique h3.1.1.1 hjI hiI (Ne.symm hij) hajP haiP
-  obtain ⟨I₂, hI₂sub, hI₂card, ha₀_indep⟩ :=
-    indep_index_of_no_hasCore ht hnoCore I₁ a₀ ha₀_U ha₀_inj hI₁_card
-  let emb := I₂.orderEmbOfFin hI₂card
-  let idx : Fin s → Fin n := fun r => emb ⟨s - 1 - r.val, by omega⟩
-  have hidx_I₂ : ∀ r : Fin s, idx r ∈ I₂ :=
-    fun r => Finset.orderEmbOfFin_mem I₂ hI₂card _
-  have hidx_I₁ : ∀ r : Fin s, idx r ∈ I₁ :=
-    fun r => hI₂sub (hidx_I₂ r)
-  have hidx_I : ∀ r : Fin s, idx r ∈ I :=
-    fun r => (Finset.mem_filter.mp (Finset.mem_sdiff.mp (hidx_I₁ r)).1).1
-  have hidx_anti : ∀ r₁ r₂ : Fin s, r₁ < r₂ → idx r₂ < idx r₁ := by
-    intro r₁ r₂ hlt
-    exact emb.strictMono (by
-      change s - 1 - r₂.val < s - 1 - r₁.val
-      have : r₁.val < r₂.val := hlt
-      omega)
-  have hidx_inj : Function.Injective idx := by
-    intro r₁ r₂ heq
-    have hval := congr_arg Fin.val (emb.injective heq)
-    dsimp at hval
-    exact Fin.ext (by omega)
-  have hex_pA : ∀ r : Fin s, ∃ p : Fin d, a₀ (idx r) ∈ (Tseq (idx r)).core.part p := by
-    intro r
-    obtain ⟨p, _, hp⟩ := Finset.mem_biUnion.mp (ha₀_spec (idx r) (hidx_I₁ r)).1
-    exact ⟨p, hp⟩
-  choose pA hpA using hex_pA
-  let pB : Fin s → Fin d := fun r => if (pA r).val = 0 then ⟨1, hd⟩ else ⟨0, by omega⟩
-  have hpB_ne : ∀ r : Fin s, pA r ≠ pB r := by
-    intro r
-    by_cases hp0 : (pA r).val = 0
-    · dsimp [pB]; rw [if_pos hp0]
-      intro heq; have := congr_arg Fin.val heq; dsimp at this; omega
-    · dsimp [pB]; rw [if_neg hp0]
-      intro heq; have := congr_arg Fin.val heq; dsimp at this; omega
-  have hw_bound :
-      s + (s - 1) * s * (s * t ^ (s - 1)) + s * (s ^ 3 * t ^ (s - 1)) ≤ tplWBase s t * t := by
-    have hwb_le_w : tplWBase s t ≤ tplWBase s t * t := Nat.le_mul_of_pos_right _ ht
-    have h1_le : (s - 1) * s ≤ (s + 1) * (s + 1) :=
-      Nat.mul_le_mul (by omega) (by omega)
-    have h2_le := Nat.mul_le_mul_right (s * t ^ (s - 1)) h1_le
-    have hsum : s + (s - 1) * s * (s * t ^ (s - 1)) + s * (s ^ 3 * t ^ (s - 1)) ≤ tplWBase s t := by
-      dsimp [tplWBase]
-      omega
-    exact le_trans hsum hwb_le_w
-  have hstep : ∀ m : ℕ, ∀ (hm : m ≤ s),
-      ∃ b : Fin m → Fin s → V,
-        (∀ r : Fin m, ∀ j : Fin s,
-          b r j ∈ (Tseq (idx ⟨r.val, by omega⟩)).core.part (pB ⟨r.val, by omega⟩)) ∧
-        (∀ r : Fin m, Function.Injective (b r)) ∧
-        (∀ r : Fin m, ∀ j : Fin s, ¬ G.Adj v (b r j)) ∧
-        (∀ r : Fin m, ∀ r' : Fin s, r' ≠ ⟨r.val, by omega⟩ → ∀ j : Fin s,
-          ¬ G.Adj (a₀ (idx r')) (b r j)) ∧
-        (∀ r₁ r₂ : Fin m, r₁ < r₂ → ∀ j₁ j₂ : Fin s, ¬ G.Adj (b r₁ j₁) (b r₂ j₂)) := by
-    intro m
-    induction m with
-    | zero =>
-      intro _
-      exact ⟨Fin.elim0, fun r => r.elim0, fun r => r.elim0,
-        fun r => r.elim0, fun r => r.elim0, fun r => r.elim0⟩
-    | succ m ih =>
-      intro hm
-      obtain ⟨b, hb_mem, hb_inj, hb_nv, hb_na, hbb_na⟩ := ih (by omega)
-      let rNew : Fin s := ⟨m, hm⟩
-      let Bcur := (Tseq (idx rNew)).core.part (pB rNew)
-      let X₁ : Finset V :=
-        insert v (((Finset.univ : Finset (Fin s)).erase rNew).image (fun r => a₀ (idx r)))
-      have hX₁_card : X₁.card ≤ s := by
-        calc X₁.card
-            ≤ (((Finset.univ : Finset (Fin s)).erase rNew).image (fun r => a₀ (idx r))).card + 1 :=
-              Finset.card_insert_le _ _
-          _ ≤ ((Finset.univ : Finset (Fin s)).erase rNew).card + 1 :=
-              Nat.add_le_add_right Finset.card_image_le 1
-          _ = (s - 1) + 1 := by
-              rw [Finset.card_erase_of_mem (Finset.mem_univ _), Finset.card_univ, Fintype.card_fin]
-          _ = s := by omega
-      have hX₁_deg : ∀ u ∈ X₁, (Bcur.filter (G.Adj u)).card ≤ s ^ 3 * t ^ (s - 1) := by
-        intro u hu
-        rcases Finset.mem_insert.mp hu with huv | huImg
-        · rw [huv]
-          have hi₁ := hidx_I₁ rNew
-          obtain ⟨hiNC, hiNotBad⟩ := Finset.mem_sdiff.mp hi₁
-          have hvNotP : v ∉ (Tseq (idx rNew)).P := (Finset.mem_filter.mp hiNC).2.1
-          have hvNotC : v ∉ (Tseq (idx rNew)).core.verts :=
-            fun h => hvNotP ((Tseq (idx rNew)).verts_sub_P h)
-          by_contra hgt
-          have hle_deg : s ^ 3 * t ^ (s - 1) ≤ (Bcur.filter (G.Adj v)).card := by omega
-          exact hiNotBad (Finset.mem_filter.mpr ⟨hidx_I rNew, hvNotC, pB rNew, hle_deg⟩)
-        · obtain ⟨r', hr'er, rfl⟩ := Finset.mem_image.mp huImg
-          have hr'ne : r' ≠ rNew := (Finset.mem_erase.mp hr'er).1
-          have hidx_ne : idx r' ≠ idx rNew := fun h => hr'ne (hidx_inj h)
-          exact le_of_lt (h3.2 (idx r') (hidx_I r') (idx rNew) (hidx_I rNew) hidx_ne
-            (a₀ (idx r')) (ha₀_spec (idx r') (hidx_I₁ r')).1 (pB rNew))
-      let k₁ := s + (s - 1) * s * (s * t ^ (s - 1))
-      let S₁ := Bcur.filter (fun z => ∀ u ∈ X₁, ¬ G.Adj u z)
-      have hS₁_card : k₁ ≤ S₁.card := by
-        refine card_sdiff_adj_ge Bcur X₁ k₁ (s ^ 3 * t ^ (s - 1)) hX₁_deg ?_
-        have hBcard : Bcur.card = tplWBase s t * t := (Tseq (idx rNew)).core.part_card (pB rNew)
-        have hmul := Nat.mul_le_mul_right (s ^ 3 * t ^ (s - 1)) hX₁_card
-        dsimp [k₁]
-        omega
-      let X₂ : Finset V := (Finset.univ : Finset (Fin m × Fin s)).image (fun p => b p.1 p.2)
-      have hX₂_card : X₂.card ≤ (s - 1) * s := by
-        have hc : X₂.card ≤ m * s := le_trans Finset.card_image_le (by simp)
-        exact le_trans hc (Nat.mul_le_mul_right s (by omega))
-      have hX₂_deg : ∀ u ∈ X₂, (S₁.filter (G.Adj u)).card ≤ s * t ^ (s - 1) := by
-        intro u hu
-        obtain ⟨⟨r, j⟩, _, rfl⟩ := Finset.mem_image.mp hu
-        let r' : Fin s := ⟨r.val, by omega⟩
-        have hr_lt : r' < rNew := r.isLt
-        have huP : b r j ∈ (Tseq (idx r')).P :=
-          (Tseq (idx r')).verts_sub_P ((Tseq (idx r')).core.part_sub_verts _ (hb_mem r j))
-        have hlt := nice1_lt_adj h3.1.1 (hidx_I rNew) (hidx_I r') (hidx_anti r' rNew hr_lt)
-          huP (pB rNew)
-        exact le_trans
-          (Finset.card_le_card (Finset.filter_subset_filter _ (Finset.filter_subset _ _)))
-          (le_of_lt hlt)
-      have hS₂_card : s ≤ (S₁.filter (fun z => ∀ u ∈ X₂, ¬ G.Adj u z)).card := by
-        refine card_sdiff_adj_ge S₁ X₂ s (s * t ^ (s - 1)) hX₂_deg ?_
-        calc s + X₂.card * (s * t ^ (s - 1))
-            ≤ s + ((s - 1) * s) * (s * t ^ (s - 1)) :=
-              Nat.add_le_add_left (Nat.mul_le_mul_right _ hX₂_card) s
-          _ = k₁ := rfl
-          _ ≤ S₁.card := hS₁_card
-      obtain ⟨bNew, hbNew_inj, hbNew_f⟩ :=
-        exists_fin_emb_of_card (S₁.filter (fun z => ∀ u ∈ X₂, ¬ G.Adj u z)) hS₂_card
-      let b' : Fin (m + 1) → Fin s → V := fun r => if hr : r.val < m then b ⟨r.val, hr⟩ else bNew
-      refine ⟨b', ?_, ?_, ?_, ?_, ?_⟩
-      · intro r j
-        dsimp [b']
-        split_ifs with hr
-        · exact hb_mem ⟨r.val, hr⟩ j
-        · have hreq : (⟨r.val, by omega⟩ : Fin s) = rNew := Fin.ext (by dsimp [rNew]; omega)
-          rw [hreq]
-          exact (Finset.mem_filter.mp (Finset.mem_filter.mp (hbNew_f j)).1).1
-      · intro r
-        dsimp [b']
-        split_ifs with hr
-        · exact hb_inj ⟨r.val, hr⟩
-        · exact hbNew_inj
-      · intro r j
-        dsimp [b']
-        split_ifs with hr
-        · exact hb_nv ⟨r.val, hr⟩ j
-        · exact (Finset.mem_filter.mp (Finset.mem_filter.mp (hbNew_f j)).1).2 v
-            (Finset.mem_insert_self _ _)
-      · intro r r' hr'ne j
-        dsimp [b']
-        split_ifs with hr
-        · exact hb_na ⟨r.val, hr⟩ r' hr'ne j
-        · have hreq : (⟨r.val, by omega⟩ : Fin s) = rNew := Fin.ext (by dsimp [rNew]; omega)
-          rw [hreq] at hr'ne
-          exact (Finset.mem_filter.mp (Finset.mem_filter.mp (hbNew_f j)).1).2 (a₀ (idx r'))
-            (Finset.mem_insert_of_mem
-              (Finset.mem_image.mpr ⟨r', Finset.mem_erase.mpr ⟨hr'ne, Finset.mem_univ _⟩, rfl⟩))
-      · intro r₁ r₂ hr₁₂ j₁ j₂
-        dsimp [b']
-        split_ifs with h1r h2r h2r
-        · exact hbb_na ⟨r₁.val, h1r⟩ ⟨r₂.val, h2r⟩ hr₁₂ j₁ j₂
-        · exact (Finset.mem_filter.mp (hbNew_f j₂)).2 (b ⟨r₁.val, h1r⟩ j₁)
-            (Finset.mem_image.mpr ⟨(⟨r₁.val, h1r⟩, j₁), Finset.mem_univ _, rfl⟩)
-        · exfalso; have : r₁.val < r₂.val := hr₁₂; omega
-        · exfalso; have : r₁.val < r₂.val := hr₁₂; omega
-  obtain ⟨b, hb_mem, hb_inj, hb_nv, hb_na, hbb_na⟩ := hstep s le_rfl
-  apply hnoTree
-  refine ⟨v, fun r => a₀ (idx r), b, seqSupp_sub Tseq I hv, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · intro r
-    exact ha₀_U (idx r) (hidx_I₁ r)
-  · intro r j
-    exact (Tseq (idx r)).core.part_sub (pB r) (hb_mem r j)
-  · intro r j j' hjj' heq
-    exact hjj' (hb_inj r heq)
-  · intro r
-    exact (ha₀_spec (idx r) (hidx_I₁ r)).2
-  · intro r j
-    exact hb_nv r j
-  · intro r₁ r₂ _
-    exact ha₀_indep (idx r₁) (hidx_I₂ r₁) (idx r₂) (hidx_I₂ r₂)
-  · intro r₁ r₂ j
-    constructor
-    · intro hadj
-      by_contra hne
-      exact hb_na r₂ r₁ hne j hadj
-    · rintro rfl
-      exact (Tseq (idx r₁)).core.part_adj (pA r₁) (pB r₁) (hpB_ne r₁)
-        (a₀ (idx r₁)) (hpA r₁) (b r₁ j) (hb_mem r₁ j)
-  · intro r₁ j₁ r₂ j₂ _
-    by_cases hr : r₁ = r₂
-    · subst hr
-      exact (Tseq (idx r₁)).core.part_indep (pB r₁) (b r₁ j₁) (hb_mem r₁ j₁) (b r₁ j₂) (hb_mem r₁ j₂)
-    · rcases lt_or_gt_of_ne hr with hlt | hgt
-      · exact hbb_na r₁ r₂ hlt j₁ j₂
-      · exact fun h => hbb_na r₂ r₁ hgt j₂ j₁ h.symm
-
-private def Nice5 {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    (Tseq : Fin n → Template G U₀ s d t wBase) (I : Finset (Fin n)) : Prop :=
-  Nice4 Tseq I ∧
-  ∀ i ∈ I, ∀ j ∈ I, i ≠ j → ∀ u ∈ (Tseq i).core.verts, ∀ v ∈ (Tseq j).core.verts, ¬ G.Adj u v
-
-private lemma colorable_nice4_of_nice5 {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {U₀ : Finset V} {s d t wBase n M : ℕ}
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I : Finset (Fin n)}
-    (h4 : Nice4 Tseq I)
-    (h5col : ∀ J ⊆ I, Nice5 Tseq J → ColorableOn G (seqSupp Tseq J) M) :
-    ColorableOn G (seqSupp Tseq I) ((2 * (d * (wBase * t) * tplR4 d t s) + 1) * M) := by
-  classical
-  let D : Fin n → Fin n → Prop := fun i j =>
-    ∃ u ∈ (Tseq i).core.verts, ∃ v ∈ (Tseq j).core.verts, G.Adj u v
-  have hout : ∀ i ∈ I, (I.filter (fun j => j ≠ i ∧ D i j)).card ≤ d * (wBase * t) * tplR4 d t s := by
-    intro i hi
-    let F : V → Finset (Fin n) := fun u =>
-      I.filter (fun j => u ∉ (Tseq j).P ∧ ∃ v ∈ (Tseq j).core.verts, G.Adj u v)
-    have hsub : I.filter (fun j => j ≠ i ∧ D i j) ⊆ ((Tseq i).core.verts).biUnion F := by
-      intro j hj
-      obtain ⟨hjI, hji, u, huCi, v, hvCj, huv⟩ := Finset.mem_filter.mp hj
-      have huPi : u ∈ (Tseq i).P := (Tseq i).verts_sub_P huCi
-      have huNotPj : u ∉ (Tseq j).P := mem_P_unique h4.1.1.1.1 hi hjI hji.symm huPi
-      exact Finset.mem_biUnion.mpr ⟨u, huCi, Finset.mem_filter.mpr ⟨hjI, huNotPj, v, hvCj, huv⟩⟩
-    calc (I.filter (fun j => j ≠ i ∧ D i j)).card
-        ≤ (((Tseq i).core.verts).biUnion F).card := Finset.card_le_card hsub
-      _ ≤ ∑ u ∈ (Tseq i).core.verts, (F u).card := Finset.card_biUnion_le
-      _ ≤ ∑ _u ∈ (Tseq i).core.verts, tplR4 d t s := by
-          refine Finset.sum_le_sum fun u hu => ?_
-          have huSupp : u ∈ seqSupp Tseq I :=
-            Finset.mem_biUnion.mpr ⟨i, hi, (Tseq i).verts_sub_P hu⟩
-          exact le_of_lt (h4.2 u huSupp)
-      _ = ((Tseq i).core.verts).card * tplR4 d t s := by simp
-      _ = d * (wBase * t) * tplR4 d t s := by rw [(Tseq i).core.verts_card]
-  refine colorableOn_of_digraph_blocks I (fun i => (Tseq i).P) D
-    (d * (wBase * t) * tplR4 d t s) M hout fun J hJI hind => h5col J hJI ⟨nice4_mono hJI h4, ?_⟩
-  intro i hi j hj hij u hu v hv huv
-  exact hind i hi j hj hij ⟨u, hu, v, hv, huv⟩
-
-private def Nice6 {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    (Tseq : Fin n → Template G U₀ s d t wBase) (I : Finset (Fin n)) : Prop :=
-  Nice5 Tseq I ∧
-  ∀ v ∈ seqSupp Tseq I,
-    (I.filter (fun i => v ∉ (Tseq i).P ∧ ∃ u ∈ (Tseq i).P, G.Adj v u)).card < tplR6 d t s
-
-private lemma nice6_mono {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I₁ I₂ : Finset (Fin n)}
-    (hsub : I₁ ⊆ I₂) (h : Nice6 Tseq I₂) : Nice6 Tseq I₁ := by
-  refine ⟨⟨nice4_mono hsub h.1.1, fun i hi j hj => h.1.2 i (hsub hi) j (hsub hj)⟩, fun v hv => ?_⟩
-  have hv₂ : v ∈ seqSupp Tseq I₂ := by
-    obtain ⟨i, hi, hvi⟩ := Finset.mem_biUnion.mp hv
-    exact Finset.mem_biUnion.mpr ⟨i, hsub hi, hvi⟩
-  exact lt_of_le_of_lt (Finset.card_le_card (Finset.filter_subset_filter _ hsub)) (h.2 v hv₂)
-
-private lemma nice5_imp_nice6 {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {U₀ : Finset V} {s d t wBase n : ℕ}
-    (ht : 1 ≤ t)
-    (hnoTree : ¬ HasModelTreeOn G U₀ s)
-    (hnoCore : ¬ HasCore G U₀ (d + 1) t)
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I : Finset (Fin n)}
-    (h5 : Nice5 Tseq I) : Nice6 Tseq I := by
-  refine ⟨h5, fun v hv => ?_⟩
-  by_contra hge
-  let NP := I.filter (fun i => v ∉ (Tseq i).P ∧ ∃ u ∈ (Tseq i).P, G.Adj v u)
-  let NC := I.filter (fun i => v ∉ (Tseq i).P ∧ ∃ x ∈ (Tseq i).core.verts, G.Adj v x)
-  have hNC_lt : NC.card < tplR4 d t s := h5.1.2 v hv
-  let I₁ := NP \ NC
-  have hI₁_card : (2 * tplR4 d t s + 1) * tplR d t s ≤ I₁.card := by
-    have hsub : NP ⊆ I₁ ∪ NC := fun x hx => by
-      by_cases hxC : x ∈ NC
-      · exact Finset.mem_union_right _ hxC
-      · exact Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨hx, hxC⟩)
-    have hc := (Finset.card_le_card hsub).trans (Finset.card_union_le _ _)
-    change ¬ NP.card < (2 * tplR4 d t s + 1) * tplR d t s + tplR4 d t s at hge
-    omega
-  classical
-  let a₀ : Fin n → V := fun i =>
-    if hi : i ∈ I₁ then
-      Classical.choose (Finset.mem_filter.mp (Finset.mem_sdiff.mp hi).1).2.2
-    else v
-  have ha₀_spec : ∀ i ∈ I₁, a₀ i ∈ (Tseq i).P ∧ G.Adj v (a₀ i) := by
-    intro i hi
-    dsimp [a₀]
-    rw [dif_pos hi]
-    exact Classical.choose_spec (Finset.mem_filter.mp (Finset.mem_sdiff.mp hi).1).2.2
-  have ha₀_notC : ∀ i ∈ I₁, a₀ i ∉ (Tseq i).core.verts := by
-    intro i hi hmemC
-    obtain ⟨hiNP, hiNotNC⟩ := Finset.mem_sdiff.mp hi
-    obtain ⟨hiI, hvNotPi, _⟩ := Finset.mem_filter.mp hiNP
-    exact hiNotNC (Finset.mem_filter.mpr ⟨hiI, hvNotPi, a₀ i, hmemC, (ha₀_spec i hi).2⟩)
-  let D : Fin n → Fin n → Prop := fun i j =>
-    ∃ x ∈ (Tseq j).core.verts, G.Adj (a₀ i) x
-  have houtD : ∀ i ∈ I₁, (I₁.filter (fun j => j ≠ i ∧ D i j)).card ≤ tplR4 d t s := by
-    intro i hi
-    have hiI : i ∈ I := (Finset.mem_filter.mp (Finset.mem_sdiff.mp hi).1).1
-    have hai_supp : a₀ i ∈ seqSupp Tseq I :=
-      Finset.mem_biUnion.mpr ⟨i, hiI, (ha₀_spec i hi).1⟩
-    have hsub : I₁.filter (fun j => j ≠ i ∧ D i j) ⊆
-        I.filter (fun j => a₀ i ∉ (Tseq j).P ∧ ∃ x ∈ (Tseq j).core.verts, G.Adj (a₀ i) x) := by
-      intro j hj
-      obtain ⟨hjI₁, hji, hD⟩ := Finset.mem_filter.mp hj
-      have hjI : j ∈ I := (Finset.mem_filter.mp (Finset.mem_sdiff.mp hjI₁).1).1
-      have hai_notPj : a₀ i ∉ (Tseq j).P :=
-        mem_P_unique h5.1.1.1.1.1 hiI hjI hji.symm (ha₀_spec i hi).1
-      exact Finset.mem_filter.mpr ⟨hjI, hai_notPj, hD⟩
-    exact le_trans (Finset.card_le_card hsub) (le_of_lt (h5.1.2 (a₀ i) hai_supp))
-  obtain ⟨I₂, hI₂sub, hI₂_mul, hind₂⟩ := exists_indep_of_digraph I₁ D (tplR4 d t s) houtD
-  have hI₂_card : tplR d t s ≤ I₂.card :=
-    Nat.le_of_mul_le_mul_left (le_trans hI₁_card hI₂_mul) (by omega)
-  have ha₀_U : ∀ i ∈ I₂, a₀ i ∈ U₀ :=
-    fun i hi => (Tseq i).P_sub (ha₀_spec i (hI₂sub hi)).1
-  have ha₀_inj : ∀ i ∈ I₂, ∀ j ∈ I₂, a₀ i = a₀ j → i = j := by
-    intro i hi j hj heq
-    by_contra hij
-    have hiI : i ∈ I := (Finset.mem_filter.mp (Finset.mem_sdiff.mp (hI₂sub hi)).1).1
-    have hjI : j ∈ I := (Finset.mem_filter.mp (Finset.mem_sdiff.mp (hI₂sub hj)).1).1
-    have haiP : a₀ i ∈ (Tseq i).P := (ha₀_spec i (hI₂sub hi)).1
-    have hajP : a₀ j ∈ (Tseq j).P := (ha₀_spec j (hI₂sub hj)).1
-    rw [heq] at haiP
-    exact mem_P_unique h5.1.1.1.1.1 hjI hiI (Ne.symm hij) hajP haiP
-  obtain ⟨I₃, hI₃sub, hI₃card, ha₀_indep⟩ :=
-    indep_index_of_no_hasCore ht hnoCore I₂ a₀ ha₀_U ha₀_inj hI₂_card
-  let idx := I₃.orderEmbOfFin hI₃card
-  have hidx_I₃ : ∀ r : Fin s, idx r ∈ I₃ := fun _ => Finset.orderEmbOfFin_mem I₃ hI₃card _
-  have hidx_I₂ : ∀ r : Fin s, idx r ∈ I₂ := fun r => hI₃sub (hidx_I₃ r)
-  have hidx_I₁ : ∀ r : Fin s, idx r ∈ I₁ := fun r => hI₂sub (hidx_I₂ r)
-  have hidx_I : ∀ r : Fin s, idx r ∈ I :=
-    fun r => (Finset.mem_filter.mp (Finset.mem_sdiff.mp (hidx_I₁ r)).1).1
-  have hex_b : ∀ r : Fin s, ∃ (p : Fin d) (br : Fin s → V),
-      Function.Injective br ∧
-      ∀ j : Fin s, br j ∈ ((Tseq (idx r)).core.part p).filter (G.Adj (a₀ (idx r))) := by
-    intro r
-    have hi₁ := hidx_I₁ r
-    obtain ⟨p, hp_card⟩ := (Tseq (idx r)).dense_part (a₀ (idx r))
-      (Finset.mem_sdiff.mpr ⟨(ha₀_spec (idx r) hi₁).1, ha₀_notC (idx r) hi₁⟩)
-    have hs_le : s ≤ (((Tseq (idx r)).core.part p).filter (G.Adj (a₀ (idx r)))).card :=
-      le_trans (Nat.le_mul_of_pos_right s (Nat.one_le_pow _ _ ht)) hp_card
-    obtain ⟨br, hbr_inj, hbr_mem⟩ :=
-      exists_fin_emb_of_card (((Tseq (idx r)).core.part p).filter (G.Adj (a₀ (idx r)))) hs_le
-    exact ⟨p, br, hbr_inj, hbr_mem⟩
-  choose p_of b_of hb_inj hb_mem using hex_b
-  apply hnoTree
-  refine ⟨v, fun r => a₀ (idx r), b_of, seqSupp_sub Tseq I hv, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · intro r
-    exact ha₀_U (idx r) (hidx_I₂ r)
-  · intro r j
-    exact (Tseq (idx r)).core.part_sub (p_of r) (Finset.mem_filter.mp (hb_mem r j)).1
-  · intro r j j' hjj' heq
-    exact hjj' (hb_inj r heq)
-  · intro r
-    exact (ha₀_spec (idx r) (hidx_I₁ r)).2
-  · intro r j hadj
-    obtain ⟨hiNP, hiNotNC⟩ := Finset.mem_sdiff.mp (hidx_I₁ r)
-    obtain ⟨hiI, hvNotP, _⟩ := Finset.mem_filter.mp hiNP
-    have hbC : b_of r j ∈ (Tseq (idx r)).core.verts :=
-      (Tseq (idx r)).core.part_sub_verts (p_of r) (Finset.mem_filter.mp (hb_mem r j)).1
-    exact hiNotNC (Finset.mem_filter.mpr ⟨hiI, hvNotP, b_of r j, hbC, hadj⟩)
-  · intro r₁ r₂ _
-    exact ha₀_indep (idx r₁) (hidx_I₃ r₁) (idx r₂) (hidx_I₃ r₂)
-  · intro r₁ r₂ j
-    constructor
-    · intro hadj
-      by_contra hne
-      have hidx_ne : idx r₁ ≠ idx r₂ := fun h => hne (idx.injective h)
-      have hbC : b_of r₂ j ∈ (Tseq (idx r₂)).core.verts :=
-        (Tseq (idx r₂)).core.part_sub_verts (p_of r₂) (Finset.mem_filter.mp (hb_mem r₂ j)).1
-      exact hind₂ (idx r₁) (hidx_I₂ r₁) (idx r₂) (hidx_I₂ r₂) hidx_ne ⟨b_of r₂ j, hbC, hadj⟩
-    · rintro rfl
-      exact (Finset.mem_filter.mp (hb_mem r₁ j)).2
-  · intro r₁ j₁ r₂ j₂ _
-    by_cases hr : r₁ = r₂
-    · subst hr
-      exact (Tseq (idx r₁)).core.part_indep (p_of r₁)
-        (b_of r₁ j₁) (Finset.mem_filter.mp (hb_mem r₁ j₁)).1
-        (b_of r₁ j₂) (Finset.mem_filter.mp (hb_mem r₁ j₂)).1
-    · have hidx_ne : idx r₁ ≠ idx r₂ := fun h => hr (idx.injective h)
-      exact h5.2 (idx r₁) (hidx_I r₁) (idx r₂) (hidx_I r₂) hidx_ne
-        (b_of r₁ j₁) ((Tseq (idx r₁)).core.part_sub_verts _ (Finset.mem_filter.mp (hb_mem r₁ j₁)).1)
-        (b_of r₂ j₂) ((Tseq (idx r₂)).core.part_sub_verts _ (Finset.mem_filter.mp (hb_mem r₂ j₂)).1)
-
-private def Nice7 {V : Type*} [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
-    {U₀ : Finset V} {s d t wBase n : ℕ}
-    (Tseq : Fin n → Template G U₀ s d t wBase) (I : Finset (Fin n)) : Prop :=
-  Nice6 Tseq I ∧
-  ∀ i ∈ I,
-    ((I.erase i).filter (fun j =>
-      ∃ v ∈ (Tseq i).P, tplR d t s ≤ (((Tseq j).P).filter (G.Adj v)).card)).card <
-        tplR7 d t s (wBase * t)
-
-private lemma nice6_imp_nice7 {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {U₀ : Finset V} {s d t wBase n : ℕ}
-    (hs : 2 ≤ s) (hd : 1 ≤ d) (ht : 1 ≤ t) (hwBase : 1 ≤ wBase)
-    (hnoTree : ¬ HasModelTreeOn G U₀ s)
-    (hnoCore : ¬ HasCore G U₀ (d + 1) t)
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I : Finset (Fin n)}
-    (h6 : Nice6 Tseq I) : Nice7 Tseq I := by
-  refine ⟨h6, fun h hhI => ?_⟩
-  by_contra hge
-  let w := wBase * t
-  let I₁ := (I.erase h).filter (fun j =>
-    ∃ v ∈ (Tseq h).P, tplR d t s ≤ (((Tseq j).P).filter (G.Adj v)).card)
-  have hI₁_card : (2 * tplR6 d t s + 1) * tplL2 d t s w ≤ I₁.card := by
-    change ¬ I₁.card < (2 * tplR6 d t s + 1) * tplL2 d t s w at hge
-    omega
-  have hI₁_ne_h : ∀ j ∈ I₁, j ≠ h ∧ j ∈ I :=
-    fun j hj => Finset.mem_erase.mp (Finset.mem_filter.mp hj).1
-  classical
-  obtain ⟨v_dummy, _⟩ : (Tseq h).P.Nonempty := by
-    have hc : 1 ≤ (Tseq h).core.verts.card := by
-      rw [(Tseq h).core.verts_card]
-      exact Nat.mul_pos hd (Nat.mul_pos hwBase ht)
-    exact Finset.Nonempty.mono (Tseq h).verts_sub_P (Finset.card_pos.mp hc)
-  let a₀ : Fin n → V := fun j =>
-    if hj : j ∈ I₁ then Classical.choose (Finset.mem_filter.mp hj).2 else v_dummy
-  have ha₀_spec : ∀ j ∈ I₁, a₀ j ∈ (Tseq h).P ∧
-      tplR d t s ≤ (((Tseq j).P).filter (G.Adj (a₀ j))).card := by
-    intro j hj
-    simp only [a₀, dif_pos hj]
-    exact Classical.choose_spec (Finset.mem_filter.mp hj).2
-  let D : Fin n → Fin n → Prop := fun i j => ∃ z ∈ (Tseq j).P, G.Adj (a₀ i) z
-  have houtD : ∀ i ∈ I₁, (I₁.filter (fun j => j ≠ i ∧ D i j)).card ≤ tplR6 d t s := by
-    intro i hi
-    have hai_Ph : a₀ i ∈ (Tseq h).P := (ha₀_spec i hi).1
-    have hai_supp : a₀ i ∈ seqSupp Tseq I := Finset.mem_biUnion.mpr ⟨h, hhI, hai_Ph⟩
-    have hsub : I₁.filter (fun j => j ≠ i ∧ D i j) ⊆
-        I.filter (fun j => a₀ i ∉ (Tseq j).P ∧ ∃ z ∈ (Tseq j).P, G.Adj (a₀ i) z) := by
-      intro j hj
-      obtain ⟨hjI₁, _, hD⟩ := Finset.mem_filter.mp hj
-      obtain ⟨hjh, hjI⟩ := hI₁_ne_h j hjI₁
-      have hai_notPj : a₀ i ∉ (Tseq j).P :=
-        mem_P_unique h6.1.1.1.1.1.1 hhI hjI hjh.symm hai_Ph
-      exact Finset.mem_filter.mpr ⟨hjI, hai_notPj, hD⟩
-    exact le_trans (Finset.card_le_card hsub) (le_of_lt (h6.2 (a₀ i) hai_supp))
-  obtain ⟨I₂, hI₂sub, hI₂_mul, hind₂⟩ := exists_indep_of_digraph I₁ D (tplR6 d t s) houtD
-  have hI₂_card : d * w * tplL4 d t s + d * w ≤ I₂.card := by
-    have hle := Nat.le_of_mul_le_mul_left (le_trans hI₁_card hI₂_mul) (by omega)
-    simpa [tplL2] using hle
-  have ha₀_inj_I₂ : ∀ i ∈ I₂, ∀ j ∈ I₂, a₀ i = a₀ j → i = j := by
-    intro i hi j hj heq
-    by_contra hij
-    have hRpos : 1 ≤ (((Tseq i).P).filter (G.Adj (a₀ i))).card :=
-      le_trans (tplR_pos ht (by omega)) (ha₀_spec i (hI₂sub hi)).2
-    obtain ⟨z, hz_f⟩ := Finset.card_pos.mp hRpos
-    obtain ⟨hzPi, haz⟩ := Finset.mem_filter.mp hz_f
-    rw [heq] at haz
-    exact hind₂ j hj i hi (Ne.symm hij) ⟨z, hzPi, haz⟩
-  let I₂C := I₂.filter (fun i => a₀ i ∈ (Tseq h).core.verts)
-  have hI₂C_card : I₂C.card ≤ d * w := by
-    have hinj_on : Set.InjOn a₀ (I₂C : Set (Fin n)) := fun i hi j hj hij =>
-      ha₀_inj_I₂ i (Finset.mem_filter.mp (Finset.mem_coe.mp hi)).1
-        j (Finset.mem_filter.mp (Finset.mem_coe.mp hj)).1 hij
-    have himg_sub : I₂C.image a₀ ⊆ (Tseq h).core.verts := by
-      intro x hx
-      obtain ⟨i, hiC, rfl⟩ := Finset.mem_image.mp hx
-      exact (Finset.mem_filter.mp hiC).2
-    calc I₂C.card
-        = (I₂C.image a₀).card := (Finset.card_image_of_injOn hinj_on).symm
-      _ ≤ (Tseq h).core.verts.card := Finset.card_le_card himg_sub
-      _ = d * w := (Tseq h).core.verts_card
-  let I₃ := I₂.filter (fun i => a₀ i ∉ (Tseq h).core.verts)
-  have hI₃_card : d * w * tplL4 d t s ≤ I₃.card := by
-    have hsub : I₂ ⊆ I₃ ∪ I₂C := fun i hi => by
-      by_cases hiC : a₀ i ∈ (Tseq h).core.verts
-      · exact Finset.mem_union_right _ (Finset.mem_filter.mpr ⟨hi, hiC⟩)
-      · exact Finset.mem_union_left _ (Finset.mem_filter.mpr ⟨hi, hiC⟩)
-    have hc := (Finset.card_le_card hsub).trans (Finset.card_union_le _ _)
-    omega
-  have hex_c : ∀ i ∈ I₃, ∃ x ∈ (Tseq h).core.verts, G.Adj (a₀ i) x := by
-    intro i hi
-    obtain ⟨hiI₂, hai_notC⟩ := Finset.mem_filter.mp hi
-    obtain ⟨p, hp_card⟩ := (Tseq h).dense_part (a₀ i)
-      (Finset.mem_sdiff.mpr ⟨(ha₀_spec i (hI₂sub hiI₂)).1, hai_notC⟩)
-    have hpos : 1 ≤ (((Tseq h).core.part p).filter (G.Adj (a₀ i))).card :=
-      le_trans (Nat.mul_pos (by omega) (Nat.one_le_pow _ _ ht)) hp_card
-    obtain ⟨x, hx_f⟩ := Finset.card_pos.mp hpos
-    obtain ⟨hxp, hax⟩ := Finset.mem_filter.mp hx_f
-    exact ⟨x, (Tseq h).core.part_sub_verts p hxp, hax⟩
-  let c_of : Fin n → V := fun i =>
-    if hi : i ∈ I₃ then Classical.choose (hex_c i hi) else v_dummy
-  have hc_of_spec : ∀ i ∈ I₃, c_of i ∈ (Tseq h).core.verts ∧ G.Adj (a₀ i) (c_of i) := by
-    intro i hi
-    dsimp [c_of]
-    rw [dif_pos hi]
-    exact Classical.choose_spec (hex_c i hi)
-  have hex_c₀ : ∃ c₀ ∈ (Tseq h).core.verts,
-      tplL4 d t s ≤ (I₃.filter (fun i => c_of i = c₀)).card := by
-    by_contra hall
-    have hsum : I₃.card = ∑ c₀ ∈ (Tseq h).core.verts, (I₃.filter (fun i => c_of i = c₀)).card :=
-      Finset.card_eq_sum_card_fiberwise fun i hi => (hc_of_spec i hi).1
-    have hC_ne : (Tseq h).core.verts.Nonempty := by
-      rw [← Finset.card_pos, (Tseq h).core.verts_card]
-      exact Nat.mul_pos hd (Nat.mul_pos hwBase ht)
-    have hlt_sum : ∑ c₀ ∈ (Tseq h).core.verts, (I₃.filter (fun i => c_of i = c₀)).card <
-        ∑ _c₀ ∈ (Tseq h).core.verts, tplL4 d t s := by
-      refine Finset.sum_lt_sum_of_nonempty hC_ne fun c₀ hc₀ => ?_
-      exact lt_of_not_ge fun hge_c => hall ⟨c₀, hc₀, hge_c⟩
-    rw [← hsum, Finset.sum_const, (Tseq h).core.verts_card, smul_eq_mul] at hlt_sum
-    change d * (wBase * t) * tplL4 d t s ≤ I₃.card at hI₃_card
-    omega
-  obtain ⟨c₀, hc₀C, hI₄_card⟩ := hex_c₀
-  let I₄ := I₃.filter (fun i => c_of i = c₀)
-  let BadC := I₄.filter (fun i => ∃ z ∈ (Tseq i).P, G.Adj c₀ z)
-  have hBadC_lt : BadC.card < tplR6 d t s := by
-    have hc₀_supp : c₀ ∈ seqSupp Tseq I :=
-      Finset.mem_biUnion.mpr ⟨h, hhI, (Tseq h).verts_sub_P hc₀C⟩
-    have hsub : BadC ⊆ I.filter (fun i => c₀ ∉ (Tseq i).P ∧ ∃ z ∈ (Tseq i).P, G.Adj c₀ z) := by
-      intro i hi
-      obtain ⟨hiI₄, hcz⟩ := Finset.mem_filter.mp hi
-      have hiI₁ : i ∈ I₁ := hI₂sub (Finset.mem_filter.mp (Finset.mem_filter.mp hiI₄).1).1
-      obtain ⟨hih, hiI⟩ := hI₁_ne_h i hiI₁
-      have hc₀_notPi : c₀ ∉ (Tseq i).P :=
-        mem_P_unique h6.1.1.1.1.1.1 hhI hiI hih.symm ((Tseq h).verts_sub_P hc₀C)
-      exact Finset.mem_filter.mpr ⟨hiI, hc₀_notPi, hcz⟩
-    exact lt_of_le_of_lt (Finset.card_le_card hsub) (h6.2 c₀ hc₀_supp)
-  let I₅ := I₄ \ BadC
-  have hI₅_card : (2 * (s * tplR6 d t s) + 1) * tplR d t s ≤ I₅.card := by
-    have hsub : I₄ ⊆ I₅ ∪ BadC := fun i hi => by
-      by_cases hiB : i ∈ BadC
-      · exact Finset.mem_union_right _ hiB
-      · exact Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨hi, hiB⟩)
-    have hc := (Finset.card_le_card hsub).trans (Finset.card_union_le _ _)
-    change (2 * (s * tplR6 d t s) + 1) * tplR d t s + tplR6 d t s ≤ I₄.card at hI₄_card
-    omega
-  have hI₅_sub_I₁ : I₅ ⊆ I₁ :=
-    Finset.sdiff_subset.trans
-      ((Finset.filter_subset _ _).trans ((Finset.filter_subset _ _).trans hI₂sub))
-  have hex_Y : ∀ i ∈ I₅, ∃ br : Fin s → V,
-      Function.Injective br ∧
-      (∀ m : Fin s, br m ∈ ((Tseq i).P).filter (G.Adj (a₀ i))) ∧
-      (∀ m₁ m₂ : Fin s, ¬ G.Adj (br m₁) (br m₂)) := by
-    intro i hi
-    let Ni := ((Tseq i).P).filter (G.Adj (a₀ i))
-    have hNi_card : ramseyNum ((d + 1) * t) s ≤ Ni.card := (ha₀_spec i (hI₅_sub_I₁ hi)).2
-    rcases ramsey_clique_or_indep G ((d + 1) * t) s Ni hNi_card with
-      ⟨K, hKNi, hKc, hKcl⟩ | ⟨Y, hYNi, hYc, hYi⟩
-    · exfalso
-      have hKU₀ : (K : Set V) ⊆ (U₀ : Set V) := by
-        intro x hx
-        exact Finset.mem_coe.mpr
-          ((Tseq i).P_sub (Finset.mem_filter.mp (hKNi (Finset.mem_coe.mp hx))).1)
-      exact cliqueFreeOn_of_not_hasCore hnoCore hKU₀ ⟨hKcl, hKc⟩
-    · obtain ⟨br, hbr_inj, hbr_Y⟩ := exists_fin_emb_of_card Y (le_of_eq hYc.symm)
-      exact ⟨br, hbr_inj, fun m => hYNi (hbr_Y m), fun m₁ m₂ => hYi _ (hbr_Y m₁) _ (hbr_Y m₂)⟩
-  let b₀ : Fin n → Fin s → V := fun i =>
-    if hi : i ∈ I₅ then Classical.choose (hex_Y i hi) else fun _ => v_dummy
-  have hb₀_spec : ∀ i ∈ I₅,
-      Function.Injective (b₀ i) ∧
-      (∀ m : Fin s, b₀ i m ∈ ((Tseq i).P).filter (G.Adj (a₀ i))) ∧
-      (∀ m₁ m₂ : Fin s, ¬ G.Adj (b₀ i m₁) (b₀ i m₂)) := by
-    intro i hi
-    dsimp [b₀]
-    rw [dif_pos hi]
-    exact Classical.choose_spec (hex_Y i hi)
-  let D' : Fin n → Fin n → Prop := fun i j => ∃ m₁ m₂ : Fin s, G.Adj (b₀ i m₁) (b₀ j m₂)
-  have houtD' : ∀ i ∈ I₅, (I₅.filter (fun j => j ≠ i ∧ D' i j)).card ≤ s * tplR6 d t s := by
-    intro i hi
-    have hiI : i ∈ I := (hI₁_ne_h i (hI₅_sub_I₁ hi)).2
-    let F : Fin s → Finset (Fin n) := fun m₁ =>
-      I.filter (fun j => b₀ i m₁ ∉ (Tseq j).P ∧ ∃ z ∈ (Tseq j).P, G.Adj (b₀ i m₁) z)
-    have hsub : I₅.filter (fun j => j ≠ i ∧ D' i j) ⊆ (Finset.univ : Finset (Fin s)).biUnion F := by
-      intro j hj
-      obtain ⟨hjI₅, hji, m₁, m₂, hadj⟩ := Finset.mem_filter.mp hj
-      have hjI : j ∈ I := (hI₁_ne_h j (hI₅_sub_I₁ hjI₅)).2
-      have hbiPi : b₀ i m₁ ∈ (Tseq i).P := (Finset.mem_filter.mp ((hb₀_spec i hi).2.1 m₁)).1
-      have hbjPj : b₀ j m₂ ∈ (Tseq j).P := (Finset.mem_filter.mp ((hb₀_spec j hjI₅).2.1 m₂)).1
-      have hbi_notPj : b₀ i m₁ ∉ (Tseq j).P :=
-        mem_P_unique h6.1.1.1.1.1.1 hiI hjI hji.symm hbiPi
-      exact Finset.mem_biUnion.mpr ⟨m₁, Finset.mem_univ _,
-        Finset.mem_filter.mpr ⟨hjI, hbi_notPj, b₀ j m₂, hbjPj, hadj⟩⟩
-    calc (I₅.filter (fun j => j ≠ i ∧ D' i j)).card
-        ≤ ((Finset.univ : Finset (Fin s)).biUnion F).card := Finset.card_le_card hsub
-      _ ≤ ∑ m₁ : Fin s, (F m₁).card := Finset.card_biUnion_le
-      _ ≤ ∑ _m₁ : Fin s, tplR6 d t s := by
-          refine Finset.sum_le_sum fun m₁ _ => ?_
-          have hbi_supp : b₀ i m₁ ∈ seqSupp Tseq I :=
-            Finset.mem_biUnion.mpr ⟨i, hiI, (Finset.mem_filter.mp ((hb₀_spec i hi).2.1 m₁)).1⟩
-          exact le_of_lt (h6.2 (b₀ i m₁) hbi_supp)
-      _ = s * tplR6 d t s := by simp
-  obtain ⟨I₆, hI₆sub, hI₆_mul, hind₆⟩ := exists_indep_of_digraph I₅ D' (s * tplR6 d t s) houtD'
-  have hI₆_card : tplR d t s ≤ I₆.card :=
-    Nat.le_of_mul_le_mul_left (le_trans hI₅_card hI₆_mul) (by omega)
-  have hI₆_sub_I₂ : I₆ ⊆ I₂ :=
-    hI₆sub.trans (Finset.sdiff_subset.trans ((Finset.filter_subset _ _).trans (Finset.filter_subset _ _)))
-  have ha₀_U : ∀ i ∈ I₆, a₀ i ∈ U₀ :=
-    fun i hi => (Tseq h).P_sub (ha₀_spec i (hI₂sub (hI₆_sub_I₂ hi))).1
-  have ha₀_inj_I₆ : ∀ i ∈ I₆, ∀ j ∈ I₆, a₀ i = a₀ j → i = j :=
-    fun i hi j hj => ha₀_inj_I₂ i (hI₆_sub_I₂ hi) j (hI₆_sub_I₂ hj)
-  obtain ⟨I₇, hI₇sub, hI₇card, ha₀_indep⟩ :=
-    indep_index_of_no_hasCore ht hnoCore I₆ a₀ ha₀_U ha₀_inj_I₆ hI₆_card
-  let idx := I₇.orderEmbOfFin hI₇card
-  have hidx_I₇ : ∀ r : Fin s, idx r ∈ I₇ := fun _ => Finset.orderEmbOfFin_mem I₇ hI₇card _
-  have hidx_I₆ : ∀ r : Fin s, idx r ∈ I₆ := fun r => hI₇sub (hidx_I₇ r)
-  have hidx_I₅ : ∀ r : Fin s, idx r ∈ I₅ := fun r => hI₆sub (hidx_I₆ r)
-  have hidx_I₂ : ∀ r : Fin s, idx r ∈ I₂ := fun r => hI₆_sub_I₂ (hidx_I₆ r)
-  apply hnoTree
-  refine ⟨c₀, fun r => a₀ (idx r), fun r => b₀ (idx r),
-    (Tseq h).core.verts_sub hc₀C, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · intro r
-    exact ha₀_U (idx r) (hidx_I₆ r)
-  · intro r m
-    exact (Tseq (idx r)).P_sub
-      (Finset.mem_filter.mp ((hb₀_spec (idx r) (hidx_I₅ r)).2.1 m)).1
-  · intro r m m' hmm' heq
-    exact hmm' ((hb₀_spec (idx r) (hidx_I₅ r)).1 heq)
-  · intro r
-    have hi₄ : idx r ∈ I₄ := (Finset.mem_sdiff.mp (hidx_I₅ r)).1
-    obtain ⟨hi₃, hc_eq⟩ := Finset.mem_filter.mp hi₄
-    rw [← hc_eq]
-    exact ((hc_of_spec (idx r) hi₃).2).symm
-  · intro r m hadj
-    obtain ⟨hi₄, hiNotBad⟩ := Finset.mem_sdiff.mp (hidx_I₅ r)
-    have hbP : b₀ (idx r) m ∈ (Tseq (idx r)).P :=
-      (Finset.mem_filter.mp ((hb₀_spec (idx r) (hidx_I₅ r)).2.1 m)).1
-    exact hiNotBad (Finset.mem_filter.mpr ⟨hi₄, b₀ (idx r) m, hbP, hadj⟩)
-  · intro r₁ r₂ _
-    exact ha₀_indep (idx r₁) (hidx_I₇ r₁) (idx r₂) (hidx_I₇ r₂)
-  · intro r₁ r₂ m
-    constructor
-    · intro hadj
-      by_contra hne
-      have hidx_ne : idx r₁ ≠ idx r₂ := fun heq => hne (idx.injective heq)
-      have hbP : b₀ (idx r₂) m ∈ (Tseq (idx r₂)).P :=
-        (Finset.mem_filter.mp ((hb₀_spec (idx r₂) (hidx_I₅ r₂)).2.1 m)).1
-      exact hind₂ (idx r₁) (hidx_I₂ r₁) (idx r₂) (hidx_I₂ r₂) hidx_ne ⟨b₀ (idx r₂) m, hbP, hadj⟩
-    · rintro rfl
-      exact (Finset.mem_filter.mp ((hb₀_spec (idx r₁) (hidx_I₅ r₁)).2.1 m)).2
-  · intro r₁ m₁ r₂ m₂ _
-    by_cases hr : r₁ = r₂
-    · subst hr
-      exact (hb₀_spec (idx r₁) (hidx_I₅ r₁)).2.2 m₁ m₂
-    · have hidx_ne : idx r₁ ≠ idx r₂ := fun heq => hr (idx.injective heq)
-      intro hadj
-      exact hind₆ (idx r₁) (hidx_I₆ r₁) (idx r₂) (hidx_I₆ r₂) hidx_ne ⟨m₁, m₂, hadj⟩
-
-private lemma colorable_nice7 {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {U₀ : Finset V} {s d t wBase n Mf : ℕ}
-    (hs : 2 ≤ s) (ht : 1 ≤ t)
-    (hnoCore : ¬ HasCore G U₀ (d + 1) t)
-    (hf : ∀ S ⊆ U₀, ¬ HasCore G S d t → ColorableOn G S Mf)
-    {Tseq : Fin n → Template G U₀ s d t wBase} {I : Finset (Fin n)}
-    (h7 : Nice7 Tseq I) :
-    ColorableOn G (seqSupp Tseq I)
-      ((2 * tplR7 d t s (wBase * t) + 1) *
-        ((d * (wBase * t) + 2 ^ (d * (wBase * t)) * Mf) *
-          (tplR6 d t s * tplR d t s + 1))) := by
-  classical
-  let w := wBase * t
-  let D : Fin n → Fin n → Prop := fun i j =>
-    ∃ v ∈ (Tseq i).P, tplR d t s ≤ (((Tseq j).P).filter (G.Adj v)).card
-  have hout : ∀ i ∈ I, (I.filter (fun j => j ≠ i ∧ D i j)).card ≤ tplR7 d t s w := by
-    intro i hi
-    have hsub : I.filter (fun j => j ≠ i ∧ D i j) ⊆ (I.erase i).filter (fun j => D i j) := by
-      intro j hj
-      obtain ⟨hjI, hji, hD⟩ := Finset.mem_filter.mp hj
-      exact Finset.mem_filter.mpr ⟨Finset.mem_erase.mpr ⟨hji, hjI⟩, hD⟩
-    exact le_trans (Finset.card_le_card hsub) (le_of_lt (h7.2 i hi))
-  refine colorableOn_of_digraph_blocks I (fun i => (Tseq i).P) D (tplR7 d t s w)
-    ((d * w + 2 ^ (d * w) * Mf) * (tplR6 d t s * tplR d t s + 1)) hout fun J hJI hind => ?_
-  refine colorableOn_product_blocks J (fun i => (Tseq i).P)
-    (d * w + 2 ^ (d * w) * Mf) (tplR6 d t s * tplR d t s)
-    (fun i hi j hj hij => h7.1.1.1.1.1.1.1.1 i (hJI hi) j (hJI hj) hij)
-    (fun i _ => colorableOn_template hs ht hnoCore hf (Tseq i)) ?_
-  intro i hi v hv
-  let NJ := J.filter (fun j => v ∉ (Tseq j).P ∧ ∃ u ∈ (Tseq j).P, G.Adj v u)
-  have hNJ_card : NJ.card ≤ tplR6 d t s := by
-    have hvSupp : v ∈ seqSupp Tseq I := Finset.mem_biUnion.mpr ⟨i, hJI hi, hv⟩
-    exact le_trans (Finset.card_le_card (Finset.filter_subset_filter _ hJI))
-      (le_of_lt (h7.1.2 v hvSupp))
-  have hsub : (J.biUnion (fun j => (Tseq j).P) \ (Tseq i).P).filter (G.Adj v) ⊆
-      NJ.biUnion (fun j => ((Tseq j).P).filter (G.Adj v)) := by
-    intro z hz
-    obtain ⟨hzSdiff, hzv⟩ := Finset.mem_filter.mp hz
-    obtain ⟨hzBi, hzNotPi⟩ := Finset.mem_sdiff.mp hzSdiff
-    obtain ⟨j, hjJ, hzPj⟩ := Finset.mem_biUnion.mp hzBi
-    have hji : j ≠ i := fun heq => hzNotPi (heq ▸ hzPj)
-    have hvNotPj : v ∉ (Tseq j).P :=
-      mem_P_unique h7.1.1.1.1.1.1.1 (hJI hi) (hJI hjJ) hji.symm hv
-    exact Finset.mem_biUnion.mpr ⟨j, Finset.mem_filter.mpr ⟨hjJ, hvNotPj, z, hzPj, hzv⟩,
-      Finset.mem_filter.mpr ⟨hzPj, hzv⟩⟩
-  calc ((J.biUnion (fun j => (Tseq j).P) \ (Tseq i).P).filter (G.Adj v)).card
-      ≤ (NJ.biUnion (fun j => ((Tseq j).P).filter (G.Adj v))).card := Finset.card_le_card hsub
-    _ ≤ ∑ j ∈ NJ, (((Tseq j).P).filter (G.Adj v)).card := Finset.card_biUnion_le
-    _ ≤ ∑ _j ∈ NJ, tplR d t s := by
-        refine Finset.sum_le_sum fun j hj => ?_
-        obtain ⟨hjJ, hvNotPj, _⟩ := Finset.mem_filter.mp hj
-        have hji : i ≠ j := fun heq => hvNotPj (heq ▸ hv)
-        exact le_of_lt (lt_of_not_ge fun hge_R => hind i hi j hjJ hji ⟨v, hv, hge_R⟩)
-    _ = NJ.card * tplR d t s := by simp
-    _ ≤ tplR6 d t s * tplR d t s := Nat.mul_le_mul_right _ hNJ_card
-
-private def stepChiBound (s d : ℕ) (f : ℕ → ℕ) (t : ℕ) : ℕ :=
-  let wBase := tplWBase s t
-  let w := wBase * t
-  let M_tpl := d * w + 2 ^ (d * w) * f t
-  let M_cross := tplR6 d t s * tplR d t s
-  let B7 := (2 * tplR7 d t s w + 1) * (M_tpl * (M_cross + 1))
-  let B4 := (2 * (d * w * tplR4 d t s) + 1) * B7
-  let B2 := (2 * (d * w * (s - 1)) + 1) * B4
-  f (max (rodlBound s t) t * w) + (2 * t + 1) * B2
-
-private lemma colorableOn_step {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {U₀ : Finset V} {s d t : ℕ} {f : ℕ → ℕ}
-    (hs : 2 ≤ s) (hd : 2 ≤ d) (ht : 1 ≤ t)
-    (hnoTree : ¬ HasModelTreeOn G U₀ s)
-    (hnoCore : ¬ HasCore G U₀ (d + 1) t)
-    (hf : ∀ t' : ℕ, 1 ≤ t' → ∀ S ⊆ U₀, ¬ HasCore G S d t' → ColorableOn G S (f t')) :
-    ColorableOn G U₀ (stepChiBound s d f t) := by
-  classical
-  let wBase := tplWBase s t
-  let w := wBase * t
-  have hwBase_pos : 1 ≤ wBase := tplWBase_pos s t
-  have hw_pos : 1 ≤ w := Nat.mul_pos hwBase_pos ht
-  obtain ⟨n, Tseq, hSeqUniv, hEmp⟩ :=
-    exists_maximal_templateSeq (s := s) G U₀ (by omega : 1 ≤ d) ht hwBase_pos
-  have ht'_pos : 1 ≤ max (rodlBound s t) t * w :=
-    Nat.mul_pos (le_trans ht (le_max_right _ _)) hw_pos
-  have hrem_sub : U₀ \ seqSupp Tseq Finset.univ ⊆ U₀ := Finset.sdiff_subset
-  have hcolRem : ColorableOn G (U₀ \ seqSupp Tseq Finset.univ) (f (max (rodlBound s t) t * w)) :=
-    colorableOn_of_isEmpty_stableCore hs ht hw_pos hrem_sub hnoTree hnoCore hEmp
-      (hf _ ht'_pos _ hrem_sub)
-  let D₀ : Fin n → Fin n → Prop := fun i j =>
-    ∃ v ∈ (Tseq j).P,
-      ∀ p : Fin d, (((Tseq i).core.part p).filter (fun x => ¬ G.Adj v x)).card < wBase
-  have hout₀ : ∀ i ∈ (Finset.univ : Finset (Fin n)),
-      ((Finset.univ : Finset (Fin n)).filter (fun j => j ≠ i ∧ D₀ i j)).card ≤ t := by
-    intro i _
-    let Bidx := (Finset.univ : Finset (Fin n)).filter (fun j => j ≠ i ∧ D₀ i j)
-    rcases Bidx.eq_empty_or_nonempty with hemp | ⟨j₀, hj₀⟩
-    · change Bidx.card ≤ t; rw [hemp]; simp
-    · obtain ⟨v_dummy, _⟩ := (Finset.mem_filter.mp hj₀).2.2
-      let v_of : Fin n → V := fun j =>
-        if hj : j ∈ Bidx then Classical.choose (Finset.mem_filter.mp hj).2.2 else v_dummy
-      have hv_spec : ∀ j ∈ Bidx, v_of j ∈ (Tseq j).P ∧
-          ∀ p : Fin d, (((Tseq i).core.part p).filter (fun x => ¬ G.Adj (v_of j) x)).card < wBase := by
-        intro j hj
-        simp only [v_of, dif_pos hj]
-        exact Classical.choose_spec (Finset.mem_filter.mp hj).2.2
-      have hinj_on : Set.InjOn v_of (Bidx : Set (Fin n)) := by
-        intro j₁ hj₁ j₂ hj₂ heq
-        by_contra hne
-        have hv1 : v_of j₁ ∈ (Tseq j₁).P :=
-          (hv_spec j₁ (Finset.mem_coe.mp hj₁)).1
-        have hv2 : v_of j₂ ∈ (Tseq j₂).P :=
-          (hv_spec j₂ (Finset.mem_coe.mp hj₂)).1
-        rw [heq] at hv1
-        exact mem_P_unique hSeqUniv (Finset.mem_univ _) (Finset.mem_univ _) (Ne.symm hne) hv2 hv1
-      have himg_sub : Bidx.image v_of ⊆ (U₀ \ (Tseq i).core.verts).filter
-          (fun v => ∀ p : Fin d, (((Tseq i).core.part p).filter (fun x => ¬ G.Adj v x)).card < wBase) := by
-        intro v hv
-        obtain ⟨j, hjB, rfl⟩ := Finset.mem_image.mp hv
-        have hji : j ≠ i := (Finset.mem_filter.mp hjB).2.1
-        have hvPj : v_of j ∈ (Tseq j).P := (hv_spec j hjB).1
-        have hvNotPi : v_of j ∉ (Tseq i).P :=
-          mem_P_unique hSeqUniv (Finset.mem_univ _) (Finset.mem_univ _) hji hvPj
-        have hvNotCi : v_of j ∉ (Tseq i).core.verts :=
-          fun h => hvNotPi ((Tseq i).verts_sub_P h)
-        exact Finset.mem_filter.mpr
-          ⟨Finset.mem_sdiff.mpr ⟨(Tseq j).P_sub hvPj, hvNotCi⟩, (hv_spec j hjB).2⟩
-      have hQ_lt := few_nonadj_card_lt hwBase_pos hnoCore (Tseq i).core
-      calc Bidx.card
-          = (Bidx.image v_of).card := (Finset.card_image_of_injOn hinj_on).symm
-        _ ≤ ((U₀ \ (Tseq i).core.verts).filter _).card := Finset.card_le_card himg_sub
-        _ ≤ t := le_of_lt hQ_lt
-  let M_tpl := d * w + 2 ^ (d * w) * f t
-  let M_cross := tplR6 d t s * tplR d t s
-  let B7 := (2 * tplR7 d t s w + 1) * (M_tpl * (M_cross + 1))
-  let B4 := (2 * (d * w * tplR4 d t s) + 1) * B7
-  let B2 := (2 * (d * w * (s - 1)) + 1) * B4
-  have hcolSupp : ColorableOn G (seqSupp Tseq Finset.univ) ((2 * t + 1) * B2) := by
-    refine colorableOn_of_digraph_blocks Finset.univ (fun i => (Tseq i).P) D₀ t B2 hout₀ ?_
-    intro I hI hind₀
-    have h1 : Nice1 Tseq I := by
-      refine ⟨isTemplateSeq_mono hI hSeqUniv, fun i hi j hj hij v hv => ?_⟩
-      by_contra hno_p
-      exact hind₀ i hi j hj hij ⟨v, hv, fun p => lt_of_not_ge fun hp => hno_p ⟨p, hp⟩⟩
-    have h2 : Nice2 Tseq I := nice1_imp_nice2 hs hd ht hnoTree h1
-    refine colorable_nice2_of_nice3 h2 fun J₃ _ h3 => ?_
-    have h4 : Nice4 Tseq J₃ := nice3_imp_nice4 hs hd ht hnoTree hnoCore h3
-    refine colorable_nice4_of_nice5 h4 fun J₅ _ h5 => ?_
-    have h6 : Nice6 Tseq J₅ := nice5_imp_nice6 ht hnoTree hnoCore h5
-    have h7 : Nice7 Tseq J₅ := nice6_imp_nice7 hs (by omega) ht hwBase_pos hnoTree hnoCore h6
-    exact colorable_nice7 hs ht hnoCore (hf t ht) h7
-  have hU_sub : U₀ ⊆ (U₀ \ seqSupp Tseq Finset.univ) ∪ seqSupp Tseq Finset.univ := fun x hx => by
-    by_cases hxS : x ∈ seqSupp Tseq Finset.univ
-    · exact Finset.mem_union_right _ hxS
-    · exact Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨hx, hxS⟩)
-  exact colorableOn_mono_set hU_sub (colorableOn_union_add hcolRem hcolSupp)
-
-private def coreChiBound (s : ℕ) : ℕ → ℕ → ℕ
-  | 0, t => rodlBound s t
-  | m + 1, t => stepChiBound s (m + 2) (coreChiBound s m) t
-
-private lemma colorableOn_of_no_core {V : Type*} [DecidableEq V] {G : SimpleGraph V}
-    [DecidableRel G.Adj] {s : ℕ} (hs : 2 ≤ s) (m : ℕ) :
-    ∀ {t : ℕ} (_ht : 1 ≤ t) (U : Finset V),
-      ¬ HasModelTreeOn G U s →
-      ¬ HasCore G U (m + 2) t →
-      ColorableOn G U (coreChiBound s m t) := by
+/-- Iterated bipartite pure pairs against `m` sets. -/
+theorem iter_lemma (T₀ : ℕ) (hT : 1 ≤ T₀) : ∀ m M : ℕ, ∃ L : ℕ, ∀ {V : Type} [Fintype V] [DecidableEq V]
+    (G : SimpleGraph V) [DecidableRel G.Adj] (S X : Finset V) (Z : Fin m → Finset V),
+    NoKPair G S T₀ → X ⊆ S → (∀ i, Z i ⊆ S) → (∀ i, Disjoint X (Z i)) →
+    L ≤ X.card → (∀ i, L ≤ (Z i).card) →
+    ∃ X' ⊆ X, ∃ Z' : Fin m → Finset V, M ≤ X'.card ∧
+      ∀ i, Z' i ⊆ Z i ∧ M ≤ (Z' i).card ∧ Anti G X' (Z' i) := by
+  intro m
   induction m with
   | zero =>
-    intro t ht U hnoTree hnoCore
-    exact colorableOn_bicliqueFree_no_modelTree hs ht U hnoTree hnoCore
+    intro M
+    refine ⟨M, fun G _ S X Z _ _ _ _ hX _ => ⟨X, subset_rfl, Z, hX, fun i => i.elim0⟩⟩
   | succ m ih =>
-    intro t ht U hnoTree hnoCore
-    exact colorableOn_step hs (by omega : 2 ≤ m + 2) ht hnoTree hnoCore
-      fun t' ht' S hSU hnoS => ih ht' S (fun h => hnoTree (hasModelTreeOn_mono hSU h)) hnoS
+    intro M
+    obtain ⟨L', hL'⟩ := ih M
+    set p := max L' M
+    refine ⟨max L' (max (p + T₀ - 1) (max p T₀ * 2 ^ (p + T₀ - 1))), ?_⟩
+    intro V _ _ G _ S X Z hK hX hZ hXZ hXc hZc
+    obtain ⟨X₀, hX₀, hX₀c⟩ := exists_subset_card_eq
+      ((le_max_left _ _).trans ((le_max_right L' _).trans hXc))
+    obtain ⟨X₁, hX₁, Zl, hZl, hX₁c, hZlc, hanti⟩ := br_lemma hK (hX₀.trans hX) (hZ (Fin.last m))
+      (Disjoint.mono_left hX₀ (hXZ _)) hX₀c hT
+      (by rw [hX₀c]; exact (le_max_right _ _).trans ((le_max_right L' _).trans (hZc _)))
+    obtain ⟨X', hX', Z', hX'c, hZ'⟩ := hL' G S X₁ (fun i => Z (Fin.castSucc i)) hK
+      ((hX₁.trans hX₀).trans hX) (fun i => hZ _) (fun i => Disjoint.mono_left (hX₁.trans hX₀) (hXZ _))
+      (by rw [hX₁c]; exact le_max_left _ _) (fun i => (le_max_left _ _).trans (hZc _))
+    refine ⟨X', hX'.trans (hX₁.trans hX₀), Fin.lastCases Zl Z', hX'c, ?_⟩
+    intro i
+    induction i using Fin.lastCases with
+    | last =>
+      simp only [Fin.lastCases_last]
+      exact ⟨hZl, by rw [hZlc]; exact le_max_right _ _, hanti.mono hX' subset_rfl⟩
+    | cast i =>
+      simp only [Fin.lastCases_castSucc]
+      exact hZ' i
 
-/- ## Section 5: Main Theorem -/
+/-- Lemma 5.2: many pairwise anticomplete `p`-sets. -/
+theorem ma_lemma (T₀ p : ℕ) (hT : 1 ≤ T₀) : ∀ k : ℕ, ∃ N : ℕ, ∀ {V : Type} [Fintype V] [DecidableEq V]
+    (G : SimpleGraph V) [DecidableRel G.Adj] (S : Finset V) (Z : Fin k → Finset V),
+    NoKPair G S T₀ → (∀ i, Z i ⊆ S) → (∀ i j, i ≠ j → Disjoint (Z i) (Z j)) →
+    (∀ i, N ≤ (Z i).card) →
+    ∃ Y : Fin k → Finset V, (∀ i, Y i ⊆ Z i ∧ (Y i).card = p) ∧
+      ∀ i j, i ≠ j → Anti G (Y i) (Y j) := by
+  intro k
+  induction k with
+  | zero => exact ⟨0, fun G _ S Z _ _ _ _ => ⟨Z, fun i => i.elim0, fun i => i.elim0⟩⟩
+  | succ k ih =>
+    obtain ⟨Nk, hNk⟩ := ih
+    obtain ⟨L, hL⟩ := iter_lemma T₀ hT k (max Nk p)
+    refine ⟨L, ?_⟩
+    intro V _ _ G _ S Z hK hZ hdisj hZc
+    obtain ⟨X', hX', Z', hX'c, hZ'⟩ := hL G S (Z (Fin.last k)) (fun i => Z (Fin.castSucc i)) hK
+      (hZ _) (fun i => hZ _)
+      (fun i => hdisj _ _ (Fin.castSucc_lt_last i).ne') (hZc _) (fun i => hZc _)
+    obtain ⟨Y, hY, hYa⟩ := hNk G S Z' hK (fun i => (hZ' i).1.trans (hZ _))
+      (fun i j hij => Disjoint.mono (hZ' i).1 (hZ' j).1 (hdisj _ _ (fun h => hij (Fin.castSucc_injective _ h))))
+      (fun i => (le_max_left _ _).trans (hZ' i).2.1)
+    obtain ⟨Yl, hYl, hYlc⟩ := exists_subset_card_eq ((le_max_right Nk p).trans hX'c)
+    refine ⟨Fin.lastCases Yl Y, ?_, ?_⟩
+    · intro i
+      induction i using Fin.lastCases with
+      | last => simp only [Fin.lastCases_last]; exact ⟨hYl.trans hX', hYlc⟩
+      | cast i => simp only [Fin.lastCases_castSucc]; exact ⟨(hY i).1.trans (hZ' i).1, (hY i).2⟩
+    · intro i j hij
+      induction i using Fin.lastCases with
+      | last =>
+        induction j using Fin.lastCases with
+        | last => exact absurd rfl hij
+        | cast j =>
+          simp only [Fin.lastCases_last, Fin.lastCases_castSucc]
+          exact (hZ' j).2.2.mono hYl (hY j).1
+      | cast i =>
+        induction j using Fin.lastCases with
+        | last =>
+          simp only [Fin.lastCases_last, Fin.lastCases_castSucc]
+          exact ((hZ' i).2.2.mono hYl (hY i).1).symm
+        | cast j =>
+          simp only [Fin.lastCases_castSucc]
+          exact hYa i j (fun h => hij (by rw [h]))
+
+end Lemmas
+
+section Base
+variable {V : Type} [Fintype V] [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
+
+/-- T4a: a set that is not `D`-colourable contains a nonempty subset of minimum degree `≥ D`. -/
+theorem exists_minDeg_of_not_col {S : Finset V} {D : ℕ} (h : ¬ col G S D) :
+    ∃ S' ⊆ S, S'.Nonempty ∧ ∀ v ∈ S', D ≤ (S'.filter (G.Adj v)).card := by
+  by_contra hcon
+  push_neg at hcon
+  exact h (deg_col G.Adj (fun x => G.irrefl) (fun x y h => h.symm) D S hcon)
+
+end Base
+
+/-- The base case S(2) (Rödl-type). -/
+theorem base_S2 (s ω t : ℕ) (hs : 2 ≤ s) (ht : 1 ≤ t) : ∃ g : ℕ, ∀ {V : Type} [Fintype V]
+    [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj], ¬ (Hs s).IsIndContained G →
+    ∀ S : Finset V, Small G S ω → ¬ HasCore G S t 2 → col G S g := by
+  set T₀ := rr ω t with hT₀
+  have hT₀1 : 1 ≤ T₀ := Nat.one_le_two_pow
+  obtain ⟨Ns, hNs⟩ := ma_lemma T₀ s hT₀1 s
+  set n₂ := max Ns T₀
+  set m := (2 * T₀ - 1) * s
+  set n₁ := 2 ^ m * n₂
+  set K := rr ω n₁
+  set M := m + T₀ - 1
+  set D := max (rr ω M) (T₀ * K + T₀)
+  refine ⟨D, ?_⟩
+  intro V _ _ G _ hfree S hS hcore
+  have hK := noKPair_of_noCore hS hcore
+  rw [← hT₀] at hK
+  by_contra hcol
+  obtain ⟨S', hS'S, hS'ne, hdeg⟩ := exists_minDeg_of_not_col hcol
+  obtain ⟨r, hrS', hrmin⟩ := exists_min_image S' (fun v => (S'.filter (G.Adj v)).card) hS'ne
+  set Nr := S'.filter (G.Adj r) with hNr
+  have hδ : D ≤ Nr.card := hdeg r hrS'
+  -- Step 1
+  obtain ⟨C₀, hC₀, hC₀c, hC₀s⟩ := ramsey_stable hS ((filter_subset _ _).trans hS'S)
+    ((le_max_left _ _).trans hδ : rr ω M ≤ Nr.card)
+  -- Step 2
+  let Z : V → Finset V := fun c => S'.filter (G.Adj c) \ insert r Nr
+  have hZS' : ∀ c, Z c ⊆ S' := fun c => sdiff_subset.trans (filter_subset _ _)
+  have hZadj : ∀ c, ∀ z ∈ Z c, G.Adj c z := fun c z hz => (mem_filter.mp (mem_sdiff.mp hz).1).2
+  have hZr : ∀ c, ∀ z ∈ Z c, ¬ G.Adj r z ∧ z ≠ r := by
+    intro c z hz
+    have h := (mem_sdiff.mp hz)
+    refine ⟨fun hrz => h.2 (mem_insert_of_mem (mem_filter.mpr ⟨h.1 |> (mem_filter.mp ·) |>.1, hrz⟩)),
+      fun hzr => h.2 (hzr ▸ mem_insert_self _ _)⟩
+  have hbad : (C₀.filter (fun c => (Z c).card < K)).card < T₀ := by
+    by_contra hcon
+    push_neg at hcon
+    obtain ⟨X, hX, hXc⟩ := exists_subset_card_eq hcon
+    have hXC : X ⊆ C₀ := hX.trans (filter_subset _ _)
+    let Wt := Nr.filter (fun u => ∀ x ∈ X, G.Adj x u)
+    -- each x ∈ X misses at most K vertices of Nr
+    have hmiss : ∀ x ∈ X, (Nr \ S'.filter (G.Adj x)).card ≤ K := by
+      intro x hx
+      have hxZ : (Z x).card < K := (mem_filter.mp (hX hx)).2
+      have hxS' : x ∈ S' := (mem_filter.mp (hC₀ (hXC hx))).1
+      have hcover : S'.filter (G.Adj x) ⊆ (Nr ∩ S'.filter (G.Adj x)) ∪ ({r} ∪ Z x) := by
+        intro u hu
+        by_cases hur : u = r
+        · exact mem_union_right _ (mem_union_left _ (mem_singleton.mpr hur))
+        · by_cases hru : G.Adj r u
+          · exact mem_union_left _ (mem_inter.mpr ⟨mem_filter.mpr ⟨(mem_filter.mp hu).1, hru⟩, hu⟩)
+          · refine mem_union_right _ (mem_union_right _ (mem_sdiff.mpr ⟨hu, ?_⟩))
+            rintro hmem
+            rcases mem_insert.mp hmem with h | h
+            · exact hur h
+            · exact hru (mem_filter.mp h).2
+      have h1 := card_le_card hcover
+      have h2 := h1.trans ((card_union_le _ _).trans (Nat.add_le_add_left (card_union_le {r} (Z x)) _))
+      have h3 : (Nr ∩ S'.filter (G.Adj x)).card + (Nr \ S'.filter (G.Adj x)).card = Nr.card :=
+        card_inter_add_card_sdiff _ _
+      have h4 := hrmin x hxS'
+      simp only [card_singleton] at h2
+      omega
+    have hWt : T₀ ≤ Wt.card := by
+      have hsub : Nr \ Wt ⊆ X.biUnion (fun x => Nr \ S'.filter (G.Adj x)) := by
+        intro u hu
+        obtain ⟨huN, huW⟩ := mem_sdiff.mp hu
+        have : ¬ ∀ x ∈ X, G.Adj x u := fun h => huW (mem_filter.mpr ⟨huN, h⟩)
+        push_neg at this
+        obtain ⟨x, hx, hxu⟩ := this
+        exact mem_biUnion.mpr ⟨x, hx, mem_sdiff.mpr ⟨huN, fun h => hxu (mem_filter.mp h).2⟩⟩
+      have h1 := (card_le_card hsub).trans (card_biUnion_le_card_mul _ _ _ hmiss)
+      have h2 : (Nr \ Wt).card + Wt.card = Nr.card := card_sdiff_add_card_eq_card (filter_subset _ _)
+      rw [hXc] at h1
+      have h3 : T₀ * K + T₀ ≤ Nr.card := (le_max_right _ _).trans hδ
+      omega
+    obtain ⟨W₁, hW₁, hW₁c⟩ := exists_subset_card_eq hWt
+    have hWN : W₁ ⊆ Nr := hW₁.trans (filter_subset _ _)
+    apply hK X (hXC.trans (hC₀.trans ((filter_subset _ _).trans hS'S))) W₁
+      (hWN.trans ((filter_subset _ _).trans hS'S)) ?_ hXc hW₁c
+    · intro x hx u hu
+      exact (mem_filter.mp (hW₁ hu)).2 x hx
+    · rw [disjoint_left]
+      intro x hx hxW
+      exact G.irrefl ((mem_filter.mp (hW₁ hxW)).2 x hx)
+  have hC₁ : m ≤ (C₀.filter (fun c => K ≤ (Z c).card)).card := by
+    have := card_filter_add_card_filter_not (s := C₀) (fun c => K ≤ (Z c).card)
+    have e : C₀.filter (fun c => ¬ K ≤ (Z c).card) = C₀.filter (fun c => (Z c).card < K) := by
+      congr 1; ext c; simp
+    rw [e] at this
+    omega
+  obtain ⟨C, hC, hCc⟩ := exists_subset_card_eq hC₁
+  have hCC₀ : C ⊆ C₀ := hC.trans (filter_subset _ _)
+  have hCK : ∀ c ∈ C, K ≤ (Z c).card := fun c hc => (mem_filter.mp (hC hc)).2
+  have hCN : C ⊆ Nr := hCC₀.trans hC₀
+  -- Step 3
+  have hstep3 : ∀ c, ∃ Z2 : Finset V, ∃ F : Finset V, c ∈ C →
+      Z2 ⊆ Z c ∧ n₂ ≤ Z2.card ∧ IsStab G Z2 ∧ F ⊆ C ∧ ∀ z ∈ Z2, C.filter (G.Adj z) = F := by
+    intro c
+    by_cases hc : c ∈ C
+    · obtain ⟨Z1, hZ1, hZ1c, hZ1s⟩ := ramsey_stable hS ((hZS' c).trans hS'S) (hCK c hc)
+      obtain ⟨F, hF, hFc⟩ := exists_le_card_fiber_of_mul_le_card_of_maps_to
+        (f := fun z => C.filter (G.Adj z)) (s := Z1) (t := C.powerset) (n := n₂)
+        (fun z _ => mem_powerset.mpr (filter_subset _ _)) ⟨∅, empty_mem_powerset _⟩
+        (by rw [card_powerset, hCc, hZ1c])
+      refine ⟨Z1.filter (fun z => C.filter (G.Adj z) = F), F, fun _ => ⟨(filter_subset _ _).trans hZ1,
+        hFc, hZ1s.mono (filter_subset _ _), mem_powerset.mp hF, fun z hz => (mem_filter.mp hz).2⟩⟩
+    · exact ⟨∅, ∅, fun h => absurd h hc⟩
+  choose Z2 F hZF using hstep3
+  have hFsmall : ∀ c ∈ C, (F c).card < T₀ := by
+    intro c hc
+    obtain ⟨hZ2, hZ2c, -, hFC, hlab⟩ := hZF c hc
+    by_contra hcon
+    push_neg at hcon
+    obtain ⟨F₁, hF₁, hF₁c⟩ := exists_subset_card_eq hcon
+    obtain ⟨Z₁, hZ₁, hZ₁c⟩ := exists_subset_card_eq ((le_max_right _ _).trans hZ2c : T₀ ≤ (Z2 c).card)
+    have hZ₁S : Z₁ ⊆ S := (hZ₁.trans hZ2).trans ((hZS' c).trans hS'S)
+    apply hK Z₁ hZ₁S F₁ (((hF₁.trans hFC).trans hCN).trans ((filter_subset _ _).trans hS'S)) ?_ hZ₁c hF₁c
+    · intro z hz f hf
+      have := hlab z (hZ₁ hz)
+      have hfF : f ∈ F c := hF₁ hf
+      rw [← this] at hfF
+      exact (mem_filter.mp hfF).2
+    · rw [disjoint_left]
+      intro z hz hzF
+      have hzN : z ∈ Nr := hCN (hFC (hF₁ hzF))
+      exact (hZr c z (hZ2 (hZ₁ hz))).1 (mem_filter.mp hzN).2
+  -- Step 4
+  obtain ⟨I, hI, hIc, hIfree⟩ := outdeg_arcfree (fun c c' => c' ∈ F c) T₀ s C hT₀1
+    (fun c hc => (card_le_card (fun c' hc' => (mem_filter.mp hc').2.2)).trans_lt (hFsmall c hc))
+    (by rw [hCc])
+  have hIC : I ⊆ C := hI
+  have hnadj : ∀ c ∈ I, ∀ c' ∈ I, c ≠ c' → ∀ z ∈ Z2 c, ¬ G.Adj z c' := by
+    intro c hc c' hc' hcc z hz hzc
+    obtain ⟨-, -, -, -, hlab⟩ := hZF c (hIC hc)
+    apply hIfree c hc c' hc' hcc
+    rw [← hlab z hz]
+    exact mem_filter.mpr ⟨hIC hc', hzc⟩
+  -- Step 5
+  obtain ⟨e, he, heI⟩ := exists_enum' hIc
+  obtain ⟨Y, hY, hYa⟩ := hNs G S (fun i => Z2 (e i)) hK
+    (fun i => ((hZF _ (hIC (heI i))).1.trans (hZS' _)).trans hS'S)
+    (fun i j hij => by
+      rw [disjoint_left]
+      intro z hz hz'
+      have hzZ : z ∈ Z (e j) := (hZF _ (hIC (heI j))).1 hz'
+      exact hnadj _ (heI i) _ (heI j) (he.ne hij) z hz (hZadj _ z hzZ).symm)
+    (fun i => (le_max_left _ _).trans (hZF _ (hIC (heI i))).2.1)
+  -- Step 6
+  apply hfree
+  refine embed_HsF (univ : Finset (Fin s)) (by simp) r e Y (fun i _ => (hY i).2)
+    (fun i _ => (mem_filter.mp (hCN (hIC (heI i)))).2)
+    (fun i _ j _ hij => ⟨hC₀s _ (hCC₀ (hIC (heI i))) _ (hCC₀ (hIC (heI j))), he.ne hij⟩)
+    (fun i _ y hy => ?_) (fun i _ => (hZF _ (hIC (heI i))).2.2.1.mono (hY i).1)
+    (fun i _ j _ hij y hy hadj => hnadj _ (heI i) _ (heI j) (he.ne hij) y ((hY i).1 hy) hadj.symm)
+    (fun i _ j _ hij y hy z hz => hYa i j hij y hy z hz)
+  have hyZ : y ∈ Z (e i) := (hZF _ (hIC (heI i))).1 ((hY i).1 hy)
+  exact ⟨hZadj _ y hyZ, (hZr _ y hyZ).1, (hZr _ y hyZ).2⟩
+
+end GS
+
+
+open Finset
+
+namespace GS
+
+section Defs
+variable {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
+
+def IsCore (S : Finset V) (w d : ℕ) (A : Fin d → Finset V) : Prop :=
+  (∀ i, A i ⊆ S ∧ (A i).card = w ∧ IsStab G (A i)) ∧
+    ∀ i j, i ≠ j → Disjoint (A i) (A j) ∧ Compl G (A i) (A j)
+
+def VC {d : ℕ} (A : Fin d → Finset V) : Finset V := univ.biUnion A
+
+/-- `v` is nearly complete to every part of `A`. -/
+def InQ (μ : ℕ) {d : ℕ} (A : Fin d → Finset V) (v : V) : Prop :=
+  ∀ p, ((A p).filter (fun a => ¬ G.Adj v a)).card < μ
+
+def Absorbed (κ μ : ℕ) {d : ℕ} (A : Fin d → Finset V) (v : V) : Prop :=
+  v ∉ VC A ∧ ¬ InQ G μ A v ∧ ∃ p, κ ≤ ((A p).filter (G.Adj v)).card
+
+/-- The greedy template sequence, relative to `R ⊆ S`. -/
+structure SeqP (S R : Finset V) (d w κ μ n : ℕ) (A : ℕ → Fin d → Finset V) (P : ℕ → Finset V) :
+    Prop where
+  core : ∀ i < n, IsCore G S w d (A i)
+  vcP : ∀ i < n, VC (A i) ⊆ P i
+  PR : ∀ i < n, P i ⊆ R
+  disj : ∀ i < n, ∀ j < n, i ≠ j → Disjoint (P i) (P j)
+  absorb : ∀ i < n, ∀ v ∈ P i, v ∉ VC (A i) → Absorbed G κ μ (A i) v
+  noabs : ∀ i < n, ∀ j < n, i < j → ∀ v ∈ P j, ¬ Absorbed G κ μ (A i) v
+  left : ¬ HasCore G (R \ (range n).biUnion P) w d
+
+end Defs
+
+section Lemmas
+variable {V : Type} [Fintype V] [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
+
+theorem hasCore_iff {S : Finset V} {w d : ℕ} : HasCore G S w d ↔ ∃ A, IsCore G S w d A := Iff.rfl
+
+theorem mem_VC {d : ℕ} {A : Fin d → Finset V} {v : V} : v ∈ VC A ↔ ∃ p, v ∈ A p := by
+  simp [VC]
+
+theorem IsCore.mono {S S' : Finset V} {w d : ℕ} {A : Fin d → Finset V} (h : IsCore G S w d A)
+    (hS : S ⊆ S') : IsCore G S' w d A :=
+  ⟨fun i => ⟨(h.1 i).1.trans hS, (h.1 i).2⟩, h.2⟩
+
+theorem IsCore.VC_sub {S : Finset V} {w d : ℕ} {A : Fin d → Finset V} (h : IsCore G S w d A) :
+    VC A ⊆ S := by
+  intro v hv
+  obtain ⟨p, hp⟩ := mem_VC.mp hv
+  exact (h.1 p).1 hp
+
+theorem IsCore.card_VC {S : Finset V} {w d : ℕ} {A : Fin d → Finset V} (h : IsCore G S w d A) :
+    (VC A).card = d * w := by
+  rw [VC, card_biUnion]
+  · simp [(h.1 _).2.1]
+  · intro i _ j _ hij
+    exact (h.2 i j hij).1
+
+theorem IsCore.adj_of_ne {S : Finset V} {w d : ℕ} {A : Fin d → Finset V} (h : IsCore G S w d A)
+    {p q : Fin d} (hpq : p ≠ q) {x y : V} (hx : x ∈ A p) (hy : y ∈ A q) : G.Adj x y :=
+  (h.2 p q hpq).2 x hx y hy
+
+theorem IsCore.VC_nonempty {S : Finset V} {w d : ℕ} {A : Fin d → Finset V} (h : IsCore G S w d A)
+    (hw : 1 ≤ w) (hd : 1 ≤ d) : (VC A).Nonempty := by
+  rw [← card_pos, h.card_VC]; exact Nat.mul_pos hd hw
+
+/-- Existence of the greedy template sequence (Lemma 7.2). -/
+theorem greedy (S : Finset V) (d w κ μ : ℕ) (hw : 1 ≤ w) (hd : 1 ≤ d) :
+    ∀ R : Finset V, R ⊆ S → ∃ n A P, SeqP G S R d w κ μ n A P := by
+  classical
+  intro R
+  induction R using Finset.strongInduction with
+  | H R ih =>
+    intro hRS
+    by_cases hc : HasCore G R w d
+    · obtain ⟨A0, hA0'⟩ := hc
+      have hA0 : IsCore G R w d A0 := hA0'
+      set P0 := VC A0 ∪ R.filter (Absorbed G κ μ A0) with hP0
+      have hVCR : VC A0 ⊆ R := hA0.VC_sub
+      have hP0R : P0 ⊆ R := union_subset hVCR (filter_subset _ _)
+      have hne : P0.Nonempty := (hA0.VC_nonempty hw hd).mono subset_union_left
+      obtain ⟨n, A, P, h⟩ := ih (R \ P0) (sdiff_ssubset hP0R hne) (sdiff_subset.trans hRS)
+      refine ⟨n + 1, fun i => if i = 0 then A0 else A (i - 1),
+        fun i => if i = 0 then P0 else P (i - 1), ?_⟩
+      have hPR : ∀ i < n, P i ⊆ R \ P0 := h.PR
+      constructor
+      · intro i hi
+        rcases i with _ | i
+        · simpa using hA0.mono hRS
+        · simpa using h.core i (by omega)
+      · intro i hi
+        rcases i with _ | i
+        · simp [P0]
+        · simpa using h.vcP i (by omega)
+      · intro i hi
+        rcases i with _ | i
+        · simpa using hP0R
+        · simpa using (hPR i (by omega)).trans sdiff_subset
+      · intro i hi j hj hij
+        rcases i with _ | i <;> rcases j with _ | j
+        · exact absurd rfl hij
+        · simp only [if_true, Nat.add_one_ne_zero, if_false, Nat.add_sub_cancel]
+          exact disjoint_of_subset_right (hPR j (by omega)) disjoint_sdiff
+        · simp only [if_true, Nat.add_one_ne_zero, if_false, Nat.add_sub_cancel]
+          exact disjoint_of_subset_left (hPR i (by omega)) sdiff_disjoint
+        · simp only [Nat.add_one_ne_zero, if_false, Nat.add_sub_cancel]
+          exact h.disj i (by omega) j (by omega) (by omega)
+      · intro i hi v hv hvC
+        rcases i with _ | i
+        · simp only [if_true] at hv hvC ⊢
+          rcases mem_union.mp hv with h1 | h1
+          · exact absurd h1 hvC
+          · exact (mem_filter.mp h1).2
+        · simp only [Nat.add_one_ne_zero, if_false, Nat.add_sub_cancel] at hv hvC ⊢
+          exact h.absorb i (by omega) v hv hvC
+      · intro i hi j hj hij v hv
+        rcases j with _ | j
+        · omega
+        simp only [Nat.add_one_ne_zero, if_false, Nat.add_sub_cancel] at hv
+        rcases i with _ | i
+        · simp only [if_true]
+          intro habs
+          have hvR := hPR j (by omega) hv
+          exact (mem_sdiff.mp hvR).2 (mem_union_right _ (mem_filter.mpr ⟨(mem_sdiff.mp hvR).1, habs⟩))
+        · simp only [Nat.add_one_ne_zero, if_false, Nat.add_sub_cancel]
+          exact h.noabs i (by omega) j (by omega) (by omega) v hv
+      · have heq : R \ (range (n + 1)).biUnion (fun i => if i = 0 then P0 else P (i - 1)) =
+            (R \ P0) \ (range n).biUnion P := by
+          ext x
+          simp only [mem_sdiff, mem_biUnion, mem_range, not_exists, not_and]
+          constructor
+          · rintro ⟨hxR, hx⟩
+            refine ⟨⟨hxR, fun h0 => hx 0 (by omega) (by simpa using h0)⟩, fun i hi hxi => ?_⟩
+            exact hx (i + 1) (by omega) (by simpa using hxi)
+          · rintro ⟨⟨hxR, hx0⟩, hx⟩
+            refine ⟨hxR, fun i hi hxi => ?_⟩
+            rcases i with _ | i
+            · exact hx0 (by simpa using hxi)
+            · exact hx i (by omega) (by simpa using hxi)
+        rw [heq]; exact h.left
+    · refine ⟨0, fun _ _ => ∅, fun _ => ∅, ⟨fun i hi => absurd hi (Nat.not_lt_zero _),
+        fun i hi => absurd hi (Nat.not_lt_zero _), fun i hi => absurd hi (Nat.not_lt_zero _),
+        fun i hi => absurd hi (Nat.not_lt_zero _), fun i hi => absurd hi (Nat.not_lt_zero _),
+        fun i hi => absurd hi (Nat.not_lt_zero _), by simpa using hc⟩⟩
+
+open scoped Classical in
+/-- Lemma 7.1: few vertices are nearly complete to a core. -/
+theorem card_Q_lt {S : Finset V} {ω t w d μ : ℕ} (hS : Small G S ω)
+    (hcore : ¬ HasCore G S t (d + 1)) {A : Fin d → Finset V} (hA : IsCore G S w d A)
+    (htw : t * μ ≤ w) (hμ : 1 ≤ μ) :
+    (S.filter (fun v => v ∉ VC A ∧ InQ G μ A v)).card < rr ω t := by
+  by_contra hcon
+  push_neg at hcon
+  obtain ⟨T', hT', hT'c, hT's⟩ := ramsey_stable hS (filter_subset _ _) hcon
+  have hgood : ∀ p, ∃ B ⊆ A p, B.card = t ∧ ∀ a ∈ B, ∀ x ∈ T', G.Adj x a := by
+    intro p
+    set Bad := (A p).filter (fun a => ∃ x ∈ T', ¬ G.Adj x a)
+    have hBad : Bad ⊆ T'.biUnion (fun x => (A p).filter (fun a => ¬ G.Adj x a)) := by
+      intro a ha
+      obtain ⟨haA, x, hx, hxa⟩ := mem_filter.mp ha
+      exact mem_biUnion.mpr ⟨x, hx, mem_filter.mpr ⟨haA, hxa⟩⟩
+    have hle : Bad.card ≤ t * (μ - 1) := by
+      refine (card_le_card hBad).trans ((card_biUnion_le_card_mul _ _ _ fun x hx => ?_).trans
+        (by rw [hT'c]))
+      have := (mem_filter.mp (hT' hx)).2.2 p
+      omega
+    have hcard : t ≤ (A p \ Bad).card := by
+      have h2 : (A p \ Bad).card + Bad.card = w := by
+        rw [card_sdiff_add_card_eq_card (filter_subset _ _), (hA.1 p).2.1]
+      have : t * (μ - 1) + t ≤ w := by
+        have e : t * (μ - 1) + t = t * μ := by
+          rw [Nat.mul_sub_one]; have := Nat.le_mul_of_pos_right t hμ; omega
+        omega
+      omega
+    obtain ⟨B, hB, hBc⟩ := exists_subset_card_eq hcard
+    refine ⟨B, hB.trans sdiff_subset, hBc, fun a ha x hx => ?_⟩
+    by_contra hxa
+    exact (mem_sdiff.mp (hB ha)).2 (mem_filter.mpr ⟨(mem_sdiff.mp (hB ha)).1, x, hx, hxa⟩)
+  choose B hB hBc hBadj using hgood
+  have hT'VC : ∀ x ∈ T', x ∉ VC A := fun x hx => (mem_filter.mp (hT' hx)).2.1
+  apply hcore
+  refine ⟨Fin.lastCases T' B, ?_, ?_⟩
+  · intro i
+    induction i using Fin.lastCases with
+    | last => simp only [Fin.lastCases_last]; exact ⟨hT'.trans (filter_subset _ _), hT'c, hT's⟩
+    | cast p =>
+      simp only [Fin.lastCases_castSucc]
+      exact ⟨(hB p).trans (hA.1 p).1, hBc p, (hA.1 p).2.2.mono (hB p)⟩
+  · intro i j hij
+    induction i using Fin.lastCases with
+    | last =>
+      induction j using Fin.lastCases with
+      | last => exact absurd rfl hij
+      | cast q =>
+        simp only [Fin.lastCases_last, Fin.lastCases_castSucc]
+        refine ⟨?_, fun x hx a ha => hBadj q a ha x hx⟩
+        rw [disjoint_left]
+        intro x hx hxB
+        exact hT'VC x hx (mem_VC.mpr ⟨q, hB q hxB⟩)
+    | cast p =>
+      induction j using Fin.lastCases with
+      | last =>
+        simp only [Fin.lastCases_last, Fin.lastCases_castSucc]
+        refine ⟨?_, fun a ha x hx => (hBadj p a ha x hx).symm⟩
+        rw [disjoint_left]
+        intro x hxB hx
+        exact hT'VC x hx (mem_VC.mpr ⟨p, hB p hxB⟩)
+      | cast q =>
+        simp only [Fin.lastCases_castSucc]
+        have hpq : p ≠ q := fun h => hij (by rw [h])
+        exact ⟨Disjoint.mono (hB p) (hB q) (hA.2 p q hpq).1,
+          (hA.2 p q hpq).2.mono (hB p) (hB q)⟩
+
+/-- Counting indices whose (disjoint) sets meet `X`. -/
+theorem card_hits {ι : Type*} [DecidableEq ι] (J : Finset ι) (P : ι → Finset V) (X : Finset V)
+    (hdisj : ∀ i ∈ J, ∀ j ∈ J, i ≠ j → Disjoint (P i) (P j)) :
+    (J.filter (fun j => (P j ∩ X).Nonempty)).card ≤ X.card := by
+  set J' := J.filter (fun j => (P j ∩ X).Nonempty)
+  have h1 : (J'.biUnion (fun j => P j ∩ X)).card = ∑ j ∈ J', (P j ∩ X).card := by
+    apply card_biUnion
+    intro i hi j hj hij
+    exact Disjoint.mono inter_subset_left inter_subset_left
+      (hdisj i (mem_filter.mp hi).1 j (mem_filter.mp hj).1 hij)
+  have h2 : J'.card ≤ ∑ j ∈ J', (P j ∩ X).card := by
+    rw [card_eq_sum_ones]
+    exact sum_le_sum fun j hj => card_pos.mpr (mem_filter.mp hj).2
+  have h3 : (J'.biUnion (fun j => P j ∩ X)).card ≤ X.card :=
+    card_le_card (biUnion_subset.mpr fun j _ => inter_subset_right)
+  omega
+
+/-- Partition step (F2 + T4c). -/
+theorem col_partition (J : Finset ℕ) (P : ℕ → Finset V) (A : ℕ → ℕ → Prop) [DecidableRel A]
+    (D k : ℕ) (hout : ∀ i ∈ J, (J.filter (fun j => j ≠ i ∧ A i j)).card < D)
+    (hcol : ∀ J' ⊆ J, (∀ i ∈ J', ∀ j ∈ J', i ≠ j → ¬ A i j) → col G (J'.biUnion P) k) :
+    col G (J.biUnion P) ((2 * D - 1) * k) := by
+  obtain ⟨c, hc, hp⟩ := outdeg_col A D J hout
+  have hsub : J.biUnion P ⊆ (range (2 * D - 1)).biUnion
+      (fun m => (J.filter (fun j => c j = m)).biUnion P) := by
+    intro v hv
+    obtain ⟨j, hj, hvj⟩ := mem_biUnion.mp hv
+    exact mem_biUnion.mpr ⟨c j, mem_range.mpr (hc j hj),
+      mem_biUnion.mpr ⟨j, mem_filter.mpr ⟨hj, rfl⟩, hvj⟩⟩
+  refine (col_biUnion _ _ k fun m _ => hcol _ (filter_subset _ _) ?_).mono hsub
+    (by rw [card_range])
+  intro i hi j hj hij hA
+  exact hp i (mem_filter.mp hi).1 j (mem_filter.mp hj).1 ⟨hij, hA⟩
+    ((mem_filter.mp hi).2.trans (mem_filter.mp hj).2.symm)
+
+/-- Sequential choice of pairwise anticomplete objects. -/
+theorem seq_choice {β : Type*} (vs : β → Finset V) (Good : ℕ → β → Prop) : ∀ m : ℕ,
+    (∀ k < m, ∀ prev : Fin k → β, (∀ k' : Fin k, Good k' (prev k')) →
+      ∃ o, Good k o ∧ ∀ k' : Fin k, Anti G (vs o) (vs (prev k'))) →
+    ∃ os : Fin m → β, (∀ k : Fin m, Good k (os k)) ∧
+      ∀ k k' : Fin m, k ≠ k' → Anti G (vs (os k)) (vs (os k')) := by
+  intro m
+  induction m with
+  | zero => intro _; exact ⟨fun k => k.elim0, fun k => k.elim0, fun k => k.elim0⟩
+  | succ m ih =>
+    intro hstep
+    obtain ⟨os, hgood, hanti⟩ := ih (fun k hk prev hprev => hstep k (by omega) prev hprev)
+    obtain ⟨o, hgo, hao⟩ := hstep m (by omega) os hgood
+    refine ⟨Fin.lastCases o os, ?_, ?_⟩
+    · intro k
+      induction k using Fin.lastCases with
+      | last => simpa using hgo
+      | cast k => simpa using hgood k
+    · intro k k' hkk
+      induction k using Fin.lastCases with
+      | last =>
+        induction k' using Fin.lastCases with
+        | last => exact absurd rfl hkk
+        | cast k' => simpa using hao k'
+      | cast k =>
+        induction k' using Fin.lastCases with
+        | last => simpa using (hao k).symm
+        | cast k' =>
+          simp only [Fin.lastCases_castSucc]
+          exact hanti k k' (fun h => hkk (by rw [h]))
+
+end Lemmas
+
+end GS
+
+
+open Finset
+
+namespace GS
+
+section Nice
+variable {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
+
+def Nice1 (μ : ℕ) {d : ℕ} (A : ℕ → Fin d → Finset V) (P : ℕ → Finset V) (J : Finset ℕ) : Prop :=
+  ∀ i ∈ J, ∀ v ∈ J.biUnion P, v ∉ VC (A i) → ¬ InQ G μ (A i) v
+
+end Nice
+
+section Lemmas
+variable {V : Type} [Fintype V] [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
+variable {S : Finset V} {d w κ μ n : ℕ} {A : ℕ → Fin d → Finset V} {P : ℕ → Finset V}
+
+theorem Nice1.mono {J J' : Finset ℕ} (h : Nice1 G μ A P J) (hJ : J' ⊆ J) : Nice1 G μ A P J' :=
+  fun i hi v hv hvC => h i (hJ hi) v (biUnion_subset_biUnion_of_subset_left _ hJ hv) hvC
+
+theorem SeqP.notin_VC (hseq : SeqP G S S d w κ μ n A P) {i j : ℕ} (hi : i < n) (hj : j < n)
+    (hij : i ≠ j) {v : V} (hv : v ∈ P j) : v ∉ VC (A i) := fun h =>
+  disjoint_left.mp (hseq.disj i hi j hj hij) (hseq.vcP i hi h) hv
+
+/-- 7.4(a). -/
+theorem nice1_nonnbrs {J : Finset ℕ} (h1 : Nice1 G μ A P J) {i : ℕ} (hi : i ∈ J) {v : V}
+    (hv : v ∈ J.biUnion P) (hvC : v ∉ VC (A i)) :
+    ∃ p, μ ≤ ((A i p).filter (fun a => ¬ G.Adj v a)).card := by
+  have := h1 i hi v hv hvC
+  simp only [InQ, not_forall, not_lt] at this
+  exact this
+
+/-- 7.4(b): vertices of later templates have few neighbours in every part of an earlier core. -/
+theorem nice1_later (hseq : SeqP G S S d w κ μ n A P) {J : Finset ℕ} (hJ : J ⊆ range n)
+    (h1 : Nice1 G μ A P J) {i j : ℕ} (hi : i ∈ J) (hj : j ∈ J) (hij : i < j) {v : V}
+    (hv : v ∈ P j) (p : Fin d) : ((A i p).filter (G.Adj v)).card < κ := by
+  have hin := mem_range.mp (hJ hi)
+  have hjn := mem_range.mp (hJ hj)
+  by_contra hcon
+  push_neg at hcon
+  have hvC := hseq.notin_VC hin hjn hij.ne hv
+  exact hseq.noabs i hin j hjn hij v hv
+    ⟨hvC, h1 i hi v (mem_biUnion.mpr ⟨j, hj, hv⟩) hvC, p, hcon⟩
+
+/-- Two different parts, one with many neighbours of `v` and one with many non-neighbours. -/
+theorem two_parts {S : Finset V} {B : Fin d → Finset V} (hB : IsCore G S w d B) (hd : 2 ≤ d)
+    {κ₂ μ : ℕ} (hw : κ₂ + μ ≤ w) {v : V}
+    (hp : ∃ p, κ₂ ≤ ((B p).filter (G.Adj v)).card)
+    (hq : ∃ q, μ ≤ ((B q).filter (fun a => ¬ G.Adj v a)).card) :
+    ∃ α β, α ≠ β ∧ κ₂ ≤ ((B α).filter (G.Adj v)).card ∧
+      μ ≤ ((B β).filter (fun a => ¬ G.Adj v a)).card := by
+  obtain ⟨p, hp⟩ := hp
+  obtain ⟨q, hq⟩ := hq
+  by_cases hpq : p = q
+  · subst hpq
+    obtain ⟨p', hp'⟩ : ∃ p' : Fin d, p' ≠ p := by
+      by_cases h0 : p = ⟨0, by omega⟩
+      · exact ⟨⟨1, by omega⟩, by rw [h0]; simp [Fin.ext_iff]⟩
+      · exact ⟨⟨0, by omega⟩, fun h => h0 h.symm⟩
+    by_cases hk : κ₂ ≤ ((B p').filter (G.Adj v)).card
+    · exact ⟨p', p, hp', hk, hq⟩
+    · refine ⟨p, p', hp'.symm, hp, ?_⟩
+      have := card_filter_add_card_filter_not (s := B p') (G.Adj v)
+      rw [(hB.1 p').2.1] at this
+      omega
+  · exact ⟨p, q, hpq, hp, hq⟩
+
+/-- The decreasing enumeration of a finite set of naturals. -/
+theorem exists_anti_enum {I : Finset ℕ} {s : ℕ} (h : I.card = s) :
+    ∃ e : Fin s → ℕ, (∀ k, e k ∈ I) ∧ ∀ k k', k < k' → e k' < e k := by
+  refine ⟨fun k => I.orderEmbOfFin h k.rev, fun k => orderEmbOfFin_mem _ _ _, ?_⟩
+  intro k k' hkk
+  apply (I.orderEmbOfFin h).strictMono
+  rw [Fin.rev_lt_rev]; exact hkk
+
+/-- Killing bound: a forbidden set whose members have `< κ` neighbours in `X` kills few of `X`. -/
+theorem card_kill (F X : Finset V) {κ : ℕ} (h : ∀ x ∈ F, (X.filter (G.Adj x)).card < κ) :
+    (F.biUnion (fun x => X.filter (G.Adj x))).card ≤ F.card * (κ - 1) :=
+  card_biUnion_le_card_mul _ _ _ fun x hx => by have := h x hx; omega
+
+/-- 7.5: every 1-nice family is 2-nice. -/
+theorem nice1_two (s : ℕ) (hfree : ¬ (Hs s).IsIndContained G) (hseq : SeqP G S S d w κ μ n A P)
+    {J : Finset ℕ} (hJ : J ⊆ range n) (h1 : Nice1 G μ A P J) (hd : 2 ≤ d) {κ₂ : ℕ}
+    (hκ₂ : (s * s - 1) * (κ - 1) + 1 ≤ κ₂) (hμ : (s * s - 1) * (κ - 1) + s ≤ μ)
+    (hw : κ₂ + μ ≤ w) {v : V} (hv : v ∈ J.biUnion P) :
+    (J.filter (fun i => v ∉ VC (A i) ∧ ∃ p, κ₂ ≤ ((A i p).filter (G.Adj v)).card)).card < s := by
+  by_contra hcon
+  push_neg at hcon
+  obtain ⟨I, hI, hIc⟩ := exists_subset_card_eq hcon
+  obtain ⟨e, heI, hanti⟩ := exists_anti_enum hIc
+  have heJ : ∀ k, e k ∈ J := fun k => (mem_filter.mp (hI (heI k))).1
+  have hen : ∀ k, e k < n := fun k => mem_range.mp (hJ (heJ k))
+  have heinj : Function.Injective e := by
+    intro k k' h
+    by_contra hne
+    rcases lt_or_gt_of_ne hne with hl | hl
+    · exact absurd h (hanti k k' hl).ne'
+    · exact absurd h (hanti k' k hl).ne
+  have hvC : ∀ k, v ∉ VC (A (e k)) := fun k => (mem_filter.mp (hI (heI k))).2.1
+  have hparts : ∀ k, ∃ α β, α ≠ β ∧ κ₂ ≤ ((A (e k) α).filter (G.Adj v)).card ∧
+      μ ≤ ((A (e k) β).filter (fun a => ¬ G.Adj v a)).card := fun k =>
+    two_parts (hseq.core _ (hen k)) hd hw (mem_filter.mp (hI (heI k))).2.2
+      (nice1_nonnbrs h1 (heJ k) hv (hvC k))
+  choose α β hαβ hα hβ using hparts
+  -- sequential choice
+  let Good : ℕ → V × Finset V → Prop := fun k o => ∀ hk : k < s,
+    o.1 ∈ (A (e ⟨k, hk⟩) (α ⟨k, hk⟩)).filter (G.Adj v) ∧
+    o.2 ⊆ (A (e ⟨k, hk⟩) (β ⟨k, hk⟩)).filter (fun a => ¬ G.Adj v a) ∧ o.2.card = s
+  have hvsP : ∀ (k : Fin s) (o : V × Finset V), Good k o → insert o.1 o.2 ⊆ P (e k) := by
+    intro k o ho
+    obtain ⟨ha, hY, -⟩ := ho k.2
+    refine insert_subset ((hseq.vcP _ (hen k)) (mem_VC.mpr ⟨_, (mem_filter.mp ha).1⟩)) ?_
+    intro y hy
+    exact (hseq.vcP _ (hen k)) (mem_VC.mpr ⟨_, (mem_filter.mp (hY hy)).1⟩)
+  obtain ⟨os, hgood, hosanti⟩ := seq_choice (G := G) (fun o : V × Finset V => insert o.1 o.2)
+    Good s (by
+      intro k hk prev hprev
+      set kk : Fin s := ⟨k, hk⟩
+      set Fb := univ.biUnion (fun k' : Fin k => insert (prev k').1 (prev k').2)
+      have hFb : Fb.card ≤ (s * s - 1) := by
+        refine (card_biUnion_le).trans ?_
+        have : ∀ k' : Fin k, (insert (prev k').1 (prev k').2).card ≤ s + 1 := fun k' =>
+          (card_insert_le _ _).trans (by rw [(hprev k' (by omega)).2.2])
+        refine (sum_le_sum fun k' _ => this k').trans ?_
+        simp only [sum_const, card_univ, Fintype.card_fin, smul_eq_mul]
+        have : k * (s + 1) ≤ (s - 1) * (s + 1) := Nat.mul_le_mul_right _ (by omega)
+        refine this.trans (le_of_eq ?_)
+        obtain ⟨t, rfl⟩ : ∃ t, s = t + 1 := ⟨s - 1, by omega⟩
+        rw [Nat.add_sub_cancel]
+        exact (Nat.sub_eq_of_eq_add (by ring)).symm
+      have hkill : ∀ x ∈ Fb, ∀ p, ((A (e kk) p).filter (G.Adj x)).card < κ := by
+        intro x hx p
+        obtain ⟨k', -, hxk⟩ := mem_biUnion.mp hx
+        have hk'k : (⟨k', by omega⟩ : Fin s) < kk := by
+          show (k' : ℕ) < k; exact k'.2
+        have hxP := hvsP ⟨k', by omega⟩ (prev k') (hprev k') hxk
+        exact nice1_later hseq hJ h1 (heJ kk) (heJ _) (hanti _ _ hk'k) hxP p
+      -- choose a
+      set Ca := (A (e kk) (α kk)).filter (G.Adj v)
+      set KA := Fb.biUnion (fun x => Ca.filter (G.Adj x))
+      have hKA : KA.card ≤ (s * s - 1) * (κ - 1) :=
+        (card_kill Fb Ca fun x hx => (card_le_card (filter_subset_filter _ (filter_subset _ _))).trans_lt
+          (hkill x hx _)).trans (Nat.mul_le_mul_right _ hFb)
+      have hCa : (s * s - 1) * (κ - 1) + 1 ≤ Ca.card := hκ₂.trans (hα kk)
+      obtain ⟨a, ha⟩ : (Ca \ KA).Nonempty := by
+        rw [← card_pos]
+        have := le_card_sdiff KA Ca
+        omega
+      set CY := (A (e kk) (β kk)).filter (fun a => ¬ G.Adj v a)
+      set KY := Fb.biUnion (fun x => CY.filter (G.Adj x))
+      have hKY : KY.card ≤ (s * s - 1) * (κ - 1) :=
+        (card_kill Fb CY fun x hx => (card_le_card (filter_subset_filter _ (filter_subset _ _))).trans_lt
+          (hkill x hx _)).trans (Nat.mul_le_mul_right _ hFb)
+      have hCY : s ≤ (CY \ KY).card := by
+        have h1 := le_card_sdiff KY CY
+        have h2 : (s * s - 1) * (κ - 1) + s ≤ CY.card := hμ.trans (hβ kk)
+        omega
+      obtain ⟨Y, hY, hYc⟩ := exists_subset_card_eq hCY
+      refine ⟨(a, Y), fun _ => ⟨(mem_sdiff.mp ha).1, hY.trans sdiff_subset, hYc⟩, ?_⟩
+      intro k' z hz x hx hzx
+      have hxF : x ∈ Fb := mem_biUnion.mpr ⟨k', mem_univ _, hx⟩
+      rcases mem_insert.mp hz with hz | hz
+      · subst hz
+        exact (mem_sdiff.mp ha).2 (mem_biUnion.mpr ⟨x, hxF, mem_filter.mpr ⟨(mem_sdiff.mp ha).1, hzx.symm⟩⟩)
+      · have hzY := hY hz
+        exact (mem_sdiff.mp hzY).2 (mem_biUnion.mpr ⟨x, hxF, mem_filter.mpr ⟨(mem_sdiff.mp hzY).1, hzx.symm⟩⟩))
+  have hg : ∀ k : Fin s, (os k).1 ∈ (A (e k) (α k)).filter (G.Adj v) ∧
+      (os k).2 ⊆ (A (e k) (β k)).filter (fun a => ¬ G.Adj v a) ∧ (os k).2.card = s :=
+    fun k => hgood k k.2
+  apply hfree
+  refine embed_HsF (univ : Finset (Fin s)) (by simp) v (fun k => (os k).1) (fun k => (os k).2)
+    (fun k _ => (hg k).2.2) (fun k _ => (mem_filter.mp (hg k).1).2) ?_ ?_ ?_ ?_ ?_
+  · intro k _ k' _ hkk
+    refine ⟨hosanti k k' hkk _ (mem_insert_self _ _) _ (mem_insert_self _ _), fun h => ?_⟩
+    have h1 := hvsP k (os k) (hgood k) (mem_insert_self _ _)
+    have h2 := hvsP k' (os k') (hgood k') (mem_insert_self _ _)
+    rw [h] at h1
+    exact disjoint_left.mp (hseq.disj _ (hen k) _ (hen k') (heinj.ne hkk)) h1 h2
+  · intro k _ y hy
+    have hyB := hg k
+    have hy' := mem_filter.mp (hyB.2.1 hy)
+    refine ⟨(hseq.core _ (hen k)).adj_of_ne (hαβ k) (mem_filter.mp hyB.1).1 hy'.1, hy'.2, ?_⟩
+    intro hyv
+    exact hvC k (hyv ▸ mem_VC.mpr ⟨_, hy'.1⟩)
+  · intro k _
+    exact ((hseq.core _ (hen k)).1 _).2.2.mono ((hg k).2.1.trans (filter_subset _ _))
+  · intro k _ k' _ hkk y hy hadj
+    exact hosanti k k' hkk y (mem_insert_of_mem hy) _ (mem_insert_self _ _) hadj.symm
+  · intro k _ k' _ hkk y hy z hz
+    exact hosanti k k' hkk y (mem_insert_of_mem hy) z (mem_insert_of_mem hz)
+
+end Lemmas
+
+section Nice35
+variable {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
+
+def Nice3 (μ κ₂ : ℕ) {d : ℕ} (A : ℕ → Fin d → Finset V) (P : ℕ → Finset V) (J : Finset ℕ) : Prop :=
+  Nice1 G μ A P J ∧ ∀ i ∈ J, ∀ j ∈ J, i ≠ j → ∀ x ∈ VC (A i), ∀ p,
+    ((A j p).filter (G.Adj x)).card < κ₂
+
+def Nice5 (μ κ₂ : ℕ) {d : ℕ} (A : ℕ → Fin d → Finset V) (P : ℕ → Finset V) (J : Finset ℕ) : Prop :=
+  Nice3 G μ κ₂ A P J ∧ ∀ i ∈ J, ∀ j ∈ J, i ≠ j → Anti G (VC (A i)) (VC (A j))
+
+end Nice35
+
+section Lemmas2
+variable {V : Type} [Fintype V] [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
+variable {S : Finset V} {d w κ μ n : ℕ} {A : ℕ → Fin d → Finset V} {P : ℕ → Finset V}
+
+theorem Nice3.mono {κ₂ : ℕ} {J J' : Finset ℕ} (h : Nice3 G μ κ₂ A P J) (hJ : J' ⊆ J) :
+    Nice3 G μ κ₂ A P J' :=
+  ⟨h.1.mono hJ, fun i hi j hj hij => h.2 i (hJ hi) j (hJ hj) hij⟩
+
+theorem Nice5.mono {κ₂ : ℕ} {J J' : Finset ℕ} (h : Nice5 G μ κ₂ A P J) (hJ : J' ⊆ J) :
+    Nice5 G μ κ₂ A P J' :=
+  ⟨h.1.mono hJ, fun i hi j hj hij => h.2 i (hJ hi) j (hJ hj) hij⟩
+
+/-- Extract `m` indices on which an injective vertex choice is stable (Ramsey). -/
+theorem stable_indices {ω m : ℕ} (hS : Small G S ω) (I : Finset ℕ) (a : ℕ → V)
+    (hinj : Set.InjOn a I) (haS : ∀ i ∈ I, a i ∈ S) (hI : rr ω m ≤ I.card) :
+    ∃ I' ⊆ I, I'.card = m ∧ ∀ i ∈ I', ∀ j ∈ I', ¬ G.Adj (a i) (a j) := by
+  obtain ⟨T, hT, hTc, hTs⟩ := ramsey_stable hS (image_subset_iff.mpr haS)
+    (by rw [card_image_of_injOn hinj]; exact hI)
+  refine ⟨I.filter (fun i => a i ∈ T), filter_subset _ _, ?_, fun i hi j hj =>
+    hTs _ (mem_filter.mp hi).2 _ (mem_filter.mp hj).2⟩
+  rw [← hTc, ← card_image_of_injOn (hinj.mono (filter_subset _ _ : I.filter _ ⊆ I))]
+  congr 1
+  ext x
+  simp only [mem_image, mem_filter]
+  constructor
+  · rintro ⟨i, ⟨_, hi⟩, rfl⟩; exact hi
+  · intro hx
+    obtain ⟨i, hi, rfl⟩ := mem_image.mp (hT hx)
+    exact ⟨i, ⟨hi, hx⟩, rfl⟩
+
+/-- 7.7: every 3-nice family is 4-nice. -/
+theorem nice3_four (s ω : ℕ) (hs : 1 ≤ s) (hfree : ¬ (Hs s).IsIndContained G) (hS : Small G S ω)
+    (hseq : SeqP G S S d w κ μ n A P)
+    {J : Finset ℕ} (hJ : J ⊆ range n) {κ₂ : ℕ} (h3 : Nice3 G μ κ₂ A P J) (hd : 2 ≤ d)
+    (hκ₂ : (s * s - 1) * (κ - 1) + 1 ≤ κ₂) (hμ : (s * s - 1) * (κ - 1) + s ≤ μ)
+    (hw : κ₂ + μ ≤ w) (hw7 : κ₂ + s * κ₂ + s * s * κ + s ≤ w) {v : V} (hv : v ∈ J.biUnion P) :
+    (J.filter (fun i => v ∉ P i ∧ ∃ x ∈ VC (A i), G.Adj v x)).card < rr ω s + s - 1 := by
+  by_contra hcon
+  push_neg at hcon
+  set I₀ := J.filter (fun i => v ∉ P i ∧ ∃ x ∈ VC (A i), G.Adj v x)
+  set Ib := J.filter (fun i => v ∉ VC (A i) ∧ ∃ p, κ₂ ≤ ((A i p).filter (G.Adj v)).card)
+  have hIb := nice1_two s hfree hseq hJ h3.1 hd hκ₂ hμ hw hv
+  set I₁ := I₀ \ Ib
+  have hI₁ : rr ω s ≤ I₁.card := by
+    have h1 : I₀.card - Ib.card ≤ I₁.card := le_card_sdiff Ib I₀
+    have h2 : Ib.card < s := hIb
+    have h3 : rr ω s + s - 1 ≤ I₀.card := hcon
+    omega
+  have hI₁J : I₁ ⊆ J := sdiff_subset.trans (filter_subset _ _)
+  have hn : ∀ i ∈ I₁, i < n := fun i hi => mem_range.mp (hJ (hI₁J hi))
+  have hvP : ∀ i ∈ I₁, v ∉ P i := fun i hi => (mem_filter.mp (mem_sdiff.mp hi).1).2.1
+  have hvVC : ∀ i ∈ I₁, v ∉ VC (A i) := fun i hi h => hvP i hi (hseq.vcP i (hn i hi) h)
+  have hfew : ∀ i ∈ I₁, ∀ p, ((A i p).filter (G.Adj v)).card < κ₂ := by
+    intro i hi p
+    by_contra hc
+    push_neg at hc
+    exact (mem_sdiff.mp hi).2 (mem_filter.mpr ⟨hI₁J hi, hvVC i hi, p, hc⟩)
+  have hex : ∀ i, ∃ x, i ∈ I₁ → x ∈ VC (A i) ∧ G.Adj v x := by
+    intro i
+    by_cases hi : i ∈ I₁
+    · obtain ⟨x, hx, hvx⟩ := (mem_filter.mp (mem_sdiff.mp hi).1).2.2
+      exact ⟨x, fun _ => ⟨hx, hvx⟩⟩
+    · exact ⟨v, fun h => absurd h hi⟩
+  choose a ha using hex
+  have haP : ∀ i ∈ I₁, a i ∈ P i := fun i hi => hseq.vcP i (hn i hi) (ha i hi).1
+  have hainj : Set.InjOn a I₁ := by
+    intro i hi j hj hij
+    by_contra hne
+    exact disjoint_left.mp (hseq.disj i (hn i hi) j (hn j hj) hne) (haP i hi) (hij ▸ haP j hj)
+  obtain ⟨I₂, hI₂, hI₂c, hI₂s⟩ := stable_indices hS I₁ a hainj
+    (fun i hi => (hseq.PR i (hn i hi)) (haP i hi)) hI₁
+  obtain ⟨e, heI, hanti⟩ := exists_anti_enum hI₂c
+  have he1 : ∀ k, e k ∈ I₁ := fun k => hI₂ (heI k)
+  have heJ : ∀ k, e k ∈ J := fun k => hI₁J (he1 k)
+  have hen : ∀ k, e k < n := fun k => hn _ (he1 k)
+  have heinj : Function.Injective e := by
+    intro k k' h
+    by_contra hne
+    rcases lt_or_gt_of_ne hne with hl | hl
+    · exact absurd h (hanti k k' hl).ne'
+    · exact absurd h (hanti k' k hl).ne
+  -- the part containing a and another part
+  have hpart : ∀ k, ∃ q, a (e k) ∉ A (e k) q ∧ ∀ y ∈ A (e k) q, G.Adj (a (e k)) y := by
+    intro k
+    obtain ⟨p, hp⟩ := mem_VC.mp (ha _ (he1 k)).1
+    obtain ⟨q, hq⟩ : ∃ q : Fin d, q ≠ p := by
+      by_cases h0 : p = ⟨0, by omega⟩
+      · exact ⟨⟨1, by omega⟩, by rw [h0]; simp [Fin.ext_iff]⟩
+      · exact ⟨⟨0, by omega⟩, fun h => h0 h.symm⟩
+    refine ⟨q, fun h => disjoint_left.mp ((hseq.core _ (hen k)).2 p q hq.symm).1 hp h,
+      fun y hy => (hseq.core _ (hen k)).adj_of_ne hq.symm hp hy⟩
+  choose q hq hqadj using hpart
+  let Cand : Fin s → Finset V := fun k => ((A (e k) (q k)).filter (fun y => ¬ G.Adj v y)) \
+    (univ.filter (fun j : Fin s => j ≠ k)).biUnion (fun j => (A (e k) (q k)).filter (G.Adj (a (e j))))
+  let Good : ℕ → Finset V → Prop := fun k Y => ∀ hk : k < s, Y ⊆ Cand ⟨k, hk⟩ ∧ Y.card = s
+  obtain ⟨Ys, hgood, hYanti⟩ := seq_choice (G := G) id Good s (by
+    intro k hk prev hprev
+    set kk : Fin s := ⟨k, hk⟩
+    set Fb := univ.biUnion prev
+    have hFb : Fb.card ≤ s * s := by
+      refine card_biUnion_le.trans ?_
+      refine (sum_le_sum fun k' _ => (hprev k' (by omega)).2.le).trans ?_
+      simp only [sum_const, card_univ, Fintype.card_fin, smul_eq_mul]
+      exact Nat.mul_le_mul_right _ (by omega)
+    have hkill : ∀ x ∈ Fb, ((A (e kk) (q kk)).filter (G.Adj x)).card < κ := by
+      intro x hx
+      obtain ⟨k', -, hxk⟩ := mem_biUnion.mp hx
+      have hk'k : (⟨k', by omega⟩ : Fin s) < kk := by show (k' : ℕ) < k; exact k'.2
+      have hxC := ((hprev k' (by omega)).1 hxk)
+      have hxA : x ∈ A (e ⟨k', by omega⟩) (q ⟨k', by omega⟩) :=
+        (mem_filter.mp (mem_sdiff.mp hxC).1).1
+      have hxP : x ∈ P (e ⟨k', by omega⟩) :=
+        hseq.vcP _ (hen _) (mem_VC.mpr ⟨_, hxA⟩)
+      exact nice1_later hseq hJ h3.1 (heJ kk) (heJ _) (hanti _ _ hk'k) hxP _
+    set B := A (e kk) (q kk)
+    set Kv := B.filter (G.Adj v)
+    set Ka := (univ.filter (fun j : Fin s => j ≠ kk)).biUnion (fun j => B.filter (G.Adj (a (e j))))
+    set Kp := Fb.biUnion (fun x => B.filter (G.Adj x))
+    have hKv : Kv.card ≤ κ₂ := (hfew _ (he1 kk) _).le
+    have hKa : Ka.card ≤ s * κ₂ := by
+      refine (card_biUnion_le_card_mul _ _ κ₂ fun j hj => ?_).trans ?_
+      · exact (h3.2 _ (heJ j) _ (heJ kk) (heinj.ne (mem_filter.mp hj).2) _ (ha _ (he1 j)).1 _).le
+      · exact Nat.mul_le_mul_right _ ((card_le_univ _).trans (by simp))
+    have hKp : Kp.card ≤ s * s * κ :=
+      (card_biUnion_le_card_mul _ _ _ fun x hx => (hkill x hx).le).trans (Nat.mul_le_mul_right _ hFb)
+    have hBc : B.card = w := ((hseq.core _ (hen kk)).1 _).2.1
+    have hsub : B \ (Kv ∪ Ka ∪ Kp) ⊆ Cand kk \ Kp := by
+      intro y hy
+      simp only [mem_sdiff, mem_union, not_or] at hy
+      refine mem_sdiff.mpr ⟨mem_sdiff.mpr ⟨mem_filter.mpr ⟨hy.1, fun h => hy.2.1.1 (mem_filter.mpr ⟨hy.1, h⟩)⟩,
+        hy.2.1.2⟩, hy.2.2⟩
+    have hcard : s ≤ (Cand kk \ Kp).card := by
+      have h1 := le_card_sdiff (Kv ∪ Ka ∪ Kp) B
+      have h2 := card_le_card hsub
+      have h3 : (Kv ∪ Ka ∪ Kp).card ≤ κ₂ + s * κ₂ + s * s * κ :=
+        (card_union_le _ _).trans (add_le_add ((card_union_le _ _).trans (add_le_add hKv hKa)) hKp)
+      have h5 : (B \ (Kv ∪ Ka ∪ Kp)).card ≤ (Cand kk \ Kp).card := h2
+      have h6 : B.card - (Kv ∪ Ka ∪ Kp).card ≤ (B \ (Kv ∪ Ka ∪ Kp)).card := h1
+      rw [hBc] at h6
+      omega
+    obtain ⟨Y, hY, hYc⟩ := exists_subset_card_eq hcard
+    refine ⟨Y, fun _ => ⟨hY.trans sdiff_subset, hYc⟩, fun k' y hy x hx hyx => ?_⟩
+    have hxF : x ∈ Fb := mem_biUnion.mpr ⟨k', mem_univ _, hx⟩
+    have hyB : y ∈ B := (mem_filter.mp (mem_sdiff.mp (mem_sdiff.mp (hY hy)).1).1).1
+    exact (mem_sdiff.mp (hY hy)).2 (mem_biUnion.mpr ⟨x, hxF, mem_filter.mpr ⟨hyB, hyx.symm⟩⟩))
+  have hg : ∀ k : Fin s, Ys k ⊆ Cand k ∧ (Ys k).card = s := fun k => hgood k k.2
+  apply hfree
+  refine embed_HsF (univ : Finset (Fin s)) (by simp) v (fun k => a (e k)) Ys
+    (fun k _ => (hg k).2) (fun k _ => (ha _ (he1 k)).2) ?_ ?_ ?_ ?_ ?_
+  · intro k _ k' _ hkk
+    exact ⟨hI₂s _ (heI k) _ (heI k'), fun h => heinj.ne hkk (hainj (he1 k) (he1 k') h)⟩
+  · intro k _ y hy
+    have hyC := (hg k).1 hy
+    have hyA := mem_filter.mp (mem_sdiff.mp hyC).1
+    refine ⟨hqadj k y hyA.1, hyA.2, fun hyv => ?_⟩
+    exact hvP _ (he1 k) (hyv ▸ hseq.vcP _ (hen k) (mem_VC.mpr ⟨_, hyA.1⟩))
+  · intro k _
+    exact ((hseq.core _ (hen k)).1 _).2.2.mono
+      (((hg k).1.trans sdiff_subset).trans (filter_subset _ _))
+  · intro k _ k' _ hkk y hy hadj
+    have hyC := (hg k).1 hy
+    exact (mem_sdiff.mp hyC).2 (mem_biUnion.mpr ⟨k', mem_filter.mpr ⟨mem_univ _, Ne.symm hkk⟩,
+      mem_filter.mpr ⟨(mem_filter.mp (mem_sdiff.mp hyC).1).1, hadj⟩⟩)
+  · intro k _ k' _ hkk y hy z hz
+    exact hYanti k k' hkk y hy z hz
+
+end Lemmas2
+
+end GS
+
+
+open Finset
+
+namespace GS
+
+section Lemmas3
+variable {V : Type} [Fintype V] [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
+variable {S : Finset V} {d w κ μ n : ℕ} {A : ℕ → Fin d → Finset V} {P : ℕ → Finset V}
+
+/-- 7.9: every 5-nice family is 6-nice. -/
+theorem nice5_six (s ω : ℕ) (hs : 1 ≤ s) (hfree : ¬ (Hs s).IsIndContained G) (hS : Small G S ω)
+    (hseq : SeqP G S S d w κ μ n A P)
+    {J : Finset ℕ} (hJ : J ⊆ range n) {κ₂ : ℕ} (h5 : Nice5 G μ κ₂ A P J) (hd : 2 ≤ d)
+    (hκ₂ : (s * s - 1) * (κ - 1) + 1 ≤ κ₂) (hμ : (s * s - 1) * (κ - 1) + s ≤ μ)
+    (hw : κ₂ + μ ≤ w) (hw7 : κ₂ + s * κ₂ + s * s * κ + s ≤ w) (hκs : s ≤ κ)
+    {v : V} (hv : v ∈ J.biUnion P) :
+    (J.filter (fun i => v ∉ P i ∧ ∃ x ∈ P i, G.Adj v x)).card <
+      (rr ω s + s - 1) + (2 * (rr ω s + s - 1) - 1) * rr ω s := by
+  set ρ' := rr ω s + s - 1
+  have hρ' : 1 ≤ ρ' := by have : 1 ≤ rr ω s := Nat.one_le_two_pow; omega
+  have hfour := fun {u : V} (hu : u ∈ J.biUnion P) =>
+    nice3_four s ω hs hfree hS hseq hJ h5.1 hd hκ₂ hμ hw hw7 hu
+  by_contra hcon
+  push_neg at hcon
+  set I₀ := J.filter (fun i => v ∉ P i ∧ ∃ x ∈ P i, G.Adj v x)
+  set It := J.filter (fun i => v ∉ P i ∧ ∃ x ∈ VC (A i), G.Adj v x)
+  have hIt : It.card < ρ' := hfour hv
+  set I₁ := I₀ \ It
+  have hI₁ : (2 * ρ' - 1) * rr ω s ≤ I₁.card := by
+    have h1 : I₀.card - It.card ≤ I₁.card := le_card_sdiff It I₀
+    have h3 : ρ' + (2 * ρ' - 1) * rr ω s ≤ I₀.card := hcon
+    omega
+  have hI₁J : I₁ ⊆ J := sdiff_subset.trans (filter_subset _ _)
+  have hn : ∀ i ∈ I₁, i < n := fun i hi => mem_range.mp (hJ (hI₁J hi))
+  have hvP : ∀ i ∈ I₁, v ∉ P i := fun i hi => (mem_filter.mp (mem_sdiff.mp hi).1).2.1
+  have hvanti : ∀ i ∈ I₁, ∀ x ∈ VC (A i), ¬ G.Adj v x := fun i hi x hx hvx =>
+    (mem_sdiff.mp hi).2 (mem_filter.mpr ⟨hI₁J hi, hvP i hi, x, hx, hvx⟩)
+  have hex : ∀ i, ∃ x, i ∈ I₁ → x ∈ P i ∧ G.Adj v x := by
+    intro i
+    by_cases hi : i ∈ I₁
+    · obtain ⟨x, hx, hvx⟩ := (mem_filter.mp (mem_sdiff.mp hi).1).2.2
+      exact ⟨x, fun _ => ⟨hx, hvx⟩⟩
+    · exact ⟨v, fun h => absurd h hi⟩
+  choose a ha using hex
+  have haVC : ∀ i ∈ I₁, a i ∉ VC (A i) := fun i hi h => hvanti i hi _ h (ha i hi).2
+  have haJ : ∀ i ∈ I₁, a i ∈ J.biUnion P := fun i hi => mem_biUnion.mpr ⟨i, hI₁J hi, (ha i hi).1⟩
+  have hainj : Set.InjOn a I₁ := by
+    intro i hi j hj hij
+    by_contra hne
+    exact disjoint_left.mp (hseq.disj i (hn i hi) j (hn j hj) hne) (ha i hi).1 (hij ▸ (ha j hj).1)
+  -- arcs
+  obtain ⟨I₂, hI₂, hI₂c, hI₂free⟩ := outdeg_arcfree (fun i j => ∃ x ∈ VC (A j), G.Adj (a i) x)
+    ρ' (rr ω s) I₁ hρ' (by
+      intro i hi
+      refine lt_of_le_of_lt (card_le_card ?_) (hfour (haJ i hi))
+      intro j hj
+      obtain ⟨hjI, hji, x, hx, hax⟩ := mem_filter.mp hj
+      refine mem_filter.mpr ⟨hI₁J hjI, fun h => ?_, x, hx, hax⟩
+      exact disjoint_left.mp (hseq.disj i (hn i hi) j (hn j hjI) (Ne.symm hji)) (ha i hi).1 h) hI₁
+  obtain ⟨I₃, hI₃, hI₃c, hI₃s⟩ := stable_indices hS I₂ a (hainj.mono hI₂)
+    (fun i hi => hseq.PR i (hn i (hI₂ hi)) (ha i (hI₂ hi)).1) (by rw [hI₂c])
+  have hI₃₁ : I₃ ⊆ I₁ := hI₃.trans hI₂
+  have hY : ∀ i, ∃ Y : Finset V, i ∈ I₃ → ∃ p, Y ⊆ (A i p).filter (G.Adj (a i)) ∧ Y.card = s := by
+    intro i
+    by_cases hi : i ∈ I₃
+    · obtain ⟨-, -, p, hp⟩ := hseq.absorb i (hn i (hI₃₁ hi)) (a i) (ha i (hI₃₁ hi)).1 (haVC i (hI₃₁ hi))
+      obtain ⟨Y, hY, hYc⟩ := exists_subset_card_eq (hκs.trans hp)
+      exact ⟨Y, fun _ => ⟨p, hY, hYc⟩⟩
+    · exact ⟨∅, fun h => absurd h hi⟩
+  choose Y hYp using hY
+  have hYVC : ∀ i ∈ I₃, Y i ⊆ VC (A i) := by
+    intro i hi y hy
+    obtain ⟨p, hsub, -⟩ := hYp i hi
+    exact mem_VC.mpr ⟨p, (mem_filter.mp (hsub hy)).1⟩
+  apply hfree
+  refine embed_HsF I₃ hI₃c v a Y (fun i hi => (hYp i hi).choose_spec.2)
+    (fun i hi => (ha i (hI₃₁ hi)).2) ?_ ?_ ?_ ?_ ?_
+  · intro i hi j hj hij
+    exact ⟨hI₃s i hi j hj, fun h => hij (hainj (hI₃₁ hi) (hI₃₁ hj) h)⟩
+  · intro i hi y hy
+    obtain ⟨p, hsub, -⟩ := hYp i hi
+    refine ⟨(mem_filter.mp (hsub hy)).2, hvanti i (hI₃₁ hi) y (hYVC i hi hy), fun hyv => ?_⟩
+    exact hvP i (hI₃₁ hi) (hyv ▸ hseq.vcP i (hn i (hI₃₁ hi)) (hYVC i hi hy))
+  · intro i hi
+    obtain ⟨p, hsub, -⟩ := hYp i hi
+    exact ((hseq.core i (hn i (hI₃₁ hi))).1 p).2.2.mono (hsub.trans (filter_subset _ _))
+  · intro i hi j hj hij y hy hadj
+    exact hI₂free j (hI₃ hj) i (hI₃ hi) (Ne.symm hij) ⟨y, hYVC i hi hy, hadj⟩
+  · intro i hi j hj hij y hy z hz
+    exact h5.2 i (hI₁J (hI₃₁ hi)) j (hI₁J (hI₃₁ hj)) hij y (hYVC i hi hy) z (hYVC j hj hz)
+
+/-- 7.10: every 5-nice (hence 6-nice) family is 7-nice. -/
+theorem nice5_seven (s ω : ℕ) (hs : 1 ≤ s) (hfree : ¬ (Hs s).IsIndContained G) (hS : Small G S ω)
+    (hseq : SeqP G S S d w κ μ n A P)
+    {J : Finset ℕ} (hJ : J ⊆ range n) {κ₂ : ℕ} (h5 : Nice5 G μ κ₂ A P J) (hd : 2 ≤ d)
+    (hκ₂ : (s * s - 1) * (κ - 1) + 1 ≤ κ₂) (hμ : (s * s - 1) * (κ - 1) + s ≤ μ)
+    (hw : κ₂ + μ ≤ w) (hw7 : κ₂ + s * κ₂ + s * s * κ + s ≤ w) (hκs : s ≤ κ)
+    (lam : ℕ) (hlam : lam = (rr ω s + s - 1) + (2 * (rr ω s + s - 1) - 1) * rr ω s)
+    {h : ℕ} (hh : h ∈ J) :
+    (J.filter (fun i => i ≠ h ∧ ∃ v ∈ P h, rr ω s ≤ ((P i).filter (G.Adj v)).card)).card <
+      (2 * lam - 1) * (d * w + d * w * ((2 * s * lam - 1) * rr ω s + lam)) := by
+  set ρs := rr ω s
+  set σ := (2 * s * lam - 1) * ρs
+  have hρs : 1 ≤ ρs := Nat.one_le_two_pow
+  have hlam1 : 1 ≤ lam := by rw [hlam]; have : 1 ≤ rr ω s := Nat.one_le_two_pow; omega
+  have hsix := fun {u : V} (hu : u ∈ J.biUnion P) =>
+    nice5_six s ω hs hfree hS hseq hJ h5 hd hκ₂ hμ hw hw7 hκs hu
+  rw [← hlam] at hsix
+  have hhn : h < n := mem_range.mp (hJ hh)
+  have hcoreh := hseq.core h hhn
+  by_contra hcon
+  push_neg at hcon
+  set I₁ := J.filter (fun i => i ≠ h ∧ ∃ v ∈ P h, ρs ≤ ((P i).filter (G.Adj v)).card)
+  have hI₁J : I₁ ⊆ J := filter_subset _ _
+  have hn : ∀ i ∈ I₁, i < n := fun i hi => mem_range.mp (hJ (hI₁J hi))
+  have hih : ∀ i ∈ I₁, i ≠ h := fun i hi => (mem_filter.mp hi).2.1
+  have hVCne : (VC (A h)).Nonempty := hcoreh.VC_nonempty (by omega) (by omega)
+  obtain ⟨x0, -⟩ := id hVCne
+  have hex : ∀ i, ∃ x, i ∈ I₁ → x ∈ P h ∧ ρs ≤ ((P i).filter (G.Adj x)).card := by
+    intro i
+    by_cases hi : i ∈ I₁
+    · obtain ⟨x, hx, hc⟩ := (mem_filter.mp hi).2.2
+      exact ⟨x, fun _ => ⟨hx, hc⟩⟩
+    · exact ⟨x0, fun h' => absurd h' hi⟩
+  choose a ha using hex
+  have haJ : ∀ i ∈ I₁, a i ∈ J.biUnion P := fun i hi => mem_biUnion.mpr ⟨h, hh, (ha i hi).1⟩
+  have haPi : ∀ i ∈ I₁, a i ∉ P i := fun i hi hP =>
+    disjoint_left.mp (hseq.disj h hhn i (hn i hi) (hih i hi).symm) (ha i hi).1 hP
+  -- Step 1
+  obtain ⟨I₂, hI₂, hI₂c, hI₂free⟩ := outdeg_arcfree (fun i j => ∃ x ∈ P j, G.Adj (a i) x)
+    lam (d * w + d * w * (σ + lam)) I₁ hlam1 (by
+      intro i hi
+      refine lt_of_le_of_lt (card_le_card ?_) (hsix (haJ i hi))
+      intro j hj
+      obtain ⟨hjI, -, x, hx, hax⟩ := mem_filter.mp hj
+      exact mem_filter.mpr ⟨hI₁J hjI, haPi j hjI |> fun _ => fun hP =>
+        disjoint_left.mp (hseq.disj h hhn j (hn j hjI) (hih j hjI).symm) (ha i hi).1 hP, x, hx, hax⟩)
+      hcon
+  have hI₂₁ : I₂ ⊆ I₁ := hI₂
+  have hainj : Set.InjOn a I₂ := by
+    intro i hi j hj hij
+    by_contra hne
+    have hpos : 0 < ((P j).filter (G.Adj (a j))).card := lt_of_lt_of_le hρs (ha j (hI₂₁ hj)).2
+    obtain ⟨x, hx⟩ := card_pos.mp hpos
+    exact hI₂free i hi j hj hne ⟨x, (mem_filter.mp hx).1, hij ▸ (mem_filter.mp hx).2⟩
+  -- Step 2
+  set I₃ := I₂.filter (fun i => a i ∉ VC (A h))
+  have hI₃ : d * w * (σ + lam) ≤ I₃.card := by
+    have hsplit := card_filter_add_card_filter_not (s := I₂) (fun i => a i ∉ VC (A h))
+    have hbad : (I₂.filter (fun i => ¬ a i ∉ VC (A h))).card ≤ d * w := by
+      rw [← hcoreh.card_VC]
+      refine card_le_card_of_injOn a (fun i hi => ?_) (hainj.mono (filter_subset _ _))
+      exact not_not.mp (mem_filter.mp hi).2
+    have : I₃.card + (I₂.filter (fun i => ¬ a i ∉ VC (A h))).card = I₂.card := hsplit
+    omega
+  have hI₃₂ : I₃ ⊆ I₂ := filter_subset _ _
+  have hcex : ∀ i, ∃ c, i ∈ I₃ → c ∈ VC (A h) ∧ G.Adj (a i) c := by
+    intro i
+    by_cases hi : i ∈ I₃
+    · have hi2 := hI₃₂ hi
+      obtain ⟨-, -, p, hp⟩ := hseq.absorb h hhn (a i) (ha i (hI₂₁ hi2)).1 (mem_filter.mp hi).2
+      obtain ⟨c, hc⟩ := card_pos.mp (lt_of_lt_of_le (by omega : 0 < κ) hp)
+      exact ⟨c, fun _ => ⟨mem_VC.mpr ⟨p, (mem_filter.mp hc).1⟩, (mem_filter.mp hc).2⟩⟩
+    · exact ⟨a i, fun h' => absurd h' hi⟩
+  choose cc hcc using hcex
+  -- Step 3
+  obtain ⟨c, hcVC, hfib⟩ := exists_le_card_fiber_of_mul_le_card_of_maps_to
+    (f := cc) (s := I₃) (t := VC (A h)) (n := σ + lam) (fun i hi => (hcc i hi).1) hVCne
+    (by rw [hcoreh.card_VC]; exact hI₃)
+  set I₄ := I₃.filter (fun i => cc i = c)
+  have hI₄₃ : I₄ ⊆ I₃ := filter_subset _ _
+  have hI₄c : ∀ i ∈ I₄, G.Adj (a i) c := fun i hi =>
+    (mem_filter.mp hi).2 ▸ (hcc i (hI₄₃ hi)).2
+  -- Step 4
+  have hcP : c ∈ P h := hseq.vcP h hhn hcVC
+  set Ic := J.filter (fun i => c ∉ P i ∧ ∃ x ∈ P i, G.Adj c x)
+  have hIc : Ic.card < lam := hsix (mem_biUnion.mpr ⟨h, hh, hcP⟩)
+  set I₅ := I₄ \ Ic
+  have hI₅ : σ ≤ I₅.card := by
+    have h1 : I₄.card - Ic.card ≤ I₅.card := le_card_sdiff Ic I₄
+    have h2 : σ + lam ≤ I₄.card := hfib
+    omega
+  have hI₅₁ : I₅ ⊆ I₁ := ((sdiff_subset.trans hI₄₃).trans hI₃₂).trans hI₂₁
+  have hcanti : ∀ i ∈ I₅, ∀ x ∈ P i, ¬ G.Adj c x := by
+    intro i hi x hx hcx
+    have hcPi : c ∉ P i := fun hP =>
+      disjoint_left.mp (hseq.disj h hhn i (hn i (hI₅₁ hi)) (hih i (hI₅₁ hi)).symm) hcP hP
+    exact (mem_sdiff.mp hi).2 (mem_filter.mpr ⟨hI₁J (hI₅₁ hi), hcPi, x, hx, hcx⟩)
+  -- Step 5
+  have hYex : ∀ i, ∃ Y : Finset V, i ∈ I₅ → Y ⊆ (P i).filter (G.Adj (a i)) ∧ Y.card = s ∧
+      IsStab G Y := by
+    intro i
+    by_cases hi : i ∈ I₅
+    · obtain ⟨Y, hY, hYc, hYs⟩ := ramsey_stable hS
+        ((filter_subset _ _).trans (hseq.PR i (hn i (hI₅₁ hi)))) (ha i (hI₅₁ hi)).2
+      exact ⟨Y, fun _ => ⟨hY, hYc, hYs⟩⟩
+    · exact ⟨∅, fun h' => absurd h' hi⟩
+  choose Y hY using hYex
+  have hYP : ∀ i ∈ I₅, Y i ⊆ P i := fun i hi => (hY i hi).1.trans (filter_subset _ _)
+  obtain ⟨I₆, hI₆, hI₆c, hI₆free⟩ := outdeg_arcfree
+    (fun i j => ∃ y ∈ Y i, ∃ x ∈ P j, G.Adj y x) (s * lam) ρs I₅ (Nat.mul_pos hs hlam1) (by
+      intro i hi
+      have hsub : I₅.filter (fun j => j ≠ i ∧ ∃ y ∈ Y i, ∃ x ∈ P j, G.Adj y x) ⊆
+          (Y i).biUnion (fun y => J.filter (fun j => y ∉ P j ∧ ∃ x ∈ P j, G.Adj y x)) := by
+        intro j hj
+        obtain ⟨hjI, hji, y, hy, x, hx, hyx⟩ := mem_filter.mp hj
+        refine mem_biUnion.mpr ⟨y, hy, mem_filter.mpr ⟨hI₁J (hI₅₁ hjI), fun hP => ?_, x, hx, hyx⟩⟩
+        exact disjoint_left.mp (hseq.disj i (hn i (hI₅₁ hi)) j (hn j (hI₅₁ hjI)) (Ne.symm hji))
+          (hYP i hi hy) hP
+      refine lt_of_le_of_lt ((card_le_card hsub).trans (card_biUnion_le_card_mul _ _ (lam - 1)
+        fun y hy => ?_)) ?_
+      · have := hsix (mem_biUnion.mpr ⟨i, hI₁J (hI₅₁ hi), hYP i hi hy⟩); omega
+      · rw [(hY i hi).2.1]
+        calc s * (lam - 1) < s * lam := Nat.mul_lt_mul_of_pos_left (by omega) hs
+          _ = s * lam := rfl) (by show (2 * (s * lam) - 1) * ρs ≤ I₅.card; rw [← mul_assoc]; exact hI₅)
+  have hI₆₅ : I₆ ⊆ I₅ := hI₆
+  -- Step 6
+  obtain ⟨I₇, hI₇, hI₇c, hI₇s⟩ := stable_indices hS I₆ a
+    (hainj.mono (((hI₆₅.trans sdiff_subset).trans hI₄₃).trans hI₃₂))
+    (fun i hi => hseq.PR h hhn (ha i (hI₅₁ (hI₆₅ hi))).1) (by rw [hI₆c])
+  have hI₇₅ : I₇ ⊆ I₅ := hI₇.trans hI₆₅
+  have hI₇₂ : I₇ ⊆ I₂ := ((hI₇₅.trans sdiff_subset).trans hI₄₃).trans hI₃₂
+  apply hfree
+  refine embed_HsF I₇ hI₇c c a Y (fun i hi => (hY i (hI₇₅ hi)).2.1)
+    (fun i hi => (hI₄c i ((sdiff_subset) (hI₇₅ hi))).symm) ?_ ?_ ?_ ?_ ?_
+  · intro i hi j hj hij
+    exact ⟨hI₇s i hi j hj, fun h' => hij (hainj (hI₇₂ hi) (hI₇₂ hj) h')⟩
+  · intro i hi y hy
+    have hyP := hYP i (hI₇₅ hi) hy
+    refine ⟨(mem_filter.mp ((hY i (hI₇₅ hi)).1 hy)).2, hcanti i (hI₇₅ hi) y hyP, fun hyc => ?_⟩
+    exact disjoint_left.mp (hseq.disj h hhn i (hn i (hI₅₁ (hI₇₅ hi))) (hih i (hI₅₁ (hI₇₅ hi))).symm)
+      hcP (hyc ▸ hyP)
+  · intro i hi
+    exact (hY i (hI₇₅ hi)).2.2
+  · intro i hi j hj hij y hy hadj
+    exact hI₂free j (hI₇₂ hj) i (hI₇₂ hi) (Ne.symm hij) ⟨y, hYP i (hI₇₅ hi) hy, hadj⟩
+  · intro i hi j hj hij y hy z hz hyz
+    exact hI₆free i (hI₇ hi) j (hI₇ hj) hij ⟨y, hy, z, hYP j (hI₇₅ hj) hz, hyz⟩
+
+/-- (F1) each template is colourable from neighbourhood colourings. -/
+theorem template_col (hseq : SeqP G S S d w κ μ n A P) (hκ : 1 ≤ κ) {ℓ : ℕ}
+    (hOIH : ∀ x ∈ S, col G (nb G x ∩ S) ℓ) {i : ℕ} (hi : i < n) :
+    col G (P i) (d * w * (ℓ + 1)) := by
+  rw [← (hseq.core i hi).card_VC]
+  refine col_nbhds hOIH (hseq.core i hi).VC_sub (hseq.PR i hi) fun v hv => ?_
+  by_cases hvC : v ∈ VC (A i)
+  · exact Or.inl hvC
+  · obtain ⟨-, -, p, hp⟩ := hseq.absorb i hi v hv hvC
+    obtain ⟨x, hx⟩ := card_pos.mp (lt_of_lt_of_le hκ hp)
+    exact Or.inr ⟨x, mem_VC.mpr ⟨p, (mem_filter.mp hx).1⟩, ((mem_filter.mp hx).2).symm⟩
+
+/-- 7.12: blocks of bounded outside degree. -/
+theorem nice8_col (J : Finset ℕ) (hdisj : ∀ i ∈ J, ∀ j ∈ J, i ≠ j → Disjoint (P i) (P j))
+    {c₀ L : ℕ} (hcol : ∀ i ∈ J, col G (P i) c₀)
+    (hdeg : ∀ i ∈ J, ∀ v ∈ P i, ((J.biUnion P \ P i).filter (G.Adj v)).card < L) :
+    col G (J.biUnion P) (c₀ * L) := by
+  classical
+  let same : V → V → Prop := fun u v => ∃ i ∈ J, u ∈ P i ∧ v ∈ P i
+  have hidx : ∀ v, ∃ i, v ∈ J.biUnion P → i ∈ J ∧ v ∈ P i := by
+    intro v
+    by_cases hv : v ∈ J.biUnion P
+    · obtain ⟨i, hi, hvi⟩ := mem_biUnion.mp hv
+      exact ⟨i, fun _ => ⟨hi, hvi⟩⟩
+    · exact ⟨0, fun h => absurd h hv⟩
+  choose idx hidx using hidx
+  have huniq : ∀ i ∈ J, ∀ v ∈ P i, idx v = i := by
+    intro i hi v hv
+    have hvU : v ∈ J.biUnion P := mem_biUnion.mpr ⟨i, hi, hv⟩
+    by_contra hne
+    exact disjoint_left.mp (hdisj _ (hidx v hvU).1 i hi hne) (hidx v hvU).2 hv
+  have hc : ∀ i, ∃ c : V → ℕ, i ∈ J → (∀ x ∈ P i, c x < c₀) ∧
+      ∀ x ∈ P i, ∀ y ∈ P i, G.Adj x y → c x ≠ c y := by
+    intro i
+    by_cases hi : i ∈ J
+    · obtain ⟨c, h1, h2⟩ := hcol i hi
+      exact ⟨c, fun _ => ⟨h1, h2⟩⟩
+    · exact ⟨fun _ => 0, fun h => absurd h hi⟩
+  choose cs hcs using hc
+  refine col_prod same ⟨fun v => cs (idx v) v, ?_, ?_⟩ ?_
+  · intro v hv
+    exact (hcs _ (hidx v hv).1).1 v (hidx v hv).2
+  · rintro u hu v hv ⟨huv, i, hi, hui, hvi⟩
+    simp only
+    rw [huniq i hi u hui, huniq i hi v hvi]
+    exact (hcs i hi).2 u hui v hvi huv
+  · refine col_of_deg_lt _ (fun x h => G.irrefl h.1)
+      (fun x y h => ⟨h.1.symm, fun ⟨i, hi, h1, h2⟩ => h.2 ⟨i, hi, h2, h1⟩⟩) L _ ?_
+    intro v hv
+    obtain ⟨hi, hvi⟩ := hidx v hv
+    refine lt_of_le_of_lt (card_le_card ?_) (hdeg _ hi v hvi)
+    intro y hy
+    obtain ⟨hyU, hadj, hns⟩ := mem_filter.mp hy
+    exact mem_filter.mpr ⟨mem_sdiff.mpr ⟨hyU, fun hyP => hns ⟨idx v, hi, hvi, hyP⟩⟩, hadj⟩
+
+/-- The partition chain 7.3–7.12. -/
+theorem chain (s ω ℓ t : ℕ) (hs : 1 ≤ s) (hfree : ¬ (Hs s).IsIndContained G) (hS : Small G S ω)
+    (hOIH : ∀ x ∈ S, col G (nb G x ∩ S) ℓ) (hcore : ¬ HasCore G S t (d + 1))
+    (hseq : SeqP G S S d w κ μ n A P) (hd : 2 ≤ d) {κ₂ : ℕ}
+    (hκ₂ : (s * s - 1) * (κ - 1) + 1 ≤ κ₂) (hμ : (s * s - 1) * (κ - 1) + s ≤ μ)
+    (hw : κ₂ + μ ≤ w) (hw7 : κ₂ + s * κ₂ + s * s * κ + s ≤ w) (hκs : s ≤ κ)
+    (htw : t * μ ≤ w) (hμ1 : 1 ≤ μ) {g₀ : ℕ} (hleft : col G (S \ (range n).biUnion P) g₀) :
+    let ρs := rr ω s
+    let ρ' := ρs + s - 1
+    let lam := ρ' + (2 * ρ' - 1) * ρs
+    let k₈ := d * w * (ℓ + 1) * (lam * ρs)
+    let k₇ := (2 * ((2 * lam - 1) * (d * w + d * w * ((2 * s * lam - 1) * ρs + lam))) - 1) * k₈
+    let k₄ := (2 * (d * w * ρ') - 1) * k₇
+    let k₂ := (2 * (d * w * (s - 1) + 1) - 1) * k₄
+    col G S (g₀ + (2 * rr ω t - 1) * k₂) := by
+  classical
+  intro ρs ρ' lam k₈ k₇ k₄ k₂
+  have hρs : 1 ≤ ρs := Nat.one_le_two_pow
+  have hρ' : 1 ≤ ρ' := by omega
+  have hlam : 1 ≤ lam := by omega
+  have hw1 : 1 ≤ w := by omega
+  have hdw : 1 ≤ d * w := Nat.mul_pos (by omega) hw1
+  have hdisj : ∀ J ⊆ range n, ∀ i ∈ J, ∀ j ∈ J, i ≠ j → Disjoint (P i) (P j) :=
+    fun J hJ i hi j hj hij => hseq.disj i (mem_range.mp (hJ hi)) j (mem_range.mp (hJ hj)) hij
+  -- 7.11 + 7.12
+  have L711 : ∀ J ⊆ range n, Nice5 G μ κ₂ A P J → col G (J.biUnion P) k₇ := by
+    intro J hJ h5
+    refine col_partition J P (fun i j => ∃ v ∈ P i, ρs ≤ ((P j).filter (G.Adj v)).card) _ k₈
+      (fun i hi => nice5_seven s ω hs hfree hS hseq hJ h5 hd hκ₂ hμ hw hw7 hκs lam rfl hi) ?_
+    intro J' hJ' hfree'
+    have h5' := h5.mono hJ'
+    have hJ'n := hJ'.trans hJ
+    refine nice8_col J' (hdisj J' hJ'n)
+      (fun i hi => template_col hseq (by omega) hOIH (mem_range.mp (hJ'n hi))) ?_
+    intro i hi v hv
+    have hvU : v ∈ J'.biUnion P := mem_biUnion.mpr ⟨i, hi, hv⟩
+    set Jv := J'.filter (fun j => v ∉ P j ∧ ∃ x ∈ P j, G.Adj v x)
+    have hJv : Jv.card < lam := nice5_six s ω hs hfree hS hseq hJ'n h5' hd hκ₂ hμ hw hw7 hκs hvU
+    have hsub : (J'.biUnion P \ P i).filter (G.Adj v) ⊆ Jv.biUnion (fun j => (P j).filter (G.Adj v)) := by
+      intro y hy
+      obtain ⟨hyU, hvy⟩ := mem_filter.mp hy
+      obtain ⟨j, hj, hyj⟩ := mem_biUnion.mp (mem_sdiff.mp hyU).1
+      have hji : j ≠ i := fun h => (mem_sdiff.mp hyU).2 (h ▸ hyj)
+      refine mem_biUnion.mpr ⟨j, mem_filter.mpr ⟨hj, fun hvj => ?_, y, hyj, hvy⟩, mem_filter.mpr ⟨hyj, hvy⟩⟩
+      exact disjoint_left.mp (hdisj J' hJ'n i hi j hj hji.symm) hv hvj
+    have hbound : ∀ j ∈ Jv, ((P j).filter (G.Adj v)).card ≤ ρs - 1 := by
+      intro j hj
+      obtain ⟨hjJ, hvj, -⟩ := mem_filter.mp hj
+      have hji : i ≠ j := fun h => hvj (h ▸ hv)
+      have := hfree' i hi j hjJ hji
+      push_neg at this
+      have := this v hv
+      omega
+    calc ((J'.biUnion P \ P i).filter (G.Adj v)).card
+        ≤ Jv.card * (ρs - 1) := (card_le_card hsub).trans (card_biUnion_le_card_mul _ _ _ hbound)
+      _ ≤ Jv.card * ρs := Nat.mul_le_mul_left _ (by omega)
+      _ < lam * ρs := Nat.mul_lt_mul_of_pos_right hJv (by omega)
+  -- 7.8
+  have L78 : ∀ J ⊆ range n, Nice3 G μ κ₂ A P J → col G (J.biUnion P) k₄ := by
+    intro J hJ h3
+    refine col_partition J P (fun i j => ∃ x ∈ VC (A i), ∃ y ∈ VC (A j), G.Adj x y) (d * w * ρ') k₇
+      ?_ ?_
+    · intro i hi
+      have hin := mem_range.mp (hJ hi)
+      have hsub : J.filter (fun j => j ≠ i ∧ ∃ x ∈ VC (A i), ∃ y ∈ VC (A j), G.Adj x y) ⊆
+          (VC (A i)).biUnion (fun x => J.filter (fun j => x ∉ P j ∧ ∃ y ∈ VC (A j), G.Adj x y)) := by
+        intro j hj
+        obtain ⟨hjJ, hji, x, hx, y, hy, hxy⟩ := mem_filter.mp hj
+        refine mem_biUnion.mpr ⟨x, hx, mem_filter.mpr ⟨hjJ, fun hxj => ?_, y, hy, hxy⟩⟩
+        exact disjoint_left.mp (hseq.disj i hin j (mem_range.mp (hJ hjJ)) (Ne.symm hji))
+          (hseq.vcP i hin hx) hxj
+      refine lt_of_le_of_lt ((card_le_card hsub).trans (card_biUnion_le_card_mul _ _ (ρ' - 1)
+        fun x hx => ?_)) ?_
+      · have := nice3_four s ω hs hfree hS hseq hJ h3 hd hκ₂ hμ hw hw7
+          (mem_biUnion.mpr ⟨i, hi, hseq.vcP i hin hx⟩)
+        omega
+      · rw [(hseq.core i hin).card_VC]
+        exact Nat.mul_lt_mul_of_pos_left (by omega) hdw
+    · intro J' hJ' hfree'
+      exact L711 J' (hJ'.trans hJ) ⟨h3.mono hJ', fun i hi j hj hij x hx y hy hxy =>
+        hfree' i hi j hj hij ⟨x, hx, y, hy, hxy⟩⟩
+  -- 7.6
+  have L76 : ∀ J ⊆ range n, Nice1 G μ A P J → col G (J.biUnion P) k₂ := by
+    intro J hJ h1
+    refine col_partition J P (fun i j => ∃ x ∈ VC (A i), ∃ p, κ₂ ≤ ((A j p).filter (G.Adj x)).card)
+      (d * w * (s - 1) + 1) k₄ ?_ ?_
+    · intro i hi
+      have hin := mem_range.mp (hJ hi)
+      have hsub : J.filter (fun j => j ≠ i ∧ ∃ x ∈ VC (A i), ∃ p, κ₂ ≤ ((A j p).filter (G.Adj x)).card) ⊆
+          (VC (A i)).biUnion (fun x => J.filter (fun j => x ∉ VC (A j) ∧
+            ∃ p, κ₂ ≤ ((A j p).filter (G.Adj x)).card)) := by
+        intro j hj
+        obtain ⟨hjJ, hji, x, hx, p, hp⟩ := mem_filter.mp hj
+        exact mem_biUnion.mpr ⟨x, hx, mem_filter.mpr ⟨hjJ,
+          hseq.notin_VC (mem_range.mp (hJ hjJ)) hin hji (hseq.vcP i hin hx), p, hp⟩⟩
+      refine lt_of_le_of_lt ((card_le_card hsub).trans (card_biUnion_le_card_mul _ _ (s - 1)
+        fun x hx => ?_)) ?_
+      · have := nice1_two s hfree hseq hJ h1 hd hκ₂ hμ hw
+          (mem_biUnion.mpr ⟨i, hi, hseq.vcP i hin hx⟩)
+        omega
+      · rw [(hseq.core i hin).card_VC]; omega
+    · intro J' hJ' hfree'
+      refine L78 J' (hJ'.trans hJ) ⟨h1.mono hJ', fun i hi j hj hij x hx p => ?_⟩
+      by_contra hc
+      push_neg at hc
+      exact hfree' i hi j hj hij ⟨x, hx, p, hc⟩
+  -- 7.3
+  have Lall : col G ((range n).biUnion P) ((2 * rr ω t - 1) * k₂) := by
+    refine col_partition (range n) P
+      (fun i j => (P j ∩ S.filter (fun v => v ∉ VC (A i) ∧ InQ G μ (A i) v)).Nonempty) _ k₂ ?_ ?_
+    · intro i hi
+      have hin := mem_range.mp hi
+      refine lt_of_le_of_lt ?_ (card_Q_lt hS hcore (hseq.core i hin) htw hμ1)
+      refine (card_le_card ?_).trans (card_hits (range n) P _
+        (fun i hi j hj hij => hseq.disj i (mem_range.mp hi) j (mem_range.mp hj) hij))
+      intro j hj
+      exact mem_filter.mpr ⟨(mem_filter.mp hj).1, (mem_filter.mp hj).2.2⟩
+    · intro J' hJ' hfree'
+      refine L76 J' hJ' fun i hi v hv hvC hQ => ?_
+      obtain ⟨j, hj, hvj⟩ := mem_biUnion.mp hv
+      have hjn := mem_range.mp (hJ' hj)
+      by_cases hji : j = i
+      · subst hji
+        exact (hseq.absorb j hjn v hvj hvC).2.1 hQ
+      · exact hfree' i hi j hj (Ne.symm hji)
+          ⟨v, mem_inter.mpr ⟨hvj, mem_filter.mpr ⟨hseq.PR j hjn hvj, hvC, hQ⟩⟩⟩
+  have hsub : S ⊆ (S \ (range n).biUnion P) ∪ (range n).biUnion P := by
+    intro v hv
+    by_cases h : v ∈ (range n).biUnion P
+    · exact mem_union_right _ h
+    · exact mem_union_left _ (mem_sdiff.mpr ⟨hv, h⟩)
+  exact (col_union hleft Lall).mono hsub le_rfl
+
+end Lemmas3
+
+theorem consts (s t : ℕ) (hs : 2 ≤ s) (ht : 1 ≤ t) :
+    (s * s - 1) * (s - 1) + 1 ≤ s * s * s ∧ (s * s - 1) * (s - 1) + s ≤ s * s * s * s * s ∧
+    s * s * s + s * s * s * s * s ≤ (t + 1) * (s * s * s * s * s) ∧
+    s * s * s + s * (s * s * s) + s * s * s + s ≤ (t + 1) * (s * s * s * s * s) ∧
+    t * (s * s * s * s * s) ≤ (t + 1) * (s * s * s * s * s) ∧ 1 ≤ s * s * s * s * s := by
+  obtain ⟨u, rfl⟩ : ∃ u, s = u + 2 := ⟨s - 2, by omega⟩
+  have e1 : (u + 2) * (u + 2) - 1 = u * u + 4 * u + 3 := Nat.sub_eq_of_eq_add (by ring)
+  have e2 : u + 2 - 1 = u + 1 := by omega
+  rw [e1, e2]
+  have hX : 2 * ((u + 2) * (u + 2) * (u + 2) * (u + 2) * (u + 2)) ≤
+      (t + 1) * ((u + 2) * (u + 2) * (u + 2) * (u + 2) * (u + 2)) := Nat.mul_le_mul_right _ (by omega)
+  refine ⟨?_, ?_, ?_, ?_, Nat.mul_le_mul_right _ (by omega), Nat.succ_le_of_lt (by positivity)⟩
+  · calc _ ≤ (u * u + 4 * u + 3) * (u + 1) + 1 + (u * u + 5 * u + 4) := Nat.le_add_right _ _
+      _ = _ := by ring
+  · calc _ ≤ (u * u + 4 * u + 3) * (u + 1) + (u + 2) +
+          (u ^ 5 + 10 * u ^ 4 + 39 * u ^ 3 + 75 * u ^ 2 + 72 * u + 27) := Nat.le_add_right _ _
+      _ = _ := by ring
+  · have h1 : (u + 2) * (u + 2) * (u + 2) ≤ (u + 2) * (u + 2) * (u + 2) * (u + 2) :=
+      Nat.le_mul_of_pos_right _ (by omega)
+    have h2 : (u + 2) * (u + 2) * (u + 2) * (u + 2) ≤ (u + 2) * (u + 2) * (u + 2) * (u + 2) * (u + 2) :=
+      Nat.le_mul_of_pos_right _ (by omega)
+    omega
+  · calc _ ≤ (u + 2) * (u + 2) * (u + 2) + (u + 2) * ((u + 2) * (u + 2) * (u + 2)) +
+          (u + 2) * (u + 2) * (u + 2) + (u + 2) +
+          (2 * u ^ 5 + 19 * u ^ 4 + 70 * u ^ 3 + 124 * u ^ 2 + 103 * u + 30) := Nat.le_add_right _ _
+      _ = 2 * ((u + 2) * (u + 2) * (u + 2) * (u + 2) * (u + 2)) := by ring
+      _ ≤ _ := hX
+
+/-- The template step S(d) ⇒ S(d+1). -/
+theorem step_S (s ω ℓ d : ℕ) (hs : 2 ≤ s) (hd : 2 ≤ d) (gd : ℕ → ℕ)
+    (hgd : ∀ t, 1 ≤ t → ∀ {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V)
+      [DecidableRel G.Adj], ¬ (Hs s).IsIndContained G → ∀ S : Finset V, Small G S ω →
+      (∀ x ∈ S, col G (nb G x ∩ S) ℓ) → ¬ HasCore G S t d → col G S (gd t)) :
+    ∀ t, 1 ≤ t → ∃ g : ℕ, ∀ {V : Type} [Fintype V] [DecidableEq V] (G : SimpleGraph V)
+      [DecidableRel G.Adj], ¬ (Hs s).IsIndContained G → ∀ S : Finset V, Small G S ω →
+      (∀ x ∈ S, col G (nb G x ∩ S) ℓ) → ¬ HasCore G S t (d + 1) → col G S g := by
+  intro t ht
+  obtain ⟨c1, c2, c3, c4, c5, c6⟩ := consts s t hs ht
+  refine ⟨?_, ?_⟩
+  rotate_left
+  · intro V _ _ G _ hfree S hS hOIH hcore
+    have hw1 : 1 ≤ (t + 1) * (s * s * s * s * s) := le_trans c6 (Nat.le_mul_of_pos_left _ (by omega))
+    obtain ⟨n, A, P, hseq⟩ := greedy (G := G) S d ((t + 1) * (s * s * s * s * s)) s
+      (s * s * s * s * s) hw1 (by omega) S subset_rfl
+    have hleft := hgd _ hw1 G hfree (S \ (range n).biUnion P) (hS.mono sdiff_subset)
+      (fun x hx => (hOIH x (mem_sdiff.mp hx).1).mono (fun y hy =>
+        mem_inter.mpr ⟨(mem_inter.mp hy).1, (mem_sdiff.mp (mem_inter.mp hy).2).1⟩) le_rfl) hseq.left
+    exact chain s ω ℓ t (by omega) hfree hS hOIH hcore hseq hd c1 c2 c3 c4 le_rfl c5 c6 hleft
+
+/-- A stable `(1,d)`-core is a `d`-clique. -/
+theorem clique_of_core {V : Type} [Fintype V] [DecidableEq V] {G : SimpleGraph V} [DecidableRel G.Adj]
+    {S : Finset V} {d : ℕ} (h : HasCore G S 1 d) : ∃ X ⊆ S, IsClq G X ∧ X.card = d := by
+  obtain ⟨A, hA'⟩ := h
+  have hA : IsCore G S 1 d A := hA'
+  refine ⟨VC A, hA.VC_sub, ?_, by rw [hA.card_VC, mul_one]⟩
+  intro x hx y hy hxy
+  obtain ⟨p, hp⟩ := mem_VC.mp hx
+  obtain ⟨q, hq⟩ := mem_VC.mp hy
+  by_cases hpq : p = q
+  · subst hpq
+    exact absurd (card_le_one.mp (hA.1 p).2.1.le x hp y hq) hxy
+  · exact hA.adj_of_ne hpq hp hq
+
+/-- Theorem A: `H_s`-free graphs have chromatic number bounded in terms of the clique number. -/
+theorem thmA (s : ℕ) (hs : 2 ≤ s) : ∀ ω : ℕ, ∃ F : ℕ, ∀ {V : Type} [Fintype V] [DecidableEq V]
+    (G : SimpleGraph V) [DecidableRel G.Adj], ¬ (Hs s).IsIndContained G →
+    ∀ S : Finset V, Small G S ω → col G S F := by
+  intro ω
+  induction ω with
+  | zero =>
+    refine ⟨0, ?_⟩
+    intro V _ _ G _ _ S hS
+    have hSe : S = ∅ := by
+      rw [eq_empty_iff_forall_notMem]
+      intro x hx
+      have := hS {x} (singleton_subset_iff.mpr hx) (fun u hu v hv huv => by
+        rw [mem_singleton.mp hu, mem_singleton.mp hv] at huv; exact absurd rfl huv)
+      simp at this
+    rw [hSe]; exact col_empty 0
+  | succ ω ih =>
+    obtain ⟨ℓ, hℓ⟩ := ih
+    have inner : ∀ d, 2 ≤ d → ∀ t, 1 ≤ t → ∃ g : ℕ, ∀ {V : Type} [Fintype V] [DecidableEq V]
+        (G : SimpleGraph V) [DecidableRel G.Adj], ¬ (Hs s).IsIndContained G →
+        ∀ S : Finset V, Small G S (ω + 1) → (∀ x ∈ S, col G (nb G x ∩ S) ℓ) →
+        ¬ HasCore G S t d → col G S g := by
+      intro d hd
+      induction d, hd using Nat.le_induction with
+      | base =>
+        intro t ht
+        obtain ⟨g, hg⟩ := base_S2 s (ω + 1) t hs ht
+        refine ⟨g, ?_⟩
+        intro V _ _ G _ hf S hS _ hc
+        exact hg G hf S hS hc
+      | succ d hd ih =>
+        let gd : ℕ → ℕ := fun t => if ht : 1 ≤ t then Classical.choose (ih t ht) else 0
+        refine step_S s (ω + 1) ℓ d hs hd gd (fun t ht => ?_)
+        rw [show gd t = Classical.choose (ih t ht) from dif_pos ht]
+        exact Classical.choose_spec (ih t ht)
+    obtain ⟨g, hg⟩ := inner (ω + 2) (by omega) 1 le_rfl
+    refine ⟨g, ?_⟩
+    intro V _ _ G _ hf S hS
+    refine hg G hf S hS (fun x hx => hℓ G hf _ (hS.nb hx)) ?_
+    intro hc
+    obtain ⟨X, hX, hXq, hXc⟩ := clique_of_core hc
+    have := hS X hX hXq
+    omega
+
+
+end GS
+
 
 theorem OMA.solution : type_of% @GyarfasSumnerConjecture.gyarfas_sumner_conjecture.variants.radius_two := by
-  intro W _ _ T _ hT ⟨c, hrad⟩
-  let s := max (Fintype.card W) 2
-  have hs : 2 ≤ s := le_max_right _ _
-  have hemb : SimpleGraph.IsIndContained T (modelTree s) :=
-    tree_rad_two_indContained_modelTree T hT c hrad
-  refine ⟨fun ω => coreChiBound s (ω - 1) 1, ?_⟩
-  intro V _ _ G _ hTfree
-  have hnoTree : ¬ HasModelTreeOn G Finset.univ s :=
-    fun hm => hTfree (hemb.trans (isIndContained_of_hasModelTreeOn hs hm))
-  let d := (G.cliqueNum - 1) + 2
-  have hd_gt : G.cliqueNum < d := by dsimp [d]; omega
-  have hnoCore : ¬ HasCore G Finset.univ d 1 := by
-    rintro ⟨A, _, hAcard, hAdisj, hAadj⟩
-    have hex_v : ∀ p : Fin d, ∃ v : V, A p = {v} :=
-      fun p => Finset.card_eq_one.mp (hAcard p)
-    choose v hv using hex_v
-    have hv_inj : Function.Injective v := by
-      intro p q heq
-      by_contra hpq
-      have hvp : v p ∈ A p := by rw [hv p]; exact Finset.mem_singleton_self _
-      have hvq : v p ∈ A q := by rw [heq, hv q]; exact Finset.mem_singleton_self _
-      exact Finset.disjoint_left.mp (hAdisj p q hpq) hvp hvq
-    let K : Finset V := Finset.univ.image v
-    have hKcard : K.card = d := by
-      rw [Finset.card_image_of_injective _ hv_inj, Finset.card_univ, Fintype.card_fin]
-    have hKcl : G.IsClique (K : Set V) := by
-      intro x hx y hy hxy
-      obtain ⟨p, _, rfl⟩ := Finset.mem_image.mp (Finset.mem_coe.mp hx)
-      obtain ⟨q, _, rfl⟩ := Finset.mem_image.mp (Finset.mem_coe.mp hy)
-      have hpq : p ≠ q := fun heq => hxy (congr_arg v heq)
-      exact hAadj p q hpq (v p) (by rw [hv p]; exact Finset.mem_singleton_self _)
-        (v q) (by rw [hv q]; exact Finset.mem_singleton_self _)
-    have hle := hKcl.card_le_cliqueNum
-    rw [hKcard] at hle
-    omega
-  obtain ⟨col, hlt, hadj⟩ :=
-    colorableOn_of_no_core hs (G.cliqueNum - 1) le_rfl Finset.univ hnoTree hnoCore
-  have hcol : G.Colorable (coreChiBound s (G.cliqueNum - 1) 1) :=
-    ⟨SimpleGraph.Coloring.mk
-      (fun x => ⟨col x, hlt x (Finset.mem_univ x)⟩)
-      (fun {x y} hxy heq =>
-        hadj x (Finset.mem_univ x) y (Finset.mem_univ y) hxy (congr_arg Fin.val heq))⟩
-  exact hcol.chromaticNumber_le
+  intro W _ _ T _ hT hrad
+  obtain ⟨c, hc⟩ := hrad
+  have hs : 2 ≤ max 2 (Fintype.card W) := le_max_left _ _
+  have hTH : T.IsIndContained (GS.Hs (max 2 (Fintype.card W))) :=
+    GS.tree_le_Hs hT c hc _ (le_max_right _ _)
+  choose F hF using GS.thmA _ hs
+  refine ⟨F, ?_⟩
+  intro V _ _ G _ hTG
+  have hsmall : GS.Small G Finset.univ G.cliqueNum := fun X _ hX =>
+    SimpleGraph.IsClique.card_le_cliqueNum (tc := fun u hu v hv huv => hX u hu v hv huv)
+  obtain ⟨col, hcl, hp⟩ := hF G.cliqueNum G (fun h => hTG (hTH.trans h)) Finset.univ hsmall
+  exact (show G.Colorable (F G.cliqueNum) from
+    ⟨SimpleGraph.Coloring.mk (fun v => ⟨col v, hcl v (Finset.mem_univ v)⟩)
+      (fun {u v} h heq => hp u (Finset.mem_univ u) v (Finset.mem_univ v) h (congrArg Fin.val heq))⟩).chromaticNumber_le

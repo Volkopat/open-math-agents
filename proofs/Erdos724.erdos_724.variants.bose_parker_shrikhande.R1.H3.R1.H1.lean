@@ -29,48 +29,6 @@ lemma orth_one_two (m : ℕ) (h1 : IsUnit (1 : Fin (m + 1))) (h2 : IsUnit (2 : F
   have hi : i = i' := by linear_combination ha
   rw [hi]
 
-lemma orth_symm {n : ℕ} {L M : LatinSquare n} (h : Erdos724.IsOrthogonal L M) :
-    Erdos724.IsOrthogonal M L := by
-  intro p q hpq
-  apply h
-  simp only [Prod.mk.injEq] at hpq ⊢
-  exact ⟨hpq.2, hpq.1⟩
-
-lemma two_le_of_pair {n : ℕ} (L M : LatinSquare n) (hne : L ≠ M) (h : Erdos724.IsOrthogonal L M) :
-    2 ≤ Erdos724.maxMOLS n := by
-  classical
-  unfold Erdos724.maxMOLS
-  apply le_csSup
-  · refine ⟨Fintype.card (LatinSquare n), ?_⟩
-    rintro k ⟨S, rfl, -⟩
-    exact Finset.card_le_univ S
-  · refine ⟨{L, M}, Finset.card_pair hne, ?_⟩
-    intro A hA B hB hAB
-    simp only [Finset.coe_insert, Finset.coe_singleton, Set.mem_insert_iff,
-      Set.mem_singleton_iff] at hA hB
-    rcases hA with rfl | rfl <;> rcases hB with rfl | rfl
-    · exact absurd rfl hAB
-    · exact h
-    · exact orth_symm h
-    · exact absurd rfl hAB
-
-lemma odd_case (n : ℕ) (hn : 3 ≤ n) (hodd : Odd n) : 2 ≤ Erdos724.maxMOLS n := by
-  obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
-  have hcop : Nat.Coprime 2 (m + 1) := (Nat.coprime_two_left).mpr hodd
-  have h2 : IsUnit (2 : Fin (m + 1)) := by
-    have := (ZMod.isUnit_iff_coprime 2 (m + 1)).mpr hcop
-    exact_mod_cast this
-  refine two_le_of_pair (affineSq m 1 isUnit_one) (affineSq m 2 h2) ?_ (orth_one_two m _ h2)
-  intro heq
-  have h := congrFun (congrFun (congrArg LatinSquare.mat heq) 0) 1
-  change (0 : Fin (m + 1)) + 1 * 1 = 0 + 2 * 1 at h
-  rw [zero_add, zero_add, one_mul, mul_one] at h
-  have hv := congrArg Fin.val h
-  rw [Fin.val_one'] at hv
-  change 1 % (m + 1) = 2 % (m + 1) at hv
-  rw [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at hv
-  omega
-
 lemma odd_pair (m : ℕ) (hodd : Odd (m + 1)) :
     ∃ L M : LatinSquare (m + 1), Erdos724.IsOrthogonal L M := by
   have hcop : Nat.Coprime 2 (m + 1) := (Nat.coprime_two_left).mpr hodd
@@ -123,96 +81,6 @@ lemma not_orth_self {n : ℕ} (hn : 2 ≤ n) (L : LatinSquare n) : ¬ Erdos724.I
   have e : ((⟨1, by omega⟩ : Fin n), j) = (⟨0, by omega⟩, ⟨0, by omega⟩) := h (by simp only [hj])
   have := congrArg (fun p => p.1.val) e
   simp at this
-
-def L4 : Matrix (Fin 4) (Fin 4) (Fin 4) :=
-  !![0, 1, 2, 3;
-    1, 0, 3, 2;
-    2, 3, 0, 1;
-    3, 2, 1, 0]
-
-def M4 : Matrix (Fin 4) (Fin 4) (Fin 4) :=
-  !![0, 2, 3, 1;
-    1, 3, 2, 0;
-    2, 0, 1, 3;
-    3, 1, 0, 2]
-
-def L8 : Matrix (Fin 8) (Fin 8) (Fin 8) :=
-  !![0, 1, 2, 3, 4, 5, 6, 7;
-    1, 0, 3, 2, 5, 4, 7, 6;
-    2, 3, 0, 1, 6, 7, 4, 5;
-    3, 2, 1, 0, 7, 6, 5, 4;
-    4, 5, 6, 7, 0, 1, 2, 3;
-    5, 4, 7, 6, 1, 0, 3, 2;
-    6, 7, 4, 5, 2, 3, 0, 1;
-    7, 6, 5, 4, 3, 2, 1, 0]
-
-def M8 : Matrix (Fin 8) (Fin 8) (Fin 8) :=
-  !![0, 2, 4, 6, 3, 1, 7, 5;
-    1, 3, 5, 7, 2, 0, 6, 4;
-    2, 0, 6, 4, 1, 3, 5, 7;
-    3, 1, 7, 5, 0, 2, 4, 6;
-    4, 6, 0, 2, 7, 5, 3, 1;
-    5, 7, 1, 3, 6, 4, 2, 0;
-    6, 4, 2, 0, 5, 7, 1, 3;
-    7, 5, 3, 1, 4, 6, 0, 2]
-
-def sqOf (n : ℕ) (A : Matrix (Fin n) (Fin n) (Fin n)) (hr : ∀ i, Function.Injective (A i))
-    (hc : ∀ j, Function.Injective (A.transpose j)) : LatinSquare n := ⟨A, hr, hc⟩
-
-lemma pair4 : ∃ L M : LatinSquare 4, Erdos724.IsOrthogonal L M :=
-  ⟨sqOf 4 L4 (by show ∀ i, Function.Injective fun j => L4 i j; decide +kernel)
-    (by show ∀ j, Function.Injective fun i => L4 i j; decide +kernel), sqOf 4 M4 (by show ∀ i, Function.Injective fun j => M4 i j; decide +kernel)
-    (by show ∀ j, Function.Injective fun i => M4 i j; decide +kernel),
-    by show Function.Injective fun p : Fin 4 × Fin 4 => (L4 p.1 p.2, M4 p.1 p.2); decide +kernel⟩
-
-lemma pair8 : ∃ L M : LatinSquare 8, Erdos724.IsOrthogonal L M :=
-  ⟨sqOf 8 L8 (by show ∀ i, Function.Injective fun j => L8 i j; decide +kernel)
-    (by show ∀ j, Function.Injective fun i => L8 i j; decide +kernel), sqOf 8 M8 (by show ∀ i, Function.Injective fun j => M8 i j; decide +kernel)
-    (by show ∀ j, Function.Injective fun i => M8 i j; decide +kernel),
-    by show Function.Injective fun p : Fin 8 × Fin 8 => (L8 p.1 p.2, M8 p.1 p.2); decide +kernel⟩
-
-lemma pow2_pair : ∀ k, 2 ≤ k → ∃ L M : LatinSquare (2 ^ k), Erdos724.IsOrthogonal L M := by
-  intro k
-  induction k using Nat.strong_induction_on with
-  | _ k ih =>
-    intro hk
-    rcases (show k = 2 ∨ k = 3 ∨ 4 ≤ k by omega) with rfl | rfl | h4
-    · exact pair4
-    · exact pair8
-    · obtain ⟨L, M, h⟩ := pair4
-      obtain ⟨L', M', h'⟩ := ih (k - 2) (by omega) (by omega)
-      have hk' : 2 ^ k = 4 * 2 ^ (k - 2) := by
-        rw [show (4 : ℕ) = 2 ^ 2 by norm_num, ← pow_add]; congr 1; omega
-      rw [hk']
-      exact ⟨_, _, prod_orth h h'⟩
-
-/-- The case 4 ∣ n: n = 2^k · m with k ≥ 2 and m odd. -/
-theorem zero_mod_four (n : ℕ) (hn : 4 ≤ n) (h4 : 4 ∣ n) :
-    ∃ L M : LatinSquare n, L ≠ M ∧ Erdos724.IsOrthogonal L M := by
-  obtain ⟨k, m, hm, rfl⟩ := Nat.exists_eq_two_pow_mul_odd (n := n) (by omega)
-  have hk : 2 ≤ k := by
-    by_contra hk
-    obtain ⟨r, rfl⟩ := hm
-    interval_cases k <;> simp at h4 <;> omega
-  obtain ⟨L, M, h⟩ := pow2_pair k hk
-  obtain ⟨m', rfl⟩ : ∃ m', m = m' + 1 := ⟨m - 1, by obtain ⟨r, rfl⟩ := hm; omega⟩
-  obtain ⟨L', M', h'⟩ := odd_pair m' hm
-  refine ⟨prodSq L L', prodSq M M', fun heq => not_orth_self (by omega) (prodSq L L') ?_, prod_orth h h'⟩
-  have := prod_orth h h'
-  rwa [← heq] at this
-
-/-- T9 split, refined: Bose–Parker–Shrikhande follows from the case n ≡ 2 (mod 4). -/
-theorem bps_of_two_mod_four
-    (H : ∀ n : ℕ, 7 ≤ n → n % 4 = 2 → ∃ L M : LatinSquare n, L ≠ M ∧ Erdos724.IsOrthogonal L M) :
-    ∀ n : ℕ, 7 ≤ n → 2 ≤ Erdos724.maxMOLS n := by
-  intro n hn
-  rcases Nat.even_or_odd n with he | ho
-  · rcases (show n % 4 = 0 ∨ n % 4 = 2 by obtain ⟨r, rfl⟩ := he; omega) with h0 | h2
-    · obtain ⟨L, M, hne, h⟩ := zero_mod_four n (by omega) (Nat.dvd_of_mod_eq_zero h0)
-      exact two_le_of_pair L M hne h
-    · obtain ⟨L, M, hne, h⟩ := H n hn h2
-      exact two_le_of_pair L M hne h
-  · exact odd_case n (by omega) ho
 
 end Study724
 
@@ -593,24 +461,6 @@ lemma pair14 : ∃ L M : LatinSquare 14, Erdos724.IsOrthogonal L M :=
       by show ∀ j, Function.Injective fun i => M14Mat i j; decide +kernel⟩,
     by show Function.Injective fun p : Fin 14 × Fin 14 => (L14Mat p.1 p.2, M14Mat p.1 p.2)
        decide +kernel⟩
-
-
-/-- Bose–Parker–Shrikhande from the single base case of order 14. -/
-theorem bps_of_14 (H14 : ∃ L M : LatinSquare 14, Erdos724.IsOrthogonal L M) :
-    ∀ n : ℕ, 7 ≤ n → 2 ≤ Erdos724.maxMOLS n := by
-  apply bps_of_two_mod_four
-  intro n hn h2
-  suffices hp : ∃ L M : LatinSquare n, Erdos724.IsOrthogonal L M by
-    obtain ⟨L, M, h⟩ := hp
-    exact ⟨L, M, fun heq => not_orth_self (by omega) L (by rwa [← heq] at h), h⟩
-  by_cases h10 : n = 10
-  · subst h10; exact pair10
-  by_cases h14 : n = 14
-  · subst h14; exact H14
-  by_cases h30 : n = 30
-  · subst h30; exact pair30
-  obtain ⟨t, u, ht2, ht3, hu, hut, rfl⟩ := split_3t_u n (by omega) h2 h10 h14 h30
-  exact Study724W.pair_3t_u t u (coprime6 ht2 ht3) (Nat.odd_iff.mpr hu) hut
 
 
 lemma pair_two_mod_four (n : ℕ) (h2 : n % 4 = 2) (h10 : 10 ≤ n) :

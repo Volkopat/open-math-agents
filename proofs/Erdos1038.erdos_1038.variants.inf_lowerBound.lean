@@ -2,7 +2,10 @@ import FormalConjectures.ErdosProblems.«1038»
 import Mathlib.Analysis.MeanInequalities
 
 /-!
-The cubic argument is due to J. Koizumi (19 December 2025).
+The cubic argument is due to J. Koizumi (19 December 2025), formalized
+by @Genbox in PR #962. This revision preserves the cubic tail and measure
+argument, replacing the central interval's weighted AM–GM equality analysis
+with the strict pointwise bound |x-r| < exp(-xr).
 https://www.erdosproblems.com/forum/thread/1038
 -/
 
@@ -19,56 +22,27 @@ private theorem OMA.continuous_rootProduct {n : ℕ} (r : Fin n → ℝ) :
 private theorem OMA.rootProduct_lt_one {n : ℕ} (hn : 0 < n) (r : Fin n → ℝ)
     (hr : ∀ i, r i ∈ Icc (-1 : ℝ) 1) (hs : 0 ≤ ∑ i, r i)
     {x : ℝ} (hx : x ∈ Ioo (0 : ℝ) 1) : rootProduct r x < 1 := by
-  let w : Fin n → ℝ := fun _ => (n : ℝ)⁻¹
-  let z : Fin n → ℝ := fun i => |x - r i|
-  have hnR : 0 < (n : ℝ) := by exact_mod_cast hn
-  have hw (i : Fin n) : 0 < w i := inv_pos.mpr hnR
-  have hwSum : ∑ i, w i = 1 := by simp [w, hnR.ne']
-  have hz (i : Fin n) : 0 ≤ z i := abs_nonneg _
-  have hzBound (i : Fin n) : z i ≤ 1 - x * r i := by
-    dsimp [z]
+  have hbound (i : Fin n) : |x - r i| ≤ 1 - x * r i := by
     apply abs_le.mpr
     constructor
-    · have hh := mul_nonneg (show 0 ≤ 1 + x by linarith [hx.1])
-        (sub_nonneg.mpr (hr i).2)
-      nlinarith
-    · have hk := mul_nonneg (sub_nonneg.mpr hx.2.le)
-        (show 0 ≤ 1 + r i by linarith [(hr i).1])
-      nlinarith
-  have hweighted : ∑ i, w i * z i ≤ 1 := by
-    calc
-      ∑ i, w i * z i ≤ ∑ i, w i * (1 - x * r i) :=
-        Finset.sum_le_sum fun i _ => mul_le_mul_of_nonneg_left (hzBound i) (hw i).le
-      _ = 1 - (n : ℝ)⁻¹ * x * ∑ i, r i := by
-        simp only [mul_sub, mul_one, Finset.sum_sub_distrib, hwSum]
-        congr 1
-        simp only [w, ← mul_assoc, Finset.mul_sum]
-      _ ≤ 1 := sub_le_self _ (mul_nonneg (mul_nonneg (inv_nonneg.mpr hnR.le) hx.1.le) hs)
-  have ham := Real.geom_mean_le_arith_mean_weighted Finset.univ w z
-    (fun i _ => (hw i).le) hwSum (fun i _ => hz i)
-  have hgm : (rootProduct r x) ^ (n : ℝ)⁻¹ = ∏ i, z i ^ w i :=
-    (Real.finsetProd_rpow Finset.univ z (fun i _ => hz i) _).symm
-  by_contra! h
-  have hge : 1 ≤ ∏ i, z i ^ w i := by
-    rw [← hgm, ← Real.one_rpow ((n : ℝ)⁻¹)]
-    exact Real.rpow_le_rpow zero_le_one h (inv_nonneg.mpr hnR.le)
-  have heq : ∏ i, z i ^ w i = ∑ i, w i * z i :=
-    le_antisymm ham (hweighted.trans hge)
-  have hsumOne : ∑ i, w i * z i = 1 := le_antisymm hweighted (hge.trans ham)
-  have hone (i : Fin n) : z i = 1 := by
-    have ht := (Real.geom_mean_eq_arith_mean_weighted_iff_of_pos'
-      Finset.univ w z (fun i _ => hw i) hwSum (fun i _ => hz i)).mp heq i (Finset.mem_univ i)
-    exact ht.trans hsumOne
-  have hroot (i : Fin n) : r i = x - 1 := by
-    have hi : |x - r i| = 1 := hone i
-    rcases le_or_gt (r i) x with hle | hgt
-    · rw [abs_of_nonneg (sub_nonneg.mpr hle)] at hi
-      linarith
-    · rw [abs_of_neg (sub_neg.mpr hgt)] at hi
-      linarith [(hr i).2, hx.1]
-  have hsum : ∑ i, r i = (n : ℝ) * (x - 1) := by simp [hroot, mul_sub]
-  rw [hsum] at hs
-  exact (not_lt_of_ge hs) (mul_neg_of_pos_of_neg hnR (sub_neg.mpr hx.2))
+    · nlinarith [mul_nonneg (show 0 ≤ 1 + x by linarith [hx.1])
+        (sub_nonneg.mpr (hr i).2)]
+    · nlinarith [mul_nonneg (sub_nonneg.mpr hx.2.le)
+        (show 0 ≤ 1 + r i by linarith [(hr i).1])]
+  have hstrict (i : Fin n) : |x - r i| < Real.exp (-(x * r i)) := by
+    by_cases hi : r i = 0
+    · simpa [hi, abs_of_pos hx.1] using hx.2
+    · exact (hbound i).trans_lt (Real.one_sub_lt_exp_neg (mul_ne_zero hx.1.ne' hi))
+  by_cases hz : rootProduct r x = 0
+  · simp [hz]
+  have hpos (i : Fin n) : 0 < |x - r i| :=
+    lt_of_le_of_ne (abs_nonneg _) (Ne.symm fun h => hz (Finset.prod_eq_zero (Finset.mem_univ i) h))
+  have hp := Finset.prod_lt_prod_of_nonempty
+    (fun i (_ : i ∈ (Finset.univ : Finset (Fin n))) => hpos i)
+    (fun i _ => hstrict i) ⟨⟨0, hn⟩, Finset.mem_univ _⟩
+  apply hp.trans_le
+  rw [← Real.exp_sum, Finset.sum_neg_distrib, ← Finset.mul_sum]
+  exact Real.exp_le_one_iff.mpr (neg_nonpos.mpr (mul_nonneg hx.1.le hs))
 
 private theorem OMA.koizumiCubic {a b y : ℝ} (ha : a = 4 * b) (hb : 4 * b ^ 3 = 1)
     (hy : y ∈ Ioo 0 a) : 0 ≤ (a - y) * (y - b) ^ 2 ∧

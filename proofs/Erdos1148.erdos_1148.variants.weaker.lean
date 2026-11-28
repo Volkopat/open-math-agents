@@ -5,18 +5,15 @@ import FormalConjectures.ErdosProblems.«1148»
 -- Credit: @jonas-klesen (the owner of the agent is credited as the solver)
 -- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
 
--- Proof idea. Let `m = ⌊√n⌋` and `e = n - m²`, so `0 ≤ e ≤ 2m`.
--- * `e = 0`:          `n = m² + 0² - 0²`.
--- * `e = 2j + 1`:     `n = m² + (j+1)² - j²` with `j + 1 ≤ m`, so all squares are at most `n`.
--- * `e = 2i`, `i ≥ 1`: with `k = m - i`, `n = (m+1)² + k² - (k+1)²`, and
---   `(m+1)² = m² + 2m + 1 ≤ n + 2√n` because `n ≥ m² + 1` and `√n ≥ m`.
+/-!
+Proof idea. Let `m = ⌊√n⌋` and `e = n - m²`, so `0 ≤ e ≤ 2m`.
+* `e = 0`:          `n = m² + 0² - 0²`.
+* `e = 2j + 1`:     `n = m² + (j+1)² - j²` with `j + 1 ≤ m`, so all squares are at most `n`.
+* `e = 2i`, `i ≥ 1`: with `k = m - i`, `n = (m+1)² + k² - (k+1)²`, and
+  `(m+1)² = m² + 2m + 1 ≤ n + 2√n` because `n ≥ m² + 1` and `√n ≥ m`.
+-/
 
 namespace OMAErdos1148
-
-lemma bound_small (n x : ℕ) (hx : x * x ≤ n) : ((x : ℝ)) ^ 2 ≤ n + 2 * Real.sqrt n := by
-  have h0 : (0 : ℝ) ≤ Real.sqrt n := Real.sqrt_nonneg _
-  have h1 : ((x : ℝ)) ^ 2 ≤ n := by exact_mod_cast (by nlinarith : x ^ 2 ≤ n)
-  linarith
 
 lemma bound_big (n m x : ℕ) (hm : m * m + 1 ≤ n) (hx : x ≤ m + 1) :
     ((x : ℝ)) ^ 2 ≤ n + 2 * Real.sqrt n := by
@@ -36,31 +33,27 @@ theorem OMA.solution : type_of% @Erdos1148.erdos_1148.variants.weaker := by
   intro n
   unfold Erdos1148.erdos_1148_weaker_prop
   obtain ⟨m, hm⟩ : ∃ m, m = Nat.sqrt n := ⟨_, rfl⟩
-  have h1 : m * m ≤ n := hm ▸ Nat.sqrt_le n
-  have h2 : n < (m + 1) * (m + 1) := hm ▸ Nat.lt_succ_sqrt n
-  have h3 : (m + 1) * (m + 1) = m * m + 2 * m + 1 := by ring
+  have hlo : m * m ≤ n := hm ▸ Nat.sqrt_le n
+  have hhi : n < (m + 1) * (m + 1) := hm ▸ Nat.lt_succ_sqrt n
   clear hm
+  have hs : (m + 1) * (m + 1) = m * m + 2 * m + 1 := by ring
+  by_cases h : n = m * m
+  · have hn : m ^ 2 = n := by simpa [pow_two] using h.symm
+    have hm : (m : ℝ) ^ 2 = n := by exact_mod_cast hn
+    refine ⟨m, 0, 0, by simp [h, pow_two], ?_, ?_, ?_⟩ <;>
+      simp only [hm, Nat.cast_zero, zero_pow (by decide : 2 ≠ 0)] <;>
+      linarith [Real.sqrt_nonneg (n : ℝ), (Nat.cast_nonneg n : (0 : ℝ) ≤ n)]
+  have bound (x : ℕ) (hx : x ≤ m + 1) : (x : ℝ) ^ 2 ≤ n + 2 * Real.sqrt n :=
+    bound_big n m x (by omega) hx
   rcases Nat.even_or_odd (n - m * m) with ⟨i, hi⟩ | ⟨j, hj⟩
-  · rcases Nat.eq_zero_or_pos i with h0 | h0
-    · have hn : n = m * m := by omega
-      refine ⟨m, 0, 0, ?_, bound_small n m h1, bound_small n 0 (by omega),
-        bound_small n 0 (by omega)⟩
-      rw [hn]
-      simp [pow_two]
-    · have hn : n = m * m + 2 * i := by omega
-      have him : i ≤ m := by omega
-      obtain ⟨k, rfl⟩ : ∃ k, m = i + k := ⟨m - i, by omega⟩
-      refine ⟨i + k + 1, k, k + 1, ?_, bound_big n (i + k) _ (by omega) le_rfl,
-        bound_big n (i + k) _ (by omega) (by omega),
-        bound_big n (i + k) _ (by omega) (by omega)⟩
-      apply (Nat.sub_eq_of_eq_add _).symm
-      rw [hn]
-      ring
+  · have hn : n = m * m + 2 * i := by omega
+    obtain ⟨k, rfl⟩ : ∃ k, m = i + k := ⟨m - i, by omega⟩
+    refine ⟨i + k + 1, k, k + 1, ?_, bound _ le_rfl, bound _ (by omega), bound _ (by omega)⟩
+    apply (Nat.sub_eq_of_eq_add _).symm
+    rw [hn]
+    ring
   · have hn : n = m * m + 2 * j + 1 := by omega
-    have hjm : j + 1 ≤ m := by omega
-    refine ⟨m, j + 1, j, ?_, bound_small n m h1,
-      bound_small n (j + 1) (le_trans (Nat.mul_le_mul hjm hjm) h1),
-      bound_small n j (le_trans (Nat.mul_le_mul (by omega) (by omega)) h1)⟩
+    refine ⟨m, j + 1, j, ?_, bound _ (by omega), bound _ (by omega), bound _ (by omega)⟩
     apply (Nat.sub_eq_of_eq_add _).symm
     rw [hn]
     ring

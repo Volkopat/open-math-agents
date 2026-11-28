@@ -71,14 +71,6 @@ private theorem peakDivisors : (∏ p ∈ smallPrimes, (peak p + 1)) = 13271040 
 private theorem peakNumber : (∏ p ∈ smallPrimes, p ^ peak p) = 780296143507862696557498656000 := by
   decide
 
-/-- The divisor count of the product of all maximizing prime powers. -/
-theorem attainingValue : σ 0 780296143507862696557498656000 = 13271040 := by
-  have hprime {p : ℕ} (hp : p ∈ smallPrimes) : p.Prime := (Finset.mem_filter.mp hp).2
-  rw [← peakNumber, ← peakDivisors,
-    ArithmeticFunction.isMultiplicative_sigma.map_prod (fun p => p ^ peak p) smallPrimes
-      (fun _ hp _ hq hne => Nat.coprime_pow_primes _ _ (hprime hp) (hprime hq) hne)]
-  exact Finset.prod_congr rfl fun _ hp => ArithmeticFunction.sigma_zero_apply_prime_pow (hprime hp)
-
 /-- The optimal bound for the sixth power of the divisor count, with denominators cleared. -/
 theorem sharpBound (m : ℕ) :
     (σ 0 m) ^ 6 * 780296143507862696557498656000 ≤ 13271040 ^ 6 * m := by

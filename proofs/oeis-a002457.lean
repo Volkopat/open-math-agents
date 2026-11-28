@@ -157,48 +157,37 @@ private theorem scaled_coefficient (n j : ℕ) (hj : j ≤ n) :
     dsimp [w]
     push_cast
     rw [hz, ← mul_assoc, ← pow_add, Nat.sub_add_cancel hj]
-  have hw' : 0 ≤ w := by
-    have h : (0 : ℝ) ≤ (w : ℝ) := by
-      rw [hw]
-      exact mul_nonneg (by positivity) (choose_nonneg n j (by omega))
-    exact_mod_cast h
-  refine ⟨w.toNat, ?_⟩
-  calc
-    (w.toNat : ℝ) = ((w.toNat : ℤ) : ℝ) := by norm_cast
-    _ = _ := by rw [Int.toNat_of_nonneg hw', hw]
+  have hw' : (0 : ℝ) ≤ w := by
+    rw [hw]
+    exact mul_nonneg (by positivity) (choose_nonneg n j (by omega))
+  exact ⟨w.toNat, by rw [← hw]; exact_mod_cast Int.toNat_of_nonneg (by exact_mod_cast hw' : 0 ≤ w)⟩
 
 private theorem indexBound (n : ℕ) (hn : 0 < n) : 2 * n + 1 < 4 ^ n := by
-  induction n with
-  | zero => omega
-  | succ k ih =>
-    by_cases hk : k = 0
-    · subst k; decide
-    · have h := ih (by omega)
-      rw [pow_succ]
-      omega
+  have h := Nat.lt_two_pow_self (n := n)
+  rw [show 4 ^ n = 2 ^ n * 2 ^ n by norm_num [← mul_pow]]
+  nlinarith
 
-private theorem square_root_remainder (n : ℕ) (hn : 0 < n) :
-    Nat.sqrt (((16 : ℕ) ^ n + 1) ^ (2 * n + 1)) % (16 ^ n) =
-      (2 * n + 1) * (2 * n).choose n := by
+theorem sol : type_of% @OMA.S_oeis_a002457.main := by
+  intro n hn
   let B : ℕ := 16 ^ n
   let b : ℝ := B
   let d : ℝ := 4 ^ n
   let t := b⁻¹
   have hb1 : 1 < b := by
-    change (1 : ℝ) < ((16 ^ n : ℕ) : ℝ)
+    simp only [b, B]
     push_cast
     exact one_lt_pow₀ (by norm_num) hn.ne'
-  have hb : 0 < b := lt_trans zero_lt_one hb1
+  have hb : 0 < b := by linarith
   have hd : 1 < d := one_lt_pow₀ (by norm_num) hn.ne'
   have hdb : d ^ 2 = b := by
-    change ((4 : ℝ) ^ n) ^ 2 = ((16 ^ n : ℕ) : ℝ)
+    simp only [d, b, B]
     push_cast
-    rw [← pow_mul, Nat.mul_comm n 2, pow_mul]
+    rw [← pow_mul, mul_comm, pow_mul]
     norm_num
   have ht : 0 < t := inv_pos.mpr hb
   have ht' : t < 1 := inv_lt_one_of_one_lt₀ hb1
   let scale := d * b ^ n
-  have hscale : 0 < scale := mul_pos (lt_trans zero_lt_one hd) (pow_pos hb n)
+  have hscale : 0 < scale := mul_pos (by linarith) (pow_pos hb n)
   let u := fun j : ℕ => Ring.choose ((n : ℝ) + 1 / 2) j * t ^ j
   let c (j : ℕ) : ℕ := if hj : j ≤ n then (scaled_coefficient n j hj).choose else 0
   have hc (j : ℕ) (hj : j ≤ n) : (c j : ℝ) = d * Ring.choose ((n : ℝ) + 1 / 2) j := by
@@ -269,36 +258,19 @@ private theorem square_root_remainder (n : ℕ) (hn : 0 < n) :
     exact ⟨by exact_mod_cast h1, by exact_mod_cast h2⟩
   have hlast : c n = (2 * n + 1) * n.centralBinom := by
     have h := hc n le_rfl
-    rw [show d = (4 : ℝ) ^ n by rfl, constant_term] at h
+    simp only [d, constant_term] at h
     exact_mod_cast h
   have hsmall : c n < B := by
-    rw [hlast]
-    have hfour := indexBound n hn
-    calc
-      _ ≤ (2 * n + 1) * 4 ^ n := Nat.mul_le_mul_left _ (Nat.centralBinom_le_four_pow n)
-      _ < 4 ^ n * 4 ^ n := Nat.mul_lt_mul_of_pos_right hfour (by positivity)
-      _ = B := by
-        dsimp [B]
-        rw [← pow_add, ← two_mul, pow_mul]
-        norm_num
-  have hdiv : B ∣ ∑ j ∈ range n, c j * B ^ (n - j) := by
-    apply Finset.dvd_sum
-    intro j hj
-    have hj' := mem_range.mp hj
-    have hp : B ∣ B ^ (n - j) := by
-      simpa only [pow_one] using pow_dvd_pow B (show 1 ≤ n - j by omega)
-    exact dvd_trans hp (dvd_mul_left _ _)
+    rw [hlast, show B = 4 ^ n * 4 ^ n by norm_num [B, ← mul_pow]]
+    exact (Nat.mul_le_mul_left _ (Nat.centralBinom_le_four_pow n)).trans_lt
+      (Nat.mul_lt_mul_of_pos_right (indexBound n hn) (by positivity))
+  have hdiv : B ∣ ∑ j ∈ range n, c j * B ^ (n - j) :=
+    dvd_sum fun j hj => (dvd_pow_self B (by simp at hj; omega)).mul_left _
   change Nat.sqrt ((B + 1) ^ (2 * n + 1)) % B = _
   rw [← hsqrt]
   dsimp only [S]
   rw [sum_range_succ, Nat.sub_self, pow_zero, mul_one, Nat.add_mod, Nat.mod_eq_zero_of_dvd hdiv,
     zero_add, Nat.mod_mod, Nat.mod_eq_of_lt hsmall, hlast, Nat.centralBinom_eq_two_mul_choose]
-
-/-- Shunia's formula in the original factorial form of A002457. -/
-theorem main (n : ℕ) (hn : 0 < n) :
-    Nat.sqrt (((16 : ℕ) ^ n + 1) ^ (2 * n + 1)) % (16 ^ n) =
-      (2 * n + 1).factorial / n.factorial ^ 2 := by
-  rw [square_root_remainder n hn]
   have he : (2 * n).choose n * n.factorial ^ 2 = (2 * n).factorial := by
     simpa only [pow_two, Nat.mul_assoc, show 2 * n - n = n by omega] using
       Nat.choose_mul_factorial_mul_factorial (show n ≤ 2 * n by omega)
@@ -307,6 +279,4 @@ theorem main (n : ℕ) (hn : 0 < n) :
 
 end OpenMath.A002457
 
-theorem OMA.solution : type_of% @OMA.S_oeis_a002457.main := by
-  intro n hn
-  exact OpenMath.A002457.main n hn
+theorem OMA.solution : type_of% @OMA.S_oeis_a002457.main := OpenMath.A002457.sol

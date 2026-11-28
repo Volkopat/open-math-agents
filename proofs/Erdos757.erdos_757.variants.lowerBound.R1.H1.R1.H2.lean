@@ -61,361 +61,26 @@ private lemma forbiddenFour757 {A : Finset ℝ}
   omega
 
 
-private lemma fiveCase00 (f : Fin 7 ↪ ℝ) (bad : ∀ i j u v : Fin 7, [i,j,u,v].Nodup → f i + f j ≠ f u + f v)
-    (h0 : f 0+f 1+f 2=3*f 0) (h1 : f 0+f 3+f 4=3*f 0) (h2 : middle757 (f 0) (f 5) (f 6)) (h3 : middle757 (f 1) (f 3) (f 5)) (h4 : middle757 (f 2) (f 4) (f 6)) : False := by
-  apply bad 1 2 3 4 (by decide)
-  linear_combination (1) * h0 + (-1) * h1
-
-private lemma fiveCase01 (f : Fin 7 ↪ ℝ) (bad : ∀ i j u v : Fin 7, [i,j,u,v].Nodup → f i + f j ≠ f u + f v)
-    (h0 : f 0+f 1+f 2=3*f 0) (h1 : f 0+f 3+f 4=3*f 3) (h2 : middle757 (f 0) (f 5) (f 6)) (h3 : middle757 (f 1) (f 3) (f 5)) (h4 : middle757 (f 2) (f 4) (f 6)) : False := by
-  rcases h2 with h2|h2|h2
-  · apply bad 1 2 5 6 (by decide)
-    linear_combination (1) * h0 + (-1) * h2
-  · rcases h3 with h3|h3|h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (1/6) * h1 + (1/6) * h2 + (1/3) * h3 + (-1/6) * h4
-      · apply (show f 1 ≠ f 4 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (-2/3) * h3 + (1/3) * h4
-      · apply (show f 1 ≠ f 6 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (-2/3) * h3 + (1/3) * h4
-    · apply bad 0 4 1 5 (by decide)
-      linear_combination (1) * h1 + (-1) * h3
-    · apply bad 0 6 1 3 (by decide)
-      linear_combination (1) * h2 + (-1) * h3
-  · rcases h3 with h3|h3|h3
-    · rcases h4 with h4|h4|h4
-      · apply bad 0 2 1 3 (by decide)
-        linear_combination (-1/3) * h0 + (2/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (-2/3) * h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-2/9) * h0 + (4/9) * h1 + (1/9) * h2 + (-1/9) * h3 + (2/9) * h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (-1/3) * h4
-    · apply bad 0 4 1 5 (by decide)
-      linear_combination (1) * h1 + (-1) * h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (-4/9) * h0 + (2/9) * h1 + (-1/9) * h2 + (4/9) * h3 + (-2/9) * h4
-      · apply bad 0 3 4 6 (by decide)
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (2/3) * h2 + (1/3) * h3 + (1/3) * h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (2/3) * h0 + (2/3) * h1 + (2/3) * h2 + (1/3) * h3 + (-2/3) * h4
-
-private lemma fiveCase02 (f : Fin 7 ↪ ℝ) (bad : ∀ i j u v : Fin 7, [i,j,u,v].Nodup → f i + f j ≠ f u + f v)
-    (h0 : f 0+f 1+f 2=3*f 0) (h1 : f 0+f 3+f 4=3*f 4) (h2 : middle757 (f 0) (f 5) (f 6)) (h3 : middle757 (f 1) (f 3) (f 5)) (h4 : middle757 (f 2) (f 4) (f 6)) : False := by
-  rcases h2 with h2|h2|h2
-  · apply bad 1 2 5 6 (by decide)
-    linear_combination (1) * h0 + (-1) * h2
-  · rcases h3 with h3|h3|h3
-    · rcases h4 with h4|h4|h4
-      · apply bad 0 1 2 4 (by decide)
-        linear_combination (-1/3) * h0 + (2/3) * h1 + (-1/3) * h2 + (-2/3) * h3 + (1/3) * h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (-2/3) * h3 + (1/3) * h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (-2/9) * h0 + (1/9) * h1 + (4/9) * h2 + (-1/9) * h3 + (2/9) * h4
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-4/9) * h0 + (-1/9) * h1 + (2/9) * h2 + (4/9) * h3 + (-2/9) * h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (-1/3) * h4
-      · apply bad 0 4 3 5 (by decide)
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (2/3) * h2 + (1/3) * h3 + (1/3) * h4
-    · apply bad 0 6 1 3 (by decide)
-      linear_combination (1) * h2 + (-1) * h3
-  · rcases h3 with h3|h3|h3
-    · apply bad 0 1 4 6 (by decide)
-      linear_combination (1/2) * h1 + (1/2) * h2 + (-1/2) * h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 2 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (-2/3) * h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (-2/3) * h0 + (-2/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (2/3) * h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-2/3) * h0 + (1/3) * h1 + (-2/3) * h2 + (2/3) * h3 + (2/3) * h4
-    · rcases h4 with h4|h4|h4
-      · apply (show f 2 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (-2/3) * h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (-2/3) * h0 + (-2/3) * h1 + (1/3) * h2 + (2/3) * h3 + (2/3) * h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (-2/3) * h0 + (1/3) * h1 + (-2/3) * h2 + (-1/3) * h3 + (2/3) * h4
-
-private lemma fiveCase10 (f : Fin 7 ↪ ℝ) (bad : ∀ i j u v : Fin 7, [i,j,u,v].Nodup → f i + f j ≠ f u + f v)
-    (h0 : f 0+f 1+f 2=3*f 1) (h1 : f 0+f 3+f 4=3*f 0) (h2 : middle757 (f 0) (f 5) (f 6)) (h3 : middle757 (f 1) (f 3) (f 5)) (h4 : middle757 (f 2) (f 4) (f 6)) : False := by
-  rcases h2 with h2|h2|h2
-  · apply bad 3 4 5 6 (by decide)
-    linear_combination (1) * h1 + (-1) * h2
-  · rcases h3 with h3|h3|h3
-    · apply bad 0 2 3 5 (by decide)
-      linear_combination (1) * h0 + (-1) * h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 2 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (-1/3) * h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (1/6) * h0 + (-1/3) * h1 + (1/6) * h2 + (1/3) * h3 + (-1/6) * h4
-      · apply (show f 3 ≠ f 6 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (-2/3) * h3 + (1/3) * h4
-    · apply bad 0 6 1 3 (by decide)
-      linear_combination (1) * h2 + (-1) * h3
-  · rcases h3 with h3|h3|h3
-    · apply bad 0 2 3 5 (by decide)
-      linear_combination (1) * h0 + (-1) * h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (4/9) * h0 + (-2/9) * h1 + (1/9) * h2 + (-1/9) * h3 + (2/9) * h4
-      · apply bad 0 1 2 6 (by decide)
-        linear_combination (-2/3) * h0 + (-2/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (-1/3) * h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (1/3) * h4
-    · rcases h4 with h4|h4|h4
-      · apply bad 0 1 2 6 (by decide)
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (2/3) * h2 + (1/3) * h3 + (1/3) * h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (2/9) * h0 + (-4/9) * h1 + (-1/9) * h2 + (4/9) * h3 + (-2/9) * h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-2/3) * h0 + (-2/3) * h1 + (-2/3) * h2 + (-1/3) * h3 + (2/3) * h4
-
-private lemma fiveCase11 (f : Fin 7 ↪ ℝ) (bad : ∀ i j u v : Fin 7, [i,j,u,v].Nodup → f i + f j ≠ f u + f v)
-    (h0 : f 0+f 1+f 2=3*f 1) (h1 : f 0+f 3+f 4=3*f 3) (h2 : middle757 (f 0) (f 5) (f 6)) (h3 : middle757 (f 1) (f 3) (f 5)) (h4 : middle757 (f 2) (f 4) (f 6)) : False := by
-  rcases h2 with h2|h2|h2
-  · rcases h3 with h3|h3|h3
-    · apply bad 0 2 3 5 (by decide)
-      linear_combination (1) * h0 + (-1) * h3
-    · apply bad 0 4 1 5 (by decide)
-      linear_combination (1) * h1 + (-1) * h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 2 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (-1/3) * h4
-      · apply (show f 4 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (-1/3) * h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (1/6) * h0 + (1/6) * h1 + (-1/3) * h2 + (1/3) * h3 + (-1/6) * h4
-  · rcases h3 with h3|h3|h3
-    · apply bad 0 2 3 5 (by decide)
-      linear_combination (1) * h0 + (-1) * h3
-    · apply bad 0 4 1 5 (by decide)
-      linear_combination (1) * h1 + (-1) * h3
-    · apply bad 0 6 1 3 (by decide)
-      linear_combination (1) * h2 + (-1) * h3
-  · rcases h3 with h3|h3|h3
-    · apply bad 0 2 3 5 (by decide)
-      linear_combination (1) * h0 + (-1) * h3
-    · apply bad 0 4 1 5 (by decide)
-      linear_combination (1) * h1 + (-1) * h3
-    · rcases h4 with h4|h4|h4
-      · apply bad 0 3 1 6 (by decide)
-        linear_combination (2/3) * h0 + (-1/3) * h1 + (2/3) * h2 + (1/3) * h3 + (1/3) * h4
-      · apply bad 0 1 3 6 (by decide)
-        linear_combination (-1/3) * h0 + (2/3) * h1 + (2/3) * h2 + (1/3) * h3 + (1/3) * h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (-1/3) * h4
-
-private lemma fiveCase12 (f : Fin 7 ↪ ℝ) (bad : ∀ i j u v : Fin 7, [i,j,u,v].Nodup → f i + f j ≠ f u + f v)
-    (h0 : f 0+f 1+f 2=3*f 1) (h1 : f 0+f 3+f 4=3*f 4) (h2 : middle757 (f 0) (f 5) (f 6)) (h3 : middle757 (f 1) (f 3) (f 5)) (h4 : middle757 (f 2) (f 4) (f 6)) : False := by
-  rcases h2 with h2|h2|h2
-  · rcases h3 with h3|h3|h3
-    · apply bad 0 2 3 5 (by decide)
-      linear_combination (1) * h0 + (-1) * h3
-    · rcases h4 with h4|h4|h4
-      · apply bad 0 1 2 4 (by decide)
-        linear_combination (-1/3) * h0 + (2/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (1/3) * h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (1/3) * h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (2/9) * h0 + (-1/9) * h1 + (-4/9) * h2 + (4/9) * h3 + (-2/9) * h4
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (4/9) * h0 + (1/9) * h1 + (-2/9) * h2 + (-1/9) * h3 + (2/9) * h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-2/3) * h0 + (-2/3) * h1 + (-2/3) * h2 + (-1/3) * h3 + (2/3) * h4
-      · apply bad 0 1 2 4 (by decide)
-        linear_combination (-2/3) * h0 + (1/3) * h1 + (-2/3) * h2 + (-1/3) * h3 + (-1/3) * h4
-  · rcases h3 with h3|h3|h3
-    · apply bad 0 2 3 5 (by decide)
-      linear_combination (1) * h0 + (-1) * h3
-    · rcases h4 with h4|h4|h4
-      · apply bad 0 5 1 4 (by decide)
-        linear_combination (2/3) * h0 + (2/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (1/3) * h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (-1/3) * h4
-      · apply bad 0 1 4 5 (by decide)
-        linear_combination (-1/3) * h0 + (2/3) * h1 + (2/3) * h2 + (1/3) * h3 + (1/3) * h4
-    · apply bad 0 6 1 3 (by decide)
-      linear_combination (1) * h2 + (-1) * h3
-  · rcases h3 with h3|h3|h3
-    · apply bad 0 1 4 6 (by decide)
-      linear_combination (1/2) * h1 + (1/2) * h2 + (-1/2) * h3
-    · rcases h4 with h4|h4|h4
-      · apply bad 0 3 1 2 (by decide)
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (2/3) * h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (2/3) * h0 + (2/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (-2/3) * h4
-      · apply (show f 1 ≠ f 4 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (2/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (1/3) * h4
-    · rcases h4 with h4|h4|h4
-      · apply bad 0 5 1 2 (by decide)
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (2/3) * h4
-      · apply (show f 1 ≠ f 6 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (2/3) * h2 + (1/3) * h3 + (1/3) * h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (2/3) * h0 + (-1/3) * h1 + (2/3) * h2 + (1/3) * h3 + (-2/3) * h4
-
-private lemma fiveCase20 (f : Fin 7 ↪ ℝ) (bad : ∀ i j u v : Fin 7, [i,j,u,v].Nodup → f i + f j ≠ f u + f v)
-    (h0 : f 0+f 1+f 2=3*f 2) (h1 : f 0+f 3+f 4=3*f 0) (h2 : middle757 (f 0) (f 5) (f 6)) (h3 : middle757 (f 1) (f 3) (f 5)) (h4 : middle757 (f 2) (f 4) (f 6)) : False := by
-  rcases h2 with h2|h2|h2
-  · apply bad 3 4 5 6 (by decide)
-    linear_combination (1) * h1 + (-1) * h2
-  · rcases h3 with h3|h3|h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (-2/3) * h3 + (1/3) * h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (-1/9) * h0 + (-4/9) * h1 + (2/9) * h2 + (4/9) * h3 + (-2/9) * h4
-      · apply bad 0 2 1 5 (by decide)
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (2/3) * h2 + (1/3) * h3 + (1/3) * h4
-    · rcases h4 with h4|h4|h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (-1/3) * h4
-      · apply bad 0 2 1 5 (by decide)
-        linear_combination (-2/3) * h0 + (-2/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (-1/3) * h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (1/9) * h0 + (-2/9) * h1 + (4/9) * h2 + (-1/9) * h3 + (2/9) * h4
-    · apply bad 0 6 1 3 (by decide)
-      linear_combination (1) * h2 + (-1) * h3
-  · rcases h3 with h3|h3|h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-2/3) * h0 + (-2/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (2/3) * h4
-      · apply (show f 1 ≠ f 4 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (2/3) * h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (-2/3) * h1 + (-2/3) * h2 + (2/3) * h3 + (2/3) * h4
-    · apply bad 0 3 2 6 (by decide)
-      linear_combination (1/2) * h0 + (1/2) * h2 + (-1/2) * h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (-2/3) * h0 + (-2/3) * h1 + (1/3) * h2 + (2/3) * h3 + (2/3) * h4
-      · apply (show f 4 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (-2/3) * h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (-2/3) * h1 + (-2/3) * h2 + (-1/3) * h3 + (2/3) * h4
-
-private lemma fiveCase21 (f : Fin 7 ↪ ℝ) (bad : ∀ i j u v : Fin 7, [i,j,u,v].Nodup → f i + f j ≠ f u + f v)
-    (h0 : f 0+f 1+f 2=3*f 2) (h1 : f 0+f 3+f 4=3*f 3) (h2 : middle757 (f 0) (f 5) (f 6)) (h3 : middle757 (f 1) (f 3) (f 5)) (h4 : middle757 (f 2) (f 4) (f 6)) : False := by
-  rcases h2 with h2|h2|h2
-  · rcases h3 with h3|h3|h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (-1/3) * h4
-      · apply bad 0 2 1 3 (by decide)
-        linear_combination (-1/3) * h0 + (2/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (1/3) * h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (-1/9) * h0 + (2/9) * h1 + (-4/9) * h2 + (4/9) * h3 + (-2/9) * h4
-    · apply bad 0 4 1 5 (by decide)
-      linear_combination (1) * h1 + (-1) * h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 1 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (2/3) * h0 + (2/3) * h1 + (2/3) * h2 + (1/3) * h3 + (-2/3) * h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (1/9) * h0 + (4/9) * h1 + (-2/9) * h2 + (-1/9) * h3 + (2/9) * h4
-      · apply bad 0 2 1 3 (by decide)
-        linear_combination (-2/3) * h0 + (1/3) * h1 + (-2/3) * h2 + (-1/3) * h3 + (-1/3) * h4
-  · rcases h3 with h3|h3|h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (-1/3) * h4
-      · apply bad 0 4 1 2 (by decide)
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (-1/3) * h4
-      · apply bad 0 6 1 2 (by decide)
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (-1/3) * h4
-    · apply bad 0 4 1 5 (by decide)
-      linear_combination (1) * h1 + (-1) * h3
-    · apply bad 0 6 1 3 (by decide)
-      linear_combination (1) * h2 + (-1) * h3
-  · rcases h3 with h3|h3|h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (2/3) * h0 + (2/3) * h1 + (-1/3) * h2 + (1/3) * h3 + (-2/3) * h4
-      · apply bad 0 1 3 4 (by decide)
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (2/3) * h4
-      · apply (show f 1 ≠ f 4 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (2/3) * h2 + (-2/3) * h3 + (-2/3) * h4
-    · apply bad 0 4 1 5 (by decide)
-      linear_combination (1) * h1 + (-1) * h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 3 ≠ f 6 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (-1/3) * h1 + (2/3) * h2 + (1/3) * h3 + (1/3) * h4
-      · apply bad 0 1 4 5 (by decide)
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (2/3) * h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (2/3) * h1 + (2/3) * h2 + (1/3) * h3 + (-2/3) * h4
-
-private lemma fiveCase22 (f : Fin 7 ↪ ℝ) (bad : ∀ i j u v : Fin 7, [i,j,u,v].Nodup → f i + f j ≠ f u + f v)
-    (h0 : f 0+f 1+f 2=3*f 2) (h1 : f 0+f 3+f 4=3*f 4) (h2 : middle757 (f 0) (f 5) (f 6)) (h3 : middle757 (f 1) (f 3) (f 5)) (h4 : middle757 (f 2) (f 4) (f 6)) : False := by
-  rcases h2 with h2|h2|h2
-  · rcases h3 with h3|h3|h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (-2/3) * h0 + (1/3) * h1 + (-2/3) * h2 + (-1/3) * h3 + (2/3) * h4
-      · apply (show f 0 ≠ f 1 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (-2/3) * h1 + (-2/3) * h2 + (2/3) * h3 + (2/3) * h4
-      · apply (show f 1 ≠ f 6 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (2/3) * h4
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 3 from f.injective.ne (by decide))
-        linear_combination (-2/3) * h0 + (1/3) * h1 + (-2/3) * h2 + (2/3) * h3 + (2/3) * h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (-2/3) * h1 + (-2/3) * h2 + (-1/3) * h3 + (2/3) * h4
-      · apply (show f 3 ≠ f 6 from f.injective.ne (by decide))
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (-1/3) * h3 + (2/3) * h4
-    · apply bad 0 5 2 4 (by decide)
-      linear_combination (1/2) * h0 + (1/2) * h1 + (-1/2) * h3
-  · rcases h3 with h3|h3|h3
-    · rcases h4 with h4|h4|h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (2/3) * h0 + (-1/3) * h1 + (2/3) * h2 + (1/3) * h3 + (-2/3) * h4
-      · apply (show f 1 ≠ f 6 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (2/3) * h1 + (-1/3) * h2 + (-2/3) * h3 + (-2/3) * h4
-      · apply bad 0 3 1 6 (by decide)
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (2/3) * h4
-    · rcases h4 with h4|h4|h4
-      · apply (show f 3 ≠ f 6 from f.injective.ne (by decide))
-        linear_combination (2/3) * h0 + (-1/3) * h1 + (-1/3) * h2 + (-2/3) * h3 + (-2/3) * h4
-      · apply (show f 0 ≠ f 5 from f.injective.ne (by decide))
-        linear_combination (-1/3) * h0 + (2/3) * h1 + (2/3) * h2 + (1/3) * h3 + (-2/3) * h4
-      · apply bad 0 1 3 6 (by decide)
-        linear_combination (1/3) * h0 + (1/3) * h1 + (1/3) * h2 + (2/3) * h3 + (2/3) * h4
-    · apply bad 0 6 1 3 (by decide)
-      linear_combination (1) * h2 + (-1) * h3
-  · rcases h3 with h3|h3|h3
-    · apply bad 0 1 4 6 (by decide)
-      linear_combination (1/2) * h1 + (1/2) * h2 + (-1/2) * h3
-    · apply bad 0 3 2 6 (by decide)
-      linear_combination (1/2) * h0 + (1/2) * h2 + (-1/2) * h3
-    · apply bad 0 5 2 4 (by decide)
-      linear_combination (1/2) * h0 + (1/2) * h1 + (-1/2) * h3
-
 theorem OMA.solution : OMA.R_Erdos757_erdos_757_variants_lowerBound_R1_H1_R1.H2 := by
   classical
   intro A hcond
   dsimp only
-  rintro ⟨f,h0,h1,h2,h3,h4⟩
-  obtain ⟨sub0,ap0⟩ := Finset.mem_filter.mp h0
+  rintro ⟨f,k0,k1,k2,k3,k4⟩
+  obtain ⟨sub0,ap0⟩ := Finset.mem_filter.mp k0
   have incl0 := Finset.mem_powerset.mp sub0
   have m0 : middle757 (f 0) (f 1) (f 2) := edgeMiddle757 (f.injective.ne (by decide)) (f.injective.ne (by decide)) (f.injective.ne (by decide)) ap0
-  obtain ⟨sub1,ap1⟩ := Finset.mem_filter.mp h1
+  obtain ⟨sub1,ap1⟩ := Finset.mem_filter.mp k1
   have incl1 := Finset.mem_powerset.mp sub1
   have m1 : middle757 (f 0) (f 3) (f 4) := edgeMiddle757 (f.injective.ne (by decide)) (f.injective.ne (by decide)) (f.injective.ne (by decide)) ap1
-  obtain ⟨sub2,ap2⟩ := Finset.mem_filter.mp h2
+  obtain ⟨sub2,ap2⟩ := Finset.mem_filter.mp k2
   have incl2 := Finset.mem_powerset.mp sub2
-  have m2 : middle757 (f 0) (f 5) (f 6) := edgeMiddle757 (f.injective.ne (by decide)) (f.injective.ne (by decide)) (f.injective.ne (by decide)) ap2
-  obtain ⟨sub3,ap3⟩ := Finset.mem_filter.mp h3
+  have h2 : middle757 (f 0) (f 5) (f 6) := edgeMiddle757 (f.injective.ne (by decide)) (f.injective.ne (by decide)) (f.injective.ne (by decide)) ap2
+  obtain ⟨sub3,ap3⟩ := Finset.mem_filter.mp k3
   have incl3 := Finset.mem_powerset.mp sub3
-  have m3 : middle757 (f 1) (f 3) (f 5) := edgeMiddle757 (f.injective.ne (by decide)) (f.injective.ne (by decide)) (f.injective.ne (by decide)) ap3
-  obtain ⟨sub4,ap4⟩ := Finset.mem_filter.mp h4
+  have h3 : middle757 (f 1) (f 3) (f 5) := edgeMiddle757 (f.injective.ne (by decide)) (f.injective.ne (by decide)) (f.injective.ne (by decide)) ap3
+  obtain ⟨sub4,ap4⟩ := Finset.mem_filter.mp k4
   have incl4 := Finset.mem_powerset.mp sub4
-  have m4 : middle757 (f 2) (f 4) (f 6) := edgeMiddle757 (f.injective.ne (by decide)) (f.injective.ne (by decide)) (f.injective.ne (by decide)) ap4
+  have h4 : middle757 (f 2) (f 4) (f 6) := edgeMiddle757 (f.injective.ne (by decide)) (f.injective.ne (by decide)) (f.injective.ne (by decide)) ap4
   have hf (i : Fin 7) : f i ∈ A := by
     fin_cases i
     · exact incl0 (show f 0 ∈ _ by simp)
@@ -426,13 +91,190 @@ theorem OMA.solution : OMA.R_Erdos757_erdos_757_variants_lowerBound_R1_H1_R1.H2 
     · exact incl2 (show f 5 ∈ _ by simp)
     · exact incl2 (show f 6 ∈ _ by simp)
   have bad := forbiddenFour757 hcond f hf
-  rcases m0 with g0|g0|g0 <;> rcases m1 with g1|g1|g1
-  · exact fiveCase00 f bad g0 g1 m2 m3 m4
-  · exact fiveCase01 f bad g0 g1 m2 m3 m4
-  · exact fiveCase02 f bad g0 g1 m2 m3 m4
-  · exact fiveCase10 f bad g0 g1 m2 m3 m4
-  · exact fiveCase11 f bad g0 g1 m2 m3 m4
-  · exact fiveCase12 f bad g0 g1 m2 m3 m4
-  · exact fiveCase20 f bad g0 g1 m2 m3 m4
-  · exact fiveCase21 f bad g0 g1 m2 m3 m4
-  · exact fiveCase22 f bad g0 g1 m2 m3 m4
+  have B (i j u v : Fin 7) (h : [i,j,u,v].Nodup := by decide) (e : f i + f j = f u + f v := by linarith) : False := bad i j u v h e
+  have I (i j : Fin 7) (h : i ≠ j := by decide) (e : f i = f j := by linarith) : False := f.injective.ne h e
+  rcases m0 with h0|h0|h0 <;> rcases m1 with h1|h1|h1
+  · exact B 1 2 3 4
+
+  · rcases h2 with h2|h2|h2
+    · exact B 1 2 5 6
+    · rcases h3 with h3|h3|h3
+      · rcases h4 with h4|h4|h4
+        · exact I 0 1
+        · exact I 1 4
+        · exact I 1 6
+      · exact B 0 4 1 5
+      · exact B 0 6 1 3
+    · rcases h3 with h3|h3|h3
+      · rcases h4 with h4|h4|h4
+        · exact B 0 2 1 3
+        · exact I 0 3
+        · exact I 1 3
+      · exact B 0 4 1 5
+      · rcases h4 with h4|h4|h4
+        · exact I 0 5
+        · exact B 0 3 4 6
+        · exact I 1 3
+  · rcases h2 with h2|h2|h2
+    · exact B 1 2 5 6
+    · rcases h3 with h3|h3|h3
+      · rcases h4 with h4|h4|h4
+        · exact B 0 1 2 4
+        · exact I 1 3
+        · exact I 0 5
+      · rcases h4 with h4|h4|h4
+        · exact I 0 3
+        · exact I 1 3
+        · exact B 0 4 3 5
+      · exact B 0 6 1 3
+    · rcases h3 with h3|h3|h3
+      · exact B 0 1 4 6
+      · rcases h4 with h4|h4|h4
+        · exact I 2 3
+        · exact I 0 1
+        · exact I 0 3
+      · rcases h4 with h4|h4|h4
+        · exact I 2 5
+        · exact I 0 5
+        · exact I 0 1
+  · rcases h2 with h2|h2|h2
+    · exact B 3 4 5 6
+    · rcases h3 with h3|h3|h3
+      · exact B 0 2 3 5
+      · rcases h4 with h4|h4|h4
+        · exact I 2 3
+        · exact I 0 3
+        · exact I 3 6
+      · exact B 0 6 1 3
+    · rcases h3 with h3|h3|h3
+      · exact B 0 2 3 5
+      · rcases h4 with h4|h4|h4
+        · exact I 0 1
+        · exact B 0 1 2 6
+        · exact I 1 3
+      · rcases h4 with h4|h4|h4
+        · exact B 0 1 2 6
+        · exact I 0 5
+        · exact I 1 3
+  · rcases h2 with h2|h2|h2
+    · rcases h3 with h3|h3|h3
+      · exact B 0 2 3 5
+      · exact B 0 4 1 5
+      · rcases h4 with h4|h4|h4
+        · exact I 2 5
+        · exact I 4 5
+        · exact I 0 5
+    · rcases h3 with h3|h3|h3
+      · exact B 0 2 3 5
+      · exact B 0 4 1 5
+      · exact B 0 6 1 3
+    · rcases h3 with h3|h3|h3
+      · exact B 0 2 3 5
+      · exact B 0 4 1 5
+      · rcases h4 with h4|h4|h4
+        · exact B 0 3 1 6
+        · exact B 0 1 3 6
+        · exact I 0 5
+  · rcases h2 with h2|h2|h2
+    · rcases h3 with h3|h3|h3
+      · exact B 0 2 3 5
+      · rcases h4 with h4|h4|h4
+        · exact B 0 1 2 4
+        · exact I 1 3
+        · exact I 0 3
+      · rcases h4 with h4|h4|h4
+        · exact I 0 1
+        · exact I 1 3
+        · exact B 0 1 2 4
+    · rcases h3 with h3|h3|h3
+      · exact B 0 2 3 5
+      · rcases h4 with h4|h4|h4
+        · exact B 0 5 1 4
+        · exact I 0 3
+        · exact B 0 1 4 5
+      · exact B 0 6 1 3
+    · rcases h3 with h3|h3|h3
+      · exact B 0 1 4 6
+      · rcases h4 with h4|h4|h4
+        · exact B 0 3 1 2
+        · exact I 0 1
+        · exact I 1 4
+      · rcases h4 with h4|h4|h4
+        · exact B 0 5 1 2
+        · exact I 1 6
+        · exact I 0 1
+  · rcases h2 with h2|h2|h2
+    · exact B 3 4 5 6
+    · rcases h3 with h3|h3|h3
+      · rcases h4 with h4|h4|h4
+        · exact I 1 3
+        · exact I 0 1
+        · exact B 0 2 1 5
+      · rcases h4 with h4|h4|h4
+        · exact I 1 3
+        · exact B 0 2 1 5
+        · exact I 0 5
+      · exact B 0 6 1 3
+    · rcases h3 with h3|h3|h3
+      · rcases h4 with h4|h4|h4
+        · exact I 0 3
+        · exact I 1 4
+        · exact I 0 1
+      · exact B 0 3 2 6
+      · rcases h4 with h4|h4|h4
+        · exact I 0 5
+        · exact I 4 5
+        · exact I 0 3
+  · rcases h2 with h2|h2|h2
+    · rcases h3 with h3|h3|h3
+      · rcases h4 with h4|h4|h4
+        · exact I 1 3
+        · exact B 0 2 1 3
+        · exact I 0 1
+      · exact B 0 4 1 5
+      · rcases h4 with h4|h4|h4
+        · exact I 1 3
+        · exact I 0 3
+        · exact B 0 2 1 3
+    · rcases h3 with h3|h3|h3
+      · rcases h4 with h4|h4|h4
+        · exact I 0 1
+        · exact B 0 4 1 2
+        · exact B 0 6 1 2
+      · exact B 0 4 1 5
+      · exact B 0 6 1 3
+    · rcases h3 with h3|h3|h3
+      · rcases h4 with h4|h4|h4
+        · exact I 0 3
+        · exact B 0 1 3 4
+        · exact I 1 4
+      · exact B 0 4 1 5
+      · rcases h4 with h4|h4|h4
+        · exact I 3 6
+        · exact B 0 1 4 5
+        · exact I 0 3
+  · rcases h2 with h2|h2|h2
+    · rcases h3 with h3|h3|h3
+      · rcases h4 with h4|h4|h4
+        · exact I 0 5
+        · exact I 0 1
+        · exact I 1 6
+      · rcases h4 with h4|h4|h4
+        · exact I 0 3
+        · exact I 0 5
+        · exact I 3 6
+      · exact B 0 5 2 4
+    · rcases h3 with h3|h3|h3
+      · rcases h4 with h4|h4|h4
+        · exact I 0 5
+        · exact I 1 6
+        · exact B 0 3 1 6
+      · rcases h4 with h4|h4|h4
+        · exact I 3 6
+        · exact I 0 5
+        · exact B 0 1 3 6
+      · exact B 0 6 1 3
+    · rcases h3 with h3|h3|h3
+      · exact B 0 1 4 6
+      · exact B 0 3 2 6
+      · exact B 0 5 2 4

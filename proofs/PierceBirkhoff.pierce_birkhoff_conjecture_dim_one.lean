@@ -3,7 +3,7 @@ import FormalConjectures.Wikipedia.PierceBirkhoff
 -- Problem: Pierce–Birkhoff conjecture — pierce birkhoff conjecture dim one
 -- Upstream: formal-conjectures FormalConjectures/Wikipedia/PierceBirkhoff.lean:101 (declaration PierceBirkhoff.pierce_birkhoff_conjecture_dim_one)
 -- Credit: @Genbox (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Original proof: @Genbox, PR #978. Finite extrema use standard Mathlib identities.
 
 open Polynomial
 
@@ -28,33 +28,19 @@ lemma supinf_eq {ι κ : Type} [Finite ι] [Nonempty ι] [Finite κ] [Nonempty �
 lemma SI_poly (p : ℝ[X]) : SI (fun x => p.eval x) := by
   refine ⟨Unit, Unit, inferInstance, inferInstance, inferInstance, inferInstance,
     fun _ _ => p, fun x => ?_⟩
-  rw [supinf_eq (fun _ _ => p.eval x) (p.eval x) (fun _ => ⟨(), le_rfl⟩) ⟨(), fun _ => le_rfl⟩]
+  simp
 
 lemma SI_add {f g : ℝ → ℝ} (hf : SI f) (hg : SI g) : SI (fun x => f x + g x) := by
   obtain ⟨ι₁, κ₁, _, _, _, _, a, ha⟩ := hf
   obtain ⟨ι₂, κ₂, _, _, _, _, b, hb⟩ := hg
   refine ⟨ι₁ × ι₂, κ₁ × κ₂, inferInstance, inferInstance, inferInstance, inferInstance,
     fun p q => a p.1 q.1 + b p.2 q.2, fun x => ?_⟩
-  show f x + g x = _
+  dsimp only
   rw [ha x, hb x]
-  symm
-  apply supinf_eq
-  · rintro ⟨i, k⟩
-    obtain ⟨j, hj⟩ := exists_eq_ciInf_of_finite (f := fun j => (a i j).eval x)
-    obtain ⟨l, hl⟩ := exists_eq_ciInf_of_finite (f := fun l => (b k l).eval x)
-    refine ⟨(j, l), ?_⟩
-    simp only [eval_add]
-    apply add_le_add
-    · rw [hj]; exact le_ciSup (Set.finite_range (fun i => ⨅ j, (a i j).eval x)).bddAbove i
-    · rw [hl]; exact le_ciSup (Set.finite_range (fun i => ⨅ j, (b i j).eval x)).bddAbove k
-  · obtain ⟨i, hi⟩ := exists_eq_ciSup_of_finite (f := fun i => ⨅ j, (a i j).eval x)
-    obtain ⟨k, hk⟩ := exists_eq_ciSup_of_finite (f := fun k => ⨅ l, (b k l).eval x)
-    refine ⟨(i, k), ?_⟩
-    rintro ⟨j, l⟩
-    simp only [eval_add]
-    rw [← hi, ← hk]
-    exact add_le_add (ciInf_le (Set.finite_range _).bddBelow j)
-      (ciInf_le (Set.finite_range _).bddBelow l)
+  simp_rw [eval_add, ciSup_prod (Set.finite_range _).bddAbove,
+    ciInf_prod (Set.finite_range _).bddBelow,
+    ciSup_add (Set.finite_range _).bddAbove, add_ciSup (Set.finite_range _).bddAbove,
+    ciInf_add (Set.finite_range _).bddBelow, add_ciInf (Set.finite_range _).bddBelow]
 
 lemma SI_phi (a : ℝ) (q : ℝ[X]) :
     SI (fun z => if z ≤ a then 0 else (z - a) * q.eval z) := by

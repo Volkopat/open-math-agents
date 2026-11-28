@@ -10,28 +10,28 @@ Conversely, if den r = d divides num r + 1, then r + 1/d = (num r + 1)/d is an i
 
 theorem OMA.solution : OMA.R_Erdos288_erdos_288_variants_i2_card_eq_1_R1.H1 := by
   intro r d
-  have hd0 : (0 : ℚ) < (d : ℚ) := by exact_mod_cast d.pos
+  have hd : (0 : ℤ) < d := by exact_mod_cast d.pos
+  have hdq : (d : ℚ) ≠ 0 := by positivity
   constructor
   · rintro ⟨z, hz⟩
     have hr : r = ((z * d - 1 : ℤ) : ℚ) / ((d : ℤ) : ℚ) := by
       rw [eq_div_iff (by positivity)]
-      have : r = z - (d : ℚ)⁻¹ := by linarith
-      rw [this]; push_cast; field_simp
+      push_cast
+      field_simp at hz
+      linarith
     have hcop : Nat.Coprime (z * d - 1 : ℤ).natAbs (d : ℤ).natAbs := by
       have h : IsCoprime (z * d - 1 : ℤ) (d : ℤ) := ⟨-1, z, by ring⟩
-      have := Int.isCoprime_iff_gcd_eq_one.mp h
-      rwa [Int.gcd_eq_natAbs] at this
-    have hden := Rat.den_div_eq_of_coprime (a := z * d - 1) (b := (d : ℤ)) (by exact_mod_cast d.pos) hcop
-    have hnum := Rat.num_div_eq_of_coprime (a := z * d - 1) (b := (d : ℤ)) (by exact_mod_cast d.pos) hcop
+      simpa only [Int.gcd_eq_natAbs] using Int.isCoprime_iff_gcd_eq_one.mp h
+    have hden := Rat.den_div_eq_of_coprime (a := z * d - 1) (b := (d : ℤ)) hd hcop
+    have hnum := Rat.num_div_eq_of_coprime (a := z * d - 1) (b := (d : ℤ)) hd hcop
     rw [← hr] at hden hnum
     refine ⟨by exact_mod_cast hden, ?_⟩
     rw [hden, hnum]
     exact ⟨z, by ring⟩
   · rintro ⟨hden, ⟨k, hk⟩⟩
+    rw [hden] at hk
+    have hk' : (r.num : ℚ) + 1 = (d : ℚ) * k := by exact_mod_cast hk
     refine ⟨k, ?_⟩
-    have h1 : r = (r.num : ℚ) / (r.den : ℚ) := (Rat.num_div_den r).symm
-    rw [h1, hden]
-    have h2 : (r.num : ℚ) = (d : ℚ) * k - 1 := by
-      have : ((r.num + 1 : ℤ) : ℚ) = ((r.den * k : ℤ) : ℚ) := by rw [hk]
-      push_cast at this; rw [hden] at this; linarith
-    rw [h2]; field_simp; ring
+    rw [← Rat.num_div_den r, hden]
+    field_simp
+    linarith

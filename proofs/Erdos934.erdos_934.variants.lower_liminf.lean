@@ -269,31 +269,6 @@ lemma maxDegreeLE_lineGraph {V : Type u} [Finite V] {G : SimpleGraph V} {d : ℕ
     _ = Nat.card {v : V // v ∈ e.1} * d := by simp
     _ = 2 * d := by rw [natCard_endpoints_eq_two]
 
-/-- A finite simple graph of order `n`, maximum degree at most `d`, and diameter at most `k`.
-
-The quantified vertex type is kept native instead of transporting every construction to `Fin n`.
-`Finite V` makes `Nat.card V` and the set cardinalities mathematically meaningful. -/
-noncomputable def OrderAdmissible (k d n : ℕ) : Prop :=
-  ∃ (V : Type) (G : SimpleGraph V),
-    Finite V ∧ Nat.card V = n ∧ MaxDegreeLE G d ∧ G.ediam ≤ (k : ℕ∞)
-
-lemma orderAdmissible_le_coarseBound {k d n : ℕ} (hn : OrderAdmissible k d n) :
-    n ≤ (d + 1) ^ k := by
-  rcases hn with ⟨V, G, hfinite, hcard, hdegree, hdiam⟩
-  letI : Finite V := hfinite
-  rw [← hcard]
-  exact natCard_le_add_one_pow_of_ediam_le' hdegree hdiam
-
-/-- The defining set for `nKD` is bounded, unconditionally. -/
-lemma orderAdmissible_set_bddAbove (k d : ℕ) :
-    BddAbove {n : ℕ | OrderAdmissible k d n} :=
-  ⟨(d + 1) ^ k, fun _ hn ↦ orderAdmissible_le_coarseBound hn⟩
-
-/-- The degree--diameter extremal order.  The specification lemmas below require (and later the
-Moore bound supplies) boundedness of the defining set. -/
-noncomputable def nKD (k d : ℕ) : ℕ :=
-  sSup {n : ℕ | OrderAdmissible k d n}
-
 /-- A finite simple graph with `m` edges, maximum degree at most `d`, and line-graph diameter at
 most `ell`. -/
 noncomputable def EdgeAdmissible (ell d m : ℕ) : Prop :=
@@ -312,11 +287,6 @@ lemma edgeAdmissible_le_coarseBound {ell d m : ℕ} (hm : EdgeAdmissible ell d m
     _ ≤ (2 * d + 1) ^ ell :=
       natCard_le_add_one_pow_of_ediam_le' (maxDegreeLE_lineGraph hdegree) hdiam
 
-/-- The defining edge-count set is bounded, unconditionally. -/
-lemma edgeAdmissible_set_bddAbove (ell d : ℕ) :
-    BddAbove {m : ℕ | EdgeAdmissible ell d m} :=
-  ⟨(2 * d + 1) ^ ell, fun _ hm ↦ edgeAdmissible_le_coarseBound hm⟩
-
 /-- The paper defines `h_ell(d) - 1` as the maximum admissible edge count, so we define `h` to be
 one plus that maximum. -/
 noncomputable def h (ell d : ℕ) : ℕ :=
@@ -329,117 +299,6 @@ def mooreBound (k d : ℕ) : ℕ :=
 lemma maxDegreeLE_mono {V : Type*} {G : SimpleGraph V} {d d' : ℕ}
     (hdd' : d ≤ d') (hG : MaxDegreeLE G d) : MaxDegreeLE G d' :=
   fun v ↦ (hG v).trans hdd'
-
-lemma orderAdmissible_mono_degree {k d d' n : ℕ} (hdd' : d ≤ d')
-    (hn : OrderAdmissible k d n) : OrderAdmissible k d' n := by
-  rcases hn with ⟨V, G, hV, hcard, hdeg, hdiam⟩
-  exact ⟨V, G, hV, hcard, maxDegreeLE_mono hdd' hdeg, hdiam⟩
-
-lemma orderAdmissible_mono_diameter {k k' d n : ℕ} (hkk' : k ≤ k')
-    (hn : OrderAdmissible k d n) : OrderAdmissible k' d n := by
-  rcases hn with ⟨V, G, hV, hcard, hdeg, hdiam⟩
-  exact ⟨V, G, hV, hcard, hdeg, hdiam.trans (by exact_mod_cast hkk')⟩
-
-lemma edgeAdmissible_mono_degree {ell d d' m : ℕ} (hdd' : d ≤ d')
-    (hm : EdgeAdmissible ell d m) : EdgeAdmissible ell d' m := by
-  rcases hm with ⟨V, G, hV, hcard, hdeg, hdiam⟩
-  exact ⟨V, G, hV, hcard, maxDegreeLE_mono hdd' hdeg, hdiam⟩
-
-lemma edgeAdmissible_mono_diameter {ell ell' d m : ℕ} (hell : ell ≤ ell')
-    (hm : EdgeAdmissible ell d m) : EdgeAdmissible ell' d m := by
-  rcases hm with ⟨V, G, hV, hcard, hdeg, hdiam⟩
-  exact ⟨V, G, hV, hcard, hdeg, hdiam.trans (by exact_mod_cast hell)⟩
-
-/-- The admissible-order set is always nonempty; the one-vertex edgeless graph is a witness. -/
-lemma orderAdmissible_set_nonempty (k d : ℕ) :
-    ({n : ℕ | OrderAdmissible k d n} : Set ℕ).Nonempty := by
-  refine ⟨1, Unit, (⊥ : SimpleGraph Unit), inferInstance, ?_, ?_, ?_⟩
-  · simp
-  · intro v
-    simp
-  · calc
-      (⊥ : SimpleGraph Unit).ediam = 0 := SimpleGraph.ediam_eq_zero_of_subsingleton
-      _ ≤ (k : ℕ∞) := bot_le
-
-/-- The admissible-edge-count set is always nonempty; an edgeless graph is a witness. -/
-lemma edgeAdmissible_set_nonempty (ell d : ℕ) :
-    ({m : ℕ | EdgeAdmissible ell d m} : Set ℕ).Nonempty := by
-  refine ⟨0, Unit, (⊥ : SimpleGraph Unit), inferInstance, ?_, ?_, ?_⟩
-  · simp
-  · intro v
-    simp
-  · calc
-      (⊥ : SimpleGraph Unit).lineGraph.ediam = 0 :=
-        SimpleGraph.ediam_eq_zero_of_subsingleton
-      _ ≤ (ell : ℕ∞) := bot_le
-
-/-- Any admissible order is at most the extremal value, once boundedness has been established. -/
-lemma le_nKD_of_bddAbove {k d n : ℕ}
-    (hbdd : BddAbove {n : ℕ | OrderAdmissible k d n})
-    (hn : OrderAdmissible k d n) : n ≤ nKD k d := by
-  exact le_csSup hbdd hn
-
-/-- Under boundedness, `nKD` is itself attained by a finite simple graph. -/
-lemma nKD_admissible_of_bddAbove (k d : ℕ)
-    (hbdd : BddAbove {n : ℕ | OrderAdmissible k d n}) :
-    OrderAdmissible k d (nKD k d) := by
-  exact Nat.sSup_mem (orderAdmissible_set_nonempty k d) hbdd
-
-/-- Conditional maximum specification for `nKD`. -/
-lemma nKD_isGreatest_of_bddAbove (k d : ℕ)
-    (hbdd : BddAbove {n : ℕ | OrderAdmissible k d n}) :
-    IsGreatest {n : ℕ | OrderAdmissible k d n} (nKD k d) := by
-  refine ⟨nKD_admissible_of_bddAbove k d hbdd, ?_⟩
-  intro n hn
-  exact le_nKD_of_bddAbove hbdd hn
-
-/-- Unconditional extremal specification, using the coarse breadth-first bound above. -/
-lemma le_nKD {k d n : ℕ} (hn : OrderAdmissible k d n) : n ≤ nKD k d :=
-  le_nKD_of_bddAbove (orderAdmissible_set_bddAbove k d) hn
-
-lemma nKD_admissible (k d : ℕ) : OrderAdmissible k d (nKD k d) :=
-  nKD_admissible_of_bddAbove k d (orderAdmissible_set_bddAbove k d)
-
-lemma nKD_isGreatest (k d : ℕ) :
-    IsGreatest {n : ℕ | OrderAdmissible k d n} (nKD k d) :=
-  nKD_isGreatest_of_bddAbove k d (orderAdmissible_set_bddAbove k d)
-
-/-- Any admissible edge count is at most `h ell d - 1`, once boundedness has been established. -/
-lemma le_h_sub_one_of_bddAbove {ell d m : ℕ}
-    (hbdd : BddAbove {m : ℕ | EdgeAdmissible ell d m})
-    (hm : EdgeAdmissible ell d m) : m ≤ h ell d - 1 := by
-  have hm' : m ≤ sSup {m : ℕ | EdgeAdmissible ell d m} := le_csSup hbdd hm
-  simpa [h] using hm'
-
-/-- Under boundedness, `h ell d - 1` is itself attained. -/
-lemma h_sub_one_admissible_of_bddAbove (ell d : ℕ)
-    (hbdd : BddAbove {m : ℕ | EdgeAdmissible ell d m}) :
-    EdgeAdmissible ell d (h ell d - 1) := by
-  have hs : EdgeAdmissible ell d (sSup {m : ℕ | EdgeAdmissible ell d m}) :=
-    Nat.sSup_mem (edgeAdmissible_set_nonempty ell d) hbdd
-  simpa [h] using hs
-
-/-- Conditional maximum specification for the paper's edge extremum `h ell d - 1`. -/
-lemma h_sub_one_isGreatest_of_bddAbove (ell d : ℕ)
-    (hbdd : BddAbove {m : ℕ | EdgeAdmissible ell d m}) :
-    IsGreatest {m : ℕ | EdgeAdmissible ell d m} (h ell d - 1) := by
-  refine ⟨h_sub_one_admissible_of_bddAbove ell d hbdd, ?_⟩
-  intro m hm
-  exact le_h_sub_one_of_bddAbove hbdd hm
-
-/-- Unconditional edge-extremum specifications, using the coarse line-graph bound above. -/
-lemma le_h_sub_one {ell d m : ℕ} (hm : EdgeAdmissible ell d m) : m ≤ h ell d - 1 :=
-  le_h_sub_one_of_bddAbove (edgeAdmissible_set_bddAbove ell d) hm
-
-lemma h_sub_one_admissible (ell d : ℕ) : EdgeAdmissible ell d (h ell d - 1) :=
-  h_sub_one_admissible_of_bddAbove ell d (edgeAdmissible_set_bddAbove ell d)
-
-lemma h_sub_one_isGreatest (ell d : ℕ) :
-    IsGreatest {m : ℕ | EdgeAdmissible ell d m} (h ell d - 1) :=
-  h_sub_one_isGreatest_of_bddAbove ell d (edgeAdmissible_set_bddAbove ell d)
-
-lemma h_sub_one_le_coarseBound (ell d : ℕ) : h ell d - 1 ≤ (2 * d + 1) ^ ell :=
-  edgeAdmissible_le_coarseBound (h_sub_one_admissible ell d)
 
 end DegreeDiameter
 
@@ -512,11 +371,6 @@ def bipartiteEdge (H : SimpleGraph V) (x y : V) (hxy : Linked H x y) :
 @[simp] lemma bipartiteEdge_val (H : SimpleGraph V) (x y : V) (hxy : Linked H x y) :
     (bipartiteEdge H x y hxy : Sym2 (V ⊕ V)) = s(.inl x, .inr y) :=
   rfl
-
-lemma setOf_linked_eq_insert_neighborSet (H : SimpleGraph V) (x : V) :
-    {y : V | Linked H x y} = insert x (H.neighborSet x) := by
-  ext y
-  simp [Linked, eq_comm]
 
 lemma neighborSet_bipartiteExpansion_inl (H : SimpleGraph V) (x : V) :
     (bipartiteExpansion H).neighborSet (.inl x) =
@@ -741,16 +595,6 @@ theorem zigFirst_of_odd (H : SimpleGraph V) {x y : V} {n : ℕ}
     ∃ b', ∃ hb' : Linked H y b', zigFirst H p a ha = bipartiteEdge H y b' hb' :=
   ((zig_terminal H p).1 a ha).2 hn
 
-theorem zigSecond_of_even (H : SimpleGraph V) {x y : V} {n : ℕ}
-    (p : Route H x y n) (b : V) (hb : Linked H x b) (hn : Even n) :
-    ∃ b', ∃ hb' : Linked H y b', zigSecond H p b hb = bipartiteEdge H y b' hb' :=
-  ((zig_terminal H p).2 b hb).1 hn
-
-theorem zigSecond_of_odd (H : SimpleGraph V) {x y : V} {n : ℕ}
-    (p : Route H x y n) (b : V) (hb : Linked H x b) (hn : Odd n) :
-    ∃ a', ∃ ha' : Linked H a' y, zigSecond H p b hb = bipartiteEdge H a' y ha' :=
-  ((zig_terminal H p).2 b hb).2 hn
-
 /-- Both alternating coordinate routes cost no more than one line-graph step per route step. -/
 theorem edist_zig_le (H : SimpleGraph V) {x y : V} {n : ℕ} (p : Route H x y n) :
     (∀ a (ha : Linked H a x),
@@ -797,12 +641,6 @@ theorem edist_zigFirst_le (H : SimpleGraph V) {x y : V} {n : ℕ}
     (bipartiteExpansion H).lineGraph.edist
         (bipartiteEdge H a x ha) (zigFirst H p a ha) ≤ (n : ℕ∞) :=
   (edist_zig_le H p).1 a ha
-
-theorem edist_zigSecond_le (H : SimpleGraph V) {x y : V} {n : ℕ}
-    (p : Route H x y n) (b : V) (hb : Linked H x b) :
-    (bipartiteExpansion H).lineGraph.edist
-        (bipartiteEdge H x b hb) (zigSecond H p b hb) ≤ (n : ℕ∞) :=
-  (edist_zig_le H p).2 b hb
 
 /-- A diameter bound in `H` supplies an exact-length padded route between every two vertices. -/
 lemma nonempty_route_of_ediam_le (H : SimpleGraph V) (k : ℕ)
@@ -859,15 +697,6 @@ types without adding nonemptiness hypotheses. -/
 theorem lemma_4_1_le (H : SimpleGraph V) (k : ℕ) (hdiam : H.ediam ≤ (k : ℕ∞)) :
     (bipartiteExpansion H).lineGraph.ediam ≤ ((k + 1 : ℕ) : ℕ∞) :=
   SimpleGraph.ediam_le_of_edist_le (lineGraph_edist_bipartiteExpansion_le H k hdiam)
-
-/-- Lemma 4.1 exactly as an inequality of extended diameters. -/
-theorem lemma_4_1 (H : SimpleGraph V) :
-    (bipartiteExpansion H).lineGraph.ediam ≤ H.ediam + 1 := by
-  by_cases htop : H.ediam = ⊤
-  · simp [htop]
-  · have h := lemma_4_1_le H H.ediam.toNat <| by
-      rw [ENat.coe_toNat htop]
-    simpa [ENat.coe_toNat htop] using h
 
 end DegreeDiameter
 
@@ -1206,19 +1035,6 @@ theorem natCard_le_mooreBound_of_ediam_le' {V : Type u} [Finite V]
   cases isEmpty_or_nonempty V
   · simp
   · exact natCard_le_mooreBound_of_ediam_le hdegree hdiam
-
-/-- Every graph order admitted in the definition of `nKD` obeys the exact
-Moore bound. -/
-theorem orderAdmissible_le_mooreBound {k d n : ℕ}
-    (hn : OrderAdmissible k d n) : n ≤ mooreBound k d := by
-  rcases hn with ⟨V, G, hfinite, hcard, hdegree, hdiam⟩
-  letI : Finite V := hfinite
-  rw [← hcard]
-  exact natCard_le_mooreBound_of_ediam_le' hdegree hdiam
-
-/-- The exact paper inequality `n_k(d) ≤ 1 + d ∑_{j<k}(d-1)^j`. -/
-theorem nKD_le_mooreBound (k d : ℕ) : nKD k d ≤ mooreBound k d :=
-  orderAdmissible_le_mooreBound (nKD_admissible k d)
 
 end DegreeDiameter
 
@@ -2419,16 +2235,6 @@ theorem permOfList_apply {n : ℕ} (l : List (Fin n))
   simp [permOfList, List.Nodup.getEquivOfForallMemList_apply,
     List.get_eq_getElem]
 
-theorem permOfList_map_finRange {n : ℕ} (σ : Equiv.Perm (Fin n)) :
-    permOfList ((List.finRange n).map σ) σ.map_finRange_perm = σ := by
-  ext i
-  rw [permOfList_apply]
-  simp
-
-theorem permOfList_finRange {n : ℕ} :
-    permOfList (List.finRange n) (.refl _) = Equiv.refl _ := by
-  simpa using permOfList_map_finRange (Equiv.refl (Fin n))
-
 def PrefixSet2 {n : ℕ} (σ : Equiv.Perm (Fin n)) (i : Fin (n + 1)) : Set (Fin n) :=
   σ '' {j | j.castSucc < i}
 
@@ -3029,20 +2835,6 @@ noncomputable def rankPotential {V : Type*} [AddCommGroup V] [Module K V]
     (P : EvenPartialFlag (K := K) (V := V) (n := 2 * k + 1)) : ℕ :=
   2 * (evenEntryBlock k e P - 1)
 
-/-- Adjacent vertices have paper-potential values differing by at most two. -/
-theorem rankPotential_dist_adjacent
-    {V : Type*} [AddCommGroup V] [Module K V]
-    (k : ℕ) (e : V)
-    {P P' : EvenPartialFlag (K := K) (V := V) (n := 2 * k + 1)}
-    (h : (halvedFlagGraph (K := K) (V := V) (n := 2 * k + 1)).Adj P P') :
-    Nat.dist (rankPotential k e P) (rankPotential k e P') ≤ 2 := by
-  have hforward := evenEntryBlock_adjacent k e h
-  have hbackward := evenEntryBlock_adjacent k e h.symm
-  have hP := one_le_evenEntryBlock k e P
-  have hP' := one_le_evenEntryBlock k e P'
-  simp only [rankPotential, Nat.dist]
-  omega
-
 /-- Along a walk, the entry block changes by no more than its length. -/
 theorem evenEntryBlock_walk_le
     {V : Type*} [AddCommGroup V] [Module K V]
@@ -3185,34 +2977,6 @@ theorem halvedFlagGraph_ediam_eq_ofBasis (k : ℕ) (hk : 1 ≤ k)
 end BasisEndpoints
 
 section CoordinateFlags
-
-/-- The coordinate space used for the concrete graph `H_{k,q}`. -/
-abbrev CoordinateFlagSpace (K : Type*) (k : ℕ) := Fin (2 * k + 1) → K
-
-/-- The standard coordinate basis `e₁,...,eₜ`. -/
-noncomputable def coordinateBasis (k : ℕ) :
-    Basis (Fin (2 * k + 1)) K (CoordinateFlagSpace K k) :=
-  Pi.basisFun K (Fin (2 * k + 1))
-
-/-- The vector called `e₁` in the paper. -/
-noncomputable def firstCoordinate (k : ℕ) : CoordinateFlagSpace K k :=
-  coordinateBasis k 0
-
-/-- The even part of the standard complete flag `A`. -/
-noncomputable def standardEvenFlag (k : ℕ) :
-    EvenPartialFlag (K := K) (V := CoordinateFlagSpace K k) (n := 2 * k + 1) :=
-  PartialFlag.ofComplete 0 (CompleteFlag.ofBasis (coordinateBasis k))
-
-/-- The even part of the reverse-coordinate complete flag `C`. -/
-noncomputable def oppositeEvenFlag (k : ℕ) :
-    EvenPartialFlag (K := K) (V := CoordinateFlagSpace K k) (n := 2 * k + 1) :=
-  PartialFlag.ofComplete 0
-    (CompleteFlag.ofBasis ((coordinateBasis k).reindex Fin.revPerm))
-
-theorem coordinate_halvedFlagGraph_ediam_eq (k : ℕ) (hk : 1 ≤ k) :
-    (halvedFlagGraph (K := K) (V := CoordinateFlagSpace K k)
-      (n := 2 * k + 1)).ediam = (k : ℕ∞) :=
-  halvedFlagGraph_ediam_eq_ofBasis k hk (coordinateBasis k)
 
 end CoordinateFlags
 
@@ -3425,14 +3189,6 @@ theorem natCard_intermediate_eq
     Nat.card (IntermediateSubspace U W) = Nat.card (ℙ K qW) :=
       Nat.card_congr (intermediateSubspaceEquivProjectiveLine hUW hW)
     _ = Nat.card K + 1 := Projectivization.card_of_finrank_two K qW hqW_two
-
-/-- There are at most `|K| + 1` possible intermediate subspaces. -/
-theorem natCard_intermediate_le
-    [Finite K] [Finite V]
-    {U W : Submodule K V}
-    (hUW : U ≤ W) (hW : finrank K W = finrank K U + 2) :
-    Nat.card (IntermediateSubspace U W) ≤ Nat.card K + 1 := by
-  exact (natCard_intermediate_eq hUW hW).le
 
 end ProjectiveLine
 
@@ -4194,23 +3950,6 @@ theorem halvedFlagGraph_natCard_neighborSet_le_sharp (k : ℕ)
     _ ≤ A * (A - 1) := Nat.mul_le_mul_right (A - 1) (natCard_odd_compatible_le k P)
     _ = ((Nat.card K + 1) ^ k) * (((Nat.card K + 1) ^ k) - 1) := rfl
 
-/-- The coarser square cap retained as a convenient corollary. -/
-theorem halvedFlagGraph_natCard_neighborSet_le (k : ℕ)
-    (P : EvenPartialFlag (K := K) (V := V) (n := 2 * k + 1)) :
-    Nat.card ((halvedFlagGraph (K := K) (V := V) (n := 2 * k + 1)).neighborSet P) ≤
-      ((Nat.card K + 1) ^ k) * ((Nat.card K + 1) ^ k) := by
-  exact (halvedFlagGraph_natCard_neighborSet_le_sharp k P).trans
-    (Nat.mul_le_mul_left _ (Nat.sub_le _ _))
-
-theorem halvedFlagGraph_degree_le (k : ℕ)
-    (P : EvenPartialFlag (K := K) (V := V) (n := 2 * k + 1))
-    [Fintype ((halvedFlagGraph (K := K) (V := V) (n := 2 * k + 1)).neighborSet P)] :
-    (halvedFlagGraph (K := K) (V := V) (n := 2 * k + 1)).degree P ≤
-      ((Nat.card K + 1) ^ k) * ((Nat.card K + 1) ^ k) := by
-  rw [← (halvedFlagGraph (K := K) (V := V) (n := 2 * k + 1)).card_neighborSet_eq_degree,
-    ← Nat.card_eq_fintype_card]
-  exact halvedFlagGraph_natCard_neighborSet_le k P
-
 end PartialFlagCompletions
 
 end DegreeDiameter
@@ -4294,18 +4033,6 @@ instance flagSpaceFinite [Finite K] : ∀ k : ℕ, Finite (FlagSpace K k)
   | k + 1 =>
       letI := flagSpaceFinite k
       inferInstanceAs (Finite ((Fin 2 → K) × FlagSpace K k))
-
-theorem natCard_flagSpace [Finite K] (k : ℕ) :
-    Nat.card (FlagSpace K k) = Nat.card K ^ flagDim k := by
-  induction k with
-  | zero => simp [FlagSpace, flagDim, Nat.card_fun]
-  | succ k ih =>
-      simp only [FlagSpace, flagDim, Nat.card_prod, ih]
-      rw [Nat.card_fun]
-      simp
-      rw [← pow_add]
-      congr 1
-      omega
 
 end Cardinality
 
@@ -4679,14 +4406,6 @@ theorem natCard_completeFlag_of_finrank {n : ℕ}
     _ = A * qFactorial q n := hfactor
     _ = qFactorial q n * A := Nat.mul_comm _ _
 
-/-- Coordinate-space specialization of `natCard_completeFlag_of_finrank`.
-This is the literal formula `|Flag(K^n)| = [n]_(|K|)!`. -/
-theorem natCard_completeFlag_finFun (n : ℕ) :
-    Nat.card (CompleteFlag K (Fin n → K) n) =
-      qFactorial (Nat.card K) n := by
-  apply natCard_completeFlag_of_finrank
-  simp
-
 end CompleteFlagCount
 
 end DegreeDiameter
@@ -4861,15 +4580,6 @@ noncomputable def card (M : FiniteFieldModel) : ℕ :=
 
 end FiniteFieldModel
 
-/-- The cardinality of every finite field is a prime power.  Together with
-`exists_finiteFieldModel_of_isPrimePow` below, this records both directions
-of the correspondence used by the prime-power indexing. -/
-theorem isPrimePow_natCard_finiteField (K : Type*) [Field K] [Finite K] :
-    IsPrimePow (Nat.card K) := by
-  letI : Fintype K := Fintype.ofFinite K
-  rw [Nat.card_eq_fintype_card]
-  exact FiniteField.isPrimePow_card K
-
 /-- Every natural-number prime power is the cardinality of an explicitly
 packaged finite field.  The field is the Mathlib Galois field `GF(p^e)`. -/
 theorem exists_finiteFieldModel_of_isPrimePow (q : ℕ) (hq : IsPrimePow q) :
@@ -4883,16 +4593,6 @@ theorem exists_finiteFieldModel_of_isPrimePow (q : ℕ) (hq : IsPrimePow q) :
   refine ⟨M, ?_⟩
   simpa only [FiniteFieldModel.card, M] using
     (GaloisField.card p e he.ne')
-
-/-- A natural number is a prime power exactly when it occurs as the
-cardinality of an explicitly packaged finite field. -/
-theorem isPrimePow_iff_exists_finiteFieldModel (q : ℕ) :
-    IsPrimePow q ↔ ∃ M : FiniteFieldModel, M.card = q := by
-  constructor
-  · exact exists_finiteFieldModel_of_isPrimePow q
-  · rintro ⟨M, rfl⟩
-    simpa only [FiniteFieldModel.card] using
-      (@isPrimePow_natCard_finiteField M.carrier M.field M.finite)
 
 /-- Natural numbers that are positive powers of a prime.  Its inherited
 order is the order of the underlying cardinalities. -/
@@ -4939,13 +4639,6 @@ theorem natCard_primePowerField (q : PrimePowerIndex) :
     Nat.card (PrimePowerField q) = q.1 := by
   simpa only [FiniteFieldModel.card] using
     finiteFieldModelOfPrimePower_card q
-
-/-- The cardinalities of the chosen fields tend to infinity along the
-prime-power index. -/
-theorem tendsto_natCard_primePowerField :
-    Tendsto (fun q : PrimePowerIndex ↦ Nat.card (PrimePowerField q))
-      atTop atTop := by
-  simpa only [natCard_primePowerField] using tendsto_primePowerIndex_val
 
 end DegreeDiameter
 
@@ -5090,16 +4783,6 @@ theorem Compatible.map
   · exact (PartialFlag.map_ofComplete e F).symm.trans (congrArg (PartialFlag.map e) hEven)
   · exact (PartialFlag.map_ofComplete e F).symm.trans (congrArg (PartialFlag.map e) hOdd)
 
-theorem compatible_map_iff (e : V ≃ₗ[K] V)
-    (P : EvenPartialFlag (K := K) (V := V) (n := n))
-    (Q : OddPartialFlag (K := K) (V := V) (n := n)) :
-    Compatible (P.map e) (Q.map e) ↔ Compatible P Q := by
-  constructor
-  · intro h
-    simpa using h.map e.symm
-  · intro h
-    exact h.map e
-
 /-- Every linear equivalence acts by an automorphism of the halved graph. -/
 noncomputable def halvedFlagGraphIso (e : V ≃ₗ[K] V) :
     halvedFlagGraph (K := K) (V := V) (n := n) ≃g
@@ -5161,18 +4844,6 @@ theorem halvedFlagGraph_natCard_neighborSet_eq
       Nat.card ((halvedFlagGraph (K := K) (V := V) (n := n)).neighborSet P') := by
   obtain ⟨φ, hφ⟩ := exists_halvedFlagGraphIso_map_eq P P'
   simpa [hφ] using Nat.card_congr (φ.mapNeighborSet P)
-
-/-- A common natural-number degree for all vertices, stated without making
-the particular `Fintype` structures on neighbor sets part of the theorem. -/
-theorem exists_halvedFlagGraph_common_degree
-    [Finite K] [Finite V]
-    [Nonempty (EvenPartialFlag (K := K) (V := V) (n := n))] :
-    ∃ Δ : ℕ, ∀ P : EvenPartialFlag (K := K) (V := V) (n := n),
-      Nat.card ((halvedFlagGraph (K := K) (V := V) (n := n)).neighborSet P) = Δ := by
-  classical
-  let P₀ : EvenPartialFlag (K := K) (V := V) (n := n) := Classical.choice inferInstance
-  exact ⟨Nat.card ((halvedFlagGraph (K := K) (V := V) (n := n)).neighborSet P₀),
-    fun P ↦ halvedFlagGraph_natCard_neighborSet_eq P P₀⟩
 
 end DegreeDiameter
 
@@ -5901,50 +5572,6 @@ theorem proposition_3_1 (k : ℕ) (hk : 0 < k) :
     proposition31_degree_div_cap_tendsto_one k hk,
     proposition31_order_div_degree_pow_tendsto_one k hk⟩
 
-/-- Consequence of the two asymptotic clauses of Proposition 3.1.
-
-This is the exact algebraic bridge used in the proof of Theorem 1.1.  It is
-proved from the bundled declaration `proposition_3_1`, rather than by invoking
-the independently available cap-normalized limit.  Pointwise, after the
-nonzero denominators have been discharged, the identity is
-
-`N / K^k = (N / Δ^k) * (Δ / K)^k`. -/
-theorem proposition31_order_div_cap_pow_tendsto_one_from_proposition_3_1
-    (k : ℕ) (hk : 0 < k) :
-    Tendsto
-      (fun q : PrimePowerIndex ↦
-        (proposition31PrimePowerOrder k q : ℝ) /
-          (proposition31DegreeCap q.1 k : ℝ) ^ k)
-      atTop (nhds 1) := by
-  have hP31 := proposition_3_1 k hk
-  have hdegree := hP31.2.1
-  have horder := hP31.2.2
-  have hproduct :
-      Tendsto
-        (fun q : PrimePowerIndex ↦
-          (proposition31PrimePowerOrder k q : ℝ) /
-              (proposition31PrimePowerDegree k q : ℝ) ^ k *
-            ((proposition31PrimePowerDegree k q : ℝ) /
-              (proposition31DegreeCap q.1 k : ℝ)) ^ k)
-        atTop (nhds 1) := by
-    simpa only [one_pow, one_mul] using horder.mul (hdegree.pow k)
-  have hdegreePos : ∀ᶠ q : PrimePowerIndex in atTop,
-      0 < (proposition31PrimePowerDegree k q : ℝ) /
-        (proposition31DegreeCap q.1 k : ℝ) :=
-    hdegree.eventually (Ioi_mem_nhds zero_lt_one)
-  refine hproduct.congr' ?_
-  filter_upwards [hdegreePos] with q hratioPos
-  have hcap : (proposition31DegreeCap q.1 k : ℝ) ≠ 0 := by
-    intro hzero
-    rw [hzero, div_zero] at hratioPos
-    exact (lt_irrefl 0) hratioPos
-  have hdegreeNe : (proposition31PrimePowerDegree k q : ℝ) ≠ 0 := by
-    intro hzero
-    rw [hzero, zero_div] at hratioPos
-    exact (lt_irrefl 0) hratioPos
-  rw [div_pow]
-  field_simp [hcap, hdegreeNe]
-
 end DegreeDiameter
 
 end PortProposition31Full
@@ -6046,8 +5673,6 @@ noncomputable def deriv (f : CS (n + 1) E) : CS n E where
 
 lemma hasDerivAt (f : CS (n + 1) E) (x : ℝ) : HasDerivAt f (f.deriv x) x :=
   (f.h1.differentiable (by simp)).differentiableAt.hasDerivAt
-
-lemma deriv_apply {f : CS (n + 1) E} {x : ℝ} : f.deriv x = _root_.deriv f x := rfl
 
 lemma deriv_smul {f : CS (n + 1) E} : (R • f).deriv = R • f.deriv := by
   apply eq_of_toFun_eq
@@ -6361,17 +5986,6 @@ noncomputable def e (u : ℝ) : ℝ →ᵇ ℂ where
 
 @[simp] lemma e_apply (u : ℝ) (v : ℝ) : e u v = 𝐞 (-v * u) := rfl
 
-theorem hasDerivAt_e {u x : ℝ} : HasDerivAt (e u) (-2 * π * u * I * e u x) x := by
-  have l2 : HasDerivAt (fun v => -v * u) (-u) x := by
-    simpa only [neg_mul_comm] using hasDerivAt_mul_const (-u)
-  convert! (hasDerivAt_fourierChar (-x * u)).scomp x l2 using 1
-  change _ = ((-u : ℝ) : ℂ) * _ -- `scomp` introduces ℝ-smul on ℂ, which we undo
-  simp ; ring
-
-lemma fourierIntegral_deriv_aux2 (e : ℝ →ᵇ ℂ) {f : ℝ → ℂ} (hf : Integrable f) :
-    Integrable (⇑e * f) :=
-  hf.bdd_mul e.continuous.aestronglyMeasurable (ae_of_all _ e.norm_coe_le_norm)
-
 @[simp] lemma F_neg {f : ℝ → ℂ} {u : ℝ} : 𝓕 (fun x => -f x) u = - 𝓕 f u := by
   simp [fourier_eq, integral_neg]
 
@@ -6404,122 +6018,6 @@ theorem fourierIntegral_self_add_deriv_deriv (f : W21) (u : ℝ) :
 @[simp] lemma deriv_ofReal : deriv ofReal = fun _ => 1 := by
   ext x ; exact ((hasDerivAt_id x).ofReal_comp).deriv
 
-/-- If, eventually in `T`, the integrand `f T` is bounded on `uIoc lo hi` by `B T`
-and `B T * |hi - lo| → 0`, then the interval integral `∫ x in lo..hi, f T x → 0`. -/
-lemma tendsto_intervalIntegral_zero_of_uniform_norm_bound
-    {f : ℝ → ℝ → ℂ} {lo hi : ℝ} {B : ℝ → ℝ}
-    (hB : Filter.Tendsto (fun T : ℝ => B T * |hi - lo|) Filter.atTop (nhds 0))
-    (hf : ∀ᶠ T in Filter.atTop, ∀ x ∈ Set.uIoc lo hi, ‖f T x‖ ≤ B T) :
-    Filter.Tendsto (fun T : ℝ => ∫ x in lo..hi, f T x) Filter.atTop (nhds 0) := by
-  rw [tendsto_zero_iff_norm_tendsto_zero]
-  refine squeeze_zero' (Eventually.of_forall fun T => norm_nonneg _) ?_ hB
-  filter_upwards [hf] with T hT
-  exact intervalIntegral.norm_integral_le_of_norm_le_const (fun x hx => hT x hx)
-
-/-- The decay `K * (log (T + 2) / (T + 2)) → 0` as `T → ∞`, for any constant `K`. -/
-lemma tendsto_const_mul_log_add_two_div_add_two_atTop (K : ℝ) :
-    Filter.Tendsto (fun T : ℝ => K * (Real.log (T + 2) / (T + 2)))
-      Filter.atTop (nhds 0) := by
-  have h0 : Filter.Tendsto (fun x : ℝ => Real.log x / x) Filter.atTop (nhds 0) := by
-    simpa using (Real.tendsto_pow_log_div_mul_add_atTop 1 0 1 (by norm_num : (1 : ℝ) ≠ 0))
-  have hshift : Filter.Tendsto (fun T : ℝ => Real.log (T + 2) / (T + 2))
-      Filter.atTop (nhds 0) := by
-    have := h0.comp (tendsto_atTop_add_const_right Filter.atTop 2 tendsto_id)
-    simpa [Function.comp_def] using this
-  simpa using hshift.const_mul K
-
-/-- Fourier-transform decay from an integrable derivative: for integrable,
-differentiable `g` with integrable derivative, `‖𝓕 g w‖ ≤ (∫ ‖deriv g x‖) / (2π·|w|)`. -/
-lemma norm_fourier_le_integral_deriv_div
-    (g : ℝ → ℂ) (hg : Integrable g) (hdiff : Differentiable ℝ g)
-    (hg' : Integrable (deriv g)) {w : ℝ} (hw : w ≠ 0) :
-    ‖𝓕 g w‖ ≤ (∫ x, ‖deriv g x‖ ∂volume) / ((2 * Real.pi) * |w|) := by
-  have hmul :
-      𝓕 (deriv g) w = (2 * Real.pi * Complex.I * (w : ℂ)) * 𝓕 g w := by
-    have h := congrFun (Real.fourier_deriv hg hdiff hg') w
-    simpa [smul_eq_mul, mul_assoc] using h
-  have h_fourier :
-      ‖𝓕 (deriv g) w‖ ≤ ∫ x, ‖deriv g x‖ ∂volume := by
-    exact VectorFourier.norm_fourierIntegral_le_integral_norm 𝐞 volume (innerₗ ℝ)
-      (deriv g) w
-  have hleft :
-      ((2 * Real.pi) * |w|) * ‖𝓕 g w‖ =
-        ‖(2 * Real.pi * Complex.I * (w : ℂ)) * 𝓕 g w‖ := by
-    have htwopi : ‖(2 * ↑Real.pi : ℂ)‖ = 2 * Real.pi := by
-      rw [norm_mul, Complex.norm_two, Complex.norm_of_nonneg Real.pi_pos.le]
-    have hwc : ‖(w : ℂ)‖ = |w| := by rw [norm_real, Real.norm_eq_abs]
-    rw [norm_mul, norm_mul, norm_mul, htwopi, norm_I, hwc]
-    ring
-  have hmain : ((2 * Real.pi) * |w|) * ‖𝓕 g w‖ ≤ ∫ x, ‖deriv g x‖ ∂volume := by
-    rw [hleft, ← hmul]
-    exact h_fourier
-  have hpos : 0 < (2 * Real.pi) * |w| := by
-    positivity
-  exact (le_div_iff₀ hpos).mpr (by simpa [mul_comm, mul_left_comm, mul_assoc] using hmain)
-
-/-- The oscillatory-integral form of the decay bound: for `0 < T`,
-`‖∫ g y · exp(T·i·y)‖ ≤ (∫ ‖deriv g x‖) / T`. -/
-lemma norm_oscillatory_integral_le_integral_deriv_div
-    (g : ℝ → ℂ) (hg : Integrable g) (hdiff : Differentiable ℝ g)
-    (hg' : Integrable (deriv g)) {T : ℝ} (hT : 0 < T) :
-    ‖∫ y, g y * exp ((T : ℂ) * Complex.I * (y : ℂ)) ∂volume‖ ≤
-      (∫ x, ‖deriv g x‖ ∂volume) / T := by
-  have hw : -T / (2 * Real.pi) ≠ 0 := by
-    exact div_ne_zero (neg_ne_zero.mpr hT.ne') (mul_ne_zero two_ne_zero Real.pi_ne_zero)
-  have hfourier := norm_fourier_le_integral_deriv_div g hg hdiff hg' hw
-  have heq :
-      (∫ y, g y * exp ((T : ℂ) * Complex.I * (y : ℂ)) ∂volume) =
-        𝓕 g (-T / (2 * Real.pi)) := by
-    rw [Real.fourier_real_eq_integral_exp_smul]
-    apply integral_congr_ae
-    filter_upwards with y
-    rw [smul_eq_mul]
-    rw [mul_comm (g y)]
-    congr 1
-    congr 1
-    push_cast
-    field_simp [Real.pi_ne_zero]
-  rw [heq]
-  refine hfourier.trans_eq ?_
-  congr 1
-  have hden : (2 * Real.pi) * |-T / (2 * Real.pi)| = T := by
-    have htwopi_pos : 0 < 2 * Real.pi := by positivity
-    have hneg : -T / (2 * Real.pi) < 0 := div_neg_of_neg_of_pos (neg_neg_of_pos hT) htwopi_pos
-    rw [abs_of_neg hneg]
-    field_simp [Real.pi_ne_zero]
-  rw [hden]
-
-/-- The `|T|` variant of the oscillatory-integral decay bound: for `T ≠ 0`,
-`‖∫ g y · exp(T·i·y)‖ ≤ (∫ ‖deriv g x‖) / |T|`. -/
-lemma norm_oscillatory_integral_le_integral_deriv_div_abs
-    (g : ℝ → ℂ) (hg : Integrable g) (hdiff : Differentiable ℝ g)
-    (hg' : Integrable (deriv g)) {T : ℝ} (hT : T ≠ 0) :
-    ‖∫ y, g y * exp ((T : ℂ) * Complex.I * (y : ℂ)) ∂volume‖ ≤
-      (∫ x, ‖deriv g x‖ ∂volume) / |T| := by
-  have hw : -T / (2 * Real.pi) ≠ 0 := by
-    exact div_ne_zero (neg_ne_zero.mpr hT) (mul_ne_zero two_ne_zero Real.pi_ne_zero)
-  have hfourier := norm_fourier_le_integral_deriv_div g hg hdiff hg' hw
-  have heq :
-      (∫ y, g y * exp ((T : ℂ) * Complex.I * (y : ℂ)) ∂volume) =
-        𝓕 g (-T / (2 * Real.pi)) := by
-    rw [Real.fourier_real_eq_integral_exp_smul]
-    apply integral_congr_ae
-    filter_upwards with y
-    rw [smul_eq_mul]
-    rw [mul_comm (g y)]
-    congr 1
-    congr 1
-    push_cast
-    field_simp [Real.pi_ne_zero]
-  rw [heq]
-  refine hfourier.trans_eq ?_
-  congr 1
-  have hden : (2 * Real.pi) * |-T / (2 * Real.pi)| = |T| := by
-    have htwopi_pos : 0 < 2 * Real.pi := by positivity
-    rw [abs_div, abs_neg, abs_of_pos htwopi_pos]
-    field_simp [Real.pi_ne_zero]
-  rw [hden]
-
 end PortFourier
 
 /- PrimeNumberTheoremAnd.Defs -/
@@ -6533,42 +6031,10 @@ open MeasureTheory intervalIntegral
 open scoped ArithmeticFunction.Moebius
 open scoped ArithmeticFunction.Omega Chebyshev
 
-noncomputable abbrev nth_prime (n : ℕ) : ℕ :=
-  Nat.nth Nat.Prime n
-
-noncomputable abbrev nth_prime' (n : ℕ) : ℕ :=
-  Nat.nth Nat.Prime (n - 1)
-
-noncomputable abbrev Psi (x : ℝ) : ℝ := ψ x
-
 noncomputable def M (x : ℝ) : ℝ :=
   ∑ n ∈ Iic ⌊x⌋₊, (μ n : ℝ)
 
-noncomputable abbrev nth_prime_gap (n : ℕ) : ℕ :=
-  nth_prime (n + 1) - nth_prime n
-
-def prime_gap_record (p g : ℕ) : Prop :=
-  ∃ n, nth_prime n = p ∧ nth_prime_gap n = g ∧
-    ∀ k, nth_prime k < p → nth_prime_gap k < g
-
 open Classical in
-
-noncomputable def first_gap (g : ℕ) : ℕ :=
-  if h : ∃ n, nth_prime_gap n = g then
-    nth_prime (Nat.find h)
-  else 0
-
-def first_gap_record (g P : ℕ) : Prop :=
-  first_gap g = P ∧
-    ∀ g' ∈ Finset.Ico 1 g,
-      Even g' ∨ g' = 1 → first_gap g' ∈ Set.Ico 1 P
-
-def HasPrimeInInterval (x h : ℝ) : Prop :=
-  ∃ p : ℕ, Nat.Prime p ∧ x < p ∧ p ≤ x + h
-
-def HasPrimeInInterval.log_thm (X₀ : ℝ) (k : ℝ) :=
-  ∀ x ≥ X₀, HasPrimeInInterval x (x / (log x) ^ k)
-
 
 noncomputable def pi (x : ℝ) : ℝ :=
   Nat.primeCounting ⌊x⌋₊
@@ -6576,12 +6042,6 @@ noncomputable def pi (x : ℝ) : ℝ :=
 
 noncomputable def pi_star (x : ℝ) : ℝ :=
   ∑' (k : ℕ), pi (x ^ (1 / (k + 1 : ℝ))) / (k + 1 : ℝ)
-
-
-noncomputable def li (x : ℝ) : ℝ :=
-  lim ((𝓝[>] (0 : ℝ)).map (fun ε ↦
-    ∫ t in Set.diff (Set.Ioc 0 x) (Set.Ioo (1 - ε) (1 + ε)),
-      1 / log t))
 
 
 noncomputable def Li (x : ℝ) : ℝ := ∫ t in 2..x, 1 / log t
@@ -6593,14 +6053,7 @@ noncomputable def admissible_bound (A B C R : ℝ) (x : ℝ) :=
   A * (log x / R) ^ B * exp (-C * (log x / R) ^ ((1 : ℝ) / (2 : ℝ)))
 
 
-def Eψ.classicalBound (A B C R x₀ : ℝ) : Prop :=
-  ∀ x ≥ x₀, Eψ x ≤ admissible_bound A B C R x
-
 def Eψ.bound (ε x₀ : ℝ) : Prop := ∀ x ≥ x₀, Eψ x ≤ ε
-
-def Eψ.numericalBound (x₀ : ℝ) (ε : ℝ → ℝ) : Prop :=
-  Eψ.bound (ε x₀) x₀
-
 
 noncomputable def Eπ (x : ℝ) : ℝ :=
   |pi x - Li x| / (x / log x)
@@ -6609,41 +6062,10 @@ noncomputable def Eπ_star (x : ℝ) : ℝ :=
   |pi_star x - Li x| / (x / log x)
 
 
-noncomputable def Eθ (x : ℝ) : ℝ := |θ x - x| / x
-
-
-def Eθ.classicalBound (A B C R x₀ : ℝ) : Prop :=
-  ∀ x ≥ x₀, Eθ x ≤ admissible_bound A B C R x
-
-def Eθ.numericalBound (x₀ : ℝ) (ε : ℝ → ℝ) : Prop :=
-  ∀ x ≥ x₀, Eθ x ≤ ε x₀
-
-
-def Eπ.classicalBound (A B C R x₀ : ℝ) : Prop :=
-  ∀ x ≥ x₀, Eπ x ≤ admissible_bound A B C R x
-
 def Eπ.bound (ε x₀ : ℝ) : Prop := ∀ x ≥ x₀, Eπ x ≤ ε
-
-def Eπ.numericalBound (x₀ : ℝ) (ε : ℝ → ℝ) : Prop :=
-  Eπ.bound (ε x₀) x₀
-
-def Eπ.vinogradovBound (A B C x₀ : ℝ) : Prop :=
-  ∀ x ≥ x₀, Eπ x ≤
-    A * (log x) ^ B * exp (-C * (log x) ^ ((3 : ℝ) / 5) / (log (log x)) ^ ((1 : ℝ) / 5))
-
-def Eπ_star.classicalBound (A B C R x₀ : ℝ) : Prop :=
-  ∀ x ≥ x₀, Eπ_star x ≤ admissible_bound A B C R x
 
 def Eπ_star.bound (ε x₀ : ℝ) : Prop :=
   ∀ x ≥ x₀, Eπ_star x ≤ ε
-
-def Eπ_star.numericalBound (x₀ : ℝ) (ε : ℝ → ℝ) : Prop :=
-  Eπ_star.bound (ε x₀) x₀
-
-def Eπ_star.vinogradovBound (A B C x₀ : ℝ) : Prop :=
-  ∀ x ≥ x₀, Eπ_star x ≤
-    A * (log x) ^ B * exp (-C * (log x) ^ ((3 : ℝ) / 5) / (log (log x)) ^ ((1 : ℝ) / 5))
-
 
 lemma admissible_bound.mono
     (A B C R : ℝ) (hA : 0 < A) (hB : 0 < B)
@@ -6696,44 +6118,6 @@ lemma admissible_bound.mono
     linarith [(div_lt_iff₀ hC).mp ht, mul_comm C t]
 
 
-lemma Eψ.classicalBound.to_numericalBound
-    (A B C R x₀ x₁ : ℝ) (hA : 0 < A) (hB : 0 < B)
-    (hC : 0 < C) (hR : 0 < R)
-    (hEψ : Eψ.classicalBound A B C R x₀)
-    (hx₁ : x₁ ≥ max x₀ (Real.exp (R * (2 * B / C) ^ 2))) :
-    Eψ.numericalBound x₁ (fun x ↦ admissible_bound A B C R x) :=
-  fun x hx ↦
-    le_trans (hEψ x (le_trans (le_max_left ..) (le_trans hx₁ hx)))
-      (admissible_bound.mono A B C R hA hB hC hR
-        (Set.mem_Ici.mpr (le_trans (le_max_right ..) hx₁))
-        (Set.mem_Ici.mpr (le_trans (le_max_right ..) (le_trans hx₁ hx))) hx)
-
-
-lemma Eθ.classicalBound.to_numericalBound
-    (A B C R x₀ x₁ : ℝ) (hA : 0 < A) (hB : 0 < B)
-    (hC : 0 < C) (hR : 0 < R)
-    (hEθ : Eθ.classicalBound A B C R x₀)
-    (hx₁ : x₁ ≥ max x₀ (Real.exp (R * (2 * B / C) ^ 2))) :
-    Eθ.numericalBound x₁ (fun x ↦ admissible_bound A B C R x) :=
-  fun x hx ↦
-    le_trans (hEθ x (le_trans (le_max_left ..) (le_trans hx₁ hx)))
-      (admissible_bound.mono A B C R hA hB hC hR
-        (Set.mem_Ici.mpr (le_trans (le_max_right ..) hx₁))
-        (Set.mem_Ici.mpr (le_trans (le_max_right ..) (le_trans hx₁ hx))) hx)
-
-
-lemma Eπ.classicalBound.to_numericalBound
-    (A B C R x₀ x₁ : ℝ) (hA : 0 < A) (hB : 0 < B)
-    (hC : 0 < C) (hR : 0 < R)
-    (hEπ : Eπ.classicalBound A B C R x₀)
-    (hx₁ : x₁ ≥ max x₀ (Real.exp (R * (2 * B / C) ^ 2))) :
-    Eπ.numericalBound x₁ (fun x ↦ admissible_bound A B C R x) :=
-  fun x hx ↦
-    le_trans (hEπ x (le_trans (le_max_left ..) (le_trans hx₁ hx)))
-      (admissible_bound.mono A B C R hA hB hC hR
-        (Set.mem_Ici.mpr (le_trans (le_max_right ..) hx₁))
-        (Set.mem_Ici.mpr (le_trans (le_max_right ..) (le_trans hx₁ hx))) hx)
-
 end PortDefs
 
 /- PrimeNumberTheoremAnd.Mathlib.Analysis.Asymptotics.Asymptotics -/
@@ -6753,20 +6137,6 @@ variable [SeminormedAddCommGroup E'] [SeminormedAddCommGroup F'] [SeminormedAddC
   [NormedAddCommGroup E''] [NormedAddCommGroup F''] [NormedAddCommGroup G''] [SeminormedRing R]
   [SeminormedRing R']
 
-
-theorem isLittleO_const_id_cocompact [ProperSpace F'']
-    (c : E'') : (fun _x : F'' => c) =o[cocompact F''] id :=
-  isLittleO_const_left.2 <| Or.inr tendsto_norm_cocompact_atTop
-
--- to replace existing `isLittleO_const_id_atTop`
-theorem isLittleO_const_id_atTop2 [LinearOrder F''] [NoMaxOrder F''] [ClosedIciTopology F'']
-    [ProperSpace F''] (c : E'') : (fun _x : F'' => c) =o[atTop] id :=
- (isLittleO_const_id_cocompact c).mono atTop_le_cocompact
-
--- to replace existing `isLittleO_const_id_atBot`
-theorem isLittleO_const_id_atBot2 [LinearOrder F''] [NoMinOrder F''] [ClosedIicTopology F'']
-    [ProperSpace F''] (c : E'') : (fun _x : F'' => c) =o[atBot] id :=
-  (isLittleO_const_id_cocompact c).mono atBot_le_cocompact
 
 theorem _root_.Filter.Eventually.natCast {f : ℝ → Prop} (hf : ∀ᶠ x in atTop, f x) :
     ∀ᶠ n : ℕ in atTop, f n :=
@@ -7036,9 +6406,6 @@ lemma first_fourier (hf : ∀ (σ' : ℝ), 1 < σ' → Summable (nterm f σ'))
 
 
 
-lemma continuous_multiplicative_ofAdd : Continuous (⇑Multiplicative.ofAdd : ℝ → ℝ) := ⟨fun _ ↦ id⟩
-
-
 lemma second_fourier_integrable_aux1a (hσ : 1 < σ') :
     IntegrableOn (fun (x : ℝ) ↦ cexp (-((x : ℂ) * ((σ' : ℂ) - 1)))) (Ici (-Real.log x)) := by
   norm_cast
@@ -7145,9 +6512,6 @@ can be obtained fairly easily in applications).
 lemma one_add_sq_pos (u : ℝ) : 0 < 1 + u ^ 2 := zero_lt_one.trans_le (by simpa using sq_nonneg u)
 
 
-theorem prelim_decay (ψ : ℝ → ℂ) (u : ℝ) : ‖𝓕 (ψ : ℝ → ℂ) u‖ ≤ ∫ t, ‖ψ t‖ :=
-  VectorFourier.norm_fourierIntegral_le_integral_norm ..
-
 lemma decay_bounds_key (f : W21) (u : ℝ) : ‖𝓕 (f : ℝ → ℂ) u‖ ≤ ‖f‖ * (1 + u ^ 2)⁻¹ := by
   have l1 : 0 < 1 + u ^ 2 := one_add_sq_pos _
   have l2 : 1 + u ^ 2 = ‖(1 : ℂ) + u ^ 2‖ := by
@@ -7161,42 +6525,6 @@ lemma decay_bounds_key (f : W21) (u : ℝ) : ‖𝓕 (f : ℝ → ℂ) u‖ ≤ 
   change _ ≤ W21.norm _
   rw [norm_neg, F_mul, norm_mul, W21.norm]
   gcongr <;> apply VectorFourier.norm_fourierIntegral_le_integral_norm
-
-lemma decay_bounds_aux {f : ℝ → ℂ} (hf : AEStronglyMeasurable f volume)
-    (h : ∀ t, ‖f t‖ ≤ A * (1 + t ^ 2)⁻¹) :
-    ∫ t, ‖f t‖ ≤ π * A := by
-  have l1 : Integrable (fun x ↦ A * (1 + x ^ 2)⁻¹) := integrable_inv_one_add_sq.const_mul A
-  simp_rw [← integral_univ_inv_one_add_sq, mul_comm, ← integral_const_mul]
-  exact integral_mono (l1.mono' hf (Eventually.of_forall h)).norm l1 h
-
-theorem decay_bounds_W21 (f : W21) (hA : ∀ t, ‖f t‖ ≤ A / (1 + t ^ 2))
-    (hA' : ∀ t, ‖deriv (deriv f) t‖ ≤ A / (1 + t ^ 2)) (u) :
-    ‖𝓕 (f : ℝ → ℂ) u‖ ≤ (π + 1 / (4 * π)) * A / (1 + u ^ 2) := by
-  have l0 : 1 * (4 * π)⁻¹ * A = (4 * π ^ 2)⁻¹ * (π * A) := by field_simp
-  have l1 : ∫ (v : ℝ), ‖f v‖ ≤ π * A := by
-    apply decay_bounds_aux f.continuous.aestronglyMeasurable
-    simp_rw [← div_eq_mul_inv] ; exact hA
-  have l2 : ∫ (v : ℝ), ‖deriv (deriv f) v‖ ≤ π * A := by
-    apply decay_bounds_aux f.deriv.deriv.continuous.aestronglyMeasurable
-    simp_rw [← div_eq_mul_inv] ; exact hA'
-  apply decay_bounds_key f u |>.trans
-  change W21.norm _ * _ ≤ _
-  simp_rw [W21.norm, div_eq_mul_inv, add_mul, l0] ; gcongr
-
-
-lemma decay_bounds (ψ : CS 2 ℂ) (hA : ∀ t, ‖ψ t‖ ≤ A / (1 + t ^ 2))
-    (hA' : ∀ t, ‖deriv^[2] ψ t‖ ≤ A / (1 + t ^ 2)) :
-    ‖𝓕 (ψ : ℝ → ℂ) u‖ ≤ (π + 1 / (4 * π)) * A / (1 + u ^ 2) := by
-  exact decay_bounds_W21 ψ hA hA' u
-
-lemma decay_bounds_cor_aux (ψ : CS 2 ℂ) : ∃ C : ℝ, ∀ u, ‖ψ u‖ ≤ C / (1 + u ^ 2) := by
-  have l1 : HasCompactSupport (fun u : ℝ => ((1 + u ^ 2) : ℝ) * ψ u) := by exact ψ.h2.mul_left
-  have := ψ.h1.continuous
-  obtain ⟨C, hC⟩ := l1.exists_bound_of_continuous (by fun_prop)
-  refine ⟨C, fun u => ?_⟩
-  specialize hC u
-  simp only [norm_mul, Complex.norm_real, norm_of_nonneg (one_add_sq_pos u).le] at hC
-  rwa [le_div_iff₀' (one_add_sq_pos _)]
 
 lemma decay_bounds_cor (ψ : W21) :
     ∃ C : ℝ, ∀ u, ‖𝓕 (ψ : ℝ → ℂ) u‖ ≤ C / (1 + u ^ 2) := by
@@ -7319,26 +6647,15 @@ omit [Sub α] in
     nnabla (fun n => c * u n) = c • nnabla u := by
   ext n ; simp [nnabla, mul_sub]
 
-lemma nnabla_cast (u : ℝ → E) [Sub E] : nnabla u ∘ ((↑) : ℕ → ℝ) = nnabla (u ∘ (↑)) := by
-  ext n ; simp [nnabla]
-
 end nabla
 
 lemma Finset.sum_shift_front {E : Type*} [Ring E] {u : ℕ → E} {n : ℕ} :
     cumsum u (n + 1) = u 0 + cumsum (shift u) n := by
   simp_rw [add_comm n, cumsum, sum_range_add, sum_range_one, add_comm 1] ; rfl
 
-lemma Finset.sum_shift_front' {E : Type*} [Ring E] {u : ℕ → E} :
-    shift (cumsum u) = (fun _ => u 0) + cumsum (shift u) := by
-  ext n ; apply Finset.sum_shift_front
-
 lemma Finset.sum_shift_back {E : Type*} [Ring E] {u : ℕ → E} {n : ℕ} :
     cumsum u (n + 1) = cumsum u n + u n := by
   simp [cumsum, Finset.range_add_one, add_comm]
-
-lemma Finset.sum_shift_back' {E : Type*} [Ring E] {u : ℕ → E} :
-    shift (cumsum u) = cumsum u + u := by
-  ext n ; apply Finset.sum_shift_back
 
 lemma summation_by_parts {E : Type*} [Ring E] {a A b : ℕ → E} (ha : a = nabla A) {n : ℕ} :
     cumsum (a * b) (n + 1) = A (n + 1) * b n - A 0 * b 0 -
@@ -7468,12 +6785,6 @@ lemma isLittleO_const_of_tendsto_atTop {α : Type*} [Preorder α] (a : ℝ) {f :
     (hf : Tendsto f atTop atTop) : (fun _ => a) =o[atTop] f := by
   simp [tendsto_norm_atTop_atTop.comp hf]
 
-lemma isBigO_pow_pow_of_le {m n : ℕ} (h : m ≤ n) :
-    (fun x : ℝ => x ^ m) =O[atTop] (fun x : ℝ => x ^ n) := by
-  apply IsBigO.of_bound 1
-  filter_upwards [eventually_ge_atTop 1] with x l1
-  simpa [abs_eq_self.mpr (zero_le_one.trans l1)] using pow_le_pow_right₀ l1 h
-
 lemma isLittleO_mul_add_sq (a b : ℝ) : (fun x => a * x + b) =o[atTop] (fun x => x ^ 2) := by
   apply IsLittleO.add
   · apply IsLittleO.const_mul_left ; simpa using isLittleO_pow_pow_atTop_of_lt (𝕜 := ℝ) one_lt_two
@@ -7592,12 +6903,6 @@ lemma Real.log_eventually_gt_atTop (a : ℝ) :
   Real.tendsto_log_atTop.eventually (eventually_gt_atTop a)
 
 /-- Should this be a gcongr lemma? -/
-
-theorem norm_lt_norm_of_nonneg (x y : ℝ) (hx : 0 ≤ x) (hxy : x ≤ y) :
-    ‖x‖ ≤ ‖y‖ := by
-  simp_rw [Real.norm_eq_abs]
-  apply abs_le_abs hxy
-  linarith
 
 lemma nnabla_bound_aux {x : ℝ} (hx : 0 < x) :
     nnabla (fun n ↦ 1 / (n * ((2 * π) ^ 2 + Real.log (n / x) ^ 2))) =O[atTop]
@@ -7925,22 +7230,7 @@ noncomputable def exists_trunc : trunc := by
   choose ψ h1 h2 h3 h4 using smooth_urysohn (-2) (-1) (1) (2) (by linarith) (by linarith)
   exact ⟨⟨ψ, h1.of_le (by norm_cast), h2⟩, h3, h4⟩
 
-lemma one_div_sub_one (n : ℕ) : 1 / (↑(n - 1) : ℝ) ≤ 2 / n := by
-  match n with
-  | 0 => simp
-  | 1 => simp
-  | n + 2 => { norm_cast ; rw [div_le_div_iff₀] <;> simp [mul_add] <;> linarith }
-
-lemma quadratic_pos (a b c x : ℝ) (ha : 0 < a) (hΔ : discrim a b c < 0) :
-    0 < a * x ^ 2 + b * x + c := by
-  have l1 : a * x ^ 2 + b * x + c = a * (x + b / (2 * a)) ^ 2 - discrim a b c / (4 * a) := by
-    simp only [discrim]; field_simp; ring
-  have l2 : 0 < - discrim a b c := by linarith
-  rw [l1, sub_eq_add_neg, ← neg_div] ; positivity
-
 noncomputable def pp (a x : ℝ) : ℝ := a ^ 2 * (x + 1) ^ 2 + (1 - a) * (1 + a)
-
-noncomputable def pp' (a x : ℝ) : ℝ := a ^ 2 * (2 * (x + 1))
 
 lemma pp_pos {a : ℝ} (ha : a ∈ Ioo (-1) 1) (x : ℝ) : 0 < pp a x := by
   simp only [pp]
@@ -7948,37 +7238,11 @@ lemma pp_pos {a : ℝ} (ha : a ∈ Ioo (-1) 1) (x : ℝ) : 0 < pp a x := by
   have : 0 < 1 + a := by linarith [ha.1]
   positivity
 
-lemma pp_deriv (a x : ℝ) : HasDerivAt (pp a) (pp' a x) x := by
-  unfold pp pp'
-  simpa using hasDerivAt_id x |>.add_const 1 |>.pow 2 |>.const_mul _
-
-lemma pp_deriv_eq (a : ℝ) : deriv (pp a) = pp' a := by
-  ext x ; exact pp_deriv a x |>.deriv
-
-lemma pp'_deriv (a x : ℝ) : HasDerivAt (pp' a) (a ^ 2 * 2) x := by
-  simpa using! hasDerivAt_id x |>.add_const 1 |>.const_mul 2 |>.const_mul (a ^ 2)
-
-lemma pp'_deriv_eq (a : ℝ) : deriv (pp' a) = fun _ => a ^ 2 * 2 := by
-  ext x ; exact pp'_deriv a x |>.deriv
-
 noncomputable def hh (a t : ℝ) : ℝ := (t * (1 + (a * log t) ^ 2))⁻¹
 
 noncomputable def hh' (a t : ℝ) : ℝ := - pp a (log t) * hh a t ^ 2
 
 lemma hh_nonneg (a : ℝ) {t : ℝ} (ht : 0 ≤ t) : 0 ≤ hh a t := by dsimp only [hh] ; positivity
-
-lemma hh_le (a t : ℝ) (ht : 0 ≤ t) : |hh a t| ≤ t⁻¹ := by
-  by_cases h0 : t = 0
-  · simp [hh, h0]
-  replace ht : 0 < t := lt_of_le_of_ne ht (by tauto)
-  unfold hh
-  rw [abs_inv, inv_le_inv₀ (by positivity) ht, abs_mul, abs_eq_self.mpr ht.le]
-  convert_to! t * 1 ≤ _
-  · simp
-  apply mul_le_mul le_rfl ?_ zero_le_one ht.le
-  rw [abs_eq_self.mpr (by positivity)]
-  simp only [le_add_iff_nonneg_right]
-  positivity
 
 lemma hh_deriv (a : ℝ) {t : ℝ} (ht : t ≠ 0) : HasDerivAt (hh a) (hh' a t) t := by
   have e1 : t * (1 + (a * log t) ^ 2) ≠ 0 := mul_ne_zero ht (_root_.ne_of_lt (by positivity)).symm
@@ -8015,12 +7279,6 @@ lemma gg_of_hh {x : ℝ} (hx : x ≠ 0) (i : ℝ) : gg x i = x⁻¹ * hh (1 / (2
   simp only [gg, hh]
   field_simp
 
-lemma gg_l1 {x : ℝ} (hx : 0 < x) (n : ℕ) : |gg x n| ≤ 1 / n := by
-  simp only [gg_of_hh hx.ne.symm, one_div, mul_inv_rev, abs_mul]
-  apply mul_le_mul le_rfl (hh_le _ _ (by positivity)) (by positivity) (by positivity) |>.trans
-    (le_of_eq ?_)
-  simp [abs_inv, abs_eq_self.mpr hx.le] ; field_simp
-
 lemma gg_le_one (i : ℕ) : gg x i ≤ 1 := by
   by_cases hi : i = 0 <;> simp only [gg, hi, CharP.cast_eq_zero, div_zero, one_div, mul_inv_rev,
     zero_div, Real.log_zero, mul_zero, ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true, zero_pow,
@@ -8043,9 +7301,6 @@ lemma one_div_two_pi_mem_Ioo : 1 / (2 * π) ∈ Ioo (-1) 1 := by
     trans 2
     · exact one_le_two
     · exact two_le_pi
-
-lemma sum_telescopic (a : ℕ → ℝ) (n : ℕ) : ∑ i ∈ Finset.range n, (a (i + 1) - a i) = a n - a 0 := by
-  apply Finset.sum_range_sub
 
 lemma cancel_aux {C : ℝ} {f g : ℕ → ℝ} (hf : 0 ≤ f) (hg : 0 ≤ g)
     (hf' : ∀ n, cumsum f n ≤ C * n) (hg' : Antitone g) (n : ℕ) :
@@ -8090,13 +7345,6 @@ lemma cancel_aux' {C : ℝ} {f g : ℕ → ℝ} (hf : 0 ≤ f) (hg : 0 ≤ g)
   have := cancel_aux hf hg hf' hg' n
   simp only [nsmul_eq_mul, ← Finset.mul_sum, sum_range_succ] at this
   convert this using 1 ; unfold cumsum ; ring
-
-lemma cancel_main {C : ℝ} {f g : ℕ → ℝ} (hf : 0 ≤ f) (hg : 0 ≤ g)
-    (hf' : ∀ n, cumsum f n ≤ C * n) (hg' : Antitone g) (n : ℕ) (hn : 2 ≤ n) :
-    cumsum (f * g) n ≤ C * cumsum g n := by
-  convert! cancel_aux' hf hg hf' hg' n using 1
-  match n with
-  | n + 2 => simp only [cumsum_succ] ; push_cast ; ring
 
 lemma cancel_main' {C : ℝ} {f g : ℕ → ℝ} (hf : 0 ≤ f) (hf0 : f 0 = 0) (hg : 0 ≤ g)
     (hf' : ∀ n, cumsum f n ≤ C * n) (hg' : Antitone g) (n : ℕ) :
@@ -8677,9 +7925,6 @@ lemma wiener_ikehara_smooth' (hf : ∀ (σ' : ℝ), 1 < σ' → Summable (nterm 
 local instance {E : Type*} : Coe (E → ℝ) (E → ℂ) := ⟨fun f n => f n⟩
 
 
-theorem set_integral_ofReal {f : ℝ → ℝ} {s : Set ℝ} : ∫ x in s, (f x : ℂ) = ∫ x in s, f x :=
-  integral_ofReal
-
 lemma wiener_ikehara_smooth_real {f : ℕ → ℝ} {Ψ : ℝ → ℝ}
     (hf : ∀ (σ' : ℝ), 1 < σ' → Summable (nterm f σ'))
     (hcheby : cheby f) (hG : ContinuousOn G {s | 1 ≤ s.re})
@@ -8944,17 +8189,11 @@ lemma WienerIkeharaInterval {f : ℕ → ℝ} (hpos : 0 ≤ f) (hf : ∀ (σ' : 
 
 
 
-lemma le_floor_mul_iff (hb : 0 ≤ b) (hx : 0 < x) : n ≤ ⌊b * x⌋₊ ↔ n / x ≤ b := by
-  rw [div_le_iff₀ hx, Nat.le_floor_iff] ; positivity
-
 lemma lt_ceil_mul_iff (hx : 0 < x) : n < ⌈b * x⌉₊ ↔ n / x < b := by
   rw [div_lt_iff₀ hx, Nat.lt_ceil]
 
 lemma ceil_mul_le_iff (hx : 0 < x) : ⌈a * x⌉₊ ≤ n ↔ a ≤ n / x := by
   rw [le_div_iff₀ hx, Nat.ceil_le]
-
-lemma mem_Icc_iff_div (hb : 0 ≤ b) (hx : 0 < x) : n ∈ Finset.Icc ⌈a * x⌉₊ ⌊b * x⌋₊ ↔ n / x ∈ Icc a b := by
-  rw [Finset.mem_Icc, mem_Icc, ceil_mul_le_iff hx, le_floor_mul_iff hb hx]
 
 lemma mem_Ico_iff_div (hx : 0 < x) : n ∈ Finset.Ico ⌈a * x⌉₊ ⌈b * x⌉₊ ↔ n / x ∈ Ico a b := by
   rw [Finset.mem_Ico, mem_Ico, ceil_mul_le_iff hx, lt_ceil_mul_iff hx]
@@ -9102,58 +8341,6 @@ open Finset
 open BigOperators Filter Real Classical Asymptotics MeasureTheory intervalIntegral
 open scoped ArithmeticFunction.Moebius ArithmeticFunction.Omega Chebyshev
 
-lemma Set.Ico_subset_Ico_of_Icc_subset_Icc {a b c d : ℝ} (h : Set.Icc a b ⊆ Set.Icc c d) :
-    Set.Ico a b ⊆ Set.Ico c d := by
-  intro z hz
-  have hz' := Set.Ico_subset_Icc_self.trans h hz
-  have hcd : c ≤ d := by
-    contrapose! hz'
-    rw [Icc_eq_empty_of_lt hz']
-    exact notMem_empty _
-  simp only [mem_Ico, mem_Icc] at *
-  refine ⟨hz'.1, hz'.2.eq_or_lt.resolve_left ?_⟩
-  rintro rfl
-  apply hz.2.not_ge
-  have := h <| right_mem_Icc.mpr (hz.1.trans hz.2.le)
-  simp only [mem_Icc] at this
-  exact this.2
-
-lemma th43_b (x : ℝ) (hx : 2 ≤ x) :
-    Nat.primeCounting ⌊x⌋₊ =
-      θ x / log x + ∫ t in Set.Icc 2 x, θ t / (t * (Real.log t) ^ 2) := by
-  rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hx]
-  exact Chebyshev.primeCounting_eq_theta_div_log_add_integral hx
-
-
-lemma finsum_range_eq_sum_range {R : Type*} [AddCommMonoid R] {f : ArithmeticFunction R} (x : ℝ) :
-    ∑ᶠ (n : ℕ) (_: n < x), f n = ∑ n ∈ range ⌈x⌉₊, f n := by
-  apply finsum_cond_eq_sum_of_cond_iff f
-  intros
-  simp only [mem_range]
-  exact Iff.symm Nat.lt_ceil
-
-lemma finsum_range_eq_sum_range' {R : Type*} [AddCommMonoid R] {f : ArithmeticFunction R}
-    (x : ℝ) : ∑ᶠ (n : ℕ) (_ : n ≤ x), f n = ∑ n ∈ Iic ⌊x⌋₊, f n := by
-  apply finsum_cond_eq_sum_of_cond_iff f
-  intro n h
-  simp only [mem_Iic]
-  exact Iff.symm <| Nat.le_floor_iff'
-    fun (hc : n = 0) ↦ (h : f n ≠ 0) <| (congrArg f hc).trans ArithmeticFunction.map_zero
-
-
-lemma log2_pos : 0 < log 2 := by
-  rw [Real.log_pos_iff zero_le_two]
-  exact one_lt_two
-
-
-/-- If u ~ v and w-u = o(v) then w ~ v. -/
-theorem Asymptotics.IsEquivalent.add_isLittleO' {α : Type*} {β : Type*} [NormedAddCommGroup β]
-    {u : α → β} {v : α → β} {w : α → β} {l : Filter α}
-    (huv : Asymptotics.IsEquivalent l u v) (hwu : (w - u) =o[l] v) :
-    Asymptotics.IsEquivalent l w v := by
-  rw [← add_sub_cancel u w]
-  exact add_isLittleO huv hwu
-
 /-- If u ~ v and u-w = o(v) then w ~ v. -/
 theorem Asymptotics.IsEquivalent.add_isLittleO'' {α : Type*} {β : Type*} [NormedAddCommGroup β]
     {u : α → β} {v : α → β} {w : α → β} {l : Filter α}
@@ -9216,29 +8403,6 @@ lemma isLittleO_sqrt_mul_log : (fun x : ℝ ↦ x.sqrt * x.log) =o[atTop] _root_
     · convert! isLittleO_log_rpow_atTop (by norm_num : (0 : ℝ) < 1 / 2) using 2 with x
       rw [div_sqrt, sqrt_eq_rpow]
   exact this
-
-/-- `(⌊x⌋₊ + 1) / x → 1` as `x → ∞`. -/
-lemma tendsto_floor_add_one_div_self : Tendsto (fun x : ℝ ↦ (⌊x⌋₊ + 1 : ℝ) / x) atTop (nhds 1) := by
-  have h := Asymptotics.isEquivalent_nat_floor (R := ℝ)
-  have h' : IsEquivalent atTop (fun x : ℝ ↦ (⌊x⌋₊ : ℝ) + 1) _root_.id :=
-    h.add_isLittleO (isLittleO_const_id_atTop 1)
-  rwa [isEquivalent_iff_tendsto_one
-    (by filter_upwards [eventually_gt_atTop 0] with x hx a; simp only [_root_.id] at a; linarith)] at h'
-
-/-- `x =Θ x / c` for nonzero constant `c`. -/
-lemma isTheta_self_div_const {c : ℝ} (hc : c ≠ 0) : (fun x : ℝ ↦ x) =Θ[atTop] fun x ↦ x / c := by
-  have : (fun x : ℝ ↦ x / c) = fun x ↦ c⁻¹ * x := by ext x; ring
-  exact this ▸ (isTheta_const_mul_left (inv_ne_zero hc)).mpr (isTheta_refl ..) |>.symm
-
-/-- Filtered sum over `Iic n` equals filtered sum over `Icc 1 n` for primes. -/
-lemma filter_prime_Iic_eq_Icc (n : ℕ) : filter Prime (Iic n) = filter Prime (Icc 1 n) := by
-  ext p; simp only [mem_filter, mem_Iic, mem_Icc, and_congr_left_iff]
-  exact fun hp ↦ ⟨fun h ↦ ⟨hp.one_lt.le, h⟩, fun ⟨_, h⟩ ↦ h⟩
-
-/-- `Icc 0 n = insert 0 (Icc 1 n)` -/
-lemma Icc_zero_eq_insert (n : ℕ) : Icc 0 n = insert 0 (Icc 1 n) := by
-  ext m; simp [mem_Icc]; omega
-
 
 theorem chebyshev_asymptotic : θ ~[atTop] id := by
   refine WeakPNT''.add_isLittleO'' (IsBigO.trans_isLittleO (g := fun x ↦ 2 * x.sqrt * x.log) ?_ ?_)
@@ -9365,31 +8529,6 @@ theorem proposition31_pow_two_mul_le_cap
     _ ≤ (q.1 + 1) ^ k * ((q.1 + 1) ^ k - 1) :=
       Nat.mul_le_mul hleft hright
     _ = proposition31DegreeCap q.1 k := rfl
-
-/-- The concrete graph in Proposition 3.1 is admissible whenever its
-displayed cap is at most the ambient maximum degree.  In particular, this
-lemma uses the actual common degree and the exact diameter of that graph. -/
-theorem proposition31_orderAdmissible
-    (q : PrimePowerIndex) (k : ℕ) (hk : 0 < k) {d : ℕ}
-    (hcap : proposition31DegreeCap q.1 k ≤ d) :
-    OrderAdmissible k d (proposition31PrimePowerOrder k q) := by
-  let V := Proposition31Vertex (PrimePowerField q) k
-  let G := Proposition31Graph (PrimePowerField q) k
-  have hP31 := proposition_3_1 k hk
-  have hp : Proposition31FiniteClaims q k := hP31.1 q
-  refine ⟨V, G, inferInstance, rfl, ?_, ?_⟩
-  · intro P
-    have hregular :
-        (G.neighborSet P).ncard =
-          proposition31Degree (PrimePowerField q) k := by
-      simpa only [G, Nat.card_coe_set_eq] using hp.regularity P
-    calc
-      (G.neighborSet P).ncard =
-          proposition31Degree (PrimePowerField q) k := hregular
-      _ ≤ proposition31DegreeCap q.1 k := by
-        exact hp.degree_le_cap
-      _ ≤ d := hcap
-  · exact hp.ediam_eq.le
 
 /- ## Prime interpolation -/
 

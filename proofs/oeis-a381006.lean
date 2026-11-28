@@ -1,5 +1,7 @@
 import OMAStatements.S_oeis_a381006
 
+open OMA.S_oeis_a381006
+
 theorem OMA.solution : type_of% @OMA.S_oeis_a381006.main := by
   intro n hn
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
@@ -17,14 +19,14 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a381006.main := by
   have e5 : 2 ^ (4 * (m + 1) + 1) = 32 * u ^ 2 := by
     rw [pow_succ, e1]; ring
   have hle : u ≤ u ^ 2 := by nlinarith
-  have hb : OMA.S_oeis_a381006.legB (m + 1) = 12 * u ^ 2 - 4 * u - 1 := by
-    unfold OMA.S_oeis_a381006.legB; rw [e1, e2, e3]; omega
-  have hc : OMA.S_oeis_a381006.hyp (m + 1) = 20 * u ^ 2 + 4 * u + 1 := by
-    unfold OMA.S_oeis_a381006.hyp; rw [e1, e2, e3]; omega
-  set g := Nat.gcd (Nat.gcd (OMA.S_oeis_a381006.legA (m + 1)) (OMA.S_oeis_a381006.legB (m + 1))) (OMA.S_oeis_a381006.hyp (m + 1)) with hg
-  have gb : g ∣ OMA.S_oeis_a381006.legB (m + 1) :=
+  have hb : legB (m + 1) = 12 * u ^ 2 - 4 * u - 1 := by
+    unfold legB; rw [e1, e2, e3]; omega
+  have hc : hyp (m + 1) = 20 * u ^ 2 + 4 * u + 1 := by
+    unfold hyp; rw [e1, e2, e3]; omega
+  set g := Nat.gcd (Nat.gcd (legA (m + 1)) (legB (m + 1))) (hyp (m + 1)) with hg
+  have gb : g ∣ legB (m + 1) :=
     (Nat.gcd_dvd_left _ _).trans (Nat.gcd_dvd_right _ _)
-  have gc : g ∣ OMA.S_oeis_a381006.hyp (m + 1) := Nat.gcd_dvd_right _ _
+  have gc : g ∣ hyp (m + 1) := Nat.gcd_dvd_right _ _
   have gs : g ∣ 2 ^ (4 * (m + 1) + 1) := by
     rw [e5]
     have := Nat.dvd_add gb gc

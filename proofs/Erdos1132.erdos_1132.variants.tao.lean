@@ -213,13 +213,6 @@ theorem integral_poissonKernel_Icc {h : ℝ} (hh : 0 < h) {a b : ℝ} (hab : a �
   rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hab]
   simpa using intervalIntegral_poissonKernel hh 0 a b
 
-theorem poissonKernel_centered_interval {h : ℝ} (hh : 0 < h) {K : ℝ} (hK : 0 ≤ K) :
-    (∫ t in Set.Icc (-K * h) (K * h), poissonKernel h t) =
-      2 / Real.pi * Real.arctan K := by
-  rw [integral_poissonKernel_Icc hh (by nlinarith)]
-  simp only [mul_div_cancel_right₀ _ hh.ne', Real.arctan_neg]
-  ring
-
 end TaoAdditive1132
 end
 end SourceErdos1132_Shared_PoissonKernel
@@ -238,71 +231,12 @@ open scoped Topology
 
 namespace TaoAdditive1132
 
-def cayley (x h : ℝ) (w : ℂ) : ℂ := x + h * I * (1 + w) / (1 - w)
-
 def inverseCayley (t : ℝ) : ℂ := ((t : ℂ) - I) / ((t : ℂ) + I)
-
-theorem cayley_zero (x h : ℝ) : cayley x h 0 = (x : ℂ) + h * I := by
-  simp [cayley]
 
 theorem inverseCayley_denom_ne_zero (t : ℝ) : (t : ℂ) + I ≠ 0 := by
   intro he
   have := congrArg Complex.im he
   norm_num at this
-
-theorem inverseCayley_ne_one (t : ℝ) : inverseCayley t ≠ 1 := by
-  rw [inverseCayley, ne_eq, div_eq_one_iff_eq (inverseCayley_denom_ne_zero t)]
-  intro he
-  have := congrArg Complex.im he
-  norm_num at this
-
-theorem norm_inverseCayley (t : ℝ) : ‖inverseCayley t‖ = 1 := by
-  rw [inverseCayley, norm_div]
-  have hn : ‖(t : ℂ) - I‖ = ‖(t : ℂ) + I‖ := by
-    convert! norm_conj ((t : ℂ) + I) using 1
-    simp [sub_eq_add_neg]
-  rw [hn, div_self (norm_ne_zero_iff.mpr (inverseCayley_denom_ne_zero t))]
-
-theorem cayley_inverseCayley (x h t : ℝ) :
-    cayley x h (inverseCayley t) = ((x + h * t : ℝ) : ℂ) := by
-  unfold cayley inverseCayley
-  push_cast
-  field_simp [inverseCayley_denom_ne_zero t]
-  ring
-
-theorem cayley_im (x h : ℝ) {w : ℂ} :
-    (cayley x h w).im = h * (1 - ‖w‖ ^ 2) / normSq (1 - w) := by
-  simp [cayley, div_im, normSq_apply, Complex.sq_norm]
-  ring
-
-theorem cayley_im_pos (x : ℝ) {h : ℝ} (hh : 0 < h) {w : ℂ} (hw : ‖w‖ < 1) :
-    0 < (cayley x h w).im := by
-  rw [cayley_im]
-  have hn : 0 < 1 - ‖w‖ ^ 2 := by nlinarith [norm_nonneg w]
-  have hw1 : 1 - w ≠ 0 := by
-    intro he
-    have : w = 1 := (sub_eq_zero.mp he).symm
-    simp [this] at hw
-  exact div_pos (mul_pos hh hn) (normSq_pos.mpr hw1)
-
-theorem analyticAt_cayley (x h : ℝ) {w : ℂ} (hw : w ≠ 1) :
-    AnalyticAt ℂ (cayley x h) w := by
-  unfold cayley
-  fun_prop (disch := exact sub_ne_zero.mpr hw.symm)
-
-theorem continuous_inverseCayley : Continuous inverseCayley := by
-  unfold inverseCayley
-  exact (continuous_ofReal.sub continuous_const).div
-    (continuous_ofReal.add continuous_const) inverseCayley_denom_ne_zero
-
-theorem cayley_radial_tendsto (x h t : ℝ) {r : ℕ → ℝ}
-    (hr : Tendsto r atTop (𝓝 1)) :
-    Tendsto (fun n => cayley x h ((r n : ℂ) * inverseCayley t)) atTop
-      (𝓝 ((x + h * t : ℝ) : ℂ)) := by
-  have hc := (analyticAt_cayley x h (inverseCayley_ne_one t)).continuousAt
-  have ht : Tendsto (fun n => (r n : ℂ) * inverseCayley t) atTop
-      (𝓝 (inverseCayley t)) := by simpa using (continuous_ofReal.tendsto 1 |>.comp hr).mul_const (inverseCayley t)
-  simpa only [cayley_inverseCayley, Function.comp_def] using hc.tendsto.comp ht
 
 def cayleyAngle (t : ℝ) : ℝ := 2 * Real.arctan t + Real.pi
 
@@ -372,42 +306,6 @@ theorem circleAverage_eq_cauchy_integral (f : ℂ → ℝ) (r : ℝ) :
   field_simp
   ring
 
-open InnerProductSpace in
-/-- Boundary limits of a bounded harmonic function in stereographic coordinates. -/
-theorem harmonic_boundary_cauchy {u : ℂ → ℝ} {M : ℝ}
-    (hu : HarmonicOnNhd u (ball 0 1))
-    (hb : ∀ z ∈ ball (0 : ℂ) 1, |u z| ≤ M)
-    (r : ℕ → ℝ) (hr : ∀ n, r n ∈ Ico 0 1) (b : ℝ → ℝ)
-    (hl : ∀ᵐ t, Tendsto (fun n => u ((r n : ℂ) * inverseCayley t)) atTop (𝓝 (b t))) :
-    (∫ t, poissonKernel 1 t * b t) = u 0 := by
-  have hm (n : ℕ) (t : ℝ) : (r n : ℂ) * inverseCayley t ∈ ball (0 : ℂ) 1 := by
-    simp [mem_ball, dist_eq_norm, norm_inverseCayley,
-      Complex.norm_real, Real.norm_eq_abs, abs_of_nonneg (hr n).1, (hr n).2]
-  have hcont (n : ℕ) : Continuous (fun t => u ((r n : ℂ) * inverseCayley t)) :=
-    hu.contDiffOn.continuousOn.comp_continuous
-      (continuous_const.mul continuous_inverseCayley) (hm n)
-  have ht := tendsto_integral_of_dominated_convergence (μ := volume)
-    (F := fun n t => poissonKernel 1 t * u ((r n : ℂ) * inverseCayley t))
-    (f := fun t => poissonKernel 1 t * b t)
-    (fun t => poissonKernel 1 t * M)
-    (fun n => ((continuous_poissonKernel (h := 1) (by norm_num)).mul (hcont n)).aestronglyMeasurable)
-    ((integrable_poissonKernel (by norm_num : (0 : ℝ) ≤ 1)).mul_const M)
-    (fun n => ae_of_all _ fun t => by
-      rw [Real.norm_eq_abs, abs_mul, abs_of_pos (poissonKernel_pos (by norm_num) t)]
-      exact mul_le_mul_of_nonneg_left (hb _ (hm n t)) (poissonKernel_pos (by norm_num) t).le)
-    (by filter_upwards [hl] with t ht; exact tendsto_const_nhds.mul ht)
-  have hav (n : ℕ) : (∫ t, poissonKernel 1 t * u ((r n : ℂ) * inverseCayley t)) = u 0 := by
-    rw [← circleAverage_eq_cauchy_integral]
-    apply InnerProductSpace.HarmonicOnNhd.circleAverage_eq
-    apply hu.mono
-    apply closedBall_subset_ball
-    rw [abs_of_nonneg (hr n).1]
-    exact (hr n).2
-  have he : (fun n => ∫ t, poissonKernel 1 t * u ((r n : ℂ) * inverseCayley t)) =
-      fun _ => u 0 := funext hav
-  rw [he] at ht
-  exact tendsto_nhds_unique ht tendsto_const_nhds
-
 end TaoAdditive1132
 end
 end SourceErdos1132_Shared_Cayley
@@ -448,8 +346,6 @@ def totalWeight : ℝ := ∑ i, |X.weight i|
 
 def mass (i : Fin n) : ℝ := |X.weight i| / X.totalWeight
 
-def signedMass (i : Fin n) : ℝ := X.weight i / X.totalWeight
-
 theorem weight_ne_zero (i : Fin n) : X.weight i ≠ 0 :=
   Lagrange.nodalWeight_ne_zero X.injective.injOn (mem_univ i)
 
@@ -471,10 +367,6 @@ theorem sum_mass (hn : 0 < n) : ∑ i, X.mass i = 1 := by
   change X.totalWeight / X.totalWeight = 1
   exact div_self (ne_of_gt (X.totalWeight_pos hn))
 
-theorem abs_signedMass (hn : 0 < n) (i : Fin n) :
-    |X.signedMass i| = X.mass i := by
-  rw [signedMass, mass, abs_div, abs_of_pos (X.totalWeight_pos hn)]
-
 theorem cardinal_at_node (i j : Fin n) :
     (X.cardinal i).eval (X.point j) = if i = j then 1 else 0 := by
   by_cases h : i = j
@@ -486,47 +378,9 @@ theorem lebesgue_at_node (j : Fin n) : X.lebesgue (X.point j) = 1 := by
   simp only [lebesgue, X.cardinal_at_node, apply_ite abs, abs_one, abs_zero]
   simp
 
-theorem lebesgue_nonneg (x : ℝ) : 0 ≤ X.lebesgue x :=
-  sum_nonneg fun _ _ => abs_nonneg _
-
 theorem continuous_lebesgue : Continuous X.lebesgue := by
   unfold lebesgue
   fun_prop
-
-theorem measurable_lebesgue : Measurable X.lebesgue :=
-  X.continuous_lebesgue.measurable
-
-/-- The signed barycentric weights annihilate polynomials of degree below `n - 1`. -/
-theorem weight_cancellation {p : ℝ[X]} (hp : p.degree < (n - 1 : ℕ)) :
-    ∑ i, X.weight i * p.eval (X.point i) = 0 := by
-  have hpn : p.degree < (n : ℕ) :=
-    hp.trans_le (by exact_mod_cast Nat.sub_le n 1)
-  have h := Lagrange.coeff_eq_sum X.injective.injOn (s := univ) (P := p)
-    (by simpa using hpn)
-  have hc : p.coeff (n - 1) = 0 := Polynomial.coeff_eq_zero_of_degree_lt hp
-  simp only [card_univ, Fintype.card_fin, hc] at h
-  apply Eq.trans ?_ h.symm
-  apply sum_congr rfl
-  intro i _
-  simp [weight, Lagrange.nodalWeight, prod_inv_distrib, div_eq_mul_inv, mul_comm]
-
-theorem signedMass_cancellation {p : ℝ[X]} (hp : p.degree < (n - 1 : ℕ)) :
-    ∑ i, X.signedMass i * p.eval (X.point i) = 0 := by
-  simp only [signedMass, div_mul_eq_mul_div, ← sum_div, X.weight_cancellation hp, zero_div]
-
-theorem sum_signedMass (hn : 2 ≤ n) : ∑ i, X.signedMass i = 0 := by
-  simpa using X.signedMass_cancellation (p := 1)
-    (by simp only [degree_one]; exact_mod_cast (show 0 < n - 1 by omega))
-
-theorem split_mass_nonneg (hn : 0 < n) (i : Fin n) :
-    0 ≤ X.mass i + X.signedMass i ∧ 0 ≤ X.mass i - X.signedMass i := by
-  have h := abs_le.mp (le_of_eq (X.abs_signedMass hn i))
-  constructor <;> linarith
-
-theorem sum_split_mass (hn : 2 ≤ n) :
-    (∑ i, (X.mass i + X.signedMass i)) = 1 ∧
-    (∑ i, (X.mass i - X.signedMass i)) = 1 := by
-  simp [sum_add_distrib, sum_sub_distrib, X.sum_mass (by omega), X.sum_signedMass hn]
 
 end Nodes
 
@@ -559,129 +413,13 @@ namespace AtomicProbability
 
 variable {n : ℕ} (μ : AtomicProbability n)
 
-def cauchy (z : ℂ) : ℂ := ∑ i, (μ.mass i : ℂ) / (z - μ.point i)
-
 def boundary (x : ℝ) : ℝ := ∑ i, μ.mass i / (x - μ.point i)
-
-def gamma (h x : ℝ) : ℝ := ∑ i, μ.mass i * h / ((x - μ.point i) ^ 2 + h ^ 2)
-
-theorem exists_mass_pos : ∃ i, 0 < μ.mass i := by
-  by_contra! h
-  have hs := sum_nonpos (s := univ) (fun i _ => h i)
-  rw [μ.sum_mass] at hs
-  norm_num at hs
-
-theorem gamma_pos {h : ℝ} (hh : 0 < h) (x : ℝ) : 0 < μ.gamma h x := by
-  obtain ⟨i, hi⟩ := μ.exists_mass_pos
-  refine sum_pos' (fun j _ => div_nonneg (mul_nonneg (μ.mass_nonneg j) hh.le)
-    (by positivity)) ⟨i, mem_univ _, ?_⟩
-  exact div_pos (mul_pos hi hh) (by positivity)
-
-theorem cauchy_ofReal (x : ℝ) : μ.cauchy x = (μ.boundary x : ℂ) := by
-  simp [cauchy, boundary]
-
-theorem neg_im_cauchy (h x : ℝ) :
-    -(μ.cauchy ((x : ℂ) + h * Complex.I)).im = μ.gamma h x := by
-  simp only [cauchy, Complex.im_sum, ← sum_neg_distrib, gamma]
-  apply sum_congr rfl
-  intro i _
-  simp [Complex.div_im, Complex.normSq_apply, pow_two]
-
-theorem gamma_lower {h x : ℝ} (hh : 0 < h)
-    (hx : x ∈ Set.Icc (-1) 1) (hs : ∀ i, μ.point i ∈ Set.Icc (-1) 1) :
-    h / (4 + h ^ 2) ≤ μ.gamma h x := by
-  calc
-    h / (4 + h ^ 2) = ∑ i, μ.mass i * (h / (4 + h ^ 2)) := by
-      rw [← sum_mul, μ.sum_mass, one_mul]
-    _ ≤ μ.gamma h x := by
-      apply sum_le_sum
-      intro i _
-      have hi := hs i
-      have hsq : (x - μ.point i) ^ 2 ≤ 4 := by
-        have h₁ : 0 ≤ 2 - (x - μ.point i) := by linarith [hx.2, hi.1]
-        have h₂ : 0 ≤ 2 + (x - μ.point i) := by linarith [hx.1, hi.2]
-        nlinarith [mul_nonneg h₁ h₂]
-      rw [← mul_div_assoc]
-      exact div_le_div_of_nonneg_left (mul_nonneg (μ.mass_nonneg i) hh.le)
-        (by positivity) (by linarith)
 
 end AtomicProbability
 
 namespace Nodes
 
 variable {n : ℕ} (X : Nodes n)
-
-def probability (hn : 0 < n) : AtomicProbability n where
-  point := X.point
-  mass := X.mass
-  mass_nonneg i := (X.mass_pos hn i).le
-  sum_mass := X.sum_mass hn
-
-def plusProbability (hn : 2 ≤ n) : AtomicProbability n where
-  point := X.point
-  mass i := X.mass i + X.signedMass i
-  mass_nonneg i := (X.split_mass_nonneg (by omega) i).1
-  sum_mass := (X.sum_split_mass hn).1
-
-def minusProbability (hn : 2 ≤ n) : AtomicProbability n where
-  point := X.point
-  mass i := X.mass i - X.signedMass i
-  mass_nonneg i := (X.split_mass_nonneg (by omega) i).2
-  sum_mass := (X.sum_split_mass hn).2
-
-def signedCauchy (z : ℂ) : ℂ := ∑ i, (X.signedMass i : ℂ) / (z - X.point i)
-
-def signedBoundary (x : ℝ) : ℝ := ∑ i, X.signedMass i / (x - X.point i)
-
-def absoluteTransform (x : ℝ) : ℝ := ∑ i, X.mass i / |x - X.point i|
-
-theorem cauchy_plus (hn : 2 ≤ n) (z : ℂ) :
-    (X.plusProbability hn).cauchy z =
-      (X.probability (by omega)).cauchy z + X.signedCauchy z := by
-  simp [AtomicProbability.cauchy, plusProbability, probability, signedCauchy,
-    add_div, sum_add_distrib]
-
-theorem cauchy_minus (hn : 2 ≤ n) (z : ℂ) :
-    (X.minusProbability hn).cauchy z =
-      (X.probability (by omega)).cauchy z - X.signedCauchy z := by
-  simp [AtomicProbability.cauchy, minusProbability, probability, signedCauchy,
-    sub_div, sum_sub_distrib]
-
-theorem nodePolynomial_ne_zero {x : ℝ} (hx : ∀ i, x ≠ X.point i) :
-    X.nodePolynomial.eval x ≠ 0 :=
-  Lagrange.eval_nodal_not_at_node (fun i _ => hx i)
-
-theorem signedBoundary_eq (hn : 0 < n) {x : ℝ} (hx : ∀ i, x ≠ X.point i) :
-    X.signedBoundary x = 1 / (X.totalWeight * X.nodePolynomial.eval x) := by
-  have hs : (univ : Finset (Fin n)).Nonempty := ⟨⟨0, hn⟩, mem_univ _⟩
-  have h := Lagrange.eval_interpolate_not_at_node (1 : Fin n → ℝ)
-    (s := univ) (v := X.point) (fun i _ => hx i)
-  simp only [Lagrange.interpolate_one X.injective.injOn hs, Polynomial.eval_one,
-    Pi.one_apply, mul_one] at h
-  have hp := X.nodePolynomial_ne_zero hx
-  have hw := ne_of_gt (X.totalWeight_pos hn)
-  have hg : ∑ i, X.weight i / (x - X.point i) = (X.nodePolynomial.eval x)⁻¹ := by
-    rw [← one_div, eq_div_iff hp]
-    simpa [nodePolynomial, weight, div_eq_mul_inv, mul_comm] using h.symm
-  simp only [signedBoundary, signedMass, div_right_comm (X.weight _) X.totalWeight,
-    ← sum_div, hg]
-  field_simp
-
-theorem lebesgue_transform (hn : 0 < n) {x : ℝ} (hx : ∀ i, x ≠ X.point i) :
-    X.lebesgue x = X.absoluteTransform x / |X.signedBoundary x| := by
-  have hp := X.nodePolynomial_ne_zero hx
-  have hw := ne_of_gt (X.totalWeight_pos hn)
-  have hb : X.lebesgue x = |X.nodePolynomial.eval x| * X.totalWeight *
-      X.absoluteTransform x := by
-    simp only [lebesgue, absoluteTransform, mul_sum]
-    apply sum_congr rfl
-    intro i _
-    rw [cardinal, Lagrange.eval_basis_not_at_node (mem_univ _) (hx i)]
-    simp only [abs_mul, abs_inv, mass, nodePolynomial, weight]
-    field_simp
-  rw [hb, X.signedBoundary_eq hn hx, abs_div, abs_one, abs_mul,
-    abs_of_pos (X.totalWeight_pos hn)]
-  field_simp
 
 end Nodes
 
@@ -703,92 +441,9 @@ open scoped Topology
 
 namespace TaoAdditive1132
 
-def intervalHarmonic (a b : ℝ) (z : ℂ) : ℝ := ((z - a) / (z - b)).arg / Real.pi
-
-theorem interval_quotient_im (a b : ℝ) (z : ℂ) :
-    ((z - a) / (z - b)).im = (a - b) * z.im / normSq (z - b) := by
-  simp [div_im]
-  ring
-
-theorem interval_quotient_im_pos {a b : ℝ} (hab : a < b) {z : ℂ} (hz : z.im < 0) :
-    0 < ((z - a) / (z - b)).im := by
-  rw [interval_quotient_im]
-  have hzb : z - (b : ℂ) ≠ 0 := by
-    intro he
-    have := congrArg Complex.im he
-    simp at this
-    linarith
-  exact div_pos (mul_pos_of_neg_of_neg (sub_neg.mpr hab) hz) (normSq_pos.mpr hzb)
-
-theorem abs_intervalHarmonic_le_one (a b : ℝ) (z : ℂ) : |intervalHarmonic a b z| ≤ 1 := by
-  rw [intervalHarmonic, abs_div, abs_of_pos Real.pi_pos]
-  exact (div_le_one Real.pi_pos).mpr (abs_arg_le_pi _)
-
-theorem harmonicAt_intervalHarmonic_comp {F : ℂ → ℂ} {z : ℂ} {a b : ℝ}
-    (hab : a < b) (hF : AnalyticAt ℂ F z) (hi : (F z).im < 0) :
-    HarmonicAt (fun w => intervalHarmonic a b (F w)) z := by
-  have hn : F z - (b : ℂ) ≠ 0 := by
-    intro he
-    have := congrArg Complex.im he
-    simp at this
-    linarith
-  have hq : AnalyticAt ℂ (fun w => (F w - a) / (F w - b)) z := by
-    fun_prop (disch := exact hn)
-  have hs : (F z - a) / (F z - b) ∈ slitPlane :=
-    Or.inr (ne_of_gt (interval_quotient_im_pos hab hi))
-  have hh := (hq.clog hs).harmonicAt_im
-  convert! hh.const_smul (c := Real.pi⁻¹) using 1
-  funext w
-  simp [intervalHarmonic, Complex.log_im, div_eq_mul_inv, mul_comm]
-
-theorem tendsto_intervalHarmonic_real {a b t : ℝ} (hab : a < b)
-    (hta : t ≠ a) (htb : t ≠ b) {f : ℕ → ℂ}
-    (hf : Tendsto f atTop (𝓝 (t : ℂ))) (hi : ∀ n, (f n).im < 0) :
-    Tendsto (fun n => intervalHarmonic a b (f n)) atTop
-      (𝓝 (if a < t ∧ t < b then 1 else 0)) := by
-  have hq := (hf.sub_const (a : ℂ)).div (hf.sub_const (b : ℂ))
-    (by exact_mod_cast sub_ne_zero.mpr htb)
-  have hq' : Tendsto (fun n => (f n - a) / (f n - b)) atTop
-      (𝓝 (((t - a) / (t - b) : ℝ) : ℂ)) := by
-    convert! hq using 1
-    simp
-  by_cases ht : a < t ∧ t < b
-  · have hneg : (t - a) / (t - b) < 0 :=
-      div_neg_of_pos_of_neg (sub_pos.mpr ht.1) (sub_neg.mpr ht.2)
-    have hwithin : Tendsto (fun n => (f n - a) / (f n - b)) atTop
-        (𝓝[{z : ℂ | 0 ≤ z.im}] (((t - a) / (t - b) : ℝ) : ℂ)) := by
-      apply tendsto_nhdsWithin_iff.mpr
-      exact ⟨hq', .of_forall fun n => (interval_quotient_im_pos hab (hi n)).le⟩
-    have harg := (tendsto_arg_nhdsWithin_im_nonneg_of_re_neg_of_im_zero hneg rfl).comp hwithin
-    simpa [intervalHarmonic, ht, Real.pi_ne_zero] using harg.div_const Real.pi
-  · have hpos : 0 < (t - a) / (t - b) := by
-      by_cases h : t < a
-      · exact div_pos_of_neg_of_neg (sub_neg.mpr h) (sub_neg.mpr (h.trans hab))
-      · have h₁ : a < t := lt_of_le_of_ne (le_of_not_gt h) (Ne.symm hta)
-        have h₂ : b < t := lt_of_le_of_ne (not_lt.mp (fun h' => ht ⟨h₁, h'⟩)) (Ne.symm htb)
-        exact div_pos (sub_pos.mpr h₁) (sub_pos.mpr h₂)
-    have harg := (continuousAt_arg (Or.inl hpos)).tendsto.comp hq'
-    simpa only [intervalHarmonic, if_neg ht, ← Complex.ofReal_sub, ← Complex.ofReal_div,
-      arg_ofReal_of_nonneg hpos.le, zero_div, Function.comp_def] using harg.div_const Real.pi
-
 namespace AtomicProbability
 
 variable {n : ℕ} (μ : AtomicProbability n)
-
-theorem cauchy_im_neg {z : ℂ} (hz : 0 < z.im) : (μ.cauchy z).im < 0 := by
-  have h := μ.neg_im_cauchy z.im z.re
-  rw [Complex.re_add_im] at h
-  linarith [μ.gamma_pos hz z.re]
-
-theorem analyticAt_cauchy {z : ℂ} (hz : ∀ i, z ≠ (μ.point i : ℂ)) :
-    AnalyticAt ℂ μ.cauchy z := by
-  unfold cauchy
-  fun_prop (disch := exact sub_ne_zero.mpr (hz _))
-
-theorem analyticAt_cauchy_upper {z : ℂ} (hz : 0 < z.im) : AnalyticAt ℂ μ.cauchy z := by
-  apply μ.analyticAt_cauchy
-  intro i hi
-  simp [hi] at hz
 
 end AtomicProbability
 
@@ -812,73 +467,6 @@ namespace TaoAdditive1132.AtomicProbability
 
 variable {n : ℕ} (μ : AtomicProbability n)
 
-def denominator : ℂ[X] := Lagrange.nodal univ (fun i => (μ.point i : ℂ))
-
-def numerator : ℂ[X] :=
-  ∑ i, C (μ.mass i : ℂ) * Lagrange.nodal (univ.erase i) (fun j => (μ.point j : ℂ))
-
-theorem denominator_eval_ne_zero {z : ℂ} (hz : ∀ i, z ≠ (μ.point i : ℂ)) :
-    μ.denominator.eval z ≠ 0 :=
-  Lagrange.eval_nodal_not_at_node (fun i _ => hz i)
-
-theorem numerator_eval {z : ℂ} (hz : ∀ i, z ≠ (μ.point i : ℂ)) :
-    μ.numerator.eval z = μ.denominator.eval z * μ.cauchy z := by
-  simp only [numerator, eval_finsetSum, eval_mul, eval_C, cauchy, mul_sum]
-  apply sum_congr rfl
-  intro i _
-  have h := congrArg (Polynomial.eval z)
-    (Lagrange.nodal_eq_mul_nodal_erase (v := fun j => (μ.point j : ℂ)) (mem_univ i))
-  simp only [eval_mul, eval_sub, eval_X, eval_C] at h
-  have hzi := sub_ne_zero.mpr (hz i)
-  apply (mul_right_cancel₀ hzi)
-  rw [mul_assoc _ (_ / _) _, div_mul_cancel₀ _ hzi]
-  dsimp [denominator]
-  linear_combination -(μ.mass i : ℂ) * h
-
-theorem finite_boundary_fiber (v : ℝ) : {t : ℝ | μ.boundary t = v}.Finite := by
-  let q : ℂ[X] := C (v : ℂ) * μ.denominator - μ.numerator
-  have heval {z : ℂ} (hz : ∀ i, z ≠ (μ.point i : ℂ)) :
-      q.eval z = μ.denominator.eval z * ((v : ℂ) - μ.cauchy z) := by
-    simp only [q, eval_sub, eval_mul, eval_C, μ.numerator_eval hz]
-    ring
-  have hI (i : Fin n) : I ≠ (μ.point i : ℂ) := by
-    intro hi
-    have := congrArg Complex.im hi
-    norm_num at this
-  have hq : q ≠ 0 := by
-    intro hq
-    have h := heval hI
-    rw [hq, eval_zero] at h
-    have hc : (v : ℂ) = μ.cauchy I := sub_eq_zero.mp
-      ((mul_eq_zero.mp h.symm).resolve_left (μ.denominator_eval_ne_zero hI))
-    have hi := μ.cauchy_im_neg (z := I) (by simp)
-    rw [← hc] at hi
-    simp at hi
-  have hf : {t : ℝ | q.IsRoot (t : ℂ)}.Finite :=
-    Set.Finite.preimage Complex.ofReal_injective.injOn (Polynomial.finite_setOfPred_isRoot hq)
-  apply ((Set.finite_range μ.point).union hf).subset
-  intro t ht
-  by_cases hnode : t ∈ range μ.point
-  · exact Or.inl hnode
-  · right
-    have htn (i : Fin n) : (t : ℂ) ≠ (μ.point i : ℂ) := by
-      intro hi
-      exact hnode ⟨i, (Complex.ofReal_injective hi).symm⟩
-    change q.eval (t : ℂ) = 0
-    rw [heval htn, μ.cauchy_ofReal t, ht, sub_self, mul_zero]
-
-theorem ae_regular_boundary_comp (a b : ℝ) {g : ℝ → ℝ} (hg : Function.Injective g) :
-    ∀ᵐ t, (∀ i, g t ≠ μ.point i) ∧ μ.boundary (g t) ≠ a ∧ μ.boundary (g t) ≠ b := by
-  have hfinite : (range μ.point ∪ {t | μ.boundary t = a} ∪ {t | μ.boundary t = b}).Finite :=
-    ((Set.finite_range μ.point).union (μ.finite_boundary_fiber a)).union (μ.finite_boundary_fiber b)
-  have hnull := (Set.Finite.preimage hg.injOn hfinite).measure_zero (μ := MeasureTheory.volume)
-  have hae : ∀ᵐ t, t ∉ g ⁻¹' (range μ.point ∪ {t | μ.boundary t = a} ∪ {t | μ.boundary t = b}) := by
-    apply MeasureTheory.ae_iff.mpr
-    simpa only [not_not, Set.ofPred_mem_eq] using hnull
-  filter_upwards [hae] with t ht
-  simp only [Set.mem_preimage, Set.mem_union, Set.mem_ofPred_eq, not_or] at ht
-  exact ⟨fun i hi => ht.1.1 ⟨i, hi.symm⟩, ht.1.2, ht.2⟩
-
 end TaoAdditive1132.AtomicProbability
 end
 end SourceErdos1132_Shared_CauchyRational
@@ -896,21 +484,6 @@ open MeasureTheory Filter InnerProductSpace Metric Set Complex
 open scoped Topology
 
 namespace TaoAdditive1132
-
-def radialRadius (j : ℕ) : ℝ := 1 - 1 / ((j : ℝ) + 1)
-
-theorem radialRadius_mem (j : ℕ) : radialRadius j ∈ Ico 0 1 := by
-  have hp : 0 < (j : ℝ) + 1 := by positivity
-  have hd : 1 / ((j : ℝ) + 1) ≤ 1 := (div_le_one hp).mpr
-    (by linarith [Nat.cast_nonneg j (α := ℝ)])
-  have hd' : 0 < 1 / ((j : ℝ) + 1) := by positivity
-  dsimp [radialRadius]
-  constructor <;> linarith
-
-theorem tendsto_radialRadius : Tendsto radialRadius atTop (𝓝 1) := by
-  have hc : Tendsto (fun _ : ℕ => (1 : ℝ)) atTop (𝓝 1) := tendsto_const_nhds
-  convert! hc.sub (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)) using 1
-  norm_num
 
 theorem poisson_integral_affine {h : ℝ} (hh : 0 < h) (x : ℝ) (f : ℝ → ℝ) :
     (∫ y, poissonKernel h (y - x) * f y) =
@@ -942,53 +515,6 @@ namespace AtomicProbability
 
 variable {n : ℕ} (μ : AtomicProbability n)
 
-theorem boundary_measure_stereographic {a b h : ℝ} (hab : a < b) (hh : 0 < h) (x : ℝ) :
-    (∫ t, poissonKernel 1 t *
-      (if a < μ.boundary (x + h * t) ∧ μ.boundary (x + h * t) < b then 1 else 0)) =
-      intervalHarmonic a b (μ.cauchy ((x : ℂ) + h * I)) := by
-  let u : ℂ → ℝ := fun w => intervalHarmonic a b (μ.cauchy (cayley x h w))
-  have hu : HarmonicOnNhd u (ball 0 1) := by
-    intro w hw
-    have hwn : ‖w‖ < 1 := by simpa [mem_ball, dist_eq_norm] using hw
-    have hc : 0 < (cayley x h w).im := cayley_im_pos x hh hwn
-    have hw1 : w ≠ 1 := by intro he; simp [he] at hwn
-    exact harmonicAt_intervalHarmonic_comp hab
-      ((μ.analyticAt_cauchy_upper hc).comp (f := cayley x h) (analyticAt_cayley x h hw1))
-      (μ.cauchy_im_neg hc)
-  let r := radialRadius
-  have hr := radialRadius_mem
-  have hrt := tendsto_radialRadius
-  have hinj : Function.Injective (fun t : ℝ => x + h * t) := by
-    intro s t hst
-    exact (mul_left_cancel₀ hh.ne') (add_left_cancel hst)
-  have hl : ∀ᵐ t, Tendsto (fun j => u ((r j : ℂ) * inverseCayley t)) atTop
-      (𝓝 (if a < μ.boundary (x + h * t) ∧ μ.boundary (x + h * t) < b then 1 else 0)) := by
-    filter_upwards [μ.ae_regular_boundary_comp a b hinj] with t ht
-    have hc := (μ.analyticAt_cauchy (z := ((x + h * t : ℝ) : ℂ))
-      (fun i hi => ht.1 i (Complex.ofReal_injective hi))).continuousAt
-    have hlim := hc.tendsto.comp (cayley_radial_tendsto x h t hrt)
-    rw [μ.cauchy_ofReal] at hlim
-    apply tendsto_intervalHarmonic_real hab ht.2.1 ht.2.2 hlim
-    intro j
-    apply μ.cauchy_im_neg
-    apply cayley_im_pos x hh
-    simpa [norm_inverseCayley, Complex.norm_real, Real.norm_eq_abs,
-      abs_of_nonneg (hr j).1] using (hr j).2
-  have he := harmonic_boundary_cauchy hu (fun w _ => abs_intervalHarmonic_le_one a b _)
-    r hr _ hl
-  simpa only [u, cayley_zero] using he
-
-/-- Boundary harmonic measure for a finite positive Cauchy transform. -/
-theorem boundary_harmonic_measure {a b h : ℝ} (hab : a < b) (hh : 0 < h) (x : ℝ) :
-    (∫ y, poissonKernel h (x - y) *
-      (if a < μ.boundary y ∧ μ.boundary y < b then 1 else 0)) =
-      intervalHarmonic a b (μ.cauchy ((x : ℂ) + h * I)) := by
-  rw [← μ.boundary_measure_stereographic hab hh x,
-    ← poisson_integral_affine hh x (fun y => if a < μ.boundary y ∧ μ.boundary y < b then 1 else 0)]
-  apply integral_congr_ae
-  filter_upwards with y
-  rw [show x - y = -(y - x) by ring, poissonKernel_neg]
-
 end AtomicProbability
 
 end TaoAdditive1132
@@ -1011,71 +537,6 @@ namespace TaoAdditive1132.AtomicProbability
 
 variable {n : ℕ} (μ : AtomicProbability n)
 
-theorem norm_cauchy_le {z : ℂ} {h : ℝ} (hh : 0 < h) (hz : h ≤ z.im) :
-    ‖μ.cauchy z‖ ≤ 1 / h := by
-  have hd (i : Fin n) : h ≤ ‖z - (μ.point i : ℂ)‖ := by
-    calc
-      h ≤ z.im := hz
-      _ ≤ |(z - (μ.point i : ℂ)).im| := by simpa using le_abs_self z.im
-      _ ≤ ‖z - (μ.point i : ℂ)‖ := Complex.abs_im_le_norm _
-  unfold cauchy
-  calc
-    _ ≤ ∑ i, ‖(μ.mass i : ℂ) / (z - μ.point i)‖ := norm_sum_le _ _
-    _ ≤ ∑ i, μ.mass i / h := by
-      apply Finset.sum_le_sum
-      intro i _
-      rw [norm_div, Complex.norm_real, Real.norm_eq_abs, abs_of_nonneg (μ.mass_nonneg i)]
-      exact div_le_div_of_nonneg_left (μ.mass_nonneg i) hh (hd i)
-    _ = 1 / h := by rw [← Finset.sum_div, μ.sum_mass]
-
-theorem gamma_semigroup_add {h s : ℝ} (hh : 0 < h) (hs : 0 < s) (x : ℝ) :
-    μ.gamma (h + s) x = ∫ y, poissonKernel s (x - y) * μ.gamma h y := by
-  let u : ℂ → ℝ := fun w => -(μ.cauchy (cayley x s w + h * I)).im
-  have hu : HarmonicOnNhd u (ball 0 1) := by
-    intro w hw
-    have hwn : ‖w‖ < 1 := by simpa [mem_ball, dist_eq_norm] using hw
-    have hc := cayley_im_pos x hs hwn
-    have hcz : 0 < (cayley x s w + h * I).im := by simpa using add_pos hc hh
-    have hw1 : w ≠ 1 := by intro he; simp [he] at hwn
-    have hca : AnalyticAt ℂ (fun w => cayley x s w + h * I) w := by
-      have ha := analyticAt_cayley x s hw1
-      fun_prop
-    exact ((μ.analyticAt_cauchy_upper hcz).comp
-      (f := fun w => cayley x s w + h * I) hca).harmonicAt_im.neg
-  have hb : ∀ w ∈ ball (0 : ℂ) 1, |u w| ≤ 1 / h := by
-    intro w hw
-    have hwn : ‖w‖ < 1 := by simpa [mem_ball, dist_eq_norm] using hw
-    have hc := cayley_im_pos x hs hwn
-    change |-(μ.cauchy (cayley x s w + h * I)).im| ≤ 1 / h
-    rw [abs_neg]
-    apply (Complex.abs_im_le_norm _).trans
-    apply μ.norm_cauchy_le hh
-    simpa using (le_add_of_nonneg_left hc.le : h ≤ (cayley x s w).im + h)
-  have hl : ∀ᵐ t, Tendsto (fun j => u ((radialRadius j : ℂ) * inverseCayley t)) atTop
-      (𝓝 (μ.gamma h (x + s * t))) := by
-    apply ae_of_all
-    intro t
-    have hz : 0 < (((x + s * t : ℝ) : ℂ) + h * I).im := by simpa using hh
-    have ht := (cayley_radial_tendsto x s t tendsto_radialRadius).add_const ((h : ℂ) * I)
-    have hc := ((μ.analyticAt_cauchy_upper hz).continuousAt.tendsto.comp ht)
-    have hi := (Complex.continuous_im.tendsto _ |>.comp hc).neg
-    simpa only [u, Function.comp_def, μ.neg_im_cauchy] using hi
-  have he' := harmonic_boundary_cauchy hu hb radialRadius radialRadius_mem
-    (fun t => μ.gamma h (x + s * t)) hl
-  have hu0 : u 0 = μ.gamma (h + s) x := by
-    change -(μ.cauchy (cayley x s 0 + (h : ℂ) * I)).im = μ.gamma (h + s) x
-    rw [cayley_zero, show (x : ℂ) + s * I + h * I = (x : ℂ) + (h + s) * I by ring]
-    simpa only [Complex.ofReal_add] using μ.neg_im_cauchy (h + s) x
-  rw [hu0, ← poisson_integral_affine hs x (μ.gamma h)] at he'
-  rw [← he']
-  apply integral_congr_ae
-  filter_upwards with y
-  rw [show x - y = -(y - x) by ring, poissonKernel_neg]
-
-theorem gamma_semigroup {h s : ℝ} (hh : 0 < h) (hs : h < s) (x : ℝ) :
-    μ.gamma s x = ∫ y, poissonKernel (s - h) (x - y) * μ.gamma h y := by
-  simpa only [show h + (s - h) = s by ring] using μ.gamma_semigroup_add hh (sub_pos.mpr hs) x
-
 end TaoAdditive1132.AtomicProbability
 end
 end SourceErdos1132_Shared_PoissonSemigroup
@@ -1094,137 +555,9 @@ open scoped BigOperators
 
 namespace TaoAdditive1132
 
-theorem inverse_quadratic_integral_bound {η d : ℝ} (hη : 0 ≤ η) (hd : d ≠ 0) :
-    (∫ s in η..1, 1 / (d ^ 2 + s ^ 2)) ≤ Real.pi / (2 * |d|) := by
-  have hd' : 0 < |d| := abs_pos.mpr hd
-  have he : (fun s : ℝ => 1 / (d ^ 2 + s ^ 2)) =
-      fun s => (Real.pi / |d|) * poissonKernel |d| s := by
-    funext s
-    unfold poissonKernel
-    rw [sq_abs]
-    field_simp
-    ring
-  rw [he, intervalIntegral.integral_const_mul]
-  have hi := intervalIntegral_poissonKernel hd' 0 η 1
-  simp only [sub_zero] at hi
-  rw [hi]
-  have h0 : 0 ≤ Real.arctan (η / |d|) := Real.arctan_nonneg.mpr (div_nonneg hη hd'.le)
-  have h1 := Real.arctan_lt_pi_div_two (1 / |d|)
-  field_simp
-  nlinarith [Real.pi_pos]
-
-theorem quadratic_local_comparison {η s x y v : ℝ} (hη : 0 < η) (hs : η ≤ s) :
-    1 / ((x - v) ^ 2 + s ^ 2) ≤
-      (1 + |x - y| / η) ^ 2 / ((y - v) ^ 2 + s ^ 2) := by
-  let z : ℂ := (x - v : ℝ) + s * I
-  let w : ℂ := (y - v : ℝ) + s * I
-  have hn : η ≤ ‖z‖ := by
-    apply hs.trans
-    simpa [z, abs_of_nonneg (hη.le.trans hs)] using Complex.abs_im_le_norm z
-  have hw : ‖w‖ ≤ ‖z‖ + |x - y| := by
-    have he : w = z + ((y - x : ℝ) : ℂ) := by dsimp [w, z]; push_cast; ring
-    rw [he]
-    simpa only [Complex.norm_real, Real.norm_eq_abs, abs_sub_comm] using norm_add_le z ((y - x : ℝ) : ℂ)
-  have hd : |x - y| ≤ (|x - y| / η) * ‖z‖ := by
-    calc
-      _ = (|x - y| / η) * η := by field_simp
-      _ ≤ _ := mul_le_mul_of_nonneg_left hn (by positivity)
-  have hw' : ‖w‖ ≤ (1 + |x - y| / η) * ‖z‖ := by nlinarith
-  have hsq : ‖w‖ ^ 2 ≤ (1 + |x - y| / η) ^ 2 * ‖z‖ ^ 2 := by
-    nlinarith [norm_nonneg w, norm_nonneg z, sq_nonneg ((1 + |x - y| / η) * ‖z‖ - ‖w‖)]
-  have hposx : 0 < (x - v) ^ 2 + s ^ 2 := by nlinarith
-  have hposy : 0 < (y - v) ^ 2 + s ^ 2 := by nlinarith
-  apply (div_le_div_iff₀ hposx hposy).mpr
-  simp only [Complex.sq_norm] at hsq
-  simpa [z, w, normSq_apply, ← pow_two] using hsq
-
 namespace AtomicProbability
 
 variable {n : ℕ} (μ : AtomicProbability n)
-
-def truncatedPotential (η x : ℝ) : ℝ := (2 / Real.pi) * ∫ s in η..1, μ.gamma s x / s
-
-theorem gamma_div {s : ℝ} (hs : s ≠ 0) (x : ℝ) :
-    μ.gamma s x / s = ∑ i, μ.mass i / ((x - μ.point i) ^ 2 + s ^ 2) := by
-  unfold gamma
-  rw [Finset.sum_div]
-  apply Finset.sum_congr rfl
-  intro i _
-  field_simp
-
-theorem continuousOn_gamma_div {η : ℝ} (hη : 0 < η) (x : ℝ) :
-    ContinuousOn (fun s => μ.gamma s x / s) (Ici η) := by
-  have hc : ContinuousOn (fun s => ∑ i, μ.mass i / ((x - μ.point i) ^ 2 + s ^ 2)) (Ici η) := by
-    apply continuousOn_finsetSum
-    intro i _
-    exact continuousOn_const.div (by fun_prop) (fun s hs => ne_of_gt (by
-      have : η ≤ s := hs
-      nlinarith [sq_nonneg (x - μ.point i)]))
-  apply hc.congr
-  intro s hs
-  exact μ.gamma_div (ne_of_gt (lt_of_lt_of_le hη hs)) x
-
-theorem intervalIntegrable_gamma_div {η : ℝ} (hη : 0 < η) (hη1 : η ≤ 1) (x : ℝ) :
-    IntervalIntegrable (fun s => μ.gamma s x / s) volume η 1 := by
-  apply ContinuousOn.intervalIntegrable
-  rw [uIcc_of_le hη1]
-  exact (μ.continuousOn_gamma_div hη x).mono Icc_subset_Ici_self
-
-theorem truncatedPotential_nonneg {η : ℝ} (hη : 0 < η) (hη1 : η ≤ 1) (x : ℝ) :
-    0 ≤ μ.truncatedPotential η x := by
-  apply mul_nonneg (by positivity)
-  apply intervalIntegral.integral_nonneg hη1
-  intro s hs
-  exact div_nonneg (μ.gamma_pos (lt_of_lt_of_le hη hs.1) x).le (hη.le.trans hs.1)
-
-theorem truncatedPotential_local {η : ℝ} (hη : 0 < η) (hη1 : η ≤ 1) (x y : ℝ) :
-    μ.truncatedPotential η x ≤ (1 + |x - y| / η) ^ 2 * μ.truncatedPotential η y := by
-  unfold truncatedPotential
-  rw [mul_left_comm ((1 + |x - y| / η) ^ 2)]
-  apply mul_le_mul_of_nonneg_left _ (by positivity)
-  rw [← intervalIntegral.integral_const_mul]
-  apply intervalIntegral.integral_mono_on hη1 (μ.intervalIntegrable_gamma_div hη hη1 x)
-    ((μ.intervalIntegrable_gamma_div hη hη1 y).const_mul _)
-  intro s hs
-  rw [μ.gamma_div (ne_of_gt (hη.trans_le hs.1)), μ.gamma_div (ne_of_gt (hη.trans_le hs.1)),
-    Finset.mul_sum]
-  apply Finset.sum_le_sum
-  intro i _
-  have hb := mul_le_mul_of_nonneg_left (quadratic_local_comparison (x := x) (y := y)
-    (v := μ.point i) hη hs.1) (μ.mass_nonneg i)
-  convert! hb using 1 <;> ring
-
-theorem truncatedPotential_le_absolute {η : ℝ} (hη : 0 < η) (hη1 : η ≤ 1)
-    {x : ℝ} (hx : ∀ i, x ≠ μ.point i) :
-    μ.truncatedPotential η x ≤ ∑ i, μ.mass i / |x - μ.point i| := by
-  have hi (i : Fin n) : IntervalIntegrable
-      (fun s => μ.mass i / ((x - μ.point i) ^ 2 + s ^ 2)) volume η 1 := by
-    apply Continuous.intervalIntegrable
-    exact continuous_const.div (by fun_prop) (fun s => ne_of_gt (by
-      have := sq_pos_of_ne_zero (sub_ne_zero.mpr (hx i))
-      nlinarith [sq_nonneg s]))
-  have he : (∫ s in η..1, μ.gamma s x / s) =
-      ∑ i, ∫ s in η..1, μ.mass i / ((x - μ.point i) ^ 2 + s ^ 2) := by
-    rw [← intervalIntegral.integral_finsetSum (fun i _ => hi i)]
-    apply intervalIntegral.integral_congr
-    intro s hs
-    rw [uIcc_of_le hη1] at hs
-    exact μ.gamma_div (ne_of_gt (hη.trans_le hs.1)) x
-  rw [truncatedPotential, he, Finset.mul_sum]
-  apply Finset.sum_le_sum
-  intro i _
-  have he' : (∫ s in η..1, μ.mass i / ((x - μ.point i) ^ 2 + s ^ 2)) =
-      μ.mass i * ∫ s in η..1, 1 / ((x - μ.point i) ^ 2 + s ^ 2) := by
-    rw [← intervalIntegral.integral_const_mul]
-    congr 1
-    funext s
-    ring
-  rw [he']
-  have hb := mul_le_mul_of_nonneg_left
-    (inverse_quadratic_integral_bound hη.le (sub_ne_zero.mpr (hx i))) (μ.mass_nonneg i)
-  have hb' := mul_le_mul_of_nonneg_left hb (show 0 ≤ 2 / Real.pi by positivity)
-  convert! hb' using 1
-  field_simp
 
 end AtomicProbability
 end TaoAdditive1132
@@ -1244,104 +577,9 @@ open MeasureTheory Set
 
 namespace TaoAdditive1132
 
-def logKernel (h η t : ℝ) : ℝ := (∫ s in Icc η 1, poissonKernel (s - h) t / s) / (-Real.log η)
-
 theorem measurable_poissonKernel : Measurable (fun p : ℝ × ℝ => poissonKernel p.1 p.2) := by
   unfold poissonKernel
   fun_prop
-
-theorem poissonKernel_le {h : ℝ} (hh : 0 < h) (t : ℝ) :
-    poissonKernel h t ≤ 1 / (Real.pi * h) := by
-  unfold poissonKernel
-  apply (div_le_div_iff₀ (by positivity) (by positivity)).mpr
-  nlinarith [Real.pi_pos, sq_nonneg t]
-
-theorem integrableOn_inverse {η : ℝ} (hη : 0 < η) :
-    IntegrableOn (fun s : ℝ => 1 / s) (Icc η 1) := by
-  apply ContinuousOn.integrableOn_Icc
-  exact continuousOn_const.div continuousOn_id (fun s hs => ne_of_gt (hη.trans_le hs.1))
-
-theorem integral_inverse_Icc {η : ℝ} (hη : 0 < η) (hη1 : η ≤ 1) :
-    (∫ s in Icc η 1, 1 / s) = -Real.log η := by
-  rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hη1,
-    integral_one_div_of_pos hη zero_lt_one]
-  simp
-
-theorem integrable_poisson_mixture {h η : ℝ} (hη : 0 < η) (hhη : h < η) :
-    Integrable (fun p : ℝ × ℝ => poissonKernel (p.1 - h) p.2 / p.1)
-      ((volume.restrict (Icc η 1)).prod volume) := by
-  have hm : Measurable (fun p : ℝ × ℝ => poissonKernel (p.1 - h) p.2 / p.1) := by
-    unfold poissonKernel
-    fun_prop
-  apply (integrable_prod_iff hm.aestronglyMeasurable).mpr
-  constructor
-  · filter_upwards [ae_restrict_mem measurableSet_Icc] with s hs
-    exact (integrable_poissonKernel (sub_pos.mpr (hhη.trans_le hs.1)).le).div_const s
-  · apply (integrableOn_inverse hη).congr
-    filter_upwards [ae_restrict_mem measurableSet_Icc] with s hs
-    have hsh : 0 < s - h := sub_pos.mpr (hhη.trans_le hs.1)
-    have hs0 : 0 < s := hη.trans_le hs.1
-    simp only [Real.norm_eq_abs, abs_of_nonneg (div_nonneg (poissonKernel_pos hsh _).le hs0.le),
-      integral_div, integral_poissonKernel hsh]
-
-theorem integrable_logKernel {h η : ℝ} (hη : 0 < η) (hhη : h < η) :
-    Integrable (logKernel h η) :=
-  (integrable_poisson_mixture hη hhη).integral_prod_right.div_const _
-
-theorem logKernel_nonneg {h η : ℝ} (hη : 0 < η) (hhη : h < η) (hη1 : η < 1) (t : ℝ) :
-    0 ≤ logKernel h η t := by
-  apply div_nonneg _ (neg_nonneg.mpr (Real.log_nonpos hη.le hη1.le))
-  apply integral_nonneg_of_ae
-  filter_upwards [ae_restrict_mem measurableSet_Icc] with s hs
-  exact div_nonneg (poissonKernel_pos (sub_pos.mpr (hhη.trans_le hs.1)) t).le (hη.le.trans hs.1)
-
-theorem logKernel_neg (h η t : ℝ) : logKernel h η (-t) = logKernel h η t := by
-  simp only [logKernel, poissonKernel_neg]
-
-theorem integral_logKernel {h η : ℝ} (hη : 0 < η) (hhη : h < η) (hη1 : η < 1) :
-    (∫ t, logKernel h η t) = 1 := by
-  simp only [logKernel]
-  rw [integral_div,
-    ← integral_integral_swap (integrable_poisson_mixture hη hhη)]
-  have he : (∫ s in Icc η 1, ∫ t, poissonKernel (s - h) t / s) = -Real.log η := by
-    rw [← integral_inverse_Icc hη hη1.le]
-    apply integral_congr_ae
-    filter_upwards [ae_restrict_mem measurableSet_Icc] with s hs
-    rw [integral_div, integral_poissonKernel (sub_pos.mpr (hhη.trans_le hs.1))]
-  rw [he, div_self (ne_of_gt (neg_pos.mpr (Real.log_neg hη hη1)))]
-
-theorem poisson_mixture_bound {h η s : ℝ} (hη : 0 < η) (hhη : h < η) (hs : η ≤ s) (t : ℝ) :
-    poissonKernel (s - h) t / s ≤ 1 / (Real.pi * (η - h) * η) := by
-  have hs0 := hη.trans_le hs
-  have hsh := sub_pos.mpr (hhη.trans_le hs)
-  calc
-    _ ≤ (1 / (Real.pi * (s - h))) / s :=
-      div_le_div_of_nonneg_right (poissonKernel_le hsh t) hs0.le
-    _ = 1 / (Real.pi * (s - h) * s) := by rw [div_div]
-    _ ≤ _ := div_le_div_of_nonneg_left (by norm_num) (by positivity) (by
-      apply mul_le_mul
-      · exact mul_le_mul_of_nonneg_left (by linarith) Real.pi_pos.le
-      · exact hs
-      · exact hη.le
-      · positivity)
-
-theorem continuous_logKernel {h η : ℝ} (hη : 0 < η) (hhη : h < η) :
-    Continuous (logKernel h η) := by
-  apply Continuous.div_const
-  apply continuous_of_dominated (bound := fun _ => 1 / (Real.pi * (η - h) * η))
-  · intro t
-    have hm : Measurable (fun s => poissonKernel (s - h) t / s) := by
-      unfold poissonKernel
-      fun_prop
-    exact hm.aestronglyMeasurable
-  · intro t
-    filter_upwards [ae_restrict_mem measurableSet_Icc] with s hs
-    rw [Real.norm_eq_abs, abs_of_nonneg (div_nonneg
-      (poissonKernel_pos (sub_pos.mpr (hhη.trans_le hs.1)) t).le (hη.le.trans hs.1))]
-    exact poisson_mixture_bound hη hhη hs.1 t
-  · exact integrable_const _
-  · filter_upwards [ae_restrict_mem measurableSet_Icc] with s hs
-    exact (continuous_poissonKernel (sub_pos.mpr (hhη.trans_le hs.1))).div_const s
 
 end TaoAdditive1132
 end
@@ -1360,87 +598,9 @@ open MeasureTheory Set Complex
 
 namespace TaoAdditive1132
 
-theorem integrable_poisson_mixture_translate {h η : ℝ} (hη : 0 < η) (hhη : h < η) (x : ℝ) :
-    Integrable (fun p : ℝ × ℝ => poissonKernel (p.1 - h) (x - p.2) / p.1)
-      ((volume.restrict (Icc η 1)).prod volume) := by
-  have hm : Measurable (fun p : ℝ × ℝ => poissonKernel (p.1 - h) (x - p.2) / p.1) := by
-    unfold poissonKernel
-    fun_prop
-  apply (integrable_prod_iff hm.aestronglyMeasurable).mpr
-  constructor
-  · filter_upwards [ae_restrict_mem measurableSet_Icc] with s hs
-    exact ((integrable_poissonKernel (sub_pos.mpr (hhη.trans_le hs.1)).le).comp_sub_left x).div_const s
-  · apply (integrableOn_inverse hη).congr
-    filter_upwards [ae_restrict_mem measurableSet_Icc] with s hs
-    have hsh : 0 < s - h := sub_pos.mpr (hhη.trans_le hs.1)
-    have hs0 : 0 < s := hη.trans_le hs.1
-    simp only [Real.norm_eq_abs, abs_of_nonneg (div_nonneg (poissonKernel_pos hsh _).le hs0.le),
-      integral_div, integral_sub_left_eq_self, integral_poissonKernel hsh]
-
-theorem logKernel_operator {h η : ℝ} (hη : 0 < η) (hhη : h < η) (x : ℝ)
-    {f : ℝ → ℝ} (hf : Measurable f) {M : ℝ} (hM : ∀ y, |f y| ≤ M) :
-    (∫ y, logKernel h η (x - y) * f y) =
-      (∫ s in Icc η 1, (∫ y, poissonKernel (s - h) (x - y) * f y) / s) / (-Real.log η) := by
-  have hbase := integrable_poisson_mixture_translate hη hhη x
-  have hint : Integrable (fun p : ℝ × ℝ =>
-      poissonKernel (p.1 - h) (x - p.2) / p.1 * f p.2)
-      ((volume.restrict (Icc η 1)).prod volume) := by
-    apply (hbase.norm.const_mul M).mono'
-    · exact (hbase.aestronglyMeasurable.mul (hf.comp measurable_snd).aestronglyMeasurable)
-    · apply ae_of_all
-      intro p
-      rw [norm_mul]
-      calc
-        _ ≤ ‖poissonKernel (p.1 - h) (x - p.2) / p.1‖ * M :=
-          mul_le_mul_of_nonneg_left (hM p.2) (norm_nonneg _)
-        _ = _ := mul_comm _ _
-  have he (y : ℝ) : logKernel h η (x - y) * f y =
-      (∫ s in Icc η 1, poissonKernel (s - h) (x - y) / s * f y) / (-Real.log η) := by
-    rw [integral_mul_const, logKernel]
-    ring
-  simp_rw [he]
-  rw [integral_div, ← integral_integral_swap hint]
-  congr 1
-  apply integral_congr_ae
-  filter_upwards with s
-  rw [← integral_div]
-  apply integral_congr_ae
-  filter_upwards with y
-  ring
-
 namespace AtomicProbability
 
 variable {n : ℕ} (μ : AtomicProbability n)
-
-theorem continuous_gamma {h : ℝ} (hh : 0 < h) : Continuous (μ.gamma h) := by
-  unfold gamma
-  apply continuous_finsetSum
-  intro i _
-  exact continuous_const.div (by fun_prop) (fun x => ne_of_gt (by positivity))
-
-theorem gamma_le_one_div {h : ℝ} (hh : 0 < h) (x : ℝ) : μ.gamma h x ≤ 1 / h := by
-  rw [← μ.neg_im_cauchy h x]
-  calc
-    _ ≤ |(μ.cauchy ((x : ℂ) + h * I)).im| := neg_le_abs _
-    _ ≤ ‖μ.cauchy ((x : ℂ) + h * I)‖ := abs_im_le_norm _
-    _ ≤ 1 / h := μ.norm_cauchy_le hh (by simp)
-
-theorem truncatedPotential_operator {h η : ℝ} (hh : 0 < h) (hhη : h < η) (hη1 : η < 1) (x : ℝ) :
-    μ.truncatedPotential η x =
-      (2 / Real.pi) * (-Real.log η) * ∫ y, logKernel h η (x - y) * μ.gamma h y := by
-  have hη : 0 < η := hh.trans hhη
-  have hm := logKernel_operator hη hhη x (μ.continuous_gamma hh).measurable
-    (fun y => by rw [abs_of_pos (μ.gamma_pos hh y)]; exact μ.gamma_le_one_div hh y)
-  rw [hm]
-  have he : (∫ s in Icc η 1, (∫ y, poissonKernel (s - h) (x - y) * μ.gamma h y) / s) =
-      ∫ s in η..1, μ.gamma s x / s := by
-    rw [intervalIntegral.integral_of_le hη1.le, ← integral_Icc_eq_integral_Ioc]
-    apply integral_congr_ae
-    filter_upwards [ae_restrict_mem measurableSet_Icc] with s hs
-    rw [← μ.gamma_semigroup hh (hhη.trans_le hs.1)]
-  rw [he, truncatedPotential]
-  have hl : Real.log η ≠ 0 := (Real.log_neg hη hη1).ne
-  field_simp
 
 end AtomicProbability
 end TaoAdditive1132
@@ -1460,19 +620,6 @@ namespace TaoAdditive1132
 
 open Polynomial.Chebyshev
 
-theorem chebyshev_norm_le_one (k : ℕ) {t : ℝ} (ht : t ∈ Set.Icc (-1) 1) :
-    ‖(T ℂ k).eval (t : ℂ)‖ ≤ 1 := by
-  rw [← complex_ofReal_eval_T, Complex.norm_real, Real.norm_eq_abs,
-    ← Real.cos_arccos ht.1 ht.2, T_real_cos]
-  exact Real.abs_cos_le_one _
-
-private theorem sinh_abs (x : ℝ) : Real.sinh |x| = |Real.sinh x| := by
-  by_cases hx : 0 ≤ x
-  · simp [abs_of_nonneg hx, abs_of_nonneg (Real.sinh_nonneg_iff.mpr hx)]
-  · have hx' : x ≤ 0 := le_of_not_ge hx
-    simp [abs_of_nonpos hx', Real.sinh_neg,
-      abs_of_nonpos (Real.sinh_nonpos_iff.mpr hx')]
-
 theorem norm_cos_sq (z : ℂ) :
     ‖Complex.cos z‖ ^ 2 = Real.cos z.re ^ 2 + Real.sinh z.im ^ 2 := by
   rw [Complex.sq_norm, Complex.cos_eq, Complex.normSq_apply]
@@ -1485,54 +632,6 @@ theorem norm_cos_sq (z : ℂ) :
   have h := congrArg (fun a : ℝ => a * Real.sinh z.im ^ 2)
     (Real.sin_sq_add_cos_sq z.re)
   nlinarith [Real.cosh_sq z.im]
-
-theorem sinh_abs_im_le_norm_cos (z : ℂ) :
-    Real.sinh |z.im| ≤ ‖Complex.cos z‖ := by
-  rw [sinh_abs]
-  have h := norm_cos_sq z
-  nlinarith [sq_abs (Real.sinh z.im), abs_nonneg (Real.sinh z.im),
-    norm_nonneg (Complex.cos z), sq_nonneg (Real.cos z.re)]
-
-theorem abs_im_cos_le_sinh_abs (z : ℂ) :
-    |(Complex.cos z).im| ≤ Real.sinh |z.im| := by
-  rw [Complex.cos_eq]
-  simp only [Complex.sub_im, Complex.mul_im, Complex.cos_ofReal_re,
-    Complex.cosh_ofReal_re, Complex.cos_ofReal_im, Complex.cosh_ofReal_im,
-    Complex.sin_ofReal_re, Complex.sinh_ofReal_re, Complex.sin_ofReal_im,
-    Complex.sinh_ofReal_im, Complex.mul_re, Complex.I_re, Complex.I_im,
-    mul_zero, zero_mul, add_zero, sub_zero, zero_sub, mul_one,
-    abs_neg, abs_mul]
-  rw [sinh_abs]
-  exact mul_le_of_le_one_left (abs_nonneg _) (Real.abs_sin_le_one _)
-
-theorem half_le_arsinh {h : ℝ} (hh : 0 ≤ h) (hh1 : h ≤ 1) : h / 2 ≤ Real.arsinh h := by
-  have hp : 0 < 1 + h := by linarith
-  have hs : 1 ≤ Real.sqrt (1 + h ^ 2) := by
-    rw [Real.le_sqrt (by norm_num) (by positivity)]
-    nlinarith [sq_nonneg h]
-  have hl := Real.one_sub_inv_le_log_of_pos hp
-  have hfrac : h / 2 ≤ 1 - (1 + h)⁻¹ := by
-    rw [show 1 - (1 + h)⁻¹ = h / (1 + h) by field_simp; ring]
-    apply (le_div_iff₀ hp).mpr
-    nlinarith
-  exact hfrac.trans (hl.trans (Real.log_le_log hp (by linarith)))
-
-/-- Exponential growth off the interval, in the form used for Cauchy cancellation. -/
-theorem chebyshev_norm_lower (k : ℕ) {z : ℂ} {h : ℝ}
-    (hh : 0 ≤ h) (hh1 : h ≤ 1) (hz : h ≤ |z.im|) :
-    Real.sinh ((k : ℝ) * h / 2) ≤ ‖(T ℂ k).eval z‖ := by
-  obtain ⟨θ, rfl⟩ := Complex.cos_surjective z
-  have hθ : h / 2 ≤ |θ.im| := by
-    apply (half_le_arsinh hh hh1).trans
-    rw [← Real.arsinh_sinh |θ.im|]
-    exact Real.arsinh_le_arsinh.mpr (hz.trans (abs_im_cos_le_sinh_abs θ))
-  rw [T_complex_cos]
-  apply le_trans _ (sinh_abs_im_le_norm_cos ((k : ℤ) * θ))
-  apply Real.sinh_le_sinh.mpr
-  simp only [Int.cast_natCast, Complex.mul_im, Complex.natCast_re,
-    Complex.natCast_im, zero_mul, add_zero, abs_mul,
-    abs_of_nonneg (Nat.cast_nonneg k : (0 : ℝ) ≤ k)]
-  nlinarith
 
 end TaoAdditive1132
 end
@@ -1554,108 +653,6 @@ namespace TaoAdditive1132.Nodes
 
 variable {n : ℕ} (X : Nodes n)
 
-theorem signedMass_cancellation_complex {p : ℂ[X]} (hp : p.degree < (n - 1 : ℕ)) :
-    ∑ i, (X.signedMass i : ℂ) * p.eval (X.point i : ℂ) = 0 := by
-  have hinj : Function.Injective (fun i => (X.point i : ℂ)) :=
-    Complex.ofReal_injective.comp X.injective
-  have hpn : p.degree < (n : ℕ) :=
-    hp.trans_le (by exact_mod_cast Nat.sub_le n 1)
-  have h := Lagrange.coeff_eq_sum hinj.injOn (s := univ) (P := p)
-    (by simpa using hpn)
-  have hc : p.coeff (n - 1) = 0 := Polynomial.coeff_eq_zero_of_degree_lt hp
-  simp only [card_univ, Fintype.card_fin, hc] at h
-  have hw : ∑ i, (X.weight i : ℂ) * p.eval (X.point i : ℂ) = 0 := by
-    apply Eq.trans ?_ h.symm
-    apply sum_congr rfl
-    intro i _
-    simp [weight, Lagrange.nodalWeight, prod_inv_distrib, div_eq_mul_inv, mul_comm]
-  simp only [signedMass, Complex.ofReal_div, div_mul_eq_mul_div, ← sum_div, hw, zero_div]
-
-/-- Polynomial cancellation applied to the divided difference at `z`. -/
-theorem cauchy_polynomial_identity {p : ℂ[X]} (hp : p.degree ≤ (n - 1 : ℕ))
-    {z : ℂ} (hz : ∀ i, z ≠ (X.point i : ℂ)) :
-    p.eval z * X.signedCauchy z =
-      ∑ i, (X.signedMass i : ℂ) / (z - X.point i) * p.eval (X.point i : ℂ) := by
-  let q := p /ₘ (Polynomial.X - C z)
-  have hq : q.degree < (n - 1 : ℕ) := by
-    by_cases hp0 : p = 0
-    · simp [q, hp0]
-    · exact (degree_divByMonic_lt p (Polynomial.X - C z) hp0 (by simp)).trans_le hp
-  have hc := X.signedMass_cancellation_complex hq
-  have hi (i : Fin n) :
-      (X.signedMass i : ℂ) / (z - X.point i) * p.eval (X.point i : ℂ) =
-        p.eval z * ((X.signedMass i : ℂ) / (z - X.point i)) -
-          (X.signedMass i : ℂ) * q.eval (X.point i : ℂ) := by
-    have h := congrArg (Polynomial.eval (X.point i : ℂ))
-      (modByMonic_add_div p (Polynomial.X - C z))
-    rw [modByMonic_X_sub_C_eq_C_eval] at h
-    simp only [eval_add, eval_C, eval_mul, eval_sub, eval_X] at h
-    have hzi := sub_ne_zero.mpr (hz i)
-    field_simp
-    linear_combination -(X.signedMass i : ℂ) * h
-  simp_rw [hi]
-  rw [sum_sub_distrib, hc, sub_zero, ← mul_sum]
-  rfl
-
-theorem cauchy_polynomial_bound (hn : 0 < n) {p : ℂ[X]}
-    (hp : p.degree ≤ (n - 1 : ℕ)) (hb : ∀ i, ‖p.eval (X.point i : ℂ)‖ ≤ 1)
-    {z : ℂ} {h : ℝ} (hh : 0 < h) (hz : h ≤ |z.im|) :
-    ‖p.eval z‖ * ‖X.signedCauchy z‖ ≤ 1 / h := by
-  have hzn (i : Fin n) : h ≤ ‖z - (X.point i : ℂ)‖ := by
-    exact hz.trans (by simpa using Complex.abs_im_le_norm (z - (X.point i : ℂ)))
-  have hzne (i : Fin n) : z ≠ (X.point i : ℂ) := by
-    intro he
-    simpa [he] using hh.trans_le (hzn i)
-  rw [← norm_mul, X.cauchy_polynomial_identity hp hzne]
-  calc
-    ‖∑ i, (X.signedMass i : ℂ) / (z - X.point i) * p.eval (X.point i : ℂ)‖
-        ≤ ∑ i, ‖(X.signedMass i : ℂ) / (z - X.point i) * p.eval (X.point i : ℂ)‖ :=
-      norm_sum_le _ _
-    _ ≤ ∑ i, X.mass i / h := by
-      apply sum_le_sum
-      intro i _
-      rw [norm_mul, norm_div, Complex.norm_real, Real.norm_eq_abs, X.abs_signedMass hn]
-      calc
-        X.mass i / ‖z - (X.point i : ℂ)‖ * ‖p.eval (X.point i : ℂ)‖
-            ≤ X.mass i / ‖z - (X.point i : ℂ)‖ :=
-          mul_le_of_le_one_right (div_nonneg (X.mass_pos hn i).le (norm_nonneg _)) (hb i)
-        _ ≤ X.mass i / h :=
-          div_le_div_of_nonneg_left (X.mass_pos hn i).le hh (hzn i)
-    _ = 1 / h := by rw [← sum_div, X.sum_mass hn]
-
-theorem cauchy_chebyshev_bound (hn : 2 ≤ n) {z : ℂ} {h : ℝ}
-    (hh : 0 < h) (hh1 : h ≤ 1) (hz : h ≤ |z.im|) :
-    ‖X.signedCauchy z‖ ≤ 1 / (h * Real.sinh ((n - 1 : ℕ) * h / 2)) := by
-  have hp : (Polynomial.Chebyshev.T ℂ (n - 1 : ℕ)).degree ≤ (n - 1 : ℕ) := by
-    simp [Polynomial.Chebyshev.degree_T]
-  have hb := X.cauchy_polynomial_bound (by omega) hp
-    (fun i => chebyshev_norm_le_one (n - 1) (X.mem_interval i)) hh hz
-  have hl := chebyshev_norm_lower (n - 1) hh.le hh1 hz
-  have hs : 0 < Real.sinh ((n - 1 : ℕ) * h / 2) := by
-    apply Real.sinh_pos_iff.mpr
-    have hnn : (0 : ℝ) < (n - 1 : ℕ) := by exact_mod_cast (show 0 < n - 1 by omega)
-    positivity
-  have hm := (mul_le_mul_of_nonneg_right hl (norm_nonneg (X.signedCauchy z))).trans hb
-  rw [← div_div]
-  apply (le_div_iff₀ hs).mpr
-  simpa [mul_comm] using hm
-
-theorem cancellation_ratio_bound (hn : 2 ≤ n) {h x : ℝ} (hh : 0 < h)
-    (hh1 : h ≤ 1) (hx : x ∈ Set.Icc (-1) 1) :
-    ‖X.signedCauchy ((x : ℂ) + h * Complex.I)‖ /
-        (X.probability (by omega)).gamma h x ≤
-      (4 + h ^ 2) / (h ^ 2 * Real.sinh ((n - 1 : ℕ) * h / 2)) := by
-  have hg := (X.probability (by omega)).gamma_lower hh hx X.mem_interval
-  have hb := X.cauchy_chebyshev_bound hn hh hh1
-    (z := (x : ℂ) + h * Complex.I) (by simp [abs_of_pos hh])
-  have hd : 0 < h / (4 + h ^ 2) := by positivity
-  calc
-    _ ≤ ‖X.signedCauchy ((x : ℂ) + h * Complex.I)‖ / (h / (4 + h ^ 2)) :=
-      div_le_div_of_nonneg_left (norm_nonneg _) hd hg
-    _ ≤ (1 / (h * Real.sinh ((n - 1 : ℕ) * h / 2))) / (h / (4 + h ^ 2)) :=
-      div_le_div_of_nonneg_right hb hd.le
-    _ = _ := by field_simp
-
 end TaoAdditive1132.Nodes
 end
 end SourceErdos1132_Shared_Cancellation
@@ -1674,124 +671,12 @@ open scoped Topology
 
 namespace TaoAdditive1132
 
-def rowSize (n : ℕ) : ℝ := n + 2
-
-def height (a : ℝ) (n : ℕ) : ℝ := rowSize n ^ (-a)
-
-theorem rowSize_ge_two (n : ℕ) : 2 ≤ rowSize n := by
-  dsimp [rowSize]
-  linarith [Nat.cast_nonneg n (α := ℝ)]
-
-theorem rowSize_pos (n : ℕ) : 0 < rowSize n := lt_of_lt_of_le (by norm_num) (rowSize_ge_two n)
-
-theorem tendsto_rowSize : Tendsto rowSize atTop atTop := by
-  exact tendsto_atTop_add_const_right atTop 2 tendsto_natCast_atTop_atTop
-
-theorem height_pos (a : ℝ) (n : ℕ) : 0 < height a n := Real.rpow_pos_of_pos (rowSize_pos n) _
-
-theorem height_le_one {a : ℝ} (ha : 0 ≤ a) (n : ℕ) : height a n ≤ 1 := by
-  exact Real.rpow_le_one_of_one_le_of_nonpos (by linarith [rowSize_ge_two n]) (neg_nonpos.mpr ha)
-
-theorem height_lt_one {a : ℝ} (ha : 0 < a) (n : ℕ) : height a n < 1 := by
-  exact Real.rpow_lt_one_of_one_lt_of_neg (by linarith [rowSize_ge_two n]) (neg_neg_of_pos ha)
-
-theorem height_antitone {a b : ℝ} (hab : b < a) (n : ℕ) : height a n < height b n := by
-  exact Real.rpow_lt_rpow_of_exponent_lt (by linarith [rowSize_ge_two n]) (neg_lt_neg hab)
-
-theorem tendsto_height {a : ℝ} (ha : 0 < a) : Tendsto (height a) atTop (𝓝 0) :=
-  (tendsto_rpow_neg_atTop ha).comp tendsto_rowSize
-
-theorem height_ratio (a b : ℝ) (n : ℕ) : height a n / height b n = height (a - b) n := by
-  dsimp [height]
-  rw [← Real.rpow_sub (rowSize_pos n)]
-  congr 1
-  ring
-
-theorem tendsto_height_ratio {a b : ℝ} (hab : b < a) :
-    Tendsto (fun n => height a n / height b n) atTop (𝓝 0) := by
-  simp_rw [height_ratio]
-  exact tendsto_height (sub_pos.mpr hab)
-
-theorem neg_log_height (a : ℝ) (n : ℕ) : -Real.log (height a n) = a * Real.log (rowSize n) := by
-  rw [height, Real.log_rpow (rowSize_pos n)]
-  ring
-
-theorem rowSize_mul_height (a : ℝ) (n : ℕ) :
-    rowSize n * height a n = rowSize n ^ (1 - a) := by
-  rw [sub_eq_add_neg, Real.rpow_add (rowSize_pos n), Real.rpow_one]
-  rfl
-
-theorem power_exponential_decay {a : ℝ} (ha : a < 1) :
-    Tendsto (fun n => rowSize n ^ (2 * a) * Real.exp (-(rowSize n ^ (1 - a)) / 4))
-      atTop (𝓝 0) := by
-  have ht := (tendsto_rpow_atTop (sub_pos.mpr ha)).comp tendsto_rowSize
-  have hl := (tendsto_rpow_mul_exp_neg_mul_atTop_nhds_zero
-    (2 * a / (1 - a)) (1 / 4) (by norm_num)).comp ht
-  convert! hl using 1
-  funext n
-  dsimp only [Function.comp_apply]
-  rw [← Real.rpow_mul (rowSize_pos n).le,
-    mul_div_cancel₀ _ (sub_ne_zero.mpr ha.ne' )]
-  congr 2
-  ring
-
 theorem exp_div_four_le_sinh {t : ℝ} (ht : 1 ≤ t) : Real.exp t / 4 ≤ Real.sinh t := by
   have he : 2 ≤ Real.exp t := by linarith [Real.add_one_le_exp t]
   have hn : Real.exp (-t) ≤ 1 := Real.exp_le_one_iff.mpr (by linarith)
   rw [Real.sinh_eq]
   linarith
 
-
-/-- A uniform error bound for every row with `n + 2` distinct nodes. -/
-def cancellationError (a : ℝ) (n : ℕ) : ℝ :=
-  20 * (rowSize n ^ (2 * a) * Real.exp (-(rowSize n ^ (1 - a)) / 4))
-
-theorem tendsto_cancellationError {a : ℝ} (ha : a < 1) :
-    Tendsto (cancellationError a) atTop (𝓝 0) := by
-  convert! (power_exponential_decay ha).const_mul 20 using 1
-  norm_num
-
-theorem cancellationError_nonneg (a : ℝ) (n : ℕ) : 0 ≤ cancellationError a n := by
-  exact mul_nonneg (by norm_num) (mul_nonneg (Real.rpow_nonneg (rowSize_pos n).le _) (Real.exp_pos _).le)
-
-theorem eventually_cancellation_bound {a : ℝ} (ha : 0 < a) (ha1 : a < 1) :
-    ∀ᶠ n in atTop, ∀ X : Nodes (n + 2), ∀ (x : ℝ), x ∈ Set.Icc (-1) 1 →
-      ‖X.signedCauchy ((x : ℂ) + height a n * Complex.I)‖ /
-        (X.probability (by omega)).gamma (height a n) x ≤ cancellationError a n := by
-  have ht : Tendsto (fun n => rowSize n ^ (1 - a) / 4) atTop atTop :=
-    ((tendsto_rpow_atTop (sub_pos.mpr ha1)).comp tendsto_rowSize).atTop_div_const (by norm_num)
-  filter_upwards [ht.eventually (eventually_ge_atTop 1)] with n hn X x hx
-  let h := height a n
-  have hh : 0 < h := height_pos a n
-  have hh1 : h ≤ 1 := height_le_one ha.le n
-  have heq : rowSize n ^ (1 - a) / 4 = rowSize n * h / 4 := by
-    rw [rowSize_mul_height]
-  have harg : rowSize n ^ (1 - a) / 4 ≤ ((n + 2 - 1 : ℕ) : ℝ) * h / 2 := by
-    rw [heq]
-    have he : ((n + 2 - 1 : ℕ) : ℝ) = (n : ℝ) + 1 := by norm_cast
-    rw [he]
-    dsimp [rowSize]
-    nlinarith [Nat.cast_nonneg n (α := ℝ)]
-  have hs := (exp_div_four_le_sinh hn).trans (Real.sinh_le_sinh.mpr harg)
-  have hden : 0 < h ^ 2 * (Real.exp (rowSize n ^ (1 - a) / 4) / 4) := by positivity
-  have hb := X.cancellation_ratio_bound (by omega) hh hh1 hx
-  apply hb.trans
-  calc
-    (4 + h ^ 2) / (h ^ 2 * Real.sinh (((n + 2 - 1 : ℕ) : ℝ) * h / 2))
-      ≤ (4 + h ^ 2) / (h ^ 2 * (Real.exp (rowSize n ^ (1 - a) / 4) / 4)) :=
-        div_le_div_of_nonneg_left (by positivity) hden (mul_le_mul_of_nonneg_left hs (sq_nonneg h))
-    _ ≤ 5 / (h ^ 2 * (Real.exp (rowSize n ^ (1 - a) / 4) / 4)) :=
-      div_le_div_of_nonneg_right (by nlinarith) hden.le
-    _ = cancellationError a n := by
-      have hp : h ^ 2 = (rowSize n ^ (2 * a))⁻¹ := by
-        dsimp only [h, height]
-        rw [← Real.rpow_mul_natCast (rowSize_pos n).le,
-          show (-a) * (2 : ℕ) = -(2 * a) by norm_num; ring,
-          Real.rpow_neg (rowSize_pos n).le]
-      rw [hp, cancellationError, show -(rowSize n ^ (1 - a)) / 4 = -(rowSize n ^ (1 - a) / 4) by ring,
-        Real.exp_neg]
-      field_simp
-      ring
 
 end TaoAdditive1132
 end
@@ -1838,66 +723,6 @@ theorem poissonKernel_tail_bound {h δ : ℝ} (hh : 0 < h) (hδ : 0 < δ) :
   field_simp
   nlinarith
 
-theorem logKernel_setIntegral {h η : ℝ} (hη : 0 < η) (hhη : h < η)
-    {E : Set ℝ} (hE : MeasurableSet E) :
-    (∫ t in E, logKernel h η t) =
-      (∫ s in Icc η 1, (∫ t in E, poissonKernel (s - h) t) / s) / (-Real.log η) := by
-  have he := logKernel_operator hη hhη 0 (f := E.indicator (fun _ => (1 : ℝ)))
-    (measurable_const.indicator hE) (M := 1) (fun y => by
-      by_cases hy : y ∈ E <;> simp [hy])
-  simp only [zero_sub, logKernel_neg, poissonKernel_neg] at he
-  have hid (f : ℝ → ℝ) : (fun y => f y * E.indicator (fun _ => (1 : ℝ)) y) = E.indicator f := by
-    funext y
-    by_cases hy : y ∈ E <;> simp [hy]
-  simp_rw [hid, integral_indicator hE] at he
-  exact he
-
-theorem logKernel_tail_bound {h η δ : ℝ} (hh : 0 ≤ h) (hη : 0 < η)
-    (hhη : h < η) (hη1 : η < 1) (hδ : 0 < δ) :
-    (∫ t in (Icc (-δ) δ)ᶜ, logKernel h η t) ≤
-      (2 / (Real.pi * δ)) / (-Real.log η) := by
-  rw [logKernel_setIntegral hη hhη measurableSet_Icc.compl]
-  apply div_le_div_of_nonneg_right _ (neg_nonneg.mpr (Real.log_nonpos hη.le hη1.le))
-  have hint : IntegrableOn (fun s => (∫ t in (Icc (-δ) δ)ᶜ, poissonKernel (s - h) t) / s)
-      (Icc η 1) := by
-    have hm := (integrable_poisson_mixture hη hhη).mono_measure
-      (μ := (volume.restrict (Icc η 1)).prod (volume.restrict (Icc (-δ) δ)ᶜ))
-      (Measure.prod_mono le_rfl Measure.restrict_le_self)
-    have hi := hm.integral_prod_left
-    change Integrable _ (volume.restrict (Icc η 1))
-    simpa only [integral_div] using hi
-  calc
-    _ ≤ ∫ _ in Icc η 1, 2 / (Real.pi * δ) := by
-      apply setIntegral_mono_on hint (integrable_const _) measurableSet_Icc
-      intro s hs
-      have hs0 := hη.trans_le hs.1
-      have hp := poissonKernel_tail_bound (sub_pos.mpr (hhη.trans_le hs.1)) hδ
-      calc
-        _ ≤ (2 * (s - h) / (Real.pi * δ)) / s := div_le_div_of_nonneg_right hp hs0.le
-        _ ≤ 2 / (Real.pi * δ) := by
-          apply (div_le_iff₀ hs0).mpr
-          rw [div_mul_eq_mul_div]
-          apply div_le_div_of_nonneg_right _ (mul_pos Real.pi_pos hδ).le
-          linarith
-    _ ≤ 2 / (Real.pi * δ) := by
-      rw [setIntegral_const, smul_eq_mul, Measure.real, Real.volume_Icc, ENNReal.toReal_ofReal (by linarith)]
-      have hc : 0 ≤ 2 / (Real.pi * δ) := by positivity
-      nlinarith
-
-theorem tendsto_logKernel_tail {a b δ : ℝ} (hb : 0 < b) (hba : b < a)
-    (hδ : 0 < δ) :
-    Tendsto (fun n => ∫ t in (Icc (-δ) δ)ᶜ, logKernel (height a n) (height b n) t)
-      atTop (𝓝 0) := by
-  have hl : Tendsto (fun n => -Real.log (height b n)) atTop atTop := by
-    simp_rw [neg_log_height]
-    exact (Real.tendsto_log_atTop.comp tendsto_rowSize).const_mul_atTop hb
-  have hu : Tendsto (fun n => (2 / (Real.pi * δ)) / (-Real.log (height b n))) atTop (𝓝 0) :=
-    hl.const_div_atTop _
-  apply squeeze_zero (fun n => integral_nonneg fun t =>
-    logKernel_nonneg (height_pos b n) (height_antitone hba n) (height_lt_one hb n) t)
-    (fun n => logKernel_tail_bound (height_pos a n).le (height_pos b n)
-      (height_antitone hba n) (height_lt_one hb n) hδ) hu
-
 end TaoAdditive1132
 end
 end SourceErdos1132_Shared_KernelConcentration
@@ -1915,65 +740,6 @@ open MeasureTheory Set Filter Metric
 open scoped Topology
 
 namespace TaoAdditive1132
-
-/-- Concentration at zero tests against every bounded function continuous at zero. -/
-theorem probability_kernel_tendsto {k : ℕ → ℝ → ℝ}
-    (hk : ∀ n t, 0 ≤ k n t) (hi : ∀ n, Integrable (k n))
-    (hm : ∀ n, ∫ t, k n t = 1)
-    (ht : ∀ δ > 0, Tendsto (fun n => ∫ t in (Icc (-δ) δ)ᶜ, k n t) atTop (𝓝 0))
-    {f : ℝ → ℝ} (hf : Measurable f) {M : ℝ} (hb : ∀ t, |f t| ≤ M)
-    (hc : ContinuousAt f 0) :
-    Tendsto (fun n => ∫ t, k n t * f t) atTop (𝓝 (f 0)) := by
-  have hM : 0 ≤ M := (abs_nonneg (f 0)).trans (hb 0)
-  have hif (n : ℕ) : Integrable (fun t => k n t * f t) :=
-    (hi n).mul_bdd hf.aestronglyMeasurable (ae_of_all _ hb)
-  apply Metric.tendsto_nhds.mpr
-  intro ε hε
-  obtain ⟨δ, hδ, hd⟩ := Metric.continuousAt_iff.mp hc (ε / 2) (by positivity)
-  let d := δ / 2
-  have hd0 : 0 < d := by dsimp [d]; positivity
-  let B := 2 * M + 1
-  have hB : 0 < B := by dsimp [B]; linarith
-  filter_upwards [(ht d hd0).eventually (gt_mem_nhds (show (0 : ℝ) < ε / (2 * B) by positivity))]
-    with n hn
-  have hid : Integrable (fun t => k n t * (f t - f 0)) :=
-    (hif n).sub ((hi n).mul_const (f 0)) |>.congr (ae_of_all _ fun t => by dsimp; ring)
-  have hie : Integrable ((Icc (-d) d)ᶜ.indicator (k n)) := (hi n).indicator measurableSet_Icc.compl
-  have hbound : ∀ t, ‖k n t * (f t - f 0)‖ ≤
-      (ε / 2) * k n t + B * (Icc (-d) d)ᶜ.indicator (k n) t := by
-    intro t
-    rw [norm_mul, Real.norm_eq_abs, abs_of_nonneg (hk n t), Real.norm_eq_abs]
-    by_cases ht' : t ∈ Icc (-d) d
-    · have hdist : dist t 0 < δ := by
-        rw [Real.dist_eq, sub_zero, abs_lt]
-        dsimp [d] at ht'
-        constructor <;> linarith [ht'.1, ht'.2]
-      have hsmall : |f t - f 0| < ε / 2 := by simpa [Real.dist_eq] using hd hdist
-      simp only [indicator_of_notMem (show t ∉ (Icc (-d) d)ᶜ by simpa), mul_zero, add_zero]
-      nlinarith [hk n t]
-    · have hdif : |f t - f 0| ≤ 2 * M :=
-        (abs_sub _ _).trans (by linarith [hb t, hb 0])
-      rw [indicator_of_mem (show t ∈ (Icc (-d) d)ᶜ from ht')]
-      dsimp only [B]
-      nlinarith [hk n t]
-  have heq : (∫ t, k n t * (f t - f 0)) = (∫ t, k n t * f t) - f 0 := by
-    simp_rw [mul_sub]
-    rw [integral_sub (hif n) ((hi n).mul_const _), integral_mul_const, hm, one_mul]
-  have he : ‖(∫ t, k n t * f t) - f 0‖ ≤ ε / 2 + B * ∫ t in (Icc (-d) d)ᶜ, k n t := by
-    rw [← heq]
-    calc
-      _ ≤ ∫ t, ‖k n t * (f t - f 0)‖ := norm_integral_le_integral_norm _
-      _ ≤ ∫ t, (ε / 2) * k n t + B * (Icc (-d) d)ᶜ.indicator (k n) t :=
-        integral_mono hid.norm (((hi n).const_mul _).add (hie.const_mul _)) hbound
-      _ = _ := by
-        rw [integral_add ((hi n).const_mul _) (hie.const_mul _), integral_const_mul,
-          integral_const_mul, integral_indicator measurableSet_Icc.compl, hm, mul_one]
-  rw [dist_eq_norm]
-  apply he.trans_lt
-  have hn' : B * (∫ t in (Icc (-d) d)ᶜ, k n t) < ε / 2 := by
-    have := mul_lt_mul_of_pos_left hn hB
-    convert! this using 1; field_simp
-  linarith
 
 end TaoAdditive1132
 end
@@ -2564,15 +1330,6 @@ theorem empiricalLogPotential_eq_realLogPotential {x : ℝ}
   unfold nodePolynomial Lagrange.nodal
   simp only [eval_prod, eval_sub, eval_X, eval_C]
   exact (Real.log_prod (fun i _ => sub_ne_zero.mpr (hx i))).symm
-
-theorem ae_empiricalLogPotential_eq_realLogPotential :
-    X.empiricalLogPotential =ᵐ[volume] X.realLogPotential := by
-  have havoid : ∀ᵐ x : ℝ, x ∉ Set.range X.point := by
-    simpa only [ae_iff, not_not, Set.ofPred_mem_eq] using
-      (Set.finite_range X.point).measure_zero volume
-  filter_upwards [havoid] with x hx
-  exact X.empiricalLogPotential_eq_realLogPotential
-    (fun i hi => hx ⟨i, hi.symm⟩)
 
 theorem measurable_empiricalLogPotential : Measurable X.empiricalLogPotential := by
   unfold empiricalLogPotential
@@ -4622,15 +3379,6 @@ theorem continuous_rieszKernel {ε : ℝ} (hε : 0 < ε) : Continuous (rieszKern
   intro t
   exact (Real.sqrt_pos.mpr (by nlinarith [sq_nonneg t, sq_pos_of_pos hε])).ne'
 
-theorem integrable_riesz_gaussian_mixture {ε : ℝ} (hε : 0 < ε) (t : ℝ) :
-    Integrable (fun s : ℝ => Real.exp (-s^2*ε^2)*Real.exp (-s^2*t^2)) := by
-  have hi := integrable_exp_neg_mul_sq (by nlinarith [sq_nonneg t, sq_pos_of_pos hε] : 0 < t^2+ε^2)
-  convert hi using 1
-  funext s
-  rw [← Real.exp_add]
-  congr 1
-  ring
-
 /-- Integrating over the real Gaussian parameter avoids a separate Gamma-integral
 normalization and gives the exact inverse square-root kernel. -/
 theorem rieszKernel_gaussian_mixture {ε : ℝ} (hε : 0 < ε) (t : ℝ) :
@@ -4666,13 +3414,6 @@ noncomputable section
 open Real MeasureTheory Filter Finset
 open scoped Topology BigOperators
 namespace TaoAdditive1132
-
-theorem abs_exp_partial_sum_le (z : ℝ) (N : ℕ) :
-    |∑ k ∈ range N, z^k/(k.factorial : ℝ)| ≤ Real.exp |z| := by
-  calc
-    _ ≤ ∑ k ∈ range N, |z^k/(k.factorial : ℝ)| := abs_sum_le_sum_abs _ _
-    _ = ∑ k ∈ range N, |z|^k/(k.factorial : ℝ) := by simp only [abs_div, abs_pow, Nat.abs_cast]
-    _ ≤ _ := Real.sum_le_exp_of_nonneg (abs_nonneg _) _
 
 theorem tendsto_exp_partial_sum (z : ℝ) :
     Tendsto (fun N : ℕ => ∑ k ∈ range N, z^k/(k.factorial : ℝ))
@@ -6235,8 +4976,6 @@ namespace TaoAdditive1132
 
 def eighthRoot (N : ℝ) : ℝ := Real.sqrt (quarterRoot N)
 
-theorem eighthRoot_nonneg (N : ℝ) : 0 ≤ eighthRoot N := Real.sqrt_nonneg _
-
 theorem eighthRoot_pos {N : ℝ} (hN : 0 < N) : 0 < eighthRoot N :=
   Real.sqrt_pos.mpr (quarterRoot_pos hN)
 
@@ -6247,9 +4986,6 @@ theorem eighthRoot_pow_eight {N : ℝ} (hN : 0 ≤ N) : eighthRoot N^8 = N := by
     eighthRoot N^8 = (eighthRoot N^2)^4 := by ring
     _ = quarterRoot N^4 := by rw [show eighthRoot N^2 = quarterRoot N from h]
     _ = N := he
-
-theorem eighthRoot_ge_one {N : ℝ} (hN : 1 ≤ N) : 1 ≤ eighthRoot N := by
-  simpa only [eighthRoot, Real.sqrt_one] using Real.sqrt_le_sqrt (one_le_quarterRoot hN)
 
 theorem tendsto_eighthRoot : Tendsto (fun n : ℕ => eighthRoot n) atTop atTop :=
   (Real.tendsto_sqrt_atTop.comp tendsto_quarterRoot).comp tendsto_natCast_atTop_atTop
@@ -7256,9 +5992,6 @@ theorem local_riesz_error {f : ℂ → ℂ} {m : ℕ} (hm : 1 ≤ m)
   · exact mul_ne_zero (mul_ne_zero (by norm_num) (by exact_mod_cast Real.pi_ne_zero)) I_ne_zero
 
 def rieszWeight (z : ℂ) : ℝ := 1/‖z‖^2
-
-theorem rieszWeight_nonneg (z : ℂ) : 0 ≤ rieszWeight z := by
-  exact one_div_nonneg.mpr (sq_nonneg _)
 
 theorem rieszWeight_coe {m : ℕ} {z : ℂ} (hz : z ∈ cosinePoles m) :
     (rieszWeight z : ℂ) = 1/z^2 := by
@@ -9388,45 +8121,6 @@ theorem exists_Icc_in_relative_open
   obtain ⟨z, hz, heq⟩ := hsub hy
   have heq' : z = (⟨y, hI hy⟩ : Ioo (-1 : ℝ) 1) := Subtype.ext heq
   exact heq' ▸ hz
-
-/-- Continuous functions whose high-value tail sets are dense exceed the
-prescribed thresholds infinitely often on a dense set. -/
-theorem dense_frequently_of_dense_tails
-    {α : Type*} [TopologicalSpace α] [BaireSpace α]
-    (f : ℕ → α → ℝ) (hf : ∀ n, Continuous (f n)) (a : ℕ → ℝ)
-    (htail : ∀ N, Dense {x | ∃ n ≥ N, a n < f n x}) :
-    Dense {x | ∃ᶠ n in atTop, a n < f n x} := by
-  have hopen (N : ℕ) : IsOpen {x | ∃ n ≥ N, a n < f n x} := by
-    have heq : {x | ∃ n ≥ N, a n < f n x} =
-        ⋃ n ≥ N, {x | a n < f n x} := by ext; simp
-    rw [heq]
-    exact isOpen_iUnion fun n => isOpen_iUnion fun _ => isOpen_lt continuous_const (hf n)
-  have hd := dense_iInter_of_isOpen hopen htail
-  apply hd.mono
-  intro x hx
-  exact frequently_atTop.mpr (fun N => mem_iInter.mp hx N)
-
-/-- An eventual lower bound for the supremum on every compact interior
-interval gives a dense set of infinitely many strict occurrences, with any
-fixed positive slack. The starting index can depend on the interval. -/
-theorem dense_frequently_of_interval_sup
-    (f : ℕ → ℝ → ℝ) (hf : ∀ n, Continuous (f n)) (a : ℕ → ℝ)
-    {ε : ℝ} (hε : 0 < ε)
-    (hlower : ∀ l r : ℝ, l < r → Icc l r ⊆ Ioo (-1 : ℝ) 1 →
-      ∀ᶠ n in atTop, a n ≤ sSup (f n '' Icc l r)) :
-    Dense {x : Ioo (-1 : ℝ) 1 | ∃ᶠ n in atTop, a n - ε < f n x} := by
-  let : BaireSpace (Ioo (-1 : ℝ) 1) := isOpen_Ioo.baireSpace
-  apply dense_frequently_of_dense_tails (fun n (x : Ioo (-1 : ℝ) 1) => f n x)
-    (fun n => (hf n).comp continuous_subtype_val) (fun n => a n - ε)
-  intro N
-  rw [dense_iff_inter_open]
-  intro V hV hne
-  obtain ⟨l, r, hlr, hI, hVlr⟩ := exists_Icc_in_relative_open hV hne
-  obtain ⟨n, hn, hsup⟩ := ((eventually_ge_atTop N).and (hlower l r hlr hI)).exists
-  obtain ⟨_, ⟨x, hx, rfl⟩, hfx⟩ :=
-    exists_lt_of_lt_csSup ((nonempty_Icc.mpr hlr.le).image (f n))
-      (show a n - ε < sSup (f n '' Icc l r) by linarith)
-  exact ⟨⟨x, hI hx⟩, hVlr x hx, n, hn, hfx⟩
 
 /-- Pointwise eventual upper bounds on a sequence have finite upper bounds
 including the initial rows. A natural number can be used for the bound. -/

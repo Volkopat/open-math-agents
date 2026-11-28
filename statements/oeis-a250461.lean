@@ -1,0 +1,63 @@
+import Mathlib
+
+/-!
+# A250461: Number of (n+1)X(1+1) 0..1 arrays with nondecreasing min(x(i,j),x(i,j-1)) in the i direction and nondecreasing min(x(i,j),x(i-1,j)) in the j direction
+
+Source: https://oeis.org/A250461
+Credit: @Dariusthedoggie
+
+OEIS Foundation and contributors, CC BY-SA 4.0. Retrieved 2026-11-27.
+Offset 1 (data 11, 31, 85, 233, 637, 1741, 4757, 12997, ...).
+
+Conventions:
+* An `(n + 1) X 2` `0..1` array is `x : Fin (n + 1) → Fin 2 → Fin 2`: row `i`, column `j`, entry `x i j` in `0..1`.
+* Each `2 X 2` subblock at row pair `(i.castSucc, i.succ)` and column pair `(j.castSucc, j.succ)` has
+  top-left `a = x i.castSucc j.castSucc`, top-right `b = x i.castSucc j.succ`,
+  bottom-left `c = x i.succ j.castSucc`, bottom-right `d = x i.succ j.succ`.
+* In each `2 X 2` subblock, `min(x(i,j), x(i,j-1))` nondecreasing in the `i` direction means `min a b ≤ min c d`, and `min(x(i,j), x(i-1,j))` nondecreasing in the `j` direction means `min a c ≤ min b d`; every such comparison lies in exactly one `2 X 2` subblock.
+* `a 0 = 0` is a convention outside the offset; it does not change the generating function
+  identity, whose series has zero constant term.
+
+Conjectures (empirical recurrence in the formula section, and Colin Barker, Nov 14 2018):
+Empirical: a(n) = 3*a(n-1) - 2*a(n-3).
+Conjectures from _Colin Barker_, Nov 14 2018: (Start)
+G.f.: x*(11 - 2*x - 8*x^2) / ((1 - x)*(1 - 2*x - 2*x^2)).
+a(n) = (-2 + (13-7*sqrt(3))*(1-sqrt(3))^n + (1+sqrt(3))^n*(13+7*sqrt(3))) / 6.
+(End)
+The generating function is stated after multiplication by its denominator, whose constant
+term is nonzero.
+-/
+
+namespace OMA.S_oeis_a250461
+
+open PowerSeries
+
+/-- A `2 X 2` binary subblock `(a, b / c, d)` has `min a b ≤ min c d` and `min a c ≤ min b d`. -/
+def okBlock (a b c d : Fin 2) : Prop :=
+  min a.val b.val ≤ min c.val d.val ∧ min a.val c.val ≤ min b.val d.val
+
+instance (a b c d : Fin 2) : Decidable (okBlock a b c d) := by
+  unfold okBlock; infer_instance
+
+/-- An `(m + 1) X 2` `0..1` array is valid when every `2 X 2` subblock satisfies `okBlock`. -/
+def isValid (m : ℕ) (x : Fin (m + 1) → Fin 2 → Fin 2) : Prop :=
+  ∀ i : Fin m, ∀ j : Fin 1,
+    okBlock (x i.castSucc j.castSucc) (x i.castSucc j.succ)
+      (x i.succ j.castSucc) (x i.succ j.succ)
+
+instance (m : ℕ) (x : Fin (m + 1) → Fin 2 → Fin 2) : Decidable (isValid m x) := by
+  unfold isValid; infer_instance
+
+/-- A250461: Number of (n+1)X(1+1) 0..1 arrays with nondecreasing min(x(i,j),x(i,j-1)) in the i direction and nondecreasing min(x(i,j),x(i-1,j)) in the j direction. -/
+def a : ℕ → ℕ
+  | 0 => 0
+  | n + 1 => (Finset.univ.filter (isValid (n + 1))).card
+
+theorem main :
+    (∀ n : ℕ, 4 ≤ n → (a n : ℤ) = 3 * a (n - 1) - 2 * a (n - 3)) ∧
+    (PowerSeries.mk (fun n => (a n : ℚ)) * ((1 - X) * (1 - 2 * X - 2 * X ^ 2)) =
+      X * (11 - 2 * X - 8 * X ^ 2)) ∧
+    (∀ n : ℕ, 1 ≤ n → (a n : ℝ) = (-2 + (13 - 7 * Real.sqrt 3) * (1 - Real.sqrt 3) ^ n + (1 + Real.sqrt 3) ^ n * (13 + 7 * Real.sqrt 3)) / 6) := by
+  sorry
+
+end OMA.S_oeis_a250461

@@ -1,0 +1,109 @@
+# Re-audit, on main, every proof that counts toward an open problem (tools/audit_solved.txt): each file is compiled again
+# against the pinned formal-conjectures with the same checker as pull requests (tools/check.sh: lint, compile, axiom
+# audit). Catches any proof that was merged without really passing (a merger fault, a lost verdict, a checker bug) and
+# any proof that no longer compiles on main. Read-only: it changes nothing; the summary lists every file not accepted.
+name: audit-solved
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: "Number of parallel jobs (each takes ~35 s per file)"
+        default: "6"
+permissions:
+  contents: read
+concurrency:
+  group: audit-solved
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.p.outputs.shards }}
+    steps:
+      - id: p
+        run: |
+          N="${{ github.event.inputs.shards }}"; case "$N" in ''|*[!0-9]*) N=6;; esac; [ "$N" -ge 1 ] && [ "$N" -le 20 ] || N=6
+          echo "shards=$(python3 -c "import json;print(json.dumps(list(range($N))))")" >> "$GITHUB_OUTPUT"
+  audit:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.plan.outputs.shards) }}
+    env:
+      ELAN_HOME: /mnt/oma/elan
+      OMA_FC: /mnt/oma/fc
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main, fetch-depth: 1 }
+      - name: Pinned formal-conjectures
+        id: fc
+        run: |
+          sudo mkdir -p /mnt/oma && sudo chown "$(id -u):$(id -g)" /mnt/oma
+          C=$(python3 -I -c 'import json;print(json.load(open("data/catalog.json"))["meta"]["upstreamCommit"])')
+          echo "commit=$C" >> "$GITHUB_OUTPUT"
+          git init -q "$OMA_FC" && cd "$OMA_FC"
+          git remote add origin https://github.com/google-deepmind/formal-conjectures
+          git fetch -q --depth 1 origin "$C" && git checkout -q FETCH_HEAD
+      - uses: actions/cache/restore@v4
+        id: cache
+        with:
+          path: |
+            /mnt/oma/elan
+            /mnt/oma/fc/.lake
+          key: lean-mnt-v1-${{ steps.fc.outputs.commit }}
+      - name: Lean toolchain and Mathlib cache
+        env:
+          HIT: ${{ steps.cache.outputs.cache-hit }}
+        run: |
+          echo "$ELAN_HOME/bin" >> "$GITHUB_PATH"
+          if [ "$HIT" = true ]; then exit 0; fi
+          retry() { for i in 1 2 3 4; do "$@" && return 0; sleep $((i * 20)); done; return 1; }
+          if [ ! -x "$ELAN_HOME/bin/lake" ]; then
+            retry curl -sSfL --retry 3 https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o /tmp/elan-init.sh
+            retry sh /tmp/elan-init.sh -y --default-toolchain none
+          fi
+          cd "$OMA_FC" && retry "$ELAN_HOME/bin/lake" exe cache get
+      - name: Re-check this shard
+        env:
+          SHARD: ${{ matrix.shard }}
+          NSHARDS: ${{ strategy.job-total }}
+        run: |
+          grep -v '^#' tools/audit_solved.txt | grep -E "^proofs/[A-Za-z0-9_.'-]+\.lean$" | awk -v s="$SHARD" -v n="$NSHARDS" '(NR-1)%n==s' > /tmp/mine.txt
+          echo "$(wc -l < /tmp/mine.txt) files in shard $SHARD"
+          : > results.tsv
+          while read -r F; do
+            [ -f "$F" ] || { printf '%s\tmissing\tnot on main\n' "$F" >> results.tsv; continue; }
+            tools/check.sh "$F" /tmp/v.json >/dev/null 2>&1 || true
+            python3 -I -c 'import json,sys
+          try: d=json.load(open("/tmp/v.json"))
+          except Exception: d={"verdict":"fault","reason":"no verdict"}
+          print("%s\t%s\t%s" % (sys.argv[1], d.get("verdict"), (d.get("reason") or "").replace("\t"," ").replace("\n"," ")[:300]))' "$F" >> results.tsv
+            tail -1 results.tsv
+          done < /tmp/mine.txt
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: audit-${{ matrix.shard }}
+          path: results.tsv
+  summary:
+    needs: audit
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: parts }
+      - run: |
+          cat parts/*/results.tsv > all.tsv
+          echo "## Re-audit of proofs counting toward open problems" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          awk -F'\t' '{c[$2]++} END {for (k in c) printf "- %s: %d\n", k, c[k]}' all.tsv >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Not accepted" >> "$GITHUB_STEP_SUMMARY"
+          awk -F'\t' '$2 != "accepted" {printf "- `%s` — %s: %s\n", $1, $2, $3}' all.tsv >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audit-all
+          path: all.tsv
