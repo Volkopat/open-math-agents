@@ -237,11 +237,6 @@ theorem abs_sum_log_div_sub_log_le (x : ℝ) (hx : 1 ≤ x) :
   rw [abs_le] at h ⊢
   constructor <;> linarith [h.1, h.2]
 
-/-- **Mertens' first theorem**, existential form. -/
-theorem mertens1 : ∃ C : ℝ, ∀ x : ℝ, 2 ≤ x →
-    |∑ p ∈ Nat.primesLE ⌊x⌋₊, Real.log p / p - Real.log x| ≤ C :=
-  ⟨mertens1Const + Real.log 2, fun x hx => abs_sum_log_div_sub_log_le x (by linarith)⟩
-
 theorem sum_succ_eq (N : ℕ) (f : ℕ → ℝ) :
     ∑ p ∈ Nat.primesLE (N + 1), f p =
       (∑ p ∈ Nat.primesLE N, f p) + if (N + 1).Prime then f (N + 1) else 0 := by
@@ -430,11 +425,6 @@ theorem abs_sum_inv_sub_log_log_le (x : ℝ) (hx : 2 ≤ x) :
   rw [abs_le] at h ⊢
   constructor <;> linarith [h.1, h.2]
 
-/-- **Mertens' second theorem**, existential form. -/
-theorem mertens2 : ∃ C : ℝ, ∀ x : ℝ, 2 ≤ x →
-    |∑ p ∈ Nat.primesLE ⌊x⌋₊, (1 : ℝ) / p - Real.log (Real.log x)| ≤ C :=
-  ⟨mertens2Const, abs_sum_inv_sub_log_log_le⟩
-
 theorem log_one_sub_inv_bounds {p : ℕ} (hp : p.Prime) :
     -(1 / (p : ℝ)) - Real.log p / ((p : ℝ) * ((p : ℝ) - 1)) / Real.log 2 ≤
         Real.log (1 - 1 / (p : ℝ)) ∧
@@ -507,27 +497,6 @@ theorem prod_one_sub_inv_bounds (z : ℝ) (hz : 2 ≤ z) :
   constructor
   · apply Real.exp_le_exp.mpr; linarith [hM.1, hM.2]
   · apply Real.exp_le_exp.mpr; linarith [hM.1, hM.2]
-
-/-- **Mertens' third theorem**, existential form: there are constants `0 < c₁` and `c₂` with
-`c₁ / log z ≤ ∏_{p ≤ z} (1 - 1 / p) ≤ c₂ / log z` for all real `z ≥ 2`. -/
-theorem mertens3 : ∃ c₁ c₂ : ℝ, 0 < c₁ ∧ 0 < c₂ ∧ ∀ z : ℝ, 2 ≤ z →
-    c₁ / Real.log z ≤ ∏ p ∈ Nat.primesLE ⌊z⌋₊, (1 - 1 / (p : ℝ)) ∧
-      ∏ p ∈ Nat.primesLE ⌊z⌋₊, (1 - 1 / (p : ℝ)) ≤ c₂ / Real.log z :=
-  ⟨_, _, Real.exp_pos _, Real.exp_pos _, prod_one_sub_inv_bounds⟩
-
-
-/-- Upper half of Mertens' second theorem for any subset of the primes, for instance the primes
-in a residue class: `∑_{p ≤ x, P p} 1 / p ≤ log log x + mertens2Const` for real `x ≥ 2`. -/
-theorem sum_inv_filter_le (P : ℕ → Prop) [DecidablePred P] (x : ℝ) (hx : 2 ≤ x) :
-    ∑ p ∈ (Nat.primesLE ⌊x⌋₊).filter P, (1 : ℝ) / p ≤
-      Real.log (Real.log x) + mertens2Const := by
-  have h := abs_sum_inv_sub_log_log_le x hx
-  rw [abs_le] at h
-  have hsub : ∑ p ∈ (Nat.primesLE ⌊x⌋₊).filter P, (1 : ℝ) / p ≤
-      ∑ p ∈ Nat.primesLE ⌊x⌋₊, (1 : ℝ) / p :=
-    Finset.sum_le_sum_of_subset_of_nonneg (Finset.filter_subset _ _)
-      (fun p _ _ => by positivity)
-  linarith [h.2]
 
 end OMALib.Mertens
 
@@ -1462,59 +1431,6 @@ theorem omega_apCond {b q p : ℕ} (hp : p.Prime) (hpq : ¬ p ∣ q) : omega (ap
   have h2 : ((range p).filter (fun u => p ∣ u)).card = 1 := by rw [h0, card_singleton]
   convert this.trans h2 using 2
   ext t; simp
-
-/-- **Brun–Titchmarsh, explicit sieve form.** For `q ≥ 1`, any `a`, `x` and level `z ≥ 2`,
-the number of primes `p ≤ x` with `p ≡ a [MOD q]` is at most
-`z + (x / q + 1) / G_q(z) + z ^ 4`. -/
-theorem card_primes_ap_le_sieve (q a x z : ℕ) (hq : 0 < q) (hz : 2 ≤ z) :
-    (((range (x + 1)).filter (fun p => p.Prime ∧ p ≡ a [MOD q])).card : ℝ)
-      ≤ z + ((x / q + 1 : ℕ) : ℝ) / apG q z + (z : ℝ) ^ 4 := by
-  set b := a % q
-  set Q := apPrimes q z
-  have hQ : ∀ p ∈ Q, p.Prime := fun p hp =>
-    (Nat.mem_primesBelow.mp (mem_filter.mp hp).1).2
-  have hQq : ∀ p ∈ Q, ¬ p ∣ q := fun p hp => (mem_filter.mp hp).2
-  have hω0 : ∀ p ∈ Q, 0 < omega (apCond b q) p := fun p hp => by
-    rw [omega_apCond (hQ p hp) (hQq p hp)]; norm_num
-  have hω1 : ∀ p ∈ Q, omega (apCond b q) p < p := fun p hp => by
-    rw [omega_apCond (hQ p hp) (hQq p hp)]; exact (hQ p hp).one_lt
-  have hsieve := selberg_residue_level (x / q + 1) z hz Q hQ (apCond b q) (apCond_periodic b q)
-    hω0 hω1
-  have hG : selbergG (fun p => (omega (apCond b q) p : ℝ) / p) (levelFamily Q z) = apG q z := by
-    show _ = selbergG (fun p : ℕ => (1 : ℝ) / p) (levelFamily Q z)
-    refine selbergG_congr levelFamily_subset fun p hp => ?_
-    rw [omega_apCond (hQ p hp) (hQq p hp)]; norm_num
-  rw [hG] at hsieve
-  set P := (range (x + 1)).filter (fun p => p.Prime ∧ p ≡ a [MOD q])
-  have hsplit : P.card ≤ (P.filter (fun p => p < z)).card + (P.filter (fun p => ¬ p < z)).card := by
-    rw [card_filter_add_card_filter_not]
-  have h1 : (P.filter (fun p => p < z)).card ≤ z := by
-    have := card_le_card (s := P.filter (fun p => p < z)) (t := range z)
-      (fun p hp => mem_range.mpr (mem_filter.mp hp).2)
-    simpa using this
-  have h2 : (P.filter (fun p => ¬ p < z)).card
-      ≤ ((range (x / q + 1)).filter (fun t => ∀ p ∈ Q, ¬ apCond b q p t)).card := by
-    refine card_le_card_of_injOn (fun n => n / q) ?_ ?_
-    · intro n hn
-      simp only [P, coe_filter, mem_filter, mem_range, Set.mem_setOf_eq] at hn
-      simp only [coe_filter, mem_range, Set.mem_setOf_eq]
-      have hnb : n % q = b := hn.1.2.2
-      have hdecomp : b + q * (n / q) = n := by rw [← hnb]; exact Nat.mod_add_div n q
-      refine ⟨Nat.lt_succ_of_le (Nat.div_le_div_right (by omega)), fun p hp hdiv => ?_⟩
-      unfold apCond at hdiv
-      rw [hdecomp] at hdiv
-      have hp' := Nat.mem_primesBelow.mp (mem_filter.mp hp).1
-      have := (Nat.prime_dvd_prime_iff_eq hp'.2 hn.1.2.1).mp hdiv
-      omega
-    · intro n hn m hm h
-      simp only [P, coe_filter, mem_filter, mem_range, Set.mem_setOf_eq] at hn hm
-      simp only at h
-      have e1 : n % q = m % q := hn.1.2.2.trans hm.1.2.2.symm
-      rw [← Nat.mod_add_div n q, ← Nat.mod_add_div m q, e1, h]
-  have hcard : (P.card : ℝ) ≤ z
-      + (((range (x / q + 1)).filter (fun t => ∀ p ∈ Q, ¬ apCond b q p t)).card : ℝ) := by
-    exact_mod_cast hsplit.trans (Nat.add_le_add h1 h2)
-  linarith
 
 /-! ## A lower bound for `G` (Rankin's trick) -/
 
@@ -2540,88 +2456,6 @@ theorem K_bound (y : ℕ) (hy : 4 ≤ y) :
   push_cast at hl
   nlinarith
 
-theorem main_count : ∃ c : ℝ, 0 < c ∧ ∃ y0 : ℕ, ∀ y : ℕ, y0 ≤ y →
-    c * y ≤ ((P y ×ˢ Ioc 0 (Nat.log 2 y)).image (fun a => a.1 + 2 ^ a.2)).card := by
-  obtain ⟨D, hD, hE⟩ := E_bound
-  obtain ⟨y0, hy0⟩ := pi_lower
-  refine ⟨min (1 / 12) (1 / (18 * D)), by positivity, max y0 4, fun y hy => ?_⟩
-  have hy4 : 4 ≤ y := (le_max_right _ _).trans hy
-  have hπ := hy0 y ((le_max_left _ _).trans hy)
-  obtain ⟨hK, hK2⟩ := K_bound y hy4
-  have hcs := cs_image (P y ×ˢ Ioc 0 (Nat.log 2 y)) (fun a => a.1 + 2 ^ a.2)
-  have hE' := hE y (Nat.log 2 y) (by omega) (by omega)
-  set K := Nat.log 2 y with hKdef
-  set m := ((P y ×ˢ Ioc 0 K).image (fun a => a.1 + 2 ^ a.2)).card with hm
-  set E := ∑ a ∈ P y ×ˢ Ioc 0 K, ∑ b ∈ P y ×ˢ Ioc 0 K,
-      (if a.1 + 2 ^ a.2 = b.1 + 2 ^ b.2 then 1 else 0) with hEdef
-  have hT : (P y ×ˢ Ioc 0 K).card = (P y).card * K := by
-    rw [card_product, Nat.card_Ioc, Nat.sub_zero]
-  rw [hT] at hcs
-  have hyR : (4 : ℝ) ≤ y := by exact_mod_cast hy4
-  have hℓ : 0 < Real.log y := Real.log_pos (by linarith)
-  set ℓ := Real.log y with hℓdef
-  set p : ℝ := ((P y).card : ℝ) with hpdef
-  have hp0 : 0 ≤ p := by positivity
-  have hKR : (2 : ℝ) ≤ K := by exact_mod_cast hK2
-  set t : ℝ := p * K with htdef
-  have hcsR : t ^ 2 ≤ m * (E : ℝ) := by
-    have : (((P y).card * K : ℕ) : ℝ) ^ 2 ≤ ((m * E : ℕ) : ℝ) := by exact_mod_cast hcs
-    push_cast at this
-    simpa [htdef, hpdef] using this
-  set Q : ℝ := D * ((y : ℝ) / ℓ ^ 2) * K ^ 2 with hQdef
-  have hE2 : (E : ℝ) ≤ t + Q := by
-    have := hE'
-    rw [htdef, hQdef]; linarith
-  have hlog2 : Real.log 2 < 1 := by linarith [Real.log_two_lt_d9]
-  have hl2 : 0 < Real.log 2 := Real.log_pos (by norm_num)
-  have hpl : (y : ℝ) / 3 ≤ p * ℓ := hπ
-  have htl : p * ℓ ≤ t * (2 * Real.log 2) := by
-    rw [htdef]; nlinarith
-  have ht6 : (y : ℝ) / 6 ≤ t := by nlinarith
-  have hm0 : (0 : ℝ) ≤ m := by positivity
-  have hy0' : (0 : ℝ) < y := by linarith
-  rcases le_or_gt Q t with hQt | hQt
-  · -- E ≤ 2t
-    have h1 : t ^ 2 ≤ m * (2 * t) := hcsR.trans (by nlinarith)
-    have htpos : 0 < t := by linarith
-    have h2 : t ≤ 2 * m := by nlinarith
-    have : (1 / 12 : ℝ) * y ≤ m := by linarith
-    calc min (1 / 12) (1 / (18 * D)) * (y : ℝ) ≤ 1 / 12 * y := by
-          gcongr; exact min_le_left _ _
-      _ ≤ m := this
-  · have h1 : t ^ 2 ≤ m * (2 * Q) := hcsR.trans (by nlinarith)
-    have hQl : Q * ℓ ^ 2 = D * y * K ^ 2 := by rw [hQdef]; field_simp
-    have h2 : t ^ 2 * ℓ ^ 2 ≤ 2 * m * D * y * K ^ 2 := by
-      have := mul_le_mul_of_nonneg_right h1 (sq_nonneg ℓ)
-      calc t ^ 2 * ℓ ^ 2 ≤ m * (2 * Q) * ℓ ^ 2 := this
-        _ = 2 * m * (Q * ℓ ^ 2) := by ring
-        _ = 2 * m * D * y * K ^ 2 := by rw [hQl]; ring
-    have h3 : t ^ 2 * ℓ ^ 2 = K ^ 2 * (p * ℓ) ^ 2 := by rw [htdef]; ring
-    have h4 : ((y : ℝ) / 3) ^ 2 ≤ (p * ℓ) ^ 2 := by
-      have : 0 ≤ (y : ℝ) / 3 := by positivity
-      exact pow_le_pow_left₀ this hpl 2
-    have hK0 : 0 < (K : ℝ) ^ 2 := by positivity
-    have h5 : ((y : ℝ) / 3) ^ 2 ≤ 2 * m * D * y := by
-      have : (K : ℝ) ^ 2 * ((y : ℝ) / 3) ^ 2 ≤ (K : ℝ) ^ 2 * (2 * m * D * y) := by
-        calc (K : ℝ) ^ 2 * ((y : ℝ) / 3) ^ 2 ≤ (K : ℝ) ^ 2 * (p * ℓ) ^ 2 :=
-              mul_le_mul_of_nonneg_left h4 hK0.le
-          _ = t ^ 2 * ℓ ^ 2 := h3.symm
-          _ ≤ 2 * m * D * y * K ^ 2 := h2
-          _ = _ := by ring
-      exact le_of_mul_le_mul_left this hK0
-    have h6 : (y : ℝ) / 9 ≤ 2 * m * D := by
-      have : (y : ℝ) * ((y : ℝ) / 9) ≤ (y : ℝ) * (2 * m * D) := by
-        calc (y : ℝ) * ((y : ℝ) / 9) = ((y : ℝ) / 3) ^ 2 := by ring
-          _ ≤ 2 * m * D * y := h5
-          _ = _ := by ring
-      exact le_of_mul_le_mul_left this hy0'
-    have h7 : 1 / (18 * D) * (y : ℝ) ≤ m := by
-      rw [div_mul_eq_mul_div, one_mul, div_le_iff₀ (by positivity)]
-      nlinarith
-    calc min (1 / 12) (1 / (18 * D)) * (y : ℝ) ≤ 1 / (18 * D) * y := by
-          gcongr; exact min_le_right _ _
-      _ ≤ m := h7
-
 end RomC
 
 
@@ -2969,12 +2803,6 @@ theorem G_odd (y d : ℕ) (hd : ¬ Even d) : G y d ≤ 1 := by
         omega
     _ = 1 := card_singleton 2
 
-theorem F_mono {a c : ℕ} (h : oddPF a ⊆ oddPF c) : F a ≤ F c := by
-  unfold F OMALib.Sieve.pairSingularProduct
-  exact Finset.prod_le_prod_of_subset_of_one_le h (fun p _ => by positivity) (fun p _ _ => by
-    have : (0 : ℝ) ≤ 1 / (p : ℝ) := by positivity
-    linarith)
-
 theorem F_mul_le {a c : ℕ} (ha : a ≠ 0) (hc : c ≠ 0) : F (a * c) ≤ F a * F c := by
   have hsplit : oddPF (a * c) = oddPF a ∪ oddPF c := by
     unfold oddPF; rw [Nat.primeFactors_mul ha hc, filter_union]
@@ -3239,53 +3067,6 @@ theorem H2_proof : OMA.R_Erdos244_erdos_244_variants_Romanoff_R1.H2 := by
           rw [div_le_one hlx2]; exact hsq
       _ = D * x := by ring
   linarith
-
-theorem H1_proof : OMA.R_Erdos244_erdos_244_variants_Romanoff_R1.H1 := by
-  intro b hb1
-  obtain ⟨y0, hy0⟩ := pi_lower
-  have hlb : 0 < Real.log b := Real.log_pos (by exact_mod_cast hb1)
-  refine ⟨1 / (24 * Real.log b), by positivity, 2 * y0 + 2 * b + 8, fun x hx => ?_⟩
-  set y := (x - 1) / 2 with hy
-  have hyb : b ≤ y := by omega
-  have hyy0 : y0 ≤ y := by omega
-  have hy4 : 4 ≤ y := by omega
-  have hπ := hy0 y hyy0
-  have hL1 : 1 ≤ Nat.log b y := Nat.le_log_of_pow_le hb1 (by simpa using hyb)
-  have hlog : Real.log y ≤ 2 * Real.log b * (Nat.log b y : ℝ) := by
-    have hlt : (y : ℝ) < (b : ℝ) ^ (Nat.log b y + 1) := by
-      exact_mod_cast Nat.lt_pow_succ_log_self hb1 y
-    have hl := Real.log_lt_log (by positivity) hlt
-    rw [Real.log_pow] at hl
-    have : (1 : ℝ) ≤ Nat.log b y := by exact_mod_cast hL1
-    push_cast at hl
-    nlinarith
-  set L := Nat.log b y with hL
-  have hsub : P y ×ˢ range (L + 1) ⊆ (Finset.range x ×ˢ Finset.range x).filter
-      (fun q : ℕ × ℕ => q.1.Prime ∧ q.1 + b ^ q.2 < x) := by
-    intro q hq
-    simp only [mem_product, mem_range, P, Nat.mem_primesLE] at hq
-    have h1 : b ^ q.2 ≤ y := (Nat.pow_le_pow_right (by omega) (by omega)).trans
-      (Nat.pow_log_le_self b (by omega))
-    have h2 : q.2 < b ^ q.2 := Nat.lt_pow_self hb1
-    simp only [mem_filter, mem_product, mem_range]
-    exact ⟨⟨by omega, by omega⟩, hq.1.2, by omega⟩
-  have hcard := card_le_card hsub
-  rw [card_product, card_range] at hcard
-  have hcardR : ((P y).card : ℝ) * L ≤ (((Finset.range x ×ˢ Finset.range x).filter
-      (fun q : ℕ × ℕ => q.1.Prime ∧ q.1 + b ^ q.2 < x)).card : ℝ) := by
-    have : ((P y).card : ℝ) * (L + 1) ≤ (((Finset.range x ×ˢ Finset.range x).filter
-      (fun q : ℕ × ℕ => q.1.Prime ∧ q.1 + b ^ q.2 < x)).card : ℝ) := by exact_mod_cast hcard
-    have : (0 : ℝ) ≤ (P y).card := by positivity
-    nlinarith
-  refine le_trans ?_ hcardR
-  have hP0 : (0 : ℝ) ≤ (P y).card := by positivity
-  have h1 : (y : ℝ) / 3 ≤ (P y).card * (2 * Real.log b * L) :=
-    hπ.trans (mul_le_mul_of_nonneg_left hlog hP0)
-  have hyx : (x : ℝ) ≤ 4 * y := by
-    have : x ≤ 4 * y := by omega
-    exact_mod_cast this
-  rw [div_mul_eq_mul_div, one_mul, div_le_iff₀ (by positivity)]
-  nlinarith
 
 end RomE
 

@@ -567,42 +567,6 @@ theorem exists_independent_subset {G : SimpleGraph V} {Y : Finset V} {n : ℕ}
     obtain ⟨j, _, rfl⟩ := Finset.mem_image.mp hw
     exact hadj i j
   · simp [Finset.card_image_of_injective _ hg]
-theorem HasIndependent.le_indepNum [Fintype V] {G : SimpleGraph V} {n : ℕ}
-    (h : HasIndependent G n) : n ≤ G.indepNum := by
-  classical
-  obtain ⟨f, hf, hadj⟩ := h
-  let I := Finset.univ.image f
-  have hI : G.IsIndepSet (I : Set V) := by
-    intro x hx y hy _
-    obtain ⟨i, _, rfl⟩ := Finset.mem_image.mp hx
-    obtain ⟨j, _, rfl⟩ := Finset.mem_image.mp hy
-    exact hadj i j
-  have hc : I.card = n := by simp [I, Finset.card_image_of_injective _ hf]
-  simpa [hc] using hI.card_le_indepNum
-theorem hasIndependent_iff_le_indepNum [Fintype V] {G : SimpleGraph V} {n : ℕ} :
-    HasIndependent G n ↔ n ≤ G.indepNum := by
-  classical
-  refine ⟨HasIndependent.le_indepNum, fun hn => ?_⟩
-  obtain ⟨I, hI⟩ := G.exists_isNIndepSet_indepNum
-  have hni : n ≤ I.card := by simpa only [hI.card_eq] using hn
-  obtain ⟨J, hJI, hJ⟩ := Finset.exists_subset_card_eq hni
-  let e : Fin n ≃ J := (Finset.equivFinOfCardEq hJ).symm
-  refine ⟨fun i => (e i).val, Subtype.val_injective.comp e.injective, ?_⟩
-  intro i j hadj
-  exact hI.isIndepSet (hJI (e i).property) (hJI (e j).property)
-    (G.ne_of_adj hadj) hadj
-theorem hasIndependent_induce_mono {G : SimpleGraph V} {Y Z : Finset V} {n : ℕ}
-    (hYZ : Y ⊆ Z) (h : HasIndependent (G.induce (Y : Set V)) n) :
-    HasIndependent (G.induce (Z : Set V)) n := by
-  let f : Y → Z := fun v => ⟨v.val, hYZ v.property⟩
-  have hf : Function.Injective f := by
-    intro a b he
-    exact Subtype.ext (congrArg (fun z : Z => z.val) he)
-  exact h.map f hf (fun h => h)
-theorem hasIndependent_one_of_nonempty {G : SimpleGraph V} {Y : Finset V}
-    (hY : Y.Nonempty) : HasIndependent (G.induce (Y : Set V)) 1 := by
-  obtain ⟨v, hv⟩ := hY
-  exact ⟨fun _ => ⟨v, hv⟩, fun _ _ _ => Subsingleton.elim _ _, fun _ _ h => G.irrefl h⟩
 theorem independent_packing [DecidableEq V] {G : SimpleGraph V} {k : ℕ}
     (hbound : IndependenceBound G k) (F : Finset ι) (I : ι → Finset V)
     (hind : ∀ i ∈ F, G.IsIndepSet (I i : Set V))
@@ -776,18 +740,6 @@ theorem bfsAncestor_adjacent {V : Type*} {G : SimpleGraph V} {root v : V}
   obtain ⟨hrj, hdj⟩ := bfsAncestor_level hr j (by omega)
   have h := (bfsParent_spec hrj (by omega)).1
   simpa only [Function.iterate_succ_apply'] using h
-theorem bfsAncestor_injective {V : Type*} {G : SimpleGraph V} {root v : V}
-    (hr : G.Reachable root v) {d : ℕ} (hd : d ≤ G.dist root v) :
-    Function.Injective (fun i : Fin (d + 1) => (bfsParent G root)^[i.val] v) := by
-  intro i j hij
-  have hi := (bfsAncestor_level hr i.val (by have := i.isLt; omega)).2
-  have hj := (bfsAncestor_level hr j.val (by have := j.isLt; omega)).2
-  have hlevel := congrArg (G.dist root) hij
-  rw [hi, hj] at hlevel
-  apply Fin.ext
-  have := i.isLt
-  have := j.isLt
-  omega
 end CycleClique.Construction
 end OAI
 
@@ -1510,36 +1462,6 @@ theorem longest_path_endpoint_neighbors {V : Type*} {G : SimpleGraph V}
   have hp := indexedPath_snoc hf hn hv
   have h := hmax (r + 1) (Fin.snoc f v) hp (by simpa using hstart)
   omega
-theorem longest_path_degree_bound {V : Type*} [Fintype V] {G : SimpleGraph V}
-    {x : V} {r : ℕ} {f : Fin (r + 1) → V} (hf : IsIndexedPath G f)
-    (hstart : f 0 = x)
-    (hmax : ∀ q (g : Fin (q + 1) → V), IsIndexedPath G g → g 0 = x → q ≤ r) :
-    (G.neighborSet (f (Fin.last r))).ncard ≤ r := by
-  classical
-  let e := f (Fin.last r)
-  have hneigh := longest_path_endpoint_neighbors hf hstart hmax
-  have hex : ∀ v : G.neighborFinset e, ∃ i : Fin r, f i.castSucc = v.val := by
-    intro v
-    have hadj := (G.mem_neighborFinset e v.val).mp v.property
-    obtain ⟨j, hj⟩ := hneigh v.val hadj
-    have hjlt : j.val < r := by
-      have hneq : j ≠ Fin.last r := by
-        intro h
-        subst j
-        exact hadj.ne hj
-      have hval : j.val ≠ r := fun h => hneq (Fin.ext h)
-      omega
-    exact ⟨⟨j.val, hjlt⟩, by simpa using hj⟩
-  let index : G.neighborFinset e → Fin r := fun v => Classical.choose (hex v)
-  have hindex : ∀ v : G.neighborFinset e, f (index v).castSucc = v.val :=
-    fun v => Classical.choose_spec (hex v)
-  have hinj : Function.Injective index := by
-    intro a b hab
-    apply Subtype.ext
-    rw [← hindex a, ← hindex b, hab]
-  have hcard := Fintype.card_le_of_injective index hinj
-  simpa only [Fintype.card_coe, Fintype.card_fin,
-    SimpleGraph.card_neighborFinset_eq_degree, SimpleGraph.ncard_neighborSet] using hcard
 end CycleClique.Construction
 end OAI
 
@@ -1973,45 +1895,6 @@ theorem spanningPath_swap_tail {V : Type*} [Fintype V]
       omega
   exact ⟨f ∘ σ, spanningPath_permute_tail hf t hfinal hclique σ hfix,
     by simp [σ], fun j hj => congrArg f (hfix j hj)⟩
-theorem partial_endpoint_attachment {V : Type*} [Fintype V]
-    {G : SimpleGraph V} {x : V} {W : Finset V} {r : ℕ}
-    {f : Fin (r + 1) → V} (hf : IsSpanningPath G x W f)
-    (t : Fin r)
-    (hfinal : ∀ i : Fin (r + 1), f i ∈ pathEnds G x W r ↔ t.val < i.val)
-    (hclique : G.IsClique (pathEnds G x W r : Set V))
-    (hneighbors : ∀ e ∈ pathEnds G x W r, ∀ v, G.Adj e v → v ∈ W) :
-    ∀ w ∈ pathEnds G x W r, w ≠ f t.succ →
-      ∀ v, G.Adj w v → v ∈ pathEnds G x W r ∨ v = f t.castSucc := by
-  intro w hw hwfirst v hwv
-  have hwW : w ∈ (W : Set V) := pathEnds_subset G x W r hw
-  rw [← hf.2.2.2] at hwW
-  obtain ⟨i, hiw⟩ := hwW
-  have hitail : t.val < i.val := (hfinal i).mp (hiw ▸ hw)
-  have hi : t.val + 1 < i.val := by
-    have hneq : i ≠ t.succ := fun h => hwfirst (hiw.symm.trans (congrArg f h))
-    have hval : i.val ≠ t.val + 1 := fun h => hneq (Fin.ext h)
-    omega
-  obtain ⟨g, hg, hglast, hgfix⟩ := spanningPath_swap_tail hf t hfinal hclique i hi
-  by_cases hv : v ∈ pathEnds G x W r
-  · exact Or.inl hv
-  · right
-    have hvW : v ∈ (W : Set V) := hneighbors w hw v hwv
-    rw [← hf.2.2.2] at hvW
-    obtain ⟨j, hjv⟩ := hvW
-    have hjbefore : j.val ≤ t.val := by
-      by_contra hn
-      exact hv (hjv ▸ (hfinal j).mpr (by omega))
-    by_cases heq : j.val = t.val
-    · have hj : j = t.castSucc := Fin.ext heq
-      exact hjv.symm.trans (congrArg f hj)
-    · let p : Fin r := ⟨j.val, by have := t.isLt; omega⟩
-      have hgp : g p.castSucc = v := (hgfix p.castSucc (by dsimp [p]; omega)).trans
-        ((congrArg f (Fin.ext rfl)).trans hjv)
-      have hrot := successor_mem_pathEnds hg p (by rw [hglast, hiw, hgp]; exact hwv)
-      rw [hgfix p.succ (by dsimp [p]; omega)] at hrot
-      have hbound := (hfinal p.succ).mp hrot
-      dsimp [p] at hbound
-      omega
 end CycleClique.Construction
 end OAI
 
@@ -2216,53 +2099,6 @@ theorem spanningPath_first_tail_last {V : Type*} [Fintype V]
   change g (rotationIndex t j) = f j
   rw [hidx]
   exact hgfix j (by omega)
-theorem endpoint_attachment_of_prefix_preserved {V : Type*} [Fintype V]
-    {G : SimpleGraph V} {x w : V} {W : Finset V} {r : ℕ}
-    {f g : Fin (r + 1) → V} (hf : IsSpanningPath G x W f) (t : Fin r)
-    (hfinal : ∀ i : Fin (r + 1), f i ∈ pathEnds G x W r ↔ t.val < i.val)
-    (hg : IsSpanningPath G x W g) (hglast : g (Fin.last r) = w)
-    (hfix : ∀ j : Fin (r + 1), j.val ≤ t.val → g j = f j)
-    (hneighbors : ∀ v, G.Adj w v → v ∈ W) :
-    ∀ v, G.Adj w v → v ∈ pathEnds G x W r ∨ v = f t.castSucc := by
-  intro v hwv
-  by_cases hv : v ∈ pathEnds G x W r
-  · exact Or.inl hv
-  · right
-    have hvW : v ∈ (W : Set V) := hneighbors v hwv
-    rw [← hf.2.2.2] at hvW
-    obtain ⟨j, hjv⟩ := hvW
-    have hjbefore : j.val ≤ t.val := by
-      by_contra hn
-      exact hv (hjv ▸ (hfinal j).mpr (by omega))
-    by_cases heq : j.val = t.val
-    · have hj : j = t.castSucc := Fin.ext heq
-      exact hjv.symm.trans (congrArg f hj)
-    · let p : Fin r := ⟨j.val, by have := t.isLt; omega⟩
-      have hgp : g p.castSucc = v := (hfix p.castSucc (by dsimp [p]; omega)).trans
-        ((congrArg f (Fin.ext rfl)).trans hjv)
-      have hrot := successor_mem_pathEnds hg p (by rw [hglast, hgp]; exact hwv)
-      rw [hfix p.succ (by dsimp [p]; omega)] at hrot
-      have hbound := (hfinal p.succ).mp hrot
-      dsimp [p] at hbound
-      omega
-theorem full_endpoint_attachment {V : Type*} [Fintype V]
-    {G : SimpleGraph V} {x : V} {W : Finset V} {r : ℕ}
-    {f : Fin (r + 1) → V} (hf : IsSpanningPath G x W f) (t : Fin r)
-    (hfinal : ∀ i : Fin (r + 1), f i ∈ pathEnds G x W r ↔ t.val < i.val)
-    (hclique : G.IsClique (pathEnds G x W r : Set V))
-    (hneighbors : ∀ e ∈ pathEnds G x W r, ∀ v, G.Adj e v → v ∈ W)
-    (hsecond : ∃ w ∈ pathEnds G x W r,
-      w ≠ f t.succ ∧ G.Adj (f t.castSucc) w) :
-    ∀ w ∈ pathEnds G x W r, ∀ v, G.Adj w v →
-      v ∈ pathEnds G x W r ∨ v = f t.castSucc := by
-  intro w hw
-  by_cases heq : w = f t.succ
-  · subst w
-    obtain ⟨w₁, hw₁, hne, hadj⟩ := hsecond
-    obtain ⟨g, hg, hlast, hfix⟩ := spanningPath_first_tail_last hf t hfinal hclique hw₁ hne hadj
-    exact endpoint_attachment_of_prefix_preserved hf t hfinal hg hlast hfix
-      (hneighbors _ hw)
-  · exact partial_endpoint_attachment hf t hfinal hclique hneighbors w hw heq
 end CycleClique.Construction
 end OAI
 
@@ -2459,48 +2295,6 @@ theorem deleted_component_neighbor_cover {V : Type*} {H : SimpleGraph V} {y z : 
   have hadj : (H.induce {v | v ≠ y ∧ v ≠ z}).Adj u.val w := h
   have hw := C.mem_supp_of_adj_mem_supp u.property hadj
   exact Or.inr (Or.inr ⟨⟨w, hw⟩, hadj, rfl⟩)
-theorem deleted_component_degree_loss {V : Type*} [Fintype V]
-    {H : SimpleGraph V} {y z : V}
-    (C : (H.induce {v | v ≠ y ∧ v ≠ z}).ConnectedComponent) (u : C) :
-    (H.neighborSet u.val.val).ncard ≤ (C.toSimpleGraph.neighborSet u).ncard + 2 := by
-  classical
-  let f : C → V := fun v => v.val.val
-  have hf : Function.Injective f := by
-    intro a b h
-    apply Subtype.ext
-    exact Subtype.ext h
-  let N : Finset V := (C.toSimpleGraph.neighborFinset u).map ⟨f, hf⟩
-  have hsub : H.neighborFinset u.val.val ⊆ N ∪ {y, z} := by
-    intro v hv
-    have hadj := (H.mem_neighborFinset u.val.val v).mp hv
-    rcases deleted_component_neighbor_cover C u hadj with rfl | rfl | ⟨w, hw, rfl⟩
-    · simp
-    · simp
-    · exact Finset.mem_union_left _ (Finset.mem_map.mpr
-        ⟨w, (C.toSimpleGraph.mem_neighborFinset u w).mpr hw, rfl⟩)
-  have hcard := (Finset.card_le_card hsub).trans (Finset.card_union_le N {y, z})
-  have hpair : ({y, z} : Finset V).card ≤ 2 := Finset.card_le_two
-  have hN : N.card = (C.toSimpleGraph.neighborFinset u).card := Finset.card_map _
-  rw [hN] at hcard
-  have hdegree : (H.neighborFinset u.val.val).card ≤
-      (C.toSimpleGraph.neighborFinset u).card + 2 := by omega
-  simpa only [SimpleGraph.card_neighborFinset_eq_degree,
-    SimpleGraph.ncard_neighborSet] using hdegree
-theorem deleted_component_min_degree {V : Type*} [Fintype V]
-    {H : SimpleGraph V} {y z : V} {s : ℕ}
-    (hdegree : ∀ v, s ≤ (H.neighborSet v).ncard)
-    (C : (H.induce {v | v ≠ y ∧ v ≠ z}).ConnectedComponent) :
-    ∀ u : C, s - 2 ≤ (C.toSimpleGraph.neighborSet u).ncard := by
-  intro u
-  have h := deleted_component_degree_loss C u
-  have h' := hdegree u.val.val
-  omega
-theorem deleted_component_cliqueNum_le {V : Type*} [Fintype V]
-    {H : SimpleGraph V} {y z : V}
-    (C : (H.induce {v | v ≠ y ∧ v ≠ z}).ConnectedComponent) :
-    C.toSimpleGraph.cliqueNum ≤ H.cliqueNum := by
-  exact ((H.induce {v | v ≠ y ∧ v ≠ z}).cliqueNum_induce_le C.supp).trans
-    (H.cliqueNum_induce_le _)
 end CycleClique.Construction
 end OAI
 
@@ -2563,30 +2357,6 @@ theorem componentVertices_connected {V : Type*} [Fintype V]
     obtain ⟨u, hu⟩ := mem_componentVertices.mp v.property
     exact ⟨u, Subtype.ext hu⟩
   exact C.connected_toSimpleGraph.map φ hsurj
-theorem induced_degree_loss_pair {V : Type*} [Fintype V]
-    {H : SimpleGraph V} {U : Finset V} {y z : V}
-    (hcover : ∀ u ∈ U, ∀ v, H.Adj u v → v ∈ U ∨ v = y ∨ v = z)
-    (u : (U : Set V)) :
-    (H.neighborSet u.val).ncard ≤ ((H.induce (U : Set V)).neighborSet u).ncard + 2 := by
-  classical
-  let K := H.induce (U : Set V)
-  let N : Finset V := (K.neighborFinset u).map ⟨Subtype.val, Subtype.val_injective⟩
-  have hsub : H.neighborFinset u.val ⊆ N ∪ {y, z} := by
-    intro v hv
-    have hadj := (H.mem_neighborFinset u.val v).mp hv
-    rcases hcover u.val u.property v hadj with hvU | rfl | rfl
-    · let w : (U : Set V) := ⟨v, hvU⟩
-      have hw : w ∈ K.neighborFinset u := (K.mem_neighborFinset u w).mpr hadj
-      exact Finset.mem_union_left _ (Finset.mem_map.mpr ⟨w, hw, rfl⟩)
-    · simp
-    · simp
-  have hcard := (Finset.card_le_card hsub).trans (Finset.card_union_le N {y, z})
-  have hpair : ({y, z} : Finset V).card ≤ 2 := Finset.card_le_two
-  have hN : N.card = (K.neighborFinset u).card := Finset.card_map _
-  rw [hN] at hcard
-  have hdegree : (H.neighborFinset u.val).card ≤ (K.neighborFinset u).card + 2 := by omega
-  simpa only [SimpleGraph.card_neighborFinset_eq_degree,
-    SimpleGraph.ncard_neighborSet] using hdegree
 end CycleClique.Construction
 end OAI
 
@@ -2705,20 +2475,6 @@ theorem connected_outside_single_attachment {V : Type*} {G : SimpleGraph V}
   intro a b
   have h := hmap a.val b.val (hconn a.val b.val)
   simpa only [f, dif_neg a.property, dif_neg b.property] using h
-theorem neighbors_outside_single_attachment {V : Type*} {G : SimpleGraph V}
-    {E : Finset V} {u v : V} (hv : v ∉ E) (hvu : v ≠ u)
-    (hattach : ∀ e ∈ E, ∀ w, G.Adj e w → w ∉ E → w = u) :
-    G.neighborSet v ⊆ {w | w ∉ E} := by
-  intro w hvw hw
-  exact hvu (hattach w hw v hvw.symm hv)
-theorem degree_outside_single_attachment {V : Type*} [Fintype V] {G : SimpleGraph V}
-    {E : Finset V} {u : V} (v : {v : V | v ∉ E}) (hvu : v.val ≠ u)
-    (hattach : ∀ e ∈ E, ∀ w, G.Adj e w → w ∉ E → w = u) :
-    ((G.induce {v | v ∉ E}).neighborSet v).ncard = (G.neighborSet v.val).ncard := by
-  classical
-  simp only [SimpleGraph.ncard_neighborSet]
-  exact G.degree_induce_of_neighborSet_subset
-    (neighbors_outside_single_attachment v.property hvu hattach)
 end CycleClique.Construction
 end OAI
 
@@ -3606,31 +3362,12 @@ def pentagon : SimpleGraph (Fin 5) where
   symm := ⟨fun _ _ h => h.symm⟩
   loopless := ⟨by intro x h; rcases h with h | h <;> omega⟩
 instance : DecidableRel pentagon.Adj := by unfold pentagon; infer_instance
-private theorem pentagon_no_triangle :
-    ∀ x y z : Fin 5, pentagon.Adj x y → pentagon.Adj y z → ¬ pentagon.Adj z x := by
-  decide
-private theorem pentagon_no_independent_triple :
-    ∀ x y z : Fin 5, x ≠ y → x ≠ z → y ≠ z →
-      ¬ pentagon.Adj x y → ¬ pentagon.Adj x z → pentagon.Adj y z := by
-  intro x y z
-  fin_cases x <;> fin_cases y <;> fin_cases z <;> decide
-theorem triangle_lower : ¬ RamseyProperty 3 3 5 := by
-  intro h
-  rcases h pentagon with ⟨f, hf, he⟩ | ⟨f, hf, he⟩
-  · have h01 : pentagon.Adj (f 0) (f 1) := by simpa [cycleNext] using he 0
-    have h12 : pentagon.Adj (f 1) (f 2) := by simpa [cycleNext] using he 1
-    have h20 : pentagon.Adj (f 2) (f 0) := by simpa [cycleNext] using he 2
-    exact pentagon_no_triangle _ _ _ h01 h12 h20
-  · exact he 1 2 (pentagon_no_independent_triple (f 0) (f 1) (f 2)
-      (hf.ne (by decide)) (hf.ne (by decide)) (hf.ne (by decide)) (he 0 1) (he 0 2))
 end CycleClique.Construction
 end OAI
 
 
 namespace OAI
 namespace CycleClique.Construction
-theorem triangle_ramsey : IsRamseyNumber 3 3 6 :=
-  isRamseyNumber_of_upper_lower triangle_upper triangle_lower
 end CycleClique.Construction
 end OAI
 
@@ -3728,13 +3465,6 @@ theorem triangle_clique_bounds {V : Type*} [Fintype V] {G : SimpleGraph V}
     SimpleGraph.is3Clique_triple_iff.mpr ⟨h01, h20.symm, h12⟩
   refine ⟨?_, cliqueNum_le_of_no_cycle (by omega) hcycle⟩
   simpa [hQ.card_eq] using hQ.isClique.card_le_cliqueNum
-theorem large_clique_small_k {V : Type*} [Fintype V] {G : SimpleGraph V}
-    {k a : ℕ} (hk : 3 ≤ k) (hk7 : k ≤ 7) (ha : 2 ≤ a) (hak : a ≤ k)
-    (hcard : Fintype.card V = k * a + 1)
-    (hI : IndependenceBound G a) (hcycle : ¬ HasCycle G (k + 1)) :
-    max 3 (k / 2) ≤ G.cliqueNum ∧ G.cliqueNum ≤ k := by
-  obtain ⟨hlo, hhi⟩ := triangle_clique_bounds hk ha hak hcard hI hcycle
-  exact ⟨by omega, hhi⟩
 end CycleClique.Construction
 end OAI
 
@@ -4865,16 +4595,6 @@ theorem exists_assignedAmounts {l : List V}
         rw [heq]
         exact .step hx hy hJ hJne hw
 namespace AssignedAmounts
-theorem positive {l : List V} {w : List ℕ} (h : AssignedAmounts Q l w) :
-    ∀ a ∈ w, 0 < a := by
-  induction h with
-  | nil => simp
-  | singleton => simp
-  | @step x y J B w hx hy hJ hne ht ih =>
-    intro a ha
-    rcases List.mem_cons.mp ha with rfl | ha
-    · exact List.length_pos_iff.mpr hne
-    · exact ih a ha
 theorem sum_eq {l : List V} {w : List ℕ} (h : AssignedAmounts Q l w) :
     w.sum = chainOutsideCount Q l := by
   induction h with
@@ -4959,19 +4679,6 @@ inductive SystemAssignedAmounts (Q : Finset V) : List (List V) → List ℕ → 
       (head : AssignedAmounts Q l w) (tail : SystemAssignedAmounts Q C W) :
       SystemAssignedAmounts Q (l :: C) (w ++ W)
 namespace SystemAssignedAmounts
-theorem exists_of_raw (S : RawPathSystem G Q) : ∃ w, SystemAssignedAmounts Q S.chains w := by
-  have hex : ∀ C : List (List V), (∀ l ∈ C, (∀ v ∈ l.head?, v ∈ Q) ∧ (∀ v ∈ l.getLast?, v ∈ Q)) →
-      (∀ l ∈ C, l.IsChain (fun x y => ¬ (x ∈ Q ∧ y ∈ Q))) →
-      ∃ w, SystemAssignedAmounts Q C w := by
-    intro C
-    induction C with
-    | nil => intros; exact ⟨[], .nil⟩
-    | cons l C ih =>
-      intro hends hsteps
-      obtain ⟨w, hw⟩ := exists_assignedAmounts (hends l (by simp)) (hsteps l (by simp))
-      obtain ⟨W, hW⟩ := ih (fun l hl => hends l (by simp [hl])) (fun l hl => hsteps l (by simp [hl]))
-      exact ⟨w ++ W, .cons hw hW⟩
-  exact hex S.chains S.endpoints S.no_clique_steps
 theorem append {C D : List (List V)} {w W : List ℕ}
     (hC : SystemAssignedAmounts Q C w) (hD : SystemAssignedAmounts Q D W) :
     SystemAssignedAmounts Q (C ++ D) (w ++ W) := by
@@ -4991,15 +4698,6 @@ theorem length_eq {C : List (List V)} {w : List ℕ} (h : SystemAssignedAmounts 
   | nil => rfl
   | cons hh ht ih =>
     simp only [List.length_append, hh.length_eq, ih, rawAssignedCount, List.map_cons, List.sum_cons]
-theorem positive {C : List (List V)} {w : List ℕ} (h : SystemAssignedAmounts Q C w) :
-    ∀ a ∈ w, 0 < a := by
-  induction h with
-  | nil => simp
-  | cons hh ht ih =>
-    intro a ha
-    rcases List.mem_append.mp ha with ha | ha
-    · exact hh.positive a ha
-    · exact ih a ha
 theorem cut {C : List (List V)} {w : List ℕ} (h : SystemAssignedAmounts Q C w)
     {A B : List ℕ} {a : ℕ} (heq : w = A ++ a :: B) :
     ∃ P R l A' B' U W,
@@ -5071,80 +4769,9 @@ end OAI
 namespace OAI
 namespace CycleClique.Construction
 variable {V : Type*} {Q : Finset V}
-private theorem outside_prefix_unique {J K B C : List V} {y z : V}
-    (hJ : ∀ v ∈ J, v ∉ Q) (hK : ∀ v ∈ K, v ∉ Q) (hy : y ∈ Q) (hz : z ∈ Q)
-    (heq : J ++ y :: B = K ++ z :: C) : J = K ∧ y = z ∧ B = C := by
-  induction J generalizing K with
-  | nil =>
-    cases K with
-    | nil => exact ⟨rfl, (List.cons.inj heq).1, (List.cons.inj heq).2⟩
-    | cons k K =>
-      have hyk : y = k := (List.cons.inj heq).1
-      exact False.elim (hK k (by simp) (by simpa only [← hyk] using hy))
-  | cons j J ih =>
-    cases K with
-    | nil =>
-      have hjz : j = z := (List.cons.inj heq).1
-      exact False.elim (hJ j (by simp) (by simpa only [hjz] using hz))
-    | cons k K =>
-      have hh : j = k ∧ J ++ y :: B = K ++ z :: C := List.cons.inj heq
-      obtain ⟨hJK, hyz, hBC⟩ := ih (fun v hv => hJ v (by simp [hv]))
-        (fun v hv => hK v (by simp [hv])) hh.2
-      exact ⟨by simp [hh.1, hJK], hyz, hBC⟩
 namespace AssignedAmounts
-theorem equal_of_chain_eq {l l' : List V} {w w' : List ℕ}
-    (h : AssignedAmounts Q l w) (h' : AssignedAmounts Q l' w') (heq : l = l') : w = w' := by
-  induction h generalizing l' w' with
-  | nil =>
-    cases h' with
-    | nil => rfl
-    | singleton => simp at heq
-    | step => simp at heq
-  | singleton hx =>
-    cases h' with
-    | nil => simp at heq
-    | singleton => rfl
-    | @step x y J B w hx hy hJ hne ht =>
-      have hh := congrArg List.length heq
-      simp only [List.length_cons, List.length_append, List.length_nil] at hh
-      omega
-  | @step x y J B w hx hy hJ hne ht ih =>
-    cases h' with
-    | nil => simp at heq
-    | singleton =>
-      have hh := congrArg List.length heq
-      simp only [List.length_cons, List.length_append, List.length_nil] at hh
-      omega
-    | @step x' y' K C W hx' hy' hK hKne ht' =>
-      have hh : x = x' ∧ J ++ y :: B = K ++ y' :: C := List.cons.inj heq
-      obtain ⟨hJK, hyy, hBC⟩ := outside_prefix_unique hJ hK hy hy' hh.2
-      subst K
-      subst y'
-      subst C
-      have hw := ih ht' rfl
-      simp only [hw]
-theorem unique {l : List V} {w w' : List ℕ}
-    (h : AssignedAmounts Q l w) (h' : AssignedAmounts Q l w') : w = w' :=
-  h.equal_of_chain_eq h' rfl
 end AssignedAmounts
 namespace SystemAssignedAmounts
-theorem equal_of_chains_eq {C D : List (List V)} {w W : List ℕ}
-    (h : SystemAssignedAmounts Q C w) (h' : SystemAssignedAmounts Q D W)
-    (heq : C = D) : w = W := by
-  induction h generalizing D W with
-  | nil =>
-    cases h' with
-    | nil => rfl
-    | cons => simp at heq
-  | @cons l C w W hh ht ih =>
-    cases h' with
-    | nil => simp at heq
-    | @cons l' D w' W' hh' ht' =>
-      have hc := List.cons.inj heq
-      rw [hh.equal_of_chain_eq hh' hc.1, ih ht' hc.2]
-theorem unique {C : List (List V)} {w W : List ℕ}
-    (h : SystemAssignedAmounts Q C w) (h' : SystemAssignedAmounts Q C W) : w = W :=
-  h.equal_of_chains_eq h' rfl
 end SystemAssignedAmounts
 end CycleClique.Construction
 end OAI
@@ -5152,201 +4779,12 @@ end OAI
 
 namespace OAI
 namespace CycleClique.Construction
-def amountSequences : ℕ → ℕ → List (List ℕ)
-  | 0, _ => [[]]
-  | e + 1, b => [] :: (List.range b).flatMap (fun q =>
-      (amountSequences e (b - (q + 1))).map (fun p => (q + 1) :: p))
-theorem mem_amountSequences {e b : ℕ} {p : List ℕ} :
-    p ∈ amountSequences e b ↔ p.length ≤ e ∧ p.sum ≤ b ∧ ∀ a ∈ p, 0 < a := by
-  induction e generalizing b p with
-  | zero =>
-    simp only [amountSequences, List.mem_singleton, Nat.le_zero]
-    constructor
-    · rintro rfl
-      simp
-    · rintro ⟨hp, _⟩
-      simpa using hp
-  | succ e ih =>
-    cases p with
-    | nil => simp [amountSequences]
-    | cons a p =>
-      constructor
-      · intro h
-        have hm : a :: p ∈ (List.range b).flatMap (fun q =>
-            (amountSequences e (b - (q + 1))).map (fun p => (q + 1) :: p)) := by
-          simpa only [amountSequences, List.mem_cons, List.cons_ne_nil, false_or] using h
-        obtain ⟨q, hq, hm⟩ := List.mem_flatMap.mp hm
-        obtain ⟨p', hp', heq⟩ := List.mem_map.mp hm
-        rcases List.cons.inj heq with ⟨rfl, rfl⟩
-        obtain ⟨hlen, hsum, hpos⟩ := ih.mp hp'
-        have hqb : q < b := List.mem_range.mp hq
-        refine ⟨by simp only [List.length_cons]; omega, ?_, ?_⟩
-        · simp only [List.sum_cons]
-          omega
-        · intro a ha
-          rcases List.mem_cons.mp ha with rfl | ha
-          · omega
-          · exact hpos a ha
-      · rintro ⟨hlen, hsum, hpos⟩
-        have ha : 0 < a := hpos a (by simp)
-        have haeq : a - 1 + 1 = a := by omega
-        have hsum' : a + p.sum ≤ b := by simpa using hsum
-        apply List.mem_cons.mpr
-        right
-        apply List.mem_flatMap.mpr
-        refine ⟨a - 1, List.mem_range.mpr (by omega), List.mem_map.mpr ?_⟩
-        refine ⟨p, ih.mpr ⟨?_, ?_, ?_⟩, ?_⟩
-        · simp only [List.length_cons] at hlen
-          omega
-        · omega
-        · intro c hc
-          exact hpos c (by simp [hc])
-        · simp [haeq]
 def LexLE (a b : List ℕ) : Prop := a = b ∨ List.Lex (· < ·) a b
 instance (a b : List ℕ) : Decidable (LexLE a b) := by
   unfold LexLE
   infer_instance
-def pathPatterns (t b : ℕ) (first : List ℕ := []) : List (List (List ℕ)) :=
-  match t with
-  | 0 => [[]]
-  | t + 1 =>
-    ((amountSequences t b).filter (fun p => decide (LexLE first p ∧ LexLE p p.reverse))).flatMap
-      (fun p => (pathPatterns (t - p.length) (b - p.sum) p).map (fun P => p :: P))
-termination_by t
-decreasing_by omega
-def patternCount (k t : ℕ) : ℕ := (pathPatterns t (k - t)).length
-def pathPatternsFuel : ℕ → ℕ → ℕ → List ℕ → List (List (List ℕ))
-  | _, 0, _, _ => [[]]
-  | 0, _ + 1, _, _ => []
-  | f + 1, t + 1, b, first =>
-    ((amountSequences t b).filter (fun p => decide (LexLE first p ∧ LexLE p p.reverse))).flatMap
-      (fun p => (pathPatternsFuel f (t - p.length) (b - p.sum) p).map (fun P => p :: P))
-theorem pathPatterns_eq_fuel {f t b : ℕ} {first : List ℕ} (h : t ≤ f) :
-    pathPatterns t b first = pathPatternsFuel f t b first := by
-  induction f generalizing t b first with
-  | zero =>
-    have : t = 0 := by omega
-    subst t
-    rw [pathPatterns, pathPatternsFuel]
-  | succ f ih =>
-    cases t with
-    | zero => rw [pathPatterns, pathPatternsFuel]
-    | succ t =>
-      rw [pathPatterns, pathPatternsFuel]
-      congr 1
-      funext p
-      rw [ih (show t - p.length ≤ f by omega)]
-def patternNumberFuel : ℕ → ℕ → ℕ → List ℕ → ℕ
-  | _, 0, _, _ => 1
-  | 0, _ + 1, _, _ => 0
-  | f + 1, t + 1, b, first =>
-    (((amountSequences t b).filter (fun p => decide (LexLE first p ∧ LexLE p p.reverse))).map
-      (fun p => patternNumberFuel f (t - p.length) (b - p.sum) p)).sum
-theorem pathPatternsFuel_length {f t b : ℕ} {first : List ℕ} :
-    (pathPatternsFuel f t b first).length = patternNumberFuel f t b first := by
-  induction f generalizing t b first with
-  | zero => cases t <;> rfl
-  | succ f ih =>
-    cases t with
-    | zero => rfl
-    | succ t => simp only [pathPatternsFuel, patternNumberFuel, List.length_flatMap,
-        List.length_map, ih]
-def amountSequenceSum : ℕ → ℕ → (List ℕ → ℕ) → ℕ
-  | 0, _, F => F []
-  | e + 1, b, F => F [] + ((List.range b).map (fun q =>
-      amountSequenceSum e (b - (q + 1)) (fun p => F ((q + 1) :: p)))).sum
-private theorem sum_flatMap_nat {α : Type*} (L : List α) (F : α → List ℕ) :
-    (L.flatMap F).sum = (L.map (fun a => (F a).sum)).sum := by
-  induction L with
-  | nil => rfl
-  | cons a L ih => simp [ih]
-theorem amountSequenceSum_eq {e b : ℕ} {F : List ℕ → ℕ} :
-    amountSequenceSum e b F = ((amountSequences e b).map F).sum := by
-  induction e generalizing b F with
-  | zero => simp [amountSequenceSum, amountSequences]
-  | succ e ih => simp only [amountSequenceSum, amountSequences, List.map_cons,
-      List.sum_cons, List.map_flatMap, sum_flatMap_nat, List.map_map, ih, Function.comp_def]
-private theorem sum_map_filter {α : Type*} (L : List α) (p : α → Bool) (F : α → ℕ) :
-    ((L.filter p).map F).sum = (L.map (fun a => if p a then F a else 0)).sum := by
-  induction L with
-  | nil => rfl
-  | cons a L ih => cases h : p a <;> simp [h, ih]
-def patternNumberShallow : ℕ → ℕ → ℕ → List ℕ → ℕ
-  | _, 0, _, _ => 1
-  | 0, _ + 1, _, _ => 0
-  | f + 1, t + 1, b, first => amountSequenceSum t b (fun p =>
-      if decide (LexLE first p ∧ LexLE p p.reverse)
-      then patternNumberShallow f (t - p.length) (b - p.sum) p else 0)
-theorem patternNumberFuel_eq_shallow {f t b : ℕ} {first : List ℕ} :
-    patternNumberFuel f t b first = patternNumberShallow f t b first := by
-  induction f generalizing t b first with
-  | zero => cases t <;> rfl
-  | succ f ih =>
-    cases t with
-    | zero => rfl
-    | succ t =>
-      simp only [patternNumberFuel, patternNumberShallow, amountSequenceSum_eq,
-        sum_map_filter, ih]
 def patternVertices (P : List (List ℕ)) : ℕ := (P.map (fun p => p.length + 1)).sum
 def patternAmount (P : List (List ℕ)) : ℕ := (P.map List.sum).sum
-def PatternValid : List ℕ → List (List ℕ) → Prop
-  | _, [] => True
-  | first, p :: P =>
-    LexLE first p ∧ LexLE p p.reverse ∧ (∀ a ∈ p, 0 < a) ∧ PatternValid p P
-theorem mem_pathPatterns {t b : ℕ} {first : List ℕ} {P : List (List ℕ)} :
-    P ∈ pathPatterns t b first ↔
-      patternVertices P = t ∧ patternAmount P ≤ b ∧ PatternValid first P := by
-  induction t using Nat.strong_induction_on generalizing b first P with
-  | h t ih =>
-    cases t with
-    | zero =>
-      rw [pathPatterns]
-      simp only [List.mem_singleton]
-      constructor
-      · rintro rfl
-        simp [patternVertices, patternAmount, PatternValid]
-      · rintro ⟨hv, _, _⟩
-        cases P with
-        | nil => rfl
-        | cons p P => simp [patternVertices] at hv
-    | succ t =>
-      rw [pathPatterns]
-      cases P with
-      | nil => simp [patternVertices]
-      | cons p P =>
-        constructor
-        · intro hm
-          obtain ⟨p', hp', hm⟩ := List.mem_flatMap.mp hm
-          obtain ⟨P', hP', heq⟩ := List.mem_map.mp hm
-          have hp'eq := (List.cons.inj heq).1
-          have hP'eq := (List.cons.inj heq).2
-          subst p'
-          subst P'
-          obtain ⟨hpseq, hporder⟩ := List.mem_filter.mp hp'
-          obtain ⟨hplen, hpsum, hppos⟩ := mem_amountSequences.mp hpseq
-          have hrest := (ih (t - p.length) (by omega)).mp hP'
-          have horder : LexLE first p ∧ LexLE p p.reverse := of_decide_eq_true hporder
-          refine ⟨?_, ?_, horder.1, horder.2, hppos, hrest.2.2⟩
-          · simp only [patternVertices, List.map_cons, List.sum_cons] at *
-            omega
-          · simp only [patternAmount, List.map_cons, List.sum_cons] at *
-            omega
-        · rintro ⟨hv, hb, hvalid⟩
-          have hplen : p.length ≤ t := by
-            simp only [patternVertices, List.map_cons, List.sum_cons] at hv
-            omega
-          have hpsum : p.sum ≤ b := by
-            simp only [patternAmount, List.map_cons, List.sum_cons] at hb
-            omega
-          obtain ⟨horder, hreverse, hpos, htail⟩ := hvalid
-          apply List.mem_flatMap.mpr
-          refine ⟨p, List.mem_filter.mpr ⟨mem_amountSequences.mpr ⟨hplen, hpsum, hpos⟩,
-            by simp [horder, hreverse]⟩, List.mem_map.mpr ?_⟩
-          refine ⟨P, (ih (t - p.length) (by omega)).mpr ⟨?_, ?_, htail⟩, rfl⟩
-          · simp only [patternVertices, List.map_cons, List.sum_cons] at hv ⊢
-            omega
-          · simp only [patternAmount, List.map_cons, List.sum_cons] at hb ⊢
-            omega
 end CycleClique.Construction
 end OAI
 
@@ -5400,46 +4838,9 @@ theorem vertices {C : List (List V)} {P : List (List ℕ)}
     simp only [patternVertices, List.map_cons, List.sum_cons, List.flatten_cons,
       chainCliqueCount_append] at ht ⊢
     omega
-theorem positive {C : List (List V)} {P : List (List ℕ)}
-    (hp : List.Forall₂ (AssignedAmounts Q) C P) :
-    ∀ w ∈ P, ∀ a ∈ w, 0 < a := by
-  induction hp with
-  | nil => simp
-  | @cons l w C P h hw ih =>
-    intro u hu
-    rcases List.mem_cons.mp hu with rfl | hu
-    · exact h.positive
-    · exact ih u hu
 end ChainProfiles
 namespace ExpandedPathSystem
 variable {G : SimpleGraph V}
-theorem exists_complete_profile (S : ExpandedPathSystem G Q) :
-    ∃ P : List (List ℕ),
-      List.Forall₂ (AssignedAmounts Q) S.toRaw.completeClique.chains P ∧
-      patternVertices P = Q.card ∧ patternAmount P = S.amount ∧
-      (P.map List.length).sum = S.assignedCount ∧
-      ∀ w ∈ P, ∀ a ∈ w, 0 < a := by
-  obtain ⟨P, hp⟩ := exists_chain_profiles S.toRaw.completeClique.chains
-    S.toRaw.completeClique.endpoints S.toRaw.completeClique.no_clique_steps
-  have hnonempty : ∀ l ∈ S.toRaw.completeClique.chains, l ≠ [] := by
-    intro l hl
-    change l ∈ S.chains ++ (Q \ S.toRaw.vertices).toList.map (fun v => [v]) at hl
-    rcases List.mem_append.mp hl with hl | hl
-    · have ht := S.nontrivial l hl
-      intro he
-      simp only [he, List.length_nil] at ht
-      omega
-    · obtain ⟨v, _, rfl⟩ := List.mem_map.mp hl
-      simp
-  refine ⟨P, hp, ?_, ?_, ?_, ChainProfiles.positive hp⟩
-  · rw [ChainProfiles.vertices hp hnonempty
-      (fun l hl => (S.toRaw.completeClique.endpoints l hl).1),
-      ← S.toRaw.completeClique.representatives_length,
-      S.toRaw.completeClique_representatives_length]
-  · rw [ChainProfiles.amount hp, ← S.toRaw.completeClique.amount_eq_outside_count,
-      RawPathSystem.completeClique_amount, toRaw_amount]
-  · rw [ChainProfiles.assignedCount hp, ← RawPathSystem.assignedCount,
-      RawPathSystem.completeClique_assignedCount, toRaw_assignedCount]
 end ExpandedPathSystem
 end CycleClique.Construction
 end OAI
@@ -5456,26 +4857,6 @@ theorem of_profiles {C : List (List V)} {P : List (List ℕ)}
   induction h with
   | nil => exact .nil
   | cons hh ht ih => exact .cons hh ih
-theorem realize_labels (S : RawPathSystem G Q) {ι : Type*}
-    (labels : List ι) (wt : ι → ℕ) (hnodup : labels.Nodup)
-    (h : SystemAssignedAmounts Q S.chains (labels.map wt))
-    (J : Finset ι) (hJ : J ⊆ labels.toFinset) :
-    ∃ T : ExpandedPathSystem G Q,
-      T.amount = ∑ i ∈ J, wt i ∧ T.assignedCount = J.card := by
-  classical
-  let K := labels.filter (fun i => decide (i ∈ J))
-  have hKnodup : K.Nodup := hnodup.filter _
-  have hKset : K.toFinset = J := by
-    ext i
-    simp only [K, List.mem_toFinset, List.mem_filter, decide_eq_true_eq]
-    exact ⟨And.right, fun hi => ⟨List.mem_toFinset.mp (hJ hi), hi⟩⟩
-  have hsub : (K.map wt).Sublist (labels.map wt) := (List.filter_sublist).map wt
-  obtain ⟨T, hTa, hTe⟩ := h.realize_sublist S hsub
-  refine ⟨T, ?_, ?_⟩
-  · have hs := List.sum_toFinset wt hKnodup
-    rw [hKset] at hs
-    exact hTa.trans hs.symm
-  · rw [hTe, List.length_map, ← List.toFinset_card_of_nodup hKnodup, hKset]
 theorem realize_sublist_of_perm (S : RawPathSystem G Q) {w u v : List ℕ}
     (h : SystemAssignedAmounts Q S.chains w) (hp : w.Perm u) (hs : v.Sublist u) :
     ∃ T : ExpandedPathSystem G Q, T.amount = v.sum ∧ T.assignedCount = v.length := by
@@ -5502,39 +4883,8 @@ theorem realize_labels_of_perm (S : RawPathSystem G Q) {ι : Type*}
     rw [hKset] at hs
     exact hTa.trans hs.symm
   · rw [hTe, List.length_map, ← List.toFinset_card_of_nodup hKnodup, hKset]
-theorem labelled_fin_range (S : RawPathSystem G Q) {w : List ℕ}
-    (h : SystemAssignedAmounts Q S.chains w) :
-    ∃ wt : Fin w.length → ℕ,
-      (∀ i, 0 < wt i) ∧ (∑ i, wt i) = S.amount ∧
-      (∀ J : Finset (Fin w.length), ∃ T : ExpandedPathSystem G Q,
-        T.amount = ∑ i ∈ J, wt i ∧ T.assignedCount = J.card) := by
-  classical
-  let wt : Fin w.length → ℕ := w.get
-  have hmap : (List.finRange w.length).map wt = w := by
-    rw [← List.ofFn_eq_map]
-    exact List.ofFn_get w
-  have hlabels : SystemAssignedAmounts Q S.chains ((List.finRange w.length).map wt) := by
-    rw [hmap]
-    exact h
-  refine ⟨wt, ?_, ?_, ?_⟩
-  · intro i
-    exact h.positive (wt i) (List.get_mem w i)
-  · have hs := List.sum_toFinset wt (List.nodup_finRange w.length)
-    have hset : (List.finRange w.length).toFinset = Finset.univ := by ext i; simp
-    rw [hset, hmap] at hs
-    rw [hs, h.sum_eq, ← S.amount_eq_outside_count]
-  · intro J
-    exact hlabels.realize_labels S _ wt (List.nodup_finRange w.length) J (by intro i hi; simp only [List.mem_toFinset, List.mem_finRange])
 end SystemAssignedAmounts
 namespace RawPathSystem
-theorem exists_labelled_amounts (S : RawPathSystem G Q) :
-    ∃ e : ℕ, ∃ wt : Fin e → ℕ,
-      e = S.assignedCount ∧ (∀ i, 0 < wt i) ∧ (∑ i, wt i) = S.amount ∧
-      (∀ J : Finset (Fin e), ∃ T : ExpandedPathSystem G Q,
-        T.amount = ∑ i ∈ J, wt i ∧ T.assignedCount = J.card) := by
-  obtain ⟨w, h⟩ := SystemAssignedAmounts.exists_of_raw S
-  obtain ⟨wt, hpos, hsum, hreal⟩ := h.labelled_fin_range S
-  exact ⟨w.length, wt, h.length_eq, hpos, hsum, hreal⟩
 end RawPathSystem
 end CycleClique.Construction
 end OAI
@@ -5803,12 +5153,6 @@ theorem amount_eq_zero_of_assignedCount_eq_zero (S : ExpandedPathSystem G Q)
   have hl := S.chains_length_le_assignedCount
   have hc : S.chains = [] := List.length_eq_zero_iff.mp (by omega)
   simp [amount, vertices, hc]
-theorem assignedCount_pos_of_amount_pos (S : ExpandedPathSystem G Q)
-    (hL : 0 < S.amount) : 0 < S.assignedCount := by
-  by_contra hn
-  have he : S.assignedCount = 0 := by omega
-  have h := S.amount_eq_zero_of_assignedCount_eq_zero he
-  omega
 theorem incident_eq_two_of_assignedCount_one (S : ExpandedPathSystem G Q)
     (he : S.assignedCount = 1) : S.incident = 2 := by
   have hl := S.chains_length_le_assignedCount
@@ -5977,39 +5321,6 @@ namespace OAI
 namespace CycleClique.Construction.ExpandedPathSystem
 open scoped BigOperators Classical
 variable {V : Type*} {G : SimpleGraph V} {Q : Finset V}
-theorem IsOptimal.terminal_classification_weights {S : ExpandedPathSystem G Q} {k d : ℕ}
-    (hopt : S.IsOptimal k) (ht : 9 ≤ Q.card) (hQk : Q.card ≤ k)
-    (hkQ : k ≤ 2 * Q.card + 1) (hQ : G.IsClique (Q : Set V))
-    (hcycle : ¬ HasCycle G (k + 1)) (hd : 2 ≤ d) (hd' : d ≤ 6)
-    {ι : Type*} (old : Finset ι) (new : ι) (wt : ι → ℕ) (hnew : new ∉ old)
-    (holdsum : ∑ i ∈ old, wt i ≤ S.amount)
-    (holdcard : old.card ≤ S.assignedCount)
-    (hfull : old.card = S.assignedCount → (∑ i ∈ old, wt i) = S.amount)
-    (htotal : ∑ i ∈ insert new old, wt i = S.amount + d)
-    (hrealize : ∀ J ⊆ insert new old, ∃ T : ExpandedPathSystem G Q,
-      T.amount = ∑ i ∈ J, wt i ∧ T.assignedCount = J.card)
-    (T : ExpandedPathSystem G Q) (hTa : T.amount = S.amount + d)
-    (hTi : T.incident ≤ S.incident + 2) :
-    S.amount = k - Q.card ∧ (∀ i ∈ old, d ≤ wt i) ∧
-      ((d = 2 ∧ Q.card ≤ S.incident + 2) ∨
-       (d = 3 ∧ (Q.card = 9 ∨ Q.card = 11) ∧
-         2 * S.assignedCount = Q.card - 3 ∧ S.incident = Q.card - 3) ∨
-       (d = 5 ∧ Q.card = 9 ∧ k = 19 ∧ S.assignedCount = 2 ∧ S.incident = 4)) := by
-  obtain ⟨hL, he, hs, _, hw⟩ := hopt.terminal_increment_weights ht hQk hkQ hQ hcycle
-    (by omega) hd' old new wt hnew holdsum holdcard hfull htotal hrealize
-  have hde : d * S.assignedCount ≤ S.amount := by
-    calc
-      d * S.assignedCount = ∑ _i ∈ old, d := by simp [he, Nat.mul_comm]
-      _ ≤ ∑ i ∈ old, wt i :=
-        Finset.sum_le_sum (fun i hi => hw i (Finset.mem_insert_of_mem hi))
-      _ = S.amount := hs
-  have hinc : k + 1 < T.amount + T.incident := by
-    by_contra hn
-    exact T.forbidden_interval (by omega) hQ hcycle (by omega) (by omega)
-  have htv : Q.card ≤ S.incident + d := by omega
-  exact ⟨hL, fun i hi => hw i (Finset.mem_insert_of_mem hi),
-    terminal_classification_arithmetic ht hQk hkQ hL hd hd' hde htv
-      S.incident_le_twice_assignedCount⟩
 theorem assignedCount_add_chains_length (S : ExpandedPathSystem G Q) :
     S.assignedCount + S.chains.length = S.incident := by
   have hh := rawAssignedCount_add_length (Q := Q) S.chains (by
@@ -7142,19 +6453,12 @@ theorem PositiveOutsidePath.toOutside {X : Set V} {x y : V} {d : ℕ}
   · intro v hv hvX
     have hv' : v ∈ p.support := by simpa [f, boundaryHom] using hv
     exact hsupp v hv' hvX
-theorem OutsidePath.of_enlargement {X X' : Set V} {x y : V} {d : ℕ}
-    (hXX' : X ⊆ X') (h : OutsidePath G X' x y d) : OutsidePath G X x y d := by
-  obtain ⟨p, hp, hlen, hsupp⟩ := h
-  exact ⟨p, hp, hlen, fun v hv hvX => hsupp v hv (hXX' hvX)⟩
 theorem OutsidePath.reverse {X : Set V} {x y : V} {d : ℕ}
     (h : OutsidePath G X x y d) : OutsidePath G X y x d := by
   obtain ⟨p, hp, hlen, hsupp⟩ := h
   refine ⟨p.reverse, hp.reverse, by simpa using hlen, ?_⟩
   intro v hv hvX
   exact (hsupp v (by simpa using hv) hvX).symm
-theorem outsidePath_forbidden_enlargement {X X' : Set V} {x y : V} {d : ℕ}
-    (hXX' : X ⊆ X') (h : ¬ OutsidePath G X x y d) : ¬ OutsidePath G X' x y d :=
-  fun hp => h (hp.of_enlargement hXX')
 theorem OutsidePath.interior {X : Set V} {x y : V} {d : ℕ}
     (h : OutsidePath G X x y d) :
     ∃ J : List V, J.Nodup ∧ J.length = d ∧ (∀ z ∈ J, z ∉ X) ∧
@@ -7186,41 +6490,6 @@ theorem OutsidePath.interior {X : Set V} {x y : V} {d : ℕ}
           (List.nodup_append'.mp (List.nodup_cons.mp hnd).2).2.2 hz (by simp)
     · rw [hsuffix]
       exact (SimpleGraph.Walk.cons hxy p).isChain_adj_support
-private theorem start_not_mem_support_tail {x y : V} {p : G.Walk x y}
-    (hp : p.IsPath) : x ∉ p.support.tail := by
-  have hnd := hp.support_nodup
-  rw [← p.cons_tail_support] at hnd
-  exact (List.nodup_cons.mp hnd).1
-theorem hasCycle_of_required_outside_path {X : Set V} {x y : V}
-    (p : G.Walk x y) (hp : p.IsPath) (hpX : ∀ v ∈ p.support, v ∈ X)
-    {d : ℕ} (houtside : OutsidePath G X x y d)
-    (hlen : 2 ≤ p.length ∨ 1 ≤ d) : HasCycle G (p.length + (d + 1)) := by
-  obtain ⟨q, hq, hqlen, hqX⟩ := houtside
-  have hqr : q.reverse.IsPath := hq.reverse
-  have hdis : p.support.tail.Disjoint q.reverse.support.tail := by
-    apply List.disjoint_left.mpr
-    intro v hvp hvq
-    have hvp' : v ∈ p.support := List.mem_of_mem_tail hvp
-    have hvq' : v ∈ q.support := by
-      simpa using (List.mem_of_mem_tail hvq : v ∈ q.reverse.support)
-    rcases hqX v hvq' (hpX v hvp') with rfl | rfl
-    · exact start_not_mem_support_tail hp hvp
-    · exact start_not_mem_support_tail hqr hvq
-  have hc := hp.isCycle_append hqr hdis (by
-    rcases hlen with h | h
-    · exact Or.inl (by omega)
-    · exact Or.inr (by simpa [hqlen] using (show 1 < d + 1 by omega)))
-  have hcycle := hasCycle_of_isCycle hc
-  simpa [hqlen] using hcycle
-theorem required_path_forbids {X : Set V} {x y : V} {k : ℕ}
-    (hk : 3 ≤ k) (hcycle : ¬ HasCycle G (k + 1))
-    (p : G.Walk x y) (hp : p.IsPath) (hpX : ∀ v ∈ p.support, v ∈ X)
-    (hpos : 1 ≤ p.length) (hbound : p.length ≤ k) :
-    ¬ OutsidePath G X x y (k - p.length) := by
-  intro h
-  have hc := hasCycle_of_required_outside_path p hp hpX h
-    (show 2 ≤ p.length ∨ 1 ≤ k - p.length by omega)
-  exact hcycle (by convert hc using 1; omega)
 end CycleClique.Construction
 end OAI
 
@@ -8452,31 +7721,6 @@ theorem independent_pair_of_not_clique {Y : Finset V}
   by_contra hadj
   exact hn (independent_pair (x := ⟨x, hx⟩) (y := ⟨y, hy⟩)
     (fun h => hxy (congrArg Subtype.val h)) hadj)
-theorem independent_pair_of_card_gt_cliqueNum {Y : Finset V} {t : ℕ}
-    (ht : G.cliqueNum ≤ t) (hcard : t < Y.card) :
-    HasIndependent (G.induce (Y : Set V)) 2 := by
-  apply independent_pair_of_not_clique
-  intro h
-  have := h.card_le_cliqueNum
-  omega
-theorem outsideBall_initial_pair {X : Finset V} {x : V} {t : ℕ}
-    (hx : x ∈ X) (ht : G.cliqueNum ≤ t)
-    (hcard : t ≤ (outsideBallFinset G X x 0).card) :
-    HasIndependent (G.induce (outsideBallFinset G X x 0 : Set V)) 2 := by
-  classical
-  apply independent_pair_of_not_clique
-  intro hclique
-  have hxout : x ∉ outsideBallFinset G X x 0 := by
-    intro h
-    exact (mem_outsideBallFinset.mp h).1 hx
-  have hjoin : G.IsClique ((insert x (outsideBallFinset G X x 0) : Finset V) : Set V) := by
-    rw [Finset.coe_insert]
-    apply hclique.insert
-    intro v hv _
-    exact ((outsideBall_zero hx).mp (mem_outsideBallFinset.mp hv)).1
-  have hb := hjoin.card_le_cliqueNum.trans ht
-  rw [Finset.card_insert_of_notMem hxout] at hb
-  omega
 theorem outsideBall_exception_pair {X A : Finset V} {x : V} {r k t : ℕ}
     (hx : x ∈ X) (hAX : A ⊆ X) (hxA : x ∉ A)
     (ht : G.cliqueNum ≤ t)
@@ -9458,23 +8702,6 @@ theorem IsOptimal.terminal_oriented_first_ball {k : ℕ}
     hoptT.terminal_first_ball hk hQk hQ hcycle hclique hcT hexpand hxT
   refine ⟨by simpa only [hTground] using hcard, ?_⟩
   convert hpair using 1 <;> rw [hTground]
-theorem IsOptimal.terminal_oriented_second_ball (hCE : CEAlphaTwo) {k : ℕ}
-    (hopt : S.IsOptimal k) (hk : 5 ≤ k) (hQk : Q.card ≤ k) (ht : 1 ≤ Q.card)
-    (hkt : 2 * Q.card ≤ k) (hQ : G.IsClique (Q : Set V))
-    (hcycle : ¬ HasCycle G (k + 1)) (hclique : G.cliqueNum ≤ Q.card)
-    (hc : 2 ≤ S.chains.length)
-    (hexpand : ∀ I : Finset V, G.IsIndepSet (I : Set V) → I.Nonempty →
-      k * I.card + 1 ≤ (closedNeighborhood G I).card)
-    (p : List V → Bool) {x : V}
-    (hx : x ∈ (S.toRaw.completeClique.orientChains p).representatives) :
-    HasIndependent (G.induce (outsideBallFinset G S.ground x 2 : Set V)) 3 := by
-  have hsingle : ∀ v, k + 1 ≤ (closedNeighborhood G {v}).card := by
-    intro v
-    simpa using hexpand {v} (by simp) (by simp)
-  have hp := (hopt.terminal_oriented_first_ball (by omega) hQk hQ hcycle
-    hclique hc hsingle p hx).2
-  exact outsideBall_two_triple_of_first_pair hCE hk ht hkt hcycle hclique
-    (hopt.ground_card_le hQk) hexpand hp
 end CycleClique.Construction.ExpandedPathSystem
 end OAI
 
@@ -9628,14 +8855,6 @@ theorem starting_replacement_incident (U T : RawPathSystem G Q)
   simp only [htsys, hsys, List.map_append, List.map_cons, List.sum_append,
     List.sum_cons, activeCliqueCount_nil]
   omega
-theorem starting_replacement_incident_le (U T : RawPathSystem G Q)
-    {P M R : List (List V)} {B D J : List V} {x y : V}
-    (hsys : U.chains = P ++ (x :: B) :: M ++ (y :: D) :: R)
-    (htsys : T.chains = P ++ [] :: M ++ [] :: (B.reverse ++ x :: (J ++ y :: D)) :: R)
-    (hJQ : ∀ z ∈ J, z ∉ Q) (hJne : J ≠ []) :
-    T.normalize.incident ≤ U.normalize.incident + 2 := by
-  rw [starting_replacement_incident U T hsys htsys hJQ hJne]
-  split_ifs <;> omega
 end CycleClique.Construction.RawPathSystem
 end OAI
 
@@ -10644,9 +9863,6 @@ theorem blockGraph_not_ramsey {a k m n : ℕ} (hkm : k < m) (han : a < n) :
       hi.map e e.injective (fun h => h)
     have := blockGraph_independent_bound hi'
     omega
-theorem cycle_clique_lower_bound {m n : ℕ} (hm : 3 ≤ m) (hn : 3 ≤ n) :
-    ¬ RamseyProperty m n ((m - 1) * (n - 1)) := by
-  exact blockGraph_not_ramsey (by omega) (by omega)
 end CycleClique.Construction
 end OAI
 

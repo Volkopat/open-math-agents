@@ -542,21 +542,6 @@ theorem extract_pairs_of_cover {ι : Type} (hQ : LargeQuantifier Q) {k : Nat}
   obtain ⟨a, pos, inc, h⟩ := extract_family hQ L _ hs
   exact ⟨a, pos, inc, fun S T => h S (covered S) T (covered T)⟩
 
-/-- A uniform formulation for any subset-sum operation, with the independent-set statement
-    written as pairwise nonadjacency of distinct images of eligible subsets. -/
-theorem extract_independent_image {ι : Type} (hQ : LargeQuantifier Q) {k : Nat}
-    (L : List ι) (covered : ∀ i, i ∈ L) (eligible : ι → Prop)
-    (sum : (Fin k → Nat) → ι → Nat) (Adj : Nat → Nat → Prop)
-    (h : ∀ S T, eligible S → eligible T → S ≠ T →
-      Typical Q k (fun a => ¬Adj (sum a S) (sum a T))) :
-    ∃ a, (∀ i, 0 < a i) ∧ (∀ i j, i < j → a i < a j) ∧
-      ∀ x y, (∃ S, eligible S ∧ x = sum a S) → (∃ T, eligible T ∧ y = sum a T) →
-        x ≠ y → ¬Adj x y := by
-  obtain ⟨a, pos, inc, hp⟩ := extract_pairs_of_cover hQ L covered eligible _ h
-  refine ⟨a, pos, inc, ?_⟩
-  rintro _ _ ⟨S, hs, rfl⟩ ⟨T, ht, rfl⟩ hne
-  exact hp S T hs ht (fun heq => hne (congrArg (sum a) heq))
-
 end Erdos895Extract
 
 namespace Erdos895Extract
@@ -577,21 +562,6 @@ theorem extract_finset_sums {Q : (Nat → Prop) → Prop} (hQ : LargeQuantifier 
   obtain ⟨a, pos, inc, independent⟩ :=
     extract_pairs_of_cover hQ allSubsets covers Finset.Nonempty _ h
   exact ⟨a, fun _ _ hij => inc _ _ hij, pos, independent⟩
-
-/-- An extensional version matching the original finite-sums set, including collisions. -/
-theorem extract_finset_image {Q : (Nat → Prop) → Prop} (hQ : LargeQuantifier Q)
-    {k : Nat} (Adj : Nat → Nat → Prop)
-    (h : ∀ S T : Finset (Fin k), S.Nonempty → T.Nonempty → S ≠ T →
-      Typical Q k (fun a => ¬Adj (∑ i ∈ S, a i) (∑ i ∈ T, a i))) :
-    ∃ a : Fin k → Nat, StrictMono a ∧ (∀ i, 0 < a i) ∧
-      Set.Pairwise {m | ∃ S : Finset (Fin k), S.Nonempty ∧ m = ∑ i ∈ S, a i}
-        (fun x y : Nat => ¬Adj x y) := by
-  obtain ⟨a, inc, pos, hnon⟩ := extract_finset_sums hQ Adj h
-  refine ⟨a, inc, pos, ?_⟩
-  rintro x ⟨S, hs, rfl⟩ y ⟨T, ht, rfl⟩ hne
-  apply hnon S T hs ht
-  rintro rfl
-  exact hne rfl
 
 end Erdos895Extract
 
@@ -732,9 +702,6 @@ theorem qor (P R : ℕ → Prop) : Q (fun t => P t ∨ R t) ↔ Q P ∨ Q R :=
 theorem qand (P R : ℕ → Prop) : Q (fun t => P t ∧ R t) ↔ Q P ∧ Q R :=
   Filter.eventually_and
 
-theorem qnot (P : ℕ → Prop) : Q (fun t => ¬ P t) ↔ ¬ Q P :=
-  Ultrafilter.eventually_not
-
 theorem qmono (P R : ℕ → Prop) (h : ∀ t, P t → R t) (hp : Q P) : Q R :=
   Filter.Eventually.mono hp fun x hx => h x hx
 
@@ -759,11 +726,6 @@ theorem qtail (b : ℕ) : Q (fun x => b < x) := by
     apply (qadd (fun t => b + 1 < t)).mp
     refine qmono _ _ (fun x hx => ?_) ih
     exact qmono _ _ (fun y hy => by omega) qpositive
-
-theorem qcofinite (P : ℕ → Prop) (h : ∀ᶠ x in Filter.cofinite, P x) : Q P := by
-  rw [Nat.cofinite_eq_atTop, Filter.eventually_atTop] at h
-  obtain ⟨b, hb⟩ := h
-  exact qmono _ _ (fun t ht => hb t (Nat.le_of_lt ht)) (qtail b)
 
 end Erdos895Ultrafilter
 open Filter

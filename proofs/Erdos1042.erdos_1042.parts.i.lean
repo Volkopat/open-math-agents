@@ -514,15 +514,6 @@ def f (n : ℕ) (r : ℝ) (z : ℂ) : ℂ := z ^ n - (r : ℂ) ^ n
 
 def S (n : ℕ) (r : ℝ) : Set ℂ := {z | ‖f n r z‖ ≤ 1}
 
-lemma disk_in_right_half_plane {r : ℝ} (hr : r > 1) {n : ℕ} (hn : n > 0) :
-    ∀ w ∈ closedBall (r ^ n : ℂ) 1, 0 < w.re := by
-  intro w hw
-  have h_re_w : w.re ≥ r ^ n - 1 := by
-    norm_num [Complex.dist_eq, Complex.normSq, Complex.norm_def] at hw
-    norm_cast at *
-    nlinarith
-  linarith [pow_lt_pow_right₀ hr hn]
-
 noncomputable def branch (n : ℕ) (k : ℕ) (w : ℂ) : ℂ :=
   (Real.rpow (norm w) (1 / (n : ℝ)) : ℂ) *
     Complex.exp (Complex.I * ((Complex.arg w + 2 * Real.pi * k) / n : ℝ))
@@ -544,165 +535,8 @@ lemma branch_pow {n : ℕ} (hn : n > 0) (k : ℕ) (w : ℂ) :
     (Complex.exp_eq_exp_iff_exists_int.mpr
       ⟨k, by simp [hn.ne', mul_assoc, mul_comm, mul_left_comm]⟩)
 
-lemma branch_mem_S {n : ℕ} (hn : n > 0) {r : ℝ} (hr : r > 1) (k : ℕ)
-    (w : ℂ) (hw : w ∈ closedBall (r ^ n : ℂ) 1) :
-    branch n k w ∈ S n r := by
-  rw [S, Set.mem_ofPred_eq, f]
-  have hre : 0 < w.re := disk_in_right_half_plane hr hn w hw
-  rw [branch_pow hn k w]
-  rw [Metric.mem_closedBall, Complex.dist_eq] at hw
-  exact hw
-
-lemma branch_continuous_on_disk {n : ℕ} (hn : n > 0) {r : ℝ} (hr : r > 1) (k : ℕ) :
-    ContinuousOn (branch n k) (closedBall (r ^ n : ℂ) 1) := by
-  have h_arg_cont :
-      ContinuousOn (fun z : ℂ ↦ Complex.arg z) (closedBall (r ^ n : ℂ) 1) := by
-    refine continuousOn_of_forall_continuousAt fun z hz ↦ ?_
-    refine Complex.continuousAt_arg ?_
-    simp_all +decide [Complex.slitPlane]
-    contrapose! hz
-    norm_num [Complex.dist_eq, Complex.normSq, Complex.norm_def, hz]
-    norm_cast
-    norm_num
-    rw [Real.sqrt_mul_self_eq_abs, abs_of_nonpos] <;>
-      nlinarith [pow_le_pow_right₀ hr.le hn]
-  refine ContinuousOn.mul ?_ ?_
-  · exact Complex.continuous_ofReal.comp_continuousOn
-      (ContinuousOn.rpow continuous_norm.continuousOn continuousOn_const <| by
-        intro x hx
-        exact Or.inr <| by positivity)
-  · exact Complex.continuous_exp.comp_continuousOn
-      (ContinuousOn.mul continuousOn_const <|
-        Complex.continuous_ofReal.comp_continuousOn <|
-          ContinuousOn.div_const (h_arg_cont.add continuousOn_const) _)
-
 def component (n : ℕ) (r : ℝ) (k : ℕ) : Set ℂ :=
   branch n k '' closedBall (r ^ n : ℂ) 1
-
-lemma S_subset_union_components {n : ℕ} (hn : n > 0) {r : ℝ} (hr : r > 1) :
-    S n r ⊆ ⋃ k ∈ Finset.range n, component n r k := by
-  intro z hz
-  rw [S, Set.mem_ofPred_eq, f] at hz
-  let w := z ^ n
-  have hw : w ∈ closedBall (r ^ n : ℂ) 1 := by
-    rw [Metric.mem_closedBall, Complex.dist_eq]
-    exact hz
-  have h_root : z ^ n = w := rfl
-  have hw_ne_zero : w ≠ 0 := by
-    have : 0 < w.re := disk_in_right_half_plane hr hn w hw
-    intro h
-    rw [h] at this
-    simp at this
-  obtain ⟨k, hk⟩ : ∃ k ∈ Finset.range n, z = branch n k w := by
-    obtain ⟨k, hk⟩ :
-        ∃ k : ℤ,
-          z = (Real.rpow (norm w) (1 / (n : ℝ)) : ℂ) *
-            Complex.exp
-              (Complex.I * ((Complex.arg w + 2 * Real.pi * k) / n : ℝ)) := by
-      have h_exp :
-          ∃ θ : ℝ,
-            z = (Real.rpow (norm w) (1 / n) : ℂ) *
-              Complex.exp (Complex.I * θ) := by
-        have h_polar : z = ‖z‖ * Complex.exp (Complex.I * Complex.arg z) := by
-          nth_rw 1 [← Complex.norm_mul_exp_arg_mul_I z]
-          ring_nf
-        norm_num [← h_root, Complex.norm_exp] at *
-        exact ⟨Complex.arg z, by
-          rw [← Real.rpow_natCast, ← Real.rpow_mul (norm_nonneg _),
-            mul_inv_cancel₀ (by positivity), Real.rpow_one]
-          exact h_polar⟩
-      obtain ⟨θ, hθ⟩ := h_exp
-      have h_eq : ∃ k : ℤ, n * θ = Complex.arg w + 2 * Real.pi * k := by
-        have h_eq :
-            Complex.exp (Complex.I * (n * θ)) =
-              Complex.exp (Complex.I * Complex.arg w) := by
-          have h_exp :
-              z ^ n = (Real.rpow (norm w) (1 / n : ℝ)) ^ n *
-                Complex.exp (Complex.I * (n * θ)) := by
-            rw [hθ, mul_pow, ← Complex.exp_nat_mul]
-            ring_nf
-          have h_exp : (Real.rpow (norm w) (1 / n : ℝ)) ^ n = norm w := by
-            norm_num [← Real.rpow_natCast, ← Real.rpow_mul (norm_nonneg _), hn.ne']
-          have h_exp : w = norm w * Complex.exp (Complex.I * Complex.arg w) := by
-            nth_rw 1 [← Complex.norm_mul_exp_arg_mul_I w]
-            ring_nf
-          norm_num [Complex.ext_iff] at *
-          norm_cast at *
-          aesop
-        rw [Complex.exp_eq_exp_iff_exists_int] at h_eq
-        obtain ⟨k, hk⟩ := h_eq
-        exact ⟨k, by
-          norm_num [Complex.ext_iff] at hk
-          linarith⟩
-      exact h_eq.imp fun k hk ↦ by
-        rw [hθ, ← hk]
-        push_cast
-        ring_nf
-        norm_num [hn.ne']
-    obtain ⟨q, s, hs⟩ : ∃ q : ℤ, ∃ s : ℕ, s < n ∧ k = q * n + s := by
-      exact ⟨k / n, Int.toNat (k % n), by
-        linarith [Int.emod_lt_of_pos k (by positivity : 0 < (n : ℤ)),
-          Int.emod_nonneg k (by positivity : (n : ℤ) ≠ 0),
-          Int.toNat_of_nonneg
-            (Int.emod_nonneg k (by positivity : (n : ℤ) ≠ 0))],
-        by
-          linarith [Int.emod_add_mul_ediv k n,
-            Int.toNat_of_nonneg
-              (Int.emod_nonneg k (by positivity : (n : ℤ) ≠ 0))]⟩
-    refine ⟨s, Finset.mem_range.mpr hs.1, hk.trans ?_⟩
-    norm_num [hs.2, branch]
-    ring_nf
-    norm_num [hn.ne']
-    ring_nf
-    exact Or.inl (Complex.exp_eq_exp_iff_exists_int.mpr ⟨q, by ring⟩)
-  exact hk.2.symm ▸ Set.mem_iUnion₂.2 ⟨k, hk.1, ⟨w, hw, rfl⟩⟩
-
-lemma components_disjoint {n : ℕ} (hn : n > 0) {r : ℝ} (hr : r > 1)
-    (k l : ℕ) (hk : k < n) (hl : l < n)
-    (h : (component n r k ∩ component n r l).Nonempty) : k = l := by
-  obtain ⟨z, hz⟩ : ∃ z, z ∈ component n r k ∧ z ∈ component n r l := h
-  obtain ⟨w1, hw1, hw1z⟩ : ∃ w1 ∈ closedBall (r ^ n : ℂ) 1, z = branch n k w1 := by
-    exact hz.1.imp fun x hx ↦ ⟨hx.1, hx.2.symm⟩
-  obtain ⟨w2, hw2, hw2z⟩ : ∃ w2 ∈ closedBall (r ^ n : ℂ) 1, z = branch n l w2 := by
-    exact hz.2.imp fun x hx ↦ ⟨hx.1, hx.2.symm⟩
-  have hw1w2 : w1 = w2 := by
-    have hw1w2 : z ^ n = w1 ∧ z ^ n = w2 := by
-      exact ⟨by rw [hw1z, branch_pow hn k w1], by rw [hw2z, branch_pow hn l w2]⟩
-    grind
-  have h_branch_eq : branch n k w1 = branch n l w1 := by grind
-  have h_exp_eq :
-      Complex.exp (Complex.I * ((Complex.arg w1 + 2 * Real.pi * k) / n)) =
-        Complex.exp (Complex.I * ((Complex.arg w1 + 2 * Real.pi * l) / n)) := by
-    unfold branch at h_branch_eq
-    simp +zetaDelta at *
-    refine h_branch_eq.resolve_right ?_
-    refine ne_of_gt (Real.rpow_pos_of_pos ?_ ((n : ℝ)⁻¹))
-    refine norm_pos_iff.mpr ?_
-    rintro rfl
-    norm_num at *
-    exact hw1.not_gt
-      (one_lt_pow₀ (by rw [abs_of_pos] <;> linarith) (by linarith))
-  rw [Complex.exp_eq_exp_iff_exists_int] at h_exp_eq
-  obtain ⟨m, hm⟩ := h_exp_eq
-  rw [Complex.ext_iff] at hm
-  simp_all +decide
-  have hkl : k = l + m * n := by
-    exact_mod_cast
-      (by
-        nlinarith [Real.pi_pos,
-          mul_div_cancel₀ (w2.arg + 2 * Real.pi * k)
-            (by positivity : (n : ℝ) ≠ 0),
-          mul_div_cancel₀ (w2.arg + 2 * Real.pi * l)
-            (by positivity : (n : ℝ) ≠ 0)] :
-        (k : ℝ) = l + m * n)
-  nlinarith [show m = 0 by nlinarith]
-
-lemma component_isClosed {n : ℕ} (hn : n > 0) {r : ℝ} (hr : r > 1) (k : ℕ) :
-    IsClosed (component n r k) := by
-  convert IsCompact.isClosed ?_
-  · infer_instance
-  · exact IsCompact.image_of_continuousOn (ProperSpace.isCompact_closedBall _ _)
-      (branch_continuous_on_disk hn hr k)
 
 /-- On the open disk tangent to the origin, the same polar inverse branch is
 continuous.  This is the endpoint version needed for `r = 1`. -/
@@ -831,147 +665,6 @@ end Model
 def openModelSet (n : ℕ) (r : ℝ) : Set ℂ :=
   {z | ‖Model.f n r z‖ < 1}
 
-/-- The part of the `k`-th closed inverse branch which lies in the open
-lemniscate. -/
-def openModelComponent (n : ℕ) (r : ℝ) (k : ℕ) : Set ℂ :=
-  Model.component n r k ∩ openModelSet n r
-
-lemma openModelSet_subset_S (n : ℕ) (r : ℝ) :
-    openModelSet n r ⊆ Model.S n r := by
-  intro z hz
-  change ‖Model.f n r z‖ < 1 at hz
-  change ‖Model.f n r z‖ ≤ 1
-  exact le_of_lt hz
-
-lemma branch_mem_openModelSet {n : ℕ} (hn : 0 < n) {r : ℝ}
-    (k : ℕ) {w : ℂ} (hw : w ∈ ball (r ^ n : ℂ) 1) :
-    Model.branch n k w ∈ openModelSet n r := by
-  rw [openModelSet, Set.mem_ofPred_eq, Model.f, Model.branch_pow hn]
-  simpa [Complex.dist_eq] using hw
-
-lemma openModel_cover {n : ℕ} (hn : 0 < n) {r : ℝ} (hr : 1 < r) :
-    openModelSet n r ⊆ ⋃ k ∈ Finset.range n, openModelComponent n r k := by
-  intro z hz
-  have hzS : z ∈ Model.S n r := openModelSet_subset_S n r hz
-  obtain ⟨k, hk, hzk⟩ := Set.mem_iUnion₂.mp (Model.S_subset_union_components hn hr hzS)
-  exact Set.mem_iUnion₂.mpr ⟨k, hk, hzk, hz⟩
-
-lemma openModelComponent_eq_image_ball {n : ℕ} (hn : 0 < n) {r : ℝ}
-    (k : ℕ) :
-    openModelComponent n r k =
-      Model.branch n k '' ball (r ^ n : ℂ) 1 := by
-  ext z
-  constructor
-  · rintro ⟨⟨w, hw, rfl⟩, hz⟩
-    refine ⟨w, ?_, rfl⟩
-    rw [openModelSet, Set.mem_ofPred_eq, Model.f, Model.branch_pow hn] at hz
-    simpa [Complex.dist_eq] using hz
-  · rintro ⟨w, hw, rfl⟩
-    exact ⟨⟨w, ball_subset_closedBall hw, rfl⟩, branch_mem_openModelSet hn k hw⟩
-
-lemma openModelComponent_connected {n : ℕ} (hn : 0 < n) {r : ℝ} (hr : 1 < r)
-    (k : ℕ) : IsConnected (openModelComponent n r k) := by
-  rw [openModelComponent_eq_image_ball hn]
-  have hball : (ball (r ^ n : ℂ) 1).Nonempty :=
-    ⟨(r ^ n : ℂ), mem_ball_self (by positivity)⟩
-  refine ((convex_ball (r ^ n : ℂ) 1).isConnected hball).image
-    (Model.branch n k) ?_
-  exact (Model.branch_continuous_on_disk hn hr k).mono ball_subset_closedBall
-
-/-- A branch component, regarded as a subset of the lemniscate subtype. -/
-def openModelComponentSubtype (n : ℕ) (r : ℝ) (k : ℕ) :
-    Set (openModelSet n r) :=
-  {z | z.1 ∈ Model.component n r k}
-
-lemma openModelComponentSubtype_isClosed {n : ℕ} (hn : 0 < n) {r : ℝ}
-    (hr : 1 < r) (k : ℕ) :
-    IsClosed (openModelComponentSubtype n r k) := by
-  exact (Model.component_isClosed hn hr k).preimage continuous_subtype_val
-
-lemma openModelComponentSubtype_isOpen {n : ℕ} (hn : 0 < n) {r : ℝ}
-    (hr : 1 < r) (k : ℕ) (hk : k < n) :
-    IsOpen (openModelComponentSubtype n r k) := by
-  have hclosed :
-      IsClosed (⋃ l ∈ Finset.erase (Finset.range n) k,
-        openModelComponentSubtype n r l) := by
-    exact isClosed_biUnion_finset fun l _ ↦ openModelComponentSubtype_isClosed hn hr l
-  have heq :
-      (⋃ l ∈ Finset.erase (Finset.range n) k,
-          openModelComponentSubtype n r l) =
-        (openModelComponentSubtype n r k)ᶜ := by
-    ext z
-    constructor
-    · intro hz
-      obtain ⟨l, hl, hzl⟩ := Set.mem_iUnion₂.mp hz
-      have hlrange : l < n := Finset.mem_range.mp (Finset.mem_of_mem_erase hl)
-      have hlne : l ≠ k := (Finset.mem_erase.mp hl).1
-      intro hzk
-      exact hlne (Model.components_disjoint hn hr l k hlrange hk
-        ⟨z.1, hzl, hzk⟩)
-    · intro hzk
-      have hzcover := openModel_cover hn hr z.2
-      obtain ⟨l, hl, hzl, _⟩ := Set.mem_iUnion₂.mp hzcover
-      have hlne : l ≠ k := by
-        rintro rfl
-        exact hzk hzl
-      exact Set.mem_iUnion₂.mpr ⟨l, Finset.mem_erase.mpr ⟨hlne, hl⟩, hzl⟩
-  rw [← isClosed_compl_iff]
-  simpa [← heq] using hclosed
-
-lemma openModelComponentSubtype_connected {n : ℕ} (hn : 0 < n) {r : ℝ}
-    (hr : 1 < r) (k : ℕ) :
-    IsConnected (openModelComponentSubtype n r k) := by
-  let e : openModelComponent n r k → openModelSet n r :=
-    fun z ↦ ⟨z.1, z.2.2⟩
-  have himage : e '' Set.univ = openModelComponentSubtype n r k := by
-    ext z
-    constructor
-    · rintro ⟨w, -, rfl⟩
-      exact w.2.1
-    · intro hz
-      exact ⟨⟨z.1, hz, z.2⟩, Set.mem_univ _, rfl⟩
-  have he : Continuous e := by
-    exact Continuous.subtype_mk continuous_subtype_val
-      (fun z : openModelComponent n r k ↦ z.2.2)
-  let hconnected : ConnectedSpace (openModelComponent n r k) :=
-    Subtype.connectedSpace (openModelComponent_connected hn hr k)
-  rw [← himage]
-  exact (isConnected_univ : IsConnected (Set.univ :
-    Set (openModelComponent n r k))).image e he.continuousOn
-
-lemma openModel_components_pairwise_disjoint {n : ℕ} (hn : 0 < n) {r : ℝ}
-    (hr : 1 < r) :
-    Pairwise (Function.onFun Disjoint
-      (fun k : Fin n ↦ openModelComponentSubtype n r k)) := by
-  intro i j hij
-  change Disjoint (openModelComponentSubtype n r i)
-    (openModelComponentSubtype n r j)
-  rw [Set.disjoint_left]
-  intro z hzi hzj
-  have hval : (i : ℕ) = j :=
-    Model.components_disjoint hn hr i j i.isLt j.isLt ⟨z.1, hzi, hzj⟩
-  exact hij (Fin.ext hval)
-
-lemma openModel_components_cover {n : ℕ} (hn : 0 < n) {r : ℝ} (hr : 1 < r) :
-    ⋃ k : Fin n, openModelComponentSubtype n r k = Set.univ := by
-  apply Set.eq_univ_of_forall
-  intro z
-  obtain ⟨k, hk, hzk, _⟩ := Set.mem_iUnion₂.mp (openModel_cover hn hr z.2)
-  exact Set.mem_iUnion.mpr ⟨⟨k, Finset.mem_range.mp hk⟩, hzk⟩
-
-lemma openModel_componentCount {n : ℕ} (hn : 0 < n) {r : ℝ} (hr : 1 < r) :
-    Nat.card (ConnectedComponents (openModelSet n r)) = n := by
-  let U : Fin n → Set (openModelSet n r) :=
-    fun k ↦ openModelComponentSubtype n r k
-  let e : ConnectedComponents (openModelSet n r) ≃ Fin n :=
-    ConnectedComponents.equivOfIsClopenOfIsConnected
-      (fun k ↦ ⟨openModelComponentSubtype_isClosed hn hr k,
-        openModelComponentSubtype_isOpen hn hr k k.isLt⟩)
-      (openModel_components_pairwise_disjoint hn hr)
-      (openModel_components_cover hn hr)
-      (fun k ↦ openModelComponentSubtype_connected hn hr k)
-  simpa using Nat.card_congr e
-
 /-- The ordered roots used by the model lemniscate. -/
 def modelRoots (n : ℕ) (r : ℝ) (k : Fin n) : ℂ :=
   Model.branch n k (r ^ n)
@@ -979,15 +672,6 @@ def modelRoots (n : ℕ) (r : ℝ) (k : Fin n) : ℂ :=
 lemma modelRoots_pow {n : ℕ} (hn : 0 < n) (r : ℝ) (k : Fin n) :
     modelRoots n r k ^ n = (r : ℂ) ^ n := by
   simpa [modelRoots] using Model.branch_pow hn (k : ℕ) (r ^ n : ℂ)
-
-lemma modelRoots_injective {n : ℕ} (hn : 0 < n) {r : ℝ} (hr : 1 < r) :
-    Function.Injective (modelRoots n r) := by
-  intro i j hij
-  apply Fin.ext
-  apply Model.components_disjoint hn hr i j i.isLt j.isLt
-  refine ⟨modelRoots n r i, ?_, ?_⟩
-  · exact ⟨(r ^ n : ℂ), Metric.mem_closedBall_self (by positivity), rfl⟩
-  · exact ⟨(r ^ n : ℂ), Metric.mem_closedBall_self (by positivity), hij.symm⟩
 
 /-- Polynomial form of the model. -/
 def modelPolynomial (n : ℕ) (r : ℝ) : Polynomial ℂ :=
@@ -1000,41 +684,6 @@ lemma modelPolynomial_monic {n : ℕ} (hn : 0 < n) (r : ℝ) :
 lemma modelPolynomial_natDegree {n : ℕ} (r : ℝ) :
     (modelPolynomial n r).natDegree = n := by
   exact natDegree_X_pow_sub_C
-
-lemma roots_modelPolynomial {n : ℕ} (hn : 0 < n) {r : ℝ} (hr : 1 < r) :
-    (modelPolynomial n r).roots =
-      (Finset.univ.image (modelRoots n r)).val := by
-  apply Polynomial.roots_eq_of_natDegree_le_card_of_ne_zero
-  · intro w hw
-    obtain ⟨k, -, rfl⟩ := Finset.mem_image.mp hw
-    simp [modelPolynomial, modelRoots_pow hn]
-  · rw [modelPolynomial_natDegree r]
-    rw [Finset.card_image_of_injective _ (modelRoots_injective hn hr)]
-    simp
-  · exact (modelPolynomial_monic hn r).ne_zero
-
-lemma rootPolynomial_modelRoots {n : ℕ} (hn : 0 < n) {r : ℝ} (hr : 1 < r) :
-    rootPolynomial (modelRoots n r) = modelPolynomial n r := by
-  apply Polynomial.funext
-  intro w
-  rw [eval_rootPolynomial,
-    (IsAlgClosed.splits (modelPolynomial n r)).eval_eq_prod_roots_of_monic
-      (modelPolynomial_monic hn r), roots_modelPolynomial hn hr]
-  change (∏ i, (w - modelRoots n r i)) =
-    ∏ x ∈ Finset.image (modelRoots n r) Finset.univ, (w - x)
-  rw [Finset.prod_image (modelRoots_injective hn hr).injOn]
-
-lemma unitLemniscate_modelRoots {n : ℕ} (hn : 0 < n) {r : ℝ} (hr : 1 < r) :
-    unitLemniscate (rootPolynomial (modelRoots n r)) = openModelSet n r := by
-  ext w
-  simp [unitLemniscate, openModelSet, rootPolynomial_modelRoots hn hr,
-    modelPolynomial, Model.f]
-
-lemma componentCount_modelRoots {n : ℕ} (hn : 0 < n) {r : ℝ} (hr : 1 < r) :
-    componentCount (rootPolynomial (modelRoots n r)) = n := by
-  unfold componentCount
-  rw [unitLemniscate_modelRoots hn hr]
-  exact openModel_componentCount hn hr
 
 /-! ### The tangent-disk endpoint `r = 1` -/
 
@@ -2369,22 +2018,6 @@ theorem componentCount_eq_one_of_connected_transfiniteDiameter_le_quarter
     ‖z i - z j‖ ≤ 4 * d :=
       dist_le_four_mul_transfiniteDiameter hK hconn hd (hzK j) (hzK i)
     _ ≤ 1 := by norm_num at hdq ⊢; linarith
-
-/-- The two answers requested in Erdős Problem 1042, together with the sharp
-connected small-capacity conclusion in the published resolution. -/
-def Erdos1042Resolution : Prop :=
-  (∃ K : Set ℂ,
-      IsClosed K ∧
-      HasTransfiniteDiameter K 1 ∧
-      (¬ ∃ a : ℂ, K ⊆ closedBall a 1) ∧
-      HasInfinitelyManyMaximalLemniscates K) ∧
-  (∀ K : Set ℂ, IsClosed K →
-      ∀ d : ℝ, HasTransfiniteDiameter K d → 0 < d → d < 1 →
-        HasUniformComponentGap K) ∧
-  (∀ K : Set ℂ, IsClosed K → IsConnected K →
-      ∀ d : ℝ, HasTransfiniteDiameter K d → d ≤ 1 / 4 →
-        ∀ n : ℕ, 0 < n → ∀ z : Fin n → ℂ, (∀ i, z i ∈ K) →
-          componentCount (rootPolynomial z) = 1)
 
 /-- Complete formal resolution of Erdős Problem 1042. -/
 theorem erdos_1042 : ((∃ K : Set ℂ,

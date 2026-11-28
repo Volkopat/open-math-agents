@@ -11,7 +11,7 @@ using Fubini's theorem on product spaces and two applications of Jensen's inequa
 -- Problem: Sidorenko's conjecture (1993)
 -- Upstream: formal-conjectures FormalConjectures/Wikipedia/SidorenkoConjecture.lean:133 (declaration SidorenkoConjecture.sidorenko_completeBipartiteGraph_graphon)
 -- Credit: @TheWaler (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Retains the proof from open-math-agents PR #274; uses the standard edge-set API.
 
 open MeasureTheory MeasureTheory.Measure Finset SimpleGraph LimitObjects
 
@@ -19,30 +19,13 @@ private lemma edgeFinset_completeBipartiteGraph {A B : Type*} [Fintype A] [Finty
     [DecidableEq A] [DecidableEq B] [DecidableRel (completeBipartiteGraph A B).Adj] :
     (completeBipartiteGraph A B).edgeFinset =
       Finset.univ.image (fun p : A × B => s(Sum.inl p.1, Sum.inr p.2)) := by
-  ext e
-  induction e using Sym2.ind with
-  | _ u v =>
-    simp only [mem_edgeFinset, mem_edgeSet, completeBipartiteGraph_adj, Finset.mem_image,
-      Finset.mem_univ, true_and, Prod.exists]
-    cases u with
-    | inl a =>
-      cases v with
-      | inl a' => simp
-      | inr b => exact iff_of_true (by simp) ⟨a, b, rfl⟩
-    | inr b =>
-      cases v with
-      | inl a => exact iff_of_true (by simp) ⟨a, b, Sym2.eq_swap⟩
-      | inr b' => simp
+  apply Finset.coe_injective
+  simpa using (SimpleGraph.edgeSet_completeBipartiteGraph (W₁ := A) (W₂ := B))
 
 private lemma edgeMap_injective {A B : Type*} :
     Function.Injective (fun p : A × B => (s(Sum.inl p.1, Sum.inr p.2) : Sym2 (A ⊕ B))) := by
-  rintro ⟨a₁, b₁⟩ ⟨a₂, b₂⟩ h
-  rw [Sym2.eq_iff] at h
-  rcases h with ⟨h1, h2⟩ | ⟨h1, _⟩
-  · cases h1
-    cases h2
-    rfl
-  · cases h1
+  rintro ⟨a, b⟩ ⟨c, d⟩ h
+  simpa [Sym2.eq_iff] using h
 
 private lemma card_edgeFinset_completeBipartiteGraph {A B : Type*} [Fintype A] [Fintype B]
     [DecidableEq A] [DecidableEq B] [DecidableRel (completeBipartiteGraph A B).Adj] :
@@ -139,17 +122,9 @@ theorem OMA.solution :
     have hmp := measurePreserving_sumPiEquivProdPi_symm (X := fun _ : A ⊕ B => UnitInterval)
       (fun _ => (volume : Measure UnitInterval))
     rw [← hmp.integral_comp']
-    have hcomp : (fun p : (A → UnitInterval) × (B → UnitInterval) =>
-        ∏ b : B, ∏ a : A,
-          (W ((MeasurableEquiv.sumPiEquivProdPi (fun _ : A ⊕ B => UnitInterval)).symm p
-              (Sum.inl a),
-            (MeasurableEquiv.sumPiEquivProdPi (fun _ : A ⊕ B => UnitInterval)).symm p
-              (Sum.inr b)) : ℝ)) =
-        fun p : (A → UnitInterval) × (B → UnitInterval) =>
-          ∏ b : B, ∏ a : A, (W (p.1 a, p.2 b) : ℝ) := by
-      funext p
-      rfl
-    rw [hcomp, MeasureTheory.integral_prod _ hprodAB_int]
+    change (∫ p : (A → UnitInterval) × (B → UnitInterval),
+      ∏ b : B, ∏ a : A, (W (p.1 a, p.2 b) : ℝ) ∂(μA.prod μB)) = _
+    rw [MeasureTheory.integral_prod _ hprodAB_int]
     refine integral_congr_ae (Filter.Eventually.of_forall fun x => ?_)
     exact integral_fintype_prod_eq_pow (fun u : UnitInterval => ∏ a : A, (W (x a, u) : ℝ))
   have hF_meas : Measurable F := hprodA_meas.stronglyMeasurable.integral_prod_right'.measurable

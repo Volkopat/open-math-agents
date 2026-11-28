@@ -502,119 +502,9 @@ end Erdos848Gap
 namespace Erdos848Gap
 open Finset
 
-/-- Counting in two prime ranges separates the high-quotient and the long-interval errors. -/
-theorem mixed360_count {N b : ℕ} (bp : 0<b) (bn : b≤N)
-    (S : Finset ℕ) (p d : ℕ → ℕ)
-    (eq : ∀ n∈S,d n*(p n)^2=b*n+1) (pr : ∀ n∈S,p n≤N)
-    (link : ∀ n∈S, ∀ c : ℕ, N<c*p n → d n*N < c^2*b)
-    (cut : ∀ n∈S,N<360*p n) : S.card ≤ 140880*(2*2^b.primeFactors.card) := by
-  classical
-  let small := S.filter (fun n => 40*p n≤N)
-  let large := S.filter (fun n => ¬ 40*p n≤N)
-  have smallS : small ⊆ S := Finset.filter_subset _ _
-  have largeS : large ⊆ S := Finset.filter_subset _ _
-  have pr' (n) (hn : n∈small) : p n≤N/40 := by
-    have := (Finset.mem_filter.mp hn).2
-    omega
-  have d1 (n) (hn : n∈small) : d n*N<129600*b := by
-    exact link n (smallS hn) 360 (cut n (smallS hn))
-  have d2 (n) (hn : n∈large) : d n*N<1600*b := by
-    exact link n (largeS hn) 40 (lt_of_not_ge (Finset.mem_filter.mp hn).2)
-  have s := count_mixed_divisors_unitary bp bn small p d (fun n h => eq n (smallS h)) pr' d1
-  have lraw := count_mixed_divisors_unitary bp bn large p d (fun n h => eq n (largeS h))
-    (fun n h => pr n (largeS h)) d2
-  let P := 129600*b/N
-  let W := 2*(N/40)/b
-  have pd : P*N ≤ 129600*b := Nat.div_mul_le_self _ _
-  have wd : W*b ≤ 2*(N/40) := Nat.div_mul_le_self _ _
-  have u : 40*(N/40)≤N := by omega
-  have num : 20*(W*b) ≤ N := by omega
-  have Np : 0<N := bp.trans_le bn
-  have p250 : P≤129600 := by
-    exact Nat.le_of_mul_le_mul_right (pd.trans (Nat.mul_le_mul_left _ bn)) Np
-  have pw : P*W≤6480 := by
-    have z := (Nat.mul_le_mul_right W pd).trans_eq (show 129600*b*W=129600*(W*b) by ring)
-    have a := (Nat.mul_le_mul_left 6480 num)
-    have l1 : (P*W)*N ≤ 6480*N := by nlinarith only [z,a]
-    exact Nat.le_of_mul_le_mul_right l1 Np
-  have sum : P*(W+1) ≤ 136080 := by rw [Nat.mul_add,Nat.mul_one]; omega
-  have sa : small.card ≤ 136080*(2*2^b.primeFactors.card) := by
-    refine s.trans ?_
-    calc _ = (P*(W+1))*(2*2^b.primeFactors.card) := by dsimp only [P,W]; ring
-         _ ≤ _ := Nat.mul_le_mul_right _ sum
-  let Q := 1600*b/N
-  let K := 2*N/b
-  have qd : Q*N ≤ 1600*b := Nat.div_mul_le_self _ _
-  have kd : K*b ≤ 2*N := Nat.div_mul_le_self _ _
-  have q1600 : Q≤1600 := Nat.le_of_mul_le_mul_right (qd.trans (Nat.mul_le_mul_left _ bn)) Np
-  have qk : Q*K ≤ 3200 := by
-    have z := Nat.mul_le_mul_right K qd
-    have a := Nat.mul_le_mul_left 1600 kd
-    have mul : (Q*K)*N ≤ 3200*N := by nlinarith only [z,a]
-    exact Nat.le_of_mul_le_mul_right mul Np
-  have qsum : Q*(K+1) ≤ 4800 := by rw [Nat.mul_add,Nat.mul_one]; omega
-  have l : large.card ≤ 4800*(2*2^b.primeFactors.card) := by
-    refine lraw.trans ?_
-    calc _ = (Q*(K+1))*(2*2^b.primeFactors.card) := by dsimp only [Q,K]; ring
-         _ ≤ _ := Nat.mul_le_mul_right _ qsum
-  have parts : small.card+large.card=S.card := Finset.card_filter_add_card_filter_not _
-  omega
-
-/-- The fourth-power divisor estimate pays for the sieve error at N ≥ 10^13. -/
-theorem mixed360_error {N b : ℕ} (big : 10000000000000 ≤ N) (bp : 0<b) (bn : b≤N)
-    {z : ℕ} (bound : z ≤ 140880*(2*2^b.primeFactors.card)) : 4000*z ≤ N := by
-  have powb := support_fourth b bp
-  have h : 4000*z ≤ 563520000*(2*2^b.primeFactors.card) := by omega
-  apply h.trans
-  by_contra! bad
-  have lo := Nat.pow_lt_pow_left bad (by decide : 4≠0)
-  rw [mul_pow] at lo
-  have hi := Nat.mul_le_mul_left (563520000^4) (powb.trans (Nat.mul_le_mul_left 8944 bn))
-  have cutoff := Nat.pow_le_pow_left big 3
-  have mc := Nat.mul_le_mul_right N cutoff
-  nlinarith only [lo,hi,mc,Nat.zero_le N]
 end Erdos848Gap
 
 namespace Erdos848Gap
-theorem large_mixed_360 {N b : ℕ} (big : 10^13 ≤ N) (bN : b < N)
-    (S : Finset ℕ) (choosePrime : ∀n∈S, n < N ∧ ∃p : ℕ, p≤N ∧ N < 360*p ∧ p^2 ∣ b*n+1) :
-    4000*S.card ≤ N := by
-  classical
-  by_cases non : S.Nonempty
-  · let p (n : ℕ) := if h : n ∈ S then ((choosePrime n h).2).choose else 1
-    let d (n : ℕ) := (b*n+1)/(p n)^2
-    have info (n : ℕ) (hn : n ∈ S) : p n ≤ N ∧ N < 360*p n ∧ (p n)^2 ∣ b*n+1 := by
-      simpa only [p,dif_pos hn] using ((choosePrime n hn).2).choose_spec
-    have eq (n : ℕ) (hn : n ∈ S) : d n*(p n)^2 = b*n+1 := Nat.div_mul_cancel (info n hn).2.2
-    obtain ⟨v,hv⟩ := non
-    have bp : 0 < b := by
-      by_contra! h
-      have bz : b=0 := by omega
-      have hd := (info v hv).2.2
-      simp only [bz,zero_mul,zero_add,Nat.dvd_one] at hd
-      have hq := (info v hv).2.1
-      have pq : 2 ≤ p v := by omega
-      have sq := Nat.pow_le_pow_left pq 2
-      omega
-    have bound (n : ℕ) (hn : n∈S) : b*n+1 ≤ b*N := by
-      have h := Nat.mul_le_mul_left b (show n+1 ≤ N from (choosePrime n hn).1)
-      rw [Nat.mul_add,Nat.mul_one] at h
-      omega
-    have link (n : ℕ) (hn : n∈S) (c : ℕ) (lc : N<c*p n) : d n*N<c^2*b := by
-      have positive : 0<d n := by
-        by_contra! dz
-        have e := eq n hn
-        rw [show d n=0 by omega,zero_mul] at e
-        omega
-      have rr := Nat.mul_lt_mul_of_pos_left (Nat.pow_lt_pow_left lc (by decide : 2≠0)) positive
-      have bd := Nat.mul_le_mul_left (c^2) (bound n hn)
-      have scaled := congrArg (c^2*·) (eq n hn)
-      have cmp : (d n*N)*N < (c^2*b)*N := by nlinarith only [rr,bd,scaled]
-      exact Nat.lt_of_mul_lt_mul_right cmp
-    exact mixed360_error big bp bN.le (mixed360_count bp bN.le S p d eq (fun n hn => (info n hn).1) link
-      (fun n hn => (info n hn).2.1))
-  · rw [Finset.not_nonempty_iff_eq_empty.mp non]
-    simp
 end Erdos848Gap
 namespace Erdos848Port
 
@@ -831,41 +721,6 @@ lemma cross_residue_not_div_25_of_residue (r a b : ℕ) (hr : r * r % 25 = 24) (
     simpa [Nat.mod_eq_of_lt hr_lt] using hb'
   exact hb hbmod
 
-lemma cross_residue_not_div_25 (a b : ℕ) (ha : a % 25 = 7)
-    (hb : b % 25 ≠ 7 ∧ b % 25 ≠ 18) : ¬ (25 ∣ a * b + 1) := by
-  exact cross_residue_not_div_25_of_residue 7 a b (by norm_num) ha hb.1
-
-lemma cross_residue_not_div_25_18 (a b : ℕ) (ha : a % 25 = 18)
-    (hb : b % 25 ≠ 7 ∧ b % 25 ≠ 18) : ¬ (25 ∣ a * b + 1) := by
-  exact cross_residue_not_div_25_of_residue 18 a b (by norm_num) ha hb.2
-
-lemma must_have_other_prime_square_of_residue (r a b : ℕ) (hr : r * r % 25 = 24) (ha : a % 25 = r)
-    (hb : b % 25 ≠ r) (hnsq : ¬ Squarefree (a * b + 1)) :
-    ∃ p : ℕ, Nat.Prime p ∧ p ≠ 5 ∧ p ^ 2 ∣ a * b + 1 := by
-  classical
-  have hnot : ¬ ∀ p : ℕ, Nat.Prime p → ¬p * p ∣ a * b + 1 := by
-    intro hall
-    exact hnsq ((Nat.squarefree_iff_prime_squarefree).2 hall)
-  push Not at hnot
-  rcases hnot with ⟨p, hp, hpp⟩
-  have h25 : ¬ (25 ∣ a * b + 1) := cross_residue_not_div_25_of_residue r a b hr ha hb
-  have hp2 : p ^ 2 ∣ a * b + 1 := by simpa [pow_two] using hpp
-  refine ⟨p, hp, ?_, hp2⟩
-  intro hp5
-  subst hp5
-  have : 25 ∣ a * b + 1 := by simpa [pow_two] using hp2
-  exact (h25 this).elim
-
-lemma must_have_other_prime_square (a b : ℕ) (ha : a % 25 = 7)
-    (hb : b % 25 ≠ 7 ∧ b % 25 ≠ 18) (hnsq : ¬ Squarefree (a * b + 1)) :
-    ∃ p : ℕ, Nat.Prime p ∧ p ≠ 5 ∧ p^2 ∣ a * b + 1 := by
-  exact must_have_other_prime_square_of_residue 7 a b (by norm_num) ha hb.1 hnsq
-
-lemma must_have_other_prime_square_18 (a b : ℕ) (ha : a % 25 = 18)
-    (hb : b % 25 ≠ 7 ∧ b % 25 ≠ 18) (hnsq : ¬ Squarefree (a * b + 1)) :
-    ∃ p : ℕ, Nat.Prime p ∧ p ≠ 5 ∧ p ^ 2 ∣ a * b + 1 := by
-  exact must_have_other_prime_square_of_residue 18 a b (by norm_num) ha hb.2 hnsq
-
 noncomputable section DensityLemmas
 
 lemma card_filter_mod_eq_le (N m r : ℕ) :
@@ -949,18 +804,6 @@ lemma not_dvd_four_sq_add_one (n : ℕ) : ¬ (4 ∣ n ^ 2 + 1) := by
     exact (Nat.lt_succ_iff).1 this
   interval_cases hcase : n % 4 <;> simp at hmod'
 
-def SawhneyMainAt (η : ℝ) (N₀ : ℕ) : Prop :=
-  0 < η ∧ η < (1 / 25 : ℝ) ∧
-    ∀ N ≥ N₀, ∀ A : Finset ℕ,
-      A ⊆ Finset.range N →
-      NonSquarefreeProductProp A →
-      (A.card : ℝ) ≥ (1/25 - η) * (N : ℝ) →
-      (A ⊆ A₇ N ∨ A ⊆ A₁₈ N)
-
-def Problem848Statement (N : ℕ) : Prop :=
-  ∀ A : Finset ℕ, A ⊆ Finset.range N → NonSquarefreeProductProp A →
-    A.card ≤ (A₇ N).card
-
 lemma card_range_filter_mod25_eq (r : ℕ) (hr : r ≤ 24) (N : ℕ) :
     ((Finset.range N).filter (fun n => n % 25 = r)).card = (N + (24 - r)) / 25 := by
   classical
@@ -1007,51 +850,9 @@ lemma A₇_card (N : ℕ) : (A₇ N).card = (N + 17) / 25 := by
 lemma A₁₈_card (N : ℕ) : (A₁₈ N).card = (N + 6) / 25 := by
   simpa [A₁₈, Nat.sub_sub] using (card_range_filter_mod25_eq 18 (by decide) N)
 
-lemma A₁₈_card_le_A₇ (N : ℕ) : (A₁₈ N).card ≤ (A₇ N).card := by
-  have h : N + 6 ≤ N + 17 := Nat.add_le_add_left (by decide : 6 ≤ 17) N
-  simpa [A₇_card, A₁₈_card] using Nat.div_le_div_right h
-
-lemma card_gt_A₇_implies_dense {η : ℝ} (hη : 0 < η) {N : ℕ} {A : Finset ℕ}
-    (hgt : (A₇ N).card < A.card) :
-    (A.card : ℝ) ≥ (1/25 - η) * (N : ℝ) := by
-  have hsucc : (A₇ N).card + 1 ≤ A.card := Nat.succ_le_iff.2 hgt
-  have hA : ((A₇ N).card + 1 : ℝ) ≤ (A.card : ℝ) := by exact_mod_cast hsucc
-  have hA7 : ((N + 17 : ℝ) / 25) < ((A₇ N).card + 1 : ℝ) := by
-    have hq : (25 : ℝ) * ((A₇ N).card + 1 : ℝ) > (N + 17 : ℝ) := by
-      have hq_nat : 25 * ((A₇ N).card + 1) > N + 17 := by
-        have hcard : (A₇ N).card = (N + 17) / 25 := A₇_card N
-        have hdiv : 25 * ((N + 17) / 25) + (N + 17) % 25 = N + 17 := Nat.div_add_mod (N + 17) 25
-        have hmod : (N + 17) % 25 < 25 := Nat.mod_lt _ (by decide : 0 < 25)
-        omega
-      exact_mod_cast hq_nat
-    nlinarith
-  have hN17 : (N + 17 : ℝ) / 25 ≥ (1 / 25 - η) * (N : ℝ) := by nlinarith
-  have : (A.card : ℝ) ≥ (N + 17 : ℝ) / 25 := by
-    have : (N + 17 : ℝ) / 25 ≤ (A.card : ℝ) := le_trans hA7.le hA
-    exact this
-  exact le_trans hN17 this
-
-theorem problem_848_large_of_sawhney {η : ℝ} {N₀ : ℕ} (h : SawhneyMainAt η N₀) :
-    ∀ N ≥ N₀, Problem848Statement N := by
-  classical
-  rcases h with ⟨hη, _hηsmall, hmain⟩
-  intro N hN A hAsub hAprop
-  by_contra hle
-  have hgt : (A₇ N).card < A.card := lt_of_not_ge hle
-  have hdense : (A.card : ℝ) ≥ (1/25 - η) * (N : ℝ) := card_gt_A₇_implies_dense hη hgt
-  have hstruct := hmain N hN A hAsub hAprop hdense
-  cases hstruct with
-  | inl hsub7 => exact (not_le_of_gt hgt) (Finset.card_le_card hsub7)
-  | inr hsub18 =>
-      have hcard18 : A.card ≤ (A₁₈ N).card := Finset.card_le_card hsub18
-      have h18le7 : (A₁₈ N).card ≤ (A₇ N).card := A₁₈_card_le_A₇ N
-      exact (not_le_of_gt hgt) (le_trans hcard18 h18le7)
-
 open Filter Finset
 
 def primeCutoff : ℕ := 2000
-
-lemma primeCutoff_pos : 0 < primeCutoff := by decide
 
 def primesUpTo (B : ℕ) : Finset ℕ :=
   (Finset.range (B + 1)).filter Nat.Prime
@@ -1439,22 +1240,6 @@ lemma sum_no5PrimesUpTo_le (N : ℕ) :
     exact hsum_le.trans (add_le_add_right htail no5PrimeSumCoarse)
   exact hsum_le'.trans no5PrimeSumCoarse_bound
 
-def residues25 : Finset ℕ :=
-  (Finset.range 25).filter (fun t => t ≠ 7 ∧ t ≠ 18)
-
-lemma residues25_card : residues25.card = 23 := by
-  decide
-
-def residues50odd : Finset ℕ :=
-  (Finset.range 50).filter (fun t => t % 2 = 1 ∧ t % 25 ≠ 7 ∧ t % 25 ≠ 18)
-
-lemma residues50odd_card : residues50odd.card = 23 := by
-  decide
-
-lemma primesUpTo_card (B : ℕ) : (primesUpTo B).card = B.primeCounting := by
-  classical
-  simp [primesUpTo, Nat.primeCounting, Nat.primeCounting', Nat.count_eq_card_filter_range]
-
 lemma prime_eq_of_dvd_2 (p : ℕ) (hp : Nat.Prime p) (h : p ∣ 2) : p = 2 := by
   have hp_le2 : p ≤ 2 := Nat.le_of_dvd (by decide : 0 < 2) h
   have hp_ge2 : 2 ≤ p := hp.two_le
@@ -1670,251 +1455,6 @@ lemma coprime_50_pow_two_of_prime_ne2_ne5 (p : ℕ) (hp : Nat.Prime p) (hp2 : p 
         exact hp5 (prime_eq_of_dvd_5 p hp h5)
   simpa [Nat.coprime_comm] using hp.coprime_pow_of_not_dvd (a := 50) (m := 2) hnot
 
-lemma diag_count_modEq25_le (N p t : ℕ) (hp : Nat.Prime p) (hmod : p % 4 = 1) (hp5 : p ≠ 5) :
-    ((Finset.range N).filter (fun n => n ≡ t [MOD 25] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card ≤
-      2 * (N / (25 * p ^ 2) + 1) := by
-  classical
-  have hcop : Nat.Coprime 25 (p ^ 2) := coprime_25_pow_two_of_prime_ne5 p hp hp5
-  obtain ⟨r₁, r₂, hr⟩ :
-      ∃ r₁ r₂ : ZMod (p ^ 2),
-        r₁ ≠ r₂ ∧ r₁ ^ 2 = -1 ∧ r₂ ^ 2 = -1 ∧ ∀ r : ZMod (p ^ 2), r ^ 2 = -1 → r = r₁ ∨ r = r₂ := by
-    obtain ⟨r,t,_,rest⟩ := two_roots_mod_p_squared p hp hmod
-    exact ⟨r,t,rest⟩
-  let S : Finset ℕ :=
-    (Finset.range N).filter (fun n => n ≡ t [MOD 25] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)
-  let S₁ : Finset ℕ :=
-    (Finset.range N).filter (fun n => n ≡ t [MOD 25] ∧ n ≡ r₁.val [MOD p ^ 2])
-  let S₂ : Finset ℕ :=
-    (Finset.range N).filter (fun n => n ≡ t [MOD 25] ∧ n ≡ r₂.val [MOD p ^ 2])
-  have hsubset : S ⊆ S₁ ∪ S₂ := by
-    intro n hn
-    simp [S, S₁, S₂, Finset.mem_filter, Finset.mem_range] at hn ⊢
-    have hdiv : (p ^ 2 : ℕ) ∣ n ^ 2 + 1 := hn.2.2
-    have h0 : ((n ^ 2 + 1 : ℕ) : ZMod (p ^ 2)) = 0 :=
-      (ZMod.natCast_eq_zero_iff (n ^ 2 + 1) (p ^ 2)).2 hdiv
-    have hsq : (n : ZMod (p ^ 2)) ^ 2 = (-1 : ZMod (p ^ 2)) := by
-      have : (n : ZMod (p ^ 2)) ^ 2 + 1 = 0 := by
-        simpa [Nat.cast_add, Nat.cast_pow, Nat.cast_one] using h0
-      simpa using (eq_neg_of_add_eq_zero_left this)
-    have hcases : (n : ZMod (p ^ 2)) = r₁ ∨ (n : ZMod (p ^ 2)) = r₂ := hr.2.2.2 _ hsq
-    cases hcases with
-    | inl hn1 =>
-        refine Or.inl ?_
-        refine ⟨hn.1, hn.2.1, ?_⟩
-        have : NeZero (p ^ 2) := ⟨pow_ne_zero 2 hp.ne_zero⟩
-        have hcast : (n : ZMod (p ^ 2)) = (r₁.val : ZMod (p ^ 2)) := by
-          calc
-            (n : ZMod (p ^ 2)) = r₁ := hn1
-            _ = (r₁.val : ZMod (p ^ 2)) := by simp
-        exact (ZMod.natCast_eq_natCast_iff n r₁.val (p ^ 2)).1 hcast
-    | inr hn2 =>
-        refine Or.inr ?_
-        refine ⟨hn.1, hn.2.1, ?_⟩
-        have : NeZero (p ^ 2) := ⟨pow_ne_zero 2 hp.ne_zero⟩
-        have hcast : (n : ZMod (p ^ 2)) = (r₂.val : ZMod (p ^ 2)) := by
-          calc
-            (n : ZMod (p ^ 2)) = r₂ := hn2
-            _ = (r₂.val : ZMod (p ^ 2)) := by simp
-        exact (ZMod.natCast_eq_natCast_iff n r₂.val (p ^ 2)).1 hcast
-  have hcard : S.card ≤ (S₁ ∪ S₂).card := Finset.card_le_card hsubset
-  have hunion : (S₁ ∪ S₂).card ≤ S₁.card + S₂.card := Finset.card_union_le _ _
-  have hS₁ : S₁.card ≤ N / (25 * p ^ 2) + 1 := by
-    simpa [S₁, Nat.mul_assoc, Nat.mul_left_comm, Nat.mul_comm] using
-      (card_filter_modEq_and_modEq_le N 25 (p ^ 2) t r₁.val hcop)
-  have hS₂ : S₂.card ≤ N / (25 * p ^ 2) + 1 := by
-    simpa [S₂, Nat.mul_assoc, Nat.mul_left_comm, Nat.mul_comm] using
-      (card_filter_modEq_and_modEq_le N 25 (p ^ 2) t r₂.val hcop)
-  have : S.card ≤ (N / (25 * p ^ 2) + 1) + (N / (25 * p ^ 2) + 1) :=
-    le_trans (le_trans hcard hunion) (add_le_add hS₁ hS₂)
-  simpa [S, two_mul] using this
-
-lemma diag_count_modEq50_le (N p t : ℕ) (hp : Nat.Prime p) (hmod : p % 4 = 1) (hp2 : p ≠ 2) (hp5 : p ≠ 5) :
-    ((Finset.range N).filter (fun n => n ≡ t [MOD 50] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card ≤
-      2 * (N / (50 * p ^ 2) + 1) := by
-  classical
-  have hcop : Nat.Coprime 50 (p ^ 2) := coprime_50_pow_two_of_prime_ne2_ne5 p hp hp2 hp5
-  obtain ⟨r₁, r₂, hr⟩ :
-      ∃ r₁ r₂ : ZMod (p ^ 2),
-        r₁ ≠ r₂ ∧ r₁ ^ 2 = -1 ∧ r₂ ^ 2 = -1 ∧ ∀ r : ZMod (p ^ 2), r ^ 2 = -1 → r = r₁ ∨ r = r₂ := by
-    obtain ⟨r,t,_,rest⟩ := two_roots_mod_p_squared p hp hmod
-    exact ⟨r,t,rest⟩
-  let S : Finset ℕ :=
-    (Finset.range N).filter (fun n => n ≡ t [MOD 50] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)
-  let S₁ : Finset ℕ :=
-    (Finset.range N).filter (fun n => n ≡ t [MOD 50] ∧ n ≡ r₁.val [MOD p ^ 2])
-  let S₂ : Finset ℕ :=
-    (Finset.range N).filter (fun n => n ≡ t [MOD 50] ∧ n ≡ r₂.val [MOD p ^ 2])
-  have hsubset : S ⊆ S₁ ∪ S₂ := by
-    intro n hn
-    simp [S, S₁, S₂, Finset.mem_filter, Finset.mem_range] at hn ⊢
-    have hdiv : (p ^ 2 : ℕ) ∣ n ^ 2 + 1 := hn.2.2
-    have h0 : ((n ^ 2 + 1 : ℕ) : ZMod (p ^ 2)) = 0 :=
-      (ZMod.natCast_eq_zero_iff (n ^ 2 + 1) (p ^ 2)).2 hdiv
-    have hsq : (n : ZMod (p ^ 2)) ^ 2 = (-1 : ZMod (p ^ 2)) := by
-      have : (n : ZMod (p ^ 2)) ^ 2 + 1 = 0 := by
-        simpa [Nat.cast_add, Nat.cast_pow, Nat.cast_one] using h0
-      simpa using (eq_neg_of_add_eq_zero_left this)
-    have hcases : (n : ZMod (p ^ 2)) = r₁ ∨ (n : ZMod (p ^ 2)) = r₂ := hr.2.2.2 _ hsq
-    cases hcases with
-    | inl hn1 =>
-        refine Or.inl ?_
-        refine ⟨hn.1, hn.2.1, ?_⟩
-        have : NeZero (p ^ 2) := ⟨pow_ne_zero 2 hp.ne_zero⟩
-        have hcast : (n : ZMod (p ^ 2)) = (r₁.val : ZMod (p ^ 2)) := by
-          calc
-            (n : ZMod (p ^ 2)) = r₁ := hn1
-            _ = (r₁.val : ZMod (p ^ 2)) := by simp
-        exact (ZMod.natCast_eq_natCast_iff n r₁.val (p ^ 2)).1 hcast
-    | inr hn2 =>
-        refine Or.inr ?_
-        refine ⟨hn.1, hn.2.1, ?_⟩
-        have : NeZero (p ^ 2) := ⟨pow_ne_zero 2 hp.ne_zero⟩
-        have hcast : (n : ZMod (p ^ 2)) = (r₂.val : ZMod (p ^ 2)) := by
-          calc
-            (n : ZMod (p ^ 2)) = r₂ := hn2
-            _ = (r₂.val : ZMod (p ^ 2)) := by simp
-        exact (ZMod.natCast_eq_natCast_iff n r₂.val (p ^ 2)).1 hcast
-  have hcard : S.card ≤ (S₁ ∪ S₂).card := Finset.card_le_card hsubset
-  have hunion : (S₁ ∪ S₂).card ≤ S₁.card + S₂.card := Finset.card_union_le _ _
-  have hS₁ : S₁.card ≤ N / (50 * p ^ 2) + 1 := by
-    simpa [S₁, Nat.mul_assoc, Nat.mul_left_comm, Nat.mul_comm] using
-      (card_filter_modEq_and_modEq_le N 50 (p ^ 2) t r₁.val hcop)
-  have hS₂ : S₂.card ≤ N / (50 * p ^ 2) + 1 := by
-    simpa [S₂, Nat.mul_assoc, Nat.mul_left_comm, Nat.mul_comm] using
-      (card_filter_modEq_and_modEq_le N 50 (p ^ 2) t r₂.val hcop)
-  have : S.card ≤ (N / (50 * p ^ 2) + 1) + (N / (50 * p ^ 2) + 1) :=
-    le_trans (le_trans hcard hunion) (add_le_add hS₁ hS₂)
-  simpa [S, two_mul] using this
-
-lemma diag_count_mod25_ne_7_18_le (N p : ℕ) (hp : Nat.Prime p) (hmod : p % 4 = 1) (hp5 : p ≠ 5) :
-    ((Finset.range N).filter (fun n => n % 25 ≠ 7 ∧ n % 25 ≠ 18 ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card ≤
-      46 * (N / (25 * p ^ 2) + 1) := by
-  classical
-  let S : Finset ℕ :=
-    (Finset.range N).filter (fun n => n % 25 ≠ 7 ∧ n % 25 ≠ 18 ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)
-  have hsubset :
-      S ⊆ residues25.biUnion (fun t =>
-        (Finset.range N).filter (fun n => n ≡ t [MOD 25] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)) := by
-    intro n hn
-    simp [S, Finset.mem_filter, Finset.mem_range] at hn
-    set t : ℕ := n % 25
-    have ht : t ∈ residues25 := by
-      have htlt : t < 25 := Nat.mod_lt n (by decide : 0 < 25)
-      have htne : t ≠ 7 ∧ t ≠ 18 := by
-        refine ⟨?_, ?_⟩
-        · simpa [t] using hn.2.1
-        · simpa [t] using hn.2.2.1
-      simp [residues25, Finset.mem_filter, Finset.mem_range, t, htlt, htne]
-    refine (Finset.mem_biUnion).2 ?_
-    refine ⟨t, ht, ?_⟩
-    simp [Finset.mem_filter, Finset.mem_range, hn.1, hn.2.2.2]
-    simpa [t] using (Nat.mod_modEq n 25).symm
-  have hcard : S.card ≤ (residues25.biUnion fun t =>
-        (Finset.range N).filter (fun n => n ≡ t [MOD 25] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card :=
-    Finset.card_le_card hsubset
-  have hsum :
-      (residues25.biUnion fun t =>
-        (Finset.range N).filter (fun n => n ≡ t [MOD 25] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card ≤
-        ∑ t ∈ residues25,
-          ((Finset.range N).filter (fun n => n ≡ t [MOD 25] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card :=
-    Finset.card_biUnion_le
-  have hper :
-      ∀ t ∈ residues25,
-        ((Finset.range N).filter (fun n => n ≡ t [MOD 25] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card ≤
-          2 * (N / (25 * p ^ 2) + 1) := by
-    intro t ht
-    exact diag_count_modEq25_le N p t hp hmod hp5
-  have hsum' :
-      (∑ t ∈ residues25,
-          ((Finset.range N).filter (fun n => n ≡ t [MOD 25] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card) ≤
-        ∑ _t ∈ residues25, 2 * (N / (25 * p ^ 2) + 1) :=
-    Finset.sum_le_sum fun t ht => hper t ht
-  have hconst :
-      (∑ _t ∈ residues25, 2 * (N / (25 * p ^ 2) + 1)) = 46 * (N / (25 * p ^ 2) + 1) := by
-    classical
-    have h46 : (46 : ℕ) = 23 * 2 := by rfl
-    calc
-      (∑ _t ∈ residues25, 2 * (N / (25 * p ^ 2) + 1)) = residues25.card * (2 * (N / (25 * p ^ 2) + 1)) := by
-        simp
-      _ = 23 * (2 * (N / (25 * p ^ 2) + 1)) := by
-        simp [residues25_card]
-      _ = (23 * 2) * (N / (25 * p ^ 2) + 1) := by
-        exact (mul_assoc 23 2 (N / (25 * p ^ 2) + 1)).symm
-      _ = 46 * (N / (25 * p ^ 2) + 1) := by
-        simp [h46.symm]
-  exact le_trans (le_trans hcard hsum) (le_trans hsum' (le_of_eq hconst))
-
-lemma diag_count_mod50odd_ne_7_18_le (N p : ℕ) (hp : Nat.Prime p) (hmod : p % 4 = 1) (hp2 : p ≠ 2) (hp5 : p ≠ 5) :
-    ((Finset.range N).filter (fun n => n % 2 = 1 ∧ n % 25 ≠ 7 ∧ n % 25 ≠ 18 ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card ≤
-      46 * (N / (50 * p ^ 2) + 1) := by
-  classical
-  let S : Finset ℕ :=
-    (Finset.range N).filter (fun n => n % 2 = 1 ∧ n % 25 ≠ 7 ∧ n % 25 ≠ 18 ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)
-  have hsubset :
-      S ⊆ residues50odd.biUnion (fun t =>
-        (Finset.range N).filter (fun n => n ≡ t [MOD 50] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)) := by
-    intro n hn
-    simp [S, Finset.mem_filter, Finset.mem_range] at hn
-    set t : ℕ := n % 50
-    have ht : t ∈ residues50odd := by
-      have htlt : t < 50 := Nat.mod_lt n (by decide : 0 < 50)
-      have htodd : t % 2 = 1 := by
-        have : (n % 50) % 2 = n % 2 := by
-          simp [show 50 = 25 * 2 by rfl]
-        simpa [t, this] using hn.2.1
-      have htne7 : t % 25 ≠ 7 := by
-        have : (n % 50) % 25 = n % 25 := by
-          simp [show 50 = 25 * 2 by rfl]
-        have hnne7 : n % 25 ≠ 7 := hn.2.2.1
-        simpa [t, this] using hnne7
-      have htne18 : t % 25 ≠ 18 := by
-        have : (n % 50) % 25 = n % 25 := by
-          simp [show 50 = 25 * 2 by rfl]
-        have hnne18 : n % 25 ≠ 18 := hn.2.2.2.1
-        simpa [t, this] using hnne18
-      refine Finset.mem_filter.2 ?_
-      refine ⟨?_, ?_⟩
-      · exact Finset.mem_range.2 htlt
-      · exact ⟨htodd, htne7, htne18⟩
-    refine (Finset.mem_biUnion).2 ?_
-    refine ⟨t, ht, ?_⟩
-    simp [Finset.mem_filter, Finset.mem_range, hn.1, hn.2.2.2.2]
-    simpa [t] using (Nat.mod_modEq n 50).symm
-  have hcard : S.card ≤ (residues50odd.biUnion fun t =>
-        (Finset.range N).filter (fun n => n ≡ t [MOD 50] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card :=
-    Finset.card_le_card hsubset
-  have hsum :
-      (residues50odd.biUnion fun t =>
-        (Finset.range N).filter (fun n => n ≡ t [MOD 50] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card ≤
-        ∑ t ∈ residues50odd,
-          ((Finset.range N).filter (fun n => n ≡ t [MOD 50] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card :=
-    Finset.card_biUnion_le
-  have hper :
-      ∀ t ∈ residues50odd,
-        ((Finset.range N).filter (fun n => n ≡ t [MOD 50] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card ≤
-          2 * (N / (50 * p ^ 2) + 1) := by
-    intro t ht
-    exact diag_count_modEq50_le N p t hp hmod hp2 hp5
-  have hsum' :
-      (∑ t ∈ residues50odd,
-          ((Finset.range N).filter (fun n => n ≡ t [MOD 50] ∧ (p ^ 2 : ℕ) ∣ n ^ 2 + 1)).card) ≤
-        ∑ _t ∈ residues50odd, 2 * (N / (50 * p ^ 2) + 1) :=
-    Finset.sum_le_sum fun t ht => hper t ht
-  have hconst :
-      (∑ _t ∈ residues50odd, 2 * (N / (50 * p ^ 2) + 1)) = 46 * (N / (50 * p ^ 2) + 1) := by
-    classical
-    have h46 : (46 : ℕ) = 23 * 2 := by rfl
-    calc
-      (∑ _t ∈ residues50odd, 2 * (N / (50 * p ^ 2) + 1)) = residues50odd.card * (2 * (N / (50 * p ^ 2) + 1)) := by
-        simp
-      _ = 23 * (2 * (N / (50 * p ^ 2) + 1)) := by
-        simp [residues50odd_card]
-      _ = (23 * 2) * (N / (50 * p ^ 2) + 1) := by
-        exact (mul_assoc 23 2 (N / (50 * p ^ 2) + 1)).symm
-      _ = 46 * (N / (50 * p ^ 2) + 1) := by
-        simp [h46.symm]
-  exact le_trans (le_trans hcard hsum) (le_trans hsum' (le_of_eq hconst))
-
 lemma prime_le_of_sq_dvd_lt_sq {p N X : ℕ} (hXpos : 0 < X) (hXlt : X < N ^ 2) (hp2 : p ^ 2 ∣ X) : p ≤ N := by
   have hp2_le : p ^ 2 ≤ X := Nat.le_of_dvd hXpos hp2
   have hp2_lt : p ^ 2 < N ^ 2 := lt_of_le_of_lt hp2_le hXlt
@@ -1922,14 +1462,6 @@ lemma prime_le_of_sq_dvd_lt_sq {p N X : ℕ} (hXpos : 0 < X) (hXlt : X < N ^ 2) 
   have hNp : N ≤ p := le_of_lt (Nat.not_le.mp hp_le)
   have hN2le : N ^ 2 ≤ p ^ 2 := Nat.pow_le_pow_left hNp 2
   exact (not_lt_of_ge hN2le) hp2_lt
-
-lemma prime_ne_two_of_sq_dvd_odd {p n : ℕ} (hn : n % 2 = 1) (hp2 : p ^ 2 ∣ n) : p ≠ 2 := by
-  intro hp
-  subst hp
-  have h4 : 4 ∣ n := by simpa using hp2
-  have h2 : 2 ∣ n := dvd_trans (by decide : 2 ∣ 4) h4
-  have h0 : n % 2 = 0 := Nat.mod_eq_zero_of_dvd h2
-  omega
 
 lemma sum_div_add_one_le_real (N : ℕ) (P : Finset ℕ) (k : ℕ) :
     ((∑ p ∈ P, (N / (k * p ^ 2) + 1) : ℕ) : ℝ) ≤
@@ -2606,20 +2138,6 @@ theorem large_mixed_112 {N b : ℕ} (big : 50000000000 ≤ N) (bN : b < N)
   · rw [Finset.not_nonempty_iff_eq_empty.mp non]
     simp
 
-theorem small_primes_112 {N : ℕ} (big : 50000000000 ≤ N) (Q : Finset ℕ)
-    (prime : ∀ p ∈ Q, p.Prime) (small : ∀ p ∈ Q, 112*p ≤ N) :
-    1120 * Q.card ≤ N := by
-  let X := N/112
-  have sub : Q ⊆ X.primesLE := by
-    intro p hp
-    exact Nat.mem_primesLE.mpr ⟨by dsimp [X]; have := small p hp; omega,prime p hp⟩
-  have count := Finset.card_le_card sub
-  rw [Nat.primesLE_card_eq_primeCounting] at count
-  have weight := count_by_theta X (2^21) 21 (by decide) (log_nat_two_pow 21)
-  have trunc : 112*X≤N := by dsimp [X]; omega
-  norm_num at weight
-  omega
-
 theorem small_primes_360 {N : ℕ} (big : 50000000000 ≤ N) (Q : Finset ℕ)
     (prime : ∀ p ∈ Q, p.Prime) (small : ∀ p ∈ Q, 360*p ≤ N) :
     3250 * Q.card ≤ N := by
@@ -2948,21 +2466,6 @@ theorem large_mixed_72 {N b : ℕ} (big : 10000000000 ≤ N) (upper : N≤500000
       (fun n hn => (info n hn).2.1))
   · rw [Finset.not_nonempty_iff_eq_empty.mp non]
     simp
-
-theorem small_primes_72 {N : ℕ} (big : 10000000000 ≤ N) (Q : Finset ℕ)
-    (prime : ∀ p ∈ Q, p.Prime) (small : ∀ p ∈ Q, 72*p ≤ N) :
-    746 * Q.card ≤ N := by
-  let X := N/72
-  have sub : Q ⊆ X.primesLE := by
-    intro p hp
-    exact Nat.mem_primesLE.mpr ⟨by dsimp [X]; have := small p hp; omega,prime p hp⟩
-  have count := Finset.card_le_card sub
-  rw [Nat.primesLE_card_eq_primeCounting] at count
-  have weight := count_by_theta_refined X (2^22) 22 (by decide) (log_nat_two_pow 22)
-  have inner := count_by_theta (2^22) (2^11) 11 (by decide) (log_nat_two_pow 11)
-  have trunc : 72*X≤N := by dsimp [X]; omega
-  norm_num only [Nat.reducePow] at weight inner
-  omega
 
 theorem small_primes_360 {N : ℕ} (big : 10000000000 ≤ N) (Q : Finset ℕ)
     (prime : ∀ p ∈ Q, p.Prime) (small : ∀ p ∈ Q, 360*p ≤ N) :
@@ -4417,18 +3920,6 @@ theorem endpoint_structured_400M (k : ℕ) (big : 400000000≤25*k+7) (A : Finse
   have qr : A.card ≤ Y.card+X.card := by exact_mod_cast q
   omega
 
-theorem effective_structured_400M (N : ℕ) (big : 400000000≤N) : ∀A⊆range N, NonSquarefreeProductProp A → ((∀x∈A,x%2=1) ∨ (∀x∈A,2∣x) ∨ (∃s, 2∣s ∧ ∀x∈outside A,x ≡ s [MOD 4])) → A.card ≤ (A₇ N).card := by
-  intro A inside adm shape
-  let k := (N+17)/25
-  have up : N ≤ 25*k+7 := by dsimp [k]; omega
-  have incl : A⊆range (25*k+7) := fun x hx=>mem_range.mpr ((mem_range.mp (inside hx)).trans_le up)
-  have valid := endpoint_structured_400M k (big.trans up) A incl adm shape
-  have size : (A₇ N).card=k := Erdos848Port.card_range_filter_mod25_eq 7 (by decide) N
-  rw [size]
-  exact valid
-theorem effective_odd_400M (N : ℕ) (big : 400000000 ≤ N) : ∀A⊆range N, NonSquarefreeProductProp A → (∀x∈A,x%2=1) → A.card ≤ (A₇ N).card := by
-  intro A inside adm odd
-  exact effective_structured_400M N big A inside adm (Or.inl odd)
 end Deldor14.Erdos848OddPart
 
 
@@ -5636,15 +5127,6 @@ theorem endpoint_5B (k : ℕ) (big : 5000000000≤25*k+7) (A : Finset ℕ)
   have qr : A.card ≤ Y.card+X.card := by exact_mod_cast q
   omega
 
-theorem effective_5B (N : ℕ) (big : 5000000000≤N) : Erdos848For N := by
-  intro A inside adm
-  let k := (N+17)/25
-  have up : N ≤ 25*k+7 := by dsimp [k]; omega
-  have incl : A⊆range (25*k+7) := fun x hx=>mem_range.mpr ((mem_range.mp (inside hx)).trans_le up)
-  have valid := endpoint_5B k (big.trans up) A incl adm
-  have size : (A₇ N).card=k := Erdos848Port.card_range_filter_mod25_eq 7 (by decide) N
-  rw [size]
-  exact valid
 end Deldor14.Erdos848Fifth
 
 /- Encoding the complementary divisor in a single congruence class. -/

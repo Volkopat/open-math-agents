@@ -1,5 +1,6 @@
 import OMAReductions.R_Erdos1166_erdos_1166_variants_erdos_taylor_R1
 
+open Finset
 -- Step Erdos1166.erdos_1166.variants.erdos_taylor.R1.H2: hypothesis H2 of reduction Erdos1166.erdos_1166.variants.erdos_taylor.R1
 -- Credit: @koolkao
 
@@ -16,47 +17,47 @@ namespace OMA.H2Proof
 lemma position_congr {Ω Ω' : Type*} {X : ℕ → Ω → ℤ × ℤ} {Y : ℕ → Ω' → ℤ × ℤ} {ω : Ω} {ω' : Ω'}
     {n m : ℕ} (h : ∀ i < n, X i ω = Y i ω') (hm : m ≤ n) :
     position X m ω = position Y m ω' :=
-  Finset.sum_congr rfl fun i hi ↦ h i (by rw [Finset.mem_range] at hi; omega)
+  sum_congr rfl fun i hi ↦ h i (by rw [mem_range] at hi; omega)
 
 lemma localTime_congr {Ω Ω' : Type*} {X : ℕ → Ω → ℤ × ℤ} {Y : ℕ → Ω' → ℤ × ℤ} {ω : Ω}
     {ω' : Ω'} {n : ℕ} (x : ℤ × ℤ) (h : ∀ i < n, X i ω = Y i ω') :
     localTime X n ω x = localTime Y n ω' x := by
   unfold localTime
   congr 1
-  refine Finset.filter_congr fun m hm ↦ ?_
-  rw [Finset.mem_range] at hm
+  refine filter_congr fun m hm ↦ ?_
+  rw [mem_range] at hm
   rw [position_congr h (by omega)]
 
 lemma position_shift {Ω : Type*} (X : ℕ → Ω → ℤ × ℤ) (ω : Ω) (j m : ℕ) :
     position X (j + m) ω = position X j ω + position (fun i ↦ X (j + i)) m ω :=
-  Finset.sum_range_add _ _ _
+  sum_range_add _ _ _
 
 lemma subset_union {Ω : Type*} (X : ℕ → Ω → ℤ × ℤ) (n k : ℕ) :
     {ω | k ≤ maxLocalTime X n ω} ⊆
-      ⋃ j ∈ Finset.range (n + 1), {ω | k ≤ localTime (fun i ↦ X (j + i)) n ω 0} := by
+      ⋃ j ∈ range (n + 1), {ω | k ≤ localTime (fun i ↦ X (j + i)) n ω 0} := by
   intro ω hω
   rw [Set.mem_setOf_eq] at hω
-  obtain ⟨i, hi, hmax⟩ := Finset.exists_mem_eq_sup (Finset.range (n + 1))
-    ⟨0, Finset.mem_range.mpr (Nat.succ_pos n)⟩ fun k ↦ localTime X n ω (position X k ω)
+  obtain ⟨i, hi, hmax⟩ := exists_mem_eq_sup (range (n + 1))
+    ⟨0, mem_range.mpr (Nat.succ_pos n)⟩ fun k ↦ localTime X n ω (position X k ω)
   set x := position X i ω with hx
-  set A := (Finset.range (n + 1)).filter fun m ↦ position X m ω = x with hA
-  have hiA : i ∈ A := Finset.mem_filter.mpr ⟨hi, rfl⟩
+  set A := (range (n + 1)).filter fun m ↦ position X m ω = x with hA
+  have hiA : i ∈ A := mem_filter.mpr ⟨hi, rfl⟩
   have hne : A.Nonempty := ⟨i, hiA⟩
   set j := A.min' hne with hj
-  have hjA : j ∈ A := Finset.min'_mem A hne
-  have hjA' := Finset.mem_filter.mp hjA
-  have hjn : j < n + 1 := Finset.mem_range.mp hjA'.1
-  refine Set.mem_iUnion₂.mpr ⟨j, Finset.mem_range.mpr hjn, ?_⟩
+  have hjA : j ∈ A := min'_mem A hne
+  have hjA' := mem_filter.mp hjA
+  have hjn : j < n + 1 := mem_range.mp hjA'.1
+  refine Set.mem_iUnion₂.mpr ⟨j, mem_range.mpr hjn, ?_⟩
   rw [Set.mem_setOf_eq]
   have hk : k ≤ A.card := by
     have : maxLocalTime X n ω = A.card := hmax
     omega
-  refine hk.trans (Finset.card_le_card_of_injOn (fun a ↦ a - j) ?_ ?_)
+  refine hk.trans (card_le_card_of_injOn (fun a ↦ a - j) ?_ ?_)
   · intro a ha
-    have ha' := Finset.mem_filter.mp ha
-    have hja : j ≤ a := Finset.min'_le A a ha
-    have han : a < n + 1 := Finset.mem_range.mp ha'.1
-    refine Finset.mem_filter.mpr ⟨Finset.mem_range.mpr (show a - j < n + 1 by omega), ?_⟩
+    have ha' := mem_filter.mp ha
+    have hja : j ≤ a := min'_le A a ha
+    have han : a < n + 1 := mem_range.mp ha'.1
+    refine mem_filter.mpr ⟨mem_range.mpr (show a - j < n + 1 by omega), ?_⟩
     have hs := position_shift X ω j (a - j)
     rw [show j + (a - j) = a by omega] at hs
     have e : position (fun i ↦ X (j + i)) (a - j) ω = position X a ω - position X j ω := by
@@ -64,8 +65,8 @@ lemma subset_union {Ω : Type*} (X : ℕ → Ω → ℤ × ℤ) (n k : ℕ) :
       abel
     rw [e, ha'.2, hjA'.2, sub_self]
   · intro a ha b hb hab
-    have hja : j ≤ a := Finset.min'_le A a ha
-    have hjb : j ≤ b := Finset.min'_le A b hb
+    have hja : j ≤ a := min'_le A a ha
+    have hjb : j ≤ b := min'_le A b hb
     have hab' : a - j = b - j := hab
     omega
 
@@ -107,14 +108,14 @@ lemma prob_shift {Ω : Type} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Meas
 theorem h2 : OMA.R_Erdos1166_erdos_1166_variants_erdos_taylor_R1.H2 := by
   intro Ω _ _ X hX n k
   calc ℙ {ω | k ≤ maxLocalTime X n ω}
-      ≤ ℙ (⋃ j ∈ Finset.range (n + 1), {ω | k ≤ localTime (fun i ↦ X (j + i)) n ω 0}) :=
+      ≤ ℙ (⋃ j ∈ range (n + 1), {ω | k ≤ localTime (fun i ↦ X (j + i)) n ω 0}) :=
         measure_mono (subset_union X n k)
-    _ ≤ ∑ j ∈ Finset.range (n + 1), ℙ {ω | k ≤ localTime (fun i ↦ X (j + i)) n ω 0} :=
+    _ ≤ ∑ j ∈ range (n + 1), ℙ {ω | k ≤ localTime (fun i ↦ X (j + i)) n ω 0} :=
         measure_biUnion_finset_le _ _
-    _ = ∑ _j ∈ Finset.range (n + 1), ℙ {ω | k ≤ localTime X n ω 0} :=
-        Finset.sum_congr rfl fun j _ ↦ prob_shift hX n k j
+    _ = ∑ _j ∈ range (n + 1), ℙ {ω | k ≤ localTime X n ω 0} :=
+        sum_congr rfl fun j _ ↦ prob_shift hX n k j
     _ = ((n : ℝ≥0∞) + 1) * ℙ {ω | k ≤ localTime X n ω 0} := by
-        rw [Finset.sum_const, Finset.card_range, nsmul_eq_mul, Nat.cast_add, Nat.cast_one]
+        rw [sum_const, card_range, nsmul_eq_mul, Nat.cast_add, Nat.cast_one]
 
 end OMA.H2Proof
 

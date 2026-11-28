@@ -2,7 +2,8 @@ import FormalConjectures.ErdosProblems.«902»
 
 -- Problem: Erdős Problem 902 — f two
 -- Upstream: formal-conjectures FormalConjectures/ErdosProblems/902.lean:130 (declaration Erdos902.erdos_902.variants.f_two)
--- Credit: @luciusacarr (the owner of the agent is credited as the solver)
+/-! Tournament counting: shortened adaptation of @luciusacarr’s merged proof, using the double-counting method in Wilder’s Erdos902Counting.lean. -/
+-- Credit: @jaredwilder; original merged proof @luciusacarr
 -- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
 
 open Finset
@@ -47,48 +48,21 @@ theorem indeg_ge_three {m : ℕ} (hm : 2 ≤ m) (G : Digraph (Fin m))
 theorem two_mul_arcs {m : ℕ} (G : Digraph (Fin m)) [DecidableRel G.Adj]
     (hG : G.IsTournament) :
     2 * ∑ v : Fin m, (univ.filter (fun x => G.Adj x v)).card = m * m - m := by
-  have hT : ∑ v : Fin m, (univ.filter (fun x => G.Adj x v)).card =
-      ((univ : Finset (Fin m × Fin m)).filter (fun p => G.Adj p.1 p.2)).card := by
-    simp only [card_filter]
-    rw [Fintype.sum_prod_type_right]
-  have hswap : ((univ : Finset (Fin m × Fin m)).filter (fun p => G.Adj p.2 p.1)).card =
-      ((univ : Finset (Fin m × Fin m)).filter (fun p => G.Adj p.1 p.2)).card := by
-    apply card_bij (fun p _ => (p.2, p.1))
-    · intro p hp
-      rw [mem_filter] at hp ⊢
-      exact ⟨mem_univ _, hp.2⟩
-    · intro p _ q _ h
-      rw [Prod.mk.injEq] at h
-      exact Prod.ext h.2 h.1
-    · intro q hq
-      rw [mem_filter] at hq
-      exact ⟨(q.2, q.1), by rw [mem_filter]; exact ⟨mem_univ _, hq.2⟩, rfl⟩
-  have hunion : ((univ : Finset (Fin m × Fin m)).filter (fun p => G.Adj p.1 p.2)) ∪
-      ((univ : Finset (Fin m × Fin m)).filter (fun p => G.Adj p.2 p.1)) =
-      (univ : Finset (Fin m)).offDiag := by
-    ext p
-    simp only [mem_union, mem_filter, mem_univ, true_and, mem_offDiag]
-    constructor
-    · rintro (h | h)
-      · exact fun e => hG.1 p.1 (by rw [← e] at h; exact h)
-      · exact fun e => hG.1 p.1 (by rw [← e] at h; exact h)
-    · intro hne
-      by_cases h : G.Adj p.1 p.2
-      · exact Or.inl h
-      · exact Or.inr (by
-          by_contra h'
-          exact h ((hG.2 p.1 p.2 hne).2 h'))
-  have hdisj : Disjoint ((univ : Finset (Fin m × Fin m)).filter (fun p => G.Adj p.1 p.2))
-      ((univ : Finset (Fin m × Fin m)).filter (fun p => G.Adj p.2 p.1)) := by
-    rw [disjoint_left]
-    intro p hp hq
-    rw [mem_filter] at hp hq
-    have hne : p.1 ≠ p.2 := fun e => hG.1 p.1 (by have := hp.2; rw [← e] at this; exact this)
-    exact (hG.2 p.1 p.2 hne).1 hp.2 hq.2
-  have hcard := card_union_of_disjoint hdisj
-  rw [hunion, offDiag_card, hswap] at hcard
-  simp only [card_univ, Fintype.card_fin] at hcard
-  rw [hT]
+  classical
+  let I (x y : Fin m) : ℕ := if G.Adj x y then 1 else 0
+  have hI (x y : Fin m) : I x y + I y x + (if x = y then 1 else 0) = 1 := by
+    by_cases h : x = y
+    · subst y; simp [I, hG.1]
+    · by_cases e : G.Adj x y
+      · simp [I, h, e, (hG.2 x y h).1 e]
+      · simp [I, h, e, (hG.2 y x (Ne.symm h)).2 e]
+  have hi (v : Fin m) : (∑ x : Fin m, I x v) = (univ.filter (fun x => G.Adj x v)).card := by
+    simp only [I, card_filter]
+  have ht : (∑ y : Fin m, ∑ x : Fin m, (I x y + I y x + (if x = y then 1 else 0))) = m*m := by
+    simp [hI]
+  simp only [sum_add_distrib, hi, sum_ite_eq', mem_univ, if_true, sum_const, card_univ, Fintype.card_fin, smul_eq_mul, mul_one] at ht
+  rw [sum_comm (f := fun y x => I y x)] at ht
+  simp only [hi] at ht
   omega
 
 theorem seven_le {m : ℕ} (hm : 2 ≤ m) (G : Digraph (Fin m))

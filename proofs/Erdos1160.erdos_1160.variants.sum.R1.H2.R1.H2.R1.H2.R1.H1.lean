@@ -64,33 +64,6 @@ section
 
 namespace OrbitUp
 
-/-- The spare quadratic term pays for every dimension split and a factor two
-so the resulting class of groups can be combined with its complement. -/
-theorem sum_over_ranks (m A : ℕ) (hm : 10000000 ≤ m) (f : ℕ → ℕ)
-    (hA : A ≤ ∑ k ∈ Finset.range (m+1), f k)
-    (h : ∀ k ≤ m, (f k)^27 * 2^(10*m^2) ≤ 2^(2*m^3)) :
-    (2*A)^27 * 2^(9*m^2) ≤ 2^(2*m^3) := by
-  obtain ⟨k,hk,hmax⟩ := Finset.exists_max_image (Finset.range (m+1)) f (by simp)
-  have hs : A ≤ (m+1)*f k := hA.trans (calc
-    _ ≤ ∑ _i ∈ Finset.range (m+1), f k := Finset.sum_le_sum hmax
-    _ = _ := by simp)
-  have hk' : k ≤ m := Nat.le_of_lt_succ (Finset.mem_range.mp hk)
-  have hfactor : 2*A ≤ 2^(m+1)*f k := calc
-    _ ≤ 2*((m+1)*f k) := Nat.mul_le_mul_left _ hs
-    _ = (2*(m+1))*f k := (Nat.mul_assoc _ _ _).symm
-    _ ≤ (2*2^m)*f k := Nat.mul_le_mul_right _ (Nat.mul_le_mul_left 2 (show m < 2^m from Nat.lt_two_pow_self))
-    _ = _ := by rw [Nat.pow_succ, Nat.mul_comm 2]
-  have he : (m+1)*27+9*m^2 ≤ 10*m^2 := by
-    have hbig := Nat.mul_le_mul_left m hm
-    nlinarith only [hbig,hm]
-  calc
-    _ ≤ (2^(m+1)*f k)^27 * 2^(9*m^2) :=
-      Nat.mul_le_mul_right _ (Nat.pow_le_pow_left hfactor 27)
-    _ = (f k)^27 * 2^((m+1)*27+9*m^2) := by
-      rw [Nat.mul_pow, ← Nat.pow_mul, Nat.pow_add, Nat.mul_comm (2^((m+1)*27)),Nat.mul_assoc]
-    _ ≤ (f k)^27 * 2^(10*m^2) := Nat.mul_le_mul_left _ (Nat.pow_le_pow_right (by decide) he)
-    _ ≤ _ := h k hk'
-
 end OrbitUp
 
 end
@@ -263,13 +236,6 @@ noncomputable instance {d s : ℕ} : MulAction (Change d s) (Q d s) where
 /-- A form has no nonidentity coordinate change preserving it. -/
 def Rigid {d s : ℕ} (q : Q d s) : Prop := ∀ g : Change d s, g • q = q → g=1
 
-private theorem orbit_rigid_injective {d s : ℕ} {q : Q d s} (hq : Rigid q) :
-    Function.Injective (fun g : Change d s => g • q) := by
-  intro a b h
-  change a • q = b • q at h
-  have hg : (b⁻¹*a) • q = q := by rw [mul_smul,h,inv_smul_smul]
-  exact (inv_mul_eq_one.mp (hq _ hg)).symm
-
 private instance forms_finite (d s : ℕ) : Finite (Q d s) :=
   Finite.of_injective (@coefficients d s) coefficients_injective
 
@@ -277,36 +243,6 @@ private instance linear_finite (d : ℕ) : Finite (L d) :=
   Finite.of_injective (fun e : L d => (e : V d → V d)) (by intro f g h; exact LinearEquiv.ext (fun v => congrFun h v))
 
 abbrev Classes (d s : ℕ) := MulAction.orbitRel.Quotient (Change d s) (Q d s)
-
-def RigidClasses (d s : ℕ) :=
-  {c : Classes d s // ∃ q : Q d s, Quotient.mk'' q = c ∧ Rigid q}
-
-theorem count_rigid (d s : ℕ) :
-    Nat.card (RigidClasses d s) * 2^(d*(d-1)+s*(s-1)) ≤ 2^(s*(d+d*(d-1)/2)) := by
-  classical
-  let rep (c : RigidClasses d s) : Q d s := c.property.choose
-  have hr (c : RigidClasses d s) : Quotient.mk'' (rep c) = c.1 ∧ Rigid (rep c) :=
-    c.property.choose_spec
-  let encode (x : RigidClasses d s × Change d s) : Q d s := x.2 • rep x.1
-  have hinj : Function.Injective encode := by
-    rintro ⟨c,g⟩ ⟨e,h⟩ he
-    change g • rep c = h • rep e at he
-    have same (v : Change d s) (q : Q d s) :
-        Quotient.mk'' (v • q) = (Quotient.mk'' q : Classes d s) :=
-      Quotient.sound ((MulAction.orbitRel_apply).mpr ⟨v,rfl⟩)
-    have hc : c = e := Subtype.ext (by
-      rw [← (hr c).1, ← (hr e).1, ← same g (rep c), ← same h (rep e), he])
-    subst e
-    exact Prod.ext rfl (orbit_rigid_injective (hr c).2 he)
-  have group_lower : 2^(d*(d-1)+s*(s-1)) ≤ Nat.card (Change d s) := by
-    rw [Nat.pow_add, Nat.card_prod]
-    exact Nat.mul_le_mul (gl_lower d) (gl_lower s)
-  calc
-    _ ≤ Nat.card (RigidClasses d s) * Nat.card (Change d s) :=
-      Nat.mul_le_mul_left _ group_lower
-    _ = Nat.card (RigidClasses d s × Change d s) := (Nat.card_prod _ _).symm
-    _ ≤ Nat.card (Q d s) := Nat.card_le_card_of_injective encode hinj
-    _ ≤ _ := count_forms d s
 
 end OrbitUp
 
@@ -356,40 +292,6 @@ theorem rank_powers (d s : ℕ) :
     linarith only [rad,tris]
   exact_mod_cast goal
 
-/-- Uniform over every rank split, the number of rigid quadratic-map orbits has
-the sharp cubic and quadratic coefficients with an explicit linear remainder. -/
-theorem rigid_sharp_uniform (d s : ℕ) :
-    Nat.card (RigidClasses d s)^27 * 2^(12*(d+s)^2) ≤ 2^(2*(d+s)^3+60*(d+s)) := by
-  have counted := Nat.pow_le_pow_left (count_rigid d s) 27
-  rw [Nat.mul_pow, ← Nat.pow_mul, ← Nat.pow_mul] at counted
-  apply Nat.le_of_mul_le_mul_right
-    (c := 2^((d*(d-1)+s*(s-1))*27)) _ (Nat.pow_pos (by decide))
-  calc
-    _ = (Nat.card (RigidClasses d s)^27 * 2^((d*(d-1)+s*(s-1))*27)) * 2^(12*(d+s)^2) :=
-      Nat.mul_right_comm _ _ _
-    _ ≤ 2^((s*(d+d*(d-1)/2))*27) * 2^(12*(d+s)^2) := Nat.mul_le_mul_right _ counted
-    _ = 2^((s*(d+d*(d-1)/2))*27 + 12*(d+s)^2) := (Nat.pow_add _ _ _).symm
-    _ ≤ 2^((2*(d+s)^3+60*(d+s))+(d*(d-1)+s*(s-1))*27) :=
-      Nat.pow_le_pow_right (by decide) (by simpa only [Nat.mul_comm 27 _] using rank_powers d s)
-    _ = _ := Nat.pow_add _ _ _
-
-/-- In particular, every rigid rank split already obeys the requested negative
-quadratic coefficient once d+s reaches 20. -/
-theorem rigid_below_target (d s : ℕ) (hm : 20 ≤ d+s) :
-    Nat.card (RigidClasses d s)^27 * 2^(9*(d+s)^2) ≤ 2^(2*(d+s)^3) := by
-  let m := d+s
-  have hexp : 9*m^2 + 60*m ≤ 12*m^2 := by
-    have h := Nat.mul_le_mul_right m hm
-    change 20*m ≤ m*m at h
-    nlinarith only [h]
-  apply Nat.le_of_mul_le_mul_right (c := 2^(60*m)) _ (Nat.pow_pos (by decide))
-  calc
-    _ = Nat.card (RigidClasses d s)^27 * (2^(9*m^2)*2^(60*m)) := Nat.mul_assoc _ _ _
-    _ = Nat.card (RigidClasses d s)^27 * 2^(9*m^2+60*m) := by rw [Nat.pow_add]
-    _ ≤ Nat.card (RigidClasses d s)^27 * 2^(12*m^2) :=
-      Nat.mul_le_mul_left _ (Nat.pow_le_pow_right (by decide) hexp)
-    _ ≤ _ := (rigid_sharp_uniform d s).trans_eq (Nat.pow_add 2 (2*m^3) (60*m))
-
 end OrbitUp
 
 end
@@ -399,76 +301,6 @@ section
 
 namespace OrbitUp
 
-private def shearMap {d : ℕ} (i j : Fin d) : V d →ₗ[K] V d where
-  toFun v := v + (v i) • basis j
-  map_add' x y := by simp [add_smul, add_add_add_comm]
-  map_smul' a x := by simp [smul_add, smul_smul]
-
-def shear {d : ℕ} (i j : Fin d) (h : i ≠ j) : L d :=
-  let t := shearMap i j
-  { t with
-    invFun := t
-    left_inv := by
-      intro v
-      funext k
-      have zero : basis j i = 0 := by simp [basis,Ne.symm h]
-      change (v k + v i * basis j k) + (v i + v i * basis j i)*basis j k = v k
-      rw [zero,mul_zero, add_zero]
-      have dbl : ∀ z : K, z+z=0 := by decide
-      rw [add_assoc,dbl,add_zero]
-    right_inv := by
-      intro v
-      funext k
-      have zero : basis j i = 0 := by simp [basis,Ne.symm h]
-      change (v k + v i * basis j k) + (v i + v i * basis j i)*basis j k = v k
-      rw [zero,mul_zero, add_zero]
-      have dbl : ∀ z : K, z+z=0 := by decide
-      rw [add_assoc,dbl,add_zero] }
-
-private theorem shear_on {d : ℕ} (i j : Fin d) (h : i ≠ j) :
-    shear i j h (basis i) = basis i + basis j := by
-  change basis i + (basis i i) • basis j = _
-  simp [basis]
-
-private theorem shear_off {d : ℕ} (i j k : Fin d) (h : i ≠ j) (hk : k ≠ i) :
-    shear i j h (basis k) = basis k := by
-  change basis k + (basis k i) • basis j = _
-  simp [basis,hk]
-
-abbrev shearFixed {d : ℕ} (s : ℕ) (i j : Fin d) (h : i ≠ j) :=
-  {q : Q d s // ∀ x, q (shear i j h x)=q x}
-
-private theorem polar_invariant {d s : ℕ} {i j : Fin d} {h : i ≠ j}
-    (q : shearFixed s i j h) (u v : V d) :
-    QuadraticMap.polar q.val (shear i j h u) (shear i j h v) = QuadraticMap.polar q.val u v := by
-  simp only [QuadraticMap.polar, ← map_add, q.property]
-
-theorem forced_diag {d s : ℕ} {i j : Fin d} {h : i ≠ j} (q : shearFixed s i j h) :
-    q.val (basis j) = QuadraticMap.polar q.val (basis i) (basis j) := by
-  have fix := q.property (basis i)
-  rw [shear_on, QuadraticMap.map_add q.val] at fix
-  have zero : ∀ w : V s, w + w = 0 := by
-    intro w
-    funext k
-    have dbl : ∀ z : K, z+z=0 := by decide
-    exact dbl (w k)
-  calc
-    q.val (basis j) = q.val (basis j) + ((QuadraticMap.polar q.val (basis i) (basis j)) +
-      (QuadraticMap.polar q.val (basis i) (basis j))) := by rw [zero,add_zero]
-    _ = _ := by
-      apply add_left_cancel (a := q.val (basis i))
-      calc
-        _ = (q.val (basis i)+q.val (basis j)+QuadraticMap.polar q.val (basis i) (basis j))+
-            QuadraticMap.polar q.val (basis i) (basis j) := by abel
-        _ = _ := by rw [fix]
-
-theorem forced_polar {d s : ℕ} {i j : Fin d} {h : i ≠ j}
-    (q : shearFixed s i j h) (k : Fin d) (hk : k ≠ i) :
-    QuadraticMap.polar q.val (basis j) (basis k) = 0 := by
-  have eqn := polar_invariant q (basis i) (basis k)
-  rw [shear_on, shear_off _ _ _ _ hk, QuadraticMap.polar_add_left] at eqn
-  exact add_left_cancel (eqn.trans (add_zero _).symm)
-
 end OrbitUp
 
 end
@@ -477,65 +309,6 @@ end
 section
 
 namespace OrbitUp
-
-private abbrev lastPairs (n : ℕ) := (i : Fin n) × Fin i.val
-private abbrev compact (n : ℕ) := Fin n ⊕ lastPairs n ⊕ Unit
-
-private def compactCode {n s : ℕ} {i j : Fin (n+1)} {h : i ≠ j} (q : shearFixed s i j h) :
-    compact n → V s := Sum.elim (fun k => q.val (basis (j.succAbove k))) <|
-      Sum.elim (fun z => QuadraticMap.polar q.val (basis (j.succAbove z.1))
-        (basis (j.succAbove ⟨z.2.val,z.2.isLt.trans z.1.isLt⟩)))
-        (fun _ => QuadraticMap.polar q.val (basis i) (basis j))
-
-private theorem compactCode_injective {n s : ℕ} (i j : Fin (n+1)) (h : i ≠ j) :
-    Function.Injective (@compactCode n s i j h) := by
-  intro q r he
-  have hij : QuadraticMap.polar q.val (basis i) (basis j) =
-      QuadraticMap.polar r.val (basis i) (basis j) := congrFun he (.inr (.inr ()))
-  have hd (k : Fin (n+1)) : q.val (basis k) = r.val (basis k) := by
-    rcases Fin.eq_self_or_eq_succAbove j k with rfl | ⟨l,rfl⟩
-    · exact (forced_diag q).trans (hij.trans (forced_diag r).symm)
-    · exact congrFun he (.inl l)
-  have hrow (k : Fin (n+1)) : QuadraticMap.polar q.val (basis j) (basis k) =
-      QuadraticMap.polar r.val (basis j) (basis k) := by
-    by_cases hk : k=i
-    · subst k; rw [QuadraticMap.polar_comm q.val, QuadraticMap.polar_comm r.val]; exact hij
-    · rw [forced_polar q k hk, forced_polar r k hk]
-  have low (u v : Fin n) (hv : v < u) :
-      QuadraticMap.polar q.val (basis (j.succAbove u)) (basis (j.succAbove v)) =
-      QuadraticMap.polar r.val (basis (j.succAbove u)) (basis (j.succAbove v)) :=
-    congrFun he (.inr (.inl ⟨u,⟨v.val,hv⟩⟩))
-  have hp (a b : Fin (n+1)) : QuadraticMap.polar q.val (basis a) (basis b) =
-      QuadraticMap.polar r.val (basis a) (basis b) := by
-    rcases Fin.eq_self_or_eq_succAbove j a with rfl | ⟨u,rfl⟩
-    · exact hrow b
-    rcases Fin.eq_self_or_eq_succAbove j b with rfl | ⟨v,rfl⟩
-    · rw [QuadraticMap.polar_comm q.val, QuadraticMap.polar_comm r.val]; exact hrow _
-    rcases lt_trichotomy u v with huv | rfl | hvu
-    · rw [QuadraticMap.polar_comm q.val, QuadraticMap.polar_comm r.val]; exact low v u huv
-    · simp only [QuadraticMap.polar_self, hd]
-    · exact low u v hvu
-  apply Subtype.ext
-  apply coefficients_injective
-  funext z
-  rcases z with k | ⟨a,b⟩
-  · exact hd k
-  · exact hp a ⟨b.val,b.isLt.trans a.isLt⟩
-
-/-- A single input-coordinate transvection leaves at most this many vector-valued quadratic
-maps fixed. Relative to the full coefficient count the lost exponent is s*n for domain rank n+1. -/
-theorem transvection_fixed_count (n s : ℕ) (i j : Fin (n+1)) (h : i ≠ j) :
-    Nat.card (shearFixed s i j h) ≤ 2^(s*(n+n*(n-1)/2+1)) := by
-  have c := Nat.card_le_card_of_injective (@compactCode n s i j h) (compactCode_injective i j h)
-  have countPairs : Nat.card (lastPairs n) = n*(n-1)/2 := by
-    rw [lastPairs,Nat.card_sigma]
-    simp only [Nat.card_fin]
-    exact (Fin.sum_univ_eq_sum_range (fun i : ℕ => i) n).trans (Finset.sum_range_id n)
-  have slots : Nat.card (compact n) = n+n*(n-1)/2+1 := by
-    change Nat.card (Fin n ⊕ (lastPairs n ⊕ Unit)) = _
-    rw [Nat.card_sum,Nat.card_sum,countPairs,Nat.card_fin]
-    simp [Nat.add_assoc]
-  simpa only [Nat.card_fun, slots, V, Nat.card_fin, Nat.card_zmod, ← pow_mul] using c
 
 end OrbitUp
 
@@ -554,103 +327,7 @@ theorem mem_fixedSubspace {s : ℕ} (b : L s) (w : V s) :
   change b w - w = 0 ↔ b w = w
   exact sub_eq_zero
 
-theorem fixed_finrank_lt {s : ℕ} {b : L s} (hb : b ≠ 1) :
-    Module.finrank K (fixedSubspace b) < s := by
-  have h : fixedSubspace b ≠ ⊤ := by
-    intro ht
-    apply hb
-    apply LinearEquiv.ext
-    intro w
-    exact (mem_fixedSubspace b w).mp (by rw [ht]; trivial)
-  simpa only [V,Module.finrank_fintype_fun_eq_card,Fintype.card_fin] using Submodule.finrank_lt h
-
 abbrev mixedFix {d s : ℕ} (a : L d) (b : L s) := {q : Q d s // ∀ x, b (q x) = q (a x)}
-
-private theorem off {d : ℕ} (i j k : Fin d) (h : i ≠ j) (hk : k ≠ i) :
-    shear i j h (basis k) = basis k := by
-  change basis k + (basis k i) • basis j = _
-  simp [basis,hk]
-
-private theorem coeff_fix {n s : ℕ} {i j : Fin (n+1)} {h : i ≠ j} {b : L s}
-    (q : mixedFix (shear i j h) b) (k : Fin n) :
-    q.val (basis (i.succAbove k)) ∈ fixedSubspace b := by
-  rw [mem_fixedSubspace,q.property,off _ _ _ _ (Fin.succAbove_ne _ _)]
-
-private theorem polar_fix {n s : ℕ} {i j : Fin (n+1)} {h : i ≠ j} {b : L s}
-    (q : mixedFix (shear i j h) b) (k l : Fin n) :
-    QuadraticMap.polar q.val (basis (i.succAbove k)) (basis (i.succAbove l)) ∈ fixedSubspace b := by
-  rw [mem_fixedSubspace]
-  simp only [QuadraticMap.polar,map_sub,q.property,map_add,off _ _ _ _ (Fin.succAbove_ne _ _)]
-
-private def mixedCode {n s : ℕ} {i j : Fin (n+1)} {h : i ≠ j} {b : L s}
-    (q : mixedFix (shear i j h) b) :
-    (Slots n → fixedSubspace b) × V s × (Fin n → V s) :=
-  ⟨Sum.elim (fun k => ⟨q.val (basis (i.succAbove k)),coeff_fix q k⟩) (fun z =>
-    ⟨QuadraticMap.polar q.val (basis (i.succAbove z.1))
-      (basis (i.succAbove ⟨z.2.val,z.2.isLt.trans z.1.isLt⟩)),polar_fix q _ _⟩),
-    q.val (basis i), fun l => QuadraticMap.polar q.val (basis i) (basis (i.succAbove l))⟩
-
-private theorem mixedCode_injective {n s : ℕ} (i j : Fin (n+1)) (h : i ≠ j) (b : L s) :
-    Function.Injective (@mixedCode n s i j h b) := by
-  intro q r he
-  have hrestricted (z : Slots n) := congrArg Subtype.val <| congrFun (congrArg Prod.fst he) z
-  have hpivot : q.val (basis i) = r.val (basis i) := congrArg (fun f => f.2.1) he
-  have hrow (k : Fin n) : QuadraticMap.polar q.val (basis i) (basis (i.succAbove k)) =
-      QuadraticMap.polar r.val (basis i) (basis (i.succAbove k)) :=
-    congrFun (congrArg (fun f => f.2.2) he) k
-  have hd (k : Fin (n+1)) : q.val (basis k) = r.val (basis k) := by
-    rcases Fin.eq_self_or_eq_succAbove i k with rfl | ⟨l,rfl⟩
-    · exact hpivot
-    · exact hrestricted (.inl l)
-  have low (u v : Fin n) (hv : v < u) :
-      QuadraticMap.polar q.val (basis (i.succAbove u)) (basis (i.succAbove v)) =
-      QuadraticMap.polar r.val (basis (i.succAbove u)) (basis (i.succAbove v)) :=
-    hrestricted (.inr ⟨u,⟨v.val,hv⟩⟩)
-  have hp (k l : Fin (n+1)) : QuadraticMap.polar q.val (basis k) (basis l) =
-      QuadraticMap.polar r.val (basis k) (basis l) := by
-    rcases Fin.eq_self_or_eq_succAbove i k with hk | ⟨u,hk⟩ <;> subst k <;>
-      rcases Fin.eq_self_or_eq_succAbove i l with hl | ⟨v,hl⟩ <;> subst l
-    · simp only [QuadraticMap.polar_self,hpivot]
-    · exact hrow v
-    · rw [QuadraticMap.polar_comm q.val,QuadraticMap.polar_comm r.val]; exact hrow u
-    · rcases lt_trichotomy u v with huv | rfl | hvu
-      · rw [QuadraticMap.polar_comm q.val,QuadraticMap.polar_comm r.val]; exact low v u huv
-      · simp only [QuadraticMap.polar_self,hd]
-      · exact low u v hvu
-  apply Subtype.ext
-  apply coefficients_injective
-  funext z
-  rcases z with k | ⟨a,c⟩
-  · exact hd k
-  · exact hp a ⟨c.val,c.isLt.trans a.isLt⟩
-
-theorem mixed_transvection_count {n s : ℕ} (i j : Fin (n+1)) (h : i ≠ j) (b : L s) :
-    Nat.card (mixedFix (shear i j h) b) ≤
-      2^(Module.finrank K (fixedSubspace b)*(n+n*(n-1)/2) + s*(n+1)) := by
-  have c := Nat.card_le_card_of_injective (@mixedCode n s i j h b) (mixedCode_injective i j h b)
-  have slots : Nat.card (Slots n) = n + n*(n-1)/2 := by
-    rw [Slots, Nat.card_sum, Nat.card_fin, Nat.card_sigma]
-    simp only [Nat.card_fin]
-    congr 1
-    exact (Fin.sum_univ_eq_sum_range (fun i : ℕ => i) n).trans (Finset.sum_range_id n)
-  have vec : Nat.card (V s) = 2^s := by simp [V]
-  have arr : Nat.card (Fin n → V s) = (2^s)^n := by rw [Nat.card_fun,vec,Nat.card_fin]
-  have subarr : Nat.card (Slots n → fixedSubspace b) =
-      (2^(Module.finrank K (fixedSubspace b)))^(n + n*(n-1)/2) := by
-    rw [Nat.card_fun,slots,Module.natCard_eq_pow_finrank (K := K) (V := fixedSubspace b),
-      Nat.card_zmod]
-  rw [Nat.card_prod,Nat.card_prod,subarr,arr,vec,← pow_mul,← pow_mul,←pow_add,←pow_add] at c
-  convert c using 3 <;> ring
-
-theorem mixed_nontrivial_transvection_count {n s : ℕ} (i j : Fin (n+1)) (h : i ≠ j)
-    {b : L s} (hb : b ≠ 1) :
-    Nat.card (mixedFix (shear i j h) b) ≤ 2^((s-1)*(n+n*(n-1)/2) + s*(n+1)) := by
-  apply (mixed_transvection_count i j h b).trans
-  apply Nat.pow_le_pow_right (by decide)
-  apply Nat.add_le_add_right
-  apply Nat.mul_le_mul_right
-  have := fixed_finrank_lt hb
-  omega
 
 end OrbitUp
 
@@ -661,59 +338,6 @@ section
 
 namespace OrbitUp
 
-/-- The conjugacy class of an elementary transvection. -/
-abbrev ShearClass {d : ℕ} (i j : Fin d) (h : i ≠ j) :=
-  {a : L d // ∃ u : L d, ∀ x, a x = u (shear i j h (u.symm x))}
-
-private noncomputable def conjCode {d : ℕ} {i j : Fin d} {h : i ≠ j}
-    (a : ShearClass i j h) : (V d →ₗ[K] K) × V d :=
-  let u := a.property.choose
-  ⟨(LinearMap.proj i).comp u.symm.toLinearMap, u (basis j)⟩
-
-private theorem conj_recover {d : ℕ} {i j : Fin d} {h : i ≠ j}
-    (a : ShearClass i j h) (x : V d) :
-    a.val x = x + (conjCode a).1 x • (conjCode a).2 := by
-  let u := a.property.choose
-  calc
-    _ = u (u.symm x + u.symm x i • basis j) := a.property.choose_spec x
-    _ = _ := by simp [conjCode,u]
-
-theorem card_shearClass {d : ℕ} (i j : Fin d) (h : i ≠ j) :
-    Nat.card (ShearClass i j h) ≤ 2^(2*d) := by
-  have inj : Function.Injective (@conjCode d i j h) := by
-    intro a c he
-    apply Subtype.ext
-    apply LinearEquiv.ext
-    intro x
-    rw [conj_recover a x,conj_recover c x,he]
-  have eq : Nat.card (V d →ₗ[K] K) = 2^d := by
-    rw [Module.natCard_eq_pow_finrank (K := K),Module.finrank_linearMap_self]
-    simp [V,K]
-  letI : Finite (V d →ₗ[K] K) := Finite.of_injective (fun f => (f : V d → K)) DFunLike.coe_injective
-  have bd := Nat.card_le_card_of_injective _ inj
-  simpa only [Nat.card_prod,eq,V,Nat.card_fun,Nat.card_fin,Nat.card_zmod,←pow_add,two_mul] using bd
-
-private noncomputable def pullFixed {d s : ℕ} {i j : Fin d} {h : i ≠ j}
-    (a : ShearClass i j h) (b : L s) (q : mixedFix a.val b) : mixedFix (shear i j h) b :=
-  let u := a.property.choose
-  ⟨q.val.comp u.toLinearMap, fun x => by
-    change b (q.val (u x)) = q.val (u (shear i j h x))
-    rw [q.property,a.property.choose_spec]
-    simp [u]⟩
-
-private theorem card_pullFixed {d s : ℕ} {i j : Fin d} {h : i ≠ j}
-    (a : ShearClass i j h) (b : L s) :
-    Nat.card (mixedFix a.val b) ≤ Nat.card (mixedFix (shear i j h) b) := by
-  apply Nat.card_le_card_of_injective (pullFixed a b)
-  intro q r he
-  apply Subtype.ext
-  apply QuadraticMap.ext
-  intro x
-  let u := a.property.choose
-  have hv := congrArg (fun z : mixedFix (shear i j h) b => z.val (u.symm x)) he
-  simpa only [pullFixed,QuadraticMap.comp_apply,LinearEquiv.coe_coe,u,
-    LinearEquiv.apply_symm_apply] using hv
-
 theorem gl_upper (d : ℕ) : Nat.card (L d) ≤ 2^(d*d) := by
   have inj : Function.Injective (fun a : L d => a.toLinearMap) := by
     intro a b hb
@@ -722,55 +346,6 @@ theorem gl_upper (d : ℕ) : Nat.card (L d) ≤ 2^(d*d) := by
   have bd := Nat.card_le_card_of_injective _ inj
   rw [Module.natCard_eq_pow_finrank (K := K) (V := V d →ₗ[K] V d),Module.finrank_linearMap] at bd
   simpa [V,K] using bd
-
-private theorem card_sigma_le {α : Type*} [Finite α] {β : α → Type*} [∀ a, Finite (β a)]
-    {c : ℕ} (h : ∀ a, Nat.card (β a) ≤ c) : Nat.card (Σ a, β a) ≤ Nat.card α * c := by
-  classical
-  let _ := Fintype.ofFinite α
-  rw [Nat.card_sigma]
-  calc
-    _ ≤ ∑ _a : α, c := Finset.sum_le_sum (fun a _ => h a)
-    _ = _ := by simp [Nat.card_eq_fintype_card]
-
-abbrev Nonidentity (s : ℕ) := {b : L s // b ≠ 1}
-
-abbrev MixedShearIncidence {n s : ℕ} (i j : Fin (n+1)) (h : i ≠ j) :=
-  (a : ShearClass i j h) × (b : Nonidentity s) × mixedFix a.val b.val
-
-/-- Total fixed-point incidences over the entire input transvection conjugacy class and
-all nonidentity output transformations. -/
-theorem mixed_shear_incidence_count {n s : ℕ} (i j : Fin (n+1)) (h : i ≠ j) :
-    Nat.card (@MixedShearIncidence n s i j h) ≤
-      2^(2*(n+1) + s*s + (s-1)*(n+n*(n-1)/2) + s*(n+1)) := by
-  have gb : Nat.card (Nonidentity s) ≤ 2^(s*s) :=
-    (Nat.card_le_card_of_injective Subtype.val Subtype.val_injective).trans (gl_upper s)
-  have each (a : ShearClass i j h) (b : Nonidentity s) :
-      Nat.card (mixedFix a.val b.val) ≤ 2^((s-1)*(n+n*(n-1)/2)+s*(n+1)) :=
-    (card_pullFixed a b.val).trans (mixed_nontrivial_transvection_count i j h b.property)
-  have row (a : ShearClass i j h) :
-      Nat.card ((b : Nonidentity s) × mixedFix a.val b.val) ≤
-      2^(s*s) * 2^((s-1)*(n+n*(n-1)/2)+s*(n+1)) :=
-    (card_sigma_le (each a)).trans (Nat.mul_le_mul_right _ gb)
-  have bd := (card_sigma_le row).trans
-    (Nat.mul_le_mul_right _ (card_shearClass i j h))
-  simpa only [←pow_add,Nat.add_assoc,MixedShearIncidence] using bd
-
-abbrev PureShearIncidence {n : ℕ} (s : ℕ) (i j : Fin (n+1)) (h : i ≠ j) :=
-  (a : ShearClass i j h) × mixedFix a.val (1 : L s)
-
-theorem pure_shear_incidence_count {n : ℕ} (s : ℕ) (i j : Fin (n+1)) (h : i ≠ j) :
-    Nat.card (PureShearIncidence s i j h) ≤ 2^(2*(n+1)+s*(n+n*(n-1)/2+1)) := by
-  have row (a : ShearClass i j h) :
-      Nat.card (mixedFix a.val (1 : L s)) ≤ 2^(s*(n+n*(n-1)/2+1)) := by
-    apply (card_pullFixed a (1 : L s)).trans
-    have inj : Function.Injective (fun q : mixedFix (shear i j h) (1 : L s) =>
-        (⟨q.val,fun x => (q.property x).symm⟩ : shearFixed s i j h)) := by
-      intro q r he
-      exact Subtype.ext (congrArg (fun z : shearFixed s i j h => z.val) he)
-    exact (Nat.card_le_card_of_injective _ inj).trans (transvection_fixed_count n s i j h)
-  have bd := (card_sigma_le row).trans
-    (Nat.mul_le_mul_right _ (card_shearClass i j h))
-  simpa only [←pow_add,PureShearIncidence] using bd
 
 end OrbitUp
 
@@ -958,37 +533,6 @@ theorem low_move_pays {d s r f : ℕ} (hhi : 3*s ≤ 2*d)
   change 2*d*R+s*s ≤ slotsN f
   nlinarith only [h1,h2,h3,h4]
 
-theorem low_input_slack {d s : ℕ} (hm : 10000000 ≤ d+s) :
-    27*(2*d*(d/128)+2) + 60*(d+s) ≤ 2*(d+s)^2 := by
-  have h1 : 128*(d/128) ≤ d := by omega
-  have h2 := Nat.mul_le_mul_left d h1
-  have h3 := Nat.mul_le_mul_left (d+s) hm
-  nlinarith only [h2,h3,hm,sq_nonneg (d:ℤ)]
-
-/-- Far from the balanced dimension split, even the raw number of parameters is small. -/
-theorem far_rank_slots {d s : ℕ} (hm : 10000000 ≤ d+s) (hfar : 3*s ≤ d ∨ 2*d ≤ 3*s) :
-    27*(s*slotsN d)+10*(d+s)^2 ≤ 2*(d+s)^3 := by
-  let m := d+s
-  have slots := Nat.mul_le_mul_left s (le_of_eq (twice_slots d))
-  have hmp := Nat.mul_le_mul_left (m^2) hm
-  change 10000000 ≤ m at hm
-  have gap : m^3 + 25*(27*s*d^2) ≤ 25*(4*m^3) := by
-    rcases hfar with h | h
-    · obtain ⟨u, rfl⟩ := Nat.exists_eq_add_of_le h
-      dsimp [m]
-      apply Nat.le.intro (k := 261*s^3+702*s^2*u+513*s*u^2+99*u^3)
-      ring
-    · have h' : 2*s ≥ d := by omega
-      obtain ⟨u,hu⟩ := Nat.exists_eq_add_of_le h'
-      have hh : d+s ≤ 5*u := by omega
-      have hg₁ := Nat.mul_le_mul hh hh
-      have hg₂ := Nat.mul_le_mul hg₁ (show d+s ≤ 4*d+s by omega)
-      dsimp [m]
-      nlinarith only [hg₂, congrArg (fun x : ℕ => (4*d+s)*x^2) hu,
-          congrArg (fun x : ℕ => (4*d+s)*d*x) hu]
-  dsimp [m] at hmp gap
-  nlinarith only [slots,hmp,gap]
-
 end OrbitUp
 
 end
@@ -997,43 +541,6 @@ end
 section
 
 namespace OrbitUp
-
-theorem orbit_rank_near {d s : ℕ} (hm : 10000000 ≤ d+s)
-    (h : Nat.card (Incidence d s) ≤ (2^(2*d*(d/128))+2)*2^(s*slotsN d)) :
-    Nat.card (Classes d s)^27 * 2^(10*(d+s)^2) ≤ 2^(2*(d+s)^3) := by
-  let m := d+s
-  let A := d*(d-1)+s*(s-1)
-  let P := s*slotsN d
-  let E := 2*d*(d/128)+2
-  have hc := Nat.pow_le_pow_left (count_all_of_incidence h) 27
-  change (Nat.card (Classes d s)*2^A)^27 ≤ (2^(P+E))^27 at hc
-  rw [Nat.mul_pow, ← Nat.pow_mul, ← Nat.pow_mul] at hc
-  have he : (P+E)*27+10*m^2 ≤ 2*m^3 + A*27 := by
-    have hpoly := rank_powers d s
-    have hslack := low_input_slack hm
-    change 27*P + 12*m^2 ≤ 2*m^3+60*m+27*A at hpoly
-    change 27*E + 60*m ≤ 2*m^2 at hslack
-    omega
-  apply Nat.le_of_mul_le_mul_right (c := 2^(A*27)) _ (Nat.two_pow_pos _)
-  calc
-    _ = (Nat.card (Classes d s)^27 * 2^(A*27)) * 2^(10*m^2) := Nat.mul_right_comm _ _ _
-    _ ≤ 2^((P+E)*27) * 2^(10*m^2) := Nat.mul_le_mul_right _ hc
-    _ = 2^((P+E)*27+10*m^2) := (Nat.pow_add _ _ _).symm
-    _ ≤ 2^(2*m^3+A*27) := Nat.pow_le_pow_right (by decide) he
-    _ = _ := Nat.pow_add _ _ _
-
-theorem orbit_rank_far {d s : ℕ} (hm : 10000000 ≤ d+s) (hfar : 3*s ≤ d ∨ 2*d ≤ 3*s) :
-    Nat.card (Classes d s)^27 * 2^(10*(d+s)^2) ≤ 2^(2*(d+s)^3) := by
-  letI : Finite (Q d s) := Finite.of_injective _ (@coefficients_injective d s)
-  have hc : Nat.card (Classes d s) ≤ Nat.card (Q d s) :=
-    Nat.card_le_card_of_surjective Quotient.mk'' Quotient.mk''_surjective
-  have h := Nat.pow_le_pow_left (hc.trans (count_forms d s)) 27
-  rw [← Nat.pow_mul] at h
-  calc
-    _ ≤ 2^((s*slotsN d)*27)*2^(10*(d+s)^2) := Nat.mul_le_mul_right _ h
-    _ = 2^((s*slotsN d)*27+10*(d+s)^2) := (Nat.pow_add _ _ _).symm
-    _ ≤ _ := Nat.pow_le_pow_right (by decide) (by
-      rw [Nat.mul_comm (s*slotsN d) 27];exact far_rank_slots hm hfar)
 
 end OrbitUp
 
@@ -1369,19 +876,6 @@ end
 section
 
 namespace OrbitUp
-
-/-- Counts every orbit, including quadratic maps with nontrivial stabilizer. -/
-theorem all_quadratic_orbits_upper (d s : ℕ) (hm : 10000000 ≤ d+s) :
-    Nat.card (Classes d s)^27 * 2^(10*(d+s)^2) ≤ 2^(2*(d+s)^3) := by
-  by_cases hnear : d ≤ 3*s ∧ 3*s ≤ 2*d
-  · apply orbit_rank_near hm
-    apply incidence_stratified d s (d/128)
-    · intro a ha
-      obtain ⟨k,hk,hmove⟩ := exists_moves_rank a
-      exact ⟨k,hmove,far_move_pays hm hnear.1 hnear.2 ha hk⟩
-    · intro a ha
-      exact low_move_pays hnear.2 ha (rank_add_fixed a)
-  · exact orbit_rank_far hm (by omega)
 
 end OrbitUp
 
@@ -1873,8 +1367,6 @@ namespace CentralKernelCount
 
 open scoped commutatorElement
 
-def twoTorsion (B : Type*) [Group B] := {b : B // b^2 = 1}
-
 structure Raw {B E : Type*} [Group B] [Group E] (d : ℕ) where
   incl : B →* E
   inj : Function.Injective incl
@@ -1883,94 +1375,6 @@ structure Raw {B E : Type*} [Group B] [Group E] (d : ℕ) where
   generate : adjoin incl.range x = ⊤
   square : ∀ i, x i ^ 2 ∈ incl.range
   comm : ∀ i j, ⁅x i,x j⁆ ∈ incl.range
-
-private theorem comm_square {E : Type*} [Group E] {x y : E}
-    (h : ⁅x,y⁆ ∈ Subgroup.center E) (hx : x^2 ∈ Subgroup.center E) : ⁅x,y⁆^2 = 1 := by
-  let c := ⁅x,y⁆
-  have hxcomm : c*x = x*c := (Subgroup.mem_center_iff.mp h x).symm
-  have swap : c*y*x = x*y := by dsimp [c,commutatorElement_def]; group
-  apply mul_right_cancel (b := y*x^2)
-  calc
-    c^2 * (y*x^2) = c*(c*y*x)*x := by simp [pow_two,mul_assoc]
-    _ = c*(x*y)*x := by rw [swap]
-    _ = (c*x)*(y*x) := by group
-    _ = x*(c*y*x) := by rw [hxcomm]; group
-    _ = x^2*y := by rw [swap]; simp [pow_two,mul_assoc]
-    _ = 1*(y*x^2) := by rw [one_mul]; exact (Subgroup.mem_center_iff.mp hx y).symm
-
-private abbrev RawCode (B : Type*) [Group B] (d : ℕ) :=
-  (Fin d → B) × (PairSlot d → twoTorsion B)
-
-private def rawFits {B E : Type*} [Group B] [Group E] {d : ℕ}
-    (A : Raw (B := B) (E := E) d) (c : RawCode B d) : Prop :=
-  (∀ i,A.incl (c.1 i) = A.x i ^ 2) ∧
-  (∀ p,A.incl (c.2 p).val = ⁅A.x p.1,A.x (second p)⁆)
-
-private theorem raw_exists {B E : Type*} [Group B] [Group E] {d : ℕ}
-    (A : Raw (B := B) (E := E) d) : ∃ c, rawFits A c := by
-  choose sq hsq using A.square
-  choose cm hc using A.comm
-  have ht (p : PairSlot d) : cm p.1 (second p) ^ 2 = 1 := by
-    apply A.inj
-    rw [map_pow,hc,map_one]
-    exact comm_square (A.central (A.comm ..)) (A.central (A.square _))
-  exact ⟨(sq,fun p => ⟨_,ht p⟩),hsq,fun _ => hc ..⟩
-
-private theorem raw_separation {B E F : Type*} [Group B] [Group E] [Group F] [Finite B] [Finite E]
-    [Finite F] {d : ℕ} (A : Raw (B := B) (E := E) d) (J : Raw (B := B) (E := F) d)
-    (c : RawCode B d) (ha : rawFits A c) (hj : rawFits J c)
-    (cE : 2^d*Nat.card B ≤ Nat.card E) (cF : 2^d*Nat.card B ≤ Nat.card F) : Nonempty (E ≃* F) := by
-  let i := A.incl.prod J.incl
-  let N := i.range
-  let x (j : Fin d) := (A.x j,J.x j)
-  have nc : N ≤ Subgroup.center (E × F) := by
-    rintro _ ⟨b,rfl⟩
-    apply Subgroup.mem_center_iff.mpr
-    intro k
-    exact Prod.ext (Subgroup.mem_center_iff.mp (A.central ⟨b,rfl⟩) k.1)
-      (Subgroup.mem_center_iff.mp (J.central ⟨b,rfl⟩) k.2)
-  letI := central_normal nc
-  have nsize : Nat.card N ≤ Nat.card B := Nat.card_le_card_of_surjective _ i.rangeRestrict_surjective
-  have hp (j : Fin d) : x j ^ 2 ∈ N := ⟨c.1 j,Prod.ext (ha.1 j) (hj.1 j)⟩
-  have hl (p : PairSlot d) : ⁅x p.1,x (second p)⁆ ∈ N :=
-    ⟨(c.2 p).val,Prod.ext (ha.2 p) (hj.2 p)⟩
-  have hc (j k : Fin d) : ⁅x j,x k⁆ ∈ N := by
-    rcases lt_trichotomy j k with h | rfl | h
-    · rw [←commutatorElement_inv]
-      exact N.inv_mem (hl ⟨k,⟨j.val,h⟩⟩)
-    · simp
-    · exact hl ⟨j,⟨k.val,h⟩⟩
-  apply paired_equiv N x (fun _ => 2) (fun _ => by decide) hp hc
-  · change adjoin (i.range.map (MonoidHom.fst E F)) A.x = ⊤
-    rw [← MonoidHom.range_comp]
-    exact A.generate
-  · change adjoin (i.range.map (MonoidHom.snd E F)) J.x = ⊤
-    rw [← MonoidHom.range_comp]
-    exact J.generate
-  · simpa using (Nat.mul_le_mul_left (2^d) nsize).trans cE
-  · simpa using (Nat.mul_le_mul_left (2^d) nsize).trans cF
-
-/-- An arbitrary abelian central kernel permits only its two-torsion subgroup in
-every commutator slot, even when generator squares have larger order. -/
-theorem count_raw_central {B I : Type*} [Group B] [Finite B] {d : ℕ}
-    (E : I → Type*) [∀ i,Group (E i)] [∀ i,Finite (E i)]
-    (h : ∀ i, Nonempty (Raw (B := B) (E := E i) d))
-    (size : ∀ i, 2^d * Nat.card B ≤ Nat.card (E i))
-    (separate : ∀ i j, Nonempty (E i ≃* E j) → i=j) :
-    Nat.card I ≤ (Nat.card B)^d * (Nat.card (twoTorsion B))^(d*(d-1)/2) := by
-  classical
-  let raw (i : I) := (h i).some
-  choose c hc using fun i => raw_exists (raw i)
-  have inj : Function.Injective c := by
-    intro i j he
-    exact separate i j <| raw_separation (raw i) (raw j) (c i) (hc i) (he ▸ hc j) (size i) (size j)
-  have pairs : Nat.card (PairSlot d) = d*(d-1)/2 := by
-    rw [PairSlot,Nat.card_sigma]
-    simp only [Nat.card_fin]
-    exact (Fin.sum_univ_eq_sum_range (fun i : ℕ => i) d).trans (Finset.sum_range_id d)
-  letI : Finite (twoTorsion B) := inferInstanceAs (Finite {b : B // b^2=1})
-  have count := Nat.card_le_card_of_injective c inj
-  simpa only [RawCode,Nat.card_prod,Nat.card_fun,Nat.card_fin,pairs] using count
 
 end CentralKernelCount
 
@@ -2034,16 +1438,6 @@ theorem bit_sq {d : ℕ} (x : BitGroup d) : x^2 = 1 := by
   change x.toAdd+x.toAdd = 0
   funext i
   exact (show ∀ a : ZMod 2, a+a=0 by decide) _
-
-theorem raw_of_bit_quotient {B E : Type*} [Group B] [Group E] {d : ℕ}
-    (i : B →* E) (hi : Function.Injective i) (q : E →* BitGroup d) (hq : Function.Surjective q)
-    (ker : q.ker=i.range) (z : i.range ≤ Subgroup.center E) : Nonempty (Raw (B := B) (E := E) d) := by
-  choose x hx using fun j : Fin d => hq (bit j)
-  refine ⟨⟨i,hi,z,x,generate_lifts q x hx _ ker.le,?_,?_⟩⟩
-  · intro j
-    rw [←ker,MonoidHom.mem_ker,map_pow,bit_sq]
-  · intro j k
-    rw [←ker,MonoidHom.mem_ker,map_commutatorElement,commutatorElement_eq_one_iff_mul_comm,mul_comm]
 
 /-- Construct a reference whose central generators belong to the prescribed kernel.
 No classification of the group extension is required. -/
@@ -2118,23 +1512,6 @@ theorem groupClasses_finite (n : ℕ) :
   let _ := finiteGroupLaws n
   exact Set.finite_range _
 
-theorem group_count_pos (n : ℕ) (hn : 0 < n) : 0 < g n := by
-  let _ : NeZero n := ⟨hn.ne'⟩
-  rw [g, Set.ncard_pos (groupClasses_finite n)]
-  let C := FiniteGrp.of (Multiplicative (ZMod n))
-  exact ⟨_, C, Nat.card_zmod n, rfl⟩
-
-theorem group_count_le_multiplication_tables (n : ℕ) : g n ≤ n ^ (n * n) := by
-  let _ := finiteGroupLaws n
-  rw [g, groupClasses_eq_range, ← Set.image_univ]
-  calc
-    _ ≤ (Set.univ : Set (Group (Fin n))).ncard := Set.ncard_image_le
-    _ = Nat.card (Group (Fin n)) := Set.ncard_univ _
-    _ ≤ Nat.card (Fin n → Fin n → Fin n) :=
-      Nat.card_le_card_of_injective (fun h : Group (Fin n) => h.mul)
-        (fun _ _ h => Group.ext h)
-    _ = _ := by simp [pow_mul]
-
 end Erdos1160
 
 end
@@ -2189,11 +1566,6 @@ instance : Group (BilinearExtension B) where
   inv_mul_cancel x := by
     apply BilinearExtension.ext <;> simp
 
-def projection (B : V →+ V →+ W) : BilinearExtension B →* Multiplicative V where
-  toFun x := Multiplicative.ofAdd x.base
-  map_mul' _ _ := rfl
-  map_one' := rfl
-
 def coordinateEquiv (B : V →+ V →+ W) : BilinearExtension B ≃ V × W where
   toFun x := (x.base, x.fiber)
   invFun x := ⟨x.1, x.2⟩
@@ -2206,139 +1578,7 @@ theorem card (B : V →+ V →+ W) :
 
 open scoped commutatorElement
 
-theorem commutator_formula (x y : BilinearExtension B) :
-    ⁅x, y⁆ = ⟨0, B x.base y.base - B y.base x.base⟩ := by
-  rw [commutatorElement_def]
-  apply BilinearExtension.ext <;> simp [map_add, map_neg]
-  abel
-
-theorem commutator_le_kernel (B : V →+ V →+ W) :
-    commutator (BilinearExtension B) ≤ (projection B).ker := by
-  apply Subgroup.commutator_le.mpr
-  intro x _ y _
-  rw [commutator_formula]
-  rfl
-
-theorem central_fiber (w : W) :
-    (⟨0,w⟩ : BilinearExtension B) ∈ Subgroup.center (BilinearExtension B) := by
-  rw [Subgroup.mem_center_iff]
-  intro y
-  apply BilinearExtension.ext <;> simp
-  abel
-
-/-- Surjectivity of the alternating commutator on pairs ensures that the fiber is characteristic. -/
-def AllFiberCommutators (B : V →+ V →+ W) : Prop :=
-  ∀ w : W, ∃ u v : V, B u v - B v u = w
-
-theorem commutator_eq_kernel (h : AllFiberCommutators B) :
-    commutator (BilinearExtension B) = (projection B).ker := by
-  apply le_antisymm (commutator_le_kernel B)
-  intro x hx
-  have hx0 : x.base = 0 := hx
-  obtain ⟨u, v, huv⟩ := h x.fiber
-  let a : BilinearExtension B := ⟨u, 0⟩
-  let b : BilinearExtension B := ⟨v, 0⟩
-  have heq : ⁅a, b⁆ = x := by
-    rw [commutator_formula]
-    exact BilinearExtension.ext hx0.symm huv
-  rw [← heq]
-  exact Subgroup.commutator_mem_commutator (Subgroup.mem_top a) (Subgroup.mem_top b)
-
 variable {V' W' : Type*} [AddCommGroup V'] [AddCommGroup W'] {C : V' →+ V' →+ W'}
-
-theorem map_fiber_base (h : AllFiberCommutators B)
-    (f : BilinearExtension B →* BilinearExtension C) (w : W) :
-    (f ⟨0, w⟩).base = 0 := by
-  obtain ⟨u, v, huv⟩ := h w
-  let a : BilinearExtension B := ⟨u, 0⟩
-  let b : BilinearExtension B := ⟨v, 0⟩
-  have heq : ⁅a, b⁆ = ⟨0, w⟩ := by
-    rw [commutator_formula]
-    exact BilinearExtension.ext rfl huv
-  rw [← heq, map_commutatorElement, commutator_formula]
-
-theorem map_base_lift (h : AllFiberCommutators B)
-    (f : BilinearExtension B →* BilinearExtension C) (x : BilinearExtension B) :
-    (f x).base = (f ⟨x.base, 0⟩).base := by
-  have decomp : x = (⟨x.base, 0⟩ : BilinearExtension B) * ⟨0, x.fiber⟩ := by
-    apply BilinearExtension.ext <;> simp
-  conv => lhs; rw [decomp, map_mul, mul_base, map_fiber_base h, add_zero]
-
-def inducedBase (h : AllFiberCommutators B) (f : BilinearExtension B →* BilinearExtension C) :
-    V →+ V' where
-  toFun u := (f ⟨u, 0⟩).base
-  map_zero' := by change (f 1).base = 0; rw [map_one, one_base]
-  map_add' u v := by
-    let x : BilinearExtension B := ⟨u, 0⟩
-    let y : BilinearExtension B := ⟨v, 0⟩
-    exact (map_base_lift h f (x*y)).symm.trans (by rw [map_mul, mul_base])
-
-def inducedFiber (h : AllFiberCommutators B) (f : BilinearExtension B →* BilinearExtension C) :
-    W →+ W' where
-  toFun w := (f ⟨0, w⟩).fiber
-  map_zero' := by change (f 1).fiber = 0; rw [map_one, one_fiber]
-  map_add' w z := by
-    let x : BilinearExtension B := ⟨0, w⟩
-    let y : BilinearExtension B := ⟨0, z⟩
-    have eqn : (⟨0, w+z⟩ : BilinearExtension B) = x*y := by apply BilinearExtension.ext <;> simp [x,y]
-    rw [eqn, map_mul, mul_fiber]
-    simp [x, y, map_fiber_base h]
-
-theorem inducedBase_apply (h : AllFiberCommutators B)
-    (f : BilinearExtension B →* BilinearExtension C) (x : BilinearExtension B) :
-    inducedBase h f x.base = (f x).base := (map_base_lift h f x).symm
-
-theorem map_lift_fiber (h : AllFiberCommutators B)
-    (f : BilinearExtension B →* BilinearExtension C) (w : W) :
-    f ⟨0, w⟩ = ⟨0, inducedFiber h f w⟩ :=
-  BilinearExtension.ext (map_fiber_base h f w) rfl
-
-theorem intertwinement (h : AllFiberCommutators B)
-    (f : BilinearExtension B →* BilinearExtension C) (u v : V) :
-    inducedFiber h f (B u v - B v u) =
-    C (inducedBase h f u) (inducedBase h f v) - C (inducedBase h f v) (inducedBase h f u) := by
-  let x : BilinearExtension B := ⟨u, 0⟩
-  let y : BilinearExtension B := ⟨v, 0⟩
-  have hm := map_commutatorElement f x y
-  rw [commutator_formula, commutator_formula] at hm
-  exact congrArg BilinearExtension.fiber hm
-
-theorem inducedBase_leftInv (hB : AllFiberCommutators B) (hC : AllFiberCommutators C)
-    (e : BilinearExtension B ≃* BilinearExtension C) :
-    Function.LeftInverse (inducedBase hC e.symm.toMonoidHom) (inducedBase hB e.toMonoidHom) := by
-  intro u
-  let x : BilinearExtension B := ⟨u, 0⟩
-  change inducedBase hC e.symm.toMonoidHom (e x).base = u
-  rw [inducedBase_apply]
-  change (e.symm (e x)).base = u
-  rw [e.symm_apply_apply]
-
-theorem inducedFiber_leftInv (hB : AllFiberCommutators B) (hC : AllFiberCommutators C)
-    (e : BilinearExtension B ≃* BilinearExtension C) :
-    Function.LeftInverse (inducedFiber hC e.symm.toMonoidHom) (inducedFiber hB e.toMonoidHom) := by
-  intro w
-  change (e.symm ⟨0, inducedFiber hB e.toMonoidHom w⟩).fiber = w
-  rw [← map_lift_fiber hB e.toMonoidHom w]
-  change (e.symm (e ⟨0,w⟩)).fiber = w
-  rw [e.symm_apply_apply]
-
-/-- Any isomorphism of the constructed groups gives a change of coordinates on the
-abelian quotient and the commutator subgroup that preserves the alternating map. -/
-theorem isomorphism_preserves_alternating (hB : AllFiberCommutators B) (hC : AllFiberCommutators C)
-    (e : BilinearExtension B ≃* BilinearExtension C) :
-    ∃ (s : V ≃+ V') (t : W ≃+ W'), ∀ u v,
-      t (B u v - B v u) = C (s u) (s v) - C (s v) (s u) := by
-  let s : V ≃+ V' :=
-    { inducedBase hB e.toMonoidHom with
-      invFun := inducedBase hC e.symm.toMonoidHom
-      left_inv := inducedBase_leftInv hB hC e
-      right_inv := inducedBase_leftInv hC hB e.symm }
-  let t : W ≃+ W' :=
-    { inducedFiber hB e.toMonoidHom with
-      invFun := inducedFiber hC e.symm.toMonoidHom
-      left_inv := inducedFiber_leftInv hB hC e
-      right_inv := inducedFiber_leftInv hC hB e.symm }
-  exact ⟨s, t, intertwinement hB e.toMonoidHom⟩
 
 end BilinearExtension
 
@@ -2350,12 +1590,6 @@ end
 section
 
 namespace Erdos1160Growth.SharpFamily
-
-theorem triangular_card (d : ℕ) :
-    Nat.card ((i : Fin d) × Fin i.val) = d * (d - 1) / 2 := by
-  rw [Nat.card_sigma]
-  simp only [Nat.card_fin]
-  exact (Fin.sum_univ_eq_sum_range (fun i : ℕ => i) d).trans (Finset.sum_range_id d)
 
 end Erdos1160Growth.SharpFamily
 
@@ -2401,64 +1635,10 @@ abbrev Change (s : ℕ) := V s ≃ₗ[ZMod 2] V s
 
 def change (u : Change s) (a : P d s) : P d s := fun l => u (a l)
 
-lemma form_change (u : Change s) (a : P d s) (x y : V d) :
-    form (change u a) x y = u (form a x y) := by
-  change (∑ l, (x (row l) * y (col l)) • u (a l)) =
-    u (∑ l, (x (row l) * y (col l)) • a l)
-  simp
-
-def changeIso (u : Change s) (a : P d s) : G a ≃* G (change u a) where
-  toFun x := ⟨x.base, u x.fiber⟩
-  invFun x := ⟨x.base, u.symm x.fiber⟩
-  left_inv x := by apply BilinearExtension.ext; · rfl
-                   exact u.symm_apply_apply _
-  right_inv x := by apply BilinearExtension.ext; · rfl
-                    exact u.apply_symm_apply _
-  map_mul' x y := by
-    apply BilinearExtension.ext
-    · rfl
-    · change u (x.fiber + y.fiber + form a x.base y.base) =
-        u x.fiber + u y.fiber + form (change u a) x.base y.base
-      rw [form_change,map_add,map_add]
-
-theorem classOf_change (u : Change s) (a : P d s) :
-    classOf (change u a) = classOf a := by
-  symm
-  apply Quotient.sound
-  exact ⟨InducedCategory.isoMk (F := FiniteGrp.toGrp)
-    (MulEquiv.toGrpIso (X := (bundle a).toGrp) (Y := (bundle (change u a)).toGrp)
-      (changeIso u a))⟩
-
 def Full (a : P d s) : Prop := Submodule.span (ZMod 2) (Set.range a) = ⊤
 
 def classes (d s : ℕ) : Set (Quotient (isIsomorphicSetoid FiniteGrp)) :=
   classOf '' {a : P d s | Full a}
-
-theorem classes_card_fiber (d s : ℕ) :
-    (classes d s).ncard * Nat.card (Change s) ≤
-      2 ^ (s * (d*(d-1)/2+d)) := by
-  classical
-  let C := ↥(classes d s)
-  have witness (c : C) : ∃ a : P d s, Full a ∧ classOf a = c.val := c.property
-  let rep (c : C) := Classical.choose (witness c)
-  have repFull (c : C) : Full (rep c) := (Classical.choose_spec (witness c)).1
-  have repClass (c : C) : classOf (rep c) = c.val := (Classical.choose_spec (witness c)).2
-  let encode (cu : C × Change s) := change cu.2 (rep cu.1)
-  have encInj : Function.Injective encode := by
-    rintro ⟨c,u⟩ ⟨e,v⟩ heq
-    change change u (rep c) = change v (rep e) at heq
-    have hclass := congrArg classOf heq
-    rw [classOf_change,classOf_change,repClass,repClass] at hclass
-    obtain rfl : c = e := Subtype.ext hclass
-    have hu : u.toLinearMap = v.toLinearMap :=
-      LinearMap.ext_on_range (repFull c) (congrFun heq)
-    exact Prod.ext rfl (LinearEquiv.toLinearMap_injective hu)
-  calc
-    _ = Nat.card (C × Change s) := by rw [Nat.card_prod]; rfl
-    _ ≤ Nat.card (P d s) := Nat.card_le_card_of_injective encode encInj
-    _ = _ := by
-      simp only [P, V, Nat.card_fun, Nat.card_zmod, Nat.card_fin, ← pow_mul, Slot,
-        Nat.card_sum, SharpFamily.triangular_card]
 
 end Erdos1160Growth.LowerTriangularUpper
 
@@ -2471,51 +1651,6 @@ namespace Erdos1160Growth.LowerTriangularUpper
 
 variable {d s : ℕ}
 
-lemma full_change (u : Change s) {a : P d s} (ha : Full a) : Full (change u a) := by
-  change Submodule.span (ZMod 2) (Set.range (u ∘ a)) = ⊤
-  rw [Set.range_comp]
-  change Submodule.span (ZMod 2) (u.toLinearMap '' (Set.range a)) = ⊤
-  rw [← Submodule.map_span u.toLinearMap, ha]
-  simpa [Submodule.map_top] using (LinearMap.range_eq_top.mpr u.surjective : u.toLinearMap.range = ⊤)
-
-theorem full_rows (a : P d s) (ha : Full a) :
-    LinearIndependent (ZMod 2) (fun i : Fin s => fun l : Slot d => a l i) := by
-  rw [Fintype.linearIndependent_iff]
-  intro g hg i
-  let f := Fintype.linearCombination (ZMod 2) g
-  have hz : f = 0 := by
-    apply LinearMap.ext_on_range ha
-    intro l
-    change (∑ k, a l k * g k) = 0
-    simpa [Finset.sum_apply, mul_comm] using congrFun hg l
-  have hi := LinearMap.congr_fun hz (Pi.single i 1)
-  simpa [f, Fintype.linearCombination_apply, Pi.single_apply, ite_mul, Finset.sum_ite_eq'] using hi
-
-theorem classes_times_GL_le_independent (d s : ℕ) :
-    (classes d s).ncard * Nat.card (Change s) ≤
-      Nat.card {x : Fin s → Slot d → ZMod 2 // LinearIndependent (ZMod 2) x} := by
-  classical
-  let C := ↥(classes d s)
-  have witness (c : C) : ∃ a : P d s, Full a ∧ classOf a = c.val := c.property
-  let rep (c : C) := Classical.choose (witness c)
-  have repFull (c : C) : Full (rep c) := (Classical.choose_spec (witness c)).1
-  have repClass (c : C) : classOf (rep c) = c.val := (Classical.choose_spec (witness c)).2
-  let encode (cu : C × Change s) : {x : Fin s → Slot d → ZMod 2 // LinearIndependent (ZMod 2) x} :=
-    ⟨fun i l => (change cu.2 (rep cu.1)) l i, full_rows _ (full_change cu.2 (repFull cu.1))⟩
-  have encInj : Function.Injective encode := by
-    rintro ⟨c,u⟩ ⟨e,v⟩ h
-    have heq : change u (rep c) = change v (rep e) := by
-      funext l i
-      exact congrFun (congrFun (congrArg Subtype.val h) i) l
-    have hclass := congrArg classOf heq
-    rw [classOf_change,classOf_change,repClass,repClass] at hclass
-    obtain rfl : c = e := Subtype.ext hclass
-    have hu : u.toLinearMap = v.toLinearMap := LinearMap.ext_on_range (repFull c) (congrFun heq)
-    exact Prod.ext rfl (LinearEquiv.toLinearMap_injective hu)
-  calc
-    _ = Nat.card (C × Change s) := by rw [Nat.card_prod]; rfl
-    _ ≤ _ := Nat.card_le_card_of_injective encode encInj
-
 end Erdos1160Growth.LowerTriangularUpper
 
 end
@@ -2525,32 +1660,7 @@ section
 
 namespace Erdos1160Growth.LowerTriangularUpper
 
-lemma card_change (s : ℕ) :
-    Nat.card (Change s) = ∏ i : Fin s, (2^s-2^i.val) := by
-  let e : Matrix.GeneralLinearGroup (Fin s) (ZMod 2) ≃* Change s :=
-    Matrix.GeneralLinearGroup.toLin.trans (LinearMap.GeneralLinearGroup.generalLinearEquiv (ZMod 2) (V s))
-  rw [← Nat.card_congr e.toEquiv, Matrix.card_GL_field]
-  simp
-
-theorem triangular_class_upper (d s : ℕ) :
-    (classes d s).ncard * (∏ i : Fin s, (2^s-2^i.val)) ≤
-      2^(s * (d*(d-1)/2+d)) := by
-  rw [← card_change]
-  exact classes_card_fiber d s
-
 def D (d : ℕ) : ℕ := d*(d-1)/2+d
-
-lemma finrank_slots (d : ℕ) : Module.finrank (ZMod 2) (Slot d → ZMod 2) = D d := by
-  rw [Module.finrank_fintype_fun_eq_card, ← Nat.card_eq_fintype_card]
-  simp only [Slot,D,Nat.card_sum,SharpFamily.triangular_card,Nat.card_fin]
-
-theorem gaussian_upper (d s : ℕ) (hs : s ≤ D d) :
-    (classes d s).ncard * (∏ i : Fin s, (2^s-2^i.val)) ≤
-      ∏ i : Fin s, (2^(D d)-2^i.val) := by
-  have h := classes_times_GL_le_independent d s
-  have hk : s ≤ Module.finrank (ZMod 2) (Slot d → ZMod 2) := by rw [finrank_slots]; exact hs
-  rw [card_change,card_linearIndependent hk,finrank_slots, ZMod.card] at h
-  exact h
 
 end Erdos1160Growth.LowerTriangularUpper
 
@@ -2638,48 +1748,6 @@ abbrev G (t : T d) := BilinearExtension (form t)
 
 def X (t : T d) (x : V d) : G t := ⟨(x, 0), 0⟩
 def Y (t : T d) (y : V d) : G t := ⟨(0, y), 0⟩
-def Z (t : T d) (z : V d) : G t := ⟨0, z⟩
-
-lemma cross_form (t : T d) (i j : Fin d) :
-    form t (0,basis i) (basis j, 0) = t i j := by
-  funext k
-  change (∑ a, ∑ b, basis i a * basis j b * t a b k) = _
-  simp [basis, Pi.single_apply, ite_mul, mul_ite, Finset.sum_ite_eq']
-
-theorem commutator_YX (t : T d) (i j : Fin d) :
-    ⁅Y t (basis i), X t (basis j)⁆ = Z t (t i j) := by
-  rw [BilinearExtension.commutator_formula]
-  apply BilinearExtension.ext
-  · rfl
-  change form t (0,basis i) (basis j,0) - form t (basis j,0) (0,basis i) = t i j
-  rw [cross_form]
-  have hz : form t (basis j, 0) (0, basis i) = 0 := by funext k; simp [form]
-  rw [hz, sub_zero]
-
-lemma XYZ_normal (t : T d) (x y z : V d) :
-    X t x * Y t y * Z t z = ⟨(x,y),z⟩ := by
-  apply BilinearExtension.ext
-  · simp [X,Y,Z]
-  · rw [BilinearExtension.mul_fiber, BilinearExtension.mul_fiber]
-    simp [X, Y, Z, form]
-    funext k; simp
-
-theorem Z_injective (t : T d) : Function.Injective (Z t) := fun _ _ h => congrArg BilinearExtension.fiber h
-
-lemma Z_add (t : T d) (u v : V d) : Z t (u + v) = Z t u * Z t v := by
-  apply BilinearExtension.ext <;> simp [Z]
-
-theorem map_Z_of_basis {s t : T d} (e : G s →* G t)
-    (hz : ∀ i, e (Z s (basis i)) = Z t (basis i)) (v : V d) : e (Z s v) = Z t v := by
-  induction v using Pi.single_induction with
-  | zero => exact e.map_one
-  | add a b ha hb => rw [Z_add, map_mul, ha, hb, ← Z_add]
-  | single i x =>
-    have hbit : ∀ b : ZMod 2, b = 0 ∨ b = 1 := by decide
-    rcases hbit x with rfl | rfl
-    · rw [Pi.single_zero]; exact e.map_one
-    · exact hz i
-
 end Erdos1160Growth.TensorFamily
 
 end
@@ -2857,12 +1925,6 @@ lemma bilinearClasses_subset (d s : ℕ) : bilinearClasses d s ⊆ classes d s :
     exact ⟨InducedCategory.isoMk (F := FiniteGrp.toGrp)
       (MulEquiv.toGrpIso (X := (bundleB B).toGrp)
         (Y := (bundle (lowerArray B+upperArray B)).toGrp) (allBilinear_normal B))⟩
-
-theorem bilinear_gaussian_upper (d s : ℕ) (hs : s ≤ D d) :
-    (bilinearClasses d s).ncard * (∏ i : Fin s, (2^s-2^i.val)) ≤
-      ∏ i : Fin s, (2^(D d)-2^i.val) :=
-  (Nat.mul_le_mul_right _ (Set.ncard_le_ncard (bilinearClasses_subset d s)
-    (classes_finite d s))).trans (gaussian_upper d s hs)
 
 end Erdos1160Growth.LowerTriangularUpper
 
@@ -3225,12 +2287,6 @@ variable {E : Type*} [Group E] {d s : ℕ} (S : CentralData E d s)
 def SquaresGenerate : Prop :=
   S.incl.range ≤ Subgroup.closure (Set.range (fun z : E => z*z))
 
-theorem square_subgroup_le : Subgroup.closure (Set.range (fun z : E => z*z)) ≤ S.incl.range := by
-  apply (Subgroup.closure_le _).mpr
-  rintro _ ⟨z,rfl⟩
-  obtain ⟨w,hw⟩ := S.exists_square z
-  exact ⟨Multiplicative.ofAdd w,hw⟩
-
 theorem square_span_top (h : S.SquaresGenerate) :
     Submodule.span (ZMod 2) {w : V s | ∃ z : E, S.liftK w = z*z} = ⊤ := by
   let K := Submodule.span (ZMod 2) {w : V s | ∃ z : E, S.liftK w = z*z}
@@ -3280,13 +2336,6 @@ theorem intrinsicClasses_subset (d s : ℕ) : intrinsicClasses d s ⊆ bilinearC
   rintro _ ⟨E,⟨S,hS⟩,rfl⟩
   exact S.class_mem hS
 
-theorem intrinsic_gaussian_upper (d s : ℕ) (hs : s ≤ D d) :
-    (intrinsicClasses d s).ncard * (∏ i : Fin s, (2^s-2^i.val)) ≤
-      ∏ i : Fin s, (2^(D d)-2^i.val) :=
-  (Nat.mul_le_mul_right _ (Set.ncard_le_ncard
-    ((intrinsicClasses_subset d s).trans (bilinearClasses_subset d s))
-    (classes_finite d s))).trans (gaussian_upper d s hs)
-
 end Erdos1160Growth.LowerTriangularUpper
 
 end
@@ -3325,16 +2374,6 @@ lemma squareCoreClasses_subset (d s : ℕ) : squareCoreClasses d s ⊆ intrinsic
   refine ⟨E,⟨S,?_⟩,rfl⟩
   rintro x ⟨w,rfl⟩
   exact (h.symm w).property
-
-/-- The subgroup generated by the squares is central and elementary abelian of
-order 2^s. The index of that subgroup is 2^d. The count is over abstract
-isomorphism classes and makes no choice of a presentation or coordinates. -/
-theorem squareCore_gaussian_upper (d s : ℕ) (hs : s ≤ D d) :
-    (squareCoreClasses d s).ncard * (∏ i : Fin s, (2^s-2^i.val)) ≤
-      ∏ i : Fin s, (2^(D d)-2^i.val) :=
-  (Nat.mul_le_mul_right _ (Set.ncard_le_ncard
-    (((squareCoreClasses_subset d s).trans (intrinsicClasses_subset d s)).trans (bilinearClasses_subset d s))
-    (classes_finite d s))).trans (gaussian_upper d s hs)
 
 end Erdos1160Growth.LowerTriangularUpper
 
@@ -3460,17 +2499,6 @@ theorem frattiniClasses_subset (d s : ℕ) : frattiniClasses d s ⊆ squareCoreC
   change squareCore E ≤ Subgroup.center E ∧ _
   rwa [←frattini_eq_squareCore hcard.symm]
 
-/-- Upper bound for the number of isomorphism classes of arbitrary finite groups
-whose Frattini subgroup is a central elementary abelian subgroup of order 2^s
-and has index 2^d. -/
-theorem frattini_gaussian_upper (d s : ℕ) (hs : s ≤ D d) :
-    (frattiniClasses d s).ncard * (∏ i : Fin s, (2^s-2^i.val)) ≤
-      ∏ i : Fin s, (2^(D d)-2^i.val) := by
-  have hfin := (classes_finite d s).subset
-    (((squareCoreClasses_subset d s).trans (intrinsicClasses_subset d s)).trans (bilinearClasses_subset d s))
-  exact (Nat.mul_le_mul_right _ (Set.ncard_le_ncard (frattiniClasses_subset d s) hfin)).trans
-    (squareCore_gaussian_upper d s hs)
-
 end Erdos1160Growth.LowerTriangularUpper
 
 end
@@ -3482,35 +2510,9 @@ namespace Erdos1160Growth.LowerTriangularUpper
 
 open CategoryTheory
 
-def frattiniOrderClasses (m : ℕ) : Set (Quotient (isIsomorphicSetoid FiniteGrp.{0})) :=
-  Quotient.mk _ '' {G : FiniteGrp.{0} | Nat.card G = 2^m ∧
-    frattini G ≤ Subgroup.center G ∧ ∀ x : frattini G, x*x=1}
-
 theorem frattiniClasses_finite (d s : ℕ) : (frattiniClasses d s).Finite :=
   (classes_finite d s).subset ((((frattiniClasses_subset d s).trans (squareCoreClasses_subset d s)).trans
     (intrinsicClasses_subset d s)).trans (bilinearClasses_subset d s))
-
-theorem frattiniOrderClasses_le_sum (m : ℕ) :
-    (frattiniOrderClasses m).ncard ≤ ∑ d ∈ Finset.range (m+1), (frattiniClasses d (m-d)).ncard := by
-  let F := fun d => frattiniClasses d (m-d)
-  let U := ⋃ d ∈ Finset.range (m+1), F d
-  have hs : frattiniOrderClasses m ⊆ U := by
-    rintro _ ⟨G, ⟨hcard, hc, he⟩, rfl⟩
-    have hi := (frattini G).index_mul_card
-    rw [hcard] at hi
-    obtain ⟨d,hd,hd'⟩ := (Nat.dvd_prime_pow Nat.prime_two).mp
-      (show (frattini G).index ∣ 2^m from ⟨_,hi.symm⟩)
-    obtain ⟨s,_,hs'⟩ := (Nat.dvd_prime_pow Nat.prime_two).mp
-      (show Nat.card (frattini G) ∣ 2^m from (dvd_mul_left _ _).trans (dvd_of_eq hi))
-    rw [hd',hs',←pow_add] at hi
-    have hds : d+s=m := Nat.pow_right_injective (by decide : 1 < 2) hi
-    have hsd : m-d=s := by omega
-    apply Set.mem_iUnion_of_mem d
-    apply Set.mem_iUnion_of_mem (Finset.mem_range.mpr (by omega : d < m + 1))
-    change Quotient.mk _ G ∈ frattiniClasses d (m-d)
-    exact ⟨G, ⟨hc, he, hsd ▸ hs', hd'⟩,rfl⟩
-  have hfin : U.Finite := (Finset.range (m+1)).finite_toSet.biUnion (fun i _ => frattiniClasses_finite i _)
-  exact (Set.ncard_le_ncard hs hfin).trans ((Finset.range (m+1)).set_ncard_biUnion_le F)
 
 end Erdos1160Growth.LowerTriangularUpper
 
@@ -3561,27 +2563,6 @@ theorem iso_of_mul_equiv {G H : FiniteGrp} (e : G ≃ H)
   let f : G ≃* H := { e with map_mul' := h }
   exact ⟨InducedCategory.isoMk (F := FiniteGrp.toGrp) f.toGrpIso⟩
 
-/-- Equality of the isomorphism classes is exactly simultaneous relabeling
-of the two input positions and the output by one permutation. -/
-theorem groupClass_eq_iff {n : ℕ} (s t : GroupTable n) :
-    groupClass s = groupClass t ↔
-      ∃ e : Equiv.Perm (Fin n), ∀ a b, e (s.val a b) = t.val (e a) (e b) := by
-  constructor
-  · intro h
-    obtain ⟨i⟩ := Quotient.exact h
-    let e := ((inducedFunctor FiniteGrp.toGrp).mapIso i).groupIsoToMulEquiv
-    refine ⟨e.toEquiv, fun a b => ?_⟩
-    have hmul (a b : model s) :
-        e (product (model s) a b) = product (model t) (e a) (e b) := e.map_mul a b
-    exact (congrArg (fun z => e z) (model_mul s a b)).symm.trans
-      ((hmul a b).trans (model_mul t (e a) (e b)))
-  · rintro ⟨e,h⟩
-    apply Quotient.sound
-    apply iso_of_mul_equiv e
-    intro a b
-    exact (congrArg (fun z => e z) (model_mul s a b)).trans
-      ((h a b).trans (model_mul t (e a) (e b)).symm)
-
 /-- Every group of order n can be labeled with the elements of Fin n. -/
 theorem range_groupClass (n : ℕ) : Set.range (@groupClass n) = orderClasses n := by
   ext c
@@ -3598,41 +2579,9 @@ theorem range_groupClass (n : ℕ) : Set.range (@groupClass n) = orderClasses n 
     intro a b
     exact (congrArg (fun z => e z) (model_mul t a b)).trans (e.apply_symm_apply (e a * e b))
 
-/-- The kernel relation has the explicit relabeling description in
-`groupClass_eq_iff`. -/
-noncomputable def relabelSetoid (n : ℕ) : Setoid (GroupTable n) :=
-  Setoid.ker (@groupClass n)
-
-/-- Group isomorphism classes of order n are in bijection with group
-multiplication tables on n labels up to relabeling. -/
-noncomputable def tablesEquivClasses (n : ℕ) :
-    Quotient (relabelSetoid n) ≃ orderClasses n :=
-  (Setoid.quotientKerEquivRange (@groupClass n)).trans (Equiv.setCongr (range_groupClass n))
-
-theorem g_eq_card_tables (n : ℕ) : Erdos1160.g n = Nat.card (Quotient (relabelSetoid n)) :=
-  (Nat.card_congr (tablesEquivClasses n)).symm
-
-/-- A coarse upper bound obtained by ignoring the group axioms and counting all
-binary operations on the labeled carrier. -/
-theorem g_le_table_count (n : ℕ) : Erdos1160.g n ≤ n ^ (n * n) := by
-  rw [g_eq_card_tables]
-  calc
-    Nat.card (Quotient (relabelSetoid n)) ≤ Nat.card (GroupTable n) :=
-      Nat.card_le_card_of_surjective _ Quotient.mk_surjective
-    _ ≤ Nat.card (Fin n → Fin n → Fin n) :=
-      Nat.card_le_card_of_injective Subtype.val Subtype.val_injective
-    _ = n ^ (n * n) := by rw [Nat.card_fun, Nat.card_fun, Nat.card_fin, pow_mul]
-
 theorem orderClasses_finite (n : ℕ) : (orderClasses n).Finite := by
   rw [← range_groupClass]
   exact Set.finite_range _
-
-theorem g_pos {n : ℕ} (hn : 0 < n) : 0 < Erdos1160.g n := by
-  let : NeZero n := ⟨hn.ne'⟩
-  let G := @FiniteGrp.of (Multiplicative (Fin n)) inferInstance (inferInstanceAs (Finite (Fin n)))
-  change 0 < (orderClasses n).ncard
-  exact ((Set.ncard_pos (orderClasses_finite n)).2
-    ⟨Quotient.mk _ G, G, Nat.card_fin n, rfl⟩)
 
 end Erdos1160.Tables
 
@@ -3664,47 +2613,6 @@ theorem card_le_of_fiber_bound {A B : Type*} [Finite A] [Finite B] (f : A → B)
       exact (Nat.card_congr (Equiv.sigmaFiberEquiv f)).symm
     _ ≤ ∑ _b : B, M := Finset.sum_le_sum (fun b _ => h b)
     _ = Nat.card B * M := by simp [Nat.card_eq_fintype_card]
-
-/-- An isomorphism preserving all the marked elements distinguishes parameter
-values. Forgetting the k marks can identify at most n^k parameters per class. -/
-theorem card_le_of_marked_family {A : Type*} [Finite A] {n k : ℕ}
-    (X : A → FiniteGrp.{0}) (hN : ∀ a, Nat.card (X a) = n)
-    (mark : (a : A) → Fin k → X a)
-    (sep : ∀ (a b : A) (e : X a ≃* X b),
-      (∀ i, e (mark a i) = mark b i) → a = b) :
-    Nat.card A ≤ Erdos1160.g n * n ^ k := by
-  classical
-  let f (a : A) : Tables.orderClasses n := ⟨Quotient.mk _ (X a), X a, hN a, rfl⟩
-  let : Finite (Tables.orderClasses n) := (Tables.orderClasses_finite n).to_subtype
-  apply card_le_of_fiber_bound f (n ^ k)
-  intro c
-  let F := {a : A // f a = c}
-  by_cases hn : Nonempty F
-  · let r := Classical.choice hn
-    have sameClass (a : F) : Quotient.mk (isIsomorphicSetoid FiniteGrp.{0}) (X a.val)
-        = Quotient.mk _ (X r.val) :=
-      congrArg Subtype.val (a.property.trans r.property.symm)
-    let transport (a : F) : X a.val ≃* X r.val :=
-      ((inducedFunctor FiniteGrp.toGrp).mapIso
-        (Classical.choice (Quotient.exact (sameClass a)))).groupIsoToMulEquiv
-    let encode (a : F) (i : Fin k) : X r.val := transport a (mark a.val i)
-    have uniqueCode : Function.Injective encode := by
-      intro a b he
-      apply Subtype.ext
-      apply sep a.val b.val ((transport a).trans (transport b).symm)
-      intro i
-      apply (transport b).injective
-      change transport b ((transport b).symm (transport a (mark a.val i))) =
-        transport b (mark b.val i)
-      rw [MulEquiv.apply_symm_apply]
-      exact congrFun he i
-    calc
-      Nat.card F ≤ Nat.card (Fin k → X r.val) :=
-        Nat.card_le_card_of_injective encode uniqueCode
-      _ = n ^ k := by rw [Nat.card_fun, hN, Nat.card_fin]
-  · have empty : IsEmpty F := not_nonempty_iff.mp hn
-    change Nat.card F ≤ n ^ k
-    simp
 
 end Erdos1160.PresentationCount
 
@@ -5088,9 +3996,6 @@ theorem deepClasses_finite (m : ℕ) : (deepClasses m).Finite :=
 theorem deepClasses_bound (m : ℕ) : (deepClasses m).ncard ≤ ∑ p ∈ deepProfiles m, 2^(price p) :=
   ((deepProfiles m).set_ncard_biUnion_le listed).trans (Finset.sum_le_sum (fun _p _ => profileClasses_bound _ _))
 
-theorem sum_profile_bound (m : ℕ) : (noncentralClasses m).ncard ≤ ∑ p ∈ deepProfiles m, 2^(price p) :=
-  (Set.ncard_le_ncard (noncentral_cover m) (deepClasses_finite m)).trans (deepClasses_bound m)
-
 end ClassTwoProfile
 
 end
@@ -5194,16 +4099,6 @@ theorem small_classes_finite (d t e : ℕ) : (smallClasses d t e).Finite := by
   apply (Erdos1160.Tables.orderClasses_finite (2^(d+t+e))).subset
   rintro _ ⟨G,h,rfl⟩
   exact ⟨G,(profile_card h).trans (by simp [pow_add,Nat.mul_assoc]),rfl⟩
-
-theorem zero_small_subset (d t : ℕ) : smallClasses d t 0 ⊆ frattiniClasses d t := by
-  rintro _ ⟨G,h,rfl⟩
-  have hs : squareCore (frattini G) = ⊥ :=
-    (squareCore (frattini G)).eq_bot_of_card_eq (by simpa using h.2.2.2)
-  have hel (v : frattini G) : v*v=1 := by
-    have hv : v*v ∈ squareCore (frattini G) := Subgroup.subset_closure ⟨v,rfl⟩
-    rw [hs] at hv
-    exact hv
-  exact ⟨G,⟨h.1,hel,by simpa using h.2.2.1,h.2.1⟩,rfl⟩
 
 theorem defect_subset_rank_union (m e : ℕ) :
     defectClasses m e ⊆ ⋃ d ∈ Finset.range (m-e+1), smallClasses d (m-e-d) e := by
@@ -5412,13 +4307,6 @@ theorem cheap_deep_profile (m : ℕ) (hm : 200 ≤ m) (p : CompositionProfiles m
 theorem deepProfileUnion_upper (m : ℕ) (hm : 200 ≤ m) :
     (deepClasses m).ncard^27 * 2^(10*m^2) ≤ 2^(2*m^3) := by
   exact (Nat.mul_le_mul_right _ (Nat.pow_le_pow_left (deepClasses_bound m) 27)).trans
-    (sum_composition_costs m (deepProfiles m) price (cheap_deep_profile m hm))
-
-/-- All groups of order 2^m whose derived subgroup is central and whose
-Frattini subgroup is noncentral have a quadratic saving over Higman's cubic exponent. -/
-theorem noncentral_class_two_upper (m : ℕ) (hm : 200 ≤ m) :
-    (noncentralClasses m).ncard^27 * 2^(10*m^2) ≤ 2^(2*m^3) := by
-  exact (Nat.mul_le_mul_right _ (Nat.pow_le_pow_left (sum_profile_bound m) 27)).trans
     (sum_composition_costs m (deepProfiles m) price (cheap_deep_profile m hm))
 
 end ClassTwoProfile

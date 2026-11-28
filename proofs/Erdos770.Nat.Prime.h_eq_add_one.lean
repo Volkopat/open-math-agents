@@ -29,9 +29,8 @@ lemma roots_bound {q n : ℕ} [Fact q.Prime] (hn : 0 < n) (hq : n + 1 < q)
   omega
 
 lemma dvd_all {q n k : ℕ} (h : q ∣ ((Icc 2 k).image fun i => (i ^ n - 1)).gcd id) :
-    ∀ i ∈ Icc 2 k, q ∣ i ^ n - 1 := by
-  intro i hi
-  exact h.trans (Finset.gcd_dvd (f := id) (mem_image_of_mem _ hi))
+    ∀ i ∈ Icc 2 k, q ∣ i ^ n - 1 := fun i hi =>
+  h.trans (Finset.gcd_dvd (f := id) (mem_image_of_mem _ hi))
 
 lemma cast_pow {q n i : ℕ} (hi : 1 ≤ i) (h : q ∣ i ^ n - 1) : ((i : ℕ) : ZMod q) ^ n = 1 := by
   have h1 := (ZMod.natCast_eq_zero_iff (i ^ n - 1) q).mpr h
@@ -41,14 +40,10 @@ lemma cast_pow {q n i : ℕ} (hi : 1 ≤ i) (h : q ∣ i ^ n - 1) : ((i : ℕ) :
 lemma prime_gt {q n k : ℕ} (hq : q.Prime) (hn : 0 < n) (h : ∀ i ∈ Icc 2 k, q ∣ i ^ n - 1) :
     k < q := by
   by_contra hc
-  have h1 := h q (mem_Icc.mpr ⟨hq.two_le, by omega⟩)
-  have h2 : q ∣ q ^ n := dvd_pow_self q hn.ne'
-  have h3 : q ∣ q ^ n - (q ^ n - 1) := Nat.dvd_sub h2 h1
-  have h4 : q ^ n - (q ^ n - 1) = 1 := by
-    have := Nat.one_le_pow n q hq.pos
-    omega
-  rw [h4] at h3
-  exact hq.one_lt.ne' (Nat.dvd_one.mp h3)
+  refine hq.one_lt.ne' (Nat.dvd_one.mp ((Nat.dvd_add_right (h q (mem_Icc.mpr ⟨hq.two_le,
+    by omega⟩))).mp ?_))
+  rw [Nat.sub_add_cancel (Nat.one_le_pow _ _ hq.pos)]
+  exact dvd_pow_self q hn.ne'
 
 lemma gcd_top {n : ℕ} (hn : 0 < n) :
     ((Icc 2 (n + 1)).image fun i => (i ^ n - 1)).gcd id = 1 := by
@@ -79,11 +74,7 @@ lemma gcd_n {n : ℕ} (hn : 2 < n) (hnp : ¬ (n + 1).Prime) :
   · rw [← h1]; simp
   rcases Nat.eq_or_lt_of_le hi.2 with h2 | h2
   · obtain ⟨a, ⟨b, hab⟩, ha2, halt⟩ := Nat.exists_dvd_of_not_prime2 (by omega) hnp
-    have hb2 : 2 ≤ b := by
-      rcases b with _ | _ | b
-      · simp at hab
-      · omega
-      · omega
+    have hb2 : 2 ≤ b := by rcases b with _ | _ | b <;> simp at hab ⊢ <;> omega
     have hbn : b ≤ n := by nlinarith
     have han : a ≤ n := by omega
     rw [h2, hab, Nat.cast_mul, mul_pow,
@@ -114,22 +105,14 @@ theorem OMA.solution : type_of% @Erdos770.Nat.Prime.h_eq_add_one := by
   constructor
   · intro h
     by_contra hnp
-    have hle : sInf {m : ℕ∞ | 2 < m ∧
-        ((Finset.Icc 2 m.toNat).image fun i => (i ^ n - 1)).gcd id = 1} ≤ (n : ℕ∞) := by
-      refine sInf_le ⟨by exact_mod_cast hn, ?_⟩
-      rw [ENat.toNat_natCast]
-      exact gcd_n hn hnp
-    rw [h] at hle
-    have h3 : n + 1 ≤ n := by exact_mod_cast hle
+    have := h.symm.le.trans (sInf_le ⟨(by exact_mod_cast hn : (2 : ℕ∞) < n), by
+      rw [ENat.toNat_natCast]; exact gcd_n hn hnp⟩)
+    have h3 : n + 1 ≤ n := by exact_mod_cast this
     omega
   · intro hp
     apply le_antisymm
-    · have hle : sInf {m : ℕ∞ | 2 < m ∧
-          ((Finset.Icc 2 m.toNat).image fun i => (i ^ n - 1)).gcd id = 1} ≤ ((n + 1 : ℕ) : ℕ∞) := by
-        refine sInf_le ⟨by exact_mod_cast (by omega : 2 < n + 1), ?_⟩
-        rw [ENat.toNat_natCast]
-        exact gcd_top hn0
-      exact_mod_cast hle
+    · exact sInf_le ⟨(by exact_mod_cast (by omega : 2 < n + 1) : (2 : ℕ∞) < (n + 1 : ℕ)), by
+        exact_mod_cast gcd_top hn0⟩
     · apply le_sInf
       rintro m ⟨hm2, hmg⟩
       cases m with

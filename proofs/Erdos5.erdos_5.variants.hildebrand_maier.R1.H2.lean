@@ -1,5 +1,6 @@
 import OMAReductions.R_Erdos5_erdos_5_variants_hildebrand_maier_R1
 
+open Real
 -- Step Erdos5.erdos_5.variants.hildebrand_maier.R1.H2: hypothesis H2 of reduction Erdos5.erdos_5.variants.hildebrand_maier.R1
 -- Credit: @loremcdmx
 -- H2 := ∀ᶠ n : ℕ in atTop, 0 < log n ∧     log n ≤ log (Nat.nth Nat.Prime n) ∧ log (Nat.nth Nat.Prime n) ≤ 2 * log n
@@ -11,28 +12,28 @@ open Filter Real
 lemma key (m : ℕ) (hm : 16 ≤ m) : Nat.nth Nat.Prime m ≤ m ^ 2 := by
   have hm' : (16:ℝ) ≤ m := by exact_mod_cast hm
   have hpi := Chebyshev.pi_ge (m ^ 2)
-  have hlogm : 0 < Real.log m := Real.log_pos (by linarith)
-  have hl2 : Real.log (((m ^ 2 : ℕ) : ℝ)) = 2 * Real.log m := by
-    push_cast; rw [Real.log_pow]; norm_num
-  have h2 := Real.log_two_gt_d9
-  have hA : Real.log (m : ℝ) ≤ m / 8 + 3 := by
-    have h8 : Real.log ((m:ℝ) / 8) ≤ m / 8 - 1 := Real.log_le_sub_one_of_pos (by linarith)
-    rw [Real.log_div (by linarith) (by norm_num)] at h8
-    have : Real.log 8 = 3 * Real.log 2 := by
-      rw [show (8:ℝ) = 2 ^ 3 by norm_num, Real.log_pow]; norm_num
-    have h2' := Real.log_two_lt_d9
+  have hlogm : 0 < log m := log_pos (by linarith)
+  have hl2 : log (((m ^ 2 : ℕ) : ℝ)) = 2 * log m := by
+    push_cast; rw [log_pow]; norm_num
+  have h2 := log_two_gt_d9
+  have hA : log (m : ℝ) ≤ m / 8 + 3 := by
+    have h8 : log ((m:ℝ) / 8) ≤ m / 8 - 1 := log_le_sub_one_of_pos (by linarith)
+    rw [log_div (by linarith) (by norm_num)] at h8
+    have : log 8 = 3 * log 2 := by
+      rw [show (8:ℝ) = 2 ^ 3 by norm_num, log_pow]; norm_num
+    have h2' := log_two_lt_d9
     linarith
-  have h2' := Real.log_two_lt_d9
-  have hB : Real.log (((m ^ 2 : ℕ) : ℝ) + 1) ≤ Real.log 2 + 2 * Real.log m := by
-    have e : Real.log (2 * (m:ℝ) ^ 2) = Real.log 2 + 2 * Real.log m := by
-      rw [Real.log_mul (by norm_num) (by positivity), Real.log_pow]; norm_num
+  have h2' := log_two_lt_d9
+  have hB : log (((m ^ 2 : ℕ) : ℝ) + 1) ≤ log 2 + 2 * log m := by
+    have e : log (2 * (m:ℝ) ^ 2) = log 2 + 2 * log m := by
+      rw [log_mul (by norm_num) (by positivity), log_pow]; norm_num
     rw [← e]
-    apply Real.log_le_log (by positivity)
+    apply log_le_log (by positivity)
     push_cast; nlinarith
   have hm0 : (0:ℝ) ≤ m := by linarith
-  have h3 : (m:ℝ) * Real.log m ≤ (m:ℝ) * (m / 8 + 3) := mul_le_mul_of_nonneg_left hA hm0
-  have h4 : (m:ℝ)^2 * 0.69 ≤ (m:ℝ)^2 * Real.log 2 := mul_le_mul_of_nonneg_left (by linarith) (by positivity)
-  have hlt : (m : ℝ) < (((m ^ 2 : ℕ) : ℝ) * Real.log 2 - Real.log (((m ^ 2 : ℕ) : ℝ) + 1)) / Real.log (((m ^ 2 : ℕ) : ℝ)) := by
+  have h3 : (m:ℝ) * log m ≤ (m:ℝ) * (m / 8 + 3) := mul_le_mul_of_nonneg_left hA hm0
+  have h4 : (m:ℝ)^2 * 0.69 ≤ (m:ℝ)^2 * log 2 := mul_le_mul_of_nonneg_left (by linarith) (by positivity)
+  have hlt : (m : ℝ) < (((m ^ 2 : ℕ) : ℝ) * log 2 - log (((m ^ 2 : ℕ) : ℝ) + 1)) / log (((m ^ 2 : ℕ) : ℝ)) := by
     rw [hl2, lt_div_iff₀ (by linarith)]
     push_cast at hB ⊢
     nlinarith
@@ -48,15 +49,15 @@ theorem OMA.solution : OMA.R_Erdos5_erdos_5_variants_hildebrand_maier_R1.H2 := b
   unfold OMA.R_Erdos5_erdos_5_variants_hildebrand_maier_R1.H2
   filter_upwards [eventually_ge_atTop 16] with n hn
   have hn' : (16:ℝ) ≤ n := by exact_mod_cast hn
-  have hpos : 0 < Real.log n := Real.log_pos (by linarith)
+  have hpos : 0 < log n := log_pos (by linarith)
   have hle : n ≤ Nat.nth Nat.Prime n := by
     have := Nat.add_two_le_nth_prime n; omega
   have hk := OMA.Aux.key n hn
   refine ⟨hpos, ?_, ?_⟩
-  · exact Real.log_le_log (by linarith) (by exact_mod_cast hle)
+  · exact log_le_log (by linarith) (by exact_mod_cast hle)
   · have hp : (0:ℝ) < Nat.nth Nat.Prime n := by
       have : (0:ℕ) < Nat.nth Nat.Prime n := by omega
       exact_mod_cast this
-    calc Real.log (Nat.nth Nat.Prime n) ≤ Real.log ((n:ℝ) ^ 2) :=
-          Real.log_le_log hp (by exact_mod_cast hk)
-      _ = 2 * Real.log n := by rw [Real.log_pow]; norm_num
+    calc log (Nat.nth Nat.Prime n) ≤ log ((n:ℝ) ^ 2) :=
+          log_le_log hp (by exact_mod_cast hk)
+      _ = 2 * log n := by rw [log_pow]; norm_num

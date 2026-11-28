@@ -1,57 +1,33 @@
 import FormalConjectures.ErdosProblems.«311»
 
--- Problem: Erdős Problem 311 — delta ge inv lcm
--- Upstream: formal-conjectures FormalConjectures/ErdosProblems/311.lean (declaration Erdos311.delta_ge_inv_lcm)
--- Credit: @ashnewmanjones (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+/-! Multiplying by the least common multiple turns each nonzero difference into a nonzero integer. -/
 
+-- Original proof by @ashnewmanjones.
 open Finset
-
--- L * (1 - Σ 1/n) is an integer when every n ∈ A divides L.
-lemma OMA.lcm_mul_sub_sum_int (N : ℕ) (A : Finset ℕ) (hA : A ⊆ Icc 1 N) :
-    ∃ k : ℤ, (((Icc 1 N).lcm id : ℕ) : ℝ) * (1 - ∑ n ∈ A, (1 : ℝ) / n) = k := by
-  set L : ℕ := (Icc 1 N).lcm id with hL
-  refine ⟨(L : ℤ) - ((∑ n ∈ A, L / n : ℕ) : ℤ), ?_⟩
-  rw [Int.cast_sub, Int.cast_natCast, Int.cast_natCast, Nat.cast_sum, mul_sub, mul_one,
-    Finset.mul_sum]
-  congr 1
-  refine Finset.sum_congr rfl fun n hn => ?_
-  have hnI : n ∈ Icc 1 N := hA hn
-  have hn0 : n ≠ 0 := by
-    have := (Finset.mem_Icc.mp hnI).1
-    omega
-  have hdvd : n ∣ L := by
-    have := Finset.dvd_lcm (f := id) hnI
-    simpa [hL] using this
-  rw [Nat.cast_div hdvd (by exact_mod_cast hn0)]
-  ring
 
 theorem OMA.solution : type_of% @Erdos311.delta_ge_inv_lcm := by
   intro N
-  set L : ℕ := (Icc 1 N).lcm id with hL
-  have hLpos : 0 < L := by
-    rw [hL, Nat.pos_iff_ne_zero, Ne, Finset.lcm_eq_zero_iff]
-    simp
-  have hLR : (0 : ℝ) < L := by exact_mod_cast hLpos
+  set L := (Icc 1 N).lcm id
+  have hL : (0 : ℝ) < L := by
+    exact_mod_cast (show 0 < L by simp [L, Nat.pos_iff_ne_zero, Finset.lcm_eq_zero_iff])
   unfold Erdos311.delta
   apply le_csInf
-  · exact ⟨1, one_ne_zero, ∅, Finset.empty_subset _, by simp⟩
+  · exact ⟨1, one_ne_zero, ∅, empty_subset _, by simp⟩
   · rintro x ⟨hx, A, hA, rfl⟩
-    obtain ⟨k, hk⟩ := OMA.lcm_mul_sub_sum_int N A hA
-    rw [← hL] at hk
+    let s : ℕ := ∑ n ∈ A, L / n
+    let k : ℤ := (L : ℤ) - (s : ℤ)
+    have h (n) (hn : n ∈ A) : (↑(L / n) : ℝ) = (L : ℝ) * (1 / n) := by
+      have hn0 := Nat.ne_of_gt (mem_Icc.mp (hA hn)).1
+      have hnL : n ∣ L := dvd_lcm (f := id) (hA hn)
+      rw [Nat.cast_div hnL (by exact_mod_cast hn0)]
+      ring
+    have hk : (k : ℝ) = (L : ℝ) * (1 - ∑ n ∈ A, (1 : ℝ) / n) := by
+      dsimp only [k, s]
+      rw [Int.cast_sub, Int.cast_natCast, Int.cast_natCast, Nat.cast_sum, mul_sub,
+        mul_one, mul_sum, sum_congr rfl h]
     have hk0 : k ≠ 0 := by
-      rintro rfl
-      apply hx
-      have : (1 - ∑ n ∈ A, (1 : ℝ) / n) = 0 := by
-        have h' : (L : ℝ) * (1 - ∑ n ∈ A, (1 : ℝ) / n) = 0 := by simpa using hk
-        rcases mul_eq_zero.mp h' with h | h
-        · exact absurd h hLR.ne'
-        · exact h
-      rw [this, abs_zero]
-    have hk1 : (1 : ℝ) ≤ |(k : ℝ)| := by
-      rw [← Int.cast_abs]
-      exact_mod_cast Int.one_le_abs hk0
-    rw [div_le_iff₀ hLR]
-    calc (1 : ℝ) ≤ |(k : ℝ)| := hk1
-      _ = |1 - ∑ n ∈ A, (1 : ℝ) / n| * L := by
-        rw [← hk, abs_mul, abs_of_pos hLR, mul_comm]
+      intro hzero
+      rw [hzero, Int.cast_zero] at hk
+      exact mul_ne_zero hL.ne' (abs_ne_zero.mp hx) hk.symm
+    rw [div_le_iff₀ hL, mul_comm, ← abs_of_pos hL, ← abs_mul, ← hk, ← Int.cast_abs]
+    exact_mod_cast Int.one_le_abs hk0

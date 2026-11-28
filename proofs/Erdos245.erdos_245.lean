@@ -763,8 +763,6 @@ lemma mem_mulStab (hs : s.Nonempty) : a ∈ s.mulStab ↔ a • s = s := by
   obtain ⟨b, hb⟩ := hs
   exact fun h ↦ ⟨_, by rw [← h]; exact smul_mem_smul_finset hb, _, hb, mul_div_cancel_right _ _⟩
 
-lemma mulStab_subset_div : s.mulStab ⊆ s / s := filter_subset _ _
-
 lemma mulStab_subset_div_right (ha : a ∈ s) : s.mulStab ⊆ s / {a} := by
   refine fun b hb ↦ mem_div.2 ⟨_, ?_, _, mem_singleton_self _, mul_div_cancel_right _ _⟩
   rw [mem_mulStab ⟨a, ha⟩] at hb
@@ -833,11 +831,6 @@ lemma mul_subset_right_iff (ht : t.Nonempty) : s * t ⊆ t ↔ s ⊆ t.mulStab :
   simp_rw [← smul_eq_mul, ← biUnion_smul_finset, biUnion_subset,
     ← mem_mulStab_iff_smul_finset_subset ht, subset_iff]
 
-lemma mul_subset_right : s ⊆ t.mulStab → s * t ⊆ t := by
-  obtain rfl | ht := t.eq_empty_or_nonempty
-  · simp
-  · exact (mul_subset_right_iff ht).2
-
 lemma smul_mulStab (ha : a ∈ s.mulStab) : a • s.mulStab = s.mulStab := by
   obtain rfl | hs := s.eq_empty_or_nonempty
   · simp
@@ -865,11 +858,6 @@ end Group
 
 variable [CommGroup α] [DecidableEq α] {s t : Finset α} {a : α}
 
-lemma mulStab_subset_div_left (ha : a ∈ s) : s.mulStab ⊆ {a} / s := by
-  refine fun b hb ↦ mem_div.2 ⟨_, mem_singleton_self _, _, ?_, div_div_cancel _ _⟩
-  rw [mem_mulStab ⟨a, ha⟩] at hb
-  rwa [← hb, ← inv_smul_mem_iff, smul_eq_mul, inv_mul_eq_div] at ha
-
 lemma subset_mulStab_mul_right (hs : s.Nonempty) : t.mulStab ⊆ (s * t).mulStab := by
   rw [mul_comm]; exact subset_mulStab_mul_left hs
 
@@ -886,8 +874,6 @@ lemma smul_finset_mulStab_subset (ha : a ∈ s) : a • s.mulStab ⊆ s :=
 
 lemma mul_subset_left_iff (hs : s.Nonempty) : s * t ⊆ s ↔ t ⊆ s.mulStab := by
   rw [mul_comm, mul_subset_right_iff hs]
-
-lemma mul_subset_left : t ⊆ s.mulStab → s * t ⊆ s := by rw [mul_comm]; exact mul_subset_right
 
 @[simp]
 lemma mulStab_idem (s : Finset α) : s.mulStab.mulStab = s.mulStab := by
@@ -944,11 +930,6 @@ lemma card_mulStab_dvd_card_mul_mulStab (s t : Finset α) : #t.mulStab ∣ #(s *
 lemma card_mulStab_dvd_card (s : Finset α) : #s.mulStab ∣ #s := by
   simpa only [mul_mulStab] using s.card_mulStab_dvd_card_mul_mulStab s
 
-lemma card_mulStab_le_card : #s.mulStab ≤ #s := by
-  obtain rfl | hs := s.eq_empty_or_nonempty
-  · rfl
-  · exact Nat.le_of_dvd hs.card_pos s.card_mulStab_dvd_card
-
 /-- A fintype instance for the stabilizer of a nonempty finset `s` in terms of `s.mulStab`. -/
 private abbrev fintypeStabilizerOfMulStab (hs : s.Nonempty) : Fintype (stabilizer α s) where
   elems := s.mulStab.attach.map
@@ -1001,43 +982,6 @@ lemma card_mul_card_eq_mulStab_card_mul_coe (s t : Finset α) :
   have temp := this.trans <| (Equiv.cast that).prodCongr (Equiv.refl _)
   rw [preimage_image_quotientMk_mulStabilizer] at temp
   simpa [-coe_mul] using Fintype.card_congr temp
-
-/-- A version of Lagrange's theorem. -/
-lemma card_mulStab_mul_card_image_coe (s t : Finset α) :
-    #(s * t).mulStab *
-      #((Finset.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) s) * (Finset.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) t)) =
-        #(s * t) := by
-  obtain rfl | hs := s.eq_empty_or_nonempty
-  · simp
-  obtain rfl | ht := t.eq_empty_or_nonempty
-  · simp
-  let this := QuotientGroup.preimageMkEquivSubgroupProdSet (stabilizer α (↑(s * t) : Set α))
-    ((Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) s) * (Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) t))
-  have image_coe_mul :
-    (Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) (↑(s * t) : Set α)) =
-      (Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) s) * (Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) t) := by
-    simpa [coe_mul] using Set.image_mul (QuotientGroup.mk' (stabilizer α (↑(s * t) : Set α)))
-  rw [← image_coe_mul, preimage_image_quotientMk_mulStabilizer, image_coe_mul] at this
-  have that :
-    (stabilizer α (↑(s * t) : Set α) ×
-      ↥((Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) s) * (Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) t))) =
-      ((s * t).mulStab ×
-        ↥((Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) s) * (Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) t))) := by
-    rw [← SetLike.coe_sort_coe, ← coe_mulStab (hs.mul ht), Finset.coe_sort_coe]
-  let temp := this.trans (Equiv.cast that)
-  replace temp := Fintype.card_congr temp
-  simp only [Fintype.card_prod, Fintype.card_coe] at temp
-  have h1 : Fintype.card ((s * t : Finset α) : Set α) = Fintype.card (s * t) := by congr
-  have h2 : (Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) s) * (Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) t) =
-    ↑((Finset.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) s) * (Finset.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) t)) := by simp
-  have h3 :
-    Fintype.card ((Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) s) * (Set.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) t)) =
-      Fintype.card ((Finset.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) s) *
-        (Finset.image ((↑) : α → α ⧸ stabilizer α (↑(s * t) : Set α)) t)) := by
-    simp_rw [h2]
-    congr
-  simp only [h1, h3, Fintype.card_coe] at temp
-  rw [temp]
 
 end Finset
 
@@ -1683,17 +1627,6 @@ lemma residueReps_subset (S : Finset ℕ) (v : ℕ) : residueReps S v ⊆ S := b
   obtain ⟨c, hc, rfl⟩ := hz
   exact residueRep_mem S v c
 
-lemma cast_mem_modImage_of_mem_residueReps {S : Finset ℕ} {v z : ℕ}
-    (hz : z ∈ residueReps S v) : (z : ZMod v) ∈ modImage S v := by
-  simp only [residueReps, mem_image] at hz
-  obtain ⟨c, hc, rfl⟩ := hz
-  rw [residueRep_cast]
-  exact c.2
-
-lemma residueRep_of_cast {S : Finset ℕ} {v z : ℕ} (hz : z ∈ S) :
-    residueRep S v ⟨(z : ZMod v), mem_modImage.mpr ⟨z, hz, rfl⟩⟩ ≤ z := by
-  exact residueRep_le _ hz rfl
-
 /-- Reduction modulo `v` commutes with a natural-number sumset. -/
 lemma modImage_add (A B : Finset ℕ) (v : ℕ) :
     modImage (A + B) v = modImage A v + modImage B v := by
@@ -1828,9 +1761,6 @@ lemma card_modImage_add_one_eq {S : Finset ℕ} {v : ℕ} (hv : 0 < v)
 lemma zero_mem_modImage {S : Finset ℕ} {v : ℕ} (h0 : 0 ∈ S) :
     (0 : ZMod v) ∈ modImage S v := mem_modImage.mpr ⟨0, h0, by simp⟩
 
-lemma modImage_nonempty {S : Finset ℕ} {v : ℕ} (hS : S.Nonempty) :
-    (modImage S v).Nonempty := hS.image _
-
 lemma zero_mem_addStab {G : Type*} [AddCommGroup G] [DecidableEq G]
     {C : Finset G} (hC : C.Nonempty) : 0 ∈ C.addStab := by
   exact hC.zero_mem_addStab
@@ -1846,12 +1776,6 @@ lemma addStab_neg_mem {G : Type*} [AddCommGroup G] [DecidableEq G]
     (hx : x ∈ C.addStab) : -x ∈ C.addStab := by
   rw [← mem_coe, coe_addStab hC] at hx ⊢
   exact (AddAction.stabilizer G (C : Set G)).neg_mem hx
-
-lemma addStab_sub_mem {G : Type*} [AddCommGroup G] [DecidableEq G]
-    {C : Finset G} (hC : C.Nonempty) {x y : G}
-    (hx : x ∈ C.addStab) (hy : y ∈ C.addStab) : x - y ∈ C.addStab := by
-  rw [← mem_coe, coe_addStab hC] at hx hy ⊢
-  exact (AddAction.stabilizer G (C : Set G)).sub_mem hx hy
 
 /-- If all residues of a set of integers lie in a subgroup and their
 integer gcd is one, that subgroup is all of `ZMod v`. -/
@@ -2972,163 +2896,6 @@ open scoped BigOperators Pointwise
 
 namespace Erdos587
 
-def cyclicPhaseBucket {N : ℕ} [NeZero N] (P : ℕ)
-    (x k : ZMod N) : ℕ :=
-  (x * k).val / (N / P + 1)
-
-lemma cyclicPhaseBucket_lt {N P : ℕ} [NeZero N]
-    (hP : 0 < P) (x k : ZMod N) : cyclicPhaseBucket P x k < P := by
-  have hden : 0 < N / P + 1 := Nat.succ_pos _
-  rw [cyclicPhaseBucket, Nat.div_lt_iff_lt_mul hden]
-  exact (x * k).val_lt.trans (Nat.lt_mul_div_succ N hP)
-
-def cyclicPhaseCell {N P : ℕ} [NeZero N]
-    (Gamma : Finset (ZMod N)) (hP : 0 < P) (x : ZMod N) :
-    Gamma → Fin P :=
-  fun k => ⟨cyclicPhaseBucket P x k, cyclicPhaseBucket_lt hP x k⟩
-
-lemma val_sub_natAbs_lt_of_phaseBucket_eq
-    {N P : ℕ} [NeZero N] {x y k : ZMod N}
-    (hxy : cyclicPhaseBucket P x k = cyclicPhaseBucket P y k) :
-    (((x * k).val : ℤ) - (y * k).val).natAbs < N / P + 1 := by
-  let L := N / P + 1
-  have hL : 0 < L := Nat.succ_pos _
-  have hmodx := Nat.mod_lt (x * k).val hL
-  have hmody := Nat.mod_lt (y * k).val hL
-  have hx := Nat.mod_add_div (x * k).val L
-  have hy := Nat.mod_add_div (y * k).val L
-  have hdiv : (x * k).val / L = (y * k).val / L := by
-    simpa [cyclicPhaseBucket, L] using hxy
-  have hxyNat : (x * k).val < (y * k).val + L := by
-    calc
-      (x * k).val = (x * k).val % L + L * ((x * k).val / L) := hx.symm
-      _ < L + L * ((x * k).val / L) := by omega
-      _ = L + L * ((y * k).val / L) := by rw [hdiv]
-      _ ≤ (y * k).val + L := by omega
-  have hyxNat : (y * k).val < (x * k).val + L := by
-    calc
-      (y * k).val = (y * k).val % L + L * ((y * k).val / L) := hy.symm
-      _ < L + L * ((y * k).val / L) := by omega
-      _ = L + L * ((x * k).val / L) := by rw [hdiv]
-      _ ≤ (x * k).val + L := by omega
-  have hxyZ : ((x * k).val : ℤ) - (y * k).val < L := by
-    have hxyNatZ : ((x * k).val : ℤ) < (y * k).val + L := by
-      exact_mod_cast hxyNat
-    omega
-  have hyxZ : -((L : ℕ) : ℤ) < ((x * k).val : ℤ) - (y * k).val := by
-    have hyxNatZ : ((y * k).val : ℤ) < (x * k).val + L := by
-      exact_mod_cast hyxNat
-    omega
-  by_cases hsign : 0 ≤ ((x * k).val : ℤ) - (y * k).val
-  · have hcast :
-        ((((x * k).val : ℤ) - (y * k).val).natAbs : ℤ) < L := by
-      rw [Int.natAbs_of_nonneg hsign]
-      exact hxyZ
-    exact_mod_cast hcast
-  · have hneg : 0 ≤ -(((x * k).val : ℤ) - (y * k).val) := by omega
-    have hcast :
-        ((((x * k).val : ℤ) - (y * k).val).natAbs : ℤ) < L := by
-      rw [← Int.natAbs_neg, Int.natAbs_of_nonneg hneg]
-      omega
-    exact_mod_cast hcast
-
-lemma phaseCell_eq_imp_stdAddChar_close
-    {N P : ℕ} [NeZero N] (Gamma : Finset (ZMod N))
-    (hP : 0 < P) (hsize : 16 * (N / P + 1) ≤ N)
-    {x y : ZMod N}
-    (hcell : cyclicPhaseCell Gamma hP x = cyclicPhaseCell Gamma hP y) :
-    x - y ∈ cyclicBohrSet Gamma (1 / 2) := by
-  rw [mem_cyclicBohrSet]
-  intro k hk
-  let ks : Gamma := ⟨k, hk⟩
-  have hbucket : cyclicPhaseBucket P x k = cyclicPhaseBucket P y k := by
-    have h := congrFun hcell ks
-    exact congrArg Fin.val h
-  let t : ℤ := ((x * k).val : ℤ) - (y * k).val
-  have ht : t.natAbs < N / P + 1 := by
-    exact val_sub_natAbs_lt_of_phaseBucket_eq hbucket
-  have htN : 16 * t.natAbs ≤ N := by
-    exact (Nat.mul_le_mul_left 16 ht.le).trans hsize
-  have hcast : (t : ZMod N) = (x - y) * k := by
-    dsimp [t]
-    rw [Int.cast_sub, Int.cast_natCast, Int.cast_natCast,
-      ZMod.natCast_zmod_val, ZMod.natCast_zmod_val]
-    ring
-  rw [← hcast]
-  exact stdAddChar_intCast_close t htN
-
-theorem exists_large_phaseCell
-    {N P : ℕ} [NeZero N] (Gamma : Finset (ZMod N))
-    (hP : 0 < P) :
-    ∃ F : Finset (ZMod N), F.Nonempty ∧
-      N / P ^ Gamma.card ≤ F.card ∧
-      ∀ x ∈ F, ∀ y ∈ F,
-        cyclicPhaseCell Gamma hP x = cyclicPhaseCell Gamma hP y := by
-  classical
-  let f : ZMod N → (Gamma → Fin P) := cyclicPhaseCell Gamma hP
-  let n := N / P ^ Gamma.card
-  by_cases hn : n = 0
-  · let x : ZMod N := 0
-    let F : Finset (ZMod N) := {x}
-    refine ⟨F, Finset.singleton_nonempty x, by simp [n, hn], ?_⟩
-    intro a ha b hb
-    have ha' : a = x := by simpa [F] using ha
-    have hb' : b = x := by simpa [F] using hb
-    rw [ha', hb']
-  · obtain ⟨c, _hc, hcard⟩ :=
-      Finset.exists_le_card_fiber_of_mul_le_card_of_maps_to
-        (s := (Finset.univ : Finset (ZMod N)))
-        (t := (Finset.univ : Finset (Gamma → Fin P))) (f := f)
-        (fun _ _ => Finset.mem_univ _)
-        ⟨fun _ => ⟨0, hP⟩, Finset.mem_univ _⟩
-        (by
-          simp only [Finset.card_univ, ZMod.card,
-            Fintype.card_fun, Fintype.card_coe, Fintype.card_fin]
-          exact Nat.mul_div_le N (P ^ Gamma.card))
-    let F := (Finset.univ : Finset (ZMod N)).filter fun x => f x = c
-    refine ⟨F, Finset.card_pos.mp ((Nat.pos_of_ne_zero hn).trans_le ?_), ?_, ?_⟩
-    · simpa [F] using hcard
-    · simpa [F, n] using hcard
-    · intro x hx y hy
-      have hfx : f x = c := (Finset.mem_filter.mp hx).2
-      have hfy : f y = c := (Finset.mem_filter.mp hy).2
-      exact hfx.trans hfy.symm
-
-theorem exists_large_set_with_difference_subset_cyclicBohrSet
-    {N P : ℕ} [NeZero N] (Gamma : Finset (ZMod N))
-    (hP : 0 < P) (hsize : 16 * (N / P + 1) ≤ N) :
-    ∃ F : Finset (ZMod N), F.Nonempty ∧
-      N / P ^ Gamma.card ≤ F.card ∧
-      F - F ⊆ cyclicBohrSet Gamma (1 / 2) := by
-  obtain ⟨F, hF, hcard, hcell⟩ := exists_large_phaseCell Gamma hP
-  refine ⟨F, hF, hcard, ?_⟩
-  intro z hz
-  obtain ⟨x, hx, y, hy, rfl⟩ := Finset.mem_sub.mp hz
-  exact phaseCell_eq_imp_stdAddChar_close Gamma hP hsize (hcell x hx y hy)
-
-theorem card_cyclicBohrSet_lower_bound
-    {N P : ℕ} [NeZero N] (Gamma : Finset (ZMod N))
-    (hP : 0 < P) (hsize : 16 * (N / P + 1) ≤ N) :
-    N / P ^ Gamma.card ≤ (cyclicBohrSet Gamma (1 / 2)).card := by
-  obtain ⟨F, hF, hcard, hdiff⟩ :=
-    exists_large_set_with_difference_subset_cyclicBohrSet Gamma hP hsize
-  obtain ⟨y, hy⟩ := hF
-  let g : ZMod N → ZMod N := fun x => x - y
-  have hginj : Function.Injective g := fun x z hxz => by
-    dsimp [g] at hxz
-    calc
-      x = (x - y) + y := by abel
-      _ = (z - y) + y := by rw [hxz]
-      _ = z := by abel
-  have hsub : F.image g ⊆ cyclicBohrSet Gamma (1 / 2) := by
-    intro z hz
-    obtain ⟨x, hx, rfl⟩ := Finset.mem_image.mp hz
-    exact hdiff (Finset.mem_sub.mpr ⟨x, hx, y, hy, rfl⟩)
-  calc
-    N / P ^ Gamma.card ≤ F.card := hcard
-    _ = (F.image g).card := (Finset.card_image_of_injective F hginj).symm
-    _ ≤ (cyclicBohrSet Gamma (1 / 2)).card := Finset.card_le_card hsub
-
 end Erdos587
 
 end Erdos587_BohrPhase
@@ -3196,14 +2963,6 @@ omit [Fintype ι] in
 @[simp] theorem intCastVec_apply (z : ι → ℤ) (i : ι) :
     intCastVec z i = (z i : ℚ) := rfl
 
-omit [Fintype ι] in
-theorem intCastVec_injective : Function.Injective (intCastVec : (ι → ℤ) → ι → ℚ) := by
-  intro x y h
-  funext i
-  have hi : (x i : ℚ) = (y i : ℚ) := by
-    simpa [intCastVec] using congrFun h i
-  exact_mod_cast hi
-
 /-- A finite integral vector is primitive when its coordinates have a
 Bézout combination equal to one. -/
 def IsPrimitive (z : ι → ℤ) : Prop :=
@@ -3212,29 +2971,6 @@ def IsPrimitive (z : ι → ℤ) : Prop :=
 theorem IsPrimitive.ne_zero {z : ι → ℤ} (hz : IsPrimitive z) : z ≠ 0 := by
   rintro rfl
   simp [IsPrimitive] at hz
-
-private def rowMatrix (x : ι → ℚ) : Matrix Unit ι ℚ := fun _ i => x i
-
-/-- A common positive denominator for all coordinates. -/
-def commonDen (x : ι → ℚ) : ℕ := (rowMatrix x).den
-
-/-- The integral vector obtained by clearing all denominators. -/
-def clearDen (x : ι → ℚ) : ι → ℤ := fun i => (rowMatrix x).num () i
-
-theorem commonDen_ne_zero (x : ι → ℚ) : commonDen x ≠ 0 :=
-  Matrix.den_ne_zero (rowMatrix x)
-
-theorem clearDen_div_commonDen (x : ι → ℚ) (i : ι) :
-    (clearDen x i : ℚ) / commonDen x = x i := by
-  exact Matrix.num_div_den (rowMatrix x) () i
-
-theorem clearDen_ne_zero {x : ι → ℚ} (hx : x ≠ 0) : clearDen x ≠ 0 := by
-  intro h
-  apply hx
-  funext i
-  have hi := clearDen_div_commonDen x i
-  rw [congrFun h i] at hi
-  simpa using hi.symm
 
 /-- The (nonnegative) gcd of the coordinates of an integral vector. -/
 def content (z : ι → ℤ) : ℤ := Finset.univ.gcd z
@@ -3306,47 +3042,10 @@ theorem divideContent_primitive {z : ι → ℤ} (hz : z ≠ 0) :
 theorem divideContent_ne_zero {z : ι → ℤ} (hz : z ≠ 0) :
     divideContent z ≠ 0 := (divideContent_primitive hz).ne_zero
 
-/-- The primitive integral normalization of a rational vector.  Its useful
-properties require that the input vector be nonzero. -/
-def normalize (x : ι → ℚ) : ι → ℤ := divideContent (clearDen x)
-
-/-- The rational scalar relating a vector to its primitive normalization. -/
-def normalizationScale (x : ι → ℚ) : ℚ :=
-  (content (clearDen x) : ℚ) / commonDen x
-
-theorem normalize_primitive {x : ι → ℚ} (hx : x ≠ 0) :
-    IsPrimitive (normalize x) :=
-  divideContent_primitive (clearDen_ne_zero hx)
-
-theorem normalize_ne_zero {x : ι → ℚ} (hx : x ≠ 0) : normalize x ≠ 0 :=
-  (normalize_primitive hx).ne_zero
-
-theorem normalizationScale_ne_zero {x : ι → ℚ} (hx : x ≠ 0) :
-    normalizationScale x ≠ 0 := by
-  apply div_ne_zero
-  · exact_mod_cast content_ne_zero (clearDen_ne_zero hx)
-  · exact_mod_cast commonDen_ne_zero x
-
-/-- Clearing denominators and dividing by the content changes a nonzero
-vector only by a nonzero rational scalar. -/
-theorem eq_normalizationScale_smul (x : ι → ℚ) :
-    x = normalizationScale x • intCastVec (normalize x) := by
-  funext i
-  change x i = normalizationScale x * (normalize x i : ℚ)
-  rw [← clearDen_div_commonDen x i]
-  rw [← content_mul_divideContent (clearDen x) i]
-  simp only [normalizationScale, normalize, Int.cast_mul]
-  ring
-
 /-- Two nonzero rational vectors are projectively equivalent when one is a
 nonzero scalar multiple of the other. -/
 def ProjectivelyEquivalent (x y : ι → ℚ) : Prop :=
   ∃ q : ℚ, q ≠ 0 ∧ x = q • y
-
-theorem projectivelyEquivalent_normalize {x : ι → ℚ} (hx : x ≠ 0) :
-    ProjectivelyEquivalent x (intCastVec (normalize x)) :=
-  ⟨normalizationScale x, normalizationScale_ne_zero hx,
-    eq_normalizationScale_smul x⟩
 
 omit [Fintype ι] in
 theorem ProjectivelyEquivalent.refl {x : ι → ℚ} (_hx : x ≠ 0) :
@@ -3371,202 +3070,9 @@ theorem ProjectivelyEquivalent.trans {x y z : ι → ℚ}
 
 /- ## Preservation of equations and nondegenerate subsums -/
 
-/-- No nonempty coefficient-weighted subsum vanishes. -/
-def IsNondegenerateFor (coeff x : ι → ℚ) : Prop :=
-  ∀ I : Finset ι, I.Nonempty → (∑ i ∈ I, coeff i * x i) ≠ 0
-
-omit [Fintype ι] in
-theorem weightedSubsum_eq_zero_iff_of_eq_smul
-    (coeff : ι → ℚ) (I : Finset ι) {x y : ι → ℚ} {q : ℚ}
-    (hq : q ≠ 0) (hxy : x = q • y) :
-    (∑ i ∈ I, coeff i * x i) = 0 ↔
-      (∑ i ∈ I, coeff i * y i) = 0 := by
-  have hsum :
-      (∑ i ∈ I, coeff i * x i) = q * ∑ i ∈ I, coeff i * y i := by
-    rw [hxy]
-    simp only [Pi.smul_apply, smul_eq_mul]
-    rw [Finset.mul_sum]
-    apply Finset.sum_congr rfl
-    intro i hi
-    ring
-  rw [hsum, mul_eq_zero]
-  simp [hq]
-
-theorem weightedEquation_preserved_of_eq_smul
-    (coeff : ι → ℚ) {x y : ι → ℚ} {q : ℚ}
-    (hq : q ≠ 0) (hxy : x = q • y) :
-    (∑ i, coeff i * x i) = 0 ↔ (∑ i, coeff i * y i) = 0 := by
-  simpa using weightedSubsum_eq_zero_iff_of_eq_smul coeff Finset.univ hq hxy
-
-theorem weightedSubsum_normalize_iff (coeff : ι → ℚ) (I : Finset ι)
-    {x : ι → ℚ} (hx : x ≠ 0) :
-    (∑ i ∈ I, coeff i * x i) = 0 ↔
-      (∑ i ∈ I, coeff i * (normalize x i : ℚ)) = 0 := by
-  exact weightedSubsum_eq_zero_iff_of_eq_smul coeff I
-    (normalizationScale_ne_zero hx) (eq_normalizationScale_smul x)
-
-theorem weightedEquation_normalize_iff (coeff : ι → ℚ)
-    {x : ι → ℚ} (hx : x ≠ 0) :
-    (∑ i, coeff i * x i) = 0 ↔
-      (∑ i, coeff i * (normalize x i : ℚ)) = 0 := by
-  simpa using weightedSubsum_normalize_iff coeff Finset.univ hx
-
-omit [Fintype ι] in
-theorem nondegenerateFor_preserved_of_eq_smul
-    (coeff : ι → ℚ) {x y : ι → ℚ} {q : ℚ}
-    (hq : q ≠ 0) (hxy : x = q • y) :
-    IsNondegenerateFor coeff x ↔ IsNondegenerateFor coeff y := by
-  constructor <;> intro h I hI hzero
-  · exact h I hI ((weightedSubsum_eq_zero_iff_of_eq_smul coeff I hq hxy).2 hzero)
-  · exact h I hI ((weightedSubsum_eq_zero_iff_of_eq_smul coeff I hq hxy).1 hzero)
-
-theorem nondegenerateFor_normalize_iff (coeff : ι → ℚ)
-    {x : ι → ℚ} (hx : x ≠ 0) :
-    IsNondegenerateFor coeff x ↔
-      IsNondegenerateFor coeff (intCastVec (normalize x)) :=
-  nondegenerateFor_preserved_of_eq_smul coeff
-    (normalizationScale_ne_zero hx) (eq_normalizationScale_smul x)
-
 /- ## Uniqueness of primitive representatives -/
 
-private theorem scalar_is_integer_of_primitive
-    {x y : ι → ℤ} (hy : IsPrimitive y) {q : ℚ}
-    (hxy : intCastVec x = q • intCastVec y) :
-    ∃ k : ℤ, q = k ∧ ∀ i, x i = k * y i := by
-  obtain ⟨v, hv⟩ := hy
-  let k : ℤ := ∑ i, v i * x i
-  have hcoord (i : ι) : (x i : ℚ) = q * (y i : ℚ) := by
-    simpa [intCastVec] using congrFun hxy i
-  have hvQ : ∑ i, (v i : ℚ) * (y i : ℚ) = 1 := by
-    exact_mod_cast hv
-  have hqk : q = (k : ℚ) := by
-    calc
-      q = q * ∑ i, (v i : ℚ) * (y i : ℚ) := by rw [hvQ, mul_one]
-      _ = ∑ i, (v i : ℚ) * (q * (y i : ℚ)) := by
-        rw [Finset.mul_sum]
-        apply Finset.sum_congr rfl
-        intro i hi
-        ring
-      _ = ∑ i, (v i : ℚ) * (x i : ℚ) := by
-        apply Finset.sum_congr rfl
-        intro i hi
-        rw [hcoord]
-      _ = (k : ℚ) := by
-        simp only [k, Int.cast_sum, Int.cast_mul]
-  refine ⟨k, hqk, fun i => ?_⟩
-  have hi := hcoord i
-  rw [hqk] at hi
-  exact_mod_cast hi
-
-/-- Primitive integral representatives of the same rational projective point
-are equal up to the only integral units, `1` and `-1`. -/
-theorem primitive_eq_or_eq_neg {x y : ι → ℤ}
-    (hx : IsPrimitive x) (hy : IsPrimitive y)
-    (hproj : ProjectivelyEquivalent (intCastVec x) (intCastVec y)) :
-    x = y ∨ x = -y := by
-  obtain ⟨q, hq, hxy⟩ := hproj
-  obtain ⟨k, hqk, hk⟩ := scalar_is_integer_of_primitive hy hxy
-  obtain ⟨u, hu⟩ := hx
-  let t : ℤ := ∑ i, u i * y i
-  have hkt : k * t = 1 := by
-    calc
-      k * t = ∑ i, u i * (k * y i) := by
-        simp only [t]
-        rw [Finset.mul_sum]
-        apply Finset.sum_congr rfl
-        intro i hi
-        ring
-      _ = ∑ i, u i * x i := by
-        apply Finset.sum_congr rfl
-        intro i hi
-        rw [hk]
-      _ = 1 := hu
-  have hkunit : IsUnit k := isUnit_iff_dvd_one.mpr ⟨t, hkt.symm⟩
-  rcases Int.isUnit_eq_one_or hkunit with hkone | hkneg
-  · left
-    funext i
-    rw [hk i, hkone, one_mul]
-  · right
-    funext i
-    rw [hk i, hkneg]
-    simp
-
-/-- Normalizing projectively equivalent rational vectors gives the same
-primitive vector up to sign. -/
-theorem normalize_eq_or_eq_neg_of_projectivelyEquivalent
-    {x y : ι → ℚ} (hx : x ≠ 0) (hy : y ≠ 0)
-    (hxy : ProjectivelyEquivalent x y) :
-    normalize x = normalize y ∨ normalize x = -normalize y := by
-  apply primitive_eq_or_eq_neg (normalize_primitive hx) (normalize_primitive hy)
-  exact ((projectivelyEquivalent_normalize hx).symm.trans hxy).trans
-    (projectivelyEquivalent_normalize hy)
-
 /- ## A primitive representative chosen for each projective point -/
-
-omit [Fintype ι] in
-theorem intCastVec_ne_zero {z : ι → ℤ} (hz : z ≠ 0) : intCastVec z ≠ 0 := by
-  intro h
-  apply hz
-  apply intCastVec_injective
-  have hzero : intCastVec (0 : ι → ℤ) = 0 := by
-    funext i
-    rfl
-  exact h.trans hzero.symm
-
-/-- A primitive integral representative of a rational projective point. -/
-noncomputable def projectiveNormalize
-    (p : Projectivization ℚ (ι → ℚ)) : ι → ℤ :=
-  normalize p.rep
-
-theorem projectiveNormalize_primitive (p : Projectivization ℚ (ι → ℚ)) :
-    IsPrimitive (projectiveNormalize p) :=
-  normalize_primitive p.rep_nonzero
-
-theorem projectiveNormalize_ne_zero (p : Projectivization ℚ (ι → ℚ)) :
-    projectiveNormalize p ≠ 0 :=
-  (projectiveNormalize_primitive p).ne_zero
-
-theorem intCast_projectiveNormalize_ne_zero
-    (p : Projectivization ℚ (ι → ℚ)) :
-    intCastVec (projectiveNormalize p) ≠ 0 :=
-  intCastVec_ne_zero (projectiveNormalize_ne_zero p)
-
-/-- The chosen integral vector represents the projective point from which it
-was constructed. -/
-theorem mk_projectiveNormalize (p : Projectivization ℚ (ι → ℚ)) :
-    Projectivization.mk ℚ (intCastVec (projectiveNormalize p))
-      (intCast_projectiveNormalize_ne_zero p) = p := by
-  have hmk :
-      Projectivization.mk ℚ p.rep p.rep_nonzero =
-        Projectivization.mk ℚ (intCastVec (projectiveNormalize p))
-          (intCast_projectiveNormalize_ne_zero p) := by
-    apply (Projectivization.mk_eq_mk_iff' ℚ p.rep
-      (intCastVec (projectiveNormalize p)) p.rep_nonzero
-      (intCast_projectiveNormalize_ne_zero p)).2
-    exact ⟨normalizationScale p.rep, (eq_normalizationScale_smul p.rep).symm⟩
-  exact hmk.symm.trans p.mk_rep
-
-/-- Distinct rational projective points have distinct chosen primitive
-integral representatives. -/
-theorem projectiveNormalize_injective :
-    Function.Injective
-      (projectiveNormalize : Projectivization ℚ (ι → ℚ) → ι → ℤ) := by
-  intro p q hpq
-  rw [← mk_projectiveNormalize p, ← mk_projectiveNormalize q]
-  congr
-
-/-- Every fibre of the primitive-representative map contains at most one
-projective point. -/
-theorem projectiveNormalize_fiber_subsingleton (z : ι → ℤ) :
-    ({p : Projectivization ℚ (ι → ℚ) | projectiveNormalize p = z} : Set _).Subsingleton := by
-  intro p hp q hq
-  exact projectiveNormalize_injective (hp.trans hq.symm)
-
-/-- Pulling back a finite collection of primitive vectors gives a finite
-collection of projective points. -/
-theorem finite_preimage_projectiveNormalize {S : Set (ι → ℤ)} (hS : S.Finite) :
-    {p : Projectivization ℚ (ι → ℚ) | projectiveNormalize p ∈ S}.Finite := by
-  exact hS.preimage projectiveNormalize_injective.injOn
 
 end Erdos407.Primitive
 
@@ -3787,10 +3293,6 @@ noncomputable def minkowskiSecondConstant (n : ℕ) : ℝ :=
 @[simp] theorem minkowskiSecondConstant_one : minkowskiSecondConstant 1 = 1 := by
   simp [minkowskiSecondConstant]
 
-theorem minkowskiSecondConstant_nonneg (n : ℕ) :
-    0 ≤ minkowskiSecondConstant n := by
-  exact pow_nonneg (by norm_num) _
-
 /-- A full lattice has a shortest nonzero vector for the sup norm. -/
 theorem exists_shortest_nonzero_of_basis {n : ℕ}
     (b : Basis (Fin (n + 1)) ℝ (Fin (n + 1) → ℝ)) :
@@ -3878,26 +3380,6 @@ theorem mem_realBox_const_iff_norm_le {n : ℕ} {s : ℝ} (hs : 0 ≤ s)
     · have hi := hx i
       rw [Real.norm_eq_abs, abs_le] at hi
       exact hi.2
-
-/-- Rounding a coefficient along a shortest vector loses at most a factor
-two in the quotient norm.  This is the numerical heart of the induction. -/
-theorem reducedLift_norm_le_two {n : ℕ} (v w : Fin n → ℝ) (a : ℝ)
-    (ha : |a| ≤ (1 : ℝ) / 2) (hshort : ‖v‖ ≤ ‖w + a • v‖) :
-    ‖w + a • v‖ ≤ 2 * ‖w‖ := by
-  have htri : ‖w + a • v‖ ≤ ‖w‖ + |a| * ‖v‖ := by
-    simpa [norm_smul, Real.norm_eq_abs] using norm_add_le w (a • v)
-  have hav : |a| * ‖v‖ ≤ ((1 : ℝ) / 2) * ‖v‖ :=
-    mul_le_mul_of_nonneg_right ha (norm_nonneg v)
-  have hvw : ‖v‖ ≤ 2 * ‖w‖ := by linarith
-  calc
-    ‖w + a • v‖ ≤ ‖w‖ + |a| * ‖v‖ := htri
-    _ ≤ ‖w‖ + ((1 : ℝ) / 2) * ‖v‖ := by linarith
-    _ ≤ 2 * ‖w‖ := by linarith
-
-theorem shortest_le_two_projection {n : ℕ} (v w : Fin n → ℝ) (a : ℝ)
-    (ha : |a| ≤ (1 : ℝ) / 2) (hshort : ‖v‖ ≤ ‖w + a • v‖) :
-    ‖v‖ ≤ 2 * ‖w‖ := by
-  exact hshort.trans (reducedLift_norm_le_two v w a ha hshort)
 
 /-- The rounding operation used when lifting a projected lattice point. -/
 noncomputable def roundedCoefficient (a : ℝ) : ℤ := round a
@@ -4216,18 +3698,6 @@ noncomputable def matrixBasis {n : ℕ} (D : Matrix (Fin n) (Fin n) ℝ)
   change Matrix.mulVec D (Pi.single j 1) i = D i j
   simp [Matrix.mulVec]
 
-/-- Every integral combination of the columns of a nonsingular matrix lies
-in the integral span of its column basis. -/
-theorem matrix_mulVec_intCastVec_mem_span {n : ℕ}
-    (D : Matrix (Fin n) (Fin n) ℝ) (hD : D.det ≠ 0)
-    (z : Fin n → ℤ) :
-    Matrix.mulVec D (intCastVec z) ∈
-      Submodule.span ℤ (Set.range (matrixBasis D hD)) := by
-  rw [Submodule.mem_span_range_iff_exists_fun]
-  refine ⟨z, ?_⟩
-  ext i
-  simp [Matrix.mulVec, dotProduct, intCastVec, mul_comm]
-
 /- ## Induction for the unit cube -/
 
 theorem minkowskiSecondConstant_succ (n : ℕ) :
@@ -4498,119 +3968,6 @@ theorem cube_has_successiveProductCertificate :
             rw [minkowskiSecondConstant_succ, hfactor]
             ring
 
-/-- A tail lift reduced by the nearest integral multiple of the first
-column. -/
-noncomputable def roundedTailLift {n : ℕ} (h : Fin (n + 1))
-    (B : Matrix (Fin (n + 1)) (Fin (n + 1)) ℝ) (z : Fin n → ℤ) :
-    Fin (n + 1) → ℝ :=
-  rawTailLift B z -
-    (roundedCoefficient ((rawTailLift B z) h / B h 0) : ℝ) •
-      (fun i ↦ B i 0)
-
-/-- Rounding a raw lift does not change its coordinate quotient. -/
-theorem deleteProjection_roundedTailLift {n : ℕ} (h : Fin (n + 1))
-    (B : Matrix (Fin (n + 1)) (Fin (n + 1)) ℝ) (hB : B h 0 ≠ 0)
-    (z : Fin n → ℤ) :
-    deleteProjection h (fun i ↦ B i 0) (roundedTailLift h B z) =
-      Matrix.mulVec (projectedTail h B) (intCastVec z) := by
-  rw [roundedTailLift, sub_eq_add_neg, ← neg_smul]
-  rw [deleteProjection_add_smul h (fun i ↦ B i 0) (rawTailLift B z)
-    (-(roundedCoefficient ((rawTailLift B z) h / B h 0) : ℝ)) hB]
-  exact deleteProjection_rawTailLift h B z
-
-/-- A nearest-integer reduced lift has norm at most twice the norm of its
-coordinate quotient, provided the first column is a shortest nonzero
-lattice vector. -/
-theorem roundedTailLift_norm_le_two {n : ℕ} (h : Fin (n + 1))
-    (B : Matrix (Fin (n + 1)) (Fin (n + 1)) ℝ) (z : Fin n → ℤ)
-    (hh : |B h 0| = ‖(fun i ↦ B i 0)‖) (hB : B h 0 ≠ 0)
-    (hshort : ‖(fun i ↦ B i 0)‖ ≤ ‖roundedTailLift h B z‖) :
-    ‖roundedTailLift h B z‖ ≤
-      2 * ‖Matrix.mulVec (projectedTail h B) (intCastVec z)‖ := by
-  let x := rawTailLift B z
-  let v : Fin (n + 1) → ℝ := fun i ↦ B i 0
-  let a : ℝ := -(roundedCoefficient (x h / v h) : ℝ)
-  have ha : |x h / v h + a| ≤ (1 : ℝ) / 2 := by
-    change |x h / v h - (round (x h / v h) : ℝ)| ≤ (1 : ℝ) / 2
-    simpa only [sub_eq_add_neg] using abs_sub_round (x h / v h)
-  have hproj : ‖deleteProjection h v x‖ ≤
-      ‖Matrix.mulVec (projectedTail h B) (intCastVec z)‖ := by
-    rw [deleteProjection_rawTailLift]
-  have hu := reducedLift_apply_le h v x
-    ‖Matrix.mulVec (projectedTail h B) (intCastVec z)‖ a hh hB ha hproj
-  have hlift : x + a • v = roundedTailLift h B z := by
-    simp [x, v, a, roundedTailLift, sub_eq_add_neg]
-  rw [hlift] at hu
-  have hhalf : ‖(fun i ↦ B i 0)‖ / 2 ≤
-      ‖Matrix.mulVec (projectedTail h B) (intCastVec z)‖ := by
-    linarith
-  linarith
-
-/-- A raw tail lift belongs to every integral submodule containing all
-columns of the matrix. -/
-theorem rawTailLift_mem_of_columns_mem {n : ℕ}
-    (L : Submodule ℤ (Fin (n + 1) → ℝ))
-    (B : Matrix (Fin (n + 1)) (Fin (n + 1)) ℝ)
-    (hcol : ∀ j, (fun i ↦ B i j) ∈ L) (z : Fin n → ℤ) :
-    rawTailLift B z ∈ L := by
-  have heq : rawTailLift B z =
-      ∑ j : Fin n, z j • (fun i ↦ B i j.succ) := by
-    ext i
-    rw [rawTailLift, Matrix.mulVec, dotProduct, Fin.sum_univ_succ]
-    simp only [Fin.cons_zero, Fin.cons_succ, intCastVec, mul_zero, zero_add,
-      Finset.sum_apply, Pi.smul_apply]
-    apply Finset.sum_congr rfl
-    intro j _
-    rw [mul_comm]
-    simpa only [smul_eq_mul] using
-      Int.cast_smul_eq_zsmul ℝ (z j) (B i j.succ)
-  rw [heq]
-  apply Submodule.sum_mem
-  intro j _
-  exact L.smul_mem (z j) (hcol j.succ)
-
-/-- The rounded lift remains in the original integral lattice. -/
-theorem roundedTailLift_mem_of_columns_mem {n : ℕ} (h : Fin (n + 1))
-    (L : Submodule ℤ (Fin (n + 1) → ℝ))
-    (B : Matrix (Fin (n + 1)) (Fin (n + 1)) ℝ)
-    (hcol : ∀ j, (fun i ↦ B i j) ∈ L) (z : Fin n → ℤ) :
-    roundedTailLift h B z ∈ L := by
-  apply L.sub_mem (rawTailLift_mem_of_columns_mem L B hcol z)
-  simpa only [Int.cast_smul_eq_zsmul] using
-    L.smul_mem (roundedCoefficient ((rawTailLift B z) h / B h 0)) (hcol 0)
-
-/-- If the quotient vectors are linearly independent, adjoining the first
-column to their rounded lifts gives a linearly independent family upstairs. -/
-theorem roundedTailLift_linearIndependent {n : ℕ} (h : Fin (n + 1))
-    (B : Matrix (Fin (n + 1)) (Fin (n + 1)) ℝ) (hB : B h 0 ≠ 0)
-    (z : Fin n → Fin n → ℤ)
-    (hli : LinearIndependent ℝ (fun j ↦
-      Matrix.mulVec (projectedTail h B) (intCastVec (z j)))) :
-    LinearIndependent ℝ (Fin.cons (fun i ↦ B i 0)
-      (fun j ↦ roundedTailLift h B (z j))) := by
-  rw [Fintype.linearIndependent_iff] at hli ⊢
-  intro c hc i
-  have hp := congrArg (deleteProjectionLinear h (fun i ↦ B i 0)) hc
-  simp only [map_sum, map_smul, map_zero] at hp
-  rw [Fin.sum_univ_succ] at hp
-  simp only [Fin.cons_zero, Fin.cons_succ,
-    deleteProjectionLinear_apply] at hp
-  rw [deleteProjection_self h (fun i ↦ B i 0) hB] at hp
-  simp_rw [deleteProjection_roundedTailLift h B hB] at hp
-  simp only [smul_zero, zero_add] at hp
-  have htail : ∀ j : Fin n, c j.succ = 0 := by
-    exact fun j ↦ hli (fun j ↦ c j.succ) hp j
-  have hc' := hc
-  rw [Fin.sum_univ_succ] at hc'
-  simp only [Fin.cons_zero, Fin.cons_succ] at hc'
-  simp_rw [htail, zero_smul] at hc'
-  simp only [Finset.sum_const_zero, add_zero] at hc'
-  have hc0 : c 0 = 0 := by
-    have hh := congrFun hc' h
-    simp only [Pi.smul_apply, smul_eq_mul, Pi.zero_apply] at hh
-    exact (mul_eq_zero.mp hh).resolve_right hB
-  exact Fin.cases hc0 htail i
-
 end Erdos407.MinkowskiSecondBox
 
 end Erdos407_MinkowskiSecondBoxGlue
@@ -4852,12 +4209,6 @@ noncomputable def indexedCyclicCharacter {N : ℕ}
 
 @[simp] lemma indexedCyclicCharacter_zero {N : ℕ}
     (Gamma : Finset (ZMod N)) : indexedCyclicCharacter Gamma 0 = 1 := rfl
-
-lemma indexedCyclicCharacter_succ_mem {N : ℕ}
-    (Gamma : Finset (ZMod N)) (i : Fin Gamma.card) :
-    indexedCyclicCharacter Gamma i.succ ∈ Gamma := by
-  change ((Gamma.equivFin.symm i : Gamma) : ZMod N) ∈ Gamma
-  exact (Gamma.equivFin.symm i).property
 
 def bohrLatticeMatrixInt {N : ℕ} (Gamma : Finset (ZMod N)) :
     Matrix (Fin (Gamma.card + 1)) (Fin (Gamma.card + 1)) ℤ :=
@@ -5684,34 +5035,6 @@ lemma ruzsaColor_lt {q s : ℕ} [NeZero q] (lam : ZMod q)
   rw [Nat.div_lt_iff_lt_mul (Nat.succ_pos _)]
   simpa only [L] using hrep.trans hqL
 
-lemma ruzsaRepresentative_sub_lt_of_color_eq {q s : ℕ} [NeZero q]
-    (lam : ZMod q) {a b : ℤ}
-    (hcolor : ruzsaColor q s lam a = ruzsaColor q s lam b) :
-    (ruzsaRepresentative q lam a : ℤ) - ruzsaRepresentative q lam b <
-      (q / (2 * s) + 1 : ℕ) := by
-  let L := q / (2 * s) + 1
-  have hL : 0 < L := by exact Nat.succ_pos _
-  have hmoda := Nat.mod_lt (ruzsaRepresentative q lam a) hL
-  have hmodb := Nat.mod_lt (ruzsaRepresentative q lam b) hL
-  have ha := Nat.mod_add_div (ruzsaRepresentative q lam a) L
-  have hb := Nat.mod_add_div (ruzsaRepresentative q lam b) L
-  have hdiv : ruzsaRepresentative q lam a / L = ruzsaRepresentative q lam b / L := by
-    simpa [ruzsaColor, L] using hcolor
-  have habNat : ruzsaRepresentative q lam a < ruzsaRepresentative q lam b + L := by
-    calc
-      ruzsaRepresentative q lam a =
-          ruzsaRepresentative q lam a % L +
-            L * (ruzsaRepresentative q lam a / L) := ha.symm
-      _ < L + L * (ruzsaRepresentative q lam a / L) := by omega
-      _ = L + L * (ruzsaRepresentative q lam b / L) := by rw [hdiv]
-      _ ≤ ruzsaRepresentative q lam b + L := by omega
-  have habZ : (ruzsaRepresentative q lam a : ℤ) <
-      (ruzsaRepresentative q lam b : ℤ) + L := by
-    exact_mod_cast habNat
-  simpa only [L, Nat.cast_add, Nat.cast_one] using (show
-    (ruzsaRepresentative q lam a : ℤ) - ruzsaRepresentative q lam b < (L : ℤ) by
-      omega)
-
 lemma ruzsaRepresentative_bounds_of_color_eq {q s c : ℕ} [NeZero q]
     (lam : ZMod q) {a : ℤ} (hcolor : ruzsaColor q s lam a = c) :
     c * (q / (2 * s) + 1) ≤ ruzsaRepresentative q lam a ∧
@@ -5995,29 +5318,6 @@ theorem isAddFreimanIso_ruzsaModelMap
     · exact hTcard
     · exact hUcard
 
-lemma exists_nonempty_large_color_fiber {A : Finset ℤ} {k : ℕ}
-    (hA : A.Nonempty) (hk : 0 < k) (f : ℤ → ℕ)
-    (hf : ∀ a ∈ A, f a < k) :
-    ∃ c < k, let B := A.filter fun a => f a = c
-      B.Nonempty ∧ A.card / k ≤ B.card := by
-  classical
-  by_cases hquot : A.card / k = 0
-  · obtain ⟨a, ha⟩ := hA
-    refine ⟨f a, hf a ha, ?_⟩
-    dsimp
-    constructor
-    · exact ⟨a, Finset.mem_filter.mpr ⟨ha, rfl⟩⟩
-    · simp [hquot]
-  · obtain ⟨c, hc, hcard⟩ :=
-      Finset.exists_le_card_fiber_of_mul_le_card_of_maps_to
-        (s := A) (t := Finset.range k) (f := f)
-        (fun a ha => Finset.mem_range.mpr (hf a ha))
-        ⟨0, Finset.mem_range.mpr hk⟩
-        (by simpa using Nat.mul_div_le A.card k)
-    refine ⟨c, Finset.mem_range.mp hc, ?_⟩
-    dsimp
-    exact ⟨Finset.card_pos.mp ((Nat.pos_of_ne_zero hquot).trans_le hcard), hcard⟩
-
 /-- A multiplicative form of the same pigeonhole estimate.  This formulation
 has no floor-error term and is the one needed to transfer density to the
 cyclic Freiman model. -/
@@ -6292,16 +5592,6 @@ noncomputable def freimanFourfoldLift (B : Finset β) (hB : B.Nonempty)
     (g : β → α) (x : β) : α :=
   fourfoldMapValue g (selectedFourfoldPresentation B hB x)
 
-lemma freimanFourfoldLift_eq_of_presentation
-    {A : Set α} {B : Finset β} (hB : B.Nonempty) {g : β → α}
-    (hg : IsAddFreimanIso 4 (B : Set β) A g)
-    {x : β} (hx : x ∈ 2 • B - 2 • B)
-    {p : FourfoldPresentation β} (hp : p.Mem B) (hpx : p.eval = x) :
-    freimanFourfoldLift B hB g x = fourfoldMapValue g p := by
-  have hs := selectedFourfoldPresentation_spec B hB hx
-  apply (fourfoldMapValue_eq_iff_eval_eq hg hs.1 hp).mpr
-  exact hs.2.trans hpx.symm
-
 lemma freimanFourfoldLift_mem_two_nsmul_sub_two_nsmul [DecidableEq α]
     {A : Finset α} {B : Finset β} (hB : B.Nonempty) {g : β → α}
     (hg : Set.MapsTo g (B : Set β) (A : Set α))
@@ -6389,24 +5679,6 @@ lemma freimanFourfoldLift_add_eq_add
       px.eval + py.eval = pz.eval + pw.eval ↔ x + y = z + w := by
     rw [hpx.2, hpy.2, hpz.2, hpw.2]
   exact hmapCross.trans (hrel.trans (horiginalCross.symm.trans hvalues))
-
-theorem freimanFourfoldLift_isAddFreimanIso
-    {A : Set α} {B : Finset β} (hB : B.Nonempty) {g : β → α}
-    (hg : IsAddFreimanIso 8 (B : Set β) A g) :
-    IsAddFreimanIso 2 ((2 • B - 2 • B : Finset β) : Set β)
-      ((freimanFourfoldLift B hB g) ''
-        ((2 • B - 2 • B : Finset β) : Set β))
-      (freimanFourfoldLift B hB g) := by
-  rw [isAddFreimanIso_two]
-  constructor
-  · refine ⟨?_, ?_, ?_⟩
-    · intro x hx
-      exact ⟨x, hx, rfl⟩
-    · exact freimanFourfoldLift_injOn hB (hg.mono (hmn := by omega))
-    · intro y hy
-      exact hy
-  · intro x hx y hy z hz w hw
-    exact freimanFourfoldLift_add_eq_add hB hg hx hy hz hw
 
 end
 
@@ -7119,13 +6391,6 @@ lemma freimanModelDensity_pos {K : ℕ} (hK : 1 ≤ K) :
     0 < freimanModelDensity K := by
   unfold freimanModelDensity
   positivity
-
-lemma freimanCyclicDenominator_pos (K : ℕ) :
-    0 < freimanCyclicDenominator K := by
-  unfold freimanCyclicDenominator
-  have hzero : 0 ∈ Finset.range (freimanCyclicRank K + 1) := by simp
-  exact lt_of_lt_of_le (bohrQuarterDenominator_pos 0)
-    (Finset.single_le_sum (fun d hd => (bohrQuarterDenominator_pos d).le) hzero)
 
 /-- The proper-GAP core of Freiman's theorem, in the exact fourfold
 difference set needed for Ruzsa covering.  All constants depend only on the
@@ -7890,27 +7155,6 @@ lemma enumerate_le_iff_lt_countIn {S : Set ℕ} (hS : S.Infinite)
     change countIn S N < countIn S (enumerate S i) at hcardlt
     rw [countIn_enumerate_eq hS hpos i] at hcardlt
     omega
-
-lemma window_eq_image_range_enumerate {S : Set ℕ} (hS : S.Infinite)
-    (hpos : S ⊆ Ici 1) (N : ℕ) :
-    window S N = (Finset.range (countIn S N)).image (enumerate S) := by
-  classical
-  ext x
-  constructor
-  · intro hx
-    have hxS := (mem_window.mp hx).2.2
-    rw [← range_enumerate hS] at hxS
-    obtain ⟨i, rfl⟩ := hxS
-    apply Finset.mem_image.mpr
-    exact ⟨i, Finset.mem_range.mpr
-      ((enumerate_le_iff_lt_countIn hS hpos i N).mp
-        (mem_window.mp hx).2.1), rfl⟩
-  · intro hx
-    obtain ⟨i, hi, rfl⟩ := Finset.mem_image.mp hx
-    apply mem_window.mpr
-    exact ⟨hpos (enumerate_mem hS i),
-      (enumerate_le_iff_lt_countIn hS hpos i N).mpr
-        (Finset.mem_range.mp hi), enumerate_mem hS i⟩
 
 lemma window_add_subset (S : Set ℕ) (N : ℕ) :
     window S N + window S N ⊆ window (S + S) (2 * N) := by

@@ -51,15 +51,11 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a068689.main := by
   have hk : k = k % 6 + 6 * (k / 6) := (Nat.mod_add_div k 6).symm
   have hbig : 99 ≤ sandwich d k := by
     rw [sand_eq]
-    have : 10 ≤ 10 ^ (k + 1) := by
-      calc 10 = 10 ^ 1 := by norm_num
-        _ ≤ 10 ^ (k + 1) := Nat.pow_le_pow_right (by norm_num) (by omega)
+    have : 10 ≤ 10 ^ (k + 1) := Nat.le_self_pow (by omega) 10
     omega
   have key : ∀ p, p ∣ sandwich d k → 2 ≤ p → p ≤ 13 → False := by
     intro p hdvd hp2 hp13
     rcases hp.eq_one_or_self_of_dvd p hdvd with h | h <;> omega
-  rcases base d hd (k % 6) (Nat.mod_lt _ (by norm_num)) hne with h | h | h | h
-  · exact key 3 (hk ▸ transfer 3 (by decide) (by decide) d _ _ h) (by norm_num) (by norm_num)
-  · exact key 7 (hk ▸ transfer 7 (by decide) (by decide) d _ _ h) (by norm_num) (by norm_num)
-  · exact key 11 (hk ▸ transfer 11 (by decide) (by decide) d _ _ h) (by norm_num) (by norm_num)
-  · exact key 13 (hk ▸ transfer 13 (by decide) (by decide) d _ _ h) (by norm_num) (by norm_num)
+  rw [hk] at key
+  rcases base d hd (k % 6) (Nat.mod_lt _ (by norm_num)) hne with h | h | h | h <;>
+    exact key _ (transfer _ (by decide) (by decide) d _ _ h) (by norm_num) (by norm_num)

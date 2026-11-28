@@ -27,14 +27,14 @@ lemma cat {M : TM} {a b c : Conf} (h : run M a b) (g : run M b c) : run M a c :=
   exact ⟨_,joinSteps M hn hk⟩
 lemma stay (M : TM) (a : Conf) : run M a a := ⟨0,rfl⟩
 def config (q : Fin 4) (l : Side) (a : Fin 2) (r : Side) : Conf := ⟨q,⟨a,l,r⟩⟩
-def rc (q : Fin 4) (l r : Side) := config q l r.head r.tail
-def lc (q : Fin 4) (l r : Side) := config q l.tail l.head r
-def w : ℕ → Side → Side
+@[simp] def rc (q : Fin 4) (l r : Side) := config q l r.head r.tail
+@[simp] def lc (q : Fin 4) (l r : Side) := config q l.tail l.head r
+@[simp] def w : ℕ → Side → Side
   | 0, t => t
   | n+1, t => (w n t).cons 1
-lemma w_cons (n : ℕ) (l : Side) : w n (l.cons 1) = (w n l).cons 1 := by
+@[simp] lemma w_cons (n : ℕ) (l : Side) : w n (l.cons 1) = (w n l).cons 1 := by
   induction n <;> simp [w, *]
-lemma w_add (m n : ℕ) (t : Side) : w m (w n t) = w (n+m) t := by
+@[simp] lemma w_add (m n : ℕ) (t : Side) : w m (w n t) = w (n+m) t := by
   induction m <;> simp [w, *]
 def z : Side := ListBlank.mk []
 @[simp] lemma hz : z.head = 0 := rfl
@@ -67,8 +67,8 @@ lemma lscan {M : TM} {q : Fin 4} (h : M q 1 = some (some q,Stmt.write 1 Dir.left
       simpa only [w_cons,w] using ih (r.cons 1))
     refine ⟨1,?_⟩
     simpa only [Machine.multiStep_one,lc,w,ListBlank.head_cons,ListBlank.tail_cons] using left (w n l) r h
-def first (j k : ℕ) := config 0 (w j z) 0 (w (2*k) ((w j z).cons 0))
-def second (j k : ℕ) := rc 0 (w j z) (w (2*k) ((w j z).cons 0))
+@[simp] def first (j k : ℕ) := config 0 (w j z) 0 (w (2*k) ((w j z).cons 0))
+@[simp] def second (j k : ℕ) := rc 0 (w j z) (w (2*k) ((w j z).cons 0))
 def advances (M : TM) (a b : Conf) := ∃ n, 0 < n ∧ M.multiStep a n = some b
 lemma starts {M : TM} {a b c : Conf} (h : M.step a = some b) (g : run M b c) : advances M a c := by
   obtain ⟨n,hn⟩ := g
@@ -90,84 +90,84 @@ lemma endless (M : TM) (f : ℕ → ℕ → Conf) (init : f 0 0 = Machine.init [
 
 lemma first_restart (j : ℕ) : advances (special false) (first j 0) (first (0) (j+1)) := by
   have h0 : (special false).step (first j 0) = some (rc 1 (ListBlank.cons 1 (w j z)) (ListBlank.cons 0 (w j z))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using right (w j z) (ListBlank.cons 0 (w j z)) (show (special false) 0 0 = some (some 1, Stmt.write 1 Dir.right) from rfl)
+    simpa using right (w j z) (ListBlank.cons 0 (w j z)) (show (special false) 0 0 = some (some 1, Stmt.write 1 Dir.right) from rfl)
   have h1 : run (special false) (rc 1 (ListBlank.cons 1 (w j z)) (ListBlank.cons 0 (w j z))) (lc 0 (ListBlank.cons 1 (w j z)) (ListBlank.cons 1 (w j z))) := by
     refine ⟨1,?_⟩
     rw [Machine.multiStep_one]
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using left (ListBlank.cons 1 (w j z)) (w j z) (show (special false) 1 0 = some (some 0, Stmt.write 1 Dir.left) from rfl)
+    simpa using left (ListBlank.cons 1 (w j z)) (w j z) (show (special false) 1 0 = some (some 0, Stmt.write 1 Dir.left) from rfl)
   have h2 : run (special false) (lc 0 (ListBlank.cons 1 (w j z)) (ListBlank.cons 1 (w j z))) (lc 0 (w j z) (ListBlank.cons 1 (ListBlank.cons 1 (w j z)))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using lscan (show (special false) 0 1 = some (some 0, Stmt.write 1 Dir.left) from rfl) 1 (w j z) (ListBlank.cons 1 (w j z))
+    simpa using lscan (show (special false) 0 1 = some (some 0, Stmt.write 1 Dir.left) from rfl) 1 (w j z) (ListBlank.cons 1 (w j z))
   have h3 : run (special false) (lc 0 (w j z) (ListBlank.cons 1 (ListBlank.cons 1 (w j z)))) (first (0) (j+1)) := by
     simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using lscan (show (special false) 0 1 = some (some 0, Stmt.write 1 Dir.left) from rfl) j z (ListBlank.cons 1 (ListBlank.cons 1 (w j z)))
   exact starts h0 (cat h1 (cat h2 h3))
 
 lemma first_sweep (j k : ℕ) : advances (special false) (first j (k+1)) (first (j+1) (k)) := by
   have h0 : (special false).step (first j (k+1)) = some (rc 1 (ListBlank.cons 1 (w j z)) (ListBlank.cons 1 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using right (w j z) (ListBlank.cons 1 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z))))) (show (special false) 0 0 = some (some 1, Stmt.write 1 Dir.right) from rfl)
+    simpa [Nat.mul_succ] using right (w j z) (ListBlank.cons 1 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z))))) (show (special false) 0 0 = some (some 1, Stmt.write 1 Dir.right) from rfl)
   have h1 : run (special false) (rc 1 (ListBlank.cons 1 (w j z)) (ListBlank.cons 1 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))))) (rc 2 (ListBlank.cons 0 (ListBlank.cons 1 (w j z))) (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z))))) := by
     refine ⟨1,?_⟩
     rw [Machine.multiStep_one]
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using right (ListBlank.cons 1 (w j z)) (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))) (show (special false) 1 1 = some (some 2, Stmt.write 0 Dir.right) from rfl)
+    simpa using right (ListBlank.cons 1 (w j z)) (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))) (show (special false) 1 1 = some (some 2, Stmt.write 0 Dir.right) from rfl)
   have h2 : run (special false) (rc 2 (ListBlank.cons 0 (ListBlank.cons 1 (w j z))) (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z))))) (rc 2 (ListBlank.cons 1 (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (w (2*k) (ListBlank.cons 0 (w j z)))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using rscan (show (special false) 2 1 = some (some 2, Stmt.write 1 Dir.right) from rfl) 1 (ListBlank.cons 0 (ListBlank.cons 1 (w j z))) (w (2*k) (ListBlank.cons 0 (w j z)))
+    simpa using rscan (show (special false) 2 1 = some (some 2, Stmt.write 1 Dir.right) from rfl) 1 (ListBlank.cons 0 (ListBlank.cons 1 (w j z))) (w (2*k) (ListBlank.cons 0 (w j z)))
   have h3 : run (special false) (rc 2 (ListBlank.cons 1 (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (w (2*k) (ListBlank.cons 0 (w j z)))) (rc 2 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z))))) (ListBlank.cons 0 (w j z))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using rscan (show (special false) 2 1 = some (some 2, Stmt.write 1 Dir.right) from rfl) (2*k) (ListBlank.cons 1 (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (ListBlank.cons 0 (w j z))
+    simpa using rscan (show (special false) 2 1 = some (some 2, Stmt.write 1 Dir.right) from rfl) (2*k) (ListBlank.cons 1 (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (ListBlank.cons 0 (w j z))
   have h4 : run (special false) (rc 2 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z))))) (ListBlank.cons 0 (w j z))) (lc 3 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z))))) (ListBlank.cons 1 (w j z))) := by
     refine ⟨1,?_⟩
     rw [Machine.multiStep_one]
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using left (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z))))) (w j z) (show (special false) 2 0 = some (some 3, Stmt.write 1 Dir.left) from rfl)
+    simpa using left (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z))))) (w j z) (show (special false) 2 0 = some (some 3, Stmt.write 1 Dir.left) from rfl)
   have h5 : run (special false) (lc 3 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z))))) (ListBlank.cons 1 (w j z))) (lc 0 (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) := by
     refine ⟨1,?_⟩
     rw [Machine.multiStep_one]
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using left (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (ListBlank.cons 1 (w j z)) (show (special false) 3 1 = some (some 0, Stmt.write 0 Dir.left) from rfl)
+    simpa using left (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (ListBlank.cons 1 (w j z)) (show (special false) 3 1 = some (some 0, Stmt.write 0 Dir.left) from rfl)
   have h6 : run (special false) (lc 0 (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (first (j+1) (k)) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using lscan (show (special false) 0 1 = some (some 0, Stmt.write 1 Dir.left) from rfl) (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z))) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))
+    simpa using lscan (show (special false) 0 1 = some (some 0, Stmt.write 1 Dir.left) from rfl) (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z))) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))
   exact starts h0 (cat h1 (cat h2 (cat h3 (cat h4 (cat h5 h6)))))
 
 lemma second_restart (j : ℕ) : advances (special true) (second j 0) (second (1) (j)) := by
   have h0 : (special true).step (second j 0) = some (rc 1 (ListBlank.cons 1 (w j z)) (w j z)) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using right (w j z) (w j z) (show (special true) 0 0 = some (some 1, Stmt.write 1 Dir.right) from rfl)
+    simpa using right (w j z) (w j z) (show (special true) 0 0 = some (some 1, Stmt.write 1 Dir.right) from rfl)
   have h1 : run (special true) (rc 1 (ListBlank.cons 1 (w j z)) (w j z)) (rc 1 (ListBlank.cons 1 (w j (w j z))) z) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using rscan (show (special true) 1 1 = some (some 1, Stmt.write 1 Dir.right) from rfl) j (ListBlank.cons 1 (w j z)) z
+    simpa using rscan (show (special true) 1 1 = some (some 1, Stmt.write 1 Dir.right) from rfl) j (ListBlank.cons 1 (w j z)) z
   have h2 : run (special true) (rc 1 (ListBlank.cons 1 (w j (w j z))) z) (lc 2 (ListBlank.cons 1 (w j (w j z))) (ListBlank.cons 1 z)) := by
     refine ⟨1,?_⟩
     rw [Machine.multiStep_one]
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using left (ListBlank.cons 1 (w j (w j z))) z (show (special true) 1 0 = some (some 2, Stmt.write 1 Dir.left) from rfl)
+    simpa using left (ListBlank.cons 1 (w j (w j z))) z (show (special true) 1 0 = some (some 2, Stmt.write 1 Dir.left) from rfl)
   have h3 : run (special true) (lc 2 (ListBlank.cons 1 (w j (w j z))) (ListBlank.cons 1 z)) (lc 3 (w j (w j z)) (ListBlank.cons 0 (ListBlank.cons 1 z))) := by
     refine ⟨1,?_⟩
     rw [Machine.multiStep_one]
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using left (w j (w j z)) (ListBlank.cons 1 z) (show (special true) 2 1 = some (some 3, Stmt.write 0 Dir.left) from rfl)
+    simpa using left (w j (w j z)) (ListBlank.cons 1 z) (show (special true) 2 1 = some (some 3, Stmt.write 0 Dir.left) from rfl)
   have h4 : run (special true) (lc 3 (w j (w j z)) (ListBlank.cons 0 (ListBlank.cons 1 z))) (lc 3 (w j z) (w j (ListBlank.cons 0 (ListBlank.cons 1 z)))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using lscan (show (special true) 3 1 = some (some 3, Stmt.write 1 Dir.left) from rfl) j (w j z) (ListBlank.cons 0 (ListBlank.cons 1 z))
+    simpa using lscan (show (special true) 3 1 = some (some 3, Stmt.write 1 Dir.left) from rfl) j (w j z) (ListBlank.cons 0 (ListBlank.cons 1 z))
   have h5 : run (special true) (lc 3 (w j z) (w j (ListBlank.cons 0 (ListBlank.cons 1 z)))) (lc 3 z (w j (w j (ListBlank.cons 0 (ListBlank.cons 1 z))))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using lscan (show (special true) 3 1 = some (some 3, Stmt.write 1 Dir.left) from rfl) j z (w j (ListBlank.cons 0 (ListBlank.cons 1 z)))
+    simpa using lscan (show (special true) 3 1 = some (some 3, Stmt.write 1 Dir.left) from rfl) j z (w j (ListBlank.cons 0 (ListBlank.cons 1 z)))
   have h6 : run (special true) (lc 3 z (w j (w j (ListBlank.cons 0 (ListBlank.cons 1 z))))) (second (1) (j)) := by
     refine ⟨1,?_⟩
     rw [Machine.multiStep_one]
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using right z (w j (w j (ListBlank.cons 0 (ListBlank.cons 1 z)))) (show (special true) 3 0 = some (some 0, Stmt.write 1 Dir.right) from rfl)
+    simpa [Nat.mul_succ, Nat.add_succ, two_mul, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using right z (w j (w j (ListBlank.cons 0 (ListBlank.cons 1 z)))) (show (special true) 3 0 = some (some 0, Stmt.write 1 Dir.right) from rfl)
   exact starts h0 (cat h1 (cat h2 (cat h3 (cat h4 (cat h5 h6)))))
 
 lemma second_sweep (j k : ℕ) : advances (special true) (second j (k+1)) (second (j+1) (k)) := by
   have h0 : (special true).step (second j (k+1)) = some (rc 1 (ListBlank.cons 0 (w j z)) (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z))))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using right (w j z) (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))) (show (special true) 0 1 = some (some 1, Stmt.write 0 Dir.right) from rfl)
+    simpa [Nat.mul_succ] using right (w j z) (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))) (show (special true) 0 1 = some (some 1, Stmt.write 0 Dir.right) from rfl)
   have h1 : run (special true) (rc 1 (ListBlank.cons 0 (w j z)) (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z))))) (rc 1 (ListBlank.cons 1 (ListBlank.cons 0 (w j z))) (w (2*k) (ListBlank.cons 0 (w j z)))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using rscan (show (special true) 1 1 = some (some 1, Stmt.write 1 Dir.right) from rfl) 1 (ListBlank.cons 0 (w j z)) (w (2*k) (ListBlank.cons 0 (w j z)))
+    simpa using rscan (show (special true) 1 1 = some (some 1, Stmt.write 1 Dir.right) from rfl) 1 (ListBlank.cons 0 (w j z)) (w (2*k) (ListBlank.cons 0 (w j z)))
   have h2 : run (special true) (rc 1 (ListBlank.cons 1 (ListBlank.cons 0 (w j z))) (w (2*k) (ListBlank.cons 0 (w j z)))) (rc 1 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))) (ListBlank.cons 0 (w j z))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using rscan (show (special true) 1 1 = some (some 1, Stmt.write 1 Dir.right) from rfl) (2*k) (ListBlank.cons 1 (ListBlank.cons 0 (w j z))) (ListBlank.cons 0 (w j z))
+    simpa using rscan (show (special true) 1 1 = some (some 1, Stmt.write 1 Dir.right) from rfl) (2*k) (ListBlank.cons 1 (ListBlank.cons 0 (w j z))) (ListBlank.cons 0 (w j z))
   have h3 : run (special true) (rc 1 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))) (ListBlank.cons 0 (w j z))) (lc 2 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))) (ListBlank.cons 1 (w j z))) := by
     refine ⟨1,?_⟩
     rw [Machine.multiStep_one]
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using left (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))) (w j z) (show (special true) 1 0 = some (some 2, Stmt.write 1 Dir.left) from rfl)
+    simpa using left (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))) (w j z) (show (special true) 1 0 = some (some 2, Stmt.write 1 Dir.left) from rfl)
   have h4 : run (special true) (lc 2 (ListBlank.cons 1 (w (2*k) (ListBlank.cons 0 (w j z)))) (ListBlank.cons 1 (w j z))) (lc 3 (w (2*k) (ListBlank.cons 0 (w j z))) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) := by
     refine ⟨1,?_⟩
     rw [Machine.multiStep_one]
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using left (w (2*k) (ListBlank.cons 0 (w j z))) (ListBlank.cons 1 (w j z)) (show (special true) 2 1 = some (some 3, Stmt.write 0 Dir.left) from rfl)
+    simpa using left (w (2*k) (ListBlank.cons 0 (w j z))) (ListBlank.cons 1 (w j z)) (show (special true) 2 1 = some (some 3, Stmt.write 0 Dir.left) from rfl)
   have h5 : run (special true) (lc 3 (w (2*k) (ListBlank.cons 0 (w j z))) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (lc 3 (ListBlank.cons 0 (w j z)) (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z))))) := by
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using lscan (show (special true) 3 1 = some (some 3, Stmt.write 1 Dir.left) from rfl) (2*k) (ListBlank.cons 0 (w j z)) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))
+    simpa using lscan (show (special true) 3 1 = some (some 3, Stmt.write 1 Dir.left) from rfl) (2*k) (ListBlank.cons 0 (w j z)) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))
   have h6 : run (special true) (lc 3 (ListBlank.cons 0 (w j z)) (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z))))) (second (j+1) (k)) := by
     refine ⟨1,?_⟩
     rw [Machine.multiStep_one]
-    simpa only [first, second, rc, lc, Nat.mul_succ, Nat.add_succ, w, w_cons, w_add, hz, tz, cz, ListBlank.head_cons, ListBlank.tail_cons, two_mul, Nat.add_zero, Nat.zero_add, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using right (w j z) (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (show (special true) 3 0 = some (some 0, Stmt.write 1 Dir.right) from rfl)
+    simpa using right (w j z) (w (2*k) (ListBlank.cons 0 (ListBlank.cons 1 (w j z)))) (show (special true) 3 0 = some (some 0, Stmt.write 1 Dir.right) from rfl)
   exact starts h0 (cat h1 (cat h2 (cat h3 (cat h4 (cat h5 h6)))))
 
 end OMA.BB4Sweeps

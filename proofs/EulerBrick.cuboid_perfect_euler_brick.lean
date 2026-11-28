@@ -1,390 +1,348 @@
 import FormalConjectures.Wikipedia.EulerBrick
 
--- Problem: Open questions regarding the existence of Euler bricks — cuboid perfect euler brick
--- Upstream: formal-conjectures FormalConjectures/Wikipedia/EulerBrick.lean:152 (declaration EulerBrick.cuboid_perfect_euler_brick)
--- Credit: @OrangeHeadz (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
-
 /-!
-Sketch (after R. Sharipov, arXiv:1108.5348).  The third cuboid polynomial is
-`P_abu(t) = (t²-a²)²(t²+u²)²(t²+b²)² + (t²-b²)²(t²+u²)²(t²+a²)² - (t²-u²)²(t²+a²)²(t²+b²)²`.
-A perfect cuboid with edges `x₁, x₂, x₃`, face diagonals `d₁, d₂, d₃` and space diagonal `L` gives
-the positive integer solution
-`a = d₃ (L+x₂)(L+d₁)`, `b = d₂ (L+x₃)(L+d₁)`, `u = x₁ (L+x₃)(L+x₂)`, `t = (L+x₃)(L+x₂)(L+d₁)`
-of `P_abu(t) = 0` with `a, b, u < t`.  Dividing out common prime factors of `a, b, u` (which must
-divide `t`) we may assume `gcd(a, b, u) = 1`.  Then either the third conjecture applies, or we are
-in one of the special cases `a = u`, `b = u`, `a = b`, `b u = a²`, `a u = b²`, where the polynomial
-factors and the first or second conjecture applies.  An irreducible polynomial of degree at
-least two has no integer root.
--/
+# Perfect cuboids and the three Cuboid conjectures
 
-namespace OMACuboid
+Credit: the reduction is due to Ruslan Sharipov, *Perfect cuboids and irreducible
+polynomials* (arXiv:1108.5348), building on his note arXiv:1104.1716.
+Formalization by BetAdmin237, pending PR #1575. The main proof was formalized by
+OrangeHeadz. This revision uses the standard irreducible-root and square-injectivity
+lemmas and nonzero-factor cancellation to simplify three helpers in the pending rational-parametrisation proof.
+
+Outline. Given a perfect cuboid with edges x, y, z, face diagonals f (x,y), e (x,z),
+d (y,z) and space diagonal s, put u/t = x/(s+d), b/t = e/(s+y), a/t = f/(s+z).
+Rational parametrisation of the three circles through the space diagonal shows that
+t is a rational root of Sharipov's degree 12 polynomial with parameters a, b, u,
+where a, b, u are coprime positive integers and t > a, t > b.  The special cases
+a = u, b = u, a = b, b u = a^2, a u = b^2 factor the polynomial and lead to the first
+or second Cuboid polynomial (or to an impossible root), and in the remaining case the
+third Cuboid polynomial has a rational, hence integral, root, contradicting
+irreducibility.
+-/
 
 open Polynomial
 
-/-- The third cuboid polynomial, evaluated at an integer `t`. -/
-def P (a b u t : ℤ) : ℤ :=
-  (t ^ 2 - a ^ 2) ^ 2 * (t ^ 2 + u ^ 2) ^ 2 * (t ^ 2 + b ^ 2) ^ 2
-    + (t ^ 2 - b ^ 2) ^ 2 * (t ^ 2 + u ^ 2) ^ 2 * (t ^ 2 + a ^ 2) ^ 2
-    - (t ^ 2 - u ^ 2) ^ 2 * (t ^ 2 + a ^ 2) ^ 2 * (t ^ 2 + b ^ 2) ^ 2
+namespace EBP
 
-/-- An admissible root of the cuboid equation. -/
-def Sol (a b u t : ℤ) : Prop :=
-  0 < a ∧ 0 < b ∧ 0 < u ∧ a < t ∧ b < t ∧ u < t ∧ P a b u t = 0
+theorem root_contra (f : ℤ[X]) (k : ℕ) (hm : f.Monic) (hd' : f.natDegree = k) (hk : 2 ≤ k)
+    (hi : Irreducible f)
+    (r : ℚ) (hr : aeval r f = 0) : False := by
+  exact hi.aeval_ne_zero_of_natDegree_ne_one (by omega)
+    (isInteger_of_is_root_of_monic hm hr) hr
 
-/- ### Irreducible polynomials of degree at least two have no integer roots -/
+def P (a b u t : ℚ) : ℚ := t ^ 12 + (6 * u ^ 2 - 2 * a ^ 2 - 2 * b ^ 2) * t ^ 10
+  + (u ^ 4 + b ^ 4 + a ^ 4 + 4 * a ^ 2 * u ^ 2 + 4 * b ^ 2 * u ^ 2 - 12 * b ^ 2 * a ^ 2) * t ^ 8
+  + (6 * a ^ 4 * u ^ 2 + 6 * u ^ 2 * b ^ 4 - 8 * a ^ 2 * b ^ 2 * u ^ 2 - 2 * u ^ 4 * a ^ 2
+    - 2 * u ^ 4 * b ^ 2 - 2 * a ^ 4 * b ^ 2 - 2 * b ^ 4 * a ^ 2) * t ^ 6
+  + (4 * u ^ 2 * b ^ 4 * a ^ 2 + 4 * a ^ 4 * u ^ 2 * b ^ 2 - 12 * u ^ 4 * a ^ 2 * b ^ 2
+    + u ^ 4 * a ^ 4 + u ^ 4 * b ^ 4 + a ^ 4 * b ^ 4) * t ^ 4
+  + (6 * a ^ 4 * u ^ 2 * b ^ 4 - 2 * u ^ 4 * a ^ 4 * b ^ 2 - 2 * u ^ 4 * a ^ 2 * b ^ 4) * t ^ 2
+  + u ^ 4 * a ^ 4 * b ^ 4
 
-lemma not_irreducible_of_root {p : ℤ[X]} (hd : 2 ≤ p.natDegree) {t : ℤ} (ht : p.eval t = 0) :
-    ¬ Irreducible p := by
-  intro hirr
-  obtain ⟨q, hq⟩ := Polynomial.dvd_iff_isRoot.mpr ht
-  rcases hirr.isUnit_or_isUnit hq with h | h
-  · exact Polynomial.not_isUnit_X_sub_C t h
-  · have hq0 : q.natDegree = 0 := Polynomial.natDegree_eq_zero_of_isUnit h
-    have hqne : q ≠ 0 := by
-      rintro rfl
-      rw [mul_zero] at hq
-      exact hirr.ne_zero hq
-    have h1 : p.natDegree = 1 := by
-      rw [hq, Polynomial.natDegree_mul (Polynomial.X_sub_C_ne_zero t) hqne,
-        Polynomial.natDegree_X_sub_C, hq0]
-    omega
+def Q1 (a b t : ℚ) : ℚ := t ^ 8 + 6 * (a ^ 2 - b ^ 2) * t ^ 6 + (b ^ 4 - 4 * a ^ 2 * b ^ 2 + a ^ 4) * t ^ 4
+  - 6 * a ^ 2 * b ^ 2 * (a ^ 2 - b ^ 2) * t ^ 2 + a ^ 4 * b ^ 4
 
-lemma natDegree_shape8 (c6 c4 c2 c0 : ℤ) :
-    2 ≤ (X ^ 8 + C c6 * X ^ 6 + C c4 * X ^ 4 - C c2 * X ^ 2 + C c0 : ℤ[X]).natDegree := by
-  have h : (X ^ 8 + C c6 * X ^ 6 + C c4 * X ^ 4 - C c2 * X ^ 2 + C c0 : ℤ[X]).natDegree = 8 := by
-    compute_degree!
-  omega
+def Q2 (a b t : ℚ) : ℚ := t ^ 10 + (2 * b ^ 2 + a ^ 2) * (3 * b ^ 2 - 2 * a ^ 2) * t ^ 8
+  + (b ^ 8 + 10 * a ^ 2 * b ^ 6 + 4 * a ^ 4 * b ^ 4 - 14 * a ^ 6 * b ^ 2 + a ^ 8) * t ^ 6
+  - a ^ 2 * b ^ 2 * (b ^ 8 - 14 * a ^ 2 * b ^ 6 + 4 * a ^ 4 * b ^ 4 + 10 * a ^ 6 * b ^ 2 + a ^ 8) * t ^ 4
+  - a ^ 6 * b ^ 6 * (b ^ 2 + 2 * a ^ 2) * (-2 * b ^ 2 + 3 * a ^ 2) * t ^ 2 - b ^ 10 * a ^ 10
 
-lemma natDegree_shape10 (c8 c6 c4 c2 c0 : ℤ) :
-    2 ≤ (X ^ 10 + C c8 * X ^ 8 + C c6 * X ^ 6 - C c4 * X ^ 4 - C c2 * X ^ 2 - C c0 :
-      ℤ[X]).natDegree := by
-  have h : (X ^ 10 + C c8 * X ^ 8 + C c6 * X ^ 6 - C c4 * X ^ 4 - C c2 * X ^ 2 - C c0 :
-      ℤ[X]).natDegree = 10 := by
-    compute_degree!
-  omega
-
-lemma natDegree_shape12 (c10 c8 c6 c4 c2 c0 : ℤ) :
-    2 ≤ (X ^ 12 + C c10 * X ^ 10 + C c8 * X ^ 8 + C c6 * X ^ 6 + C c4 * X ^ 4 + C c2 * X ^ 2
-      + C c0 : ℤ[X]).natDegree := by
-  have h : (X ^ 12 + C c10 * X ^ 10 + C c8 * X ^ 8 + C c6 * X ^ 6 + C c4 * X ^ 4 + C c2 * X ^ 2
-      + C c0 : ℤ[X]).natDegree = 12 := by
-    compute_degree!
-  omega
-
-lemma one_no_root {a b : ℤ} (h : EulerBrick.CuboidOneFor a b) (t : ℤ) :
-    t ^ 8 + 6 * (a ^ 2 - b ^ 2) * t ^ 6 + (b ^ 4 - 4 * a ^ 2 * b ^ 2 + a ^ 4) * t ^ 4
-      - 6 * a ^ 2 * b ^ 2 * (a ^ 2 - b ^ 2) * t ^ 2 + a ^ 4 * b ^ 4 ≠ 0 := by
-  intro ht
+theorem one_root (a b : ℤ) (h : EulerBrick.CuboidOneFor a b) (t : ℚ) (ht : Q1 a b t = 0) :
+    False := by
   unfold EulerBrick.CuboidOneFor at h
-  refine not_irreducible_of_root (natDegree_shape8 _ _ _ _) (t := t) ?_ h
-  simp only [eval_add, eval_sub, eval_mul, eval_pow, eval_C, eval_X]
-  linear_combination ht
+  refine root_contra _ 8 ?_ ?_ (by norm_num) h t ?_
+  · monicity!
+  · compute_degree!
+  · simp only [map_add, map_sub, map_mul, map_pow, aeval_X, aeval_C, algebraMap_int_eq,
+      eq_intCast, map_ofNat, map_intCast, map_neg]
+    push_cast
+    unfold Q1 at ht
+    linear_combination ht
 
-lemma two_no_root {a b : ℤ} (h : EulerBrick.CuboidTwoFor a b) (t : ℤ) :
-    t ^ 10 + (2 * b ^ 2 + a ^ 2) * (3 * b ^ 2 - 2 * a ^ 2) * t ^ 8
-      + (b ^ 8 + 10 * a ^ 2 * b ^ 6 + 4 * a ^ 4 * b ^ 4 - 14 * a ^ 6 * b ^ 2 + a ^ 8) * t ^ 6
-      - a ^ 2 * b ^ 2 * (b ^ 8 - 14 * a ^ 2 * b ^ 6 + 4 * a ^ 4 * b ^ 4 + 10 * a ^ 6 * b ^ 2 + a ^ 8)
-        * t ^ 4
-      - a ^ 6 * b ^ 6 * (b ^ 2 + 2 * a ^ 2) * (-2 * b ^ 2 + 3 * a ^ 2) * t ^ 2
-      - b ^ 10 * a ^ 10 ≠ 0 := by
-  intro ht
+theorem two_root (a b : ℕ) (h : EulerBrick.CuboidTwoFor a b) (t : ℚ) (ht : Q2 a b t = 0) :
+    False := by
   unfold EulerBrick.CuboidTwoFor at h
-  refine not_irreducible_of_root (natDegree_shape10 _ _ _ _ _) (t := t) ?_ h
-  simp only [eval_add, eval_sub, eval_mul, eval_pow, eval_C, eval_X]
-  linear_combination ht
+  refine root_contra _ 10 ?_ ?_ (by norm_num) h t ?_
+  · monicity!
+  · compute_degree!
+  · simp only [map_add, map_sub, map_mul, map_pow, aeval_X, aeval_C, algebraMap_int_eq,
+      eq_intCast, map_ofNat, map_intCast, map_neg]
+    push_cast
+    unfold Q2 at ht
+    linear_combination ht
 
-lemma three_no_root {a b c : ℤ} (h : EulerBrick.CuboidThreeFor a b c) (t : ℤ) :
-    P a b c t ≠ 0 := by
-  intro ht
-  unfold P at ht
+theorem three_root (a b c : ℤ) (h : EulerBrick.CuboidThreeFor a b c) (t : ℚ)
+    (ht : P a b c t = 0) : False := by
   unfold EulerBrick.CuboidThreeFor at h
-  refine not_irreducible_of_root (natDegree_shape12 _ _ _ _ _ _) (t := t) ?_ h
-  simp only [eval_add, eval_mul, eval_pow, eval_C, eval_X]
-  linear_combination ht
+  refine root_contra _ 12 ?_ ?_ (by norm_num) h t ?_
+  · monicity!
+  · compute_degree!
+  · simp only [map_add, map_sub, map_mul, map_pow, aeval_X, aeval_C, algebraMap_int_eq,
+      eq_intCast, map_ofNat, map_intCast, map_neg]
+    push_cast
+    unfold P at ht
+    linear_combination ht
 
-/- ### Coprimality bookkeeping -/
 
-lemma gcd3_eq_one {a b u : ℤ}
-    (hcop : ∀ r : ℕ, r.Prime → ¬ ((r : ℤ) ∣ a ∧ (r : ℤ) ∣ b ∧ (r : ℤ) ∣ u)) :
-    gcd a (gcd b u) = 1 := by
-  rw [← Int.coe_gcd b u, ← Int.coe_gcd]
-  norm_cast
-  by_contra hne
-  obtain ⟨r, hr, hrd⟩ := Nat.exists_prime_and_dvd hne
-  have h0 : (r : ℤ) ∣ ((Int.gcd a ((Int.gcd b u : ℕ) : ℤ) : ℕ) : ℤ) := Int.natCast_dvd_natCast.2 hrd
-  have h1 : (r : ℤ) ∣ a := h0.trans (Int.gcd_dvd_left _ _)
-  have h2 : (r : ℤ) ∣ ((Int.gcd b u : ℕ) : ℤ) := h0.trans (Int.gcd_dvd_right _ _)
-  exact hcop r hr ⟨h1, h2.trans (Int.gcd_dvd_left _ _), h2.trans (Int.gcd_dvd_right _ _)⟩
+theorem gcd_nonneg' (a b : ℤ) : 0 ≤ gcd a b := by
+  rw [← Int.coe_gcd]; positivity
 
-lemma gcd2_eq_one {a u : ℤ}
-    (hcop : ∀ r : ℕ, r.Prime → ¬ ((r : ℤ) ∣ a ∧ (r : ℤ) ∣ u)) :
-    gcd u a = 1 := by
-  rw [← Int.coe_gcd]
-  norm_cast
-  by_contra hne
-  obtain ⟨r, hr, hrd⟩ := Nat.exists_prime_and_dvd hne
-  have h0 : (r : ℤ) ∣ ((Int.gcd u a : ℕ) : ℤ) := Int.natCast_dvd_natCast.2 hrd
-  exact hcop r hr ⟨h0.trans (Int.gcd_dvd_right _ _), h0.trans (Int.gcd_dvd_left _ _)⟩
+theorem eq_one_of_dvd (d x : ℤ) (h0 : 0 ≤ d) (hd : d ∣ x) (hx : x = 1) : d = 1 :=
+  Int.eq_one_of_dvd_one h0 (hx ▸ hd)
 
-/-- If `b u = a²` and no prime divides all of `a, b, u`, then `b = p²`, `u = q²`, `a = p q`. -/
-lemma sq_decomp {a b u : ℤ} (ha : 0 < a) (hb : 0 < b) (hu : 0 < u) (h : b * u = a ^ 2)
-    (hcop : ∀ r : ℕ, r.Prime → ¬ ((r : ℤ) ∣ a ∧ (r : ℤ) ∣ b ∧ (r : ℤ) ∣ u)) :
-    ∃ p q : ℕ, p.Coprime q ∧ 0 < p ∧ 0 < q ∧ b = (p : ℤ) ^ 2 ∧ u = (q : ℤ) ^ 2 ∧
+theorem extract (A B C : ℤ) (hA : 0 < A) : ∃ g a b c : ℤ, 0 < g ∧ A = g * a ∧ B = g * b ∧
+    C = g * c ∧ gcd a (gcd b c) = 1 := by
+  set g := gcd A (gcd B C) with hg
+  obtain ⟨a, ha⟩ : g ∣ A := gcd_dvd_left _ _
+  obtain ⟨b, hb⟩ : g ∣ B := (gcd_dvd_right _ _).trans (gcd_dvd_left _ _)
+  obtain ⟨c, hc⟩ : g ∣ C := (gcd_dvd_right _ _).trans (gcd_dvd_right _ _)
+  have hg0 : 0 ≤ g := gcd_nonneg' _ _
+  have hgne : g ≠ 0 := by
+    intro h0; rw [h0, zero_mul] at ha; omega
+  have hgpos : 0 < g := lt_of_le_of_ne hg0 (Ne.symm hgne)
+  refine ⟨g, a, b, c, hgpos, ha, hb, hc, ?_⟩
+  have key : g = g * gcd a (gcd b c) := by
+    conv_lhs => rw [hg, ha, hb, hc]
+    rw [gcd_mul_left g b c, Int.normalize_of_nonneg hg0, gcd_mul_left, Int.normalize_of_nonneg hg0]
+  exact mul_left_cancel₀ hgne (key.symm.trans (mul_one g).symm)
+
+theorem sq_case (a b u : ℤ) (ha : 0 < a) (hb : 0 < b) (hu : 0 < u)
+    (hg : gcd a (gcd b u) = 1) (hbu : b ≠ u) (hsq : b * u = a ^ 2) :
+    ∃ p q : ℕ, 0 < p ∧ 0 < q ∧ p.Coprime q ∧ p ≠ q ∧ b = (p : ℤ) ^ 2 ∧ u = (q : ℤ) ^ 2 ∧
       a = (p : ℤ) * q := by
-  lift a to ℕ using ha.le
-  lift b to ℕ using hb.le
-  lift u to ℕ using hu.le
-  have h' : b * u = a ^ 2 := by exact_mod_cast h
-  have ha' : 0 < a := by exact_mod_cast ha
-  have hb' : 0 < b := by exact_mod_cast hb
-  have hu' : 0 < u := by exact_mod_cast hu
-  have hbu : Nat.Coprime b u := by
-    apply Nat.Coprime.symm
-    apply Nat.coprime_of_dvd
-    intro k hk hku hkb
-    have hka2 : k ∣ a ^ 2 := h' ▸ Dvd.dvd.mul_right hkb u
-    have hka : k ∣ a := hk.dvd_of_dvd_pow hka2
-    exact hcop k hk ⟨by exact_mod_cast hka, by exact_mod_cast hkb, by exact_mod_cast hku⟩
-  obtain ⟨p, hp⟩ := exists_eq_pow_of_mul_eq_pow (Nat.isUnit_iff.2 hbu) h'
-  obtain ⟨q, hq⟩ := exists_eq_pow_of_mul_eq_pow (Nat.isUnit_iff.2 hbu.symm)
-    (show u * b = a ^ 2 by rw [mul_comm]; exact h')
-  subst hp hq
-  have hp0 : 0 < p := by
-    rcases Nat.eq_zero_or_pos p with rfl | hp0
-    · simp at hb'
-    · exact hp0
-  have hq0 : 0 < q := by
-    rcases Nat.eq_zero_or_pos q with rfl | hq0
-    · simp at hu'
-    · exact hq0
-  have hapq : a = p * q := by
-    have : a ^ 2 = (p * q) ^ 2 := by rw [← h']; ring
-    exact Nat.pow_left_injective (by norm_num : 2 ≠ 0) this
-  refine ⟨p, q, ?_, hp0, hq0, by push_cast; ring, by push_cast; ring, by exact_mod_cast hapq⟩
-  exact Nat.Coprime.coprime_dvd_left (dvd_pow_self p (by norm_num))
-    (Nat.Coprime.coprime_dvd_right (dvd_pow_self q (by norm_num)) hbu)
+  have hd : gcd b u = 1 := by
+    refine eq_one_of_dvd _ _ (gcd_nonneg' _ _) ?_ hg
+    refine dvd_gcd ?_ dvd_rfl
+    have h2 : (gcd b u) ^ 2 ∣ a ^ 2 := by
+      rw [← hsq, sq]; exact mul_dvd_mul (gcd_dvd_left _ _) (gcd_dvd_right _ _)
+    exact (Int.pow_dvd_pow_iff two_ne_zero).1 h2
+  have hd' : Int.gcd b u = 1 := by
+    have := Int.coe_gcd b u
+    rw [hd] at this; exact_mod_cast this
+  obtain ⟨p0, hp0⟩ := Int.sq_of_gcd_eq_one hd' hsq
+  obtain ⟨q0, hq0⟩ := Int.sq_of_gcd_eq_one (by rw [Int.gcd_comm]; exact hd') (by rw [mul_comm]; exact hsq)
+  have hbp : b = (p0.natAbs : ℤ) ^ 2 := by
+    rw [Int.natAbs_sq]
+    rcases hp0 with h | h
+    · exact h
+    · nlinarith [sq_nonneg p0]
+  have huq : u = (q0.natAbs : ℤ) ^ 2 := by
+    rw [Int.natAbs_sq]
+    rcases hq0 with h | h
+    · exact h
+    · nlinarith [sq_nonneg q0]
+  set p := p0.natAbs
+  set q := q0.natAbs
+  have hp : 0 < p := by
+    rcases Nat.eq_zero_or_pos p with h | h
+    · rw [h] at hbp; simp at hbp; omega
+    · exact h
+  have hq : 0 < q := by
+    rcases Nat.eq_zero_or_pos q with h | h
+    · rw [h] at huq; simp at huq; omega
+    · exact h
+  have hapq : a = (p : ℤ) * q := by
+    apply (sq_eq_sq₀ ha.le (by positivity)).mp
+    rw [← hsq, hbp, huq]
+    ring
+  refine ⟨p, q, hp, hq, ?_, ?_, hbp, huq, hapq⟩
+  · have : Int.gcd ((p ^ 2 : ℕ) : ℤ) ((q ^ 2 : ℕ) : ℤ) = 1 := by
+      push_cast; rw [← hbp, ← huq]; exact hd'
+    rw [Int.gcd_natCast_natCast] at this
+    exact (Nat.coprime_pow_right_iff two_pos _ _).1 ((Nat.coprime_pow_left_iff two_pos _ _).1 this)
+  · intro hpq; apply hbu; rw [hbp, huq, hpq]
 
-/- ### The case analysis -/
-
-lemma no_coprime_sol (h₁ : EulerBrick.CuboidOne) (h₂ : EulerBrick.CuboidTwo)
-    (h₃ : EulerBrick.CuboidThree) {a b u t : ℤ} (hs : Sol a b u t)
-    (hcop : ∀ r : ℕ, r.Prime → ¬ ((r : ℤ) ∣ a ∧ (r : ℤ) ∣ b ∧ (r : ℤ) ∣ u)) : False := by
-  obtain ⟨ha, hb, hu, hat, hbt, hut, hP⟩ := hs
-  have ht : 0 < t := lt_trans ha hat
+theorem main_cases (h₁ : EulerBrick.CuboidOne) (h₂ : EulerBrick.CuboidTwo)
+    (h₃ : EulerBrick.CuboidThree) (a b u : ℤ) (ha : 0 < a) (hb : 0 < b) (hu : 0 < u)
+    (hg : gcd a (gcd b u) = 1) (t : ℚ) (hta : (a : ℚ) < t) (htb : (b : ℚ) < t)
+    (hP : P a b u t = 0) : False := by
+  have ha' : (0 : ℚ) < a := by exact_mod_cast ha
+  have hb' : (0 : ℚ) < b := by exact_mod_cast hb
+  have hu' : (0 : ℚ) < u := by exact_mod_cast hu
   by_cases hau : a = u
   · subst hau
-    have h0 : (t ^ 2 - b ^ 2) ^ 2 * (t ^ 2 + a ^ 2) ^ 4 = 0 := by
-      rw [← hP]; unfold P; ring
-    have h2 : t ^ 2 - b ^ 2 ≠ 0 := by nlinarith
-    have h3 : t ^ 2 + a ^ 2 ≠ 0 := by positivity
-    exact mul_ne_zero (pow_ne_zero 2 h2) (pow_ne_zero 4 h3) h0
+    have e : P a b a t = (t ^ 2 + a ^ 2) ^ 4 * ((t - b) ^ 2 * (t + b) ^ 2) := by unfold P; ring
+    rw [e] at hP
+    have : 0 < (t ^ 2 + a ^ 2) ^ 4 * ((t - b) ^ 2 * (t + b) ^ 2) := by
+      have h1 : 0 < t - b := by linarith
+      have h2 : 0 < t + b := by linarith
+      positivity
+    linarith
   by_cases hbu : b = u
   · subst hbu
-    have h0 : (t ^ 2 - a ^ 2) ^ 2 * (t ^ 2 + b ^ 2) ^ 4 = 0 := by
-      rw [← hP]; unfold P; ring
-    have h2 : t ^ 2 - a ^ 2 ≠ 0 := by nlinarith
-    have h3 : t ^ 2 + b ^ 2 ≠ 0 := by positivity
-    exact mul_ne_zero (pow_ne_zero 2 h2) (pow_ne_zero 4 h3) h0
+    have e : P a b b t = (t ^ 2 + b ^ 2) ^ 4 * ((t - a) ^ 2 * (t + a) ^ 2) := by unfold P; ring
+    rw [e] at hP
+    have : 0 < (t ^ 2 + b ^ 2) ^ 4 * ((t - a) ^ 2 * (t + a) ^ 2) := by
+      have h1 : 0 < t - a := by linarith
+      have h2 : 0 < t + a := by linarith
+      positivity
+    linarith
   by_cases hab : a = b
   · subst hab
-    have hg : gcd u a = 1 := gcd2_eq_one fun r hr hd => hcop r hr ⟨hd.1, hd.1, hd.2⟩
-    have hirr := h₁ hg hu ha (Ne.symm hau)
-    have h0 : (t ^ 2 + a ^ 2) ^ 2 *
-        (t ^ 8 + 6 * (u ^ 2 - a ^ 2) * t ^ 6 + (a ^ 4 - 4 * u ^ 2 * a ^ 2 + u ^ 4) * t ^ 4
-          - 6 * u ^ 2 * a ^ 2 * (u ^ 2 - a ^ 2) * t ^ 2 + u ^ 4 * a ^ 4) = 0 := by
-      rw [← hP]; unfold P; ring
-    have h3 : (t ^ 2 + a ^ 2) ^ 2 ≠ 0 := by positivity
-    exact one_no_root hirr t ((mul_eq_zero.1 h0).resolve_left h3)
-  by_cases hsq1 : b * u = a ^ 2
-  · obtain ⟨p, q, hpq, hp, hq, rfl, rfl, rfl⟩ := sq_decomp ha hb hu hsq1 hcop
-    have hne : p ≠ q := by
-      rintro rfl
-      exact hbu rfl
-    have hirr := h₂ hpq hp hq hne
-    have h0 : (t - (p : ℤ) * q) * (t + (p : ℤ) * q) *
-        (t ^ 10 + (2 * (q : ℤ) ^ 2 + (p : ℤ) ^ 2) * (3 * (q : ℤ) ^ 2 - 2 * (p : ℤ) ^ 2) * t ^ 8
-          + ((q : ℤ) ^ 8 + 10 * (p : ℤ) ^ 2 * (q : ℤ) ^ 6 + 4 * (p : ℤ) ^ 4 * (q : ℤ) ^ 4
-              - 14 * (p : ℤ) ^ 6 * (q : ℤ) ^ 2 + (p : ℤ) ^ 8) * t ^ 6
-          - (p : ℤ) ^ 2 * (q : ℤ) ^ 2 * ((q : ℤ) ^ 8 - 14 * (p : ℤ) ^ 2 * (q : ℤ) ^ 6
-              + 4 * (p : ℤ) ^ 4 * (q : ℤ) ^ 4 + 10 * (p : ℤ) ^ 6 * (q : ℤ) ^ 2 + (p : ℤ) ^ 8)
-            * t ^ 4
-          - (p : ℤ) ^ 6 * (q : ℤ) ^ 6 * ((q : ℤ) ^ 2 + 2 * (p : ℤ) ^ 2)
-            * (-2 * (q : ℤ) ^ 2 + 3 * (p : ℤ) ^ 2) * t ^ 2
-          - (q : ℤ) ^ 10 * (p : ℤ) ^ 10) = 0 := by
-      rw [← hP]; unfold P; ring
-    have h2 : t - (p : ℤ) * q ≠ 0 := by linarith
-    have h3 : t + (p : ℤ) * q ≠ 0 := by linarith
-    exact two_no_root hirr t ((mul_eq_zero.1 h0).resolve_left (mul_ne_zero h2 h3))
-  by_cases hsq2 : a * u = b ^ 2
-  · obtain ⟨p, q, hpq, hp, hq, rfl, rfl, rfl⟩ := sq_decomp hb ha hu hsq2
-      fun r hr hd => hcop r hr ⟨hd.2.1, hd.1, hd.2.2⟩
-    have hne : p ≠ q := by
-      rintro rfl
-      exact hau rfl
-    have hirr := h₂ hpq hp hq hne
-    have h0 : (t - (p : ℤ) * q) * (t + (p : ℤ) * q) *
-        (t ^ 10 + (2 * (q : ℤ) ^ 2 + (p : ℤ) ^ 2) * (3 * (q : ℤ) ^ 2 - 2 * (p : ℤ) ^ 2) * t ^ 8
-          + ((q : ℤ) ^ 8 + 10 * (p : ℤ) ^ 2 * (q : ℤ) ^ 6 + 4 * (p : ℤ) ^ 4 * (q : ℤ) ^ 4
-              - 14 * (p : ℤ) ^ 6 * (q : ℤ) ^ 2 + (p : ℤ) ^ 8) * t ^ 6
-          - (p : ℤ) ^ 2 * (q : ℤ) ^ 2 * ((q : ℤ) ^ 8 - 14 * (p : ℤ) ^ 2 * (q : ℤ) ^ 6
-              + 4 * (p : ℤ) ^ 4 * (q : ℤ) ^ 4 + 10 * (p : ℤ) ^ 6 * (q : ℤ) ^ 2 + (p : ℤ) ^ 8)
-            * t ^ 4
-          - (p : ℤ) ^ 6 * (q : ℤ) ^ 6 * ((q : ℤ) ^ 2 + 2 * (p : ℤ) ^ 2)
-            * (-2 * (q : ℤ) ^ 2 + 3 * (p : ℤ) ^ 2) * t ^ 2
-          - (q : ℤ) ^ 10 * (p : ℤ) ^ 10) = 0 := by
-      rw [← hP]; unfold P; ring
-    have h2 : t - (p : ℤ) * q ≠ 0 := by linarith
-    have h3 : t + (p : ℤ) * q ≠ 0 := by linarith
-    exact two_no_root hirr t ((mul_eq_zero.1 h0).resolve_left (mul_ne_zero h2 h3))
-  · exact three_no_root
-      (h₃ (gcd3_eq_one hcop) ha hb hu hab hbu (Ne.symm hau) hsq1 hsq2) t hP
+    have e : P a a u t = (t ^ 2 + a ^ 2) ^ 2 * Q1 u a t := by unfold P Q1; ring
+    rw [e] at hP
+    have hpos : 0 < (t ^ 2 + (a : ℚ) ^ 2) ^ 2 := by positivity
+    have hQ : Q1 u a t = 0 := (mul_eq_zero.mp hP).resolve_left hpos.ne'
+    have hgua : gcd u a = 1 := by
+      refine eq_one_of_dvd _ _ (gcd_nonneg' _ _) ?_ hg
+      exact dvd_gcd (gcd_dvd_right _ _) (dvd_gcd (gcd_dvd_right _ _) (gcd_dvd_left _ _))
+    exact one_root u a (h₁ hgua hu ha (Ne.symm hau)) t hQ
+  by_cases hs1 : b * u = a ^ 2
+  · obtain ⟨p, q, hp, hq, hpq, hne, rfl, rfl, rfl⟩ := sq_case a b u ha hb hu hg hbu hs1
+    have e : P ((p : ℤ) * q : ℤ) ((p : ℤ) ^ 2 : ℤ) ((q : ℤ) ^ 2 : ℤ) t
+        = (t - p * q) * (t + p * q) * Q2 p q t := by unfold P Q2; push_cast; ring
+    rw [e] at hP
+    have h1 : (0 : ℚ) < (t - p * q) * (t + p * q) := by
+      push_cast at hta ha'
+      have : 0 < t - p * q := by linarith
+      have : 0 < t + p * q := by linarith
+      positivity
+    have hQ : Q2 p q t = 0 := (mul_eq_zero.mp hP).resolve_left h1.ne'
+    exact two_root p q (h₂ hpq hp hq hne) t hQ
+  by_cases hs2 : a * u = b ^ 2
+  · obtain ⟨p, q, hp, hq, hpq, hne, rfl, rfl, rfl⟩ :=
+      sq_case b a u hb ha hu (by
+        refine eq_one_of_dvd _ _ (gcd_nonneg' _ _) ?_ hg
+        exact dvd_gcd ((gcd_dvd_right _ _).trans (gcd_dvd_left _ _))
+          (dvd_gcd (gcd_dvd_left _ _) ((gcd_dvd_right _ _).trans (gcd_dvd_right _ _))))
+        hau hs2
+    have e : P ((p : ℤ) ^ 2 : ℤ) ((p : ℤ) * q : ℤ) ((q : ℤ) ^ 2 : ℤ) t
+        = (t - p * q) * (t + p * q) * Q2 p q t := by unfold P Q2; push_cast; ring
+    rw [e] at hP
+    have h1 : (0 : ℚ) < (t - p * q) * (t + p * q) := by
+      push_cast at htb hb'
+      have : 0 < t - p * q := by linarith
+      have : 0 < t + p * q := by linarith
+      positivity
+    have hQ : Q2 p q t = 0 := (mul_eq_zero.mp hP).resolve_left h1.ne'
+    exact two_root p q (h₂ hpq hp hq hne) t hQ
+  exact three_root a b u (h₃ hg ha hb hu hab hbu (Ne.symm hau) hs1 hs2) t hP
 
-/- ### Removing common factors -/
+theorem P_homog (k a b u t : ℚ) : P (k * a) (k * b) (k * u) (k * t) = k ^ 12 * P a b u t := by
+  unfold P; ring
 
-lemma P_modEq {r a b u a' b' u' t : ℤ} (ha : a ≡ a' [ZMOD r]) (hb : b ≡ b' [ZMOD r])
-    (hu : u ≡ u' [ZMOD r]) : P a b u t ≡ P a' b' u' t [ZMOD r] := by
-  have s : ∀ x x' : ℤ, x ≡ x' [ZMOD r] → (t ^ 2 - x ^ 2) ^ 2 ≡ (t ^ 2 - x' ^ 2) ^ 2 [ZMOD r] :=
-    fun x x' h => ((Int.ModEq.refl _).sub (h.pow 2)).pow 2
-  have p : ∀ x x' : ℤ, x ≡ x' [ZMOD r] → (t ^ 2 + x ^ 2) ^ 2 ≡ (t ^ 2 + x' ^ 2) ^ 2 [ZMOD r] :=
-    fun x x' h => ((Int.ModEq.refl _).add (h.pow 2)).pow 2
-  unfold P
-  exact ((((s a a' ha).mul (p u u' hu)).mul (p b b' hb)).add
-    (((s b b' hb).mul (p u u' hu)).mul (p a a' ha))).sub
-    (((s u u' hu).mul (p a a' ha)).mul (p b b' hb))
+theorem key (X Y Z D E F S : ℚ) (hX : 0 < X) (hY : 0 < Y) (hZ : 0 < Z) (hD : 0 < D) (hE : 0 < E)
+    (hF : 0 < F) (hS : 0 < S) (hF2 : X ^ 2 + Y ^ 2 = F ^ 2) (hE2 : X ^ 2 + Z ^ 2 = E ^ 2)
+    (hD2 : Y ^ 2 + Z ^ 2 = D ^ 2) (hS2 : X ^ 2 + Y ^ 2 + Z ^ 2 = S ^ 2) :
+    P (F / (S + Z)) (E / (S + Y)) (X / (S + D)) 1 = 0 := by
+  set α := F / (S + Z) with hα
+  set β := E / (S + Y) with hβ
+  set υ := X / (S + D) with hυ
+  have h1 : 2 * υ = X / S * (1 + υ ^ 2) := by
+    rw [hυ]; field_simp
+    linear_combination (-1 : ℚ) * hS2 + hD2
+  have h2 : 1 - β ^ 2 = Y / S * (1 + β ^ 2) := by
+    rw [hβ]; field_simp
+    linear_combination (S + Y) * (hE2 - hS2)
+  have h3 : 1 - α ^ 2 = Z / S * (1 + α ^ 2) := by
+    rw [hα]; field_simp
+    linear_combination (S + Z) * (hF2 - hS2)
+  have hE' : P α β υ 1 = (2 * υ) ^ 2 * (1 + α ^ 2) ^ 2 * (1 + β ^ 2) ^ 2
+      + (1 - β ^ 2) ^ 2 * (1 + υ ^ 2) ^ 2 * (1 + α ^ 2) ^ 2
+      + (1 - α ^ 2) ^ 2 * (1 + υ ^ 2) ^ 2 * (1 + β ^ 2) ^ 2
+      - (1 + υ ^ 2) ^ 2 * (1 + α ^ 2) ^ 2 * (1 + β ^ 2) ^ 2 := by
+    unfold P; ring
+  rw [hE', h1, h2, h3]
+  have hS0 : S ≠ 0 := hS.ne'
+  have : (X / S) ^ 2 + (Y / S) ^ 2 + (Z / S) ^ 2 = 1 := by
+    field_simp; linarith
+  linear_combination ((1 + υ ^ 2) ^ 2 * (1 + α ^ 2) ^ 2 * (1 + β ^ 2) ^ 2) * this
 
-lemma exists_coprime_sol : ∀ (n : ℕ) (a b u t : ℤ), t.toNat = n → Sol a b u t →
-    ∃ a' b' u' t' : ℤ, Sol a' b' u' t' ∧
-      ∀ r : ℕ, r.Prime → ¬ ((r : ℤ) ∣ a' ∧ (r : ℤ) ∣ b' ∧ (r : ℤ) ∣ u') := by
-  intro n
-  induction n using Nat.strong_induction_on with
-  | _ n ih =>
-    intro a b u t htn hs
-    by_cases hc : ∀ r : ℕ, r.Prime → ¬ ((r : ℤ) ∣ a ∧ (r : ℤ) ∣ b ∧ (r : ℤ) ∣ u)
-    · exact ⟨a, b, u, t, hs, hc⟩
-    · simp only [not_forall, not_not] at hc
-      obtain ⟨r, hr, ⟨a', rfl⟩, ⟨b', rfl⟩, ⟨u', rfl⟩⟩ := hc
-      obtain ⟨ha, hb, hu, hat, hbt, hut, hP⟩ := hs
-      have hr2 : (2 : ℤ) ≤ r := by exact_mod_cast hr.two_le
-      have hrpos : (0 : ℤ) < r := by linarith
-      have hrt : (r : ℤ) ∣ t := by
-        have hprime : Prime (r : ℤ) := Nat.prime_iff_prime_int.mp hr
-        have h12 : (r : ℤ) ∣ t ^ 12 := by
-          have hmod : P ((r : ℤ) * a') ((r : ℤ) * b') ((r : ℤ) * u') t ≡ P 0 0 0 t [ZMOD r] :=
-            P_modEq (Int.modEq_zero_iff_dvd.2 (dvd_mul_right _ _))
-              (Int.modEq_zero_iff_dvd.2 (dvd_mul_right _ _))
-              (Int.modEq_zero_iff_dvd.2 (dvd_mul_right _ _))
-          rw [hP] at hmod
-          have h0 : P 0 0 0 t = t ^ 12 := by unfold P; ring
-          rw [h0] at hmod
-          exact Int.modEq_zero_iff_dvd.1 hmod.symm
-        exact hprime.dvd_of_dvd_pow h12
-      obtain ⟨t', rfl⟩ := hrt
-      have hP' : P a' b' u' t' = 0 := by
-        have hh : (r : ℤ) ^ 12 * P a' b' u' t' = 0 := by
-          rw [← hP]; unfold P; ring
-        exact (mul_eq_zero.1 hh).resolve_left (pow_ne_zero 12 hrpos.ne')
-      have ha' : 0 < a' := (mul_pos_iff_of_pos_left hrpos).1 ha
-      have hb' : 0 < b' := (mul_pos_iff_of_pos_left hrpos).1 hb
-      have hu' : 0 < u' := (mul_pos_iff_of_pos_left hrpos).1 hu
-      have hat' : a' < t' := lt_of_mul_lt_mul_left hat hrpos.le
-      have hbt' : b' < t' := lt_of_mul_lt_mul_left hbt hrpos.le
-      have hut' : u' < t' := lt_of_mul_lt_mul_left hut hrpos.le
-      have ht' : 0 < t' := lt_trans ha' hat'
-      have hlt : t'.toNat < n := by
-        rw [← htn]
-        have : t' < (r : ℤ) * t' := by nlinarith
-        omega
-      exact ih t'.toNat hlt a' b' u' t' rfl ⟨ha', hb', hu', hat', hbt', hut', hP'⟩
-
-/- ### From a perfect cuboid to a root -/
-
-lemma cuboid_key (L x2 x3 d1 X Y Z : ℤ) (e1 : x2 ^ 2 + x3 ^ 2 = d1 ^ 2) :
-    (X ^ 2 * Z ^ 2 * (2 * x3 * Y)) ^ 2 * (Y ^ 2 * X ^ 2 * (2 * L * Z)) ^ 2
-        * (Y ^ 2 * Z ^ 2 * (2 * L * X)) ^ 2
-      + (Y ^ 2 * Z ^ 2 * (2 * x2 * X)) ^ 2 * (Y ^ 2 * X ^ 2 * (2 * L * Z)) ^ 2
-        * (X ^ 2 * Z ^ 2 * (2 * L * Y)) ^ 2
-      - (Y ^ 2 * X ^ 2 * (2 * d1 * Z)) ^ 2 * (X ^ 2 * Z ^ 2 * (2 * L * Y)) ^ 2
-        * (Y ^ 2 * Z ^ 2 * (2 * L * X)) ^ 2 = 0 := by
-  linear_combination (64 * L ^ 4 * X ^ 10 * Y ^ 10 * Z ^ 10) * e1
-
-lemma sol_of_cuboid {x1 x2 x3 d1 d2 d3 L : ℤ} (h1 : 0 < x1) (h2 : 0 < x2) (h3 : 0 < x3)
-    (hd1 : 0 < d1) (hd2 : 0 < d2) (hd3 : 0 < d3) (hL : 0 < L)
-    (e3 : x1 ^ 2 + x2 ^ 2 = d3 ^ 2) (e2 : x1 ^ 2 + x3 ^ 2 = d2 ^ 2)
-    (e1 : x2 ^ 2 + x3 ^ 2 = d1 ^ 2) (eL : x1 ^ 2 + x2 ^ 2 + x3 ^ 2 = L ^ 2) :
-    Sol (d3 * (L + x2) * (L + d1)) (d2 * (L + x3) * (L + d1)) (x1 * (L + x3) * (L + x2))
-      ((L + x3) * (L + x2) * (L + d1)) := by
-  have hd3L : d3 < L := by nlinarith
-  have hd2L : d2 < L := by nlinarith
-  have hx1L : x1 < L := by nlinarith
-  have p1 : 0 < L + x2 := by linarith
-  have p2 : 0 < L + x3 := by linarith
-  have p3 : 0 < L + d1 := by linarith
-  refine ⟨by positivity, by positivity, by positivity, ?_, ?_, ?_, ?_⟩
-  · have hpos : 0 < (L + x3 - d3) * ((L + x2) * (L + d1)) :=
-      mul_pos (by linarith) (mul_pos p1 p3)
-    nlinarith
-  · have hpos : 0 < (L + x2 - d2) * ((L + x3) * (L + d1)) :=
-      mul_pos (by linarith) (mul_pos p2 p3)
-    nlinarith
-  · have hpos : 0 < (L + d1 - x1) * ((L + x3) * (L + x2)) :=
-      mul_pos (by linarith) (mul_pos p2 p1)
-    nlinarith
-  · have k1 : ((L + x3) * (L + x2) * (L + d1)) ^ 2 - (d3 * (L + x2) * (L + d1)) ^ 2 =
-        (L + x2) ^ 2 * (L + d1) ^ 2 * (2 * x3 * (L + x3)) := by
-      linear_combination (-((L + x2) ^ 2 * (L + d1) ^ 2)) * eL + ((L + x2) ^ 2 * (L + d1) ^ 2) * e3
-    have k2 : ((L + x3) * (L + x2) * (L + d1)) ^ 2 + (d3 * (L + x2) * (L + d1)) ^ 2 =
-        (L + x2) ^ 2 * (L + d1) ^ 2 * (2 * L * (L + x3)) := by
-      linear_combination ((L + x2) ^ 2 * (L + d1) ^ 2) * eL - ((L + x2) ^ 2 * (L + d1) ^ 2) * e3
-    have k3 : ((L + x3) * (L + x2) * (L + d1)) ^ 2 - (d2 * (L + x3) * (L + d1)) ^ 2 =
-        (L + x3) ^ 2 * (L + d1) ^ 2 * (2 * x2 * (L + x2)) := by
-      linear_combination (-((L + x3) ^ 2 * (L + d1) ^ 2)) * eL + ((L + x3) ^ 2 * (L + d1) ^ 2) * e2
-    have k4 : ((L + x3) * (L + x2) * (L + d1)) ^ 2 + (d2 * (L + x3) * (L + d1)) ^ 2 =
-        (L + x3) ^ 2 * (L + d1) ^ 2 * (2 * L * (L + x2)) := by
-      linear_combination ((L + x3) ^ 2 * (L + d1) ^ 2) * eL - ((L + x3) ^ 2 * (L + d1) ^ 2) * e2
-    have k5 : ((L + x3) * (L + x2) * (L + d1)) ^ 2 - (x1 * (L + x3) * (L + x2)) ^ 2 =
-        (L + x3) ^ 2 * (L + x2) ^ 2 * (2 * d1 * (L + d1)) := by
-      linear_combination (-((L + x3) ^ 2 * (L + x2) ^ 2)) * eL + ((L + x3) ^ 2 * (L + x2) ^ 2) * e1
-    have k6 : ((L + x3) * (L + x2) * (L + d1)) ^ 2 + (x1 * (L + x3) * (L + x2)) ^ 2 =
-        (L + x3) ^ 2 * (L + x2) ^ 2 * (2 * L * (L + d1)) := by
-      linear_combination ((L + x3) ^ 2 * (L + x2) ^ 2) * eL - ((L + x3) ^ 2 * (L + x2) ^ 2) * e1
-    unfold P
-    rw [k1, k2, k3, k4, k5, k6]
-    exact cuboid_key L x2 x3 d1 (L + x2) (L + x3) (L + d1) e1
-
-end OMACuboid
+end EBP
 
 theorem OMA.solution : type_of% @EulerBrick.cuboid_perfect_euler_brick := by
-  intro h₁ h₂ h₃ hex
-  obtain ⟨a, b, c, hc⟩ := hex
-  obtain ⟨⟨⟨r3, hr3⟩, ⟨r2, hr2⟩, ⟨r1, hr1⟩⟩, ⟨l, hl⟩⟩ := hc
-  have e3 : ((a : ℕ) : ℤ) ^ 2 + ((b : ℕ) : ℤ) ^ 2 = ((r3 : ℕ) : ℤ) ^ 2 := by
-    have h := congrArg (fun x : ℕ+ => ((x : ℕ) : ℤ)) hr3
-    simp only [PNat.add_coe, PNat.pow_coe, PNat.mul_coe] at h
-    push_cast at h
+  intro h₁ h₂ h₃
+  rintro ⟨x, y, z, ⟨⟨⟨f, hf⟩, ⟨e, he⟩, ⟨d, hd⟩⟩, ⟨s, hs⟩⟩⟩
+  have cast2 : ∀ {m n r : ℕ+}, m ^ 2 + n ^ 2 = r * r →
+      ((m : ℕ) : ℚ) ^ 2 + ((n : ℕ) : ℚ) ^ 2 = ((r : ℕ) : ℚ) ^ 2 := by
+    intro m n r h
+    have := congrArg (fun k : ℕ+ => ((k : ℕ) : ℚ)) h
+    simp only [PNat.add_coe, PNat.mul_coe, PNat.pow_coe] at this
+    push_cast at this; linarith
+  have hF2 := cast2 hf
+  have hE2 := cast2 he
+  have hD2 := cast2 hd
+  have hS2 : ((x : ℕ) : ℚ) ^ 2 + ((y : ℕ) : ℚ) ^ 2 + ((z : ℕ) : ℚ) ^ 2 = ((s : ℕ) : ℚ) ^ 2 := by
+    have := congrArg (fun k : ℕ+ => ((k : ℕ) : ℚ)) hs
+    simp only [PNat.add_coe, PNat.mul_coe, PNat.pow_coe] at this
+    push_cast at this; linarith
+  set X : ℚ := ((x : ℕ) : ℚ)
+  set Y : ℚ := ((y : ℕ) : ℚ)
+  set Z : ℚ := ((z : ℕ) : ℚ)
+  set F : ℚ := ((f : ℕ) : ℚ)
+  set E : ℚ := ((e : ℕ) : ℚ)
+  set D : ℚ := ((d : ℕ) : ℚ)
+  set S : ℚ := ((s : ℕ) : ℚ)
+  have hX : 0 < X := by positivity
+  have hY : 0 < Y := by positivity
+  have hZ : 0 < Z := by positivity
+  have hF : 0 < F := by positivity
+  have hE : 0 < E := by positivity
+  have hD : 0 < D := by positivity
+  have hS : 0 < S := by positivity
+  have hk := EBP.key X Y Z D E F S hX hY hZ hD hE hF hS hF2 hE2 hD2 hS2
+  -- integer parameters
+  set A0 : ℤ := (f : ℕ) * ((s : ℕ) + (d : ℕ)) * ((s : ℕ) + (y : ℕ)) with hA0
+  set B0 : ℤ := (e : ℕ) * ((s : ℕ) + (d : ℕ)) * ((s : ℕ) + (z : ℕ)) with hB0
+  set U0 : ℤ := (x : ℕ) * ((s : ℕ) + (y : ℕ)) * ((s : ℕ) + (z : ℕ)) with hU0
+  set T0 : ℚ := (S + D) * (S + Y) * (S + Z) with hT0
+  have hA0q : (A0 : ℚ) = F * (S + D) * (S + Y) := by simp [hA0, F, S, D, Y]
+  have hB0q : (B0 : ℚ) = E * (S + D) * (S + Z) := by simp [hB0, E, S, D, Z]
+  have hU0q : (U0 : ℚ) = X * (S + Y) * (S + Z) := by simp [hU0, X, S, Y, Z]
+  have hA0p : 0 < A0 := by positivity
+  have hB0p : 0 < B0 := by positivity
+  have hU0p : 0 < U0 := by positivity
+  obtain ⟨g, a, b, u, hg, hAg, hBg, hUg, hgcd⟩ := EBP.extract A0 B0 U0 hA0p
+  have hgq : (0 : ℚ) < g := by exact_mod_cast hg
+  have ha : 0 < a := by
+    rw [hAg] at hA0p; exact pos_of_mul_pos_right hA0p hg.le
+  have hb : 0 < b := by
+    rw [hBg] at hB0p; exact pos_of_mul_pos_right hB0p hg.le
+  have hu : 0 < u := by
+    rw [hUg] at hU0p; exact pos_of_mul_pos_right hU0p hg.le
+  have hT0p : 0 < T0 := by positivity
+  set t : ℚ := T0 / g with ht
+  have hTg : T0 = g * t := by rw [ht]; field_simp
+  have hSF : F < S := by
+    have : F ^ 2 < S ^ 2 := by nlinarith [hZ]
+    exact lt_of_pow_lt_pow_left₀ 2 hS.le this
+  have hSE : E < S := by
+    have : E ^ 2 < S ^ 2 := by nlinarith [hY]
+    exact lt_of_pow_lt_pow_left₀ 2 hS.le this
+  have haT : (A0 : ℚ) < T0 := by
+    rw [hA0q, hT0]
+    have h0 : 0 < (S + D) * (S + Y) := by positivity
+    have := mul_lt_mul_of_pos_left (show F < S + Z by linarith) h0
     linarith
-  have e2 : ((a : ℕ) : ℤ) ^ 2 + ((c : ℕ) : ℤ) ^ 2 = ((r2 : ℕ) : ℤ) ^ 2 := by
-    have h := congrArg (fun x : ℕ+ => ((x : ℕ) : ℤ)) hr2
-    simp only [PNat.add_coe, PNat.pow_coe, PNat.mul_coe] at h
-    push_cast at h
+  have hbT : (B0 : ℚ) < T0 := by
+    rw [hB0q, hT0]
+    have h0 : 0 < (S + D) * (S + Z) := by positivity
+    have := mul_lt_mul_of_pos_left (show E < S + Y by linarith) h0
     linarith
-  have e1 : ((b : ℕ) : ℤ) ^ 2 + ((c : ℕ) : ℤ) ^ 2 = ((r1 : ℕ) : ℤ) ^ 2 := by
-    have h := congrArg (fun x : ℕ+ => ((x : ℕ) : ℤ)) hr1
-    simp only [PNat.add_coe, PNat.pow_coe, PNat.mul_coe] at h
-    push_cast at h
-    linarith
-  have eL : ((a : ℕ) : ℤ) ^ 2 + ((b : ℕ) : ℤ) ^ 2 + ((c : ℕ) : ℤ) ^ 2 = ((l : ℕ) : ℤ) ^ 2 := by
-    have h := congrArg (fun x : ℕ+ => ((x : ℕ) : ℤ)) hl
-    simp only [PNat.add_coe, PNat.pow_coe, PNat.mul_coe] at h
-    push_cast at h
-    linarith
-  have pa : (0 : ℤ) < ((a : ℕ) : ℤ) := by exact_mod_cast a.pos
-  have pb : (0 : ℤ) < ((b : ℕ) : ℤ) := by exact_mod_cast b.pos
-  have pc : (0 : ℤ) < ((c : ℕ) : ℤ) := by exact_mod_cast c.pos
-  have p1 : (0 : ℤ) < ((r1 : ℕ) : ℤ) := by exact_mod_cast r1.pos
-  have p2 : (0 : ℤ) < ((r2 : ℕ) : ℤ) := by exact_mod_cast r2.pos
-  have p3 : (0 : ℤ) < ((r3 : ℕ) : ℤ) := by exact_mod_cast r3.pos
-  have pl : (0 : ℤ) < ((l : ℕ) : ℤ) := by exact_mod_cast l.pos
-  have hs := OMACuboid.sol_of_cuboid pa pb pc p1 p2 p3 pl e3 e2 e1 eL
-  obtain ⟨a', b', u', t', hs', hcop⟩ := OMACuboid.exists_coprime_sol _ _ _ _ _ rfl hs
-  exact OMACuboid.no_coprime_sol h₁ h₂ h₃ hs' hcop
+  have hA0g : (A0 : ℚ) = g * a := by rw [hAg]; push_cast; ring
+  have hB0g : (B0 : ℚ) = g * b := by rw [hBg]; push_cast; ring
+  have hU0g : (U0 : ℚ) = g * u := by rw [hUg]; push_cast; ring
+  have hta : (a : ℚ) < t := by
+    have : (g : ℚ) * a < g * t := by rw [← hA0g, ← hTg]; exact haT
+    exact lt_of_mul_lt_mul_left this hgq.le
+  have htb : (b : ℚ) < t := by
+    have : (g : ℚ) * b < g * t := by rw [← hB0g, ← hTg]; exact hbT
+    exact lt_of_mul_lt_mul_left this hgq.le
+  have hP : EBP.P a b u t = 0 := by
+    have e1 : F / (S + Z) = g * a / T0 := by
+      rw [← hA0g, hA0q, hT0]; field_simp
+    have e2 : E / (S + Y) = g * b / T0 := by
+      rw [← hB0g, hB0q, hT0]; field_simp
+    have e3 : X / (S + D) = g * u / T0 := by
+      rw [← hU0g, hU0q, hT0]; field_simp
+    rw [e1, e2, e3] at hk
+    have hT0ne : T0 ≠ 0 := hT0p.ne'
+    have h1 := EBP.P_homog T0 (g * a / T0) (g * b / T0) (g * u / T0) 1
+    rw [hk, mul_zero] at h1
+    have ea : T0 * (g * a / T0) = g * a := by field_simp
+    have eb : T0 * (g * b / T0) = g * b := by field_simp
+    have eu : T0 * (g * u / T0) = g * u := by field_simp
+    rw [ea, eb, eu, mul_one, hTg, EBP.P_homog] at h1
+    have : (g : ℚ) ^ 12 ≠ 0 := by positivity
+    exact (mul_eq_zero.1 h1).resolve_left this
+  exact EBP.main_cases h₁ h₂ h₃ a b u ha hb hu hgcd t hta htb hP

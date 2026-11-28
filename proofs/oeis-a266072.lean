@@ -1,5 +1,6 @@
 import OMAStatements.S_oeis_a266072
 
+open PowerSeries
 section Aux
 open OMA.S_oeis_a266072
 
@@ -67,33 +68,22 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a266072.main := by
   refine ⟨a_closed, fun n hn => ?_, ?_⟩
   · rw [a_closed, a_closed, a_closed]
     obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
-    have e : m + 4 - 2 = m + 2 := by omega
-    have e2 : m + 4 - 4 = m := by omega
-    rw [e, e2]
-    rw [pow_add, pow_add]
+    simp only [Nat.reduceSubDiff, pow_add]
     push_cast
     ring_nf
-  · have hP : ((-1 : PowerSeries ℚ) + PowerSeries.X ^ 2) ^ 2 = 1 - 2 * PowerSeries.X ^ 2 + PowerSeries.X ^ 4 := by ring
-    have hQ : (1 + PowerSeries.X - PowerSeries.X ^ 2 + 3 * PowerSeries.X ^ 3 : PowerSeries ℚ)
-        = 1 + PowerSeries.X - PowerSeries.X ^ 2 + PowerSeries.C (3 : ℚ) * PowerSeries.X ^ 3 := by rw [map_ofNat]
-    have hM : PowerSeries.mk (fun n => (a n : ℚ)) * (1 - 2 * PowerSeries.X ^ 2 + PowerSeries.X ^ 4)
-        = PowerSeries.mk (fun n => (a n : ℚ)) - PowerSeries.C (2 : ℚ) * (PowerSeries.mk (fun n => (a n : ℚ)) * PowerSeries.X ^ 2)
-          + PowerSeries.mk (fun n => (a n : ℚ)) * PowerSeries.X ^ 4 := by
+  · have hP : ((-1 : PowerSeries ℚ) + X ^ 2) ^ 2 = 1 - 2 * X ^ 2 + X ^ 4 := by ring
+    have hQ : (1 + X - X ^ 2 + 3 * X ^ 3 : PowerSeries ℚ)
+        = 1 + X - X ^ 2 + C (3 : ℚ) * X ^ 3 := by rw [map_ofNat]
+    have hM : mk (fun n => (a n : ℚ)) * (1 - 2 * X ^ 2 + X ^ 4)
+        = mk (fun n => (a n : ℚ)) - C (2 : ℚ) * (mk (fun n => (a n : ℚ)) * X ^ 2)
+          + mk (fun n => (a n : ℚ)) * X ^ 4 := by
       simp only [map_ofNat]; ring
     rw [hP, hM, hQ]
     ext n
-    simp only [map_add, map_sub, PowerSeries.coeff_C_mul, PowerSeries.coeff_mul_X_pow', PowerSeries.coeff_mk,
-      PowerSeries.coeff_one, PowerSeries.coeff_X, PowerSeries.coeff_X_pow]
-    simp only [PowerSeries.coeff_C]
-    rcases n with _ | _ | _ | _ | m
-    · norm_num [a_closed]
-    · norm_num [a_closed]
-    · norm_num [a_closed]
-    · norm_num [a_closed]
-    · have e1 : m + 4 - 2 = m + 2 := by omega
-      have e2 : m + 4 - 4 = m := by omega
-      have e3 : m + 4 - 3 = m + 1 := by omega
-      simp only [e1, e2, e3, a_closed]
-      simp
-      push_cast
-      ring_nf
+    simp only [map_add, map_sub, coeff_C_mul, coeff_mul_X_pow', coeff_mk,
+      coeff_one, coeff_X, coeff_X_pow, coeff_C]
+    rcases n with _ | _ | _ | _ | m <;> try (norm_num [a_closed]; done)
+    simp only [Nat.reduceSubDiff, a_closed]
+    simp
+    push_cast
+    ring_nf

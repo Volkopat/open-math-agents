@@ -45,30 +45,6 @@ theorem IndepSetFree.comap {α β : Type*} {G : SimpleGraph α} {H : SimpleGraph
   exact CliqueFree.comap
     (((Embedding.complEquiv (G := H) (H := G)).toFun f).isContained) h
 
-def Iso.compl {α β : Type*} {G : SimpleGraph α} {H : SimpleGraph β}
-    (e : G ≃g H) : Gᶜ ≃g Hᶜ where
-  toEquiv := e.toEquiv
-  map_rel_iff' := by
-    intro v w
-    by_cases hvw : v = w
-    · subst hvw
-      simp
-    · simpa [compl_adj, hvw, e.injective.ne_iff] using
-        not_congr (e.map_adj_iff (v := v) (w := w))
-
-theorem Iso.cliqueFree_iff {α β : Type*} {G : SimpleGraph α} {H : SimpleGraph β} {n : ℕ}
-    (e : G ≃g H) : G.CliqueFree n ↔ H.CliqueFree n := by
-  constructor
-  · intro h
-    exact CliqueFree.comap e.symm.toEmbedding.isContained h
-  · intro h
-    exact CliqueFree.comap e.toEmbedding.isContained h
-
-theorem Iso.indepSetFree_iff {α β : Type*} {G : SimpleGraph α} {H : SimpleGraph β} {n : ℕ}
-    (e : G ≃g H) : G.IndepSetFree n ↔ H.IndepSetFree n := by
-  simpa [indepSetFree_compl] using
-    (Iso.cliqueFree_iff (n := n) (e := Iso.compl e))
-
 end SimpleGraph
 
 namespace Ramsey
@@ -186,181 +162,6 @@ theorem ramseyProperty_exists (k l : ℕ) : ∃ n, RamseyProperty k l n := by
               exact hbad.2 _ ht''
             exact ramseyProperty_of_card (Gᶜ.card_neighborSet_eq_degree v) hprop H ⟨hcf, hif⟩
 
-/-- The off-diagonal Ramsey number `R(k, l)`. -/
-def ramseyNumber (k l : ℕ) : ℕ :=
-  by
-    classical
-    exact Nat.find (ramseyProperty_exists k l)
-
-lemma ramseyNumber_spec (k l : ℕ) : RamseyProperty k l (ramseyNumber k l) :=
-  by
-    classical
-    exact Nat.find_spec (ramseyProperty_exists k l)
-
-lemma ramseyProperty_one_left (l : ℕ) : RamseyProperty 1 l 1 := by
-  intro G hbad
-  simpa [SimpleGraph.cliqueFree_one] using hbad.1
-
-lemma ramseyProperty_mono_vertices {k l n m : ℕ} (hnm : n ≤ m) :
-    RamseyProperty k l n → RamseyProperty k l m := by
-  intro h G hbad
-  let f : Fin n ↪ Fin m := Fin.castLEEmb hnm
-  have hcf : (G.comap f).CliqueFree k :=
-    hbad.1.comap (SimpleGraph.Embedding.comap f G).isContained
-  have hif : (G.comap f).IndepSetFree l :=
-    SimpleGraph.IndepSetFree.comap (SimpleGraph.Embedding.comap f G) hbad.2
-  exact h (G.comap f) ⟨hcf, hif⟩
-
-lemma ramseyNumber_le_of_property {k l n : ℕ} (hn : RamseyProperty k l n) :
-    ramseyNumber k l ≤ n := by
-  classical
-  exact Nat.find_min' (ramseyProperty_exists k l) hn
-
-lemma ramseyProperty_of_ramseyNumber_le {k l n : ℕ} (hn : ramseyNumber k l ≤ n) :
-    RamseyProperty k l n :=
-  ramseyProperty_mono_vertices hn (ramseyNumber_spec k l)
-
-lemma ramseyProperty_zero_right (k : ℕ) : RamseyProperty k 0 0 := by
-  intro G hbad
-  have hnil : G.IsNIndepSet 0 (∅ : Finset (Fin 0)) := by
-    simp [SimpleGraph.isNIndepSet_iff]
-  exact hbad.2 _ hnil
-
-lemma ramseyNumber_zero_right (k : ℕ) : ramseyNumber k 0 = 0 := by
-  exact le_antisymm (ramseyNumber_le_of_property (ramseyProperty_zero_right k)) (Nat.zero_le _)
-
-lemma ramseyNumber_pos {u m : ℕ} (hu : 1 ≤ u) (hm : 1 ≤ m) : 0 < ramseyNumber u m := by
-  by_contra hpos
-  have hz : ramseyNumber u m = 0 := Nat.eq_zero_of_not_pos hpos
-  have hprop : RamseyProperty u m 0 := by
-    simpa [hz] using ramseyNumber_spec u m
-  let G : SimpleGraph (Fin 0) := ⊥
-  have hcf : G.CliqueFree u := by
-    have hcard : Fintype.card (Fin 0) < u := by
-      simpa [Fintype.card_fin] using (Nat.succ_le_iff.mp hu)
-    exact SimpleGraph.cliqueFree_of_card_lt (G := G) hcard
-  have hif : G.IndepSetFree m := by
-    rw [← SimpleGraph.cliqueFree_compl]
-    have hcard : Fintype.card (Fin 0) < m := by
-      simpa [Fintype.card_fin] using (Nat.succ_le_iff.mp hm)
-    exact SimpleGraph.cliqueFree_of_card_lt (G := Gᶜ) hcard
-  exact hprop G ⟨hcf, hif⟩
-
-lemma ramseyProperty_one_right (k : ℕ) : RamseyProperty k 1 1 := by
-  intro G hbad
-  have hs : G.IsNIndepSet 1 (Finset.univ : Finset (Fin 1)) := by
-    refine ⟨?_, by simp⟩
-    simp [SimpleGraph.isIndepSet_iff]
-  exact hbad.2 _ hs
-
-lemma ramseyProperty_succ_succ_of_sum {k l m n : ℕ}
-    (hm : RamseyProperty k (l + 1) m)
-    (hn : RamseyProperty (k + 1) l n)
-    (hpos : 0 < m + n) :
-    RamseyProperty (k + 1) (l + 1) (m + n) := by
-  intro G hbad
-  classical
-  let v : Fin (m + n) := ⟨0, hpos⟩
-  by_cases hdeg : m ≤ G.degree v
-  · let H : SimpleGraph (G.neighborSet v) := G.induce (G.neighborSet v)
-    have hprop : RamseyProperty k (l + 1) (G.degree v) := ramseyProperty_mono hdeg hm
-    have hcf : H.CliqueFree k := by
-      intro t ht
-      let t' : Finset (Fin (m + n)) := Finset.map ⟨Subtype.val, Subtype.val_injective⟩ t
-      have htInd :
-          (((⊤ : SimpleGraph.Subgraph G).induce (G.neighborSet v)).coe).IsNClique k t := by
-        rw [← SimpleGraph.induce_eq_coe_induce_top]
-        exact ht
-      have ht' : G.IsNClique k t' := by
-        simpa [H, t'] using
-          (SimpleGraph.IsNClique.of_induce
-            (S := (⊤ : SimpleGraph.Subgraph G)) (F := G.neighborSet v) (cc := htInd))
-      have hvt : ∀ b ∈ t', G.Adj v b := by
-        intro b hb
-        rcases Finset.mem_map.mp hb with ⟨x, hx, rfl⟩
-        exact x.property
-      exact hbad.1 _ (ht'.insert hvt)
-    have hif : H.IndepSetFree (l + 1) := by
-      exact SimpleGraph.IndepSetFree.comap
-        (SimpleGraph.Embedding.induce (G := G) (s := G.neighborSet v)) hbad.2
-    exact ramseyProperty_of_card (G.card_neighborSet_eq_degree v) hprop H ⟨hcf, hif⟩
-  · let H : SimpleGraph (Gᶜ.neighborSet v) := G.induce (Gᶜ.neighborSet v)
-    have hcompdeg : n ≤ Gᶜ.degree v := by
-      rw [G.degree_compl (v := v), Fintype.card_fin]
-      omega
-    have hprop : RamseyProperty (k + 1) l (Gᶜ.degree v) := ramseyProperty_mono hcompdeg hn
-    have hcf : H.CliqueFree (k + 1) := by
-      exact hbad.1.comap
-        (SimpleGraph.Embedding.induce (G := G) (s := Gᶜ.neighborSet v)).isContained
-    have hif : H.IndepSetFree l := by
-      intro t ht
-      let t' : Finset (Fin (m + n)) := Finset.map ⟨Subtype.val, Subtype.val_injective⟩ t
-      have htInd :
-          (((⊤ : SimpleGraph.Subgraph G).induce
-            (Gᶜ.neighborSet v)).coe).IsNIndepSet l t := by
-        rw [← SimpleGraph.induce_eq_coe_induce_top]
-        exact ht
-      have ht' : G.IsNIndepSet l t' := by
-        simpa [H, t'] using
-          (SimpleGraph.isNIndepSet_induce
-            (G := G) (F := Gᶜ.neighborSet v) (s := t) (n := l)).1 htInd
-      have ht'compl : Gᶜ.IsNClique l t' := by
-        simpa using ht'
-      have hvt : ∀ b ∈ t', Gᶜ.Adj v b := by
-        intro b hb
-        rcases Finset.mem_map.mp hb with ⟨x, hx, rfl⟩
-        exact x.property
-      have ht'' : G.IsNIndepSet (l + 1) (insert v t') := by
-        simpa using ht'compl.insert hvt
-      exact hbad.2 _ ht''
-    exact ramseyProperty_of_card (Gᶜ.card_neighborSet_eq_degree v) hprop H ⟨hcf, hif⟩
-
-lemma ramseyNumber_recurrence (u m : ℕ) (hu : 1 ≤ u) :
-    ramseyNumber (u + 1) (m + 1) ≤ ramseyNumber u (m + 1) + ramseyNumber (u + 1) m := by
-  apply ramseyNumber_le_of_property
-  have hpos : 0 < ramseyNumber u (m + 1) + ramseyNumber (u + 1) m := by
-    exact Nat.add_pos_left (ramseyNumber_pos hu (by omega)) _
-  exact ramseyProperty_succ_succ_of_sum
-    (ramseyNumber_spec u (m + 1))
-    (ramseyNumber_spec (u + 1) m)
-    hpos
-
-lemma ramseyNumber_le_choose (u : ℕ) :
-    ∀ m, ramseyNumber (u + 1) m ≤ Nat.choose (u + m - 1) u := by
-  induction u with
-  | zero =>
-      intro m
-      cases m with
-      | zero =>
-          simp [ramseyNumber_zero_right]
-      | succ m =>
-          have hle : ramseyNumber 1 (m + 1) ≤ 1 := by
-            exact ramseyNumber_le_of_property (ramseyProperty_one_left (m + 1))
-          simpa using hle
-  | succ u ihu =>
-      intro m
-      induction m with
-      | zero =>
-          rw [ramseyNumber_zero_right]
-          simp
-      | succ m ihm =>
-          have hrec : ramseyNumber (u + 2) (m + 1) ≤
-              ramseyNumber (u + 1) (m + 1) + ramseyNumber (u + 2) m := by
-            exact ramseyNumber_recurrence (u + 1) m (by omega)
-          have hleft : ramseyNumber (u + 1) (m + 1) ≤ Nat.choose (u + m) u := by
-            simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using ihu (m + 1)
-          have hright : ramseyNumber (u + 2) m ≤ Nat.choose (u + m) (u + 1) := by
-            simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using ihm
-          calc
-            ramseyNumber (u + 2) (m + 1)
-                ≤ ramseyNumber (u + 1) (m + 1) + ramseyNumber (u + 2) m := hrec
-            _ ≤ Nat.choose (u + m) u + Nat.choose (u + m) (u + 1) := by
-              exact Nat.add_le_add hleft hright
-            _ = Nat.choose (u + m + 1) (u + 1) := by
-              rw [Nat.choose_succ_succ' (u + m) u]
-            _ = Nat.choose (u + 1 + (m + 1) - 1) (u + 1) := by
-              simp [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
-
 end Ramsey
 
 /- ===== from ErdosProblems.Erdos79.Core ===== -/
@@ -472,19 +273,6 @@ theorem isContained {F G : GraphCode} (h : Isomorphic F G) : IsContained F G := 
 theorem isContained' {F G : GraphCode} (h : Isomorphic F G) : IsContained G F :=
   h.symm.isContained
 
-/-- Isomorphic coded graphs have the same number of vertices. -/
-theorem vertexCount_eq {F G : GraphCode} (h : Isomorphic F G) :
-    F.vertexCount = G.vertexCount := by
-  rcases h with ⟨e⟩
-  simpa using Fintype.card_congr e.toEquiv
-
-/-- Isomorphic coded graphs have the same number of edges. -/
-theorem edgeCount_eq {F G : GraphCode} (h : Isomorphic F G) :
-    F.edgeCount = G.edgeCount := by
-  apply Nat.le_antisymm
-  · exact h.isContained.edgeCount_le
-  · exact h.isContained'.edgeCount_le
-
 end Isomorphic
 
 /-- The usual graph Ramsey property at the *exact* ambient order `N`.
@@ -531,12 +319,6 @@ theorem congr_right {F H H' : GraphCode} {N : ℕ} (hHH' : Isomorphic H H') :
 theorem congr {F F' H H' : GraphCode} {N : ℕ} (hFF' : Isomorphic F F')
     (hHH' : Isomorphic H H') : RamseyAt F H N ↔ RamseyAt F' H' N := by
   rw [congr_left hFF', congr_right hHH']
-
-/-- The graph Ramsey property is symmetric in its two forbidden graphs. -/
-theorem comm (F H : GraphCode) (N : ℕ) : RamseyAt F H N ↔ RamseyAt H F N := by
-  constructor <;> intro h C
-  · simpa only [compl_compl] using (h Cᶜ).symm
-  · simpa only [compl_compl] using (h Cᶜ).symm
 
 /-- Once the Ramsey property holds, it continues to hold after adding ambient vertices. -/
 theorem mono_vertices {F H : GraphCode} {N M : ℕ} (hNM : N ≤ M)
@@ -602,58 +384,8 @@ theorem ramseyAt_iff_graphRamseyNumber_le {F H : GraphCode} {N : ℕ} :
     RamseyAt F H N ↔ graphRamseyNumber F H ≤ N :=
   ⟨graphRamseyNumber_le_of_ramseyAt, ramseyAt_of_graphRamseyNumber_le⟩
 
-/-- Isomorphism invariance of the graph Ramsey number in both arguments. -/
-theorem graphRamseyNumber_congr {F F' H H' : GraphCode} (hFF' : Isomorphic F F')
-    (hHH' : Isomorphic H H') : graphRamseyNumber F H = graphRamseyNumber F' H' := by
-  apply Nat.le_antisymm
-  · apply graphRamseyNumber_le_of_ramseyAt
-    exact (RamseyAt.congr hFF' hHH').mpr (graphRamseyNumber_spec F' H')
-  · apply graphRamseyNumber_le_of_ramseyAt
-    exact (RamseyAt.congr hFF' hHH').mp (graphRamseyNumber_spec F H)
-
-/-- Symmetry of the graph Ramsey number. -/
-theorem graphRamseyNumber_comm (F H : GraphCode) :
-    graphRamseyNumber F H = graphRamseyNumber H F := by
-  apply Nat.le_antisymm
-  · apply graphRamseyNumber_le_of_ramseyAt
-    exact (RamseyAt.comm F H _).mpr (graphRamseyNumber_spec H F)
-  · apply graphRamseyNumber_le_of_ramseyAt
-    exact (RamseyAt.comm F H _).mp (graphRamseyNumber_spec F H)
-
 /-- The canonical code of a complete graph. -/
 def completeCode (n : ℕ) : GraphCode := ⟨n, ⊤⟩
-
-/-- On complete forbidden graphs, `RamseyAt` is exactly the `Util.Ramsey` property. -/
-theorem ramseyAt_completeCode_iff (k l N : ℕ) :
-    RamseyAt (completeCode k) (completeCode l) N ↔ Ramsey.RamseyProperty k l N := by
-  constructor
-  · intro h C hfree
-    rcases h C with hred | hblue
-    · exact SimpleGraph.IsContained.not_cliqueFree hred hfree.1
-    · have hnot : ¬ Cᶜ.CliqueFree l :=
-        SimpleGraph.IsContained.not_cliqueFree hblue
-      exact hnot (by simpa only [SimpleGraph.cliqueFree_compl] using hfree.2)
-  · intro h C
-    have hor : ¬ C.CliqueFree k ∨ ¬ C.IndepSetFree l := not_and_or.mp (h C)
-    rcases hor with hred | hblue
-    · left
-      simpa [completeCode, SimpleGraph.completeGraph_eq_top] using
-        (SimpleGraph.not_cliqueFree_iff_top_isContained k).mp hred
-    · right
-      have hblue' : ¬ Cᶜ.CliqueFree l := by
-        simpa only [SimpleGraph.cliqueFree_compl] using hblue
-      simpa [completeCode, SimpleGraph.completeGraph_eq_top] using
-        (SimpleGraph.not_cliqueFree_iff_top_isContained l).mp hblue'
-
-/-- The generalized graph Ramsey number extends the off-diagonal Ramsey number in `Util.Ramsey`. -/
-theorem graphRamseyNumber_completeCode (k l : ℕ) :
-    graphRamseyNumber (completeCode k) (completeCode l) = Ramsey.ramseyNumber k l := by
-  apply Nat.le_antisymm
-  · apply graphRamseyNumber_le_of_ramseyAt
-    exact (ramseyAt_completeCode_iff k l _).mpr (Ramsey.ramseyNumber_spec k l)
-  · apply Ramsey.ramseyNumber_le_of_property
-    exact (ramseyAt_completeCode_iff k l _).mp
-      (graphRamseyNumber_spec (completeCode k) (completeCode l))
 
 /-- A coded graph has no isolated vertices.  The empty graph satisfies this predicate
 vacuously, as is standard. -/
@@ -1165,74 +897,6 @@ theorem mem_avoidingLabelCylinder {ι : Type*} [Fintype ι] [DecidableEq ι]
     ω ∈ avoidingLabelCylinder a s ↔ ∀ i ∈ s, ω i ≠ a := by
   simp [avoidingLabelCylinder]
 
-theorem card_avoidingLabelCylinder {ι : Type*} [Fintype ι] [DecidableEq ι]
-    {q : ℕ} (a : Fin q) (s : Finset ι) :
-    (avoidingLabelCylinder a s).card =
-      (q - 1) ^ s.card * q ^ (Fintype.card ι - s.card) := by
-  simp [avoidingLabelCylinder, card_cylinder]
-
-/-- Cardinality form of the finite union bound. -/
-theorem card_biUnion_le {J Ω : Type*} [DecidableEq Ω]
-    (I : Finset J) (B : J → Finset Ω) :
-    (I.biUnion B).card ≤ ∑ j ∈ I, (B j).card := by
-  classical
-  induction I using Finset.induction_on with
-  | empty => simp
-  | @insert a I ha ih =>
-      rw [Finset.biUnion_insert, Finset.sum_insert ha]
-      exact (Finset.card_union_le (B a) (I.biUnion B)).trans
-        (Nat.add_le_add_left ih (B a).card)
-
-/-- First-moment principle: if the sum of the sizes of the bad events is
-smaller than the sample space, some outcome avoids every bad event. -/
-theorem exists_avoiding_of_sum_card_lt {J Ω : Type*}
-    [Fintype Ω] (I : Finset J) (B : J → Finset Ω)
-    (h : (∑ j ∈ I, (B j).card) < Fintype.card Ω) :
-    ∃ ω : Ω, ∀ j ∈ I, ω ∉ B j := by
-  classical
-  have hcard : (I.biUnion B).card < (Finset.univ : Finset Ω).card := by
-    simpa using (card_biUnion_le I B).trans_lt h
-  obtain ⟨ω, -, hω⟩ := Finset.exists_mem_notMem_of_card_lt_card hcard
-  refine ⟨ω, ?_⟩
-  intro j hj hmem
-  exact hω (Finset.mem_biUnion.mpr ⟨j, hj, hmem⟩)
-
-/-- Predicate version of the first-moment principle. -/
-theorem exists_avoiding_predicates_of_sum_card_lt {J Ω : Type*}
-    [Fintype Ω] (I : Finset J) (bad : J → Ω → Prop)
-    [∀ j, DecidablePred (bad j)]
-    (h : (∑ j ∈ I, (Finset.univ.filter (bad j)).card) < Fintype.card Ω) :
-    ∃ ω : Ω, ∀ j ∈ I, ¬ bad j ω := by
-  classical
-  obtain ⟨ω, hω⟩ := exists_avoiding_of_sum_card_lt I
-    (fun j ↦ Finset.univ.filter (bad j)) h
-  exact ⟨ω, fun j hj hbad ↦ hω j hj (by simp [hbad])⟩
-
-/-- Cylinder-specialized first-moment principle. -/
-theorem exists_avoiding_cylinders_of_sum_lt {ι J : Type*}
-    [Fintype ι] (q : ℕ) (I : Finset J)
-    (support : J → Finset ι) (allowed : J → Finset (Fin q))
-    (h : (∑ j ∈ I,
-        (allowed j).card ^ (support j).card *
-          q ^ (Fintype.card ι - (support j).card)) <
-        q ^ Fintype.card ι) :
-    ∃ ω : Outcome ι q,
-      ∀ j ∈ I, ∃ i ∈ support j, ω i ∉ allowed j := by
-  classical
-  have h' : (∑ j ∈ I, (cylinder q (support j) (allowed j)).card) <
-      Fintype.card (Outcome ι q) := by
-    simpa [card_cylinder, card_outcome] using h
-  obtain ⟨ω, hω⟩ := exists_avoiding_of_sum_card_lt I
-    (fun j ↦ cylinder q (support j) (allowed j)) h'
-  refine ⟨ω, ?_⟩
-  intro j hj
-  by_contra hno
-  apply hω j hj
-  rw [mem_cylinder]
-  intro i hi
-  by_contra hbad
-  exact hno ⟨i, hi, hbad⟩
-
 /-- Double-counting identity underlying finite first-moment calculations:
 sum event sizes by event, or sum the number of events containing each
 outcome. -/
@@ -1254,29 +918,6 @@ theorem sum_card_eq_sum_memberships {J Ω : Type*}
       simp
 
 section ExponentialBounds
-
-/-- Raising `1 - x ≤ exp (-x)` to a natural power.  This is the elementary
-exponential estimate used for the blue-clique term in a union bound. -/
-theorem one_sub_pow_le_exp_neg_mul {x : ℝ} (_hx₀ : 0 ≤ x) (hx₁ : x ≤ 1)
-    (n : ℕ) :
-    (1 - x) ^ n ≤ Real.exp (-(n : ℝ) * x) := by
-  calc
-    (1 - x) ^ n ≤ Real.exp (-x) ^ n :=
-      pow_le_pow_left₀ (sub_nonneg.mpr hx₁) (Real.one_sub_le_exp_neg x) n
-    _ = Real.exp ((n : ℝ) * (-x)) := (Real.exp_nat_mul (-x) n).symm
-    _ = Real.exp (-(n : ℝ) * x) := by ring_nf
-
-/-- Crude exponential upper bound for a binomial coefficient. -/
-theorem cast_choose_le_exp_mul_log {n k : ℕ} (hn : 0 < n) :
-    (n.choose k : ℝ) ≤ Real.exp ((k : ℝ) * Real.log (n : ℝ)) := by
-  calc
-    (n.choose k : ℝ) ≤ (n ^ k : ℕ) := by
-      exact_mod_cast Nat.choose_le_pow n k
-    _ = (n : ℝ) ^ k := by norm_num
-    _ = Real.exp (Real.log (n : ℝ)) ^ k := by
-      rw [Real.exp_log (by positivity : (0 : ℝ) < n)]
-    _ = Real.exp ((k : ℝ) * Real.log (n : ℝ)) :=
-      (Real.exp_nat_mul (Real.log (n : ℝ)) k).symm
 
 end ExponentialBounds
 
@@ -1338,12 +979,6 @@ private theorem mem_sampledGraph_edgeSet {L : ℕ} {w : EdgeOutcome L} {e : Sym2
   · exact fun he ↦ he.1
   · intro h
     exact ⟨h, by simpa using h.choose⟩
-
-private theorem sampledGraph_adj_iff {L : ℕ} {w : EdgeOutcome L} {u v : Fin L} :
-    (sampledGraph w).Adj u v ↔
-      ∃ huv : u ≠ v, (w ⟨s(u, v), by simpa using huv⟩ : ℕ) < 24 := by
-  rw [← SimpleGraph.mem_edgeSet, mem_sampledGraph_edgeSet]
-  simp only [SimpleGraph.mem_edgeSet, SimpleGraph.top_adj]
 
 private noncomputable instance sampledGraph.edgeSetFintype {L : ℕ} (w : EdgeOutcome L) :
     Fintype (sampledGraph w).edgeSet := Fintype.ofFinite _
@@ -1847,15 +1482,6 @@ theorem ProperSubgraph.size_lt {F G : GraphCode} (h : ProperSubgraph F G) :
   exact hle.lt_of_ne fun hs ↦ hniso (hFG.isomorphic_of_size_eq hs)
 
 namespace MinimallyNonRamseySizeLinear
-
-/-- A minimal obstruction is, in particular, not Ramsey size linear. -/
-theorem not_ramseySizeLinear {G : GraphCode} (hG : MinimallyNonRamseySizeLinear G) :
-    ¬ RamseySizeLinear G := hG.1
-
-/-- Every proper subgraph of a minimal obstruction is Ramsey size linear. -/
-theorem proper_subgraph {G : GraphCode} (hG : MinimallyNonRamseySizeLinear G)
-    {F : GraphCode} (hFG : ProperSubgraph F G) : RamseySizeLinear F :=
-  hG.2 F hFG
 
 /-- Minimal-obstruction status is invariant under graph isomorphism. -/
 theorem congr {F G : GraphCode} (hFG : Isomorphic F G) :

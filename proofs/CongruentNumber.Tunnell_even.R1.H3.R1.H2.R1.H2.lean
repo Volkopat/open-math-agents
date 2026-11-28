@@ -757,20 +757,6 @@ namespace TunnellInert
 
 open Finset Polynomial
 
-theorem eta_zero_of_mod_four {m : ℕ} (hm : m % 4 ≠ 1) :
-    (X * ∏ k ∈ Icc 1 m, ((1 - (X : ℤ[X])^(4*k))^2 * (1-X^(8*k))^2)).coeff m = 0 := by
-  cases m with
-  | zero => simp
-  | succ d =>
-    let P : ℤ[X] := ∏ k ∈ Icc 1 (d+1), ((1-X^k)^2 * (1-X^(2*k))^2)
-    have hP : (expand ℤ 4) P =
-        ∏ k ∈ Icc 1 (d+1), ((1-(X : ℤ[X])^(4*k))^2 * (1-X^(8*k))^2) := by
-      dsimp only [P]
-      simp only [map_prod, map_mul, map_pow, map_sub, map_one, expand_X, ← pow_mul,
-        ← Nat.mul_assoc]
-    rw [← hP, Polynomial.coeff_X_mul, Polynomial.coeff_expand (by decide : 0 < 4)]
-    exact if_neg (by omega)
-
 theorem inert_trace_zero (n : ℕ) (p : Nat.Primes) (hp : p.val % 4 = 3) :
     letI : NeZero p.val := ⟨p.property.ne_zero⟩
     (p.val : ℤ) - (Finset.univ.filter (fun xy : ZMod p.val × ZMod p.val =>
@@ -791,14 +777,6 @@ theorem inert_trace_zero (n : ℕ) (p : Nat.Primes) (hp : p.val % 4 = 3) :
   have ht := OMA.R_CongruentNumber_Tunnell_even_R1.trace_eq_neg_sum n p hp'
   change _ = - ∑ x : ZMod p.val, f x at ht
   omega
-
-theorem inert_coefficient_eq_trace (p : Nat.Primes) (hp : p.val % 4 = 3) :
-    letI : NeZero p.val := ⟨p.property.ne_zero⟩
-    (X * ∏ k ∈ Icc 1 p.val, ((1 - (X : ℤ[X])^(4*k))^2 * (1-X^(8*k))^2)).coeff p.val =
-    (p.val : ℤ) - (Finset.univ.filter (fun xy : ZMod p.val × ZMod p.val =>
-      xy.2^2 = xy.1^3 - xy.1)).card := by
-  rw [eta_zero_of_mod_four (by omega)]
-  simpa only [Nat.cast_one, one_pow, one_mul] using (inert_trace_zero 1 p hp).symm
 
 end TunnellInert
 
@@ -2580,12 +2558,6 @@ theorem entire_unique {f g : ℂ → ℂ} (hf : AnalyticOnNhd ℂ f univ) (hg : 
   filter_upwards [(eventually_gt_nhds (show B<a by dsimp [a]; linarith)).filter_mono nhdsWithin_le_nhds] with x hx
   exact h x hx
 
-theorem unique_euler_product {f g : ℂ → ℂ} (hf : AnalyticOnNhd ℂ f univ)
-    (hg : AnalyticOnNhd ℂ g univ) {I : Type*} (u : ℝ → I → ℂ) (B : ℝ)
-    (h₁ : ∀ x : ℝ, B<x → HasProd (u x) (f x))
-    (h₂ : ∀ x : ℝ, B<x → HasProd (u x) (g x)) : f = g :=
-  entire_unique hf hg B (fun x hx => (h₁ x hx).unique (h₂ x hx))
-
 theorem central_integral {Γ : Subgroup (GL (Fin 2) ℝ)} [Γ.IsArithmetic] (F : CuspForm Γ 2) :
     ModularForm.L (by decide : (0:ℤ)<2) F 1 =
       (2*Real.pi:ℂ) * ∫ t in Ioi (0:ℝ), F (ofComplex (Complex.I*t)) := by
@@ -2686,25 +2658,6 @@ lemma weight_mod (n m : ℕ) : weight n (m % (4*n)) = weight n m := by
   by_cases hm : Odd m
   · simpa [weight, h, hm] using (jacobiSym.mod_right' n hm).symm
   · simp [weight, h, hm]
-
-lemma weight_periodic (n : ℕ) : Function.Periodic (weight n) (4*n) := by
-  intro m
-  rw [← weight_mod n (m+4*n), Nat.add_mod_right, weight_mod]
-
-lemma weight_prime (n : ℕ) (p : Nat.Primes) [Fact p.val.Prime] (hp : p.val ≠ 2) :
-    weight n p.val = quadraticChar (ZMod p.val) (n : ZMod p.val) := by
-  have ho : Odd p.val := Nat.odd_iff.mpr (p.property.eq_two_or_odd.resolve_left hp)
-  rw [weight, if_pos ho, ← jacobiSym.legendreSym.to_jacobiSym, legendreSym]
-  simp
-
-lemma weight_bad_prime (n : ℕ) (p : Nat.Primes) (hp : p.val ∣ 2*n) :
-    weight n p.val = 0 := by
-  letI : Fact p.val.Prime := ⟨p.property⟩
-  by_cases h : p.val = 2
-  · simp [weight, h]
-  · have hd : p.val ∣ n := (p.property.dvd_mul.mp hp).resolve_left
-      (fun e => h ((Nat.prime_dvd_prime_iff_eq p.property Nat.prime_two).mp e))
-    rw [weight_prime n p h, (ZMod.natCast_eq_zero_iff n _).mpr hd, quadraticChar_zero]
 
 lemma weight_zero_of_not_coprime (n m : ℕ) (h : ¬m.Coprime (4*n)) :
     weight n m = 0 := by
@@ -2904,15 +2857,6 @@ theorem scaled_twist_integral {N : ℕ} [NeZero N] {χ : DirichletCharacter ℂ 
     simp only [Equiv.neg_apply,he.eval_neg]
     simpa only [neg_neg,periodSymbol,mul_assoc] using congrArg (χ j * ·) (reflected_symbol F hw (-j)))
 
-theorem gauss_sign {N : ℕ} [NeZero N] {χ : DirichletCharacter ℂ N}
-    (hχ : χ.IsPrimitive) (hq : χ.IsQuadratic) (he : χ.Even) :
-    ∃ ε : ℤ, (ε=1 ∨ ε = -1) ∧ (Real.sqrt N:ℂ) = ε * gaussSum χ ZMod.stdAddChar := by
-  have h := gauss_sq hχ hq he
-  have hsq : (Real.sqrt N:ℂ)^2 = (N:ℂ) := by exact_mod_cast Real.sq_sqrt (Nat.cast_nonneg N : (0:ℝ) ≤ N)
-  rcases sq_eq_sq_iff_eq_or_eq_neg.mp (hsq.trans h.symm) with e|e
-  · exact ⟨1,Or.inl rfl,by simpa using e⟩
-  · exact ⟨-1,Or.inr rfl,by simpa using e⟩
-
 theorem jacobi_twist_integral {n : ℕ} (hn : n%8=2) (hs : Squarefree n)
     {Γ : Subgroup (GL (Fin 2) ℝ)} [Γ.IsArithmetic] (hw : Γ.strictWidthInfty = 1)
     (F : CuspForm Γ 2) :
@@ -2940,59 +2884,6 @@ theorem jacobi_twist_integral {n : ℕ} (hn : n%8=2) (hs : Squarefree n)
     simpa only [Nat.cast_mul,Nat.cast_ofNat,hc] using hV
   · simpa only [Nat.cast_mul,Nat.cast_ofNat] using gauss_sq hh hq he
 
-theorem rational_period_of_paired_symbols {n : ℕ} (hn : n%8=2) (hs : Squarefree n)
-    {Γ : Subgroup (GL (Fin 2) ℝ)} [Γ.IsArithmetic] (hw : Γ.strictWidthInfty=1)
-    (F : CuspForm Γ 2) (Ω : ℂ)
-    (hper : ∀ r : ℚ, ∃ c : ℚ, periodSymbol F (r:ℝ) + periodSymbol F (-(r:ℝ)) = c*Ω) :
-    ∃ (H : Subgroup (GL (Fin 2) ℝ)) (hH : H.IsArithmetic) (_ : H.strictWidthInfty=1)
-      (G : CuspForm H 2) (c : ℚ),
-      (∀ m : ℕ, (qExpansion 1 G).coeff m = (weight n m:ℂ) * (qExpansion 1 F).coeff m) ∧
-      (Real.sqrt n:ℂ)*ModularForm.L (by decide : (0:ℤ)<2) G 1 = c*Ω := by
-  classical
-  obtain ⟨d,hd⟩ : 2 ∣ n := by exact Nat.dvd_of_mod_eq_zero (by omega)
-  subst n
-  have hd4 : d%4=1 := by omega
-  have hsd := hs.squarefree_of_dvd (dvd_mul_left d 2)
-  let n := 2*d
-  let χ := character n (by dsimp [n]; omega)
-  letI : NeZero (4*n) := ⟨by dsimp [n]; omega⟩
-  have he : χ.Even := character_even hd4
-  obtain ⟨ε,hε,hg⟩ := gauss_sign (character_primitive hd4 hsd) (character_quadratic n _) he
-  obtain ⟨H,hH,hW,G,hcf,hV,_⟩ := jacobi_twist_integral hn hs hw F
-  let P (j : ZMod (4*n)) := periodSymbol F ((j.val:ℝ)/(4*n))
-  let M (j : ZMod (4*n)) := periodSymbol F (-(j.val:ℝ)/(4*n))
-  have hsym : ∑ j, χ j * P j = ∑ j, χ j * M j := by
-    apply Fintype.sum_equiv (Equiv.neg _)
-    intro j
-    rw [Equiv.neg_apply,he.eval_neg]
-    congr 1
-    simpa only [P,M,Nat.cast_mul,Nat.cast_ofNat] using (reflected_symbol F hw j).symm
-  choose c hc using hper
-  let r (j : ZMod (4*n)) : ℚ := (j.val:ℚ)/(4*n)
-  let C : ℚ := ∑ j : ZMod (4*n), (weight n j.val:ℚ)*c (r j)
-  have hc' (j : ZMod (4*n)) : P j + M j = (c (r j):ℂ)*Ω := by
-    simpa only [P,M,r,Rat.cast_div,Rat.cast_natCast,Rat.cast_mul,Rat.cast_ofNat,neg_div]
-      using hc (r j)
-  have hC : (2:ℂ) * (∑ j, χ j*P j) = C*Ω := by
-    calc _ = (∑ j, χ j*P j) + ∑ j, χ j*M j := by rw [←hsym,two_mul]
-         _ = ∑ j, χ j*(P j+M j) := by simp [mul_add,Finset.sum_add_distrib]
-         _ = _ := by
-           simp only [hc',C,Rat.cast_sum,Rat.cast_mul,Rat.cast_intCast,Finset.sum_mul,mul_assoc]
-           rfl
-  have hv : gaussSum χ ZMod.stdAddChar * ModularForm.L (by decide : (0:ℤ)<2) G 1 = ∑ j, χ j*P j := hV
-  have hgs : (2:ℂ)*(Real.sqrt n:ℂ) = ε * gaussSum χ ZMod.stdAddChar := by
-    have heq : (Real.sqrt (((4*n:ℕ):ℝ)):ℂ) = 2*(Real.sqrt n:ℂ) := by
-      rw [Nat.cast_mul,Nat.cast_ofNat,Real.sqrt_mul (by norm_num : (0:ℝ) ≤ 4), Complex.ofReal_mul]
-      norm_num
-    rw [←heq]
-    exact hg
-  refine ⟨H,hH,hW,G,((ε:ℚ)*C/4),hcf,?_⟩
-  change (Real.sqrt n:ℂ) * _ = _
-  push_cast
-  linear_combination (ModularForm.L (by decide : (0:ℤ)<2) G 1 / 2)*hgs +
-    (ε:ℂ)/2*hv + (ε:ℂ)/4*hC
-
-
 end TunnellModularSymbol
 
 end
@@ -3002,63 +2893,6 @@ section
 /- Generation of all rational cusps by translation and the level-two Fricke involution. -/
 
 namespace TunnellFrickeOrbit
-
-theorem rational_cusps (P : ℚ → Prop) (hzero : P 0)
-    (hT : ∀ x k, P x → P (x + (k:ℤ)))
-    (hW : ∀ x, x ≠ 0 → P x → P (-1/(2*x))) (x : ℚ) : P x := by
-  have hnegHalf : P (-1/2) := by
-    simpa using hW 1 one_ne_zero (by simpa using hT 0 1 hzero)
-  have hfrac (d : ℕ) : ∀ a : ℤ, 0<d → P ((a:ℚ)/d) := by
-    induction d using Nat.strong_induction_on with
-    | h d ih =>
-      intro a hd
-      let r := a.bmod d
-      have hdq : (d:ℚ) ≠ 0 := by positivity
-      have bound := (Int.bmod_eq_iff (a:=a) hd).mp (rfl : a.bmod d = r)
-      have eqr : (a:ℚ)/d = (r:ℚ)/d + (a.bdiv d:ℚ) := by
-        field_simp
-        exact_mod_cast (Int.bmod_add_bdiv a d).symm
-      rw [eqr]
-      apply hT
-      by_cases hr0 : r = 0
-      · simpa [hr0] using hzero
-      have hrq : (r:ℚ) ≠ 0 := by exact_mod_cast hr0
-      by_cases hedge : 2*r = -(d:ℤ)
-      · have e : (r:ℚ)/d = -1/2 := by
-          have hh : 2*(r:ℚ) = -(d:ℚ) := by exact_mod_cast hedge
-          field_simp
-          linarith
-        rwa [e]
-      have hsmall : 2*r.natAbs < d := by omega
-      have hpos : 0<2*r.natAbs := by omega
-      by_cases hrpos : 0 ≤ r
-      · have ee : (r.natAbs : ℚ) = r := by
-          have e : (r.natAbs : ℤ) = r := by omega
-          simpa only [Int.cast_natCast] using congrArg (fun a : ℤ => (a:ℚ)) e
-        have hh := ih (2*r.natAbs) hsmall (-(d:ℤ)) hpos
-        rw [Nat.cast_mul,Nat.cast_two,ee,Int.cast_neg,Int.cast_natCast] at hh
-        convert hW _ (div_ne_zero (neg_ne_zero.mpr hdq) (mul_ne_zero (by norm_num) hrq)) hh using 1 <;> field_simp <;> ring
-      · have ee : (r.natAbs : ℚ) = -r := by
-          have e : (r.natAbs : ℤ) = -r := by omega
-          simpa only [Int.cast_natCast,Int.cast_neg] using congrArg (fun a : ℤ => (a:ℚ)) e
-        have hh := ih (2*r.natAbs) hsmall (d:ℤ) hpos
-        rw [Nat.cast_mul,Nat.cast_two,ee,Int.cast_natCast] at hh
-        convert hW _ (div_ne_zero hdq (mul_ne_zero (by norm_num) (neg_ne_zero.mpr hrq))) hh using 1 <;> field_simp <;> ring
-  simpa only [Rat.num_div_den] using hfrac x.den x.num x.den_pos
-
-noncomputable def integralMultiple (a b : ℂ) : Prop := ∃ c : GaussianInt, a = (c:ℂ)*b
-
-theorem symbols_are_gaussian_multiples (J : ℚ → ℂ)
-    (hT : ∀ x (k : ℤ), ∃ u : GaussianInt, J (x+k) = (u:ℂ)*J x)
-    (hW : ∀ x, x≠0 → J (-1/(2*x)) = J 0-J x) (x : ℚ) :
-    integralMultiple (J x) (J 0) := by
-  apply rational_cusps (fun q => integralMultiple (J q) (J 0)) _ _ _ x
-  · exact ⟨1,by simp⟩
-  · rintro q k ⟨b,hb⟩
-    obtain ⟨a,ha⟩ := hT q k
-    exact ⟨a*b,by rw [ha,hb]; simp [mul_assoc]⟩
-  · rintro q hq ⟨a,ha⟩
-    exact ⟨1-a,by rw [hW q hq,ha]; rw [map_sub,map_one]; ring⟩
 
 end TunnellFrickeOrbit
 
@@ -3081,10 +2915,6 @@ noncomputable def cusp (r : ℝ) : Filter ℂ := comap (height r) atTop
 lemma eventually_upper (r : ℝ) : ∀ᶠ z in cusp r, 0<z.im := by
   filter_upwards [(tendsto_comap (f:=height r) (x:=atTop)).eventually (eventually_gt_atTop 0)] with z hz
   exact (div_pos_iff.mp hz).elim (fun h => h.1) (fun h => False.elim ((normSq_nonneg _).not_gt h.2))
-
-lemma W_involution {z : ℂ} (hz : z ≠ 0) : W (W z) = z := by
-  unfold W
-  field_simp
 
 lemma W_im (z : ℂ) : (W z).im = height 0 z / 2 := by
   simp [W,height,Complex.div_im,Complex.mul_im,Complex.normSq_mul,pow_two]
@@ -3126,14 +2956,6 @@ lemma move_add (r t : ℝ) : Tendsto (fun z : ℂ => z+t) (cusp r) (cusp (r+t)) 
 lemma move_zero : Tendsto W (cusp 0) (comap Complex.im atTop) := by
   apply tendsto_comap_iff.mpr
   exact ((tendsto_comap (f:=height 0) (x:=atTop)).atTop_mul_const (by norm_num : (0:ℝ)<2⁻¹)).congr (fun z => by simp [Function.comp_def,W_im,div_eq_mul_inv])
-
-lemma integer_steps (P : ℚ → Prop)
-    (hp : ∀ x, P x → P (x+1)) (hm : ∀ x, P x → P (x-1))
-    (x : ℚ) (k : ℤ) (hx : P x) : P (x+k) := by
-  induction k using Int.induction_on with
-  | zero => simpa using hx
-  | succ i ih => simpa [Int.cast_add,add_assoc] using hp (x+i) ih
-  | pred i ih => simpa [Int.cast_sub,sub_eq_add_neg,add_assoc] using hm (x+(-(i:ℤ):ℚ)) ih
 
 noncomputable def gi : GaussianInt := ⟨0,1⟩
 lemma coe_gi : (gi:ℂ) = I := by simp [gi,GaussianInt.toComplex_def]
@@ -3182,26 +3004,6 @@ theorem cusp_rules {J : ℂ → ℂ} {C : ℂ}
     filter_upwards [eventually_upper (-1/(2*(x:ℝ)))] with z hz
     simp [Function.comp_def,hW z hz]
 
-
-theorem paired_cusp_values {J : ℂ → ℂ} {C : ℂ}
-    (h0 : Tendsto J (comap Complex.im atTop) (𝓝 0))
-    (hT : ∀ z, 0<z.im → J (z+1) = I*J z)
-    (hW : ∀ z, 0<z.im → J (W z) = C-J z) (r : ℚ) :
-    ∃ a : GaussianInt, Bound J C r a ∧ Bound J C (-r) (star a) := by
-  obtain ⟨hz,hp,hm,hw⟩ := cusp_rules h0 hT hW
-  have hi : star gi = -gi := by rfl
-  apply TunnellFrickeOrbit.rational_cusps (fun x => ∃ a : GaussianInt, Bound J C x a ∧ Bound J C (-x) (star a)) _ _ _ r
-  · exact ⟨1,hz,by simpa using hz⟩
-  · apply integer_steps
-    · rintro x ⟨a,h,k⟩
-      refine ⟨gi*a,hp x a h,?_⟩
-      simpa [star_mul,hi,mul_comm,add_comm,sub_eq_add_neg] using hm (-x) (star a) k
-    · rintro x ⟨a,h,k⟩
-      refine ⟨-gi*a,hm x a h,?_⟩
-      simpa [star_mul,hi,mul_comm,add_comm,sub_eq_add_neg] using hp (-x) (star a) k
-  · rintro x hx ⟨a,h,k⟩
-    refine ⟨1-a,hw x hx a h,?_⟩
-    simpa [div_eq_mul_inv] using hw (-x) (neg_ne_zero.mpr hx) (star a) k
 
 end TunnellFricke
 
@@ -3282,23 +3084,6 @@ theorem symbol_eq_boundary {Γ : Subgroup (GL (Fin 2) ℝ)} [Γ.IsArithmetic]
   change 2*(Real.pi:ℂ)*(∫ t in Ioi (0:ℝ), f t) = A
   linear_combination -e
 
-theorem paired_symbols {Γ : Subgroup (GL (Fin 2) ℝ)} [Γ.IsArithmetic]
-    (hw : Γ.strictWidthInfty=1) (F : CuspForm Γ 2)
-    (hF : ∀ z : ℍ, F z = h (4*(z:ℂ))) (r : ℚ) :
-    ∃ m : ℤ, periodSymbol F r + periodSymbol F (-(r:ℝ)) = m*periodSymbol F 0 := by
-  obtain ⟨J,hJ,h0,hT,C,hW⟩ := primitive
-  obtain ⟨a,ha,hb⟩ := paired_cusp_values h0 hT hW (4*r)
-  obtain ⟨hz,_,_,_⟩ := cusp_rules h0 hT hW
-  have e₀ := symbol_eq_boundary hw F hF 0 hJ h0 (A:=C) (by simpa [Bound] using hz)
-  have e₁ := symbol_eq_boundary hw F hF r hJ h0 (A:=(a:ℂ)*C) (by simpa [Bound] using ha)
-  have e₂ := symbol_eq_boundary hw F hF (-r) hJ h0 (A:=(star a:ℂ)*C) (by simpa [Bound] using hb)
-  simp only [Rat.cast_neg,Rat.cast_zero] at e₂ e₀
-  refine ⟨2*a.re,?_⟩
-  rw [e₀,e₁,e₂,← add_mul]
-  congr 1
-  simp [GaussianInt.toComplex_def]
-  ring
-
 end TunnellFricke
 
 end
@@ -3322,36 +3107,6 @@ lemma zero_symbol {Γ : Subgroup (GL (Fin 2) ℝ)} (F : CuspForm Γ 2)
   apply setIntegral_congr_fun measurableSet_Ioi
   intro t ht
   simp only [zero_vadd,hF,ofComplex_apply_of_im_pos (by simpa using ht : 0<(Complex.I*(t:ℂ)).im)]
-
-theorem normalized_twists (n : ℕ) (hn : n%8=2) (hs : Squarefree n) (L : ℂ → ℂ)
-    (he : AnalyticOnNhd ℂ L univ) (hprod : ∀ s : ℝ, 2<s →
-      HasProd (fun p : Nat.Primes => if p.val ∣ 2*n then (1:ℂ) else
-        let T := (p.val:ℂ)^(-(s:ℂ))
-        (1-(curveTrace n p:ℂ)*T+(p.val:ℂ)*T^2)⁻¹) (L s)) :
-    ∃ c : ℚ, (Real.sqrt n:ℂ)*L 1 = c*baseConstant := by
-  obtain ⟨H,hH,hw,F,hF,hfc⟩ := TunnellEtaValue.actual_form
-  letI : H.IsArithmetic := hH
-  have hper (r : ℚ) : ∃ c : ℚ, periodSymbol F (r:ℝ)+periodSymbol F (-(r:ℝ)) = c*baseConstant := by
-    obtain ⟨m,hm⟩ := paired_symbols hw F hF r
-    exact ⟨m,by simpa only [Rat.cast_intCast,zero_symbol F hF] using hm⟩
-  obtain ⟨K,hK,kw,G,r,ht,hr⟩ := rational_period_of_paired_symbols hn hs hw F baseConstant hper
-  letI : K.IsArithmetic := hK
-  let M := ModularForm.L (by decide : (0:ℤ)<2) G
-  have a (m : ℕ) : (qExpansion 1 G).coeff m = gaussCoeff n m := by
-    rw [ht,hfc,TunnellArithmetic.eta_eq_mass
-      (TunnellTruncated.cubic_congruence (fun N => TunnellCubicFinite.cubic (Polynomial.X^8) N))
-      (TunnellTruncated.theta_congruence (fun d N =>
-        TunnellBalanced.balanced (TunnellTruncated.trunc d (Polynomial.X^4)) N))]
-    rfl
-  have hM : AnalyticOnNhd ℂ M univ := fun z _ =>
-    (CuspForm.differentiable_L (by decide : (0:ℤ)<2) G).analyticAt z
-  have eqM := TunnellMellin.entire_unique he hM 2 (fun s hgt => by
-    have hl := (hprod s hgt).unique (lattice_euler n s (by linarith))
-    have hsum : HasSum (fun m : ℕ => gaussCoeff n m / (m:ℂ)^(s:ℂ)) (M s) := by
-      have h := CuspForm.hasSum_L (by decide : (0:ℤ)<2) G (s:=(s:ℂ)) (by norm_num; linarith)
-      simpa only [kw,Complex.ofReal_one,Complex.one_cpow,one_mul,a,M] using h
-    exact hl.trans ((shell_expansion n s (by linarith)).unique hsum))
-  exact ⟨r,eqM ▸ hr⟩
 
 end TunnellFricke
 
@@ -4045,15 +3800,6 @@ theorem signed_shell (d : ℕ) (hd : Odd d) :
     show ((shell (2*d)).filter (fun x => negative x)).card = _ from hg] at hc
   push_cast at hc
   omega
-
-/-- Conjugation by 1+2j acts on the pure lattice over ℤ₂. Its norm 5
-is invertible there, so the integral adjoint computes the same lattice test. -/
-lemma conjugate_second (v : Triple) :
-    v∈Set.range second ↔ (-3*v.1-4*v.2.2,5*v.2.1,4*v.1-3*v.2.2)∈Set.range first := by
-  rw [first_iff,second_iff]
-  dsimp only
-  omega
-
 
 end TunnellTestVector
 

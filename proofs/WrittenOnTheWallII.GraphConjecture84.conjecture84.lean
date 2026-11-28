@@ -1,2075 +1,1460 @@
 import FormalConjectures.WrittenOnTheWallII.GraphConjecture84
 
--- Port of the public proof by Yixing Zhang, based on the proof of Jonas J. Gebendorfer.
--- https://github.com/ProblemHunter/wowii84-lean/tree/722b098bafb5 (Apache-2.0).
+-- Credit: @alueke20 (Gebendorfer cut-vertex reduction + diametral-prefix bound)
 
-/-!
-# Written on the Wall II, Conjecture 84: the proof
+namespace OMA_Conj84
 
-Lean formalization of the proof of WOWII Conjecture 84 given by Jonas J. Gebendorfer,
-*Induced trees in graphs with a cut vertex: A proof of Written on the Wall II, Conjecture 84*
-(manuscript, 28 October 2026; posted at google-deepmind/formal-conjectures issue #7663).
+open SimpleGraph Walk Finset
 
-Outline (following the manuscript):
-* `δ(G) ≥ 2`: a diametral geodesic is an induced path on `rad(G) + 1` vertices, which
-  already gives `δ(G) · tree(G) ≥ 2 rad(G)`.
-* `δ(G) = 1`: the neighbour of a leaf is a cut vertex (except for small cases checked
-  directly), and `two_mul_radius_le_largestInducedTreeSize_of_cut_vertex` proves the
-  stronger bound `tree(G) ≥ 2 rad(G)` for every connected graph with a cut vertex
-  (Gebendorfer, Theorem 1), by a minimal-counterexample argument: reduction to a
-  2-connected core with pendant paths, radius-drop witnesses, equal pendant lengths,
-  and Chung's bound (Erdős–Saks–Sós 1986, Theorem 2.2), of which the induced-tree
-  consequence `tree(H) ≥ 2 rad(H) - 1` is proved here (`chung_induced_tree_bound`).
+universe u
 
-The main theorem `conjecture84_proof` has exactly the statement of
-`WrittenOnTheWallII.GraphConjecture84.conjecture84` in formal-conjectures
-(commit d995ef5d306637c0a2e489c7e579647168d7df2f); see `Challenge.lean`.
--/
+section SecA
 
-namespace WrittenOnTheWallII.GraphConjecture84
+variable {α : Type u} {G : SimpleGraph α}
 
-open SimpleGraph
+private lemma rad_ge_ex [Fintype α] [Nonempty α] (hG : G.Connected) (u : α) :
+    ∃ v : α, G.radius.toNat ≤ G.dist u v := by
+  obtain ⟨v, hv⟩ := G.exists_edist_eq_eccent_of_finite u
+  have hle : (G.radius.toNat : ℕ∞) ≤ (G.dist u v : ℕ∞) := by
+    rw [ENat.natCast_toNat (G.radius_ne_top_iff.mpr hG), (hG.preconnected u v).coe_dist_eq_edist]
+    exact hv ▸ G.radius_le_eccent
+  exact ⟨v, Nat.cast_le.mp hle⟩
 
-variable {α : Type*} [Fintype α] [DecidableEq α]
-
-
-/-- The vertices of a geodesic form an induced tree of distance plus one vertices. -/
-lemma dist_add_one_le_largestInducedTreeSize {G : SimpleGraph α} {u v : α}
-    (h : G.Reachable u v) : G.dist u v + 1 ≤ largestInducedTreeSize G := by
-  obtain ⟨p, hp, hlen⟩ := h.exists_path_of_dist
-  have hcard : p.support.toFinset.card = G.dist u v + 1 := by
-    rw [List.toFinset_card_of_nodup hp.support_nodup, p.length_support, hlen]
-  rw [← hcard]
-  exact card_le_largestInducedTreeSize (p.induce_support_isTree_of_length_eq_dist hlen)
-
-/-- Radius is attained by a distance in a finite connected graph. -/
-lemma radius_add_one_le_largestInducedTreeSize {G : SimpleGraph α}
-    [Nonempty α] (h : G.Connected) :
-    G.radius.toNat + 1 ≤ largestInducedTreeSize G := by
-  obtain ⟨u, v, huv⟩ := G.exists_edist_eq_radius_of_finite
-  have hd : G.dist u v = G.radius.toNat := congrArg ENat.toNat huv
-  rw [← hd]
-  exact dist_add_one_le_largestInducedTreeSize (h u v)
-
-/-- An induced tree cannot use more vertices than the ambient graph. -/
-lemma largestInducedTreeSize_le_card (G : SimpleGraph α) :
-    largestInducedTreeSize G ≤ Fintype.card α := by
-  apply csSup_le'
-  rintro n ⟨s, rfl, _⟩
-  exact Finset.card_le_univ s
-
-/-- An induced graph embedding transports induced trees without changing their order. -/
-lemma largestInducedTreeSize_le_of_embedding {β : Type*} [Fintype β] [DecidableEq β]
-    {H : SimpleGraph β} {G : SimpleGraph α} (e : H ↪g G) :
-    largestInducedTreeSize H ≤ largestInducedTreeSize G := by
-  classical
-  apply csSup_le'
-  rintro n ⟨s, rfl, hs⟩
-  let f : ↥(s : Set β) → ↥(s.map e.toEmbedding : Set α) := fun x =>
-    ⟨e x, Finset.mem_map.mpr ⟨x, x.property, rfl⟩⟩
-  have hf : Function.Bijective f := by
-    constructor
-    · intro x y hxy
-      apply Subtype.ext
-      exact e.injective (congrArg Subtype.val hxy)
-    · intro y
-      obtain ⟨x, hx, hxy⟩ := Finset.mem_map.mp y.property
-      exact ⟨⟨x, hx⟩, Subtype.ext hxy⟩
-  let i : H.induce (s : Set β) ≃g G.induce (s.map e.toEmbedding : Set α) :=
-    { Equiv.ofBijective f hf with
-      map_rel_iff' := by intro x y; exact e.map_rel_iff }
-  have htree := i.isTree_iff.mp hs
-  simpa only [Finset.card_map] using card_le_largestInducedTreeSize htree
-
-/-- Passing to an induced subgraph can only decrease the largest induced-tree order. -/
-lemma largestInducedTreeSize_induce_le (G : SimpleGraph α) (S : Set α)
-    [DecidablePred (· ∈ S)] :
-    largestInducedTreeSize (G.induce S) ≤ largestInducedTreeSize G :=
-  largestInducedTreeSize_le_of_embedding (SimpleGraph.Embedding.induce S)
-
-/-- In order at least three, the neighbor of a leaf is a vertex cut. -/
-lemma exists_cut_vertex_of_minDegree_eq_one {G : SimpleGraph α} [DecidableRel G.Adj]
-    [Nonempty α] (hδ : G.minDegree = 1) (hcard : 3 ≤ Fintype.card α) :
-    ∃ v, ¬ (G.induce ({v}ᶜ : Set α)).Connected := by
-  classical
-  obtain ⟨u, hu⟩ := G.exists_minimal_degree_vertex
-  have hdu : G.degree u = 1 := hu.symm.trans hδ
-  obtain ⟨v, huv, huniq⟩ := degree_eq_one_iff_existsUnique_adj.mp hdu
-  have hw : ∃ w : α, w ≠ u ∧ w ≠ v := by
-    by_contra! hn
-    have hsub : (Finset.univ : Finset α) ⊆ {u, v} := by
-      intro w _
-      by_cases hwu : w = u
-      · simp [hwu]
-      · simp [hn w hwu]
-    have hle := Finset.card_le_card hsub
-    have hpair : ({u, v} : Finset α).card ≤ 2 := Finset.card_le_two
-    simp only [Finset.card_univ] at hle
-    omega
-  obtain ⟨w, hwu, hwv⟩ := hw
-  refine ⟨v, ?_⟩
-  intro hc
-  let u' : ↥({v}ᶜ : Set α) := ⟨u, by simpa using huv.ne⟩
-  let w' : ↥({v}ᶜ : Set α) := ⟨w, by simpa using hwv⟩
-  obtain ⟨p⟩ := hc u' w'
-  have hne : u' ≠ w' := by
-    intro heq
-    exact hwu (congrArg Subtype.val heq).symm
-  have hadj : G.Adj u (p.snd : α) := p.adj_snd (p.not_nil_of_ne hne)
-  have heq : (p.snd : α) = v := huniq _ hadj
-  have hmem := p.snd.property
-  simpa [heq] using hmem
-
-/-- A strict radius decrease on deletion produces a center with a unique farthest vertex. -/
-lemma radius_drop_witness {G : SimpleGraph α} (hG : G.Connected) (x : α)
-    (hH : (G.induce ({x}ᶜ : Set α)).Connected)
-    (hr : 1 ≤ G.radius.toNat)
-    (hdrop : (G.induce ({x}ᶜ : Set α)).radius.toNat ≤ G.radius.toNat - 1) :
-    ∃ c : α, c ≠ x ∧ G.eccent c = G.radius ∧ G.dist c x = G.radius.toNat ∧
-      ∀ z : α, z ≠ x → G.dist c z ≤ G.radius.toNat - 1 := by
-  classical
-  let H := G.induce ({x}ᶜ : Set α)
-  haveI : Nonempty ↥({x}ᶜ : Set α) := hH.nonempty
-  haveI : Nonempty α := ⟨x⟩
-  obtain ⟨c, hc⟩ := H.exists_eccent_eq_radius
-  have hHfin : H.radius ≠ ⊤ := H.radius_ne_top_iff.mpr hH
-  have hGfin : G.radius ≠ ⊤ := G.radius_ne_top_iff.mpr hG
-  have hother : ∀ z : α, z ≠ x → G.dist c z ≤ G.radius.toNat - 1 := by
-    intro z hzx
-    let z' : ↥({x}ᶜ : Set α) := ⟨z, by simpa using hzx⟩
-    obtain ⟨p, hp⟩ := hH.exists_walk_length_eq_dist c z'
-    have hmap : G.dist c z ≤ H.dist c z' := by
-      have hm := G.dist_le (p.map (SimpleGraph.Embedding.induce ({x}ᶜ : Set α)).toHom)
-      rw [Walk.length_map] at hm
-      change G.dist (c : α) z ≤ p.length at hm
-      exact hm.trans_eq hp
-    have hcenter : H.dist c z' ≤ H.radius.toNat := by
-      apply ENat.toNat_le_toNat _ hHfin
-      exact hc ▸ (H.edist_le_eccent (u := c) (v := z'))
-    exact hmap.trans (hcenter.trans hdrop)
-  have hcx : (c : α) ≠ x := by
-    simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using c.property
-  obtain ⟨p⟩ := hG x c
-  have hp : ¬ p.Nil := p.not_nil_of_ne hcx.symm
-  have hxn : G.Adj x p.snd := p.adj_snd hp
-  have hnx : p.snd ≠ x := hxn.ne.symm
-  have hdistx : G.dist c x ≤ G.radius.toNat := by
-    have htri := hG.dist_triangle (u := (c : α)) (v := p.snd) (w := x)
-    have hdistn : G.dist p.snd x = 1 := dist_eq_one_iff_adj.mpr hxn.symm
-    have hn := hother p.snd hnx
-    omega
-  have hecc : G.eccent c ≤ (G.radius.toNat : ℕ∞) := by
-    rw [G.eccent_le_iff]
-    intro z
-    rw [← (hG c z).coe_dist_eq_edist]
-    apply ENat.natCast_le_natCast.mpr
-    exact (show G.dist c z ≤ G.radius.toNat from by
-      by_cases hzx : z = x
-      · simpa [hzx] using hdistx
-      · exact (hother z hzx).trans (Nat.sub_le _ _))
-  have heq : G.eccent c = G.radius :=
-    le_antisymm (by simpa only [ENat.natCast_toNat hGfin] using hecc) G.radius_le_eccent
-  have hdistxeq : G.dist c x = G.radius.toNat := by
-    obtain ⟨z, hz⟩ := G.exists_edist_eq_eccent_of_finite (c : α)
-    have hdz : G.dist c z = G.radius.toNat := congrArg ENat.toNat (hz.trans heq)
-    have hzx : z = x := by
-      by_contra hzx
-      have := hother z hzx
-      omega
-    simpa only [hzx] using hdz
-  exact ⟨c, hcx, heq, hdistxeq, hother⟩
-
-/-- Distances add at every vertex on a geodesic. -/
-lemma dist_add_dist_eq_of_mem_geodesic {G : SimpleGraph α} {u v z : α}
-    (p : G.Walk u v) (hp : p.length = G.dist u v) (hz : z ∈ p.support) :
-    G.dist u z + G.dist z v = G.dist u v := by
-  have htake := length_eq_dist_of_subwalk hp (p.isSubwalk_takeUntil hz)
-  have hdrop := length_eq_dist_of_subwalk hp (p.isSubwalk_dropUntil hz)
-  have hlen := congrArg Walk.length (p.take_spec hz)
-  simpa only [Walk.length_append, htake, hdrop, hp] using hlen
-
-/-- Two disjoint geodesics from a center and its neighbor bound twice the radius by order. -/
-lemma two_mul_radius_le_card {G : SimpleGraph α} (hG : G.Connected) :
-    2 * G.radius.toNat ≤ Fintype.card α := by
-  classical
-  haveI : Nonempty α := hG.nonempty
-  by_cases hr : G.radius.toNat = 0
-  · simp [hr]
-  have hfin : G.radius ≠ ⊤ := G.radius_ne_top_iff.mpr hG
+private lemma center_ex [Fintype α] [Nonempty α] (hG : G.Connected) :
+    ∃ c : α, ∀ v : α, G.dist c v ≤ G.radius.toNat := by
   obtain ⟨c, hc⟩ := G.exists_eccent_eq_radius
-  have hcenter (z : α) : G.dist c z ≤ G.radius.toNat := by
-    exact ENat.toNat_le_toNat (hc ▸ (G.edist_le_eccent (u := c) (v := z))) hfin
-  obtain ⟨a, ha⟩ := G.exists_edist_eq_eccent_of_finite c
-  have hca : G.dist c a = G.radius.toNat := congrArg ENat.toNat (ha.trans hc)
-  obtain ⟨p, hp, hplen⟩ := hG.exists_path_of_dist c a
-  cases p with
-  | nil => simp only [Walk.length_nil, dist_self] at hplen hca; omega
-  | @cons c n a hcn p =>
-    have hplen' : p.length = G.dist n a :=
-      length_eq_dist_of_subwalk hplen (Walk.isSubwalk_cons p hcn)
-    have hpr : p.length + 1 = G.radius.toNat := by
-      simpa only [Walk.length_cons, hca] using hplen
-    obtain ⟨b, hb⟩ := G.exists_edist_eq_eccent_of_finite n
-    have hnb : G.radius.toNat ≤ G.dist n b := by
-      apply ENat.toNat_le_toNat (hb ▸ G.radius_le_eccent)
-      exact edist_ne_top_iff_reachable.mpr (hG n b)
-    obtain ⟨q, hq, hqlen⟩ := hG.exists_path_of_dist c b
-    have hdis : Disjoint p.support.toFinset q.support.toFinset := by
-      apply Finset.disjoint_left.mpr
-      intro z hzp hzq
-      have hzp' : z ∈ p.support := by simpa using hzp
-      have hzq' : z ∈ q.support := by simpa using hzq
-      have hpa := dist_add_dist_eq_of_mem_geodesic p hplen' hzp'
-      have hqb := dist_add_dist_eq_of_mem_geodesic q hqlen hzq'
-      have htri := hG.dist_triangle (u := c) (v := z) (w := a)
-      have hntri := hG.dist_triangle (u := n) (v := z) (w := b)
-      have hcb := hcenter b
-      omega
-    have hp' : p.IsPath := (Walk.cons_isPath_iff hcn p).mp hp |>.1
-    have hpcard : p.support.toFinset.card = p.length + 1 := by
-      rw [List.toFinset_card_of_nodup hp'.support_nodup, p.length_support]
-    have hqcard : q.support.toFinset.card = q.length + 1 := by
-      rw [List.toFinset_card_of_nodup hq.support_nodup, q.length_support]
-    have htri := hG.dist_triangle (u := n) (v := c) (w := b)
-    have hnc : G.dist n c = 1 := dist_eq_one_iff_adj.mpr hcn.symm
-    have hcard := Finset.card_le_univ (p.support.toFinset ∪ q.support.toFinset)
-    rw [Finset.card_union_of_disjoint hdis, hpcard, hqcard] at hcard
-    omega
+  refine ⟨c, fun v => ?_⟩
+  have hle : G.edist c v ≤ G.radius := hc ▸ G.edist_le_eccent
+  rw [← (hG.preconnected c v).coe_dist_eq_edist,
+    ← ENat.natCast_toNat (G.radius_ne_top_iff.mpr hG), Nat.cast_le] at hle
+  exact hle
 
-/-- A tree is itself a largest induced tree. -/
-lemma largestInducedTreeSize_eq_card_of_isTree {G : SimpleGraph α} (hG : G.IsTree) :
-    largestInducedTreeSize G = Fintype.card α := by
-  apply le_antisymm (largestInducedTreeSize_le_card G)
-  have ht : (G.induce (↑(Finset.univ : Finset α) : Set α)).IsTree := by
-    rw [Finset.coe_univ]
-    exact (G.induceUnivIso).isTree_iff.mpr hG
-  simpa only [Finset.card_univ] using card_le_largestInducedTreeSize ht
+private lemma rad_le [Fintype α] [Nonempty α] (hG : G.Connected) {k : ℕ}
+    (hk : ∃ c : α, ∀ v : α, G.dist c v ≤ k) : G.radius.toNat ≤ k := by
+  obtain ⟨c, hc⟩ := hk
+  have hecc : G.eccent c ≤ (k : ℕ∞) := by
+    rw [G.eccent_le_iff]; intro v
+    rw [← (hG.preconnected c v).coe_dist_eq_edist]; exact Nat.cast_le.mpr (hc v)
+  have hle := G.radius_le_eccent.trans hecc
+  rwa [← ENat.natCast_toNat (G.radius_ne_top_iff.mpr hG), Nat.cast_le] at hle
 
-/-- Trees satisfy the required twice-radius bound, including the one-vertex tree. -/
-lemma two_mul_radius_le_largestInducedTreeSize_of_isTree {G : SimpleGraph α}
-    (hG : G.IsTree) : 2 * G.radius.toNat ≤ largestInducedTreeSize G := by
-  rw [largestInducedTreeSize_eq_card_of_isTree hG]
-  exact two_mul_radius_le_card hG.connected
+private lemma rad_le_diam [Fintype α] [Nonempty α] (hG : G.Connected) : G.radius.toNat ≤ G.diam := by
+  have hle : G.radius ≤ G.ediam := G.radius_le_ediam
+  rwa [← ENat.natCast_toNat (G.radius_ne_top_iff.mpr hG),
+    ← ENat.natCast_toNat (G.connected_iff_ediam_ne_top.mp hG), Nat.cast_le] at hle
 
-/-- A geodesic meeting an induced tree only at its end attaches without creating a cycle
-when every edge from the new vertices to the tree ends at that common vertex. -/
-lemma induce_union_geodesic_isTree {G : SimpleGraph α} (hG : G.Connected)
-    {u v : α} (p : G.Walk u v) (hp : p.length = G.dist u v) (s : Finset α)
-    (hs : (G.induce (s : Set α)).IsTree) (hv : v ∈ s)
-    (hinter : ∀ z ∈ p.support, z ∈ s → z = v)
-    (hcross : ∀ z ∈ p.support, z ≠ v → ∀ w ∈ s, G.Adj z w → w = v) :
-    (G.induce ((p.support.toFinset ∪ s : Finset α) : Set α)).IsTree := by
-  induction p with
-  | @nil u =>
-    have hset : (Walk.nil : G.Walk u u).support.toFinset ∪ s = s := by
-      ext z
-      simp only [Finset.mem_union, List.mem_toFinset, Walk.support_nil, List.mem_singleton]
-      exact or_iff_right_of_imp (fun hzu => hzu ▸ hv)
-    rw [hset]
-    exact hs
-  | @cons u n v hun p ih =>
-    have hptail : p.length = G.dist n v :=
-      length_eq_dist_of_subwalk hp (Walk.isSubwalk_cons p hun)
-    have hpPath := (p.cons hun).isPath_of_length_eq_dist hp
-    have hu_not : u ∉ p.support.toFinset := by
-      simpa using (List.nodup_cons.mp hpPath.support_nodup).1
-    have huv : u ≠ v := by
-      intro heq
-      exact hu_not (by simpa [heq])
-    have hu_s : u ∉ s := by
-      intro hu
-      exact huv (hinter u (by simp) hu)
-    have hT := ih hptail hv
-      (fun z hz => hinter z (by simp [hz]))
-      (fun z hz => hcross z (by simp [hz]))
-    have huniq : ∀ b ∈ p.support.toFinset, G.Adj u b → b = n := by
-      intro b hb hub
-      have hb' : b ∈ p.support := by simpa using hb
-      have hsum := dist_add_dist_eq_of_mem_geodesic p hptail hb'
-      have htri := hG.dist_triangle (u := u) (v := b) (w := v)
-      have hubdist : G.dist u b = 1 := dist_eq_one_iff_adj.mpr hub
-      have hlen : G.dist u v = G.dist n v + 1 := by
-        simpa only [Walk.length_cons, hptail] using hp.symm
-      have hn : G.dist n b = 0 := by omega
-      exact (hG.dist_eq_zero_iff.mp hn).symm
-    have hT' := hT.induce_insert_of_unique_adj
-      (by simp only [Finset.mem_union, not_or]; exact ⟨hu_not, hu_s⟩)
-      (Finset.mem_union_left _ (by simp)) hun (by
-        intro b hb hub
-        rcases Finset.mem_union.mp hb with hb | hb
-        · exact huniq b hb hub
-        · have hbv := hcross u (by simp) huv b hb hub
-          exact huniq b (by simp [hbv]) hub)
-    have hset : (p.cons hun).support.toFinset ∪ s = insert u (p.support.toFinset ∪ s) := by
-      ext z
-      simp
-    rw [hset]
-    exact hT'
+private lemma dist_le_diam [Fintype α] [Nonempty α] (hG : G.Connected) (u v : α) :
+    G.dist u v ≤ G.diam := by
+  have hle : G.edist u v ≤ G.ediam := G.edist_le_ediam
+  rwa [← (hG.preconnected u v).coe_dist_eq_edist,
+    ← ENat.natCast_toNat (G.connected_iff_ediam_ne_top.mp hG), Nat.cast_le] at hle
 
-/-- A leaf adds one more vertex to any geodesic starting at its neighbor and avoiding it. -/
-lemma radius_add_two_le_largestInducedTreeSize_of_leaf {G : SimpleGraph α}
-    [DecidableRel G.Adj] (hG : G.Connected) {u : α} (hu : G.degree u = 1)
-    (hr : 2 ≤ G.radius.toNat) : G.radius.toNat + 2 ≤ largestInducedTreeSize G := by
-  classical
-  haveI : Nonempty α := ⟨u⟩
-  obtain ⟨v, huv, huniq⟩ := degree_eq_one_iff_existsUnique_adj.mp hu
-  obtain ⟨w, hw⟩ := G.exists_edist_eq_eccent_of_finite v
-  have hrw : G.radius.toNat ≤ G.dist v w :=
-    ENat.toNat_le_toNat (hw ▸ G.radius_le_eccent)
-      (edist_ne_top_iff_reachable.mpr (hG v w))
-  have hwu : w ≠ u := by
-    intro heq
-    have hdist : G.dist v w = 1 := by
-      rw [heq]
-      exact dist_eq_one_iff_adj.mpr huv.symm
-    omega
-  have huw : G.dist u w = G.dist v w + 1 := by
-    obtain ⟨q, hq⟩ := hG.exists_walk_length_eq_dist u w
-    cases q with
-    | nil => exact (hwu rfl).elim
-    | @cons u b w hub q =>
-      have hbv := huniq b hub
-      subst b
-      have htail := length_eq_dist_of_subwalk hq (Walk.isSubwalk_cons q hub)
-      simpa only [Walk.length_cons, htail] using hq.symm
-  obtain ⟨p, hp, hplen⟩ := hG.exists_path_of_dist v w
-  have hunot : u ∉ p.support.toFinset := by
-    intro humem
-    have humem' : u ∈ p.support := by simpa using humem
-    have hsum := dist_add_dist_eq_of_mem_geodesic p hplen humem'
-    have hvu : G.dist v u = 1 := dist_eq_one_iff_adj.mpr huv.symm
-    omega
-  have hT := p.induce_support_isTree_of_length_eq_dist hplen
-  have hi := hT.induce_insert_of_unique_adj hunot (by simp) huv
-    (by intro b _ hub; exact huniq b hub)
-  have hle := card_le_largestInducedTreeSize hi
-  have hcard : (insert u p.support.toFinset).card = p.length + 2 := by
-    rw [Finset.card_insert_of_notMem hunot,
-      List.toFinset_card_of_nodup hp.support_nodup, p.length_support]
-  rw [hcard, hplen] at hle
+private lemma wdist_sub {u v : α} (p : G.Walk u v) (k : ℕ) :
+    ∀ i, i + k ≤ p.length →
+      G.dist (p.getVert i) (p.getVert (i + k)) ≤ k ∧ G.Reachable (p.getVert i) (p.getVert (i + k)) := by
+  induction k with
+  | zero => intro i _; simp
+  | succ k ih =>
+    intro i hik
+    have h1 := ih i (by omega)
+    have ha : G.Adj (p.getVert (i + k)) (p.getVert (i + k + 1)) := p.adj_getVert_succ (by omega)
+    have ht := ha.reachable.dist_triangle_right (p.getVert i)
+    have hs := dist_eq_one_iff_adj.mpr ha
+    exact ⟨by simpa [add_assoc] using ht.trans (by omega),
+      by simpa [add_assoc] using h1.2.trans ha.reachable⟩
+
+private lemma wdist_eq {u v : α} (p : G.Walk u v) (hp : p.length = G.dist u v)
+    {i j : ℕ} (hij : i ≤ j) (hj : j ≤ p.length) : G.dist (p.getVert i) (p.getVert j) = j - i := by
+  have h1 := wdist_sub p i 0 (by omega); simp only [zero_add, getVert_zero] at h1
+  have h2 := (wdist_sub p (j - i) i (by omega)).1
+  have h3 := wdist_sub p (p.length - j) j (by omega)
+  have hji : i + (j - i) = j := by omega
+  have hjl : j + (p.length - j) = p.length := by omega
+  rw [hji] at h2; rw [hjl, getVert_length] at h3
+  have ht1 := h1.2.dist_triangle_left (p.getVert j)
+  have ht2 := h3.2.dist_triangle_right u
   omega
 
-/-- Along the tail of a geodesic, distance from its start is one more than distance
-from its first neighbor. -/
-lemma dist_on_geodesic_tail {G : SimpleGraph α} (hG : G.Connected)
-    {u n v z : α} (hun : G.Adj u n) (p : G.Walk n v)
-    (hp : (p.cons hun).length = G.dist u v) (hz : z ∈ p.support) :
-    G.dist u z = G.dist n z + 1 := by
-  have htail := length_eq_dist_of_subwalk hp (Walk.isSubwalk_cons p hun)
-  have hsum := dist_add_dist_eq_of_mem_geodesic p htail hz
-  have hlen : G.dist u v = G.dist n v + 1 := by
-    simpa only [Walk.length_cons, htail] using hp.symm
-  have htri := hG.dist_triangle (u := u) (v := z) (w := v)
-  have htri' := hG.dist_triangle (u := u) (v := n) (w := z)
-  have hdistun : G.dist u n = 1 := dist_eq_one_iff_adj.mpr hun
+private lemma wdist_add [DecidableEq α] {u v w : α} (p : G.Walk u v)
+    (hp : p.length = G.dist u v) (hw : w ∈ p.support) : G.dist u w + G.dist w v = G.dist u v := by
+  have hl : (p.takeUntil w hw).length + (p.dropUntil w hw).length = p.length := by
+    rw [← length_append, p.take_spec hw]
+  have h1 := G.dist_le (p.takeUntil w hw)
+  have h2 := G.dist_le (p.dropUntil w hw)
+  have h3 := (p.takeUntil w hw).reachable.dist_triangle_left v
   omega
 
-set_option maxHeartbeats 800000 in
-/-- The two geodesics in Chung's radius-drop argument yield an induced tree on
-at least twice the radius minus one vertices. -/
-lemma chung_bound_of_unique_farthest {G : SimpleGraph α} (hG : G.Connected)
-    {c x : α} (hr : 3 ≤ G.radius.toNat) (hcx : G.dist c x = G.radius.toNat)
-    (hother : ∀ z : α, z ≠ x → G.dist c z ≤ G.radius.toNat - 1) :
-    2 * G.radius.toNat ≤ largestInducedTreeSize G + 1 := by
-  classical
-  obtain ⟨q, hq, hqlen⟩ := hG.exists_path_of_dist c x
-  cases q with
-  | nil => simp only [dist_self] at hcx; omega
-  | @cons c a x hca q =>
-    cases q with
-    | nil => simp only [Walk.length_cons, Walk.length_nil] at hqlen; omega
-    | @cons a b x hab q =>
-      have hqalen : (q.cons hab).length = G.dist a x :=
-        length_eq_dist_of_subwalk hqlen (Walk.isSubwalk_cons (q.cons hab) hca)
-      have hqblen : q.length = G.dist b x :=
-        length_eq_dist_of_subwalk hqalen (Walk.isSubwalk_cons q hab)
-      have hqrad : q.length + 2 = G.radius.toNat := by
-        simpa only [Walk.length_cons, hcx] using hqlen
-      obtain ⟨w, hw⟩ := G.exists_edist_eq_eccent_of_finite b
-      have hbw : G.radius.toNat ≤ G.dist b w :=
-        ENat.toNat_le_toNat (hw ▸ G.radius_le_eccent)
-          (edist_ne_top_iff_reachable.mpr (hG b w))
-      have hwx : w ≠ x := by intro h; subst w; omega
-      obtain ⟨p, hp, hplen⟩ := hG.exists_path_of_dist c w
-      have hplower : G.radius.toNat - 2 ≤ p.length := by
-        have htri := hG.dist_triangle (u := b) (v := c) (w := w)
-        have hbc : G.dist b c ≤ 2 := by
-          have hwalk := G.dist_le ((Walk.nil.cons hab).cons hca).reverse
-          simpa using hwalk
-        omega
-      have hpupper : p.length ≤ G.radius.toNat - 1 := by
-        rw [hplen]
-        exact hother w hwx
-      have hdistc (z : α) (hz : z ∈ p.support) : G.dist c z + 1 ≤ G.dist b z := by
-        have hsum := dist_add_dist_eq_of_mem_geodesic p hplen hz
-        have htri := hG.dist_triangle (u := b) (v := z) (w := w)
-        omega
-      have hqdist (z : α) (hz : z ∈ q.support) : G.dist c z = G.dist b z + 2 := by
-        have hza := dist_on_geodesic_tail hG hca (q.cons hab) hqlen (z := z) (by simp [hz])
-        have hzb := dist_on_geodesic_tail hG hab q hqalen hz
-        omega
-      have hinter : ∀ z ∈ p.support, z ∈ ((q.cons hab).cons hca).support → z = c := by
-        intro z hzp hzq
-        simp only [Walk.support_cons, List.mem_cons] at hzq
-        rcases hzq with hzc | hza | hzq
-        · exact hzc
-        · subst z
-          have hd := hdistc a hzp
-          have hda : G.dist c a = 1 := dist_eq_one_iff_adj.mpr hca
-          have hdb : G.dist b a = 1 := dist_eq_one_iff_adj.mpr hab.symm
-          omega
-        · have hd := hdistc z hzp
-          have heq := hqdist z hzq
-          omega
-      cases p with
-      | nil => simp only [Walk.length_nil] at hplower; omega
-      | @cons c d w hcd p =>
-        have hptail : p.length = G.dist d w :=
-          length_eq_dist_of_subwalk hplen (Walk.isSubwalk_cons p hcd)
-        have hcnotp : c ∉ p.support := (List.nodup_cons.mp hp.support_nodup).1
-        have hcnotq : c ∉ (q.cons hab).support := (List.nodup_cons.mp hq.support_nodup).1
-        have hpPath : p.IsPath := p.isPath_of_length_eq_dist hptail
-        have hqPath : (q.cons hab).IsPath := (q.cons hab).isPath_of_length_eq_dist hqalen
-        have hpmem {z : α} (hz : z ∈ p.support) : z ∈ (p.cons hcd).support := by
-          simp only [Walk.support_cons, List.mem_cons]
-          exact Or.inr hz
-        have hqmem {z : α} (hz : z ∈ (q.cons hab).support) :
-            z ∈ ((q.cons hab).cons hca).support := by
-          simp only [Walk.support_cons, List.mem_cons]
-          exact Or.inr (by simpa only [Walk.support_cons, List.mem_cons] using hz)
-        have hcross : ∀ z ∈ (p.cons hcd).support, z ≠ c →
-            ∀ y ∈ ((q.cons hab).cons hca).support, G.Adj z y →
-              y = c ∨ (z = d ∧ y = a) := by
-          intro z hzp hzc y hy hzy
-          simp only [Walk.support_cons, List.mem_cons] at hy
-          rcases hy with hyc | hya | hy
-          · exact Or.inl hyc
-          · subst y
-            right
-            have hd := hdistc z hzp
-            have htri := hG.dist_triangle (u := b) (v := a) (w := z)
-            have hba : G.dist b a = 1 := dist_eq_one_iff_adj.mpr hab.symm
-            have haz : G.dist a z = 1 := dist_eq_one_iff_adj.mpr hzy.symm
-            have hzp' : z ∈ p.support := by
-              simpa only [Walk.support_cons, List.mem_cons, or_iff_right hzc] using hzp
-            have heq := dist_on_geodesic_tail hG hcd p hplen hzp'
-            have hdz : G.dist d z = 0 := by omega
-            exact ⟨(hG.dist_eq_zero_iff.mp hdz).symm, rfl⟩
-          · have hd := hdistc z hzp
-            have heq := hqdist y hy
-            have htri := hG.dist_triangle (u := b) (v := y) (w := z)
-            have htri' := hG.dist_triangle (u := c) (v := z) (w := y)
-            have hzydist : G.dist z y = 1 := dist_eq_one_iff_adj.mpr hzy
-            have hyzdist : G.dist y z = 1 := dist_eq_one_iff_adj.mpr hzy.symm
-            omega
-        by_cases hda : G.Adj d a
-        · have hpmax : (p.cons hcd).length = G.radius.toNat - 1 := by
-            have htri := hG.dist_triangle (u := b) (v := d) (w := w)
-            have hbd : G.dist b d ≤ 2 := by
-              have hwalk := G.dist_le ((Walk.nil.cons hda.symm).cons hab.symm)
-              simpa using hwalk
-            simp only [Walk.length_cons] at hpupper ⊢
-            omega
-          let s := (q.cons hab).support.toFinset
-          have hT : (G.induce (s : Set α)).IsTree :=
-            (q.cons hab).induce_support_isTree_of_length_eq_dist hqalen
-          have hdnot : d ∉ s := by
-            intro hd
-            have hdc := hinter d (by simp) (hqmem (by simpa only [s, List.mem_toFinset] using hd))
-            exact hcd.ne hdc.symm
-          have hTa := hT.induce_insert_of_unique_adj hdnot (by simp [s]) hda (by
-            intro y hy hdy
-            rcases hcross d (by simp) hcd.ne.symm y
-                (hqmem (by simpa only [s, List.mem_toFinset] using hy)) hdy with hyc | ⟨_, hya⟩
-            · exact (hcnotq (by simpa [hyc, s] using hy)).elim
-            · exact hya)
-          have hprev : p.reverse.length = G.dist w d := by
-            simpa only [Walk.length_reverse, SimpleGraph.dist_comm] using hptail
-          have hTfull := induce_union_geodesic_isTree hG p.reverse hprev (insert d s) hTa
-            (by simp) (by
-              intro z hz hzs
-              rcases Finset.mem_insert.mp hzs with rfl | hzs
-              · rfl
-              · have hzp : z ∈ p.support := by
-                  simpa only [Walk.support_reverse, List.mem_reverse] using hz
-                have hzc := hinter z (hpmem hzp)
-                  (hqmem (by simpa only [s, List.mem_toFinset] using hzs))
-                exact (hcnotp (hzc ▸ hzp)).elim) (by
-              intro z hz hzd y hy hzy
-              rcases Finset.mem_insert.mp hy with rfl | hy
-              · rfl
-              · have hzp : z ∈ p.support := by
-                  simpa only [Walk.support_reverse, List.mem_reverse] using hz
-                rcases hcross z (hpmem hzp)
-                  (by intro hzc; exact hcnotp (hzc ▸ hzp)) y
-                  (hqmem (by simpa only [s, List.mem_toFinset] using hy)) hzy with hyc | ⟨hzd', _⟩
-                · exact (hcnotq (by simpa [hyc, s] using hy)).elim
-                · exact (hzd hzd').elim)
-          have hset : p.reverse.support.toFinset ∪ insert d s = p.support.toFinset ∪ s := by
-            ext z
-            simp only [Finset.mem_union, Finset.mem_insert, List.mem_toFinset,
-              Walk.support_reverse, List.mem_reverse]
-            have hd : d ∈ p.support := by simp
-            aesop
-          rw [hset] at hTfull
-          have hdis : Disjoint p.support.toFinset s := by
-            apply Finset.disjoint_left.mpr
-            intro z hz hzs
-            have hzc := hinter z (hpmem (by simpa only [List.mem_toFinset] using hz))
-              (hqmem (by simpa only [s, List.mem_toFinset] using hzs))
-            exact hcnotp (by simpa [hzc] using hz)
-          have hpcard : p.support.toFinset.card = p.length + 1 := by
-            rw [List.toFinset_card_of_nodup hpPath.support_nodup, p.length_support]
-          have hqcard : s.card = q.length + 2 := by
-            change (q.cons hab).support.toFinset.card = q.length + 2
-            rw [List.toFinset_card_of_nodup hqPath.support_nodup, Walk.length_support,
-              Walk.length_cons]
-          have hbound := card_le_largestInducedTreeSize hTfull
-          rw [Finset.card_union_of_disjoint hdis, hpcard, hqcard] at hbound
-          simp only [Walk.length_cons] at hpmax
-          omega
-        · have hprev : (p.cons hcd).reverse.length = G.dist w c := by
-            simpa only [Walk.length_reverse, SimpleGraph.dist_comm] using hplen
-          let s := ((q.cons hab).cons hca).support.toFinset
-          have hT : (G.induce (s : Set α)).IsTree :=
-            ((q.cons hab).cons hca).induce_support_isTree_of_length_eq_dist hqlen
-          have hTfull := induce_union_geodesic_isTree hG (p.cons hcd).reverse hprev s hT
-            (by simp [s]) (by
-              intro z hz hzs
-              exact hinter z (by simpa only [Walk.support_reverse, List.mem_reverse] using hz)
-                (by simpa only [s, List.mem_toFinset] using hzs)) (by
-              intro z hz hzc y hy hzy
-              rcases hcross z (by simpa only [Walk.support_reverse, List.mem_reverse] using hz)
-                  hzc y (by simpa only [s, List.mem_toFinset] using hy) hzy with
-                hyc | ⟨hzd, hya⟩
-              · exact hyc
-              · exact (hda (by simpa [hzd, hya] using hzy)).elim)
-          have hset : (p.cons hcd).reverse.support.toFinset ∪ s = p.support.toFinset ∪ s := by
-            ext z
-            simp only [Finset.mem_union, List.mem_toFinset, Walk.support_reverse,
-              List.mem_reverse, Walk.support_cons, List.mem_cons]
-            have hc : c ∈ s := by simp [s]
-            aesop
-          rw [hset] at hTfull
-          have hdis : Disjoint p.support.toFinset s := by
-            apply Finset.disjoint_left.mpr
-            intro z hz hzs
-            have hzc := hinter z (hpmem (by simpa only [List.mem_toFinset] using hz))
-              (by simpa only [s, List.mem_toFinset] using hzs)
-            exact hcnotp (by simpa [hzc] using hz)
-          have hpcard : p.support.toFinset.card = p.length + 1 := by
-            rw [List.toFinset_card_of_nodup hpPath.support_nodup, p.length_support]
-          have hqcard : s.card = q.length + 3 := by
-            change ((q.cons hab).cons hca).support.toFinset.card = q.length + 3
-            rw [List.toFinset_card_of_nodup hq.support_nodup, Walk.length_support]
-            simp only [Walk.length_cons]
-          have hbound := card_le_largestInducedTreeSize hTfull
-          rw [Finset.card_union_of_disjoint hdis, hpcard, hqcard] at hbound
-          simp only [Walk.length_cons] at hplower
-          omega
+private lemma dist_le_lit [Fintype α] [DecidableEq α] (hG : G.Connected) (u v : α) :
+    G.dist u v + 1 ≤ largestInducedTreeSize G := by
+  obtain ⟨p, hp, hl⟩ := hG.exists_path_of_dist u v
+  have hle := card_le_largestInducedTreeSize (Walk.induce_support_isTree_of_length_eq_dist p hl)
+  rwa [List.toFinset_card_of_nodup hp.support_nodup, length_support, hl] at hle
 
-/-- Chung's induction gives an induced tree of order at least twice the radius minus one. -/
-lemma chung_induced_tree_bound {G : SimpleGraph α} (hG : G.Connected) :
-    2 * G.radius.toNat ≤ largestInducedTreeSize G + 1 := by
+private lemma rad_le_lit [Fintype α] [DecidableEq α] [Nonempty α] (hG : G.Connected) :
+    G.radius.toNat + 1 ≤ largestInducedTreeSize G := by
+  obtain ⟨u, v, huv⟩ := G.exists_dist_eq_diam
+  have := rad_le_diam hG; have := dist_le_lit hG u v; omega
+
+private lemma tree_img [DecidableEq α] {S : Set α} {t : Finset S}
+    (ht : ((G.induce S).induce (t : Set S)).IsTree) :
+    (G.induce ((t.image Subtype.val : Finset α) : Set α)).IsTree := by
   classical
-  induction hn : Fintype.card α using Nat.strong_induction_on generalizing α with
+  let e : (G.induce S).induce (t : Set S) ≃g G.induce ((t.image Subtype.val : Finset α) : Set α) :=
+    { toFun := fun x => ⟨x.1.1, mem_coe.mpr (mem_image_of_mem _ (mem_coe.mp x.2))⟩
+      invFun := fun y => let h := mem_image.mp (mem_coe.mp y.2); ⟨h.choose, mem_coe.mpr h.choose_spec.1⟩
+      left_inv := fun x => Subtype.ext (Subtype.ext
+        (mem_image.mp (mem_coe.mp (mem_coe.mpr (mem_image_of_mem Subtype.val (mem_coe.mp x.2))))).choose_spec.2)
+      right_inv := fun y => Subtype.ext (mem_image.mp (mem_coe.mp y.2)).choose_spec.2
+      map_rel_iff' := Iff.rfl }
+  exact (Iso.isTree_iff e).mp ht
+
+private lemma lit_induce_le [Fintype α] [DecidableEq α] (S : Set α) [Fintype S] [DecidableEq S] :
+    largestInducedTreeSize (G.induce S) ≤ largestInducedTreeSize G := by
+  classical
+  unfold largestInducedTreeSize
+  set A : Set ℕ := { n | ∃ s : Finset S, s.card = n ∧ ((G.induce S).induce (s : Set S)).IsTree }
+  by_cases hA : A.Nonempty
+  · refine csSup_le hA ?_
+    rintro n ⟨t, rfl, ht⟩
+    rw [← card_image_of_injective t Subtype.val_injective]
+    exact card_le_largestInducedTreeSize (tree_img ht)
+  · rw [Set.not_nonempty_iff_eq_empty.mp hA]; simp
+
+private lemma dist_le_ind (S : Set α) {u v : S} (hr : (G.induce S).Reachable u v) :
+    G.dist u.1 v.1 ≤ (G.induce S).dist u v := by
+  obtain ⟨p, hp⟩ := hr.exists_walk_length_eq_dist
+  exact (G.dist_le (p.map (Embedding.induce S).toHom)).trans (by rw [length_map, hp])
+
+private lemma tree_path_len (hT : G.IsTree) {u v : α} {p : G.Walk u v} (hp : p.IsPath) :
+    p.length = G.dist u v := by
+  obtain ⟨q, hq, hl⟩ := hT.1.exists_path_of_dist u v
+  have heq := (hT.existsUnique_path u v).unique hp hq
+  subst heq; exact hl
+
+private lemma tree_single [DecidableEq α] (a : α) :
+    (G.induce (({a} : Finset α) : Set α)).IsTree := by
+  have h : ({a} : Finset α) = (Walk.nil : G.Walk a a).support.toFinset := by simp
+  rw [h]; exact Walk.induce_support_isTree_of_length_eq_dist (Walk.nil : G.Walk a a) (by simp)
+
+private lemma reach_mono {S T : Set α} (h : S ⊆ T) {u v : S}
+    (r : (G.induce S).Reachable u v) : (G.induce T).Reachable ⟨u.1, h u.2⟩ ⟨v.1, h v.2⟩ := by
+  obtain ⟨p⟩ := r
+  let f : G.induce S →g G.induce T := ⟨fun x => ⟨x.1, h x.2⟩, fun e => e⟩
+  exact ⟨p.map f⟩
+
+end SecA
+
+section SecB
+
+private lemma two_rad_sub_two {β : Type u} [Fintype β] [DecidableEq β] [Nonempty β]
+    (H : SimpleGraph β) (hH : H.Connected) :
+    2 * H.radius.toNat - 2 ≤ largestInducedTreeSize H := by
+  classical
+  set r := H.radius.toNat
+  by_cases hr3 : r ≤ 3
+  · have := rad_le_lit hH; omega
+  · set k := r - 3; set D := H.diam
+    have := rad_le_diam hH
+    obtain ⟨x0, y, hxy⟩ := H.exists_dist_eq_diam
+    obtain ⟨P, -, hP⟩ := hH.exists_path_of_dist x0 y
+    have hPD : P.length = D := hP.trans hxy
+    let x := P.getVert
+    have hx0 : x 0 = x0 := getVert_zero P
+    have hxD : x D = y := by simpa [x, hPD] using getVert_length P
+    have hxd : ∀ i j, i ≤ j → j ≤ D → H.dist (x i) (x j) = j - i :=
+      fun i j hij hj => wdist_eq P hP hij (by omega)
+    let S : Set β := { u | ∃ j < k, H.dist (x j) u ≤ 1 }
+    have hxn : ∀ i, k + 1 ≤ i → i ≤ D → x i ∉ S := fun i hi1 hiD ⟨j, hjk, hdj⟩ => by
+      have := hxd j i (by omega) hiD; omega
+    have hyS : y ∉ S := hxD ▸ hxn D (by omega) le_rfl
+    have hxk1S : x (k + 1) ∉ S := hxn (k + 1) le_rfl (by omega)
+    have hxkS : x k ∈ S := ⟨k - 1, by omega, by
+      have ha : H.Adj (x (k - 1)) (x k) := by
+        simpa [x, show k - 1 + 1 = k by omega] using P.adj_getVert_succ (by omega : k - 1 < P.length)
+      simp [dist_eq_one_iff_adj.mpr ha]⟩
+    let C : Set β := { z | ∃ hz : z ∉ S, (H.induce Sᶜ).Reachable ⟨y, hyS⟩ ⟨z, hz⟩ }
+    have hxk1C : x (k + 1) ∈ C := by
+      have hsr : ∀ d, k + 1 + d ≤ D → ∀ h : x (k + 1 + d) ∉ S,
+          (H.induce Sᶜ).Reachable ⟨x (k + 1), hxk1S⟩ ⟨x (k + 1 + d), h⟩ := by
+        intro d; induction d with
+        | zero => intro _ _; exact Reachable.refl _
+        | succ d ih =>
+          intro hd hts
+          have hp := hxn (k + 1 + d) (by omega) (by omega)
+          have ha : (H.induce Sᶜ).Adj ⟨x (k + 1 + d), hp⟩ ⟨x (k + 1 + (d + 1)), hts⟩ :=
+            induce_adj.mpr (by simpa [add_assoc] using P.adj_getVert_succ (by omega : k + 1 + d < P.length))
+          exact (ih (by omega) hp).trans ha.reachable
+      refine ⟨hxk1S, ?_⟩
+      obtain ⟨q⟩ := (hsr (D - (k + 1)) (by omega)
+        (by simpa [show k + 1 + (D - (k + 1)) = D by omega, hxD] using hyS)).symm
+      exact ⟨q.copy (Subtype.ext (by simp [x, show k + 1 + (D - (k + 1)) = D by omega, hxD])) rfl⟩
+    have hnC : ∀ z, z ∉ C → H.dist (x k) z ≤ k + 2 := by
+      intro z hzC
+      by_cases hzS : z ∈ S
+      · obtain ⟨j, hjk, hdz⟩ := hzS
+        have := hH.dist_triangle (u := x k) (v := x j) (w := z)
+        have hkj := hxd j k (by omega) (by omega); rw [H.dist_comm] at hkj; omega
+      · obtain ⟨q, -, hq⟩ := hH.exists_path_of_dist y z
+        have hex : ∃ u ∈ q.support, u ∈ S := by
+          by_contra hn; push Not at hn; exact hzC ⟨hzS, ⟨q.induce Sᶜ hn⟩⟩
+        obtain ⟨u, huq, j, hjk, hju⟩ := hex
+        have := wdist_add q hq huq; have := dist_le_diam hH y z
+        have hj0 : H.dist x0 (x j) = j := by simpa [hx0] using hxd 0 j (Nat.zero_le j) (by omega)
+        have := hH.dist_triangle (u := x0) (v := x j) (w := y)
+        have := hH.dist_triangle (u := x j) (v := u) (w := y)
+        have := hH.dist_triangle (u := x k) (v := x j) (w := z)
+        have := hH.dist_triangle (u := x j) (v := u) (w := z)
+        have hkj := hxd j k (by omega) (by omega)
+        have h1 : H.dist (x k) (x j) = H.dist (x j) (x k) := H.dist_comm
+        have h2 : H.dist y u = H.dist u y := H.dist_comm
+        omega
+    obtain ⟨w, hwd⟩ := rad_ge_ex hH (x k)
+    have hwC : w ∈ C := by by_contra hn; have := hnC w hn; omega
+    let S' : Set β := insert (x k) C
+    have hrC : (H.induce S').Reachable ⟨x (k + 1), Set.mem_insert_of_mem _ hxk1C⟩
+        ⟨w, Set.mem_insert_of_mem _ hwC⟩ := by
+      obtain ⟨hx1S, hr1⟩ := hxk1C; obtain ⟨hwS, hr2⟩ := hwC; obtain ⟨p⟩ := hr1.symm.trans hr2
+      have hps : ∀ u ∈ (p.map (Embedding.induce Sᶜ).toHom).support, u ∈ S' := by
+        intro u hu; rw [Walk.support_map, List.mem_map] at hu; obtain ⟨v, hv, rfl⟩ := hu
+        exact Set.mem_insert_of_mem _ ⟨v.2, hr1.trans (p.takeUntil v hv).reachable⟩
+      exact ⟨(p.map (Embedding.induce Sᶜ).toHom).induce S' hps⟩
+    have hrw : (H.induce S').Reachable ⟨x k, Set.mem_insert _ _⟩ ⟨w, Set.mem_insert_of_mem _ hwC⟩ :=
+      (Adj.reachable (induce_adj.mpr (P.adj_getVert_succ (by omega : k < P.length)))).trans hrC
+    obtain ⟨Q, -, hQl⟩ := hrw.exists_path_of_dist
+    have hQr : H.dist (x k) w ≤ (H.induce S').dist ⟨x k, Set.mem_insert _ _⟩
+        ⟨w, Set.mem_insert_of_mem _ hwC⟩ := dist_le_ind S' hrw
+    let T0 : Finset β := Q.support.toFinset.image Subtype.val
+    have hT0t : (H.induce (T0 : Set β)).IsTree := tree_img (Walk.induce_support_isTree_of_length_eq_dist Q hQl)
+    have hT0c : r + 1 ≤ T0.card := by
+      rw [card_image_of_injective _ Subtype.val_injective,
+        List.toFinset_card_of_nodup (Q.isPath_of_length_eq_dist hQl).support_nodup, length_support]; omega
+    have hxkT0 : x k ∈ T0 := mem_image_of_mem _ (List.mem_toFinset.mpr Q.start_mem_support)
+    have hT0sub : ∀ v ∈ T0, v = x k ∨ v ∈ C := fun v hv => by
+      obtain ⟨v', _, rfl⟩ := mem_image.mp hv; exact Set.mem_insert_iff.mp v'.2
+    have hbuild : ∀ m ≤ k, ∃ T : Finset β, (H.induce (T : Set β)).IsTree ∧ T0.card + m ≤ T.card ∧
+        x (k - m) ∈ T ∧ (∀ v ∈ T, v ∈ T0 ∨ ∃ j, k - m ≤ j ∧ j < k ∧ v = x j) := by
+      intro m; induction m with
+      | zero => intro _; exact ⟨T0, hT0t, by omega, hxkT0, fun _ hv => Or.inl hv⟩
+      | succ m ih =>
+        intro hm
+        obtain ⟨T, hTt, hTc, haT, hTs⟩ := ih (by omega)
+        let z := x (k - (m + 1)); let a := x (k - m)
+        have hza : H.Adj z a := by
+          have : k - (m + 1) + 1 = k - m := by omega
+          simpa [z, a, this] using P.adj_getVert_succ (by omega : k - (m + 1) < P.length)
+        have hzS : z ∈ S := ⟨k - (m + 1), by omega, by simp [z]⟩
+        have hzz : z = x (k - (m + 1)) := rfl
+        have hznT : z ∉ T := fun hzT => by
+          rcases hTs z hzT with hz0 | ⟨j, _, _, hzj⟩
+          · rcases hT0sub z hz0 with hzx | hzC
+            · have := hxd (k - (m + 1)) k (by omega) (by omega); rw [← hzz, hzx, dist_self] at this; omega
+            · exact hzC.1 hzS
+          · have := hxd (k - (m + 1)) j (by omega) (by omega); rw [← hzz, hzj, dist_self] at this; omega
+        have huniq : ∀ ⦃b : β⦄, b ∈ T → H.Adj z b → b = a := fun b hb hzb => by
+          have hbS : b ∈ S := ⟨k - (m + 1), by omega, by rw [← hzz, dist_eq_one_iff_adj.mpr hzb]⟩
+          rcases hTs b hb with hb0 | ⟨j, _, _, hbj⟩
+          · rcases hT0sub b hb0 with hbx | hbC
+            · have := hxd (k - (m + 1)) k (by omega) (by omega)
+              rw [← hzz, ← hbx, dist_eq_one_iff_adj.mpr hzb] at this
+              have hm0 : m = 0 := by omega
+              subst hm0; simpa [a] using hbx
+            · exact absurd hbS hbC.1
+          · have := hxd (k - (m + 1)) j (by omega) (by omega)
+            rw [← hzz, ← hbj, dist_eq_one_iff_adj.mpr hzb] at this
+            have hjk : j = k - m := by omega
+            rw [hbj, hjk]
+        refine ⟨insert z T, hTt.induce_insert_of_unique_adj hznT haT hza huniq,
+          by rw [card_insert_of_notMem hznT]; omega, mem_insert_self z T, fun v hv => ?_⟩
+        rcases mem_insert.mp hv with rfl | hvT
+        · exact Or.inr ⟨k - (m + 1), le_rfl, by omega, rfl⟩
+        · rcases hTs v hvT with hv0 | ⟨j, hj1, hj2, hvj⟩
+          · exact Or.inl hv0
+          · exact Or.inr ⟨j, by omega, hj2, hvj⟩
+    obtain ⟨T, hTt, hTc, -⟩ := hbuild k le_rfl
+    have := card_le_largestInducedTreeSize hTt; omega
+
+end SecB
+
+section SecC
+
+private theorem tree_two_rad : ∀ n : ℕ, ∀ {β : Type u} [Fintype β] [DecidableEq β] [Nonempty β],
+    Fintype.card β = n → ∀ (T : SimpleGraph β), T.IsTree → 2 * T.radius.toNat ≤ Fintype.card β := by
+  intro n; induction n using Nat.strong_induction_on with
   | h n ih =>
-    haveI : Nonempty α := hG.nonempty
-    have htree := radius_add_one_le_largestInducedTreeSize (G := G) hG
-    by_cases hr : G.radius.toNat ≤ 2
-    · omega
-    have hr : 3 ≤ G.radius.toNat := by omega
-    haveI : Nontrivial α := by
-      rcases subsingleton_or_nontrivial α with hsub | hnt
-      · have hzero : G.radius = 0 := G.radius_eq_zero_iff.mpr ⟨hG.nonempty, hsub⟩
-        simp only [hzero, ENat.toNat_zero] at hr
+    intro β _ _ _ hn T hT
+    classical
+    by_cases hn2 : n ≤ 2
+    · obtain ⟨x, y, hxy⟩ := T.exists_dist_eq_diam
+      obtain ⟨P, hPp, hPl⟩ := hT.1.exists_path_of_dist x y
+      have := rad_le_diam hT.1; have := hPp.length_lt; omega
+    · have hn3 : 3 ≤ Fintype.card β := by omega
+      obtain ⟨x0, y, hxy⟩ := T.exists_dist_eq_diam
+      obtain ⟨P, hPp, hPl⟩ := hT.1.exists_path_of_dist x0 y
+      set D := T.diam
+      have hPD : P.length = D := hPl.trans hxy
+      have hD2 : 2 ≤ D := by
+        by_contra hD1
+        have hDr : T.radius.toNat ≤ 1 := by have := rad_le_diam hT.1; omega
+        obtain ⟨c, hc⟩ := center_ex hT.1
+        have hne1 : ((univ : Finset β).erase c).card ≥ 2 := by
+          rw [card_erase_of_mem (mem_univ c), card_univ]; omega
+        obtain ⟨a, ha, b, hb, hab⟩ := one_lt_card.mp hne1
+        rw [mem_erase] at ha hb
+        have hca : T.Adj c a := dist_eq_one_iff_adj.mp (by
+          have := (hT.1 c a).pos_dist_of_ne ha.1.symm; have := hc a; omega)
+        have hcb : T.Adj c b := dist_eq_one_iff_adj.mp (by
+          have := (hT.1 c b).pos_dist_of_ne hb.1.symm; have := hc b; omega)
+        have hab' : T.Adj a b := dist_eq_one_iff_adj.mp (by
+          have := (hT.1 a b).pos_dist_of_ne hab; have := dist_le_diam hT.1 a b; omega)
+        exact hT.2 (Walk.cons hca (Walk.cons hab' (Walk.cons hcb.symm .nil))) (by
+          simp [isCycle_def, isTrail_def, hab, ha.1, hb.1, hb.1.symm])
+      let S : Set β := { v | ∃ u w, u ≠ w ∧ T.Adj v u ∧ T.Adj v w }
+      have h1S : P.getVert 1 ∈ S := ⟨P.getVert 0, P.getVert 2, fun heq => by
+        have := wdist_eq P hPl (Nat.zero_le 2) (by omega); rw [heq, dist_self] at this; omega,
+        (P.adj_getVert_succ (by omega : 0 < P.length)).symm, P.adj_getVert_succ (by omega : 1 < P.length)⟩
+      have hend_nS : ∀ {a b : β} (Q : T.Walk a b), Q.IsPath → Q.length = D → a ∉ S := by
+        intro a b Q hQp hQl ⟨u, w, huw, hau, haw⟩
+        have : ∃ z, z ≠ Q.getVert 1 ∧ T.Adj z a := by
+          by_cases h : u = Q.getVert 1
+          · exact ⟨w, fun h' => huw (h.trans h'.symm), haw.symm⟩
+          · exact ⟨u, h, hau.symm⟩
+        obtain ⟨z, hz1, hza⟩ := this
+        have hzQ : z ∉ Q.support := fun hzs => by
+          obtain ⟨j, hje, hj⟩ := Q.mem_support_iff_exists_getVert.mp hzs
+          have := wdist_eq Q (tree_path_len hT hQp) (Nat.zero_le j) hj
+          rw [getVert_zero, hje, dist_eq_one_iff_adj.mpr hza.symm] at this
+          have hj1 : j = 1 := by omega
+          exact hz1 (by rw [← hje, hj1])
+        have hl1 : (Walk.cons hza Q).length = T.dist z b :=
+          tree_path_len hT ((cons_isPath_iff hza Q).mpr ⟨hQp, hzQ⟩)
+        have := dist_le_diam hT.1 z b
+        simp only [length_cons] at hl1; omega
+      have hx0S := hend_nS P hPp hPD
+      have hyS := hend_nS P.reverse hPp.reverse (by simp [hPD])
+      have hxy_ne : x0 ≠ y := fun h => by rw [h, dist_self] at hxy; omega
+      let SF : Finset β := univ.filter (· ∈ S)
+      have hSF_sub : SF ⊆ (univ.erase x0).erase y := fun v hv => by
+        simp only [SF, mem_filter, mem_univ, true_and] at hv
+        simp only [mem_erase, mem_univ, and_true]
+        exact ⟨fun h => hyS (h ▸ hv), fun h => hx0S (h ▸ hv)⟩
+      have hcardS : Fintype.card S + 2 ≤ n := by
+        have hc := card_le_card hSF_sub
+        have hSF : Fintype.card S = SF.card := by
+          have := (Fintype.card_of_subtype (p := (· ∈ S)) SF (fun _ => by simp [SF])).symm
+          simpa using this
+        rw [card_erase_of_mem (mem_erase.mpr ⟨hxy_ne.symm, mem_univ _⟩),
+          card_erase_of_mem (mem_univ x0), card_univ] at hc
         omega
-      · exact hnt
-    obtain ⟨x, hx⟩ := hG.exists_connected_induce_compl_singleton_of_finite_nontrivial
-    let H := G.induce ({x}ᶜ : Set α)
-    have hcard : Fintype.card ↥({x}ᶜ : Set α) < n := by
-      rw [← hn]
-      exact Fintype.card_subtype_lt (x := x) (by simp)
-    by_cases hrad : G.radius.toNat ≤ H.radius.toNat
-    · have hsmall := ih _ hcard (G := H) hx rfl
-      have htrans : largestInducedTreeSize H ≤ largestInducedTreeSize G :=
-        largestInducedTreeSize_induce_le G ({x}ᶜ : Set α)
+      have : Nonempty S := ⟨⟨P.getVert 1, h1S⟩⟩
+      have hTS : (T.induce S).IsTree := by
+        refine ⟨Connected.mk fun a b => ?_, hT.2.induce S⟩
+        obtain ⟨q, hqp, -⟩ := hT.1.exists_path_of_dist a.1 b.1
+        refine ⟨q.induce S fun v hv => ?_⟩
+        by_cases hva : v = a.1; · exact hva ▸ a.2
+        by_cases hvb : v = b.1; · exact hvb ▸ b.2
+        obtain ⟨j, hje, hj⟩ := q.mem_support_iff_exists_getVert.mp hv
+        have hj1 : 1 ≤ j := Nat.pos_of_ne_zero fun h => hva (by rw [← hje, h, getVert_zero])
+        have hj2 : j < q.length := lt_of_le_of_ne hj fun h => hvb (by rw [← hje, h, getVert_length])
+        rw [← hje]
+        exact ⟨q.getVert (j - 1), q.getVert (j + 1), fun h => by
+          have := wdist_eq q (tree_path_len hT hqp) (by omega : j - 1 ≤ j + 1) (by omega)
+          rw [h, dist_self] at this; omega,
+          by simpa [show j - 1 + 1 = j by omega] using (q.adj_getVert_succ (by omega : j - 1 < q.length)).symm,
+          q.adj_getVert_succ hj2⟩
+      have hnear : ∀ v : β, ∃ w ∈ S, T.dist w v ≤ 1 := by
+        intro v
+        by_cases hvS : v ∈ S; · exact ⟨v, hvS, by simp⟩
+        have hbne : ((univ : Finset β).erase v).Nonempty := by
+          rw [← card_pos, card_erase_of_mem (mem_univ v), card_univ]; omega
+        obtain ⟨b, hb⟩ := hbne; rw [mem_erase] at hb
+        obtain ⟨w, hvw⟩ : ∃ w, T.Adj v w := by
+          obtain ⟨p0⟩ := hT.1 v b
+          cases p0 with | nil => exact absurd rfl hb.1.symm | cons h _ => exact ⟨_, h⟩
+        have hzne : (((univ : Finset β).erase v).erase w).Nonempty := by
+          rw [← card_pos]
+          by_cases hw_mem : w ∈ (univ : Finset β).erase v
+          · rw [card_erase_of_mem hw_mem, card_erase_of_mem (mem_univ v), card_univ]; omega
+          · rw [erase_eq_of_notMem hw_mem, card_erase_of_mem (mem_univ v), card_univ]; omega
+        obtain ⟨z, hz⟩ := hzne
+        simp only [mem_erase, mem_univ, and_true] at hz
+        obtain ⟨q, hqp, hql⟩ := hT.1.exists_path_of_dist v z
+        have hql2 : 2 ≤ q.length := by
+          by_contra hlt
+          have := (hT.1 v z).pos_dist_of_ne hz.2.symm
+          have hq1 : q.length = 1 := by omega
+          have hadj1 : T.Adj v z := by
+            simpa [getVert_zero, show q.getVert 1 = z by simpa [hq1] using getVert_length q] using
+              q.adj_getVert_succ (by omega : 0 < q.length)
+          exact hvS ⟨w, z, hz.1.symm, hvw, hadj1⟩
+        have hq1w : q.getVert 1 = w := by
+          by_contra hne
+          exact hvS ⟨q.getVert 1, w, hne, by simpa [getVert_zero] using q.adj_getVert_succ (by omega : 0 < q.length), hvw⟩
+        have hwS : w ∈ S := by
+          rw [← hq1w]
+          exact ⟨q.getVert 0, q.getVert 2, fun h => by
+            have := wdist_eq q hql (Nat.zero_le 2) (by omega); rw [h, dist_self] at this; omega,
+            (by simpa using (q.adj_getVert_succ (by omega : 0 < q.length)).symm),
+            q.adj_getVert_succ (by omega : 1 < q.length)⟩
+        exact ⟨w, hwS, by rw [dist_eq_one_iff_adj.mpr hvw.symm]⟩
+      have hih := ih (Fintype.card S) (by omega) rfl (T.induce S) hTS
+      obtain ⟨c, hc⟩ := center_ex hTS.1
+      have hr : T.radius.toNat ≤ (T.induce S).radius.toNat + 1 := rad_le hT.1 ⟨c.1, fun v => by
+        obtain ⟨w, hwS, hdw⟩ := hnear v
+        have htri := (hT.1 w v).dist_triangle_right c.1
+        have hdi : T.dist c.1 w ≤ (T.induce S).dist c ⟨w, hwS⟩ := dist_le_ind S (hTS.1 c ⟨w, hwS⟩)
+        have hcw := hc ⟨w, hwS⟩
+        omega⟩
       omega
-    · have hdrop : H.radius.toNat ≤ G.radius.toNat - 1 := by omega
-      obtain ⟨c, _, _, hcx, hother⟩ := radius_drop_witness hG x hx (by omega) hdrop
-      exact chung_bound_of_unique_farthest hG hr hcx hother
 
-/-- The supports of two geodesics in separate branches induce a tree of their combined order. -/
-lemma geodesic_branches_bound {G : SimpleGraph α} (hG : G.Connected)
-    {c a b : α} (p : G.Walk c a) (q : G.Walk c b)
-    (hp : p.length = G.dist c a) (hq : q.length = G.dist c b)
-    (hinter : ∀ z ∈ p.support, z ∈ q.support → z = c)
-    (hsep : ∀ z ∈ p.support, z ≠ c → ∀ y ∈ q.support, y ≠ c → ¬ G.Adj z y) :
-    p.length + q.length + 1 ≤ largestInducedTreeSize G := by
+private lemma tree_two_rad_lit {β : Type u} [Fintype β] [DecidableEq β] [Nonempty β]
+    (T : SimpleGraph β) (hT : T.IsTree) : 2 * T.radius.toNat ≤ largestInducedTreeSize T := by
+  have h1 := tree_two_rad (Fintype.card β) rfl T hT
+  have h2 := card_le_largestInducedTreeSize (s := (Finset.univ : Finset β))
+    (by rw [coe_univ]; exact (Iso.isTree_iff T.induceUnivIso).mpr hT)
+  simp only [Finset.card_univ] at h2; omega
+
+end SecC
+
+section SecD
+
+variable {α : Type u} {G : SimpleGraph α}
+
+private def Cut (G : SimpleGraph α) (c : α) : Prop :=
+  ¬ (G.induce {x : α | x ≠ c}).Preconnected
+
+private def HasCut (G : SimpleGraph α) : Prop := ∃ c : α, Cut G c
+
+private noncomputable def comp [Fintype α] [DecidableEq α] (G : SimpleGraph α) (c a : α)
+    (ha : a ≠ c) : Finset α := by
   classical
-  have hprev : p.reverse.length = G.dist a c := by
-    simpa only [Walk.length_reverse, SimpleGraph.dist_comm] using hp
-  have hT := induce_union_geodesic_isTree hG p.reverse hprev q.support.toFinset
-    (q.induce_support_isTree_of_length_eq_dist hq) (by simp) (by
-      intro z hz hzs
-      exact hinter z (by simpa only [Walk.support_reverse, List.mem_reverse] using hz)
-        (by simpa only [List.mem_toFinset] using hzs)) (by
-      intro z hz hzc y hy hzy
-      by_contra hyc
-      exact hsep z (by simpa only [Walk.support_reverse, List.mem_reverse] using hz) hzc y
-        (by simpa only [List.mem_toFinset] using hy) hyc hzy)
-  have hset : p.reverse.support.toFinset ∪ q.support.toFinset =
-      p.support.toFinset ∪ q.support.toFinset := by ext z; simp
-  rw [hset] at hT
-  have hcardp : p.support.toFinset.card = p.length + 1 := by
-    rw [List.toFinset_card_of_nodup (p.isPath_of_length_eq_dist hp).support_nodup,
-      p.length_support]
-  have hcardq : q.support.toFinset.card = q.length + 1 := by
-    rw [List.toFinset_card_of_nodup (q.isPath_of_length_eq_dist hq).support_nodup,
-      q.length_support]
-  have hinterset : p.support.toFinset ∩ q.support.toFinset = {c} := by
-    ext z
-    simp only [Finset.mem_inter, List.mem_toFinset, Finset.mem_singleton]
-    constructor
-    · exact fun ⟨hzp, hzq⟩ => hinter z hzp hzq
-    · intro hzc
-      subst z
-      exact ⟨p.start_mem_support, q.start_mem_support⟩
-  have hbound := card_le_largestInducedTreeSize hT
-  rw [Finset.card_union, hcardp, hcardq, hinterset, Finset.card_singleton] at hbound
-  omega
+  exact univ.filter fun x => ∃ hx : x ≠ c, (G.induce {u | u ≠ c}).Reachable ⟨a, ha⟩ ⟨x, hx⟩
 
-/-- After removing the initial vertex of a geodesic, its remaining vertices still reach
-the endpoint in the deletion graph. -/
-lemma reachable_compl_of_mem_geodesic {G : SimpleGraph α} {c a z : α}
-    (p : G.Walk c a) (hp : p.length = G.dist c a) (ha : a ≠ c)
-    (hz : z ∈ p.support) (hzc : z ≠ c) :
-    (G.induce ({c}ᶜ : Set α)).Reachable
-      ⟨z, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hzc⟩
-      ⟨a, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using ha⟩ := by
-  cases p with
-  | nil => exact (ha rfl).elim
-  | @cons c n a hcn p =>
-    have hpath := (p.cons hcn).isPath_of_length_eq_dist hp
-    have hcnot : c ∉ p.support := (List.nodup_cons.mp hpath.support_nodup).1
-    have hzp : z ∈ p.support := by
-      simpa only [Walk.support_cons, List.mem_cons, or_iff_right hzc] using hz
-    let q := p.dropUntil z hzp
-    have hsub : ∀ w ∈ q.support, w ∈ ({c}ᶜ : Set α) := by
-      intro w hw
-      have hwp := p.support_dropUntil_subset hzp hw
-      have hwc : w ≠ c := by intro heq; exact hcnot (heq ▸ hwp)
-      simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hwc
-    exact ⟨q.induce ({c}ᶜ : Set α) hsub⟩
+private lemma mem_comp [Fintype α] [DecidableEq α] {c a : α} (ha : a ≠ c) {x : α} :
+    x ∈ comp G c a ha ↔ ∃ hx : x ≠ c, (G.induce {u | u ≠ c}).Reachable ⟨a, ha⟩ ⟨x, hx⟩ := by
+  classical simp [comp]
 
-/-- Geodesics from a cut vertex into different components give the two-branch tree bound. -/
-lemma geodesic_branches_bound_of_not_reachable {G : SimpleGraph α} (hG : G.Connected)
-    {c a b : α} (ha : a ≠ c) (hb : b ≠ c)
-    (hsep : ¬ (G.induce ({c}ᶜ : Set α)).Reachable
-      ⟨a, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using ha⟩
-      ⟨b, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hb⟩) :
-    G.dist c a + G.dist c b + 1 ≤ largestInducedTreeSize G := by
-  obtain ⟨p, _, hp⟩ := hG.exists_path_of_dist c a
-  obtain ⟨q, _, hq⟩ := hG.exists_path_of_dist c b
-  rw [← hp, ← hq]
-  apply geodesic_branches_bound hG p q hp hq
-  · intro z hzp hzq
-    by_contra hzc
-    have hza := reachable_compl_of_mem_geodesic p hp ha hzp hzc
-    have hzb := reachable_compl_of_mem_geodesic q hq hb hzq hzc
-    exact hsep (hza.symm.trans hzb)
-  · intro z hzp hzc y hyq hyc hzy
-    have hza := reachable_compl_of_mem_geodesic p hp ha hzp hzc
-    have hyb := reachable_compl_of_mem_geodesic q hq hb hyq hyc
-    have hadj : (G.induce ({c}ᶜ : Set α)).Adj
-        ⟨z, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hzc⟩
-        ⟨y, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hyc⟩ := hzy
-    exact hsep (hza.symm.trans (hadj.reachable.trans hyb))
+private lemma ne_comp [Fintype α] [DecidableEq α] {c a x : α} {ha : a ≠ c}
+    (hx : x ∈ comp G c a ha) : x ≠ c := ((mem_comp ha).mp hx).1
 
-/-- Vertices in different deletion components have all shortest paths through the cut vertex. -/
-lemma dist_eq_add_of_not_reachable_compl {G : SimpleGraph α} (hG : G.Connected)
-    {c a b : α} (ha : a ≠ c) (hb : b ≠ c)
-    (hsep : ¬ (G.induce ({c}ᶜ : Set α)).Reachable
-      ⟨a, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using ha⟩
-      ⟨b, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hb⟩) :
-    G.dist a b = G.dist a c + G.dist c b := by
-  obtain ⟨p, _, hp⟩ := hG.exists_path_of_dist a b
-  by_cases hc : c ∈ p.support
-  · exact (dist_add_dist_eq_of_mem_geodesic p hp hc).symm
-  · have hsub : ∀ z ∈ p.support, z ∈ ({c}ᶜ : Set α) := by
-      intro z hz
-      have hzc : z ≠ c := by intro heq; exact hc (heq ▸ hz)
-      simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hzc
-    exact (hsep ⟨p.induce ({c}ᶜ : Set α) hsub⟩).elim
+private lemma nmem_comp [Fintype α] [DecidableEq α] (c a : α) (ha : a ≠ c) :
+    c ∉ comp G c a ha := fun h => ne_comp h rfl
 
-/-- A side at a cut vertex consists of that vertex and one deletion component. -/
-def cutSide (G : SimpleGraph α) (c : α) (a : ↥({c}ᶜ : Set α)) : Set α :=
-  {z | z = c ∨ ∃ hz : z ≠ c, (G.induce ({c}ᶜ : Set α)).Reachable
-    a ⟨z, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hz⟩}
+private lemma self_comp [Fintype α] [DecidableEq α] (c a : α) (ha : a ≠ c) :
+    a ∈ comp G c a ha := (mem_comp ha).mpr ⟨ha, Reachable.refl _⟩
 
-/-- A geodesic from a cut vertex to a point of one side stays in that side. -/
-lemma geodesic_support_subset_cutSide {G : SimpleGraph α} (hG : G.Connected)
-    {c v : α} (a : ↥({c}ᶜ : Set α)) (hv : v ∈ cutSide G c a)
-    (p : G.Walk c v) (hp : p.length = G.dist c v) :
-    ∀ z ∈ p.support, z ∈ cutSide G c a := by
-  intro z hz
-  by_cases hzc : z = c
-  · exact Or.inl hzc
-  · refine Or.inr ⟨hzc, ?_⟩
-    have hvc : v ≠ c := by
-      intro heq
-      have hsum := dist_add_dist_eq_of_mem_geodesic p hp hz
-      have hdist : G.dist c z = 0 := by simp only [heq, dist_self] at hsum; omega
-      exact hzc (hG.dist_eq_zero_iff.mp hdist).symm
-    rcases hv with hvc' | ⟨_, hv⟩
-    · exact (hvc hvc').elim
-    · exact hv.trans (reachable_compl_of_mem_geodesic p hp hvc hz hzc).symm
+private lemma adj_comp [Fintype α] [DecidableEq α] {c a x y : α} {ha : a ≠ c}
+    (hx : x ∈ comp G c a ha) (hy : y ≠ c) (h : G.Adj x y) : y ∈ comp G c a ha :=
+  (mem_comp ha).mpr ⟨hy, ((mem_comp ha).mp hx).2.trans (Adj.reachable (by simpa using h))⟩
 
-/-- A side at a cut vertex is connected. -/
-lemma connected_induce_cutSide {G : SimpleGraph α} (hG : G.Connected)
-    (c : α) (a : ↥({c}ᶜ : Set α)) : (G.induce (cutSide G c a)).Connected := by
-  rw [connected_iff_exists_forall_reachable]
-  refine ⟨⟨c, Or.inl rfl⟩, ?_⟩
-  intro v
-  obtain ⟨p, hp⟩ := hG.exists_walk_length_eq_dist c v
-  exact ⟨p.induce (cutSide G c a) (geodesic_support_subset_cutSide hG a v.property p hp)⟩
+private lemma eq_comp [Fintype α] [DecidableEq α] {c a b : α} {ha : a ≠ c}
+    (hb : b ≠ c) (hm : b ∈ comp G c a ha) : comp G c b hb = comp G c a ha := by
+  obtain ⟨_, hr⟩ := (mem_comp ha).mp hm; ext x; simp only [mem_comp]
+  exact ⟨fun ⟨hx, h⟩ => ⟨hx, hr.trans h⟩, fun ⟨hx, h⟩ => ⟨hx, hr.symm.trans h⟩⟩
 
-/-- Restricting a walk to a vertex set preserves its length. -/
-lemma length_induce_walk {G : SimpleGraph α} {S : Set α} {u v : α}
-    (p : G.Walk u v) (hp : ∀ z ∈ p.support, z ∈ S) :
-    (p.induce S hp).length = p.length := by
-  calc
-    (p.induce S hp).length = ((p.induce S hp).map
-        (SimpleGraph.Embedding.induce S).toHom).length := (Walk.length_map _ _).symm
-    _ = p.length := congrArg Walk.length (Walk.map_induce p hp)
+private lemma disj_comp [Fintype α] [DecidableEq α] {c a b : α} {ha : a ≠ c}
+    (hb : b ≠ c) (hn : b ∉ comp G c a ha) : Disjoint (comp G c b hb) (comp G c a ha) :=
+  disjoint_left.mpr fun _ hxb hxa =>
+    let hx := ne_comp hxb
+    hn ((eq_comp hx hxb |>.symm.trans (eq_comp hx hxa)) ▸ self_comp c b hb)
 
-/-- Distances inside one side of a cut vertex equal their ambient distances. -/
-lemma dist_induce_cutSide {G : SimpleGraph α} (hG : G.Connected)
-    (c : α) (a : ↥({c}ᶜ : Set α)) (u v : cutSide G c a) :
-    (G.induce (cutSide G c a)).dist u v = G.dist u v := by
-  classical
-  let S := cutSide G c a
-  have hS := connected_induce_cutSide hG c a
-  apply le_antisymm
-  · obtain ⟨p, hp⟩ := hG.exists_walk_length_eq_dist (u : α) v
-    by_cases hc : c ∈ p.support
-    · let pu := (p.takeUntil c hc).reverse
-      let pv := p.dropUntil c hc
-      have hpu : pu.length = G.dist c u := by
-        simpa only [pu, Walk.length_reverse, SimpleGraph.dist_comm] using
-          length_eq_dist_of_subwalk hp (p.isSubwalk_takeUntil hc)
-      have hpv : pv.length = G.dist c v :=
-        length_eq_dist_of_subwalk hp (p.isSubwalk_dropUntil hc)
-      have hsu := geodesic_support_subset_cutSide hG a u.property pu hpu
-      have hsv := geodesic_support_subset_cutSide hG a v.property pv hpv
-      let q := (pu.induce S hsu).reverse.append (pv.induce S hsv)
-      have hdist := (G.induce S).dist_le q
-      have hlen : q.length = G.dist (u : α) v := by
-        have hsum := dist_add_dist_eq_of_mem_geodesic p hp hc
-        simp only [q, Walk.length_append, Walk.length_reverse, length_induce_walk, hpu, hpv]
-        rw [G.dist_comm (u := c) (v := (u : α))]
-        exact hsum
-      exact hdist.trans_eq hlen
-    · have hsub : ∀ z ∈ p.support, z ∈ ({c}ᶜ : Set α) := by
-        intro z hz
-        have hzc : z ≠ c := by intro heq; exact hc (heq ▸ hz)
-        simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hzc
-      have hu : (u : α) ≠ c := by
-        intro huc
-        exact hc (Eq.subst (motive := fun z : α => z ∈ p.support) huc p.start_mem_support)
-      have hur : (G.induce ({c}ᶜ : Set α)).Reachable a
-          ⟨(u : α), by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hu⟩ := by
-        rcases u.property with huc | ⟨_, hu'⟩
-        · exact (hu huc).elim
-        · exact hu'
-      have hsubS : ∀ z ∈ p.support, z ∈ S := by
-        intro z hz
-        have hzc : z ≠ c := by
-          simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hsub z hz
-        refine Or.inr ⟨hzc, hur.trans ?_⟩
-        exact ⟨(p.takeUntil z hz).induce ({c}ᶜ : Set α)
-          (fun w hw => hsub w (p.support_takeUntil_subset hz hw))⟩
-      have hdist := (G.induce S).dist_le (p.induce S hsubS)
-      simpa only [length_induce_walk, hp] using hdist
-  · obtain ⟨p, hp⟩ := hS.exists_walk_length_eq_dist u v
-    have hdist := G.dist_le (p.map (SimpleGraph.Embedding.induce S).toHom)
-    rw [Walk.length_map] at hdist
-    change G.dist (u : α) (v : α) ≤ p.length at hdist
-    exact hdist.trans_eq hp
+private lemma cut_ex [Fintype α] [DecidableEq α] {c a : α} (hc : Cut G c) (ha : a ≠ c) :
+    ∃ b : α, b ≠ c ∧ b ∉ comp G c a ha := by
+  by_contra h; push Not at h; apply hc; intro u v
+  exact ((mem_comp ha).mp (h u.1 u.2)).2.symm.trans ((mem_comp ha).mp (h v.1 v.2)).2
 
-/-- If every discarded vertex is no farther than some retained vertex from each retained
-vertex, passing to the connected induced graph cannot decrease the radius. -/
-lemma radius_le_radius_induce_of_dominated {G : SimpleGraph α} (hG : G.Connected)
-    (S : Set α) [DecidablePred (· ∈ S)] (hS : (G.induce S).Connected)
-    (hdom : ∀ v ∈ S, ∀ z ∉ S, ∃ w ∈ S, G.dist v z ≤ G.dist v w) :
-    G.radius.toNat ≤ (G.induce S).radius.toNat := by
-  haveI : Nonempty S := hS.nonempty
-  let H := G.induce S
-  obtain ⟨v, hv⟩ := H.exists_eccent_eq_radius
-  have hfin : H.radius ≠ ⊤ := H.radius_ne_top_iff.mpr hS
-  have hdist (w : S) : G.dist v w ≤ H.radius.toNat := by
-    obtain ⟨p, hp⟩ := hS.exists_walk_length_eq_dist v w
-    have hmap := G.dist_le (p.map (SimpleGraph.Embedding.induce S).toHom)
-    rw [Walk.length_map] at hmap
-    change G.dist (v : α) (w : α) ≤ p.length at hmap
-    have hcenter : H.dist v w ≤ H.radius.toNat :=
-      ENat.toNat_le_toNat (hv ▸ (H.edist_le_eccent (u := v) (v := w))) hfin
-    exact hmap.trans (hp ▸ hcenter)
-  obtain ⟨z, hz⟩ := G.exists_edist_eq_eccent_of_finite (v : α)
-  have hrz : G.radius.toNat ≤ G.dist v z :=
-    ENat.toNat_le_toNat (hz ▸ G.radius_le_eccent)
-      (edist_ne_top_iff_reachable.mpr (hG v z))
-  by_cases hzs : z ∈ S
-  · exact hrz.trans (hdist ⟨z, hzs⟩)
-  · obtain ⟨w, hw, hzw⟩ := hdom v v.property z hzs
-    exact hrz.trans (hzw.trans (hdist ⟨w, hw⟩))
+private lemma supp_eq_tail {u v : α} (p : G.Walk u v) {z : α} (hz : z ∈ p.support) :
+    z = u ∨ z ∈ p.support.tail := by cases p <;> simpa using hz
 
-/-- A separated pair in the ambient deletion graph certifies a cut in any induced graph
-containing that pair and the deleted vertex. -/
-lemma not_connected_induce_delete_of_separated_pair {G : SimpleGraph α}
-    {S : Set α} {c a b : α} (hcS : c ∈ S) (haS : a ∈ S) (hbS : b ∈ S)
-    (hac : a ≠ c) (hbc : b ≠ c)
-    (hsep : ¬ (G.induce ({c}ᶜ : Set α)).Reachable
-      ⟨a, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hac⟩
-      ⟨b, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hbc⟩) :
-    ¬ ((G.induce S).induce ({(⟨c, hcS⟩ : S)}ᶜ : Set S)).Connected := by
-  let c' : S := ⟨c, hcS⟩
-  let T := ({c'}ᶜ : Set S)
-  let a' : T := ⟨⟨a, haS⟩, by
-    change (⟨a, haS⟩ : S) ≠ c'
-    intro heq
-    exact hac (congrArg Subtype.val heq)⟩
-  let b' : T := ⟨⟨b, hbS⟩, by
-    change (⟨b, hbS⟩ : S) ≠ c'
-    intro heq
-    exact hbc (congrArg Subtype.val heq)⟩
-  let f : (G.induce S).induce T →g G.induce ({c}ᶜ : Set α) :=
-    { toFun := fun z => ⟨(z : S), by
-        simp only [Set.mem_compl_iff, Set.mem_singleton_iff]
-        intro heq
-        have hzc : (z : S) ≠ c' := by
-          exact z.property
-        exact hzc (Subtype.ext heq)⟩
-      map_rel' := by intro u v huv; exact huv }
-  intro hconn
-  exact hsep ((hconn a' b').map f)
-
-/-- In a minimal counterexample, every cut vertex has one whole side and a shallower
-geodesic as its other side. -/
-lemma cut_vertex_two_side_reduction {G : SimpleGraph α} (hG : G.Connected)
-    (hr : 2 ≤ G.radius.toNat) (hlt : largestInducedTreeSize G < 2 * G.radius.toNat)
-    (hsmall : ∀ (S : Set α) [DecidablePred (· ∈ S)], S ≠ Set.univ →
-      (G.induce S).Connected →
-      (∃ x, ¬ ((G.induce S).induce ({x}ᶜ : Set S)).Connected) →
-      2 * (G.induce S).radius.toNat ≤ largestInducedTreeSize (G.induce S))
-    (c : α) (hc : ¬ (G.induce ({c}ᶜ : Set α)).Connected) :
-    ∃ a b : ↥({c}ᶜ : Set α), ∃ q : G.Walk c (b : α),
-      q.length = G.dist c b ∧
-      ¬ (G.induce ({c}ᶜ : Set α)).Reachable a b ∧
-      G.dist c b + 2 ≤ G.dist c a ∧
-      ∀ z : α, z ∈ cutSide G c a ∨ z ∈ q.support := by
-  classical
-  obtain ⟨a, ha⟩ := G.exists_edist_eq_eccent_of_finite c
-  have hra : G.radius.toNat ≤ G.dist c a :=
-    ENat.toNat_le_toNat (ha ▸ G.radius_le_eccent)
-      (edist_ne_top_iff_reachable.mpr (hG c a))
-  have hac : a ≠ c := by intro heq; subst a; simp only [dist_self] at hra; omega
-  let H := G.induce ({c}ᶜ : Set α)
-  let a' : ↥({c}ᶜ : Set α) := ⟨a, by simpa using hac⟩
-  have hbex : ∃ b : ↥({c}ᶜ : Set α), ¬ H.Reachable a' b := by
-    by_contra! hall
-    exact hc ((H.connected_iff_exists_forall_reachable).mpr ⟨a', hall⟩)
-  let B : Set ↥({c}ᶜ : Set α) := {b | ¬ H.Reachable a' b}
-  obtain ⟨b, hb, hbmax⟩ := Set.exists_max_image B (fun z => G.dist c (z : α))
-    (Set.toFinite B) hbex
-  have hbc : (b : α) ≠ c := by
-    simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using b.property
-  have hbranches := geodesic_branches_bound_of_not_reachable hG hac hbc hb
-  have hgap : G.dist c b + 2 ≤ G.dist c a := by omega
-  obtain ⟨q, _, hq⟩ := hG.exists_path_of_dist c (b : α)
-  let S := cutSide G c a'
-  let U := S ∪ {z : α | z ∈ q.support}
-  have hcS : c ∈ S := Or.inl rfl
-  have haS : a ∈ S := Or.inr ⟨hac, Reachable.rfl⟩
-  have hU : (G.induce U).Connected :=
-    induce_union_connected (connected_induce_cutSide hG c a').preconnected
-      q.connected_induce_support.preconnected ⟨c, hcS, q.start_mem_support⟩
-  have hcU : c ∈ U := Or.inl hcS
-  have haU : a ∈ U := Or.inl haS
-  have hbU : (b : α) ∈ U := Or.inr q.end_mem_support
-  have hcutU := not_connected_induce_delete_of_separated_pair hcU haU hbU hac hbc hb
-  have hdepth (z : α) : G.dist c z ≤ G.dist c a := by
-    have hle : G.edist c z ≤ G.edist c a := by rw [ha]; exact G.edist_le_eccent
-    exact ENat.toNat_le_toNat hle (edist_ne_top_iff_reachable.mpr (hG c a))
-  have hdom : ∀ v ∈ U, ∀ z ∉ U, ∃ w ∈ U, G.dist v z ≤ G.dist v w := by
-    intro v _ z hz
-    have hzS : z ∉ S := fun hzS => hz (Or.inl hzS)
-    have hzc : z ≠ c := by intro heq; exact hzS (heq ▸ hcS)
-    have hznr : ¬ H.Reachable a'
-        ⟨z, by simpa only [Set.mem_compl_iff, Set.mem_singleton_iff] using hzc⟩ :=
-      fun hreach => hzS (Or.inr ⟨hzc, hreach⟩)
-    have hzb : G.dist c z ≤ G.dist c b := hbmax _ hznr
-    by_cases hvS : v ∈ S
-    · refine ⟨b, hbU, ?_⟩
-      have hvb : G.dist v b = G.dist v c + G.dist c b := by
-        by_cases hvc : v = c
-        · simp [hvc]
-        · rcases hvS with heq | ⟨_, hvr⟩
-          · exact (hvc heq).elim
-          · apply dist_eq_add_of_not_reachable_compl hG hvc hbc
-            intro hreach
-            exact hb (hvr.trans hreach)
-      have htri := hG.dist_triangle (u := v) (v := c) (w := z)
-      omega
-    · refine ⟨a, haU, ?_⟩
-      have hvc : v ≠ c := by intro heq; exact hvS (heq ▸ hcS)
-      have hva : G.dist v a = G.dist v c + G.dist c a := by
-        apply dist_eq_add_of_not_reachable_compl hG hvc hac
-        intro hreach
-        exact hvS (Or.inr ⟨hvc, hreach.symm⟩)
-      have htri := hG.dist_triangle (u := v) (v := c) (w := z)
-      have hzdepth := hdepth z
-      omega
-  have hUeq : U = Set.univ := by
-    by_contra hproper
-    have hsm := hsmall U hproper hU ⟨⟨c, hcU⟩, hcutU⟩
-    have hrad := radius_le_radius_induce_of_dominated hG U hU hdom
-    have htrans := largestInducedTreeSize_induce_le G U
-    omega
-  refine ⟨a', b, q, hq, hb, hgap, ?_⟩
-  intro z
-  have hz : z ∈ U := hUeq ▸ Set.mem_univ z
-  exact hz
-
-/-- A proper prefix of a path does not contain its terminal vertex. -/
-lemma end_not_mem_takeUntil {G : SimpleGraph α} {u v z : α} (p : G.Walk u v)
-    (hp : p.IsPath) (hz : z ∈ p.support) (hzv : z ≠ v) :
-    v ∉ (p.takeUntil z hz).support := by
-  intro hv
-  have hpath : ((p.takeUntil z hz).append (p.dropUntil z hz)).IsPath := by
-    rw [p.take_spec hz]
-    exact hp
-  exact hpath.ne_of_mem_support_of_append hzv.symm hv (p.dropUntil z hz).end_mem_support rfl
-
-/-- Deleting any vertex from the graph induced by a cycle's support leaves a connected graph. -/
-lemma cycle_support_delete_connected {G : SimpleGraph α} {u : α} (p : G.Walk u u)
-    (hp : p.IsCycle) (x : ↥(p.support.toFinset : Set α)) :
-    ((G.induce (p.support.toFinset : Set α)).induce ({x}ᶜ : Set ↥(p.support.toFinset : Set α))).Connected := by
-  classical
-  have hx : (x : α) ∈ p.support := List.mem_toFinset.mp x.property
-  let r := p.rotate (x : α) hx
-  have hr : r.IsCycle := hp.rotate hx
-  have hrtail : r.tail.IsPath := by
-    rw [Walk.isPath_def, r.support_tail_of_not_nil hr.not_nil]
-    exact hr.support_nodup
-  have hrot (z : α) (hz : z ∈ r.support) : z ∈ p.support :=
-    (p.mem_support_rotate_iff (x : α) hx).mp hz
-  have htailmem (z : α) (hz : z ∈ p.support) (hzx : z ≠ (x : α)) :
-      z ∈ r.tail.support := by
-    rw [r.support_tail_of_not_nil hr.not_nil]
-    have hzr := (p.mem_support_rotate_iff (x : α) hx).mpr hz
-    have hhead : r.support = (x : α) :: r.support.tail := by cases r <;> rfl
-    rw [hhead] at hzr
-    exact (List.mem_cons.mp hzr).resolve_left hzx
-  let S : Set α := p.support.toFinset
-  let T : Set α := {z | z ∈ S ∧ z ≠ (x : α)}
-  let f : G.induce T →g (G.induce S).induce ({x}ᶜ : Set S) :=
-    { toFun := fun z => ⟨⟨z, z.property.1⟩, by
-        simp only [Set.mem_compl_iff, Set.mem_singleton_iff]
-        intro heq
-        exact z.property.2 (congrArg Subtype.val heq)⟩
-      map_rel' := by intro a b hab; exact hab }
-  have hnmem : r.snd ∈ S := by
-    apply List.mem_toFinset.mpr
-    exact hrot _ (r.getVert_mem_support 1)
-  have hnx : r.snd ≠ (x : α) := (r.adj_snd hr.not_nil).ne.symm
-  let n : ↥({x}ᶜ : Set S) := ⟨⟨r.snd, hnmem⟩, by
-    simp only [Set.mem_compl_iff, Set.mem_singleton_iff]
-    intro heq
-    exact hnx (congrArg Subtype.val heq)⟩
-  rw [connected_iff_exists_forall_reachable]
-  refine ⟨n, ?_⟩
-  intro z
-  have hzmem : ((z : S) : α) ∈ p.support := by
-    exact List.mem_toFinset.mp (z : S).property
-  have hzx : ((z : S) : α) ≠ (x : α) := by
-    intro heq
-    have hne : (z : S) ≠ x := z.property
-    exact hne (Subtype.ext heq)
-  have hztail := htailmem _ hzmem hzx
-  let q := r.tail.takeUntil ((z : S) : α) hztail
-  have hqx : (x : α) ∉ q.support := end_not_mem_takeUntil r.tail hrtail hztail hzx
-  have hsub : ∀ w ∈ q.support, w ∈ T := by
-    intro w hw
-    have hwrtail : w ∈ r.tail.support := r.tail.support_takeUntil_subset hztail hw
-    have hwr : w ∈ r.support := by
-      rw [r.support_tail_of_not_nil hr.not_nil] at hwrtail
-      exact List.mem_of_mem_tail hwrtail
-    refine ⟨List.mem_toFinset.mpr (hrot w hwr), ?_⟩
-    intro heq
-    exact hqx (heq ▸ hw)
-  exact ⟨(q.induce T hsub).map f⟩
-
-/-- A cyclic graph contains an induced vertex-connected core maximal under vertex inclusion. -/
-lemma exists_maximal_vertex_core {G : SimpleGraph α} (hcyc : ¬ G.IsAcyclic) :
-    ∃ s : Finset α, 3 ≤ s.card ∧ (G.induce (s : Set α)).Connected ∧
-      (∀ x : ↥(s : Set α),
-        ((G.induce (s : Set α)).induce ({x}ᶜ : Set ↥(s : Set α))).Connected) ∧
-      ∀ t : Finset α, s ⊆ t → 3 ≤ t.card → (G.induce (t : Set α)).Connected →
-        (∀ x : ↥(t : Set α),
-          ((G.induce (t : Set α)).induce ({x}ᶜ : Set ↥(t : Set α))).Connected) → t = s := by
-  classical
-  obtain ⟨v, p, hp, _⟩ := G.exists_girth_eq_length.mpr hcyc
-  have hcardtail : p.support.tail.toFinset.card = p.length := by
-    rw [List.toFinset_card_of_nodup hp.support_nodup, List.length_tail, p.length_support]
-    omega
-  have hcard : 3 ≤ p.support.toFinset.card := by
-    have hle : p.support.tail.toFinset.card ≤ p.support.toFinset.card := by
-      apply Finset.card_le_card
-      intro z hz
-      exact List.mem_toFinset.mpr (List.mem_of_mem_tail (List.mem_toFinset.mp hz))
-    have hthree := hp.three_le_length
-    omega
-  let A : Set (Finset α) := {s | 3 ≤ s.card ∧ (G.induce (s : Set α)).Connected ∧
-    ∀ x : ↥(s : Set α),
-      ((G.induce (s : Set α)).induce ({x}ᶜ : Set ↥(s : Set α))).Connected}
-  have hA : A.Nonempty := by
-    refine ⟨p.support.toFinset, hcard, ?_, cycle_support_delete_connected p hp⟩
-    have hset : (p.support.toFinset : Set α) = {z | z ∈ p.support} := by ext z; simp
-    rw [hset]
-    exact p.connected_induce_support
-  obtain ⟨s, hs, hmax⟩ := Set.exists_max_image A Finset.card (Set.toFinite A) hA
-  refine ⟨s, hs.1, hs.2.1, hs.2.2, ?_⟩
-  intro t hst htcard htconn htdel
-  symm
-  apply Finset.eq_of_subset_of_card_le hst
-  exact hmax t ⟨htcard, htconn, htdel⟩
-
-/-- A walk supported in an induced graph and avoiding a vertex lifts to its deletion graph. -/
-lemma reachable_induce_delete_of_walk {G : SimpleGraph α} {S : Set α} (x : S)
-    (u v : ↥({x}ᶜ : Set S)) (p : G.Walk ((u : S) : α) ((v : S) : α))
-    (hS : ∀ z ∈ p.support, z ∈ S) (hx : (x : α) ∉ p.support) :
-    ((G.induce S).induce ({x}ᶜ : Set S)).Reachable u v := by
-  let T : Set α := {z | z ∈ S ∧ z ≠ (x : α)}
-  have hT : ∀ z ∈ p.support, z ∈ T := by
-    intro z hz
-    exact ⟨hS z hz, fun hzx => hx (hzx ▸ hz)⟩
-  let f : G.induce T →g (G.induce S).induce ({x}ᶜ : Set S) :=
-    { toFun := fun z => ⟨⟨z, z.property.1⟩, by
-        simp only [Set.mem_compl_iff, Set.mem_singleton_iff]
-        intro heq
-        exact z.property.2 (congrArg Subtype.val heq)⟩
-      map_rel' := by intro u v huv; exact huv }
-  exact ⟨(p.induce T hT).map f⟩
-
-/-- Paths within a vertex-connected core can avoid any prescribed vertex. -/
-lemma exists_walk_in_core_avoiding {G : SimpleGraph α} (K : Finset α)
-    (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    (x : α) {u v : α} (hu : u ∈ K) (hv : v ∈ K) (hux : u ≠ x) (hvx : v ≠ x) :
-    ∃ p : G.Walk u v, (∀ z ∈ p.support, z ∈ K) ∧ x ∉ p.support := by
-  classical
-  by_cases hx : x ∈ K
-  · let x' : ↥(K : Set α) := ⟨x, hx⟩
-    let u' : ↥({x'}ᶜ : Set ↥(K : Set α)) := ⟨⟨u, hu⟩, by
-      simp only [Set.mem_compl_iff, Set.mem_singleton_iff]
-      intro heq
-      exact hux (congrArg Subtype.val heq)⟩
-    let v' : ↥({x'}ᶜ : Set ↥(K : Set α)) := ⟨⟨v, hv⟩, by
-      simp only [Set.mem_compl_iff, Set.mem_singleton_iff]
-      intro heq
-      exact hvx (congrArg Subtype.val heq)⟩
-    obtain ⟨p⟩ := hdel x' u' v'
-    let f : (G.induce (K : Set α)).induce ({x'}ᶜ : Set ↥(K : Set α)) →g G :=
-      { toFun := fun z => ((z : ↥(K : Set α)) : α)
-        map_rel' := by intro u v huv; exact huv }
-    refine ⟨p.map f, ?_, ?_⟩
-    · intro z hz
-      rw [Walk.support_map] at hz
-      obtain ⟨w, _, rfl⟩ := List.mem_map.mp hz
-      exact (w : ↥(K : Set α)).property
-    · intro hxmem
-      rw [Walk.support_map] at hxmem
-      obtain ⟨w, _, hw⟩ := List.mem_map.mp hxmem
-      have hwne : (w : ↥(K : Set α)) ≠ x' := w.property
-      exact hwne (Subtype.ext hw)
-  · obtain ⟨p⟩ := hK (⟨u, hu⟩ : ↥(K : Set α)) ⟨v, hv⟩
-    let f : G.induce (K : Set α) →g G := (SimpleGraph.Embedding.induce (K : Set α)).toHom
-    have hsub : ∀ z ∈ (p.map f).support, z ∈ K := by
-      intro z hz
-      rw [Walk.support_map] at hz
-      obtain ⟨w, _, rfl⟩ := List.mem_map.mp hz
-      exact w.property
-    exact ⟨p.map f, hsub, fun hxmem => hx (hsub x hxmem)⟩
-
-set_option maxHeartbeats 800000 in
-/-- Adding a path between distinct vertices of a vertex-connected core preserves
-connectedness after every vertex deletion. -/
-lemma core_union_path_delete_connected {G : SimpleGraph α} (K : Finset α)
-    (hcard : 3 ≤ K.card) (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    {a b : α} (ha : a ∈ K) (hb : b ∈ K) (hab : a ≠ b)
-    (p : G.Walk a b) (hp : p.IsPath)
-    (x : ↥((K ∪ p.support.toFinset : Finset α) : Set α)) :
-    ((G.induce ((K ∪ p.support.toFinset : Finset α) : Set α)).induce
-      ({x}ᶜ : Set ↥((K ∪ p.support.toFinset : Finset α) : Set α))).Connected := by
-  classical
-  let U : Set α := (K ∪ p.support.toFinset : Finset α)
-  have hyex : ∃ y ∈ K, y ≠ (x : α) := by
-    by_contra! hn
-    have hsub : K ⊆ {(x : α)} := by intro y hy; simpa using hn y hy
-    have hle := Finset.card_le_card hsub
-    simp only [Finset.card_singleton] at hle
-    omega
-  obtain ⟨y, hy, hyx⟩ := hyex
-  let y' : ↥({x}ᶜ : Set U) := ⟨⟨y, Finset.mem_union_left _ hy⟩, by
-    simp only [Set.mem_compl_iff, Set.mem_singleton_iff]
-    intro heq
-    exact hyx (congrArg Subtype.val heq)⟩
-  have hcore (z : α) (hz : z ∈ K) (hzx : z ≠ (x : α)) :
-      ∃ q : G.Walk y z, (∀ w ∈ q.support, w ∈ U) ∧ (x : α) ∉ q.support := by
-    obtain ⟨q, hq, hqx⟩ := exists_walk_in_core_avoiding K hK hdel (x : α) hy hz hyx hzx
-    exact ⟨q, fun w hw => Finset.mem_union_left _ (hq w hw), hqx⟩
-  rw [connected_iff_exists_forall_reachable]
-  refine ⟨y', ?_⟩
-  intro z
-  have hzx : ((z : U) : α) ≠ (x : α) := by
-    intro heq
-    have hne : (z : U) ≠ x := z.property
-    exact hne (Subtype.ext heq)
-  have hzU : ((z : U) : α) ∈ K ∪ p.support.toFinset := (z : U).property
-  rcases Finset.mem_union.mp hzU with hzK | hzp
-  · obtain ⟨q, hq, hqx⟩ := hcore _ hzK hzx
-    exact reachable_induce_delete_of_walk x y' z q hq hqx
-  · have hzp' : ((z : U) : α) ∈ p.support := List.mem_toFinset.mp hzp
-    let pa := p.takeUntil ((z : U) : α) hzp'
-    let pb := p.dropUntil ((z : U) : α) hzp'
-    have hpath : (pa.append pb).IsPath := by rw [p.take_spec hzp']; exact hp
-    have hprefix : ∀ w ∈ pa.support, w ∈ U := by
-      intro w hw
-      exact Finset.mem_union_right _ (List.mem_toFinset.mpr (p.support_takeUntil_subset hzp' hw))
-    have hsuffix : ∀ w ∈ pb.support, w ∈ U := by
-      intro w hw
-      exact Finset.mem_union_right _ (List.mem_toFinset.mpr (p.support_dropUntil_subset hzp' hw))
-    by_cases hxa : (x : α) ∈ pa.support
-    · have hxb : (x : α) ∉ pb.support := by
-        intro hxb
-        exact hpath.ne_of_mem_support_of_append hzx.symm hxa hxb rfl
-      have hbx : b ≠ (x : α) := by intro heq; exact hxb (heq ▸ pb.end_mem_support)
-      obtain ⟨q, hq, hqx⟩ := hcore b hb hbx
-      let r := q.append pb.reverse
-      have hrU : ∀ w ∈ r.support, w ∈ U := by
-        intro w hw
-        have hsup : w ∈ q.support ∨ w ∈ pb.support := by
-          simp only [r, Walk.support_append, List.mem_append] at hw
-          rcases hw with hw | hw
-          · exact Or.inl hw
-          · exact Or.inr (by simpa only [Walk.support_reverse, List.mem_reverse] using
-              List.mem_of_mem_tail hw)
-        exact hsup.elim (hq w) (hsuffix w)
-      have hrx : (x : α) ∉ r.support := by
-        intro hxmem
-        have hsup : (x : α) ∈ q.support ∨ (x : α) ∈ pb.support := by
-          simp only [r, Walk.support_append, List.mem_append] at hxmem
-          rcases hxmem with hxmem | hxmem
-          · exact Or.inl hxmem
-          · exact Or.inr (by simpa only [Walk.support_reverse, List.mem_reverse] using
-              List.mem_of_mem_tail hxmem)
-        exact hsup.elim hqx hxb
-      exact reachable_induce_delete_of_walk x y' z r hrU hrx
-    · have hax : a ≠ (x : α) := by intro heq; exact hxa (heq ▸ pa.start_mem_support)
-      obtain ⟨q, hq, hqx⟩ := hcore a ha hax
-      let r := q.append pa
-      have hrU : ∀ w ∈ r.support, w ∈ U := by
-        intro w hw
-        have hsup : w ∈ q.support ∨ w ∈ pa.support := by
-          simp only [r, Walk.support_append, List.mem_append] at hw
-          exact hw.elim Or.inl (fun hw => Or.inr (List.mem_of_mem_tail hw))
-        exact hsup.elim (hq w) (hprefix w)
-      have hrx : (x : α) ∉ r.support := by
-        intro hxmem
-        have hsup : (x : α) ∈ q.support ∨ (x : α) ∈ pa.support := by
-          simp only [r, Walk.support_append, List.mem_append] at hxmem
-          exact hxmem.elim Or.inl (fun hw => Or.inr (List.mem_of_mem_tail hw))
-        exact hsup.elim hqx hxa
-      exact reachable_induce_delete_of_walk x y' z r hrU hrx
-
-/-- Maximality forces every path between two core vertices to remain in the core. -/
-lemma path_support_subset_maximal_core {G : SimpleGraph α} (K : Finset α)
-    (hcard : 3 ≤ K.card) (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    (hmax : ∀ t : Finset α, K ⊆ t → 3 ≤ t.card → (G.induce (t : Set α)).Connected →
-      (∀ x : ↥(t : Set α),
-        ((G.induce (t : Set α)).induce ({x}ᶜ : Set ↥(t : Set α))).Connected) → t = K)
-    {a b : α} (ha : a ∈ K) (hb : b ∈ K) (hab : a ≠ b)
-    (p : G.Walk a b) (hp : p.IsPath) : ∀ z ∈ p.support, z ∈ K := by
-  classical
-  let U := K ∪ p.support.toFinset
-  have hsubset : K ⊆ U := Finset.subset_union_left
-  have hUcard : 3 ≤ U.card := hcard.trans (Finset.card_le_card hsubset)
-  have hUconn : (G.induce (U : Set α)).Connected := by
-    have hset : (U : Set α) = (K : Set α) ∪ {z | z ∈ p.support} := by
-      ext z
-      simp [U]
-    rw [hset]
-    exact induce_union_connected hK.preconnected p.connected_induce_support.preconnected
-      ⟨a, ha, p.start_mem_support⟩
-  have hUeq := hmax U hsubset hUcard hUconn
-    (core_union_path_delete_connected K hcard hK hdel ha hb hab p hp)
-  intro z hz
-  have hzU : z ∈ U := Finset.mem_union_right _ (List.mem_toFinset.mpr hz)
-  exact hUeq ▸ hzU
-
-/-- Every connected outside region has at most one attachment vertex in a maximal core. -/
-lemma maximal_core_unique_attachment {G : SimpleGraph α} (K : Finset α)
-    (hcard : 3 ≤ K.card) (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    (hmax : ∀ t : Finset α, K ⊆ t → 3 ≤ t.card → (G.induce (t : Set α)).Connected →
-      (∀ x : ↥(t : Set α),
-        ((G.induce (t : Set α)).induce ({x}ᶜ : Set ↥(t : Set α))).Connected) → t = K)
-    (z w : ↥((K : Set α)ᶜ)) (hr : (G.induce (K : Set α)ᶜ).Reachable z w)
-    {a b : α} (ha : a ∈ K) (hb : b ∈ K) (haz : G.Adj a z) (hbw : G.Adj b w) : a = b := by
-  classical
-  by_contra hab
-  obtain ⟨q, hq, _⟩ := hr.exists_path_of_dist
-  let e : G.induce (K : Set α)ᶜ ↪g G := SimpleGraph.Embedding.induce _
-  let p : G.Walk (z : α) (w : α) := q.map e.toHom
-  have hp : p.IsPath := (Walk.isPath_map_iff_of_injective e.injective).mpr hq
-  have hout : ∀ v ∈ p.support, v ∉ K := by
-    intro v hv
-    change v ∈ (q.map e.toHom).support at hv
-    rw [Walk.support_map] at hv
-    obtain ⟨v', _, rfl⟩ := List.mem_map.mp hv
-    exact v'.property
-  have hanot : a ∉ p.support := fun ha' => hout a ha' ha
-  have hbnot : b ∉ p.support := fun hb' => hout b hb' hb
-  let p' := p.cons haz
-  have hp' : p'.IsPath := hp.cons hanot
-  have hbnot' : b ∉ p'.support := by
-    intro hmem
-    have hmem' : b = a ∨ b ∈ p.support := by
-      simpa only [p', Walk.support_cons, List.mem_cons] using hmem
-    exact hmem'.elim (fun heq => hab heq.symm) hbnot
-  let p'' := p'.concat hbw.symm
-  have hp'' : p''.IsPath := hp'.concat hbnot' hbw.symm
-  have hsub := path_support_subset_maximal_core K hcard hK hdel hmax ha hb hab p'' hp''
-  have hzmem : (z : α) ∈ p''.support := by
-    apply p'.support_subset_support_concat hbw.symm
-    change (z : α) ∈ (p.cons haz).support
-    simp only [Walk.support_cons, List.mem_cons]
-    have hz0 := p.start_mem_support
-    change (z : α) ∈ p.support at hz0
-    exact Or.inr hz0
-  exact z.property (hsub z hzmem)
-
-/-- A set closed under taking neighbors contains every vertex reachable from it. -/
-lemma reachable_mem_of_adj_closed {G : SimpleGraph α} {S : Set α}
-    (hS : ∀ u ∈ S, ∀ v, G.Adj u v → v ∈ S) {u v : α}
-    (hr : G.Reachable u v) (hu : u ∈ S) : v ∈ S := by
-  obtain ⟨p⟩ := hr
-  revert hu
+private lemma sep_supp [Fintype α] [DecidableEq α] {c a x y : α} {ha : a ≠ c}
+    (hx : x ∈ comp G c a ha) (hy : y ∉ comp G c a ha) (p : G.Walk x y) : c ∈ p.support := by
+  by_contra hc; apply hy
   induction p with
-  | nil => exact fun hu => hu
-  | cons huv p ih => exact fun hu => ih (hS _ hu _ huv)
+  | nil => exact hx
+  | cons h t ih =>
+    have hc' : c ∉ t.support := fun hm => hc (by simp [hm])
+    exact ih (adj_comp hx (fun hvc => hc' (hvc ▸ t.start_mem_support)) h) hy hc'
 
-/-- A connected graph of order at least three with connected vertex deletions has
-two distinct neighbors at every vertex. -/
-lemma exists_two_adj_of_connected_deletions {G : SimpleGraph α}
-    (hcard : 3 ≤ Fintype.card α) (hG : G.Connected)
-    (hdel : ∀ x, (G.induce ({x}ᶜ : Set α)).Connected) (c : α) :
-    ∃ u v : α, G.Adj c u ∧ G.Adj c v ∧ u ≠ v := by
+private lemma sep_dist [Fintype α] [DecidableEq α] (hG : G.Connected) {c a x y : α} {ha : a ≠ c}
+    (hx : x ∈ comp G c a ha) (hy : y ∉ comp G c a ha) : G.dist x y = G.dist x c + G.dist c y := by
+  obtain ⟨p, -, hl⟩ := hG.exists_path_of_dist x y
+  exact (wdist_add p hl (sep_supp hx hy p)).symm
+
+private lemma path_avoid [Fintype α] [DecidableEq α] {c a x y : α} {ha : a ≠ c}
+    (hx : x ∉ comp G c a ha) (hy : y ∉ comp G c a ha) {p : G.Walk x y} (hp : p.IsPath) :
+    ∀ u ∈ p.support, u ∉ comp G c a ha := by
+  intro u hu huA
+  have hc1 : c ∈ (p.takeUntil u hu).support := by
+    simpa [support_reverse] using sep_supp huA hx (p.takeUntil u hu).reverse
+  have hc2 := sep_supp huA hy (p.dropUntil u hu)
+  have hc2' : c ∈ (p.dropUntil u hu).support.tail := by
+    rcases supp_eq_tail (p.dropUntil u hu) hc2 with rfl | hm
+    · exact absurd rfl (ne_comp huA).symm
+    · exact hm
+  have hnd : ((p.takeUntil u hu).support ++ (p.dropUntil u hu).support.tail).Nodup := by
+    rw [← support_append, p.take_spec hu]; exact hp.support_nodup
+  exact (List.nodup_append.mp hnd).2.2 c hc1 c hc2' rfl
+
+private lemma avoid_path [Fintype α] [DecidableEq α] (hG : G.Connected) {c a x y : α} {ha : a ≠ c}
+    (hx : x ∉ comp G c a ha) (hy : y ∉ comp G c a ha) :
+    ∃ p : G.Walk x y, p.IsPath ∧ p.length = G.dist x y ∧ ∀ u ∈ p.support, u ∉ comp G c a ha := by
+  obtain ⟨p, hp, hl⟩ := hG.exists_path_of_dist x y
+  exact ⟨p, hp, hl, path_avoid hx hy hp⟩
+
+private lemma ncut_reach {v c : α} (hcv : c ≠ v)
+    (hr : ∀ x : α, x ≠ v → ∃ q : G.Walk x c, v ∉ q.support) : ¬ Cut G v := by
+  have hl : ∀ {a b} (ha : a ≠ v) (hb : b ≠ v) (q : G.Walk a b),
+      v ∉ q.support → (G.induce {u | u ≠ v}).Reachable ⟨a, ha⟩ ⟨b, hb⟩ := fun ha hb q hq => by
+    induction q with
+    | nil => exact Reachable.refl _
+    | @cons u w _ h t ih =>
+      have hw : w ≠ v := fun hwv => hq (by rw [support_cons, List.mem_cons]; exact Or.inr (hwv ▸ t.start_mem_support))
+      exact (Adj.reachable (by simpa using h)).trans (ih hw hb fun hv => hq (by simp [hv]))
+  intro hc; apply hc; intro x y
+  obtain ⟨px, hpx⟩ := hr x.1 x.2; obtain ⟨py, hpy⟩ := hr y.1 y.2
+  exact (hl x.2 hcv px hpx).trans (hl y.2 hcv py hpy).symm
+
+private lemma snd_supp {u v : α} (p : G.Walk u v) (hp : ¬ p.Nil) : p.snd ∈ p.support := by
+  cases p with
+  | nil => exact absurd Walk.Nil.nil hp
+  | cons _ t => simp [t.start_mem_support]
+
+private lemma pen_supp {u v : α} (p : G.Walk u v) (hp : ¬ p.Nil) : p.penultimate ∈ p.support := by
+  induction p with
+  | nil => exact absurd Walk.Nil.nil hp
+  | @cons a _ _ _ t ih =>
+    cases t with | nil => simp [penultimate] | cons _ _ => exact List.mem_cons_of_mem a (ih (by simp))
+
+private lemma ncut_uniq (hG : G.Connected) {v c : α} (hvc : G.Adj v c)
+    (hu : ∀ u, G.Adj v u → u = c) : ¬ Cut G v := by
   classical
-  have hex (s : Finset α) (hs : s.card ≤ 2) : ∃ d, d ∉ s := by
-    by_contra! hall
-    have heq := Finset.eq_univ_of_forall hall
-    rw [heq, Finset.card_univ] at hs
-    omega
-  obtain ⟨d, hd⟩ := hex {c} (by simp)
-  have hcd : c ≠ d := by simpa [eq_comm] using hd
-  obtain ⟨p⟩ := hG c d
-  let u := p.snd
-  have hcu : G.Adj c u := p.adj_snd (p.not_nil_of_ne hcd)
-  obtain ⟨e, he⟩ := hex {c, u} Finset.card_le_two
-  have hec : e ≠ c := fun hec => he (by simp [hec])
-  have heu : e ≠ u := by
-    exact fun heu => he (by simp [heu])
-  let c' : ↥({u}ᶜ : Set α) := ⟨c, by simpa using hcu.ne⟩
-  let e' : ↥({u}ᶜ : Set α) := ⟨e, by simpa using heu⟩
-  obtain ⟨q⟩ := hdel u c' e'
-  have hc'e' : c' ≠ e' := fun h => hec (congrArg Subtype.val h).symm
-  have hcv : G.Adj c (q.snd : α) := q.adj_snd (q.not_nil_of_ne hc'e')
-  refine ⟨u, q.snd, hcu, hcv, ?_⟩
-  intro huv
-  have hvu : (q.snd : α) ≠ u := q.snd.property
-  exact hvu huv.symm
+  refine ncut_reach hvc.ne.symm fun x hxv => ?_
+  obtain ⟨p, hp, -⟩ := hG.exists_path_of_dist x c
+  refine ⟨p, fun hv => ?_⟩
+  let q := p.takeUntil v hv
+  have hqn : ¬ q.Nil := fun hn => hxv (Nil.eq hn)
+  have hc1 : c ∈ q.support := (hu _ (adj_penultimate hqn).symm) ▸ pen_supp q hqn
+  have hc2' : c ∈ (p.dropUntil v hv).support.tail := by
+    rcases supp_eq_tail (p.dropUntil v hv) (end_mem_support _) with h | hm
+    · exact absurd h.symm hvc.ne
+    · exact hm
+  have hnd : (q.support ++ (p.dropUntil v hv).support.tail).Nodup := by
+    rw [← support_append, p.take_spec hv]; exact hp.support_nodup
+  exact (List.nodup_append.mp hnd).2.2 c hc1 c hc2' rfl
 
-/-- If outside components have unique core contacts, each has a contact which
-separates it from every other core vertex. -/
-lemma outside_component_attachment {G : SimpleGraph α} (hG : G.Connected)
-    (K : Finset α) (hK : K.Nonempty)
-    (huniq : ∀ (z w : ↥((K : Set α)ᶜ)),
-      (G.induce (K : Set α)ᶜ).Reachable z w →
-      ∀ {a b : α}, a ∈ K → b ∈ K → G.Adj a z → G.Adj b w → a = b)
-    (z : ↥((K : Set α)ᶜ)) :
-    ∃ (c : α) (hc : c ∈ K), ∃ w : ↥((K : Set α)ᶜ),
-      (G.induce (K : Set α)ᶜ).Reachable z w ∧ G.Adj c w ∧
-      ∀ (v : α) (hv : v ∈ K) (hvc : v ≠ c),
-        ¬ (G.induce ({c}ᶜ : Set α)).Reachable
-          ⟨z, by simpa using (show (z : α) ≠ c from fun heq => z.property (heq.symm ▸ hc))⟩
-          ⟨v, by simpa using hvc⟩ := by
+private lemma cut_uniq [Fintype α] [DecidableEq α] (hc : 3 ≤ Fintype.card α) {v c : α}
+    (hvc : G.Adj v c) (hu : ∀ u, G.Adj v u → u = c) : Cut G c := by
   classical
-  let C : Set α := {v | ∃ hv : v ∉ K,
-    (G.induce (K : Set α)ᶜ).Reachable z ⟨v, hv⟩}
-  have hzC : (z : α) ∈ C := ⟨z.property, Reachable.rfl⟩
-  have hCK : ∀ v ∈ C, v ∉ K := fun v hv => hv.choose
-  have hCproper : C.toFinset ≠ Finset.univ := by
-    obtain ⟨k, hk⟩ := hK
-    intro heq
-    have hkC : k ∈ C := Set.mem_toFinset.mp (heq ▸ Finset.mem_univ k)
-    exact hCK k hkC hk
-  obtain ⟨c, hcC, w, hwC, hcw⟩ := hG.exists_adj_finset_compl
-    (show C.toFinset.Nonempty from ⟨z, by simpa using hzC⟩) hCproper
-  have hwC' : w ∈ C := by simpa using hwC
-  obtain ⟨hwK, hzw⟩ := hwC'
-  have hcK : c ∈ K := by
-    by_contra hcK
-    have hwr : (G.induce (K : Set α)ᶜ).Reachable
-        (⟨w, hwK⟩ : ↥((K : Set α)ᶜ)) ⟨c, hcK⟩ :=
-      (show (G.induce (K : Set α)ᶜ).Adj ⟨w, hwK⟩ ⟨c, hcK⟩ from hcw.symm).reachable
-    exact hcC (by simpa using (show c ∈ C from ⟨hcK, hzw.trans hwr⟩))
-  refine ⟨c, hcK, ⟨w, hwK⟩, hzw, hcw, ?_⟩
-  intro v hv hvc hr
-  have hclosed : ∀ u ∈ {y : ↥({c}ᶜ : Set α) | (y : α) ∈ C},
-      ∀ t : ↥({c}ᶜ : Set α), (G.induce ({c}ᶜ : Set α)).Adj u t → (t : α) ∈ C := by
-    intro u hu t hut
-    obtain ⟨huK, hzu⟩ := hu
-    by_cases htK : (t : α) ∈ K
-    · have hct : c = (t : α) := huniq ⟨w, hwK⟩ ⟨u, huK⟩
-        (hzw.symm.trans hzu) hcK htK hcw (show G.Adj t u from hut.symm)
-      exact (t.property hct.symm).elim
-    · exact ⟨htK, hzu.trans
-        (show (G.induce (K : Set α)ᶜ).Adj ⟨u, huK⟩ ⟨t, htK⟩ from hut).reachable⟩
-  have hvC := reachable_mem_of_adj_closed hclosed hr hzC
-  exact hCK v hvC hv
+  have hne : (univ \ ({v, c} : Finset α)).Nonempty := by
+    rw [← card_pos, card_sdiff]; have := card_le_two (a := v) (b := c); simp [card_univ]; omega
+  obtain ⟨z, hz⟩ := hne
+  simp only [mem_sdiff, mem_univ, mem_insert, mem_singleton, not_or, true_and] at hz
+  intro hp; obtain ⟨p⟩ := hp ⟨v, hvc.ne⟩ ⟨z, hz.2⟩
+  cases p with
+  | nil => exact hz.1 rfl
+  | @cons _ b _ h _ => exact b.2 (hu b.1 h)
 
-/-- A shortest path has just one neighbor of its initial vertex on its support. -/
-lemma adjacent_start_eq_snd_of_geodesic {G : SimpleGraph α} (hG : G.Connected)
-    {c b z : α} (q : G.Walk c b) (hq : q.length = G.dist c b)
-    (hz : z ∈ q.support) (hcz : G.Adj c z) : z = q.snd := by
-  cases q with
-  | nil =>
-    have hzc : z = c := by simpa using hz
-    exact (hcz.ne hzc.symm).elim
-  | @cons c n b hcn q =>
-    have hzq : z ∈ q.support := (List.mem_cons.mp hz).resolve_left hcz.ne.symm
-    have hqt : q.length = G.dist n b :=
-      length_eq_dist_of_subwalk hq (Walk.isSubwalk_cons q hcn)
-    have hsum := dist_add_dist_eq_of_mem_geodesic q hqt hzq
-    have htri := hG.dist_triangle (u := c) (v := z) (w := b)
-    have hczd : G.dist c z = 1 := dist_eq_one_iff_adj.mpr hcz
-    have hlen : G.dist c b = G.dist n b + 1 := by
-      simpa only [Walk.length_cons, hqt] using hq.symm
-    have hnz : G.dist n z = 0 := by omega
-    simpa using (hG.dist_eq_zero_iff.mp hnz).symm
+private def Pend [Fintype α] [DecidableEq α] (G : SimpleGraph α) (c : α) (A : Finset α) : Prop :=
+  ∃ a, ∃ ha : a ≠ c, A = comp G c a ha ∧ (∃ b, b ≠ c ∧ b ∉ A) ∧ A.card = A.sup (G.dist c)
 
-/-- Two core vertices different from a prescribed vertex remain reachable in its
-ambient deletion graph. -/
-lemma core_reachable_compl {G : SimpleGraph α} (K : Finset α)
-    (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    (c : α) {u v : α} (hu : u ∈ K) (hv : v ∈ K) (huc : u ≠ c) (hvc : v ≠ c) :
-    (G.induce ({c}ᶜ : Set α)).Reachable ⟨u, by simpa using huc⟩
-      ⟨v, by simpa using hvc⟩ := by
-  obtain ⟨p, _, hpc⟩ := exists_walk_in_core_avoiding K hK hdel c hu hv huc hvc
-  exact ⟨p.induce ({c}ᶜ : Set α) (by
-    intro z hz
-    exact show z ≠ c from fun heq => hpc (heq ▸ hz))⟩
+private lemma getVert_ne_start {u v : α} (p : G.Walk u v) (hp : p.IsPath) {i : ℕ}
+    (hi1 : 1 ≤ i) (hi2 : i ≤ p.length) : p.getVert i ≠ u := by
+  cases p with
+  | nil => simp at hi2; omega
+  | cons h t =>
+    cases i with
+    | zero => omega
+    | succ i =>
+      intro hm; exact (cons_isPath_iff h t |>.mp hp).2 (hm ▸ t.getVert_mem_support i)
 
-/-- The shallow geodesic at a core cut vertex meets the core only at its root;
-the rest of the core lies on the other side. -/
-lemma shallow_geodesic_meets_core {G : SimpleGraph α} (hG : G.Connected)
-    (K : Finset α) (hcard : 3 ≤ K.card) (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    (c : α) (hc : c ∈ K) (a b : ↥({c}ᶜ : Set α))
-    (q : G.Walk c (b : α)) (hq : q.length = G.dist c b)
-    (hsep : ¬ (G.induce ({c}ᶜ : Set α)).Reachable a b)
-    (hcover : ∀ z, z ∈ cutSide G c a ∨ z ∈ q.support) :
-    (∀ z ∈ K, z ∈ cutSide G c a) ∧ (∀ z ∈ q.support, z ∈ K → z = c) := by
+private lemma comp_getVert_mem [Fintype α] [DecidableEq α] {c a v : α} {ha : a ≠ c}
+    (hv : v ∈ comp G c a ha) {P : G.Walk c v} (hP : P.IsPath) {i : ℕ} (hi1 : 1 ≤ i)
+    (hi2 : i ≤ P.length) : P.getVert i ∈ comp G c a ha := by
+  by_contra hn
+  let w := P.getVert i; have hws := P.getVert_mem_support i
+  have hcd : c ∈ (P.dropUntil w hws).support := by
+    simpa [support_reverse] using sep_supp hv hn (P.dropUntil w hws).reverse
+  have hcw : c ≠ w := (getVert_ne_start P hP hi1 hi2).symm
+  have hct : c ∈ (P.dropUntil w hws).support.tail := by
+    rcases supp_eq_tail (P.dropUntil w hws) hcd with heq | hm
+    · exact absurd heq hcw
+    · exact hm
+  have hnd : ((P.takeUntil w hws).support ++ (P.dropUntil w hws).support.tail).Nodup := by
+    rw [← support_append, P.take_spec hws]; exact hP.support_nodup
+  exact (List.nodup_append.mp hnd).2.2 c (start_mem_support _) c hct rfl
+
+private lemma comp_sup_le_card [Fintype α] [DecidableEq α] (hG : G.Connected) {c a : α}
+    (ha : a ≠ c) : (comp G c a ha).sup (G.dist c) ≤ (comp G c a ha).card := by
+  obtain ⟨v, hvA, hve⟩ := exists_mem_eq_sup (comp G c a ha) ⟨a, self_comp c a ha⟩ (G.dist c)
+  have hse : (comp G c a ha).sup (G.dist c) = G.dist c v := hve
+  rw [hse]
+  obtain ⟨P, hP, hPl⟩ := hG.exists_path_of_dist c v
+  set h := G.dist c v
+  have hsub : (Icc 1 h).image P.getVert ⊆ comp G c a ha := fun u hu => by
+    obtain ⟨i, hi, rfl⟩ := mem_image.mp hu; simp only [mem_Icc] at hi
+    exact comp_getVert_mem hvA hP hi.1 (by omega)
+  have hinj : Set.InjOn P.getVert (Icc 1 h : Set ℕ) := fun i hi j hj hij => by
+    simp only [coe_Icc, Set.mem_Icc] at hi hj
+    have h1 : G.dist c (P.getVert i) = i := by
+      simpa [getVert_zero] using wdist_eq P hPl (Nat.zero_le i) (by omega)
+    have h2 : G.dist c (P.getVert j) = j := by
+      simpa [getVert_zero] using wdist_eq P hPl (Nat.zero_le j) (by omega)
+    rw [← h1, ← h2, hij]
+  calc h = (Icc 1 h).card := by simp
+    _ = ((Icc 1 h).image P.getVert).card := (card_image_of_injOn hinj).symm
+    _ ≤ (comp G c a ha).card := card_le_card hsub
+
+private lemma pend_ex [Fintype α] [DecidableEq α] (hG : G.Connected) {c : α} {A : Finset α}
+    (hp : Pend G c A) : 1 ≤ A.sup (G.dist c) ∧ ∃ v ∈ A, G.dist c v = A.sup (G.dist c) := by
+  obtain ⟨a, ha, rfl, -, -⟩ := hp
+  obtain ⟨v, hvA, hve⟩ := exists_mem_eq_sup _ ⟨a, self_comp c a ha⟩ (G.dist c)
+  have hda := Nat.succ_le_of_lt ((hG c a).pos_dist_of_ne ha.symm)
+  exact ⟨le_trans hda (le_sup (self_comp c a ha)), v, hvA, hve.symm⟩
+
+private lemma pend_spec [Fintype α] [DecidableEq α] (hG : G.Connected) {c : α} {A : Finset α}
+    (hp : Pend G c A) {v : α} (hvA : v ∈ A) (hv_dist : G.dist c v = A.sup (G.dist c))
+    (P : G.Walk c v) (hPp : P.IsPath) (hPl : P.length = A.sup (G.dist c)) :
+    (∀ i, 1 ≤ i → i ≤ A.sup (G.dist c) → P.getVert i ∈ A) ∧
+    A = (Icc 1 (A.sup (G.dist c))).image P.getVert ∧
+    (∀ i, 1 ≤ i → i ≤ A.sup (G.dist c) → ∀ u, G.Adj (P.getVert i) u →
+      u = P.getVert (i - 1) ∨ (i < A.sup (G.dist c) ∧ u = P.getVert (i + 1))) ∧
+    (∀ u, G.Adj v u → u = P.getVert (A.sup (G.dist c) - 1)) ∧
+    (∀ u ∈ A, G.dist c u ≤ A.sup (G.dist c) ∧ G.dist u v = A.sup (G.dist c) - G.dist c u ∧
+      (G.dist c u = A.sup (G.dist c) ↔ u = v)) ∧
+    (∀ {w : α} (cyc : G.Walk w w), cyc.IsCycle → ∀ u ∈ A, u ∉ cyc.support) ∧
+    ¬ Cut G v := by
+  obtain ⟨a, ha, rfl, hb, hcard⟩ := hp
+  set A := comp G c a ha; set h := A.sup (G.dist c)
+  have h1 : 1 ≤ h := (pend_ex hG ⟨a, ha, rfl, hb, hcard⟩).1
+  have hpd : P.length = G.dist c v := by rw [hPl, hv_dist]
+  have hmem : ∀ i, 1 ≤ i → i ≤ h → P.getVert i ∈ A := fun i hi1 hi2 =>
+    comp_getVert_mem hvA hPp hi1 (by omega)
+  have hinj : Set.InjOn P.getVert (Icc 1 h : Set ℕ) := fun i hi j hj hij => by
+    simp only [coe_Icc, Set.mem_Icc] at hi hj
+    have h1' : G.dist c (P.getVert i) = i := by
+      simpa [getVert_zero] using wdist_eq P hpd (Nat.zero_le i) (by omega)
+    have h2' : G.dist c (P.getVert j) = j := by
+      simpa [getVert_zero] using wdist_eq P hpd (Nat.zero_le j) (by omega)
+    rw [← h1', ← h2', hij]
+  have himg : A = (Icc 1 h).image P.getVert := by
+    symm; refine eq_of_subset_of_card_le (fun u hu => by
+      obtain ⟨i, hi, rfl⟩ := mem_image.mp hu; simp only [mem_Icc] at hi; exact hmem i hi.1 hi.2) ?_
+    rw [card_image_of_injOn hinj, Nat.card_Icc, Nat.add_sub_cancel, hcard]
+  have hadj : ∀ i, 1 ≤ i → i ≤ h → ∀ u, G.Adj (P.getVert i) u →
+      u = P.getVert (i - 1) ∨ (i < h ∧ u = P.getVert (i + 1)) := by
+    intro i hi1 hi2 u had
+    by_cases huc : u = c
+    · rw [huc] at had
+      have := dist_eq_one_iff_adj.mpr had.symm
+      have hdi : G.dist c (P.getVert i) = i := by
+        simpa [getVert_zero] using wdist_eq P hpd (Nat.zero_le i) (by omega)
+      have hi_eq : i = 1 := by omega
+      left; simp [huc, hi_eq, getVert_zero]
+    · have huA : u ∈ A := adj_comp (hmem i hi1 hi2) huc had
+      rw [himg] at huA
+      obtain ⟨j, hj, rfl⟩ := mem_image.mp huA; simp only [mem_Icc] at hj
+      have hd1 := dist_eq_one_iff_adj.mpr had
+      by_cases hij : i ≤ j
+      · have := wdist_eq P hpd hij (by omega); have hj_eq : j = i + 1 := by omega
+        right; exact ⟨by omega, by subst hj_eq; rfl⟩
+      · have := wdist_eq P hpd (le_of_not_ge hij) (by omega); rw [dist_comm] at hd1
+        have hj_eq : j = i - 1 := by omega
+        left; subst hj_eq; rfl
+  have hleaf_eq : P.getVert h = v := by simpa [hPl] using P.getVert_length
+  have hleaf : ∀ u, G.Adj v u → u = P.getVert (h - 1) := fun u hu => by
+    rw [← hleaf_eq] at hu
+    rcases hadj h h1 le_rfl u hu with h' | ⟨hlt, _⟩
+    · exact h'
+    · exact absurd hlt (lt_irrefl h)
+  have hdist : ∀ u ∈ A, G.dist c u ≤ h ∧ G.dist u v = h - G.dist c u ∧ (G.dist c u = h ↔ u = v) := by
+    intro u hu; rw [himg] at hu; obtain ⟨i, hi, rfl⟩ := mem_image.mp hu; simp only [mem_Icc] at hi
+    have hci : G.dist c (P.getVert i) = i := by
+      simpa [getVert_zero] using wdist_eq P hpd (Nat.zero_le i) (by omega)
+    have hiv := wdist_eq P hpd (by omega : i ≤ P.length) le_rfl
+    rw [getVert_length, hPl] at hiv
+    refine ⟨by omega, by omega, ⟨fun h' => by rw [show i = h by omega, hleaf_eq], fun h' => by rw [h', hv_dist]⟩⟩
+  have hnocyc : ∀ {w : α} (cyc : G.Walk w w), cyc.IsCycle → ∀ u ∈ A, u ∉ cyc.support := by
+    intro w cyc hcyc u hu
+    have hdown : ∀ d < h, P.getVert (h - d) ∉ cyc.support := fun d hd => by
+      induction d with
+      | zero =>
+        simp only [Nat.sub_zero]; rw [hleaf_eq]; intro hvs
+        let c' := cyc.rotate v hvs; have hc' := hcyc.rotate hvs
+        exact hc'.snd_ne_penultimate
+          ((hleaf _ (c'.adj_snd hc'.not_nil)).trans (hleaf _ (c'.adj_penultimate hc'.not_nil).symm).symm)
+      | succ d ih =>
+        intro hys
+        have h1' : h - d = h - (d + 1) + 1 := by omega
+        have hnxt : P.getVert (h - (d + 1) + 1) ∉ cyc.support := h1' ▸ ih (by omega)
+        let y := P.getVert (h - (d + 1)); let c' := cyc.rotate y hys; have hc' := hcyc.rotate hys
+        have hs := (cyc.mem_support_rotate_iff y hys).mp (snd_supp c' hc'.not_nil)
+        have hp' := (cyc.mem_support_rotate_iff y hys).mp (pen_supp c' hc'.not_nil)
+        have hse : c'.snd = P.getVert (h - (d + 1) - 1) := by
+          rcases hadj (h - (d + 1)) (by omega) (by omega) c'.snd (c'.adj_snd hc'.not_nil) with h' | ⟨_, h'⟩
+          · exact h'
+          · exact absurd (h' ▸ hs) hnxt
+        have hpe : c'.penultimate = P.getVert (h - (d + 1) - 1) := by
+          rcases hadj (h - (d + 1)) (by omega) (by omega) c'.penultimate (c'.adj_penultimate hc'.not_nil).symm with
+            h' | ⟨_, h'⟩
+          · exact h'
+          · exact absurd (h' ▸ hp') hnxt
+        exact hc'.snd_ne_penultimate (hse.trans hpe.symm)
+    rw [himg] at hu; obtain ⟨i, hi, rfl⟩ := mem_image.mp hu; simp only [mem_Icc] at hi
+    have h' := hdown (h - i) (by omega)
+    rwa [show h - (h - i) = i by omega] at h'
+  have hv_nc : ¬ Cut G v := by
+    have hadj_v : G.Adj v (P.getVert (h - 1)) := by
+      have hs := P.adj_getVert_succ (by omega : h - 1 < P.length)
+      rw [show h - 1 + 1 = h by omega, hleaf_eq] at hs; exact hs.symm
+    exact ncut_uniq hG hadj_v hleaf
+  exact ⟨hmem, himg, hadj, hleaf, hdist, hnocyc, hv_nc⟩
+
+private lemma pend_nocyc [Fintype α] [DecidableEq α] (hG : G.Connected) {c : α} {A : Finset α}
+    (hp : Pend G c A) {w : α} {cyc : G.Walk w w} (hc : cyc.IsCycle) : ∀ u ∈ A, u ∉ cyc.support := by
+  obtain ⟨_, v, hvA, hv⟩ := pend_ex hG hp
+  obtain ⟨P, hP, hl⟩ := hG.exists_path_of_dist c v
+  exact (pend_spec hG hp hvA hv P hP (hl.trans hv)).2.2.2.2.2.1 cyc hc
+
+private lemma pend_leaf_nc [Fintype α] [DecidableEq α] (hG : G.Connected) {c : α} {A : Finset α}
+    (hp : Pend G c A) {v : α} (hvA : v ∈ A) (hv : G.dist c v = A.sup (G.dist c)) : ¬ Cut G v := by
+  obtain ⟨P, hP, hl⟩ := hG.exists_path_of_dist c v
+  exact (pend_spec hG hp hvA hv P hP (hl.trans hv)).2.2.2.2.2.2
+
+end SecD
+
+section SecE
+
+variable {α : Type u} {G : SimpleGraph α}
+
+private lemma mem_comp_walk [Fintype α] [DecidableEq α] {c a x y : α} {ha : a ≠ c}
+    (hx : x ∈ comp G c a ha) (p : G.Walk x y) (hc : c ∉ p.support) : y ∈ comp G c a ha := by
+  by_contra hy; exact hc (sep_supp hx hy p)
+
+private lemma induce_conn_dist (S : Set α) (hne : S.Nonempty)
+    (hp : ∀ a ∈ S, ∀ b ∈ S, ∃ p : G.Walk a b, p.length = G.dist a b ∧ ∀ u ∈ p.support, u ∈ S) :
+    (G.induce S).Connected ∧ ∀ u v : S, (G.induce S).dist u v = G.dist u.1 v.1 := by
+  have : Nonempty S := ⟨⟨hne.some, hne.some_mem⟩⟩
+  have hc : (G.induce S).Connected := Connected.mk fun u v => by
+    obtain ⟨p, -, hps⟩ := hp u.1 u.2 v.1 v.2; exact ⟨p.induce S hps⟩
+  refine ⟨hc, fun u v => le_antisymm ?_ (dist_le_ind S (hc u v))⟩
+  obtain ⟨p, hl, hps⟩ := hp u.1 u.2 v.1 v.2
+  have hlen : ∀ {a b : α} (q : G.Walk a b) (hq : ∀ x ∈ q.support, x ∈ S), (q.induce S hq).length = q.length := by
+    intro _ _ q hq; induction q with | nil => rfl | cons _ _ ih => exact congrArg (· + 1) (ih _)
+  exact ((G.induce S).dist_le (p.induce S hps)).trans (by rw [hlen, hl])
+
+private lemma max_tree {β : Type u} [Fintype β] [DecidableEq β] [Nonempty β]
+    (H : SimpleGraph β) : ∃ t : Finset β, (H.induce (t : Set β)).IsTree ∧ t.card = largestInducedTreeSize H := by
   classical
-  obtain ⟨u, v, hcu, hcv, huv⟩ := exists_two_adj_of_connected_deletions
-    (G := G.induce (K : Set α)) (by simpa using hcard) hK hdel ⟨c, hc⟩
-  have hside : ∀ z ∈ K, z ∈ cutSide G c a := by
-    intro z hz
-    by_contra hzside
-    have hzc : z ≠ c := fun heq => hzside (Or.inl heq)
-    have hneighbor (w : ↥(K : Set α)) (hcw : G.Adj c w) : (w : α) = q.snd := by
-      have hwc := hcw.ne.symm
-      have hzw := core_reachable_compl K hK hdel c hz w.property hzc hwc
-      have hwnot : (w : α) ∉ cutSide G c a := by
-        rintro (hwc' | ⟨_, haw⟩)
-        · exact hwc hwc'
-        · exact hzside (Or.inr ⟨hzc, haw.trans hzw.symm⟩)
-      exact adjacent_start_eq_snd_of_geodesic hG q hq
-        ((hcover w).resolve_left hwnot) hcw
-    have huq := hneighbor u hcu
-    have hvq := hneighbor v hcv
-    exact huv (Subtype.ext (huq.trans hvq.symm))
-  refine ⟨hside, ?_⟩
-  intro z hzq hzK
-  by_contra hzc
-  have hzb := reachable_compl_of_mem_geodesic q hq b.property hzq hzc
-  rcases hside z hzK with heq | ⟨_, haz⟩
-  · exact hzc heq
-  · exact hsep (haz.trans hzb)
+  obtain ⟨s, -, hsT, hmax⟩ := exists_maximum_induced_tree_containing H ∅
+    ⟨{Classical.arbitrary β}, empty_subset _, tree_single _⟩
+  refine ⟨s, hsT, le_antisymm (card_le_largestInducedTreeSize hsT) ?_⟩
+  unfold largestInducedTreeSize
+  exact csSup_le ⟨1, {Classical.arbitrary β}, card_singleton _, tree_single _⟩
+    fun _ ⟨_, hn, ht⟩ => hn ▸ hmax _ (empty_subset _) ht
 
-/-- Geodesics attached to a core, with no edges leaving their positive tails. -/
-structure PendantGeodesics (G : SimpleGraph α) (K : Finset α) where
-  endPoint : ↥(K : Set α) → α
-  path : ∀ c : ↥(K : Set α), G.Walk c (endPoint c)
-  geodesic : ∀ c, (path c).length = G.dist c (endPoint c)
-  core_inter : ∀ c z, z ∈ (path c).support → z ∈ K → z = (c : α)
-  closed : ∀ c z, z ∈ (path c).support → z ≠ (c : α) →
-    ∀ w, G.Adj z w → w ∈ (path c).support
-  rest : ∀ (c : ↥(K : Set α)) (z : ↥({(c : α)}ᶜ : Set α)),
-    (z : α) ∉ (path c).support → ∀ (v : α) (hv : v ∈ K) (hvc : v ≠ (c : α)),
-      (G.induce ({(c : α)}ᶜ : Set α)).Reachable z ⟨v, by simpa using hvc⟩
-  depth_gap : ∀ c, 0 < (path c).length → ∃ a, (path c).length + 2 ≤ G.dist c a
-  cover : ∀ z : α, ∃ c, z ∈ (path c).support
+private lemma adj_cut [Fintype α] [DecidableEq α] (hG : G.Connected) {c a : α} (ha : a ≠ c) :
+    ∃ u ∈ comp G c a ha, G.Adj u c := by
+  obtain ⟨z, hzn, u, hu, had⟩ := hG.exists_adj_finset_compl ⟨a, self_comp c a ha⟩
+    (fun he => nmem_comp c a ha (he ▸ mem_univ c))
+  have hzc : z = c := by_contra fun h => hzn (adj_comp hu h had.symm)
+  exact ⟨u, hu, hzc ▸ had.symm⟩
 
-/-- The two-side reduction and unique attachment property give a covering family
-of pendant geodesics rooted in the core, including zero-length paths. -/
-lemma exists_pendant_geodesic_family {G : SimpleGraph α} (hG : G.Connected)
-    (K : Finset α) (hcard : 3 ≤ K.card) (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    (huniq : ∀ (z w : ↥((K : Set α)ᶜ)),
-      (G.induce (K : Set α)ᶜ).Reachable z w →
-      ∀ {a b : α}, a ∈ K → b ∈ K → G.Adj a z → G.Adj b w → a = b)
-    (htwo : ∀ c, ¬ (G.induce ({c}ᶜ : Set α)).Connected →
-      ∃ a b : ↥({c}ᶜ : Set α), ∃ q : G.Walk c (b : α),
-        q.length = G.dist c b ∧
-        ¬ (G.induce ({c}ᶜ : Set α)).Reachable a b ∧
-        G.dist c b + 2 ≤ G.dist c a ∧
-        ∀ z, z ∈ cutSide G c a ∨ z ∈ q.support) :
-    Nonempty (PendantGeodesics G K) := by
+private lemma card_ne [Fintype α] [DecidableEq α] (v : α) :
+    Fintype.card {x : α | x ≠ v} = Fintype.card α - 1 := by
   classical
-  have hpaths (c : ↥(K : Set α)) :
-      ∃ (e : α) (p : G.Walk c e),
-        p.length = G.dist c e ∧
-        (∀ z ∈ p.support, z ∈ K → z = (c : α)) ∧
-        (∀ z ∈ p.support, z ≠ (c : α) → ∀ w, G.Adj z w → w ∈ p.support) ∧
-        (∀ (z : ↥({(c : α)}ᶜ : Set α)), (z : α) ∉ p.support →
-          ∀ (v : α) (hv : v ∈ K) (hvc : v ≠ (c : α)),
-            (G.induce ({(c : α)}ᶜ : Set α)).Reachable z ⟨v, by simpa using hvc⟩) ∧
-        (0 < p.length → ∃ a, p.length + 2 ≤ G.dist c a) := by
-    by_cases hc : (G.induce ({(c : α)}ᶜ : Set α)).Connected
-    · refine ⟨c, Walk.nil, by simp, ?_, ?_, ?_, ?_⟩
-      · intro z hz _
-        simpa using hz
-      · intro z hz hzc
-        exact (hzc (by simpa using hz)).elim
-      · intro z _ v _ hvc
-        exact hc z ⟨v, by simpa using hvc⟩
-      · simp
-    · obtain ⟨a, b, q, hq, hsep, hgap, hcover⟩ := htwo c hc
-      obtain ⟨hside, hcore⟩ := shallow_geodesic_meets_core hG K hcard hK hdel
-        c c.property a b q hq hsep hcover
-      refine ⟨b, q, hq, hcore, ?_, ?_, ?_⟩
-      · intro z hz hzc w hzw
-        by_contra hwq
-        have hwside := (hcover w).resolve_right hwq
-        have hwc : w ≠ (c : α) := fun heq => hwq (heq ▸ q.start_mem_support)
-        have hzb := reachable_compl_of_mem_geodesic q hq b.property hz hzc
-        rcases hwside with heq | ⟨_, haw⟩
-        · exact hwc heq
-        · have hwz : (G.induce ({(c : α)}ᶜ : Set α)).Adj
-              ⟨w, by simpa using hwc⟩ ⟨z, by simpa using hzc⟩ := hzw.symm
-          exact hsep (haw.trans (hwz.reachable.trans hzb))
-      · intro z hzq v hv hvc
-        have hzside := (hcover z).resolve_right hzq
-        rcases hzside with hzc | ⟨_, haz⟩
-        · exact (z.property hzc).elim
-        rcases hside v hv with heq | ⟨_, hav⟩
-        · exact (hvc heq).elim
-        · exact haz.symm.trans hav
-      · intro _
-        exact ⟨a, hq ▸ hgap⟩
-  choose e P hgeo hcore hclosed hrest hgap using hpaths
-  refine ⟨⟨e, P, hgeo, hcore, hclosed, hrest, hgap, ?_⟩⟩
-  intro z
-  by_cases hzK : z ∈ K
-  · exact ⟨⟨z, hzK⟩, (P ⟨z, hzK⟩).start_mem_support⟩
-  · obtain ⟨c, hc, w, hzw, hcw, hsep⟩ := outside_component_attachment hG K
-      (Finset.card_pos.mp (by omega)) huniq ⟨z, hzK⟩
-    obtain ⟨v, _, hcv, _, _⟩ := exists_two_adj_of_connected_deletions
-      (G := G.induce (K : Set α)) (by simpa using hcard) hK hdel ⟨c, hc⟩
-    have hvc : (v : α) ≠ c := (show G.Adj c v from hcv).ne.symm
-    refine ⟨⟨c, hc⟩, ?_⟩
-    by_contra hzP
-    exact hsep v v.property hvc
-      (hrest ⟨c, hc⟩ ⟨z, by simpa using (show z ≠ c from fun heq => hzK (heq.symm ▸ hc))⟩
-        hzP v v.property hvc)
+  have h : Fintype.card {x : α | x ≠ v} = (univ.erase v).card := by
+    rw [← Fintype.card_coe (univ.erase v)]
+    exact Fintype.card_congr ⟨fun x => ⟨x.1, mem_erase.mpr ⟨x.2, mem_univ _⟩⟩,
+      fun x => ⟨x.1, (mem_erase.mp x.2).1⟩, fun _ => rfl, fun _ => rfl⟩
+  rw [h, card_erase_of_mem (mem_univ v), card_univ]
 
-namespace PendantGeodesics
+private lemma comp_laminar [Fintype α] [DecidableEq α] (hG : G.Connected) {r0 c1 c2 a1 a2 : α}
+    {ha1 : a1 ≠ c1} {ha2 : a2 ≠ c2} (hr1 : r0 ∉ comp G c1 a1 ha1) (hr2 : r0 ∉ comp G c2 a2 ha2) :
+    Disjoint (comp G c1 a1 ha1) (comp G c2 a2 ha2) ∨
+      comp G c1 a1 ha1 ⊆ comp G c2 a2 ha2 ∨ comp G c2 a2 ha2 ⊆ comp G c1 a1 ha1 := by
+  by_cases hd : Disjoint (comp G c1 a1 ha1) (comp G c2 a2 ha2); · exact Or.inl hd
+  right; obtain ⟨z, hz1, hz2⟩ := not_disjoint_iff.mp hd
+  have hsub : ∀ {c1 c2 a1 a2 : α} {ha1 : a1 ≠ c1} {ha2 : a2 ≠ c2} {z : α},
+      z ∈ comp G c1 a1 ha1 → z ∈ comp G c2 a2 ha2 → c2 ∉ comp G c1 a1 ha1 →
+      comp G c1 a1 ha1 ⊆ comp G c2 a2 ha2 := by
+    intro c1 c2 a1 a2 ha1 ha2 z hz1 hz2 hc2 x hx1
+    have hn1 := ne_comp hz1; have hn2 := ne_comp hz2
+    rw [← eq_comp hn1 hz1] at hx1 hc2; rw [← eq_comp hn2 hz2]
+    obtain ⟨_, ⟨q⟩⟩ := (mem_comp hn1).mp hx1
+    let q' := q.map (Embedding.induce {u | u ≠ c1}).toHom
+    refine mem_comp_walk (self_comp c2 z hn2) q' fun hmem => ?_
+    have hmem' : c2 ∈ q'.support := hmem
+    rw [Walk.support_map, List.mem_map] at hmem'
+    obtain ⟨w, hw, hw2⟩ := hmem'
+    exact hc2 (hw2 ▸ (mem_comp hn1).mpr ⟨w.2, (q.takeUntil w hw).reachable⟩)
+  by_cases hc2 : c2 ∈ comp G c1 a1 ha1
+  · right; refine hsub hz2 hz1 fun hc1 => ?_
+    obtain ⟨p, -, -, hp⟩ := avoid_path hG (nmem_comp c2 a2 ha2) hr2
+    exact hr1 (mem_comp_walk hc2 p fun hm => hp c1 hm hc1)
+  · exact Or.inl (hsub hz1 hz2 hc2)
 
-variable {G : SimpleGraph α} {K : Finset α} (F : PendantGeodesics G K)
+private lemma tree_union_pend [Fintype α] [DecidableEq α] (hG : G.Connected) {a : α} {A T : Finset α}
+    (hp : Pend G a A) (hT : (G.induce (T : Set α)).IsTree) (haT : a ∈ T) (hdisj : Disjoint T A) :
+    (G.induce ((T ∪ A : Finset α) : Set α)).IsTree := by
+  obtain ⟨h1, v, hvA, hvd⟩ := pend_ex hG hp
+  obtain ⟨P, hPp, hPl⟩ := hG.exists_path_of_dist a v
+  have hs := pend_spec hG hp hvA hvd P hPp (hPl.trans hvd)
+  set h := A.sup (G.dist a)
+  let S : ℕ → Finset α := fun k => T ∪ (Icc 1 k).image P.getVert
+  have hb : ∀ k ≤ h, (G.induce ((S k : Finset α) : Set α)).IsTree := fun k => by
+    induction k with
+    | zero =>
+      intro _
+      have h0 : S 0 = T := by simp [S]
+      rwa [h0]
+    | succ k ih =>
+      intro hk
+      let u := P.getVert (k + 1); let prev := P.getVert k
+      have hSk1 : S (k + 1) = insert u (S k) := by
+        ext x; simp only [S, mem_insert, mem_union, mem_image, mem_Icc]
+        constructor
+        · rintro (h' | ⟨j, ⟨hj1, hj2⟩, rfl⟩)
+          · exact Or.inr (Or.inl h')
+          · by_cases hj : j = k + 1
+            · exact Or.inl (by rw [hj])
+            · exact Or.inr (Or.inr ⟨j, ⟨hj1, by omega⟩, rfl⟩)
+        · rintro (rfl | h' | ⟨j, ⟨hj1, hj2⟩, rfl⟩)
+          · exact Or.inr ⟨k + 1, ⟨by omega, le_rfl⟩, rfl⟩
+          · exact Or.inl h'
+          · exact Or.inr ⟨j, ⟨hj1, by omega⟩, rfl⟩
+      have huA : u ∈ A := hs.1 (k + 1) (by omega) hk
+      have hun : u ∉ S k := by
+        simp only [S, mem_union, mem_image, mem_Icc]
+        rintro (huT | ⟨j, ⟨hj1, hj2⟩, hju⟩)
+        · exact disjoint_left.mp hdisj huT huA
+        · have hd1 : G.dist a u = k + 1 := by simpa [u, getVert_zero] using wdist_eq P hPl (Nat.zero_le (k + 1)) (by omega)
+          have hd2 : G.dist a (P.getVert j) = j := by simpa [getVert_zero] using wdist_eq P hPl (Nat.zero_le j) (by omega)
+          rw [hju] at hd2; omega
+      have hpm : prev ∈ S k := by
+        simp only [S, mem_union, mem_image, mem_Icc]
+        cases k with
+        | zero => left; simpa [prev, P.getVert_zero] using haT
+        | succ k' => right; exact ⟨k' + 1, ⟨by omega, le_rfl⟩, rfl⟩
+      have had : G.Adj u prev := (P.adj_getVert_succ (by omega : k < P.length)).symm
+      have hunq : ∀ ⦃y⦄, y ∈ S k → G.Adj u y → y = prev := fun y hyS hyu => by
+        rcases hs.2.2.1 (k + 1) (by omega) hk y hyu with hl | ⟨hlt, hr⟩
+        · simpa [prev] using hl
+        · exfalso; have hyA : y ∈ A := hr ▸ hs.1 (k + 2) (by omega) (by omega)
+          simp only [S, mem_union, mem_image, mem_Icc] at hyS
+          rcases hyS with hyT | ⟨j, ⟨hj1, hj2⟩, hjy⟩
+          · exact disjoint_left.mp hdisj hyT hyA
+          · have hd1 : G.dist a y = k + 2 := by rw [hr]; simpa [getVert_zero] using wdist_eq P hPl (Nat.zero_le (k + 2)) (by omega)
+            have hd2 : G.dist a (P.getVert j) = j := by simpa [getVert_zero] using wdist_eq P hPl (Nat.zero_le j) (by omega)
+            rw [hjy] at hd2; omega
+      rw [hSk1]; exact (ih (by omega)).induce_insert_of_unique_adj hun hpm had hunq
+  have hSh : S h = T ∪ A := by simp only [S]; rw [← hs.2.1]
+  rw [← hSh]; exact hb h le_rfl
 
-/-- A core of order at least three has a vertex avoiding two prescribed vertices. -/
-lemma exists_core_vertex_ne_two (hcard : 3 ≤ K.card) (a b : α) :
-    ∃ v : ↥(K : Set α), (v : α) ≠ a ∧ (v : α) ≠ b := by
+private lemma tree_biUnion [Fintype α] [DecidableEq α] (hG : G.Connected) {T0 : Finset α}
+    (hT0 : (G.induce (T0 : Set α)).IsTree) (Am : α → Finset α)
+    (hp : ∀ v ∈ T0, Pend G v (Am v)) (hdb : ∀ v ∈ T0, Disjoint T0 (Am v))
+    (hdp : ∀ v ∈ T0, ∀ w ∈ T0, v ≠ w → Disjoint (Am v) (Am w)) :
+    (G.induce ((T0 ∪ T0.biUnion Am : Finset α) : Set α)).IsTree ∧
+      (T0 ∪ T0.biUnion Am).card = T0.card + ∑ v ∈ T0, (Am v).card := by
   classical
-  by_contra! hn
-  have hsub : K ⊆ {a, b} := by
-    intro v hv
-    by_cases hva : v = a
-    · simp [hva]
-    · exact Finset.mem_insert_of_mem (Finset.mem_singleton.mpr (hn ⟨v, hv⟩ hva))
-  have hle := Finset.card_le_card hsub
-  have htwo : ({a, b} : Finset α).card ≤ 2 := Finset.card_le_two
-  omega
-
-/-- Deleting a pendant root separates its positive tail from everything off its path. -/
-lemma tail_separated (c : ↥(K : Set α)) {z v : α}
-    (hz : z ∈ (F.path c).support) (hzc : z ≠ (c : α))
-    (hv : v ∉ (F.path c).support) :
-    ¬ (G.induce ({(c : α)}ᶜ : Set α)).Reachable
-      ⟨z, by simpa using hzc⟩
-      ⟨v, by simpa using (show v ≠ (c : α) from fun heq => hv (heq ▸ (F.path c).start_mem_support))⟩ := by
-  intro hr
-  have hclosed : ∀ u ∈ {y : ↥({(c : α)}ᶜ : Set α) | (y : α) ∈ (F.path c).support},
-      ∀ t, (G.induce ({(c : α)}ᶜ : Set α)).Adj u t → (t : α) ∈ (F.path c).support := by
-    intro u hu t hut
-    exact F.closed c u hu u.property t hut
-  exact hv (reachable_mem_of_adj_closed hclosed hr hz)
-
-/-- Every distance from the core to a pendant path passes through its root. -/
-lemma dist_from_core (hG : G.Connected) (c v : ↥(K : Set α)) {z : α}
-    (hz : z ∈ (F.path c).support) :
-    G.dist v z = G.dist v c + G.dist c z := by
-  by_cases hvc : (v : α) = (c : α)
-  · simp [hvc]
-  by_cases hzc : z = (c : α)
-  · simp [hzc]
-  have hv : (v : α) ∉ (F.path c).support := fun hv => hvc (F.core_inter c v hv v.property)
-  apply dist_eq_add_of_not_reachable_compl hG hvc hzc
-  exact fun hr => F.tail_separated c hz hzc hv hr.symm
-
-/-- Distinct core roots have disjoint full pendant supports. -/
-lemma support_disjoint (hG : G.Connected) {c d : ↥(K : Set α)} (hcd : c ≠ d) :
-    Disjoint (F.path c).support.toFinset (F.path d).support.toFinset := by
-  apply Finset.disjoint_left.mpr
-  intro z hz hd
-  have h₁ := F.dist_from_core hG c d (List.mem_toFinset.mp hz)
-  have h₂ := F.dist_from_core hG d c (List.mem_toFinset.mp hd)
-  have hcomm : G.dist (d : α) c = G.dist c d := G.dist_comm
-  have hzero : G.dist (c : α) d = 0 := by omega
-  exact hcd (Subtype.ext (hG.dist_eq_zero_iff.mp hzero))
-
-/-- A pendant path has positive length precisely when its endpoint differs from its root. -/
-lemma length_pos_iff (hG : G.Connected) (c : ↥(K : Set α)) :
-    0 < (F.path c).length ↔ F.endPoint c ≠ (c : α) := by
-  rw [F.geodesic c]
-  constructor
-  · intro h heq
-    simp [heq] at h
-  · intro h
-    have hne : G.dist (c : α) (F.endPoint c) ≠ 0 :=
-      fun hz => h (hG.dist_eq_zero_iff.mp hz).symm
-    omega
-
-/-- Endpoints of positive pendant paths are outside the core. -/
-lemma endPoint_not_core (hG : G.Connected) (c : ↥(K : Set α))
-    (hpos : 0 < (F.path c).length) : F.endPoint c ∉ K := by
-  intro heK
-  exact (F.length_pos_iff hG c).mp hpos
-    (F.core_inter c _ (F.path c).end_mem_support heK)
-
-include F in
-/-- Every original-graph center belongs to the core. -/
-lemma center_mem_core (hG : G.Connected) {v : α} (hv : G.eccent v = G.radius) : v ∈ K := by
-  haveI : Nonempty α := hG.nonempty
-  by_contra hvK
-  obtain ⟨c, hvc⟩ := F.cover v
-  have hvcne : v ≠ (c : α) := fun heq => hvK (heq.symm ▸ c.property)
-  have hvdist : 0 < G.dist (c : α) v := by
-    have hne : G.dist (c : α) v ≠ 0 := fun heq => hvcne (hG.dist_eq_zero_iff.mp heq).symm
-    omega
-  have hsum := dist_add_dist_eq_of_mem_geodesic (F.path c) (F.geodesic c) hvc
-  have hpos : 0 < (F.path c).length := by rw [F.geodesic c]; omega
-  obtain ⟨a, ha⟩ := F.depth_gap c hpos
-  obtain ⟨f, hf⟩ := G.exists_edist_eq_eccent_of_finite (c : α)
-  have hmax : G.dist (c : α) a ≤ G.dist c f :=
-    ENat.toNat_le_toNat (hf ▸ G.edist_le_eccent)
-      (edist_ne_top_iff_reachable.mpr (hG c f))
-  have hfoff : f ∉ (F.path c).support := by
-    intro hfc
-    have hf_sum := dist_add_dist_eq_of_mem_geodesic (F.path c) (F.geodesic c) hfc
-    rw [← F.geodesic c] at hf_sum
-    omega
-  have hfc : f ≠ (c : α) := fun heq => hfoff (heq ▸ (F.path c).start_mem_support)
-  have hdist := dist_eq_add_of_not_reachable_compl hG hvcne hfc
-    (F.tail_separated c hvc hvcne hfoff)
-  have hrad : G.radius.toNat ≤ G.dist (c : α) f :=
-    ENat.toNat_le_toNat (hf ▸ G.radius_le_eccent)
-      (edist_ne_top_iff_reachable.mpr (hG c f))
-  have hvf : G.dist v f ≤ G.radius.toNat :=
-    ENat.toNat_le_toNat (hv ▸ G.edist_le_eccent)
-      (G.radius_ne_top_iff.mpr hG)
-  rw [G.dist_comm (u := v) (v := (c : α))] at hdist
-  omega
-
-/-- A positive pendant endpoint is a leaf of the whole graph. -/
-lemma endPoint_degree_one [DecidableRel G.Adj] (hG : G.Connected) (c : ↥(K : Set α))
-    (hpos : 0 < (F.path c).length) : G.degree (F.endPoint c) = 1 := by
-  classical
-  have hec := (F.length_pos_iff hG c).mp hpos
-  let q := (F.path c).reverse
-  have hq : q.length = G.dist (F.endPoint c) c := by
-    simpa only [q, Walk.length_reverse, SimpleGraph.dist_comm] using F.geodesic c
-  have hqn : ¬ q.Nil := q.not_nil_of_ne hec
-  apply degree_eq_one_iff_existsUnique_adj.mpr
-  refine ⟨q.snd, q.adj_snd hqn, ?_⟩
-  intro w hew
-  have hw := F.closed c _ (F.path c).end_mem_support hec w hew
-  apply adjacent_start_eq_snd_of_geodesic hG q hq _ hew
-  simpa only [q, Walk.support_reverse, List.mem_reverse] using hw
-
-/-- Deleting the endpoint of a positive pendant path preserves connectedness. -/
-lemma delete_endPoint_connected (hG : G.Connected) (c : ↥(K : Set α))
-    (hpos : 0 < (F.path c).length) :
-    (G.induce ({F.endPoint c}ᶜ : Set α)).Connected := by
-  classical
-  exact hG.induce_compl_singleton_of_degree_eq_one (F.endPoint_degree_one hG c hpos)
-
-include F in
-/-- Deleting an unused core root preserves connectedness. -/
-lemma delete_zero_connected (hG : G.Connected) (hcard : 3 ≤ K.card)
-    (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    (a : ↥(K : Set α)) (ha : (F.path a).length = 0) :
-    (G.induce ({(a : α)}ᶜ : Set α)).Connected := by
-  classical
-  obtain ⟨u, _, hau, _, _⟩ := exists_two_adj_of_connected_deletions
-    (G := G.induce (K : Set α)) (by simpa using hcard) hK hdel a
-  have hua : (u : α) ≠ (a : α) := (show G.Adj a u from hau).ne.symm
-  let u' : ↥({(a : α)}ᶜ : Set α) := ⟨u, by simpa using hua⟩
-  rw [connected_iff_exists_forall_reachable]
-  refine ⟨u', ?_⟩
-  intro z
-  obtain ⟨d, hzd⟩ := F.cover z
-  have hda : (d : α) ≠ (a : α) := by
-    intro hda
-    have hdeq : d = a := Subtype.ext hda
-    subst d
-    have hsum := dist_add_dist_eq_of_mem_geodesic (F.path a) (F.geodesic a) hzd
-    rw [← F.geodesic a, ha] at hsum
-    have haz : G.dist (a : α) z = 0 := by omega
-    exact z.property (hG.dist_eq_zero_iff.mp haz).symm
-  obtain ⟨p, _, hpa⟩ := exists_walk_in_core_avoiding K hK hdel a
-    u.property d.property hua hda
-  let q := (F.path d).takeUntil (z : α) hzd
-  have hqa : (a : α) ∉ q.support := by
-    intro haq
-    have had := F.core_inter d a
-      ((F.path d).support_takeUntil_subset hzd haq) a.property
-    exact hda had.symm
-  let r := p.append q
-  have hra : (a : α) ∉ r.support := by
-    intro har
-    simp only [r, Walk.support_append, List.mem_append] at har
-    exact har.elim hpa (fun har => hqa (List.mem_of_mem_tail har))
-  exact ⟨r.induce ({(a : α)}ᶜ : Set α) (by
-    intro w hw
-    exact show w ≠ (a : α) from fun heq => hra (heq ▸ hw))⟩
-
-/-- A surviving positive tail still certifies a cut after another vertex is deleted. -/
-lemma cut_after_delete (hG : G.Connected) (x : α) (c v : ↥(K : Set α))
-    (hc : 0 < (F.path c).length) (hcx : (c : α) ≠ x)
-    (hex : F.endPoint c ≠ x) (hvc : v ≠ c) (hvx : (v : α) ≠ x) :
-    ∃ y, ¬ ((G.induce ({x}ᶜ : Set α)).induce
-      ({y}ᶜ : Set ↥({x}ᶜ : Set α))).Connected := by
-  have hec := (F.length_pos_iff hG c).mp hc
-  have hvpath : (v : α) ∉ (F.path c).support := by
-    intro hv
-    exact hvc (Subtype.ext (F.core_inter c v hv v.property))
-  have hsep := F.tail_separated c (F.path c).end_mem_support hec hvpath
-  refine ⟨⟨c, by simpa using hcx⟩, ?_⟩
-  exact not_connected_induce_delete_of_separated_pair
-    (S := ({x}ᶜ : Set α)) hcx hex hvx hec
-    (show (v : α) ≠ (c : α) from fun heq => hvc (Subtype.ext heq)) hsep
-
-/-- A graph with a cut has at least one positive pendant length. -/
-lemma exists_positive (hG : G.Connected) (hcard : 3 ≤ K.card)
-    (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    (hcut : ∃ x, ¬ (G.induce ({x}ᶜ : Set α)).Connected) :
-    ∃ c, 0 < (F.path c).length := by
-  by_contra! hn
-  have hall : ∀ z : α, z ∈ K := by
-    intro z
-    obtain ⟨c, hzc⟩ := F.cover z
-    have hsum := dist_add_dist_eq_of_mem_geodesic (F.path c) (F.geodesic c) hzc
-    have hlen : (F.path c).length = 0 := by have := hn c; omega
-    rw [← F.geodesic c, hlen] at hsum
-    have hcz : G.dist (c : α) z = 0 := by omega
-    exact (hG.dist_eq_zero_iff.mp hcz) ▸ c.property
-  obtain ⟨x, hx⟩ := hcut
-  obtain ⟨u, hux, _⟩ := exists_core_vertex_ne_two hcard x x
-  apply hx
-  rw [connected_iff_exists_forall_reachable]
-  refine ⟨⟨u, by simpa using hux⟩, ?_⟩
-  intro z
-  exact core_reachable_compl K hK hdel x u.property (hall z) hux z.property
-
-/-- The minimal-counterexample deletion witness used to compare pendant lengths. -/
-def DeletionCenters (G : SimpleGraph α) : Prop :=
-  ∀ x, (G.induce ({x}ᶜ : Set α)).Connected →
-    (∃ y, ¬ ((G.induce ({x}ᶜ : Set α)).induce
-      ({y}ᶜ : Set ↥({x}ᶜ : Set α))).Connected) →
-    ∃ c : α, c ≠ x ∧ G.eccent c = G.radius ∧ G.dist c x = G.radius.toNat ∧
-      ∀ z : α, z ≠ x → G.dist c z ≤ G.radius.toNat - 1
-
-/-- Adjacent core roots cannot have a zero length next to a positive length. -/
-lemma not_zero_adj_positive (hG : G.Connected) (hcard : 3 ≤ K.card)
-    (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    (hdelete : DeletionCenters G) (hr : 1 ≤ G.radius.toNat)
-    (a b : ↥(K : Set α)) (hab : G.Adj a b)
-    (ha : (F.path a).length = 0) (hb : 0 < (F.path b).length) : False := by
-  obtain ⟨v, hva, hvb⟩ := exists_core_vertex_ne_two hcard a b
-  have heba : F.endPoint b ≠ (a : α) :=
-    fun heq => F.endPoint_not_core hG b hb (heq.symm ▸ a.property)
-  have hcut := F.cut_after_delete hG a b v hb hab.ne.symm heba
-    (fun heq => hvb (congrArg Subtype.val heq)) hva
-  obtain ⟨w, _, hw, hwa, hwb⟩ := hdelete a
-    (F.delete_zero_connected hG hcard hK hdel a ha) hcut
-  let w' : ↥(K : Set α) := ⟨w, F.center_mem_core hG hw⟩
-  have hdist := F.dist_from_core hG b w' (F.path b).end_mem_support
-  rw [← F.geodesic b] at hdist
-  have hfar := hwb (F.endPoint b) heba
-  have htri := hG.dist_triangle (u := w) (v := (b : α)) (w := (a : α))
-  have hba : G.dist (b : α) a = 1 := dist_eq_one_iff_adj.mpr hab.symm
-  change G.dist w (F.endPoint b) = G.dist w b + (F.path b).length at hdist
-  omega
-
-/-- Connectedness propagates positivity from one pendant root to every core vertex. -/
-lemma all_positive (hG : G.Connected) (hcard : 3 ≤ K.card)
-    (hK : (G.induce (K : Set α)).Connected)
-    (hdel : ∀ x : ↥(K : Set α),
-      ((G.induce (K : Set α)).induce ({x}ᶜ : Set ↥(K : Set α))).Connected)
-    (hdelete : DeletionCenters G) (hr : 1 ≤ G.radius.toNat)
-    (hcut : ∃ x, ¬ (G.induce ({x}ᶜ : Set α)).Connected) :
-    ∀ c, 0 < (F.path c).length := by
-  obtain ⟨a, ha⟩ := F.exists_positive hG hcard hK hdel hcut
-  have hclosed : ∀ u ∈ {c : ↥(K : Set α) | 0 < (F.path c).length},
-      ∀ v, (G.induce (K : Set α)).Adj u v → 0 < (F.path v).length := by
-    intro u hu v huv
-    by_contra hv
-    have hvzero : (F.path v).length = 0 := by omega
-    exact F.not_zero_adj_positive hG hcard hK hdel hdelete hr v u huv.symm hvzero hu
-  intro c
-  exact reachable_mem_of_adj_closed hclosed (hK a c) ha
-
-/-- Distinct pendant roots have distinct endpoints. -/
-lemma endPoint_injective (hG : G.Connected) : Function.Injective F.endPoint := by
-  intro c d heq
-  by_contra hcd
-  exact (Finset.disjoint_left.mp (F.support_disjoint hG hcd))
-    (by simpa only [List.mem_toFinset] using (F.path c).end_mem_support)
-    (by simpa only [List.mem_toFinset, heq] using (F.path d).end_mem_support)
-
-/-- Deleting a positive endpoint gives a center witnessing that its length is
-at least every neighboring pendant length. -/
-lemma length_le_of_adj (hG : G.Connected) (hcard : 3 ≤ K.card)
-    (hdelete : DeletionCenters G) (hr : 1 ≤ G.radius.toNat)
-    (hpos : ∀ c, 0 < (F.path c).length)
-    (a b : ↥(K : Set α)) (hab : G.Adj a b) :
-    (F.path b).length ≤ (F.path a).length := by
-  obtain ⟨d, hda, _⟩ := exists_core_vertex_ne_two hcard a a
-  have hda' : d ≠ a := fun heq => hda (congrArg Subtype.val heq)
-  have hxK := F.endPoint_not_core hG a (hpos a)
-  have hdxa : (d : α) ≠ F.endPoint a := fun heq => hxK (heq ▸ d.property)
-  have haxa : (a : α) ≠ F.endPoint a := fun heq => hxK (heq ▸ a.property)
-  have hed : F.endPoint d ≠ F.endPoint a := fun heq => hda' (F.endPoint_injective hG heq)
-  have hcut := F.cut_after_delete hG (F.endPoint a) d a (hpos d) hdxa hed hda'.symm haxa
-  obtain ⟨w, _, hw, hwa, hwb⟩ := hdelete (F.endPoint a)
-    (F.delete_endPoint_connected hG a (hpos a)) hcut
-  let w' : ↥(K : Set α) := ⟨w, F.center_mem_core hG hw⟩
-  have hdistA := F.dist_from_core hG a w' (F.path a).end_mem_support
-  have hdistB := F.dist_from_core hG b w' (F.path b).end_mem_support
-  rw [← F.geodesic a] at hdistA
-  rw [← F.geodesic b] at hdistB
-  have heba : F.endPoint b ≠ F.endPoint a := fun heq =>
-    hab.ne (congrArg Subtype.val (F.endPoint_injective hG heq)).symm
-  have hfar := hwb (F.endPoint b) heba
-  have htri := hG.dist_triangle (u := w) (v := (b : α)) (w := (a : α))
-  have hba : G.dist (b : α) a = 1 := dist_eq_one_iff_adj.mpr hab.symm
-  change G.dist w (F.endPoint a) = G.dist w a + (F.path a).length at hdistA
-  change G.dist w (F.endPoint b) = G.dist w b + (F.path b).length at hdistB
-  omega
-
-/-- All positive pendant paths in the minimal counterexample have one common length. -/
-lemma common_length (hG : G.Connected) (hcard : 3 ≤ K.card)
-    (hK : (G.induce (K : Set α)).Connected)
-    (hdelete : DeletionCenters G) (hr : 1 ≤ G.radius.toNat)
-    (hpos : ∀ c, 0 < (F.path c).length) :
-    ∃ L, 0 < L ∧ ∀ c, (F.path c).length = L := by
-  haveI : Nonempty ↥(K : Set α) := hK.nonempty
-  let a : ↥(K : Set α) := Classical.choice inferInstance
-  refine ⟨(F.path a).length, hpos a, ?_⟩
-  have hedge (u v : ↥(K : Set α)) (huv : (G.induce (K : Set α)).Adj u v) :
-      (F.path u).length = (F.path v).length :=
-    Nat.le_antisymm (F.length_le_of_adj hG hcard hdelete hr hpos v u huv.symm)
-      (F.length_le_of_adj hG hcard hdelete hr hpos u v huv)
-  have hclosed : ∀ u ∈ {c : ↥(K : Set α) | (F.path c).length = (F.path a).length},
-      ∀ v, (G.induce (K : Set α)).Adj u v → (F.path v).length = (F.path a).length := by
-    intro u hu v huv
-    exact (hedge u v huv).symm.trans hu
-  intro c
-  exact reachable_mem_of_adj_closed hclosed (hK a c) rfl
-
-/-- Equal pendant lengths give the radius comparison needed for the final count. -/
-lemma radius_le_core_radius_add (hG : G.Connected)
-    (hK : (G.induce (K : Set α)).Connected) (L : ℕ)
-    (hLen : ∀ c, (F.path c).length = L) :
-    G.radius.toNat ≤ (G.induce (K : Set α)).radius.toNat + L := by
-  classical
-  haveI : Nonempty α := hG.nonempty
-  haveI : Nonempty ↥(K : Set α) := hK.nonempty
-  let H := G.induce (K : Set α)
-  obtain ⟨v, hv⟩ := H.exists_eccent_eq_radius
-  obtain ⟨z, hz⟩ := G.exists_edist_eq_eccent_of_finite (v : α)
-  obtain ⟨c, hzc⟩ := F.cover z
-  have hdist := F.dist_from_core hG c v hzc
-  have hsum := dist_add_dist_eq_of_mem_geodesic (F.path c) (F.geodesic c) hzc
-  rw [← F.geodesic c, hLen c] at hsum
-  obtain ⟨p, hp⟩ := hK.exists_walk_length_eq_dist v c
-  have hmap := G.dist_le (p.map (SimpleGraph.Embedding.induce (K : Set α)).toHom)
-  rw [Walk.length_map, hp] at hmap
-  change G.dist (v : α) c ≤ H.dist v c at hmap
-  have hvc : H.dist v c ≤ H.radius.toNat :=
-    ENat.toNat_le_toNat (hv ▸ H.edist_le_eccent) (H.radius_ne_top_iff.mpr hK)
-  have hrad : G.radius.toNat ≤ G.dist (v : α) z :=
-    ENat.toNat_le_toNat (hz ▸ G.radius_le_eccent)
-      (edist_ne_top_iff_reachable.mpr (hG v z))
-  dsimp only [H] at hmap hvc
-  omega
-
-set_option maxHeartbeats 800000 in
-/-- Adjoining the pendant paths at the vertices of an induced core tree gives
-an induced tree whose order is multiplied by the common path order. -/
-lemma lift_induced_tree (hG : G.Connected) (L : ℕ)
-    (hLen : ∀ c, (F.path c).length = L)
-    (s : Finset ↥(K : Set α))
-    (hs : ((G.induce (K : Set α)).induce (s : Set ↥(K : Set α))).IsTree) :
-    s.card * (L + 1) ≤ largestInducedTreeSize G := by
-  classical
-  let B : Finset α := s.image Subtype.val
-  let f : ↥(s : Set ↥(K : Set α)) → ↥(B : Set α) := fun x =>
-    ⟨((x : ↥(K : Set α)) : α), Finset.mem_image.mpr ⟨x, x.property, rfl⟩⟩
-  have hf : Function.Bijective f := by
-    constructor
-    · intro x y hxy
-      have hval : ((x : ↥(K : Set α)) : α) = ((y : ↥(K : Set α)) : α) :=
-        congrArg (fun z : ↥(B : Set α) => (z : α)) hxy
-      exact Subtype.ext (Subtype.ext hval)
-    · intro y
-      obtain ⟨c, hc, hcy⟩ := Finset.mem_image.mp y.property
-      exact ⟨⟨c, hc⟩, Subtype.ext hcy⟩
-  let i : ((G.induce (K : Set α)).induce (s : Set ↥(K : Set α))) ≃g
-      G.induce (B : Set α) :=
-    { Equiv.ofBijective f hf with map_rel_iff' := by intro x y; rfl }
-  have hB : (G.induce (B : Set α)).IsTree := i.isTree_iff.mp hs
-  let U (t : Finset ↥(K : Set α)) : Finset α :=
-    B ∪ t.biUnion (fun c => (F.path c).support.toFinset)
-  have hUt : ∀ t : Finset ↥(K : Set α), t ⊆ s → (G.induce (U t : Set α)).IsTree := by
-    intro t
-    induction t using Finset.induction_on with
+  have hb : ∀ S : Finset α, S ⊆ T0 → (G.induce ((T0 ∪ S.biUnion Am : Finset α) : Set α)).IsTree := fun S => by
+    induction S using Finset.induction_on with
     | empty =>
       intro _
-      have hUB : U ∅ = B := by simp [U]
-      rw [hUB]
-      exact hB
-    | @insert c t hct ih =>
-      intro hts
-      have hcs : c ∈ s := hts (Finset.mem_insert_self _ _)
-      have hts' : t ⊆ s := fun d hd => hts (Finset.mem_insert_of_mem hd)
-      have hroot : (c : α) ∈ U t := Finset.mem_union_left _
-        (Finset.mem_image.mpr ⟨c, hcs, rfl⟩)
-      have hinter : ∀ z ∈ (F.path c).support, z ∈ U t → z = (c : α) := by
-        intro z hz hzU
-        rcases Finset.mem_union.mp hzU with hzB | hzt
-        · obtain ⟨d, _, hdz⟩ := Finset.mem_image.mp hzB
-          exact F.core_inter c z hz (hdz ▸ d.property)
-        · obtain ⟨d, hd, hzd⟩ := Finset.mem_biUnion.mp hzt
-          have hcd : c ≠ d := fun heq => hct (heq.symm ▸ hd)
-          exact ((Finset.disjoint_left.mp (F.support_disjoint hG hcd))
-            (List.mem_toFinset.mpr hz) hzd).elim
-      have hrev : (F.path c).reverse.length = G.dist (F.endPoint c) c := by
-        simpa only [Walk.length_reverse, SimpleGraph.dist_comm] using F.geodesic c
-      have hnew := induce_union_geodesic_isTree hG (F.path c).reverse hrev (U t)
-        (ih hts') hroot
-        (by intro z hz hzu; exact hinter z (by simpa using hz) hzu)
-        (by
-          intro z hz hzc w hw hzw
-          exact hinter w (F.closed c z (by simpa using hz) hzc w hzw) hw)
-      have hset : U (insert c t) = (F.path c).reverse.support.toFinset ∪ U t := by
-        ext z
-        simp [U, or_assoc, or_comm, or_left_comm]
-      rw [hset]
-      exact hnew
-  let T := s.biUnion (fun c => (F.path c).support.toFinset)
-  have hUT : U s = T := by
-    apply Finset.union_eq_right.mpr
-    intro z hz
-    obtain ⟨c, hc, rfl⟩ := Finset.mem_image.mp hz
-    exact Finset.mem_biUnion.mpr ⟨c, hc, List.mem_toFinset.mpr (F.path c).start_mem_support⟩
-  have hT : (G.induce (T : Set α)).IsTree := hUT ▸ hUt s Finset.Subset.rfl
-  have hcardpath (c : ↥(K : Set α)) : (F.path c).support.toFinset.card = L + 1 := by
-    rw [List.toFinset_card_of_nodup ((F.path c).isPath_of_length_eq_dist
-      (F.geodesic c)).support_nodup, Walk.length_support, hLen c]
-  have hcard : T.card = s.card * (L + 1) := by
-    rw [Finset.card_biUnion]
-    · simp only [hcardpath, Finset.sum_const, smul_eq_mul]
-    · intro c hc d hd hcd
-      exact F.support_disjoint hG hcd
-  rw [← hcard]
-  exact card_le_largestInducedTreeSize hT
+      have h0 : T0 ∪ (∅ : Finset α).biUnion Am = T0 := by simp
+      rwa [h0]
+    | @insert v S' hvn ih =>
+      intro hs
+      have hv : v ∈ T0 := hs (mem_insert_self v S')
+      have hs' : S' ⊆ T0 := fun x hx => hs (mem_insert_of_mem hx)
+      have hd : Disjoint (T0 ∪ S'.biUnion Am) (Am v) := by
+        rw [disjoint_union_left]
+        refine ⟨hdb v hv, disjoint_left.mpr fun x hx hxv => ?_⟩
+        obtain ⟨w, hw, hxw⟩ := mem_biUnion.mp hx
+        exact disjoint_left.mp (hdp w (hs' hw) v hv (fun hwe => hvn (hwe ▸ hw))) hxw hxv
+      have huni : T0 ∪ (insert v S').biUnion Am = (T0 ∪ S'.biUnion Am) ∪ Am v := by
+        rw [biUnion_insert, union_left_comm, union_assoc]; ext x; simp only [mem_union]; tauto
+      rw [huni]; exact tree_union_pend hG (hp v hv) (ih hs') (mem_union_left _ hv) hd
+  have hd0 : Disjoint T0 (T0.biUnion Am) := disjoint_left.mpr fun x hxT hxU => by
+    obtain ⟨v, hv, hxv⟩ := mem_biUnion.mp hxU; exact disjoint_left.mp (hdb v hv) hxT hxv
+  refine ⟨hb T0 Subset.rfl, ?_⟩
+  rw [card_union_of_disjoint hd0, card_biUnion (fun v hv w hw hvw => hdp v hv w hw hvw)]
 
-end PendantGeodesics
-
-/-- The cut-vertex bound, by induction on graph order. -/
-lemma two_mul_radius_le_largestInducedTreeSize_of_cut_vertex {G : SimpleGraph α}
-    (hG : G.Connected) (hcut : ∃ x, ¬ (G.induce ({x}ᶜ : Set α)).Connected) :
-    2 * G.radius.toNat ≤ largestInducedTreeSize G := by
+private lemma witness {α : Type u} [Fintype α] [DecidableEq α]
+    (G : SimpleGraph α) (hG : G.Connected) (hcut : HasCut G)
+    (hr3 : 3 ≤ G.radius.toNat) (hsmall : largestInducedTreeSize G < 2 * G.radius.toNat)
+    (ih : ∀ {β : Type u} [Fintype β] [DecidableEq β], Fintype.card β < Fintype.card α →
+      ∀ (H : SimpleGraph β), H.Connected → HasCut H → 2 * H.radius.toNat ≤ largestInducedTreeSize H)
+    (v : α) (hvnc : ¬ Cut G v) :
+    ∃ w : α, w ≠ v ∧ G.dist w v = G.radius.toNat ∧ ∀ y : α, y ≠ v → G.dist w y ≤ G.radius.toNat - 1 := by
   classical
-  induction hn : Fintype.card α using Nat.strong_induction_on generalizing α with
-  | h n ih =>
-    haveI : Nonempty α := hG.nonempty
-    have htree := radius_add_one_le_largestInducedTreeSize hG
-    by_cases hr : G.radius.toNat ≤ 1
-    · omega
-    have hr : 2 ≤ G.radius.toNat := by omega
-    by_cases hT : G.IsTree
-    · exact two_mul_radius_le_largestInducedTreeSize_of_isTree hT
-    by_contra hbound
-    have hlt : largestInducedTreeSize G < 2 * G.radius.toNat := by omega
-    have hsmall (S : Set α) (hproper : S ≠ Set.univ) (hS : (G.induce S).Connected)
-        (hcutS : ∃ x, ¬ ((G.induce S).induce ({x}ᶜ : Set S)).Connected) :
-        2 * (G.induce S).radius.toNat ≤ largestInducedTreeSize (G.induce S) := by
-      have hmiss : ∃ x : α, x ∉ S := by
-        by_contra! hall
-        exact hproper (Set.eq_univ_of_forall hall)
-      obtain ⟨x, hx⟩ := hmiss
-      have hcard : Fintype.card S < n := by
-        rw [← hn]
-        exact Fintype.card_subtype_lt hx
-      exact ih _ hcard hS hcutS rfl
-    have hdelete (x : α) (hx : (G.induce ({x}ᶜ : Set α)).Connected)
-        (hcutx : ∃ y, ¬ ((G.induce ({x}ᶜ : Set α)).induce ({y}ᶜ : Set ↥({x}ᶜ : Set α))).Connected) :
-        ∃ c : α, c ≠ x ∧ G.eccent c = G.radius ∧ G.dist c x = G.radius.toNat ∧
-          ∀ z : α, z ≠ x → G.dist c z ≤ G.radius.toNat - 1 := by
-      have hproper : ({x}ᶜ : Set α) ≠ Set.univ := by
-        intro heq
-        have hxmem : x ∈ ({x}ᶜ : Set α) := heq ▸ Set.mem_univ x
-        simpa using hxmem
-      have hboundH := hsmall ({x}ᶜ : Set α) hproper hx hcutx
-      have htrans := largestInducedTreeSize_induce_le G ({x}ᶜ : Set α)
-      have hdrop : (G.induce ({x}ᶜ : Set α)).radius.toNat ≤ G.radius.toNat - 1 := by omega
-      exact radius_drop_witness hG x hx (by omega) hdrop
-    have htwosides (c : α) (hc : ¬ (G.induce ({c}ᶜ : Set α)).Connected) :=
-      cut_vertex_two_side_reduction hG hr hlt (fun S _ => hsmall S) c hc
-    obtain ⟨c, hc⟩ := hcut
-    obtain ⟨a, b, q, hq, hsep, hgap, hcover⟩ := htwosides c hc
-    have hcyc : ¬ G.IsAcyclic := fun hacyc => hT ⟨hG, hacyc⟩
-    obtain ⟨K, hKcard, hKconn, hKdel, hKmax⟩ := exists_maximal_vertex_core hcyc
-    have hKne : K.Nonempty := Finset.card_pos.mp (by omega)
-    obtain ⟨F⟩ := exists_pendant_geodesic_family hG K hKcard hKconn hKdel
-      (fun z w hzw _ _ ha hb haz hbw =>
-        maximal_core_unique_attachment K hKcard hKconn hKdel hKmax z w hzw ha hb haz hbw)
-      htwosides
-    have hpos := F.all_positive hG hKcard hKconn hKdel hdelete (by omega) ⟨c, hc⟩
-    obtain ⟨L, hL, hLen⟩ := F.common_length hG hKcard hKconn hdelete (by omega) hpos
-    let H := G.induce (K : Set α)
-    haveI : Nonempty ↥(K : Set α) := hKconn.nonempty
-    let v : ↥(K : Set α) := Classical.choice inferInstance
-    obtain ⟨t, _, _, ht⟩ := hKconn.exists_induced_tree_containing_pair v v
-    obtain ⟨S, _, hS, hSmax⟩ := H.exists_maximum_induced_tree_containing ∅
-      ⟨t, Finset.empty_subset _, ht⟩
-    have hcard : largestInducedTreeSize H = S.card := by
-      apply le_antisymm
-      · apply csSup_le'
-        rintro m ⟨T, rfl, hT⟩
-        exact hSmax T (Finset.empty_subset _) hT
-      · exact card_le_largestInducedTreeSize hS
-    have hlift := F.lift_induced_tree hG L hLen S hS
-    rw [← hcard] at hlift
-    have hrad := F.radius_le_core_radius_add hG hKconn L hLen
-    change G.radius.toNat ≤ H.radius.toNat + L at hrad
-    have hchung := chung_induced_tree_bound (G := H) hKconn
-    obtain ⟨u, w, hvu, _, _⟩ := exists_two_adj_of_connected_deletions
-      (G := H) (by simpa using hKcard) hKconn hKdel v
-    have htwo : 2 ≤ largestInducedTreeSize H := by
-      have hedge := dist_add_one_le_largestInducedTreeSize (hKconn v u)
-      rw [dist_eq_one_iff_adj.mpr hvu] at hedge
-      exact hedge
-    by_cases hs : H.radius.toNat ≤ 1
-    · have hmul := Nat.mul_le_mul_right (L + 1) htwo
-      omega
-    · have hthree : 3 ≤ largestInducedTreeSize H := by omega
-      have hmul := Nat.mul_le_mul_right L hthree
-      have hcount : 2 * G.radius.toNat ≤ largestInducedTreeSize H * (L + 1) := by
-        rw [Nat.mul_add, Nat.mul_one]
-        omega
-      omega
-
-/-- **WOWII Conjecture 84.** For a finite simple connected graph `G` with positive minimum
-degree, `tree(G) ≥ 2 · rad(G) / δ(G)`. -/
-theorem conjecture84_proof {β : Type*} [Fintype β] [DecidableEq β] [Nontrivial β]
-    (G : SimpleGraph β) [DecidableRel G.Adj]
-    (h : G.Connected) (hδ : 0 < G.minDegree) :
-    2 * (G.radius.toNat : ℝ) / (G.minDegree : ℝ) ≤ (largestInducedTreeSize G : ℝ) := by
-  have htree := radius_add_one_le_largestInducedTreeSize h
-  have htreeR : (G.radius.toNat : ℝ) + 1 ≤ (largestInducedTreeSize G : ℝ) := by
-    exact_mod_cast htree
-  have hδR : (0 : ℝ) < G.minDegree := by exact_mod_cast hδ
-  apply (div_le_iff₀ hδR).2
-  by_cases htwo : 2 ≤ G.minDegree
-  · have htwoR : (2 : ℝ) ≤ G.minDegree := by exact_mod_cast htwo
-    nlinarith [show (0 : ℝ) ≤ (G.radius.toNat : ℝ) from Nat.cast_nonneg _,
-      show (0 : ℝ) ≤ (largestInducedTreeSize G : ℝ) from Nat.cast_nonneg _]
-  have hδone : G.minDegree = 1 := by omega
-  rw [hδone, Nat.cast_one, mul_one]
-  by_cases hr : G.radius.toNat ≤ 1
-  · have hrR : (G.radius.toNat : ℝ) ≤ 1 := by exact_mod_cast hr
-    linarith
-  have hr : 2 ≤ G.radius.toNat := by omega
-  obtain ⟨u, hu⟩ := G.exists_minimal_degree_vertex
-  have hleaf : G.degree u = 1 := hu.symm.trans hδone
-  have hmore := radius_add_two_le_largestInducedTreeSize_of_leaf h hleaf hr
-  by_cases hr2 : G.radius.toNat ≤ 2
-  · have hfinal : 2 * G.radius.toNat ≤ largestInducedTreeSize G := by omega
-    exact_mod_cast hfinal
-  have hcard : 3 ≤ Fintype.card β := by
-    have hle := largestInducedTreeSize_le_card G
+  have : Nonempty α := hG.nonempty
+  set r := G.radius.toNat
+  have h4 : 4 ≤ Fintype.card α := by
+    obtain ⟨x0, y0, hxy⟩ := G.exists_dist_eq_diam
+    obtain ⟨p, hp, hl⟩ := hG.exists_path_of_dist x0 y0
+    have := rad_le_diam hG; have := hp.length_lt; omega
+  let Sv : Set α := {x | x ≠ v}; let Gv := G.induce Sv
+  have hlt : Fintype.card Sv < Fintype.card α :=
+    Fintype.card_subtype_lt (p := fun x => x ≠ v) (x := v) fun h => h rfl
+  have hcard_Sv : Fintype.card Sv = Fintype.card α - 1 := card_ne v
+  have hne_Sv : ∃ z : α, z ≠ v := by
+    obtain ⟨z⟩ := Fintype.card_pos_iff.mp (by omega : 0 < Fintype.card Sv); exact ⟨z.1, z.2⟩
+  have : Nonempty Sv := ⟨⟨hne_Sv.choose, hne_Sv.choose_spec⟩⟩
+  have hGv : Gv.Connected := Connected.mk (not_not.mp hvnc)
+  have hGv_sm : largestInducedTreeSize Gv < 2 * r := lt_of_le_of_lt (lit_induce_le Sv) hsmall
+  have hGv_le : Gv.radius.toNat ≤ r - 1 := by
+    by_contra hge; have hge' : r ≤ Gv.radius.toNat := by omega
+    rcases Nat.lt_or_eq_of_le hge' with hgt | heq
+    · have := two_rad_sub_two Gv hGv; omega
+    · by_cases hcv : HasCut Gv
+      · have := ih hlt Gv hGv hcv; omega
+      · obtain ⟨c, hcc⟩ := hcut
+        have hvcn : v ≠ c := fun h => hvnc (h ▸ hcc)
+        let cv : Sv := ⟨c, hvcn.symm⟩
+        have hc_pre : (Gv.induce {u | u ≠ cv}).Preconnected := not_not.mp fun hc => hcv ⟨cv, hc⟩
+        have hnp : ¬ (G.induce {x | x ≠ c}).Preconnected := hcc
+        simp only [Preconnected, not_forall] at hnp
+        obtain ⟨a, b, hab⟩ := hnp
+        let f : (Gv.induce {u | u ≠ cv}) →g (G.induce {x | x ≠ c}) :=
+          ⟨fun u => ⟨u.1.1, fun h => u.2 (Subtype.ext h)⟩, fun e => e⟩
+        have hrg : ∀ {x y : {x : α | x ≠ c}} (hx : x.1 ≠ v) (hy : y.1 ≠ v),
+            (Gv.induce {u | u ≠ cv}).Reachable
+              ⟨⟨x.1, hx⟩, fun h => x.2 (congrArg Subtype.val h)⟩
+              ⟨⟨y.1, hy⟩, fun h => y.2 (congrArg Subtype.val h)⟩ →
+            (G.induce {x | x ≠ c}).Reachable x y := fun _ _ ⟨q⟩ => ⟨q.map f⟩
+        have hvab : a.1 = v ∨ b.1 = v := by
+          by_contra hn; push Not at hn; exact hab (hrg hn.1 hn.2 (hc_pre _ _))
+        have hstep : ∀ {a0 b0 : {x : α | x ≠ c}}, a0.1 = v →
+            ¬ (G.induce {x | x ≠ c}).Reachable a0 b0 → ∀ u, G.Adj v u → u = c := fun {a0 b0} ha0 hnot u had => by
+          by_contra huc
+          have hbv : b0.1 ≠ v := fun hbv => hnot (by rw [Subtype.ext (ha0.trans hbv.symm)])
+          have h1 : (G.induce {x | x ≠ c}).Reachable a0 ⟨u, huc⟩ :=
+            Adj.reachable (by simpa [ha0] using had)
+          exact hnot (h1.trans (hrg had.ne.symm hbv (hc_pre _ _)))
+        have huniq : ∀ u, G.Adj v u → u = c := by
+          rcases hvab with h1 | h1
+          · exact hstep h1 hab
+          · exact hstep h1 (fun r => hab r.symm)
+        have hvc : G.Adj v c := by
+          obtain ⟨p⟩ := hG v c
+          cases p with | nil => exact absurd rfl hvcn | cons h _ => exact (huniq _ h) ▸ h
+        have hne_c : ∃ u : α, u ≠ v ∧ u ≠ c ∧ G.Adj c u := by
+          have hns : ¬ (univ.erase v ⊆ {c}) := fun hs => by
+            have := card_le_card hs; rw [card_erase_of_mem (mem_univ v), card_univ, card_singleton] at this; omega
+          obtain ⟨b0, hb0, hbc⟩ := not_subset.mp hns
+          simp only [mem_erase, mem_univ, mem_singleton, and_true] at hb0 hbc
+          obtain ⟨q⟩ := hGv cv ⟨b0, hb0⟩
+          have hst : ∀ {x y : Sv}, x ≠ y → Gv.Walk x y → ∃ w : Sv, w ≠ x ∧ Gv.Adj x w := fun hxy p => by
+            cases p with | nil => exact absurd rfl hxy | cons h _ => exact ⟨_, h.ne.symm, h⟩
+          obtain ⟨w, hwc, hcw⟩ := hst (fun h => hbc (congrArg Subtype.val h).symm) q
+          exact ⟨w.1, w.2, fun hwe => hwc (Subtype.ext hwe), hcw⟩
+        obtain ⟨u, huv, huc, hcu⟩ := hne_c
+        let Su : Set α := {x | x ≠ u}; let Gu := G.induce Su
+        have hltu : Fintype.card Su < Fintype.card α :=
+          Fintype.card_subtype_lt (p := fun x => x ≠ u) (x := u) fun h => h rfl
+        have hcard_Su : Fintype.card Su = Fintype.card α - 1 := card_ne u
+        have hSu3 : 3 ≤ Fintype.card Su := by omega
+        let g : (Gv.induce {w : Sv | w ≠ ⟨u, huv⟩}) →g Gu :=
+          ⟨fun m => ⟨m.1.1, fun h => m.2 (Subtype.ext h)⟩, fun e => e⟩
+        have hpre_u : ∀ x : Su, x.1 ≠ v → Gu.Reachable ⟨c, huc.symm⟩ x := fun x hxv => by
+          obtain ⟨q⟩ := not_not.mp (fun hc => hcv ⟨⟨u, huv⟩, hc⟩)
+            ⟨cv, fun h => huc (congrArg Subtype.val h).symm⟩
+            ⟨⟨x.1, hxv⟩, fun h => x.2 (congrArg Subtype.val h)⟩
+          exact ⟨q.map g⟩
+        have hGu : Gu.Connected := by
+          have : Nonempty Su := ⟨⟨c, huc.symm⟩⟩
+          refine Connected.mk fun x y => ?_
+          have hr : ∀ z : Su, Gu.Reachable ⟨c, huc.symm⟩ z := fun z => by
+            by_cases hzv : z.1 = v
+            · rw [show z = ⟨v, huv.symm⟩ from Subtype.ext hzv]
+              exact Adj.reachable (show Gu.Adj ⟨c, huc.symm⟩ ⟨v, huv.symm⟩ from hvc.symm)
+            · exact hpre_u z hzv
+          exact (hr x).symm.trans (hr y)
+        have hcut_u : Cut Gu ⟨c, huc.symm⟩ :=
+          cut_uniq (G := Gu) hSu3 (v := ⟨v, huv.symm⟩) (c := ⟨c, huc.symm⟩)
+            (show Gu.Adj ⟨v, huv.symm⟩ ⟨c, huc.symm⟩ from hvc) fun w hw => Subtype.ext (huniq w.1 hw)
+        have hGu_sm : largestInducedTreeSize Gu < 2 * r := lt_of_le_of_lt (lit_induce_le Su) hsmall
+        have hGu_rad : Gu.radius.toNat ≤ r - 1 := by have := ih hltu Gu hGu ⟨⟨c, huc.symm⟩, hcut_u⟩; omega
+        have : Nonempty Su := hGu.nonempty
+        obtain ⟨⟨w, hwu⟩, hwr⟩ := center_ex hGu
+        have hwall : ∀ y, y ≠ u → G.dist w y ≤ r - 1 := fun y hyu => by
+          have h1 : G.dist w y ≤ Gu.dist ⟨w, hwu⟩ ⟨y, hyu⟩ := dist_le_ind Su (hGu ⟨w, hwu⟩ ⟨y, hyu⟩)
+          have h2 : Gu.dist ⟨w, hwu⟩ ⟨y, hyu⟩ ≤ Gu.radius.toNat := hwr ⟨y, hyu⟩
+          omega
+        have hwuge : r ≤ G.dist w u := by
+          obtain ⟨y, hy⟩ := rad_ge_ex hG w
+          by_cases hyu : y = u; · rwa [hyu] at hy
+          · have := hwall y hyu; omega
+        have hwv : w ≠ v := fun hwv_eq => by
+          have := dist_eq_one_iff_adj.mpr hvc; have := dist_eq_one_iff_adj.mpr hcu
+          have := (hG c u).dist_triangle_right v; rw [← hwv_eq] at *; omega
+        have hwnv : w ∉ comp G c v hvcn := fun hw => hwv <| by
+          obtain ⟨_, ⟨p⟩⟩ := (mem_comp hvcn).mp hw
+          have hs : ∀ {a b : {y : α | y ≠ c}}, (G.induce {y | y ≠ c}).Walk a b → a.1 = v → b.1 = v := fun q => by
+            induction q with | nil => exact fun h => h | @cons _ n _ h _ _ =>
+              intro hm; exact absurd (huniq n.1 (by simpa [hm] using h)) n.2
+          exact hs p rfl
+        have hsep := sep_dist hG (self_comp c v hvcn) hwnv
+        have hvw : G.dist v w ≤ r - 1 := by rw [dist_comm]; exact hwall v huv.symm
+        have := dist_eq_one_iff_adj.mpr hvc; have := dist_eq_one_iff_adj.mpr hcu
+        have := (hG c u).dist_triangle_right w; have : G.dist w c = G.dist c w := dist_comm; omega
+  have : Nonempty Sv := hGv.nonempty
+  obtain ⟨⟨w, hwv⟩, hwr⟩ := center_ex hGv
+  have hwall : ∀ y, y ≠ v → G.dist w y ≤ r - 1 := fun y hyv => by
+    have h1 : G.dist w y ≤ Gv.dist ⟨w, hwv⟩ ⟨y, hyv⟩ := dist_le_ind Sv (hGv ⟨w, hwv⟩ ⟨y, hyv⟩)
+    have h2 : Gv.dist ⟨w, hwv⟩ ⟨y, hyv⟩ ≤ Gv.radius.toNat := hwr ⟨y, hyv⟩
     omega
-  obtain ⟨v, hv⟩ := exists_cut_vertex_of_minDegree_eq_one hδone hcard
-  by_cases hT : G.IsTree
-  · have hbound := two_mul_radius_le_largestInducedTreeSize_of_isTree hT
-    exact_mod_cast hbound
-  have hbound := two_mul_radius_le_largestInducedTreeSize_of_cut_vertex h ⟨v, hv⟩
-  exact_mod_cast hbound
+  have hwvge : r ≤ G.dist w v := by
+    obtain ⟨y, hy⟩ := rad_ge_ex hG w
+    by_cases hyv : y = v; · rwa [hyv] at hy
+    · have := hwall y hyv; omega
+  obtain ⟨u, hvu⟩ : ∃ u, G.Adj v u := by
+    obtain ⟨p⟩ := hG v w; cases p with | nil => exact absurd rfl hwv.symm | cons h _ => exact ⟨_, h⟩
+  have := (hG u v).dist_triangle_right w; have := dist_eq_one_iff_adj.mpr hvu.symm
+  have := hwall u hvu.ne.symm
+  exact ⟨w, hwv, by omega, hwall⟩
 
-end WrittenOnTheWallII.GraphConjecture84
+private lemma nonpend_lt {α : Type u} [Fintype α] [DecidableEq α] (G : SimpleGraph α) (hG : G.Connected)
+    (hr1 : 1 ≤ G.radius.toNat)
+    (hwit : ∀ v, ¬ Cut G v → ∃ w, w ≠ v ∧ G.dist w v = G.radius.toNat ∧ ∀ y, y ≠ v → G.dist w y ≤ G.radius.toNat - 1)
+    {c a : α} (ha : a ≠ c) (hb : ∃ b, b ≠ c ∧ b ∉ comp G c a ha) (hnp : ¬ Pend G c (comp G c a ha)) :
+    (univ \ comp G c a ha).sup (G.dist c) < (comp G c a ha).sup (G.dist c) := by
+  classical
+  set r := G.radius.toNat; set A := comp G c a ha; set hA := A.sup (G.dist c)
+  set Ac := univ \ A; set h' := Ac.sup (G.dist c)
+  have hlt : hA < A.card := lt_of_le_of_ne (comp_sup_le_card hG ha) fun h => hnp ⟨a, ha, rfl, hb, h.symm⟩
+  obtain ⟨v, hvA, hve⟩ := exists_mem_eq_sup A ⟨a, self_comp c a ha⟩ (G.dist c)
+  have hv_d : G.dist c v = hA := hve.symm
+  have hAc_ne : Ac.Nonempty := by obtain ⟨b, -, hn⟩ := hb; exact ⟨b, mem_sdiff.mpr ⟨mem_univ b, hn⟩⟩
+  obtain ⟨ys, hys_Ac, hys_e⟩ := exists_mem_eq_sup Ac hAc_ne (G.dist c)
+  have hys_d : G.dist c ys = h' := hys_e.symm
+  have hys_nA : ys ∉ A := (mem_sdiff.mp hys_Ac).2
+  have hvnc : ¬ Cut G v := ncut_reach (ne_comp hvA).symm fun x hxv => by
+    by_cases hxA : x ∈ A
+    · obtain ⟨q, -, hql⟩ := hG.exists_path_of_dist c x
+      refine ⟨q.reverse, fun hvs => ?_⟩
+      rw [support_reverse, List.mem_reverse] at hvs
+      have := wdist_add q hql hvs; have := le_sup (f := G.dist c) hxA
+      exact hxv ((hG v x).dist_eq_zero_iff.mp (by omega)).symm
+    · obtain ⟨q, -, -, hqa⟩ := avoid_path hG hxA (nmem_comp c a ha)
+      exact ⟨q, fun hvs => hqa v hvs hvA⟩
+  obtain ⟨P, hPp, hPl⟩ := hG.exists_path_of_dist c v
+  have hPl' : P.length = hA := hPl.trans hv_d
+  have hU_ne : (A \ P.support.toFinset).Nonempty := by
+    have hs : A ∩ P.support.toFinset ⊆ P.support.toFinset.erase c := fun x hx => by
+      rw [mem_inter] at hx; exact mem_erase.mpr ⟨fun h => nmem_comp c a ha (h ▸ hx.1), hx.2⟩
+    have hci : (A ∩ P.support.toFinset).card ≤ hA := by
+      calc (A ∩ P.support.toFinset).card ≤ (P.support.toFinset.erase c).card := card_le_card hs
+        _ = P.support.toFinset.card - 1 := card_erase_of_mem (List.mem_toFinset.mpr P.start_mem_support)
+        _ = hA := by rw [List.toFinset_card_of_nodup hPp.support_nodup, P.length_support, hPl']; omega
+    have := card_sdiff_add_card_inter A P.support.toFinset
+    exact card_pos.mp (by omega)
+  obtain ⟨z, hzU, hzmax⟩ := exists_mem_eq_sup _ hU_ne (G.dist c)
+  have hzA := (mem_sdiff.mp hzU).1; have hznP := (mem_sdiff.mp hzU).2
+  have hzv : z ≠ v := fun h => hznP (List.mem_toFinset.mpr (h ▸ P.end_mem_support))
+  have hznc : ¬ Cut G z := ncut_reach (ne_comp hzA).symm fun x hxz => by
+    by_cases hxA : x ∈ A
+    · by_cases hxP : x ∈ P.support
+      · refine ⟨(P.takeUntil x hxP).reverse, fun hzs => hznP (List.mem_toFinset.mpr ?_)⟩
+        rw [support_reverse, List.mem_reverse] at hzs
+        rw [← P.take_spec hxP, support_append, List.mem_append]; exact Or.inl hzs
+      · obtain ⟨q, -, hql⟩ := hG.exists_path_of_dist c x
+        refine ⟨q.reverse, fun hzs => ?_⟩
+        rw [support_reverse, List.mem_reverse] at hzs
+        have := wdist_add q hql hzs
+        have := le_sup (f := G.dist c) (mem_sdiff.mpr ⟨hxA, fun hm => hxP (List.mem_toFinset.mp hm)⟩)
+        exact hxz ((hG z x).dist_eq_zero_iff.mp (by omega)).symm
+    · obtain ⟨q, -, -, hqa⟩ := avoid_path hG hxA (nmem_comp c a ha)
+      exact ⟨q, fun hzs => hqa z hzs hzA⟩
+  obtain ⟨wv, -, hwvv, hwva⟩ := hwit v hvnc
+  by_cases hwvA : wv ∈ A
+  · have hsep := sep_dist hG hwvA hys_nA; have hwy := hwva ys (fun h => hys_nA (h ▸ hvA))
+    have htri := (hG c v).dist_triangle_right wv; omega
+  · have hsv := sep_dist hG hvA hwvA; have hsz := sep_dist hG hzA hwvA
+    have hwz := hwva z hzv
+    have : G.dist v wv = G.dist wv v := dist_comm; have : G.dist c wv = G.dist wv c := dist_comm
+    have : G.dist z wv = G.dist wv z := dist_comm; have : G.dist v c = G.dist c v := dist_comm
+    have : G.dist z c = G.dist c z := dist_comm
+    have hdz : G.dist c z < hA := by omega
+    obtain ⟨wz, -, hwzz, hwza⟩ := hwit z hznc
+    have hwzA : wz ∈ A := by_contra fun hn => by
+      have h1 := sep_dist hG hzA hn; have h2 := sep_dist hG hvA hn; have h3 := hwza v hzv.symm
+      have : G.dist z wz = G.dist wz z := dist_comm; have : G.dist c wz = G.dist wz c := dist_comm
+      have : G.dist v wz = G.dist wz v := dist_comm; omega
+    have hsy := sep_dist hG hwzA hys_nA; have hwy := hwza ys (fun h => hys_nA (h ▸ hzA))
+    have htz := (hG c z).dist_triangle_right wz; omega
 
-theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture84.conjecture84 :=
-  @WrittenOnTheWallII.GraphConjecture84.conjecture84_proof
+private lemma cor1 {α : Type u} [Fintype α] [DecidableEq α] (G : SimpleGraph α) (hG : G.Connected)
+    (hr1 : 1 ≤ G.radius.toNat)
+    (hwit : ∀ v, ¬ Cut G v → ∃ w, w ≠ v ∧ G.dist w v = G.radius.toNat ∧ ∀ y, y ≠ v → G.dist w y ≤ G.radius.toNat - 1)
+    {c a1 a2 : α} (ha1 : a1 ≠ c) (ha2 : a2 ≠ c) (h12 : a2 ∉ comp G c a1 ha1) :
+    Pend G c (comp G c a1 ha1) ∨ Pend G c (comp G c a2 ha2) := by
+  by_contra hn; push Not at hn
+  have ha21 : a1 ∉ comp G c a2 ha2 := fun h => h12 (by rw [eq_comp ha1 h]; exact self_comp c a2 ha2)
+  have := nonpend_lt G hG hr1 hwit ha1 ⟨a2, ha2, h12⟩ hn.1
+  have := nonpend_lt G hG hr1 hwit ha2 ⟨a1, ha1, ha21⟩ hn.2
+  have hd := disj_comp ha2 h12
+  have hl1 : (comp G c a2 ha2).sup (G.dist c) ≤ (univ \ comp G c a1 ha1).sup (G.dist c) :=
+    sup_mono fun x hx => mem_sdiff.mpr ⟨mem_univ x, disjoint_left.mp hd hx⟩
+  have hl2 : (comp G c a1 ha1).sup (G.dist c) ≤ (univ \ comp G c a2 ha2).sup (G.dist c) :=
+    sup_mono fun x hx => mem_sdiff.mpr ⟨mem_univ x, disjoint_right.mp hd hx⟩
+  omega
+
+private lemma pend_uniq {α : Type u} [Fintype α] [DecidableEq α] (G : SimpleGraph α) (hG : G.Connected)
+    (hsmall : largestInducedTreeSize G < 2 * G.radius.toNat)
+    (hwit : ∀ v, ¬ Cut G v → ∃ w, w ≠ v ∧ G.dist w v = G.radius.toNat ∧ ∀ y, y ≠ v → G.dist w y ≤ G.radius.toNat - 1)
+    {a : α} {A1 A2 : Finset α} (hp1 : Pend G a A1) (hp2 : Pend G a A2) : A1 = A2 := by
+  classical
+  have : Nonempty α := hG.nonempty; set r := G.radius.toNat
+  by_contra hne
+  wlog hle : A2.card ≤ A1.card generalizing A1 A2
+  · exact this hp2 hp1 (Ne.symm hne) (le_of_not_ge hle)
+  obtain ⟨a1, ha1, rfl, -, hc1⟩ := hp1; obtain ⟨a2, ha2, rfl, -, hc2⟩ := hp2
+  set A1 := comp G a a1 ha1; set A2 := comp G a a2 ha2
+  have ha2_n1 : a2 ∉ A1 := fun hm => hne (eq_comp ha2 hm).symm
+  have hd12 : Disjoint A1 A2 := (disj_comp ha2 ha2_n1).symm
+  have hp1' : Pend G a A1 := ⟨a1, ha1, rfl, ⟨a2, ha2, ha2_n1⟩, hc1⟩
+  have hp2' : Pend G a A2 := ⟨a2, ha2, rfl, ⟨a1, ha1, disjoint_left.mp hd12 (self_comp a a1 ha1)⟩, hc2⟩
+  obtain ⟨_, x1, hx1A, hx1d⟩ := pend_ex hG hp1'; obtain ⟨_, x2, hx2A, hx2d⟩ := pend_ex hG hp2'
+  obtain ⟨P1, hP1p, hP1l⟩ := hG.exists_path_of_dist a x1; obtain ⟨P2, hP2p, hP2l⟩ := hG.exists_path_of_dist a x2
+  set L1 := A1.card; set L2 := A2.card
+  have hs1 := pend_spec hG hp1' hx1A hx1d P1 hP1p (hP1l.trans hx1d)
+  have hs2 := pend_spec hG hp2' hx2A hx2d P2 hP2p (hP2l.trans hx2d)
+  obtain ⟨w, -, hwx2, hwall⟩ := hwit x2 hs2.2.2.2.2.2.2
+  have hx12 : x1 ≠ x2 := fun h => disjoint_left.mp hd12 hx1A (h ▸ hx2A)
+  by_cases hw1 : w ∈ A1
+  · have hale : ∀ y, y ∉ A1 → G.dist a y ≤ L2 := fun y hy => by
+      by_cases hyx : y = x2; · rw [hyx, hx2d, ← hc2]
+      · have := sep_dist hG hw1 hy; have := sep_dist hG hw1 (disjoint_right.mp hd12 hx2A)
+        have := hwall y hyx; omega
+    set m := (L1 - L2) / 2; set p := P1.getVert m
+    have hbd : ∀ y, G.dist p y ≤ (L1 + L2 + 1) / 2 := fun y => by
+      by_cases hyA : y ∈ A1
+      · obtain ⟨i, hi, hy_eq⟩ := mem_image.mp (hs1.2.1 ▸ hyA); simp only [mem_Icc] at hi
+        have : i ≤ L1 := by omega
+        rw [← hy_eq]
+        by_cases hmi : m ≤ i
+        · have : G.dist p (P1.getVert i) = i - m := wdist_eq P1 hP1l hmi (by omega : i ≤ P1.length)
+          omega
+        · have : G.dist (P1.getVert i) p = m - i := wdist_eq P1 hP1l (le_of_not_ge hmi) (by omega : m ≤ P1.length)
+          rw [dist_comm] at this; omega
+      · by_cases hm0 : m = 0
+        · have : p = a := by simp [p, hm0, getVert_zero]
+          rw [this]; have := hale y hyA; omega
+        · have : G.dist p y = G.dist p a + G.dist a y :=
+            sep_dist hG (hs1.1 m (by omega) (by omega : m ≤ A1.sup (G.dist a))) hyA
+          have hdp : G.dist a p = m := by simpa [p, getVert_zero] using wdist_eq P1 hP1l (Nat.zero_le m) (by omega : m ≤ P1.length)
+          have : G.dist p a = G.dist a p := dist_comm; have := hale y hyA; omega
+    have := rad_le hG ⟨p, hbd⟩
+    have hd_a1 : Disjoint ({a} : Finset α) A1 := disjoint_singleton_left.mpr (nmem_comp a a1 ha1)
+    have hTa1 := tree_union_pend hG hp1' (tree_single a) (mem_singleton_self a) hd_a1
+    have hd_a12 : Disjoint ({a} ∪ A1) A2 :=
+      disjoint_union_left.mpr ⟨disjoint_singleton_left.mpr (nmem_comp a a2 ha2), hd12⟩
+    have hTa12 := tree_union_pend hG hp2' hTa1 (mem_union_left _ (mem_singleton_self a)) hd_a12
+    have hlt := card_le_largestInducedTreeSize hTa12
+    rw [card_union_of_disjoint hd_a12, card_union_of_disjoint hd_a1, card_singleton] at hlt
+    omega
+  · by_cases hw2 : w ∈ A2
+    · have := hs2.2.2.2.2.1 w hw2
+      have := Nat.succ_le_of_lt ((hG a w).pos_dist_of_ne (ne_comp hw2).symm)
+      have : G.dist w a = G.dist a w := dist_comm
+      have := sep_dist hG hw2 (disjoint_left.mp hd12 hx1A); have := hwall x1 hx12; omega
+    · have := sep_dist hG hx1A hw1; have := sep_dist hG hx2A hw2; have := hwall x1 hx12
+      have : G.dist x1 w = G.dist w x1 := dist_comm; have : G.dist x2 w = G.dist w x2 := dist_comm
+      have : G.dist x1 a = G.dist a x1 := dist_comm; have : G.dist x2 a = G.dist a x2 := dist_comm
+      have : G.dist a w = G.dist w a := dist_comm; omega
+
+private theorem cut_main :
+    ∀ n : ℕ, ∀ {α : Type u} [Fintype α] [DecidableEq α], Fintype.card α = n →
+      ∀ (G : SimpleGraph α), G.Connected → HasCut G → 2 * G.radius.toNat ≤ largestInducedTreeSize G := by
+  intro n; induction n using Nat.strong_induction_on with
+  | h n ih =>
+    intro α _ _ hn G hG hcut
+    classical
+    have : Nonempty α := hG.nonempty; set r := G.radius.toNat
+    by_contra hsm; push Not at hsm
+    have hr3 : 3 ≤ r := by
+      by_contra hr2
+      rcases (by omega : r = 0 ∨ r = 1 ∨ r = 2) with hr0 | hr1 | hr2'
+      · omega
+      · have := rad_le_lit hG; omega
+      · obtain ⟨c, hcc⟩ := hcut; obtain ⟨x, hx⟩ := rad_ge_ex hG c
+        have hxc : x ≠ c := fun h => by rw [h, dist_self] at hx; omega
+        obtain ⟨b, hbc, hbn⟩ := cut_ex hcc hxc
+        have := sep_dist hG (self_comp c x hxc) hbn
+        have := Nat.succ_le_of_lt ((hG c b).pos_dist_of_ne hbc.symm)
+        have : G.dist x c = G.dist c x := dist_comm
+        have := dist_le_lit hG x b; omega
+    by_cases hacyc : G.IsAcyclic
+    · exact absurd (tree_two_rad_lit G ⟨hG, hacyc⟩) (by omega)
+    obtain ⟨w0, cyc, hcyc⟩ : ∃ w0, ∃ cyc : G.Walk w0 w0, cyc.IsCycle := by simpa [IsAcyclic] using hacyc
+    have ihc : ∀ {β : Type u} [Fintype β] [DecidableEq β], Fintype.card β < Fintype.card α →
+        ∀ (H : SimpleGraph β), H.Connected → HasCut H → 2 * H.radius.toNat ≤ largestInducedTreeSize H :=
+      fun {β} _ _ hlt H hH hc => ih (Fintype.card β) (hn ▸ hlt) rfl H hH hc
+    have hwit := witness G hG hcut hr3 hsm ihc
+    have hcor1 : ∀ {c a1 a2 : α} (ha1 : a1 ≠ c) (ha2 : a2 ≠ c), a2 ∉ comp G c a1 ha1 →
+        Pend G c (comp G c a1 ha1) ∨ Pend G c (comp G c a2 ha2) :=
+      fun ha1 ha2 h12 => cor1 G hG (by omega) hwit ha1 ha2 h12
+    have huniq : ∀ {a : α} {A1 A2 : Finset α}, Pend G a A1 → Pend G a A2 → A1 = A2 :=
+      fun hp1 hp2 => pend_uniq G hG hsm hwit hp1 hp2
+    let Ps : Finset α := univ.filter fun x => ∃ c A, Pend G c A ∧ x ∈ A
+    let B : Finset α := univ \ Ps
+    have hw0B : w0 ∈ B := mem_sdiff.mpr ⟨mem_univ _, by
+      simp only [Ps, mem_filter, mem_univ, true_and]
+      rintro ⟨c, A, hp, hm⟩; exact pend_nocyc hG hp hcyc w0 hm cyc.start_mem_support⟩
+    have hB3 : 3 ≤ B.card := by
+      have hs : cyc.support.tail.toFinset ⊆ B := fun u hu => mem_sdiff.mpr ⟨mem_univ _, by
+        simp only [Ps, mem_filter, mem_univ, true_and]; rintro ⟨c, A, hp, hm⟩
+        exact pend_nocyc hG hp hcyc u hm (List.mem_of_mem_tail (List.mem_toFinset.mp hu))⟩
+      have hl : cyc.support.tail.length = cyc.length := by simp [cyc.length_support]
+      have hct : 3 ≤ cyc.support.tail.toFinset.card := by
+        rw [List.toFinset_card_of_nodup hcyc.support_nodup, hl]; exact hcyc.three_le_length
+      exact le_trans hct (card_le_card hs)
+    have h4 : 4 ≤ Fintype.card α := by
+      obtain ⟨x0, y0, hxy⟩ := G.exists_dist_eq_diam; obtain ⟨p, hp, hl⟩ := hG.exists_path_of_dist x0 y0
+      have := rad_le_diam hG; have := hp.length_lt; omega
+    have hPne : Ps.Nonempty := by
+      obtain ⟨c, hcc⟩ := hcut
+      obtain ⟨a, ha⟩ := card_pos.mp (by rw [card_erase_of_mem (mem_univ c), card_univ]; omega : 0 < (univ.erase c).card)
+      rw [mem_erase] at ha
+      obtain ⟨b, hb, hbn⟩ := cut_ex hcc ha.1
+      rcases hcor1 ha.1 hb hbn with hp1 | hp2
+      · exact ⟨a, mem_filter.mpr ⟨mem_univ a, c, _, hp1, self_comp c a ha.1⟩⟩
+      · exact ⟨b, mem_filter.mpr ⟨mem_univ b, c, _, hp2, self_comp c b hb⟩⟩
+    have hroot : ∀ x ∈ Ps, ∃ c ∈ B, ∃ A, Pend G c A ∧ x ∈ A := fun x hxP => by
+      let Fx : Finset (Finset α) := univ.filter fun A => x ∈ A ∧ ∃ c, Pend G c A
+      have hne : Fx.Nonempty := by
+        obtain ⟨c, A, hp, hxA⟩ := (mem_filter.mp hxP).2; exact ⟨A, mem_filter.mpr ⟨mem_univ _, hxA, c, hp⟩⟩
+      obtain ⟨A, hAF, hAs⟩ := exists_mem_eq_sup Fx hne Finset.card
+      obtain ⟨hxA, c, hpA⟩ := (mem_filter.mp hAF).2
+      refine ⟨c, ?_, A, hpA, hxA⟩
+      by_contra hcnB
+      have hcP : c ∈ Ps := by_contra fun h => hcnB (mem_sdiff.mpr ⟨mem_univ _, h⟩)
+      obtain ⟨c', A', hpA', hcA'⟩ := (mem_filter.mp hcP).2
+      obtain ⟨a, ha, hAe, -, -⟩ := id hpA; obtain ⟨a', ha', hAe', -, -⟩ := id hpA'
+      set A0 := comp G c a ha; set A0' := comp G c' a' ha'
+      have hw1 : w0 ∉ A0 := by rw [← hAe]; exact fun h => pend_nocyc hG hpA hcyc w0 h cyc.start_mem_support
+      have hw2 : w0 ∉ A0' := by rw [← hAe']; exact fun h => pend_nocyc hG hpA' hcyc w0 h cyc.start_mem_support
+      have hcA0' : c ∈ A0' := hAe' ▸ hcA'
+      have hc'n : c' ∉ A0 := fun hm => by
+        obtain ⟨q, -, -, hqa⟩ := avoid_path hG (nmem_comp c' a' ha') hw2
+        exact hqa c (sep_supp hm hw1 q) hcA0'
+      obtain ⟨u, huA0, had⟩ := adj_cut hG ha
+      have huA0' : u ∈ A0' := adj_comp hcA0' (fun h => hc'n (h ▸ huA0)) had.symm
+      rcases comp_laminar hG hw1 hw2 with hd | hs12 | hs21
+      · exact disjoint_left.mp hd huA0 huA0'
+      · have hAF' : A0' ∈ Fx := mem_filter.mpr ⟨mem_univ _, hs12 (by change x ∈ A0; rw [← hAe]; exact hxA), c', hAe' ▸ hpA'⟩
+        have hle := le_sup (f := Finset.card) hAF'
+        have hlt := card_lt_card (Finset.ssubset_iff_subset_ne.mpr ⟨hs12, fun h => nmem_comp c a ha (h ▸ (show c ∈ comp G c' a' ha' from hcA0'))⟩)
+        change A0.card < A0'.card at hlt; rw [← hAe] at hlt; omega
+      · exact nmem_comp c a ha (hs21 hcA0')
+    let Am : α → Finset α := fun a => if h : a ∈ B ∧ ∃ A, Pend G a A then h.2.choose else ∅
+    let L : α → ℕ := fun a => (Am a).card
+    have hAm_eq : ∀ {a A}, a ∈ B → Pend G a A → A = Am a := fun {a A} haB hp => by
+      have hc : a ∈ B ∧ ∃ A', Pend G a A' := ⟨haB, A, hp⟩
+      simp only [Am, dif_pos hc]; exact huniq hp hc.2.choose_spec
+    have hAm_p : ∀ {a}, a ∈ B → 1 ≤ L a → Pend G a (Am a) := fun {a} haB h1 => by
+      by_cases hex : ∃ A, Pend G a A
+      · have hc : a ∈ B ∧ ∃ A, Pend G a A := ⟨haB, hex⟩; simpa [Am, dif_pos hc] using hc.2.choose_spec
+      · exfalso; have h0 : (Am a).card = 0 := by simp [Am, hex]
+        have h1' : 1 ≤ (Am a).card := h1; omega
+    have hAm_dp : ∀ {a1 a2}, a1 ∈ B → a2 ∈ B → a1 ≠ a2 → Disjoint (Am a1) (Am a2) := fun {a1 a2} ha1 ha2 hne => by
+      by_contra hn; obtain ⟨z, hz1, hz2⟩ := not_disjoint_iff.mp hn
+      have hp1 := hAm_p ha1 (card_pos.mpr ⟨z, hz1⟩); have hp2 := hAm_p ha2 (card_pos.mpr ⟨z, hz2⟩)
+      obtain ⟨u1, hu1, heq1, -, -⟩ := id hp1; obtain ⟨u2, hu2, heq2, -, -⟩ := id hp2
+      have hw1 : w0 ∉ Am a1 := fun h => pend_nocyc hG hp1 hcyc w0 h cyc.start_mem_support
+      have hw2 : w0 ∉ Am a2 := fun h => pend_nocyc hG hp2 hcyc w0 h cyc.start_mem_support
+      rw [heq1] at hz1 hw1; rw [heq2] at hz2 hw2
+      rcases comp_laminar hG hw1 hw2 with hd | hs12 | hs21
+      · exact disjoint_left.mp hd hz1 hz2
+      · obtain ⟨u, huA, had⟩ := adj_cut hG hu1
+        exact (fun hm => (mem_sdiff.mp ha1).2 (mem_filter.mpr ⟨mem_univ _, a2, Am a2, hp2, heq2 ▸ hm⟩))
+          (adj_comp (hs12 huA) hne had)
+      · obtain ⟨u, huA, had⟩ := adj_cut hG hu2
+        exact (fun hm => (mem_sdiff.mp ha2).2 (mem_filter.mpr ⟨mem_univ _, a1, Am a1, hp1, heq1 ▸ hm⟩))
+          (adj_comp (hs21 huA) hne.symm had)
+    have hPeq : Ps = B.biUnion Am := by
+      ext x; simp only [mem_biUnion]
+      exact ⟨fun hx => by obtain ⟨c, hcB, A, hp, hxA⟩ := hroot x hx; exact ⟨c, hcB, hAm_eq hcB hp ▸ hxA⟩,
+        fun ⟨c, hcB, hxA⟩ => mem_filter.mpr ⟨mem_univ _, c, Am c, hAm_p hcB (card_pos.mpr ⟨x, hxA⟩), hxA⟩⟩
+    have hAm_dB : ∀ {a}, a ∈ B → Disjoint B (Am a) := fun haB => disjoint_left.mpr fun x hxB hxA =>
+      (mem_sdiff.mp hxB).2 (hPeq ▸ mem_biUnion.mpr ⟨_, haB, hxA⟩)
+    let xl : α → α := fun a => if h : Pend G a (Am a) then (pend_ex hG h).2.choose else a
+    have hnp0 : ∀ {a}, L a = 0 → ¬ Pend G a (Am a) := fun {a} h0 hp => by
+      have := (pend_ex hG hp).1; have := hp.choose_spec.choose_spec.2.2; change (Am a).card = 0 at h0; omega
+    have hxl0 : ∀ {a}, L a = 0 → xl a = a := fun {a} h0 => by simp [xl, dif_neg (hnp0 h0)]
+    have hxl_spec : ∀ {a}, a ∈ B → 1 ≤ L a → xl a ∈ Am a ∧ G.dist a (xl a) = L a ∧
+        (∀ y ∈ Am a, G.dist a y ≤ L a ∧ G.dist y (xl a) = L a - G.dist a y) ∧ ¬ Cut G (xl a) := by
+      intro a haB hl
+      have hp := hAm_p haB hl; simp only [xl, dif_pos hp]
+      set x := (pend_ex hG hp).2.choose
+      have hxA := (pend_ex hG hp).2.choose_spec.1; have hxd := (pend_ex hG hp).2.choose_spec.2
+      obtain ⟨P, hPp, hPl⟩ := hG.exists_path_of_dist a x
+      have hce : (Am a).sup (G.dist a) = L a := hp.choose_spec.choose_spec.2.2.symm
+      have hs := pend_spec hG hp hxA hxd P hPp (hPl.trans hxd)
+      refine ⟨hxA, by rw [hxd, hce], fun y hy => ?_, pend_leaf_nc hG hp hxA hxd⟩
+      have hys := hs.2.2.2.2.1 y hy; exact ⟨hys.1.trans_eq hce, by rw [← hce]; exact hys.2.1⟩
+    have hxl_nm : ∀ {a b}, a ∈ B → b ∈ B → a ≠ b → xl a ∉ Am b := fun {a b} ha hb hab => by
+      by_cases h1 : 1 ≤ L a
+      · exact disjoint_left.mp (hAm_dp ha hb hab) (hxl_spec ha h1).1
+      · rw [hxl0 (by omega)]; exact disjoint_left.mp (hAm_dB hb) ha
+    have hxl_ne : ∀ {a b}, a ∈ B → b ∈ B → a ≠ b → xl a ≠ xl b := fun {a b} ha hb hab heq => by
+      by_cases hb1 : 1 ≤ L b
+      · exact hxl_nm ha hb hab (heq ▸ (hxl_spec hb hb1).1)
+      · have hxb := hxl0 (a := b) (by omega)
+        by_cases ha1 : 1 ≤ L a
+        · exact disjoint_left.mp (hAm_dB ha) (by rw [heq, hxb]; exact hb) (hxl_spec ha ha1).1
+        · exact hab ((hxl0 (a := a) (by omega)).symm.trans (heq.trans hxb))
+    have hxl_nc : ∀ {a}, a ∈ B → ¬ Cut G (xl a) := fun {a} haB => by
+      by_cases h1 : 1 ≤ L a
+      · exact (hxl_spec haB h1).2.2.2
+      · have h0 : L a = 0 := by omega
+        rw [hxl0 h0]; intro hca
+        obtain ⟨u, hu⟩ := card_pos.mp (by rw [card_erase_of_mem haB]; omega : 0 < (B.erase a).card)
+        rw [mem_erase] at hu
+        obtain ⟨v, hva, hvn⟩ := cut_ex hca hu.1
+        rcases hcor1 hu.1 hva hvn with hp1 | hp2
+        · exact hnp0 h0 ((hAm_eq haB hp1) ▸ hp1)
+        · exact hnp0 h0 ((hAm_eq haB hp2) ▸ hp2)
+    have hdl_out : ∀ {a}, a ∈ B → ∀ z, z ∉ Am a → G.dist z (xl a) = G.dist z a + L a := fun {a} haB z hz => by
+      by_cases h1 : 1 ≤ L a
+      · obtain ⟨hxA, hdx, -, -⟩ := hxl_spec haB h1
+        obtain ⟨u, hu, heq, -, -⟩ := hAm_p haB h1
+        rw [heq] at hxA hz
+        have := sep_dist hG hxA hz
+        have : G.dist z (xl a) = G.dist (xl a) z := dist_comm; have : G.dist z a = G.dist a z := dist_comm
+        have : G.dist (xl a) a = G.dist a (xl a) := dist_comm; omega
+      · have h0 : L a = 0 := by omega
+        rw [hxl0 h0, h0, add_zero]
+    let GB := G.induce (B : Set α)
+    have hGBcd : GB.Connected ∧ ∀ u v : B, GB.dist u v = G.dist u.1 v.1 :=
+      induce_conn_dist (B : Set α) ⟨w0, hw0B⟩ fun x hx y hy => by
+        obtain ⟨p, hp, hl⟩ := hG.exists_path_of_dist x y
+        refine ⟨p, hl, fun u hu => ?_⟩
+        by_contra huB
+        have huP : u ∈ Ps := by_contra fun h => huB (mem_coe.mpr (mem_sdiff.mpr ⟨mem_univ _, h⟩))
+        rw [hPeq, mem_biUnion] at huP; obtain ⟨a, haB, huA⟩ := huP
+        obtain ⟨a0, ha0, heq, -, -⟩ := hAm_p haB (card_pos.mpr ⟨u, huA⟩)
+        exact path_avoid (heq ▸ disjoint_left.mp (hAm_dB haB) hx) (heq ▸ disjoint_left.mp (hAm_dB haB) hy)
+          hp u hu (heq ▸ huA)
+    have hGB := hGBcd.1; have hGBd := hGBcd.2
+    obtain ⟨as, hasB, hasmin⟩ := exists_min_image B L ⟨w0, hw0B⟩
+    set L0 := L as
+    have hLadj : ∀ {a u}, a ∈ B → u ∈ B → L a = L0 → G.Adj a u → L u = L0 := fun {a u} haB huB hLa had => by
+      have hau := had.ne
+      obtain ⟨w, -, hwleaf, hwall⟩ := hwit (xl a) (hxl_nc haB)
+      have hxne := hxl_ne huB haB hau.symm
+      by_cases hwa : w ∈ Am a
+      · exfalso
+        have hl1 := card_pos.mpr ⟨w, hwa⟩
+        have hsw := (hxl_spec haB hl1).2.2.1 w hwa
+        have haw := Nat.succ_le_of_lt ((hG a w).pos_dist_of_ne fun h => disjoint_left.mp (hAm_dB haB) haB (h ▸ hwa))
+        have hxun := hxl_nm huB haB hau.symm
+        obtain ⟨u0, hu0, heq, -, -⟩ := hAm_p haB hl1
+        have := sep_dist hG (heq ▸ hwa) (heq ▸ hxun)
+        have := hdl_out huB a (disjoint_left.mp (hAm_dB huB) haB)
+        have := dist_eq_one_iff_adj.mpr had; have := hwall (xl u) hxne
+        have : G.dist a w = G.dist w a := dist_comm; have := hasmin u huB; omega
+      · by_cases hwu : w ∈ Am u
+        · exfalso
+          have hlu := card_pos.mpr ⟨w, hwu⟩
+          have hne_s : (B \ {a, u}).Nonempty := card_pos.mp <| by
+            have := card_le_two (a := a) (b := u)
+            have := card_sdiff_add_card_inter B {a, u}
+            have := card_le_card (inter_subset_right (s₁ := B) (s₂ := {a, u}))
+            omega
+          obtain ⟨b, hb⟩ := hne_s
+          rw [mem_sdiff, mem_insert, mem_singleton, not_or] at hb
+          obtain ⟨hbB, hba, hbu⟩ := hb
+          obtain ⟨u0, hu0, hequ, -, -⟩ := hAm_p huB hlu
+          have := sep_dist hG (hequ ▸ hwu) (hequ ▸ hxl_nm haB huB hau)
+          have := sep_dist hG (hequ ▸ hwu) (hequ ▸ hxl_nm hbB huB hbu)
+          have := hdl_out haB u (disjoint_left.mp (hAm_dB haB) huB)
+          have := hdl_out hbB u (disjoint_left.mp (hAm_dB hbB) huB)
+          have := dist_eq_one_iff_adj.mpr had.symm
+          have := Nat.succ_le_of_lt ((hG u b).pos_dist_of_ne (Ne.symm hbu))
+          have := hwall (xl b) (hxl_ne hbB haB hba); have := hasmin b hbB; omega
+        · have := hdl_out haB w hwa; have := hdl_out huB w hwu
+          have := hwall (xl u) hxne; have := (hG u a).dist_triangle_right w
+          have := dist_eq_one_iff_adj.mpr had.symm; have := hasmin u huB; omega
+    have hLunif : ∀ v ∈ B, L v = L0 := fun v hvB => by
+      obtain ⟨q⟩ := hGB ⟨as, hasB⟩ ⟨v, hvB⟩
+      have hw : ∀ {x y : B}, GB.Walk x y → L x.1 = L0 → L y.1 = L0 := fun p => by
+        induction p with | nil => exact fun h => h | @cons x m _ h _ ih => exact fun hx => ih (hLadj x.2 m.2 hx h)
+      exact hw q rfl
+    have hL0 : 1 ≤ L0 := by
+      obtain ⟨x0, hx0⟩ := hPne; rw [hPeq, mem_biUnion] at hx0; obtain ⟨v0, hv0B, hx0A⟩ := hx0
+      have hpos : 0 < L v0 := card_pos.mpr ⟨x0, hx0A⟩; rwa [hLunif v0 hv0B] at hpos
+    let rB := GB.radius.toNat; have : Nonempty B := hGB.nonempty
+    obtain ⟨cB, hcBr⟩ := center_ex hGB
+    have hrb : ∀ y, G.dist cB.1 y ≤ rB + L0 := fun y => by
+      by_cases hyB : y ∈ B
+      · have h1 : GB.dist cB ⟨y, hyB⟩ ≤ rB := hcBr ⟨y, hyB⟩
+        have h2 : GB.dist cB ⟨y, hyB⟩ = G.dist cB.1 y := hGBd cB ⟨y, hyB⟩; omega
+      · have hyP : y ∈ Ps := by_contra fun h => hyB (mem_sdiff.mpr ⟨mem_univ _, h⟩)
+        rw [hPeq, mem_biUnion] at hyP; obtain ⟨v, hvB, hyA⟩ := hyP
+        have h1 : GB.dist cB ⟨v, hvB⟩ ≤ rB := hcBr ⟨v, hvB⟩
+        have h2 : GB.dist cB ⟨v, hvB⟩ = G.dist cB.1 v := hGBd cB ⟨v, hvB⟩
+        have := (hxl_spec hvB (card_pos.mpr ⟨y, hyA⟩)).2.2.1 y hyA
+        have := (hG v y).dist_triangle_right cB.1; have := hLunif v hvB; omega
+    have hrl : r ≤ rB + L0 := rad_le hG ⟨cB.1, hrb⟩
+    have hrB1 : 1 ≤ rB := by
+      by_contra h0; have : B ⊆ {cB.1} := fun b hbB => by
+        have h1 : GB.dist cB ⟨b, hbB⟩ ≤ rB := hcBr ⟨b, hbB⟩
+        have h2 : GB.dist cB ⟨b, hbB⟩ = G.dist cB.1 b := hGBd cB ⟨b, hbB⟩
+        exact mem_singleton.mpr ((hG cB.1 b).dist_eq_zero_iff.mp (by omega)).symm
+      have := card_le_card this; rw [card_singleton] at this; omega
+    obtain ⟨TB, hTBt, hTBc⟩ := max_tree GB
+    let T0 : Finset α := TB.image Subtype.val
+    have hT0s : T0 ⊆ B := fun _ hx => by obtain ⟨⟨y, hy⟩, -, rfl⟩ := mem_image.mp hx; exact hy
+    have hT0c : T0.card = TB.card := card_image_of_injective TB Subtype.val_injective
+    have hTf := tree_biUnion hG (tree_img hTBt) Am
+      (fun v hv => hAm_p (hT0s hv) (by rw [hLunif v (hT0s hv)]; exact hL0))
+      (fun v hv => disjoint_of_subset_left hT0s (hAm_dB (hT0s hv)))
+      (fun v hv w hw hvw => hAm_dp (hT0s hv) (hT0s hw) hvw)
+    have hsum : (∑ v ∈ T0, (Am v).card) = T0.card * L0 := by
+      rw [sum_congr rfl fun v hv => hLunif v (hT0s hv), sum_const, smul_eq_mul]
+    have hTc : (T0 ∪ T0.biUnion Am).card = T0.card * (L0 + 1) := by
+      rw [hTf.2, hsum, mul_add, mul_one, add_comm]
+    have htl := card_le_largestInducedTreeSize hTf.1
+    have hT0r : rB + 1 ≤ T0.card := by
+      have : rB + 1 ≤ largestInducedTreeSize GB := rad_le_lit hGB; omega
+    have hmul : 2 * (rB + L0) ≤ T0.card * (L0 + 1) := by
+      have h1 := Nat.mul_le_mul_right (L0 + 1) hT0r
+      rcases (by omega : rB = 1 ∨ 2 ≤ rB) with hr1' | hr2'
+      · rw [hr1'] at h1 ⊢; simp only [Nat.add_mul, Nat.mul_add, Nat.one_mul, Nat.mul_one] at h1 ⊢; omega
+      · rcases (by omega : L0 = 1 ∨ 2 ≤ L0) with hL1' | hL2'
+        · rw [hL1'] at h1 ⊢; simp only [Nat.mul_add, Nat.mul_one] at h1 ⊢; omega
+        · have ha := Nat.mul_le_mul_right L0 hr2'
+          have hb := Nat.mul_le_mul_left rB hL2'
+          have hmul_ex : (rB + 1) * (L0 + 1) = rB * L0 + rB + L0 + 1 := by
+            simp only [Nat.add_mul, Nat.mul_add, Nat.one_mul, Nat.mul_one]; omega
+          omega
+    have htl' : T0.card * (L0 + 1) ≤ largestInducedTreeSize G := hTc ▸ htl
+    omega
+
+end SecE
+
+end OMA_Conj84
+
+theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture84.conjecture84 := by
+  intro α _ _ _ G _ h hδ
+  by_cases h2 : 2 ≤ G.minDegree
+  · have h1 := OMA_Conj84.rad_le_lit h
+    have hp : (0 : ℝ) < G.minDegree := by exact_mod_cast hδ
+    rw [div_le_iff₀ hp]
+    have : (G.radius.toNat : ℝ) + 1 ≤ SimpleGraph.largestInducedTreeSize G := by exact_mod_cast h1
+    have : (2 : ℝ) ≤ G.minDegree := by exact_mod_cast h2
+    have : (0 : ℝ) ≤ SimpleGraph.largestInducedTreeSize G := by positivity
+    nlinarith
+  · have hδ1 : G.minDegree = 1 := by omega
+    have hm : 2 * G.radius.toNat ≤ SimpleGraph.largestInducedTreeSize G := by
+      by_cases hc : Fintype.card α ≤ 2
+      · obtain ⟨x, y, _⟩ := G.exists_dist_eq_diam
+        obtain ⟨p, hp, hl⟩ := h.exists_path_of_dist x y
+        have := OMA_Conj84.rad_le_diam h; have := hp.length_lt; have := OMA_Conj84.rad_le_lit h; omega
+      · obtain ⟨v, hv⟩ := G.exists_minimal_degree_vertex
+        obtain ⟨c, hvc, hu⟩ := SimpleGraph.degree_eq_one_iff_existsUnique_adj.mp (by rw [← hv, hδ1])
+        exact OMA_Conj84.cut_main (Fintype.card α) rfl G h
+          ⟨c, OMA_Conj84.cut_uniq (by omega) hvc hu⟩
+    rw [hδ1]; simp only [Nat.cast_one, div_one]; exact_mod_cast hm

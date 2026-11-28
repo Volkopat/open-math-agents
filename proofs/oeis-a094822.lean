@@ -51,11 +51,7 @@ lemma E_succ (m : ℕ) : E (m + 1) = ((m : ℤ) + 1) * D m := by
       ((m + 1).choose (ij.1 + 1) : ℤ) * ((ij.1 : ℤ) + 1) := by
     exact_mod_cast h
   push_cast
-  calc ((ij.1 : ℤ) + 1) * (((m + 1).choose (ij.1 + 1) : ℤ) * ((3 : ℤ) ^ ij.2 * q (ij.1 + 1)))
-      = (((m + 1).choose (ij.1 + 1) : ℤ) * ((ij.1 : ℤ) + 1)) * ((3 : ℤ) ^ ij.2 * q (ij.1 + 1)) := by
-        ring
-    _ = (((m : ℤ) + 1) * (m.choose ij.1 : ℤ)) * ((3 : ℤ) ^ ij.2 * q (ij.1 + 1)) := by rw [h']
-    _ = ((m : ℤ) + 1) * ((m.choose ij.1 : ℤ) * ((3 : ℤ) ^ ij.2 * q (ij.1 + 1))) := by ring
+  linear_combination -(3 ^ ij.2 * q (ij.1 + 1)) * h'
 
 lemma rec2 (m : ℕ) :
     a (m + 2) = (3 * (m : ℤ) + 7) * a (m + 1) - 9 * ((m : ℤ) + 1) * a m := by

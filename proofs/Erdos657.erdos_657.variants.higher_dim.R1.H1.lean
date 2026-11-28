@@ -1,0 +1,3350 @@
+import OMAReductions.R_Erdos657_erdos_657_variants_higher_dim_R1
+import Mathlib
+
+/-!
+# Parallel edge pairs in Erdős problem 657
+
+Ordered edge pairs with the same displacement up to reversal are bounded
+by twice the additive energy. High energy gives a positive-density subset
+with a small difference set by Balog–Szemerédi–Gowers. The isosceles-free
+condition implies that the subset is three-term-progression-free. A
+one-dimensional linear image preserves the relevant relations, so the
+existing finite modeling argument and Roth's theorem bound its size.
+
+The strategy follows @nijv's desk note #160489. The formal BSG argument
+credits Adam McKenna and preserves its original license. The finite
+real-to-integer model reuses the project proof by @JaviSoto in #4155.
+-/
+
+
+/-
+Balog–Szemerédi–Gowers for large additive energy
+
+The formalization is copyright (c) 2026 Adam McKenna, licensed under
+Apache-2.0. The original is in mysticflounder/lean-formalizations at
+commit db02244c25aecd74eb96d9186c922387824c1258. This extraction uses the
+adaptation already accepted for Erdős 101 in open-math-agents, commit
+04f961faa7fc786c80145833d17592fde98f2c34. The theorem bodies are unchanged.
+The full license follows at the end of this extraction.
+
+https://github.com/mysticflounder/lean-formalizations/blob/db02244c25aecd74eb96d9186c922387824c1258/lean/LeanFormalizations/Combinatorics/Additive/BalogSzemerediGowers.lean
+-/
+
+/-
+Copyright (c) 2026 Adam McKenna. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Adam McKenna
+-/
+
+
+/-
+# Balog–Szemerédi–Gowers theorem
+
+The Balog–Szemerédi–Gowers theorem over `Finset.addEnergy` for an arbitrary
+additive commutative group, proved via Gowers' graph-theoretic argument.
+
+## Main statements
+
+* `Finset.balog_szemeredi_gowers_symmetric` — equal-sets form
+  `E[X,X] ≥ η|X|³ ⇒ ∃ X' ⊆ X, c|X| ≤ |X'| ∧ |X'-X'| ≤ C|X|`.
+* `Finset.balog_szemeredi_gowers_asymmetric` — equal-cardinality two-sets form
+  `E[X,Y] ≥ η|X|³ ⇒ ∃ X' ⊆ X, Y' ⊆ Y, c·n ≤ |X'|,|Y'| ∧ |X'-Y'| ≤ C·n`.
+* `Finset.balog_szemeredi_gowers_asymmetric_explicit` — the asymmetric form with
+  the existential constants exposed as explicit polynomials in `η`
+  (`c = η/16` and an explicit `C(η)`).
+
+The first two statements are qualitative: the constants `c, C : ℝ` are
+existential, with no polynomial dependence on `η` exposed.
+
+## References
+
+* Tao–Vu, *Additive Combinatorics* §6.4 (Gowers' graph-theoretic proof).
+* Reiher–Schoen, "Note on the Theorem of Balog, Szemerédi, and Gowers",
+  *Combinatorica* (2024), arXiv:2308.10245 (the `K⁴` difference-set refinement).
+-/
+
+namespace Finset
+
+open scoped Pointwise
+
+/--
+Sum of fiber counts over the sumset equals the total pair count.
+Helper for the popular-sum lemma: gives `Σ_s r(s) = |X|·|Y|`, the
+denominator in the Markov / Cauchy-Schwarz step.
+-/
+lemma sum_addConvolution_eq_card_product {G : Type*} [AddCommGroup G] [DecidableEq G]
+    (X Y : Finset G) :
+    ∑ s ∈ X + Y, X.addConvolution Y s = X.card * Y.card := by
+  simp_rw [Finset.addConvolution]
+  rw [Finset.sum_card_fiberwise_eq_card_filter, Finset.filter_eq_self.mpr,
+    Finset.card_product]
+  rintro ⟨a, b⟩ hab
+  rw [Finset.mem_product] at hab
+  exact Finset.add_mem_add hab.1 hab.2
+
+
+/--
+Additive energy as a sum of squared fiber counts. Restatement of
+Mathlib `Finset.addEnergy_eq_sum_sq` in terms of the convolution
+`X.addConvolution Y`; the energy equals `Σ_{s ∈ X+Y} r(s)²` where
+`r(s)` is the number of pairs `(x,y)` summing to `s`.
+-/
+lemma addEnergy_eq_sum_addConvolution_sq {G : Type*} [AddCommGroup G] [DecidableEq G]
+    (X Y : Finset G) :
+    Finset.addEnergy X Y = ∑ s ∈ X + Y, (X.addConvolution Y s) ^ 2 := by
+  simp_rw [Finset.addConvolution]
+  exact Finset.addEnergy_eq_sum_sq' X Y
+
+
+/--
+Split the energy sum into rare-fiber and popular-fiber parts at
+threshold `θ`. The two filters partition `X + Y` (over `<` vs `≥`),
+so combining them recovers the full `Σ r(s)²` form of
+`Finset.addEnergy`.
+-/
+lemma addEnergy_split_by_threshold {G : Type*} [AddCommGroup G] [DecidableEq G]
+    (X Y : Finset G) (θ : ℕ) :
+    (Finset.addEnergy X Y : ℕ) =
+      (∑ s ∈ (X + Y).filter (fun s ↦ X.addConvolution Y s < θ),
+        (X.addConvolution Y s) ^ 2) +
+      (∑ s ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s),
+        (X.addConvolution Y s) ^ 2) := by
+  rw [addEnergy_eq_sum_addConvolution_sq,
+    ← Finset.sum_filter_add_sum_filter_not (X + Y) (fun s ↦ X.addConvolution Y s < θ)]
+  congr 1
+  apply Finset.sum_congr _ (fun _ _ ↦ rfl)
+  apply Finset.filter_congr
+  intros
+  omega
+
+
+/--
+Popular-difference lemma (sum form). The rare part of `Σ r(s)²`
+(over fibers with `r(s) < θ`) is bounded by `θ · |X| · |Y|`, because
+`r(s)² ≤ θ · r(s)` on the rare set and `Σ r(s) = |X|·|Y|`
+(`sum_addConvolution_eq_card_product`). Therefore
+`E[X,Y] ≤ θ·|X|·|Y| + (popular part)`, giving the popular-sum set
+its energy bound for the random-restriction step.
+-/
+lemma addEnergy_le_popular_part {G : Type*} [AddCommGroup G] [DecidableEq G]
+    (X Y : Finset G) (θ : ℕ) :
+    (Finset.addEnergy X Y : ℕ) ≤ θ * (X.card * Y.card) +
+      ∑ s ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s),
+        (X.addConvolution Y s) ^ 2 := by
+  rw [addEnergy_split_by_threshold X Y θ]
+  refine Nat.add_le_add_right ?_ _
+  calc ∑ s ∈ (X + Y).filter (fun s ↦ X.addConvolution Y s < θ),
+          (X.addConvolution Y s) ^ 2
+      ≤ ∑ s ∈ (X + Y).filter (fun s ↦ X.addConvolution Y s < θ),
+          θ * X.addConvolution Y s := by
+        refine Finset.sum_le_sum fun s hs ↦ ?_
+        rw [Finset.mem_filter] at hs
+        have hle : X.addConvolution Y s ≤ θ := Nat.le_of_lt hs.2
+        rw [pow_two]
+        exact Nat.mul_le_mul_right _ hle
+    _ = θ * ∑ s ∈ (X + Y).filter (fun s ↦ X.addConvolution Y s < θ),
+          X.addConvolution Y s := by rw [Finset.mul_sum]
+    _ ≤ θ * ∑ s ∈ X + Y, X.addConvolution Y s :=
+        Nat.mul_le_mul_left _ (Finset.sum_le_sum_of_subset (Finset.filter_subset _ _))
+    _ = θ * (X.card * Y.card) := by rw [sum_addConvolution_eq_card_product]
+
+
+/--
+**Popular-pair cardinality lower bound.** Given an additive-energy lower
+bound `E[X,Y] ≥ η·|X|³` with equal cardinalities `|X|=|Y|`, the popular
+bipartite graph
+  `G(θ) := { (x,y) ∈ X × Y : X.addConvolution Y (x+y) ≥ θ }`
+satisfies `|G(θ)| ≥ (η/2)·|X|·|Y|` whenever the threshold `θ` satisfies
+`2θ ≤ η·|X|`. Proof outline: `addEnergy_le_popular_part` bounds the rare
+part by `θ·|X|·|Y|`, leaving the popular-fiber sum-of-squares to carry
+the residual `≥ η·|X|³/2` (using `|Y|=|X|` and `2θ ≤ η·|X|`); the trivial
+fiber-size bound `r(s) ≤ |X|` (Mathlib `Finset.addConvolution_le_card_left`)
+converts that to `|X|·|popular pair count|`; the popular pair count then
+equals `∑_{s popular} r(s)` by fiber-rewriting. Consumed by the
+random-restriction step in the Balog-Szemerédi-Gowers proof.
+-/
+lemma popular_pairs_card_lower_bound {G : Type*} [AddCommGroup G] [DecidableEq G]
+    {η : ℝ} (_hη : 0 < η)
+    {X Y : Finset G} (hXY : X.card = Y.card) (hX : X.Nonempty)
+    (hE : η * (X.card : ℝ) ^ 3 ≤ (Finset.addEnergy X Y : ℝ))
+    (θ : ℕ) (hθ : 2 * (θ : ℝ) ≤ η * X.card) :
+    η / 2 * (X.card : ℝ) * Y.card ≤
+      (((X ×ˢ Y).filter
+        (fun p ↦ θ ≤ X.addConvolution Y (p.1 + p.2))).card : ℝ) := by
+  have hXpos : (0 : ℝ) < X.card := by exact_mod_cast hX.card_pos
+  have hYcard : (Y.card : ℝ) = X.card := by exact_mod_cast hXY.symm
+  have hsplit_nat := addEnergy_le_popular_part X Y θ
+  have hsplit : (Finset.addEnergy X Y : ℝ) ≤
+      θ * ((X.card : ℝ) * Y.card) +
+      ∑ s ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s),
+        ((X.addConvolution Y s : ℝ)) ^ 2 := by
+    have h := (Nat.cast_le (α := ℝ)).mpr hsplit_nat
+    push_cast at h
+    exact h
+  have hθBd : (θ : ℝ) * ((X.card : ℝ) * Y.card) ≤ η / 2 * (X.card : ℝ) ^ 3 := by
+    rw [hYcard]
+    have hθ' : (θ : ℝ) ≤ η / 2 * X.card := by linarith
+    have hsq_nn : (0 : ℝ) ≤ (X.card : ℝ) ^ 2 := sq_nonneg _
+    have hmul : (θ : ℝ) * (X.card : ℝ) ^ 2 ≤ (η / 2 * X.card) * (X.card : ℝ) ^ 2 :=
+      mul_le_mul_of_nonneg_right hθ' hsq_nn
+    nlinarith [hmul]
+  have hpopSqLB : η / 2 * (X.card : ℝ) ^ 3 ≤
+      ∑ s ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s),
+        ((X.addConvolution Y s : ℝ)) ^ 2 := by linarith
+  have hsqLE : ∑ s ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s),
+        ((X.addConvolution Y s : ℝ)) ^ 2 ≤
+      (X.card : ℝ) * ∑ s ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s),
+        ((X.addConvolution Y s : ℝ)) := by
+    rw [Finset.mul_sum]
+    refine Finset.sum_le_sum (fun s _ ↦ ?_)
+    have hrLE : X.addConvolution Y s ≤ X.card :=
+      Finset.addConvolution_le_card_left
+    have hrLE' : ((X.addConvolution Y s : ℝ)) ≤ (X.card : ℝ) := by exact_mod_cast hrLE
+    have hr_nn : (0 : ℝ) ≤ ((X.addConvolution Y s : ℝ)) := by positivity
+    nlinarith
+  have hfiber_nat : ∑ s ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s),
+        X.addConvolution Y s =
+      ((X ×ˢ Y).filter (fun p ↦ θ ≤ X.addConvolution Y (p.1 + p.2))).card := by
+    simp only [Finset.addConvolution]
+    rw [Finset.sum_card_fiberwise_eq_card_filter]
+    congr 1
+    apply Finset.filter_congr
+    rintro ⟨a, b⟩ hp
+    rw [Finset.mem_product] at hp
+    constructor
+    · intro h
+      have h' : a + b ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s) := h
+      exact (Finset.mem_filter.mp h').2
+    · intro h
+      have h' : a + b ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s) :=
+        Finset.mem_filter.mpr ⟨Finset.add_mem_add hp.1 hp.2, h⟩
+      exact h'
+  have hcombined : η / 2 * (X.card : ℝ) ^ 3 ≤
+      (X.card : ℝ) *
+      (((X ×ˢ Y).filter (fun p ↦ θ ≤ X.addConvolution Y (p.1 + p.2))).card : ℝ) := by
+    calc η / 2 * (X.card : ℝ) ^ 3
+        ≤ ∑ s ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s),
+            ((X.addConvolution Y s : ℝ)) ^ 2 := hpopSqLB
+      _ ≤ (X.card : ℝ) * ∑ s ∈ (X + Y).filter (fun s ↦ θ ≤ X.addConvolution Y s),
+            ((X.addConvolution Y s : ℝ)) := hsqLE
+      _ = (X.card : ℝ) *
+            (((X ×ˢ Y).filter
+              (fun p ↦ θ ≤ X.addConvolution Y (p.1 + p.2))).card : ℝ) := by
+          congr 1
+          exact_mod_cast hfiber_nat
+  have hdiv : η / 2 * (X.card : ℝ) ^ 2 ≤
+      (((X ×ˢ Y).filter
+        (fun p ↦ θ ≤ X.addConvolution Y (p.1 + p.2))).card : ℝ) := by
+    have heq : η / 2 * (X.card : ℝ) ^ 3 =
+        (X.card : ℝ) * (η / 2 * (X.card : ℝ) ^ 2) := by ring
+    rw [heq] at hcombined
+    exact le_of_mul_le_mul_left hcombined hXpos
+  have hgoal : η / 2 * (X.card : ℝ) * Y.card = η / 2 * (X.card : ℝ) ^ 2 := by
+    rw [hYcard]; ring
+  linarith
+
+
+/--
+**Double Markov refinement (rectangle mass concentration).**
+
+Given finite nonempty sets `X, Y`, a nonnegative function `f : X × Y → ℝ`
+pointwise bounded by `M`, and assuming `∑_{(x,y)} f x y ≥ θ · M · |X| · |Y|`
+for some `θ ∈ [0, 1]`, there exist subsets `X ⊆ X`, `Y ⊆ Y` of size
+≥ (θ/2)·|X| and (θ/4)·|Y| respectively whose rectangle mass is
+≥ (θ/4) · M · |X| · |Y|.
+
+Proof: iterated Markov. First refine to rows with row-sum ≥ (θ/2)·M·|Y|
+(size ≥ (θ/2)·|X|), then refine to columns with column-sum ≥ (θ/4)·M·|X|
+restricted to `X` (size ≥ (θ/4)·|Y|).
+
+NOTE: currently unused by the BSG proof (the live path uses the
+dependent-random-choice track, not this rectangle refinement). Retained as a
+self-contained, fully general result over arbitrary types — a potential mathlib
+contribution. Safe to delete if no longer wanted.
+-/
+lemma double_markov_refinement {α β : Type*}
+    (X : Finset α) (Y : Finset β) (f : α → β → ℝ) (M θ : ℝ) :
+    0 ≤ M → 0 ≤ θ → θ ≤ 1 → X.Nonempty → Y.Nonempty →
+    (∀ x ∈ X, ∀ y ∈ Y, 0 ≤ f x y) →
+    (∀ x ∈ X, ∀ y ∈ Y, f x y ≤ M) →
+    θ * M * (X.card : ℝ) * (Y.card : ℝ) ≤ ∑ x ∈ X, ∑ y ∈ Y, f x y →
+    ∃ Xs : Finset α, ∃ Ys : Finset β, Xs ⊆ X ∧ Ys ⊆ Y ∧
+      (θ / 2) * (X.card : ℝ) ≤ (Xs.card : ℝ) ∧
+      (θ / 4) * (Y.card : ℝ) ≤ (Ys.card : ℝ) ∧
+      (θ / 4) * M * (X.card : ℝ) * (Y.card : ℝ) ≤
+        ∑ x ∈ Xs, ∑ y ∈ Ys, f x y := by
+  classical
+  intro hM hθ hθ1 hX hY hf_nn hf_ub hlower
+  -- Total mass shorthand: TotalMass := ∑_{x ∈ X} ∑_{y ∈ Y} f x y
+  -- Step 1: X' := { x ∈ X : ∑_y f x y ≥ (θ/2)·M·|Y| }.
+  set rowSum : α → ℝ := fun x ↦ ∑ y ∈ Y, f x y with hrowSum_def
+  set X' : Finset α := X.filter (fun x ↦ (θ / 2) * M * (Y.card : ℝ) ≤ rowSum x)
+    with hX'_def
+  have hX'_sub : X' ⊆ X := Finset.filter_subset _ _
+  -- Pointwise: each row sum is ≤ M·|Y|.
+  have hrowSum_le : ∀ x ∈ X, rowSum x ≤ M * (Y.card : ℝ) := by
+    intro x hx
+    have : ∑ y ∈ Y, f x y ≤ ∑ _y ∈ Y, M := by
+      refine Finset.sum_le_sum fun y hy ↦ hf_ub x hx y hy
+    rw [Finset.sum_const, nsmul_eq_mul, mul_comm] at this
+    exact this
+  -- Cards as reals.
+  have hXR_pos : (0 : ℝ) < (X.card : ℝ) := by exact_mod_cast hX.card_pos
+  have hYR_pos : (0 : ℝ) < (Y.card : ℝ) := by exact_mod_cast hY.card_pos
+  have hXR_nn : (0 : ℝ) ≤ (X.card : ℝ) := le_of_lt hXR_pos
+  have hYR_nn : (0 : ℝ) ≤ (Y.card : ℝ) := le_of_lt hYR_pos
+  -- Split total sum X = X' ⊔ (X \ X').
+  have hSplit_X :
+      ∑ x ∈ X, rowSum x = (∑ x ∈ X', rowSum x) + ∑ x ∈ X \ X', rowSum x := by
+    rw [← Finset.sum_sdiff hX'_sub]; ring
+  -- Rare part: each x ∈ X \ X' has rowSum x < (θ/2)·M·|Y|.
+  have hRare_X : ∑ x ∈ X \ X', rowSum x ≤
+      ((X \ X').card : ℝ) * ((θ / 2) * M * (Y.card : ℝ)) := by
+    rw [show ((X \ X').card : ℝ) * ((θ / 2) * M * (Y.card : ℝ)) =
+              ∑ _x ∈ X \ X', ((θ / 2) * M * (Y.card : ℝ)) by
+      rw [Finset.sum_const, nsmul_eq_mul]]
+    refine Finset.sum_le_sum fun x hx ↦ ?_
+    rw [Finset.mem_sdiff, hX'_def, Finset.mem_filter] at hx
+    by_contra hgt
+    push Not at hgt
+    exact hx.2 ⟨hx.1, le_of_lt hgt⟩
+  -- Popular part of X: each x has rowSum x ≤ M·|Y|.
+  have hPop_X_le : ∑ x ∈ X', rowSum x ≤ (X'.card : ℝ) * (M * (Y.card : ℝ)) := by
+    rw [show (X'.card : ℝ) * (M * (Y.card : ℝ)) =
+              ∑ _x ∈ X', (M * (Y.card : ℝ)) by
+      rw [Finset.sum_const, nsmul_eq_mul]]
+    refine Finset.sum_le_sum fun x hx ↦ hrowSum_le x (hX'_sub hx)
+  -- Lower bound on total sum.
+  have hTotal_lb : θ * M * (X.card : ℝ) * (Y.card : ℝ) ≤ ∑ x ∈ X, rowSum x := by
+    simpa [rowSum] using hlower
+  -- Mass on X' rows: ≥ (θ/2)·M·|X|·|Y|.
+  have hMass_X' :
+      (θ / 2) * M * (X.card : ℝ) * (Y.card : ℝ) ≤ ∑ x ∈ X', rowSum x := by
+    have hsdiff_le_X : ((X \ X').card : ℝ) ≤ (X.card : ℝ) := by
+      exact_mod_cast Finset.card_le_card Finset.sdiff_subset
+    have h_θM_nn : (0 : ℝ) ≤ (θ / 2) * M * (Y.card : ℝ) := by
+      have : 0 ≤ θ / 2 := by linarith
+      have : 0 ≤ θ / 2 * M := mul_nonneg this hM
+      nlinarith [this, hYR_nn]
+    have hRare_X' : ∑ x ∈ X \ X', rowSum x ≤ (X.card : ℝ) * ((θ / 2) * M * (Y.card : ℝ)) := by
+      have := mul_le_mul_of_nonneg_right hsdiff_le_X h_θM_nn
+      linarith [hRare_X]
+    nlinarith [hSplit_X, hTotal_lb, hRare_X']
+  -- |X'| ≥ (θ/2)·|X|.
+  -- From hMass_X' and hPop_X_le: (X'.card)·M·|Y| ≥ (θ/2)·M·|X|·|Y|,
+  -- and on the bounded-M side we use that θ ≤ 1 was given...
+  -- But we need to derive |X'|·M·|Y| ≥ (θ/2)·M·|X|·|Y|, then divide by M·|Y|.
+  -- If M = 0, hPop_X_le forces ∑_{x∈X'} rowSum x = 0, but hMass_X' = (θ/2)*0*|X|*|Y| = 0 ≤ 0 ✓.
+  -- In that case the size claim |X'| ≥ (θ/2)|X| can't be derived this way — need a special case.
+  by_cases hM0 : M = 0
+  · -- Then f ≡ 0 on X×Y; take X' = X, Y' = Y; rectangle mass is 0 = (θ/4)·0·|X|·|Y|.
+    refine ⟨X, Y, Finset.Subset.refl _, Finset.Subset.refl _, ?_, ?_, ?_⟩
+    · -- (θ/2) * |X| ≤ |X|
+      nlinarith [hXR_nn, hθ, hθ1]
+    · -- (θ/4) * |Y| ≤ |Y|
+      nlinarith [hYR_nn, hθ, hθ1]
+    · -- (θ/4) * M * |X| * |Y| ≤ ∑ ∑ f. Both sides are 0.
+      have hzero : ∑ x ∈ X, ∑ y ∈ Y, f x y = 0 := by
+        refine Finset.sum_eq_zero ?_
+        intro x hx
+        refine Finset.sum_eq_zero ?_
+        intro y hy
+        have h1 := hf_nn x hx y hy
+        have h2 := hf_ub x hx y hy
+        rw [hM0] at h2
+        linarith
+      rw [hzero, hM0]
+      ring_nf
+      exact le_refl 0
+  · -- M > 0 case.
+    have hMpos : 0 < M := lt_of_le_of_ne hM (Ne.symm hM0)
+    have hMY_pos : 0 < M * (Y.card : ℝ) := mul_pos hMpos hYR_pos
+    -- |X'| ≥ (θ/2)·|X| from hMass_X' and hPop_X_le.
+    have hX'_card_lb : (θ / 2) * (X.card : ℝ) ≤ (X'.card : ℝ) := by
+      have h1 : (θ / 2) * M * (X.card : ℝ) * (Y.card : ℝ) ≤
+                (X'.card : ℝ) * (M * (Y.card : ℝ)) := le_trans hMass_X' hPop_X_le
+      have hMY_ne : M * (Y.card : ℝ) ≠ 0 := ne_of_gt hMY_pos
+      -- Divide both sides by M * |Y| > 0.
+      have heq : (θ / 2) * M * (X.card : ℝ) * (Y.card : ℝ) =
+                 ((θ / 2) * (X.card : ℝ)) * (M * (Y.card : ℝ)) := by ring
+      rw [heq] at h1
+      exact le_of_mul_le_mul_right h1 hMY_pos
+    -- Step 2: Y' := { y ∈ Y : ∑_{x ∈ X'} f x y ≥ (θ/4)·M·|X| }.
+    set colSum : β → ℝ := fun y ↦ ∑ x ∈ X', f x y with hcolSum_def
+    set Y' : Finset β := Y.filter (fun y ↦ (θ / 4) * M * (X.card : ℝ) ≤ colSum y)
+      with hY'_def
+    have hY'_sub : Y' ⊆ Y := Finset.filter_subset _ _
+    -- Pointwise: colSum y ≤ M·|X'|  (since x ∈ X' ⊆ X, f x y ≤ M).
+    have hcolSum_le : ∀ y ∈ Y, colSum y ≤ M * (X.card : ℝ) := by
+      intro y hy
+      have : ∑ x ∈ X', f x y ≤ ∑ _x ∈ X', M := by
+        refine Finset.sum_le_sum fun x hx ↦ hf_ub x (hX'_sub hx) y hy
+      rw [Finset.sum_const, nsmul_eq_mul, mul_comm] at this
+      have hX'_le_X : (X'.card : ℝ) ≤ (X.card : ℝ) := by
+        exact_mod_cast Finset.card_le_card hX'_sub
+      have hMnn : 0 ≤ M := hM
+      have hbound : M * (X'.card : ℝ) ≤ M * (X.card : ℝ) :=
+        mul_le_mul_of_nonneg_left hX'_le_X hMnn
+      linarith [this]
+    -- We need a reverse bound for the rare-part argument:
+    -- For y ∈ Y \ Y', colSum y < (θ/4)·M·|X|.
+    -- And a bound for the popular-part argument:
+    -- For y ∈ Y', colSum y ≤ M·|X'| ≤ M·|X|.
+    -- Now derive the column total: ∑_{y∈Y} colSum y = ∑_{y} ∑_{x∈X'} f x y
+    -- = ∑_{x∈X'} ∑_y f x y = ∑_{x∈X'} rowSum x.
+    have hSumCol : ∑ y ∈ Y, colSum y = ∑ x ∈ X', rowSum x := by
+      simp only [colSum, rowSum]
+      rw [Finset.sum_comm]
+    -- Total column mass ≥ (θ/2)·M·|X|·|Y|.
+    have hCol_total_lb :
+        (θ / 2) * M * (X.card : ℝ) * (Y.card : ℝ) ≤ ∑ y ∈ Y, colSum y := by
+      rw [hSumCol]; exact hMass_X'
+    -- Split column sum across Y' ⊔ (Y \ Y').
+    have hSplit_Y :
+        ∑ y ∈ Y, colSum y = (∑ y ∈ Y', colSum y) + ∑ y ∈ Y \ Y', colSum y := by
+      rw [← Finset.sum_sdiff hY'_sub]; ring
+    -- Rare-Y bound.
+    have hRare_Y : ∑ y ∈ Y \ Y', colSum y ≤
+        ((Y \ Y').card : ℝ) * ((θ / 4) * M * (X.card : ℝ)) := by
+      rw [show ((Y \ Y').card : ℝ) * ((θ / 4) * M * (X.card : ℝ)) =
+                ∑ _y ∈ Y \ Y', ((θ / 4) * M * (X.card : ℝ)) by
+        rw [Finset.sum_const, nsmul_eq_mul]]
+      refine Finset.sum_le_sum fun y hy ↦ ?_
+      rw [Finset.mem_sdiff, hY'_def, Finset.mem_filter] at hy
+      by_contra hgt
+      push Not at hgt
+      exact hy.2 ⟨hy.1, le_of_lt hgt⟩
+    -- Popular-Y bound.
+    have hPop_Y_le : ∑ y ∈ Y', colSum y ≤ (Y'.card : ℝ) * (M * (X.card : ℝ)) := by
+      rw [show (Y'.card : ℝ) * (M * (X.card : ℝ)) =
+                ∑ _y ∈ Y', (M * (X.card : ℝ)) by
+        rw [Finset.sum_const, nsmul_eq_mul]]
+      refine Finset.sum_le_sum fun y hy ↦ hcolSum_le y (hY'_sub hy)
+    -- |Y'| ≥ (θ/4)·|Y|.
+    have hMX_pos : 0 < M * (X.card : ℝ) := mul_pos hMpos hXR_pos
+    have hY'_card_lb : (θ / 4) * (Y.card : ℝ) ≤ (Y'.card : ℝ) := by
+      have hsdiff_le_Y : ((Y \ Y').card : ℝ) ≤ (Y.card : ℝ) := by
+        exact_mod_cast Finset.card_le_card Finset.sdiff_subset
+      have h_θM_nn : (0 : ℝ) ≤ (θ / 4) * M * (X.card : ℝ) := by
+        have h1 : 0 ≤ θ / 4 := by linarith
+        nlinarith [h1, hM, hXR_nn]
+      have hRare_Y' : ∑ y ∈ Y \ Y', colSum y ≤ (Y.card : ℝ) * ((θ / 4) * M * (X.card : ℝ)) := by
+        have := mul_le_mul_of_nonneg_right hsdiff_le_Y h_θM_nn
+        linarith [hRare_Y]
+      -- (Y'.card)·M·|X| + (θ/4)·M·|X|·|Y| ≥ (θ/2)·M·|X|·|Y|
+      -- ⇒ (Y'.card)·M·|X| ≥ (θ/4)·M·|X|·|Y|
+      -- ⇒ |Y'| ≥ (θ/4)·|Y|.
+      have hcombined : (θ / 4) * M * (X.card : ℝ) * (Y.card : ℝ) ≤
+                       (Y'.card : ℝ) * (M * (X.card : ℝ)) := by
+        nlinarith [hSplit_Y, hCol_total_lb, hPop_Y_le, hRare_Y']
+      have heq : (θ / 4) * M * (X.card : ℝ) * (Y.card : ℝ) =
+                 ((θ / 4) * (Y.card : ℝ)) * (M * (X.card : ℝ)) := by ring
+      rw [heq] at hcombined
+      exact le_of_mul_le_mul_right hcombined hMX_pos
+    -- Mass on (X', Y'): ≥ (θ/4)·M·|X|·|Y|.
+    have hMass_rect :
+        (θ / 4) * M * (X.card : ℝ) * (Y.card : ℝ) ≤
+          ∑ x ∈ X', ∑ y ∈ Y', f x y := by
+      -- Rewrite ∑ x ∈ X', ∑ y ∈ Y', f x y = ∑ y ∈ Y', colSum y.
+      have hSwap : ∑ x ∈ X', ∑ y ∈ Y', f x y = ∑ y ∈ Y', colSum y :=
+        Finset.sum_comm
+      -- ∑ y ∈ Y', colSum y = ∑ y ∈ Y, colSum y - ∑ y ∈ Y\Y', colSum y.
+      have hY'_eq : ∑ y ∈ Y', colSum y =
+                    (∑ y ∈ Y, colSum y) - ∑ y ∈ Y \ Y', colSum y := by
+        rw [hSplit_Y]; ring
+      -- Bound on rare-Y' contribution.
+      have hRare_Y'' : ∑ y ∈ Y \ Y', colSum y ≤
+          (Y.card : ℝ) * ((θ / 4) * M * (X.card : ℝ)) := by
+        have hsdiff_le_Y : ((Y \ Y').card : ℝ) ≤ (Y.card : ℝ) := by
+          exact_mod_cast Finset.card_le_card Finset.sdiff_subset
+        have h_θ4_nn : (0 : ℝ) ≤ θ / 4 := by linarith
+        have h_θ4M_nn : (0 : ℝ) ≤ (θ / 4) * M := mul_nonneg h_θ4_nn hM
+        have h_θMnX_nn : (0 : ℝ) ≤ (θ / 4) * M * (X.card : ℝ) :=
+          mul_nonneg h_θ4M_nn hXR_nn
+        have := mul_le_mul_of_nonneg_right hsdiff_le_Y h_θMnX_nn
+        linarith [hRare_Y]
+      rw [hSwap, hY'_eq]
+      linarith [hCol_total_lb, hRare_Y'']
+    -- Assemble the witnesses.
+    refine ⟨X', Y', hX'_sub, hY'_sub, hX'_card_lb, hY'_card_lb, hMass_rect⟩
+
+
+/--
+**Length-3 path count is dominated by a triple-rep count in `S × S × S`.**
+
+For a bipartite graph `E ⊆ A ×ˢ B` over an additive commutative group, fix a
+restricted sumset `S` containing all sums `p.1 + p.2` for `p ∈ E`. For any
+`a, b ∈ G`, the number of length-3 paths `a — b₁ — a₁ — b` in `E` is at most
+the number of triples `(s₁, s₂, s₃) ∈ S × S × S` with `s₁ - s₂ + s₃ = a + b`.
+
+Proof: the map `(b₁, a₁) ↦ (a + b₁, a₁ + b₁, a₁ + b)` sends each path to a
+triple in `S × S × S` (because each edge `(x, y) ∈ E` has `x + y ∈ S`) summing
+to `a + b` under `s₁ - s₂ + s₃`. It is injective: `b₁` is recovered from
+`(a + b₁) - a` (or equivalently from the first coordinate minus the constant `a`),
+and `a₁` is recovered from the third coordinate as `(a₁ + b) - b`.
+
+Used by `graph_balogSzemerediGowers_restricted_sumset` to bridge the pointwise
+length-3 path count (supplied by `dense_bipartite_has_path3_rectangle` via
+dependent random choice) to the triple-rep multiplicity hypothesis of
+`restricted_sumset_via_multiplicity`. Tao-Vu, *Additive Combinatorics*, §6.4
+(Cor. 6.20).
+-/
+lemma path3_count_le_triple_rep_count {G : Type*} [AddCommGroup G] [DecidableEq G]
+    (A B S : Finset G) (E : Finset (G × G)) (hSdef : ∀ p ∈ E, p.1 + p.2 ∈ S)
+    (a b : G) :
+    (((B ×ˢ A).filter fun q : G × G ↦
+        (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℕ)
+    ≤ ((S ×ˢ S ×ˢ S).filter
+        fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card := by
+  -- Define the map (b₁, a₁) ↦ (a + b₁, a₁ + b₁, a₁ + b).
+  set f : G × G → G × G × G := fun q ↦ (a + q.1, q.2 + q.1, q.2 + b) with hf_def
+  set src : Finset (G × G) :=
+    (B ×ˢ A).filter (fun q : G × G ↦
+      (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E) with hsrc_def
+  set tgt : Finset (G × G × G) :=
+    (S ×ˢ S ×ˢ S).filter (fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b)
+    with htgt_def
+  apply Finset.card_le_card_of_injOn f
+  · -- MapsTo: f sends src into tgt.
+    intro q hq
+    simp only [hsrc_def, Finset.coe_filter, Set.mem_ofPred_eq,
+      Finset.mem_product] at hq
+    obtain ⟨⟨_hq1B, _hq2A⟩, hEab1, hEa1b1, hEa1b⟩ := hq
+    have hs1 : a + q.1 ∈ S := hSdef (a, q.1) hEab1
+    have hs2 : q.2 + q.1 ∈ S := hSdef (q.2, q.1) hEa1b1
+    have hs3 : q.2 + b ∈ S := hSdef (q.2, b) hEa1b
+    refine Finset.mem_coe.mpr (Finset.mem_filter.mpr ⟨?_, ?_⟩)
+    · exact Finset.mem_product.mpr ⟨hs1, Finset.mem_product.mpr ⟨hs2, hs3⟩⟩
+    · -- (a + b₁) - (a₁ + b₁) + (a₁ + b) = a + b.
+      show (a + q.1) - (q.2 + q.1) + (q.2 + b) = a + b
+      abel
+  · -- InjOn: f is injective on src.
+    intro q₁ _hq₁ q₂ _hq₂ hfeq
+    -- f q₁ = f q₂ means (a + q₁.1, q₁.2 + q₁.1, q₁.2 + b) = (a + q₂.1, …, q₂.2 + b).
+    -- Project out the first and third coordinates of the triple equality.
+    have h1 : a + q₁.1 = a + q₂.1 := by
+      have := congrArg Prod.fst hfeq
+      simpa [hf_def] using this
+    have h3 : q₁.2 + b = q₂.2 + b := by
+      have := congrArg (fun p : G × G × G ↦ p.2.2) hfeq
+      simpa [hf_def] using this
+    have hq1eq : q₁.1 = q₂.1 := add_left_cancel h1
+    have hq2eq : q₁.2 = q₂.2 := add_right_cancel h3
+    exact Prod.ext hq1eq hq2eq
+
+/--
+**Restricted sumset upper bound via difference-set multiplicity.**
+
+Let `A, B, S ⊆ G`. If every `(a, b) ∈ A × B` admits at least `M` triples
+`(s₁, s₂, s₃) ∈ S × S × S` with `s₁ - s₂ + s₃ = a + b`, then
+`M · |A + B| ≤ |S|³`.
+
+Proof: the disjoint fibers `T_v := { (s₁, s₂, s₃) ∈ S × S × S : s₁ - s₂ + s₃ = v }`
+indexed by `v ∈ A + B` each contain ≥ M triples and embed into `S × S × S`,
+so `M · |A + B| ≤ ∑_{v ∈ A + B} |T_v| ≤ |S|³`.
+
+This is the standard sumset bound used in the Tao-Vu / Petridis path-counting
+proof of Balog-Szemerédi-Gowers: the triple-counting step inside the proof of
+Tao-Vu, *Additive Combinatorics*, Theorem 2.29 (§6.4) — `#triples ≤ |A+B|³` —
+not a separately numbered lemma.
+-/
+lemma restricted_sumset_via_multiplicity {G : Type*} [AddCommGroup G] [DecidableEq G]
+    (A B S : Finset G) (M : ℕ) :
+    (∀ a ∈ A, ∀ b ∈ B,
+        M ≤ ((S ×ˢ S ×ˢ S).filter
+          (fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b)).card) →
+    M * (A + B).card ≤ S.card ^ 3 := by
+  intro hcover
+  -- Build the disjoint sets T_v = { (s₁,s₂,s₃) ∈ S × S × S : s₁ - s₂ + s₃ = v }.
+  set T : G → Finset (G × G × G) :=
+    fun v ↦ (S ×ˢ S ×ˢ S).filter (fun p ↦ p.1 - p.2.1 + p.2.2 = v) with hT_def
+  -- Each fiber T_v contributes at least M to the sum over A + B.
+  have hMle : ∀ v ∈ A + B, M ≤ (T v).card := by
+    intro v hv
+    obtain ⟨a, ha, b, hb, hab⟩ := Finset.mem_add.mp hv
+    -- Substitute a + b = v in the multiplicity hypothesis.
+    have hM_at := hcover a ha b hb
+    -- The triple subset T(a,b) has card ≥ M, and lies inside T v.
+    set T_ab : Finset (G × G × G) :=
+      (S ×ˢ S ×ˢ S).filter
+        (fun p ↦ p.1 - p.2.1 + p.2.2 = a + b) with hTab_def
+    have hT_ab_eq : T_ab = T v := by
+      apply Finset.filter_congr
+      intro p _
+      constructor
+      · intro h; rw [h, hab]
+      · intro h; rw [h, ← hab]
+    have : M ≤ T_ab.card := hM_at
+    rw [hT_ab_eq] at this
+    exact this
+  -- The fibers cover disjointly inside S × S × S.
+  -- Sum over v ∈ A + B of |T_v| ≤ |S × S × S| = |S|^3.
+  have hdisj : ((A + B : Finset G) : Set G).PairwiseDisjoint T := by
+    intro v _ w _ hvw
+    refine Finset.disjoint_filter.mpr ?_
+    intro p _ hpv hpw
+    exact hvw (hpv ▸ hpw)
+  have hSubset : ∀ v ∈ A + B, T v ⊆ S ×ˢ S ×ˢ S := by
+    intro v _ p hp
+    exact (Finset.mem_filter.mp hp).1
+  -- Σ_v |T_v| = | ⋃_v T_v | ≤ |S × S × S|.
+  have hSumCard :
+      ∑ v ∈ A + B, (T v).card = ((A + B).biUnion T).card := by
+    rw [Finset.card_biUnion]
+    intro v hv w hw hvw
+    have hpw : ((A + B : Finset G) : Set G).PairwiseDisjoint T := hdisj
+    have hv' : v ∈ ((A + B : Finset G) : Set G) := hv
+    have hw' : w ∈ ((A + B : Finset G) : Set G) := hw
+    exact hpw hv' hw' hvw
+  have hSumLeS3 : ∑ v ∈ A + B, (T v).card ≤ (S ×ˢ S ×ˢ S).card := by
+    rw [hSumCard]
+    apply Finset.card_le_card
+    intro p hp
+    rw [Finset.mem_biUnion] at hp
+    obtain ⟨v, hv, hpv⟩ := hp
+    exact hSubset v hv hpv
+  -- Σ_v M ≤ Σ_v |T_v|.
+  have hML : M * (A + B).card ≤ ∑ v ∈ A + B, (T v).card := by
+    have hsum_le : ∑ _v ∈ A + B, M ≤ ∑ v ∈ A + B, (T v).card :=
+      Finset.sum_le_sum (fun v hv ↦ hMle v hv)
+    have hconst : ∑ _v ∈ A + B, M = (A + B).card * M := by
+      rw [Finset.sum_const, smul_eq_mul]
+    rw [hconst, mul_comm] at hsum_le
+    exact hsum_le
+  -- Combine.
+  have hCard_S3 : (S ×ˢ S ×ˢ S).card = S.card ^ 3 := by
+    rw [Finset.card_product, Finset.card_product, pow_succ, pow_succ, pow_one]
+    ring
+  calc M * (A + B).card
+      ≤ ∑ v ∈ A + B, (T v).card := hML
+    _ ≤ (S ×ˢ S ×ˢ S).card := hSumLeS3
+    _ = S.card ^ 3 := hCard_S3
+
+
+/--
+**Ruzsa sumset-to-difference adapter.** Given finite nonempty `A`, `B` in an
+additive commutative group with `|A + B| ≤ K · |A|` and a balance assumption
+`c · |A| ≤ |B|`, the difference set is bounded by
+`|A − B| ≤ (K^3 / c) · |A|`.
+
+Pipeline:
+1. Plünnecke-Ruzsa (`Finset.pluennecke_ruzsa_inequality_nsmul_sub_nsmul_add`)
+   on `(A, B)` with `m = 2`, `n = 0` gives `|B + B| ≤ K^2 · |A|`.
+2. Ruzsa triangle (`Finset.ruzsa_triangle_inequality_sub_add_add`) with
+   second argument `B` yields `|A − B| · |B| ≤ |A + B| · |B + B|`.
+3. Substituting `|A + B| ≤ K |A|` and `|B + B| ≤ K^2 |A|` gives
+   `|A − B| · |B| ≤ K^3 · |A|^2`; the balance `c · |A| ≤ |B|` divides through
+   to the linear conclusion.
+
+The `c · |A| ≤ |B|` assumption is unavoidable in this generality (Ruzsa
+triangle has `|B|` on the LHS). It is automatically satisfied where this is
+applied below, because the subsets `A'`, `B'` produced by
+`graph_balogSzemerediGowers_restricted_sumset` are both bounded below by a common `c · n` factor.
+-/
+lemma ruzsa_sumset_to_difference {G : Type*} [AddCommGroup G] [DecidableEq G] :
+    ∀ K c : ℝ, 0 < K → 0 < c → ∀ A B : Finset G, A.Nonempty → B.Nonempty →
+      ((A + B).card : ℝ) ≤ K * A.card →
+      c * (A.card : ℝ) ≤ (B.card : ℝ) →
+      ((A - B).card : ℝ) ≤ K ^ 3 / c * A.card := by
+  intro K c hK hc A B hA hB hAB hcB
+  -- Positivity facts
+  have hApos : (0 : ℝ) < A.card := by exact_mod_cast hA.card_pos
+  have hAne : (A.card : ℝ) ≠ 0 := ne_of_gt hApos
+  have hBpos : (0 : ℝ) < B.card := by exact_mod_cast hB.card_pos
+  have hcne : c ≠ 0 := ne_of_gt hc
+  -- Step 1: Plünnecke-Ruzsa gives |B + B| ≤ K² · |A|.
+  have hPR : ((2 • B).card : ℚ≥0)
+      ≤ (((A + B).card : ℚ≥0) / (A.card : ℚ≥0)) ^ 2 * (A.card : ℚ≥0) :=
+    Finset.pluennecke_ruzsa_inequality_nsmul_add hA B 2
+  have h2B : (2 : ℕ) • B = B + B := two_nsmul B
+  rw [h2B] at hPR
+  -- Cast hPR from ℚ≥0 to ℝ by first going to ℚ then to ℝ via NNRat.cast_divNat.
+  have hPR_real : ((B + B).card : ℝ)
+      ≤ (((A + B).card : ℝ) / (A.card : ℝ)) ^ 2 * (A.card : ℝ) := by
+    have hQ : ((B + B).card : ℝ)
+        ≤ ((((A + B).card : ℚ≥0) / (A.card : ℚ≥0)) ^ 2 * (A.card : ℚ≥0) : ℝ) := by
+      exact_mod_cast hPR
+    simpa using hQ
+  have hAB_div : ((A + B).card : ℝ) / (A.card : ℝ) ≤ K :=
+    (div_le_iff₀ hApos).mpr hAB
+  have hAB_div_nn : 0 ≤ ((A + B).card : ℝ) / (A.card : ℝ) :=
+    div_nonneg (by positivity) (le_of_lt hApos)
+  have hBB_le : ((B + B).card : ℝ) ≤ K ^ 2 * (A.card : ℝ) := by
+    refine hPR_real.trans ?_
+    have hsq : (((A + B).card : ℝ) / (A.card : ℝ)) ^ 2 ≤ K ^ 2 :=
+      pow_le_pow_left₀ hAB_div_nn hAB_div 2
+    exact mul_le_mul_of_nonneg_right hsq (le_of_lt hApos)
+  -- Step 2: Ruzsa triangle: |A - B| · |B| ≤ |A + B| · |B + B|
+  have hRTℕ : (A - B).card * B.card ≤ (A + B).card * (B + B).card :=
+    Finset.ruzsa_triangle_inequality_sub_add_add A B B
+  have hRT : ((A - B).card : ℝ) * (B.card : ℝ)
+      ≤ ((A + B).card : ℝ) * ((B + B).card : ℝ) := by exact_mod_cast hRTℕ
+  -- Step 3: chain bounds → |A-B| · |B| ≤ K³ · |A|²
+  have hBBnn : 0 ≤ ((B + B).card : ℝ) := by positivity
+  have hKA_nn : 0 ≤ K * (A.card : ℝ) := mul_nonneg (le_of_lt hK) (le_of_lt hApos)
+  have hChain : ((A + B).card : ℝ) * ((B + B).card : ℝ)
+      ≤ (K * A.card) * (K ^ 2 * A.card) :=
+    mul_le_mul hAB hBB_le hBBnn hKA_nn
+  have hKcube : (K * (A.card : ℝ)) * (K ^ 2 * A.card) = K ^ 3 * (A.card : ℝ) ^ 2 := by
+    ring
+  have hdiff_mul_B : ((A - B).card : ℝ) * (B.card : ℝ)
+      ≤ K ^ 3 * (A.card : ℝ) ^ 2 := by
+    rw [← hKcube]; exact hRT.trans hChain
+  -- Step 4: use c · |A| ≤ |B| to replace |B| on the LHS
+  have hdiff_nn : 0 ≤ ((A - B).card : ℝ) := by positivity
+  have hdiff_mul_cA : ((A - B).card : ℝ) * (c * A.card)
+      ≤ K ^ 3 * (A.card : ℝ) ^ 2 :=
+    (mul_le_mul_of_nonneg_left hcB hdiff_nn).trans hdiff_mul_B
+  -- Step 5: divide both sides by c · |A| > 0
+  have hcA_pos : (0 : ℝ) < c * A.card := mul_pos hc hApos
+  rw [show K ^ 3 / c * (A.card : ℝ) = K ^ 3 * (A.card : ℝ) ^ 2 / (c * A.card) by
+        field_simp]
+  rw [le_div_iff₀ hcA_pos]
+  linarith [hdiff_mul_cA]
+
+
+/-- **Length-3 path count lower bound (Cauchy-Schwarz on the bipartite graph).** For a bipartite
+graph `E ⊆ A ×ˢ B` and `(a, b) ∈ A × B`, let
+`P(a, b) := #{(b₁, a₁) ∈ B × A : (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E ∧ (a₁, b) ∈ E}` count length-3 paths
+`a — b₁ — a₁ — b` in `E`. Then `Σ_{(a,b) ∈ A × B} P(a, b) ≥ |E|⁴ / (|A| · |B|)²`. The proof uses
+Cauchy-Schwarz twice: once on row-degrees to get `Σ_a rowDeg(a)² ≥ |E|²/|A|`, then a sandwich
+`S(b)² ≤ |B| · colDeg(b) · S(b)` (where `S(b) := Σ_{a:(a,b)∈E} rowDeg(a)`) followed by
+Cauchy-Schwarz on `(Σ S)² ≤ |B| · Σ S²`. Reference: Tao–Vu, *Additive Combinatorics*, §6.4
+(quantitative form of Corollary 6.20, "Paths of length three"). NOTE: currently unused by the BSG
+proof (the live path obtains its pointwise — not averaged — path-3 bound from
+`dense_bipartite_has_path3_rectangle` via dependent random choice). Retained as a self-contained,
+general bipartite path-counting inequality — a potential mathlib contribution. Safe to delete if no
+longer wanted. -/
+lemma length_three_path_count_lower_bound {G : Type*} [AddCommGroup G] [DecidableEq G]
+    (A B : Finset G) (E : Finset (G × G)) (hE_sub : E ⊆ A ×ˢ B) :
+    (E.card : ℝ) ^ 4 ≤ ((A.card : ℝ) * B.card) ^ 2 *
+      ∑ p ∈ A ×ˢ B,
+        (((B ×ˢ A).filter fun q : G × G ↦
+          (p.1, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, p.2) ∈ E).card : ℝ) := by
+  -- Trivial empty case.
+  by_cases hAB : A = ∅ ∨ B = ∅
+  · have hE0 : E = ∅ := by
+      rcases hAB with hA | hB
+      · subst hA
+        refine Finset.subset_empty.mp ?_
+        intro p hp; have := hE_sub hp; simp at this
+      · subst hB
+        refine Finset.subset_empty.mp ?_
+        intro p hp; have := hE_sub hp; simp at this
+    subst hE0
+    simp
+  push Not at hAB
+  obtain ⟨hA_ne, hB_ne⟩ := hAB
+  have hA_pos : 0 < A.card := Finset.card_pos.mpr hA_ne
+  have hB_pos : 0 < B.card := Finset.card_pos.mpr hB_ne
+  have hA_real : (0 : ℝ) < A.card := by exact_mod_cast hA_pos
+  have hB_real : (0 : ℝ) < B.card := by exact_mod_cast hB_pos
+  -- Real-valued edge indicator.
+  set M : G → G → ℝ := fun a b ↦ if (a, b) ∈ E then 1 else 0 with hM_def
+  have hM_nn : ∀ a b, 0 ≤ M a b := fun a b ↦ by
+    simp only [M]; split_ifs <;> norm_num
+  have hM_le_one : ∀ a b, M a b ≤ 1 := fun a b ↦ by
+    simp only [M]; split_ifs <;> norm_num
+  -- Row and column degrees as real sums of M.
+  set r : G → ℝ := fun a ↦ ∑ b ∈ B, M a b with hr_def
+  set c : G → ℝ := fun b ↦ ∑ a ∈ A, M a b with hc_def
+  have hr_nn : ∀ a, 0 ≤ r a := fun a ↦ Finset.sum_nonneg fun b _ ↦ hM_nn a b
+  have hc_nn : ∀ b, 0 ≤ c b := fun b ↦ Finset.sum_nonneg fun a _ ↦ hM_nn a b
+  have hr_le_B : ∀ a, r a ≤ (B.card : ℝ) := fun a ↦ by
+    simp only [r]
+    calc ∑ b ∈ B, M a b ≤ ∑ _b ∈ B, (1 : ℝ) := Finset.sum_le_sum fun b _ ↦ hM_le_one a b
+      _ = (B.card : ℝ) := by simp
+  -- Σ_a r(a) = |E|.
+  have hSum_AB_M : ∑ p ∈ A ×ˢ B, M p.1 p.2 = (E.card : ℝ) := by
+    simp only [M]
+    rw [← Finset.sum_filter]
+    have heq : (A ×ˢ B).filter (fun p ↦ p ∈ E) = E := by
+      ext p
+      simp only [Finset.mem_filter]
+      exact ⟨fun h ↦ h.2, fun h ↦ ⟨hE_sub h, h⟩⟩
+    rw [heq, Finset.sum_const, nsmul_eq_mul, mul_one]
+  have hSum_r : ∑ a ∈ A, r a = (E.card : ℝ) := by
+    simp only [r]
+    rw [← Finset.sum_product']
+    exact hSum_AB_M
+  -- Cauchy-Schwarz: |E|² ≤ |A| · Σ_a r(a)².
+  have hCS_row : (E.card : ℝ) ^ 2 ≤ (A.card : ℝ) * ∑ a ∈ A, r a ^ 2 := by
+    have h := Finset.sum_mul_sq_le_sq_mul_sq A (fun _ : G ↦ (1 : ℝ)) r
+    simp only [one_mul, one_pow, Finset.sum_const, nsmul_eq_mul, mul_one] at h
+    rw [hSum_r] at h; exact h
+  -- S(b) := Σ_a M(a, b) · r(a).
+  set S : G → ℝ := fun b ↦ ∑ a ∈ A, M a b * r a with hS_def
+  have hS_nn : ∀ b, 0 ≤ S b := fun b ↦
+    Finset.sum_nonneg fun a _ ↦ mul_nonneg (hM_nn a b) (hr_nn a)
+  -- Σ_b S(b) = Σ_a r(a)².
+  have hSumS_eq : ∑ b ∈ B, S b = ∑ a ∈ A, r a ^ 2 := by
+    simp only [S]
+    rw [Finset.sum_comm]
+    refine Finset.sum_congr rfl fun a _ ↦ ?_
+    rw [← Finset.sum_mul]
+    have : ∑ b ∈ B, M a b = r a := rfl
+    rw [this, sq]
+  -- S(b) ≤ |B| · c(b).
+  have hS_le : ∀ b, S b ≤ (B.card : ℝ) * c b := fun b ↦ by
+    simp only [S]
+    calc ∑ a ∈ A, M a b * r a
+        ≤ ∑ a ∈ A, M a b * (B.card : ℝ) :=
+          Finset.sum_le_sum fun a _ ↦ mul_le_mul_of_nonneg_left (hr_le_B a) (hM_nn a b)
+      _ = (∑ a ∈ A, M a b) * (B.card : ℝ) := by rw [Finset.sum_mul]
+      _ = c b * (B.card : ℝ) := rfl
+      _ = (B.card : ℝ) * c b := mul_comm _ _
+  -- T := Σ_{(a,b) ∈ A×B} P(a,b).
+  set T : ℝ := ∑ p ∈ A ×ˢ B,
+        (((B ×ˢ A).filter fun q : G × G ↦
+          (p.1, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, p.2) ∈ E).card : ℝ) with hT_def
+  -- T = Σ_b c(b) · S(b).
+  -- We unfold T as a 4-fold sum over A × B × B × A, with summand
+  --   M(a, b₁) · M(a₁, b₁) · M(a₁, b)
+  -- and similarly for the RHS Σ_b c(b) · S(b).
+  have hT_eq : T = ∑ b ∈ B, c b * S b := by
+    -- Express T as a sum over A × B × (B × A) of indicator.
+    -- Each P(a, b) = Σ_{(b₁, a₁) ∈ B × A} M(a, b₁) · M(a₁, b₁) · M(a₁, b).
+    have hP : ∀ a b, (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) =
+        ∑ q ∈ B ×ˢ A, M a q.1 * M q.2 q.1 * M q.2 b := by
+      intro a b
+      have hcard :
+        ((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card =
+          ∑ q ∈ B ×ˢ A,
+            (if (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E then 1 else 0) := by
+        rw [Finset.card_eq_sum_ones, Finset.sum_filter]
+      have hh : ((((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℕ) : ℝ) =
+            ((∑ q ∈ B ×ˢ A,
+              (if (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E then 1 else 0) : ℕ) : ℝ) := by
+        exact_mod_cast hcard
+      push_cast at hh
+      rw [hh]
+      refine Finset.sum_congr rfl fun q _ ↦ ?_
+      simp only [M]
+      by_cases h1 : (a, q.1) ∈ E <;> by_cases h2 : (q.2, q.1) ∈ E <;>
+        by_cases h3 : (q.2, b) ∈ E <;> simp [h1, h2, h3]
+    -- T = Σ_{p ∈ A × B} Σ_{q ∈ B × A} M(p.1, q.1) · M(q.2, q.1) · M(q.2, p.2)
+    --   = Σ_{p, q ∈ (A × B) × (B × A)} M(p.1, q.1) · M(q.2, q.1) · M(q.2, p.2)
+    have hT_pair : T = ∑ p ∈ A ×ˢ B, ∑ q ∈ B ×ˢ A,
+        M p.1 q.1 * M q.2 q.1 * M q.2 p.2 := by
+      rw [hT_def]
+      refine Finset.sum_congr rfl fun p _ ↦ ?_
+      exact hP p.1 p.2
+    -- Reorder: pull q outside.
+    rw [hT_pair]
+    rw [Finset.sum_comm]
+    -- Now: Σ_{q ∈ B × A} Σ_{p ∈ A × B} M(p.1, q.1) · M(q.2, q.1) · M(q.2, p.2)
+    -- Split inner: Σ_{p ∈ A × B} M(p.1, q.1) · M(q.2, q.1) · M(q.2, p.2)
+    --   = M(q.2, q.1) · (Σ_{a ∈ A} M(a, q.1)) · (Σ_{b ∈ B} M(q.2, b))
+    --   = M(q.2, q.1) · c(q.1) · r(q.2).
+    have hinner : ∀ q : G × G, ∑ p ∈ A ×ˢ B, M p.1 q.1 * M q.2 q.1 * M q.2 p.2 =
+        M q.2 q.1 * c q.1 * r q.2 := by
+      intro q
+      rw [Finset.sum_product]
+      -- Σ_a Σ_b M(a, q.1) · M(q.2, q.1) · M(q.2, b)
+      --   = M(q.2, q.1) · (Σ_a M(a, q.1)) · (Σ_b M(q.2, b))
+      calc ∑ a ∈ A, ∑ b ∈ B, M a q.1 * M q.2 q.1 * M q.2 b
+          = ∑ a ∈ A, M a q.1 * M q.2 q.1 * ∑ b ∈ B, M q.2 b := by
+            refine Finset.sum_congr rfl fun a _ ↦ ?_
+            rw [← Finset.mul_sum]
+        _ = ∑ a ∈ A, M a q.1 * M q.2 q.1 * r q.2 := by
+            refine Finset.sum_congr rfl fun a _ ↦ ?_
+            rfl
+        _ = (∑ a ∈ A, M a q.1) * (M q.2 q.1 * r q.2) := by
+            rw [Finset.sum_mul]
+            refine Finset.sum_congr rfl fun a _ ↦ ?_
+            ring
+        _ = c q.1 * (M q.2 q.1 * r q.2) := rfl
+        _ = M q.2 q.1 * c q.1 * r q.2 := by ring
+    simp_rw [hinner]
+    -- Now: Σ_{q ∈ B × A} M(q.2, q.1) · c(q.1) · r(q.2).
+    -- Split: Σ_{b₁ ∈ B} Σ_{a₁ ∈ A} M(a₁, b₁) · c(b₁) · r(a₁)
+    --      = Σ_{b₁ ∈ B} c(b₁) · Σ_{a₁ ∈ A} M(a₁, b₁) · r(a₁)
+    --      = Σ_{b₁ ∈ B} c(b₁) · S(b₁).
+    rw [Finset.sum_product]
+    -- Σ_{b₁ ∈ B} Σ_{a₁ ∈ A} M(a₁, b₁) · c(b₁) · r(a₁)
+    refine Finset.sum_congr rfl fun b₁ _ ↦ ?_
+    calc ∑ a₁ ∈ A, M a₁ b₁ * c b₁ * r a₁
+        = c b₁ * ∑ a₁ ∈ A, M a₁ b₁ * r a₁ := by
+          rw [Finset.mul_sum]
+          refine Finset.sum_congr rfl fun a₁ _ ↦ ?_
+          ring
+      _ = c b₁ * S b₁ := rfl
+  -- Now the inequality chain.
+  -- Step A: T ≥ (1/|B|) · Σ_b S(b)².
+  have hStepA : (1 / (B.card : ℝ)) * ∑ b ∈ B, S b ^ 2 ≤ T := by
+    rw [hT_eq]
+    rw [show (1 / (B.card : ℝ)) * ∑ b ∈ B, S b ^ 2 =
+        ∑ b ∈ B, S b ^ 2 / (B.card : ℝ) from by
+      rw [Finset.mul_sum]
+      refine Finset.sum_congr rfl fun b _ ↦ ?_; ring]
+    refine Finset.sum_le_sum fun b _ ↦ ?_
+    have h1 : S b * S b ≤ (B.card : ℝ) * c b * S b :=
+      mul_le_mul_of_nonneg_right (hS_le b) (hS_nn b)
+    rw [div_le_iff₀ hB_real]
+    calc S b ^ 2 = S b * S b := sq (S b)
+      _ ≤ (B.card : ℝ) * c b * S b := h1
+      _ = c b * S b * (B.card : ℝ) := by ring
+  -- Step B: (Σ S)² ≤ |B| · Σ S².
+  have hStepB : (∑ b ∈ B, S b) ^ 2 ≤ (B.card : ℝ) * ∑ b ∈ B, S b ^ 2 := by
+    have h := Finset.sum_mul_sq_le_sq_mul_sq B (fun _ : G ↦ (1 : ℝ)) S
+    simp only [one_mul, one_pow, Finset.sum_const, nsmul_eq_mul, mul_one] at h
+    exact h
+  -- Step C: |E|² ≤ |A| · Σ_b S(b).
+  have hSumS_lb : (E.card : ℝ) ^ 2 ≤ (A.card : ℝ) * ∑ b ∈ B, S b := by
+    rw [hSumS_eq]; exact hCS_row
+  -- Σ_b S² ≤ |B| · T from Step A.
+  have hStepA_mul : ∑ b ∈ B, S b ^ 2 ≤ (B.card : ℝ) * T := by
+    have h := hStepA
+    have : (B.card : ℝ) * ((1 / (B.card : ℝ)) * ∑ b ∈ B, S b ^ 2) ≤ (B.card : ℝ) * T :=
+      mul_le_mul_of_nonneg_left h (le_of_lt hB_real)
+    rw [show (B.card : ℝ) * ((1 / (B.card : ℝ)) * ∑ b ∈ B, S b ^ 2) =
+        ∑ b ∈ B, S b ^ 2 from by field_simp] at this
+    exact this
+  -- |E|⁴ ≤ |A|² · (Σ S)² ≤ |A|² · |B| · Σ S² ≤ |A|² · |B|² · T = (|A| · |B|)² · T.
+  have hE2_nn : (0 : ℝ) ≤ (E.card : ℝ) ^ 2 := sq_nonneg _
+  have hD : (E.card : ℝ) ^ 4 ≤ (A.card : ℝ) ^ 2 * (∑ b ∈ B, S b) ^ 2 := by
+    have h := mul_self_le_mul_self hE2_nn hSumS_lb
+    have heq1 : (E.card : ℝ) ^ 2 * (E.card : ℝ) ^ 2 = (E.card : ℝ) ^ 4 := by ring
+    have heq2 : ((A.card : ℝ) * ∑ b ∈ B, S b) * ((A.card : ℝ) * ∑ b ∈ B, S b) =
+        (A.card : ℝ) ^ 2 * (∑ b ∈ B, S b) ^ 2 := by ring
+    rw [heq1, heq2] at h; exact h
+  have hE_chain : (A.card : ℝ) ^ 2 * (∑ b ∈ B, S b) ^ 2 ≤
+      (A.card : ℝ) ^ 2 * ((B.card : ℝ) * ∑ b ∈ B, S b ^ 2) :=
+    mul_le_mul_of_nonneg_left hStepB (sq_nonneg _)
+  have hF_chain : (A.card : ℝ) ^ 2 * ((B.card : ℝ) * ∑ b ∈ B, S b ^ 2) ≤
+      ((A.card : ℝ) * (B.card : ℝ)) ^ 2 * T := by
+    have hAB_sq_nn : (0 : ℝ) ≤ (A.card : ℝ) ^ 2 * (B.card : ℝ) :=
+      mul_nonneg (sq_nonneg _) (le_of_lt hB_real)
+    calc (A.card : ℝ) ^ 2 * ((B.card : ℝ) * ∑ b ∈ B, S b ^ 2)
+        = ((A.card : ℝ) ^ 2 * (B.card : ℝ)) * ∑ b ∈ B, S b ^ 2 := by ring
+      _ ≤ ((A.card : ℝ) ^ 2 * (B.card : ℝ)) * ((B.card : ℝ) * T) :=
+          mul_le_mul_of_nonneg_left hStepA_mul hAB_sq_nn
+      _ = ((A.card : ℝ) * (B.card : ℝ)) ^ 2 * T := by ring
+  linarith
+
+
+/--
+**DRC step (Fox-Sudakov Lemma 5.1, "pair DRC").** For a bipartite graph
+`F ⊆ X × Y` of density `c := |F| / (|X| · |Y|)` and any `0 < ε ≤ 1`, there
+exists `U ⊆ X` such that
+* `(c / 2) |X| ≤ |U|`, AND
+* the number of ordered pairs `(x, x') ∈ U × U` with codegree
+  `|N(x) ∩ N(x')| < (ε c² / 2) |Y|` is at most `ε |U|²`.
+
+Proof (random choice): pick `v ∈ Y` uniformly and set `U := N(v) ⊆ X`. The
+indicator `|U|² = (Σ_x [v ∈ N(x)])²` has expectation `≥ (E|U|)² = c² |X|²` by
+Cauchy-Schwarz. For "bad" ordered pairs `(x, x')` with codegree
+`< (ε c² / 2) |Y|`, the probability `P(v ∈ N(x) ∩ N(x'))` is `< ε c² / 2`, so
+the expected number `Z` of bad pairs inside `U² ` is `< (ε c² / 2) |X|²`.
+Hence `E[|U|² − Z/ε] ≥ (c² / 2) |X|²`, and there is a choice of `v` realizing
+`|U|² ≥ (c² / 2) |X|²` (so `|U| ≥ (c / √2) |X| ≥ (c/2)|X|`) and
+`Z ≤ ε |U|²`. Reference: Fox-Sudakov 2011, Lemma 5.1.
+-/
+lemma graph_pair_dependentRandomChoice {G : Type*} [DecidableEq G]
+    (X Y : Finset G) (hX : X.Nonempty) (hY : Y.Nonempty)
+    (F : Finset (G × G)) (hF_sub : F ⊆ X ×ˢ Y)
+    (c : ℝ) (hc_pos : 0 < c) (_hc_le : c ≤ 1)
+    (hF_dense : c * (X.card : ℝ) * (Y.card : ℝ) ≤ (F.card : ℝ))
+    (ε : ℝ) (hε_pos : 0 < ε) (_hε_le : ε ≤ 1) :
+    ∃ U : Finset G, U ⊆ X ∧
+      (c / 2) * (X.card : ℝ) ≤ (U.card : ℝ) ∧
+      (((U ×ˢ U).filter fun p : G × G ↦
+        (((Y.filter (fun y ↦ (p.1, y) ∈ F)) ∩
+          (Y.filter (fun y ↦ (p.2, y) ∈ F))).card : ℝ) <
+        (ε * c ^ 2 / 2) * (Y.card : ℝ)).card : ℝ) ≤
+      ε * (U.card : ℝ) ^ 2 := by
+  have hX_real_pos : (0 : ℝ) < (X.card : ℝ) := by exact_mod_cast hX.card_pos
+  have hY_real_pos : (0 : ℝ) < (Y.card : ℝ) := by exact_mod_cast hY.card_pos
+  have hX_nn : (0 : ℝ) ≤ (X.card : ℝ) := le_of_lt hX_real_pos
+  have hY_nn : (0 : ℝ) ≤ (Y.card : ℝ) := le_of_lt hY_real_pos
+  -- `U(v) := { x ∈ X : (x, v) ∈ F }`.
+  set U : G → Finset G := fun v ↦ X.filter (fun x ↦ (x, v) ∈ F) with hU_def
+  -- "Bad" ordered pairs in `X × X` (independent of `v`).
+  set Bad : Finset (G × G) := (X ×ˢ X).filter fun p : G × G ↦
+    (((Y.filter (fun y ↦ (p.1, y) ∈ F)) ∩
+      (Y.filter (fun y ↦ (p.2, y) ∈ F))).card : ℝ) <
+    (ε * c ^ 2 / 2) * (Y.card : ℝ) with hBad_def
+  -- The bad-in-U(v) finset is the restriction of `Bad` to `U(v) × U(v)`.
+  set BadInV : G → Finset (G × G) := fun v ↦
+    (U v ×ˢ U v).filter fun p : G × G ↦
+      (((Y.filter (fun y ↦ (p.1, y) ∈ F)) ∩
+        (Y.filter (fun y ↦ (p.2, y) ∈ F))).card : ℝ) <
+      (ε * c ^ 2 / 2) * (Y.card : ℝ) with hBadInV_def
+  -- Step 1: Σ_v |U(v)| = |F|.
+  have hSum_U_card : ∑ v ∈ Y, ((U v).card : ℝ) = (F.card : ℝ) := by
+    have hF_filter : F = (X ×ˢ Y).filter (fun p : G × G ↦ p ∈ F) := by
+      ext p
+      refine ⟨fun hp ↦ ?_, fun hp ↦ ?_⟩
+      · exact Finset.mem_filter.mpr ⟨hF_sub hp, hp⟩
+      · exact (Finset.mem_filter.mp hp).2
+    have hF_card_eq : (F.card : ℝ) = ∑ v ∈ Y, ((U v).card : ℝ) := by
+      conv_lhs => rw [hF_filter]
+      rw [Finset.card_eq_sum_ones, Finset.sum_filter, Finset.sum_product_right]
+      push_cast
+      refine Finset.sum_congr rfl fun v _ ↦ ?_
+      simp only [U, Finset.card_eq_sum_ones, Finset.sum_filter]
+      push_cast
+      rfl
+    linarith
+  -- Step 2: Σ_v |U(v)|² = Σ_{(x,x') ∈ X × X} codeg(x, x').
+  set codeg : G × G → ℝ := fun p : G × G ↦
+    (((Y.filter (fun y ↦ (p.1, y) ∈ F)) ∩
+      (Y.filter (fun y ↦ (p.2, y) ∈ F))).card : ℝ) with hcodeg_def
+  have hcodeg_nn : ∀ p, 0 ≤ codeg p := fun p ↦ Nat.cast_nonneg _
+  have hSum_U_sq : ∑ v ∈ Y, ((U v).card : ℝ) ^ 2 = ∑ p ∈ X ×ˢ X, codeg p := by
+    have hStep : ∀ v ∈ Y,
+        ((U v).card : ℝ) ^ 2 = ((U v ×ˢ U v).card : ℝ) := by
+      intro v _
+      rw [Finset.card_product]
+      push_cast; ring
+    rw [Finset.sum_congr rfl hStep]
+    -- Σ_v |U(v) × U(v)| = Σ_v #{(x, x') ∈ X × X : (x, v) ∈ F ∧ (x', v) ∈ F}.
+    have hStep2 : ∀ v ∈ Y, ((U v ×ˢ U v).card : ℝ) =
+        (((X ×ˢ X).filter (fun p : G × G ↦ (p.1, v) ∈ F ∧ (p.2, v) ∈ F)).card : ℝ) := by
+      intro v _
+      have hSet : U v ×ˢ U v =
+          (X ×ˢ X).filter (fun p : G × G ↦ (p.1, v) ∈ F ∧ (p.2, v) ∈ F) := by
+        ext p
+        simp only [Finset.mem_product, Finset.mem_filter, U]
+        tauto
+      rw [hSet]
+    rw [Finset.sum_congr rfl hStep2]
+    -- Swap sums: Σ_v #{(x,x'): (x,v)∈F ∧ (x',v)∈F} = Σ_{(x,x')} codeg(x,x').
+    rw [show (∑ v ∈ Y,
+        (((X ×ˢ X).filter (fun p : G × G ↦ (p.1, v) ∈ F ∧ (p.2, v) ∈ F)).card : ℝ)) =
+        ∑ v ∈ Y, ∑ p ∈ X ×ˢ X,
+          (if (p.1, v) ∈ F ∧ (p.2, v) ∈ F then (1 : ℝ) else 0) from by
+      refine Finset.sum_congr rfl fun v _ ↦ ?_
+      rw [Finset.card_eq_sum_ones, Finset.sum_filter]
+      push_cast; rfl]
+    rw [Finset.sum_comm]
+    refine Finset.sum_congr rfl fun p _ ↦ ?_
+    -- codeg(p) = #{v ∈ Y : (p.1, v) ∈ F ∧ (p.2, v) ∈ F}.
+    have hcodeg_eq : codeg p =
+        ∑ v ∈ Y, (if (p.1, v) ∈ F ∧ (p.2, v) ∈ F then (1 : ℝ) else 0) := by
+      simp only [codeg]
+      rw [show (Y.filter (fun y ↦ (p.1, y) ∈ F)) ∩ (Y.filter (fun y ↦ (p.2, y) ∈ F))
+          = Y.filter (fun y ↦ (p.1, y) ∈ F ∧ (p.2, y) ∈ F) from by
+        ext y; simp only [Finset.mem_inter, Finset.mem_filter]; tauto]
+      rw [Finset.card_eq_sum_ones, Finset.sum_filter]
+      push_cast; rfl
+    rw [hcodeg_eq]
+  -- Step 3: Cauchy-Schwarz: |F|² ≤ |Y| · Σ_v |U(v)|².
+  have hCS : (F.card : ℝ) ^ 2 ≤ (Y.card : ℝ) * ∑ v ∈ Y, ((U v).card : ℝ) ^ 2 := by
+    have h := Finset.sum_mul_sq_le_sq_mul_sq Y (fun _ : G ↦ (1 : ℝ))
+      (fun v ↦ ((U v).card : ℝ))
+    simp only [one_mul, one_pow, Finset.sum_const, nsmul_eq_mul, mul_one] at h
+    rw [hSum_U_card] at h
+    exact h
+  -- Step 4: c²|X|²|Y| ≤ Σ_v |U(v)|².
+  have hSum_U_sq_lb : c ^ 2 * (X.card : ℝ) ^ 2 * (Y.card : ℝ) ≤
+      ∑ v ∈ Y, ((U v).card : ℝ) ^ 2 := by
+    have hc_nn : 0 ≤ c := le_of_lt hc_pos
+    have hF_dense_nn : 0 ≤ c * (X.card : ℝ) * (Y.card : ℝ) :=
+      mul_nonneg (mul_nonneg hc_nn hX_nn) hY_nn
+    have hF_sq : (c * (X.card : ℝ) * (Y.card : ℝ)) ^ 2 ≤ (F.card : ℝ) ^ 2 :=
+      pow_le_pow_left₀ hF_dense_nn hF_dense 2
+    have hY_pos : 0 < (Y.card : ℝ) := hY_real_pos
+    have h := le_trans hF_sq hCS
+    have hrw : (c * (X.card : ℝ) * (Y.card : ℝ)) ^ 2 =
+        (Y.card : ℝ) * (c ^ 2 * (X.card : ℝ) ^ 2 * (Y.card : ℝ)) := by ring
+    rw [hrw] at h
+    exact le_of_mul_le_mul_left h hY_pos
+  -- Step 5: Σ_v |BadInV(v)| ≤ (ε c² / 2) |X|² |Y|.
+  -- For each bad pair (x, x'), the number of v ∈ Y with x, x' ∈ U(v) equals
+  -- codeg(x, x') ≤ (ε c² / 2)|Y|.
+  have hSum_BadInV_le : ∑ v ∈ Y, ((BadInV v).card : ℝ) ≤
+      (ε * c ^ 2 / 2) * (X.card : ℝ) ^ 2 * (Y.card : ℝ) := by
+    -- Σ_v |BadInV(v)| = Σ_{p ∈ Bad} codeg(p).
+    have hSwap : ∑ v ∈ Y, ((BadInV v).card : ℝ) = ∑ p ∈ Bad, codeg p := by
+      -- Σ_v #{(x,x') ∈ U(v)² : p ∈ Bad}.
+      have hStep : ∀ v ∈ Y, ((BadInV v).card : ℝ) =
+          ∑ p ∈ Bad, (if (p.1, v) ∈ F ∧ (p.2, v) ∈ F then (1 : ℝ) else 0) := by
+        intro v _
+        -- BadInV(v) = Bad.filter (p ↦ (p.1, v) ∈ F ∧ (p.2, v) ∈ F).
+        have hBadInV_eq : BadInV v =
+            Bad.filter (fun p ↦ (p.1, v) ∈ F ∧ (p.2, v) ∈ F) := by
+          ext p
+          simp only [BadInV, Bad, Finset.mem_filter, Finset.mem_product, U,
+            Finset.mem_filter]
+          tauto
+        rw [hBadInV_eq, Finset.card_eq_sum_ones, Finset.sum_filter]
+        push_cast; rfl
+      rw [Finset.sum_congr rfl hStep]
+      rw [Finset.sum_comm]
+      refine Finset.sum_congr rfl fun p hp ↦ ?_
+      have hcodeg_eq : codeg p =
+          ∑ v ∈ Y, (if (p.1, v) ∈ F ∧ (p.2, v) ∈ F then (1 : ℝ) else 0) := by
+        simp only [codeg]
+        rw [show (Y.filter (fun y ↦ (p.1, y) ∈ F)) ∩ (Y.filter (fun y ↦ (p.2, y) ∈ F))
+            = Y.filter (fun y ↦ (p.1, y) ∈ F ∧ (p.2, y) ∈ F) from by
+          ext y; simp only [Finset.mem_inter, Finset.mem_filter]; tauto]
+        rw [Finset.card_eq_sum_ones, Finset.sum_filter]
+        push_cast; rfl
+      rw [hcodeg_eq]
+    rw [hSwap]
+    -- Σ_{p ∈ Bad} codeg(p) ≤ |Bad| · (εc²/2)|Y| ≤ |X|² · (εc²/2)|Y|.
+    have hBad_sub : Bad ⊆ X ×ˢ X := Finset.filter_subset _ _
+    have hBad_card_le : (Bad.card : ℝ) ≤ ((X ×ˢ X).card : ℝ) := by
+      exact_mod_cast Finset.card_le_card hBad_sub
+    have hXX_card : ((X ×ˢ X).card : ℝ) = (X.card : ℝ) ^ 2 := by
+      rw [Finset.card_product]; push_cast; ring
+    have hBad_card_le_X_sq : (Bad.card : ℝ) ≤ (X.card : ℝ) ^ 2 := by
+      rw [← hXX_card]; exact hBad_card_le
+    have hτ_nn : 0 ≤ (ε * c ^ 2 / 2) * (Y.card : ℝ) := by positivity
+    have hPointwise : ∀ p ∈ Bad, codeg p ≤ (ε * c ^ 2 / 2) * (Y.card : ℝ) := by
+      intro p hp
+      simp only [Bad, Finset.mem_filter] at hp
+      exact le_of_lt hp.2
+    calc ∑ p ∈ Bad, codeg p
+        ≤ ∑ _p ∈ Bad, (ε * c ^ 2 / 2) * (Y.card : ℝ) :=
+          Finset.sum_le_sum hPointwise
+      _ = (Bad.card : ℝ) * ((ε * c ^ 2 / 2) * (Y.card : ℝ)) := by
+          rw [Finset.sum_const, nsmul_eq_mul]
+      _ ≤ (X.card : ℝ) ^ 2 * ((ε * c ^ 2 / 2) * (Y.card : ℝ)) :=
+          mul_le_mul_of_nonneg_right hBad_card_le_X_sq hτ_nn
+      _ = (ε * c ^ 2 / 2) * (X.card : ℝ) ^ 2 * (Y.card : ℝ) := by ring
+  -- Step 6: Σ_v Φ(v) ≥ (c² / 2) |X|² |Y|, where Φ(v) = |U(v)|² − (1/ε) |BadInV(v)|.
+  set Φ : G → ℝ := fun v ↦
+    ((U v).card : ℝ) ^ 2 - (1 / ε) * ((BadInV v).card : ℝ) with hΦ_def
+  have hε_inv_pos : (0 : ℝ) < 1 / ε := one_div_pos.mpr hε_pos
+  have hε_inv_nn : (0 : ℝ) ≤ 1 / ε := le_of_lt hε_inv_pos
+  have hSum_Φ_lb : (c ^ 2 / 2) * (X.card : ℝ) ^ 2 * (Y.card : ℝ) ≤ ∑ v ∈ Y, Φ v := by
+    have hSplit : ∑ v ∈ Y, Φ v =
+        (∑ v ∈ Y, ((U v).card : ℝ) ^ 2) - (1 / ε) * ∑ v ∈ Y, ((BadInV v).card : ℝ) := by
+      simp only [Φ]
+      rw [Finset.sum_sub_distrib, Finset.mul_sum]
+    rw [hSplit]
+    have h1 : c ^ 2 * (X.card : ℝ) ^ 2 * (Y.card : ℝ) ≤ ∑ v ∈ Y, ((U v).card : ℝ) ^ 2 :=
+      hSum_U_sq_lb
+    have h2 : (1 / ε) * ∑ v ∈ Y, ((BadInV v).card : ℝ) ≤
+        (1 / ε) * ((ε * c ^ 2 / 2) * (X.card : ℝ) ^ 2 * (Y.card : ℝ)) :=
+      mul_le_mul_of_nonneg_left hSum_BadInV_le hε_inv_nn
+    have h2' : (1 / ε) * ((ε * c ^ 2 / 2) * (X.card : ℝ) ^ 2 * (Y.card : ℝ)) =
+        (c ^ 2 / 2) * (X.card : ℝ) ^ 2 * (Y.card : ℝ) := by
+      field_simp
+    rw [h2'] at h2
+    linarith
+  -- Step 7: Extract a `v` with Φ(v) ≥ (c²/2)|X|².
+  have hSum_Φ_const : (c ^ 2 / 2) * (X.card : ℝ) ^ 2 * (Y.card : ℝ) =
+      ∑ _v ∈ Y, (c ^ 2 / 2) * (X.card : ℝ) ^ 2 := by
+    rw [Finset.sum_const, nsmul_eq_mul]; ring
+  rw [hSum_Φ_const] at hSum_Φ_lb
+  obtain ⟨v, _hvY, hΦv⟩ := Finset.exists_le_of_sum_le hY hSum_Φ_lb
+  -- Step 8: For this `v`, derive |U(v)| ≥ (c/2)|X| and |BadInV(v)| ≤ ε|U(v)|².
+  -- From hΦv : (c²/2)|X|² ≤ |U(v)|² - (1/ε)|BadInV(v)|.
+  -- Since |BadInV(v)| ≥ 0, |U(v)|² ≥ (c²/2)|X|² ≥ (c/2)²|X|² (because c ≤ 1).
+  have hU_card_nn : (0 : ℝ) ≤ ((U v).card : ℝ) := Nat.cast_nonneg _
+  have hBadInV_nn : (0 : ℝ) ≤ ((BadInV v).card : ℝ) := Nat.cast_nonneg _
+  have hU_sq_lb : (c ^ 2 / 2) * (X.card : ℝ) ^ 2 ≤ ((U v).card : ℝ) ^ 2 := by
+    have h1 : (1 / ε) * ((BadInV v).card : ℝ) ≥ 0 :=
+      mul_nonneg hε_inv_nn hBadInV_nn
+    linarith
+  have hc_sq_half_ge_c_half_sq : (c / 2) ^ 2 ≤ c ^ 2 / 2 := by
+    have hc_nn : 0 ≤ c := le_of_lt hc_pos
+    have : (c / 2) ^ 2 = c ^ 2 / 4 := by ring
+    rw [this]
+    -- c²/4 ≤ c²/2 ↔ c² ≥ 0.
+    nlinarith [sq_nonneg c]
+  have hU_card_lb : (c / 2) * (X.card : ℝ) ≤ ((U v).card : ℝ) := by
+    have hc_half_X_nn : (0 : ℝ) ≤ (c / 2) * (X.card : ℝ) :=
+      mul_nonneg (by linarith) hX_nn
+    have hsq_chain : ((c / 2) * (X.card : ℝ)) ^ 2 ≤ ((U v).card : ℝ) ^ 2 := by
+      calc ((c / 2) * (X.card : ℝ)) ^ 2
+          = (c / 2) ^ 2 * (X.card : ℝ) ^ 2 := by ring
+        _ ≤ (c ^ 2 / 2) * (X.card : ℝ) ^ 2 :=
+            mul_le_mul_of_nonneg_right hc_sq_half_ge_c_half_sq (sq_nonneg _)
+        _ ≤ ((U v).card : ℝ) ^ 2 := hU_sq_lb
+    have hsqrt := Real.sqrt_le_sqrt hsq_chain
+    rwa [Real.sqrt_sq hc_half_X_nn, Real.sqrt_sq hU_card_nn] at hsqrt
+  -- |BadInV(v)| ≤ ε |U(v)|².
+  have hBadInV_le : ((BadInV v).card : ℝ) ≤ ε * ((U v).card : ℝ) ^ 2 := by
+    -- From hΦv: (c²/2)|X|² ≤ |U(v)|² − (1/ε)|BadInV(v)|.
+    -- So (1/ε)|BadInV(v)| ≤ |U(v)|² − (c²/2)|X|² ≤ |U(v)|².
+    have h1 : (1 / ε) * ((BadInV v).card : ℝ) ≤ ((U v).card : ℝ) ^ 2 := by
+      have hX_sq_nn : 0 ≤ (c ^ 2 / 2) * (X.card : ℝ) ^ 2 := by positivity
+      linarith
+    have h2 : ((BadInV v).card : ℝ) ≤ ε * ((U v).card : ℝ) ^ 2 := by
+      have := mul_le_mul_of_nonneg_left h1 (le_of_lt hε_pos)
+      have heq : ε * ((1 / ε) * ((BadInV v).card : ℝ)) = ((BadInV v).card : ℝ) := by
+        field_simp
+      rw [heq] at this
+      exact this
+    exact h2
+  -- Step 9: Package the witness.
+  refine ⟨U v, ?_, hU_card_lb, ?_⟩
+  · simp only [U]; exact Finset.filter_subset _ _
+  · exact hBadInV_le
+
+
+/--
+**High-degree subset density.** For `E ⊆ A ×ˢ B` with `|A| = |B| = n` and
+`δ n² ≤ |E|`, the subset `A₁ := { a ∈ A : (δ/2) n ≤ |Nb(a)| }` has
+`(δ/2) n ≤ |A₁|` and `e(A₁, B) ≥ (δ/2) n²` (where `e(A₁, B) := |E ∩ (A₁ ×ˢ B)|`).
+
+Standard rare/popular split: rows with `|Nb(a)| < (δ/2) n` contribute
+`< (δ/2) n²` edges, so the popular rows in `A₁` contribute `≥ (δ/2) n²`.
+Combined with the pointwise bound `|Nb(a)| ≤ n` on `A₁`, this gives
+`|A₁| · n ≥ (δ/2) n²`, i.e. `|A₁| ≥ (δ/2) n`.
+-/
+lemma graph_high_degree_subset_lb {G : Type*} [DecidableEq G]
+    (δ : ℝ) (hδ_pos : 0 < δ) (_hδ_le : δ ≤ 1)
+    (A B : Finset G) (hA : A.Nonempty) (hAB : A.card = B.card)
+    (E : Finset (G × G)) (hE_sub : E ⊆ A ×ˢ B)
+    (hE_dense : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ)) :
+    (δ / 2) * (A.card : ℝ) ≤
+      ((A.filter (fun a ↦
+        (δ / 2) * (B.card : ℝ) ≤
+          ((B.filter (fun b ↦ (a, b) ∈ E)).card : ℝ))).card : ℝ) ∧
+    (δ / 2) * (A.card : ℝ) * (B.card : ℝ) ≤
+      ((E.filter (fun p : G × G ↦
+        (δ / 2) * (B.card : ℝ) ≤
+          ((B.filter (fun b ↦ (p.1, b) ∈ E)).card : ℝ))).card : ℝ) := by
+  classical
+  set rowDeg : G → ℕ := fun a ↦ (B.filter (fun b ↦ (a, b) ∈ E)).card with hrowDeg_def
+  set Apop : Finset G := A.filter (fun a ↦ (δ / 2) * (B.card : ℝ) ≤ (rowDeg a : ℝ))
+    with hApop_def
+  set Epop : Finset (G × G) := E.filter (fun p : G × G ↦
+    (δ / 2) * (B.card : ℝ) ≤ ((B.filter (fun b ↦ (p.1, b) ∈ E)).card : ℝ))
+    with hEpop_def
+  have hApop_sub : Apop ⊆ A := Finset.filter_subset _ _
+  have hEpop_sub : Epop ⊆ E := Finset.filter_subset _ _
+  have hA_pos : (0 : ℝ) < (A.card : ℝ) := by exact_mod_cast hA.card_pos
+  have hA_nn : (0 : ℝ) ≤ (A.card : ℝ) := le_of_lt hA_pos
+  have hBcard_eq : (B.card : ℝ) = (A.card : ℝ) := by exact_mod_cast hAB.symm
+  have hB_pos : (0 : ℝ) < (B.card : ℝ) := by rw [hBcard_eq]; exact hA_pos
+  have hB_nn : (0 : ℝ) ≤ (B.card : ℝ) := le_of_lt hB_pos
+  have hrowDeg_le : ∀ a, rowDeg a ≤ B.card := fun a ↦
+    Finset.card_le_card (Finset.filter_subset _ _)
+  have hrowDeg_le_R : ∀ a, (rowDeg a : ℝ) ≤ (B.card : ℝ) := fun a ↦ by
+    exact_mod_cast hrowDeg_le a
+  have hSumRow : ∑ a ∈ A, (rowDeg a : ℕ) = E.card := by
+    have step1 : ∀ a, rowDeg a = ∑ b ∈ B, (if (a, b) ∈ E then 1 else 0) := fun a ↦ by
+      simp only [rowDeg, Finset.card_eq_sum_ones, Finset.sum_filter]
+    have step2 : ∑ a ∈ A, rowDeg a = ∑ p ∈ A ×ˢ B, (if p ∈ E then 1 else 0) := by
+      simp_rw [step1, Finset.sum_product]
+    have step3 :
+        ∑ p ∈ A ×ˢ B, (if p ∈ E then 1 else 0) = ((A ×ˢ B).filter (· ∈ E)).card := by
+      rw [Finset.card_eq_sum_ones, Finset.sum_filter]
+    have step4 : (A ×ˢ B).filter (· ∈ E) = E := by
+      ext p
+      simp only [Finset.mem_filter]
+      exact ⟨fun h ↦ h.2, fun h ↦ ⟨hE_sub h, h⟩⟩
+    rw [step2, step3, step4]
+  have hSumRow_real : ∑ a ∈ A, (rowDeg a : ℝ) = (E.card : ℝ) := by
+    have h := hSumRow
+    have hcast : ((∑ a ∈ A, rowDeg a : ℕ) : ℝ) = (E.card : ℝ) := by exact_mod_cast h
+    push_cast at hcast; exact hcast
+  have hsplit_A : ∑ a ∈ A, (rowDeg a : ℝ) =
+      (∑ a ∈ Apop, (rowDeg a : ℝ)) + ∑ a ∈ A \ Apop, (rowDeg a : ℝ) := by
+    rw [← Finset.sum_sdiff hApop_sub]; ring
+  have hrare : ∑ a ∈ A \ Apop, (rowDeg a : ℝ) ≤
+      ((A \ Apop).card : ℝ) * ((δ / 2) * (B.card : ℝ)) := by
+    rw [show ((A \ Apop).card : ℝ) * ((δ / 2) * (B.card : ℝ)) =
+              ∑ _a ∈ A \ Apop, ((δ / 2) * (B.card : ℝ)) by
+      rw [Finset.sum_const, nsmul_eq_mul]]
+    refine Finset.sum_le_sum fun a ha ↦ ?_
+    rw [Finset.mem_sdiff, hApop_def, Finset.mem_filter] at ha
+    have hnot := ha.2
+    by_contra hgt
+    push Not at hgt
+    exact hnot ⟨ha.1, le_of_lt hgt⟩
+  have hAdiff_le_A : ((A \ Apop).card : ℝ) ≤ (A.card : ℝ) := by
+    exact_mod_cast Finset.card_le_card (Finset.sdiff_subset (s := A) (t := Apop))
+  have hδ2B_nn : 0 ≤ (δ / 2) * (B.card : ℝ) := by positivity
+  have hrare' : ∑ a ∈ A \ Apop, (rowDeg a : ℝ) ≤ (A.card : ℝ) * ((δ / 2) * (B.card : ℝ)) := by
+    have hmul := mul_le_mul_of_nonneg_right hAdiff_le_A hδ2B_nn
+    linarith [hrare]
+  have hSumApop : ∑ a ∈ Apop, (rowDeg a : ℕ) = Epop.card := by
+    have step1 : ∀ a, rowDeg a = ∑ b ∈ B, (if (a, b) ∈ E then 1 else 0) := fun a ↦ by
+      simp only [rowDeg, Finset.card_eq_sum_ones, Finset.sum_filter]
+    have step2 : ∑ a ∈ Apop, rowDeg a = ∑ p ∈ Apop ×ˢ B, (if p ∈ E then 1 else 0) := by
+      simp_rw [step1, Finset.sum_product]
+    have step3 : ∑ p ∈ Apop ×ˢ B, (if p ∈ E then 1 else 0) =
+        ((Apop ×ˢ B).filter (· ∈ E)).card := by
+      rw [Finset.card_eq_sum_ones, Finset.sum_filter]
+    have step4 : (Apop ×ˢ B).filter (· ∈ E) = Epop := by
+      ext p
+      simp only [Finset.mem_filter, Finset.mem_product, hEpop_def, hApop_def, hrowDeg_def]
+      constructor
+      · rintro ⟨⟨⟨hp1A, hp1pop⟩, _hp2⟩, hpE⟩
+        exact ⟨hpE, hp1pop⟩
+      · rintro ⟨hpE, hpop⟩
+        have hpAB := hE_sub hpE
+        rw [Finset.mem_product] at hpAB
+        exact ⟨⟨⟨hpAB.1, hpop⟩, hpAB.2⟩, hpE⟩
+    rw [step2, step3, step4]
+  have hSumApop_real : ∑ a ∈ Apop, (rowDeg a : ℝ) = (Epop.card : ℝ) := by
+    have h := hSumApop
+    have hcast : ((∑ a ∈ Apop, rowDeg a : ℕ) : ℝ) = (Epop.card : ℝ) := by exact_mod_cast h
+    push_cast at hcast; exact hcast
+  have hE_dense' : δ * (A.card : ℝ) * (B.card : ℝ) ≤ ∑ a ∈ A, (rowDeg a : ℝ) := by
+    rw [hSumRow_real]; exact hE_dense
+  have hEpop_lb : (δ / 2) * (A.card : ℝ) * (B.card : ℝ) ≤ (Epop.card : ℝ) := by
+    have : (δ / 2) * (A.card : ℝ) * (B.card : ℝ) ≤ ∑ a ∈ Apop, (rowDeg a : ℝ) := by
+      have hδ_split : δ * (A.card : ℝ) * (B.card : ℝ) =
+          (δ / 2) * (A.card : ℝ) * (B.card : ℝ) + (A.card : ℝ) * ((δ / 2) * (B.card : ℝ)) := by
+        ring
+      linarith [hE_dense', hsplit_A, hrare', hδ_split]
+    linarith [this, hSumApop_real]
+  have hApop_sum_ub : ∑ a ∈ Apop, (rowDeg a : ℝ) ≤ (Apop.card : ℝ) * (B.card : ℝ) := by
+    rw [show (Apop.card : ℝ) * (B.card : ℝ) = ∑ _a ∈ Apop, (B.card : ℝ) by
+      rw [Finset.sum_const, nsmul_eq_mul]]
+    refine Finset.sum_le_sum fun a _ ↦ hrowDeg_le_R a
+  have hApop_lb : (δ / 2) * (A.card : ℝ) ≤ (Apop.card : ℝ) := by
+    have h1 : (δ / 2) * (A.card : ℝ) * (B.card : ℝ) ≤ (Apop.card : ℝ) * (B.card : ℝ) := by
+      calc (δ / 2) * (A.card : ℝ) * (B.card : ℝ)
+          ≤ (Epop.card : ℝ) := hEpop_lb
+        _ = ∑ a ∈ Apop, (rowDeg a : ℝ) := hSumApop_real.symm
+        _ ≤ (Apop.card : ℝ) * (B.card : ℝ) := hApop_sum_ub
+    exact le_of_mul_le_mul_right h1 hB_pos
+  exact ⟨hApop_lb, hEpop_lb⟩
+
+
+/--
+**Markov refinement helper.** Given `U` and a bad-pair count bound
+`#{(a, a') ∈ U×U : codeg_E(a, a') < τ} ≤ κ · |U|²`, produce
+`A' ⊆ U` with `|A'| ≥ |U|/2` (when `κ ≤ 1/4`) such that for every
+`a ∈ A'` the bad-partner count `#{a' ∈ U : codeg_E(a, a') < τ}` is
+`≤ 2κ · |U|`.  Used inside `graph_dependentRandomChoice_payoff_pointwise_witness` with
+`κ := δ/16`, giving `2κ = δ/8`.
+-/
+private lemma graph_dependentRandomChoice_markov_refinement {G : Type*} [DecidableEq G]
+    (B U : Finset G) (E : Finset (G × G)) (τ : ℝ) (κ : ℝ)
+    (hκ_pos : 0 < κ) (hUpos : (0 : ℝ) < (U.card : ℝ))
+    (hbadCount : (((U ×ˢ U).filter fun p : G × G ↦
+        ((B.filter fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E).card : ℝ) < τ).card : ℝ)
+      ≤ κ * (U.card : ℝ) ^ 2) :
+    ∃ A' : Finset G, A' ⊆ U ∧
+      (1 - 1 / 2) * (U.card : ℝ) ≤ (A'.card : ℝ) ∧
+      (∀ a ∈ A',
+        ((U.filter fun a₁ ↦
+          ((B.filter fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E).card : ℝ) < τ).card : ℝ)
+          ≤ 2 * κ * (U.card : ℝ)) := by
+  classical
+  -- Bad partners of `a` in U.
+  set badPartner : G → Finset G := fun a ↦
+    U.filter (fun a₁ ↦
+      ((B.filter (fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E)).card : ℝ) < τ)
+    with hbadPartner_def
+  set A' : Finset G := U.filter (fun a ↦
+    ((badPartner a).card : ℝ) ≤ 2 * κ * (U.card : ℝ)) with hA'_def
+  have hA'_sub : A' ⊆ U := Finset.filter_subset _ _
+  -- Sum of bad-partner cards equals bad-pair count (fiber over first coord).
+  set badPairs : Finset (G × G) := (U ×ˢ U).filter (fun p : G × G ↦
+    ((B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E)).card : ℝ) < τ)
+    with hbadPairs_def
+  have hbadSum : (badPairs.card : ℝ) = ∑ a ∈ U, ((badPartner a).card : ℝ) := by
+    have hN : badPairs.card = ∑ a ∈ U, (badPartner a).card := by
+      rw [hbadPairs_def, hbadPartner_def]
+      rw [Finset.card_eq_sum_ones, Finset.sum_filter, Finset.sum_product]
+      refine Finset.sum_congr rfl fun a _ ↦ ?_
+      rw [Finset.card_eq_sum_ones, Finset.sum_filter]
+    have hcast : ((∑ a ∈ U, (badPartner a).card : ℕ) : ℝ) = (badPairs.card : ℝ) := by
+      exact_mod_cast hN.symm
+    push_cast at hcast; linarith
+  -- Markov lower bound on Σ over U \ A'.
+  have hsum_split :
+      ∑ a ∈ U, ((badPartner a).card : ℝ) =
+        (∑ a ∈ A', ((badPartner a).card : ℝ)) +
+        ∑ a ∈ U \ A', ((badPartner a).card : ℝ) := by
+    rw [← Finset.sum_sdiff hA'_sub]; ring
+  have hsum_diff_ge :
+      ((U \ A').card : ℝ) * (2 * κ * (U.card : ℝ)) ≤
+        ∑ a ∈ U \ A', ((badPartner a).card : ℝ) := by
+    rw [show ((U \ A').card : ℝ) * (2 * κ * (U.card : ℝ)) =
+            ∑ _a ∈ U \ A', (2 * κ * (U.card : ℝ)) from by
+      rw [Finset.sum_const, nsmul_eq_mul]]
+    refine Finset.sum_le_sum fun a ha ↦ ?_
+    rw [Finset.mem_sdiff, hA'_def, Finset.mem_filter] at ha
+    have hnot := ha.2
+    by_contra hge
+    push Not at hge
+    exact hnot ⟨ha.1, le_of_lt hge⟩
+  have hpartner_nn : ∀ a, 0 ≤ ((badPartner a).card : ℝ) := fun a ↦ Nat.cast_nonneg _
+  have hsum_A'_nn : 0 ≤ ∑ a ∈ A', ((badPartner a).card : ℝ) :=
+    Finset.sum_nonneg fun a _ ↦ hpartner_nn a
+  -- Combine: |U\A'| · 2κ|U| ≤ Σ over U ≤ |badPairs| ≤ κ|U|².  Hence |U\A'| ≤ |U|/2.
+  have hdiff_card_le : ((U \ A').card : ℝ) * (2 * κ * (U.card : ℝ)) ≤
+      κ * (U.card : ℝ) ^ 2 := by
+    calc ((U \ A').card : ℝ) * (2 * κ * (U.card : ℝ))
+        ≤ ∑ a ∈ U \ A', ((badPartner a).card : ℝ) := hsum_diff_ge
+      _ ≤ ∑ a ∈ U, ((badPartner a).card : ℝ) := by linarith
+      _ = (badPairs.card : ℝ) := hbadSum.symm
+      _ ≤ κ * (U.card : ℝ) ^ 2 := hbadCount
+  have hcoeff_pos : 0 < 2 * κ * (U.card : ℝ) := by positivity
+  have hdiff_le_half : ((U \ A').card : ℝ) ≤ (U.card : ℝ) / 2 := by
+    have heq : κ * (U.card : ℝ) ^ 2 = ((U.card : ℝ) / 2) * (2 * κ * (U.card : ℝ)) := by ring
+    rw [heq] at hdiff_card_le
+    exact le_of_mul_le_mul_right hdiff_card_le hcoeff_pos
+  have hA'_card_real : ((U \ A').card : ℝ) + (A'.card : ℝ) = (U.card : ℝ) := by
+    have h : (U \ A').card + A'.card = U.card := Finset.card_sdiff_add_card_eq_card hA'_sub
+    exact_mod_cast h
+  have hA'_lb : (U.card : ℝ) / 2 ≤ (A'.card : ℝ) := by linarith
+  refine ⟨A', hA'_sub, ?_, ?_⟩
+  · linarith
+  · intro a ha
+    rw [hA'_def, Finset.mem_filter] at ha
+    exact ha.2
+
+/--
+**Popular columns helper.** For `U ⊆ A` with row degree `≥ ρ · |B|` for every
+`a ∈ U` (in the sense of `|{b ∈ B : (a, b) ∈ E}| ≥ ρ · |B|`), the rare/popular
+split on columns produces `B' ⊆ B` of cardinality `≥ (ρ/2) · |B|` such that
+every `b ∈ B'` has `|{a ∈ U : (a, b) ∈ E}| ≥ (ρ/2) · |U|`.
+-/
+private lemma graph_dependentRandomChoice_popular_columns {G : Type*} [DecidableEq G]
+    (A B : Finset G) (hAB : A.card = B.card)
+    (E : Finset (G × G)) (_hE_sub : E ⊆ A ×ˢ B)
+    (U : Finset G) (hU_sub : U ⊆ A)
+    (hU_pos : (0 : ℝ) < (U.card : ℝ))
+    (ρ : ℝ) (hρ_pos : 0 < ρ) (_hρ_le_one : ρ ≤ 1)
+    (hrowDeg_lb : ∀ a ∈ U, ρ * (B.card : ℝ) ≤
+      ((B.filter (fun b ↦ (a, b) ∈ E)).card : ℝ)) :
+    ∃ B' : Finset G, B' ⊆ B ∧
+      (ρ / 2) * (B.card : ℝ) ≤ (B'.card : ℝ) ∧
+      (∀ b ∈ B', (ρ / 2) * (U.card : ℝ) ≤
+        ((U.filter fun a ↦ (a, b) ∈ E).card : ℝ)) := by
+  classical
+  -- |B| > 0 since |B| = |A| and U ⊆ A nonempty.
+  have hBcard_nat : B.card = A.card := hAB.symm
+  have hUcard_le_A : (U.card : ℝ) ≤ (A.card : ℝ) := by
+    exact_mod_cast Finset.card_le_card hU_sub
+  have hA_pos : (0 : ℝ) < (A.card : ℝ) := lt_of_lt_of_le hU_pos hUcard_le_A
+  have hB_pos : (0 : ℝ) < (B.card : ℝ) := by
+    have : (B.card : ℝ) = (A.card : ℝ) := by exact_mod_cast hBcard_nat
+    rw [this]; exact hA_pos
+  -- Column count.
+  set colCount : G → ℕ := fun b ↦ (U.filter (fun a ↦ (a, b) ∈ E)).card with hcolCount_def
+  set B' : Finset G := B.filter (fun b ↦ (ρ / 2) * (U.card : ℝ) ≤ (colCount b : ℝ)) with hB'_def
+  have hB'_sub : B' ⊆ B := Finset.filter_subset _ _
+  -- Edge count from U: Σ_a∈U rowDeg(a) ≥ ρ|U||B|.  Also = Σ_b colCount b.
+  set rowDeg : G → ℕ := fun a ↦ (B.filter (fun b ↦ (a, b) ∈ E)).card with hrowDeg_def
+  -- Σ over U of rowDeg = Σ over B of colCount: both count {(a, b) ∈ U × B : (a, b) ∈ E}.
+  have hSwap : ∑ a ∈ U, (rowDeg a : ℕ) = ∑ b ∈ B, (colCount b : ℕ) := by
+    have hrowDeg_eq : ∀ a, rowDeg a = ∑ b ∈ B, (if (a, b) ∈ E then 1 else 0) := fun a ↦ by
+      simp only [rowDeg, Finset.card_eq_sum_ones, Finset.sum_filter]
+    have hcolCount_eq : ∀ b, colCount b = ∑ a ∈ U, (if (a, b) ∈ E then 1 else 0) := fun b ↦ by
+      simp only [colCount, Finset.card_eq_sum_ones, Finset.sum_filter]
+    simp_rw [hrowDeg_eq, hcolCount_eq]
+    rw [Finset.sum_comm]
+  have hSwap_real :
+      ∑ a ∈ U, (rowDeg a : ℝ) = ∑ b ∈ B, (colCount b : ℝ) := by
+    have : ((∑ a ∈ U, rowDeg a : ℕ) : ℝ) = ((∑ b ∈ B, colCount b : ℕ) : ℝ) := by
+      exact_mod_cast hSwap
+    push_cast at this; exact this
+  -- Σ_{a ∈ U} rowDeg(a) ≥ ρ|U||B|.
+  have hrow_sum_lb : ρ * (U.card : ℝ) * (B.card : ℝ) ≤ ∑ a ∈ U, (rowDeg a : ℝ) := by
+    have hsum : ∑ _a ∈ U, ρ * (B.card : ℝ) ≤ ∑ a ∈ U, (rowDeg a : ℝ) :=
+      Finset.sum_le_sum fun a haU ↦ hrowDeg_lb a haU
+    have hconst : ∑ _a ∈ U, ρ * (B.card : ℝ) = (U.card : ℝ) * (ρ * (B.card : ℝ)) := by
+      rw [Finset.sum_const, nsmul_eq_mul]
+    rw [hconst] at hsum
+    linarith
+  have hcol_sum_lb : ρ * (U.card : ℝ) * (B.card : ℝ) ≤ ∑ b ∈ B, (colCount b : ℝ) := by
+    rw [← hSwap_real]; exact hrow_sum_lb
+  -- Rare columns contribute < (ρ/2)|U| each.
+  have hrare_col : ∑ b ∈ B \ B', (colCount b : ℝ) ≤
+      ((B \ B').card : ℝ) * ((ρ / 2) * (U.card : ℝ)) := by
+    rw [show ((B \ B').card : ℝ) * ((ρ / 2) * (U.card : ℝ)) =
+            ∑ _b ∈ B \ B', ((ρ / 2) * (U.card : ℝ)) from by
+      rw [Finset.sum_const, nsmul_eq_mul]]
+    refine Finset.sum_le_sum fun b hb ↦ ?_
+    rw [Finset.mem_sdiff, hB'_def, Finset.mem_filter] at hb
+    have hnot := hb.2
+    by_contra hgt
+    push Not at hgt
+    exact hnot ⟨hb.1, le_of_lt hgt⟩
+  have hrare_col' : ∑ b ∈ B \ B', (colCount b : ℝ) ≤
+      (B.card : ℝ) * ((ρ / 2) * (U.card : ℝ)) := by
+    have h : ((B \ B').card : ℝ) ≤ (B.card : ℝ) := by
+      exact_mod_cast Finset.card_le_card (Finset.sdiff_subset (s := B) (t := B'))
+    have hnn : 0 ≤ (ρ / 2) * (U.card : ℝ) := by
+      have : 0 ≤ ρ / 2 := by linarith
+      exact mul_nonneg this (le_of_lt hU_pos)
+    have := mul_le_mul_of_nonneg_right h hnn
+    linarith
+  -- Split column-sum.
+  have hcol_split : ∑ b ∈ B, (colCount b : ℝ) =
+      (∑ b ∈ B', (colCount b : ℝ)) + ∑ b ∈ B \ B', (colCount b : ℝ) := by
+    rw [← Finset.sum_sdiff hB'_sub]; ring
+  have hpop_col_lb : (ρ / 2) * (U.card : ℝ) * (B.card : ℝ) ≤
+      ∑ b ∈ B', (colCount b : ℝ) := by
+    nlinarith [hcol_split, hcol_sum_lb, hrare_col']
+  -- Σ over B' of colCount ≤ |B'| · |U|.
+  have hcolCount_le : ∀ b, (colCount b : ℝ) ≤ (U.card : ℝ) := fun b ↦ by
+    have h : (colCount b : ℕ) ≤ U.card :=
+      Finset.card_le_card (Finset.filter_subset _ _)
+    exact_mod_cast h
+  have hpop_col_ub : ∑ b ∈ B', (colCount b : ℝ) ≤ (B'.card : ℝ) * (U.card : ℝ) := by
+    rw [show (B'.card : ℝ) * (U.card : ℝ) = ∑ _b ∈ B', (U.card : ℝ) from by
+      rw [Finset.sum_const, nsmul_eq_mul]]
+    exact Finset.sum_le_sum fun b _ ↦ hcolCount_le b
+  -- Divide through by |U|.
+  have hB'_lb : (ρ / 2) * (B.card : ℝ) ≤ (B'.card : ℝ) := by
+    have hchain : (ρ / 2) * (U.card : ℝ) * (B.card : ℝ) ≤
+        (B'.card : ℝ) * (U.card : ℝ) := le_trans hpop_col_lb hpop_col_ub
+    have hrew : (ρ / 2) * (U.card : ℝ) * (B.card : ℝ) =
+        ((ρ / 2) * (B.card : ℝ)) * (U.card : ℝ) := by ring
+    rw [hrew] at hchain
+    exact le_of_mul_le_mul_right hchain hU_pos
+  have hpop_col_prop : ∀ b ∈ B', (ρ / 2) * (U.card : ℝ) ≤ (colCount b : ℝ) := by
+    intro b hb
+    rw [hB'_def, Finset.mem_filter] at hb
+    exact hb.2
+  exact ⟨B', hB'_sub, hB'_lb, hpop_col_prop⟩
+
+/--
+**Witness for the DRC pointwise payoff (steps 1-4).** Internal helper.
+Composes `graph_high_degree_subset_lb` (rare/popular row split) with
+`graph_pair_dependentRandomChoice` (Fox-Sudakov 5.1 pair-DRC) and a Markov + rare/popular
+column split.  Returns the four pieces needed by the pointwise count
+step: a "core" set `U ⊆ A`, the "non-bad" refinement `A' ⊆ U`, the
+"popular column" refinement `B' ⊆ B`, and the codegree threshold
+`τ ≥ 0` that interpolates the bad-partner bound for `a ∈ A'` and the
+final `(δ⁵/2¹²)|A|²` count.
+
+The arithmetic identity `(δ⁵/2¹²)|A|² ≤ (δ/8)|U| · τ` is established
+here (using `m := |Apop|`-relative density and `|U| · τ`-style
+cancellation) so the count helper need not redo it.
+-/
+private lemma graph_dependentRandomChoice_payoff_pointwise_witness {G : Type*} [DecidableEq G]
+    (δ : ℝ) (hδ_pos : 0 < δ) (hδ_le : δ ≤ 1)
+    (A B : Finset G) (hA : A.Nonempty) (hAB : A.card = B.card)
+    (E : Finset (G × G)) (hE_sub : E ⊆ A ×ˢ B)
+    (hE_dense : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ)) :
+    ∃ U A' B' : Finset G, ∃ τ : ℝ,
+      U ⊆ A ∧ A' ⊆ U ∧ B' ⊆ B ∧
+      0 ≤ τ ∧
+      (δ / 4) * (A.card : ℝ) ≤ (U.card : ℝ) ∧
+      (δ / 8) * (A.card : ℝ) ≤ (A'.card : ℝ) ∧
+      (δ / 8) * (A.card : ℝ) ≤ (B'.card : ℝ) ∧
+      (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤ (δ / 8) * (U.card : ℝ) * τ ∧
+      (∀ a ∈ A',
+        ((U.filter fun a₁ ↦
+          ((B.filter fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E).card : ℝ) < τ).card : ℝ)
+          ≤ (δ / 8) * (U.card : ℝ)) ∧
+      (∀ b ∈ B',
+        (δ / 4) * (U.card : ℝ) ≤
+          ((U.filter fun a₁ ↦ (a₁, b) ∈ E).card : ℝ)) := by
+  classical
+  -- Cardinality positivity.
+  have hApos : 0 < A.card := hA.card_pos
+  have hA_real_pos : (0 : ℝ) < (A.card : ℝ) := by exact_mod_cast hApos
+  have hA_nn : (0 : ℝ) ≤ (A.card : ℝ) := le_of_lt hA_real_pos
+  have hBcard_nat : B.card = A.card := hAB.symm
+  have hB_real_eq : (B.card : ℝ) = (A.card : ℝ) := by exact_mod_cast hBcard_nat
+  have hB_real_pos : (0 : ℝ) < (B.card : ℝ) := by rw [hB_real_eq]; exact hA_real_pos
+  have hB : B.Nonempty := by
+    rw [← Finset.card_pos]; rw [hBcard_nat]; exact hApos
+  -- δ bounds.
+  have hδ_nn : 0 ≤ δ := le_of_lt hδ_pos
+  -- Step 1: apply rare/popular row split.
+  obtain ⟨hApop_lb, hEpop_lb⟩ :=
+    graph_high_degree_subset_lb δ hδ_pos hδ_le A B hA hAB E hE_sub hE_dense
+  -- Define A₁ (popular rows) and E₁ (edges with popular first coord).
+  set A₁ : Finset G := A.filter (fun a ↦
+    (δ / 2) * (B.card : ℝ) ≤ ((B.filter (fun b ↦ (a, b) ∈ E)).card : ℝ)) with hA₁_def
+  have hA₁_sub : A₁ ⊆ A := Finset.filter_subset _ _
+  -- |A₁| ≥ (δ/2)|A| > 0, so A₁ is nonempty.
+  have hA₁_card_pos : (0 : ℝ) < (A₁.card : ℝ) := by
+    have : 0 < (δ / 2) * (A.card : ℝ) := by positivity
+    linarith
+  have hA₁_card_pos_nat : 0 < A₁.card := by exact_mod_cast hA₁_card_pos
+  have hA₁_ne : A₁.Nonempty := Finset.card_pos.mp hA₁_card_pos_nat
+  set E₁ : Finset (G × G) := E.filter (fun p ↦ p.1 ∈ A₁) with hE₁_def
+  have hE₁_sub_E : E₁ ⊆ E := Finset.filter_subset _ _
+  -- E₁ characterisation: edges with first coord in A₁.
+  have hE₁_iff : ∀ p, p ∈ E₁ ↔ p ∈ E ∧ p.1 ∈ A₁ := fun p ↦ by
+    simp [E₁, Finset.mem_filter]
+  -- E₁ ⊆ A₁ ×ˢ B.
+  have hE₁_sub : E₁ ⊆ A₁ ×ˢ B := by
+    intro p hp
+    rw [hE₁_iff] at hp
+    obtain ⟨hpE, hpA₁⟩ := hp
+    have hpAB := hE_sub hpE
+    rw [Finset.mem_product] at hpAB ⊢
+    exact ⟨hpA₁, hpAB.2⟩
+  -- The edge count for E₁: this matches the popular-edge form of `graph_high_degree_subset_lb`.
+  -- |E₁| = |E.filter (popular first coord)| ≥ (δ/2)·|A|·|B|.
+  have hE₁_card_lb : (δ / 2) * (A.card : ℝ) * (B.card : ℝ) ≤ (E₁.card : ℝ) := by
+    -- The popular-edge filter from `graph_high_degree_subset_lb` matches E₁:
+    --   E.filter (popular p.1) = E.filter (p.1 ∈ A₁)
+    have hfilter_eq :
+        E.filter (fun p : G × G ↦
+          (δ / 2) * (B.card : ℝ) ≤ ((B.filter (fun b ↦ (p.1, b) ∈ E)).card : ℝ)) = E₁ := by
+      ext p
+      simp only [E₁, Finset.mem_filter, hA₁_def]
+      constructor
+      · rintro ⟨hpE, hpop⟩
+        have hpAB := hE_sub hpE
+        rw [Finset.mem_product] at hpAB
+        exact ⟨hpE, hpAB.1, hpop⟩
+      · rintro ⟨hpE, _, hpop⟩
+        exact ⟨hpE, hpop⟩
+    rw [← hfilter_eq]; exact hEpop_lb
+  -- Step 2: invoke graph_pair_dependentRandomChoice on (A₁, B, E₁) with density c₀ = (δ/2)|A|/|A₁|.
+  set m : ℝ := (A₁.card : ℝ) with hm_def
+  have hm_pos : 0 < m := hA₁_card_pos
+  have hm_le_A : m ≤ (A.card : ℝ) := by
+    have : (A₁.card : ℝ) ≤ (A.card : ℝ) := by exact_mod_cast Finset.card_le_card hA₁_sub
+    exact this
+  -- Density c₀ for pair-DRC: c₀ * m * |B| = (δ/2) * |A| * |B|.
+  set c₀ : ℝ := (δ / 2) * (A.card : ℝ) / m with hc₀_def
+  have hc₀_pos : 0 < c₀ := by
+    have hnum : 0 < (δ / 2) * (A.card : ℝ) := by positivity
+    exact div_pos hnum hm_pos
+  -- c₀ ≤ 1, because (δ/2)|A| ≤ m (= |A₁|).
+  have hc₀_le_one : c₀ ≤ 1 := by
+    rw [hc₀_def]
+    rw [div_le_one hm_pos]
+    exact hApop_lb
+  -- c₀ * |A₁| = (δ/2) * |A|.
+  have hc₀_mul_m : c₀ * m = (δ / 2) * (A.card : ℝ) := by
+    rw [hc₀_def]; field_simp
+  -- Density hypothesis for graph_pair_dependentRandomChoice.
+  have hF_dense_drc : c₀ * (A₁.card : ℝ) * (B.card : ℝ) ≤ (E₁.card : ℝ) := by
+    have : c₀ * (A₁.card : ℝ) * (B.card : ℝ) = (δ / 2) * (A.card : ℝ) * (B.card : ℝ) := by
+      rw [show (A₁.card : ℝ) = m from rfl]; rw [hc₀_mul_m]
+    rw [this]; exact hE₁_card_lb
+  -- ε = δ/16.
+  set ε : ℝ := δ / 16 with hε_def
+  have hε_pos : 0 < ε := by rw [hε_def]; positivity
+  have hε_le_one : ε ≤ 1 := by
+    rw [hε_def]; linarith
+  -- Invoke graph_pair_dependentRandomChoice.
+  obtain ⟨U, hU_sub_A₁, hU_card_lb_drc, hbad_card_le⟩ :=
+    graph_pair_dependentRandomChoice A₁ B hA₁_ne hB E₁ hE₁_sub c₀ hc₀_pos hc₀_le_one hF_dense_drc
+      ε hε_pos hε_le_one
+  have hU_sub : U ⊆ A := hU_sub_A₁.trans hA₁_sub
+  -- (c₀/2) * |A₁| = (δ/4) * |A|.
+  have hU_card_lb : (δ / 4) * (A.card : ℝ) ≤ (U.card : ℝ) := by
+    have heq : c₀ / 2 * (A₁.card : ℝ) = (δ / 4) * (A.card : ℝ) := by
+      have := hc₀_mul_m
+      rw [show (A₁.card : ℝ) = m from rfl]
+      linarith
+    linarith [hU_card_lb_drc, heq]
+  have hU_card_pos : (0 : ℝ) < (U.card : ℝ) := by
+    have : 0 < (δ / 4) * (A.card : ℝ) := by positivity
+    linarith
+  have hU_card_pos_nat : 0 < U.card := by exact_mod_cast hU_card_pos
+  have hU_ne : U.Nonempty := Finset.card_pos.mp hU_card_pos_nat
+  -- τ_drc = (ε * c₀²/2) * |B|.  Goal `τ := τ_drc`.
+  set τ : ℝ := (ε * c₀ ^ 2 / 2) * (B.card : ℝ) with hτ_def
+  have hτ_nn : 0 ≤ τ := by
+    rw [hτ_def]
+    have h1 : 0 ≤ ε * c₀ ^ 2 / 2 := by positivity
+    have h2 : (0 : ℝ) ≤ (B.card : ℝ) := le_of_lt hB_real_pos
+    exact mul_nonneg h1 h2
+  -- The arithmetic identity: (δ⁵/2¹²)|A|² ≤ (δ/8) · |U| · τ.
+  -- We use: (δ/8)|U| ≥ (δ/8)(δ/4)|A| = δ²/32 · |A|, and τ ≥ ?
+  -- Key: τ = (δ/16)·c₀²/2·|B| = (δ/32)·c₀²·|A|.
+  -- And c₀² · |A₁|² = (δ/2)² · |A|², so c₀² = δ²|A|²/(4·m²).
+  -- Hence τ · m² = (δ/32) · (δ²/4) · |A|³ = δ³|A|³/128.
+  -- Want: (δ/8)|U| · τ ≥ (δ⁵/2¹²)|A|².
+  -- Using |U| ≥ (δ/4)|A| and τ ≥ (δ³/2⁷)|A| (since m ≤ |A|, so |A|³/m² ≥ |A|).
+  have hτ_lb : (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) ≤ τ := by
+    -- τ = (δ/16) · c₀² / 2 · |B| = (δ/32) · c₀² · |A|.
+    -- c₀ · m = (δ/2)|A|, so c₀² · m² = δ²|A|²/4.
+    -- τ · m² = (δ/32) · δ²|A|²/4 · |A| = δ³|A|³/128.
+    -- τ = δ³|A|³ / (128 m²).  Since m ≤ |A|: τ ≥ δ³|A|/128.
+    have hc₀sq : c₀ ^ 2 * m ^ 2 = ((δ / 2) * (A.card : ℝ)) ^ 2 := by
+      have h := hc₀_mul_m
+      calc c₀ ^ 2 * m ^ 2 = (c₀ * m) ^ 2 := by ring
+        _ = ((δ / 2) * (A.card : ℝ)) ^ 2 := by rw [h]
+    have hm_sq_pos : 0 < m ^ 2 := by positivity
+    have hm_sq_le : m ^ 2 ≤ (A.card : ℝ) ^ 2 := by
+      have hm_nn : 0 ≤ m := le_of_lt hm_pos
+      exact pow_le_pow_left₀ hm_nn hm_le_A 2
+    -- τ * m² = (ε * c₀²/2) * |B| * m² = (ε / 2) * (c₀² · m²) * |B|
+    --        = (δ / 32) * ((δ/2)|A|)² * |A| = δ³|A|³/128.
+    have hτ_m_sq : τ * m ^ 2 = δ ^ 3 / 128 * (A.card : ℝ) ^ 3 := by
+      have : τ = (ε * c₀ ^ 2 / 2) * (B.card : ℝ) := hτ_def
+      rw [this, hB_real_eq, hε_def]
+      have : (δ / 16 * c₀ ^ 2 / 2) * (A.card : ℝ) * m ^ 2
+          = (δ / 32) * (c₀ ^ 2 * m ^ 2) * (A.card : ℝ) := by ring
+      rw [this, hc₀sq]
+      ring
+    -- (δ³/2⁷)|A| · m² ≤ τ · m² ↔ (δ³/2⁷)|A| ≤ τ if m² > 0.
+    -- Use (δ³/2⁷)|A| · m² ≤ (δ³/2⁷)|A| · |A|² = (δ³/128)|A|³ = τ · m².
+    have hineq : (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) * m ^ 2 ≤ τ * m ^ 2 := by
+      rw [hτ_m_sq]
+      have : (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) * m ^ 2 ≤
+            (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) * (A.card : ℝ) ^ 2 := by
+        have hLcoeff_nn : 0 ≤ (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) := by positivity
+        exact mul_le_mul_of_nonneg_left hm_sq_le hLcoeff_nn
+      have heq2 : (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) * (A.card : ℝ) ^ 2 =
+          δ ^ 3 / 128 * (A.card : ℝ) ^ 3 := by ring
+      linarith
+    exact le_of_mul_le_mul_right hineq hm_sq_pos
+  -- Now establish the bound (δ⁵/2¹²)|A|² ≤ (δ/8)|U| · τ via
+  -- (δ/8)|U| ≥ (δ/8)(δ/4)|A| = δ²/32 · |A| and τ ≥ δ³/128 · |A|, product ≥ δ⁵|A|²/2¹².
+  have hUτ_bound : (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤ (δ / 8) * (U.card : ℝ) * τ := by
+    have h1 : (δ / 8) * ((δ / 4) * (A.card : ℝ)) ≤ (δ / 8) * (U.card : ℝ) := by
+      have h8 : (0 : ℝ) ≤ δ / 8 := by linarith
+      exact mul_le_mul_of_nonneg_left hU_card_lb h8
+    have h2 : (δ / 8) * ((δ / 4) * (A.card : ℝ)) * ((δ ^ 3 / 2 ^ 7) * (A.card : ℝ)) ≤
+        (δ / 8) * (U.card : ℝ) * τ := by
+      have hLHS_nn : 0 ≤ (δ / 8) * ((δ / 4) * (A.card : ℝ)) := by positivity
+      have hLHS_nn' : 0 ≤ (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) := by positivity
+      exact mul_le_mul h1 hτ_lb hLHS_nn' (le_trans hLHS_nn h1)
+    have hrew : (δ / 8) * ((δ / 4) * (A.card : ℝ)) * ((δ ^ 3 / 2 ^ 7) * (A.card : ℝ)) =
+        (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 := by ring
+    linarith
+  -- Bad-pair count in U using the E-codegree.  It is bounded by the E₁-bad count from
+  -- graph_pair_dependentRandomChoice, since codeg_E ≥ codeg_{E₁}.
+  have hbadCountE : (((U ×ˢ U).filter fun p : G × G ↦
+      ((B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E)).card : ℝ) < τ).card : ℝ)
+    ≤ ε * (U.card : ℝ) ^ 2 := by
+    -- Pointwise: codeg_E(p) < τ ⟹ codeg_{E₁}(p) ≤ codeg_E(p) < τ.
+    have hbadE_sub : ((U ×ˢ U).filter fun p : G × G ↦
+          ((B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E)).card : ℝ) < τ) ⊆
+        ((U ×ˢ U).filter fun p : G × G ↦
+          (((B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
+            (B.filter (fun y ↦ (p.2, y) ∈ E₁))).card : ℝ) < τ) := by
+      intro p hp
+      rw [Finset.mem_filter] at hp ⊢
+      refine ⟨hp.1, ?_⟩
+      have hsub : (B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
+                  (B.filter (fun y ↦ (p.2, y) ∈ E₁)) ⊆
+                  B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E) := by
+        intro y hy
+        simp only [Finset.mem_inter, Finset.mem_filter] at hy
+        simp only [Finset.mem_filter]
+        exact ⟨hy.1.1, hE₁_sub_E hy.1.2, hE₁_sub_E hy.2.2⟩
+      have hcard : (((B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
+          (B.filter (fun y ↦ (p.2, y) ∈ E₁))).card : ℝ) ≤
+          ((B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E)).card : ℝ) := by
+        exact_mod_cast Finset.card_le_card hsub
+      linarith [hp.2]
+    have h := Finset.card_le_card hbadE_sub
+    have hreal : (((U ×ˢ U).filter fun p : G × G ↦
+          ((B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E)).card : ℝ) < τ).card : ℝ) ≤
+        (((U ×ˢ U).filter fun p : G × G ↦
+          (((B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
+            (B.filter (fun y ↦ (p.2, y) ∈ E₁))).card : ℝ) < τ).card : ℝ) := by
+      exact_mod_cast h
+    -- `τ = (ε * c₀ ^ 2 / 2) * (B.card : ℝ)` by definition; substitute.
+    have hfilter_eq :
+        ((U ×ˢ U).filter fun p : G × G ↦
+          (((B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
+            (B.filter (fun y ↦ (p.2, y) ∈ E₁))).card : ℝ) < τ) =
+        ((U ×ˢ U).filter fun p : G × G ↦
+          (((B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
+            (B.filter (fun y ↦ (p.2, y) ∈ E₁))).card : ℝ) <
+          (ε * c₀ ^ 2 / 2) * (B.card : ℝ)) := by rfl
+    rw [hfilter_eq] at hreal
+    linarith
+  -- Apply Markov refinement helper.
+  obtain ⟨A', hA'_sub_U, hA'_half, hA'_prop⟩ :=
+    graph_dependentRandomChoice_markov_refinement (G := G) B U E τ ε hε_pos hU_card_pos hbadCountE
+  -- `hA'_half`: (1 - 1/2) * |U| ≤ |A'|, i.e. |U|/2 ≤ |A'|.
+  -- `hA'_prop`: ∀ a ∈ A', ((badPartner a).card : ℝ) ≤ 2ε|U| = (δ/8)|U|.
+  -- So we get the (δ/8)|U| bound directly: 2 * (δ/16) = δ/8.
+  have htwo_eps : (2 : ℝ) * ε = δ / 8 := by rw [hε_def]; ring
+  have hA'_prop_clean : ∀ a ∈ A',
+      ((U.filter fun a₁ ↦
+        ((B.filter fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E).card : ℝ) < τ).card : ℝ)
+        ≤ (δ / 8) * (U.card : ℝ) := by
+    intro a ha
+    have h := hA'_prop a ha
+    have hrew : (2 * ε * (U.card : ℝ)) = (δ / 8) * (U.card : ℝ) := by
+      rw [show (2 * ε * (U.card : ℝ)) = 2 * ε * (U.card : ℝ) from rfl, htwo_eps]
+    linarith [hrew]
+  -- |A'| ≥ |U|/2 ≥ (δ/8)|A|.
+  have hA'_card_lb : (δ / 8) * (A.card : ℝ) ≤ (A'.card : ℝ) := by
+    have h1 : (δ / 8) * (A.card : ℝ) ≤ (U.card : ℝ) / 2 := by linarith [hU_card_lb]
+    have : (1 - 1 / 2) * (U.card : ℝ) = (U.card : ℝ) / 2 := by ring
+    linarith [hA'_half, this]
+  -- Step 4: popular columns via `graph_dependentRandomChoice_popular_columns`.
+  -- Row-degree lower bound for a ∈ U (which is ⊆ A₁): rowDeg_E(a) ≥ (δ/2)|B|.
+  have hrowDeg_lb : ∀ a ∈ U, (δ / 2) * (B.card : ℝ) ≤
+      ((B.filter (fun b ↦ (a, b) ∈ E)).card : ℝ) := by
+    intro a haU
+    have haA₁ : a ∈ A₁ := hU_sub_A₁ haU
+    rw [hA₁_def, Finset.mem_filter] at haA₁
+    exact haA₁.2
+  -- δ/2 > 0 and ≤ 1 since δ ≤ 1.
+  have hρ_pos : (0 : ℝ) < δ / 2 := by positivity
+  have hρ_le : δ / 2 ≤ 1 := by linarith
+  obtain ⟨B', hB'_sub, hB'_lb_drc, hpopCol⟩ :=
+    graph_dependentRandomChoice_popular_columns (G := G) A B hAB E hE_sub U hU_sub hU_card_pos
+      (δ / 2) hρ_pos hρ_le hrowDeg_lb
+  -- (δ/2)/2 = δ/4. So |B'| ≥ (δ/4)|B| = (δ/4)|A| ≥ (δ/8)|A|.
+  have hB'_card_lb : (δ / 8) * (A.card : ℝ) ≤ (B'.card : ℝ) := by
+    have h3 : (δ / 8) * (A.card : ℝ) ≤ (δ / 4) * (A.card : ℝ) :=
+      mul_le_mul_of_nonneg_right (by linarith) hA_nn
+    have hquarter_eq : (δ / 2) / 2 * (B.card : ℝ) = (δ / 4) * (A.card : ℝ) := by
+      rw [hB_real_eq]; ring
+    linarith [hB'_lb_drc, hquarter_eq]
+  -- Popular-column property: for b ∈ B', (δ/4)|U| ≤ |{a ∈ U : (a, b) ∈ E}|.
+  have hpopCol_clean : ∀ b ∈ B', (δ / 4) * (U.card : ℝ) ≤
+      ((U.filter fun a ↦ (a, b) ∈ E).card : ℝ) := by
+    intro b hb
+    have h := hpopCol b hb
+    have hrew : (δ / 2) / 2 * (U.card : ℝ) = (δ / 4) * (U.card : ℝ) := by ring
+    linarith [hrew]
+  refine ⟨U, A', B', τ, hU_sub, hA'_sub_U, hB'_sub, hτ_nn, hU_card_lb,
+    hA'_card_lb, hB'_card_lb, hUτ_bound, hA'_prop_clean, hpopCol_clean⟩
+
+/--
+**Pointwise count helper (step 5).** Given the witness from
+`graph_dependentRandomChoice_payoff_pointwise_witness`, partition the path-3 Finset
+`(B ×ˢ A).filter ((a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E)` by the
+second coordinate `q.2 = a₁ ∈ U`. For `a₁` that is a popular neighbour of
+`b` and a non-bad partner of `a`, the corresponding fiber has cardinality
+`≥ τ`. There are at least `(δ/8)|U|` such `a₁`, giving the final bound
+`(δ/8)|U| · τ ≥ (δ⁵/2¹²)|A|²`.
+-/
+private lemma graph_dependentRandomChoice_payoff_pointwise_count {G : Type*} [DecidableEq G]
+    (δ : ℝ) (A B : Finset G) (E : Finset (G × G)) (U A' B' : Finset G) (τ : ℝ)
+    (hU_sub : U ⊆ A) (_hA'_sub_U : A' ⊆ U) (_hB'_sub : B' ⊆ B)
+    (hτ_nn : 0 ≤ τ)
+    (hUτ_bound : (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤ (δ / 8) * (U.card : ℝ) * τ)
+    (hbadPartner : ∀ a ∈ A',
+      ((U.filter fun a₁ ↦
+        ((B.filter fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E).card : ℝ) < τ).card : ℝ)
+        ≤ (δ / 8) * (U.card : ℝ))
+    (hpopCol : ∀ b ∈ B',
+      (δ / 4) * (U.card : ℝ) ≤
+        ((U.filter fun a₁ ↦ (a₁, b) ∈ E).card : ℝ))
+    (a : G) (ha : a ∈ A') (b : G) (hb : b ∈ B') :
+    (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤
+      (((B ×ˢ A).filter fun q : G × G ↦
+        (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) := by
+  classical
+  -- "Popular neighbours of b in U" and "non-bad partners of a in U".
+  set Nb : Finset G := U.filter (fun a₁ ↦ (a₁, b) ∈ E) with hNb_def
+  set Bad : Finset G := U.filter (fun a₁ ↦
+    ((B.filter (fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E)).card : ℝ) < τ) with hBad_def
+  have hNb_lb : (δ / 4) * (U.card : ℝ) ≤ (Nb.card : ℝ) := hpopCol b hb
+  have hBad_ub : (Bad.card : ℝ) ≤ (δ / 8) * (U.card : ℝ) := hbadPartner a ha
+  -- Good := Nb \ Bad.  |Good| ≥ |Nb| - |Bad| ≥ (δ/8)|U|.
+  set Good : Finset G := Nb \ Bad with hGood_def
+  have hGood_sub_Nb : Good ⊆ Nb := Finset.sdiff_subset
+  have hNb_sub_U : Nb ⊆ U := Finset.filter_subset _ _
+  have hGood_sub_U : Good ⊆ U := hGood_sub_Nb.trans hNb_sub_U
+  have hGood_card_lb : (δ / 8) * (U.card : ℝ) ≤ (Good.card : ℝ) := by
+    -- |Nb \ Bad| ≥ |Nb| - |Bad|, via Nb ⊆ (Nb \ Bad) ∪ Bad.
+    have hUnion : Nb ⊆ (Nb \ Bad) ∪ Bad := by
+      intro x hx
+      by_cases hxBad : x ∈ Bad
+      · exact Finset.mem_union_right _ hxBad
+      · exact Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨hx, hxBad⟩)
+    have h1 : Nb.card ≤ ((Nb \ Bad) ∪ Bad).card := Finset.card_le_card hUnion
+    have h2 : ((Nb \ Bad) ∪ Bad).card ≤ (Nb \ Bad).card + Bad.card :=
+      Finset.card_union_le _ _
+    have hreal : (Nb.card : ℝ) ≤ ((Nb \ Bad).card : ℝ) + (Bad.card : ℝ) := by
+      have : (Nb.card : ℕ) ≤ (Nb \ Bad).card + Bad.card := le_trans h1 h2
+      exact_mod_cast this
+    have hGood_card_eq : ((Nb \ Bad).card : ℝ) = (Good.card : ℝ) := by
+      rw [hGood_def]
+    linarith [hreal, hNb_lb, hBad_ub, hGood_card_eq]
+  -- For each a₁ ∈ Good: (a₁, b) ∈ E and codeg_E(a, a₁) ≥ τ.
+  have hGood_codeg : ∀ a₁ ∈ Good,
+      τ ≤ ((B.filter fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E).card : ℝ) ∧ (a₁, b) ∈ E := by
+    intro a₁ ha₁
+    rw [hGood_def, Finset.mem_sdiff, hNb_def, Finset.mem_filter, hBad_def,
+      Finset.mem_filter] at ha₁
+    obtain ⟨⟨ha₁U, ha₁bE⟩, hnotBad⟩ := ha₁
+    refine ⟨?_, ha₁bE⟩
+    by_contra hlt
+    push Not at hlt
+    exact hnotBad ⟨ha₁U, hlt⟩
+  -- Path Finset of interest.
+  set paths : Finset (G × G) := (B ×ˢ A).filter fun q : G × G ↦
+    (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E with hpaths_def
+  -- Fiber over the second coordinate: for each a₁, witness pairs (b₁, a₁).
+  set fiber : G → Finset (G × G) := fun a₁ ↦
+    (B.filter (fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E)).image (fun b₁ ↦ (b₁, a₁))
+    with hfiber_def
+  -- fiber a₁ has the same cardinality as the inner filter (image of an injection).
+  have hfiber_card : ∀ a₁,
+      (fiber a₁).card = (B.filter (fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E)).card := by
+    intro a₁
+    rw [hfiber_def]
+    apply Finset.card_image_of_injective
+    intro x y hxy
+    exact (Prod.mk.injEq _ _ _ _).mp hxy |>.1
+  -- For a₁ ∈ Good, fiber a₁ ⊆ paths.
+  have hfiber_sub : ∀ a₁ ∈ Good, fiber a₁ ⊆ paths := by
+    intro a₁ ha₁ p hp
+    rw [hfiber_def, Finset.mem_image] at hp
+    obtain ⟨b₁, hb₁, hpeq⟩ := hp
+    rw [Finset.mem_filter] at hb₁
+    obtain ⟨hb₁B, habE, ha₁b₁E⟩ := hb₁
+    have ha₁U : a₁ ∈ U := hGood_sub_U ha₁
+    have ha₁A : a₁ ∈ A := hU_sub ha₁U
+    obtain ⟨_, ha₁bE⟩ := hGood_codeg a₁ ha₁
+    rw [hpaths_def, Finset.mem_filter, Finset.mem_product]
+    rw [← hpeq]
+    exact ⟨⟨hb₁B, ha₁A⟩, habE, ha₁b₁E, ha₁bE⟩
+  -- Pairwise disjointness of fibers (different a₁ → different second coord).
+  have hfiber_disjoint : (Good : Set G).PairwiseDisjoint fiber := by
+    intro x _ y _ hxy
+    refine Finset.disjoint_left.mpr ?_
+    intro p hpx hpy
+    rw [hfiber_def, Finset.mem_image] at hpx hpy
+    obtain ⟨bx, _, hpx_eq⟩ := hpx
+    obtain ⟨by_, _, hpy_eq⟩ := hpy
+    have hsnd : p.2 = x := by rw [← hpx_eq]
+    have hsnd' : p.2 = y := by rw [← hpy_eq]
+    exact hxy (hsnd.symm.trans hsnd')
+  -- |⋃_{a₁ ∈ Good} fiber a₁| = Σ_{a₁ ∈ Good} |fiber a₁|.
+  have hbiUnion_card : (Good.biUnion fiber).card = ∑ a₁ ∈ Good, (fiber a₁).card := by
+    exact Finset.card_biUnion (fun x hx y hy hxy ↦ hfiber_disjoint hx hy hxy)
+  -- The biUnion is contained in paths.
+  have hbiUnion_sub : Good.biUnion fiber ⊆ paths := by
+    intro p hp
+    rw [Finset.mem_biUnion] at hp
+    obtain ⟨a₁, ha₁, hp⟩ := hp
+    exact hfiber_sub a₁ ha₁ hp
+  have hcard_path_lb : (∑ a₁ ∈ Good, (fiber a₁).card : ℕ) ≤ paths.card := by
+    calc (∑ a₁ ∈ Good, (fiber a₁).card : ℕ)
+        = (Good.biUnion fiber).card := hbiUnion_card.symm
+      _ ≤ paths.card := Finset.card_le_card hbiUnion_sub
+  have hcard_path_lb_real : (∑ a₁ ∈ Good, ((fiber a₁).card : ℝ)) ≤ (paths.card : ℝ) := by
+    have h : ((∑ a₁ ∈ Good, (fiber a₁).card : ℕ) : ℝ) ≤ (paths.card : ℝ) := by
+      exact_mod_cast hcard_path_lb
+    push_cast at h; exact h
+  -- Σ_{a₁ ∈ Good} |fiber a₁| ≥ |Good| · τ.
+  have hsum_lb : (Good.card : ℝ) * τ ≤ ∑ a₁ ∈ Good, ((fiber a₁).card : ℝ) := by
+    rw [show (Good.card : ℝ) * τ = ∑ _a₁ ∈ Good, τ from by
+      rw [Finset.sum_const, nsmul_eq_mul]]
+    refine Finset.sum_le_sum fun a₁ ha₁ ↦ ?_
+    have hcard := hfiber_card a₁
+    have hcodeg := (hGood_codeg a₁ ha₁).1
+    have : ((fiber a₁).card : ℝ) =
+        ((B.filter (fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E)).card : ℝ) := by
+      exact_mod_cast hcard
+    rw [this]
+    exact hcodeg
+  -- Combine: paths ≥ |Good| · τ ≥ (δ/8)|U| · τ ≥ (δ⁵/2¹²)|A|².
+  have hGood_τ : (δ / 8) * (U.card : ℝ) * τ ≤ (Good.card : ℝ) * τ :=
+    mul_le_mul_of_nonneg_right hGood_card_lb hτ_nn
+  linarith [hUτ_bound, hGood_τ, hsum_lb, hcard_path_lb_real]
+
+/--
+**DRC payoff: pointwise path-3 count.** Given the pair-DRC witness `U ⊆ A`
+(from `graph_pair_dependentRandomChoice`), define the "non-bad" set
+`A' := { a ∈ U : few a' ∈ U with codegree < (δ³/2⁷) n }` and the "popular"
+set `B' := { b ∈ B : (δ/4) |U| ≤ |N_U(b)| }`. For `a ∈ A'`, `b ∈ B'`, the
+length-3 path count `P(a, b) ≥ (δ⁵ / 2¹²) n²`.
+
+Proof: of the `(δ/4)|U|` vertices in `U ∩ N(b)`, at most `(δ/8)|U|` are bad
+partners of `a`, leaving `≥ (δ/8)|U|` non-bad partners `a₁`. Each non-bad
+partner has `|N(a) ∩ N(a₁)| ≥ (δ³/2⁷) n` choices of `b₁`. Total:
+`P(a, b) ≥ (δ/8)|U| · (δ³/2⁷) n ≥ (δ/8)(δ/4)n · (δ³/128) n = (δ⁵/2¹²) n²`.
+-/
+lemma graph_dependentRandomChoice_payoff_pointwise {G : Type*} [DecidableEq G]
+    (δ : ℝ) (hδ_pos : 0 < δ) (hδ_le : δ ≤ 1)
+    (A B : Finset G) (hA : A.Nonempty) (hAB : A.card = B.card)
+    (E : Finset (G × G)) (hE_sub : E ⊆ A ×ˢ B)
+    (hE_dense : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ)) :
+    ∃ A' B' : Finset G, A' ⊆ A ∧ B' ⊆ B ∧
+      (δ / 8) * (A.card : ℝ) ≤ (A'.card : ℝ) ∧
+      (δ / 8) * (A.card : ℝ) ≤ (B'.card : ℝ) ∧
+      ∀ a ∈ A', ∀ b ∈ B',
+        (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤
+          (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) := by
+  classical
+  obtain ⟨U, A', B', τ, hU_sub, hA'_sub_U, hB'_sub, hτ_nn, _hU_card, hA'_card,
+    hB'_card, hUτ_bound, hbadPartner, hpopCol⟩ :=
+    graph_dependentRandomChoice_payoff_pointwise_witness δ hδ_pos hδ_le A B hA hAB E hE_sub hE_dense
+  refine ⟨A', B', hA'_sub_U.trans hU_sub, hB'_sub, hA'_card, hB'_card, ?_⟩
+  intro a ha b hb
+  exact graph_dependentRandomChoice_payoff_pointwise_count δ A B E U A' B' τ hU_sub hA'_sub_U hB'_sub
+    hτ_nn hUτ_bound hbadPartner hpopCol a ha b hb
+
+/--
+**Dense bipartite graph has a pointwise length-3 path rectangle (Fox-Sudakov
+Lemma 5.2 / Tao-Vu Cor. 6.20).** Given a bipartite graph `E ⊆ A ×ˢ B` of density
+`≥ δ` (with `|A| = |B|`), there exist subsets `A' ⊆ A`, `B' ⊆ B` of cardinality
+`≥ (δ / 8) · |A|` such that *every* pair `(a, b) ∈ A' × B'` admits at least
+`(δ^5 / 2^12) · |A|^2` length-3 paths `a — b₁ — a₁ — b` in `E`. The path
+multiplicity is **pointwise**, not averaged — this is what makes the bound
+linear when fed into the triple-rep count.
+
+Proof: dependent random choice (as implemented). (1) Restrict to the popular
+rows `A₁ := {a : deg_E(a) ≥ (δ/2)|B|}` and edges `E₁` out of them; `E₁` still
+has density `≥ δ/2`. (2) Pair-DRC (Fox-Sudakov 5.1): pick a *column* vertex
+`v ∈ B` uniformly and set the core `U := N_{E₁}(v) ⊆ A₁ ⊆ A`; by Cauchy-Schwarz
+a positive fraction of `v` give both `|U| ≥ (δ/4)|A|` and few "bad" ordered
+pairs `(a, a') ∈ U × U` of low codegree `|N(a) ∩ N(a')| < τ`. (3) `A' ⊆ U` is
+the Markov refinement to vertices with `≤ (δ/8)|U|` bad partners in `U`; (4)
+`B' ⊆ B` is the popular columns, those with `≥ (δ/4)|U|` neighbors inside `U`.
+The high pointwise codegree on `A'` combined with `B'`'s density in `U` forces
+`≥ (δ⁵/2¹²)|A|²` length-3 paths through every `(a, b) ∈ A' × B'`. References:
+Fox-Sudakov, *Dependent Random Choice* (2011), Lemma 5.2; Tao-Vu, *Additive
+Combinatorics*, §6.4, Cor. 6.20.
+-/
+lemma dense_bipartite_has_path3_rectangle {G : Type*} [AddCommGroup G] [DecidableEq G]
+    (δ : ℝ) (hδ_pos : 0 < δ) (hδ_le : δ ≤ 1)
+    (A B : Finset G) (hA : A.Nonempty) (hAB : A.card = B.card)
+    (E : Finset (G × G)) (hE_sub : E ⊆ A ×ˢ B)
+    (hE_dense : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ)) :
+    ∃ A' B' : Finset G, A' ⊆ A ∧ B' ⊆ B ∧
+      (δ / 8) * (A.card : ℝ) ≤ (A'.card : ℝ) ∧
+      (δ / 8) * (A.card : ℝ) ≤ (B'.card : ℝ) ∧
+      ∀ a ∈ A', ∀ b ∈ B',
+        (δ^5 / 2^12) * (A.card : ℝ)^2 ≤
+          (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) := by
+  classical
+  -- The Fox-Sudakov DRC payload is packaged in `graph_dependentRandomChoice_payoff_pointwise`,
+  -- which assembles `graph_pair_dependentRandomChoice`, `graph_high_degree_subset_lb`, and the
+  -- final pointwise path-3 count step (see those lemmas for the breakdown).
+  exact graph_dependentRandomChoice_payoff_pointwise δ hδ_pos hδ_le A B hA hAB E hE_sub hE_dense
+
+/--
+**Graph-BSG step C (length-3 path multiplicity).** Substantive content of the
+Balog-Szemerédi-Gowers reduction. Given finite sets `A`, `B` of equal
+cardinality `n`, a dense bipartite graph `E ⊆ A ×ˢ B` with `|E| ≥ δ · n²`,
+and the *restricted sumset* `S := {a+b : (a,b) ∈ E}` of size `|S| ≤ K · n`,
+there exist subsets `A' ⊆ A`, `B' ⊆ B` of size `≥ c(δ,K) · n` each whose
+ordinary sumset is small: `|A' + B'| ≤ C(δ,K) · n`.
+
+The mechanism is the length-3 path argument with multiplicity denominator: for
+`a ∈ A'`, `b ∈ B'`, length-3 paths `a — b₁ — a₁ — b` in `E` give
+representations `a + b = (a + b₁) − (a₁ + b₁) + (a₁ + b)` with all three
+terms in `S`. Each pair `(a, b)` admits `Ω(δ^O(1) · n²)` such paths by
+Cauchy-Schwarz on `E`. The cubic support count `|S − S + S| ≤ |S|³ ≤ K³ n³`
+divided by the path-multiplicity lower bound yields the linear bound.
+
+The key ingredient is to count length-3 paths *with multiplicity*: counting
+only the support of the representation set (rather than multiplicity) is
+insufficient. Tao–Vu §6.4 (proof of Theorem 2.29) / Petridis 2012.
+-/
+lemma graph_balogSzemerediGowers_restricted_sumset {G : Type*} [AddCommGroup G] [DecidableEq G] :
+    ∀ δ K : ℝ, 0 < δ → 0 < K → ∃ c C : ℝ, 0 < c ∧ 0 < C ∧
+      ∀ A B : Finset G, A.Nonempty → B.Nonempty → A.card = B.card →
+        ∀ E : Finset (G × G), E ⊆ A ×ˢ B →
+          δ * (A.card : ℝ) ^ 2 ≤ (E.card : ℝ) →
+          ((E.image (fun p ↦ p.1 + p.2)).card : ℝ) ≤ K * (A.card : ℝ) →
+          ∃ A' B' : Finset G, A' ⊆ A ∧ B' ⊆ B ∧
+            c * (A.card : ℝ) ≤ (A'.card : ℝ) ∧
+            c * (A.card : ℝ) ≤ (B'.card : ℝ) ∧
+            ((A' + B').card : ℝ) ≤ C * (A.card : ℝ) := by
+  -- ## High-level proof structure (length-3 path multiplicity argument).
+  --
+  -- Constants:
+  -- * c := δ / 8 (from `dense_bipartite_has_path3_rectangle`, Fox-Sudakov DRC).
+  -- * C := 2^13 K³ / δ^5 + 2^12 / δ^5, the path-multiplicity bound,
+  --   absorbing both the M ≥ 1 and M = 0 sub-cases (triple-counting step in
+  --   the proof of Tao-Vu Theorem 2.29, §6.4).
+  intro δ K hδ hK
+  refine ⟨δ / 8, 2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5,
+    by positivity, by positivity, ?_⟩
+  intro A B hA hB hAB E hE_sub hE_lb hS_ub
+  -- Local abbreviations.
+  set n : ℕ := A.card with hn_def
+  have hn_pos : 0 < n := hA.card_pos
+  have hn_real_pos : (0 : ℝ) < (n : ℝ) := by exact_mod_cast hn_pos
+  have hn_nn : (0 : ℝ) ≤ (n : ℝ) := le_of_lt hn_real_pos
+  have hBcard_nat : B.card = n := hAB.symm
+  have hBcard : (B.card : ℝ) = (n : ℝ) := by exact_mod_cast hBcard_nat
+  -- Compose the three sub-lemmas: `dense_bipartite_has_path3_rectangle` for
+  -- the pointwise path-3 lower bound, `path3_count_le_triple_rep_count` for
+  -- the path-to-triple-rep bridge, `restricted_sumset_via_multiplicity` for
+  -- the cubic divisor. The Apop/Bpop scaffolding that previously prefixed
+  -- this proof has been deleted; DRC supplies its own A', B' refinement.
+  -- We must first handle the degenerate case `δ > 1`, which is vacuous
+  -- since `δ · n² ≤ |E| ≤ n²`.
+  by_cases hδ_le : δ ≤ 1
+  · -- ### Substantive case: δ ≤ 1. Compose the three sub-lemmas.
+    -- Restricted sumset image S.
+    set S : Finset G := E.image (fun p ↦ p.1 + p.2) with hS_def
+    have hSdef : ∀ p ∈ E, p.1 + p.2 ∈ S := by
+      intro p hp; exact Finset.mem_image_of_mem _ hp
+    -- Convert hE_lb : δ · n² ≤ |E| to the rectangle form δ · |A| · |B| ≤ |E|.
+    have hE_lb_rect : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ) := by
+      have hsq : δ * (A.card : ℝ) ^ 2 = δ * (A.card : ℝ) * (B.card : ℝ) := by
+        rw [hBcard, hn_def]; ring
+      linarith [hE_lb, hsq.le, hsq.symm.le]
+    -- Apply DRC pointwise path-3 rectangle.
+    obtain ⟨A', B', hA'_sub, hB'_sub, hA'_card, hB'_card, hP_lb⟩ :=
+      dense_bipartite_has_path3_rectangle δ hδ hδ_le A B hA hAB E hE_sub hE_lb_rect
+    -- Set the integer floor multiplicity M.
+    set M : ℕ := Nat.floor ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) with hM_def
+    have hM_arg_nn : 0 ≤ (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 := by positivity
+    have hM_floor_le : (M : ℝ) ≤ (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 :=
+      Nat.floor_le hM_arg_nn
+    have hM_floor_ge : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 - 1 < (M : ℝ) := by
+      have h : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 <
+          (Nat.floor ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) : ℝ) + 1 :=
+        Nat.lt_floor_add_one ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2)
+      have hMeq : (M : ℝ) = (Nat.floor ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) : ℝ) := by
+        rfl
+      rw [hMeq]; linarith
+    -- Pointwise lower bound on the triple-rep count via the path-3 bridge.
+    have hM_cover : ∀ a ∈ A', ∀ b ∈ B',
+        M ≤ ((S ×ˢ S ×ˢ S).filter
+              (fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b)).card := by
+      intro a ha b hb
+      have hP : (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤
+          (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) :=
+        hP_lb a ha b hb
+      have hP_n : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 ≤
+          (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) := by
+        rw [hn_def]; exact hP
+      have hbridge : (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℕ)
+          ≤ ((S ×ˢ S ×ˢ S).filter
+              fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card :=
+        path3_count_le_triple_rep_count A B S E hSdef a b
+      have hbridge_R : (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ)
+          ≤ (((S ×ˢ S ×ˢ S).filter
+              fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card : ℝ) := by
+        exact_mod_cast hbridge
+      have hMR : (M : ℝ) ≤ (((S ×ˢ S ×ˢ S).filter
+              fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card : ℝ) :=
+        le_trans hM_floor_le (le_trans hP_n hbridge_R)
+      exact_mod_cast hMR
+    -- Apply restricted-sumset-via-multiplicity to obtain M · |A'+B'| ≤ |S|^3.
+    have hMS3 : M * (A' + B').card ≤ S.card ^ 3 :=
+      restricted_sumset_via_multiplicity A' B' S M hM_cover
+    have hMS3_R : (M : ℝ) * ((A' + B').card : ℝ) ≤ ((S.card : ℝ)) ^ 3 := by
+      have h := hMS3
+      have hh : ((M * (A' + B').card : ℕ) : ℝ) ≤ ((S.card ^ 3 : ℕ) : ℝ) := by
+        exact_mod_cast h
+      push_cast at hh; exact hh
+    -- Bound |S|^3 ≤ K^3 · n^3.
+    have hS_card_nn : (0 : ℝ) ≤ (S.card : ℝ) := Nat.cast_nonneg _
+    have hSn_ub : (S.card : ℝ) ≤ K * (n : ℝ) := by
+      have := hS_ub; rw [hn_def]; exact this
+    have hSn_cube_ub : (S.card : ℝ) ^ 3 ≤ K ^ 3 * (n : ℝ) ^ 3 := by
+      have h2 : (S.card : ℝ) ^ 3 ≤ (K * (n : ℝ)) ^ 3 :=
+        pow_le_pow_left₀ hS_card_nn hSn_ub 3
+      have heq : (K * (n : ℝ)) ^ 3 = K ^ 3 * (n : ℝ) ^ 3 := by ring
+      rw [heq] at h2; exact h2
+    -- Combine: M · |A' + B'| ≤ K^3 · n^3.
+    have hMSc : (M : ℝ) * ((A' + B').card : ℝ) ≤ K ^ 3 * (n : ℝ) ^ 3 :=
+      le_trans hMS3_R hSn_cube_ub
+    -- Refine to existential. The c · n bounds are exactly hA'_card, hB'_card
+    -- since c = δ / 8 matches what DRC gave us; the |A' + B'| ≤ C · n bound
+    -- requires case-splitting on M.
+    refine ⟨A', B', hA'_sub, hB'_sub, ?_, ?_, ?_⟩
+    · -- (δ/8) · |A| ≤ |A'|
+      have h := hA'_card
+      rw [hn_def]; exact h
+    · -- (δ/8) · |A| ≤ |B'|
+      have h := hB'_card
+      rw [hn_def]; exact h
+    · -- |A' + B'| ≤ C · n
+      -- Two sub-cases: M = 0 or M ≥ 1.
+      -- Constants we'll absorb into the final C = 2^13 K^3 / δ^5 + 2^12 / δ^5.
+      have hδ5_pos : (0 : ℝ) < δ ^ 5 := by positivity
+      have h2pow12_pos : (0 : ℝ) < (2 : ℝ) ^ 12 := by positivity
+      have h2pow13_pos : (0 : ℝ) < (2 : ℝ) ^ 13 := by positivity
+      have hK3_pos : (0 : ℝ) < K ^ 3 := by positivity
+      have h_AplusB_nn : (0 : ℝ) ≤ ((A' + B').card : ℝ) := Nat.cast_nonneg _
+      have hConstC_nn : (0 : ℝ) ≤ 2 ^ 12 / δ ^ 5 := by positivity
+      have hConstC1_nn : (0 : ℝ) ≤ 2 ^ 13 * K ^ 3 / δ ^ 5 := by positivity
+      by_cases hM_zero : M = 0
+      · -- M = 0 ⇒ (δ^5 / 2^12) · n² < 1 ⇒ n² < 2^12 / δ^5.
+        have hM0R : (M : ℝ) = 0 := by exact_mod_cast hM_zero
+        have hsmall : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 < 1 := by
+          have h := hM_floor_ge; rw [hM0R] at h; linarith
+        have hn2_ub : (n : ℝ) ^ 2 < 2 ^ 12 / δ ^ 5 := by
+          have hpow_inv : (0 : ℝ) < 2 ^ 12 / δ ^ 5 := by positivity
+          have hh : (n : ℝ) ^ 2 = ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) * (2 ^ 12 / δ ^ 5) := by
+            field_simp
+          rw [hh]
+          have h_ineq : ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) * (2 ^ 12 / δ ^ 5) <
+              1 * (2 ^ 12 / δ ^ 5) :=
+            mul_lt_mul_of_pos_right hsmall hpow_inv
+          linarith
+        -- Crude bound: |A'+B'| ≤ |A'|·|B'| ≤ n·n = n².
+        have hAplusB_le_prod : (A' + B').card ≤ A'.card * B'.card :=
+          Finset.card_add_le
+        have hA'_le_n : A'.card ≤ n := by
+          have := Finset.card_le_card hA'_sub
+          rw [← hn_def] at this; exact this
+        have hB'_le_n : B'.card ≤ n := by
+          have := Finset.card_le_card hB'_sub
+          rw [hBcard_nat] at this; exact this
+        have hA'B'_le_n2_nat : A'.card * B'.card ≤ n * n := by
+          exact Nat.mul_le_mul hA'_le_n hB'_le_n
+        have hAplusB_le_n2 : (A' + B').card ≤ n * n :=
+          le_trans hAplusB_le_prod hA'B'_le_n2_nat
+        have hAplusB_le_n2R : ((A' + B').card : ℝ) ≤ (n : ℝ) ^ 2 := by
+          have h : ((A' + B').card : ℝ) ≤ ((n * n : ℕ) : ℝ) := by exact_mod_cast hAplusB_le_n2
+          push_cast at h
+          have heq : (n : ℝ) * (n : ℝ) = (n : ℝ) ^ 2 := by ring
+          linarith
+        have hAplusB_lt_const : ((A' + B').card : ℝ) < 2 ^ 12 / δ ^ 5 :=
+          lt_of_le_of_lt hAplusB_le_n2R hn2_ub
+        -- Now 2^12/δ^5 ≤ (2^12/δ^5) · n since 1 ≤ n.
+        have hn_ge_one : (1 : ℝ) ≤ (n : ℝ) := by exact_mod_cast hn_pos
+        have hconst_le : 2 ^ 12 / δ ^ 5 ≤ (2 ^ 12 / δ ^ 5) * (n : ℝ) := by
+          have := mul_le_mul_of_nonneg_left hn_ge_one hConstC_nn
+          simpa using this
+        have hAplusB_le_constn : ((A' + B').card : ℝ) ≤ (2 ^ 12 / δ ^ 5) * (n : ℝ) :=
+          le_trans (le_of_lt hAplusB_lt_const) hconst_le
+        -- Combine: 2^12/δ^5 · n ≤ (2^13 K^3 / δ^5 + 2^12 / δ^5) · n.
+        have hsum_expand : (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) =
+            (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) + (2 ^ 12 / δ ^ 5) * (n : ℝ) := by ring
+        have hC1n_nn : 0 ≤ (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) :=
+          mul_nonneg hConstC1_nn hn_nn
+        have hcomb : (2 ^ 12 / δ ^ 5) * (n : ℝ) ≤
+            (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) := by
+          rw [hsum_expand]; linarith
+        linarith
+      · -- M ≥ 1. Then M + 1 ≤ 2M, hence 2M > (δ^5/2^12)·n², so M > (δ^5/2^13)·n².
+        have hM_ge_one : 1 ≤ M := Nat.one_le_iff_ne_zero.mpr hM_zero
+        have hM_geR : (1 : ℝ) ≤ (M : ℝ) := by exact_mod_cast hM_ge_one
+        have hM_pos_R : (0 : ℝ) < (M : ℝ) := lt_of_lt_of_le zero_lt_one hM_geR
+        have h_two_M : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 ≤ 2 * (M : ℝ) := by
+          have h1 := hM_floor_ge -- (δ^5/2^12)·n² - 1 < M
+          linarith
+        have h_M_lower : (δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2 ≤ (M : ℝ) := by
+          have h_div : (δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2 =
+              ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) / 2 := by ring
+          rw [h_div]; linarith
+        -- Multiply the lower bound on M by |A'+B'|:
+        -- (δ^5/2^13)·n² · |A'+B'| ≤ M · |A'+B'| ≤ K^3 · n^3.
+        have h_mul1 : ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((A' + B').card : ℝ) ≤
+            (M : ℝ) * ((A' + B').card : ℝ) := by
+          exact mul_le_mul_of_nonneg_right h_M_lower h_AplusB_nn
+        have h_chain : ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((A' + B').card : ℝ) ≤
+            K ^ 3 * (n : ℝ) ^ 3 := le_trans h_mul1 hMSc
+        -- Divide by (δ^5/2^13)·n² > 0 to get |A'+B'| ≤ (2^13 K^3 / δ^5) · n.
+        have h_div_pos : (0 : ℝ) < (δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2 := by positivity
+        have hδ5_ne : (δ ^ 5 : ℝ) ≠ 0 := ne_of_gt hδ5_pos
+        have h_target_eq : K ^ 3 * (n : ℝ) ^ 3 =
+            ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ)) := by
+          rw [show ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ)) =
+              (δ ^ 5 / δ ^ 5) * (K ^ 3 * (n : ℝ) ^ 3) by ring]
+          rw [div_self hδ5_ne, one_mul]
+        rw [h_target_eq] at h_chain
+        have h_AplusB_le_lin : ((A' + B').card : ℝ) ≤ (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) :=
+          le_of_mul_le_mul_left h_chain h_div_pos
+        -- Absorb into C.
+        have hC2n_nn : 0 ≤ (2 ^ 12 / δ ^ 5) * (n : ℝ) := mul_nonneg hConstC_nn hn_nn
+        have h_final_const_ineq :
+            (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) ≤
+              (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) := by
+          have hexpand : (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) =
+              (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) + (2 ^ 12 / δ ^ 5) * (n : ℝ) := by ring
+          rw [hexpand]; linarith
+        linarith
+  · -- ### Vacuous case: δ > 1. Then |E| ≤ n² but δ·n² ≤ |E|, contradiction.
+    exfalso
+    push Not at hδ_le  -- 1 < δ
+    have hE_le_AB : E.card ≤ (A ×ˢ B).card := Finset.card_le_card hE_sub
+    have hAB_card : (A ×ˢ B).card = n * n := by
+      rw [Finset.card_product, ← hn_def, hBcard_nat]
+    have hE_le_n2_nat : E.card ≤ n * n := by rw [← hAB_card]; exact hE_le_AB
+    have hE_le_n2 : (E.card : ℝ) ≤ (n : ℝ) ^ 2 := by
+      have h : ((E.card : ℕ) : ℝ) ≤ ((n * n : ℕ) : ℝ) := by exact_mod_cast hE_le_n2_nat
+      push_cast at h
+      have heq : (n : ℝ) * (n : ℝ) = (n : ℝ) ^ 2 := by ring
+      linarith
+    have hδn2 : δ * (n : ℝ) ^ 2 ≤ (E.card : ℝ) := by
+      have h := hE_lb; rw [hn_def]; exact h
+    -- So δ · n² ≤ n², hence δ ≤ 1 (since n² > 0), contradicting 1 < δ.
+    have hn2_pos : (0 : ℝ) < (n : ℝ) ^ 2 := by positivity
+    have hδ_le_one : δ ≤ 1 := by
+      have h1 : δ * (n : ℝ) ^ 2 ≤ (n : ℝ) ^ 2 := le_trans hδn2 hE_le_n2
+      have h2 : δ * (n : ℝ) ^ 2 ≤ 1 * (n : ℝ) ^ 2 := by linarith
+      exact le_of_mul_le_mul_right h2 hn2_pos
+    linarith
+
+
+/--
+**Graph-BSG step C (length-3 path multiplicity), explicit-constant
+form.** Sibling of `graph_balogSzemerediGowers_restricted_sumset` that exposes the
+witnesses `c = δ/8` and `C = 2^13 K^3/δ^5 + 2^12/δ^5` in the theorem
+type rather than under an existential. Required by downstream
+consumers (e.g. `popular_lambda_to_polylog_doubling`) that need to
+read off the polynomial-in-`δ`-and-`K` scaling. Same proof body as the
+qualitative form; the only change is moving the witnesses from the
+`refine ⟨…⟩` line into the signature.
+-/
+lemma graph_balogSzemerediGowers_restricted_sumset_explicit {G : Type*} [AddCommGroup G] [DecidableEq G]
+    (δ K : ℝ) (hδ : 0 < δ) (hK : 0 < K)
+    (A B : Finset G) (hA : A.Nonempty) (_hB : B.Nonempty) (hAB : A.card = B.card)
+    (E : Finset (G × G)) (hE_sub : E ⊆ A ×ˢ B)
+    (hE_lb : δ * (A.card : ℝ) ^ 2 ≤ (E.card : ℝ))
+    (hS_ub : ((E.image (fun p ↦ p.1 + p.2)).card : ℝ) ≤ K * (A.card : ℝ)) :
+    ∃ A' B' : Finset G, A' ⊆ A ∧ B' ⊆ B ∧
+      (δ / 8) * (A.card : ℝ) ≤ (A'.card : ℝ) ∧
+      (δ / 8) * (A.card : ℝ) ≤ (B'.card : ℝ) ∧
+      ((A' + B').card : ℝ) ≤ (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (A.card : ℝ) := by
+  -- Local abbreviations.
+  set n : ℕ := A.card with hn_def
+  have hn_pos : 0 < n := hA.card_pos
+  have hn_real_pos : (0 : ℝ) < (n : ℝ) := by exact_mod_cast hn_pos
+  have hn_nn : (0 : ℝ) ≤ (n : ℝ) := le_of_lt hn_real_pos
+  have hBcard_nat : B.card = n := hAB.symm
+  have hBcard : (B.card : ℝ) = (n : ℝ) := by exact_mod_cast hBcard_nat
+  by_cases hδ_le : δ ≤ 1
+  · -- ### Substantive case: δ ≤ 1.
+    set S : Finset G := E.image (fun p ↦ p.1 + p.2) with hS_def
+    have hSdef : ∀ p ∈ E, p.1 + p.2 ∈ S := by
+      intro p hp; exact Finset.mem_image_of_mem _ hp
+    have hE_lb_rect : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ) := by
+      have hsq : δ * (A.card : ℝ) ^ 2 = δ * (A.card : ℝ) * (B.card : ℝ) := by
+        rw [hBcard, hn_def]; ring
+      linarith [hE_lb, hsq.le, hsq.symm.le]
+    obtain ⟨A', B', hA'_sub, hB'_sub, hA'_card, hB'_card, hP_lb⟩ :=
+      dense_bipartite_has_path3_rectangle δ hδ hδ_le A B hA hAB E hE_sub hE_lb_rect
+    set M : ℕ := Nat.floor ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) with hM_def
+    have hM_arg_nn : 0 ≤ (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 := by positivity
+    have hM_floor_le : (M : ℝ) ≤ (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 :=
+      Nat.floor_le hM_arg_nn
+    have hM_floor_ge : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 - 1 < (M : ℝ) := by
+      have h : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 <
+          (Nat.floor ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) : ℝ) + 1 :=
+        Nat.lt_floor_add_one ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2)
+      have hMeq : (M : ℝ) = (Nat.floor ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) : ℝ) := by
+        rfl
+      rw [hMeq]; linarith
+    have hM_cover : ∀ a ∈ A', ∀ b ∈ B',
+        M ≤ ((S ×ˢ S ×ˢ S).filter
+              (fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b)).card := by
+      intro a ha b hb
+      have hP : (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤
+          (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) :=
+        hP_lb a ha b hb
+      have hP_n : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 ≤
+          (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) := by
+        rw [hn_def]; exact hP
+      have hbridge : (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℕ)
+          ≤ ((S ×ˢ S ×ˢ S).filter
+              fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card :=
+        path3_count_le_triple_rep_count A B S E hSdef a b
+      have hbridge_R : (((B ×ˢ A).filter fun q : G × G ↦
+            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ)
+          ≤ (((S ×ˢ S ×ˢ S).filter
+              fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card : ℝ) := by
+        exact_mod_cast hbridge
+      have hMR : (M : ℝ) ≤ (((S ×ˢ S ×ˢ S).filter
+              fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card : ℝ) :=
+        le_trans hM_floor_le (le_trans hP_n hbridge_R)
+      exact_mod_cast hMR
+    have hMS3 : M * (A' + B').card ≤ S.card ^ 3 :=
+      restricted_sumset_via_multiplicity A' B' S M hM_cover
+    have hMS3_R : (M : ℝ) * ((A' + B').card : ℝ) ≤ ((S.card : ℝ)) ^ 3 := by
+      have h := hMS3
+      have hh : ((M * (A' + B').card : ℕ) : ℝ) ≤ ((S.card ^ 3 : ℕ) : ℝ) := by
+        exact_mod_cast h
+      push_cast at hh; exact hh
+    have hS_card_nn : (0 : ℝ) ≤ (S.card : ℝ) := Nat.cast_nonneg _
+    have hSn_ub : (S.card : ℝ) ≤ K * (n : ℝ) := by
+      have := hS_ub; rw [hn_def]; exact this
+    have hSn_cube_ub : (S.card : ℝ) ^ 3 ≤ K ^ 3 * (n : ℝ) ^ 3 := by
+      have h2 : (S.card : ℝ) ^ 3 ≤ (K * (n : ℝ)) ^ 3 :=
+        pow_le_pow_left₀ hS_card_nn hSn_ub 3
+      have heq : (K * (n : ℝ)) ^ 3 = K ^ 3 * (n : ℝ) ^ 3 := by ring
+      rw [heq] at h2; exact h2
+    have hMSc : (M : ℝ) * ((A' + B').card : ℝ) ≤ K ^ 3 * (n : ℝ) ^ 3 :=
+      le_trans hMS3_R hSn_cube_ub
+    refine ⟨A', B', hA'_sub, hB'_sub, ?_, ?_, ?_⟩
+    · -- (δ/8) · |A| ≤ |A'|
+      have h := hA'_card
+      rw [hn_def]; exact h
+    · -- (δ/8) · |A| ≤ |B'|
+      have h := hB'_card
+      rw [hn_def]; exact h
+    · -- |A' + B'| ≤ C · n
+      have hδ5_pos : (0 : ℝ) < δ ^ 5 := by positivity
+      have h_AplusB_nn : (0 : ℝ) ≤ ((A' + B').card : ℝ) := Nat.cast_nonneg _
+      have hConstC_nn : (0 : ℝ) ≤ 2 ^ 12 / δ ^ 5 := by positivity
+      have hConstC1_nn : (0 : ℝ) ≤ 2 ^ 13 * K ^ 3 / δ ^ 5 := by positivity
+      by_cases hM_zero : M = 0
+      · have hM0R : (M : ℝ) = 0 := by exact_mod_cast hM_zero
+        have hsmall : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 < 1 := by
+          have h := hM_floor_ge; rw [hM0R] at h; linarith
+        have hn2_ub : (n : ℝ) ^ 2 < 2 ^ 12 / δ ^ 5 := by
+          have hpow_inv : (0 : ℝ) < 2 ^ 12 / δ ^ 5 := by positivity
+          have hh : (n : ℝ) ^ 2 = ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) * (2 ^ 12 / δ ^ 5) := by
+            field_simp
+          rw [hh]
+          have h_ineq : ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) * (2 ^ 12 / δ ^ 5) <
+              1 * (2 ^ 12 / δ ^ 5) :=
+            mul_lt_mul_of_pos_right hsmall hpow_inv
+          linarith
+        have hAplusB_le_prod : (A' + B').card ≤ A'.card * B'.card :=
+          Finset.card_add_le
+        have hA'_le_n : A'.card ≤ n := by
+          have := Finset.card_le_card hA'_sub
+          rw [← hn_def] at this; exact this
+        have hB'_le_n : B'.card ≤ n := by
+          have := Finset.card_le_card hB'_sub
+          rw [hBcard_nat] at this; exact this
+        have hA'B'_le_n2_nat : A'.card * B'.card ≤ n * n := by
+          exact Nat.mul_le_mul hA'_le_n hB'_le_n
+        have hAplusB_le_n2 : (A' + B').card ≤ n * n :=
+          le_trans hAplusB_le_prod hA'B'_le_n2_nat
+        have hAplusB_le_n2R : ((A' + B').card : ℝ) ≤ (n : ℝ) ^ 2 := by
+          have h : ((A' + B').card : ℝ) ≤ ((n * n : ℕ) : ℝ) := by exact_mod_cast hAplusB_le_n2
+          push_cast at h
+          have heq : (n : ℝ) * (n : ℝ) = (n : ℝ) ^ 2 := by ring
+          linarith
+        have hAplusB_lt_const : ((A' + B').card : ℝ) < 2 ^ 12 / δ ^ 5 :=
+          lt_of_le_of_lt hAplusB_le_n2R hn2_ub
+        have hn_ge_one : (1 : ℝ) ≤ (n : ℝ) := by exact_mod_cast hn_pos
+        have hconst_le : 2 ^ 12 / δ ^ 5 ≤ (2 ^ 12 / δ ^ 5) * (n : ℝ) := by
+          have := mul_le_mul_of_nonneg_left hn_ge_one hConstC_nn
+          simpa using this
+        have hAplusB_le_constn : ((A' + B').card : ℝ) ≤ (2 ^ 12 / δ ^ 5) * (n : ℝ) :=
+          le_trans (le_of_lt hAplusB_lt_const) hconst_le
+        have hsum_expand : (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) =
+            (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) + (2 ^ 12 / δ ^ 5) * (n : ℝ) := by ring
+        have hC1n_nn : 0 ≤ (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) :=
+          mul_nonneg hConstC1_nn hn_nn
+        have hcomb : (2 ^ 12 / δ ^ 5) * (n : ℝ) ≤
+            (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) := by
+          rw [hsum_expand]; linarith
+        linarith
+      · have hM_ge_one : 1 ≤ M := Nat.one_le_iff_ne_zero.mpr hM_zero
+        have hM_geR : (1 : ℝ) ≤ (M : ℝ) := by exact_mod_cast hM_ge_one
+        have h_two_M : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 ≤ 2 * (M : ℝ) := by
+          have h1 := hM_floor_ge; linarith
+        have h_M_lower : (δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2 ≤ (M : ℝ) := by
+          have h_div : (δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2 =
+              ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) / 2 := by ring
+          rw [h_div]; linarith
+        have h_mul1 : ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((A' + B').card : ℝ) ≤
+            (M : ℝ) * ((A' + B').card : ℝ) := by
+          exact mul_le_mul_of_nonneg_right h_M_lower h_AplusB_nn
+        have h_chain : ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((A' + B').card : ℝ) ≤
+            K ^ 3 * (n : ℝ) ^ 3 := le_trans h_mul1 hMSc
+        have h_div_pos : (0 : ℝ) < (δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2 := by positivity
+        have hδ5_ne : (δ ^ 5 : ℝ) ≠ 0 := ne_of_gt hδ5_pos
+        have h_target_eq : K ^ 3 * (n : ℝ) ^ 3 =
+            ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ)) := by
+          rw [show ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ)) =
+              (δ ^ 5 / δ ^ 5) * (K ^ 3 * (n : ℝ) ^ 3) by ring]
+          rw [div_self hδ5_ne, one_mul]
+        rw [h_target_eq] at h_chain
+        have h_AplusB_le_lin : ((A' + B').card : ℝ) ≤ (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) :=
+          le_of_mul_le_mul_left h_chain h_div_pos
+        have hC2n_nn : 0 ≤ (2 ^ 12 / δ ^ 5) * (n : ℝ) := mul_nonneg hConstC_nn hn_nn
+        have h_final_const_ineq :
+            (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) ≤
+              (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) := by
+          have hexpand : (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) =
+              (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) + (2 ^ 12 / δ ^ 5) * (n : ℝ) := by ring
+          rw [hexpand]; linarith
+        linarith
+  · -- ### Vacuous case: δ > 1. Then |E| ≤ n² but δ·n² ≤ |E|, contradiction.
+    exfalso
+    push Not at hδ_le
+    have hE_le_AB : E.card ≤ (A ×ˢ B).card := Finset.card_le_card hE_sub
+    have hAB_card : (A ×ˢ B).card = n * n := by
+      rw [Finset.card_product, ← hn_def, hBcard_nat]
+    have hE_le_n2_nat : E.card ≤ n * n := by rw [← hAB_card]; exact hE_le_AB
+    have hE_le_n2 : (E.card : ℝ) ≤ (n : ℝ) ^ 2 := by
+      have h : ((E.card : ℕ) : ℝ) ≤ ((n * n : ℕ) : ℝ) := by exact_mod_cast hE_le_n2_nat
+      push_cast at h
+      have heq : (n : ℝ) * (n : ℝ) = (n : ℝ) ^ 2 := by ring
+      linarith
+    have hδn2 : δ * (n : ℝ) ^ 2 ≤ (E.card : ℝ) := by
+      have h := hE_lb; rw [hn_def]; exact h
+    have hn2_pos : (0 : ℝ) < (n : ℝ) ^ 2 := by positivity
+    have hδ_le_one : δ ≤ 1 := by
+      have h1 : δ * (n : ℝ) ^ 2 ≤ (n : ℝ) ^ 2 := le_trans hδn2 hE_le_n2
+      have h2 : δ * (n : ℝ) ^ 2 ≤ 1 * (n : ℝ) ^ 2 := by linarith
+      exact le_of_mul_le_mul_right h2 hn2_pos
+    linarith
+
+/--
+**Balog-Szemerédi-Gowers (asymmetric, equal-cardinality, qualitative
+form).** For every `η > 0` there exist positive `c, C` such that whenever
+`X`, `Y` are finite subsets of an additive commutative group with
+`|X| = |Y| =: n` and mixed additive energy `E[X,Y] ≥ η · n³`, there are
+subsets `X' ⊆ X` and `Y' ⊆ Y` of size `≥ c · n` each whose difference set is
+bounded: `|X' - Y'| ≤ C · n`. This is the two-set form with `|X| = |Y|`; the
+general asymmetric form with `|X| ≠ |Y|` is not treated here.
+-/
+theorem balog_szemeredi_gowers_asymmetric {G : Type*} [AddCommGroup G] [DecidableEq G] :
+    ∀ η : ℝ, 0 < η → ∃ c C : ℝ, 0 < c ∧ 0 < C ∧
+      ∀ X Y : Finset G, X.Nonempty → Y.Nonempty → X.card = Y.card →
+        η * (X.card : ℝ) ^ 3 ≤ (Finset.addEnergy X Y : ℝ) →
+        ∃ X' Y' : Finset G, X' ⊆ X ∧ Y' ⊆ Y ∧
+          c * (X.card : ℝ) ≤ (X'.card : ℝ) ∧
+          c * (Y.card : ℝ) ≤ (Y'.card : ℝ) ∧
+          ((X' - Y').card : ℝ) ≤ C * (X.card : ℝ) := by
+  intro η hη
+  -- Outer constants: graph_balogSzemerediGowers_restricted_sumset with (δ := η/2, K := 4/η), then
+  -- Ruzsa adapter.
+  obtain ⟨c₀, C₀, hc₀, hC₀, hGraphBSG⟩ :=
+    graph_balogSzemerediGowers_restricted_sumset (G := G) (η / 2) (4 / η) (by linarith) (by positivity)
+  -- Final constants
+  refine ⟨min c₀ (η / 4), (C₀ / c₀) ^ 3 / c₀ + 1, ?_, ?_, ?_⟩
+  · exact lt_min hc₀ (by linarith)
+  · have hpos : 0 < (C₀ / c₀) ^ 3 / c₀ := by positivity
+    linarith
+  intro X Y hX hY hXY hE
+  set n : ℕ := X.card with hn_def
+  have hYcard : Y.card = n := hXY.symm
+  have hnpos : 0 < n := hX.card_pos
+  have hnposR : (0 : ℝ) < n := by exact_mod_cast hnpos
+  have hn_ge_one : (1 : ℝ) ≤ n := by exact_mod_cast hnpos
+  -- Case split on whether n is "large" or "small"
+  by_cases hLarge : 2 ≤ (η / 2) * n
+  · -- Substantive case: n ≥ 4/η, so floor((η/2)*n) ≥ 1 and ≥ (η/4)*n.
+    set θ : ℕ := Nat.floor ((η / 2) * (n : ℝ)) with hθ_def
+    have hηn_nn : 0 ≤ (η / 2) * (n : ℝ) := by positivity
+    have hθ_floor_le : (θ : ℝ) ≤ (η / 2) * n := Nat.floor_le hηn_nn
+    have hθ_floor_ge : (η / 2) * (n : ℝ) - 1 < θ := by
+      have := Nat.lt_floor_add_one ((η / 2) * (n : ℝ))
+      linarith
+    have hθ_pos : 1 ≤ θ := by
+      have : (1 : ℝ) ≤ θ := by linarith
+      exact_mod_cast this
+    have hθ_posR : (0 : ℝ) < θ := by exact_mod_cast (Nat.lt_of_lt_of_le Nat.zero_lt_one hθ_pos)
+    have h_2θ_le : 2 * (θ : ℝ) ≤ η * n := by
+      have := hθ_floor_le
+      linarith
+    -- θ ≥ (η/4) * n
+    have hθ_ge_quarter : (η / 4) * (n : ℝ) ≤ θ := by
+      have h1 : (η / 2) * (n : ℝ) - 1 ≤ θ := le_of_lt hθ_floor_ge
+      have h2 : (1 : ℝ) ≤ (η / 4) * n := by linarith
+      linarith
+    -- Define the popular bipartite graph E
+    set E : Finset (G × G) :=
+      (X ×ˢ Y).filter (fun p ↦ θ ≤ X.addConvolution Y (p.1 + p.2)) with hE_def
+    have hE_sub : E ⊆ X ×ˢ Y := Finset.filter_subset _ _
+    -- |E| ≥ (η/2) * n²
+    have hPP := popular_pairs_card_lower_bound hη hXY hX hE θ h_2θ_le
+    have hE_lb : (η / 2) * (n : ℝ) ^ 2 ≤ (E.card : ℝ) := by
+      have : (η / 2) * (n : ℝ) * Y.card = (η / 2) * (n : ℝ) ^ 2 := by
+        rw [hYcard]; ring
+      linarith
+    -- S := image of E under (x,y) ↦ x + y
+    set S : Finset G := E.image (fun p ↦ p.1 + p.2) with hS_def
+    -- For each s ∈ S, X.addConvolution Y s ≥ θ.
+    have hS_popular : ∀ s ∈ S, θ ≤ X.addConvolution Y s := by
+      intro s hs
+      rw [hS_def, Finset.mem_image] at hs
+      obtain ⟨p, hpE, hps⟩ := hs
+      rw [hE_def, Finset.mem_filter] at hpE
+      rw [← hps]; exact hpE.2
+    -- S ⊆ X + Y.
+    have hS_sub : S ⊆ X + Y := by
+      intro s hs
+      rw [hS_def, Finset.mem_image] at hs
+      obtain ⟨p, hpE, hps⟩ := hs
+      rw [hE_def, Finset.mem_filter, Finset.mem_product] at hpE
+      rw [← hps]
+      exact Finset.add_mem_add hpE.1.1 hpE.1.2
+    -- |S| * θ ≤ ∑_{s ∈ S} addConv s ≤ ∑_{s ∈ X+Y} addConv s = n²
+    have hSum_eq : ∑ s ∈ X + Y, X.addConvolution Y s = X.card * Y.card :=
+      sum_addConvolution_eq_card_product X Y
+    have hSum_S_le : (S.card : ℕ) * θ ≤ X.card * Y.card := by
+      calc (S.card : ℕ) * θ
+          = ∑ _s ∈ S, θ := by rw [Finset.sum_const, smul_eq_mul]
+        _ ≤ ∑ s ∈ S, X.addConvolution Y s :=
+            Finset.sum_le_sum hS_popular
+        _ ≤ ∑ s ∈ X + Y, X.addConvolution Y s :=
+            Finset.sum_le_sum_of_subset_of_nonneg hS_sub (fun _ _ _ ↦ Nat.zero_le _)
+        _ = X.card * Y.card := hSum_eq
+    -- Convert to reals: |S| * θ ≤ n²
+    have hSum_S_le_R : (S.card : ℝ) * θ ≤ (n : ℝ) ^ 2 := by
+      have h : ((S.card * θ : ℕ) : ℝ) ≤ ((X.card * Y.card : ℕ) : ℝ) := by
+        exact_mod_cast hSum_S_le
+      push_cast at h
+      rw [hYcard] at h
+      have hgoal : (n : ℝ) ^ 2 = (n : ℝ) * n := by ring
+      rw [hgoal]; exact h
+    -- |S| ≤ n²/θ ≤ (4/η) * n
+    have hS_le : (S.card : ℝ) ≤ (4 / η) * n := by
+      have hS_le_nθ : (S.card : ℝ) ≤ (n : ℝ) ^ 2 / θ := by
+        rw [le_div_iff₀ hθ_posR]; exact hSum_S_le_R
+      have hbnd : (n : ℝ) ^ 2 / θ ≤ (4 / η) * n := by
+        rw [div_le_iff₀ hθ_posR]
+        have hηpos : 0 < η := hη
+        have h_θ_pos_q : (0 : ℝ) < (η / 4) * n := by positivity
+        have h1 : (n : ℝ) ^ 2 = n * n := by ring
+        rw [h1]
+        have h_4η_pos : (0 : ℝ) < 4 / η := by positivity
+        have hθ_ge' : (η / 4) * (n : ℝ) ≤ θ := hθ_ge_quarter
+        -- (4/η * n) * θ ≥ (4/η * n) * (η/4 * n) = n * n
+        have : (4 / η) * (n : ℝ) * ((η / 4) * n) = n * n := by
+          field_simp
+        have hmul : (4 / η) * (n : ℝ) * ((η / 4) * n) ≤ (4 / η) * n * θ :=
+          mul_le_mul_of_nonneg_left hθ_ge'
+            (by positivity)
+        linarith
+      linarith
+    -- Apply graph_balogSzemerediGowers_restricted_sumset
+    have hδ : (η / 2) * (X.card : ℝ) ^ 2 ≤ (E.card : ℝ) := by
+      rw [← hn_def]; exact hE_lb
+    have hK : ((E.image (fun p ↦ p.1 + p.2)).card : ℝ) ≤ (4 / η) * (X.card : ℝ) := by
+      rw [← hn_def, ← hS_def]; exact hS_le
+    obtain ⟨A', B', hA'sub, hB'sub, hA'lb, hB'lb, hAB'sumset⟩ :=
+      hGraphBSG X Y hX hY hXY E hE_sub hδ hK
+    -- Apply Ruzsa to get |A' - B'| ≤ (C₀/c₀)^3/c₀ * n
+    have hA'pos : 0 < A'.card := by
+      have : (0 : ℝ) < (A'.card : ℝ) := by
+        have hc₀n_pos : (0 : ℝ) < c₀ * X.card := mul_pos hc₀ hnposR
+        linarith
+      exact_mod_cast this
+    have hA'ne : A'.Nonempty := Finset.card_pos.mp hA'pos
+    have hB'pos : 0 < B'.card := by
+      have : (0 : ℝ) < (B'.card : ℝ) := by
+        have hc₀n_pos : (0 : ℝ) < c₀ * X.card := mul_pos hc₀ hnposR
+        linarith
+      exact_mod_cast this
+    have hB'ne : B'.Nonempty := Finset.card_pos.mp hB'pos
+    -- Bound the sumset in terms of |A'|: |A' + B'| ≤ (C₀/c₀) * |A'|
+    have hSumK : ((A' + B').card : ℝ) ≤ (C₀ / c₀) * A'.card := by
+      have hC₀n_le : (C₀ : ℝ) * X.card ≤ (C₀ / c₀) * (c₀ * X.card) := by
+        rw [show (C₀ / c₀) * (c₀ * (X.card : ℝ)) = C₀ * X.card by field_simp]
+      have hcalc : (C₀ / c₀) * (c₀ * (X.card : ℝ)) ≤ (C₀ / c₀) * A'.card := by
+        have hC₀c₀_pos : (0 : ℝ) < C₀ / c₀ := by positivity
+        exact mul_le_mul_of_nonneg_left hA'lb (le_of_lt hC₀c₀_pos)
+      linarith
+    -- Balance: c₀ * |A'| ≤ |B'|, since |A'| ≤ |X| = n, so c₀ * |A'| ≤ c₀ * n ≤ |B'|.
+    have hA'le_n : (A'.card : ℝ) ≤ n := by
+      have : A'.card ≤ X.card := Finset.card_le_card hA'sub
+      exact_mod_cast this
+    have hBal : c₀ * (A'.card : ℝ) ≤ (B'.card : ℝ) := by
+      have hc₀A'_le_c₀n : c₀ * (A'.card : ℝ) ≤ c₀ * X.card :=
+        mul_le_mul_of_nonneg_left hA'le_n (le_of_lt hc₀)
+      linarith
+    obtain hRuzsa := ruzsa_sumset_to_difference (G := G)
+      (C₀ / c₀) c₀ (by positivity) hc₀ A' B' hA'ne hB'ne hSumK hBal
+    -- |A' - B'| ≤ (C₀/c₀)^3 / c₀ * |A'| ≤ (C₀/c₀)^3 / c₀ * n
+    have hAmB'_le : ((A' - B').card : ℝ) ≤ ((C₀ / c₀) ^ 3 / c₀) * n := by
+      have h1 : ((A' - B').card : ℝ) ≤ ((C₀ / c₀) ^ 3 / c₀) * A'.card := hRuzsa
+      have hcoef_nn : (0 : ℝ) ≤ ((C₀ / c₀) ^ 3 / c₀) := by positivity
+      have h2 : ((C₀ / c₀) ^ 3 / c₀) * A'.card ≤ ((C₀ / c₀) ^ 3 / c₀) * n :=
+        mul_le_mul_of_nonneg_left hA'le_n hcoef_nn
+      linarith
+    refine ⟨A', B', hA'sub, hB'sub, ?_, ?_, ?_⟩
+    · -- min c₀ (η/4) * n ≤ |A'|
+      have hmin_le : min c₀ (η / 4) ≤ c₀ := min_le_left _ _
+      calc min c₀ (η / 4) * (X.card : ℝ)
+          ≤ c₀ * X.card :=
+            mul_le_mul_of_nonneg_right hmin_le (Nat.cast_nonneg _)
+        _ ≤ (A'.card : ℝ) := hA'lb
+    · -- min c₀ (η/4) * Y.card ≤ |B'|
+      have hmin_le : min c₀ (η / 4) ≤ c₀ := min_le_left _ _
+      have hYn : (Y.card : ℝ) = X.card := by exact_mod_cast hXY.symm
+      calc min c₀ (η / 4) * (Y.card : ℝ)
+          = min c₀ (η / 4) * X.card := by rw [hYn]
+        _ ≤ c₀ * X.card :=
+            mul_le_mul_of_nonneg_right hmin_le (Nat.cast_nonneg _)
+        _ ≤ (B'.card : ℝ) := hB'lb
+    · -- |A' - B'| ≤ ((C₀/c₀)^3/c₀ + 1) * n
+      have hone_n_nn : (0 : ℝ) ≤ 1 * (X.card : ℝ) := by positivity
+      have hexp : ((C₀ / c₀) ^ 3 / c₀ + 1) * (X.card : ℝ) =
+          ((C₀ / c₀) ^ 3 / c₀) * X.card + (X.card : ℝ) := by ring
+      rw [hexp]
+      linarith
+  · -- Small case: (η/2) * n < 2. Use singletons.
+    push Not at hLarge
+    obtain ⟨x, hxX⟩ := hX
+    obtain ⟨y, hyY⟩ := hY
+    refine ⟨{x}, {y}, Finset.singleton_subset_iff.mpr hxX,
+        Finset.singleton_subset_iff.mpr hyY, ?_, ?_, ?_⟩
+    · -- min c₀ (η/4) * n ≤ 1
+      have hmin_le_q : min c₀ (η / 4) ≤ η / 4 := min_le_right _ _
+      have hbnd : min c₀ (η / 4) * (X.card : ℝ) ≤ (η / 4) * n :=
+        mul_le_mul_of_nonneg_right hmin_le_q (Nat.cast_nonneg _)
+      have h_q_n : (η / 4) * (n : ℝ) < 1 := by linarith
+      have hcard : (({x} : Finset G).card : ℝ) = 1 := by simp
+      rw [hcard]; linarith
+    · -- min c₀ (η/4) * Y.card ≤ 1
+      have hYn : (Y.card : ℝ) = X.card := by exact_mod_cast hXY.symm
+      rw [hYn]
+      have hmin_le_q : min c₀ (η / 4) ≤ η / 4 := min_le_right _ _
+      have hbnd : min c₀ (η / 4) * (X.card : ℝ) ≤ (η / 4) * n :=
+        mul_le_mul_of_nonneg_right hmin_le_q (Nat.cast_nonneg _)
+      have h_q_n : (η / 4) * (n : ℝ) < 1 := by linarith
+      have hcard : (({y} : Finset G).card : ℝ) = 1 := by simp
+      rw [hcard]; linarith
+    · -- |{x} - {y}| ≤ ((C₀/c₀)^3/c₀ + 1) * n
+      have hsub_card : (({x} - {y} : Finset G)).card = 1 := by
+        rw [Finset.singleton_sub_singleton]; simp
+      have hcard1 : ((({x} - {y} : Finset G)).card : ℝ) = 1 := by
+        rw [hsub_card]; simp
+      rw [hcard1]
+      have hpos : 0 < (C₀ / c₀) ^ 3 / c₀ := by positivity
+      have hone_le : (1 : ℝ) ≤ ((C₀ / c₀) ^ 3 / c₀ + 1) * X.card := by
+        have h1 : (1 : ℝ) ≤ (X.card : ℝ) := hn_ge_one
+        have h2 : (1 : ℝ) ≤ ((C₀ / c₀) ^ 3 / c₀ + 1) := by linarith
+        nlinarith
+      exact hone_le
+
+
+/--
+**Balog-Szemerédi-Gowers (symmetric, qualitative form).** For every
+`η > 0` there exist positive `c, C` such that whenever `X` is a finite
+subset of an additive commutative group with additive energy
+`E[X,X] ≥ η · |X|³`, there is a subset `X' ⊆ X` of size `≥ c · |X|`
+whose difference set is bounded: `|X' - X'| ≤ C · |X|`. Qualitative
+existentials only; for explicit polynomial-in-`η` constants see
+`balog_szemeredi_gowers_asymmetric_explicit`.
+-/
+theorem balog_szemeredi_gowers_symmetric {G : Type*} [AddCommGroup G] [DecidableEq G] :
+    ∀ η : ℝ, 0 < η → ∃ c C : ℝ, 0 < c ∧ 0 < C ∧
+      ∀ X : Finset G, X.Nonempty →
+        η * (X.card : ℝ) ^ 3 ≤ (Finset.addEnergy X X : ℝ) →
+        ∃ X' : Finset G, X' ⊆ X ∧
+          c * (X.card : ℝ) ≤ (X'.card : ℝ) ∧
+          ((X' - X').card : ℝ) ≤ C * (X.card : ℝ) := by
+  intro η hη
+  obtain ⟨c, C, hc, hC, hAsym⟩ := balog_szemeredi_gowers_asymmetric (G := G) η hη
+  refine ⟨c, C ^ 2 / c, hc, by positivity, ?_⟩
+  intro X hX hE
+  -- Apply asymmetric with Y := X
+  obtain ⟨X', Y', hX'sub, hY'sub, hX'lb, hY'lb, hXmY'⟩ :=
+    hAsym X X hX hX rfl hE
+  refine ⟨X', hX'sub, hX'lb, ?_⟩
+  -- Ruzsa triangle: #(X' - X') * #Y' ≤ #(X' - Y') * #(X' - Y')
+  have hRuzsaℕ : (X' - X').card * Y'.card ≤ (X' - Y').card * (X' - Y').card :=
+    Finset.ruzsa_triangle_inequality_sub_sub_sub X' Y' X'
+  have hRuzsa : ((X' - X').card : ℝ) * (Y'.card : ℝ) ≤
+      ((X' - Y').card : ℝ) * ((X' - Y').card : ℝ) := by exact_mod_cast hRuzsaℕ
+  -- Numeric bookkeeping
+  have hXne : (0 : ℝ) < X.card := by exact_mod_cast hX.card_pos
+  have hcX_pos : (0 : ℝ) < c * X.card := mul_pos hc hXne
+  have hY'pos : (0 : ℝ) < (Y'.card : ℝ) := by linarith
+  have hXmY_nn : (0 : ℝ) ≤ ((X' - Y').card : ℝ) := Nat.cast_nonneg _
+  have hCXnn : (0 : ℝ) ≤ C * X.card := by positivity
+  have hsq : ((X' - Y').card : ℝ) * ((X' - Y').card : ℝ) ≤ (C * X.card) * (C * X.card) :=
+    mul_le_mul hXmY' hXmY' hXmY_nn hCXnn
+  have hchain : ((X' - X').card : ℝ) * Y'.card ≤ (C * X.card) ^ 2 := by
+    rw [sq]; linarith
+  -- (X'-X').card · (c|X|) ≤ (X'-X').card · |Y'| ≤ (C|X|)²
+  have hX'diff_nn : (0 : ℝ) ≤ ((X' - X').card : ℝ) := Nat.cast_nonneg _
+  have step : ((X' - X').card : ℝ) * (c * X.card) ≤ (C * X.card) ^ 2 :=
+    calc ((X' - X').card : ℝ) * (c * X.card)
+        ≤ ((X' - X').card : ℝ) * (Y'.card : ℝ) :=
+            mul_le_mul_of_nonneg_left hY'lb hX'diff_nn
+      _ ≤ (C * X.card) ^ 2 := hchain
+  have final : ((X' - X').card : ℝ) ≤ (C * X.card) ^ 2 / (c * X.card) :=
+    (le_div_iff₀ hcX_pos).mpr (by linarith)
+  have hrw : (C * X.card) ^ 2 / (c * X.card) = C ^ 2 / c * X.card := by
+    have hc_ne : (c : ℝ) ≠ 0 := hc.ne'
+    have hX_ne : (X.card : ℝ) ≠ 0 := hXne.ne'
+    field_simp
+  rw [hrw] at final
+  exact final
+
+end Finset
+
+/-
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "{}"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright {yyyy} {name of copyright owner}
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-/
+
+/- The phase-avoidance and integer-model proofs are adapted from @JaviSoto's
+accepted solution of the one-dimensional modeling step for Erdős 657,
+project PR #4155 (commit d2a0e800e). We use the qualitative natural-number
+Roth theorem in Mathlib, obtained there from the triangle removal lemma.
+The finite projection and uniform boundedness argument are supplied below. -/
+
+/- A simultaneous phase-avoidance lemma for finite sets of real numbers.
+Inside a sufficiently long interval, the total lengths of the forbidden
+subintervals are less than half the interval's length. -/
+
+open Finset Set MeasureTheory
+
+namespace E657Sparse.Avoid
+
+theorem avoid (D : Finset ℝ) : ∃ t : ℝ, ∀ d ∈ D, d ≠ 0 → ∀ z : ℤ,
+    2 ≤ |((16*(D.card+1):ℕ):ℝ)*(t*d-z)| := by
+  classical
+  let N : ℝ := ((16*(D.card+1):ℕ):ℝ)
+  let ε : ℝ := 2/N
+  let T : ℝ := 1 + ∑ d ∈ D, 2/|d|
+  have hN : 0<N := by dsimp [N]; positivity
+  have eps : 0<ε := div_pos (by norm_num) hN
+  have eps1 : ε≤1 := by
+    apply (div_le_one hN).2
+    dsimp [N]; push_cast; linarith [Nat.cast_nonneg (α:=ℝ) D.card]
+  have hT : 0<T := by dsimp [T]; positivity
+  have large {d} (hd : d∈D) (ne:d≠0) : 2≤T*|d| := by
+    have hs := single_le_sum (f:=fun x:ℝ ↦ 2/|x|) (fun _ _ ↦ by positivity) hd
+    apply (div_le_iff₀ (abs_pos.mpr ne)).1
+    exact hs.trans (by dsimp [T]; linarith)
+  let J (d:ℝ) := ⌊T*|d|⌋₊+2
+  let I (d:ℝ) (j:ℕ) := Icc (((j:ℝ)-ε)/|d|) (((j:ℝ)+ε)/|d|)
+  let Bad (d:ℝ) := ⋃ j ∈ range (J d), I d j
+  let U := ⋃ d ∈ D.erase 0, Bad d
+  have size {d} (hd:d∈D.erase 0) : volume.real (Bad d) ≤ 4*ε*T := by
+    obtain ⟨ne, mem⟩ := mem_erase.mp hd
+    have dp := abs_pos.mpr ne
+    have hj : (J d:ℝ) ≤ 2*(T*|d|) := by
+      dsimp [J]; push_cast
+      linarith [Nat.floor_le (mul_nonneg hT.le dp.le),large mem ne]
+    have vol (j:ℕ) : volume.real (I d j)=2*ε/|d| := by
+      dsimp [I]
+      rw [Real.volume_real_Icc_of_le (div_le_div_of_nonneg_right (by linarith) dp.le)]
+      ring
+    calc _ ≤ ∑ j ∈ range (J d), volume.real (I d j) := measureReal_biUnion_finset_le ..
+         _ = (J d:ℝ)*(2*ε/|d|) := by simp [vol]
+         _ ≤ (2*(T*|d|))*(2*ε/|d|) := mul_le_mul_of_nonneg_right hj (by positivity)
+         _ = _ := by field_simp; ring
+  have total : volume.real U < T := by
+    calc _ ≤ ∑ d ∈ D.erase 0, volume.real (Bad d) := measureReal_biUnion_finset_le ..
+         _ ≤ ∑ _d ∈ D.erase 0, 4*ε*T := sum_le_sum fun _ h ↦ size h
+         _ ≤ (D.card:ℝ)*(4*ε*T) := by
+           simp only [sum_const,nsmul_eq_mul]
+           gcongr
+           exact erase_subset _ _
+         _ < T := by
+           dsimp [ε,N]
+           push_cast
+           have hd : 0≤(D.card:ℝ) := Nat.cast_nonneg _
+           field_simp
+           nlinarith only [hT, mul_nonneg hd hT.le]
+  have comp : IsCompact U := (D.erase 0).isCompact_biUnion fun d _ ↦
+    (range (J d)).isCompact_biUnion fun _ _ ↦ isCompact_Icc
+  obtain ⟨t, ta, tout⟩ : ∃ t ∈ Icc 0 T, t ∉ U := by
+    by_contra! h
+    have vv := measureReal_mono (μ:=volume) (s₁:=Icc 0 T) (s₂:=U)
+      (fun t ht ↦ h t ht) comp.measure_lt_top.ne
+    rw [Real.volume_real_Icc_of_le hT.le, sub_zero] at vv
+    exact (not_lt_of_ge vv) total
+  refine ⟨t, ?_⟩
+  intro d hd ne z
+  by_contra! h
+  change |N*(t*d-z)|<2 at h
+  rw [abs_mul, abs_of_pos hN, mul_comm] at h
+  have near := (lt_div_iff₀ hN).2 h
+  change |t*d-z|<ε at near
+  have near' := (abs_abs_sub_abs_le_abs_sub (t*d) (z:ℝ)).trans_lt near
+  have zn : (z.natAbs:ℝ)=|(z:ℝ)| := by
+    rw [← Int.cast_abs, ← Int.natCast_natAbs, Int.cast_natCast]
+  rw [abs_mul,abs_of_nonneg ta.1,←zn] at near'
+  obtain ⟨lo,hi⟩ := abs_lt.mp near'
+  have dp := abs_pos.mpr ne
+  have index : z.natAbs < J d := by
+    have htd := mul_le_mul_of_nonneg_right ta.2 dp.le
+    apply Nat.cast_lt (α:=ℝ) |>.mp
+    dsimp [J]; push_cast
+    linarith [Nat.lt_floor_add_one (T*|d|)]
+  apply tout
+  simp only [U,Bad,Set.mem_iUnion,exists_prop]
+  exact ⟨d, mem_erase.mpr ⟨ne,hd⟩,z.natAbs,mem_range.mpr index,
+    (div_le_iff₀ dp).2 (by linarith), (le_div_iff₀ dp).2 (by linarith)⟩
+
+end E657Sparse.Avoid
+
+/- Discretizing a finite set on the line by a phase avoiding its nonzero
+four-term differences. The resulting integer bins reflect all two-sum equations. -/
+open Finset
+open scoped Pointwise
+
+namespace E657Sparse.Model
+
+theorem build
+    (avoid : ∀ D : Finset ℝ, ∃ t : ℝ, ∀ d ∈ D, d ≠ 0 → ∀ z : ℤ,
+      2 ≤ |((16*(D.card+1):ℕ):ℝ)*(t*d-z)|) :
+    ∃ C : ℝ, 0<C ∧ ∀ (A : Finset ℝ) (K : ℝ), 1≤K → 0<A.card →
+      ((A-A).card:ℝ) ≤ K*A.card →
+      ∃ (N : ℕ) (B : Finset ℕ) (g : ℕ → ℝ), B⊆range N ∧ A.card≤4*B.card ∧
+        (N:ℝ)≤C*K^8*A.card ∧ Set.MapsTo g (B:Set ℕ) (A:Set ℝ) ∧
+        Set.InjOn g (B:Set ℕ) ∧
+        (∀ a∈B, ∀ b∈B, ∀ c∈B, a+c=b+b → g a+g c=g b+g b) := by
+  classical
+  refine ⟨32, by norm_num, ?_⟩
+  intro A K hK hA hd
+  let D := (A+A)-(A+A)
+  let N := 16*(D.card+1)
+  have npos : 0<N := by dsimp [N]; omega
+  obtain ⟨t, ht⟩ := avoid D
+  let f (x : ℝ) : ℕ := ⌊(N:ℝ)*Int.fract (t*x)⌋₊
+  have err (x : ℝ) :
+      (f x:ℝ) ≤ (N:ℝ)*(t*x-(⌊t*x⌋:ℤ)) ∧ (N:ℝ)*(t*x-(⌊t*x⌋:ℤ)) < (f x:ℝ)+1 :=
+    ⟨Nat.floor_le (mul_nonneg (Nat.cast_nonneg _) (Int.fract_nonneg _)), Nat.lt_floor_add_one _⟩
+  have reflect {a b c d : ℝ} (ha:a∈A) (hb:b∈A) (hc:c∈A) (hd':d∈A)
+      (eq : f a+f b=f c+f d) : a+b=c+d := by
+    by_contra ne
+    have hm : (a+b)-(c+d) ∈ D := sub_mem_sub (add_mem_add ha hb) (add_mem_add hc hd')
+    have h := ht _ hm (sub_ne_zero.mpr ne) (⌊t*a⌋+⌊t*b⌋-(⌊t*c⌋+⌊t*d⌋))
+    change 2 ≤ |(N:ℝ)*_| at h
+    push_cast at h
+    have heq : (f a:ℝ)+f b=(f c:ℝ)+f d := by exact_mod_cast eq
+    apply (not_lt_of_ge h)
+    apply abs_lt.mpr
+    constructor <;> nlinarith only [heq, (err a).1, (err a).2, (err b).1, (err b).2,
+      (err c).1, (err c).2, (err d).1, (err d).2]
+  have inj : Set.InjOn f (A : Set ℝ) := by
+    intro a ha b hb eq
+    exact add_right_cancel (reflect ha ha hb ha (congrArg (·+f a) eq))
+  let B := A.image f
+  let g := Function.invFunOn f (A:Set ℝ)
+  have left {a} (ha:a∈A) : g (f a)=a := inj.leftInvOn_invFunOn ha
+  have right {b} (hb:b∈B) : g b ∈ A ∧ f (g b)=b := by
+    obtain ⟨a, ha, rfl⟩ := mem_image.mp hb
+    rw [left ha]
+    exact ⟨ha,rfl⟩
+  have size : (D.card:ℝ) ≤ K^4*A.card := by
+    have h := pluennecke_ruzsa_inequality_nsmul_sub_nsmul_sub (card_pos.mp hA) A 2 2
+    have h' : (D.card:ℝ) ≤ (((A-A).card:ℝ)/A.card)^4*A.card := by
+      dsimp [D]
+      simpa only [two_nsmul, NNRat.cast_natCast, NNRat.cast_mul, NNRat.cast_pow,
+        NNRat.cast_div] using (NNRat.cast_le (K:=ℝ)).mpr h
+    apply h'.trans
+    gcongr
+    exact (div_le_iff₀ (by exact_mod_cast hA)).mpr hd
+  refine ⟨N,B,g,?_,?_,?_,fun _ hb ↦ (right hb).1,?_,?_⟩
+  · intro b hb
+    obtain ⟨a, _, rfl⟩ := mem_image.mp hb
+    apply Finset.mem_range.mpr
+    apply (Nat.floor_lt' npos.ne').2
+    simpa using mul_lt_mul_of_pos_left (Int.fract_lt_one (t*a)) (by exact_mod_cast npos : 0<(N:ℝ))
+  · rw [show B.card=A.card from card_image_of_injOn inj]; omega
+  · have h4 : 1≤K^4 := one_le_pow₀ hK
+    have h8 : K^4≤K^8 := pow_le_pow_right₀ hK (by norm_num)
+    have ha : 1≤(A.card:ℝ) := by exact_mod_cast hA
+    have s1 := one_le_mul_of_one_le_of_one_le h4 ha
+    have s2 := mul_le_mul_of_nonneg_right h8 (Nat.cast_nonneg A.card)
+    dsimp [N]
+    push_cast
+    nlinarith only [size,s1,s2]
+  · intro b hb c hc eq
+    rw [←(right hb).2,←(right hc).2,eq]
+  · intro a ha b hb c hc eq
+    apply reflect (right ha).1 (right hc).1 (right hb).1 (right hb).1
+    simpa only [(right ha).2,(right hb).2,(right hc).2] using eq
+
+end E657Sparse.Model
+
+
+namespace E657Sparse
+
+open Finset
+open scoped Pointwise
+
+/-- One real-valued functional distinguishes every pair of a finite set. -/
+private theorem finite_projection {V : Type*} [AddCommGroup V] [Module ℝ V] [DecidableEq V]
+    (S : Finset V) : ∃ φ : Module.Dual ℝ V, Set.InjOn φ (S : Set V) := by
+  classical
+  let D := (S-S).erase 0
+  obtain ⟨φ,hφ⟩ := Module.exists_dual_forall_apply_ne_zero (K:=ℝ)
+    (fun d : D => (d:V)) (fun d => (mem_erase.mp d.property).1)
+  refine ⟨φ,fun x hx y hy heq => ?_⟩
+  by_contra hxy
+  have hd : x-y ∈ D := mem_erase.mpr ⟨sub_ne_zero.mpr hxy, sub_mem_sub hx hy⟩
+  exact hφ ⟨x-y,hd⟩ (by simp only [map_sub,heq,sub_self])
+
+/-- An arithmetic-progression-free finite subset of a real vector space
+with bounded difference-set growth has uniformly bounded size. -/
+theorem bounded_ap_free {V : Type*} [AddCommGroup V] [Module ℝ V] [DecidableEq V]
+    (K : ℝ) (hK : 0 < K) : ∃ M : ℕ, ∀ B : Finset V, ThreeAPFree (B : Set V) →
+      ((B-B).card : ℝ) ≤ K*B.card → B.card ≤ M := by
+  classical
+  obtain ⟨C,hC,model⟩ := Model.build Avoid.avoid
+  let Q := max 1 K
+  have hQ : 1≤Q := le_max_left ..
+  have hQ' : 0<Q := hK.trans_le (le_max_right ..)
+  let ε := (4*C*Q^8)⁻¹
+  have hε : 0<ε := by dsimp [ε]; positivity
+  refine ⟨4*cornersTheoremBound (ε/3),fun B hfree hdiff => ?_⟩
+  by_contra hbad
+  have hpos : 0<B.card := by omega
+  obtain ⟨φ,hφ⟩ := finite_projection (B ∪ (B+B))
+  let A := B.image φ
+  have hB : Set.InjOn φ (B:Set V) := hφ.mono (fun _ hx => Finset.mem_union_left _ hx)
+  have hsize : A.card=B.card := card_image_of_injOn hB
+  have ad : A-A ⊆ (B-B).image φ := by
+    intro z hz
+    obtain ⟨x,hx,y,hy,rfl⟩ := mem_sub.mp hz
+    obtain ⟨u,hu,rfl⟩ := mem_image.mp hx
+    obtain ⟨v,hv,rfl⟩ := mem_image.mp hy
+    exact mem_image.mpr ⟨u-v,sub_mem_sub hu hv,map_sub ..⟩
+  have hadd : ((A-A).card:ℝ) ≤ Q*A.card := by
+    rw [hsize]
+    exact (by exact_mod_cast (Finset.card_le_card ad).trans Finset.card_image_le :
+      ((A-A).card:ℝ) ≤ (B-B).card).trans
+        (hdiff.trans (mul_le_mul_of_nonneg_right (le_max_right ..) (Nat.cast_nonneg _)))
+  have afree : ThreeAPFree (A:Set ℝ) := by
+    intro x hx y hy z hz hp
+    obtain ⟨u,hu,rfl⟩ := mem_image.mp hx
+    obtain ⟨v,hv,rfl⟩ := mem_image.mp hy
+    obtain ⟨w,hw,rfl⟩ := mem_image.mp hz
+    have hsum := hφ (mem_union_right _ (add_mem_add hu hw)) (mem_union_right _ (add_mem_add hv hv))
+      (show φ (u+w)=φ (v+v) by simpa only [map_add] using hp)
+    exact congrArg φ (hfree hu hv hw hsum)
+  obtain ⟨N,T,g,hr,hlb,hub,hmap,hinj,hprog⟩ := model A Q hQ (by rwa [hsize]) hadd
+  have t_free : ThreeAPFree (T:Set ℕ) := by
+    intro a ha b hb c hc hp
+    exact hinj ha hb (afree (hmap ha) (hmap hb) (hmap hc) (hprog a ha b hb c hc hp))
+  have hcard : T.card ≤ N := (Finset.card_le_card hr).trans_eq (card_range _)
+  have hlarge : cornersTheoremBound (ε/3) ≤ N := by omega
+  have hdense : ε*N ≤ T.card := by
+    have h1 : (A.card:ℝ) ≤ 4*T.card := by exact_mod_cast hlb
+    have h2 : 0<C*Q^8 := by positivity
+    have h3 := hub.trans (mul_le_mul_of_nonneg_left h1 h2.le)
+    dsimp [ε]
+    rw [inv_mul_le_iff₀ (by positivity)]
+    linarith only [h3]
+  exact roth_3ap_theorem_nat ε hε hlarge T hr hdense t_free
+
+end E657Sparse
+
+/- The parallel edge count and the arithmetic-progression obstruction. -/
+
+namespace E657Energy
+
+open Finset
+open scoped EuclideanGeometry Classical
+
+private def same {V : Type*} [Sub V] (p : (V × V) × (V × V)) : Prop :=
+  p.1.1-p.1.2 = p.2.1-p.2.2
+
+private def reversed {V : Type*} [Sub V] (p : (V × V) × (V × V)) : Prop :=
+  p.1.1-p.1.2 = p.2.2-p.2.1
+
+/-- For each of the two orientations, relabeling the endpoints embeds parallel pairs in the additive energy. -/
+private theorem orientation_counts {V : Type*} [AddCommGroup V] [DecidableEq V] (A : Finset V) :
+    (((A.offDiag ×ˢ A.offDiag).filter same).card ≤ A.addEnergy A) ∧
+    (((A.offDiag ×ˢ A.offDiag).filter reversed).card ≤ A.addEnergy A) := by
+  classical
+  rw [addEnergy_eq_card_filter]
+  constructor
+  · apply card_le_card_of_injOn
+      (fun p : (V × V) × (V × V) => ((p.1.1,p.2.2),(p.1.2,p.2.1)))
+    · rintro ⟨⟨x,y⟩,⟨z,w⟩⟩ hp
+      change ((x,y),(z,w)) ∈ (A.offDiag ×ˢ A.offDiag).filter same at hp
+      obtain ⟨hxy,hzw⟩ := mem_product.mp (mem_filter.mp hp).1
+      have he : x-y=z-w := (mem_filter.mp hp).2
+      obtain ⟨hx,hy,_⟩ := mem_offDiag.mp hxy
+      obtain ⟨hz,hw,_⟩ := mem_offDiag.mp hzw
+      exact mem_filter.mpr ⟨mem_product.mpr
+        ⟨mem_product.mpr ⟨hx,hw⟩,mem_product.mpr ⟨hy,hz⟩⟩,by
+          calc
+            x+w = (x-y)+y+w := by abel
+            _ = y+z := by rw [he]; abel⟩
+    · rintro ⟨⟨x,y⟩,⟨z,w⟩⟩ _ ⟨⟨x',y'⟩,⟨z',w'⟩⟩ _ h
+      simpa using congrArg (fun p : (V × V) × (V × V) => ((p.1.1,p.2.1),(p.2.2,p.1.2))) h
+  · apply card_le_card_of_injOn
+      (fun p : (V × V) × (V × V) => ((p.1.1,p.2.1),(p.1.2,p.2.2)))
+    · rintro ⟨⟨x,y⟩,⟨z,w⟩⟩ hp
+      change ((x,y),(z,w)) ∈ (A.offDiag ×ˢ A.offDiag).filter reversed at hp
+      obtain ⟨hxy,hzw⟩ := mem_product.mp (mem_filter.mp hp).1
+      have he : x-y=w-z := (mem_filter.mp hp).2
+      obtain ⟨hx,hy,_⟩ := mem_offDiag.mp hxy
+      obtain ⟨hz,hw,_⟩ := mem_offDiag.mp hzw
+      exact mem_filter.mpr ⟨mem_product.mpr
+        ⟨mem_product.mpr ⟨hx,hz⟩,mem_product.mpr ⟨hy,hw⟩⟩,by
+          calc
+            x+z = (x-y)+y+z := by abel
+            _ = y+w := by rw [he]; abel⟩
+    · rintro ⟨⟨x,y⟩,⟨z,w⟩⟩ _ ⟨⟨x',y'⟩,⟨z',w'⟩⟩ _ h
+      simpa using congrArg (fun p : (V × V) × (V × V) => ((p.1.1,p.2.1),(p.1.2,p.2.2))) h
+
+/-- Each pair contributes to at most one distance fibre. -/
+theorem count_le_energy {k : ℕ} (A : Finset (ℝ^k)) :
+    let F := fun d : ℝ => A.offDiag.filter fun e => dist e.1 e.2 = d
+    (∑ d ∈ distanceSet A, (((F d) ×ˢ (F d)).filter fun p =>
+      p.1.1 - p.1.2 = p.2.1 - p.2.2 ∨ p.1.1 - p.1.2 = p.2.2 - p.2.1).card)
+      ≤ 2 * A.addEnergy A := by
+  classical
+  intro F
+  let S := A.offDiag ×ˢ A.offDiag
+  let G := S.filter (fun p => same p ∨ reversed p)
+  let loc := fun p : ( (ℝ^k) × (ℝ^k)) × ((ℝ^k) × (ℝ^k)) => dist p.1.1 p.1.2
+  calc
+    _ ≤ ∑ d ∈ distanceSet A, (G.filter (fun p => loc p = d)).card := by
+      apply sum_le_sum
+      intro d _
+      apply Finset.card_le_card
+      intro p hp
+      have tuple := mem_filter.mp hp
+      obtain ⟨hp₁,hp₂⟩ := mem_product.mp tuple.1
+      have hd := (mem_filter.mp hp₁).2
+      refine mem_filter.mpr ⟨?_,hd⟩
+      change p ∈ S.filter (fun q => same q ∨ reversed q)
+      exact mem_filter.mpr ⟨mem_product.mpr ⟨(mem_filter.mp hp₁).1,(mem_filter.mp hp₂).1⟩,tuple.2⟩
+    _ ≤ G.card := by rw [sum_card_fiberwise_eq_card_filter]; exact card_filter_le _ _
+    _ ≤ ((S.filter same).card + (S.filter reversed).card) := by
+      rw [show G = S.filter same ∪ S.filter reversed by ext p; simp [G,and_or_left]]
+      exact card_union_le _ _
+    _ ≤ 2 * A.addEnergy A := by
+      rw [two_mul]
+      exact add_le_add (orientation_counts A).1 (orientation_counts A).2
+
+/-- A nonconstant arithmetic progression would make an isosceles triple. -/
+theorem ap_free {k : ℕ} {A : Finset (ℝ^k)}
+    (hA : (A : Set (ℝ^k)).IsIsoscelesFree) : ThreeAPFree (A : Set (ℝ^k)) := by
+  intro a ha b hb c hc hp
+  by_contra hab
+  have hdis : a-b=b-c := by
+    calc
+      a-b = (a+c)-b-c := by abel
+      _ = b-c := by rw [hp]; abel
+  have hbc : b ≠ c := by
+    intro hbc
+    rw [hbc,sub_self] at hdis
+    exact hab ((sub_eq_zero.mp hdis).trans hbc.symm)
+  have hac : a ≠ c := by
+    intro hac
+    apply hab
+    calc
+      a = (1/2:ℝ) • (a+c) := by rw [← hac]; module
+      _ = b := by rw [hp]; module
+  exact (hA ha hb hc hab hbc hac) (Or.inl (by rw [dist_eq_norm,dist_eq_norm,hdis]))
+
+end E657Energy
+
+open Finset
+open scoped EuclideanGeometry Classical Pointwise
+
+theorem OMA.solution : OMA.R_Erdos657_erdos_657_variants_higher_dim_R1.H1 := by
+  classical
+  intro k _ t
+  by_cases ht : t = 0
+  · refine ⟨0, fun A _ _ => ?_⟩
+    simp [ht]
+  have htR : 0 < (t : ℝ) := by exact_mod_cast (Nat.pos_of_ne_zero ht)
+  let η : ℝ := 1/(2*(t:ℝ))
+  have hη : 0 < η := by dsimp [η]; positivity
+  obtain ⟨c,C,hc,hC,extract⟩ :=
+    Finset.balog_szemeredi_gowers_symmetric (G := ℝ^k) η hη
+  let K : ℝ := C/c
+  have hK : 0 < K := div_pos hC hc
+  obtain ⟨M,bound⟩ := E657Sparse.bounded_ap_free (V := ℝ^k) K hK
+  obtain ⟨N,hN⟩ := exists_nat_gt (max 0 ((M:ℝ)/c))
+  refine ⟨N, fun A hA hiso => ?_⟩
+  have hsize : (N:ℝ) ≤ (A.card:ℝ) := by exact_mod_cast hA
+  have hp : 0 < (A.card:ℝ) := ((le_max_left _ _).trans_lt hN).trans_le hsize
+  have hne : A.Nonempty := Finset.card_pos.mp (by exact_mod_cast hp)
+  intro F
+  let L := ∑ d ∈ distanceSet A, (((F d) ×ˢ (F d)).filter fun p =>
+      p.1.1 - p.1.2 = p.2.1 - p.2.2 ∨ p.1.1 - p.1.2 = p.2.2 - p.2.1).card
+  change t*L ≤ A.card^3
+  by_contra! hbad
+  have hbadR : (A.card:ℝ)^3 < (t:ℝ)*(L:ℝ) := by exact_mod_cast hbad
+  have hL : (L:ℝ) ≤ 2*(A.addEnergy A:ℝ) := by
+    exact_mod_cast E657Energy.count_le_energy A
+  have hE : η*(A.card:ℝ)^3 ≤ (A.addEnergy A:ℝ) := by
+    dsimp [η]
+    rw [one_div_mul_eq_div, div_le_iff₀ (by positivity : 0 < 2*(t:ℝ))]
+    calc
+      _ ≤ (t:ℝ)*(L:ℝ) := hbadR.le
+      _ ≤ (t:ℝ)*(2*(A.addEnergy A:ℝ)) := mul_le_mul_of_nonneg_left hL htR.le
+      _ = _ := by ring
+  obtain ⟨B,hBA,hlarge,hdiff⟩ := extract A hne hE
+  have hBsmall : ((B-B).card:ℝ) ≤ K*(B.card:ℝ) := calc
+    _ ≤ C*(A.card:ℝ) := hdiff
+    _ = K*(c*(A.card:ℝ)) := by dsimp [K]; field_simp
+    _ ≤ _ := mul_le_mul_of_nonneg_left hlarge hK.le
+  have hfree : ThreeAPFree (B : Set (ℝ^k)) := by
+    apply ThreeAPFree.mono _ (E657Energy.ap_free hiso)
+    exact Finset.coe_subset.mpr hBA
+  have hBbound : (B.card:ℝ) ≤ (M:ℝ) := by exact_mod_cast bound B hfree hBsmall
+  have hlargeA : ((M:ℝ)/c) < (A.card:ℝ) :=
+    ((le_max_right _ _).trans_lt hN).trans_le hsize
+  have hlargeB : (M:ℝ) < (B.card:ℝ) := by
+    rw [div_lt_iff₀ hc] at hlargeA
+    exact (by simpa only [mul_comm] using hlargeA : (M:ℝ) < c*(A.card:ℝ)).trans_le hlarge
+  exact (not_lt_of_ge hBbound) hlargeB

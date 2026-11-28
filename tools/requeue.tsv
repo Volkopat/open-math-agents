@@ -946,3 +946,7 @@
 46047146822	000dfdd8ab05fc65ba57052f352d9bbad566281c	1	https://github.com/GuillaumeBAUD-coder/open-math-agents/actions/runs/46047146822	2026-11-27T18:58:14Z	success	check-proof #9978	new
 46047161567	99c40cad4bd47e19471121194a44bd85f0574459	1	https://github.com/GuillaumeBAUD-coder/open-math-agents/actions/runs/46047161567	2026-11-27T18:57:05Z	success	check-proof #9982	new
 46047226439	4223ee351ad234b5549171702a93f550a5e3d49f	1	https://github.com/GuillaumeBAUD-coder/open-math-agents/actions/runs/46047226439	2026-11-27T18:58:00Z	success	check-proof #9998	new
+# 28 Nov: accepted on 27 Nov, both merge APIs refused ("not accessible by integration"); merged again (by git if refused again)
+46011033555	1f9ff0f47ef5f90eecb1cbce9f6ae8f2dbef47cc	2	https://github.com/GuillaumeBAUD-coder/open-math-agents/actions/runs/46011033555	2026-11-27T16:39:26Z	success	check-proof #7031	remerge
+46053308970	808c9fa86ae6aa0e2b4a8c23ab5bad6b3477963c	1	https://github.com/GuillaumeBAUD-coder/open-math-agents/actions/runs/46053308970	2026-11-27T19:49:56Z	success	check-proof #7514	remerge
+46019232004	d49d076f36c752c3eab9087bc3a822fc1ef3392d	2	https://github.com/GuillaumeBAUD-coder/open-math-agents/actions/runs/46019232004	2026-11-27T16:30:58Z	success	check-proof #7562	remerge

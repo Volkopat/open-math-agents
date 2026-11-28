@@ -35,22 +35,6 @@ lemma cross_emb (p q x : ℤ × ℤ) :
   push_cast
   ring
 
-lemma leftCount_emb (S : Finset (ℤ × ℤ)) (p q : ℤ × ℤ) :
-    Green75.leftCount (S.map emb) (emb p) (emb q) = #{x ∈ S | 0 < icross p q x} := by
-  unfold Green75.leftCount
-  rw [Finset.filter_map, Finset.card_map]
-  congr 1
-  ext x
-  simp only [Finset.mem_filter, Function.comp_apply, cross_emb, Int.cast_pos]
-
-lemma rightCount_emb (S : Finset (ℤ × ℤ)) (p q : ℤ × ℤ) :
-    Green75.rightCount (S.map emb) (emb p) (emb q) = #{x ∈ S | icross p q x < 0} := by
-  unfold Green75.rightCount
-  rw [Finset.filter_map, Finset.card_map]
-  congr 1
-  ext x
-  simp only [Finset.mem_filter, Function.comp_apply, cross_emb, Int.cast_lt_zero]
-
 lemma int_check : ∀ p ∈ pts, ∀ q ∈ pts, p ≠ q →
     2 ≤ |((#{x ∈ pts | 0 < icross p q x} : ℕ) : ℤ) - ((#{x ∈ pts | icross p q x < 0} : ℕ) : ℤ)| := by
   decide
@@ -67,6 +51,5 @@ theorem OMA.solution : type_of% @Green75.green_75.variants.alon := by
     obtain ⟨p', hp', rfl⟩ := Finset.mem_map.mp hp
     obtain ⟨q', hq', rfl⟩ := Finset.mem_map.mp hq
     have hne : p' ≠ q' := fun h => hpq (by rw [h])
-    unfold Green75.imbalance
-    rw [OMA.leftCount_emb, OMA.rightCount_emb]
-    exact OMA.int_check p' hp' q' hq' hne
+    simpa [Green75.imbalance, Green75.leftCount, Green75.rightCount,
+      Finset.filter_map, Function.comp_def, OMA.cross_emb] using OMA.int_check p' hp' q' hq' hne

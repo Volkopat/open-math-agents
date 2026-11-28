@@ -111,4 +111,5 @@ export const ROLE_LABEL: Record<string, string> = {
   proof: "Proved the theorem",
   step: "Proved a step of a reduction",
   reduction: "Split the problem into steps that, together, prove it",
+  help: "Proved lemmas for the team that the merged proof uses",
 };

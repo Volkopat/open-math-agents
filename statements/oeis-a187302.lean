@@ -1,0 +1,60 @@
+import Mathlib
+
+/-!
+# OEIS A187302: Hardin's quadratic and Barker's conjectures for 7-step tours
+
+Source: https://oeis.org/A187302 (OEIS Foundation, CC BY-SA 4.0).
+Formalization: AI-generated with Claude Code (model claude-opus-5-5), submitted by @jleguina.
+
+Entry A187302 (R. H. Hardin, Mar 08 2011), offset 1: Number of 7-step one space leftwards or up, two space rightwards or down asymmetric rook's tours on an n X n board summed over all starting positions.
+Formula section:
+Empirical: a(n) = 2776*n^2 - 19580*n + 30728 for n>11.
+Conjectures from Colin Barker, Apr 23 2018: (Start)
+G.f.: 2*x^3*(54 + 522*x + 1242*x^2 + 400*x^3 + 904*x^4 - 368*x^5 + 393*x^6 - 369*x^7 + 104*x^8 - 108*x^9 + 13*x^10 - 11*x^11) / (1 - x)^3.
+a(n) = 3*a(n-1) - 3*a(n-2) + a(n-3) for n>14.
+(End)
+
+Formalization notes:
+* Squares are pairs (column, row) of Fin n, columns numbered to the right and rows downwards.
+  The moves are the rook's moves, one space leftwards or up and two spaces rightwards or down: (-1,0), (0,-1), (2,0), (0,2).
+  Reflecting the board maps the move set to its mirror image and does not change the counts, so
+  the orientation chosen does not matter.
+* A 7-step tour is a sequence of 7 distinct squares, each reached from the previous one by a
+  move, as in the entry's examples (the squares of a tour are labeled 1..7). Summing over all
+  starting positions means counting all such sequences.
+* The statement is the conjunction of Hardin's empirical formula and Barker's conjectures, in the
+  integers. The definition gives a(0) = 0 (the empty board has no tours), so the generating
+  function of the entry is A(x) = Sum_{n >= 0} a(n) x^n, and the identity is stated as
+  A(x) (1 - x)^3 = N(x) in the formal power series ring over the integers.
+* Controls proved in the proof file: the definition gives 0, 0, 108, 1368, 6264, 15596, 31172, 52256, 79634, 112568, 151266, 195512, 245332 for n = 1..13,
+  the entry's first terms.
+-/
+
+namespace OMA.S_oeis_a187302
+
+open Finset
+
+/-- Integer coordinates (column, row) of a square of the n X n board. -/
+def toZ {n : ℕ} (q : Fin n × Fin n) : ℤ × ℤ := ((q.1 : ℤ), (q.2 : ℤ))
+
+/-- The moves as displacements (columns to the right, rows downwards): the rook's moves, one space leftwards or up and two spaces rightwards or down. -/
+def moves : List (ℤ × ℤ) := [(-1, 0), (0, -1), (2, 0), (0, 2)]
+
+/-- A tour of k squares: k distinct squares of the board, each reached from the previous one by
+one of the moves. -/
+def IsTour (n k : ℕ) (p : Fin k → Fin n × Fin n) : Prop :=
+  Function.Injective p ∧ ∀ i j : Fin k, j.val = i.val + 1 → toZ (p j) - toZ (p i) ∈ moves
+
+instance (n k : ℕ) : DecidablePred (IsTour n k) := fun p => by unfold IsTour; infer_instance
+
+/-- A187302(n): the 7-step tours on the n X n board, over all starting squares. -/
+def a (n : ℕ) : ℕ := ((univ : Finset (Fin 7 → Fin n × Fin n)).filter (IsTour n 7)).card
+
+/-- Hardin's empirical formula and Barker's conjectures. -/
+theorem main :
+    (∀ n : ℕ, 11 < n → (a n : ℤ) = 2776 * n ^ 2 - 19580 * n + 30728) ∧
+    PowerSeries.mk (fun n => (a n : ℤ)) * (1 - PowerSeries.X) ^ 3 = 2 * PowerSeries.X ^ 3 * (54 + 522 * PowerSeries.X + 1242 * PowerSeries.X ^ 2 + 400 * PowerSeries.X ^ 3 + 904 * PowerSeries.X ^ 4 - 368 * PowerSeries.X ^ 5 + 393 * PowerSeries.X ^ 6 - 369 * PowerSeries.X ^ 7 + 104 * PowerSeries.X ^ 8 - 108 * PowerSeries.X ^ 9 + 13 * PowerSeries.X ^ 10 - 11 * PowerSeries.X ^ 11) ∧
+    (∀ n : ℕ, 14 < n → (a n : ℤ) = 3 * a (n - 1) - 3 * a (n - 2) + a (n - 3)) := by
+  sorry
+
+end OMA.S_oeis_a187302

@@ -27,10 +27,9 @@ lemma bryant (n : ℕ) (hn : 1 ≤ n) :
     simp only at hlt heq hlt' heq' h
     obtain ⟨m, rfl⟩ : ∃ m, x = y + m := ⟨x - y, by omega⟩
     obtain ⟨m', rfl⟩ : ∃ m', x' = y' + m' := ⟨x' - y', by omega⟩
-    have hmm : m = m' := by omega
-    subst hmm
-    have : y = y' := by nlinarith
-    subst this; rfl
+    obtain rfl : m = m' := by omega
+    obtain rfl : y = y' := by nlinarith
+    rfl
   · rintro d ⟨hd, hdd, hev⟩
     have hd0 : 0 < d := Nat.pos_of_ne_zero (by rintro rfl; simp at hd; omega)
     obtain ⟨e, rfl⟩ := hd
@@ -51,13 +50,11 @@ lemma arndt (n : ℕ) :
     simp only at hm h ⊢
     exact ⟨by omega, by rw [← h]; ring⟩
   · rintro ⟨m, j⟩ ⟨m', j'⟩ _ _ h
-    simp only [Prod.mk.injEq] at h ⊢; omega
+    simp at h ⊢; omega
   · rintro ⟨x, y⟩ ⟨hlt, heq⟩
     simp only at hlt heq
     obtain ⟨m, rfl⟩ : ∃ m, x = y + m := ⟨x - y, by omega⟩
-    refine ⟨(m, y), ⟨show 1 ≤ m by omega, show m ^ 2 + 2 * m * y = n by nlinarith⟩, ?_⟩
-    show (m + y, y) = (y + m, y)
-    rw [add_comm]
+    exact ⟨(m, y), ⟨show 1 ≤ m by omega, show m ^ 2 + 2 * m * y = n by nlinarith⟩, by simp [add_comm]⟩
 
 lemma squares_of_sum (k n : ℕ) (hn : 1 ≤ n) (m : ℤ)
     (h : Real.sqrt k + Real.sqrt ((k + n : ℕ) : ℝ) = m) : IsSquare k ∧ IsSquare (k + n) := by
@@ -66,20 +63,15 @@ lemma squares_of_sum (k n : ℕ) (hn : 1 ≤ n) (m : ℤ)
   have hs0 : 0 ≤ s := Real.sqrt_nonneg _
   have hs2 : s ^ 2 = k := Real.sq_sqrt (by positivity)
   have ht2 : t ^ 2 = ((k + n : ℕ) : ℝ) := Real.sq_sqrt (by positivity)
-  have ht0 : 0 < t := by
-    have h1 : (1 : ℝ) ≤ n := by exact_mod_cast hn
-    have h2 : (0 : ℝ) ≤ k := by positivity
-    exact Real.sqrt_pos.mpr (by push_cast; linarith)
-  have hm0 : (0 : ℝ) < m := by rw [← h]; linarith
+  have ht0 : 0 < t := Real.sqrt_pos.mpr (by positivity)
+  have hm0 : (0 : ℝ) < m := by linarith
   push_cast at ht2
   have hsq : s = ((m : ℝ) ^ 2 - n) / (2 * m) := by
     field_simp
-    have : t = m - s := by linarith
-    rw [this] at ht2; nlinarith
+    rw [show t = m - s by linarith] at ht2; nlinarith
   have htq : t = ((m : ℝ) ^ 2 + n) / (2 * m) := by
     field_simp
-    have : s = m - t := by linarith
-    rw [this] at hs2; nlinarith
+    rw [show s = m - t by linarith] at hs2; nlinarith
   constructor
   · by_contra hk
     exact (irrational_sqrt_natCast_iff.mpr hk).ne_rat (((m : ℚ) ^ 2 - n) / (2 * m)) (by
@@ -99,11 +91,9 @@ lemma barrera (n : ℕ) (hn : 1 ≤ n) :
     rw [Real.sqrt_sq (by positivity), Real.sqrt_sq (by positivity)]; ring
   · rintro ⟨x, y⟩ ⟨x', y'⟩ ⟨hlt, heq⟩ ⟨hlt', heq'⟩ h
     simp only at hlt heq hlt' heq' h
-    have hy : y = y' := Nat.pow_left_injective (by norm_num) h
-    subst hy
-    have : x ^ 2 = x' ^ 2 := by omega
-    have hx : x = x' := Nat.pow_left_injective (by norm_num) this
-    subst hx; rfl
+    obtain rfl := Nat.pow_left_injective two_ne_zero h
+    obtain rfl := Nat.pow_left_injective two_ne_zero (heq.trans heq'.symm)
+    rfl
   · rintro k ⟨m, hm⟩
     obtain ⟨⟨y, hy⟩, ⟨x, hx⟩⟩ := squares_of_sum k n hn m hm
     refine ⟨(x, y), ⟨?_, ?_⟩, by simp only; rw [hy]; ring⟩

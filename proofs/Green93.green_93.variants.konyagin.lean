@@ -298,21 +298,9 @@ structure HasBinaryEndpoints (n : ℕ) (p : ℤ[X]) : Prop where
 lemma IsBinary.coeff_nonneg {p : ℤ[X]} (hp : IsBinary p) (k : ℕ) :
     0 ≤ p.coeff k := by
   rcases hp k with h | h <;> simp [h]
-lemma IsBinary.coeff_le_one {p : ℤ[X]} (hp : IsBinary p) (k : ℕ) :
-    p.coeff k ≤ 1 := by
-  rcases hp k with h | h <;> simp [h]
 lemma IsBinary.coeff_sq {p : ℤ[X]} (hp : IsBinary p) (k : ℕ) :
     p.coeff k ^ 2 = p.coeff k := by
   rcases hp k with h | h <;> simp [h]
-lemma isBinary_iff_coeff_sq (p : ℤ[X]) :
-    IsBinary p ↔ ∀ k, p.coeff k ^ 2 = p.coeff k := by
-  constructor
-  · exact fun hp ↦ hp.coeff_sq
-  · intro hp k
-    have h : p.coeff k * (p.coeff k - 1) = 0 := by nlinarith [hp k]
-    rcases mul_eq_zero.mp h with h | h
-    · exact Or.inl h
-    · exact Or.inr (sub_eq_zero.mp h)
 lemma HasBinaryEndpoints.ne_zero {n : ℕ} {p : ℤ[X]}
     (hp : HasBinaryEndpoints n p) : p ≠ 0 := hp.monic.ne_zero
 lemma HasBinaryEndpoints.coeff_degree {n : ℕ} {p : ℤ[X]}
@@ -322,9 +310,6 @@ lemma HasBinaryEndpoints.coeff_degree {n : ℕ} {p : ℤ[X]}
 lemma HasBinaryEndpoints.coeff_eq_zero_above {n k : ℕ} {p : ℤ[X]}
     (hp : HasBinaryEndpoints n p) (hk : n < k) : p.coeff k = 0 :=
   coeff_eq_zero_of_natDegree_lt (hp.degree ▸ hk)
-lemma HasBinaryEndpoints.natTrailingDegree {n : ℕ} {p : ℤ[X]}
-    (hp : HasBinaryEndpoints n p) : p.natTrailingDegree = 0 := by
-  exact Polynomial.natTrailingDegree_eq_zero.mpr (Or.inr (by rw [hp.constant]; norm_num))
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -564,28 +549,6 @@ lemma HasBinaryEndpoints.eval_real_pos {n : ℕ} {p : ℤ[X]}
     (hp : HasBinaryEndpoints n p) {t : ℝ} (ht : 0 ≤ t) :
     0 < p.eval₂ (Int.castRingHom ℝ) t :=
   lt_of_lt_of_le (by norm_num) (hp.eval_real_ge_one ht)
-lemma monic_exists_positive_root_of_constant_neg {p : ℝ[X]} (hp : p.Monic)
-    (h0 : p.coeff 0 < 0) : ∃ t : ℝ, 0 < t ∧ p.eval t = 0 := by
-  have hdeg : 0 < p.natDegree := by
-    by_contra hn
-    have hz : p.natDegree = 0 := by omega
-    have hc := hp.coeff_natDegree
-    rw [hz] at hc
-    rw [hc] at h0
-    linarith
-  have hlim := p.tendsto_atTop_of_leadingCoeff_nonneg
-    (natDegree_pos_iff_degree_pos.mp hdeg) (by rw [hp.leadingCoeff]; norm_num)
-  obtain ⟨b, hb⟩ := Filter.Eventually.exists_forall_of_atTop (hlim.eventually_gt_atTop 0)
-  have hc0 : (0 : ℝ) ≤ max 1 b := le_trans (by norm_num) (le_max_left 1 b)
-  have hce : 0 < p.eval (max 1 b) := hb _ (le_max_right 1 b)
-  have he0 : p.eval 0 < 0 := by simpa only [coeff_zero_eq_eval_zero] using h0
-  obtain ⟨t, ht, hroot⟩ := intermediate_value_Icc hc0 p.continuous.continuousOn
-    (show (0 : ℝ) ∈ Set.Icc (p.eval 0) (p.eval (max 1 b)) from ⟨he0.le, hce.le⟩)
-  refine ⟨t, ?_, hroot⟩
-  by_contra hpos
-  have hz : t = 0 := le_antisymm (le_of_not_gt hpos) ht.1
-  rw [hz] at hroot
-  linarith
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -629,10 +592,6 @@ lemma HasCyclotomicDivisor.of_dvd {p q : ℤ[X]} (hp : HasCyclotomicDivisor p)
     (hdvd : p ∣ q) : HasCyclotomicDivisor q := by
   obtain ⟨k, hk, hkp⟩ := hp
   exact ⟨k, hk, hkp.trans hdvd⟩
-lemma HasHigherCyclotomicDivisor.hasCyclotomicDivisor {p : ℤ[X]}
-    (hp : HasHigherCyclotomicDivisor p) : HasCyclotomicDivisor p := by
-  obtain ⟨k, hk, hd⟩ := hp
-  exact ⟨k, Nat.totient_pos.mp (by omega), hd⟩
 lemma cyclotomic_dvd_iff_rational (k : ℕ) (p : ℤ[X]) :
     cyclotomic k ℤ ∣ p ↔ cyclotomic k ℚ ∣ p.map (Int.castRingHom ℚ) := by
   rw [IsPrimitive.Int.dvd_iff_map_cast_dvd_map_cast _ _ (cyclotomic.isPrimitive k ℤ),
@@ -665,13 +624,6 @@ lemma HasBinaryEndpoints.cyclotomic_alternative {n : ℕ} {p : ℤ[X]}
   rcases Nat.totient_eq_one_iff.mp ht with rfl | rfl
   · exact False.elim (hp.not_cyclotomic_one_dvd hd)
   · exact Or.inr ((cyclotomic_two_dvd_iff_minus_one p).mp hd)
-lemma HasBinaryEndpoints.hasCyclotomicDivisor_iff {n : ℕ} {p : ℤ[X]}
-    (hp : HasBinaryEndpoints n p) :
-    HasCyclotomicDivisor p ↔ HasHigherCyclotomicDivisor p ∨ p.eval (-1) = 0 := by
-  refine ⟨hp.cyclotomic_alternative, ?_⟩
-  rintro (h | h)
-  · exact h.hasCyclotomicDivisor
-  · exact ⟨2, by norm_num, (cyclotomic_two_dvd_iff_minus_one p).mpr h⟩
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -754,9 +706,6 @@ lemma zeroOneLift_reduce {p : ℤ[X]} (hp : IsBinary p) :
   rcases hp k with h | h <;>
     simp only [h, Int.cast_zero, Int.cast_one, ZMod.val_zero, ZMod.val_one,
       Nat.cast_zero, Nat.cast_one]
-lemma zeroOneLift_injective : Function.Injective zeroOneLift := by
-  intro p q h
-  simpa only [reduce_zeroOneLift] using congrArg (reducePolynomial 2) h
 lemma IsBinary.eq_of_reduce_eq {p q : ℤ[X]} (hp : IsBinary p) (hq : IsBinary q)
     (h : reducePolynomial 2 p = reducePolynomial 2 q) : p = q := by
   simpa only [zeroOneLift_reduce hp, zeroOneLift_reduce hq] using congrArg zeroOneLift h
@@ -1054,22 +1003,6 @@ lemma exists_wordPolynomial_eq {m : ℕ} {p : ℤ[X]}
     have hi : i.val + 1 = k := by dsimp [i]; omega
     rw [← hi, coeff_wordPolynomial_internal, hw]
   · rw [coeff_wordPolynomial_above w (by omega), hp.coeff_eq_zero_above (by omega)]
-noncomputable def binaryFamily (m : ℕ) : Finset ℤ[X] :=
-  Finset.univ.image (@wordPolynomial m)
-lemma mem_binaryFamily_iff {m : ℕ} {p : ℤ[X]} :
-    p ∈ binaryFamily m ↔ HasBinaryEndpoints (m + 1) p := by
-  classical
-  constructor
-  · intro h
-    obtain ⟨w, _, rfl⟩ := Finset.mem_image.mp h
-    exact wordPolynomial_endpoints w
-  · intro hp
-    obtain ⟨w, rfl⟩ := exists_wordPolynomial_eq hp
-    exact Finset.mem_image.mpr ⟨w, Finset.mem_univ _, rfl⟩
-lemma card_binaryFamily (m : ℕ) : (binaryFamily m).card = 2 ^ m := by
-  classical
-  rw [binaryFamily, Finset.card_image_of_injective _ wordPolynomial_injective]
-  simp
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -1208,18 +1141,6 @@ lemma f2WordPolynomial_ext {n : ℕ} {p q : (ZMod 2)[X]}
     simpa only [hi] using h i
   · rw [coeff_eq_zero_of_natDegree_lt (by rw [hp.degree]; omega),
       coeff_eq_zero_of_natDegree_lt (by rw [hq.degree]; omega)]
-lemma reverse_f2WordPolynomial {n : ℕ} (w : Fin n → Bool) :
-    (f2WordPolynomial w).reverse = f2WordPolynomial (fun i ↦ w i.rev) := by
-  apply f2WordPolynomial_ext (f2WordPolynomial_endpoints w).reverse
-    (f2WordPolynomial_endpoints _)
-  intro i
-  rw [coeff_reverse, (f2WordPolynomial_endpoints w).degree,
-    revAt_le (show i.val + 1 ≤ n + 1 by have := i.isLt; omega)]
-  have hi : n + 1 - (i.val + 1) = i.rev.val + 1 := by
-    rw [Fin.val_rev]
-    have := i.isLt
-    omega
-  rw [hi, coeff_f2WordPolynomial_internal, coeff_f2WordPolynomial_internal]
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -1336,11 +1257,6 @@ lemma HasBinaryEndpoints.monic_divisor_constant {n : ℕ} {p J : ℤ[X]}
   obtain ⟨q, hq⟩ := hdvd
   have hqmonic : q.Monic := hJ.of_mul_monic_left (by rw [← hq]; exact hp.monic)
   exact (hp.factor_constants hJ hqmonic hq).1
-lemma HasBinaryEndpoints.monic_divisor_reduce_endpoints {n : ℕ} {p J : ℤ[X]}
-    (hp : HasBinaryEndpoints n p) (hJ : J.Monic) (hdvd : J ∣ p) :
-    HasF2Endpoints J.natDegree (reducePolynomial 2 J) := by
-  refine ⟨hJ.map _, monic_reduce_natDegree 2 hJ, ?_⟩
-  rw [coeff_reducePolynomial, hp.monic_divisor_constant hJ hdvd, Int.cast_one]
 lemma monic_reciprocal_reduce_dvd_gcd {p J : ℤ[X]}
     (hJ : J.Monic) (hdvd : J ∣ p) (hrec : J.reverse = J) :
     reducePolynomial 2 J ∣
@@ -1356,16 +1272,6 @@ lemma HasBinaryEndpoints.reciprocal_divisor_degree_le_gcd {n : ℕ} {p J : ℤ[X
   have h := natDegree_le_of_dvd (monic_reciprocal_reduce_dvd_gcd hJ hdvd hrec)
     hp.reduce.gcd_reverse_endpoints.monic.ne_zero
   simpa only [monic_reduce_natDegree 2 hJ] using h
-theorem monic_reciprocal_divisor_reduction {n : ℕ} {p J : ℤ[X]}
-    (hp : HasBinaryEndpoints n p) (hJ : J.Monic) (hdvd : J ∣ p) (hrec : J.reverse = J) :
-    HasF2Endpoints J.natDegree (reducePolynomial 2 J) ∧
-      (reducePolynomial 2 J).natDegree = J.natDegree ∧
-      (reducePolynomial 2 J).reverse = reducePolynomial 2 J ∧
-      reducePolynomial 2 J ∣
-        GCDMonoid.gcd (reducePolynomial 2 p) (reducePolynomial 2 p).reverse := by
-  refine ⟨hp.monic_divisor_reduce_endpoints hJ hdvd, monic_reduce_natDegree 2 hJ,
-    ?_, monic_reciprocal_reduce_dvd_gcd hJ hdvd hrec⟩
-  rw [← monic_reduce_reverse 2 hJ, hrec]
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -1439,21 +1345,6 @@ lemma uniformProbability_le_one {α : Type*} [Fintype α] [Nonempty α] (E : α 
     uniformProbability E ≤ uniformProbability (fun _ : α ↦ True) :=
       uniformProbability_mono (fun _ _ ↦ trivial)
     _ = 1 := uniformProbability_true
-lemma uniformProbability_product {α β : Type*} [Fintype α] [Fintype β]
-    (E : α → Prop) (F : β → Prop) :
-    uniformProbability (fun p : α × β ↦ E p.1 ∧ F p.2) =
-      uniformProbability E * uniformProbability F := by
-  classical
-  letI : DecidablePred (fun p : α × β ↦ E p.1 ∧ F p.2) :=
-    fun _ ↦ Classical.propDecidable _
-  have h : Finset.univ.filter (fun p : α × β ↦ E p.1 ∧ F p.2) =
-      (Finset.univ.filter E) ×ˢ (Finset.univ.filter F) := by
-    ext p
-    simp
-  unfold uniformProbability
-  rw [h, Finset.card_product, Fintype.card_prod]
-  push_cast
-  ring
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -1602,30 +1493,6 @@ open scoped Classical
 namespace OdlyzkoPoonen
 noncomputable def binaryProbability (m : ℕ) (E : Polynomial ℤ → Prop) : ℝ :=
   uniformProbability (fun w : Fin m → Bool ↦ E (wordPolynomial w))
-lemma binaryProbability_eq_count (m : ℕ) (E : Polynomial ℤ → Prop) :
-    binaryProbability m E = ((binaryFamily m).filter E).card / (2 : ℝ) ^ m := by
-  classical
-  have h : (Finset.univ.filter (fun w : Fin m → Bool ↦ E (wordPolynomial w))).image
-      wordPolynomial = (binaryFamily m).filter E := by
-    ext p
-    simp only [binaryFamily, Finset.mem_image, Finset.mem_filter, Finset.mem_univ,
-      true_and]
-    constructor
-    · rintro ⟨w, hw, rfl⟩
-      exact ⟨⟨w, rfl⟩, hw⟩
-    · rintro ⟨⟨w, rfl⟩, hw⟩
-      exact ⟨w, hw, rfl⟩
-  rw [binaryProbability, uniformProbability, ← h,
-    Finset.card_image_of_injective _ wordPolynomial_injective]
-  simp
-lemma binaryProbability_endpoints (m : ℕ) :
-    binaryProbability m (HasBinaryEndpoints (m + 1)) = 1 := by
-  unfold binaryProbability
-  have h : (fun w : Fin m → Bool ↦ HasBinaryEndpoints (m + 1) (wordPolynomial w)) =
-      (fun _ ↦ True) := by
-    funext w
-    exact propext ⟨fun _ ↦ trivial, fun _ ↦ wordPolynomial_endpoints w⟩
-  rw [h, uniformProbability_true]
 end OdlyzkoPoonen
 
 open scoped Classical
@@ -1648,28 +1515,10 @@ lemma f2Probability_eq_count (m : ℕ) (E : Polynomial (ZMod 2) → Prop) :
   rw [f2Probability, uniformProbability, ← h,
     Finset.card_image_of_injective _ f2WordPolynomial_injective]
   simp
-lemma f2Probability_eq_binaryProbability (m : ℕ) (E : Polynomial (ZMod 2) → Prop) :
-    f2Probability m E = binaryProbability m (fun p ↦ E (reducePolynomial 2 p)) := rfl
-lemma f2Probability_endpoints (m : ℕ) :
-    f2Probability m (HasF2Endpoints (m + 1)) = 1 := by
-  unfold f2Probability
-  have h : (fun w : Fin m → Bool ↦ HasF2Endpoints (m + 1) (f2WordPolynomial w)) =
-      (fun _ ↦ True) := by
-    funext w
-    exact propext ⟨fun _ ↦ trivial, fun _ ↦ f2WordPolynomial_endpoints w⟩
-  rw [h, uniformProbability_true]
 noncomputable def f2PairProbability (m l : ℕ)
     (E : Polynomial (ZMod 2) → Polynomial (ZMod 2) → Prop) : ℝ :=
   uniformProbability (fun w : (Fin m → Bool) × (Fin l → Bool) ↦
     E (f2WordPolynomial w.1) (f2WordPolynomial w.2))
-lemma f2PairProbability_product (m l : ℕ)
-    (E F : Polynomial (ZMod 2) → Prop) :
-    f2PairProbability m l (fun a b ↦ E a ∧ F b) =
-      f2Probability m E * f2Probability l F := by
-  unfold f2PairProbability f2Probability
-  exact uniformProbability_product
-    (fun w : Fin m → Bool ↦ E (f2WordPolynomial w))
-    (fun w : Fin l → Bool ↦ F (f2WordPolynomial w))
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -1886,9 +1735,6 @@ lemma card_f2EndpointFamily (h : ℕ) :
   by_cases hh : h = 0
   · simp [f2EndpointFamily, hh]
   · simp only [f2EndpointFamily, if_neg hh, card_f2Family]
-lemma f2EndpointFamily_nonempty (h : ℕ) : (f2EndpointFamily h).Nonempty := by
-  rw [← Finset.card_pos, card_f2EndpointFamily]
-  split_ifs <;> positivity
 lemma card_f2EndpointFamily_le (h : ℕ) : (f2EndpointFamily h).card ≤ 2 ^ h := by
   rw [card_f2EndpointFamily]
   split_ifs with hh
@@ -2450,10 +2296,6 @@ lemma rootPrefixPolynomial_monic {R : Type*} [CommRing R] {n : ℕ}
 lemma rootPrefixPolynomial_natDegree {R : Type*} [CommRing R] [Nontrivial R]
     {n : ℕ} (x : Fin n → R) (j : Fin n) : (rootPrefixPolynomial x j).natDegree = j.val := by
   rw [rootPrefixPolynomial, natDegree_finsetProd_X_sub_C_eq_card, Fin.card_Iio]
-lemma rootPrefixMultiplicity_le {R : Type*} {n : ℕ} (x : Fin n → R) (i : Fin n) :
-    rootPrefixMultiplicity x i ≤ i.val := by
-  rw [rootPrefixMultiplicity, ← Fin.card_Iio i]
-  exact Finset.card_filter_le _ _
 lemma rootPrefixMultiplicity_lt_later_count {R : Type*} {n : ℕ}
     (x : Fin n → R) {i j : Fin n} (hij : i < j) :
     rootPrefixMultiplicity x i < ((Finset.Iio j).filter (fun k ↦ x k = x i)).card := by
@@ -2511,14 +2353,6 @@ lemma det_confluentVandermonde {R : Type*} [CommRing R] [Nontrivial R]
     Matrix.det_of_isLowerTriangular _ (confluentVandermonde_newton_lowerTriangular x)] at he
   rw [he]
   exact Finset.prod_congr rfl (fun i _ ↦ confluentVandermonde_newton_diagonal x i)
-lemma det_confluentVandermonde_ne_zero {R : Type*} [CommRing R] [IsDomain R]
-    {n : ℕ} (x : Fin n → R) : (confluentVandermonde x).det ≠ 0 := by
-  rw [det_confluentVandermonde]
-  apply Finset.prod_ne_zero_iff.mpr
-  intro i hi
-  apply Finset.prod_ne_zero_iff.mpr
-  intro j hj
-  exact sub_ne_zero.mpr (Finset.mem_filter.mp hj).2.symm
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -2674,50 +2508,6 @@ theorem polynomialRootPowers_leadingCoeff_of_splits {R : Type*}
   rw [polynomialRootPowers_eq_prod_of_splits p hp k, leadingCoeff_mul, leadingCoeff_C,
     (monic_multiset_prod_of_monic p.roots (fun z ↦ X - C (z ^ k))
       (fun z _ ↦ monic_X_sub_C (z ^ k))).leadingCoeff, mul_one]
-theorem polynomialRootPowers_natDegree_of_splits {K : Type*} [Field K]
-    {p : K[X]} (hp : p ≠ 0) (hs : p.Splits) (k : ℕ) :
-    (polynomialRootPowers p k).natDegree = p.natDegree := by
-  rw [polynomialRootPowers_eq_prod_of_splits p hs k,
-    natDegree_C_mul (pow_ne_zero k (leadingCoeff_ne_zero.mpr hp))]
-  have he : p.roots.map (fun z ↦ X - C (z ^ k)) =
-      (p.roots.map (fun z ↦ z ^ k)).map (fun z ↦ X - C z) := by
-    rw [Multiset.map_map]
-    rfl
-  rw [he, natDegree_multiset_prod_X_sub_C_eq_card, Multiset.card_map,
-    ← hs.natDegree_eq_card_roots]
-theorem polynomialRootPowers_dvd_pow_of_dvd_comp {p q : ℂ[X]} (hp : p ≠ 0)
-    (k : ℕ) (hd : p ∣ q.comp (X ^ k)) :
-    polynomialRootPowers p k ∣ q ^ p.natDegree := by
-  have hroot (z : ℂ) (hz : z ∈ p.roots) : X - C (z ^ k) ∣ q := by
-    apply dvd_iff_isRoot.mpr
-    have h := ((mem_roots hp).mp hz).dvd hd
-    simpa only [IsRoot, eval_comp, eval_pow, eval_X] using h
-  have hprod := Multiset.prod_dvd_prod_of_dvd
-    (fun z : ℂ ↦ X - C (z ^ k)) (fun _ : ℂ ↦ q) hroot
-  have hdiv : (p.roots.map (fun z ↦ X - C (z ^ k))).prod ∣ q ^ p.natDegree := by
-    simpa only [Multiset.map_const', Multiset.prod_replicate,
-      ← (IsAlgClosed.splits p).natDegree_eq_card_roots] using hprod
-  rw [polynomialRootPowers_eq_prod]
-  have hu : IsUnit (C (p.leadingCoeff ^ k)) :=
-    isUnit_C.mpr (isUnit_iff_ne_zero.mpr (pow_ne_zero k (leadingCoeff_ne_zero.mpr hp)))
-  have hc : C (p.leadingCoeff ^ k) * (p.roots.map (fun z ↦ X - C (z ^ k))).prod ∣
-      (p.roots.map (fun z ↦ X - C (z ^ k))).prod := by
-    simpa using mul_dvd_mul (isUnit_iff_dvd_one.mp hu) (dvd_refl
-      ((p.roots.map (fun z ↦ X - C (z ^ k))).prod))
-  exact hc.trans hdiv
-theorem polynomialRootPowers_mahlerMeasure (p : ℂ[X]) (k : ℕ) :
-    (polynomialRootPowers p k).mahlerMeasure = p.mahlerMeasure ^ k := by
-  rw [polynomialRootPowers_eq_prod, Polynomial.mahlerMeasure_mul,
-    Polynomial.mahlerMeasure_const, norm_pow,
-    Polynomial.prod_mahlerMeasure_eq_mahlerMeasure_prod, Multiset.map_map]
-  simp only [Function.comp_apply, Polynomial.mahlerMeasure_X_sub_C, norm_pow]
-  have hm (z : ℂ) : max 1 (‖z‖ ^ k) = (max 1 ‖z‖) ^ k := by
-    rcases le_total ‖z‖ 1 with hz | hz
-    · rw [max_eq_left hz, one_pow, max_eq_left (pow_le_one₀ (norm_nonneg _) hz)]
-    · rw [max_eq_right hz, max_eq_right (one_le_pow₀ hz)]
-  simp_rw [hm]
-  rw [Multiset.prod_map_pow, Polynomial.mahlerMeasure_eq_leadingCoeff_mul_prod_roots,
-    mul_pow]
 theorem polynomialRootPowers_map {R S : Type*} [CommRing R] [CommRing S]
     (φ : R →+* S) (hφ : Function.Injective φ) (p : R[X]) (k : ℕ) :
     (polynomialRootPowers p k).map φ = polynomialRootPowers (p.map φ) k := by
@@ -2734,13 +2524,6 @@ theorem polynomialRootPowers_map {R S : Type*} [CommRing R] [CommRing S]
   · rw [Polynomial.map_map, Polynomial.map_map, hc]
   · simp only [Polynomial.map_sub, Polynomial.map_pow,
       Polynomial.map_C, Polynomial.map_X, Polynomial.coe_mapRingHom]
-theorem polynomialRootPowers_isRoot {p : ℂ[X]} (hp : p ≠ 0)
-    {z : ℂ} (hz : p.IsRoot z) (k : ℕ) :
-    (polynomialRootPowers p k).IsRoot (z ^ k) := by
-  apply dvd_iff_isRoot.mp
-  rw [polynomialRootPowers_eq_prod]
-  apply dvd_mul_of_dvd_right
-  exact Multiset.dvd_prod (Multiset.mem_map.mpr ⟨z, (mem_roots hp).mpr hz, rfl⟩)
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -3124,18 +2907,6 @@ lemma polynomialRootPowers_one_complex {f : ℂ[X]} (hf : f.Monic) :
   rw [polynomialRootPowers_eq_prod]
   simp only [pow_one, hf.leadingCoeff, map_one, one_mul]
   exact ((IsAlgClosed.splits f).eq_prod_roots_of_monic hf).symm
-lemma polynomialRootPowers_int_monic {J : ℤ[X]} (hJ : J.Monic) (r : ℕ) :
-    (polynomialRootPowers J r).Monic := by
-  apply Polynomial.monic_of_injective (show Function.Injective (Int.castRingHom ℂ) from Int.cast_injective)
-  rw [polynomialRootPowers_map _ (show Function.Injective (Int.castRingHom ℂ) from Int.cast_injective)]
-  exact polynomialRootPowers_complex_monic (hJ.map _) r
-lemma polynomialRootPowers_int_natDegree {J : ℤ[X]} (hJ : J.Monic) (r : ℕ) :
-    (polynomialRootPowers J r).natDegree = J.natDegree := by
-  rw [← natDegree_map_eq_of_injective (show Function.Injective (Int.castRingHom ℂ) from Int.cast_injective),
-    polynomialRootPowers_map _ (show Function.Injective (Int.castRingHom ℂ) from Int.cast_injective),
-    polynomialRootPowers_natDegree_of_splits (hJ.map (Int.castRingHom ℂ)).ne_zero
-      (IsAlgClosed.splits _) r,
-    natDegree_map_eq_of_injective (show Function.Injective (Int.castRingHom ℂ) from Int.cast_injective)]
 lemma resultant_rootPowers_eq_comp_complex {f : ℂ[X]} (hf : f.Monic)
     (g : ℂ[X]) (r : ℕ) :
     resultant (polynomialRootPowers f r) g = resultant f (g.comp (X ^ r)) := by
@@ -3210,14 +2981,6 @@ lemma root_power_family_injective {ι : Type*} {J : ℤ[X]} (x : ι → ℂ)
     Function.Injective (fun i ↦ x i ^ r) := by
   intro i j he
   exact hx (hr _ (hmem i) _ (hmem j) he)
-lemma root_power_families_disjoint {ι : Type*} {J : ℤ[X]} (hJ : J.Monic)
-    (hirr : Irreducible (J.map (Int.castRingHom ℚ))) (hconst : J.coeff 0 ≠ 0)
-    (hcyc : ¬ HasCyclotomicDivisor J) (x : ι → ℂ)
-    (hmem : ∀ i, x i ∈ (J.map (Int.castRingHom ℂ)).roots)
-    {r s : ℕ} (hrs : r ≠ s) (i j : ι) : x i ^ r ≠ x j ^ s := by
-  intro he
-  exact hrs (eq_exponents_of_noncyclotomic_complex_root_powers
-    hJ hirr hconst hcyc (hmem i) (hmem j) he)
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -3835,8 +3598,6 @@ lemma order_le_totient_sq_with_odd (n : ℕ) :
       exact Nat.mul_le_mul (ha.2 (Nat.odd_mul.mp ho).1) (hb.2 (Nat.odd_mul.mp ho).2)
 lemma order_le_two_totient_sq (n : ℕ) : n ≤ 2 * n.totient ^ 2 :=
   (order_le_totient_sq_with_odd n).1
-lemma odd_order_le_totient_sq {n : ℕ} (hn : Odd n) : n ≤ n.totient ^ 2 :=
-  (order_le_totient_sq_with_odd n).2 hn
 end OdlyzkoPoonen
 
 noncomputable section
@@ -4020,11 +3781,6 @@ lemma eventually_theta_eight_mul_sub_ge :
   have hupper := Chebyshev.theta_le_log4_mul_x hx
   rw [hlog4] at hupper
   nlinarith [mul_nonneg (sub_nonneg.mpr hlog) hx]
-lemma exists_threshold_theta_eight_mul_sub_ge :
-    ∃ x₀ : ℝ, 1 ≤ x₀ ∧ ∀ x : ℝ, x₀ ≤ x →
-      x ≤ Chebyshev.theta (8 * x) - Chebyshev.theta x := by
-  obtain ⟨x₀, hx₀⟩ := eventually_atTop.mp eventually_theta_eight_mul_sub_ge
-  exact ⟨max 1 x₀, le_max_left _ _, fun x hx ↦ hx₀ x ((le_max_right _ _).trans hx)⟩
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -4051,22 +3807,6 @@ lemma log_primeIntervalProduct {a b : ℕ} (hab : a ≤ b) :
     exact Finset.sum_sdiff_eq_sub (Nat.primesLE_mono hab)
   · intro p hp
     exact_mod_cast (mem_primesInInterval.mp hp).1.ne_zero
-lemma primeIntervalProduct_dvd {a b B : ℕ}
-    (hdiv : ∀ p ∈ primesInInterval a b, p ∣ B) : primeIntervalProduct a b ∣ B := by
-  apply Finset.prod_dvd_of_isRelPrime
-  · intro p hp q hq hne
-    apply Nat.coprime_iff_isRelPrime.mp
-    exact (Nat.coprime_primes (mem_primesInInterval.mp hp).1
-      (mem_primesInInterval.mp hq).1).mpr hne
-  · exact hdiv
-lemma exists_prime_in_interval_not_dvd {a b B : ℕ} (hB : 0 < B)
-    (hprod : B < primeIntervalProduct a b) :
-    ∃ p : ℕ, p.Prime ∧ a < p ∧ p ≤ b ∧ ¬ p ∣ B := by
-  by_contra! h
-  have hd : primeIntervalProduct a b ∣ B := primeIntervalProduct_dvd (fun p hp ↦
-    h p (mem_primesInInterval.mp hp).1 (mem_primesInInterval.mp hp).2.1
-      (mem_primesInInterval.mp hp).2.2)
-  exact (not_lt_of_ge (Nat.le_of_dvd hB hd)) hprod
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -4084,18 +3824,6 @@ lemma exists_threshold_exp_le_primeIntervalProduct :
       Real.exp (n : ℝ) ≤ (primeIntervalProduct n (8 * n) : ℝ) := by
   obtain ⟨n₀, hn₀⟩ := eventually_atTop.mp eventually_exp_le_primeIntervalProduct
   exact ⟨max 1 n₀, le_max_left _ _, fun n hn ↦ hn₀ n ((le_max_right _ _).trans hn)⟩
-lemma exists_prime_in_interval_not_dvd_of_log_lt {n B : ℕ} (hB : 0 < B)
-    (hgrowth : Real.exp (n : ℝ) ≤ (primeIntervalProduct n (8 * n) : ℝ))
-    (hlog : Real.log (B : ℝ) < (n : ℝ)) :
-    ∃ p : ℕ, p.Prime ∧ n < p ∧ p ≤ 8 * n ∧ ¬ p ∣ B := by
-  apply exists_prime_in_interval_not_dvd hB
-  have hBpos : (0 : ℝ) < (B : ℝ) := Nat.cast_pos.mpr hB
-  have hlt : (B : ℝ) < (primeIntervalProduct n (8 * n) : ℝ) := by
-    calc
-      _ = Real.exp (Real.log (B : ℝ)) := (Real.exp_log hBpos).symm
-      _ < Real.exp (n : ℝ) := Real.exp_lt_exp.mpr hlog
-      _ ≤ _ := hgrowth
-  exact_mod_cast hlt
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -4276,14 +4004,6 @@ lemma card_mul_log_lower_le_prime_weight {a b : ℕ} (ha : 0 < a) {t : Finset �
     _ = ∑ _p ∈ t, Real.log (a : ℝ) := by simp
     _ ≤ _ := Finset.sum_le_sum (fun p hp ↦ Real.log_le_log (by exact_mod_cast ha)
       (by exact_mod_cast (mem_primesInInterval.mp (ht hp)).2.1.le))
-lemma prime_weight_le_card_mul_log_upper {a b : ℕ} {t : Finset ℕ}
-    (ht : t ⊆ primesInInterval a b) :
-    (∑ p ∈ t, Real.log (p : ℝ)) ≤ (t.card : ℝ) * Real.log (b : ℝ) := by
-  calc
-    _ ≤ ∑ _p ∈ t, Real.log (b : ℝ) := Finset.sum_le_sum (fun p hp ↦
-      Real.log_le_log (by exact_mod_cast (mem_primesInInterval.mp (ht hp)).1.pos)
-        (by exact_mod_cast (mem_primesInInterval.mp (ht hp)).2.2))
-    _ = _ := by simp
 lemma sum_primes_le_card_mul_upper {a b : ℕ} {t : Finset ℕ}
     (ht : t ⊆ primesInInterval a b) :
     (∑ p ∈ t, p) ≤ t.card * b := by
@@ -4391,14 +4111,6 @@ lemma one_le_norm_leadingCoeff_int_map {P : ℤ[X]} (hP : P ≠ 0) :
   rw [leadingCoeff_map_of_injective (Int.castRingHom ℂ).injective_int, eq_intCast]
   norm_cast
   exact Int.one_le_abs (leadingCoeff_ne_zero.mpr hP)
-lemma int_mahlerMeasure_le_of_dvd {J P : ℤ[X]} (hd : J ∣ P) (hP : P ≠ 0) :
-    (J.map (Int.castRingHom ℂ)).mahlerMeasure ≤
-      (P.map (Int.castRingHom ℂ)).mahlerMeasure := by
-  obtain ⟨R, rfl⟩ := hd
-  have hR : R ≠ 0 := right_ne_zero_of_mul hP
-  rw [Polynomial.map_mul, mahlerMeasure_mul]
-  exact le_mul_of_one_le_right (mahlerMeasure_nonneg _)
-    (one_le_mahlerMeasure_of_ne_zero hR)
 lemma one_lt_mahlerMeasure_of_no_cyclotomic {J : ℤ[X]}
     (hdegree : 0 < J.natDegree) (hX : ¬ X ∣ J)
     (hcyclotomic : ¬ HasCyclotomicDivisor J) :
@@ -4409,11 +4121,6 @@ lemma one_lt_mahlerMeasure_of_no_cyclotomic {J : ℤ[X]}
   intro heq
   exact hcyclotomic (cyclotomic_dvd_of_mahlerMeasure_eq_one heq.symm hX
     (ne_of_gt (natDegree_pos_iff_degree_pos.mp hdegree)))
-lemma log_mahlerMeasure_pos_of_no_cyclotomic {J : ℤ[X]}
-    (hdegree : 0 < J.natDegree) (hX : ¬ X ∣ J)
-    (hcyclotomic : ¬ HasCyclotomicDivisor J) :
-    0 < Real.log (J.map (Int.castRingHom ℂ)).mahlerMeasure := by
-  exact Real.log_pos (one_lt_mahlerMeasure_of_no_cyclotomic hdegree hX hcyclotomic)
 end OdlyzkoPoonen
 
 noncomputable section
@@ -4668,37 +4375,6 @@ lemma coeff_wordPolynomial_sub_outside {m : ℕ} (v w : Fin m → Bool) (k : ℕ
       simp only [coeff_wordPolynomial_top, sub_self]
     · rw [coeff_wordPolynomial_above v (by omega),
         coeff_wordPolynomial_above w (by omega), sub_self]
-lemma support_wordPolynomial_sub_map_subset {m : ℕ} (v w : Fin m → Bool) :
-    ((wordPolynomial v - wordPolynomial w).map (Int.castRingHom ℂ)).support ⊆
-      Finset.Icc 1 m := by
-  intro k hk
-  by_contra h
-  have hout : k = 0 ∨ m < k := by simp only [Finset.mem_Icc] at h; omega
-  have hz := coeff_wordPolynomial_sub_outside v w k hout
-  exact (mem_support_iff.mp hk) (by simp only [coeff_map, hz, map_zero])
-lemma mahlerMeasure_wordPolynomial_sub_le {m : ℕ} (v w : Fin m → Bool) :
-    ((wordPolynomial v - wordPolynomial w).map (Int.castRingHom ℂ)).mahlerMeasure ≤
-      Real.sqrt (m : ℝ) := by
-  classical
-  let P := (wordPolynomial v - wordPolynomial w).map (Int.castRingHom ℂ)
-  have hc (k : ℕ) : ‖P.coeff k‖ ^ 2 ≤ (1 : ℝ) := by
-    have h := (wordPolynomial_endpoints v).binary.norm_coeff_sub_le_one
-      (wordPolynomial_endpoints w).binary k
-    change ‖P.coeff k‖ ≤ 1 at h
-    nlinarith [norm_nonneg (P.coeff k)]
-  have hcard : P.support.card ≤ m := by
-    have h := Finset.card_le_card (support_wordPolynomial_sub_map_subset v w)
-    simpa [P, Nat.card_Icc] using h
-  calc
-    P.mahlerMeasure ≤ Real.sqrt (∑ k ∈ P.support, ‖P.coeff k‖ ^ 2) :=
-      mahlerMeasure_le_sqrt_sum_sq_norm_coeff P
-    _ ≤ Real.sqrt (∑ _k ∈ P.support, (1 : ℝ)) := by
-      apply Real.sqrt_le_sqrt
-      exact Finset.sum_le_sum (fun k _ ↦ hc k)
-    _ = Real.sqrt (P.support.card : ℝ) := by simp
-    _ ≤ Real.sqrt (m : ℝ) := by
-      apply Real.sqrt_le_sqrt
-      exact_mod_cast hcard
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -5089,23 +4765,6 @@ lemma exists_uniform_noncyclotomic_factor_bound :
       simp [binaryProbability, uniformProbability, hf]
     rw [hz]
     exact (Real.exp_pos _).le
-lemma exists_uniform_integer_irreducible_noncyclotomic_factor_bound :
-    ∃ a : ℝ, 0 < a ∧ ∃ N : ℕ, 2 ≤ N ∧ ∀ n : ℕ, N ≤ n →
-      ∀ J : ℤ[X], Irreducible J → (¬ HasCyclotomicDivisor J) →
-        binaryProbability (n - 1) (fun P ↦ J ∣ P) ≤
-          Real.exp (-a * (n : ℝ) / Real.log (n : ℝ) ^ 4) := by
-  obtain ⟨a, ha, N, hN, hbound⟩ := exists_uniform_noncyclotomic_factor_bound
-  refine ⟨a, ha, N, hN, ?_⟩
-  intro n hn J hirr hcyc
-  by_cases hex : ∃ w : Fin (n - 1) → Bool, J ∣ wordPolynomial w
-  · obtain ⟨w, hw⟩ := hex
-    exact hbound n hn J
-      (irreducible_map_rat_of_dvd_monic (wordPolynomial_endpoints w).monic hw hirr) hcyc
-  · have hf : ∀ w : Fin (n - 1) → Bool, ¬ J ∣ wordPolynomial w := by simpa using hex
-    have hz : binaryProbability (n - 1) (fun P ↦ J ∣ P) = 0 := by
-      simp [binaryProbability, uniformProbability, hf]
-    rw [hz]
-    exact (Real.exp_pos _).le
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -5376,12 +5035,6 @@ lemma lifted_factor_autocorrelation_congruent_two (a b : (ZMod 2)[X])
   rw [reverse_mul_of_domain, reverse_mul_of_domain,
     reverse_reverse_of_constant_ne_zero hb]
   ring
-lemma lifted_factor_autocorrelation_even (a b : (ZMod 2)[X])
-    (hb : b.coeff 0 ≠ 0) (k : ℕ) :
-    (2 : ℤ) ∣ (autocorrelation (zeroOneLift (a * b))).coeff k -
-      (autocorrelation (zeroOneLift (a * b.reverse))).coeff k :=
-  (congruentMod_iff_coeff_dvd _ _ _).mp
-    (lifted_factor_autocorrelation_congruent_two a b hb) k
 lemma four_dvd_iff_two_dvd_half {t : ℤ} (ht : 2 ∣ t) :
     4 ∣ t ↔ 2 ∣ t / 2 := by
   obtain ⟨u, rfl⟩ := ht
@@ -5461,9 +5114,6 @@ open Polynomial
 def AgreeOnOuter {R : Type*} [Semiring R] (n k : ℕ) (p q : R[X]) : Prop :=
   (∀ i ≤ k, p.coeff i = q.coeff i) ∧
   (∀ i ≤ k, p.coeff (n - i) = q.coeff (n - i))
-lemma AgreeOnOuter.mono {R : Type*} [Semiring R] {n k l : ℕ} {p q : R[X]}
-    (h : AgreeOnOuter n k p q) (hl : l ≤ k) : AgreeOnOuter n l p q :=
-  ⟨fun i hi ↦ h.1 i (hi.trans hl), fun i hi ↦ h.2 i (hi.trans hl)⟩
 lemma coeff_mul_right_eq_of_prefix {R : Type*} [Semiring R] (a : R[X])
     {b b' : R[X]} {k : ℕ} (h : ∀ i ≤ k, b.coeff i = b'.coeff i) :
     (a * b).coeff k = (a * b').coeff k := by
@@ -5599,11 +5249,6 @@ lemma triangular_freshBitCorrection_active {n : ℕ} {s : Finset (Fin n)}
     triangularBitMap (freshBitCorrection s D) w i = D w i := by
   simp only [triangularBitMap, freshBitCorrection, if_pos hi]
   cases w i <;> cases D w i <;> rfl
-lemma triangular_freshBitCorrection_inactive {n : ℕ} {s : Finset (Fin n)}
-    (D : (Fin n → Bool) → Fin n → Bool) (w : Fin n → Bool)
-    {i : Fin n} (hi : i ∉ s) :
-    triangularBitMap (freshBitCorrection s D) w i = w i := by
-  simp [triangularBitMap, freshBitCorrection, hi]
 lemma uniformProbability_freshBitConstraints {n : ℕ} {s : Finset (Fin n)}
     {D : (Fin n → Bool) → Fin n → Bool} (hp : DependsOnPrefix D)
     (hf : TogglesOn s D) (v : Fin n → Bool) :
@@ -5680,11 +5325,6 @@ lemma pairedDiscrepancy_dependsOnPrefix {d n : ℕ} {a : (ZMod 2)[X]}
     DependsOnPrefix (pairedDiscrepancy a c z) := by
   intro i u u' h
   exact pairedDiscrepancy_eq_of_prefix ha z z h
-lemma pairedDiscrepancy_center_independent {d n : ℕ} {a : (ZMod 2)[X]}
-    (ha : HasF2Endpoints d a) (c u : Fin (n / 2) → Bool)
-    (z z' : Fin (n % 2) → Bool) : pairedDiscrepancy a c z u = pairedDiscrepancy a c z' u := by
-  funext i
-  exact pairedDiscrepancy_eq_of_prefix ha z z' (fun _ _ ↦ rfl)
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -5785,18 +5425,6 @@ lemma coeff_mul_togglePair_opposite_before {d e k i : ℕ} {a b : (ZMod 2)[X]}
     ← reverse_mul_of_domain] at h
   simpa only [coeff_reverse, (ha.mul (hb.togglePair hk0 hk)).degree,
     (ha.mul hb).degree, revAt_le (show i ≤ d + e by omega)] using h
-lemma togglePair_togglePair (e k : ℕ) (b : (ZMod 2)[X]) :
-    togglePair e k (togglePair e k b) = b := by
-  unfold togglePair
-  rw [add_assoc, CharTwo.add_self_eq_zero, add_zero]
-lemma togglePair_add_reverse {e k : ℕ} {b : (ZMod 2)[X]}
-    (hb : HasF2Endpoints e b) (hk0 : 0 < k) (hk : 2 * k < e) :
-    togglePair e k b + (togglePair e k b).reverse = b + b.reverse := by
-  rw [reverse_togglePair hb hk0 hk]
-  unfold togglePair
-  calc
-    _ = b + b.reverse + ((X ^ k + X ^ (e - k)) + (X ^ k + X ^ (e - k))) := by abel
-    _ = _ := by rw [CharTwo.add_self_eq_zero, add_zero]
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -5956,13 +5584,6 @@ lemma paired_sum_reverse_eq_pairSumPolynomial {n : ℕ} (u c : Fin (n / 2) → B
 lemma coeff_pairSumPolynomial_lower {n : ℕ} (c : Fin (n / 2) → Bool) (i : Fin (n / 2)) :
     (pairSumPolynomial c).coeff (i.val + 1) = bitToF2 (c i) :=
   coeff_paired_sum_reverse_lower (fun _ ↦ false) c (fun _ ↦ false) i
-lemma pairSumPolynomial_injective {n : ℕ} : Function.Injective (@pairSumPolynomial n) := by
-  intro c d h
-  funext i
-  apply bitF2Equiv.injective
-  change bitToF2 (c i) = bitToF2 (d i)
-  have hi := congrArg (fun p : (ZMod 2)[X] ↦ p.coeff (i.val + 1)) h
-  simpa only [coeff_pairSumPolynomial_lower] using hi
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -5991,17 +5612,6 @@ lemma paired_discrepancies_zero_probability_le {d n : ℕ} {a : (ZMod 2)[X]}
   have h := uniformProbability_all_outputs_zero_le
     (pairedDiscrepancy_dependsOnPrefix ha c z) (pairedDiscrepancy_togglesOn ha c z)
   simpa only [pairedDiscrepancy, f2ToBit_eq_false_iff] using h
-lemma paired_discrepancies_zero_fiber_probability_le {d n : ℕ} {a : (ZMod 2)[X]}
-    (ha : HasF2Endpoints d a) (c : Fin (n / 2) → Bool) :
-    uniformProbability (fun v : (Fin (n % 2) → Bool) × (Fin (n / 2) → Bool) ↦
-      ∀ i : Fin (n / 2),
-        autocorrelationDiscrepancy a (pairedPolynomial v.2 c v.1) (i.val + 1) = 0) ≤
-      (1 / 2 : ℝ) ^ (activeDiscrepancyIndices a c).card := by
-  rw [uniformProbability_product_eq_average
-    (fun (z : Fin (n % 2) → Bool) (u : Fin (n / 2) → Bool) ↦
-      ∀ i : Fin (n / 2),
-        autocorrelationDiscrepancy a (pairedPolynomial u c z) (i.val + 1) = 0)]
-  exact uniformAverage_le (fun z ↦ paired_discrepancies_zero_probability_le ha c z)
 lemma paired_factor_congruence_probability_le {d n : ℕ} {a : (ZMod 2)[X]}
     (ha : HasF2Endpoints d a) (c : Fin (n / 2) → Bool) (z : Fin (n % 2) → Bool) :
     uniformProbability (fun u : Fin (n / 2) → Bool ↦
@@ -6055,16 +5665,6 @@ lemma uniformProbability_firstTrueAt {n : ℕ} (i : Fin n) :
       (1 / 2 : ℝ) ^ (i.val + 1) := by
   simp only [firstTrueAt_iff_prescribed]
   rw [uniformProbability_prescribedBits, Fin.card_Iic]
-lemma FirstTrueAt.unique {n : ℕ} {w : Fin n → Bool} {i j : Fin n}
-    (hi : FirstTrueAt w i) (hj : FirstTrueAt w j) : i = j := by
-  rcases lt_trichotomy i j with h | h | h
-  · have hf := hj.2 i h
-    rw [hi.1] at hf
-    contradiction
-  · exact h
-  · have hf := hi.2 j h
-    rw [hj.1] at hf
-    contradiction
 lemma exists_firstTrueAt_iff {n : ℕ} (w : Fin n → Bool) :
     (∃ i, FirstTrueAt w i) ↔ ¬ ∀ i, w i = false := by
   classical
@@ -6124,22 +5724,6 @@ lemma firstAsymmetryAt_paired_iff {n : ℕ} (u c : Fin (n / 2) → Bool)
         change j.val < i.val
         dsimp [j]
         omega
-lemma FirstAsymmetryAt.unique {p : (ZMod 2)[X]} {i j : ℕ}
-    (hi : FirstAsymmetryAt p i) (hj : FirstAsymmetryAt p j) : i = j := by
-  rcases lt_trichotomy i j with h | h | h
-  · have hf := hj.2 i h
-    rw [hi.1] at hf
-    exact (one_ne_zero hf).elim
-  · exact h
-  · have hf := hi.2 j h
-    rw [hj.1] at hf
-    exact (one_ne_zero hf).elim
-lemma FirstAsymmetryAt.ne_reverse {p : (ZMod 2)[X]} {j : ℕ}
-    (h : FirstAsymmetryAt p j) : p ≠ p.reverse := by
-  intro hp
-  have hi := h.1
-  rw [← hp, CharTwo.add_self_eq_zero, coeff_zero] at hi
-  exact zero_ne_one hi
 lemma HasF2Endpoints.exists_firstAsymmetry {n : ℕ} {p : (ZMod 2)[X]}
     (hp : HasF2Endpoints (n + 1) p) (hne : p ≠ p.reverse) :
     ∃ i : Fin (n / 2), FirstAsymmetryAt p (i.val + 1) := by
@@ -6283,12 +5867,6 @@ lemma coefficientConvolution_eq_triangular {m : ℕ} {q : (ZMod 2)[X]}
   unfold coefficientConvolution triangularBitMap coefficientConvolutionCorrection
   rw [coeff_mul_constant_one q _ hq, coeff_f2InteriorPolynomial, f2ToBit_add,
     f2ToBit_bitToF2]
-lemma coefficientConvolution_bijective {m : ℕ} {q : (ZMod 2)[X]}
-    (hq : q.coeff 0 = 1) : Function.Bijective (@coefficientConvolution m q) := by
-  have heq : @coefficientConvolution m q = triangularBitMap (coefficientConvolutionCorrection q) :=
-    funext (coefficientConvolution_eq_triangular hq)
-  rw [heq]
-  exact triangularBitMap_bijective (coefficientConvolutionCorrection_dependsOnEarlier q)
 lemma uniformAverage_coefficientConvolution_half_weight {m : ℕ} {q : (ZMod 2)[X]}
     (hq : q.coeff 0 = 1) :
     uniformAverage (fun w : Fin m → Bool ↦
@@ -6461,25 +6039,6 @@ lemma f2Probability_firstAsymmetryAt {n : ℕ} (i : Fin (n / 2)) :
   simp only [firstAsymmetryAt_paired_iff]
   simp_rw [uniformProbability_eq_average_indicator, uniformAverage_const]
   rw [← uniformProbability_eq_average_indicator, uniformProbability_firstTrueAt]
-lemma HasF2Endpoints.exists_firstAsymmetry_range {d : ℕ} {p : (ZMod 2)[X]}
-    (hp : HasF2Endpoints d p) (hd : 0 < d) (hne : p ≠ p.reverse) :
-    ∃ j : ℕ, 1 ≤ j ∧ j ≤ (d - 1) / 2 ∧ FirstAsymmetryAt p j := by
-  cases d with
-  | zero => omega
-  | succ n =>
-    obtain ⟨i, hi⟩ := hp.exists_firstAsymmetry hne
-    exact ⟨i.val + 1, by omega, by have := i.isLt; omega, hi⟩
-lemma f2Probability_firstAsymmetryAt_of_range {n j : ℕ}
-    (hj0 : 1 ≤ j) (hj : j ≤ n / 2) :
-    f2Probability n (fun p ↦ FirstAsymmetryAt p j) = (1 / 2 : ℝ) ^ j := by
-  let i : Fin (n / 2) := ⟨j - 1, by omega⟩
-  have hi : i.val + 1 = j := by dsimp [i]; omega
-  simpa only [hi] using f2Probability_firstAsymmetryAt i
-lemma HasF2Endpoints.reverse_eq_of_degree_le_two {d : ℕ} {p : (ZMod 2)[X]}
-    (hp : HasF2Endpoints d p) (hd0 : 0 < d) (hd : d ≤ 2) : p.reverse = p := by
-  by_contra h
-  obtain ⟨j, hj0, hj, _⟩ := hp.exists_firstAsymmetry_range hd0 (Ne.symm h)
-  omega
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -6751,38 +6310,11 @@ lemma sum_floor_half_three_quarters_le_eight (s : ℕ) :
       rw [sum_three_quarters_range]
       have h : 0 ≤ (3 / 4 : ℝ) ^ s := by positivity
       linarith
-lemma companion_split_exponent_lower {n : ℕ} (i : Fin (n / 2)) :
-    (n - 1) / 4 ≤ (n - (i.val + 1) - 1) / 2 := by
-  have := i.isLt
-  omega
 lemma companion_split_exponent_reversed {n : ℕ} (i : Fin (n / 2)) :
     (n - 1) / 4 + i.val / 2 ≤ (n - (i.rev.val + 1) - 1) / 2 := by
   rw [Fin.val_rev]
   have := i.isLt
   omega
-lemma companion_split_exponent_fiber_card_le_two (n k : ℕ) :
-    (Finset.univ.filter (fun i : Fin (n / 2) ↦ (n - (i.val + 1) - 1) / 2 = k)).card ≤ 2 := by
-  classical
-  let f : Fin (n / 2) → ℕ := fun i ↦ n - (i.val + 1) - 1
-  have hf : Function.Injective f := by
-    intro i j h
-    apply Fin.ext
-    have := i.isLt
-    have := j.isLt
-    dsimp [f] at h
-    omega
-  have hsub : (Finset.univ.filter (fun i : Fin (n / 2) ↦ f i / 2 = k)).image f ⊆
-      {2 * k, 2 * k + 1} := by
-    intro x hx
-    obtain ⟨i, hi, rfl⟩ := Finset.mem_image.mp hx
-    have hi' := (Finset.mem_filter.mp hi).2
-    have heq : f i = 2 * k ∨ f i = 2 * k + 1 := by omega
-    simpa only [Finset.mem_insert, Finset.mem_singleton] using heq
-  calc
-    _ = ((Finset.univ.filter (fun i : Fin (n / 2) ↦ f i / 2 = k)).image f).card :=
-      (Finset.card_image_of_injective _ hf).symm
-    _ ≤ ({2 * k, 2 * k + 1} : Finset ℕ).card := Finset.card_le_card hsub
-    _ = 2 := by simp
 lemma companion_split_sum_le_eight (n : ℕ) :
     (∑ i : Fin (n / 2), (3 / 4 : ℝ) ^ ((n - (i.val + 1) - 1) / 2)) ≤
       8 * (3 / 4 : ℝ) ^ ((n - 1) / 4) := by
@@ -6881,20 +6413,6 @@ lemma reducible_sub_minus_one_probability_le {n : ℕ} (hn : 2 ≤ n) :
         · exact False.elim (hw.2 h)
       · exact Or.inl ⟨hw.1, hc⟩
     _ ≤ _ := binaryProbability_or_le_add _ _ _
-lemma reducible_probability_reduction {n : ℕ} (hn : 2 ≤ n) :
-    0 ≤ binaryProbability (n - 1) ReducibleOverRat -
-        binaryProbability (n - 1) (fun p ↦ p.eval (-1) = 0) ∧
-      binaryProbability (n - 1) ReducibleOverRat -
-        binaryProbability (n - 1) (fun p ↦ p.eval (-1) = 0) ≤
-          8 * (3 / 4 : ℝ) ^ ((n - 1) / 4) +
-            binaryProbability (n - 1) (fun p ↦
-              HasLargeReciprocalIntegerDivisor 1 p ∧ ¬ HasCyclotomicDivisor p) +
-            binaryProbability (n - 1) HasHigherCyclotomicDivisor := by
-  refine ⟨reducible_sub_minus_one_probability_nonneg hn, ?_⟩
-  have h₁ := reducible_sub_minus_one_probability_le hn
-  have h₂ := reducible_without_cyclotomic_probability_le (show 1 ≤ n by omega)
-  have h₃ := mod_four_companion_probability_le n (by omega)
-  linarith
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -6933,20 +6451,6 @@ open scoped BigOperators Classical
 def groupWordEquiv {ι κ : Type*} (f : ι → κ) :
     (ι → Bool) ≃ (∀ j : κ, {i : ι // f i = j} → Bool) :=
   Equiv.piCongrFiberwise (f := f) (fun _ ↦ Equiv.refl _)
-lemma groupWordEquiv_apply {ι κ : Type*} (f : ι → κ) (w : ι → Bool)
-    (j : κ) (i : {i : ι // f i = j}) : groupWordEquiv f w j i = w i.val := rfl
-lemma uniformProbability_groupWord {ι κ : Type*} [Fintype ι] [Fintype κ]
-    (f : ι → κ) (E : (∀ j : κ, {i : ι // f i = j} → Bool) → Prop) :
-    uniformProbability (fun w : ι → Bool ↦ E (groupWordEquiv f w)) =
-      uniformProbability E := uniformProbability_equiv (groupWordEquiv f) E
-lemma uniformProbability_groupWord_pi {ι κ : Type*} [Fintype ι] [Fintype κ]
-    (f : ι → κ) (E : ∀ j : κ, ({i : ι // f i = j} → Bool) → Prop) :
-    uniformProbability (fun w : ι → Bool ↦ ∀ j, E j (fun i ↦ w i.val)) =
-      ∏ j, uniformProbability (E j) := by
-  calc
-    _ = uniformProbability (fun v : ∀ j : κ, {i : ι // f i = j} → Bool ↦ ∀ j, E j (v j)) :=
-      uniformProbability_groupWord f _
-    _ = _ := uniformProbability_pi E
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -6973,9 +6477,6 @@ lemma uniformProbability_trueBitCount (n k : ℕ) :
   rw [← Fintype.card_subtype, Fintype.card_finset_len]
   simp only [Fintype.card_fin, Fintype.card_finset,
     Nat.cast_pow, Nat.cast_ofNat]
-lemma uniformProbability_trueBitCount_eq_zero {n k : ℕ} (h : n < k) :
-    uniformProbability (fun w : Fin n → Bool ↦ trueBitCount w = k) = 0 := by
-  rw [uniformProbability_trueBitCount, Nat.choose_eq_zero_of_lt h, Nat.cast_zero, zero_div]
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -7738,9 +7239,6 @@ namespace OdlyzkoPoonen
 open Filter
 open scoped Topology
 def cyclotomicDegreeCutoff (n : ℕ) : ℕ := 8 * (Nat.log 2 n + 1)
-lemma cyclotomicDegreeCutoff_pos (n : ℕ) : 0 < cyclotomicDegreeCutoff n := by
-  unfold cyclotomicDegreeCutoff
-  omega
 lemma pow_eight_le_two_pow_cyclotomicDegreeCutoff (n : ℕ) :
     (n : ℝ) ^ 8 ≤ (2 : ℝ) ^ cyclotomicDegreeCutoff n := by
   exact_mod_cast nat_pow_le_two_pow_log_multiple n 8
@@ -7828,12 +7326,6 @@ lemma eventually_binaryProbability_higher_cyclotomic_le :
     _ ≤ 1024 / (n : ℝ) + 1024 / (n : ℝ) + 4 / (n : ℝ) :=
       add_le_add (add_le_add le_rfl hmid) (cyclotomic_cutoff_tail_le hn)
     _ = _ := by ring
-theorem exists_threshold_higher_cyclotomic_bound :
-    ∃ N : ℕ, ∀ n ≥ N,
-      0 ≤ binaryProbability (n - 1) HasHigherCyclotomicDivisor ∧
-        binaryProbability (n - 1) HasHigherCyclotomicDivisor ≤ 2052 / (n : ℝ) := by
-  obtain ⟨N, hN⟩ := eventually_atTop.mp eventually_binaryProbability_higher_cyclotomic_le
-  exact ⟨N, fun n hn ↦ ⟨uniformProbability_nonneg _, hN n hn⟩⟩
 theorem binaryProbability_higher_cyclotomic_isBigO :
     (fun n : ℕ ↦ binaryProbability (n - 1) HasHigherCyclotomicDivisor) =O[atTop]
       (fun n : ℕ ↦ 1 / (n : ℝ)) := by
@@ -7843,11 +7335,6 @@ theorem binaryProbability_higher_cyclotomic_isBigO :
     uniformProbability_nonneg _
   simpa only [Real.norm_eq_abs, abs_of_nonneg hp0,
     abs_of_nonneg (show 0 ≤ 1 / (n : ℝ) by positivity), mul_one_div] using hn
-lemma tendsto_higher_cyclotomic_probability :
-    Tendsto (fun n : ℕ ↦ binaryProbability (n - 1) HasHigherCyclotomicDivisor)
-      atTop (𝓝 0) :=
-  binaryProbability_higher_cyclotomic_isBigO.trans_tendsto
-    (tendsto_const_nhds.div_atTop tendsto_natCast_atTop_atTop)
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -7904,12 +7391,6 @@ theorem binaryProbability_minus_one_even {r : ℕ} (hr : 1 ≤ r) :
   rw [he, uniformProbability_alternatingComplement
     (fun w : Fin (2 * r - 1) → Bool ↦ trueBitCount w = r + 1),
     uniformProbability_trueBitCount]
-lemma binaryProbability_minus_one_degree_one :
-    binaryProbability 0 (fun p ↦ p.eval (-1) = 0) = 1 := by
-  simpa using binaryProbability_minus_one_odd 0
-lemma binaryProbability_minus_one_degree_two :
-    binaryProbability 1 (fun p ↦ p.eval (-1) = 0) = 0 := by
-  simpa using binaryProbability_minus_one_even (r := 1) (by omega)
 end OdlyzkoPoonen
 
 namespace OdlyzkoPoonen
@@ -8129,36 +7610,6 @@ lemma binaryProbability_reducible_excess_isBigO :
   simpa only [Pi.add_apply, Real.norm_eq_abs,
     abs_of_nonneg (reducible_sub_minus_one_probability_nonneg hn), abs_of_nonneg hsum]
     using reducible_sub_minus_one_probability_le hn
-theorem exists_reducible_probability_excess_bound :
-    ∃ C : ℝ, 0 < C ∧ ∃ N : ℕ, 2 ≤ N ∧ ∀ n : ℕ, N ≤ n →
-      0 ≤ binaryProbability (n - 1) ReducibleOverRat -
-        binaryProbability (n - 1) (fun P ↦ P.eval (-1) = 0) ∧
-      binaryProbability (n - 1) ReducibleOverRat -
-        binaryProbability (n - 1) (fun P ↦ P.eval (-1) = 0) ≤ C / (n : ℝ) := by
-  obtain ⟨C, hC, hbound⟩ := binaryProbability_reducible_excess_isBigO.exists_pos
-  obtain ⟨N, hN⟩ := eventually_atTop.mp hbound.bound
-  refine ⟨C, hC, max 2 N, le_max_left _ _, ?_⟩
-  intro n hn
-  have hn2 : 2 ≤ n := (le_max_left _ _).trans hn
-  have hnonneg := reducible_sub_minus_one_probability_nonneg hn2
-  refine ⟨hnonneg, ?_⟩
-  simpa only [Real.norm_eq_abs, abs_of_nonneg hnonneg,
-    abs_of_nonneg (show (0 : ℝ) ≤ 1 / (n : ℝ) by positivity), mul_one_div]
-    using hN n ((le_max_right _ _).trans hn)
-lemma nat_rpow_neg_three_halves_isBigO_inverse :
-    (fun n : ℕ ↦ (n : ℝ) ^ (-3 / 2 : ℝ)) =O[atTop] (fun n : ℕ ↦ 1 / (n : ℝ)) := by
-  apply Asymptotics.IsBigO.of_norm_eventuallyLE
-  filter_upwards [eventually_ge_atTop 1] with n hn
-  have hnR : (1 : ℝ) ≤ n := by exact_mod_cast hn
-  have h := Real.rpow_le_rpow_of_exponent_le hnR (by norm_num : (-3 / 2 : ℝ) ≤ -1)
-  simpa only [Real.norm_eq_abs, abs_of_nonneg (Real.rpow_nonneg (Nat.cast_nonneg n) _),
-    abs_of_nonneg (show (0 : ℝ) ≤ 1 / (n : ℝ) by positivity), Real.rpow_neg_one, one_div] using h
-theorem binaryProbability_reducible_asymptotic :
-    (fun n : ℕ ↦ binaryProbability (n - 1) ReducibleOverRat -
-      Real.sqrt (2 / (Real.pi * (n : ℝ)))) =O[atTop] (fun n : ℕ ↦ 1 / (n : ℝ)) := by
-  have h := binaryProbability_reducible_excess_isBigO.add
-    (binaryProbability_minus_one_asymptotic.trans nat_rpow_neg_three_halves_isBigO_inverse)
-  simpa only [Pi.add_apply, sub_add_sub_cancel] using h
 lemma tendsto_reducible_probability :
     Tendsto (fun n : ℕ ↦ binaryProbability (n - 1) ReducibleOverRat) atTop (𝓝 0) := by
   have he := binaryProbability_reducible_excess_isBigO.trans_tendsto
@@ -8175,13 +7626,6 @@ end OdlyzkoPoonen
 namespace OdlyzkoPoonen
 open Filter Asymptotics
 open scoped Topology
-theorem irreducibility_and_reducibility_asymptotic :
-    Tendsto (fun n : ℕ ↦ binaryProbability (n - 1)
-      (fun P ↦ Irreducible (P.map (Int.castRingHom ℚ)))) atTop (𝓝 1) ∧
-    ((fun n : ℕ ↦ binaryProbability (n - 1) ReducibleOverRat -
-      Real.sqrt (2 / (Real.pi * (n : ℝ)))) =O[atTop]
-        (fun n : ℕ ↦ 1 / (n : ℝ))) :=
-  ⟨odlyzko_poonen_irreducibility, binaryProbability_reducible_asymptotic⟩
 end OdlyzkoPoonen
 
 

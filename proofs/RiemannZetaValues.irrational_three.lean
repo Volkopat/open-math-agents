@@ -53,8 +53,6 @@ theorem d_insert (s : Finset ℕ) (n : ℕ) : d (insert n s) = Nat.lcm n (d s) :
   simp only [d, Finset.lcm_insert, id_eq]
   rfl
 
-theorem d_empty : d (∅ : Finset ℕ) = 1 := by simp [d]
-
 theorem dvd_d_of_mem (s : Finset ℕ) (n : ℕ) (h : n ∈ s) : n ∣ d s :=
   Finset.dvd_lcm h
 
@@ -66,32 +64,6 @@ theorem d_dvd_d_of_le (s t : Finset ℕ) (h : s ≤ t) : d s ∣ d t := by
 theorem d_ne_zero (s : Finset ℕ) (hs : 0 ∉ s) : d s ≠ 0 := by
   delta d
   simp_all
-
-theorem d_eq_zero (s : Finset ℕ) (hs : 0 ∈ s) : d s = 0 := by
-  delta d
-  simp_all
-
-theorem Nat_Prime_dvd_lcm {p} (hp : Nat.Prime p) (a b) (h : p ∣ Nat.lcm a b) :
-    p ∣ a ∨ p ∣ b := by
-  have := h.trans <| Nat.lcm_dvd_mul a b
-  rwa [Nat.Prime.dvd_mul hp] at this
-
-theorem Nat_primeFactors_lcm {a b : ℕ} (ha : a ≠ 0) (hb : b ≠ 0) :
-    (a.lcm b).primeFactors = a.primeFactors ∪ b.primeFactors := by
-  ext p
-  rw [Nat.mem_primeFactors_iff_mem_primeFactorsList, Finset.mem_union,
-    Nat.mem_primeFactors_iff_mem_primeFactorsList, Nat.mem_primeFactors_iff_mem_primeFactorsList]
-  simp only [Nat.mem_primeFactorsList', ne_eq]
-  constructor
-  · rintro ⟨hp1, hp2, hp3⟩
-    obtain hp4 | hp4 := Nat_Prime_dvd_lcm hp1 a b hp2
-    · simp_all
-    · simp_all
-  · rintro (⟨hp1, hp2, hp3⟩|⟨hp1, hp2, hp3⟩)
-    · refine ⟨hp1, hp2.trans <| dvd_lcm_left a b, ?_⟩
-      simp_all
-    · refine ⟨hp1, hp2.trans <| dvd_lcm_right a b, ?_⟩
-      simp_all
 
 private lemma Nat_lcm_pow_n (n a b : ℕ) (ha : a ≠ 0) (hb : b ≠ 0) :
     (Nat.lcm a b) ^ n = Nat.lcm (a ^ n) (b ^ n) := by
@@ -142,224 +114,6 @@ theorem fin_d_neq_zero (n : ℕ) : d (Finset.Icc 1 n) > 0 := by
   apply d_ne_zero
   simp only [Finset.mem_Icc, nonpos_iff_eq_zero, one_ne_zero, zero_le, and_true, not_false_eq_true]
 
-theorem lcm_factorization (m n p : ℕ) (hm : m ≠ 0) (hn : n ≠ 0) :
-    (m.lcm n).factorization p = max (m.factorization p) (n.factorization p) := by
-  rw [Nat.factorization_lcm hm hn]
-  rfl
-
-theorem d_factorization (s : Finset ℕ) (hs : s.Nonempty) (p : ℕ) (hs₁ : 0 ∉ s) :
-    (d s).factorization p =
-    (s.image fun i => i.factorization p).max' (by aesop) := by
-  induction s using Finset.induction_on with
-  | empty => simp only [Finset.not_nonempty_empty] at hs
-  | @insert m s hm ih =>
-    rw [d_insert, lcm_factorization _ _ _]
-    · if hs : s.Nonempty
-      then
-      simp_all
-      else
-      simp only [Finset.not_nonempty_iff_eq_empty] at hs
-      subst hs
-      simp only [d_empty, Nat.factorization_one, Finsupp.coe_zero, Pi.zero_apply, zero_le,
-        max_eq_left, insert_empty_eq, Finset.image_singleton, Finset.max'_singleton]
-    · aesop
-    · apply d_ne_zero
-      aesop
-
-theorem d_factorization' (s : Finset ℕ) (hs : s.Nonempty) (p : ℕ) (hs₁ : 0 ∉ s) :
-    ((d s).factorization p : ℝ) =
-    (((s.image fun (i : ℕ) => (i.factorization p : ℝ)))).max' (by aesop) := by
-  rw [d_factorization s hs p hs₁]
-  induction s using Finset.induction_on with
-  | empty => simp only [Finset.not_nonempty_empty] at hs
-  | @insert m s _ ih =>
-    simp_rw [Finset.image_insert]
-    if hs : s.Nonempty
-    then
-    simp_all
-    else
-    aesop
-
-theorem d_primeFactors (s : Finset ℕ) (hs : 0 ∉ s) :
-    (d s).primeFactors = s.sup fun i => i.primeFactors := by
-   induction s using Finset.induction_on with
-  | empty =>
-    simp only [Finset.sup_empty, Finset.bot_eq_empty, Nat.primeFactors_eq_empty]
-    right
-    simp only [d_empty]
-  | @insert m s hm ih =>
-    simp only [Finset.mem_insert, not_or] at hs
-    rw [d_insert, Nat_primeFactors_lcm (by aesop) (d_ne_zero _ (by aesop))]
-    simp_all
-
-theorem d_factorization_eq_div_log'' (p : ℕ) :
-    (d (Finset.Icc 1 0)).factorization p =
-    ⌊Real.log 0 / Real.log p⌋₊ := by
-  simp [d_empty]
-
-theorem d_factorization_eq_div_log' (n p : ℕ) (hp : Nat.Prime p) :
-    (d (Finset.Icc 1 (n + 1))).factorization p =
-    ⌊Real.log (n + 1) / Real.log p⌋₊ := by
-  symm
-  rw [Real.log_div_log]
-  rw [Nat.floor_eq_iff]
-  · rw [d_factorization' (s := Finset.Icc 1 (n + 1)) (hs := by exact ⟨1, by simp⟩)
-      (p := p) (hs₁ := by simp)]
-    · constructor
-      · rw [Finset.max'_le_iff]
-        intro y hy
-        rw [Real.le_logb_iff_rpow_le]
-        · simp only [Finset.mem_image, Finset.mem_Icc] at hy
-          obtain ⟨x, hx, rfl⟩ := hy
-          have h := @Nat.pow_factorization_choose_le p x 1 (by omega)
-          norm_cast
-          simp only [Nat.choose_one_right] at h
-          linarith
-        · norm_cast
-          exact Nat.Prime.one_lt hp
-        · norm_cast
-          omega
-      · rw [← sub_lt_iff_lt_add]
-        · by_contra! h
-          rw [Finset.max'_le_iff] at h
-          set y := (Finset.image (fun i ↦ i.factorization p)
-            (Finset.Icc 1 (n + 1))).max' (by aesop)
-          have hy : (y : ℝ) ∈
-              (Finset.image (fun i ↦ (i.factorization p : ℝ)) (Finset.Icc 1 (n + 1))) := by
-            simp only [Finset.mem_image, Finset.mem_Icc, Nat.cast_inj]
-            simp_rw [← Finset.mem_Icc]
-            rw [← Finset.mem_image]
-            exact Finset.max'_mem _ _
-          specialize h (y : ℝ) hy
-          rw [le_sub_iff_add_le, Real.le_logb_iff_rpow_le] at h
-          · have h2 : y + 1 ∉
-                (Finset.image (fun i ↦ i.factorization p) (Finset.Icc 1 (n + 1))) := by
-              intro hy1
-              suffices y + 1 ≤ y by linarith
-              exact Finset.le_max' _ _ hy1
-            simp only [Finset.mem_image, Finset.mem_Icc, not_exists, not_and, and_imp] at h2
-            norm_cast at h
-            specialize h2 (p ^ (y + 1)) (by exact one_le_pow_of_one_le' (Nat.Prime.one_le hp) _) h
-            aesop
-          · norm_cast
-            exact Nat.Prime.one_lt hp
-          · norm_cast
-            omega
-  · apply Real.logb_nonneg
-    · norm_cast
-      exact Nat.Prime.one_lt hp
-    · simp_all
-
-theorem d_factorization_eq_div_log (n p : ℕ) (hp : Nat.Prime p) :
-    (d (Finset.Icc 1 n)).factorization p =
-    ⌊Real.log n / Real.log p⌋₊ := by
-  cases n
-  · simp only [zero_lt_one, Finset.Icc_eq_empty_of_lt, d_empty, Nat.factorization_one,
-    Finsupp.coe_zero, Pi.zero_apply, CharP.cast_eq_zero, Real.log_zero, zero_div, Nat.floor_zero]
-  · rw [d_factorization_eq_div_log' (hp := hp)]
-    simp
-
-theorem d_eq_prod_pow' (n : ℕ) :
-    d (Finset.Icc 1 (n + 1)) =
-    ∏ p ∈ (((n + 1) + 1).primesBelow),
-      p ^ ((Finset.Icc 1 (n + 1)).image (fun i => i.factorization p)).max' (by aesop) := by
-  rw [← Nat.prod_factorization_pow_eq_self (n := d (Finset.Icc 1 (n + 1)))]
-  · simp only [Finsupp.prod, Nat.support_factorization]
-    rw [d_primeFactors _ (by aesop)]
-    refine Finset.prod_congr ?_ ?_
-    · ext p
-      constructor <;> intro hp
-      · rw [Finset.mem_sup] at hp
-        obtain ⟨m, H, h⟩ := hp
-        simp only [Finset.mem_Icc] at H
-        rw [Nat.mem_primesBelow]
-        simp only [Nat.mem_primeFactors, ne_eq] at h
-        constructor
-        · linarith [Nat.le_of_dvd (by omega) h.2.1]
-        · exact h.1
-      · rw [Finset.mem_sup]
-        use p
-        simp only [Finset.mem_Icc, Nat.mem_primeFactors, dvd_refl, ne_eq, true_and]
-        rw [Nat.mem_primesBelow] at hp
-        constructor
-        · exact ⟨Nat.Prime.one_le hp.2, (by linarith)⟩
-        · aesop
-    · intro p _
-      rw [d_factorization (s := Finset.Icc 1 (n + 1)) (hs := by exact ⟨1, by simp⟩)
-        (p := p) (hs₁ := by simp)]
-  · apply d_ne_zero
-    aesop
-
-theorem d_eq_prod_pow'' (n : ℕ) :
-    d (Finset.Icc 1 (n + 1)) =
-    ∏ p ∈ (((n + 1) + 1).primesBelow),
-      p ^ ⌊(Real.log ((n + 1) : ℝ)) / (Real.log (p : ℝ))⌋₊ := by
-  rw [d_eq_prod_pow']
-  refine Finset.prod_congr rfl ?_
-  intro p hp
-  simp only [Nat.mem_primesBelow] at hp
-  congr 1
-  have eq := d_factorization_eq_div_log (n + 1) p
-  simp only [Nat.cast_add, Nat.cast_one] at eq
-  rw [← eq hp.2, d_factorization (s := Finset.Icc 1 (n + 1)) (hs := by exact ⟨1, by simp⟩)
-    (p := p) (hs₁ := by simp)]
-
-theorem d_eq_prod_pow (n : ℕ) :
-    d (Finset.Icc 1 n) =
-    ∏ p ∈ ((n + 1).primesBelow),
-      p ^ ⌊(Real.log (n : ℝ)) / (Real.log (p : ℝ))⌋₊ := by
-  cases n
-  · simp [d_empty]
-  · rw [d_eq_prod_pow'']
-    simp
-
-theorem d_le_pow_counting (n : ℕ) : d (Finset.Icc 1 n) ≤ n ^ (n.primeCounting) := by
-  if h : n = 0 then
-    rw [h]; aesop
-  else
-    have h1 : 1 ≤ n := by omega
-    rw [d_eq_prod_pow n]
-    calc
-    _ ≤ ∏ _ ∈ ((n + 1).primesBelow), n := by
-      apply Finset.prod_le_prod
-      · simp_all
-      · intro p hp
-        rw [Nat.mem_primesBelow] at hp
-        have h2 : 1 ≤ p := by
-          by_contra! h
-          have : p = 0 := by omega
-          aesop
-        suffices p ^ (⌊(Real.log (n : ℝ)) / (Real.log (p : ℝ))⌋₊ : ℝ) ≤
-            (n : ℝ) by
-          norm_cast at this
-        trans p ^ ((Real.log (n : ℝ)) / (Real.log (p : ℝ)))
-        · apply Real.rpow_le_rpow_of_exponent_le (by norm_cast)
-          · apply Nat.floor_le
-            if h2 : n = 1 ∨ p = 1 then
-              rcases h2 with (rfl | rfl) <;> simp
-            else
-              rcases (not_or.1 h2) with ⟨_, h2⟩
-              have h1 : 1 < n := by omega
-              have h2 : 1 < p := by omega
-              suffices 0 < Real.log (n : ℝ) / Real.log (p : ℝ) by linarith
-              apply div_pos <;>
-              exact Real.log_pos (by norm_cast)
-        · nth_rewrite 1 [← Real.exp_log (x := (p : ℝ)) (by norm_cast), ← Real.exp_one_rpow,
-            ← Real.rpow_mul (by exact Real.exp_nonneg 1), mul_div, mul_comm, ← mul_div]
-          if hp : p = 1 then
-            simp_all
-          else
-            rw [div_self, mul_one, Real.exp_one_rpow, Real.exp_log (by norm_cast)]
-            rw [Real.log_ne_zero]
-            norm_cast
-            simp only [not_false_eq_true, and_true]
-            omega
-    _ ≤ n ^ (n.primeCounting) := by
-      rw [Finset.prod_const]
-      suffices ((n + 1).primesBelow).card = n.primeCounting by
-        apply Nat.pow_le_pow_right <;> linarith
-      rw [Nat.primeCounting, ← Nat.primesBelow_card_eq_primeCounting']
-
 end LeanPool.Zeta3Irrational
 -- ===== from LeanPool/Zeta3Irrational/Bound.lean =====
 /-
@@ -382,22 +136,6 @@ open BigOperators
 lemma max_value {x : ℝ} (x0 : 0 < x) (x1 : x < 1) : √x * √(1 - x) ≤ ((1 / 2) : ℝ) := by
   nlinarith only [sq_nonneg (√x - √(1 - x)), Real.sq_sqrt x0.le,
     Real.sq_sqrt (sub_pos.mpr x1).le]
-
-lemma max_value' {x : ℝ} (x0 : 0 < x) (x1 : x < 1) : √x * (1 - x) ≤ ((2 / 5) : ℝ) := by
-  calc
-  _ = √(x * (1 - x) ^ 2) := by rw [Real.sqrt_mul, pow_two, Real.sqrt_mul_self] <;> linarith
-  _ ≤ √(4 / 27 : ℝ) := by
-    refine Real.sqrt_le_sqrt ?_
-    suffices x * (1 - x) ^ 2 - (4 / 27 : ℝ) ≤ 0 by linarith
-    rw [show x * (1 - x) ^ 2 - (4 / 27 : ℝ) =
-      (x - (4 / 3 : ℝ)) * (x - (1 / 3 : ℝ)) ^ 2 by ring, mul_nonpos_iff]
-    right
-    exact ⟨by linarith, by positivity⟩
-  _ ≤ ((2 / 5) : ℝ) := by
-    rw [Real.sqrt_le_left] <;> norm_num
-
-lemma nonneg {x : ℝ} (_ : 0 < x) (_ : x < 1) : (0 : ℝ) ≤ √x * √(1 -x) :=
-  mul_nonneg (Real.sqrt_nonneg _) (Real.sqrt_nonneg _)
 
 lemma bound_aux (x z : ℝ) (x0 : 0 < x) (x1 : x < 1) (z0 : 0 < z) (_ : z < 1) :
     2 * √(1 - x) * √(x * z) ≤ 1 - (1 - z) * x := by
@@ -443,12 +181,6 @@ lemma bound (x y z : ℝ) (x0 : 0 < x) (x1 : x < 1) (y0 : 0 < y) (y1 : y < 1)
       · exact max_value y0 y1
       · exact max_value z0 z1
     _ < (1 / 30 : ℝ) := by norm_num
-
-lemma bound_aux' (x y z : ℝ) (x0 : 0 < x) (_ : x < 1) (y0 : 0 < y) (_ : y < 1)
-    (z0 : 0 < z) (z1 : z < 1) :
-    2 * √(1 - z) * √(x * y * z) ≤ 1 - (1 - x * y) * z := by
-  nlinarith only [sq_nonneg (√(1 - z) - √(x * y * z)),
-    Real.sq_sqrt (sub_pos.mpr z1).le, Real.sq_sqrt (mul_pos (mul_pos x0 y0) z0).le]
 
 lemma bound'' (x y z : ℝ) (x0 : 0 < x) (x1 : x < 1) (y0 : 0 < y) (y1 : y < 1)
     (z0 : 0 < z) (z1 : z < 1) :
@@ -516,11 +248,6 @@ lemma bound'' (x y z : ℝ) (x0 : 0 < x) (x1 : x < 1) (y0 : 0 < y) (y1 : y < 1)
       field_simp [(by positivity : 0 < 1 + s).ne']
     _ ≤ (2 / 11 : ℝ) ^ 2 := hratio_sq_le
     _ < (1 / 30 : ℝ) := by norm_num
-
-lemma bound' (x y z : ℝ) (x0 : 0 < x) (x1 : x < 1) (y0 : 0 < y) (y1 : y < 1)
-    (z0 : 0 < z) (z1 : z < 1) :
-    x * (1 - x) * y * (1 - y) * z * (1 - z) / (1 - (1 - x * y) * z) < (1 / 24 : ℝ) := by
-  exact (bound'' x y z x0 x1 y0 y1 z0 z1).trans (by norm_num)
 
 end LeanPool.Zeta3Irrational
 -- ===== from LeanPool/Zeta3Irrational/Chebyshev.lean =====
@@ -699,9 +426,6 @@ private lemma floor_div_bounds {y : ℝ} (hy : 0 ≤ y) {k : ℕ} (hk : 1 ≤ k)
     have : (⌊y⌋₊ : ℝ) < (k : ℝ) * (⌊y / k⌋₊ + 1) := (Nat.floor_le hy).trans_lt hy_lt
     exact_mod_cast this
 
-theorem nu_sum_div_eq_zero : ν.sum (fun n w ↦ w / n) = 0 := by
-  norm_num [ν, add_div, sum_add_index', sub_div, sum_sub_index]
-
 theorem E_nu_eq_one (x : ℝ) (hx : x ∈ Set.Ico 1 6) : E ν x = 1 := by
   obtain ⟨h1, h6⟩ := hx
   have hx0 : (0 : ℝ) ≤ x := by linarith
@@ -755,13 +479,6 @@ theorem E_nu_bound (x : ℝ) (hx : x ≥ 0) : 0 ≤ E ν x ∧ E ν x ≤ 1 := b
 /-- The weighted logarithmic factorial sum used to bound increments of `ψ`. -/
 noncomputable def U (x : ℝ) : ℝ :=
   ν.sum (fun m w ↦ w * T (x / m))
-
-theorem psi_ge_weighted (x : ℝ) (hx : x > 0) : ψ x ≥ U x := by
-  unfold U Chebyshev.psi
-  rw [T.weighted_eq_sum, ← Ioc_eq_Icc]
-  gcongr with i
-  have := E_nu_bound (x / i) (div_nonneg hx.le (by simp))
-  grw [this.2, mul_one]
 
 theorem psi_diff_le_weighted (x : ℝ) (hx : x > 0) : ψ x - ψ (x / 6) ≤ U x := by
   unfold U Chebyshev.psi
@@ -1147,134 +864,6 @@ lemma bkShiftedLegendre_eq_int_poly (n : ℕ) : ∃ a : ℕ → ℤ, bkShiftedLe
   simp_rw [bkShiftedLegendre_eq_sum]
   use fun k => (- 1) ^ k * (Nat.choose n k) * (Nat.choose (n + k) n)
   simp_all
-
-lemma deriv_one_sub_X {n i : ℕ} : (⇑derivative)^[i] ((1 - X) ^ n : ℝ[X]) =
-    (-1) ^ i * (n.descFactorial i) • ((1 - X) ^ (n - i)) := by
-  rw [show (1 - X : ℝ[X]) ^ n = (X ^ n : ℝ[X]).comp (1 - X) by simp,
-    Polynomial.iterate_derivative_comp_one_sub_X (p := X ^ n),
-    Polynomial.iterate_derivative_X_pow_eq_smul, Algebra.smul_def, algebraMap_eq, map_natCast]
-  simp
-
-theorem differentiableAt_inv_special {x a : ℝ} {n : ℕ}
-    (ha : a > 0) (hx : 1 - a * x = 0) :
-    ¬DifferentiableAt ℝ (fun x ↦ ↑n ! * a ^ n / (1 - a * x) ^ (n + 1)) x := by
-  intro h
-  obtain q := h.continuousAt
-  simp only [Metric.continuousAt_iff, Real.dist_eq, hx, ne_eq, Nat.succ_ne_zero,
-    not_false_eq_true, zero_pow, div_zero, sub_zero, abs_div, abs_mul, abs_pow, abs_of_nonneg,
-    Nat.cast_nonneg] at q
-  have h₁ : ↑n ! * |a| ^ n > 0 := by
-    apply mul_pos
-    · simp only [Nat.cast_pos]
-      exact Nat.factorial_pos n
-    · apply pow_pos
-      exact abs_pos.2 (by linarith)
-  specialize q (↑n ! * |a| ^ n) h₁
-  rcases q with ⟨q, ⟨qq, qqq⟩⟩
-  rcases lt_trichotomy (a * q) 1 with (h1 | h2 | h3)
-  · have : |a * q / 2 * q + x - x| < q := by
-      simp only [add_sub_cancel_right]
-      calc
-      _ = a * q / 2 * q := by
-        rw [abs_eq_self, mul_comm, ← mul_div_assoc, ← mul_assoc]
-        suffices 0 < q * a * q by linarith
-        exact mul_pos (mul_pos qq ha) qq
-      _ < 1 / 2 * q := by
-        nlinarith [mul_pos ha qq]
-      _ < q := by linarith
-    specialize qqq this
-    rw [div_lt_iff₀] at qqq
-    · have : 1 <  |1 - a * (a * q / 2 * q + x)| ^ (n + 1) := by
-        simp_all
-      rw [mul_add, add_comm, ← sub_sub, hx, zero_sub, abs_neg] at this
-      have : |a * (a * q / 2 * q)| ^ (n + 1) < 1 := by
-        apply pow_lt_one₀ (by positivity) _ (by omega)
-        · nth_rewrite 2 [mul_comm]
-          rw [← mul_assoc, ← mul_div_assoc, ← pow_two]
-          rw [show |((a * q) ^ 2 / 2 : ℝ)| = ((a * q) ^ 2 / 2 : ℝ) by
-            exact abs_eq_self.2 (by positivity)]
-          trans 1 / 2
-          · rw [div_lt_div_iff_of_pos_right (by norm_num), ← one_pow (n := 2)]
-            apply pow_lt_pow_left₀ <;> nlinarith
-          · linarith
-      linarith
-    · apply pow_pos
-      rw [abs_pos, mul_add, add_comm, ← sub_sub, hx, zero_sub]
-      suffices a * (a * q / 2 * q) > 0 by linarith
-      simp_all
-  · have : |q / 2 + x - x| < q := by
-      simp only [add_sub_cancel_right]
-      rw [show |(q / 2 : ℝ)| = (q / 2 : ℝ) by exact abs_eq_self.2 (by linarith)]
-      linarith
-    specialize qqq this
-    rw [div_lt_iff₀] at qqq
-    · have : 1 <  |1 - a * (q / 2 + x)| ^ (n + 1) := by
-        simp_all
-      rw [mul_add, add_comm, ← sub_sub, hx, zero_sub, abs_neg, ← mul_div_assoc, h2] at this
-      have : 1 < (1 / 2 : ℝ) := by
-        suffices (1 : ℝ) ≥ |(1 / 2 : ℝ)| ^ (n + 1) by linarith
-        rw [show |(1 / 2 : ℝ)| = (1 / 2 : ℝ) by exact abs_eq_self.2 (by linarith)]
-        apply pow_le_one₀ <;> linarith
-      linarith
-    · apply pow_pos
-      rw [abs_pos]
-      linarith
-  · have : |1 / a + x - x| < q := by
-      simp only [one_div, add_sub_cancel_right]
-      rw [← one_div]
-      have : |(1 / a : ℝ)| = (1 / a : ℝ) := by
-        rw [abs_eq_self, one_div_nonneg]
-        linarith
-      rw [this, div_lt_iff₀] <;> linarith
-    specialize qqq this
-    rw [div_lt_iff₀] at qqq
-    · have : 1 <  |1 - a * (1 / a + x)| ^ (n + 1) := by
-        simp_all
-      rw [mul_add, add_comm, ← sub_sub, hx, zero_sub, abs_neg, ← mul_div_assoc, mul_one,
-        div_self (by linarith)] at this
-      simp only [abs_one, one_pow, lt_self_iff_false] at this
-    · rw [mul_add, add_comm, ← sub_sub, hx, zero_sub, abs_neg, ← mul_div_assoc, mul_one,
-        div_self (by linarith)]
-      simp
-
-lemma n_derivative {a : ℝ} (n : ℕ) (ha : a > 0) : deriv^[n] (fun x ↦ 1 / (1 - a * x)) =
-    fun x ↦ (n) ! * (a ^ n) / (1 - a * x) ^ (n + 1) := by
-  induction n with
-  | zero =>
-    simp
-  | succ n hn =>
-    ext x
-    rcases eq_or_ne (1 - a * x) 0 with (h | hne)
-    · simp only [h, ne_eq, add_eq_zero, one_ne_zero, and_false, not_false_eq_true,
-      zero_pow, div_zero]
-      rw [Function.iterate_succ_apply', hn]
-      apply deriv_zero_of_not_differentiableAt
-      exact differentiableAt_inv_special ha h
-    · rw [Function.iterate_succ_apply', hn, deriv_fun_div]
-      · simp only [deriv_const', zero_mul, zero_sub]
-        rw [div_eq_div_iff]
-        · rw [deriv_fun_pow, deriv_const_sub, deriv_const_mul]
-          · simp only [Nat.cast_add, Nat.cast_one, add_tsub_cancel_right, deriv_id'', mul_one,
-            mul_neg, neg_neg]
-            norm_cast
-            rw [Nat.factorial_succ, ← pow_mul', Nat.cast_mul]
-            ring
-          · apply differentiableAt_id
-          · apply DifferentiableAt.sub
-            · apply differentiableAt_const
-            · apply DifferentiableAt.mul
-              · apply differentiableAt_const
-              · apply differentiableAt_id
-        · simp_all
-        · exact pow_ne_zero (n + 1 + 1) hne
-      · apply differentiableAt_const
-      · apply DifferentiableAt.pow
-        apply DifferentiableAt.sub
-        · apply differentiableAt_const
-        · apply DifferentiableAt.mul
-          · apply differentiableAt_const
-          · apply differentiableAt_id
-      · exact pow_ne_zero (n + 1) hne
 
 theorem differentiableAt_inv_special' (c x y z : ℝ) (n : ℕ) (hc : c ≠ 0)
     (hx : x ∈ Set.Ioo 0 1)
@@ -3077,142 +2666,6 @@ namespace LeanPool.Zeta3Irrational
 open scoped Nat
 open BigOperators Polynomial
 
-lemma integral_equality_help (s t : ℝ) (s0 : 0 < s) (s1 : s < 1) (t0 : 0 < t) (t1 : t < 1) :
-    ∫ (u : ℝ) in (0)..1, 1 / ((1 - (1 - u) * s) * (1 - (1 - t) * u)) =
-    ∫ (u : ℝ) in (0)..1,
-      1 / (1 - (1 - s) * t) *
-        (s / (1 - (1 - u) * s) + (1 - t) / (1 - (1 - t) * u)) := by
-  rw[← sub_pos] at s1
-  obtain h1 := mul_lt_of_lt_one_right s1 t1
-  have h2 : (1 - s) * t < 1 := by linarith
-  have eq1 (u : ℝ) (hu : 0 < u) (hu1 : u < 1) :
-      1 / (1 - (1 - s) * t) * (s / (1 - (1 - u) * s) + (1 - t) / (1 - (1 - t) * u)) =
-      1 / ((1 - (1 - u) * s) * (1 - (1 - t) * u)) := by
-    have h4 : (1 - u) * s < 1 := by
-      rw[← sub_pos] at hu1
-      rw[sub_pos] at s1
-      obtain h11 := mul_lt_of_lt_one_right hu1 s1
-      linarith
-    have h5 : (1 - t) * u < 1 := by
-      rw[← sub_pos] at t1
-      obtain h11 := mul_lt_of_lt_one_right t1 hu1
-      linarith
-    rw[div_add_div]
-    · field_simp
-      rw[div_eq_div_iff]
-      · ring_nf
-      · apply ne_of_gt
-        have p1 : 0 < 1 - (1 - s) * t := by linarith
-        have p2 : 0 < 1 - (1 - t) * u := by linarith
-        have p3 : 0 < 1 - s * (1 - u) := by nlinarith
-        first | exact mul_pos (mul_pos p1 p2) p3 | exact mul_pos p2 p3 | positivity
-      · apply ne_of_gt
-        have p1 : 0 < 1 - (1 - s) * t := by linarith
-        have p2 : 0 < 1 - (1 - t) * u := by linarith
-        have p3 : 0 < 1 - s * (1 - u) := by nlinarith
-        first | exact mul_pos (mul_pos p1 p2) p3 | exact mul_pos p2 p3 | positivity
-    · first | exact (sub_pos.mpr h4).ne' | exact (sub_pos.mpr h5).ne'
-    · first | exact (sub_pos.mpr h4).ne' | exact (sub_pos.mpr h5).ne'
-  rw[← intervalIntegral.integral_congr]
-  intro a b
-  simp only [one_div, mul_inv_rev]
-  rw[inv_eq_one_div, inv_eq_one_div, inv_eq_one_div, one_div_mul_one_div]
-  simp only [zero_le_one, Set.uIcc_of_le, Set.mem_Icc] at b
-  rcases b with ⟨b1, b2⟩
-  by_cases b11 : a = 0
-  · rw [b11]
-    field_simp [show 1 - s ≠ 0 by linarith, show 1 - (1 - s) * t ≠ 0 by linarith]
-    ring_nf
-  · by_cases b21 : a = 1
-    · rw [b21]
-      field_simp [show t ≠ 0 by linarith, show 1 - (1 - s) * t ≠ 0 by linarith]
-      ring_nf
-    · have b12 : 0 < a := lt_of_le_of_ne b1 (Ne.symm b11)
-      have b22 : a < 1 := lt_of_le_of_ne b2 b21
-      obtain b00 := eq1 a b12 b22
-      rw [b00]
-      ring_nf
-
-lemma integral_equality (s t : ℝ) (s0 : 0 < s) (s1 : s < 1) (t0 : 0 < t) (t1 : t < 1) :
-    ∫ (u : ℝ) in (0)..1, 1 /(1 - (1 - (1 - s) * t) * u) =
-    ∫ (u : ℝ) in (0)..1, 1 /((1 - (1 - u) * s) * (1 - (1 - t) * u)) := by
-  rw[← sub_pos] at s1
-  obtain h1 := mul_lt_of_lt_one_right s1 t1
-  have h2 : (1 - s) * t < 1 := by linarith
-  have h3 := integral1 (mul_pos s1 t0) h2
-  have eq3 : ∫ (x : ℝ) in (0)..1, s / (1 - (1 - x) * s) = - (1 - s).log := by
-    have eq3_1 := intervalIntegral.integral_comp_sub_mul (a := 0) (b := 1) (c := 1)
-      (d := 1) (f := fun z ↦ (s / (1 - z * s))) (by norm_num)
-    have eq3_2 := intervalIntegral.integral_comp_add_mul (a := 0) (b := 1) (c := s)
-      (d := 0) (f := fun z ↦ (1 / (1 - z))) (by positivity)
-    have eq3_3 := integral_inv_of_pos (a := 1 - s) (b := 1) s1 (by norm_num)
-    have comm1 := intervalIntegral.integral_comp_mul_right (a := 0) (b := 1) (c := s)
-      (f := fun z ↦ s / (1 - z)) (by positivity)
-    have comm2 := intervalIntegral.integral_comp_mul_left (a := 0) (b := 1) (c := s)
-      (f := fun z ↦ s / (1 - z)) (by positivity)
-    simp only [one_mul, inv_one, mul_one, sub_self, mul_zero, sub_zero, smul_eq_mul] at eq3_1
-    simp only [zero_add, one_div, mul_zero, add_zero, mul_one,
-      intervalIntegral.integral_comp_sub_left, sub_zero, smul_eq_mul] at eq3_2
-    rw [← mul_right_inj' (a := s) (by linarith),
-      ← intervalIntegral.integral_const_mul, ← mul_assoc,
-      show s * s⁻¹  = 1 by field_simp, one_mul, eq3_3] at eq3_2
-    simp_rw [← div_eq_mul_inv] at eq3_2
-    simp_all
-  have eq4 : ∫ (x : ℝ) in (0)..1, (1 - t) / (1 - (1 - t) * x) = - t.log := by
-    rw[← sub_pos] at t1
-    have eq4_1 := intervalIntegral.integral_comp_mul_left (a := 0) (b := 1)
-      (c := 1 - t) (f := fun z ↦ (1 - t) * (1 - z)⁻¹) (by positivity)
-    have eq4_2 := intervalIntegral.mul_integral_comp_sub_mul (a := 0) (b := 1 - t)
-      (f := fun x ↦ (x)⁻¹) (c := 1) (d := 1)
-    have eq4_3 := integral_inv_of_pos (a := t) (b := 1) t0 (by norm_num)
-    simp only [mul_zero, mul_one, smul_eq_mul] at eq4_1
-    nth_rewrite 2 [intervalIntegral.integral_const_mul] at eq4_1
-    rw[← mul_assoc, show (1 - t)⁻¹ * (1 - t) = 1 by field_simp, one_mul] at eq4_1
-    simp_rw [← div_eq_mul_inv] at eq4_1
-    simp_all
-  rw[integral_equality_help , intervalIntegral.integral_const_mul, h3,
-    intervalIntegral.integral_add, eq3, eq4, ← neg_add, ← Real.log_mul]
-  · field_simp
-  · positivity
-  · positivity
-  · have hs_rewrite : ∀ x : ℝ,
-        s / (1 - (1 - x) * s) = s * 1 / (1 - (1 - x) * s) := by
-      simp_all
-    simp_rw [hs_rewrite]
-    apply IntervalIntegrable.continuousOn_mul (hg := continuousOn_const)
-    apply intervalIntegral.intervalIntegrable_inv
-    · intros x hx
-      simp only [zero_le_one, Set.uIcc_of_le, Set.mem_Icc] at hx
-      intro r
-      rw [sub_eq_zero] at r
-      have ineq3 : (1 - x) * s ≤ 1 * s := by
-        apply mul_le_mul <;> linarith
-      rw [one_mul] at ineq3
-      linarith
-    · apply ContinuousOn.sub continuousOn_const
-      apply ContinuousOn.mul ?_ continuousOn_const
-      apply ContinuousOn.sub continuousOn_const continuousOn_id
-  · have ht_rewrite : ∀ x : ℝ,
-        (1 - t) / (1 - (1 - t) * x) = (1 - t) * 1 / (1 - (1 - t) * x) := by
-      simp
-    simp_rw [ht_rewrite]
-    apply IntervalIntegrable.continuousOn_mul (hg := continuousOn_const)
-    apply intervalIntegral.intervalIntegrable_inv
-    · intro x hx
-      simp only [zero_le_one, Set.uIcc_of_le, Set.mem_Icc] at hx
-      intro a
-      rw [sub_eq_zero] at a
-      have ineq : (1 - t) * x ≤ (1 - t) * 1 := by
-        apply mul_le_mul <;> linarith
-      rw [mul_one] at ineq
-      linarith
-    apply ContinuousOn.sub continuousOn_const
-    apply ContinuousOn.mul continuousOn_const continuousOn_id
-  · exact s0
-  · linarith
-  · exact t0
-  · exact t1
-
 end LeanPool.Zeta3Irrational
 -- ===== from LeanPool/Zeta3Irrational/Basic.lean =====
 /-
@@ -4268,22 +3721,6 @@ theorem JJ_upper (n : ℕ) :
     exact JJ'_nonneg x hx n
   · apply AEMeasurable.aestronglyMeasurable
     measurability
-
-lemma zeta3_le_zeta2 :
-    ∑' n : ℕ , 1 / ((n : ℝ) + 1) ^ 3 <
-      ∑' n : ℕ , 1 / ((n : ℝ) + 1) ^ 2 := by
-  apply Summable.tsum_lt_tsum_of_nonneg
-    (f := fun n => 1 / ((n : ℝ) + 1) ^ 3)
-    (g := fun n => 1 / ((n : ℝ) + 1) ^ 2) (i := 2)
-  · intro n
-    positivity
-  · intro n
-    rw [div_le_div_iff₀, one_mul, one_mul]
-    · apply pow_le_pow_right₀ <;> linarith
-    · positivity
-    · positivity
-  · norm_num
-  · exact Summable_of_zeta_two'
 
 private lemma log_30_gt_339_div_100 : (339 / 100 : ℝ) < Real.log 30 := by
   have h30 : Real.log (30 : ℝ) = Real.log 2 + Real.log 3 + Real.log 5 := by

@@ -234,30 +234,6 @@ theorem IndepSetFree.comap {α β : Type*} {G : SimpleGraph α} {H : SimpleGraph
   exact CliqueFree.comap
     (((Embedding.complEquiv (G := H) (H := G)).toFun f).isContained) h
 
-def Iso.compl {α β : Type*} {G : SimpleGraph α} {H : SimpleGraph β}
-    (e : G ≃g H) : Gᶜ ≃g Hᶜ where
-  toEquiv := e.toEquiv
-  map_rel_iff' := by
-    intro v w
-    by_cases hvw : v = w
-    · subst hvw
-      simp
-    · simpa [compl_adj, hvw, e.injective.ne_iff] using
-        not_congr (e.map_adj_iff (v := v) (w := w))
-
-theorem Iso.cliqueFree_iff {α β : Type*} {G : SimpleGraph α} {H : SimpleGraph β} {n : ℕ}
-    (e : G ≃g H) : G.CliqueFree n ↔ H.CliqueFree n := by
-  constructor
-  · intro h
-    exact CliqueFree.comap e.symm.toEmbedding.isContained h
-  · intro h
-    exact CliqueFree.comap e.toEmbedding.isContained h
-
-theorem Iso.indepSetFree_iff {α β : Type*} {G : SimpleGraph α} {H : SimpleGraph β} {n : ℕ}
-    (e : G ≃g H) : G.IndepSetFree n ↔ H.IndepSetFree n := by
-  simpa [indepSetFree_compl] using
-    (Iso.cliqueFree_iff (n := n) (e := Iso.compl e))
-
 end SimpleGraph
 
 namespace Ramsey
@@ -386,10 +362,6 @@ lemma ramseyNumber_spec (k l : ℕ) : RamseyProperty k l (ramseyNumber k l) :=
     classical
     exact Nat.find_spec (ramseyProperty_exists k l)
 
-lemma ramseyProperty_one_left (l : ℕ) : RamseyProperty 1 l 1 := by
-  intro G hbad
-  simpa [SimpleGraph.cliqueFree_one] using hbad.1
-
 lemma ramseyProperty_mono_vertices {k l n m : ℕ} (hnm : n ≤ m) :
     RamseyProperty k l n → RamseyProperty k l m := by
   intro h G hbad
@@ -408,147 +380,6 @@ lemma ramseyNumber_le_of_property {k l n : ℕ} (hn : RamseyProperty k l n) :
 lemma ramseyProperty_of_ramseyNumber_le {k l n : ℕ} (hn : ramseyNumber k l ≤ n) :
     RamseyProperty k l n :=
   ramseyProperty_mono_vertices hn (ramseyNumber_spec k l)
-
-lemma ramseyProperty_zero_right (k : ℕ) : RamseyProperty k 0 0 := by
-  intro G hbad
-  have hnil : G.IsNIndepSet 0 (∅ : Finset (Fin 0)) := by
-    simp [SimpleGraph.isNIndepSet_iff]
-  exact hbad.2 _ hnil
-
-lemma ramseyNumber_zero_right (k : ℕ) : ramseyNumber k 0 = 0 := by
-  exact le_antisymm (ramseyNumber_le_of_property (ramseyProperty_zero_right k)) (Nat.zero_le _)
-
-lemma ramseyNumber_pos {u m : ℕ} (hu : 1 ≤ u) (hm : 1 ≤ m) : 0 < ramseyNumber u m := by
-  by_contra hpos
-  have hz : ramseyNumber u m = 0 := Nat.eq_zero_of_not_pos hpos
-  have hprop : RamseyProperty u m 0 := by
-    simpa [hz] using ramseyNumber_spec u m
-  let G : SimpleGraph (Fin 0) := ⊥
-  have hcf : G.CliqueFree u := by
-    have hcard : Fintype.card (Fin 0) < u := by
-      simpa [Fintype.card_fin] using (Nat.succ_le_iff.mp hu)
-    exact SimpleGraph.cliqueFree_of_card_lt (G := G) hcard
-  have hif : G.IndepSetFree m := by
-    rw [← SimpleGraph.cliqueFree_compl]
-    have hcard : Fintype.card (Fin 0) < m := by
-      simpa [Fintype.card_fin] using (Nat.succ_le_iff.mp hm)
-    exact SimpleGraph.cliqueFree_of_card_lt (G := Gᶜ) hcard
-  exact hprop G ⟨hcf, hif⟩
-
-lemma ramseyProperty_one_right (k : ℕ) : RamseyProperty k 1 1 := by
-  intro G hbad
-  have hs : G.IsNIndepSet 1 (Finset.univ : Finset (Fin 1)) := by
-    refine ⟨?_, by simp⟩
-    simp [SimpleGraph.isIndepSet_iff]
-  exact hbad.2 _ hs
-
-lemma ramseyProperty_succ_succ_of_sum {k l m n : ℕ}
-    (hm : RamseyProperty k (l + 1) m)
-    (hn : RamseyProperty (k + 1) l n)
-    (hpos : 0 < m + n) :
-    RamseyProperty (k + 1) (l + 1) (m + n) := by
-  intro G hbad
-  classical
-  let v : Fin (m + n) := ⟨0, hpos⟩
-  by_cases hdeg : m ≤ G.degree v
-  · let H : SimpleGraph (G.neighborSet v) := G.induce (G.neighborSet v)
-    have hprop : RamseyProperty k (l + 1) (G.degree v) := ramseyProperty_mono hdeg hm
-    have hcf : H.CliqueFree k := by
-      intro t ht
-      let t' : Finset (Fin (m + n)) := Finset.map ⟨Subtype.val, Subtype.val_injective⟩ t
-      have htInd :
-          (((⊤ : SimpleGraph.Subgraph G).induce (G.neighborSet v)).coe).IsNClique k t := by
-        rw [← SimpleGraph.induce_eq_coe_induce_top]
-        exact ht
-      have ht' : G.IsNClique k t' := by
-        simpa [H, t'] using
-          (SimpleGraph.IsNClique.of_induce
-            (S := (⊤ : SimpleGraph.Subgraph G)) (F := G.neighborSet v) (cc := htInd))
-      have hvt : ∀ b ∈ t', G.Adj v b := by
-        intro b hb
-        rcases Finset.mem_map.mp hb with ⟨x, hx, rfl⟩
-        exact x.property
-      exact hbad.1 _ (ht'.insert hvt)
-    have hif : H.IndepSetFree (l + 1) := by
-      exact SimpleGraph.IndepSetFree.comap
-        (SimpleGraph.Embedding.induce (G := G) (s := G.neighborSet v)) hbad.2
-    exact ramseyProperty_of_card (G.card_neighborSet_eq_degree v) hprop H ⟨hcf, hif⟩
-  · let H : SimpleGraph (Gᶜ.neighborSet v) := G.induce (Gᶜ.neighborSet v)
-    have hcompdeg : n ≤ Gᶜ.degree v := by
-      rw [G.degree_compl (v := v), Fintype.card_fin]
-      omega
-    have hprop : RamseyProperty (k + 1) l (Gᶜ.degree v) := ramseyProperty_mono hcompdeg hn
-    have hcf : H.CliqueFree (k + 1) := by
-      exact hbad.1.comap
-        (SimpleGraph.Embedding.induce (G := G) (s := Gᶜ.neighborSet v)).isContained
-    have hif : H.IndepSetFree l := by
-      intro t ht
-      let t' : Finset (Fin (m + n)) := Finset.map ⟨Subtype.val, Subtype.val_injective⟩ t
-      have htInd :
-          (((⊤ : SimpleGraph.Subgraph G).induce
-            (Gᶜ.neighborSet v)).coe).IsNIndepSet l t := by
-        rw [← SimpleGraph.induce_eq_coe_induce_top]
-        exact ht
-      have ht' : G.IsNIndepSet l t' := by
-        simpa [H, t'] using
-          (SimpleGraph.isNIndepSet_induce
-            (G := G) (F := Gᶜ.neighborSet v) (s := t) (n := l)).1 htInd
-      have ht'compl : Gᶜ.IsNClique l t' := by
-        simpa using ht'
-      have hvt : ∀ b ∈ t', Gᶜ.Adj v b := by
-        intro b hb
-        rcases Finset.mem_map.mp hb with ⟨x, hx, rfl⟩
-        exact x.property
-      have ht'' : G.IsNIndepSet (l + 1) (insert v t') := by
-        simpa using ht'compl.insert hvt
-      exact hbad.2 _ ht''
-    exact ramseyProperty_of_card (Gᶜ.card_neighborSet_eq_degree v) hprop H ⟨hcf, hif⟩
-
-lemma ramseyNumber_recurrence (u m : ℕ) (hu : 1 ≤ u) :
-    ramseyNumber (u + 1) (m + 1) ≤ ramseyNumber u (m + 1) + ramseyNumber (u + 1) m := by
-  apply ramseyNumber_le_of_property
-  have hpos : 0 < ramseyNumber u (m + 1) + ramseyNumber (u + 1) m := by
-    exact Nat.add_pos_left (ramseyNumber_pos hu (by omega)) _
-  exact ramseyProperty_succ_succ_of_sum
-    (ramseyNumber_spec u (m + 1))
-    (ramseyNumber_spec (u + 1) m)
-    hpos
-
-lemma ramseyNumber_le_choose (u : ℕ) :
-    ∀ m, ramseyNumber (u + 1) m ≤ Nat.choose (u + m - 1) u := by
-  induction u with
-  | zero =>
-      intro m
-      cases m with
-      | zero =>
-          simp [ramseyNumber_zero_right]
-      | succ m =>
-          have hle : ramseyNumber 1 (m + 1) ≤ 1 := by
-            exact ramseyNumber_le_of_property (ramseyProperty_one_left (m + 1))
-          simpa using hle
-  | succ u ihu =>
-      intro m
-      induction m with
-      | zero =>
-          rw [ramseyNumber_zero_right]
-          simp
-      | succ m ihm =>
-          have hrec : ramseyNumber (u + 2) (m + 1) ≤
-              ramseyNumber (u + 1) (m + 1) + ramseyNumber (u + 2) m := by
-            exact ramseyNumber_recurrence (u + 1) m (by omega)
-          have hleft : ramseyNumber (u + 1) (m + 1) ≤ Nat.choose (u + m) u := by
-            simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using ihu (m + 1)
-          have hright : ramseyNumber (u + 2) m ≤ Nat.choose (u + m) (u + 1) := by
-            simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using ihm
-          calc
-            ramseyNumber (u + 2) (m + 1)
-                ≤ ramseyNumber (u + 1) (m + 1) + ramseyNumber (u + 2) m := hrec
-            _ ≤ Nat.choose (u + m) u + Nat.choose (u + m) (u + 1) := by
-              exact Nat.add_le_add hleft hright
-            _ = Nat.choose (u + m + 1) (u + 1) := by
-              rw [Nat.choose_succ_succ' (u + m) u]
-            _ = Nat.choose (u + 1 + (m + 1) - 1) (u + 1) := by
-              simp [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
 
 end Ramsey
 end
@@ -574,24 +405,9 @@ noncomputable section
 
 namespace Erdos920
 
-/-- The finite chromatic numbers occurring in the definition of `f k n`. -/
-def chromaticValues (k n : ℕ) : Set ℕ :=
-  {q | ∃ G : SimpleGraph (Fin n), G.CliqueFree k ∧ q = G.chromaticNumber.toNat}
-
 lemma chromaticNumber_toNat_le_card {V : Type*} [Fintype V] (G : SimpleGraph V) :
     G.chromaticNumber.toNat ≤ Fintype.card V := by
   exact ENat.toNat_le_of_le_natCast G.colorable_of_fintype.chromaticNumber_le
-
-/-- Every chromatic value in the defining set for `f k n` is at most `n`. -/
-lemma chromaticValues_bddAbove (k n : ℕ) : BddAbove (chromaticValues k n) := by
-  refine ⟨n, ?_⟩
-  rintro q ⟨G, _hG, rfl⟩
-  simpa using chromaticNumber_toNat_le_card G
-
-lemma chromaticNumber_toNat_mem_chromaticValues {k n : ℕ}
-    (G : SimpleGraph (Fin n)) (hG : G.CliqueFree k) :
-    G.chromaticNumber.toNat ∈ chromaticValues k n := by
-  exact ⟨G, hG, rfl⟩
 
 /-- Any admissible graph witnesses a lower bound for `f`. -/
 lemma chromaticNumber_toNat_le_f {k n : ℕ} (G : SimpleGraph (Fin n))
@@ -608,17 +424,6 @@ lemma chromaticNumber_toNat_le_f {k n : ℕ} (G : SimpleGraph (Fin n))
     have hne : G.chromaticNumber ≠ ⊤ :=
       SimpleGraph.chromaticNumber_ne_top_iff_exists.mpr ⟨_, G.colorable_of_fintype⟩
     exact (ENat.natCast_toNat_eq_self.mpr hne).symm
-
-/-- The defining supremum is finite and bounded by the number of vertices. -/
-lemma f_le_vertices (k n : ℕ) : f k n ≤ n := by
-  unfold f
-  apply csSup_le'
-  intro q hq
-  rcases hq with ⟨G, _hG, hq⟩
-  have hq' : q = G.chromaticNumber.toNat := by
-    simpa using (congrArg ENat.toNat hq).symm
-  rw [hq']
-  simpa using chromaticNumber_toNat_le_card G
 
 /-- Below the Ramsey threshold there is a graph avoiding both forbidden configurations. -/
 lemma exists_cliqueFree_indepSetFree_of_lt_ramseyNumber {k m n : ℕ}
@@ -693,18 +498,6 @@ theorem card_le_f_mul_pred_of_lt_ramseyNumber {k m n : ℕ}
     simpa using hindep.card_le_chromaticNumber_toNat_mul_pred
   exact hcard.trans (Nat.mul_le_mul_right (m - 1) (chromaticNumber_toNat_le_f G hclique))
 
-/-- A convenient division form of the Ramsey-to-chromatic bridge. -/
-theorem div_le_f_of_lt_ramseyNumber {k m n : ℕ}
-    (h : n < Ramsey.ramseyNumber k (m + 1)) : n / m ≤ f k n := by
-  apply Nat.div_le_of_le_mul
-  simpa [Nat.add_sub_cancel, mul_comm] using card_le_f_mul_pred_of_lt_ramseyNumber h
-
-/-- Real-valued form of `div_le_f_of_lt_ramseyNumber`. -/
-theorem natCast_div_le_f_of_lt_ramseyNumber {k m n : ℕ}
-    (h : n < Ramsey.ramseyNumber k (m + 1)) :
-    (n / m : ℕ) ≤ (f k n : ℝ) := by
-  exact_mod_cast div_le_f_of_lt_ramseyNumber h
-
 /--
 The exact real-division form of the bridge.  Unlike the natural-division corollary, this loses no
 floor term; positivity of `m` permits division of `n ≤ f_k(n) m` in `ℝ`.
@@ -777,14 +570,6 @@ lemma sum_restrictedDegree_univ
         exact ⟨(fun h ↦ hsymm h), (fun h ↦ hsymm h)⟩
       rw [heq, hdegree]
     _ = d * B.card := by simp [mul_comm]
-
-lemma orderedEdges_univ_left
-    (R : V → V → Prop) [DecidableRel R] (d : ℕ)
-    (hsymm : ∀ ⦃x y⦄, R x y → R y x)
-    (hdegree : ∀ x, (Finset.univ.filter (R x)).card = d)
-    (B : Finset V) :
-    orderedEdges R Finset.univ B = d * B.card := by
-  simpa [orderedEdges] using sum_restrictedDegree_univ R d hsymm hdegree B
 
 lemma restrictedDegree_sq
     (R : V → V → Prop) [DecidableRel R] (B : Finset V) (x : V) :
@@ -959,24 +744,6 @@ lemma sum_scaledCenteredDegree_sq
       rw [hfirst, hsecond]
       push_cast
       ring
-
-/-- Explicit squared expander-mixing inequality obtained by combining the
-Cauchy bound with the exact second moment. -/
-theorem orderedEdges_deviation_sq_le
-    (R : V → V → Prop) [DecidableRel R] (d a : ℕ)
-    (hsymm : ∀ ⦃x y⦄, R x y → R y x)
-    (hdegree : ∀ x, (Finset.univ.filter (R x)).card = d)
-    (hcommon : ∀ x y, x ≠ y →
-      (Finset.univ.filter fun z ↦ R x z ∧ R y z).card = a)
-    (A B : Finset V) :
-    ((Fintype.card V : ℝ) * orderedEdges R A B -
-        (d : ℝ) * A.card * B.card) ^ 2 ≤
-      (A.card : ℝ) *
-        ((Fintype.card V : ℝ) ^ 2 *
-            (d * B.card + a * B.card * (B.card - 1) : ℕ) -
-          (Fintype.card V : ℝ) * (d * B.card : ℕ) ^ 2) := by
-  rw [← sum_scaledCenteredDegree_sq R d a hsymm hdegree hcommon B]
-  exact orderedEdges_deviation_sq_le_card_mul_sum R d A B
 
 /-- The degree and codegree parameters of a nonempty symmetric design satisfy
 the usual relation `d² = d + a (N - 1)`. -/
@@ -1249,11 +1016,6 @@ theorem geomSum_le_two_mul_pow_pred (q d : ℕ) (hq : 2 ≤ q) :
           simp only [Nat.add_sub_cancel]
           omega
 
-/-- Monotonicity of finite geometric sums in their number of terms. -/
-theorem geomSum_mono (q : ℕ) {a b : ℕ} (hab : a ≤ b) :
-    (∑ i ∈ Finset.range a, q ^ i) ≤ ∑ i ∈ Finset.range b, q ^ i :=
-  Finset.sum_le_sum_of_subset (Finset.range_mono hab)
-
 /-- Points of projective `(d - 1)`-space over `F`. -/
 abbrev Point (F : Type*) [Field F] (d : ℕ) := ℙ F (Fin d → F)
 
@@ -1457,44 +1219,6 @@ theorem natCard_pointsIn [Finite F] [Finite V] (S : Submodule F V) :
     _ = ∑ i ∈ Finset.range (Module.finrank F S), Nat.card F ^ i :=
       Projectivization.card_of_finrank F S rfl
 
-/-- Leading-term lower bound for the projective points of a nonzero vector
-subspace over a prime field. -/
-theorem pow_pred_le_natCard_pointsIn_zmod
-    {q : ℕ} [Fact q.Prime] {V : Type*} [AddCommGroup V] [Module (ZMod q) V]
-    [Finite V] (S : Submodule (ZMod q) V) (hS : 1 ≤ Module.finrank (ZMod q) S) :
-    q ^ (Module.finrank (ZMod q) S - 1) ≤
-      Nat.card {p : ℙ (ZMod q) V // p.submodule ≤ S} := by
-  rw [natCard_pointsIn]
-  simpa [Nat.card_zmod] using
-    pow_pred_le_geomSum q (Module.finrank (ZMod q) S) hS
-
-/-- Leading-term upper bound for the projective points of any vector subspace
-over a prime field, including the zero-dimensional edge case. -/
-theorem natCard_pointsIn_zmod_le_two_mul_pow_pred
-    {q : ℕ} [Fact q.Prime] {V : Type*} [AddCommGroup V] [Module (ZMod q) V]
-    [Finite V] (S : Submodule (ZMod q) V) :
-    Nat.card {p : ℙ (ZMod q) V // p.submodule ≤ S} ≤
-      2 * q ^ (Module.finrank (ZMod q) S - 1) := by
-  rw [natCard_pointsIn]
-  simpa [Nat.card_zmod] using geomSum_le_two_mul_pow_pred q
-    (Module.finrank (ZMod q) S) (Fact.out : q.Prime).two_le
-
-/-- A zero-dimensional vector subspace contains no projective point. -/
-theorem natCard_pointsIn_eq_zero_of_finrank_eq_zero
-    {F V : Type*} [Field F] [Finite F] [AddCommGroup V] [Module F V] [Finite V]
-    (S : Submodule F V) (hS : Module.finrank F S = 0) :
-    Nat.card {p : ℙ F V // p.submodule ≤ S} = 0 := by
-  rw [natCard_pointsIn, hS]
-  simp
-
-/-- A one-dimensional vector subspace contains exactly one projective point. -/
-theorem natCard_pointsIn_eq_one_of_finrank_eq_one
-    {F V : Type*} [Field F] [Finite F] [AddCommGroup V] [Module F V] [Finite V]
-    (S : Submodule F V) (hS : Module.finrank F S = 1) :
-    Nat.card {p : ℙ F V // p.submodule ≤ S} = 1 := by
-  rw [natCard_pointsIn, hS]
-  simp
-
 end ProjectivizeSubmodule
 
 /-- The projective neighbors of a point under the dot-product polarity.  A
@@ -1526,17 +1250,6 @@ theorem natCard_neighbors_zmod (q : ℕ) [Fact q.Prime] {d : ℕ}
     (x : Point (ZMod q) d) :
     Nat.card (Neighbors x) = ∑ i ∈ Finset.range (d - 1), q ^ i := by
   simpa [Nat.card_zmod] using natCard_neighbors x
-
-/-- The polarity degree estimates in the `d = t + 1` indexing. -/
-theorem neighbor_zmod_bounds (q : ℕ) [Fact q.Prime] {t : ℕ} (ht : 1 ≤ t)
-    (x : Point (ZMod q) (t + 1)) :
-    q ^ (t - 1) ≤ Nat.card (Neighbors x) ∧
-      Nat.card (Neighbors x) ≤ 2 * q ^ (t - 1) := by
-  rw [natCard_neighbors_zmod]
-  have hdim : t + 1 - 1 = t := by omega
-  rw [hdim]
-  exact ⟨pow_pred_le_geomSum q t ht,
-    geomSum_le_two_mul_pow_pred q t (Fact.out : q.Prime).two_le⟩
 
 /-- The common vector hyperplane cut out by two projective points. -/
 def commonOrthSpace {F : Type*} [Field F] {d : ℕ} (x y : Point F d) :
@@ -1612,38 +1325,6 @@ theorem natCard_commonNeighbors {F : Type*} [Field F] [Finite F] {d : ℕ}
       apply Projectivization.card_of_finrank
       exact finrank_commonOrthSpace hxy
 
-/-- Uniform distinct-pair common-neighbor count over a prime field. -/
-theorem natCard_commonNeighbors_zmod (q : ℕ) [Fact q.Prime] {d : ℕ}
-    {x y : Point (ZMod q) d} (hxy : x ≠ y) :
-    Nat.card (CommonNeighbors x y) =
-      ∑ i ∈ Finset.range (d - 2), q ^ i := by
-  simpa [Nat.card_zmod] using natCard_commonNeighbors hxy
-
-/-- The distinct-pair codegree estimates in the `d = t + 1` indexing. -/
-theorem commonNeighbor_zmod_bounds (q : ℕ) [Fact q.Prime] {t : ℕ}
-    (ht : 2 ≤ t) {x y : Point (ZMod q) (t + 1)} (hxy : x ≠ y) :
-    q ^ (t - 2) ≤ Nat.card (CommonNeighbors x y) ∧
-      Nat.card (CommonNeighbors x y) ≤ 2 * q ^ (t - 2) := by
-  rw [natCard_commonNeighbors_zmod q hxy]
-  have hdim : t + 1 - 2 = t - 1 := by omega
-  have hpred : t - 1 - 1 = t - 2 := by omega
-  rw [hdim]
-  constructor
-  · simpa [hpred] using pow_pred_le_geomSum q (t - 1) (by omega)
-  · simpa [hpred] using geomSum_le_two_mul_pow_pred q (t - 1)
-      (Fact.out : q.Prime).two_le
-
-/-- The codegree upper bound remains valid without a dimension hypothesis. -/
-theorem natCard_commonNeighbors_zmod_le (q : ℕ) [Fact q.Prime] {t : ℕ}
-    {x y : Point (ZMod q) (t + 1)} (hxy : x ≠ y) :
-    Nat.card (CommonNeighbors x y) ≤ 2 * q ^ (t - 2) := by
-  rw [natCard_commonNeighbors_zmod q hxy]
-  have hdim : t + 1 - 2 = t - 1 := by omega
-  have hpred : t - 1 - 1 = t - 2 := by omega
-  rw [hdim]
-  simpa [hpred] using geomSum_le_two_mul_pow_pred q (t - 1)
-    (Fact.out : q.Prime).two_le
-
 section Mixing
 
 /-- Convert a filtered-universe cardinality to the `Nat.card` of the
@@ -1674,76 +1355,6 @@ theorem card_filter_commonOrthogonal
       ∑ i ∈ Finset.range (d - 2), Nat.card F ^ i := by
   rw [card_filter_univ_eq_natCard_subtype]
   exact natCard_commonNeighbors hxy
-
-/-- A cleared-denominator, squared expander-mixing inequality for projective
-orthogonality.  It follows from the exact degree and codegree counts above and
-the finite second-moment calculation in `Erdos920.Mixing`; loops at isotropic
-points are allowed and counted once. -/
-theorem orthogonal_orderedEdges_deviation_sq_le
-    {F : Type*} [Field F] [Finite F] {d : ℕ}
-    [Fintype (Point F d)] [DecidableRel (@Orthogonal F _ d)]
-    (A B : Finset (Point F d)) :
-    let D := ∑ i ∈ Finset.range (d - 1), Nat.card F ^ i
-    let C := ∑ i ∈ Finset.range (d - 2), Nat.card F ^ i
-    (((Fintype.card (Point F d) : ℝ) *
-          Mixing.orderedEdges Orthogonal A B -
-        (D : ℝ) * A.card * B.card) ^ 2 ≤
-      (A.card : ℝ) *
-        ((Fintype.card (Point F d) : ℝ) ^ 2 *
-            (D * B.card + C * B.card * (B.card - 1) : ℕ) -
-          (Fintype.card (Point F d) : ℝ) * (D * B.card : ℕ) ^ 2)) := by
-  dsimp only
-  apply Mixing.orderedEdges_deviation_sq_le Orthogonal
-  · intro x y hxy
-    exact (orthogonal_comm x y).mp hxy
-  · exact card_filter_orthogonal
-  · intro x y hxy
-    exact card_filter_commonOrthogonal hxy
-
-/-- The simpler design-form mixing estimate.  The hypothesis `C ≤ D` is
-kept explicit so the statement also covers the small-dimensional edge cases
-without hidden arithmetic assumptions. -/
-theorem orthogonal_scaled_mixing_sq_le
-    {F : Type*} [Field F] [Finite F] {d : ℕ}
-    [Fintype (Point F d)] [Nonempty (Point F d)]
-    [DecidableRel (@Orthogonal F _ d)]
-    (A B : Finset (Point F d)) :
-    let D := ∑ i ∈ Finset.range (d - 1), Nat.card F ^ i
-    let C := ∑ i ∈ Finset.range (d - 2), Nat.card F ^ i
-    (((Fintype.card (Point F d) : ℝ) *
-          Mixing.orderedEdges Orthogonal A B -
-        (D : ℝ) * A.card * B.card) ^ 2 ≤
-      (Fintype.card (Point F d) : ℝ) ^ 2 * ((D : ℝ) - C) *
-        A.card * B.card) := by
-  dsimp only
-  apply Mixing.scaled_orderedEdges_deviation_sq_le Orthogonal
-  · intro x y hxy
-    exact (orthogonal_comm x y).mp hxy
-  · exact card_filter_orthogonal
-  · intro x y hxy
-    exact card_filter_commonOrthogonal hxy
-  · exact geomSum_mono (Nat.card F) (by omega)
-
-/-- Absolute-value form of projective expander mixing:
-`|e(A,B) - D|A||B|/N| ≤ √((D-C)|A||B|)`. -/
-theorem orthogonal_abs_orderedEdges_sub_expected_le
-    {F : Type*} [Field F] [Finite F] {d : ℕ}
-    [Fintype (Point F d)] [Nonempty (Point F d)]
-    [DecidableRel (@Orthogonal F _ d)]
-    (A B : Finset (Point F d)) :
-    let D := ∑ i ∈ Finset.range (d - 1), Nat.card F ^ i
-    let C := ∑ i ∈ Finset.range (d - 2), Nat.card F ^ i
-    |(Mixing.orderedEdges Orthogonal A B : ℝ) -
-        (D : ℝ) / Fintype.card (Point F d) * A.card * B.card| ≤
-      Real.sqrt (((D : ℝ) - C) * A.card * B.card) := by
-  dsimp only
-  apply Mixing.abs_orderedEdges_sub_expected_le Orthogonal
-  · intro x y hxy
-    exact (orthogonal_comm x y).mp hxy
-  · exact card_filter_orthogonal
-  · intro x y hxy
-    exact card_filter_commonOrthogonal hxy
-  · exact geomSum_mono (Nat.card F) (by omega)
 
 end Mixing
 
@@ -2061,16 +1672,6 @@ theorem eventually_exists_prime_scale (C : ℝ) (hC : 0 < C) :
           Real.log (m : ℝ) ^ 2) := mul_le_mul_of_nonneg_left hproduct hC.le
       _ = (m : ℝ) / 2 := by field_simp
       _ ≤ (m : ℝ) := div_le_self (Nat.cast_nonneg m) (by norm_num)
-
-/-- Natural-constant version of `eventually_exists_prime_scale`. -/
-theorem eventually_exists_prime_scale_nat (C : ℕ) (hC : 0 < C) :
-    ∀ᶠ m : ℕ in atTop, ∃ q : ℕ,
-      q.Prime ∧
-      2 ≤ q ∧
-      q ≤ m ∧
-      (m : ℝ) / (8 * (C : ℝ) * Real.log (m : ℝ) ^ 2) ≤ (q : ℝ) ∧
-      (C : ℝ) * (q : ℝ) * Real.log (q : ℝ) ^ 2 ≤ (m : ℝ) := by
-  exact eventually_exists_prime_scale (C : ℝ) (by exact_mod_cast hC)
 
 end Erdos920.PrimeScale
 end
@@ -2394,17 +1995,6 @@ theorem bradac_ramsey_lower_bound_eventually_of_package (s : ℕ) (hs : 3 ≤ s)
   have hspow : s - 2 + 1 = s - 1 := by omega
   have hslog : 2 * (s - 2) = 2 * s - 4 := by omega
   simpa [hsu, hspow, hslog] using hbound
-
-/-- Construction-oriented version of the final result.  Supplying the
-projective/marked-tree and finite averaging proof through `build` is enough;
-prime selection and all exponent arithmetic are discharged here. -/
-theorem bradac_ramsey_lower_bound_eventually_of_construction (s : ℕ)
-    (hs : 3 ≤ s) (B : DStarConstruction (s - 2)) :
-    ∃ A : ℝ, 0 < A ∧
-      ∀ᶠ m : ℕ in atTop,
-        A * (m : ℝ) ^ (s - 1) / Real.log (m : ℝ) ^ (2 * s - 4) ≤
-          (Ramsey.ramseyNumber s m : ℝ) :=
-  bradac_ramsey_lower_bound_eventually_of_package s hs B.toFamily
 
 end
 
@@ -3245,42 +2835,6 @@ lemma extensionChildren_subset_relationPairs
     classical
     simp [extensionChildren]
 
-/-- Regularity, or merely a uniform degree upper bound, gives the required
-total branching bound. -/
-theorem relationPairs_card_le (points : Finset P) (R : P → P → Prop)
-    [DecidableRel R] (d : ℕ)
-    (hdegree : ∀ a ∈ points, (points.filter fun b => R a b).card ≤ d) :
-    (relationPairs points R).card ≤ points.card * d := by
-  classical
-  calc
-    (relationPairs points R).card ≤
-        ∑ a ∈ points, ((points.filter fun b => R a b).image fun b => (a, b)).card := by
-      exact Finset.card_biUnion_le
-    _ ≤ ∑ _a ∈ points, d := by
-      exact Finset.sum_le_sum fun a ha => Finset.card_image_le.trans (hdegree a ha)
-    _ = points.card * d := by simp
-
-theorem extensionChildren_card_le (points : Finset P) (R : P → P → Prop)
-    [DecidableRel R] (d : ℕ)
-    (hdegree : ∀ a ∈ points, (points.filter fun b => R a b).card ≤ d)
-    (σ : List (P × P)) :
-    (extensionChildren points R σ).card ≤ points.card * d :=
-  (Finset.card_le_card (extensionChildren_subset_relationPairs points R σ)).trans
-    (relationPairs_card_le points R d hdegree)
-
-theorem isPath_extensionChildren_consistent
-    (points : Finset P) (R : P → P → Prop) [DecidableRel R]
-    {xs : List (P × P)}
-    (hpath : Erdos920.MarkedTree.IsPath (extensionChildren points R) xs) :
-    Consistent R xs := by
-  induction xs with
-  | nil => trivial
-  | cons x xs ih =>
-      rcases hpath with ⟨hpath, hx⟩
-      have hx' : x ∈ (relationPairs points R).filter fun p => CanExtend R p xs := by
-        simpa [extensionChildren] using hx
-      exact ⟨ih hpath, (Finset.mem_filter.mp hx').2⟩
-
 /- ## The poor/popular marking at one node -/
 
 /-- Points of `Z_ℓ` related to a prospective first coordinate. -/
@@ -3336,17 +2890,6 @@ noncomputable def markedByPoorOrPopular {L : Type*}
   decide (Poor points C R σ (levelNat (level σ p)) (cut σ p) p.1 ∨
     Popular points C R σ (levelNat (level σ p)) (cut σ p) p.2)
 
-theorem markedByPoorOrPopular_eq_false_iff {L : Type*}
-    (points : Finset P) (C : RankClosure P) (R : P → P → Prop)
-    [DecidableRel R] (level : List (P × P) → (P × P) → L)
-    (levelNat : L → ℕ) (cut : List (P × P) → (P × P) → ℕ)
-    (σ : List (P × P)) (p : P × P) :
-    markedByPoorOrPopular points C R level levelNat cut σ p = false ↔
-      ¬ Poor points C R σ (levelNat (level σ p)) (cut σ p) p.1 ∧
-      ¬ Popular points C R σ (levelNat (level σ p)) (cut σ p) p.2 := by
-  classical
-  simp [markedByPoorOrPopular]
-
 /-- Poor and popular child estimates add to a marked-child estimate. -/
 theorem markedChildren_card_le {L : Type*}
     (points : Finset P) (C : RankClosure P) (R : P → P → Prop)
@@ -3384,34 +2927,6 @@ theorem markedChildren_card_le {L : Type*}
       Finset.card_union_le poorChildren popularChildren
     _ ≤ hp + hq := Nat.add_le_add hpoor hpopular
 
-/-- The elementary subtraction behind the poor/popular dichotomy. -/
-lemma card_filter_and_not_ge {s : Finset P} {A B : P → Prop}
-    [DecidablePred A] [DecidablePred B] {cut : ℕ}
-    (hA : 2 * cut ≤ (s.filter A).card) (hB : (s.filter B).card ≤ cut) :
-    cut ≤ (s.filter fun x => A x ∧ ¬ B x).card := by
-  classical
-  let a := s.filter A
-  let b := s.filter B
-  have hdiff : a \ b = s.filter fun x => A x ∧ ¬ B x := by
-    ext x
-    by_cases hx : x ∈ s <;> simp [a, b, hx]
-  have hinter : (a ∩ b).card ≤ b.card :=
-    Finset.card_le_card (by intro x hx; exact Finset.mem_of_mem_inter_right hx)
-  have hsplit := Finset.card_sdiff_add_card_inter a b
-  rw [hdiff] at hsplit
-  dsimp [a, b] at hinter hsplit
-  omega
-
-lemma rankRaisingSet_card_ge_of_not_poor_not_popular
-    (points : Finset P) (C : RankClosure P) (R : P → P → Prop)
-    [DecidableRel R] (σ : List (P × P)) (ℓ cut : ℕ) (a b : P)
-    (ha : ¬ Poor points C R σ ℓ cut a)
-    (hb : ¬ Popular points C R σ ℓ cut b) :
-    cut ≤ (rankRaisingSet points C R σ ℓ a b).card := by
-  apply card_filter_and_not_ge
-  · simpa [Poor, neighborsInStratum] using (Nat.le_of_not_gt ha)
-  · simpa [Popular, closureInStratum] using (Nat.le_of_lt (Nat.lt_of_not_ge hb))
-
 lemma rankRaisingSet_subset_U_diff
     (points : Finset P) (C : RankClosure P) (R : P → P → Prop)
     [DecidableRel R] (σ : List (P × P)) (ℓ : ℕ) (a b : P) :
@@ -3432,56 +2947,6 @@ lemma rankRaisingSet_subset_U_diff
     rw [hyNew] at hle
     omega
 
-/-- An unmarked extension removes at least `cut` elements from its pivot
-potential `U_ℓ`.  This is the formal shrinkage assertion corresponding to
-(3.21), stated before division so that it works over natural cardinalities. -/
-theorem U_card_add_cut_le_of_not_poor_not_popular
-    (points : Finset P) (C : RankClosure P) (R : P → P → Prop)
-    [DecidableRel R] (σ : List (P × P)) (ℓ cut : ℕ) (a b : P)
-    (ha : ¬ Poor points C R σ ℓ cut a)
-    (hb : ¬ Popular points C R σ ℓ cut b) :
-    (U points C R ((a, b) :: σ) ℓ).card + cut ≤
-      (U points C R σ ℓ).card := by
-  have hmono := U_mono_cons points C R (a, b) σ ℓ
-  have hraise := rankRaisingSet_subset_U_diff points C R σ ℓ a b
-  have hcard := rankRaisingSet_card_ge_of_not_poor_not_popular
-    points C R σ ℓ cut a b ha hb
-  have hdisj : Disjoint (U points C R ((a, b) :: σ) ℓ)
-      (rankRaisingSet points C R σ ℓ a b) := by
-    apply Finset.disjoint_left.mpr
-    intro y hyNew hyRaise
-    exact (Finset.mem_sdiff.mp (hraise hyRaise)).2 hyNew
-  have hunion :
-      U points C R ((a, b) :: σ) ℓ ∪ rankRaisingSet points C R σ ℓ a b ⊆
-        U points C R σ ℓ := by
-    intro y hy
-    rcases Finset.mem_union.mp hy with hy | hy
-    · exact hmono hy
-    · exact (Finset.mem_sdiff.mp (hraise hy)).1
-  have hsum :
-      (U points C R ((a, b) :: σ) ℓ).card +
-          (rankRaisingSet points C R σ ℓ a b).card ≤
-        (U points C R σ ℓ).card := by
-    rw [← Finset.card_union_of_disjoint hdisj]
-    exact Finset.card_le_card hunion
-  omega
-
-/-- Cleared-denominator version of the multiplicative shrinkage estimate.
-If the popularity threshold is at least `|U_ℓ| / K`, then an unmarked step
-multiplies the potential by at most `(K-1)/K`. -/
-theorem U_card_multiplicative_shrink
-    (points : Finset P) (C : RankClosure P) (R : P → P → Prop)
-    [DecidableRel R] (σ : List (P × P)) (ℓ cut K : ℕ) (a b : P)
-    (hK : 1 ≤ K) (hcut : (U points C R σ ℓ).card ≤ K * cut)
-    (ha : ¬ Poor points C R σ ℓ cut a)
-    (hb : ¬ Popular points C R σ ℓ cut b) :
-    K * (U points C R ((a, b) :: σ) ℓ).card ≤
-      (K - 1) * (U points C R σ ℓ).card := by
-  have hshrink := U_card_add_cut_le_of_not_poor_not_popular
-    points C R σ ℓ cut a b ha hb
-  have hKm : K - 1 + 1 = K := Nat.sub_add_cancel hK
-  nlinarith
-
 /- ## Incidence bounds for popular points -/
 
 /-- Double-count the incidences `I x y` between two finite sets. -/
@@ -3499,96 +2964,7 @@ lemma sum_card_filter_eq_sum_card_filter (s t : Finset P) (I : P → P → Prop)
           congr 1 with y
           exact (Finset.card_filter _ _).symm
 
-/-- If every right fibre has size at most `cap`, then there are at most
-`|t|*cap/cut` left points incident with `cut` or more right points.  The
-division-free form is what is used in the projective calculation. -/
-theorem popular_card_mul_cut_le (s t : Finset P) (I : P → P → Prop)
-    [DecidableRel I] (cut cap : ℕ)
-    (hfibre : ∀ y ∈ t, (s.filter fun x => I x y).card ≤ cap) :
-    ((s.filter fun x => cut ≤ (t.filter fun y => I x y).card).card) * cut ≤
-      t.card * cap := by
-  let pop := s.filter fun x => cut ≤ (t.filter fun y => I x y).card
-  have hleft : pop.card * cut ≤ ∑ x ∈ pop, (t.filter fun y => I x y).card := by
-    rw [Finset.card_eq_sum_ones, Finset.sum_mul]
-    exact Finset.sum_le_sum fun x hx => by
-      simpa [pop] using (Finset.mem_filter.mp hx).2
-  have hsub :
-      ∑ x ∈ pop, (t.filter fun y => I x y).card ≤
-        ∑ x ∈ s, (t.filter fun y => I x y).card := by
-    apply Finset.sum_le_sum_of_subset_of_nonneg
-    · intro x hx
-      exact (Finset.mem_filter.mp hx).1
-    · intro i hi _
-      exact Nat.zero_le _
-  have hright : ∑ y ∈ t, (s.filter fun x => I x y).card ≤ t.card * cap := by
-    rw [Finset.card_eq_sum_ones, Finset.sum_mul]
-    exact Finset.sum_le_sum fun y hy => by simpa using hfibre y hy
-  dsimp [pop] at hleft ⊢
-  exact hleft.trans (hsub.trans ((sum_card_filter_eq_sum_card_filter s t I).le.trans hright))
-
-theorem popularInStratum_card_mul_cut_le
-    (points : Finset P) (C : RankClosure P) (R : P → P → Prop)
-    [DecidableRel R] (σ : List (P × P)) (ℓ cut cap : ℕ)
-    (hfibre : ∀ y ∈ Z points C R σ ℓ,
-      (points.filter fun b => C.Cl b (generators R σ y)).card ≤ cap) :
-    ((points.filter fun b => Popular points C R σ ℓ cut b).card) * cut ≤
-      (Z points C R σ ℓ).card * cap := by
-  classical
-  change
-    ((points.filter fun b => cut ≤
-      ((Z points C R σ ℓ).filter fun y => C.Cl b (generators R σ y)).card).card) * cut ≤
-        (Z points C R σ ℓ).card * cap
-  exact popular_card_mul_cut_le points (Z points C R σ ℓ)
-    (fun b y => C.Cl b (generators R σ y)) cut cap hfibre
-
 /- ## Iterating multiplicative shrinkage -/
-
-/-- The product estimate for a potential which is nonincreasing at every
-step and contracts by `(K - 1) / K` at selected steps. -/
-theorem pow_count_mul_last_le
-    {m K : ℕ} (V : Fin (m + 1) → ℕ) (contract : Fin m → Bool)
-    (hmono : ∀ i : Fin m, V i.succ ≤ V i.castSucc)
-    (hcontract : ∀ i : Fin m, contract i = true →
-      K * V i.succ ≤ (K - 1) * V i.castSucc) :
-    K ^ (List.ofFn contract).count true * V (Fin.last m) ≤
-      (K - 1) ^ (List.ofFn contract).count true * V 0 := by
-  induction m with
-  | zero => simp
-  | succ m ih =>
-      let V' : Fin (m + 1) → ℕ := fun i => V i.succ
-      let contract' : Fin m → Bool := fun i => contract i.succ
-      have hmono' : ∀ i : Fin m, V' i.succ ≤ V' i.castSucc := by
-        intro i
-        exact hmono i.succ
-      have hcontract' : ∀ i : Fin m, contract' i = true →
-          K * V' i.succ ≤ (K - 1) * V' i.castSucc := by
-        intro i hi
-        exact hcontract i.succ hi
-      have hi := ih V' contract' hmono' hcontract'
-      rw [List.ofFn_succ]
-      change
-        K ^ ((contract 0 :: List.ofFn contract').count true) * V (Fin.last (m + 1)) ≤
-          (K - 1) ^ ((contract 0 :: List.ofFn contract').count true) * V 0
-      have hlast : V' (Fin.last m) = V (Fin.last (m + 1)) := rfl
-      rw [← hlast]
-      cases h0 : contract 0 with
-      | false =>
-          simp only [List.count_cons]
-          exact hi.trans (Nat.mul_le_mul_left _ (hmono 0))
-      | true =>
-          simp only [List.count_cons, beq_self_eq_true, if_true, pow_succ]
-          calc
-            (K ^ (List.ofFn contract').count true * K) * V' (Fin.last m) =
-                K * (K ^ (List.ofFn contract').count true * V' (Fin.last m)) := by
-                  ac_rfl
-            _ ≤ K * ((K - 1) ^ (List.ofFn contract').count true * V' 0) :=
-              Nat.mul_le_mul_left K hi
-            _ = (K - 1) ^ (List.ofFn contract').count true * (K * V' 0) := by
-              ac_rfl
-            _ ≤ (K - 1) ^ (List.ofFn contract').count true * ((K - 1) * V 0) :=
-              Nat.mul_le_mul_left _ (hcontract 0 h0)
-            _ = ((K - 1) ^ (List.ofFn contract').count true * (K - 1)) * V 0 := by
-              ac_rfl
 
 /-- Adding one to a potential makes it everywhere positive.  At a selected
 step whose old potential is nonzero, a `K`-contraction becomes a
@@ -3599,85 +2975,6 @@ lemma shifted_contraction {K A B : ℕ} (hK : 1 ≤ K) (hB : 1 ≤ B)
   have hKm : K - 1 + 1 = K := Nat.sub_add_cancel hK
   have htwok : 2 * K - 1 + 1 = 2 * K := Nat.sub_add_cancel (by omega : 1 ≤ 2 * K)
   nlinarith
-
-/-- It is enough to verify the stopping inequality at the first forbidden
-exponent `w + 1`; the ratio only decreases at subsequent exponents. -/
-theorem power_stopping_of_at_succ {K N w : ℕ} (hK : 1 ≤ K)
-    (hstop : (2 * K - 1) ^ (w + 1) * (N + 1) < (2 * K) ^ (w + 1)) :
-    ∀ c : ℕ, w < c → (2 * K - 1) ^ c * (N + 1) < (2 * K) ^ c := by
-  intro c hc
-  obtain ⟨r, hr⟩ := Nat.exists_eq_add_of_le (show w + 1 ≤ c by omega)
-  rw [hr, pow_add (2 * K - 1) (w + 1) r, pow_add (2 * K) (w + 1) r]
-  have hbase : 0 < 2 * K - 1 := by omega
-  calc
-    ((2 * K - 1) ^ (w + 1) * (2 * K - 1) ^ r) * (N + 1) =
-        (2 * K - 1) ^ r * ((2 * K - 1) ^ (w + 1) * (N + 1)) := by ac_rfl
-    _ < (2 * K - 1) ^ r * (2 * K) ^ (w + 1) :=
-      Nat.mul_lt_mul_of_pos_left hstop (Nat.pow_pos hbase)
-    _ ≤ (2 * K) ^ r * (2 * K) ^ (w + 1) :=
-      Nat.mul_le_mul_right _ (Nat.pow_le_pow_left (by omega : 2 * K - 1 ≤ 2 * K) r)
-    _ = (2 * K) ^ (w + 1) * (2 * K) ^ r := by ac_rfl
-
-/-- A useful stopping rule for the container argument.  The hypothesis
-`hpow` is the sole numerical input: after `w` selected contractions, the
-geometric decay beats the initial bound `N`. -/
-theorem count_contract_le_of_potential
-    {m K N w : ℕ} (V : Fin (m + 1) → ℕ) (contract : Fin m → Bool)
-    (hK : 1 ≤ K) (hV0 : V 0 ≤ N)
-    (hmono : ∀ i : Fin m, V i.succ ≤ V i.castSucc)
-    (hpositive : ∀ i : Fin m, contract i = true → 1 ≤ V i.castSucc)
-    (hcontract : ∀ i : Fin m, contract i = true →
-      K * V i.succ ≤ (K - 1) * V i.castSucc)
-    (hpow : ∀ c : ℕ, w < c →
-      (2 * K - 1) ^ c * (N + 1) < (2 * K) ^ c) :
-    (List.ofFn contract).count true ≤ w := by
-  let V' : Fin (m + 1) → ℕ := fun i => V i + 1
-  have hmono' : ∀ i : Fin m, V' i.succ ≤ V' i.castSucc := by
-    intro i
-    exact Nat.add_le_add_right (hmono i) 1
-  have hcontract' : ∀ i : Fin m, contract i = true →
-      (2 * K) * V' i.succ ≤ (2 * K - 1) * V' i.castSucc := by
-    intro i hi
-    exact shifted_contraction hK (hpositive i hi) (hcontract i hi)
-  have hprod := pow_count_mul_last_le V' contract hmono' hcontract'
-  by_contra hc
-  have hwc : w < (List.ofFn contract).count true := Nat.lt_of_not_ge hc
-  have hstrict := hpow _ hwc
-  have hfinal : 1 ≤ V' (Fin.last m) := by simp [V']
-  have hstart : V' 0 ≤ N + 1 := Nat.add_le_add_right hV0 1
-  have hbad :
-      (2 * K) ^ (List.ofFn contract).count true ≤
-        (2 * K - 1) ^ (List.ofFn contract).count true * (N + 1) := by
-    have hbad' := (Nat.mul_le_mul_left _ hfinal).trans
-      (hprod.trans (Nat.mul_le_mul_left _ hstart))
-    simpa only [Nat.mul_one] using hbad'
-  omega
-
-/-- Sum the fibre cardinalities of a map to a finite type. -/
-lemma card_eq_sum_card_fibers {I L : Type*} [Fintype L]
-    [DecidableEq L] (s : Finset I) (label : I → L) :
-    s.card = ∑ ℓ : L, (s.filter fun i => label i = ℓ).card := by
-  classical
-  rw [Finset.card_eq_sum_ones]
-  calc
-    ∑ _i ∈ s, 1 = ∑ i ∈ s, ∑ ℓ : L, if label i = ℓ then 1 else 0 := by simp
-    _ = ∑ ℓ : L, ∑ i ∈ s, if label i = ℓ then 1 else 0 := Finset.sum_comm
-    _ = ∑ ℓ : L, (s.filter fun i => label i = ℓ).card := by
-      apply Finset.sum_congr rfl
-      intro ℓ _
-      exact (Finset.card_filter _ _).symm
-
-/-- Pigeonhole packaging used after applying the potential estimate once
-for each of the `levels` possible ranks. -/
-theorem card_le_levels_mul_of_fibers_le {I L : Type*}
-    [Fintype L] [DecidableEq L] (s : Finset I) (label : I → L) (r : ℕ)
-    (hfibre : ∀ ℓ : L, (s.filter fun i => label i = ℓ).card ≤ r) :
-    s.card ≤ Fintype.card L * r := by
-  rw [card_eq_sum_card_fibers s label]
-  calc
-    ∑ ℓ : L, (s.filter fun i => label i = ℓ).card ≤ ∑ _ℓ : L, r :=
-      Finset.sum_le_sum fun ℓ _ => hfibre ℓ
-    _ = Fintype.card L * r := by simp
 
 /- ## A reusable certificate for the pathwise unmarked bound -/
 
@@ -3728,34 +3025,6 @@ structure PathShrinkCertificate {A L : Type*} [DecidableEq A] [Fintype L]
   contract : ∀ σ x, x ∈ children σ → marked σ x = false →
     K * potential (level σ x) (x :: σ) ≤
       (K - 1) * potential (level σ x) σ
-
-/-- Build the path certificate directly from the rank strata and the
-poor/popular marking.  The two explicit geometric obligations are exactly
-the ones used in Bradač's proof: the chosen pivot stratum is nonempty, and
-its cutoff is at least `|U|/K` after clearing denominators. -/
-noncomputable def rankPathShrinkCertificate {L : Type*} [Fintype L] [DecidableEq L]
-    (points : Finset P) (C : RankClosure P) (R : P → P → Prop)
-    [DecidableRel R] (level : List (P × P) → (P × P) → L)
-    (levelNat : L → ℕ) (cut : List (P × P) → (P × P) → ℕ)
-    (K : ℕ) (hK : 1 ≤ K)
-    (hpivot : ∀ σ p, p ∈ extensionChildren points R σ →
-      (Z points C R σ (levelNat (level σ p))).Nonempty)
-    (hcut : ∀ σ p, p ∈ extensionChildren points R σ →
-      (U points C R σ (levelNat (level σ p))).card ≤ K * cut σ p) :
-    PathShrinkCertificate (L := L) (extensionChildren points R)
-      (markedByPoorOrPopular points C R level levelNat cut) K points.card where
-  potential ℓ σ := (U points C R σ (levelNat ℓ)).card
-  level := level
-  initial_le ℓ := Finset.card_filter_le _ _
-  mono ℓ σ p _ := Finset.card_le_card (U_mono_cons points C R p σ (levelNat ℓ))
-  positive σ p hp _ := by
-    obtain ⟨y, hy⟩ := hpivot σ p hp
-    exact (Finset.card_pos.mpr ⟨y, Z_subset_U points C R σ _ hy⟩)
-  contract σ p hp hmark := by
-    have hn := (markedByPoorOrPopular_eq_false_iff
-      points C R level levelNat cut σ p).mp hmark
-    exact U_card_multiplicative_shrink points C R σ
-      (levelNat (level σ p)) (cut σ p) K p.1 p.2 hK (hcut σ p hp) hn.1 hn.2
 
 /-- Iteration of one selected potential along a certified path.  We use the
 shifted potential, hence the denominator `2*K`; see `shifted_contraction`. -/
@@ -3887,47 +3156,6 @@ theorem card_allPaths_le {A : Type*} [DecidableEq A]
     (Erdos920.MarkedTree.card_boundedPaths_le children marked
       hchildren hmarked hhDelta hwm)
 
-/-- Complete abstract form of Bradač's forward-independent tuple bound.
-
-The projective instantiation supplies regularity (`hdegree`), the two mixing
-and incidence estimates (`hpoor`, `hpopular`), and the maximizing-pivot
-facts (`hpivot`, `hcut`).  The rest of the conclusion is proved here. -/
-theorem rankContainer_count {L : Type*} [Fintype L]
-    (points : Finset P) (C : RankClosure P) (R : P → P → Prop)
-    [DecidableRel R] (level : List (P × P) → (P × P) → L)
-    (levelNat : L → ℕ) (cut : List (P × P) → (P × P) → ℕ)
-    {d hp hq K w m : ℕ}
-    (hdegree : ∀ a ∈ points, (points.filter fun b => R a b).card ≤ d)
-    (hpoor : ∀ σ, ((extensionChildren points R σ).filter fun p =>
-      Poor points C R σ (levelNat (level σ p)) (cut σ p) p.1).card ≤ hp)
-    (hpopular : ∀ σ, ((extensionChildren points R σ).filter fun p =>
-      Popular points C R σ (levelNat (level σ p)) (cut σ p) p.2).card ≤ hq)
-    (hK : 1 ≤ K)
-    (hpivot : ∀ σ p, p ∈ extensionChildren points R σ →
-      (Z points C R σ (levelNat (level σ p))).Nonempty)
-    (hcut : ∀ σ p, p ∈ extensionChildren points R σ →
-      (U points C R σ (levelNat (level σ p))).card ≤ K * cut σ p)
-    (hpow : ∀ c : ℕ, w < c →
-      (2 * K - 1) ^ c * (points.card + 1) < (2 * K) ^ c)
-    (hmarkedTotal : hp + hq ≤ points.card * d)
-    (hunmarkedLength : Fintype.card L * w ≤ m) :
-    (allPaths (extensionChildren points R)
-      (markedByPoorOrPopular points C R level levelNat cut) m).card ≤
-      2 ^ m * (points.card * d) ^ (Fintype.card L * w) *
-        (hp + hq) ^ (m - Fintype.card L * w) := by
-  classical
-  let marked := markedByPoorOrPopular points C R level levelNat cut
-  let cert := rankPathShrinkCertificate points C R level levelNat cut K hK hpivot hcut
-  apply card_allPaths_le (extensionChildren points R) marked
-  · exact fun σ => extensionChildren_card_le points R d hdegree σ
-  · intro σ
-    exact markedChildren_card_le points C R level levelNat cut σ hp hq
-      (hpoor σ) (hpopular σ)
-  · intro xs hpath _
-    exact unmarkedCount_le_of_certificate (L := L) cert hK hpow xs hpath
-  · exact hmarkedTotal
-  · exact hunmarkedLength
-
 end Erdos920.Container
 end
 
@@ -3981,46 +3209,6 @@ theorem tupleHistory_injective {alpha : Type*} {m : ℕ} :
 
 variable {alpha : Type*}
 
-/-- Any finite collection of tuples which maps into the bounded-path finset
-has cardinality at most the cardinality of that finset. -/
-theorem card_tuples_le_boundedPaths [DecidableEq alpha]
-    {m w : ℕ}
-    (tuples : Finset (Fin m → alpha))
-    (children : List alpha → Finset alpha)
-    (marked : List alpha → alpha → Bool)
-    (hpath : ∀ x ∈ tuples,
-      MarkedTree.IsPath children (tupleHistory x))
-    (hunmarked : ∀ x ∈ tuples,
-      (MarkedTree.pathSignature marked (tupleHistory x)).count false ≤ w) :
-    tuples.card ≤ (MarkedTree.boundedPaths children marked m w).card := by
-  classical
-  refine Finset.card_le_card_of_injOn tupleHistory ?_ ?_
-  · intro x hx
-    exact (MarkedTree.mem_boundedPaths_iff children marked (tupleHistory x) m w).2
-      ⟨hpath x hx, length_tupleHistory x, hunmarked x hx⟩
-  · intro x _ y _ hxy
-    exact tupleHistory_injective hxy
-
-/-- The marked-tree estimate, already packaged for a finite set of tuples.
-This is the main generic API used by the projective construction. -/
-theorem card_tuples_le_of_markedTree
-    {Delta h m w : ℕ}
-    (tuples : Finset (Fin m → alpha))
-    (children : List alpha → Finset alpha)
-    (marked : List alpha → alpha → Bool)
-    (hpath : ∀ x ∈ tuples,
-      MarkedTree.IsPath children (tupleHistory x))
-    (hunmarked : ∀ x ∈ tuples,
-      (MarkedTree.pathSignature marked (tupleHistory x)).count false ≤ w)
-    (hchildren : ∀ σ, (children σ).card ≤ Delta)
-    (hmarked : ∀ σ,
-      ((children σ).filter fun x ↦ marked σ x = true).card ≤ h)
-    (hhDelta : h ≤ Delta) (hwm : w ≤ m) :
-    tuples.card ≤ 2 ^ m * Delta ^ w * h ^ (m - w) := by
-  classical
-  exact (card_tuples_le_boundedPaths tuples children marked hpath hunmarked).trans
-    (MarkedTree.card_boundedPaths_le children marked hchildren hmarked hhDelta hwm)
-
 /- ## Specialization to container consistency -/
 
 variable {P : Type*}
@@ -4058,40 +3246,6 @@ theorem isPath_consistentChildren_iff
       simp only [MarkedTree.IsPath, Container.consistent_cons_iff,
         mem_consistentChildren_iff, ih, List.mem_cons]
       aesop
-
-/-- A specialized marked-tree bound for tuples of incident pairs satisfying
-the container consistency relation. -/
-theorem card_consistent_tuples_le_of_markedTree
-    {Delta h m w : ℕ}
-    (vertices : Finset (P × P)) (R : P → P → Prop)
-    [DecidableRel R]
-    (tuples : Finset (Fin m → (P × P)))
-    (marked : List (P × P) → (P × P) → Bool)
-    (hconsistent : ∀ x ∈ tuples, Container.Consistent R (tupleHistory x))
-    (hmem : ∀ x ∈ tuples, ∀ i, x i ∈ vertices)
-    (hunmarked : ∀ x ∈ tuples,
-      (MarkedTree.pathSignature marked (tupleHistory x)).count false ≤ w)
-    (hchildren : ∀ σ, (consistentChildren vertices R σ).card ≤ Delta)
-    (hmarked : ∀ σ,
-      ((consistentChildren vertices R σ).filter
-        fun x ↦ marked σ x = true).card ≤ h)
-    (hhDelta : h ≤ Delta) (hwm : w ≤ m) :
-    tuples.card ≤ 2 ^ m * Delta ^ w * h ^ (m - w) := by
-  apply card_tuples_le_of_markedTree tuples
-    (consistentChildren vertices R) marked
-  · intro x hx
-    rw [isPath_consistentChildren_iff]
-    refine ⟨hconsistent x hx, ?_⟩
-    intro p hp
-    have hp' : p ∈ List.ofFn x := by
-      simpa [tupleHistory] using hp
-    rcases List.mem_ofFn.mp hp' with ⟨i, rfl⟩
-    exact hmem x hx i
-  · exact hunmarked
-  · exact hchildren
-  · exact hmarked
-  · exact hhDelta
-  · exact hwm
 
 end
 
@@ -4259,16 +3413,6 @@ theorem pairHistory_mem_incidentPairs (x : Fin m → V q t) :
   rcases List.mem_ofFn.mp hp' with ⟨i, rfl⟩
   exact (mem_incidentPairs_iff _).2 (ProjectiveDStar.incident (x i))
 
-/-- Exact path characterization for the concrete incident-pair child tree. -/
-theorem isPath_pairHistory_iff (x : Fin m → V q t) :
-    MarkedTree.IsPath
-        (TupleBound.consistentChildren incidentPairs Projective.Orthogonal)
-        (pairHistory x) ↔
-      (ProjectiveDStar.digraph q t).IsForwardIndependent x := by
-  rw [TupleBound.isPath_consistentChildren_iff,
-    ← isForwardIndependent_iff_consistent]
-  exact and_iff_left (pairHistory_mem_incidentPairs x)
-
 /- ## Exact equality of the finite counts -/
 
 /-- The concrete finset counted by `forwardIndependentTupleCount`. -/
@@ -4413,12 +3557,6 @@ noncomputable local instance pointFintype (q t : ℕ) [Fact q.Prime] :
 local instance incidenceDecidable (q t : ℕ) [Fact q.Prime] :
     DecidableRel (Incidence q t) := Classical.decRel _
 
-/-- Exact number of projective points in the `Finset` model. -/
-theorem card_points (q t : ℕ) [Fact q.Prime] :
-    Fintype.card (P q t) = ∑ i ∈ Finset.range (t + 1), q ^ i := by
-  rw [← Nat.card_eq_fintype_card]
-  exact natCard_point_zmod q (t + 1)
-
 /-- Exact row size of projective orthogonality. -/
 theorem card_filter_orthogonal_zmod (q t : ℕ) [Fact q.Prime]
     (x : P q t) :
@@ -4476,46 +3614,6 @@ theorem card_points_le_two_mul_q_mul_degree
       ring
     _ ≤ 2 * q * degree q t := Nat.mul_le_mul_left (2 * q) h.2.2.1
 
-/-- Coarse normalized expander mixing for projective orthogonality.  The
-right side uses only the leading order `2 q^(t-1)` for the design variance. -/
-theorem orthogonal_normalized_deviation_sq_le
-    (q t : ℕ) [Fact q.Prime] (ht : 2 ≤ t)
-    (A B : Finset (P q t)) :
-    (((orderedEdges (Incidence q t) A B : ℝ) -
-        (degree q t : ℝ) / Fintype.card (P q t) * A.card * B.card) ^ 2 ≤
-      2 * (q : ℝ) ^ (t - 1) * A.card * B.card) := by
-  classical
-  have hpar := design_parameter_bounds q t ht
-  have hmix := orderedEdges_normalized_deviation_sq_le
-    (Incidence q t) (degree q t) (codegree q t)
-    (fun {_ _} h ↦ orthogonal_symm_zmod q t h)
-    (card_filter_orthogonal_zmod q t)
-    (fun _ _ hxy ↦ card_filter_commonOrthogonal_zmod q t hxy)
-    hpar.2.2.2.2 A B
-  have hgap : (degree q t : ℝ) - codegree q t ≤
-      2 * (q : ℝ) ^ (t - 1) := by
-    have hd : (degree q t : ℝ) ≤ 2 * (q : ℝ) ^ (t - 1) := by
-      exact_mod_cast hpar.2.2.2.1
-    have hc : (0 : ℝ) ≤ codegree q t := Nat.cast_nonneg _
-    linarith
-  calc
-    (((orderedEdges (Incidence q t) A B : ℝ) -
-        (degree q t : ℝ) / Fintype.card (P q t) * A.card * B.card) ^ 2) ≤
-      ((degree q t : ℝ) - codegree q t) * A.card * B.card := hmix
-    _ ≤ 2 * (q : ℝ) ^ (t - 1) * A.card * B.card := by
-      have hAB : (0 : ℝ) ≤ (A.card : ℝ) * B.card := by positivity
-      nlinarith
-
-/-- Absolute-value version of the coarse projective mixing estimate. -/
-theorem abs_orthogonal_sub_expected_le
-    (q t : ℕ) [Fact q.Prime] (ht : 2 ≤ t)
-    (A B : Finset (P q t)) :
-    |(orderedEdges (Incidence q t) A B : ℝ) -
-        (degree q t : ℝ) / Fintype.card (P q t) * A.card * B.card| ≤
-      Real.sqrt (2 * (q : ℝ) ^ (t - 1) * A.card * B.card) := by
-  apply Real.abs_le_sqrt
-  exact orthogonal_normalized_deviation_sq_le q t ht A B
-
 /-- A set of points all having at most a `1/(8q)` fraction of their
 `Z`-neighbours has small product with `Z`.  The constant `512` deliberately
 absorbs all geometric-series estimates. -/
@@ -4560,15 +3658,6 @@ theorem poor_product_le_real
       rw [show t + 1 = 2 + (t - 1) by omega, pow_add]
       ring
 
-/-- Natural-number form of `poor_product_le_real`. -/
-theorem poor_product_le
-    (q t : ℕ) [Fact q.Prime] (ht : 2 ≤ t)
-    (A Z : Finset (P q t))
-    (hpoor : ∀ a ∈ A,
-      8 * q * (Z.filter (Incidence q t a)).card ≤ Z.card) :
-    A.card * Z.card ≤ 512 * q ^ (t + 1) := by
-  exact_mod_cast poor_product_le_real q t ht A Z hpoor
-
 /-- The actual finite set of points which are poor with respect to `Z`. -/
 def poorSet (q t : ℕ) [Fact q.Prime] (Z : Finset (P q t)) : Finset (P q t) :=
   Finset.univ.filter fun a ↦
@@ -4579,14 +3668,6 @@ def poorSet (q t : ℕ) [Fact q.Prime] (Z : Finset (P q t)) : Finset (P q t) :=
     a ∈ poorSet q t Z ↔
       8 * q * (Z.filter (Incidence q t a)).card ≤ Z.card := by
   simp [poorSet]
-
-/-- Product estimate stated for the canonical poor set. -/
-theorem poorSet_product_le
-    (q t : ℕ) [Fact q.Prime] (ht : 2 ≤ t) (Z : Finset (P q t)) :
-    (poorSet q t Z).card * Z.card ≤ 512 * q ^ (t + 1) := by
-  apply poor_product_le q t ht
-  intro a ha
-  exact (mem_poorSet_iff q t Z a).mp ha
 
 /-- A mixed-edge consequence of the poor product estimate.  It is important
 that only `|B| ≤ |Z|` is assumed: `B` need not be a subset of `Z`.  A second
@@ -4790,12 +3871,6 @@ theorem inClosure_iff_rep_mem (x : Point F d) (S : Finset (Point F d)) :
   rw [InClosure, Projectivization.submodule_eq,
     Submodule.span_singleton_le_iff_mem]
 
-theorem pointSpan_insert_eq_of_inClosure [DecidableEq (Point F d)]
-    {x : Point F d} {S : Finset (Point F d)} (hx : InClosure x S) :
-    pointSpan (insert x S) = pointSpan S := by
-  rw [pointSpan_insert, sup_eq_right]
-  exact hx
-
 theorem pointSpan_le_insert [DecidableEq (Point F d)]
     (x : Point F d) (S : Finset (Point F d)) :
     pointSpan S ≤ pointSpan (insert x S) := by
@@ -4882,16 +3957,6 @@ theorem projectiveRankClosure_rank_le_dim (S : Finset (P q t)) :
   have h := Submodule.finrank_le (pointSpan S)
   simpa [Module.finrank_fin_fun] using h
 
-/-- A span of rank `r` contains at most `2 q^(r-1)` projective points.  This
-is the concrete closure-fibre estimate used to bound popular children. -/
-theorem card_filter_projectiveRankClosure_cl_le (S : Finset (P q t)) :
-    (Finset.univ.filter fun x ↦
-      (projectiveRankClosure q t).Cl x S).card ≤
-      2 * q ^ ((projectiveRankClosure q t).rank S - 1) := by
-  rw [Projective.card_filter_univ_eq_natCard_subtype]
-  simpa [projectiveRankClosure, rankClosure, InClosure] using
-    (Projective.natCard_pointsIn_zmod_le_two_mul_pow_pred (pointSpan S))
-
 /-- Forget the incidence proof on a `D*` vertex and retain its ordered pair
 of projective points. -/
 def vertexPair (u : ProjectiveDStar.Vertex q t) : P q t × P q t :=
@@ -4906,70 +3971,6 @@ def vertexPair (u : ProjectiveDStar.Vertex q t) : P q t × P q t :=
 @[simp] theorem vertexPair_incident (u : ProjectiveDStar.Vertex q t) :
     Orthogonal (vertexPair u).1 (vertexPair u).2 :=
   ProjectiveDStar.incident u
-
-/-- Negating the arc from an old vertex to a new one supplies precisely the
-compatibility implication required when the new pair is put at the head of a
-container history. -/
-theorem compatible_vertexPair_of_not_arc
-    (new : ProjectiveDStar.Vertex q t)
-    (old : ProjectiveDStar.Vertex q t)
-    (h : ¬ ProjectiveDStar.Arc old new) :
-    Orthogonal (vertexPair old).1 (vertexPair new).2 →
-      Orthogonal (vertexPair new).1 (vertexPair old).2 := by
-  intro holdnew
-  by_contra hnewold
-  exact h ⟨holdnew, hnewold⟩
-
-/-- A new forward-independent vertex satisfies `CanExtend` against any list
-of older vertices. -/
-theorem canExtend_vertexPair_of_not_arc
-    (new : ProjectiveDStar.Vertex q t)
-    (old : List (ProjectiveDStar.Vertex q t))
-    (h : ∀ u ∈ old, ¬ ProjectiveDStar.Arc u new) :
-    Container.CanExtend Orthogonal (vertexPair new) (old.map vertexPair) := by
-  refine ⟨vertexPair_incident new, ?_⟩
-  intro p hp holdnew
-  rcases List.mem_map.mp hp with ⟨u, hu, rfl⟩
-  exact compatible_vertexPair_of_not_arc new u (h u hu) holdnew
-
-/-- Pairwise newest-to-oldest compatibility, together with incidence of each
-pair, is exactly enough for a consistent reverse history. -/
-theorem consistent_of_pairwise
-    {Q : Type*}
-    {R : Q → Q → Prop} (l : List (Q × Q))
-    (hinc : ∀ p ∈ l, R p.1 p.2)
-    (hpair : l.Pairwise fun new old ↦
-      R old.1 new.2 → R new.1 old.2) :
-    Container.Consistent R l := by
-  classical
-  induction l with
-  | nil => exact Container.consistent_nil R
-  | cons p l ih =>
-      rw [Container.consistent_cons_iff]
-      have hp := List.pairwise_cons.mp hpair
-      refine ⟨ih (fun x hx ↦ hinc x (List.mem_cons_of_mem p hx)) hp.2, ?_⟩
-      refine ⟨hinc p (by simp), ?_⟩
-      intro old hold
-      exact hp.1 old hold
-
-/-- A forward-independent chronological tuple becomes a consistent container
-history after reversal. -/
-theorem consistent_tupleHistory_of_forwardIndependent {m : ℕ}
-    (v : Fin m → ProjectiveDStar.Vertex q t)
-    (hforward : (ProjectiveDStar.digraph q t).IsForwardIndependent v) :
-    Container.Consistent Orthogonal
-      (TupleBound.tupleHistory (fun i ↦ vertexPair (v i))) := by
-  classical
-  apply consistent_of_pairwise
-  · intro p hp
-    rw [TupleBound.tupleHistory, List.mem_reverse] at hp
-    rcases List.mem_ofFn.mp hp with ⟨i, rfl⟩
-    exact vertexPair_incident (v i)
-  · rw [TupleBound.tupleHistory, List.pairwise_reverse,
-      List.pairwise_ofFn]
-    intro i j hij
-    exact compatible_vertexPair_of_not_arc (v j) (v i)
-      (hforward i j hij)
 
 /-- The finite ambient pair set used by the container tree: precisely the
 incident ordered pairs of projective points. -/
@@ -4987,22 +3988,6 @@ def incidentPairs (q t : ℕ) [Fact q.Prime] :
     (u : ProjectiveDStar.Vertex q t) :
     vertexPair u ∈ incidentPairs q t := by
   simp
-
-/-- Concrete child consistency: every forward-independent tuple follows the
-`consistentChildren` tree on incident projective pairs. -/
-theorem tupleHistory_isPath_consistentChildren {m : ℕ}
-    (v : Fin m → ProjectiveDStar.Vertex q t)
-    (hforward : (ProjectiveDStar.digraph q t).IsForwardIndependent v) :
-    MarkedTree.IsPath
-      (TupleBound.consistentChildren (incidentPairs q t) Orthogonal)
-      (TupleBound.tupleHistory (fun i ↦ vertexPair (v i))) := by
-  classical
-  rw [TupleBound.isPath_consistentChildren_iff]
-  refine ⟨consistent_tupleHistory_of_forwardIndependent v hforward, ?_⟩
-  intro p hp
-  rw [TupleBound.tupleHistory, List.mem_reverse] at hp
-  rcases List.mem_ofFn.mp hp with ⟨i, rfl⟩
-  exact vertexPair_mem_incidentPairs (v i)
 
 end DStarHistory
 
@@ -5152,16 +4137,6 @@ theorem U_card_le_succ_mul_Z_pivot (j : ℕ) :
       (j + 1) * (Z points C R σ (pivotLevel points C R σ j)).card := by
   exact card_U_le_mul_card_Z_pivot points C R σ j
 
-/-- The form used in Bradač's container calculation.  For a positive rank
-budget, `j+1 ≤ 2j`, so the pivot stratum controls `U_j` with the paper's
-convenient factor `2j`. -/
-theorem card_U_le_two_mul_card_Z_pivot (j : ℕ) (hj : 0 < j) :
-    (U points C R σ j).card ≤
-      2 * j * (Z points C R σ (pivotIndex points C R σ j : ℕ)).card := by
-  refine (card_U_le_mul_card_Z_pivot points C R σ j).trans ?_
-  apply Nat.mul_le_mul_right
-  omega
-
 end Strata
 
 section IntegerCut
@@ -5175,94 +4150,12 @@ def pivotCut (q z : ℕ) : ℕ :=
 @[simp] theorem pivotCut_pos (q z : ℕ) : 0 < pivotCut q z := by
   simp [pivotCut]
 
-theorem ceilDiv_le_pivotCut (q z : ℕ) :
-    z ⌈/⌉ (32 * q) ≤ pivotCut q z := by
-  exact Nat.le_max_right _ _
-
-/-- The defining lower estimate for the ceiling threshold, with denominators
-cleared. -/
-theorem card_le_mul_pivotCut {q z : ℕ} (hq : 0 < q) :
-    z ≤ (32 * q) * pivotCut q z := by
-  exact (le_smul_ceilDiv (by positivity : 0 < 32 * q)).trans
-    (Nat.mul_le_mul_left (32 * q) (ceilDiv_le_pivotCut q z))
-
-/-- For a nonempty stratum the rounded threshold never exceeds the stratum
-itself. -/
-theorem pivotCut_le_card {q z : ℕ} (hq : 0 < q) (hz : 0 < z) :
-    pivotCut q z ≤ z := by
-  rw [pivotCut, max_le_iff]
-  refine ⟨hz, ?_⟩
-  rw [ceilDiv_le_iff_le_mul (by positivity : 0 < 32 * q)]
-  have hden : 1 ≤ 32 * q := by omega
-  simpa using Nat.mul_le_mul_right z hden
-
-/-- Cancellation package used after double-counting popular points.  If
-`pop * cut ≤ z * cap`, then the ceiling relation forces
-`pop ≤ 32*q*cap`. -/
-theorem popular_count_le {q z cut pop cap : ℕ}
-    (hcutpos : 0 < cut) (hzcut : z ≤ (32 * q) * cut)
-    (hinc : pop * cut ≤ z * cap) :
-    pop ≤ (32 * q) * cap := by
-  apply Nat.le_of_mul_le_mul_right ?_ hcutpos
-  calc
-    pop * cut ≤ z * cap := hinc
-    _ ≤ ((32 * q) * cut) * cap := Nat.mul_le_mul_right cap hzcut
-    _ = ((32 * q) * cap) * cut := by ring
-
-/-- Specialization of `popular_count_le` to the canonical pivot threshold. -/
-theorem popular_count_le_of_pivotCut {q z pop cap : ℕ} (hq : 0 < q)
-    (hinc : pop * pivotCut q z ≤ z * cap) :
-    pop ≤ (32 * q) * cap := by
-  exact popular_count_le (pivotCut_pos q z) (card_le_mul_pivotCut hq) hinc
-
-/-- The arithmetic poor/popular dichotomy at the canonical cut.  If neither
-exception applies, then the good remainder has at least `cut` elements.
-This theorem is independent of the meanings of `A` and `B`, so it can be
-reused both for abstract containers and the projective specialization. -/
-theorem pivotCut_le_filter_and_not_of_not_poor_not_popular
-    {q z : ℕ} {S : Type*}
-    (s : Finset S) (A B : S → Prop) [DecidablePred A] [DecidablePred B]
-    (hnotPoor : ¬ (s.filter A).card < 2 * pivotCut q z)
-    (hnotPopular : ¬ pivotCut q z ≤ (s.filter B).card) :
-    pivotCut q z ≤ (s.filter fun x ↦ A x ∧ ¬ B x).card := by
-  classical
-  apply Container.card_filter_and_not_ge
-  · exact Nat.le_of_not_gt hnotPoor
-  · exact Nat.le_of_lt (Nat.lt_of_not_ge hnotPopular)
-
 end IntegerCut
 
 section ContainerCut
 
 variable (points : Finset P) (C : RankClosure P) (R : P → P → Prop)
   [DecidableRel R] (σ : List (P × P))
-
-/-- The abstract poor/popular subtraction, specialized to the canonical
-integer pivot cut. -/
-theorem pivotCut_le_rankRaisingSet_of_not_poor_not_popular
-    (q ℓ : ℕ) (a b : P)
-    (ha : ¬ Poor points C R σ ℓ
-      (pivotCut q (Z points C R σ ℓ).card) a)
-    (hb : ¬ Popular points C R σ ℓ
-      (pivotCut q (Z points C R σ ℓ).card) b) :
-    pivotCut q (Z points C R σ ℓ).card ≤
-      (rankRaisingSet points C R σ ℓ a b).card := by
-  exact rankRaisingSet_card_ge_of_not_poor_not_popular
-    points C R σ ℓ (pivotCut q (Z points C R σ ℓ).card) a b ha hb
-
-/-- A canonical-cut version of the projective popularity estimate.  The
-only geometric input left to a caller is `hfibre`, the number of points in
-each old span. -/
-theorem popularInStratum_card_le_of_pivotCut
-    (q ℓ cap : ℕ) (hq : 0 < q)
-    (hfibre : ∀ y ∈ Z points C R σ ℓ,
-      (points.filter fun b ↦ C.Cl b (generators R σ y)).card ≤ cap) :
-    (points.filter fun b ↦ Popular points C R σ ℓ
-      (pivotCut q (Z points C R σ ℓ).card) b).card ≤
-        (32 * q) * cap := by
-  apply popular_count_le_of_pivotCut hq
-  exact popularInStratum_card_mul_cut_le points C R σ ℓ
-    (pivotCut q (Z points C R σ ℓ).card) cap hfibre
 
 end ContainerCut
 
@@ -5450,13 +4343,6 @@ def chosenPivot (points : Finset P) (C : RankClosure P)
     (R : P → P → Prop) [DecidableRel R]
     (sigma : List (P × P)) (p : P × P) : ℕ :=
   pivotLevel points C R sigma (prefixRank C R sigma p.2)
-
-/-- A small pivot is marked wholesale.  This removes all zero and tiny
-strata from later cancellations. -/
-def SmallPivotQ (points : Finset P) (C : RankClosure P)
-    (R : P → P → Prop) [DecidableRel R] (q : ℕ)
-    (sigma : List (P × P)) (p : P × P) : Prop :=
-  (Z points C R sigma (chosenPivot points C R sigma p)).card < 16 * q
 
 /-- The Boolean poor/popular marking used by the marked tree.  No separate
 small-stratum exception is needed: the cleared predicates remain valid for
@@ -5874,38 +4760,6 @@ theorem orthogonal_generators_of_canExtend
   have hold' := Finset.mem_filter.mp hold
   exact hp.2 old (by simpa using hold'.1) hold'.2
 
-/-- Hence the selected generator span has vector rank at most `t`: it lies
-in the polar hyperplane of the prospective first coordinate. -/
-theorem prefixRank_second_le_of_canExtend
-    (q t : ℕ) [Fact q.Prime]
-    (sigma : List (PointT q t × PointT q t))
-    (p : PointT q t × PointT q t)
-    (hp : CanExtend Orthogonal p sigma) :
-    prefixRank (projectiveRankClosure q t) Orthogonal sigma p.2 ≤ t := by
-  let S := generators Orthogonal sigma p.2
-  have hspan : pointSpan S ≤ orthSpace p.1 := by
-    unfold pointSpan
-    exact Finset.sup_le fun z hz =>
-      (orthogonal_iff_submodule_le p.1 z).mp
-        (orthogonal_generators_of_canExtend q t sigma p hp z hz)
-  change Module.finrank (ZMod q) (pointSpan S) ≤ t
-  calc
-    Module.finrank (ZMod q) (pointSpan S) ≤
-        Module.finrank (ZMod q) (orthSpace p.1) :=
-      Submodule.finrank_mono hspan
-    _ = t := by simpa using finrank_orthSpace p.1
-
-/-- Rank cap specialized to an actual extension child. -/
-theorem prefixRank_second_le_of_mem_extensionChildren
-    (q t : ℕ) [Fact q.Prime]
-    (sigma : List (PointT q t × PointT q t))
-    (p : PointT q t × PointT q t)
-    (hp : p ∈ extensionChildren
-      (Finset.univ : Finset (PointT q t)) Orthogonal sigma) :
-    prefixRank (projectiveRankClosure q t) Orthogonal sigma p.2 ≤ t := by
-  have hp' := Finset.mem_filter.mp hp
-  exact prefixRank_second_le_of_canExtend q t sigma p hp'.2
-
 /-- All poor extension children, with the pivot chosen from the rank of the
 second coordinate. -/
 def poorChildren (q t : ℕ) [Fact q.Prime]
@@ -5931,44 +4785,6 @@ def poorChildren (q t : ℕ) [Fact q.Prime]
           (projectiveRankClosure q t) Orthogonal sigma
           (prefixRank (projectiveRankClosure q t) Orthogonal sigma p.2)) p.1 := by
   rw [poorChildren, Finset.mem_filter]
-
-/-- The poor children are the union of the fixed-rank fibres `0,...,t`. -/
-theorem poorChildren_subset_biUnion_rank
-    (q t : ℕ) [Fact q.Prime]
-    (sigma : List (PointT q t × PointT q t)) :
-    poorChildren q t sigma ⊆
-      (Finset.range (t + 1)).biUnion fun j =>
-        poorChildrenAtRank q t sigma j := by
-  intro p hp
-  have hp' := (mem_poorChildren_iff q t sigma p).mp hp
-  let j := prefixRank (projectiveRankClosure q t) Orthogonal sigma p.2
-  apply Finset.mem_biUnion.mpr
-  refine ⟨j, Finset.mem_range.mpr (Nat.lt_succ_iff.mpr ?_), ?_⟩
-  · exact prefixRank_second_le_of_mem_extensionChildren q t sigma p hp'.1
-  · apply (mem_poorChildrenAtRank_iff q t sigma j p).mpr
-    exact ⟨hp'.1, rfl, hp'.2⟩
-
-/-- Uniform per-history poor-child bound, obtained by summing the `t+1`
-rank fibres.  This is the poor half of the marked branching estimate. -/
-theorem card_poorChildren_le
-    (q t : ℕ) [Fact q.Prime] (ht : 2 ≤ t)
-    (sigma : List (PointT q t × PointT q t)) :
-    (poorChildren q t sigma).card ≤
-      2048 * (t + 1) * q ^ t := by
-  calc
-    (poorChildren q t sigma).card ≤
-        ((Finset.range (t + 1)).biUnion fun j =>
-          poorChildrenAtRank q t sigma j).card :=
-      Finset.card_le_card (poorChildren_subset_biUnion_rank q t sigma)
-    _ ≤ ∑ j ∈ Finset.range (t + 1),
-        (poorChildrenAtRank q t sigma j).card :=
-      Finset.card_biUnion_le
-    _ ≤ ∑ _j ∈ Finset.range (t + 1), 2048 * q ^ t := by
-      exact Finset.sum_le_sum fun j _ =>
-        card_poorChildrenAtRank_le q t ht sigma j
-    _ = 2048 * (t + 1) * q ^ t := by
-      simp
-      ring
 
 end
 
@@ -6063,28 +4879,6 @@ theorem card_filter_rankClosure_cl_eq_zero_of_rank_eq_zero
         (rankClosure (F := ZMod q) (d := d)).Cl p S).card = 0 := by
   exact card_filter_inClosure_eq_zero_of_rank_eq_zero S hr
 
-/-- Uniform closure fibre bound with the rank-zero edge case made exact. -/
-theorem card_filter_rankClosure_cl_le_if
-    (S : Finset (Point (ZMod q) d))
-    (hr : (rankClosure (F := ZMod q) (d := d)).rank S = r) :
-    (Finset.univ.filter fun p ↦
-        (rankClosure (F := ZMod q) (d := d)).Cl p S).card ≤
-      if r = 0 then 0 else 2 * q ^ (r - 1) := by
-  split_ifs with hzero
-  · exact (card_filter_rankClosure_cl_eq_zero_of_rank_eq_zero S
-      (hr.trans hzero)).le
-  · exact card_filter_rankClosure_cl_le_two_mul_pow_pred S hr
-
-/-- The rank of a projective span is bounded by the ambient vector
-dimension. -/
-theorem finrank_pointSpan_le_ambient
-    (S : Finset (Point (ZMod q) d)) :
-    Module.finrank (ZMod q) (pointSpan S) ≤ d := by
-  calc
-    Module.finrank (ZMod q) (pointSpan S) ≤
-        Module.finrank (ZMod q) (Fin d → ZMod q) := Submodule.finrank_le _
-    _ = d := Module.finrank_fin_fun (ZMod q)
-
 /- ## Points orthogonal to a projective span -/
 
 /-- Vector orthogonal complement of the span of a finite set of projective
@@ -6173,23 +4967,6 @@ theorem card_filter_orthogonal_to_span_eq_geomSum
         (d - Module.finrank (ZMod q) (pointSpan S)), q ^ i := by
       rw [finrank_spanOrthSpace]
 
-/-- Symmetric-orientation version of the exact orthogonal-to-span count. -/
-theorem card_filter_left_orthogonal_to_span_eq_geomSum
-    (S : Finset (Point (ZMod q) d)) :
-    (Finset.univ.filter fun a ↦ ∀ p ∈ S, Orthogonal a p).card =
-      ∑ i ∈ Finset.range
-        (d - Module.finrank (ZMod q) (pointSpan S)), q ^ i := by
-  have heq :
-      (Finset.univ.filter fun a : Point (ZMod q) d ↦
-          ∀ p ∈ S, Orthogonal a p) =
-        Finset.univ.filter fun a ↦ ∀ p ∈ S, Orthogonal p a := by
-    ext a
-    simp only [Finset.mem_filter, Finset.mem_univ, true_and]
-    constructor <;> intro h p hp
-    · exact (orthogonal_comm p a).mpr (h p hp)
-    · exact (orthogonal_comm a p).mpr (h p hp)
-  rw [heq, card_filter_orthogonal_to_span_eq_geomSum]
-
 /-- In ambient vector dimension `t+1`, the set of projective points
 orthogonal to a rank-`r` span has size at most `2 q^(t-r)`. -/
 theorem card_filter_orthogonal_to_span_le_two_mul_pow
@@ -6214,102 +4991,7 @@ theorem card_filter_orthogonal_to_rankClosure_le_two_mul_pow
       2 * q ^ (t - r) := by
   exact card_filter_orthogonal_to_span_le_two_mul_pow S hr
 
-/-- Symmetric-orientation version of the orthogonal-to-span upper bound. -/
-theorem card_filter_left_orthogonal_to_span_le_two_mul_pow
-    (S : Finset (Point (ZMod q) (t + 1)))
-    (hr : Module.finrank (ZMod q) (pointSpan S) = r) :
-    (Finset.univ.filter fun a ↦ ∀ p ∈ S, Orthogonal a p).card ≤
-      2 * q ^ (t - r) := by
-  rw [card_filter_left_orthogonal_to_span_eq_geomSum, hr]
-  have hpred : t + 1 - r - 1 = t - r := by omega
-  simpa only [hpred] using geomSum_le_two_mul_pow_pred q (t + 1 - r)
-    (Fact.out : q.Prime).two_le
-
-/-- If a span fills the ambient vector space, no projective point is
-orthogonal to all of it. -/
-theorem card_filter_left_orthogonal_to_span_eq_zero_of_full_rank
-    (S : Finset (Point (ZMod q) (t + 1)))
-    (hr : Module.finrank (ZMod q) (pointSpan S) = t + 1) :
-    (Finset.univ.filter fun a ↦ ∀ p ∈ S, Orthogonal a p).card = 0 := by
-  rw [card_filter_left_orthogonal_to_span_eq_geomSum, hr]
-  simp
-
-/-- Uniform annihilator fibre bound, including the full-rank edge case. -/
-theorem card_filter_left_orthogonal_to_span_le_if
-    (S : Finset (Point (ZMod q) (t + 1)))
-    (hr : Module.finrank (ZMod q) (pointSpan S) = r) :
-    (Finset.univ.filter fun a ↦ ∀ p ∈ S, Orthogonal a p).card ≤
-      if r = t + 1 then 0 else 2 * q ^ (t - r) := by
-  split_ifs with hfull
-  · exact (card_filter_left_orthogonal_to_span_eq_zero_of_full_rank S
-      (hr.trans hfull)).le
-  · exact card_filter_left_orthogonal_to_span_le_two_mul_pow S hr
-
 /- ## Direct container-history consequences -/
-
-/-- A compatible extension has first coordinate orthogonal to every second
-coordinate selected by the old history at its new second coordinate. -/
-theorem canExtend_orthogonal_generators
-    (a b : Point (ZMod q) d)
-    (sigma : List (Point (ZMod q) d × Point (ZMod q) d))
-    (h : Container.CanExtend Orthogonal (a, b) sigma) :
-    ∀ g ∈ Container.generators Orthogonal sigma b, Orthogonal a g := by
-  intro g hg
-  rw [Container.generators] at hg
-  rcases Finset.mem_image.mp hg with ⟨old, hold, rfl⟩
-  have hold' := Finset.mem_filter.mp hold
-  exact h.2 old (by simpa using hold'.1) hold'.2
-
-/-- The possible first coordinates of a compatible extension over a fixed
-second coordinate lie in the annihilator of the selected generator span. -/
-theorem card_filter_canExtend_le_if
-    (b : Point (ZMod q) (t + 1))
-    (sigma : List
-      (Point (ZMod q) (t + 1) × Point (ZMod q) (t + 1)))
-    (hr : (rankClosure (F := ZMod q) (d := t + 1)).rank
-      (Container.generators Orthogonal sigma b) = r) :
-    (Finset.univ.filter fun a ↦
-        Container.CanExtend Orthogonal (a, b) sigma).card ≤
-      if r = t + 1 then 0 else 2 * q ^ (t - r) := by
-  let S := Container.generators Orthogonal sigma b
-  have hsubset :
-      (Finset.univ.filter fun a : Point (ZMod q) (t + 1) ↦
-          Container.CanExtend Orthogonal (a, b) sigma) ⊆
-        Finset.univ.filter fun a ↦ ∀ p ∈ S, Orthogonal a p := by
-    intro a ha
-    have ha' := (Finset.mem_filter.mp ha).2
-    apply Finset.mem_filter.mpr
-    exact ⟨Finset.mem_univ _, canExtend_orthogonal_generators a b sigma ha'⟩
-  exact (Finset.card_le_card hsubset).trans
-    (card_filter_left_orthogonal_to_span_le_if S hr)
-
-/-- Closure fibre bound for the generator set selected by a history, stated
-using `prefixRank` exactly as in the container argument. -/
-theorem card_filter_cl_generators_le_if
-    (b : Point (ZMod q) d)
-    (sigma : List (Point (ZMod q) d × Point (ZMod q) d))
-    (ell : ℕ)
-    (hr : Container.prefixRank
-      (rankClosure (F := ZMod q) (d := d)) Orthogonal sigma b = ell) :
-    (Finset.univ.filter fun x ↦
-        (rankClosure (F := ZMod q) (d := d)).Cl x
-          (Container.generators Orthogonal sigma b)).card ≤
-      if ell = 0 then 0 else 2 * q ^ (ell - 1) := by
-  apply card_filter_rankClosure_cl_le_if
-  exact hr
-
-/-- Compatible-extension fibre bound stated directly with `prefixRank`. -/
-theorem card_filter_canExtend_le_if_of_prefixRank
-    (b : Point (ZMod q) (t + 1))
-    (sigma : List
-      (Point (ZMod q) (t + 1) × Point (ZMod q) (t + 1)))
-    (hr : Container.prefixRank
-      (rankClosure (F := ZMod q) (d := t + 1)) Orthogonal sigma b = r) :
-    (Finset.univ.filter fun a ↦
-        Container.CanExtend Orthogonal (a, b) sigma).card ≤
-      if r = t + 1 then 0 else 2 * q ^ (t - r) := by
-  apply card_filter_canExtend_le_if
-  exact hr
 
 end
 
@@ -6915,11 +5597,6 @@ denominator is `2*K`. -/
 def contractionBudget (K t q : ℕ) : ℕ :=
   2 * K * stoppingBlocks t q
 
-/-- A deliberately generous coefficient which dominates all exceptional
-levels of the projective container. -/
-def projectiveBudgetConstant (t : ℕ) : ℕ :=
-  320 * t * t * (t + 1)
-
 /-- The two lowest nonzero terms in the binomial expansion already show that
 one block of `a+1` contractions halves the potential. -/
 theorem two_mul_pow_succ_le_succ_pow (a : ℕ) :
@@ -7067,9 +5744,6 @@ def unmarkedBudget (A q : ℕ) : ℕ :=
 `m` and in the final exponential base. -/
 def absorptionConstant (t A : ℕ) : ℕ :=
   8 * t * A
-
-/-- An explicit lower threshold for `q`; no primality is used here. -/
-def absorptionThreshold : ℕ := 4
 
 theorem absorptionConstant_pos {t A : ℕ} (ht : 1 ≤ t) (hA : 1 ≤ A) :
     0 < absorptionConstant t A := by
@@ -7371,13 +6045,6 @@ theorem contractionBudget_le_stoppingDepth {t q : ℕ}
 
 /- ## Projective specialization -/
 
-theorem stoppingCoefficient_pos {t : ℕ} (ht : 1 ≤ t) :
-    1 ≤ stoppingCoefficient t := by
-  have : 0 < stoppingCoefficient t := by
-    simp only [stoppingCoefficient]
-    positivity
-  omega
-
 /-- **Stopping-power inequality.**  Once the exponent is larger than the
 explicit `q*ceil(log q)` depth, replacing `2*K` by `2*K-1` absorbs the whole
 terminal factor `2*q^t+1`. -/
@@ -7389,27 +6056,6 @@ theorem projective_stopping_power {t q c : ℕ}
       (t := t) (q := q) (N := terminalBound t q)
       (by omega) (by omega) (by simp [terminalBound]) c
   exact (contractionBudget_le_stoppingDepth (by omega) hq).trans_lt hc
-
-/-- Expanded form, convenient before the abbreviations above are introduced. -/
-theorem projective_stopping_power_expanded {t q c : ℕ}
-    (ht : 2 ≤ t) (hq : 4 ≤ q)
-    (hc : stoppingCoefficient t * q * ⌈Real.log (q : ℝ)⌉₊ < c) :
-    (2 * (32 * t * q) - 1) ^ c * (2 * q ^ t + 1) <
-      (2 * (32 * t * q)) ^ c := by
-  exact projective_stopping_power ht hq hc
-
-/-- Existential packaging with the explicit choices
-`Astop = 320*t*t*(t+1)` and `Q = 4`. -/
-theorem exists_stopping_parameters (t : ℕ) (ht : 2 ≤ t) :
-    ∃ Astop Q : ℕ, 1 ≤ Astop ∧ 2 ≤ Q ∧
-      ∀ q c : ℕ, Q ≤ q →
-        Astop * q * ⌈Real.log (q : ℝ)⌉₊ < c →
-          (2 * (32 * t * q) - 1) ^ c * (2 * q ^ t + 1) <
-            (2 * (32 * t * q)) ^ c := by
-  refine ⟨stoppingCoefficient t, 4, stoppingCoefficient_pos (by omega),
-    by omega, ?_⟩
-  intro q c hq hc
-  exact projective_stopping_power_expanded ht hq hc
 
 end
 
@@ -7819,33 +6465,6 @@ lemma orderedTuple_forwardIndependent {D : V → V → Prop} (π : Equiv.Perm V)
   exact hI (orderedTuple_mem π S hS i) (orderedTuple_mem π S hS j)
     hn ((forwardGraph_adj_iff).2 ⟨hn, Or.inl ⟨hlt, hDij⟩⟩)
 
-/-- For one fixed ordering, independent `k`-sets inject into the
-forward-independent `k`-tuples.  The sharper factorial saving is obtained by
-averaging this construction over all permutations. -/
-lemma indepSetFinset_card_forwardGraph_le [Fintype V] {D : V → V → Prop}
-    (π : Equiv.Perm V)
-    (k : ℕ) :
-    ((forwardGraph D π).indepSetFinset k).card ≤
-      (forwardIndependentFinset D k).card := by
-  classical
-  let A := (forwardGraph D π).indepSetFinset k
-  let f : {S // S ∈ A} → (Fin k → V) := fun S =>
-    orderedTuple π S.1 <| (SimpleGraph.mem_indepSetFinset_iff.mp S.2).card_eq
-  rw [← Finset.card_attach (s := A)]
-  refine Finset.card_le_card_of_injOn f ?_ ?_
-  · intro S hS
-    have hNS := SimpleGraph.mem_indepSetFinset_iff.mp S.2
-    exact mem_forwardIndependentFinset.mpr
-      (orderedTuple_forwardIndependent π S.1 hNS.card_eq hNS.isIndepSet)
-  · intro S hS T hT hST
-    apply Subtype.ext
-    apply Finset.coe_injective
-    rw [← range_orderedTuple π S.1
-          (SimpleGraph.mem_indepSetFinset_iff.mp S.2).card_eq,
-      ← range_orderedTuple π T.1
-          (SimpleGraph.mem_indepSetFinset_iff.mp T.2).card_eq]
-    exact congrArg Set.range hST
-
 end OrderedDigraph
 
 section Deletion
@@ -7862,70 +6481,6 @@ lemma mem_survivingIndepSetFinset {G : SimpleGraph V} [DecidableRel G.Adj]
     {k : ℕ} {A T : Finset V} :
     T ∈ survivingIndepSetFinset G k A ↔ G.IsNIndepSet k T ∧ T ⊆ A := by
   simp [survivingIndepSetFinset, SimpleGraph.mem_indepSetFinset_iff]
-
-/-- Relative deletion lemma.  Starting from a sampled vertex set `A`, remove
-one vertex from every independent `k`-set contained in `A`. -/
-lemma exists_induced_indepSetFree_subgraph_subset
-    (G : SimpleGraph V) [DecidableRel G.Adj] (A : Finset V)
-    {k : ℕ} (hk : 1 ≤ k) :
-    ∃ U : Finset V, U ⊆ A ∧
-      A.card - (survivingIndepSetFinset G k A).card ≤ U.card ∧
-        (G.induce (U : Set V)).IndepSetFree k := by
-  classical
-  let B : Finset (Finset V) := survivingIndepSetFinset G k A
-  let pick : {T // T ∈ B} → V := fun T =>
-    Classical.choose <| by
-      have hT : G.IsNIndepSet k T.1 :=
-        (mem_survivingIndepSetFinset.mp (show T.1 ∈ B from T.2)).1
-      exact Finset.card_pos.mp (hT.card_eq ▸ hk)
-  have hpick_mem : ∀ T : {T // T ∈ B}, pick T ∈ T.1 := by
-    intro T
-    exact Classical.choose_spec <| by
-      have hT : G.IsNIndepSet k T.1 :=
-        (mem_survivingIndepSetFinset.mp (show T.1 ∈ B from T.2)).1
-      exact Finset.card_pos.mp (hT.card_eq ▸ hk)
-  let deleted : Finset V := B.attach.image pick
-  let U : Finset V := A \ deleted
-  have hdeletedA : deleted ⊆ A := by
-    intro v hv
-    rcases Finset.mem_image.mp hv with ⟨T, hT, rfl⟩
-    have hTA : T.1 ⊆ A :=
-      (mem_survivingIndepSetFinset.mp (show T.1 ∈ B from T.2)).2
-    exact hTA (hpick_mem T)
-  have hUsub : U ⊆ A := Finset.sdiff_subset
-  have hUcard : A.card - B.card ≤ U.card := by
-    have hd : deleted.card ≤ B.card := by
-      simpa [deleted] using Finset.card_image_le (s := B.attach) (f := pick)
-    calc
-      A.card - B.card ≤ A.card - deleted.card := Nat.sub_le_sub_left hd _
-      _ = U.card := by
-        symm
-        simpa [U] using Finset.card_sdiff_of_subset hdeletedA
-  have hhit : ∀ {T : Finset V}, T ∈ B → T ⊆ U → False := by
-    intro T hT hTU
-    let TT : {T // T ∈ B} := ⟨T, hT⟩
-    have hpdel : pick TT ∈ deleted :=
-      Finset.mem_image.mpr ⟨TT, by simp, rfl⟩
-    have hpU : pick TT ∈ U := hTU (hpick_mem TT)
-    exact (Finset.mem_sdiff.mp hpU).2 hpdel
-  have hfree : (G.induce (U : Set V)).IndepSetFree k := by
-    intro T hT
-    let T' : Finset V := T.map ⟨Subtype.val, Subtype.val_injective⟩
-    have hT' : G.IsNIndepSet k T' := by
-      have hTi :
-          (((⊤ : SimpleGraph.Subgraph G).induce (U : Set V)).coe).IsNIndepSet k T := by
-        rw [← SimpleGraph.induce_eq_coe_induce_top]
-        exact hT
-      simpa [T'] using
-        (SimpleGraph.isNIndepSet_induce (G := G) (F := (U : Set V))
-          (s := T) (n := k)).mp hTi
-    have hT'U : T' ⊆ U := by
-      intro v hv
-      rcases Finset.mem_map.mp hv with ⟨x, hx, rfl⟩
-      exact x.property
-    have hT'A : T' ⊆ A := hT'U.trans hUsub
-    exact hhit (by exact mem_survivingIndepSetFinset.mpr ⟨hT', hT'A⟩) hT'U
-  exact ⟨U, hUsub, by simpa [B] using hUcard, hfree⟩
 
 /-- Delete one chosen vertex from every independent `k`-set.  The remaining
 induced graph has no independent `k`-set and loses at most one vertex for each
@@ -7985,27 +6540,6 @@ lemma exists_induced_indepSetFree_subgraph (G : SimpleGraph V) [DecidableRel G.A
       exact x.property
     exact hhit (by simpa [B] using hT') hT'U
   exact ⟨U, by simpa [B] using hUcard, hfree⟩
-
-/-- The deletion lemma transported to a graph on `Fin n`; clique-freeness is
-preserved by taking the induced subgraph. -/
-lemma exists_ramsey_graph_of_indepSet_count
-    (G : SimpleGraph V) [DecidableRel G.Adj] {s k : ℕ} (hk : 1 ≤ k)
-    (hcf : G.CliqueFree s) :
-    ∃ n : ℕ,
-      Fintype.card V - (G.indepSetFinset k).card ≤ n ∧
-        ∃ H : SimpleGraph (Fin n), H.CliqueFree s ∧ H.IndepSetFree k := by
-  classical
-  obtain ⟨U, hUcard, hUfree⟩ := exists_induced_indepSetFree_subgraph G hk
-  let G' : SimpleGraph {x // x ∈ (U : Set V)} := G.induce (U : Set V)
-  have hG'cf : G'.CliqueFree s :=
-    hcf.comap (SimpleGraph.Embedding.induce (G := G) (s := (U : Set V))).isContained
-  let n := U.card
-  have hcard : Fintype.card {x // x ∈ (U : Set V)} = n := by simp [n]
-  let H : SimpleGraph (Fin n) := G'.overFin hcard
-  have hi : G' ≃g H := SimpleGraph.overFinIso (G := G') hcard
-  refine ⟨n, hUcard, H, ?_, ?_⟩
-  · exact (SimpleGraph.Iso.cliqueFree_iff (n := s) (e := hi)).mp hG'cf
-  · exact (SimpleGraph.Iso.indepSetFree_iff (n := k) (e := hi)).mp hUfree
 
 end Deletion
 
@@ -8903,16 +7437,6 @@ def dStarFamily (u : ℕ) (hu : 1 ≤ u) : DStarFamily u :=
 @[simp] theorem dStarFamilyOfBuild_κ (u : ℕ) (hu : 1 ≤ u)
     (B : ProjectiveBuildTheorem u) :
     (dStarFamilyOfBuild u hu B).κ = 1 / (8 * B.C) := rfl
-
-/-- Direct Ramsey consequence of a proved projective build theorem. -/
-theorem bradacRamseyLowerBoundOfBuild (u : ℕ) (hu : 1 ≤ u)
-    (B : ProjectiveBuildTheorem u) :
-    ∃ A : ℝ, 0 < A ∧
-      ∀ᶠ m : ℕ in Filter.atTop,
-        A * (m : ℝ) ^ (u + 1) / Real.log (m : ℝ) ^ (2 * u) ≤
-          (Ramsey.ramseyNumber (u + 2) m : ℝ) :=
-  bradac_ramsey_lower_bound_eventually_of_dStarFamily u
-    (dStarFamilyOfBuild u hu B)
 
 end
 

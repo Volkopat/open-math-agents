@@ -1,6 +1,5 @@
 import OMAReductions.R_Erdos91_erdos_91_variants_eight_R1_H1_R1
-import Mathlib.Geometry.Euclidean.Sphere.SecondInter
-import Mathlib.Analysis.InnerProductSpace.Projection.FiniteDimensional
+import Mathlib
 
 /-!
 # Intersecting circles in the Euclidean plane

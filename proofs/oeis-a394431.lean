@@ -55,21 +55,16 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a394431.main := by
   have h1 : 1 < b := by dsimp only [b]; omega
   have h2 : b < n := by dsimp only [b]; omega
   have hb : ds b n = 1+(n-b) := upper_base h1 h2.le (by dsimp only [b]; omega)
-  have less {c : ℕ} (hc1 : 1 < c) (hcn : c < n) (hc : c ≠ b) : ds c n < ds b n := by
+  have below {c : ℕ} (hc : 1 < c) (h : c < b) : ds c n < ds b n := by
+    have := lower_base hc hn (show 2*c ≤ n by dsimp [b] at h; omega)
     rw [hb]
-    rcases lt_or_gt_of_ne hc with h | h
-    · have hsmall := lower_base hc1 hn (show 2*c ≤ n by dsimp only [b] at h; omega)
-      dsimp only [b]
-      omega
-    · rw [upper_base hc1 hcn.le (by dsimp only [b] at h; omega)]
-      omega
+    dsimp [b]
+    omega
   constructor
-  · refine ⟨h1,h2,?_⟩
-    intro c hc hc'
-    by_cases h : c = b
-    · subst c; exact le_rfl
-    · exact (less hc hc' h).le
+  · refine ⟨h1, h2, fun c hc hcn => ?_⟩
+    by_cases h : c < b
+    · exact (below hc h).le
+    · rw [upper_base hc hcn.le (by dsimp [b] at h; omega), hb]
+      omega
   · intro c hc
-    by_contra! h
-    have hlt := less hc.1 hc.2.1 (by omega : c ≠ b)
-    exact (not_le_of_gt hlt) (hc.2.2 b h1 h2)
+    exact le_of_not_gt fun h => (below hc.1 h).not_ge (hc.2.2 b h1 h2)

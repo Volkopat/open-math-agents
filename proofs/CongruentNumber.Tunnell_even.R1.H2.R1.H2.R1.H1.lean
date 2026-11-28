@@ -748,20 +748,6 @@ namespace TunnellInert
 
 open Finset Polynomial
 
-theorem eta_zero_of_mod_four {m : ℕ} (hm : m % 4 ≠ 1) :
-    (X * ∏ k ∈ Icc 1 m, ((1 - (X : ℤ[X])^(4*k))^2 * (1-X^(8*k))^2)).coeff m = 0 := by
-  cases m with
-  | zero => simp
-  | succ d =>
-    let P : ℤ[X] := ∏ k ∈ Icc 1 (d+1), ((1-X^k)^2 * (1-X^(2*k))^2)
-    have hP : (expand ℤ 4) P =
-        ∏ k ∈ Icc 1 (d+1), ((1-(X : ℤ[X])^(4*k))^2 * (1-X^(8*k))^2) := by
-      dsimp only [P]
-      simp only [map_prod, map_mul, map_pow, map_sub, map_one, expand_X, ← pow_mul,
-        ← Nat.mul_assoc]
-    rw [← hP, Polynomial.coeff_X_mul, Polynomial.coeff_expand (by decide : 0 < 4)]
-    exact if_neg (by omega)
-
 theorem inert_trace_zero (n : ℕ) (p : Nat.Primes) (hp : p.val % 4 = 3) :
     letI : NeZero p.val := ⟨p.property.ne_zero⟩
     (p.val : ℤ) - (Finset.univ.filter (fun xy : ZMod p.val × ZMod p.val =>
@@ -782,14 +768,6 @@ theorem inert_trace_zero (n : ℕ) (p : Nat.Primes) (hp : p.val % 4 = 3) :
   have ht := OMA.R_CongruentNumber_Tunnell_even_R1.trace_eq_neg_sum n p hp'
   change _ = - ∑ x : ZMod p.val, f x at ht
   omega
-
-theorem inert_coefficient_eq_trace (p : Nat.Primes) (hp : p.val % 4 = 3) :
-    letI : NeZero p.val := ⟨p.property.ne_zero⟩
-    (X * ∏ k ∈ Icc 1 p.val, ((1 - (X : ℤ[X])^(4*k))^2 * (1-X^(8*k))^2)).coeff p.val =
-    (p.val : ℤ) - (Finset.univ.filter (fun xy : ZMod p.val × ZMod p.val =>
-      xy.2^2 = xy.1^3 - xy.1)).card := by
-  rw [eta_zero_of_mod_four (by omega)]
-  simpa only [Nat.cast_one, one_pow, one_mul] using (inert_trace_zero 1 p hp).symm
 
 end TunnellInert
 
@@ -876,52 +854,6 @@ def H1 : Prop := ∀ d : ℕ,
     (∏ t ∈ Icc 1 d, (1-X^(8*t)))^3 -
     ∑ k ∈ range (d+1), C ((-1:ℤ)^k * (2*k+1)) * X^(8*(k+1).choose 2)
 
-def H2 : Prop := ∀ d : ℕ,
-  (X : ℤ[X])^(d+1) ∣
-    (∏ t ∈ Icc 1 d, (1-X^(4*t)))^2 -
-    (∑ j ∈ Icc (-(d:ℤ)) (d:ℤ), C (j.negOnePow:ℤ) * X^(4*j.natAbs^2)) *
-    ∏ t ∈ Icc 1 d, (1-X^(8*t))
-
-lemma exponent_eq (k : ℕ) : 1+8*(k+1).choose 2 = (2*k+1)^2 := by
-  induction k with
-  | zero => decide
-  | succ k ih =>
-    rw [Nat.choose_succ_succ, Nat.choose_one_right]
-    nlinarith
-
-lemma unary_to_lattice (h₁ : H1) (h₂ : H2) (d : ℕ) :
-    (X * ∏ t ∈ Icc 1 d, ((1-(X:ℤ[X])^(4*t))^2 * (1-X^(8*t))^2)).coeff d =
-      ∑ k ∈ range (d+1), ∑ j ∈ Icc (-(d:ℤ)) (d:ℤ),
-        if (2*k+1)^2 + 4*j.natAbs^2 = d then
-            (((k:ℤ)+j).negOnePow : ℤ) * (2*k+1) else 0 := by
-  let f (a : ℕ) : ℤ[X] := ∏ t ∈ Icc 1 d, (1-X^(a*t))
-  let c (k : ℕ) : ℤ[X] := C ((-1:ℤ)^k*(2*k+1))*X^(8*(k+1).choose 2)
-  let g (j : ℤ) : ℤ[X] := C (j.negOnePow:ℤ)*X^(4*j.natAbs^2)
-  let S := ∑ k ∈ range (d+1), c k
-  let T := ∑ j ∈ Icc (-(d:ℤ)) (d:ℤ), g j
-  have hc : X^(d+1) ∣ f 8 ^ 3 - S := h₁ d
-  have ht : X^(d+1) ∣ f 4 ^ 2 - T * f 8 := h₂ d
-  have hd : X^(d+1) ∣ X*f 4^2*f 8^2 - X*S*T := by
-    have h := dvd_add (ht.mul_left (X * f 8 ^2)) (hc.mul_left (X*T))
-    convert h using 1
-    ring
-  have he := X_pow_dvd_iff.1 hd d (by omega)
-  rw [coeff_sub,sub_eq_zero] at he
-  have hf : (∏ t ∈ Icc 1 d, ((1-(X:ℤ[X])^(4*t))^2 * (1-X^(8*t))^2)) =
-      f 4^2 * f 8^2 := by simp only [f, prod_mul_distrib, prod_pow]
-  rw [hf, ←mul_assoc, he]
-  have hm (k : ℕ) (j : ℤ) : (X*c k*g j).coeff d =
-    if (2*k+1)^2+4*j.natAbs^2=d then (((k:ℤ)+j).negOnePow:ℤ)*(2*k+1) else 0 := by
-    have hp : X*c k*g j = C (((-1:ℤ)^k*(2*k+1))*(j.negOnePow:ℤ)) *
-      X^(1+8*(k+1).choose 2+4*j.natAbs^2) := by
-      simp only [c,g,map_mul,pow_add,pow_one]
-      ring
-    rw [hp,exponent_eq,coeff_C_mul_X_pow]
-    simp only [Int.negOnePow_add, Units.val_mul, Int.coe_negOnePow_natCast]
-    split_ifs <;> first | contradiction | (exfalso; solve_by_elim [Eq.symm]) | ring
-  simp only [S,T,mul_sum,sum_mul,finsetSum_coeff,hm]
-  exact Finset.sum_comm
-
 end TunnellJacobiFiniteBridge
 
 /- The signed lattice parametrization of the primary Gaussian integers of a fixed norm. -/
@@ -931,89 +863,6 @@ namespace TunnellEtaLattice
 open Finset TunnellGaussian
 
 def weight (k : ℕ) (j : ℤ) : ℤ := (Int.negOnePow ((k:ℤ)+j) : ℤ) * (2*(k:ℤ)+1)
-
-def encode (k : ℕ) (j : ℤ) : GaussianInt := ⟨weight k j, 2*j⟩
-
-lemma weight_cases (k : ℕ) (j : ℤ) :
-    (weight k j = 2*(k:ℤ)+1 ∧ ((k:ℤ)+j)%2=0) ∨
-    (weight k j = -(2*(k:ℤ)+1) ∧ ((k:ℤ)+j)%2=1) := by
-  rcases Int.even_or_odd ((k:ℤ)+j) with h|h
-  · left; rw [weight, Int.negOnePow_even _ h]; simp only [Units.val_one,one_mul,true_and]
-    obtain ⟨v,hv⟩ := h; omega
-  · right; rw [weight, Int.negOnePow_odd _ h]; simp only [Units.val_one,one_mul,Units.val_neg,neg_mul,true_and]
-    obtain ⟨v,hv⟩ := h; omega
-
-lemma primary_encode (k : ℕ) (j : ℤ) : Primary (encode k j) := by
-  rw [primary_iff]
-  change (2*j)%2=0 ∧ (weight k j+2*j)%4=1
-  rcases weight_cases k j with ⟨h,he⟩|⟨h,he⟩ <;> omega
-
-lemma norm_encode (k : ℕ) (j : ℤ) :
-    (encode k j).norm = (2*(k:ℤ)+1)^2 + 4*j^2 := by
-  rw [norm_sq]
-  change (weight k j)^2+(2*j)^2 = _
-  rcases weight_cases k j with ⟨h,-⟩|⟨h,-⟩ <;> rw [h] <;> ring
-
-lemma abs_encode (k : ℕ) (j : ℤ) : (encode k j).re.natAbs = 2*k+1 := by
-  change (weight k j).natAbs = _
-  have hc : 2*(k:ℤ)+1 = ((2*k+1:ℕ):ℤ) := by push_cast; ring
-  rcases weight_cases k j with ⟨h,-⟩|⟨h,-⟩ <;> rw [h,hc] <;> simp only [Int.natAbs_neg, Int.natAbs_natCast]
-
-lemma encode_injective {k l : ℕ} {j h : ℤ} (e : encode k j = encode l h) : k=l ∧ j=h := by
-  have a := congrArg (fun z : GaussianInt => z.re.natAbs) e
-  simp only [abs_encode] at a
-  have b := congrArg Zsqrtd.im e
-  change 2*j=2*h at b
-  omega
-
-lemma encode_surjective {z : GaussianInt} (hz : Primary z) :
-    ∃ k : ℕ, ∃ j : ℤ, encode k j = z := by
-  obtain ⟨hi,hr⟩ := (primary_iff _).mp hz
-  let k := z.re.natAbs/2
-  let j := z.im/2
-  have hj : 2*j = z.im := by dsimp [j]; omega
-  have habs : z.re = (z.re.natAbs : ℤ) ∨ z.re = -(z.re.natAbs : ℤ) := Int.natAbs_eq z.re
-  have hk : z.re.natAbs = 2*k+1 := by dsimp [k]; omega
-  refine ⟨k,j, ?_⟩
-  have hp := (primary_iff _).mp (primary_encode k j)
-  change _ ∧ (weight k j + 2*j)%4=1 at hp
-  ext
-  · change weight k j = z.re
-    rcases weight_cases k j with ⟨he,-⟩|⟨he,-⟩ <;> omega
-  · exact hj
-
-def indices (n : ℕ) : Finset (ℕ × ℤ) :=
-  ((range (n+1)) ×ˢ (Icc (-(n:ℤ)) (n:ℤ))).filter (fun kj =>
-    (2*(kj.1:ℤ)+1)^2+4*kj.2^2 = n)
-
-lemma indices_iff (n k : ℕ) (j : ℤ) :
-    (k,j) ∈ indices n ↔ (2*(k:ℤ)+1)^2+4*j^2 = n := by
-  simp only [indices,mem_filter,mem_product,mem_range,mem_Icc]
-  refine ⟨And.right, fun h => ⟨⟨?_,?_,?_⟩,h⟩⟩
-  · have hk : (k:ℤ) ≤ n := by nlinarith [sq_nonneg (k:ℤ),sq_nonneg j]
-    omega
-  · nlinarith [sq_nonneg (2*(k:ℤ)+1),sq_nonneg (2*j+1)]
-  · nlinarith [sq_nonneg (2*(k:ℤ)+1),sq_nonneg (2*j-1)]
-
-theorem mass_eq_lattice (n : ℕ) :
-    (mass n).re = ∑ kj ∈ indices n, weight kj.1 kj.2 := by
-  let re : GaussianInt →+ ℤ := { toFun := Zsqrtd.re, map_zero' := rfl, map_add' := fun _ _ => rfl }
-  change re (∑ z ∈ shell n, z) = _
-  rw [map_sum]
-  symm
-  apply sum_bij (fun kj _ => encode kj.1 kj.2)
-  · rintro ⟨k,j⟩ h
-    have hn := (indices_iff _ _ _).mp h
-    exact mem_shell.mpr ⟨primary_encode k j, by simp [norm_encode,hn]⟩
-  · rintro ⟨k,j⟩ _ ⟨l,h⟩ _ e
-    exact Prod.ext (encode_injective e).1 (encode_injective e).2
-  · intro z h
-    obtain ⟨hz,hn⟩ := mem_shell.mp h
-    obtain ⟨k,j,e⟩ := encode_surjective hz
-    have h := GaussianInt.abs_natCast_norm z
-    rw [hn, ← e, norm_encode] at h
-    exact ⟨(k,j),(indices_iff _ _ _).mpr h.symm,e⟩
-  · intro _ _; rfl
 
 end TunnellEtaLattice
 
@@ -1113,29 +962,6 @@ theorem expansion (q : R) (n : ℕ) :
   by_cases hk : k < n+1
   · simp [hk]
   · simp [hk, choose_above q (show n < k by omega)]
-
-lemma fac_unit (q : R) (hq : IsNilpotent q) (n : ℕ) : IsUnit (fac q n) := by
-  induction n with
-  | zero => simp [fac]
-  | succ n ih =>
-    rw [fac_succ]
-    exact ih.mul ((hq.pow_of_pos (by omega : n+1 ≠ 0)).isUnit_one_sub)
-
-lemma fac_stable (q : R) {d : ℕ} (hq : q^(d+1) = 0) {n : ℕ} (hn : d ≤ n) :
-    fac q n = fac q d := by
-  obtain ⟨k,rfl⟩ := Nat.exists_eq_add_of_le hn
-  induction k with
-  | zero => simp
-  | succ k ih =>
-    rw [← Nat.add_assoc,fac_succ,show d+k+1 = d+1+k by omega,pow_add,hq,zero_mul,
-      sub_zero,mul_one,ih (by omega)]
-
-theorem choose_stable (q : R) {d : ℕ} (hq : q^(d+1) = 0) (n k : ℕ)
-    (hk : k ≤ n) (hd : d ≤ k) (ht : d ≤ n-k) : choose q n k * fac q d = 1 := by
-  apply (fac_unit q ⟨_,hq⟩ d).mul_left_injective
-  have h := factorial_formula q n k hk
-  rw [fac_stable q hq hd,fac_stable q hq ht,fac_stable q hq (hd.trans hk)] at h
-  simpa only [one_mul] using h
 
 theorem map_choose {S : Type*} [CommRing S] (f : R →+* S) (q : R) (n k : ℕ) :
     f (choose q n k) = choose (f q) n k := by
@@ -1448,164 +1274,6 @@ open TunnellQBin Polynomial Finset
 
 variable {R : Type*} [CommRing R]
 
-lemma triangle_ge (k : ℕ) : k ≤ (k+1).choose 2 := by
-  induction k with
-  | zero => simp
-  | succ k ih => rw [Nat.choose_succ_succ,Nat.choose_one_right]; omega
-
-theorem cubic_stabilized (q : R) (d N : ℕ) (hN : 2*d ≤ N) (hq : q^(d+1)=0)
-    (h : fac q N ^ 2 = ∑ k ∈ range (N+1),
-      ((-1:R)^k * (2*(k:R)+1)) * q^((k+1).choose 2) * choose q (2*N+1) (N+1+k)) :
-    fac q d ^ 3 = ∑ k ∈ range (d+1), ((-1:R)^k * (2*(k:R)+1)) * q^((k+1).choose 2) := by
-  let f (k : ℕ) := ((-1:R)^k*(2*(k:R)+1))*q^((k+1).choose 2)
-  change _ = ∑ k ∈ range (d+1), f k
-  change fac q N ^ 2 = ∑ k ∈ range (N+1), f k * choose q (2*N+1) (N+1+k) at h
-  have htail (k : ℕ) (hk : d < k) : f k = 0 := by
-    have hpow := pow_eq_zero_of_le (show d+1 ≤ (k+1).choose 2 by have := triangle_ge k; omega) hq
-    simp [f,hpow]
-  have hs : ∑ k ∈ range (N+1), (f k * choose q (2*N+1) (N+1+k))*fac q d =
-      ∑ k ∈ range (d+1), (f k * choose q (2*N+1) (N+1+k))*fac q d := by
-    symm
-    apply sum_subset (range_mono (by omega))
-    intro k _ hk
-    simp only [mem_range,not_lt] at hk
-    rw [htail k (by omega),zero_mul,zero_mul]
-  rw [fac_stable q hq (n:=N) (by omega)] at h
-  calc
-    _ = (fac q d)^2 * fac q d := by ring
-    _ = _ := by
-      rw [h,sum_mul,hs]
-      apply sum_congr rfl
-      intro k hk
-      rw [mem_range] at hk
-      rw [mul_assoc,choose_stable q hq _ _ (by omega) (by omega) (by omega),mul_one]
-
-lemma map_fac {S : Type*} [CommRing S] (f : R →+* S) (q : R) (n : ℕ) :
-    f (fac q n) = fac (f q) n := by simp [fac]
-
-lemma poly_fac (s n : ℕ) :
-    fac ((X : ℤ[X])^s) n = ∏ t ∈ Icc 1 n, (1-X^(s*t)) := by
-  induction n with
-  | zero => simp [fac]
-  | succ n ih =>
-    rw [fac_succ,ih,prod_Icc_succ_top (by omega : 1 ≤ n+1),← pow_mul]
-
-noncomputable def trunc (d : ℕ) := AdjoinRoot.mk ((X : ℤ[X])^(d+1))
-
-lemma nilpotent_trunc (d : ℕ) : (trunc d X)^(d+1)=0 := by
-  rw [← map_pow]
-  exact AdjoinRoot.mk_self
-
-lemma trunc_pow (d s : ℕ) (hs : s ≠ 0) : (trunc d (X^s))^(d+1)=0 := by
-  rw [map_pow,← pow_mul,mul_comm,pow_mul,nilpotent_trunc,zero_pow hs]
-
-theorem cubic_congruence
-    (hc : ∀ N : ℕ, let q := (X:ℤ[X])^8
-      fac q N ^ 2 = ∑ k ∈ range (N+1),
-        ((-1:ℤ[X])^k * (2*(k:ℤ[X])+1)) * q^((k+1).choose 2) * choose q (2*N+1) (N+1+k)) :
-    TunnellJacobiFiniteBridge.H1 := by
-  intro d
-  let t := trunc d
-  let q := (X:ℤ[X])^8
-  apply (AdjoinRoot.mk_eq_mk).mp
-  change t _ = t _
-  have he := congrArg t (hc (2*d))
-  change t (fac q (2*d)^2) = t (∑ k ∈ range (2*d+1),
-    ((-1:ℤ[X])^k * (2*(k:ℤ[X])+1)) * q^((k+1).choose 2)*choose q (2*(2*d)+1) (2*d+1+k)) at he
-  simp only [map_pow,map_fac,map_sum,map_mul,map_add,map_neg,map_one,map_ofNat,map_natCast,map_choose] at he
-  have hh := cubic_stabilized (t q) d (2*d) (by omega) (trunc_pow d 8 (by decide)) he
-  rw [← poly_fac]
-  simp only [map_pow,map_fac,map_sum,map_mul]
-  apply hh.trans
-  apply sum_congr rfl
-  intro k _
-  have hcst (a : ℤ) : t (C a) = (a : _) := by
-    rw [show C a = (a : ℤ[X]) by simp, map_intCast]
-  simp only [hcst]
-  push_cast
-  dsimp only [q]
-  rw [map_pow,← pow_mul]
-
-lemma fac_even_odd (t : R) (N : ℕ) :
-    fac t (2*N) = fac (t^2) N * (∏ i ∈ range N, (1-t^(2*i+1))) := by
-  induction N with
-  | zero => simp [fac]
-  | succ n ih =>
-    rw [show 2*(n+1) = 2*n+1+1 by omega,fac_succ,fac_succ,ih,fac_succ,prod_range_succ,
-      ← pow_mul,show 2*(n+1) = 2*n+1+1 by omega]
-    ring
-
-lemma centered_sum (N : ℕ) (f : ℤ → R) :
-    ∑ k ∈ range (2*N+1), f ((k:ℤ)-(N:ℤ)) = ∑ j ∈ Icc (-(N:ℤ)) (N:ℤ), f j := by
-  apply sum_bij (fun (k : ℕ) _ => (k:ℤ)-(N:ℤ))
-  · intro k hk
-    simp only [mem_range] at hk
-    rw [mem_Icc]; omega
-  · intro k _ l _ he; omega
-  · intro j hj
-    rw [mem_Icc] at hj
-    refine ⟨(j+N).toNat,mem_range.mpr (by omega),by omega⟩
-  · intro _ _; rfl
-
-theorem theta_stabilized (t : R) (d N : ℕ) (hN : 2*d ≤ N) (ht : t^(d+1)=0)
-    (h : (∏ i ∈ range N, (1-t^(2*i+1))^2) = ∑ k ∈ range (2*N+1),
-      (((((k:ℤ)-(N:ℤ)).negOnePow : ℤ) : R) * t^(((k:ℤ)-(N:ℤ)).natAbs^2)) *
-        choose (t^2) (2*N) k) :
-    fac t d ^ 2 = (∑ j ∈ Icc (-(d:ℤ)) (d:ℤ),
-      ((j.negOnePow : ℤ) : R) * t^(j.natAbs^2)) * fac (t^2) d := by
-  let f (j : ℤ) := ((j.negOnePow : ℤ) : R) * t^(j.natAbs^2)
-  change fac t d ^ 2 = (∑ j ∈ Icc (-(d:ℤ)) (d:ℤ), f j) * fac (t^2) d
-  have hq : (t^2)^(d+1)=0 := by rw [← pow_mul,mul_comm,pow_mul,ht,zero_pow (by decide : 2≠0)]
-  have htail (j : ℤ) (hj : ¬ j ∈ Icc (-(d:ℤ)) (d:ℤ)) : f j = 0 := by
-    have habs := Int.natAbs_eq j
-    simp only [mem_Icc,not_and_or,not_le] at hj
-    have hjd : d+1 ≤ j.natAbs := by omega
-    have hd : d+1 ≤ j.natAbs^2 := by nlinarith [Nat.le_mul_self j.natAbs]
-    simp [f,pow_eq_zero_of_le hd ht]
-  have hside : fac t d ^ 2 = (∏ i ∈ range N, (1-t^(2*i+1))^2) * fac (t^2) d ^ 2 := by
-    have hfac := fac_even_odd t N
-    rw [fac_stable t ht (n:=2*N) (by omega),fac_stable (t^2) hq (n:=N) (by omega)] at hfac
-    rw [hfac,prod_pow]; ring
-  rw [hside,h,pow_two (fac (t^2) d),← mul_assoc]
-  congr 1
-  rw [sum_mul]
-  calc
-    _ = ∑ k ∈ range (2*N+1), f ((k:ℤ)-(N:ℤ)) := by
-      apply sum_congr rfl
-      intro k hk
-      change f ((k:ℤ)-N) * _ * _ = _
-      by_cases hj : ((k:ℤ)-N) ∈ Icc (-(d:ℤ)) (d:ℤ)
-      · rw [mem_Icc] at hj
-        rw [mul_assoc,choose_stable (t^2) hq _ _ (by omega) (by omega) (by omega),mul_one]
-      · rw [htail _ hj,zero_mul,zero_mul]
-    _ = _ := by
-      rw [centered_sum]
-      symm
-      apply sum_subset (fun j hj => ?_) (fun j _ hj => htail j hj)
-      simp only [mem_Icc] at hj ⊢
-      omega
-
-theorem theta_congruence
-    (hc : ∀ (d N : ℕ), let t := trunc d (X^4)
-      (∏ i ∈ range N, (1-t^(2*i+1))^2) = ∑ k ∈ range (2*N+1),
-        (((((k:ℤ)-(N:ℤ)).negOnePow : ℤ) : _) * t^(((k:ℤ)-(N:ℤ)).natAbs^2)) *
-          choose (t^2) (2*N) k) : TunnellJacobiFiniteBridge.H2 := by
-  intro d
-  apply (AdjoinRoot.mk_eq_mk).mp
-  change trunc d _ = trunc d _
-  have he := theta_stabilized (trunc d (X^4)) d (2*d) (by omega) (trunc_pow d 4 (by decide)) (hc d (2*d))
-  rw [← poly_fac,← poly_fac]
-  have hh : trunc d (X^8) = (trunc d (X^4))^2 := by rw [← map_pow,← pow_mul]
-  simp only [map_pow,map_mul,map_sum,map_fac] at he ⊢
-  rw [he]
-  congr 1
-  · apply sum_congr rfl
-    intro j _
-    have hC : trunc d (C (j.negOnePow : ℤ)) = ((j.negOnePow:ℤ) : _) := by
-      rw [show C (j.negOnePow:ℤ) = ((j.negOnePow:ℤ):ℤ[X]) by simp, map_intCast]
-    rw [hC,← pow_mul]
-  · rw [← pow_mul]
-
 end TunnellTruncated
 
 /- The arithmetic of the base congruent-number cusp form. -/
@@ -1613,22 +1281,6 @@ end TunnellTruncated
 namespace TunnellArithmetic
 
 open Polynomial Finset TunnellGaussian TunnellEtaLattice
-
-theorem eta_eq_mass (h₁ : TunnellJacobiFiniteBridge.H1) (h₂ : TunnellJacobiFiniteBridge.H2) (n : ℕ) :
-    (X * ∏ i ∈ Icc 1 n, ((1-(X:ℤ[X])^(4*i))^2*(1-X^(8*i))^2)).coeff n = (mass n).re := by
-  rw [TunnellJacobiFiniteBridge.unary_to_lattice h₁ h₂, mass_eq_lattice]
-  unfold indices
-  rw [sum_filter,sum_product]
-  apply sum_congr rfl
-  intro k _
-  apply sum_congr rfl
-  intro j _
-  have hsq : ((j.natAbs : ℤ)^2) = j^2 := by
-    rcases Int.natAbs_eq j with h|h <;> nlinarith [congrArg (fun x : ℤ => x^2) h]
-  have hiff : (2*k+1)^2+4*j.natAbs^2 = n ↔ (2*(k:ℤ)+1)^2+4*j^2 = n := by
-    rw [← hsq]
-    exact_mod_cast Iff.rfl
-  simp only [hiff,weight]
 
 end TunnellArithmetic
 
@@ -1980,107 +1632,9 @@ theorem locally_uniform (L : PeriodPair) :
   rintro z hz w rfl
   exact bound r hr w z hz hR
 
-lemma summand_deriv (w z : ℂ) (hz : z≠w) :
-    HasDerivAt (summand w) (-(1/(z-w)^2-1/w^2)) z := by
-  have h := ((((hasDerivAt_id z).sub_const w).inv (sub_ne_zero.mpr hz)).add_const w⁻¹).add
-    ((hasDerivAt_id z).div_const (w^2))
-  apply h.congr_deriv
-  dsimp
-  ring
-
-theorem zeta_deriv (L : PeriodPair) (z : ℂ) (hz : z ∉ L.lattice) :
-    HasDerivAt (zeta L) (-L.weierstrassP z) z := by
-  let U := (L.lattice : Set ℂ)ᶜ
-  have ho : IsOpen U := L.isClosed_lattice.isOpen_compl
-  have hdiff (s : Finset L.lattice) : DifferentiableOn ℂ (fun u => ∑ w ∈ s, summand w u) U := by
-    apply DifferentiableOn.fun_sum
-    intro w _
-    exact fun u hu => (summand_deriv w u (fun e => hu (e ▸ w.property))).differentiableAt.differentiableWithinAt
-  have hfun := (locally_uniform L).tendstoLocallyUniformlyOn (s := U)
-  have hd := (hfun.deriv (.of_forall hdiff) ho).tendsto_at hz
-  have e : deriv (zeta L) z = -L.weierstrassP z := by
-    apply tendsto_nhds_unique hd
-    apply ((L.hasSum_weierstrassP z).neg).congr'
-    apply Filter.Eventually.of_forall
-    intro s
-    simp only [Function.comp_def]
-    rw [deriv_fun_sum (fun (w : L.lattice) _ => (summand_deriv w z (fun e => hz (e ▸ w.property))).differentiableAt)]
-    apply Finset.sum_congr rfl
-    intro w _
-    exact (summand_deriv w z (fun e => hz (e ▸ w.property))).deriv.symm
-  rw [← e]
-  exact (hfun.differentiableOn (.of_forall hdiff) ho).differentiableAt (ho.mem_nhds hz) |>.hasDerivAt
-
-lemma zeta_neg (L : PeriodPair) (z : ℂ) : zeta L (-z) = -zeta L z := by
-  unfold zeta
-  rw [← tsum_neg]
-  convert (Equiv.neg L.lattice).tsum_eq (fun w : L.lattice => -summand w z) using 1
-  apply tsum_congr
-  intro w
-  simp only [Equiv.neg_apply,Submodule.coe_neg,summand]
-  rw [show -z-(w:ℂ) = -(z-(-w:ℂ)) by ring, inv_neg]
-  simp only [inv_neg,neg_sq,neg_div]
-  ring
-
-lemma quasi_period (L : PeriodPair) (l : L.lattice) :
-    ∃ A : ℂ, ∀ z ∉ L.lattice, zeta L (z+l)=zeta L z+A := by
-  let U := (L.lattice : Set ℂ)ᶜ
-  have hcnt : (L.lattice : Set ℂ).Countable := by
-    let : Countable L.lattice := Countable.of_equiv _ L.latticeEquivProd.toEquiv.symm
-    exact to_countable _
-  have hr : 1 < Module.rank ℝ ℂ := by simp
-  have hc : IsPreconnected U := (hcnt.isPathConnected_compl_of_one_lt_rank hr).isConnected.isPreconnected
-  have ho : IsOpen U := L.isClosed_lattice.isOpen_compl
-  have hu {z : ℂ} (hz : z∈U) : z+(l:ℂ)∈U := fun e => hz (by
-    simpa using sub_mem e l.property)
-  have da {z : ℂ} (hz : z∈U) : HasDerivAt (fun w : ℂ => zeta L (w+l)) (-L.weierstrassP z) z := by
-    simpa only [L.weierstrassP_add_coe,mul_one,Function.comp_def,id_eq] using! (zeta_deriv L _ (hu hz)).comp z ((hasDerivAt_id z).add_const (l:ℂ))
-  obtain ⟨A,hA⟩ := ho.exists_eq_add_of_deriv_eq hc
-    (fun z hz => (da hz).differentiableAt.differentiableWithinAt)
-    (fun z hz => (zeta_deriv L z hz).differentiableAt.differentiableWithinAt)
-    (fun z hz => (da hz).deriv.trans (zeta_deriv L z hz).deriv.symm)
-  exact ⟨A,fun z hz => hA hz⟩
-
-private lemma translate_outside (L : PeriodPair) {z : ℂ} (hz : z ∉ L.lattice)
-    (l : L.lattice) : z+(l:ℂ) ∉ L.lattice := fun e => hz (by simpa using sub_mem e l.property)
-
-noncomputable def increment (L : PeriodPair) (l : L.lattice) : ℂ :=
-  zeta L (L.ω₁/2 + l) - zeta L (L.ω₁/2)
-
-lemma zeta_shift (L : PeriodPair) {z : ℂ} (hz : z ∉ L.lattice) (l : L.lattice) :
-    zeta L (z+l) = zeta L z + increment L l := by
-  obtain ⟨A, hA⟩ := quasi_period L l
-  rw [increment, hA _ L.ω₁_div_two_notMem_lattice, hA _ hz]
-  ring
-
-noncomputable def quasiPeriods (L : PeriodPair) : L.lattice →+ ℂ where
-  toFun := increment L
-  map_zero' := by simp [increment]
-  map_add' l k := by
-    change zeta L (L.ω₁/2 + ((l+k : L.lattice):ℂ)) - _ = _
-    rw [Submodule.coe_add, ← add_assoc,
-      zeta_shift L (translate_outside L L.ω₁_div_two_notMem_lattice l) k,
-      zeta_shift L L.ω₁_div_two_notMem_lattice l]
-    ring
-
 /-- The logarithmic derivative of the integer-multiplication elliptic unit. -/
 noncomputable def multiplicationZeta (L : PeriodPair) (a : ℕ) (z : ℂ) : ℂ :=
   (a:ℂ) * zeta L ((a:ℂ)*z) - (a:ℂ)^2 * zeta L z
-
-lemma multiplicationZeta_periodic (L : PeriodPair) (a : ℕ) (z : ℂ) (l : L.lattice)
-    (hz : z ∉ L.lattice) (haz : (a:ℂ)*z ∉ L.lattice) :
-    multiplicationZeta L a (z+l) = multiplicationZeta L a z := by
-  have H : increment L (a • l) = (a:ℂ) * increment L l :=
-    (map_nsmul (quasiPeriods L) a l).trans (nsmul_eq_mul a _)
-  have e : (a:ℂ)*(l:ℂ) = ((a • l : L.lattice):ℂ) := by simp [nsmul_eq_mul]
-  unfold multiplicationZeta
-  rw [mul_add, e, zeta_shift L haz, zeta_shift L hz, H]
-  ring
-
-lemma multiplicationZeta_odd (L : PeriodPair) (a : ℕ) (z : ℂ) :
-    multiplicationZeta L a (-z) = -multiplicationZeta L a z := by
-  simp only [multiplicationZeta, mul_neg, zeta_neg]
-  ring
 
 end TunnellEllipticZeta
 end
@@ -2112,10 +1666,6 @@ lemma norm_kernel (s w : ℂ) (hw : w≠0) : ‖kernel s w‖ = ‖w‖^(1-2*s.r
   congr 1
   simp [Complex.mul_re]
   ring
-
-lemma kernel_differentiable (w : ℂ) : Differentiable ℂ (kernel · w) := by
-  unfold kernel
-  fun_prop
 
 lemma norm_log_error {u : ℂ} (hu : ‖u‖ ≤ 1/2) :
     |Real.log ‖1+u‖-u.re| ≤ ‖u‖^2 := by

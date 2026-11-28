@@ -251,28 +251,15 @@ def swapDigit (k : ℕ) (hk : 2 ≤ k) (a : Fin k) : Fin k :=
   else if ha : a.val = 1 then ⟨0, by omega⟩
   else a
 
-private def digitZero (k : ℕ) (hk : 2 ≤ k) : Fin k := ⟨0, by omega⟩
-private def digitOne (k : ℕ) (hk : 2 ≤ k) : Fin k := ⟨1, by omega⟩
+theorem sw0 (k : ℕ) (hk : 2 ≤ k) (a : Fin k) : (swapDigit k hk a).val = 0 ↔ a.val = 1 := by
+  unfold swapDigit; split_ifs <;> simp_all
 
-theorem swapDigit_zero (k : ℕ) (hk : 2 ≤ k) :
-    swapDigit k hk (digitZero k hk) = digitOne k hk := by
-  apply Fin.ext
-  simp [swapDigit, digitZero, digitOne]
-
-theorem swapDigit_one (k : ℕ) (hk : 2 ≤ k) :
-    swapDigit k hk (digitOne k hk) = digitZero k hk := by
-  apply Fin.ext
-  simp [swapDigit, digitZero, digitOne]
+theorem sw1 (k : ℕ) (hk : 2 ≤ k) (a : Fin k) : (swapDigit k hk a).val = 1 ↔ a.val = 0 := by
+  unfold swapDigit; split_ifs <;> simp_all
 
 theorem swapDigit_involutive (k : ℕ) (hk : 2 ≤ k) (a : Fin k) :
     swapDigit k hk (swapDigit k hk a) = a := by
-  by_cases h0 : a.val = 0
-  · have ha : a = digitZero k hk := Fin.ext (by simpa [digitZero] using h0)
-    rw [ha, swapDigit_zero, swapDigit_one]
-  · by_cases h1 : a.val = 1
-    · have ha : a = digitOne k hk := Fin.ext (by simpa [digitOne] using h1)
-      rw [ha, swapDigit_one, swapDigit_zero]
-    · simp [swapDigit, h0, h1]
+  ext; unfold swapDigit; split_ifs <;> simp_all
 
 def swapWord {k n : ℕ} (hk : 2 ≤ k) (w : Fin n → Fin k) : Fin n → Fin k :=
   fun i => swapDigit k hk (w i)
@@ -282,69 +269,13 @@ theorem swapWord_involutive {k n : ℕ} (hk : 2 ≤ k) (w : Fin n → Fin k) :
   funext i
   exact swapDigit_involutive k hk (w i)
 
-theorem swapDigit_eq_zero_iff (k : ℕ) (hk : 2 ≤ k) (a : Fin k) :
-    swapDigit k hk a = digitZero k hk ↔ a = digitOne k hk := by
-  constructor
-  · intro h
-    have h' := congrArg (swapDigit k hk) h
-    rw [swapDigit_involutive, swapDigit_zero] at h'
-    exact h'
-  · rintro rfl
-    exact swapDigit_one k hk
-
-theorem swapDigit_eq_one_iff (k : ℕ) (hk : 2 ≤ k) (a : Fin k) :
-    swapDigit k hk a = digitOne k hk ↔ a = digitZero k hk := by
-  constructor
-  · intro h
-    have h' := congrArg (swapDigit k hk) h
-    rw [swapDigit_involutive, swapDigit_one] at h'
-    exact h'
-  · rintro rfl
-    exact swapDigit_zero k hk
-
 theorem occurrences_swap_zero {k n : ℕ} (hk : 2 ≤ k) (w : Fin n → Fin k) :
     occurrences (swapWord hk w) 0 = occurrences w 1 := by
-  unfold occurrences
-  congr 1
-  ext i
-  simp only [Finset.mem_filter, Finset.mem_univ, true_and]
-  change (swapDigit k hk (w i)).val = 0 ↔ (w i).val = 1
-  have hzero : (swapDigit k hk (w i)).val = 0 ↔
-      swapDigit k hk (w i) = digitZero k hk := by
-    constructor
-    · intro h
-      exact Fin.ext (by simpa [digitZero] using h)
-    · intro h
-      exact congrArg Fin.val h
-  have hone : (w i).val = 1 ↔ w i = digitOne k hk := by
-    constructor
-    · intro h
-      exact Fin.ext (by simpa [digitOne] using h)
-    · intro h
-      exact congrArg Fin.val h
-  rw [hzero, swapDigit_eq_zero_iff, hone]
+  simp only [occurrences, swapWord, sw0]
 
 theorem occurrences_swap_one {k n : ℕ} (hk : 2 ≤ k) (w : Fin n → Fin k) :
     occurrences (swapWord hk w) 1 = occurrences w 0 := by
-  unfold occurrences
-  congr 1
-  ext i
-  simp only [Finset.mem_filter, Finset.mem_univ, true_and]
-  change (swapDigit k hk (w i)).val = 1 ↔ (w i).val = 0
-  have hone : (swapDigit k hk (w i)).val = 1 ↔
-      swapDigit k hk (w i) = digitOne k hk := by
-    constructor
-    · intro h
-      exact Fin.ext (by simpa [digitOne] using h)
-    · intro h
-      exact congrArg Fin.val h
-  have hzero : (w i).val = 0 ↔ w i = digitZero k hk := by
-    constructor
-    · intro h
-      exact Fin.ext (by simpa [digitZero] using h)
-    · intro h
-      exact congrArg Fin.val h
-  rw [hone, swapDigit_eq_one_iff, hzero]
+  simp only [occurrences, swapWord, sw1]
 
 private def fewer (k n : ℕ) : Finset (Fin n → Fin k) :=
   Finset.univ.filter (fun w => occurrences w 1 < occurrences w 0)

@@ -526,13 +526,12 @@ theorem table_sound (d p start width : ℕ) (h : table p start width d) : Block 
 def Row (p : ℕ) : Prop :=
   check 16 (.exponents p 1) (.bases (threshold p)) = true ∧ Block p 0 (threshold p)
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row3 : Row 3 := by
-  refine ⟨by decide +kernel, table_sound 5 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+theorem R (p d : ℕ) (c : check 16 (.exponents p 1) (.bases (threshold p)) = true := by set_option maxRecDepth 4000 in set_option maxHeartbeats 4000000 in decide +kernel)
+    (h : table p 0 (threshold p) d := by
+      set_option maxRecDepth 4000 in set_option maxHeartbeats 4000000 in (simp only [table]; repeat' apply And.intro; all_goals decide +kernel)) :
+    Row p := ⟨c, table_sound d _ _ _ h⟩
+
+private theorem row3 : Row 3 := R 3 5
 
 set_option maxHeartbeats 4000000 in
 set_option maxRecDepth 4000 in
@@ -542,349 +541,91 @@ private theorem row5 : Row 5 := by
   repeat' apply And.intro
   all_goals decide +kernel
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row7 : Row 7 := by
-  refine ⟨by decide +kernel, table_sound 5 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row7 : Row 7 := R 7 5
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row11 : Row 11 := by
-  refine ⟨by decide +kernel, table_sound 7 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row11 : Row 11 := R 11 7
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row13 : Row 13 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row13 : Row 13 := R 13 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row17 : Row 17 := by
-  refine ⟨by decide +kernel, table_sound 5 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row17 : Row 17 := R 17 5
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row19 : Row 19 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row19 : Row 19 := R 19 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row23 : Row 23 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row23 : Row 23 := R 23 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row29 : Row 29 := by
-  refine ⟨by decide +kernel, table_sound 5 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row29 : Row 29 := R 29 5
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row31 : Row 31 := by
-  refine ⟨by decide +kernel, table_sound 7 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row31 : Row 31 := R 31 7
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row37 : Row 37 := by
-  refine ⟨by decide +kernel, table_sound 4 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row37 : Row 37 := R 37 4
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row41 : Row 41 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row41 : Row 41 := R 41 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row43 : Row 43 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row43 : Row 43 := R 43 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row47 : Row 47 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row47 : Row 47 := R 47 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row53 : Row 53 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row53 : Row 53 := R 53 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row59 : Row 59 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row59 : Row 59 := R 59 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row61 : Row 61 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row61 : Row 61 := R 61 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row67 : Row 67 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row67 : Row 67 := R 67 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row71 : Row 71 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row71 : Row 71 := R 71 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row73 : Row 73 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row73 : Row 73 := R 73 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row79 : Row 79 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row79 : Row 79 := R 79 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row83 : Row 83 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row83 : Row 83 := R 83 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row89 : Row 89 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row89 : Row 89 := R 89 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row97 : Row 97 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row97 : Row 97 := R 97 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row101 : Row 101 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row101 : Row 101 := R 101 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row103 : Row 103 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row103 : Row 103 := R 103 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row107 : Row 107 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row107 : Row 107 := R 107 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row109 : Row 109 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row109 : Row 109 := R 109 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row113 : Row 113 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row113 : Row 113 := R 113 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row127 : Row 127 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row127 : Row 127 := R 127 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row131 : Row 131 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row131 : Row 131 := R 131 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row137 : Row 137 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row137 : Row 137 := R 137 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row139 : Row 139 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row139 : Row 139 := R 139 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row149 : Row 149 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row149 : Row 149 := R 149 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row151 : Row 151 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row151 : Row 151 := R 151 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row157 : Row 157 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row157 : Row 157 := R 157 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row163 : Row 163 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row163 : Row 163 := R 163 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row167 : Row 167 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row167 : Row 167 := R 167 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row173 : Row 173 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row173 : Row 173 := R 173 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row179 : Row 179 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row179 : Row 179 := R 179 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row181 : Row 181 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row181 : Row 181 := R 181 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row191 : Row 191 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row191 : Row 191 := R 191 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row193 : Row 193 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row193 : Row 193 := R 193 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row197 : Row 197 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row197 : Row 197 := R 197 3
 
-set_option maxHeartbeats 4000000 in
-set_option maxRecDepth 4000 in
-private theorem row199 : Row 199 := by
-  refine ⟨by decide +kernel, table_sound 3 _ _ _ ?_⟩
-  simp only [table]
-  repeat' apply And.intro
-  all_goals decide +kernel
+private theorem row199 : Row 199 := R 199 3
 
 def smallPrimes : List ℕ := [3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,109,113,127,131,137,139,149,151,157,163,167,173,179,181,191,193,197,199]
 
@@ -895,51 +636,7 @@ theorem smallRows (p : ℕ) (pb : p < 201) (hp : p.Prime) (po : Odd p) : Row p :
   simp only [prime_passes hp po,Bool.not_true,Bool.false_or,List.contains_iff_mem] at hm
   simp only [smallPrimes,List.mem_cons,List.mem_nil_iff,or_false] at hm
   rcases hm with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  · exact row3
-  · exact row5
-  · exact row7
-  · exact row11
-  · exact row13
-  · exact row17
-  · exact row19
-  · exact row23
-  · exact row29
-  · exact row31
-  · exact row37
-  · exact row41
-  · exact row43
-  · exact row47
-  · exact row53
-  · exact row59
-  · exact row61
-  · exact row67
-  · exact row71
-  · exact row73
-  · exact row79
-  · exact row83
-  · exact row89
-  · exact row97
-  · exact row101
-  · exact row103
-  · exact row107
-  · exact row109
-  · exact row113
-  · exact row127
-  · exact row131
-  · exact row137
-  · exact row139
-  · exact row149
-  · exact row151
-  · exact row157
-  · exact row163
-  · exact row167
-  · exact row173
-  · exact row179
-  · exact row181
-  · exact row191
-  · exact row193
-  · exact row197
-  · exact row199
+  exacts [row3, row5, row7, row11, row13, row17, row19, row23, row29, row31, row37, row41, row43, row47, row53, row59, row61, row67, row71, row73, row79, row83, row89, row97, row101, row103, row107, row109, row113, row127, row131, row137, row139, row149, row151, row157, row163, row167, row173, row179, row181, row191, row193, row197, row199]
 
 theorem small_first {p q e f : ℕ} (hp : p.Prime) (hq : q.Prime) (po : Odd p) (qo : Odd q)
     (pq : p<q) (pb : p<201) (he : 0<e) (hf : 0<f) :

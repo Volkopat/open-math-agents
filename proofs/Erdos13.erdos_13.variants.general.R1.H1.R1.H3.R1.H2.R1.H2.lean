@@ -94,8 +94,6 @@ lemma mem_mulStab (hs : s.Nonempty) : a ∈ s.mulStab ↔ a • s = s := by
   obtain ⟨b, hb⟩ := hs
   exact fun h ↦ ⟨_, by rw [← h]; exact smul_mem_smul_finset hb, _, hb, mul_div_cancel_right _ _⟩
 
-lemma mulStab_subset_div : s.mulStab ⊆ s / s := filter_subset _ _
-
 lemma mulStab_subset_div_right (ha : a ∈ s) : s.mulStab ⊆ s / {a} := by
   refine fun b hb ↦ mem_div.2 ⟨_, ?_, _, mem_singleton_self _, mul_div_cancel_right _ _⟩
   rw [mem_mulStab ⟨a, ha⟩] at hb
@@ -164,11 +162,6 @@ lemma mul_subset_right_iff (ht : t.Nonempty) : s * t ⊆ t ↔ s ⊆ t.mulStab :
   simp_rw [← smul_eq_mul, ← biUnion_smul_finset, biUnion_subset,
     ← mem_mulStab_iff_smul_finset_subset ht, subset_iff]
 
-lemma mul_subset_right : s ⊆ t.mulStab → s * t ⊆ t := by
-  obtain rfl | ht := t.eq_empty_or_nonempty
-  · simp
-  · exact (mul_subset_right_iff ht).2
-
 lemma smul_mulStab (ha : a ∈ s.mulStab) : a • s.mulStab = s.mulStab := by
   obtain rfl | hs := s.eq_empty_or_nonempty
   · simp
@@ -196,11 +189,6 @@ end Group
 
 variable [CommGroup α] [DecidableEq α] {s t : Finset α} {a : α}
 
-lemma mulStab_subset_div_left (ha : a ∈ s) : s.mulStab ⊆ {a} / s := by
-  refine fun b hb ↦ mem_div.2 ⟨_, mem_singleton_self _, _, ?_, div_div_cancel _ _⟩
-  rw [mem_mulStab ⟨a, ha⟩] at hb
-  rwa [← hb, ← inv_smul_mem_iff, smul_eq_mul, inv_mul_eq_div] at ha
-
 lemma subset_mulStab_mul_right (hs : s.Nonempty) : t.mulStab ⊆ (s * t).mulStab := by
   rw [mul_comm]; exact subset_mulStab_mul_left hs
 
@@ -217,8 +205,6 @@ lemma smul_finset_mulStab_subset (ha : a ∈ s) : a • s.mulStab ⊆ s :=
 
 lemma mul_subset_left_iff (hs : s.Nonempty) : s * t ⊆ s ↔ t ⊆ s.mulStab := by
   rw [mul_comm, mul_subset_right_iff hs]
-
-lemma mul_subset_left : t ⊆ s.mulStab → s * t ⊆ s := by rw [mul_comm]; exact mul_subset_right
 
 @[simp]
 lemma mulStab_idem (s : Finset α) : s.mulStab.mulStab = s.mulStab := by
@@ -273,11 +259,6 @@ lemma card_mulStab_dvd_card_mul_mulStab (s t : Finset α) : #t.mulStab ∣ #(s *
 
 lemma card_mulStab_dvd_card (s : Finset α) : #s.mulStab ∣ #s := by
   simpa only [mul_mulStab] using s.card_mulStab_dvd_card_mul_mulStab s
-
-lemma card_mulStab_le_card : #s.mulStab ≤ #s := by
-  obtain rfl | hs := s.eq_empty_or_nonempty
-  · rfl
-  · exact Nat.le_of_dvd hs.card_pos s.card_mulStab_dvd_card
 
 /-- A fintype instance for the stabilizer of a nonempty finset `s` in terms of `s.mulStab`. -/
 
@@ -1092,18 +1073,8 @@ namespace Finset
 
 variable {G : Type*} [AddCommGroup G] [DecidableEq G]
 
-lemma coe_addStab {s : Finset G} (hs : s.Nonempty) :
-    (s.addStab : Set G) = AddAction.stabilizer G (s : Set G) :=
-  @coe_mulStab (Multiplicative G) _ _ s hs
-
 lemma zero_mem_addStab {s : Finset G} : (0 : G) ∈ s.addStab ↔ s.Nonempty :=
   @one_mem_mulStab (Multiplicative G) _ _ s
-
-lemma add_addStab (s : Finset G) : s + s.addStab = s :=
-  @mul_mulStab (Multiplicative G) _ _ s
-
-lemma addStab_add_addStab (s : Finset G) : s.addStab + s.addStab = s.addStab :=
-  @mulStab_mul_mulStab (Multiplicative G) _ _ s
 
 lemma subset_addStab_add_left {s t : Finset G} (ht : t.Nonempty) :
     s.addStab ⊆ (s + t).addStab :=
@@ -1140,21 +1111,6 @@ lemma card_nsmul_bound {r : ℕ} (hr : 0 < r) (B : Finset G) (hB : B.Nonempty) :
       nlinarith only [hsmall, hcard, ind]
   obtain ⟨j, rfl⟩ := Nat.exists_eq_succ_of_ne_zero hr.ne'
   simpa using aux j le_rfl
-
-/-- The r-fold Kneser inequality for the stabilizer of the final sumset. -/
-lemma card_nsmul_addStab_bound {r : ℕ} (hr : 0 < r) (B : Finset G) (hB : B.Nonempty) :
-    r * (B + (r • B).addStab).card ≤ (r • B).card + (r - 1) * (r • B).addStab.card := by
-  let H := (r • B).addStab
-  have hH : H.Nonempty := ⟨0, zero_mem_addStab.mpr hB.nsmul⟩
-  have hidem : H + H = H := addStab_add_addStab _
-  have powH (j : ℕ) : (j + 1) • H = H := by
-    induction j with
-    | zero => exact one_nsmul H
-    | succ j ih => rw [succ_nsmul, ih, hidem]
-  obtain ⟨j, hj⟩ := Nat.exists_eq_succ_of_ne_zero hr.ne'
-  have hrH : r • H = H := hj ▸ powH j
-  have heq : r • (B + H) = r • B := by rw [nsmul_add, hrH]; exact add_addStab _
-  simpa only [heq] using card_nsmul_bound hr (B + H) (hB.add hH)
 
 end Finset
 
@@ -1232,29 +1188,6 @@ lemma free_shell {A P : Finset ℕ} {a J r : ℕ} (hJ : 0 < J)
   exact lift_forbidden hJ allLifts free huP b (fun i => (mem_filter.mp (hb i)).1) hlt
     (Nat.le_of_mul_le_mul_right hlow hpos) (Nat.le_of_mul_le_mul_right (by
       rwa [Nat.mul_assoc] : k*u ≤ r*J*u) hpos) (by simpa [Nat.mul_comm] using hk)
-
-/-- Integer rounding lets the permitted shell extend below X/J. -/
-lemma free_wide_shell {A P : Finset ℕ} {a J r : ℕ} (hJ : 0 < J)
-    (allLifts : ∀ u ∈ P, ∀ i ∈ Icc 1 J, i * a + u ∈ A)
-    (free : Free r A) (X : ℕ) :
-    Free r (P.filter fun x => x ≤ X ∧ r * X < (r * J + 1) * x) := by
-  intro u hu b hb hlt hdiv
-  obtain ⟨huP, huX, hJu⟩ := mem_filter.mp hu
-  have hpos : 0 < u := by by_contra! hn; simp [show u = 0 by omega] at hJu
-  obtain ⟨k, hk⟩ := hdiv
-  have hlow : r * u ≤ ∑ i, b i := by
-    simpa using Finset.sum_le_sum (s := (univ : Finset (Fin r)))
-      (f := fun _ => u) (g := b) (fun i _ => (hlt i).le)
-  have hhigh : ∑ i, b i ≤ r * X := by
-    simpa using Finset.sum_le_sum (s := (univ : Finset (Fin r)))
-      (f := b) (g := fun _ => X) (fun i _ => (mem_filter.mp (hb i)).2.1)
-  rw [hk, mul_comm u k] at hlow hhigh
-  have upper : k ≤ r * J := by
-    by_contra! big
-    have := Nat.mul_le_mul_right u (show r * J + 1 ≤ k by omega)
-    omega
-  exact lift_forbidden hJ allLifts free huP b (fun i => (mem_filter.mp (hb i)).1) hlt
-    (Nat.le_of_mul_le_mul_right hlow hpos) upper (by simpa [Nat.mul_comm] using hk)
 
 def complete (B : Finset ℕ) (a J : ℕ) : Finset ℕ :=
   (B.image (· % a)).filter fun u => ∀ k ∈ Icc 1 J, k * a + u ∈ B
@@ -1767,26 +1700,6 @@ theorem mixed_quotient_witness {r a : ℕ} (hr : 2 ≤ r) (ha : 0 < a)
     simp only [Nat.mul_one] at correction
     omega
 
-/-- The mixed quotient estimate in terms of integer representatives. -/
-theorem mixed_quotient_of_natural_sums {r a : ℕ} (hr : 2 ≤ r) (ha : 0<a)
-    (U V : Finset ℕ) (hU : U.Nonempty) (hV : V.Nonempty)
-    (free : ∀ x ∈ U, ∀ b : Fin (r-1) → ℕ, (∀ i, b i ∈ V) → ¬a ∣ x+∑ i, b i) :
-    ∃ d : ℕ, 0<d ∧ d∣a ∧ (∀ x ∈ U ∩ V, ¬d∣x) ∧
-      (U.image (·%d)).card+(r-1)*(V.image (·%d)).card ≤ d+r-2 := by
-  classical
-  apply mixed_quotient_witness hr ha U V hU hV
-  intro h
-  obtain ⟨u,hu,v,hv,eq⟩ := Finset.mem_add.mp h
-  obtain ⟨x,hx,rfl⟩ := mem_image.mp hu
-  obtain ⟨f,hf⟩ := Finset.mem_nsmul.mp hv
-  have rep (i : Fin (r-1)) : ∃ b ∈ V, (b : ZMod a)=(f i : ZMod a) := mem_image.mp (f i).property
-  choose b hb he using rep
-  apply free x hx b hb
-  apply (ZMod.natCast_eq_zero_iff _ _).mp
-  rw [Nat.cast_add,Nat.cast_sum]
-  have e : (∑ i, (b i : ZMod a)) = v := by simpa [he,List.sum_ofFn] using hf
-  rwa [e]
-
 end OMA.Erdos13Cyclic
 
 end
@@ -2215,75 +2128,6 @@ theorem upper_shell_tail {r a d N : ℕ} (hr : 2 ≤ r) (ha : N ≤ 2*a)
     have hL : (N-a) + a = N := by omega
     have h2 := Nat.mul_le_mul_right B.card hr
     nlinarith only [hc, hk, hqr, hdb, hq, hh, hL, ha, han, h2, Nat.zero_le N, Nat.zero_le r]
-
-/-- The only additive input is the cyclic quotient witness. -/
-theorem upper_shell_of_quotients {r N : ℕ} (hr : 2 ≤ r) (A : Finset ℕ)
-    (sub : ∀ a ∈ A, 0 < a ∧ N ≤ 2*a ∧ a ≤ N)
-    (witness : ∀ a ∈ A, (A.filter fun x => a < x).Nonempty →
-      ∃ d : ℕ, 0 < d ∧ d ∣ a ∧ (∀ b ∈ A, a < b → ¬ d ∣ b) ∧
-        r * ((A.filter fun x => a < x).image (fun x => x % d)).card ≤ d + r - 2) :
-    (r+1)*A.card ≤ N + (r+1)*(16*r+1) + 16*r := by
-  classical
-  have aw (a) (ha : a ∈ A) : ∃ d : ℕ, 0 < d ∧ d ∣ a ∧
-      (∀ b ∈ A, a < b → ¬ d ∣ b) ∧
-      r * ((A.filter fun x => a < x).image (fun x => x % d)).card ≤ d+r-2 := by
-    by_cases ht : (A.filter fun x => a < x).Nonempty
-    · exact witness a ha ht
-    · rw [not_nonempty_iff_eq_empty] at ht
-      refine ⟨a, (sub a ha).1, dvd_refl _, ?_, by simp [ht]⟩
-      intro b hb hlt
-      have hmem : b ∈ (A.filter fun x => a < x) := mem_filter.mpr ⟨hb, hlt⟩
-      simp [ht] at hmem
-  choose! f pos div later size using aw
-  let E := A.filter fun x => f x ≤ 16*r
-  have low : E.card ≤ 16*r := by
-    have hc : E.card ≤ (Icc 1 (16*r)).card := by
-      apply card_le_card_of_injOn f
-      · intro x hx
-        have h := mem_filter.mp hx
-        exact mem_Icc.mpr ⟨pos x h.1, h.2⟩
-      · intro x hx y hy he
-        have hxa := (mem_filter.mp hx).1
-        have hya := (mem_filter.mp hy).1
-        rcases lt_trichotomy x y with h | h | h
-        · exact False.elim (later x hxa y hya h (he ▸ div y hya))
-        · exact h
-        · exact False.elim (later y hya x hxa h (he ▸ div x hxa))
-    simpa using hc
-  let G := A.filter fun x => 16*r < f x
-  by_cases non : G.Nonempty
-  · let a := G.min' non
-    have hag : a ∈ G := min'_mem _ _
-    have hf := mem_filter.mp hag
-    let B := A.filter fun x => a < x
-    have hB : B ⊆ Ioc a N := by
-      intro x hx
-      have hx' := mem_filter.mp hx
-      exact mem_Ioc.mpr ⟨hx'.2, (sub x hx'.1).2.2⟩
-    have ht := upper_shell_tail hr (sub a hf.1).2.1 (sub a hf.1).2.2 hf.2
-      (div a hf.1) B hB (size a hf.1)
-    have cover : A ⊆ E ∪ insert a B := by
-      intro x hx
-      by_cases h : f x ≤ 16*r
-      · exact mem_union_left _ (mem_filter.mpr ⟨hx,h⟩)
-      · have hxg : x ∈ G := mem_filter.mpr ⟨hx, by omega⟩
-        have hax : a ≤ x := min'_le _ _ hxg
-        by_cases eq : x = a
-        · exact mem_union_right _ (mem_insert.mpr (Or.inl eq))
-        · exact mem_union_right _ (mem_insert.mpr (Or.inr (mem_filter.mpr ⟨hx, by omega⟩)))
-    have cnt := (card_le_card cover).trans (card_union_le _ _)
-    have ins := card_insert_le a B
-    have hcard : A.card ≤ 16*r+1+B.card := by omega
-    have := Nat.mul_le_mul_left (r+1) hcard
-    nlinarith only [this, ht]
-  · have cover : A ⊆ E := by
-      intro x hx
-      apply mem_filter.mpr
-      refine ⟨hx, ?_⟩
-      by_contra! h
-      exact non ⟨x,mem_filter.mpr ⟨hx,h⟩⟩
-    have hc := Nat.mul_le_mul_left (r+1) ((card_le_card cover).trans low)
-    nlinarith only [hc, Nat.zero_le N, Nat.zero_le r]
 
 end OMA.Erdos13UpperShell
 
@@ -4014,108 +3858,6 @@ lemma allocate_mixed (m : ℕ) (l u : Fin m → ℕ) (k : ℕ)
       dsimp [x]
       omega
 
-lemma next_dilate {r a : ℕ} {A P : Finset ℕ} (hr : 3 ≤ r)
-    (off : ∀ u ∈ P, 0 < u ∧ u < a)
-    (lifts : ∀ u ∈ P, ∀ j ∈ Icc 1 r, j*a+u ∈ A)
-    (free : FullColumns.Free r A) (u : ℕ) (hu : u ∈ P)
-    (v : Fin r → ℕ) (hv : ∀ i, v i ∈ P) :
-    ¬ (∑ i, v i) ≡ (r+1)*u [MOD a] := by
-  classical
-  intro eqmod
-  obtain ⟨c,hc⟩ := Nat.modEq_iff_dvd.mp eqmod
-  let n := (univ.filter (fun i : Fin r => v i ≤ u)).card
-  have nc : n ≤ r := by simpa [n] using card_filter_le (s := (univ : Finset (Fin r))) (fun i => v i ≤ u)
-  have sum_cap : (∑ i, v i) ≤ n*u+(r-n)*(a-1) := by
-    have loc (i : Fin r) : v i ≤ if v i ≤ u then u else a-1 := by
-      split
-      · assumption
-      · have := (off _ (hv i)).2
-        omega
-    have h := sum_le_sum (s := (univ : Finset (Fin r))) (fun i _ => loc i)
-    have count := (univ : Finset (Fin r)).card_filter_add_card_filter_not (fun i => v i ≤ u)
-    simp only [card_univ,Fintype.card_fin] at count
-    simpa only [sum_ite,sum_const,nsmul_eq_mul, Nat.cast_id,
-      show #(univ.filter fun i : Fin r => ¬ v i ≤ u) = r-n by dsimp [n]; omega] using h
-  have small : (∑ i, v i) + n*a < (r+1)*u+r*a := by
-    have nd := Nat.sub_add_cancel nc
-    have ru := Nat.mul_le_mul_right u nc
-    have aux := congrArg (fun z : ℕ => z*a) nd
-    have xpos := (off u hu).1
-    nlinarith only [sum_cap,ru,aux,xpos,Nat.mul_le_mul_left (r-n) (Nat.sub_le a 1)]
-  have pos := (off u hu).1
-  have ua := (off u hu).2
-  have ksmall : (r+1)*u < (r+1)*a := Nat.mul_lt_mul_of_pos_left ua (by omega)
-  push_cast at hc
-  have cmin : (n:ℤ) - r < c := by
-    by_contra! hn
-    have hz := mul_le_mul_of_nonneg_left hn (Int.natCast_nonneg a)
-    zify at small
-    nlinarith only [hc,hz,small]
-  have cmax : c < (r+1:ℕ) := by
-    by_contra! hn
-    have hz := mul_le_mul_of_nonneg_left hn (Int.natCast_nonneg a)
-    zify at ksmall
-    have nn : (0:ℤ) ≤ ∑ i,(v i:ℤ) := sum_nonneg (fun i _ => Int.natCast_nonneg _)
-    push_cast at hz
-    nlinarith only [hc,hz,ksmall,nn]
-  let h := max 1 ((n:ℤ)-c).toNat
-  have h1 : 1 ≤ h := le_max_left _ _
-  have hlow : (n:ℤ) ≤ (h:ℤ)+c := by
-    have hh := le_max_right 1 ((n:ℤ)-c).toNat
-    change _ ≤ h at hh
-    omega
-  have hcap : h ≤ r-1 := by dsimp [h]; omega
-  have heither : h=1 ∨ (h:ℤ)=(n:ℤ)-c := by dsimp [h]; omega
-  have upper : (((r+1)*h:ℕ):ℤ)+c ≤ (r*r:ℕ) := by
-    rcases heither with h₁|h₂
-    · rw [h₁,Nat.mul_one]
-      have bound : 2*r+1 ≤ r*r := by nlinarith [Nat.mul_le_mul_left r hr]
-      omega
-    · have z := Nat.mul_le_mul_left r hcap
-      have rr : r*(r-1)=r*r-r := by rw [Nat.mul_sub,Nat.mul_one]
-      have rt := Nat.le_mul_self r
-      zify at z nc ⊢
-      have succ : (r:ℤ)-1=(r-1:ℕ) := by omega
-      push_cast at *
-      nlinarith only [z,nc,h₂,succ]
-  let K := (((r+1)*h:ℕ)+c).toNat
-  have Kint : (K:ℤ)=((r+1)*h:ℕ)+c := by
-    apply Int.toNat_of_nonneg
-    rw [Nat.add_mul,Nat.one_mul]
-    push_cast
-    nlinarith only [hlow,Int.natCast_nonneg n, mul_nonneg (Int.natCast_nonneg r) (Int.natCast_nonneg h)]
-  let l (i : Fin r) := h + if v i ≤ u then 1 else 0
-  have lsum : ∑ i,l i = r*h+n := by simp [l,sum_add_distrib,n]
-  have minK : ∑ i,l i ≤ K := by
-    rw [lsum]
-    have id : (r+1)*h=r*h+h := by ring
-    omega
-  obtain ⟨f,hf,hfs⟩ := allocate_mixed r l (fun _ => r) K
-    (fun i => by dsimp [l]; split <;> omega) minK (by simpa using (show K ≤ r*r by omega))
-  have base := lifts u hu h (mem_Icc.mpr ⟨h1,by omega⟩)
-  apply free _ base (fun i => f i*a+v i)
-  · intro i
-    apply lifts _ (hv i) _ (mem_Icc.mpr ⟨?_,(hf i).2⟩)
-    have o := (hf i).1
-    dsimp [l] at o
-    split at o <;> omega
-  · intro i
-    have o := (hf i).1
-    dsimp [l] at o
-    split at o
-    · have F := Nat.mul_le_mul_right a o
-      have := (off _ hu).2
-      rw [Nat.add_mul,Nat.one_mul] at F
-      omega
-    · have F := Nat.mul_le_mul_right a o
-      simp only [Nat.add_zero] at F
-      omega
-  · refine ⟨r+1,?_⟩
-    rw [sum_add_distrib,←sum_mul,hfs]
-    zify at Kint hc ⊢
-    push_cast at *
-    nlinarith only [Kint,hc]
-
 end Erdos13ColumnModulo
 
 end
@@ -4427,18 +4169,6 @@ lemma packing_arithmetic {r q s k L : ℕ} (hr : 5 ≤ r)
       have stronger := oddQ (v ▸ by decide)
       omega
 
-/-- An aperiodic cyclic quotient admitting an invertible k with both k and
-2k in the prohibited multiplier interval has density at most 1/(r+1). -/
-theorem good_cyclic_packing {q r k L : ℕ} [NeZero q] (hr : 5 ≤ r)
-    (R : Finset (ZMod q)) (hne : R.Nonempty)
-    (aper : (r • R).addStab = {0}) (cop : k.Coprime q)
-    (low : r < k) (high : 2*k ≤ r+L)
-    (full_range : 2*(r+L) ≤ r*r+1 ∧ r*r+1 < 2*(r+L+1))
-    (excluded : ∀ x ∈ R, ∀ j ∈ Ioc r (r+L), j • x ∉ r • R) :
-    (r+1)*R.card ≤ q := by
-  obtain ⟨a,b,c,d⟩ := cyclic_estimates (by omega) R hne aper cop low high excluded
-  exact packing_arithmetic hr low high full_range a b c d
-
 end Erdos13ColumnModulo
 
 end
@@ -4672,103 +4402,6 @@ lemma count_by_period (q t s : ℕ) (hs : s ≤ q) (R : Finset ℕ) :
     rw [Nat.succ_mul]
     omega
 
-/-- A period q with at most (q+1)/3 occupied classes cannot support a
-strict majority for two full periods, once q exceeds four. For one full
-period, its length is forced to lie within one of three quarters of m. -/
-lemma small_period_or_near {m q c b : ℕ} (hq : 0 < q)
-    (hqm : q ≤ m) (he : 3*c ≤ q+1) (major : m < 2*b)
-    (cap : b ≤ (m / q) * c + min (m % q) c) :
-    q ≤ 4 ∨ (3*m / 4 - 2 ≤ q ∧ q ≤ 3*m / 4 + 2) := by
-  by_cases hsmall : q ≤ 4
-  · exact Or.inl hsmall
-  right
-  let t := m/q
-  let s := m%q
-  have dec : s + t*q = m := by
-    dsimp [s, t]
-    simpa only [Nat.mul_comm] using Nat.mod_add_div m q
-  have hs : s < q := Nat.mod_lt _ hq
-  have hcap : b ≤ t*c + min s c := cap
-  have ht : t ≤ 1 := by
-    by_contra! high
-    have h2c : 2*c ≤ q := by omega
-    have hdiff : 2*(q-2*c) ≤ t*(q-2*c) := Nat.mul_le_mul_right _ high
-    rw [Nat.mul_sub] at hdiff
-    have aux : t*(2*c) ≤ t*q := Nat.mul_le_mul_left t h2c
-    have ident : t*(2*c) = 2*(t*c) := by ring
-    have hd : t*(q-2*c) = t*q-t*(2*c) := Nat.mul_sub _ _ _
-    have hmin : 2*min s c ≤ s+c := by omega
-    omega
-  have hone : t = 1 := Nat.le_antisymm ht (Nat.div_pos hqm hq)
-  rw [hone, Nat.one_mul] at dec hcap
-  omega
-
-/-- All but boundedly many possible divisors force the selected small element
-above r times the size of the upper interval, up to r-2. -/
-lemma force_large_divisor {r m q a v : ℕ} (hr : 3 ≤ r) (hq : 0 < q)
-    (hqa : q ≤ a) (B : Finset ℕ) (hB : B ⊆ Ico v (v+m))
-    (major : m < 2*B.card)
-    (quotient : r * (B.image (fun x => x%q)).card ≤ q + r - 2) :
-    q ∈ range 5 ∪ Icc (3*m / 4 - 2) (3*m / 4 + 2) ∨
-      (m < q ∧ r*B.card ≤ a+r-2) := by
-  classical
-  let R := B.image (fun x => x%q)
-  have hR (b) (hb : b ∈ B) : b%q ∈ R := mem_image_of_mem _ hb
-  change r * R.card ≤ q+r-2 at quotient
-  by_cases hqm : q ≤ m
-  · left
-    have h3 : 3 * R.card ≤ q + 1 := by
-      by_cases hc : R.card = 0
-      · simp [hc]
-      have hr3 := Nat.mul_le_mul_right (R.card-1) hr
-      rw [Nat.mul_sub, Nat.mul_sub] at hr3
-      have hrc : r ≤ r*R.card := by
-        simpa only [Nat.mul_one] using Nat.mul_le_mul_left r (show 1 ≤ R.card by omega)
-      omega
-    have rem := Nat.mod_add_div m q
-    have dec : m / q * q + m % q = m := by
-      simpa only [Nat.mul_comm, Nat.add_comm] using rem
-    have hI : B ⊆ Ico v (v + (m/q*q + m%q)) := by simpa only [dec] using hB
-    have cap := count_by_period q (m/q) (m%q) (Nat.mod_lt _ hq).le R v B hI hR
-    rcases small_period_or_near hq hqm h3 major cap with h | h
-    · exact mem_union_left _ (mem_range.mpr (by omega))
-    · exact mem_union_right _ (mem_Icc.mpr h)
-  · right
-    refine ⟨by omega, ?_⟩
-    have hinj : (B : Set ℕ).InjOn (fun x => x % q) := by
-      apply (Nat.mod_injOn_Ico v q).mono
-      intro b hb
-      have := mem_Ico.mp (hB hb)
-      exact mem_Ico.mpr ⟨this.1, by omega⟩
-    have heq : R.card = B.card := card_image_of_injOn hinj
-    rw [heq] at quotient
-    omega
-
-lemma exceptional_card (m : ℕ) :
-    (range 5 ∪ Icc (3*m/4-2) (3*m/4+2)).card ≤ 10 := by
-  have h := card_union_le (range 5) (Icc (3*m/4-2) (3*m/4+2))
-  simp only [card_range, Nat.card_Icc] at h
-  omega
-
-/-- The chosen quotient for the smaller of two elements cannot also divide
-the larger element. Therefore all exceptional quotients cost at most ten
-elements of a finite set, even when the quotients vary along the set. -/
-lemma exceptional_elements (A : Finset ℕ) (f : ℕ → ℕ) (m : ℕ)
-    (divides : ∀ a ∈ A, f a ∣ a)
-    (only_here : ∀ a ∈ A, ∀ b ∈ A, a < b → ¬ f a ∣ b) :
-    (A.filter (fun a => f a ∈ range 5 ∪ Icc (3*m/4-2) (3*m/4+2))).card ≤ 10 := by
-  classical
-  refine le_trans (card_le_card_of_injOn f ?_ ?_) (exceptional_card m)
-  · intro a ha
-    exact (mem_filter.mp ha).2
-  · intro a ha b hb hfb
-    have ha' := (mem_filter.mp ha).1
-    have hb' := (mem_filter.mp hb).1
-    rcases lt_trichotomy a b with h | h | h
-    · exact False.elim (only_here a ha' b hb' h (hfb.symm ▸ divides b hb'))
-    · exact h
-    · exact False.elim (only_here b hb' a ha' h (hfb ▸ divides a ha'))
-
 end Erdos13HalfOccupied
 
 end
@@ -4991,8 +4624,6 @@ namespace Erdos13ColumnModulo
 open Finset FullColumns OMA.Erdos13ManyLayers
 
 def localGain (r : ℕ) := 48*r*r*(r+1)
-def gain (r : ℕ) := 48*r*r*(r+1)*(r+1)
-
 lemma strict_arithmetic {r a d t N D s p B K : ℕ} (hr : 5 ≤ r) (div : t*d = a)
     (hd : 2*cutoff r < d) (dec : r*a+D=N)
     (res : r*s ≤ a+t*r) (count : B ≤ (r-1)*s+p)
@@ -5064,54 +4695,6 @@ theorem good_tail_strict {r N a d C : ℕ} (hr : 5 ≤ r) (ha : 0<a)
   exact sum
 
 
-theorem good_sparse_shell {r : ℕ} (hr : 5 ≤ r) :
-    ∃ K : ℕ, ∀ (m : ℕ) (A : Finset ℕ), (∀ a ∈ A, 0<a ∧ (r+1)*m ≤ (r+1)*a ∧ a ≤ (r+1)*m) →
-      (∀ a ∈ A, r*a < (r+1)*m → Good r a) → Free r A →
-      2*(Ioc (r*m) ((r+1)*m) ∩ A).card ≤ m →
-      (gain r*(r+1)+1)*A.card ≤ gain r*((r+1)*m)+K := by
-  classical
-  obtain ⟨C,prev⟩ := shell_to_arity r (by omega)
-  obtain ⟨D,old⟩ := sparse_top_stability r (by omega)
-  let F := 4*(r-1)*(r+1)-1
-  let K₀ := 4*r*(r+1)*(3*F*(F*C+1)+12*r*((6*r+8)*r+1))
-  let K := D+gain r*C+(r+1)*K₀
-  refine ⟨K+(gain r*(r+1)+1)*(2*cutoff r+1),?_⟩
-  intro m A sub goods free sparse
-  let N := (r+1)*m
-  have pos (a) (ha : a ∈ A) := (sub a ha).1
-  rw [←Nat.add_assoc (gain r*((r+1)*m)) K]
-  apply OMA.Erdos13UpperShell.select_large_scaled (L:=2*cutoff r) A pos
-    (OMA.Erdos13Cyclic.witness_of_free (by omega) free pos)
-  intro a ha d hd dvd quot
-  let B := A.filter (a<·)
-  change (gain r*(r+1)+1)*B.card ≤ gain r*N+K
-  have hBA : B ⊆ A := filter_subset _ _
-  have hB : B ⊆ Ioc a N := fun x hx => mem_Ioc.mpr ⟨(mem_filter.mp hx).2,(sub x (hBA hx)).2.2⟩
-  by_cases high : N ≤ r*a
-  · have shell (x) (hx : x∈B) : 0<x ∧ N≤r*x ∧ x≤N :=
-      ⟨pos x (hBA hx),high.trans (Nat.mul_le_mul_left r (mem_filter.mp hx).2.le),(sub x (hBA hx)).2.2⟩
-    have freeB : Free r B := fun x hx f hf => free _ (hBA hx) f (fun i => hBA (hf i))
-    have sp := Nat.mul_le_mul_left 2 (card_le_card (inter_subset_inter (Subset.rfl (s:=Ioc (r*m) N)) hBA))
-    have h := old m B shell freeB (sp.trans sparse)
-    have le : 24*r*r ≤ gain r := by dsimp [gain]; nlinarith [Nat.zero_le (r*r*r), Nat.zero_le (r*r*r*r)]
-    have t := lift_gain le (prev N B shell freeB) h
-    dsimp [K]
-    omega
-  · have bound := good_tail_strict hr (pos a ha) (by omega) (sub a ha).2.1 (goods a ha (by omega))
-      hd dvd ha hBA hB free quot prev
-    change localGain r*(r+1)*B.card+a ≤ localGain r*N+K₀ at bound
-    have sc := Nat.mul_le_mul_left (r+1) bound
-    have lim := (sub a ha).2.1
-    change N ≤ (r+1)*a at lim
-    have cardB := card_le_card hB
-    rw [Nat.card_Ioc] at cardB
-    have gg : gain r=localGain r*(r+1) := rfl
-    have out : (gain r*(r+1)+1)*B.card ≤ gain r*N + (r+1)*K₀ := by
-      have bN : B.card ≤ N := by omega
-      rw [gg]
-      nlinarith only [sc,lim,bN]
-    dsimp [K]
-    omega
 end Erdos13ColumnModulo
 
 end
@@ -5121,88 +4704,6 @@ section
 namespace Erdos13HalfOccupied
 
 open Finset
-
-/-- For m≥6, a divisor large enough for the half-occupied top interval lies
-in the upper two thirds of the ambient interval. -/
-lemma three_mul_ge_endpoint {r m b a : ℕ} (hr : 3 ≤ r) (hm : 6 ≤ m)
-    (half : m < 2*b) (size : r*b ≤ a+r-2) :
-    (r+1)*m ≤ 3*a := by
-  have h₁ := Nat.mul_le_mul_left r half.le
-  have h₂ := Nat.mul_le_mul (show 0 ≤ r-2 by omega) (show 0 ≤ m-6 by omega)
-  have hr' : r-2+2=r := by omega
-  have hm' : m-6+6=m := by omega
-  have hprod := congrArg (fun x : ℕ => x*(m-6+6)) hr'
-  have hprod' := congrArg (fun x : ℕ => r*x) hm'
-  have heq := congrArg (fun x : ℕ => 2*x) hm'
-  have heq' := congrArg (fun x : ℕ => 6*x) hr'
-  have hr₂ : 2 ≤ a+r := by omega
-  have hs : r*b+2 ≤ a+r := by omega
-  nlinarith only [h₁, hprod, hprod', heq, heq', hs, Nat.zero_le ((r-2)*(m-6))]
-
-/-- More than half of the top interval is enough to reduce the remaining
-bound to the case with every element at least N/3. The quotient assumptions
-are applied only to prospective smaller exceptions. -/
-lemma half_occupied_bridge {r m C : ℕ} (hr : 3 ≤ r) (A : Finset ℕ)
-    (sub : A ⊆ Icc 1 ((r+1)*m))
-    (half : m < 2*(Ioc (r*m) ((r+1)*m) ∩ A).card)
-    (quotients : ∀ a ∈ A, 3*a < (r+1)*m →
-      ∃ q : ℕ, 0 < q ∧ q ∣ a ∧
-        (∀ x ∈ A, a < x → ¬ q ∣ x) ∧
-        r*((A.filter (fun x => a < x)).image (fun x => x%q)).card ≤ q+r-2)
-    (upper : ∀ S ⊆ A, (∀ x ∈ S, (r+1)*m ≤ 3*x) → S.card ≤ m+C) :
-    A.card ≤ m + C + (10+5*(r+1)) := by
-  classical
-  by_cases big : 6 ≤ m
-  · let N := (r+1)*m
-    let B := Ioc (r*m) N ∩ A
-    let D := A.filter (fun a => 3*a < N)
-    let U := A.filter (fun a => ¬ 3*a < N)
-    have hDU := A.card_filter_add_card_filter_not (fun a => 3*a < N)
-    change D.card + U.card = A.card at hDU
-    have hU : U.card ≤ m+C := by
-      apply upper U (filter_subset _ _)
-      intro x hx
-      exact le_of_not_gt (mem_filter.mp hx).2
-    have hI : B ⊆ Ico (r*m+1) (r*m+1+m) := by
-      intro x hx
-      have h := mem_Ioc.mp (mem_inter.mp hx).1
-      change r*m<x ∧ x≤(r+1)*m at h
-      rw [Nat.add_mul, Nat.one_mul] at h
-      exact mem_Ico.mpr ⟨by omega, by omega⟩
-    have hqall (a : ℕ) (ha : a ∈ D) : ∃ q : ℕ, 0 < q ∧ q ∣ a ∧
-          (∀ x ∈ A, a < x → ¬ q ∣ x) ∧
-          r*((A.filter (fun x => a < x)).image (fun x => x%q)).card ≤ q+r-2 := by
-      have h := mem_filter.mp ha
-      exact quotients a h.1 h.2
-    choose! f fpos fdvd fonly fcard using hqall
-    have hexc (a : ℕ) (ha : a ∈ D) : f a ∈ range 5 ∪ Icc (3*m/4-2) (3*m/4+2) := by
-      have h := mem_filter.mp ha
-      change a ∈ A ∧ 3*a<N at h
-      have hab : a ≤ r*m := by
-        have hm' : m ≤ r*m := by
-          simpa using Nat.mul_le_mul_right m (show 1 ≤ r by omega)
-        dsimp [N] at h
-        rw [Nat.add_mul, Nat.one_mul] at h
-        omega
-      have hBT : B ⊆ A.filter (fun x => a < x) := by
-        intro x hx
-        have ⟨h₁, h₂⟩ := mem_inter.mp hx
-        exact mem_filter.mpr ⟨h₂, lt_of_le_of_lt hab (mem_Ioc.mp h₁).1⟩
-      have card := card_le_card (image_subset_image (f := fun x => x % f a) hBT)
-      have hcap := (Nat.mul_le_mul_left r card).trans (fcard a ha)
-      have hpos : 0 < a := (mem_Icc.mp (sub h.1)).1
-      rcases force_large_divisor hr (fpos a ha) (Nat.le_of_dvd hpos (fdvd a ha))
-          B hI half hcap with exc | good
-      · exact exc
-      · exact False.elim ((not_lt_of_ge (three_mul_ge_endpoint hr big half good.2)) h.2)
-    have hD := exceptional_elements D f m fdvd (fun a ha x hx =>
-      fonly a ha x (mem_filter.mp hx).1)
-    rw [filter_eq_self.mpr hexc] at hD
-    omega
-  · have hcard := card_le_card sub
-    simp only [Nat.card_Icc, Nat.add_one_sub_one] at hcard
-    have := Nat.mul_le_mul_left (r+1) (show m ≤ 5 by omega)
-    nlinarith
 
 end Erdos13HalfOccupied
 
@@ -5215,53 +4716,6 @@ section
 namespace Erdos13HalfOccupied
 
 open Finset
-
-/-- The quotient selection in the majority reduction follows from the cyclic
-sumset theorem for every prospective small divisor: its tail contains an
-element of the majority set. -/
-lemma half_bound_of_shell {r m C : ℕ} (hr : 3 ≤ r) (A : Finset ℕ)
-    (sub : A ⊆ Icc 1 ((r+1)*m))
-    (free : ∀ a ∈ A, ∀ b : Fin r → ℕ, (∀ i, b i ∈ A) → (∀ i, a < b i) →
-      ¬ a ∣ ∑ i, b i)
-    (half : m < 2*(Ioc (r*m) ((r+1)*m) ∩ A).card)
-    (upper : ∀ S ⊆ A, (∀ x ∈ S, (r+1)*m ≤ 3*x) → S.card ≤ m+C) :
-    A.card ≤ m + C + (10+5*(r+1)) := by
-  apply half_occupied_bridge hr A sub half _ upper
-  intro a ha hsmall
-  apply OMA.Erdos13Cyclic.witness_of_free (by omega : 2 ≤ r) free
-    (fun x hx => (mem_Icc.mp (sub hx)).1) a ha
-  obtain ⟨x, hx⟩ := card_pos.mp (show 0 < (Ioc (r*m) ((r+1)*m) ∩ A).card by omega)
-  obtain ⟨hI, hA⟩ := mem_inter.mp hx
-  have hlarge := (mem_Ioc.mp hI).1
-  have hm : m ≤ r*m := by
-    simpa using Nat.mul_le_mul_right m (show 1 ≤ r by omega)
-  rw [Nat.add_mul, Nat.one_mul] at hsmall
-  exact ⟨x, mem_filter.mpr ⟨hA, by omega⟩⟩
-
-/-- At every arity r≥3, any set exceeding m by a sufficiently large constant
-and occupying over half of its top interval contains a forbidden sum. -/
-theorem majority_witness {r : ℕ} (hr : 3 ≤ r) : ∃ K : ℕ, ∀ (m : ℕ) (A : Finset ℕ),
-    A ⊆ Icc 1 ((r+1)*m) → m+K < A.card →
-    m < 2*(Ioc (r*m) ((r+1)*m) ∩ A).card →
-    ∃ a ∈ A, ∃ b : Fin r → ℕ, (∀ i, b i ∈ A ∧ a < b i) ∧ a ∣ ∑ i, b i := by
-  let E := (128*r + 24*((r+1)*(16*r+1)+32*r+1)+2) + (r+1)*(64*r+1)
-  refine ⟨E + (10+5*(r+1)), ?_⟩
-  intro m A sub large half
-  by_contra absent
-  have free : FullColumns.Free r A := by
-    intro a ha b hb hlt hd
-    exact absent ⟨a, ha, b, (fun i => ⟨hb i, hlt i⟩), hd⟩
-  have bound : A.card ≤ m+E+(10+5*(r+1)) := by
-    apply half_bound_of_shell hr A sub free half
-    intro S hS third
-    have onS : FullColumns.Free r S := fun a ha b hb => free a (hS ha) b (fun i => hS (hb i))
-    have h := OMA.Erdos13UpperShell.bound_on_third_shell hr S
-      (fun x hx => ⟨(mem_Icc.mp (sub (hS hx))).1, third x hx, (mem_Icc.mp (sub (hS hx))).2⟩) onS
-    have hbound : (r+1)*S.card ≤ (r+1)*m+E := by simpa only [E, Nat.add_assoc] using h
-    by_contra! tooMany
-    have mul := Nat.mul_le_mul_left (r+1) (show m+E+1 ≤ S.card by omega)
-    nlinarith only [hbound, mul, Nat.zero_le (r*E), Nat.zero_le r]
-  omega
 
 end Erdos13HalfOccupied
 
@@ -5335,13 +4789,6 @@ lemma bad_common_factor {r : ℕ} (hr : 10 ≤ r) :
   · exact finite_bad_common_factor h₁₁ (show r ≤ 11 by omega) {13,17,19,23,29} (by decide) (by decide)
   exact finite_bad_common_factor hr (show r ≤ 10 by omega) {11,13,17,19,23} (by decide) (by decide)
 
-lemma bad_factor_large {r P : ℕ} (hr : 10 ≤ r) (hP : 64*r*r*r*r ≤ P) :
-    48*r*r*(r+1)*(r+1)*(r+1)+1 ≤ r*P := by
-  refine le_trans ?_ (Nat.mul_le_mul_left r hP)
-  obtain ⟨j,rfl⟩ := Nat.exists_eq_add_of_le hr
-  ring_nf
-  omega
-
 lemma bad_strip_count {r m P : ℕ} (hr : 0 < r) (hp : 0 < P) (B : Finset ℕ)
     (bounds : ∀ a∈B, m ≤ a ∧ r*a < (r+1)*m ∧ P∣a) :
     r*P*B.card ≤ m+r*(P+1) := by
@@ -5368,79 +4815,6 @@ lemma bad_strip_count {r m P : ℕ} (hr : 0 < r) (hp : 0 < P) (B : Finset ℕ)
   dsimp [L] at scaled
   dsimp [L] at w
   nlinarith only [w,scaled,remain]
-
-/-- Removing the bad pivots in the single new strip upgrades a strict estimate
-for good pivots to a uniform shell theorem, including arbitrary endpoints. -/
-theorem shell_of_paid_gap {r C H₀ P : ℕ} (hr : 5 ≤ r)
-    (hp : 0 < P) (div : ∀ a, ¬Good r a → P ∣ a) (factor : H₀*(r+1)+1 ≤ r*P)
-    (sparseGood : ∀ (m : ℕ) (A : Finset ℕ),
-      (∀ a∈A, 0<a ∧ (r+1)*m ≤ (r+1)*a ∧ a ≤ (r+1)*m) →
-      (∀ a∈A, r*a < (r+1)*m → Good r a) → Free r A →
-      2*(Ioc (r*m) ((r+1)*m) ∩ A).card ≤ m →
-      (H₀*(r+1)+1)*A.card ≤ H₀*((r+1)*m)+C) :
-    ∃ K : ℕ, Shell r (r+1) K := by
-  classical
-  obtain ⟨D,majority⟩ := Erdos13HalfOccupied.majority_witness (r:=r) (by omega)
-  let K := C+r*(P+1)+D
-  have rounded (m : ℕ) (A : Finset ℕ)
-      (sub : ∀ a∈A, 0<a ∧ (r+1)*m ≤ (r+1)*a ∧ a ≤ (r+1)*m)
-      (free : Free r A) : A.card ≤ m+K := by
-    by_cases sp : 2*(Ioc (r*m) ((r+1)*m) ∩ A).card ≤ m
-    · let ok (a : ℕ) := r*a < (r+1)*m → Good r a
-      let G := A.filter ok
-      let B := A.filter (fun a => ¬ok a)
-      have gsub : G ⊆ A := filter_subset _ _
-      have strong := sparseGood m G (fun a ha => sub a (gsub ha)) (fun a ha => (mem_filter.mp ha).2)
-        (fun a ha b hb => free a (gsub ha) b (fun i => gsub (hb i)))
-        ((Nat.mul_le_mul_left 2 (card_le_card (inter_subset_inter (Subset.rfl) gsub))).trans sp)
-      have bp (a) (ha : a ∈ B) : m ≤ a ∧ r*a < (r+1)*m ∧ P ∣ a := by
-        obtain ⟨hx,bad⟩ := mem_filter.mp ha
-        change ¬(r*a < (r+1)*m → Good r a) at bad
-        push Not at bad
-        exact ⟨Nat.le_of_mul_le_mul_left (sub a hx).2.1 (by omega),bad.1,div a bad.2⟩
-      have bad := (Nat.mul_le_mul_right B.card factor).trans (bad_strip_count (by omega) hp B bp)
-      let H := H₀*(r+1)+1
-      have part : G.card + B.card = A.card := A.card_filter_add_card_filter_not ok
-      have sum : H*A.card ≤ H*m+(C+r*(P+1)) := by
-        rw [←part,Nat.mul_add]
-        dsimp [H]
-        nlinarith only [strong,bad]
-      have positive : 1≤H := by dsimp [H]; omega
-      have finish : H*A.card ≤ H*(m+K) := by
-        rw [Nat.mul_add]
-        have cf := Nat.mul_le_mul_right K positive
-        dsimp [K] at cf ⊢
-        omega
-      exact Nat.le_of_mul_le_mul_left finish positive
-    · by_contra! large
-      have ex := majority m A (fun a ha => mem_Icc.mpr ⟨(sub a ha).1,(sub a ha).2.2⟩)
-        (show m+D < A.card by dsimp [K] at large; omega) (by omega)
-      obtain ⟨a,ha,b,hb,s⟩ := ex
-      exact free a ha b (fun i => (hb i).1) (fun i => (hb i).2) s
-  refine ⟨r+(r+1)*K,?_⟩
-  intro N A sub free
-  let m := (N+r)/(r+1)
-  have dr := Nat.mod_add_div (N+r) (r+1)
-  have rem := Nat.mod_lt (N+r) (show 0<r+1 by omega)
-  have ends : N ≤ (r+1)*m ∧ (r+1)*m ≤ N+r := by dsimp [m]; omega
-  have full (a) (ha : a∈A) : 0<a ∧ (r+1)*m ≤ (r+1)*a ∧ a ≤ (r+1)*m := by
-    have h := sub a ha
-    have lim : m ≤ a := by
-      apply Nat.le_of_lt_succ ((Nat.div_lt_iff_lt_mul (by omega : 0<r+1)).mpr ?_)
-      nlinarith only [h.2.1]
-    exact ⟨h.1,Nat.mul_le_mul_left _ lim,h.2.2.trans ends.1⟩
-  have n := Nat.mul_le_mul_left (r+1) (rounded m A full free)
-  rw [Nat.mul_add] at n
-  omega
-
-/-- For arity at least ten the conjectured bound holds whenever every member
-is at least N/(r+1), for arbitrary integer endpoints N. -/
-theorem shell_to_arity_succ (r : ℕ) (hr : 10 ≤ r) :
-    ∃ K : ℕ, Shell r (r+1) K := by
-  obtain ⟨C,cap⟩ := good_sparse_shell (r:=r) (by omega)
-  obtain ⟨P,hP,div⟩ := bad_common_factor hr
-  exact shell_of_paid_gap (by omega) (lt_of_lt_of_le (by positivity) hP) div (bad_factor_large hr hP) cap
-
 
 end Erdos13ColumnModulo
 
@@ -5527,17 +4901,6 @@ lemma bad_nine : ∀ a, ¬Good 9 a → 46189 ∣ a := by
     (Nat.Coprime.mul_dvd_of_dvd_of_dvd (by decide : (11*13).Coprime 17)
       (Nat.Coprime.mul_dvd_of_dvd_of_dvd (by decide : (11:ℕ).Coprime 13) d₁ d₂) d₃) d₄
 
-/-- The conjectured bound on the shell down to N/(r+1) holds for all r ≥ 9. -/
-theorem shell_down_to_ninth (r : ℕ) (hr : 9 ≤ r) : ∃ K : ℕ, Shell r (r+1) K := by
-  by_cases h : 10 ≤ r
-  · exact shell_to_arity_succ r h
-  have eq : r=9 := by omega
-  subst r
-  obtain ⟨C,strict⟩ := local_gain_sparse_shell (r:=9) (by decide)
-  exact shell_of_paid_gap (by decide) (by decide : 0<46189) bad_nine
-    (by decide : localGain 9*(9+1)+1 ≤ 9*46189) strict
-
-
 end Erdos13ColumnModulo
 
 end
@@ -5548,108 +4911,6 @@ section
 
 namespace OMA.Erdos13Cyclic
 open Finset
-
-/-- The bound holds without any lower cutoff on members of A. The parameter K
-balances the number of exceptional moduli and the cost of rounding densities. -/
-theorem global_residue_bound {r N K : ℕ} (hr : 2 ≤ r) (hK : 0 < K) (A : Finset ℕ)
-    (sub : A ⊆ Icc 1 N) (free : FullColumns.Free r A) :
-    r * A.card ≤ N + r * (K + 1 + N / K) := by
-  classical
-  have witness (a) (ha : a ∈ A) : ∃ d : ℕ, 0 < d ∧ d ∣ a ∧
-      (∀ b ∈ A, a < b → ¬ d ∣ b) ∧
-      r * ((A.filter fun x => a < x).image (fun x => x % d)).card ≤ d+r-2 := by
-    by_cases hne : (A.filter fun x => a < x).Nonempty
-    · exact witness_of_free hr free (fun x hx => (mem_Icc.mp (sub hx)).1) a ha hne
-    · rw [not_nonempty_iff_eq_empty] at hne
-      refine ⟨a, (mem_Icc.mp (sub ha)).1, dvd_refl _, ?_, by simp [hne]⟩
-      intro b hb hlt
-      have hmem : b ∈ A.filter (a < ·) := mem_filter.mpr ⟨hb,hlt⟩
-      simp [hne] at hmem
-  choose! f pos div later size using witness
-  let E := A.filter (fun a => f a ≤ K)
-  have small : E.card ≤ K := by
-    have count : E.card ≤ (Icc 1 K).card := by
-      apply card_le_card_of_injOn f
-      · intro x hx
-        have h := mem_filter.mp hx
-        exact mem_Icc.mpr ⟨pos x h.1,h.2⟩
-      · intro x hx y hy he
-        have hxA := (mem_filter.mp hx).1
-        have hyA := (mem_filter.mp hy).1
-        rcases lt_trichotomy x y with h | h | h
-        · exact False.elim (later x hxA y hyA h (he ▸ div y hyA))
-        · exact h
-        · exact False.elim (later y hyA x hxA h (he ▸ div x hxA))
-    simpa using count
-  let G := A.filter (fun a => K < f a)
-  by_cases hn : G.Nonempty
-  · let a := G.min' hn
-    have hag : a ∈ G := min'_mem _ _
-    obtain ⟨haA,hdK⟩ := mem_filter.mp hag
-    let d := f a
-    let k := (N-a)/d + 1
-    let T := A.filter (a < ·)
-    have hd : 0 < d := pos a haA
-    have hda : d ≤ a := Nat.le_of_dvd (mem_Icc.mp (sub haA)).1 (div a haA)
-    have han := (mem_Icc.mp (sub haA)).2
-    have kd : k*d ≤ N := by
-      have := Nat.div_mul_le_self (N-a) d
-      dsimp [k]
-      rw [Nat.add_mul, Nat.one_mul]
-      omega
-    have kK : k ≤ N/K := (Nat.le_div_iff_mul_le hK).mpr
-      ((Nat.mul_le_mul_left k (show K ≤ d from hdK.le)).trans kd)
-    have cover : T ⊆ Ioc a (a + k*d) := by
-      intro b hb
-      obtain ⟨hbA,hab⟩ := mem_filter.mp hb
-      have := (mem_Icc.mp (sub hbA)).2
-      have eqn := Nat.mod_add_div (N-a) d
-      have rem := Nat.mod_lt (N-a) hd
-      rw [mul_comm d _] at eqn
-      apply mem_Ioc.mpr
-      dsimp [k]
-      rw [Nat.add_mul, Nat.one_mul]
-      omega
-    have cnt := OMA.Erdos13UpperShell.count_residues_in_blocks hd cover
-    have hres := size a haA
-    change r * (T.image (fun x => x % d)).card ≤ d+r-2 at hres
-    have res' : r * (T.image (fun x => x % d)).card ≤ d+r := by omega
-    have tail : r * T.card ≤ N + r * (N/K) := by
-      have c1 := Nat.mul_le_mul_left r cnt
-      have c2 := Nat.mul_le_mul_left k res'
-      have c3 := Nat.mul_le_mul_left r kK
-      nlinarith only [c1,c2,c3,kd]
-    have contain : A ⊆ E ∪ insert a T := by
-      intro x hx
-      by_cases h : f x ≤ K
-      · exact mem_union_left _ (mem_filter.mpr ⟨hx,h⟩)
-      · have xG : x ∈ G := mem_filter.mpr ⟨hx,by omega⟩
-        have xa : a ≤ x := min'_le _ _ xG
-        by_cases eq : x = a
-        · exact mem_union_right _ (mem_insert.mpr (Or.inl eq))
-        · exact mem_union_right _ (mem_insert.mpr (Or.inr (mem_filter.mpr ⟨hx, by omega⟩)))
-    have cA := (card_le_card contain).trans (card_union_le _ _)
-    have ci := card_insert_le a T
-    have hA : A.card ≤ K + 1 + T.card := by omega
-    have total := Nat.mul_le_mul_left r hA
-    nlinarith only [total,tail]
-  · have subE : A ⊆ E := by
-      intro x hx
-      apply mem_filter.mpr
-      refine ⟨hx, ?_⟩
-      by_contra! h
-      exact hn ⟨x,mem_filter.mpr ⟨hx,h⟩⟩
-    have hc := Nat.mul_le_mul_left r ((card_le_card subE).trans small)
-    nlinarith only [hc, Nat.zero_le N, Nat.zero_le r, Nat.zero_le (r * (N/K))]
-
-/-- A square-root choice of cutoff gives a bound uniform in the location of A. -/
-theorem global_sqrt_bound {r N : ℕ} (hr : 2 ≤ r) (A : Finset ℕ)
-    (sub : A ⊆ Icc 1 N) (free : FullColumns.Free r A) :
-    r * A.card ≤ N + r * (2 * N.sqrt + 2) := by
-  have hdiv : N / (N.sqrt + 1) < N.sqrt + 1 := (Nat.div_lt_iff_lt_mul (by omega)).mpr
-    (Nat.lt_succ_sqrt N)
-  have h := global_residue_bound (K := N.sqrt + 1) hr (by omega) A sub free
-  exact h.trans (Nat.add_le_add_left (Nat.mul_le_mul_left r (by omega)) N)
 
 end OMA.Erdos13Cyclic
 
@@ -5725,82 +4986,6 @@ theorem wider_sparse_stability {r : ℕ} (hr : 9 ≤ r) : ∃ C, ∀ (m : ℕ) (
   obtain ⟨C,cap⟩ := local_gain_sparse_shell (r:=r) (by omega)
   exact sparse_gap_after_bad (n:=2) (by omega) hp (by decide) div (by simpa [shellWeight] using factor) cap
 
-def globalWeight (r : ℕ) := 2*shellWeight r*(r+1)
-
-/-- The coefficient of N in this uniform bound is strictly less than 1/r. -/
-theorem global_of_sparse {r W C : ℕ} (hr : 3 ≤ r) (wpos : 0 < W)
-    (shell : ∀ (m : ℕ) (A : Finset ℕ), (∀ a∈A, 0<a ∧ m ≤ a ∧ a ≤ (r+1)*m) → Free r A →
-      2*(Ioc (r*m) ((r+1)*m) ∩ A).card ≤ m → W*A.card+m ≤ W*m+C) :
-    ∃ K : ℕ, ∀ (N : ℕ) (A : Finset ℕ),
-    A ⊆ Icc 1 N → Free r A →
-    (2*W*(r+1)*r+1)*A.card ≤ 2*W*(r+1)*N+K := by
-  classical
-  obtain ⟨D,majority⟩ := Erdos13HalfOccupied.majority_witness (r:=r) (by omega)
-  let M := 2*W*(r+1)
-  have mpos : 1 ≤ M := by
-    change 0 < 2*W*(r+1)
-    positivity
-  let E := 2*(r*C+W*r*(2*W+1))
-  let K := (r+1)*E+(M*r+1)*D
-  have rounded (m) (A : Finset ℕ) (sub : A ⊆ Icc 1 ((r+1)*m)) (free : Free r A) :
-      (M*r+1)*A.card ≤ M*((r+1)*m)+K := by
-    by_cases sp : 2*(Ioc (r*m) ((r+1)*m) ∩ A).card ≤ m
-    · let S := A.filter (m≤·)
-      let L := A.filter fun a => ¬m≤a
-      have sA : S ⊆ A := filter_subset _ _
-      have lA : L ⊆ A := filter_subset _ _
-      have cap := shell m S (fun a ha => ⟨(mem_Icc.mp (sub (sA ha))).1,
-        (mem_filter.mp ha).2,(mem_Icc.mp (sub (sA ha))).2⟩)
-        (fun a ha b hb => free a (sA ha) b (fun i => sA (hb i)))
-        ((Nat.mul_le_mul_left 2 (card_le_card (inter_subset_inter (Subset.rfl) sA))).trans sp)
-      change W*S.card + m ≤ W*m+C at cap
-      have low := OMA.Erdos13Cyclic.global_residue_bound (K:=2*W) (by omega : 2≤r) (by omega) L
-        (fun a ha => mem_Icc.mpr ⟨(mem_Icc.mp (sub (lA ha))).1, le_of_lt (lt_of_not_ge (mem_filter.mp ha).2)⟩)
-        (fun a ha b hb => free a (lA ha) b (fun i => lA (hb i)))
-      have part : S.card+L.card=A.card := A.card_filter_add_card_filter_not (m≤·)
-      have sc := Nat.mul_le_mul_left r cap
-      have lc := Nat.mul_le_mul_left W low
-      have rem := Nat.mul_le_mul_left r (Nat.div_mul_le_self m (2*W))
-      have joint : 2*W*r*A.card + r*m ≤ 2*W*((r+1)*m)+E := by
-        rw [←part]
-        dsimp [E]
-        nlinarith only [sc,lc,rem]
-      have high := Nat.mul_le_mul_left (r+1) joint
-      have cover := card_le_card sub
-      simp only [Nat.card_Icc,Nat.add_one_sub_one] at cover
-      have span : A.card ≤ r*((r+1)*m) := cover.trans
-        (by simpa using Nat.mul_le_mul_right ((r+1)*m) (show 1 ≤ r by omega))
-      change (2*W*(r+1)*r+1)*A.card ≤ 2*W*(r+1)*((r+1)*m)+K
-      dsimp [K]
-      nlinarith only [high,span,Nat.zero_le ((M*r+1)*D)]
-    · have bd : A.card ≤ m+D := by
-        by_contra! big
-        obtain ⟨a,ha,b,hb,s⟩ := majority m A sub big (by omega)
-        exact free a ha b (fun i => (hb i).1) (fun i => (hb i).2) s
-      have h := Nat.mul_le_mul_left (M*r+1) bd
-      have s := Nat.mul_le_mul_right m mpos
-      dsimp [K]
-      nlinarith only [h,s,Nat.zero_le ((r+1)*E)]
-  refine ⟨K+M*r,?_⟩
-  intro N A sub free
-  let m := (N+r)/(r+1)
-  have dr := Nat.mod_add_div (N+r) (r+1)
-  have rem := Nat.mod_lt (N+r) (show 0<r+1 by omega)
-  have ends : N ≤ (r+1)*m ∧ (r+1)*m ≤ N+r := by dsimp [m]; omega
-  have out := rounded m A (fun a ha => mem_Icc.mpr ⟨(mem_Icc.mp (sub ha)).1,
-    (mem_Icc.mp (sub ha)).2.trans ends.1⟩) free
-  have sc := Nat.mul_le_mul_left M ends.2
-  rw [Nat.mul_add] at sc
-  change (M*r+1)*A.card ≤ M*N+(K+M*r)
-  omega
-
-/-- The coefficient of N in this uniform bound is strictly less than 1/r. -/
-theorem global_strict_bound (r : ℕ) (hr : 9 ≤ r) : ∃ C : ℕ, ∀ (N : ℕ) (A : Finset ℕ),
-    A ⊆ Icc 1 N → Free r A →
-    (globalWeight r*r+1)*A.card ≤ globalWeight r*N+C := by
-  obtain ⟨C,shell⟩ := wider_sparse_stability hr
-  exact global_of_sparse (by omega) (by dsimp [shellWeight]; omega) shell
-
 end Erdos13ColumnModulo
 
 end
@@ -5836,53 +5021,6 @@ lemma sqrt_absorb (r m C : ℕ) :
     change 2*C*(z+1) ≤ _
     nlinarith only [h,Nat.zero_le (C*C*(r+1))]
 
-lemma sharp_shell_of_stability {r W C : ℕ} (hr : 3≤r) (wp : 0<W)
-    (stable : ∀ (m : ℕ) (A : Finset ℕ), (∀ a∈A, 0<a ∧ m≤a ∧ a≤(r+1)*m) →
-      Free r A → 2*(Ioc (r*m) ((r+1)*m) ∩ A).card ≤ m → W*A.card+m ≤ W*m+C) :
-    ∃ K : ℕ, Shell r (r+1) K := by
-  obtain ⟨D,major⟩ := Erdos13HalfOccupied.majority_witness hr
-  refine ⟨r+(r+1)*(C+D),?_⟩
-  intro N A sub free
-  let m := (N+r)/(r+1)
-  have eq := Nat.mod_add_div (N+r) (r+1)
-  have rem := Nat.mod_lt (N+r) (show 0<r+1 by omega)
-  have ends : N ≤ (r+1)*m ∧ (r+1)*m ≤ N+r := by dsimp [m]; omega
-  have cover (a) (ha : a∈A) : 0<a ∧ m≤a ∧ a≤(r+1)*m := by
-    have h := sub a ha
-    refine ⟨h.1,?_,h.2.2.trans ends.1⟩
-    apply Nat.le_of_lt_succ ((Nat.div_lt_iff_lt_mul (by omega : 0<r+1)).mpr ?_)
-    nlinarith only [h.2.1]
-  have rd : A.card ≤ m+C+D := by
-    by_cases sp : 2*(Ioc (r*m) ((r+1)*m) ∩ A).card ≤ m
-    · have h := stable m A cover free sp
-      have e := Nat.mul_le_mul_right C (show 1 ≤ W by omega)
-      have t : A.card ≤ m+C := Nat.le_of_mul_le_mul_left (by rw [Nat.mul_add]; omega) wp
-      omega
-    · by_contra! big
-      obtain ⟨a,ha,b,hb,d⟩ := major m A (fun a ha => mem_Icc.mpr ⟨(cover a ha).1,(cover a ha).2.2⟩)
-        (by omega) (by omega)
-      exact free a ha b (fun i => (hb i).1) (fun i => (hb i).2) d
-  rw [Nat.add_assoc] at rd
-  have bound := Nat.mul_le_mul_left (r+1) rd
-  rw [Nat.mul_add] at bound
-  omega
-
-lemma many_below_m_of_stability {r W C : ℕ} (wp : 0<W)
-    (stable : ∀ (m : ℕ) (A : Finset ℕ), (∀ a∈A, 0<a ∧ m≤a ∧ a≤(r+1)*m) →
-      Free r A → 2*(Ioc (r*m) ((r+1)*m) ∩ A).card ≤ m → W*A.card+m ≤ W*m+C)
-    (m : ℕ) (A : Finset ℕ) (sub : A ⊆ Icc 1 ((r+1)*m)) (free : Free r A)
-    (large : m+C < A.card) (sp : 2*(Ioc (r*m) ((r+1)*m) ∩ A).card ≤ m) :
-    m < W*(A.filter (fun x => x < m)).card := by
-  let S := A.filter (fun x => ¬ x < m)
-  have incl : S ⊆ A := filter_subset _ _
-  have cap := stable m S (fun a ha => ⟨(mem_Icc.mp (sub (incl ha))).1,le_of_not_gt (mem_filter.mp ha).2,
-    (mem_Icc.mp (sub (incl ha))).2⟩) (fun a ha b hb => free a (incl ha) b (fun i => incl (hb i)))
-    ((Nat.mul_le_mul_left 2 (card_le_card (inter_subset_inter (Subset.rfl) incl))).trans sp)
-  have p : (A.filter (fun x => x < m)).card+S.card=A.card := A.card_filter_add_card_filter_not (fun x => x < m)
-  have h := Nat.mul_lt_mul_of_pos_left large wp
-  have c := Nat.mul_le_mul_right C (show 1≤W by omega)
-  rw [←p,Nat.mul_add,Nat.mul_add] at h
-  omega
 end OMA.Erdos13Universal
 
 end
@@ -5916,133 +5054,6 @@ lemma paired_residues (D : Finset ℕ) {q : ℕ} (cop : (3:ℕ).Coprime q)
       obtain ⟨y',_,rfl⟩ := mem_image.mp hy
       simpa [Nat.ModEq] using eq)
   simpa [card_product, R] using h
-
-lemma split_period (B : Finset ℕ) {v q t w : ℕ} (hq : 0<q)
-    (cop : (3:ℕ).Coprime q) (avoid : ∀ b ∈ B, ¬3 ∣ b)
-    (sub : B ⊆ Ico v (v+t*(3*q)+w)) (hw : w < 3*q) :
-    ∃ u : ℕ, B.card ≤ t*(2*(B.image (·%q)).card)+u ∧
-      u ≤ 2*(B.image (·%q)).card ∧
-      (w ≤ q → u ≤ min w (B.image (·%q)).card) ∧
-      (q ≤ w → w ≤ 2*q → u ≤ (B.image (·%q)).card + min (w-q) (B.image (·%q)).card) := by
-  classical
-  let P := B.filter fun b => b < v+t*(3*q)
-  let S := B.filter fun b => ¬b < v+t*(3*q)
-  let R := B.image (·%q)
-  let U := B.image (·%(3*q))
-  have inclP : P ⊆ Ico v (v+(t*(3*q)+0)) := by
-    intro x hx
-    obtain ⟨h,hh⟩ := mem_filter.mp hx
-    exact mem_Ico.mpr ⟨(mem_Ico.mp (sub h)).1,by omega⟩
-  have countP := Erdos13HalfOccupied.count_by_period (3*q) t 0 (by omega) U v P inclP
-    (fun x hx => mem_image_of_mem _ (mem_filter.mp hx).1)
-  have smallP : P.card ≤ t*(2*R.card) := by
-    have b := Nat.mul_le_mul_left t (paired_residues B cop avoid)
-    simp only [Nat.zero_min, Nat.add_zero] at countP
-    exact countP.trans b
-  have sincl : S ⊆ Ico (v+t*(3*q)) (v+t*(3*q)+w) := by
-    intro x hx
-    obtain ⟨h,hh⟩ := mem_filter.mp hx
-    exact mem_Ico.mpr ⟨le_of_not_gt hh,(mem_Ico.mp (sub h)).2⟩
-  have rmem (x) (hx : x ∈ S) : x%q ∈ R := mem_image_of_mem _ (mem_filter.mp hx).1
-  have smem (x) (hx : x ∈ S) : x%(3*q) ∈ U := mem_image_of_mem _ (mem_filter.mp hx).1
-  have ucap := Erdos13HalfOccupied.count_by_period (3*q) 0 w hw.le U _ S (by simpa using sincl) smem
-  have uc : S.card ≤ 2*R.card := (show S.card ≤ U.card by simpa using ucap.trans (by simp)).trans (paired_residues B cop avoid)
-  have part : P.card + S.card = B.card := B.card_filter_add_card_filter_not _
-  refine ⟨S.card,?_,uc,?_,?_⟩
-  · change B.card ≤ t*(2*R.card)+S.card
-    omega
-  · intro h
-    simpa using Erdos13HalfOccupied.count_by_period q 0 w h R _ S (by simpa using sincl) rmem
-  · intro lo hi
-    have h := Erdos13HalfOccupied.count_by_period q 1 (w-q) (by omega) R _ S (by
-      simpa [Nat.add_sub_of_le lo] using sincl) rmem
-    simpa using h
-
-lemma three_tail {r N a q : ℕ} (hr : 3 ≤ r) (low : 3*a ≤ N)
-    (hq : 8*r < q) (qa : q ≤ a) (cop : (3:ℕ).Coprime q)
-    (B : Finset ℕ) (avoid : ∀ b ∈ B, ¬3 ∣ b) (sub : B ⊆ Ioc a N)
-    (hR : r*(B.image (·%q)).card ≤ q+r-2) : (r+1)*B.card ≤ N+5*r := by
-  let c := (B.image (·%q)).card
-  let t := (N-a)/(3*q)
-  let w := (N-a)%(3*q)
-  have dec : t*(3*q)+w = N-a := by simpa [t,w,Nat.mul_comm,Nat.add_comm] using Nat.mod_add_div (N-a) (3*q)
-  have small : w < 3*q := Nat.mod_lt _ (by omega)
-  have cover : B ⊆ Ico (a+1) ((a+1)+t*(3*q)+w) := by
-    intro x hx
-    have h := mem_Ioc.mp (sub hx)
-    exact mem_Ico.mpr ⟨by omega,by omega⟩
-  obtain ⟨u,cap,uc,short,mid⟩ := split_period B (by omega) cop avoid cover small
-  change B.card ≤ t*(2*c)+u at cap
-  change u ≤ 2*c at uc
-  change w ≤ q → u ≤ min w c at short
-  change q ≤ w → w ≤ 2*q → u ≤ c+min (w-q) c at mid
-  change r*c ≤ q+r-2 at hR
-  have rc : r*c ≤ q+r := by omega
-  have rc3 := Nat.mul_le_mul_right c hr
-  have full : (r+1)*(2*c) ≤ 3*q := by nlinarith only [rc,rc3,hq]
-  have triple : (r+1)*(3*c) ≤ 4*q+4*r := by nlinarith only [rc,rc3]
-  have spend (w' : ℕ) : (r+1)*min w' c ≤ q+r+w' := by
-    have h := Nat.mul_le_mul_left r (min_le_right w' c)
-    have hw := min_le_left w' c
-    nlinarith only [h,hw,rc]
-  have total := Nat.mul_le_mul_left (r+1) cap
-  have number := Nat.sub_add_cancel (show a ≤ N by omega)
-  by_cases wsmall : w ≤ q
-  · have f := Nat.mul_le_mul_left t full
-    have cost := (Nat.mul_le_mul_left (r+1) (short wsmall)).trans (spend w)
-    nlinarith only [total,f,cost,dec,number,qa,Nat.zero_le r]
-  by_cases wbig : 2*q ≤ w
-  · have f := Nat.mul_le_mul_left t full
-    have cost := (Nat.mul_le_mul_left (r+1) uc).trans full
-    nlinarith only [total,f,cost,dec,number,qa,wbig,Nat.zero_le r]
-  have ht : 0<t := by
-    by_contra hx
-    have hzero : t=0 := Nat.eq_zero_of_not_pos hx
-    rw [hzero, Nat.zero_mul, Nat.zero_add] at dec
-    omega
-  have f := Nat.mul_le_mul_left (t-1) full
-  have tdec : t-1+1=t := by omega
-  have fm := congrArg (fun k : ℕ => k*(3*q)) tdec
-  have fc := congrArg (fun k : ℕ => (r+1)*(k*(2*c))) tdec
-  have cost := Nat.mul_le_mul_left (r+1) (mid (by omega) (by omega))
-  have wdec := Nat.sub_add_cancel (show q ≤ w by omega)
-  nlinarith only [total,f,fm,fc,triple,cost,spend (w-q),wdec,dec,number,qa]
-
-/-- Every admissible set containing no multiple of three has the conjectured
-bound, with no requirement on its distribution between classes one and two. -/
-theorem no_three_multiples_bound (r : ℕ) (hr : 3 ≤ r) : ∃ C : ℕ,
-    ∀ (N : ℕ) (A : Finset ℕ), A ⊆ Icc 1 N → (∀ b ∈ A, ¬3 ∣ b) →
-      FullColumns.Free r A → (r+1)*A.card ≤ N+C := by
-  let C := (128*r + 24*((r+1)*(16*r+1)+32*r+1)+2) + (r+1)*(64*r+1)
-  refine ⟨(C+5*r)+(r+1)*(8*r+1), ?_⟩
-  intro N A sub avoid free
-  have pos (a : ℕ) (ha : a ∈ A) := (mem_Icc.mp (sub ha)).1
-  rw [← Nat.add_assoc N]
-  apply OMA.Erdos13UpperShell.select_large_quotient (N := N) (K := C+5*r) (L := 8*r) A pos
-    (OMA.Erdos13Cyclic.witness_of_free (by omega) free pos)
-  intro a ha q hq dvd quotient
-  let B := A.filter (a < ·)
-  have hB : B ⊆ Ioc a N := by
-    intro b hb
-    have h := mem_filter.mp hb
-    exact mem_Ioc.mpr ⟨h.2,(mem_Icc.mp (sub h.1)).2⟩
-  have good : B ⊆ A := filter_subset _ _
-  by_cases low : 3*a ≤ N
-  · have cop : (3:ℕ).Coprime q := Nat.prime_three.coprime_iff_not_dvd.mpr
-      (fun hz => avoid a ha (hz.trans dvd))
-    have t := three_tail hr low hq (Nat.le_of_dvd (pos a ha) dvd) cop B
-      (fun b hb => avoid b (good hb)) hB quotient
-    change (r+1)*B.card ≤ _
-    omega
-  · have hs : ∀ b ∈ B, 0<b ∧ N ≤ 3*b ∧ b ≤ N := by
-      intro b hb
-      have h := mem_Ioc.mp (hB hb)
-      exact ⟨by omega,by omega,h.2⟩
-    have hf : FullColumns.Free r B := fun a ha b hb => free a (good ha) b (fun i => good (hb i))
-    have h := OMA.Erdos13UpperShell.bound_on_third_shell hr B hs hf
-    change (r+1)*B.card ≤ _
-    dsimp [C]
-    omega
 
 end Erdos13NoThreeMultiples
 
@@ -6679,25 +5690,6 @@ theorem boundary_sparse_stability (r : ℕ) (hr : 3≤r) : ∃ W C : ℕ, 0<W �
   change 2*Q*(N.sqrt+1) ≤ _ at small
   nlinarith only [approx,small]
 
-/-- The conjectured bound holds for all sets supported above N/(r+1). -/
-theorem full_boundary_shell (r : ℕ) (hr : 3≤r) : ∃ K : ℕ, Shell r (r+1) K := by
-  obtain ⟨W,C,wp,h⟩ := boundary_sparse_stability r hr
-  exact sharp_shell_of_stability hr wp h
-
-/-- The global bound has coefficient strictly smaller than 1/r, uniformly in N. -/
-theorem global_subreciprocal (r : ℕ) (hr : 3≤r) : ∃ M C : ℕ, 0<M ∧ ∀ (N : ℕ) (A : Finset ℕ),
-    A ⊆ Icc 1 N → Free r A → (M*r+1)*A.card ≤ M*N+C := by
-  obtain ⟨W,C,wp,h⟩ := boundary_sparse_stability r hr
-  obtain ⟨K,cap⟩ := global_of_sparse hr wp h
-  exact ⟨2*W*(r+1),K,by positivity,cap⟩
-
-/-- A sparse-top counterexample must have linearly many elements strictly below N/(r+1). -/
-theorem many_below_boundary (r : ℕ) (hr : 3≤r) : ∃ W C : ℕ, ∀ (m : ℕ) (A : Finset ℕ),
-    A ⊆ Icc 1 ((r+1)*m) → Free r A → m+C<A.card →
-    2*(Ioc (r*m) ((r+1)*m) ∩ A).card ≤ m → m<W*(A.filter (fun x => x < m)).card := by
-  obtain ⟨W,C,wp,h⟩ := boundary_sparse_stability r hr
-  exact ⟨W,C,many_below_m_of_stability wp h⟩
-
 end OMA.Erdos13Universal
 
 end
@@ -6746,15 +5738,6 @@ theorem variable_witness_at {r s t k x y z : ℕ} {A : Finset ℕ}
     simpa [f,tail,Fin.sum_univ_add,Finset.sum_add_distrib] using num
   rw [←slots] at free
   exact free x hx f mem high ⟨k+(r-s),tally⟩
-
-/-- The variable summands can depend on the divisor. -/
-theorem variable_witness {r s t k : ℕ} {A S : Finset ℕ}
-    (hs : s<r) (room : s+t≤r) (e : Fin t → ℕ) (b : ℕ → Fin s → ℕ)
-    (free : Free r A) (inside : S ⊆ A) (offsets : ∀ n ∈ S, ∀ i,n+e i∈A)
-    (cert : ∀ n ∈ S, CertAt A e k s n (b n))
-    {y x z : ℕ} (hy : y∈S) (hx : x∈S) (hz : z∈S) (yx : y<x) (xz : x<z)
-    (prop : (r-s)*(z-x)=k*(x-y)) (order : ∀ i,x<b y i) : False :=
-  variable_witness_at hs room e (b y) free (inside hx) (inside hz) xz yx (offsets z hz) (cert y hy) order prop
 
 /-- Removing a variable summand with known offset c keeps the certificate
 equation after c is appended to e and k is decreased by one. -/
@@ -7363,57 +6346,6 @@ the required bounded additive error for the original sparse-top problem. -/
 namespace Erdos13Shorter
 open Finset FullColumns
 
-/-- Simultaneous shorter freeness and sharp tail support at every retained pivot. -/
-theorem simultaneous_residues {r : ℕ} (rp : 0<r) (K : ℕ) (kp : 0<K) :
-    ∃ C : ℕ, ∀ (N : ℕ) (A : Finset ℕ), A ⊆ Icc 1 N → Free r A →
-      ∃ B ⊆ A, K*(A \ B).card ≤ N+C ∧
-        (∀ s : ℕ, 0<s → s≤r → Free s B) ∧
-        ∀ a∈B, r*((B.filter (a<·)).image (·%a)).card+1≤a := by
-  obtain ⟨C,pr⟩ := simultaneous_removal r K kp
-  refine ⟨C,?_⟩
-  intro N A sub free
-  obtain ⟨B,inc,cost,all⟩ := pr N A sub free
-  exact ⟨B,inc,cost,all,fun a ha => OMA.Erdos13StrongResidues.tail_bound rp
-    (mem_Icc.mp (sub (inc ha))).1 ha all⟩
-
-/-- Any hereditary class with a strict saving over m in the simultaneous model
-has a bounded additive error over m under the original arity-r condition. -/
-theorem transfer_sparse_gap (r W E : ℕ) (wp : 0<W) (P : ℕ → Finset ℕ → Prop)
-    (hereditary : ∀ {m : ℕ} {A B : Finset ℕ}, P m A → B⊆A → P m B)
-    (gap : ∀ (m : ℕ) (B : Finset ℕ), B ⊆ Icc 1 ((r+1)*m) → P m B →
-      (∀ j : ℕ, 0<j → j≤r → Free j B) → W*B.card+m ≤ W*m+E) :
-    ∃ C : ℕ, ∀ (m : ℕ) (A : Finset ℕ), A ⊆ Icc 1 ((r+1)*m) → P m A →
-      Free r A → A.card ≤ m+C := by
-  let K := (r+1)*W
-  have kp : 0<K := Nat.mul_pos (by omega) wp
-  obtain ⟨C,pr⟩ := simultaneous_removal r K kp
-  refine ⟨E+C,?_⟩
-  intro m A sub p free
-  obtain ⟨B,inc,cost,strong⟩ := pr ((r+1)*m) A sub free
-  have bound := gap m B (inc.trans sub) (hereditary p inc) strong
-  have scale := Nat.mul_le_mul_left (r+1) bound
-  have count := card_sdiff_of_subset inc
-  have split : (A \ B).card + B.card = A.card := by
-    rw [count,Nat.sub_add_cancel (card_le_card inc)]
-  have total := Nat.mul_le_mul_left (r+1) (show E ≤ E+C by omega)
-  have sumcost : K*A.card ≤ K*m+((r+1)*E+C) := by
-    calc
-      K*A.card = K*(A \ B).card+K*B.card := by rw [←Nat.mul_add,split]
-      _ ≤ (r+1)*m+C+K*B.card := Nat.add_le_add_right cost _
-      _ ≤ K*m+((r+1)*E+C) := by
-        dsimp only [K]
-        simp only [Nat.mul_add,←Nat.mul_assoc] at scale
-        omega
-  have err : (r+1)*E+C ≤ K*(E+C) := by
-    have dom : r+1 ≤ K := by unfold K; exact Nat.le_mul_of_pos_right _ wp
-    have e := Nat.mul_le_mul_right E dom
-    have c := Nat.le_mul_of_pos_left C kp
-    rw [Nat.mul_add]
-    omega
-  apply Nat.le_of_mul_le_mul_left _ kp
-  rw [Nat.mul_add]
-  exact sumcost.trans (Nat.add_le_add_left err _)
-
 end Erdos13Shorter
 
 end
@@ -7485,48 +6417,6 @@ theorem strong_shell_gap (r : ℕ) (hr : 4≤r) : ∃ V C : ℕ, 0<V ∧ ∀ (m 
   have spare := Nat.zero_le (((2*r*r+1)*W+1)*C)
   dsimp only [V]
   nlinarith only [Nat.mul_le_mul_left W lowcap,sx,lx,high,spare]
-
-theorem original_shell (r : ℕ) (hr : 4≤r) : ∃ C : ℕ, ∀ (N : ℕ) (A : Finset ℕ), A⊆Icc 1 N →
-    (∀ x∈A,(4*r-1)*N<((4*r-1)*(r+1)+1)*x) → Free r A → (r+1)*A.card≤N+C := by
-  classical
-  obtain ⟨W,C,wp,gap⟩ := strong_shell_gap r hr
-  let P (m : ℕ) (A : Finset ℕ) := (∀ x∈A,(4*r-1)*((r+1)*m)<((4*r-1)*(r+1)+1)*x) ∧
-    2*(Ioc (r*m) ((r+1)*m) ∩ A).card≤ m
-  obtain ⟨E,sp⟩ := Erdos13Shorter.transfer_sparse_gap r W C wp P
-    (fun h inc=>⟨fun x hx=>h.1 x (inc hx),
-      (Nat.mul_le_mul_left 2 (card_le_card (inter_subset_inter (Subset.rfl) inc))).trans h.2⟩)
-    (fun m B sub p strong=>gap m B sub p.1 strong p.2)
-  obtain ⟨D,major⟩ := Erdos13HalfOccupied.majority_witness (r:=r) (by omega)
-  refine ⟨(r+1)*(D+E+r),?_⟩
-  intro N A sub supp free
-  let m := N/(r+1)
-  let B := A.filter (·≤(r+1)*m)
-  have inc : B⊆A := filter_subset _ _
-  have cover : B⊆Icc 1 ((r+1)*m) := fun x hx=>mem_Icc.mpr ⟨(mem_Icc.mp (sub (inc hx))).1,(mem_filter.mp hx).2⟩
-  have hfree : Free r B := fun x hx b hb=>free x (inc hx) b (fun i=>inc (hb i))
-  have de := Nat.mod_add_div N (r+1)
-  have rem := Nat.mod_lt N (show 0<r+1 by omega)
-  have base : (r+1)*m≤N := by dsimp [m]; omega
-  have s : ∀ x∈B,(4*r-1)*((r+1)*m)<((4*r-1)*(r+1)+1)*x :=
-    fun x hx=>(Nat.mul_le_mul_left _ base).trans_lt (supp _ (inc hx))
-  have cap : B.card≤ m+D+E := by
-    by_cases sparse : 2*(Ioc (r*m) ((r+1)*m) ∩ B).card≤ m
-    · have := sp m B cover ⟨s,sparse⟩ hfree
-      omega
-    · by_contra! big
-      obtain ⟨x,hx,b,hb,dvd⟩ := major m B cover (by omega) (by omega)
-      exact hfree x hx b (fun i=>(hb i).1) (fun i=>(hb i).2) dvd
-  have last : A.filter (fun x=>¬x≤(r+1)*m)⊆Ioc ((r+1)*m) N := by
-    intro x hx
-    exact mem_Ioc.mpr ⟨by have := (mem_filter.mp hx).2; omega,(mem_Icc.mp (sub (mem_filter.mp hx).1)).2⟩
-  have lim := card_le_card last
-  rw [Nat.card_Ioc] at lim
-  have part : B.card+(A.filter (fun x=>¬x≤(r+1)*m)).card=A.card := A.card_filter_add_card_filter_not _
-  have remainder : N-(r+1)*m≤r := by dsimp [m]; omega
-  have ac : A.card≤ m+(D+E+r) := by omega
-  have sc := Nat.mul_le_mul_left (r+1) ac
-  rw [Nat.mul_add] at sc
-  omega
 
 end Erdos13ExtraRow
 
@@ -7779,117 +6669,6 @@ open Finset FullColumns OMA.Erdos13Universal
 def admitted (r N a : ℕ) : Prop := N≤(r+1)*a ∨ ∃ k : ℕ, 4*r-1≤k ∧
     (N-(r+1)*a)<a / Nat.gcd a k ∧ k*(N-(r+1)*a)<(r*r+1-k)*a
 
-theorem admitted_mono {r M N a : ℕ} (mn : M≤N) (h : admitted r N a) : admitted r M a := by
-  rcases h with d|⟨k,kl,per,cap⟩
-  · exact Or.inl (mn.trans d)
-  · have s := Nat.sub_le_sub_right mn ((r+1)*a)
-    exact Or.inr ⟨k,kl,s.trans_lt per,(Nat.mul_le_mul_left k s).trans_lt cap⟩
-
-theorem window_gap (r : ℕ) (hr : 4≤r) : ∃ V C : ℕ, 0<V ∧ ∀ (m : ℕ) (A : Finset ℕ),
-    A⊆Icc 1 ((r+1)*m) → (∀ x∈A,admitted r ((r+1)*m) x) →
-    (∀ j,0<j → j≤r → Free j A) → 2*(Ioc (r*m) ((r+1)*m) ∩ A).card≤ m →
-    V*A.card+m≤V*m+C := by
-  classical
-  obtain ⟨K,tail⟩ := window_tail r hr
-  obtain ⟨W,C,wp,bound⟩ := boundary_sparse_stability r (by omega)
-  let E := 2*r*r+2*K*(2*K*(r+1)+1)
-  let V := (2*r*r+1)*W
-  refine ⟨V,(V+1)*C+C+W*E,by dsimp [V]; positivity,?_⟩
-  intro m A sub shell strong sparse
-  let H := A.filter (fun x=>¬x< m)
-  have inc : H⊆A := filter_subset _ _
-  have high := bound m H (fun x hx=>⟨(mem_Icc.mp (sub (inc hx))).1,
-    by have := (mem_filter.mp hx).2; omega,(mem_Icc.mp (sub (inc hx))).2⟩)
-    (fun x hx b hb=>strong r (by omega) le_rfl x (inc hx) b (fun i=>inc (hb i)))
-    ((Nat.mul_le_mul_left 2 (card_le_card (inter_subset_inter (Subset.rfl) inc))).trans sparse)
-  by_cases low : ∃ x∈A,x< m
-  swap
-  · have eq : H=A := filter_eq_self.mpr (fun x hx lt=>low ⟨x,hx,lt⟩)
-    rw [eq] at high
-    have wv : W≤V := Nat.le_mul_of_pos_left _ (by positivity : 0<2*r*r+1)
-    exact (lift_weight (W:=V) wp wv high).trans (by omega)
-  obtain ⟨b,hb,bl⟩ := low
-  let a := A.min' ⟨b,hb⟩
-  have ha : a∈A := min'_mem _ _
-  have amin (x) (hx : x∈A) : a≤x := min'_le _ x hx
-  let z := m-a
-  have az : a+z=m := Nat.add_sub_of_le ((amin _ hb).trans bl.le)
-  have endeq : (r+1)*a+(r+1)*z=(r+1)*m := by rw [←Nat.mul_add,az]
-  have lt := Nat.mul_lt_mul_of_pos_left ((amin _ hb).trans_lt bl) (by omega : 0<r+1)
-  obtain ⟨k,kl,per,cap⟩ := (shell a ha).resolve_left (by omega)
-  have dz : (r+1)*m-(r+1)*a=(r+1)*z := by omega
-  rw [dz] at per cap
-  have t := tail (D:=(r+1)*z) (mem_Icc.mp (sub ha)).1 kl per cap ha strong
-    (fun x hx => endeq ▸ (mem_Icc.mp (sub hx)).2)
-  have tailcard : A.card≤(A.filter (a<·)).card+1 := by
-    have part := A.card_filter_add_card_filter_not (fun x=>a<x)
-    have incl : A.filter (fun x=>¬a<x)⊆{a} := by
-      intro x hx
-      have := amin x (mem_filter.mp hx).1
-      have := (mem_filter.mp hx).2
-      simpa using (show x=a by omega)
-    have le := card_le_card incl
-    simp only [card_singleton] at le
-    omega
-  have pred : r-1+1=r := by omega
-  have rid : (r-1)*(r+1)+1=r*r := by nlinarith only [pred,congrArg (·*r) pred]
-  have err := sqrt_absorb r z K
-  have localbound : 2*r*r*A.card+z≤2*r*r*m+E := by
-    dsimp [E]
-    nlinarith only [t,Nat.mul_le_mul_left (r*r) tailcard,congrArg (·*z) rid,congrArg (r*r*·) az,err,Nat.zero_le K]
-  have lowcap : (A.filter (fun x=>x< m)).card≤z := by
-    have tsub : A.filter (fun x=>x< m)⊆Ico a m := fun x hx=>
-      mem_Ico.mpr ⟨amin x (mem_filter.mp hx).1,(mem_filter.mp hx).2⟩
-    simpa [z] using card_le_card tsub
-  have split : (A.filter (fun x=>x< m)).card+H.card=A.card := A.card_filter_add_card_filter_not _
-  have lx := Nat.mul_le_mul_left W localbound
-  have sx := congrArg (W*·) split
-  simp only [Nat.mul_add] at lx sx
-  have spare := Nat.zero_le (((2*r*r+1)*W+1)*C)
-  dsimp only [V]
-  nlinarith only [Nat.mul_le_mul_left W lowcap,sx,lx,high,spare]
-
-theorem original_window (r : ℕ) (hr : 4≤r) : ∃ C : ℕ, ∀ (N : ℕ) (A : Finset ℕ), A⊆Icc 1 N →
-    (∀ x∈A,admitted r N x) → Free r A → (r+1)*A.card≤N+C := by
-  classical
-  obtain ⟨W,C,wp,gap⟩ := window_gap r hr
-  let P (m : ℕ) (A : Finset ℕ) := (∀ x∈A,admitted r ((r+1)*m) x) ∧
-    2*(Ioc (r*m) ((r+1)*m) ∩ A).card≤ m
-  obtain ⟨E,sp⟩ := Erdos13Shorter.transfer_sparse_gap r W C wp P
-    (fun h inc=>⟨fun x hx=>h.1 x (inc hx),
-      (Nat.mul_le_mul_left 2 (card_le_card (inter_subset_inter (Subset.rfl) inc))).trans h.2⟩)
-    (fun m B sub p strong=>gap m B sub p.1 strong p.2)
-  obtain ⟨D,major⟩ := Erdos13HalfOccupied.majority_witness (r:=r) (by omega)
-  refine ⟨(r+1)*(D+E+r),?_⟩
-  intro N A sub supp free
-  let m := N/(r+1)
-  let B := A.filter (·≤(r+1)*m)
-  have inc : B⊆A := filter_subset _ _
-  have cover : B⊆Icc 1 ((r+1)*m) := fun x hx=>mem_Icc.mpr ⟨(mem_Icc.mp (sub (inc hx))).1,(mem_filter.mp hx).2⟩
-  have hfree : Free r B := fun x hx b hb=>free x (inc hx) b (fun i=>inc (hb i))
-  have de := Nat.mod_add_div N (r+1)
-  have rem := Nat.mod_lt N (show 0<r+1 by omega)
-  have base : (r+1)*m≤N := by dsimp [m]; omega
-  have s : ∀ x∈B,admitted r ((r+1)*m) x := fun x hx=>admitted_mono base (supp _ (inc hx))
-  have cap : B.card≤ m+D+E := by
-    by_cases sparse : 2*(Ioc (r*m) ((r+1)*m) ∩ B).card≤ m
-    · have := sp m B cover ⟨s,sparse⟩ hfree
-      omega
-    · by_contra! big
-      obtain ⟨x,hx,b,hb,dvd⟩ := major m B cover (by omega) (by omega)
-      exact hfree x hx b (fun i=>(hb i).1) (fun i=>(hb i).2) dvd
-  have last : A.filter (fun x=>¬x≤(r+1)*m)⊆Ioc ((r+1)*m) N := by
-    intro x hx
-    exact mem_Ioc.mpr ⟨by have := (mem_filter.mp hx).2; omega,(mem_Icc.mp (sub (mem_filter.mp hx).1)).2⟩
-  have lim := card_le_card last
-  rw [Nat.card_Ioc] at lim
-  have part : B.card+(A.filter (fun x=>¬x≤(r+1)*m)).card=A.card := A.card_filter_add_card_filter_not _
-  have remainder : N-(r+1)*m≤r := by dsimp [m]; omega
-  have ac : A.card≤ m+(D+E+r) := by omega
-  have sc := Nat.mul_le_mul_left (r+1) ac
-  rw [Nat.mul_add] at sc
-  omega
-
 end Erdos13ExtraRow
 
 end
@@ -8118,50 +6897,6 @@ section
 /-  The full supported estimate down to N/(r+2) at every arity at least eleven. -/
 namespace Erdos13ExtraRow
 open Finset FullColumns
-
-theorem original_one_more_row (r : ℕ) (hr : 11≤r) : ∃ C : ℕ, ∀ (N : ℕ) (A : Finset ℕ), A⊆Icc 1 N →
-    (∀ x∈A,N<(r+2)*x) → Free r A → (r+1)*A.card≤N+C := by
-  classical
-  obtain ⟨P,pay,fac⟩ := factors_from_eleven r hr
-  obtain ⟨C,gap⟩ := paid_gap (by omega : 9≤r) pay fac
-  let W := 2*weight r
-  have wp : 0<W := by dsimp [W,weight,Erdos13ColumnModulo.shellWeight]; positivity
-  let P (m : ℕ) (A : Finset ℕ) := (∀ x∈A,(r+1)*m<(r+2)*x) ∧
-    2*(Ioc (r*m) ((r+1)*m) ∩ A).card≤ m
-  obtain ⟨E,sp⟩ := Erdos13Shorter.transfer_sparse_gap r W C wp P
-    (fun h inc=>⟨fun x hx=>h.1 x (inc hx),
-      (Nat.mul_le_mul_left 2 (card_le_card (inter_subset_inter (Subset.rfl) inc))).trans h.2⟩)
-    (fun m B sub p strong=>gap m B sub p.1 strong p.2)
-  obtain ⟨D,major⟩ := Erdos13HalfOccupied.majority_witness (r:=r) (by omega)
-  refine ⟨(r+1)*(D+E+r),?_⟩
-  intro N A sub supp free
-  let m := N/(r+1)
-  let B := A.filter (·≤(r+1)*m)
-  have inc : B⊆A := filter_subset _ _
-  have cover : B⊆Icc 1 ((r+1)*m) := fun x hx=>mem_Icc.mpr ⟨(mem_Icc.mp (sub (inc hx))).1,(mem_filter.mp hx).2⟩
-  have hfree : Free r B := fun x hx b hb=>free x (inc hx) b (fun i=>inc (hb i))
-  have de := Nat.mod_add_div N (r+1)
-  have rem := Nat.mod_lt N (show 0<r+1 by omega)
-  have base : (r+1)*m≤N := by dsimp [m]; omega
-  have s : ∀ x∈B,(r+1)*m<(r+2)*x := fun x hx=>base.trans_lt (supp _ (inc hx))
-  have cap : B.card≤ m+D+E := by
-    by_cases sparse : 2*(Ioc (r*m) ((r+1)*m) ∩ B).card≤ m
-    · have := sp m B cover ⟨s,sparse⟩ hfree
-      omega
-    · by_contra! big
-      obtain ⟨x,hx,b,hb,dvd⟩ := major m B cover (by omega) (by omega)
-      exact hfree x hx b (fun i=>(hb i).1) (fun i=>(hb i).2) dvd
-  have last : A.filter (fun x=>¬x≤(r+1)*m)⊆Ioc ((r+1)*m) N := by
-    intro x hx
-    exact mem_Ioc.mpr ⟨by have := (mem_filter.mp hx).2; omega,(mem_Icc.mp (sub (mem_filter.mp hx).1)).2⟩
-  have lim := card_le_card last
-  rw [Nat.card_Ioc] at lim
-  have part : B.card+(A.filter (fun x=>¬x≤(r+1)*m)).card=A.card := A.card_filter_add_card_filter_not _
-  have remainder : N-(r+1)*m≤r := by dsimp [m]; omega
-  have ac : A.card≤ m+(D+E+r) := by omega
-  have sc := Nat.mul_le_mul_left (r+1) ac
-  rw [Nat.mul_add] at sc
-  omega
 
 end Erdos13ExtraRow
 

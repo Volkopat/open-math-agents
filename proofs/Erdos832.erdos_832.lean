@@ -158,6 +158,13 @@ lemma evenColumns_eq {d : ℕ} {p : Finset (Code d)} :
       rw [Finset.sum_pair hyz, hy, hz]
       decide
 
+lemma two_mul_choose_two (a : ℕ) : 2 * a.choose 2 = a * (a - 1) := by
+  have h := Nat.descFactorial_eq_factorial_mul_choose a 2
+  norm_num [Nat.descFactorial, Nat.factorial] at h
+  calc
+    2 * a.choose 2 = (a - 1) * a := h.symm
+    _ = a * (a - 1) := Nat.mul_comm _ _
+
 lemma card_evenColumns_bound {d : ℕ} {p : Finset (Code d)} (hp : p ∈ pairs d) :
     4 * (evenColumns p).card ≤ (Fintype.card (Code d)) ^ 2 := by
   rw [evenColumns_eq]
@@ -184,33 +191,12 @@ lemma card_evenColumns_bound {d : ℕ} {p : Finset (Code d)} (hp : p ∈ pairs d
           Fintype.card (Code d) := by
         simpa [fiber, htrue] using hpartition
       have hbal := fiber_card_eq hp
-      have hchoose : 2 * (fiber p false).card.choose 2 =
-          (fiber p false).card * ((fiber p false).card - 1) := by
-        have h := Nat.descFactorial_eq_factorial_mul_choose
-          (fiber p false).card 2
-        norm_num [Nat.descFactorial, Nat.factorial] at h
-        calc
-          2 * (fiber p false).card.choose 2 =
-              ((fiber p false).card - 1) * (fiber p false).card := h.symm
-          _ = (fiber p false).card * ((fiber p false).card - 1) :=
-            Nat.mul_comm _ _
       rw [← hsum, ← hbal]
-      have hrewrite : 8 * (fiber p false).card.choose 2 =
-          4 * ((fiber p false).card * ((fiber p false).card - 1)) := by
-        calc
-          8 * (fiber p false).card.choose 2 =
-              4 * (2 * (fiber p false).card.choose 2) := by ring
-          _ = 4 * ((fiber p false).card * ((fiber p false).card - 1)) := by
-            rw [hchoose]
-      rw [hrewrite]
-      have hle : (fiber p false).card * ((fiber p false).card - 1) ≤
-          (fiber p false).card * (fiber p false).card :=
-        Nat.mul_le_mul_left _ (Nat.sub_le _ _)
-      calc
-        4 * ((fiber p false).card * ((fiber p false).card - 1)) ≤
-            4 * ((fiber p false).card * (fiber p false).card) :=
-          Nat.mul_le_mul_left _ hle
-        _ = ((fiber p false).card + (fiber p false).card) ^ 2 := by ring
+      let t := (fiber p false).card
+      have hchoose := two_mul_choose_two t
+      have hle := Nat.mul_le_mul_left t (Nat.sub_le t 1)
+      change 8 * t.choose 2 ≤ (t + t) ^ 2
+      nlinarith only [hchoose, hle]
 
 def evenRectParams (d : ℕ) : Finset (Sigma fun _ : Finset (Code d) ↦ Finset (Code d)) :=
   (pairs d).sigma fun p ↦ evenColumns p
@@ -218,13 +204,6 @@ def evenRectParams (d : ℕ) : Finset (Sigma fun _ : Finset (Code d) ↦ Finset 
 lemma card_pairs (d : ℕ) :
     (pairs d).card = (Fintype.card (Code d)).choose 2 := by
   simp [pairs]
-
-lemma two_mul_choose_two (a : ℕ) : 2 * a.choose 2 = a * (a - 1) := by
-  have h := Nat.descFactorial_eq_factorial_mul_choose a 2
-  norm_num [Nat.descFactorial, Nat.factorial] at h
-  calc
-    2 * a.choose 2 = (a - 1) * a := h.symm
-    _ = a * (a - 1) := Nat.mul_comm _ _
 
 lemma twentyFour_mul_choose_four (a : ℕ) :
     24 * a.choose 4 = a * (a - 1) * (a - 2) * (a - 3) := by
@@ -575,48 +554,16 @@ lemma construction_monochromatic_edge (n : ℕ)
   exact (Finset.mem_filter.mp (hSsub (hesub hx))).2
 
 
-lemma benchmark_poly (k : ℕ) (hk : 512 ≤ k) :
-    80 * k ^ 4 < (3 * k - 2) * (3 * k - 3) * (3 * k - 4) * (3 * k - 5) := by
-  let z : ℤ := k
-  have hz : (512 : ℤ) ≤ z := by
-    dsimp [z]
-    exact_mod_cast hk
-  have hzpos : 0 < z := by omega
-  have hmain : 0 < z ^ 3 * (z - 378) :=
-    mul_pos (pow_pos hzpos 3) (by omega)
-  have hrestnonneg : 0 ≤ z * (639 * z - 462) :=
-    mul_nonneg hzpos.le (by omega)
-  have hpoly : 80 * z ^ 4 <
-      (3 * z - 2) * (3 * z - 3) * (3 * z - 4) * (3 * z - 5) := by
-    have hid :
-        (3 * z - 2) * (3 * z - 3) * (3 * z - 4) * (3 * z - 5) - 80 * z ^ 4 =
-          z ^ 3 * (z - 378) + (z * (639 * z - 462) + 120) := by ring
-    rw [← sub_pos, hid]
-    omega
-  have h2 : 2 ≤ 3 * k := by omega
-  have h3 : 3 ≤ 3 * k := by omega
-  have h4 : 4 ≤ 3 * k := by omega
-  have h5 : 5 ≤ 3 * k := by omega
-  by_contra hn
-  have hle : (3 * k - 2) * (3 * k - 3) * (3 * k - 4) * (3 * k - 5) ≤
-      80 * k ^ 4 := Nat.le_of_not_gt hn
-  have hleZ :
-      ((↑(((3 * k - 2) * (3 * k - 3) * (3 * k - 4) * (3 * k - 5) : ℕ)) : ℤ) ≤
-        (↑((80 * k ^ 4 : ℕ)) : ℤ)) := by
-    exact_mod_cast hle
-  push_cast [Nat.cast_sub h2, Nat.cast_sub h3, Nat.cast_sub h4, Nat.cast_sub h5] at hleZ
-  dsimp [z] at hpoly
-  omega
-
 lemma benchmark_choose_scaled (k : ℕ) (hk : 512 ≤ k) :
     80 * k ^ 4 < 24 * (3 * (k - 1) + 1).choose 4 := by
-  have hn : 3 * (k - 1) + 1 = 3 * k - 2 := by omega
-  rw [hn, twentyFour_mul_choose_four]
-  have h1 : 3 * k - 2 - 1 = 3 * k - 3 := by omega
-  have h2 : 3 * k - 2 - 2 = 3 * k - 4 := by omega
-  have h3 : 3 * k - 2 - 3 = 3 * k - 5 := by omega
-  rw [h1, h2, h3]
-  exact benchmark_poly k hk
+  obtain ⟨t, rfl⟩ := Nat.exists_eq_add_of_le hk
+  rw [twentyFour_mul_choose_four]
+  simp only [show 512 + t - 1 = 511 + t by omega, Nat.mul_add]
+  rw [show 3 * 511 + 3 * t + 1 - 1 = 1533 + 3*t by omega,
+      show 3 * 511 + 3 * t + 1 - 2 = 1532 + 3*t by omega,
+      show 3 * 511 + 3 * t + 1 - 3 = 1531 + 3*t by omega]
+  ring_nf
+  omega
 
 lemma construction_strict_bound (n : ℕ) (hn : 9 ≤ n) :
     (constructionEdges (n + 1)).card < (3 * (2 ^ n - 1) + 1).choose 4 := by

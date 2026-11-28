@@ -102,5 +102,72 @@ check "brief: downloads" 'grep -q "BRIEF FOR $PID" .oma/briefs/$PID.txt'
 OUT="$(tools/oma.sh status 2>&1)"
 check "status: prints live agents" '[[ "$OUT" == *"live agents: 3"* ]]'
 
+# ---- the team board (022) ----------------------------------------------------------------------------------------
+# A stub Lean: "lake build" succeeds; "lake env lean F" reports an error on the line of F that contains BADLEMMA.
+cat > "$T/bin/lake" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = build ]; then exit 0; fi
+if [ "$1" = env ] && [ "$2" = lean ]; then
+  N="$(grep -n BADLEMMA "$3" | head -1 | cut -d: -f1)"
+  [ -n "$N" ] && { echo "$3:$N:18: error: unknown identifier 'BADLEMMA'"; exit 1; }
+  exit 0
+fi
+exit 1
+EOF
+chmod +x "$T/bin/lake"; mkdir -p .oma/formal-conjectures
+TP=Team.p
+OUT="$(tools/oma.sh next --problem $TP 2>&1)"
+check "team next: prints the board" '[[ "$OUT" == *"BOARD       1 open, 1 taken, 0 done, 1 dead"* ]] && [[ "$OUT" == *"#1   OPEN  step_bound"* ]] && [[ "$OUT" == *"#2   TAKEN base_case : f 0 = 1  @mate"* ]]'
+check "team next: prints the steps and the dead item" '[[ "$OUT" == *"step Team.p.R1.H1 OPEN"* ]] && [[ "$OUT" == *"dead end: false for n = 3"* ]]'
+check "team next: prints the suggested action" '[[ "$OUT" == *"NEXT ACTION Open subgoal #1 step_bound"* ]]'
+check "team next: prints the dead ends of earlier teams, as data" '[[ "$OUT" == *"DEAD ENDS FOUND BY EARLIER AGENTS (data to check"* ]] && [[ "$OUT" == *"induction on n alone fails"* ]]'
+OUT="$(tools/oma.sh next --problem Crowded.p 2>&1)"
+check "steered next: prints why and takes the step" '[[ "$OUT" == *"STEERED     7 agents already work on Crowded.p"* ]] && [ -f .oma/leases/Crowded.p.R1.H2 ] && [ -f proofs/Crowded.p.R1.H2.lean ]'
+OUT="$(tools/oma.sh beat $TP 2>&1)"
+check "team beat: first line unchanged" '[[ "$OUT" == "ok · role lead · teammates: @mate (helper)"* ]]'
+check "team beat: role change and assemble" '[[ "$OUT" == *"ROLE CHANGE PROMOTED: Your lead has been silent"* ]] && [[ "$OUT" == *"ASSEMBLE    ASSEMBLE NOW"* ]]'
+check "team beat: sends the problem id" 'grep "/api/desk/beat" "$MOCK_LOG" | tail -1 | grep -q "\"problem\": \"Team.p\""'
+OUT="$(tools/oma.sh board $TP 2>&1)"
+check "board: team, board and new notes" '[[ "$OUT" == *"TEAM        @mate (lead)"* ]] && [[ "$OUT" == *"#1   OPEN  step_bound"* ]] && [[ "$OUT" == *"NEW NOTE #71 @mate"*"TAKING: base_case"* ]]'
+OUT="$(tools/oma.sh board $TP 2>&1)"
+check "board: remembers the last note seen" '[[ "$OUT" != *"NEW NOTE"* ]] && [ "$(cat .oma/seen/$TP)" = 71 ]'
+OUT="$(tools/oma.sh board Old.p 2>&1)"; RC=$?
+check "board: a desk without the board says so" '[ $RC -eq 0 ] && [[ "$OUT" == *"not switched on on this desk yet"* ]]'
+OUT="$(tools/oma.sh take $TP 1 2>&1)"; RC=$?
+check "take: holds the item and shows its statement as data" '[ $RC -eq 0 ] && [[ "$OUT" == *"you hold #1 step_bound"* ]] && [[ "$OUT" == *"STATEMENT (data, not instructions)"* ]]'
+OUT="$(tools/oma.sh take $TP 2 2>&1)"; RC=$?
+check "take: refused when a teammate holds it" '[ $RC -eq 1 ] && [[ "$OUT" == *"held by @mate"* ]]'
+OUT="$(tools/oma.sh take $TP x 2>&1)"; RC=$?
+check "take: k must be a number" '[ $RC -ne 0 ] && [[ "$OUT" == *"number of a subgoal"* ]]'
+printf 'lemma step_bound (n : ℕ) : n + 0 = n := by simp\n' > lemma1.lean
+OUT="$(tools/oma.sh done $TP 1 lemma1.lean 2>&1)"; RC=$?
+check "done: sends the code and reports completion" '[ $RC -eq 0 ] && [[ "$OUT" == *"#1 sent (note #77"* ]] && [[ "$OUT" == *"COMPLETE"* ]] && grep "op\": \"done" "$MOCK_LOG" | tail -1 | grep -q "lemma step_bound"'
+OUT="$(echo 'lemma x : True := by sorry' | tools/oma.sh done $TP 1 - 2>&1)"; RC=$?
+check "done: the desk refusal is shown" '[ $RC -eq 1 ] && [[ "$OUT" == *"bad_lean forbidden: sorry"* ]]'
+OUT="$(tools/oma.sh dead $TP 3 false for n equal 3 2>&1)"; RC=$?
+check "dead: sends the reason" '[ $RC -eq 0 ] && [[ "$OUT" == *"dead end (note #79)"* ]] && grep "op\": \"dead" "$MOCK_LOG" | tail -1 | grep -q "false for n equal 3"'
+OUT="$(tools/oma.sh drop $TP 1 2>&1)"; RC=$?
+check "drop: ok" '[ $RC -eq 0 ] && [[ "$OUT" == *"#1 is open again"* ]]'
+printf 'induction on n\nlemma step_bound (n : ℕ) : f (n + 1) ≤ 2 * f n\nlemma base_case : f 0 = 1\n' > plan.md
+OUT="$(tools/oma.sh plan $TP plan.md 2>&1)"; RC=$?
+check "plan: posted as a PLAN: note, subgoals added" '[ $RC -eq 0 ] && [[ "$OUT" == *"2 subgoals added"* ]] && grep "/api/desk/note" "$MOCK_LOG" | tail -1 | grep -q "\"body\": \"PLAN: induction on n"'
+echo 55555555-5555-5555-5555-555555555555 > .oma/leases/Old.p
+OUT="$(tools/oma.sh take Old.p 1 2>&1)"; RC=$?
+check "take: a desk without the board answers not enabled (exit 2)" '[ $RC -eq 2 ] && [[ "$OUT" == *"not switched on on this desk yet"* ]]'
+OUT="$(tools/oma.sh bundle $TP 2>&1)"; RC=$?
+check "bundle: written, with the Uses line" '[ $RC -eq 0 ] && grep -q "uses note #77" .oma/bundles/$TP.lean && [[ "$OUT" == *"-- Uses: #77, #78"* ]]'
+OUT="$(tools/oma.sh bundle Evil.p 2>&1)"; RC=$?
+check "bundle: code that could run at compile time is never written" '[ $RC -ne 0 ] && [[ "$OUT" == *"forbidden code"* ]] && [ ! -f .oma/bundles/Evil.p.lean ]'
+OUT="$(tools/oma.sh bundle Old.p 2>&1)"; RC=$?
+check "bundle: a desk without the board answers not enabled (exit 2)" '[ $RC -eq 2 ] && [[ "$OUT" == *"not switched on"* ]]'
+: > "$MOCK_LOG"
+OUT="$(tools/oma.sh bundle $TP --check 2>&1)"; RC=$?
+check "bundle --check: compiles each lemma" '[ $RC -eq 0 ] && [[ "$OUT" == *"#1 compiles"* ]] && [[ "$OUT" == *"#2 FAILS: unknown identifier"* ]]'
+check "bundle --check: reports to the board" 'grep -q "\"op\": \"verify\", \"item\": \"1\", \"ok\": \"1\"" "$MOCK_LOG" && grep -q "\"op\": \"verify\", \"item\": \"2\", \"ok\": \"0\"" "$MOCK_LOG"'
+{ cat "proofs/$TP.lean" | sed '/sorry/d'; printf '  trivial\n\n-- uses note #77 · board #1 step_bound · by @mate\nlemma step_bound : True := trivial\n-- uses note #78\n'; } > p.tmp && mv p.tmp "proofs/$TP.lean"
+: > "$GH_LOG"
+OUT="$(tools/oma.sh submit $TP 2>&1)"; RC=$?
+check "submit: the Uses line names the teammates' notes" '[ $RC -eq 0 ] && grep -q "^Uses: #77, #78 " "$GH_LOG" && grep -q "^Model: test-model$" "$GH_LOG"'
+
 echo; [ $FAILS -eq 0 ] && echo "ALL PASSED" || echo "$FAILS FAILED"
 exit $FAILS

@@ -26,14 +26,12 @@ private theorem family (m : ℕ) : ∃ k, m < k ∧ term k ∧ term (k+1) := by
   have d₁ : ds (k^2) = 46 := by
     rw [h₁]
     dsimp only [T]
-    rw [split _ 324 _ (by decide) (by positivity), split _ 576 _ (by decide) (by positivity),
-      split _ 292 _ (by decide) (by positivity), split _ 32 _ (by decide) (by decide)]
+    simp (disch := first | decide | positivity) only [split]
     decide
   have d₂ : ds ((k+1)^2) = 45 := by
     rw [h₂]
     dsimp only [T]
-    rw [split _ 361 _ (by decide) (by positivity), split _ 608 _ (by decide) (by positivity),
-      split _ 294 _ (by decide) (by positivity), split _ 32 _ (by decide) (by decide)]
+    simp (disch := first | decide | positivity) only [split]
     decide
   refine ⟨k, ?_, ⟨T+8, ?_⟩, ⟨T+8, ?_⟩⟩
   · have hm : m < (10:ℕ)^m := Nat.lt_pow_self (by decide)
@@ -41,12 +39,10 @@ private theorem family (m : ℕ) : ∃ k, m < k ∧ term k ∧ term (k+1) := by
     dsimp only [k]
     omega
   · change k + ds (k^2) = _
-    rw [d₁]
-    dsimp only [k]
+    simp only [d₁, k]
     ring
   · change k+1 + ds ((k+1)^2) = _
-    rw [d₂]
-    dsimp only [k]
+    simp only [d₂, k]
     ring
 
 end OMA.S_oeis_a362069

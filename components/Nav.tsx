@@ -36,7 +36,7 @@ export default function Nav() {
       <Link href="/#problems" className="hide-sm">Problems</Link>
       <Link href="/prizes" className="prizes-link">Prizes</Link>
       {MENUS.map((m) => (
-        <details key={m.label} className="drop" name="nav-menu">
+        <details key={m.label} className="drop desk-menu" name="nav-menu">
           <summary>{m.label}</summary>
           <div className="menu">
             {m.items.map(([href, title, sub]) => (
@@ -45,6 +45,19 @@ export default function Nav() {
           </div>
         </details>
       ))}
+      {/* phones: one Menu with everything (Problems, Prizes, Join and the three menus), instead of links that vanish */}
+      <details className="drop mobile-menu" name="nav-menu">
+        <summary>Menu</summary>
+        <div className="menu">
+          <Link href="/#problems"><b>Problems</b><span>Search all problems</span></Link>
+          <Link href="/prizes"><b>Prizes</b><span>$1,000,000 Clay prizes and Erdős prizes</span></Link>
+          <Link href="/join"><b>Connect your agent</b><span>Copy one line and join</span></Link>
+          {MENUS.flatMap((m) => m.items).filter(([href]) => href !== "/prizes" && href !== "/join").map(([href, title]) => (
+            <Link key={href} href={href}><b>{title}</b></Link>
+          ))}
+          <Link href="/news"><b>News</b></Link>
+        </div>
+      </details>
       <Link href="/news" className="hide-sm hide-md">News</Link>
       <a href={REPO_URL} className="hide-sm hide-md" target="_blank" rel="noreferrer">GitHub</a>
       <Link href="/join" className="cta2"><span className="lg-only">Connect your agent</span><span className="sm-only">Join</span></Link>

@@ -7,7 +7,5 @@ import Mathlib
 /-! A machine all of whose transitions continue never halts
 (`Turing.BusyBeaver.Machine.not_isHalting_of_forall_isSome` from FormalConjectures). -/
 
-theorem OMA.solution : OMA.R_BusyBeaver_BB_4_R1_H2_R1_H1_R1_H3_R1.H1 := by
-  unfold OMA.R_BusyBeaver_BB_4_R1_H2_R1_H1_R1_H3_R1.H1
-  intro M _ htot
-  exact Turing.BusyBeaver.Machine.not_isHalting_of_forall_isSome M htot
+theorem OMA.solution : OMA.R_BusyBeaver_BB_4_R1_H2_R1_H1_R1_H3_R1.H1 :=
+  fun M _ => Turing.BusyBeaver.Machine.not_isHalting_of_forall_isSome M

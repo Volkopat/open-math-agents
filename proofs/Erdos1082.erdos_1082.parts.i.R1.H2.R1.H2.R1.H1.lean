@@ -287,59 +287,6 @@ lemma power_trace_bound {L : Type*} [Field L] [CharZero L] (S : Finset L)
   exact (Finset.card_le_card hsub).trans <| (Multiset.toFinset_card_le _).trans <| (card_roots' R).trans hR
 
 
-lemma coprime_laurent_points (T : Finset Circle) (H : Subgroup Circle) (hT : (H:Set Circle)=T)
-    (m : ℕ) (hm2 : 2 ≤ m) (hcop : m.Coprime T.card) (a b k c d : ℂ) (ha : a≠0) (hk : k≠0) (hc : c≠0) (hd : d≠0)
-    (S : Finset Circle) (hST : S⊆T)
-    (hm : ∀ z∈S, ∃ w∈T, c*(w:ℂ)+d/(w:ℂ)=a/(z:ℂ)+b*(z:ℂ)+k) : S.card≤4*m := by
-  classical
-  by_cases he : T.card=0
-  · have := Finset.card_le_card hST; omega
-  let : NeZero T.card := ⟨he⟩
-  obtain ⟨K,hroots,σ,hσ⟩ := automorphism_on_roots T.card m hcop
-  have hmem (z : Circle) (hz : z∈T) : (z:ℂ)∈K := hroots _ (finite_subgroup_root _ _ hT z hz)
-  let M : Finset ℂ := {a,k,c,d}
-  have hn (v : M) : v.1≠0 := by
-    have ht := v.2
-    simp only [M,Finset.mem_insert,Finset.mem_singleton] at ht
-    rcases ht with he|he|he|he <;> rw [he] <;> assumption
-  obtain ⟨F,hF⟩ := Module.exists_dual_forall_apply_ne_zero (K:=K) (fun v : M => v.1) hn
-  have hfa : F a≠0 := hF ⟨a,by simp [M]⟩
-  have hfk : F k≠0 := hF ⟨k,by simp [M]⟩
-  have hfc : F c≠0 := hF ⟨c,by simp [M]⟩
-  have hfd : F d≠0 := hF ⟨d,by simp [M]⟩
-  let u := F a/F c
-  let v := F b/F c
-  let κ := F k/F c
-  let h := F d/F c
-  have hu : u≠0 := div_ne_zero hfa hfc
-  have hk' : κ≠0 := div_ne_zero hfk hfc
-  have hh : h≠0 := div_ne_zero hfd hfc
-  let lift (z : S) : K := ⟨(z.1:ℂ),hmem _ (hST z.2)⟩
-  let P := S.attach.image lift
-  have hlift : Function.Injective lift := fun _ _ he => Subtype.ext (Circle.coe_injective (congrArg ((↑):K→ℂ) he))
-  have hsize : P.card=S.card := by dsimp only [P]; rw [Finset.card_image_of_injective _ hlift,Finset.card_attach]
-  rw [←hsize]
-  apply power_trace_bound P m hm2 u v κ h (σ u) (σ v) (σ κ) (σ h) hu hk' hh ((_root_.map_ne_zero _).mpr hh)
-  intro z hz
-  obtain ⟨z,_,rfl⟩ := Finset.mem_image.mp hz
-  obtain ⟨w,hw,he⟩ := hm z.1 z.2
-  let W : K := ⟨(w:ℂ),hmem _ hw⟩
-  have hrz : (lift z)^T.card=1 := Subtype.ext (finite_subgroup_root _ _ hT z.1 (hST z.2))
-  have hrw : W^T.card=1 := Subtype.ext (finite_subgroup_root _ _ hT w hw)
-  have hz0 : lift z≠0 := fun hh => Circle.coe_ne_zero z.1 (congrArg ((↑):K→ℂ) hh)
-  have hw0 : W≠0 := fun hh => Circle.coe_ne_zero w (congrArg ((↑):K→ℂ) hh)
-  have he' : W • c + W⁻¹ • d = (lift z)⁻¹ • a + lift z • b+k := by
-    change (w:ℂ)*c+(w:ℂ)⁻¹*d=(z.1:ℂ)⁻¹*a+(z.1:ℂ)*b+k
-    simpa only [div_eq_mul_inv,mul_comm] using he
-  have lin := congrArg F he'
-  simp only [map_add,LinearMap.map_smul,smul_eq_mul] at lin
-  have eqn : W+h/W = u/lift z+v*lift z+κ := by
-    dsimp only [h,u,v,κ]
-    field_simp [hfc,hw0,hz0] at lin ⊢
-    linear_combination lin
-  refine ⟨hz0,W,hw0,eqn,?_⟩
-  simpa only [map_add,map_mul,map_div₀,hσ (lift z) hrz,hσ W hrw] using congrArg σ eqn
-
 lemma orbit_norm (c p : ℂ) (z : Circle) :
     ((‖c+p*(z:ℂ)‖^2:ℝ):ℂ) = (Complex.normSq c:ℂ)+(Complex.normSq p:ℂ)+
         (starRingEnd ℂ c*p)*(z:ℂ)+(c*starRingEnd ℂ p)/(z:ℂ) := by
@@ -347,126 +294,6 @@ lemma orbit_norm (c p : ℂ) (z : Circle) :
     map_add,map_mul,←Circle.coe_inv_eq_conj,Circle.coe_inv]
   field_simp [Circle.coe_ne_zero z]
   ring
-
-
-lemma orbit_fiber_card (T : Finset Circle) (c p : ℂ) (hc : c≠0) (hp : p≠0) (r : ℝ) :
-    (T.filter fun z : Circle => ‖c+p*(z:ℂ)‖=r).card ≤ 2 := by
-  classical
-  let q := -c/p
-  apply (Finset.card_le_card (t := T.filter fun z : Circle => dist q (z:ℂ)=r/‖p‖) ?_).trans
-    (circle_fibers T q (div_ne_zero (neg_ne_zero.mpr hc) hp) _)
-  intro z hz
-  obtain ⟨hz,he⟩ := Finset.mem_filter.mp hz
-  refine Finset.mem_filter.mpr ⟨hz,?_⟩
-  have heq : q-(z:ℂ) = -(c+p*(z:ℂ))/p := by dsimp [q]; field_simp; ring
-  rw [dist_eq_norm,heq,norm_div,norm_neg,he]
-
-lemma orbit_image_size (S : Finset Circle) (c p : ℂ) (hc : c≠0) (hp : p≠0) :
-    S.card ≤ 2*(S.image fun z : Circle => ‖c+p*(z:ℂ)‖).card := by
-  classical
-  by_contra! h
-  obtain ⟨r,_,hr⟩ := Finset.exists_lt_card_fiber_of_mul_lt_card_of_maps_to
-    (fun z (hz : z∈S) => Finset.mem_image_of_mem (fun z : Circle => ‖c+p*(z:ℂ)‖) hz)
-    (show (S.image fun z : Circle => ‖c+p*(z:ℂ)‖).card*2<S.card by omega)
-  exact (not_lt_of_ge (orbit_fiber_card S c p hc hp r)) hr
-
-
-
-lemma unconditional_orbit_intersection (T : Finset Circle) (H : Subgroup Circle) (hT : (H:Set Circle)=T)
-    (m : ℕ) (hm : 2 ≤ m) (hcop : m.Coprime T.card) (c p q : ℂ) (hc : c≠0) (hp : p≠0) (hq : q≠0) (hn : ‖p‖≠‖q‖) :
-    (T.filter fun z : Circle => ‖c+p*(z:ℂ)‖∈T.image (fun w : Circle => ‖c+q*(w:ℂ)‖)).card≤4*m := by
-  classical
-  have hnorm : (Complex.normSq p:ℂ)≠(Complex.normSq q:ℂ) := by
-    intro he
-    have hh := Complex.ofReal_injective he
-    rw [Complex.normSq_eq_norm_sq,Complex.normSq_eq_norm_sq] at hh
-    exact hn (by nlinarith [norm_nonneg p,norm_nonneg q])
-  apply coprime_laurent_points T H hT m hm hcop (c*starRingEnd ℂ p) (starRingEnd ℂ c*p)
-    ((Complex.normSq p:ℂ)-(Complex.normSq q:ℂ)) (starRingEnd ℂ c*q) (c*starRingEnd ℂ q)
-    (mul_ne_zero hc ((_root_.map_ne_zero _).mpr hp)) (sub_ne_zero.mpr hnorm)
-    (mul_ne_zero ((_root_.map_ne_zero _).mpr hc) hq) (mul_ne_zero hc ((_root_.map_ne_zero _).mpr hq))
-    _ (Finset.filter_subset _ _)
-  intro z hz
-  obtain ⟨w,hw,he⟩ := Finset.mem_image.mp (Finset.mem_filter.mp hz).2
-  refine ⟨w,hw,?_⟩
-  have hh := congrArg (fun t : ℝ => ((t^2:ℝ):ℂ)) he
-  rw [orbit_norm,orbit_norm] at hh
-  linear_combination hh
-
-
-lemma count_few_overlaps {ι α β : Type*} (I : Finset ι) (S : Finset α) (f : ι→α→β) (m : ℕ)
-    [DecidableEq ι] [DecidableEq β]
-    (hf : ∀ i∈I, ∀ W⊆S, W.card≤2*(W.image (f i)).card)
-    (hc : ∀ i∈I, ∀ j∈I, i≠j → (S.filter fun x => f i x∈S.image (f j)).card≤4*m) :
-    I.card*S.card+(2*m)*I.card≤2*(I.biUnion fun i => S.image (f i)).card+(2*m)*I.card*I.card := by
-  classical
-  let D (J : Finset ι) := J.biUnion fun i => S.image (f i)
-  suffices hall : ∀ J⊆I, J.card*S.card+(2*m)*J.card≤2*(D J).card+(2*m)*J.card*J.card from hall I (Finset.Subset.refl _)
-  intro J
-  induction J using Finset.induction_on with
-  | empty => simp [D]
-  | @insert i J hi ih =>
-    intro hJI
-    have hiI := hJI (Finset.mem_insert_self _ _)
-    have hJI' : J⊆I := (Finset.subset_insert _ _).trans hJI
-    have ih' := ih hJI'
-    let W := S.filter fun x => f i x∉D J
-    let Q (j : ι) := S.filter fun x => f i x∈S.image (f j)
-    have hsub : (S.filter fun x => f i x∈D J)⊆J.biUnion Q := by
-      intro x hx
-      obtain ⟨hx,hx'⟩ := Finset.mem_filter.mp hx
-      obtain ⟨j,hj,hj'⟩ := Finset.mem_biUnion.mp hx'
-      exact Finset.mem_biUnion.mpr ⟨j,hj,Finset.mem_filter.mpr ⟨hx,hj'⟩⟩
-    have hbound : (J.biUnion Q).card≤J.card*(4*m) := by
-      calc
-        _ ≤ ∑ j∈J,(Q j).card := Finset.card_biUnion_le
-        _ ≤ ∑ _∈J,(4*m) := Finset.sum_le_sum (fun j hj => hc i hiI j (hJI' hj) (fun h => hi (h ▸ hj)))
-        _ = _ := by simp
-    have hmatched := (Finset.card_le_card hsub).trans hbound
-    have hrem := Finset.card_filter_add_card_filter_not (s:=S) (fun x => f i x∈D J)
-    change (S.filter fun x => f i x∈D J).card+W.card=S.card at hrem
-    have hf' := hf i hiI W (Finset.filter_subset _ _)
-    have hd : Disjoint (W.image (f i)) (D J) := Finset.disjoint_left.mpr (by
-      intro y hy hd
-      obtain ⟨x,hx,rfl⟩ := Finset.mem_image.mp hy
-      exact (Finset.mem_filter.mp hx).2 hd)
-    have hsub' : W.image (f i) ∪ D J ⊆ D (insert i J) := by
-      change _ ⊆ (insert i J).biUnion _
-      rw [Finset.biUnion_insert]
-      exact Finset.union_subset_union_left (Finset.image_subset_image (Finset.filter_subset _ _))
-    have hc' := Finset.card_le_card hsub'
-    rw [Finset.card_union_of_disjoint hd] at hc'
-    rw [Finset.card_insert_of_notMem hi]
-    nlinarith
-
-
-lemma regular_radial_bound (T : Finset Circle) (H : Subgroup Circle) (hT : (H:Set Circle)=T)
-    (m : ℕ) (hm2 : 2 ≤ m) (hcop : m.Coprime T.card) (A P : Finset ℂ) (hPA : P⊆A) (hTA : ∀ z∈T, (z:ℂ)∈A)
-    (hp : ∀ p∈P, p≠0 ∧ ‖p‖≠1) (hr : Set.InjOn (fun p : ℂ => ‖p‖) (P:Set ℂ)) :
-    P.card*T.card+(2*m)*P.card≤2*distinctDistances A+(2*m)*P.card*P.card := by
-  classical
-  let f (p : ℂ) (z : Circle) := ‖(-1:ℂ)+p*(z:ℂ)‖
-  have hsum := count_few_overlaps P T f m
-    (fun p he W _ => orbit_image_size W (-1) p (by norm_num) (hp p he).1)
-    (fun p hp' q hq hne => unconditional_orbit_intersection T H hT m hm2 hcop (-1) p q (by norm_num)
-      (hp p hp').1 (hp q hq).1 (fun h => hne (hr hp' hq h)))
-  have hs : (P.biUnion fun p => T.image (f p)) ⊆ distanceSet A := by
-    intro r hr
-    obtain ⟨p,hp',hr⟩ := Finset.mem_biUnion.mp hr
-    obtain ⟨z,hz,rfl⟩ := Finset.mem_image.mp hr
-    have hm (z : Circle) : z∈H ↔ z∈T := by change z∈(H:Set Circle) ↔ _; rw [hT]; rfl
-    have hzA := hTA z⁻¹ ((hm _).mp (H.inv_mem ((hm _).mpr hz)))
-    have hne : p≠(z⁻¹:Circle) := fun he => (hp p hp').2 (by rw [he,Circle.norm_coe])
-    refine Finset.mem_image.mpr ⟨(p,((z⁻¹:Circle):ℂ)),Finset.mem_offDiag.mpr ⟨hPA hp',hzA,hne⟩,?_⟩
-    change dist p ((z⁻¹:Circle):ℂ)=f p z
-    rw [dist_eq_norm,Circle.coe_inv]
-    have he : (-1:ℂ)+p*(z:ℂ)=(p-(z:ℂ)⁻¹)*(z:ℂ) := by field_simp [Circle.coe_ne_zero z]; ring
-    dsimp only [f]
-    rw [he,norm_mul,Circle.norm_coe,mul_one]
-  have hb := Finset.card_le_card hs
-  change P.card*T.card+(2*m)*P.card≤2*(distanceSet A).card+(2*m)*P.card*P.card
-  omega
-
 
 
 end Erdos1082GeneralCurve
@@ -828,29 +655,6 @@ lemma orbit_norm (c p : ℂ) (z : Circle) :
     map_add,map_mul,←Circle.coe_inv_eq_conj,Circle.coe_inv]
   field_simp [Circle.coe_ne_zero z]
   ring
-
-
-lemma orbit_fiber_card (T : Finset Circle) (c p : ℂ) (hc : c≠0) (hp : p≠0) (r : ℝ) :
-    (T.filter fun z : Circle => ‖c+p*(z:ℂ)‖=r).card ≤ 2 := by
-  classical
-  let q := -c/p
-  apply (Finset.card_le_card (t := T.filter fun z : Circle => dist q (z:ℂ)=r/‖p‖) ?_).trans
-    (circle_fibers T q (div_ne_zero (neg_ne_zero.mpr hc) hp) _)
-  intro z hz
-  obtain ⟨hz,he⟩ := Finset.mem_filter.mp hz
-  refine Finset.mem_filter.mpr ⟨hz,?_⟩
-  have heq : q-(z:ℂ) = -(c+p*(z:ℂ))/p := by dsimp [q]; field_simp; ring
-  rw [dist_eq_norm,heq,norm_div,norm_neg,he]
-
-lemma orbit_image_size (S : Finset Circle) (c p : ℂ) (hc : c≠0) (hp : p≠0) :
-    S.card ≤ 2*(S.image fun z : Circle => ‖c+p*(z:ℂ)‖).card := by
-  classical
-  by_contra! h
-  obtain ⟨r,_,hr⟩ := Finset.exists_lt_card_fiber_of_mul_lt_card_of_maps_to
-    (fun z (hz : z∈S) => Finset.mem_image_of_mem (fun z : Circle => ‖c+p*(z:ℂ)‖) hz)
-    (show (S.image fun z : Circle => ‖c+p*(z:ℂ)‖).card*2<S.card by omega)
-  exact (not_lt_of_ge (orbit_fiber_card S c p hc hp r)) hr
-
 
 
 lemma uniform_orbit_intersection (T : Finset Circle) (H : Subgroup Circle) (hT : (H:Set Circle)=T)
@@ -2092,29 +1896,6 @@ open Classical
 open scoped Pointwise
 noncomputable section
 namespace Erdos1082Atom
-
-lemma image_weights {G K:Type*} [CommGroup G] [CommGroup K] [IsMulTorsionFree K]
-    (S : Finset G) (hS : S.Nonempty) (φ : G →* K) :
-    (S.image φ).card*(2*S.card-(S/S).card)≤S.card ∧
-      ((S/S).image φ).card*(2*S.card-(S/S).card)≤(S/S).card := by
-  classical
-  obtain ⟨H,T,hT,hk,hl⟩ := cover_weights S hS
-  have hfinite : (H:Set G).Finite := hT ▸ T.finite_toSet
-  letI : Finite H := hfinite.to_subtype
-  have hker : H≤φ.ker := by
-    intro x hx
-    have hh := isOfFinOrder_of_finite (⟨x,hx⟩:H)
-    obtain ⟨n,hn,he⟩ := hh.exists_pow_eq_one
-    have e : x^n=1 := congrArg ((↑):H→G) he
-    have hh' : IsOfFinOrder (φ x) := isOfFinOrder_iff_pow_eq_one.mpr ⟨n,hn,by rw [←map_pow,e,map_one]⟩
-    exact hh'.eq_one'
-  let χ := QuotientGroup.lift H φ hker
-  have bound (U : Finset G) : (U.image φ).card≤(U.image (QuotientGroup.mk' H)).card := by
-    have eq : U.image φ=(U.image (QuotientGroup.mk' H)).image χ := by
-      rw [Finset.image_image]
-      rfl
-    rw [eq]; exact Finset.card_image_le
-  exact ⟨(Nat.mul_le_mul_right _ (bound S)).trans hk,(Nat.mul_le_mul_right _ (bound (S/S))).trans hl⟩
 
 end Erdos1082Atom
 end

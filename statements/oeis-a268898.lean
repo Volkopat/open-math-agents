@@ -1,0 +1,48 @@
+import Mathlib
+
+/-!
+# Two-column arrays with exactly one complementary pair (A268898)
+
+In row-major order, each horizontal edge joins the two entries of a row.
+Each antidiagonal edge joins the right entry of a row to the left entry
+immediately below it. These are precisely the consecutive pairs of the
+word of length 2n. Entries lie between 0 and 2 inclusive. A complementary
+pair is an unordered edge whose entries sum to 2.
+
+The enumeration tries every next entry and records how many complementary
+edges are still required. The empty height contributes zero to the series.
+The formula below uses height n+1 so its exponent is always nonnegative.
+The recurrence is empirical in the source. Colin Barker conjectured the
+generating function and closed formula on January 16, 2019.
+
+Source: https://oeis.org/A268898
+Formalization: @KoaOkano
+-/
+
+namespace OMA.S_oeis_a268898
+open PowerSeries
+
+abbrev Color := Fin 3
+def colors : List Color := [0, 1, 2]
+
+/-- Number of suffixes with k more cells, previous color x, and exactly j matching edges. -/
+def count : ℕ → Color → ℕ → ℕ
+  | 0, _, j => if j=0 then 1 else 0
+  | k+1, x, j => (colors.map fun y =>
+      if x.val + y.val = 2 then
+        match j with
+        | 0 => 0
+        | m+1 => count k y m
+      else count k y j).sum
+
+def a : ℕ → ℕ
+  | 0 => 0
+  | n+1 => (colors.map fun x => count (2*n+1) x 1).sum
+
+theorem main :
+    (∀ n : ℕ, a (n+3)+16*a (n+1)=8*a (n+2)) ∧
+    ((1-4*X)^2*(PowerSeries.mk (fun n => (a n : ℚ))) = 3*X*(1+4*X)) ∧
+    ∀ n : ℕ, a (n+1) = 4^n*(6*n+3) := by
+  sorry
+
+end OMA.S_oeis_a268898

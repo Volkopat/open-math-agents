@@ -82,85 +82,6 @@ def checkE (e : Nat) : Bool :=
   if e * e > 56271 then true
   else checkU e (56271 - e * e) 75 1
 
-def checkERange : Nat → Nat → Bool
-  | 0, _ => true
-  | cnt + 1, t => checkE (4 * t + 2) && checkERange cnt (t + 1)
-
-/- ### Section 2: 35 load-balanced parallel pure-rfl theorems covering all 0 ≤ t ≤ 58 -/
-
-set_option maxRecDepth 4096 in
-private theorem checkE_t_0 : checkE 2 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_1 : checkE 6 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_2 : checkE 10 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_3 : checkE 14 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_4 : checkE 18 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_5 : checkE 22 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_6 : checkE 26 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_7 : checkE 30 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_8 : checkE 34 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_9 : checkE 38 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_10 : checkE 42 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_11 : checkE 46 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_12 : checkE 50 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_13 : checkE 54 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_14 : checkE 58 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_15 : checkE 62 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_16 : checkE 66 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_17 : checkE 70 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_18 : checkE 74 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_t_19 : checkE 78 = true := rfl
-
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_20 : checkERange 2 20 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_22 : checkERange 2 22 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_24 : checkERange 2 24 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_26 : checkERange 2 26 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_28 : checkERange 2 28 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_30 : checkERange 2 30 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_32 : checkERange 2 32 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_34 : checkERange 2 34 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_36 : checkERange 2 36 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_38 : checkERange 2 38 = true := rfl
-
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_40 : checkERange 4 40 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_44 : checkERange 4 44 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_48 : checkERange 4 48 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_52 : checkERange 4 52 = true := rfl
-set_option maxRecDepth 4096 in
-private theorem checkE_blk_56 : checkERange 3 56 = true := rfl
-
 /- ### Section 3: Soundness proofs -/
 
 private def NoSq3 (x y z : Nat) : Prop := ¬ IsSquare (Q x y z)
@@ -347,54 +268,9 @@ private lemma checkE_sound (e : Nat) (h : checkE e = true)
     exact checkU_sound e (56271 - e * e) 75 1 h (by omega)
       u' v' s' hu' hv' hs' (by omega) huv hvs (by omega)
 
-private lemma checkERange_sound :
-    ∀ cnt t0 t, checkERange cnt t0 = true → t0 ≤ t → t < t0 + cnt → checkE (4 * t + 2) = true
-  | 0, _, _, _, ht1, ht2 => by omega
-  | cnt + 1, t0, t, h, ht1, ht2 => by
-    unfold checkERange at h
-    simp only [Bool.and_eq_true] at h
-    by_cases heq : t = t0
-    · subst heq; exact h.1
-    · exact checkERange_sound cnt (t0 + 1) t h.2 (by omega) (by omega)
-
-private lemma checkE_all (t : Nat) (ht : t ≤ 58) : checkE (4 * t + 2) = true := by
-  if h20 : t < 20 then
-    interval_cases t
-    · exact checkE_t_0
-    · exact checkE_t_1
-    · exact checkE_t_2
-    · exact checkE_t_3
-    · exact checkE_t_4
-    · exact checkE_t_5
-    · exact checkE_t_6
-    · exact checkE_t_7
-    · exact checkE_t_8
-    · exact checkE_t_9
-    · exact checkE_t_10
-    · exact checkE_t_11
-    · exact checkE_t_12
-    · exact checkE_t_13
-    · exact checkE_t_14
-    · exact checkE_t_15
-    · exact checkE_t_16
-    · exact checkE_t_17
-    · exact checkE_t_18
-    · exact checkE_t_19
-  else if h22 : t < 22 then exact checkERange_sound 2 20 t checkE_blk_20 (by omega) (by omega)
-  else if h24 : t < 24 then exact checkERange_sound 2 22 t checkE_blk_22 (by omega) (by omega)
-  else if h26 : t < 26 then exact checkERange_sound 2 24 t checkE_blk_24 (by omega) (by omega)
-  else if h28 : t < 28 then exact checkERange_sound 2 26 t checkE_blk_26 (by omega) (by omega)
-  else if h30 : t < 30 then exact checkERange_sound 2 28 t checkE_blk_28 (by omega) (by omega)
-  else if h32 : t < 32 then exact checkERange_sound 2 30 t checkE_blk_30 (by omega) (by omega)
-  else if h34 : t < 34 then exact checkERange_sound 2 32 t checkE_blk_32 (by omega) (by omega)
-  else if h36 : t < 36 then exact checkERange_sound 2 34 t checkE_blk_34 (by omega) (by omega)
-  else if h38 : t < 38 then exact checkERange_sound 2 36 t checkE_blk_36 (by omega) (by omega)
-  else if h40 : t < 40 then exact checkERange_sound 2 38 t checkE_blk_38 (by omega) (by omega)
-  else if h44 : t < 44 then exact checkERange_sound 4 40 t checkE_blk_40 (by omega) (by omega)
-  else if h48 : t < 48 then exact checkERange_sound 4 44 t checkE_blk_44 (by omega) (by omega)
-  else if h52 : t < 52 then exact checkERange_sound 4 48 t checkE_blk_48 (by omega) (by omega)
-  else if h56 : t < 56 then exact checkERange_sound 4 52 t checkE_blk_52 (by omega) (by omega)
-  else exact checkERange_sound 3 56 t checkE_blk_56 (by omega) (by omega)
+set_option maxRecDepth 4096 in
+set_option maxHeartbeats 0 in
+private lemma checkE_all : ∀ t ≤ 58, checkE (4 * t + 2) = true := by decide +kernel
 
 private lemma noSq24_of_even_three_odd (e a b c : Nat)
     (he : e % 4 = 2) (ha : a % 2 = 1) (hb : b % 2 = 1) (hc : c % 2 = 1)

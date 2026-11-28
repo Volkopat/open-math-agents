@@ -1,0 +1,43 @@
+import Mathlib
+
+/-!
+# A376359: Positions of numbers in A007961 that end in 2.
+
+Source: https://oeis.org/A376359
+Credit: @agchua
+
+Comment line of A376359 (Clark Kimberling, Sep 25 2024), verbatim:
+  Conjecture: {a(n+1) - a(n) : n >= 1} = {3,4,5,6,7,8,9,10}. (See related conjectures at A376357, A376358, and A376360.)
+Offset of A376359: 1 (data 2, 6, 11, 15, 18, 22, 27, 31, ...).
+
+A007961 (offset 1) is n written in base where place values are positive squares. As in the
+entry's Maple program (R. J. Mathar), with k = floor(sqrt(n)) the digits are computed greedily
+for the place values k^2, (k-1)^2, ..., 1^2: the digit of b^2 is floor(r/b^2) for the current
+remainder r, the remainder then becomes r mod b^2, and the digit of b^2 is written at the decimal
+position b-1 (units for b = 1). So A007961(n) = rep(n, floor(sqrt(n))) with rep as below; for
+example A007961(2) = 2, A007961(6) = 12, and A007961(11) = 102.
+A376359 lists the n >= 1 such that A007961(n) ends in 2 (A007961(n) mod 10 = 2) in increasing
+order, so a(n) is Nat.nth of that predicate at n - 1 (Nat.nth counts from 0). The conjecture says
+that the set of the differences a(n+1) - a(n), n >= 1, is exactly {3, 4, 5, 6, 7, 8, 9, 10}.
+-/
+
+namespace OMA.S_oeis_a376359
+
+/-- rep r b: r written greedily with the place values b^2, (b-1)^2, ..., 1^2, read as a decimal
+number; the digit of b^2 stands at the decimal position b-1. -/
+def rep : ℕ → ℕ → ℕ
+  | _, 0 => 0
+  | r, b + 1 => r / (b + 1) ^ 2 * 10 ^ b + rep (r % (b + 1) ^ 2) b
+
+/-- A007961: n written in base where place values are positive squares. -/
+def A007961 (n : ℕ) : ℕ := rep n (Nat.sqrt n)
+
+/-- A376359 (offset 1): a(n) is the n-th number m >= 1 such that A007961(m) ends in 2. -/
+noncomputable def a (n : ℕ) : ℕ := Nat.nth (fun m => 1 ≤ m ∧ A007961 m % 10 = 2) (n - 1)
+
+/-- The set of the differences a(n+1) - a(n), n >= 1, is {3, 4, 5, 6, 7, 8, 9, 10}. -/
+theorem main :
+    {d : ℕ | ∃ n : ℕ, 1 ≤ n ∧ a (n + 1) - a n = d} = {3, 4, 5, 6, 7, 8, 9, 10} := by
+  sorry
+
+end OMA.S_oeis_a376359

@@ -2,7 +2,9 @@ import FormalConjectures.Wikipedia.GaussCircleProblem
 
 -- Problem: Gauss circle problem — error le
 -- Upstream: formal-conjectures FormalConjectures/Wikipedia/GaussCircleProblem.lean:68 (declaration GaussCircleProblem.error_le)
--- Credit: @philipsaint (the owner of the agent is credited as the solver)
+-- Credit: @philipsaint (original proof and lattice-column/integral argument).
+-- This simplification uses Mathlib’s even-function interval sum and square-root
+-- inequality to replace the manual symmetry induction and closed-ball calculation.
 -- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
 
 open Filter Real
@@ -59,20 +61,11 @@ lemma col (Y : ℝ) (hY : 0 ≤ Y) (M : ℕ) (hM : ⌊√Y⌋₊ ≤ M) :
   rw [hset, Int.card_Icc]
   omega
 
-lemma symm_sum (g : ℤ → ℝ) (hg : ∀ m, g (-m) = g m) : ∀ M : ℕ,
-    ∑ m ∈ Finset.Icc (-(M : ℤ)) M, g m = g 0 + 2 * ∑ i ∈ Finset.range M, g ((i : ℤ) + 1)
-  | 0 => by simp
-  | M + 1 => by
-    have hset : Finset.Icc (-((M + 1 : ℕ) : ℤ)) ((M + 1 : ℕ) : ℤ)
-        = insert (-((M : ℤ) + 1)) (insert ((M : ℤ) + 1) (Finset.Icc (-(M : ℤ)) M)) := by
-      ext x
-      simp only [Finset.mem_insert, Finset.mem_Icc]
-      push_cast
-      omega
-    rw [hset, Finset.sum_insert (by simp only [Finset.mem_insert, Finset.mem_Icc]; omega),
-      Finset.sum_insert (by simp only [Finset.mem_Icc]; omega), symm_sum g hg M,
-      Finset.sum_range_succ, hg]
-    ring
+lemma symm_sum (g : ℤ → ℝ) (hg : ∀ m, g (-m) = g m) (M : ℕ) :
+    ∑ m ∈ Finset.Icc (-(M : ℤ)) M, g m = g 0 + 2 * ∑ i ∈ Finset.range M, g ((i : ℤ) + 1) := by
+  rw [Finset.sum_Icc_of_even_eq_range hg, Finset.sum_range_succ']
+  simp only [Nat.cast_add, Nat.cast_one, Nat.cast_zero, nsmul_eq_mul]
+  ring
 
 lemma half_integral (r : ℝ) (hr : 0 ≤ r) : ∫ x in (0 : ℝ)..r, f r x = π * r ^ 2 / 2 := by
   -- full integral over [-r, r]
@@ -124,20 +117,8 @@ lemma integral_M (r : ℝ) (hr : 0 ≤ r) (M : ℕ) (hM : r ≤ (M : ℝ) + 1) :
 lemma mem_ball (r : ℝ) (m n : ℤ) :
     !₂[(m : ℝ), (n : ℝ)] ∈ Metric.closedBall (0 : EuclideanSpace ℝ (Fin 2)) r ↔
       0 ≤ r ∧ (m : ℝ) ^ 2 + (n : ℝ) ^ 2 ≤ r ^ 2 := by
-  rw [mem_closedBall_zero_iff, EuclideanSpace.norm_eq]
-  have hs : ∑ i, ‖(!₂[(m : ℝ), (n : ℝ)]) i‖ ^ 2 = (m : ℝ) ^ 2 + (n : ℝ) ^ 2 := by
-    simp [Fin.sum_univ_two]
-  rw [hs]
-  have hnn : 0 ≤ (m : ℝ) ^ 2 + (n : ℝ) ^ 2 := by positivity
-  constructor
-  · intro h
-    have h0 : 0 ≤ r := le_trans (Real.sqrt_nonneg _) h
-    refine ⟨h0, ?_⟩
-    calc (m : ℝ) ^ 2 + (n : ℝ) ^ 2 = (√((m : ℝ) ^ 2 + (n : ℝ) ^ 2)) ^ 2 := (Real.sq_sqrt hnn).symm
-      _ ≤ r ^ 2 := pow_le_pow_left₀ (Real.sqrt_nonneg _) h 2
-  · rintro ⟨h0, h⟩
-    calc √((m : ℝ) ^ 2 + (n : ℝ) ^ 2) ≤ √(r ^ 2) := Real.sqrt_le_sqrt h
-      _ = r := Real.sqrt_sq h0
+  simp [EuclideanSpace.norm_eq, Fin.sum_univ_two,
+    Real.sqrt_le_iff]
 
 end OMA.Gauss
 

@@ -4,18 +4,13 @@ namespace OMA.S_oeis_a058764
 
 
 
-/-- The entry's conjecture. -/
-def Conjecture : Prop := ∀ n : ℕ, 1 < n → a n = 3 * 2 ^ (n - 1)
-
 theorem witness (n : ℕ) (hn : 2 ≤ n) : cototient (3 * 2 ^ (n - 1)) = 2 ^ n := by
   obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
   unfold cototient
   have hcop : Nat.Coprime 3 (2 ^ (k + 1)) := Nat.Coprime.pow_right _ (by norm_num)
   rw [show k + 2 - 1 = k + 1 by omega, Nat.totient_mul hcop, Nat.totient_prime Nat.prime_three,
     Nat.totient_prime_pow_succ Nat.prime_two]
-  have e1 : 2 ^ (k + 1) = 2 * 2 ^ k := by ring
-  have e2 : 2 ^ (k + 2) = 4 * 2 ^ k := by ring
-  rw [e1, e2]
+  simp only [pow_succ]
   omega
 
 /-- An odd `m >= 3` with `φ(m)` not divisible by 4 satisfies `2m <= 3φ(m)`. -/
@@ -125,19 +120,11 @@ theorem lower (n : ℕ) (hn : 2 ≤ n) (x : ℕ) (hx : cototient x = 2 ^ n) : 3 
         _ ≤ m * 2 ^ (k + 1) := Nat.mul_le_mul_right _ hmi
         _ = 2 ^ (k + 1) * m := by ring
 
-theorem proof : Conjecture := by
+theorem proof : type_of% @OMA.S_oeis_a058764.main := by
   intro n hn
   refine le_antisymm (Nat.sInf_le (witness n hn)) (le_csInf ⟨_, witness n hn⟩ ?_)
   intro x hx
   exact lower n hn x hx
-
-/-- Controls: `a(0) = 2` and `a(1) = 4`, as listed. -/
-theorem a_eq_of {n v : ℕ} (hv : cototient v = 2 ^ n) (hmin : ∀ x < v, cototient x ≠ 2 ^ n) :
-    a n = v :=
-  le_antisymm (Nat.sInf_le hv) (le_csInf ⟨v, hv⟩ fun x hx => not_lt.mp fun h => hmin x h hx)
-
-theorem a0 : a 0 = 2 := a_eq_of (by decide) (by decide)
-theorem a1 : a 1 = 4 := a_eq_of (by decide) (by decide)
 
 end OMA.S_oeis_a058764
 

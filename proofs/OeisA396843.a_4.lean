@@ -1,10 +1,7 @@
 import FormalConjectures.OEIS.«396843»
-import Mathlib.RingTheory.PowerSeries.Substitution
-import Mathlib.RingTheory.PowerSeries.WellKnown
-import Mathlib.Data.ZMod.Basic
-import Mathlib.Tactic.LinearCombination
-import Mathlib.Tactic.IntervalCases
-import Mathlib.Tactic.NormNum
+
+/-! Retain an integral witness for the epsilon-defined series, then compare the
+low coefficients of its defining equation with explicit normalized truncations. -/
 
 namespace A396843Proof
 open PowerSeries
@@ -236,264 +233,68 @@ theorem series_equation : output (series : PowerSeries R) = X ^ 2 := by
   exact (coeff_eq_of_dvd h (by omega)).trans
     (coeff_eq_of_dvd (stage_correct n) (by omega))
 
-/-- The normalization $A(0)=0$, $a(1)=1$ makes the source equation unique. -/
-theorem normalized_unique {f g : PowerSeries R}
-    (hf : constantCoeff f = 0) (hg : constantCoeff g = 0)
-    (hf1 : coeff 1 f = 1) (hg1 : coeff 1 g = 1)
-    (he : output f = output g) : f = g := by
-  have hall : ∀ n, (X : PowerSeries R) ^ (n + 2) ∣ f - g := by
-    intro n
-    induction n with
-    | zero => exact normalized_difference (hf.trans hg.symm) (hf1.trans hg1.symm)
-    | succ n ih =>
-        apply X_pow_dvd_iff.mpr
-        intro k hk
-        by_cases hk' : k < n + 2
-        · exact X_pow_dvd_iff.mp ih k hk'
-        · have hkn : k = n + 2 := by omega
-          subst k
-          have ht := output_next (by omega : 2 ≤ n + 2) hf hg hf1 ih
-          rw [he, sub_self] at ht
-          simpa only [map_sub] using ht.symm
-  ext n
-  exact coeff_eq_of_dvd (hall n) (by omega)
-
-/-- The source GF equation has exactly one normalized solution over every commutative ring. -/
-theorem exists_unique_series : ∃! f : PowerSeries R,
-    constantCoeff f = 0 ∧ coeff 1 f = 1 ∧ output f = X ^ 2 := by
-  refine ⟨series, ⟨series_constant, series_linear, series_equation⟩, ?_⟩
-  rintro f ⟨hf, hf1, he⟩
-  exact normalized_unique hf series_constant hf1 series_linear (he.trans series_equation.symm)
-
-lemma output_map {S : Type*} [CommRing S] (h : R →+* S) (f : PowerSeries R) :
-    (output f).map h = output (f.map h) := by
-  have hm : (output f).map h = (f.map h).subst ((argument f).map h) :=
-    map_subst (argument_hasSubst f) f
-  rw [hm]
-  have hthree : (PowerSeries.map h) (3 : PowerSeries R) = (3 : PowerSeries S) :=
-    map_ofNat (PowerSeries.map h) 3
-  simp [output, argument, hthree]
-
-/-- The construction commutes with coefficient maps; in particular its rational solution is integral. -/
-theorem series_map {S : Type*} [CommRing S] (h : R →+* S) :
-    (series : PowerSeries R).map h = (series : PowerSeries S) := by
-  have h0 : constantCoeff ((series : PowerSeries R).map h) = 0 := by
-    rw [← coeff_zero_eq_constantCoeff_apply, coeff_map, coeff_zero_eq_constantCoeff_apply,
-      series_constant, map_zero]
-  apply normalized_unique h0 series_constant (by simp [series_linear]) series_linear
-  rw [← output_map, series_equation, series_equation]
-  simp
-
-/-- The series with coefficient one at every positive index over the field with two elements. -/
-def allOnes : PowerSeries (ZMod 2) := X * mk 1
-
-lemma allOnes_equation : output allOnes = X ^ 2 := by
-  let s := allOnes
-  let h := argument s
-  have hs : s * (1 - X) = X := by
-    dsimp [s, allOnes]
-    rw [mul_assoc, mk_one_mul_one_sub_eq_one, mul_one]
-  have htwo : (2 : PowerSeries (ZMod 2)) = 0 := by
-    calc
-      (2 : PowerSeries (ZMod 2)) = C (2 : ZMod 2) := (map_ofNat C 2).symm
-      _ = C (0 : ZMod 2) := congrArg C (by decide)
-      _ = 0 := map_zero C
-  have hh : h * (1 - X) ^ 2 = X ^ 2 := by
-    calc
-      h * (1 - X) ^ 2 =
-          X * (s * (1 - X)) * (1 - X) - 3 * X * (s * (1 - X)) ^ 2 := by
-            dsimp [h, argument]
-            ring
-      _ = X ^ 2 - 4 * X ^ 3 := by rw [hs]; ring
-      _ = X ^ 2 := by linear_combination -(2 * X ^ 3) * htwo
-  have hi : (1 - h) * (1 - X) ^ 2 = 1 := by
-    linear_combination -hh - X * htwo
-  have hc : s.subst h * (1 - h) = h := by
-    have hsub : HasSubst h := argument_hasSubst s
-    have ht := congrArg (substAlgHom hsub) hs
-    simpa only [map_mul, map_sub, map_one, coe_substAlgHom, subst_X hsub] using ht
-  change s.subst h = X ^ 2
-  calc
-    s.subst h = s.subst h * ((1 - h) * (1 - X) ^ 2) := by rw [hi, mul_one]
-    _ = h * (1 - X) ^ 2 := by rw [← mul_assoc, hc]
-    _ = X ^ 2 := hh
-
-/-- Hanna's oddness conclusion for any normalized integral solution of the exact source equation. -/
-theorem source_oddness (f : PowerSeries ℤ) (hf : constantCoeff f = 0)
-    (hf1 : coeff 1 f = 1) (he : f.subst (X * f - 3 * X * f ^ 2) = X ^ 2) :
-    ∀ n : ℕ, 1 ≤ n → Odd (coeff n f) := by
-  let hom := Int.castRingHom (ZMod 2)
-  let g := f.map hom
-  have hg0 : constantCoeff g = 0 := by
-    simp [g, ← coeff_zero_eq_constantCoeff_apply, hf]
-  have hg1 : coeff 1 g = 1 := by simp [g, hf1]
-  have hg : output g = X ^ 2 := by
-    change output f = X ^ 2 at he
-    have hm := congrArg (PowerSeries.map hom) he
-    rw [output_map] at hm
-    simpa [g] using hm
-  have hgs : g = allOnes := normalized_unique hg0 (by simp [allOnes]) hg1
-    (by simp [allOnes]) (hg.trans allOnes_equation.symm)
-  intro n hn
-  rw [← ZMod.intCast_eq_one_iff_odd]
-  have ht := congrArg (coeff n) hgs
-  obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le hn
-  simpa [g, hom, allOnes, Nat.add_comm] using ht
-
-/-- The integer sequence at its official OEIS indices (with $a(0)=0$). -/
-def a (n : ℕ) : ℤ := coeff n series
-
-/-- All terms of OEIS A396843 are odd. -/
-theorem all_terms_odd (n : ℕ) (hn : 1 ≤ n) : Odd (a n) :=
-  source_oddness series series_constant series_linear series_equation n hn
-
-/-- An integral series with the exact OEIS normalization exists and is unique. -/
-theorem source_existence : ∃! f : PowerSeries ℤ,
-    constantCoeff f = 0 ∧ coeff 1 f = 1 ∧
-      f.subst (X * f - 3 * X * f ^ 2) = X ^ 2 := exists_unique_series
-
-/-- Finite polynomial version of the same correction process, for exact initial-value checks. -/
-def polynomialStage : ℕ → Polynomial ℤ
-  | 0 => Polynomial.X
-  | n + 1 =>
-      let p := polynomialStage n
-      p - Polynomial.monomial (n + 2)
-        ((p.comp (Polynomial.X * p - 3 * Polynomial.X * p ^ 2)).coeff (n + 3))
-
-lemma polynomial_substitution (p q : Polynomial ℤ) (hq : q.coeff 0 = 0) :
-    (p : PowerSeries ℤ).subst (q : PowerSeries ℤ) = (p.comp q : Polynomial ℤ) := by
-  have hq' : constantCoeff (q : PowerSeries ℤ) = 0 := by
-    simpa only [← coeff_zero_eq_constantCoeff_apply, Polynomial.coeff_coe] using hq
-  rw [subst_coe (.of_constantCoeff_zero' hq')]
-  have hh : (algebraMap ℤ (PowerSeries ℤ)) = C := Subsingleton.elim _ _
-  simp only [Polynomial.aeval_def, hh, ← Polynomial.eval₂_C_X_eq_coe, Polynomial.eval₂_comp]
-
-lemma polynomialStage_coe (n : ℕ) : (polynomialStage n : PowerSeries ℤ) = stage n := by
-  induction n with
-  | zero => simp [polynomialStage, stage]
-  | succ n ih =>
-      have harg :
-          ((Polynomial.X * polynomialStage n - 3 * Polynomial.X * polynomialStage n ^ 2 :
-            Polynomial ℤ) : PowerSeries ℤ) = argument (stage n) := by
-        simp only [argument, Polynomial.coe_sub, Polynomial.coe_mul, Polynomial.coe_pow,
-          Polynomial.coe_X, ih]
-        have hthree : ((3 : Polynomial ℤ) : PowerSeries ℤ) = 3 :=
-          map_ofNat Polynomial.coeToPowerSeries.ringHom 3
-        rw [hthree]
-      have hzero :
-          (Polynomial.X * polynomialStage n - 3 * Polynomial.X * polynomialStage n ^ 2).coeff 0 = 0 := by
-        simp
-      have hsub := polynomial_substitution (polynomialStage n) _ hzero
-      rw [harg, ih] at hsub
-      simp only [polynomialStage, Polynomial.coe_sub, Polynomial.coe_monomial, stage, ih]
-      congr 2
-      rw [← Polynomial.coeff_coe, ← hsub]
-      rfl
-
-lemma a_eq_polynomial (n : ℕ) : a n = (polynomialStage n).coeff n := by
-  have h := coeff_eq_of_dvd (series_approximation (R := ℤ) n) (by omega : n < n + 2)
-  rw [← polynomialStage_coe] at h
-  simpa only [a, Polynomial.coeff_coe] using h
-
-lemma polynomialStage_0 : polynomialStage 0 = Polynomial.X := rfl
-
-lemma polynomialStage_1 : polynomialStage 1 = Polynomial.X + 3 * Polynomial.X ^ 2 := by
-  rw [polynomialStage, polynomialStage_0]
-  have hc : ((Polynomial.X : Polynomial ℤ).comp
-      (Polynomial.X * Polynomial.X - 3 * Polynomial.X * Polynomial.X ^ 2)).coeff 3 = -3 := by
-    conv_lhs => arg 1; ring_nf
-    norm_num
-  rw [hc]
-  simp only [← Polynomial.C_mul_X_pow_eq_monomial, map_neg, map_ofNat]
-  ring
-
-lemma polynomialStage_2 : polynomialStage 2 =
-    Polynomial.X + 3 * Polynomial.X ^ 2 + 15 * Polynomial.X ^ 3 := by
-  rw [polynomialStage, polynomialStage_1]
-  have hc : ((Polynomial.X + 3 * Polynomial.X ^ 2 : Polynomial ℤ).comp
-      (Polynomial.X * (Polynomial.X + 3 * Polynomial.X ^ 2) -
-        3 * Polynomial.X * (Polynomial.X + 3 * Polynomial.X ^ 2) ^ 2)).coeff 4 = -15 := by
-    conv_lhs => arg 1; simp; ring_nf
-    norm_num
-  rw [hc]
-  simp only [← Polynomial.C_mul_X_pow_eq_monomial, map_neg, map_ofNat]
-  ring
-
-lemma polynomialStage_3 : polynomialStage 3 =
-    Polynomial.X + 3 * Polynomial.X ^ 2 + 15 * Polynomial.X ^ 3 + 117 * Polynomial.X ^ 4 := by
-  rw [polynomialStage, polynomialStage_2]
-  have hc : ((Polynomial.X + 3 * Polynomial.X ^ 2 + 15 * Polynomial.X ^ 3 : Polynomial ℤ).comp
-      (Polynomial.X * (Polynomial.X + 3 * Polynomial.X ^ 2 + 15 * Polynomial.X ^ 3) -
-        3 * Polynomial.X * (Polynomial.X + 3 * Polynomial.X ^ 2 + 15 * Polynomial.X ^ 3) ^ 2)).coeff 5 =
-      -117 := by
-    conv_lhs => arg 1; simp; ring_nf
-    norm_num
-  rw [hc]
-  simp only [← Polynomial.C_mul_X_pow_eq_monomial, map_neg, map_ofNat]
-  ring
-
-lemma polynomialStage_4 : polynomialStage 4 =
-    Polynomial.X + 3 * Polynomial.X ^ 2 + 15 * Polynomial.X ^ 3 +
-      117 * Polynomial.X ^ 4 + 975 * Polynomial.X ^ 5 := by
-  rw [polynomialStage, polynomialStage_3]
-  have hc : ((Polynomial.X + 3 * Polynomial.X ^ 2 + 15 * Polynomial.X ^ 3 +
-      117 * Polynomial.X ^ 4 : Polynomial ℤ).comp
-      (Polynomial.X * (Polynomial.X + 3 * Polynomial.X ^ 2 + 15 * Polynomial.X ^ 3 +
-        117 * Polynomial.X ^ 4) - 3 * Polynomial.X *
-          (Polynomial.X + 3 * Polynomial.X ^ 2 + 15 * Polynomial.X ^ 3 + 117 * Polynomial.X ^ 4) ^ 2)).coeff 6 =
-      -975 := by
-    conv_lhs => arg 1; simp; ring_nf
-    norm_num
-  rw [hc]
-  simp only [← Polynomial.C_mul_X_pow_eq_monomial, map_neg, map_ofNat]
-  ring
-
-lemma a_eq_polynomial_of_lt (n m : ℕ) (h : n < m + 2) : a n = (polynomialStage m).coeff n := by
-  have ht := coeff_eq_of_dvd (series_approximation (R := ℤ) m) h
-  rw [← polynomialStage_coe] at ht
-  simpa only [a, Polynomial.coeff_coe] using ht
-
-lemma a_0 : a 0 = 0 := by
-  simpa only [a, coeff_zero_eq_constantCoeff_apply] using (series_constant (R := ℤ))
-lemma a_1 : a 1 = 1 := series_linear
-lemma a_2 : a 2 = 3 := by
-  rw [a_eq_polynomial_of_lt 2 1 (by omega), polynomialStage_1]
-  norm_num [Polynomial.coeff_X]
-lemma a_3 : a 3 = 15 := by
-  rw [a_eq_polynomial_of_lt 3 2 (by omega), polynomialStage_2]
-  norm_num [Polynomial.coeff_X]
-lemma a_4 : a 4 = 117 := by
-  rw [a_eq_polynomial_of_lt 4 3 (by omega), polynomialStage_3]
-  norm_num [Polynomial.coeff_X]
-lemma a_5 : a 5 = 975 := by
-  rw [a_eq_polynomial_of_lt 5 4 (by omega), polynomialStage_4]
-  norm_num [Polynomial.coeff_X]
-
-
 end
 end A396843Proof
-namespace OMA.A396843
 
-theorem source_existence_proof : ∃! A : PowerSeries ℤ, OeisA396843.SourceEquation A :=
-  A396843Proof.source_existence
-
-theorem series_spec_proof : OeisA396843.SourceEquation OeisA396843.series :=
-  Classical.epsilon_spec source_existence_proof.exists
-
-theorem series_eq_constructed : OeisA396843.series = (A396843Proof.series : PowerSeries ℤ) :=
-  A396843Proof.normalized_unique series_spec_proof.1 A396843Proof.series_constant
-    series_spec_proof.2.1 A396843Proof.series_linear
-    (series_spec_proof.2.2.trans A396843Proof.series_equation.symm)
-
-theorem a_eq_constructed (n : ℕ) : OeisA396843.a n = A396843Proof.a n := by
-  rw [OeisA396843.a, series_eq_constructed]
-  rfl
-
-theorem constructed_a_4 : OeisA396843.a 4 = 117 := by
-  rw [a_eq_constructed]
-  exact A396843Proof.a_4
-
-end OMA.A396843
-
+open PowerSeries A396843Proof in
 theorem OMA.solution : type_of% @OeisA396843.a_4 := by
-  exact OMA.A396843.constructed_a_4
+  have hs : OeisA396843.SourceEquation OeisA396843.series :=
+    Classical.epsilon_spec (show ∃ A, OeisA396843.SourceEquation A from
+      ⟨series, series_constant, series_linear, series_equation⟩)
+  have he : output OeisA396843.series = X ^ 2 := hs.2.2
+  have h2 : coeff 2 OeisA396843.series = 3 := by
+    have hx : output (X : PowerSeries ℤ) = X ^ 2 - 3 * X ^ 3 := by
+      rw [output, subst_X (argument_hasSubst _)]
+      dsimp [argument]
+      ring
+    have h := output_next (d := 2) (by decide) hs.1
+      (by simp : constantCoeff (X : PowerSeries ℤ) = 0) hs.2.1
+      (normalized_difference (by simpa using hs.1) (by simpa using hs.2.1))
+    rw [he, hx] at h
+    norm_num at h
+    simpa [coeff_X, coeff_mul_X_pow', map_ofNat] using h.symm
+  have h3 : coeff 3 OeisA396843.series = 15 := by
+    let P : PowerSeries ℤ := X + C 3 * X ^ 2
+    have hd : (X : PowerSeries ℤ) ^ 3 ∣ OeisA396843.series - P := by
+      apply X_pow_dvd_iff.2
+      intro n hn
+      interval_cases n <;>
+        simp only [P, map_sub, map_add, coeff_X, coeff_C_mul_X_pow,
+          coeff_zero_eq_constantCoeff_apply, hs.1, hs.2.1, h2] <;> norm_num
+    have hpout : output P = argument P + C 3 * argument P ^ 2 := by
+      change (X + C (3 : ℤ) * X ^ 2).subst (argument P) = _
+      rw [subst_add (argument_hasSubst _), subst_mul (argument_hasSubst _),
+        subst_pow (argument_hasSubst _), subst_X (argument_hasSubst _), subst_C]
+      rfl
+    have hp : coeff 4 (output P) = -15 := by
+      rw [hpout]
+      conv_lhs => arg 2; simp only [P, argument, map_ofNat]; ring_nf
+      norm_num [coeff_mul_X_pow', coeff_X_pow_mul', coeff_X, map_ofNat]
+    have h := output_next (d := 3) (by decide) hs.1
+      (by simp [P] : constantCoeff P = 0) hs.2.1 hd
+    rw [he, hp] at h
+    simp only [P, map_add, coeff_X, coeff_X_pow, coeff_C_mul_X_pow] at h
+    norm_num at h
+    simpa using h.symm
+  let P : PowerSeries ℤ := X + C 3 * X ^ 2 + C 15 * X ^ 3
+  have hd : (X : PowerSeries ℤ) ^ 4 ∣ OeisA396843.series - P := by
+    apply X_pow_dvd_iff.2
+    intro n hn
+    interval_cases n <;>
+      simp only [P, map_sub, map_add, coeff_X, coeff_C_mul_X_pow,
+        coeff_zero_eq_constantCoeff_apply, hs.1, hs.2.1, h2, h3] <;> norm_num
+  have hpout : output P = argument P + C 3 * argument P ^ 2 + C 15 * argument P ^ 3 := by
+    change (X + C (3 : ℤ) * X ^ 2 + C 15 * X ^ 3).subst (argument P) = _
+    simp only [subst_add (argument_hasSubst _), subst_mul (argument_hasSubst _),
+      subst_pow (argument_hasSubst _), subst_X (argument_hasSubst _), subst_C]
+    rfl
+  have hp : coeff 5 (output P) = -117 := by
+    rw [hpout]
+    conv_lhs => arg 2; simp only [P, argument, map_ofNat]; ring_nf
+    norm_num [coeff_mul_X_pow', coeff_X_pow_mul', coeff_X, map_ofNat]
+  have h := output_next (d := 4) (by decide) hs.1
+    (by simp [P] : constantCoeff P = 0) hs.2.1 hd
+  rw [he, hp] at h
+  simp only [P, map_add, coeff_X, coeff_X_pow, coeff_C_mul_X_pow] at h
+  norm_num at h
+  simpa [OeisA396843.a] using h.symm
