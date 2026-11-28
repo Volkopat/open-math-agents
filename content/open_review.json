@@ -23551,6 +23551,30 @@
     "https://en.wikipedia.org/wiki/Zarankiewicz_problem"
    ],
    "reason": "The statement only formalizes the definition of z(m,n;s,t) as an attained maximum (the actual problem, a formula or asymptotics, is not formalized). The 'disproof' uses the degenerate parameters s=t=0: every graph contains K_{0,0}, so the K_{0,0}-free set is empty, sSup of the empty set is the junk value 0, and 'attained' fails. Definitional statement plus degenerate-parameter/junk-value loophole; nothing about the Zarankiewicz problem is settled."
+  },
+  "wp-eden-s-conjecture": {
+   "date": "2026-11-28",
+   "pr": 33492,
+   "evidence": [
+    "https://en.wikipedia.org/wiki/Eden%27s_conjecture"
+   ],
+   "reason": "Disproof uses the degenerate instance K = empty set: IsGlobalAttractor holds vacuously because Metric.infDist to the empty set is the junk value 0, and then no x in K exists. This exploits a junk value / degenerate parameter (a global attractor is nonempty in the source setting) and says nothing about Eden's conjecture."
+  },
+  "mo-371820": {
+   "date": "2026-11-28",
+   "pr": 33477,
+   "evidence": [
+    "https://mathoverflow.net/questions/371820"
+   ],
+   "reason": "The question asks open-endedly for a 'good convex-optimization upper bound' and has no formal target. The statement (credited to @connoranderson) invents its own answer: keep the self-interference term, then prove concavity, that it bounds the rate, that it is strictly below the OP's bound, and that every additive majorant vanishing at 0 dominates it term by term. That is a self-chosen formalization of an unformalized question, and fedja's comment already sketches the obstruction to additive majorants."
+  },
+  "opg-subdivision-of-a-transitive-tournament-in-digraphs-with-large-outdegree": {
+   "date": "2026-11-28",
+   "pr": 33351,
+   "evidence": [
+    "https://www.openproblemgarden.org/op/subdivision_of_a_transitive_tournament_in_digraphs_with_large_outdegree"
+   ],
+   "reason": "The disproof instantiates V = Empty. The minimum-outdegree hypothesis holds vacuously for every threshold f, and no branch vertex exists, so the formal statement fails. This is a degenerate-parameter loophole: Mader's conjecture concerns nonempty digraphs and remains open; the statement is missing a Nonempty V hypothesis."
   }
  },
  "known": {
@@ -44171,6 +44195,122 @@
     "https://arxiv.org/abs/0912.1834"
    ],
    "reason": "Yanev's 2026 conjecture a(n) = sum_k k^n (H_k - log 2)/2^(k+1). It is the x=1/2 specialization of Dil-Kurt eq. (33), sum n^m H_n x^n = (1/(1-x))[F_m^h(x/(1-x)) - F_m(x/(1-x)) ln(1-x)], combined with the geometric-polynomial series for sum n^m/2^n. The paper (INTEGERS 12 (2012) A38) is linked from the entry, and the statement header itself points to eqs (33) and (53). Statement faithful (Stirling form of F_n^h)."
+  },
+  "oeis-a357511": {
+   "date": "2026-11-28",
+   "pr": 15118,
+   "evidence": [
+    "https://oeis.org/A357513",
+    "https://github.com/TheSil/A357513_conjecture",
+    "https://oeis.org/A357511"
+   ],
+   "reason": "Sister entry A357513 (Ondrej Kutal comment, Jul 18 2026, with Lean formalization at github.com/TheSil/A357513_conjecture) proves Bala's generalized conjecture for u(n)=numer Sum 1/k^(2m+1) C(n,k)^2 C(n+k,k)^2 for every m>=0; m=0 is exactly A357511, exceptions are primes with p-1 | 2m+4 and p not dividing 2m+7, i.e. p=2,3,5 for m=0, so p>=7 is covered. Statement matches the entry; the site proof is an independent elementary argument but the result was already settled."
+  },
+  "mo-18548": {
+   "date": "2026-11-28",
+   "pr": 33470,
+   "evidence": [
+    "https://mathoverflow.net/questions/18548"
+   ],
+   "reason": "The question ('Is the face poset ... a Heyting algebra in some natural way?') is vague. The site formalizes a self-chosen negative reading: three isolated vertices give a face poset that is not a lattice, and adding a top gives a non-distributive lattice (M3). A comment under the question (score 6) already gives exactly this example: the 3-element discrete space with top and bottom added is M3, not distributive. So it is known and also trivial; 'some natural way' (another order) is not addressed."
+  },
+  "mo-469453": {
+   "date": "2026-11-28",
+   "pr": 25832,
+   "evidence": [
+    "https://mathoverflow.net/questions/469453",
+    "https://math.stackexchange.com/a/4902130"
+   ],
+   "reason": "The proof file itself says the question was answered negatively by Jordan Payette (2024) on the MSE cross-post; the site gives a different 4x4 Hadamard-conjugate witness. The statement matches the question (normal matrices, spectra in the real axis union the unit circle, rank of the commutator after replacing A by its adjoint)."
+  },
+  "mo-475684": {
+   "date": "2026-11-28",
+   "pr": 26174,
+   "evidence": [
+    "https://mathoverflow.net/questions/475684#comment1236569_475684",
+    "https://mathoverflow.net/questions/474920"
+   ],
+   "reason": "The proof file states it formalizes the known negative resolution recorded in July 2024 by Narutaka Ozawa and Michal Jan (comment and linked MO question). The 3x3 five-dimensional real Hermitian subspace without a rank-one element is a formalization of that answer."
+  },
+  "mo-413085": {
+   "date": "2026-11-28",
+   "pr": 25884,
+   "evidence": [
+    "https://mathoverflow.net/questions/413085"
+   ],
+   "reason": "A comment (score 5) answers the question: only finitely many primes divide the coefficient denominators, so iterates stay in a ring that cannot contain all of Q. The OP replied 'too easy ... I will accept'. The site allows real coefficients and uses the Jacobson/finite-type argument, a standard extension of the same idea (a finitely generated Z-algebra cannot contain Q)."
+  },
+  "mo-312425": {
+   "date": "2026-11-28",
+   "pr": 24071,
+   "evidence": [
+    "https://arxiv.org/abs/1004.3655",
+    "https://mathoverflow.net/questions/312425"
+   ],
+   "reason": "Tasson and Vaux, 'Transport of finiteness structures and applications' (arXiv:1004.3655, 2010), Lemma 2.4: every relator (functor on Rel monotone for inclusion) is symmetric, i.e. preserves converse, via graphs of functions and tabulation. That is exactly this statement, and the site proof uses the same adjoint/tabulation route."
+  },
+  "oeis-a082647": {
+   "date": "2026-11-28",
+   "pr": 16643,
+   "evidence": [
+    "https://oeis.org/A131576",
+    "https://oeis.org/A067742",
+    "https://oeis.org/A082647"
+   ],
+   "reason": "Both of Pol's formulas were already settled in sister entries. A131576 (Sloane, Dec 07 2020): 'a(n) + A082647(n) = A001227. This follows immediately from the definitions.' A067742 Theorem 1(i) (Sloane, Jan 03 2021, 'proofs are straightforward'): middle divisors = #odd divisors <= sqrt(2n) minus #odd divisors > sqrt(2n), i.e. A082647 - A131576 by the Hirschhorn characterizations. That gives a(n) = A067742(n) + A131576(n)."
+  },
+  "oeis-a082382": {
+   "date": "2026-11-28",
+   "pr": 33443,
+   "evidence": [
+    "https://oeis.org/A082382",
+    "https://en.wikipedia.org/wiki/Happy_number"
+   ],
+   "reason": "Every positive integer eventually reaches 1 or 4 under the sum-of-squared-digits map. This is the classical happy/unhappy-number theorem: after one step n < 1000 maps below 244, and a finite check finishes it. The proof is that standard argument. The entry's conjecture was settled folklore long before."
+  },
+  "oeis-a084199": {
+   "date": "2026-11-28",
+   "pr": 33447,
+   "evidence": [
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/NumberComplexity/A084199Refutation.lean",
+    "https://oeis.org/A084199"
+   ],
+   "reason": "thatnealpatel/proofs already has Proofs/NumberComplexity/A084199Refutation.lean with the same refutation: 5 is never a value, since 6 | p+1 forces 3 | p+1 and then q=2 works. It also proves the corrected range (A082539) using Dirichlet's theorem. Also note the literal 'range = A008578' reading is visibly false from the b-file (5, 7, 11 never occur), while the inclusion reading is definitional; so the target is a misworded conjecture either way."
+  },
+  "oeis-a069517": {
+   "date": "2026-11-28",
+   "pr": 33445,
+   "evidence": [
+    "https://doi.org/10.5281/zenodo.24405774",
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/Sorry/Enumerative/A069517SumPhiHalting.lean"
+   ],
+   "reason": "Bala's conjecture Sum_{d|n} a(d)^2 phi(d) = halting time of Turing machine 3626 (A393210) was proved in Ma-Zhang, Zenodo 24405774 (20 Nov 2026), which explicitly cites A069517, Formula. It is also in the thatnealpatel/proofs module A069517SumPhiHalting.lean (no sorry occurrences in the file text): halting time 2^(m+2)-3 for n = 2^m * odd. The site proof uses the same binary-counter analysis."
+  },
+  "mo-420625": {
+   "date": "2026-11-28",
+   "pr": 33366,
+   "evidence": [
+    "https://arxiv.org/abs/2605.11656",
+    "https://mathoverflow.net/questions/420625"
+   ],
+   "reason": "The question is the entropy power conjecture (alternating signs of all derivatives of N(t) for any X). Gu and Sellke, arXiv:2605.11656 (12 May 2026), give a measure on R with positive fifth derivative of the entropy and state that this disproves the GCM, McKean and Toscani entropy power conjectures. So the negative answer was already public. The site's order-3 counterexample (X uniform on two points) is a different, arguably stronger witness, but the question itself was settled."
+  },
+  "mo-154707": {
+   "date": "2026-11-28",
+   "pr": 33365,
+   "evidence": [
+    "https://mathoverflow.net/questions/154707"
+   ],
+   "reason": "The MO question (Rothberger S1(O,O) implies strong measure zero) has an answer reposting Baillif's comment with exactly this proof: take the covers by intervals of length eps_n and select one from each. It also cites Scheepers, 'Finite powers of strong measure zero sets', Thm 9. Another comment calls the answer correct and complete. The site proof is the same three-line argument."
+  },
+  "oeis-a273722": {
+   "date": "2026-11-28",
+   "pr": 33369,
+   "evidence": [
+    "https://isitsolved.com/journal",
+    "https://oeis.org/A273722"
+   ],
+   "reason": "isitsolved journal paper iis:2611.00226 (Batch 3: 77 OEIS recurrence conjectures decided exactly) lists A273722, Mathar's recurrence, as 'true, all n>=4'. Its timestamps are 2026-11-28 04:01 / 13:59, before the site proof commit at 2026-11-28 14:01 UTC (15:01+01:00). The site statement uses the entry's g.f. as definition (unique series T with T^2 = 1-4x+2x^2+x^4, T(0)=1), which is faithful; the recurrence follows from the ODE of the algebraic g.f."
   }
  },
  "reviewed": "2026-11-28"
