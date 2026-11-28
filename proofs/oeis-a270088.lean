@@ -8,14 +8,9 @@ three-step configuration and three instances of the source's closed form. -/
 open OMA.S_oeis_a270088
 
 theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a270088.main) := by
-  rintro ⟨closedForm, recurrence, _⟩
-  have h2 : a 2 = 40 := by decide +kernel
-  have h3 := closedForm 3 (by decide)
-  have h4 := closedForm 4 (by decide)
-  have h5 := closedForm 5 (by decide)
-  have bad := recurrence 5 (by decide)
-  change (a 3 : Int) = 225 at h3
-  change (a 4 : Int) = 961 at h4
-  change (a 5 : Int) = 3969 at h5
-  change (a 5 : Int) = 7 * (a 4 : Int) - 14 * (a 3 : Int) + 8 * (a 2 : Int) at bad
-  omega
+  rintro ⟨formula, recurrence, _⟩
+  have initial : a 2 = 40 := by decide +kernel
+  have h := recurrence 5 (by decide)
+  change (a 5 : ℤ) = 7 * (a 4 : ℤ) - 14 * (a 3 : ℤ) + 8 * (a 2 : ℤ) at h
+  rw [formula 5 (by decide), formula 4 (by decide), formula 3 (by decide), initial] at h
+  norm_num at h
