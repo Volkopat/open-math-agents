@@ -14,15 +14,11 @@ private def coeff : Fin 10 → ℤ := ![-12,-6,-3,2,3,4,9,12,18,-2]
 
 private lemma injectivePoint : Function.Injective point := by
   intro i j eq
-  have hx : x i = x j := by
-    have h := congrArg (fun p : ℝ² => p 0) eq
-    change (x i : ℝ)/6 = (x j : ℝ)/6 at h
-    exact_mod_cast (show (x i : ℝ) = (x j : ℝ) by linarith)
-  have hy : y i = y j := by
-    have h := congrArg (fun p : ℝ² => p 1) eq
-    change (y i : ℝ)/6 = (y j : ℝ)/6 at h
-    exact_mod_cast (show (y i : ℝ) = (y j : ℝ) by linarith)
-  exact (by decide : ∀ i j : Fin 7, x i = x j → y i = y j → i = j) i j hx hy
+  have coord (a b : ℤ) (h : (a : ℝ)/6 = (b : ℝ)/6) : a = b :=
+    Int.cast_injective (show (a : ℝ) = b by linarith)
+  exact (by decide : ∀ i j : Fin 7, x i = x j → y i = y j → i = j) i j
+    (coord _ _ (congrArg (fun p : ℝ² => p 0) eq))
+    (coord _ _ (congrArg (fun p : ℝ² => p 1) eq))
 
 private lemma third (i j : Fin 7) (hne : i ≠ j) (h : i < 4 ∨ j < 4) :
     ∃ k, k ≠ i ∧ k ≠ j ∧ point k ∈ line[ℝ, point i, point j] := by
@@ -31,14 +27,14 @@ private lemma third (i j : Fin 7) (hne : i ≠ j) (h : i < 4 ∨ j < 4) :
         6*x i + coeff t * (x j - x i) = 6*x k ∧ 6*y i + coeff t * (y j - y i) = 6*y k := by decide
   obtain ⟨k,hki,hkj,t,hx,hy⟩ := table i j hne h
   refine ⟨k,hki,hkj,mem_affineSpan_pair_iff_exists_lineMap_eq.mpr ⟨(coeff t : ℝ)/6,?_⟩⟩
+  have coord (z : Fin 7 → ℤ) (h : 6*z i + coeff t * (z j - z i) = 6*z k) :
+      (coeff t : ℝ)/6 * ((z j : ℝ)/6 - (z i : ℝ)/6) + (z i : ℝ)/6 = (z k : ℝ)/6 := by
+    have hR : 6*(z i : ℝ) + (coeff t : ℝ)*((z j : ℝ)-(z i : ℝ)) = 6*(z k : ℝ) := by exact_mod_cast h
+    linarith
   ext a
   fin_cases a
-  · change (coeff t : ℝ)/6 * ((x j : ℝ)/6 - (x i : ℝ)/6) + (x i : ℝ)/6 = (x k : ℝ)/6
-    have h : 6*(x i : ℝ) + (coeff t : ℝ)*((x j : ℝ)-(x i : ℝ)) = 6*(x k : ℝ) := by exact_mod_cast hx
-    linarith
-  · change (coeff t : ℝ)/6 * ((y j : ℝ)/6 - (y i : ℝ)/6) + (y i : ℝ)/6 = (y k : ℝ)/6
-    have h : 6*(y i : ℝ) + (coeff t : ℝ)*((y j : ℝ)-(y i : ℝ)) = 6*(y k : ℝ) := by exact_mod_cast hy
-    linarith
+  · exact coord x hx
+  · exact coord y hy
 
 private theorem example_upper : f 7 ≤ 3 := by
   classical
@@ -66,12 +62,8 @@ private theorem example_upper : f 7 ≤ 3 := by
     · obtain ⟨k,hi,hj,hline⟩ := third i j ne small
       let T : Finset ℝ² := {point i,point j,point k}
       have bound : T ⊆ S.filter (fun p => p ∈ L i j) := by
-        intro p hp
-        simp only [T,Finset.mem_insert,Finset.mem_singleton] at hp
-        rcases hp with rfl | rfl | rfl
-        · exact Finset.mem_filter.mpr ⟨mem _, left_mem_affineSpan_pair ..⟩
-        · exact Finset.mem_filter.mpr ⟨mem _, right_mem_affineSpan_pair ..⟩
-        · exact Finset.mem_filter.mpr ⟨mem _,hline⟩
+        simp only [T, Finset.insert_subset_iff, Finset.singleton_subset_iff, Finset.mem_filter]
+        exact ⟨⟨mem _,left_mem_affineSpan_pair ..⟩, ⟨mem _,right_mem_affineSpan_pair ..⟩, ⟨mem _,hline⟩⟩
       have three : T.card = 3 := by
         simp [T,hab,injectivePoint.ne hi.symm,injectivePoint.ne hj.symm]
       have := Finset.card_le_card bound
@@ -99,9 +91,7 @@ private lemma fiveOnLine {s : Finset ℝ²} (hs : s.card = 7)
   have five : A.card = 5 := hfive
   have two : (s \ A).card = 2 := by rw [Finset.card_sdiff_of_subset sub,hs,five]
   obtain ⟨p,q,hpq,hrest⟩ := Finset.card_eq_two.mp two
-  have pO : p ∈ s \ A := by rw [hrest]; simp
-  have qO : q ∈ s \ A := by rw [hrest]; simp
-  obtain ⟨ps,pA⟩ := Finset.mem_sdiff.mp pO
+  obtain ⟨ps,pA⟩ := Finset.mem_sdiff.mp (show p ∈ s \ A by simp [hrest])
   have pL : p ∉ L := fun h => pA (Finset.mem_filter.mpr ⟨ps,h⟩)
   let cross (a : ℝ²) := line[ℝ,p,a]
   have onlyOn (a z : ℝ²) (ha : a ∈ A) (hz : z ∈ A) (hz' : z ∈ cross a) : z = a := by
@@ -119,9 +109,7 @@ private lemma fiveOnLine {s : Finset ℝ²} (hs : s.card = 7)
   let good := (A.image cross).erase (line[ℝ,p,q])
   have four : 4 ≤ good.card := by
     have nimg : (A.image cross).card = 5 := (Finset.card_image_of_injOn inj).trans five
-    by_cases h : line[ℝ,p,q] ∈ A.image cross
-    · simp [good,Finset.card_erase_of_mem h,nimg]
-    · simp [good,Finset.erase_eq_of_notMem h,nimg]
+    simpa [good,nimg] using (Finset.pred_card_le_card_erase (s := A.image cross) (a := line[ℝ,p,q]))
   have incl : good ⊆ ordinaryLines s := by
     intro l hl
     obtain ⟨notpq,hin⟩ := Finset.mem_erase.mp hl
@@ -183,12 +171,8 @@ private lemma noFive {s : Finset ℝ²} (hs : s.card = 7)
         simp [w,Nat.mul_sub_left_distrib]
   have ordinary : (cuts s).filter (fun L => w L = 2) = ordinaryLines s := by
     ext L
-    simp only [Finset.mem_filter,mem_ordinaryLines,cuts,Finset.mem_image,Finset.mem_offDiag]
-    constructor
-    · rintro ⟨⟨⟨a,b⟩,⟨ha,hb,ne⟩,eq⟩,two⟩
-      exact ⟨⟨a,ha,b,hb,ne,eq⟩,two⟩
-    · rintro ⟨⟨a,ha,b,hb,ne,eq⟩,two⟩
-      exact ⟨⟨(a,b),⟨ha,hb,ne⟩,eq⟩,two⟩
+    simp only [Finset.mem_filter, mem_ordinaryLines, cuts, Finset.mem_image, Finset.mem_offDiag,
+      Prod.exists, and_assoc, exists_and_left] <;> rfl
   have part := Finset.sum_filter_add_sum_filter_not (s := cuts s)
     (p := fun L => w L = 2) (f := fun L => w L * (w L - 1))
   have evenPart : ∑ L ∈ (cuts s).filter (fun L => w L = 2), w L * (w L - 1) =
