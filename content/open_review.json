@@ -18944,6 +18944,220 @@
     "https://arxiv.org/pdf/1911.05817"
    ],
    "note": "Major claim: no partial recursive procedure decides finite basedness of finite semigroup tables (Volkov 2001 Problem 2.1; still listed open in 2026 surveys, e.g. arXiv:2602.18805, Araujo et al. arXiv:2610.02500). The statement reads faithfully: semigroup tables, identities as magma terms with Holds over all assignments, Entails as equational consequence over all magmas (associativity is itself an identity of T), Partrec on tables. The 20k-line proof is the PR author's (Abel Czupor) own Turing-machine-to-finite-monoid reduction, which he published on his website on 26 Nov 2026 asking for review; no earlier proof by anyone else found. Lean settles correctness given the statement; independent human review of the reduction is still pending. Second review: At origin/main 9c65461c4, I compiled proofs/tarski-finite-basis-semigroups.lean (19,797 lines, merged in #29945 and fixed in 6b9bc6d59) together with the catalogue statement, using Lean v4.33.1 and the site's Mathlib build. It compiled with no errors. `#print axioms OMA.solution` gives only [propext, Classical.choice, Quot.sound]. A root-namespace guard (example : type_of% @_root_.OMA.S_tarski_finite_basis_semigroups.main := _root_.OMA.solution) also passed. The file contains no sorry, axiom, opaque, implemented_by, native_decide, extern or set_option. It assumes no external theorem: halting undecidability is proved inside the file by a diagonal argument (P455EffectiveMachine.no_self_decider), and Computable functions are linked to its machine model through Mathlib's TM2/Partrec compiler. McKenzie's theorem and tiling results are not used. The statement is faithful. FinitelyBased means a finite list R of binary-term identities whose semantic consequences over all magmas in Type are exactly the identities of the table (Birkhoff/completeness; associativity can go in R). Decidability means no Partrec p : List (List ℕ) →. Bool that halts correctly on every IsSemigroupTable (square, entries in range, associative, nonempty). This is the standard promise formulation over a genuine encoding, and it is not restricted to monoids or an extra signature. The images of the reduction happen to be monoids, which only strengthens the result. The problem was open in Volkov's survey and is still listed open in 2026 sources (arXiv 2602.18805, 2610.02500). I found no competing resolution. The manuscript's strategy is mathematically sensible: products of Jackson-style factor monoids of word sets that encode tile rectangles; halting gives isolated identities w0≈w1 that need unboundedly many variables; non-halting gives bounded-rank derivations plus the finite n-variable fragment. Human refereeing of the manuscript is still pending, but the Lean certificate is complete on its own."
+  },
+  "oeis-a251936": {
+   "date": "2026-11-28",
+   "pr": 29830,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A251936",
+    "https://oeis.org/A251935",
+    "https://oeis.org/A251936",
+    "https://oeis.org/A251935"
+   ],
+   "note": "Faithful: 0..n arrays x0..x3 with s*(max-med)(x0,x1,x2)+t*(max-med)(x1,x2,x3)=0 for some signs s,t. My brute force gives the data and Hardin's quartic for n <= 15. Barker's g.f. and recurrence (n>5) are equivalent to that quartic. The parent table A251935 has no proof, and I found nothing in the iis crawl, Ma-Zhang, Blanco Gomez or Fried. Elementary counting. Second review: Faithful statement of Barker's g.f. and recurrence for row 2 of Hardin's table. Nothing prior was found. This is elementary counting of a polynomial-count family: routine."
+  },
+  "oeis-a001723": {
+   "date": "2026-11-28",
+   "pr": 29824,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A001723",
+    "https://doi.org/10.5281/zenodo.23112421",
+    "https://oeis.org/A001723"
+   ],
+   "note": "Mathar's 2026 order-4 P-recurrence (n >= 4) is stated faithfully, with (-1)^(n+k) Stirling1 written as the unsigned Stirling number. I checked it for n < 80. Blanco Gomez proves the sibling A001724 ([n+9,9]_5, Prop. 7.39), but not this one. It is a routine holonomic computation. Second review: Faithful. It is a D-finite recurrence for a Stirling-type sum, proved by coefficient recursion of a shifted rising factorial. Routine."
+  },
+  "oeis-a105871": {
+   "date": "2026-11-28",
+   "pr": 29817,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A105871",
+    "https://oeis.org/A105871"
+   ],
+   "note": "Mathar's order-6 P-recurrence (n >= 6) is transcribed with expanded coefficients that I checked symbolically equal to the entry's, and the binomial-sum definition is verbatim. It holds numerically for n < 120. I found it in no proof collection (Blanco Gomez, Fried, Su, Athanor, iis). It is a creative-telescoping certificate, so routine. Second review: Faithful expansion of Mathar's 2015 recurrence, proved by creative telescoping. Routine holonomic identity."
+  },
+  "mse-2359790": {
+   "date": "2026-11-28",
+   "pr": 29806,
+   "routine": true,
+   "evidence": [
+    "https://math.stackexchange.com/questions/2359790",
+    "https://math.stackexchange.com/questions/2359790/k-tuple-admissibility"
+   ],
+   "note": "Disproof. The question asks whether a translate of H into the units mod a primorial m# larger than diam H forces H to be admissible, and the statement encodes exactly this, with M = primorial m. The counterexample H={1,7,11,13,17,19,23} is all units mod 30 and has diameter 22, but it covers every residue mod 7. This refutes the substantive direction, not a range slip. The question has no answers or comments. A finite check, so routine. Second review: This is a valid disproof of the literal question, which never mentions primes up to k=|H|. Under a different reading ('for every primorial exceeding the diameter') the claim would be true, but the text fixes one modulus m#, as formalized. Routine counterexample."
+  },
+  "oeis-a191150": {
+   "date": "2026-11-28",
+   "pr": 35382,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A191150",
+    "https://oeis.org/A191161",
+    "https://oeis.org/A074206",
+    "https://oeis.org/A191150",
+    "https://oeis.org/A191161",
+    "https://oeis.org/A074206"
+   ],
+   "note": "Faithful: Wu's recurrence is equivalent to Heinz's definition sigma(n)+Sum_{1<d<n} a(d), since sigma(n)=n+Sum_{d<n} d. Karttunen's identity a=A191161-A074206 (n>1) follows by strong induction, because g-a satisfies Kalmar's recursion. Short and near-definitional, but not vacuous. Routine. Second review: Karttunen's Sequence-Machine conjecture a(n)=A191161(n)-A074206(n) is faithfully stated and proved by a short strong induction. Not a duplicate of the site's A191161 item (that one states three other convolution formulas). Routine."
+  },
+  "oeis-a253229": {
+   "date": "2026-11-28",
+   "pr": 35364,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A253229",
+    "https://oeis.org/A253231",
+    "https://oeis.org/A253229",
+    "https://oeis.org/A253231"
+   ],
+   "note": "Column 6 of Hardin's table A253231. Barker's g.f. and closed form are proved by a certified row-pair transfer-matrix reduction. The proved g.f. reproduces the entry's data, which confirms the reading of the definition. Sibling columns (A253228 etc.) were solved separately on the site. I found no proof in the parent entry, the iis crawl, Blanco Gomez, Fried or Palomar. Routine. Second review: Barker's g.f./closed form for column 6 of A253231, proved by a certified transfer-matrix class reduction. Independent recount agrees with data and formula. Routine finite-state result."
+  },
+  "oeis-a099553": {
+   "date": "2026-11-28",
+   "pr": 35338,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A099553",
+    "https://oeis.org/A099553"
+   ],
+   "note": "The statement defines the g.f. by Coserea's quartic algebraic equation, a stated formula derived from Theorem D of Ren-Liu-Li and not a conjecture. Mathar's 2nd-order P-recursive recurrence is proved from it by a creative-telescoping/ODE certificate. I found no earlier proof (iis crawl, Blanco Gomez, Fried, Palomar). Routine. Second review: Mathar's P-recurrence for rooted 2-connected loopless 4-regular planar maps, derived from the algebraic g.f.; faithful and true. Routine holonomic consequence of an equation already in the entry."
+  },
+  "oeis-a294307": {
+   "date": "2026-11-28",
+   "pr": 35323,
+   "routine": false,
+   "evidence": [
+    "https://oeis.org/A294307",
+    "https://oeis.org/A294307",
+    "https://arxiv.org/abs/1809.01532",
+    "https://doi.org/10.1006/jnth.1996.0012"
+   ],
+   "note": "Faithful (the standard subset-sum definition of practical; any n). Sun's conjecture is proved constructively: for m=3^(2^a), every m^k-1 with k<=2^a is practical, by squaring and odd-factor steps with Stewart-Sierpinski. I checked this numerically for a<=3. The entry notes only the n=2 case (Melfi), and I found no public proof for n>=3 by web search, Palomar or the local caches. Second review: Sun's conjecture is proved by the explicit family m=3^(2^a) (x-1 practical and j<=2(x-1) gives (x-1)j practical, iterated over factorisations of m^k-1). Faithful, apparently new; the elementary construction makes me slightly wary that it exists unpublished elsewhere, but I found nothing."
+  },
+  "oeis-a200432": {
+   "date": "2026-11-28",
+   "pr": 35318,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A200432",
+    "https://oeis.org/A200430",
+    "https://oeis.org/A200432",
+    "https://oeis.org/A200430"
+   ],
+   "note": "Faithful: my brute force for n<=5 matches the data 0,80,520,1830,4750 and Hardin's quartic. Barker's g.f. 10x^2(8+12x+3x^2)/(1-x)^5 is proved by coefficient extraction and a fifth-difference identity. The parent table A200430 has only empirical row formulas. Routine polynomial counting. Second review: Barker's g.f. for row 2 of A200430 (a polynomial count, no quasi-period). Independent brute force agrees. Routine."
+  },
+  "oeis-a005908": {
+   "date": "2026-11-28",
+   "pr": 35294,
+   "routine": false,
+   "evidence": [
+    "https://oeis.org/A005908",
+    "https://oeis.org/A005908",
+    "https://oeis.org/A005909"
+   ],
+   "note": "Faithful (offset 0, a(0)=0, a(1)=1, exact floors of phi*a). Wu's 5-term recurrence and g.f. are proved by comparing a with explicit linear-recurrence sequences A, B and bounding the error d(n)=phi*A(n)-B(n)-1/sqrt5 with a quadratic Lyapunov function. I found no earlier proof (web search, Palomar, iis crawl, Blanco Gomez, Fried). Routine. Second review: Wu's order-5 recurrence for a floor-golden-ratio recurrence, proved by bounding an error term along an auxiliary linear recurrence. Faithful and true; genuine though short argument."
+  },
+  "oeis-a367052": {
+   "date": "2026-11-28",
+   "pr": 35262,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A367052",
+    "https://arxiv.org/abs/math/0310423",
+    "https://oeis.org/A367052",
+    "https://oeis.org/A003024",
+    "https://arxiv.org/abs/math/0310423"
+   ],
+   "note": "Faithful: 0/1 matrices over Q with charpoly X^n - X^(n-1), counted against n*A003024(n) for n>=1. The proof is a bijection: a single loop at v plus a labelled DAG. My brute force gives 1, 6, 75, 2172 = n*A003024(n) for n<=4. The entry still lists this as a conjecture, and McKay et al. (2004) cover only the x^n/positive-eigenvalue case. I found no other proof. Second review: Kagey's conjecture is proved by the standard trace/closed-walk argument: exactly one loop vertex plus an acyclic digraph. Faithful and correct; short, so routine."
+  },
+  "oeis-a337184": {
+   "date": "2026-11-28",
+   "pr": 35256,
+   "routine": false,
+   "evidence": [
+    "https://oeis.org/A337184",
+    "https://oeis.org/A337184"
+   ],
+   "note": "Faithful (decimal; terms ending in 0 excluded, as the data shows; offset 1 via Nat.nth). Greathouse's bound 3n<a(n)<7n for n>75 is proved: for a fixed leading digit, membership is periodic mod 2520, so a one-period discrepancy bound controls each decade, plus a finite check for the start. The entry has no proof, and I found none elsewhere. Routine density argument. Second review: Greathouse's linear bounds are proved by periodic-residue densities per leading digit with an explicit error and a finite check. Faithful; genuine but elementary."
+  },
+  "oeis-a224168": {
+   "date": "2026-11-28",
+   "pr": 35249,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A224168",
+    "https://oeis.org/A224173",
+    "https://oeis.org/A224168",
+    "https://oeis.org/A224173"
+   ],
+   "note": "Faithful to Howroyd's corrected name. My transfer-matrix computation of this reading reproduces the data 50, 684, ..., 2010035. Hardin's degree-9 polynomial and Barker's g.f. and recurrence are proved by a certified class-lumped transfer matrix. Column 3 of A224173; I found no proof there or in the iis crawl, Blanco Gomez, Fried or Palomar. Routine. Second review: Hardin's polynomial and Barker's g.f./recurrence for column 3 of A224173, proved by a certified transfer-matrix class reduction. Independent recount agrees. Routine."
+  },
+  "oeis-a201696": {
+   "date": "2026-11-28",
+   "pr": 35192,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A201696",
+    "https://oeis.org/A201700",
+    "https://oeis.org/A201696",
+    "https://oeis.org/A201700"
+   ],
+   "note": "Faithful: the lex forwards/backwards reading reproduces the parent tables A201375, A201700 and A201981, and the proof derives all 24 listed terms. Barker's degree-10 g.f. and the recurrence are proved by a certified transfer reduction. Column 4 of A201700 has only empirical formulas, and I found no proof in the iis crawl, Blanco Gomez, Fried or Palomar. Routine. Second review: Barker's g.f./recurrence for column 4 of A201700, proved by a certified transfer reduction. Reading of 'nondecreasing forwards and nonincreasing backwards' is confirmed by an independent count. Routine."
+  },
+  "oeis-a373783": {
+   "date": "2026-11-28",
+   "pr": 35218,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A373783",
+    "https://oeis.org/A373182",
+    "https://oeis.org/A373783",
+    "https://oeis.org/A373182"
+   ],
+   "note": "The statement replaces the seating definition with an explicit sum: (k+1)! orders, end gaps l,r<=2, and j of the k internal gaps of size 3. The docstring explains the bijection, and my brute-force seating count matches it and the data for n<=18 (n<=25 against the data). Von Bromssen's P-recursive recurrence (n>=9) then follows from this hypergeometric sum. I found no earlier proof. Routine. Second review: Von Bromssen's P-recurrence follows from the holonomic explicit sum (creative telescoping). Faithful and correct; routine."
+  },
+  "oeis-a202077": {
+   "date": "2026-11-28",
+   "pr": 35171,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A202077",
+    "https://oeis.org/A202076",
+    "https://oeis.org/A202077",
+    "https://oeis.org/A202076"
+   ],
+   "note": "Faithful: my brute force for n<=6 gives 2, 26, 78, 264, 504, 1128, matching the data. Barker's g.f. 2x(1+12x+22x^2+45x^3+22x^4+12x^5+x^6)/((1-x)^5(1+x)^4) is proved by parity-split coefficient counting. The parent A202076 has only empirical formulas. Routine quasi-polynomial count. Second review: Barker's g.f. for row 3 of A202076 (a lattice-point quasi-polynomial count). Faithful and correct; routine."
+  },
+  "oeis-a191161": {
+   "date": "2026-11-28",
+   "pr": 35302,
+   "routine": true,
+   "evidence": [
+    "https://oeis.org/A191161",
+    "https://oeis.org/A074206",
+    "https://oeis.org/A323912",
+    "https://oeis.org/A191161",
+    "https://oeis.org/A067824",
+    "https://oeis.org/A323912",
+    "https://oeis.org/A074206"
+   ],
+   "note": "Faithful (Greathouse's recurrence as the definition, which is the entry's definition). Three of Karttunen's Sequence Machine identities are proved. From 2a - a*1 = sigma, a = sigma*(2delta-1)^(-1) = sigma*H with H Kalmar's A074206; then a = id*B with B = 1*H (A067824); and (id*tau)*(2phi-id)^(-1) = sigma*H, since sigma*phi = id*tau. This is routine Dirichlet-convolution algebra, and I found no earlier written proof. Second review: The three formulas follow from Dirichlet-series algebra: a=sigma*(2delta-zeta)^{-1}, B=zeta*(2delta-zeta)^{-1}, H=(2delta-zeta)^{-1}. Faithful and correct; routine."
+  },
+  "itp-entropy-region": {
+   "date": "2026-11-28",
+   "pr": 34235,
+   "routine": false,
+   "evidence": [
+    "https://github.com/gokhanmergen/information-theory-problems/blob/main/problems/entropy-region.md",
+    "https://arxiv.org/abs/1510.02658",
+    "https://github.com/gokhanmergen/information-theory-problems/blob/main/problems/entropy-region.md",
+    "https://arxiv.org/abs/1510.02658",
+    "https://arxiv.org/abs/1104.3602",
+    "https://users.renyi.hu/~csirmaz/geom3.pdf"
+   ],
+   "note": "Disproof of semialgebraicity of the closure of Gamma*_4. The statement (entropy vectors of finite-alphabet laws, Pi-topology closure, finite unions of basic sets {P=0, Q>0}) matches the standard question, and the proof file has no sorry, axiom or native_decide. The only prior claim, Gomez-Mejia-Montoya arXiv:1510.02658, was withdrawn for a flawed proof, and no later proof was found. If correct this is a major new result and deserves a human expert look, but I found no fidelity issue. Second review: At origin/main 719c8ef7 (formal-conjectures pin 9097e2f9, Lean 4.33.1), proofs/itp-entropy-region.lean compiles against statements/itp-entropy-region.lean in about 55 s with no errors. Both root-anchored guards hold: `example : ¬ (type_of% @_root_.OMA.S_itp_entropy_region.main) := _root_.OMA.disproof` and the same with the type written out. `#print axioms OMA.disproof` gives [propext, Classical.choice, Quot.sound]. The static audit found no sorry, axiom, opaque, implemented_by, native_decide, extern or unsafe; the only `decide +kernel` calls are small Finset (Fin 4) and fixture enumerations. The statement is faithful. Entropic vectors are bit-entropy vectors of every pmf on (Fin k)^4 for any k, indexed by the 15 nonempty subsets. The closure is taken in the Pi topology on 15 real coordinates, which is the Euclidean topology. IsSemialgebraic is the standard notion: a finite union of basic sets, each with finitely many polynomial equations and finitely many strict inequalities, with no limit on degree or number of pieces. The proof first proves in Lean, by induction with conditional copies, a family of inequalities with coefficients 2^s (labelled DFZ Thm 10). In Ingleton form it reads (2^{s+1}-1)V <= I(A;B) + ((s-1)2^s+1)P, where V is the Ingleton violation and P is the sum of four conditional mutual informations. This makes a 2-D polynomial slice {(x,y)} of the cone exponentially thin: at x = 2^-(n+3) every point has y <= 2^-(2^n). Explicit finite distributions built from 3-AP-free (Behrend-type) labels and cosets over ZMod q put a point with y > 0 over every x > 0. A semialgebraic planar set cannot do both, and the kernel checks this step too. The source page still calls the question open and says that the earlier attempt (arXiv:1510.02658, withdrawn for a flaw) relied on an exponential inequality that had not been established. This proof establishes such an inequality in Lean, so the result is new as far as I can see; the literature search was quick and not exhaustive."
   }
  },
  "flagged": {
