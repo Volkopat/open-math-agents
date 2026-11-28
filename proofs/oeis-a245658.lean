@@ -1,8 +1,6 @@
 import OMAStatements.S_oeis_a245658
 import Mathlib
 
-namespace OMA.S_oeis_a245658
-
 private lemma coeff_cube_zmod3 (f : PowerSeries (ZMod 3)) (n : ℕ) :
     PowerSeries.coeff (3 * n) (f ^ 3) = PowerSeries.coeff n f := by
   have htrunc : ∀ m : ℕ,
@@ -57,15 +55,7 @@ private lemma coeff_cube_zmod3 (f : PowerSeries (ZMod 3)) (n : ℕ) :
   · intro hnot
     exact absurd (Finset.mem_range.mpr (by omega)) hnot
 
-private theorem main_proved :
-    ∀ (a b : ℕ → ℤ) (A B : PowerSeries ℤ),
-      A = PowerSeries.mk a →
-      B = PowerSeries.mk b →
-      (∀ m : ℕ, (∑ n ∈ Finset.range (m + 1),
-        PowerSeries.coeff m (PowerSeries.C (b n) * PowerSeries.X ^ n * polyA247031 n)) =
-        if m = 0 then 1 else 0) →
-      A ^ 3 = B →
-      ∀ n : ℕ, (a n % 3 = 2 ↔ b (3 * n) % 3 = 2) := by
+theorem OMA.solution : type_of% @OMA.S_oeis_a245658.main := by
   intro a b A B hA hB _ hcube n
   set φ3 : ℤ →+* ZMod 3 := Int.castRingHom (ZMod 3)
   set Φ3 : PowerSeries ℤ →+* PowerSeries (ZMod 3) := PowerSeries.map φ3
@@ -80,7 +70,3 @@ private theorem main_proved :
   norm_num at heq
   rw [heq]
 
-end OMA.S_oeis_a245658
-
-theorem OMA.solution : type_of% @OMA.S_oeis_a245658.main :=
-  OMA.S_oeis_a245658.main_proved
