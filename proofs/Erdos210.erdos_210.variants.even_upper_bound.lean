@@ -38,10 +38,7 @@ private lemma param_inj {m : ℕ} {c : ℝ} (hc : 0<c) (hc' : c<1) :
   have e := strictMonoOn_tan.injOn (angle_mem hc hc' i) (angle_mem hc hc' j) he
   unfold angle at e
   apply Fin.ext
-  have e' : ((i.val:ℝ)+c)/m = ((j.val:ℝ)+c)/m := by
-    exact (mul_left_inj' pi_ne_zero).mp (sub_left_inj.mp e)
-  have := (div_left_inj' hm).mp e'
-  exact_mod_cast add_right_cancel this
+  exact_mod_cast add_right_cancel ((div_left_inj' hm).mp ((mul_left_inj' pi_ne_zero).mp (sub_left_inj.mp e)))
 
 private lemma pinj {m : ℕ} : Function.Injective (P (m := m)) := by
   intro i j e
@@ -66,8 +63,8 @@ private lemma secant_eq {m : ℕ} (i j : Fin m) :
   have ha : cos a ≠ 0 := (cos_pos_of_mem_Ioo (angle_mem (by norm_num) (by norm_num) i)).ne'
   have hb : cos b ≠ 0 := (cos_pos_of_mem_Ioo (angle_mem (by norm_num) (by norm_num) j)).ne'
   have hs : sin s ≠ 0 := by
-    have h := angle_mem (c := 1/2) (by norm_num) (by norm_num) (i+j)
-    apply (sin_pos_of_pos_of_lt_pi (by dsimp [s]; linarith [h.1]) (by dsimp [s]; linarith [h.2])).ne'
+    simpa [s, sin_add_pi_div_two] using
+      (cos_pos_of_mem_Ioo (angle_mem (c := 1/2) (by norm_num) (by norm_num) (i+j))).ne'
   have hm : (m:ℝ) ≠ 0 := by exact_mod_cast (Nat.ne_of_gt (Nat.zero_lt_of_lt i.isLt))
   have eq : a+b=s ∨ a+b=s-π := by
     dsimp [a,b,s,angle]
@@ -105,14 +102,7 @@ private lemma mem_graph {a b u v : ℝ} (huv : u ≠ v) (z : ℝ²) :
     refine ⟨(z 1-u)/(v-u),?_⟩
     have hn : v-u ≠ 0 := sub_ne_zero.mpr huv.symm
     ext i
-    fin_cases i
-    · simp [AffineMap.lineMap_apply,pt]
-      rw [he]
-      field_simp
-      ring
-    · simp [AffineMap.lineMap_apply,pt]
-      field_simp
-      ring
+    fin_cases i <;> simp [AffineMap.lineMap_apply,pt,he] <;> field_simp <;> ring
 
 private lemma vertex_on_chord {m : ℕ} (i j : Fin m) :
     P i = pt (t i+t j) (-t i*t j) (t i) := by
@@ -143,10 +133,8 @@ private lemma construction (m : ℕ) (hm : 3 ≤ m) : Erdos210.f (m+m) ≤ m := 
   have cv : V.card = m := by simp [V,card_image_of_injective _ pinj]
   have cw : W.card = m := by simp [W,card_image_of_injective _ qinj]
   have dis : Disjoint V W := by
-    rw [disjoint_left]
-    intro z hv hw
-    obtain ⟨i,_,rfl⟩ := mem_image.mp hv
-    obtain ⟨j,_,he⟩ := mem_image.mp hw
+    simp only [disjoint_left,V,W,mem_image,mem_univ,true_and]
+    rintro _ ⟨i,rfl⟩ ⟨j,he⟩
     exact pq_ne i j he.symm
   have cs : S.card = m+m := by rw [show S=V ∪ W from rfl,card_union_of_disjoint dis,cv,cw]
   have hp (i : Fin m) : P i ∈ S := mem_union_left _ (mem_image_of_mem _ (mem_univ _))
@@ -156,8 +144,7 @@ private lemma construction (m : ℕ) (hm : 3 ≤ m) : Erdos210.f (m+m) ≤ m := 
   have h01 : i0 ≠ i1 := by intro h; have := congrArg Fin.val h; simp [i0,i1] at this
   have nc : ¬ Collinear ℝ (S : Set ℝ²) := by
     intro h
-    have hm0 := h.mem_affineSpan_of_mem_of_ne (show Q i0 ∈ (S : Set ℝ²) from hq _)
-      (show Q i1 ∈ (S : Set ℝ²) from hq _) (show P i0 ∈ (S : Set ℝ²) from hp _) (qinj.ne h01)
+    have hm0 := h.mem_affineSpan_of_mem_of_ne (hq i0) (hq i1) (hp i0) (qinj.ne h01)
     have e := (axis h01 (P i0)).mp hm0
     simp [P] at e
     nlinarith [sq_nonneg (t i0)]
@@ -168,11 +155,7 @@ private lemma construction (m : ℕ) (hm : 3 ≤ m) : Erdos210.f (m+m) ≤ m := 
     have hlim {a b c : ℝ²} (aS : a ∈ S) (bS : b ∈ S) (cS : c ∈ S)
         (aL : a ∈ L) (bL : b ∈ L) (cL : c ∈ L) (ab : a ≠ b) : c=a ∨ c=b := by
       have hsub : {a,b} ⊆ U := by
-        intro z hz
-        rcases mem_insert.mp hz with rfl | hz
-        · exact mem_filter.mpr ⟨aS,aL⟩
-        · obtain rfl := mem_singleton.mp hz
-          exact mem_filter.mpr ⟨bS,bL⟩
+        simp [U,insert_subset_iff,singleton_subset_iff,aS,aL,bS,bL]
       have he : {a,b} = U := eq_of_subset_of_card_le hsub (by simpa [U,hcard,ab])
       have hx : c ∈ U := mem_filter.mpr ⟨cS,cL⟩
       simpa [← he] using hx
@@ -189,23 +172,17 @@ private lemma construction (m : ℕ) (hm : 3 ≤ m) : Erdos210.f (m+m) ≤ m := 
       have hh := hlim (hp i) (hq j) (hp k) (he ▸ left_mem_affineSpan_pair _ _ _)
         (he ▸ right_mem_affineSpan_pair _ _ _) pk (pq_ne i j)
       exact (hh.elim (fun h => hki (pinj h.symm)) (pq_ne k j)).elim
-    rcases mem_union.mp ha with ha | ha <;> rcases mem_union.mp hb with hb | hb
-    · obtain ⟨i,_,rfl⟩ := mem_image.mp ha
-      obtain ⟨j,_,rfl⟩ := mem_image.mp hb
-      have hij : i ≠ j := fun he => hab (congrArg P he)
+    have param (z : ℝ²) (hz : z ∈ S) : (∃ i : Fin m, P i = z) ∨ ∃ i : Fin m, Q i = z := by
+      simpa [S,V,W] using hz
+    rcases param a ha with ⟨i,rfl⟩ | ⟨i,rfl⟩ <;> rcases param b hb with ⟨j,rfl⟩ | ⟨j,rfl⟩
+    · have hij : i ≠ j := fun he => hab (congrArg P he)
       subst L
       have h := hlim (hp i) (hp j) (hq (i+j)) (left_mem_affineSpan_pair _ _ _)
         (right_mem_affineSpan_pair _ _ _) (dir_on_chord hij) hab
       exact (h.elim (pq_ne _ _).symm (pq_ne _ _).symm).elim
-    · obtain ⟨i,_,rfl⟩ := mem_image.mp ha
-      obtain ⟨j,_,rfl⟩ := mem_image.mp hb
-      exact mixed i j hlab
-    · obtain ⟨j,_,rfl⟩ := mem_image.mp ha
-      obtain ⟨i,_,rfl⟩ := mem_image.mp hb
-      exact mixed i j (by rw [AffineSubspace.affineSpan_pair_comm]; exact hlab)
-    · obtain ⟨i,_,rfl⟩ := mem_image.mp ha
-      obtain ⟨j,_,rfl⟩ := mem_image.mp hb
-      have hij : i ≠ j := fun he => hab (congrArg Q he)
+    · exact mixed i j hlab
+    · exact mixed j i (by rwa [AffineSubspace.affineSpan_pair_comm])
+    · have hij : i ≠ j := fun he => hab (congrArg Q he)
       have hsub : W ⊆ U := by
         intro z hz
         obtain ⟨k,_,rfl⟩ := mem_image.mp hz
