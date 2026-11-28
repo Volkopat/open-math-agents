@@ -1,5 +1,13 @@
 import OMAStatements.S_mo_466871
 
+/-!
+Shortening of @connoranderson’s merged proof #31350, retaining the complete
+construction from pin 1c17b9487aac08ad16170d7893aec956668ff755. Standard
+tightness, indicator-integrability, and zero-projection lemmas replace three
+auxiliary arguments.
+Source: Tom, MathOverflow 466871 (CC BY-SA 4.0).
+-/
+
 namespace OMA.S_mo_466871
 
 open MeasureTheory
@@ -31,17 +39,8 @@ lemma geometry {n k : ℕ} [Nonempty (Fin k)] (S : Fin k → Submodule ℝ (E n)
     apply hx (hirr x ?_)
     intro i
     have hi : g i x ≤ 0 := (Finset.le_sup' (fun i => g i x) (Finset.mem_univ i)).trans hz
-    rcases min_le_iff.mp hi with h|h
-    · have he : proj (S i) x=0 := norm_eq_zero.mp (h.antisymm (norm_nonneg _))
-      right
-      have hsum := hdecomp i x
-      rw [he,zero_add] at hsum
-      exact hsum ▸ (S i)ᗮ.starProjection_apply_mem x
-    · have he : proj (S i)ᗮ x=0 := norm_eq_zero.mp (h.antisymm (norm_nonneg _))
-      left
-      have hsum := hdecomp i x
-      rw [he,add_zero] at hsum
-      exact hsum ▸ (S i).starProjection_apply_mem x
+    simpa only [g, min_le_iff, norm_le_zero_iff, proj,
+      Submodule.starProjection_apply_eq_zero_iff, Submodule.orthogonal_orthogonal, or_comm] using hi
   let K := Metric.sphere (0:E n) 1
   have hδ : ∃ δ : ℝ, 0<δ ∧ ∀ y ∈ K, δ ≤ G y := by
     by_cases hK : K.Nonempty
@@ -163,12 +162,8 @@ lemma hit_integrable {n} (μ : Measure (E n)) [IsProbabilityMeasure μ]
     (t : ℝ) (f : E n → ℝ) (hf : Continuous f) :
     Integrable (fun x => hit t (f x)) μ := by
   classical
-  have hm : MeasurableSet {x | t < f x} := measurableSet_lt measurable_const hf.measurable
-  have he : (fun x => hit t (f x)) = Set.indicator {x | t < f x} (fun _ => (1:ℝ)) := by
-    funext x
-    by_cases h : t < f x <;> simp [hit,Set.indicator,h]
-  rw [he]
-  exact (integrable_const (μ := μ) (1:ℝ)).indicator hm
+  convert! (integrable_const (μ := μ) (1 : ℝ)).indicator
+    (measurableSet_lt measurable_const hf.measurable) using 1
 
 lemma hit_integral {n} (μ : Measure (E n)) (t : ℝ) (f : E n → ℝ) (hf : Continuous f) :
     (∫ x, hit t (f x) ∂μ) = μ.real {x | t < f x} := by
@@ -226,27 +221,14 @@ lemma incidence {n k} (μ : Measure (E n)) [IsProbabilityMeasure μ]
 
 lemma small_tail {n} (μ : Measure (E n)) [IsProbabilityMeasure μ] (ε : ℝ) (hε : 0 < ε) :
     ∃ T : ℝ, 0 < T ∧ ∀ t ≥ T, tail μ t ≤ ε := by
-  let A (m : ℕ) : Set (E n) := {x | (m:ℝ) < ‖x‖}
-  have hm m : MeasurableSet (A m) := measurableSet_lt measurable_const continuous_norm.measurable
-  have hanti : Antitone A := by
-    intro i j hij x hx
-    exact lt_of_le_of_lt (by exact_mod_cast hij : (i:ℝ) ≤ j) hx
-  have hempty : (⋂ m, A m) = ∅ := by
-    apply Set.eq_empty_iff_forall_notMem.mpr
-    intro x hx
-    obtain ⟨m,hm⟩ := exists_nat_gt ‖x‖
-    exact (not_lt_of_ge hm.le) (Set.mem_iInter.mp hx m)
-  have hlim := tendsto_measure_iInter_atTop (μ := μ) (fun i => (hm i).nullMeasurableSet)
-    hanti ⟨0,measure_ne_top _ _⟩
-  rw [hempty,measure_empty] at hlim
-  have hreal := (ENNReal.tendsto_toReal (by simp : (0:ℝ≥0∞) ≠ ⊤)).comp hlim
-  obtain ⟨m,hm⟩ := ((tendsto_order.mp hreal).2 ε (by simpa using hε)).exists
-  refine ⟨(m:ℝ)+1,by positivity,?_⟩
-  intro t ht
-  apply le_trans (measureReal_mono (μ := μ) (s₂ := A m) ?_) hm.le
-  intro x hx
-  change (m:ℝ) < ‖x‖
-  exact lt_of_le_of_lt (by linarith) hx
+  have hlim : Tendsto (fun t : ℝ => μ {x | t < ‖x‖}) atTop (𝓝 0) := by
+    simpa using tendsto_measure_norm_gt_of_isTightMeasureSet
+      (isTightMeasureSet_singleton (μ := μ))
+  have hreal := (ENNReal.tendsto_toReal (by simp : (0 : ℝ≥0∞) ≠ ⊤)).comp hlim
+  obtain ⟨T, hT, ht⟩ := ((hreal.eventually (gt_mem_nhds hε)).and
+    (eventually_gt_atTop (0 : ℝ))).exists
+  refine ⟨T, ht, fun t htt => ?_⟩
+  exact (measureReal_mono (fun x hx => lt_of_le_of_lt htt hx)).trans hT.le
 
 end OMA.S_mo_466871
 

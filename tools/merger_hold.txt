@@ -1,0 +1,3 @@
+# Pull requests the merger leaves without a verdict for now (read by tools/merger_loop.sh: one number per line).
+# Empty: the 28 Nov hold of #36944, #37497, #37437 was lifted at 18:16 UTC after review (not a closure: H3 of
+# R2.H1.R2 stays open).

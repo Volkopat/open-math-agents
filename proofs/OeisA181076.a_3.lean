@@ -1,11 +1,9 @@
 import FormalConjectures.OEIS.«181076»
 
-open PowerSeries OeisA181076
+open PowerSeries OeisA181076 Finset
 
 theorem OMA.solution : type_of% @OeisA181076.a_3 := by
-  have h0 (f) : constantCoeff (hannaLog f) = 0 := by simp [hannaLog]
-  rw [a, hannaExp, coeff_subst' (.of_constantCoeff_zero' (h0 _)), finsum_eq_sum_of_support_subset _
-    (s := Finset.range 4) fun d hd => by_contra fun h => hd <| by
-      simp [X_pow_dvd_iff.1 (pow_dvd_pow_of_dvd (X_dvd_iff.2 (h0 _)) d) 3 (by simp at h; omega)]]
-  simp [Finset.sum_range_succ, pow_succ, coeff_mul, Finset.Nat.sum_antidiagonal_eq_sum_range_succ_mk, hannaLog, Finset.sum_Icc_succ_top]
-  norm_num
+  rw [a, hannaExp, coeff_subst' ⟨1, rfl⟩,
+    finsum_eq_sum_of_support_subset _ (s := {0,1,2,3}) fun d ↦ Not.imp_symm fun h ↦ by
+      simp [X_pow_dvd_iff.1 (pow_dvd_pow_of_dvd (X_dvd_iff.2 rfl : X ∣ hannaLog _) d) 3 (by grind)]]
+  norm_num [pow_succ, coeff_mul, Nat.antidiagonal_succ, hannaLog, sum_Icc_succ_top]

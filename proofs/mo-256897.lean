@@ -13,7 +13,11 @@ The single column −e₀ minimizes the order-two Frobenius distance.
 At order three, replacing it by +e₀ lowers the squared distance from 5 to 1.
 
 Formal statement credit: @etaubman.
-Disproof credit: @grp06.
+The recursive finite-function sum identity and tuple evaluation follow the earlier companion
+a1e42e582e28f357b0e7309df8d44d8a14120ff7 by @etaubman.
+The standard-basis and singleton linear-independence APIs replace manual coordinate cases.
+Disproof credit: @grp06, merged PR #30027
+(ad19020a95ccdf972e051c28fa0224b08f47aa81).
 -/
 
 open scoped BigOperators
@@ -29,83 +33,50 @@ private def firstColumn (t : ℝ) : Matrix (Fin 3) (Fin 1) ℝ :=
 
 private theorem input_rank : FullColumnRank input := by
   unfold FullColumnRank
-  rw [Fintype.linearIndependent_iff]
-  intro g hg
-  rw [Fin.forall_fin_two]
-  constructor
-  · have h := congrArg (fun v : Fin 3 → ℝ => v 0) hg
-    simp only [Fin.sum_univ_two, Pi.add_apply, Pi.smul_apply, Pi.zero_apply,
-      smul_eq_mul] at h
-    simpa [input, Fin.val_one] using h
-  · have h := congrArg (fun v : Fin 3 → ℝ => v 1) hg
-    simp only [Fin.sum_univ_two, Pi.add_apply, Pi.smul_apply, Pi.zero_apply,
-      smul_eq_mul] at h
-    simpa [input, Fin.val_one] using h
+  convert (Pi.basisFun ℝ (Fin 3)).linearIndependent.comp
+    (Fin.castLE (show 2 ≤ 3 from by decide) : Fin 2 → Fin 3) (Fin.castLE_injective _) using 1
+  ext j i
+  simp [input, Pi.basisFun_apply, Pi.single_apply, Fin.ext_iff, eq_comm]
 
 private theorem firstColumn_rank {t : ℝ} (ht : t ≠ 0) :
     FullColumnRank (firstColumn t) := by
-  unfold FullColumnRank
-  rw [Fintype.linearIndependent_iff]
-  intro g hg j
-  have h := congrArg (fun v : Fin 3 → ℝ => v 0) hg
-  have hmul : g 0 * t = 0 := by
-    simpa [Fin.sum_univ_one, Pi.smul_apply, Pi.zero_apply, smul_eq_mul, firstColumn] using h
-  have hj : j = 0 := Subsingleton.elim _ _
-  rw [hj]
-  exact (mul_eq_zero.mp hmul).resolve_right ht
+  rw [FullColumnRank, linearIndependent_unique_iff]
+  intro h
+  exact ht (by simpa [firstColumn] using congrFun h 0)
 
-private theorem sum_two_coordinates (f : Fin 3 → Fin 3 → ℝ) :
-    (∑ a : Fin 2 → Fin 3, f (a 0) (a 1)) = ∑ i, ∑ j, f i j := by
+private theorem sum_coordinates (h : ℕ) (f : (Fin (h + 1) → Fin 3) → ℝ) :
+    (∑ a, f a) = ∑ i, ∑ a, f (Fin.cons i a) := by
   calc
-    _ = ∑ p : Fin 3 × Fin 3, f p.1 p.2 :=
-      Fintype.sum_equiv (finTwoArrowEquiv (Fin 3)) _ _ (fun _ => rfl)
-    _ = _ := Fintype.sum_prod_type' f
+    _ = ∑ p : Fin 3 × (Fin h → Fin 3), f (Fin.cons p.1 p.2) :=
+      (Fintype.sum_equiv (Fin.consEquiv (fun _ : Fin (h + 1) => Fin 3))
+        _ _ (fun _ => rfl)).symm
+    _ = _ := Fintype.sum_prod_type _
 
-private theorem sum_three_coordinates (f : Fin 3 → Fin 3 → Fin 3 → ℝ) :
-    (∑ a : Fin 3 → Fin 3, f (a 0) (a 1) (a 2)) = ∑ i, ∑ j, ∑ k, f i j k := by
-  let e : (Fin 3 → Fin 3) ≃ Fin 3 × (Fin 3 × Fin 3) :=
-    (Fin.consEquiv (fun _ : Fin 3 => Fin 3)).symm.trans
-      (Equiv.prodCongr (Equiv.refl (Fin 3)) (finTwoArrowEquiv (Fin 3)))
-  calc
-    _ = ∑ p : Fin 3 × (Fin 3 × Fin 3), f p.1 p.2.1 p.2.2 :=
-      Fintype.sum_equiv e _ _ (fun _ => rfl)
-    _ = _ := by simp only [Fintype.sum_prod_type]
 
 private theorem squared_error_two (N : Matrix (Fin 3) (Fin 1) ℝ) :
     squaredError input N 2 =
       1 + (N 0 0 ^ 2 + N 1 0 ^ 2 + N 2 0 ^ 2 - 1) ^ 2 + 2 * N 2 0 ^ 2 := by
-  unfold squaredError
-  simp only [tensor, Fin.prod_univ_two, Fin.sum_univ_two, Fin.sum_univ_one]
-  rw [sum_two_coordinates (fun i j =>
-    (input i 0 * input j 0 + input i 1 * input j 1 - N i 0 * N j 0) ^ 2)]
-  simp only [Fin.sum_univ_succ, Fin.sum_univ_zero, add_zero,
-    Fin.succ_zero_eq_one', Fin.succ_one_eq_two']
-  norm_num [input, Fin.val_zero, Fin.val_one, show (2 : Fin 3).val = 2 from rfl] <;> ring
+  simp [squaredError, tensor, sum_coordinates, Fin.sum_univ_three,
+    Fin.sum_univ_two, Fin.prod_univ_succ, input]
+  ring
 
-private theorem squared_error_two_neg :
-    squaredError input (firstColumn (-1)) 2 = 1 := by
-  rw [squared_error_two]
-  norm_num [firstColumn, Fin.val_one, show (2 : Fin 3).val = 2 from rfl]
+private theorem cons_two (x : Fin 3) (a : Fin 2 → Fin 3) :
+    @Fin.cons 2 (fun _ => Fin 3) x a (2 : Fin 3) = a 1 := rfl
 
 private theorem squared_error_three_formula (t : ℝ) :
     squaredError input (firstColumn t) 3 = (1 - t * t * t) ^ 2 + 1 := by
-  unfold squaredError
-  simp only [tensor, Fin.prod_univ_three, Fin.sum_univ_two, Fin.sum_univ_one]
-  rw [sum_three_coordinates (fun i j k =>
-    (input i 0 * input j 0 * input k 0 + input i 1 * input j 1 * input k 1 -
-      firstColumn t i 0 * firstColumn t j 0 * firstColumn t k 0) ^ 2)]
-  simp only [Fin.sum_univ_succ, Fin.sum_univ_zero, add_zero,
-    Fin.succ_zero_eq_one', Fin.succ_one_eq_two']
-  norm_num [input, firstColumn, Fin.val_zero, Fin.val_one,
-    show (2 : Fin 3).val = 2 from rfl] <;> ring
+  norm_num [squaredError, tensor, sum_coordinates, Fin.sum_univ_three,
+    Fin.sum_univ_two, Fin.prod_univ_succ, input, firstColumn, cons_two, show (2 : Fin 3) ≠ 0 by decide]
+  ring
 
 private theorem neg_minimizes_two : Minimizes input (firstColumn (-1)) 2 := by
   intro N _
   unfold error
   apply Real.sqrt_le_sqrt
-  rw [squared_error_two_neg, squared_error_two]
-  exact le_trans (le_add_of_nonneg_right (sq_nonneg _))
-    (le_add_of_nonneg_right (mul_nonneg (by norm_num) (sq_nonneg _)))
+  rw [squared_error_two, squared_error_two]
+  norm_num [firstColumn]
+  nlinarith [sq_nonneg (N 0 0 ^ 2 + N 1 0 ^ 2 + N 2 0 ^ 2 - 1), sq_nonneg (N 2 0)]
+
 
 theorem disprove : ¬ claim := by
   intro h

@@ -1,38 +1,17 @@
 import OMAStatements.S_mo_319691
 import Mathlib
 
-
+-- Retains @AkiRA-COM-FP’s odd-numerator approximation from PR #13803.
+-- The dyadic denominator bound uses Mathlib’s natural-logarithm inequalities.
 
 open OMA.S_mo_319691
 
-private theorem power_has_room (m : ℕ) : m+1 ≤ 2^m := by
-  induction m with
-  | zero => decide
-  | succ m ih =>
-    rw [pow_succ]
-    omega
-
 private theorem denominator_between (n : ℕ) (hn : 0 < n) :
     ∃ t : ℕ, 1 ≤ t ∧ n^3 ≤ 2^t ∧ 2^t ≤ 2*n^3 := by
-  have hex : ∃ k : ℕ, n^3 ≤ 2^(k+1) := ⟨n^3,by
-    have ht := power_has_room (n^3+1)
-    omega⟩
-  let k := Nat.find hex
-  have hk : n^3 ≤ 2^(k+1) := Nat.find_spec hex
-  refine ⟨k+1,by omega,hk,?_⟩
-  by_cases h : k = 0
-  · have hp : 0 < n^3 := pow_pos hn _
-    simp only [h,Nat.zero_add,pow_one]
-    omega
-  · have hsub : k-1+1 = k := by omega
-    have hprev : 2^k < n^3 := by
-      by_contra hnq
-      have hf : n^3 ≤ 2^(k-1+1) := by rw [hsub]; omega
-      have he := Nat.find_min' hex hf
-      change k ≤ k-1 at he
-      omega
-    rw [pow_succ]
-    omega
+  refine ⟨Nat.log 2 (n^3) + 1, by omega,
+    (Nat.lt_pow_succ_log_self (by decide : 1 < 2) (n^3)).le, ?_⟩
+  rw [pow_succ, mul_comm]
+  exact Nat.mul_le_mul_left 2 (Nat.pow_log_le_self 2 (pow_ne_zero _ hn.ne'))
 
 theorem OMA.solution : type_of% @OMA.S_mo_319691.main := by
   refine ⟨1/2,1,1,3,by norm_num,by norm_num,by norm_num,?_⟩

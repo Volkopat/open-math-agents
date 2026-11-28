@@ -5,6 +5,9 @@ open Matrix Finset
 
 open OMA.S_mo_353633
 
+-- Retains @AkiRA-COM-FP's factorization and submatrix proof from PR #16198.
+-- Uses the standard full-rank determinant criterion and rank-of-product bound.
+
 
 
 theorem OMA.solution : type_of% @OMA.S_mo_353633.main := by
@@ -29,7 +32,7 @@ theorem OMA.solution : type_of% @OMA.S_mo_353633.main := by
     · simp
   have hUpper : (Matrix.vandermonde x).rank ≤ d := by
     rw [hFactor]
-    exact (Matrix.rank_mul_le L R).trans ((min_le_left _ _).trans (Matrix.rank_le_card_width L))
+    exact (Matrix.rank_mul_le_left L R).trans (Matrix.rank_le_card_width L)
   let pick (u : D) : Fin n := Classical.choose (Finset.mem_image.mp u.property)
   have hPick (u : D) : x (pick u) = u.val := (Classical.choose_spec (Finset.mem_image.mp u.property)).2
   let e := (Fintype.equivFin D).symm
@@ -40,11 +43,8 @@ theorem OMA.solution : type_of% @OMA.S_mo_353633.main := by
     simp [Matrix.vandermonde_apply,Matrix.submatrix_apply,Function.comp_def,hPick,y]
   have hDet := Matrix.det_vandermonde_ne_zero_iff.mpr hInj
   have hFull : d ≤ (Matrix.vandermonde y).rank := by
-    let V := Matrix.vandermonde y
-    have he : V * V⁻¹ = 1 := Matrix.mul_nonsing_inv V (isUnit_iff_ne_zero.mpr hDet)
-    have hBound := (Matrix.rank_mul_le V V⁻¹).trans (min_le_left _ _)
-    rw [he,Matrix.rank_one,Fintype.card_fin] at hBound
-    exact hBound
+    rw [Matrix.rank_of_det_ne_zero hDet]
+    simp
   have hLow := Matrix.rank_submatrix_le (Matrix.vandermonde x) (pick ∘ e) (Fin.castLE hd)
   rw [hSub] at hLow
   have he := le_antisymm hUpper (hFull.trans hLow)

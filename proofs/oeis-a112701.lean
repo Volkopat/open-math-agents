@@ -1,45 +1,34 @@
 import OMAStatements.S_oeis_a112701
-import Mathlib
 
-namespace A112701
+open OMA.S_oeis_a112701
 
-lemma cat_rec (k : ℕ) : (k + 2) * catalan (k + 1) = 2 * (2 * k + 1) * catalan k := by
-  have h1 := succ_mul_catalan_eq_centralBinom (k + 1)
-  have h2 := succ_mul_catalan_eq_centralBinom k
-  have h3 := Nat.succ_mul_centralBinom_succ k
-  have h4 : (k + 1) * ((k + 2) * catalan (k + 1)) = (k + 1) * (2 * (2 * k + 1) * catalan k) := by
-    calc (k + 1) * ((k + 2) * catalan (k + 1))
-        = (k + 1) * ((k + 1 + 1) * catalan (k + 1)) := by ring
-      _ = (k + 1) * (k + 1).centralBinom := by rw [h1]
-      _ = 2 * (2 * k + 1) * k.centralBinom := h3
-      _ = 2 * (2 * k + 1) * ((k + 1) * catalan k) := by rw [h2]
-      _ = (k + 1) * (2 * (2 * k + 1) * catalan k) := by ring
-  exact Nat.eq_of_mul_eq_mul_left (Nat.succ_pos k) h4
+private theorem catalan_ratio (n : ℕ) :
+    ((n : ℤ) + 2) * (catalan (n + 1) : ℤ) =
+      2 * (2 * (n : ℤ) + 1) * (catalan n : ℤ) := by
+  have h := Nat.succ_mul_centralBinom_succ n
+  rw [← succ_mul_catalan_eq_centralBinom (n + 1),
+    ← succ_mul_catalan_eq_centralBinom n] at h
+  have h' : ((n : ℤ) + 1) * (((n : ℤ) + 1 + 1) * (catalan (n + 1) : ℤ)) =
+      2 * (2 * (n : ℤ) + 1) * (((n : ℤ) + 1) * (catalan n : ℤ)) := by
+    exact_mod_cast h
+  apply mul_left_cancel₀ (a := (n : ℤ) + 1) (by positivity)
+  linear_combination h'
 
-lemma a_succ (m : ℕ) : OMA.S_oeis_a112701.a (m + 1)
-    = OMA.S_oeis_a112701.a m + catalan (m + 1) * 7 ^ (m + 1) := by
-  unfold OMA.S_oeis_a112701.a
-  exact Finset.sum_range_succ _ (m + 1)
+private theorem sum_succ (n : ℕ) :
+    (a (n + 1) : ℤ) = (a n : ℤ) + (catalan (n + 1) : ℤ) * 7 ^ (n + 1) := by
+  unfold a
+  rw [Finset.sum_range_succ, Nat.cast_add]
+  push_cast
+  rfl
 
-end A112701
-
+/-- The recurrence follows by subtracting adjacent partial sums. -/
 theorem OMA.solution : type_of% @OMA.S_oeis_a112701.main := by
   intro n hn
-  obtain ⟨m, rfl⟩ : ∃ m, n = m + 2 := ⟨n - 2, by omega⟩
-  have e1 : m + 2 - 1 = m + 1 := by omega
-  have e2 : m + 2 - 2 = m := by omega
-  rw [e1, e2]
-  have s2 := A112701.a_succ (m + 1)
-  have s1 := A112701.a_succ m
-  have hc := A112701.cat_rec (m + 1)
-  have hcz : ((m : ℤ) + 3) * (catalan (m + 2) : ℤ)
-      = 2 * (2 * ((m : ℤ) + 1) + 1) * (catalan (m + 1) : ℤ) := by exact_mod_cast hc
-  have t2 : (OMA.S_oeis_a112701.a (m + 2) : ℤ) = (OMA.S_oeis_a112701.a (m + 1) : ℤ)
-      + (catalan (m + 2) : ℤ) * 7 * 7 ^ (m + 1) := by
-    rw [s2]; push_cast; ring
-  have t1 : (OMA.S_oeis_a112701.a (m + 1) : ℤ) = (OMA.S_oeis_a112701.a m : ℤ)
-      + (catalan (m + 1) : ℤ) * 7 ^ (m + 1) := by
-    rw [s1]; push_cast; ring
-  rw [t2, t1]
+  obtain ⟨k, rfl⟩ : ∃ k : ℕ, n = k + 2 := ⟨n - 2, by omega⟩
+  have h₁ : k + 2 - 1 = k + 1 := by omega
+  have h₂ : k + 2 - 2 = k := by omega
+  rw [h₁, h₂, sum_succ (k + 1), sum_succ k, pow_succ (7 : ℤ) (k + 1)]
   push_cast
-  linear_combination (7 * 7 ^ (m + 1) : ℤ) * hcz
+  have h := catalan_ratio (k + 1)
+  push_cast at h
+  linear_combination 7 * 7 ^ (k + 1) * h

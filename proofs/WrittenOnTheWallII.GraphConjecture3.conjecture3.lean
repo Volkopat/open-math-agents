@@ -39,19 +39,14 @@ theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture3.conjecture3
       ⟨S, hS, rfl⟩
   have h2 : (G.indepDominationNumber : ℝ) + G.degree v ≤ Fintype.card V := by
     let A := univ.filter fun s : Finset V => G.IsIndepSet s
-    obtain ⟨s, hvs, hmax⟩ := A.exists_le_maximal (a := {v}) (mem_filter.mpr ⟨mem_univ _, fun a ha b hb hab => by
-      simp only [mem_coe, mem_singleton] at ha hb; exact (hab (ha.trans hb.symm)).elim⟩)
+    obtain ⟨s, hvs, hmax⟩ := A.exists_le_maximal (a := {v}) (by simp [A, SimpleGraph.IsIndepSet])
     have hs : G.IsIndepSet s := (mem_filter.mp hmax.prop).2
     have hdom : G.IsDominating s := fun x => by
       by_contra! h
-      refine h.1 (hmax.2 (mem_filter.mpr ⟨mem_univ _, fun a ha b hb hab had => ?_⟩)
+      refine h.1 (hmax.2 (mem_filter.mpr ⟨mem_univ _, ?_⟩)
         (subset_insert _ _) (mem_insert_self ..))
-      simp only [mem_coe, mem_insert] at ha hb
-      rcases ha with rfl | ha <;> rcases hb with rfl | hb
-      · exact hab rfl
-      · exact h.2 b hb had
-      · exact h.2 a ha had.symm
-      · exact hs ha hb hab had
+      rw [coe_insert]
+      exact hs.insert fun a ha _ => ⟨h.2 a ha, fun h' => h.2 a ha h'.symm⟩
     have hsmall : G.indepDominationNumber ≤ s.card := Nat.sInf_le ⟨s, hs, hdom, rfl⟩
     have hd : Disjoint s (G.neighborFinset v) := disjoint_left.mpr fun w hw hw' =>
       hs (hvs (by simp)) hw ((G.mem_neighborFinset v w).mp hw').ne ((G.mem_neighborFinset v w).mp hw')

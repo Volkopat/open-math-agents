@@ -30,7 +30,11 @@ export default async function SolvedPage({ params }: { params?: Promise<{ kind?:
   const all = (o: Outcome, n: number) => capped(o) && n > capOf(o) ? <p><Link href={`/solved/${o}#${o}`} className="btn-support">Show all {n} →</Link></p> : null;
   const [solved, steps] = await Promise.all([getSolved(), getSteps()]);
   const stepById = new Map(steps.map((s) => [s.id, s]));
-  const state = new Map((await getFullMany(solved.map((s) => s.problem_id)).catch(() => [])).map((f) => [f.id, f.erdosState]));
+  // Only variant ids need their upstream state (for the "variant of" note): fetching the full records of all ~11,000
+  // solved problems from D1 made this page take seconds. Capped in time too: without the state the note is just vaguer.
+  const variantIds = solved.map((s) => s.problem_id).filter((id) => /\.variants?\./.test(id));
+  const timeout = new Promise<[]>((r) => setTimeout(() => r([]), 800));
+  const state = new Map((await Promise.race([getFullMany(variantIds).catch(() => []), timeout])).map((f) => [f.id, f.erdosState]));
   const note = (id: string) => { const p = getProblem(id); return p ? variantNote(p.id, p.title, state.get(id)) : null; };
   // A step the database has not registered (its reduction's credit was lost) is still a step: its id says so.
   const stepOf = (id: string) => stepById.get(id) ?? (getProblem(id) ? undefined : parseStep(id) ?? undefined);

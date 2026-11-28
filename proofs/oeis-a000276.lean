@@ -1,15 +1,7 @@
 import OMAStatements.S_oeis_a000276
 import Mathlib
 
+open OMA.S_oeis_a000276 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a000276.main := by
-  constructor <;> intro n hn
-  · obtain ⟨m, rfl⟩ : ∃ m, n = m + 6 := ⟨n - 6, by omega⟩
-    simp only [OMA.S_oeis_a000276.a, Nat.reduceSubDiff, Nat.factorial_succ, harmonic_succ]
-    push_cast
-    field_simp
-    ring
-  · obtain ⟨m, rfl⟩ : ∃ m, n = m + 7 := ⟨n - 7, by omega⟩
-    simp only [OMA.S_oeis_a000276.a, Nat.reduceSubDiff, Nat.factorial_succ, harmonic_succ]
-    push_cast
-    field_simp
-    ring
+  constructor <;> intro n hn <;> obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le' hn <;>
+  simp [a, Nat.factorial_succ, harmonic_succ] <;> field_simp <;> ring

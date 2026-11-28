@@ -26,52 +26,41 @@ private lemma state_iff (t : ℕ) (i : ℤ) : state t i = true ↔ live t i := b
     · simp only [live, eq_false (show ¬ t = 0 by omega), eq_false (show ¬ t = 1 by omega), eq_false (show ¬ t + 1 = 0 by omega), eq_false (show ¬ t + 1 = 1 by omega), eq_true (show 2 ≤ t by omega), eq_true (show 2 ≤ t + 1 by omega), false_and, false_or, or_false, true_and]
       omega
 
-private lemma wsum (n : ℕ) (f : ℕ → ℤ) (c : ℤ) (w : ℕ → ℤ) (E : Finset ℕ)
-    (hE : E ⊆ Finset.range n) (h : ∀ k < n, k ∉ E → f k = c * w k) :
-    ∑ k ∈ Finset.range n, f k = c * ∑ k ∈ Finset.range n, w k + ∑ k ∈ E, (f k - c * w k) := by
-  rw [Finset.sum_subset hE (fun k hk hkE => by rw [h k (Finset.mem_range.mp hk) hkE]; ring),
-    Finset.sum_sub_distrib, Finset.mul_sum]
-  ring
-
-private lemma geo (t : ℕ) : ((10 : ℤ) - 1) * ∑ k ∈ Finset.range (2 * t + 1), (10 : ℤ) ^ (2 * t - k) =
-    (10 : ℤ) ^ (2 * t + 1) - 1 := by
-  have := Finset.sum_range_reflect (fun j => (10 : ℤ) ^ j) (2 * t + 1)
-  simp only [show 2 * t + 1 - 1 = 2 * t by omega] at this
-  rw [this, mul_comm, geom_sum_mul]
-
 private lemma aval (t : ℕ) : (a t : ℤ) =
     ∑ k ∈ Finset.range (2 * t + 1), (if state t ((k : ℤ) - t) then (10 : ℤ) ^ (2 * t - k) else 0) := by
   unfold a; push_cast; rfl
 
+private lemma geometricParity (b : ℤ) (t p : ℕ) (hp : p ≤ 1) :
+    (b ^ 2 - 1) * ∑ k ∈ Finset.range (2*t+1),
+      (if k % 2 = p then b ^ (2*t-k) else 0) =
+    b ^ (2*t+2-p) - b ^ p := by
+  induction t with
+  | zero =>
+    simp only [Nat.mul_zero, Nat.zero_add, Finset.sum_range_one]
+    interval_cases p <;> norm_num
+  | succ t ih =>
+    have shift : (∑ k ∈ Finset.range (2*t+1), if k % 2 = p then b^(2*(t+1)-k) else 0) =
+        b^2 * ∑ k ∈ Finset.range (2*t+1), if k % 2 = p then b^(2*t-k) else 0 := by
+      rw [Finset.mul_sum]
+      apply Finset.sum_congr rfl
+      intro k hk
+      have ht := Finset.mem_range.mp hk
+      rw [show 2*(t+1)-k = 2*t-k+2 by omega, pow_add]
+      split_ifs <;> ring
+    rw [show 2*(t+1)+1 = 2*t+1+1+1 by omega, Finset.sum_range_succ,
+      Finset.sum_range_succ, shift, show (2*t+1)%2=1 by omega,
+      show (2*t+1+1)%2=0 by omega, show 2*(t+1)-(2*t+1)=1 by omega,
+      show 2*(t+1)-(2*t+1+1)=0 by omega,
+      show 2*(t+1)+2-p = (2*t+2-p)+2 by omega, pow_add]
+    interval_cases p <;> norm_num at * <;> linear_combination b^2 * ih
+
 private lemma geo2_0 (t : ℕ) : ((10 : ℤ) ^ 2 - 1) * ∑ k ∈ Finset.range (2 * t + 1),
     (if k % 2 = 0 then (10 : ℤ) ^ (2 * t - k) else 0) = (10 : ℤ) ^ (2 * t + 2) - 1 := by
-  induction t with
-  | zero => simp <;> decide
-  | succ t ih =>
-    rw [show 2 * (t + 1) + 1 = 2 * t + 1 + 1 + 1 by ring, Finset.sum_range_succ, Finset.sum_range_succ]
-    have hsh : ∑ k ∈ Finset.range (2 * t + 1), (if k % 2 = 0 then (10 : ℤ) ^ (2 * (t + 1) - k) else 0) =
-        (10 : ℤ) ^ 2 * ∑ k ∈ Finset.range (2 * t + 1), (if k % 2 = 0 then (10 : ℤ) ^ (2 * t - k) else 0) := by
-      rw [Finset.mul_sum]; apply Finset.sum_congr rfl; intro k hk; simp at hk
-      rw [show 2 * (t + 1) - k = (2 * t - k) + 2 by omega, pow_add]; split_ifs <;> ring
-    rw [hsh, show (2 * t + 1) % 2 = 1 by omega, show (2 * t + 1 + 1) % 2 = 0 by omega,
-      show 2 * (t + 1) - (2 * t + 1) = 1 by omega, show 2 * (t + 1) - (2 * t + 1 + 1) = 0 by omega]
-    norm_num
-    linear_combination (10 : ℤ) ^ 2 * ih
+  simpa using geometricParity 10 t 0 (by decide)
 
 private lemma geo2_1 (t : ℕ) : ((10 : ℤ) ^ 2 - 1) * ∑ k ∈ Finset.range (2 * t + 1),
     (if k % 2 = 1 then (10 : ℤ) ^ (2 * t - k) else 0) = (10 : ℤ) ^ (2 * t + 1) - (10 : ℤ) := by
-  induction t with
-  | zero => simp <;> decide
-  | succ t ih =>
-    rw [show 2 * (t + 1) + 1 = 2 * t + 1 + 1 + 1 by ring, Finset.sum_range_succ, Finset.sum_range_succ]
-    have hsh : ∑ k ∈ Finset.range (2 * t + 1), (if k % 2 = 1 then (10 : ℤ) ^ (2 * (t + 1) - k) else 0) =
-        (10 : ℤ) ^ 2 * ∑ k ∈ Finset.range (2 * t + 1), (if k % 2 = 1 then (10 : ℤ) ^ (2 * t - k) else 0) := by
-      rw [Finset.mul_sum]; apply Finset.sum_congr rfl; intro k hk; simp at hk
-      rw [show 2 * (t + 1) - k = (2 * t - k) + 2 by omega, pow_add]; split_ifs <;> ring
-    rw [hsh, show (2 * t + 1) % 2 = 1 by omega, show (2 * t + 1 + 1) % 2 = 0 by omega,
-      show 2 * (t + 1) - (2 * t + 1) = 1 by omega, show 2 * (t + 1) - (2 * t + 1 + 1) = 0 by omega]
-    norm_num
-    linear_combination (10 : ℤ) ^ 2 * ih
+  simpa only [show 2*t+2-1=2*t+1 by omega, pow_one] using geometricParity 10 t 1 (by decide)
 
 private lemma wsumg (n : ℕ) (f g : ℕ → ℤ) (E : Finset ℕ)
     (hE : E ⊆ Finset.range n) (h : ∀ k < n, k ∉ E → f k = g k) :

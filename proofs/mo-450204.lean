@@ -1,29 +1,17 @@
 import OMAStatements.S_mo_450204
 import Mathlib
+
+-- Retains @caa1982's cyclotomic counterexample from PR #28662.
+-- Integral extensions reflect units, replacing the explicit rational-inverse argument.
 open OMA.S_mo_450204
 
 open NumberField
 
 lemma three_not_unit : ¬ IsUnit (3 : 𝓞 (CyclotomicField 4 ℚ)) := by
   intro h3
-  obtain ⟨v, hv⟩ := isUnit_iff_exists_inv.mp h3
-  have hvL : (3 : (CyclotomicField 4 ℚ)) * (v : (CyclotomicField 4 ℚ)) = 1 := by
-    have := congrArg (algebraMap (𝓞 (CyclotomicField 4 ℚ)) (CyclotomicField 4 ℚ)) hv
-    rw [map_mul, map_ofNat, map_one] at this
-    exact this
-  have hK : (v : (CyclotomicField 4 ℚ)) = algebraMap ℚ (CyclotomicField 4 ℚ) (1 / 3) := by
-    rw [map_div₀, map_one, map_ofNat, eq_div_iff three_ne_zero, mul_comm]
-    exact hvL
-  have hint : IsIntegral ℤ (algebraMap ℚ (CyclotomicField 4 ℚ) (1 / 3)) := by
-    rw [← hK]; exact RingOfIntegers.isIntegral_coe _
-  have hint' : IsIntegral ℤ (1 / 3 : ℚ) :=
-    (isIntegral_algebraMap_iff (algebraMap ℚ (CyclotomicField 4 ℚ)).injective).mp hint
-  obtain ⟨y, hy⟩ := IsIntegrallyClosed.isIntegral_iff.mp hint'
-  have h1 : (3 : ℚ) * y = 1 := by
-    rw [show ((algebraMap ℤ ℚ) y) = (y : ℚ) from rfl] at hy
-    rw [hy]; norm_num
-  have h2 : (3 : ℤ) * y = 1 := by exact_mod_cast h1
-  omega
+  have h : IsUnit (3 : ℤ) :=
+    (isUnit_map_iff (algebraMap ℤ (𝓞 (CyclotomicField 4 ℚ))) 3).mp (by simpa using h3)
+  norm_num [Int.isUnit_iff] at h
 
 theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_450204.main) := by
   intro h

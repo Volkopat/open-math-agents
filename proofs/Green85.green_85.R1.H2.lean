@@ -3,6 +3,10 @@ import Mathlib.MeasureTheory.Measure.Regular
 import Mathlib.Topology.MetricSpace.Thickening
 
 /-!
+Shortening of @amp2600's merged proof #28269, head
+61bd5c7cfc44bf33b6e19dafd6f5b4b070106573. The compact-grid construction
+is retained; interval-distance and reciprocal-order APIs replace manual bounds.
+
 A compact subset of an open set lies there with a uniform neighborhood.
 Cover the compact subset by the grid cells meeting it, then use finite
 subadditivity and the area of an individual grid cell.
@@ -40,20 +44,13 @@ private theorem grid_coordinate_dist (N i : ℕ) {x y : ℝ}
     (hx : x ∈ Icc ((i : ℝ) / N) (((i : ℝ) + 1) / N))
     (hy : y ∈ Icc ((i : ℝ) / N) (((i : ℝ) + 1) / N)) :
     dist x y ≤ 1 / (N : ℝ) := by
-  obtain ⟨hxlo, hxhi⟩ := hx
-  obtain ⟨hylo, hyhi⟩ := hy
-  rw [add_div] at hxhi hyhi
-  rw [Real.dist_eq, abs_le]
-  exact ⟨by linarith only [hxlo, hyhi], by linarith only [hxhi, hylo]⟩
+  simpa [add_div] using Real.dist_le_of_mem_Icc hx hy
 
 private theorem gridCell_volume {N : ℕ} (hN : 0 < N) (p : ℕ × ℕ) :
     volume (gridCell N p) = ENNReal.ofReal (1 / (N : ℝ) ^ 2) := by
-  have side (i : ℕ) : (((i : ℝ) + 1) / N) - (i : ℝ) / N = 1 / N := by
-    rw [add_div]
-    ring
-  rw [gridCell, Measure.volume_eq_prod ℝ ℝ, Measure.prod_prod,
-    Real.volume_Icc, Real.volume_Icc, side, side,
-    ← ENNReal.ofReal_mul (by positivity : (0 : ℝ) ≤ 1 / N)]
+  simp only [gridCell, Measure.volume_eq_prod ℝ ℝ, Measure.prod_prod,
+    Real.volume_Icc, add_div, add_sub_cancel_left]
+  rw [← ENNReal.ofReal_mul (by positivity : (0 : ℝ) ≤ 1 / N)]
   congr 1
   rw [← pow_two, div_pow, one_pow]
 
@@ -72,10 +69,7 @@ theorem OMA.solution : OMA.R_Green85_green_85_R1.H2 := by
   obtain ⟨N, hδN⟩ := exists_nat_gt (1 / δ)
   have hNr : (0 : ℝ) < N := (one_div_pos.mpr hδ).trans hδN
   have hN : 0 < N := Nat.cast_pos.mp hNr
-  have hside : 1 / (N : ℝ) ≤ δ := by
-    apply (div_le_iff₀ hNr).mpr
-    have h := (div_lt_iff₀ hδ).mp hδN
-    nlinarith only [h]
+  have hside : 1 / (N : ℝ) ≤ δ := ((one_div_lt hNr hδ).2 hδN).le
   let S := (Finset.range N ×ˢ Finset.range N).filter (fun p => gridCell N p ⊆ A)
   have covered : K ⊆ ⋃ p ∈ S, gridCell N p := by
     intro x hx

@@ -1,5 +1,8 @@
 import OMAStatements.S_mo_503562
 
+-- Retains @Genbox's union-determinant proof from PR #28589.
+-- The permutation cardinality comparison follows @GitHoobar's earlier companion to #5017.
+
 open scoped BigOperators
 
 namespace OMA.UnionDeterminant
@@ -9,17 +12,9 @@ open MvPolynomial
 private theorem row_factors {n q : ℕ} (A : Fin n → Finset (Fin q)) :
     (∏ i : Fin n, ∏ k ∈ A i, (X k : MvPolynomial (Fin q) ℤ)) =
       ∏ k : Fin q, X k ^ OMA.S_mo_503562.frequency A k := by
-  calc
-    _ = ∏ i : Fin n, ∏ k : Fin q, if k ∈ A i then X k else 1 := by
-      apply Finset.prod_congr rfl
-      intro i _
-      exact (Finset.prod_ite_mem_eq (A i) X).symm
-    _ = ∏ k : Fin q, ∏ i : Fin n, if k ∈ A i then X k else 1 :=
-      Finset.prod_comm
-    _ = _ := by
-      apply Finset.prod_congr rfl
-      intro k _
-      simp only [← Finset.prod_filter, Finset.prod_const, OMA.S_mo_503562.frequency]
+  simp_rw [← Finset.prod_ite_mem_eq (f := (X : Fin q → MvPolynomial (Fin q) ℤ))]
+  rw [Finset.prod_comm]
+  simp [Finset.prod_ite, OMA.S_mo_503562.frequency]
 
 private theorem det_constant {n q : ℕ} (A : Fin n → Finset (Fin q))
     (hA : Function.Injective A) (B : Matrix (Fin n) (Fin n) (MvPolynomial (Fin q) ℤ))
@@ -44,13 +39,9 @@ private theorem det_constant {n q : ℕ} (A : Fin n → Finset (Fin q))
       apply hσ
       apply Equiv.ext
       intro j
-      have leCard (i : Fin n) : (A i).card ≤ (A (σ i)).card :=
-        Finset.card_le_card (hall i)
-      have rle : (A (σ j)).card ≤ (A j).card := by
-        by_contra! hlt
-        have lt := Finset.sum_lt_sum (fun i _ => leCard i) ⟨j, Finset.mem_univ j, hlt⟩
-        exact (ne_of_lt lt) (Equiv.sum_comp σ (fun i => (A i).card)).symm
-      exact hA (Finset.eq_of_subset_of_card_le (hall j) rle).symm
+      have hc := (Finset.sum_eq_sum_iff_of_le fun i _ => Finset.card_le_card (hall i)).mp
+        (Equiv.sum_comp σ (fun i => (A i).card)).symm j (Finset.mem_univ j)
+      exact hA (Finset.eq_of_subset_of_card_le (hall j) hc.ge).symm
     obtain ⟨i, hi⟩ := not_forall.mp hnot
     have zero : (∏ j, (constantCoeff.mapMatrix B) (σ j) j) = 0 :=
       Finset.prod_eq_zero (Finset.mem_univ i) (by simp only [entry, if_neg hi])

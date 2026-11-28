@@ -1,7 +1,7 @@
 import OMAStatements.S_oeis_a233020
 import Mathlib
 
--- Proof of the conjectures in OEIS A233020 (statement by @ivillar).
+-- The statement and two-type transfer proof are from @ivillar, PR #14842.
 -- Idea: with two columns, every pair of cells in the same or consecutive rows is adjacent, so an array
 -- is good iff each row has no complementary pair (sum 3) and no two consecutive rows contain one; the
 -- count is then a walk count on rows (transfer matrix). The number of walks from a row depends only on
@@ -111,6 +111,26 @@ theorem F_zero (s : R) : F 0 s = if ok s then 1 else 0 := by
   rw [Finset.sum_congr rfl (fun r _ => h r), Finset.sum_ite_eq']
   simp
 
+private theorem sum_by_state {U S : Type*} [Fintype U] [Fintype S] [DecidableEq S]
+    (state : U → S) (valid : U → Prop) [DecidablePred valid]
+    (allowed : S → Prop) [DecidablePred allowed] :
+    (∑ y : U, if allowed (state y) ∧ valid y then (1 : ℕ) else 0) =
+      ∑ t : S, if allowed t then ∑ y : U, if valid y ∧ state y = t then 1 else 0 else 0 := by
+  rw [← Finset.sum_fiberwise_of_maps_to (g := state) (t := Finset.univ)
+    (fun _ _ => Finset.mem_univ _) (fun y => if allowed (state y) ∧ valid y then (1 : ℕ) else 0)]
+  apply Finset.sum_congr rfl
+  intro t _
+  rw [Finset.sum_filter]
+  by_cases ht : allowed t
+  · rw [if_pos ht]
+    apply Finset.sum_congr rfl
+    intro y _
+    by_cases hy : state y = t <;> simp [hy, ht]
+  · rw [if_neg ht]
+    apply Finset.sum_eq_zero
+    intro y _
+    by_cases hy : state y = t <;> simp [hy, ht]
+
 theorem F_succ (n : ℕ) (s : R) :
     F (n + 1) s = ∑ t : R, if ok s ∧ compat s t then F n t else 0 := by
   have lhs : F (n + 1) s = ∑ y : Fin (n + 1) → R, if ok s ∧ compat s (y 0) ∧ Walk y then 1 else 0 := by
@@ -132,27 +152,8 @@ theorem F_succ (n : ℕ) (s : R) :
     simp
   rw [lhs]
   unfold F
-  have h2 : ∀ t : R, (if ok s ∧ compat s t then
-      ∑ y : Fin (n + 1) → R, (if Walk y ∧ y 0 = t then 1 else 0) else 0) =
-      ∑ y : Fin (n + 1) → R, if y 0 = t then (if ok s ∧ compat s (y 0) ∧ Walk y then 1 else 0) else 0 := by
-    intro t
-    split_ifs with ht
-    · apply Finset.sum_congr rfl
-      intro y _
-      by_cases hy : y 0 = t
-      · subst hy; simp [ht]
-      · simp [hy]
-    · symm
-      apply Finset.sum_eq_zero
-      intro y _
-      by_cases hy : y 0 = t
-      · subst hy; rw [if_pos rfl, if_neg (fun h => ht ⟨h.1, h.2.1⟩)]
-      · rw [if_neg hy]
-  rw [Finset.sum_congr rfl (fun t _ => h2 t), Finset.sum_comm]
-  apply Finset.sum_congr rfl
-  intro y _
-  rw [Finset.sum_ite_eq]
-  simp
+  simpa only [and_assoc] using
+    sum_by_state (fun y : Fin (n + 1) → R => y 0) Walk (fun t => ok s ∧ compat s t)
 
 def α : ℕ → ℕ
   | 0 => 1
@@ -178,16 +179,7 @@ theorem c0B : (Finset.univ.filter (fun t : R => t 0 = 0 ∧ ok t ∧ ¬ t 0 = t 
 theorem split_V (n : ℕ) (P : Prop) [Decidable P] (t : R) :
     (if P then V n t else 0) = (if P ∧ ok t ∧ t 0 = t 1 then α n else 0) +
       (if P ∧ ok t ∧ ¬ t 0 = t 1 then α.β n else 0) := by
-  unfold V
-  by_cases h1 : P
-  · rw [if_pos h1]
-    by_cases h2 : ok t
-    · rw [if_pos h2]
-      by_cases h3 : t 0 = t 1
-      · rw [if_pos h3, if_pos ⟨h1, h2, h3⟩, if_neg (fun h => h.2.2 h3)]; ring
-      · rw [if_neg h3, if_neg (fun h => h3 h.2.2), if_pos ⟨h1, h2, h3⟩]; ring
-    · rw [if_neg h2, if_neg (fun h => h2 h.2.1), if_neg (fun h => h2 h.2.1)]
-  · rw [if_neg h1, if_neg (fun h => h1 h.1), if_neg (fun h => h1 h.1)]
+  by_cases hp : P <;> by_cases ho : ok t <;> by_cases he : t 0 = t 1 <;> simp [V, hp, ho, he]
 
 theorem F_eq (n : ℕ) : ∀ s : R, F n s = V n s := by
   induction n with
@@ -218,28 +210,8 @@ theorem a_succ (n : ℕ) : a (n + 1) = α n + 2 * α.β n := by
     Fintype.card_subtype, Finset.card_filter]
   have h1 : (∑ x : Fin (n + 1) → R, if Walk x ∧ x 0 0 = 0 then 1 else 0) =
       ∑ s : R, if s 0 = 0 then F n s else 0 := by
-    unfold F
-    have h2 : ∀ s : R, (if s 0 = 0 then ∑ y : Fin (n + 1) → R, (if Walk y ∧ y 0 = s then 1 else 0)
-        else 0) = ∑ y : Fin (n + 1) → R, if y 0 = s then (if Walk y ∧ y 0 0 = 0 then 1 else 0)
-          else 0 := by
-      intro s
-      split_ifs with hs
-      · apply Finset.sum_congr rfl
-        intro y _
-        by_cases hy : y 0 = s
-        · subst hy; simp [hs]
-        · simp [hy]
-      · symm
-        apply Finset.sum_eq_zero
-        intro y _
-        by_cases hy : y 0 = s
-        · subst hy; rw [if_pos rfl, if_neg (fun h => hs h.2)]
-        · rw [if_neg hy]
-    rw [Finset.sum_congr rfl (fun s _ => h2 s), Finset.sum_comm]
-    apply Finset.sum_congr rfl
-    intro y _
-    rw [Finset.sum_ite_eq]
-    simp
+    simpa only [F, and_comm] using
+      sum_by_state (fun x : Fin (n + 1) → R => x 0) Walk (fun s => s 0 = 0)
   rw [h1]
   simp only [F_eq]
   rw [Finset.sum_congr rfl (fun t _ => split_V n (t 0 = 0) t), Finset.sum_add_distrib,
@@ -248,14 +220,9 @@ theorem a_succ (n : ℕ) : a (n + 1) = α n + 2 * α.β n := by
   rw [c0A, c0B]
   ring
 
-theorem α_rec (n : ℕ) : α (n + 2) = 5 * α (n + 1) + 2 * α n := by
-  simp only [α, α.β]; ring
-
-theorem β_rec (n : ℕ) : α.β (n + 2) = 5 * α.β (n + 1) + 2 * α.β n := by
-  simp only [α, α.β]; ring
-
 theorem a_rec (n : ℕ) : a (n + 3) = 5 * a (n + 2) + 2 * a (n + 1) := by
-  rw [a_succ, a_succ, a_succ, α_rec, β_rec]
+  rw [a_succ, a_succ, a_succ]
+  simp only [α, α.β]
   ring
 
 theorem a_one : a 1 = 3 := by rw [a_succ]; simp [α, α.β]
@@ -288,9 +255,8 @@ theorem binet (n : ℕ) : (b n : ℝ) * Real.sqrt 33 =
       have e0 := ih k (by omega)
       show ((5 * b (k + 1) + 2 * b k : ℕ) : ℝ) * Real.sqrt 33 = _
       push_cast
-      linear_combination 5 * e1 + 2 * e0 + ((5 + Real.sqrt 33) / 2) ^ k * h1 -
-        ((5 - Real.sqrt 33) / 2) ^ k * h2 -
-        (((5 + Real.sqrt 33) / 2) ^ k - ((5 - Real.sqrt 33) / 2) ^ k) / 2 * hs
+      linear_combination 5 * e1 + 2 * e0 - ((5 + Real.sqrt 33) / 2) ^ k * h1 +
+        ((5 - Real.sqrt 33) / 2) ^ k * h2
 
 end OMAA233020Helpers
 

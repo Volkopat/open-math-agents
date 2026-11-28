@@ -104,10 +104,8 @@ private lemma recur (n : ℕ) (hn : 4 < n) :
   have h5 := closed (m + 0)
   simp only [pow_add] at h0 h1 h2 h3 h4 h5
   push_cast at h0 h1 h2 h3 h4 h5
-  have : (2 : ℤ) * (a (m + 5) - ((1 : ℤ) * a (m + 4) + (2 : ℤ) * a (m + 3) + (-2 : ℤ) * a (m + 2) + (-1 : ℤ) * a (m + 1) + (1 : ℤ) * a (m + 0))) = 0 := by
-    linear_combination h0 - (1) * h1 - (2) * h2 - (-2) * h3 - (-1) * h4 - (1) * h5
-  have := (mul_eq_zero.mp this).resolve_left (by norm_num)
-  linarith
+  apply mul_left_cancel₀ (a := (2 : ℤ)) (by decide)
+  linear_combination h0 - (1) * h1 - (2) * h2 - (-2) * h3 - (-1) * h4 - (1) * h5
 
 open PowerSeries in
 private lemma gf : mk (fun n => (a n : ℤ)) * ((1 - X) ^ 3 * (1 + X) ^ 2) = (X * (1 + 4 * X - X ^ 2) : PowerSeries ℤ) := by
@@ -127,8 +125,7 @@ private lemma gf : mk (fun n => (a n : ℤ)) * ((1 - X) ^ 3 * (1 + X) ^ 2) = (X 
   simp only [map_add, map_sub, map_zsmul, coeff_mul_X_pow', hF, coeff_mk, coeff_X_pow, smul_eq_mul]
   by_cases h : 5 < n
   · have hr := recur n (by omega)
-    simp only [show 1 ≤ n by omega, show 2 ≤ n by omega, show 3 ≤ n by omega, show 4 ≤ n by omega, show 5 ≤ n by omega, show n ≠ 1 by omega, show n ≠ 2 by omega, show n ≠ 3 by omega, if_true, if_false]
-    linarith
+    split_ifs <;> first | omega | linarith
   · interval_cases n <;> simp [v0, v1, v2, v3, v4, v5]
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a266304.main := by

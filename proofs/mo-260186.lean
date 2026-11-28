@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_260186
 import Mathlib
 
+-- Retains the three-atom variance construction of @AkiRA-COM-FP (PR #17670).
+-- Standard real-measure addition and scaling replace manual ENNReal expansion.
+
 open Set MeasureTheory
 open scoped ENNReal
 
@@ -57,15 +60,11 @@ private theorem tv_of_mixture_le {t : ℝ} (ht : 0 ≤ t) (ht' : t ≤ 1) :
     have h1 : 0 ≤ 1-t := sub_nonneg.mpr ht'
     have h2 : 0 ≤ t/2 := by positivity
     have hQ : (mixture t).real s = (1-t)*x + (t/2)*y + (t/2)*z := by
-      change ((ENNReal.ofReal (1-t) • P + ENNReal.ofReal (t/2) • A +
-        ENNReal.ofReal (t/2) • B) s).toReal = _
-      simp only [Measure.add_apply,Measure.smul_apply,smul_eq_mul]
-      have hP : ENNReal.ofReal (1-t)*P s ≠ ⊤ := by finiteness
-      have hA : ENNReal.ofReal (t/2)*A s ≠ ⊤ := by finiteness
-      have hB : ENNReal.ofReal (t/2)*B s ≠ ⊤ := by finiteness
-      rw [ENNReal.toReal_add (ENNReal.add_ne_top.mpr ⟨hP,hA⟩) hB,ENNReal.toReal_add hP hA]
-      simp only [ENNReal.toReal_mul,ENNReal.toReal_ofReal h1,ENNReal.toReal_ofReal h2]
-      rfl
+      rw [mixture, measureReal_add_apply ?_ ?_, measureReal_add_apply ?_ ?_]
+      · simp only [measureReal_ennreal_smul_apply, ENNReal.toReal_ofReal h1,
+          ENNReal.toReal_ofReal h2]
+        rfl
+      all_goals simp only [Measure.add_apply, Measure.smul_apply, smul_eq_mul]; finiteness
     change |x-(mixture t).real s| ≤ t
     rw [hQ,show x-((1-t)*x+(t/2)*y+(t/2)*z) = t*(x-(y+z)/2) by ring,
       abs_mul,abs_of_nonneg ht]

@@ -1,268 +1,129 @@
 import OMAStatements.S_mo_364097
 
-namespace OMA.S_mo_364097_aux
+/-!
+Adapted from @connoranderson’s earlier complete proof, pin
+ ec801973a3a28064e31a0dade2ef1fcf61bb99cc, linked by statement #27108.
+The standard compact closed-thickening measure limit replaces its manual
+outer-regularity argument for upper semicontinuity. The ball-slicing and finite-net
+construction is retained. Standard null-set congruence replaces its manual
+finite-union measure bound. @Solfanbtc’s merged proof #30699 was also read.
+Source: Redeldio, https://mathoverflow.net/questions/364097 (CC BY-SA 4.0);
+original observations credited to Ville Salo and Pierre PC.
+-/
 
+namespace OMA.S_mo_364097
 open Set MeasureTheory Metric Filter Topology
 
-private abbrev E (n : ℕ) := OMA.S_mo_364097.E n
+private lemma upper {n : ℕ} (K : Set (E n)) (hc : IsCompact K) (hn : K.Nonempty)
+    (ε : ℝ) (hε : 0<ε) : ∃ δ>0, ∀ H : Set (E n), IsCompact H → H.Nonempty →
+      hausdorffDist K H<δ → vol H < vol K+ε := by
+  have ht := (ENNReal.tendsto_toReal hc.measure_lt_top.ne).comp
+    (tendsto_measure_cthickening_of_isCompact (μ := volume) hc)
+  have he : ∀ᶠ r in 𝓝[>] (0 : ℝ), vol (cthickening r K) < vol K + ε :=
+    (ht.mono_left inf_le_left) (Iio_mem_nhds (lt_add_of_pos_right _ hε))
+  obtain ⟨δ,hv,hδ⟩ := (he.and self_mem_nhdsWithin).exists
+  refine ⟨δ,hδ,fun H hC hN hD => ?_⟩
+  have hfin := hausdorffEDist_ne_top_of_nonempty_of_bounded hN hn hC.isBounded hc.isBounded
+  apply lt_of_le_of_lt (measureReal_mono (μ := volume) ?_
+    hc.isBounded.cthickening.measure_lt_top.ne) hv
+  intro x hx
+  rw [mem_cthickening_iff]
+  apply (infEDist_le_hausdorffEDist_of_mem hx).trans
+  rw [← ENNReal.ofReal_toReal hfin]
+  exact ENNReal.ofReal_le_ofReal (by simpa [hausdorffDist, hausdorffEDist_comm] using hD.le)
 
-private noncomputable def vol {n : ℕ} (K : Set (E n)) : ℝ :=
-  OMA.S_mo_364097.vol K
-
-private lemma vol_eq {n : ℕ} (K : Set (E n)) : vol K = volume.real K := rfl
-
-private lemma volume_hyperplane_zero (n : ℕ) (r : ℝ) :
-    volume {x : E n | x 0 = r} = 0 := by
-  let L : E n →ₗ[ℝ] ℝ := (EuclideanSpace.proj (0 : Fin (n + 1))).toLinearMap
-  let v₀ : E n := WithLp.toLp 2 (fun _ : Fin (n + 1) => (1 : ℝ))
-  have hv₀ : L v₀ = 1 := rfl
-  have hker : LinearMap.ker L ≠ ⊤ := by
-    intro h
-    have hmem : v₀ ∈ LinearMap.ker L := h ▸ Submodule.mem_top
-    rw [LinearMap.mem_ker, hv₀] at hmem
-    exact one_ne_zero hmem
-  have hsub : {x : E n | x 0 = r} =
-      (fun x : E n => x + (- (r • v₀))) ⁻¹' (LinearMap.ker L : Set (E n)) := by
-    ext x
-    simp only [mem_ofPred_eq, mem_preimage, SetLike.mem_coe, LinearMap.mem_ker,
-      map_add, map_neg, map_smul, smul_eq_mul, L]
-    change x 0 = r ↔ x 0 + -(r * L v₀) = 0
-    rw [hv₀, mul_one, ← sub_eq_add_neg, sub_eq_zero, eq_comm]
-  rw [hsub, measure_preimage_add_right]
-  exact Measure.addHaar_submodule volume (LinearMap.ker L) hker
-
-private lemma volume_singleton_zero (n : ℕ) (x : E n) :
-    volume ({x} : Set (E n)) = 0 := by
-  have hsub : ({x} : Set (E n)) ⊆ {y : E n | y 0 = x 0} := by
-    intro y hy
-    rw [mem_singleton_iff] at hy
-    simp [hy]
-  exact measure_mono_null hsub (volume_hyperplane_zero n (x 0))
-
-private lemma volume_finite_zero {n : ℕ} {F : Set (E n)} (hF : F.Finite) :
-    volume F = 0 := by
-  have hUnion : F = ⋃ x ∈ hF.toFinset, ({x} : Set (E n)) := by
-    ext y
-    simp
-  rw [hUnion, ← le_zero_iff]
-  refine (measure_biUnion_finset_le hF.toFinset (fun x => ({x} : Set (E n)))).trans_eq ?_
-  simp
-
-private lemma upper_semicont {n : ℕ} {K : Set (E n)} (hK : IsCompact K) (hKne : K.Nonempty) :
-    ∀ ε : ℝ, 0 < ε → ∃ δ > 0, ∀ H : Set (E n), IsCompact H → H.Nonempty →
-      hausdorffDist K H < δ → vol H < vol K + ε := by
-  intro ε hε
-  let U : ℕ → Set (E n) := fun k => thickening (1 / (k + 1 : ℝ)) K
-  have hU_meas : ∀ k, NullMeasurableSet (U k) volume :=
-    fun k => (isOpen_thickening).measurableSet.nullMeasurableSet
-  have hU_anti : Antitone U := by
-    intro a b hab
-    apply thickening_mono
-    gcongr
-  have hU_fin : ∃ k, volume (U k) ≠ ⊤ :=
-    ⟨0, (hK.isBounded.thickening).measure_lt_top.ne⟩
-  have hU_inter : (⋂ k : ℕ, U k) = K := by
-    have hs₀ : range (fun k : ℕ => 1 / (k + 1 : ℝ)) ⊆ Ioi 0 := by
-      rintro _ ⟨k, rfl⟩
-      rw [mem_Ioi]
-      positivity
-    have hs : ∀ η : ℝ, 0 < η → (range (fun k : ℕ => 1 / (k + 1 : ℝ)) ∩ Ioc 0 η).Nonempty := by
-      intro η hη
-      obtain ⟨k, hk⟩ := exists_nat_one_div_lt hη
-      exact ⟨1 / (k + 1 : ℝ), ⟨k, rfl⟩, ⟨by positivity, hk.le⟩⟩
-    have hcl := closure_eq_iInter_thickening' K (range (fun k : ℕ => 1 / (k + 1 : ℝ))) hs₀ hs
-    rw [hK.isClosed.closure_eq] at hcl
-    rw [hcl]
-    ext x
-    simp [U]
-  have htend : Tendsto (fun k => volume (U k)) atTop (𝓝 (volume K)) := by
-    rw [← hU_inter]
-    exact tendsto_measure_iInter_atTop hU_meas hU_anti hU_fin
-  have htend_real : Tendsto (fun k => vol (U k)) atTop (𝓝 (vol K)) := by
-    simpa only [vol_eq, Measure.real, Function.comp_def] using
-      (ENNReal.tendsto_toReal hK.measure_lt_top.ne).comp htend
-  have hevent : ∀ᶠ k in atTop, vol (U k) < vol K + ε :=
-    htend_real (Iio_mem_nhds (lt_add_of_pos_right (vol K) hε))
-  obtain ⟨k, hk⟩ := hevent.exists
-  refine ⟨1 / (k + 1 : ℝ), by positivity, fun H hH hHne hdist => ?_⟩
-  have hsub : H ⊆ U k := by
-    intro x hx
-    have hfin : hausdorffEDist K H ≠ ⊤ :=
-      hausdorffEDist_ne_top_of_nonempty_of_bounded hKne hHne hK.isBounded hH.isBounded
-    obtain ⟨y, hy, hxy⟩ := exists_dist_lt_of_hausdorffDist_lt' hx hdist hfin
-    rw [mem_thickening_iff]
-    exact ⟨y, hy, by simpa [dist_comm] using hxy⟩
-  have hU_ne_top : volume (U k) ≠ ⊤ :=
-    (hK.isBounded.thickening).measure_lt_top.ne
-  exact (measureReal_mono hsub hU_ne_top).trans_lt hk
-
-private lemma slice_continuous {n : ℕ} {K : Set (E n)} (hK : IsCompact K) :
-    Continuous (fun r : ℝ => vol (K ∩ {x : E n | x 0 ≤ r})) := by
-  let S : ℝ → Set (E n) := fun r => K ∩ {x : E n | x 0 ≤ r}
-  have hS_compact : ∀ r, IsCompact (S r) := fun r =>
-    hK.inter_right (isClosed_le (EuclideanSpace.proj (0 : Fin (n + 1))).continuous continuous_const)
-  have hS_meas : ∀ r, NullMeasurableSet (S r) volume := fun r =>
-    (hS_compact r).measurableSet.nullMeasurableSet
-  have hS_mono : Monotone S := by
-    intro a b hab x ⟨hxK, hxa⟩
-    exact ⟨hxK, hxa.trans hab⟩
-  rw [continuous_iff_continuousAt]
-  intro r₀
-  rw [continuousAt_iff_continuous_left'_right']
-  constructor
-  · have hUnion : (⋃ r : Iio r₀, S r) = K ∩ {x : E n | x 0 < r₀} := by
-      ext x
-      simp only [mem_iUnion, mem_inter_iff, mem_ofPred_eq, Subtype.exists, mem_Iio, S]
-      constructor
-      · rintro ⟨r, hr, hxK, hxr⟩
-        exact ⟨hxK, hxr.trans_lt hr⟩
-      · rintro ⟨hxK, hxr⟩
-        exact ⟨(x 0 + r₀) / 2, by linarith, hxK, by linarith⟩
-    have hVol_eq : volume (K ∩ {x : E n | x 0 < r₀}) = volume (S r₀) := by
-      apply le_antisymm
-      · exact measure_mono (fun x hx => ⟨hx.1, show x 0 ≤ r₀ from le_of_lt hx.2⟩)
-      · have hsub : S r₀ ⊆ (K ∩ {x : E n | x 0 < r₀}) ∪ {x : E n | x 0 = r₀} := by
-          rintro x ⟨hxK, hxr⟩
-          rcases lt_or_eq_of_le (show x 0 ≤ r₀ from hxr) with hlt | heq
-          · exact Or.inl ⟨hxK, hlt⟩
-          · exact Or.inr heq
-        exact (measure_mono hsub).trans ((measure_union_le _ _).trans_eq (by
-          rw [volume_hyperplane_zero n r₀, add_zero]))
-    have hfin : volume (S r₀) ≠ ⊤ := (hS_compact r₀).measure_lt_top.ne
-    have : (atTop : Filter (Iio r₀)).IsCountablyGenerated := by
-      rw [← comap_coe_Iio_nhdsLT r₀ (.of_dense _)]
-      infer_instance
-    have htend : Tendsto (fun r : Iio r₀ => volume (S r)) atTop (𝓝 (volume (S r₀))) := by
-      rw [← hVol_eq, ← hUnion]
-      exact tendsto_measure_iUnion_atTop (fun a b hab => hS_mono hab)
-    have htend' : Tendsto (fun r => volume (S r)) (𝓝[<] r₀) (𝓝 (volume (S r₀))) := by
-      rw [← map_coe_Iio_atTop r₀ (.of_dense _), tendsto_map'_iff]
-      exact htend
-    simpa only [ContinuousWithinAt, vol_eq, Measure.real, Function.comp_def, S] using
-      (ENNReal.tendsto_toReal hfin).comp htend'
-  · have hInter : (⋂ r > r₀, S r) = S r₀ := by
-      ext x
-      simp only [mem_iInter, mem_inter_iff, mem_ofPred_eq, S]
-      constructor
-      · intro h
-        by_cases hxK : x ∈ K
-        · refine ⟨hxK, le_of_forall_gt_imp_ge_of_dense fun r hr => (h r hr).2⟩
-        · exact False.elim (hxK (h (r₀ + 1) (lt_add_one r₀)).1)
-      · rintro ⟨hxK, hxr⟩ r hr
-        exact ⟨hxK, hxr.trans hr.le⟩
-    have htend : Tendsto (fun r => volume (S r)) (𝓝[>] r₀) (𝓝 (volume (S r₀))) := by
-      rw [← hInter]
-      exact tendsto_measure_biInter_gt (fun r _ => hS_meas r) (fun i j _ hij => hS_mono hij)
-        ⟨r₀ + 1, lt_add_one r₀, (hS_compact (r₀ + 1)).measure_lt_top.ne⟩
-    have hfin : volume (S r₀) ≠ ⊤ := (hS_compact r₀).measure_lt_top.ne
-    simpa only [ContinuousWithinAt, vol_eq, Measure.real, Function.comp_def, S] using
-      (ENNReal.tendsto_toReal hfin).comp htend
-
-private lemma exists_subset_with_vol {n : ℕ} {K : Set (E n)} (hK : IsCompact K)
-    {m : ℝ} (hm0 : 0 ≤ m) (hmK : m ≤ vol K) :
-    ∃ K' : Set (E n), IsCompact K' ∧ K' ⊆ K ∧ vol K' = m := by
-  obtain ⟨R, hRpos, hKR⟩ := hK.isBounded.subset_closedBall_lt (0 : ℝ) (0 : E n)
-  let f : ℝ → ℝ := fun r => vol (K ∩ {x : E n | x 0 ≤ r})
-  have hf_cont : Continuous f := slice_continuous hK
-  have ha : f (-R - 1) = 0 := by
-    have h_empty : K ∩ {x : E n | x 0 ≤ -R - 1} = ∅ := by
-      ext x
-      simp only [mem_inter_iff, mem_ofPred_eq, mem_empty_iff_false, iff_false, not_and, not_le]
-      intro hxK
-      have hdist : ‖x‖ ≤ R := mem_closedBall_zero_iff.mp (hKR hxK)
-      have hcoord : ‖x 0‖ ≤ ‖x‖ := PiLp.norm_apply_le x 0
-      rw [Real.norm_eq_abs] at hcoord
-      linarith [(abs_le.mp (hcoord.trans hdist)).1]
-    simp [f, h_empty, vol_eq]
-  have hb : f (R + 1) = vol K := by
-    have h_eq : K ∩ {x : E n | x 0 ≤ R + 1} = K := by
-      ext x
-      simp only [mem_inter_iff, mem_ofPred_eq, and_iff_left_iff_imp]
-      intro hxK
-      have hdist : ‖x‖ ≤ R := mem_closedBall_zero_iff.mp (hKR hxK)
-      have hcoord : ‖x 0‖ ≤ ‖x‖ := PiLp.norm_apply_le x 0
-      rw [Real.norm_eq_abs] at hcoord
-      linarith [(abs_le.mp (hcoord.trans hdist)).2]
-    simp [f, h_eq]
-  have hab : -R - 1 ≤ R + 1 := by linarith
-  have hm_mem : m ∈ Icc (f (-R - 1)) (f (R + 1)) := by
-    rw [ha, hb]
-    exact ⟨hm0, hmK⟩
-  obtain ⟨r, _, hr⟩ := intermediate_value_Icc hab hf_cont.continuousOn hm_mem
-  refine ⟨K ∩ {x : E n | x 0 ≤ r}, ?_, inter_subset_left, hr⟩
-  exact hK.inter_right (isClosed_le (EuclideanSpace.proj (0 : Fin (n + 1))).continuous continuous_const)
-
-private lemma exact_volumes {n : ℕ} {K : Set (E n)} (hK : IsCompact K) (hKne : K.Nonempty) :
-    ∀ m : ℝ, m ∈ Icc 0 (vol K) ↔ ∀ δ : ℝ, 0 < δ → ∃ H : Set (E n),
-      IsCompact H ∧ H.Nonempty ∧ hausdorffDist K H < δ ∧ vol H = m := by
-  intro m
-  constructor
-  · rintro ⟨hm0, hmK⟩ δ hδ
-    obtain ⟨F, hFK, hFfin, hFcov⟩ := finite_approx_of_totallyBounded hK.totallyBounded (δ / 2) (half_pos hδ)
-    have hFne : F.Nonempty := by
-      obtain ⟨x₀, hx₀⟩ := hKne
-      have hx₀' := hFcov hx₀
-      simp only [mem_iUnion, mem_ball, exists_prop] at hx₀'
-      obtain ⟨y, hyF, _⟩ := hx₀'
-      exact ⟨y, hyF⟩
-    obtain ⟨K', hK'c, hK'sub, hK'vol⟩ := exists_subset_with_vol hK hm0 hmK
-    refine ⟨F ∪ K', hFfin.isCompact.union hK'c, hFne.mono subset_union_left, ?_, ?_⟩
-    · have hle : hausdorffDist K (F ∪ K') ≤ δ / 2 := by
-        apply hausdorffDist_le_of_mem_dist (half_pos hδ).le
-        · intro x hxK
-          have hx' := hFcov hxK
-          simp only [mem_iUnion, mem_ball, exists_prop] at hx'
-          obtain ⟨y, hyF, hxy⟩ := hx'
-          exact ⟨y, Or.inl hyF, hxy.le⟩
-        · intro y hy
-          have hyK : y ∈ K := by
-            rcases hy with hyF | hyK'
-            · exact hFK hyF
-            · exact hK'sub hyK'
-          exact ⟨y, hyK, by simp [(half_pos hδ).le]⟩
-      linarith
-    · have hFvol : vol F = 0 := by
-        simp [vol_eq, Measure.real, volume_finite_zero hFfin]
-      apply le_antisymm
-      · exact (measureReal_union_le F K').trans (by rw [← vol_eq, ← vol_eq, hFvol, hK'vol, zero_add])
-      · have hfin : volume (F ∪ K') ≠ ⊤ := (hFfin.isCompact.union hK'c).measure_lt_top.ne
-        rw [← hK'vol]
-        exact measureReal_mono subset_union_right hfin
-  · intro h
-    constructor
-    · obtain ⟨H, _, _, _, rfl⟩ := h 1 zero_lt_one
-      exact measureReal_nonneg
-    · apply le_of_forall_pos_lt_add
-      intro ε hε
-      obtain ⟨δ, hδpos, hδ⟩ := upper_semicont hK hKne ε hε
-      obtain ⟨H, hHc, hHne, hHdist, rfl⟩ := h δ hδpos
-      exact hδ H hHc hHne hHdist
-
-private lemma continuous_iff_zero {n : ℕ} {K : Set (E n)} (hK : IsCompact K) (hKne : K.Nonempty) :
-    (∀ ε : ℝ, 0 < ε → ∃ δ > 0, ∀ H : Set (E n), IsCompact H → H.Nonempty →
-      hausdorffDist K H < δ → |vol H - vol K| < ε) ↔ vol K = 0 := by
-  constructor
-  · intro hcont
-    by_contra hne
-    have hpos : 0 < vol K := lt_of_le_of_ne measureReal_nonneg (Ne.symm hne)
-    obtain ⟨δ, hδpos, hδ⟩ := hcont (vol K / 2) (half_pos hpos)
-    have h0mem : (0 : ℝ) ∈ Icc 0 (vol K) := ⟨le_rfl, hpos.le⟩
-    obtain ⟨H, hHc, hHne, hHdist, hHvol⟩ := (exact_volumes hK hKne 0).mp h0mem δ hδpos
-    have hlt := hδ H hHc hHne hHdist
-    rw [hHvol, zero_sub, abs_neg, abs_of_pos hpos] at hlt
+private lemma slice {n : ℕ} (K : Set (E n)) (hc : IsCompact K)
+    (m : ℝ) (hm : m∈Icc 0 (vol K)) : ∃ J⊆K, IsCompact J ∧ vol J=m := by
+  let B (r : ℝ) := closedBall (0:E n) r
+  let f (r : ℝ) := vol (K ∩ B r)
+  let g (r : ℝ) := r^(Module.finrank ℝ (E n))*volume.real (ball (0:E n) 1)
+  have hg : Continuous g := by dsimp [g]; fun_prop
+  have hB (r : ℝ) (hr : 0≤r) : vol (B r)=g r := Measure.addHaar_real_closedBall volume 0 hr
+  have bound (a b : ℝ) (ha : 0≤a) (hab : a≤b) : dist (f a) (f b) ≤ dist (g a) (g b) := by
+    have hinc : B a⊆B b := closedBall_subset_closedBall hab
+    have hsub : (K ∩ B b) \ (K ∩ B a) ⊆ B b \ B a := by rintro x ⟨⟨hx,hxb⟩,hx'⟩; exact ⟨hxb,fun hxa => hx' ⟨hx,hxa⟩⟩
+    have hf : volume (B b) ≠ ⊤ := measure_closedBall_lt_top.ne
+    have hf' : volume (K ∩ B b) ≠ ⊤ := measure_ne_top_of_subset inter_subset_right hf
+    have he := measureReal_mono (μ:=volume) hsub (measure_ne_top_of_subset sdiff_subset hf)
+    rw [measureReal_sdiff (μ:=volume) (inter_subset_inter_right K hinc) (hc.measurableSet.inter measurableSet_closedBall) hf',
+      measureReal_sdiff (μ:=volume) hinc measurableSet_closedBall hf] at he
+    have ha' : f a≤f b := measureReal_mono (inter_subset_inter_right K hinc) hf'
+    have hb' : vol (B a)≤vol (B b) := measureReal_mono hinc hf
+    rw [Real.dist_eq,abs_of_nonpos (sub_nonpos.mpr ha'),Real.dist_eq,←hB a ha,←hB b (ha.trans hab),
+      abs_of_nonpos (sub_nonpos.mpr hb')]
+    change -(vol (K∩B a)-vol (K∩B b)) ≤ _
+    change vol (K∩B b)-vol (K∩B a) ≤ vol (B b)-vol (B a) at he
     linarith
-  · intro hzero ε hε
-    obtain ⟨δ, hδpos, hδ⟩ := upper_semicont hK hKne ε hε
-    refine ⟨δ, hδpos, fun H hHc hHne hHdist => ?_⟩
-    have hlt := hδ H hHc hHne hHdist
-    rw [hzero, zero_add] at hlt
-    rw [hzero, sub_zero, abs_of_nonneg (by rw [vol_eq]; exact measureReal_nonneg)]
-    exact hlt
+  obtain ⟨R0,hR0⟩ := hc.isBounded.subset_closedBall (0:E n)
+  let R := max 0 R0
+  have hR : 0≤R := le_max_left _ _
+  have hcov : K ⊆ B R := hR0.trans (closedBall_subset_closedBall (le_max_right _ _))
+  have hcon : ContinuousOn f (Icc 0 R) := by
+    rw [Metric.continuousOn_iff]
+    intro a ha ε hε
+    obtain ⟨δ,hδ,hd⟩ := Metric.continuousAt_iff.mp (hg.continuousAt (x:=a)) ε hε
+    refine ⟨δ,hδ,?_⟩
+    intro b hb hh
+    have hbd : dist (f b) (f a) ≤ dist (g b) (g a) := by
+      rcases le_total b a with h|h
+      · exact bound _ _ hb.1 h
+      · simpa [dist_comm] using bound _ _ ha.1 h
+    exact hbd.trans_lt (hd hh)
+  have h0 : f 0=0 := by
+    simp only [f,vol,measureReal_def]
+    rw [measure_inter_null_of_null_right K (by simp [B]), ENNReal.toReal_zero]
+  have hend : f R=vol K := by simp [f,inter_eq_left.mpr hcov]
+  obtain ⟨r,_,hr⟩ := intermediate_value_Icc hR hcon (show m∈Icc (f 0) (f R) by simpa [h0,hend] using hm)
+  exact ⟨K∩B r,inter_subset_left,hc.inter_right isClosed_closedBall,hr⟩
 
-end OMA.S_mo_364097_aux
+private lemma attain {n : ℕ} (K : Set (E n)) (hc : IsCompact K) (hn : K.Nonempty)
+    (m : ℝ) (hm : m∈Icc 0 (vol K)) (δ : ℝ) (hδ : 0<δ) : ∃ H : Set (E n),
+      IsCompact H ∧ H.Nonempty ∧ hausdorffDist K H<δ ∧ vol H=m := by
+  obtain ⟨J,hJK,hJ,hv⟩ := slice K hc m hm
+  obtain ⟨N,hN,hf,hcov⟩ := hc.finite_cover_balls (half_pos hδ)
+  have hnear (x : E n) (hx : x∈K) : ∃ y∈N, dist x y<δ/2 := by
+    simpa only [mem_iUnion,exists_prop,mem_ball] using hcov hx
+  obtain ⟨x,hx⟩ := hn
+  obtain ⟨y,hy,-⟩ := hnear x hx
+  refine ⟨J∪N,hJ.union hf.isCompact,⟨y,Or.inr hy⟩,?_,?_⟩
+  · apply lt_of_le_of_lt _ (half_lt_self hδ)
+    apply hausdorffDist_le_of_mem_dist (half_pos hδ).le
+    · intro z hz
+      obtain ⟨w,hw,hzw⟩ := hnear z hz
+      exact ⟨w,Or.inr hw,hzw.le⟩
+    · intro z hz
+      exact ⟨z,union_subset hJK hN hz,by rw [dist_self]; positivity⟩
+  · exact (measureReal_congr (union_ae_eq_left_of_ae_eq_empty
+      (ae_eq_empty.mpr (hf.measure_zero volume)))).trans hv
+
+end OMA.S_mo_364097
 
 theorem OMA.solution : type_of% @OMA.S_mo_364097.main := by
-  intro n K hK hKne
-  exact ⟨OMA.S_mo_364097_aux.upper_semicont hK hKne,
-    OMA.S_mo_364097_aux.exact_volumes hK hKne,
-    OMA.S_mo_364097_aux.continuous_iff_zero hK hKne⟩
+  open OMA.S_mo_364097 Set MeasureTheory Metric in
+  intro n K hc hn
+  have up := upper K hc hn
+  have atn := attain K hc hn
+  refine ⟨up,?_,?_⟩
+  · intro m
+    refine ⟨atn m,fun h => ?_⟩
+    obtain ⟨H,_,_,_,hH⟩ := h 1 zero_lt_one
+    refine ⟨hH ▸ (measureReal_nonneg : 0≤vol H),?_⟩
+    by_contra! hlt
+    obtain ⟨δ,hδ,hb⟩ := up (m-vol K) (sub_pos.mpr hlt)
+    obtain ⟨L,hL,hnL,hd,hv⟩ := h δ hδ
+    linarith [hb L hL hnL hd]
+  · constructor
+    · intro h
+      by_contra hne
+      have hv : 0<vol K := lt_of_le_of_ne measureReal_nonneg (Ne.symm hne)
+      obtain ⟨δ,hδ,hb⟩ := h (vol K) hv
+      obtain ⟨L,hL,hnL,hd,hvL⟩ := atn 0 ⟨le_rfl,hv.le⟩ δ hδ
+      have hh := hb L hL hnL hd
+      simp [hvL,abs_of_pos hv] at hh
+    · intro hv ε hε
+      obtain ⟨δ,hδ,hb⟩ := up ε hε
+      refine ⟨δ,hδ,?_⟩
+      intro H hC hN hd
+      have hnH : 0≤vol H := measureReal_nonneg
+      rw [hv,sub_zero,abs_of_nonneg hnH]
+      simpa [hv] using hb H hC hN hd

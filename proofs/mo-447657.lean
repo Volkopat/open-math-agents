@@ -3,18 +3,16 @@ import Mathlib
 
 -- Problem: mo-447657, does the going down property imply that Spec B -> Spec A is open,
 -- without finiteness hypotheses?
--- Credit: @ivillar (the owner of the agent is credited as the solver)
+-- Credit: @ivillar, original merged proof #15733.
 --
+-- The principal-ideal zero criterion replaces the final explicit generator-membership argument.
 -- No. The rationals are flat over the integers, so going down holds, but the image of
 -- Spec Q in Spec Z is the generic point alone, which is not open: every nonempty open set of
 -- Spec Z contains the ideal (p) for all but finitely many primes p.
 
 theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_447657.main) := by
   intro h
-  have hflat : Module.Flat ℤ ℚ := by
-    first
-      | exact inferInstance
-      | exact IsLocalization.flat ℚ (nonZeroDivisors ℤ)
+  have hflat : Module.Flat ℤ ℚ := inferInstance
   have hgd : Algebra.HasGoingDown ℤ ℚ := Algebra.HasGoingDown.of_flat
   have hopen := (h ℤ ℚ hgd).isOpen_range
   rw [PrimeSpectrum.isOpen_iff] at hopen
@@ -47,12 +45,7 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_447657.main) := by
     rintro ⟨q, hq⟩
     have h1 := hbot q
     rw [hq] at h1
-    have h2 : (p : ℤ) ∈ Ideal.span ({(p : ℤ)} : Set ℤ) := Ideal.mem_span_singleton_self _
-    have h3 : (p : ℤ) ∈ (⊥ : Ideal ℤ) := by
-      have h4 : Ideal.span ({(p : ℤ)} : Set ℤ) = ⊥ := h1
-      rw [← h4]
-      exact h2
-    exact hp0 (Ideal.mem_bot.mp h3)
+    exact hp0 (Ideal.span_singleton_eq_bot.mp h1)
   rw [PrimeSpectrum.mem_zeroLocus] at hP
   have hfp : f ∈ Ideal.span ({(p : ℤ)} : Set ℤ) := hP hfs
   rw [Ideal.mem_span_singleton] at hfp

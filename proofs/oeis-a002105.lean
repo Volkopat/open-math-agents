@@ -40,16 +40,13 @@ theorem nat_pow_period (q : ℕ) (hq : 0 < q) (b m t : ℕ) (hm : q ≤ m)
       ihv (by omega) m t (hvb.trans hm) ((dvd_mul_left _ _).trans ht)⟩
 
 /-- The eventual period is valid for every residue, with no unit assumption. -/
-theorem zmod_pow_period {q : ℕ} (hq : 0 < q) (b : ZMod q) {m t : ℕ} (hm : q ≤ m)
-    (ht : q.totient ∣ t) : b^(m+t) = b^m := by
-  let : NeZero q := ⟨hq.ne'⟩
-  have h := (ZMod.natCast_eq_natCast_iff _ _ q).mpr (nat_pow_period q hq b.val m t hm ht)
-  simpa only [Nat.cast_pow, ZMod.natCast_zmod_val] using h
-
 theorem int_pow_period {q : ℕ} (hq : 0 < q) (b : ℤ) {m t : ℕ} (hm : q ≤ m)
     (ht : q.totient ∣ t) : b^(m+t) ≡ b^m [ZMOD q] := by
+  let : NeZero q := ⟨hq.ne'⟩
   apply (ZMod.intCast_eq_intCast_iff _ _ q).mp
-  simpa only [Int.cast_pow] using zmod_pow_period hq (b : ZMod q) hm ht
+  have h := (ZMod.natCast_eq_natCast_iff _ _ q).mpr
+    (nat_pow_period q hq (b : ZMod q).val m t hm ht)
+  simpa only [Nat.cast_pow, ZMod.natCast_zmod_val, Int.cast_pow] using h
 
 end ReducedTangentArithmetic
 
@@ -145,20 +142,14 @@ private theorem F_mul : F * (E 2 + 1) = E 2 - 1 := by
     have he := congrArg (fun P : PS => mom P 1) h
     rw [mom_sub, mom_E] at he
     norm_num [mom, coeff_one] at he
+  have hB4 := B_mul 4
+  have hB2 := B_mul 2
+  rw [← hprod] at hB4
+  simp only [Int.cast_ofNat, map_ofNat] at hB2 hB4
   have h : X * ((F - 1) * (E 2 + 1)) * (E 2 - 1) =
-      X * (-C (2 : ℚ)) * (E 2 - 1) := by
-    calc
-      _ = (X * (F - 1)) * ((E 2 + 1) * (E 2 - 1)) := by ring
-      _ = (B 4 - B 2) * (E 4 - 1) := by rw [X_F_sub, hprod]
-      _ = B 4 * (E 4 - 1) - (B 2 * (E 2 - 1)) * (E 2 + 1) := by
-        rw [← hprod]; ring
-      _ = _ := by
-        rw [B_mul, B_mul]
-        simp only [Int.cast_ofNat, map_ofNat]
-        ring
+      X * (-(2 : PS)) * (E 2 - 1) := by
+    linear_combination (E 2 + 1) * (E 2 - 1) * X_F_sub + hB4 - (E 2 + 1) * hB2
   have H := mul_left_cancel₀ (X_ne_zero (R := ℚ)) (mul_right_cancel₀ hEnz h)
-  change (F - 1) * (E 2 + 1) = - C (2 : ℚ) at H
-  rw [map_ofNat C] at H
   linear_combination H
 
 private theorem moment_zero : mom F 0 = 0 := by
@@ -250,12 +241,7 @@ private theorem abs_bernoulli {n : ℕ} (hn : n ≠ 0) :
   have hfpos : 0 < (2 : ℝ) ^ (2 * n - 1) * Real.pi ^ (2 * n) / (2 * n).factorial := by positivity
   have hsign : 0 ≤ (-1 : ℝ) ^ (n + 1) * (bernoulli (2 * n) : ℝ) := by
     apply nonneg_of_mul_nonneg_left _ hfpos
-    have hc : (-1 : ℝ) ^ (n + 1) * (bernoulli (2 * n) : ℝ) *
-        ((2 : ℝ) ^ (2 * n - 1) * Real.pi ^ (2 * n) / (2 * n).factorial) =
-        (-1 : ℝ) ^ (n + 1) * (2 : ℝ) ^ (2 * n - 1) * Real.pi ^ (2 * n) *
-          (bernoulli (2 * n) : ℝ) / (2 * n).factorial := by ring
-    rw [hc]
-    exact hnnonneg
+    linear_combination hnnonneg
   have he : (-1 : ℚ) ^ (n + 1) = (-1 : ℚ) ^ (n - 1) := by
     rw [show n + 1 = n - 1 + 2 by omega, pow_add]
     norm_num
@@ -308,8 +294,7 @@ private theorem multiple_of_mom (q : ℕ) (f : PS)
     field_simp
   refine ⟨g, fun n => ⟨z n, hg n⟩, ?_⟩
   ext n
-  have hf : (n.factorial : ℚ) ≠ 0 := by exact_mod_cast n.factorial_ne_zero
-  apply mul_left_cancel₀ hf
+  apply mul_left_cancel₀ (by positivity : (n.factorial : ℚ) ≠ 0)
   change mom f n = mom (C (q : ℚ) * g) n
   rw [mom_C, hg, hz]
 
@@ -476,13 +461,11 @@ private theorem odd_den_sub {x y : ℚ} (hx : Odd x.den) (hy : Odd y.den) :
 
 private theorem odd_den_sum {ι : Type*} (S : Finset ι) (f : ι → ℚ)
     (h : ∀ i ∈ S, Odd (f i).den) : Odd (∑ i ∈ S, f i).den := by
-  classical
-  induction S using Finset.induction_on with
+  induction S using Finset.cons_induction with
   | empty => simp
-  | @insert a S ha ih =>
-    rw [sum_insert ha]
-    exact odd_den_add (h a (mem_insert_self _ _))
-      (ih fun i hi => h i (mem_insert_of_mem hi))
+  | cons a S ha ih =>
+    rw [sum_cons]
+    exact odd_den_add (h _ (by simp)) (ih fun i hi => h i (by simp [hi]))
 
 /-- The factor 2 removes the entire even part of a positive even-index Bernoulli
 denominator. -/
@@ -524,6 +507,10 @@ private theorem twice_le_two_pow (e : ℕ) : 2 * e ≤ 2 ^ e := by
     rw [pow_succ]
     omega
 
+private theorem two_pow_coprime {e n : ℕ} (h : Odd n) :
+    IsCoprime ((2 : ℤ)^e) (n : ℤ) :=
+  (Int.isCoprime_two_left.2 (by exact_mod_cast h)).pow_left
+
 /-- A sufficiently late reduced tangent number vanishes modulo each fixed power
 of two. -/
 private theorem dyadic_dvd {L n : ℕ} (hn : 2 * (L + 1) ≤ n) {b : ℤ} (hb : a n = b) :
@@ -538,17 +525,10 @@ private theorem dyadic_dvd {L n : ℕ} (hn : 2 * (L + 1) ≤ n) {b : ℤ} (hb : 
     omega
   have hd := odd_den_two_bernoulli (show 0 < n by omega)
   change Odd x.den at hd
-  have hxd : x * (x.den : ℚ) = (x.num : ℚ) := by
-    have hden : (x.den : ℚ) ≠ 0 := by exact_mod_cast x.den_ne_zero
-    exact (div_eq_iff hden).mp x.num_div_den |>.symm
   have hxd' : 2 * |bernoulli (2 * n)| * (x.den : ℚ) = (|x.num| : ℚ) := by
-    calc
-      _ = |x * (x.den : ℚ)| := by
-        rw [abs_mul, abs_of_nonneg (show 0 ≤ (x.den : ℚ) by positivity)]
-        congr 1
-        change (2 : ℚ) * |bernoulli (2 * n)| = |(2 : ℚ) * bernoulli (2 * n)|
-        rw [abs_mul, abs_of_nonneg (by norm_num : 0 ≤ (2 : ℚ))]
-      _ = _ := congrArg (fun y : ℚ => |y|) hxd
+    have h := congrArg (fun z : ℚ => |z|) x.mul_den_eq_num
+    rw [abs_mul, abs_of_nonneg (show 0 ≤ (x.den : ℚ) by positivity), ← Int.cast_abs] at h
+    simpa [x, abs_mul] using h
   have hR : (b : ℚ) * (n : ℚ) * (x.den : ℚ) =
       (2 : ℚ) ^ (n - 1) * ((2 : ℚ) ^ (2 * n) - 1) * (|x.num| : ℚ) := by
     rw [← hb, a, div_mul_cancel₀ _ (by exact_mod_cast (show n ≠ 0 by omega)),
@@ -561,16 +541,10 @@ private theorem dyadic_dvd {L n : ℕ} (hn : 2 * (L + 1) ≤ n) {b : ℤ} (hb : 
   have hD : (2 : ℤ) ^ (e + L) ∣ b * (n : ℤ) * (x.den : ℤ) := by
     rw [hI]
     exact (pow_dvd_pow _ he).trans (dvd_mul_of_dvd_left (dvd_mul_right _ _) _)
-  have hN : 2 ^ (e + L) ∣ b.natAbs * n * x.den := by
-    simpa [Int.natAbs_pow, Int.natAbs_mul] using Int.natAbs_dvd_natAbs.mpr hD
-  rw [hnu, pow_add, show b.natAbs * (2 ^ e * u) * x.den = 2 ^ e * (b.natAbs * u * x.den) by ring] at hN
-  have hN' : 2 ^ L ∣ b.natAbs * u * x.den :=
-    (Nat.mul_dvd_mul_iff_left (by positivity : 0 < 2 ^ e)).mp hN
-  have hu' := hu.coprime_two_left.pow_left L
-  have hd' := hd.coprime_two_left.pow_left L
-  have hB : 2 ^ L ∣ b.natAbs :=
-    hu'.dvd_of_dvd_mul_right (hd'.dvd_of_dvd_mul_right hN')
-  exact Int.natAbs_dvd_natAbs.mp (by simpa using hB)
+  rw [hnu, Nat.cast_mul, Nat.cast_pow, Nat.cast_ofNat, pow_add,
+    show b * ((2 : ℤ)^e * u) * x.den = (2 : ℤ)^e * (b * u * x.den) by ring] at hD
+  have h := (mul_dvd_mul_iff_left (by positivity : (2 : ℤ)^e ≠ 0)).mp hD
+  exact (two_pow_coprime hu).dvd_of_dvd_mul_right ((two_pow_coprime hd).dvd_of_dvd_mul_right h)
 
 theorem main : type_of% @OMA.S_oeis_a002105.main := by
   intro k hk
@@ -586,14 +560,9 @@ theorem main : type_of% @OMA.S_oeis_a002105.main := by
   have ho : (q : ℤ) ∣ u - v := Int.modEq_iff_dvd.mp (odd_period hq ht hn1 hnq hu hv).symm
   have htwo : (2 : ℤ) ^ e ∣ u - v :=
     dvd_sub (dyadic_dvd (hne.trans (Nat.le_add_right _ _)) hu) (dyadic_dvd hne hv)
-  have hqN : q ∣ (u - v).natAbs := by simpa using Int.natAbs_dvd_natAbs.mpr ho
-  have htwoN : 2 ^ e ∣ (u - v).natAbs := by simpa using Int.natAbs_dvd_natAbs.mpr htwo
-  have hcrt := (hq.coprime_two_left.pow_left e).mul_dvd_of_dvd_of_dvd htwoN hqN
   have hcrt' : (k : ℤ) ∣ u - v := by
-    have hc : (k : ℤ).natAbs ∣ (u - v).natAbs := by
-      rw [Int.natAbs_natCast, hkq]
-      exact hcrt
-    exact Int.natAbs_dvd_natAbs.mp hc
+    rw [hkq, Nat.cast_mul, Nat.cast_pow, Nat.cast_ofNat]
+    exact (two_pow_coprime hq).mul_dvd htwo ho
   obtain ⟨z, hz⟩ := hcrt'
   refine ⟨z, ?_⟩
   rw [hu, hv]

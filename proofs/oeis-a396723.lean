@@ -1,6 +1,9 @@
 import OMAStatements.S_oeis_a396723
 import Mathlib
 
+/-! Following @caa1982 (#22675), use the standard product-degree bound and
+factorial product formula for the same interpolation proof. -/
+
 open OMA.S_oeis_a396723
 open Polynomial
 
@@ -11,16 +14,11 @@ noncomputable def q (n : ℕ) : ℚ[X] :=
   1 - C ((n.factorial : ℚ)⁻¹) * ∏ k ∈ Finset.range n, (C ((k : ℚ) + 2) - X)
 
 theorem deg_prod (n : ℕ) : (∏ k ∈ Finset.range n, (C ((k : ℚ) + 2) - X)).degree ≤ (n : WithBot ℕ) := by
-  induction n with
-  | zero => simp
-  | succ n ih =>
-    rw [Finset.prod_range_succ]
-    calc _ ≤ (∏ k ∈ Finset.range n, (C ((k : ℚ) + 2) - X)).degree + (C ((n : ℚ) + 2) - X).degree :=
-          degree_mul_le _ _
-      _ ≤ (n : WithBot ℕ) + 1 := by
-          gcongr
-          exact (degree_sub_le _ _).trans (max_le (degree_C_le.trans (by norm_num)) degree_X_le)
-      _ = ((n + 1 : ℕ) : WithBot ℕ) := by push_cast; rfl
+  have h (a : ℚ) : (C a - X).degree = 1 := by
+    rw [← degree_neg, neg_sub, degree_X_sub_C]
+  convert degree_prod_le (Finset.range n) (fun k => C ((k : ℚ) + 2) - X) using 1
+  simp_rw [h]
+  simp
 
 theorem deg_q (n : ℕ) : (q n).degree < (Finset.Icc 1 (n + 1)).card := by
   rw [Nat.card_Icc, show n + 1 + 1 - 1 = n + 1 by omega]
@@ -32,11 +30,8 @@ theorem deg_q (n : ℕ) : (q n).degree < (Finset.Icc 1 (n + 1)).card := by
 
 theorem eval_prod_one (n : ℕ) :
     (∏ k ∈ Finset.range n, (C ((k : ℚ) + 2) - X)).eval (1 : ℚ) = (n.factorial : ℚ) := by
-  induction n with
-  | zero => simp
-  | succ n ih =>
-    rw [Finset.prod_range_succ, eval_mul, ih, Nat.factorial_succ]
-    simp; ring
+  rw [Nat.factorial_eq_prod_range_add_one]
+  norm_num [eval_prod, add_sub_assoc, -Finset.prod_range_add_one_eq_factorial]
 
 theorem eval_prod_node (n i : ℕ) (h1 : 2 ≤ i) (h2 : i ≤ n + 1) :
     (∏ k ∈ Finset.range n, (C ((k : ℚ) + 2) - X)).eval (i : ℚ) = 0 := by

@@ -1,2234 +1,1588 @@
 import OMAReductions.R_BusyBeaver_BB_4_R1_H2_R1_H2_R1_H3_R1_H2_R1_H2_R1_H4_R1
-import Mathlib
 
-/-! Nonhalting certificates for four-state machines. Each side of the tape is read by
-a finite automaton. A closed set of labelled configurations certifies an infinite run.
-The finite case tree splits only at a transition reached within the time bound. -/
-namespace Farmer
+/-! The transition checker and automaton certificates come from @hyprspacecoyote’s
+proof (#4739), as merged and optimized by @ubuwaits (#5662). The freezing argument is adapted
+from @henry10101001’s merged BusyBeaver.BB_4.R2 reduction. This proof certifies
+the shorter 68 cutoff and handles both forms of a halt instruction. -/
+
+namespace OMA.BB4Bound106
+
 open Turing Turing.BusyBeaver
 
-abbrev Q := Fin 4
-abbrev A := Fin 2
-abbrev TM := Machine A Q
-abbrev Cfg4 := Cfg A Q
+abbrev Symbol := Fin 2
+abbrev State := Fin 4
+abbrev Key := State × Symbol
+abbrev Machine4 := Machine Symbol State
 
-abbrev P := Q → A → Nat
-def tab (p : Nat) (q : Q) (a : A) : Nat := (p >>> (5*(2*q.val+a.val))) % 32
-def op (e : Nat) : Option (Option Q × Stmt A) :=
-  some (some (Fin.ofNat 4 (e/4)), .write (Fin.ofNat 2 (e/2)) (if e%2=0 then .left else .right))
-def mach (p : P) : TM := fun q a => let e := p q a; if e < 16 then op e else none
-def Ext (p : P) (M : TM) := ∀ q a, p q a < 16 → M q a = op (p q a)
-def Goal (p : P) := ∀ M : TM, Ext p M → M.IsHalting → M.HaltsAfter (Machine.init []) 106
+structure Move where
+  state : State
+  write : Symbol
+  left : Bool
+  deriving DecidableEq
 
-def label {X : Type} (z : X) (g : A → X → X) (h : g 0 z = z) (l : ListBlank A) : X :=
-  l.liftOn (fun w => w.foldr g z) (by
-    rintro a _ ⟨n,rfl⟩
-    have rep : (List.replicate n (0 : A)).foldr g z = z := by
-      induction n with
-      | zero => rfl
-      | succ n ih => simpa [List.replicate_succ, ih] using h
-    simp [List.foldr_append,rep])
-theorem label_cons {X : Type} (z : X) (g : A → X → X) (h : g 0 z = z)
-    (a : A) (l : ListBlank A) : label z g h (l.cons a) = g a (label z g h l) := by
-  induction l using ListBlank.induction_on with | h w => rfl
+structure Table where
+  t00 : Option Move
+  t01 : Option Move
+  t10 : Option Move
+  t11 : Option Move
+  t20 : Option Move
+  t21 : Option Move
+  t30 : Option Move
+  t31 : Option Move
+  deriving DecidableEq
 
-theorem safe {M : TM} {n m : Nat} [NeZero n] [NeZero m]
-    (L : A → Fin n → Fin n) (R : A → Fin m → Fin m)
-    (S : Q → A → Fin n → Fin m → Bool)
-    (l0 : L 0 0 = 0) (r0 : R 0 0 = 0) (init : S 0 0 0 0 = true)
-    (closed : ∀ q a b i j,
-      (S q a (L b i) j = true → ∀ r w, M q a = some (some r,.write w .left) → S r b i (R w j) = true) ∧
-      (S q a i (R b j) = true → ∀ r w, M q a = some (some r,.write w .right) → S r b (L w i) j = true))
-    (live : ∀ q a i j, S q a i j = true → ∃ r z, M q a = some (some r,z)) : ¬ M.IsHalting := by
-  let l := label 0 L l0
-  let r := label 0 R r0
-  have run (k : Nat) : ∃ (q : Q) (t : Tape A),
-      M.multiStep (Machine.init []) k = some ⟨some q,t⟩ ∧ S q t.head (l t.left) (r t.right) = true := by
-    induction k with
-    | zero => exact ⟨0,Tape.mk₁ [],rfl,init⟩
-    | succ k ih =>
-      obtain ⟨q,t,hstep,hs⟩ := ih
-      obtain ⟨q',⟨w,d⟩,he⟩ := live q t.head _ _ hs
-      refine ⟨q',(t.write w).move d,?_,?_⟩
-      · rw [Machine.multiStep_succ,hstep]
-        simp [Machine.step,he]
-      · cases d with
-        | left =>
-          have hL : l t.left = L t.left.head (l t.left.tail) := by
-            simpa [l] using (label_cons 0 L l0 t.left.head t.left.tail)
-          have hh := (closed q t.head t.left.head (l t.left.tail) (r t.right)).1 (hL ▸ hs) q' w he
-          simpa [r,Tape.move,Tape.write,label_cons] using hh
-        | right =>
-          have hR : r t.right = R t.right.head (r t.right.tail) := by
-            simpa [r] using (label_cons 0 R r0 t.right.head t.right.tail)
-          have hh := (closed q t.head t.right.head (l t.left) (r t.right.tail)).2 (hR ▸ hs) q' w he
-          simpa [l,Tape.move,Tape.write,label_cons] using hh
-  intro h
-  obtain ⟨k,hk⟩ := (Machine.isHalting_iff_exists_haltsAt M).mp h
-  obtain ⟨q,t,ht,_⟩ := run (k+1)
-  change M.multiStep (Machine.init []) (k+1) = none at hk
-  rw [ht] at hk
+def Table.empty : Table := ⟨none, none, none, none, none, none, none, none⟩
+
+def Table.get (tb : Table) (q : State) (a : Symbol) : Option Move :=
+  match q.val, a.val with
+  | 0, 0 => tb.t00
+  | 0, _ => tb.t01
+  | 1, 0 => tb.t10
+  | 1, _ => tb.t11
+  | 2, 0 => tb.t20
+  | 2, _ => tb.t21
+  | _, 0 => tb.t30
+  | _, _ => tb.t31
+
+def Table.set (tb : Table) (q : State) (a : Symbol) (m : Move) : Table :=
+  match q.val, a.val with
+  | 0, 0 => { tb with t00 := some m }
+  | 0, _ => { tb with t01 := some m }
+  | 1, 0 => { tb with t10 := some m }
+  | 1, _ => { tb with t11 := some m }
+  | 2, 0 => { tb with t20 := some m }
+  | 2, _ => { tb with t21 := some m }
+  | _, 0 => { tb with t30 := some m }
+  | _, _ => { tb with t31 := some m }
+
+def Move.flip (m : Move) : Move := { m with left := !m.left }
+
+def Table.flip (tb : Table) : Table :=
+  ⟨tb.t00.map Move.flip, tb.t01.map Move.flip,
+   tb.t10.map Move.flip, tb.t11.map Move.flip,
+   tb.t20.map Move.flip, tb.t21.map Move.flip,
+   tb.t30.map Move.flip, tb.t31.map Move.flip⟩
+
+theorem Table.get_set_self (tb : Table) (q : State) (a : Symbol) (m : Move) :
+    (tb.set q a m).get q a = some m := by
+  fin_cases q <;> fin_cases a <;> rfl
+
+theorem Table.get_set_ne (tb : Table) {q q' : State} {a a' : Symbol} (m : Move)
+    (h : (q', a') ≠ (q, a)) : (tb.set q a m).get q' a' = tb.get q' a' := by
+  fin_cases q <;> fin_cases a <;> fin_cases q' <;> fin_cases a' <;>
+    first | rfl | exact absurd rfl h
+
+theorem Table.get_flip (tb : Table) (q : State) (a : Symbol) :
+    tb.flip.get q a = (tb.get q a).map Move.flip := by
+  fin_cases q <;> fin_cases a <;> rfl
+
+structure Position where
+  state : State
+  ls : List Symbol
+  head : Symbol
+  rs : List Symbol
+  deriving DecidableEq
+
+def startPos : Position := ⟨0, [], 0, []⟩
+
+def push (a : Symbol) (xs : List Symbol) : List Symbol :=
+  match a.val, xs with
+  | 0, [] => []
+  | _, xs => a :: xs
+
+def symHead : List Symbol → Symbol
+  | [] => 0
+  | x :: _ => x
+
+theorem symHead_eq_headI (xs : List Symbol) : symHead xs = xs.headI := by
+  cases xs <;> rfl
+
+def listEq : List Symbol → List Symbol → Bool
+  | [], [] => true
+  | x :: xs, y :: ys => Nat.beq x.val y.val && listEq xs ys
+  | _, _ => false
+
+theorem listEq_eq_true {xs ys : List Symbol} (h : listEq xs ys = true) : xs = ys := by
+  induction xs generalizing ys with
+  | nil => cases ys with | nil => rfl | cons _ _ => simp [listEq] at h
+  | cons x xs ih =>
+    cases ys with
+    | nil => simp [listEq] at h
+    | cons y ys =>
+      simp only [listEq, Bool.and_eq_true] at h
+      rw [Fin.ext (Nat.eq_of_beq_eq_true h.1), ih h.2]
+
+def Position.move (c : Position) (m : Move) : Position :=
+  if m.left then ⟨m.state, c.ls.tail, symHead c.ls, push m.write c.rs⟩
+  else ⟨m.state, push m.write c.ls, symHead c.rs, c.rs.tail⟩
+
+def Position.flip (c : Position) : Position := ⟨c.state, c.rs, c.head, c.ls⟩
+
+theorem flip_move (c : Position) (m : Move) :
+    (c.move m).flip = c.flip.move m.flip := by
+  cases m with | mk q a d => cases d <;> rfl
+
+theorem mk_push (a : Symbol) (xs : List Symbol) :
+    ListBlank.mk (push a xs) = (ListBlank.mk xs).cons a := by
+  fin_cases a
+  · cases xs with
+    | nil => exact (ListBlank.cons_head_tail (ListBlank.mk ([] : List Symbol))).symm
+    | cons x xs => exact (ListBlank.cons_mk 0 (x :: xs)).symm
+  · exact (ListBlank.cons_mk 1 xs).symm
+
+def Position.view (c : Position) : Cfg Symbol State :=
+  ⟨some c.state, ⟨c.head, ListBlank.mk c.ls, ListBlank.mk c.rs⟩⟩
+
+theorem view_start : startPos.view = Machine.init [] := rfl
+
+def Move.command (m : Move) : Option (Option State × Stmt Symbol) :=
+  some (some m.state, Stmt.write m.write (if m.left then Dir.left else Dir.right))
+
+def Matches (M : Machine4) (tb : Table) : Prop :=
+  ∀ q a m, tb.get q a = some m → M q a = m.command
+
+theorem matches_set {M : Machine4} {tb : Table} {q : State} {a : Symbol} {m : Move}
+    (hm : Matches M tb) (h : M q a = m.command) : Matches M (tb.set q a m) := by
+  intro q' a' m' hh
+  by_cases e : (q', a') = (q, a)
+  · rcases Prod.mk.inj e with ⟨rfl, rfl⟩
+    rw [Table.get_set_self] at hh
+    exact (Option.some.inj hh) ▸ h
+  · rw [Table.get_set_ne tb m e] at hh
+    exact hm q' a' m' hh
+
+theorem step_move {M : Machine4} {tb : Table} (hm : Matches M tb) (c : Position) (m : Move)
+    (h : tb.get c.state c.head = some m) :
+    M.step c.view = some (c.move m).view := by
+  have he := hm c.state c.head m h
+  cases m with
+  | mk q a d =>
+    cases d <;> simp [Position.view, Machine.step, he, Move.command, Position.move,
+      Tape.write, Tape.move, mk_push, symHead_eq_headI]
+
+theorem multi_succ_front (M : Machine4) (c : Cfg Symbol State) (k : ℕ) :
+    M.multiStep c (k + 1) = (M.step c).bind (fun c' => M.multiStep c' k) := by
+  induction k with
+  | zero => rw [Machine.multiStep_one]; cases M.step c <;> rfl
+  | succ k ih =>
+    rw [Machine.multiStep_succ, ih]
+    cases h : M.step c with
+    | none => rfl
+    | some d => simp [Machine.multiStep_succ]
+
+-- ============================================================
+-- Guarded repeatable-segment checker
+-- ============================================================
+
+def takePad : ℕ → List Symbol → List Symbol
+  | 0, _ => []
+  | k + 1, [] => 0 :: takePad k []
+  | k + 1, x :: xs => x :: takePad k xs
+
+theorem takePad_foldr_drop (k : ℕ) (xs : List Symbol) :
+    (takePad k xs).foldr ListBlank.cons (ListBlank.mk (xs.drop k)) = ListBlank.mk xs := by
+  induction k generalizing xs with
+  | zero => simp [takePad]
+  | succ k ih =>
+    cases xs with
+    | nil =>
+      simp only [takePad, List.foldr_cons, List.drop_nil]
+      have h0 := ih []
+      simp only [List.drop_nil] at h0
+      rw [h0]
+      exact ListBlank.cons_head_tail (ListBlank.mk [])
+    | cons x xs =>
+      simp only [takePad, List.foldr_cons, List.drop_succ_cons]
+      rw [ih xs, ListBlank.cons_mk]
+
+def runGuardedLeft (tb : Table) : ℕ → State → Symbol → List Symbol → List Symbol →
+    Option (State × Symbol × List Symbol × List Symbol)
+  | 0, q, a, near, rs => some (q, a, near, rs)
+  | k + 1, q, a, near, rs =>
+    match tb.get q a with
+    | none => none
+    | some m =>
+      if m.left then
+        match near with
+        | [] => none
+        | a' :: near' => runGuardedLeft tb k m.state a' near' (push m.write rs)
+      else
+        runGuardedLeft tb k m.state (symHead rs) (m.write :: near) rs.tail
+
+def checkGuardedLeft (tb : Table) (p : ℕ) (q : State) (a : Symbol)
+    (near rs : List Symbol) : Bool :=
+  match runGuardedLeft tb p q a near rs with
+  | none => false
+  | some (q', a', near', rs') =>
+    Nat.beq q'.val q.val && Nat.beq a'.val a.val && listEq rs' rs &&
+      listEq (near'.take near.length) near && Nat.ble near.length near'.length
+
+theorem runGuardedLeft_sound {M : Machine4} {tb : Table} (hm : Matches M tb)
+    (p : ℕ) (q : State) (a : Symbol) (near rs : List Symbol)
+    {q' : State} {a' : Symbol} {near' rs' : List Symbol}
+    (h : runGuardedLeft tb p q a near rs = some (q', a', near', rs'))
+    (tail : ListBlank Symbol) :
+    M.multiStep ⟨some q, ⟨a, near.foldr ListBlank.cons tail, ListBlank.mk rs⟩⟩ p =
+      some ⟨some q', ⟨a', near'.foldr ListBlank.cons tail, ListBlank.mk rs'⟩⟩ := by
+  induction p generalizing q a near rs with
+  | zero =>
+    simp only [runGuardedLeft, Option.some.injEq, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl, rfl⟩
+    rfl
+  | succ p ih =>
+    simp only [runGuardedLeft] at h
+    cases ht : tb.get q a with
+    | none => simp [ht] at h
+    | some m =>
+      simp only [ht] at h
+      have hM := hm q a m ht
+      rw [multi_succ_front]
+      cases hd : m.left with
+      | true =>
+        simp only [hd, ↓reduceIte] at h
+        cases near with
+        | nil => simp at h
+        | cons x xs =>
+          simp only at h
+          have hstep : M.step ⟨some q, ⟨a, (x :: xs).foldr ListBlank.cons tail, ListBlank.mk rs⟩⟩ =
+              some ⟨some m.state, ⟨x, xs.foldr ListBlank.cons tail, ListBlank.mk (push m.write rs)⟩⟩ := by
+            simp [Machine.step, hM, Move.command, hd, Tape.write, Tape.move, mk_push]
+          rw [hstep, Option.bind_some]
+          exact ih m.state x xs (push m.write rs) h
+      | false =>
+        simp only [hd, Bool.false_eq_true, ↓reduceIte] at h
+        have hstep : M.step ⟨some q, ⟨a, near.foldr ListBlank.cons tail, ListBlank.mk rs⟩⟩ =
+            some ⟨some m.state, ⟨symHead rs, (m.write :: near).foldr ListBlank.cons tail, ListBlank.mk rs.tail⟩⟩ := by
+          simp [Machine.step, hM, Move.command, hd, Tape.write, Tape.move, symHead_eq_headI]
+        rw [hstep, Option.bind_some]
+        exact ih m.state (symHead rs) (m.write :: near) rs.tail h
+
+theorem runGuardedRight_sound {M : Machine4} {tb : Table} (hm : Matches M tb)
+    (p : ℕ) (q : State) (a : Symbol) (near ls : List Symbol)
+    {q' : State} {a' : Symbol} {near' ls' : List Symbol}
+    (h : runGuardedLeft tb.flip p q a near ls = some (q', a', near', ls'))
+    (tail : ListBlank Symbol) :
+    M.multiStep ⟨some q, ⟨a, ListBlank.mk ls, near.foldr ListBlank.cons tail⟩⟩ p =
+      some ⟨some q', ⟨a', ListBlank.mk ls', near'.foldr ListBlank.cons tail⟩⟩ := by
+  induction p generalizing q a near ls with
+  | zero =>
+    simp only [runGuardedLeft, Option.some.injEq, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl, rfl⟩
+    rfl
+  | succ p ih =>
+    simp only [runGuardedLeft] at h
+    rw [Table.get_flip] at h
+    cases ht : tb.get q a with
+    | none => simp [ht] at h
+    | some m =>
+      simp only [ht, Option.map_some] at h
+      have hM := hm q a m ht
+      rw [multi_succ_front]
+      cases hd : m.left with
+      | false =>
+        simp only [Move.flip, hd, Bool.not_false, ↓reduceIte] at h
+        cases near with
+        | nil => simp at h
+        | cons x xs =>
+          simp only at h
+          have hstep : M.step ⟨some q, ⟨a, ListBlank.mk ls, (x :: xs).foldr ListBlank.cons tail⟩⟩ =
+              some ⟨some m.state, ⟨x, ListBlank.mk (push m.write ls), xs.foldr ListBlank.cons tail⟩⟩ := by
+            simp [Machine.step, hM, Move.command, hd, Tape.write, Tape.move, mk_push]
+          rw [hstep, Option.bind_some]
+          exact ih m.state x xs (push m.write ls) h
+      | true =>
+        simp only [Move.flip, hd, Bool.not_true, Bool.false_eq_true, ↓reduceIte] at h
+        have hstep : M.step ⟨some q, ⟨a, ListBlank.mk ls, near.foldr ListBlank.cons tail⟩⟩ =
+            some ⟨some m.state, ⟨symHead ls, ListBlank.mk ls.tail, (m.write :: near).foldr ListBlank.cons tail⟩⟩ := by
+          simp [Machine.step, hM, Move.command, hd, Tape.write, Tape.move, symHead_eq_headI]
+        rw [hstep, Option.bind_some]
+        exact ih m.state (symHead ls) (m.write :: near) ls.tail h
+
+theorem foldr_append (xs ys : List Symbol) (tail : ListBlank Symbol) :
+    (xs ++ ys).foldr ListBlank.cons tail = xs.foldr ListBlank.cons (ys.foldr ListBlank.cons tail) := by
+  induction xs with
+  | nil => rfl
+  | cons x xs ih => simp [ih]
+
+theorem checkGuardedLeft_sound {M : Machine4} {tb : Table} (hm : Matches M tb)
+    {p : ℕ} {q : State} {a : Symbol} {near rs : List Symbol}
+    (h : checkGuardedLeft tb p q a near rs = true) (tail : ListBlank Symbol) :
+    ∃ tail', M.multiStep ⟨some q, ⟨a, near.foldr ListBlank.cons tail, ListBlank.mk rs⟩⟩ p =
+      some ⟨some q, ⟨a, near.foldr ListBlank.cons tail', ListBlank.mk rs⟩⟩ := by
+  unfold checkGuardedLeft at h
+  cases hr : runGuardedLeft tb p q a near rs with
+  | none => simp [hr] at h
+  | some res =>
+    rcases res with ⟨q', a', near', rs'⟩
+    simp only [hr, Bool.and_eq_true] at h
+    obtain ⟨⟨⟨⟨hq, ha⟩, hrs⟩, htake⟩, _⟩ := h
+    have hq' : q' = q := Fin.ext (Nat.eq_of_beq_eq_true hq)
+    have ha' : a' = a := Fin.ext (Nat.eq_of_beq_eq_true ha)
+    have hrs' : rs' = rs := listEq_eq_true hrs
+    have htake' : near'.take near.length = near := listEq_eq_true htake
+    subst hq'; subst ha'; subst hrs'
+    refine ⟨(near'.drop near.length).foldr ListBlank.cons tail, ?_⟩
+    rw [runGuardedLeft_sound hm p q' a' near rs' hr tail]
+    congr 3
+    rw [← foldr_append]
+    congr 1
+    conv_lhs => rw [← List.take_append_drop near.length near']
+    rw [htake']
+
+theorem checkGuardedRight_sound {M : Machine4} {tb : Table} (hm : Matches M tb)
+    {p : ℕ} {q : State} {a : Symbol} {near ls : List Symbol}
+    (h : checkGuardedLeft tb.flip p q a near ls = true) (tail : ListBlank Symbol) :
+    ∃ tail', M.multiStep ⟨some q, ⟨a, ListBlank.mk ls, near.foldr ListBlank.cons tail⟩⟩ p =
+      some ⟨some q, ⟨a, ListBlank.mk ls, near.foldr ListBlank.cons tail'⟩⟩ := by
+  unfold checkGuardedLeft at h
+  cases hr : runGuardedLeft tb.flip p q a near ls with
+  | none => simp [hr] at h
+  | some res =>
+    rcases res with ⟨q', a', near', ls'⟩
+    simp only [hr, Bool.and_eq_true] at h
+    obtain ⟨⟨⟨⟨hq, ha⟩, hls⟩, htake⟩, _⟩ := h
+    have hq' : q' = q := Fin.ext (Nat.eq_of_beq_eq_true hq)
+    have ha' : a' = a := Fin.ext (Nat.eq_of_beq_eq_true ha)
+    have hls' : ls' = ls := listEq_eq_true hls
+    have htake' : near'.take near.length = near := listEq_eq_true htake
+    subst hq'; subst ha'; subst hls'
+    refine ⟨(near'.drop near.length).foldr ListBlank.cons tail, ?_⟩
+    rw [runGuardedRight_sound hm p q' a' near ls' hr tail]
+    congr 3
+    rw [← foldr_append]
+    congr 1
+    conv_lhs => rw [← List.take_append_drop near.length near']
+    rw [htake']
+
+structure HistItem where
+  step : ℕ
+  pos : ℕ
+  c : Position
+
+def findRepAux (tb : Table) (cur : HistItem) (minp maxp : ℕ) : List HistItem → Bool
+  | [] => false
+  | hi :: rest =>
+    let minp' := if Nat.ble minp hi.pos then minp else hi.pos
+    let maxp' := if Nat.ble maxp hi.pos then hi.pos else maxp
+    let ok :=
+      if Nat.ble (hi.step + 1) cur.step && Nat.beq hi.c.state.val cur.c.state.val && Nat.beq hi.c.head.val cur.c.head.val then
+        let p := cur.step - hi.step
+        let leftOk :=
+          if Nat.ble hi.pos cur.pos && listEq hi.c.rs cur.c.rs then
+            let dL := hi.pos - minp'
+            let near := takePad dL hi.c.ls
+            if listEq (takePad dL cur.c.ls) near then
+              checkGuardedLeft tb p hi.c.state hi.c.head near hi.c.rs
+            else false
+          else false
+        if leftOk then true
+        else if Nat.ble cur.pos hi.pos && listEq hi.c.ls cur.c.ls then
+          let dR := maxp' - hi.pos
+          let near := takePad dR hi.c.rs
+          if listEq (takePad dR cur.c.rs) near then
+            checkGuardedLeft tb.flip p hi.c.state hi.c.head near hi.c.ls
+          else false
+        else false
+      else false
+    if ok then true else findRepAux tb cur minp' maxp' rest
+
+def findRep (tb : Table) (cur : HistItem) (prev : List HistItem) : Bool :=
+  findRepAux tb cur 1000 0 prev
+
+def HistValid (M : Machine4) (hist : List HistItem) : Prop :=
+  ∀ h ∈ hist, h.step ≤ 107 ∧ M.multiStep (Machine.init []) h.step = some h.c.view
+
+def NoRepeatHyp (M : Machine4) : Prop :=
+  ∀ (i p : ℕ) (q : State) (a : Symbol) (side : Bool)
+      (near : List Symbol) (fixed : ListBlank Symbol), 0 < p → i + p ≤ 107 →
+    let cfg := fun tail : ListBlank Symbol =>
+      let free := near.foldr ListBlank.cons tail
+      (⟨some q, if side then ⟨a, free, fixed⟩ else ⟨a, fixed, free⟩⟩ : Cfg Symbol State)
+    (∃ tail, M.multiStep (Machine.init []) i = some (cfg tail)) →
+    ¬ ∀ tail, ∃ tail', M.multiStep (cfg tail) p = some (cfg tail')
+
+theorem findRepAux_sound {M : Machine4} {tb : Table} (hm : Matches M tb)
+    (hLoop : NoRepeatHyp M) {cur : HistItem} {prev : List HistItem}
+    (hcur : cur.step ≤ 107) (hvalid : HistValid M prev)
+    {minp maxp : ℕ} (h : findRepAux tb cur minp maxp prev = true) : False := by
+  induction prev generalizing minp maxp with
+  | nil => simp [findRepAux] at h
+  | cons hi rest ih =>
+    unfold findRepAux at h
+    dsimp only at h
+    set minp' := if Nat.ble minp hi.pos then minp else hi.pos
+    set maxp' := if Nat.ble maxp hi.pos then hi.pos else maxp
+    by_cases hcond : (Nat.ble (hi.step + 1) cur.step && Nat.beq hi.c.state.val cur.c.state.val && Nat.beq hi.c.head.val cur.c.head.val) = true
+    · simp only [hcond, ↓reduceIte] at h
+      simp only [Bool.and_eq_true, Nat.ble_eq] at hcond
+      have ⟨hstep_hi, hrun_hi⟩ := hvalid hi (List.mem_cons_self ..)
+      have hp_pos : 0 < cur.step - hi.step := by omega
+      have hp_le : hi.step + (cur.step - hi.step) ≤ 107 := by omega
+      by_cases hleft : (if Nat.ble hi.pos cur.pos && listEq hi.c.rs cur.c.rs then
+          if listEq (takePad (hi.pos - minp') cur.c.ls) (takePad (hi.pos - minp') hi.c.ls) then
+            checkGuardedLeft tb (cur.step - hi.step) hi.c.state hi.c.head (takePad (hi.pos - minp') hi.c.ls) hi.c.rs
+          else false else false) = true
+      · split at hleft
+        · split at hleft
+          · exact hLoop hi.step (cur.step - hi.step) hi.c.state hi.c.head true
+              (takePad (hi.pos - minp') hi.c.ls) (ListBlank.mk hi.c.rs)
+              hp_pos hp_le
+              ⟨ListBlank.mk (hi.c.ls.drop (hi.pos - minp')), by
+                simpa [Position.view, takePad_foldr_drop] using hrun_hi⟩
+              (checkGuardedLeft_sound hm hleft)
+          · contradiction
+        · contradiction
+      · simp only [hleft, Bool.false_eq_true, ↓reduceIte] at h
+        by_cases hright : (if Nat.ble cur.pos hi.pos && listEq hi.c.ls cur.c.ls then
+            if listEq (takePad (maxp' - hi.pos) cur.c.rs) (takePad (maxp' - hi.pos) hi.c.rs) then
+              checkGuardedLeft tb.flip (cur.step - hi.step) hi.c.state hi.c.head (takePad (maxp' - hi.pos) hi.c.rs) hi.c.ls
+            else false else false) = true
+        · split at hright
+          · split at hright
+            · exact hLoop hi.step (cur.step - hi.step) hi.c.state hi.c.head false
+                (takePad (maxp' - hi.pos) hi.c.rs) (ListBlank.mk hi.c.ls)
+                hp_pos hp_le
+                ⟨ListBlank.mk (hi.c.rs.drop (maxp' - hi.pos)), by
+                  simpa [Position.view, takePad_foldr_drop] using hrun_hi⟩
+                (checkGuardedRight_sound hm hright)
+            · contradiction
+          · contradiction
+        · simp only [hright, Bool.false_eq_true, ↓reduceIte] at h
+          exact ih (fun x hx => hvalid x (List.mem_cons_of_mem _ hx)) h
+    · simp only [hcond, Bool.false_eq_true, ↓reduceIte] at h
+      exact ih (fun x hx => hvalid x (List.mem_cons_of_mem _ hx)) h
+
+-- ============================================================
+-- FAR (Finite Automata Reduction) certificate verifier
+-- ============================================================
+
+inductive CanStop (tb : Table) : Position → Prop
+  | missing {c} : tb.get c.state c.head = none → CanStop tb c
+  | move {c m} : tb.get c.state c.head = some m → CanStop tb (c.move m) → CanStop tb c
+
+theorem canStop_flip {tb : Table} {c : Position} (h : CanStop tb c) :
+    CanStop tb.flip c.flip := by
+  induction h with
+  | missing h => exact .missing (by simpa [Position.flip, Table.get_flip] using h)
+  | @move c m h _ ih =>
+    refine .move (m := m.flip) ?_ ?_
+    · change tb.flip.get c.state c.head = some m.flip
+      simp [Table.get_flip, h]
+    · rwa [← flip_move]
+
+theorem cannot_stop_run {M : Machine4} {tb : Table}
+    (hm : Matches M tb) (c : Position) (hc : ¬ CanStop tb c) (k : ℕ) :
+    M.multiStep c.view k ≠ none := by
+  induction k generalizing c with
+  | zero => simp
+  | succ k ih =>
+    cases h : tb.get c.state c.head with
+    | none => exact (hc (.missing h)).elim
+    | some m =>
+      rw [multi_succ_front, step_move hm c m h, Option.bind_some]
+      exact ih _ (fun hs => hc (.move h hs))
+
+structure TapeDFA where
+  extraStates : ℕ
+  code : ℕ
+
+abbrev TapeDFA.size (D : TapeDFA) : ℕ := D.extraStates + 1
+
+def TapeDFA.next (D : TapeDFA) (a : Symbol) (l : Fin D.size) : Fin D.size :=
+  ⟨(D.code * D.size / D.size ^ (2 * l.val + a.val)) % D.size,
+    Nat.mod_lt _ (Nat.succ_pos _)⟩
+
+theorem TapeDFA.blank (D : TapeDFA) : D.next 0 0 = 0 := by
+  apply Fin.ext
+  simp [TapeDFA.next]
+
+def TapeDFA.read (D : TapeDFA) (xs : List Symbol) : Fin D.size :=
+  xs.foldr D.next 0
+
+theorem TapeDFA.read_push (D : TapeDFA) (a : Symbol) (xs : List Symbol) :
+    D.read (push a xs) = D.next a (D.read xs) := by
+  fin_cases a
+  · cases xs with
+    | nil => exact D.blank.symm
+    | cons x xs => rfl
+  · rfl
+
+theorem TapeDFA.read_pop (D : TapeDFA) (xs : List Symbol) :
+    D.next xs.headI (D.read xs.tail) = D.read xs := by
+  cases xs
+  · exact D.blank
+  · rfl
+
+structure Certificate where
+  mirror : Bool
+  dfa : TapeDFA
+  edges : ℕ
+  blankReach : ℕ
+
+abbrev Node (cert : Certificate) := Option (State × Fin cert.dfa.size)
+
+def nodeId (cert : Certificate) : Node cert → ℕ
+  | none => 4 * cert.dfa.size
+  | some (q, l) => q.val * cert.dfa.size + l.val
+
+def Certificate.edgeRow (cert : Certificate) (p : Node cert) (a : Symbol) : ℕ :=
+  match p with
+  | none => 2 ^ (4 * cert.dfa.size)
+  | some _ => (cert.edges >>> ((2 * nodeId cert p + a.val) * (4 * cert.dfa.size + 1))) &&&
+      ((1 <<< (4 * cert.dfa.size + 1)) - 1)
+
+def Certificate.edge (cert : Certificate) (p : Node cert) (a : Symbol)
+    (q : Node cert) : Bool :=
+  (cert.edgeRow p a).testBit (nodeId cert q)
+
+theorem edge_none (cert : Certificate) (a : Symbol) (q : Node cert) :
+    cert.edge none a q = q.isNone := by
+  unfold Certificate.edge Certificate.edgeRow
+  simp only [Nat.testBit_two_pow]
+  rcases q with _ | ⟨q, l⟩
+  · simp [nodeId]
+  · have hq : q.val ≤ 3 := Nat.le_of_lt_succ q.isLt
+    have hl : l.val < cert.dfa.size := l.isLt
+    have hne : 4 * cert.dfa.size ≠ q.val * cert.dfa.size + l.val := by
+      have : q.val * cert.dfa.size ≤ 3 * cert.dfa.size := Nat.mul_le_mul_right _ hq
+      omega
+    simp [nodeId, hne]
+
+def Certificate.onBlank (cert : Certificate) (p : Node cert) : Bool :=
+  cert.blankReach.testBit (nodeId cert p)
+
+def unpack (val : ℕ) : Certificate :=
+  let extra := (val >>> 1) &&& 31
+  let size := extra + 1
+  let dfaBase := size ^ (2 * size - 1)
+  let payload := (val >>> 6) / dfaBase
+  let width := 4 * size + 1
+  let initialBase := 2 ^ width
+  ⟨val.testBit 0, ⟨extra, (val >>> 6) % dfaBase⟩, payload >>> width, payload &&& (initialBase - 1)⟩
+
+def nodes (cert : Certificate) : List (Node cert) :=
+  none :: (List.finRange 4).flatMap fun q =>
+    (List.finRange cert.dfa.size).map fun l => some (q, l)
+
+theorem allFin {n : ℕ} {p : Fin n → Bool} (h : (List.finRange n).all p = true)
+    (a : Fin n) : p a = true := (List.all_eq_true.mp h) a (by simp)
+
+theorem allNodes {cert : Certificate} {p : Node cert → Bool}
+    (h : (nodes cert).all p = true) (a : Node cert) : p a = true := by
+  refine (List.all_eq_true.mp h) a ?_
+  rcases a with _ | ⟨q, l⟩ <;> simp [nodes]
+
+-- A single inclusion check verifies every target in an automaton edge row.
+theorem included_bit {x y : ℕ} (h : Nat.beq (x &&& y) x = true) (k : ℕ)
+    (bit : x.testBit k = true) : y.testBit k = true := by
+  have e := congrArg (fun n : ℕ => n.testBit k) (Nat.eq_of_beq_eq_true h)
+  simpa [Nat.testBit_and, bit] using e
+
+def checkBlank (cert : Certificate) : Bool :=
+  cert.onBlank (some (0, 0)) && !cert.onBlank none &&
+    (nodes cert).all fun p =>
+      if cert.onBlank p then
+        let row := cert.edgeRow p 0
+        Nat.beq (row &&& cert.blankReach) row
+      else true
+
+def checkAt (tb : Table) (cert : Certificate) (q : State) (a : Symbol)
+    (l : Fin cert.dfa.size) : Bool :=
+  let p : Node cert := some (q, l)
+  let pRow := cert.edgeRow p a
+  match tb.get q a with
+  | none => pRow.testBit (4 * cert.dfa.size)
+  | some m =>
+    if m.left then
+      (List.finRange cert.dfa.size).all fun l' => (List.finRange 2).all fun a' =>
+        if Nat.beq (cert.dfa.next a' l').val l.val then
+          let sRow := cert.edgeRow (some (m.state, l')) a'
+          (nodes cert).all fun s =>
+            if sRow.testBit (nodeId cert s) then
+              let swRow := cert.edgeRow s m.write
+              Nat.beq (swRow &&& pRow) swRow
+            else true
+        else true
+    else pRow.testBit (nodeId cert (some (m.state, cert.dfa.next m.write l)))
+
+def checkMachine (tb : Table) (cert : Certificate) : Bool :=
+  (List.finRange 4).all fun q => (List.finRange 2).all fun a =>
+    (List.finRange cert.dfa.size).all fun l => checkAt tb cert q a l
+
+inductive Reads (cert : Certificate) : Node cert → ListBlank Symbol → Prop
+  | done (t) : Reads cert none t
+  | step {p q t} : cert.edge p t.head q = true → Reads cert q t.tail → Reads cert p t
+
+theorem Reads.push {cert : Certificate} {p q : Node cert} {a : Symbol} {xs : ListBlank Symbol}
+    (he : cert.edge p a q = true) (h : Reads cert q xs) : Reads cert p (xs.cons a) :=
+  .step (by simpa using he) (by simpa using h)
+
+theorem Reads.pop {cert : Certificate} {p : Node cert} {xs : ListBlank Symbol} {a : Symbol}
+    (h : Reads cert p (xs.cons a)) : ∃ q, cert.edge p a q = true ∧ Reads cert q xs := by
+  cases h with
+  | done => exact ⟨none, by simp [edge_none], .done _⟩
+  | step he hr => exact ⟨_, by simpa using he, by simpa using hr⟩
+
+theorem no_read_blank {cert : Certificate} (hb : checkBlank cert = true) :
+    ¬ Reads cert (some (0, 0)) (ListBlank.mk []) := by
+  simp only [checkBlank, Bool.and_eq_true_iff, Bool.not_eq_true_eq_eq_false] at hb
+  obtain ⟨⟨hstart, hsink⟩, hclosure⟩ := hb
+  have each {p : Node cert} {t : ListBlank Symbol} (hr : Reads cert p t) :
+      t = ListBlank.mk [] → cert.onBlank p = true → False := by
+    induction hr with
+    | done _ => intro _ hp; exact Bool.noConfusion (hp.symm.trans hsink)
+    | @step p q t he _ ih =>
+      rintro rfl hp
+      have ht := allNodes hclosure p
+      simp only [hp, if_true] at ht
+      exact ih rfl (included_bit ht (nodeId cert q) he)
+  exact fun hr => each hr rfl hstart
+
+theorem reads_of_canStop {tb : Table} {cert : Certificate} (hchk : checkMachine tb cert = true)
+    {c : Position} (hs : CanStop tb c) :
+    Reads cert (some (c.state, cert.dfa.read c.ls)) ((ListBlank.mk c.rs).cons c.head) := by
+  induction hs with
+  | @missing c hh =>
+    have h := allFin (allFin (allFin hchk c.state) c.head) (cert.dfa.read c.ls)
+    simp only [checkAt, hh] at h
+    exact Reads.push (show cert.edge (some (c.state, cert.dfa.read c.ls)) c.head none = true from h) (.done _)
+  | @move c m hh _ ih =>
+    have h := allFin (allFin (allFin hchk c.state) c.head) (cert.dfa.read c.ls)
+    simp only [checkAt, hh] at h
+    cases hd : m.left with
+    | false =>
+      have hstep : cert.edge (some (c.state, cert.dfa.read c.ls)) c.head
+          (some (m.state, cert.dfa.next m.write (cert.dfa.read c.ls))) = true := by
+        simpa [hd, Certificate.edge] using h
+      refine Reads.push hstep ?_
+      simpa [Position.move, hd, TapeDFA.read_push, symHead_eq_headI, ← ListBlank.head_mk, ← ListBlank.tail_mk]
+        using ih
+    | true =>
+      have hr : Reads cert (some (m.state, cert.dfa.read c.ls.tail))
+          (((ListBlank.mk c.rs).cons m.write).cons c.ls.headI) := by
+        simpa [Position.move, hd, mk_push, symHead_eq_headI] using ih
+      obtain ⟨s, he, hr⟩ := Reads.pop hr
+      obtain ⟨t, hf, ht⟩ := Reads.pop hr
+      simp only [hd, if_true] at h
+      have h' := allFin (allFin h (cert.dfa.read c.ls.tail)) c.ls.headI
+      have hbeq : Nat.beq (cert.dfa.next c.ls.headI (cert.dfa.read c.ls.tail)).val (cert.dfa.read c.ls).val = true := by
+        simp [TapeDFA.read_pop]
+      simp only [hbeq, if_true] at h'
+      have h'' := allNodes h' s
+      have he' : (cert.edgeRow (some (m.state, cert.dfa.read c.ls.tail)) c.ls.headI).testBit (nodeId cert s) = true := he
+      simp only [he', if_true] at h''
+      exact Reads.push (included_bit h'' (nodeId cert t) hf) ht
+
+def checkCertificate (tb : Table) (val : ℕ) : Bool :=
+  let C := unpack val
+  checkBlank C && checkMachine (if C.mirror then tb.flip else tb) C
+
+theorem certificate_sound {tb : Table} {val : ℕ}
+    (h : checkCertificate tb val = true) : ¬ CanStop tb startPos := by
+  intro hs
+  unfold checkCertificate at h
+  have ⟨hb, hm⟩ := Bool.and_eq_true_iff.mp h
+  apply no_read_blank hb
+  have blank : (ListBlank.mk ([] : List Symbol)).cons 0 = ListBlank.mk [] :=
+    ListBlank.cons_head_tail (ListBlank.mk [])
+  split at hm
+  · simpa only [Position.flip, startPos, TapeDFA.read, List.foldr_nil, blank] using
+      (reads_of_canStop hm (canStop_flip hs))
+  · simpa only [startPos, TapeDFA.read, List.foldr_nil, blank] using (reads_of_canStop hm hs)
+
+-- ============================================================
+-- Symmetry: swapping states 2 and 3
+-- ============================================================
+
+def swap23 : Equiv.Perm State := Equiv.swap (2 : State) (3 : State)
+
+theorem swap23_0 : swap23 0 = 0 := by decide
+theorem swap23_1 : swap23 1 = 1 := by decide
+theorem swap23_2 : swap23 2 = 3 := by decide
+theorem swap23_3 : swap23 3 = 2 := by decide
+theorem swap23_inv (q : State) : swap23.symm q = swap23 q := by fin_cases q <;> decide
+
+def reindex23 (M : Machine4) : Machine4 :=
+  fun q a => (M (swap23 q) a).map fun (s, b) => (s.map swap23, b)
+
+def mapCfg23 (c : Cfg Symbol State) : Cfg Symbol State :=
+  ⟨c.q.map swap23, c.tape⟩
+
+theorem reindex23_step (M : Machine4) (c : Cfg Symbol State) :
+    (reindex23 M).step (mapCfg23 c) = (M.step c).map mapCfg23 := by
+  obtain ⟨q, t⟩ := c
+  cases q with
+  | none => rfl
+  | some q =>
+    simp only [Machine.step, mapCfg23, Option.map_some, reindex23]
+    have hinv : swap23 (swap23 q) = q := by fin_cases q <;> decide
+    rw [hinv]
+    cases M q t.head with
+    | none => rfl
+    | some entry => rfl
+
+theorem reindex23_multi (M : Machine4) (c : Cfg Symbol State) (k : ℕ) :
+    (reindex23 M).multiStep (mapCfg23 c) k = (M.multiStep c k).map mapCfg23 := by
+  induction k with
+  | zero => rfl
+  | succ k ih =>
+    rw [Machine.multiStep_succ, Machine.multiStep_succ, ih]
+    cases M.multiStep c k with
+    | none => rfl
+    | some c' => exact reindex23_step M c'
+
+theorem mapCfg23_init : mapCfg23 (Machine.init []) = Machine.init [] := by
+  simp [mapCfg23, Machine.init, swap23_0]
+
+
+def sp0Table : Table :=
+  ⟨some ⟨1, 1, false⟩, some ⟨0, 1, true⟩, some ⟨0, 1, true⟩, some ⟨2, 0, false⟩,
+   some ⟨3, 1, true⟩, some ⟨2, 1, false⟩, none, some ⟨0, 0, true⟩⟩
+
+def sp1Table : Table :=
+  ⟨some ⟨1, 1, false⟩, some ⟨1, 0, false⟩, some ⟨2, 1, true⟩, some ⟨1, 1, false⟩,
+   none, some ⟨3, 0, true⟩, some ⟨0, 1, false⟩, some ⟨3, 1, true⟩⟩
+
+def m0Table : Table :=
+  ⟨some ⟨1, 1, false⟩, some ⟨2, 0, true⟩, some ⟨2, 1, false⟩, some ⟨3, 1, false⟩,
+   some ⟨0, 1, true⟩, some ⟨1, 0, false⟩, some ⟨0, 1, false⟩, none⟩
+
+def tblOfList (entries : List ℕ) : Machine4 := fun q a =>
+  let v := entries[2*q.val+a.val]?.getD 16
+  if v = 16 then none else some (some ⟨v / 4 % 4, Nat.mod_lt _ (by decide)⟩,
+    Stmt.write ⟨v / 2 % 2, Nat.mod_lt _ (by decide)⟩ (if v % 2 = 0 then Dir.right else Dir.left))
+
+theorem eq_sp0_of_matches {M : Machine4} (hm : Matches M sp0Table) (hMiss : ∃ q a, M q a = none) :
+    M = tblOfList [6,3,3,8,15,10,16,1] := by
+  obtain ⟨qm, am, hMmiss⟩ := hMiss
+  have hqm : qm = 3 ∧ am = 0 := by
+    fin_cases qm <;> fin_cases am
+    · exfalso; change M 0 0 = none at hMmiss; rw [hm 0 0 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exfalso; change M 0 1 = none at hMmiss; rw [hm 0 1 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exfalso; change M 1 0 = none at hMmiss; rw [hm 1 0 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exfalso; change M 1 1 = none at hMmiss; rw [hm 1 1 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exfalso; change M 2 0 = none at hMmiss; rw [hm 2 0 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exfalso; change M 2 1 = none at hMmiss; rw [hm 2 1 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exact ⟨rfl, rfl⟩
+    · exfalso; change M 3 1 = none at hMmiss; rw [hm 3 1 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+  rcases hqm with ⟨rfl, rfl⟩
+  funext q a
+  fin_cases q <;> fin_cases a
+  · exact hm 0 0 _ rfl
+  · exact hm 0 1 _ rfl
+  · exact hm 1 0 _ rfl
+  · exact hm 1 1 _ rfl
+  · exact hm 2 0 _ rfl
+  · exact hm 2 1 _ rfl
+  · exact hMmiss
+  · exact hm 3 1 _ rfl
+
+theorem eq_sp1_of_matches {M : Machine4} (hm : Matches M sp1Table) (hMiss : ∃ q a, M q a = none) :
+    M = tblOfList [6,4,11,6,16,13,2,15] := by
+  obtain ⟨qm, am, hMmiss⟩ := hMiss
+  have hqm : qm = 2 ∧ am = 0 := by
+    fin_cases qm <;> fin_cases am
+    · exfalso; change M 0 0 = none at hMmiss; rw [hm 0 0 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exfalso; change M 0 1 = none at hMmiss; rw [hm 0 1 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exfalso; change M 1 0 = none at hMmiss; rw [hm 1 0 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exfalso; change M 1 1 = none at hMmiss; rw [hm 1 1 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exact ⟨rfl, rfl⟩
+    · exfalso; change M 2 1 = none at hMmiss; rw [hm 2 1 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exfalso; change M 3 0 = none at hMmiss; rw [hm 3 0 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+    · exfalso; change M 3 1 = none at hMmiss; rw [hm 3 1 _ rfl] at hMmiss; simp [Move.command] at hMmiss
+  rcases hqm with ⟨rfl, rfl⟩
+  funext q a
+  fin_cases q <;> fin_cases a
+  · exact hm 0 0 _ rfl
+  · exact hm 0 1 _ rfl
+  · exact hm 1 0 _ rfl
+  · exact hm 1 1 _ rfl
+  · exact hMmiss
+  · exact hm 2 1 _ rfl
+  · exact hm 3 0 _ rfl
+  · exact hm 3 1 _ rfl
+
+def runPos (tb : Table) : ℕ → Position → Option Position
+  | 0, c => some c
+  | k + 1, c =>
+    match tb.get c.state c.head with
+    | none => none
+    | some m => runPos tb k (c.move m)
+
+theorem runPos_sound {M : Machine4} {tb : Table} (hm : Matches M tb)
+    (k : ℕ) (c : Position) {c' : Position} (h : runPos tb k c = some c') :
+    M.multiStep c.view k = some c'.view := by
+  induction k generalizing c with
+  | zero =>
+    simp only [runPos, Option.some.injEq] at h; subst h; rfl
+  | succ k ih =>
+    simp only [runPos] at h
+    cases ht : tb.get c.state c.head with
+    | none => simp [ht] at h
+    | some m =>
+      simp only [ht] at h
+      rw [multi_succ_front, step_move hm c m ht, Option.bind_some]
+      exact ih (c.move m) h
+
+theorem run_add (M : Machine4) (x : Cfg Symbol State) (m n : ℕ) :
+    M.multiStep x (m + n) = (M.multiStep x m).bind (fun y => M.multiStep y n) := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    rw [Nat.add_succ, Machine.multiStep_succ, ih]
+    cases M.multiStep x m <;> simp
+
+theorem m0_not_halting {M : Machine4} (hm : Matches M m0Table) (hHalts : M.IsHalting) : False := by
+  have h85 : ∃ c85, runPos m0Table 85 startPos = some c85 ∧
+      checkGuardedLeft m0Table.flip 29 c85.state c85.head [] c85.ls = true := by
+    refine ⟨(runPos m0Table 85 startPos).getD startPos, ?_, ?_⟩ <;> decide +kernel
+  obtain ⟨c85, hrun, hcyc⟩ := h85
+  have hM85 : M.multiStep (Machine.init []) 85 = some c85.view := runPos_sound hm 85 startPos hrun
+  let cfg (tail : ListBlank Symbol) : Cfg Symbol State :=
+    ⟨some c85.state, ⟨c85.head, ListBlank.mk c85.ls, tail⟩⟩
+  have hEnter : ∃ tail, M.multiStep (Machine.init []) 85 = some (cfg tail) :=
+    ⟨ListBlank.mk c85.rs, hM85⟩
+  have hStep : ∀ tail, ∃ tail', M.multiStep (cfg tail) 29 = some (cfg tail') := by
+    intro tail
+    simpa [cfg] using checkGuardedRight_sound hm hcyc tail
+  have hRec (m : ℕ) : ∃ tail, M.multiStep (Machine.init []) (85 + 29 * m) = some (cfg tail) := by
+    induction m with
+    | zero => simpa using hEnter
+    | succ m ih =>
+      obtain ⟨t, ht⟩ := ih
+      obtain ⟨t', ht'⟩ := hStep t
+      refine ⟨t', ?_⟩
+      rw [Nat.mul_succ, ← Nat.add_assoc, run_add M _ (85 + 29 * m) 29, ht]
+      exact ht'
+  obtain ⟨k, hk⟩ := (Machine.isHalting_iff_exists_haltsAt M).mp hHalts
+  obtain ⟨t, ht⟩ := hRec (k + 1)
+  have hnone := Machine.multiStep_eq_none_mono hk (by omega : k + 1 ≤ 85 + 29 * (k + 1))
+  rw [ht] at hnone
   contradiction
 
-structure Inv where
-  nl : Nat
-  nr : Nat
-  left : Nat
-  right : Nat
-  mark : Nat
-deriving Inhabited
+def GoodMachine (M : Machine4) : Prop :=
+  (∃ q t, M.multiStep (Machine.init []) 68 = some ⟨some q, t⟩) ∧
+  (∀ q a, M q a = none ∨ ∃ q' z, M q a = some (some q', z)) ∧
+  (∃ q a, M q a = none) ∧
+  NoRepeatHyp M ∧
+  M.IsHalting ∧
+  (M ≠ tblOfList [6,3,3,8,15,10,16,1] ∧ reindex23 M ≠ tblOfList [6,3,3,8,15,10,16,1]) ∧
+  (M ≠ tblOfList [6,4,11,6,16,13,2,15] ∧ reindex23 M ≠ tblOfList [6,4,11,6,16,13,2,15])
 
-def tr (n word : Nat) (a : A) (i : Fin (n+1)) : Fin (n+1) :=
-  Fin.ofNat (n+1) ((word >>> (6*(2*i.val+a.val))) % 64)
-def test (c : Inv) (q : Q) (a : A) (i : Fin (c.nl+1)) (j : Fin (c.nr+1)) : Bool :=
-  c.mark.testBit (((2*q.val+a.val)*(c.nl+1)+i.val)*(c.nr+1)+j.val)
+theorem reindex23_invol (M : Machine4) : reindex23 (reindex23 M) = M := by
+  funext q a
+  have hinv : swap23 (swap23 q) = q := by fin_cases q <;> decide
+  simp only [reindex23, hinv]
+  cases M q a with
+  | none => rfl
+  | some p =>
+    rcases p with ⟨s, b⟩
+    cases s with
+    | none => rfl
+    | some s =>
+      have hs : swap23 (swap23 s) = s := by fin_cases s <;> decide
+      simp [hs]
 
-def certified (p : P) (c : Inv) : Bool :=
-  let L := tr c.nl c.left
-  let R := tr c.nr c.right
-  let S := test c
-  decide (L 0 0 = 0 ∧ R 0 0 = 0 ∧ S 0 0 0 0 = true ∧
-    (∀ q a i j, S q a i j = true → p q a < 16) ∧
-    ∀ q a b i j,
-      let e := p q a
-      let r := Fin.ofNat 4 (e/4)
-      let w := Fin.ofNat 2 (e/2)
-      if e%2 = 0 then S q a (L b i) j = true → S r b i (R w j) = true
-      else S q a i (R b j) = true → S r b (L w i) j = true)
+theorem goodMachine_reindex23 {M : Machine4} (hG : GoodMachine M) :
+    GoodMachine (reindex23 M) := by
+  obtain ⟨⟨q0, t0, hRun⟩, hForm, ⟨qm, am, hMiss⟩, hLoop, hHalts, ⟨hsp0, hsp0'⟩, ⟨hsp1, hsp1'⟩⟩ := hG
+  refine ⟨?_, ?_, ?_, ?_, ?_, ⟨hsp0', by rwa [reindex23_invol]⟩, ⟨hsp1', by rwa [reindex23_invol]⟩⟩
+  · refine ⟨swap23 q0, t0, ?_⟩
+    rw [← mapCfg23_init, reindex23_multi, hRun]; rfl
+  · intro q a
+    rcases hForm (swap23 q) a with h | ⟨q', z, h⟩
+    · left; simp [reindex23, h]
+    · right; exact ⟨swap23 q', z, by simp [reindex23, h]⟩
+  · exact ⟨swap23 qm, am, by
+      have : swap23 (swap23 qm) = qm := by fin_cases qm <;> decide
+      simp [reindex23, this, hMiss]⟩
+  · intro i p q a side near fixed hp hle cfg hEnter hCycle
+    let cfgM : ListBlank Symbol → Cfg Symbol State := fun tail =>
+      let free := near.foldr ListBlank.cons tail
+      ⟨some (swap23 q), if side then ⟨a, free, fixed⟩ else ⟨a, fixed, free⟩⟩
+    have hmap : ∀ tail, mapCfg23 (cfgM tail) = cfg tail := by
+      intro tail
+      have : swap23 (swap23 q) = q := by fin_cases q <;> decide
+      simp [mapCfg23, cfgM, cfg, this]
+    apply hLoop i p (swap23 q) a side near fixed hp hle
+    · obtain ⟨tail, ht⟩ := hEnter
+      rw [← mapCfg23_init, reindex23_multi] at ht
+      cases hMi : M.multiStep (Machine.init []) i with
+      | none => simp [hMi] at ht
+      | some c' =>
+        simp only [hMi, Option.map_some, Option.some.injEq] at ht
+        refine ⟨tail, ?_⟩
+        congr 1
+        obtain ⟨q', t'⟩ := c'
+        simp only [mapCfg23, cfg, Cfg.mk.injEq] at ht
+        rcases ht with ⟨hq', ht'⟩
+        cases q' with
+        | none => simp at hq'
+        | some q' =>
+          simp only [Option.map_some, Option.some.injEq] at hq'
+          have : q' = swap23 q := by rw [← hq']; fin_cases q' <;> decide
+          simp [this, ht']
+    · intro tail
+      obtain ⟨tail', ht'⟩ := hCycle tail
+      rw [← hmap tail, reindex23_multi] at ht'
+      cases hMp : M.multiStep (cfgM tail) p with
+      | none => simp [hMp] at ht'
+      | some c' =>
+        simp only [hMp, Option.map_some, Option.some.injEq] at ht'
+        refine ⟨tail', ?_⟩
+        congr 1
+        obtain ⟨q', t'⟩ := c'
+        simp only [mapCfg23, cfg, Cfg.mk.injEq] at ht'
+        rcases ht' with ⟨hq', ht''⟩
+        cases q' with
+        | none => simp at hq'
+        | some q' =>
+          simp only [Option.map_some, Option.some.injEq] at hq'
+          have : q' = swap23 q := by rw [← hq']; fin_cases q' <;> decide
+          simp [this, ht'']
+  · obtain ⟨k, hk⟩ := (Machine.isHalting_iff_exists_haltsAt M).mp hHalts
+    refine (Machine.isHalting_iff_exists_haltsAt _).mpr ⟨k, ?_⟩
+    unfold Machine.HaltsAfter
+    rw [← mapCfg23_init, reindex23_multi, hk]; rfl
 
-theorem ofCert {p : P} {c : Inv} (hc : certified p c = true) : Goal p := by
-  intro M hM halt
-  obtain ⟨hL,hR,hI,hLiv,hCl⟩ := of_decide_eq_true hc
-  let S := test c
-  apply False.elim
-  apply safe (tr c.nl c.left) (tr c.nr c.right) S hL hR hI _ _ halt
-  · intro q a b i j
-    have H := hCl q a b i j
-    dsimp only at H
-    constructor
-    · intro h r w he
-      have hM' := hM q a (hLiv q a _ _ h)
-      rw [hM',op] at he
-      split at he
-      next hdir => cases he; rw [if_pos hdir] at H; exact H h
-      next => cases he
-    · intro h r w he
-      have hM' := hM q a (hLiv q a _ _ h)
-      rw [hM',op] at he
-      split at he
-      next => cases he
-      next hdir => cases he; rw [if_neg hdir] at H; exact H h
-  · intro q a i j h
-    have hh := hM q a (hLiv q a i j h)
-    exact ⟨_,_,hh⟩
+def UsesOnly01 (tb : Table) : Prop :=
+  tb.t20 = none ∧ tb.t21 = none ∧ tb.t30 = none ∧ tb.t31 = none ∧
+  (∀ q a m, tb.get q a = some m → m.state = 0 ∨ m.state = 1)
+
+theorem matches_reindex23 {M : Machine4} {tb : Table}
+    (hm : Matches M tb) (h01 : UsesOnly01 tb) : Matches (reindex23 M) tb := by
+  intro q a m hget
+  have hms := h01.2.2.2.2 q a m hget
+  have hq : q = 0 ∨ q = 1 := by
+    fin_cases q
+    · exact Or.inl rfl
+    · exact Or.inr rfl
+    · fin_cases a <;> simp [Table.get, h01.1, h01.2.1] at hget
+    · fin_cases a <;> simp [Table.get, h01.2.2.1, h01.2.2.2.1] at hget
+  have hsq : swap23 q = q := by rcases hq with rfl | rfl <;> decide
+  have hsm : swap23 m.state = m.state := by rcases hms with h | h <;> rw [h] <;> decide
+  simp only [reindex23, hsq, hm q a m hget, Move.command, Option.map_some, hsm]
+
+theorem histValid_reindex23 {M : Machine4} {hist : List HistItem}
+    (hv : HistValid M hist)
+    (h01 : ∀ h ∈ hist, h.c.state = 0 ∨ h.c.state = 1) :
+    HistValid (reindex23 M) hist := by
+  intro h hh
+  have ⟨hle, hrun⟩ := hv h hh
+  refine ⟨hle, ?_⟩
+  rw [← mapCfg23_init, reindex23_multi, hrun]
+  have hs : swap23 h.c.state = h.c.state := by
+    rcases h01 h hh with hs | hs <;> rw [hs] <;> decide
+  simp [mapCfg23, Position.view, hs]
+
+-- ============================================================
+-- Stateful DFS Tree Verifier
+-- ============================================================
+
+def holes (tb : Table) : Finset Key :=
+  Finset.univ.filter fun k => tb.get k.1 k.2 = none
+
+theorem holes_set (tb : Table) (q : State) (a : Symbol) (m : Move) :
+    holes (tb.set q a m) = (holes tb).erase (q, a) := by
+  ext ⟨q', a'⟩
+  simp only [holes, Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_erase]
+  by_cases e : (q', a') = (q, a)
+  · rcases Prod.mk.inj e with ⟨rfl, rfl⟩
+    simp [Table.get_set_self]
+  · simp [Table.get_set_ne tb m e, e]
+
+def moves12 : List Move :=
+  [⟨0, 0, false⟩, ⟨0, 0, true⟩, ⟨0, 1, false⟩, ⟨0, 1, true⟩,
+   ⟨1, 0, false⟩, ⟨1, 0, true⟩, ⟨1, 1, false⟩, ⟨1, 1, true⟩,
+   ⟨2, 0, false⟩, ⟨2, 0, true⟩, ⟨2, 1, false⟩, ⟨2, 1, true⟩]
+
+def moves16 : List Move :=
+  [⟨0, 0, false⟩, ⟨0, 0, true⟩, ⟨0, 1, false⟩, ⟨0, 1, true⟩,
+   ⟨1, 0, false⟩, ⟨1, 0, true⟩, ⟨1, 1, false⟩, ⟨1, 1, true⟩,
+   ⟨2, 0, false⟩, ⟨2, 0, true⟩, ⟨2, 1, false⟩, ⟨2, 1, true⟩,
+   ⟨3, 0, false⟩, ⟨3, 0, true⟩, ⟨3, 1, false⟩, ⟨3, 1, true⟩]
+
+def movesAllowed (used2 : Bool) : List Move :=
+  if used2 then moves16 else moves12
+
+theorem mem_movesAllowed (used2 : Bool) (m : Move) (h : used2 = false → m.state ≠ 3) :
+    m ∈ movesAllowed used2 := by
+  obtain ⟨q, a, d⟩ := m
+  cases used2
+  · have h3 := h rfl
+    fin_cases q <;> fin_cases a <;> cases d <;> simp_all [movesAllowed, moves12]
+  · fin_cases q <;> fin_cases a <;> cases d <;> simp [movesAllowed, moves16]
+
+inductive StepResult where
+  | rep
+  | done
+  | missing (q : State) (a : Symbol) (rem : ℕ) (cur : HistItem) (prev : List HistItem)
+
+def checkMoves (f : Move → List ℕ → Option (List ℕ)) : List Move → List ℕ → Option (List ℕ)
+  | [], certs => some certs
+  | m :: ms, certs =>
+    match f m certs with
+    | none => none
+    | some rest => checkMoves f ms rest
+
+theorem checkMoves_each {f : Move → List ℕ → Option (List ℕ)} {ms : List Move}
+    {a b : List ℕ} (h : checkMoves f ms a = some b) {m : Move} (hm : m ∈ ms) :
+    ∃ x y, f m x = some y := by
+  induction ms generalizing a with
+  | nil => simp at hm
+  | cons head tail ih =>
+    unfold checkMoves at h
+    cases hh : f head a with
+    | none => simp [hh] at h
+    | some mid =>
+      simp only [hh] at h
+      rcases List.mem_cons.mp hm with rfl | ht
+      · exact ⟨a, mid, hh⟩
+      · exact ih h ht
+
+theorem usesOnly01_set {tb : Table} (h01 : UsesOnly01 tb) {q : State} {a : Symbol} {m : Move}
+    (hq : q = 0 ∨ q = 1) (hm : m.state = 0 ∨ m.state = 1) :
+    UsesOnly01 (tb.set q a m) := by
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  · rcases hq with rfl | rfl <;> fin_cases a <;> exact h01.1
+  · rcases hq with rfl | rfl <;> fin_cases a <;> exact h01.2.1
+  · rcases hq with rfl | rfl <;> fin_cases a <;> exact h01.2.2.1
+  · rcases hq with rfl | rfl <;> fin_cases a <;> exact h01.2.2.2.1
+  · intro q' a' m' hh
+    by_cases e : (q', a') = (q, a)
+    · rcases Prod.mk.inj e with ⟨rfl, rfl⟩
+      rw [Table.get_set_self] at hh
+      exact (Option.some.inj hh) ▸ hm
+    · rw [Table.get_set_ne tb m e] at hh
+      exact h01.2.2.2.2 q' a' m' hh
+
+def limitedStep (stop : ℕ) (tb : Table) : ℕ → HistItem → List HistItem → StepResult
+  | 0, _, _ => .done
+  | rem + 1, cur, prev =>
+    match tb.get cur.c.state cur.c.head with
+    | none => .missing cur.c.state cur.c.head (rem + 1) cur prev
+    | some m =>
+      let nc := cur.c.move m
+      let nstep := cur.step + 1
+      let npos := if m.left then cur.pos - 1 else cur.pos + 1
+      let ncur : HistItem := ⟨nstep, npos, nc⟩
+      let nprev := cur :: prev
+      if Nat.beq nstep stop &&
+          findRep tb ncur nprev then
+        .rep
+      else
+        limitedStep stop tb rem ncur nprev
+
+theorem limitedStep_sound (stop : ℕ) {M : Machine4} {tb : Table} (hm : Matches M tb)
+    (hG : GoodMachine M)
+    {used2 : Bool} {rem : ℕ} {cur : HistItem} {prev : List HistItem}
+    (hsum : cur.step + rem = 107)
+    (hv : HistValid M (cur :: prev))
+    (h01 : used2 = false → UsesOnly01 tb ∧ ∀ h ∈ cur :: prev, h.c.state = 0 ∨ h.c.state = 1) :
+    match limitedStep stop tb rem cur prev with
+    | .rep => False
+    | .done => True
+    | .missing q a rem' cur' prev' =>
+      tb.get q a = none ∧ cur'.c.state = q ∧ cur'.c.head = a ∧
+      cur'.step + rem' = 107 ∧ 0 < rem' ∧
+      HistValid M (cur' :: prev') ∧
+      (used2 = false → UsesOnly01 tb ∧ ∀ h ∈ cur' :: prev', h.c.state = 0 ∨ h.c.state = 1) := by
+  induction rem generalizing cur prev with
+  | zero => simp [limitedStep]
+  | succ rem ih =>
+    unfold limitedStep
+    cases ht : tb.get cur.c.state cur.c.head with
+    | none =>
+      exact ⟨ht, rfl, rfl, hsum, Nat.succ_pos _, hv, h01⟩
+    | some m =>
+      simp only
+      have ⟨hcur_le, hcur_run⟩ := hv cur (List.mem_cons_self ..)
+      let ncur : HistItem := ⟨cur.step + 1, if m.left then cur.pos - 1 else cur.pos + 1, cur.c.move m⟩
+      have hncur_run : M.multiStep (Machine.init []) (cur.step + 1) = some ncur.c.view := by
+        rw [Machine.multiStep_succ, hcur_run]
+        exact step_move hm cur.c m ht
+      have hnv : HistValid M (ncur :: cur :: prev) := by
+        intro h hh
+        rcases List.mem_cons.mp hh with rfl | hh'
+        · exact ⟨by dsimp [ncur]; omega, hncur_run⟩
+        · exact hv h hh'
+      have hn01 : used2 = false → UsesOnly01 tb ∧ ∀ h ∈ ncur :: cur :: prev, h.c.state = 0 ∨ h.c.state = 1 := by
+        intro hu
+        have ⟨u, hprev01⟩ := h01 hu
+        refine ⟨u, fun h hh => ?_⟩
+        rcases List.mem_cons.mp hh with rfl | hh'
+        · have hms := u.2.2.2.2 cur.c.state cur.c.head m ht
+          cases hd : m.left <;> simpa [ncur, Position.move, hd] using hms
+        · exact hprev01 h hh'
+      by_cases hrep : (Nat.beq (cur.step + 1) stop && findRep tb ncur (cur :: prev)) = true
+      · rw [if_pos hrep]
+        simp only [Bool.and_eq_true] at hrep
+        exact findRepAux_sound hm hG.2.2.2.1 (by dsimp [ncur]; omega) hv hrep.2
+      · rw [if_neg hrep]
+        exact ih (by dsimp [ncur]; omega) hnv hn01
 
 
-def upd (p : P) (q : Q) (e : Fin 16) : P := fun r a => if r = q ∧ a = 1 then e.val else p r a
+def stopAt (tag : ℕ) : ℕ :=
+  match tag with
+  | 1 => 6 | 2 => 12 | 3 => 24 | 4 => 48 | 5 => 107 | _ => 0
 
-theorem transfer {p : P} {M : TM} (hm : Ext p M) {x y : Cfg4} {k : Nat}
-    (hs : (mach p).multiStep x k = some y) : M.multiStep x k = some y := by
-  induction k generalizing y with
-  | zero => exact hs
-  | succ k ih =>
-    rw [Machine.multiStep_succ] at hs ⊢
-    cases hh : (mach p).multiStep x k with
-    | none => simp [hh] at hs
-    | some v =>
-      rw [ih hh]
-      simp only [hh,Option.bind_some] at hs
-      cases v with
-      | mk q t =>
+def advisedStep (tag : ℕ) (tb : Table) (rem : ℕ) (cur : HistItem) (prev : List HistItem) : StepResult :=
+  if Nat.beq tag 6 then .done else limitedStep (stopAt tag) tb rem cur prev
+
+theorem advisedStep_sound (tag : ℕ) {M : Machine4} {tb : Table} (hm : Matches M tb)
+    (hG : GoodMachine M)
+    {used2 : Bool} {rem : ℕ} {cur : HistItem} {prev : List HistItem}
+    (hsum : cur.step + rem = 107)
+    (hv : HistValid M (cur :: prev))
+    (h01 : used2 = false → UsesOnly01 tb ∧ ∀ h ∈ cur :: prev, h.c.state = 0 ∨ h.c.state = 1) :
+    match advisedStep tag tb rem cur prev with
+    | .rep => False
+    | .done => True
+    | .missing q a rem' cur' prev' =>
+      tb.get q a = none ∧ cur'.c.state = q ∧ cur'.c.head = a ∧
+      cur'.step + rem' = 107 ∧ 0 < rem' ∧
+      HistValid M (cur' :: prev') ∧
+      (used2 = false → UsesOnly01 tb ∧ ∀ h ∈ cur' :: prev', h.c.state = 0 ∨ h.c.state = 1) := by
+  by_cases h : Nat.beq tag 6 = true
+  · simp [advisedStep, h]
+  · simpa only [advisedStep, if_neg h] using limitedStep_sound (stopAt tag) hm hG hsum hv h01
+
+def guidedTree : ℕ → Bool → Table → ℕ → HistItem → List HistItem → List ℕ → Option (List ℕ)
+  | 0, _, _, _, _, _, _ => none
+  | _ + 1, _, _, _, _, _, [] => none
+  | holesLeft + 1, used2, tb, rem, cur, prev, code :: certs =>
+    match advisedStep (code % 8) tb rem cur prev with
+    | .rep => some ((code >>> 3) :: certs)
+    | .done =>
+      match certs with
+      | [] => none
+      | v :: rest =>
+        if Nat.beq v 0 then
+          if tb == sp0Table || tb == sp1Table || tb == m0Table then some ((code >>> 3) :: rest) else none
+        else if checkCertificate tb v then some ((code >>> 3) :: rest) else none
+    | .missing q a rem' cur' prev' =>
+      if rem' ≤ 39 then none
+      else if Nat.beq holesLeft 0 then some ((code >>> 3) :: certs)
+      else
+        checkMoves (fun m rest =>
+          guidedTree holesLeft (used2 || Nat.beq m.state.val 2) (tb.set q a m) rem' cur' prev' rest)
+          (movesAllowed used2) ((code >>> 3) :: certs)
+
+theorem guidedTree_sound {holesLeft : ℕ} {used2 : Bool} {tb : Table}
+    {rem : ℕ} {cur : HistItem} {prev : List HistItem} {a b : List ℕ}
+    (hCount : (holes tb).card ≤ holesLeft)
+    (hCheck : guidedTree holesLeft used2 tb rem cur prev a = some b) :
+    ∀ M : Machine4, GoodMachine M → Matches M tb →
+      cur.step + rem = 107 →
+      HistValid M (cur :: prev) →
+      (used2 = false → UsesOnly01 tb ∧ ∀ h ∈ cur :: prev, h.c.state = 0 ∨ h.c.state = 1) →
+      False := by
+  induction holesLeft generalizing used2 tb rem cur prev a b with
+  | zero => simp [guidedTree] at hCheck
+  | succ holesLeft ih =>
+    intro M hG hm hsum hv hu
+    cases a with
+    | nil => simp [guidedTree] at hCheck
+    | cons code a =>
+      unfold guidedTree at hCheck
+      have hstep := advisedStep_sound (code % 8) hm hG hsum hv hu
+      cases hsl : advisedStep (code % 8) tb rem cur prev with
+      | rep => rw [hsl] at hstep; exact hstep
+      | done =>
+        simp only [hsl] at hCheck
+        cases a with
+        | nil => simp at hCheck
+        | cons v rest =>
+          simp only at hCheck
+          by_cases hv0 : Nat.beq v 0 = true
+          · simp only [hv0, ↓reduceIte] at hCheck
+            split at hCheck
+            · rename_i hsp
+              simp only [Bool.or_eq_true, beq_iff_eq] at hsp
+              rcases hsp with (rfl | rfl) | rfl
+              · exact hG.2.2.2.2.2.1.1 (eq_sp0_of_matches hm hG.2.2.1)
+              · exact hG.2.2.2.2.2.2.1 (eq_sp1_of_matches hm hG.2.2.1)
+              · exact m0_not_halting hm hG.2.2.2.2.1
+            · simp at hCheck
+          · simp only [hv0, Bool.false_eq_true, ↓reduceIte] at hCheck
+            split at hCheck
+            · rename_i hcert
+              have hns := certificate_sound hcert
+              obtain ⟨k, hk⟩ := (Machine.isHalting_iff_exists_haltsAt M).mp hG.2.2.2.2.1
+              exact cannot_stop_run hm startPos hns (k + 1) hk
+            · simp at hCheck
+      | missing q a rem' cur' prev' =>
+        simp only [hsl] at hCheck hstep
+        by_cases hlast : rem' ≤ 39
+        · simp [hlast] at hCheck
+        simp only [hlast, if_false] at hCheck
+        obtain ⟨hnone, hq_eq, ha_eq, hsum', hrem_pos, hv', hu'⟩ := hstep
+        have hcur'_run := (hv' cur' (List.mem_cons_self ..)).2
+        -- This branch is reached strictly before step 68.
+        have hM_def : ∃ q' z, M q a = some (some q', z) := by
+          rcases hG.2.1 q a with hMnone | hMsome
+          · have hnone_next : M.multiStep (Machine.init []) (cur'.step + 1) = none := by
+              rw [Machine.multiStep_succ, hcur'_run]
+              simp [Machine.step, Position.view, hq_eq, ha_eq, hMnone]
+            have h107 := Machine.multiStep_eq_none_mono hnone_next (by omega : cur'.step + 1 ≤ 68)
+            obtain ⟨q0, t0, hrun107⟩ := hG.1
+            rw [h107] at hrun107
+            contradiction
+          · exact hMsome
+        obtain ⟨q', ⟨w, d⟩, hMqa⟩ := hM_def
+        split at hCheck
+        · -- holesLeft == 0: (holes tb).card ≤ 1 and (q, a) ∈ holes tb, so M has no none!
+          rename_i h0
+          have h0' : holesLeft = 0 := Nat.eq_of_beq_eq_true h0
+          have hmem : (q, a) ∈ holes tb := by simp [holes, hnone]
+          have hcard1 : (holes tb).card = 1 :=
+            le_antisymm (by omega) (Finset.card_pos.mpr ⟨_, hmem⟩)
+          obtain ⟨qm, am, hMmiss⟩ := hG.2.2.1
+          have hqm_mem : (qm, am) ∈ holes tb := by
+            simp only [holes, Finset.mem_filter, Finset.mem_univ, true_and]
+            cases hget : tb.get qm am with
+            | none => rfl
+            | some m =>
+              have := hm qm am m hget
+              rw [hMmiss] at this
+              simp [Move.command] at this
+          have heq_key : (qm, am) = (q, a) := by
+            have hsub : ({(q, a)} : Finset Key) ⊆ holes tb := Finset.singleton_subset_iff.mpr hmem
+            have hEq := Finset.eq_of_subset_of_card_le hsub (by simp [hcard1])
+            rw [← hEq, Finset.mem_singleton] at hqm_mem
+            exact hqm_mem
+          rcases Prod.mk.inj heq_key with ⟨rfl, rfl⟩
+          rw [hMmiss] at hMqa
+          contradiction
+        · -- Branch on movesAllowed used2
+          let m : Move := ⟨q', w, match d with | .left => true | .right => false⟩
+          have hm_cmd : M q a = m.command := by
+            cases d <;> simpa [m, Move.command] using hMqa
+          have hmem_hole : (q, a) ∈ holes tb := by simp [holes, hnone]
+          have hcard_next : (holes (tb.set q a m)).card ≤ holesLeft := by
+            rw [holes_set, Finset.card_erase_of_mem hmem_hole]
+            omega
+          by_cases hswap : used2 = false ∧ q' = 3
+          · rcases hswap with ⟨hu2, rfl⟩
+            have ⟨h01, hprev01⟩ := hu' hu2
+            let m2 : Move := ⟨2, w, match d with | .left => true | .right => false⟩
+            have hmem_m2 : m2 ∈ movesAllowed used2 := mem_movesAllowed used2 m2 (by simp [m2])
+            obtain ⟨x, y, hxy⟩ := checkMoves_each hCheck hmem_m2
+            have hq01 : q = 0 ∨ q = 1 := hq_eq ▸ hprev01 cur' (List.mem_cons_self ..)
+            have hsq : swap23 q = q := by rcases hq01 with rfl | rfl <;> decide
+            have hM2qa : (reindex23 M) q a = m2.command := by
+              cases d <;> simp [reindex23, hsq, hm_cmd, m, m2, Move.command, swap23_3]
+            have hcard2 : (holes (tb.set q a m2)).card ≤ holesLeft := by
+              rw [holes_set, Finset.card_erase_of_mem hmem_hole]
+              omega
+            exact ih hcard2 hxy (reindex23 M) (goodMachine_reindex23 hG)
+              (matches_set (matches_reindex23 hm h01) hM2qa) hsum'
+              (histValid_reindex23 hv' hprev01) (by simp [m2])
+          · have hmem_m : m ∈ movesAllowed used2 :=
+              mem_movesAllowed used2 m (fun hu2 h3 => hswap ⟨hu2, h3⟩)
+            obtain ⟨x, y, hxy⟩ := checkMoves_each hCheck hmem_m
+            refine ih hcard_next hxy M hG (matches_set hm hm_cmd) hsum' hv' ?_
+            intro hnext_u2
+            simp only [Bool.or_eq_false_iff] at hnext_u2
+            have ⟨h01, hprev01⟩ := hu' hnext_u2.1
+            have hq01 : q = 0 ∨ q = 1 := hq_eq ▸ hprev01 cur' (List.mem_cons_self ..)
+            have hm01 : m.state = 0 ∨ m.state = 1 := by
+              have hne2 : q' ≠ 2 := by intro h2; subst h2; simp [m] at hnext_u2
+              have hne3 : q' ≠ 3 := fun h3 => hswap ⟨hnext_u2.1, h3⟩
+              fin_cases q' <;> simp_all [m]
+            exact ⟨usesOnly01_set h01 hq01 hm01, hprev01⟩
+
+def TreeValid (tb : Table) (used2 : Bool) (rem : ℕ) (cur : HistItem) (prev : List HistItem) : Prop :=
+  ∀ M : Machine4, GoodMachine M → Matches M tb →
+    cur.step + rem = 107 →
+    HistValid M (cur :: prev) →
+    (used2 = false → UsesOnly01 tb ∧ ∀ h ∈ cur :: prev, h.c.state = 0 ∨ h.c.state = 1) →
+    False
+
+private theorem mk_good_ne_sp1 (M : Machine4) (h : M 1 0 ≠ some (some 2, Stmt.write 1 Dir.left))
+    (h2 : M 1 0 ≠ some (some 3, Stmt.write 1 Dir.left)) :
+    M ≠ tblOfList [6,4,11,6,16,13,2,15] ∧ reindex23 M ≠ tblOfList [6,4,11,6,16,13,2,15] := by
+  refine ⟨fun heq => h (by rw [heq]; rfl), fun heq => h2 ?_⟩
+  have h10 := congrFun (congrFun heq 1) 0
+  have hrhs : tblOfList [6,4,11,6,16,13,2,15] 1 0 = some (some 2, Stmt.write 1 Dir.left) := rfl
+  rw [hrhs] at h10
+  simp only [reindex23, swap23_1] at h10
+  cases hM : M 1 0 with
+  | none => simp [hM] at h10
+  | some p =>
+    rcases p with ⟨s, z⟩
+    cases s with
+    | none => simp [hM] at h10
+    | some s =>
+      simp only [hM, Option.map_some, Option.some.injEq, Prod.mk.injEq] at h10
+      rcases h10 with ⟨hs, hz⟩
+      have hs3 : s = 3 := by revert hs; fin_cases s <;> decide
+      subst hs3; subst hz; rfl
+
+private theorem mk_good_ne_sp0 (M : Machine4) (h : M 1 0 ≠ some (some 0, Stmt.write 1 Dir.left)) :
+    M ≠ tblOfList [6,3,3,8,15,10,16,1] ∧ reindex23 M ≠ tblOfList [6,3,3,8,15,10,16,1] := by
+  refine ⟨fun heq => h (by rw [heq]; rfl), fun heq => h ?_⟩
+  have h10 := congrFun (congrFun heq 1) 0
+  have hrhs : tblOfList [6,3,3,8,15,10,16,1] 1 0 = some (some 0, Stmt.write 1 Dir.left) := rfl
+  rw [hrhs] at h10
+  simp only [reindex23, swap23_1] at h10
+  cases hM : M 1 0 with
+  | none => simp [hM] at h10
+  | some p =>
+    rcases p with ⟨s, z⟩
+    cases s with
+    | none => simp [hM] at h10
+    | some s =>
+      simp only [hM, Option.map_some, Option.some.injEq, Prod.mk.injEq] at h10
+      rcases h10 with ⟨hs, hz⟩
+      have hs0 : s = 0 := by revert hs; fin_cases s <;> decide
+      subst hs0; subst hz; rfl
+
+set_option maxRecDepth 200000 in
+set_option maxHeartbeats 0 in
+private theorem tv_b8_15_0 : TreeValid ⟨some ⟨1, 1, false⟩, none, some ⟨2, 0, false⟩, none, some ⟨3, 1, true⟩, none, some ⟨0, 0, false⟩, none⟩ true 104 ⟨3, 129, ⟨3, [1], 0, [1]⟩⟩ [⟨2, 130, ⟨2, [0, 1], 0, []⟩⟩, ⟨1, 129, ⟨1, [1], 0, []⟩⟩, ⟨0, 128, ⟨0, [], 0, []⟩⟩] := by
+  refine guidedTree_sound (holesLeft := 4) (a := [0x124a498400033cc34124d349600049209209249040248201a09a0c041048200009e4120936d04024d80820980000f20904c34d34180a209049ac8201441049279a0824920924800824824826db6db00071e0924d341049241249349249049040361a4000120924104124124136d868209248249049049049000300009a00209249a6924824820924900100dbcd04924924820924824924924920920806826830004124820826924824924920926920826000036824124924926c248249249a498cd040a4934136db0c0098c8269a0000120d04db6c30026124904130d34d349049024b4100004d26104d24004124924100030d34c27900820000820020104c34d34924130c30da4da7984d2490248, 1130383991181505, 1128185100044353, 365399103964897076967743171740240873249883321154, 4153049406159124849731669713328262698878112008606895405297787329162115395083023393932825672345943586230696892378070418147771901580291190239938555485070105537807488157761893958, 2076195733907563424423218752919705972513283005990311738559370344476956089397873526294484106327678660, 354123283435968, 
+    283958550204864, 283958550204864, 638763511499107679325966391126393200634711396606467059220997789302805842380876417924522708548251717, 91366501655131037985663318136427239530093886274, 283958550204864, 3114332582089866865587314485581906852615126420036066980425154611558337586783094927486385258698720580, 
+    2076195733907563424423218752919705977980083346507057434696909808961440783292019391603307764179328708]) (b := [0]) (by decide) ?_
+  decide +kernel
+
+set_option maxRecDepth 200000 in
+set_option maxHeartbeats 0 in
+private theorem tv_b8_15_1 : TreeValid ⟨some ⟨1, 1, false⟩, none, some ⟨2, 0, false⟩, none, some ⟨3, 1, true⟩, none, some ⟨0, 0, true⟩, none⟩ true 104 ⟨3, 129, ⟨3, [1], 0, [1]⟩⟩ [⟨2, 130, ⟨2, [0, 1], 0, []⟩⟩, ⟨1, 129, ⟨1, [1], 0, []⟩⟩, ⟨0, 128, ⟨0, [], 0, []⟩⟩] := by
+  refine guidedTree_sound (holesLeft := 4) (a := [0x24b269a69b0c04904d38db01009c09a69a6c301241ac980020830d800000000001800019b91b6c001b6000184986d87802524934d34d86034c679b4d00006984d34d36180d309248308009a6c26824824d44db0000180b36d3520cc0602cda69b0c06906dc6db0000db09b69a6c301a41a0c04004100c009b6d04db6c30000036f3cdb6c04d04d65934101b60924d34d341013609a6d36000924135934d040060249b4da0c049061361b4180020904000100124186186d860018008000040041041000000001009a4d34106924134934d0403cc26934d041a49009b6db6c00036c2cdb7336000db0b369a6c301a4135a36c04038c26da69b0c06908836c3cc00036c261800361b0c3018cc36f38f301bc126e28d001b8d04db4a26d36224166d34d86034c6cdb6d8003cd84db4d36180d20d0602092c9b8d04db4826d36e240001879e6de6c2cc24930e36db0c00d8c126db00001b0c36db6c300361a4d80020926da6900000036e36da08001849b6db4804924d24d36180101964d34000124124934d860248249208261a69b49209209acc36db6c30036186e36c06000030db6db0c00d86b26180c36f36dbc031800de7236c36dc0db6e48e00c061b79b8de01349c6db6d86006067934d00006986db6db6180db0926830904926d2682480c800004024101980036186de0124000100820000800920c008208001a4da59001200000001009240069369a41308001a4da590db20024b3cf20db6008db8e3c33c90492cdb48269009200008249208248009241248200000369849201240001049240208009a6d248261000349b5b609c7000db6dc6c36d801b6db6d84920424800020120820920000804920904000d26d248049000041249049200249b4920984000d26d26826db0036db6db0db6006db6db612480, 1128322409042113, 1128184970088641, 1128253685371073, 1128253618194497, 1128665935054913, 1128665935054913, 
+    1128322408978625, 1128184898717761, 1128184898717761, 1128253618194497, 1128665935054913, 2923371238340061865343368227926343987563549766466, 
+    1128665935054913, 1128184970025153, 1128185100044353, 133816258058848940926468124843190183060244707070977878120964413137345923864021859638157100446900484, 66441797783171491808080836178675739982439706226983392600694744699229628488636714238991870945684147396, 132879538548455479010670491505896146271138793778095168540268361923357752780640185758681932700500156676, 
+    290555619840448, 290555619840448, 1128322476153025, 1128322409042113, 1128253685371073, 99891607233880560330628571490009752224789020271927948280532930767981830340586766790500337700535959700591620706731587415023122358876763790690549557391399923275061893196638955757850472610175927460922363362505436879898884141684461796698699331509206647701950518322226516002996202853265896253475926798801263512030416017404252734902822973784651862329790044249304449174201940398409297759137400934247959494502991622088102398165157462931378767927872732510290814351976338910658671719622921325085850307231805571392829998973771898161340013011052424548340506161340947804136833797584415997097072529070816738017902693145072242914697799902668653894188883221804152618649181809569817156685324319020611505049568063719825440158923109198390984633226971367854323487534578607100189715335162108334932054996527413961140200134573670325492896268298686867312748584210466257588137918018805886424325434982614645604707021991706860099860807166487056153703998259729256643436674809299984688054209379686336449396797452720484085861807093898223827893075591290047923256046235208496528180170526639981746649352615224740741023254721522732343108592715139929890269115325661181230403475468834474406296360258598043352804656624596599882059221928116026762921657264440775042132, 
+    1128185037199553, 1128184970088641, 3957317558990021763896597074513483777321156805350689660184779155668186796641584776610130369817004664743966618729157637333945775665309284335129430047629605578506187959930150470, 3957317558990021763896597074513483777321179430508008949843914401840611926891679826522145216615943444482926970830029219585733195874021530996831939694250207091012304685431217734, 290555619840448, 290555619840448, 
+    1461529513368780940808987017555877737785634853699, 2923371238321452602275896138018807016802232578882, 1128184898717761, 1128184898717761, 1128184898717761, 1128184898717761, 
+    79449387438528, 589639962596288, 290555619971520, 589906250568640, 960962621259340297057677422063182476857708814791000968182031025767761290532114054662934279788436017963666500033200301788866773997472270197641447516704438617612315754716475510308692333129850293380266692545289165189736825254535594466821305412451460978583798281246991112, 1128185175747393, 
+    1128185175747393, 3957340674509873768378188911914518212778801862219515202564758153999156833648264956248390091894313399019976387632674268808101369649183063890375506523245286460653860320207435334, 33222925915530249330393399661577410146221186406382724844132034808863213295614335035917564742207594756, 589639963120576, 589906251092928, 871389817738176, 
+    589906251092928, 290555619971520, 3957287367290624894035598853668097132687774399588490607998728059317599850749494701903335639326607307409515041786847820486116239838392326199466720711843195112146987716955387974, 871389817213888, 362919376458176, 290555619971520, 
+    362919376458176, 290555619971520, 362919376458176, 290555619971520, 589906250568640, 1128185175747393, 
+    1128185175747393, 572314064786368, 11908007530436053810993964339550845021140997921401489821610122258966937756248230340407420845976550139534016306241194440686255282454902209499860554368512687680045642404686985887704831273274834615507099618147273670620964786414560262975582402050980507387419745571238920956232656817771926423556035064731113940124869762048360666906187822026842386038939962384230422701451460528357877451171588891843796123898478744228834471175296691452019882893694959339391779325088097168372482537624046143794535302669631373892573514744325406142226457082666863188835471466619981883580558960059056382014969911656343765695794231181420200500130664191471055499789044762554427190203702110082941182445747351059828373322568226456531725393211783153960840529795259415815418734824402354712457959514614696929377722723462178179443171913686244764879179915903000867826075583146563753425750182988320148220780878866151006211397163154764089822491314078137416299831631086034248673415500002509000926608624477641285858209226393575546250422765373621355237414972021443996227306219892155296063748934345782823445103778006691905572252636977851466397038878241731192297099822525760687511178742602531940851860469462347595611119863601959067989310549928508648233414606718972757, 572314064786368, 290555620233664, 290555620233664, 
+    531566814648517978207501577992281223225957562689410909010909477636145889558758213277082330530778934468, 290555619971520, 3957317558990021763896597074513483777321156805350689660184779155668186796641584776610130369817004664743966618729157637333945775665309284335129430047629605578506187959930150470, 3957317558990021763896597074513483777321179430508008949843914401840611926891679826522145216615943444482926970830029219585733195874021530996831939694250207091012304685431217734]) (b := [0]) (by decide) ?_
+  decide +kernel
+
+set_option maxRecDepth 200000 in
+set_option maxHeartbeats 0 in
+private theorem tv_b8_15_4 : TreeValid ⟨some ⟨1, 1, false⟩, none, some ⟨2, 0, false⟩, none, some ⟨3, 1, true⟩, none, some ⟨1, 0, false⟩, none⟩ true 104 ⟨3, 129, ⟨3, [1], 0, [1]⟩⟩ [⟨2, 130, ⟨2, [0, 1], 0, []⟩⟩, ⟨1, 129, ⟨1, [1], 0, []⟩⟩, ⟨0, 128, ⟨0, [], 0, []⟩⟩] := by
+  refine guidedTree_sound (holesLeft := 4) (a := [0x124a6db6db69368401a4d44964920000926924924904026da69a4d20004db4d349a4000930d30da4da000482000412092086482c9240001209040048208049279a49208209249a4924824826db6db71e0000924d34924104124934924924904db6da4da0100936de69248208208261a48208209241041241241248209248248249049049249009b6db4da4da6906934d24924820824db49249249209b69a6934830136d24926d24824d36d36936826134c20924824826da49a4980104db49209209200a4938db6db6db080c9269adb20100db6db6db6c201249349024b81b0c06db41869a00269a4920100000000120124986824924830c30da6db51808261a69a4820d36c36936d26124800924924831030db6db7984d2490248, 1132582949492929, 286156768940480, 145419280585152, 286156768940480, 286156768940480, 286156768940480, 
+    426761113309632, 286156768940480, 88528152185409, 88528152185409, 286156768940480]) (b := [0]) (by decide) ?_
+  decide +kernel
+
+set_option maxRecDepth 200000 in
+set_option maxHeartbeats 0 in
+private theorem tv_b8_15_5 : TreeValid ⟨some ⟨1, 1, false⟩, none, some ⟨2, 0, false⟩, none, some ⟨3, 1, true⟩, none, some ⟨1, 0, true⟩, none⟩ true 104 ⟨3, 129, ⟨3, [1], 0, [1]⟩⟩ [⟨2, 130, ⟨2, [0, 1], 0, []⟩⟩, ⟨1, 129, ⟨1, [1], 0, []⟩⟩, ⟨0, 128, ⟨0, [], 0, []⟩⟩] := by
+  refine guidedTree_sound (holesLeft := 4) (a := [0x229249249a692c926000124924924980804d34d34d400009a4d34926104126d34d24984100006184000000934000120124104905904000024920804984100924925934d3d9300009249200061c6dc79b09b6d86db6de6c04936f36f66e36d84d34d36920101968d34d34820124d34da48040649349209249269a4936980804924b248269a0024104d30924904804134c208261a4954c30924904924d34c30c30da4d24d849269a6006b2cdb618450, 1130521365121089, 1130383926167617, 1130383992164545, 1130452577419329, 290554681233856, 290554681233856, 
+    735045141664704, 308438925054912, 589905311830976, 1130452710723777, 1130452710723777, 149817327096256, 
+    290554815451584, 580834475119552, 11507228419573289408614916196888154110077174595, 290554815451584]) (b := [0]) (by decide) ?_
+  decide +kernel
+
+set_option maxRecDepth 200000 in
+set_option maxHeartbeats 0 in
+private theorem tv_b8_15_8 : TreeValid ⟨some ⟨1, 1, false⟩, none, some ⟨2, 0, false⟩, none, some ⟨3, 1, true⟩, none, some ⟨2, 0, false⟩, none⟩ true 104 ⟨3, 129, ⟨3, [1], 0, [1]⟩⟩ [⟨2, 130, ⟨2, [0, 1], 0, []⟩⟩, ⟨1, 129, ⟨1, [1], 0, []⟩⟩, ⟨0, 128, ⟨0, [], 0, []⟩⟩] := by
+  refine guidedTree_sound (holesLeft := 4) (a := [0x124a49a4924924d269e0000934d24924c04020826930f00004824d2000092092492490402480cb2692cf36f3cf3018092492592410433ce68f3cc36c249649249049000300209a00009249241041241249649249049009249249249249a68208249249249209208209a4c360001249248208248249249249209200924b4d30d34d00004d34c34d34104130c34d34da49009a0020820000c30d34d36924124d00034d34d24904104c3492492410248, 79449387438528, 149817327096256, 290554815451584, 290554815451584, 290554815451584, 290554815451584, 
+    290554815451584, 149817327096256, 290554815451584, 290554815451584, 290554815451584, 290554815451584, 
+    290554815451584, 290555620757952, 290555620757952, 88253542697025, 149675458957760]) (b := [0]) (by decide) ?_
+  decide +kernel
+
+set_option maxRecDepth 200000 in
+set_option maxHeartbeats 0 in
+private theorem tv_b8_15_9 : TreeValid ⟨some ⟨1, 1, false⟩, none, some ⟨2, 0, false⟩, none, some ⟨3, 1, true⟩, none, some ⟨2, 0, true⟩, none⟩ true 104 ⟨3, 129, ⟨3, [1], 0, [1]⟩⟩ [⟨2, 130, ⟨2, [0, 1], 0, []⟩⟩, ⟨1, 129, ⟨1, [1], 0, []⟩⟩, ⟨0, 128, ⟨0, [], 0, []⟩⟩] := by
+  refine guidedTree_sound (holesLeft := 4) (a := [0x22924924928e36e3cdc0000934d259280001269249b4900c041001001b0000904d240001241badbb1b6c0a0249249b0804d009149209209249200041049209a0db0924824924826104d049a6c00024130100180000920006db6dbce30b09186dbcd86020824924926d80008f36db6e309248249249a6104920924920000924c24924c20836d04904d00000804126986920d341241340001200041449879b0936d84d36d800000049269a49208201049a41248205249248249040249249249249209a6924136030124904924924824904904d000049b6d86da6d24824db6d341b6c301041249a492482492412492492080, 1134850761429953, 1134782245514049, 818783921166709118066698725725881366947667094225228184714991456056091619568544099113791838402169530250058676024429793666892672165044120315040601205611771367809459306701456472100661027706902479237825725479564257465949941172216575374659335122883992556783555987955941050119922358925163278037033526047553410345842124307225280203244218861715068807574175702551345065348871105518155, 480481084203240450432080877190139154811989515053442435874789679711051441878947742999308991867259810455178929306174411043647158238990012390174971447523251346845261735809792534494360571389852383644920529181788705463993908147776879898660215625348204456461729793246959113, 1134781976873025, 149817327096256, 
+    290554815451584]) (b := [0]) (by decide) ?_
+  decide +kernel
+
+set_option maxRecDepth 200000 in
+set_option maxHeartbeats 0 in
+private theorem tv_b8_15_12 : TreeValid ⟨some ⟨1, 1, false⟩, none, some ⟨2, 0, false⟩, none, some ⟨3, 1, true⟩, none, some ⟨3, 0, false⟩, none⟩ true 104 ⟨3, 129, ⟨3, [1], 0, [1]⟩⟩ [⟨2, 130, ⟨2, [0, 1], 0, []⟩⟩, ⟨1, 129, ⟨1, [1], 0, []⟩⟩, ⟨0, 128, ⟨0, [], 0, []⟩⟩] := by
+  refine guidedTree_sound (holesLeft := 4) (a := [0x124a49269a49269a49201009249a69248248249269801008209249a69248248208a493cdb8f3cf30180d24934d00134d041049024b4d30c04da4104d34c30134904130d30d34d80000800000000820d34c34d34104130db0da4da1804d34d00004d24904d3400412492410248, 74852829499585, 299350908473792, 299350908473792, 299350908473792, 299350908473792]) (b := [0]) (by decide) ?_
+  decide +kernel
+
+set_option maxRecDepth 200000 in
+set_option maxHeartbeats 0 in
+private theorem tv_b8_15_13 : TreeValid ⟨some ⟨1, 1, false⟩, none, some ⟨2, 0, false⟩, none, some ⟨3, 1, true⟩, none, some ⟨3, 0, true⟩, none⟩ true 104 ⟨3, 129, ⟨3, [1], 0, [1]⟩⟩ [⟨2, 130, ⟨2, [0, 1], 0, []⟩⟩, ⟨1, 129, ⟨1, [1], 0, []⟩⟩, ⟨0, 128, ⟨0, [], 0, []⟩⟩] := by
+  refine guidedTree_sound (holesLeft := 4) (a := [0x124a4d34964d349249301009b6924d361041249249a4c2482db2db64b04904d349001008209b6924100124124924924804026da4824984900924928e36e3d1c0000924924920926e00104930230db0020824c04836c00804924926da69e0000926925926104124da69a70208649649208269c0820920924926924924d84904924936d24926c208248249241009a6c30920920924920004904100180c309249249248241209209a4da0000000004800020986d04d26c04824920804926186f30006db6c309249241248201049208269869209209241349000009261041201340249049254208241061b49b4300936d801b6e36d849200009a49209248208241248205249248249248249249049249040249b4c04824904924124924920924904d26d06024db6006db8db612490402492082492492092492080, 23014457560917385301969830696113236373271491394, 4169565881362077212660851155996506481707611342567675281637298081387612534227428990428032550565521795185925276334619633973587839830351751452761531630999914558983472905455661638, 1038343154854761125642749648409976747267357263027445512656581079382127357147827602280673836171055428, 91701014069372659985672593267478796450272392002, 149817327096256, 154073505468864, 
+    290554815451584, 294810993824192, 294810993824192, 294819717976512, 294819852194240, 294819717976512, 
+    312429352326080, 294819852194240, 312429352326080, 290555620757952]) (b := [0]) (by decide) ?_
+  decide +kernel
+
+theorem no_repeat {M : Machine (Fin 2) (Fin 4)} (halts : M.IsHalting)
+    {i p : ℕ} (hp : 0 < p) {α : Type} (cfg : α → Cfg (Fin 2) (Fin 4))
+    (entered : ∃ v, M.multiStep (Machine.init []) i = some (cfg v))
+    (cycle : ∀ v, ∃ w, M.multiStep (cfg v) p = some (cfg w)) : False := by
+  have recur (m : ℕ) : ∃ v, M.multiStep (Machine.init []) (i + p * m) = some (cfg v) := by
+    induction m with
+    | zero => simpa using entered
+    | succ m ih =>
+      obtain ⟨v, hv⟩ := ih
+      obtain ⟨w, hw⟩ := cycle v
+      refine ⟨w, ?_⟩
+      rw [Nat.mul_succ, ← Nat.add_assoc, run_add M _ (i + p*m) p, hv]
+      exact hw
+  obtain ⟨k, hk⟩ := (Machine.isHalting_iff_exists_haltsAt M).mp halts
+  obtain ⟨v, hv⟩ := recur (k + 1)
+  have hle : k + 1 ≤ i + p * (k + 1) := by
+    have := Nat.mul_le_mul_right (k+1) hp
+    omega
+  have hnone := Machine.multiStep_eq_none_mono hk hle
+  rw [hv] at hnone
+  contradiction
+
+set_option maxRecDepth 10000 in
+private theorem freeze {M : Machine4} (halts : M.IsHalting)
+    (late : ¬ M.HaltsAfter (Machine.init []) 68) :
+    ∃ P : Machine4, P.IsHalting ∧
+      (∃ q t, P.multiStep (Machine.init []) 68 = some ⟨some q,t⟩) ∧
+      (∀ q a, P q a = none ∨ ∃ r z, P q a = some (some r,z)) ∧
+      (∃ q a, P q a = none) ∧
+      (∀ i ≤ 68, P.multiStep (Machine.init []) i = M.multiStep (Machine.init []) i) ∧
+      (∀ i < 68, ∀ q t, M.multiStep (Machine.init []) i = some ⟨some q,t⟩ →
+        P q t.head = M q t.head) := by
+  classical
+  let start : Cfg Symbol State := Machine.init []
+  have alive (i : ℕ) (hi : i ≤ 69) : M.multiStep start i ≠ none :=
+    fun h => late (Machine.multiStep_eq_none_mono h hi)
+  let seen (q : State) (a : Symbol) : Prop := ∃ i < 68, ∃ t : Tape Symbol,
+    M.multiStep start i = some ⟨some q,t⟩ ∧ t.head = a
+  let P : Machine4 := fun q a => if seen q a then M q a else none
+  have used {q a} (h : seen q a) : ∃ r z, M q a = some (some r,z) := by
+    obtain ⟨i, hi, t, ht, rfl⟩ := h
+    have ha := alive (i+1+1) (by omega)
+    rw [Machine.multiStep_succ, Machine.multiStep_succ, ht] at ha
+    cases hc : M q t.head with
+    | none => simp [Machine.step, hc] at ha
+    | some entry =>
+      obtain ⟨s,z⟩ := entry
+      cases s with
+      | none => simp [Machine.step, hc] at ha
+      | some s => exact ⟨s,z,rfl⟩
+  have same (i : ℕ) (hi : i < 68) (q : State) (t : Tape Symbol)
+      (ht : M.multiStep start i = some ⟨some q,t⟩) : P q t.head = M q t.head := by
+    exact if_pos ⟨i, hi, t, ht, rfl⟩
+  have agree (i : ℕ) (hi : i ≤ 68) : P.multiStep start i = M.multiStep start i := by
+    induction i with
+    | zero => rfl
+    | succ i ih =>
+      rw [Machine.multiStep_succ, Machine.multiStep_succ, ih (by omega)]
+      cases h : M.multiStep start i with
+      | none => rfl
+      | some c =>
+        obtain ⟨q,t⟩ := c
         cases q with
-        | none => cases hs
-        | some q =>
-          by_cases h : p q t.head < 16
-          · simpa [Machine.step,mach,h,hm q t.head h] using hs
-          · simp [Machine.step,mach,h] at hs
+        | none => rfl
+        | some q => simp [Machine.step, same i (by omega) q t h]
+  have restrictRun (i : ℕ) : P.multiStep start i = none ∨
+      P.multiStep start i = M.multiStep start i := by
+    induction i with
+    | zero => exact Or.inr rfl
+    | succ i ih =>
+      rw [Machine.multiStep_succ, Machine.multiStep_succ]
+      rcases ih with hi | hi
+      · simp [hi]
+      · rw [hi]
+        cases hc : M.multiStep start i with
+        | none => exact Or.inl rfl
+        | some c =>
+          obtain ⟨q,t⟩ := c
+          cases q with
+          | none => exact Or.inl rfl
+          | some q => by_cases h : seen q t.head <;> simp [Machine.step,P,h]
+  obtain ⟨k,hk⟩ := (Machine.isHalting_iff_exists_haltsAt M).mp halts
+  have haltP : P.IsHalting := by
+    apply (Machine.isHalting_iff_exists_haltsAt P).mpr
+    refine ⟨k,?_⟩
+    rcases restrictRun (k+1) with h | h
+    · exact h
+    · exact h.trans hk
+  obtain ⟨q,t,ht⟩ := Machine.exists_of_not_haltsAfter M (Machine.init []) 68 late
+  refine ⟨P, haltP, ⟨q,t,(agree 68 (by decide)).trans ht⟩, ?_, ?_, agree, same⟩
+  · intro q a
+    by_cases h : seen q a
+    · exact Or.inr (by simpa [P,h] using used h)
+    · exact Or.inl (by simp [P,h])
+  · by_contra! all
+    apply Machine.not_isHalting_of_forall_isSome P _ haltP
+    intro q a
+    by_cases h : seen q a
+    · simpa [P,h] using used h
+    · exact (all q a (by simp [P,h])).elim
 
-def hit (p : P) (q : Q) (k : Nat) : Bool :=
-  match (mach p).multiStep (Machine.init []) k with
-  | some ⟨some r,t⟩ => decide (r=q ∧ t.head=1)
-  | _ => false
+private theorem prefixMatches {M : Machine4} {r : State} {w : Symbol} {left : Bool}
+    (h0 : M 0 0 = some (some 1, Stmt.write 1 .right))
+    (h1 : M 1 0 = some (some 2, Stmt.write 0 .right))
+    (h2 : M 2 0 = some (some 3, Stmt.write 1 .left))
+    (h3 : M 3 0 = some (some r, Stmt.write w (if left then .left else .right))) :
+    Matches M ⟨some ⟨1,1,false⟩, none, some ⟨2,0,false⟩, none,
+      some ⟨3,1,true⟩, none, some ⟨r,w,left⟩, none⟩ := by
+  intro q a m h
+  fin_cases q <;> fin_cases a <;> simp [Table.get] at h
+  all_goals subst m; first | exact h0 | exact h1 | exact h2 | (cases left <;> exact h3)
 
-theorem branch {p : P} {q : Q} {k : Nat} (hk : k ≤ 105) (hh : hit p q k = true)
-    (kids : ∀ e, Goal (upd p q e)) : Goal p := by
-  intro M hm halts
+private theorem run_prefix {M : Machine4} {r : State} {w : Symbol} {left : Bool}
+    (hm : Matches M ⟨some ⟨1,1,false⟩, none, some ⟨2,0,false⟩, none,
+      some ⟨3,1,true⟩, none, some ⟨r,w,left⟩, none⟩) :
+    HistValid M [⟨3,129,⟨3,[1],0,[1]⟩⟩, ⟨2,130,⟨2,[0,1],0,[]⟩⟩,
+      ⟨1,129,⟨1,[1],0,[]⟩⟩, ⟨0,128,⟨0,[],0,[]⟩⟩] := by
+  have h0 : M.multiStep (Machine.init []) 0 = some startPos.view := rfl
+  have h1 : M.multiStep (Machine.init []) 1 = some (Position.view ⟨1,[1],0,[]⟩) := by
+    rw [Machine.multiStep_one]
+    exact step_move hm startPos ⟨1,1,false⟩ rfl
+  have h2 : M.multiStep (Machine.init []) 2 = some (Position.view ⟨2,[0,1],0,[]⟩) := by
+    change M.multiStep (Machine.init []) (1+1) = _
+    rw [Machine.multiStep_succ, h1]
+    exact step_move hm ⟨1,[1],0,[]⟩ ⟨2,0,false⟩ rfl
+  have h3 : M.multiStep (Machine.init []) 3 = some (Position.view ⟨3,[1],0,[1]⟩) := by
+    change M.multiStep (Machine.init []) (2+1) = _
+    rw [Machine.multiStep_succ,h2]
+    exact step_move hm ⟨2,[0,1],0,[]⟩ ⟨3,1,true⟩ rfl
+  intro h hh
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hh
+  rcases hh with rfl | rfl | rfl | rfl
+  · exact ⟨by decide,h3⟩
+  · exact ⟨by decide,h2⟩
+  · exact ⟨by decide,h1⟩
+  · exact ⟨by decide,h0⟩
+
+private theorem branch_bound (M : Machine4) (r : State) (left : Bool)
+    (h0 : M 0 0 = some (some 1, Stmt.write 1 .right))
+    (h1 : M 1 0 = some (some 2, Stmt.write 0 .right))
+    (h2 : M 2 0 = some (some 3, Stmt.write 1 .left))
+    (h3 : M 3 0 = some (some r, Stmt.write 0 (if left then .left else .right)))
+    (halts : M.IsHalting) : M.HaltsAfter (Machine.init []) 68 := by
   by_contra late
-  have seen : ∃ t : Tape A, M.multiStep (Machine.init []) k = some ⟨some q,t⟩ ∧ t.head = 1 := by
-    unfold hit at hh
-    split at hh
-    next r t h =>
-      obtain ⟨rfl,ht⟩ := of_decide_eq_true hh
-      exact ⟨t,transfer hm h,ht⟩
-    next => contradiction
-  obtain ⟨t,ht,ha⟩ := seen
-  have still : M.multiStep (Machine.init []) (k+2) ≠ none :=
-    fun h => late (Machine.multiStep_eq_none_mono h (by omega))
-  rw [Machine.multiStep_succ, Machine.multiStep_succ, ht] at still
-  cases h : M q 1 with
-  | none => simp [Machine.step,ha,h] at still
-  | some o =>
-    rcases o with ⟨_ | r, ⟨w,d⟩⟩
-    · simp [Machine.step,ha,h] at still
-    · let e : Fin 16 := ⟨4*r.val+2*w.val+(if d=.left then 0 else 1),by split <;> omega⟩
-      have he : op e = some (some r,Stmt.write w d) := by
-        dsimp only [e]
-        fin_cases r <;> fin_cases w <;> cases d <;> rfl
-      apply late (kids e M ?_ halts)
-      intro j a hj
-      by_cases hja : j=q ∧ a=1
-      · obtain ⟨rfl,rfl⟩ := hja
-        simpa [upd,he] using h
-      · simpa [upd,hja] using hm j a (by simpa [upd,hja] using hj)
+  obtain ⟨P, haltP, alive, form, missing, _, same⟩ := freeze halts late
+  have hv := run_prefix (prefixMatches h0 h1 h2 h3)
+  have s0 := (hv ⟨0,128,⟨0,[],0,[]⟩⟩ (by simp)).2
+  have s1 := (hv ⟨1,129,⟨1,[1],0,[]⟩⟩ (by simp)).2
+  have s2 := (hv ⟨2,130,⟨2,[0,1],0,[]⟩⟩ (by simp)).2
+  have s3 := (hv ⟨3,129,⟨3,[1],0,[1]⟩⟩ (by simp)).2
+  have claim0 : P 0 0 = _ := (same 0 (by decide) 0 _ s0).trans h0
+  have claim1 : P 1 0 = _ := (same 1 (by decide) 1 _ s1).trans h1
+  have claim2 : P 2 0 = _ := (same 2 (by decide) 2 _ s2).trans h2
+  have claim3 : P 3 0 = _ := (same 3 (by decide) 3 _ s3).trans h3
+  have hm := prefixMatches claim0 claim1 claim2 claim3
+  have noLoop : NoRepeatHyp P := by
+    intro i p q a side near fixed hp _ cfg entry cycle
+    exact no_repeat haltP hp cfg entry cycle
+  have good : GoodMachine P := ⟨alive,form,missing,noLoop,haltP,
+    mk_good_ne_sp0 P (by simp [claim1]), mk_good_ne_sp1 P (by simp [claim1]) (by simp [claim1])⟩
+  have af := run_prefix hm
+  fin_cases r <;> cases left <;>
+    first
+    | exact tv_b8_15_0 P good hm rfl af (by simp)
+    | exact tv_b8_15_1 P good hm rfl af (by simp)
+    | exact tv_b8_15_4 P good hm rfl af (by simp)
+    | exact tv_b8_15_5 P good hm rfl af (by simp)
+    | exact tv_b8_15_8 P good hm rfl af (by simp)
+    | exact tv_b8_15_9 P good hm rfl af (by simp)
+    | exact tv_b8_15_12 P good hm rfl af (by simp)
+    | exact tv_b8_15_13 P good hm rfl af (by simp)
 
-theorem total {p : P} (h : ∀ q a, p q a < 16) : Goal p := by
-  intro M hm halt
-  apply False.elim
-  exact M.not_isHalting_of_forall_isSome (fun q a => ⟨_,_,hm q a (h q a)⟩) halt
+end OMA.BB4Bound106
 
-
-def nextTag (links : Array Nat) (tag : Nat) (e : Fin 16) : Nat :=
-  (links[(tag-2048)/512]?.getD 0 >>> (24*e.val)) % 16777216
-def qTag (tag : Nat) : Q := Fin.ofNat 4 (tag-2048)
-def timeTag (tag : Nat) : Nat := ((tag-2048)/4)%128
-
-def replay (cs : Array Inv) (links : Array Nat) : Nat → P → Nat → Bool
-  | fuel, p, tag =>
-    if tag = 0 then decide (∀ q a, p q a < 16)
-    else if tag < 2048 then certified p (cs[tag-1]?.getD default)
-    else match fuel with
-    | 0 => false
-    | n+1 => decide (timeTag tag ≤ 105) && hit p (qTag tag) (timeTag tag) &&
-        decide (∀ e : Fin 16, replay cs links n (upd p (qTag tag) e) (nextTag links tag e) = true)
-
-theorem replay_sound {cs : Array Inv} {links : Array Nat} {fuel : Nat} {p : P} {tag : Nat}
-    (h : replay cs links fuel p tag = true) : Goal p := by
-  induction fuel generalizing p tag with
-  | zero =>
-    by_cases h0 : tag=0
-    · apply total; simpa [replay,h0] using h
-    by_cases h1 : tag<2048
-    · apply ofCert; simpa [replay,h0,h1] using h
-    simp [replay,h0,h1] at h
-  | succ n ih =>
-    by_cases h0 : tag=0
-    · apply total; simpa [replay,h0] using h
-    by_cases h1 : tag<2048
-    · apply ofCert; simpa [replay,h0,h1] using h
-    simp only [replay,h0,h1,if_false,Bool.and_eq_true,decide_eq_true_eq] at h
-    exact branch h.1.1 h.1.2 (fun e => ih (h.2 e))
-
-theorem convertGoal {x y : P} (eqs : ∀ q a, x q a = y q a) (hy : Goal y) : Goal x := by
-  rwa [show x = y from funext (fun q => funext (eqs q))]
-
-
-private def v1 : Inv := ⟨2,4,0x40042040,0x400c20440c2040,0x15fd40007c0000000a82bfac631⟩
-private def v2 : Inv := ⟨2,7,0x2040,0x1c61861c61020c21440c2040,0x1b000000001b0000001b00000500afaaaf00001b⟩
-private def v3 : Inv := ⟨2,6,0x40002040,0x43145046144043042040,0x3624000015c000af5eb809a02bd7ae6c11b⟩
-private def v4 : Inv := ⟨2,7,0x2040,0x441860471850c20c40c2040,0x3b00000000af0000afafaf009500af0eaf0a0a3b⟩
-private def v5 : Inv := ⟨2,8,0x2040,0x1441c70421481c61420440c2040,0x3d8000000005bc0000b7dbe50008a802df2ab7880407b⟩
-private def v6 : Inv := ⟨2,0,0x40042040,0x0,0x1fdfff⟩
-private def v7 : Inv := ⟨3,0,0xc20400c2040,0x0,0xf55ffff⟩
-private def v8 : Inv := ⟨1,8,0x40040,0x1872041860c70c60c61440c2040,0x10f2342a1400010080647231f8fd0e87⟩
-private def v9 : Inv := ⟨1,7,0x40040,0x1841860c71460c61440c2040,0x872315150001010123233f3f8787⟩
-private def v10 : Inv := ⟨1,10,0x40040,0x2852822081c82441c81c60c50440c2040,0x327a1308a11400045c9f93d09a1317e2ff27e4f⟩
-private def v11 : Inv := ⟨1,10,0x40040,0x2882452082862451c81c60c50440c2040,0x12789306a0d40000549e93c4989397f2fd27a4f⟩
-private def v12 : Inv := ⟨2,10,0x42040,0x2821482082822441481c60c21440c2040,0x459140000000000126c0000091526e4d80008a00137a2e4df22a4dc9b⟩
-private def v13 : Inv := ⟨3,0,0x420c0042040,0x0,0xff5bfff⟩
-private def v14 : Inv := ⟨7,0,0x1c71471871861440c0042040,0x0,0xf37154b0f0707⟩
-private def v15 : Inv := ⟨1,10,0x40040,0x1c42882441c71870c81871841440c2040,0x287a2320a4140000144600111a230fe1fe87d0f⟩
-private def v16 : Inv := ⟨5,0,0x1450c51451040c2040,0x0,0x31454c3041⟩
-private def v17 : Inv := ⟨1,10,0x40040,0x2882452082862451c81c60c50440c2040,0x12789306a0d40000549e0004989397f2fd27a4f⟩
-private def v18 : Inv := ⟨2,5,0x2040,0xc41040c41440c2040,0xc0000001000001000040beabc0003⟩
-private def v19 : Inv := ⟨5,1,0x1420c21421000c2040,0x40040,0xfff57703330fffffff577⟩
-private def v20 : Inv := ⟨2,6,0x82040,0x1841841041841440c2040,0xc00006000000004000000400002037eade00003⟩
-private def v21 : Inv := ⟨2,16,0x42040,0x3c60c60442d00c62cb3ce2cd2cc2ca2090c22070c61440c2040,0xea17a40bba85e029100910000000000000000010157a85e000000001015480aa0000014880003a85e902eea17804884b4625a3⟩
-private def v22 : Inv := ⟨2,5,0x82040,0xc41040c41440c2040,0x2f0000c0000001000001000040beabc0003⟩
-private def v23 : Inv := ⟨2,12,0x40042040,0x28b0c528a0c228c28b2891c81c60c50440c2040,0x507a83d41e151961854400000000000d541e00001a80d406a0000a8800141ea0f507cb0e5872c3⟩
-private def v24 : Inv := ⟨2,5,0x40042040,0x1441041441440c2040,0x820810c1000001040041040040befbc30c3⟩
-private def v25 : Inv := ⟨2,5,0x42040,0x1441041441440c2040,0x830c1080000001040001040040beebc20c3⟩
-private def v26 : Inv := ⟨4,11,0x1040841040c2040,0x2c62c91442c22002840c92070c61440c2040,0xfff091fff2d50000000005a3091000000000000000000fff2d50000000000910002d500000000000009100000000000000022f0000000001025a3⟩
-private def v27 : Inv := ⟨2,12,0x40042040,0x3062092882882083022c42892070c61440c2040,0x845c22e11601145180440000000000116116000022811408a0000088000c5e62f317a28d1468a3⟩
-private def v28 : Inv := ⟨2,4,0x40042040,0x1030c3103082040,0x8c21184000040008420082f7b8c63⟩
-private def v29 : Inv := ⟨2,10,0x2040,0x28a24828a1c61442481c60c21440c2040,0x4de8a9378001360000000000026d3780008a26c0000008a00137a2a4de0000009b⟩
-private def v30 : Inv := ⟨2,3,0x40042040,0xc3083082040,0x171131000100111010777333⟩
-private def v31 : Inv := ⟨2,10,0x40042040,0x28a24828a1c61442481c60c21440c2040,0x4de9bd378451361140000000026d3780008a26c4d80008a00137a6f4de26c4d89b⟩
-private def v32 : Inv := ⟨2,6,0x2040,0x1841841041841440c2040,0x18006000000004080020400002037eade00003⟩
-private def v33 : Inv := ⟨2,6,0x40042040,0x1821821400c20440c2040,0x2bfff95f65400001fc0002bfff802a0078f1fefdfb⟩
-private def v34 : Inv := ⟨2,6,0x40002040,0x1041441040c61440c2040,0x162858006040000004580020400002017af5e0c003⟩
-private def v35 : Inv := ⟨2,11,0x2040,0x24828a2ca28a0c21442481061c61440c2040,0x8a28a224d00009b00000000000009b8a200004509b000000045000aefaaaaef00000009b⟩
-private def v36 : Inv := ⟨2,4,0x40042040,0x1040c40c40c2040,0x1184000040008420081ef78c63⟩
-private def v37 : Inv := ⟨2,6,0x2040,0x1860421850c20440c2040,0x5e29780760000000bd7805ebc0002a0178a5e0003b⟩
-private def v38 : Inv := ⟨2,5,0x40042040,0x145042144043042040,0x5d75cd6cd0000175c05d70003405d75db6db⟩
-private def v39 : Inv := ⟨2,6,0x40002040,0x1860421850c20440c2040,0x14bc500764400000bd7805ebc0002a017af5eec03b⟩
-private def v40 : Inv := ⟨2,6,0x2040,0x1820c21800c21440c2040,0x3d80f60000001fff80fffc0002a017aa5e0007b⟩
-private def v41 : Inv := ⟨7,2,0x1c71c71c71c70c61440c2040,0x40042040,0xe3f000015000000000ff8000ff8000028000004000413⟩
-private def v42 : Inv := ⟨2,7,0x40002040,0x1c71471471c60c21440c2040,0xb0a0b001b010000000b0b000b0b000005006f6f6f1b001b⟩
-private def v43 : Inv := ⟨2,8,0x40002040,0x105183186106207185103042040,0x9384e4e008580400000004c26000984c0000428026f379bc2c010b⟩
-private def v44 : Inv := ⟨2,6,0x40002040,0x1040c61040c41440c2040,0x60400000040000a0428002017af5e0d103⟩
-private def v45 : Inv := ⟨5,2,0x1451450401440c2040,0x41081040,0x2310000001c0008c40008010a80a05⟩
-private def v46 : Inv := ⟨5,2,0x440400c50440c2040,0x81081040,0x9e710000381c0dbef80208dbefadb6d⟩
-private def v47 : Inv := ⟨2,10,0x42040,0x4714a042149043207046144043042040,0xcd636000000000015dc00000aaf5debb80019a002bbfffaee4098db1b⟩
-private def v48 : Inv := ⟨23,5,0x24b14a1d758a24b4554514515001d30c648b45014f24e34c1c624b14a2481c61440c2040,0xc41420c40400c2040,0x3f03f03f0005c5000157fc5000fd7000fd7045005040000140001005040001141005005000fc000000017f00003f00500000003f00503ffd700000017f5c003f005fc0fc0fff5c50170170150000c00000035400005c10005c3fff03ffc0000fc001503ffc003ffff03f01506faaf0400009eaa8102f062a81bc1aafaa7⟩
-private def v49 : Inv := ⟨1,7,0x40040,0x460400470460c50440c2040,0xffd3f5f500f5fff5d3d3ffff4f4f⟩
-private def v50 : Inv := ⟨6,3,0x1851451851451440c2040,0x420c0042040,0xa5f0f00000000f0000000400000a5000000040000009⟩
-private def v51 : Inv := ⟨1,7,0x40040,0x1c70441c71c60c50440c2040,0x1313454500454f4f13134f4f4f4f⟩
-private def v52 : Inv := ⟨8,0,0x1871c72070c21861440c0042040,0x0,0xbe6e15258bc5e27⟩
-private def v53 : Inv := ⟨4,1,0xc20c21000c2040,0x40040,0x3ff5dc33f3ffffffff⟩
-private def v54 : Inv := ⟨7,0,0x1861861421c61421040c2040,0x0,0x2b0505132b2b01⟩
-private def v55 : Inv := ⟨6,3,0x1451451851451440c2040,0x420c0042040,0xa500000010000f0000f0050000005000000040000009⟩
-private def v56 : Inv := ⟨1,7,0x40040,0x460400470460c50440c2040,0xffd3f5f500f5ff00d3d3ffff4f4f⟩
-private def v57 : Inv := ⟨5,3,0x1451451451440c2040,0x420c0042040,0xa5000000000f00000050000050000004000009⟩
-private def v58 : Inv := ⟨14,2,0x3023861c614d24924930230224b2892061c61440c2040,0x40082040,0x70001fd000f400800000104004000001c214000017816d00016c000b15a00480b42a09400001283⟩
-private def v59 : Inv := ⟨4,3,0x104104103082040,0x420c0042040,0xa5000a50000000f0000050000500000400009⟩
-private def v60 : Inv := ⟨12,3,0x20814a20720c2080cb14a2092070c61440c2040,0x420c0042040,0xf000f0ff0050000a500a50000000000000000f00000fff00000050005055000000050005004000040004040100081008189⟩
-private def v61 : Inv := ⟨6,4,0x400460400c50440c2040,0xc30c3103042040,0x18c62188610040010400000000000018c60294a5294a00000028084200802463184611⟩
-private def v62 : Inv := ⟨2,4,0x40042040,0x400c20440c2040,0xafeb5fd40007c00fffe0a83fffef7b⟩
-private def v63 : Inv := ⟨7,2,0x1c70401c71c70461440c2040,0x41081040,0x8042a0402310000000005e80403b100000808042a140a05⟩
-private def v64 : Inv := ⟨5,3,0x1451451451440c2040,0x420c0042040,0x90000a5000000000f4000005f000050000004000009⟩
-private def v65 : Inv := ⟨2,3,0x40042040,0x40043042040,0xfffdfd000ff0fff0d0fffbbb⟩
-private def v66 : Inv := ⟨5,3,0x1451451451440c2040,0x420c0042040,0x10000a5000000000f0000005f000050000004000009⟩
-private def v67 : Inv := ⟨2,13,0x81080040,0x4a04d0460cc0cb1ca0c20c90481c60c31440c2040,0x2080820443931e4c4000000393100100040010082970e5c3000000000100240091625⟩
-private def v68 : Inv := ⟨2,9,0x81080040,0x400c61490480470c60c31440c2040,0x8822b96e5b9400002e52108421022ecfb300000210a4292e5⟩
-private def v69 : Inv := ⟨3,5,0x40083080040,0x103045040103042040,0x480492fc003f00003f924924fd2fff900024f74d3d⟩
-private def v70 : Inv := ⟨3,10,0x40083080040,0x400c60c214a0492070c60c31440c2040,0x244000911229ca290524e5000000004e510821042084f6648bd9fb3108000000849ca290524e5⟩
-private def v71 : Inv := ⟨2,6,0x81080040,0x1440c60400c21440c2040,0x54a957ffe0007f891222afffc0008993275⟩
-private def v72 : Inv := ⟨4,8,0x400c40400c2040,0xc61440480c70c60c31440c2040,0x880022114cd8a8462a118a000031400c562a118a8462ccc453399ccd08004200108e55239548e5⟩
-private def v73 : Inv := ⟨7,2,0xc20400c20401c61440c2040,0x41081040,0xb6db6dc712310000004105d04105d0208008aaa4aa965b65⟩
-private def v74 : Inv := ⟨6,2,0x1440c20400c61440c2040,0x81081040,0xdf7df1c79c400001f8ff8fc7fc0208237df7d6db6d⟩
-private def v75 : Inv := ⟨6,2,0x1440c20400c61440c2040,0x81081040,0xb6db69c79c400001f0df0f86f80208237df7d6db6d⟩
-private def v76 : Inv := ⟨7,2,0xc20400c20401c61440c2040,0x41081040,0x965b65c712310000004105d04105d0208008aaa4aa965b65⟩
-private def v77 : Inv := ⟨2,3,0x40042040,0x40043042040,0xfffdfd000ff0ff00d0fffbbb⟩
-private def v78 : Inv := ⟨6,2,0x1850440401850440c2040,0x81081040,0xe4f38f279c400001f8fc0f279e100823edf7d6db6d⟩
-private def v79 : Inv := ⟨2,5,0x40042040,0x145042144043042040,0x5d75cd6cd0000175c05d75c03405d75db6db⟩
-private def v80 : Inv := ⟨5,2,0x440400c50440c2040,0x81081040,0xdbef89e71000038ff8dbef80208dbefadb6d⟩
-private def v81 : Inv := ⟨2,7,0x42040,0x441860471850c20440c2040,0xafafaf953b00000000afaf000aafaf009500afafaf0a3b3b⟩
-private def v82 : Inv := ⟨8,2,0x1441c81440c20401c61440c2040,0x81081040,0x3c81c8079c79c40000007fc01c01c71c7008208237df7df5b6db6d⟩
-private def v83 : Inv := ⟨5,2,0x440400c50440c2040,0x81081040,0x38e09e71000038fc0dbef80208dbefadb6d⟩
-private def v84 : Inv := ⟨8,4,0x1451451481451451c61440c2040,0x421020c0042040,0x14050000000345d1400000000000007c0007c00000000000c60000000a02800000000011800000000039⟩
-private def v85 : Inv := ⟨2,6,0x40002040,0x1441841041851440c2040,0x4040000004000000808002023298c24109⟩
-private def v86 : Inv := ⟨2,6,0x2040,0x1030461040450c40c2040,0x40000000a40005219480c2014a90c08149⟩
-private def v87 : Inv := ⟨2,6,0x42040,0x43145046144043042040,0x4d3600000015c000af5eb809a02bd7ae08d9b⟩
-private def v88 : Inv := ⟨2,10,0x2040,0x2462822461441c81c41040461440c2040,0x404000000000014240000040480a848000820003486910c80901509⟩
-private def v89 : Inv := ⟨8,0,0x1041061861c81c6045103042040,0x0,0x9f1f0d1d89c160b⟩
-private def v90 : Inv := ⟨2,4,0x42040,0x1040c40c40c2040,0x1180000040000400081ef78063⟩
-private def v91 : Inv := ⟨5,3,0x440400c50440c2040,0xc3083082040,0x113131113131000000101100001010001010777777333333⟩
-private def v92 : Inv := ⟨2,16,0x42040,0x3c60c60442d00c62cb3ce2cd2cc2ca2090c22070c61440c2040,0xea17a40bba85e029112d18000000000000000010157a85e000000001015480aa0000014880003a85fd42fea17804884b4625a3⟩
-private def v93 : Inv := ⟨5,3,0x440400c50440c2040,0xc3083082040,0x117171113131000000107100001010001010777777333333⟩
-private def v94 : Inv := ⟨2,10,0x2040,0x18510a1021090c42071041850c40c2040,0x8130242300020400000000000086048000000001080010200204c0908c40881201⟩
-private def v95 : Inv := ⟨2,6,0x2040,0x1441841041841440c2040,0x40010004000000004080000008002014a98c08101⟩
-private def v96 : Inv := ⟨2,5,0x42040,0x1441041441440c2040,0x830c10c0000001040001040040befbc20c3⟩
-private def v97 : Inv := ⟨4,10,0x1021020400c2040,0x2862822822002440c22070c61440c2040,0xfffffc488d51aae8dd189174624400000000000007ff000354000001aa35400000000244488001220001782f05e0bc17ba3746205d1881⟩
-private def v98 : Inv := ⟨2,13,0x40002040,0x2c924a34934924924d0c63042ca2481c61440c2040,0x22c08a022c000408800100000000000045022c000011400001140000044000321a02932181014088101⟩
-private def v99 : Inv := ⟨2,10,0x40002040,0x2442841091021081c61040850c40c2040,0xc024030001040040000000008404800042000108000820020320980c40441101⟩
-private def v100 : Inv := ⟨2,10,0x42040,0x28a24828a1c61442481c60c21440c2040,0x4de9bd378451360000000000026d3780008a26c0000008a00137a6f4de0004d89b⟩
-private def v101 : Inv := ⟨8,2,0x1870481861871860450c40c2040,0x40042040,0x3f140a00540000000000fc01c01c0e00000a04004020200291⟩
-private def v102 : Inv := ⟨8,2,0x1470481471451450461440c2040,0x40042040,0x7145000540000000000fc01c01c0e00000a04004020200211⟩
-private def v103 : Inv := ⟨2,5,0x42040,0x1441041441440c2040,0x30c10c0000001040041000040befbc00c3⟩
-private def v104 : Inv := ⟨6,2,0x1820c20401821440c2040,0x40042040,0xb451425555400000001c0e3f03da28a249248d9659⟩
-private def v105 : Inv := ⟨2,6,0x40042040,0x1041441040c61440c2040,0x162c58106040000004580020408002017af5e0c183⟩
-private def v106 : Inv := ⟨2,10,0x42040,0x28a24828a1c61442481c60c21440c2040,0x4549bd378451360000000000026d3780008a26c0000008a00137a6f4de0004d89b⟩
-private def v107 : Inv := ⟨2,5,0x40002040,0xc41041440c40c2040,0x81000001000040040040989981081⟩
-private def v108 : Inv := ⟨7,2,0x1c61440c20401c61440c2040,0x40042040,0x555555555555000000fc0fc0fc0fc0a28a28924924659659⟩
-private def v109 : Inv := ⟨2,6,0x42040,0x1860421850c20440c2040,0x5e29795760000000bd7805ebc0002a017af5e01dbb⟩
-private def v110 : Inv := ⟨2,5,0x42040,0x145042144043042040,0x5d75cd6c00000175c05d70003405d75c06db⟩
-private def v111 : Inv := ⟨7,2,0x1c61440c20401c61440c2040,0x40042040,0x410410555555000000fc0fc0fc0fc0a28a28924924659659⟩
-private def v112 : Inv := ⟨2,5,0x42040,0x142042140103042040,0x3becdec000003ffc0fff0003405d75c0efb⟩
-private def v113 : Inv := ⟨8,2,0x461c71c81c70460c21440c2040,0x40042040,0xe00fc7e05015540000000000ff80001ff000028a2002412300361b⟩
-private def v114 : Inv := ⟨2,6,0x40042040,0x186142106142103042040,0x56ad585561400000ad58056ac0000a00b972ead5ab⟩
-private def v115 : Inv := ⟨2,6,0x42040,0x1860421850c20440c2040,0x14bd795760000000bd7805ebc0002a017af5e01dbb⟩
-private def v116 : Inv := ⟨2,7,0x42040,0x441471451460c50440c2040,0x1143000000008500000085850011008f8f8f024343⟩
-private def v117 : Inv := ⟨11,0,0x1071472492c9245289189207185103042040,0x0,0xc17c1708d13b003947003⟩
-private def v118 : Inv := ⟨33,4,0x3ce20875c84a8147de2ca75c60a2082086c760a6992082480c260a5d64d25544d24d24503ce20820834c2ca2481c61440c2040,0x40042103042040,0xfd7e4afea0002a000155513e420000002a0d9155003f5f92bfa8000a800055544f908000000a8364554000001f0000006c1f00000000000100007c0006c040000a07c000000407c0a000000001b000150280406e00ea1b04750000110002a8281a00420004100682b8203e007d5f0001b07c00a8000d80042001f5001ba91004000902000000090010000000025000200000109⟩
-private def v119 : Inv := ⟨1,3,0x40040,0x40083080040,0xffff0f99ffffbb⟩
-private def v120 : Inv := ⟨14,4,0xc224830c0c224830c38d30c2ca0c22481c61440c2040,0x400c40400c2040,0x1fb83f700000fdff5fdff707ee00001fbfebfb80000001507c0007c1500000002a0f8000f82b7082e100802b86a2b8fe007c00a83ff003ffa8400080050142001425⟩
-private def v121 : Inv := ⟨15,2,0x30b3c40c638724d14430b2822440402070c61440c0042040,0x40042040,0x1d05c7fc2fff9fcfe7fe7fff0380001c71c7e821fa1f8e3f5fafd7fd7fff03f0071ff1ff9bdda7defdff⟩
-private def v122 : Inv := ⟨13,2,0x2440c634724c2ca0c22440402070c61440c0042040,0x40042040,0x3a087fc2ffffe79ff9fffc70001c71c7000e07e38fff5d7fd7fff1f81c7fc7ff7ba7defdff⟩
-private def v123 : Inv := ⟨5,25,0x1001051000c00c2040,0x5556555581c65551c655758e1c655551335240f44e40f24e1c634c1c62ca0c22481c61440c2040,0x1480aa80000001585aec5a43ff001a59c5202aa15a5afc00041015a5afc5696bf401f4cc5696bf0000000000000000000000414500000005696bf0000000000000000000000414500105140494151690ffc5202aa1690ffc5a43ff1585aec5a43ff00000000000001585aec004145001a59c5696bf000011000004400001108415552105554006967⟩
-private def v124 : Inv := ⟨1,7,0x40040,0x460400470460c50440c2040,0xffd300f500f5f5f5d3d3fff54747⟩
-private def v125 : Inv := ⟨17,26,0x4513ce30b45128920745145045144d451207451185451103442040,0x69a61751369a49169a3ce68d69969a61769669569a49169069a3ce68d68c2ca24869a1c61440c2040,0x101100010110000000010020a010020801020088000119000022001011204008280400820008088000808800000000204011000020000000080400140000000000000020041400000000000000000000000000000000000000000000000000000000000000000002010004000000000000000000000401041000000000000010080028000000020041400000000000000000000200004600000000801050000000000000010041040000002010004000000008010400010080000000010020a100410400000000000000000000000000000000004010410000000000804000000002004100000000000000000000000000000008088000000000000000801050000000408108c0000000808099000000002004100000000004044000000000000008102108800010000000010041000020220000000402000802004100000001000023000000000000000000000080104000000000101100000000401040000000080400100000000200410008502600000000400828401041000000000000000000000000000000000010041040000000042812000000008010400000000080101⟩
-private def v126 : Inv := ⟨4,21,0x1020c31030c2040,0x5134f29551304028921228c1900512d00cf20e34228c2c52892071850440c2040,0x3fffff00000000000ed569ee7bdbcafd7c00000cafd7c0000000902800000000002fd2b50000032bf5fbf4ad400000bf4ad4000008a4856e7bdb00000000000b9ef6c7c0fdfffffc00000bf4ad7b55a7cafd7fb55a7000003b55a7000002b50a5⟩
-private def v127 : Inv := ⟨4,1,0xc20c30440c2040,0x40040,0x30f0cc330030f0cc11⟩
-private def v128 : Inv := ⟨2,6,0x81080040,0xc50460c50c30440c2040,0x4092a54a000250000002a74c0004a10225⟩
-private def v129 : Inv := ⟨6,1,0xc51851820c50440c2040,0x40040,0x30f3ccc0330002baf00cc011⟩
-private def v130 : Inv := ⟨3,3,0xc30410c2040,0xc30410c2040,0x33050505050000003305050505⟩
-private def v131 : Inv := ⟨10,1,0x1c42882441c71870c81871841440c2040,0x40040,0x30303cc0c0f00ffff300ff000002604af0c00cc00001⟩
-private def v132 : Inv := ⟨10,1,0x1c42882441c71870c81871841440c2040,0x40040,0x202028c0c0f00ffff300ff000002604af0c00cc00001⟩
-private def v133 : Inv := ⟨7,1,0x1421c41450c60c50440c2040,0x40040,0x3033c30f03fff03f0000e12f30331011⟩
-private def v134 : Inv := ⟨9,1,0x1461c50c82481451c60c50440c2040,0x40040,0x30333c030f3c3ff0f03f000004a12f0303300011⟩
-private def v135 : Inv := ⟨8,1,0x1c61c72050c70c60c50440c2040,0x40040,0x3fff030f03ffc30ff0000121af0c0cc0011⟩
-private def v136 : Inv := ⟨14,1,0x3863863422ca28a2ca3041c62ca0c22481c61440c2040,0x40040,0xac0a36bc3000f0f0333fffff03ccff00000002b028daf000c00cc0010011⟩
-private def v137 : Inv := ⟨10,1,0x2852822081c82441c81c60c50440c2040,0x40040,0xf0c3fcc030f033fffc30ff000002c21af00c0cc01011⟩
-private def v138 : Inv := ⟨8,1,0x1872041860c70c60c61440c2040,0x40040,0xf0c0f03ffcc03f00001842f300cc0001⟩
-private def v139 : Inv := ⟨2,4,0x81080040,0x400c20440c2040,0x5295ff801f0000affc00f9095⟩
-private def v140 : Inv := ⟨8,4,0x470c80470c60c30c31440c2040,0x40041103042040,0x2008000260202a0c8000154000000068004013e006c0400000000000010040000aa08020000980890240000009⟩
-private def v141 : Inv := ⟨9,1,0x1c91441c61c90c20c81c61440c2040,0x40040,0xaafaf00f0ffffff3ccff00000aafaf3003310011⟩
-private def v142 : Inv := ⟨9,1,0xc70c62472050c70c60c50440c2040,0x40040,0xf0fff3030ffafff030ff00000121af0303300011⟩
-private def v143 : Inv := ⟨7,1,0xc70440c70c60c50440c2040,0x40040,0xffff030fffff30ff0000abaf30331011⟩
-private def v144 : Inv := ⟨7,1,0x1c70441c71c60c50440c2040,0x40040,0x30ff030f30ff30ff0000030f30331011⟩
-private def v145 : Inv := ⟨5,23,0xc41420c40400c2040,0x24b14a1d758a24b4554514515001d30c648b45014f24e34c1c624b14a2481c61440c2040,0x6044ac7064ae6044ac70e5af7064ae70e5af000000540222000000540222508423548633d88674d89675d88674d89675d88674d8967570e5af0000007064ae50842570e5afd8967500000000000000000000000000000000000054022254863354022254cf3354863354cf33000000000000000000508425000000d8967520440420440420440420c50520440420c505⟩
-private def v146 : Inv := ⟨1,3,0x40040,0xc20400c2040,0xffff0f00ff5555⟩
-private def v147 : Inv := ⟨1,9,0x40040,0x1c60c21c71450c90481c61440c2040,0xc3f0f4cd330013300000c3f0f1545515455⟩
-private def v148 : Inv := ⟨7,1,0x1861860c20c21c61440c2040,0x40040,0xf0f0f3f00330fcf0f2f00330a3b⟩
-private def v149 : Inv := ⟨1,6,0x40040,0x441451461450440c2040,0x9938b140458b149938f1e3c7⟩
-private def v150 : Inv := ⟨1,3,0x40040,0xc20400c2040,0xff0f0f00ff5555⟩
-private def v151 : Inv := ⟨1,4,0x40040,0xc20c30440c2040,0x2732940500273294a5⟩
-private def v152 : Inv := ⟨0,3,0x0,0xc20400c2040,0xffff0f55⟩
-private def v153 : Inv := ⟨0,5,0x0,0x1450c51451040c2040,0x4c3041003145⟩
-private def v154 : Inv := ⟨6,1,0x1860c40c60c61440c2040,0x40040,0xcc00f3ffcc3f000082f0004001⟩
-private def v155 : Inv := ⟨6,1,0x1860c41460c61440c2040,0x40040,0xccc00f3ffcc3f000082f0004001⟩
-private def v156 : Inv := ⟨0,7,0x0,0x1861861421c61421040c2040,0x132b2b01002b0505⟩
-private def v157 : Inv := ⟨5,3,0x1451451451440c2040,0x420c0042040,0xa50000a5000f00000000000058000004000001⟩
-private def v158 : Inv := ⟨7,1,0xc20420470c61440c0042040,0x40040,0xf0ffffff03333ccffaffff3fffbf⟩
-private def v159 : Inv := ⟨7,1,0x460400470460c50440c2040,0x40040,0xf30fff3330330000fbafff335511⟩
-private def v160 : Inv := ⟨3,7,0x40083080040,0xc60470c20c60c31440c2040,0x2200b322450404450000004500000000b322b3b34500004545040445⟩
-private def v161 : Inv := ⟨8,1,0x1c41c71870c81471841440c2040,0x40040,0x303c0c0f0ffff00ff0000204af00ccc0001⟩
-private def v162 : Inv := ⟨10,1,0x2882452082862451c81c60c50440c2040,0x40040,0x2082a80c30fc33ffcc30ff000000861af003ccc00011⟩
-private def v163 : Inv := ⟨9,1,0x1481c50c62481451c60c50440c2040,0x40040,0x30330c30f3c3ffc303f000008612f3033300011⟩
-private def v164 : Inv := ⟨6,1,0x1421450460c50440c2040,0x40040,0xccf30f0fff03f000312f0ccc111⟩
-private def v165 : Inv := ⟨9,1,0x2052082092020470460c50440c2040,0x40040,0xfff0f30f00fffc30ff00000871af00f3300511⟩
-private def v166 : Inv := ⟨14,1,0x38a38a30634828a3483061c62ca0c22481c61440c2040,0x40040,0x91a36bc0cc0f0ff333fffc303ccff000000002468daf0000cccc0000011⟩
-private def v167 : Inv := ⟨10,1,0x2882452082862451c81c60c50440c2040,0x40040,0x30c3fc0c30fc33ffcc30ff000000861af003ccc00011⟩
-private def v168 : Inv := ⟨7,1,0x1841860c71460c61440c2040,0x40040,0x30c0f0fffc03f0000842f03330001⟩
-private def v169 : Inv := ⟨4,10,0x103040103080040,0x28a28a14828a2891c61481c61440c2040,0xa8001170540001500022e0a8001170000048b8000000048b801000000000000000a81582a0560ac001170000008b84408a11022045⟩
-private def v170 : Inv := ⟨7,1,0x460400470460c50440c2040,0x40040,0xaaaaf30fffff30ff0000fbafff335511⟩
-private def v171 : Inv := ⟨9,1,0x480401c61490c20481c61440c2040,0x40040,0xfafaff0f0ffffff3ccff00000fafaff333351111⟩
-private def v172 : Inv := ⟨10,1,0x20a2050ca2092020470460c50440c2040,0x40040,0xc3ffc0f30faebffcc30ff000000871af003ccc00511⟩
-private def v173 : Inv := ⟨7,1,0x460400470460c50440c2040,0x40040,0xfffff30fffff30ff0000fbafff335511⟩
-private def v174 : Inv := ⟨7,1,0x460400470460c50440c2040,0x40040,0xffbbf30fffff30ff0000fbafff335511⟩
-private def v175 : Inv := ⟨3,5,0xc30400c2040,0x440c50c30440c2040,0x4d30250250250000000000024c2025025025025⟩
-private def v176 : Inv := ⟨3,7,0x40083080040,0x460400470460c50440c2040,0x200ff02f50000f5000000f500000000d302d3d3f50000f545040445⟩
-private def v177 : Inv := ⟨7,1,0x1421c41450c60c50440c2040,0x40040,0x3033c30f03fff03f0000e12f10111011⟩
-private def v178 : Inv := ⟨6,1,0x1421450460c50440c2040,0x40040,0xccf30f0fff03f000312f0444111⟩
-private def v179 : Inv := ⟨7,1,0x184186107146144103042040,0x40040,0xc3f0c3fc0f30000041f03cf0005⟩
-private def v180 : Inv := ⟨4,7,0x410c30c40c2040,0x1c71450c30411c61440c2040,0xf0f0000330033000033003300000000000000000f0f55000000555500000055⟩
-private def v181 : Inv := ⟨8,0,0x1c51c7108187187185103042040,0x0,0x11c8f0d2380c7603⟩
-private def v182 : Inv := ⟨7,0,0x184186107146144103042040,0x0,0x27278d03031b03⟩
-private def v183 : Inv := ⟨9,0,0x1c51091c7149187207185103042040,0x0,0x14751e0d45c030ec03⟩
-private def v184 : Inv := ⟨9,2,0x451091081080401c6045103042040,0x40042040,0x12ff85fffffe3ffff038fc7fffffffffffafffe00ff8ffedbffbf⟩
-private def v185 : Inv := ⟨7,0,0x184186107146144103042040,0x0,0x27278d1b031b03⟩
-private def v186 : Inv := ⟨18,3,0x5011211119004510f30c30418210e10d30b282049207185103042040,0x80083080040,0xb00000fbfbfb00bfb111111001110f10111101001f0101000001f01100110001000111101122222200b2b0b2022b2b00fb000f000bbbf0bb3223320032203313233⟩
-private def v187 : Inv := ⟨18,3,0x5015215105004620714f2cb2c514e34c2ca0492070460c21440c2040,0x40083080040,0xb000000bfbb00fbfb9999909009f0909f9f9090090f099000090f0990099900000099990992222202002b0202b2b2f00fff000000ffff0ff3223312002203133233⟩
-private def v188 : Inv := ⟨3,17,0x410c00c2040,0x14b0481d11451441503ca1ce0cd0cc1c714b0ca2481c61440c2040,0x820a2dc3c820a020410b3342ccc0810000010b33000010b3300000000000000000020828b7052dc3cb705dc1540000000037055dc1562044881137055⟩
-private def v189 : Inv := ⟨9,1,0x1c60c21c71450c90481c61440c2040,0x40040,0xf00ff033330333300000f00ff30f0f10505⟩
-private def v190 : Inv := ⟨3,30,0x410c00c2040,0x54e0d425e15d4504d224004859615c1db34a35934a6992581575965544d245004f0ce34a14c2ca2481c61440c2040,0xa80aaa0986187802a02aa3b418cabfec37d7ffd86fafffb0df5f00000001c6024c4c00000007fb0df5fa2032021c6064cce880c8087181933300540555e6ff4ffe09d61d7f9bfd3fff37fa7fe00000000000000019a0c2553b418caa50821910a1043221da0c655⟩
-private def v191 : Inv := ⟨8,2,0x45108107040046045103042040,0x40042040,0x97e17fffffffffe38fc7fffffffffebfff81ff1ffdbffbf⟩
-private def v192 : Inv := ⟨14,2,0x38d10338d24804530b10a0422480401c6045103042040,0x40042040,0x7ffa0bfe17fffffdfffbffe381c7038fc71c0e3f1ffffffff5ffebfff8e3f1c7fc7f759eef3ffbf⟩
-private def v193 : Inv := ⟨9,2,0x451090421080401c6045103042040,0x40042040,0x12ff85fffffffffff038fc7fffebffffffafffe38ff8ffcf3ff3f⟩
-private def v194 : Inv := ⟨4,13,0xc40410c40c2040,0xcb28634418c1860cb0401862892071850440c2040,0x210a000210a864e19322548852256997c69e99700008950000895000000022540002256997842a997864c49ba65e9970000000a65c82422148242090885⟩
-private def v195 : Inv := ⟨11,2,0x4620714b0c22890402070460c21440c2040,0x40042040,0x417fc2ffff7ffeffffe381c71c7e381c71c7ebffd7ffffc71ffe3fb6596db2d⟩
-private def v196 : Inv := ⟨11,1,0x14b0491460421cb14a0c90481c61440c2040,0x40040,0xf00ffff3333003333000000afaaff330f0f110505⟩
-private def v197 : Inv := ⟨6,2,0xc21841800c50440c2040,0x81080040,0xedf7df6fbec9249279fc900000301861fedb649249⟩
-private def v198 : Inv := ⟨2,10,0x40042040,0x2861c61442862480c20401c61440c2040,0x477aed1d977ffe5dc8a91522bffcbb915000000000332ee0cfff9772ee4548a915⟩
-private def v199 : Inv := ⟨2,10,0x40042040,0x2861c61442862480c20401c61440c2040,0x4768ed1d977ffe5dc8a91522bffcbb915000000000332ee0cfff9772ee4548a915⟩
-private def v200 : Inv := ⟨5,2,0x103045100043042040,0x81080040,0xefb6df6fb24927f3c9000003018efb6c9249⟩
-private def v201 : Inv := ⟨2,9,0x40042040,0x1c61441c62480c20401c61440c2040,0xcd770cd77ffd7745515457ff4551500000000335dc335dd775dd1545515⟩
-private def v202 : Inv := ⟨2,9,0x40042040,0x1c61441c62480c20401c61440c2040,0xcc330cd77ffd7745515457ff4551500000000335dc335dd775dd1545515⟩
-private def v203 : Inv := ⟨4,2,0x42100103042040,0x81080040,0xffffdbec924f3f90000c061fed9249⟩
-private def v204 : Inv := ⟨2,10,0x40042040,0x2892072890441852070401850440c2040,0x1be37c6fab7ffeadc4a89512bffc6f8950000000001356e04d5bab756e2544a895⟩
-private def v205 : Inv := ⟨0,2,0x0,0x40042040,0xfff1fd⟩
-private def v206 : Inv := ⟨0,3,0x0,0x420c0042040,0xbfff0ff5⟩
-private def v207 : Inv := ⟨8,1,0x2082060c81c60c50c50440c2040,0x40040,0x30cc03cf0cffccc3f00000896f0cffc0011⟩
-private def v208 : Inv := ⟨9,1,0x2052080492022070460c50440c2040,0x40040,0xc333c33cf0c3ff03c3f000004396f0c3ff04111⟩
-private def v209 : Inv := ⟨9,2,0x451091081080401c6045103042040,0x40042040,0x12ff85fffffebffff038fc700000003fffafffe00ff8fec92db2d⟩
-private def v210 : Inv := ⟨13,2,0x4a04d0460cc0cb1ca0c20c90481c60c31440c2040,0x81080040,0x70180c3ec003b0000000010010480381c10000000000000006000186d81c07c00c9201009001⟩
-private def v211 : Inv := ⟨2,15,0x40042040,0x30b3c40c638724d14430b2822440402070c61440c0042040,0x866bd76b866b6ddfffff6ddf317731773177ffff6ddf317700000000000045cf6ddf45cfffff6ddf6ddf205520552055⟩
-private def v212 : Inv := ⟨2,13,0x40042040,0x2440c634724c2ca0c22440402070c61440c0042040,0x9ac26b09af5dfffff5df65dd97765dffffd77d977000000000021cfd77e1cfffff5dfd77d0554155055⟩
-private def v213 : Inv := ⟨22,5,0x34c38e1521d638824e38e35438e5544d22ca39140f38e2ca34c2ca2481c61440c2040,0x42140101043042040,0x400200000010000200000000400000200604000fc4000000000884740884884cc4895400228000010010208020008408028218e7f00000000020020003700003f000037208000000000000000000000000000000000010000b40000400400340800350340b4077000010403b000000fc4000004004ec4115100008200000000008200000200200208209⟩
-private def v214 : Inv := ⟨1,7,0x40040,0xc20420470c61440c0042040,0x6b6bffcff7f7fff70000cfcfffff1515⟩
-private def v215 : Inv := ⟨1,2,0x40040,0x40042040,0x3ffc703ffed⟩
-private def v216 : Inv := ⟨1,7,0x40040,0x184186107146144103042040,0x3271b1b00030000272727278d8d⟩
-private def v217 : Inv := ⟨1,2,0x40040,0x40042040,0x3f1c703ffed⟩
-private def v218 : Inv := ⟨1,2,0x40040,0x40042040,0x3ffc71fffed⟩
-private def v219 : Inv := ⟨3,21,0xc10400c2040,0xc249114438e5540c224838e2d34911c61441c640f38e34c2ca2481c61440c2040,0x212a2a84808b1ba3b289596ba577ae95deba577000000a0545000002ba577201010a0545201110a054584a8ab9bf3fc6e8ef9bf3f84a8ab9bf3fc6e8ef9bf3f201190a2565201190a2565⟩
-private def v220 : Inv := ⟨4,17,0x400c40400c2040,0x3ce34c1c63512903ce2cb1c634c0402cb2890c20481c61440c2040,0x842a00000842a8c5de953b8c5de31778c5de31778c5dc000000001431500002317750c54000050c54000050c55c73f210a9c73fa54edc73f71cfc842a71cfe953b71cfc4145001104145001104145⟩
-private def v221 : Inv := ⟨5,12,0x1440401440400c2040,0x30c1c624830c30c30c2ca1c62481c61440c2040,0x82a000a0a808e82b022011c088047022011c000000000000400004700010540004150009055054c3f41530fd056c3f41530fd054c3f415b0fc088047022011c088047⟩
-private def v222 : Inv := ⟨12,1,0x2083042482482081c62c42842481c61440c2040,0x40040,0xc0cc00c0cf0f33ffcc03c3f000000080686f201a1bc000001⟩
-private def v223 : Inv := ⟨12,1,0x3082083082842081c62c42842481c61440c2040,0x40040,0xccc00c0cfcf33ffc0c3c3f000000008686f021a1bc000001⟩
-private def v224 : Inv := ⟨2,10,0x40082040,0x402492490c204a2492481c61440c2040,0x2080000810512441449105124000820000000000c8920300644901910428441⟩
-private def v225 : Inv := ⟨0,11,0x0,0x1071472492c9245289189207185103042040,0x13b003947003000c17c1708d⟩
-private def v226 : Inv := ⟨1,2,0x40040,0x40042040,0x1fffc703ffed⟩
-private def v227 : Inv := ⟨4,32,0x400c40400c2040,0x1c659530c81f40f79d0c22480c249130c71b1c669930c6171c65950c251330c0c249140f38d30c2ca0c22481c61440c2040,0x11500aa808a80554045402aa022a0155011500aac144520a8000000010511482a1a8535b3c3e45b4ec6a14d6ce15004a661a8535b38540129986a14d6ce0000000000000000008a8055400000000350a6b670000000000000000000000000000000000000000061e67b0fe0a2290558799ec3f87c8b69de1e67b0ff0f33d87f0511482ac3ccf61fc3e45b4ef0f33d87e200a21450000002208028851400000088200a2145⟩
-private def v228 : Inv := ⟨4,14,0x400c40400c2040,0xc224830c0c224830c38d30c2ca0c22481c61440c2040,0x28a01100a28044028b20a8000482a92cfb0ee4b3c86692cf219a4b380000000051400049670000000000000000001b0fe4156c3fd877b0ff61fc82ad87fb0ef61f8145008805140220145⟩
-private def v229 : Inv := ⟨1,3,0x40,0xc20400c2040,0xf0ff5f0f00ffff55⟩
-private def v230 : Inv := ⟨4,19,0x400c40400c2040,0x481c61532cb1c64912cb2d02cb3ce34c0402cb2890c20481c61440c2040,0xa0155a0155a0155a0155a01554802a000004802aa4537c833ba453700422a453700422a45370000000000a015500000a45370000000000000000000000000ec13f4802aec13fc833bec13fec13f4802aec13fc833bec13f0114500044011450004401145⟩
-private def v231 : Inv := ⟨15,2,0x481c614514f38a1cd0c20cc1c714b0ca2481c61440c2040,0x40082040,0x1c517d000f7d4120000820824120001c21c200000000000014412c000b2ca00e2d02f02d200209009009⟩
-private def v232 : Inv := ⟨19,3,0x44f1024c948915140f14b38918534618b30b2861860492061c61440c2040,0x400c1081040,0xf6000f90009900000069fb004d400006200004900000f000400000000b0400c400080800000c40009900090000000000009000f6000b0900002d400288110801000000100081⟩
-private def v233 : Inv := ⟨10,2,0x4510410a109042048047185103042040,0x40082040,0x16fa05f524924924920005c2000000000125804b2802dbc5a40049209⟩
-private def v234 : Inv := ⟨13,2,0x24824804510b34c10b10a2480401c6045103042040,0x40042040,0x3f482ff85fffffbfff7ffc0fc7038fc703f1f8fffffffd7ffafff038e00ff8fe4faed3ffbf⟩
-private def v235 : Inv := ⟨16,3,0x38a0500c938718814f38014d30b04a1890c80471821440c2040,0xc3003002040,0x32220233332023333775757775755757571107077101007070777777676677777677733323777732377776776606007677607777777676677777677⟩
-private def v236 : Inv := ⟨8,2,0xc50c20c80461c60c31440c2040,0x40082040,0x3d000f400004020001c2000e00028000a00178028009001⟩
-private def v237 : Inv := ⟨16,2,0xca0481c615014f38a1cd0c20cc1c714b0ca2481c61440c2040,0x40082040,0x7145f4003df420900004104104120001c21c2b401c5a05e05a05104b0002cb2d00716817816961220908b08b⟩
-private def v238 : Inv := ⟨13,2,0x18a20834830b18a20818a2482481c60c21440c2040,0x40082040,0x38038e00f7d4004100124801c00021c20070001c71c8008200a2c038005be8b40000000209⟩
-private def v239 : Inv := ⟨3,9,0x410c00c2040,0x400c61490480470c60c31440c2040,0x2208822b96e5b96e5002e5002e5210842108408bb3ecfb32100000084b94a4292e5⟩
-private def v240 : Inv := ⟨11,2,0x4620714b2892890402070460c21440c2040,0x40042040,0x417fc2ffff7ffeffffe381c71c7e381c71c7ebffd7ffffc01ffe3fb6496db2d⟩
-private def v241 : Inv := ⟨16,4,0xca0481c615014f38a1cd0c20cc1c714b0ca2481c61440c2040,0x1021000400c2040,0x1f0340dfb400003edfb40200840000001004010040100420000007c0207c02294000140528005280052800d020086a000001a86a0a50001f014a0017e0014a118042080210082300823⟩
-private def v242 : Inv := ⟨11,3,0x4704614b14a1490480470c60c21440c2040,0xc3043002040,0x111003131332223333233022200020702776667777677000444005454550005577075332223333233⟩
-private def v243 : Inv := ⟨16,2,0x4e0d004f1ce04614d0cc24b0ca0c20ca2481c60c31440c2040,0x40082040,0x2d028f7d000f4824a0c00c840a410e800001c20001c7007038000000a28000a28be8140178029049418019081⟩
-private def v244 : Inv := ⟨18,2,0x30914a04739138e1523911503c938d0c230b14a0c92071461440c2040,0x40082040,0x381e8be803df4a60208825169163a0104001c21c209008202855255002816096002cb28a00038b45e05a5301044128b48b⟩
-private def v245 : Inv := ⟨12,2,0x4904c14614b14a0490480481c60c21440c2040,0x1081040,0x40248031c6d925b659689200040c4480092b864000000082120024ae195b24b6cb2d⟩
-private def v246 : Inv := ⟨4,15,0xc40440c0042040,0x4c04028f04014e0cd04c1441cb2890c80401c61440c2040,0x4080000ff5dffff04082462f6732462f673f67300000000ffff000024620000fb550000fb55fb5504080408a70eff5da70e0000fb550000fb55fb552462f6732462f673f673⟩
-private def v247 : Inv := ⟨9,2,0x451090421080401c6045103042040,0x40042040,0x12ff85fffffebffff038fc700000003fffafffe38ff8fecb2db2d⟩
-private def v248 : Inv := ⟨26,17,0x69a61751369a49169a3ce68d69969a61769669569a49169069a3ce68d68c2ca24869a1c61440c2040,0x4513ce30b45128920745145045144d451207451185451103442040,0x410100040000020000000000000000000000000080100410000004001000000800000000410000006005000000800000000c00000000000004020040400000000000000410000000100800000040080100000000000000004020000010400040080100100001000040090500100815400000020010100000004001000000000010400000000000800400002004000004001000000000000000410000006005004000000000002c140040001000000000000000000000104040010000008004801000000000000000000020040104020041000400000200000000104000001801400000200120000b05000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030100000000000000104002080040200000000020240400800000000001008000004100082020240400800c00000024340482805d040280000010004000000000000000000080000000000000000400100000000000000000000000000002000000000000000000000000002000400002000400100000080040080000010004000000820000000000000002001000000000000010004000000000020800000000010004002000000020802000022812081⟩
-private def v249 : Inv := ⟨32,6,0x8207de75c6da6585d65544d24503ce34c2ca2481c61440c20407de75c6da6585d65544d24503ce34c2ca2481c61440c2040,0x1861861851060c6182040,0x8000000000000080000000000000800000000000008000000000010004001000400100040010044001000400100040010004001004440001000000100000010000001000080100000010000001000000100000000000080000008000000800000080000008000000800000080004008000000000000000000000000000000000000000000000000000000000000800200080020088002000800200080020008002008800200080022000000000000000020000000000000200000000000002000000000000020040810204081020408102040810214081020408102040810204081021⟩
-private def v250 : Inv := ⟨21,4,0x5134f29551304028921228c1900512d00cf20e34228c2c52892071850440c2040,0x1020c31030c2040,0xa8294ad2b405400a8280a54150564094e610ce52902529cc3398653bced4bdab68de33aced1b56379deb4a82b50541505014a82a0056950000000000000000000000000002729c67284e338ca339c6518ca73a5000a0280ad295a5014052b4ad0a1210a429025084a12048509425⟩
-private def v251 : Inv := ⟨0,7,0x0,0x184186107146144103042040,0x3031b030027278d⟩
-private def v252 : Inv := ⟨1,3,0x40040,0xc20400c2040,0xffff0fff00ff5555⟩
-private def v253 : Inv := ⟨0,7,0x0,0x184186107146144103042040,0x1b031b030027278d⟩
-private def v254 : Inv := ⟨4,2,0x400c20440c2040,0x81081040,0xb6da71c471c0df0000008236db1249⟩
-private def v255 : Inv := ⟨1,7,0x40040,0x1861860c20c21c61440c2040,0x3b3b3733050537050000333337370505⟩
-private def v256 : Inv := ⟨5,2,0x1451451451440c2040,0x40042040,0x1c003d0000001f8000f40028000140003⟩
-private def v257 : Inv := ⟨5,2,0x1451451450c40c2040,0x40042040,0x1c003d0000001f8007fc0028000140003⟩
-private def v258 : Inv := ⟨5,2,0x1451451450c40c2040,0x40042040,0x1c003d0000001f8007e00028000140003⟩
-private def v259 : Inv := ⟨3,18,0x80083080040,0x5011211119004510f30c30418210e10d30b282049207185103042040,0x4c47b00a8400003f3b780542988f621022623dcc47b0000000003f3b7cc47b000000000000000000020fce0150883f3907e7000800010000207e76f0400808010100226a0d⟩
-private def v260 : Inv := ⟨5,1,0x440c50c30440c2040,0x40040,0xc3330fc33c3f00030f411411⟩
-private def v261 : Inv := ⟨7,1,0xc50441c51c60c50440c2040,0x40040,0x3033030f3f33303f0000abaf10111011⟩
-private def v262 : Inv := ⟨7,1,0x1421c41450c60c50440c2040,0x40040,0x3033c30f03fff03f0000e12f12bb1011⟩
-private def v263 : Inv := ⟨7,2,0x441850c70401850440c2040,0x40042040,0xe071c74170bfebf5ffe071ff000000ebf5ffe071c7b25965⟩
-private def v264 : Inv := ⟨6,1,0x441451461450440c2040,0x40040,0xc0cc30fc0ff03f000030fc0cd011⟩
-private def v265 : Inv := ⟨2,15,0x2040,0x24530430f2ce1c604d24924c2492092ca2481c61440c2040,0x80a080a080a0000142300000000000000006405142300001423004414230000a0110000000000006405080a080a8121⟩
-private def v266 : Inv := ⟨2,15,0x42040,0x2c80442cf28e2cb18520d2892cc2cb2892071850440c2040,0x40a040a040a209151270000000000000000421551270000512751275127000020910000000042154215040a948b948b⟩
-private def v267 : Inv := ⟨2,8,0x42040,0x2082041822080471821440c2040,0x2512094852500000000016c94002516cb60042800000402128b65b⟩
-private def v268 : Inv := ⟨2,4,0x40042040,0x400c20440c2040,0x52955fd40007fe0f83e0a82b5ac631⟩
-private def v269 : Inv := ⟨3,18,0x40083080040,0x5015215105004620714f2cb2c514e34c2ca0492070460c21440c2040,0x9c0f60000000004e07b0021400003e9af8010a9c0f7381ee703dce07b0000000003e9afce07b00000000000000000002079e0042881e7903cffa6be0042800857d35f4ac2a04010080225615⟩
-private def v270 : Inv := ⟨7,1,0x460400470460c50440c2040,0x40040,0xff33f30fff33303f0000fbaf55115511⟩
-private def v271 : Inv := ⟨6,1,0x1421450460c50440c2040,0x40040,0xccf30f0fff03f000312f0eec111⟩
-private def v272 : Inv := ⟨7,2,0x401850470401850440c2040,0x40042040,0xe3f1c7e170bfebf5ffe071ff000000ebf5ffe3f1c7b2d965⟩
-private def v273 : Inv := ⟨7,1,0x460400470460c50440c2040,0x40040,0xff33f30fffbb303f0000fbaf55115511⟩
-private def v274 : Inv := ⟨2,5,0x2040,0xc20400c21440c2040,0xec0fc000003ffc003f00054000054003b⟩
-private def v275 : Inv := ⟨2,18,0x40002040,0x3891c614431230c45030c1c624f2ca38d30c2ca0c22481c61440c2040,0xc5256820ab149580000244ce000000000000000000041054913380000244ce4899c9133800001022200000820a800002082b8a4ad04156292b⟩
-private def v276 : Inv := ⟨2,14,0x2040,0x1c62ce0c22cb1c618d1cc2cb2890c21881c61440c2040,0x2a95800020ce0000000000000000854833800020ce419c0000000422200000000000042a0000000552b⟩
-private def v277 : Inv := ⟨2,7,0x2040,0x461071041040461440c2040,0x20289000200000000890200020289004100000004020289⟩
-private def v278 : Inv := ⟨2,9,0x40002040,0x1080490c21081041041c61440c2040,0x424084240020800000000010920800208822080090400010000110902109⟩
-private def v279 : Inv := ⟨2,5,0x2040,0xc20400c21440c2040,0xec0fc000003ffc0fff00054000054003b⟩
-private def v280 : Inv := ⟨2,10,0x2040,0x2070462841041092071040461440c2040,0x841081048000040000000000082401000004008820000820000000000908210209⟩
-private def v281 : Inv := ⟨9,1,0x1c71090881c3086104045103080040,0x40040,0xcccf33c3fc30c3c30ff0000033c3f0444504445⟩
-private def v282 : Inv := ⟨11,1,0x4920b20a089203206047106045103080040,0x40040,0xc30ccf0ccc3ffcfcc330c0ff000000aeeebf410445410445⟩
-private def v283 : Inv := ⟨0,8,0x0,0x1c51c7108187187185103042040,0x2380c76030011c8f0d⟩
-private def v284 : Inv := ⟨4,1,0x400c20440c2040,0x41040,0xffddd330fc00044ffd55⟩
-private def v285 : Inv := ⟨2,4,0x40042040,0x400c20440c2040,0xffff5fd40007fe000000a82b5ac631⟩
-private def v286 : Inv := ⟨2,7,0x40042040,0x1c71441c70c60c21440c2040,0x1b1b1b451b450000001b1b00000000004500454545111111⟩
-private def v287 : Inv := ⟨2,4,0x42040,0x400c20440c2040,0x57ff5f800007fe000000a8015a8231⟩
-private def v288 : Inv := ⟨6,2,0xc50460c50c30440c2040,0x40042040,0x5140f400000001c0000000000a07038e08041⟩
-private def v289 : Inv := ⟨1,2,0x40040,0x80080040,0x3f1c7fff27f⟩
-private def v290 : Inv := ⟨1,9,0x40040,0x1c71090881c3086104045103080040,0x59d67000ab000ab2acab59d679264993e4f⟩
-private def v291 : Inv := ⟨1,5,0x40040,0x440c50c30440c2040,0x4d30250259654d39659e7⟩
-private def v292 : Inv := ⟨0,7,0x0,0x1c71471871861440c0042040,0x4b0f0707000f3715⟩
-private def v293 : Inv := ⟨10,1,0x1862822441c61860c20c81c61440c2040,0x40040,0xc00ccc0f0f033ffcf0c3f000000e0d2f24286c10011⟩
-private def v294 : Inv := ⟨9,1,0x1450c22421851452071850440c2040,0x40040,0x3333c30f333ff3c03f000003c12f2813b00111⟩
-private def v295 : Inv := ⟨0,8,0x0,0x1041061861c81c6045103042040,0x1d89c160b0009f1f0d⟩
-private def v296 : Inv := ⟨0,8,0x0,0x1871c72070c21861440c0042040,0x258bc5e27000be6e15⟩
-private def v297 : Inv := ⟨14,5,0x38e2ca24838e34c38e38e38e34c2ca2481c61440c2040,0x420c01440c0042040,0x500000000000500500700fd5000000000fd5a95a9d03f54000000003f56a56a74000003f00003f00003f514000000000000000000000000540008000008540548768000000fc0000fc0000fd4500000001000001000001051⟩
-private def v298 : Inv := ⟨9,2,0x1c61441c62480c20401c61440c2040,0x40042040,0x20bf0bf1c7fc7fc70071c7082fc2fd75ff5ff1c01c71e79279e7⟩
-private def v299 : Inv := ⟨2,5,0x81080040,0x103045100043042040,0x492a3ffc003fa3ffd2fff000ff4d3f⟩
-private def v300 : Inv := ⟨9,2,0x1c61441c62480c20401c61440c2040,0x40042040,0x20bf0bf1c7fc7fc70071c7000fc0fd75ff5ff1c01c71e79279e7⟩
-private def v301 : Inv := ⟨10,2,0x2892072890441852070401850440c2040,0x40042040,0x4105c2fc71c7e3fe00e071c7007e3fffaebafd7fc01c0e38f24fa7df7⟩
-private def v302 : Inv := ⟨2,4,0x81080040,0x42100103042040,0x9499ff801fffff2ffc00fdadf⟩
-private def v303 : Inv := ⟨10,2,0x2861c61442862480c20401c61440c2040,0x40042040,0x82fc2fe4f3ff3fe070071c75c21ff1fa5d7fd7fc0e00e38f279b79f7⟩
-private def v304 : Inv := ⟨2,6,0x81080040,0xc21841800c50440c2040,0x952987ffe0007f95fffcafffc000feb167f⟩
-private def v305 : Inv := ⟨10,2,0x2861c61442862480c20401c61440c2040,0x40042040,0x82fc2fe4f3ff3fe070071c71c01ff1fa5d7fd7fc0e00e38f279b79f7⟩
-private def v306 : Inv := ⟨10,1,0xc22492492841852092071850440c2040,0x40040,0x30030fc03cfc0c033c3c3ff0a1af0300ce0e0bb⟩
-private def v307 : Inv := ⟨2,3,0x81080040,0x40043042040,0x220ff00ffff2ff00f66f⟩
-private def v308 : Inv := ⟨6,1,0x1850c50c21850440c2040,0x40040,0x30f3cfc033fffebaf00ceabb⟩
-private def v309 : Inv := ⟨10,4,0xc30c620a1440492070c60c31440c2040,0xc00440c0042040,0xe8000ff40057400a50140028000000fd00007c14003ff07c00f800000000e8000e800007e80003e0a000adc54006c11⟩
-private def v310 : Inv := ⟨9,1,0x2052082421881c41851850440c2040,0x40040,0xc33cc3cf033ff0cc3f000004c96f0cc3f00411⟩
-private def v311 : Inv := ⟨10,1,0x28a2851ca0c818a2481c51850440c2040,0x40040,0xc0cccc03cf0fcffc0cc3f0000004896f0330fc00011⟩
-private def v312 : Inv := ⟨10,3,0x400c60c214a0492070c60c31440c2040,0x40083080040,0xf0000f00bbfb0fb00fb00090000900900f9f00f090000000000000b00b000b0900f9f00f0910011100101⟩
-private def v313 : Inv := ⟨7,3,0xc60470c20c60c31440c2040,0x40083080040,0xb0fb00fb0900090909000f090000000020b200b209000f0901000101⟩
-private def v314 : Inv := ⟨2,4,0x2040,0x400c20440c2040,0xf800007c0000000a8000a8011⟩
-private def v315 : Inv := ⟨1,3,0x40040,0xc30c30c2040,0x33000100111111⟩
-private def v316 : Inv := ⟨1,4,0x40040,0x104101103042040,0x6300003000a518d29⟩
-private def v317 : Inv := ⟨1,5,0x40040,0x400450c20440c2040,0xbef00003fff5d75fffefb⟩
-private def v318 : Inv := ⟨1,4,0x40040,0x104101043042040,0xe70000739dad39d6b⟩
-private def v319 : Inv := ⟨1,4,0x40040,0x40044043042040,0x2f70001ffffbdfff7b⟩
-private def v320 : Inv := ⟨1,8,0x40040,0x106048107106045101043042040,0x10e870000000974ba5e5b2dffa5c964b⟩
-private def v321 : Inv := ⟨1,5,0x40040,0x103104045103042040,0x9e700000b2cb9652cb2cb⟩
-private def v322 : Inv := ⟨6,2,0x186142106142103042040,0x40042040,0x4145871c7e001c71c71f8a2abc0e3fe1861b⟩
-private def v323 : Inv := ⟨8,1,0x1031c71081c7185040103042040,0x40040,0x320fbcc3ff00f300f3f30ffccffe21ef⟩
-private def v324 : Inv := ⟨1,5,0x40040,0x104104105103080040,0x3cf0410030c00c30031c7⟩
-private def v325 : Inv := ⟨9,1,0x207245103107207185040103042040,0x40040,0x8e8fbcfcff0c0f3303cfefeff0f3ff9a9ef⟩
-private def v326 : Inv := ⟨1,10,0x40040,0x18708a208209207083185044083080040,0x117a2f8330640022f45e0022dc5b45e8bc5b8b7⟩
-private def v327 : Inv := ⟨1,4,0x40040,0xc30c30c40c2040,0xe7000010842100463⟩
-private def v328 : Inv := ⟨1,4,0x40040,0x1041040c30c2040,0x39ce7000210842100463⟩
-private def v329 : Inv := ⟨1,4,0x40040,0x1041041030c2040,0x18ce7000210842100463⟩
-private def v330 : Inv := ⟨1,18,0x40040,0x2cc2d22110502c30c20cf2cb2ce2cd2cc2ca2092070460c50440c2040,0x1603e2c07e3983c73070000000000580f98075300ea601d58168b02d100000601d713a1e2743⟩
-private def v331 : Inv := ⟨1,6,0x40040,0x400c20460c21440c2040,0xff577ef000007fffeead5ffffdfb⟩
-private def v332 : Inv := ⟨0,7,0x0,0x1c70421031c7185103042040,0x6767004b4b254b4b⟩
-private def v333 : Inv := ⟨1,5,0x40040,0x40042045103042040,0xfffdf7000fffffbb6dfffefb⟩
-private def v334 : Inv := ⟨1,6,0x40040,0x400c20460c21440c2040,0xabff7ef000007fffeead5ffffdfb⟩
-private def v335 : Inv := ⟨1,5,0x40040,0x1451451051440c2040,0x2cb1c70000c10430410010c3⟩
-private def v336 : Inv := ⟨1,5,0x40040,0x1451451451440c2040,0xc31c70000410430410010c3⟩
-private def v337 : Inv := ⟨1,6,0x40040,0x400c20460c21440c2040,0xab577ef000007fffeead5ffffdfb⟩
-private def v338 : Inv := ⟨1,5,0x40040,0x1451451451440c2040,0x431c70000010430410010c3⟩
-private def v339 : Inv := ⟨0,6,0x0,0x186184106105103042040,0x3e9c003061418b⟩
-private def v340 : Inv := ⟨1,6,0x40040,0xc20c60450c30440c2040,0x23c700000152a558b100571e3⟩
-private def v341 : Inv := ⟨0,5,0x0,0x42040144043042040,0xdf703ffddffb⟩
-private def v342 : Inv := ⟨0,4,0x0,0x40044043042040,0xfdc1fff7fb⟩
-private def v343 : Inv := ⟨0,5,0x0,0x40042045103042040,0xef703ffedffb⟩
-private def v344 : Inv := ⟨0,5,0x0,0x145141044043042040,0x3d700f3dd3db⟩
-private def v345 : Inv := ⟨1,4,0x40040,0x40044043042040,0x2730001f003bd07f39⟩
-private def v346 : Inv := ⟨1,3,0x40040,0x40043042040,0xbb0f0f00ff0fdd⟩
-private def v347 : Inv := ⟨1,5,0x40040,0x42104045103042040,0xaebaeb02b0009e702b34d⟩
-private def v348 : Inv := ⟨8,1,0x2080c22081c60c01440c0042040,0x40040,0xc3ff30ffc03330333cc3ff33cfcc7bf⟩
-private def v349 : Inv := ⟨1,6,0x40040,0xc20460450c30440c2040,0x2bd700d40356ad79f300d73e7⟩
-private def v350 : Inv := ⟨1,6,0x40040,0xc40c60450c30c40c2040,0x993224401100011a300462c5⟩
-private def v351 : Inv := ⟨1,4,0x40040,0xc20c30440c2040,0x2732940500273014a5⟩
-private def v352 : Inv := ⟨8,1,0x183207186087106143103080040,0x40040,0x3303e00aa03fff00ff0000300ff0030c4405⟩
-private def v353 : Inv := ⟨1,4,0x40040,0x42040103042040,0xdef7bfffff003ff07dad⟩
-private def v354 : Inv := ⟨4,1,0x1040c40400c2040,0x40040,0xcc2a3fc3f0003f0cc11⟩
-private def v355 : Inv := ⟨1,3,0x40040,0x40043042040,0xffbbffff00ff0fdd⟩
-private def v356 : Inv := ⟨1,6,0x40040,0x1861861830c50c40c2040,0x1e3c993020478100001830004285⟩
-private def v357 : Inv := ⟨1,3,0x40040,0x40043042040,0xbbff0f00ff0fdd⟩
-private def v358 : Inv := ⟨1,6,0x40040,0x42145046144043042040,0xaf5eddbaf5ebd700027cf015ce9d⟩
-private def v359 : Inv := ⟨2,6,0x80080040,0x1451451461451440c2040,0x4193264c00002000810000003060c0000214285⟩
-private def v360 : Inv := ⟨1,18,0x40040,0x1483c70523cf3d11d03ce14d14c0421cb1ca0491481c6144043042040,0x247ae48f5f153de2a7ba1cdf439bc91ebd0e6f0000000002199fc333f00001439bca4ae9495d⟩
-private def v361 : Inv := ⟨1,4,0x40040,0xc20c30440c2040,0x2730140500273014a5⟩
-private def v362 : Inv := ⟨0,3,0x0,0x40043042040,0xfbff0ffd⟩
-private def v363 : Inv := ⟨2,13,0x42080040,0x28a14424828a34c28a28a14b28a2481c61440c2040,0x82c0000808811204c8132044813204c000204400100000000000202082c20b000104500050454011045⟩
-private def v364 : Inv := ⟨3,12,0xc3043042040,0x2cc2ca2cc1c62cc2ca1442480c21c61440c2040,0x86c43621b0000000066abb00000cc0660330000114067fff0000000000000000000043775f000011408bfff000011408a045⟩
-private def v365 : Inv := ⟨7,1,0xc70871451841440c0080040,0x40040,0xf03f02aa030303ff000003ff330f5015⟩
-private def v366 : Inv := ⟨1,6,0x40040,0x1861860401850440c2040,0x2e5cd9b2a54a970000b972e5ca95⟩
-private def v367 : Inv := ⟨11,1,0xc82c42c72882470881471841440c0080040,0x40040,0xc3303f2002aa03c3033003ff000000baabff3c330f411015⟩
-private def v368 : Inv := ⟨1,6,0x40040,0x1861860401850440c2040,0x2e5cd9b2e54a970000b972e5ca95⟩
-private def v369 : Inv := ⟨3,18,0x42083080040,0x1840d244c1842500cf18618e18e18634c18b18618a2481c61440c2040,0x44004000000000220020002010044200984013202020042080869010d0000000000808080001000000000000000000004100880091051a20a300000000002008800019180b20012400248c05⟩
-private def v370 : Inv := ⟨3,14,0x42083080040,0x18d20728e18618618d18630b1862892071861440c2040,0x20440000000102240208045009a013010a02040408085000000000428001000000000000000200440888119023000000010098001840b08121024205⟩
-private def v371 : Inv := ⟨1,5,0x40040,0x40042105103042040,0xcf3cf3000fff000b6d03fa69⟩
-private def v372 : Inv := ⟨11,2,0x1c70c92c70c21c72840c92001c61440c2040,0x40042040,0x1c703f03f006186db60000000000071c7fff1ef03817d005145b6d0001c71c704108b08b⟩
-private def v373 : Inv := ⟨11,3,0x18414b1442881c72481c71841440400c2040,0x420400c2040,0x20f0002f2aaa0000aaaaa000000000000fdf0000fffdfaaa0000aaaaa555000055555f000000f0f0f000909000999⟩
-private def v374 : Inv := ⟨8,2,0x1c71c71440c80401c61440c2040,0x40042040,0x7e07e061b6d800000001c7fff007e07e0516db40e38e3808b08b⟩
-private def v375 : Inv := ⟨11,2,0x1c608b2832082092081c6105040103080040,0x40042040,0xfc0038e3f030c00db6000000000038e00fff1f8007fff028a00b6d038000e072d000a69b⟩
-private def v376 : Inv := ⟨5,3,0x1451451451020c2040,0x820820c2040,0x3000223000000000111000bbb00011100010100000b⟩
-private def v377 : Inv := ⟨9,2,0x103103247186207186143103080040,0x40042040,0x38e00fd28204b600000003f000ffffd0007ead000b6d0000381c061801b⟩
-private def v378 : Inv := ⟨3,9,0x43083080040,0x2492442492442480c70c61440c2040,0x6c000001b5154551d4700000000000000006c0106c1b07c1f000000040100000000010ac0a0282b⟩
-private def v379 : Inv := ⟨8,2,0x103207186207186143103080040,0x40042040,0x1c7007ea0812d80000007000fffe001fff4002db4000703861801b⟩
-private def v380 : Inv := ⟨0,4,0x0,0x42040103042040,0xdefff07fed⟩
-private def v381 : Inv := ⟨0,7,0x0,0x1451441450c71461440c2040,0x13131301000b0145⟩
-private def v382 : Inv := ⟨4,1,0x1041040400c2040,0x40040,0x882a0cc3f0003f0fc11⟩
-private def v383 : Inv := ⟨0,7,0x0,0x1c71c70c20401861440c2040,0x3b3b153700373715⟩
-private def v384 : Inv := ⟨7,1,0xc21c61441c61440400c2040,0x40040,0x2222802a3333c03f0000eabfc03f1111⟩
-private def v385 : Inv := ⟨0,8,0x0,0x2081482042061c71461440c2040,0x984d1e01000ac0245⟩
-private def v386 : Inv := ⟨2,4,0x82080040,0x40044043042040,0x3e09cc00003ff00000ef400f8019⟩
-private def v387 : Inv := ⟨1,7,0x40040,0x401820c20471821440c2040,0xb3b3ebeb000095ff0095959500ff9191⟩
-private def v388 : Inv := ⟨1,8,0x40040,0x2082081441c62081c61440c2040,0x158ac8e47000008e012391c020100004562b⟩
-private def v389 : Inv := ⟨5,2,0x1450c21451000c2040,0x40042040,0x432c61b60000071ff1c0fc516d0071c00c3⟩
-private def v390 : Inv := ⟨1,7,0x40040,0x1441860c71861861440c2040,0x23238787000085018585010100012323⟩
-private def v391 : Inv := ⟨1,5,0x40040,0x40042045103042040,0xefbdf7000ffffffb6d03fefb⟩
-private def v392 : Inv := ⟨1,6,0x40040,0x1441451450c61440c2040,0x162e3c70000581162c081000458b⟩
-private def v393 : Inv := ⟨1,5,0x40040,0x40042045103042040,0xefbcf3000fff03fb6d03fa69⟩
-private def v394 : Inv := ⟨1,9,0x40040,0x480401c61490c20481c61440c2040,0xccf336bdaf00000d57ffd5755d5755003ffccf33⟩
-private def v395 : Inv := ⟨1,10,0x40040,0x28a14728928a2892481470c61440c2040,0x560aca39470000010f80143e87c008010000041582b⟩
-private def v396 : Inv := ⟨2,8,0x82080040,0xc61442070c60400c21440c2040,0x276009dcec013b9d803ffff0000000006fb7c0095ff8000095⟩
-private def v397 : Inv := ⟨4,1,0x1041040400c2040,0x40040,0xcc2a0cc3f0003f0fc11⟩
-private def v398 : Inv := ⟨7,1,0xc21c61441c61440400c2040,0x40040,0x3333802a3333c03f0000eabfc03f1111⟩
-private def v399 : Inv := ⟨4,1,0x1040c40400c2040,0x40040,0xcc2a3fc3f0003f3fc11⟩
-private def v400 : Inv := ⟨5,1,0x1041041440400c2040,0x40040,0x3302a03f03f00003f0ff011⟩
-private def v401 : Inv := ⟨2,11,0x82080040,0x28a28a20728a14b2891462071461440c2040,0xaf0002132130000af0af0000af00100000000000002b02b000213001000000045⟩
-private def v402 : Inv := ⟨2,5,0x82080040,0x40042045103042040,0xec0df7000000fff03f000b6d000fc003b⟩
-private def v403 : Inv := ⟨1,9,0x40040,0x480401c61490c20481c61440c2040,0xccf336bdaf00000d57ffd5733d5755003ffccf33⟩
-private def v404 : Inv := ⟨0,8,0x0,0x1c61451441452071c61440c2040,0x8584c26010042c0245⟩
-private def v405 : Inv := ⟨1,3,0x40040,0x40043042040,0xffbb0fff00ff0fdd⟩
-private def v406 : Inv := ⟨0,7,0x0,0x1441860c71831861440c2040,0x2313850100230185⟩
-private def v407 : Inv := ⟨0,5,0x0,0x1451431451440c2040,0xd3041003045⟩
-private def v408 : Inv := ⟨0,8,0x0,0x2081482041c62070c61440c2040,0x1584d1e01000ac0245⟩
-private def v409 : Inv := ⟨2,4,0x82080040,0x40044043042040,0x3e09cc1f003ff00000ef400f8019⟩
-private def v410 : Inv := ⟨2,6,0x82080040,0x400c20460c21440c2040,0x157d80dfbc0000003fff01fc000ab54000fe0007b⟩
-private def v411 : Inv := ⟨2,8,0x82080040,0x2082081441c62081c61440c2040,0x456002391c0000000008e010011c8e0000804000000800002b⟩
-private def v412 : Inv := ⟨2,8,0x40002040,0x1441c71c70c80c81c61440c2040,0x19c14670587c140000000ce0a00004140000828006600000cc0033⟩
-private def v413 : Inv := ⟨2,6,0x82080040,0x400c20460c21440c2040,0x157d80dfbc0000003fff01fff80ab54000fe0007b⟩
-private def v414 : Inv := ⟨2,6,0x82080040,0x1441451450c61440c2040,0x45808f1c0000000581002c5800204000020000b⟩
-private def v415 : Inv := ⟨2,9,0x42080040,0x480401c61490c20481c61440c2040,0xccf55ccd056bdaf0000000000d57ff00355d5400d575500000fff3300333⟩
-private def v416 : Inv := ⟨2,11,0x42080040,0x14a0481440401cb14a0c90481c61440c2040,0x533f555333053af3af000000000000f55fff533f55533000f55f55000000fff53300a533⟩
-private def v417 : Inv := ⟨2,11,0x82080040,0x2cb1471472ca2cb2ca2481470c61440c2040,0x102b00014714700000000000061f00100061f61f00000100100000000100000002b⟩
-private def v418 : Inv := ⟨2,6,0x42080040,0x400c20460c21440c2040,0xf757dc5dfbc0000003fff01fff80ab54000ffec07b⟩
-private def v419 : Inv := ⟨3,10,0x42083080040,0x1861842891861861862071861440c2040,0x2060000090340881503a07000000000000000000880102e04408817000000008010000000000120640881103⟩
-private def v420 : Inv := ⟨1,5,0x40040,0x1451450c40c40c2040,0x3cf0c30003c1000041001041⟩
-private def v421 : Inv := ⟨1,4,0x40040,0x40044043042040,0xffe73003ff003bd07f39⟩
-private def v422 : Inv := ⟨0,8,0x0,0x146208107042146141103042040,0x33cee773b0019ffe8d⟩
-private def v423 : Inv := ⟨1,12,0x40040,0x24a24c20924918b20a209207042185103042040,0x9847e1770bb27b93dc02e017000000023e11f08f805d05a82d⟩
-private def v424 : Inv := ⟨1,9,0x40040,0x1441490420481c6040144043042040,0xfffdfaeebb3dcf73dfff00000f7fdffffffc771d⟩
-private def v425 : Inv := ⟨9,3,0x103103247186207186143103080040,0xc20400c2040,0xa0f000faaa0000aaaa0000000000ff0000ffffaa0000aaaa5500005555000000f00f0090900099⟩
-private def v426 : Inv := ⟨8,2,0x103207186207186143103080040,0x82042040,0xc30036882126c00000030006db6000db64000924000301861801b⟩
-private def v427 : Inv := ⟨6,2,0x86086105040103080040,0x82042040,0x6c30d925b6c00000006db6db6d80092400c06da69b⟩
-private def v428 : Inv := ⟨0,6,0x0,0x103106045040103042040,0x366cdff01bffcd⟩
-private def v429 : Inv := ⟨0,9,0x0,0x1481061c71c90481c6141103042040,0x8ae2b49e2b001178ac4d⟩
-private def v430 : Inv := ⟨1,9,0x40040,0x107185248107040042185103042040,0x4ed3b9de77000009dfff9de776b5ad003ff4ed3b⟩
-private def v431 : Inv := ⟨1,5,0x40040,0x103104045103042040,0x2cb9e70002cb2cb96500b2cb⟩
-private def v432 : Inv := ⟨3,13,0xc30c30c2040,0x403062481c628204d30614b2822481c61440c2040,0x2d1b0000000088b6af0000000000000000029558c8ffff0000000a5563230000000a44695500029550003fff00000000002323⟩
-private def v433 : Inv := ⟨1,10,0x40040,0x24924904510a2472481c6045103042040,0x23646c33867000000c790b31e63c1282500042c8d91b⟩
-private def v434 : Inv := ⟨2,6,0x82080040,0x103106045040103042040,0xd80366c01b3603fff0000000dfbc07ffe0004d⟩
-private def v435 : Inv := ⟨2,6,0x82080040,0x400460460c50440c2040,0x500972c0001403fff0000000fbf407ffe00071⟩
-private def v436 : Inv := ⟨2,6,0x82080040,0x42145046144043042040,0x2b80b76c057ae02bd700000009f3c057ae0001d⟩
-private def v437 : Inv := ⟨0,10,0x0,0x20520a2081491c51c81c6144043042040,0x11f16c3b80700023c03a1d⟩
-private def v438 : Inv := ⟨1,6,0x40040,0x440c60400c50440c2040,0xfffcd9bff57fff0003bf701fead5⟩
-private def v439 : Inv := ⟨2,12,0x42080040,0x2892070c630b2890401440c22070c61440c2040,0x65dab559760c5af7d7bc0000000000002bdffff062d7bebde00056aab54000000fffb2ec044cbb⟩
-private def v440 : Inv := ⟨2,7,0x42080040,0x1c71441c70c60c21440c2040,0x1b451b454f4f000000001b1b001b1b00454500001b1b001b⟩
-private def v441 : Inv := ⟨2,8,0x40002040,0x1041850c22071041851040c2040,0x448851221318840000002248400449091200108011200002248489⟩
-private def v442 : Inv := ⟨2,14,0x42080040,0x2ca20e2072cb34b2cb30b2ca2442070c60c21440c2040,0x36011581dc0c5819f033c00000000000000000d801b0836147c28f8000008a011400000000036c0ed005303b⟩
-private def v443 : Inv := ⟨2,12,0x42080040,0x30c24c14430830c2c418a2480c71821440c2040,0x2d92140b6485267933c00000000000000b605b61b816d86e000242921400000002d816c45405b⟩
-private def v444 : Inv := ⟨1,6,0x40040,0x42145146144043042040,0x8f1e9d300023c7000068d011cc99⟩
-private def v445 : Inv := ⟨0,9,0x0,0x249244249108187187185103042040,0xc3b0ec030004711d0d⟩
-private def v446 : Inv := ⟨2,11,0x80080040,0x1c61440c22c21c71c70ca2481c61440c2040,0x415727b1bb1bb1b415415415000415333000000000727727727222222333415415415⟩
-private def v447 : Inv := ⟨1,8,0x40040,0x400481440c20470c61440c2040,0xffeee6733007ffffd50000377bbeaf578bc5⟩
-private def v448 : Inv := ⟨2,14,0x80080040,0x38e2ca1c638e34c0c20c21c62ca2ca2481c61440c2040,0x10551b3939b27364e6c000139b082a000020a939b00000000000236746ce8d9c00000002736105420a8415⟩
-private def v449 : Inv := ⟨0,10,0x0,0x2452491c914a1c82481c6144043042040,0xe1ecab80700023c47c1d⟩
-private def v450 : Inv := ⟨0,3,0x0,0xc30c3082040,0x33010111⟩
-private def v451 : Inv := ⟨2,6,0x80080040,0x1860c41861850c40c2040,0x13a74e9c00000000814e9d3810204000022c58b⟩
-private def v452 : Inv := ⟨2,7,0x80080040,0x400470440460c50440c2040,0xffa7a7a700000000fff5fffff5d1d1d10000f5cbcbcb⟩
-private def v453 : Inv := ⟨2,9,0x80080040,0x2082080c61442092070c61440c2040,0x22c6719c67000000000022c4522c8b22c1104411000001148b22c8b⟩
-private def v454 : Inv := ⟨2,19,0x80080040,0x30b3133120c52113100c230c0cf20e30d30b0ca2092070460c50440c2040,0x1289f863278632786327000000000000000000001289f084751289f1289f1289f242d1242d1242d10000000000084755264b5264b5264b⟩
-private def v455 : Inv := ⟨4,1,0x103040103080040,0x40040,0x30eaa33ccf003ff30d55⟩
-private def v456 : Inv := ⟨2,18,0x80080040,0x14a1c805239138e1d038f1c838d04214c2ca0491c81c60c21440c2040,0x281e7b2a7b654f6ca9ed953db2a7b654f600001953dd03cf000000000000004169f82d3f05a7c00450008aa079e29154522a8a455⟩
-private def v457 : Inv := ⟨2,5,0x80080040,0x400450c20440c2040,0xfebaebfff000fff000035d7528aff1c71⟩
-private def v458 : Inv := ⟨2,15,0x80080040,0x1c614514f28b14414e14d04c0cb2891451c81c61440c2040,0x11c3851b851b851b8119811981190000811911c30000000000001a871a871a870082008211c3281528152815⟩
-private def v459 : Inv := ⟨2,10,0x80080040,0x1c61442821c71c70c90481c61440c2040,0x99d1ba3746d0aa1542a0010a9330000000032764ec9c110222668550aa15⟩
-private def v460 : Inv := ⟨4,1,0x1040c40400c2040,0x40040,0xcc2a3fc3f0003f2ec11⟩
-private def v461 : Inv := ⟨3,1,0x40083080040,0x40040,0xc3aaffcf00ffeb55⟩
-private def v462 : Inv := ⟨2,6,0x80080040,0x440c60400c50440c2040,0x3f9b366c07faa03fff0000077efdc000ff56ad5⟩
-private def v463 : Inv := ⟨2,16,0x80080040,0x2093cf3d018b2093ce04204d30b04a2092071850c20440c2040,0x4f3f54fbaa7dd53ee2ddf16ef8b77800022dde279f00000000000002d3f169f8b4fc0214010a13cf922d4916a48b5⟩
-private def v464 : Inv := ⟨2,20,0x80080040,0x24a1c60541d31522421d11d004f24e1cd1c614c1c714b0ca2481c61440c2040,0x2930669a31b4d18da68c6ca228a51145288a2800000a228b4983300000000000000010c52786293c3149c0004400022a4c1988d0544682a23415⟩
-private def v465 : Inv := ⟨0,4,0x0,0x1041041030c2040,0x19c0108423⟩
-private def v466 : Inv := ⟨0,7,0x0,0x1c71441061c71061440c2040,0x2b4700014701012b⟩
-private def v467 : Inv := ⟨0,6,0x0,0x1441451450c61440c2040,0x171c001160408b⟩
-private def v468 : Inv := ⟨1,8,0x40040,0x400481440c21470c61440c2040,0xd5eae472300003ffd5007ff2391eaf570381⟩
-private def v469 : Inv := ⟨0,7,0x0,0x1c71c41061470c61440c2040,0x2b4700011f01012b⟩
-private def v470 : Inv := ⟨2,10,0x80080040,0x1c61442082892081c60400c21440c2040,0x21dc3b8770ee1dc3b8760014fa9f0000000029f53ea7c4508a53e8550aa15⟩
-private def v471 : Inv := ⟨2,7,0x80080040,0x400470440460c50440c2040,0xff9393930000ff00fff5000000dbdbdb0000f5e5e5e5⟩
-private def v472 : Inv := ⟨2,20,0x80080040,0x4c28905429321229129018f18e04228a20d0cc04b2892071850c20440c2040,0x2a175ed48fb6a47db523eea175f50bafa85d7800002a175f4399f00000000000000010d93f86c9fc364fc002140010aa1ccf8d42d46a16a350b5⟩
-private def v473 : Inv := ⟨2,7,0x82080040,0x400470440460c50440c2040,0xff00838300000000fff500000000d1d10000f50000c1⟩
-private def v474 : Inv := ⟨0,9,0x0,0x146208209208107146144103042040,0x9e1b86c030002709c8d⟩
-private def v475 : Inv := ⟨1,5,0x40040,0x1451431451440c2040,0xc34d30010410000c3041145⟩
-private def v476 : Inv := ⟨0,8,0x0,0x1441c71c70c81c61c61440c2040,0x1186e0a010008c4705⟩
-private def v477 : Inv := ⟨1,8,0x40040,0x400481440c20470c61440c2040,0xddeee6733007ffffd50000377bbeaf578bc5⟩
-private def v478 : Inv := ⟨0,6,0x0,0x1451451461461440c2040,0x66c081000c185⟩
-private def v479 : Inv := ⟨0,10,0x0,0x24724924a189148187185144043042040,0x9f0ec5b80700013c2791d⟩
-private def v480 : Inv := ⟨2,6,0x82080040,0x440c60400c50440c2040,0x3f80366c07faa03fff0000000efdc000fe00055⟩
-private def v481 : Inv := ⟨0,11,0x0,0x24614b2491c904a1c82481c6144043042040,0x1d787b1d708700048f48fc1d⟩
-private def v482 : Inv := ⟨1,4,0x40040,0x40044043042040,0xffe73f83ff003bdfff39⟩
-private def v483 : Inv := ⟨2,9,0x80080040,0x400c20491440c22070c61440c2040,0xb5691eaf67d9f670000000000ffed5003ffa4691a469100000b5681a07ab⟩
-private def v484 : Inv := ⟨2,17,0x80080040,0x30c2ca44b30c0c230c1c640f2ca38d30c2ca0c22481c61440c2040,0x481110a4ad22674899d22670000000000000000004899c04154899d22674899c811120444811100000000001054292b0a4ac292b⟩
-private def v485 : Inv := ⟨2,11,0x80080040,0x18618614418b2851860c92071861440c2040,0x1081023307307307000000000000205011205205205081081081000000011023023023⟩
-private def v486 : Inv := ⟨2,9,0x80080040,0x400c20491440c22070c61440c2040,0xb5691eaf67d9f670000000000ffed5fffffb5691a469100000b57abeafab⟩
-private def v487 : Inv := ⟨2,10,0x80080040,0x28a28a28a0c61442892070c61440c2040,0x2044458670ce19c000000000004584511622c458110220440000008a22c4588b⟩
-private def v488 : Inv := ⟨2,5,0x80080040,0x1451451451440c2040,0x410c71c70000000410410410410000430c3⟩
-private def v489 : Inv := ⟨2,5,0x80080040,0x1451451451440c2040,0x410c71c70000000410410c10410000430c3⟩
-private def v490 : Inv := ⟨2,33,0x80080040,0x2890c65555545e140f7e07d055479d4110c255541129971b31a29915840f5d65544d241140f28938d30b2892070c61440c2040,0x42d002891c813486ae5a40736796901cd9e5a407367000000000000000000000000000000000044343387c010680d544343387d10d0ce1f44343387c2d0028910b400a2442d002891000000000000000000041a0357204d21abc813486af204d21ab⟩
-private def v491 : Inv := ⟨2,9,0x80080040,0x400c20491440c22070c61440c2040,0xb5691eaf67d9f670000000000ffed5003ffb5691a469100000b5681a07ab⟩
-private def v492 : Inv := ⟨2,28,0x80080040,0x1ca54c54b51c30b6d169930c54c0c26171c615630c54b51330c4524503ca38d30c30b1ca2481c61440c2040,0x8b00844641446575086667a843333d421999c00000000000000000000000000000012182e0450115004860b8024305d8329c2e2c0211116010888b00844400000000000000022808ac8288cae414465720a232b⟩
-private def v493 : Inv := ⟨0,3,0x0,0xc3083082040,0x73010111⟩
-private def v494 : Inv := ⟨1,5,0x40,0x400450c20440c2040,0xfffaebfc0fff000d75d7fc71⟩
-private def v495 : Inv := ⟨2,10,0x80080040,0x1c61442821c71c70c90481c61440c2040,0x85499d1ba3746d0aa1542a0010a9330000000032764ec9c110222668550aa15⟩
-private def v496 : Inv := ⟨1,7,0x40,0x441850c70401850440c2040,0xffff5b5bff95ffff0000b7b7b7ff9595⟩
-private def v497 : Inv := ⟨1,3,0x40040,0xc30c30c2040,0x33000100110111⟩
-private def v498 : Inv := ⟨1,5,0x40040,0xc10c50c30440c2040,0xc3000005000451145861⟩
-private def v499 : Inv := ⟨4,2,0xc40c30c40c2040,0x40042040,0x1c7fc00071c7000b45b40000001⟩
-private def v500 : Inv := ⟨2,6,0x40002040,0x440c60c50c30440c2040,0x45460000001140008b162802200000008c123⟩
-private def v501 : Inv := ⟨1,5,0x40040,0x40103045103080040,0xfffa6903fa69aebfeb8e3⟩
-private def v502 : Inv := ⟨1,5,0x40040,0x145042144043042040,0x6d70000175d734d5d76db⟩
-private def v503 : Inv := ⟨1,3,0x40040,0x40043042040,0xff000fffddffbb⟩
-private def v504 : Inv := ⟨1,4,0x40040,0x42040103042040,0x3ff0001fffdaddef7b⟩
-private def v505 : Inv := ⟨13,2,0x1c71c720d14c1442c71c71442892070461440c2040,0x41081040,0x208070e770381c01f8fc00381c01c7002542012e8002010830f010000ab8bc0048060a6d⟩
-private def v506 : Inv := ⟨9,2,0x1450c90401441452071461440c2040,0x40042040,0xfc7fff000000000fc71c71f8000fc0b45b6d0381c01c160200b⟩
-private def v507 : Inv := ⟨13,2,0x14430b2cb20d1cd2cb30b1442882481c61440c2040,0x41081040,0x81b0040e771c0e381f8ff80001c01c7000000480ea004810030f80120400c3e000010910d⟩
-private def v508 : Inv := ⟨1,5,0x40040,0x40103045103080040,0xfffa6903fa69aebaeb8e3⟩
-private def v509 : Inv := ⟨2,11,0x40002040,0x4604504b20820a2092070460450440c2040,0xe1d2c7000e1de1de1de1d000000e1de1de1d0028730020020020022c70062c7⟩
-private def v510 : Inv := ⟨1,2,0x40040,0x80080040,0x3ffc7fffdbf⟩
-private def v511 : Inv := ⟨2,11,0x42040,0x4604504b20820a2092070460450440c2040,0xe1d2c7000e1de1de1de1d000000e1de1de1d0028730020020020020062c72c7⟩
-private def v512 : Inv := ⟨11,2,0x18510920820820b04a109207185103042040,0x41081040,0x206077e001c0e3f000e001c708009009200080110f80010082484014886d⟩
-private def v513 : Inv := ⟨1,5,0x40040,0x40103045103080040,0xfffa6903fa69aeb0828e3⟩
-private def v514 : Inv := ⟨8,2,0x1c71c71440c80401c61440c2040,0x40042040,0x71fffc00000001c71c7007e07e0516db40e38e3808b08b⟩
-private def v515 : Inv := ⟨1,6,0x40,0x1850440401850440c2040,0xfed7fff000007f6ad5ab56edc993⟩
-private def v516 : Inv := ⟨0,7,0x0,0x1861c51451c6144043042040,0x57030007570d879b⟩
-private def v517 : Inv := ⟨0,3,0x0,0x40043042040,0xff0ffdfb⟩
-private def v518 : Inv := ⟨11,2,0x2cb2072cb2cb185289040207185103080040,0x40042040,0x380071c0e3ffff000000000000e38e3f0001f81ff140a2db6d140e3df7f00045845b⟩
-private def v519 : Inv := ⟨1,6,0x40040,0x1850440401850440c2040,0x6ad7fff000007f6ad5ab56edc993⟩
-private def v520 : Inv := ⟨1,6,0x40,0x1850440401850440c2040,0xfed7fff000007ffed5ab56ffc9db⟩
-private def v521 : Inv := ⟨1,3,0x40040,0x40043042040,0xf0ff000fffddffbb⟩
-private def v522 : Inv := ⟨2,6,0x42040,0x440c60c50c30440c2040,0x45460000001140008b16280220000000091a3⟩
-private def v523 : Inv := ⟨1,3,0x40040,0x40043042040,0xff000fffdd00bb⟩
-private def v524 : Inv := ⟨3,0,0xc20400c2040,0x0,0xf55ff0f⟩
-private def v525 : Inv := ⟨2,9,0x2040,0x460c90c20c81441c60c31440c2040,0x21120800844108461100000090240908230c82000000002409125⟩
-private def v526 : Inv := ⟨2,8,0x42040,0x460c80c71440460c31440c2040,0x11101002231188c440000120904802218080000000914aa5⟩
-private def v527 : Inv := ⟨2,0,0x40042040,0x0,0x1fdfc7⟩
-private def v528 : Inv := ⟨5,1,0x1450c50c51440c2040,0x41040,0x1f3cf033003007000001⟩
-private def v529 : Inv := ⟨3,6,0xc00400c2040,0x1861441861861440c2040,0x80020404100000400100040804891224040818200000004895225⟩
-private def v530 : Inv := ⟨0,1,0x0,0x40040,0xfff3⟩
-private def v531 : Inv := ⟨5,3,0x1451451451440c2040,0x81083081040,0x1bf00001900010f00000300001b000000000001⟩
-private def v532 : Inv := ⟨4,3,0xc30c30c40c2040,0x81083081040,0x1bf000010010f000030001b0000000001⟩
-private def v533 : Inv := ⟨5,0,0x1420c21421000c2040,0x0,0x3f145fff4ff⟩
-private def v534 : Inv := ⟨3,0,0xc20400c2040,0x0,0xff5ff5f⟩
-private def v535 : Inv := ⟨3,12,0xc30c30c2040,0x1442840cc0cc2401cb2840c22481c61440c2040,0x6554e47fff00000000016270006554001fff00000032ab627000000022397f00000002239550000000000723⟩
-private def v536 : Inv := ⟨3,13,0xc00400c2040,0x4a18d04718c04b04a1891861880471850440c2040,0x2b154a9c000ac5eb17ac5eb170002b1500000000002b17ac56b17002800a326c00a0002b150002b1500912a700912a7⟩
-private def v537 : Inv := ⟨3,0,0x420c0042040,0x0,0xff5ffbf⟩
-private def v538 : Inv := ⟨5,1,0x144104144103042040,0x41040,0x1fccf03300f007000005⟩
-private def v539 : Inv := ⟨2,4,0x82080040,0x420c40400c2040,0xffc15a801f002a0bdc0000005⟩
-private def v540 : Inv := ⟨2,4,0x82080040,0x420c40400c2040,0xffc00a801f002a0bdc0000005⟩
-private def v541 : Inv := ⟨2,16,0x2040,0x38e28438e1c640e38f28438f38d0cc2c82842481c61440c2040,0x5105818000000a2101400288014400000000425321299485a0a0205818280800000000000021299094ca42d⟩
-private def v542 : Inv := ⟨2,21,0x2040,0x19321505419338b0ca49131018f30c18438c34a30b30b0ca0c92071841440c2040,0x188011d8060c0000062004588011081811880110000000000006098818262b0a03406020d8060c06020000000000000000001826206098ac280d⟩
-private def v543 : Inv := ⟨4,1,0x1040c40c20c2040,0x40040,0xc3f3fc3f0043f00001⟩
-private def v544 : Inv := ⟨3,10,0xc0042040,0x1c62082081c62082892081c61440c2040,0xc0000000000401800000004000000020040000095522257caf000000018000000000000095522257caf⟩
-private def v545 : Inv := ⟨3,15,0xc0042040,0x20920934d2cf0ce04434c34c2ca1852092071850440c2040,0x1ccf000000000000c435039300000000c435000000001ccfc43500000000084a00481ccf1ccf00000000039300000000000000000000084a00481ccf1ccf⟩
-private def v546 : Inv := ⟨3,0,0x40083080040,0x0,0x9ffbff0f⟩
-private def v547 : Inv := ⟨3,51,0x3002040,0x2ca86a964cd46eac9fc563b0be279c49c79c96e38a96eb4c86ab2b4a76eaa684927921d44a798449c9849648e285a81f79249275c6da6581d45d654f1d44d20d140f38a34c2ca2481c61440c2040,0x48100050115114010004214041401000421404048100050115104810005011514a00d8021b30321f020fe3800f00000000000004a009002122024a00d8021b303c2d08256a80254a0090021220204810005011514a00d8021b30300000000000000000000000000a30f0008022e2a30f0008022e2a30f0008022e2320b41580685d2000208800008200068880910921f020fe3800f20002088000080000000000000000000000000000000000000000000000000000a30f0008022e2a30f0008022e2a30f0008022e2320b41580685d⟩
-private def v548 : Inv := ⟨3,43,0x3002040,0x2892e89e6ad2524aa93cf9563d62e89e66169562c92c95248df8a181f3de60f1927443d674471b69960f3cf5d651551319219140f0ce34c2c92892071841440c2040,0x20200060091202000600912020006009110002004204202000600910c01e00318361f8038700f00000000000801008100200c01e0031832929428710780100810020202000600910c01e0031830000000000000000000000c0460020162c0460020162c046002016214004680c1d000010004000400b00148161f8038700f0000100040000000000000000000000000000000000000000000000c0460020162c0460020162c046002016214004680c1d⟩
-private def v549 : Inv := ⟨2,14,0x40002040,0x2492482492ce14424904d0cc2492ca2481c61440c2040,0x5054066000028280000a0a141400000001a5a32986968022406600880000000000034b46530d2d⟩
-private def v550 : Inv := ⟨4,2,0x400c30c40c2040,0x40042040,0x1c7fc00071c7e00f45b40001001⟩
-private def v551 : Inv := ⟨1,5,0x40040,0x440400c50440c2040,0xfff00003fd75d750004d3⟩
-private def v552 : Inv := ⟨3,1,0xc30c3081040,0x40040,0x30f0f0f030f0001⟩
-private def v553 : Inv := ⟨4,1,0x103103103081040,0x40,0xc0f57c0faaeaf00001⟩
-private def v554 : Inv := ⟨3,1,0xc3083081040,0x40,0x30f3f0f2b0f0001⟩
-private def v555 : Inv := ⟨4,11,0x400c40400c2040,0x14424b2860402420481041041c61440c2040,0x2080002080003490000003494820004824804825c1482000000349482000a06200a06200a06208208208349208000000000000000541440541440541⟩
-private def v556 : Inv := ⟨0,9,0x0,0x2490c52480c21c71c60c50440c2040,0x53d4f0014f0d43553cd3⟩
-private def v557 : Inv := ⟨0,6,0x0,0xc21841800c50440c2040,0x9ffc07f6ad7fd3⟩
-private def v558 : Inv := ⟨3,16,0xc30c30c2040,0x34f3403500c204f2c624e1c634c2c62ca2422481c61440c2040,0x320b000074417ea67ffff00000000000000000000074417ea67ffff0000000000001d1050000000032023d5550000000000001f53300000000000008101⟩
-private def v559 : Inv := ⟨2,9,0x40042040,0x1c62421861862421881c61440c2040,0x83e0f83c0548c00000000000548c0001405014000440048d2348d2348d23⟩
-private def v560 : Inv := ⟨1,6,0x40040,0xc21841800c50440c2040,0x9f3ffff0003fff6ad5ab501fe9d3⟩
-private def v561 : Inv := ⟨1,9,0x40040,0xc20c21c62440c22001c61440c2040,0xebfaffffff00000fffff1545515455ccfffccf33⟩
-private def v562 : Inv := ⟨0,10,0x0,0x28a20a24a2882481871860c50440c2040,0x29e03c0000f06a0d51f8d3⟩
-private def v563 : Inv := ⟨5,2,0x450450c40400c2040,0x80080040,0xd861801ffffffc01ffff7df6dff00002d965⟩
-private def v564 : Inv := ⟨8,2,0xc21c71c81c71850c40400c2040,0x80080040,0xc30dc7007ff8007fff1c01ffc003befc7007fc0000004001965⟩
-private def v565 : Inv := ⟨1,6,0x40040,0xc21841800c50440c2040,0x9f3ffff0003fff6ad5ab5fed69d3⟩
-private def v566 : Inv := ⟨2,11,0x42040,0x1c61441c62ca1861862421881c61440c2040,0xe0fe0fe0f405123000000000000405123000000405405000011000022123123022123123⟩
-private def v567 : Inv := ⟨2,11,0x42040,0x1441c618628b1861862822481c61440c2040,0x805c0fc0f805123000000000000805123000000805805000011000011123000022123123⟩
-private def v568 : Inv := ⟨0,5,0x0,0x440400c50440c2040,0xfff03fd75013⟩
-private def v569 : Inv := ⟨2,19,0x40002040,0x2ca0481c61443131c939230c45030f30c38d30c2ca1c90481c61440c2040,0x3402e3402e3402ec00515291700000c0051c0051c0051c005152917000005291700802529170080200d03008020000000000000003a00d3402e3a00d⟩
-private def v570 : Inv := ⟨2,23,0x2040,0x2d02cb38d2d74505862cb5544d21c63844d22cb4503c638d2cb30b2890481c61440c2040,0x4422a0c060004422a01001120211700000001001101001100024401001120211700000000902000902020211700902030010300902000000000000000000004422a04422a882405⟩
-private def v571 : Inv := ⟨2,18,0x2040,0x2ca34d48d4441c634d0c234d40d3c234e34d3082ca2481c61440c2040,0x90049200906006800510240400000002880410000a20014409010000002404048088102012020260604808000000000000012009240120c00d⟩
-private def v572 : Inv := ⟨2,26,0x42040,0x2571c639a6581c625730c2ca2481c65955131c605230c45030f0c238d30c2ca0c22481c61440c2040,0x486845cd0f8cbda1f197c2c2055b4a566e000000216102ac2c205585840ab0b08156d2959b80000000001445694acded2959b8000a221081e6600028880000000000000000000090d08b9a1f197b43e32f⟩
-private def v573 : Inv := ⟨2,4,0x82080040,0x400c20440c2040,0x3e0ffc00003ff002a0ad40000011⟩
-private def v574 : Inv := ⟨1,3,0x40040,0x40083080040,0xffff0fff99ff00bb⟩
-private def v575 : Inv := ⟨2,3,0x82080040,0x40043042040,0xff00000f00f0dd000009⟩
-private def v576 : Inv := ⟨1,3,0x40040,0xc30c30c2040,0x33000101110011⟩
-private def v577 : Inv := ⟨1,4,0x40040,0xc10c30440c2040,0x63000052963100063⟩
-private def v578 : Inv := ⟨6,2,0x1820c20401821440c2040,0x40042040,0x24104000000001c0e07e05a28a3fbefad9659⟩
-private def v579 : Inv := ⟨1,5,0x40040,0x145042144043042040,0x6db0000175d734d5d76db⟩
-private def v580 : Inv := ⟨1,3,0x40040,0x40043042040,0xbb000fffddffbb⟩
-private def v581 : Inv := ⟨1,4,0x40040,0x42040103042040,0x37b0001fffdaddef7b⟩
-private def v582 : Inv := ⟨10,2,0x28a18528a1082481031c5185103042040,0x40042040,0xc003b1dc70381c7e000381c7007fc0ff8a0056abc7000fc7e1024a45b⟩
-private def v583 : Inv := ⟨8,1,0x2082081081c3185185103042040,0x40040,0x28b0c0fc0c330f0fc014f00f3c028f⟩
-private def v584 : Inv := ⟨9,2,0x1c61c61861862422021c61440c2040,0x40042040,0x120530000061800001c7fc003ffc002d02d0005c05c0012053⟩
-private def v585 : Inv := ⟨8,1,0x208208107103185185103042040,0x40040,0x69b0f0fc0c330f0fc03cf00f3c169f⟩
-private def v586 : Inv := ⟨5,1,0x42142142103042040,0x40040,0xa9bfff033c3ffeffcffdf⟩
-private def v587 : Inv := ⟨12,1,0x18520810b30b2082852481031c2185103042040,0x40040,0x200869b0f03cfc000c330c3f0ff00c3cfc030f3e14879f⟩
-private def v588 : Inv := ⟨9,2,0x1861c61861862462021c61440c2040,0x40042040,0x20570000815c00001c71c003ffc000502f000bc0fc0002013⟩
-private def v589 : Inv := ⟨12,1,0x24824830b2862481081031c6142142103042040,0x40040,0x81a9bf0fcffc0030330c3f0feaeafef0303f3d495bdf⟩
-private def v590 : Inv := ⟨3,11,0x420c3042040,0x2481c71c714b1c71ca0c22481c61440c2040,0x6610506616712710512712700010500010500010510510583302a83383b833000833833127105127127⟩
-private def v591 : Inv := ⟨6,2,0x186042186142103042040,0x40042040,0xc31dc71c7e001c71c0ff8a2abc71c7e1861b⟩
-private def v592 : Inv := ⟨7,2,0x1c70c21c71820c21440c2040,0x40042040,0x82457145a2f0001c71c0fff145a2f1c7e3f0c361b⟩
-private def v593 : Inv := ⟨8,2,0xc21441861862071461440c2040,0x40042040,0x880815c0028038e001c7fc01fff40140bf80381fa003013⟩
-private def v594 : Inv := ⟨9,2,0x1c61c61861862422021c61440c2040,0x40042040,0x120530000041000001c7fc003ffc002d02d0005c05c0012053⟩
-private def v595 : Inv := ⟨8,1,0x1c61861862022021c61440c2040,0x40040,0xa1b000cc0033c03fc0f0f03c3c0a1b⟩
-private def v596 : Inv := ⟨7,2,0xc20c21c21820c21440c2040,0x40042040,0x4924539249240001c7fc0fffb6da2d4974176db65b⟩
-private def v597 : Inv := ⟨1,7,0x40040,0xc21860c20471861440c2040,0xa7a7151500151515b3b3b3b3a7a7⟩
-private def v598 : Inv := ⟨8,2,0x1c61861862022021c61440c2040,0x40042040,0x4814c0000c300001c7e001ffe00b40b401f81f8012053⟩
-private def v599 : Inv := ⟨7,2,0x1c70c21c71820c21440c2040,0x40042040,0x824570824570001c71c0fff145a2f1c7e3f0c361b⟩
-private def v600 : Inv := ⟨6,2,0x186042186142103042040,0x40042040,0x4114c30c36001c71c0ff8a28b471c7e1861b⟩
-private def v601 : Inv := ⟨13,2,0x2493062893492493063062c42892061c61440c2040,0x82002040,0x200240241304004a04a2c000004004304204901b6c100128128b0880902906c200240241b⟩
-private def v602 : Inv := ⟨7,2,0x1461861861c21461440c2040,0x40042040,0x20570050070001c7e00fff00502f00703f002013⟩
-private def v603 : Inv := ⟨1,9,0x40040,0x452082092022070460450440c2040,0x31cc78761d0021d8761d1cc730080231cc7⟩
-private def v604 : Inv := ⟨6,2,0x186042186142103042040,0x40042040,0xc31dc71c7e001c71c0ff8a2abc208241861b⟩
-private def v605 : Inv := ⟨1,6,0x40040,0x1421450461450440c2040,0x23c72a540152a569d3040a3c7⟩
-private def v606 : Inv := ⟨8,2,0x1441c70c81c71c71801440c2040,0x40042040,0x1c0a020004000000071c01c0e001f8005000a00e001c0080211⟩
-private def v607 : Inv := ⟨6,2,0x1820c20401821440c2040,0x40042040,0x9249224104000000001c0e07e05a28a120820d9659⟩
-private def v608 : Inv := ⟨1,5,0x40,0x1041041041440c2040,0xc10c30000010410411c70c3⟩
-private def v609 : Inv := ⟨0,4,0x0,0x104101043042040,0x3ac073b4eb⟩
-private def v610 : Inv := ⟨0,4,0x0,0x42100043042040,0xfec1ffb6fb⟩
-private def v611 : Inv := ⟨0,6,0x0,0x186042186142103042040,0x56ac02b56153ab⟩
-private def v612 : Inv := ⟨5,2,0x1041041440400c2040,0x40042040,0x71c00db0000001ff03ffc016d006d800d3⟩
-private def v613 : Inv := ⟨1,4,0x40040,0x1041040c40c2040,0x8463000010842139c63⟩
-private def v614 : Inv := ⟨0,4,0x0,0x42100043042040,0xbec1ffb7fb⟩
-private def v615 : Inv := ⟨0,3,0x0,0x40043042040,0xfb0ffdfb⟩
-private def v616 : Inv := ⟨0,4,0x0,0x42040103042040,0xdec1ffb7fb⟩
-private def v617 : Inv := ⟨5,2,0x1041041440400c2040,0x40042040,0x71c00db0000001ff03ffc016d007fc00d3⟩
-private def v618 : Inv := ⟨1,6,0x40,0x1041041041861440c2040,0x604183000000106040810e3c18b⟩
-private def v619 : Inv := ⟨1,4,0x40040,0x42100043042040,0xf837b0001fffdadbdf7b⟩
-private def v620 : Inv := ⟨1,5,0x40040,0xc21400c20440c2040,0xfd5efb00003ffff555befefb⟩
-private def v621 : Inv := ⟨1,3,0x40040,0x40043042040,0xbb000fffdd00bb⟩
-private def v622 : Inv := ⟨1,3,0x40040,0xc30c1042040,0x33000333550033⟩
-private def v623 : Inv := ⟨1,6,0x40040,0xc40c60450c30c40c2040,0x23c7224401100451a300022c5⟩
-private def v624 : Inv := ⟨3,0,0xc3083081040,0x0,0x13737301⟩
-private def v625 : Inv := ⟨2,5,0x80080040,0x1451451451440c2040,0xc71c70000400410000430c3000005145⟩
-private def v626 : Inv := ⟨1,6,0x40040,0x440c60450c30440c2040,0x33e7ab5405501559b300032e5⟩
-private def v627 : Inv := ⟨3,13,0x43083080040,0x20728a18d28a20730b28a1892070401850440c2040,0x40800000001022010804207c81f88d623588d6235000000088d4017000085f217c0170408102045c11700000000000000217c84e213885f⟩
-private def v628 : Inv := ⟨4,0,0xc30c3103081040,0x0,0x8c6338c01⟩
-private def v629 : Inv := ⟨10,2,0xc20c72881001852480c71851000c2040,0x40002040,0x3a08043ff3c9e7fe4fe793cfe8e051fffc743afffeba5d7fc0000000127f3c9e7⟩
-private def v630 : Inv := ⟨3,5,0x42083080040,0x1451451451440c2040,0x800021001c70400010000410000410020c30000001c4107⟩
-private def v631 : Inv := ⟨2,10,0x82081040,0x18624a18a1842432071431831440c2040,0x1180010effc00015b3e00000fff000007ff8000473fc0000000000000087⟩
-private def v632 : Inv := ⟨3,13,0x42083080040,0x20728a18d28a28a30b28a2892070401850440c2040,0x40800000001022010000207c81f80d40000002035000000080d40170000000207c0170000102045c11700000000000000217c804201085f⟩
-private def v633 : Inv := ⟨1,6,0x40040,0x1820c21401821440c2040,0x468fdfb0000aff01fca95fe54891⟩
-private def v634 : Inv := ⟨1,5,0x40040,0x1041040c51040c2040,0x2cb0c30002c10010412cb041⟩
-private def v635 : Inv := ⟨1,4,0x40040,0x42100103042040,0x9cf7b003ff07dad07d29⟩
-private def v636 : Inv := ⟨1,5,0x40040,0x1041041441040c2040,0x2cb0c30000c10010410c3041⟩
-private def v637 : Inv := ⟨1,3,0x40040,0xc30c3082040,0x3333001101111111⟩
-private def v638 : Inv := ⟨1,6,0x40040,0x1820c21401821440c2040,0x468fdfb0000aff01fca952a54891⟩
-private def v639 : Inv := ⟨1,7,0x40040,0xc21820c21c01821440c2040,0xa3a3fbfb000015ff00ff151511151111⟩
-private def v640 : Inv := ⟨1,7,0x40040,0x1441861c61860c41440c2040,0x2b2b030300008f01000101018f8f0101⟩
-private def v641 : Inv := ⟨1,4,0x40040,0x42100103042040,0x9cf7b003ff07dadffd29⟩
-private def v642 : Inv := ⟨2,6,0x82081040,0x400460400c50440c2040,0x3f80b77c000ea03fff01fff80ebdc000000005b⟩
-private def v643 : Inv := ⟨3,12,0x43083080040,0x1c71cc0c42072ca1c71892070401850440c2040,0x22f800000045f202101183ec1f11a88d446a23500000008be517000117c8be5170810408a2e517000000000000022f913889c45f⟩
-private def v644 : Inv := ⟨2,3,0x82081040,0x40043042040,0xf0bf00f0ff0ff0df00000b⟩
-private def v645 : Inv := ⟨10,2,0xc20c72881001852480c71851000c2040,0x40082040,0x3a08043fe381c7fe4fe793cfe8e051fffc743afffeba5d7fc0000000127f3c9e7⟩
-private def v646 : Inv := ⟨5,1,0x1041041440400c2040,0x40040,0x3303f03f03f0ff03f00003b⟩
-private def v647 : Inv := ⟨5,3,0x1451451451020c2040,0x420c1042040,0xb000bbb000005000fff000fbf00055d000000000003⟩
-private def v648 : Inv := ⟨1,5,0x40040,0xc21400c21440c2040,0xaebefb000fff03f555fd5451⟩
-private def v649 : Inv := ⟨2,4,0x82080040,0x400c20440c2040,0x140dec00003ff003e0ad41ff8011⟩
-private def v650 : Inv := ⟨2,4,0x82080040,0x400c20440c2040,0x140dec00003ff003e0ad41f00011⟩
-private def v651 : Inv := ⟨2,3,0x82080040,0x40043042040,0xff0bb0000ff00f0dd000009⟩
-private def v652 : Inv := ⟨1,4,0x40040,0x42040103042040,0xdef7b003ff07dad00129⟩
-private def v653 : Inv := ⟨17,4,0x2471c71c64503c20403ce34c1c72481c72ca2472481c61440c2040,0x1031031030c2040,0x1f8fe20000000001f8c009807705c0305c0398c770000100c02000000000100c00f803d0740107401f843d0800007c1f0041f084010fc000806b12c01024010846b000000000000000000000000000827094000100000827⟩
-private def v654 : Inv := ⟨2,7,0x82081040,0x401470c20400c61440c2040,0xbb00bbbf0000d500ffff00ffff00d5f70000000000bb⟩
-private def v655 : Inv := ⟨0,7,0x0,0x103147145145185103080040,0x8787090303430087⟩
-private def v656 : Inv := ⟨2,4,0x82081040,0x42040103042040,0x360dfc00f83ff07fe06fc000001b⟩
-private def v657 : Inv := ⟨2,3,0x82080040,0x40043042040,0xf0bb0000ff00f0dd000009⟩
-private def v658 : Inv := ⟨1,2,0x40040,0x40042040,0xfff1ff1ff02d⟩
-private def v659 : Inv := ⟨0,7,0x0,0x1841860c71461861440c2040,0x2387150101230087⟩
-private def v660 : Inv := ⟨2,4,0x82081040,0x400c20440c2040,0x57e0dfc00f83ff07fe0afc000001b⟩
-private def v661 : Inv := ⟨1,10,0x40040,0x1861441c62891861481c61440400c2040,0xe21d07a0f22a4540280745e01c4388700000117a2f⟩
-private def v662 : Inv := ⟨1,5,0x40040,0x1451450c40c40c2040,0x3cf0c30003c1001041000041⟩
-private def v663 : Inv := ⟨1,3,0x40040,0x40043042040,0xffbb00ff0fdd0099⟩
-private def v664 : Inv := ⟨1,3,0x40040,0xc30c30c2040,0x33000111110033⟩
-private def v665 : Inv := ⟨9,2,0xc20c62471002070c60c51000c2040,0x81080040,0x3c8041ff1c71ffdbffb7dfe1c61fffc71fffff9e79ff000000036ffedf7⟩
-private def v666 : Inv := ⟨10,3,0xc20c72881001852480c71851000c2040,0x40083080040,0xf4040040fff8f88f8fff996f0690f9ff60f0060fffff0f00f0fffff4f44f4fff0000000000088ff8f88f8f⟩
-private def v667 : Inv := ⟨1,6,0x40040,0x103046104105103042040,0x468c58b00011a3008e2c5468c489⟩
-private def v668 : Inv := ⟨1,5,0x40040,0x42142140103042040,0x8e3efb000eff03f34defb249⟩
-private def v669 : Inv := ⟨1,10,0x40040,0x18518618a1091860481c6185103042040,0x660ce05c0b0000005382300008c8290514e29e04c09⟩
-private def v670 : Inv := ⟨6,1,0xc21851850c40400c2040,0x40040,0x3ccf03fbeef03fc3ffabf0002fbb⟩
-private def v671 : Inv := ⟨7,1,0xc21c61441c61440400c2040,0x40040,0x3333c03feabfc03fccffc03f0000bbbb⟩
-private def v672 : Inv := ⟨1,6,0x40040,0x43145046144043042040,0xaf5cd9b0002bd7015e6cd0000c99⟩
-private def v673 : Inv := ⟨2,8,0x80080040,0x2082081442070c60c61440c2040,0x36673399c00000d8003645000008a1b0d86c0000001148a45⟩
-private def v674 : Inv := ⟨2,18,0x80080040,0x1c71c61d21d21511440c240d3ce0cd30b1c724a1c72481c61440c2040,0x3d03bb01f7603eec07c00a880151002a20000000a881f0302404048080f8187a070f40e1e81c0000000000000088075100ea201d⟩
-private def v675 : Inv := ⟨4,1,0x103040103080040,0x40040,0x30fff33ccf30fff00155⟩
-private def v676 : Inv := ⟨3,1,0x40083080040,0x40,0xc3ffffcfebff0055⟩
-private def v677 : Inv := ⟨4,1,0x103040103080040,0x40,0x30fff77ccfbafff00155⟩
-private def v678 : Inv := ⟨2,17,0x80080040,0x4514514511c64504503ce1440c234a0ca30b0ca2481c61440c2040,0x3e9c761f1d87c761f11074441d1107400001107403f300a8802a200fcc0fa703e9c0fa700000000000000441d11074441d⟩
-private def v679 : Inv := ⟨2,23,0x80080040,0x4ca30b1c62571d61441d63d51c73144d20ca4503ce0c204d1c730b0ca2481c61440c2040,0x8537272e661f2e661f2e661f544155544155544155000000544155903b33001222001222903b3385372785372785372700000000000000000024641d24641d24641d⟩
-private def v680 : Inv := ⟨0,4,0x0,0x1041040c40c2040,0x38c0108423⟩
-private def v681 : Inv := ⟨0,3,0x0,0xc3083082040,0x73011173⟩
-private def v682 : Inv := ⟨1,4,0x40040,0x1041040c40c2040,0x39c63000210842100463⟩
-private def v683 : Inv := ⟨0,4,0x0,0xc30c3103082040,0x38c0108463⟩
-private def v684 : Inv := ⟨1,7,0x40040,0xc21c01c41c60c50440c2040,0x8f8fc3c30000ff757575515100ffc3c3⟩
-private def v685 : Inv := ⟨2,15,0x80080040,0x14514614f14e14434b34c0cb04a2091452071461440c2040,0x102681f681f681f00d100d100d1000000d107830102010207831d071d071d07000000000000481d481d481d⟩
-private def v686 : Inv := ⟨2,3,0x80080040,0xc00400c2040,0xaffffff0ffaaffff000ddd⟩
-private def v687 : Inv := ⟨2,13,0x80080040,0x30c30c14630d30b1442882890c80471461440c2040,0x88d1f347cd1f247491d247400024740f3008802203cc3a70e9c3a70000000000091d247491d⟩
-private def v688 : Inv := ⟨9,2,0x2490c71852480c71850c40400c2040,0x80080040,0x301861829145ff1c0e3ffc63f11ff188c77dc0d861ff000000004020965⟩
-private def v689 : Inv := ⟨9,2,0x400c91c71c81c71850c40400c2040,0x80080040,0xc001861bf1405fffc003fffe1c11fff80077dff1801ff00000002c000965⟩
-private def v690 : Inv := ⟨2,19,0x80080040,0x15031331235115014430f30c14634e34830b04a0490c80471461440c2040,0x2246d1f46d1f46d1f8c8dd8c8dd8c8dd000008c8dd106f30002200022106f3247a7247a7247a700000000000000044d1d44d1d44d1d⟩
-private def v691 : Inv := ⟨2,19,0x80080040,0x38914a1c60531441d21d115038f38d1cc04b1c714a0c90481c61440c2040,0x222da1f2da1f2da1f591555915559155000005915590d33000220002290d338ab278ab278ab2700000000000000029a1d29a1d29a1d⟩
-private def v692 : Inv := ⟨2,15,0x80080040,0x14514614f14e14434b34c0cb04a2091452071461440c2040,0xd10783681f681f681f00d100d100d1000000d107830102010207831d071d071d07000000000000481d481d481d⟩
-private def v693 : Inv := ⟨0,4,0x0,0x1041041040c2040,0x18c0108403⟩
-private def v694 : Inv := ⟨2,6,0x82080040,0x400440460c50440c2040,0x3f80870c0000003ff50003a80a3440000000041⟩
-private def v695 : Inv := ⟨1,8,0x40040,0x2082081442070c60c61440c2040,0xd86cce670006c364522914361b00000ce67⟩
-private def v696 : Inv := ⟨0,7,0x0,0x1841860c71461841440c2040,0x238f15012323008f⟩
-private def v697 : Inv := ⟨1,5,0x40040,0x1451451451440c2040,0xc31c70010410410c30001c7⟩
-private def v698 : Inv := ⟨2,8,0x40080040,0x2082081442070c60c61440c2040,0xd91436673399c00000d8003645228008a1b0d86c000000114ce45⟩
-private def v699 : Inv := ⟨2,18,0x80080040,0x1c71c61d21d21511440c240d3ce0cd30b1c724a1c72481c61440c2040,0x207c0c3d03bb01f7603eec07c00a880151002a20000000a881f0302404048080f8187a070f40e1e81c0000000000000088075100ea201d⟩
-private def v700 : Inv := ⟨0,4,0x0,0x1040c40c40c2040,0x78c0108403⟩
-private def v701 : Inv := ⟨1,3,0x40040,0x40043042040,0xbb000f0fdd0099⟩
-private def v702 : Inv := ⟨4,2,0xc20c30c40c2040,0x40042040,0x1c0fc00281c7000140b40000001⟩
-private def v703 : Inv := ⟨3,0,0x42043042040,0x0,0xbf5fbff⟩
-private def v704 : Inv := ⟨11,2,0x2cb1442482cb1ca1442481c60c21440c2040,0x40042040,0x407417000c06c361c01c01c7178178f7d000a05a2d1f81f8fff09029169b⟩
-private def v705 : Inv := ⟨6,3,0x1451451461451440c2040,0xc30c3082040,0x1003f0000007000010f0000011000001700000030000003⟩
-private def v706 : Inv := ⟨3,1,0x42043042040,0x40040,0xcfff33ffefffff⟩
-private def v707 : Inv := ⟨10,2,0x1861862861441862422071861440c2040,0x40042040,0x5c05c0180030c00e001c70380281e8000b40b40002e02e00202043⟩
-private def v708 : Inv := ⟨10,2,0x1c61c61441861862822481c61440c2040,0x40042040,0x5c05c08000208070001c7fc002f1e8000b40b40005a05a01012053⟩
-private def v709 : Inv := ⟨10,2,0x1c61c61441861862822481c61440c2040,0x40042040,0x5c05c0c00030c070001c7fc002f1e8000b40b40007e07e01012053⟩
-private def v710 : Inv := ⟨9,2,0xc51c61422481451c61451440c2040,0x40042040,0x74070171801801801c01c7e05000f45a0502d0070001c1081003⟩
-private def v711 : Inv := ⟨9,2,0x2082081441822481871821440c2040,0x40042040,0x87417004120900e001c7028e05f40145a2d02800514044128b⟩
-private def v712 : Inv := ⟨9,2,0x2082081441822481871821440c2040,0x40042040,0x874170061b0d80e001c7028e05f40145a2d0380071c044128b⟩
-private def v713 : Inv := ⟨2,15,0x2040,0x3cf2ca3cf38834a20c2ca2072480c22071801420440c2040,0x57f000052d7101052d7057f000000004a4a057f00004a4a5adf4a4a00000000109504040404057f⟩
-private def v714 : Inv := ⟨2,7,0x40002040,0x450470c60450c30440c2040,0x6700d5d5d5d50000d5d5d502b302000000670667⟩
-private def v715 : Inv := ⟨12,2,0x20320728a18c2ca2ca242203107185103042040,0x40042040,0x4020385c0180c061b70000381c7007fc0fffe00a05028b7f000ff8ffa4080d229b⟩
-private def v716 : Inv := ⟨2,9,0x2040,0xc62400c21c81421c01461440c2040,0xefc001f47c1f7ff00000fffffffca27dca2abaaeabaaeabbbf⟩
-private def v717 : Inv := ⟨10,2,0x1c61c61441861862822481c61440c2040,0x40042040,0x5c05c0c00030c070001c7ff8007ff8000b40b40002e02e01012053⟩
-private def v718 : Inv := ⟨2,15,0x2040,0xc204734d3c63ce34d34c0c228b2890c22071461440c2040,0x8ba70000581d001c581d581d00000000581d581d581d8122c1f381228122c1f38122812681268ba7⟩
-private def v719 : Inv := ⟨9,2,0x1c61441861862422481c61440c2040,0x40042040,0x170171800061870001c7fc003ffc002d02d000fc0fc1012053⟩
-private def v720 : Inv := ⟨2,11,0x40002040,0x4604504b20820a2092070460450440c2040,0x2c7000e1de1de1de1d000000e1de1de1d0028730020020020022c70062c7⟩
-private def v721 : Inv := ⟨10,2,0x1420c52861422481451c61451440c2040,0x40042040,0x21d01c05c0c00c00c001c01c71f80001fd168140b40038000e01081003⟩
-private def v722 : Inv := ⟨9,2,0x2082081441822480c71821440c2040,0x40042040,0x874170061b0d80e001c7000fc0fc0145a2d0380071c044128b⟩
-private def v723 : Inv := ⟨2,9,0x2040,0x451840490c80c71850c30440c2040,0x79c00e5510e579500000e5795440429cc420000000144511e7⟩
-private def v724 : Inv := ⟨9,2,0x249103249188103107185103042040,0x40042040,0x80e170040209070381c71c0fc7fc0140a2d00000000205229b⟩
-private def v725 : Inv := ⟨3,16,0x43083080040,0x41024c41034f41034f14438d1c61c624c2ca2481c61440c2040,0x111000000000022200000b6bc5b5e0023422aa115508aa845500000000108aa040516120b0905b5e2daf011100888046602330000000000000000016d78b09058482daf⟩
-private def v726 : Inv := ⟨3,12,0x43083080040,0x1ca24c28a24c14428b1ca2481c30c61440c2040,0x5920000000b240002cbd65e0228aac5562ab15500000016481055922c9165eb2f05102881660b30000000000000597ac91648b2f⟩
-private def v727 : Inv := ⟨17,4,0x3ce3ce2ca2512cc2cb2cb30d0d03ce2cd2cc2ca2481c61440c2040,0xc30c40c30c2040,0xb000011800002c611afff100200003f004410fc7f210010000009000004040940007c00007e00801f087ff1080500000288000140229ef708000000170002005c37000000000000000000000002100800000010000200403⟩
-private def v728 : Inv := ⟨0,8,0x0,0x2082060c51c81c60c50440c2040,0x2780c6a0527a4c004f⟩
-private def v729 : Inv := ⟨0,9,0x0,0x2492471c62090c22071c61440c2040,0x8c23154052bd33000af⟩
-private def v730 : Inv := ⟨0,11,0x0,0x2492c72492c71c62890c22071c61440c2040,0x5330230550050af5330000af⟩
-private def v731 : Inv := ⟨12,3,0x14a1c70cc1cb14a1c71c90c80c81c61440c2040,0xc30c30c2040,0xf000f00000f0ff001f00112f3f104010044014500f0001ff01ff6010600110617502050022153700000000000006010600110617⟩
-private def v732 : Inv := ⟨13,3,0x2c73492cb2c80cc20b2ca1492070c60c61440c2040,0xc30c30c2040,0xf1011ff1ff2f01000f211f3f040010040114150000f0100ff1ff02005002055257170000071007170000000000000001002001022123⟩
-private def v733 : Inv := ⟨0,8,0x0,0x2082061851c81c60c50440c2040,0x780c6a0527a4c004f⟩
-private def v734 : Inv := ⟨13,3,0x28920820c2070cd20830b2892070c60c61440c2040,0xc30c30c2040,0xf0100ff1fff012000f211f3f400010040114150000f0100ff1ff20005002055257700100071007170000000000000010002001022123⟩
-private def v735 : Inv := ⟨9,3,0x2492491c62492492481c61440c2040,0xc30c3042040,0x1003f0000000027000000030f0030003033000000005700100013130020002023⟩
-private def v736 : Inv := ⟨8,3,0x2081442082082070c61440c2040,0xc3043042040,0x3003f00000000707000070f000007077000050057010000107000002023⟩
-private def v737 : Inv := ⟨13,3,0x2ca28a34628a28a28c1c628a2ca2481c61440c2040,0x83083002040,0x1003f000000000002070000020000030f102000301032330000000000001b0000000001003f00200020002223⟩
-private def v738 : Inv := ⟨16,3,0x2ca28a38d14c24840f28a38d1441c614c2ca2481c61440c2040,0xc3043002040,0x20300202003203f004240042420442470005000070500070f50020200272507277001050010100510570010500101005105700020200232003233⟩
-private def v739 : Inv := ⟨13,3,0x30634a30628a28a1441c628a2ca2481c61440c2040,0x83043002040,0x3003f000002000002070000070000070fa5a002f050f2f70000000001001b000000005f00ff20200220002223⟩
-private def v740 : Inv := ⟨8,3,0x2081442082082070c61440c2040,0x83043042040,0x3003f00000000707000070f00000f0f700001001b01000010f000002023⟩
-private def v741 : Inv := ⟨3,10,0xc30c30c2040,0x442040ca2001892042071850440c2040,0xc1fff00000000507001ad4007ff0000035ad0700000048ebf000000006b500000000183⟩
-private def v742 : Inv := ⟨10,3,0x28a28a1441c628a28a2481c61440c2040,0x83043042040,0x3003f000000200270070000070f000f000f0f70000001001b0070000070f00020002023⟩
-private def v743 : Inv := ⟨3,13,0xc00400c2040,0x4a18d04718c04b04a1891861880471850440c2040,0x4a9c0004a9c000ac5eb17ac5eb170002b1500000000002b17ac56b17002800a326c00aac56b15ac56b1500912a700912a7⟩
-private def v744 : Inv := ⟨2,13,0x42040,0x30330c0c63483032ca0c22480c21c00c61440c2040,0x22b8000115405411549bf000000022b89bf26fe2a29bde2a2000000000008ae26fc9bf⟩
-private def v745 : Inv := ⟨2,11,0x2040,0x2482c32490ca2480c21c31800c50440c2040,0x15f00043541043515f00000000015f0008c2cf78c200000000010410415f⟩
-private def v746 : Inv := ⟨2,12,0x2040,0xc930618b2840c90c21862061c01850440c2040,0x34f800106a03041ace5c0000008c14e5e3051829cbc608000000000083041869f⟩
-private def v747 : Inv := ⟨3,0,0x420c3042040,0x0,0xbf5bbff⟩
-private def v748 : Inv := ⟨12,2,0x2c61863061c61442c61862822481c61440c2040,0x40042040,0x5c05c00200908b00070001c703f000fc7e00000b40b781ff007ff8001012053⟩
-private def v749 : Inv := ⟨13,3,0x18818618d18630b2891861861880c21c61440c2040,0xc3003042040,0x2000100023003f000000000204270040030000070f0000700007307f400000004500570000020000030700000000020023⟩
-private def v750 : Inv := ⟨5,1,0x42142042103042040,0x40040,0xfcffff033fcffefcfffff⟩
-private def v751 : Inv := ⟨10,2,0x2492491821441822892071821440c2040,0x40042040,0x821d05c08a0914c00e001c70001f81f8145168b40410e82e0144128b⟩
-private def v752 : Inv := ⟨11,3,0x1c62c22082081c614a2480c21c61440c2040,0xc3043002040,0x23002003203f44004204424700000500070f02000057007f150010051057150010051057000002000203⟩
-private def v753 : Inv := ⟨9,2,0x2082081441822480c71821440c2040,0x40042040,0x87417014122980e001c7000fc0fc0145a2d000fc0fc044128b⟩
-private def v754 : Inv := ⟨9,2,0x1820c62441861822071861440c2040,0x40042040,0x10017017020084180e001c71c01c0fe802d02d0380001c0202043⟩
-private def v755 : Inv := ⟨10,3,0x28a1441c628a28a2092021c61440c2040,0xc30430c2040,0x10023103f040003304370500000050f0050000505f000001100170500000050501000220123⟩
-private def v756 : Inv := ⟨9,2,0x1c61441861862420c81c61440c2040,0x40042040,0x170171004845870001c7e001f8fc002d02d1c00071c1012053⟩
-private def v757 : Inv := ⟨2,14,0x2040,0x4b18e04718d04c20b0c218a1861892071850440c2040,0x4b4e0002b8b8210ae2f5854000000000015854000010a333604280000000ac2a009001225a7⟩
-private def v758 : Inv := ⟨3,7,0xc30c3082040,0xc61c40c41c40c61440c2040,0x1ffff000003ff000000050001ffff00000155000001770000000000000003⟩
-private def v759 : Inv := ⟨1,12,0x40040,0x1c91850cc2ca2080c22082481c71850440c2040,0x647b23d91e48781ac0d6d2f015b4bda5c526293000000191ec8f⟩
-private def v760 : Inv := ⟨2,17,0x80040,0x2ca0c91d140b1c63ce34c28a1440c228a2ca0c92081c61440c2040,0x6ccbdb32f44c9db32f6ccbd1327909564255909555b37108544215424cd5b37424cd0933424cd093300000000000000330f0cc3db32f⟩
-private def v761 : Inv := ⟨2,33,0x42040,0xdb61759586019f31e1901903dd0c205c0db6996072892175941551861544d21903d11903ce28d30b1862892071861440c2040,0x80520048a53c82ba38052004897d067f0703400dc18000000007025d8054000560147025d805510bc01b17025d80540000000080520048910bc01b1442f006c60148012294f20ae8e01480122000000000000000000000000000d0037065f419fc1d7d067f07⟩
-private def v762 : Inv := ⟨2,18,0x40042040,0x1cc0d21c60511441d014f0ce0cd1cc04b1c714a0c90481c61440c2040,0x51a66a34cd4699d5a1fab43e0000068aa8d1551a2aaa34cc68aa8000051a66a34cd469980022cd64e00088000000000000015687ead0fd5a1f⟩
-private def v763 : Inv := ⟨1,7,0x40040,0x80085087106045103080040,0xffff87ff0909ffebebeba3a300008787⟩
-private def v764 : Inv := ⟨1,12,0x40040,0x2831cc08b2862082091c81c7106045103080040,0xb0fd87f10f007904c826c3e40b635b1ad846c23000000310f887⟩
-private def v765 : Inv := ⟨7,2,0x441820c21471821440c2040,0x40042040,0xa05145097417924924e001c7e3803f16da2d00000064b2cb⟩
-private def v766 : Inv := ⟨2,13,0x2040,0x28930c34630c18b2890c21852061c01850440c2040,0x20d481020d40000b7c00020d481020d42df0000000a6dc2df0002182a6de1820000000000020408102df⟩
-private def v767 : Inv := ⟨5,2,0x1450c41451440c2040,0x40042040,0x1c71d70001071ff1c0fc516d000000003⟩
-private def v768 : Inv := ⟨2,9,0x40042040,0x2492491442071441851440400c2040,0x5415054002bc0005415054af0000015caf0004215c4200000000af2bcaf⟩
-private def v769 : Inv := ⟨1,6,0x40,0x45080106045103080040,0xfffdbb79327fffffaf5eb00013b7⟩
-private def v770 : Inv := ⟨3,11,0xc30400c2040,0x2031030802072c5280089207185103080040,0xf77627f77000fffe47fff0000090090090002ebffffff0002632ebfff0002eb2632eb000000000000000e47000e47⟩
-private def v771 : Inv := ⟨2,12,0x2040,0x28930618618b2890c21862061c01850440c2040,0x41a800002a00014f800106a81041a825c0000008cb825c0011828cbc608000000000081040829f⟩
-private def v772 : Inv := ⟨2,13,0x2040,0x1c61c634430b2490c22492890c22001c61440c2040,0x2010804e4fcd37e4fc00001540100154d3734dc00034dcd37000052234dc52200000000000804201393f⟩
-private def v773 : Inv := ⟨2,6,0x80080040,0x145080106145103080040,0x6edffb76ffe4c993fffffd7ff5ebd7ac000009d3b7⟩
-private def v774 : Inv := ⟨1,8,0x40,0x1440c21860c80471861440c2040,0x59acf4fa78ac562b158a84566b3000030fa7⟩
-private def v775 : Inv := ⟨2,4,0x82080040,0x103041103080040,0x3e0bfc09483ff07d605ac0000017⟩
-private def v776 : Inv := ⟨1,7,0x40,0x460c21470461440400c2040,0xffd76f6f959595ffffd7d7d700004f6f⟩
-private def v777 : Inv := ⟨1,5,0x40040,0x80103045103080040,0xfffdff249ffffebaeb000df7⟩
-private def v778 : Inv := ⟨1,17,0x40,0x28a39120a40a30b30f20a28a14438d30b20a0c92070c61440c2040,0x40cbcca7f0cabc0023229548a5540cbc02050cabc0001004cc013300000000008a1c32af⟩
-private def v779 : Inv := ⟨3,14,0x43083080040,0x4724804d04e04d24924c24b24a2480471850440c2040,0x4000000000020000271c4e389c7b82b7056e0adc1500000002e0adc1d00100022e0edc1d0004000b059e0b3000000000000000138e011002209c7⟩
-private def v780 : Inv := ⟨1,4,0x40040,0x80044083080040,0xffeff4a7fffff7b002f7⟩
-private def v781 : Inv := ⟨0,10,0x0,0x10724918a248207043185104083080040,0x26e4de14c6f8de26c00137⟩
-private def v782 : Inv := ⟨0,10,0x0,0x28a2071ca2861492020451c61440c2040,0x4662bc2a8552be8cc000af⟩
-private def v783 : Inv := ⟨2,3,0x82080040,0x41083080040,0xf07f0990ff0ff0bb000007⟩
-private def v784 : Inv := ⟨2,15,0x82080040,0x20728f04628928f14e30d20830b2892070461440400c2040,0x269f78570000926f926f00002295229500002295269f0000269f269f00007857785700000000000000000000926f⟩
-private def v785 : Inv := ⟨0,6,0x0,0x186043185044083080040,0x5edd4af5e6c037⟩
-private def v786 : Inv := ⟨3,8,0x43083080040,0x460481471450461450440c2040,0x100000020031d8ec7cae572b95000032b95000032b950100aa7530000000006381008c7⟩
-private def v787 : Inv := ⟨2,5,0x82081040,0x440c00c50440c2040,0xfc06ff000940fff03ffc0d7700000001b⟩
-private def v788 : Inv := ⟨0,4,0x0,0x80044083080040,0xfdd3ffec17⟩
-private def v789 : Inv := ⟨0,4,0x0,0x80104083080040,0xbdd3ffec17⟩
-private def v790 : Inv := ⟨0,6,0x0,0x1860c20451861440c2040,0x669ca952acc027⟩
-private def v791 : Inv := ⟨2,7,0x82080040,0xc21860c20471861440c2040,0x15b300a7a700151500151500151500b3b30000000000a7⟩
-private def v792 : Inv := ⟨2,6,0x40042040,0x440c60450c30440c2040,0xce02ad5ab54000ab56a826608000019f3e7⟩
-private def v793 : Inv := ⟨8,0,0x1471c71c42041c6144043042040,0x0,0x1ae1e158780c4e07⟩
-private def v794 : Inv := ⟨7,2,0x1861861c61821861440c2040,0x40042040,0x703f0000070001c702803d00502f000045000003⟩
-private def v795 : Inv := ⟨7,0,0x1c71071c3185185103042040,0x0,0x1b472547031b03⟩
-private def v796 : Inv := ⟨6,0,0x186183185185103042040,0x0,0x6c3a50e0c183⟩
-private def v797 : Inv := ⟨16,2,0x2ca1c74040ca0ca1c63c71ce3441c73042ca2481c61440c2040,0x41081040,0x38c001f8df81f80001d01d01c00071c01c7c07e0820600f20400830404c340c00038e00c3910900410910d⟩
-private def v798 : Inv := ⟨9,2,0xc61822441860c62071861440c2040,0x40042040,0x700703f0001c01c0e001c7e28e00f454050af028005140401083⟩
-private def v799 : Inv := ⟨13,2,0x1c72c40ca3471cc1441c72c40ca2481c61440c2040,0x41081040,0x30007e37038000e80e870071c01c7039040e01e4400c10130d1c01c70071c420410910d⟩
-private def v800 : Inv := ⟨5,2,0x1451421451440c2040,0x40042040,0x703f0001c01c7000f4502f000140003⟩
-private def v801 : Inv := ⟨3,7,0xc00400c2040,0x450470c60450c30440c2040,0x670000d500d500d50000d5d5d5d50202b3020000000006670667⟩
-private def v802 : Inv := ⟨4,1,0xc20c20440c2040,0x40040,0x3cfffc33fffefaefff⟩
-private def v803 : Inv := ⟨3,1,0x42043042040,0x40040,0xcfff33ffefaaff⟩
-private def v804 : Inv := ⟨12,2,0x1440ca1c71cc2c41c72c40ca2481c61440c2040,0x41081040,0xc001f8dc70001d01d70071c01c71c000740750030404c370038e00c3c20410910d⟩
-private def v805 : Inv := ⟨11,2,0x1441c71cb1441c71440ca2481c61440c2040,0x41081040,0x30007e3700003a03ae071c01c700003a03a80c10130de071c01c780410910d⟩
-private def v806 : Inv := ⟨6,0,0x186184185144043042040,0x0,0xac7950e0c387⟩
-private def v807 : Inv := ⟨2,24,0x1002040,0x39341349815730b0560c218854b51318649149140d40214f38d30b1862891c81c61440c2040,0xc646918000001031830818c183419129a0c8940000000000003419129a0c895031830310080f9c148810108b191a46840c221881420c40a106205098c8d23⟩
-private def v808 : Inv := ⟨6,0,0x1860c61831440c3042040,0x0,0x2d395060c583⟩
-private def v809 : Inv := ⟨5,0,0x1451431440c3042040,0x0,0xb1d50c30c3⟩
-private def v810 : Inv := ⟨2,11,0x1002040,0x14704b04b18a14a2481451871850440c2040,0x183000118118605605000000605605118040851002002002040044044183⟩
-private def v811 : Inv := ⟨9,1,0x1c62082060c91c81c60c50440c2040,0x40040,0xcc30fc0f3303033030ff461af00000020bb⟩
-private def v812 : Inv := ⟨11,4,0xc20c82c91441c62890c80401c61440c2040,0xc00440c0042040,0x3a80201d0201dfa80a0015f02bff003f40501f0501fa501f0029f07e9ffff9fe73ffe7fffef55f42bbf47fbf000000000000000c637bc6f1bc6f1b⟩
-private def v813 : Inv := ⟨11,3,0xc20400c72c810a1852480c71851000c2040,0xc20c0042040,0xf0fc0c00c0fffa0a00a0fff0f0fc0c00c0fffc0f00c0ffffffcfccfcfffdfdaf8ad8fdf0000000000008b8bb8b88b8b⟩
-private def v814 : Inv := ⟨22,5,0x35150e51441638f4d23d451450f5544d23ce35140a38f3ce34c2ca2481c61440c2040,0xc30450c31030c2040,0x110400024410000010024434534c20000010000010000020410030410030ff00000044000000000000044000044044054044010044000001144010044011155157f100011000000000000111000111011115de10000000800000020210000210020238f7000000000000000000000000000000000000000000080000002000000000002002097⟩
-private def v815 : Inv := ⟨17,3,0x401110d030b1110d03c824e0cd30b10018a2480c71851000c2040,0x420c0042040,0xfffdffccfdfdcfdffffaf0affaa0f0fa0ffff40f40f40f4040040fff4ff4004ff40ffffffffdffccfdfdcfdfffffdafdffdaf8fd8fdf000000000000000000bb8bb8bb8bb8b88b8b⟩
-private def v816 : Inv := ⟨17,3,0x34c38225118f38240804028f38734c10b2852480c71851000c2040,0xc20c0042040,0xfccfcffccfcccffcff0fa0fff0a0a0fa0ffff0c00ff00fc0c00c0fff0cf0fccfff0cffffdfcdfcfdfdfdcfdfffadf8dff8daf8fd8fdf000000000000000000b8b88bb88bb8b88b8b⟩
-private def v817 : Inv := ⟨11,3,0xc20c22c70c22891852070c21851000c2040,0x40043080040,0x227272722727ffff00ff0fff00f0f0d00d0fff0ffd0fdfffffafddafdfffbbfb62fb2fbf000000000000227272722727⟩
-private def v818 : Inv := ⟨18,3,0x1c60cd2502ca48a45030c1c63ce0cd04430c2ca0c22481c61440c2040,0xc3043082040,0x333330003f03330f3f0333330003f03330f3f00702500507000705075550050555500ff55ff5772270557702775777033333000370333073700000000000000000000272270052702270727⟩
-private def v819 : Inv := ⟨11,3,0xc20c22c70c22891852070c21851000c2040,0x40043080040,0xbbfb62fb2fbfffff00ff0fff00f0f0d00d0fff0ffd0fdfffffafddafdfffbbfb62fb2fbf000000000000227272722727⟩
-private def v820 : Inv := ⟨24,3,0x35760d35758f1cf28e25250b54b50b4d234d1c64501cf0ce04434d30b2822481c61440c2040,0xc3043082040,0x505022222200007f07220f7f0000033333300003f03330f3f00000070205005007000705072025555000507555500ff75ff0005577222705557702775777000003333330000370333073700000000000000000000000000000027222700502702270727⟩
-private def v821 : Inv := ⟨24,5,0x51460f5135465144d42d75934d45464d35131c649140f1c838c1c634c2ca2481c61440c2040,0x143143142103082040,0x3e0012c007e040ff507f07f00bfffd7ffc0f8100000004000104003e07f03f04103f2ff000000000001000000000000040040040040140000fc003e000fc003f040fc0fc0fbffc1fff0020010000400010000400810810810410855c024008000000008000208908908900208b0db000000000000000000000000000000000000000000080000000080002080080080002082093⟩
-private def v822 : Inv := ⟨20,3,0x4501d230b3144cb24f38e38e1d245014f0ca24438d30b0ca2481c61440c2040,0xc3043082040,0x55222700557770277577f003333000033f03330f3f5000270005507000705075502050055575207f75ff552227005577702775777003333000033703330737000000000000000000000502227000572702270727⟩
-private def v823 : Inv := ⟨21,4,0x3ce4112d55114104104104d24111c64103ce1c834c1c634c2ca2481c61440c2040,0x430c31030c2040,0x800001107c00f83e027ff1ffc4100400000200083f07c2107c7f000110000000000044110441105400200000441f003e0f809ffc7ff20220000000440489a268c626adc200000000802004451140211c770000000000000000000000000000000000000806000c030006308d7⟩
-private def v824 : Inv := ⟨7,1,0x470440470460c50440c2040,0x40040,0x30fff333033ffffabaf0000ffbb⟩
-private def v825 : Inv := ⟨5,1,0x1420c21420440c2040,0x40,0xfcf77f033ffffefabbfff⟩
-private def v826 : Inv := ⟨4,1,0x420c20440c2040,0x40,0x3cfddc33fffefaabff⟩
-private def v827 : Inv := ⟨7,2,0x1451441451c61451440c2040,0x41081040,0x70370000021c01c700703700100d000000000005⟩
-private def v828 : Inv := ⟨6,3,0x1441450c61451440c2040,0x420c0042040,0xf00af0000004f000f0f005005d005005d00000000000009⟩
-private def v829 : Inv := ⟨6,2,0x1441450c61451440c2040,0x81081040,0x1c0dc0000dc01c70381f8040340000000005⟩
-private def v830 : Inv := ⟨6,3,0x1861831430c40400c2040,0x40083080040,0xffff0ff0fff0090909000ffff00099990992bbb00000000002323⟩
-private def v831 : Inv := ⟨3,5,0xc30c3081040,0x440400c50440c2040,0xfff000fff00003503ffff000d75000d77000000000013⟩
-private def v832 : Inv := ⟨5,2,0x1451421450c40c2040,0x40042040,0x14703f0001c01c7007fc502f000000003⟩
-private def v833 : Inv := ⟨8,1,0x1c80c20441c81c60c50440c2040,0x40040,0x55554c30fcfccc30333c3feebaf00003bfbb⟩
-private def v834 : Inv := ⟨9,2,0x1451461452481451c61450c40c2040,0x41081040,0x870070770000000801c01ef007046dc100100d000000000000005⟩
-private def v835 : Inv := ⟨7,1,0x1c71c50c41850c40400c2040,0x40040,0xcff333f03330cff0cff19bf000008bb⟩
-private def v836 : Inv := ⟨8,1,0x2082041442081c61440400c2040,0x40040,0x8fc033f000ccf0ff0c3fc013f00000003b⟩
-private def v837 : Inv := ⟨14,1,0x38e24c38d24c18a2ca2481852480471850c40400c2040,0x40040,0xf33ffc303f33f00c33ccccc33cff330cf3fc129dbbf000000000288ebb⟩
-private def v838 : Inv := ⟨7,3,0x1451c61451461451440c2040,0x420c0042040,0x90f0f0aaf000000040f0f0f4f0f00005f0505055d0000000000000009⟩
-private def v839 : Inv := ⟨10,1,0x1c61c62081442892081c61440400c2040,0x40040,0xf00cffc033f00c0cc0f0ff03c3ffc033f0000028123b⟩
-private def v840 : Inv := ⟨9,1,0x2082082061442481c61440400c2040,0x40040,0x107f0c33f00333030ff03cff061bf00000020bb⟩
-private def v841 : Inv := ⟨2,3,0x82081040,0x40043042040,0xff0ff00f0ff0ff0df00000b⟩
-private def v842 : Inv := ⟨10,2,0x1c61c62081442892081c61440400c2040,0x42080040,0x4812116dfe001c7fc0028028a00bc0bef005a05b6b6000c36c00000000900420d3⟩
-private def v843 : Inv := ⟨7,1,0x1850c20471850c40400c2040,0x40040,0xfffff33fcf333cffbefffbbf0000efbb⟩
-private def v844 : Inv := ⟨7,1,0x1850c20471850c40400c2040,0x40040,0xefbbf33fcf333cffbefffbbf0000efbb⟩
-private def v845 : Inv := ⟨9,1,0xc21c60c22481441c61440400c2040,0x40040,0xfebbffc33f33333cfcffcfcfffebbf00000bbbbb⟩
-private def v846 : Inv := ⟨13,2,0x2ca1c61cd1c624924914c2ca2481c61440400c2040,0x42080040,0xa9202d0affc7fc00071ffa00005005178400bd0fffa9202d0affc36c00030db00000000000a4800420d3⟩
-private def v847 : Inv := ⟨8,2,0x2082081851c60c41850c40c2040,0x41081040,0x38fffe00fc7dc00000101c7fff00ce7fe00241340000000000005⟩
-private def v848 : Inv := ⟨5,2,0x1450c41450c40c2040,0x81081040,0x1871f70001871ff1c7fc104d000000005⟩
-private def v849 : Inv := ⟨10,1,0x1c61c62081442892081c61440400c2040,0x40040,0xa149ffc033f00c0cc0f0ff03c3ffc033f0000028123b⟩
-private def v850 : Inv := ⟨7,1,0x1850c20471850c40400c2040,0x40040,0xefbbf33fcf333cff3cfffbbf0000efbb⟩
-private def v851 : Inv := ⟨7,1,0x1c71441c71c61440400c2040,0x40040,0x107f033f003330ff30ff013f0000003b⟩
-private def v852 : Inv := ⟨2,6,0x40042040,0x401440461440400c2040,0xfe02ad5abfc000ab56a82ae0abffaf1e3c7⟩
-private def v853 : Inv := ⟨2,9,0x42040,0x470491881860c21470c61440c2040,0x69c00c573fc57150000000315c5422acc22cfc3ecfc2669da7⟩
-private def v854 : Inv := ⟨2,8,0x42040,0x460481471450460c50440c2040,0x638032b9fcae540000006572a02a980b3f9fcf8198ec7⟩
-private def v855 : Inv := ⟨12,3,0x30c20930c0442ca1852092071850c20440c2040,0x40083080040,0xf000ff0ff0ff0009f9009f9f9000f000f00f0f00099900999990b0209b29b2bb0f0f00ff0ffff0203112213333⟩
-private def v856 : Inv := ⟨2,7,0x40042040,0x401850470c21851000c2040,0xff00a5a5a5ff0000a5a5a512b712161616979797⟩
-private def v857 : Inv := ⟨2,9,0x42040,0xc20401c62480c20401c61440c2040,0xffc0055555557ff000000015555622dde2289b37cde26cdf37⟩
-private def v858 : Inv := ⟨10,3,0x28a1c628a2481441c61c60c21440c2040,0x40083080040,0xf000fff0ff000f900f9f90000f000f0f000990099990b000bbb0bb0f000fff0ff02011223133⟩
-private def v859 : Inv := ⟨2,7,0x42040,0x401850470401850440c2040,0xff00b5b5b5ff000000b5b502b70202b702069797⟩
-private def v860 : Inv := ⟨11,3,0x14414514b1c60ca2481451c61c61440c2040,0x420c0042040,0xaf000ff0af0000f40000f4f0000f000f0f000054000054005d000dd05d000f000ff00f000811088019⟩
-private def v861 : Inv := ⟨2,7,0x42040,0x401850470401850440c2040,0xff00b5ffb5ff000000b5b502b702024a4a069797⟩
-private def v862 : Inv := ⟨12,3,0x14414514c2070cb2892071451461461440c2040,0x420c0042040,0xa00f00ff0af0000f400000f4f00f00f000f0f0000540000054005805805505d000f00f00000f0008118000019⟩
-private def v863 : Inv := ⟨11,3,0x1441c71cb1441c71440ca2481c61440c2040,0x420c0042040,0xa0000ff0af000000f400f4f00f0f000f0f00000054005480580805585df00f0f000f0f800808110819⟩
-private def v864 : Inv := ⟨8,0,0x1471c71c42071c6144043042040,0x0,0x12c0e158780c4e07⟩
-private def v865 : Inv := ⟨5,0,0x42142142103042040,0x0,0x3bfc59fbefb⟩
-private def v866 : Inv := ⟨2,13,0x42040,0x34d34d2073091cb2891c62071c60401420440c2040,0xafc000255c957255c2bf0000000357c2bf000050a357c50a000085521542040afc2bf⟩
-private def v867 : Inv := ⟨2,9,0x2040,0x1480c40490c80c70460c31440c2040,0x20800244918109100000246042442090c20000000008220925⟩
-private def v868 : Inv := ⟨2,9,0x2040,0xc52401821871080c71851000c2040,0xb68003b4ed3b3ff00000fffffffc507dc50b6adab6adab6bdf⟩
-private def v869 : Inv := ⟨2,11,0x42040,0x4604504b20820a2092070460450440c2040,0x2c7000e1de1de1de1d000000e1de1de1d0028730020020020020062c72c7⟩
-private def v870 : Inv := ⟨2,7,0x42040,0x450470c60450c30440c2040,0x6700d5d5d5d50000d5d5d502b302000000066767⟩
-private def v871 : Inv := ⟨5,2,0x145043144043042040,0x40042040,0xe171049071c71c7fc0a2d0000030db⟩
-private def v872 : Inv := ⟨12,3,0x2423052070421852ca242207185103103042040,0xc30430c2040,0x2213302131133330333303333f5555555555555505500550555f7657667567777332333323333700000000000007757757575577⟩
-private def v873 : Inv := ⟨4,38,0x20c40000c2040,0xdc1d69a52648cd2628580e01c60c67de74b1dc25b0c305a4906582571d60d55134831cb2510d024f0d01cb24f38d0cc2ca2481c60c31440c2040,0x6899150a223c08c94c91a264542888f0232532402000002080a0011028b84a6d1d338000000000e129b474ce0000000001a26454288a154c985156899150a2285532614550aa64c28a9a129252651e0464a648004200001400000000000000000001e0464a648684a4949947811929920f023253241e0464a649219041024fe364d62c982800440a290c82081260a001102880000000000000000000000000000000000000000000000000f02325324e129b474ce3c08c94c9384a6d1d339a12925265⟩
-private def v874 : Inv := ⟨3,14,0xc30c1042040,0x38c24638a38a34a34c2460c22ca2422070c61440c2040,0x47fffffff0001fffc051ffff00000000022804500000017fffffff000086ac34fa7bf000073dc0089cf7000000000000000000000010d5a1ab⟩
-private def v875 : Inv := ⟨3,13,0xc30c1042040,0x34c34a34a20a20c2460c22ca2422070c61440c2040,0x5fffffff0003fff028ffff000000001140450000005fffffff00001ab1a7c7bf0001cf70045cf700000000000000000000006ac1ab⟩
-private def v876 : Inv := ⟨7,0,0x1c71c41471c6144043042040,0x0,0x4b071507032f07⟩
-private def v877 : Inv := ⟨5,0,0x145043144043042040,0x0,0xb5d55cb5d7⟩
-private def v878 : Inv := ⟨7,0,0x1c71c7103042185103042040,0x0,0x1b3725371b1b37⟩
-private def v879 : Inv := ⟨2,16,0x2040,0x1800ca4022cf18e2cb34b30a2c71840ca0c92071841440c2040,0x613100000802240110302442340000000061313098a211a3020a0898c0800000000000003098984c5108d⟩
-private def v880 : Inv := ⟨2,9,0x42040,0x1832080c92071830400c50440c2040,0x27c008d6358d49f000000009f000429dc42000000008427c9f⟩
-private def v881 : Inv := ⟨2,10,0x42040,0x1c618a2440c81861c60401850440c2040,0x63e0021ac3586a65c0000010465c4108232e208000000004318fb1f⟩
-private def v882 : Inv := ⟨7,2,0x1c70421031c7185103042040,0x40042040,0x80e17180c360381c71c0e3f140a2d1f81ff0c061b⟩
-private def v883 : Inv := ⟨6,2,0x1441450460c21440c2040,0x40042040,0x1d05c0d86dc01c703f1f8168b401c700361b⟩
-private def v884 : Inv := ⟨4,0,0x42042103042040,0x0,0x6fe5def7f⟩
-private def v885 : Inv := ⟨2,13,0x42040,0x4a18d04718c04b04a1891861880471850440c2040,0x4a9c000ac5eb17ac5eb1500000000002b15000000a326c00a0002b15ac540244a9d2a7⟩
-private def v886 : Inv := ⟨3,8,0xc30c0042040,0xc70c41880470c01850440c2040,0x6dfffff007fc37ff000004a25006dfffff000036fb7006dd2bb700000000000000361b⟩
-private def v887 : Inv := ⟨2,15,0x80080040,0xc21c63ca1c638d30b2490c22492890c22081c61440c2040,0xd92fd92f8927d92fd92f8927205520552055ad3720152015ad37ad378533853385338533000000000000d92fd92fd92f⟩
-private def v888 : Inv := ⟨2,26,0x42040,0x3143da30b4d92481d82571c61561c63d51c73144d20ca4503ce0c204d1c730b0ca2481c61440c2040,0x2444a14dc9c00091166e661fcdccc3e0000002aa20aad544155aa882aa340ecceaa20aa80000000002444340eccc681d99800122250a6e4e000488800000000000000000000028183b37330fe6e661f⟩
-private def v889 : Inv := ⟨2,16,0x2040,0x1cd1d00cf24e1c41cd1c60cc0491c71472ca2481c61440c2040,0x10000808607181502050000042222111002210c0c42220000001000080860600204903800800000000000000102808151815⟩
-private def v890 : Inv := ⟨3,15,0xc00c0080040,0x24818f18f38b38234c0c70cb10018a2480c71851000c2040,0xffffffff9fb71b976a9f6a9f6a9f6a9f80a580a580a580a5ffff80a580a59fb79fb79fb7031303131b971b971b971b9700000000000000006a9f6a9f6a9f088f⟩
-private def v891 : Inv := ⟨2,11,0x42040,0x2cb1c62cb18a2481851c60401850440c2040,0x43543543500015f00043543543515f0000004b715f0000824b708200000000010415f15f⟩
-private def v892 : Inv := ⟨4,11,0x1041040400c2040,0x2480c20c22c00402842480470c61440c2040,0xfbb191fbb000000fffe22fff0000001040001040000009f5ffffff0009f50009f5fff0000009f59b19f5000000000000000000000fa3e22fa3⟩
-private def v893 : Inv := ⟨7,2,0x461471451470461440c2040,0x40042040,0x381c7017800804e00fc7e00e0714502d000000200211⟩
-private def v894 : Inv := ⟨2,12,0x42040,0x1c61c63042ca2082082480c20401c61440c2040,0x20270ff87e637e1f80000aa05502a98dcc6e00031b98dc00022231b8888000000000101387fc3f⟩
-private def v895 : Inv := ⟨2,13,0x42040,0x4704d1850cc2ca2080402082480471850440c2040,0xd25fc9fd25f497f27f497c2d70b5c2d7697c257095da5f697da5e293da5e29300000000000c8ff27fc9f⟩
-private def v896 : Inv := ⟨1,6,0x40040,0xc21440461440400c2040,0xaf5f7ef2a54affff5ebd700037ef⟩
-private def v897 : Inv := ⟨1,7,0x40040,0xc21860c20471861440c2040,0xb3b3a7a71515151515b3b3b30000a7a7⟩
-private def v898 : Inv := ⟨1,6,0x40040,0xc21440461440400c2040,0xff5f7ef2a54affff5ebd700037ef⟩
-private def v899 : Inv := ⟨1,13,0x40040,0x34d3092ca20934d3072ca2090c22070c61440c2040,0x55fd57f22bc023115445555fc00522bc00104cc133000000022bc8af⟩
-private def v900 : Inv := ⟨2,19,0x42040,0x3cb2482d33513461924503ca2cb3cb38234c0402ca2480471850440c2040,0x583b700297002970429f253df0429fc14b5c14b5c14b5462bf400b5400b5440bf462bf440bf08393583b708393000000000000000012cf253df253df⟩
-private def v901 : Inv := ⟨6,2,0x1860441850440440c2040,0x40042040,0x1c01c05c4120838fc71c7e38140b40000008251⟩
-private def v902 : Inv := ⟨2,6,0x80080040,0xc21440461440400c2040,0xfffebefdfbca952bfcafffe57fd7af5c00001bf7c7⟩
-private def v903 : Inv := ⟨2,7,0x42040,0x450470c60450c30440c2040,0x6700d5d5d5d5000000d5d502b302000000066767⟩
-private def v904 : Inv := ⟨4,1,0xc20c30440c2040,0x40040,0x30f0cc330030f00011⟩
-private def v905 : Inv := ⟨5,3,0xc30c50c31010c2040,0xc10410c2040,0x1003f00010500050f000000000017000000000001⟩
-private def v906 : Inv := ⟨7,1,0x470440470460c50440c2040,0x40040,0x30fff3330330000abaf00005511⟩
-private def v907 : Inv := ⟨2,7,0x40002040,0xc60470c20c60c31440c2040,0xb30045044545000000000022b322000000450445⟩
-private def v908 : Inv := ⟨3,1,0xc30c1042040,0x41040,0xf0f3300070005⟩
-private def v909 : Inv := ⟨5,1,0x1041041051010c2040,0x41040,0x4f007033000007000001⟩
-private def v910 : Inv := ⟨5,14,0xc21400c31030c2040,0x4834c2c40c204814e04034c2ca0c90481c61440c2040,0x1fffc000000000011467fff800000000000411000000015d54000082200000813fff800000015d5441100000000000000000000000000228c80200000000228c8020000000000005755000000000000141000008000000141⟩
-private def v911 : Inv := ⟨11,4,0x4b14b04b0491ca1490c20481c61440c2040,0x104104103081040,0x290a5010450104500001004410885f10842008220082200000000410845f00000000000000021084210a4214ad1084200802008024a5294250942509⟩
-private def v912 : Inv := ⟨2,19,0x2040,0x4cd0463c824f3cf4cd1513921513d03cf38d0c214c2ca2481c61440c2040,0xc518b9409ac518b21051c518b00000000a2000a24284dc518bc518b00000000000000000000000a24284d000a2c518b9409ac518b004040040421051⟩
-private def v913 : Inv := ⟨2,11,0x2040,0x460c210b14910a1092071040461440c2040,0x809402809080402000020020104809402000000000000020141020809809402080080201⟩
-private def v914 : Inv := ⟨1,3,0x40040,0x420c0042040,0xbbffffff00ff0f55⟩
-private def v915 : Inv := ⟨1,4,0x40040,0xc20c21000c2040,0xdeffffffff003ff2fca5⟩
-private def v916 : Inv := ⟨2,13,0x2040,0x10404634410c14a10b0c210a2481041c61440c2040,0x402480840240000208000008002008110090208000000000000000200904020020808202081000400401⟩
-private def v917 : Inv := ⟨2,26,0x40002040,0x51839a39951351839758f51504804628914f38e51315215140f38d04c0c214b2890481c61440c2040,0x99e437733c86ee6790dd8169ddf02d3bbe0000000034eae80100a200d3abb33c86ec0b4eef80000000000000000000000000000100a225227ce00402880b4eef810048a02d3bbea90e8540001022a43a15⟩
-private def v918 : Inv := ⟨2,5,0x82081040,0x440400c50440c2040,0xfc0fff000d40fff03ffc0d7700000001b⟩
-private def v919 : Inv := ⟨59,9,0xefbeb9e37db5d33cb1c2fbadb3baeaa689e69648e2860efb7de75c6da6585d65544d24503ce34c2ca248eb9e37db5d33cb1c2fbadb3baeaa689e69648e2860efbefb7de75c6da6585d65544d24503ce34c2ca2481c61440c2040,0x2492492091c92492461491090c2040,0x2000020000200000200020000200002000000080000800008000008000800008000080000800008000008000800008000080000000008000080000800000800080000800008000088000000000000000040000000000000000000400000000000000001000002000000000000000000000001000000000000000000010000000000000000000100000200000000000001000800000000000000000000000100000000000000000000000000000000000004000000000000000000000000000004000000000000000000000000000000000000000400000000000000000004000000004000000000400000000040010000000200000100000000010000000001000400000100000000010000000001000400000008010000010000000001000000000100040000110800000801008000080100080008010080000800080020040200002004002000200402000120040200002004002000200402000020002000002004020000200400200020040200012004222000000000000004000000000000000000040000000000000000100000000000000000000000000000100000000000000000001000000000000000000010000000000100000000100000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001004010008100401000010040100081004000040100400204010040000401004002040100400204010040000401004002040100000004010040020401004000040100400204010040121⟩
-private def v920 : Inv := ⟨2,15,0x2040,0x2083c814838d20414420c20804b1822892071821440c2040,0xcb00cb50480200104a000000200020240400cb104a000000000000000000200c05002000cb104a00cb020002000011⟩
-private def v921 : Inv := ⟨2,20,0x42040,0x35015434c20705321220834c15135028f20e20834c14b2892070c61440c2040,0xa9445d4a22ea5117a8851a9445800000008549146f48a37d4a22ea51160000000000000000000000042a48a268010aaa51175288ba9445820913510a3a8851⟩
-private def v922 : Inv := ⟨2,32,0x2040,0x563483592591550607de14c75c35b15b24c69334815948e61705635551305244634440a1483ce34c2ca2481c61440c2040,0x8681c840c340e420440404475fffffffffdf66aab80000000002040544010202a29d32cc8ec340e4207f7d9aaae000000000000000000000000000000000010202a2b862e404804080a8800221511fbecd55700088544040011010200088080ae00041⟩
-private def v923 : Inv := ⟨2,31,0x42040,0x5dd35f5de5d615b3520505dd71b35a15935804b5d614705525415334d3521510503ce34c04b14a2481470c61440c2040,0xb30d84abb30d84abb30d84ab0aab4edf0aab4edf000000000000822a0a2bceff0a2bceffb30d84ab0aab4edf000000000000000000000000000000000000822a60718b4d0000822a0080020a0aab4edf0aab4edf00104144c7325451c7325451⟩
-private def v924 : Inv := ⟨2,4,0x82080040,0x420c40400c2040,0x3e0ffc00a83ff00000bdc0000005⟩
-private def v925 : Inv := ⟨1,2,0x40040,0x40042040,0xffffff1ff02d⟩
-private def v926 : Inv := ⟨0,2,0x0,0x40042040,0xfff1c5⟩
-private def v927 : Inv := ⟨4,2,0xc20c30440c2040,0x40042040,0x1c0fc0a281c7000140b40000041⟩
-private def v928 : Inv := ⟨2,6,0x2040,0x400460400c50440c2040,0xfe00000ebfc0000000002ea080000010251⟩
-private def v929 : Inv := ⟨1,2,0x40040,0x40042040,0x3f1c703f02d⟩
-private def v930 : Inv := ⟨1,5,0x40040,0xc20450c30c40c2040,0x8e34510110008e3000145⟩
-private def v931 : Inv := ⟨6,0,0x105145185185103042040,0x0,0xe3858e0cd83⟩
-private def v932 : Inv := ⟨1,5,0x40040,0xc20450c30440c2040,0xcf3015015555cf30009e7⟩
-private def v933 : Inv := ⟨9,0,0x1050c52452051451c5185103042040,0x0,0x3c5c0526c03b1c03⟩
-private def v934 : Inv := ⟨6,1,0x1451450c21851000c2040,0x40040,0x33f0cfc0330f3c33f04dc23b⟩
-private def v935 : Inv := ⟨5,0,0xc41041440c3042040,0x0,0x39c52c32c3⟩
-private def v936 : Inv := ⟨4,1,0xc20c21000c2040,0x40,0x3ff5dc33f3fffaabff⟩
-private def v937 : Inv := ⟨6,1,0x1451450c21851000c2040,0x40040,0x33f0cfc0330f3c33f00cc23b⟩
-private def v938 : Inv := ⟨1,2,0x40040,0x80080040,0x3ffc7e3fdbf⟩
-private def v939 : Inv := ⟨1,5,0x40040,0x1451451450c40c2040,0x1c70c30010410410c30001c7⟩
-private def v940 : Inv := ⟨1,5,0x40040,0x1451451451440c2040,0xc30c30010410410c30001c7⟩
-private def v941 : Inv := ⟨2,7,0x80080040,0x460400470460c50440c2040,0xfffff5d3d3d30000f5ff00f5f5f500d3d3d3000000474747⟩
-private def v942 : Inv := ⟨1,11,0x40040,0x1870cb2490cb24a2481871810c50440c2040,0x50f50f0d30d300083550f8358358350d30d3000000547547⟩
-private def v943 : Inv := ⟨1,2,0x40040,0x80080040,0x27f1c7fff03f⟩
-private def v944 : Inv := ⟨2,0,0x80080040,0x0,0xfcffc7⟩
-private def v945 : Inv := ⟨1,5,0x40040,0x440c50c30440c2040,0x4d30250259654d30009e7⟩
-private def v946 : Inv := ⟨1,4,0x40040,0xc20c30440c2040,0x2732940500273000a5⟩
-private def v947 : Inv := ⟨4,1,0x1040c40c20c2040,0x40040,0xc3f3fc3f0003f00001⟩
-private def v948 : Inv := ⟨0,5,0x0,0x1450c50c51440c2040,0x6c30410036c5⟩
-private def v949 : Inv := ⟨0,5,0x0,0x1450c51451440c2040,0x4c3041003045⟩
-private def v950 : Inv := ⟨4,0,0x1030c3103081040,0x0,0x8ee318c01⟩
-private def v951 : Inv := ⟨5,1,0x1450c40c50c40c2040,0x40,0x233f3ff3372aa33f000001⟩
-private def v952 : Inv := ⟨4,1,0x1040c40400c2040,0x40040,0xcc3f3fc3f0003f00011⟩
-private def v953 : Inv := ⟨0,7,0x0,0xc41860c41c61861440c2040,0xa7030101150300a7⟩
-private def v954 : Inv := ⟨1,2,0x40040,0x40042040,0x3ffc703f02d⟩
-private def v955 : Inv := ⟨0,5,0x0,0x42104045103042040,0xae7aeb027acd⟩
-private def v956 : Inv := ⟨2,5,0x80080040,0x1451451451440c2040,0xc30c30000400410000030c3000005145⟩
-private def v957 : Inv := ⟨0,8,0x0,0x208205188188107185103042040,0x3585c2e030005cd68d⟩
-private def v958 : Inv := ⟨0,7,0x0,0x1451821451c51821440c2040,0x134b4b01004b0105⟩
-private def v959 : Inv := ⟨2,7,0x80080040,0x460400470460c50440c2040,0xffd3d3d30000f500fff5fffff5d3d3d30000004f4f4f⟩
-private def v960 : Inv := ⟨2,9,0x80080040,0x2490c52480c21c71c60c50440c2040,0x53cd334cd3000000d40053c3553d4f53cd334cd3000000014f53d4f⟩
-private def v961 : Inv := ⟨2,5,0x80080040,0x1451451441440c2040,0xc30c30000400410c30c30c300000f3cf⟩
-private def v962 : Inv := ⟨3,8,0xc00c0080040,0x2082082072082071461440c2040,0x6030783c1e0f00000020300004020300000000f0783c1e0f0000000002a954aa55⟩
-private def v963 : Inv := ⟨1,11,0x40040,0x24828a28a2ca1c62442481481c61440c2040,0x87708b0cf0cf08b08b00108b1151150cf0cf000000877877⟩
-private def v964 : Inv := ⟨0,9,0x0,0x1c72441c71852442071851440c2040,0x49c4b12c010544b00127⟩
-private def v965 : Inv := ⟨4,2,0xc40c30c40c2040,0x40042040,0xbc7fc00071c7000145b40000001⟩
-private def v966 : Inv := ⟨2,6,0x40042040,0xc21421801420440c2040,0x8f1e395f7fc00001fca802bfca802a00aff2befdfb⟩
-private def v967 : Inv := ⟨2,10,0x2040,0x28a24828a1c61442481c60c21440c2040,0x4de8a9378451360000000000026d3780000026c0000008a00137a2a4de0000009b⟩
-private def v968 : Inv := ⟨2,5,0x40042040,0xc21400c20440c2040,0xbefbd5eff00003ffc057f540540fffffbefb⟩
-private def v969 : Inv := ⟨2,10,0x40042040,0x28a24828a1c61442481c60c21440c2040,0x4de9bd378451360040000000026d3780008a26c2280008a00137a6f4de26c4d89b⟩
-private def v970 : Inv := ⟨8,2,0x2071861862071860c21440c2040,0x40042040,0x186c000105c0000000000fffe071efa00028b781c7ffa01069b⟩
-private def v971 : Inv := ⟨6,3,0x1461451461451440c2040,0xc30c3082040,0x7101013f0000000000013f0000011000001100000030000003⟩
-private def v972 : Inv := ⟨2,5,0x2040,0x1041041441440c2040,0x3c03c10c00000010c00010000400000c0003⟩
-private def v973 : Inv := ⟨9,2,0x2082082482081421c61420440c2040,0x40042040,0xc36d80010417000000000038fff038145f40028a2d0001c71c000a2cb⟩
-private def v974 : Inv := ⟨6,2,0x1451451451851440c2040,0x40042040,0x200005c00000001c70071e8000b40005a00013⟩
-private def v975 : Inv := ⟨2,4,0x2040,0x1041040c40c2040,0x380e11800000420004000800008003⟩
-private def v976 : Inv := ⟨2,5,0x40002040,0x1041041041440c2040,0x1c71c10c1000001040001040040043043083⟩
-private def v977 : Inv := ⟨2,7,0x40002040,0x1441041c61040c61440c2040,0x8f8f8f010301000000012b000001010001002b2b2b030203⟩
-private def v978 : Inv := ⟨7,2,0x1861861c61860c21440c2040,0x40042040,0xc36000417000000000fff038f7d000a2d000fff00069b⟩
-private def v979 : Inv := ⟨2,14,0x2040,0x14d20838d04a1443082081c22ca2481c21821440c2040,0x984e4922613840511b6000000000000000236ee2280000000236c0000000080a0000115022ab88a000000008db⟩
-private def v980 : Inv := ⟨2,6,0x40002040,0x440c60c50c30440c2040,0x8b16291460400001140008b162802200000008c123⟩
-private def v981 : Inv := ⟨2,7,0x2040,0x441860471850c20c40c2040,0xaf0eaf953b00000000afaf00afafaf009500af0eaf0a0a3b⟩
-private def v982 : Inv := ⟨2,5,0x2040,0xc21400c20c40c2040,0xbeebd5ec000003ffc0ffffc0540ffffeaabb⟩
-private def v983 : Inv := ⟨2,6,0x2040,0x1861831850440440c2040,0x1a08691460000000341000034000220068d0400023⟩
-private def v984 : Inv := ⟨8,2,0x185185207145107185103042040,0x40042040,0x6c000005c00000000001fffc0fffe00000b40e38ff808209b⟩
-private def v985 : Inv := ⟨2,7,0x2040,0xc21820c21c01821440c2040,0x4d4c4d15fb00000000ffea00ffffff001500eaeaeaeaeafb⟩
-private def v986 : Inv := ⟨2,8,0x2040,0x1820c21822021c01821440c2040,0xe7d339e15fd8000000007fff600ffffffe000a803d5eafdfabd5fb⟩
-private def v987 : Inv := ⟨10,2,0x2492492892891820c22071821440c2040,0x40042040,0xd86db00024105c00000000001f8fff03f1f81f8005a28b40000e38e0004a2cb⟩
-private def v988 : Inv := ⟨6,2,0x1861861861461440c2040,0x40042040,0x300005c00000001ff007ff8000b40002e00013⟩
-private def v989 : Inv := ⟨2,10,0x2040,0xc21c72841c72480c21c61441440c2040,0x21a030868118c6000000000004361100021a434868000220021146384508a11463⟩
-private def v990 : Inv := ⟨6,2,0x145145185185103042040,0x40042040,0x1b00005c00000001ff03fff8000b4003fe0009b⟩
-private def v991 : Inv := ⟨2,7,0x40002040,0x103186107042185103042040,0xb7b7b78d3b01000000b7b700b7b7b7008d00b713b73b123b⟩
-private def v992 : Inv := ⟨2,5,0x2040,0xc20c50c30440c2040,0x1401518c0000005000145000440000000023⟩
-private def v993 : Inv := ⟨6,2,0x145145106145103042040,0x40042040,0x1200005c00000001c7038ff8000b4000000209b⟩
-private def v994 : Inv := ⟨3,34,0x40003002040,0x5935920d12e20610e00df2de2dd58605c05b0cc0da0590d80575950d41d32481d224f0d105024f38d0cc2ca2481c60c31440c2040,0xc872d4a2b90e5a94540000508864396a51519b28aecb9eb0796cde40ebdb3800000000c872d4a2b90e5a94540000508864396a515c872d4a2a336515d940000000000000000000000a648000014c9066ca2bb280000532400080814486bb583cf3d60f2d98004040a2000000000000000000000000000000000007903af6ce000014c90000029923c81d7b67⟩
-private def v995 : Inv := ⟨3,19,0x3002040,0xcb0c90d30522110d00cf18e18d0c220c0cb04a0c92071850c30440c2040,0x11895000000000011895182a5614d384727000001189511895118950000011895182a500000000000000000000182a5000000000046473614d3000000000000000000000000000000000000000084727⟩
-private def v996 : Inv := ⟨1,2,0x40040,0x80080040,0x27ffc7fff03f⟩
-private def v997 : Inv := ⟨3,24,0x3002040,0x5471c61d80ca4d81c748b5cd5885501d44c448b44d1d00cf38d1c730b0ca2481c61440c2040,0x80440a8002000001001008815028828a09242ca8648e0000001101110882c8c24408a220222110591814414400000000000002082001041000a20a2041040400004202903504921680000800000000000000000000000000208200104100082080543247⟩
-private def v998 : Inv := ⟨3,40,0x40043002040,0x2613e85271d62665131e51e43e33e22482611e01df25e35d25c51a51b51a0d91d81572ca0401d625534c5133524500c23ce1c734c2ca2481c61440c2040,0xac32f2aa0ad6197955056b0cbcaa82b5865e55415c8f383b6bad39c2dd7ced660d5fdece0000030421ac32fbab1bd6197dd58dc0000260c475865f75637ac32fbab1be479c1db5d40000000000000000000000010316320000818b19323ce0edaea0002062c6400000905153097aec3cfe9ce16ebe760000120a2a00000000000000000000000000000000000000000598357f7b3acc1abfbd9c00040c58c8b306afef67⟩
-private def v999 : Inv := ⟨8,2,0x2081442082070c60c61440c2040,0x40042040,0x1000208004005c003f1f8e001c7000fc7e10a02bc0000000202453⟩
-private def v1000 : Inv := ⟨3,16,0xc00400c2040,0x30a2481d014f1c724e24e0ca30d1c730b0ca2481c61440c2040,0x560aab055582aac1591b3b046e46ce000101118088e46ce022300002b0540000000000000088d582a02230005000298236000a00000000000000000002248d9c00892367⟩
-private def v1001 : Inv := ⟨3,13,0xc00400c2040,0x4a18d04718c04b04a1891861880471850440c2040,0xac56b15ac56b154a9cc9b4a9c001ac5eb17ac5eb170002b1500000000002b17ac56b17002800a326c00a0000000000000000912a700912a7⟩
-private def v1002 : Inv := ⟨2,9,0x42040,0x2082080c22442081c60c21440c2040,0x114041140022800000000009b000002289b26c0011400000000008a26c9b⟩
-private def v1003 : Inv := ⟨5,1,0x1420c21421000c2040,0x40040,0x555fff03303330ffff000577⟩
-private def v1004 : Inv := ⟨2,12,0x2040,0x28930728a0cb2890c50c22071800c50440c2040,0x41aa04106b97716f800106a81041a8b7c0000000000b7c001142cbbc50800000000008104082df⟩
-private def v1005 : Inv := ⟨5,2,0x1450c51451440c2040,0x40042040,0x1000170001c01c71c0fc002f000000003⟩
-private def v1006 : Inv := ⟨2,10,0x40042040,0x28a1852891851852070401850440c2040,0x6a0d41a9375be05c1a83506ab7c00015000b7c0b91326e44c00000000b7d6fadf⟩
-private def v1007 : Inv := ⟨5,1,0xc20c01440c0042040,0x40040,0x555ffff3f3330cffff000f7f⟩
-private def v1008 : Inv := ⟨4,1,0xc20c21000c2040,0x40040,0x557ff5dc33f3fff003ff⟩
-private def v1009 : Inv := ⟨1,2,0x40040,0x80080040,0x27ffc7e3f03f⟩
-private def v1010 : Inv := ⟨2,12,0x40002040,0x1c720730b1ca2471c72071c60401420440c2040,0x42aa1550aa21f21f807c22e51708b807c000000000007c00020a10f882800000000010fc80843f⟩
-private def v1011 : Inv := ⟨2,16,0x2040,0x38940e38e3ce18218738b38d30714b1872892071801440c2040,0x4288040010a048d0cad800000044002240c28656c0000000000000656c000110220246c4088000000000000008100408195b⟩
-private def v1012 : Inv := ⟨2,4,0x2040,0xc30c31030c2040,0x280a11800000400004000800000003⟩
-private def v1013 : Inv := ⟨5,1,0x1420c21421000c2040,0x40040,0x555fff57703330ffff000577⟩
-private def v1014 : Inv := ⟨2,11,0x2040,0xc21c72c42821c72890c21c81c61440c2040,0x205200205019963000822963822205000000000205000008019008000000000040040963⟩
-private def v1015 : Inv := ⟨2,14,0x40002040,0x14b1ce1481cd14c14b1ca1c71c90c21481c61440c2040,0xac2b5856b0a993b4ace0006b1b8023ac6f5854000000000015854000002a327600a800000000000959c0222567⟩
-private def v1016 : Inv := ⟨2,4,0x40042040,0x1041040c40c2040,0x39ce11840000420084200802108c63⟩
-private def v1017 : Inv := ⟨2,16,0x42040,0x3c60c60442d00c62cb3ce2cd2cc2ca2090c22070c61440c2040,0xea17a40bba85e000000910000000000000000010157a85e000000001015480aa0000014880003a85e902eea17804884b4625a3⟩
-private def v1018 : Inv := ⟨2,4,0x40042040,0x1041040c40c2040,0x39ce11840000420084200802008c63⟩
-private def v1019 : Inv := ⟨2,16,0x42040,0x3c60c60442d00c62cb3ce2cd2cc2ca2090c22070c61440c2040,0xea17a40bba85e000000910000000000000000010157a85e000000001015480aa0000014880003a85fd42fea17804884b4625a3⟩
-private def v1020 : Inv := ⟨2,5,0x82040,0x1041041041440c2040,0x1421400c0000001000001000040040000003⟩
-private def v1021 : Inv := ⟨2,9,0x40042040,0x1c62421861862421881c61440c2040,0x83e0f83c1148c01000000000548c0001405014000440048d2348d2348d23⟩
-private def v1022 : Inv := ⟨11,3,0x2cb28920b2cb2c71492892070c61440c2040,0x83083082040,0x2000220626700001001213f00000000000001000110f1ff01000110919900000000101900100f010f0f020002203233⟩
-private def v1023 : Inv := ⟨8,3,0x1c81c71c71c71c81c61440c2040,0x83083082040,0x2710001013f0000000000000011ff000000019000000019000000f0f000000003⟩
-private def v1024 : Inv := ⟨2,5,0x40042040,0x1041041041440c2040,0x1c71c10c10000010400410400400430430c3⟩
-private def v1025 : Inv := ⟨2,13,0x40042040,0x24620834820b34820830b2842422070c61440c2040,0x283ca0f283c011128c0010000000000004580ac00001140450114000004400080ae0ab80ac4a3128c4a3⟩
-private def v1026 : Inv := ⟨2,12,0x40042040,0x28b0c528a0c228c28b2891c81c60c50440c2040,0x507a83d41e151961800400000000000d541e00001a80d406a0000a8800141ea0f507cb0e5872c3⟩
-private def v1027 : Inv := ⟨2,6,0x2040,0x1861860c20c21440c2040,0xa002853600000006c0000a6c0000a00000000001b⟩
-private def v1028 : Inv := ⟨2,11,0x2040,0x1470c91c41cb1c72870c92021c61440c2040,0x84504084520511b00000000000043300000042243342200020500000000000000800811b⟩
-private def v1029 : Inv := ⟨2,4,0x40042040,0x1041040c40c2040,0x39ce11840000420084000802108c63⟩
-private def v1030 : Inv := ⟨2,6,0x2040,0x1860421850c20440c2040,0x5e29795760000000bd7805ebc0002a0178a5e0003b⟩
-private def v1031 : Inv := ⟨2,5,0x80002040,0x42042140103042040,0xdc4dc9ec000003ffc0fff00034003fff203b⟩
-private def v1032 : Inv := ⟨2,5,0x40042040,0x145042144043042040,0x5d75cd6c10000175c05d70003405d75db6db⟩
-private def v1033 : Inv := ⟨7,2,0x1861861c61861441440c2040,0x40042040,0x16000017000000000fff000fff00002d038fff000013⟩
-private def v1034 : Inv := ⟨7,3,0x1871861861871861440c2040,0xc30c3042040,0x71001013f000000000000033f0000033f000000550000002300000003⟩
-private def v1035 : Inv := ⟨2,6,0x2040,0x186042186142103042040,0x4e01385560000000ad58056ac0000a00000560002b⟩
-private def v1036 : Inv := ⟨8,2,0x2041861862041c60c21440c2040,0x40042040,0x402196c000105c0000007038fffe071ffe00028b40038e3a01069b⟩
-private def v1037 : Inv := ⟨7,3,0x1871861861871861440c2040,0xc30430c2040,0x71001013f000000000000055f0000055f000000150000001500000003⟩
-private def v1038 : Inv := ⟨2,4,0x2040,0x1041040c40c2040,0x380e11800000420084000800008003⟩
-private def v1039 : Inv := ⟨2,5,0x40002040,0x1041041041440c2040,0x1c71c10c1000001040041000040043043003⟩
-private def v1040 : Inv := ⟨2,9,0x40002040,0x249105243249109207185103042040,0x49d2749c8542c01000000001304c0004c13000002140004c1b04d0b0010b⟩
-private def v1041 : Inv := ⟨6,2,0x1861861861441440c2040,0x40042040,0xb00005c0000000fff007ff8000b401ffe00013⟩
-private def v1042 : Inv := ⟨2,11,0x2040,0x4914b04a0491422041451471850440c2040,0xb07048b07611d83000000000000b45b45000b45b4500000061100000a00ab45000000d83⟩
-private def v1043 : Inv := ⟨2,9,0x40002040,0x1c41471c71470c91c81c61440c2040,0x515455160506c0100000000230000059c2359c0081400000000001b0a81b⟩
-private def v1044 : Inv := ⟨12,2,0x20b14c28a2890cb1c00462892021c61440c2040,0x40042040,0x1c01f81f8e00e38fc7fc0000000000038e3f1ffa00fe8bc7a00a28b45b6803fa2f1ea2026c2653⟩
-private def v1045 : Inv := ⟨1,4,0x40040,0x400c20440c2040,0xfffff003fffd6b5fff7b⟩
-private def v1046 : Inv := ⟨1,5,0x40,0x440400c50440c2040,0xff5fff00003fff5d75fff4db⟩
-private def v1047 : Inv := ⟨1,7,0x40040,0x1c61440c20401c61440c2040,0x5555ffff000000ff5555555533333333⟩
-private def v1048 : Inv := ⟨14,2,0x2870c204c3401c70ce34c1c724b2872481c61440c2040,0x41081040,0x1d21d00001d0db81871bedc000000000002fe071c7fef3c81c00403c8248041049240fc0e38e08e0da0d10400d⟩
-private def v1049 : Inv := ⟨6,2,0x1451450c21851000c2040,0x40042040,0xe381c7fc00000071ff03f1e8145b40a2da020d3⟩
-private def v1050 : Inv := ⟨20,2,0x2875041d31c748e1cf44740f0ce2401cd0c20481c730b2872481c61440c2040,0x41081040,0xa00400e87405407436008239d871bedc0000000000000000f40000eaf1c7fefc00208e0720600f209000008241049242000147038e38438801001a0d10510d⟩
-private def v1051 : Inv := ⟨4,2,0x1041041020c2040,0x40042040,0xe07fc00001ff007a05b40028003⟩
-private def v1052 : Inv := ⟨3,6,0xc00400c2040,0x440c60c50c30440c2040,0x1140450045180000000001140008b162c500008800000000048c123⟩
-private def v1053 : Inv := ⟨2,7,0x2040,0x441860471850c20c40c2040,0xafafaf953b01000000afaf00afafaf009500af0eaf0a0a3b⟩
-private def v1054 : Inv := ⟨2,6,0x42040,0x43145046144043042040,0xaf5ebcd3604000015eb80af5eb809a02bd7ae08d9b⟩
-private def v1055 : Inv := ⟨0,4,0x0,0x42040103042040,0xffc1ffb77b⟩
-private def v1056 : Inv := ⟨11,2,0x4b0400c504b1c724a1c72481c61440c2040,0x41081040,0x4ba00003adc61c6fb7000000000fc71c7fef4ba00003a241041249fc71c7047b4d10400d⟩
-private def v1057 : Inv := ⟨20,2,0x1441d31d41d348d49140f1c704c0401ce0cd04c1c724b2872481c61440c2040,0x41081040,0x48048740500758e2091b91871bedc0000000000000007140007e871c7fef000480487405007441000048041049250000a3f038e38438001305a0d10400d⟩
-private def v1058 : Inv := ⟨2,14,0x42040,0x1cc04e04d1c61cc04b14a1c71c91481c61441440c2040,0x665accbd996ed11a8c6000400000000000ccb40970000665eccb59968000da220001997812e665e008aa31d463⟩
-private def v1059 : Inv := ⟨2,10,0x42040,0x4714a042149043207046144043042040,0xaefffebb8cd636004000000015dfff800aaf5debb80019a002bbfffaee4098db1b⟩
-private def v1060 : Inv := ⟨3,15,0xc30c3042040,0x30f30f10a30e18d30b30b10310a109048187185103042040,0x21e721e721e70000070d083bffff0000000000000000000021e7083bffff0000000021e721e700000000070defad000021e7083bffff00000000083b083b⟩
-private def v1061 : Inv := ⟨2,7,0x42040,0x441861871850440440c2040,0x8d8d8d1123010000008d02008d8d8d001100020202022323⟩
-private def v1062 : Inv := ⟨3,7,0xc30c3002040,0x1471420c71460c50440c2040,0x2a00050011430000000000000500000000052a000011000000ff0000000843⟩
-private def v1063 : Inv := ⟨2,14,0x42040,0x14b34d1ce34c14414b14b14b04a2481c60c21440c2040,0x8f9f1f3e3e78c1520f60004000000000011f3c83d80008f9f1f3e3e78000182a0000015107b20f600a883d907b⟩
-private def v1064 : Inv := ⟨3,25,0xc30c3002040,0x2d56525155d85ce20c2ca2d62d520c50a4d24464042023ce14d0cc2ca0c92021c60c21440c2040,0x36e23cfffffffe9f9bef0000000603615445a5efffffff0000000000000000000000000000000029f9beffffffffffffff0000000000000a7e6fbf6e23cf0000000000000180d8556476550000000603615445a5efffffff0000000000000f19a9ed11697b⟩
-private def v1065 : Inv := ⟨2,16,0x42040,0x10b3cf1900422073ce34210310b10b30b289207185103042040,0x93f3c9f9e4fce0a0d3a1d8000400000000000049f9ce876000091d3c9f9e4fce00000506800006826743b1a098d048e876743b⟩
-private def v1066 : Inv := ⟨3,14,0xc3043002040,0x28b28e28904d04c14b284149048047046144043042040,0x1f5dffff8c770000c73618dffff000000000000000000031dffffffff0001f5dc63bfd77000000018e6fbdd000031dffffffff00010c6f7adc31b⟩
-private def v1067 : Inv := ⟨2,12,0x42040,0x18918c18a10b18a103248107042185103042040,0x15bfffc56e88d81d80040000000000adc5ee00015b8adc56e00044680000262f717b804a07703b⟩
-private def v1068 : Inv := ⟨2,3,0x82081040,0x40043042040,0xf0ff0000ff0ff0dd00000b⟩
-private def v1069 : Inv := ⟨4,6,0x400c40400c2040,0xc31460c30c31440c2040,0x4801200480000004000000000080000520048912244808002020800000000214085021⟩
-private def v1070 : Inv := ⟨3,8,0xc00400c2040,0x460c80c71440460c31440c2040,0x90002400000040088c4623110044448001209048240100886020000000001229448a5⟩
-private def v1071 : Inv := ⟨4,0,0xc30c3103081040,0x0,0x8ce318c01⟩
-private def v1072 : Inv := ⟨3,0,0xc30c3081040,0x0,0x13333301⟩
-private def v1073 : Inv := ⟨3,9,0xc00400c2040,0x400c61490481470c60c31440c2040,0xa4000a40000008800292e5292e5002e529000290a4290a408822ecc220000000000292e5292e5⟩
-private def v1074 : Inv := ⟨6,4,0xc61450c61450c40c2040,0xc20c40420c2040,0xbf07c1fbfea0a82b5bfc1f0141f380e039cf705c171dc00000000000000003⟩
-private def v1075 : Inv := ⟨5,1,0x450450c40400c2040,0x40040,0xf3303ff3303ffffabf000fbb⟩
-private def v1076 : Inv := ⟨4,0,0x1030c3103081040,0x0,0x8c63b8c01⟩
-private def v1077 : Inv := ⟨13,1,0x2c524934924c2492c62891002070c60c51000c2040,0x40,0x9413003333f80236bb012323f84237ff80333bf000000080236bb⟩
-private def v1078 : Inv := ⟨11,1,0x2852c72821c91c71002070c60c51000c2040,0x40,0x14130f333f8832bb0e323f9833ff0d333f0000008832bb⟩
-private def v1079 : Inv := ⟨3,10,0xc00400c2040,0xc31c62890c20c81441c60c31440c2040,0x90000240000004100042284508a110008441200004849412125104208618820000000000004849412125⟩
-private def v1080 : Inv := ⟨6,3,0x460460460c50440c2040,0x420c0042040,0x444040400000affff4f4f0000f0fdddcdcdaaaaaff0000000dddcdcd⟩
-private def v1081 : Inv := ⟨3,9,0xc00400c2040,0x400c61490481470c60c31440c2040,0xa4000a40000008800292e5292e5002e529000292e5292e508822ecc220000000000292e5292e5⟩
-private def v1082 : Inv := ⟨3,18,0xc00400c2040,0x2ca4512481d24511c615038d38f38d0cc1c62ca0c22481c61440c2040,0x2c6bc00000b1af0000144154879980000a20ab44156882ad1055000014415458d7800001635e43ccc58d7800000144402888879980a2200000000000000000000415c2c6bc10570b1af⟩
-private def v1083 : Inv := ⟨7,2,0x1861861861c41861440c2040,0x41081040,0x20061b70000020071ef00707700104d000000000005⟩
-private def v1084 : Inv := ⟨6,3,0x1451451851451440c2040,0x420c0042040,0x400000af00000090000f0f00f005f000005500000000000009⟩
-private def v1085 : Inv := ⟨5,3,0x1451451451440c2040,0x420c0042040,0x40000af000000000f0f000055000055000000000009⟩
-private def v1086 : Inv := ⟨4,2,0x1041040c20c2040,0x81081040,0xc06dc00301ff03fe01340000005⟩
-private def v1087 : Inv := ⟨11,1,0xc20c70c72c82801852480c71851000c2040,0x40,0x34413fcc33fabeebbe8c23ffc537ffeebbf000000abeebb⟩
-private def v1088 : Inv := ⟨9,1,0xc71872401852050c71851000c2040,0x40,0x4413fc33faeabbac23fd537ffc33f00000aeabb⟩
-private def v1089 : Inv := ⟨3,15,0xc30c3082040,0x2cf2cf1c80cd2ce0cd0442cc2ca0c91c81c60c50440c2040,0x164f2235000001d3164fffff00000000000000000000164f0000ffff0000000022350000000000002235f775000000000000164f00000000000001d3⟩
-private def v1090 : Inv := ⟨3,9,0xc20400c2040,0xc52082092091c81c60c50440c2040,0x83c3583c3530c0183c01000000000083c05000000d4000d400044000440083e0f83e0f30cc330cc3⟩
-private def v1091 : Inv := ⟨10,3,0x14424924a2490400c72071461440c2040,0x420c0042040,0x4f400f400a0f00f0af00000000000f000f00ff0f0000050005000505005055f000f00ff0f80009118819⟩
-private def v1092 : Inv := ⟨12,3,0x14414c1450400ca2ca2091452071461440c2040,0x420c0042040,0x4f400000f40a0f00f00f0af0000000000000f00f00f00ff0f00005000000500505005005055000f00f0f000f0009118080019⟩
-private def v1093 : Inv := ⟨2,5,0x80080040,0x440400c50440c2040,0xfffd7ffff00003f03fd75035d75ffffd34d3⟩
-private def v1094 : Inv := ⟨5,2,0x1450c41450c40c2040,0x41081040,0x861b70000071ef186dc1049000000005⟩
-private def v1095 : Inv := ⟨6,3,0xc61450c61450c40c2040,0x410c2042040,0x4e0e0e6f0000000f0f0b0f404044d505051500000000000009⟩
-private def v1096 : Inv := ⟨4,2,0x1041040c20c2040,0x81081040,0xc06dc00001ff03fe01240000005⟩
-private def v1097 : Inv := ⟨2,9,0x42040,0xc22441c72480c21c60c21440c2040,0xdbf6fdbd159ec01000000036fdbc008af6fdbc0045400dbe2edbe2a9ee7b⟩
-private def v1098 : Inv := ⟨2,7,0x42040,0x103186107042185103042040,0xb7b7b78d3b01000000b7b70013b7b7008d00b7b7b7123b3b⟩
-private def v1099 : Inv := ⟨12,3,0x14414c1450400ca2ca2091452071461440c2040,0x420c0042040,0x4f400000f40a0f00f00f0af0000000000000f00f00f00ff0f000e54a0a005e0505005005055000f00f0f000f0009118080019⟩
-private def v1100 : Inv := ⟨2,5,0x40042040,0xc21400c20440c2040,0xbefbd5eff00003ffc057f54054057f57befb⟩
-private def v1101 : Inv := ⟨2,8,0x40002040,0x1441c72041441c70c61440c2040,0x975be5c0001000000000006de000002c020000802df6fb782c040b⟩
-private def v1102 : Inv := ⟨2,7,0x40002040,0x1040870871040861440c2040,0x66906000200000000016900000201000100066906090209⟩
-private def v1103 : Inv := ⟨11,2,0x2cb2072cb2852092071851850c20440c2040,0x40042040,0x6036db60800804170000000001c0fc0fff00702df7d140140a2d1c0fc0fff0814896db⟩
-private def v1104 : Inv := ⟨2,5,0x42040,0x1041041441440c2040,0x3cf3c10c10000010c00410000400030c00c3⟩
-private def v1105 : Inv := ⟨2,4,0x40002040,0x1041040c40c2040,0x304c01000000420000200800100441⟩
-private def v1106 : Inv := ⟨2,4,0x42040,0x1041040c40c2040,0x39ce11840000420084000800108063⟩
-private def v1107 : Inv := ⟨2,6,0x42040,0x1041041041841440c2040,0xe3c78106040000004180020400002000830200183⟩
-private def v1108 : Inv := ⟨2,7,0x42040,0x1441041c61040c61440c2040,0x8f8f8f010301000000012b000101000001002b2b2b000303⟩
-private def v1109 : Inv := ⟨2,5,0x40002040,0xc41440c40c40c2040,0xb81b80080000001fc000004004007f001081⟩
-private def v1110 : Inv := ⟨2,10,0x42040,0x28a24828a1c61442481c60c21440c2040,0x4de9bd378451360040000000026d3780008a26c0000008a00115a6f4de0004d89b⟩
-private def v1111 : Inv := ⟨2,7,0x2040,0xc50c70460c50c31030c2040,0x212104000200000000210000210421004100000000020291⟩
-private def v1112 : Inv := ⟨7,2,0x471820c20471821440c2040,0x40042040,0xdb6db60904170000001f8fff1c0fc0168a2dbfdf7d2d9659⟩
-private def v1113 : Inv := ⟨2,9,0x2040,0x1c60491c70481421c61421440c2040,0x5bd6f0b0000a800000000016f0b8005bd6f5bc00c54005bc2e5bc2a0aa7b⟩
-private def v1114 : Inv := ⟨2,5,0x2040,0xc21400c20c40c2040,0xbefb80a8000003ffc0ffffc0540ffffeaabb⟩
-private def v1115 : Inv := ⟨8,2,0x144043186207186144043042040,0x40042040,0xd801b6c004005c0000000e381fffc01ffe00a00b471c0ff96102db⟩
-private def v1116 : Inv := ⟨2,7,0x2040,0xc21820c21c01821440c2040,0x4d4d4c00ea00000000ffea00ffffff001500eaeaeaeaeafb⟩
-private def v1117 : Inv := ⟨2,8,0x2040,0x1820c21822021c01821440c2040,0xe7f3e9800f50000000007ffd400ffffffe000a803d5eafdfabd5fb⟩
-private def v1118 : Inv := ⟨8,2,0xc22021c62021c60c21440c2040,0x40042040,0x9249248904105c00000000001c7e001fff68a28b520820bb65965b⟩
-private def v1119 : Inv := ⟨2,22,0x42040,0x2d02cb29610d19550719348b44d2d03cb2cb38710310d10d30b289207185103042040,0x35874e611f9cc23f3c0220d06087600000400000000000000000610e9cb821d80000030874e610e9cc21d380000080441a00000012a0997043b04a8260810481821d83043b⟩
-private def v1120 : Inv := ⟨7,2,0x421c21c2184144043042040,0x40042040,0xdb6db6490017000000ff81ffe00fffb6802dff81ff6d92db⟩
-private def v1121 : Inv := ⟨2,7,0x42040,0x103186107042185103042040,0xb7b7b78d3b01000000b7b700b7b7b7008d0013b7b7123b3b⟩
-private def v1122 : Inv := ⟨2,6,0x42040,0x440c60c50c30440c2040,0x8b16291460400001140008b16280220000000091a3⟩
-private def v1123 : Inv := ⟨4,2,0x104104043042040,0x40042040,0x248005c00001c703fe00b400000db⟩
-private def v1124 : Inv := ⟨3,34,0x40003042040,0x5935920d12e20610e00df2de2dd58605c05b0cc0da0590d80575950d41d32481d224f0d105024f38d0cc2ca2481c60c31440c2040,0xc872d4a2b90e5a945721cb528ae4396a51519b28aecb9eb0796cde40ebdb3800000001c872d4a2b90e5a94540000508864396a515c872d4a2a336515d940000000000000000000000a648000014c9066ca2bb280000532400080814486bb583cf3d60f2d98004040a2000000000000000000000000000000000007903af6ce000014c91e40ebdb3bc81d7b67⟩
-private def v1125 : Inv := ⟨3,32,0x3042040,0x1d21d10d02e005f0de0dd2dc2db1c605a0590d80570d60551d40d31d21d124e0d004f24e14d0cc2ca2481c60c31440c2040,0xc875b28ae43ad945721d6ca2b90eb651519b50bb2e7a8396cde41d76ce00000001c875b28ae43ad945721d6ca2b90eb6515c875b28a8cda85d94000000000000000000000992000004c9066d42eca000013240000005121ada83cf3d41cb66000000a200000000000000000000000000000000000000992000004c91e41d76cef20ebb67⟩
-private def v1126 : Inv := ⟨3,40,0x3042040,0x1e01d80e3a210d51e50df9d59879a51c72dc90e1e00e38a17a00df24879950c75c0d56d66991d85d650c4955134910d03ce1c734c2ca2481c61440c2040,0xc924aa0a80649255054032492a82a019249541510112d343aa48c1327c6e087376d6ce00000000012a12420111958d3305ccca86b5e86ce54248402232b1a660b998808969a1d40000000000000000000000100c14320008060a1904044b4d0ea00201828640000000405022408d343d2460993e36000000080a0000000000000000000000000000000000000000000100c14320008060a192087376d6cf0439bb6b67⟩
-private def v1127 : Inv := ⟨3,30,0x3042040,0x1d335e1d375650e7501d551361c5070db1d515a2d961745651534c5133524500cf1ce1c734c2ca2481c61440c2040,0x949a82a129350542526a0a84a4d415408e50eb5a10746c286b5b380000001002404460048088c25b6b1b84b6d63700240446811ca1d4000000000000000540d58c8a81ab191023943aaa06ac64002414542802303eb420e8d80120a2a0000000000000000000000000000000540d58c8a81ab190286b5b3850d6b67⟩
-private def v1128 : Inv := ⟨5,2,0x104104045103042040,0x40042040,0x20900017038fc01c7038fc00af00000061b⟩
-private def v1129 : Inv := ⟨2,9,0x2040,0x1041c60c22481041041c61440c2040,0x104410100020800000000010900000208824240010400000000008220909⟩
-private def v1130 : Inv := ⟨2,10,0x42040,0x1c62490ca2480c51c60400c50440c2040,0x86b0d61acb72be05e1ac3586a57c0000000057c0008296e20800000000410af95f⟩
-private def v1131 : Inv := ⟨7,1,0x145107145185040103042040,0x40040,0x4500ff30ff00f303cf00ff000020ef⟩
-private def v1132 : Inv := ⟨7,1,0x107107107185040103042040,0x40040,0x4500fffcff00f303cfaaff0000a8ef⟩
-private def v1133 : Inv := ⟨2,12,0x42040,0x1c720730b1ca2471c72071c60401420440c2040,0x42aa1550aa21f21f807c22e51708b807c000000000007c00020a10f8828000000000101087e43f⟩
-private def v1134 : Inv := ⟨2,14,0x42040,0x20714e30c30c30d30b2891462071460401420440c2040,0x80ab015602ac45f417e007c08bc15782ae82fc0000000000082fc000050a88be142800000000000881105fa0bf⟩
-private def v1135 : Inv := ⟨2,4,0x42040,0xc30c31030c2040,0x294a11840000400004000800000063⟩
-private def v1136 : Inv := ⟨2,16,0x42040,0x30a2481d014f1c724e24e0ca30d1c730b0ca2481c61440c2040,0x560aab055582ac11b91b380004044723670111ab0540000000000002b0540000000a608d800280000000000000011246cf2367⟩
-private def v1137 : Inv := ⟨2,16,0x42040,0x14d1d01481cf1cf14e14d14c1cb1c71ca0c91481c61440c2040,0xa70ad38569c2a711b44b38000400474e37a71bd3854000000000000538540000002a388d800a80000000000000091112ce8967⟩
-private def v1138 : Inv := ⟨2,13,0x40002040,0xc620834620930820820b2842092070c61440c2040,0x883a80b8838000108800000000000000045a02c000011400001140000044000a02e80ba02c0811088081⟩
-private def v1139 : Inv := ⟨2,8,0x2040,0xc22002040c22070c61440c2040,0x8065c0091000000000357fe0000001aa0048801abff0048a4481⟩
-private def v1140 : Inv := ⟨2,11,0x42040,0x1c61441c62ca1861862421881c61440c2040,0xe0fe0fe0f011123001000000000405123000000405405000011000022123123022123123⟩
-private def v1141 : Inv := ⟨2,4,0x2040,0x1041040c40c2040,0x84c01000000420000200800100841⟩
-private def v1142 : Inv := ⟨2,4,0x42040,0x1041040c40c2040,0x39ce11840000420004200800108863⟩
-private def v1143 : Inv := ⟨2,11,0x42040,0x1441c618628b1861862822481c61440c2040,0x807c0fc0f011123001000000000805123000000805805000011000011123001022123123⟩
-private def v1144 : Inv := ⟨2,17,0x42040,0x3064484083482463c814420e34820830b2842422070c61440c2040,0x5283c5a0f1683c00110128c0001000000000000000845882ac0000000000845021140000000440000280ae20ab280ac04220128c04a3⟩
-private def v1145 : Inv := ⟨2,16,0x42040,0x3c60c61442d03c62cb3ce2cd2cc2ca2090c22070c61440c2040,0xea17f50bfa85e029112d18000400000000000010157a85e000000001015480aa00000148800010057d42fea17804884b4625a3⟩
-private def v1146 : Inv := ⟨2,7,0x42040,0x1c71441c70c60c61440c2040,0x454545451b010000001b0000451b01004500000000021b1b⟩
-private def v1147 : Inv := ⟨2,11,0x42040,0x1471c41cb1441c71470ca2481c61440c2040,0x94594594550521b00100000000003300000002303302300050500000000000000a21b21b⟩
-private def v1148 : Inv := ⟨2,5,0x40042040,0xc21400c20440c2040,0xbefbd5eff00003ffc0fff00054057f57befb⟩
-private def v1149 : Inv := ⟨2,4,0x40042040,0x42100043042040,0xbdeeddfc0007fe0ffc00683fffef7b⟩
-private def v1150 : Inv := ⟨2,5,0x42040,0x145042144043042040,0x5d75cd6c10000175c05d70003405d75c06db⟩
-private def v1151 : Inv := ⟨4,2,0x104104043042040,0x40042040,0x36c005c00001ff03fe00b40ff80db⟩
-private def v1152 : Inv := ⟨5,2,0x1451450c20440c2040,0x40042040,0x36d80417000000fff03ffc0a2d038e006db⟩
-private def v1153 : Inv := ⟨2,6,0x42040,0x186042186142103042040,0x4e9d385560400000ad58056ac0000a0002b56015ab⟩
-private def v1154 : Inv := ⟨2,5,0x42040,0x1041041041440c2040,0x1471c10c10000010400410000400010000c3⟩
-private def v1155 : Inv := ⟨2,8,0x42040,0x2081821822081c21821440c2040,0x3b3d9e056d80400000036db6006db6c0000028000adb00801b6db⟩
-private def v1156 : Inv := ⟨2,12,0x42040,0x14630a28a2ca10a1082832481c6142103042040,0x4c3869c34e0450558004000000000406e03600080dc06c000000022800042701b10980001560ab⟩
-private def v1157 : Inv := ⟨2,5,0x42040,0xc21400c20440c2040,0x16fbd5ed100003ffc0fff000540fff000efb⟩
-private def v1158 : Inv := ⟨2,6,0x42040,0x186102042185103042040,0x6eddb8d760400000ddb806edc0001a009b76e01dbb⟩
-private def v1159 : Inv := ⟨2,12,0x42040,0x1491cc1441cb14a1c71490c21c81c61440c2040,0xaa2d516a8a61549d8004000000000559c000000011d59eace00030a800000000000000a927693b⟩
-private def v1160 : Inv := ⟨2,3,0x82080040,0x40043042040,0xf0ff0000ff0000dd000009⟩
-private def v1161 : Inv := ⟨1,3,0x40040,0xc20400c2040,0x55ff0f0f00ff0055⟩
-private def v1162 : Inv := ⟨2,9,0x2040,0x460c90c20c80c31c60c31440c2040,0x10040100020800844108461100000000000008230c82000000000401105⟩
-private def v1163 : Inv := ⟨2,8,0x40042040,0xc80c21851880471850440c2040,0xcbe5f2fffdbffc2a000a8542bff0a8542bb749edc00000021d0e87⟩
-private def v1164 : Inv := ⟨2,4,0x82081040,0x42040103042040,0x6fe0ffc00f83ff07fe06fc000001b⟩
-private def v1165 : Inv := ⟨2,7,0x40042040,0xc71851870c71850c40c2040,0x979797ffb7ff0100010101ff010101b703b7000000070707⟩
-private def v1166 : Inv := ⟨2,8,0x42040,0x460c80c70c30460c31440c2040,0x2010080001002231188c440000000000002218080000000110a85⟩
-private def v1167 : Inv := ⟨2,8,0x40042040,0x460480400c70460c50440c2040,0xeaf57abfffbfffabd5eaf5401ff0000001f7a9fdc0000001148a45⟩
-private def v1168 : Inv := ⟨2,7,0x2040,0xc60470c60c30c31440c2040,0x4040400020004044141000000000002a102000000040441⟩
-private def v1169 : Inv := ⟨2,4,0x40042040,0x400c20440c2040,0xad6bfffc00ffc1f0001fafc0004631⟩
-private def v1170 : Inv := ⟨1,3,0x40040,0xc20400c2040,0x55ffff0f00ff0055⟩
-private def v1171 : Inv := ⟨2,4,0x82081040,0x103101103081040,0x4605fc000803f000200ac0000001⟩
-private def v1172 : Inv := ⟨2,25,0x42040,0x3924594563902584574560554512542d32ca2483924513901cf38d1c62cc2ca2481c61440c2040,0x3019800c06600301980000000000a280000000000a2825229b0948a6c25229b91054140000009105416441505910541400028a4c2073400028a0000000000000000000000c066e21c1cf887073⟩
-private def v1173 : Inv := ⟨2,8,0x40042040,0x420c80421470461440400c2040,0xaad56abffeffffafd7ebf5c01ff0000001dfa7f7c0000000542a15⟩
-private def v1174 : Inv := ⟨2,9,0x40042040,0x420491480421470461440400c2040,0xd5755d57fff7fffd5f57d5f57003ff00000003df93fdf000000001505415⟩
-private def v1175 : Inv := ⟨4,3,0xc30c30c40c2040,0x420c0042040,0x4000af0000500f0f000000005d0000000001⟩
-private def v1176 : Inv := ⟨3,7,0xc00400c2040,0x450470c60450c30440c2040,0xd500d500b36700d5d5d5d500d50000d5d5d5d50202b3020000000006670667⟩
-private def v1177 : Inv := ⟨3,6,0xc30c3002040,0xc00460c00c50440c2040,0x3fa501d6dff000002501fc07f01fffff0003af700000000002fdb⟩
-private def v1178 : Inv := ⟨4,32,0x400c00440c2040,0x1d21d10d02e005f0de0dd2dc2db1c605a0590d80570d60551d40d31d21d124e0d004f24e14d0cc2ca2481c60c31440c2040,0xc875b28a800004c9321d6ca2a00001324c875b28a8cda85d94000001459ea0e5b379075db380000000321d6ca2b90eb6515c875b28ae43ad945721d6ca2b90eb6515000009920cda85d94000000000000000000000992000004c9000002648336a1765000009920000002880000014486b6a0f3cf5072d980000028800000000000000000000000000000000000000000f20ebb67000009923c83aed9c00002648f20ebb67⟩
-private def v1179 : Inv := ⟨2,13,0x42040,0x24c0c60c634924924c2ca2090c22070c61440c2040,0x11558af0014001008c00111540541154005000000060b98af62be12284ce1220000000000182e62bd8af⟩
-private def v1180 : Inv := ⟨2,9,0x40002040,0x1870c91c71c81871830c50440c2040,0x8d4000140100c008d6358d405000000010f0004214c42000000010f4110f⟩
-private def v1181 : Inv := ⟨2,12,0x2040,0xc930618b2840c90c21862061c01850440c2040,0x41aa0d506b39734f8a5d06a03041ace5c0000008c14e5e3051829cbc608000000000083041869f⟩
-private def v1182 : Inv := ⟨3,11,0xc30c3082040,0x24a24a24b24a1441442480c70c61440c2040,0xfff0c50000c501bfff0000000000c500001b000fff0000c501bfff0000000c5df700000000000000000002201b⟩
-private def v1183 : Inv := ⟨2,12,0x2040,0xc93071cb2840c91c72070c21401c61440c2040,0x42aa1550ab33731f88dd0aa05442accdc00000089bccde26f12299bc48800000000008b845c63f⟩
-private def v1184 : Inv := ⟨2,16,0x2040,0xcc40824f1c834e1c83480cc2c81ca2480c21401c61440c2040,0x602affffd80ab1237281f800dd80aa5454602ac08dc00000000811bc08dfd5ff0222891bc088800000000000044aba255c503f⟩
-private def v1185 : Inv := ⟨3,7,0xc00400c2040,0x450470c60450c30440c2040,0xd500d500b3670000d500d500d50000d5d5d5d50202b3020000000006670667⟩
-private def v1186 : Inv := ⟨11,2,0x24920a2491cb24a20a2492041c61440c2040,0x41081040,0x7000e3a1c0fc6fb70000000021c0fc7fef1c01c707704024124d00000000000100020d⟩
-private def v1187 : Inv := ⟨10,2,0x28a14928a2891491c81441c61440c2040,0x81081040,0x1c71f0e3f1bedc0000000c38fc7fff1c0e38ff820904934000000000000820d⟩
-private def v1188 : Inv := ⟨3,12,0xc00400c2040,0x4a04c0cb14a0441490c80c70c60c31440c2040,0xa1000028400000801440001420a105082840006e14000000dc2ee1770bb850100082c620200000000000000051338c144ce3⟩
-private def v1189 : Inv := ⟨6,2,0x1860441850400440c2040,0x1042040,0x1049e08bc5c4120818ec70c3758168b40000008251⟩
-private def v1190 : Inv := ⟨4,13,0x1041031040c2040,0x34b20934920c20920b0c22ca2092070c61440c2040,0x17bf01140007bdc011022ffff000000000000000114000001408b0003fff000008b00000005efc00000440000115ef70000000000000000000000000000022c411⟩
-private def v1191 : Inv := ⟨2,18,0x2040,0x20b0521910ca40a1cf18e18434730a1cb1c70ca0c92071841440c2040,0xc80223098800020000000004000032008e401100c0880004000000000184c4309898c0683020a02060c080000000000000003098861313180d⟩
-private def v1192 : Inv := ⟨5,47,0xc51000400c2040,0x1e45a336f36e6ed0ceaac26baa994c75e0686e78a694c1e45e38a14100d10c22430ce81f75e41475c1c46da6585d64105965504144131c649141040f0ce34c2ca2481c61440c2040,0x785a810a804104045b0004a28a9d401c080d004280024404000000000000004280024404785a810a8041e1a98cc03003000000000000002000a4002004045b0004a2000000000000785a810a804133d20500005100428002440400428002440433d205000051004280024404785a810a804104045b0004a20000000000008a9d401c080d000000000000000000000000002000a4002004045b0004a28a9d401c080d00000000000004045b0004a2000000000000002000a40020e1a98cc03003002000a40020002000a4002033f205a40071002000a4002000000000000000000000000000000000000000000000000000000000000000000000000000005100040004045b0004a28a9d401c080ddb05d1041d0904045b0004a2db05d1041d09⟩
-private def v1193 : Inv := ⟨2,10,0x42040,0x1c618a2440c81861c60401850440c2040,0x86b0d61a99763e45e1ac3586a65c0000010465c4108232e208000000004318fb1f⟩
-private def v1194 : Inv := ⟨3,13,0xc30c2002040,0x4720420d0cc0cb0c22001852892071850440c2040,0xffff8b50003fb7ff7ffff000000080978b500038b50003fff0003fb7ff7ffff00022918a47fb7000000000000000000000ff7c9cb⟩
-private def v1195 : Inv := ⟨2,10,0x42040,0x1c618a2440c81861c60401850440c2040,0x86b0d61a99763e45e1ac3586a65c0000012e65c4b88232e208000000004398fb1f⟩
-private def v1196 : Inv := ⟨10,3,0x28a28a28a0400c90402071850440c2040,0x41083080040,0x9f9009f9000f0fffb7f00090909909000f0f9ff0f000f0f9ff0f000b0bbb0bb0000000000000017100171⟩
-private def v1197 : Inv := ⟨2,17,0x42080040,0x28729118d3103ce18d2840c228830b2801890480471850440c2040,0xc2ad7ffffc2ad7ffffd377f6fb7c2ad42035c2ad7ffff000030ab5e7bff6fb7e7bff6fb78164e0593000000000000009c8fd377c9c8f⟩
-private def v1198 : Inv := ⟨3,1,0xc30400c2040,0x40040,0x333f333f003f0011⟩
-private def v1199 : Inv := ⟨3,8,0xc30400c2040,0x460480400c70460c50440c2040,0x75401d5007ffefff00757abd50075401ff000000000007dea7f7000000000001140045⟩
-private def v1200 : Inv := ⟨5,1,0x450450c40400c2040,0x40040,0xf3303ff3303f000abf000511⟩
-private def v1201 : Inv := ⟨3,7,0xc00400c2040,0xc60470c20c60c31440c2040,0x4500450045b3000445044500450000000000002222b3220000000004450445⟩
-private def v1202 : Inv := ⟨4,1,0x1041040400c2040,0x40040,0xcc3f0fc3f0003f00011⟩
-private def v1203 : Inv := ⟨2,4,0x82080040,0x420c40400c2040,0x2a0ffc00a801f00000bdc0000005⟩
-private def v1204 : Inv := ⟨2,11,0x2040,0xc20c32c62890c20c80c31c60c31440c2040,0x40041052118c30002110102112110000000000000008828c3882000000000004004105⟩
-private def v1205 : Inv := ⟨2,11,0x2040,0x2891862070c218b1862892071861440c2040,0x102102825211183000211000000211004000211004211000183000000000000102102825⟩
-private def v1206 : Inv := ⟨2,9,0x42040,0x1450440c22481451c61450440c2040,0x209c771d1534c00454000011545400455154540034c00000000008271dc7⟩
-private def v1207 : Inv := ⟨2,6,0x42040,0x1861861861861440c2040,0x41c38106000800004080000408006000000008387⟩
-private def v1208 : Inv := ⟨2,7,0x2040,0xc20c20c31c60c31440c2040,0x511c30011110011000000000000c300000000000005⟩
-private def v1209 : Inv := ⟨2,4,0x1002040,0xc20c30440c2040,0xa5980a001400000009800000005⟩
-private def v1210 : Inv := ⟨2,7,0x40002040,0xc60470c20c60c31440c2040,0x45044545b30045044545000000000022b322000000450445⟩
-private def v1211 : Inv := ⟨2,10,0x40002040,0x2480ca1c61442481451c61440400c2040,0x62e8098bb1799e0018b800000c5e2280088b1162280099e00000000000c5d01317⟩
-private def v1212 : Inv := ⟨2,8,0x2040,0xc60c62071450c61440400c2040,0x32f97278032e000065c8a00229140000278000000000000197⟩
-private def v1213 : Inv := ⟨2,22,0x40002040,0x2ca24859534d44f2ca4d41c62ca34d4d234d44f0c21d03ce34c2ca2481c61440c2040,0xa6a44f09089a9a913a081190207860000010408c800282410232820465a020a80000068082ad01055a020a800282020786000a08000000000000000014d489e12113535227⟩
-private def v1214 : Inv := ⟨2,27,0x40002040,0xc22ca6c855455469934d60f2ca1c65c42d61c655434d2ca34d4cf4911d03ce34c2ca2481c61440c2040,0xdcb52271824204dcb5227204811980103c30000000204811980002822048119204811925204150000000012001025204150120010800028280103c38000282000000000000000000000dcb52271824204dcb5227⟩
-private def v1215 : Inv := ⟨2,14,0x1002040,0x1c22481c738d1c71cc1441c72ca0c82481c61440c2040,0x8001000828905c0660000482a811004424140000000000000000004202c06600200000000000001000200105⟩
-private def v1216 : Inv := ⟨2,11,0x40002040,0x4018718214b04a1862481871861440c2040,0x9851049859a5f330009a50229a59a5000000000000000222f33222000000000985104985⟩
-private def v1217 : Inv := ⟨3,1,0xc30400c2040,0x41040,0x333f003f00150011⟩
-private def v1218 : Inv := ⟨1,4,0x40040,0x400c20440c2040,0xad7ff0001f002b500231⟩
-private def v1219 : Inv := ⟨2,3,0x82080040,0x40043042040,0xf0ff0f00ff0000dd00f009⟩
-private def v1220 : Inv := ⟨4,3,0x1041041020c2040,0xc20400c2040,0xf00fff000f500fff00000005570000500001⟩
-private def v1221 : Inv := ⟨2,18,0x42040,0x38d2861c60c24864442cb2cb30b4023c038d30b2862481c61440c2040,0x9050541f3283e6020047847400000a08cbc23a2823328e5de11d0000000000000000000482829472f20a0a51cb800009050408010108a82115⟩
-private def v1222 : Inv := ⟨2,13,0x2040,0x4a04d0c224c2491822ca1822492071821440c2040,0x252894a07300042568000e76c95ae76f9db25680000000000000094ab73c94ae76c95ae76c0040011415⟩
-private def v1223 : Inv := ⟨2,19,0x2040,0x510532921d125004634c14f28e28a34c14b0c228b28a2481c61440c2040,0x2282022821330c010040a29200000de2190a292de219de2190a2920000000000000000000002282b33c302282de219de2190a292010040100469805⟩
-private def v1224 : Inv := ⟨2,14,0x2040,0x2861c60c23801c63423001c614b2862481c61440c2040,0x240448093e60004ed740000088f6ba0223ffffb5d000000000000000120236ae480bfff8000000000100020915⟩
-private def v1225 : Inv := ⟨4,35,0x4003002040,0x19f4a35621a10602ca1df1c61c618c1867842ca2dd71b19a18665818e1865d65544cc49140f1ce1cd1cc1861862ca2481c61440c2040,0x40802000040802000040802000040802038000f0c000000000000040802001008004040e000320000000004c0c01021040c00030040c00030040e000324c0c010214c0c0102100000000028100c005040e00032000000000000000000000000000000000000000000000000000000000040802920060c03000000a00500500a1100004080200100800400100800428100c00500000a000001008004001008004001008004001008004001008004a2400a101⟩
-private def v1226 : Inv := ⟨2,12,0x2040,0x18904c14618b2821491861862071461440c2040,0x810408b180040890001022112408a04422400000000000001028c184090220000000010008205⟩
-private def v1227 : Inv := ⟨2,15,0x40002040,0x30c24a24830c24a3cc1c638d30c2c424a2481c61440c2040,0x70f020a070f014568330000683368336833014568330000000000000000020a221b020a014500440145014500440145⟩
-private def v1228 : Inv := ⟨2,15,0x40002040,0x2ca1863c42481c61c638d14c1861862ca2481c61440c2040,0xf0f02020f0f210590330000101190331011210590330000000000000000020212130202210521050000210520042105⟩
-private def v1229 : Inv := ⟨2,22,0x40002040,0x1d23d61551c80541c63d33cf1d21513d01c83ce04d14c2ca0491c81c60c21440c2040,0x28479e000228a11e7e364559c94f60000027253dce4a7b9c94f6508f3e7253d8000000000000000000000000008a646d3e000228a11e780008a28479f8d915400202636455⟩
-private def v1230 : Inv := ⟨2,15,0x40002040,0x2ca1863c42481c61c638d14c1861862ca2481c61440c2040,0xf0f02020f0f210590330000101190331011210590330000000000000000020212130202210590330000210520042105⟩
-private def v1231 : Inv := ⟨2,21,0x40042040,0x38b29551129528e51138938e1464c349140f38b34c28b289207146140103042040,0x58079d601e758079e0128d24a0ec0110f24a0ec9283b24a0ec0351f24a0ec0000000000000000000001401225245bd4012200d47c02d1b00d47e0128d804a360128d⟩
-private def v1232 : Inv := ⟨2,14,0x2040,0x2861c60c23801c63423001c614b2862481c61440c2040,0x240448093e60004ed740000088f6ba0223ffffb5d000000000000000120236ae480bffff6ba000000100020915⟩
-private def v1233 : Inv := ⟨2,27,0x40002040,0x24a25435b24a24a1c635a04e35961335724858215534d2544911534911503ce34c2ca2481c61440c2040,0x50cf0f0408a0a050cf0f6221145d9190b30000000d9190b3d9190b3d9190b3054458dd9190b300000000000000000000000000000408a0a069ca5b0408a0a054458d04400aa054458d622114500200446221145⟩
-private def v1234 : Inv := ⟨2,8,0x2040,0xc21c72021c71c60c21440c2040,0x21e11a5800014b0052e960000000000002802970aa58000011⟩
-private def v1235 : Inv := ⟨2,7,0x42040,0x421861c2186185103042040,0x878709a30000a300a3a300000000000500a3a3a3000909⟩
-private def v1236 : Inv := ⟨5,1,0x1451450440400c2040,0x41040,0xf303f00c03f0000150f3051⟩
-private def v1237 : Inv := ⟨1,3,0x40040,0x40043042040,0xfffff0ff00ddff99⟩
-private def v1238 : Inv := ⟨2,9,0x40042040,0x1c62430421080421c6140103042040,0x39ce739d0daedefaeebbaefffaec0000000000a27bca27bfff7bd0d4350d⟩
-private def v1239 : Inv := ⟨2,13,0x2040,0x2ca3472ca14c2490c20422ca2492071821440c2040,0xa102840b73d415e76c000e76f9dbe1239dbe76c00000000000002840b73e840e76f94ae76c4001001415⟩
-private def v1240 : Inv := ⟨2,10,0x42040,0x1c614a2080c20492081c60c21440c2040,0x114b3d67e159b60026dcdb9b736e6d8000000000008a59e22a6dcdb9b60130ae15⟩
-private def v1241 : Inv := ⟨2,11,0x2040,0x2cb2091cb1c62cb2842092021c61440c2040,0x30f04543300043343300004543300000000000000011b000000000045000000045⟩
-private def v1242 : Inv := ⟨2,17,0x42040,0x2ca34d44424834d34d1c640d1cf14e34d34c2ca2481c61440c2040,0x28280f0f03c3c8105900cc0000100464033900cc8105900cc0000000000000000000a0a1084c0a0a204148105000008044204148105⟩
-private def v1243 : Inv := ⟨2,22,0x42040,0x49520049615528950f3cb3cf2134843cf3cf45030f0c238d30b2892001c61440c2040,0xb14201f3c403e7e820154882760000011204ca4413b488277e1865d2209d8000000000000000000000000058af0c32e001628002c5786197000b140481134100ae82015⟩
-private def v1244 : Inv := ⟨2,13,0x42040,0x2481c034c34c0c614b0c214a2481c00c61440c2040,0xa283cf0f3dc15caec00040472bbcaeffffcaec0000000000000028a775c28afffffff00000447055c15⟩
-private def v1245 : Inv := ⟨2,16,0x2040,0x10918705030f30c18e30d30b04210a109048187185103042040,0x283ce2a2d649d800019276c93b00005079d927600000000000000000000083a78000000000000a0f38000000002a2d⟩
-private def v1246 : Inv := ⟨2,19,0x42040,0x3ce0c22d32072494910c21502493ce2490c234c2ca2492070c61440c2040,0x4210a631cf631cf914155619b00000140915619b5619b5619b5619b000000000000000000004210a631c74210a914155619b00000000449141591415⟩
-private def v1247 : Inv := ⟨2,24,0x42040,0x25629804d38855725624828f54629250215329244a28a40214f38d28c2ca2481c61440c2040,0x8a1051458c3ca2c61f88b005b621498000002d891336c4293b62149df40266d88526000000000000000000000000011420a6931e184508286201557d0099188055200011311600b88b005⟩
-private def v1248 : Inv := ⟨2,15,0x42040,0x24c14f20720e14d24c2490c204b14a2492070c61440c2040,0x10a49cf49cfac15319b00003091319b319b319b319b0000000000000000010a49c7010a319b319b00000044ac15ac15⟩
-private def v1249 : Inv := ⟨2,39,0x2040,0x1640590673215862262252091641631625a18107de05d15c58b6cd69065831758c54d30648c51331230c2094461503c638d30b2892021c61440c2040,0x45240800004524080e0e300070f563080004567061008330000000000670610083367061008330810a44488e0eb3042056706100833000000000000000000000000000000000000000000045240809cb309051b000452408000000280aa00000280aae0eb304205004108200000410820005630800045⟩
-private def v1250 : Inv := ⟨2,10,0x40002040,0x1850442822891451452071850440c2040,0xc3e0030f99370e0010ab87000855c380042a8550a80032600000000000e1c81387⟩
-private def v1251 : Inv := ⟨2,10,0x42040,0x1850442822891451452071850440c2040,0x187f0f99370e0010ab87000855c380042a8550a80032600000000000409c3b87⟩
-private def v1252 : Inv := ⟨2,12,0x2040,0x1080c910c2ca04a1040c91081041c61440c2040,0x4002041800842100010848424210c05084000180881060200820480200000000002109085861⟩
-private def v1253 : Inv := ⟨2,9,0x2040,0x441891861860c21881c61440c2040,0x300008800000220020508800816050000004400000000000000123⟩
-private def v1254 : Inv := ⟨4,1,0x103083103081040,0x40040,0xc0f33c0f00eaf00001⟩
-private def v1255 : Inv := ⟨2,20,0x2040,0x1c634a50420620850449340f49140f04e34c20820834c2ca2481c61440c2040,0x140100a00a0007802802240030000009000c48006403308150049000c0000002a008000500a80202802d201480a0080000000000000001200189000c80661⟩
-private def v1256 : Inv := ⟨2,21,0x42040,0x4f2493954142cc2484531d24504501c604f24938d2492cc2ca2481c61440c2040,0x1202a0fc0f83f03c98839a8158c0000018019aa0563a8158e0b405a8158c0000082d0160b40582d0140480a2620e40480a0000000000000000060066a8158ea0563⟩
-private def v1257 : Inv := ⟨0,3,0x0,0x40043042040,0xff0f0d09⟩
-private def v1258 : Inv := ⟨1,3,0x40040,0xc30c20c2040,0x177000100110011⟩
-private def v1259 : Inv := ⟨1,2,0x40040,0x82081040,0x25b001009009⟩
-private def v1260 : Inv := ⟨1,4,0x40040,0x400c20440c2040,0x7fff0001ffd6b5fd77b⟩
-private def v1261 : Inv := ⟨1,7,0x40,0x1c71471471c40c61440c2040,0x6f011717000000010b0101016f6f030b⟩
-private def v1262 : Inv := ⟨1,8,0x40,0x1871c72071471c41461440c2040,0x378042e1700000000101804020137cbc060b⟩
-private def v1263 : Inv := ⟨1,5,0x40040,0x1451441451440c2040,0x415d70000010410410c30c3⟩
-private def v1264 : Inv := ⟨1,4,0x40040,0x400c20440c2040,0x7fff0001ffd6b5ad77b⟩
-private def v1265 : Inv := ⟨1,8,0x40,0x1872071872070c41850c40c2040,0xff8042e170000000010b80402010bd7c060b⟩
-private def v1266 : Inv := ⟨1,5,0x40040,0xc20c50c30440c2040,0x5df70000051454510008e3⟩
-private def v1267 : Inv := ⟨7,2,0x1441870c70401821440c2040,0x40042040,0xfc0fc0090410000000ff81c0fc0fc0168a28bfdf7d2d9659⟩
-private def v1268 : Inv := ⟨0,4,0x0,0x104101043042040,0x3bc073b4eb⟩
-private def v1269 : Inv := ⟨1,3,0x40040,0x40043042040,0xfff000fffdd00bb⟩
-private def v1270 : Inv := ⟨1,4,0x40040,0x104042103042040,0x2def0000b5aca50016b⟩
-private def v1271 : Inv := ⟨3,0,0x40083080040,0x0,0x9f9bff0f⟩
-private def v1272 : Inv := ⟨7,1,0x1c71c50c41850c40400c2040,0x40040,0x33308bf0cff333f0cff267f000008bb⟩
-private def v1273 : Inv := ⟨4,0,0x103040103080040,0x0,0x4fd6bffc1f⟩
-private def v1274 : Inv := ⟨1,8,0x40040,0x1461c70881c6083144083080040,0x15c3e1f84c2400572b802572b00000ae57⟩
-private def v1275 : Inv := ⟨11,1,0x2cb1c81442cb2891c81c6040144083080040,0x40040,0xc03c30cc3ff0cc3ff0c0fcf303f3f0cc3ff0000001897bf⟩
-private def v1276 : Inv := ⟨1,5,0x40040,0x105104105103080040,0x3bef0410030c00c30001c7⟩
-private def v1277 : Inv := ⟨10,1,0x2481ca1442480831c6040144083080040,0x40040,0xc0f0f7f7ffcfcffc30fcf30fcffbfbff0000026b7bf⟩
-private def v1278 : Inv := ⟨4,0,0x80100083080040,0x0,0x4fffbbfc1f⟩
-private def v1279 : Inv := ⟨9,1,0xc22041442402041c61440400c2040,0x40040,0x3033d777fc333fc303fcc0ffebbbf000008323b⟩
-private def v1280 : Inv := ⟨1,4,0x40040,0x40044083080040,0x7fffce41ff837b002f7⟩
-private def v1281 : Inv := ⟨1,4,0x40040,0xc40c30c40c2040,0x6f7000010842100063⟩
-private def v1282 : Inv := ⟨2,16,0x80080040,0x28b2900c51cf28e0cd28a0c228c28b2891c81c60c50440c2040,0x25079283c406baad7d56beab5c0000000000001283c00002035101a880d40000815140a8a0544941e4a0f2507c4b0e258712c3⟩
-private def v1283 : Inv := ⟨2,10,0x80080040,0x20a20a0c22090402070460c50440c2040,0xffffff7a9572ae55c00000001ffc006f5debbd4006d1da3b44af95f2bfd0fa1f43⟩
-private def v1284 : Inv := ⟨1,7,0x40,0x1c71c71471c41461440c2040,0x2f01171700000001010301012f2f0b03⟩
-private def v1285 : Inv := ⟨1,9,0x40,0x2072471c72071471c41461440c2040,0x4bc0105c17000000000100403004014be6f02c03⟩
-private def v1286 : Inv := ⟨10,2,0x1440c22082892082081c61440400c2040,0x40042040,0x1c7000ff8e38007fc00000001f8000ffffc0007ff8a28005b40000e38e104010d3⟩
-private def v1287 : Inv := ⟨1,5,0x40040,0x400450c30440c2040,0x35df7000035d75c710008e3⟩
-private def v1288 : Inv := ⟨1,3,0x40040,0x40043042040,0xfff000f00dd0099⟩
-private def v1289 : Inv := ⟨1,2,0x40040,0x40042040,0x1ff1c703f02d⟩
-private def v1290 : Inv := ⟨1,5,0x40040,0xc20450c30c40c2040,0x11df74510110008e3000145⟩
-private def v1291 : Inv := ⟨1,5,0x40040,0xc20450c30440c2040,0x15df7015015555cf30009e7⟩
-private def v1292 : Inv := ⟨1,4,0x40040,0xc20c30440c2040,0x16f72940500273000a5⟩
-private def v1293 : Inv := ⟨1,2,0x40040,0x40042040,0x1fffc703f02d⟩
-private def v1294 : Inv := ⟨3,9,0xc00c0080040,0x2092082092072082071461440c2040,0xc03b7edfb7edf00000004030000100403000000000f03c0f03c0f00000000001545515455⟩
-private def v1295 : Inv := ⟨1,5,0x40040,0x400450c30440c2040,0x35df7d75035000cf3000965⟩
-private def v1296 : Inv := ⟨4,1,0xc40c40400c2040,0x41040,0xcd7f0003f0001500011⟩
-private def v1297 : Inv := ⟨0,6,0x0,0x1841051041851030c2040,0x6bc081000e585⟩
-private def v1298 : Inv := ⟨4,1,0x103040103080040,0x40040,0x30fff33ccf003ff30d55⟩
-private def v1299 : Inv := ⟨0,8,0x0,0x1851480c71451831431440c2040,0x2187e22010010c0085⟩
-private def v1300 : Inv := ⟨1,10,0x40040,0x1c718a1090481861c1184185103042040,0x30e61c1f83f9460025198700000186b0d94728f14e29⟩
-private def v1301 : Inv := ⟨2,3,0x80080040,0x40043042040,0xffff0f00ff000ddd00f999⟩
-private def v1302 : Inv := ⟨6,1,0x1851851850440400c2040,0x41040,0x3cd57f003003f000001503cc051⟩
-private def v1303 : Inv := ⟨0,8,0x0,0x1c61881861c4184185103080040,0x38fc06039081c008b⟩
-private def v1304 : Inv := ⟨0,8,0x0,0x1861481860c71831831440c2040,0x1187d0a010008c0085⟩
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private def certs : Array Inv := #[v1,v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12,v13,v14,v15,v16,v17,v18,v19,v20,v21,v22,v23,v24,v25,v26,v27,v28,v29,v30,v31,v32,v33,v34,v35,v36,v37,v38,v39,v40,v41,v42,v43,v44,v45,v46,v47,v48,v49,v50,v51,v52,v53,v54,v55,v56,v57,v58,v59,v60,v61,v62,v63,v64,v65,v66,v67,v68,v69,v70,v71,v72,v73,v74,v75,v76,v77,v78,v79,v80,v81,v82,v83,v84,v85,v86,v87,v88,v89,v90,v91,v92,v93,v94,v95,v96,v97,v98,v99,v100,v101,v102,v103,v104,v105,v106,v107,v108,v109,v110,v111,v112,v113,v114,v115,v116,v117,v118,v119,v120,v121,v122,v123,v124,v125,v126,v127,v128,v129,v130,v131,v132,v133,v134,v135,v136,v137,v138,v139,v140,v141,v142,v143,v144,v145,v146,v147,v148,v149,v150,v151,v152,v153,v154,v155,v156,v157,v158,v159,v160,v161,v162,v163,v164,v165,v166,v167,v168,v169,v170,v171,v172,v173,v174,v175,v176,v177,v178,v179,v180,v181,v182,v183,v184,v185,v186,v187,v188,v189,v190,v191,v192,v193,v194,v195,v196,v197,v198,v199,v200,v201,v202,v203,v204,v205,v206,v207,v208,v209,v210,v211,v212,v213,v214,v215,v216,v217,v218,v219,v220,v221,v222,v223,v224,v225,v226,v227,v228,v229,v230,v231,v232,v233,v234,v235,v236,v237,v238,v239,v240,v241,v242,v243,v244,v245,v246,v247,v248,v249,v250,v251,v252,v253,v254,v255,v256,v257,v258,v259,v260,v261,v262,v263,v264,v265,v266,v267,v268,v269,v270,v271,v272,v273,v274,v275,v276,v277,v278,v279,v280,v281,v282,v283,v284,v285,v286,v287,v288,v289,v290,v291,v292,v293,v294,v295,v296,v297,v298,v299,v300,v301,v302,v303,v304,v305,v306,v307,v308,v309,v310,v311,v312,v313,v314,v315,v316,v317,v318,v319,v320,v321,v322,v323,v324,v325,v326,v327,v328,v329,v330,v331,v332,v333,v334,v335,v336,v337,v338,v339,v340,v341,v342,v343,v344,v345,v346,v347,v348,v349,v350,v351,v352,v353,v354,v355,v356,v357,v358,v359,v360,v361,v362,v363,v364,v365,v366,v367,v368,v369,v370,v371,v372,v373,v374,v375,v376,v377,v378,v379,v380,v381,v382,v383,v384,v385,v386,v387,v388,v389,v390,v391,v392,v393,v394,v395,v396,v397,v398,v399,v400,v401,v402,v403,v404,v405,v406,v407,v408,v409,v410,v411,v412,v413,v414,v415,v416,v417,v418,v419,v420,v421,v422,v423,v424,v425,v426,v427,v428,v429,v430,v431,v432,v433,v434,v435,v436,v437,v438,v439,v440,v441,v442,v443,v444,v445,v446,v447,v448,v449,v450,v451,v452,v453,v454,v455,v456,v457,v458,v459,v460,v461,v462,v463,v464,v465,v466,v467,v468,v469,v470,v471,v472,v473,v474,v475,v476,v477,v478,v479,v480,v481,v482,v483,v484,v485,v486,v487,v488,v489,v490,v491,v492,v493,v494,v495,v496,v497,v498,v499,v500,v501,v502,v503,v504,v505,v506,v507,v508,v509,v510,v511,v512,v513,v514,v515,v516,v517,v518,v519,v520,v521,v522,v523,v524,v525,v526,v527,v528,v529,v530,v531,v532,v533,v534,v535,v536,v537,v538,v539,v540,v541,v542,v543,v544,v545,v546,v547,v548,v549,v550,v551,v552,v553,v554,v555,v556,v557,v558,v559,v560,v561,v562,v563,v564,v565,v566,v567,v568,v569,v570,v571,v572,v573,v574,v575,v576,v577,v578,v579,v580,v581,v582,v583,v584,v585,v586,v587,v588,v589,v590,v591,v592,v593,v594,v595,v596,v597,v598,v599,v600,v601,v602,v603,v604,v605,v606,v607,v608,v609,v610,v611,v612,v613,v614,v615,v616,v617,v618,v619,v620,v621,v622,v623,v624,v625,v626,v627,v628,v629,v630,v631,v632,v633,v634,v635,v636,v637,v638,v639,v640,v641,v642,v643,v644,v645,v646,v647,v648,v649,v650,v651,v652,v653,v654,v655,v656,v657,v658,v659,v660,v661,v662,v663,v664,v665,v666,v667,v668,v669,v670,v671,v672,v673,v674,v675,v676,v677,v678,v679,v680,v681,v682,v683,v684,v685,v686,v687,v688,v689,v690,v691,v692,v693,v694,v695,v696,v697,v698,v699,v700,v701,v702,v703,v704,v705,v706,v707,v708,v709,v710,v711,v712,v713,v714,v715,v716,v717,v718,v719,v720,v721,v722,v723,v724,v725,v726,v727,v728,v729,v730,v731,v732,v733,v734,v735,v736,v737,v738,v739,v740,v741,v742,v743,v744,v745,v746,v747,v748,v749,v750,v751,v752,v753,v754,v755,v756,v757,v758,v759,v760,v761,v762,v763,v764,v765,v766,v767,v768,v769,v770,v771,v772,v773,v774,v775,v776,v777,v778,v779,v780,v781,v782,v783,v784,v785,v786,v787,v788,v789,v790,v791,v792,v793,v794,v795,v796,v797,v798,v799,v800,v801,v802,v803,v804,v805,v806,v807,v808,v809,v810,v811,v812,v813,v814,v815,v816,v817,v818,v819,v820,v821,v822,v823,v824,v825,v826,v827,v828,v829,v830,v831,v832,v833,v834,v835,v836,v837,v838,v839,v840,v841,v842,v843,v844,v845,v846,v847,v848,v849,v850,v851,v852,v853,v854,v855,v856,v857,v858,v859,v860,v861,v862,v863,v864,v865,v866,v867,v868,v869,v870,v871,v872,v873,v874,v875,v876,v877,v878,v879,v880,v881,v882,v883,v884,v885,v886,v887,v888,v889,v890,v891,v892,v893,v894,v895,v896,v897,v898,v899,v900,v901,v902,v903,v904,v905,v906,v907,v908,v909,v910,v911,v912,v913,v914,v915,v916,v917,v918,v919,v920,v921,v922,v923,v924,v925,v926,v927,v928,v929,v930,v931,v932,v933,v934,v935,v936,v937,v938,v939,v940,v941,v942,v943,v944,v945,v946,v947,v948,v949,v950,v951,v952,v953,v954,v955,v956,v957,v958,v959,v960,v961,v962,v963,v964,v965,v966,v967,v968,v969,v970,v971,v972,v973,v974,v975,v976,v977,v978,v979,v980,v981,v982,v983,v984,v985,v986,v987,v988,v989,v990,v991,v992,v993,v994,v995,v996,v997,v998,v999,v1000,v1001,v1002,v1003,v1004,v1005,v1006,v1007,v1008,v1009,v1010,v1011,v1012,v1013,v1014,v1015,v1016,v1017,v1018,v1019,v1020,v1021,v1022,v1023,v1024,v1025,v1026,v1027,v1028,v1029,v1030,v1031,v1032,v1033,v1034,v1035,v1036,v1037,v1038,v1039,v1040,v1041,v1042,v1043,v1044,v1045,v1046,v1047,v1048,v1049,v1050,v1051,v1052,v1053,v1054,v1055,v1056,v1057,v1058,v1059,v1060,v1061,v1062,v1063,v1064,v1065,v1066,v1067,v1068,v1069,v1070,v1071,v1072,v1073,v1074,v1075,v1076,v1077,v1078,v1079,v1080,v1081,v1082,v1083,v1084,v1085,v1086,v1087,v1088,v1089,v1090,v1091,v1092,v1093,v1094,v1095,v1096,v1097,v1098,v1099,v1100,v1101,v1102,v1103,v1104,v1105,v1106,v1107,v1108,v1109,v1110,v1111,v1112,v1113,v1114,v1115,v1116,v1117,v1118,v1119,v1120,v1121,v1122,v1123,v1124,v1125,v1126,v1127,v1128,v1129,v1130,v1131,v1132,v1133,v1134,v1135,v1136,v1137,v1138,v1139,v1140,v1141,v1142,v1143,v1144,v1145,v1146,v1147,v1148,v1149,v1150,v1151,v1152,v1153,v1154,v1155,v1156,v1157,v1158,v1159,v1160,v1161,v1162,v1163,v1164,v1165,v1166,v1167,v1168,v1169,v1170,v1171,v1172,v1173,v1174,v1175,v1176,v1177,v1178,v1179,v1180,v1181,v1182,v1183,v1184,v1185,v1186,v1187,v1188,v1189,v1190,v1191,v1192,v1193,v1194,v1195,v1196,v1197,v1198,v1199,v1200,v1201,v1202,v1203,v1204,v1205,v1206,v1207,v1208,v1209,v1210,v1211,v1212,v1213,v1214,v1215,v1216,v1217,v1218,v1219,v1220,v1221,v1222,v1223,v1224,v1225,v1226,v1227,v1228,v1229,v1230,v1231,v1232,v1233,v1234,v1235,v1236,v1237,v1238,v1239,v1240,v1241,v1242,v1243,v1244,v1245,v1246,v1247,v1248,v1249,v1250,v1251,v1252,v1253,v1254,v1255,v1256,v1257,v1258,v1259,v1260,v1261,v1262,v1263,v1264,v1265,v1266,v1267,v1268,v1269,v1270,v1271,v1272,v1273,v1274,v1275,v1276,v1277,v1278,v1279,v1280,v1281,v1282,v1283,v1284,v1285,v1286,v1287,v1288,v1289,v1290,v1291,v1292,v1293,v1294,v1295,v1296,v1297,v1298,v1299,v1300,v1301,v1302,v1303,v1304]
-private def g1 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk0 : Goal (tab 0x8020e82407) := replay_sound (cs := certs) (links := g1) (fuel := 3) (tag := 1) (by decide +kernel)
-private def g2 : Array Nat := #[0x0,0x0,0x0,0x9000007000008000007000c3f000a3f00000600083f000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0xb00000700000a00000700143b00123b00000600103b000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x202b000007001e2b000007001c33001a43000006001843000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x1100001000000f00001000282700263b00000d00243b00000d00000e00000f00000e00000d00000d00000d00000d,0x0,0x0,0x0,0x0,0x0,0x342300001000322300001000302b002e3b00000d002c3b00000d00000e00001300000e00000d00000d00000d00000d,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1700443600001b00001a004226004026003e26003c26000019003a2a000018003846000017000016000015000014,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x2300562e00002200002100542a005232005032004e32000020004c26004a3600483600001f00001e00001d00001c,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x2b006a2e00002a000029006822006632006422006232000028006026005e32005c36000027000026000025005a2a,0x2c006c1f00002400581f00462300361e000012002a1e00000c002226001632000e36000005000004000003000002]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk1 : Goal (tab 0x8020e82427) := replay_sound (cs := certs) (links := g2) (fuel := 3) (tag := 28185) (by decide +kernel)
-private def g3 : Array Nat := #[0x0,0x0,0x0,0x31000007000030000007000c3f000a3f00000600083f000006000006000006000006000006000006000006000006,0x0,0x3300000700003300000700102b000032000006000032000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x1c2b000007001a2b000007001833001643000006001443000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x3300000700003300000700242b00222b00000600202b000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x38000036000037000036002c27002a3b00000d00283b00000d00003400003500003400000d00000d00000d00000d,0x0,0x0,0x0,0x0,0x0,0x382300003600362300003600342b00323b00000d00303b00000d00003400003a00003400000d00000d00000d00000d,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x544a00523600003d00003c005026004e26004c26004a2600482a00462a00442a00424600403a003e32003c3200003b,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x3f006a2e00004200004100682a006632006432006232000040006026005e36005c36005a2a00003f00582a00003e,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x806b007e43000048007c43007a3300783300004700763300004600004500004400744b00724f007063000043006e53,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x4a00962e00943200004d009222009032008e22008c3200004c008a2600883200863600004b00004a00004900842a,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x5000a64a00a44200004100a23e00a036000054009e36009c3a000053009a3a00005200005100005000004f00004e,0xa83300981f00822a006c1f005623003a1e000039002e1e002622001e26001222000e3600002f00002e00000300002d]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk2 : Goal (tab 0x8020e82447) := replay_sound (cs := certs) (links := g3) (fuel := 3) (tag := 43545) (by decide +kernel)
-private def g4 : Array Nat := #[0x0,0x0,0x0,0x9000007000008000007000c43000a43000006000843000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0xb00000700000a00000700143b00123b00000600103b000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x202f000007001e2f000007001c3b001a47000006001847000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x11002c2300000f002a2300282700263f00000d00243f00000d00005900000f00005900000d00000d00000d00000d,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x3e23003c23003a2300382300362b00343f00000d00323f00000d00005900302b00005900000d00000d00000d00000d,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x63004e3a000062000061004c26004a2600482600462600006000442a00005f00425200005e00005d00005c00005b,0x0,0x0,0x0,0x0,0x0,0x6a005a3200006900002100582a00562200006800542200006700006600523600006500006400001e00001f00001c,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x73006a3200007200007100682200662200642200622200007000603200006f005e3200006e00002600006d00006c,0x74006c1f00006b005c1f00502300401e00005a002e1e00005800222a001632000e3a000057000057000056000055]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk3 : Goal (tab 0x8020e82467) := replay_sound (cs := certs) (links := g4) (fuel := 3) (tag := 28185) (by decide +kernel)
-private def g5 : Array Nat := #[0x0,0x7700007800007700007600084b000075000006000075000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x7b00123700108b000e37000c3b00007a000006000079000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x7c001c37001b0f00183700163b000075000006000075000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x7e00283700007d00263700243b002253000006002073000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x344100008900008a000089000087000087000088000087003235000086003035000085002e39002c39000084000083,0x0,0x0,0x0,0x0,0x0,0x404500008900008a000089000087000087000088000087003e35000086003c35000085003a39003839000084000083,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x524500009000009100009000008f00008e00008d000087005035004e4d004c3500008c004a39004839004681004461,0x8200007f00008200007f00543300423300008b00363300008200008100008000007f002a31001e31001431000a41]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk4 : Goal (tab 0x8020e82487) := replay_sound (cs := certs) (links := g5) (fuel := 3) (tag := 22058) (by decide +kernel)
-private def g6 : Array Nat := #[0x0,0x0,0x0,0x95000c27000095000a2700082b000094000006000094000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x9800009800009800009800009800009800009800009800143900009b00123900009a00009900103d000099000098,0x0,0x0,0x0,0x0,0x0,0x9800009800009800009800009800009800009800009800203900009b001e3900009a001c3d001a3d00183d000098,0x0,0x0,0x0,0x0,0x0,0x98000098000098000098000098000098000098000098002c25002a3900282500264900009c00242900009c000098,0x97000096000097000096002e23002237000092001637000097000096000097000096000093000e21000093000092]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk5 : Goal (tab 0x8020e824a7) := replay_sound (cs := certs) (links := g6) (fuel := 3) (tag := 12314) (by decide +kernel)
-private def g7 : Array Nat := #[0x0,0x0,0x0,0x0,0x0,0x1033000e27000c43000a2700082b00009e00000600009e000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x1c33001a2700185b00162700142b000075000006000075000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x2c33002a2700284300262700242b00225f00000600207b000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x38450000a70000a80000a70000a50000a50000a60000a50036390000a40034390000a300323d00303d0000a20000a1,0x0,0x0,0x0,0x0,0x0,0x444d0000a70000a80000a70000a50000a50000a60000a50042390000a40040390000a3003e3d003c3d0000a20000a1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x54350000900000ae0000900000ad0000ac0000ab0000a500522500503d004e25004c4d004a290048290000aa0000a9,0xb000007f0000af00007f00562300463700008b003a370000a000009f00008000007f002e21001e2100122100009d]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk6 : Goal (tab 0x8020e824c7) := replay_sound (cs := certs) (links := g7) (fuel := 3) (tag := 22554) (by decide +kernel)
-private def g8 : Array Nat := #[0x0,0x0,0x0,0x95000c27000095000a2700082b00000d00000600000d000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x980000980000980000980000980000980000980000980014250000b20012250000b1000099001029000099000098,0x0,0x0,0x0,0x0,0x0,0x980000980000980000980000980000980000980000980020250000b2001e250000b1001c29001a29001829000098,0x0,0x0,0x0,0x0,0x0,0x98000098000098000098000098000098000098000098002c25002a3900282500264900009c00242900009c000098,0x97000096000097000096002e23002223000092001623000097000096000097000096000093000e21000093000092]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk7 : Goal (tab 0x8020e824e7) := replay_sound (cs := certs) (links := g8) (fuel := 3) (tag := 12314) (by decide +kernel)
-private def g9 : Array Nat := #[0x0,0x0,0x0,0x0,0xbb000e330000ba000c33000a370000b90000b60000b90000b60000b70000b80000b70000b60000b500085f0000b5,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x205f0000c3001e6f0000c2001c4b001a570000c10018570016670000bf0000bf0000c00000bf0014570000be00125f,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xcb0030510000cc0000cb0000ca002e550000c90000c8002c41002a490028410026590000c70024450000c60000c5,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0038310000d00036310000cf0000ce0034350000ce0000cd,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0040310000d0003e310000cf0000ce003c350000ce0000cd,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd004a310048450046310000d20000ce0044350000ce0000cd,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0054490000d500524900509d0000d4004e4d0000d30000cd,0x0,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd006039005e45005c39005a550000d600583d0000d60000cd,0x62370000bd0056470000bd004c2f00422f0000d1003a2f00323f0000c40022410000bd0000bc00102d0000b40000b3]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk8 : Goal (tab 0x8020e82507) := replay_sound (cs := certs) (links := g9) (fuel := 3) (tag := 25638) (by decide +kernel)
-private def g10 : Array Nat := #[0x0,0x0,0x0,0x0,0x0,0x1033000e33000c33000a3300084b00000d00000600000d000006000006000006000006000006000006000006000006,0x0,0xdc0000da0000db0000da001433000013000006000035000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0xdd001e2f001c6b001a2f00183300000d00000600000d000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0026310000df0024310000de0000ce0022350000ce0000cd,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd002e310000df002c310000de0000ce002a350000ce0000cd,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0038350036350034350032350000ce0000e00000ce0000cd,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0000e40000e20000e30000e20000e1003c310000e10000cd,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd00446100422d0000e600402d0000e10000e50000e10000cd,0x462b0000d9003e2b0000d9003a3300302f0000d700282f0020290000d90016290000d90000d800122d0000d80000d7]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk9 : Goal (tab 0x8020e82527) := replay_sound (cs := certs) (links := g10) (fuel := 3) (tag := 18470) (by decide +kernel)
-private def g11 : Array Nat := #[0x0,0x0,0x0,0x0,0x0,0x1033000e33000c33000a330000e80000b90000b60000b90000b60000b70000b80000b70000b60000b500083b0000b5,0x0,0x0,0x0,0x0,0xf10000f00000ef0000ee001a330000ed0000c10000ec0000eb0000bf0000bf0000ea0000bf00183f00164f001447,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xf600322f003053002e2f002c330000f5002a3f00284700264b0000f40024570000f30000f200223700204f001e37,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd003a310000d00038310000cf0000ce0036350000ce0000cd,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0042310000d00040310000cf0000ce003e350000ce0000cd,0x0,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd004e35004c35004a350048350000ce0046450000ce0000cd,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0058550000fa0000f90000f80056310054310052310000cd,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd00684500662d00645100622d006031005e3d005c310000cd,0x6a2b0000bd005a2b0000bd00503300442f0000f7003c2f0034290000c4001c290000bd0000e900122d0000e70000b3]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk10 : Goal (tab 0x8020e82547) := replay_sound (cs := certs) (links := g11) (fuel := 3) (tag := 27686) (by decide +kernel)
-private def g12 : Array Nat := #[0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd000c290000fc000a290000fc0000fb00082d0000fb0000cd,0x0,0x0,0xe10000ce0000e10000ff0000ce0000ce0000ce0000ce0000ff0012250000ff0010250000fd0000fe0000fd0000ce,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x2e2e000102002c62000101002a2600282600262600242600224a00202e001e42001c3e001a2a00182a00162a000100,0x0,0x0,0xe10000ce0000e10000ff0000ce0000ce0000ce0000ce0000ff0034250000ff0032250000fd0000fe0000fd0000ce,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x46390001080044a5000108004245000106000107000106004035000105003e35000104003c59003a39000103003869,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x603a005e2e005c3a00010c005a2200583200562200543200010b00522600503a004e3600010a004c2e000109004a2a,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x7029000108000111000108006e3500010f00011000010f006c2500010e006a2500010400684900662900010d006459,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x11800011700011600842a008222008022007e22007c22000115007a2a00783a00763a000114007426000113000112,0x0,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd00903900011a008e39000119008c35008a350088350000cd,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0098210000fc0096210000fc00011b00942500011b0000cd,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd00a03100011a009e310001190000fb009c350000fb0000cd,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd00aa2100a82100a62100a42100011b00011c00011b0000cd,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd00b22d0000fc00b02d0000fc0000fb00ae310000fb0000cd,0x11f00b42a00011e00011d00ac1e00a22e009a1e00922e00861d00722200621d004832003622003021001422000e26]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk11 : Goal (tab 0x8020e82567) := replay_sound (cs := certs) (links := g12) (fuel := 3) (tag := 46619) (by decide +kernel)
-private def g13 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk12 : Goal (tab 0x8020e82587) := replay_sound (cs := certs) (links := g13) (fuel := 3) (tag := 288) (by decide +kernel)
-private def g14 : Array Nat := #[0x0,0x0,0x0,0x0,0x0,0x0,0x12300122f00012300102f000e33000c37000121000a37000121000121000121000121000122000833000122000121,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd001a2d00012600182d0001250001240016310001240000cd,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd00222d00012600202d000125000127001e310001270000cd,0x0,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd002e2d002c41002a2d0028590001280026310001280000cd,0x9700009600009700009600302b00242b000092001c2b000097000096000097000096000093001429000093000092]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk13 : Goal (tab 0x8020e825a7) := replay_sound (cs := certs) (links := g14) (fuel := 3) (tag := 12834) (by decide +kernel)
-private def g15 : Array Nat := #[0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd000e3d000129000c3d000a790000ce0008410000ce0000cd,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1e37001c2f001a4700182f00163300013100013000012f00143f00012e00012e00012d00124300012c00012b00012a,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x363700342f00325f00302f002e33000094002c3b000094002a4f00013400013300013200284b00263300245b002233,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x563700542f00524700502f004e33004c37004a3b00484700463f00444300425b000135004043003e33003c4b003a33,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd005e2d000137005c2d0001360000ce005a310000ce0000cd,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd00662d00013700642d0001360000ce0062310000ce0000cd,0x0,0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd00702d006e45006c2d0001380000ce006a310000ce0000cd,0x13900007f00008200007f00722b00682b00008b00602b00008200008100008000007f00582900382900202900103b]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk14 : Goal (tab 0x8020e825c7) := replay_sound (cs := certs) (links := g15) (fuel := 3) (tag := 29730) (by decide +kernel)
-private def g16 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk15 : Goal (tab 0x8020e825e7) := replay_sound (cs := certs) (links := g16) (fuel := 3) (tag := 314) (by decide +kernel)
-private theorem root0 : Goal (tab 0x8020e82607) := by
-  apply branch (q := 0) (k := 4) (by decide) (by decide +kernel)
-  intro e
-  fin_cases e
-  · exact convertGoal (by decide +kernel) chunk0
-  · exact convertGoal (by decide +kernel) chunk1
-  · exact convertGoal (by decide +kernel) chunk2
-  · exact convertGoal (by decide +kernel) chunk3
-  · exact convertGoal (by decide +kernel) chunk4
-  · exact convertGoal (by decide +kernel) chunk5
-  · exact convertGoal (by decide +kernel) chunk6
-  · exact convertGoal (by decide +kernel) chunk7
-  · exact convertGoal (by decide +kernel) chunk8
-  · exact convertGoal (by decide +kernel) chunk9
-  · exact convertGoal (by decide +kernel) chunk10
-  · exact convertGoal (by decide +kernel) chunk11
-  · exact convertGoal (by decide +kernel) chunk12
-  · exact convertGoal (by decide +kernel) chunk13
-  · exact convertGoal (by decide +kernel) chunk14
-  · exact convertGoal (by decide +kernel) chunk15
-private def g17 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk16 : Goal (tab 0x8060e82407) := replay_sound (cs := certs) (links := g17) (fuel := 3) (tag := 315) (by decide +kernel)
-private def g18 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk17 : Goal (tab 0x8060e82427) := replay_sound (cs := certs) (links := g18) (fuel := 3) (tag := 316) (by decide +kernel)
-private def g19 : Array Nat := #[0x0,0x0,0x0,0xc2f000007000a2f00000700083b000142000006000142000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x14600142300014600122300102700014200000d00014200000d00014500014400014300000d00000d00000d00000d,0x0,0x0,0x0,0x0,0x0,0x0,0x2223002023001e23001c23001a2b00014200000d00014200000d00014500182b00014300000d00000d00000d00000d,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x14a003a3e00014a00384e003626003426003226003026000149002e2a000149002c56002a3e002836000148002636,0x0,0x0,0x0,0x0,0x15300014d00015300015200442a004222000151004022000150003e3a00014f00014e00014c00014d00014c00014b,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x158000156000158005432005222005022004e22004c22000157004a3e00015700015600015500015600015500483a,0x15400561f00015400461f003c2300241e00014700161e000141000e2a00014100013f00014000013f00013e00013d]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk18 : Goal (tab 0x8060e82447) := replay_sound (cs := certs) (links := g19) (fuel := 3) (tag := 22553) (by decide +kernel)
-private def g20 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk19 : Goal (tab 0x8060e82467) := replay_sound (cs := certs) (links := g20) (fuel := 3) (tag := 316) (by decide +kernel)
-private def g21 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk20 : Goal (tab 0x8060e82487) := replay_sound (cs := certs) (links := g21) (fuel := 3) (tag := 345) (by decide +kernel)
-private def g22 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk21 : Goal (tab 0x8060e824a7) := replay_sound (cs := certs) (links := g22) (fuel := 3) (tag := 315) (by decide +kernel)
-private def g23 : Array Nat := #[0x0,0x0,0x0,0x15d000c2700015d000a2700082b00015c00000600015c000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x16400016300016400182d000163000163000163000163001625000162001425000162001229001029000161000160,0x0,0x0,0x0,0x0,0x0,0x16600016300016600242d000163000163000163000163002225000162002025000162001e29001c29000161000160,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x16800016300016800342d000163000163000163000163003225003039002e25002c49002a29002829000161000167,0x15f00015a00015f000169003623002623000165001a2300015f00015a00015f00015a00015e000e2100015b00015a]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk22 : Goal (tab 0x8060e824c7) := replay_sound (cs := certs) (links := g23) (fuel := 3) (tag := 14362) (by decide +kernel)
-private def g24 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk23 : Goal (tab 0x8060e824e7) := replay_sound (cs := certs) (links := g24) (fuel := 3) (tag := 315) (by decide +kernel)
-private def g25 : Array Nat := #[0x0,0x17200016a00017100017000016a00016a00016a00016a00016e00016f00016e00016d00016c00082d00016b00016a,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1a2e00017b00017a000179001826001626001426001226001046000e2e000178000177000c2a000176000175000174,0x0,0x18100017c00018100017f00017c00017c00017c00017c00017f00018000017f00017e00017d001e2900017d00017c,0x0,0x18b00018700018b00014f00014900018900018a000189000188002226000188000187000186000185000184000183,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x342900019000019100322d00303100018f00019000018f002e2500018e002c2500018d002a4900282900018c00264d,0x0,0x0,0x0,0x18b00018700018b000193000149003c2200018a003a2200018800382a000188000187000186000192000184000192,0x0,0x19800016a00019800019700016a00016a00016a00016a00019600019500019600019500019400402500019400016a,0x0,0x0,0x19800016a00019800019700016a00016a00016a00016a00019600462100019600442100019400019900019400016a,0x0,0x0,0x0,0x0,0x0,0x1a30001a20001a10001a000524200502a00019f004e2a004c52004a3200019e00019d00019c00019a00019b00019a,0x1a40001a50001a400542500481e00018200421e000182003e1d00362200241d000182002022001c21000173000a26]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk24 : Goal (tab 0x8060e82507) := replay_sound (cs := certs) (links := g25) (fuel := 3) (tag := 22043) (by decide +kernel)
-private def g26 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk25 : Goal (tab 0x8060e82527) := replay_sound (cs := certs) (links := g26) (fuel := 3) (tag := 315) (by decide +kernel)
-private def g27 : Array Nat := #[0x0,0x0,0x0,0x0,0x1a800016a0001a7000e3100016a00016a00016a00016a000c2900016f000a2900016d0001a600082d0001a600016a,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x202e00017b0001ab000179001e26001c26001a2600182600164a00142e0001aa00017700122a0001760001a9000174,0x0,0x0,0x0,0x0,0x1ad00017c0001ad002a2d00017c00017c00017c00017c00282500018000262500017e0001ac0024290001ac00017c,0x0,0x0,0x0,0x0,0x0,0x1b10001870001b10001b00036220001890034220001890001af0032260001af0001870030260001850001ae002e2a,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x46290001900001b400442d00423500018f00019000018f00402500018e003e2500018d0001b3003c290001b2003a59,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1b10001870001b100562a005422005222005022004e220001af004c2a0001af000187004a260001920001ae000192,0x0,0x0,0x0,0x0,0x1b500016a0001b500602900016a00016a00016a00016a005e21000195005c210001950001a6005a250001a600016a,0x0,0x0,0x0,0x0,0x1b500016a0001b50001b600016a00016a00016a00016a006a210068210066210064210001a60001990001a600016a,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1bb0001a20001ba007a3a00782a00762a00742a00722a0001b90070320001b800019d006e2e00019a0001b700019a,0x1bc0001a50001bc007c25006c1e00018200621e00018200581d00482200381d000182002c22002221000173001026]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk26 : Goal (tab 0x8060e82547) := replay_sound (cs := certs) (links := g27) (fuel := 3) (tag := 32283) (by decide +kernel)
-private def g28 : Array Nat := #[0x0,0x1c100016a0001c10001c000016a00016a00016a00016a0001be0001bf0001be0001670001bd00082d0001bd00016a,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x202e001e2e0001c6001c2e001a260018260016260014260001c50012320001c50001c4001036000e2a0001c3000c36,0x0,0x0,0x0,0x1d00001c70001cf0001ce0028390001cc0001cd0001cc0001cb0026310001cb0024310001ca0001c90001c80001c7,0x0,0x0,0x0,0x1d50001d10001d50001d10001d100302e0001d10001d40001d3002e260001d30001d10001d2002c2e0001d20001d1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x42290001c70001d800402d003e310001cc0001cd0001cc003c250001d7003a250038390036310034290001d60001c7,0x0,0x0,0x0,0x0,0x1d50001d10001d50001d10001d1004c220001d1004a220001d300482a0001d30001d10001d20046260001d20001d1,0x0,0x1df00016a0001df0001de00016a00016a00016a00016a0001dc0001dd0001dc0001db0001da0050250001da00016a,0x0,0x0,0x0,0x0,0x1e100016a0001e10001e000016a00016a00016a00016a005a350058350056350054350001bd0001990001bd00016a,0x0,0x0,0x1df00016a0001df0001de00016a00016a00016a00016a0001dc0060210001dc005e210001da0001e20001da00016a,0x0,0x0,0x0,0x0,0x0,0x1ec0001eb0001ea0001e9006c42006a2a0001e800682a0001e70066320001e70001e60001e500642e0001e40001e3,0x0,0x0,0x1c100016a0001c10001f000016a00016a00016a00016a0001ef0072290001ef0070290001bd0001ee0001bd00016a,0x1ed0074260001ed006e2500621e005c3200521e0001d9004e1d00442200321d002a2e0001c20022210001c2000a26]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk27 : Goal (tab 0x8060e82567) := replay_sound (cs := certs) (links := g28) (fuel := 3) (tag := 30235) (by decide +kernel)
-private def g29 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk28 : Goal (tab 0x8060e82587) := replay_sound (cs := certs) (links := g29) (fuel := 3) (tag := 497) (by decide +kernel)
-private def g30 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk29 : Goal (tab 0x8060e825a7) := replay_sound (cs := certs) (links := g30) (fuel := 3) (tag := 498) (by decide +kernel)
-private def g31 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk30 : Goal (tab 0x8060e825c7) := replay_sound (cs := certs) (links := g31) (fuel := 3) (tag := 345) (by decide +kernel)
-private def g32 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk31 : Goal (tab 0x8060e825e7) := replay_sound (cs := certs) (links := g32) (fuel := 3) (tag := 498) (by decide +kernel)
-private theorem root1 : Goal (tab 0x8060e82607) := by
-  apply branch (q := 0) (k := 4) (by decide) (by decide +kernel)
-  intro e
-  fin_cases e
-  · exact convertGoal (by decide +kernel) chunk16
-  · exact convertGoal (by decide +kernel) chunk17
-  · exact convertGoal (by decide +kernel) chunk18
-  · exact convertGoal (by decide +kernel) chunk19
-  · exact convertGoal (by decide +kernel) chunk20
-  · exact convertGoal (by decide +kernel) chunk21
-  · exact convertGoal (by decide +kernel) chunk22
-  · exact convertGoal (by decide +kernel) chunk23
-  · exact convertGoal (by decide +kernel) chunk24
-  · exact convertGoal (by decide +kernel) chunk25
-  · exact convertGoal (by decide +kernel) chunk26
-  · exact convertGoal (by decide +kernel) chunk27
-  · exact convertGoal (by decide +kernel) chunk28
-  · exact convertGoal (by decide +kernel) chunk29
-  · exact convertGoal (by decide +kernel) chunk30
-  · exact convertGoal (by decide +kernel) chunk31
-private def g33 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk32 : Goal (tab 0x8120e02607) := replay_sound (cs := certs) (links := g33) (fuel := 3) (tag := 499) (by decide +kernel)
-private def g34 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk33 : Goal (tab 0x8120e0a607) := replay_sound (cs := certs) (links := g34) (fuel := 3) (tag := 500) (by decide +kernel)
-private def g35 : Array Nat := #[0x0,0x0,0x0,0x1f50000070001f5000007000c33000a33000006000833000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x142b00000700122b0000070010330001f90000060001f9000006000006000006000006000006000006000006000006,0x0,0x1fc0000070001fc00000700182b0001fb0000060001fb000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x201002227000201002027001e2b0002000001fe0002000001fe0001fe0001fe0001fe0001ff0001fe0001fd001c2f,0x0,0x0,0x0,0x0,0x205000205000205000205002c2e000206000207000206002a2a00282a00262a000205000204000205000204000203,0x0,0x0,0x0,0x0,0x0,0x20500020500020500020500382e00362600020700342600322a00020900302a000205000204000205000204000208,0x3a23000202002e230002020024220001fa001a220001fa0001f80016260001f80001f70001f60001f70001f6000e2a]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk34 : Goal (tab 0x8120e12607) := replay_sound (cs := certs) (links := g35) (fuel := 3) (tag := 15388) (by decide +kernel)
-private def g36 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk35 : Goal (tab 0x8120e1a607) := replay_sound (cs := certs) (links := g36) (fuel := 3) (tag := 522) (by decide +kernel)
-private def g37 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk36 : Goal (tab 0x8120e22607) := replay_sound (cs := certs) (links := g37) (fuel := 3) (tag := 523) (by decide +kernel)
-private def g38 : Array Nat := #[0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212000c24000a70000824000211,0x21400020c00021300020c000e2300021000020f00021000020f00020f00020f00020f00020e00020c00020d00020c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk37 : Goal (tab 0x8120e2a607) := replay_sound (cs := certs) (links := g38) (fuel := 3) (tag := 4122) (by decide +kernel)
-private def g39 : Array Nat := #[0x0,0x21800021600021700021600083b000215000006000215000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x0,0x143b00123b00103b000e3b000c77000219000006000219000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212001e24001c4c001a2400183c,0x21c00020c00021b00020c00202300021a00020f00021a00020f00020f00020f00020f00163400020c000a3000020c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk38 : Goal (tab 0x8120e32607) := replay_sound (cs := certs) (links := g39) (fuel := 3) (tag := 8730) (by decide +kernel)
-private def g40 : Array Nat := #[0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212000c24000a5000082400021f,0x0,0x0,0x0,0x21200021200021200021200021200021200021200021200021200021200021200021200142400125400102400021f,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212001a24000221001824000220,0x212000212000212000212000212000212000212000212000212000212000212000212000224000222000223000222,0x22500020c001e4700020c001c2300162300020f000e2300020f00020f00020f00020f00021e00020c00021d00020c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk39 : Goal (tab 0x8120e3a607) := replay_sound (cs := certs) (links := g40) (fuel := 3) (tag := 8218) (by decide +kernel)
-private def g41 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk40 : Goal (tab 0x8120e42607) := replay_sound (cs := certs) (links := g41) (fuel := 3) (tag := 550) (by decide +kernel)
-private def g42 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk41 : Goal (tab 0x8120e4a607) := replay_sound (cs := certs) (links := g42) (fuel := 3) (tag := 551) (by decide +kernel)
-private def g43 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk42 : Goal (tab 0x8120e52607) := replay_sound (cs := certs) (links := g43) (fuel := 3) (tag := 550) (by decide +kernel)
-private def g44 : Array Nat := #[0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x162c00022800022b00022800143400022a00022800022a0012340002290010cc000228000e28000c34000a28000850,0x0,0x0,0x0,0x0,0x0,0x23200022d00023200023100222200023000202200023000022f001e2600022e00022d00022c001c2a00022c001a2a,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x3e2c003c2c003a3c00382c00363400023400344c000234003234000233003064002e34002c28002a28002828002628,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x23200022d000232000237004e22004c22004a2200482200023600462600445e00022d00022c00422e00022c000235,0x0,0x0,0x21200021200021200021200021200021200021200021200021200021200021200021200023a005424000239005224,0x0,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212005e24005c30005a24005860,0x0,0x0,0x21200021200021200021200021200021200021200021200021200021200021200021200023c00642400023b006224,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212006c20006a2c00682000023e,0x0,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212007620007420007220007020,0x23800023800023800023800781e00023d006e1e00023d00662200602200562200023800501c00402600241c001826]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk43 : Goal (tab 0x8120e5a607) := replay_sound (cs := certs) (links := g44) (fuel := 3) (tag := 31259) (by decide +kernel)
-private def g45 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk44 : Goal (tab 0x8120e62607) := replay_sound (cs := certs) (links := g45) (fuel := 3) (tag := 575) (by decide +kernel)
-private def g46 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk45 : Goal (tab 0x8120e6a607) := replay_sound (cs := certs) (links := g46) (fuel := 3) (tag := 551) (by decide +kernel)
-private def g47 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk46 : Goal (tab 0x8120e72607) := replay_sound (cs := certs) (links := g47) (fuel := 3) (tag := 575) (by decide +kernel)
-private def g48 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk47 : Goal (tab 0x8120e7a607) := replay_sound (cs := certs) (links := g48) (fuel := 3) (tag := 551) (by decide +kernel)
-private theorem root2 : Goal (tab 0x8120e82607) := by
-  apply branch (q := 1) (k := 4) (by decide) (by decide +kernel)
-  intro e
-  fin_cases e
-  · exact convertGoal (by decide +kernel) chunk32
-  · exact convertGoal (by decide +kernel) chunk33
-  · exact convertGoal (by decide +kernel) chunk34
-  · exact convertGoal (by decide +kernel) chunk35
-  · exact convertGoal (by decide +kernel) chunk36
-  · exact convertGoal (by decide +kernel) chunk37
-  · exact convertGoal (by decide +kernel) chunk38
-  · exact convertGoal (by decide +kernel) chunk39
-  · exact convertGoal (by decide +kernel) chunk40
-  · exact convertGoal (by decide +kernel) chunk41
-  · exact convertGoal (by decide +kernel) chunk42
-  · exact convertGoal (by decide +kernel) chunk43
-  · exact convertGoal (by decide +kernel) chunk44
-  · exact convertGoal (by decide +kernel) chunk45
-  · exact convertGoal (by decide +kernel) chunk46
-  · exact convertGoal (by decide +kernel) chunk47
-private def g49 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk48 : Goal (tab 0x8160e02607) := replay_sound (cs := certs) (links := g49) (fuel := 3) (tag := 576) (by decide +kernel)
-private def g50 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk49 : Goal (tab 0x8160e0a607) := replay_sound (cs := certs) (links := g50) (fuel := 3) (tag := 577) (by decide +kernel)
-private def g51 : Array Nat := #[0x0,0x0,0x0,0xc3b000007000a3b00000700084b000246000006000246000006000006000006000006000006000006000006000006,0x0,0x25400025300025200025100102b00024f00025000024f00024e00024d00024c00024b00024a000249000248000247,0x0,0x0,0x0,0x25500000700025500000700182b00162b00000600142b000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x2027000253001e2700025a001c3300024f00025900024f00025800024d00025700024b00024a000249000256000247,0x0,0x0,0x0,0x0,0x25d002a2700025d00282700262b00025c0001fe00025c0001fe0001fe0001fe0001fe00025b0001fe00025b00242f,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x25f00464200444200424e00402e003e46003c46003a4600382a00362a00342a00324a00025f00303a002e3a00025e,0x0,0x0,0x261000262000261000265004c2e000264000265000264000263004a2a000263000262000261000262000261000260,0x0,0x0,0x0,0x0,0x0,0x26100026700026100582e00562600026900542600026900026800522a00026800026700026600026700026600502e,0x0,0x0,0x0,0x26100026200026100026c00602e005e26000265005c2600026300026b00026300026200026100026200026100026a,0x6223005a23004e23004823002c22002222001a22001222000245000e36000245000244000243000244000243000242]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk50 : Goal (tab 0x8160e12607) := replay_sound (cs := certs) (links := g51) (fuel := 3) (tag := 25628) (by decide +kernel)
-private def g52 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk51 : Goal (tab 0x8160e1a607) := replay_sound (cs := certs) (links := g52) (fuel := 3) (tag := 577) (by decide +kernel)
-private def g53 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk52 : Goal (tab 0x8160e22607) := replay_sound (cs := certs) (links := g53) (fuel := 3) (tag := 621) (by decide +kernel)
-private def g54 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk53 : Goal (tab 0x8160e2a607) := replay_sound (cs := certs) (links := g54) (fuel := 3) (tag := 622) (by decide +kernel)
-private def g55 : Array Nat := #[0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212000a24000270000824000270,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212001024000270000e24000270,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212001824001650001424000271,0x27200020c00027200020c001a2300122300020f000c2300020f00020f00020f00020f00026f00020c00026f00020c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk54 : Goal (tab 0x8160e32607) := replay_sound (cs := certs) (links := g55) (fuel := 3) (tag := 7194) (by decide +kernel)
-private def g56 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk55 : Goal (tab 0x8160e3a607) := replay_sound (cs := certs) (links := g56) (fuel := 3) (tag := 622) (by decide +kernel)
-private def g57 : Array Nat := #[0x0,0x0,0x0,0x278000274000277000274000276000270000274000270000275000270000274000270000c44000a34000273000844,0x0,0x0,0x28000028100028000027f00027d00027b00027e00027b00027d00122600027c00027b00027a00102a00027a000279,0x0,0x287000274000286000274000282000270000274000270000285000270000274000270001650000284000283000282,0x0,0x0,0x0,0x28000028100028000027d00027d001e2200027e001c2200027d00028a00027c00028900027a001a2e00027a000288,0x0,0x0,0x21200021200021200021200021200021200021200021200021200021200021200021200242400028400222400028d,0x21200021200021200021200021200021200021200021200021200021200021200021200028f00029000028f00028e,0x212000212000212000212000212000212000212000212000212000212000212000212000293000294000293000292,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212000293002e20000293002c20,0x212000212000212000212000212000212000212000212000212000212000212000212000295000294000295000292,0x29600029700029600322600301e000291002a1e00029100282200262200028c00028b00201c00182600141c000e26]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk56 : Goal (tab 0x8160e42607) := replay_sound (cs := certs) (links := g57) (fuel := 3) (tag := 13339) (by decide +kernel)
-private def g58 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk57 : Goal (tab 0x8160e4a607) := replay_sound (cs := certs) (links := g58) (fuel := 3) (tag := 664) (by decide +kernel)
-private def g59 : Array Nat := #[0x0,0x0,0x0,0x0,0x0,0x0,0x122c00027400029a000274001034000270000274000270000299000270000274000270000e28000c34000a28000850,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x29d00028100029d00222a00202200027b001e2200027b001c26001a2600029c00027b00029b00182a00029b00162a,0x0,0x0,0x0,0x0,0x0,0x2e2c00027400029f000274002c3c00027000027400027000029e000270000274000270002a28000284002828002668,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x29d00028100029d003e2e003c22003a2200382200362200342600028a00029c00028900029b00322e00029b000288,0x0,0x0,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120046240002840044240042b4,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212004e24000290004c24004a60,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212005420000294005220000292,0x0,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212005e20005c20005a20005820,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212006428000294006228000292,0x2a00002970002a000662600601e00029100561e00029100502200482200028c00028b00401c00302600241c001426]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk58 : Goal (tab 0x8160e52607) := replay_sound (cs := certs) (links := g59) (fuel := 3) (tag := 26651) (by decide +kernel)
-private def g60 : Array Nat := #[0x0,0x0,0x0,0x2a70002a30002a40002a3000271000c300002a4000a300002a60002a50002a40002a30002a20008380002a20002a1,0x0,0x0,0x2a90002a80002a90002a80002a800122e0002a80002ac0002ab0010260002ab0002a80002a90002aa0002a90002a8,0x0,0x0,0x0,0x0,0x0,0x0,0x2b300202c0002b2001e2c001c300002b10002ae0002b00002af0002ae0002ae001a340002ad0018280002ad001628,0x0,0x0,0x0,0x0,0x2a90002a80002a90002a80002a8002a220002a80028220002ab0026260002ab0002a80002a900242e0002a90002a8,0x0,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120002b40030300002b4002e30,0x0,0x0,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120038240036300034240002a1,0x2120002120002120002120002120002120002120002120002120002120002120002120002b80002b90002b80002b7,0x0,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212004434004234004034003e34,0x0,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120002b8004a200002b8004820,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120002bb004e540002bb0002ba,0x0,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120002b40054280002b4005228,0x2bc0056260002bc005026004c1e004632003c1e0002b60002b5003a220002b500322e002c1c00222600141c000e26]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk59 : Goal (tab 0x8160e5a607) := replay_sound (cs := certs) (links := g60) (fuel := 3) (tag := 22555) (by decide +kernel)
-private def g61 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk60 : Goal (tab 0x8160e62607) := replay_sound (cs := certs) (links := g61) (fuel := 3) (tag := 576) (by decide +kernel)
-private def g62 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk61 : Goal (tab 0x8160e6a607) := replay_sound (cs := certs) (links := g62) (fuel := 3) (tag := 577) (by decide +kernel)
-private def g63 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk62 : Goal (tab 0x8160e72607) := replay_sound (cs := certs) (links := g63) (fuel := 3) (tag := 701) (by decide +kernel)
-private def g64 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk63 : Goal (tab 0x8160e7a607) := replay_sound (cs := certs) (links := g64) (fuel := 3) (tag := 577) (by decide +kernel)
-private theorem root3 : Goal (tab 0x8160e82607) := by
-  apply branch (q := 1) (k := 4) (by decide) (by decide +kernel)
-  intro e
-  fin_cases e
-  · exact convertGoal (by decide +kernel) chunk48
-  · exact convertGoal (by decide +kernel) chunk49
-  · exact convertGoal (by decide +kernel) chunk50
-  · exact convertGoal (by decide +kernel) chunk51
-  · exact convertGoal (by decide +kernel) chunk52
-  · exact convertGoal (by decide +kernel) chunk53
-  · exact convertGoal (by decide +kernel) chunk54
-  · exact convertGoal (by decide +kernel) chunk55
-  · exact convertGoal (by decide +kernel) chunk56
-  · exact convertGoal (by decide +kernel) chunk57
-  · exact convertGoal (by decide +kernel) chunk58
-  · exact convertGoal (by decide +kernel) chunk59
-  · exact convertGoal (by decide +kernel) chunk60
-  · exact convertGoal (by decide +kernel) chunk61
-  · exact convertGoal (by decide +kernel) chunk62
-  · exact convertGoal (by decide +kernel) chunk63
-private def g65 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk64 : Goal (tab 0x8200e82607) := replay_sound (cs := certs) (links := g65) (fuel := 3) (tag := 702) (by decide +kernel)
-private def g66 : Array Nat := #[0x0,0x2c90002c80002c70002c60008270002c50002c40002c30002bf0002c20002c10002c00002bf0002bf0002bf0002bf,0x0,0x0,0xe230002d2000c230002d10002d00002cf0002ce0002cd0002bf0002c20002cc0002cb0002bf0002bf0002bf0002bf,0x0,0x0,0x0,0x2dd0002de0002dd0002dc0002da0002db0002da0002d90002d80016380002d80002d70014300002d60012300002d5,0x0,0x2e70002e60002e50002e4001a330002e30002e20002e10002c20002c20002e00002df0002c20002c20002c20002c2,0x0,0x2f50002f40002f30002f2001e2b0002f10002f00002ef0002eb0002ee0002ed0002ec0002eb0002eb0002eb0002eb,0x0,0x0,0x0,0x0,0x0,0x0,0x2fc0002f60002fb0002f60002fa002c280002f90002f80002f7002a2c0002f70002f6002824002624002424002224,0x30a0003010003090003080003060003070003060003050003040003030003020003010003000002ff0002fe0002fd,0x0,0x0,0x0,0x0,0x31100031100031100031000030e00030f00030e00030d00030d00383000030d00030c00362800344800322800030b,0x0,0x0,0x0,0x31100031400031100031700031600030f000316000315000315004028000315000314003e20000313003c20000312,0x31800421f003a2700301f002e230020200002ea0002e90002e8001c2800182f0002d40002d300101c0002ca000a1c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk65 : Goal (tab 0x8202e82607) := replay_sound (cs := certs) (links := g66) (fuel := 3) (tag := 17433) (by decide +kernel)
-private def g67 : Array Nat := #[0x0,0x32000031f00031e00031d00082700031b00031c00031b0002bf00031900031a0003190002bf0002bf0002bf0002bf,0x0,0x0,0xe23000325000c2300032400032300031b00031c00031b0002bf0003190003220003190002bf0002bf0002bf0002bf,0x0,0x0,0x0,0x0,0x183f00163f00143f00123f00032a0003280003290003280002bf0003260003270003260002bf0002bf0002bf0002bf,0x0,0x0,0x0,0x0,0x224c00033700033600033500204400033400033300033200033100033000032f00032e001e4000032d001c4000032c,0x0,0x0,0x0,0x0,0x2c43002a4300284300264300033a0003280003290003280002bf0003260003390003260002bf0002bf0002bf0002bf,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x443400033e00033f00033e004228004034003e3400033f003c2c003a2c00382c00033e003624003424003224003024,0x0,0x0,0x340000343000348000343004a2c00034700034700034700034600034500034400034300484c000342000341000340,0x0,0x0,0x0,0x0,0x0,0x0,0x583400034f00034e00034900562c00034700034d00034700034c00034b00034a000349005428005248005028004e48,0x0,0x0,0x0,0x0,0x0,0x642c00034300035300034300622400034700034d000347000352000345000351000343006020000350005e20005c38,0x0,0x0,0x0,0x0,0x6e2b00035f006c2b00035e00035d00035c00035b00035a000359006a3b000358000357000356006833000355000354,0x702400661f005a27004c1f00462300033d00033c00033b002e3c00033800243f00032b001a3800101c000321000a1c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk66 : Goal (tab 0x8204e82607) := replay_sound (cs := certs) (links := g67) (fuel := 3) (tag := 29209) (by decide +kernel)
-private def g68 : Array Nat := #[0x0,0x0,0x0,0x0,0x0,0x362001023000e2b000c23000a270003610003610003610002bf0003600008330003600002bf0002bf0002bf0002bf,0x0,0x0,0x0,0x0,0x1a230018230016230014230003650003610003610003610002bf0003600003640003600002bf0002bf0002bf0002bf,0x0,0x0,0x0,0x0,0x0,0x2dd00036b0002dd00036a0002da0026340002da0002d90002d80003690002d8000368002430002230002030001e30,0x0,0x0,0x0,0x0,0x0,0x0,0x3433003233003033002e33002c8700036e00036e00036e00036d00036d002a9300036d00036d00036c0002c200036c,0x0,0x0,0x0,0x0,0x0,0x375004027003e2f003c27003a2b0003740003740003740002eb0003730038370003720002eb0002eb0002eb0002eb,0x0,0x0,0x0,0x0,0x0,0x0,0x2fc0003760002fb00037a000379004e280003780003770002f7004c2c0002f7000376004a24004824004624004424,0x0,0x0,0x0,0x38300030900030900038200038100562400038000037f00037e00037d00037c00030900037b005420000300005220,0x0,0x0,0x0,0x0,0x0,0x0,0x31100031100031100038400030e00642c00030e00030d00030d00623800030d00030c006028005e28005c28005a28,0x0,0x0,0x0,0x0,0x0,0x311000314000311000386000316007024000316000315000315000385000315000314006e20006c20006a20006820,0x38700721f00662700581f00502300422000037100037000036f00362c00282f000367000366001c1c00036300121c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk67 : Goal (tab 0x8206e82607) := replay_sound (cs := certs) (links := g68) (fuel := 3) (tag := 29721) (by decide +kernel)
-private def g69 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk68 : Goal (tab 0x8208e82607) := replay_sound (cs := certs) (links := g69) (fuel := 3) (tag := 904) (by decide +kernel)
-private def g70 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk69 : Goal (tab 0x820ae82607) := replay_sound (cs := certs) (links := g70) (fuel := 3) (tag := 905) (by decide +kernel)
-private def g71 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk70 : Goal (tab 0x820ce82607) := replay_sound (cs := certs) (links := g71) (fuel := 3) (tag := 906) (by decide +kernel)
-private def g72 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk71 : Goal (tab 0x820ee82607) := replay_sound (cs := certs) (links := g72) (fuel := 3) (tag := 907) (by decide +kernel)
-private def g73 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk72 : Goal (tab 0x8210e82607) := replay_sound (cs := certs) (links := g73) (fuel := 3) (tag := 908) (by decide +kernel)
-private def g74 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk73 : Goal (tab 0x8212e82607) := replay_sound (cs := certs) (links := g74) (fuel := 3) (tag := 909) (by decide +kernel)
-private def g75 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk74 : Goal (tab 0x8214e82607) := replay_sound (cs := certs) (links := g75) (fuel := 3) (tag := 908) (by decide +kernel)
-private def g76 : Array Nat := #[0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd00009800038f00009800038e000c3d000a3d00083d0000cd,0x0,0x0,0x0,0x3950000ce0003940003930000ce0000ce0000ce0000ce0014210003920012210003920003910010250003900000ce,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x2c28000396002a4800039600283400263c002434000396002244002044000397000396001e24001c24001a24001824,0x0,0x0,0x0,0x0,0x0,0x0,0x39b0000ce00039a003a290000ce0000ce0000ce0000ce0038210036210034210032210003990030290003980000ce,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212004220004028003e2000039d,0x0,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212004c38004a38004838004638,0x0,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212005620005420005220005020,0x39e00039e00039e00039e00039e00039e00039e00039e00581d004e3500441d00039c003c1c002e2100161c000e34]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk75 : Goal (tab 0x8216e82607) := replay_sound (cs := certs) (links := g76) (fuel := 3) (tag := 23067) (by decide +kernel)
-private def g77 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk76 : Goal (tab 0x8218e82607) := replay_sound (cs := certs) (links := g77) (fuel := 3) (tag := 904) (by decide +kernel)
-private def g78 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk77 : Goal (tab 0x821ae82607) := replay_sound (cs := certs) (links := g78) (fuel := 3) (tag := 927) (by decide +kernel)
-private def g79 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk78 : Goal (tab 0x821ce82607) := replay_sound (cs := certs) (links := g79) (fuel := 3) (tag := 904) (by decide +kernel)
-private def g80 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk79 : Goal (tab 0x821ee82607) := replay_sound (cs := certs) (links := g80) (fuel := 3) (tag := 928) (by decide +kernel)
-private theorem root4 : Goal (tab 0x8220e82607) := by
-  apply branch (q := 2) (k := 4) (by decide) (by decide +kernel)
-  intro e
-  fin_cases e
-  · exact convertGoal (by decide +kernel) chunk64
-  · exact convertGoal (by decide +kernel) chunk65
-  · exact convertGoal (by decide +kernel) chunk66
-  · exact convertGoal (by decide +kernel) chunk67
-  · exact convertGoal (by decide +kernel) chunk68
-  · exact convertGoal (by decide +kernel) chunk69
-  · exact convertGoal (by decide +kernel) chunk70
-  · exact convertGoal (by decide +kernel) chunk71
-  · exact convertGoal (by decide +kernel) chunk72
-  · exact convertGoal (by decide +kernel) chunk73
-  · exact convertGoal (by decide +kernel) chunk74
-  · exact convertGoal (by decide +kernel) chunk75
-  · exact convertGoal (by decide +kernel) chunk76
-  · exact convertGoal (by decide +kernel) chunk77
-  · exact convertGoal (by decide +kernel) chunk78
-  · exact convertGoal (by decide +kernel) chunk79
-private def g81 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk80 : Goal (tab 0x8240e82607) := replay_sound (cs := certs) (links := g81) (fuel := 3) (tag := 929) (by decide +kernel)
-private def g82 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk81 : Goal (tab 0x8242e82607) := replay_sound (cs := certs) (links := g82) (fuel := 3) (tag := 930) (by decide +kernel)
-private def g83 : Array Nat := #[0x0,0x0,0x0,0x121000c23000121000a230008270003a30000060003a3000006000006000006000006000006000006000006000006,0x0,0x0,0x0,0x0,0x16230014230012230010230001fe0003a30000060003a3000006000006000006000006000006000006000006000006,0x0,0x0,0x1c270003a9001a270003a90003a80003a700000d0003a700000d0003a50003a60003a500000d00000d00000d00000d,0x0,0x0,0x22270003a90020270003a90003aa0003a700000d0003a700000d0003a50003a60003a500000d00000d00000d00000d,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x3ae0038400003ae0003ad0036280034280003ac0032280003ab00302c0003ab002e58002c24002a24002824002624,0x0,0x0,0x0,0x3b00003b00003b00003b000402c0003470003b00003470003b00003b00003b00003b00003af003e200003af003c20,0x0,0x0,0x0,0x0,0x0,0x3b00003b00003b00003b0004c240003470003b00003470003b00003b00003b00003b0004a20004820004620004420,0x3b1004e1f0003b100421f003a2300242000020c001e2000020c00020c00020c00020c0003a400181c0003a4000e1c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk82 : Goal (tab 0x8244e82607) := replay_sound (cs := certs) (links := g83) (fuel := 3) (tag := 20505) (by decide +kernel)
-private def g84 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk83 : Goal (tab 0x8246e82607) := replay_sound (cs := certs) (links := g84) (fuel := 3) (tag := 930) (by decide +kernel)
-private def g85 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk84 : Goal (tab 0x8248e82607) := replay_sound (cs := certs) (links := g85) (fuel := 3) (tag := 929) (by decide +kernel)
-private def g86 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk85 : Goal (tab 0x824ae82607) := replay_sound (cs := certs) (links := g86) (fuel := 3) (tag := 946) (by decide +kernel)
-private def g87 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk86 : Goal (tab 0x824ce82607) := replay_sound (cs := certs) (links := g87) (fuel := 3) (tag := 929) (by decide +kernel)
-private def g88 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk87 : Goal (tab 0x824ee82607) := replay_sound (cs := certs) (links := g88) (fuel := 3) (tag := 946) (by decide +kernel)
-private def g89 : Array Nat := #[0x0,0x1240000ce0001240003b50000ce0000ce0000ce0000ce0000990003920000990003920003b40008250003b40000ce,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x18280003b60016540003b60003b70002700003b60002700014400002700003b6000270001224001024000e24000c24,0x0,0x0,0x0,0x1240000ce0001240003b50000ce0000ce0000ce0000ce000099002021000099001e210003b4001c290003b40000ce,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120003b90024280003b900039d,0x0,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120003b9002a200003b9002820,0x39e00039e00039e00039e00039e00039e00039e00039e002c1d0003b800261d0003b800221c001a21000a1c0003b3]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk88 : Goal (tab 0x8250e82607) := replay_sound (cs := certs) (links := g89) (fuel := 3) (tag := 11803) (by decide +kernel)
-private def g90 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk89 : Goal (tab 0x8252e82607) := replay_sound (cs := certs) (links := g90) (fuel := 3) (tag := 954) (by decide +kernel)
-private def g91 : Array Nat := #[0x0,0x0,0x0,0x1270000ce0001270003930000ce0000ce0000ce0000ce000c21000392000a210003920003bb0008250003bb0000ce,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1c280003b6001a600003b60002340002700003b60002700018440002700003b6000270001624001424001224001024,0x0,0x0,0x0,0x0,0x0,0x0,0x1270000ce000127002a290000ce0000ce0000ce0000ce0028210026210024210022210003bb0020290003bb0000ce,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212003220003028002e2000039d,0x0,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212003c20003a20003820003620,0x39e00039e00039e00039e00039e00039e00039e00039e003e1d0003b800341d0003b8002c1c001e21000e1c0003b3]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk90 : Goal (tab 0x8254e82607) := replay_sound (cs := certs) (links := g91) (fuel := 3) (tag := 16411) (by decide +kernel)
-private def g92 : Array Nat := #[0x0,0x1280000ce0001280003be0000ce0000ce0000ce0000ce00009c00039200009c0003920003bd0008250003bd0000ce,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x2028001e280003c0001c28001a300018380003c10016300003c00014480003c00003bf001224001024000e24000c24,0x0,0x0,0x0,0x1280000ce0001280003be0000ce0000ce0000ce0000ce00009c00282100009c0026210003bd0024290003bd0000ce,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120003c3002c440003c30003c2,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120003c40030280003c400039d,0x0,0x0,0x0,0x21200021200021200021200021200021200021200021200021200021200021200021200383400363c0034340003c2,0x0,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120003c4003e200003c4003c20,0x39e00039e00039e00039e00039e00039e00039e00039e00401d003a3100321d002e39002a1c002221000a1c0003bc]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk91 : Goal (tab 0x8256e82607) := replay_sound (cs := certs) (links := g92) (fuel := 3) (tag := 16923) (by decide +kernel)
-private def g93 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk92 : Goal (tab 0x8258e82607) := replay_sound (cs := certs) (links := g93) (fuel := 3) (tag := 929) (by decide +kernel)
-private def g94 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk93 : Goal (tab 0x825ae82607) := replay_sound (cs := certs) (links := g94) (fuel := 3) (tag := 946) (by decide +kernel)
-private def g95 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk94 : Goal (tab 0x825ce82607) := replay_sound (cs := certs) (links := g95) (fuel := 3) (tag := 929) (by decide +kernel)
-private def g96 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk95 : Goal (tab 0x825ee82607) := replay_sound (cs := certs) (links := g96) (fuel := 3) (tag := 946) (by decide +kernel)
-private theorem root5 : Goal (tab 0x8260e82607) := by
-  apply branch (q := 2) (k := 4) (by decide) (by decide +kernel)
-  intro e
-  fin_cases e
-  · exact convertGoal (by decide +kernel) chunk80
-  · exact convertGoal (by decide +kernel) chunk81
-  · exact convertGoal (by decide +kernel) chunk82
-  · exact convertGoal (by decide +kernel) chunk83
-  · exact convertGoal (by decide +kernel) chunk84
-  · exact convertGoal (by decide +kernel) chunk85
-  · exact convertGoal (by decide +kernel) chunk86
-  · exact convertGoal (by decide +kernel) chunk87
-  · exact convertGoal (by decide +kernel) chunk88
-  · exact convertGoal (by decide +kernel) chunk89
-  · exact convertGoal (by decide +kernel) chunk90
-  · exact convertGoal (by decide +kernel) chunk91
-  · exact convertGoal (by decide +kernel) chunk92
-  · exact convertGoal (by decide +kernel) chunk93
-  · exact convertGoal (by decide +kernel) chunk94
-  · exact convertGoal (by decide +kernel) chunk95
-private def g97 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk96 : Goal (tab 0x320e82607) := replay_sound (cs := certs) (links := g97) (fuel := 3) (tag := 965) (by decide +kernel)
-private def g98 : Array Nat := #[0x0,0x3d30003d20003d10003d00003cf0003cd0003ce0003cd0003cc0008260003cb0003ca0003c90003c80003c70003c6,0x0,0x0,0x0,0x0,0x3df0003de0003dd0003dc0012220003db0010220003db0003da000e260003d90003d80003d70003d60003d5000c2a,0x0,0x0,0x0,0x3e60003af0003e50003e4001a440018440003e40016440003e40003e40003e40003e40003e30003af0003e20003af,0x0,0x0,0x0,0x3e90003af0003e80003e40022340003e70003e40003e70003e40003e40003e40003e40020280003af001e280003af,0x0,0x3f30003eb0003f20003f10026280003e70003f10003e70003f10003ef0003f00003ef0003ee0003ed0003ec0003eb,0x0,0x0,0x0,0x3f70003eb0003f60003f1002e2c0003e70003f10003e70003f10003ef0003f50003ef002c200003ed002a200003eb,0x0,0x0,0x0,0x4020003fc0004010004000003f80003ff0036420003fe0003fd00342e00325e0003fc0003fb0003fa0003f90003f8,0x0,0x41200041100041000040f00040e00040c00040d00040c00040b003a2a00040a000409000408000407000406000405,0x413003c2000040400040300382400301e0003f400281e0003ea002426001c3a0003e10003e000141c0003d4000a1c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk97 : Goal (tab 0xb20e82607) := replay_sound (cs := certs) (links := g98) (fuel := 3) (tag := 15897) (by decide +kernel)
-private def g99 : Array Nat := #[0x0,0x0,0x0,0x20800041500041500041600041b00041a000419000418000417000c26000417000416000a2a00041500082a000414,0x0,0x0,0x0,0x0,0x20500020500020500020500162200042100142200042000041f00122600041f00020500041e00020500041d00102a,0x0,0x0,0x0,0x0,0x0,0x42b00042a00042900042800223e00203e001e3e001c3e00042700042600042500042400041e000423000422001a76,0x0,0x0,0x0,0x0,0x2c64000430000432000430002a6c0003b60004300003b600043100042f00043000042f00283800265c00042e00042d,0x0,0x0,0x0,0x0,0x0,0x382c000434000436000434003634000270000434000270000435000270000434000270003428000433003228003048,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x544400522c005034004e2c004c48004a2c00483400462c00043900043800443c004234004038003e3c000437003c38,0x0,0x39600027400028600027400039600027000027400027000043c00027000027400027000584000043b00043a000396,0x0,0x0,0x0,0x0,0x0,0x642400027400044000027400622c00027000027400027000043f00027000027400027000602000043e005e20005c40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x44500044300763600044500742a00044400722a00044400702e006e2e006c2e000443000442006a32000441006832,0x0,0x0,0x0,0x0,0x20500020500020500020500802a00044b007e2a00044b00041f007c2e00041f00020500044a000205000449007a32,0x822400044800044700044600782400661e00043d005a1e005622003a26002e2200042c00243800181c00041c000e1c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk98 : Goal (tab 0x1320e82607) := replay_sound (cs := certs) (links := g99) (fuel := 3) (tag := 33817) (by decide +kernel)
-private def g100 : Array Nat := #[0x0,0x0,0x0,0x0,0x456000455000454000453000452000e22000451000c22000450000a2e00083e00044f00044e0003c800044d00044c,0x0,0x0,0x0,0x0,0x0,0x46100046000045f00045e001a2200182200162200142200045d00123600045c00045b00041e00045a000459000458,0x0,0x0,0x0,0x4670003af0004660003e40022440020440003e4001e440003e40003e40003e40003e40004650003af0004640003af,0x0,0x0,0x0,0x0,0x0,0x2e300003af002c300003e4002a3c0004680003e40004680003e40003e40003e40003e400282c0003af00262c0003af,0x0,0x0,0x0,0x0,0x46e00382400046d0003f10036280004680003f10004680003f100046c0003f000046b00046a0034200003ee003220,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x4710048240004700003f100462c0004680003f10004680003f100046c00442c00046b004220004020003e20003c20,0x0,0x0,0x0,0x0,0x0,0x47900047300047800047700047600542a00047500522a00047400502e004e4600047300005e004c3e0004720003f8,0x0,0x0,0x0,0x486000485000484000483000452005c26000482005a2600048100048000584200047f00047e00047d00040800047c,0x487005e2000047b00047a005624004a1e00046f003a1e00046900302a00243a000463000462001c1c00045700101c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk99 : Goal (tab 0x1b20e82607) := replay_sound (cs := certs) (links := g100) (fuel := 3) (tag := 24601) (by decide +kernel)
-private def g101 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk100 : Goal (tab 0x2320e82607) := replay_sound (cs := certs) (links := g101) (fuel := 3) (tag := 1160) (by decide +kernel)
-private def g102 : Array Nat := #[0x0,0x0,0x3b00003b00003b00003b000048d00048c0003b000048c0003b00003b00003b00003b000048b000a2400048b000824,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212000494000e3000049300039d,0x49600048900049500049200102500049100049200049100049000048900048f00048900048e000c2100048a000489]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk101 : Goal (tab 0x2b20e82607) := replay_sound (cs := certs) (links := g102) (fuel := 3) (tag := 4634) (by decide +kernel)
-private def g103 : Array Nat := #[0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x4a000143000049f00049e00123400102800049d00049c00049b000e3000049a000499000c3c000a24000498000824,0x0,0x0,0x0,0x0,0x3b00003b00003b00003b0001e340004a30003b00004a20003b00003b00003b00003b0001c44001a240004a1001824,0x0,0x0,0x0,0x0,0x0,0x0,0x4ad0004ac0004ab0004aa002c34002a280004a90004a80004a70028340004a60004a500263c0024240004a4002224,0x0,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212003640003440003240003040,0x4b30004b20004b20004b200383d0003b80004b20003b80004b10004b00004af0004ae002e21002021001621000497]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk102 : Goal (tab 0x3320e82607) := replay_sound (cs := certs) (links := g103) (fuel := 3) (tag := 14874) (by decide +kernel)
-private def g104 : Array Nat := #[0x0,0x0,0x0,0x0,0x3b00003b00003b00003b00004b7000e280003b0000c280003b00003b00003b00003b00004b6000a240004b5000824,0x0,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120004bc0014280004bb001228,0x0,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212001e28001c28001a28001828,0x0,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120004be0024280004bd002228,0x4c00004890004bf0004920026250020250004920016250004ba0004890004b90004890004b80010210004b4000489]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk103 : Goal (tab 0x3b20e82607) := replay_sound (cs := certs) (links := g104) (fuel := 3) (tag := 10266) (by decide +kernel)
-private def g105 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk104 : Goal (tab 0x4320e82607) := replay_sound (cs := certs) (links := g105) (fuel := 3) (tag := 1217) (by decide +kernel)
-private def g106 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk105 : Goal (tab 0x4b20e82607) := replay_sound (cs := certs) (links := g106) (fuel := 3) (tag := 1218) (by decide +kernel)
-private def g107 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk106 : Goal (tab 0x5320e82607) := replay_sound (cs := certs) (links := g107) (fuel := 3) (tag := 1217) (by decide +kernel)
-private def g108 : Array Nat := #[0x0,0x0,0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0000980004c40000980004c3000c29000a290008290000cd,0x0,0x0,0x4d10004d00004cf0004ce0004cd0004c80012450004cc0004cb0004ca0004c90004c80004c70010290004c60004c5,0x0,0x0,0x0,0x0,0x0,0x0,0x4d50004d50004d50004d50004d50004d400202d0004d4001e25001c31001a250004c30004d30018290004d2001635,0x0,0x0,0x0,0x0,0x4e10004e00004df0004de0004dd0004dc0004db0004da0004d9002a250028490026250004d80024310004d70004d6,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120004e3002e2c0004e2000228,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120004e500322c0004e400039d,0x0,0x0,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212003a2400382c0036240004e6,0x0,0x0,0x2120002120002120002120002120002120002120002120002120002120002120002120004e80040240004e7003e24,0x39e00039e00039e00039e00039e00039e00039e00039e004221003c21003421003021002c20002220001420000e20]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk107 : Goal (tab 0x5b20e82607) := replay_sound (cs := certs) (links := g108) (fuel := 3) (tag := 17438) (by decide +kernel)
-private def g109 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk108 : Goal (tab 0x6320e82607) := replay_sound (cs := certs) (links := g109) (fuel := 3) (tag := 1257) (by decide +kernel)
-private def g110 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk109 : Goal (tab 0x6b20e82607) := replay_sound (cs := certs) (links := g110) (fuel := 3) (tag := 1257) (by decide +kernel)
-private def g111 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk110 : Goal (tab 0x7320e82607) := replay_sound (cs := certs) (links := g111) (fuel := 3) (tag := 1257) (by decide +kernel)
-private def g112 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk111 : Goal (tab 0x7b20e82607) := replay_sound (cs := certs) (links := g112) (fuel := 3) (tag := 1257) (by decide +kernel)
-private theorem root6 : Goal (tab 0x8320e82607) := by
-  apply branch (q := 3) (k := 4) (by decide) (by decide +kernel)
-  intro e
-  fin_cases e
-  · exact convertGoal (by decide +kernel) chunk96
-  · exact convertGoal (by decide +kernel) chunk97
-  · exact convertGoal (by decide +kernel) chunk98
-  · exact convertGoal (by decide +kernel) chunk99
-  · exact convertGoal (by decide +kernel) chunk100
-  · exact convertGoal (by decide +kernel) chunk101
-  · exact convertGoal (by decide +kernel) chunk102
-  · exact convertGoal (by decide +kernel) chunk103
-  · exact convertGoal (by decide +kernel) chunk104
-  · exact convertGoal (by decide +kernel) chunk105
-  · exact convertGoal (by decide +kernel) chunk106
-  · exact convertGoal (by decide +kernel) chunk107
-  · exact convertGoal (by decide +kernel) chunk108
-  · exact convertGoal (by decide +kernel) chunk109
-  · exact convertGoal (by decide +kernel) chunk110
-  · exact convertGoal (by decide +kernel) chunk111
-private def g113 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk112 : Goal (tab 0x360e82607) := replay_sound (cs := certs) (links := g113) (fuel := 3) (tag := 1258) (by decide +kernel)
-private def g114 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk113 : Goal (tab 0xb60e82607) := replay_sound (cs := certs) (links := g114) (fuel := 3) (tag := 1259) (by decide +kernel)
-private def g115 : Array Nat := #[0x0,0x0,0x0,0x0,0x4f1000415000415000415000e2e000c220004f0000a220004ef00082e0004ef0004150004ee0004150004ed0004ec,0x0,0x0,0x0,0x0,0x0,0x205000205000205000205001a2200182200162200142200041f00123600041f0002050004f40002050004f40004f3,0x0,0x0,0x0,0x0,0x24300004f90002220004f900223c0004f80002220004f800022200022200022200022200202c0004f7001e2c0004f7,0x0,0x0,0x0,0x5000002860004fe0004ff002c280004f80004fe0004f80004fe0004fd0004fc0004fb0004fa002a200004fa002820,0x0,0x0,0x0,0x0,0x0,0x0,0x3a240002860004fe0004ff00382c0004f80004fe0004f80004fe0004fd0002860004fb003620003420003220003020,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x50300563600543600525600502a004e2a004c2a004a2a00482e00462e00442e00423e000502004036000502003e4a,0x0,0x0,0x0,0x0,0x205000205000205000205006026000506005e2600050600041f005c2a00041f000205000505000205000504005a2e,0x0,0x0,0x0,0x0,0x205000205000205000205006a2600050600682600050600041f00662a00041f0002050004f40002050004f400642e,0x507006c200004f5006220005824003c1e000501002e1e0004f600262a0004f60004f50004f2001c1c0004f200101c]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk114 : Goal (tab 0x1360e82607) := replay_sound (cs := certs) (links := g115) (fuel := 3) (tag := 28185) (by decide +kernel)
-private def g116 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk115 : Goal (tab 0x1b60e82607) := replay_sound (cs := certs) (links := g116) (fuel := 3) (tag := 1259) (by decide +kernel)
-private def g117 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk116 : Goal (tab 0x2360e82607) := replay_sound (cs := certs) (links := g117) (fuel := 3) (tag := 1288) (by decide +kernel)
-private def g118 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk117 : Goal (tab 0x2b60e82607) := replay_sound (cs := certs) (links := g118) (fuel := 3) (tag := 1259) (by decide +kernel)
-private def g119 : Array Nat := #[0x0,0x0,0x0,0x0,0x0,0x3b00003b00003b00003b0001034000e280003b0000c280003b00003b00003b00003b000050b000a2400050b000824,0x0,0x0,0x0,0x21200021200021200021200021200021200021200021200021200021200021200021200183c00164400143c00050e,0x50f00050900050d000509001a390003b800050d0003b800050c00050900050c00050900050a00122100050a000509]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk118 : Goal (tab 0x3360e82607) := replay_sound (cs := certs) (links := g119) (fuel := 3) (tag := 7194) (by decide +kernel)
-private def g120 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk119 : Goal (tab 0x3b60e82607) := replay_sound (cs := certs) (links := g120) (fuel := 3) (tag := 1259) (by decide +kernel)
-private def g121 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk120 : Goal (tab 0x4360e82607) := replay_sound (cs := certs) (links := g121) (fuel := 3) (tag := 1296) (by decide +kernel)
-private def g122 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk121 : Goal (tab 0x4b60e82607) := replay_sound (cs := certs) (links := g122) (fuel := 3) (tag := 1259) (by decide +kernel)
-private def g123 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk122 : Goal (tab 0x5360e82607) := replay_sound (cs := certs) (links := g123) (fuel := 3) (tag := 1296) (by decide +kernel)
-private def g124 : Array Nat := #[0x0,0xcd0000cd0000cd0000cd0000cd0000cd0000cd0000cd0000980005120000980005120005110008290005110000cd,0x0,0x0,0x0,0x0,0x0,0x0,0x4d50004d50004d50004d50004d500051600162d000516001425001231001025000515000514000e29000514000c35,0x0,0x212000212000212000212000212000212000212000212000212000212000212000212000517001a2c0005170002a3,0x0,0x0,0x0,0x21200021200021200021200021200021200021200021200021200021200021200021200222400202c001e240002a3,0x39e00039e00039e00039e00039e00039e00039e00039e000518002421000518001c21000513001820000513000a20]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk123 : Goal (tab 0x5b60e82607) := replay_sound (cs := certs) (links := g124) (fuel := 3) (tag := 9758) (by decide +kernel)
-private def g125 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk124 : Goal (tab 0x6360e82607) := replay_sound (cs := certs) (links := g125) (fuel := 3) (tag := 1257) (by decide +kernel)
-private def g126 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk125 : Goal (tab 0x6b60e82607) := replay_sound (cs := certs) (links := g126) (fuel := 3) (tag := 1257) (by decide +kernel)
-private def g127 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk126 : Goal (tab 0x7360e82607) := replay_sound (cs := certs) (links := g127) (fuel := 3) (tag := 1257) (by decide +kernel)
-private def g128 : Array Nat := #[]
-set_option maxRecDepth 16000 in
-set_option maxHeartbeats 12000000 in
-private theorem chunk127 : Goal (tab 0x7b60e82607) := replay_sound (cs := certs) (links := g128) (fuel := 3) (tag := 1257) (by decide +kernel)
-private theorem root7 : Goal (tab 0x8360e82607) := by
-  apply branch (q := 3) (k := 4) (by decide) (by decide +kernel)
-  intro e
-  fin_cases e
-  · exact convertGoal (by decide +kernel) chunk112
-  · exact convertGoal (by decide +kernel) chunk113
-  · exact convertGoal (by decide +kernel) chunk114
-  · exact convertGoal (by decide +kernel) chunk115
-  · exact convertGoal (by decide +kernel) chunk116
-  · exact convertGoal (by decide +kernel) chunk117
-  · exact convertGoal (by decide +kernel) chunk118
-  · exact convertGoal (by decide +kernel) chunk119
-  · exact convertGoal (by decide +kernel) chunk120
-  · exact convertGoal (by decide +kernel) chunk121
-  · exact convertGoal (by decide +kernel) chunk122
-  · exact convertGoal (by decide +kernel) chunk123
-  · exact convertGoal (by decide +kernel) chunk124
-  · exact convertGoal (by decide +kernel) chunk125
-  · exact convertGoal (by decide +kernel) chunk126
-  · exact convertGoal (by decide +kernel) chunk127
-
-end Farmer
-open Turing Turing.BusyBeaver Farmer
-
+open Turing Turing.BusyBeaver in
 theorem OMA.solution : OMA.R_BusyBeaver_BB_4_R1_H2_R1_H2_R1_H3_R1_H2_R1_H2_R1_H4_R1.H1 := by
-  intro M r left h0 h1 h2 h3 halt
-  fin_cases r <;> cases left
-  · apply Farmer.root1 M _ halt
-    intro q a h
-    fin_cases q <;> fin_cases a <;> first | exact h0 | exact h1 | exact h2 | exact h3 | exact False.elim ((by decide : ¬ 16 < 16) h)
-  · apply Farmer.root0 M _ halt
-    intro q a h
-    fin_cases q <;> fin_cases a <;> first | exact h0 | exact h1 | exact h2 | exact h3 | exact False.elim ((by decide : ¬ 16 < 16) h)
-  · apply Farmer.root3 M _ halt
-    intro q a h
-    fin_cases q <;> fin_cases a <;> first | exact h0 | exact h1 | exact h2 | exact h3 | exact False.elim ((by decide : ¬ 16 < 16) h)
-  · apply Farmer.root2 M _ halt
-    intro q a h
-    fin_cases q <;> fin_cases a <;> first | exact h0 | exact h1 | exact h2 | exact h3 | exact False.elim ((by decide : ¬ 16 < 16) h)
-  · apply Farmer.root5 M _ halt
-    intro q a h
-    fin_cases q <;> fin_cases a <;> first | exact h0 | exact h1 | exact h2 | exact h3 | exact False.elim ((by decide : ¬ 16 < 16) h)
-  · apply Farmer.root4 M _ halt
-    intro q a h
-    fin_cases q <;> fin_cases a <;> first | exact h0 | exact h1 | exact h2 | exact h3 | exact False.elim ((by decide : ¬ 16 < 16) h)
-  · apply Farmer.root7 M _ halt
-    intro q a h
-    fin_cases q <;> fin_cases a <;> first | exact h0 | exact h1 | exact h2 | exact h3 | exact False.elim ((by decide : ¬ 16 < 16) h)
-  · apply Farmer.root6 M _ halt
-    intro q a h
-    fin_cases q <;> fin_cases a <;> first | exact h0 | exact h1 | exact h2 | exact h3 | exact False.elim ((by decide : ¬ 16 < 16) h)
+  intro M r left h0 h1 h2 h3 halts
+  exact Machine.multiStep_eq_none_mono
+    (OMA.BB4Bound106.branch_bound M r left h0 h1 h2 h3 halts) (by decide)

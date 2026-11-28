@@ -44,6 +44,7 @@ theorem closed (x : ℕ) :
 
 end PA294139
 
+open OMA.S_oeis_a294139 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a294139.main := by
   refine ⟨fun n _ hn => ?_, fun n hn => ?_, fun n hn => ?_⟩
   · rw [PA294139.closed, if_pos (Nat.even_iff.mp hn)]
@@ -53,11 +54,11 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a294139.main := by
       show m + 7 - 3 = m + 4 by omega, show m + 7 - 4 = m + 3 by omega,
       show m + 7 - 5 = m + 2 by omega, show m + 7 - 6 = m + 1 by omega,
       show m + 7 - 7 = m by omega]
-    have key : ((OMA.S_oeis_a294139.a (m + 7) : ℤ) : ℚ) =
-        (((OMA.S_oeis_a294139.a (m + 6) : ℤ) + 3 * OMA.S_oeis_a294139.a (m + 5) -
-          3 * OMA.S_oeis_a294139.a (m + 4) - 3 * OMA.S_oeis_a294139.a (m + 3) +
-          3 * OMA.S_oeis_a294139.a (m + 2) + OMA.S_oeis_a294139.a (m + 1) -
-          OMA.S_oeis_a294139.a m : ℤ) : ℚ) := by
+    have key : ((a (m + 7) : ℤ) : ℚ) =
+        (((a (m + 6) : ℤ) + 3 * a (m + 5) -
+          3 * a (m + 4) - 3 * a (m + 3) +
+          3 * a (m + 2) + a (m + 1) -
+          a m : ℤ) : ℚ) := by
       push_cast
       rw [PA294139.closed, PA294139.closed, PA294139.closed, PA294139.closed, PA294139.closed,
         PA294139.closed, PA294139.closed, PA294139.closed]

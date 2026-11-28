@@ -6,8 +6,6 @@ namespace OMA
 
 variable {Γ Λ : Type} [Inhabited Γ] [Inhabited Λ] [Subsingleton Λ] (M : Machine Γ Λ)
 
-lemma I : (init [] : Cfg Γ Λ) = ⟨some default, default, .mk [], .mk []⟩ := rfl
-
 lemma W {a d} (h : M default default = some (some default, ⟨a, d⟩)) k : ∃ T : Tape Γ,
     M.multiStep (init []) k = some ⟨some default, T⟩ ∧ T.head = default ∧
       (d = .left → T.left = .mk []) ∧ (d = .right → T.right = .mk []) := by
@@ -21,7 +19,7 @@ lemma W {a d} (h : M default default = some (some default, ⟨a, d⟩)) k : ∃ 
 lemma B (N : ℕ) (hN : M.haltingNumber = N) : N ≤ 1 := by
   rcases hM : M default default with _ | ⟨_ | q, a, d⟩
   iterate 2 exact_mod_cast hN ▸
-    (show M.haltingNumber ≤ (1 : ℕ) from sInf_le ⟨1, by simp [HaltsAfter, I, step, hM], rfl⟩)
+    (show M.haltingNumber ≤ (1 : ℕ) from sInf_le ⟨1, by simp [HaltsAfter, init, Tape.mk₁, Tape.mk₂, Tape.mk', step, hM], rfl⟩)
   obtain rfl := Subsingleton.elim q default
   rw [show M.haltingNumber = ⊤ from sInf_eq_top.2 ?_] at hN
   · simp at hN
@@ -34,7 +32,8 @@ def C : Candidate 1 := ⟨Bool, Unit, inferInstance, rfl, inferInstance, inferIn
 end OMA
 
 theorem OMA.solution : type_of% @BusyBeaver.BB_1 := by
-  have b : ∀ N ∈ {N : ℕ | ∃ C : Candidate 1, C.M.haltingNumber = N}, N ≤ 1 := fun N ⟨C, h⟩ =>
-    have := Fintype.card_le_one_iff_subsingleton.1 C.Λ_card.le; OMA.B C.M N h
-  have m := haltingNumber_def OMA.C.M 1 ⟨_, rfl⟩ rfl
-  exact le_antisymm (csSup_le ⟨1, _, m⟩ b) (le_csSup ⟨1, b⟩ ⟨_, m⟩)
+  unfold BB
+  refine IsGreatest.csSup_eq ⟨⟨OMA.C, haltingNumber_def OMA.C.M 1 ⟨_, rfl⟩ rfl⟩, ?_⟩
+  rintro N ⟨C, h⟩
+  have := Fintype.card_le_one_iff_subsingleton.1 C.Λ_card.le
+  exact OMA.B C.M N h

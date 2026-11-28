@@ -1,6 +1,8 @@
 import OMAStatements.S_oeis_a396806
 import Mathlib
 
+-- Original proof by @Volkopat.
+
 namespace OMA.S_oeis_a396806
 
 private def egf (f : ℕ → ℤ) : PowerSeries ℚ :=
@@ -24,7 +26,7 @@ private lemma egf_injective {f g : ℕ → ℤ} (h : egf f = egf g) : f = g := b
   exact_mod_cast hq
 
 private lemma egf_deriv (f : ℕ → ℤ) :
-    PowerSeries.derivative ℚ (egf f) = egf (fun n => f (n + 1)) := by
+    PowerSeries.derivative (R := ℚ) (egf f) = egf (fun n => f (n + 1)) := by
   ext n
   rw [PowerSeries.coeff_derivative, egf, PowerSeries.coeff_mk, egf, PowerSeries.coeff_mk]
   rw [Nat.factorial_succ]
@@ -77,8 +79,8 @@ private lemma egf_hdivpow (g : ℕ → ℤ) (hg0 : g 0 = 0) :
     ext n
     cases n <;> simp [egf, hdivpow, PowerSeries.coeff_one]
   | succ k ih =>
-    have hderiv : PowerSeries.derivative ℚ (egf (hdivpow g (k + 1))) =
-        PowerSeries.derivative ℚ (PowerSeries.C ((Nat.factorial (k + 1) : ℚ)⁻¹) * (egf g) ^ (k + 1)) := by
+    have hderiv : PowerSeries.derivative (R := ℚ) (egf (hdivpow g (k + 1))) =
+        PowerSeries.derivative (R := ℚ) (PowerSeries.C ((Nat.factorial (k + 1) : ℚ)⁻¹) * (egf g) ^ (k + 1)) := by
       rw [egf_deriv]
       have h1 : egf (fun n => hdivpow g (k + 1) (n + 1)) =
           egf (fun n => g (n + 1)) * egf (hdivpow g k) := by
@@ -96,13 +98,13 @@ private lemma egf_hdivpow (g : ℕ → ℤ) (hg0 : g 0 = 0) :
         have h1 : (k : ℚ) + 1 ≠ 0 := by positivity
         have h2 : (Nat.factorial k : ℚ) ≠ 0 := by positivity
         field_simp
-      calc PowerSeries.derivative ℚ (egf g) *
+      calc PowerSeries.derivative (R := ℚ) (egf g) *
             (PowerSeries.C ((Nat.factorial k : ℚ)⁻¹) * egf g ^ k)
           = PowerSeries.C ((Nat.factorial k : ℚ)⁻¹) *
-              (egf g ^ k * PowerSeries.derivative ℚ (egf g)) := by ring
+              (egf g ^ k * PowerSeries.derivative (R := ℚ) (egf g)) := by ring
         _ = PowerSeries.C ((Nat.factorial (k + 1) : ℚ)⁻¹) *
               (PowerSeries.C ((k + 1 : ℕ) : ℚ) *
-                (egf g ^ k * PowerSeries.derivative ℚ (egf g))) := by
+                (egf g ^ k * PowerSeries.derivative (R := ℚ) (egf g))) := by
             rw [← hfac]; ring
     ext n
     cases n with
@@ -179,41 +181,17 @@ private lemma hdivpow_congr_mod2 {g1 g2 : ℕ → ℤ} {N : ℕ}
     | zero => rfl
     | succ m =>
       simp only [hdivpow]
-      conv_lhs => rw [Finset.sum_int_mod]
-      conv_rhs => rw [Finset.sum_int_mod]
-      congr 1
-      refine Finset.sum_congr rfl fun j hj => ?_
-      have hjm : j ≤ m := Nat.lt_succ_iff.mp (Finset.mem_range.mp hj)
-      have h1 := hg (j + 1) (by omega)
-      have h2 := ih (m - j) (by omega)
-      calc ((Nat.choose m j : ℤ) * g1 (j + 1) * hdivpow g1 k (m - j)) % 2
-          = (((Nat.choose m j : ℤ) * g1 (j + 1)) % 2 * (hdivpow g1 k (m - j) % 2)) % 2 :=
-              Int.mul_emod _ _ _
-        _ = ((((Nat.choose m j : ℤ) % 2 * (g1 (j + 1) % 2)) % 2) *
-              (hdivpow g1 k (m - j) % 2)) % 2 := by rw [Int.mul_emod (Nat.choose m j : ℤ)]
-        _ = ((((Nat.choose m j : ℤ) % 2 * (g2 (j + 1) % 2)) % 2) *
-              (hdivpow g2 k (m - j) % 2)) % 2 := by rw [h1, h2]
-        _ = (((Nat.choose m j : ℤ) * g2 (j + 1)) % 2 * (hdivpow g2 k (m - j) % 2)) % 2 := by
-              rw [← Int.mul_emod (Nat.choose m j : ℤ)]
-        _ = ((Nat.choose m j : ℤ) * g2 (j + 1) * hdivpow g2 k (m - j)) % 2 :=
-              (Int.mul_emod _ _ _).symm
-
+      exact Int.ModEq.sum fun j hj =>
+        Int.ModEq.mul (Int.ModEq.mul_left _ (hg (j + 1) (by have := Finset.mem_range.mp hj; omega)))
+          (ih (m - j) (by omega))
 private lemma hcomp_congr_mod2 {f1 f2 g1 g2 : ℕ → ℤ} {N : ℕ}
     (hf : ∀ m ≤ N, f1 m % 2 = f2 m % 2)
     (hg : ∀ m ≤ N, g1 m % 2 = g2 m % 2) :
     ∀ n ≤ N, hcomp f1 g1 n % 2 = hcomp f2 g2 n % 2 := by
   intro n hn
   simp only [hcomp]
-  conv_lhs => rw [Finset.sum_int_mod]
-  conv_rhs => rw [Finset.sum_int_mod]
-  congr 1
-  refine Finset.sum_congr rfl fun k hk => ?_
-  have hkn : k ≤ n := Nat.lt_succ_iff.mp (Finset.mem_range.mp hk)
-  calc (f1 k * hdivpow g1 k n) % 2
-      = (f1 k % 2 * (hdivpow g1 k n % 2)) % 2 := Int.mul_emod _ _ _
-    _ = (f2 k % 2 * (hdivpow g2 k n % 2)) % 2 := by rw [hf k (by omega), hdivpow_congr_mod2 hg k n hn]
-    _ = (f2 k * hdivpow g2 k n) % 2 := (Int.mul_emod _ _ _).symm
-
+  exact Int.ModEq.sum fun k hk =>
+    Int.ModEq.mul (hf k (by have := Finset.mem_range.mp hk; omega)) (hdivpow_congr_mod2 hg k n hn)
 private lemma hcomp_zero {f g : ℕ → ℤ} (hf0 : f 0 = 0) : hcomp f g 0 = 0 := by
   simp [hcomp, hdivpow, hf0]
 
@@ -246,42 +224,22 @@ private lemma hdivpow_f0 (k n : ℕ) :
   have heq : egf (hdivpow f0 k) =
       egf (fun m => (Nat.choose m k : ℤ) * (k : ℤ) ^ (m - k)) := by
     rw [egf_hdivpow f0 rfl, egf_f0, mul_pow]
-    have hexp_pow : (PowerSeries.exp ℚ) ^ k =
-        PowerSeries.mk fun m => ((k : ℚ) ^ m) / (Nat.factorial m : ℚ) := by
+    have hexp_pow : (PowerSeries.exp ℚ) ^ k = egf (fun m => (k : ℤ) ^ m) := by
       induction k with
-      | zero =>
-        ext m; cases m <;> simp [PowerSeries.coeff_one]
+      | zero => ext m; cases m <;> simp [egf, PowerSeries.coeff_one]
       | succ j ih =>
-        rw [pow_succ, ih, exp_eq_egf_one]
-        ext m
-        rw [PowerSeries.coeff_mul]
-        rw [Finset.Nat.sum_antidiagonal_eq_sum_range_succ
-          (f := fun a b =>
-            PowerSeries.coeff a (PowerSeries.mk fun m => (j : ℚ) ^ m / (Nat.factorial m : ℚ)) *
-            PowerSeries.coeff b (egf fun _ => 1)) m, PowerSeries.coeff_mk]
-        have hadd : ((j + 1 : ℕ) : ℚ) ^ m =
-            ∑ i ∈ Finset.range (m + 1), (Nat.choose m i : ℚ) * (j : ℚ) ^ i := by
-          rw [Nat.cast_add, Nat.cast_one, add_pow]
-          refine Finset.sum_congr rfl fun i _ => ?_
-          rw [one_pow, mul_one, mul_comm]
-        rw [hadd, Finset.sum_div]
-        refine Finset.sum_congr rfl fun i hi => ?_
-        have him : i ≤ m := Nat.lt_succ_iff.mp (Finset.mem_range.mp hi)
-        simp only [egf, PowerSeries.coeff_mk, Int.cast_one]
-        have hch := Nat.choose_mul_factorial_mul_factorial him
-        have hchQ : (Nat.choose m i : ℚ) * (Nat.factorial i : ℚ) * (Nat.factorial (m - i) : ℚ) =
-            (Nat.factorial m : ℚ) := by exact_mod_cast hch
-        have hfi : (Nat.factorial i : ℚ) ≠ 0 := by positivity
-        have hfmi : (Nat.factorial (m - i) : ℚ) ≠ 0 := by positivity
-        have hfm : (Nat.factorial m : ℚ) ≠ 0 := by positivity
-        field_simp
-        linear_combination -(j : ℚ) ^ i * hchQ
+        rw [pow_succ, ih, exp_eq_egf_one, egf_mul]
+        congr 1
+        funext m
+        rw [Nat.cast_succ, add_pow]
+        simp only [one_pow, mul_one]
+        exact Finset.sum_congr rfl fun _ _ => mul_comm _ _
     rw [hexp_pow]
     ext m
-    rw [PowerSeries.coeff_C_mul, PowerSeries.coeff_X_pow_mul', egf, PowerSeries.coeff_mk]
+    rw [PowerSeries.coeff_C_mul, PowerSeries.coeff_X_pow_mul']
+    simp only [egf, PowerSeries.coeff_mk]
     split_ifs with hkm
-    · rw [PowerSeries.coeff_mk]
-      have hch := Nat.choose_mul_factorial_mul_factorial hkm
+    · have hch := Nat.choose_mul_factorial_mul_factorial hkm
       have hchQ : (Nat.choose m k : ℚ) * (Nat.factorial k : ℚ) * (Nat.factorial (m - k) : ℚ) =
           (Nat.factorial m : ℚ) := by exact_mod_cast hch
       have hfk : (Nat.factorial k : ℚ) ≠ 0 := by positivity
@@ -290,7 +248,7 @@ private lemma hdivpow_f0 (k n : ℕ) :
       push_cast
       field_simp
       linear_combination -(k : ℚ) ^ (m - k) * hchQ
-    · simp only [PowerSeries.coeff_mk, Nat.choose_eq_zero_of_lt (by omega : m < k),
+    · simp only [Nat.choose_eq_zero_of_lt (by omega : m < k),
         Nat.cast_zero, zero_mul, Int.cast_zero, zero_div, mul_zero]
   exact congr_fun (egf_injective heq) n
 
@@ -349,16 +307,10 @@ private lemma hcomp_f0_f0_mod2 (n : ℕ) :
     rcases h2 with ⟨q, hq⟩
     rw [hq]; push_cast; omega
 
-private theorem main_proved :
-    ∀ (a : ℕ → ℤ) (A : PowerSeries ℚ),
-      A = PowerSeries.mk (fun n => (a n : ℚ) / (Nat.factorial n : ℚ)) →
-      a 0 = 0 →
-      A = PowerSeries.X *
-        PowerSeries.subst
-          (PowerSeries.subst A (PowerSeries.subst A (PowerSeries.subst A
-            (PowerSeries.subst A (PowerSeries.subst A A)))))
-          (PowerSeries.exp ℚ) →
-      ∀ n : ℕ, 1 ≤ n → (Odd (a n) ↔ Odd n) := by
+end OMA.S_oeis_a396806
+
+open OMA.S_oeis_a396806 in
+theorem OMA.solution : type_of% @OMA.S_oeis_a396806.main := by
   intro a A hA ha0 heq
   have hA_egf : A = egf a := hA
   set a2 := hcomp a a
@@ -393,7 +345,7 @@ private theorem main_proved :
   have hmod2 : ∀ n : ℕ, a n % 2 = f0 n % 2 := by
     intro n
     induction n using Nat.strong_induction_on with
-    | h n ih =>
+    | _ n ih =>
       rcases Nat.eq_zero_or_pos n with rfl | hn
       · simp [ha0, f0]
       · have hprev : ∀ m ≤ n - 1, a m % 2 = f0 m % 2 := fun m hm => ih m (by omega)
@@ -421,8 +373,3 @@ private theorem main_proved :
   simp only [f0] at hm
   rw [Int.odd_iff, Nat.odd_iff]
   omega
-
-end OMA.S_oeis_a396806
-
-theorem OMA.solution : type_of% @OMA.S_oeis_a396806.main :=
-  OMA.S_oeis_a396806.main_proved

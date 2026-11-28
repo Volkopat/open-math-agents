@@ -1,692 +1,661 @@
 import OMAReductions.R_Erdos713_erdos_713_parts_i_R1_H2_R1
 
 /-!
-For a forbidden star forest on q vertices, choose one center per star.
-In a free host, set aside the h vertices of degree at least q. In the
-remaining bounded-degree graph, take the largest d for which sufficiently
-many vertices have degree at least d. Stars of degree at most d fit greedily
-in disjoint closed neighborhoods. If there were at most h larger stars,
-their centers could be assigned to the reserved vertices and their leaves
-embedded last. Thus more than h forbidden stars have degree greater than d.
-Counting degrees bounds twice the number of host edges by (2h+d)n+O_q(1).
-
-Conversely, take h vertices adjacent to every vertex of a disjoint union
-of cliques of size d+1. Each large forbidden star would have to use one
-of those h vertices. Isolated vertices fill the remainder at bounded cost.
-Maximizing over the finitely many admissible pairs (h,d) gives matching
-bounds up to a constant. This formalizes the leading-order star-forest
-result of Lidický, Liu and Palmer, *On the Turán Number of Forests*,
-Electronic Journal of Combinatorics 20 (2013), P62, doi:10.37236/3142.
+Star forests: the extremal number is c*n + O(1), which gives the threshold transfer.
+Upper bound: reserve the vertices of host degree at least 3q for some stars and embed the
+others greedily; where the greedy step fails a degree count bounds the edges.
+Lower bound: s universal vertices plus disjoint cliques of order d.
+See Lidicky, Liu and Palmer, On the Turan number of forests, EJC 20 (2013), P62, Theorem 3.
 -/
 
--- Credit: @zarnab222-dev
+-- Credit: @bedecarroll
 
-open Finset SimpleGraph
+open SimpleGraph Finset Filter
 open scoped Classical
-namespace E713Stars
 
+namespace E713Star
 
-theorem extend_leaves {V W : Type*} [Fintype V] [Fintype W]
-    (G : SimpleGraph V) (X : SimpleGraph W) (S : Finset V) (label : V → W)
-    (inj : Set.InjOn label (S : Set V))
-    (good : ∀ u ∈ S, ∀ v ∈ S, G.Adj u v → X.Adj (label u) (label v))
-    (leaves : ∀ v ∉ S, ∃ c ∈ S, (∀ w, G.Adj v w → w=c) ∧ Fintype.card V-1 ≤ X.degree (label c)) :
-    G.IsContained X := by
-  classical
-  induction h : (univ \ S).card using Nat.strong_induction_on generalizing S label with
-  | h k induct =>
-    by_cases full : S=univ
-    · have all (v : V) : v ∈ S := full ▸ mem_univ v
-      exact ⟨⟨⟨label,fun ha => good _ (all _) _ (all _) ha⟩,fun _ _ eq => inj (all _) (all _) eq⟩⟩
-    obtain ⟨v,hv⟩ : ∃ v, v ∉ S := by
-      by_contra! all
-      exact full (eq_univ_iff_forall.mpr all)
-    obtain ⟨c,hc,parent,degree⟩ := leaves v hv
-    let used := (S.erase c).image label
-    have ssmall : S.card < Fintype.card V := by
-      have := card_lt_card (ssubset_univ_iff.mpr full)
-      simpa using this
-    have cost : used.card < X.degree (label c) := by
-      have u := card_image_le (s := S.erase c) (f := label)
-      have rem := card_erase_add_one hc
-      change ((S.erase c).image label).card < _
-      omega
-    obtain ⟨y,hy,fresh⟩ := exists_mem_notMem_of_card_lt_card (show used.card < (X.neighborFinset (label c)).card by simpa using cost)
-    have cy := (X.mem_neighborFinset _ _).mp hy
-    have outside (w : V) (hw : w ∈ S) : y ≠ label w := by
-      by_cases eq : w=c
-      · subst w; exact cy.ne.symm
-      · exact fun e => fresh (e ▸ mem_image_of_mem label (mem_erase.mpr ⟨eq,hw⟩))
-    let f := Function.update label v y
-    have agree (w : V) (hw : w ∈ S) : f w=label w := by
-      have ne : w ≠ v := fun e => hv (e ▸ hw)
-      exact Function.update_of_ne ne ..
-    have fv : f v=y := Function.update_self ..
-    let T := insert v S
-    have dec : (univ \ T).card < k := by
-      rw [← h,card_sdiff_of_subset (subset_univ _),card_sdiff_of_subset (subset_univ _),
-        show T=insert v S from rfl,card_insert_of_notMem hv,card_univ]
-      omega
-    apply induct _ dec T f
-    · intro a ha b hb eq
-      rcases mem_insert.mp ha with av | aa <;> rcases mem_insert.mp hb with bv | bb
-      · exact av.trans bv.symm
-      · rw [av,fv,agree _ bb] at eq; exact (outside _ bb eq).elim
-      · rw [bv,fv,agree _ aa] at eq; exact (outside _ aa eq.symm).elim
-      · rw [agree _ aa,agree _ bb] at eq; exact inj aa bb eq
-    · intro a ha b hb ab
-      rcases mem_insert.mp ha with av | aa <;> rcases mem_insert.mp hb with bv | bb
-      · exact (ab.ne (av.trans bv.symm)).elim
-      · rw [av] at ab ⊢; rw [fv,agree _ bb,parent _ ab]; exact cy.symm
-      · rw [bv] at ab ⊢; rw [agree _ aa,fv,parent _ ab.symm]; exact cy
-      · rw [agree _ aa,agree _ bb]; exact good _ aa _ bb ab
-    · intro a ha
-      obtain ⟨p,hp,unique,deg⟩ := leaves a (fun mem => ha (mem_insert_of_mem mem))
-      exact ⟨p,mem_insert_of_mem hp,unique,(agree p hp).symm ▸ deg⟩
-    · rfl
+variable {q : ℕ}
 
-theorem embed_from_pools {V W : Type*} [Fintype V] [Fintype W] [Nonempty W]
-    (G : SimpleGraph V) (X : SimpleGraph W) (C : Finset V)
-    (ind : ∀ a ∈ C, ∀ b ∈ C, ¬G.Adj a b)
-    (leaf : ∀ v ∉ C, ∃ c ∈ C, G.Adj v c ∧ ∀ w, G.Adj v w → w=c)
-    (f : C ↪ W) (small : C → Prop) (P : C → Finset W)
-    (pool_size : ∀ c, small c → G.degree c.val ≤ (P c).card)
-    (pool_adj : ∀ c, ∀ w ∈ P c, X.Adj (f c) w)
-    (no_center : ∀ c c', f c' ∉ P c)
-    (apart : ∀ c c', c ≠ c' → Disjoint (P c) (P c'))
-    (abundant : ∀ c, ¬small c → Fintype.card V-1 ≤ X.degree (f c)) : G.IsContained X := by
-  classical
-  have neighbor (v : V) (hv : v ∉ C) : ∃ c : C, G.Adj v c.val ∧ ∀ w, G.Adj v w → w=c.val := by
-    obtain ⟨u,hu,h,uniq⟩ := leaf v hv
-    exact ⟨⟨u,hu⟩,h,uniq⟩
-  choose p edge uniq using neighbor
-  have embeds (c : C) (sc : small c) : Nonempty ((G.neighborFinset c.val) ↪ (P c)) := by
-    apply Function.Embedding.nonempty_of_card_le
-    simpa only [Fintype.card_coe,G.card_neighborFinset_eq_degree] using pool_size c sc
-  let g (c : C) (sc : small c) := (embeds c sc).some
-  have local_inj {c b : C} (sc : small c) (sb : small b) (eq : c=b)
-      (x : G.neighborFinset c.val) (y : G.neighborFinset b.val)
-      (same : (g c sc x).val=(g b sb y).val) : x.val=y.val := by
-    subst b
-    exact congrArg Subtype.val ((g c sc).injective (Subtype.ext same))
-  let label (v : V) : W := if h : v ∈ C then f ⟨v,h⟩ else
-    if sc : small (p v h) then (g _ sc ⟨v,(G.mem_neighborFinset _ _).mpr (edge v h).symm⟩).val
-    else Classical.choice ‹Nonempty W›
-  let S := univ.filter fun v => ∀ h : v ∉ C, small (p v h)
-  have centerLabel (v : V) (hv : v ∈ C) : label v=f ⟨v,hv⟩ := by simp [label,hv]
-  have inS (c : C) : c.val ∈ S := mem_filter.mpr ⟨mem_univ _,fun h => (h c.property).elim⟩
-  have smallLabel (v : V) (hv : v ∉ C) (hs : v ∈ S) : label v ∈ P (p v hv) := by
-    have sc := (mem_filter.mp hs).2 hv
-    simp only [label,hv,sc,↓reduceDIte]
-    exact Subtype.property _
-  apply extend_leaves G X S label
-  · intro a ha b hb eq
-    by_cases ac : a ∈ C <;> by_cases bc : b ∈ C
-    · rw [centerLabel a ac,centerLabel b bc] at eq
-      exact congrArg Subtype.val (f.injective eq)
-    · have nb := smallLabel b bc hb
-      rw [← eq,centerLabel a ac] at nb
-      exact (no_center _ _ nb).elim
-    · have na := smallLabel a ac ha
-      rw [eq,centerLabel b bc] at na
-      exact (no_center _ _ na).elim
-    · have same : p a ac = p b bc := by
-        by_contra ne
-        exact disjoint_left.mp (apart _ _ ne) (smallLabel a ac ha) (eq.symm ▸ smallLabel b bc hb)
-      have sa := (mem_filter.mp ha).2 ac
-      have sb := (mem_filter.mp hb).2 bc
-      simp only [label,ac,bc,sa,sb,↓reduceDIte] at eq
-      exact local_inj sa sb same _ _ eq
-  · intro a ha b hb ab
-    by_cases ac : a ∈ C
-    · have bc : b ∉ C := fun h => ind a ac b h ab
-      have same : (⟨a,ac⟩ : C) = p b bc := Subtype.ext (uniq b bc a ab.symm)
-      rw [centerLabel a ac,same]
-      exact pool_adj _ _ (smallLabel b bc hb)
-    · have bEq := uniq a ac b ab
-      have bc := bEq.symm ▸ (p a ac).property
-      have same : (⟨b,bc⟩ : C) = p a ac := Subtype.ext bEq
-      rw [centerLabel b bc,same]
-      exact (pool_adj _ _ (smallLabel a ac ha)).symm
-  · intro v hv
-    have vc : v ∉ C := fun h => hv (inS ⟨v,h⟩)
-    have large : ¬small (p v vc) := fun sc => hv (mem_filter.mpr ⟨mem_univ _,fun _ => sc⟩)
-    exact ⟨_,inS _,uniq v vc,by rw [centerLabel _ (p v vc).property]; exact abundant _ large⟩
+def IsC (G : SimpleGraph (Fin q)) (v : Fin q) : Prop :=
+  2 ≤ G.degree v ∨ ∃ w, G.Adj v w ∧ G.degree w ≤ 1 ∧ v < w
 
+theorem uniq (G : SimpleGraph (Fin q)) {v a b : Fin q} (h : G.degree v ≤ 1)
+    (ha : G.Adj v a) (hb : G.Adj v b) : a = b := by
+  rw [← card_neighborFinset_eq_degree] at h
+  exact Finset.card_le_one.mp h a ((G.mem_neighborFinset v a).mpr ha) b
+    ((G.mem_neighborFinset v b).mpr hb)
 
-theorem pack_sets {V : Type*} [DecidableEq V] (H : Finset V) (N : V → Finset V)
-    (B k : ℕ) (pos : 0<B) (enough : k*B ≤ H.card)
-    (cost : ∀ v ∈ H, (H.filter fun u => ¬ Disjoint (N u) (N v)).card ≤ B)
-    (self : ∀ v ∈ H, v ∈ N v) :
-    ∃ S ⊆ H, S.card=k ∧ (S : Set V).PairwiseDisjoint N := by
-  classical
-  induction k with
-  | zero => exact ⟨∅,empty_subset _,rfl,by simp⟩
-  | succ k ih =>
-    obtain ⟨S,sub,sz,sep⟩ := ih ((Nat.mul_le_mul_right B (Nat.le_succ k)).trans enough)
-    let bad := S.biUnion fun v => H.filter fun u => ¬Disjoint (N u) (N v)
-    have limit : bad.card ≤ k*B := by
-      calc bad.card ≤ _ := card_biUnion_le
-           _ ≤ ∑ _ ∈ S, B := sum_le_sum (fun v hv => cost v (sub hv))
-           _ = k*B := by simp [sz]
-    have less : bad.card < H.card := by rw [Nat.succ_mul] at enough; omega
-    obtain ⟨u,hu,hbad⟩ := exists_mem_notMem_of_card_lt_card less
-    have apart (v) (hv : v ∈ S) : Disjoint (N u) (N v) := by
-      by_contra ne
-      exact hbad (mem_biUnion.mpr ⟨v,hv,mem_filter.mpr ⟨hu,ne⟩⟩)
-    have fresh : u ∉ S := by intro h; exact disjoint_left.mp (apart u h) (self u hu) (self u hu)
-    refine ⟨insert u S,insert_subset hu sub,by rw [card_insert_of_notMem fresh,sz],?_⟩
-    rw [coe_insert,Set.pairwiseDisjoint_insert_of_notMem (by simpa using fresh)]
-    exact ⟨sep,apart⟩
-
-theorem pack_stars {W : Type*} [Fintype W] (X : SimpleGraph W) (H : Finset W)
-    (D k : ℕ) (bound : ∀ v, X.degree v ≤ D) (enough : k*((D+1)*(D+1)) ≤ H.card) :
-    ∃ S ⊆ H, S.card=k ∧ (S : Set W).PairwiseDisjoint (fun v => insert v (X.neighborFinset v)) := by
-  classical
-  let N (v : W) := insert v (X.neighborFinset v)
-  have sz (v) : (N v).card ≤ D+1 := (card_insert_le ..).trans (by rw [X.card_neighborFinset_eq_degree]; exact Nat.add_le_add_right (bound v) 1)
-  have symm {u v} (h : u ∈ N v) : v ∈ N u := by
-    rcases mem_insert.mp h with rfl | h
-    · exact mem_insert_self ..
-    · exact mem_insert_of_mem ((X.mem_neighborFinset _ _).mpr ((X.mem_neighborFinset _ _).mp h).symm)
-  apply pack_sets H N _ k (by positivity) enough _ (fun _ _ => mem_insert_self ..)
-  intro v hv
-  have sub : (H.filter fun u => ¬Disjoint (N u) (N v)) ⊆ (N v).biUnion N := by
-    intro u hu
-    obtain ⟨w,wu,wv⟩ := not_disjoint_iff.mp (mem_filter.mp hu).2
-    exact mem_biUnion.mpr ⟨w,wv,symm wu⟩
-  calc _ ≤ ((N v).biUnion N).card := card_le_card sub
-       _ ≤ ∑ w ∈ N v, (N w).card := card_biUnion_le
-       _ ≤ ∑ _ ∈ N v, (D+1) := sum_le_sum (fun w _ => sz w)
-       _ ≤ _ := by simpa using Nat.mul_le_mul_right (D+1) (sz v)
-
-theorem split_embedding {V W : Type*} [Fintype V] (p : V → Prop) (B S : Finset W) (apart : Disjoint B S)
-    (left : (univ.filter p).card ≤ B.card) (right : (univ.filter fun v => ¬p v).card ≤ S.card) :
-    ∃ f : V ↪ W, (∀ v, p v → f v ∈ B) ∧ (∀ v, ¬p v → f v ∈ S) := by
-  classical
-  let A := univ.filter p
-  let T := univ.filter fun v => ¬p v
-  let l : A ↪ B := (Function.Embedding.nonempty_of_card_le (by simpa only [Fintype.card_coe] using left)).some
-  let r : T ↪ S := (Function.Embedding.nonempty_of_card_le (by simpa only [Fintype.card_coe] using right)).some
-  let f (v : V) : W := if h : p v then (l ⟨v,mem_filter.mpr ⟨mem_univ _,h⟩⟩).val else (r ⟨v,mem_filter.mpr ⟨mem_univ _,h⟩⟩).val
-  have inL (v) (h : p v) : f v ∈ B := by simp only [f,h,↓reduceDIte]; exact Subtype.property _
-  have inR (v) (h : ¬p v) : f v ∈ S := by simp only [f,h,↓reduceDIte]; exact Subtype.property _
-  refine ⟨⟨f,?_⟩,inL,inR⟩
-  intro a b eq
-  by_cases ha : p a <;> by_cases hb : p b
-  · simp only [f,ha,hb,↓reduceDIte] at eq
-    exact congrArg Subtype.val (l.injective (Subtype.ext eq))
-  · exact (disjoint_left.mp apart (inL a ha) (eq.symm ▸ inR b hb)).elim
-  · exact (disjoint_left.mp apart (inL b hb) (eq ▸ inR a ha)).elim
-  · simp only [f,ha,hb,↓reduceDIte] at eq
-    exact congrArg Subtype.val (r.injective (Subtype.ext eq))
-
-theorem many_centers_embed {V W : Type*} [Fintype V] [Fintype W] [Nonempty W]
-    (G : SimpleGraph V) (X Y : SimpleGraph W) (C : Finset V) (B : Finset W) (d D : ℕ)
-    (ind : ∀ a ∈ C, ∀ b ∈ C, ¬G.Adj a b)
-    (leaf : ∀ v ∉ C, ∃ c ∈ C, G.Adj v c ∧ ∀ w, G.Adj v w → w=c)
-    (sub : Y ≤ X) (iso : ∀ b ∈ B, ∀ w, ¬Y.Adj b w)
-    (ample : ∀ b ∈ B, Fintype.card V-1 ≤ X.degree b)
-    (bounded : ∀ v, Y.degree v ≤ D)
-    (hubs : (C.filter fun c => d < G.degree c).card ≤ B.card)
-    (numerous : Fintype.card V*((D+1)*(D+1)) ≤ (univ.filter fun w => w ∉ B ∧ d ≤ Y.degree w).card) :
-    G.IsContained X := by
-  classical
-  let H := univ.filter fun w => w ∉ B ∧ d ≤ Y.degree w
-  let large (c : C) := d < G.degree c.val
-  have hs : C.card*((D+1)*(D+1)) ≤ H.card := (Nat.mul_le_mul_right _ (card_le_univ C)).trans numerous
-  obtain ⟨S,sh,size,sep⟩ := pack_stars Y H D C.card bounded hs
-  have apart : Disjoint B S := disjoint_left.mpr fun w hw hS => (mem_filter.mp (sh hS)).2.1 hw
-  have lc : (univ.filter large).card ≤ B.card := by
-    let e := Function.Embedding.subtype (fun v => v ∈ C)
-    have eq : (univ.filter large).map e=C.filter (fun c => d < G.degree c) := by ext; simp [e,large]; tauto
-    rw [← eq,card_map] at hubs
-    exact hubs
-  obtain ⟨f,hi,lo⟩ := split_embedding large B S apart (by convert lc using 2; congr!) (by
-    rw [size]
-    exact (card_le_univ _).trans (le_of_eq (Fintype.card_coe C)))
-  let P (c : C) := if large c then ∅ else Y.neighborFinset (f c)
-  apply embed_from_pools G X C ind leaf f (fun c => ¬large c) P
-  · intro c hc
-    simp only [P,hc,if_false,Y.card_neighborFinset_eq_degree]
-    exact (le_of_not_gt hc).trans (mem_filter.mp (sh (lo c hc))).2.2
-  · intro c w hw
-    by_cases hc : large c
-    · simp [P,hc] at hw
-    · exact sub ((Y.mem_neighborFinset _ _).mp (by simpa [P,hc] using hw))
-  · intro c b hb
-    by_cases hc : large c
-    · simp [P,hc] at hb
-    have edge := (Y.mem_neighborFinset (f c) (f b)).mp (by simpa [P,hc] using hb)
-    by_cases bc : large b
-    · exact iso _ (hi b bc) _ edge.symm
-    by_cases eq : c=b
-    · exact edge.ne (congrArg f eq)
-    have ds := sep (lo c hc) (lo b bc) (fun e => eq (f.injective e))
-    exact disjoint_left.mp ds (mem_insert_of_mem ((Y.mem_neighborFinset _ _).mpr edge)) (mem_insert_self ..)
-  · intro c b ne
-    by_cases hc : large c
-    · simp [P,hc]
-    by_cases hb : large b
-    · simp [P,hb]
-    have ds := sep (lo c hc) (lo b hb) (fun e => ne (f.injective e))
-    simp only [P,hc,hb,if_false]
-    exact ds.mono (subset_insert ..) (subset_insert ..)
-  · intro c hn
-    exact ample _ (hi c (not_not.mp hn))
-
-theorem hub_cap {V W : Type*} [Fintype V] [Fintype W] [Nonempty W]
-    (G : SimpleGraph V) (X : SimpleGraph W) (C : Finset V) (B : Finset W)
-    (ind : ∀ a ∈ C, ∀ b ∈ C, ¬G.Adj a b)
-    (leaf : ∀ v ∉ C, ∃ c ∈ C, G.Adj v c ∧ ∀ w, G.Adj v w → w=c)
-    (ample : ∀ b ∈ B, Fintype.card V-1 ≤ X.degree b)
-    (free : G.Free X) : B.card < C.card := by
-  classical
-  by_contra! fit
-  let e : C ↪ B := (Function.Embedding.nonempty_of_card_le (by simpa only [Fintype.card_coe] using fit)).some
-  let f (v : V) := if h : v ∈ C then (e ⟨v,h⟩).val else Classical.choice ‹Nonempty W›
-  have onC {v} (h : v ∈ C) : f v = (e ⟨v,h⟩).val := by simp [f,h]
-  apply free (extend_leaves G X C f ?_ ?_ ?_)
-  · intro a ha b hb eq
-    rw [onC ha,onC hb] at eq
-    exact congrArg Subtype.val (e.injective (Subtype.ext eq))
-  · intro a ha b hb adj
-    exact (ind a ha b hb adj).elim
-  · intro v hv
-    obtain ⟨c,hc,_,uniq⟩ := leaf v hv
-    exact ⟨c,hc,uniq,by rw [onC hc]; exact ample _ (e ⟨c,hc⟩).property⟩
-
-theorem count_after_hubs {W : Type*} [Fintype W] (X Y : SimpleGraph W)
-    (B : Finset W) (d q Q : ℕ)
-    (outside : ∀ u ∉ B, Y.neighborFinset u = X.neighborFinset u \ B)
-    (cap : ∀ u, Y.degree u ≤ q)
-    (few : (univ.filter fun u => d < Y.degree u).card ≤ Q) :
-    2*X.edgeFinset.card ≤ (2*B.card+d)*Fintype.card W + q*Q := by
-  classical
-  let n := Fintype.card W
-  have orig (v : W) : X.degree v ≤ Y.degree v + B.card + (if v ∈ B then n else 0) := by
-    by_cases hv : v ∈ B
-    · have deg : X.degree v ≤ n := by rw [← X.card_neighborFinset_eq_degree]; exact card_le_univ _
-      simp [hv]; omega
-    · have sub := card_le_card (inter_subset_right (s₁ := X.neighborFinset v) (s₂ := B))
-      have sum := card_sdiff_add_card_inter (X.neighborFinset v) B
-      rw [← outside v hv,Y.card_neighborFinset_eq_degree,X.card_neighborFinset_eq_degree] at sum
-      simp [hv]; omega
-  have rest (v : W) : Y.degree v ≤ d + (if d<Y.degree v then q else 0) := by
-    have := cap v
-    split_ifs <;> omega
-  have sumX := sum_le_sum (s := univ) (fun v _ => orig v)
-  have sumY := sum_le_sum (s := univ) (fun v _ => rest v)
-  have allB : univ.filter (fun v => v ∈ B) = B := by ext; simp
-  simp only [sum_add_distrib,←sum_filter,allB,sum_const,card_univ,nsmul_eq_mul,
-    X.sum_degrees_eq_twice_card_edges] at sumX sumY
-  have exc := Nat.mul_le_mul_right q few
-  dsimp [n] at sumX
-  nlinarith only [sumX,sumY,exc]
-
-set_option maxHeartbeats 650000 in
-theorem upper_bound {q n : ℕ} (G : SimpleGraph (Fin q)) (C : Finset (Fin q))
-    (ind : ∀ a ∈ C, ∀ b ∈ C, ¬G.Adj a b)
-    (leaf : ∀ v ∉ C, ∃ c ∈ C, G.Adj v c ∧ ∀ w, G.Adj v w → w=c)
-    (X : SimpleGraph (Fin n)) (free : G.Free X) (qpos : 0<q) (largeN : q*((q+1)*(q+1))+q ≤ n) :
-    ∃ h ≤ q, ∃ d ≤ q, h < (C.filter fun c => d < G.degree c).card ∧
-      2*X.edgeFinset.card ≤ (2*h+d)*n + q*(q*((q+1)*(q+1))) := by
-  classical
-  let Q := q*((q+1)*(q+1))
-  have Qpos : 0<Q := by dsimp [Q]; positivity
-  have enough : Q+q ≤ n := largeN
-  have : NeZero n := ⟨by omega⟩
-  let B := univ.filter fun b => q ≤ X.degree b
-  let Y : SimpleGraph (Fin n) := { Adj := fun a b => X.Adj a b ∧ a ∉ B ∧ b ∉ B
-                                   symm := ⟨fun _ _ h => ⟨h.1.symm,h.2.2,h.2.1⟩⟩
-                                   loopless := ⟨fun v h => h.1.ne rfl⟩ }
-  let _ : DecidableRel Y.Adj := fun a b => Classical.propDecidable _
-  have sub : Y ≤ X := fun _ _ h => h.1
-  have iso : ∀ b ∈ B, ∀ w, ¬Y.Adj b w := fun _ hb _ h => h.2.1 hb
-  have ample (b) (hb : b ∈ B) : Fintype.card (Fin q)-1 ≤ X.degree b := by
-    have := (mem_filter.mp hb).2
-    rw [Fintype.card_fin]; omega
-  have hcap := hub_cap G X C B ind leaf ample free
-  have cs : C.card ≤ q := by simpa using card_le_univ C
-  have outside (u) (hu : u ∉ B) : Y.neighborFinset u = X.neighborFinset u \ B := by
-    ext v
-    simp only [mem_sdiff,SimpleGraph.mem_neighborFinset]
-    change (X.Adj u v ∧ u ∉ B ∧ v ∉ B) ↔ _
-    simp [hu]
-  have empty (u) (hu : u ∈ B) : Y.degree u=0 := by
-    rw [← Y.card_neighborFinset_eq_degree,card_eq_zero]
-    ext v
-    simp [SimpleGraph.mem_neighborFinset,iso u hu v]
-  have bound (u) : Y.degree u ≤ q := by
-    by_cases hu : u ∈ B
-    · simp [empty u hu]
-    · have lim : X.degree u < q := lt_of_not_ge (fun h => hu (mem_filter.mpr ⟨mem_univ _,h⟩))
-      rw [← Y.card_neighborFinset_eq_degree,outside u hu]
-      exact (card_le_card sdiff_subset).trans (by simpa using lim.le)
-  let F (d : ℕ) := univ.filter fun w => w ∉ B ∧ d ≤ Y.degree w
-  let candidates := (range (q+1)).filter fun d => Q ≤ (F d).card
-  have base : 0 ∈ candidates := by
-    have f0 : F 0 = Bᶜ := by ext; simp [F]
-    have b := card_compl_add_card B
-    rw [Fintype.card_fin] at b
-    exact mem_filter.mpr ⟨by simp,by rw [f0]; omega⟩
-  let d := candidates.max' ⟨0,base⟩
-  have hd : d ∈ candidates := candidates.max'_mem _
-  obtain ⟨rangeD,numerous⟩ := mem_filter.mp hd
-  have dq : d ≤ q := by have := mem_range.mp rangeD; omega
-  have many : B.card < (C.filter fun c => d < G.degree c).card := by
-    by_contra! small
-    exact free (many_centers_embed G X Y C B d q ind leaf sub iso ample bound small (by
-      simp only [Fintype.card_fin]
-      unfold F at numerous
-      convert numerous using 2; congr!))
-  have few : (univ.filter fun u => d < Y.degree u).card ≤ Q := by
-    have eq : (univ.filter fun u => d<Y.degree u) = F (d+1) := by
-      ext u
-      simp only [F,mem_filter,mem_univ,true_and]
-      constructor
-      · intro gt
-        exact ⟨fun h => by rw [empty u h] at gt; omega,gt⟩
-      · exact fun h => h.2
-    rw [eq]
-    by_cases last : d=q
-    · have e : F (d+1)=∅ := by
-        apply eq_empty_iff_forall_notMem.mpr
-        intro u hu
-        have := (mem_filter.mp hu).2.2
-        have := bound u
-        omega
-      simp [e]
-    · by_contra! many
-      have mem : d+1 ∈ candidates := mem_filter.mpr ⟨mem_range.mpr (by omega),many.le⟩
-      have bad : d+1 ≤ d := le_max' _ _ mem
-      omega
-  refine ⟨B.card,by omega,d,dq,many,?_⟩
-  simpa only [Fintype.card_fin] using count_after_hubs X Y B d q Q (by
-    intro u hu; convert outside u hu using 2; congr!) bound (by convert few using 2)
-
-
-
-theorem centers {q : ℕ} (G : SimpleGraph (Fin q)) (active : ∀ v, ¬G.IsIsolated v)
-    (star : ∀ v w, G.Adj v w → G.degree v ≤ 1 ∨ G.degree w ≤ 1) :
-    ∃ C : Finset (Fin q),
-      (∀ a ∈ C, ∀ b ∈ C, ¬ G.Adj a b) ∧
-      (∀ v ∉ C, ∃ c ∈ C, G.Adj v c ∧ ∀ w, G.Adj v w → w=c) := by
-  classical
-  let C := univ.filter fun v => 1<G.degree v ∨ ∃ w, G.Adj v w ∧ G.degree w ≤ 1 ∧ v<w
-  have member {v} : v ∈ C ↔ 1<G.degree v ∨ ∃ w, G.Adj v w ∧ G.degree w ≤ 1 ∧ v<w := by simp [C]
-  have unique {v u w} (low : G.degree v ≤ 1) (a : G.Adj v u) (b : G.Adj v w) : u=w :=
-    card_le_one.mp ((G.card_neighborFinset_eq_degree v).symm ▸ low) _ ((G.mem_neighborFinset _ _).mpr a) _ ((G.mem_neighborFinset _ _).mpr b)
-  have along {v w} (adj : G.Adj v w) (low : G.degree v ≤ 1) :
-      v ∈ C ↔ G.degree w ≤ 1 ∧ v<w := by
-    rw [member]
-    constructor
-    · rintro (high | ⟨u,edge,deg,lt⟩)
-      · omega
-      · exact unique low edge adj ▸ And.intro deg lt
-    · exact fun ⟨deg,lt⟩ => Or.inr ⟨w,adj,deg,lt⟩
-  refine ⟨C,?_,?_⟩
-  · intro a ha b hb ab
-    rcases star a b ab with low | low
-    · obtain ⟨lowB,lt⟩ := (along ab low).mp ha
-      exact lt_asymm lt ((along ab.symm lowB).mp hb).2
-    · obtain ⟨lowA,lt⟩ := (along ab.symm low).mp hb
-      exact lt_asymm lt ((along ab lowA).mp ha).2
-  · intro v hv
-    obtain ⟨w,adj⟩ := exists_adj_iff_not_isIsolated.mpr (active v)
-    have low : G.degree v ≤ 1 := le_of_not_gt (fun hi => hv (member.mpr (Or.inl hi)))
-    refine ⟨w,?_,adj,fun _ edge => unique low edge adj⟩
-    by_cases high : 1<G.degree w
-    · exact member.mpr (Or.inl high)
-    · apply (along adj.symm (le_of_not_gt high)).mpr
-      exact ⟨low,lt_of_le_of_ne (le_of_not_gt (fun lt => hv ((along adj low).mpr ⟨le_of_not_gt high,lt⟩))) adj.ne.symm⟩
-
-theorem free_of_hubs {V W : Type*} [Fintype V] [Fintype W] (G : SimpleGraph V) (X : SimpleGraph W)
-    (C : Finset V) (B : Finset W) (d : ℕ)
-    (separate : ∀ u ∈ C, ∀ v ∈ C, u ≠ v → Disjoint (insert u (G.neighborFinset u)) (insert v (G.neighborFinset v)))
-    (low : ∀ x ∉ B, ((X.neighborFinset x) \ B).card ≤ d)
-    (many : B.card < (C.filter fun u => d < G.degree u).card) : G.Free X := by
-  classical
-  rintro ⟨e⟩
-  let S := C.filter fun u => d < G.degree u
-  have touch (u : S) : ∃ v ∈ insert u.val (G.neighborFinset u.val), e v ∈ B := by
-    by_contra! empty
-    have out := empty u.val (mem_insert_self ..)
-    have sub : (G.neighborFinset u.val).image (fun v => e v) ⊆ (X.neighborFinset (e u.val)) \ B := by
-      intro z hz
-      obtain ⟨v,hv,rfl⟩ := mem_image.mp hz
-      exact mem_sdiff.mpr ⟨(X.mem_neighborFinset _ _).mpr (e.toHom.map_rel' ((G.mem_neighborFinset _ _).mp hv)),
-        empty v (mem_insert_of_mem hv)⟩
-    have count := (card_le_card sub).trans (low _ out)
-    rw [card_image_of_injective _ (show Function.Injective (fun v => e v) from e.injective),G.card_neighborFinset_eq_degree] at count
-    exact (not_lt_of_ge count) (mem_filter.mp u.property).2
-  choose v near inB using touch
-  let f (u : S) : B := ⟨e (v u),inB u⟩
-  have inj : Function.Injective f := by
-    intro u w eq
-    by_contra ne
-    have h := e.injective (congrArg Subtype.val eq : e (v u)=e (v w))
-    have dis := separate _ (mem_filter.mp u.property).1 _ (mem_filter.mp w.property).1 (fun he => ne (Subtype.ext he))
-    exact disjoint_left.mp dis (near u) (h.symm ▸ near w)
-  have sz := Fintype.card_le_of_injective f inj
-  simp only [Fintype.card_coe] at sz
-  exact many.not_ge sz
-
-theorem disjoint_stars {V : Type*} [Fintype V] (G : SimpleGraph V) (C : Finset V)
-    (ind : ∀ a ∈ C, ∀ b ∈ C, ¬G.Adj a b)
-    (leaf : ∀ v ∉ C, ∃ c ∈ C, G.Adj v c ∧ ∀ w, G.Adj v w → w=c)
-    {a b} (ha : a ∈ C) (hb : b ∈ C) (ne : a ≠ b) :
-    Disjoint (insert a (G.neighborFinset a)) (insert b (G.neighborFinset b)) := by
-  classical
-  refine disjoint_left.mpr ?_
-  intro v va vb
-  rcases mem_insert.mp va with eq | edge <;> rcases mem_insert.mp vb with eq' | edge'
-  · exact ne (eq.symm.trans eq')
-  · exact ind b hb a ha (eq ▸ (G.mem_neighborFinset _ _).mp edge')
-  · exact ind a ha b hb (eq' ▸ (G.mem_neighborFinset _ _).mp edge)
-  · have av := (G.mem_neighborFinset _ _).mp edge
-    have bv := (G.mem_neighborFinset _ _).mp edge'
-    obtain ⟨_,_,_,unique⟩ := leaf v (fun hv => ind a ha v hv av)
-    exact ne ((unique _ av.symm).trans (unique _ bv.symm).symm)
-
-
-theorem block_construction {V : Type*} [Fintype V] (G : SimpleGraph V) (C : Finset V)
-    (ind : ∀ a ∈ C, ∀ b ∈ C, ¬G.Adj a b)
-    (leaf : ∀ v ∉ C, ∃ c ∈ C, G.Adj v c ∧ ∀ w, G.Adj v w → w=c)
-    (h d l : ℕ) (many : h < (C.filter fun c => d < G.degree c).card) :
-    ∃ X : SimpleGraph ((Fin h) ⊕ (Fin l × Fin (d+1))), G.Free X ∧
-      2*X.edgeFinset.card = (2*h+d)*(l*(d+1)) := by
-  classical
-  let W := (Fin h) ⊕ (Fin l × Fin (d+1))
-  let rel (u v : W) : Prop := match u,v with
-    | .inl _,.inl _ => False
-    | .inl _,.inr _ | .inr _,.inl _ => True
-    | .inr x,.inr y => x.1=y.1 ∧ x.2 ≠ y.2
-  let X : SimpleGraph W := { Adj := rel, symm := ⟨by
-                              rintro (a|a) (b|b) ab <;> simp_all [rel,eq_comm]⟩
-                             loopless := ⟨by rintro (a|a) <;> simp [rel]⟩ }
-  let B : Finset W := univ.map Function.Embedding.inl
-  let R : Finset W := univ.map Function.Embedding.inr
-  have szB : B.card=h := by simp [B]
-  have szR : R.card=l*(d+1) := by simp [R]
-  have inB (i : Fin h) : Sum.inl i ∈ B := mem_map.mpr ⟨_,mem_univ _,rfl⟩
-  have notB (p : Fin l × Fin (d+1)) : Sum.inr p ∉ B := by
-    intro hp
-    obtain ⟨_,_,eq⟩ := mem_map.mp hp
-    cases eq
-  have left (i : Fin h) : X.neighborFinset (.inl i) = R := by
-    ext v
-    rw [X.mem_neighborFinset]
-    cases v with
-    | inl j =>
-      constructor
-      · exact False.elim
-      · intro hj
-        obtain ⟨_,_,eq⟩ := mem_map.mp hj
-        cases eq
-    | inr p => exact iff_of_true trivial (mem_map.mpr ⟨p,mem_univ _,rfl⟩)
-  have right (b : Fin l) (j : Fin (d+1)) :
-      X.neighborFinset (.inr (b,j)) = B ∪ ((univ.erase j).image (fun k => Sum.inr (b,k))) := by
-    ext v
-    rw [X.mem_neighborFinset,mem_union]
-    cases v with
-    | inl i => exact iff_of_true trivial (Or.inl (inB i))
-    | inr p =>
-      obtain ⟨a,k⟩ := p
-      rw [or_iff_right (notB _)]
-      change (b=a ∧ j ≠ k) ↔ _
-      constructor
-      · rintro ⟨rfl,ne⟩
-        exact mem_image.mpr ⟨k,mem_erase.mpr ⟨ne.symm,mem_univ _⟩,rfl⟩
-      · intro h
-        obtain ⟨z,hz,eq⟩ := mem_image.mp h
-        obtain ⟨rfl,rfl⟩ := Prod.mk.inj (Sum.inr.inj eq)
-        exact ⟨rfl,(mem_erase.mp hz).1.symm⟩
-  have separate (b : Fin l) (j : Fin (d+1)) : Disjoint B ((univ.erase j).image (fun k => Sum.inr (b,k))) := by
-    apply Finset.disjoint_left.mpr
-    intro w hw he
-    obtain ⟨z,_,rfl⟩ := mem_image.mp he
-    exact notB _ hw
-  have dr (b : Fin l) (j : Fin (d+1)) : X.degree (.inr (b,j))=h+d := by
-    rw [← X.card_neighborFinset_eq_degree,right,card_union_of_disjoint (separate ..),szB,
-      card_image_of_injective _ (show Function.Injective (fun k : Fin (d+1) => (Sum.inr (b,k) : W)) by intro x y eq; simpa using eq)]
-    simp
-  have dl (i : Fin h) : X.degree (.inl i)=l*(d+1) := by rw [← X.card_neighborFinset_eq_degree,left,szR]
-  refine ⟨X,free_of_hubs G X C B d (fun _ ha _ hb ne => disjoint_stars G C ind leaf ha hb ne) ?_ (by simpa [szB] using many),?_⟩
-  · rintro (a|⟨b,j⟩) out
-    · exact (out (mem_map.mpr ⟨a,mem_univ _,rfl⟩)).elim
-    · have sub : B ⊆ X.neighborFinset (.inr (b,j)) := by rw [right]; exact subset_union_left
-      have eq := card_sdiff_of_subset sub
-      rw [X.card_neighborFinset_eq_degree,dr,szB] at eq
-      convert (show h+d-h ≤ d by omega) using 1
-      exact Eq.trans (by congr! 4) eq
-  · rw [← X.sum_degrees_eq_twice_card_edges,Fintype.sum_sum_type]
-    simp only [dl,dr,Fintype.card_prod,sum_const,card_univ,Fintype.card_fin,smul_eq_mul]
-    ring
-
-theorem padding {V W : Type*} [Fintype W] (G : SimpleGraph V) (active : ∀ v, ¬G.IsIsolated v)
-    (X : SimpleGraph W) (free : G.Free X) (m : ℕ) (fit : Fintype.card W ≤ m) :
-    X.edgeFinset.card ≤ extremalNumber m G := by
-  classical
-  let k := m-Fintype.card W
-  let Z := X ⊕g (⊥ : SimpleGraph (Fin k))
-  have hf : G.Free Z := by
-    rintro ⟨e⟩
-    have original (v : V) : ∃ w : W, e v = Sum.inl w := by
-      cases h : e v with
-      | inl w => exact ⟨w,rfl⟩
-      | inr i =>
-        obtain ⟨u,adj⟩ := exists_adj_iff_not_isIsolated.mpr (active v)
-        have a := e.toHom.map_rel' adj
-        change Z.Adj (e v) (e u) at a
-        rw [h] at a
-        cases hu : e u with
-        | inl t => rw [hu] at a; exact (not_adj_sum_inl_inr t i a.symm).elim
-        | inr j => rw [hu] at a; exact (sum_adj_inr.mp a).elim
-    choose f he using original
-    apply free
-    refine ⟨⟨⟨f,?_⟩,?_⟩⟩
-    · intro a b adj
-      have h := e.toHom.map_rel' adj
-      change Z.Adj (e a) (e b) at h
-      rw [he a,he b] at h
-      exact sum_adj_inl.mp h
-    · intro a b eq
-      exact e.injective ((he a).trans ((congrArg Sum.inl eq).trans (he b).symm))
-  have sumedges : Z.edgeFinset.card=X.edgeFinset.card := by
-    simp only [Z,edgeFinset_card]
-    have eq := Fintype.card_congr (edgeSetSumEquiv (G:=X) (H:=(⊥ : SimpleGraph (Fin k))))
-    simpa using eq
-  have hh := card_edgeFinset_le_extremalNumber hf
-  have sz : Fintype.card (W ⊕ Fin k)=m := by simp [k,fit]
-  simpa only [sumedges,sz] using hh
-
-theorem lower_bound {V : Type*} [Fintype V] (G : SimpleGraph V) (C : Finset V)
-    (ind : ∀ a ∈ C, ∀ b ∈ C, ¬G.Adj a b)
-    (leaf : ∀ v ∉ C, ∃ c ∈ C, G.Adj v c ∧ ∀ w, G.Adj v w → w=c)
-    (active : ∀ v, ¬G.IsIsolated v) (h d m : ℕ) (fit : h ≤ m)
-    (many : h < (C.filter fun c => d < G.degree c).card) :
-    (2*h+d)*m ≤ 2*extremalNumber m G + (2*h+d)*(h+d) := by
-  classical
-  let l := (m-h)/(d+1)
-  obtain ⟨X,free,edges⟩ := block_construction G C ind leaf h d l many
-  have rle : l*(d+1) ≤ m-h := Nat.div_mul_le_self ..
-  have sz : Fintype.card (Fin h ⊕ (Fin l × Fin (d+1))) ≤ m := by
-    simp only [Fintype.card_sum,Fintype.card_prod,Fintype.card_fin]
-    omega
-  have cap := padding G active X free m sz
-  have rem : (m-h)%(d+1) < d+1 := Nat.mod_lt _ (by omega)
-  have total := Nat.mod_add_div (m-h) (d+1)
-  have len : m ≤ l*(d+1)+(h+d) := by dsimp [l]; rw [Nat.mul_comm (d+1)] at total; omega
-  have limit := Nat.mul_le_mul_left (2*h+d) len
-  rw [Nat.mul_add,← edges] at limit
+theorem leaf_deg (G : SimpleGraph (Fin q)) {v : Fin q} (h : ¬ IsC G v) : G.degree v ≤ 1 := by
+  unfold IsC at h
+  push Not at h
   omega
 
+theorem leaf_nbr (G : SimpleGraph (Fin q)) (active : ∀ v, ¬ G.IsIsolated v) {v : Fin q}
+    (h : ¬ IsC G v) : ∃ w, G.Adj v w ∧ IsC G w := by
+  have hd := leaf_deg G h
+  have iso := active v
+  unfold IsIsolated at iso
+  push Not at iso
+  obtain ⟨w, hw⟩ := iso
+  refine ⟨w, hw, ?_⟩
+  by_cases h2 : 2 ≤ G.degree w
+  · exact Or.inl h2
+  · right
+    refine ⟨v, hw.symm, hd, ?_⟩
+    rcases lt_trichotomy v w with lt | eq | gt
+    · exact absurd (Or.inr ⟨w, hw, by omega, lt⟩) h
+    · exact absurd eq hw.ne
+    · exact gt
 
-theorem slope {q : ℕ} (G : SimpleGraph (Fin q)) (active : ∀ v, ¬G.IsIsolated v)
-    (star : ∀ v w, G.Adj v w → G.degree v ≤ 1 ∨ G.degree w ≤ 1) (notBot : G ≠ ⊥) (qpos : 0<q) :
-    ∃ s N E : ℕ, ∀ n ≥ N, 2*extremalNumber n G ≤ s*n + E ∧ s*n ≤ 2*extremalNumber n G + E := by
-  classical
-  obtain ⟨C,ind,leaf⟩ := centers G active star
-  let Q := q*((q+1)*(q+1))
-  let N := Q+q
-  have each (n) (hn : N ≤ n) : ∃ h ≤ q, ∃ d ≤ q, h < (C.filter fun c => d<G.degree c).card ∧
-      2*extremalNumber n G ≤ (2*h+d)*n + q*Q := by
-    obtain ⟨X,dx,ext⟩ := exists_isExtremal_free (V := Fin n) notBot
-    let _ : DecidableRel X.Adj := dx
-    have eq : X.edgeFinset.card=extremalNumber n G := by simpa using card_edgeFinset_of_isExtremal_free ext
-    obtain ⟨h,hq,d,dq,many,upper⟩ := upper_bound G C ind leaf X ext.prop qpos hn
-    refine ⟨h,hq,d,dq,many,?_⟩
-    rw [←eq]
-    convert upper using 2; congr!
-  let A := ((range (q+1)).product (range (q+1))).filter fun p => p.1 < (C.filter fun c => p.2 < G.degree c).card
-  have mem {h d} : (h,d) ∈ A ↔ h ≤ q ∧ d ≤ q ∧ h < (C.filter fun c => d<G.degree c).card := by
-    simp [A,and_assoc]
-  obtain ⟨h0,hh,d0,dd,big,_⟩ := each N le_rfl
-  obtain ⟨⟨h,d⟩,inside,maxi⟩ := exists_max_image A (fun p => 2*p.1+p.2) ⟨_,mem.mpr ⟨hh,dd,big⟩⟩
-  obtain ⟨hq,dq,many⟩ := mem.mp inside
-  let s := 2*h+d
-  refine ⟨s,N,q*Q+s*(h+d),?_⟩
-  intro n hn
-  obtain ⟨u,uq,v,vq,adm,ub⟩ := each n hn
-  have cap : 2*u+v ≤ s := maxi (u,v) (mem.mpr ⟨uq,vq,adm⟩)
-  have hi := Nat.mul_le_mul_right n cap
-  have large : h ≤ n := by dsimp [N] at hn; omega
-  have low := lower_bound G C ind leaf active h d n large many
-  change s*n ≤ 2*extremalNumber n G+s*(h+d) at low
-  constructor <;> omega
+theorem not_both (G : SimpleGraph (Fin q))
+    (star : ∀ v w, G.Adj v w → G.degree v ≤ 1 ∨ G.degree w ≤ 1) {v w : Fin q}
+    (hvw : G.Adj v w) (hv : IsC G v) (hw : IsC G w) : False := by
+  have key : ∀ v w, G.Adj v w → IsC G v → IsC G w → G.degree v ≤ 1 → False := by
+    intro v w hvw hv hw hd
+    rcases hv with h | ⟨w', a1, d1, l1⟩
+    · omega
+    have e : w' = w := uniq G hd a1 hvw
+    subst e
+    rcases hw with h | ⟨v', a2, d2, l2⟩
+    · omega
+    have e : v' = v := uniq G d1 a2 hvw.symm
+    subst e
+    exact lt_asymm l1 l2
+  rcases star v w hvw with h | h
+  · exact key v w hvw hv hw h
+  · exact key w v hvw.symm hw hv h
 
-theorem rational_threshold (f : ℕ → ℕ) (s N E : ℕ)
-    (bounds : ∀ n ≥ N, 2*f n ≤ s*n+E ∧ s*n ≤ 2*f n+E)
-    (a b : ℚ) (lt : a<b) (freq : ∀ k, ∃ n ≥ k, b*n < (f n : ℚ)) :
-    ∃ M, ∀ m ≥ M, a*m ≤ (f m : ℚ) := by
-  have delta : 0<b-a := sub_pos.mpr lt
-  obtain ⟨t,ht⟩ := exists_nat_gt ((E:ℚ)/(b-a))
-  have absorb (n : ℕ) (hn : t ≤ n) : (E:ℚ) < (b-a)*n := by
-    have lim := ht.trans_le (show (t:ℚ) ≤ n by exact_mod_cast hn)
-    exact (mul_comm (n:ℚ) (b-a)) ▸ (div_lt_iff₀ delta).mp lim
-  obtain ⟨n,hn,hit⟩ := freq (max 1 (max t N))
-  have start : N ≤ n := by omega
-  have big : t ≤ n := by omega
-  have upper : 2*(f n:ℚ) ≤ (s:ℚ)*n+E := by exact_mod_cast (bounds n start).1
-  have slope : a+b < (s:ℚ) := by
-    apply (mul_lt_mul_iff_left₀ (show (0:ℚ)<n by exact_mod_cast (show 0<n by omega))).mp
-    nlinarith [absorb n big]
-  refine ⟨max t N,?_⟩
-  intro m hm
-  have sm := mul_le_mul_of_nonneg_right slope.le (show (0:ℚ) ≤ m by positivity)
-  have low : (s:ℚ)*m ≤ 2*(f m:ℚ)+E := by exact_mod_cast (bounds m (by omega)).2
-  nlinarith [absorb m (by omega)]
+theorem one_centre (G : SimpleGraph (Fin q)) (active : ∀ v, ¬ G.IsIsolated v) {v w : Fin q}
+    (hvw : G.Adj v w) : IsC G v ∨ IsC G w := by
+  by_contra h
+  push Not at h
+  obtain ⟨w', a, c⟩ := leaf_nbr G active h.1
+  have e := uniq G (leaf_deg G h.1) a hvw
+  subst e
+  exact h.2 c
 
-end E713Stars
+theorem inj_into {α β : Type*} [Nonempty β] (A : Finset α) (B : Finset β) (h : A.card ≤ B.card) :
+    ∃ g : α → β, Set.InjOn g A ∧ ∀ a ∈ A, g a ∈ B := by
+  obtain ⟨f, hf, hi⟩ := (A.finite_toSet).exists_injOn_of_encard_le (t := (B : Set β)) (by
+    rw [Set.encard_coe_eq_coe_finsetCard, Set.encard_coe_eq_coe_finsetCard]
+    exact_mod_cast h)
+  exact ⟨f, hi, fun a ha => by simpa using hf ha⟩
+
+noncomputable def st (G : SimpleGraph (Fin q)) (Z : Finset (Fin q)) : Finset (Fin q) :=
+  univ.filter (fun v => ∃ z ∈ Z, v = z ∨ G.Adj z v)
+
+theorem embed (G : SimpleGraph (Fin q)) (active : ∀ v, ¬ G.IsIsolated v)
+    (star : ∀ v w, G.Adj v w → G.degree v ≤ 1 ∨ G.degree w ≤ 1)
+    {V : Type*} [Fintype V] [DecidableEq V] (H : SimpleGraph V) (S : Finset V) (T : Finset (Fin q))
+    (hTC : ∀ t ∈ T, IsC G t) (hTS : T.card ≤ S.card)
+    (hS : ∀ x ∈ S, 3 * q ≤ H.degree x)
+    (hQ : ∀ z, IsC G z → z ∉ T → ∀ W : Finset V, W.card ≤ q →
+      ∃ x, x ∉ S ∧ x ∉ W ∧ G.degree z ≤ ((H.neighborFinset x) \ (S ∪ W)).card) :
+    G.IsContained H := by
+  rcases isEmpty_or_nonempty V with hV | hV
+  · have noV : Fin q → False := by
+      intro v
+      obtain ⟨z, hz⟩ : ∃ z, IsC G z := by
+        by_cases h : IsC G v
+        · exact ⟨v, h⟩
+        · obtain ⟨w, _, hw⟩ := leaf_nbr G active h
+          exact ⟨w, hw⟩
+      by_cases hT : z ∈ T
+      · have pos : 0 < S.card := lt_of_lt_of_le (Finset.card_pos.mpr ⟨z, hT⟩) hTS
+        obtain ⟨x, _⟩ := Finset.card_pos.mp pos
+        exact hV.false x
+      · obtain ⟨x, _⟩ := hQ z hz hT ∅ (by simp)
+        exact hV.false x
+    exact ⟨⟨⟨fun v => (noV v).elim, fun {a} => (noV a).elim⟩, fun a => (noV a).elim⟩⟩
+  obtain ⟨ι, ιinj, ιS⟩ := inj_into T S hTS
+  have claim : ∀ Z : Finset (Fin q), (∀ z ∈ Z, IsC G z) → ∃ f : Fin q → V,
+      Set.InjOn f (st G Z) ∧ (∀ z ∈ Z, ∀ l, G.Adj z l → H.Adj (f z) (f l)) ∧
+      (∀ v ∈ st G Z, v ∈ T → f v = ι v) ∧ (∀ v ∈ st G Z, v ∉ T → f v ∉ T.image ι) := by
+    intro Z
+    induction Z using Finset.induction_on with
+    | empty =>
+      intro _
+      exact ⟨ι, by simp [st], by simp, by simp [st], by simp [st]⟩
+    | insert z Z hzZ ih =>
+      intro hC
+      have hz : IsC G z := hC z (mem_insert_self z Z)
+      obtain ⟨f, finj, fadj, fT, fnT⟩ := ih (fun y hy => hC y (mem_insert_of_mem hy))
+      have mem_st : ∀ v, v ∈ st G (insert z Z) ↔ v = z ∨ G.Adj z v ∨ v ∈ st G Z := by
+        intro v
+        simp only [st, mem_filter, mem_univ, true_and, mem_insert]
+        constructor
+        · rintro ⟨y, rfl | hy, h⟩
+          · rcases h with h | h
+            · exact Or.inl h
+            · exact Or.inr (Or.inl h)
+          · exact Or.inr (Or.inr ⟨y, hy, h⟩)
+        · rintro (h | h | ⟨y, hy, h⟩)
+          · exact ⟨z, Or.inl rfl, Or.inl h⟩
+          · exact ⟨z, Or.inl rfl, Or.inr h⟩
+          · exact ⟨y, Or.inr hy, h⟩
+      have old : ∀ v ∈ st G Z, v ≠ z ∧ ¬ G.Adj z v := by
+        intro v hv
+        simp only [st, mem_filter, mem_univ, true_and] at hv
+        obtain ⟨y, hy, h⟩ := hv
+        have hyC := hC y (mem_insert_of_mem hy)
+        constructor
+        · intro e
+          subst e
+          rcases h with h | h
+          · exact hzZ (h ▸ hy)
+          · exact not_both G star h hyC hz
+        · intro a
+          rcases h with h | h
+          · subst h
+            exact not_both G star a hz hyC
+          · have hv : ¬ IsC G v := fun c => not_both G star a hz c
+            have e := uniq G (leaf_deg G hv) a.symm h.symm
+            exact hzZ (e ▸ hy)
+      let W : Finset V := (st G Z).image f
+      have hW : W.card ≤ q := by
+        calc W.card ≤ (st G Z).card := card_image_le
+          _ ≤ (univ : Finset (Fin q)).card := card_le_card (subset_univ _)
+          _ = q := by simp
+      have hTq : (T.image ι).card ≤ q := by
+        calc (T.image ι).card ≤ T.card := card_image_le
+          _ ≤ (univ : Finset (Fin q)).card := card_le_card (subset_univ _)
+          _ = q := by simp
+      have hdeg : G.degree z < q := by simpa using G.degree_lt_card_verts z
+      obtain ⟨x, avail, hxW, hsub, hdW, hdT, hcard, hxT, hxnT⟩ : ∃ (x : V) (avail : Finset V),
+          x ∉ W ∧ avail ⊆ H.neighborFinset x ∧ (∀ y ∈ avail, y ∉ W) ∧
+          (∀ y ∈ avail, y ∉ T.image ι) ∧ G.degree z ≤ avail.card ∧ (z ∈ T → x = ι z) ∧
+          (z ∉ T → x ∉ T.image ι) := by
+        by_cases hT : z ∈ T
+        · refine ⟨ι z, H.neighborFinset (ι z) \ (W ∪ T.image ι), ?_, sdiff_subset, ?_, ?_, ?_,
+            fun _ => rfl, fun h => absurd hT h⟩
+          · intro hx
+            obtain ⟨v, hv, e⟩ := mem_image.mp hx
+            by_cases hvT : v ∈ T
+            · rw [fT v hv hvT] at e
+              exact (old v hv).1 (ιinj hvT hT e)
+            · exact fnT v hv hvT (e ▸ mem_image_of_mem ι hT)
+          · intro y hy
+            simp only [Finset.mem_sdiff, mem_union, not_or] at hy
+            exact hy.2.1
+          · intro y hy
+            simp only [Finset.mem_sdiff, mem_union, not_or] at hy
+            exact hy.2.2
+          · have h1 := le_card_sdiff (W ∪ T.image ι) (H.neighborFinset (ι z))
+            have h2 : (W ∪ T.image ι).card ≤ q + q := (card_union_le _ _).trans (add_le_add hW hTq)
+            have h3 := hS _ (ιS z hT)
+            rw [← card_neighborFinset_eq_degree] at h3
+            omega
+        · obtain ⟨x, hxS, hxW, hc⟩ := hQ z hz hT W hW
+          refine ⟨x, H.neighborFinset x \ (S ∪ W), hxW, sdiff_subset, ?_, ?_, hc,
+            fun h => absurd h hT, ?_⟩
+          · intro y hy
+            simp only [Finset.mem_sdiff, mem_union, not_or] at hy
+            exact hy.2.2
+          · intro y hy h
+            simp only [Finset.mem_sdiff, mem_union, not_or] at hy
+            obtain ⟨t, ht, e⟩ := mem_image.mp h
+            exact hy.2.1 (e ▸ ιS t ht)
+          · intro _ h
+            obtain ⟨t, ht, e⟩ := mem_image.mp h
+            exact hxS (e ▸ ιS t ht)
+      obtain ⟨e, einj, eav⟩ := inj_into (G.neighborFinset z) avail
+        (by rwa [card_neighborFinset_eq_degree])
+      let F : Fin q → V := fun v => if v = z then x else if G.Adj z v then e v else f v
+      have Fz : F z = x := by simp [F]
+      have Fn : ∀ v, G.Adj z v → F v = e v ∧ e v ∈ avail := by
+        intro v hv
+        have ne : v ≠ z := fun h => G.loopless.irrefl z (h ▸ hv)
+        exact ⟨by simp [F, ne, hv], eav v ((G.mem_neighborFinset z v).mpr hv)⟩
+      have Fo : ∀ v ∈ st G Z, F v = f v ∧ f v ∈ W := by
+        intro v hv
+        obtain ⟨h1, h2⟩ := old v hv
+        exact ⟨by simp [F, h1, h2], mem_image_of_mem f hv⟩
+      have avadj : ∀ y ∈ avail, H.Adj x y := fun y hy => (H.mem_neighborFinset x y).mp (hsub hy)
+      have avx : ∀ y ∈ avail, y ≠ x := by
+        intro y hy h
+        exact H.loopless.irrefl x (h ▸ avadj y hy)
+      refine ⟨F, ?_, ?_, ?_, ?_⟩
+      · intro a ha b hb hab
+        rw [mem_coe, mem_st] at ha hb
+        rcases ha with ha | ha | ha <;> rcases hb with hb | hb | hb
+        · rw [ha, hb]
+        · rw [ha, Fz, (Fn b hb).1] at hab
+          exact absurd hab.symm (avx _ (Fn b hb).2)
+        · rw [ha, Fz, (Fo b hb).1] at hab
+          exact absurd (hab ▸ (Fo b hb).2) hxW
+        · rw [hb, Fz, (Fn a ha).1] at hab
+          exact absurd hab (avx _ (Fn a ha).2)
+        · rw [(Fn a ha).1, (Fn b hb).1] at hab
+          exact einj ((G.mem_neighborFinset z a).mpr ha) ((G.mem_neighborFinset z b).mpr hb) hab
+        · rw [(Fn a ha).1, (Fo b hb).1] at hab
+          exact absurd (hab ▸ (Fo b hb).2) (hdW _ (Fn a ha).2)
+        · rw [hb, Fz, (Fo a ha).1] at hab
+          exact absurd (hab ▸ (Fo a ha).2) hxW
+        · rw [(Fn b hb).1, (Fo a ha).1] at hab
+          exact absurd (hab ▸ (Fo a ha).2) (hdW _ (Fn b hb).2)
+        · rw [(Fo a ha).1, (Fo b hb).1] at hab
+          exact finj ha hb hab
+      · intro y hy l hl
+        rcases mem_insert.mp hy with rfl | hy
+        · rw [Fz, (Fn l hl).1]
+          exact avadj _ (Fn l hl).2
+        · have m1 : y ∈ st G Z := by
+            simp only [st, mem_filter, mem_univ, true_and]
+            exact ⟨y, hy, Or.inl rfl⟩
+          have m2 : l ∈ st G Z := by
+            simp only [st, mem_filter, mem_univ, true_and]
+            exact ⟨y, hy, Or.inr hl⟩
+          rw [(Fo y m1).1, (Fo l m2).1]
+          exact fadj y hy l hl
+      · intro v hv hvT
+        rcases (mem_st v).mp hv with h | h | h
+        · rw [h, Fz]
+          exact hxT (h ▸ hvT)
+        · exact absurd (hTC v hvT) (fun c => not_both G star h hz c)
+        · rw [(Fo v h).1]
+          exact fT v h hvT
+      · intro v hv hvT
+        rcases (mem_st v).mp hv with h | h | h
+        · rw [h, Fz]
+          exact hxnT (h ▸ hvT)
+        · rw [(Fn v h).1]
+          exact hdT _ (Fn v h).2
+        · rw [(Fo v h).1]
+          exact fnT v h hvT
+  obtain ⟨f, finj, fadj, -, -⟩ := claim (univ.filter (IsC G)) (by simp)
+  have all : ∀ v, v ∈ st G (univ.filter (IsC G)) := by
+    intro v
+    simp only [st, mem_filter, mem_univ, true_and]
+    by_cases h : IsC G v
+    · exact ⟨v, h, Or.inl rfl⟩
+    · obtain ⟨w, a, c⟩ := leaf_nbr G active h
+      exact ⟨w, c, Or.inr a.symm⟩
+  refine ⟨⟨⟨f, ?_⟩, ?_⟩⟩
+  · intro a b hab
+    rcases one_centre G active hab with h | h
+    · exact fadj a (by simp [h]) b hab
+    · exact (fadj b (by simp [h]) a hab.symm).symm
+  · intro a b hab
+    exact finj (all a) (all b) hab
+
+theorem count {V : Type*} [Fintype V] [DecidableEq V] (H : SimpleGraph V) (D d c : ℕ) (S W : Finset V)
+    (hS : ∀ y, y ∉ S → H.degree y < D) (hW : W.card ≤ c)
+    (hfail : ∀ x, x ∉ S → x ∉ W → ((H.neighborFinset x) \ (S ∪ W)).card < d) :
+    2 * H.edgeFinset.card + Fintype.card V ≤
+      2 * S.card * Fintype.card V + d * Fintype.card V + 2 * c * D + S.card + c := by
+  have hdegn : ∀ y, H.degree y ≤ Fintype.card V := fun y => (H.degree_lt_card_verts y).le
+  have sumB : ∑ y ∈ S ∪ W, H.degree y ≤ S.card * Fintype.card V + c * D := by
+    have e : S ∪ W = S ∪ (W \ S) := (union_sdiff_self_eq_union).symm
+    rw [e, sum_union disjoint_sdiff]
+    have h1 : ∑ y ∈ S, H.degree y ≤ S.card * Fintype.card V := by
+      simpa using sum_le_card_nsmul S _ (Fintype.card V) (fun y _ => hdegn y)
+    have h2 : ∑ y ∈ W \ S, H.degree y ≤ (W \ S).card * D := by
+      simpa using sum_le_card_nsmul (W \ S) _ D
+        (fun y hy => (hS y (Finset.mem_sdiff.mp hy).2).le)
+    have h3 : (W \ S).card * D ≤ c * D :=
+      Nat.mul_le_mul_right D ((card_le_card sdiff_subset).trans hW)
+    omega
+  have cross : ∑ x ∈ (S ∪ W)ᶜ, ((S ∪ W).filter (fun y => H.Adj x y)).card ≤
+      ∑ y ∈ S ∪ W, H.degree y := by
+    have dc := sum_card_bipartiteAbove_eq_sum_card_bipartiteBelow (s := (S ∪ W)ᶜ) (t := S ∪ W)
+      (r := H.Adj)
+    unfold bipartiteAbove bipartiteBelow at dc
+    rw [dc]
+    apply sum_le_sum
+    intro y _
+    rw [← card_neighborFinset_eq_degree]
+    apply card_le_card
+    intro x hx
+    rw [mem_filter] at hx
+    exact (H.mem_neighborFinset y x).mpr hx.2.symm
+  have each : ∀ x ∈ (S ∪ W)ᶜ, H.degree x + 1 ≤
+      ((S ∪ W).filter (fun y => H.Adj x y)).card + d := by
+    intro x hx
+    have hx' : x ∉ S ∪ W := by simpa using hx
+    have hxS : x ∉ S := fun h => hx' (mem_union_left _ h)
+    have hxW : x ∉ W := fun h => hx' (mem_union_right _ h)
+    have f := hfail x hxS hxW
+    have sp := card_sdiff_add_card_inter (H.neighborFinset x) (S ∪ W)
+    have e : H.neighborFinset x ∩ (S ∪ W) = (S ∪ W).filter (fun y => H.Adj x y) := by
+      ext y
+      simp only [mem_inter, mem_neighborFinset, mem_filter]
+      tauto
+    rw [e, card_neighborFinset_eq_degree] at sp
+    omega
+  have tot := sum_le_sum each
+  rw [sum_add_distrib, sum_add_distrib] at tot
+  simp only [sum_const, smul_eq_mul, mul_one] at tot
+  have deg2 := H.sum_degrees_eq_twice_card_edges
+  rw [← sum_add_sum_compl (S ∪ W)] at deg2
+  have cB : (S ∪ W)ᶜ.card + (S ∪ W).card = Fintype.card V := by
+    rw [card_compl]
+    have := card_le_univ (S ∪ W)
+    omega
+  have cB2 : (S ∪ W).card ≤ S.card + c := (card_union_le _ _).trans (by omega)
+  have hm : (S ∪ W)ᶜ.card * d ≤ Fintype.card V * d := Nat.mul_le_mul_right d (by omega)
+  nlinarith
+
+def P (G : SimpleGraph (Fin q)) (s d : ℕ) : Prop :=
+  ∀ A : Finset (Fin q), A.card ≤ s → ∃ z, z ∉ A ∧ (∀ w, G.Adj z w → w ∉ A) ∧ d ≤ G.degree z
+
+theorem lower (G : SimpleGraph (Fin q)) (s d t r : ℕ) (hd : 1 ≤ d) (hP : P G s d) :
+    t * d * (2 * s + d - 1) ≤ 2 * extremalNumber (s + (t * d + r)) G := by
+  let V := Fin s ⊕ (Fin t × Fin d ⊕ Fin r)
+  let X : SimpleGraph V := {
+    Adj := fun x y => x ≠ y ∧ (x.isLeft = true ∨ y.isLeft = true ∨
+      ∃ a b b', x = Sum.inr (Sum.inl (a, b)) ∧ y = Sum.inr (Sum.inl (a, b')))
+    symm := ⟨fun x y h => ⟨h.1.symm, by
+      rcases h.2 with h | h | ⟨a, b, b', h1, h2⟩
+      · exact Or.inr (Or.inl h)
+      · exact Or.inl h
+      · exact Or.inr (Or.inr ⟨a, b', b, h2, h1⟩)⟩⟩
+    loopless := ⟨fun x h => h.1 rfl⟩ }
+  have free : G.Free X := by
+    rintro ⟨f⟩
+    let A : Finset (Fin q) := univ.filter (fun v => (f v).isLeft = true)
+    have hA : A.card ≤ s := by
+      have h1 : (A.image f).card = A.card := card_image_of_injective A f.injective
+      have h2 : A.image f ⊆ (univ : Finset (Fin s)).image (Sum.inl : Fin s → V) := by
+        intro y hy
+        obtain ⟨v, hv, rfl⟩ := mem_image.mp hy
+        have il := (mem_filter.mp hv).2
+        obtain ⟨i, hi⟩ := Sum.isLeft_iff.mp il
+        exact mem_image.mpr ⟨i, mem_univ _, hi.symm⟩
+      have h3 := card_le_card h2
+      have h4 : ((univ : Finset (Fin s)).image (Sum.inl : Fin s → V)).card ≤ s :=
+        card_image_le.trans (by simp)
+      omega
+    obtain ⟨z, hzA, hnb, hdz⟩ := hP A hA
+    have nl : ∀ v, v ∉ A → (f v).isLeft = false := by
+      intro v hv
+      simpa [A] using hv
+    have adjX : ∀ w, G.Adj z w → X.Adj (f z) (f w) := fun w hw => f.toHom.map_adj hw
+    have shape : ∀ w, G.Adj z w → ∃ a b b', f z = Sum.inr (Sum.inl (a, b)) ∧
+        f w = Sum.inr (Sum.inl (a, b')) := by
+      intro w hw
+      rcases (adjX w hw).2 with h | h | h
+      · rw [nl z hzA] at h
+        cases h
+      · rw [nl w (hnb w hw)] at h
+        cases h
+      · exact h
+    have pos : 0 < G.degree z := by omega
+    obtain ⟨w0, hw0⟩ := (G.degree_pos_iff_exists_adj z).mp pos
+    obtain ⟨a, b, -, hfz, -⟩ := shape w0 hw0
+    let g : Fin q → Fin d := fun w => match f w with
+      | Sum.inr (Sum.inl (_, b')) => b'
+      | _ => b
+    have key : ∀ w, G.Adj z w → f w = Sum.inr (Sum.inl (a, g w)) ∧ g w ≠ b := by
+      intro w hw
+      obtain ⟨a1, b1, b2, h1, h2⟩ := shape w hw
+      rw [hfz] at h1
+      obtain ⟨ea, eb⟩ := Prod.mk.inj (Sum.inl.inj (Sum.inr.inj h1))
+      subst ea
+      subst eb
+      have gw : g w = b2 := by simp only [g, h2]
+      refine ⟨by rw [gw, h2], ?_⟩
+      intro e
+      have ne := (adjX w hw).1
+      rw [hfz, h2, ← gw, e] at ne
+      exact ne rfl
+    have le : (G.neighborFinset z).card ≤ ((univ : Finset (Fin d)).erase b).card := by
+      apply card_le_card_of_injOn g
+      · intro w hw
+        have k := key w ((G.mem_neighborFinset z w).mp hw)
+        simp [k.2]
+      · intro w1 h1 w2 h2 e
+        have k1 := key w1 ((G.mem_neighborFinset z w1).mp h1)
+        have k2 := key w2 ((G.mem_neighborFinset z w2).mp h2)
+        have fe : f w1 = f w2 := by rw [k1.1, k2.1, e]
+        exact f.injective fe
+    rw [card_neighborFinset_eq_degree, card_erase_of_mem (mem_univ b)] at le
+    simp only [card_univ, Fintype.card_fin] at le
+    omega
+  have lbU : ∀ i : Fin s, t * d ≤ X.degree (Sum.inl i) := by
+    intro i
+    rw [← card_neighborFinset_eq_degree]
+    have c0 : ((univ : Finset (Fin t × Fin d)).image
+        (fun y => (Sum.inr (Sum.inl y) : V))).card = t * d := by
+      rw [card_image_of_injective _ (fun a b h => Sum.inl.inj (Sum.inr.inj h))]
+      simp
+    rw [← c0]
+    apply card_le_card
+    intro y hy
+    obtain ⟨c, -, rfl⟩ := mem_image.mp hy
+    rw [mem_neighborFinset]
+    exact ⟨by simp, Or.inl rfl⟩
+  have lbR : ∀ (a : Fin t) (b : Fin d), s + (d - 1) ≤ X.degree (Sum.inr (Sum.inl (a, b))) := by
+    intro a b
+    rw [← card_neighborFinset_eq_degree]
+    let N1 := (univ : Finset (Fin s)).image (fun i => (Sum.inl i : V))
+    let N2 := ((univ : Finset (Fin d)).erase b).image
+      (fun b' => (Sum.inr (Sum.inl (a, b')) : V))
+    have c1 : N1.card = s := by
+      rw [card_image_of_injective _ Sum.inl_injective]
+      simp
+    have c2 : N2.card = d - 1 := by
+      rw [card_image_of_injective _
+        (fun x y h => (Prod.mk.inj (Sum.inl.inj (Sum.inr.inj h))).2)]
+      simp
+    have dis : Disjoint N1 N2 := by
+      rw [Finset.disjoint_left]
+      intro y h1 h2
+      obtain ⟨i, -, rfl⟩ := mem_image.mp h1
+      obtain ⟨b', -, h⟩ := mem_image.mp h2
+      cases h
+    have cu : s + (d - 1) = (N1 ∪ N2).card := by
+      rw [card_union_of_disjoint dis, c1, c2]
+    rw [cu]
+    apply card_le_card
+    intro y hy
+    rw [mem_neighborFinset]
+    rcases mem_union.mp hy with h | h
+    · obtain ⟨i, -, rfl⟩ := mem_image.mp h
+      exact ⟨by simp, Or.inr (Or.inl rfl)⟩
+    · obtain ⟨b', hb', rfl⟩ := mem_image.mp h
+      refine ⟨?_, Or.inr (Or.inr ⟨a, b, b', rfl, rfl⟩)⟩
+      intro e
+      have e2 := (Prod.mk.inj (Sum.inl.inj (Sum.inr.inj e))).2
+      exact (mem_erase.mp hb').1 e2.symm
+  have sum := X.sum_degrees_eq_twice_card_edges
+  have big : s * (t * d) + t * d * (s + (d - 1)) ≤ ∑ v, X.degree v := by
+    rw [Fintype.sum_sum_type, Fintype.sum_sum_type, Fintype.sum_prod_type]
+    have h1 : s * (t * d) ≤ ∑ i : Fin s, X.degree (Sum.inl i) := by
+      simpa using card_nsmul_le_sum univ (fun i : Fin s => X.degree (Sum.inl i)) (t * d)
+        (fun i _ => lbU i)
+    have h2 : t * d * (s + (d - 1)) ≤
+        ∑ a : Fin t, ∑ b : Fin d, X.degree (Sum.inr (Sum.inl (a, b))) := by
+      have h := sum_le_sum (s := (univ : Finset (Fin t)))
+        (fun a _ => sum_le_sum (s := (univ : Finset (Fin d))) (fun b _ => lbR a b))
+      simp only [sum_const, card_univ, Fintype.card_fin, smul_eq_mul] at h
+      calc t * d * (s + (d - 1)) = t * (d * (s + (d - 1))) := by ring
+        _ ≤ _ := h
+    omega
+  have e := card_edgeFinset_le_extremalNumber free
+  have card : Fintype.card V = s + (t * d + r) := by simp [V]
+  rw [card] at e
+  have split : 2 * s + d - 1 = s + (s + (d - 1)) := by omega
+  rw [split]
+  calc t * d * (s + (s + (d - 1))) = s * (t * d) + t * d * (s + (d - 1)) := by ring
+    _ ≤ ∑ v, X.degree v := big
+    _ = 2 * X.edgeFinset.card := by convert sum
+    _ ≤ _ := by omega
+
+theorem P_bound (G : SimpleGraph (Fin q)) {s d : ℕ} (h : P G s d) : s < q ∧ d < q := by
+  constructor
+  · by_contra hs
+    obtain ⟨z, hz, -⟩ := h univ (by simp; omega)
+    exact hz (mem_univ z)
+  · obtain ⟨z, -, -, hd⟩ := h ∅ (by simp)
+    have dz : G.degree z < q := by simpa using G.degree_lt_card_verts z
+    omega
+
+theorem upper (G : SimpleGraph (Fin q)) (active : ∀ v, ¬ G.IsIsolated v)
+    (star : ∀ v w, G.Adj v w → G.degree v ≤ 1 ∨ G.degree w ≤ 1)
+    {n : ℕ} (H : SimpleGraph (Fin n)) (free : G.Free H) :
+    ∃ s d, 1 ≤ d ∧ P G s d ∧
+      2 * H.edgeFinset.card + n ≤ 2 * s * n + d * n + (6 * q * q + 2 * q) := by
+  set S : Finset (Fin n) := univ.filter (fun y => 3 * q ≤ H.degree y) with hSdef
+  have ex : ∃ d', ¬ P G S.card d' := ⟨q, fun h => by
+    have hb := (P_bound G h).2
+    omega⟩
+  obtain ⟨d', hspec, hmin⟩ : ∃ d', ¬ P G S.card d' ∧ ∀ m, m < d' → P G S.card m :=
+    ⟨Nat.find ex, Nat.find_spec ex, fun m hm => not_not.mp (Nat.find_min ex hm)⟩
+  have hspec' := hspec
+  unfold P at hspec
+  push Not at hspec
+  obtain ⟨A, hA, hAz⟩ := hspec
+  let p : Fin q → Fin q := fun v =>
+    if h : IsC G v then v else Classical.choose (leaf_nbr G active h)
+  let T := (A.image p).filter (IsC G)
+  have hTcard : T.card ≤ S.card := ((card_filter_le _ _).trans card_image_le).trans hA
+  have hTdeg : ∀ z, IsC G z → z ∉ T → G.degree z < d' := by
+    intro z hz hzT
+    apply hAz z
+    · intro hzA
+      apply hzT
+      exact mem_filter.mpr ⟨mem_image.mpr ⟨z, hzA, by simp [p, hz]⟩, hz⟩
+    · intro w hw hwA
+      apply hzT
+      have hwC : ¬ IsC G w := fun c => not_both G star hw hz c
+      refine mem_filter.mpr ⟨mem_image.mpr ⟨w, hwA, ?_⟩, hz⟩
+      have sp := (Classical.choose_spec (leaf_nbr G active hwC)).1
+      have pw : p w = Classical.choose (leaf_nbr G active hwC) := by simp [p, hwC]
+      rw [pw]
+      exact uniq G (leaf_deg G hwC) sp hw.symm
+  have hTC : ∀ t ∈ T, IsC G t := fun t ht => (mem_filter.mp ht).2
+  have hSdeg : ∀ x ∈ S, 3 * q ≤ H.degree x := fun x hx => (mem_filter.mp hx).2
+  have hSout : ∀ y, y ∉ S → H.degree y < 3 * q := by
+    intro y hy
+    by_contra h
+    exact hy (mem_filter.mpr ⟨mem_univ y, by omega⟩)
+  rcases Nat.eq_zero_or_pos d' with h0 | hpos
+  · exfalso
+    apply free
+    apply embed G active star H S T hTC hTcard hSdeg
+    intro z hz hzT
+    have hlt := hTdeg z hz hzT
+    omega
+  obtain ⟨d, hd⟩ : ∃ d, d' = d + 1 := ⟨d' - 1, by omega⟩
+  subst hd
+  have hPd : P G S.card d := hmin d (by omega)
+  have d1 : 1 ≤ d := by
+    by_contra h0
+    have d0 : d = 0 := by omega
+    subst d0
+    apply hspec'
+    intro A' hA'
+    obtain ⟨z, h1, h2, -⟩ := hPd A' hA'
+    refine ⟨z, h1, h2, ?_⟩
+    have iso := active z
+    unfold IsIsolated at iso
+    push Not at iso
+    exact (G.degree_pos_iff_exists_adj z).mpr iso
+  refine ⟨S.card, d, d1, hPd, ?_⟩
+  by_cases Q : ∀ W : Finset (Fin n), W.card ≤ q →
+      ∃ x, x ∉ S ∧ x ∉ W ∧ d ≤ ((H.neighborFinset x) \ (S ∪ W)).card
+  · exfalso
+    apply free
+    apply embed G active star H S T hTC hTcard hSdeg
+    intro z hz hzT W hW
+    obtain ⟨x, h1, h2, h3⟩ := Q W hW
+    have hlt := hTdeg z hz hzT
+    exact ⟨x, h1, h2, by omega⟩
+  · push Not at Q
+    obtain ⟨W, hW, hfail⟩ := Q
+    have c := count H (3 * q) d q S W hSout hW hfail
+    simp only [Fintype.card_fin] at c
+    have sq := (P_bound G hPd).1
+    nlinarith
+
+theorem ub (G : SimpleGraph (Fin q)) (active : ∀ v, ¬ G.IsIsolated v)
+    (star : ∀ v w, G.Adj v w → G.degree v ≤ 1 ∨ G.degree w ≤ 1) (hne : G ≠ ⊥) (n : ℕ) :
+    ∃ s d, 1 ≤ d ∧ P G s d ∧
+      2 * extremalNumber n G + n ≤ 2 * s * n + d * n + (6 * q * q + 2 * q) := by
+  obtain ⟨H, inst, hH⟩ := exists_isExtremal_free (V := Fin n) hne
+  have hfree := hH.1
+  have hcard := card_edgeFinset_of_isExtremal_free hH
+  rw [Fintype.card_fin] at hcard
+  obtain ⟨s, d, h1, h2, h3⟩ := upper G active star H hfree
+  refine ⟨s, d, h1, h2, ?_⟩
+  rw [← hcard]
+  convert h3
+
+theorem lb (G : SimpleGraph (Fin q)) {s d : ℕ} (hd : 1 ≤ d) (hP : P G s d) (m : ℕ)
+    (hm : q ≤ m) : (2 * s + d - 1) * m ≤ 2 * extremalNumber m G + 6 * q * q := by
+  obtain ⟨hs, hdq⟩ := P_bound G hP
+  have key := lower G s d ((m - s) / d) ((m - s) % d) hd hP
+  have e : s + ((m - s) / d * d + (m - s) % d) = m := by
+    rw [Nat.div_add_mod']
+    omega
+  rw [e] at key
+  have r : (m - s) % d < d := Nat.mod_lt _ (by omega)
+  have small : (2 * s + d - 1) * (s + (m - s) % d) ≤ (3 * q) * (2 * q) :=
+    Nat.mul_le_mul (by omega) (by omega)
+  have split : (2 * s + d - 1) * m =
+      (m - s) / d * d * (2 * s + d - 1) + (2 * s + d - 1) * (s + (m - s) % d) := by
+    conv_lhs => rw [← e]
+    ring
+  nlinarith
+
+end E713Star
 
 theorem OMA.solution : OMA.R_Erdos713_erdos_713_parts_i_R1_H2_R1.H2 := by
-  intro q G _ _ edges active _ _ branching star a b lt freq
-  classical
-  have nontrivial : G ≠ ⊥ := by
-    intro eq
-    rw [edgeFinset_eq_empty.mpr eq] at edges
-    simp at edges
-  have qpos : 0<q := by obtain ⟨v,_⟩ := branching; exact (Nat.zero_le v.val).trans_lt v.isLt
-  obtain ⟨s,N,E,bounds⟩ := E713Stars.slope G active star nontrivial qpos
-  exact E713Stars.rational_threshold (fun n => extremalNumber n G) s N E bounds a b lt freq
+  intro q G _ _ _ active _ _ hub star a b hab often
+  have hne : G ≠ ⊥ := by
+    obtain ⟨v, hv⟩ := hub
+    rintro rfl
+    simp at hv
+  have UB : ∀ n, ∃ K, K < 3 * q ∧ (∃ s d, 1 ≤ d ∧ E713Star.P G s d ∧ K = 2 * s + d - 1) ∧
+      2 * extremalNumber n G ≤ K * n + (6 * q * q + 2 * q) := by
+    intro n
+    obtain ⟨s, d, h1, h2, h3⟩ := E713Star.ub G active star hne n
+    obtain ⟨hs, hd⟩ := E713Star.P_bound G h2
+    refine ⟨2 * s + d - 1, by omega, ⟨s, d, h1, h2, rfl⟩, ?_⟩
+    have e1 : 2 * s + d - 1 + 1 = 2 * s + d := by omega
+    have e2 : (2 * s + d - 1) * n + n = 2 * s * n + d * n := by
+      calc (2 * s + d - 1) * n + n = (2 * s + d - 1 + 1) * n := by ring
+        _ = 2 * s * n + d * n := by rw [e1]; ring
+    omega
+  have LB : ∀ K, (∃ s d, 1 ≤ d ∧ E713Star.P G s d ∧ K = 2 * s + d - 1) → ∀ m, q ≤ m →
+      K * m ≤ 2 * extremalNumber m G + (6 * q * q + 2 * q) := by
+    rintro K ⟨s, d, h1, h2, rfl⟩ m hm
+    have h := E713Star.lb G h1 h2 m hm
+    omega
+  obtain ⟨K, hK, hbK⟩ : ∃ K : ℕ, (∃ s d, 1 ≤ d ∧ E713Star.P G s d ∧ K = 2 * s + d - 1) ∧
+      2 * b ≤ (K : ℚ) := by
+    by_contra hcon
+    push Not at hcon
+    have ev : ∀ᶠ n : ℕ in atTop, ∀ K ∈ range (3 * q),
+        (∃ s d, 1 ≤ d ∧ E713Star.P G s d ∧ K = 2 * s + d - 1) →
+        (K : ℚ) * n + ((6 * q * q + 2 * q : ℕ) : ℚ) ≤ 2 * b * n := by
+      rw [eventually_all_finset]
+      intro K _
+      by_cases hK : ∃ s d, 1 ≤ d ∧ E713Star.P G s d ∧ K = 2 * s + d - 1
+      · have gap := hcon K hK
+        filter_upwards [eventually_ge_atTop
+          (Nat.ceil (((6 * q * q + 2 * q : ℕ) : ℚ) / (2 * b - K)))] with n hn _
+        have pos : 0 < 2 * b - K := by linarith
+        have h1 : ((6 * q * q + 2 * q : ℕ) : ℚ) / (2 * b - K) ≤ n :=
+          (Nat.le_ceil _).trans (by exact_mod_cast hn)
+        have h2 := (div_le_iff₀ pos).mp h1
+        linarith
+      · exact Eventually.of_forall (fun n h => absurd h hK)
+    obtain ⟨N, hN⟩ := eventually_atTop.mp ev
+    obtain ⟨n, hn, big⟩ := often N
+    obtain ⟨K, hKq, hK, hub'⟩ := UB n
+    have h1 := hN n hn K (mem_range.mpr hKq) hK
+    have h2 : (2 : ℚ) * extremalNumber n G ≤ K * n + ((6 * q * q + 2 * q : ℕ) : ℚ) := by
+      exact_mod_cast hub'
+    linarith
+  refine ⟨max q (Nat.ceil (((6 * q * q + 2 * q : ℕ) : ℚ) / (K - 2 * a))), ?_⟩
+  intro m hm
+  have pos : (0 : ℚ) < K - 2 * a := by linarith
+  have hmq : q ≤ m := le_trans (le_max_left _ _) hm
+  have h1 : ((6 * q * q + 2 * q : ℕ) : ℚ) / (K - 2 * a) ≤ m :=
+    (Nat.le_ceil _).trans (by exact_mod_cast le_trans (le_max_right _ _) hm)
+  have h2 := (div_le_iff₀ pos).mp h1
+  have h3 : (K : ℚ) * m ≤ 2 * extremalNumber m G + ((6 * q * q + 2 * q : ℕ) : ℚ) := by
+    exact_mod_cast LB K hK m hmq
+  linarith

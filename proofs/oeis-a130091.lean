@@ -1,31 +1,30 @@
 import OMAStatements.S_oeis_a130091
 
-lemma a130091_fact_eq_one {k p : ℕ} (hp : p.Prime) (hk : k ≠ 0) (h1 : p ∣ k)
-    (h2 : ¬ p ^ 2 ∣ k) : k.factorization p = 1 := by
-  have a : 1 ≤ k.factorization p := (hp.pow_dvd_iff_le_factorization hk).1 (by simpa using h1)
-  have b : ¬ 2 ≤ k.factorization p := fun h => h2 ((hp.pow_dvd_iff_le_factorization hk).2 h)
-  omega
+open Nat OMA.S_oeis_a130091
 
-lemma a130091_not_inSeq {k : ℕ} (h : k % 36 = 6 ∨ k % 36 = 30) :
-    ¬ OMA.S_oeis_a130091.InSeq k := by
-  rintro ⟨hk, hinj⟩
-  have hk0 : k ≠ 0 := hk.ne'
-  have e2 : k.factorization 2 = 1 :=
-    a130091_fact_eq_one Nat.prime_two hk0 (by omega) (by norm_num; omega)
-  have e3 : k.factorization 3 = 1 :=
-    a130091_fact_eq_one Nat.prime_three hk0 (by omega) (by norm_num; omega)
-  have m2 : (2 : ℕ) ∈ (k.primeFactors : Set ℕ) := by
-    simp only [Finset.mem_coe, Nat.mem_primeFactors]; exact ⟨Nat.prime_two, by omega, hk0⟩
-  have m3 : (3 : ℕ) ∈ (k.primeFactors : Set ℕ) := by
-    simp only [Finset.mem_coe, Nat.mem_primeFactors]; exact ⟨Nat.prime_three, by omega, hk0⟩
-  have := hinj m2 m3 (e2.trans e3.symm)
+private theorem excluded {m : ℕ} (h : m % 36 = 6 ∨ m % 36 = 30) : ¬ InSeq m := by
+  rintro ⟨hm, hinj⟩
+  have mem {p : ℕ} (hp : p.Prime) (hd : p ∣ m) : p ∈ m.primeFactors :=
+    mem_primeFactors.mpr ⟨hp, hd, hm.ne'⟩
+  have exponent {p : ℕ} (hp : p.Prime) (hd : p ∣ m) (hs : ¬ p * p ∣ m) :
+      m.factorization p = 1 := by
+    have lower := (hp.dvd_iff_one_le_factorization hm.ne').mp hd
+    have upper := mt (hp.pow_dvd_iff_le_factorization (k := 2) hm.ne').mpr
+      (by simpa only [pow_two] using hs)
+    omega
+  have e₂ := exponent prime_two (by omega) (by omega)
+  have e₃ := exponent prime_three (by omega) (by omega)
+  have eq := hinj (mem prime_two (by omega)) (mem prime_three (by omega)) (e₂.trans e₃.symm)
   omega
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a130091.main := by
-  refine ⟨fun n hn => a130091_not_inSeq (by omega), fun n => a130091_not_inSeq (by omega), ?_⟩
+  refine ⟨fun n hn => excluded (by omega), fun n => excluded (by omega), ?_⟩
   rintro ⟨m, hm⟩
-  by_cases h1 : m % 36 ≤ 6
-  · exact a130091_not_inSeq (k := m + (6 - m % 36)) (by omega) (hm _ (by omega))
-  by_cases h2 : m % 36 ≤ 30
-  · exact a130091_not_inSeq (k := m + (30 - m % 36)) (by omega) (hm _ (by omega))
-  · exact a130091_not_inSeq (k := m + (42 - m % 36)) (by omega) (hm _ (by omega))
+  let r := m % 36
+  let next := if r ≤ 6 then 6 - r else if r ≤ 30 then 30 - r else 42 - r
+  have bounds : next < 24 ∧ ((m + next) % 36 = 6 ∨ (m + next) % 36 = 30) := by
+    dsimp [next, r]
+    split
+    · omega
+    · split <;> omega
+  exact excluded bounds.2 (hm next bounds.1)

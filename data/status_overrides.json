@@ -172,7 +172,7 @@
       "id": "tarski-finite-basis-semigroups",
       "status": "claimed",
       "title": "Tarski's finite basis problem for finite semigroups",
-      "summary": "Ábel Czupor published on 27 Nov 2026 a Lean-checked candidate proof that the problem is undecidable (235 Lean modules on Lean 4.19.0 + Mathlib, only the standard axioms; prepared with Codex assistance). The final theorem's definitions were read here and match the standard problem; independent human review of the manuscript is pending, and the proof has not yet been run by this site's checker.",
+      "summary": "Ábel Czupor published on 27 Nov 2026 a Lean-checked candidate proof that the problem is undecidable (235 Lean modules on Lean 4.19.0 + Mathlib, only the standard axioms; prepared with Codex assistance). The final theorem's definitions were read here and match the standard problem; independent human review of the manuscript is pending. On 28 Nov 2026 the proof (adapted to this site's Mathlib, PR 29945) passed this site's Lean checker with only the standard axioms, and two independent reviews found the statement faithful and the problem open before it.",
       "date": "2026-11-27",
       "sources": [
         "https://doi.org/10.5281/zenodo.24567351",

@@ -1,128 +1,117 @@
 import OMAStatements.S_mse_4553718
-import Mathlib
 
--- Problem: mse-4553718, the least k > 0 after which k perfect out-shuffles of 2n cards return
--- the two colours (first n positions / last n positions) is the order of 2 modulo 2n - 1.
--- Credit: @ivillar (#24460); use finite-order and fixed-point APIs below.
---
--- On positions i < 2n - 1 one out-shuffle is i -> 2i mod (2n - 1), and position 2n - 1 is
--- fixed, so k shuffles act as i -> 2^k i mod (2n - 1). If 2^k = 1 mod (2n - 1) every position
--- returns. Conversely let u = 2^k mod (2n - 1) and suppose the colours return (n >= 2).
--- Position 1 gives u < n, position n gives u != 0. If u >= 2, let i be least with i u >= n;
--- then i < n and n <= i u < n + u <= 2n - 1, so position i (first half) goes to i u (second
--- half), a contradiction. Hence u = 1, and the order of 2 divides k.
+/-!
+Formal proof of the known color-restoration theorem for a perfect out-shuffle.
+The modular model appears in Qiaochu Yuan's answer to MathSE question 4553718.
+The half-interval argument is due to Angina Seng (17 July 2020):
+https://math.stackexchange.com/a/3759624 (CC BY-SA 4.0).
+-/
 
-namespace MSE4553718
+namespace OMA.S_mse_4553718
 
-open OMA.S_mse_4553718
+lemma shuffle_last_fixed {n : ℕ} (hn : 0 < n) :
+    outShuffle n (2 * n - 1) = 2 * n - 1 := by
+  unfold outShuffle
+  rw [if_neg (by omega)]
+  omega
 
-theorem shuffle_eq (n i : ℕ) (hi : i < 2 * n - 1) :
+lemma shuffle_mod {n i : ℕ} (hn : 0 < n) (hi : i < 2 * n - 1) :
     outShuffle n i = (2 * i) % (2 * n - 1) := by
   unfold outShuffle
   split_ifs with h
   · exact (Nat.mod_eq_of_lt (by omega)).symm
-  · have h2 : 2 * n - 1 ≤ 2 * i := by omega
-    have h3 : 2 * i - (2 * n - 1) < 2 * n - 1 := by omega
-    rw [Nat.mod_eq_sub_mod h2, Nat.mod_eq_of_lt h3]
-    omega
+  · have heq : 2 * i = (2 * (i - n) + 1) + (2 * n - 1) := by omega
+    have hb : 2 * (i - n) + 1 < 2 * n - 1 := by omega
+    rw [heq, Nat.add_mod_right, Nat.mod_eq_of_lt hb]
 
-theorem iter_eq (n : ℕ) (hn : 0 < n) (k i : ℕ) (hi : i < 2 * n - 1) :
+lemma shuffle_iterate_mod {n i : ℕ} (hn : 0 < n)
+    (hi : i < 2 * n - 1) (k : ℕ) :
     (outShuffle n)^[k] i = (2 ^ k * i) % (2 * n - 1) := by
-  have hm : 0 < 2 * n - 1 := by omega
   induction k with
   | zero => simp [Nat.mod_eq_of_lt hi]
   | succ k ih =>
     rw [Function.iterate_succ_apply', ih,
-      shuffle_eq n (2 ^ k * i % (2 * n - 1)) (Nat.mod_lt _ hm), Nat.mul_mod_mod, pow_succ]
+      shuffle_mod hn (Nat.mod_lt _ (by omega))]
+    simp only [Nat.mul_mod_mod, pow_succ]
     congr 1
     ring
 
-theorem iter_top (n : ℕ) (hn : 0 < n) (k : ℕ) :
-    (outShuffle n)^[k] (2 * n - 1) = 2 * n - 1 := by
-  apply Function.iterate_fixed
-  unfold outShuffle
-  split_ifs <;> omega
-
-theorem pow_mod_of_return (n k : ℕ) (hn2 : 2 ≤ n)
-    (hf : ∀ i, i < 2 * n - 1 → ((2 ^ k * i) % (2 * n - 1) < n ↔ i < n)) :
-    2 ^ k % (2 * n - 1) = 1 := by
-  obtain ⟨u, hu⟩ : ∃ u, u = 2 ^ k % (2 * n - 1) := ⟨_, rfl⟩
-  have hmul : ∀ i, (2 ^ k * i) % (2 * n - 1) = (u * i) % (2 * n - 1) := by
-    intro i
-    rw [hu, Nat.mod_mul_mod]
-  rw [← hu]
-  have hum : u < 2 * n - 1 := by
-    rw [hu]
-    exact Nat.mod_lt _ (by omega)
-  have h1 := hf 1 (by omega)
-  rw [hmul, mul_one, Nat.mod_eq_of_lt hum] at h1
-  have hun : u < n := h1.mpr (by omega)
-  have hn' := hf n (by omega)
-  rw [hmul] at hn'
-  have hu0 : u ≠ 0 := by
-    intro h0
-    rw [h0, zero_mul, Nat.zero_mod] at hn'
+lemma half_interval_rigidity {n a : ℕ} (hn : 2 ≤ n)
+    (ha : a < 2 * n - 1)
+    (h : ∀ x : ℕ, x < 2 * n - 1 →
+      ((a * x) % (2 * n - 1) < n ↔ x < n)) : a = 1 := by
+  have ha_small : a < n := by
+    simpa [Nat.mod_eq_of_lt ha] using (h 1 (by omega)).mpr (by omega)
+  have ha_pos : 0 < a := by
+    by_contra hzero
+    have ha_zero : a = 0 := by omega
+    have hn_bad := (h n (by omega)).mp (by simp [ha_zero]; omega)
     omega
   by_contra hne
-  have hu2 : 2 ≤ u := by omega
-  have hex : ∃ i, n ≤ i * u := ⟨n, Nat.le_mul_of_pos_right n (by omega)⟩
-  obtain ⟨i₀, hi₀, hmin⟩ : ∃ i₀, n ≤ i₀ * u ∧ ∀ j, j < i₀ → ¬ n ≤ j * u :=
-    ⟨Nat.find hex, Nat.find_spec hex, fun j hj => Nat.find_min hex hj⟩
-  have hi1 : 1 ≤ i₀ := by
-    rcases Nat.eq_zero_or_pos i₀ with h | h
-    · rw [h, zero_mul] at hi₀
-      omega
-    · exact h
-  have hprev := hmin (i₀ - 1) (by omega)
-  have hexp : i₀ * u = (i₀ - 1) * u + u := by
-    obtain ⟨j, rfl⟩ : ∃ j, i₀ = j + 1 := ⟨i₀ - 1, by omega⟩
-    rw [Nat.add_sub_cancel, Nat.add_mul, one_mul]
-  have hlt : i₀ * u < 2 * n - 1 := by omega
-  have hi₀n : i₀ < n := by
-    by_contra hge
-    have hmm := Nat.mul_le_mul (show n - 1 ≤ i₀ - 1 by omega) hu2
+  have ha_two : 1 < a := by omega
+  let x := (n - 1) / a + 1
+  have hx : x < n := by
+    have hdiv := Nat.div_lt_self (show 0 < n - 1 by omega) ha_two
+    dsimp [x]
     omega
-  have hfin := hf i₀ (by omega)
-  rw [hmul, mul_comm u i₀, Nat.mod_eq_of_lt hlt] at hfin
-  have hbad := hfin.mpr hi₀n
+  have hax_lower : n ≤ a * x := by
+    have hdiv : (n - 1) / a < x := by dsimp [x]; omega
+    have hmul := (Nat.div_lt_iff_lt_mul ha_pos).mp hdiv
+    rw [Nat.mul_comm x a] at hmul
+    omega
+  have hax_upper : a * x < 2 * n - 1 := by
+    have hdiv := Nat.mul_div_le (n - 1) a
+    dsimp [x]
+    rw [Nat.mul_add, Nat.mul_one]
+    omega
+  have hbad := (h x (by omega)).mpr hx
+  rw [Nat.mod_eq_of_lt hax_upper] at hbad
   omega
 
-end MSE4553718
+lemma colorsReturn_iff_pow_eq_one {n k : ℕ} (hn : 0 < n) :
+    colorsReturn n k ↔ (2 : ZMod (2 * n - 1)) ^ k = 1 := by
+  have hm : 0 < 2 * n - 1 := by omega
+  constructor
+  · intro hreturn
+    by_cases hone : n = 1
+    · subst n
+      change (2 : ZMod 1) ^ k = 1
+      exact Subsingleton.elim _ _
+    · have hn_two : 2 ≤ n := by omega
+      have hresidue : 2 ^ k % (2 * n - 1) = 1 := by
+        apply half_interval_rigidity hn_two (Nat.mod_lt _ hm)
+        intro x hx
+        have hxreturn := hreturn x (by omega)
+        rw [shuffle_iterate_mod hn hx k] at hxreturn
+        simpa only [Nat.mod_mul_mod] using hxreturn
+      have hcast : ((2 ^ k : ℕ) : ZMod (2 * n - 1)) = (1 : ℕ) := by
+        apply (ZMod.natCast_eq_natCast_iff' _ _ _).2
+        simpa [Nat.mod_eq_of_lt (show 1 < 2 * n - 1 by omega)] using hresidue
+      simpa only [Nat.cast_pow, Nat.cast_ofNat, Nat.cast_one] using hcast
+  · intro hpow i hi
+    have hmod : 2 ^ k % (2 * n - 1) = 1 % (2 * n - 1) := by
+      apply (ZMod.natCast_eq_natCast_iff' _ _ _).1
+      simpa only [Nat.cast_pow, Nat.cast_ofNat, Nat.cast_one] using hpow
+    by_cases him : i < 2 * n - 1
+    · rw [shuffle_iterate_mod hn him k, Nat.mul_mod, hmod,
+        ← Nat.mul_mod, one_mul, Nat.mod_eq_of_lt him]
+    · have hieq : i = 2 * n - 1 := by omega
+      subst i
+      rw [Function.iterate_fixed (shuffle_last_fixed hn) k]
 
+end OMA.S_mse_4553718
+
+open OMA.S_mse_4553718 in
 theorem OMA.solution : type_of% @OMA.S_mse_4553718.main := by
   intro n hn
-  have hm : 0 < 2 * n - 1 := by omega
-  have key : ∀ k, (2 : ZMod (2 * n - 1)) ^ k = 1 ↔
-      2 ^ k % (2 * n - 1) = 1 % (2 * n - 1) := by
-    intro k
-    simpa only [Nat.cast_pow, Nat.cast_ofNat, Nat.cast_one] using
-      (ZMod.natCast_eq_natCast_iff' (2 ^ k) 1 (2 * n - 1))
-  have hcop : Nat.Coprime 2 (2 * n - 1) := Nat.coprime_two_left.mpr ⟨n - 1, by omega⟩
-  have : NeZero (2 * n - 1) := ⟨hm.ne'⟩
-  have hd : 0 < orderOf (2 : ZMod (2 * n - 1)) :=
-    ((ZMod.isUnit_iff_coprime 2 (2 * n - 1)).mpr hcop).isOfFinOrder.orderOf_pos
-  constructor
-  · show 0 < orderOf (2 : ZMod (2 * n - 1)) ∧
-      OMA.S_mse_4553718.colorsReturn n (orderOf (2 : ZMod (2 * n - 1)))
-    refine ⟨hd, ?_⟩
-    have hk := (key _).mp (pow_orderOf_eq_one (2 : ZMod (2 * n - 1)))
-    unfold OMA.S_mse_4553718.colorsReturn
-    intro i hi
-    rcases Nat.lt_or_ge i (2 * n - 1) with hlt | hge
-    · rw [MSE4553718.iter_eq n hn _ i hlt, Nat.mul_mod, hk, ← Nat.mul_mod, one_mul,
-        Nat.mod_eq_of_lt hlt]
-    · have hi' : i = 2 * n - 1 := by omega
-      rw [hi', MSE4553718.iter_top n hn]
-  · rintro k ⟨hk0, hret⟩
-    have hf : ∀ i, i < 2 * n - 1 → ((2 ^ k * i) % (2 * n - 1) < n ↔ i < n) := by
-      intro i hi
-      have h := hret i (by omega)
-      rwa [MSE4553718.iter_eq n hn k i hi] at h
-    have hpow : 2 ^ k % (2 * n - 1) = 1 % (2 * n - 1) := by
-      rcases Nat.lt_or_ge 1 n with hn2 | hn1
-      · rw [MSE4553718.pow_mod_of_return n k hn2 hf, Nat.mod_eq_of_lt (by omega)]
-      · have h1 : n = 1 := by omega
-        subst h1
-        have e : 2 * 1 - 1 = 1 := rfl
-        rw [e, Nat.mod_one, Nat.mod_one]
-    exact Nat.le_of_dvd hk0 (orderOf_dvd_of_pow_eq_one ((key k).mpr hpow))
+  let : NeZero (2 * n - 1) := ⟨by omega⟩
+  have hodd : Odd (2 * n - 1) := by
+    refine ⟨n - 1, ?_⟩
+    omega
+  have hunit : IsUnit (2 : ZMod (2 * n - 1)) :=
+    (ZMod.isUnit_iff_coprime 2 _).mpr (Nat.coprime_two_left.mpr hodd)
+  refine ⟨⟨hunit.isOfFinOrder.orderOf_pos,
+    (colorsReturn_iff_pow_eq_one hn).mpr (pow_orderOf_eq_one _)⟩, ?_⟩
+  intro k hk
+  exact orderOf_le_of_pow_eq_one hk.1 ((colorsReturn_iff_pow_eq_one hn).mp hk.2)
+

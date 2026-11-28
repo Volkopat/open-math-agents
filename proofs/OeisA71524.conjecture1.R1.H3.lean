@@ -718,2018 +718,324 @@ theorem conditional_solution
 
 end A71524Data
 
-/- Numerical proof-valued definitions keep heavy elaboration sequential in Lean4.33.1. Each equality is independently checked by the kernel. -/
+/- Each block checks the eight rows at one quotient of the row index.
+The proof-valued definitions keep this evaluation sequential. -/
 namespace A71524Data
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_0 : rowValid 0 0 = true := by decide +kernel
+private def checkRowBlock0_0 : ∀ i : Fin 8, rowValid 0 (0 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_1 : rowValid 0 1 = true := by decide +kernel
+private def checkRowBlock0_1 : ∀ i : Fin 8, rowValid 0 (8 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_2 : rowValid 0 2 = true := by decide +kernel
+private def checkRowBlock0_2 : ∀ i : Fin 8, rowValid 0 (16 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_3 : rowValid 0 3 = true := by decide +kernel
+private def checkRowBlock0_3 : ∀ i : Fin 8, rowValid 0 (24 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_4 : rowValid 0 4 = true := by decide +kernel
+private def checkRowBlock0_4 : ∀ i : Fin 8, rowValid 0 (32 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_5 : rowValid 0 5 = true := by decide +kernel
+private def checkRowBlock0_5 : ∀ i : Fin 8, rowValid 0 (40 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_6 : rowValid 0 6 = true := by decide +kernel
+private def checkRowBlock0_6 : ∀ i : Fin 8, rowValid 0 (48 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_7 : rowValid 0 7 = true := by decide +kernel
+private def checkRowBlock0_7 : ∀ i : Fin 8, rowValid 0 (56 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_8 : rowValid 0 8 = true := by decide +kernel
+private def checkRowBlock0_8 : ∀ i : Fin 8, rowValid 0 (64 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_9 : rowValid 0 9 = true := by decide +kernel
+private def checkRowBlock0_9 : ∀ i : Fin 8, rowValid 0 (72 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_10 : rowValid 0 10 = true := by decide +kernel
+private def checkRowBlock0_10 : ∀ i : Fin 8, rowValid 0 (80 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_11 : rowValid 0 11 = true := by decide +kernel
+private def checkRowBlock0_11 : ∀ i : Fin 8, rowValid 0 (88 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_12 : rowValid 0 12 = true := by decide +kernel
+private def checkRowBlock0_12 : ∀ i : Fin 8, rowValid 0 (96 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_13 : rowValid 0 13 = true := by decide +kernel
+private def checkRowBlock0_13 : ∀ i : Fin 8, rowValid 0 (104 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_14 : rowValid 0 14 = true := by decide +kernel
+private def checkRowBlock0_14 : ∀ i : Fin 8, rowValid 0 (112 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_15 : rowValid 0 15 = true := by decide +kernel
+private def checkRowBlock0_15 : ∀ i : Fin 8, rowValid 0 (120 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_16 : rowValid 0 16 = true := by decide +kernel
+private def checkRowBlock0_16 : ∀ i : Fin 8, rowValid 0 (128 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_17 : rowValid 0 17 = true := by decide +kernel
+private def checkRowBlock0_17 : ∀ i : Fin 8, rowValid 0 (136 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_18 : rowValid 0 18 = true := by decide +kernel
+private def checkRowBlock0_18 : ∀ i : Fin 8, rowValid 0 (144 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_19 : rowValid 0 19 = true := by decide +kernel
+private def checkRowBlock0_19 : ∀ i : Fin 8, rowValid 0 (152 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_20 : rowValid 0 20 = true := by decide +kernel
+private def checkRowBlock0_20 : ∀ i : Fin 8, rowValid 0 (160 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_21 : rowValid 0 21 = true := by decide +kernel
+private def checkRowBlock0_21 : ∀ i : Fin 8, rowValid 0 (168 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_22 : rowValid 0 22 = true := by decide +kernel
+private def checkRowBlock0_22 : ∀ i : Fin 8, rowValid 0 (176 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_23 : rowValid 0 23 = true := by decide +kernel
+private def checkRowBlock0_23 : ∀ i : Fin 8, rowValid 0 (184 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_0_24 : rowValid 0 24 = true := by decide +kernel
+private def checkRowBlock0_24 : ∀ i : Fin 8, rowValid 0 (192 + i.val) = true := by
+  decide +kernel
 
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_25 : rowValid 0 25 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_26 : rowValid 0 26 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_27 : rowValid 0 27 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_28 : rowValid 0 28 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_29 : rowValid 0 29 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_30 : rowValid 0 30 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_31 : rowValid 0 31 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_32 : rowValid 0 32 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_33 : rowValid 0 33 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_34 : rowValid 0 34 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_35 : rowValid 0 35 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_36 : rowValid 0 36 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_37 : rowValid 0 37 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_38 : rowValid 0 38 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_39 : rowValid 0 39 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_40 : rowValid 0 40 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_41 : rowValid 0 41 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_42 : rowValid 0 42 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_43 : rowValid 0 43 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_44 : rowValid 0 44 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_45 : rowValid 0 45 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_46 : rowValid 0 46 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_47 : rowValid 0 47 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_48 : rowValid 0 48 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_49 : rowValid 0 49 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_50 : rowValid 0 50 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_51 : rowValid 0 51 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_52 : rowValid 0 52 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_53 : rowValid 0 53 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_54 : rowValid 0 54 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_55 : rowValid 0 55 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_56 : rowValid 0 56 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_57 : rowValid 0 57 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_58 : rowValid 0 58 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_59 : rowValid 0 59 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_60 : rowValid 0 60 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_61 : rowValid 0 61 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_62 : rowValid 0 62 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_63 : rowValid 0 63 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_64 : rowValid 0 64 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_65 : rowValid 0 65 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_66 : rowValid 0 66 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_67 : rowValid 0 67 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_68 : rowValid 0 68 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_69 : rowValid 0 69 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_70 : rowValid 0 70 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_71 : rowValid 0 71 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_72 : rowValid 0 72 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_73 : rowValid 0 73 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_74 : rowValid 0 74 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_75 : rowValid 0 75 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_76 : rowValid 0 76 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_77 : rowValid 0 77 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_78 : rowValid 0 78 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_79 : rowValid 0 79 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_80 : rowValid 0 80 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_81 : rowValid 0 81 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_82 : rowValid 0 82 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_83 : rowValid 0 83 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_84 : rowValid 0 84 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_85 : rowValid 0 85 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_86 : rowValid 0 86 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_87 : rowValid 0 87 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_88 : rowValid 0 88 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_89 : rowValid 0 89 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_90 : rowValid 0 90 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_91 : rowValid 0 91 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_92 : rowValid 0 92 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_93 : rowValid 0 93 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_94 : rowValid 0 94 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_95 : rowValid 0 95 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_96 : rowValid 0 96 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_97 : rowValid 0 97 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_98 : rowValid 0 98 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_99 : rowValid 0 99 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_100 : rowValid 0 100 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_101 : rowValid 0 101 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_102 : rowValid 0 102 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_103 : rowValid 0 103 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_104 : rowValid 0 104 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_105 : rowValid 0 105 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_106 : rowValid 0 106 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_107 : rowValid 0 107 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_108 : rowValid 0 108 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_109 : rowValid 0 109 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_110 : rowValid 0 110 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_111 : rowValid 0 111 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_112 : rowValid 0 112 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_113 : rowValid 0 113 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_114 : rowValid 0 114 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_115 : rowValid 0 115 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_116 : rowValid 0 116 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_117 : rowValid 0 117 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_118 : rowValid 0 118 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_119 : rowValid 0 119 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_120 : rowValid 0 120 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_121 : rowValid 0 121 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_122 : rowValid 0 122 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_123 : rowValid 0 123 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_124 : rowValid 0 124 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_125 : rowValid 0 125 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_126 : rowValid 0 126 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_127 : rowValid 0 127 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_128 : rowValid 0 128 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_129 : rowValid 0 129 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_130 : rowValid 0 130 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_131 : rowValid 0 131 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_132 : rowValid 0 132 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_133 : rowValid 0 133 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_134 : rowValid 0 134 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_135 : rowValid 0 135 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_136 : rowValid 0 136 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_137 : rowValid 0 137 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_138 : rowValid 0 138 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_139 : rowValid 0 139 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_140 : rowValid 0 140 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_141 : rowValid 0 141 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_142 : rowValid 0 142 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_143 : rowValid 0 143 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_144 : rowValid 0 144 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_145 : rowValid 0 145 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_146 : rowValid 0 146 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_147 : rowValid 0 147 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_148 : rowValid 0 148 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_149 : rowValid 0 149 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_150 : rowValid 0 150 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_151 : rowValid 0 151 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_152 : rowValid 0 152 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_153 : rowValid 0 153 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_154 : rowValid 0 154 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_155 : rowValid 0 155 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_156 : rowValid 0 156 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_157 : rowValid 0 157 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_158 : rowValid 0 158 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_159 : rowValid 0 159 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_160 : rowValid 0 160 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_161 : rowValid 0 161 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_162 : rowValid 0 162 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_163 : rowValid 0 163 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_164 : rowValid 0 164 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_165 : rowValid 0 165 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_166 : rowValid 0 166 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_167 : rowValid 0 167 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_168 : rowValid 0 168 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_169 : rowValid 0 169 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_170 : rowValid 0 170 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_171 : rowValid 0 171 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_172 : rowValid 0 172 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_173 : rowValid 0 173 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_174 : rowValid 0 174 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_175 : rowValid 0 175 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_176 : rowValid 0 176 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_177 : rowValid 0 177 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_178 : rowValid 0 178 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_179 : rowValid 0 179 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_180 : rowValid 0 180 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_181 : rowValid 0 181 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_182 : rowValid 0 182 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_183 : rowValid 0 183 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_184 : rowValid 0 184 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_185 : rowValid 0 185 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_186 : rowValid 0 186 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_187 : rowValid 0 187 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_188 : rowValid 0 188 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_189 : rowValid 0 189 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_190 : rowValid 0 190 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_191 : rowValid 0 191 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_192 : rowValid 0 192 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_193 : rowValid 0 193 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_194 : rowValid 0 194 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_195 : rowValid 0 195 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_196 : rowValid 0 196 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_197 : rowValid 0 197 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_198 : rowValid 0 198 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_0_199 : rowValid 0 199 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_0 : rowValid 1 0 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_1 : rowValid 1 1 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_2 : rowValid 1 2 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_3 : rowValid 1 3 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_4 : rowValid 1 4 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_5 : rowValid 1 5 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_6 : rowValid 1 6 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_7 : rowValid 1 7 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_8 : rowValid 1 8 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_9 : rowValid 1 9 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_10 : rowValid 1 10 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_11 : rowValid 1 11 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_12 : rowValid 1 12 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_13 : rowValid 1 13 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_14 : rowValid 1 14 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_15 : rowValid 1 15 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_16 : rowValid 1 16 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_17 : rowValid 1 17 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_18 : rowValid 1 18 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_19 : rowValid 1 19 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_20 : rowValid 1 20 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_21 : rowValid 1 21 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_22 : rowValid 1 22 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_23 : rowValid 1 23 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_24 : rowValid 1 24 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_25 : rowValid 1 25 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_26 : rowValid 1 26 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_27 : rowValid 1 27 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_28 : rowValid 1 28 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_29 : rowValid 1 29 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_30 : rowValid 1 30 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_31 : rowValid 1 31 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_32 : rowValid 1 32 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_33 : rowValid 1 33 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_34 : rowValid 1 34 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_35 : rowValid 1 35 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_36 : rowValid 1 36 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_37 : rowValid 1 37 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_38 : rowValid 1 38 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_39 : rowValid 1 39 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_40 : rowValid 1 40 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_41 : rowValid 1 41 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_42 : rowValid 1 42 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_43 : rowValid 1 43 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_44 : rowValid 1 44 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_45 : rowValid 1 45 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_46 : rowValid 1 46 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_47 : rowValid 1 47 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_48 : rowValid 1 48 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_49 : rowValid 1 49 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_50 : rowValid 1 50 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_51 : rowValid 1 51 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_52 : rowValid 1 52 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_53 : rowValid 1 53 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_54 : rowValid 1 54 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_55 : rowValid 1 55 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_56 : rowValid 1 56 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_57 : rowValid 1 57 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_58 : rowValid 1 58 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_59 : rowValid 1 59 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_60 : rowValid 1 60 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_61 : rowValid 1 61 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_62 : rowValid 1 62 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_63 : rowValid 1 63 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_64 : rowValid 1 64 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_65 : rowValid 1 65 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_66 : rowValid 1 66 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_67 : rowValid 1 67 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_68 : rowValid 1 68 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_69 : rowValid 1 69 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_70 : rowValid 1 70 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_71 : rowValid 1 71 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_72 : rowValid 1 72 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_73 : rowValid 1 73 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_74 : rowValid 1 74 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_75 : rowValid 1 75 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_76 : rowValid 1 76 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_77 : rowValid 1 77 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_78 : rowValid 1 78 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_79 : rowValid 1 79 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_80 : rowValid 1 80 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_81 : rowValid 1 81 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_82 : rowValid 1 82 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_83 : rowValid 1 83 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_84 : rowValid 1 84 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_85 : rowValid 1 85 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_86 : rowValid 1 86 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_87 : rowValid 1 87 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_88 : rowValid 1 88 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_89 : rowValid 1 89 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_90 : rowValid 1 90 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_91 : rowValid 1 91 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_92 : rowValid 1 92 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_93 : rowValid 1 93 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_94 : rowValid 1 94 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_95 : rowValid 1 95 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_96 : rowValid 1 96 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_97 : rowValid 1 97 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_98 : rowValid 1 98 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_99 : rowValid 1 99 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_100 : rowValid 1 100 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_101 : rowValid 1 101 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_102 : rowValid 1 102 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_103 : rowValid 1 103 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_104 : rowValid 1 104 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_105 : rowValid 1 105 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_106 : rowValid 1 106 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_107 : rowValid 1 107 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_108 : rowValid 1 108 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_109 : rowValid 1 109 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_110 : rowValid 1 110 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_111 : rowValid 1 111 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_112 : rowValid 1 112 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_113 : rowValid 1 113 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_114 : rowValid 1 114 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_115 : rowValid 1 115 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_116 : rowValid 1 116 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_117 : rowValid 1 117 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_118 : rowValid 1 118 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_119 : rowValid 1 119 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_120 : rowValid 1 120 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_121 : rowValid 1 121 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_122 : rowValid 1 122 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_123 : rowValid 1 123 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_124 : rowValid 1 124 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_125 : rowValid 1 125 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_126 : rowValid 1 126 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_127 : rowValid 1 127 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_128 : rowValid 1 128 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_129 : rowValid 1 129 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_130 : rowValid 1 130 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_131 : rowValid 1 131 = true := by decide +kernel
+theorem checked_even (i : Fin 200) : rowValid 0 i.val = true := by
+  have verified (b : Fin 25) (r : Fin 8) : rowValid 0 (8 * b.val + r.val) = true := by
+    fin_cases b
+    · exact checkRowBlock0_0 r
+    · exact checkRowBlock0_1 r
+    · exact checkRowBlock0_2 r
+    · exact checkRowBlock0_3 r
+    · exact checkRowBlock0_4 r
+    · exact checkRowBlock0_5 r
+    · exact checkRowBlock0_6 r
+    · exact checkRowBlock0_7 r
+    · exact checkRowBlock0_8 r
+    · exact checkRowBlock0_9 r
+    · exact checkRowBlock0_10 r
+    · exact checkRowBlock0_11 r
+    · exact checkRowBlock0_12 r
+    · exact checkRowBlock0_13 r
+    · exact checkRowBlock0_14 r
+    · exact checkRowBlock0_15 r
+    · exact checkRowBlock0_16 r
+    · exact checkRowBlock0_17 r
+    · exact checkRowBlock0_18 r
+    · exact checkRowBlock0_19 r
+    · exact checkRowBlock0_20 r
+    · exact checkRowBlock0_21 r
+    · exact checkRowBlock0_22 r
+    · exact checkRowBlock0_23 r
+    · exact checkRowBlock0_24 r
+  have h := i.isLt
+  have hindex : 8 * (i.val / 8) + i.val % 8 = i.val := by omega
+  simpa only [hindex] using verified ⟨i.val / 8, by omega⟩ ⟨i.val % 8, by omega⟩
 
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_132 : rowValid 1 132 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_133 : rowValid 1 133 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_134 : rowValid 1 134 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_135 : rowValid 1 135 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_136 : rowValid 1 136 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_137 : rowValid 1 137 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_138 : rowValid 1 138 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_139 : rowValid 1 139 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_140 : rowValid 1 140 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_141 : rowValid 1 141 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_142 : rowValid 1 142 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_143 : rowValid 1 143 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_144 : rowValid 1 144 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_145 : rowValid 1 145 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_146 : rowValid 1 146 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_147 : rowValid 1 147 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_148 : rowValid 1 148 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_149 : rowValid 1 149 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_150 : rowValid 1 150 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_151 : rowValid 1 151 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_152 : rowValid 1 152 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_153 : rowValid 1 153 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_154 : rowValid 1 154 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_155 : rowValid 1 155 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_156 : rowValid 1 156 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_157 : rowValid 1 157 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_158 : rowValid 1 158 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_159 : rowValid 1 159 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_160 : rowValid 1 160 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_161 : rowValid 1 161 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_162 : rowValid 1 162 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_163 : rowValid 1 163 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_164 : rowValid 1 164 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_165 : rowValid 1 165 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_166 : rowValid 1 166 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_167 : rowValid 1 167 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_168 : rowValid 1 168 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_169 : rowValid 1 169 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_170 : rowValid 1 170 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_171 : rowValid 1 171 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_172 : rowValid 1 172 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_173 : rowValid 1 173 = true := by decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 10000000 in
-def checked_1_174 : rowValid 1 174 = true := by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_175 : rowValid 1 175 = true := by decide +kernel
+private def checkRowBlock1_0 : ∀ i : Fin 8, rowValid 1 (0 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_176 : rowValid 1 176 = true := by decide +kernel
+private def checkRowBlock1_1 : ∀ i : Fin 8, rowValid 1 (8 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_177 : rowValid 1 177 = true := by decide +kernel
+private def checkRowBlock1_2 : ∀ i : Fin 8, rowValid 1 (16 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_178 : rowValid 1 178 = true := by decide +kernel
+private def checkRowBlock1_3 : ∀ i : Fin 8, rowValid 1 (24 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_179 : rowValid 1 179 = true := by decide +kernel
+private def checkRowBlock1_4 : ∀ i : Fin 8, rowValid 1 (32 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_180 : rowValid 1 180 = true := by decide +kernel
+private def checkRowBlock1_5 : ∀ i : Fin 8, rowValid 1 (40 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_181 : rowValid 1 181 = true := by decide +kernel
+private def checkRowBlock1_6 : ∀ i : Fin 8, rowValid 1 (48 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_182 : rowValid 1 182 = true := by decide +kernel
+private def checkRowBlock1_7 : ∀ i : Fin 8, rowValid 1 (56 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_183 : rowValid 1 183 = true := by decide +kernel
+private def checkRowBlock1_8 : ∀ i : Fin 8, rowValid 1 (64 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_184 : rowValid 1 184 = true := by decide +kernel
+private def checkRowBlock1_9 : ∀ i : Fin 8, rowValid 1 (72 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_185 : rowValid 1 185 = true := by decide +kernel
+private def checkRowBlock1_10 : ∀ i : Fin 8, rowValid 1 (80 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_186 : rowValid 1 186 = true := by decide +kernel
+private def checkRowBlock1_11 : ∀ i : Fin 8, rowValid 1 (88 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_187 : rowValid 1 187 = true := by decide +kernel
+private def checkRowBlock1_12 : ∀ i : Fin 8, rowValid 1 (96 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_188 : rowValid 1 188 = true := by decide +kernel
+private def checkRowBlock1_13 : ∀ i : Fin 8, rowValid 1 (104 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_189 : rowValid 1 189 = true := by decide +kernel
+private def checkRowBlock1_14 : ∀ i : Fin 8, rowValid 1 (112 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_190 : rowValid 1 190 = true := by decide +kernel
+private def checkRowBlock1_15 : ∀ i : Fin 8, rowValid 1 (120 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_191 : rowValid 1 191 = true := by decide +kernel
+private def checkRowBlock1_16 : ∀ i : Fin 8, rowValid 1 (128 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_192 : rowValid 1 192 = true := by decide +kernel
+private def checkRowBlock1_17 : ∀ i : Fin 8, rowValid 1 (136 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_193 : rowValid 1 193 = true := by decide +kernel
+private def checkRowBlock1_18 : ∀ i : Fin 8, rowValid 1 (144 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_194 : rowValid 1 194 = true := by decide +kernel
+private def checkRowBlock1_19 : ∀ i : Fin 8, rowValid 1 (152 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_195 : rowValid 1 195 = true := by decide +kernel
+private def checkRowBlock1_20 : ∀ i : Fin 8, rowValid 1 (160 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_196 : rowValid 1 196 = true := by decide +kernel
+private def checkRowBlock1_21 : ∀ i : Fin 8, rowValid 1 (168 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_197 : rowValid 1 197 = true := by decide +kernel
+private def checkRowBlock1_22 : ∀ i : Fin 8, rowValid 1 (176 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_198 : rowValid 1 198 = true := by decide +kernel
+private def checkRowBlock1_23 : ∀ i : Fin 8, rowValid 1 (184 + i.val) = true := by
+  decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 10000000 in
-def checked_1_199 : rowValid 1 199 = true := by decide +kernel
-
-set_option maxHeartbeats 2000000 in
-theorem checked_even : ∀ i : Fin 200, rowValid 0 i.val = true := by
-  intro i
-  fin_cases i
-  · exact checked_0_0
-  · exact checked_0_1
-  · exact checked_0_2
-  · exact checked_0_3
-  · exact checked_0_4
-  · exact checked_0_5
-  · exact checked_0_6
-  · exact checked_0_7
-  · exact checked_0_8
-  · exact checked_0_9
-  · exact checked_0_10
-  · exact checked_0_11
-  · exact checked_0_12
-  · exact checked_0_13
-  · exact checked_0_14
-  · exact checked_0_15
-  · exact checked_0_16
-  · exact checked_0_17
-  · exact checked_0_18
-  · exact checked_0_19
-  · exact checked_0_20
-  · exact checked_0_21
-  · exact checked_0_22
-  · exact checked_0_23
-  · exact checked_0_24
-  · exact checked_0_25
-  · exact checked_0_26
-  · exact checked_0_27
-  · exact checked_0_28
-  · exact checked_0_29
-  · exact checked_0_30
-  · exact checked_0_31
-  · exact checked_0_32
-  · exact checked_0_33
-  · exact checked_0_34
-  · exact checked_0_35
-  · exact checked_0_36
-  · exact checked_0_37
-  · exact checked_0_38
-  · exact checked_0_39
-  · exact checked_0_40
-  · exact checked_0_41
-  · exact checked_0_42
-  · exact checked_0_43
-  · exact checked_0_44
-  · exact checked_0_45
-  · exact checked_0_46
-  · exact checked_0_47
-  · exact checked_0_48
-  · exact checked_0_49
-  · exact checked_0_50
-  · exact checked_0_51
-  · exact checked_0_52
-  · exact checked_0_53
-  · exact checked_0_54
-  · exact checked_0_55
-  · exact checked_0_56
-  · exact checked_0_57
-  · exact checked_0_58
-  · exact checked_0_59
-  · exact checked_0_60
-  · exact checked_0_61
-  · exact checked_0_62
-  · exact checked_0_63
-  · exact checked_0_64
-  · exact checked_0_65
-  · exact checked_0_66
-  · exact checked_0_67
-  · exact checked_0_68
-  · exact checked_0_69
-  · exact checked_0_70
-  · exact checked_0_71
-  · exact checked_0_72
-  · exact checked_0_73
-  · exact checked_0_74
-  · exact checked_0_75
-  · exact checked_0_76
-  · exact checked_0_77
-  · exact checked_0_78
-  · exact checked_0_79
-  · exact checked_0_80
-  · exact checked_0_81
-  · exact checked_0_82
-  · exact checked_0_83
-  · exact checked_0_84
-  · exact checked_0_85
-  · exact checked_0_86
-  · exact checked_0_87
-  · exact checked_0_88
-  · exact checked_0_89
-  · exact checked_0_90
-  · exact checked_0_91
-  · exact checked_0_92
-  · exact checked_0_93
-  · exact checked_0_94
-  · exact checked_0_95
-  · exact checked_0_96
-  · exact checked_0_97
-  · exact checked_0_98
-  · exact checked_0_99
-  · exact checked_0_100
-  · exact checked_0_101
-  · exact checked_0_102
-  · exact checked_0_103
-  · exact checked_0_104
-  · exact checked_0_105
-  · exact checked_0_106
-  · exact checked_0_107
-  · exact checked_0_108
-  · exact checked_0_109
-  · exact checked_0_110
-  · exact checked_0_111
-  · exact checked_0_112
-  · exact checked_0_113
-  · exact checked_0_114
-  · exact checked_0_115
-  · exact checked_0_116
-  · exact checked_0_117
-  · exact checked_0_118
-  · exact checked_0_119
-  · exact checked_0_120
-  · exact checked_0_121
-  · exact checked_0_122
-  · exact checked_0_123
-  · exact checked_0_124
-  · exact checked_0_125
-  · exact checked_0_126
-  · exact checked_0_127
-  · exact checked_0_128
-  · exact checked_0_129
-  · exact checked_0_130
-  · exact checked_0_131
-  · exact checked_0_132
-  · exact checked_0_133
-  · exact checked_0_134
-  · exact checked_0_135
-  · exact checked_0_136
-  · exact checked_0_137
-  · exact checked_0_138
-  · exact checked_0_139
-  · exact checked_0_140
-  · exact checked_0_141
-  · exact checked_0_142
-  · exact checked_0_143
-  · exact checked_0_144
-  · exact checked_0_145
-  · exact checked_0_146
-  · exact checked_0_147
-  · exact checked_0_148
-  · exact checked_0_149
-  · exact checked_0_150
-  · exact checked_0_151
-  · exact checked_0_152
-  · exact checked_0_153
-  · exact checked_0_154
-  · exact checked_0_155
-  · exact checked_0_156
-  · exact checked_0_157
-  · exact checked_0_158
-  · exact checked_0_159
-  · exact checked_0_160
-  · exact checked_0_161
-  · exact checked_0_162
-  · exact checked_0_163
-  · exact checked_0_164
-  · exact checked_0_165
-  · exact checked_0_166
-  · exact checked_0_167
-  · exact checked_0_168
-  · exact checked_0_169
-  · exact checked_0_170
-  · exact checked_0_171
-  · exact checked_0_172
-  · exact checked_0_173
-  · exact checked_0_174
-  · exact checked_0_175
-  · exact checked_0_176
-  · exact checked_0_177
-  · exact checked_0_178
-  · exact checked_0_179
-  · exact checked_0_180
-  · exact checked_0_181
-  · exact checked_0_182
-  · exact checked_0_183
-  · exact checked_0_184
-  · exact checked_0_185
-  · exact checked_0_186
-  · exact checked_0_187
-  · exact checked_0_188
-  · exact checked_0_189
-  · exact checked_0_190
-  · exact checked_0_191
-  · exact checked_0_192
-  · exact checked_0_193
-  · exact checked_0_194
-  · exact checked_0_195
-  · exact checked_0_196
-  · exact checked_0_197
-  · exact checked_0_198
-  · exact checked_0_199
+private def checkRowBlock1_24 : ∀ i : Fin 8, rowValid 1 (192 + i.val) = true := by
+  decide +kernel
 
-set_option maxHeartbeats 2000000 in
-theorem checked_odd : ∀ i : Fin 200, rowValid 1 i.val = true := by
-  intro i
-  fin_cases i
-  · exact checked_1_0
-  · exact checked_1_1
-  · exact checked_1_2
-  · exact checked_1_3
-  · exact checked_1_4
-  · exact checked_1_5
-  · exact checked_1_6
-  · exact checked_1_7
-  · exact checked_1_8
-  · exact checked_1_9
-  · exact checked_1_10
-  · exact checked_1_11
-  · exact checked_1_12
-  · exact checked_1_13
-  · exact checked_1_14
-  · exact checked_1_15
-  · exact checked_1_16
-  · exact checked_1_17
-  · exact checked_1_18
-  · exact checked_1_19
-  · exact checked_1_20
-  · exact checked_1_21
-  · exact checked_1_22
-  · exact checked_1_23
-  · exact checked_1_24
-  · exact checked_1_25
-  · exact checked_1_26
-  · exact checked_1_27
-  · exact checked_1_28
-  · exact checked_1_29
-  · exact checked_1_30
-  · exact checked_1_31
-  · exact checked_1_32
-  · exact checked_1_33
-  · exact checked_1_34
-  · exact checked_1_35
-  · exact checked_1_36
-  · exact checked_1_37
-  · exact checked_1_38
-  · exact checked_1_39
-  · exact checked_1_40
-  · exact checked_1_41
-  · exact checked_1_42
-  · exact checked_1_43
-  · exact checked_1_44
-  · exact checked_1_45
-  · exact checked_1_46
-  · exact checked_1_47
-  · exact checked_1_48
-  · exact checked_1_49
-  · exact checked_1_50
-  · exact checked_1_51
-  · exact checked_1_52
-  · exact checked_1_53
-  · exact checked_1_54
-  · exact checked_1_55
-  · exact checked_1_56
-  · exact checked_1_57
-  · exact checked_1_58
-  · exact checked_1_59
-  · exact checked_1_60
-  · exact checked_1_61
-  · exact checked_1_62
-  · exact checked_1_63
-  · exact checked_1_64
-  · exact checked_1_65
-  · exact checked_1_66
-  · exact checked_1_67
-  · exact checked_1_68
-  · exact checked_1_69
-  · exact checked_1_70
-  · exact checked_1_71
-  · exact checked_1_72
-  · exact checked_1_73
-  · exact checked_1_74
-  · exact checked_1_75
-  · exact checked_1_76
-  · exact checked_1_77
-  · exact checked_1_78
-  · exact checked_1_79
-  · exact checked_1_80
-  · exact checked_1_81
-  · exact checked_1_82
-  · exact checked_1_83
-  · exact checked_1_84
-  · exact checked_1_85
-  · exact checked_1_86
-  · exact checked_1_87
-  · exact checked_1_88
-  · exact checked_1_89
-  · exact checked_1_90
-  · exact checked_1_91
-  · exact checked_1_92
-  · exact checked_1_93
-  · exact checked_1_94
-  · exact checked_1_95
-  · exact checked_1_96
-  · exact checked_1_97
-  · exact checked_1_98
-  · exact checked_1_99
-  · exact checked_1_100
-  · exact checked_1_101
-  · exact checked_1_102
-  · exact checked_1_103
-  · exact checked_1_104
-  · exact checked_1_105
-  · exact checked_1_106
-  · exact checked_1_107
-  · exact checked_1_108
-  · exact checked_1_109
-  · exact checked_1_110
-  · exact checked_1_111
-  · exact checked_1_112
-  · exact checked_1_113
-  · exact checked_1_114
-  · exact checked_1_115
-  · exact checked_1_116
-  · exact checked_1_117
-  · exact checked_1_118
-  · exact checked_1_119
-  · exact checked_1_120
-  · exact checked_1_121
-  · exact checked_1_122
-  · exact checked_1_123
-  · exact checked_1_124
-  · exact checked_1_125
-  · exact checked_1_126
-  · exact checked_1_127
-  · exact checked_1_128
-  · exact checked_1_129
-  · exact checked_1_130
-  · exact checked_1_131
-  · exact checked_1_132
-  · exact checked_1_133
-  · exact checked_1_134
-  · exact checked_1_135
-  · exact checked_1_136
-  · exact checked_1_137
-  · exact checked_1_138
-  · exact checked_1_139
-  · exact checked_1_140
-  · exact checked_1_141
-  · exact checked_1_142
-  · exact checked_1_143
-  · exact checked_1_144
-  · exact checked_1_145
-  · exact checked_1_146
-  · exact checked_1_147
-  · exact checked_1_148
-  · exact checked_1_149
-  · exact checked_1_150
-  · exact checked_1_151
-  · exact checked_1_152
-  · exact checked_1_153
-  · exact checked_1_154
-  · exact checked_1_155
-  · exact checked_1_156
-  · exact checked_1_157
-  · exact checked_1_158
-  · exact checked_1_159
-  · exact checked_1_160
-  · exact checked_1_161
-  · exact checked_1_162
-  · exact checked_1_163
-  · exact checked_1_164
-  · exact checked_1_165
-  · exact checked_1_166
-  · exact checked_1_167
-  · exact checked_1_168
-  · exact checked_1_169
-  · exact checked_1_170
-  · exact checked_1_171
-  · exact checked_1_172
-  · exact checked_1_173
-  · exact checked_1_174
-  · exact checked_1_175
-  · exact checked_1_176
-  · exact checked_1_177
-  · exact checked_1_178
-  · exact checked_1_179
-  · exact checked_1_180
-  · exact checked_1_181
-  · exact checked_1_182
-  · exact checked_1_183
-  · exact checked_1_184
-  · exact checked_1_185
-  · exact checked_1_186
-  · exact checked_1_187
-  · exact checked_1_188
-  · exact checked_1_189
-  · exact checked_1_190
-  · exact checked_1_191
-  · exact checked_1_192
-  · exact checked_1_193
-  · exact checked_1_194
-  · exact checked_1_195
-  · exact checked_1_196
-  · exact checked_1_197
-  · exact checked_1_198
-  · exact checked_1_199
+theorem checked_odd (i : Fin 200) : rowValid 1 i.val = true := by
+  have verified (b : Fin 25) (r : Fin 8) : rowValid 1 (8 * b.val + r.val) = true := by
+    fin_cases b
+    · exact checkRowBlock1_0 r
+    · exact checkRowBlock1_1 r
+    · exact checkRowBlock1_2 r
+    · exact checkRowBlock1_3 r
+    · exact checkRowBlock1_4 r
+    · exact checkRowBlock1_5 r
+    · exact checkRowBlock1_6 r
+    · exact checkRowBlock1_7 r
+    · exact checkRowBlock1_8 r
+    · exact checkRowBlock1_9 r
+    · exact checkRowBlock1_10 r
+    · exact checkRowBlock1_11 r
+    · exact checkRowBlock1_12 r
+    · exact checkRowBlock1_13 r
+    · exact checkRowBlock1_14 r
+    · exact checkRowBlock1_15 r
+    · exact checkRowBlock1_16 r
+    · exact checkRowBlock1_17 r
+    · exact checkRowBlock1_18 r
+    · exact checkRowBlock1_19 r
+    · exact checkRowBlock1_20 r
+    · exact checkRowBlock1_21 r
+    · exact checkRowBlock1_22 r
+    · exact checkRowBlock1_23 r
+    · exact checkRowBlock1_24 r
+  have h := i.isLt
+  have hindex : 8 * (i.val / 8) + i.val % 8 = i.val := by omega
+  simpa only [hindex] using verified ⟨i.val / 8, by omega⟩ ⟨i.val % 8, by omega⟩
 
 end A71524Data
 

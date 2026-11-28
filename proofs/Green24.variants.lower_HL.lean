@@ -7,11 +7,10 @@ open Green24 Green24.variants Filter Finset
 theorem OMA.solution : type_of% @Green24.variants.lower_HL := by
   unfold gamma
   refine le_limsup_of_frequently_le (frequently_atTop.mpr fun n => ?_)
-    ⟨1, show ∀ᶠ n : ℕ in atTop, (max013AffineTranslates n : ℝ) / (n : ℝ) ^ 2 ≤ 1 from
-      .of_forall fun n => by
-        by_cases hn : n = 0
-        · simp [hn]
-        · exact (div_le_one (by positivity)).mpr (by exact_mod_cast upper_trivial (n := n))⟩
+    ⟨1, eventually_map.mpr (.of_forall fun n => by
+      by_cases hn : n = 0
+      · simp [hn]
+      · exact (div_le_one (by positivity)).mpr (by exact_mod_cast upper_trivial (n := n)))⟩
   let m := n + 1
   refine ⟨6 * m, by omega, ?_⟩
   let A : Finset ℤ := Ico 0 (6 * m)
@@ -20,8 +19,9 @@ theorem OMA.solution : type_of% @Green24.variants.lower_HL := by
   have hlo : 3 * m * m ≤ P.card := by
     simpa using Fintype.card_le_of_embedding (⟨fun u => ⟨f u, by
       have := u.1.isLt; have := u.2.isLt; simp [P, A, f]; omega⟩, fun u v h => by
-      have h1 := congrArg (fun x : P => x.1.1) h; have h2 := congrArg (fun x : P => x.1.2) h
-      dsimp [f] at h1 h2; exact Prod.ext (Fin.ext (by omega)) (Fin.ext (by omega))⟩ :
+      have hv : f u = f v := congrArg Subtype.val h
+      simp only [f, Prod.mk.injEq] at hv
+      ext <;> omega⟩ :
       Fin (3 * m) × Fin m ↪ P)
   have hhi : P.card ≤ max013AffineTranslates (6 * m) := le_csSup
     ⟨(6 * m) ^ 2, by rintro _ ⟨B, hB, rfl⟩; exact (card_filter_le ..).trans_eq (by simp [hB, sq])⟩

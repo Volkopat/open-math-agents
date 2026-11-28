@@ -1408,29 +1408,8 @@ theorem prime_pairs_upper_bound {c : ℝ} (hc : 0 < c) (hG : PairGLowerBound c) 
 /-- The sieving primes for an arithmetic progression modulo `q`: primes `< z` not dividing `q`. -/
 noncomputable def apPrimes (q z : ℕ) : Finset ℕ := (Nat.primesBelow z).filter (fun p => ¬ p ∣ q)
 
-/-- Selberg's `G(z)` for an arithmetic progression modulo `q`:
-`Σ_{m < z, m ∣ P(z), (m, q) = 1} Π_{p ∣ m} 1/(p - 1)`. -/
-noncomputable def apG (q z : ℕ) : ℝ :=
-  selbergG (fun p : ℕ => (1 : ℝ) / p) (levelFamily (apPrimes q z) z)
-
 /-- The local condition of the progression sieve: `p ∣ b + q t`. -/
 def apCond (b q : ℕ) (p t : ℕ) : Prop := p ∣ b + q * t
-
-theorem apCond_periodic (b q p t : ℕ) : apCond b q p t ↔ apCond b q p (t % p) := by
-  unfold apCond
-  simp only [Nat.dvd_iff_mod_eq_zero, Nat.mul_mod, Nat.add_mod, Nat.mod_mod]
-
-theorem omega_apCond {b q p : ℕ} (hp : p.Prime) (hpq : ¬ p ∣ q) : omega (apCond b q) p = 1 := by
-  unfold omega apCond
-  have hcop : Nat.Coprime q p := ((Nat.Prime.coprime_iff_not_dvd hp).mpr hpq).symm
-  have := card_filter_range_shift (fun u => p ∣ u) hp.pos hcop
-    (fun n => by simp only [Nat.dvd_iff_mod_eq_zero, Nat.mod_mod]) b
-  have h0 : (range p).filter (fun u => p ∣ u) = {0} := by
-    ext u; simp only [mem_filter, mem_range, mem_singleton]
-    exact ⟨fun h => Nat.eq_zero_of_dvd_of_lt h.2 h.1, fun h => h ▸ ⟨hp.pos, dvd_zero p⟩⟩
-  have h2 : ((range p).filter (fun u => p ∣ u)).card = 1 := by rw [h0, card_singleton]
-  convert this.trans h2 using 2
-  ext t; simp
 
 /-! ## A lower bound for `G` (Rankin's trick) -/
 
@@ -2192,29 +2171,6 @@ open Finset
 namespace RomB
 open RomA
 
-theorem cs_image {α β : Type*} [DecidableEq β] (s : Finset α) (g : α → β) :
-    s.card ^ 2 ≤ (s.image g).card * ∑ a ∈ s, ∑ b ∈ s, (if g a = g b then 1 else 0) := by
-  have h1 := Finset.card_eq_sum_card_image g s
-  have h2 : ∑ a ∈ s, ∑ b ∈ s, (if g a = g b then 1 else 0) =
-      ∑ v ∈ s.image g, (s.filter (fun a => g a = v)).card ^ 2 := by
-    have : ∀ a ∈ s, ∑ b ∈ s, (if g a = g b then 1 else 0) = (s.filter (fun b => g b = g a)).card := by
-      intro a _
-      rw [Finset.card_filter]
-      apply sum_congr rfl
-      intro b _
-      by_cases h : g a = g b
-      · rw [if_pos h, if_pos h.symm]
-      · rw [if_neg h, if_neg (fun h' => h h'.symm)]
-    rw [sum_congr rfl this]
-    rw [← Finset.sum_fiberwise_of_maps_to (g := g) (t := s.image g) (fun a ha => mem_image_of_mem g ha)]
-    apply sum_congr rfl
-    intro v _
-    rw [Finset.sum_const_nat (m := (s.filter (fun b => g b = v)).card)
-      (fun a ha => by rw [(mem_filter.mp ha).2]), sq]
-  rw [h2, h1]
-  have := sq_sum_le_card_mul_sum_sq (s := s.image g) (f := fun v => (s.filter (fun a => g a = v)).card)
-  simpa using this
-
 noncomputable def P (y : ℕ) : Finset ℕ := Nat.primesLE y
 
 noncomputable def G (y d : ℕ) : ℕ := ((range (y + 1)).filter (fun p => p.Prime ∧ (p + d).Prime)).card
@@ -2333,86 +2289,6 @@ theorem range_sum (H : ℕ → ℝ) (K : ℕ) :
   have : range (K + 1) = insert 0 (Ioc 0 K) := by ext m; simp only [mem_range, mem_insert, mem_Ioc]; omega
   rw [this, sum_insert (by simp)]
 
-/-- The collision count. -/
-theorem E_bound : ∃ D : ℝ, 0 < D ∧ ∀ y K : ℕ, 2 ≤ y → 1 ≤ K →
-    ((∑ a ∈ P y ×ˢ Ioc 0 K, ∑ b ∈ P y ×ˢ Ioc 0 K,
-      (if a.1 + 2 ^ a.2 = b.1 + 2 ^ b.2 then 1 else 0) : ℕ) : ℝ) ≤
-      K * (P y).card + D * ((y : ℝ) / Real.log y ^ 2) * K ^ 2 := by
-  obtain ⟨C, hC, hpair⟩ := OMALib.Sieve.prime_pairs_upper_bound'
-  obtain ⟨B, hB, hS⟩ := S_bound
-  refine ⟨C * (2 * (2 + B)), by positivity, ?_⟩
-  intro y K hy hK
-  set C' := C * ((y : ℝ) / Real.log y ^ 2) with hC'
-  have hC'0 : 0 ≤ C' := by positivity
-  set H : ℕ → ℝ := fun m => F (2 ^ m - 1) with hHdef
-  have hH : ∀ m, 0 ≤ H m := fun m => F_nonneg _
-  have hH0 : H 0 = 1 := by simp [hHdef, F_zero]
-  have hcnt : ∀ k ∈ Ioc 0 K, ∀ l ∈ Ioc 0 K,
-      ((∑ p ∈ P y, ∑ q ∈ P y, (if p + 2 ^ k = q + 2 ^ l then 1 else 0) : ℕ) : ℝ) ≤
-        (if k = l then ((P y).card : ℝ) else 0) + C' * (H (l - k) + H (k - l)) := by
-    intro k hk l hl
-    have hk0 : 0 < k := (mem_Ioc.mp hk).1
-    have hl0 : 0 < l := (mem_Ioc.mp hl).1
-    have hsum0 : 0 ≤ C' * (H (l - k) + H (k - l)) := mul_nonneg hC'0 (add_nonneg (hH _) (hH _))
-    rcases lt_trichotomy k l with hkl | rfl | hlk
-    · rw [if_neg hkl.ne]
-      have h1 := cnt_lt y k l hkl
-      obtain ⟨hd0, hde⟩ := diff_pos_even k l hk0 hkl
-      have h2 := hpair _ hd0 hde y hy
-      have h3 : F (2 ^ l - 2 ^ k) = H (l - k) := by
-        rw [diff_eq k l hkl.le, F_two_pow_mul]
-      unfold F at h3
-      have hG : ((G y (2 ^ l - 2 ^ k) : ℕ) : ℝ) ≤ C' * H (l - k) := by
-        rw [← h3]; unfold G; exact h2
-      have : ((∑ p ∈ P y, ∑ q ∈ P y, (if p + 2 ^ k = q + 2 ^ l then 1 else 0) : ℕ) : ℝ) ≤
-          (G y (2 ^ l - 2 ^ k) : ℝ) := by exact_mod_cast h1
-      have := mul_nonneg hC'0 (hH (k - l))
-      nlinarith
-    · rw [if_pos rfl, cnt_diag]
-      linarith
-    · rw [if_neg hlk.ne']
-      have h1 := cnt_gt y k l hlk
-      obtain ⟨hd0, hde⟩ := diff_pos_even l k hl0 hlk
-      have h2 := hpair _ hd0 hde y hy
-      have h3 : F (2 ^ k - 2 ^ l) = H (k - l) := by
-        rw [diff_eq l k hlk.le, F_two_pow_mul]
-      unfold F at h3
-      have hG : ((G y (2 ^ k - 2 ^ l) : ℕ) : ℝ) ≤ C' * H (k - l) := by
-        rw [← h3]; unfold G; exact h2
-      have : ((∑ p ∈ P y, ∑ q ∈ P y, (if p + 2 ^ k = q + 2 ^ l then 1 else 0) : ℕ) : ℝ) ≤
-          (G y (2 ^ k - 2 ^ l) : ℝ) := by exact_mod_cast h1
-      have := mul_nonneg hC'0 (hH (l - k))
-      nlinarith
-  have hrow : ∀ k ∈ Ioc 0 K, ∑ l ∈ Ioc 0 K, (H (l - k) + H (k - l)) ≤ 2 * (2 + B) * K := by
-    intro k hk
-    have hkK : k ≤ K := (mem_Ioc.mp hk).2
-    rw [sum_add_distrib]
-    have h1 := sum_sub_le H hH k K
-    have h2 := sum_sub_le' H hH k K hkK
-    have h3 := range_sum H K
-    have h4 := hS K
-    have hK1 : (1 : ℝ) ≤ K := by exact_mod_cast hK
-    rw [hH0] at h1 h2 h3
-    nlinarith
-  rw [E_eq]
-  push_cast
-  calc _ ≤ ∑ k ∈ Ioc 0 K, ∑ l ∈ Ioc 0 K,
-          ((if k = l then ((P y).card : ℝ) else 0) + C' * (H (l - k) + H (k - l))) := by
-        apply sum_le_sum; intro k hk; apply sum_le_sum; intro l hl
-        have := hcnt k hk l hl
-        push_cast at this
-        exact this
-    _ = ∑ k ∈ Ioc 0 K, ((P y).card : ℝ) + C' * ∑ k ∈ Ioc 0 K, ∑ l ∈ Ioc 0 K, (H (l - k) + H (k - l)) := by
-        rw [mul_sum, ← sum_add_distrib]
-        apply sum_congr rfl; intro k hk
-        rw [sum_add_distrib, Finset.sum_ite_eq, if_pos hk, mul_sum]
-    _ ≤ ∑ k ∈ Ioc 0 K, ((P y).card : ℝ) + C' * ∑ k ∈ Ioc 0 K, (2 * (2 + B) * K) := by
-        gcongr with k hk
-        exact hrow k hk
-    _ = K * (P y).card + C * (2 * (2 + B)) * ((y : ℝ) / Real.log y ^ 2) * K ^ 2 := by
-        simp only [sum_const, Nat.card_Ioc, nsmul_eq_mul, hC', Nat.sub_zero]
-        ring
-
 end RomB
 
 
@@ -2466,96 +2342,6 @@ open Finset
 
 namespace RomD
 open RomA RomB RomC
-
-/-- Chebyshev's upper bound in the form `π(x) log x ≤ 7 x`. -/
-theorem pi_upper (x : ℕ) (hx : 2 ≤ x) : ((P x).card : ℝ) * Real.log x ≤ 7 * x := by
-  have hxR : (2 : ℝ) ≤ x := by exact_mod_cast hx
-  have hlx : 0 < Real.log x := Real.log_pos (by linarith)
-  have hper : ∀ p ∈ P x, Real.log x ≤
-      2 * Real.log p + (if p * p ≤ x then Real.log x else 0) := by
-    intro p hp
-    have hp' := Nat.mem_primesLE.mp hp
-    have hp1 : (1 : ℝ) ≤ p := by exact_mod_cast hp'.2.one_lt.le
-    have hlp : 0 ≤ Real.log p := Real.log_nonneg hp1
-    split_ifs with h
-    · linarith
-    · have hlt : (x : ℝ) < (p : ℝ) ^ 2 := by
-        have : x < p * p := by omega
-        rw [sq]; exact_mod_cast this
-      have := Real.log_lt_log (by linarith) hlt
-      rw [Real.log_pow] at this
-      push_cast at this
-      linarith
-  have hsum := Finset.sum_le_sum hper
-  rw [sum_const, nsmul_eq_mul, sum_add_distrib, ← mul_sum, ← sum_filter, sum_const,
-    nsmul_eq_mul] at hsum
-  have hθ : ∑ p ∈ P x, Real.log p ≤ Real.log 4 * x := by
-    rw [P, ← Chebyshev.theta_eq_sum_primesLE_log]
-    exact Chebyshev.theta_le_log4_mul_x (by positivity)
-  set s := Nat.sqrt x with hs
-  have hcard : ((P x).filter (fun p => p * p ≤ x)).card ≤ s + 1 := by
-    calc ((P x).filter (fun p => p * p ≤ x)).card ≤ (range (s + 1)).card := by
-          apply card_le_card
-          intro p hp
-          have := (mem_filter.mp hp).2
-          simp only [mem_range]
-          exact Nat.lt_succ_of_le (Nat.le_sqrt.mpr this)
-      _ = s + 1 := card_range _
-  have hs1 : 1 ≤ s := Nat.le_sqrt.mpr (by omega)
-  have hss : s * s ≤ x := Nat.sqrt_le x
-  have hlt : x < (s + 1) * (s + 1) := Nat.lt_succ_sqrt x
-  have hlogx : Real.log x ≤ 2 * s := by
-    have h1 : (x : ℝ) < ((s : ℝ) + 1) ^ 2 := by rw [sq]; exact_mod_cast hlt
-    have h2 := Real.log_lt_log (by linarith) h1
-    rw [Real.log_pow] at h2
-    have h3 := Real.log_le_sub_one_of_pos (show (0 : ℝ) < (s : ℝ) + 1 by positivity)
-    push_cast at h2
-    linarith
-  have hcardR : (((P x).filter (fun p => p * p ≤ x)).card : ℝ) ≤ s + 1 := by exact_mod_cast hcard
-  have hs1R : (1 : ℝ) ≤ s := by exact_mod_cast hs1
-  have hssR : (s : ℝ) * s ≤ x := by exact_mod_cast hss
-  have hlog4 : Real.log 4 < 3 / 2 := by
-    have : Real.log 4 = 2 * Real.log 2 := by
-      rw [show (4 : ℝ) = 2 ^ 2 by norm_num, Real.log_pow]; norm_num
-    linarith [Real.log_two_lt_d9]
-  have h5 : (((P x).filter (fun p => p * p ≤ x)).card : ℝ) * Real.log x ≤ 4 * x := by
-    calc _ ≤ ((s : ℝ) + 1) * (2 * s) := mul_le_mul hcardR hlogx hlx.le (by positivity)
-      _ ≤ 4 * (s * s) := by nlinarith
-      _ ≤ 4 * x := by linarith
-  have hx0 : (0 : ℝ) ≤ x := by positivity
-  nlinarith
-
-theorem sum_sq_fib {α β : Type*} [DecidableEq β] (s : Finset α) (g : α → β) :
-    ∑ a ∈ s, ∑ b ∈ s, (if g a = g b then 1 else 0) =
-      ∑ v ∈ s.image g, (s.filter (fun a => g a = v)).card ^ 2 := by
-  have : ∀ a ∈ s, ∑ b ∈ s, (if g a = g b then 1 else 0) = (s.filter (fun b => g b = g a)).card := by
-    intro a _
-    rw [Finset.card_filter]
-    apply sum_congr rfl
-    intro b _
-    by_cases h : g a = g b
-    · rw [if_pos h, if_pos h.symm]
-    · rw [if_neg h, if_neg (fun h' => h h'.symm)]
-  rw [sum_congr rfl this]
-  rw [← Finset.sum_fiberwise_of_maps_to (g := g) (t := s.image g) (fun a ha => mem_image_of_mem g ha)]
-  apply sum_congr rfl
-  intro v _
-  rw [Finset.sum_const_nat (m := (s.filter (fun b => g b = v)).card)
-    (fun a ha => by rw [(mem_filter.mp ha).2]), sq]
-
-/-- The representation function `r(n)` is at most the fibre size of `(p, k) ↦ p + 2^k`. -/
-theorem r_le_fib (x n : ℕ) (hn : n ≤ x) :
-    ((range n).filter (fun k => 1 ≤ k ∧ 2 ^ k < n ∧ (n - 2 ^ k).Prime ∧ n - 2 ^ k ≠ 2)).card ≤
-      ((P x ×ˢ Ioc 0 (Nat.log 2 x)).filter (fun a => a.1 + 2 ^ a.2 = n)).card := by
-  apply card_le_card_of_injOn (fun k => (n - 2 ^ k, k))
-  · intro k hk
-    simp only [coe_filter, Set.mem_ofPred_eq, mem_range] at hk
-    simp only [coe_filter, Set.mem_ofPred_eq, mem_product, P, Nat.mem_primesLE, mem_Ioc]
-    refine ⟨⟨⟨(Nat.sub_le _ _).trans hn, hk.2.2.2.1⟩, by omega,
-      Nat.le_log_of_pow_le (by norm_num) ((hk.2.2.1.le).trans hn)⟩, Nat.sub_add_cancel hk.2.2.1.le⟩
-  · intro a _ b _ hab
-    simp only [Prod.mk.injEq] at hab
-    exact hab.2
 
 theorem H1_proof : OMA.R_Erdos16_erdos_16_variant_romanoff_R1.H1 := by
   obtain ⟨y0, hy0⟩ := pi_lower

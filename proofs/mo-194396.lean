@@ -1,5 +1,7 @@
 import OMAStatements.S_mo_194396
 
+/-! Credit: @Genbox for the original counterexample proof. -/
+
 open Matrix
 open scoped Matrix
 
@@ -52,15 +54,11 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_194396.main) := by
       _ = Eᵀ * (Eᵀ * E) * E := by rw [hcomm]
       _ = (Eᵀ * Eᵀ) * (E * E) := by noncomm_ring
       _ = 0 := by rw [hsq, mul_zero]
-  have hRstar : Rᴴ = R := by
-    rw [Matrix.conjTranspose_eq_transpose_of_trivial]
-    simp [R]
-  have hRzero : R = 0 := Matrix.trace_conjTranspose_mul_self_eq_zero_iff.mp (by
-    rw [hRstar, hRsq, Matrix.trace_zero])
-  have hEzero : E = 0 := Matrix.trace_conjTranspose_mul_self_eq_zero_iff.mp (by
-    rw [Matrix.conjTranspose_eq_transpose_of_trivial]
-    change R.trace = 0
-    rw [hRzero, Matrix.trace_zero])
+  have hEzero : E = 0 := by
+    apply Matrix.conjTranspose_mul_self_eq_zero.mp
+    apply Matrix.conjTranspose_mul_self_eq_zero.mp
+    simpa [Matrix.conjTranspose_eq_transpose_of_trivial, Matrix.transpose_mul, R]
+      using hRsq
   apply hMne
   calc
     M = (T * T⁻¹) * M * (T * T⁻¹) := by

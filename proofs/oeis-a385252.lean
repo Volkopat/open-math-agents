@@ -203,52 +203,6 @@ theorem solution : ∀ n : ℕ, 6 ≤ n → residual n = 0 := by
   · convert b_step (t+2) using 1 <;> push_cast <;> ring_nf
   · convert b_step (t+3) using 1 <;> push_cast <;> ring_nf
 
-/-- The index 5 already uses six defined terms, but the homogeneous relation fails there. -/
-theorem residual_five : residual 5 = -6912 := by
-  have ha0 : a 0 = 0 := by simp [a]
-  have ha1 : a 1 = 0 := by
-    unfold a
-    apply Finset.sum_eq_zero
-    intro w _
-    have h : ¬(0 < zeros w ∧ zeros w < 1) := by omega
-    exact if_neg h
-  have hb1 : b 1 = 2 := by norm_num [b, catalan_eq_centralBinom_div, Nat.centralBinom, Nat.choose]
-  have hb2 : b 2 = 8 := by norm_num [b, catalan_eq_centralBinom_div, Nat.centralBinom, Nat.choose]
-  have hb3 : b 3 = 40 := by norm_num [b, catalan_eq_centralBinom_div, Nat.centralBinom, Nat.choose]
-  have hb4 : b 4 = 224 := by norm_num [b, catalan_eq_centralBinom_div, Nat.centralBinom, Nat.choose]
-  have s1 := a_step 1 (by decide)
-  have s2 := a_step 2 (by decide)
-  have s3 := a_step 3 (by decide)
-  have s4 := a_step 4 (by decide)
-  norm_num [ha1, hb1, hb2, hb3, hb4] at s1 s2 s3 s4
-  norm_num [residual, ha1, ha0]
-  linarith
-
-/-- A shorter recurrence: a second difference leaves just one hypergeometric term. -/
-theorem short_recurrence (n : ℕ) (hn : 0 < n) :
-    let t : ℤ := n
-    (t+3)*(t^2+3*t-1)*(a (n+3) - 13*a (n+2) + 36*a (n+1)) =
-      4*(2*t+1)*(t^2+5*t+3)*(a (n+2) - 13*a (n+1) + 36*a n) := by
-  dsimp only
-  have second (k : ℕ) (hk : 0 < k) :
-      ((k : ℤ)+2) * (a (k+2) - 13*a (k+1) + 36*a k) =
-        8 * ((k : ℤ)^2 + 3*(k : ℤ) - 1) * b k := by
-    have s1 := a_step (k+1) (by omega)
-    push_cast at s1
-    rw [pow_succ] at s1
-    linear_combination ((k : ℤ)+2)*s1 - 4*((k : ℤ)+2)*a_step k hk +
-      (2*(k : ℤ)+6)*b_step k
-  have next := second (n+1) (by omega)
-  push_cast at next
-  have h :
-      (((n : ℤ)+3)*((n : ℤ)^2+3*(n : ℤ)-1)*(a (n+3)-13*a (n+2)+36*a (n+1)) -
-        4*(2*(n : ℤ)+1)*((n : ℤ)^2+5*(n : ℤ)+3)*(a (n+2)-13*a (n+1)+36*a n)) *
-        ((n : ℤ)+2) = 0 := by
-    linear_combination ((n : ℤ)+2)*((n : ℤ)^2+3*(n : ℤ)-1)*next -
-      4*(2*(n : ℤ)+1)*((n : ℤ)^2+5*(n : ℤ)+3)*second n hn +
-      8*((n : ℤ)^2+3*(n : ℤ)-1)*((n : ℤ)^2+5*(n : ℤ)+3)*b_step n
-  exact sub_eq_zero.mp ((mul_eq_zero.mp h).resolve_right (by omega))
-
 end OMA.S_oeis_a385252
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a385252.main :=

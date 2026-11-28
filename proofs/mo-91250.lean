@@ -4,8 +4,14 @@ import OMAStatements.S_mo_91250
 # Determinant of a sum of two matrices (one dominating the other)
 
 Source: Sasho Nikolov's question on MathOverflow, https://mathoverflow.net/questions/91250.
-Proof by @grp06, using the Leibniz formula with the explicit threshold K = n.
+Proof by @grp06 (#26905), using the Leibniz formula with the explicit threshold K = n.
+The earlier companion by @etaubman, linked from statement #20478, also proves
+this dimension-dependent threshold. This retains the merged proof's direct
+entry bound and replaces only its explicit sign cases by the unit-action norm API.
+No dimension-independent threshold or general K = 2 claim is made.
 -/
+
+-- The standard unit-action norm identity removes the explicit sign cases.
 
 open scoped BigOperators
 open OMA.S_mo_91250
@@ -20,14 +26,8 @@ private theorem det_le_factorial_mul_pow {n : ℕ}
     have hprod :
         (∏ i : Fin n, A (σ i) i) ≤ ∏ _ : Fin n, T :=
       Finset.prod_le_prod (fun i _ => hA (σ i) i) (fun i _ => hT (σ i) i)
-    have hnonneg : 0 ≤ ∏ i : Fin n, A (σ i) i :=
-      Finset.prod_nonneg (fun i _ => hA (σ i) i)
-    have habs : |Equiv.Perm.sign σ • ∏ i : Fin n, A (σ i) i| =
-        ∏ i : Fin n, A (σ i) i := by
-      rcases Int.units_eq_one_or (Equiv.Perm.sign σ) with hsign | hsign
-      · rw [hsign, one_smul, abs_of_nonneg hnonneg]
-      · simp [hsign, Units.smul_def, abs_of_nonneg hnonneg]
-    rw [habs]
+    rw [← Real.norm_eq_abs, norm_units_zsmul, Real.norm_eq_abs,
+      abs_of_nonneg (Finset.prod_nonneg (fun i _ => hA (σ i) i))]
     simpa only [Finset.prod_const, Finset.card_univ, Fintype.card_fin] using hprod
   rw [Matrix.det_apply]
   calc

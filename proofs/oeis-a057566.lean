@@ -1,5 +1,7 @@
 import OMAStatements.S_oeis_a057566
 
+/-! The counting bijection is from @Genbox's proof in PR #14356. -/
+
 namespace OMA.A057566Proof
 open OMA.S_oeis_a057566 Finset
 
@@ -59,12 +61,9 @@ theorem surj {S : Finset (Fin 3 × Fin n)} (hS : S.card = 3) (hG : ∀ p ∈ S, 
     first
     | omega
     | exact A hS m1 m2 m3 x y z
-    | exact B hS m1 m2 m3 (by omega)
-    | exact B hS m1 m3 m2 (by omega)
-    | exact B hS m2 m1 m3 (by omega)
-    | exact B hS m2 m3 m1 (by omega)
-    | exact B hS m3 m1 m2 (by omega)
-    | exact B hS m3 m2 m1 (by omega)
+    | apply B hS
+      all_goals try assumption
+      omega
 
 theorem inj : Function.Injective (@G n) := by
   intro w w' h
@@ -85,23 +84,20 @@ theorem c6 (n : ℕ) : (6 * n.choose 3 : ℤ) = n * (n - 1) * (n - 2) := by
     push_cast
     nlinarith
 
-theorem fm (x : ℤ) : (2 * x ^ 3 - 3 * x ^ 2 - 2 * x + 3) % 24 = 3 * (1 - x % 2) := by
-  have h : ∀ y : ZMod 24, 2 * (2 * y) ^ 3 - 3 * (2 * y) ^ 2 - 2 * (2 * y) + 3 - 3 = 0 ∧
-      2 * (2 * y + 1) ^ 3 - 3 * (2 * y + 1) ^ 2 - 2 * (2 * y + 1) + 3 = 0 := by decide
-  rcases Int.even_or_odd' x with ⟨m, rfl | rfl⟩
-  · have := (ZMod.intCast_zmod_eq_zero_iff_dvd (2 * (2 * m) ^ 3 - 3 * (2 * m) ^ 2 - 2 * (2 * m) + 3 - 3) 24).1
-      (by push_cast; exact (h m).1)
-    generalize 2 * (2 * m) ^ 3 - 3 * (2 * m) ^ 2 - 2 * (2 * m) + 3 = F at *
-    omega
-  · have := (ZMod.intCast_zmod_eq_zero_iff_dvd (2 * (2 * m + 1) ^ 3 - 3 * (2 * m + 1) ^ 2 - 2 * (2 * m + 1) + 3) 24).1
-      (by push_cast; exact (h m).2)
-    generalize 2 * (2 * m + 1) ^ 3 - 3 * (2 * m + 1) ^ 2 - 2 * (2 * m + 1) + 3 = F at *
-    omega
+private def P (x : ℤ) : ℤ := 2 * x ^ 3 - 3 * x ^ 2 - 2 * x + 3
 
-theorem arith (n : ℕ) (hn : 1 ≤ n) :
+theorem fm (x : ℤ) : P x % 24 = 3 * (1 - x % 2) := by
+  have h := (Int.mod_modEq x 24).symm
+  have hp : P x ≡ P (x % 24) [ZMOD 24] :=
+    (((h.pow 3).mul_left 2).sub ((h.pow 2).mul_left 3)).sub (h.mul_left 2) |>.add_right 3
+  rw [hp.eq, (h.of_dvd (by decide : (2 : ℤ) ∣ 24)).eq]
+  have lo : 0 ≤ x % 24 := by omega
+  have hi : x % 24 < 24 := by omega
+  interval_cases h : x % 24 <;> decide
+
+theorem arith (n : ℕ) :
     ((3 * n.choose 3 + (n + 1) / 2 * ((n + 1) / 2) + n / 2 * (n / 2) : ℕ) : ℤ) =
-      5 * ((2 * n ^ 3 - 3 * n ^ 2 - 2 * n + 3 : ℤ) / 24) +
-        ((2 * (n - 1) ^ 3 - 3 * (n - 1) ^ 2 - 2 * (n - 1) + 3 : ℤ) / 24) + n := by
+      5 * (P n / 24) + P (n - 1) / 24 + n := by
   have hS : ((n + 1) / 2 * ((n + 1) / 2) + n / 2 * (n / 2)) * 2 = n ^ 2 + n % 2 := by
     rcases Nat.even_or_odd' n with ⟨m, rfl | rfl⟩
     · rw [show (2 * m + 1) / 2 = m by omega, show 2 * m / 2 = m by omega, show 2 * m % 2 = 0 by omega]; ring
@@ -111,11 +107,12 @@ theorem arith (n : ℕ) (hn : 1 ≤ n) :
   push_cast at hS'
   have h1 := fm n
   have h2 := fm (n - 1)
-  have h3 := Int.emod_add_mul_ediv (2 * (n : ℤ) ^ 3 - 3 * n ^ 2 - 2 * n + 3) 24
-  have h4 := Int.emod_add_mul_ediv (2 * ((n : ℤ) - 1) ^ 3 - 3 * (n - 1) ^ 2 - 2 * (n - 1) + 3) 24
+  have h3 := Int.emod_add_mul_ediv (P n) 24
+  have h4 := Int.emod_add_mul_ediv (P (n - 1)) 24
   have h5 : ((n : ℤ) - 1) % 2 = 1 - n % 2 := by omega
   have hC := c6 n
   push_cast
+  unfold P at h1 h2 h3 h4 ⊢
   apply mul_left_cancel₀ (show (24 : ℤ) ≠ 0 by norm_num)
   linear_combination 12 * hC + 12 * hS' - 5 * h3 + 5 * h1 - h4 + h2 - 3 * h5
 theorem a_eq (n : ℕ) : a n = 3 * n.choose 3 + (n + 1) / 2 * ((n + 1) / 2) + n / 2 * (n / 2) := by
@@ -129,6 +126,6 @@ theorem a_eq (n : ℕ) : a n = 3 * n.choose 3 + (n + 1) / 2 * ((n + 1) / 2) + n 
 end OMA.A057566Proof
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a057566.main := by
-  intro n hn
+  intro n _
   rw [OMA.A057566Proof.a_eq]
-  exact OMA.A057566Proof.arith n hn
+  exact OMA.A057566Proof.arith n

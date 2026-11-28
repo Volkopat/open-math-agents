@@ -1,5 +1,12 @@
 import OMAStatements.S_mo_48770
 
+/-!
+Retains @Git-Tim1's limit-transfer proof from PR #28326 and adapts the compact
+nearest-point argument in @etaubman's companion to statement PR #21136,
+commit a1e42e582e28f357b0e7309df8d44d8a14120ff7. The registered compactness
+hypothesis supplies exact minimizers, eliminating the auxiliary error sequence.
+-/
+
 open Filter Topology Set Metric
 open scoped ENNReal
 
@@ -21,6 +28,7 @@ private lemma exists_approx_seq {d : ℕ}
     {D : Set (EuclideanSpace ℝ (Fin d))}
     {Dseq : ℕ → Set (EuclideanSpace ℝ (Fin d))}
     {F : ℕ → EuclideanSpace ℝ (Fin d) → ℝ} {f : EuclideanSpace ℝ (Fin d) → ℝ}
+    (hK : ∀ n, IsCompact (Dseq n))
     (hf : Continuous f)
     (hHaus : Tendsto (fun n ↦ hausdorffEDist (Dseq n) D) atTop (𝓝 0))
     (hF : ∀ K : Set (EuclideanSpace ℝ (Fin d)), IsCompact K →
@@ -30,40 +38,33 @@ private lemma exists_approx_seq {d : ℕ}
       (∀ n ≥ N, xseq n ∈ Dseq n) ∧
       Tendsto xseq atTop (𝓝 x) ∧
       Tendsto (fun n ↦ F n (xseq n)) atTop (𝓝 (f x)) := by
-  have hlt : ∀ᶠ n in atTop, hausdorffEDist (Dseq n) D < ⊤ :=
-    hHaus.eventually (Iio_mem_nhds (by simp))
-  obtain ⟨N, hN⟩ := eventually_atTop.mp hlt
-  let ε : ℕ → ℝ≥0∞ := fun n ↦ ENNReal.ofReal (1 / ((n : ℝ) + 1))
-  have hε_pos : ∀ n, 0 < ε n := fun n ↦ ENNReal.ofReal_pos.mpr (by positivity)
-  have hEx : ∀ n, ∃ y, N ≤ n → y ∈ Dseq n ∧ edist x y < hausdorffEDist (Dseq n) D + ε n := by
+  have hHaus : Tendsto (fun n ↦ hausdorffEDist D (Dseq n)) atTop (𝓝 0) := by
+    simpa only [hausdorffEDist_comm] using hHaus
+  classical
+  have hChoice : ∀ n, ∃ y, (Dseq n).Nonempty →
+      y ∈ Dseq n ∧ dist x y = infDist x (Dseq n) := by
     intro n
-    by_cases hn : N ≤ n
-    · have hne : hausdorffEDist (Dseq n) D ≠ ⊤ := (hN n hn).ne
-      have hinf_le : Metric.infEDist x (Dseq n) ≤ hausdorffEDist (Dseq n) D := by
-        rw [hausdorffEDist_comm]
-        exact infEDist_le_hausdorffEDist_of_mem hx
-      have hinf_lt : Metric.infEDist x (Dseq n) < hausdorffEDist (Dseq n) D + ε n :=
-        lt_of_le_of_lt hinf_le (ENNReal.lt_add_right hne (hε_pos n).ne')
-      rw [infEDist_lt_iff] at hinf_lt
-      obtain ⟨y, hy_mem, hy_dist⟩ := hinf_lt
-      exact ⟨y, fun _ ↦ ⟨hy_mem, hy_dist⟩⟩
-    · exact ⟨x, fun h ↦ absurd h hn⟩
-  choose xseq hxseq using hEx
-  have hε_tendsto : Tendsto ε atTop (𝓝 0) := by
-    have h1 : Tendsto (fun n : ℕ ↦ (1 : ℝ) / ((n : ℝ) + 1)) atTop (𝓝 0) :=
-      tendsto_one_div_add_atTop_nhds_zero_nat
-    simpa [ε, Function.comp_def] using (ENNReal.continuous_ofReal.tendsto 0).comp h1
-  have hsum_tendsto : Tendsto (fun n ↦ hausdorffEDist (Dseq n) D + ε n) atTop (𝓝 0) := by
-    simpa using hHaus.add hε_tendsto
-  have hed_tendsto : Tendsto (fun n ↦ edist (xseq n) x) atTop (𝓝 0) := by
-    refine tendsto_of_tendsto_of_tendsto_of_le_of_le'
-      (tendsto_const_nhds : Tendsto (fun _ : ℕ ↦ (0 : ℝ≥0∞)) atTop (𝓝 0)) hsum_tendsto
-      (Eventually.of_forall fun _ ↦ by simp) ?_
-    filter_upwards [eventually_ge_atTop N] with n hn
-    rw [edist_comm]
-    exact (hxseq n hn).2.le
-  have hx_tendsto : Tendsto xseq atTop (𝓝 x) :=
-    EMetric.tendsto_nhds.mpr fun δ hδ ↦ hed_tendsto.eventually (Iio_mem_nhds hδ)
+    by_cases hn : (Dseq n).Nonempty
+    · obtain ⟨y, hy, hd⟩ := (hK n).exists_infDist_eq_dist hn x
+      exact ⟨y, fun _ ↦ ⟨hy, hd.symm⟩⟩
+    · exact ⟨x, fun h ↦ (hn h).elim⟩
+  choose xseq hu using hChoice
+  have hFin : ∀ᶠ n in atTop, hausdorffEDist D (Dseq n) ≠ ⊤ := by
+    filter_upwards [hHaus.eventually (gt_mem_nhds (show (0 : ℝ≥0∞) < ⊤ by simp))]
+      with n hn using ne_of_lt hn
+  have hMem : ∀ᶠ n in atTop, xseq n ∈ Dseq n := by
+    filter_upwards [hFin] with n hn
+    exact (hu n (nonempty_of_hausdorffEDist_ne_top ⟨x, hx⟩ hn)).1
+  have hx_tendsto : Tendsto xseq atTop (𝓝 x) := by
+    apply tendsto_iff_dist_tendsto_zero.mpr
+    have hR : Tendsto (fun n ↦ hausdorffDist D (Dseq n)) atTop (𝓝 0) := by
+      simpa only [hausdorffDist, ENNReal.toReal_zero, Function.comp_def] using
+        (ENNReal.tendsto_toReal (show (0 : ℝ≥0∞) ≠ ⊤ by simp)).comp hHaus
+    apply squeeze_zero' (Eventually.of_forall fun n ↦ dist_nonneg) _ hR
+    filter_upwards [hFin] with n hn
+    rw [dist_comm, (hu n (nonempty_of_hausdorffEDist_ne_top ⟨x, hx⟩ hn)).2]
+    exact infDist_le_hausdorffDist_of_mem hx hn
+  obtain ⟨N, hxseq⟩ := eventually_atTop.mp hMem
   let K : Set (EuclideanSpace ℝ (Fin d)) := insert x (range xseq)
   have hK_compact : IsCompact K := hx_tendsto.isCompact_insert_range
   have hK_tendsto := hF K hK_compact
@@ -82,7 +83,7 @@ private lemma exists_approx_seq {d : ℕ}
     (hf.tendsto x).comp hx_tendsto
   have hFx : Tendsto (fun n ↦ F n (xseq n)) atTop (𝓝 (f x)) := by
     simpa [sub_add_cancel] using hdiff.add hfx
-  exact ⟨N, xseq, fun n hn ↦ (hxseq n hn).1, hx_tendsto, hFx⟩
+  exact ⟨N, xseq, fun n hn ↦ hxseq n hn, hx_tendsto, hFx⟩
 
 end OMA_mo_48770_aux
 
@@ -91,7 +92,7 @@ theorem OMA.solution : type_of% @OMA.S_mo_48770.main := by
   unfold OMA.S_mo_48770.lipschitzSupNorm
   refine sup_le ?_ ?_
   · refine iSup₂_le fun x hx ↦ ?_
-    obtain ⟨N, xseq, hx_mem, _, hFx⟩ := OMA_mo_48770_aux.exists_approx_seq hf hHaus hF hx
+    obtain ⟨N, xseq, hx_mem, _, hFx⟩ := OMA_mo_48770_aux.exists_approx_seq _hK hf hHaus hF hx
     have hle : |f x| ≤ h := by
       refine le_of_tendsto hFx.abs ?_
       filter_upwards [eventually_ge_atTop N] with n hn
@@ -105,9 +106,9 @@ theorem OMA.solution : type_of% @OMA.S_mo_48770.main := by
       simp
     · have hdist_ne : dist x y ≠ 0 := (dist_pos.mpr hxy).ne'
       obtain ⟨Nx, xseq, hx_mem, hx_tendsto, hFx⟩ :=
-        OMA_mo_48770_aux.exists_approx_seq hf hHaus hF hx
+        OMA_mo_48770_aux.exists_approx_seq _hK hf hHaus hF hx
       obtain ⟨Ny, yseq, hy_mem, hy_tendsto, hFy⟩ :=
-        OMA_mo_48770_aux.exists_approx_seq hf hHaus hF hy
+        OMA_mo_48770_aux.exists_approx_seq _hK hf hHaus hF hy
       have hquot :
           Tendsto (fun n ↦ |F n (xseq n) - F n (yseq n)| / dist (xseq n) (yseq n))
             atTop (𝓝 (|f x - f y| / dist x y)) :=

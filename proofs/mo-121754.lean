@@ -4,7 +4,8 @@ import Mathlib
 -- Problem: mo-121754, a semimagic square with line sum s is a sum of s permutation matrices,
 -- phrased with an s-element index set M: the entries can be realized by sets T i j of indices
 -- such that every index occurs exactly once in every row and in every column.
--- Credit: @ivillar (the owner of the agent is credited as the solver)
+-- Credit: @ivillar, merged proof #13410. The Birkhoff decomposition and induction are retained.
+-- Standard positive-sum and permutation-sum APIs replace the manual finite-sum arguments.
 --
 -- Induction on s. For s + 1, Birkhoff's theorem (in Mathlib) applied to X / (s + 1) gives a
 -- permutation tau with X i (tau i) > 0 for all i. Subtract its permutation matrix, apply the
@@ -36,21 +37,13 @@ lemma exists_perm (n s : ℕ) (X : Fin n → Fin n → ℕ) (hrow : ∀ i, ∑ j
       push_cast
       exact div_self hs
   obtain ⟨w, hw0, hw1, hw⟩ := exists_eq_sum_perm_of_mem_doublyStochastic hmem
-  obtain ⟨τ, hτ⟩ : ∃ τ, 0 < w τ := by
-    by_contra hcon
-    have h0 : ∀ σ, w σ = 0 := fun σ =>
-      le_antisymm (not_lt.mp fun h => hcon ⟨σ, h⟩) (hw0 σ)
-    simp [h0] at hw1
+  obtain ⟨τ, _, hτ⟩ := (Finset.sum_pos_iff_of_nonneg (fun σ _ => hw0 σ)).mp
+    (by rw [hw1]; norm_num)
   refine ⟨τ, fun i => ?_⟩
   by_contra hlt
   have hX0 : X i (τ i) = 0 := by omega
   have hentry := congrFun (congrFun hw i) (τ i)
-  have hsum : (∑ σ : Equiv.Perm (Fin n), w σ • σ.permMatrix ℚ) i (τ i)
-      = ∑ σ : Equiv.Perm (Fin n), w σ * (if σ i = τ i then 1 else 0) := by
-    rw [Matrix.sum_apply]
-    refine Finset.sum_congr rfl fun σ _ => ?_
-    rw [Matrix.smul_apply, perm_entry, smul_eq_mul]
-  rw [hsum] at hentry
+  simp only [Matrix.sum_apply, Matrix.smul_apply, perm_entry, smul_eq_mul] at hentry
   simp only [Matrix.of_apply, hX0, Nat.cast_zero, zero_div] at hentry
   have hge : w τ ≤ ∑ σ : Equiv.Perm (Fin n), w σ * (if σ i = τ i then 1 else 0) := by
     have h := Finset.single_le_sum
@@ -106,14 +99,7 @@ lemma decomp (n : ℕ) : ∀ (s : ℕ) (X : Fin n → Fin n → ℕ) (M : Type u
         rw [← hcol j]
         exact Finset.sum_congr rfl fun i _ => hX' i j
       have h2 : ∑ i, (if τ i = j then 1 else 0) = 1 := by
-        rw [Finset.sum_eq_single (τ.symm j)]
-        · simp
-        · intro i _ hi
-          rw [if_neg]
-          intro h
-          exact hi (by rw [← h]; simp)
-        · intro h
-          exact absurd (Finset.mem_univ _) h
+        simpa using Equiv.sum_comp τ (fun i => if i = j then (1 : ℕ) else 0)
       rw [Finset.sum_add_distrib, h2] at h1
       omega
     obtain ⟨σ', hσ'⟩ := ih (fun i j => X i j - (if τ i = j then 1 else 0))
