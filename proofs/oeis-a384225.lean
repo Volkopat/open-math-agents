@@ -1,227 +1,211 @@
 import OMAStatements.S_oeis_a384225
 
--- Problem: A384225: Irregular triangle read by rows: T(n,k) is the number of odd numbers in the k-th 2-dense sublist of divisors of n, with n >= 1, k 
+-- Problem: A384225 (Conjecture 2: T(n,k) = A384222(n,k) / A001511(n))
 -- Upstream: formal-conjectures statements/oeis-a384225.lean:0 (declaration OMA.S_oeis_a384225.main)
--- Credit: @thtsben2 (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Credit: @SSmurf
 
-open OMA.S_oeis_a384225
+namespace OMA.S_oeis_a384225
 
-private lemma mem_of_mem_splitBy {α : Type*} {r : α → α → Bool} {L b : List α}
-    (hb : b ∈ L.splitBy r) {x : α} (hx : x ∈ b) : x ∈ L := by
-  rw [← List.flatten_splitBy r L]
-  exact List.mem_flatten.mpr ⟨b, hb, hx⟩
+lemma le_getLast_of_pairwise_lt (l : List ℕ) (h : l.Pairwise (· < ·)) (hne : l ≠ [])
+    (a : ℕ) (ha : a ∈ l) : a ≤ l.getLast hne := by
+  have hl := List.dropLast_append_getLast hne
+  have h' : (l.dropLast ++ [l.getLast hne]).Pairwise (· < ·) := by rw [hl]; exact h
+  have ha' : a ∈ l.dropLast ++ [l.getLast hne] := by rw [hl]; exact ha
+  rw [List.pairwise_append] at h'
+  rcases List.mem_append.mp ha' with h1 | h1
+  · exact le_of_lt (h'.2.2 a h1 _ (by simp))
+  · simp at h1; omega
 
-private lemma nodup_of_mem_splitBy {α : Type*} {r : α → α → Bool} {L b : List α}
-    (hL : L.Nodup) (hb : b ∈ L.splitBy r) : b.Nodup := by
-  rw [← List.flatten_splitBy r L] at hL
-  exact (List.nodup_flatten.mp hL).1 b hb
-
-private lemma pairwise_le_of_mem_splitBy {r : ℕ → ℕ → Bool} {L b : List ℕ}
-    (hL : L.Pairwise (· ≤ ·)) (hb : b ∈ L.splitBy r) : b.Pairwise (· ≤ ·) := by
-  rw [← List.flatten_splitBy r L] at hL
-  exact (List.pairwise_flatten.mp hL).1 b hb
-
-private lemma head_le_of_pairwise {L : List ℕ} (hL : L.Pairwise (· ≤ ·))
-    (hne : L ≠ []) {x : ℕ} (hx : x ∈ L) : L.head hne ≤ x := by
-  cases L with
-  | nil => contradiction
-  | cons a t =>
+lemma head_le_of_pairwise_lt (l : List ℕ) (h : l.Pairwise (· < ·)) (hne : l ≠ [])
+    (a : ℕ) (ha : a ∈ l) : l.head hne ≤ a := by
+  cases l with
+  | nil => exact absurd rfl hne
+  | cons b t =>
     simp only [List.head_cons]
-    rcases List.mem_cons.mp hx with rfl | hxt
-    · exact le_rfl
-    · exact (List.pairwise_cons.mp hL).1 x hxt
+    rcases List.mem_cons.mp ha with h1 | h1
+    · exact le_of_eq h1.symm
+    · exact le_of_lt ((List.pairwise_cons.mp h).1 a h1)
 
-private lemma le_getLast_of_pairwise {L : List ℕ} (hL : L.Pairwise (· ≤ ·))
-    (hne : L ≠ []) {x : ℕ} (hx : x ∈ L) : x ≤ L.getLast hne := by
-  induction L generalizing x with
-  | nil => contradiction
-  | cons a t ih =>
-    cases t with
-    | nil =>
-      simp only [List.getLast_singleton]
-      simp only [List.mem_singleton] at hx
-      rw [hx]
-    | cons b t =>
-      rw [List.getLast_cons (List.cons_ne_nil b t)]
-      have ht_pw : (b :: t).Pairwise (· ≤ ·) := (List.pairwise_cons.mp hL).2
-      rcases List.mem_cons.mp hx with rfl | hxt
-      · exact ((List.pairwise_cons.mp hL).1 b List.mem_cons_self).trans
-          (ih ht_pw (List.cons_ne_nil b t) List.mem_cons_self)
-      · exact ih ht_pw (List.cons_ne_nil b t) hxt
-
-private lemma splitBy_closed {L : List ℕ} (hL : L.Pairwise (· ≤ ·)) :
-    let r := fun d e : ℕ => decide (e ≤ 2 * d)
-    ∀ b ∈ L.splitBy r, ∀ x ∈ b, ∀ y ∈ L, y ≤ 2 * x → x ≤ 2 * y → y ∈ b := by
-  intro r b hb x hx y hy hyx hxy
-  set S := L.splitBy r
-  have hchain : S.IsChain fun a c => ∃ ha hc, r (a.getLast ha) (c.head hc) = false :=
-    List.isChain_getLast_head_splitBy r L
-  have hchain_get := List.isChain_iff_getElem.mp hchain
-  have hadj : ∀ i (hi : i + 1 < S.length),
-      ∀ u ∈ S[i], ∀ v ∈ S[i + 1], 2 * u < v := by
-    intro i hi u hu v hv
-    obtain ⟨ha, hc, hfalse⟩ := hchain_get i hi
-    have hlt : 2 * S[i].getLast ha < S[i + 1].head hc := by
-      simpa [r] using hfalse
-    have hu_le : u ≤ S[i].getLast ha :=
-      le_getLast_of_pairwise (pairwise_le_of_mem_splitBy hL (List.getElem_mem _)) ha hu
-    have hv_le : S[i + 1].head hc ≤ v :=
-      head_le_of_pairwise (pairwise_le_of_mem_splitBy hL (List.getElem_mem _)) hc hv
-    omega
-  have hne : ∀ i (hi : i < S.length), S[i] ≠ [] :=
-    fun i hi => List.ne_nil_of_mem_splitBy (List.getElem_mem hi)
-  have hlt_all : ∀ i j (hij : i < j) (hj : j < S.length),
-      ∀ u ∈ S[i], ∀ v ∈ S[j], 2 * u < v := by
-    intro i j hij hj
-    obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_lt hij
-    induction d generalizing i with
-    | zero =>
-      simpa using hadj i hj
-    | succ d ih =>
-      intro u hu v hv
-      have hi1 : i + 1 < i + d + 1 + 1 := by omega
-      have hmid_ne : S[i + d + 1] ≠ [] := hne (i + d + 1) (by omega)
-      obtain ⟨w, hw⟩ := List.exists_mem_of_ne_nil _ hmid_ne
-      have h1 : 2 * u < w := ih i (by omega) (by omega) u hu w hw
-      have h2 : 2 * w < v := hadj (i + d + 1) hj w hw v hv
+lemma same_block (L : List ℕ) (hL : L.Pairwise (· < ·)) (x : ℕ) (hx : x ∈ L)
+    (h2 : 2 * x ∈ L) (hx0 : 0 < x)
+    (B : List ℕ) (hB : B ∈ L.splitBy (fun d e => decide (e ≤ 2 * d))) :
+    x ∈ B ↔ 2 * x ∈ B := by
+  have hch := List.isChain_getLast_head_splitBy (fun d e => decide (e ≤ 2 * d)) L
+  have hflat := List.flatten_splitBy (fun d e => decide (e ≤ 2 * d)) L
+  generalize L.splitBy (fun d e => decide (e ≤ 2 * d)) = P at *
+  have hpw : P.flatten.Pairwise (· < ·) := by rw [hflat]; exact hL
+  rw [List.pairwise_flatten] at hpw
+  obtain ⟨hin, hbt⟩ := hpw
+  rw [List.pairwise_iff_getElem] at hbt
+  rw [List.isChain_iff_getElem] at hch
+  have huniq : ∀ (a : ℕ) (i j : ℕ) (hi : i < P.length) (hj : j < P.length),
+      a ∈ P[i] → a ∈ P[j] → i = j := by
+    intro a i j hi hj hai haj
+    rcases Nat.lt_trichotomy i j with h | h | h
+    · exact absurd (hbt i j hi hj h a hai a haj) (lt_irrefl _)
+    · exact h
+    · exact absurd (hbt j i hj hi h a haj a hai) (lt_irrefl _)
+  have hxL : x ∈ P.flatten := by rw [hflat]; exact hx
+  have h2L : 2 * x ∈ P.flatten := by rw [hflat]; exact h2
+  obtain ⟨Bx, hBx, hxBx⟩ := List.mem_flatten.mp hxL
+  obtain ⟨By, hBy, hyBy⟩ := List.mem_flatten.mp h2L
+  obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hBx
+  obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hBy
+  have hij : i = j := by
+    rcases Nat.lt_trichotomy i j with h | h | h
+    · exfalso
+      have hi1 : i + 1 < P.length := by omega
+      obtain ⟨ha, hb, hr⟩ := hch i hi1
+      have hr' : 2 * P[i].getLast ha < P[i + 1].head hb := by simpa using hr
+      have h1 := le_getLast_of_pairwise_lt P[i] (hin _ (List.getElem_mem hi)) ha x hxBx
+      have h3 : P[i + 1].head hb ≤ 2 * x := by
+        rcases Nat.lt_or_ge (i + 1) j with h4 | h4
+        · exact le_of_lt (hbt (i + 1) j hi1 hj h4 _ (List.head_mem hb) _ hyBy)
+        · have h5 : i + 1 = j := by omega
+          subst h5
+          exact head_le_of_pairwise_lt _ (hin _ (List.getElem_mem hi1)) hb _ hyBy
       omega
-  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hb
-  have hy_flat : y ∈ S.flatten := by rwa [List.flatten_splitBy]
-  obtain ⟨b', hb', hyb'⟩ := List.mem_flatten.mp hy_flat
-  obtain ⟨j, hj, rfl⟩ := List.mem_iff_getElem.mp hb'
-  rcases lt_trichotomy i j with hij | rfl | hji
-  · exfalso
-    have := hlt_all i j hij hj x hx y hyb'
-    omega
-  · exact hyb'
-  · exfalso
-    have := hlt_all j i hji hi y hyb' x hx
-    omega
-
-private lemma block_chain_down {n : ℕ} (hn : 1 ≤ n) {b : List ℕ} (hb : b ∈ blocks n)
-    {u j : ℕ} (hmem : 2 ^ j * u ∈ b) : u ∈ b := by
-  induction j with
-  | zero => simpa using hmem
-  | succ j ih =>
-    apply ih
-    have hL_pw : (n.divisors.sort (· ≤ ·)).Pairwise (· ≤ ·) :=
-      Finset.pairwise_sort n.divisors (· ≤ ·)
-    have hmem_div : 2 ^ (j + 1) * u ∈ n.divisors :=
-      (Finset.mem_sort (· ≤ ·)).mp (mem_of_mem_splitBy hb hmem)
-    have hdvd : 2 ^ (j + 1) * u ∣ n := (Nat.mem_divisors.mp hmem_div).1
-    have hdvd_prev : 2 ^ j * u ∣ n := by
-      refine dvd_trans ⟨2, ?_⟩ hdvd
-      rw [pow_succ]; ring
-    have hu_ne : 2 ^ j * u ≠ 0 := by
-      intro h0
-      rw [h0, zero_dvd_iff] at hdvd_prev
+    · exact h
+    · exfalso
+      have := hbt j i hj hi h _ hyBy _ hxBx
       omega
-    have hprev_mem : 2 ^ j * u ∈ n.divisors.sort (· ≤ ·) :=
-      (Finset.mem_sort (· ≤ ·)).mpr (Nat.mem_divisors.mpr ⟨hdvd_prev, by omega⟩)
-    have h1 : 2 ^ j * u ≤ 2 * (2 ^ (j + 1) * u) := by
-      rw [pow_succ]; ring_nf; omega
-    have h2 : 2 ^ (j + 1) * u ≤ 2 * (2 ^ j * u) := by
-      rw [pow_succ]; ring_nf; omega
-    exact splitBy_closed hL_pw b hb (2 ^ (j + 1) * u) hmem (2 ^ j * u) hprev_mem h1 h2
+  subst hij
+  obtain ⟨m, hm, rfl⟩ := List.getElem_of_mem hB
+  constructor
+  · intro h
+    have := huniq x m i hm hi h hxBx
+    subst this; exact hyBy
+  · intro h
+    have := huniq (2 * x) m i hm hi h hyBy
+    subst this; exact hxBx
 
-private lemma block_chain_up {n : ℕ} (hn : 1 ≤ n) {b : List ℕ} (hb : b ∈ blocks n)
-    {u : ℕ} (hu_mem : u ∈ b) (hu_odd : Odd u) {i : ℕ} (hi : i ≤ n.factorization 2) :
-    2 ^ i * u ∈ b := by
-  induction i with
-  | zero => simpa using hu_mem
-  | succ i ih =>
-    have hprev : 2 ^ i * u ∈ b := ih (Nat.le_of_succ_le hi)
-    have hL_pw : (n.divisors.sort (· ≤ ·)).Pairwise (· ≤ ·) :=
-      Finset.pairwise_sort n.divisors (· ≤ ·)
-    have hu_div : u ∈ n.divisors :=
-      (Finset.mem_sort (· ≤ ·)).mp (mem_of_mem_splitBy hb hu_mem)
-    have hu_dvd : u ∣ n := (Nat.mem_divisors.mp hu_div).1
-    have hv_dvd : 2 ^ n.factorization 2 ∣ n := Nat.ordProj_dvd n 2
-    have hcop : Nat.Coprime (2 ^ n.factorization 2) u := by
-      refine Nat.Coprime.pow_left _ (Nat.prime_two.coprime_iff_not_dvd.mpr ?_)
-      intro h
-      exact Nat.not_even_iff_odd.mpr hu_odd (even_iff_two_dvd.mpr h)
-    have hmul_dvd : 2 ^ n.factorization 2 * u ∣ n := hcop.mul_dvd_of_dvd_of_dvd hv_dvd hu_dvd
-    have hi_dvd : 2 ^ (i + 1) * u ∣ n :=
-      dvd_trans (mul_dvd_mul_right (Nat.pow_dvd_pow 2 hi) u) hmul_dvd
-    have hi_mem : 2 ^ (i + 1) * u ∈ n.divisors.sort (· ≤ ·) :=
-      (Finset.mem_sort (· ≤ ·)).mpr (Nat.mem_divisors.mpr ⟨hi_dvd, by omega⟩)
-    have h1 : 2 ^ (i + 1) * u ≤ 2 * (2 ^ i * u) := by
-      rw [pow_succ]; ring_nf; omega
-    have h2 : 2 ^ i * u ≤ 2 * (2 ^ (i + 1) * u) := by
-      rw [pow_succ]; ring_nf; omega
-    exact splitBy_closed hL_pw b hb (2 ^ i * u) hprev (2 ^ (i + 1) * u) hi_mem h1 h2
+lemma block_props (L : List ℕ) (hL : L.Pairwise (· < ·))
+    (B : List ℕ) (hB : B ∈ L.splitBy (fun d e => decide (e ≤ 2 * d))) :
+    B.Pairwise (· < ·) ∧ ∀ a ∈ B, a ∈ L := by
+  have hflat := List.flatten_splitBy (fun d e => decide (e ≤ 2 * d)) L
+  have hpw : (L.splitBy (fun d e => decide (e ≤ 2 * d))).flatten.Pairwise (· < ·) := by
+    rw [hflat]; exact hL
+  rw [List.pairwise_flatten] at hpw
+  refine ⟨hpw.1 B hB, fun a ha => ?_⟩
+  rw [← hflat]
+  exact List.mem_flatten.mpr ⟨B, hB, ha⟩
 
-private lemma two_pow_mul_odd_inj {i₁ i₂ u₁ u₂ : ℕ} (hu₁ : Odd u₁) (hu₂ : Odd u₂)
-    (heq : 2 ^ i₁ * u₁ = 2 ^ i₂ * u₂) : u₁ = u₂ ∧ i₁ = i₂ := by
-  have h1 : (2 ^ i₁ * u₁).factorization 2 = i₁ := by
-    have hu₁_ne : u₁ ≠ 0 := by rintro rfl; exact absurd hu₁ (by decide)
-    rw [Nat.factorization_mul (pow_ne_zero i₁ (by norm_num)) hu₁_ne, Finsupp.add_apply,
-      Nat.Prime.factorization_pow Nat.prime_two, Finsupp.single_eq_same]
-    have h0 : u₁.factorization 2 = 0 :=
-      Nat.factorization_eq_zero_of_not_dvd (fun h => Nat.not_even_iff_odd.mpr hu₁ (even_iff_two_dvd.mpr h))
+lemma odd_mul_pow_inj (o1 o2 i1 i2 : ℕ) (h1 : Odd o1) (h2 : Odd o2)
+    (h : o1 * 2 ^ i1 = o2 * 2 ^ i2) : o1 = o2 ∧ i1 = i2 := by
+  have key : ∀ (a b i d : ℕ), Odd a → a * 2 ^ i = b * 2 ^ (i + d + 1) → False := by
+    intro a b i d ha hab
+    have : a * 2 ^ i = (b * 2 ^ d * 2) * 2 ^ i := by rw [hab]; ring
+    have h3 := Nat.eq_of_mul_eq_mul_right (by positivity) this
+    rcases ha with ⟨t, ht⟩
     omega
-  have h2 : (2 ^ i₂ * u₂).factorization 2 = i₂ := by
-    have hu₂_ne : u₂ ≠ 0 := by rintro rfl; exact absurd hu₂ (by decide)
-    rw [Nat.factorization_mul (pow_ne_zero i₂ (by norm_num)) hu₂_ne, Finsupp.add_apply,
-      Nat.Prime.factorization_pow Nat.prime_two, Finsupp.single_eq_same]
-    have h0 : u₂.factorization 2 = 0 :=
-      Nat.factorization_eq_zero_of_not_dvd (fun h => Nat.not_even_iff_odd.mpr hu₂ (even_iff_two_dvd.mpr h))
-    omega
-  have hi : i₁ = i₂ := by rw [← h1, ← h2, heq]
-  subst hi
-  have hu : u₁ = u₂ := mul_left_cancel₀ (pow_ne_zero i₁ (by norm_num)) heq
-  exact ⟨hu, rfl⟩
+  rcases Nat.lt_trichotomy i1 i2 with hlt | heq | hgt
+  · exfalso
+    obtain ⟨d, rfl⟩ : ∃ d, i2 = i1 + d + 1 := ⟨i2 - i1 - 1, by omega⟩
+    exact key o1 o2 i1 d h1 h
+  · subst heq
+    exact ⟨Nat.eq_of_mul_eq_mul_right (by positivity) h, rfl⟩
+  · exfalso
+    obtain ⟨d, rfl⟩ : ∃ d, i1 = i2 + d + 1 := ⟨i1 - i2 - 1, by omega⟩
+    exact key o2 o1 i2 d h2 h.symm
 
-private lemma length_eq_mul_countP {n : ℕ} (hn : 1 ≤ n) {b : List ℕ} (hb : b ∈ blocks n) :
-    b.length = A001511 n * b.countP (fun d => decide (Odd d)) := by
-  have hnodup : b.Nodup := nodup_of_mem_splitBy (Finset.sort_nodup n.divisors (· ≤ ·)) hb
-  set B : Finset ℕ := b.toFinset
-  set U : Finset ℕ := B.filter Odd
-  set I : Finset ℕ := Finset.range (n.factorization 2 + 1)
-  have hlen : b.length = B.card := (List.toFinset_card_of_nodup hnodup).symm
-  have hcnt : b.countP (fun d => decide (Odd d)) = U.card := by
-    rw [List.countP_eq_length_filter]
-    have hfn : (b.filter (fun d => decide (Odd d))).Nodup := hnodup.filter _
-    rw [← List.toFinset_card_of_nodup hfn]
-    congr 1
-    ext x
-    simp [B, U]
-  have hB_eq : B = (U ×ˢ I).image (fun p => 2 ^ p.2 * p.1) := by
-    ext d
-    simp only [Finset.mem_image, Finset.mem_product, B, U, I, List.mem_toFinset,
-      Finset.mem_filter, Finset.mem_range, Prod.exists]
-    constructor
-    · intro hd
-      have hd_div : d ∈ n.divisors := (Finset.mem_sort (· ≤ ·)).mp (mem_of_mem_splitBy hb hd)
-      have hd_dvd : d ∣ n := (Nat.mem_divisors.mp hd_div).1
-      have hd_ne : d ≠ 0 := by intro h0; rw [h0, zero_dvd_iff] at hd_dvd; omega
-      set j := d.factorization 2
-      set u := d / 2 ^ j
-      have hdecomp : 2 ^ j * u = d := Nat.ordProj_mul_ordCompl_eq_self d 2
-      have hu_odd : Odd u := by
-        have hnot : ¬ 2 ∣ u := Nat.not_dvd_ordCompl Nat.prime_two hd_ne
-        exact Nat.odd_iff.mpr (by omega)
-      have hj_le : j ≤ n.factorization 2 :=
-        (Nat.factorization_le_iff_dvd hd_ne (by omega)).mpr hd_dvd 2
-      have hu_mem : u ∈ b := block_chain_down hn hb (by rwa [hdecomp])
-      exact ⟨u, j, ⟨⟨hu_mem, hu_odd⟩, Nat.lt_succ_of_le hj_le⟩, hdecomp⟩
-    · rintro ⟨u, i, ⟨⟨hu_mem, hu_odd⟩, hi_lt⟩, rfl⟩
-      exact block_chain_up hn hb hu_mem hu_odd (Nat.lt_succ_iff.mp hi_lt)
-  have hinj : Set.InjOn (fun p : ℕ × ℕ => 2 ^ p.2 * p.1) (U ×ˢ I : Finset (ℕ × ℕ)) := by
-    rintro ⟨u₁, i₁⟩ h1 ⟨u₂, i₂⟩ h2 heq
-    simp only [Finset.coe_product, Set.mem_prod, Finset.mem_coe, U, Finset.mem_filter] at h1 h2
-    obtain ⟨rfl, rfl⟩ := two_pow_mul_odd_inj h1.1.2 h2.1.2 heq
-    rfl
-  rw [hlen, hcnt, hB_eq, Finset.card_image_of_injOn hinj, Finset.card_product,
-    Finset.card_range, A001511, mul_comm]
+end OMA.S_oeis_a384225
 
+open OMA.S_oeis_a384225 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a384225.main := by
   intro n hn k hk
-  have hb_mem : (blocks n)[k] ∈ blocks n := List.getElem_mem hk
-  have hget : ((blocks n)[k]?).getD [] = (blocks n)[k] := by
-    simp [List.getElem?_eq_getElem hk]
-  rw [T, A384222, hget, length_eq_mul_countP hn hb_mem]
-  have hpos : 0 < A001511 n := by rw [A001511]; omega
-  rw [Nat.mul_div_right _ hpos]
+  have hn0 : n ≠ 0 := by omega
+  unfold T A384222 A001511
+  have hBk : (blocks n)[k]? = some (blocks n)[k] := List.getElem?_eq_getElem hk
+  rw [hBk]
+  simp only [Option.getD_some]
+  have hBmem : (blocks n)[k] ∈ blocks n := List.getElem_mem hk
+  generalize (blocks n)[k] = B at hBmem ⊢
+  unfold blocks at hBmem
+  set L := n.divisors.sort (· ≤ ·) with hLdef
+  have hL : L.Pairwise (· < ·) := by
+    have h1 : L.Pairwise (· ≤ ·) := Finset.pairwise_sort _ _
+    have h2 : L.Nodup := Finset.sort_nodup _ _
+    exact (h1.and h2).imp (fun h => lt_of_le_of_ne h.1 h.2)
+  have hLmem : ∀ d, d ∈ L ↔ d ∣ n := by
+    intro d
+    rw [hLdef, Finset.mem_sort, Nat.mem_divisors]
+    exact ⟨fun h => h.1, fun h => ⟨h, hn0⟩⟩
+  obtain ⟨hBpw, hBL⟩ := block_props L hL B hBmem
+  have hBnd : B.Nodup := hBpw.imp (fun h => ne_of_lt h)
+  set e := n.factorization 2 with he
+  suffices h : B.length = (e + 1) * B.countP (fun d => decide (Odd d)) by
+    rw [h, Nat.mul_div_cancel_left _ (Nat.succ_pos _)]
+  -- upward closure
+  have hup : ∀ o, o ∈ B → Odd o → ∀ i, i ≤ e → o * 2 ^ i ∈ B := by
+    intro o ho hodd i
+    induction i with
+    | zero => intro _; simpa using ho
+    | succ i ih =>
+      intro hi
+      have hx := ih (by omega)
+      have hdvd : o * 2 ^ (i + 1) ∣ n := by
+        have h1 : o ∣ n := (hLmem o).mp (hBL o ho)
+        have h2 : 2 ^ (i + 1) ∣ n := (Nat.Prime.pow_dvd_iff_le_factorization Nat.prime_two hn0).mpr hi
+        have hc : Nat.Coprime o (2 ^ (i + 1)) :=
+          Nat.Coprime.pow_right _ (Nat.coprime_two_right.mpr hodd)
+        exact hc.mul_dvd_of_dvd_of_dvd h1 h2
+      have hx0 : 0 < o * 2 ^ i := by
+        have : o * 2 ^ i ∣ n := (hLmem _).mp (hBL _ hx)
+        exact Nat.pos_of_dvd_of_pos this (by omega)
+      have h2x : 2 * (o * 2 ^ i) ∈ L := by
+        rw [hLmem]
+        have : 2 * (o * 2 ^ i) = o * 2 ^ (i + 1) := by ring
+        rw [this]; exact hdvd
+      have := (same_block L hL (o * 2 ^ i) (hBL _ hx) h2x hx0 B hBmem).mp hx
+      have e2 : o * 2 ^ (i + 1) = 2 * (o * 2 ^ i) := by ring
+      rw [e2]; exact this
+  -- downward closure
+  have hdown : ∀ i o, o * 2 ^ i ∈ B → o ∈ B := by
+    intro i
+    induction i with
+    | zero => intro o ho; simpa using ho
+    | succ i ih =>
+      intro o ho
+      apply ih
+      have e2 : o * 2 ^ (i + 1) = 2 * (o * 2 ^ i) := by ring
+      rw [e2] at ho
+      have h2L := hBL _ ho
+      have hdvd : 2 * (o * 2 ^ i) ∣ n := (hLmem _).mp h2L
+      have hxd : o * 2 ^ i ∣ n := Dvd.dvd.trans (Dvd.intro_left 2 rfl) hdvd
+      have hx0 : 0 < o * 2 ^ i := Nat.pos_of_dvd_of_pos hxd (by omega)
+      exact (same_block L hL (o * 2 ^ i) ((hLmem _).mpr hxd) h2L hx0 B hBmem).mpr ho
+  -- counting
+  have hlen : B.length = B.toFinset.card := (List.toFinset_card_of_nodup hBnd).symm
+  have hcnt : B.countP (fun d => decide (Odd d)) = (B.toFinset.filter (fun d => Odd d)).card := by
+    rw [List.countP_eq_length_filter, ← List.toFinset_card_of_nodup (hBnd.filter _),
+      List.toFinset_filter]
+    simp
+  have himg : B.toFinset = ((B.toFinset.filter (fun d => Odd d)) ×ˢ Finset.range (e + 1)).image
+      (fun p : ℕ × ℕ => p.1 * 2 ^ p.2) := by
+    ext d
+    simp only [List.mem_toFinset, Finset.mem_image, Finset.mem_product, Finset.mem_filter,
+      Finset.mem_range, Prod.exists]
+    constructor
+    · intro hd
+      have hdn : d ∣ n := (hLmem d).mp (hBL d hd)
+      have hd0 : d ≠ 0 := by
+        rintro rfl
+        exact hn0 (Nat.eq_zero_of_zero_dvd hdn)
+      obtain ⟨i, o, hodd, rfl⟩ := Nat.exists_eq_two_pow_mul_odd hd0
+      refine ⟨o, i, ⟨⟨?_, hodd⟩, ?_⟩, by ring⟩
+      · apply hdown i
+        rw [mul_comm]; exact hd
+      · have : 2 ^ i ∣ n := Dvd.dvd.trans (Dvd.intro _ rfl) hdn
+        have := (Nat.Prime.pow_dvd_iff_le_factorization Nat.prime_two hn0).mp this
+        omega
+    · rintro ⟨o, i, ⟨⟨ho, hodd⟩, hi⟩, rfl⟩
+      exact hup o ho hodd i (by omega)
+  have hinj : Set.InjOn (fun p : ℕ × ℕ => p.1 * 2 ^ p.2)
+      (((B.toFinset.filter (fun d => Odd d)) ×ˢ Finset.range (e + 1) : Finset (ℕ × ℕ)) : Set (ℕ × ℕ)) := by
+    rintro ⟨o1, i1⟩ h1 ⟨o2, i2⟩ h2 h
+    simp only [Finset.coe_product, Set.mem_prod, Finset.mem_coe, Finset.mem_filter] at h1 h2
+    obtain ⟨rfl, rfl⟩ := odd_mul_pow_inj o1 o2 i1 i2 h1.1.2 h2.1.2 h
+    rfl
+  rw [hlen, hcnt, himg, Finset.card_image_of_injOn hinj, Finset.card_product, Finset.card_range,
+    ← himg]
+  ring
