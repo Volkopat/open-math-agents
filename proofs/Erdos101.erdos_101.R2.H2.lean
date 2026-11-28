@@ -2,7 +2,8 @@ import OMAReductions.R_Erdos101_erdos_101_R2
 import Mathlib
 
 -- Proof of the bounded triangle-ratio step for Erdős 101.
--- Credit: @ubuwaits
+-- The additive-growth, projective-lift, and triangle-ratio arguments are by @ubuwaits.
+-- The direct popular-difference argument for restricted sums is by @yves-pires.
 
 /-
 Copyright (c) 2026 Adam McKenna. All rights reserved.
@@ -12,12 +13,11 @@ Authors: Adam McKenna
 
 
 /-!
-# Graph Balog–Szemerédi–Gowers theorem
+# Dependent random choice
 
-The eleven lemma declarations below are selected from Adam McKenna’s
+The two dependent-random-choice lemmas below are adapted from Adam McKenna's
 LeanFormalizations.Combinatorics.Additive.BalogSzemerediGowers at commit
-db02244c25aecd74eb96d9186c922387824c1258. The other declarations have been
-omitted. The original license text follows the proof.
+db02244c25aecd74eb96d9186c922387824c1258. The original license follows.
 
 https://github.com/mysticflounder/lean-formalizations/blob/db02244c25aecd74eb96d9186c922387824c1258/lean/LeanFormalizations/Combinatorics/Additive/BalogSzemerediGowers.lean
 -/
@@ -25,157 +25,6 @@ https://github.com/mysticflounder/lean-formalizations/blob/db02244c25aecd74eb96d
 namespace Finset
 
 open scoped Pointwise
-
-/--
-**Length-3 path count is dominated by a triple-rep count in `S × S × S`.**
-
-For a bipartite graph `E ⊆ A ×ˢ B` over an additive commutative group, fix a
-restricted sumset `S` containing all sums `p.1 + p.2` for `p ∈ E`. For any
-`a, b ∈ G`, the number of length-3 paths `a — b₁ — a₁ — b` in `E` is at most
-the number of triples `(s₁, s₂, s₃) ∈ S × S × S` with `s₁ - s₂ + s₃ = a + b`.
-
-Proof: the map `(b₁, a₁) ↦ (a + b₁, a₁ + b₁, a₁ + b)` sends each path to a
-triple in `S × S × S` (because each edge `(x, y) ∈ E` has `x + y ∈ S`) summing
-to `a + b` under `s₁ - s₂ + s₃`. It is injective: `b₁` is recovered from
-`(a + b₁) - a` (or equivalently from the first coordinate minus the constant `a`),
-and `a₁` is recovered from the third coordinate as `(a₁ + b) - b`.
-
-Used by `graph_balogSzemerediGowers_restricted_sumset` to bridge the pointwise
-length-3 path count (supplied by `dense_bipartite_has_path3_rectangle` via
-dependent random choice) to the triple-rep multiplicity hypothesis of
-`restricted_sumset_via_multiplicity`. Tao-Vu, *Additive Combinatorics*, §6.4
-(Cor. 6.20).
--/
-lemma path3_count_le_triple_rep_count {G : Type*} [AddCommGroup G] [DecidableEq G]
-    (A B S : Finset G) (E : Finset (G × G)) (hSdef : ∀ p ∈ E, p.1 + p.2 ∈ S)
-    (a b : G) :
-    (((B ×ˢ A).filter fun q : G × G ↦
-        (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℕ)
-    ≤ ((S ×ˢ S ×ˢ S).filter
-        fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card := by
-  -- Define the map (b₁, a₁) ↦ (a + b₁, a₁ + b₁, a₁ + b).
-  set f : G × G → G × G × G := fun q ↦ (a + q.1, q.2 + q.1, q.2 + b) with hf_def
-  set src : Finset (G × G) :=
-    (B ×ˢ A).filter (fun q : G × G ↦
-      (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E) with hsrc_def
-  set tgt : Finset (G × G × G) :=
-    (S ×ˢ S ×ˢ S).filter (fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b)
-    with htgt_def
-  apply Finset.card_le_card_of_injOn f
-  · -- MapsTo: f sends src into tgt.
-    intro q hq
-    simp only [hsrc_def, Finset.coe_filter, Set.mem_ofPred_eq,
-      Finset.mem_product] at hq
-    obtain ⟨⟨_hq1B, _hq2A⟩, hEab1, hEa1b1, hEa1b⟩ := hq
-    have hs1 : a + q.1 ∈ S := hSdef (a, q.1) hEab1
-    have hs2 : q.2 + q.1 ∈ S := hSdef (q.2, q.1) hEa1b1
-    have hs3 : q.2 + b ∈ S := hSdef (q.2, b) hEa1b
-    refine Finset.mem_coe.mpr (Finset.mem_filter.mpr ⟨?_, ?_⟩)
-    · exact Finset.mem_product.mpr ⟨hs1, Finset.mem_product.mpr ⟨hs2, hs3⟩⟩
-    · -- (a + b₁) - (a₁ + b₁) + (a₁ + b) = a + b.
-      show (a + q.1) - (q.2 + q.1) + (q.2 + b) = a + b
-      abel
-  · -- InjOn: f is injective on src.
-    intro q₁ _hq₁ q₂ _hq₂ hfeq
-    -- f q₁ = f q₂ means (a + q₁.1, q₁.2 + q₁.1, q₁.2 + b) = (a + q₂.1, …, q₂.2 + b).
-    -- Project out the first and third coordinates of the triple equality.
-    have h1 : a + q₁.1 = a + q₂.1 := by
-      have := congrArg Prod.fst hfeq
-      simpa [hf_def] using this
-    have h3 : q₁.2 + b = q₂.2 + b := by
-      have := congrArg (fun p : G × G × G ↦ p.2.2) hfeq
-      simpa [hf_def] using this
-    have hq1eq : q₁.1 = q₂.1 := add_left_cancel h1
-    have hq2eq : q₁.2 = q₂.2 := add_right_cancel h3
-    exact Prod.ext hq1eq hq2eq
-
-/--
-**Restricted sumset upper bound via difference-set multiplicity.**
-
-Let `A, B, S ⊆ G`. If every `(a, b) ∈ A × B` admits at least `M` triples
-`(s₁, s₂, s₃) ∈ S × S × S` with `s₁ - s₂ + s₃ = a + b`, then
-`M · |A + B| ≤ |S|³`.
-
-Proof: the disjoint fibers `T_v := { (s₁, s₂, s₃) ∈ S × S × S : s₁ - s₂ + s₃ = v }`
-indexed by `v ∈ A + B` each contain ≥ M triples and embed into `S × S × S`,
-so `M · |A + B| ≤ ∑_{v ∈ A + B} |T_v| ≤ |S|³`.
-
-This is the standard sumset bound used in the Tao-Vu / Petridis path-counting
-proof of Balog-Szemerédi-Gowers: the triple-counting step inside the proof of
-Tao-Vu, *Additive Combinatorics*, Theorem 2.29 (§6.4) — `#triples ≤ |A+B|³` —
-not a separately numbered lemma.
--/
-lemma restricted_sumset_via_multiplicity {G : Type*} [AddCommGroup G] [DecidableEq G]
-    (A B S : Finset G) (M : ℕ) :
-    (∀ a ∈ A, ∀ b ∈ B,
-        M ≤ ((S ×ˢ S ×ˢ S).filter
-          (fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b)).card) →
-    M * (A + B).card ≤ S.card ^ 3 := by
-  intro hcover
-  -- Build the disjoint sets T_v = { (s₁,s₂,s₃) ∈ S × S × S : s₁ - s₂ + s₃ = v }.
-  set T : G → Finset (G × G × G) :=
-    fun v ↦ (S ×ˢ S ×ˢ S).filter (fun p ↦ p.1 - p.2.1 + p.2.2 = v) with hT_def
-  -- Each fiber T_v contributes at least M to the sum over A + B.
-  have hMle : ∀ v ∈ A + B, M ≤ (T v).card := by
-    intro v hv
-    obtain ⟨a, ha, b, hb, hab⟩ := Finset.mem_add.mp hv
-    -- Substitute a + b = v in the multiplicity hypothesis.
-    have hM_at := hcover a ha b hb
-    -- The triple subset T(a,b) has card ≥ M, and lies inside T v.
-    set T_ab : Finset (G × G × G) :=
-      (S ×ˢ S ×ˢ S).filter
-        (fun p ↦ p.1 - p.2.1 + p.2.2 = a + b) with hTab_def
-    have hT_ab_eq : T_ab = T v := by
-      apply Finset.filter_congr
-      intro p _
-      constructor
-      · intro h; rw [h, hab]
-      · intro h; rw [h, ← hab]
-    have : M ≤ T_ab.card := hM_at
-    rw [hT_ab_eq] at this
-    exact this
-  -- The fibers cover disjointly inside S × S × S.
-  -- Sum over v ∈ A + B of |T_v| ≤ |S × S × S| = |S|^3.
-  have hdisj : ((A + B : Finset G) : Set G).PairwiseDisjoint T := by
-    intro v _ w _ hvw
-    refine Finset.disjoint_filter.mpr ?_
-    intro p _ hpv hpw
-    exact hvw (hpv ▸ hpw)
-  have hSubset : ∀ v ∈ A + B, T v ⊆ S ×ˢ S ×ˢ S := by
-    intro v _ p hp
-    exact (Finset.mem_filter.mp hp).1
-  -- Σ_v |T_v| = | ⋃_v T_v | ≤ |S × S × S|.
-  have hSumCard :
-      ∑ v ∈ A + B, (T v).card = ((A + B).biUnion T).card := by
-    rw [Finset.card_biUnion]
-    intro v hv w hw hvw
-    have hpw : ((A + B : Finset G) : Set G).PairwiseDisjoint T := hdisj
-    have hv' : v ∈ ((A + B : Finset G) : Set G) := hv
-    have hw' : w ∈ ((A + B : Finset G) : Set G) := hw
-    exact hpw hv' hw' hvw
-  have hSumLeS3 : ∑ v ∈ A + B, (T v).card ≤ (S ×ˢ S ×ˢ S).card := by
-    rw [hSumCard]
-    apply Finset.card_le_card
-    intro p hp
-    rw [Finset.mem_biUnion] at hp
-    obtain ⟨v, hv, hpv⟩ := hp
-    exact hSubset v hv hpv
-  -- Σ_v M ≤ Σ_v |T_v|.
-  have hML : M * (A + B).card ≤ ∑ v ∈ A + B, (T v).card := by
-    have hsum_le : ∑ _v ∈ A + B, M ≤ ∑ v ∈ A + B, (T v).card :=
-      Finset.sum_le_sum (fun v hv ↦ hMle v hv)
-    have hconst : ∑ _v ∈ A + B, M = (A + B).card * M := by
-      rw [Finset.sum_const, smul_eq_mul]
-    rw [hconst, mul_comm] at hsum_le
-    exact hsum_le
-  -- Combine.
-  have hCard_S3 : (S ×ˢ S ×ˢ S).card = S.card ^ 3 := by
-    rw [Finset.card_product, Finset.card_product, pow_succ, pow_succ, pow_one]
-    ring
-  calc M * (A + B).card
-      ≤ ∑ v ∈ A + B, (T v).card := hML
-    _ ≤ (S ×ˢ S ×ˢ S).card := hSumLeS3
-    _ = S.card ^ 3 := hCard_S3
 
 /--
 **DRC step (Fox-Sudakov Lemma 5.1, "pair DRC").** For a bipartite graph
@@ -431,129 +280,6 @@ lemma graph_pair_dependentRandomChoice {G : Type*} [DecidableEq G]
   · exact hBadInV_le
 
 /--
-**High-degree subset density.** For `E ⊆ A ×ˢ B` with `|A| = |B| = n` and
-`δ n² ≤ |E|`, the subset `A₁ := { a ∈ A : (δ/2) n ≤ |Nb(a)| }` has
-`(δ/2) n ≤ |A₁|` and `e(A₁, B) ≥ (δ/2) n²` (where `e(A₁, B) := |E ∩ (A₁ ×ˢ B)|`).
-
-Standard rare/popular split: rows with `|Nb(a)| < (δ/2) n` contribute
-`< (δ/2) n²` edges, so the popular rows in `A₁` contribute `≥ (δ/2) n²`.
-Combined with the pointwise bound `|Nb(a)| ≤ n` on `A₁`, this gives
-`|A₁| · n ≥ (δ/2) n²`, i.e. `|A₁| ≥ (δ/2) n`.
--/
-lemma graph_high_degree_subset_lb {G : Type*} [DecidableEq G]
-    (δ : ℝ) (hδ_pos : 0 < δ) (_hδ_le : δ ≤ 1)
-    (A B : Finset G) (hA : A.Nonempty) (hAB : A.card = B.card)
-    (E : Finset (G × G)) (hE_sub : E ⊆ A ×ˢ B)
-    (hE_dense : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ)) :
-    (δ / 2) * (A.card : ℝ) ≤
-      ((A.filter (fun a ↦
-        (δ / 2) * (B.card : ℝ) ≤
-          ((B.filter (fun b ↦ (a, b) ∈ E)).card : ℝ))).card : ℝ) ∧
-    (δ / 2) * (A.card : ℝ) * (B.card : ℝ) ≤
-      ((E.filter (fun p : G × G ↦
-        (δ / 2) * (B.card : ℝ) ≤
-          ((B.filter (fun b ↦ (p.1, b) ∈ E)).card : ℝ))).card : ℝ) := by
-  classical
-  set rowDeg : G → ℕ := fun a ↦ (B.filter (fun b ↦ (a, b) ∈ E)).card with hrowDeg_def
-  set Apop : Finset G := A.filter (fun a ↦ (δ / 2) * (B.card : ℝ) ≤ (rowDeg a : ℝ))
-    with hApop_def
-  set Epop : Finset (G × G) := E.filter (fun p : G × G ↦
-    (δ / 2) * (B.card : ℝ) ≤ ((B.filter (fun b ↦ (p.1, b) ∈ E)).card : ℝ))
-    with hEpop_def
-  have hApop_sub : Apop ⊆ A := Finset.filter_subset _ _
-  have hEpop_sub : Epop ⊆ E := Finset.filter_subset _ _
-  have hA_pos : (0 : ℝ) < (A.card : ℝ) := by exact_mod_cast hA.card_pos
-  have hA_nn : (0 : ℝ) ≤ (A.card : ℝ) := le_of_lt hA_pos
-  have hBcard_eq : (B.card : ℝ) = (A.card : ℝ) := by exact_mod_cast hAB.symm
-  have hB_pos : (0 : ℝ) < (B.card : ℝ) := by rw [hBcard_eq]; exact hA_pos
-  have hB_nn : (0 : ℝ) ≤ (B.card : ℝ) := le_of_lt hB_pos
-  have hrowDeg_le : ∀ a, rowDeg a ≤ B.card := fun a ↦
-    Finset.card_le_card (Finset.filter_subset _ _)
-  have hrowDeg_le_R : ∀ a, (rowDeg a : ℝ) ≤ (B.card : ℝ) := fun a ↦ by
-    exact_mod_cast hrowDeg_le a
-  have hSumRow : ∑ a ∈ A, (rowDeg a : ℕ) = E.card := by
-    have step1 : ∀ a, rowDeg a = ∑ b ∈ B, (if (a, b) ∈ E then 1 else 0) := fun a ↦ by
-      simp only [rowDeg, Finset.card_eq_sum_ones, Finset.sum_filter]
-    have step2 : ∑ a ∈ A, rowDeg a = ∑ p ∈ A ×ˢ B, (if p ∈ E then 1 else 0) := by
-      simp_rw [step1, Finset.sum_product]
-    have step3 :
-        ∑ p ∈ A ×ˢ B, (if p ∈ E then 1 else 0) = ((A ×ˢ B).filter (· ∈ E)).card := by
-      rw [Finset.card_eq_sum_ones, Finset.sum_filter]
-    have step4 : (A ×ˢ B).filter (· ∈ E) = E := by
-      ext p
-      simp only [Finset.mem_filter]
-      exact ⟨fun h ↦ h.2, fun h ↦ ⟨hE_sub h, h⟩⟩
-    rw [step2, step3, step4]
-  have hSumRow_real : ∑ a ∈ A, (rowDeg a : ℝ) = (E.card : ℝ) := by
-    have h := hSumRow
-    have hcast : ((∑ a ∈ A, rowDeg a : ℕ) : ℝ) = (E.card : ℝ) := by exact_mod_cast h
-    push_cast at hcast; exact hcast
-  have hsplit_A : ∑ a ∈ A, (rowDeg a : ℝ) =
-      (∑ a ∈ Apop, (rowDeg a : ℝ)) + ∑ a ∈ A \ Apop, (rowDeg a : ℝ) := by
-    rw [← Finset.sum_sdiff hApop_sub]; ring
-  have hrare : ∑ a ∈ A \ Apop, (rowDeg a : ℝ) ≤
-      ((A \ Apop).card : ℝ) * ((δ / 2) * (B.card : ℝ)) := by
-    rw [show ((A \ Apop).card : ℝ) * ((δ / 2) * (B.card : ℝ)) =
-              ∑ _a ∈ A \ Apop, ((δ / 2) * (B.card : ℝ)) by
-      rw [Finset.sum_const, nsmul_eq_mul]]
-    refine Finset.sum_le_sum fun a ha ↦ ?_
-    rw [Finset.mem_sdiff, hApop_def, Finset.mem_filter] at ha
-    have hnot := ha.2
-    by_contra hgt
-    push Not at hgt
-    exact hnot ⟨ha.1, le_of_lt hgt⟩
-  have hAdiff_le_A : ((A \ Apop).card : ℝ) ≤ (A.card : ℝ) := by
-    exact_mod_cast Finset.card_le_card (Finset.sdiff_subset (s := A) (t := Apop))
-  have hδ2B_nn : 0 ≤ (δ / 2) * (B.card : ℝ) := by positivity
-  have hrare' : ∑ a ∈ A \ Apop, (rowDeg a : ℝ) ≤ (A.card : ℝ) * ((δ / 2) * (B.card : ℝ)) := by
-    have hmul := mul_le_mul_of_nonneg_right hAdiff_le_A hδ2B_nn
-    linarith [hrare]
-  have hSumApop : ∑ a ∈ Apop, (rowDeg a : ℕ) = Epop.card := by
-    have step1 : ∀ a, rowDeg a = ∑ b ∈ B, (if (a, b) ∈ E then 1 else 0) := fun a ↦ by
-      simp only [rowDeg, Finset.card_eq_sum_ones, Finset.sum_filter]
-    have step2 : ∑ a ∈ Apop, rowDeg a = ∑ p ∈ Apop ×ˢ B, (if p ∈ E then 1 else 0) := by
-      simp_rw [step1, Finset.sum_product]
-    have step3 : ∑ p ∈ Apop ×ˢ B, (if p ∈ E then 1 else 0) =
-        ((Apop ×ˢ B).filter (· ∈ E)).card := by
-      rw [Finset.card_eq_sum_ones, Finset.sum_filter]
-    have step4 : (Apop ×ˢ B).filter (· ∈ E) = Epop := by
-      ext p
-      simp only [Finset.mem_filter, Finset.mem_product, hEpop_def, hApop_def, hrowDeg_def]
-      constructor
-      · rintro ⟨⟨⟨hp1A, hp1pop⟩, _hp2⟩, hpE⟩
-        exact ⟨hpE, hp1pop⟩
-      · rintro ⟨hpE, hpop⟩
-        have hpAB := hE_sub hpE
-        rw [Finset.mem_product] at hpAB
-        exact ⟨⟨⟨hpAB.1, hpop⟩, hpAB.2⟩, hpE⟩
-    rw [step2, step3, step4]
-  have hSumApop_real : ∑ a ∈ Apop, (rowDeg a : ℝ) = (Epop.card : ℝ) := by
-    have h := hSumApop
-    have hcast : ((∑ a ∈ Apop, rowDeg a : ℕ) : ℝ) = (Epop.card : ℝ) := by exact_mod_cast h
-    push_cast at hcast; exact hcast
-  have hE_dense' : δ * (A.card : ℝ) * (B.card : ℝ) ≤ ∑ a ∈ A, (rowDeg a : ℝ) := by
-    rw [hSumRow_real]; exact hE_dense
-  have hEpop_lb : (δ / 2) * (A.card : ℝ) * (B.card : ℝ) ≤ (Epop.card : ℝ) := by
-    have : (δ / 2) * (A.card : ℝ) * (B.card : ℝ) ≤ ∑ a ∈ Apop, (rowDeg a : ℝ) := by
-      have hδ_split : δ * (A.card : ℝ) * (B.card : ℝ) =
-          (δ / 2) * (A.card : ℝ) * (B.card : ℝ) + (A.card : ℝ) * ((δ / 2) * (B.card : ℝ)) := by
-        ring
-      linarith [hE_dense', hsplit_A, hrare', hδ_split]
-    linarith [this, hSumApop_real]
-  have hApop_sum_ub : ∑ a ∈ Apop, (rowDeg a : ℝ) ≤ (Apop.card : ℝ) * (B.card : ℝ) := by
-    rw [show (Apop.card : ℝ) * (B.card : ℝ) = ∑ _a ∈ Apop, (B.card : ℝ) by
-      rw [Finset.sum_const, nsmul_eq_mul]]
-    refine Finset.sum_le_sum fun a _ ↦ hrowDeg_le_R a
-  have hApop_lb : (δ / 2) * (A.card : ℝ) ≤ (Apop.card : ℝ) := by
-    have h1 : (δ / 2) * (A.card : ℝ) * (B.card : ℝ) ≤ (Apop.card : ℝ) * (B.card : ℝ) := by
-      calc (δ / 2) * (A.card : ℝ) * (B.card : ℝ)
-          ≤ (Epop.card : ℝ) := hEpop_lb
-        _ = ∑ a ∈ Apop, (rowDeg a : ℝ) := hSumApop_real.symm
-        _ ≤ (Apop.card : ℝ) * (B.card : ℝ) := hApop_sum_ub
-    exact le_of_mul_le_mul_right h1 hB_pos
-  exact ⟨hApop_lb, hEpop_lb⟩
-
-/--
 **Markov refinement helper.** Given `U` and a bad-pair count bound
 `#{(a, a') ∈ U×U : codeg_E(a, a') < τ} ≤ κ · |U|²`, produce
 `A' ⊆ U` with `|A'| ≥ |U|/2` (when `κ ≤ 1/4`) such that for every
@@ -561,7 +287,7 @@ lemma graph_high_degree_subset_lb {G : Type*} [DecidableEq G]
 `≤ 2κ · |U|`.  Used inside `graph_dependentRandomChoice_payoff_pointwise_witness` with
 `κ := δ/16`, giving `2κ = δ/8`.
 -/
-private lemma graph_dependentRandomChoice_markov_refinement {G : Type*} [DecidableEq G]
+lemma graph_dependentRandomChoice_markov_refinement {G : Type*} [DecidableEq G]
     (B U : Finset G) (E : Finset (G × G)) (τ : ℝ) (κ : ℝ)
     (hκ_pos : 0 < κ) (hUpos : (0 : ℝ) < (U.card : ℝ))
     (hbadCount : (((U ×ˢ U).filter fun p : G × G ↦
@@ -638,873 +364,6 @@ private lemma graph_dependentRandomChoice_markov_refinement {G : Type*} [Decidab
   · intro a ha
     rw [hA'_def, Finset.mem_filter] at ha
     exact ha.2
-
-/--
-**Popular columns helper.** For `U ⊆ A` with row degree `≥ ρ · |B|` for every
-`a ∈ U` (in the sense of `|{b ∈ B : (a, b) ∈ E}| ≥ ρ · |B|`), the rare/popular
-split on columns produces `B' ⊆ B` of cardinality `≥ (ρ/2) · |B|` such that
-every `b ∈ B'` has `|{a ∈ U : (a, b) ∈ E}| ≥ (ρ/2) · |U|`.
--/
-private lemma graph_dependentRandomChoice_popular_columns {G : Type*} [DecidableEq G]
-    (A B : Finset G) (hAB : A.card = B.card)
-    (E : Finset (G × G)) (_hE_sub : E ⊆ A ×ˢ B)
-    (U : Finset G) (hU_sub : U ⊆ A)
-    (hU_pos : (0 : ℝ) < (U.card : ℝ))
-    (ρ : ℝ) (hρ_pos : 0 < ρ) (_hρ_le_one : ρ ≤ 1)
-    (hrowDeg_lb : ∀ a ∈ U, ρ * (B.card : ℝ) ≤
-      ((B.filter (fun b ↦ (a, b) ∈ E)).card : ℝ)) :
-    ∃ B' : Finset G, B' ⊆ B ∧
-      (ρ / 2) * (B.card : ℝ) ≤ (B'.card : ℝ) ∧
-      (∀ b ∈ B', (ρ / 2) * (U.card : ℝ) ≤
-        ((U.filter fun a ↦ (a, b) ∈ E).card : ℝ)) := by
-  classical
-  -- |B| > 0 since |B| = |A| and U ⊆ A nonempty.
-  have hBcard_nat : B.card = A.card := hAB.symm
-  have hUcard_le_A : (U.card : ℝ) ≤ (A.card : ℝ) := by
-    exact_mod_cast Finset.card_le_card hU_sub
-  have hA_pos : (0 : ℝ) < (A.card : ℝ) := lt_of_lt_of_le hU_pos hUcard_le_A
-  have hB_pos : (0 : ℝ) < (B.card : ℝ) := by
-    have : (B.card : ℝ) = (A.card : ℝ) := by exact_mod_cast hBcard_nat
-    rw [this]; exact hA_pos
-  -- Column count.
-  set colCount : G → ℕ := fun b ↦ (U.filter (fun a ↦ (a, b) ∈ E)).card with hcolCount_def
-  set B' : Finset G := B.filter (fun b ↦ (ρ / 2) * (U.card : ℝ) ≤ (colCount b : ℝ)) with hB'_def
-  have hB'_sub : B' ⊆ B := Finset.filter_subset _ _
-  -- Edge count from U: Σ_a∈U rowDeg(a) ≥ ρ|U||B|.  Also = Σ_b colCount b.
-  set rowDeg : G → ℕ := fun a ↦ (B.filter (fun b ↦ (a, b) ∈ E)).card with hrowDeg_def
-  -- Σ over U of rowDeg = Σ over B of colCount: both count {(a, b) ∈ U × B : (a, b) ∈ E}.
-  have hSwap : ∑ a ∈ U, (rowDeg a : ℕ) = ∑ b ∈ B, (colCount b : ℕ) := by
-    have hrowDeg_eq : ∀ a, rowDeg a = ∑ b ∈ B, (if (a, b) ∈ E then 1 else 0) := fun a ↦ by
-      simp only [rowDeg, Finset.card_eq_sum_ones, Finset.sum_filter]
-    have hcolCount_eq : ∀ b, colCount b = ∑ a ∈ U, (if (a, b) ∈ E then 1 else 0) := fun b ↦ by
-      simp only [colCount, Finset.card_eq_sum_ones, Finset.sum_filter]
-    simp_rw [hrowDeg_eq, hcolCount_eq]
-    rw [Finset.sum_comm]
-  have hSwap_real :
-      ∑ a ∈ U, (rowDeg a : ℝ) = ∑ b ∈ B, (colCount b : ℝ) := by
-    have : ((∑ a ∈ U, rowDeg a : ℕ) : ℝ) = ((∑ b ∈ B, colCount b : ℕ) : ℝ) := by
-      exact_mod_cast hSwap
-    push_cast at this; exact this
-  -- Σ_{a ∈ U} rowDeg(a) ≥ ρ|U||B|.
-  have hrow_sum_lb : ρ * (U.card : ℝ) * (B.card : ℝ) ≤ ∑ a ∈ U, (rowDeg a : ℝ) := by
-    have hsum : ∑ _a ∈ U, ρ * (B.card : ℝ) ≤ ∑ a ∈ U, (rowDeg a : ℝ) :=
-      Finset.sum_le_sum fun a haU ↦ hrowDeg_lb a haU
-    have hconst : ∑ _a ∈ U, ρ * (B.card : ℝ) = (U.card : ℝ) * (ρ * (B.card : ℝ)) := by
-      rw [Finset.sum_const, nsmul_eq_mul]
-    rw [hconst] at hsum
-    linarith
-  have hcol_sum_lb : ρ * (U.card : ℝ) * (B.card : ℝ) ≤ ∑ b ∈ B, (colCount b : ℝ) := by
-    rw [← hSwap_real]; exact hrow_sum_lb
-  -- Rare columns contribute < (ρ/2)|U| each.
-  have hrare_col : ∑ b ∈ B \ B', (colCount b : ℝ) ≤
-      ((B \ B').card : ℝ) * ((ρ / 2) * (U.card : ℝ)) := by
-    rw [show ((B \ B').card : ℝ) * ((ρ / 2) * (U.card : ℝ)) =
-            ∑ _b ∈ B \ B', ((ρ / 2) * (U.card : ℝ)) from by
-      rw [Finset.sum_const, nsmul_eq_mul]]
-    refine Finset.sum_le_sum fun b hb ↦ ?_
-    rw [Finset.mem_sdiff, hB'_def, Finset.mem_filter] at hb
-    have hnot := hb.2
-    by_contra hgt
-    push Not at hgt
-    exact hnot ⟨hb.1, le_of_lt hgt⟩
-  have hrare_col' : ∑ b ∈ B \ B', (colCount b : ℝ) ≤
-      (B.card : ℝ) * ((ρ / 2) * (U.card : ℝ)) := by
-    have h : ((B \ B').card : ℝ) ≤ (B.card : ℝ) := by
-      exact_mod_cast Finset.card_le_card (Finset.sdiff_subset (s := B) (t := B'))
-    have hnn : 0 ≤ (ρ / 2) * (U.card : ℝ) := by
-      have : 0 ≤ ρ / 2 := by linarith
-      exact mul_nonneg this (le_of_lt hU_pos)
-    have := mul_le_mul_of_nonneg_right h hnn
-    linarith
-  -- Split column-sum.
-  have hcol_split : ∑ b ∈ B, (colCount b : ℝ) =
-      (∑ b ∈ B', (colCount b : ℝ)) + ∑ b ∈ B \ B', (colCount b : ℝ) := by
-    rw [← Finset.sum_sdiff hB'_sub]; ring
-  have hpop_col_lb : (ρ / 2) * (U.card : ℝ) * (B.card : ℝ) ≤
-      ∑ b ∈ B', (colCount b : ℝ) := by
-    nlinarith [hcol_split, hcol_sum_lb, hrare_col']
-  -- Σ over B' of colCount ≤ |B'| · |U|.
-  have hcolCount_le : ∀ b, (colCount b : ℝ) ≤ (U.card : ℝ) := fun b ↦ by
-    have h : (colCount b : ℕ) ≤ U.card :=
-      Finset.card_le_card (Finset.filter_subset _ _)
-    exact_mod_cast h
-  have hpop_col_ub : ∑ b ∈ B', (colCount b : ℝ) ≤ (B'.card : ℝ) * (U.card : ℝ) := by
-    rw [show (B'.card : ℝ) * (U.card : ℝ) = ∑ _b ∈ B', (U.card : ℝ) from by
-      rw [Finset.sum_const, nsmul_eq_mul]]
-    exact Finset.sum_le_sum fun b _ ↦ hcolCount_le b
-  -- Divide through by |U|.
-  have hB'_lb : (ρ / 2) * (B.card : ℝ) ≤ (B'.card : ℝ) := by
-    have hchain : (ρ / 2) * (U.card : ℝ) * (B.card : ℝ) ≤
-        (B'.card : ℝ) * (U.card : ℝ) := le_trans hpop_col_lb hpop_col_ub
-    have hrew : (ρ / 2) * (U.card : ℝ) * (B.card : ℝ) =
-        ((ρ / 2) * (B.card : ℝ)) * (U.card : ℝ) := by ring
-    rw [hrew] at hchain
-    exact le_of_mul_le_mul_right hchain hU_pos
-  have hpop_col_prop : ∀ b ∈ B', (ρ / 2) * (U.card : ℝ) ≤ (colCount b : ℝ) := by
-    intro b hb
-    rw [hB'_def, Finset.mem_filter] at hb
-    exact hb.2
-  exact ⟨B', hB'_sub, hB'_lb, hpop_col_prop⟩
-
-/--
-**Witness for the DRC pointwise payoff (steps 1-4).** Internal helper.
-Composes `graph_high_degree_subset_lb` (rare/popular row split) with
-`graph_pair_dependentRandomChoice` (Fox-Sudakov 5.1 pair-DRC) and a Markov + rare/popular
-column split.  Returns the four pieces needed by the pointwise count
-step: a "core" set `U ⊆ A`, the "non-bad" refinement `A' ⊆ U`, the
-"popular column" refinement `B' ⊆ B`, and the codegree threshold
-`τ ≥ 0` that interpolates the bad-partner bound for `a ∈ A'` and the
-final `(δ⁵/2¹²)|A|²` count.
-
-The arithmetic identity `(δ⁵/2¹²)|A|² ≤ (δ/8)|U| · τ` is established
-here (using `m := |Apop|`-relative density and `|U| · τ`-style
-cancellation) so the count helper need not redo it.
--/
-private lemma graph_dependentRandomChoice_payoff_pointwise_witness {G : Type*} [DecidableEq G]
-    (δ : ℝ) (hδ_pos : 0 < δ) (hδ_le : δ ≤ 1)
-    (A B : Finset G) (hA : A.Nonempty) (hAB : A.card = B.card)
-    (E : Finset (G × G)) (hE_sub : E ⊆ A ×ˢ B)
-    (hE_dense : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ)) :
-    ∃ U A' B' : Finset G, ∃ τ : ℝ,
-      U ⊆ A ∧ A' ⊆ U ∧ B' ⊆ B ∧
-      0 ≤ τ ∧
-      (δ / 4) * (A.card : ℝ) ≤ (U.card : ℝ) ∧
-      (δ / 8) * (A.card : ℝ) ≤ (A'.card : ℝ) ∧
-      (δ / 8) * (A.card : ℝ) ≤ (B'.card : ℝ) ∧
-      (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤ (δ / 8) * (U.card : ℝ) * τ ∧
-      (∀ a ∈ A',
-        ((U.filter fun a₁ ↦
-          ((B.filter fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E).card : ℝ) < τ).card : ℝ)
-          ≤ (δ / 8) * (U.card : ℝ)) ∧
-      (∀ b ∈ B',
-        (δ / 4) * (U.card : ℝ) ≤
-          ((U.filter fun a₁ ↦ (a₁, b) ∈ E).card : ℝ)) := by
-  classical
-  -- Cardinality positivity.
-  have hApos : 0 < A.card := hA.card_pos
-  have hA_real_pos : (0 : ℝ) < (A.card : ℝ) := by exact_mod_cast hApos
-  have hA_nn : (0 : ℝ) ≤ (A.card : ℝ) := le_of_lt hA_real_pos
-  have hBcard_nat : B.card = A.card := hAB.symm
-  have hB_real_eq : (B.card : ℝ) = (A.card : ℝ) := by exact_mod_cast hBcard_nat
-  have hB_real_pos : (0 : ℝ) < (B.card : ℝ) := by rw [hB_real_eq]; exact hA_real_pos
-  have hB : B.Nonempty := by
-    rw [← Finset.card_pos]; rw [hBcard_nat]; exact hApos
-  -- δ bounds.
-  have hδ_nn : 0 ≤ δ := le_of_lt hδ_pos
-  -- Step 1: apply rare/popular row split.
-  obtain ⟨hApop_lb, hEpop_lb⟩ :=
-    graph_high_degree_subset_lb δ hδ_pos hδ_le A B hA hAB E hE_sub hE_dense
-  -- Define A₁ (popular rows) and E₁ (edges with popular first coord).
-  set A₁ : Finset G := A.filter (fun a ↦
-    (δ / 2) * (B.card : ℝ) ≤ ((B.filter (fun b ↦ (a, b) ∈ E)).card : ℝ)) with hA₁_def
-  have hA₁_sub : A₁ ⊆ A := Finset.filter_subset _ _
-  -- |A₁| ≥ (δ/2)|A| > 0, so A₁ is nonempty.
-  have hA₁_card_pos : (0 : ℝ) < (A₁.card : ℝ) := by
-    have : 0 < (δ / 2) * (A.card : ℝ) := by positivity
-    linarith
-  have hA₁_card_pos_nat : 0 < A₁.card := by exact_mod_cast hA₁_card_pos
-  have hA₁_ne : A₁.Nonempty := Finset.card_pos.mp hA₁_card_pos_nat
-  set E₁ : Finset (G × G) := E.filter (fun p ↦ p.1 ∈ A₁) with hE₁_def
-  have hE₁_sub_E : E₁ ⊆ E := Finset.filter_subset _ _
-  -- E₁ characterisation: edges with first coord in A₁.
-  have hE₁_iff : ∀ p, p ∈ E₁ ↔ p ∈ E ∧ p.1 ∈ A₁ := fun p ↦ by
-    simp [E₁, Finset.mem_filter]
-  -- E₁ ⊆ A₁ ×ˢ B.
-  have hE₁_sub : E₁ ⊆ A₁ ×ˢ B := by
-    intro p hp
-    rw [hE₁_iff] at hp
-    obtain ⟨hpE, hpA₁⟩ := hp
-    have hpAB := hE_sub hpE
-    rw [Finset.mem_product] at hpAB ⊢
-    exact ⟨hpA₁, hpAB.2⟩
-  -- The edge count for E₁: this matches the popular-edge form of `graph_high_degree_subset_lb`.
-  -- |E₁| = |E.filter (popular first coord)| ≥ (δ/2)·|A|·|B|.
-  have hE₁_card_lb : (δ / 2) * (A.card : ℝ) * (B.card : ℝ) ≤ (E₁.card : ℝ) := by
-    -- The popular-edge filter from `graph_high_degree_subset_lb` matches E₁:
-    --   E.filter (popular p.1) = E.filter (p.1 ∈ A₁)
-    have hfilter_eq :
-        E.filter (fun p : G × G ↦
-          (δ / 2) * (B.card : ℝ) ≤ ((B.filter (fun b ↦ (p.1, b) ∈ E)).card : ℝ)) = E₁ := by
-      ext p
-      simp only [E₁, Finset.mem_filter, hA₁_def]
-      constructor
-      · rintro ⟨hpE, hpop⟩
-        have hpAB := hE_sub hpE
-        rw [Finset.mem_product] at hpAB
-        exact ⟨hpE, hpAB.1, hpop⟩
-      · rintro ⟨hpE, _, hpop⟩
-        exact ⟨hpE, hpop⟩
-    rw [← hfilter_eq]; exact hEpop_lb
-  -- Step 2: invoke graph_pair_dependentRandomChoice on (A₁, B, E₁) with density c₀ = (δ/2)|A|/|A₁|.
-  set m : ℝ := (A₁.card : ℝ) with hm_def
-  have hm_pos : 0 < m := hA₁_card_pos
-  have hm_le_A : m ≤ (A.card : ℝ) := by
-    have : (A₁.card : ℝ) ≤ (A.card : ℝ) := by exact_mod_cast Finset.card_le_card hA₁_sub
-    exact this
-  -- Density c₀ for pair-DRC: c₀ * m * |B| = (δ/2) * |A| * |B|.
-  set c₀ : ℝ := (δ / 2) * (A.card : ℝ) / m with hc₀_def
-  have hc₀_pos : 0 < c₀ := by
-    have hnum : 0 < (δ / 2) * (A.card : ℝ) := by positivity
-    exact div_pos hnum hm_pos
-  -- c₀ ≤ 1, because (δ/2)|A| ≤ m (= |A₁|).
-  have hc₀_le_one : c₀ ≤ 1 := by
-    rw [hc₀_def]
-    rw [div_le_one hm_pos]
-    exact hApop_lb
-  -- c₀ * |A₁| = (δ/2) * |A|.
-  have hc₀_mul_m : c₀ * m = (δ / 2) * (A.card : ℝ) := by
-    rw [hc₀_def]; field_simp
-  -- Density hypothesis for graph_pair_dependentRandomChoice.
-  have hF_dense_drc : c₀ * (A₁.card : ℝ) * (B.card : ℝ) ≤ (E₁.card : ℝ) := by
-    have : c₀ * (A₁.card : ℝ) * (B.card : ℝ) = (δ / 2) * (A.card : ℝ) * (B.card : ℝ) := by
-      rw [show (A₁.card : ℝ) = m from rfl]; rw [hc₀_mul_m]
-    rw [this]; exact hE₁_card_lb
-  -- ε = δ/16.
-  set ε : ℝ := δ / 16 with hε_def
-  have hε_pos : 0 < ε := by rw [hε_def]; positivity
-  have hε_le_one : ε ≤ 1 := by
-    rw [hε_def]; linarith
-  -- Invoke graph_pair_dependentRandomChoice.
-  obtain ⟨U, hU_sub_A₁, hU_card_lb_drc, hbad_card_le⟩ :=
-    graph_pair_dependentRandomChoice A₁ B hA₁_ne hB E₁ hE₁_sub c₀ hc₀_pos hc₀_le_one hF_dense_drc
-      ε hε_pos hε_le_one
-  have hU_sub : U ⊆ A := hU_sub_A₁.trans hA₁_sub
-  -- (c₀/2) * |A₁| = (δ/4) * |A|.
-  have hU_card_lb : (δ / 4) * (A.card : ℝ) ≤ (U.card : ℝ) := by
-    have heq : c₀ / 2 * (A₁.card : ℝ) = (δ / 4) * (A.card : ℝ) := by
-      have := hc₀_mul_m
-      rw [show (A₁.card : ℝ) = m from rfl]
-      linarith
-    linarith [hU_card_lb_drc, heq]
-  have hU_card_pos : (0 : ℝ) < (U.card : ℝ) := by
-    have : 0 < (δ / 4) * (A.card : ℝ) := by positivity
-    linarith
-  have hU_card_pos_nat : 0 < U.card := by exact_mod_cast hU_card_pos
-  have hU_ne : U.Nonempty := Finset.card_pos.mp hU_card_pos_nat
-  -- τ_drc = (ε * c₀²/2) * |B|.  Goal `τ := τ_drc`.
-  set τ : ℝ := (ε * c₀ ^ 2 / 2) * (B.card : ℝ) with hτ_def
-  have hτ_nn : 0 ≤ τ := by
-    rw [hτ_def]
-    have h1 : 0 ≤ ε * c₀ ^ 2 / 2 := by positivity
-    have h2 : (0 : ℝ) ≤ (B.card : ℝ) := le_of_lt hB_real_pos
-    exact mul_nonneg h1 h2
-  -- The arithmetic identity: (δ⁵/2¹²)|A|² ≤ (δ/8) · |U| · τ.
-  -- We use: (δ/8)|U| ≥ (δ/8)(δ/4)|A| = δ²/32 · |A|, and τ ≥ ?
-  -- Key: τ = (δ/16)·c₀²/2·|B| = (δ/32)·c₀²·|A|.
-  -- And c₀² · |A₁|² = (δ/2)² · |A|², so c₀² = δ²|A|²/(4·m²).
-  -- Hence τ · m² = (δ/32) · (δ²/4) · |A|³ = δ³|A|³/128.
-  -- Want: (δ/8)|U| · τ ≥ (δ⁵/2¹²)|A|².
-  -- Using |U| ≥ (δ/4)|A| and τ ≥ (δ³/2⁷)|A| (since m ≤ |A|, so |A|³/m² ≥ |A|).
-  have hτ_lb : (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) ≤ τ := by
-    -- τ = (δ/16) · c₀² / 2 · |B| = (δ/32) · c₀² · |A|.
-    -- c₀ · m = (δ/2)|A|, so c₀² · m² = δ²|A|²/4.
-    -- τ · m² = (δ/32) · δ²|A|²/4 · |A| = δ³|A|³/128.
-    -- τ = δ³|A|³ / (128 m²).  Since m ≤ |A|: τ ≥ δ³|A|/128.
-    have hc₀sq : c₀ ^ 2 * m ^ 2 = ((δ / 2) * (A.card : ℝ)) ^ 2 := by
-      have h := hc₀_mul_m
-      calc c₀ ^ 2 * m ^ 2 = (c₀ * m) ^ 2 := by ring
-        _ = ((δ / 2) * (A.card : ℝ)) ^ 2 := by rw [h]
-    have hm_sq_pos : 0 < m ^ 2 := by positivity
-    have hm_sq_le : m ^ 2 ≤ (A.card : ℝ) ^ 2 := by
-      have hm_nn : 0 ≤ m := le_of_lt hm_pos
-      exact pow_le_pow_left₀ hm_nn hm_le_A 2
-    -- τ * m² = (ε * c₀²/2) * |B| * m² = (ε / 2) * (c₀² · m²) * |B|
-    --        = (δ / 32) * ((δ/2)|A|)² * |A| = δ³|A|³/128.
-    have hτ_m_sq : τ * m ^ 2 = δ ^ 3 / 128 * (A.card : ℝ) ^ 3 := by
-      have : τ = (ε * c₀ ^ 2 / 2) * (B.card : ℝ) := hτ_def
-      rw [this, hB_real_eq, hε_def]
-      have : (δ / 16 * c₀ ^ 2 / 2) * (A.card : ℝ) * m ^ 2
-          = (δ / 32) * (c₀ ^ 2 * m ^ 2) * (A.card : ℝ) := by ring
-      rw [this, hc₀sq]
-      ring
-    -- (δ³/2⁷)|A| · m² ≤ τ · m² ↔ (δ³/2⁷)|A| ≤ τ if m² > 0.
-    -- Use (δ³/2⁷)|A| · m² ≤ (δ³/2⁷)|A| · |A|² = (δ³/128)|A|³ = τ · m².
-    have hineq : (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) * m ^ 2 ≤ τ * m ^ 2 := by
-      rw [hτ_m_sq]
-      have : (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) * m ^ 2 ≤
-            (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) * (A.card : ℝ) ^ 2 := by
-        have hLcoeff_nn : 0 ≤ (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) := by positivity
-        exact mul_le_mul_of_nonneg_left hm_sq_le hLcoeff_nn
-      have heq2 : (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) * (A.card : ℝ) ^ 2 =
-          δ ^ 3 / 128 * (A.card : ℝ) ^ 3 := by ring
-      linarith
-    exact le_of_mul_le_mul_right hineq hm_sq_pos
-  -- Now establish the bound (δ⁵/2¹²)|A|² ≤ (δ/8)|U| · τ via
-  -- (δ/8)|U| ≥ (δ/8)(δ/4)|A| = δ²/32 · |A| and τ ≥ δ³/128 · |A|, product ≥ δ⁵|A|²/2¹².
-  have hUτ_bound : (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤ (δ / 8) * (U.card : ℝ) * τ := by
-    have h1 : (δ / 8) * ((δ / 4) * (A.card : ℝ)) ≤ (δ / 8) * (U.card : ℝ) := by
-      have h8 : (0 : ℝ) ≤ δ / 8 := by linarith
-      exact mul_le_mul_of_nonneg_left hU_card_lb h8
-    have h2 : (δ / 8) * ((δ / 4) * (A.card : ℝ)) * ((δ ^ 3 / 2 ^ 7) * (A.card : ℝ)) ≤
-        (δ / 8) * (U.card : ℝ) * τ := by
-      have hLHS_nn : 0 ≤ (δ / 8) * ((δ / 4) * (A.card : ℝ)) := by positivity
-      have hLHS_nn' : 0 ≤ (δ ^ 3 / 2 ^ 7) * (A.card : ℝ) := by positivity
-      exact mul_le_mul h1 hτ_lb hLHS_nn' (le_trans hLHS_nn h1)
-    have hrew : (δ / 8) * ((δ / 4) * (A.card : ℝ)) * ((δ ^ 3 / 2 ^ 7) * (A.card : ℝ)) =
-        (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 := by ring
-    linarith
-  -- Bad-pair count in U using the E-codegree.  It is bounded by the E₁-bad count from
-  -- graph_pair_dependentRandomChoice, since codeg_E ≥ codeg_{E₁}.
-  have hbadCountE : (((U ×ˢ U).filter fun p : G × G ↦
-      ((B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E)).card : ℝ) < τ).card : ℝ)
-    ≤ ε * (U.card : ℝ) ^ 2 := by
-    -- Pointwise: codeg_E(p) < τ ⟹ codeg_{E₁}(p) ≤ codeg_E(p) < τ.
-    have hbadE_sub : ((U ×ˢ U).filter fun p : G × G ↦
-          ((B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E)).card : ℝ) < τ) ⊆
-        ((U ×ˢ U).filter fun p : G × G ↦
-          (((B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
-            (B.filter (fun y ↦ (p.2, y) ∈ E₁))).card : ℝ) < τ) := by
-      intro p hp
-      rw [Finset.mem_filter] at hp ⊢
-      refine ⟨hp.1, ?_⟩
-      have hsub : (B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
-                  (B.filter (fun y ↦ (p.2, y) ∈ E₁)) ⊆
-                  B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E) := by
-        intro y hy
-        simp only [Finset.mem_inter, Finset.mem_filter] at hy
-        simp only [Finset.mem_filter]
-        exact ⟨hy.1.1, hE₁_sub_E hy.1.2, hE₁_sub_E hy.2.2⟩
-      have hcard : (((B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
-          (B.filter (fun y ↦ (p.2, y) ∈ E₁))).card : ℝ) ≤
-          ((B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E)).card : ℝ) := by
-        exact_mod_cast Finset.card_le_card hsub
-      linarith [hp.2]
-    have h := Finset.card_le_card hbadE_sub
-    have hreal : (((U ×ˢ U).filter fun p : G × G ↦
-          ((B.filter (fun b₁ ↦ (p.1, b₁) ∈ E ∧ (p.2, b₁) ∈ E)).card : ℝ) < τ).card : ℝ) ≤
-        (((U ×ˢ U).filter fun p : G × G ↦
-          (((B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
-            (B.filter (fun y ↦ (p.2, y) ∈ E₁))).card : ℝ) < τ).card : ℝ) := by
-      exact_mod_cast h
-    -- `τ = (ε * c₀ ^ 2 / 2) * (B.card : ℝ)` by definition; substitute.
-    have hfilter_eq :
-        ((U ×ˢ U).filter fun p : G × G ↦
-          (((B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
-            (B.filter (fun y ↦ (p.2, y) ∈ E₁))).card : ℝ) < τ) =
-        ((U ×ˢ U).filter fun p : G × G ↦
-          (((B.filter (fun y ↦ (p.1, y) ∈ E₁)) ∩
-            (B.filter (fun y ↦ (p.2, y) ∈ E₁))).card : ℝ) <
-          (ε * c₀ ^ 2 / 2) * (B.card : ℝ)) := by rfl
-    rw [hfilter_eq] at hreal
-    linarith
-  -- Apply Markov refinement helper.
-  obtain ⟨A', hA'_sub_U, hA'_half, hA'_prop⟩ :=
-    graph_dependentRandomChoice_markov_refinement (G := G) B U E τ ε hε_pos hU_card_pos hbadCountE
-  -- `hA'_half`: (1 - 1/2) * |U| ≤ |A'|, i.e. |U|/2 ≤ |A'|.
-  -- `hA'_prop`: ∀ a ∈ A', ((badPartner a).card : ℝ) ≤ 2ε|U| = (δ/8)|U|.
-  -- So we get the (δ/8)|U| bound directly: 2 * (δ/16) = δ/8.
-  have htwo_eps : (2 : ℝ) * ε = δ / 8 := by rw [hε_def]; ring
-  have hA'_prop_clean : ∀ a ∈ A',
-      ((U.filter fun a₁ ↦
-        ((B.filter fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E).card : ℝ) < τ).card : ℝ)
-        ≤ (δ / 8) * (U.card : ℝ) := by
-    intro a ha
-    have h := hA'_prop a ha
-    have hrew : (2 * ε * (U.card : ℝ)) = (δ / 8) * (U.card : ℝ) := by
-      rw [show (2 * ε * (U.card : ℝ)) = 2 * ε * (U.card : ℝ) from rfl, htwo_eps]
-    linarith [hrew]
-  -- |A'| ≥ |U|/2 ≥ (δ/8)|A|.
-  have hA'_card_lb : (δ / 8) * (A.card : ℝ) ≤ (A'.card : ℝ) := by
-    have h1 : (δ / 8) * (A.card : ℝ) ≤ (U.card : ℝ) / 2 := by linarith [hU_card_lb]
-    have : (1 - 1 / 2) * (U.card : ℝ) = (U.card : ℝ) / 2 := by ring
-    linarith [hA'_half, this]
-  -- Step 4: popular columns via `graph_dependentRandomChoice_popular_columns`.
-  -- Row-degree lower bound for a ∈ U (which is ⊆ A₁): rowDeg_E(a) ≥ (δ/2)|B|.
-  have hrowDeg_lb : ∀ a ∈ U, (δ / 2) * (B.card : ℝ) ≤
-      ((B.filter (fun b ↦ (a, b) ∈ E)).card : ℝ) := by
-    intro a haU
-    have haA₁ : a ∈ A₁ := hU_sub_A₁ haU
-    rw [hA₁_def, Finset.mem_filter] at haA₁
-    exact haA₁.2
-  -- δ/2 > 0 and ≤ 1 since δ ≤ 1.
-  have hρ_pos : (0 : ℝ) < δ / 2 := by positivity
-  have hρ_le : δ / 2 ≤ 1 := by linarith
-  obtain ⟨B', hB'_sub, hB'_lb_drc, hpopCol⟩ :=
-    graph_dependentRandomChoice_popular_columns (G := G) A B hAB E hE_sub U hU_sub hU_card_pos
-      (δ / 2) hρ_pos hρ_le hrowDeg_lb
-  -- (δ/2)/2 = δ/4. So |B'| ≥ (δ/4)|B| = (δ/4)|A| ≥ (δ/8)|A|.
-  have hB'_card_lb : (δ / 8) * (A.card : ℝ) ≤ (B'.card : ℝ) := by
-    have h3 : (δ / 8) * (A.card : ℝ) ≤ (δ / 4) * (A.card : ℝ) :=
-      mul_le_mul_of_nonneg_right (by linarith) hA_nn
-    have hquarter_eq : (δ / 2) / 2 * (B.card : ℝ) = (δ / 4) * (A.card : ℝ) := by
-      rw [hB_real_eq]; ring
-    linarith [hB'_lb_drc, hquarter_eq]
-  -- Popular-column property: for b ∈ B', (δ/4)|U| ≤ |{a ∈ U : (a, b) ∈ E}|.
-  have hpopCol_clean : ∀ b ∈ B', (δ / 4) * (U.card : ℝ) ≤
-      ((U.filter fun a ↦ (a, b) ∈ E).card : ℝ) := by
-    intro b hb
-    have h := hpopCol b hb
-    have hrew : (δ / 2) / 2 * (U.card : ℝ) = (δ / 4) * (U.card : ℝ) := by ring
-    linarith [hrew]
-  refine ⟨U, A', B', τ, hU_sub, hA'_sub_U, hB'_sub, hτ_nn, hU_card_lb,
-    hA'_card_lb, hB'_card_lb, hUτ_bound, hA'_prop_clean, hpopCol_clean⟩
-
-/--
-**Pointwise count helper (step 5).** Given the witness from
-`graph_dependentRandomChoice_payoff_pointwise_witness`, partition the path-3 Finset
-`(B ×ˢ A).filter ((a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E)` by the
-second coordinate `q.2 = a₁ ∈ U`. For `a₁` that is a popular neighbour of
-`b` and a non-bad partner of `a`, the corresponding fiber has cardinality
-`≥ τ`. There are at least `(δ/8)|U|` such `a₁`, giving the final bound
-`(δ/8)|U| · τ ≥ (δ⁵/2¹²)|A|²`.
--/
-private lemma graph_dependentRandomChoice_payoff_pointwise_count {G : Type*} [DecidableEq G]
-    (δ : ℝ) (A B : Finset G) (E : Finset (G × G)) (U A' B' : Finset G) (τ : ℝ)
-    (hU_sub : U ⊆ A) (_hA'_sub_U : A' ⊆ U) (_hB'_sub : B' ⊆ B)
-    (hτ_nn : 0 ≤ τ)
-    (hUτ_bound : (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤ (δ / 8) * (U.card : ℝ) * τ)
-    (hbadPartner : ∀ a ∈ A',
-      ((U.filter fun a₁ ↦
-        ((B.filter fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E).card : ℝ) < τ).card : ℝ)
-        ≤ (δ / 8) * (U.card : ℝ))
-    (hpopCol : ∀ b ∈ B',
-      (δ / 4) * (U.card : ℝ) ≤
-        ((U.filter fun a₁ ↦ (a₁, b) ∈ E).card : ℝ))
-    (a : G) (ha : a ∈ A') (b : G) (hb : b ∈ B') :
-    (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤
-      (((B ×ˢ A).filter fun q : G × G ↦
-        (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) := by
-  classical
-  -- "Popular neighbours of b in U" and "non-bad partners of a in U".
-  set Nb : Finset G := U.filter (fun a₁ ↦ (a₁, b) ∈ E) with hNb_def
-  set Bad : Finset G := U.filter (fun a₁ ↦
-    ((B.filter (fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E)).card : ℝ) < τ) with hBad_def
-  have hNb_lb : (δ / 4) * (U.card : ℝ) ≤ (Nb.card : ℝ) := hpopCol b hb
-  have hBad_ub : (Bad.card : ℝ) ≤ (δ / 8) * (U.card : ℝ) := hbadPartner a ha
-  -- Good := Nb \ Bad.  |Good| ≥ |Nb| - |Bad| ≥ (δ/8)|U|.
-  set Good : Finset G := Nb \ Bad with hGood_def
-  have hGood_sub_Nb : Good ⊆ Nb := Finset.sdiff_subset
-  have hNb_sub_U : Nb ⊆ U := Finset.filter_subset _ _
-  have hGood_sub_U : Good ⊆ U := hGood_sub_Nb.trans hNb_sub_U
-  have hGood_card_lb : (δ / 8) * (U.card : ℝ) ≤ (Good.card : ℝ) := by
-    -- |Nb \ Bad| ≥ |Nb| - |Bad|, via Nb ⊆ (Nb \ Bad) ∪ Bad.
-    have hUnion : Nb ⊆ (Nb \ Bad) ∪ Bad := by
-      intro x hx
-      by_cases hxBad : x ∈ Bad
-      · exact Finset.mem_union_right _ hxBad
-      · exact Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨hx, hxBad⟩)
-    have h1 : Nb.card ≤ ((Nb \ Bad) ∪ Bad).card := Finset.card_le_card hUnion
-    have h2 : ((Nb \ Bad) ∪ Bad).card ≤ (Nb \ Bad).card + Bad.card :=
-      Finset.card_union_le _ _
-    have hreal : (Nb.card : ℝ) ≤ ((Nb \ Bad).card : ℝ) + (Bad.card : ℝ) := by
-      have : (Nb.card : ℕ) ≤ (Nb \ Bad).card + Bad.card := le_trans h1 h2
-      exact_mod_cast this
-    have hGood_card_eq : ((Nb \ Bad).card : ℝ) = (Good.card : ℝ) := by
-      rw [hGood_def]
-    linarith [hreal, hNb_lb, hBad_ub, hGood_card_eq]
-  -- For each a₁ ∈ Good: (a₁, b) ∈ E and codeg_E(a, a₁) ≥ τ.
-  have hGood_codeg : ∀ a₁ ∈ Good,
-      τ ≤ ((B.filter fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E).card : ℝ) ∧ (a₁, b) ∈ E := by
-    intro a₁ ha₁
-    rw [hGood_def, Finset.mem_sdiff, hNb_def, Finset.mem_filter, hBad_def,
-      Finset.mem_filter] at ha₁
-    obtain ⟨⟨ha₁U, ha₁bE⟩, hnotBad⟩ := ha₁
-    refine ⟨?_, ha₁bE⟩
-    by_contra hlt
-    push Not at hlt
-    exact hnotBad ⟨ha₁U, hlt⟩
-  -- Path Finset of interest.
-  set paths : Finset (G × G) := (B ×ˢ A).filter fun q : G × G ↦
-    (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E with hpaths_def
-  -- Fiber over the second coordinate: for each a₁, witness pairs (b₁, a₁).
-  set fiber : G → Finset (G × G) := fun a₁ ↦
-    (B.filter (fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E)).image (fun b₁ ↦ (b₁, a₁))
-    with hfiber_def
-  -- fiber a₁ has the same cardinality as the inner filter (image of an injection).
-  have hfiber_card : ∀ a₁,
-      (fiber a₁).card = (B.filter (fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E)).card := by
-    intro a₁
-    rw [hfiber_def]
-    apply Finset.card_image_of_injective
-    intro x y hxy
-    exact (Prod.mk.injEq _ _ _ _).mp hxy |>.1
-  -- For a₁ ∈ Good, fiber a₁ ⊆ paths.
-  have hfiber_sub : ∀ a₁ ∈ Good, fiber a₁ ⊆ paths := by
-    intro a₁ ha₁ p hp
-    rw [hfiber_def, Finset.mem_image] at hp
-    obtain ⟨b₁, hb₁, hpeq⟩ := hp
-    rw [Finset.mem_filter] at hb₁
-    obtain ⟨hb₁B, habE, ha₁b₁E⟩ := hb₁
-    have ha₁U : a₁ ∈ U := hGood_sub_U ha₁
-    have ha₁A : a₁ ∈ A := hU_sub ha₁U
-    obtain ⟨_, ha₁bE⟩ := hGood_codeg a₁ ha₁
-    rw [hpaths_def, Finset.mem_filter, Finset.mem_product]
-    rw [← hpeq]
-    exact ⟨⟨hb₁B, ha₁A⟩, habE, ha₁b₁E, ha₁bE⟩
-  -- Pairwise disjointness of fibers (different a₁ → different second coord).
-  have hfiber_disjoint : (Good : Set G).PairwiseDisjoint fiber := by
-    intro x _ y _ hxy
-    refine Finset.disjoint_left.mpr ?_
-    intro p hpx hpy
-    rw [hfiber_def, Finset.mem_image] at hpx hpy
-    obtain ⟨bx, _, hpx_eq⟩ := hpx
-    obtain ⟨by_, _, hpy_eq⟩ := hpy
-    have hsnd : p.2 = x := by rw [← hpx_eq]
-    have hsnd' : p.2 = y := by rw [← hpy_eq]
-    exact hxy (hsnd.symm.trans hsnd')
-  -- |⋃_{a₁ ∈ Good} fiber a₁| = Σ_{a₁ ∈ Good} |fiber a₁|.
-  have hbiUnion_card : (Good.biUnion fiber).card = ∑ a₁ ∈ Good, (fiber a₁).card := by
-    exact Finset.card_biUnion (fun x hx y hy hxy ↦ hfiber_disjoint hx hy hxy)
-  -- The biUnion is contained in paths.
-  have hbiUnion_sub : Good.biUnion fiber ⊆ paths := by
-    intro p hp
-    rw [Finset.mem_biUnion] at hp
-    obtain ⟨a₁, ha₁, hp⟩ := hp
-    exact hfiber_sub a₁ ha₁ hp
-  have hcard_path_lb : (∑ a₁ ∈ Good, (fiber a₁).card : ℕ) ≤ paths.card := by
-    calc (∑ a₁ ∈ Good, (fiber a₁).card : ℕ)
-        = (Good.biUnion fiber).card := hbiUnion_card.symm
-      _ ≤ paths.card := Finset.card_le_card hbiUnion_sub
-  have hcard_path_lb_real : (∑ a₁ ∈ Good, ((fiber a₁).card : ℝ)) ≤ (paths.card : ℝ) := by
-    have h : ((∑ a₁ ∈ Good, (fiber a₁).card : ℕ) : ℝ) ≤ (paths.card : ℝ) := by
-      exact_mod_cast hcard_path_lb
-    push_cast at h; exact h
-  -- Σ_{a₁ ∈ Good} |fiber a₁| ≥ |Good| · τ.
-  have hsum_lb : (Good.card : ℝ) * τ ≤ ∑ a₁ ∈ Good, ((fiber a₁).card : ℝ) := by
-    rw [show (Good.card : ℝ) * τ = ∑ _a₁ ∈ Good, τ from by
-      rw [Finset.sum_const, nsmul_eq_mul]]
-    refine Finset.sum_le_sum fun a₁ ha₁ ↦ ?_
-    have hcard := hfiber_card a₁
-    have hcodeg := (hGood_codeg a₁ ha₁).1
-    have : ((fiber a₁).card : ℝ) =
-        ((B.filter (fun b₁ ↦ (a, b₁) ∈ E ∧ (a₁, b₁) ∈ E)).card : ℝ) := by
-      exact_mod_cast hcard
-    rw [this]
-    exact hcodeg
-  -- Combine: paths ≥ |Good| · τ ≥ (δ/8)|U| · τ ≥ (δ⁵/2¹²)|A|².
-  have hGood_τ : (δ / 8) * (U.card : ℝ) * τ ≤ (Good.card : ℝ) * τ :=
-    mul_le_mul_of_nonneg_right hGood_card_lb hτ_nn
-  linarith [hUτ_bound, hGood_τ, hsum_lb, hcard_path_lb_real]
-
-/--
-**DRC payoff: pointwise path-3 count.** Given the pair-DRC witness `U ⊆ A`
-(from `graph_pair_dependentRandomChoice`), define the "non-bad" set
-`A' := { a ∈ U : few a' ∈ U with codegree < (δ³/2⁷) n }` and the "popular"
-set `B' := { b ∈ B : (δ/4) |U| ≤ |N_U(b)| }`. For `a ∈ A'`, `b ∈ B'`, the
-length-3 path count `P(a, b) ≥ (δ⁵ / 2¹²) n²`.
-
-Proof: of the `(δ/4)|U|` vertices in `U ∩ N(b)`, at most `(δ/8)|U|` are bad
-partners of `a`, leaving `≥ (δ/8)|U|` non-bad partners `a₁`. Each non-bad
-partner has `|N(a) ∩ N(a₁)| ≥ (δ³/2⁷) n` choices of `b₁`. Total:
-`P(a, b) ≥ (δ/8)|U| · (δ³/2⁷) n ≥ (δ/8)(δ/4)n · (δ³/128) n = (δ⁵/2¹²) n²`.
--/
-lemma graph_dependentRandomChoice_payoff_pointwise {G : Type*} [DecidableEq G]
-    (δ : ℝ) (hδ_pos : 0 < δ) (hδ_le : δ ≤ 1)
-    (A B : Finset G) (hA : A.Nonempty) (hAB : A.card = B.card)
-    (E : Finset (G × G)) (hE_sub : E ⊆ A ×ˢ B)
-    (hE_dense : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ)) :
-    ∃ A' B' : Finset G, A' ⊆ A ∧ B' ⊆ B ∧
-      (δ / 8) * (A.card : ℝ) ≤ (A'.card : ℝ) ∧
-      (δ / 8) * (A.card : ℝ) ≤ (B'.card : ℝ) ∧
-      ∀ a ∈ A', ∀ b ∈ B',
-        (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤
-          (((B ×ˢ A).filter fun q : G × G ↦
-            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) := by
-  classical
-  obtain ⟨U, A', B', τ, hU_sub, hA'_sub_U, hB'_sub, hτ_nn, _hU_card, hA'_card,
-    hB'_card, hUτ_bound, hbadPartner, hpopCol⟩ :=
-    graph_dependentRandomChoice_payoff_pointwise_witness δ hδ_pos hδ_le A B hA hAB E hE_sub hE_dense
-  refine ⟨A', B', hA'_sub_U.trans hU_sub, hB'_sub, hA'_card, hB'_card, ?_⟩
-  intro a ha b hb
-  exact graph_dependentRandomChoice_payoff_pointwise_count δ A B E U A' B' τ hU_sub hA'_sub_U hB'_sub
-    hτ_nn hUτ_bound hbadPartner hpopCol a ha b hb
-
-/--
-**Dense bipartite graph has a pointwise length-3 path rectangle (Fox-Sudakov
-Lemma 5.2 / Tao-Vu Cor. 6.20).** Given a bipartite graph `E ⊆ A ×ˢ B` of density
-`≥ δ` (with `|A| = |B|`), there exist subsets `A' ⊆ A`, `B' ⊆ B` of cardinality
-`≥ (δ / 8) · |A|` such that *every* pair `(a, b) ∈ A' × B'` admits at least
-`(δ^5 / 2^12) · |A|^2` length-3 paths `a — b₁ — a₁ — b` in `E`. The path
-multiplicity is **pointwise**, not averaged — this is what makes the bound
-linear when fed into the triple-rep count.
-
-Proof: dependent random choice (as implemented). (1) Restrict to the popular
-rows `A₁ := {a : deg_E(a) ≥ (δ/2)|B|}` and edges `E₁` out of them; `E₁` still
-has density `≥ δ/2`. (2) Pair-DRC (Fox-Sudakov 5.1): pick a *column* vertex
-`v ∈ B` uniformly and set the core `U := N_{E₁}(v) ⊆ A₁ ⊆ A`; by Cauchy-Schwarz
-a positive fraction of `v` give both `|U| ≥ (δ/4)|A|` and few "bad" ordered
-pairs `(a, a') ∈ U × U` of low codegree `|N(a) ∩ N(a')| < τ`. (3) `A' ⊆ U` is
-the Markov refinement to vertices with `≤ (δ/8)|U|` bad partners in `U`; (4)
-`B' ⊆ B` is the popular columns, those with `≥ (δ/4)|U|` neighbors inside `U`.
-The high pointwise codegree on `A'` combined with `B'`'s density in `U` forces
-`≥ (δ⁵/2¹²)|A|²` length-3 paths through every `(a, b) ∈ A' × B'`. References:
-Fox-Sudakov, *Dependent Random Choice* (2011), Lemma 5.2; Tao-Vu, *Additive
-Combinatorics*, §6.4, Cor. 6.20.
--/
-lemma dense_bipartite_has_path3_rectangle {G : Type*} [AddCommGroup G] [DecidableEq G]
-    (δ : ℝ) (hδ_pos : 0 < δ) (hδ_le : δ ≤ 1)
-    (A B : Finset G) (hA : A.Nonempty) (hAB : A.card = B.card)
-    (E : Finset (G × G)) (hE_sub : E ⊆ A ×ˢ B)
-    (hE_dense : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ)) :
-    ∃ A' B' : Finset G, A' ⊆ A ∧ B' ⊆ B ∧
-      (δ / 8) * (A.card : ℝ) ≤ (A'.card : ℝ) ∧
-      (δ / 8) * (A.card : ℝ) ≤ (B'.card : ℝ) ∧
-      ∀ a ∈ A', ∀ b ∈ B',
-        (δ^5 / 2^12) * (A.card : ℝ)^2 ≤
-          (((B ×ˢ A).filter fun q : G × G ↦
-            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) := by
-  classical
-  -- The Fox-Sudakov DRC payload is packaged in `graph_dependentRandomChoice_payoff_pointwise`,
-  -- which assembles `graph_pair_dependentRandomChoice`, `graph_high_degree_subset_lb`, and the
-  -- final pointwise path-3 count step (see those lemmas for the breakdown).
-  exact graph_dependentRandomChoice_payoff_pointwise δ hδ_pos hδ_le A B hA hAB E hE_sub hE_dense
-
-/--
-**Graph-BSG step C (length-3 path multiplicity).** Substantive content of the
-Balog-Szemerédi-Gowers reduction. Given finite sets `A`, `B` of equal
-cardinality `n`, a dense bipartite graph `E ⊆ A ×ˢ B` with `|E| ≥ δ · n²`,
-and the *restricted sumset* `S := {a+b : (a,b) ∈ E}` of size `|S| ≤ K · n`,
-there exist subsets `A' ⊆ A`, `B' ⊆ B` of size `≥ c(δ,K) · n` each whose
-ordinary sumset is small: `|A' + B'| ≤ C(δ,K) · n`.
-
-The mechanism is the length-3 path argument with multiplicity denominator: for
-`a ∈ A'`, `b ∈ B'`, length-3 paths `a — b₁ — a₁ — b` in `E` give
-representations `a + b = (a + b₁) − (a₁ + b₁) + (a₁ + b)` with all three
-terms in `S`. Each pair `(a, b)` admits `Ω(δ^O(1) · n²)` such paths by
-Cauchy-Schwarz on `E`. The cubic support count `|S − S + S| ≤ |S|³ ≤ K³ n³`
-divided by the path-multiplicity lower bound yields the linear bound.
-
-The key ingredient is to count length-3 paths *with multiplicity*: counting
-only the support of the representation set (rather than multiplicity) is
-insufficient. Tao–Vu §6.4 (proof of Theorem 2.29) / Petridis 2012.
--/
-lemma graph_balogSzemerediGowers_restricted_sumset {G : Type*} [AddCommGroup G] [DecidableEq G] :
-    ∀ δ K : ℝ, 0 < δ → 0 < K → ∃ c C : ℝ, 0 < c ∧ 0 < C ∧
-      ∀ A B : Finset G, A.Nonempty → B.Nonempty → A.card = B.card →
-        ∀ E : Finset (G × G), E ⊆ A ×ˢ B →
-          δ * (A.card : ℝ) ^ 2 ≤ (E.card : ℝ) →
-          ((E.image (fun p ↦ p.1 + p.2)).card : ℝ) ≤ K * (A.card : ℝ) →
-          ∃ A' B' : Finset G, A' ⊆ A ∧ B' ⊆ B ∧
-            c * (A.card : ℝ) ≤ (A'.card : ℝ) ∧
-            c * (A.card : ℝ) ≤ (B'.card : ℝ) ∧
-            ((A' + B').card : ℝ) ≤ C * (A.card : ℝ) := by
-  -- ## High-level proof structure (length-3 path multiplicity argument).
-  --
-  -- Constants:
-  -- * c := δ / 8 (from `dense_bipartite_has_path3_rectangle`, Fox-Sudakov DRC).
-  -- * C := 2^13 K³ / δ^5 + 2^12 / δ^5, the path-multiplicity bound,
-  --   absorbing both the M ≥ 1 and M = 0 sub-cases (triple-counting step in
-  --   the proof of Tao-Vu Theorem 2.29, §6.4).
-  intro δ K hδ hK
-  refine ⟨δ / 8, 2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5,
-    by positivity, by positivity, ?_⟩
-  intro A B hA hB hAB E hE_sub hE_lb hS_ub
-  -- Local abbreviations.
-  set n : ℕ := A.card with hn_def
-  have hn_pos : 0 < n := hA.card_pos
-  have hn_real_pos : (0 : ℝ) < (n : ℝ) := by exact_mod_cast hn_pos
-  have hn_nn : (0 : ℝ) ≤ (n : ℝ) := le_of_lt hn_real_pos
-  have hBcard_nat : B.card = n := hAB.symm
-  have hBcard : (B.card : ℝ) = (n : ℝ) := by exact_mod_cast hBcard_nat
-  -- Compose the three sub-lemmas: `dense_bipartite_has_path3_rectangle` for
-  -- the pointwise path-3 lower bound, `path3_count_le_triple_rep_count` for
-  -- the path-to-triple-rep bridge, `restricted_sumset_via_multiplicity` for
-  -- the cubic divisor. The Apop/Bpop scaffolding that previously prefixed
-  -- this proof has been deleted; DRC supplies its own A', B' refinement.
-  -- We must first handle the degenerate case `δ > 1`, which is vacuous
-  -- since `δ · n² ≤ |E| ≤ n²`.
-  by_cases hδ_le : δ ≤ 1
-  · -- ### Substantive case: δ ≤ 1. Compose the three sub-lemmas.
-    -- Restricted sumset image S.
-    set S : Finset G := E.image (fun p ↦ p.1 + p.2) with hS_def
-    have hSdef : ∀ p ∈ E, p.1 + p.2 ∈ S := by
-      intro p hp; exact Finset.mem_image_of_mem _ hp
-    -- Convert hE_lb : δ · n² ≤ |E| to the rectangle form δ · |A| · |B| ≤ |E|.
-    have hE_lb_rect : δ * (A.card : ℝ) * (B.card : ℝ) ≤ (E.card : ℝ) := by
-      have hsq : δ * (A.card : ℝ) ^ 2 = δ * (A.card : ℝ) * (B.card : ℝ) := by
-        rw [hBcard, hn_def]; ring
-      linarith [hE_lb, hsq.le, hsq.symm.le]
-    -- Apply DRC pointwise path-3 rectangle.
-    obtain ⟨A', B', hA'_sub, hB'_sub, hA'_card, hB'_card, hP_lb⟩ :=
-      dense_bipartite_has_path3_rectangle δ hδ hδ_le A B hA hAB E hE_sub hE_lb_rect
-    -- Set the integer floor multiplicity M.
-    set M : ℕ := Nat.floor ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) with hM_def
-    have hM_arg_nn : 0 ≤ (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 := by positivity
-    have hM_floor_le : (M : ℝ) ≤ (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 :=
-      Nat.floor_le hM_arg_nn
-    have hM_floor_ge : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 - 1 < (M : ℝ) := by
-      have h : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 <
-          (Nat.floor ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) : ℝ) + 1 :=
-        Nat.lt_floor_add_one ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2)
-      have hMeq : (M : ℝ) = (Nat.floor ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) : ℝ) := by
-        rfl
-      rw [hMeq]; linarith
-    -- Pointwise lower bound on the triple-rep count via the path-3 bridge.
-    have hM_cover : ∀ a ∈ A', ∀ b ∈ B',
-        M ≤ ((S ×ˢ S ×ˢ S).filter
-              (fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b)).card := by
-      intro a ha b hb
-      have hP : (δ ^ 5 / 2 ^ 12) * (A.card : ℝ) ^ 2 ≤
-          (((B ×ˢ A).filter fun q : G × G ↦
-            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) :=
-        hP_lb a ha b hb
-      have hP_n : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 ≤
-          (((B ×ˢ A).filter fun q : G × G ↦
-            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ) := by
-        rw [hn_def]; exact hP
-      have hbridge : (((B ×ˢ A).filter fun q : G × G ↦
-            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℕ)
-          ≤ ((S ×ˢ S ×ˢ S).filter
-              fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card :=
-        path3_count_le_triple_rep_count A B S E hSdef a b
-      have hbridge_R : (((B ×ˢ A).filter fun q : G × G ↦
-            (a, q.1) ∈ E ∧ (q.2, q.1) ∈ E ∧ (q.2, b) ∈ E).card : ℝ)
-          ≤ (((S ×ˢ S ×ˢ S).filter
-              fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card : ℝ) := by
-        exact_mod_cast hbridge
-      have hMR : (M : ℝ) ≤ (((S ×ˢ S ×ˢ S).filter
-              fun p : G × G × G ↦ p.1 - p.2.1 + p.2.2 = a + b).card : ℝ) :=
-        le_trans hM_floor_le (le_trans hP_n hbridge_R)
-      exact_mod_cast hMR
-    -- Apply restricted-sumset-via-multiplicity to obtain M · |A'+B'| ≤ |S|^3.
-    have hMS3 : M * (A' + B').card ≤ S.card ^ 3 :=
-      restricted_sumset_via_multiplicity A' B' S M hM_cover
-    have hMS3_R : (M : ℝ) * ((A' + B').card : ℝ) ≤ ((S.card : ℝ)) ^ 3 := by
-      have h := hMS3
-      have hh : ((M * (A' + B').card : ℕ) : ℝ) ≤ ((S.card ^ 3 : ℕ) : ℝ) := by
-        exact_mod_cast h
-      push_cast at hh; exact hh
-    -- Bound |S|^3 ≤ K^3 · n^3.
-    have hS_card_nn : (0 : ℝ) ≤ (S.card : ℝ) := Nat.cast_nonneg _
-    have hSn_ub : (S.card : ℝ) ≤ K * (n : ℝ) := by
-      have := hS_ub; rw [hn_def]; exact this
-    have hSn_cube_ub : (S.card : ℝ) ^ 3 ≤ K ^ 3 * (n : ℝ) ^ 3 := by
-      have h2 : (S.card : ℝ) ^ 3 ≤ (K * (n : ℝ)) ^ 3 :=
-        pow_le_pow_left₀ hS_card_nn hSn_ub 3
-      have heq : (K * (n : ℝ)) ^ 3 = K ^ 3 * (n : ℝ) ^ 3 := by ring
-      rw [heq] at h2; exact h2
-    -- Combine: M · |A' + B'| ≤ K^3 · n^3.
-    have hMSc : (M : ℝ) * ((A' + B').card : ℝ) ≤ K ^ 3 * (n : ℝ) ^ 3 :=
-      le_trans hMS3_R hSn_cube_ub
-    -- Refine to existential. The c · n bounds are exactly hA'_card, hB'_card
-    -- since c = δ / 8 matches what DRC gave us; the |A' + B'| ≤ C · n bound
-    -- requires case-splitting on M.
-    refine ⟨A', B', hA'_sub, hB'_sub, ?_, ?_, ?_⟩
-    · -- (δ/8) · |A| ≤ |A'|
-      have h := hA'_card
-      rw [hn_def]; exact h
-    · -- (δ/8) · |A| ≤ |B'|
-      have h := hB'_card
-      rw [hn_def]; exact h
-    · -- |A' + B'| ≤ C · n
-      -- Two sub-cases: M = 0 or M ≥ 1.
-      -- Constants we'll absorb into the final C = 2^13 K^3 / δ^5 + 2^12 / δ^5.
-      have hδ5_pos : (0 : ℝ) < δ ^ 5 := by positivity
-      have h2pow12_pos : (0 : ℝ) < (2 : ℝ) ^ 12 := by positivity
-      have h2pow13_pos : (0 : ℝ) < (2 : ℝ) ^ 13 := by positivity
-      have hK3_pos : (0 : ℝ) < K ^ 3 := by positivity
-      have h_AplusB_nn : (0 : ℝ) ≤ ((A' + B').card : ℝ) := Nat.cast_nonneg _
-      have hConstC_nn : (0 : ℝ) ≤ 2 ^ 12 / δ ^ 5 := by positivity
-      have hConstC1_nn : (0 : ℝ) ≤ 2 ^ 13 * K ^ 3 / δ ^ 5 := by positivity
-      by_cases hM_zero : M = 0
-      · -- M = 0 ⇒ (δ^5 / 2^12) · n² < 1 ⇒ n² < 2^12 / δ^5.
-        have hM0R : (M : ℝ) = 0 := by exact_mod_cast hM_zero
-        have hsmall : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 < 1 := by
-          have h := hM_floor_ge; rw [hM0R] at h; linarith
-        have hn2_ub : (n : ℝ) ^ 2 < 2 ^ 12 / δ ^ 5 := by
-          have hpow_inv : (0 : ℝ) < 2 ^ 12 / δ ^ 5 := by positivity
-          have hh : (n : ℝ) ^ 2 = ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) * (2 ^ 12 / δ ^ 5) := by
-            field_simp
-          rw [hh]
-          have h_ineq : ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) * (2 ^ 12 / δ ^ 5) <
-              1 * (2 ^ 12 / δ ^ 5) :=
-            mul_lt_mul_of_pos_right hsmall hpow_inv
-          linarith
-        -- Crude bound: |A'+B'| ≤ |A'|·|B'| ≤ n·n = n².
-        have hAplusB_le_prod : (A' + B').card ≤ A'.card * B'.card :=
-          Finset.card_add_le
-        have hA'_le_n : A'.card ≤ n := by
-          have := Finset.card_le_card hA'_sub
-          rw [← hn_def] at this; exact this
-        have hB'_le_n : B'.card ≤ n := by
-          have := Finset.card_le_card hB'_sub
-          rw [hBcard_nat] at this; exact this
-        have hA'B'_le_n2_nat : A'.card * B'.card ≤ n * n := by
-          exact Nat.mul_le_mul hA'_le_n hB'_le_n
-        have hAplusB_le_n2 : (A' + B').card ≤ n * n :=
-          le_trans hAplusB_le_prod hA'B'_le_n2_nat
-        have hAplusB_le_n2R : ((A' + B').card : ℝ) ≤ (n : ℝ) ^ 2 := by
-          have h : ((A' + B').card : ℝ) ≤ ((n * n : ℕ) : ℝ) := by exact_mod_cast hAplusB_le_n2
-          push_cast at h
-          have heq : (n : ℝ) * (n : ℝ) = (n : ℝ) ^ 2 := by ring
-          linarith
-        have hAplusB_lt_const : ((A' + B').card : ℝ) < 2 ^ 12 / δ ^ 5 :=
-          lt_of_le_of_lt hAplusB_le_n2R hn2_ub
-        -- Now 2^12/δ^5 ≤ (2^12/δ^5) · n since 1 ≤ n.
-        have hn_ge_one : (1 : ℝ) ≤ (n : ℝ) := by exact_mod_cast hn_pos
-        have hconst_le : 2 ^ 12 / δ ^ 5 ≤ (2 ^ 12 / δ ^ 5) * (n : ℝ) := by
-          have := mul_le_mul_of_nonneg_left hn_ge_one hConstC_nn
-          simpa using this
-        have hAplusB_le_constn : ((A' + B').card : ℝ) ≤ (2 ^ 12 / δ ^ 5) * (n : ℝ) :=
-          le_trans (le_of_lt hAplusB_lt_const) hconst_le
-        -- Combine: 2^12/δ^5 · n ≤ (2^13 K^3 / δ^5 + 2^12 / δ^5) · n.
-        have hsum_expand : (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) =
-            (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) + (2 ^ 12 / δ ^ 5) * (n : ℝ) := by ring
-        have hC1n_nn : 0 ≤ (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) :=
-          mul_nonneg hConstC1_nn hn_nn
-        have hcomb : (2 ^ 12 / δ ^ 5) * (n : ℝ) ≤
-            (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) := by
-          rw [hsum_expand]; linarith
-        linarith
-      · -- M ≥ 1. Then M + 1 ≤ 2M, hence 2M > (δ^5/2^12)·n², so M > (δ^5/2^13)·n².
-        have hM_ge_one : 1 ≤ M := Nat.one_le_iff_ne_zero.mpr hM_zero
-        have hM_geR : (1 : ℝ) ≤ (M : ℝ) := by exact_mod_cast hM_ge_one
-        have hM_pos_R : (0 : ℝ) < (M : ℝ) := lt_of_lt_of_le zero_lt_one hM_geR
-        have h_two_M : (δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2 ≤ 2 * (M : ℝ) := by
-          have h1 := hM_floor_ge -- (δ^5/2^12)·n² - 1 < M
-          linarith
-        have h_M_lower : (δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2 ≤ (M : ℝ) := by
-          have h_div : (δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2 =
-              ((δ ^ 5 / 2 ^ 12) * (n : ℝ) ^ 2) / 2 := by ring
-          rw [h_div]; linarith
-        -- Multiply the lower bound on M by |A'+B'|:
-        -- (δ^5/2^13)·n² · |A'+B'| ≤ M · |A'+B'| ≤ K^3 · n^3.
-        have h_mul1 : ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((A' + B').card : ℝ) ≤
-            (M : ℝ) * ((A' + B').card : ℝ) := by
-          exact mul_le_mul_of_nonneg_right h_M_lower h_AplusB_nn
-        have h_chain : ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((A' + B').card : ℝ) ≤
-            K ^ 3 * (n : ℝ) ^ 3 := le_trans h_mul1 hMSc
-        -- Divide by (δ^5/2^13)·n² > 0 to get |A'+B'| ≤ (2^13 K^3 / δ^5) · n.
-        have h_div_pos : (0 : ℝ) < (δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2 := by positivity
-        have hδ5_ne : (δ ^ 5 : ℝ) ≠ 0 := ne_of_gt hδ5_pos
-        have h_target_eq : K ^ 3 * (n : ℝ) ^ 3 =
-            ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ)) := by
-          rw [show ((δ ^ 5 / 2 ^ 13) * (n : ℝ) ^ 2) * ((2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ)) =
-              (δ ^ 5 / δ ^ 5) * (K ^ 3 * (n : ℝ) ^ 3) by ring]
-          rw [div_self hδ5_ne, one_mul]
-        rw [h_target_eq] at h_chain
-        have h_AplusB_le_lin : ((A' + B').card : ℝ) ≤ (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) :=
-          le_of_mul_le_mul_left h_chain h_div_pos
-        -- Absorb into C.
-        have hC2n_nn : 0 ≤ (2 ^ 12 / δ ^ 5) * (n : ℝ) := mul_nonneg hConstC_nn hn_nn
-        have h_final_const_ineq :
-            (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) ≤
-              (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) := by
-          have hexpand : (2 ^ 13 * K ^ 3 / δ ^ 5 + 2 ^ 12 / δ ^ 5) * (n : ℝ) =
-              (2 ^ 13 * K ^ 3 / δ ^ 5) * (n : ℝ) + (2 ^ 12 / δ ^ 5) * (n : ℝ) := by ring
-          rw [hexpand]; linarith
-        linarith
-  · -- ### Vacuous case: δ > 1. Then |E| ≤ n² but δ·n² ≤ |E|, contradiction.
-    exfalso
-    push Not at hδ_le  -- 1 < δ
-    have hE_le_AB : E.card ≤ (A ×ˢ B).card := Finset.card_le_card hE_sub
-    have hAB_card : (A ×ˢ B).card = n * n := by
-      rw [Finset.card_product, ← hn_def, hBcard_nat]
-    have hE_le_n2_nat : E.card ≤ n * n := by rw [← hAB_card]; exact hE_le_AB
-    have hE_le_n2 : (E.card : ℝ) ≤ (n : ℝ) ^ 2 := by
-      have h : ((E.card : ℕ) : ℝ) ≤ ((n * n : ℕ) : ℝ) := by exact_mod_cast hE_le_n2_nat
-      push_cast at h
-      have heq : (n : ℝ) * (n : ℝ) = (n : ℝ) ^ 2 := by ring
-      linarith
-    have hδn2 : δ * (n : ℝ) ^ 2 ≤ (E.card : ℝ) := by
-      have h := hE_lb; rw [hn_def]; exact h
-    -- So δ · n² ≤ n², hence δ ≤ 1 (since n² > 0), contradicting 1 < δ.
-    have hn2_pos : (0 : ℝ) < (n : ℝ) ^ 2 := by positivity
-    have hδ_le_one : δ ≤ 1 := by
-      have h1 : δ * (n : ℝ) ^ 2 ≤ (n : ℝ) ^ 2 := le_trans hδn2 hE_le_n2
-      have h2 : δ * (n : ℝ) ^ 2 ≤ 1 * (n : ℝ) ^ 2 := by linarith
-      exact le_of_mul_le_mul_right h2 hn2_pos
-    linarith
 
 end Finset
 
@@ -1967,6 +826,92 @@ theorem unbounded_difference_growth (K : ℕ) :
     (hsmall.trans (Nat.mul_le_mul_right _ (Nat.le_add_right K (K^3))))
   exact (not_lt_of_ge (hnat.trans (Nat.mul_le_mul_right _ (Nat.le_add_left (K^3) K)))) hlow
 
+
+end VectorSpace
+end Erdos101.DivisionRatios
+
+open scoped Pointwise Classical
+
+namespace Erdos101.Popular
+
+variable {G : Type*} [AddCommGroup G] [DecidableEq G]
+
+private def representations (S : Finset G) (d : G) : Finset (G × G) :=
+  (S ×ˢ S).filter (fun p => p.1 - p.2 = d)
+
+/-- Each ordered pair has just one difference, so differences with multiplicity
+at least `m` account for at most `|S|²` pairs in total. -/
+private theorem count_differences (S D : Finset G) (m : ℝ)
+    (hm : ∀ d ∈ D, m ≤ ((representations S d).card : ℝ)) :
+    (D.card : ℝ) * m ≤ (S.card : ℝ) ^ 2 := by
+  calc
+    (D.card : ℝ) * m = ∑ _d ∈ D, m := by simp
+    _ ≤ ∑ d ∈ D, ((representations S d).card : ℝ) := Finset.sum_le_sum hm
+    _ ≤ (S.card : ℝ) ^ 2 := by
+      have h := Finset.sum_card_fiberwise_eq_card_filter (S ×ˢ S) D
+        (fun p : G × G => p.1 - p.2)
+      have h' := h.le.trans (Finset.card_filter_le ..)
+      simp only [Finset.card_product, ← sq] at h'
+      exact_mod_cast h'
+
+/-- If every vertex in `V` has few low-codegree partners in `U`, then the
+differences of `V` have many representations by pairs of popular differences of `C`. -/
+theorem difference_bound (B C U V : Finset G) (τ : ℝ) (hτ : 0 < τ)
+    (hgood : ∀ x ∈ V, ((U.filter (fun z =>
+      ((B.filter (fun b => x + b ∈ C ∧ z + b ∈ C)).card : ℝ) < τ)).card : ℝ) ≤ (U.card : ℝ) / 4) :
+    ((V - V).card : ℝ) * (U.card : ℝ) / 2 ≤ (((C.card : ℝ) ^ 2) / τ) ^ 2 := by
+  let P := (C - C).filter (fun d => τ ≤ ((representations C d).card : ℝ))
+  have hP : (P.card : ℝ) ≤ (C.card : ℝ) ^ 2 / τ :=
+    (le_div_iff₀ hτ).mpr (count_differences C P τ (fun _ hd => (Finset.mem_filter.mp hd).2))
+  let common (x z : G) := B.filter (fun b => x + b ∈ C ∧ z + b ∈ C)
+  let bad (x : G) := U.filter (fun z => ((common x z).card : ℝ) < τ)
+  -- Each common neighbor b gives the pair (x + b,z + b) of difference x - z.
+  have popular (x z : G) (hz : z ∈ U) (h : z ∉ bad x) : x - z ∈ P := by
+    have hn : τ ≤ ((common x z).card : ℝ) :=
+      le_of_not_gt (fun hlt => h (Finset.mem_filter.mpr ⟨hz, hlt⟩))
+    have hmap : (common x z).card ≤ (representations C (x - z)).card := by
+      apply Finset.card_le_card_of_injOn (fun b => (x + b, z + b))
+      · intro b hb
+        exact Finset.mem_filter.mpr ⟨Finset.mem_product.mpr (Finset.mem_filter.mp hb).2, by simp⟩
+      · intro b _ c _ hbc
+        exact add_left_cancel (congrArg Prod.fst hbc)
+    obtain ⟨b, hb⟩ := Finset.card_pos.mp (show 0 < (common x z).card by exact_mod_cast hτ.trans_le hn)
+    obtain ⟨hb₁, hb₂⟩ := (Finset.mem_filter.mp hb).2
+    exact Finset.mem_filter.mpr ⟨by simpa using Finset.sub_mem_sub hb₁ hb₂, hn.trans (by exact_mod_cast hmap)⟩
+  have hmult (d : G) (hd : d ∈ V - V) : (U.card : ℝ) / 2 ≤ ((representations P d).card : ℝ) := by
+    obtain ⟨x, hx, y, hy, rfl⟩ := Finset.mem_sub.mp hd
+    let W := U \ (bad x ∪ bad y)
+    have hcover : U.card ≤ W.card + ((bad x).card + (bad y).card) :=
+      Finset.card_le_card_sdiff_add_card.trans (Nat.add_le_add_left (Finset.card_union_le ..) _)
+    have hw : (U.card : ℝ) / 2 ≤ (W.card : ℝ) := by
+      have hr : (U.card : ℝ) ≤ W.card + ((bad x).card + (bad y).card : ℝ) := by exact_mod_cast hcover
+      have hx' : ((bad x).card : ℝ) ≤ (U.card : ℝ) / 4 := hgood x hx
+      have hy' : ((bad y).card : ℝ) ≤ (U.card : ℝ) / 4 := hgood y hy
+      linarith only [hr, hx', hy']
+    -- Distinct z in W give distinct pairs (x - z,y - z) with the same difference x - y.
+    have hinj : W.card ≤ (representations P (x - y)).card := by
+      apply Finset.card_le_card_of_injOn (fun z => (x - z, y - z))
+      · intro z hz
+        obtain ⟨hu, hb⟩ := Finset.mem_sdiff.mp hz
+        exact Finset.mem_filter.mpr ⟨Finset.mem_product.mpr
+          ⟨popular x z hu (fun h => hb (Finset.mem_union_left _ h)),
+           popular y z hu (fun h => hb (Finset.mem_union_right _ h))⟩, by simp⟩
+      · intro z _ w _ h
+        exact sub_right_injective (congrArg Prod.fst h)
+    exact hw.trans (by exact_mod_cast hinj)
+  calc
+    ((V - V).card : ℝ) * (U.card : ℝ) / 2 = ((V - V).card : ℝ) * ((U.card : ℝ) / 2) := by ring
+    _ ≤ (P.card : ℝ) ^ 2 := count_differences P (V - V) _ hmult
+    _ ≤ _ := pow_le_pow_left₀ (by positivity) hP 2
+
+end Erdos101.Popular
+
+namespace Erdos101.DivisionRatios
+
+open scoped Classical Pointwise
+
+variable {E : Type*} [AddCommGroup E] [Module ℝ E] [DecidableEq E]
+
 /-- Uniformly in three point sets of the same size, a positive fraction of
 all sums cannot land in the third set when the first set has no five collinear. -/
 theorem sparse_restricted_sums (ε : ℝ) (hε : 0 < ε) :
@@ -1974,53 +919,66 @@ theorem sparse_restricted_sums (ε : ℝ) (hε : 0 < ε) :
       NoFiveCollinear (A : Set E) →
       (((A ×ˢ B).filter (fun p => p.1 + p.2 ∈ C)).card : ℝ) < ε * (A.card : ℝ)^2 := by
   classical
-  obtain ⟨c, D, hc, hD, hgraph⟩ :=
-    Finset.graph_balogSzemerediGowers_restricted_sumset (G := E) ε 1 hε zero_lt_one
-  obtain ⟨K, hK⟩ := exists_nat_gt ((D / c)^2)
+  let c := min ε 1
+  have hc : 0 < c := lt_min hε zero_lt_one
+  obtain ⟨K, hK⟩ := exists_nat_gt (4096 / c^6)
   obtain ⟨M, hM⟩ := unbounded_difference_growth (E := E) K
-  obtain ⟨N, hN⟩ := exists_nat_gt ((M+1 : ℕ) / c : ℝ)
+  obtain ⟨N, hN⟩ := exists_nat_gt (4 * (M : ℝ) / c)
   refine ⟨max 1 N, ?_⟩
   intro A B C hn hB hC hA
   by_contra! hdense
-  have han : 0 < A.card := (le_max_left 1 N).trans hn
-  have hbn : 0 < B.card := hB ▸ han
-  let E := (A ×ˢ B).filter (fun p => p.1 + p.2 ∈ C)
-  have hsum : E.image (fun p => p.1 + p.2) ⊆ C := by
-    intro z hz
-    obtain ⟨p, hp, rfl⟩ := Finset.mem_image.mp hz
-    exact (Finset.mem_filter.mp hp).2
-  obtain ⟨U, V, hU, _, hUs, hVs, hUV⟩ := hgraph A B
-    (Finset.card_pos.mp han) (Finset.card_pos.mp hbn) hB.symm E (Finset.filter_subset ..) hdense
-    (by simpa only [one_mul] using
-      (show ((E.image (fun p => p.1+p.2)).card : ℝ) ≤ A.card by
-        exact_mod_cast (Finset.card_le_card hsum).trans hC))
-  have hMN : ((M+1 : ℕ) : ℝ) < N * c := (div_lt_iff₀ hc).mp hN
-  have hNA : (N : ℝ) ≤ A.card := by exact_mod_cast (le_max_right 1 N).trans hn
-  have hMU : M ≤ U.card := by
-    have h := mul_le_mul_of_nonneg_right hNA hc.le
-    push_cast at hMN
-    exact_mod_cast (show (M : ℝ) ≤ U.card by linarith)
-  have hlow := hM U hMU (fun T hT => hA T (hT.trans (Finset.coe_subset.mpr hU)))
-  have hanR : 0 < (A.card : ℝ) := by exact_mod_cast han
-  have hR : ((U-U).card : ℝ) * V.card ≤ ((U+V).card : ℝ)^2 := by
-    simpa [sq] using (show ((U-U).card : ℝ) * V.card ≤
-      ((U+V).card : ℝ) * (U+V).card by
-      exact_mod_cast Finset.ruzsa_triangle_inequality_sub_add_add U V U)
-  have hupper : ((U-U).card : ℝ) * (c * A.card) ≤ (D * A.card)^2 :=
-    (mul_le_mul_of_nonneg_left hVs (by positivity)).trans
-      (hR.trans (pow_le_pow_left₀ (by positivity) hUV 2))
-  have hbound : ((U-U).card : ℝ) ≤ D^2 / c * A.card := by
-    apply le_of_mul_le_mul_right _ (show 0 < c * (A.card : ℝ) by positivity)
+  have ha : 0 < A.card := (le_max_left 1 N).trans hn
+  have han : 0 < (A.card : ℝ) := by exact_mod_cast ha
+  let F := (A ×ˢ B).filter (fun p => p.1 + p.2 ∈ C)
+  have hF : c * (A.card : ℝ) * B.card ≤ F.card := by
+    rw [hB, mul_assoc, ← sq]
+    exact (mul_le_mul_of_nonneg_right (min_le_left ε 1) (sq_nonneg _)).trans hdense
+  obtain ⟨U, hUA, hsize, hbad⟩ := Finset.graph_pair_dependentRandomChoice A B
+    (Finset.card_pos.mp ha) (Finset.card_pos.mp (hB ▸ ha))
+    F (Finset.filter_subset ..) c hc (min_le_right ..) hF (1/8) (by norm_num) (by norm_num)
+  have hU : 0 < (U.card : ℝ) := lt_of_lt_of_le (by positivity) hsize
+  let τ := ((1/8 : ℝ) * c^2 / 2) * B.card
+  have ht : τ = c^2 * A.card / 16 := by dsimp [τ]; rw [hB]; ring
+  have htpos : 0 < τ := by rw [ht]; positivity
+  obtain ⟨V, hVU, hhalf, hgood⟩ := Finset.graph_dependentRandomChoice_markov_refinement
+    B U F τ (1/8) (by norm_num) hU (by simpa only [Finset.filter_and] using hbad)
+  have hV : c * A.card / 4 ≤ (V.card : ℝ) := by linarith
+  have hUhalf : c * A.card / 4 ≤ (U.card : ℝ) / 2 := by linarith
+  have hMV : M ≤ V.card := by
+    have hNA : (N : ℝ) ≤ A.card := by exact_mod_cast (le_max_right 1 N).trans hn
+    have hMN := ((div_lt_iff₀ hc).mp hN).trans_le (mul_le_mul_of_nonneg_right hNA hc.le)
+    exact_mod_cast (show (M : ℝ) ≤ V.card by linarith)
+  have hlower := hM V hMV (fun T hT => hA T (hT.trans (Finset.coe_subset.mpr (hVU.trans hUA))))
+  have hdiff := Erdos101.Popular.difference_bound B C U V τ htpos (by
+    intro x hx
+    have heq (z : E) (hz : z ∈ U) :
+        B.filter (fun b => (x,b) ∈ F ∧ (z,b) ∈ F) =
+          B.filter (fun b => x+b ∈ C ∧ z+b ∈ C) := by
+      ext b
+      simp [F, hUA (hVU hx), hUA hz, and_assoc, and_left_comm]
+    have heq' := Finset.filter_congr (s := U) (fun z hz =>
+      show (((B.filter (fun b => (x,b) ∈ F ∧ (z,b) ∈ F)).card : ℝ) < τ) ↔
+          (((B.filter (fun b => x+b ∈ C ∧ z+b ∈ C)).card : ℝ) < τ) by rw [heq z hz])
+    have h := hgood x hx
+    rw [heq'] at h
+    linarith)
+  have hquot : (C.card : ℝ)^2 / τ ≤ 16 / c^2 * A.card := by
+    apply (div_le_iff₀ htpos).mpr
     calc
-      _ ≤ _ := hupper
-      _ = _ := by field_simp
-  have hfinal : ((U-U).card : ℝ) ≤ K * (U.card : ℝ) := calc
-    _ ≤ D^2 / c * A.card := hbound
-    _ = (D/c)^2 * (c * A.card) := by field_simp
-    _ ≤ _ := mul_le_mul hK.le hUs (by positivity) (by positivity)
-  exact (not_lt_of_ge (show (U-U).card ≤ K*U.card by exact_mod_cast hfinal)) hlow
-
-end VectorSpace
+      (C.card : ℝ)^2 ≤ (A.card : ℝ)^2 :=
+        pow_le_pow_left₀ (by positivity) (by exact_mod_cast hC) 2
+      _ = 16 / c^2 * A.card * τ := by rw [ht]; field_simp
+  have hfinal : ((V-V).card : ℝ) ≤ (K : ℝ) * V.card := by
+    apply le_of_mul_le_mul_right _ (show 0 < (U.card : ℝ) / 2 by positivity)
+    calc
+      ((V-V).card : ℝ) * ((U.card : ℝ)/2) = ((V-V).card : ℝ)*U.card/2 := by ring
+      _ ≤ _ := hdiff
+      _ ≤ (16 / c^2 * (A.card : ℝ))^2 := pow_le_pow_left₀ (by positivity) hquot 2
+      _ = 4096 / c^6 * (c * A.card / 4) * (c * A.card / 4) := by field_simp; ring
+      _ ≤ (K : ℝ) * V.card * ((U.card : ℝ)/2) :=
+        mul_le_mul (mul_le_mul hK.le hV (by positivity) (by positivity)) hUhalf
+          (by positivity) (by positivity)
+  exact (not_lt_of_ge (show (V-V).card ≤ K * V.card by exact_mod_cast hfinal)) hlower
 
 end Erdos101.DivisionRatios
 
