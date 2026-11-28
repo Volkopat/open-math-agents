@@ -23617,6 +23617,14 @@
     "https://oeis.org/A059661"
    ],
    "reason": "The disproof exploits a range slip at the first index: it fails only at n=2, where a(2)=2 but A059661(2)-A059661(1)=3-2=1, because the partial sums of A073923 start at 1 while A059661 starts at 2. By the statement's own check the identity holds for 3<=n<=12, so Mathar's evident intended claim (the identity for n>=3) remains unaddressed."
+  },
+  "oeis-a022292": {
+   "date": "2026-11-28",
+   "pr": 14453,
+   "evidence": [
+    "https://oeis.org/A022292"
+   ],
+   "reason": "The disproof exploits a definitional bug: IsKolakoski only constrains K inside runs, so K = 0 (every run empty, runStart identically 0) satisfies it vacuously, has no balanced prefixes, and refutes 'infinitely many'. The statement's claim that exactly one K satisfies the predicate is false. Nothing about the real Kolakoski sequence is shown; the conjecture remains open."
   }
  },
  "known": {
@@ -44527,6 +44535,173 @@
     "https://www.openproblemgarden.org/op/seymours_second_neighbourhood_conjecture"
    ],
    "reason": "The proof file says its combinatorial core is taken unchanged from the site's earlier merged proof of opg-seymours-second-neighbourhood-conjecture (PR 6468, merged 2026-11-27); only the final bridge is new. That earlier statement is the same conjecture (finite nonempty oriented graph, out-degree <= second out-degree). So this is a duplicate of an earlier site solve. Given how famous the conjecture is, PR 6468 itself deserves separate scrutiny."
+  },
+  "oeis-a268543": {
+   "date": "2026-11-28",
+   "pr": 33347,
+   "evidence": [
+    "https://oeis.org/A268543"
+   ],
+   "reason": "Mathar's 2016 three-term recurrence is stated faithfully over Bala's binomial-sum formula a(n) = C(2n,n) Sum_k C(n,k) C(2n+k,k), for n >= 2. The entry itself already settles it: Peter Bala (Jan 27 2018) writes 'Using this binomial sum, Maple confirms the above recurrence of Mathar' (a Zeilberger-type verification), the same standard as earlier 'known' verdicts such as A217596 and A026019."
+  },
+  "oeis-a225008": {
+   "date": "2026-11-28",
+   "pr": 33320,
+   "evidence": [
+    "https://oeis.org/A225010",
+    "https://oeis.org/A071920"
+   ],
+   "reason": "Barker's g.f. and recurrence for column 6 of A225010 are stated faithfully; my count matches the data. But the parent carries Alois P. Heinz's (Sep 22 2013) closed formula T(n,k) = Sum_{j=0..n} C(k+2j-1,2j), linked to the unimodal-function table A071920 with the same formula. For k = 6 that is Sum_j C(2j+5,5), a degree-6 polynomial, and the g.f. and recurrence follow at once."
+  },
+  "oeis-a009190": {
+   "date": "2026-11-28",
+   "pr": 16843,
+   "evidence": [
+    "https://oeis.org/A009190",
+    "https://oeis.org/A058989"
+   ],
+   "reason": "The weak conjecture (Sloane, 2020) that no 2p-twin peak exists for p = prime(14..19) is stated faithfully. The entry already contains the settling criterion: Jinyuan Wang (Nov 27 2024) notes a(n) = -1 when A058989(n-1) < 2 prime(n) - 1. The Jacobsthal-type values A058989(13..18) = 73, 89, 99, 105, 117, 131 (computed exactly, Hagedorn 2009 and b-file) are below 85, 93, 105, 117, 121, 133, so all six cases follow at once."
+  },
+  "oeis-a272261": {
+   "date": "2026-11-28",
+   "pr": 33318,
+   "evidence": [
+    "https://oeis.org/A272261",
+    "https://oeis.org/A000806"
+   ],
+   "reason": "Mathar's recurrence a(n) = 2(2n-1)a(n-1) + 4a(n-2) is stated faithfully over Irwin's e.g.f. exp(sqrt(1-4x)-1)/sqrt(1-4x). The entry gives a(n) = |A000806(n)| 2^n, and A000806 (Bessel polynomials y_n(-1)) carries the classical recurrence a(n) = (1-2n)a(n-1) + a(n-2) (Noe 2006). Rescaling by 2^n with the alternating sign gives Mathar's recurrence directly, so it was settled by sister-entry formulas."
+  },
+  "oeis-a174016": {
+   "date": "2026-11-28",
+   "pr": 19727,
+   "evidence": [
+    "https://isitsolved.com/journal/376c7d060532",
+    "https://oeis.org/A174016"
+   ],
+   "reason": "Mathar's recurrence is stated faithfully over the entry's algebraic g.f., for n >= 4. iis:2611.00219 (submitted 2026-11-28 03:18 UTC) decides A174016 exactly from the g.f. ('true, all n >= 4'), before the site proof commit (2026-11-28 15:12 UTC)."
+  },
+  "mo-293857": {
+   "date": "2026-11-28",
+   "pr": 33288,
+   "evidence": [
+    "https://mathoverflow.net/questions/293857"
+   ],
+   "reason": "The formalization (exists Borel P with E0-invariant sections, not all equal, every section-constant set meagre and null for every atomless measure) is a reasonable 'no' reading. But the counterexample used, P = E0 itself (sections are countable E0-classes), is exactly the one given in the first comment on the question ('Isn't the equivalence relation E0 a counterexample?'), which the asker accepted ('I see ... it is')."
+  },
+  "mo-151738": {
+   "date": "2026-11-28",
+   "pr": 30518,
+   "evidence": [
+    "https://mathoverflow.net/questions/151738"
+   ],
+   "reason": "Disproof with M = [[1,1],[0,-1]]: diagonal blocks of order 2, diagonalizable, nonzero off-diagonal entry. The question already has this answer: a comment notes any upper triangular matrix with distinct diagonal entries is diagonalizable, and the only answer explains you can put anything above the diagonal blocks when the characteristic polynomial is multiplicity-free. The formalization over C is faithful."
+  },
+  "oeis-a084017": {
+   "date": "2026-11-28",
+   "pr": 31907,
+   "evidence": [
+    "https://zenodo.org/records/24076141",
+    "https://zenodo.org/records/24589127",
+    "https://oeis.org/A084017"
+   ],
+   "reason": "Murthy-Srikanth's non-vanishing conjecture, stated faithfully and slightly strengthened (the trailing-zero count is pinned to v10(n)). The five leaf proofs and two reductions have no sorry. But the same author (Frederic Gaudin) published a complete Lean proof on Zenodo on 2026-11-15 (record 24076141, same 2^a 5^b 3^v m decomposition and residual 11|m / 101|m family) and a preprint with the pinned reading on 2026-11-27. Both predate the site merge of 2026-11-28, so the result was public before this PR; the credit question is for the owner."
+  },
+  "oeis-a386834": {
+   "date": "2026-11-28",
+   "pr": 33281,
+   "evidence": [
+    "https://oeis.org/A386834"
+   ],
+   "reason": "Mathar's order-3 recurrence (Aug 2025) is stated faithfully (coefficients expanded and checked symbolically). The entry also has Kotesovec's (Nov 09 2025) order-2 recurrence, not marked as a conjecture, and the proof shows Mathar's operator is a left multiple of it: d(m) conj(m+4) is a combination of Z(m) and Z(m+1). So the conjecture follows at once from a recurrence already in the entry, like A217596. Mark it uncertain instead if Kotesovec's unannotated recurrence is not accepted as proved."
+  },
+  "oeis-a022693": {
+   "date": "2026-11-28",
+   "pr": 33279,
+   "evidence": [
+    "https://oeis.org/A022693",
+    "https://oeis.org/A368091"
+   ],
+   "reason": "Irwin's 'conjecture' is the trivial expansion of Product 1/(1+m q^m) as a signed sum over partitions of the product of parts. It was already recorded as a plain formula by Alois P. Heinz (Mar 10 2026): a(n) = Sum_k (-1)^k A368091(n,k), where A368091(n,k) is the sum over partitions of n into k parts of the product of parts. That is the same identity, and it predates the site proof."
+  },
+  "oeis-a380680": {
+   "date": "2026-11-28",
+   "pr": 33253,
+   "evidence": [
+    "https://oeis.org/A380680",
+    "https://data.palomar-registry.org/api/v1/results?q=A380680"
+   ],
+   "reason": "The printed conjecture (a(n) = 2 mod 4 iff n is a square) fails at once at n = 1, where the data give a(1) = 4; the true pattern is n = twice a square (a(2) = 6). The disproof uses only this printed slip at n = 1. Dev D. Goyal's Palomar entry 'Proofs and corrections of OEIS conjectures' (PALOMAR-2026-10-27-000006, published 2026-10-27) already proves the corrected mod-4 square pattern for A380680, and the A-number is also in the trureturing library."
+  },
+  "oeis-a338636": {
+   "date": "2026-11-28",
+   "pr": 33240,
+   "evidence": [
+    "https://oeis.org/A338636",
+    "https://doi.org/10.5281/zenodo.23520531"
+   ],
+   "reason": "The claim a(n) = 0 mod 8 for n > 1 is stated faithfully. The entry itself carries the proof: Lien-Hung Su (Nov 12 2026), 'Modulo 8, all odd-square weights equal 1, so all tails coincide and A(x) == 1+x', with the linked Zenodo paper 'Integral Square Roots and Digital Congruences of Formal Generating Functions'. The A-number is also in trureturing's id list."
+  },
+  "oeis-a204187": {
+   "date": "2026-11-28",
+   "pr": 33242,
+   "evidence": [
+    "https://oeis.org/A204187",
+    "https://oeis.org/A204187/a204187_1.txt"
+   ],
+   "reason": "Neretin's conjecture a(n) = n/2 iff n = 2 mod 4, stated faithfully. The entry already contains Bernard Schott's linked proof (Dec 29 2021) that a(4k+2) = 2k+1, and the formula line a(4n) = 0. Odd n cannot satisfy 2a(n) = n. So both directions follow from material already in the entry."
+  },
+  "oeis-a197879": {
+   "date": "2026-11-28",
+   "pr": 33239,
+   "evidence": [
+    "https://oeis.org/A197879"
+   ],
+   "reason": "Both parts (a(n) = 1 iff frac(n sqrt 2) > 1/2, and no three consecutive equal terms) are Andres Cicuttin's 2019 comment, with its argument from 5/4 < sqrt 2 < 7/4 sketched in the entry. Kimberling's formula a(n) = 2<n sqrt2> - <2n sqrt2> also gives the first part immediately. The statement file itself labels it a known result."
+  },
+  "oeis-a197657": {
+   "date": "2026-11-28",
+   "pr": 33232,
+   "evidence": [
+    "https://oeis.org/A197657",
+    "https://oeis.org/A110707"
+   ],
+   "reason": "Mathar's recurrence over Alekseyev's formula a(n) = (Franel(n) + Franel(n+1))/3 is stated faithfully. The sister A110707(n) = 2 Franel(n-1) + 2 Franel(n) = 6 a(n-1) carries the same Mathar conjecture shifted by one and scaled by 6. It was proved on this site earlier the same day (proofs/oeis-a110707.lean, commit 2026-11-28 13:32 UTC, before this proof at 16:20 UTC), so this is a duplicate up to scaling and shift."
+  },
+  "oeis-a397245": {
+   "date": "2026-11-28",
+   "pr": 33222,
+   "evidence": [
+    "https://github.com/umaia1234/agentic-conjectures/tree/main/problems/oeis-a397245",
+    "https://zenodo.org/records/23282853"
+   ],
+   "reason": "Hanna's two mod-3 classifications are stated faithfully over the entry's recursion (formula (6) form). umaia1234/agentic-conjectures (problems/oeis-a397245, PROOF.md dated 2026-08-11, status 'proved') gives a complete proof of both, via A(x) = (T + T^2 - x)/x^2 in F_3[[x]] with T = Sum x^(3^j). Stephen Lamb's Zenodo record 23282853 (2026-10-10) cites it."
+  },
+  "oeis-a208378": {
+   "date": "2026-11-28",
+   "pr": 33274,
+   "evidence": [
+    "https://isitsolved.com/journal/849ff39de7ae",
+    "https://oeis.org/A208378"
+   ],
+   "reason": "Barker's g.f. and order-4 recurrence (n > 5) for n X 7 arrays (rows avoid 000/111, columns avoid 001/101) are stated faithfully. iis:2611.00300 (width-7 round 11, submitted 2026-11-28 11:52 UTC) lists A208378 as 'Barker g.f. proved; Barker recurrence (n>5) proved' by exact transfer matrices. That is before the site proof commit at 16:02 UTC."
+  },
+  "oeis-a208639": {
+   "date": "2026-11-28",
+   "pr": 33277,
+   "evidence": [
+    "https://isitsolved.com/journal/e9039b327f56",
+    "https://oeis.org/A208639"
+   ],
+   "reason": "Barker's g.f. and closed form (n > 1) for 4 X n row-major-order arrays are stated faithfully. iis:2611.00264 (width-4 round 7, submitted 2026-11-28 08:32 UTC) lists A208639 as 'Barker g.f. proved'. The closed form follows from the g.f. by partial fractions. That paper predates the site proof commit at 16:58 UTC."
+  },
+  "oeis-a208634": {
+   "date": "2026-11-28",
+   "pr": 33276,
+   "evidence": [
+    "https://isitsolved.com/journal/5512caf326aa",
+    "https://oeis.org/A208634"
+   ],
+   "reason": "Barker's g.f. and sqrt(2) closed form for n X 5 row-major-order arrays are stated faithfully. iis:2611.00284 (width-5 round 9, submitted 2026-11-28 09:48 UTC) lists A208634 as 'Barker g.f. proved; Hardin recurrence (n>3) proved'. The closed form follows from the g.f. That paper predates the site proof commit at 16:25 UTC."
   }
  },
  "reviewed": "2026-11-28"
