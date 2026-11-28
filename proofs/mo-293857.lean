@@ -1,28 +1,22 @@
 import OMAStatements.S_mo_293857
 
+/-!
+Retains @Solfanbtc's proof #33288, pinned at
+https://github.com/lefttosolve2/open-math-agents/blob/9334af7d046683925e390e86e1a280b354f2934c/proofs/mo-293857.lean
+Statement by @AkiRA-COM-FP, #13755. This revision uses standard measurability
+rules for countable quantifiers and Set.biUnion_of_singleton.
+Original question: Vladimir Kanovei,
+https://mathoverflow.net/questions/293857 (CC BY-SA 3.0).
+-/
+
 open OMA.S_mo_293857 Set MeasureTheory
 open scoped Topology
 
 theorem OMA.solution : type_of% @OMA.S_mo_293857.main := by
   refine ⟨{p : BaireSequences × BaireSequences | eventuallyEqualAtAllIndices p.1 p.2},
     ?_, ?_, ?_, ?_⟩
-  · have hP : {p : BaireSequences × BaireSequences | eventuallyEqualAtAllIndices p.1 p.2} =
-        ⋃ N : ℕ, ⋂ n : ℕ, ⋂ (_ : N ≤ n),
-          (fun p : BaireSequences × BaireSequences => (p.1 n, p.2 n)) ⁻¹'
-            {q : ℕ × ℕ | q.1 = q.2} := by
-      ext ⟨x, y⟩
-      constructor
-      · rintro ⟨N, hN⟩
-        exact mem_iUnion.mpr ⟨N, mem_iInter.mpr fun n => mem_iInter.mpr fun hn => hN n hn⟩
-      · intro h
-        rcases mem_iUnion.mp h with ⟨N, hN⟩
-        exact ⟨N, fun n hn => mem_iInter.mp (mem_iInter.mp hN n) hn⟩
-    rw [hP]
-    refine MeasurableSet.iUnion fun N =>
-      MeasurableSet.iInter fun n => MeasurableSet.iInter fun _ => ?_
-    exact MeasurableSet.of_discrete.preimage
-      (((measurable_pi_apply n).comp measurable_fst).prodMk
-        ((measurable_pi_apply n).comp measurable_snd))
+  · change MeasurableSet {p : BaireSequences × BaireSequences | ∃ N, ∀ n, N ≤ n → p.1 n = p.2 n}
+    measurability
   · intro x y ⟨N, hN⟩
     ext z
     constructor
@@ -66,16 +60,7 @@ theorem OMA.solution : type_of% @OMA.S_mo_293857.main := by
         · have hge : N ≤ n := Nat.le_of_not_lt hn
           rw [← y₁.2 n hge, ← y₂.2 n hge]
     constructor
-    · have hS_eq : S = ⋃ x ∈ S, ({x} : Set BaireSequences) := by
-        ext y
-        constructor
-        · intro hy
-          exact Set.mem_biUnion hy rfl
-        · intro hy
-          rcases Set.mem_iUnion₂.mp hy with ⟨x, hx, hxy⟩
-          rw [Set.mem_singleton_iff.mp hxy]
-          exact hx
-      rw [hS_eq]
+    · rw [← Set.biUnion_of_singleton S]
       refine isMeagre_biUnion hcount fun x _ => ?_
       apply IsNowhereDense.isMeagre
       rw [IsNowhereDense, isClosed_singleton.closure_eq, Set.eq_empty_iff_forall_notMem]
