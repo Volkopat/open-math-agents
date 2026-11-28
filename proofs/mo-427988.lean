@@ -1,23 +1,10 @@
 import OMAStatements.S_mo_427988
-import Mathlib
 
-open Finset
+-- Credit: @tjgksruf9801 (shorter proof). Same set A = {0, 1, 3, 5, 8, 20, 23, 25, 27, 28}:
+-- A + A + A covers [0, 28] and [56, 84] but misses 42.
 
-open OMA.S_mo_427988
-
-private def exampleSet : Finset ℤ := {0,1,3,5,8,20,23,25,27,28}
-
-private theorem example_in_interval : exampleSet ⊆ Icc (0 : ℤ) 28 := by decide +kernel
-
-private theorem example_covers_ends :
-    Icc (0 : ℤ) 28 ∪ Icc 56 84 ⊆ TripleSumset exampleSet := by decide +kernel
-
-private theorem example_misses_middle : (42 : ℤ) ∉ TripleSumset exampleSet := by decide +kernel
-
-theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_427988.main) := by
-  intro h
-  have he := h 28 (by norm_num) exampleSet example_in_interval (by
-    norm_num
-    exact example_covers_ends)
-  have hMiddle : (42 : ℤ) ∈ Icc (0 : ℤ) (3*28) := by norm_num
-  exact example_misses_middle (he.symm ▸ hMiddle)
+theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_427988.main) := fun h => by
+  have := h 28 (by decide) {0, 1, 3, 5, 8, 20, 23, 25, 27, 28} (by decide +kernel)
+    (by decide +kernel)
+  revert this
+  decide +kernel
