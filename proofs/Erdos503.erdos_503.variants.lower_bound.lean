@@ -73,20 +73,14 @@ theorem simplex_set {N : ℕ} (hN : 2 ≤ N) (g : Fin N → E)
   have hval : ∀ s ∈ P, ∀ t ∈ P, s ≠ t → dist (f s) (f t) = Real.sqrt 2 ∨ dist (f s) (f t) = Real.sqrt 4 := by
     intro s hs t ht hst
     rw [hP, Finset.mem_powersetCard] at hs ht
-    rcases pair_sq g hg s t hs.2 ht.2 hst with h | h
-    · exact Or.inl (dist_of_sq _ _ _ h)
-    · exact Or.inr (dist_of_sq _ _ _ h)
+    exact (pair_sq g hg s t hs.2 ht.2 hst).imp (dist_of_sq _ _ _) (dist_of_sq _ _ _)
   have hinj : Set.InjOn f (P : Set (Finset (Fin N))) := by
     intro s hs t ht hfst
     by_contra hne
-    have h0 : dist (f s) (f t) = 0 := by rw [hfst, dist_self]
-    rcases hval s hs t ht hne with h | h
-    · rw [h0] at h
-      have := Real.sqrt_pos.mpr (by norm_num : (0 : ℝ) < 2)
-      linarith
-    · rw [h0] at h
-      have := Real.sqrt_pos.mpr (by norm_num : (0 : ℝ) < 4)
-      linarith
+    have h := hval s hs t ht hne
+    rw [hfst, dist_self] at h
+    rcases h with h|h <;> linarith
+      [Real.sqrt_pos.2 (by norm_num : (0 : ℝ) < 2), Real.sqrt_pos.2 (by norm_num : (0 : ℝ) < 4)]
   refine ⟨((P.image f : Finset E) : Set E), ⟨?_, ?_⟩, ?_⟩
   · have hpos : 0 < P.card := by
       rw [hP, Finset.card_powersetCard, Finset.card_univ, Fintype.card_fin]
@@ -110,10 +104,6 @@ theorem simplex_set {N : ℕ} (hN : 2 ≤ N) (g : Fin N → E)
   · rw [Set.ncard_coe_finset, Finset.card_image_of_injOn hinj, hP, Finset.card_powersetCard,
       Finset.card_univ, Fintype.card_fin]
 
-theorem nsq {n : ℕ} (v : EuclideanSpace ℝ (Fin n)) : ‖v‖ ^ 2 = ∑ i, (v i) ^ 2 := by
-  rw [EuclideanSpace.norm_eq, Real.sq_sqrt (Finset.sum_nonneg (fun i _ => sq_nonneg _))]
-  simp [sq_abs]
-
 /-- The simplex vertices. -/
 noncomputable def gg (n : ℕ) (a : Fin (n + 1)) : EuclideanSpace ℝ (Fin n) :=
   if h : (a : ℕ) < n then EuclideanSpace.single ⟨a, h⟩ (1 : ℝ)
@@ -132,7 +122,7 @@ theorem gg_simplex (n : ℕ) (hn : 1 ≤ n) (a b : Fin (n + 1)) (hab : a ≠ b) 
   have key : ∀ a b : Fin (n + 1), (a : ℕ) < (b : ℕ) → ‖gg n a - gg n b‖ ^ 2 = 2 := by
     intro a b hlt
     have ha : (a : ℕ) < n := by have := b.2; omega
-    rw [nsq]
+    rw [EuclideanSpace.real_norm_sq_eq]
     by_cases hb : (b : ℕ) < n
     · simp only [gg, dif_pos ha, dif_pos hb, PiLp.sub_apply, PiLp.single_apply]
       have hne : (⟨a, ha⟩ : Fin n) ≠ ⟨b, hb⟩ := by
@@ -140,13 +130,8 @@ theorem gg_simplex (n : ℕ) (hn : 1 ≤ n) (a b : Fin (n + 1)) (hab : a ≠ b) 
       have hpt : ∀ i : Fin n, ((if i = ⟨a, ha⟩ then (1 : ℝ) else 0) - (if i = ⟨b, hb⟩ then 1 else 0)) ^ 2
           = (if i = ⟨a, ha⟩ then (1 : ℝ) else 0) + (if i = ⟨b, hb⟩ then 1 else 0) := by
         intro i
-        by_cases h1 : i = ⟨a, ha⟩
-        · have h2 : i ≠ ⟨b, hb⟩ := fun h => hne (h1.symm.trans h)
-          simp [h1, hne]
-        · by_cases h2 : i = ⟨b, hb⟩
-          · have hba : (b : ℕ) ≠ (a : ℕ) := by omega
-            simp [h2, hba]
-          · simp [h1, h2]
+        split_ifs with h₁ h₂ <;> norm_num
+        exact hne (h₁.symm.trans h₂)
       simp only [hpt, Finset.sum_add_distrib, Finset.sum_ite_eq', Finset.mem_univ, if_true]
       norm_num
     · simp only [gg, dif_pos ha, dif_neg hb, PiLp.sub_apply, PiLp.single_apply]
@@ -156,9 +141,7 @@ theorem gg_simplex (n : ℕ) (hn : 1 ≤ n) (a b : Fin (n + 1)) (hab : a ≠ b) 
         have hpt : ∀ i : Fin n, ((if i = ⟨a, ha⟩ then (1 : ℝ) else 0) - t) ^ 2
             = (if i = ⟨a, ha⟩ then (1 - 2 * t : ℝ) else 0) + t ^ 2 := by
           intro i
-          by_cases h1 : i = ⟨a, ha⟩
-          · simp only [h1, if_true]; ring
-          · simp only [h1, if_false]; ring
+          split_ifs <;> ring
         simp only [hpt, Finset.sum_add_distrib, Finset.sum_ite_eq', Finset.mem_univ, if_true,
           Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
       refine (hsum _).trans ?_
