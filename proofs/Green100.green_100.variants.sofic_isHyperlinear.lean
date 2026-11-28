@@ -1,46 +1,25 @@
 import FormalConjectures.GreensOpenProblems.«100»
 
--- Problem: Ben Green's Open Problem 100 — sofic isHyperlinear
--- Upstream: formal-conjectures FormalConjectures/GreensOpenProblems/100.lean:189 (declaration Green100.green_100.variants.sofic_isHyperlinear)
--- Credit: @niclorusso (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+/-! Sofic groups are hyperlinear, following @niclorusso (#713).
+The permutation embedding uses Mathlib's permutation-matrix homomorphism. -/
 
 namespace OMA.Hyperlinear
 
-/-- The permutation matrix of `σ`: entry `(i, j)` is `1` iff `σ j = i`. -/
-noncomputable def pm {n : ℕ} (σ : Equiv.Perm (Fin n)) : Matrix (Fin n) (Fin n) ℂ :=
-  Matrix.of fun i j => if σ j = i then (1 : ℂ) else 0
+/-- The standard permutation-matrix homomorphism. -/
+noncomputable abbrev pm {n : ℕ} (σ : Equiv.Perm (Fin n)) : Matrix (Fin n) (Fin n) ℂ :=
+  Matrix.permMatrixHom (R := ℂ) σ
 
 lemma pm_apply {n : ℕ} (σ : Equiv.Perm (Fin n)) (i j : Fin n) :
-    pm σ i j = if σ j = i then (1 : ℂ) else 0 := rfl
+    pm σ i j = if σ j = i then (1 : ℂ) else 0 := by
+  simp [pm, Matrix.permMatrixHom_apply, Equiv.eq_symm_apply, eq_comm]
 
-lemma pm_mul {n : ℕ} (σ τ : Equiv.Perm (Fin n)) : pm (σ * τ) = pm σ * pm τ := by
-  ext i j
-  by_cases h : σ (τ j) = i <;> simp [pm_apply, Matrix.mul_apply, h]
-
-lemma pm_one {n : ℕ} : pm (1 : Equiv.Perm (Fin n)) = 1 := by
-  ext i j
-  simp [pm_apply, Matrix.one_apply, eq_comm]
-
-lemma star_pm {n : ℕ} (σ : Equiv.Perm (Fin n)) : star (pm σ) = pm σ⁻¹ := by
-  ext i j
-  rw [Matrix.star_apply, pm_apply, pm_apply]
-  by_cases h : σ i = j
-  · rw [if_pos h, if_pos (Equiv.Perm.inv_eq_iff_eq.mpr h.symm), star_one]
-  · rw [if_neg h, if_neg (fun h' => h (Equiv.Perm.inv_eq_iff_eq.mp h').symm), star_zero]
-
-lemma pm_mem {n : ℕ} (σ : Equiv.Perm (Fin n)) : pm σ ∈ Matrix.unitaryGroup (Fin n) ℂ := by
-  rw [Matrix.mem_unitaryGroup_iff, star_pm, ← pm_mul, mul_inv_cancel, pm_one]
-
-/-- The permutation matrix as an element of the unitary group. -/
-noncomputable def U {n : ℕ} (σ : Equiv.Perm (Fin n)) : Matrix.unitaryGroup (Fin n) ℂ :=
-  ⟨pm σ, pm_mem σ⟩
-
-lemma U_mul {n : ℕ} (σ τ : Equiv.Perm (Fin n)) : U (σ * τ) = U σ * U τ :=
-  Subtype.ext (pm_mul σ τ)
-
-lemma U_one {n : ℕ} : U (1 : Equiv.Perm (Fin n)) = 1 :=
-  Subtype.ext pm_one
+/-- Permutation matrices give a homomorphism to the unitary group. -/
+noncomputable def U {n : ℕ} : Equiv.Perm (Fin n) →* Matrix.unitaryGroup (Fin n) ℂ where
+  toFun σ := ⟨pm σ, by
+    simp [pm, Matrix.permMatrixHom_apply, Matrix.mem_unitaryGroup_iff,
+      Matrix.star_eq_conjTranspose, ← Matrix.permMatrix_mul]⟩
+  map_one' := Subtype.ext (map_one (Matrix.permMatrixHom (R := ℂ)))
+  map_mul' σ τ := Subtype.ext (map_mul (Matrix.permMatrixHom (R := ℂ)) σ τ)
 
 lemma col_sum {n : ℕ} (σ τ : Equiv.Perm (Fin n)) (j : Fin n) :
     ∑ i, ‖pm σ i j - pm τ i j‖ ^ 2 = if σ j = τ j then (0 : ℝ) else 2 := by
@@ -105,11 +84,11 @@ theorem OMA.solution : type_of% @Green100.green_100.variants.sofic_isHyperlinear
   refine ⟨n, fun g => U (θ g), ?_, ?_, ?_⟩
   · intro g hg h hh hgh
     show Green100.hsDist (U (θ g) * U (θ h)) (U (θ (g * h))) < ε
-    rw [← U_mul]
+    rw [← map_mul]
     exact hsDist_U_lt _ _ hε (h1 g hg h hh hgh)
   · intro h1F
     show Green100.hsDist (U (θ 1)) 1 < ε
-    rw [← U_one]
+    rw [← map_one U]
     exact hsDist_U_lt _ _ hε (h2 h1F)
   · intro x hx y hy hxy
     exact hsDist_U_ge _ _ (h3 x hx y hy hxy)

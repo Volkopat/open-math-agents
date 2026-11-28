@@ -2,27 +2,9 @@ import OMAStatements.S_oeis_a182206
 
 open OMA.S_oeis_a182206
 
-lemma two_pow_small : ∀ r < 36, (2 : ZMod 37) ^ r = 1 → r = 0 := by
-  decide
-
-lemma two_pow_36 : (2 : ZMod 37) ^ 36 = 1 := by
-  decide
-
-lemma dvd36 (k : ℕ) (hk : (2 : ZMod 37) ^ k = 1) : 36 ∣ k := by
-  have h : k = 36 * (k / 36) + k % 36 := (Nat.div_add_mod k 36).symm
-  rw [h, pow_add, pow_mul, two_pow_36, one_pow, one_mul] at hk
-  exact Nat.dvd_of_mod_eq_zero (two_pow_small _ (Nat.mod_lt _ (by norm_num)) hk)
-
-lemma five_pow_small : ∀ r < 72, (5 : ZMod 73) ^ r = 1 → r = 0 := by
-  decide
-
-lemma five_pow_72 : (5 : ZMod 73) ^ 72 = 1 := by
-  decide
-
-lemma dvd72 (k : ℕ) (hk : (5 : ZMod 73) ^ k = 1) : 72 ∣ k := by
-  have h : k = 72 * (k / 72) + k % 72 := (Nat.div_add_mod k 72).symm
-  rw [h, pow_add, pow_mul, five_pow_72, one_pow, one_mul] at hk
-  exact Nat.dvd_of_mod_eq_zero (five_pow_small _ (Nat.mod_lt _ (by norm_num)) hk)
+lemma ord {p : ℕ} (n : ℕ) {k : ℕ} (g : ZMod p) (hn : 0 < n)
+    (h : g ^ n = 1 ∧ ∀ m < n, 0 < m → g ^ m ≠ 1) (hk : g ^ k = 1) : n ∣ k :=
+  (orderOf_eq_iff hn).2 h ▸ orderOf_dvd_of_pow_eq_one hk
 
 /-- From the Fermat property and a prime-modulus base `g` lift a congruence to `ZMod p`. -/
 lemma lift_base (C p g : ℕ) [NeZero C] (hp : p ∣ C) (hg : g.Coprime p)
@@ -47,8 +29,8 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a182206.main := by
   have h2 := lift_base C 37 2 h37 (by norm_num) hferm
   have h5 := lift_base C 73 5 h73 (by norm_num) hferm
   push_cast at h2 h5
-  obtain ⟨k1, hk1⟩ := dvd36 _ h2
-  obtain ⟨k2, hk2⟩ := dvd72 _ h5
+  obtain ⟨k1, hk1⟩ := ord 36 _ (by norm_num) ⟨by decide, by decide⟩ h2
+  obtain ⟨k2, hk2⟩ := ord 72 _ (by norm_num) ⟨by decide, by decide⟩ h5
   obtain ⟨m, rfl⟩ : 37 * 73 ∣ C :=
     Nat.Coprime.mul_dvd_of_dvd_of_dvd (by norm_num) h37 h73
   have hm : m % 72 = 37 := by omega

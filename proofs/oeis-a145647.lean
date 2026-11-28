@@ -5,5 +5,4 @@ import OMAStatements.S_oeis_a145647
 
 theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a145647.main) := by
   rintro ⟨-, -, h⟩
-  have h14 := h 14 (by norm_num)
-  norm_num [OMA.S_oeis_a145647.gap, OMA.S_oeis_a145647.wavelength] at h14
+  exact absurd (h 14 (by decide)) (by decide)

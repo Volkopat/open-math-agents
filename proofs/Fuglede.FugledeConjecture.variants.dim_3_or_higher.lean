@@ -24,55 +24,6 @@ lemma key (F : Set (ℤ × ℤ)) (x t : Fin 2 → ℝ) (n : ℤ × ℤ) :
     ext <;> simp <;> ring
   rw [this]
 
-theorem tile_transfer (F : Set (ℤ × ℤ)) (h : tilesByTranslation (boxSet F)) :
-    ∃ B : Set (ℤ × ℤ), TilesWith F B := by
-  obtain ⟨T, hTc, hcov, hdisj⟩ := h
-  haveI : Countable T := hTc.to_subtype
-  set Ω := boxSet F
-  set U : Set (Fin 2 → ℝ) := Set.univ \ ⋃ t ∈ T, translateSet Ω t
-  set O : Set (Fin 2 → ℝ) :=
-    ⋃ p : T × T, ⋃ (_ : p.1 ≠ p.2), translateSet Ω p.1 ∩ translateSet Ω p.2
-  have hO : volume O = 0 := by
-    apply measure_iUnion_null; intro p
-    apply measure_iUnion_null; intro hp
-    exact hdisj p.1.2 p.2.2 (fun h => hp (Subtype.ext h))
-  set v : ℤ × ℤ → (Fin 2 → ℝ) := fun n => ![(n.1 : ℝ), (n.2 : ℝ)]
-  set Bad : Set (Fin 2 → ℝ) := ⋃ n : ℤ × ℤ, (fun y => y + v n) ⁻¹' (U ∪ O)
-  have hBad : volume Bad = 0 := by
-    apply measure_iUnion_null; intro n
-    rw [measure_preimage_add_right]
-    exact measure_union_null hcov hO
-  have hne : (Badᶜ).Nonempty := by
-    by_contra hc
-    rw [Set.not_nonempty_iff_eq_empty, Set.compl_empty_iff] at hc
-    have : volume (Set.univ : Set (Fin 2 → ℝ)) = 0 := hc ▸ hBad
-    simp at this
-  obtain ⟨x, hx⟩ := hne
-  have hx' : ∀ n, x + v n ∉ U ∪ O := by
-    intro n hn; apply hx; exact Set.mem_iUnion.2 ⟨n, hn⟩
-  set b : (Fin 2 → ℝ) → ℤ × ℤ := fun t => (-⌊x 0 - t 0⌋, -⌊x 1 - t 1⌋)
-  refine ⟨b '' T, ?_⟩
-  intro z
-  have hcz : x + v z ∈ ⋃ t ∈ T, translateSet Ω t := by
-    by_contra hc; exact hx' z (Or.inl ⟨Set.mem_univ _, hc⟩)
-  obtain ⟨t, htT, hzt⟩ := Set.mem_iUnion₂.1 hcz
-  refine ⟨(z - b t, b t), ⟨(key F x t z).1 hzt, ⟨t, htT, rfl⟩, by simp⟩, ?_⟩
-  rintro ⟨f, b'⟩ ⟨hf, ⟨t', ht'T, rfl⟩, hsum⟩
-  simp only at hf hsum
-  have hft : f = z - b t' := by rw [← hsum]; abel
-  have hzt' : x + v z ∈ translateSet Ω t' := (key F x t' z).2 (hft ▸ hf)
-  have htt : t' = t := by
-    by_contra hne'
-    apply hx' z
-    right
-    exact Set.mem_iUnion.2 ⟨(⟨t', ht'T⟩, ⟨t, htT⟩), Set.mem_iUnion.2
-      ⟨fun h => hne' (congrArg Subtype.val h), hzt', hzt⟩⟩
-  subst htt
-  simp [hft]
-
-
-
-
 abbrev G := ZMod 60 × ZMod 12
 
 def Alist : List G := [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (0, 11), (4, 4), (8, 4), (8, 10), (9, 9), (12, 0), (12, 1), (12, 2), (12, 3), (12, 4), (12, 5), (12, 6), (12, 7), (12, 8), (12, 9), (12, 10), (12, 11), (13, 2), (13, 8), (14, 2), (19, 7), (24, 0), (28, 2), (28, 8), (29, 5), (33, 0), (33, 6), (34, 10), (36, 0), (36, 1), (36, 2), (36, 3), (36, 4), (36, 5), (36, 6), (36, 7), (36, 8), (36, 9), (36, 10), (36, 11), (39, 3), (44, 8), (48, 0), (48, 6), (49, 1), (53, 4), (53, 10), (54, 6), (59, 11)]
@@ -268,8 +219,6 @@ def Fplus : Set (ℤ × ℤ) :=
   {z | 0 ≤ z.1 ∧ z.1 < 97 * 60 ∧ 0 ≤ z.2 ∧ z.2 < 97 * 12 ∧
     (((z.1 : ZMod 60)), ((z.2 : ZMod 12))) ∈ Aplus}
 
-def H1 : Prop := isSpectral (boxSet Fplus)
-
 def H2 : Prop := ¬ ∃ B : Set (ZMod 60 × ZMod 12), TilesWith (Aplus : Set (ZMod 60 × ZMod 12)) B
 
 def H3 : Prop := ∀ (n₁ n₂ k : ℕ) (A : Finset (ZMod n₁ × ZMod n₂)), 0 < n₁ → 0 < n₂ → 3 ≤ k →
@@ -277,47 +226,6 @@ def H3 : Prop := ∀ (n₁ n₂ k : ℕ) (A : Finset (ZMod n₁ × ZMod n₂)), 
     (∃ B : Set (ℤ × ℤ), TilesWith {z : ℤ × ℤ | 0 ≤ z.1 ∧ z.1 < (k : ℤ) * n₁ ∧ 0 ≤ z.2 ∧
       z.2 < (k : ℤ) * n₂ ∧ (((z.1 : ZMod n₁)), ((z.2 : ZMod n₂))) ∈ A} B) →
     ∃ B : Set (ZMod n₁ × ZMod n₂), TilesWith (A : Set (ZMod n₁ × ZMod n₂)) B
-
-lemma boxSet_measurable (F : Set (ℤ × ℤ)) : MeasurableSet (boxSet F) := by
-  have hm : Measurable (fun x : Fin 2 → ℝ => (⌊x 0⌋, ⌊x 1⌋)) :=
-    (Int.measurable_floor.comp (measurable_pi_apply 0)).prodMk
-      (Int.measurable_floor.comp (measurable_pi_apply 1))
-  exact hm (MeasurableSet.of_discrete)
-
-lemma Omega_bounded : Bornology.IsBounded (boxSet Fplus) := by
-  apply (Metric.isBounded_Icc (0 : Fin 2 → ℝ) (fun _ => 5820)).subset
-  intro x hx
-  obtain ⟨h0, h1, h2, h3, -⟩ := hx
-  have a0 : (0 : ℝ) ≤ x 0 := Int.floor_nonneg.1 h0
-  have a1 : x 0 < 5820 := by
-    have := Int.floor_lt.1 (show ⌊x 0⌋ < ((5820 : ℤ)) by simpa using h1)
-    exact_mod_cast this
-  have a2 : (0 : ℝ) ≤ x 1 := Int.floor_nonneg.1 h2
-  have a3 : x 1 < 1164 := by
-    have := Int.floor_lt.1 (show ⌊x 1⌋ < ((1164 : ℤ)) by simpa using h3)
-    exact_mod_cast this
-  constructor
-  · intro i; fin_cases i <;> simp [a0, a2]
-  · intro i; fin_cases i <;> simp <;> linarith
-
-lemma Omega_pos : 0 < volume (boxSet Fplus) := by
-  have hsub : (Set.pi Set.univ fun _ : Fin 2 => Set.Ico (0 : ℝ) 1) ⊆ boxSet Fplus := by
-    intro x hx
-    simp only [Set.mem_pi, Set.mem_univ, Set.mem_Ico, true_implies] at hx
-    have e0 : ⌊x 0⌋ = 0 := Int.floor_eq_iff.2 (by simpa using hx 0)
-    have e1 : ⌊x 1⌋ = 0 := Int.floor_eq_iff.2 (by simpa using hx 1)
-    show (⌊x 0⌋, ⌊x 1⌋) ∈ Fplus
-    rw [e0, e1]
-    refine ⟨le_refl _, by norm_num, le_refl _, by norm_num, ?_⟩
-    simp only [Int.cast_zero]
-    rw [Aplus, List.mem_toFinset]
-    decide
-  have hv : volume (Set.pi Set.univ fun _ : Fin 2 => Set.Ico (0 : ℝ) 1) = 1 := by
-    rw [Real.volume_pi_Ico]; simp
-  calc (0 : ENNReal) < 1 := one_pos
-    _ = _ := hv.symm
-    _ ≤ _ := measure_mono hsub
-
 
 def proj (n₁ n₂ : ℕ) (z : ℤ × ℤ) : ZMod n₁ × ZMod n₂ := ((z.1 : ZMod n₁), (z.2 : ZMod n₂))
 
@@ -656,17 +564,6 @@ theorem H2_holds : H2 := by
     ext p; simp [Aplus]
   unfold H2; rw [e]; exact H2_proof
 
-theorem main_disproof (h1 : H1) : ¬ Fuglede.FugledeConjectureFor 2 := by
-  intro hF
-  have ht : tilesByTranslation (boxSet Fplus) :=
-    (hF _ Omega_bounded (boxSet_measurable _) Omega_pos).1 h1
-  obtain ⟨B, hB⟩ := tile_transfer _ ht
-  apply H2_holds
-  refine H3_holds 60 12 97 Aplus (by norm_num) (by norm_num) (by norm_num)
-    (by rw [Aplus_card]; norm_num) ⟨B, ?_⟩
-  simpa [Fplus] using hB
-
-
 /-- General analytic transference (KM06 Thm 4.2, forward direction). -/
 def H1a : Prop := ∀ (F : Finset (ℤ × ℤ)) (Λ₀ : Finset (Fin 2 → ℝ)), F.Nonempty →
     Λ₀.card = F.card →
@@ -684,23 +581,6 @@ lemma Fplus_eq : Fplus = ((Ffin 60 12 97 Aplus : Finset (ℤ × ℤ)) : Set (ℤ
   rw [Finset.mem_coe, mem_Ffin]
   simp only [Fplus, liftSet, Set.mem_setOf_eq]
   norm_num
-
-theorem H1_of (h1a : H1a) (h1b : H1b) : H1 := by
-  obtain ⟨Λ₀, hcard, horth⟩ := h1b
-  have hne : (Ffin 60 12 97 Aplus).Nonempty := by
-    refine ⟨(0, 0), ?_⟩
-    rw [mem_Ffin]
-    refine ⟨le_refl _, by norm_num, le_refl _, by norm_num, ?_⟩
-    simp only [Int.cast_zero]
-    rw [Aplus, List.mem_toFinset]
-    decide
-  unfold H1
-  rw [Fplus_eq]
-  exact h1a _ Λ₀ hne hcard horth
-
-theorem main_disproof2 (h1a : H1a) (h1b : H1b) : ¬ Fuglede.FugledeConjectureFor 2 :=
-  main_disproof (H1_of h1a h1b)
-
 
 open Real
 

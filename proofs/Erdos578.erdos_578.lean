@@ -125,20 +125,6 @@ noncomputable instance graphOfEdgesEdgeSetFintype {V : Type*} [Fintype V]
     [DecidableEq V] (S : Finset (Sym2 V)) : Fintype (graphOfEdges S).edgeSet :=
   Fintype.ofFinite _
 
-theorem graphOfEdges_edgeFinset {V : Type*} [Fintype V] [DecidableEq V]
-    {S : Finset (Sym2 V)} (hS : S ⊆ allEdges V) :
-    (graphOfEdges S).edgeFinset = S := by
-  ext e
-  rw [SimpleGraph.mem_edgeFinset]
-  simp only [graphOfEdges, SimpleGraph.edgeSet_fromEdgeSet, Set.mem_sdiff,
-    Finset.mem_coe]
-  constructor
-  · exact fun h ↦ h.1
-  · intro he
-    refine ⟨he, ?_⟩
-    have htop := hS he
-    simpa [allEdges] using htop
-
 /-- Relabel a finite edge set by a permutation of its vertices. -/
 def permutedEdges {V : Type*} [DecidableEq V]
     (σ : Equiv.Perm V) (S : Finset (Sym2 V)) : Finset (Sym2 V) :=
@@ -362,10 +348,6 @@ noncomputable def fixedSuccessCount (d M : ℕ) : ℕ := by
 /-- Success probability in the uniform `M`-edge model. -/
 noncomputable def fixedSuccessProbability (d M : ℕ) : ℝ :=
   (fixedSuccessCount d M : ℝ) / (fixedEdgeSamples d M).card
-
-theorem fixedSuccessProbability_nonneg (d M : ℕ) :
-    0 ≤ fixedSuccessProbability d M := by
-  exact div_nonneg (Nat.cast_nonneg _) (Nat.cast_nonneg _)
 
 theorem fixedSuccessProbability_le_one (d M : ℕ)
     (hsamples : 0 < (fixedEdgeSamples d M).card) :
@@ -1358,9 +1340,6 @@ theorem successProbability_eq (d : ℕ) :
   rw [successProbability, card_simpleGraph, card_cubeVertex]
   norm_num
 
-theorem successProbability_nonneg (d : ℕ) : 0 ≤ successProbability d := by
-  exact div_nonneg (Nat.cast_nonneg _) (Nat.cast_nonneg _)
-
 theorem successProbability_le_one (d : ℕ) : successProbability d ≤ 1 := by
   classical
   rw [successProbability]
@@ -2077,18 +2056,6 @@ noncomputable def CubeWalkCoverCertificate.support {d r k : ℕ}
   exact Finset.univ.biUnion fun i : Fin z.1.1.1.length =>
     z.2 i |>.2.2.1.support.toFinset
 
-noncomputable def walkCoverSupportSets (d r k : ℕ) :
-    Finset (Finset (CubeVertex d)) := by
-  classical
-  exact (Finset.univ : Finset (CubeWalkCoverCertificate d r k)).image
-    CubeWalkCoverCertificate.support
-
-theorem card_walkCoverSupportSets_le (d r k : ℕ) :
-    (walkCoverSupportSets d r k).card ≤
-      2 ^ r * (2 ^ d) ^ k * d ^ (2 * r) := by
-  classical
-  exact Finset.card_image_le.trans (card_cubeWalkCoverCertificate_le d r k)
-
 end E578P
 
 /-! ## Exact permutation fibers for an overlap edge set -/
@@ -2194,122 +2161,6 @@ theorem sum_card_connectedComponent_supp {V : Type*} [Fintype V]
       (Finset.card_biUnion hpair).symm
     _ = Fintype.card V := by rw [hunion, Finset.card_univ]
 
-noncomputable def connectedComponentCover {V : Type*} [Fintype V]
-    [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
-    (c : G.ConnectedComponent) :
-    Σ u : c, {p : c.toSimpleGraph.Walk u u //
-      p.support.toFinset = Finset.univ ∧
-        p.length = 2 * (Fintype.card c - 1)} := by
-  classical
-  let h :=
-    connected_exists_covering_closedWalk (Fintype.card c) c
-      c.toSimpleGraph rfl c.connected_toSimpleGraph
-  let u := Classical.choose h
-  let p := Classical.choose (Classical.choose_spec h)
-  exact ⟨u, p, Classical.choose_spec (Classical.choose_spec h)⟩
-
-def CopyWalkCode {V : Type*} [Fintype V] [DecidableEq V]
-    (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :=
-  ∀ c : G.ConnectedComponent,
-    CubeWalkLength d (2 * (Fintype.card c - 1))
-
-theorem copyWalkCode_finite {V : Type*} [Fintype V]
-    [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :
-    Finite (CopyWalkCode G d) := by
-  unfold CopyWalkCode
-  infer_instance
-
-noncomputable def copyWalkCode {V : Type*} [Fintype V] [DecidableEq V]
-    (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ)
-    (f : SimpleGraph.Copy G (cubeGraph d)) : CopyWalkCode G d := by
-  classical
-  intro c
-  let z := connectedComponentCover G c
-  let q : (cubeGraph d).Walk (f z.1.1) (f z.1.1) :=
-    z.2.1.map (f.toHom.comp c.toSimpleGraph_hom)
-  exact ⟨f z.1.1, f z.1.1, ⟨q, by
-    change (z.2.1.map (f.toHom.comp c.toSimpleGraph_hom)).length = _
-    rw [Walk.length_map]
-    exact z.2.2.2⟩⟩
-
-theorem copyWalkCode_injective {V : Type*} [Fintype V] [DecidableEq V]
-    (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :
-    Function.Injective (copyWalkCode G d) := by
-  classical
-  intro f g hfg
-  apply SimpleGraph.Copy.ext
-  intro v
-  let c := G.connectedComponentMk v
-  let z := connectedComponentCover G c
-  let x : c := ⟨v, ConnectedComponent.connectedComponentMk_mem⟩
-  have hx : x ∈ z.2.1.support := by
-    have : x ∈ z.2.1.support.toFinset := by rw [z.2.2.1]; simp
-    simpa using this
-  have hcode := congr_fun hfg c
-  have hsupp := congr_arg
-    (fun w : CubeWalkLength d (2 * (Fintype.card c - 1)) =>
-      w.2.2.1.support) hcode
-  simp only [copyWalkCode] at hsupp
-  have hlist :
-      (connectedComponentCover G c).2.1.support.map
-          (f.toHom.comp c.toSimpleGraph_hom) =
-        (connectedComponentCover G c).2.1.support.map
-          (g.toHom.comp c.toSimpleGraph_hom) := by
-    rw [← Walk.support_map, ← Walk.support_map]
-    exact hsupp
-  have hx' : x ∈ (connectedComponentCover G c).2.1.support := by
-    simpa [z] using hx
-  have hmaps := List.map_inj_left.mp hlist x hx'
-  rw [← SimpleGraph.Copy.toHom_apply f v,
-    ← SimpleGraph.Copy.toHom_apply g v]
-  simpa only [RelHom.comp_apply, ConnectedComponent.toSimpleGraph_hom_apply,
-    x] using hmaps
-
-theorem natCard_CopyWalkCode (G : SimpleGraph V) [Fintype V] [DecidableEq V]
-    [DecidableRel G.Adj] (d : ℕ) :
-    Nat.card (CopyWalkCode G d) =
-      (2 ^ d) ^ Fintype.card G.ConnectedComponent *
-        d ^ (2 * (Fintype.card V - Fintype.card G.ConnectedComponent)) := by
-  classical
-  let : Fintype (CopyWalkCode G d) := by
-    unfold CopyWalkCode
-    exact Pi.instFintype
-  rw [Nat.card_eq_fintype_card]
-  unfold CopyWalkCode
-  rw [Fintype.card_pi]
-  simp_rw [card_cubeWalkLength]
-  rw [Finset.prod_mul_distrib, Finset.prod_const, Finset.card_univ]
-  congr 1
-  rw [Finset.prod_pow_eq_pow_sum]
-  congr 1
-  rw [← Finset.mul_sum]
-  congr 1
-  have htsub := Finset.sum_tsub_distrib
-    (Finset.univ : Finset G.ConnectedComponent)
-    (f := fun c => Fintype.card c) (g := fun _ => 1)
-    (by
-      intro c hc
-      obtain ⟨v, hv⟩ := c.nonempty_supp
-      exact Fintype.card_pos_iff.mpr ⟨⟨v, hv⟩⟩)
-  calc
-    (∑ i : G.ConnectedComponent, (Fintype.card i - 1)) =
-        (∑ i : G.ConnectedComponent, Fintype.card i) -
-          ∑ _i : G.ConnectedComponent, 1 := by simpa using htsub
-    _ = Fintype.card V - Fintype.card G.ConnectedComponent := by
-      rw [sum_card_connectedComponent_supp]
-      simp
-
-theorem natCard_copy_le_cube_walk_bound {V : Type*} [Fintype V]
-    [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :
-    Nat.card (SimpleGraph.Copy G (cubeGraph d)) ≤
-      (2 ^ d) ^ Fintype.card G.ConnectedComponent *
-        d ^ (2 * (Fintype.card V - Fintype.card G.ConnectedComponent)) := by
-  classical
-  let : Finite (CopyWalkCode G d) := copyWalkCode_finite G d
-  rw [← natCard_CopyWalkCode G d]
-  exact Nat.card_le_card_of_injective (copyWalkCode G d)
-    (copyWalkCode_injective G d)
-
 end E578P
 
 
@@ -2382,27 +2233,6 @@ theorem card_perms_agreeing_on_finset {α : Type*} [Fintype α]
           intro σ
           simp only [Finset.mem_filter, Finset.mem_univ, true_and]
     _ = _ := card_perms_fixing_finset S
-
-theorem card_perms_extending_injection {α : Type*} [Fintype α]
-    [DecidableEq α] (S : Finset α) (f : S → α) (hf : Function.Injective f) :
-    ((Finset.univ : Finset (Equiv.Perm α)).filter fun σ =>
-        ∀ x : S, σ x = f x).card = Nat.factorial (Fintype.card α - S.card) := by
-  classical
-  obtain ⟨σ₀, hσ₀⟩ := Equiv.Perm.exists_extending_pair
-    (fun x : S => (x : α)) f Subtype.val_injective hf
-  have hfilter :
-      ((Finset.univ : Finset (Equiv.Perm α)).filter fun σ =>
-        ∀ x : S, σ x = f x) =
-      (Finset.univ : Finset (Equiv.Perm α)).filter fun σ =>
-        ∀ x ∈ S, σ x = σ₀ x := by
-    ext σ
-    simp only [Finset.mem_filter, Finset.mem_univ, true_and]
-    constructor
-    · intro h x hx
-      simpa [hσ₀ ⟨x, hx⟩] using h ⟨x, hx⟩
-    · intro h x
-      simpa [hσ₀ x] using h x x.property
-  rw [hfilter, card_perms_agreeing_on_finset]
 
 end E578P
 
@@ -2590,43 +2420,6 @@ theorem overlapCore_hasNoIsolatedEdge {V : Type*} [DecidableEq V]
   have hfCore : f ∈ overlapCore F := Finset.mem_sdiff.mpr ⟨hfF, hfNotIso⟩
   exact hndis (heIsoCore.2 f hfCore hfe)
 
-theorem supportComponent_card_core_three_le {V : Type*} [Fintype V]
-    [DecidableEq V] {F : Finset (Sym2 V)}
-    (hdiag : ∀ e ∈ F, ¬e.IsDiag)
-    {c : (graphOfEdges (overlapCore F)).ConnectedComponent}
-    (hc : c ∈ supportComponents (overlapCore F)) :
-    3 ≤ (ambientSetFinset c.supp).card := by
-  classical
-  rw [supportComponents, Finset.mem_image] at hc
-  obtain ⟨v, hvSupport, rfl⟩ := hc
-  simp only [edgeSupport, Finset.mem_biUnion] at hvSupport
-  obtain ⟨e, heCore, hve⟩ := hvSupport
-  have heF : e ∈ F := (Finset.mem_sdiff.mp heCore).1
-  have hediag : ¬e.IsDiag := hdiag e heF
-  have hnotIso := overlapCore_hasNoIsolatedEdge F heCore
-  unfold IsIsolatedEdge at hnotIso
-  push Not at hnotIso
-  obtain ⟨f, hfCore, hfe, hndis⟩ := hnotIso heCore
-  have hfF : f ∈ F := (Finset.mem_sdiff.mp hfCore).1
-  have hfdiag : ¬f.IsDiag := hdiag f hfF
-  have hvcomp : v ∈
-      ((graphOfEdges (overlapCore F)).connectedComponentMk v).supp :=
-    ConnectedComponent.connectedComponentMk_mem
-  have heSub := edge_toFinset_subset_component heCore hediag hve hvcomp
-  obtain ⟨x, hxe, hxf⟩ := Finset.not_disjoint_iff.mp hndis
-  have hxcomp : x ∈
-      ((graphOfEdges (overlapCore F)).connectedComponentMk v).supp := by
-    exact mem_ambientSetFinset.mp (heSub hxe)
-  have hfSub := edge_toFinset_subset_component hfCore hfdiag hxf hxcomp
-  have hunion : e.toFinset ∪ f.toFinset ⊆
-      ambientSetFinset
-        ((graphOfEdges (overlapCore F)).connectedComponentMk v).supp :=
-    Finset.union_subset heSub hfSub
-  calc
-    3 = (e.toFinset ∪ f.toFinset).card :=
-      (card_union_sym2_toFinset_eq_three hediag hfdiag hfe.symm hndis).symm
-    _ ≤ _ := Finset.card_le_card hunion
-
 end E578P
 
 
@@ -2732,75 +2525,6 @@ theorem connectedCubeSet_exists_covering_walk (d : ℕ)
       exact ⟨y, hy, rfl⟩
   exact ⟨⟨u, u, ⟨q, hqlen⟩⟩, hqsupp⟩
 
-theorem family_connected_support_mem_walkCoverSupportSets (d : ℕ)
-    (C : Finset (Finset (CubeVertex d)))
-    (hcard : ∀ S ∈ C, 2 ≤ S.card)
-    (hconn : ∀ S ∈ C,
-      ((cubeGraph d).induce (S : Set (CubeVertex d))).Connected) :
-    C.biUnion id ∈
-      walkCoverSupportSets d (∑ S ∈ C, (S.card - 1)) C.card := by
-  classical
-  let L : List (Finset (CubeVertex d)) := C.toList
-  let r : ℕ := ∑ S ∈ C, (S.card - 1)
-  let blocks : List ℕ := L.map fun S => S.card - 1
-  have hblocks_pos : ∀ {i}, i ∈ blocks → 0 < i := by
-    intro i hi
-    simp only [blocks, List.mem_map] at hi
-    obtain ⟨S, hSL, rfl⟩ := hi
-    have hSC : S ∈ C := by simpa [L] using hSL
-    have hSCard := hcard S hSC
-    omega
-  have hblocks_sum : blocks.sum = r := by
-    simp [blocks, L, r]
-  let c : Composition r := ⟨blocks, hblocks_pos, hblocks_sum⟩
-  have hLlength : L.length = C.card := by simp [L]
-  have hclength : c.length = L.length := by
-    change blocks.length = L.length
-    simp [blocks]
-  have hcertlength : c.length = C.card := hclength.trans hLlength
-  have hget (i : Fin c.length) :
-      c.blocksFun i = (L.get (Fin.cast hclength i)).card - 1 := by
-    simp [c, Composition.blocksFun, blocks]
-  have hLC (i : Fin c.length) : L.get (Fin.cast hclength i) ∈ C := by
-    have hm : L.get (Fin.cast hclength i) ∈ L :=
-      L.get_mem (Fin.cast hclength i)
-    have hm' : L.get (Fin.cast hclength i) ∈ C.toList := by
-      simpa only [L] using hm
-    exact Finset.mem_toList.mp hm'
-  choose z hz using fun i : Fin c.length =>
-    connectedCubeSet_exists_covering_walk d
-      (L.get (Fin.cast hclength i))
-      (hconn _ (hLC i))
-  let tuple : CubeWalkTuple d r c := fun i =>
-    ⟨(z i).1, (z i).2.1, ⟨(z i).2.2.1, by
-      rw [hget i]
-      exact (z i).2.2.2⟩⟩
-  let cert : CubeWalkCoverCertificate d r C.card :=
-    ⟨⟨c, hcertlength⟩, tuple⟩
-  have hcert : CubeWalkCoverCertificate.support cert = C.biUnion id := by
-    ext x
-    simp only [CubeWalkCoverCertificate.support, cert, tuple,
-      Finset.mem_biUnion, Finset.mem_univ, true_and, id_eq]
-    constructor
-    · rintro ⟨i, hi⟩
-      have hi' : x ∈ L.get (Fin.cast hclength i) := by
-        rw [← hz i]
-        simpa [tuple] using hi
-      exact ⟨L.get (Fin.cast hclength i), hLC i, hi'⟩
-    · rintro ⟨S, hSC, hxS⟩
-      have hSL : S ∈ L := by simpa [L] using hSC
-      obtain ⟨j, hj⟩ := List.get_of_mem hSL
-      let i : Fin c.length := Fin.cast hclength.symm j
-      refine ⟨i, ?_⟩
-      have hSi : L.get (Fin.cast hclength i) = S := by
-        simpa [i] using hj
-      simpa [hget i, hSi] using
-        (show x ∈ (z i).2.2.1.support.toFinset by
-          rw [hz i, hSi]
-          exact hxS)
-  simp only [walkCoverSupportSets, Finset.mem_image, Finset.mem_univ, true_and]
-  exact ⟨cert, hcert⟩
-
 end E578P
 
 
@@ -2808,74 +2532,6 @@ namespace E578P
 
 open Filter Function SimpleGraph
 open scoped BigOperators SimpleGraph
-
-/-- Exact fiber counting: after selecting the induced copy on the support
-of `F`, there are precisely `(2^d-|supp F|)!` possible extensions to an
-ambient permutation. -/
-theorem card_perms_containing_edge_set_le (d : ℕ)
-    (F : Finset (Sym2 (CubeVertex d)))
-    (_hF : F ⊆ (cubeGraph d).edgeFinset) :
-    ((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ =>
-        F ⊆ cubePattern d σ).card ≤
-      Nat.card
-          (SimpleGraph.Copy
-            ((graphOfEdges F).induce
-              (edgeSupport F : Set (CubeVertex d)))
-            (cubeGraph d)) *
-        Nat.factorial (2 ^ d - (edgeSupport F).card) := by
-  classical
-  let S : Finset (CubeVertex d) := edgeSupport F
-  let H : SimpleGraph S :=
-    (graphOfEdges F).induce (S : Set (CubeVertex d))
-  let A : Finset (Equiv.Perm (CubeVertex d)) :=
-    (Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ =>
-      F ⊆ cubePattern d σ⁻¹
-  let : Fintype (SimpleGraph.Copy H (cubeGraph d)) := Fintype.ofFinite _
-  let φ : A → SimpleGraph.Copy H (cubeGraph d) := fun a =>
-    permutationCopyOfSubset d F a.1 (by
-      have ha := a.2
-      change a.1 ∈
-        ((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ =>
-          F ⊆ cubePattern d σ⁻¹) at ha
-      exact (Finset.mem_filter.mp ha).2)
-  rw [card_perms_subset_cubePattern_eq_inverse]
-  change A.card ≤ _
-  calc
-    A.card = A.attach.card := Finset.card_attach.symm
-    _ = ∑ f : SimpleGraph.Copy H (cubeGraph d),
-          ((A.attach.filter fun a => φ a = f).card) := by
-      exact Finset.card_eq_sum_card_fiberwise
-        (s := A.attach)
-        (t := (Finset.univ : Finset (SimpleGraph.Copy H (cubeGraph d))))
-        (f := φ) (fun a _ha => Finset.mem_univ (φ a))
-    _ ≤ ∑ _f : SimpleGraph.Copy H (cubeGraph d),
-          Nat.factorial (2 ^ d - S.card) := by
-      apply Finset.sum_le_sum
-      intro f _hf
-      let E : Finset (Equiv.Perm (CubeVertex d)) :=
-        (Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ =>
-          ∀ x : S, σ x = f x
-      have hfiber : (A.attach.filter fun a => φ a = f).card ≤ E.card := by
-        apply Finset.card_le_card_of_injOn (fun a : A => a.1)
-        · intro a ha
-          have haφ : φ a = f := (Finset.mem_filter.mp ha).2
-          change a.1 ∈ E
-          refine Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩
-          intro x
-          rw [← haφ]
-          rfl
-        · intro a _ha b _hb hab
-          exact Subtype.ext hab
-      exact hfiber.trans_eq (by
-        rw [show E =
-            ((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter
-              fun σ => ∀ x : S, σ x = f x) by rfl]
-        simpa [S, card_cubeVertex] using
-          card_perms_extending_injection S f f.injective)
-    _ = Nat.card (SimpleGraph.Copy H (cubeGraph d)) *
-          Nat.factorial (2 ^ d - S.card) := by
-      simp [Nat.card_eq_fintype_card]
-    _ = _ := by rfl
 
 /-- The graph carried by an overlap edge set after discarding ambient
 vertices which do not meet an overlap edge. -/
@@ -2888,27 +2544,6 @@ noncomputable def overlapSupportGraph (d : ℕ)
 noncomputable def overlapComponentCount (d : ℕ)
     (F : Finset (Sym2 (CubeVertex d))) : ℕ :=
   Nat.card (overlapSupportGraph d F).ConnectedComponent
-
-/-- The factorial fiber estimate and the component-walk code combined in
-the form used in the overlap sum. -/
-theorem card_perms_containing_edge_set_le_walk_bound (d : ℕ)
-    (F : Finset (Sym2 (CubeVertex d)))
-    (hF : F ⊆ (cubeGraph d).edgeFinset) :
-    ((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ =>
-        F ⊆ cubePattern d σ).card ≤
-      (2 ^ d) ^ overlapComponentCount d F *
-        d ^ (2 * ((edgeSupport F).card - overlapComponentCount d F)) *
-        Nat.factorial (2 ^ d - (edgeSupport F).card) := by
-  classical
-  have hcopy := natCard_copy_le_cube_walk_bound
-    (overlapSupportGraph d F) d
-  rw [← Nat.card_eq_fintype_card] at hcopy
-  have hfiber := card_perms_containing_edge_set_le d F hF
-  have hmul := Nat.mul_le_mul_right
-    (Nat.factorial (2 ^ d - (edgeSupport F).card)) hcopy
-  exact hfiber.trans (by
-    simpa [overlapSupportGraph, overlapComponentCount, card_cubeVertex,
-      mul_assoc] using hmul)
 
 end E578P
 
@@ -3199,24 +2834,6 @@ theorem natCard_copy_le_cube_tree_bound {V : Type*} [Fintype V]
   exact Nat.card_le_card_of_injective (sharpCopyCode G d)
     (sharpCopyCode_injective G d)
 
-theorem card_perms_containing_edge_set_le_tree_bound (d : ℕ)
-    (F : Finset (Sym2 (CubeVertex d)))
-    (hF : F ⊆ (cubeGraph d).edgeFinset) :
-    ((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ =>
-        F ⊆ cubePattern d σ).card ≤
-      (2 ^ d) ^ overlapComponentCount d F *
-        d ^ ((edgeSupport F).card - overlapComponentCount d F) *
-        Nat.factorial (2 ^ d - (edgeSupport F).card) := by
-  classical
-  have hcopy := natCard_copy_le_cube_tree_bound
-    (overlapSupportGraph d F) d
-  have hfiber := card_perms_containing_edge_set_le d F hF
-  have hmul := Nat.mul_le_mul_right
-    (Nat.factorial (2 ^ d - (edgeSupport F).card)) hcopy
-  exact hfiber.trans (by
-    simpa [overlapSupportGraph, overlapComponentCount, card_cubeVertex,
-      mul_assoc] using hmul)
-
 end E578P
 
 namespace E578P
@@ -3501,147 +3118,12 @@ namespace E578P
 open Filter Function SimpleGraph
 open scoped BigOperators SimpleGraph
 
-theorem normalized_permutation_fiber_le (d : ℕ)
-    (F : Finset (Sym2 (CubeVertex d)))
-    (hF : F ⊆ (cubeGraph d).edgeFinset) :
-    (((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ =>
-        F ⊆ cubePattern d σ).card : ℝ) /
-        Fintype.card (Equiv.Perm (CubeVertex d)) ≤
-      (((81 : ℝ) * d) / (2 ^ d : ℕ)) ^
-        ((edgeSupport F).card - overlapComponentCount d F) := by
-  classical
-  let n := 2 ^ d
-  let s := (edgeSupport F).card
-  let k := overlapComponentCount d F
-  let r := s - k
-  have hn : 0 < n := by positivity
-  have hs : s ≤ n := by
-    dsimp [s, n]
-    rw [← card_cubeVertex]
-    exact Finset.card_le_univ _
-  have h2k : 2 * k ≤ s := by
-    exact two_mul_overlapComponentCount_le_support_card d F hF
-  have hk : k ≤ s := by omega
-  have hs2 : s ≤ 2 * r := by omega
-  have hcount := card_perms_containing_edge_set_le_tree_bound d F hF
-  have hcountR :
-      ((((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ =>
-          F ⊆ cubePattern d σ).card : ℕ) : ℝ) ≤
-        (n : ℝ) ^ k * d ^ r * ((n - s).factorial : ℝ) := by
-    exact_mod_cast hcount
-  have hfac := rooted_factorial_ratio_le hn hs hk hs2
-  have hperm : Fintype.card (Equiv.Perm (CubeVertex d)) = n.factorial := by
-    rw [Fintype.card_perm, card_cubeVertex]
-  rw [hperm]
-  calc
-    (((((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ =>
-          F ⊆ cubePattern d σ).card : ℕ) : ℝ) /
-        (n.factorial : ℝ)) ≤
-      ((n : ℝ) ^ k * d ^ r * ((n - s).factorial : ℝ)) /
-        (n.factorial : ℝ) := by gcongr
-    _ = (d : ℝ) ^ r *
-        ((n : ℝ) ^ k * ((n - s).factorial : ℝ) /
-          (n.factorial : ℝ)) := by ring
-    _ ≤ (d : ℝ) ^ r * (((81 : ℝ) / n) ^ r) := by gcongr
-    _ = (((81 : ℝ) * d) / n) ^ r := by
-      rw [← mul_pow]
-      congr 1
-      ring
-
 end E578P
 
 namespace E578P
 
 open Filter Function SimpleGraph
 open scoped BigOperators SimpleGraph
-
-noncomputable def componentEdges {V : Type*} [Fintype V]
-    [DecidableEq V] (F : Finset (Sym2 V))
-    (c : (graphOfEdges F).ConnectedComponent) : Finset (Sym2 V) := by
-  classical
-  exact F.filter fun e => e.toFinset ⊆ ambientSetFinset c.supp
-
-theorem componentEdges_subset {V : Type*} [Fintype V]
-    [DecidableEq V] (F : Finset (Sym2 V))
-    (c : (graphOfEdges F).ConnectedComponent) : componentEdges F c ⊆ F := by
-  classical
-  exact Finset.filter_subset _ _
-
-theorem edgeSupport_componentEdges {V : Type*} [Fintype V]
-    [DecidableEq V] {F : Finset (Sym2 V)}
-    (hdiag : ∀ e ∈ F, ¬e.IsDiag)
-    {c : (graphOfEdges F).ConnectedComponent}
-    (hc : c ∈ supportComponents F) :
-    edgeSupport (componentEdges F c) = ambientSetFinset c.supp := by
-  classical
-  apply Finset.Subset.antisymm
-  · intro v hv
-    simp only [edgeSupport, Finset.mem_biUnion] at hv
-    obtain ⟨e, he, hve⟩ := hv
-    exact (Finset.mem_filter.mp he).2 hve
-  · intro v hvc
-    have hvcSupp : v ∈ c.supp := by
-      simpa [mem_ambientSetFinset] using hvc
-    have hvSupport : v ∈ edgeSupport F :=
-      supportComponent_supp_subset_edgeSupport hdiag hc hvc
-    simp only [edgeSupport, Finset.mem_biUnion] at hvSupport ⊢
-    obtain ⟨e, heF, hve⟩ := hvSupport
-    have heSub := edge_toFinset_subset_component heF (hdiag e heF) hve hvcSupp
-    exact ⟨e, Finset.mem_filter.mpr ⟨heF, heSub⟩, hve⟩
-
-theorem biUnion_componentEdges_eq {V : Type*} [Fintype V]
-    [DecidableEq V] {F : Finset (Sym2 V)}
-    (hdiag : ∀ e ∈ F, ¬e.IsDiag) :
-    (supportComponents F).biUnion (componentEdges F) = F := by
-  classical
-  apply Finset.Subset.antisymm
-  · intro e he
-    simp only [Finset.mem_biUnion] at he
-    obtain ⟨c, hc, hec⟩ := he
-    exact componentEdges_subset F c hec
-  · intro e heF
-    let v : V := e.out.1
-    have hve : v ∈ e.toFinset := by
-      simpa [Sym2.mem_toFinset, v] using e.out_fst_mem
-    have hvSupport : v ∈ edgeSupport F := by
-      simp only [edgeSupport, Finset.mem_biUnion]
-      exact ⟨e, heF, hve⟩
-    let c := (graphOfEdges F).connectedComponentMk v
-    have hc : c ∈ supportComponents F := by
-      rw [supportComponents, Finset.mem_image]
-      exact ⟨v, hvSupport, rfl⟩
-    have hvc : v ∈ c.supp := ConnectedComponent.connectedComponentMk_mem
-    have heSub := edge_toFinset_subset_component heF (hdiag e heF) hve hvc
-    simp only [Finset.mem_biUnion]
-    exact ⟨c, hc, Finset.mem_filter.mpr ⟨heF, heSub⟩⟩
-
-theorem componentEdges_pairwiseDisjoint {V : Type*} [Fintype V]
-    [DecidableEq V] (F : Finset (Sym2 V)) :
-    ((supportComponents F : Finset (graphOfEdges F).ConnectedComponent) :
-      Set (graphOfEdges F).ConnectedComponent).PairwiseDisjoint
-        (componentEdges F) := by
-  classical
-  intro c hc c' hc' hcc'
-  change Disjoint (componentEdges F c) (componentEdges F c')
-  rw [Finset.disjoint_left]
-  intro e he he'
-  have heSub : e.toFinset ⊆ ambientSetFinset c.supp :=
-    (Finset.mem_filter.mp he).2
-  have heSub' : e.toFinset ⊆ ambientSetFinset c'.supp :=
-    (Finset.mem_filter.mp he').2
-  let v : V := e.out.1
-  have hve : v ∈ e.toFinset := by
-    simpa [Sym2.mem_toFinset, v] using e.out_fst_mem
-  have hdis := supportComponents_pairwiseDisjoint F hc hc' hcc'
-  exact Finset.disjoint_left.mp hdis (heSub hve) (heSub' hve)
-
-theorem sum_card_componentEdges {V : Type*} [Fintype V]
-    [DecidableEq V] {F : Finset (Sym2 V)}
-    (hdiag : ∀ e ∈ F, ¬e.IsDiag) :
-    (∑ c ∈ supportComponents F, (componentEdges F c).card) = F.card := by
-  classical
-  rw [← Finset.card_biUnion (componentEdges_pairwiseDisjoint F),
-    biUnion_componentEdges_eq hdiag]
 
 end E578P
 
@@ -3676,48 +3158,6 @@ theorem overlapAverage_eq_normalized_subgraph_sum (d : ℕ) (a : ℝ) :
   simp only [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
   field_simp
 
-/-- A pointwise upper bound retaining the exact falling-factorial
-normalization.  This is sharp enough for isolated matching components. -/
-theorem normalized_permutation_fiber_le_exact (d : ℕ)
-    (F : Finset (Sym2 (CubeVertex d)))
-    (hF : F ⊆ (cubeGraph d).edgeFinset) :
-    (((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ ↦
-        F ⊆ cubePattern d σ).card : ℝ) /
-        Fintype.card (Equiv.Perm (CubeVertex d)) ≤
-      ((2 ^ d : ℕ) : ℝ) ^ overlapComponentCount d F *
-        (d : ℝ) ^ ((edgeSupport F).card - overlapComponentCount d F) /
-          ((2 ^ d).descFactorial (edgeSupport F).card : ℕ) := by
-  classical
-  let n := 2 ^ d
-  let s := (edgeSupport F).card
-  let k := overlapComponentCount d F
-  let r := s - k
-  have hs : s ≤ n := by
-    dsimp [s, n]
-    rw [← card_cubeVertex]
-    exact Finset.card_le_univ _
-  have hcount := card_perms_containing_edge_set_le_tree_bound d F hF
-  have hperm : Fintype.card (Equiv.Perm (CubeVertex d)) = n.factorial := by
-    rw [Fintype.card_perm, card_cubeVertex]
-  have hfac : (n.factorial : ℝ) =
-      ((n - s).factorial : ℝ) * (n.descFactorial s : ℝ) := by
-    norm_cast
-    exact (Nat.factorial_mul_descFactorial hs).symm
-  rw [hperm, hfac]
-  have hpos : (0 : ℝ) < ((n - s).factorial : ℕ) := by positivity
-  calc
-    (((((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ ↦
-          F ⊆ cubePattern d σ).card : ℕ) : ℝ) /
-        (((n - s).factorial : ℝ) * (n.descFactorial s : ℝ))) ≤
-      (((n ^ k * d ^ r * (n - s).factorial : ℕ) : ℝ) /
-        (((n - s).factorial : ℝ) * (n.descFactorial s : ℝ))) := by
-          gcongr
-    _ = (n : ℝ) ^ k * (d : ℝ) ^ r /
-        (n.descFactorial s : ℕ) := by
-      push_cast
-      field_simp
-    _ = _ := by rfl
-
 end E578P
 
 namespace E578P
@@ -3739,135 +3179,12 @@ theorem edgeSupport_eq_core_union_isolated {V : Type*} [DecidableEq V]
       edgeSupport (overlapCore F) ∪ edgeSupport (isolatedEdges F) := by
   rw [← edgeSupport_union, overlapCore_union_isolatedEdges]
 
-noncomputable def coreComponentToFull {V : Type*} [Fintype V]
-    [DecidableEq V] (F : Finset (Sym2 V))
-    (c : (graphOfEdges (overlapCore F)).ConnectedComponent) :
-    (graphOfEdges F).ConnectedComponent :=
-  (graphOfEdges F).connectedComponentMk (componentRoot c).1
-
-theorem connectedComponentMk_eq_coreComponentToFull {V : Type*}
-    [Fintype V] [DecidableEq V] (F : Finset (Sym2 V))
-    {c : (graphOfEdges (overlapCore F)).ConnectedComponent}
-    {v : V} (hv : v ∈ c.supp) :
-    (graphOfEdges F).connectedComponentMk v = coreComponentToFull F c := by
-  classical
-  rw [coreComponentToFull, ConnectedComponent.eq]
-  have hreach : (graphOfEdges (overlapCore F)).Reachable v (componentRoot c).1 := by
-    rw [← ConnectedComponent.eq]
-    exact ((ConnectedComponent.mem_supp_iff c v).mp hv).trans
-      ((ConnectedComponent.mem_supp_iff c (componentRoot c).1).mp
-        (componentRoot c).2).symm
-  exact hreach.mono (fun x y hxy => by
-    rw [graphOfEdges, SimpleGraph.fromEdgeSet_adj] at hxy ⊢
-    exact ⟨(Finset.mem_sdiff.mp hxy.1).1, hxy.2⟩)
-
-noncomputable def isolatedEdgeToFullComponent {V : Type*} [Fintype V]
-    [DecidableEq V] (F : Finset (Sym2 V)) (e : Sym2 V) :
-    (graphOfEdges F).ConnectedComponent :=
-  (graphOfEdges F).connectedComponentMk e.out.1
-
-theorem connectedComponentMk_eq_isolatedEdgeToFullComponent
-    {V : Type*} [Fintype V] [DecidableEq V]
-    {F : Finset (Sym2 V)} {e : Sym2 V} (heF : e ∈ F)
-    (heDiag : ¬e.IsDiag) {v : V} (hve : v ∈ e.toFinset) :
-    (graphOfEdges F).connectedComponentMk v =
-      isolatedEdgeToFullComponent F e := by
-  classical
-  have hout : s(e.out.1, e.out.2) = e := e.out_eq
-  have hve' : v = e.out.1 ∨ v = e.out.2 := by
-    rw [← hout, Sym2.toFinset_mk_eq] at hve
-    simpa [eq_comm] using hve
-  rcases hve' with rfl | rfl
-  · rfl
-  · rw [isolatedEdgeToFullComponent, ConnectedComponent.eq]
-    exact (show (graphOfEdges F).Adj e.out.2 e.out.1 by
-      rw [graphOfEdges, SimpleGraph.fromEdgeSet_adj]
-      have heq : s(e.out.2, e.out.1) = e := by
-        simpa [Sym2.eq_swap] using hout
-      have hne : e.out.1 ≠ e.out.2 := by
-        intro h
-        apply heDiag
-        rw [← hout]
-        simp [h]
-      exact ⟨by simpa [heq] using heF, hne.symm⟩).reachable
-
-noncomputable def fullComponentCover {V : Type*} [Fintype V]
-    [DecidableEq V] (F : Finset (Sym2 V)) :
-    Finset (graphOfEdges F).ConnectedComponent := by
-  classical
-  exact
-    (supportComponents (overlapCore F)).image (coreComponentToFull F) ∪
-      (isolatedEdges F).image (isolatedEdgeToFullComponent F)
-
-theorem supportComponents_subset_core_image_union_isolated_image
-    {V : Type*} [Fintype V] [DecidableEq V]
-    (F : Finset (Sym2 V)) (hdiag : ∀ e ∈ F, ¬e.IsDiag) :
-    supportComponents F ⊆ fullComponentCover F := by
-  classical
-  rw [fullComponentCover]
-  intro c hc
-  rw [supportComponents, Finset.mem_image] at hc
-  obtain ⟨v, hvF, rfl⟩ := hc
-  rw [edgeSupport_eq_core_union_isolated] at hvF
-  rcases Finset.mem_union.mp hvF with hvCore | hvIso
-  · apply Finset.mem_union_left
-    rw [Finset.mem_image]
-    let c := (graphOfEdges (overlapCore F)).connectedComponentMk v
-    refine ⟨c, ?_, ?_⟩
-    · rw [supportComponents, Finset.mem_image]
-      exact ⟨v, hvCore, rfl⟩
-    · exact (connectedComponentMk_eq_coreComponentToFull F
-        (c := c) ConnectedComponent.connectedComponentMk_mem).symm
-  · simp only [edgeSupport, Finset.mem_biUnion] at hvIso
-    obtain ⟨e, heIso, hve⟩ := hvIso
-    apply Finset.mem_union_right
-    rw [Finset.mem_image]
-    refine ⟨e, heIso, ?_⟩
-    exact (connectedComponentMk_eq_isolatedEdgeToFullComponent
-      (isolatedEdges_subset F heIso) (hdiag e (isolatedEdges_subset F heIso))
-        hve).symm
-
-theorem overlapComponentCount_le_core_add_isolated (d : ℕ)
-    (F : Finset (Sym2 (CubeVertex d)))
-    (hF : F ⊆ (cubeGraph d).edgeFinset) :
-    overlapComponentCount d F ≤
-      overlapComponentCount d (overlapCore F) + (isolatedEdges F).card := by
-  classical
-  have hdiag : ∀ e ∈ F, ¬e.IsDiag := fun e he =>
-    (cubeGraph d).not_isDiag_of_mem_edgeSet (by
-      simpa using SimpleGraph.mem_edgeFinset.mp (hF he))
-  have hdiagCore : ∀ e ∈ overlapCore F, ¬e.IsDiag := fun e he =>
-    hdiag e (Finset.mem_sdiff.mp he).1
-  rw [← card_supportComponents_eq_overlapComponentCount d F hdiag,
-    ← card_supportComponents_eq_overlapComponentCount d (overlapCore F)
-      hdiagCore]
-  calc
-    (supportComponents F).card ≤
-        (fullComponentCover F).card :=
-      Finset.card_le_card
-        (supportComponents_subset_core_image_union_isolated_image F hdiag)
-    _ ≤ ((supportComponents (overlapCore F)).image
-          (coreComponentToFull F)).card +
-        ((isolatedEdges F).image (isolatedEdgeToFullComponent F)).card :=
-      by rw [fullComponentCover]; exact Finset.card_union_le _ _
-    _ ≤ (supportComponents (overlapCore F)).card +
-        (isolatedEdges F).card := Nat.add_le_add Finset.card_image_le
-          Finset.card_image_le
-
 end E578P
 
 namespace E578P
 
 open Filter Function SimpleGraph
 open scoped BigOperators SimpleGraph
-
-lemma self_le_two_pow (d : ℕ) : d ≤ 2 ^ d := by
-  induction d with
-  | zero => simp
-  | succ d ih =>
-      rw [pow_succ]
-      have hp : 0 < 2 ^ d := by positivity
-      omega
 
 theorem edgeSupport_card_eq_core_add_twice_isolated
     {V : Type*} [Finite V] [DecidableEq V]
@@ -3878,100 +3195,6 @@ theorem edgeSupport_card_eq_core_add_twice_isolated
   rw [edgeSupport_eq_core_union_isolated,
     Finset.card_union_of_disjoint (edgeSupport_disjoint_core_isolated F),
     edgeSupport_isolatedEdges_card hdiag]
-
-lemma pow_rank_mono_of_component_le {n d s k K : ℕ}
-    (hdn : d ≤ n) (hkK : k ≤ K) (hKs : K ≤ s) :
-    n ^ k * d ^ (s - k) ≤ n ^ K * d ^ (s - K) := by
-  have hks : k ≤ s := hkK.trans hKs
-  have hK : K = k + (K - k) := (Nat.add_sub_of_le hkK).symm
-  have hs : s - k = (s - K) + (K - k) := by omega
-  rw [hs, pow_add]
-  calc
-    n ^ k * (d ^ (s - K) * d ^ (K - k)) =
-        n ^ k * d ^ (K - k) * d ^ (s - K) := by ring
-    _ ≤ n ^ k * n ^ (K - k) * d ^ (s - K) := by
-      gcongr
-    _ = n ^ K * d ^ (s - K) := by rw [← pow_add, ← hK]
-
-/-- Exact pointwise fiber bound after separating the isolated matching.
-Only the inequality on component counts is needed: the monotonicity of the
-tree code transfers it to the sharper core-plus-isolates exponent. -/
-theorem normalized_permutation_fiber_le_core_isolated (d : ℕ)
-    (F : Finset (Sym2 (CubeVertex d)))
-    (hF : F ⊆ (cubeGraph d).edgeFinset) :
-    (((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ ↦
-        F ⊆ cubePattern d σ).card : ℝ) /
-        Fintype.card (Equiv.Perm (CubeVertex d)) ≤
-      ((2 ^ d : ℕ) : ℝ) ^
-          (overlapComponentCount d (overlapCore F) + (isolatedEdges F).card) *
-        (d : ℝ) ^
-          ((edgeSupport (overlapCore F)).card -
-              overlapComponentCount d (overlapCore F) +
-            (isolatedEdges F).card) /
-        (((2 ^ d).descFactorial
-          ((edgeSupport (overlapCore F)).card +
-            2 * (isolatedEdges F).card)) : ℕ) := by
-  classical
-  let n := 2 ^ d
-  let s := (edgeSupport F).card
-  let k := overlapComponentCount d F
-  let C := overlapCore F
-  let t := (isolatedEdges F).card
-  let s₀ := (edgeSupport C).card
-  let k₀ := overlapComponentCount d C
-  let K := k₀ + t
-  have hdiag : ∀ e ∈ F, ¬e.IsDiag := fun e he =>
-    (cubeGraph d).not_isDiag_of_mem_edgeSet (by
-      simpa using SimpleGraph.mem_edgeFinset.mp (hF he))
-  have hsEq : s = s₀ + 2 * t := by
-    exact edgeSupport_card_eq_core_add_twice_isolated F hdiag
-  have hcore : C ⊆ (cubeGraph d).edgeFinset := fun e he =>
-    hF (Finset.mem_sdiff.mp he).1
-  have hk₀s₀ : k₀ ≤ s₀ := by
-    have := two_mul_overlapComponentCount_le_support_card d C hcore
-    omega
-  have hKs : K ≤ s := by
-    dsimp [K]
-    rw [hsEq]
-    omega
-  have hkK : k ≤ K := overlapComponentCount_le_core_add_isolated d F hF
-  have hmono : n ^ k * d ^ (s - k) ≤ n ^ K * d ^ (s - K) :=
-    pow_rank_mono_of_component_le (self_le_two_pow d) hkK hKs
-  have hcount := card_perms_containing_edge_set_le_tree_bound d F hF
-  have hcount' :
-      ((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ ↦
-          F ⊆ cubePattern d σ).card ≤
-        n ^ K * d ^ (s - K) * Nat.factorial (n - s) := by
-    simpa [n, s, k] using
-      hcount.trans (Nat.mul_le_mul_right (Nat.factorial (n - s)) hmono)
-  have hsN : s ≤ n := by
-    dsimp [s, n]
-    rw [← card_cubeVertex]
-    exact Finset.card_le_univ _
-  have hperm : Fintype.card (Equiv.Perm (CubeVertex d)) = n.factorial := by
-    rw [Fintype.card_perm, card_cubeVertex]
-  have hfac : (n.factorial : ℝ) =
-      ((n - s).factorial : ℝ) * (n.descFactorial s : ℝ) := by
-    norm_cast
-    exact (Nat.factorial_mul_descFactorial hsN).symm
-  have hpos : (0 : ℝ) < ((n - s).factorial : ℕ) := by positivity
-  rw [hperm, hfac]
-  calc
-    (((((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter fun σ ↦
-          F ⊆ cubePattern d σ).card : ℕ) : ℝ) /
-        (((n - s).factorial : ℝ) * (n.descFactorial s : ℝ))) ≤
-      (((n ^ K * d ^ (s - K) * (n - s).factorial : ℕ) : ℝ) /
-        (((n - s).factorial : ℝ) * (n.descFactorial s : ℝ))) := by
-          gcongr
-    _ = (n : ℝ) ^ K * (d : ℝ) ^ (s - K) /
-        (n.descFactorial s : ℕ) := by
-      push_cast
-      field_simp
-    _ = _ := by
-      have hexp : s₀ + 2 * t - K = (s₀ - k₀) + t := by
-        dsimp [K]
-        omega
-      rw [hsEq, hexp]
 
 end E578P
 
@@ -4468,38 +3691,6 @@ noncomputable def overlapCoreFiber (d : ℕ)
   exact (cubeGraph d).edgeFinset.powerset.filter fun F =>
     overlapCore F = C ∧ (isolatedEdges F).card = t
 
-theorem card_overlapCoreFiber_le_choose (d : ℕ)
-    (C : Finset (Sym2 (CubeVertex d))) (t : ℕ) :
-    (overlapCoreFiber d C t).card ≤
-      Nat.choose (cubeEdgeCount d) t := by
-  classical
-  let T := (cubeGraph d).edgeFinset.powersetCard t
-  have hcardT : T.card = Nat.choose (cubeEdgeCount d) t := by
-    rw [Finset.card_powersetCard, cube_card_edges]
-    rfl
-  rw [← hcardT]
-  apply Finset.card_le_card_of_injOn (isolatedEdges)
-  · intro F hF
-    have hmem := Finset.mem_filter.mp hF
-    change isolatedEdges F ∈ (cubeGraph d).edgeFinset.powersetCard t
-    rw [Finset.mem_powersetCard]
-    exact ⟨isolatedEdges_subset_cube d (Finset.mem_powerset.mp hmem.1), hmem.2.2⟩
-  · intro F hF K hK heq
-    have hFC := (Finset.mem_filter.mp hF).2.1
-    have hKC := (Finset.mem_filter.mp hK).2.1
-    calc
-      F = overlapCore F ∪ isolatedEdges F :=
-        (overlapCore_union_isolatedEdges F).symm
-      _ = overlapCore K ∪ isolatedEdges K := by rw [hFC, hKC, heq]
-      _ = K := overlapCore_union_isolatedEdges K
-
-theorem overlapCoreFiber_maps (d : ℕ)
-    {F : Finset (Sym2 (CubeVertex d))}
-    (hF : F ∈ (cubeGraph d).edgeFinset.powerset) :
-    F ∈ overlapCoreFiber d (overlapCore F) (isolatedEdges F).card := by
-  classical
-  exact Finset.mem_filter.mpr ⟨hF, rfl, rfl⟩
-
 theorem sum_powerset_by_core_isolated (d : ℕ)
     (f : Finset (Sym2 (CubeVertex d)) → ℝ) :
     (∑ F ∈ (cubeGraph d).edgeFinset.powerset, f F) =
@@ -4549,14 +3740,6 @@ namespace E578P
 open Filter Function SimpleGraph
 open scoped BigOperators SimpleGraph
 
-noncomputable def coreIsolatedUpperTerm (d : ℕ) (a : ℝ)
-    (C : Finset (Sym2 (CubeVertex d))) (t : ℕ) : ℝ :=
-  a ^ (C.card + t) *
-    (((2 ^ d : ℕ) : ℝ) ^ (overlapComponentCount d C + t) *
-      (d : ℝ) ^
-        ((edgeSupport C).card - overlapComponentCount d C + t) /
-      (((2 ^ d).descFactorial ((edgeSupport C).card + 2 * t)) : ℕ))
-
 theorem overlapAverage_eq_sum_normalized_fibers (d : ℕ) (a : ℝ) :
     overlapAverage d (1 + a) =
       ∑ F ∈ (cubeGraph d).edgeFinset.powerset,
@@ -4582,68 +3765,6 @@ theorem overlapAverage_eq_sum_normalized_fibers (d : ℕ) (a : ℝ) :
       intro F hF
       ring
 
-theorem overlapAverage_le_sum_core_isolated (d : ℕ) (a : ℝ)
-    (ha : 0 ≤ a) :
-    overlapAverage d (1 + a) ≤
-      ∑ C ∈ coreAllEdgeSets d,
-        ∑ t ∈ Finset.range (cubeEdgeCount d + 1),
-          (Nat.choose (cubeEdgeCount d) t : ℝ) *
-            coreIsolatedUpperTerm d a C t := by
-  classical
-  rw [overlapAverage_eq_sum_normalized_fibers]
-  calc
-    (∑ F ∈ (cubeGraph d).edgeFinset.powerset,
-        a ^ F.card *
-          ((((Finset.univ : Finset (Equiv.Perm (CubeVertex d))).filter
-            fun σ ↦ F ⊆ cubePattern d σ).card : ℝ) /
-            Fintype.card (Equiv.Perm (CubeVertex d)))) ≤
-      ∑ F ∈ (cubeGraph d).edgeFinset.powerset,
-        coreIsolatedUpperTerm d a (overlapCore F) (isolatedEdges F).card := by
-      apply Finset.sum_le_sum
-      intro F hF
-      have hsub := Finset.mem_powerset.mp hF
-      have hfiber := normalized_permutation_fiber_le_core_isolated d F hsub
-      rw [coreIsolatedUpperTerm, ← card_eq_core_add_isolated F]
-      exact mul_le_mul_of_nonneg_left hfiber (pow_nonneg ha _)
-    _ = ∑ C ∈ coreAllEdgeSets d,
-        ∑ t ∈ Finset.range (cubeEdgeCount d + 1),
-          ∑ F ∈ overlapCoreFiber d C t,
-            coreIsolatedUpperTerm d a (overlapCore F)
-              (isolatedEdges F).card :=
-      sum_powerset_by_core_isolated d _
-    _ = ∑ C ∈ coreAllEdgeSets d,
-        ∑ t ∈ Finset.range (cubeEdgeCount d + 1),
-          (overlapCoreFiber d C t).card *
-            coreIsolatedUpperTerm d a C t := by
-      apply Finset.sum_congr rfl
-      intro C hC
-      apply Finset.sum_congr rfl
-      intro t ht
-      calc
-        (∑ F ∈ overlapCoreFiber d C t,
-            coreIsolatedUpperTerm d a (overlapCore F)
-              (isolatedEdges F).card) =
-            ∑ _F ∈ overlapCoreFiber d C t,
-              coreIsolatedUpperTerm d a C t := by
-                apply Finset.sum_congr rfl
-                intro F hF
-                have hmem := (Finset.mem_filter.mp hF).2
-                rw [hmem.1, hmem.2]
-        _ = _ := by simp
-    _ ≤ ∑ C ∈ coreAllEdgeSets d,
-        ∑ t ∈ Finset.range (cubeEdgeCount d + 1),
-          (Nat.choose (cubeEdgeCount d) t : ℝ) *
-            coreIsolatedUpperTerm d a C t := by
-      apply Finset.sum_le_sum
-      intro C hC
-      apply Finset.sum_le_sum
-      intro t ht
-      have hcard := card_overlapCoreFiber_le_choose d C t
-      have hterm : 0 ≤ coreIsolatedUpperTerm d a C t := by
-        unfold coreIsolatedUpperTerm
-        positivity
-      exact mul_le_mul_of_nonneg_right (by exact_mod_cast hcard) hterm
-
 end E578P
 
 namespace E578P
@@ -4657,38 +3778,6 @@ noncomputable def coreWeight (d : ℕ) (a : ℝ)
     (((2 ^ d : ℕ) : ℝ) ^ overlapComponentCount d C *
       (d : ℝ) ^ ((edgeSupport C).card - overlapComponentCount d C) /
       (((2 ^ d).descFactorial (edgeSupport C).card) : ℕ))
-
-noncomputable def isolatedWeight (d : ℕ) (a : ℝ)
-    (s t : ℕ) : ℝ :=
-  (Nat.choose (cubeEdgeCount d) t : ℝ) * a ^ t *
-    (((2 ^ d : ℕ) : ℝ) ^ t * (d : ℝ) ^ t /
-      (((2 ^ d - s).descFactorial (2 * t)) : ℕ))
-
-theorem choose_mul_coreIsolatedUpperTerm_eq (d : ℕ) (a : ℝ)
-    (C : Finset (Sym2 (CubeVertex d))) (t : ℕ)
-    (_hk : overlapComponentCount d C ≤ (edgeSupport C).card) :
-    (Nat.choose (cubeEdgeCount d) t : ℝ) *
-        coreIsolatedUpperTerm d a C t =
-      coreWeight d a C * isolatedWeight d a (edgeSupport C).card t := by
-  let n := 2 ^ d
-  let s := (edgeSupport C).card
-  let k := overlapComponentCount d C
-  let r := s - k
-  have hdescNat := Nat.descFactorial_mul_descFactorial
-    (n := n) (k := s) (m := s + 2 * t) (by omega : s ≤ s + 2 * t)
-  have hdesc :
-      (((n - s).descFactorial (2 * t) : ℕ) : ℝ) *
-          (n.descFactorial s : ℕ) =
-        (n.descFactorial (s + 2 * t) : ℕ) := by
-    exact_mod_cast (by simpa using hdescNat)
-  have hr : s - k + t = r + t := rfl
-  unfold coreIsolatedUpperTerm coreWeight isolatedWeight
-  dsimp [n, s, k, r] at hdesc ⊢
-  rw [pow_add, pow_add, pow_add]
-  push_cast
-  simp only [div_eq_mul_inv]
-  rw [← hdesc, mul_inv]
-  ring
 
 theorem coreWeight_le_rank_weight (d : ℕ) (a : ℝ)
     (ha : 0 ≤ a) {C : Finset (Sym2 (CubeVertex d))}
@@ -5278,12 +4367,6 @@ theorem choose_cast_le_pow_div_factorial (N t : ℕ) :
   rw [le_div_iff₀ (by positivity : (0 : ℝ) < (t.factorial : ℕ))]
   simpa [mul_comm] using hdescR
 
-theorem sharpIsolatedWeight_nonneg (d : ℕ) {a : ℝ} (ha : 0 ≤ a)
-    (C : Finset (Sym2 (CubeVertex d))) (t : ℕ) :
-    0 ≤ sharpIsolatedWeight d a C t := by
-  unfold sharpIsolatedWeight
-  positivity
-
 theorem sharpIsolatedWeight_le_universal (d : ℕ) {a : ℝ}
     (ha : 0 ≤ a) (C : Finset (Sym2 (CubeVertex d))) (t : ℕ) :
     sharpIsolatedWeight d a C t ≤
@@ -5751,25 +4834,6 @@ theorem sum_pow_div_factorial_le_exp {x : ℝ} (hx : 0 ≤ x)
   rw [(NormedSpace.expSeries_div_hasSum_exp x).tsum_eq] at hs
   simpa [Real.exp_eq_exp_ℝ] using hs
 
-theorem weighted_geometric_sum_le_two {b : ℝ}
-    (hb0 : 0 ≤ b) (hb : b ≤ 1 / 4) (s : Finset ℕ) :
-    (∑ u ∈ s, (u + 1 : ℝ) * b ^ u) ≤ 2 := by
-  have hterm (u : ℕ) : (u + 1 : ℝ) * b ^ u ≤ ((1 : ℝ) / 2) ^ u := by
-    calc
-      (u + 1 : ℝ) * b ^ u ≤ (2 : ℝ) ^ u * b ^ u := by
-        gcongr
-        exact_mod_cast nat_succ_le_two_pow u
-      _ = ((2 : ℝ) * b) ^ u := by rw [mul_pow]
-      _ ≤ ((1 : ℝ) / 2) ^ u := by gcongr; linarith
-  calc
-    (∑ u ∈ s, (u + 1 : ℝ) * b ^ u) ≤
-        ∑ u ∈ s, ((1 : ℝ) / 2) ^ u := by
-      exact Finset.sum_le_sum fun u hu => hterm u
-    _ ≤ ∑' u : ℕ, ((1 : ℝ) / 2) ^ u :=
-      (summable_geometric_of_lt_one (by norm_num : (0 : ℝ) ≤ 1 / 2)
-        (by norm_num : (1 : ℝ) / 2 < 1)).sum_le_tsum s (fun _ _ => by positivity)
-    _ = 2 := by rw [tsum_geometric_of_lt_one] <;> norm_num
-
 theorem weighted_geometric_range_le_one_add_four_mul {b : ℝ}
     (hb0 : 0 ≤ b) (hb : b ≤ 1 / 4) (N : ℕ) :
     (∑ u ∈ Finset.range (N + 1), (u + 1 : ℝ) * b ^ u) ≤
@@ -5911,14 +4975,6 @@ noncomputable def isolatedFiniteSum (d : ℕ) (a : ℝ)
 
 noncomputable def universalIsolatedLambda (d : ℕ) (a : ℝ) : ℝ :=
   (81 : ℝ) * a * d ^ 2 / 2
-
-theorem isolatedFiniteSum_nonneg (d : ℕ) {a : ℝ} (ha : 0 ≤ a)
-    (C : Finset (Sym2 (CubeVertex d))) :
-    0 ≤ isolatedFiniteSum d a C := by
-  unfold isolatedFiniteSum
-  apply Finset.sum_nonneg
-  intro t ht
-  exact sharpIsolatedWeight_nonneg d ha C t
 
 theorem isolatedFiniteSum_le_exp_universal (d : ℕ) {a : ℝ}
     (ha : 0 ≤ a) (C : Finset (Sym2 (CubeVertex d))) :

@@ -69,12 +69,6 @@ theorem uniformMean_congr {f g : A → ℝ} (h : ∀ a, f a = g a) :
   congr 1
   exact Finset.sum_congr rfl fun a _ => h a
 
-theorem uniformMean_equiv (e : A ≃ B) (f : B → ℝ) :
-    uniformMean (f ∘ e) = uniformMean f := by
-  unfold uniformMean
-  dsimp only [Function.comp_def]
-  rw [Fintype.card_congr e, Equiv.sum_comp e f]
-
 theorem uniformMean_prod (f : A × B → ℝ) :
     uniformMean f = uniformMean fun a => uniformMean fun b => f (a,b) := by
   unfold uniformMean
@@ -85,10 +79,6 @@ theorem uniformMean_prod (f : A × B → ℝ) :
 theorem uniformMean_const [Nonempty A] (c : ℝ) : uniformMean (fun _ : A => c) = c := by
   simp [uniformMean, (Nat.cast_ne_zero.mpr (Fintype.card_ne_zero (α := A)) :
     (Fintype.card A : ℝ) ≠ 0)]
-
-theorem uniformMean_add (f g : A → ℝ) :
-    uniformMean (fun a => f a + g a) = uniformMean f + uniformMean g := by
-  simp [uniformMean, Finset.sum_add_distrib, add_div]
 
 theorem uniformMean_sub (f g : A → ℝ) :
     uniformMean (fun a => f a - g a) = uniformMean f - uniformMean g := by
@@ -109,35 +99,19 @@ namespace FiniteLaw
 variable {A B C I : Type*} [Fintype A] [Fintype B] [Fintype C] [Fintype I] [DecidableEq I]
 noncomputable def mean (p : FiniteLaw A) (f : A → ℝ) : ℝ := ∑ a,p.weight a*f a
 
-theorem mean_congr (p : FiniteLaw A) {f g : A → ℝ} (h : ∀ a,f a=g a) : p.mean f=p.mean g := by
-  unfold mean; exact Finset.sum_congr rfl fun a _ => congrArg (p.weight a*·) (h a)
 @[simp] theorem mean_const (p : FiniteLaw A) (c : ℝ) : p.mean (fun _ => c)=c := by
   rw [mean,←Finset.sum_mul,p.total,one_mul]
 theorem mean_add (p : FiniteLaw A) (f g : A → ℝ) :
     p.mean (fun a => f a+g a)=p.mean f+p.mean g := by simp only [mean,mul_add,Finset.sum_add_distrib]
-theorem mean_sub (p : FiniteLaw A) (f g : A → ℝ) :
-    p.mean (fun a => f a-g a)=p.mean f-p.mean g := by simp only [mean,mul_sub,Finset.sum_sub_distrib]
-theorem mean_mul (p : FiniteLaw A) (c : ℝ) (f : A → ℝ) :
-    p.mean (fun a => c*f a)=c*p.mean f := by unfold mean; rw [Finset.mul_sum]; congr 1; funext a; ring
-theorem mean_mul_right (p : FiniteLaw A) (f : A → ℝ) (c : ℝ) :
-    p.mean (fun a => f a*c)=p.mean f*c := by unfold mean; rw [Finset.sum_mul]; congr 1; funext a; ring
 omit [DecidableEq I] in
 theorem mean_sum (p : FiniteLaw A) (f : I → A → ℝ) :
     p.mean (fun a => ∑ i,f i a)=∑ i,p.mean (f i) := by unfold mean; simp_rw [Finset.mul_sum]; rw [Finset.sum_comm]
-omit [Fintype I] [DecidableEq I] in
-theorem mean_finset_sum (p : FiniteLaw A) (s : Finset I) (f : I → A → ℝ) :
-    p.mean (fun a => ∑ i∈s,f i a)=∑ i∈s,p.mean (f i) := by unfold mean; simp_rw [Finset.mul_sum]; rw [Finset.sum_comm]
 theorem mean_nonneg (p : FiniteLaw A) {f : A → ℝ} (hf : ∀ a,0≤f a) : 0≤p.mean f :=
   Finset.sum_nonneg (fun a _ => mul_nonneg (p.nonneg a) (hf a))
 theorem mean_mono (p : FiniteLaw A) {f g : A → ℝ} (h : ∀ a,f a≤g a) : p.mean f≤p.mean g :=
   Finset.sum_le_sum (fun a _ => mul_le_mul_of_nonneg_left (h a) (p.nonneg a))
 theorem mean_bound (p : FiniteLaw A) {f : A → ℝ} {c : ℝ} (h : ∀ a,f a≤c) : p.mean f≤c := by
   simpa only [mean_const] using p.mean_mono h
-theorem abs_mean_le (p : FiniteLaw A) (f : A → ℝ) : |p.mean f|≤p.mean (fun a => |f a|) := by
-  calc
-    _ ≤ ∑ a,|p.weight a*f a| := Finset.abs_sum_le_sum_abs ..
-    _ = _ := by simp only [mean,abs_mul,abs_of_nonneg (p.nonneg _)]
-
 noncomputable def dirac (a : A) : FiniteLaw A where
   weight b := if b=a then 1 else 0
   nonneg b := by split <;> norm_num
@@ -148,9 +122,6 @@ noncomputable def uniform [Nonempty A] : FiniteLaw A where
   weight _ := (Fintype.card A : ℝ)⁻¹
   nonneg _ := by positivity
   total := by simp [nsmul_eq_mul,ne_of_gt (Fintype.card_pos (α := A))]
-theorem mean_uniform [Nonempty A] (f : A → ℝ) : uniform.mean f=uniformMean f := by
-  simp only [mean,uniform,uniformMean,div_eq_mul_inv,Finset.sum_mul,mul_comm]
-
 noncomputable def prod (p : FiniteLaw A) (q : FiniteLaw B) : FiniteLaw (A × B) where
   weight x := p.weight x.1*q.weight x.2
   nonneg _ := mul_nonneg (p.nonneg _) (q.nonneg _)
@@ -158,13 +129,6 @@ noncomputable def prod (p : FiniteLaw A) (q : FiniteLaw B) : FiniteLaw (A × B) 
 @[simp] theorem mean_prod (p : FiniteLaw A) (q : FiniteLaw B) (f : A × B → ℝ) :
     (p.prod q).mean f=p.mean (fun a => q.mean (fun b => f (a,b))) := by
   unfold mean prod; rw [Fintype.sum_prod_type]; simp_rw [Finset.mul_sum,mul_assoc]
-
-theorem mean_swap (p : FiniteLaw A) (q : FiniteLaw B) (f : A → B → ℝ) :
-    p.mean (fun a => q.mean (f a))=q.mean (fun b => p.mean (fun a => f a b)) := by
-  simp only [mean,Finset.mul_sum]
-  rw [Finset.sum_comm]
-  apply Finset.sum_congr rfl; intro b _
-  apply Finset.sum_congr rfl; intro a _; ring
 
 noncomputable def independent (p : I → FiniteLaw A) : FiniteLaw (I → A) where
   weight x := ∏ i,(p i).weight (x i)
@@ -175,10 +139,6 @@ theorem independent_mean_product (p : I → FiniteLaw A) (f : I → A → ℝ) :
     (independent p).mean (fun x => ∏ i,f i (x i))=∏ i,(p i).mean (f i) := by
   simp only [mean,independent,←Finset.prod_mul_distrib]
   exact (Fintype.prod_sum (fun i a => (p i).weight a*f i a)).symm
-
-theorem mean_map_product (p : I → FiniteLaw A) (f : I → A → ℝ) :
-    (∏ i,(p i).mean (f i))=∑ x : I → A,∏ i,(p i).weight (x i)*f i (x i) := by
-  simp only [mean,Fintype.prod_sum]
 
 noncomputable def mixture (p q : FiniteLaw A) (t : ℝ) (ht : 0≤t) (ht1 : t≤1) : FiniteLaw A where
   weight a := t*p.weight a+(1-t)*q.weight a
@@ -304,12 +264,6 @@ end Marginal
 end FiniteLaw
 
 noncomputable def edgeIndicator {V : Type*} (G : SimpleGraph V) (a b : V) : ℝ := if G.Adj a b then 1 else 0
-lemma edgeIndicator_nonneg {V : Type*} (G : SimpleGraph V) (a b : V) : 0≤edgeIndicator G a b := by
-  unfold edgeIndicator; split <;> norm_num
-lemma edgeIndicator_le_one {V : Type*} (G : SimpleGraph V) (a b : V) : edgeIndicator G a b≤1 := by
-  unfold edgeIndicator; split <;> norm_num
-lemma edgeIndicator_symm {V : Type*} (G : SimpleGraph V) (a b : V) : edgeIndicator G a b=edgeIndicator G b a := by
-  simp only [edgeIndicator,G.adj_comm]
 lemma mem_faces_iff (j : Fin 22) (i : Fin 13) : i∈faces j ↔ ∃ r,faceVertex j r=i := by
   rw [faceVertex_correct]
   constructor
@@ -343,8 +297,6 @@ noncomputable def homIndicator {V : Type*} (G : SimpleGraph V) (f : PatternVerte
 lemma homIndicator_eq {V : Type*} (G : SimpleGraph V) (f : PatternVertex → V) :
     homIndicator G f=if ∀ u v,H.Adj u v → G.Adj (f u) (f v) then 1 else 0 := by
   simp only [homIndicator,edgeIndicator,Fintype.prod_boole,hom_iff_corners]
-lemma homIndicator_nonneg {V : Type*} (G : SimpleGraph V) (f : PatternVertex → V) : 0≤homIndicator G f := by
-  rw [homIndicator_eq]; split <;> norm_num
 lemma homIndicator_le_one {V : Type*} (G : SimpleGraph V) (f : PatternVertex → V) : homIndicator G f≤1 := by
   rw [homIndicator_eq]; split <;> norm_num
 lemma homDensity_eq_mean {V : Type*} [Fintype V] (G : SimpleGraph V) :
@@ -365,13 +317,8 @@ lemma edgeDensity_eq_mean {V : Type*} [Fintype V] (G : SimpleGraph V) :
   rw [Fintype.sum_prod_type,hs]
   simp only [Nat.card_eq_fintype_card,Fintype.card_prod,Nat.cast_mul,Nat.cast_ofNat]
   congr 1; ring
-lemma homDensity_nonneg {V : Type*} (G : SimpleGraph V) : 0≤homDensity H G := by
-  unfold homDensity; positivity
 lemma edgeDensity_nonneg {V : Type*} (G : SimpleGraph V) : 0≤edgeDensity G := by
   unfold edgeDensity; positivity
-lemma edgeDensity_eq_zero_of_edgeless {V : Type*} [Fintype V] (G : SimpleGraph V)
-    (h : ∀ a b,¬G.Adj a b) : edgeDensity G=0 := by
-  rw [edgeDensity_eq_mean]; simp [uniformMean,edgeIndicator,h]
 lemma sourceMoment_eq_bipartite {A : Type*} [Fintype A] (π : FiniteLaw A) (U : A → A → ℝ) :
     (FiniteLaw.independent (fun _ : PatternVertex => π)).mean (fun z =>
       ∏ k : ActCorner,U (z (.inl (cornerPoint k))) (z (.inr k.1)))=bipartiteMoment π π U := by
@@ -433,8 +380,6 @@ lemma uniform_mean_equal [Nonempty A] :
 noncomputable def coin (t : ℝ) (ht : 0≤t) (ht1 : t≤1) : FiniteLaw Bool :=
   mixture (dirac true) (dirac false) t ht ht1
 noncomputable def boolValue (b : Bool) : ℝ := if b then 1 else 0
-lemma boolValue_nonneg (b : Bool) : 0≤boolValue b := by cases b <;> norm_num [boolValue]
-lemma boolValue_le_one (b : Bool) : boolValue b≤1 := by cases b <;> norm_num [boolValue]
 lemma coin_mean (t : ℝ) (ht : 0≤t) (ht1 : t≤1) : (coin t ht ht1).mean boolValue=t := by
   simp [coin,mean_mixture,boolValue]
 end FiniteLaw
@@ -520,9 +465,6 @@ lemma expectedEdge (U : SymmetricCounterKernel) (x y : V) :
   · simp only [h,ite_true,FiniteLaw.mean_const]
   · simp only [h,ite_false]
     exact FiniteLaw.independent_mean_two U.law h U.value
-lemma expectedHom_nonneg (U : SymmetricCounterKernel) (f : PatternVertex → V) :
-    0≤(hostBitsLaw U).mean (fun b => homIndicator (bitsGraph b) f) :=
-  FiniteLaw.mean_nonneg _ (fun _b => homIndicator_nonneg _ _)
 lemma expectedHom_le_one (U : SymmetricCounterKernel) (f : PatternVertex → V) :
     (hostBitsLaw U).mean (fun b => homIndicator (bitsGraph b) f)≤1 :=
   FiniteLaw.mean_bound _ (fun _b => homIndicator_le_one _ _)

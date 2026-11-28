@@ -15,9 +15,6 @@ lemma OMA.periodic_hasPosDensity {p : ℕ → Prop} {d : ℕ}
   have hd' : (0 : ℝ) < d := by exact_mod_cast hd
   have hdensity : 0 < density :=
     div_pos (by exact_mod_cast (Nat.pos_of_ne_zero (Nat.count_ne_iff_exists.mpr hnonempty))) hd'
-  have hdensity_le : density ≤ 1 := by
-    apply (div_le_one hd').mpr
-    exact_mod_cast Nat.count_le (p := p) (n := d)
   have hshift (n : ℕ) : Nat.count (fun i ↦ p (i + d)) n = count n :=
     congrArg (fun q : ℕ → Prop => Nat.count q n) (funext hp)
   have hblocks (q r : ℕ) : count (q * d + r) = q * count d + count r := by
@@ -32,43 +29,35 @@ lemma OMA.periodic_hasPosDensity {p : ℕ → Prop} {d : ℕ}
     rw [show {m : ℕ | p m} ∩ Set.Iio n =
         (↑((Finset.range n).filter p) : Set ℕ) by ext m; simp [and_comm],
       Set.ncard_coe_finset, ← Nat.count_eq_card_filter_range]
-  have herr : ∀ᶠ n : ℕ in atTop, |(count n : ℝ) / (n : ℝ) - density| ≤ (d : ℝ) / n := by
-    filter_upwards [eventually_ge_atTop 1] with n hn
-    let r := n % d
-    let q := n / d
-    have hsplit : q * d + r = n := by simpa [q, r, mul_comm] using Nat.div_add_mod n d
-    have hcount : q * count d + count r = count n := hsplit ▸ (hblocks q r).symm
-    have hsplit' : (q : ℝ) * (d : ℝ) + (r : ℝ) = (n : ℝ) := by exact_mod_cast hsplit
-    have hcount' : (q : ℝ) * (count d : ℝ) + (count r : ℝ) = (count n : ℝ) := by
-      exact_mod_cast hcount
-    have hd_mul : (d : ℝ) * density = (count d : ℝ) :=
-      mul_div_cancel₀ _ hd'.ne'
-    have hn' : (0 : ℝ) < n := by exact_mod_cast (show 0 < n by omega)
-    have hr : (r : ℝ) ≤ (d : ℝ) := by exact_mod_cast (Nat.mod_lt n hd).le
-    have hcount_r : (count r : ℝ) ≤ (r : ℝ) := by exact_mod_cast Nat.count_le (p := p)
-    have herror : (count n : ℝ) / (n : ℝ) - density =
-        ((count r : ℝ) - (r : ℝ) * density) / (n : ℝ) := by
-      apply (eq_div_iff hn'.ne').mpr
-      calc
-        _ = (count n : ℝ) - (n : ℝ) * density := by field_simp
-        _ = _ := by rw [← hcount', ← hsplit', add_mul, mul_assoc, hd_mul]; ring
-    rw [herror, abs_div, abs_of_pos hn']
-    apply div_le_div_of_nonneg_right _ hn'.le
-    apply abs_le.mpr
-    constructor
-    · have h := mul_le_mul_of_nonneg_left hdensity_le (Nat.cast_nonneg r)
-      linarith [Nat.cast_nonneg (α := ℝ) (count r)]
-    · have h := mul_nonneg (Nat.cast_nonneg (α := ℝ) r) hdensity.le
-      linarith
-  have ht : Tendsto (fun n : ℕ ↦ (count n : ℝ) / (n : ℝ) - density) atTop (𝓝 0) := by
-    have hu := tendsto_const_div_atTop_nhds_zero_nat (d : ℝ)
-    have hl : Tendsto (fun n : ℕ ↦ -((d : ℝ) / n)) atTop (𝓝 0) := by
-      simpa only [neg_zero] using hu.neg
-    refine hl.squeeze' hu ?_ ?_
-    · exact herr.mono fun n hn ↦ (abs_le.mp hn).1
-    · exact herr.mono fun n hn ↦ (abs_le.mp hn).2
+  have ht : Tendsto (fun n : ℕ ↦ (count n : ℝ) / n) atTop (𝓝 density) := by
+    have small (b : ℕ → ℕ) (hb : ∀ n, b n ≤ d) :
+        Tendsto (fun n : ℕ ↦ (b n : ℝ) / n) atTop (𝓝 0) :=
+      squeeze_zero (fun _ => by positivity)
+        (fun n => div_le_div_of_nonneg_right (by exact_mod_cast hb n) (Nat.cast_nonneg n))
+        (tendsto_const_div_atTop_nhds_zero_nat (d : ℝ))
+    have hr := small (fun n => n % d) fun n => (Nat.mod_lt n hd).le
+    have hc := small (fun n => count (n % d)) fun n =>
+      (Nat.count_le (p := p)).trans (Nat.mod_lt n hd).le
+    have h1 : Tendsto (fun _ : ℕ => (1 : ℝ)) atTop (𝓝 1) := tendsto_const_nhds
+    have hlim := ((h1.sub hr).const_mul density).add hc
+    simp only [sub_zero, mul_one, add_zero] at hlim
+    refine hlim.congr' ?_
+    filter_upwards [eventually_ge_atTop (1 : ℕ)] with n hn
+    have hn0 : (n : ℝ) ≠ 0 := by exact_mod_cast (show n ≠ 0 by omega)
+    have hd0 : (d : ℝ) ≠ 0 := by exact_mod_cast hd.ne'
+    have hsplit := Nat.div_add_mod' n d
+    have hcount := hblocks (n / d) (n % d)
+    rw [hsplit] at hcount
+    have hsplit' := congrArg ((↑) : ℕ → ℝ) hsplit
+    have hcount' := congrArg ((↑) : ℕ → ℝ) hcount
+    push_cast at hsplit' hcount'
+    change density * (1 - ((n % d : ℕ) : ℝ) / n) + (count (n % d) : ℝ) / n = (count n : ℝ) / n
+    dsimp only [density]
+    field_simp [hd0, hn0]
+    rw [hcount', ← hsplit']
+    ring
   refine ⟨density, hdensity, ?_⟩
-  simpa [Set.HasDensity, Set.partialDensity, hncard] using ht.add_const density
+  simpa [Set.HasDensity, Set.partialDensity, hncard] using ht
 
 theorem OMA.solution : type_of% @Erdos859.erdos_859.variants.positive_density := by
   intro t

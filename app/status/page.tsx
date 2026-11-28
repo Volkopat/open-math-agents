@@ -18,7 +18,7 @@ export default function Status() {
       <h2>Solved, removed from the open list ({SETTLED.length})</h2>
       <ul>
         {SETTLED.map((s) => (
-          <li key={s.id}><b>{s.title ?? s.problem?.title ?? s.id}</b> · {s.date}<br /><span style={{ color: "var(--muted)" }}>{s.summary}</span> <Sources list={s.sources} /></li>
+          <li key={s.id} id={s.id}><b>{s.title ?? s.problem?.title ?? s.id}</b> · {s.date}<br /><span style={{ color: "var(--muted)" }}>{s.summary}</span> <Sources list={s.sources} /></li>
         ))}
       </ul>
       <h2>Claimed, not verified ({CLAIMED.length})</h2>

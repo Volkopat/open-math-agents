@@ -115,7 +115,6 @@ lemma prime_congruent (h : ℕ) : (Qcard h)^100 ∣ prime h+1 :=
   (Nat.find_spec (prime_exists h)).2
 lemma prime_le (h p : ℕ) (hp : p.Prime) (hc : (Qcard h)^100 ∣ p+1) : prime h ≤ p :=
   Nat.find_min' _ ⟨hp,hc⟩
-lemma prime_pos (h : ℕ) : 0 < prime h := (prime_prime h).pos
 lemma prime_ge (h : ℕ) (hh : 2 ≤ h) : 3 ≤ prime h := by
   have hq : 4 ≤ Qcard h := by exact Nat.pow_le_pow_right (by decide : 0 < 2) hh
   have hpow : Qcard h ≤ (Qcard h)^100 := by
@@ -155,9 +154,6 @@ lemma first_spec {α : Type u_2} [Fintype α] [LinearOrder α] (P : α → Prop)
     P (first P h) := by
   have hh := Finset.min'_mem (Finset.univ.filter P) (by simpa [Finset.Nonempty] using h)
   exact (Finset.mem_filter.mp hh).2
-lemma first_le {α : Type u_3} [Fintype α] [LinearOrder α] (P : α → Prop) (h : ∃ x, P x)
-    (y : α) (hy : P y) : first P h ≤ y :=
-  Finset.min'_le _ y (by simp [hy])
 abbrev vectorOrder {ι : Type u_4} [LinearOrder ι] [WellFoundedLT ι]
     {α : Type u_5} [LinearOrder α] : LinearOrder (ι → α) :=
   LinearOrder.lift' (toLex : (ι → α) → Lex (ι → α)) (fun _ _ h => h)
@@ -205,9 +201,6 @@ lemma firstPolynomial_degree (d : ℕ) (hd : 0 < d) : (firstPolynomial d hd).nat
   (first_spec _ (irreducibleCoeffs_exists d hd)).2.1
 lemma firstPolynomial_irreducible (d : ℕ) (hd : 0 < d) : Irreducible (firstPolynomial d hd) :=
   (first_spec _ (irreducibleCoeffs_exists d hd)).2.2
-lemma firstCoeffs_le (d : ℕ) (hd : 0 < d) (c : Fin (d+1) → ZMod 2)
-    (hc : irreducibleCoeffs d c) : toLex (firstCoeffs d hd) ≤ toLex c :=
-  first_le _ (irreducibleCoeffs_exists d hd) c hc
 abbrev CoefficientField (d : ℕ) (hd : 0 < d) := AdjoinRoot (firstPolynomial d hd)
 instance firstPolynomial_fact (d : ℕ) (hd : 0 < d) : Fact (Irreducible (firstPolynomial d hd)) :=
   ⟨firstPolynomial_irreducible d hd⟩
@@ -327,10 +320,6 @@ def zeta (h : Input) : K h := first (fun ζ => IsPrimitiveRoot ζ (prime h.val))
 lemma zeta_primitive (h : Input) : IsPrimitiveRoot (zeta h) (prime h.val) := by
   unfold zeta
   exact first_spec (fun ζ : K h => IsPrimitiveRoot ζ (prime h.val)) (primitive_exists h)
-lemma zeta_first (h : Input) (ζ : K h) (hζ : IsPrimitiveRoot ζ (prime h.val)) :
-    zeta h ≤ ζ := by
-  unfold zeta
-  exact first_le _ _ ζ hζ
 end KaplanskyCounterexample.Prescription
 end
 end KDF
@@ -350,12 +339,6 @@ lemma curve_relation {F : Type u_2} [Field F] {k m : ℕ}
   intro j
   have hj := congrFun h (Fin.castLE hk j)
   simpa [curve, Finset.sum_apply, Pi.smul_apply] using hj
-lemma curve_linearIndependent {F : Type u_3} [Field F] {k m : ℕ}
-    (hk : k ≤ m) {ξ : Fin k → F} (hξ : Function.Injective ξ) :
-    LinearIndependent F (fun i => curve m (ξ i)) := by
-  rw [Fintype.linearIndependent_iff]
-  intro a ha
-  exact congrFun (curve_relation hk hξ a ha)
 def curveMap {Q : Type u_4} {F : Type u_5} [Field Q] [Field F] [Algebra Q F]
     (m : ℕ) (ξ : F) : F →ₗ[Q] (Fin m → F) where
   toFun a := a • curve m ξ
@@ -775,14 +758,6 @@ noncomputable section
 namespace KaplanskyCounterexample.FiniteGeometry
 lemma sourceQ_very_large : 3305600000 ≤ sourceQ :=
   (by norm_num : 3305600000 ≤ (2:ℕ)^200).trans sourceQ_ge
-lemma sourcePrime_ge : 3 ≤ sourcePrime := by
-  have hp : sourceQ ≤ sourceQ^100 := by
-    simpa using pow_le_pow_right₀ (by have := sourceQ_pos; omega : 1 ≤ sourceQ) (show 1 ≤ 100 by decide)
-  have hb := sourceD_bounds.1
-  have hq := sourceQ_large
-  unfold sourceD at hb
-  omega
-lemma sourcePrime_odd : Odd sourcePrime := sourcePrime_prime.odd_of_ne_two (by have := sourcePrime_ge; omega)
 lemma small_degree_square {q D : ℕ} (hq : 4 ≤ q) (hD : D ≤ 2*q^100) : D^2 ≤ q^1200 := by
   have hq1 : 1 ≤ q := by omega
   calc
@@ -868,11 +843,6 @@ def of (x : A) : AffineCoset U := ⟨cosetPoints U x,x,rfl⟩
 instance : Fintype (AffineCoset U) := by
   unfold AffineCoset
   infer_instance
-lemma of_surjective : Function.Surjective (of U) := by
-  rintro ⟨C,x,rfl⟩
-  exact ⟨x,rfl⟩
-lemma card_le : Fintype.card (AffineCoset U) ≤ Fintype.card A :=
-  Fintype.card_le_of_surjective _ (of_surjective U)
 lemma card (C : AffineCoset U) : C.val.card = Fintype.card U := by
   obtain ⟨x,hx⟩ := C.property
   rw [hx,card_cosetPoints]
@@ -1974,11 +1944,6 @@ lemma eq_of_label_vector_eq (F : DirectionFrame Q A R E) {s t : PolygonStep Q R 
           cases hgh
           have hh := F.exc_injective r hv
           cases hh; rfl
-lemma vector_mem_label (F : DirectionFrame Q A R E) (s : PolygonStep Q R E) :
-    s.vector F ∈ Sum.elim F.U F.exceptional s.label := by
-  cases s with
-  | inl g => exact ⟨(g.scalar,g.component),rfl⟩
-  | inr e => exact ⟨e.scalar,rfl⟩
 end PolygonStep
 structure Candidate (F : DirectionFrame Q A R E) (T : R → Finset A) (k : ℕ) where
   step : Fin k → PolygonStep Q R E
@@ -2665,20 +2630,12 @@ lemma avoid_insert (E : ι → Set Ω) (s : Finset ι) (i : ι) :
   ext ω
   simp only [mem_avoid, Finset.mem_insert, forall_eq_or_imp, mem_sdiff]
   tauto
-lemma avoid_union (E : ι → Set Ω) (s t : Finset ι) :
-    avoid E (s ∪ t) = avoid E s ∩ avoid E t := by
-  ext ω
-  simp only [mem_avoid, Finset.mem_union, mem_inter_iff, or_imp, forall_and]
 omit [DecidableEq ι] in
 lemma avoid_anti (E : ι → Set Ω) {s t : Finset ι} (h : s ⊆ t) :
     avoid E t ⊆ avoid E s := by
   intro ω hω
   exact mem_avoid.mpr fun i hi => mem_avoid.mp hω i (h hi)
 variable [MeasurableSpace Ω]
-omit [DecidableEq ι] in
-lemma measurable_avoid {E : ι → Set Ω} (hE : ∀ i, MeasurableSet (E i))
-    (s : Finset ι) : MeasurableSet (avoid E s) :=
-  s.measurableSet_biInter fun i _ => (hE i).compl
 variable {μ : Measure Ω} [IsProbabilityMeasure μ]
 variable {E : ι → Set Ω}
 lemma prob_avoid_insert (hE : ∀ i, MeasurableSet (E i)) (s : Finset ι) (i : ι) :
@@ -3476,38 +3433,6 @@ lemma linePoints_rebase {x v y : A} (hy : y ∈ linePoints (Q := Q) x v) :
   rw [linePoints_eq_coset] at hy ⊢
   rw [linePoints_eq_coset]
   exact cosetPoints_eq ((mem_cosetPoints _ _ _).mp hy)
-lemma linePoints_scale (x v : A) {t : Q} (ht : t ≠ 0) :
-    linePoints (Q := Q) x (t • v) = linePoints (Q := Q) x v := by
-  ext y
-  simp only [mem_linePoints]
-  constructor
-  · rintro ⟨s,rfl⟩; exact ⟨s*t,by simp [smul_smul]⟩
-  · rintro ⟨s,rfl⟩; exact ⟨s/t,by simp [smul_smul,ht]⟩
-lemma FullLine.eq_linePoints_sub {l : Finset A} (hl : FullLine (Q := Q) l)
-    {x y : A} (hx : x ∈ l) (hy : y ∈ l) (hne : y ≠ x) :
-    l = linePoints (Q := Q) x (y-x) := by
-  obtain ⟨a,v,hv,he⟩ := hl
-  have he' : l = linePoints (Q := Q) x v := by
-    rw [he]
-    exact (linePoints_rebase (he ▸ hx)).symm
-  rw [he'] at hy
-  obtain ⟨t,ht⟩ := mem_linePoints _ _ _ |>.mp hy
-  have ht0 : t ≠ 0 := by intro h; exact hne (by simpa [h] using ht.symm)
-  have hdiff : y-x=t • v := by rw [← ht]; abel
-  rw [he',hdiff,linePoints_scale _ _ ht0]
-lemma FullLine.eq_of_two_mem {l m : Finset A} (hl : FullLine (Q := Q) l)
-    (hm : FullLine (Q := Q) m) {x y : A} (hx : x ∈ l) (hy : y ∈ l)
-    (hx' : x ∈ m) (hy' : y ∈ m) (hne : y ≠ x) : l=m := by
-  rw [hl.eq_linePoints_sub hx hy hne,hm.eq_linePoints_sub hx' hy' hne]
-omit [Fintype A] in
-lemma direction_sub_mem {U : Submodule Q A} {a v x y : A} (hv : v ∈ U)
-    (hx : x ∈ linePoints (Q := Q) a v) (hy : y ∈ linePoints (Q := Q) a v) :
-    y-x ∈ U := by
-  obtain ⟨s,rfl⟩ := (mem_linePoints _ _ _).mp hx
-  obtain ⟨t,rfl⟩ := (mem_linePoints _ _ _).mp hy
-  convert U.smul_mem (t-s) hv using 1
-  simp only [sub_smul]
-  abel
 structure LinePartition where
   through : A → Finset A
   self : ∀ x, x ∈ through x
@@ -3518,12 +3443,6 @@ variable (L : LinePartition (Q := Q) (A := A))
 omit [Fintype A] in
 lemma mem_iff (x y : A) : y ∈ L.through x ↔ L.through y = L.through x := by
   exact ⟨L.stable x y, fun h => h ▸ L.self y⟩
-omit [Fintype A] in
-lemma disjoint_or_eq (x y : A) : Disjoint (L.through x) (L.through y) ∨ L.through x=L.through y := by
-  by_cases h : Disjoint (L.through x) (L.through y)
-  · exact Or.inl h
-  · obtain ⟨z,hz,hz'⟩ := Finset.not_disjoint_iff.mp h
-    exact Or.inr ((L.stable x z hz).symm.trans (L.stable y z hz'))
 end LinePartition
 end KaplanskyCounterexample.FiniteGeometry
 end
@@ -3537,17 +3456,6 @@ open scoped Classical
 namespace KaplanskyCounterexample.FiniteGeometry
 variable {Q : Type u_1} {A : Type u_2} {B : Type u_3} [Field Q] [AddCommGroup A] [Module Q A]
   [AddCommGroup B] [Module Q B] [Fintype Q] [Fintype A] [Fintype B]
-omit [Fintype A] [Fintype B] in
-lemma image_linePoints (f : B →ₗ[Q] A) (o x v : B) :
-    (linePoints (Q := Q) x v).image (fun z => f (o+z)) =
-      linePoints (Q := Q) (f (o+x)) (f v) := by
-  ext y
-  simp only [Finset.mem_image,mem_linePoints]
-  constructor
-  · rintro ⟨z,⟨t,rfl⟩,rfl⟩
-    exact ⟨t,by simp [map_add,add_assoc]⟩
-  · rintro ⟨t,rfl⟩
-    exact ⟨x+t • v,⟨t,rfl⟩,by simp [map_add,add_assoc]⟩
 omit [Fintype A] [Fintype B] in
 lemma image_affine_linePoints (f : B →ₗ[Q] A) (o : A) (x v : B) :
     (linePoints (Q := Q) x v).image (fun z => o + f z) =
@@ -3749,18 +3657,6 @@ lemma slabLine_functional_ne_zero (J : P →ₗ[Q] P) (γ : P →ₗ[Q] Q)
   have h' := hp.1
   rw [h] at h'
   exact zero_ne_one h'
-theorem slab_partition [FiniteDimensional Q P] (hd : finrank Q P = 2)
-    (J : P →ₗ[Q] P) (hJ : NoEigenvector J) (p : P × Q) :
-    p.1 = 0 ∨ ∃! γ : {γ : P →ₗ[Q] Q // γ ≠ 0}, p ∈ slabLine J γ.val := by
-  by_cases hx : p.1 = 0
-  · exact Or.inl hx
-  · right
-    obtain ⟨γ, hγ, hu⟩ := existsUnique_slab_functional hd J hJ p.1 hx p.2
-    have hp : p ∈ slabLine J γ := ⟨hγ.1, hγ.2.symm⟩
-    refine ⟨⟨γ, slabLine_functional_ne_zero J γ hp⟩, hp, ?_⟩
-    intro δ hδ
-    apply Subtype.ext
-    exact hu δ.val ⟨hδ.1, hδ.2.symm⟩
 theorem slabLine_is_line [FiniteDimensional Q P] (hd : finrank Q P = 2)
     (J : P →ₗ[Q] P) (γ : P →ₗ[Q] Q) (hγ : γ ≠ 0) :
     ∃ u v : P × Q, v.1 ≠ 0 ∧
@@ -4753,9 +4649,6 @@ structure Ribbon (α : Type u_2) where
   black : Perm α
   white : Perm α
 def Ribbon.face (R : Ribbon α) : Perm α := R.white * R.black
-def Ribbon.Spherical (R : Ribbon α) : Prop :=
-  Nat.card (Cycles R.black) + Nat.card (Cycles R.white) +
-    Nat.card (Cycles R.face) = Fintype.card α + 2
 def Ribbon.mergeWhite (R : Ribbon α) (e : α) : Ribbon α where
   black := R.black
   white := swap e (R.face e) * R.white
@@ -4763,10 +4656,6 @@ omit [Fintype α] in
 lemma mergeWhite_face (R : Ribbon α) (e : α) :
     (R.mergeWhite e).face = swap e (R.face e) * R.face := by
   simp [Ribbon.mergeWhite, Ribbon.face, mul_assoc]
-omit [Fintype α] in
-lemma mergeWhite_face_fixed (R : Ribbon α) (e : α) : (R.mergeWhite e).face e = e := by
-  rw [mergeWhite_face]
-  simp
 lemma sameCycle_map {β : Type u_3} (p : Perm α) (q : Perm β) (f : α → β)
     (hstep : ∀ x, q.SameCycle (f x) (f (p x))) {x y : α}
     (hxy : p.SameCycle x y) : q.SameCycle (f x) (f y) := by
@@ -4968,39 +4857,6 @@ lemma swap_mul_cycles_card (p : Perm α) (a b : α) (hab : ¬ p.SameCycle a b) :
   rw [Fintype.card_subtype_compl, Fintype.card_subtype_eq] at h
   have hp : 0 < Fintype.card (Cycles p) := Fintype.card_pos_iff.mpr ⟨cycleClass p a⟩
   simp only [Nat.card_eq_fintype_card]
-  omega
-lemma mergeWhite_spherical (R : Ribbon α) (hR : R.Spherical) (e : α)
-    (he : ¬ R.white.SameCycle e (R.black e)) : (R.mergeWhite e).Spherical := by
-  have hn : ¬ R.white.SameCycle e (R.face e) := by
-    simpa [Ribbon.face] using he
-  have hne : R.face e ≠ e := by
-    intro h
-    apply hn
-    rw [h]
-  have hw := swap_mul_cycles_card R.white e (R.face e) hn
-  have hf := unplug_cycles_card R.face e hne
-  unfold Ribbon.Spherical at *
-  change Nat.card (Cycles R.black) +
-    Nat.card (Cycles (swap e (R.face e) * R.white)) + _ = _
-  rw [mergeWhite_face]
-  change Nat.card (Cycles R.black) +
-    Nat.card (Cycles (swap e (R.face e) * R.white)) +
-    Nat.card (Cycles (unplug R.face e)) = Fintype.card α + 2
-  omega
-theorem euler_contradiction (R : Ribbon α) (hR : R.Spherical)
-    (w : Cycles R.white) (f : Cycles R.face)
-    (hb : ∀ c : Cycles R.black, 3 ≤ (cycleSet R.black c).card)
-    (hw : ∀ c : Cycles R.white, 2 ≤ (cycleSet R.white c).card + if c = w then 1 else 0)
-    (hf : ∀ c : Cycles R.face, 6 ≤ (cycleSet R.face c).card + if c = f then 6 else 0) :
-    False := by
-  have hb' := Finset.sum_le_sum (fun c (_ : c ∈ (Finset.univ : Finset (Cycles R.black))) => hb c)
-  have hw' := Finset.sum_le_sum (fun c (_ : c ∈ (Finset.univ : Finset (Cycles R.white))) => hw c)
-  have hf' := Finset.sum_le_sum (fun c (_ : c ∈ (Finset.univ : Finset (Cycles R.face))) => hf c)
-  simp only [Finset.sum_const, Finset.card_univ, smul_eq_mul, cycles_sum_card] at hb'
-  simp only [Finset.sum_const, Finset.card_univ, smul_eq_mul, Finset.sum_add_distrib,
-    cycles_sum_card, Finset.sum_ite_eq', Finset.mem_univ, ite_true] at hw' hf'
-  unfold Ribbon.Spherical at hR
-  simp only [Nat.card_eq_fintype_card] at hR
   omega
 end KaplanskyCounterexample.Planar
 end
@@ -5386,9 +5242,6 @@ def Ribbon.restrict (R : Ribbon α) (P : α → Prop)
     Ribbon {x // P x} where
   black := R.black.subtypePerm hb
   white := R.white.subtypePerm hw
-omit [Fintype α] in
-lemma Ribbon.restrict_face (R : Ribbon α) (P : α → Prop) (hb hw) :
-    (R.restrict P hb hw).face = R.face.subtypePerm (fun x => (hw _).trans (hb x)) := rfl
 lemma Ribbon.invariant_components (R : Ribbon α) (P : α → Prop)
     (hb : ∀ x, P (R.black x) ↔ P x) (hw : ∀ x, P (R.white x) ↔ P x)
     {x y : α} (hxy : R.components.r x y) : P x ↔ P y := by
@@ -5484,40 +5337,6 @@ lemma Ribbon.components_le_of_steps (R : Ribbon α) (s : Setoid α)
     (hb : ∀ x, s.r x (R.black x)) (hw : ∀ x, s.r x (R.white x)) : R.components ≤ s := by
   exact sup_le (fun _ _ h => setoid_sameCycle_of_step s R.black hb h)
     (fun _ _ h => setoid_sameCycle_of_step s R.white hw h)
-omit [Fintype α] in
-lemma Ribbon.black_component_invariant (R : Ribbon α) (a x : α) :
-    R.components.r (R.black x) a ↔ R.components.r x a := by
-  constructor
-  · exact R.components.iseqv.trans (R.black_step x)
-  · exact R.components.iseqv.trans (R.components.iseqv.symm (R.black_step x))
-omit [Fintype α] in
-lemma Ribbon.white_component_invariant (R : Ribbon α) (a x : α) :
-    R.components.r (R.white x) a ↔ R.components.r x a := by
-  constructor
-  · exact R.components.iseqv.trans (R.white_step x)
-  · exact R.components.iseqv.trans (R.components.iseqv.symm (R.white_step x))
-def Ribbon.keepComponent (R : Ribbon α) (a : α) : Ribbon {x // R.components.r x a} :=
-  R.restrict (fun x => R.components.r x a) (R.black_component_invariant a)
-    (R.white_component_invariant a)
-lemma Ribbon.keepComponent_card (R : Ribbon α) (a : α) :
-    Nat.card (Quotient (R.keepComponent a).components) = 1 := by
-  apply Nat.card_eq_one_iff_exists.mpr
-  refine ⟨Quotient.mk _ ⟨a, R.components.iseqv.refl a⟩, ?_⟩
-  intro c
-  induction c using Quotient.inductionOn with
-  | h x =>
-    apply Quotient.sound
-    change (R.restrict _ _ _).components.r x ⟨a, _⟩
-    rw [R.restrict_components]
-    exact x.prop
-lemma Ribbon.spherical_keepComponent (R : Ribbon α) (hR : R.GenusZero) (a : α) :
-    (R.keepComponent a).Spherical := by
-  have h := R.planar_restrict hR (fun x => R.components.r x a)
-    (R.black_component_invariant a) (R.white_component_invariant a)
-  change (R.keepComponent a).GenusZero at h
-  unfold Ribbon.GenusZero at h
-  rw [R.keepComponent_card] at h
-  exact h
 omit [Fintype α] in
 lemma joinPair_left_iff (s : Setoid α) (a b y : α) :
     (joinPair s a b).r a y ↔ s.r a y ∨ s.r b y := by
@@ -6069,15 +5888,6 @@ lemma Balanced.face_degree (D : Balanced R Inc ι) (hred : D.Reduced)
   have hnat : 12 ≤ 2 * n := by exact_mod_cast hg
   change 6 ≤ n
   omega
-theorem Balanced.not_spherical (D : Balanced R Inc ι) (hred : D.Reduced)
-    (hinj : ∀ v f, Inc v f → Function.Injective (ι v f))
-    (hind : ∀ v f g, Inc v f → Inc v g → f ≠ g → ∀ x y,
-      ι v f x + ι v g y = 0 → x = 0)
-    (hgirth : 12 ≤ (incidenceGraph Inc).egirth) : ¬ R.Spherical := by
-  intro hR
-  have hb := D.black_degree hred hinj hind
-  exact euler_contradiction R hR D.exception D.exceptionFace hb D.white_degree
-    (D.face_degree hred hb hgirth)
 end KaplanskyCounterexample.Planar
 end
 end KDF
@@ -6149,17 +5959,6 @@ structure WeakBalanced (R : Ribbon α) (Inc : V → F → Prop)
     ∑ a ∈ cycleSet R.white c, weight a = 0
   exceptional_sum : (∑ a ∈ cycleSet R.white exception, weight a) ≠ 0
 variable {R : Ribbon α} {Inc : V → F → Prop} {ι : V → F → (A →+ B)}
-def Balanced.weak (D : Balanced R Inc ι) : WeakBalanced R Inc ι where
-  blackLabel := D.blackLabel
-  whiteLabel := D.whiteLabel
-  blackLabel_rot := D.blackLabel_rot
-  whiteLabel_rot := D.whiteLabel_rot
-  incident := D.incident
-  weight := D.weight
-  exception := D.exception
-  black_sum := D.black_sum
-  white_sum := D.white_sum
-  exceptional_sum := D.exceptional_sum
 def WeakBalanced.strong (D : WeakBalanced R Inc ι) (h : ∀ a, D.weight a ≠ 0) :
     Balanced R Inc ι where
   blackLabel := D.blackLabel
@@ -7299,22 +7098,6 @@ def cycleInl (p : Perm α) (q : Perm β) : Cycles p → Cycles (Equiv.sumCongr p
   Quotient.map Sum.inl (fun _ _ h => (sumCongr_sameCycle_inl p q _ _).mpr h)
 @[simp] lemma cycleInl_class (p : Perm α) (q : Perm β) (x : α) :
     cycleInl p q (cycleClass p x) = cycleClass _ (.inl x) := rfl
-lemma cycleInl_injective (p : Perm α) (q : Perm β) :
-    Function.Injective (cycleInl p q) := by
-  intro x y
-  induction x using Quotient.inductionOn with
-  | h x =>
-    induction y using Quotient.inductionOn with
-    | h y =>
-      change cycleClass (Equiv.sumCongr p q) (.inl x) = cycleClass _ (.inl y) →
-        cycleClass p x = cycleClass p y
-      simp only [cycleClass_eq, sumCongr_sameCycle_inl, imp_self]
-lemma cycleInl_ne_inr (p : Perm α) (q : Perm β) (c : Cycles p) (y : β) :
-    cycleInl p q c ≠ cycleClass _ (.inr y) := by
-  induction c using Quotient.inductionOn with
-  | h x =>
-    change cycleClass (Equiv.sumCongr p q) (.inl x) ≠ cycleClass _ (.inr y)
-    simp only [ne_eq, cycleClass_eq, sumCongr_not_sameCycle, not_false_eq_true]
 end KaplanskyCounterexample.Planar
 end
 end KDF
@@ -8273,8 +8056,6 @@ lemma theta_generator (hc : CoversPoints Inc ℓ incMap) (v : V)
   simpa [localEvaluation, fromLocal, includeLocal, PresentedGroup.of] using h
 instance [Finite F] [NeZero ℓ] : Group.FG (N Inc ℓ incMap) := by
   exact Group.fg_of_surjective (PresentedGroup.mk_surjective (relators Inc ℓ incMap))
-def EmbeddingClaim (hc : CoversPoints Inc ℓ incMap) : Prop :=
-  ∀ v : V, Function.Injective (theta Inc ℓ incMap hc v)
 end KaplanskyCounterexample.GluedGroup
 end
 end KDF
@@ -8874,8 +8655,6 @@ lemma AffineLine.param_injective (L : AffineLine Q n) : Function.Injective L.par
   exact mul_right_cancel₀ hi (add_left_cancel he)
 def AffineLine.points (L : AffineLine Q n) : Finset (Fin n → Q) :=
   Finset.univ.image L.param
-lemma AffineLine.card_points (L : AffineLine Q n) : L.points.card = Fintype.card Q := by
-  rw [AffineLine.points, Finset.card_image_of_injective _ L.param_injective, Finset.card_univ]
 theorem sum_line_gram (a : Fin q ≃ Q) (hq : q = Fintype.card Q)
     (O : Finset (Fin n → Q)) (L : AffineLine Q n) :
     ∑ v ∈ L.points, gramColumn a ((q - 2) / 2) O v = 0 := by
@@ -9103,9 +8882,7 @@ lemma succeeds217 : Succeeds 217 := by
 local instance : DecidablePred Succeeds := Classical.decPred _
 def selectedH : ℕ := Nat.find (show ∃ h, Succeeds h from ⟨217,succeeds217⟩)
 lemma selectedH_spec : Succeeds selectedH := Nat.find_spec _
-lemma selectedH_le (h : ℕ) (hh : Succeeds h) : selectedH ≤ h := Nat.find_min' _ hh
 lemma selectedH_ge : 2 ≤ selectedH := selectedH_spec.choose
-lemma selectedH_le217 : selectedH ≤ 217 := selectedH_le 217 succeeds217
 def selectedInput : Input := ⟨selectedH,selectedH_ge⟩
 lemma selectedInput_success : ∃ p, Test selectedInput p := selectedH_spec.choose_spec
 def selectedPair : Pair selectedInput :=
@@ -9114,15 +8891,6 @@ def selectedPair : Pair selectedInput :=
 lemma selectedPair_spec : Test selectedInput selectedPair := by
   let _ := pairOrder selectedInput
   exact first_spec (Test selectedInput) selectedInput_success
-lemma selectedPair_minimal (p : Pair selectedInput) (hp : Test selectedInput p) :
-    @LE.le _ (pairOrder selectedInput).toLE selectedPair p := by
-  let _ := pairOrder selectedInput
-  exact first_le (Test selectedInput) selectedInput_success p hp
-theorem finite_search_terminates :
-    2 ≤ selectedH ∧ selectedH ≤ 217 ∧ Test selectedInput selectedPair ∧
-      (∀ h, Succeeds h → selectedH ≤ h) ∧
-      (∀ p, Test selectedInput p → @LE.le _ (pairOrder selectedInput).toLE selectedPair p) :=
-  ⟨selectedH_ge,selectedH_le217,selectedPair_spec,selectedH_le,selectedPair_minimal⟩
 end KaplanskyCounterexample.Prescription
 end
 end KDF
@@ -9281,11 +9049,6 @@ lemma point_direction (v : V) (f : F) (hf : v ∈ Inc f) (c : ZMod ℓ) :
     simp
   · exact (theta_generator Inc ℓ (maps Inc ℓ assign) (covers Inc ℓ assign) v f hf c hc).trans
       (theta_generator Inc ℓ (maps Inc ℓ assign) (covers Inc ℓ assign) (hInc f).choose f (hInc f).choose_spec c hc).symm
-lemma line_injective
-    (hg : 12 ≤ (Planar.incidenceGraph (fun v f => v ∈ Inc f)).egirth) (f : F) :
-    Function.Injective (line Inc ℓ assign hInc f) := by
-  apply (point_injective Inc ℓ assign hInc hg (hInc f).choose).comp
-  exact AssignedDirections.incidenceMap_injective Inc ℓ assign _ _
 variable [Fintype F]
 lemma subgroup_decomposition {K : Type u_3} [CommRing K] (v : V) :
     ∑ a : PointGroup ℓ, MonoidAlgebra.single (point Inc ℓ assign v a) (1 : K) =
@@ -9337,42 +9100,6 @@ abbrev directionOrder : LinearOrder (Option (ZMod ℓ)) :=
   letI : LinearOrder (Fin 2 → ZMod ℓ) := vectorOrder
   letI : LinearOrder (Finset (Fin 2 → ZMod ℓ)) := subsetOrder _
   LinearOrder.lift' (directionSet ℓ) (directionSet_injective ℓ)
-lemma direction_first (d : Option (ZMod ℓ)) (x : Fin 2 → ZMod ℓ)
-    (hx : x ∈ directionSet ℓ d) (hne : x ≠ 0) :
-    toLex (directionMap d 1) ≤ toLex x := by
-  obtain ⟨c,_,rfl⟩ := Finset.mem_image.mp hx
-  have hc : c ≠ 0 := by intro hc; apply hne; simp [hc]
-  by_cases hc1 : c=1
-  · subst c; exact le_refl _
-  have hc0 : c.val ≠ 0 := by simpa using hc
-  have hc1' : c.val ≠ 1 := by
-    intro he
-    apply hc1
-    apply ZMod.val_injective ℓ
-    simpa only [ZMod.val_one] using he
-  have hl : (1:ZMod ℓ) < c := by
-    change (1:ZMod ℓ).val < c.val
-    rw [ZMod.val_one]
-    omega
-  apply le_of_lt
-  cases d with
-  | none =>
-    refine ⟨1,?_,?_⟩
-    · intro j hj
-      have hj0 : j=0 := by omega
-      subst j
-      rfl
-    · exact hl
-  | some d =>
-    refine ⟨0,?_,?_⟩
-    · intro j hj; have : ¬ j < 0 := Fin.not_lt_zero j; exact (this hj).elim
-    · exact hl
-lemma direction_first_nonzero (d : Option (ZMod ℓ)) : directionMap d (1:ZMod ℓ) ≠ 0 := by
-  intro hz
-  exact one_ne_zero (directionMap_injective d (hz.trans (map_zero _).symm))
-lemma direction_range_finrank (d : Option (ZMod ℓ)) :
-    Module.finrank (ZMod ℓ) (LinearMap.range (directionMap d))=1 := by
-  rw [LinearMap.finrank_range_of_inj (directionMap_injective d),Module.finrank_self]
 def orderedAssignment {V F : Type} [Fintype F] [LinearOrder F] (Inc : F → Finset V)
     (hdeg : ∀ v, Fintype.card {f : F // v ∈ Inc f}=ℓ+1)
     (v : V) : {f : F // v ∈ Inc f} ≃ Option (ZMod ℓ) :=
@@ -9405,16 +9132,6 @@ lemma form_injective : Function.Injective (form ℓ) := by
   have hi := congrArg (fun φ : Plane ℓ →* Cyclic ℓ =>
     Multiplicative.toAdd (φ (Multiplicative.ofAdd (Pi.single i 1)))) hab
   fin_cases i <;> simpa [form, Pi.single_apply] using hi
-lemma exists_slot_forms {V : Type u_1} {m : Type u_2} [Fintype V] [Fintype m]
-    (hcard : Fintype.card V ≤ Fintype.card m * ℓ ^ 2) :
-    ∃ (slot : V → m) (α : V → Plane ℓ →* Cyclic ℓ),
-      ∀ v w, v ≠ w → slot v = slot w → α v ≠ α w := by
-  have hc : Fintype.card V ≤ Fintype.card (m × (Fin 2 → ZMod ℓ)) := by
-    simpa using hcard
-  obtain ⟨f⟩ : Nonempty (V ↪ m × (Fin 2 → ZMod ℓ)) := Function.Embedding.nonempty_of_card_le hc
-  refine ⟨fun v => (f v).1, fun v => form ℓ (f v).2, ?_⟩
-  intro v w hvw hs ha
-  exact hvw (f.injective (Prod.ext hs (form_injective ℓ ha)))
 variable {K : Type u_3} [Field K]
 def cyclicCharacter {ζ : K} (hζ : IsPrimitiveRoot ζ ℓ) : Cyclic ℓ →* Kˣ :=
   (AddChar.zmodChar ℓ hζ.pow_eq_one).toMonoidHom.toHomUnits
@@ -9464,31 +9181,6 @@ def slotAssignment (hsize : Fintype.card V ≤ Fintype.card m * ℓ^2) :
       apply Fin.ext
       have hh := e.injective he
       exact congrArg (fun z => z.val) hh }
-lemma slotAssignment_rank (hsize : Fintype.card V ≤ Fintype.card m * ℓ^2) (v : V) :
-    letI := slotPairOrder (m := m) ℓ
-    ((Fintype.orderIsoFinOfCardEq (m × (Fin 2 → ZMod ℓ)) rfl).symm
-      (slotAssignment ℓ hsize v)).val =
-      ((Fintype.orderIsoFinOfCardEq V rfl).symm v).val := by
-  let := slotPairOrder (m := m) ℓ
-  exact congrArg Fin.val (OrderIso.symm_apply_apply _ _)
-lemma slotAssignment_first_pairs (hsize : Fintype.card V ≤ Fintype.card m * ℓ^2)
-    (p : m × (Fin 2 → ZMod ℓ)) :
-    letI := slotPairOrder (m := m) ℓ
-    p ∈ Set.range (slotAssignment ℓ hsize) ↔
-      ((Fintype.orderIsoFinOfCardEq (m × (Fin 2 → ZMod ℓ)) rfl).symm p).val < Fintype.card V := by
-  let := slotPairOrder (m := m) ℓ
-  let e := Fintype.orderIsoFinOfCardEq (m × (Fin 2 → ZMod ℓ)) rfl
-  let r := Fintype.orderIsoFinOfCardEq V rfl
-  constructor
-  · rintro ⟨v,rfl⟩
-    rw [slotAssignment_rank]
-    exact (r.symm v).isLt
-  · intro hp
-    refine ⟨r ⟨(e.symm p).val,hp⟩,?_⟩
-    apply e.symm.injective
-    apply Fin.ext
-    rw [slotAssignment_rank]
-    exact congrArg Fin.val (r.symm_apply_apply _)
 def assignedSlot (hsize : Fintype.card V ≤ Fintype.card m * ℓ^2) (v : V) : m :=
   (slotAssignment ℓ hsize v).1
 def assignedForm (hsize : Fintype.card V ≤ Fintype.card m * ℓ^2) (v : V) :
@@ -9644,8 +9336,6 @@ def v0 : V := first (fun _ => True) (by
 def i0 : Slots := first (fun _ => True) (by
   obtain ⟨i⟩ := Fintype.card_pos_iff.mp sizes.1
   exact ⟨i,trivial⟩)
-lemma v0_first (v : V) : v0 ≤ v := by exact first_le (fun _ : V => True) _ v trivial
-lemma i0_first (i : Slots) : i0 ≤ i := by exact first_le (fun _ : Slots => True) _ i trivial
 def assignment : ∀ v, {f : F // v ∈ Inc f} ≃ Option (ZMod ell) :=
   orderedAssignment ell Inc degree_Inc
 def slot : V → Slots := assignedSlot ell sizes.2.2
@@ -9990,9 +9680,6 @@ def uInv (v : V) : MonoidAlgebra K (L ι hi v₀ α) :=
 omit [Fintype A] [Fintype C] in
 lemma uInv_mul_u (v : V) : uInv (K := K) ι hi v₀ α v * u ι hi v₀ α v = 1 := by
   simp [uInv, u, ← MonoidAlgebra.one_def]
-omit [Fintype A] [Fintype C] in
-lemma u_mul_uInv (v : V) : u (K := K) ι hi v₀ α v * uInv ι hi v₀ α v = 1 := by
-  simp [uInv, u, ← MonoidAlgebra.one_def]
 omit [Fintype A] in
 lemma e_central (x : MonoidAlgebra K (L ι hi v₀ α)) : Commute (e ι hi v₀ α ξ) x :=
   pushed_central _ _ (central_cyclic ι hi v₀ α) x
@@ -10143,73 +9830,6 @@ lemma Jpack_mul_Cpack (slot : t → m) (u uInv D Q : t → R)
       simp only [Jpack, Cpack, hvi, hwi, ite_true, ite_false, mul_zero, zero_mul]
     rw [hleft, hright, mul_assoc, ← mul_assoc (Q v), horth v w hvw (hvi.trans hwi.symm),
       zero_mul, mul_zero]
-theorem square_of_projections (U : Matrix m t R) (T : Matrix t m R)
-    (p q u uInv : t → R) (slot : t → m) (e : R)
-    (he : e * e = e) (hc : ∀ x : R, Commute e x)
-    (hp : ∀ v, p v * p v = p v)
-    (hUP : U * Matrix.diagonal p = U) (hPT : Matrix.diagonal p * T = T)
-    (hUT : U * T = 1)
-    (hlu : ∀ v, uInv v * u v = 1)
-    (hconj : ∀ v, u v * (e * p v) * uInv v = e * q v)
-    (horth : ∀ v w, v ≠ w → slot v = slot w → q v * q w = 0)
-    (hdefect : Matrix.diagonal (fun _ : t => e) * (T * U - Matrix.diagonal p) ≠ 0) :
-    ∃ a b : Matrix m m R, a * b = 1 ∧ b * a ≠ 1 := by
-  let D : t → R := fun v => e * p v
-  let C := Cpack slot u D
-  let J := Jpack slot uInv D
-  let E : Matrix m m R := Matrix.diagonal (fun _ => e)
-  let F : Matrix t t R := Matrix.diagonal (fun _ => e)
-  have hD (v : t) : D v * D v = D v := by
-    dsimp [D]
-    calc
-      e * p v * (e * p v) = e * (e * p v) * p v := by
-        rw [mul_assoc, ← mul_assoc (p v), (hc (p v)).eq.symm]; simp only [mul_assoc]
-      _ = e * p v := by rw [← mul_assoc e e, he, mul_assoc, hp]
-  have horth' (v w : t) (hne : v ≠ w) (hs : slot v = slot w) :
-      (e * q v) * (e * q w) = 0 := by
-    calc
-      e * q v * (e * q w) = (e * e) * (q v * q w) := by
-        rw [mul_assoc, ← mul_assoc (q v), (hc (q v)).eq.symm]; simp only [mul_assoc]
-      _ = 0 := by rw [horth v w hne hs, mul_zero]
-  have hJC : J * C = F * Matrix.diagonal p := by
-    rw [show F * Matrix.diagonal p = Matrix.diagonal D by
-      simp [F, D, Matrix.diagonal_mul_diagonal]]
-    exact Jpack_mul_Cpack slot u uInv D (fun v => e * q v) hlu hD hconj horth'
-  have hEE : E * E = E := by simp [E, Matrix.diagonal_mul_diagonal, he]
-  have hFF : F * F = F := by simp [F, Matrix.diagonal_mul_diagonal, he]
-  have hEU : E * U = U * F := by
-    ext i v
-    simpa [E, F, Matrix.diagonal_mul, Matrix.mul_diagonal] using (hc (U i v)).eq
-  have hFT : F * T = T * E := by
-    ext v i
-    simpa [E, F, Matrix.diagonal_mul, Matrix.mul_diagonal] using (hc (T v i)).eq
-  have hC (i : m) (v : t) : e * C i v = C i v := by
-    dsimp [C, Cpack, D]
-    split_ifs
-    · rw [← mul_assoc, (hc (u v)).eq, mul_assoc, ← mul_assoc e e, he]
-    · exact mul_zero e
-  have hJ (v : t) (i : m) : e * J v i = J v i := by
-    dsimp [J, Jpack, D]
-    split_ifs
-    · rw [← mul_assoc, ← mul_assoc e e, he]
-    · exact mul_zero e
-  have hJE : J * E = J := by
-    ext v i
-    simp only [E, Matrix.mul_diagonal]
-    rw [← (hc (J v i)).eq, hJ]
-  have hEC : E * C = C := by ext i v; simpa [E, Matrix.diagonal_mul] using hC i v
-  have hCF : C * F = C := by
-    ext i v
-    simp only [F, Matrix.mul_diagonal]
-    rw [← (hc (C i v)).eq, hC]
-  have hFJ : F * J = J := by ext v i; simpa [F, Matrix.diagonal_mul] using hJ v i
-  obtain ⟨hab, hdelta⟩ := packing_identities U C T J (Matrix.diagonal p) F E
-    hUP hPT hUT hJC hEE hFF hEU hFT hJE hEC hCF hFJ
-  refine ⟨aMat U J E, bMat C T E, hab, ?_⟩
-  intro hba
-  apply hdefect
-  rw [hba, sub_self, Matrix.mul_zero, Matrix.zero_mul] at hdelta
-  exact hdelta.symm
 end KaplanskyCounterexample.AlgebraicPacking
 end
 end KDF
@@ -10324,36 +9944,6 @@ lemma defect_ne_zero (X : Matrix m V K) (hlt : Fintype.card m < Fintype.card V)
     smul_eq_mul, mul_one, map_zero, apply_ite] at hs
   apply sub_eq_zero.mp
   simpa only [Matrix.mul_apply, Matrix.transpose_apply, Matrix.one_apply, apply_ite] using hs
-theorem square_witnesses {F : Type u_9} [Fintype F]
-    (X : Matrix m V K) (Inc : F → Finset V)
-    (lineSum : F → MonoidAlgebra K (L ι hi v₀ α))
-    (hdec : ∀ v, P (K := K) ι hi v₀ α v =
-      1 + ∑ f : {f : F // v ∈ Inc f}, (lineSum f.val - 1))
-    (hglobal : X * X.transpose = 1)
-    (hlocal : ∀ f i j, ∑ v ∈ Inc f, X i v * X j v = 0)
-    (hlt : Fintype.card m < Fintype.card V)
-    (hA : (Fintype.card A : K) ≠ 0) (hC : (Fintype.card C : K) ≠ 0)
-    (slot : V → m) (hξ : Function.Injective ξ)
-    (hα : ∀ v w, v ≠ w → slot v = slot w → α v ≠ α w) :
-    ∃ a b : Matrix m m (MonoidAlgebra K (L ι hi v₀ α)), a * b = 1 ∧ b * a ≠ 1 := by
-  have hp (v : V) : P (K := K) ι hi v₀ α v * P ι hi v₀ α v = P ι hi v₀ α v :=
-    pushed_idempotent _ _ hA
-  obtain ⟨hUP,hPT,hUT⟩ := Rectangular.identities X (P ι hi v₀ α) lineSum Inc hp hdec hglobal hlocal
-  apply square_of_projections (Rectangular.U X (P ι hi v₀ α))
-    (Rectangular.T X (P ι hi v₀ α)) (P ι hi v₀ α) (Q ι hi v₀ α ξ)
-    (u ι hi v₀ α) (uInv ι hi v₀ α) slot (e ι hi v₀ α ξ)
-    (pushed_idempotent _ _ hC) (e_central ι hi v₀ α ξ) hp hUP hPT hUT
-    (uInv_mul_u ι hi v₀ α) (conjugate_projection ι hi v₀ α ξ)
-    _ (defect_ne_zero ι hi v₀ α ξ X hlt hA hC)
-  intro v w hvw hslot
-  apply pushed_orthogonal
-  intro heq
-  apply hα v w hvw hslot
-  apply MonoidHom.ext
-  intro a
-  apply hξ
-  have heq' := congrArg (fun χ : A →* Kˣ => χ a) heq
-  exact inv_injective heq'
 end KaplanskyCounterexample.CharacterTwist
 end
 end KDF
@@ -10533,10 +10123,6 @@ omit [Fintype m] [Fintype C] in
 lemma permElt_inv_mul (σ : Equiv.Perm m) :
     permElt (K := K) (C := C) σ⁻¹ * permElt σ = 1 := by
   simp [permElt, ← MonoidAlgebra.one_def]
-omit [Fintype m] [Fintype C] in
-lemma permElt_mul_inv (σ : Equiv.Perm m) :
-    permElt (K := K) (C := C) σ * permElt σ⁻¹ = 1 := by
-  simp [permElt, ← MonoidAlgebra.one_def]
 lemma p_ne_zero (hc : (Fintype.card (m → C) : K) ≠ 0) (i : m) : p ξ i ≠ 0 :=
   pushed_ne_zero _ SemidirectProduct.inl_injective _ hc
 lemma p_idem (hc : (Fintype.card (m → C) : K) ≠ 0) (i : m) : p ξ i * p ξ i = p ξ i :=
@@ -10616,13 +10202,8 @@ namespace KaplanskyCounterexample.MatrixBlock
 variable {S : Type u_1} {R : Type u_2} {m : Type u_3} [Ring S] [Ring R] [Fintype m]
 variable (f : S →+* R) (q : m → m → R)
 def block (X : Matrix m m S) : R := ∑ i, ∑ j, f (X i j) * q i j
-lemma block_zero : block f q 0 = 0 := by simp [block]
-lemma block_add (X Y : Matrix m m S) : block f q (X + Y) = block f q X + block f q Y := by
-  simp [block, add_mul, Finset.sum_add_distrib]
 lemma block_sub (X Y : Matrix m m S) : block f q (X - Y) = block f q X - block f q Y := by
   simp [block, sub_mul, Finset.sum_sub_distrib]
-lemma block_one : block f q 1 = ∑ i, q i i := by
-  simp [block, Matrix.one_apply, apply_ite]
 variable (hqq : ∀ i j k r, q i j * q k r = if j = k then q i r else 0)
 variable (hcomm : ∀ x i j, Commute (f x) (q i j))
 include hqq hcomm
@@ -10674,35 +10255,6 @@ lemma block_injective (hpure : ∀ x i j, f x * q i j = 0 → x = 0) :
     apply hpure _ i j
     rw [← block_sandwich f q hqq hcomm, hz, mul_zero, zero_mul]
   exact sub_eq_zero.mp hXY
-theorem scalar_witnesses
-    (hpure : ∀ x i j, f x * q i j = 0 → x = 0)
-    (a b : Matrix m m S) (hab : a * b = 1) (hba : b * a ≠ 1) :
-    ∃ a' b' : R, a' * b' = 1 ∧ b' * a' ≠ 1 := by
-  let e := block f q 1
-  let a' := 1 - e + block f q a
-  let b' := 1 - e + block f q b
-  have he : e * e = e := by rw [← block_mul f q hqq hcomm, mul_one]
-  have hea : e * block f q a = block f q a := by rw [← block_mul f q hqq hcomm, one_mul]
-  have hae : block f q a * e = block f q a := by rw [← block_mul f q hqq hcomm, mul_one]
-  have heb : e * block f q b = block f q b := by rw [← block_mul f q hqq hcomm, one_mul]
-  have hbe : block f q b * e = block f q b := by rw [← block_mul f q hqq hcomm, mul_one]
-  have hab' : block f q a * block f q b = e := by rw [← block_mul f q hqq hcomm, hab]
-  refine ⟨a',b',?_,?_⟩
-  · dsimp [a',b']
-    noncomm_ring [he, hea, hae, heb, hbe, hab']
-  · intro h
-    have h' : block f q b * block f q a = e := by
-      apply add_left_cancel (a := 1 - e)
-      calc
-        1 - e + block f q b * block f q a =
-            (1 - e + block f q b) * (1 - e + block f q a) := by
-          noncomm_ring [he, hea, hae, heb, hbe]
-        _ = 1 := h
-        _ = 1 - e + e := by abel
-    apply hba
-    apply block_injective f q hqq hcomm hpure
-    rw [block_mul f q hqq hcomm]
-    exact h'
 end KaplanskyCounterexample.MatrixBlock
 end
 end KDF
@@ -10800,23 +10352,6 @@ lemma matrixUnit_ne_zero (hc : (Fintype.card (m → C) : K) ≠ 0) (i j : m) :
     matrixUnit ξ i₀ i j ≠ 0 :=
   TranslatedUnits.unit_ne_zero _ _ _ (fun i => permElt_inv_mul (Equiv.swap i₀ i))
     (p_ne_zero ξ hc i₀) i j
-include i₀ in
-theorem scalar_witnesses (hc : (Fintype.card (m → C) : K) ≠ 0) (hξ : ξ ≠ 1)
-    (a b : Matrix m m (MonoidAlgebra K L)) (hab : a * b = 1) (hba : b * a ≠ 1) :
-    ∃ a' b' : MonoidAlgebra K (L × Auxiliary m C), a' * b' = 1 ∧ b' * a' ≠ 1 := by
-  let f := (ProductAlgebras.leftMap (K := K) (G := L) (H := Auxiliary m C)).toRingHom
-  let q (i j : m) := ProductAlgebras.rightMap (G := L) (matrixUnit ξ i₀ i j)
-  have hqq (i j k r : m) : q i j * q k r = if j = k then q i r else 0 := by
-    dsimp [q]
-    rw [← map_mul, matrixUnit_mul ξ i₀ hc hξ]
-    split_ifs <;> simp
-  have hcomm (x : MonoidAlgebra K L) (i j : m) : Commute (f x) (q i j) :=
-    ProductAlgebras.left_right_commute x _
-  have hpure (x : MonoidAlgebra K L) (i j : m) : f x * q i j = 0 → x = 0 := by
-    intro he
-    by_contra hx
-    exact ProductAlgebras.product_ne_zero hx (matrixUnit_ne_zero ξ i₀ hc i j) he
-  exact MatrixBlock.scalar_witnesses f q hqq hcomm hpure a b hab hba
 end KaplanskyCounterexample.FiniteBlock
 end
 end KDF
@@ -10830,9 +10365,6 @@ namespace KaplanskyCounterexample.MatrixBlock
 variable {S : Type u_1} {R : Type u_2} {m : Type u_3} [Ring S] [Ring R] [Fintype m]
 variable (f : S →+* R) (q : m → m → R)
 def output (X : Matrix m m S) : R := 1 - block f q 1 + block f q X
-lemma output_formula (X : Matrix m m S) :
-    output f q X = 1 - ∑ i, q i i + ∑ i, ∑ j, f (X i j)*q i j := by
-  rw [output,block_one,block]
 variable (hqq : ∀ i j k r, q i j * q k r = if j = k then q i r else 0)
 variable (hcomm : ∀ x i j, Commute (f x) (q i j))
 include hqq hcomm in
@@ -11032,44 +10564,6 @@ open scoped Classical
 namespace KaplanskyCounterexample.Prescription
 open IncidenceDirections
 variable (ℓ : ℕ) [Fact ℓ.Prime]
-lemma every_direction (S : Submodule (ZMod ℓ) (Fin 2 → ZMod ℓ))
-    (hS : Module.finrank (ZMod ℓ) S=1) :
-    ∃ d : Option (ZMod ℓ), LinearMap.range (directionMap d)=S := by
-  have hne : S ≠ ⊥ := by
-    intro he
-    rw [he, finrank_bot] at hS
-    omega
-  obtain ⟨x,hx,hx0⟩ := Submodule.exists_mem_ne_zero_of_ne_bot hne
-  obtain ⟨d,c,hc,hcx⟩ := directionMap_covers x hx0
-  refine ⟨d,Submodule.eq_of_le_of_finrank_eq ?_ ?_⟩
-  · have h1 : directionMap d 1 ∈ S := by
-      have hh := S.smul_mem c⁻¹ hx
-      rw [← hcx,← map_smul] at hh
-      simpa [hc] using hh
-    rintro y ⟨k,rfl⟩
-    have hh := S.smul_mem k h1
-    rw [← map_smul] at hh
-    simpa using hh
-  · rw [direction_range_finrank,hS]
-lemma mem_directionSet (d : Option (ZMod ℓ)) (x : Fin 2 → ZMod ℓ) :
-    x ∈ directionSet ℓ d ↔ x ∈ LinearMap.range (directionMap d) := by
-  simp only [directionSet,Finset.mem_image,Finset.mem_univ,true_and,LinearMap.mem_range]
-lemma every_direction_unique (S : Submodule (ZMod ℓ) (Fin 2 → ZMod ℓ))
-    (hS : Module.finrank (ZMod ℓ) S=1) :
-    ∃! d : Option (ZMod ℓ), LinearMap.range (directionMap d)=S := by
-  obtain ⟨d,hd⟩ := every_direction ℓ S hS
-  refine ⟨d,hd,?_⟩
-  intro e he
-  apply directionSet_injective ℓ
-  ext x
-  rw [mem_directionSet,mem_directionSet,he,hd]
-lemma orderedAssignment_strictMono {V F : Type} [Fintype F] [LinearOrder F]
-    (Inc : F → Finset V) (hdeg : ∀ v, Fintype.card {f : F // v ∈ Inc f}=ℓ+1) (v : V) :
-    letI := directionOrder ℓ
-    StrictMono (orderedAssignment ℓ Inc hdeg v) := by
-  let := directionOrder ℓ
-  exact (Fintype.orderIsoFinOfCardEq (Option (ZMod ℓ)) (by simp)).strictMono.comp
-    (Fintype.orderIsoFinOfCardEq {f : F // v ∈ Inc f} (hdeg v)).symm.strictMono
 end KaplanskyCounterexample.Prescription
 end
 end KDF
@@ -11083,102 +10577,10 @@ namespace KaplanskyCounterexample.ShortPresentation
 variable {γ : Type u_1} {A : Type u_2} {B : Type u_3} [Group A] [Group B]
 variable (f : FreeGroup γ →* A)
 variable (hc : ∀ a : A, a ≠ 1 → ∃ x : γ, f (FreeGroup.of x)=a)
-def representative (a : A) : List (γ × Bool) :=
-  if ha : a=1 then [] else [((hc a ha).choose,true)]
-lemma representative_one : representative f hc 1=[] := by simp [representative]
-lemma representative_length (a : A) : (representative f hc a).length ≤ 1 := by
-  unfold representative
-  split_ifs <;> simp
-lemma representative_eval (a : A) : f (FreeGroup.mk (representative f hc a))=a := by
-  unfold representative
-  split_ifs with ha
-  · simpa only [← FreeGroup.one_eq_mk,map_one] using ha.symm
-  · change f (FreeGroup.of (hc a ha).choose)=a
-    exact (hc a ha).choose_spec
-include hc in
-lemma kernel_le_of_short (g : FreeGroup γ →* B)
-    (hshort : ∀ w : List (γ × Bool), w.length ≤ 3 → f (FreeGroup.mk w)=1 →
-      g (FreeGroup.mk w)=1) : f.ker ≤ g.ker := by
-  let t (a : A) := g (FreeGroup.mk (representative f hc a))
-  have ht1 : t 1=1 := by simp [t,representative_one,← FreeGroup.one_eq_mk]
-  have htm (a b : A) : t (a*b)=t a*t b := by
-    have hr := hshort (representative f hc a ++ representative f hc b ++
-      FreeGroup.invRev (representative f hc (a*b))) (by
-        simp only [List.length_append,FreeGroup.invRev_length]
-        have := representative_length f hc a
-        have := representative_length f hc b
-        have := representative_length f hc (a*b)
-        omega) (by
-          simp only [← FreeGroup.mul_mk,← FreeGroup.inv_mk,map_mul,map_inv,representative_eval]
-          exact mul_inv_cancel _)
-    simp only [← FreeGroup.mul_mk,← FreeGroup.inv_mk,map_mul,map_inv] at hr
-    exact (eq_of_mul_inv_eq_one hr).symm
-  let θ : A →* B := ⟨⟨t,ht1⟩,htm⟩
-  have he : θ.comp f=g := by
-    apply FreeGroup.lift.symm.injective
-    funext x
-    change t (f (FreeGroup.of x))=g (FreeGroup.of x)
-    have hr := hshort ([(x,true)] ++ FreeGroup.invRev
-      (representative f hc (f (FreeGroup.of x)))) (by
-        simp only [List.length_append,List.length_cons,List.length_nil,FreeGroup.invRev_length]
-        have := representative_length f hc (f (FreeGroup.of x))
-        omega) (by
-          rw [← FreeGroup.mul_mk,← FreeGroup.inv_mk,map_mul,map_inv,representative_eval]
-          exact mul_inv_cancel _)
-    rw [← FreeGroup.mul_mk,← FreeGroup.inv_mk,map_mul,map_inv] at hr
-    exact (eq_of_mul_inv_eq_one hr).symm
-  intro w hw
-  change g w=1
-  rw [← he]
-  simp only [MonoidHom.comp_apply,show f w=1 from hw,map_one]
 end KaplanskyCounterexample.ShortPresentation
 namespace KaplanskyCounterexample.GluedGroup
 variable {V : Type u_4} {F : Type u_5} (Inc : F → Finset V) (ℓ : ℕ)
 variable (incMap : ∀ v : V, {f : F // v ∈ Inc f} → (ZMod ℓ →+ (Fin 2 → ZMod ℓ)))
-def shortRelators : Set (FreeGroup (Generator (F := F) ℓ)) :=
-  {w | ∃ v : V, ∃ r : List (LocalGenerator Inc ℓ v × Bool), r.length ≤ 3 ∧
-    localEvaluation Inc ℓ incMap v (FreeGroup.mk r)=1 ∧
-    includeLocal Inc ℓ v (FreeGroup.mk r)=w}
-lemma shortRelators_subset : shortRelators Inc ℓ incMap ⊆ relators Inc ℓ incMap := by
-  rintro _ ⟨v,r,_,hr,rfl⟩
-  exact ⟨v,FreeGroup.mk r,hr,rfl⟩
-lemma local_generators_cover (hc : CoversPoints Inc ℓ incMap) (v : V)
-    (a : PointGroup ℓ) (ha : a ≠ 1) :
-    ∃ x : LocalGenerator Inc ℓ v, localEvaluation Inc ℓ incMap v (FreeGroup.of x)=a := by
-  have haa : a.toAdd ≠ 0 := by
-    intro hh
-    apply ha
-    exact congrArg Multiplicative.ofAdd hh
-  obtain ⟨f,hf,c,hc0,he⟩ := hc v a.toAdd haa
-  refine ⟨⟨(f,⟨c,hc0⟩),hf⟩,?_⟩
-  simpa [localEvaluation] using congrArg Multiplicative.ofAdd he
-lemma short_normalClosure (hc : CoversPoints Inc ℓ incMap) :
-    Subgroup.normalClosure (shortRelators Inc ℓ incMap)=
-      Subgroup.normalClosure (relators Inc ℓ incMap) := by
-  apply le_antisymm (Subgroup.normalClosure_mono (shortRelators_subset Inc ℓ incMap))
-  apply Subgroup.normalClosure_le_normal
-  rintro _ ⟨v,r,hr,rfl⟩
-  apply PresentedGroup.mk_eq_one_iff.mp
-  let g := (PresentedGroup.mk (shortRelators Inc ℓ incMap)).comp (includeLocal Inc ℓ v)
-  have hk := ShortPresentation.kernel_le_of_short (localEvaluation Inc ℓ incMap v)
-    (local_generators_cover Inc ℓ incMap hc v) g (by
-      intro w hw he
-      exact PresentedGroup.one_of_mem ⟨v,w,hw,he,rfl⟩)
-  exact hk hr
-lemma shortRelators_finite [Finite V] [Finite F] [NeZero ℓ] :
-    (shortRelators Inc ℓ incMap).Finite := by
-  let I := Σ (v : V), Σ k : Fin 4, Fin k.val → LocalGenerator Inc ℓ v × Bool
-  let W (i : I) := includeLocal Inc ℓ i.1 (FreeGroup.mk (List.ofFn i.2.2))
-  apply (Set.finite_range W).subset
-  rintro w ⟨v,r,hr,_,rfl⟩
-  refine ⟨⟨v,⟨r.length,by omega⟩,r.get⟩,?_⟩
-  change includeLocal Inc ℓ v (FreeGroup.mk (List.ofFn r.get)) = _
-  rw [List.ofFn_get]
-def shortEquiv (hc : CoversPoints Inc ℓ incMap) :
-    PresentedGroup (shortRelators Inc ℓ incMap) ≃* N Inc ℓ incMap :=
-  QuotientGroup.quotientMulEquivOfEq (short_normalClosure Inc ℓ incMap hc)
-lemma shortEquiv_generator (hc : CoversPoints Inc ℓ incMap) (g : Generator (F := F) ℓ) :
-    shortEquiv Inc ℓ incMap hc (PresentedGroup.of g)=PresentedGroup.of g := rfl
 end KaplanskyCounterexample.GluedGroup
 end
 end KDF
@@ -11202,14 +10604,6 @@ theorem prescribed_products : a*b=1 ∧ b*a≠1 :=
     (zeta_primitive h) X i0 slot (prime_odd h.val h.property) sizes.2.1
     (by convert X_global using 1; congr 1; ext i j; simp only [Matrix.one_apply]; split_ifs <;> rfl) X_local forms_distinct
 instance G_fg : Group.FG G := inferInstance
-def N_shortEquiv :
-    PresentedGroup (GluedGroup.shortRelators Inc ell
-      (AssignedDirections.incidenceMap Inc ell assignment)) ≃*
-    AssignedDevelopment.Base Inc ell assignment :=
-  GluedGroup.shortEquiv Inc ell _ (AssignedDevelopment.covers Inc ell assignment)
-lemma N_shortRelators_finite :
-    (GluedGroup.shortRelators Inc ell (AssignedDirections.incidenceMap Inc ell assignment)).Finite :=
-  GluedGroup.shortRelators_finite _ _ _
 theorem prescribed_main :
     ∃ (K : Type) (_ : Field K) (_ : Fintype K) (_ : CharP K 2),
       ∃ (G : Type) (_ : Group G) (_ : Group.FG G),

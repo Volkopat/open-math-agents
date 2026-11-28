@@ -1,5 +1,6 @@
 import OMAReductions.R_Erdos997_erdos_997_variants_irrational_R1
 
+open Finset
 -- Adapted from @OrangeHeadz’s merged finite-run proof for Erdős 427, PR 2101.
 
 /-!
@@ -11,10 +12,10 @@ resets `t`, and so `#good ≤ (k - 1) * #bad + t ≤ (k - 1) * (#bad + 1)`.
 namespace OMA
 
 theorem run_aux (good : ℕ → Bool) (l k : ℕ) (hk : 1 ≤ k) : ∀ n : ℕ,
-    (¬ ∃ m : ℕ, l ≤ m ∧ m + k ≤ l + n ∧ ∀ i ∈ Finset.Ico m (m + k), good i = true) →
+    (¬ ∃ m : ℕ, l ≤ m ∧ m + k ≤ l + n ∧ ∀ i ∈ Ico m (m + k), good i = true) →
     ∃ t : ℕ, t ≤ k - 1 ∧ t ≤ n ∧ (∀ i : ℕ, l + n - t ≤ i → i < l + n → good i = true) ∧
-      (∑ i ∈ Finset.Ico l (l + n), (if good i = true then 1 else 0)) ≤
-        (k - 1) * (∑ i ∈ Finset.Ico l (l + n), (if good i = false then 1 else 0)) + t := by
+      (∑ i ∈ Ico l (l + n), (if good i = true then 1 else 0)) ≤
+        (k - 1) * (∑ i ∈ Ico l (l + n), (if good i = false then 1 else 0)) + t := by
   intro n
   induction n with
   | zero =>
@@ -23,22 +24,22 @@ theorem run_aux (good : ℕ → Bool) (l k : ℕ) (hk : 1 ≤ k) : ∀ n : ℕ,
   | succ n ih =>
     intro hno
     have hno' : ¬ ∃ m : ℕ, l ≤ m ∧ m + k ≤ l + n ∧
-        ∀ i ∈ Finset.Ico m (m + k), good i = true := by
+        ∀ i ∈ Ico m (m + k), good i = true := by
       intro h
       obtain ⟨m, h1, h2, h3⟩ := h
       exact hno ⟨m, h1, by omega, h3⟩
     obtain ⟨t, ht1, ht2, ht3, ht4⟩ := ih hno'
-    have e1 : (∑ i ∈ Finset.Ico l (l + (n + 1)), (if good i = true then 1 else 0)) =
-        (∑ i ∈ Finset.Ico l (l + n), (if good i = true then 1 else 0)) +
+    have e1 : (∑ i ∈ Ico l (l + (n + 1)), (if good i = true then 1 else 0)) =
+        (∑ i ∈ Ico l (l + n), (if good i = true then 1 else 0)) +
           (if good (l + n) = true then 1 else 0) :=
-      Finset.sum_Ico_succ_top (Nat.le_add_right l n) _
-    have e2 : (∑ i ∈ Finset.Ico l (l + (n + 1)), (if good i = false then 1 else 0)) =
-        (∑ i ∈ Finset.Ico l (l + n), (if good i = false then 1 else 0)) +
+      sum_Ico_succ_top (Nat.le_add_right l n) _
+    have e2 : (∑ i ∈ Ico l (l + (n + 1)), (if good i = false then 1 else 0)) =
+        (∑ i ∈ Ico l (l + n), (if good i = false then 1 else 0)) +
           (if good (l + n) = false then 1 else 0) :=
-      Finset.sum_Ico_succ_top (Nat.le_add_right l n) _
+      sum_Ico_succ_top (Nat.le_add_right l n) _
     rw [e1, e2]
-    generalize (∑ i ∈ Finset.Ico l (l + n), (if good i = true then 1 else 0)) = G at ht4 ⊢
-    generalize (∑ i ∈ Finset.Ico l (l + n), (if good i = false then 1 else 0)) = B at ht4 ⊢
+    generalize (∑ i ∈ Ico l (l + n), (if good i = true then 1 else 0)) = G at ht4 ⊢
+    generalize (∑ i ∈ Ico l (l + n), (if good i = false then 1 else 0)) = B at ht4 ⊢
     cases hg : good (l + n) with
     | false =>
       have a1 : (if false = true then 1 else 0 : ℕ) = 0 := by simp
@@ -64,7 +65,7 @@ theorem run_aux (good : ℕ → Bool) (l k : ℕ) (hk : 1 ≤ k) : ∀ n : ℕ,
         apply hno
         refine ⟨l + n + 1 - k, by omega, by omega, ?_⟩
         intro i hi
-        rw [Finset.mem_Ico] at hi
+        rw [mem_Ico] at hi
         by_cases hin : i = l + n
         · rw [hin]
           exact hg
@@ -80,12 +81,12 @@ theorem OMA.solution : OMA.R_Erdos997_erdos_997_variants_irrational_R1.H2 := by
   · obtain ⟨n, hn⟩ := Nat.exists_eq_add_of_le hlr
     subst hn
     obtain ⟨t, ht1, _, _, ht4⟩ := OMA.run_aux good l k hk n hno
-    rw [Finset.card_filter, Finset.card_filter] at h
-    generalize (∑ i ∈ Finset.Ico l (l + n), (if good i = true then 1 else 0)) = G at ht4 h
-    generalize (∑ i ∈ Finset.Ico l (l + n), (if good i = false then 1 else 0)) = B at ht4 h
+    rw [card_filter, card_filter] at h
+    generalize (∑ i ∈ Ico l (l + n), (if good i = true then 1 else 0)) = G at ht4 h
+    generalize (∑ i ∈ Ico l (l + n), (if good i = false then 1 else 0)) = B at ht4 h
     have e : (k - 1) * (B + 1) = (k - 1) * B + (k - 1) := by ring
     rw [e] at h
     omega
-  · have he : Finset.Ico l r = ∅ := Finset.Ico_eq_empty (by omega)
+  · have he : Ico l r = ∅ := Ico_eq_empty (by omega)
     rw [he] at h
     simp at h

@@ -93,10 +93,6 @@ lemma volume_rect {l u l' u' : ℝ} :
   rw [hpre, Real.volume_pi_Ico]
   simp [Fin.prod_univ_two]
 
-lemma hexCell_measurableSet (p : ℤ × ℤ) : MeasurableSet (hexCell p) := by
-  unfold hexCell
-  measurability
-
 lemma hexCell_volume (p : ℤ × ℤ) :
     volume (hexCell p) = ENNReal.ofReal (2 * Real.sqrt 3) := by
   unfold hexCell
@@ -108,39 +104,6 @@ lemma hexCell_volume (p : ℤ × ℤ) :
       = Real.sqrt 3 := by ring
   rw [e1, e2] at h
   rw [h, ← ENNReal.ofReal_mul (by norm_num : (0 : ℝ) ≤ 2)]
-
-lemma hexCell_disjoint (p q : ℤ × ℤ) (h : p ≠ q) : Disjoint (hexCell p) (hexCell q) := by
-  rw [Set.disjoint_left]
-  rintro x ⟨hx0, hx1⟩ ⟨hy0, hy1⟩
-  rcases eq_or_ne p.2 q.2 with hb | hb
-  · have ha : p.1 ≠ q.1 := by
-      intro h'; exact h (Prod.ext h' hb)
-    rcases lt_or_gt_of_ne ha with hlt | hlt
-    · have hle : (p.1 : ℝ) + 1 ≤ (q.1 : ℝ) := by
-        have : p.1 + 1 ≤ q.1 := by omega
-        exact_mod_cast this
-      have hM : 2 * (p.1 : ℝ) + (p.2 : ℝ) + 2 ≤ 2 * (q.1 : ℝ) + (q.2 : ℝ) := by
-        rw [hb]; nlinarith
-      linarith [hx0.2, hy0.1]
-    · have hle : (q.1 : ℝ) + 1 ≤ (p.1 : ℝ) := by
-        have : q.1 + 1 ≤ p.1 := by omega
-        exact_mod_cast this
-      have hM : 2 * (q.1 : ℝ) + (q.2 : ℝ) + 2 ≤ 2 * (p.1 : ℝ) + (p.2 : ℝ) := by
-        rw [hb]; nlinarith
-      linarith [hy0.2, hx0.1]
-  · rcases lt_or_gt_of_ne hb with hlt | hlt
-    · have hle : (p.2 : ℝ) + 1 ≤ (q.2 : ℝ) := by
-        have : p.2 + 1 ≤ q.2 := by omega
-        exact_mod_cast this
-      have hM : Real.sqrt 3 * (p.2 : ℝ) + Real.sqrt 3 ≤ Real.sqrt 3 * (q.2 : ℝ) := by
-        nlinarith [sqrt3_pos]
-      linarith [hx1.2, hy1.1]
-    · have hle : (q.2 : ℝ) + 1 ≤ (p.2 : ℝ) := by
-        have : q.2 + 1 ≤ p.2 := by omega
-        exact_mod_cast this
-      have hM : Real.sqrt 3 * (q.2 : ℝ) + Real.sqrt 3 ≤ Real.sqrt 3 * (p.2 : ℝ) := by
-        nlinarith [sqrt3_pos]
-      linarith [hy1.2, hx1.1]
 
 lemma hexCell_cover (x : ℝ²) : ∃ p : ℤ × ℤ, x ∈ hexCell p := by
   set b : ℤ := ⌊x 1 / Real.sqrt 3⌋

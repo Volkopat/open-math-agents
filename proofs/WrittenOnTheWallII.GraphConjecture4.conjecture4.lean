@@ -113,6 +113,9 @@ lemma sum_degree_le_leaves {α : Type*} [Fintype α] [DecidableEq α] [Nontrivia
     (T : SimpleGraph α) [DecidableRel T.Adj] (hT : T.IsTree) (S : Finset α) :
     (∑ x ∈ S, ((T.degree x : ℤ) - 2)) + 2 ≤
       ((Finset.univ.filter fun x => T.degree x = 1).card : ℤ) := by
+  let f (x : α) : ℤ := (T.degree x : ℤ) - 2
+  let g (x : α) : ℤ := if T.degree x = 1 then 1 else 0
+  change (∑ x ∈ S, f x) + 2 ≤ _
   have hsum : (∑ x, (T.degree x : ℤ)) = 2 * (Fintype.card α : ℤ) - 2 := by
     have h1 := T.sum_degrees_eq_twice_card_edges
     have h2 := hT.card_edgeFinset
@@ -120,30 +123,24 @@ lemma sum_degree_le_leaves {α : Type*} [Fintype α] [DecidableEq α] [Nontrivia
     have h4 : ((∑ x, T.degree x : ℕ) : ℤ) + 2 = 2 * (Fintype.card α : ℤ) := by exact_mod_cast h3
     rw [Nat.cast_sum] at h4
     linarith
-  have hpos : ∀ x, 1 ≤ T.degree x := fun x =>
-    hT.connected.preconnected.degree_pos_of_nontrivial x
-  have hcard : ((Finset.univ.filter fun x => T.degree x = 1).card : ℤ) =
-      ∑ x, (if T.degree x = 1 then (1 : ℤ) else 0) := by
+  have htotal : ∑ x, f x = -2 := by
+    simp [f, Finset.sum_sub_distrib, hsum, Finset.sum_const]
+    omega
+  have hcard : ((Finset.univ.filter fun x => T.degree x = 1).card : ℤ) = ∑ x, g x := by
     rw [Finset.card_filter]
     push_cast
     rfl
-  have hnn : ∀ x, 0 ≤ ((T.degree x : ℤ) - 2) + (if T.degree x = 1 then (1 : ℤ) else 0) := by
-    intro x
-    have := hpos x
-    split_ifs with h <;> omega
-  have h4 : ∑ x ∈ S, (((T.degree x : ℤ) - 2) + (if T.degree x = 1 then (1 : ℤ) else 0)) ≤
-      ∑ x, (((T.degree x : ℤ) - 2) + (if T.degree x = 1 then (1 : ℤ) else 0)) :=
+  have hnn (x : α) : 0 ≤ f x + g x := by
+    have := hT.connected.preconnected.degree_pos_of_nontrivial x
+    simp only [f, g]
+    split_ifs <;> omega
+  have hsub : (∑ x ∈ S, (f x + g x)) ≤ ∑ x, (f x + g x) :=
     Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ S) (fun x _ _ => hnn x)
-  have h5 : ∑ x ∈ S, ((T.degree x : ℤ) - 2) ≤
-      ∑ x ∈ S, (((T.degree x : ℤ) - 2) + (if T.degree x = 1 then (1 : ℤ) else 0)) :=
-    Finset.sum_le_sum (fun x _ => by split_ifs <;> omega)
-  have h6 : ∑ x, (((T.degree x : ℤ) - 2) + (if T.degree x = 1 then (1 : ℤ) else 0)) =
-      (2 * (Fintype.card α : ℤ) - 2) - 2 * Fintype.card α +
-        ((Finset.univ.filter fun x => T.degree x = 1).card : ℤ) := by
-    rw [Finset.sum_add_distrib, Finset.sum_sub_distrib, hsum, hcard]
-    simp [Finset.sum_const, Finset.card_univ]
-    ring
-  linarith
+  have hsmall : (∑ x ∈ S, f x) ≤ ∑ x ∈ S, (f x + g x) :=
+    Finset.sum_le_sum (fun x _ => by simp only [g]; split_ifs <;> omega)
+  have h := hsmall.trans hsub
+  simp only [Finset.sum_add_distrib, htotal, ← hcard] at h
+  omega
 
 /-- The number of leaves of a spanning tree of `G` is at most `Ls G`. -/
 lemma leaves_le_Ls {α : Type*} [Fintype α] [DecidableEq α] (G : SimpleGraph α)
@@ -163,22 +160,11 @@ lemma leaves_le_Ls {α : Type*} [Fintype α] [DecidableEq α] (G : SimpleGraph �
       exact e.isTree_iff.2 hT
     · show ((Finset.filter (fun v => (SimpleGraph.toSubgraph T hTG).degree v = 1)
         (SimpleGraph.toSubgraph T hTG).verts.toFinset).card : ℝ) = _
-      congr 1
-      apply Finset.card_bij (fun x _ => x)
-      · intro x hx
-        rw [Finset.mem_filter] at hx ⊢
-        refine ⟨Finset.mem_univ x, ?_⟩
-        rw [← hx.2]
-        exact (SimpleGraph.degree_toSubgraph G T hTG).symm
-      · intro x _ y _ h
-        exact h
-      · intro x hx
-        rw [Finset.mem_filter] at hx
-        refine ⟨x, ?_, rfl⟩
-        rw [Finset.mem_filter]
-        refine ⟨Set.mem_toFinset.2 (Set.mem_univ x), ?_⟩
-        rw [← hx.2]
-        exact SimpleGraph.degree_toSubgraph G T hTG
+      have hv : (SimpleGraph.toSubgraph T hTG).verts.toFinset = Finset.univ := by
+        ext x
+        exact ⟨fun _ => Finset.mem_univ x, fun _ => Set.mem_toFinset.2 (Set.mem_univ x)⟩
+      rw [hv]
+      simp_rw [SimpleGraph.degree_toSubgraph G T hTG]
 
 end OMAConjecture4
 

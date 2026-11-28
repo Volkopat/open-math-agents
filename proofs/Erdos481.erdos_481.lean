@@ -1,4 +1,5 @@
 import FormalConjectures.ErdosProblems.«481»
+import Mathlib.NumberTheory.Harmonic.Bounds
 
 -- Problem: Erdős Problem 481
 -- Upstream: formal-conjectures FormalConjectures/ErdosProblems/481.lean:57 (declaration Erdos481.erdos_481)
@@ -172,51 +173,6 @@ private lemma harmonic_subset_le (s : Finset ℕ) (m : ℕ) (hm : 0 < m)
   rw [hs_split, hu_split, Finset.inter_comm s u]
   linarith [hs_diff, hu_diff]
 
-private lemma harmonic_two_pow_le (N : ℕ) :
-    ∑ n ∈ Finset.Ico (1 : ℕ) (2 ^ N + 1), (1 : ℝ) / (n : ℝ) ≤ (N : ℝ) + 1 := by
-  induction N with
-  | zero =>
-    simp
-  | succ N ih =>
-    have h1 : (1 : ℕ) ≤ 2 ^ N + 1 := Nat.le_add_left 1 (2 ^ N)
-    have h2 : (2 ^ N + 1 : ℕ) ≤ 2 ^ (N + 1) + 1 :=
-      Nat.succ_le_succ (Nat.pow_le_pow_right (by decide) (Nat.le_succ N))
-    rw [← Finset.sum_Ico_consecutive (fun n : ℕ => (1 : ℝ) / (n : ℝ)) h1 h2]
-    have htail : ∑ n ∈ Finset.Ico (2 ^ N + 1 : ℕ) (2 ^ (N + 1) + 1), (1 : ℝ) / (n : ℝ) ≤ 1 := by
-      calc ∑ n ∈ Finset.Ico (2 ^ N + 1 : ℕ) (2 ^ (N + 1) + 1), (1 : ℝ) / (n : ℝ)
-          ≤ ∑ _n ∈ Finset.Ico (2 ^ N + 1 : ℕ) (2 ^ (N + 1) + 1), (1 : ℝ) / (2 ^ N : ℝ) := by
-            apply Finset.sum_le_sum
-            intro n hn
-            rw [Finset.mem_Ico] at hn
-            have hp : (0 : ℝ) < (2 ^ N : ℝ) := by positivity
-            have hnle : (2 ^ N : ℝ) ≤ (n : ℝ) := by exact_mod_cast (by omega : 2 ^ N ≤ n)
-            exact one_div_le_one_div_of_le hp hnle
-        _ = ((Finset.Ico (2 ^ N + 1 : ℕ) (2 ^ (N + 1) + 1)).card : ℝ) * ((1 : ℝ) / (2 ^ N : ℝ)) := by
-            simp
-        _ = 1 := by
-            have hcard : (Finset.Ico (2 ^ N + 1 : ℕ) (2 ^ (N + 1) + 1)).card = 2 ^ N := by
-              rw [Nat.card_Ico, pow_succ]
-              omega
-            rw [hcard]
-            have hp : (2 ^ N : ℝ) ≠ 0 := by positivity
-            push_cast
-            field_simp
-    push_cast
-    linarith
-
-private lemma bernoulli_le (ε : ℝ) (hε : 0 ≤ ε) (m : ℕ) :
-    1 + (m : ℝ) * ε ≤ (1 + ε) ^ m := by
-  induction m with
-  | zero => simp
-  | succ m ih =>
-    have h1 : 0 ≤ (m : ℝ) * ε ^ 2 := by positivity
-    calc 1 + ((m + 1 : ℕ) : ℝ) * ε
-        = 1 + (m : ℝ) * ε + ε := by push_cast; ring
-      _ ≤ 1 + (m : ℝ) * ε + ε + (m : ℝ) * ε ^ 2 := le_add_of_nonneg_right h1
-      _ = (1 + (m : ℝ) * ε) * (1 + ε) := by ring
-      _ ≤ (1 + ε) ^ m * (1 + ε) := mul_le_mul_of_nonneg_right ih (by linarith)
-      _ = (1 + ε) ^ (m + 1) := (pow_succ (1 + ε) m).symm
-
 theorem OMA.solution : type_of% @Erdos481.erdos_481 := by
   intro r a b ha hab
   have hr : 0 < r := by
@@ -265,17 +221,17 @@ theorem OMA.solution : type_of% @Erdos481.erdos_481 := by
       exact (pairs_bound a b ha k p hp).1
     have h1 := harmonic_subset_le ((Erdos481.T a b)^[k] [1]).toFinset (r ^ k)
       (pow_pos hr k) hcard hpos
-    have hrk : r ^ k ≤ 2 ^ (r * k) := by
-      calc r ^ k ≤ (2 ^ r) ^ k := Nat.pow_le_pow_left Nat.lt_two_pow_self.le k
-        _ = 2 ^ (r * k) := (pow_mul 2 r k).symm
-    have h2 : ∑ n ∈ Finset.Ico (1 : ℕ) (r ^ k + 1), (1 : ℝ) / (n : ℝ) ≤
-        ∑ n ∈ Finset.Ico (1 : ℕ) (2 ^ (r * k) + 1), (1 : ℝ) / (n : ℝ) := by
-      apply Finset.sum_le_sum_of_subset_of_nonneg
-      · exact Finset.Ico_subset_Ico_right (Nat.succ_le_succ hrk)
-      · intro n _ _
-        positivity
-    have h3 := harmonic_two_pow_le (r * k)
-    linarith
+    have harmonic_bound := harmonic_le_one_add_log (r ^ k)
+    simp only [harmonic_eq_sum_Icc, Rat.cast_sum, Rat.cast_inv, Rat.cast_natCast,
+      Nat.cast_pow, Real.log_pow] at harmonic_bound
+    rw [Finset.Ico_add_one_right_eq_Icc] at h1
+    simp only [one_div] at h1
+    have hlog : Real.log (r : ℝ) ≤ r :=
+      (Real.log_le_sub_one_of_pos (by exact_mod_cast hr)).trans (by linarith)
+    push_cast
+    simp only [one_div]
+    nlinarith only [h1.trans harmonic_bound,
+      mul_le_mul_of_nonneg_left hlog (Nat.cast_nonneg k)]
   have hS_upper : S ^ k ≤ (((r * k : ℕ) : ℝ) + 1) * (1 + (k : ℝ) * (B : ℝ)) := by
     have hden : (0 : ℝ) < 1 + (k : ℝ) * (B : ℝ) := by positivity
     have hcomb := hlower.trans hupper
@@ -300,7 +256,7 @@ theorem OMA.solution : type_of% @Erdos481.erdos_481 := by
     have hb : 1 + (m : ℝ) * ε ≤ S ^ m := by
       have hS_eq : S = 1 + ε := by dsimp [ε]; ring
       rw [hS_eq]
-      exact bernoulli_le ε hε.le m
+      exact one_add_mul_le_pow (by linarith) m
     have hme : (m : ℝ) * ε ≤ S ^ m := by linarith
     have hpow : ((m : ℝ) * ε) ^ 3 ≤ (S ^ m) ^ 3 :=
       pow_le_pow_left₀ (by positivity) hme 3

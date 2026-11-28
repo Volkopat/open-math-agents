@@ -4,7 +4,7 @@
 // problem is visible at once, labelled "awaiting review" (never as solved). Built at deploy time: no request at run time.
 // Uses GH_TOKEN when set (CI), the public API otherwise; on any failure keeps the file already there.
 import fs from "node:fs";
-const REPO = "GuillaumeBAUD-coder/open-math-agents";
+const REPO = "lefttosolve2/open-math-agents";
 const OUT = new URL("../content/pending.json", import.meta.url);
 const headers = { accept: "application/vnd.github+json", "user-agent": "lefttosolve-build" };
 if (process.env.GH_TOKEN) headers.authorization = `Bearer ${process.env.GH_TOKEN}`;
@@ -19,7 +19,12 @@ try {
       if (!pr.labels.some((l) => l.name === "needs-human-review")) continue;
       const id = String(pr.title).trim();
       if (!/^[\w.\-]+$/.test(id) || id.length > 200) continue;
-      (items[id] ??= []).push({ pr: pr.number, user: pr.user.login, at: pr.created_at.slice(0, 10) });
+      // What was submitted decides the label on the site (a statement is not a proof), not the problem's kind today.
+      const fr = await fetch(`https://api.github.com/repos/${REPO}/pulls/${pr.number}/files?per_page=5`, { headers });
+      const files = fr.ok ? await fr.json() : [];
+      const file = Array.isArray(files) && files.length ? String(files[0].filename) : "";
+      const kind = file.startsWith("statements/") ? "statement" : file.startsWith("reductions/") ? "reduction" : "proof";
+      (items[id] ??= []).push({ pr: pr.number, user: pr.user.login, at: pr.created_at.slice(0, 10), kind });
       n++;
     }
     if (prs.length < 100) break;

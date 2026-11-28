@@ -1,6 +1,9 @@
 import FormalConjectures.Wikipedia.NoetherProblem
 
 /-!
+Original proof by @Volkopat (PR #3542); transcendence-basis helpers simplified
+using Mathlib.
+
 Proof of NoetherProblem.noether_problem.variants.three:
 For any field K and any subgroup H of K-automorphisms of K(X_0, X_1, X_2) permuting the 3
 indeterminates, the fixed field L^H is purely transcendental over K (in every characteristic).
@@ -86,225 +89,26 @@ private lemma mem_intermediateField_of_mem_X {K : Type} [Field K]
 
 private lemma xFun_isTranscendenceBasis (K : Type) [Field K] :
     IsTranscendenceBasis K (fun i : Fin 3 => algebraMap (A3 K) (FR3 K) (X i)) := by
-  set xFun : Fin 3 → FR3 K := fun i => algebraMap (A3 K) (FR3 K) (X i)
-  have hind : AlgebraicIndependent K xFun := by
-    rw [algebraicIndependent_iff_injective_aeval]
-    have hcomp : MvPolynomial.aeval xFun = IsScalarTower.toAlgHom K (A3 K) (FR3 K) := by
-      ext i; simp [xFun]
-    rw [hcomp]
-    exact IsFractionRing.injective (A3 K) (FR3 K)
-  rw [hind.isTranscendenceBasis_iff_isAlgebraic]
-  constructor
-  intro y
-  obtain ⟨a, b, hb, rfl⟩ := IsFractionRing.div_surjective (A := A3 K) y
-  have hmem : ∀ p : A3 K, algebraMap (A3 K) (FR3 K) p ∈ Algebra.adjoin K (Set.range xFun) := by
-    intro p
-    induction p using MvPolynomial.induction_on with
-    | C k =>
-      change algebraMap (A3 K) (FR3 K) (algebraMap K (A3 K) k) ∈ _
-      rw [← IsScalarTower.algebraMap_apply K (A3 K) (FR3 K)]
-      exact Subalgebra.algebraMap_mem _ k
-    | add p q hp hq => rw [map_add]; exact Subalgebra.add_mem _ hp hq
-    | mul_X p i hp =>
-      rw [map_mul]
-      exact Subalgebra.mul_mem _ hp (Algebra.subset_adjoin ⟨i, rfl⟩)
-  have hb0 : algebraMap (A3 K) (FR3 K) b ≠ 0 := by
-    intro h
-    exact nonZeroDivisors.ne_zero hb (IsFractionRing.injective (A3 K) (FR3 K) (h.trans (map_zero _).symm))
-  refine ⟨Polynomial.C ⟨algebraMap (A3 K) (FR3 K) b, hmem b⟩ * Polynomial.X -
-    Polynomial.C ⟨algebraMap (A3 K) (FR3 K) a, hmem a⟩, ?_, ?_⟩
-  · intro h0
-    have hc := congrArg (fun q => Polynomial.coeff q 1) h0
-    simp only [Polynomial.coeff_sub, Polynomial.coeff_C_mul_X, Polynomial.coeff_C,
-      one_ne_zero, ↓reduceIte, sub_zero, Polynomial.coeff_zero] at hc
-    exact hb0 (congrArg Subtype.val hc)
-  · simp only [map_sub, map_mul, Polynomial.aeval_C, Polynomial.aeval_X]
-    change algebraMap (A3 K) (FR3 K) b * (algebraMap (A3 K) (FR3 K) a / algebraMap (A3 K) (FR3 K) b) -
-      algebraMap (A3 K) (FR3 K) a = 0
-    rw [mul_div_cancel₀ _ hb0, sub_self]
+  have : Algebra.IsAlgebraic (A3 K) (FR3 K) :=
+    IsLocalization.isAlgebraic _ (nonZeroDivisors (A3 K))
+  exact (IsTranscendenceBasis.mvPolynomial (Fin 3) K).algebraMap_comp
 
+open scoped IntermediateField.algebraAdjoinAdjoin in
 private lemma algebraicIndependent_of_isAlgebraic_adjoin {K : Type} [Field K]
     (f : Fin 3 → FR3 K)
     (halg : Algebra.IsAlgebraic (IntermediateField.adjoin K (Set.range f)) (FR3 K)) :
     AlgebraicIndependent K f := by
-  classical
-  set S := Algebra.adjoin K (Set.range f)
-  set E := IntermediateField.adjoin K (Set.range f)
-  have hS_le_E : S ≤ E.toSubalgebra := by
-    rw [Algebra.adjoin_le_iff]
-    exact IntermediateField.subset_adjoin K (Set.range f)
-  have hE_sub : ∀ y ∈ E, ∃ a ∈ S, ∃ b ∈ S, b ≠ 0 ∧ y = a / b := by
-    let E' : IntermediateField K (FR3 K) :=
-      { carrier := {y : FR3 K | ∃ a ∈ S, ∃ b ∈ S, b ≠ 0 ∧ y = a / b}
-        mul_mem' := by
-          rintro _ _ ⟨a1, ha1, b1, hb1, hb10, rfl⟩ ⟨a2, ha2, b2, hb2, hb20, rfl⟩
-          exact ⟨a1 * a2, S.mul_mem ha1 ha2, b1 * b2, S.mul_mem hb1 hb2, mul_ne_zero hb10 hb20,
-            by ring⟩
-        one_mem' := ⟨1, S.one_mem, 1, S.one_mem, one_ne_zero, by simp⟩
-        add_mem' := by
-          rintro _ _ ⟨a1, ha1, b1, hb1, hb10, rfl⟩ ⟨a2, ha2, b2, hb2, hb20, rfl⟩
-          exact ⟨a1 * b2 + a2 * b1, S.add_mem (S.mul_mem ha1 hb2) (S.mul_mem ha2 hb1),
-            b1 * b2, S.mul_mem hb1 hb2, mul_ne_zero hb10 hb20, by field_simp⟩
-        zero_mem' := ⟨0, S.zero_mem, 1, S.one_mem, one_ne_zero, by simp⟩
-        inv_mem' := by
-          rintro _ ⟨a, ha, b, hb, hb0, rfl⟩
-          by_cases ha0 : a = 0
-          · subst ha0; exact ⟨0, S.zero_mem, 1, S.one_mem, one_ne_zero, by simp⟩
-          · exact ⟨b, hb, a, ha, ha0, by rw [inv_div]⟩
-        algebraMap_mem' := fun k => ⟨algebraMap K (FR3 K) k, S.algebraMap_mem k, 1, S.one_mem,
-          one_ne_zero, by simp⟩ }
-    have hle : E ≤ E' := by
-      rw [IntermediateField.adjoin_le_iff]
-      rintro y ⟨i, rfl⟩
-      exact ⟨f i, Algebra.subset_adjoin ⟨i, rfl⟩, 1, S.one_mem, one_ne_zero, by simp⟩
-    exact fun y hy => hle hy
-  letI : Algebra S E := (Subalgebra.inclusion hS_le_E).toRingHom.toAlgebra
-  haveI : IsScalarTower S E (FR3 K) := IsScalarTower.of_algebraMap_eq (fun _ => rfl)
-  have hS_alg_E : Algebra.IsAlgebraic S E := by
-    constructor
-    intro y
-    obtain ⟨a, ha, b, hb, hb0, hy⟩ := hE_sub y.1 y.2
-    refine ⟨Polynomial.C ⟨b, hb⟩ * Polynomial.X - Polynomial.C ⟨a, ha⟩, ?_, ?_⟩
-    · intro h0
-      have hc := congrArg (fun q => Polynomial.coeff q 1) h0
-      simp only [Polynomial.coeff_sub, Polynomial.coeff_C_mul_X, Polynomial.coeff_C,
-        one_ne_zero, ↓reduceIte, sub_zero, Polynomial.coeff_zero] at hc
-      exact hb0 (congrArg Subtype.val hc)
-    · apply Subtype.ext
-      simp only [map_sub, map_mul, Polynomial.aeval_C, Polynomial.aeval_X]
-      change b * y.1 - a = 0
-      rw [hy, mul_div_cancel₀ _ hb0, sub_self]
-  have hSE : Algebra.IsAlgebraic S (FR3 K) := Algebra.IsAlgebraic.trans S E (FR3 K)
-  obtain ⟨t, ht_sub, ht_basis⟩ := exists_isTranscendenceBasis_subset (R := K) (Set.range f)
-  have hcard_t : Cardinal.mk t = 3 := by
-    have h1 := ht_basis.lift_cardinalMk_eq_trdeg
-    have h2 := (xFun_isTranscendenceBasis K).lift_cardinalMk_eq_trdeg
-    simp only [Cardinal.lift_id] at h1 h2
-    rw [h1, ← h2]
-    simp
-  have hfin_range : (Set.range f).Finite := Set.finite_range f
-  have hfin_t : t.Finite := hfin_range.subset ht_sub
-  letI : Fintype t := hfin_t.fintype
-  have ht_card_nat : Fintype.card t = 3 := by
-    have : (Fintype.card t : Cardinal) = 3 := by
-      rw [← Cardinal.mk_fintype]; exact hcard_t
-    exact_mod_cast this
-  have hcard_le : Fintype.card t ≤ (Finset.univ.image f).card := by
-    have : t.toFinset ⊆ Finset.univ.image f := by
-      intro x hx
-      rw [Set.mem_toFinset] at hx
-      obtain ⟨i, rfl⟩ := ht_sub hx
-      exact Finset.mem_image_of_mem f (Finset.mem_univ i)
-    calc Fintype.card t = t.toFinset.card := (Set.toFinset_card t).symm
-      _ ≤ (Finset.univ.image f).card := Finset.card_le_card this
-  have himg_card : (Finset.univ.image f).card = 3 := by
-    have hle3 : (Finset.univ.image f).card ≤ 3 := by
-      calc (Finset.univ.image f).card ≤ (Finset.univ : Finset (Fin 3)).card := Finset.card_image_le
-        _ = 3 := by simp
-    omega
-  have hfinj : Function.Injective f := by
-    have : (Finset.univ.image f).card = (Finset.univ : Finset (Fin 3)).card := by
-      rw [himg_card]; simp
-    have hinjOn := Finset.injOn_of_card_image_eq this
-    intro i j hij
-    exact hinjOn (Finset.mem_univ i) (Finset.mem_univ j) hij
-  have ht_eq : t = Set.range f := by
-    have hsub_fin : t.toFinset ⊆ Finset.univ.image f := by
-      intro x hx
-      rw [Set.mem_toFinset] at hx
-      obtain ⟨i, rfl⟩ := ht_sub hx
-      exact Finset.mem_image_of_mem f (Finset.mem_univ i)
-    have hcard_eq : t.toFinset.card = (Finset.univ.image f).card := by
-      rw [Set.toFinset_card, ht_card_nat, himg_card]
-    have heq_fin := Finset.eq_of_subset_of_card_le hsub_fin (le_of_eq hcard_eq.symm)
-    ext x
-    constructor
-    · exact fun hx => ht_sub hx
-    · intro hx
-      have : x ∈ Finset.univ.image f := by
-        obtain ⟨i, rfl⟩ := hx; exact Finset.mem_image_of_mem f (Finset.mem_univ i)
-      rw [← heq_fin, Set.mem_toFinset] at this
-      exact this
-  let e_t : Fin 3 ≃ t :=
-    Equiv.ofBijective (fun i => ⟨f i, ht_eq ▸ ⟨i, rfl⟩⟩)
-      ⟨fun i j h => hfinj (congrArg Subtype.val h),
-       fun ⟨x, hx⟩ => by
-         rw [ht_eq] at hx
-         obtain ⟨i, rfl⟩ := hx
-         exact ⟨i, rfl⟩⟩
-  rw [algebraicIndependent_iff_injective_aeval]
-  have hcomp : MvPolynomial.aeval f =
-      (MvPolynomial.aeval ((↑) : t → FR3 K)).comp (MvPolynomial.renameEquiv K e_t).toAlgHom := by
-    apply MvPolynomial.algHom_ext
-    intro i
-    change MvPolynomial.aeval f (X i) = MvPolynomial.aeval ((↑) : t → FR3 K) (rename e_t (X i))
-    rw [MvPolynomial.aeval_X, MvPolynomial.rename_X, MvPolynomial.aeval_X]
-    rfl
-  rw [hcomp]
-  intro p q hpq
-  exact (MvPolynomial.renameEquiv K e_t).injective (ht_basis.1 (by simpa [AlgHom.comp_apply] using hpq))
+  have : Algebra.IsAlgebraic (Algebra.adjoin K (Set.range f)) (FR3 K) :=
+    Algebra.IsAlgebraic.trans _ (IntermediateField.adjoin K (Set.range f)) _
+  apply (Algebra.IsAlgebraic.isTranscendenceBasis_of_le_trdeg_of_finite K f ?_).1
+  have htr := (xFun_isTranscendenceBasis K).lift_cardinalMk_eq_trdeg
+  simpa only [Cardinal.lift_id] using htr.le
 
 private lemma isRational_of_adjoin_fin3 {K : Type} [Field K]
     (f : Fin 3 → FR3 K)
     (halg : Algebra.IsAlgebraic (IntermediateField.adjoin K (Set.range f)) (FR3 K)) :
     IsRationalExtension K (IntermediateField.adjoin K (Set.range f)) (Fin 3) := by
-  classical
-  set E := IntermediateField.adjoin K (Set.range f)
-  have hind : AlgebraicIndependent K f := algebraicIndependent_of_isAlgebraic_adjoin f halg
-  have hind_inj : Function.Injective (MvPolynomial.aeval f) := hind
-  let g : A3 K →ₐ[K] E := MvPolynomial.aeval (fun i => (⟨f i, IntermediateField.subset_adjoin K _ ⟨i, rfl⟩⟩ : E))
-  have hg_comp : E.val.comp g = MvPolynomial.aeval f := by
-    ext i; simp [g]
-  have hg_val : ∀ p : A3 K, (g p : FR3 K) = MvPolynomial.aeval f p := fun p =>
-    congrArg (fun h : A3 K →ₐ[K] FR3 K => h p) hg_comp
-  have ginj : Function.Injective g := by
-    intro p q hpq
-    have h1 : (g p : FR3 K) = g q := congrArg Subtype.val hpq
-    rw [hg_val, hg_val] at h1
-    exact hind_inj h1
-  letI : Algebra (A3 K) E := g.toRingHom.toAlgebra
-  have hgalg : ∀ p : A3 K, algebraMap (A3 K) E p = g p := fun _ => rfl
-  have : FaithfulSMul (A3 K) E := (faithfulSMul_iff_algebraMap_injective (A3 K) E).mpr ginj
-  have hsurj : ∀ z : E, ∃ x y : A3 K, z = algebraMap (A3 K) E x / algebraMap (A3 K) E y := by
-    let E' : IntermediateField K (FR3 K) :=
-      { carrier := {y : FR3 K | ∃ p q : A3 K, q ≠ 0 ∧ y = MvPolynomial.aeval f p / MvPolynomial.aeval f q}
-        mul_mem' := by
-          rintro _ _ ⟨p1, q1, hq1, rfl⟩ ⟨p2, q2, hq2, rfl⟩
-          exact ⟨p1 * p2, q1 * q2, mul_ne_zero hq1 hq2, by simp [map_mul]; ring⟩
-        one_mem' := ⟨1, 1, one_ne_zero, by simp⟩
-        add_mem' := by
-          rintro _ _ ⟨p1, q1, hq1, rfl⟩ ⟨p2, q2, hq2, rfl⟩
-          have hq1' : MvPolynomial.aeval f q1 ≠ 0 := by
-            intro h; exact hq1 (hind_inj (h.trans (map_zero _).symm))
-          have hq2' : MvPolynomial.aeval f q2 ≠ 0 := by
-            intro h; exact hq2 (hind_inj (h.trans (map_zero _).symm))
-          exact ⟨p1 * q2 + p2 * q1, q1 * q2, mul_ne_zero hq1 hq2, by
-            simp only [map_add, map_mul]; field_simp⟩
-        zero_mem' := ⟨0, 1, one_ne_zero, by simp⟩
-        inv_mem' := by
-          rintro _ ⟨p, q, hq, rfl⟩
-          by_cases hp : p = 0
-          · subst hp; exact ⟨0, 1, one_ne_zero, by simp⟩
-          · exact ⟨q, p, hp, by rw [inv_div]⟩
-        algebraMap_mem' := fun k => ⟨C k, 1, one_ne_zero, by simp⟩ }
-    have hle : E ≤ E' := by
-      rw [IntermediateField.adjoin_le_iff]
-      rintro y ⟨i, rfl⟩
-      exact ⟨X i, 1, one_ne_zero, by simp⟩
-    intro z
-    obtain ⟨p, q, hq, hz⟩ := hle z.2
-    refine ⟨p, q, ?_⟩
-    apply Subtype.ext
-    rw [IntermediateField.coe_div, hgalg, hgalg, hg_val, hg_val, hz]
-  have : IsFractionRing (A3 K) E := IsFractionRing.of_field (A3 K) E hsurj
-  let eqv : FR3 K ≃ₐ[A3 K] E := IsLocalization.algEquiv (nonZeroDivisors (A3 K)) (FR3 K) E
-  have hcomm : ∀ k : K, eqv.toRingEquiv (algebraMap K (FR3 K) k) = algebraMap K E k := by
-    intro k
-    rw [IsScalarTower.algebraMap_apply K (A3 K) (FR3 K) k]
-    change eqv (algebraMap (A3 K) (FR3 K) (algebraMap K (A3 K) k)) = _
-    rw [AlgEquiv.commutes, hgalg]
-    exact g.commutes k
-  exact ⟨⟨(AlgEquiv.ofRingEquiv (f := eqv.toRingEquiv) hcomm).symm⟩⟩
+  exact ⟨⟨(algebraicIndependent_of_isAlgebraic_adjoin f halg).aevalEquivField.symm⟩⟩
 
 private lemma intermediateField_eq_of_finrank_le {K L : Type*} [Field K] [Field L] [Algebra K L]
     {E F : IntermediateField K L} (hEF : E ≤ F) [FiniteDimensional E L]

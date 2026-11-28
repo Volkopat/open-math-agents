@@ -1,9 +1,9 @@
 import FormalConjectures.OEIS.«60841»
 
--- Problem: Numerator of $1/\det(M)$ for $M[i,j] = 1/\operatorname{lcm}(i,j)$
--- Upstream: formal-conjectures FormalConjectures/OEIS/60841.lean:76 (declaration OeisA60841.conjecture1)
--- Credit: @sho-404 (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+/-! Smith determinant and a 2-adic obstruction for the reciprocal lcm matrix. -/
+
+-- Original Lean proof by @sho-404 (PR #766).
+-- Rational denominator and factorial-product helpers now use Mathlib.
 --
 -- Proof outline.
 -- (1) Smith determinant: lcmMatrix n = D * (L * diag(phi) * L^T) * D with D = diag(1/i) and
@@ -223,7 +223,7 @@ theorem dvd_iff (n : ℕ) (hn : 1 ≤ n) : P n ∣ n.factorial ^ 2 ↔ (n ≤ 34
     · intro h1
       omega
 
-/-! Smith determinant -/
+/- Smith determinant -/
 
 theorem gcd_sum (n i j : ℕ) (hi : i < n) :
     (∑ d ∈ range n, if (d + 1) ∣ (i + 1) ∧ (d + 1) ∣ (j + 1) then (d + 1).totient else 0) =
@@ -308,12 +308,7 @@ theorem lcm_factor (n : ℕ) : OeisA60841.lcmMatrix n =
 
 theorem prod_fact (n : ℕ) : (∏ i : Fin n, ((i.val : ℚ) + 1)) = (n.factorial : ℚ) := by
   rw [Fin.prod_univ_eq_prod_range (fun i => ((i : ℚ) + 1)) n]
-  induction n with
-  | zero => simp
-  | succ n ih =>
-    rw [Finset.prod_range_succ, ih, Nat.factorial_succ]
-    push_cast
-    ring
+  exact_mod_cast Finset.prod_range_add_one_eq_factorial n
 
 theorem prod_tot (n : ℕ) : (∏ d : Fin n, (((d.val + 1).totient : ℕ) : ℚ)) = (P n : ℚ) := by
   rw [Fin.prod_univ_eq_prod_range (fun d => (((d + 1).totient : ℕ) : ℚ)) n]
@@ -336,30 +331,12 @@ theorem det_inv (n : ℕ) :
   push_cast
   field_simp
 
-theorem den_iff (a b : ℕ) (hb : b ≠ 0) : ((a : ℚ) / (b : ℚ)).den = 1 ↔ b ∣ a := by
-  have hbq : (b : ℚ) ≠ 0 := Nat.cast_ne_zero.mpr hb
-  constructor
-  · intro h
-    have h1 : (((a : ℚ) / (b : ℚ)).num : ℚ) = (a : ℚ) / (b : ℚ) := Rat.coe_int_num_of_den_eq_one h
-    have h2 : (a : ℚ) = ((((a : ℚ) / (b : ℚ)).num * (b : ℤ) : ℤ) : ℚ) := by
-      push_cast
-      rw [h1]
-      field_simp
-    have h3 : (a : ℤ) = ((a : ℚ) / (b : ℚ)).num * (b : ℤ) := by exact_mod_cast h2
-    have h4 : (b : ℤ) ∣ (a : ℤ) := Dvd.intro_left _ h3.symm
-    exact Int.natCast_dvd_natCast.mp h4
-  · rintro ⟨c, rfl⟩
-    have : ((b * c : ℕ) : ℚ) / (b : ℚ) = ((c : ℕ) : ℚ) := by
-      push_cast
-      field_simp
-    rw [this]
-    exact Rat.den_natCast c
 
 end OMA
 
 theorem OMA.solution : type_of% @OeisA60841.conjecture1 := by
   intro n hn
-  rw [OMA.det_inv, OMA.den_iff _ _ (OMA.P_ne_zero n), OMA.dvd_iff n hn]
+  rw [OMA.det_inv, Rat.den_div_natCast_eq_one_iff _ _ (OMA.P_ne_zero n), OMA.dvd_iff n hn]
   simp only [OeisA60841.integerDetN, Set.mem_union, Set.mem_Icc, Set.mem_insert_iff,
     Set.mem_singleton_iff]
   omega

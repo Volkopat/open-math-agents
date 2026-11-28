@@ -1,23 +1,9 @@
 import FormalConjectures.OEIS.«181082»
 
-open PowerSeries OeisA181082
+open PowerSeries OeisA181082 Finset
 
 theorem OMA.solution : type_of% @OeisA181082.a_2 := by
-  let g := hannaLog fun n k => if k ≤ n then (n.choose k : ℤ) ^ (n + k) else 0
-  change coeff 2 (subst g (exp ℚ)) = 2
-  have h0 : constantCoeff g = 0 := by simp [g, hannaLog]
-  have h1 : coeff 1 g = 1 := by simp [g, hannaLog, coeff_mk]
-  have h2 : coeff 2 g = 3 / 2 := by
-    norm_num [g, hannaLog, coeff_mk, Finset.sum_Icc_succ_top]
-  have hsq : coeff 2 (g ^ 2) = 1 := by
-    rw [pow_two, coeff_mul, Finset.Nat.antidiagonal_succ_succ']
-    simp [coeff_zero_eq_constantCoeff_apply, h0, h1, h2]
-  rw [coeff_subst' (HasSubst.of_constantCoeff_zero' h0),
-    finsum_eq_sum_of_support_subset (s := Finset.range 3)]
-  · norm_num [Finset.sum_range_succ, coeff_exp, h2, hsq, Nat.factorial]
-  · intro d hd
-    by_contra! hout
-    have hdiv := pow_dvd_pow_of_dvd (X_dvd_iff.mpr h0) d
-    have hd3 : 3 ≤ d := by simpa using hout
-    have hvanish := X_pow_dvd_iff.mp hdiv 2 (by omega)
-    exact hd (by simp [hvanish])
+  rw [a, hannaExp, coeff_subst' ⟨1, rfl⟩,
+    finsum_eq_sum_of_support_subset _ (s := {0,1,2}) fun d ↦ Not.imp_symm fun h ↦ by
+      simp [X_pow_dvd_iff.1 (pow_dvd_pow_of_dvd (X_dvd_iff.2 rfl : X ∣ hannaLog _) d) 2 (by grind)]]
+  norm_num [pow_succ, coeff_mul, Nat.antidiagonal_succ, hannaLog, sum_Icc_succ_top]

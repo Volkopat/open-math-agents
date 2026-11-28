@@ -15,48 +15,6 @@ theorem f_mem (n : ℕ) : Erdos711.HasDivisibleDistinctTuple n n (f n) := by
     ⟨n ^ 2 + 1, hasDivisibleDistinctTuple_sq n⟩
   exact Nat.sInf_mem h
 
-theorem solH2 : OMA.R_Erdos710_erdos_710_variants_lower_bound_R1.H2 := by
-  unfold OMA.R_Erdos710_erdos_710_variants_lower_bound_R1.H2
-  intro m y B h
-  by_contra hlt
-  have hlt' : m + f m < B := not_le.mp hlt
-  obtain ⟨a, ha_inj, ha⟩ := f_mem m
-  classical
-  let g : ℕ → ℕ := fun d => if hd : 1 ≤ d ∧ d ≤ m then a ⟨d - 1, by omega⟩ else 0
-  have hmaps : ∀ d ∈ (Icc 1 m).filter (fun d => d ∈ Nat.smoothNumbers y ∧ B < d*y),
-      g d ∈ (Ioc m B).filter (· ∈ Nat.smoothNumbers y) := by
-    intro d hd
-    simp only [Finset.mem_filter, Finset.mem_Icc] at hd
-    obtain ⟨⟨hd1, hdm⟩, hsm, hBd⟩ := hd
-    have hg : g d = a ⟨d - 1, by omega⟩ := by simp only [g]; rw [dif_pos ⟨hd1, hdm⟩]
-    obtain ⟨h1, h2, h3⟩ := ha ⟨d - 1, by omega⟩
-    simp only at h3
-    rw [show d - 1 + 1 = d by omega] at h3
-    rw [hg]
-    simp only [Finset.mem_filter, Finset.mem_Ioc]
-    refine ⟨⟨h1, by omega⟩, ?_⟩
-    obtain ⟨c, hc⟩ := h3
-    rw [hc]
-    have hc0 : 0 < c := by
-      rcases Nat.eq_zero_or_pos c with h0 | h0
-      · rw [h0, mul_zero] at hc; omega
-      · exact h0
-    have hcy : c < y := by
-      by_contra hge
-      have : d * y ≤ d * c := Nat.mul_le_mul_left d (not_lt.mp hge)
-      omega
-    exact Nat.mul_mem_smoothNumbers hsm (Nat.mem_smoothNumbers_of_lt hc0 hcy)
-  have hinj : Set.InjOn g ((Icc 1 m).filter (fun d => d ∈ Nat.smoothNumbers y ∧ B < d*y) : Set ℕ) := by
-    intro d1 hd1 d2 hd2 heq
-    rw [Finset.mem_coe, Finset.mem_filter, Finset.mem_Icc] at hd1 hd2
-    simp only [g] at heq
-    rw [dif_pos hd1.1, dif_pos hd2.1] at heq
-    have := ha_inj heq
-    simp only [Fin.mk.injEq] at this
-    omega
-  have := Finset.card_le_card_of_injOn g hmaps hinj
-  omega
-
 theorem solH3 : OMA.R_Erdos710_erdos_710_variants_lower_bound_R1.H3 := by
   unfold OMA.R_Erdos710_erdos_710_variants_lower_bound_R1.H3
   intro n m k hm hk hkm

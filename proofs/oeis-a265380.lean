@@ -78,13 +78,7 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a265380.main := by
     coeff_one, coeff_X, coeff_X_pow]
   simp only [nsmul_eq_mul, Nat.cast_ofNat]
   by_cases h : 4 < n
-  · have h1 : 1 ≤ n := by omega
-    have h4 : 4 ≤ n := by omega
-    have h5 : 5 ≤ n := by omega
-    have h0' : n ≠ 0 := by omega
-    have h1' : n ≠ 1 := by omega
-    have h2' : n ≠ 2 := by omega
-    simp only [h1, h4, h5, h0', h1', h2', if_true, if_false, zero_add]
+  · simp (disch := omega) only [if_pos, if_neg, zero_add]
     have hr : (a n : ℚ) = 10 * (a (n-1) : ℚ) + (a (n-4) : ℚ) - 10 * (a (n-5) : ℚ) := by
       exact_mod_cast recurrence n h
     linarith

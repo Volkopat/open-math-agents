@@ -1,0 +1,20 @@
+{
+ "about": "Catalogue entries that are not open problems: remarks stated as facts in their source, or one-line consequences of the definitions, found by the statement reviews. Listed as known results; the desk does not hand them out.",
+ "entries": {
+  "oeis-a004767": {
+   "reason": "Kline's 'Collatz ascenders' remark is the elementary fact that an odd m ascends exactly when m ≡ 3 mod 4 (the companion of oeis-a016813, flagged by the second review); not an open problem.",
+   "source": "https://oeis.org/A004767",
+   "date": "2026-11-28"
+  },
+  "oeis-a192069": {
+   "reason": "Defined as A192249/5, and Mathar's conjectured generating function is A192249's divided by 5; the A192249 conjecture is already proved on this site (oeis-a192249), so this is a one-line consequence, not a new open problem (found by the second review).",
+   "source": "https://oeis.org/A192069",
+   "date": "2026-11-28"
+  },
+  "oeis-a057030": {
+   "reason": "The same conjecture as oeis-a007062, already proved on this site (found by the second review); not a new open problem.",
+   "source": "https://oeis.org/A057030",
+   "date": "2026-11-28"
+  }
+ }
+}

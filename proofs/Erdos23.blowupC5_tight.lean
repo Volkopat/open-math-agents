@@ -25,18 +25,7 @@ theorem recover {n : ℕ} [NeZero n] {p q : Fin n × Fin n} {i j : Fin 5}
     subst j
     have h₁ := congrArg Prod.snd hx
     have h₂ := congrArg Prod.snd hy
-    fin_cases i
-    · exact Prod.ext h₁ h₂
-    · exact Prod.ext h₂ h₁
-    · exact Prod.ext h₁ h₂
-    · have hb : p.2 = q.2 := h₁
-      have hs : p.1 + p.2 = q.1 + q.2 := h₂
-      rw [hb] at hs
-      exact Prod.ext (add_right_cancel hs) hb
-    · have ha : p.1 = q.1 := h₂
-      have hs : p.1 + p.2 = q.1 + q.2 := h₁
-      rw [ha] at hs
-      exact Prod.ext ha (add_left_cancel hs)
+    fin_cases i <;> simp_all [vertex, Prod.ext_iff]
   · have h₁ : i = j + 1 := congrArg Prod.fst hx
     have h₂ : i + 1 = j := congrArg Prod.fst hy
     exact False.elim ((by decide : ∀ a b : Fin 5, a = b + 1 → a + 1 ≠ b) i j h₁ h₂)

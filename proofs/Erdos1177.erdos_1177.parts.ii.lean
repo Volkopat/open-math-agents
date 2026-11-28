@@ -297,65 +297,6 @@ theorem exists_injective_avoiding {A : Type} [Finite A] {W : Type u} (g : A → 
   exact ⟨fun x => (e2 (e x)).1, fun a b hab => e.injective (e2.injective (Subtype.ext hab)),
     fun x hx => (ht_sub (e2 (e x)).2) hx⟩
 
-theorem FTS.embeds_of_reduce_embeds (F : FTS) {W : Type u} [Infinite W]
-    {H : Hypergraph W} (h : F.reduce.Embeds H) : F.Embeds H := by
-  classical
-  obtain ⟨g, hg, hge⟩ := h
-  obtain ⟨emb, hemb_inj, hemb_range⟩ := exists_injective_avoiding g {x : F.V // F.Isolated x}
-  set f : F.V → W := fun x => if hx : ¬ F.Isolated x then g ⟨x, hx⟩ else emb ⟨x, not_not.mp hx⟩
-    with hf
-  refine ⟨f, ?_, ?_⟩
-  · intro a b hab
-    simp only [hf] at hab
-    by_cases ha : ¬ F.Isolated a <;> by_cases hb : ¬ F.Isolated b
-    · rw [dif_pos ha, dif_pos hb] at hab; exact congrArg Subtype.val (hg hab)
-    · rw [dif_pos ha, dif_neg hb] at hab
-      exact absurd ⟨_, hab⟩ (hemb_range ⟨b, not_not.mp hb⟩)
-    · rw [dif_neg ha, dif_pos hb] at hab
-      exact absurd ⟨_, hab.symm⟩ (hemb_range ⟨a, not_not.mp ha⟩)
-    · rw [dif_neg ha, dif_neg hb] at hab; exact congrArg Subtype.val (hemb_inj hab)
-  · intro e he
-    have hre : Finset.subtype (fun x => ¬ F.Isolated x) e ∈ F.reduce.edges := by
-      exact (FTS.mem_reduce_edges F _).2 ⟨⟨e, he⟩, rfl⟩
-    have hE := hge _ hre
-    convert hE using 1
-    ext w
-    simp only [Set.mem_image]
-    constructor
-    · rintro ⟨a, ha, rfl⟩
-      have haa : a ∈ e := by simpa using ha
-      have hna : ¬ F.Isolated a := fun hiso => hiso e he haa
-      refine ⟨⟨a, hna⟩, Finset.mem_coe.mpr (Finset.mem_subtype.mpr haa), ?_⟩
-      simp only [hf]; rw [dif_pos hna]
-    · rintro ⟨a, ha, rfl⟩
-      have haa : a.val ∈ e := Finset.mem_subtype.mp (Finset.mem_coe.mp ha)
-      refine ⟨a.val, Finset.mem_coe.mpr haa, ?_⟩
-      simp only [hf]; rw [dif_pos a.2]; exact congrArg g (Subtype.eta a a.2)
-
-theorem FTS.embeds_reduce_iff (F : FTS) {W : Type u} [Infinite W] (H : Hypergraph W) :
-    F.Embeds H ↔ F.reduce.Embeds H :=
-  ⟨F.reduce_embeds_of_embeds, F.embeds_of_reduce_embeds⟩
-
-theorem FTS.obligatory_reduce_iff (F : FTS) :
-    FTS.Obligatory.{u} F ↔ FTS.Obligatory.{u} F.reduce := by
-  constructor
-  · intro hF W H htri huc
-    exact F.reduce_embeds_of_embeds (hF H htri huc)
-  · intro hF W H htri huc
-    have : Infinite W := huc.infinite htri
-    exact F.embeds_of_reduce_embeds (hF H htri huc)
-
-theorem FTS.inSpec_reduce_iff (F : FTS) (lam : Cardinal.{u}) :
-    F.InSpec lam ↔ F.reduce.InSpec lam := by
-  unfold FTS.InSpec
-  constructor
-  · rintro ⟨hlam, W, H, htri, hchr, hne⟩
-    have hInf : Infinite W := Hypergraph.UncountablyChromatic.infinite htri (by
-      intro hc; exact absurd (hchr.2 ℵ₀ hlam hc) (by simp))
-    exact ⟨hlam, W, H, htri, hchr, fun hcon => hne (F.embeds_of_reduce_embeds hcon)⟩
-  · rintro ⟨hlam, W, H, htri, hchr, hne⟩
-    exact ⟨hlam, W, H, htri, hchr, fun hcon => hne (F.reduce_embeds_of_embeds hcon)⟩
-
 end Erdos593
 end
 
@@ -2064,54 +2005,6 @@ noncomputable def sepEquiv
     sepEquiv S hcov hsep v = Sum.inl ⟨v, hv⟩ := by
   simp only [sepEquiv, Equiv.coe_fn_mk]; rw [dif_pos hv]
 
-theorem sepEquiv_inr {hcov hsep} {v : F.V} (hv : ¬ IncS S v)
-    (hv' : ∃ e ∈ Sᶜ, v ∈ e.1) :
-    sepEquiv S hcov hsep v = Sum.inr ⟨v, hv'⟩ := by
-  simp only [sepEquiv, Equiv.coe_fn_mk]; rw [dif_neg hv]
-
-theorem sepEquiv_map_left {hcov hsep} {e : Finset F.V} (he : ∀ v ∈ e, IncS S v) :
-    e.map (sepEquiv S hcov hsep).toEmbedding =
-      (Finset.subtype (fun v => IncS S v) e).map Function.Embedding.inl := by
-  ext x
-  constructor
-  · intro hx
-    obtain ⟨v, hv, rfl⟩ := Finset.mem_map.1 hx
-    exact Finset.mem_map.2 ⟨⟨v, he v hv⟩, Finset.mem_subtype.2 hv,
-      (sepEquiv_inl (hcov := hcov) (hsep := hsep) S (he v hv)).symm⟩
-  · intro hx
-    obtain ⟨⟨v, hvS⟩, hv, rfl⟩ := Finset.mem_map.1 hx
-    exact Finset.mem_map.2 ⟨v, Finset.mem_subtype.1 hv,
-      sepEquiv_inl (hcov := hcov) (hsep := hsep) S hvS⟩
-
-theorem sepEquiv_map_right {hcov hsep} {e : Finset F.V} (he : ∀ v ∈ e, ¬ IncS S v)
-    (he' : ∀ v ∈ e, ∃ e' ∈ Sᶜ, v ∈ e'.1) :
-    e.map (sepEquiv S hcov hsep).toEmbedding =
-      (Finset.subtype (fun v => ∃ e' ∈ Sᶜ, v ∈ e'.1) e).map Function.Embedding.inr := by
-  ext x
-  constructor
-  · intro hx
-    obtain ⟨v, hv, rfl⟩ := Finset.mem_map.1 hx
-    exact Finset.mem_map.2 ⟨⟨v, he' v hv⟩, Finset.mem_subtype.2 hv,
-      (sepEquiv_inr (hcov := hcov) (hsep := hsep) S (he v hv) (he' v hv)).symm⟩
-  · intro hx
-    obtain ⟨⟨v, hvT⟩, hv, rfl⟩ := Finset.mem_map.1 hx
-    exact Finset.mem_map.2 ⟨v, Finset.mem_subtype.1 hv,
-      sepEquiv_inr (hcov := hcov) (hsep := hsep) S (he v (Finset.mem_subtype.1 hv)) hvT⟩
-
-theorem FTS.mem_disjUnion_edges_iff (F G : FTS) (e : Finset (F.disjUnion G).V) :
-    e ∈ (F.disjUnion G).edges ↔
-      (∃ a ∈ F.edges, Finset.map Function.Embedding.inl a = e) ∨
-      (∃ a ∈ G.edges, Finset.map Function.Embedding.inr a = e) := by
-  constructor
-  · intro h
-    rcases Finset.mem_union.1 h with h | h
-    · exact Or.inl (Finset.mem_image.1 h)
-    · exact Or.inr (Finset.mem_image.1 h)
-  · rintro (h | h)
-    · exact Finset.mem_union.2 (Or.inl (Finset.mem_image.2 h))
-    · exact Finset.mem_union.2 (Or.inr (Finset.mem_image.2 h))
-
-
 variable (g : F.V)
 
 noncomputable def amalgEquiv
@@ -3209,12 +3102,6 @@ theorem amalgClosure_holds : AmalgClosure.{u} :=
 def NegativeCore : Prop :=
   ∀ (F : FTS) (lam : Cardinal.{u}), ¬ Bclass F → ℵ₀ < lam → F.FGnonempty lam
 
-def FiniteDecomposition : Prop :=
-  ∀ (F : FTS), Bclass F ↔ F.reduce.IntrinsicObligatory
-
-theorem finiteDecomposition_valid : FiniteDecomposition :=
-  finiteDecomposition_holds
-
 theorem bclass_obligatory (hexp : ReiherExpansion.{u})
     (F : FTS) (h : Bclass F) : FTS.Obligatory.{u} F := by
   induction h with
@@ -3223,21 +3110,6 @@ theorem bclass_obligatory (hexp : ReiherExpansion.{u})
   | iso hiso _ ih => exact obligatory_iso hiso ih
   | union _ _ ihF ihG => exact obligatory_disjUnion ihF ihG
   | amalg x y _ _ ihF ihG => exact amalgClosure_holds x y ihF ihG
-
-theorem classification (hexp : ReiherExpansion.{u})
-    (hneg : NegativeCore.{u}) (F : FTS) :
-    (FTS.Obligatory.{u} F ↔ Bclass F) ∧
-    (Bclass F ↔ F.reduce.IntrinsicObligatory) := by
-  refine ⟨⟨fun hobl => ?_, bclass_obligatory hexp F⟩, finiteDecomposition_holds F⟩
-  by_contra hnb
-  obtain ⟨W, H, htri, hchr, hne⟩ :=
-    hneg F (Order.succ (ℵ₀ : Cardinal.{u})) hnb (Order.lt_succ _)
-  exact hne (hobl H htri (hchr.2 ℵ₀ (Order.lt_succ _)))
-
-theorem obligatory_iff_bclass (hexp : ReiherExpansion.{u})
-    (hneg : NegativeCore.{u}) (F : FTS) :
-    FTS.Obligatory.{u} F ↔ Bclass F :=
-  (classification hexp hneg F).1
 
 theorem spectrum_dichotomy (hexp : ReiherExpansion.{u})
     (hneg : NegativeCore.{u}) (F : FTS) (lam : Cardinal.{u}) :
@@ -3248,13 +3120,6 @@ theorem spectrum_dichotomy (hexp : ReiherExpansion.{u})
       hspec.1⟩
   · rintro ⟨hb, hlam⟩
     exact ⟨hlam, hneg F lam hb hlam⟩
-
-theorem problem_1177_part3 (hexp : ReiherExpansion.{u})
-    (hneg : NegativeCore.{u}) (G : FTS) (kappa : Cardinal.{u}) (hk : ℵ₀ < kappa)
-    (h : G.FGnonempty kappa) (lam : Cardinal.{u}) (hlam : ℵ₀ < lam) :
-    G.FGnonempty lam := by
-  have hnb : ¬ Bclass G := ((spectrum_dichotomy hexp hneg G kappa).mp ⟨hk, h⟩).1
-  exact ((spectrum_dichotomy hexp hneg G lam).mpr ⟨hnb, hlam⟩).2
 
 end Erdos593
 end
@@ -3327,9 +3192,6 @@ namespace Erdos593
 
 universe u
 
-def E1_EHR_nonlinear : Prop :=
-  ∀ (F : FTS), ¬ F.Linear → ¬ FTS.Obligatory.{u} F
-
 def NoShortOddCycle {V : Type u} (A : SimpleGraph V) (s : ℕ) : Prop :=
   ∀ m : ℕ, Odd m → 3 ≤ m → m ≤ 2 * s + 1 →
     ¬ ∃ v : ZMod m → V, Function.Injective v ∧ ∀ i : ZMod m, A.Adj (v i) (v (i + 1))
@@ -3353,15 +3215,7 @@ def E4_Reiher : Prop :=
 
 open Classical in
 
-theorem completeBipartite_colorable_two (n : ℕ) :
-    (completeBipartiteGraph (Fin n) (Fin n)).Colorable 2 := by
-  refine ⟨SimpleGraph.Coloring.mk (fun x => Sum.elim (fun _ => 0) (fun _ => 1) x) ?_⟩
-  rintro (a | a) (b | b) hadj <;> simp_all [completeBipartiteGraph]
-
 open Classical in
-
-theorem E4_Reiher_of_reiherExpansion (h : ReiherExpansion.{u}) : E4_Reiher.{u} :=
-  fun n => h (J := completeBipartiteGraph (Fin n) (Fin n)) (completeBipartite_colorable_two n)
 
 theorem colorableBy_mono {V : Type u} {E F : Set (Set V)} (hEF : E ⊆ F)
     {θ : Cardinal.{u}} (h : (⟨F⟩ : Hypergraph V).ColorableBy θ) :
@@ -3454,10 +3308,6 @@ theorem succ_le_two_pow (μ : Cardinal.{u}) :
 theorem pow_two_pow_self (ρ : Cardinal.{u}) (hρ : ℵ₀ ≤ ρ) :
     ((2:Cardinal.{u}) ^ ρ) ^ ρ = (2:Cardinal.{u}) ^ ρ := by
   rw [ ← Cardinal.power_mul, Cardinal.mul_eq_self ] ; aesop
-
-theorem succ_le_two_pow' (ρ : Cardinal.{u}) :
-    Order.succ ρ ≤ (2:Cardinal.{u}) ^ ρ :=
-  Order.succ_le_of_lt (Cardinal.cantor ρ)
 
 theorem successors_cofinal (κ : Cardinal.{u}) (hκ : ℵ₀ < κ)
     (hlim : ∀ ν : Cardinal.{u}, κ ≠ Order.succ ν) (α : Ordinal.{u}) (hα : α < κ.ord) :
@@ -4177,31 +4027,16 @@ def Node.comparable (σ τ : Node A κ) : Prop :=
 def Node.wpre (σ τ : Node A κ) : Prop :=
   σ = τ ∨ Node.pre A κ σ τ
 
-theorem Node.pre.pos_lt {σ τ : Node A κ} (h : Node.pre A κ σ τ) : σ.pos < τ.pos :=
-  h.1
-
 theorem Node.pre.agree {σ τ : Node A κ} (h : Node.pre A κ σ τ)
     (q : Idx κ) (hq : q < σ.pos) :
     τ.seq ⟨q, lt_trans hq h.1⟩ = σ.seq ⟨q, hq⟩ :=
   h.2 q hq
-
-theorem Node.wpre_pos_eq {σ τ : Node A κ} (h : Node.wpre σ τ) (hpos : τ.pos ≤ σ.pos) :
-    σ = τ := by
-  rcases h with h | h
-  · exact h
-  · exact absurd h.1 (not_lt.mpr hpos)
 
 theorem Node.pre.trans {ρ σ τ : Node A κ} (h1 : Node.pre A κ ρ σ)
     (h2 : Node.pre A κ σ τ) : Node.pre A κ ρ τ := by
   refine ⟨lt_trans h1.1 h2.1, ?_⟩
   intro q hq
   rw [h2.2 q (lt_trans hq h1.1), h1.2 q hq]
-
-theorem Node.wpre.trans_pre {ρ σ τ : Node A κ} (h1 : Node.wpre ρ σ)
-    (h2 : Node.pre A κ σ τ) : Node.wpre ρ τ := by
-  rcases h1 with rfl | h1
-  · exact Or.inr h2
-  · exact Or.inr (h1.trans h2)
 
 theorem Node.wpre_of_comparable {ρ a b : Node A κ} (hρa : Node.wpre ρ a)
     (hcomp : Node.comparable a b) (hpos : ρ.pos ≤ b.pos) :
@@ -4612,21 +4447,10 @@ theorem negativeCore_of (hlin6 : AllLinearExists.{u}) (hE2 : E2_EH_oddgirth.{u})
     intro hemb
     exact nonlinear_not_embeds_linear hLin hHlin (F.reduce_embeds_of_embeds hemb)
 
-theorem classification_of (hexp : ReiherExpansion.{u}) (hlin6 : AllLinearExists.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (F : FTS) :
-    (FTS.Obligatory.{u} F ↔ Bclass F) ∧ (Bclass F ↔ F.reduce.IntrinsicObligatory) :=
-  classification hexp (negativeCore_of hlin6 hE2) F
-
 theorem spectrum_dichotomy_of (hexp : ReiherExpansion.{u}) (hlin6 : AllLinearExists.{u})
     (hE2 : E2_EH_oddgirth.{u}) (F : FTS) (lam : Cardinal.{u}) :
     F.InSpec lam ↔ (¬ Bclass F ∧ ℵ₀ < lam) :=
   spectrum_dichotomy hexp (negativeCore_of hlin6 hE2) F lam
-
-theorem problem_1177_part3_of (hexp : ReiherExpansion.{u}) (hlin6 : AllLinearExists.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (G : FTS) (kappa : Cardinal.{u}) (hk : ℵ₀ < kappa)
-    (h : G.FGnonempty kappa) (lam : Cardinal.{u}) (hlam : ℵ₀ < lam) :
-    G.FGnonempty lam :=
-  problem_1177_part3 hexp (negativeCore_of hlin6 hE2) G kappa hk h lam hlam
 
 end Erdos593
 end
@@ -4738,21 +4562,10 @@ theorem allLinearExists_of_E3 (h3 : E3_EGH_P.{u}) : AllLinearExists.{u} := by
     rw [hte] at hrk
     exact (Cardinal.ord_lt_ord).mp hrk
 
-theorem classification_of_E3 (hexp : ReiherExpansion.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (F : FTS) :
-    (FTS.Obligatory.{u} F ↔ Bclass F) ∧ (Bclass F ↔ F.reduce.IntrinsicObligatory) :=
-  classification_of hexp (allLinearExists_of_E3 h3) hE2 F
-
 theorem spectrum_dichotomy_of_E3 (hexp : ReiherExpansion.{u}) (h3 : E3_EGH_P.{u})
     (hE2 : E2_EH_oddgirth.{u}) (F : FTS) (lam : Cardinal.{u}) :
     F.InSpec lam ↔ (¬ Bclass F ∧ ℵ₀ < lam) :=
   spectrum_dichotomy_of hexp (allLinearExists_of_E3 h3) hE2 F lam
-
-theorem problem_1177_part3_of_E3 (hexp : ReiherExpansion.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (G : FTS) (kappa : Cardinal.{u}) (hk : ℵ₀ < kappa)
-    (h : G.FGnonempty kappa) (lam : Cardinal.{u}) (hlam : ℵ₀ < lam) :
-    G.FGnonempty lam :=
-  problem_1177_part3_of hexp (allLinearExists_of_E3 h3) hE2 G kappa hk h lam hlam
 
 end Erdos593
 end
@@ -4764,142 +4577,6 @@ open Cardinal Ordinal
 namespace Erdos593
 
 universe u
-
-theorem Vtx_card (μ : Cardinal.{u}) (hμ : ℵ₀ ≤ μ) :
-    #(Vtx (rhoC μ)) = (2 : Cardinal.{u}) ^ ((2 : Cardinal.{u}) ^ μ) := by
-  have hρ : ℵ₀ ≤ (2 : Cardinal.{u}) ^ μ := le_trans hμ (le_of_lt (Cardinal.cantor μ))
-  have h1 : Order.succ ((2 : Cardinal.{u}) ^ μ) ≤ (2 : Cardinal.{u}) ^ ((2 : Cardinal.{u}) ^ μ) :=
-    Order.succ_le_of_lt (Cardinal.cantor _)
-  have h2 : ℵ₀ ≤ (2 : Cardinal.{u}) ^ ((2 : Cardinal.{u}) ^ μ) :=
-    le_trans hρ (le_of_lt (Cardinal.cantor _))
-  have h3 : Order.succ ((2 : Cardinal.{u}) ^ μ) ≠ 0 :=
-    (lt_of_le_of_lt zero_le (Order.lt_succ _)).ne'
-  show #((Rord (rhoC μ)).ToType × ((2 : Cardinal.{u}) ^ (rhoC μ)).out) = _
-  rw [Cardinal.mk_prod, Cardinal.mk_out]
-  show Cardinal.lift.{u,u} (#(((Order.succ (rhoC μ)).ord).ToType)) * _ = _
-  rw [mk_ord_toType, Cardinal.lift_id, Cardinal.lift_id]
-  show Order.succ ((2 : Cardinal.{u}) ^ μ) * (2 : Cardinal.{u}) ^ ((2 : Cardinal.{u}) ^ μ) = _
-  rw [Cardinal.mul_eq_right h2 h1 h3]
-
-theorem successor_linear_bounded (h3 : E3_EGH_P.{u}) (μ : Cardinal.{u}) (hμ : ℵ₀ ≤ μ) :
-    ∃ (W : Type u) (H : Hypergraph W),
-      H.IsTripleSystem ∧ H.Linear ∧ H.HasChromatic (Order.succ μ) ∧
-        #W ≤ (2 : Cardinal.{u}) ^ ((2 : Cardinal.{u}) ^ μ) := by
-  obtain ⟨D⟩ := exists_calibData h3 μ hμ
-  exact ⟨_, D.L, D.L_isTripleSystem, D.L_linear, ⟨D.L_colorable, D.L_lower⟩,
-    le_of_eq (Vtx_card μ hμ)⟩
-
-theorem lift_card_le {α : Type u} (A : SimpleGraph α) (κ : Cardinal.{u})
-    (hκ : ℵ₀ ≤ κ) (hα : #α ≤ κ) :
-    #(Node A κ × α) ≤ (2 : Cardinal.{u}) ^ κ := by
-
-  have h_node_card : #(Node A κ) ≤ κ * κ ^ κ := by
-    have h_node_card : #(Node A κ) ≤ κ * κ ^ κ := by
-      have h_card_seq : ∀ pos : Idx κ, #( {q : Idx κ // q < pos} → A.edgeSet ) ≤ κ ^ κ := by
-        intro pos
-        have h_seq_card : #({q : Idx κ // q < pos} → A.edgeSet) ≤ κ ^ #( {q : Idx κ // q < pos} ) := by
-          refine' le_trans ( Cardinal.mk_le_of_injective _ ) _;
-          exact ( { q : Idx κ // q < pos } → α × α );
-          exact fun f q => f q |>.1.out;
-          · intro f g hfg;
-            funext q;
-            have h : (f q).1.out = (g q).1.out := congr_fun hfg q;
-            apply Subtype.ext;
-            calc (f q).1 = Quot.mk _ (f q).1.out := (Quot.out_eq _).symm
-              _ = Quot.mk _ (g q).1.out := by rw [h]
-              _ = (g q).1 := Quot.out_eq _;
-          · simp +decide [ Cardinal.mk_pi, Cardinal.mk_prod ];
-            exact Cardinal.power_le_power_right ( by simpa using mul_le_mul' hα hα |> le_trans <| by simp +decide [ Cardinal.mul_eq_self hκ ] );
-        refine' le_trans h_seq_card ( Cardinal.power_le_power_left _ _ );
-        · exact ne_of_gt ( lt_of_lt_of_le ( Cardinal.aleph0_pos ) hκ );
-        · refine' le_trans ( Cardinal.mk_le_mk_of_subset _ ) _;
-          exact Set.univ;
-          · exact Set.subset_univ _;
-          · simp +decide [ Cardinal.mk_univ ]
-      have h_card_node : #(Node A κ) ≤ Cardinal.mk (Σ pos : Idx κ, {q : Idx κ // q < pos} → A.edgeSet) := by
-        refine' ⟨ fun x => ⟨ x.pos, x.seq ⟩, fun x y hxy => _ ⟩ ; cases x ; cases y ; aesop;
-      refine' le_trans h_card_node _;
-      refine le_trans (le_of_eq (Cardinal.mk_sigma _))
-        ((Cardinal.sum_le_sum _ _ h_card_seq).trans (le_of_eq ?_));
-      simp +decide [ Cardinal.mk_ord_toType ];
-    exact h_node_card;
-  refine' le_trans ( Cardinal.mk_prod _ _ |> le_of_eq ) _;
-  refine' le_trans ( mul_le_mul' ( Cardinal.lift_le.mpr h_node_card ) ( Cardinal.lift_le.mpr hα ) ) _;
-  simp +decide [ Cardinal.power_self_eq hκ ];
-  rw [ mul_right_comm, Cardinal.mul_eq_max ];
-  · simp +decide [ Cardinal.mul_eq_self hκ ];
-    exact le_of_lt ( Cardinal.cantor _ );
-  · exact le_trans hκ ( le_mul_of_one_le_right' ( Cardinal.one_le_iff_ne_zero.mpr ( ne_of_gt ( lt_of_lt_of_le ( Cardinal.aleph0_pos ) hκ ) ) ) );
-  · exact le_trans hκ ( le_of_lt ( Cardinal.cantor _ ) )
-
-theorem lift_card_le_aleph1 {α : Type u} (A : SimpleGraph α)
-    (hα : #α ≤ Order.succ (ℵ₀ : Cardinal.{u})) :
-    #(Node A (Order.succ (ℵ₀ : Cardinal.{u})) × α) ≤
-      (2 : Cardinal.{u}) ^ ((2 : Cardinal.{u}) ^ (ℵ₀ : Cardinal.{u})) := by
-  have hℵ₁ : ℵ₀ ≤ Order.succ (ℵ₀ : Cardinal.{u}) := le_of_lt (Order.lt_succ _)
-  have hbound : #(Node A (Order.succ (ℵ₀ : Cardinal.{u})) × α) ≤
-      (2 : Cardinal.{u}) ^ (Order.succ (ℵ₀ : Cardinal.{u})) :=
-    lift_card_le A (Order.succ ℵ₀) hℵ₁ hα
-  refine le_trans hbound ?_
-  apply Cardinal.power_le_power_left (by norm_num)
-  exact Order.succ_le_of_lt (Cardinal.cantor _)
-
-theorem negativeCore_bounded_aleph1 (h3 : E3_EGH_P.{u}) (hE2 : E2_EH_oddgirth.{u})
-    (F : FTS) (hnb : ¬ Bclass F) :
-    ∃ (W : Type u) (H : Hypergraph W),
-      H.IsTripleSystem ∧ H.HasChromatic (Order.succ (ℵ₀ : Cardinal.{u})) ∧
-        ¬ F.Embeds H ∧ #W ≤ (2 : Cardinal.{u}) ^ ((2 : Cardinal.{u}) ^ (ℵ₀ : Cardinal.{u})) := by
-  by_cases hLin : F.reduce.Linear;
-  · have hni : ¬ F.reduce.IntrinsicObligatory := by
-      contrapose! hnb; exact (finiteDecomposition_holds F).mpr hnb;
-    by_cases hBr : ∀ ed : {e : Finset F.reduce.V // e ∈ F.reduce.edges}, ∃ w ∈ ed.1, IsBridgeInc F.reduce w ed;
-    · obtain ⟨c, hc_odd, hc_cycle⟩ : ∃ c : BergeCycle F.reduce, Odd c.m := by
-        contrapose! hni;
-        exact ⟨ hLin, fun ed => hBr ed, fun c => by simpa using hni c ⟩;
-      obtain ⟨V, A, hcard, hAchr, hAgirth⟩ := hE2 (Order.succ (ℵ₀ : Cardinal)) (Order.lt_succ _) (2 * hc_odd + 1);
-      have h_lift_omits : ¬ F.reduce.Embeds (liftHG A (Order.succ ℵ₀)) := by
-        apply lift_omits_of_bergeCycle;
-        exact hLin;
-        convert hAgirth ( 2 * hc_odd + 1 ) _ _ _ using 1;
-        any_goals tauto;
-        · rw [ hc_cycle ];
-        · rcases hc_odd with ( _ | _ | hc_odd ) <;> simp_all +arith +decide;
-          exact absurd hc_cycle ( by linarith [ c.hm ] );
-        · omega;
-      exact ⟨_, liftHG A (Order.succ ℵ₀), Erdos593.liftHG_tripleSystem A _,
-        Erdos593.lift_hasChromatic A _ hAchr,
-        fun h => h_lift_omits (FTS.reduce_embeds_of_embeds F h),
-        lift_card_le_aleph1 A hcard.le⟩;
-    · have hno_bridgeSelector : ¬ Nonempty (BridgeSelector F.reduce) := by
-        exact no_bridgeSelector_of ( by push_neg at hBr; exact hBr );
-      refine' ⟨ Node ( ⊤ : SimpleGraph ( Order.succ ℵ₀ ).out ) ( Order.succ ℵ₀ ) × ( Order.succ ℵ₀ ).out, liftHG ( ⊤ : SimpleGraph ( Order.succ ℵ₀ ).out ) ( Order.succ ℵ₀ ), _, _, _, _ ⟩;
-      · exact Erdos593.liftHG_tripleSystem _ _;
-      · convert Erdos593.lift_hasChromatic ( ⊤ : SimpleGraph ( Order.succ ℵ₀ ).out ) ( Order.succ ℵ₀ ) ( Erdos593.completeGraph_hasChromatic ( Order.succ ℵ₀ ) ) using 1;
-      · intro h;
-        apply hno_bridgeSelector;
-        apply bridgeSelector_of_embeds_lift;
-        exact hLin;
-        exact F.reduce_embeds_of_embeds h;
-      · convert lift_card_le_aleph1 _ _;
-        simp +decide [ Cardinal.mk_out ];
-  · obtain ⟨W, H, htri, hHlin, hchr, hcard⟩ := successor_linear_bounded h3 ℵ₀ le_rfl
-    use W, H
-    refine ⟨ htri, hchr, ?_, hcard ⟩
-    intro hF
-    have hFreduce : F.reduce.Embeds H := by
-      exact F.reduce_embeds_of_embeds hF
-    exact absurd (nonlinear_not_embeds_linear hLin hHlin hFreduce) (by
-    grind)
-
-theorem problem_1177_part1 (hexp : ReiherExpansion.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (G : FTS) (h : G.FGnonempty (Order.succ (ℵ₀ : Cardinal.{u}))) :
-    ∃ (W : Type u) (H : Hypergraph W),
-      H.IsTripleSystem ∧ H.HasChromatic (Order.succ (ℵ₀ : Cardinal.{u})) ∧
-        ¬ G.Embeds H ∧ #W ≤ (2 : Cardinal.{u}) ^ ((2 : Cardinal.{u}) ^ (ℵ₀ : Cardinal.{u})) := by
-  have hnb : ¬ Bclass G :=
-    ((spectrum_dichotomy_of_E3 hexp h3 hE2 G (Order.succ ℵ₀)).mp
-      ⟨Order.lt_succ _, h⟩).1
-  exact negativeCore_bounded_aleph1 h3 hE2 G hnb
 
 end Erdos593
 end
@@ -5033,284 +4710,6 @@ theorem problem_1177_part2 (hexp : ReiherExpansion.{u}) (h3 : E3_EGH_P.{u})
     · exact hHf (hE5 K htri hlin huc)
     · exact hGf (twoTriples_embeds_of_not_linear K htri hlin)
 
-theorem obstruction_trichotomy (F : FTS) :
-    ¬ Bclass F ↔
-      (¬ F.reduce.Linear) ∨
-      (F.reduce.Linear ∧ ∃ ed : {e : Finset F.reduce.V // e ∈ F.reduce.edges},
-          ∀ w ∈ ed.1, ¬ IsBridgeInc F.reduce w ed) ∨
-      (F.reduce.Linear ∧
-          (∀ ed : {e : Finset F.reduce.V // e ∈ F.reduce.edges},
-            ∃ w ∈ ed.1, IsBridgeInc F.reduce w ed) ∧
-          ∃ c : BergeCycle F.reduce, ¬ Even c.m) := by
-  rw [not_congr (finiteDecomposition_holds F), FTS.IntrinsicObligatory]
-  constructor
-  · intro h
-    by_cases hL : F.reduce.Linear
-    · by_cases hB : ∀ ed : {e : Finset F.reduce.V // e ∈ F.reduce.edges},
-          ∃ w ∈ ed.1, IsBridgeInc F.reduce w ed
-      · refine Or.inr (Or.inr ⟨hL, hB, ?_⟩)
-        by_contra hc; push_neg at hc; exact h ⟨hL, hB, hc⟩
-      · push_neg at hB; exact Or.inr (Or.inl ⟨hL, hB⟩)
-    · exact Or.inl hL
-  · rintro (h | ⟨hL, ed, hed⟩ | ⟨hL, _, c, hc⟩) ⟨hLin, hBr, hEv⟩
-    · exact h hLin
-    · obtain ⟨w, hw, hb⟩ := hBr ed; exact hed w hw hb
-    · exact hc (hEv c)
-
-def FTS.StronglyTripartite (F : FTS) : Prop :=
-  ∃ col : F.V → Fin 3, ∀ e ∈ F.edges, ∀ i : Fin 3, (e.filter (fun v => col v = i)).card = 1
-
-theorem stronglyTripartite_edgeless {F : FTS} (h : F.edges = ∅) : F.StronglyTripartite := by
-  refine ⟨fun _ => 0, ?_⟩
-  intro e he; rw [h] at he; exact absurd he (Finset.notMem_empty e)
-
-theorem stronglyTripartite_iso {F G : FTS} (h : FTS.Iso F G)
-    (hF : F.StronglyTripartite) : G.StronglyTripartite := by
-  rcases h with ⟨ φ, hφ ⟩;
-  obtain ⟨ colF, hcolF ⟩ := hF;
-  refine' ⟨ fun w => colF ( φ.symm w ), fun e he => _ ⟩;
-  intro i; specialize hcolF ( Finset.map φ.symm.toEmbedding e ) ; simp_all +decide [ Finset.filter_map ] ;
-  convert hcolF _ i using 1;
-  convert he using 1 ; ext ; aesop
-
-theorem card_filter_tri {α β : Type} [DecidableEq α] [DecidableEq β] (g : α → Fin 2)
-    (x y : α) (z : β) (hne : g x ≠ g y) (i : Fin 3) :
-    (({Sum.inl x, Sum.inl y, Sum.inr z} : Finset (α ⊕ β)).filter
-      (fun v => Sum.elim (fun w => Fin.castSucc (g w)) (fun _ => (2 : Fin 3)) v = i)).card = 1 := by
-  have hxy : x ≠ y := fun h => hne (h ▸ rfl)
-  rw [Finset.filter_insert, Finset.filter_insert, Finset.filter_singleton]
-  simp only [Sum.elim_inl, Sum.elim_inr]
-  have h01 : ∀ p : Fin 2, p = 0 ∨ p = 1 := by decide
-  rcases h01 (g x) with hx | hx <;> rcases h01 (g y) with hy | hy <;>
-    simp only [hx, hy] at hne ⊢ <;> fin_cases i <;> simp_all
-
-theorem stronglyTripartite_expansion {VJ : Type} [Fintype VJ] [DecidableEq VJ]
-    (J : SimpleGraph VJ) [DecidableRel J.Adj] (hJ : J.Colorable 2) :
-    (graphExpansion J).StronglyTripartite := by
-  obtain ⟨C⟩ := hJ
-  refine ⟨fun v => Sum.elim (fun x => Fin.castSucc (C x)) (fun _ => (2 : Fin 3)) v, ?_⟩
-  intro e he i
-  obtain ⟨a, rfl⟩ := expansion_edge_cases J he
-  exact card_filter_tri (α := VJ) (β := {x : Sym2 VJ // x ∈ J.edgeFinset}) C _ _ a
-    (C.valid (expansion_endpoints_adj J a)) i
-
-theorem FTS.mem_disjUnion_edges (F G : FTS) (e : Finset (F.disjUnion G).V) :
-    e ∈ (F.disjUnion G).edges ↔
-      (∃ a ∈ F.edges, Finset.map Function.Embedding.inl a = e) ∨
-      (∃ a ∈ G.edges, Finset.map Function.Embedding.inr a = e) := by
-  constructor
-  · intro h
-    rcases Finset.mem_union.1 h with h | h
-    · exact Or.inl (Finset.mem_image.1 h)
-    · exact Or.inr (Finset.mem_image.1 h)
-  · rintro (h | h)
-    · exact Finset.mem_union.2 (Or.inl (Finset.mem_image.2 h))
-    · exact Finset.mem_union.2 (Or.inr (Finset.mem_image.2 h))
-
-theorem card_filter_map_eq {α β : Type} [DecidableEq β] (f : α ↪ β) (s : Finset α)
-    (p : β → Prop) [DecidablePred p] :
-    ((s.map f).filter p).card = (s.filter (fun a => p (f a))).card := by
-  rw [Finset.filter_map, Finset.card_map]
-  rfl
-
-theorem stronglyTripartite_disjUnion {F G : FTS}
-    (hF : F.StronglyTripartite) (hG : G.StronglyTripartite) :
-    (F.disjUnion G).StronglyTripartite := by
-  obtain ⟨colF, hcolF⟩ := hF
-  obtain ⟨colG, hcolG⟩ := hG
-  refine ⟨fun v => Sum.elim colF colG v, ?_⟩
-  intro e he i
-  rcases (FTS.mem_disjUnion_edges F G e).1 he with ⟨a, ha, rfl⟩ | ⟨a, ha, rfl⟩
-  · exact (card_filter_map_eq (β := F.V ⊕ G.V) Function.Embedding.inl a _).trans (hcolF a ha i)
-  · exact (card_filter_map_eq (β := F.V ⊕ G.V) Function.Embedding.inr a _).trans (hcolG a ha i)
-
-theorem stronglyTripartite_amalgamate {F G : FTS} (x : F.V) (y : G.V)
-    (hF : F.StronglyTripartite) (hG : G.StronglyTripartite) :
-    (F.amalgamate G x y).StronglyTripartite := by
-  obtain ⟨colF, hcolF⟩ := hF
-  obtain ⟨colG, hcolG⟩ := hG
-  obtain ⟨π, hπ⟩ : ∃ π : Equiv.Perm (Fin 3), π (colG y) = colF x :=
-    ⟨Equiv.swap (colG y) (colF x), Equiv.swap_apply_left _ _⟩
-  refine ⟨fun v => Sum.elim (fun a => colF a) (fun b => π (colG b.1)) v, ?_⟩
-  intro e he i
-  rcases (FTS.mem_amalgamate_edges F G x y e).1 he with ⟨a, ha, rfl⟩ | ⟨a, ha, rfl⟩
-  · exact (card_filter_map_eq (β := F.V ⊕ {b : G.V // b ≠ y}) Function.Embedding.inl a _).trans
-      (hcolF a ha i)
-  · refine (card_filter_map_eq (β := F.V ⊕ {b : G.V // b ≠ y}) _ a _).trans ?_
-    rw [← hcolG a ha (π.symm i)]
-    congr 1
-    apply Finset.filter_congr
-    intro b _
-    have key : Sum.elim (fun a => colF a) (fun b => π (colG b.1))
-        ((if h : b = y then Sum.inl x else Sum.inr ⟨b, h⟩ : F.V ⊕ {b : G.V // b ≠ y})) =
-          π (colG b) := by
-      by_cases hb : b = y
-      · subst hb; rw [dif_pos rfl]; exact hπ.symm
-      · rw [dif_neg hb]; rfl
-    rw [Equiv.eq_symm_apply]
-    exact Iff.of_eq (congrArg (· = i) key)
-
-theorem bclass_stronglyTripartite {F : FTS} (h : Bclass F) : F.StronglyTripartite := by
-  induction h with
-  | edgeless F hF => exact stronglyTripartite_edgeless hF
-  | expansion J hJ => exact stronglyTripartite_expansion J hJ
-  | iso hiso _ ih => exact stronglyTripartite_iso hiso ih
-  | union _ _ ihF ihG => exact stronglyTripartite_disjUnion ihF ihG
-  | amalg x y _ _ ihF ihG => exact stronglyTripartite_amalgamate x y ihF ihG
-
-theorem obligatory_stronglyTripartite (hexp : ReiherExpansion.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (F : FTS) (hobl : FTS.Obligatory.{u} F) :
-    F.StronglyTripartite :=
-  bclass_stronglyTripartite ((classification_of_E3 hexp h3 hE2 F).1.mp hobl)
-
-theorem C7_linearlyObligatory_not_obligatory (hexp : ReiherExpansion.{u})
-    (h3 : E3_EGH_P.{u}) (hE2 : E2_EH_oddgirth.{u}) (hE5 : E5_HK_loose7.{u}) :
-    FTS.LinearlyObligatory.{u} looseCycle7 ∧ ¬ FTS.Obligatory.{u} looseCycle7 := by
-  refine ⟨hE5, fun hobl => ?_⟩
-  exact not_bclass_looseCycle7 ((classification_of_E3 hexp h3 hE2 looseCycle7).1.mp hobl)
-
-theorem tri_inr_eq {α β : Type} [DecidableEq α] [DecidableEq β] {x y x' y' : α} {z z' : β}
-    (h : ({Sum.inl x, Sum.inl y, Sum.inr z} : Finset (α ⊕ β)) =
-      {Sum.inl x', Sum.inl y', Sum.inr z'}) : z = z' := by
-  have hmem : (Sum.inr z : α ⊕ β) ∈ ({Sum.inl x', Sum.inl y', Sum.inr z'} : Finset (α ⊕ β)) := by
-    rw [← h]; simp
-  simp only [Finset.mem_insert, Finset.mem_singleton, reduceCtorEq, false_or] at hmem
-  exact Sum.inr_injective hmem
-
-theorem tri_mem_inl {α β : Type} [DecidableEq α] [DecidableEq β] (x y : α) (z : β) (a : α)
-    (h : a = x ∨ a = y) : (Sum.inl a : α ⊕ β) ∈ ({Sum.inl x, Sum.inl y, Sum.inr z} : Finset (α ⊕ β)) := by
-  rcases h with rfl | rfl <;> simp
-
-theorem sym2_mem_out {α : Type} (z : Sym2 α) (a : α) (h : a ∈ z) :
-    a = (Quot.out z).1 ∨ a = (Quot.out z).2 := by
-  have hz : Quot.mk (Sym2.Rel α) (Quot.out z) = z := Quot.out_eq z
-  rcases hp : Quot.out z with ⟨p, q⟩
-  rw [hp] at hz
-  have h' : a ∈ s(p, q) := by
-    have hz' : s(p, q) = z := hz
-    rw [hz']; exact h
-  exact Sym2.mem_iff.1 h'
-
-theorem expansion_bergeCycle_of_cycle {VJ : Type} [Fintype VJ] [DecidableEq VJ]
-    (J : SimpleGraph VJ) [DecidableRel J.Adj] (m : ℕ) (hm : 3 ≤ m) (w : ZMod m → VJ)
-    (hw : Function.Injective w) (hadj : ∀ i, J.Adj (w i) (w (i + 1))) :
-    ∃ c : BergeCycle (graphExpansion J), c.m = m := by
-  have hE : ∀ i, s(w i, w (i + 1)) ∈ J.edgeFinset := fun i =>
-    SimpleGraph.mem_edgeFinset.mpr (hadj i)
-  have h2 : (2 : ZMod m) ≠ 0 := by
-    intro h
-    have : ((2 : ℕ) : ZMod m) = 0 := by exact_mod_cast h
-    rw [ZMod.natCast_eq_zero_iff] at this
-    have := Nat.le_of_dvd (by norm_num) this
-    omega
-  refine ⟨{
-    m := m
-    hm := by omega
-    v := fun i => Sum.inl (w i)
-    e := fun i => ⟨{Sum.inl (Quot.out (s(w i, w (i + 1)))).1,
-        Sum.inl (Quot.out (s(w i, w (i + 1)))).2, Sum.inr ⟨s(w i, w (i + 1)), hE i⟩},
-      Finset.mem_image_of_mem _ (Finset.mem_attach _ ⟨s(w i, w (i + 1)), hE i⟩)⟩
-    vinj := fun a b h => hw (Sum.inl_injective h)
-    einj := ?_
-    mem_left := fun i => tri_mem_inl _ _ _ _ (sym2_mem_out _ _ (Sym2.mem_mk_left _ _))
-    mem_right := fun i => tri_mem_inl _ _ _ _ (sym2_mem_out _ _ (Sym2.mem_mk_right _ _)) }, rfl⟩
-  intro i j h
-  have h' := Subtype.ext_iff.1 (tri_inr_eq (congrArg Subtype.val h))
-  rcases Sym2.eq_iff.1 h' with ⟨h1, _⟩ | ⟨h1, h3⟩
-  · exact hw h1
-  · have e1 := hw h1
-    have e3 := hw h3
-    exfalso
-    apply h2
-    have : i + 1 + 1 = i := by rw [e3, e1]
-    calc (2 : ZMod m) = (i + 1 + 1) - i := by ring
-      _ = 0 := by rw [this, sub_self]
-
-theorem cycleGraph_adj_succ (k : ℕ) (i : Fin (k + 3)) :
-    (SimpleGraph.cycleGraph (k + 3)).Adj i (i + 1) :=
-  Or.inr (add_sub_cancel_left i 1)
-
-theorem cycleExpansion_oddBergeCycle (n : ℕ) (hn : 3 ≤ n) (hodd : Odd n) :
-    ∃ c : BergeCycle (graphExpansion (SimpleGraph.cycleGraph n)), ¬ Even c.m := by
-  obtain ⟨k, rfl⟩ : ∃ k, n = k + 3 := ⟨n - 3, by omega⟩
-  obtain ⟨c, hc⟩ := expansion_bergeCycle_of_cycle (SimpleGraph.cycleGraph (k + 3)) (k + 3)
-    (by omega) (fun i => (i : Fin (k + 3))) (fun _ _ h => h) (fun i => cycleGraph_adj_succ k i)
-  exact ⟨c, by rw [hc]; exact Nat.not_even_iff_odd.mpr hodd⟩
-
-theorem cycleExpansion_obligatory_iff (hexp : ReiherExpansion.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (n : ℕ) (hn : 3 ≤ n) :
-    FTS.Obligatory.{u} (graphExpansion (SimpleGraph.cycleGraph n)) ↔ Even n := by
-  constructor
-  · intro hobl
-    by_contra hodd
-    rw [Nat.not_even_iff_odd] at hodd
-    obtain ⟨c, hc⟩ := cycleExpansion_oddBergeCycle n hn hodd
-    have hB : Bclass (graphExpansion (SimpleGraph.cycleGraph n)) :=
-      (classification_of_E3 hexp h3 hE2 _).1.mp hobl
-    exact hc ((bclass_intrinsic hB).2.2 c)
-  · intro heven
-    have hcol : (SimpleGraph.cycleGraph n).Colorable 2 := by
-      have := (SimpleGraph.cycleGraph.bicoloring_of_even n heven).colorable
-      simpa using this.mono (by norm_num)
-    have hB : Bclass (graphExpansion (SimpleGraph.cycleGraph n)) :=
-      Bclass.expansion (SimpleGraph.cycleGraph n) hcol
-    intro W H htri huc
-    exact bclass_obligatory hexp _ hB H htri huc
-
-def lowerRankUnion (F : FTS) (rank : {e : Finset F.V // e ∈ F.edges} → ℕ)
-    (ed : {e : Finset F.V // e ∈ F.edges}) : Finset F.V :=
-  (Finset.univ.filter (fun ed' : {e : Finset F.V // e ∈ F.edges} => rank ed' < rank ed)).sup
-    (fun ed' => ed'.1)
-
-def FTS.Forest (F : FTS) : Prop :=
-  ∃ rank : {e : Finset F.V // e ∈ F.edges} → ℕ, Function.Injective rank ∧
-    ∀ ed : {e : Finset F.V // e ∈ F.edges}, (ed.1 ∩ lowerRankUnion F rank ed).card ≤ 1
-
-theorem forest_linear {F : FTS} (h : F.Forest) : F.Linear := by
-  obtain ⟨ rank, hrank₁, hrank₂ ⟩ := h; intro e₁ he₁ e₂ he₂ hne; have := hrank₁; simp_all +decide [ FTS.Linear ] ;
-
-  wlog hlt : rank ⟨e₁, he₁⟩ < rank ⟨e₂, he₂⟩ generalizing e₁ e₂;
-  · grind only [Finset.card_inter, Finset.card_le_one, Finset.card_le_one_iff];
-  · refine' le_trans _ ( hrank₂ e₂ he₂ );
-    refine' Finset.card_le_card _;
-    simp +decide [ Finset.subset_iff, lowerRankUnion ];
-    exact fun x hx₁ hx₂ => ⟨ hx₂, e₁, ⟨ he₁, hlt ⟩, hx₁ ⟩
-
-theorem forest_no_bergeCycle {F : FTS} (h : F.Forest) (c : BergeCycle F) : False := by
-  obtain ⟨ rank, hrank₁, hrank₂ ⟩ := h;
-
-  obtain ⟨a, ha⟩ : ∃ a : ZMod c.m, ∀ i : ZMod c.m, rank (c.e i) ≤ rank (c.e a) := by
-    haveI := Fact.mk ( show 1 < c.m from by linarith [ c.hm ] );
-    simpa using Finset.exists_max_image Finset.univ ( fun i => rank ( c.e i ) ) ⟨ 0, Finset.mem_univ 0 ⟩;
-
-  have h_neighbours : rank (c.e (a - 1)) < rank (c.e a) ∧ rank (c.e (a + 1)) < rank (c.e a) := by
-    have h_neighbours : c.e (a - 1) ≠ c.e a ∧ c.e (a + 1) ≠ c.e a := by
-      haveI := Fact.mk ( show 1 < c.m from by linarith [ c.hm ] ) ; simp +decide [ sub_eq_iff_eq_add, add_eq_zero_iff_eq_neg, c.einj.eq_iff ] ;
-    exact ⟨ lt_of_le_of_ne ( ha _ ) ( hrank₁.ne h_neighbours.1 ), lt_of_le_of_ne ( ha _ ) ( hrank₁.ne h_neighbours.2 ) ⟩;
-
-  have h_subset : (c.e (a - 1)).1 ⊆ lowerRankUnion F rank (c.e a) ∧ (c.e (a + 1)).1 ⊆ lowerRankUnion F rank (c.e a) := by
-    exact ⟨ Finset.subset_iff.mpr fun x hx => Finset.mem_sup.mpr ⟨ _, Finset.mem_filter.mpr ⟨ Finset.mem_univ _, h_neighbours.1 ⟩, hx ⟩, Finset.subset_iff.mpr fun x hx => Finset.mem_sup.mpr ⟨ _, Finset.mem_filter.mpr ⟨ Finset.mem_univ _, h_neighbours.2 ⟩, hx ⟩ ⟩;
-  have h_card : 2 ≤ ( ( c.e a ).1 ∩ lowerRankUnion F rank ( c.e a ) ).card := by
-    refine' Finset.one_lt_card.mpr ⟨ c.v a, _, c.v ( a + 1 ), _, _ ⟩ <;> simp_all +decide [ Finset.subset_iff ];
-    · exact ⟨ c.mem_left a, h_subset.1 ( by simpa using c.mem_right ( a - 1 ) ) ⟩;
-    · exact ⟨ c.mem_right a, h_subset.2 ( c.mem_left _ ) ⟩;
-    · haveI := Fact.mk ( show 1 < c.m from by linarith [ c.hm ] ) ; exact c.vinj.ne ( by simp +decide [ ZMod.natCast_eq_natCast_iff' ] ) ;
-  linarith [ hrank₂ ( c.e a ) ]
-
-theorem forest_intrinsic {F : FTS} (h : F.Forest) : F.IntrinsicObligatory := by
-  refine ⟨forest_linear h, ?_, ?_⟩
-  · intro ed
-    have hcard : ed.1.card = 3 := F.card3 ed.1 ed.2
-    obtain ⟨w, hw⟩ := Finset.card_pos.mp (by omega : 0 < ed.1.card)
-    exact ⟨w, hw, hw, fun hcyc => forest_no_bergeCycle h hcyc.choose⟩
-  · intro c; exact (forest_no_bergeCycle h c).elim
-
-theorem forest_obligatory (hexp : ReiherExpansion.{u}) {F : FTS} (h : F.Forest) :
-    FTS.Obligatory.{u} F := by
-  have hB : Bclass F := intrinsic_bclass F (forest_intrinsic h)
-  intro W H htri huc
-  exact bclass_obligatory hexp _ hB H htri huc
-
 end Erdos593
 end
 
@@ -5405,9 +4804,6 @@ theorem reiherExpansion_of_E4 (hE4 : E4_Reiher.{u}) : ReiherExpansion.{u} := by
     (graphExpansion_sub_of_embedding J (completeBipartiteGraph (Fin n) (Fin n)) φ hφ hadj)
     (hE4 n)
 
-theorem reiherExpansion_iff_E4 : ReiherExpansion.{u} ↔ E4_Reiher.{u} :=
-  ⟨E4_Reiher_of_reiherExpansion, reiherExpansion_of_E4⟩
-
 end Erdos593
 end
 
@@ -5419,27 +4815,6 @@ namespace Erdos593
 
 universe u
 
-theorem classification_final (hE4 : E4_Reiher.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (F : FTS) :
-    (FTS.Obligatory.{u} F ↔ Bclass F) ∧ (Bclass F ↔ F.reduce.IntrinsicObligatory) :=
-  classification_of_E3 (reiherExpansion_of_E4 hE4) h3 hE2 F
-
-theorem obligatory_iff_bclass_final (hE4 : E4_Reiher.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (F : FTS) :
-    FTS.Obligatory.{u} F ↔ Bclass F :=
-  (classification_final hE4 h3 hE2 F).1
-
-theorem spectrum_dichotomy_final (hE4 : E4_Reiher.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (F : FTS) (lam : Cardinal.{u}) :
-    F.InSpec lam ↔ (¬ Bclass F ∧ ℵ₀ < lam) :=
-  spectrum_dichotomy_of_E3 (reiherExpansion_of_E4 hE4) h3 hE2 F lam
-
-theorem problem_1177_part3_final (hE4 : E4_Reiher.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (G : FTS) (kappa : Cardinal.{u}) (hk : ℵ₀ < kappa)
-    (h : G.FGnonempty kappa) (lam : Cardinal.{u}) (hlam : ℵ₀ < lam) :
-    G.FGnonempty lam :=
-  problem_1177_part3_of_E3 (reiherExpansion_of_E4 hE4) h3 hE2 G kappa hk h lam hlam
-
 theorem problem_1177_part2_final (hE4 : E4_Reiher.{u}) (h3 : E3_EGH_P.{u})
     (hE2 : E2_EH_oddgirth.{u}) (hE5 : E5_HK_loose7.{u}) :
     ∃ (G H : FTS),
@@ -5449,25 +4824,6 @@ theorem problem_1177_part2_final (hE4 : E4_Reiher.{u}) (h3 : E3_EGH_P.{u})
           K.IsTripleSystem ∧ K.HasChromatic (Order.succ (ℵ₀ : Cardinal.{u})) ∧
           ¬ G.Embeds K ∧ ¬ H.Embeds K :=
   problem_1177_part2 (reiherExpansion_of_E4 hE4) h3 hE2 hE5
-
-theorem obligatory_stronglyTripartite_final (hE4 : E4_Reiher.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (F : FTS) (hobl : FTS.Obligatory.{u} F) :
-    F.StronglyTripartite :=
-  obligatory_stronglyTripartite (reiherExpansion_of_E4 hE4) h3 hE2 F hobl
-
-theorem forest_obligatory_final (hE4 : E4_Reiher.{u}) {F : FTS} (h : F.Forest) :
-    FTS.Obligatory.{u} F :=
-  forest_obligatory (reiherExpansion_of_E4 hE4) h
-
-theorem cycleExpansion_obligatory_iff_final (hE4 : E4_Reiher.{u}) (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (n : ℕ) (hn : 3 ≤ n) :
-    FTS.Obligatory.{u} (graphExpansion (SimpleGraph.cycleGraph n)) ↔ Even n :=
-  cycleExpansion_obligatory_iff (reiherExpansion_of_E4 hE4) h3 hE2 n hn
-
-theorem C7_linearlyObligatory_not_obligatory_final (hE4 : E4_Reiher.{u})
-    (h3 : E3_EGH_P.{u}) (hE2 : E2_EH_oddgirth.{u}) (hE5 : E5_HK_loose7.{u}) :
-    FTS.LinearlyObligatory.{u} looseCycle7 ∧ ¬ FTS.Obligatory.{u} looseCycle7 :=
-  C7_linearlyObligatory_not_obligatory (reiherExpansion_of_E4 hE4) h3 hE2 hE5
 
 end Erdos593
 end
@@ -5572,12 +4928,6 @@ theorem closeStep_card_le (G : SimpleGraph V) (n : ℕ) (hfree : ¬ HasKnAleph1 
     _ = #X + ℵ₀ := by
         rw [Cardinal.mul_eq_left hc le_add_self Cardinal.aleph0_ne_zero,
           Cardinal.add_eq_right hc le_self_add]
-
-theorem subset_closeIter (G : SimpleGraph V) (n : ℕ) (X : Set V) (k : ℕ) :
-    X ⊆ closeIter G n X k := by
-  induction' k with k ih;
-  · rfl;
-  · exact Set.Subset.trans ih ( Set.subset_union_left )
 
 theorem closeIter_mono_index (G : SimpleGraph V) (n : ℕ) (X : Set V) {k l : ℕ}
     (h : k ≤ l) : closeIter G n X k ⊆ closeIter G n X l := by
@@ -6158,12 +5508,6 @@ def Dcl (H : Hypergraph W) (t : ℕ) (X : Set W) : Set W := ⋃ k, DCloseIter H 
 
 def DClosed (H : Hypergraph W) (t : ℕ) (X : Set W) : Prop :=
   ∀ x ∈ X, ∀ y ∈ X, x ≠ y → witnessVerts H t {x, y} ⊆ X
-
-theorem subset_DCloseIter (H : Hypergraph W) (t : ℕ) (X : Set W) (k : ℕ) :
-    X ⊆ DCloseIter H t X k := by
-  induction' k with k ih
-  · rfl
-  · exact Set.Subset.trans ih Set.subset_union_left
 
 theorem DCloseIter_mono_index (H : Hypergraph W) (t : ℕ) (X : Set W) {k l : ℕ}
     (h : k ≤ l) : DCloseIter H t X k ⊆ DCloseIter H t X l := by
@@ -6824,56 +6168,6 @@ namespace Erdos593
 
 universe u
 
-theorem reiherExpansion_proved : ReiherExpansion.{u} :=
-  reiherExpansion_of_E4 e4_Reiher
-
-theorem classification_no_E4 (h3 : E3_EGH_P.{u}) (hE2 : E2_EH_oddgirth.{u}) (F : FTS) :
-    (FTS.Obligatory.{u} F ↔ Bclass F) ∧ (Bclass F ↔ F.reduce.IntrinsicObligatory) :=
-  classification_final e4_Reiher h3 hE2 F
-
-theorem obligatory_iff_bclass_no_E4 (h3 : E3_EGH_P.{u}) (hE2 : E2_EH_oddgirth.{u})
-    (F : FTS) : FTS.Obligatory.{u} F ↔ Bclass F :=
-  obligatory_iff_bclass_final e4_Reiher h3 hE2 F
-
-theorem spectrum_dichotomy_no_E4 (h3 : E3_EGH_P.{u}) (hE2 : E2_EH_oddgirth.{u})
-    (F : FTS) (lam : Cardinal.{u}) :
-    F.InSpec lam ↔ (¬ Bclass F ∧ ℵ₀ < lam) :=
-  spectrum_dichotomy_final e4_Reiher h3 hE2 F lam
-
-theorem problem_1177_part3_no_E4 (h3 : E3_EGH_P.{u}) (hE2 : E2_EH_oddgirth.{u})
-    (G : FTS) (kappa : Cardinal.{u}) (hk : ℵ₀ < kappa) (h : G.FGnonempty kappa)
-    (lam : Cardinal.{u}) (hlam : ℵ₀ < lam) :
-    G.FGnonempty lam :=
-  problem_1177_part3_final e4_Reiher h3 hE2 G kappa hk h lam hlam
-
-theorem problem_1177_part2_no_E4 (h3 : E3_EGH_P.{u}) (hE2 : E2_EH_oddgirth.{u})
-    (hE5 : E5_HK_loose7.{u}) :
-    ∃ (G H : FTS),
-      G.FGnonempty (Order.succ (ℵ₀ : Cardinal.{u})) ∧
-      H.FGnonempty (Order.succ (ℵ₀ : Cardinal.{u})) ∧
-      ¬ ∃ (W : Type u) (K : Hypergraph W),
-          K.IsTripleSystem ∧ K.HasChromatic (Order.succ (ℵ₀ : Cardinal.{u})) ∧
-          ¬ G.Embeds K ∧ ¬ H.Embeds K :=
-  problem_1177_part2_final e4_Reiher h3 hE2 hE5
-
-theorem obligatory_stronglyTripartite_no_E4 (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (F : FTS) (hobl : FTS.Obligatory.{u} F) :
-    F.StronglyTripartite :=
-  obligatory_stronglyTripartite_final e4_Reiher h3 hE2 F hobl
-
-theorem forest_obligatory_no_E4 {F : FTS} (h : F.Forest) : FTS.Obligatory.{u} F :=
-  forest_obligatory_final e4_Reiher h
-
-theorem cycleExpansion_obligatory_iff_no_E4 (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (n : ℕ) (hn : 3 ≤ n) :
-    FTS.Obligatory.{u} (graphExpansion (SimpleGraph.cycleGraph n)) ↔ Even n :=
-  cycleExpansion_obligatory_iff_final e4_Reiher h3 hE2 n hn
-
-theorem C7_linearlyObligatory_not_obligatory_no_E4 (h3 : E3_EGH_P.{u})
-    (hE2 : E2_EH_oddgirth.{u}) (hE5 : E5_HK_loose7.{u}) :
-    FTS.LinearlyObligatory.{u} looseCycle7 ∧ ¬ FTS.Obligatory.{u} looseCycle7 :=
-  C7_linearlyObligatory_not_obligatory_final e4_Reiher h3 hE2 hE5
-
 end Erdos593
 end
 
@@ -6984,21 +6278,10 @@ def Types (ξ : Lv ρ) : Type u := {t : Vx ρ → Option ρ.out // IsTypeAt ρ �
 theorem mk_Lv : #(Lv ρ) = deltaRho ρ := by
   rw [Lv, Cardinal.mk_toType, Cardinal.card_ord]
 
-theorem mk_level (ξ : Lv ρ) : #({x : Vx ρ // lvl ρ x = ξ}) = ρ := by
-  have e : {x : Vx ρ // lvl ρ x = ξ} ≃ ρ.out := by
-    refine ⟨fun x => x.1.2, fun r => ⟨(ξ, r), rfl⟩, ?_, ?_⟩
-    · rintro ⟨⟨a, b⟩, h⟩; simp only [lvl] at h; subst h; rfl
-    · intro r; rfl
-  rw [Cardinal.mk_congr e, Cardinal.mk_out]
-
 theorem mk_Vx (hρ : ℵ₀ ≤ ρ) : #(Vx ρ) = ρ := by
   rw [Vx, Cardinal.mk_prod, Cardinal.mk_out, Cardinal.lift_id, Cardinal.lift_id, mk_Lv]
   exact Cardinal.mul_eq_right hρ (deltaRho_le hρ)
     ((lt_of_lt_of_le Cardinal.aleph0_pos (aleph0_le_deltaRho hρ)).ne')
-
-theorem mk_below_le (hρ : ℵ₀ ≤ ρ) (ξ : Lv ρ) :
-    #({w : Vx ρ // lvl ρ w < ξ}) ≤ ρ :=
-  le_trans (Cardinal.mk_subtype_le _) (le_of_eq (mk_Vx ρ hρ))
 
 theorem mk_small_subsets_le (hρ : ℵ₀ ≤ ρ) {α : Type u} (hα : #α ≤ ρ) :
     #({S : Set α | #S < deltaRho ρ}) ≤ ρ := by
@@ -7351,25 +6634,6 @@ namespace Erdos593
 
 universe u
 
-theorem classification_no_E34 (hE2 : E2_EH_oddgirth.{u}) (F : FTS) :
-    (FTS.Obligatory.{u} F ↔ Bclass F) ∧ (Bclass F ↔ F.reduce.IntrinsicObligatory) :=
-  classification_final e4_Reiher e3_EGH_P hE2 F
-
-theorem obligatory_iff_bclass_no_E34 (hE2 : E2_EH_oddgirth.{u}) (F : FTS) :
-    FTS.Obligatory.{u} F ↔ Bclass F :=
-  obligatory_iff_bclass_final e4_Reiher e3_EGH_P hE2 F
-
-theorem spectrum_dichotomy_no_E34 (hE2 : E2_EH_oddgirth.{u}) (F : FTS)
-    (lam : Cardinal.{u}) :
-    F.InSpec lam ↔ (¬ Bclass F ∧ ℵ₀ < lam) :=
-  spectrum_dichotomy_final e4_Reiher e3_EGH_P hE2 F lam
-
-theorem problem_1177_part3_no_E34 (hE2 : E2_EH_oddgirth.{u})
-    (G : FTS) (kappa : Cardinal.{u}) (hk : ℵ₀ < kappa) (h : G.FGnonempty kappa)
-    (lam : Cardinal.{u}) (hlam : ℵ₀ < lam) :
-    G.FGnonempty lam :=
-  problem_1177_part3_final e4_Reiher e3_EGH_P hE2 G kappa hk h lam hlam
-
 theorem problem_1177_part2_no_E34 (hE2 : E2_EH_oddgirth.{u}) (hE5 : E5_HK_loose7.{u}) :
     ∃ (G H : FTS),
       G.FGnonempty (Order.succ (ℵ₀ : Cardinal.{u})) ∧
@@ -7378,21 +6642,6 @@ theorem problem_1177_part2_no_E34 (hE2 : E2_EH_oddgirth.{u}) (hE5 : E5_HK_loose7
           K.IsTripleSystem ∧ K.HasChromatic (Order.succ (ℵ₀ : Cardinal.{u})) ∧
           ¬ G.Embeds K ∧ ¬ H.Embeds K :=
   problem_1177_part2_final e4_Reiher e3_EGH_P hE2 hE5
-
-theorem obligatory_stronglyTripartite_no_E34 (hE2 : E2_EH_oddgirth.{u}) (F : FTS)
-    (hobl : FTS.Obligatory.{u} F) :
-    F.StronglyTripartite :=
-  obligatory_stronglyTripartite_final e4_Reiher e3_EGH_P hE2 F hobl
-
-theorem cycleExpansion_obligatory_iff_no_E34 (hE2 : E2_EH_oddgirth.{u}) (n : ℕ)
-    (hn : 3 ≤ n) :
-    FTS.Obligatory.{u} (graphExpansion (SimpleGraph.cycleGraph n)) ↔ Even n :=
-  cycleExpansion_obligatory_iff_final e4_Reiher e3_EGH_P hE2 n hn
-
-theorem C7_linearlyObligatory_not_obligatory_no_E34 (hE2 : E2_EH_oddgirth.{u})
-    (hE5 : E5_HK_loose7.{u}) :
-    FTS.LinearlyObligatory.{u} looseCycle7 ∧ ¬ FTS.Obligatory.{u} looseCycle7 :=
-  C7_linearlyObligatory_not_obligatory_final e4_Reiher e3_EGH_P hE2 hE5
 
 end Erdos593
 end
@@ -7458,34 +6707,6 @@ theorem E2_of_core (h : E2Core.{u}) : E2_EH_oddgirth.{u} := by
     choose w hw using hvW;
     exact hgirth m hm₁ hm₂ hm₃ ⟨ w, fun i j hij => by have := hv₁ ( by aesop : v i = v j ) ; aesop, fun i => by have := hv₂ i; aesop ⟩
 
-theorem completeGraph_not_colorableBy {W : Type u} {κ : Cardinal.{u}}
-    (h : Cardinal.mk W = κ) {θ : Cardinal.{u}} (hθ : θ < κ) :
-    ¬ (SimpleGraph.toHG (⊤ : SimpleGraph W)).ColorableBy θ := by
-  rintro ⟨c, hc⟩
-  have hinj : Function.Injective c := by
-    intro x y hxy
-    by_contra hne
-    obtain ⟨u, hu, v, hv, huv⟩ := hc ({x, y} : Set W) ⟨x, y, by simpa using hne, rfl⟩
-    simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hu hv
-    rcases hu with rfl | rfl <;> rcases hv with rfl | rfl <;> simp_all
-  have : κ ≤ θ := by
-    rw [← h]
-    calc Cardinal.mk W ≤ Cardinal.mk θ.out := Cardinal.mk_le_of_injective hinj
-      _ = θ := Cardinal.mk_out θ
-  exact absurd this (not_le.mpr hθ)
-
-theorem E2Core_zero (κ : Cardinal.{u}) :
-    ∃ (W : Type u) (G : SimpleGraph W),
-      Cardinal.mk W ≤ κ ∧
-      (∀ θ, θ < κ → ¬ (SimpleGraph.toHG G).ColorableBy θ) ∧
-      NoShortOddCycle G 0 := by
-  refine ⟨κ.out, ⊤, le_of_eq (Cardinal.mk_out κ), ?_, ?_⟩
-  · intro θ hθ
-    exact completeGraph_not_colorableBy (Cardinal.mk_out κ) hθ
-  ·
-    intro m _ hm3 hm1
-    omega
-
 end Erdos593
 end
 
@@ -7530,20 +6751,6 @@ theorem card_le (hκ : ℵ₀ ≤ κ) : Cardinal.mk (Vtx κ) ≤ κ := by
 
 theorem isEdge_fst_lt {a b : Fin 3 → Pt κ} (h : IsEdge a b) : a 0 < b 0 :=
   lt_trans h.1 h.2.1
-
-theorem triangleFree :
-    ∀ a b c : Vtx κ, (graph κ).Adj a b → (graph κ).Adj b c → (graph κ).Adj a c → False := by
-  intro a b c hab hbc hac
-  simp only [graph, Adjr, IsEdge] at hab hbc hac
-  rcases hab with h1 | h1 <;> rcases hbc with h2 | h2 <;> rcases hac with h3 | h3 <;> order
-
-theorem noShortOddCycle_one : NoShortOddCycle (graph κ) 1 := by
-  intro m hm₁ hm₂ hm₃;
-  interval_cases m ; simp_all +decide;
-  intro x hx_inj
-  by_contra h_contra
-  push_neg at h_contra;
-  convert triangleFree _ _ _ ( h_contra 0 ) ( h_contra 1 ) ( h_contra 2 |> SimpleGraph.Adj.symm ) using 1
 
 def Cofinal (S : Set (Pt κ)) : Prop := ∀ x : Pt κ, ∃ y ∈ S, x < y
 
@@ -7703,13 +6910,6 @@ theorem not_colorableBy (hκ : ℵ₀ < κ) {θ : Cardinal.{u}} (hθ : θ < κ) 
   have hμreg : (Order.succ (max θ ℵ₀)).IsRegular := Cardinal.isRegular_succ (le_max_right _ _)
   have hθμ : θ < Order.succ (max θ ℵ₀) := lt_of_le_of_lt (le_max_left _ _) (Order.lt_succ _)
   exact not_colorableBy_regular hμreg hθμ (colorableBy_of_le hμκ h)
-
-theorem e2Core_oddGirth_one (hκ : ℵ₀ < κ) :
-    ∃ (W : Type u) (G : SimpleGraph W),
-      Cardinal.mk W ≤ κ ∧
-      (∀ θ, θ < κ → ¬ (SimpleGraph.toHG G).ColorableBy θ) ∧
-      NoShortOddCycle G 1 :=
-  ⟨Vtx κ, graph κ, card_le hκ.le, fun _ hθ => not_colorableBy hκ hθ, noShortOddCycle_one⟩
 
 end ER60
 end Erdos593
@@ -8107,66 +7307,6 @@ theorem card_le (hk : 1 ≤ k) (hκ : ℵ₀ ≤ κ) : Cardinal.mk (Vtx k κ) �
   rw [h_card, Cardinal.power_nat_eq hκ]
   omega
 
-theorem isEdge_coord_lt (hk : 2 ≤ k) {a b : Fin k → Pt κ} (ha : StrictMono a)
-    (hb : StrictMono b) (h : IsEdge a b) (j : Fin k) : a j < b j := by
-  obtain ⟨h1, _⟩ := h
-  have hjk : (j : ℕ) < k := j.2
-  rcases Nat.eq_zero_or_pos (j : ℕ) with hj0 | hjpos
-  · have e1 : a j < a ⟨1, by omega⟩ := ha (by simp [Fin.lt_def, hj0])
-    have e2 := h1 0 (by omega)
-    have hb0 : (⟨0, by omega⟩ : Fin k) = j := by ext; simp [hj0]
-    rw [hb0] at e2
-    exact lt_trans e1 e2
-  · have e1 := h1 (j - 1) (by omega)
-    have e2 : b ⟨j - 1, by omega⟩ < b j := hb (by simp [Fin.lt_def]; omega)
-    have hj1 : (⟨(j-1)+1, by omega⟩ : Fin k) = j := by ext; simp; omega
-    rw [hj1] at e1
-    exact lt_trans e1 e2
-
-theorem isEdge_gap {a b : Fin k → Pt κ} (h : IsEdge a b) (l : ℕ) (hl : l + 2 < k) :
-    b ⟨l, by omega⟩ < a ⟨l + 2, hl⟩ := h.2 l hl
-
-def proj3 (hk : 3 ≤ k) (a : Vtx k κ) : ER60.Vtx κ :=
-  ⟨fun i : Fin 3 => a.1 ⟨i, by omega⟩, by
-    intro i j hij
-    have hij' : (i : ℕ) < (j : ℕ) := hij
-    exact a.2 (Fin.mk_lt_mk.mpr hij')⟩
-
-theorem isEdge_proj3 (hk : 3 ≤ k) {a b : Fin k → Pt κ}
-    (ha : StrictMono a) (hb : StrictMono b) (h : IsEdge a b) :
-    ER60.IsEdge (fun i : Fin 3 => a ⟨i, by omega⟩) (fun i : Fin 3 => b ⟨i, by omega⟩) := by
-  obtain ⟨h1, h2⟩ := h
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩
-  · exact ha (by simp [Fin.lt_def])
-  · exact h1 0 (by omega)
-  · exact h2 0 (by omega)
-  · exact h1 1 (by omega)
-  · exact hb (by simp [Fin.lt_def])
-
-theorem proj3_adj (hk : 3 ≤ k) {a b : Vtx k κ}
-    (h : (graph k κ (by omega)).Adj a b) :
-    (ER60.graph κ).Adj (proj3 hk a) (proj3 hk b) := by
-  rcases h with h | h
-  · exact Or.inl (isEdge_proj3 hk a.2 b.2 h)
-  · exact Or.inr (isEdge_proj3 hk b.2 a.2 h)
-
-theorem triangleFree (hk : 3 ≤ k) (a b c : Vtx k κ)
-    (hab : (graph k κ (by omega)).Adj a b)
-    (hbc : (graph k κ (by omega)).Adj b c)
-    (hac : (graph k κ (by omega)).Adj a c) : False :=
-  ER60.triangleFree _ _ _ (proj3_adj hk hab) (proj3_adj hk hbc) (proj3_adj hk hac)
-
-theorem noShortOddCycle_one (hk : 3 ≤ k) :
-    NoShortOddCycle (graph k κ (by omega)) 1 := by
-  intro m hm₁ hm₂ hm₃
-  interval_cases m
-  simp_all
-  rintro x hx_inj
-  by_contra h_contra
-  push_neg at h_contra
-  exact triangleFree hk _ _ _ (h_contra 0) (h_contra 1)
-    ((h_contra 2).symm)
-
 theorem colorableBy_of_le (hk : 2 ≤ k) {μ : Cardinal.{u}} (hμκ : μ ≤ κ)
     {θ : Cardinal.{u}}
     (h : (SimpleGraph.toHG (graph k κ hk)).ColorableBy θ) :
@@ -8268,50 +7408,6 @@ theorem toTotal_prefix (k : ℕ) (c0 : Vtx k κ → θ.out) (junk : θ.out)
 theorem toTotal_mono (k : ℕ) (c0 : Vtx k κ → θ.out) (junk : θ.out)
     (w : ℕ → Pt κ) (h : StrictMono (fun i : Fin k => w i)) :
     toTotal k c0 junk w = c0 ⟨fun i : Fin k => w i, h⟩ := dif_pos h
-
-set_option maxHeartbeats 1200000 in
-theorem extract_aux (hreg : κ.IsRegular) (hθ : θ < κ) (c : (ℕ → Pt κ) → θ.out)
-    (star : θ.out) (hstar : ∀ w, stab hreg hθ c k 0 w = star) (hk : 2 ≤ k) :
-    ∀ cb, cb ≤ k - 2 → ∃ (wa wb : ℕ → Pt κ),
-      StrictMonoOn wa (Set.Iio (cb + 2)) ∧ StrictMonoOn wb (Set.Iio cb) ∧
-      stab hreg hθ c (k - (cb + 2)) (cb + 2) wa = star ∧
-      stab hreg hθ c (k - cb) cb wb = star ∧
-      (∀ i < cb, wa (i + 1) < wb i) ∧
-      (∀ i < cb, wb i < wa (i + 2)) ∧
-      (∀ i < cb, wb i < wa (cb + 1)) := by
-  intro cb hcb;
-  induction' cb with cb ih generalizing k;
-  · rcases k with ( _ | _ | k ) <;> simp_all +decide [ StrictMonoOn ];
-    obtain ⟨ z₀, hz₀ ⟩ := exists_next_star hreg hθ c ( k + 1 ) 0 ( fun _ => Classical.choose ( show ∃ p : Pt κ, True from by
-                                                                                                cases isEmpty_or_nonempty ( Pt κ ) <;> aesop ) ) ( Classical.choose ( show ∃ p : Pt κ, True from by
-                                                                                                                                                              cases hreg ; aesop ) )
-    generalize_proofs at *;
-    obtain ⟨ z₁, hz₁ ⟩ := exists_next_star hreg hθ c k 1 ( Function.update ( fun _ => Classical.choose ‹∃ p : Pt κ, True› ) 0 z₀ ) z₀
-    generalize_proofs at *;
-    use Function.update (Function.update (fun _ => Classical.choose ‹∃ p : Pt κ, True›) 0 z₀) 1 z₁;
-    simp_all +decide [ Function.update_apply ];
-    exact ⟨ fun a ha b hb hab => by interval_cases a <;> interval_cases b ; tauto, by rintro rfl; exact absurd hθ ( by simp +decide ) ⟩;
-  · obtain ⟨wa, wb, hwa_mono, hwb_mono, hwa_star, hwb_star, hwa_lt_hwb, hwb_lt_hwa, hwb_lt_hwa_last⟩ := ih hstar hk (by omega);
-
-    obtain ⟨zb, hzb_gt, hzb_tail, hzb_star⟩ : ∃ zb, wa (cb + 1) < zb ∧ zb ∈ tailSet wb cb ∧ stab hreg hθ c (k - cb - 1) (cb + 1) (Function.update wb cb zb) = star := by
-      convert exists_next_star hreg hθ c ( k - cb - 1 ) cb wb ( wa ( cb + 1 ) ) using 1;
-      grind +revert;
-
-    obtain ⟨za, hza_gt, hza_tail, hza_star⟩ : ∃ za, zb < za ∧ za ∈ tailSet wa (cb + 2) ∧ stab hreg hθ c (k - (cb + 2) - 1) (cb + 3) (Function.update wa (cb + 2) za) = star := by
-      convert exists_next_star hreg hθ c ( k - ( cb + 2 ) - 1 ) ( cb + 2 ) wa zb using 1;
-      grind +qlia;
-    refine' ⟨ Function.update wa ( cb + 2 ) za, Function.update wb cb zb, _, _, _, _, _ ⟩;
-    · intro x hx y hy hxy; simp_all +decide [ StrictMonoOn, Function.update_apply ] ;
-      split_ifs <;> try linarith;
-      · by_cases hx' : x < cb + 1;
-        · exact lt_trans ( hwa_mono ( by linarith ) ( by linarith ) ( by linarith ) ) ( lt_trans hzb_gt hza_gt );
-        · grind;
-      · exact hwa_mono ( by omega ) ( by omega ) hxy;
-    · intro i hi j hj hij; simp_all +decide [ StrictMonoOn ] ;
-      grind +splitImp;
-    · exact hza_star;
-    · grind;
-    · grind +locals
 
 end EHG
 end Erdos593
@@ -8558,18 +7654,12 @@ universe u
 
 variable {W : Type u}
 
-def shadowGraph (H : Hypergraph W) : SimpleGraph W :=
-  SimpleGraph.fromRel (fun u v => ∃ e ∈ H.edges, u ∈ e ∧ v ∈ e)
-
 structure Loose7Witness (H : Hypergraph W) where
   core : Fin 7 → W
   priv : Fin 7 → W
   injective : Function.Injective (Sum.elim core priv)
   edge_mem : ∀ i : Fin 7,
     ({core i, core (i + 1), priv i} : Set W) ∈ H.edges
-
-def edgesMeeting (H : Hypergraph W) (S : Set W) : Set (Set W) :=
-  {e | e ∈ H.edges ∧ (e ∩ S).Nonempty}
 
 structure CleanLoose7EdgeCycle (H : Hypergraph W) where
   core : Fin 7 → W
@@ -8580,16 +7670,6 @@ structure CleanLoose7EdgeCycle (H : Hypergraph W) where
   right_mem : ∀ i, core (i + 1) ∈ edge i
   core_mem_iff : ∀ i j, core j ∈ edge i ↔ j = i ∨ j = i + 1
   inter_subset_core : ∀ ⦃i j⦄, i ≠ j → edge i ∩ edge j ⊆ Set.range core
-
-theorem cleanEdgeCycle_edge_injective (H : Hypergraph W)
-    (c : CleanLoose7EdgeCycle H) : Function.Injective c.edge := by
-  intro i j hij
-  have hl := (c.core_mem_iff j i).mp (hij ▸ c.left_mem i)
-  have hr := (c.core_mem_iff j (i + 1)).mp (hij ▸ c.right_mem i)
-  rcases hl with h | h
-  · exact h
-  · subst i
-    fin_cases j <;> simp at hr
 
 end Erdos593
 end
@@ -8603,8 +7683,6 @@ namespace Erdos593
 universe u
 
 variable {W : Type u}
-
-def finiteEdgeSupport (D : Finset (Set W)) : Set W := ⋃ e ∈ D, e
 
 end Erdos593
 end
@@ -8723,45 +7801,6 @@ theorem InducedEdgeIntersectionSevenCycle.inter_subset_core
   · have := c.induced i j; simp_all +decide [ edgeIntersectionGraph ] ;
     exact False.elim ( this ( by intro h; have := c.injective h; fin_cases i <;> fin_cases j <;> trivial ) |>.1 ⟨ x, hx ⟩ )
 
-noncomputable def InducedEdgeIntersectionSevenCycle.toClean
-    (H : Hypergraph W) (hlin : H.Linear)
-    (c : InducedEdgeIntersectionSevenCycle H) : CleanLoose7EdgeCycle H where
-  core := c.core
-  edge := fun i => (c.edge i).1
-  core_injective := c.core_injective H
-  edge_mem := fun i => (c.edge i).2
-  left_mem := c.core_mem_right
-  right_mem := c.core_mem_left
-  core_mem_iff := c.core_mem_iff H
-  inter_subset_core := fun {i j} hij =>
-    InducedEdgeIntersectionSevenCycle.inter_subset_core H hlin c (i := i) (j := j) hij
-
-noncomputable def CleanLoose7EdgeCycle.toInduced
-    (H : Hypergraph W) (c : CleanLoose7EdgeCycle H) :
-    InducedEdgeIntersectionSevenCycle H where
-  edge := fun i => ⟨c.edge i, c.edge_mem i⟩
-  injective := fun i j h => cleanEdgeCycle_edge_injective H c (Subtype.ext_iff.mp h)
-  consecutive := by
-    intro i
-    rw [edgeIntersectionGraph_adj_iff]
-    refine ⟨?_, ⟨c.core (i + 1), c.right_mem i, c.left_mem (i + 1)⟩⟩
-    intro h
-    have hi : i = i + 1 :=
-      cleanEdgeCycle_edge_injective H c (Subtype.ext_iff.mp h)
-    have hne : i ≠ i + 1 := by
-      fin_cases i <;> decide
-    exact hne hi
-  induced := by
-    intro i j hij
-    rw [edgeIntersectionGraph_adj_iff] at hij
-    obtain ⟨x, hxi, hxj⟩ := hij.2
-    obtain ⟨k, rfl⟩ := c.inter_subset_core
-      (fun h => hij.1 (congrArg (fun k => (⟨c.edge k, c.edge_mem k⟩ : H.edges)) h))
-      ⟨hxi, hxj⟩
-    have hi := (c.core_mem_iff i k).mp hxi
-    have hj := (c.core_mem_iff j k).mp hxj
-    fin_cases i <;> fin_cases j <;> fin_cases k <;> simp_all
-
 end Erdos593
 end
 
@@ -8773,18 +7812,6 @@ universe u
 
 variable {W : Type u}
 
-theorem linear_intersection_subsingleton (H : Hypergraph W) (hlin : H.Linear)
-    {e f : Set W} (he : e ∈ H.edges) (hf : f ∈ H.edges) (hef : e ≠ f) :
-    (e ∩ f).Subsingleton := by
-  exact fun x hx y hy => by have := hlin e he f hf hef; aesop;
-
-theorem existsUnique_common_vertex (H : Hypergraph W) (hlin : H.Linear)
-    {e f : Set W} (he : e ∈ H.edges) (hf : f ∈ H.edges) (hef : e ≠ f)
-    (hmeet : (e ∩ f).Nonempty) :
-    ∃! x, x ∈ e ∩ f := by
-  obtain ⟨ x, hx ⟩ := hmeet;
-  exact ⟨ x, hx, fun y hy => by have := linear_intersection_subsingleton H hlin he hf hef; exact this hy hx ⟩
-
 end Erdos593
 end
 
@@ -8795,23 +7822,6 @@ namespace Erdos593
 universe u
 
 variable {W : Type u}
-
-def edgeStar (H : Hypergraph W) (x : W) : Set H.edges :=
-  {e | x ∈ e.1}
-
-theorem unique_contact_vertex (H : Hypergraph W) (hlin : H.Linear)
-    {e f : H.edges} (hadj : (edgeIntersectionGraph H).Adj e f) :
-    ∃! x, x ∈ e.1 ∧ x ∈ f.1 := by
-  exact existsUnique_common_vertex H hlin e.property f.property
-    (fun h => hadj.1 (Subtype.ext h))
-    (hadj.2.elim id (fun h => by simpa only [Set.inter_comm] using h))
-
-noncomputable def contactVertex (H : Hypergraph W) (hlin : H.Linear)
-    {e f : H.edges} (hadj : (edgeIntersectionGraph H).Adj e f) : W :=
-  Classical.choose (unique_contact_vertex H hlin hadj)
-
-def neighbourStar (H : Hypergraph W) (center : H.edges) (x : W) : Set H.edges :=
-  {leaf | (edgeIntersectionGraph H).Adj center leaf ∧ leaf ∈ edgeStar H x}
 
 end Erdos593
 end
@@ -8839,39 +7849,6 @@ universe u
 
 variable {W : Type u}
 
-def CleanLoose7EdgeCycle.ofEdgesSubset (H : Hypergraph W) (A : Set (Set W))
-    (hA : A ⊆ H.edges) (c : CleanLoose7EdgeCycle (⟨A⟩ : Hypergraph W)) :
-    CleanLoose7EdgeCycle H where
-  core := c.core
-  edge := c.edge
-  core_injective := c.core_injective
-  edge_mem := fun i => hA (c.edge_mem i)
-  left_mem := c.left_mem
-  right_mem := c.right_mem
-  core_mem_iff := c.core_mem_iff
-  inter_subset_core := c.inter_subset_core
-
-def E5CountableEmbeddingPrinciple : Prop :=
-  ∀ {W : Type u} (H : Hypergraph W) (A : Set (Set W)),
-    H.IsTripleSystem → H.Linear → A.Countable → A ⊆ H.edges →
-    (∀ k : ℕ, 0 < k →
-      ¬ ∃ c : W → Fin k, (⟨A⟩ : Hypergraph W).ProperColoring c) →
-    looseCycle7.Embeds (⟨A⟩ : Hypergraph W)
-
-def E5CountableCleanCyclePrinciple : Prop :=
-  ∀ {W : Type u} (H : Hypergraph W) (A : Set (Set W)),
-    H.IsTripleSystem → H.Linear → A.Countable → A ⊆ H.edges →
-    (∀ k : ℕ, 0 < k →
-      ¬ ∃ c : W → Fin k, (⟨A⟩ : Hypergraph W).ProperColoring c) →
-    Nonempty (CleanLoose7EdgeCycle (⟨A⟩ : Hypergraph W))
-
-def E5CountableIntersectionCyclePrinciple : Prop :=
-  ∀ {W : Type u} (H : Hypergraph W) (A : Set (Set W)),
-    H.IsTripleSystem → H.Linear → A.Countable → A ⊆ H.edges →
-    (∀ k : ℕ, 0 < k →
-      ¬ ∃ c : W → Fin k, (⟨A⟩ : Hypergraph W).ProperColoring c) →
-    Nonempty (InducedEdgeIntersectionSevenCycle (⟨A⟩ : Hypergraph W))
-
 end Erdos593
 end
 
@@ -8882,16 +7859,6 @@ open Cardinal
 namespace Erdos593
 
 universe u
-
-def Loose7FreeFinitelyColorable : Prop :=
-  ∀ {W : Type u} (H : Hypergraph W), H.IsTripleSystem → H.Linear →
-    ¬ looseCycle7.Embeds H →
-    ∃ k : ℕ, 0 < k ∧ ∃ c : W → Fin k, H.ProperColoring c
-
-def Loose7FreeUniformFiniteBound : Prop :=
-  ∃ k : ℕ, 0 < k ∧ ∀ {W : Type u} (H : Hypergraph W),
-    H.IsTripleSystem → H.Linear → ¬ looseCycle7.Embeds H →
-    ∃ c : W → Fin k, H.ProperColoring c
 
 end Erdos593
 end
@@ -8905,17 +7872,6 @@ namespace Erdos593
 universe u v
 
 variable {W : Type u}
-
-def EdgeIntersectionColoring (H : Hypergraph W) (C : Type v) (c : H.edges → C) : Prop :=
-  ∀ ⦃e f : H.edges⦄, (edgeIntersectionGraph H).Adj e f → c e ≠ c f
-
-def EdgeIntersectionColorable (H : Hypergraph W) (C : Type v) : Prop :=
-  ∃ c : H.edges → C, EdgeIntersectionColoring H C c
-
-noncomputable def edgeMark (H : Hypergraph W) (htri : H.IsTripleSystem) : H.edges → W :=
-  fun e => Classical.choose (Set.nonempty_of_ncard_ne_zero (by
-    rw [htri e.1 e.2]
-    norm_num))
 
 end Erdos593
 end

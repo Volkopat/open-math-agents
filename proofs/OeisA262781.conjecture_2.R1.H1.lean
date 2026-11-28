@@ -1,5 +1,6 @@
 import OMAReductions.R_OeisA262781_conjecture_2_R1
 
+open Finset
 -- Credit: @dreamzzz-dev
 
 namespace A262781Check
@@ -13,37 +14,37 @@ theorem weight_eq (k : ℕ) : weight k = Nat.totient (k ^ 2) := by
   rfl
 
 def roots (n : ℕ) : Finset ℕ :=
-  (Finset.Ico 1 (n + 1)).filter (fun k => weight k ≤ n)
+  (Ico 1 (n + 1)).filter (fun k => weight k ≤ n)
 
 def term (n x y z : ℕ) : ℕ :=
   if (y.Prime ∨ z.Prime) ∧ x ^ 2 + weight y + weight z = n then 1 else 0
 
 def count (n : ℕ) : ℕ :=
-  ∑ x ∈ (Finset.range (n + 1)).filter (fun x => x ^ 2 ≤ n),
+  ∑ x ∈ (range (n + 1)).filter (fun x => x ^ 2 ≤ n),
     ∑ y ∈ roots n, ∑ z ∈ roots n, if y ≤ z then term n x y z else 0
 
 theorem count_eq (n : ℕ) : count n = OeisA262781.a n := by
   unfold count OeisA262781.a
   simp only [← weight_eq]
-  change _ = ∑ x ∈ Finset.range (n + 1), ∑ y ∈ Finset.Ico 1 (n + 1),
-    ∑ z ∈ Finset.Ico y (n + 1), term n x y z
-  rw [Finset.sum_filter]
-  apply Finset.sum_congr rfl
+  change _ = ∑ x ∈ range (n + 1), ∑ y ∈ Ico 1 (n + 1),
+    ∑ z ∈ Ico y (n + 1), term n x y z
+  rw [sum_filter]
+  apply sum_congr rfl
   intro x hx
   by_cases hxs : x ^ 2 ≤ n
-  · rw [if_pos hxs, roots, Finset.sum_filter]
-    apply Finset.sum_congr rfl
+  · rw [if_pos hxs, roots, sum_filter]
+    apply sum_congr rfl
     intro y hy
-    have hy1 := (Finset.mem_Ico.mp hy).1
+    have hy1 := (mem_Ico.mp hy).1
     by_cases hys : weight y ≤ n
-    · rw [if_pos hys, Finset.sum_filter]
-      have domain : Finset.Ico y (n + 1) =
-          (Finset.Ico 1 (n + 1)).filter (fun z => y ≤ z) := by
+    · rw [if_pos hys, sum_filter]
+      have domain : Ico y (n + 1) =
+          (Ico 1 (n + 1)).filter (fun z => y ≤ z) := by
         ext z
-        simp only [Finset.mem_Ico, Finset.mem_filter]
+        simp only [mem_Ico, mem_filter]
         omega
-      rw [domain, Finset.sum_filter]
-      apply Finset.sum_congr rfl
+      rw [domain, sum_filter]
+      apply sum_congr rfl
       intro z hz
       by_cases hzs : weight z ≤ n
       · rw [if_pos hzs]

@@ -24,7 +24,6 @@ private def row (k p : ℕ) (he : cand k = p := by decide +kernel)
       all_goals decide +kernel) : Row :=
   ⟨k, by rw [he]; exact fermat hw⟩
 
-set_option maxRecDepth 16384 in
 private def fermatBlock0 : List Row := [
   row 11 ((12^157)^4*12^2-11),
   row 17 ((18^159)^4*18^0-17),
@@ -32,7 +31,6 @@ private def fermatBlock0 : List Row := [
   row 41 ((42^170)^4*42^3-41),
   row 65 ((66^156)^4*66^0-65)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock1 : List Row := [
   row 75 ((76^157)^4*76^2-75),
   row 77 ((78^151)^4*78^1-77),
@@ -40,7 +38,6 @@ private def fermatBlock1 : List Row := [
   row 95 ((96^150)^4*96^0-95),
   row 125 ((126^160)^4*126^1-125)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock2 : List Row := [
   row 138 ((139^63)^4*139^0-138),
   row 146 ((147^78)^4*147^3-146),
@@ -48,7 +45,6 @@ private def fermatBlock2 : List Row := [
   row 164 ((165^77)^4*165^2-164),
   row 168 ((169^60)^4*169^0-168)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock3 : List Row := [
   row 170 ((171^77)^4*171^1-170),
   row 192 ((193^72)^4*193^0-192),
@@ -56,7 +52,6 @@ private def fermatBlock3 : List Row := [
   row 203 ((204^120)^4*204^0-203),
   row 210 ((211^74)^4*211^3-210)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock4 : List Row := [
   row 221 ((222^148)^4*222^1-221),
   row 228 ((229^58)^4*229^0-228),
@@ -64,7 +59,6 @@ private def fermatBlock4 : List Row := [
   row 233 ((234^115)^4*234^0-233),
   row 234 ((235^73)^4*235^1-234)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock5 : List Row := [
   row 254 ((255^72)^4*255^0-254),
   row 255 ((256^144)^4*256^0-255),
@@ -72,7 +66,6 @@ private def fermatBlock5 : List Row := [
   row 266 ((267^71)^4*267^1-266),
   row 275 ((276^127)^4*276^2-275)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock6 : List Row := [
   row 282 ((283^70)^4*283^1-282),
   row 287 ((288^130)^4*288^2-287),
@@ -80,7 +73,6 @@ private def fermatBlock6 : List Row := [
   row 317 ((318^136)^4*318^1-317),
   row 329 ((330^123)^4*330^0-329)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock7 : List Row := [
   row 335 ((336^126)^4*336^0-335),
   row 345 ((346^132)^4*346^3-345),
@@ -88,7 +80,6 @@ private def fermatBlock7 : List Row := [
   row 357 ((358^131)^4*358^1-357),
   row 369 ((370^129)^4*370^3-369)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock8 : List Row := [
   row 383 ((384^100)^4*384^0-383),
   row 398 ((399^50)^4*399^0-398),
@@ -96,7 +87,6 @@ private def fermatBlock8 : List Row := [
   row 444 ((445^60)^4*445^0-444),
   row 458 ((459^45)^4*459^0-458)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock9 : List Row := [
   row 459 ((460^108)^4*460^0-459),
   row 462 ((463^52)^4*463^2-462),
@@ -104,7 +94,6 @@ private def fermatBlock9 : List Row := [
   row 474 ((475^58)^4*475^1-474),
   row 494 ((495^57)^4*495^0-494)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock10 : List Row := [
   row 524 ((525^48)^4*525^0-524),
   row 530 ((531^54)^4*531^3-530),
@@ -112,7 +101,6 @@ private def fermatBlock10 : List Row := [
   row 539 ((540^97)^4*540^2-539),
   row 548 ((549^42)^4*549^0-548)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock11 : List Row := [
   row 566 ((567^52)^4*567^2-566),
   row 567 ((568^101)^4*568^2-567),
@@ -120,7 +108,6 @@ private def fermatBlock11 : List Row := [
   row 584 ((585^51)^4*585^0-584),
   row 590 ((591^51)^4*591^0-590)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock12 : List Row := [
   row 614 ((615^49)^4*615^2-614),
   row 621 ((622^98)^4*622^1-621),
@@ -128,7 +115,6 @@ private def fermatBlock12 : List Row := [
   row 632 ((633^48)^4*633^0-632),
   row 644 ((645^47)^4*645^2-644)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock13 : List Row := [
   row 650 ((651^47)^4*651^1-650),
   row 665 ((666^92)^4*666^3-665),
@@ -136,7 +122,6 @@ private def fermatBlock13 : List Row := [
   row 678 ((679^36)^4*679^0-678),
   row 686 ((687^42)^4*687^3-686)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock14 : List Row := [
   row 693 ((694^60)^4*694^0-693),
   row 695 ((696^82)^4*696^2-695),
@@ -144,7 +129,6 @@ private def fermatBlock14 : List Row := [
   row 714 ((715^43)^4*715^1-714),
   row 717 ((718^86)^4*718^1-717)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock15 : List Row := [
   row 719 ((720^78)^4*720^0-719),
   row 734 ((735^42)^4*735^0-734),
@@ -152,7 +136,6 @@ private def fermatBlock15 : List Row := [
   row 737 ((738^75)^4*738^0-737),
   row 752 ((753^40)^4*753^0-752)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock16 : List Row := [
   row 756 ((757^40)^4*757^2-756),
   row 765 ((766^80)^4*766^1-765),
@@ -160,7 +143,6 @@ private def fermatBlock16 : List Row := [
   row 779 ((780^72)^4*780^0-779),
   row 780 ((781^39)^4*781^0-780)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock17 : List Row := [
   row 782 ((783^39)^4*783^0-782),
   row 786 ((787^38)^4*787^3-786),
@@ -168,7 +150,6 @@ private def fermatBlock17 : List Row := [
   row 789 ((790^77)^4*790^1-789),
   row 809 ((810^74)^4*810^3-809)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock18 : List Row := [
   row 810 ((811^33)^4*811^0-810),
   row 819 ((820^67)^4*820^2-819),
@@ -176,7 +157,6 @@ private def fermatBlock18 : List Row := [
   row 849 ((850^63)^4*850^0-849),
   row 852 ((853^34)^4*853^2-852)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock19 : List Row := [
   row 854 ((855^34)^4*855^2-854),
   row 866 ((867^33)^4*867^3-866),
@@ -184,7 +164,6 @@ private def fermatBlock19 : List Row := [
   row 884 ((885^32)^4*885^2-884),
   row 885 ((886^65)^4*886^1-885)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock20 : List Row := [
   row 888 ((889^24)^4*889^0-888),
   row 893 ((894^51)^4*894^0-893),
@@ -192,7 +171,6 @@ private def fermatBlock20 : List Row := [
   row 899 ((900^63)^4*900^2-899),
   row 906 ((907^31)^4*907^1-906)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock21 : List Row := [
   row 912 ((913^30)^4*913^0-912),
   row 914 ((915^27)^4*915^0-914),
@@ -200,7 +178,6 @@ private def fermatBlock21 : List Row := [
   row 944 ((945^28)^4*945^0-944),
   row 965 ((966^55)^4*966^1-965)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock22 : List Row := [
   row 971 ((972^49)^4*972^2-971),
   row 978 ((979^21)^4*979^0-978),
@@ -208,7 +185,6 @@ private def fermatBlock22 : List Row := [
   row 986 ((987^26)^4*987^1-986),
   row 1007 ((1008^50)^4*1008^0-1007)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock23 : List Row := [
   row 1013 ((1014^39)^4*1014^0-1013),
   row 1026 ((1027^23)^4*1027^3-1026),
@@ -216,7 +192,6 @@ private def fermatBlock23 : List Row := [
   row 1041 ((1042^45)^4*1042^3-1041),
   row 1083 ((1084^30)^4*1084^0-1083)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock24 : List Row := [
   row 1092 ((1093^19)^4*1093^2-1092),
   row 1109 ((1110^33)^4*1110^0-1109),
@@ -224,7 +199,6 @@ private def fermatBlock24 : List Row := [
   row 1125 ((1126^35)^4*1126^1-1125),
   row 1133 ((1134^25)^4*1134^0-1133)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock25 : List Row := [
   row 1152 ((1153^16)^4*1153^0-1152),
   row 1157 ((1158^31)^4*1158^1-1157),
@@ -232,7 +206,6 @@ private def fermatBlock25 : List Row := [
   row 1179 ((1180^28)^4*1180^2-1179),
   row 1185 ((1186^27)^4*1186^3-1185)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock26 : List Row := [
   row 1194 ((1195^13)^4*1195^1-1194),
   row 1197 ((1198^26)^4*1198^1-1197),
@@ -240,7 +213,6 @@ private def fermatBlock26 : List Row := [
   row 1227 ((1228^22)^4*1228^2-1227),
   row 1251 ((1252^19)^4*1252^2-1251)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock27 : List Row := [
   row 1253 ((1254^15)^4*1254^0-1253),
   row 1266 ((1267^8)^4*1267^3-1266),
@@ -248,7 +220,6 @@ private def fermatBlock27 : List Row := [
   row 1277 ((1278^16)^4*1278^1-1277),
   row 1278 ((1279^6)^4*1279^0-1278)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock28 : List Row := [
   row 1284 ((1285^7)^4*1285^2-1284),
   row 1286 ((1287^7)^4*1287^2-1286),
@@ -256,7 +227,6 @@ private def fermatBlock28 : List Row := [
   row 1299 ((1300^13)^4*1300^2-1299),
   row 1316 ((1317^5)^4*1317^2-1316)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock29 : List Row := [
   row 1322 ((1323^5)^4*1323^1-1322),
   row 1334 ((1335^4)^4*1335^2-1334),
@@ -264,7 +234,6 @@ private def fermatBlock29 : List Row := [
   row 1341 ((1342^8)^4*1342^1-1341),
   row 1364 ((1365^2)^4*1365^2-1364)]
 
-set_option maxRecDepth 16384 in
 private def fermatBlock30 : List Row := [
   row 1365 ((1366^5)^4*1366^1-1365),
   row 1371 ((1372^4)^4*1372^2-1371),
@@ -409,139 +378,94 @@ private lemma checked_sound {k : ℕ} (h : checked k = true) : ¬(cand k).Prime 
   · simp only [decide_eq_true_eq] at h
     exact Nat.not_prime_of_dvd_of_lt (Nat.dvd_of_mod_eq_zero h.2.2) h.1 h.2.1
 
-set_option maxRecDepth 16384 in
 private theorem block0 : ∀ j : Fin 32, checked (0+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block1 : ∀ j : Fin 32, checked (32+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block2 : ∀ j : Fin 32, checked (64+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block3 : ∀ j : Fin 32, checked (96+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block4 : ∀ j : Fin 32, checked (128+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block5 : ∀ j : Fin 32, checked (160+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block6 : ∀ j : Fin 32, checked (192+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block7 : ∀ j : Fin 32, checked (224+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block8 : ∀ j : Fin 32, checked (256+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block9 : ∀ j : Fin 32, checked (288+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block10 : ∀ j : Fin 32, checked (320+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block11 : ∀ j : Fin 32, checked (352+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block12 : ∀ j : Fin 32, checked (384+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block13 : ∀ j : Fin 32, checked (416+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block14 : ∀ j : Fin 32, checked (448+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block15 : ∀ j : Fin 32, checked (480+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block16 : ∀ j : Fin 32, checked (512+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block17 : ∀ j : Fin 32, checked (544+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block18 : ∀ j : Fin 32, checked (576+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block19 : ∀ j : Fin 32, checked (608+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block20 : ∀ j : Fin 32, checked (640+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block21 : ∀ j : Fin 32, checked (672+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block22 : ∀ j : Fin 32, checked (704+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block23 : ∀ j : Fin 32, checked (736+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block24 : ∀ j : Fin 32, checked (768+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block25 : ∀ j : Fin 32, checked (800+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block26 : ∀ j : Fin 32, checked (832+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block27 : ∀ j : Fin 32, checked (864+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block28 : ∀ j : Fin 32, checked (896+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block29 : ∀ j : Fin 32, checked (928+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block30 : ∀ j : Fin 32, checked (960+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block31 : ∀ j : Fin 32, checked (992+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block32 : ∀ j : Fin 32, checked (1024+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block33 : ∀ j : Fin 32, checked (1056+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block34 : ∀ j : Fin 32, checked (1088+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block35 : ∀ j : Fin 32, checked (1120+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block36 : ∀ j : Fin 32, checked (1152+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block37 : ∀ j : Fin 32, checked (1184+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block38 : ∀ j : Fin 32, checked (1216+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block39 : ∀ j : Fin 32, checked (1248+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block40 : ∀ j : Fin 32, checked (1280+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block41 : ∀ j : Fin 32, checked (1312+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block42 : ∀ j : Fin 32, checked (1344+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private theorem block43 : ∀ j : Fin 32, checked (1376+j.val+1) = true := by decide +kernel
 
-set_option maxRecDepth 16384 in
 private lemma all_checked (k : ℕ) (h0 : 0 < k) (hk : k < 1406) : checked k = true := by
   let j : Fin 32 := ⟨(k-1)%32, Nat.mod_lt _ (by decide)⟩
   let b := (k-1)/32

@@ -1,0 +1,69 @@
+import Mathlib
+
+/-!
+# OEIS A273334: Barker's closed form, recurrence and g.f. for the ON cells of the 2D Rule 657
+
+Source: https://oeis.org/A273334 (OEIS Foundation, CC BY-SA 4.0).
+Formalization: AI-generated with Claude Code (model claude-opus-5-5), submitted by @jleguina.
+
+Entry A273334 (Robert Price, May 20 2016), offset 0: Number of active (ON, black) cells in n-th
+stage of growth of two-dimensional cellular automaton defined by Rule 657, based on the 5-celled von
+Neumann neighborhood.
+Formula section:
+Conjectures from Colin Barker, May 20 2016:
+a(n) = 4*n*(1+n) for n>2.
+a(n) = 3*a(n-1)-3*a(n-2)+a(n-3) for n>5.
+G.f.: (1+x+8*x^2+8*x^3-17*x^4+7*x^5) / (1-x)^3.
+
+Formalization notes:
+* Rule numbering: Wolfram's outer totalistic code on the 5-celled von Neumann neighborhood, as
+  CAStep in the entry's program: the new state of a cell is bit 2k + c of the rule number, where c
+  is its old state and k the number of its four neighbors (x +- 1, y) and (x, y +- 1) that are ON.
+* Initial condition: at stage 0 the origin is ON and every other cell of Z x Z is OFF; each stage
+  applies the rule to every cell of the plane, so the background evolves with the rule (Rule 657
+  turns an OFF cell with no ON neighbor ON); the entry's program evolves the same rule on a finite
+  grid.
+* Counting convention: a(n) is the number of ON cells of stage n in the square [-n, n]^2, the part
+  of the grid the entry's program keeps (it trims each stage s to the square [-s, s]^2, Range[k+1-n,
+  k-1+n]).
+* The statement is the conjunction of the 3 conjectures of the site's problem, in the entry's order.
+  The recurrence is stated in the integers. The closed form is stated in the rationals, where every
+  division is exact. The generating function is A(x) = Sum_{n >= 0} a(n) x^n in the formal power
+  series ring over the rationals, and the identity is A = N * D⁻¹, where D has a nonzero constant
+  term.
+* Controls proved in the proof file (theorem vals): the definition gives a(n) for n = 0..18 equal to
+  the entry's first 19 terms, 1, 4, 17, 48, 80, 120, 168, 224, 288, 360, 440, 528, ....
+-/
+
+namespace OMA.S_oeis_a273334
+
+open PowerSeries
+
+/-- Rule 657: new state from the cell's state `c` and its number `k` of ON neighbors
+(Wolfram's outer totalistic code: bit `2k + c` of 657). -/
+def rule (c : Bool) (k : ℕ) : Bool := (657 : ℕ).testBit (2 * k + cond c 1 0)
+
+/-- The four von Neumann neighbors. -/
+def nbrs (p : ℤ × ℤ) : List (ℤ × ℤ) :=
+  [(p.1 + 1, p.2), (p.1 - 1, p.2), (p.1, p.2 + 1), (p.1, p.2 - 1)]
+
+/-- The automaton on `ℤ × ℤ`, started from the single ON cell at the origin. -/
+def state : ℕ → ℤ × ℤ → Bool
+  | 0, p => decide (p = (0, 0))
+  | t + 1, p => rule (state t p) ((nbrs p).countP (fun q => state t q))
+
+/-- A273334(n): the number of ON cells of stage `n` in the square `[-n, n]²`. -/
+def a (n : ℕ) : ℕ :=
+  ∑ x ∈ Finset.range (2 * n + 1), ∑ y ∈ Finset.range (2 * n + 1), if state n ((x : ℤ) - n, (y : ℤ) - n) then 1 else 0
+
+/-- The generating function Sum_{n >= 0} a(n) x^n. -/
+noncomputable def A : ℚ⟦X⟧ := PowerSeries.mk fun n => (a n : ℚ)
+
+/-- Barker's closed form, recurrence and generating function. -/
+theorem main :
+    (∀ n : ℕ, 2 < n → (a n : ℚ) = 4 * n * (1 + n)) ∧
+    (∀ n : ℕ, 5 < n → (a n : ℤ) = 3 * a (n - 1) - 3 * a (n - 2) + a (n - 3)) ∧
+    A = (1 + X + 8 * X ^ 2 + 8 * X ^ 3 - 17 * X ^ 4 + 7 * X ^ 5) * ((1 - X) ^ 3)⁻¹ := by
+  sorry
+
+end OMA.S_oeis_a273334

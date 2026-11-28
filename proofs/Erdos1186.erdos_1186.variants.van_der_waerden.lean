@@ -10,29 +10,18 @@ open Combinatorics Finset Filter
 
 namespace OMA
 
-theorem sum_line {ι : Type} [Fintype ι] [DecidableEq ι] {k : ℕ} (l : Line (Fin k) ι) (x : Fin k) :
-    ∑ i, ((l x i : Fin k) : ℕ) = (∑ i ∈ (Finset.univ.filter (fun i => l.idxFun i = none))ᶜ,
-        ((l.idxFun i).map (fun y : Fin k => (y : ℕ))).getD 0)
-      + (Finset.univ.filter (fun i => l.idxFun i = none)).card * (x : ℕ) := by
-  rw [← Finset.sum_add_sum_compl (Finset.univ.filter (fun i => l.idxFun i = none))]
-  have h1 : ∑ i ∈ Finset.univ.filter (fun i => l.idxFun i = none), ((l x i : Fin k) : ℕ)
-      = (Finset.univ.filter (fun i => l.idxFun i = none)).card * (x : ℕ) := by
-    rw [← smul_eq_mul, ← Finset.sum_const]
-    apply Finset.sum_congr rfl
-    intro i hi
-    rw [Finset.mem_filter] at hi
-    rw [l.apply_none _ _ hi.2]
-  have h2 : ∑ i ∈ (Finset.univ.filter (fun i => l.idxFun i = none))ᶜ, ((l x i : Fin k) : ℕ)
-      = ∑ i ∈ (Finset.univ.filter (fun i => l.idxFun i = none))ᶜ,
-        ((l.idxFun i).map (fun y : Fin k => (y : ℕ))).getD 0 := by
-    apply Finset.sum_congr rfl
-    intro i hi
-    rw [Finset.compl_filter, Finset.mem_filter] at hi
-    obtain ⟨y, hy⟩ := Option.ne_none_iff_exists.mp hi.2
-    rw [Line.apply_some hy.symm, ← hy]
-    rfl
-  rw [h1, h2]
-  ring
+theorem sum_line {ι : Type} [Fintype ι] {k : ℕ} (l : Line (Fin k) ι) (z x : Fin k)
+    (hz : (z : ℕ) = 0) :
+    ∑ i, (l x i : ℕ) = (∑ i, (l z i : ℕ)) +
+      (univ.filter (fun i => l.idxFun i = none)).card * (x : ℕ) := by
+  classical
+  have he : ∀ i, (l x i : ℕ) = (l z i : ℕ) + if l.idxFun i = none then (x : ℕ) else 0 := by
+    intro i
+    cases h : l.idxFun i with
+    | none => simp [h, hz]
+    | some a => simp [h]
+  simp only [he, sum_add_distrib, ← sum_filter, sum_const]
+  rfl
 
 /-- Van der Waerden inside a dilated box, with uniform bounds. -/
 theorem vdw_core (k : ℕ) (hk : 1 ≤ k) : ∃ M : ℕ, ∀ (c : ℕ → Bool) (A D : ℕ),
@@ -43,9 +32,10 @@ theorem vdw_core (k : ℕ) (hk : 1 ≤ k) : ∃ M : ℕ, ∀ (c : ℕ → Bool) 
   refine ⟨Fintype.card ι, fun c A D => ?_⟩
   obtain ⟨l, col, hl⟩ := hι (fun v => c (A + D * ∑ i, (v i : ℕ)))
   set S : Finset ι := Finset.univ.filter (fun i => l.idxFun i = none) with hS
-  set b : ℕ := ∑ i ∈ Sᶜ, ((l.idxFun i).map (fun y : Fin k => (y : ℕ))).getD 0 with hb
+  let z : Fin k := ⟨0, by omega⟩
+  let b : ℕ := ∑ i, (l z i : ℕ)
   have hsum : ∀ x : Fin k, ∑ i, ((l x i : Fin k) : ℕ) = b + S.card * (x : ℕ) :=
-    fun x => sum_line l x
+    fun x => sum_line l z x rfl
   have hspos : 1 ≤ S.card := Finset.card_pos.mpr ⟨l.proper.choose, by
     rw [hS, Finset.mem_filter]
     exact ⟨Finset.mem_univ _, l.proper.choose_spec⟩⟩
@@ -63,10 +53,7 @@ theorem vdw_core (k : ℕ) (hk : 1 ≤ k) : ∃ M : ℕ, ∀ (c : ℕ → Bool) 
     rw [h] at hle
     exact hle
   · intro i hi
-    rw [hcol i hi]
-    have := hcol 0 (by omega)
-    rw [Nat.mul_zero, Nat.add_zero] at this
-    exact this.symm
+    exact (hcol i hi).trans (by simpa using (hcol 0 (by omega)).symm)
 
 /-- The counting step. -/
 theorem count (k : ℕ) (hk : 2 ≤ k) (M : ℕ)

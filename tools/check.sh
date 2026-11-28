@@ -10,7 +10,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 if [ -n "${2:-}" ]; then OUT="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"; else OUT=/dev/stdout; fi
 FC="${OMA_FC:-$ROOT/.oma/formal-conjectures}"
 LINT="$(python3 -I "$ROOT/tools/lint.py" "$FILE" "$ROOT/data/catalog.json")"; LINT_OK=$?
-emit() { python3 -I -c 'import json,sys; d=json.loads(sys.argv[1]); d.update(verdict=sys.argv[2], reason=sys.argv[3], log=sys.argv[4][-6000:]); print(json.dumps(d, ensure_ascii=False))' "$LINT" "$1" "$2" "${3:-}" > "$OUT"; }
+# Only the end of the log is kept, and it is cut here: one argument may not exceed 128 KB, and a long compiler log used
+# to make python fail to start, leaving an empty verdict ("checker produced no verdict") for a proof that just failed.
+emit() { local L="${3:-}"; [ "${#L}" -le 6000 ] || L="${L: -6000}"
+  python3 -I -c 'import json,sys; d=json.loads(sys.argv[1]); d.update(verdict=sys.argv[2], reason=sys.argv[3], log=sys.argv[4][-6000:]); print(json.dumps(d, ensure_ascii=False))' "$LINT" "$1" "$2" "$L" > "$OUT"; }
 if [ $LINT_OK -ne 0 ]; then emit rejected "lint: $(python3 -I -c 'import json,sys;print("; ".join(json.loads(sys.argv[1])["errors"]))' "$LINT")"; exit 1; fi
 field() { python3 -I -c 'import json,sys;print(json.loads(sys.argv[1])[sys.argv[2]])' "$LINT" "$1"; }
 MODULE="$(field imports)"; THM="$(field theorem)"
@@ -48,10 +51,32 @@ fi
 SUB="OMASubmission_$$.lean"
 # A problem that asks for a value: audit with the placeholder's value skipped (tools/oma_audit.lean).
 SKIP="$(python3 -I -c 'import json,sys;print(" ".join(json.loads(sys.argv[1]).get("skipAxiomsOf") or []))' "$LINT")"
+# Statement guard. `theorem OMA.solution : type_of% @X` elaborates with namespace OMA open, so a file that also
+# declared its own OMA.X (or, in a reduction, a lemma named X inside its namespace) would prove that instead of the
+# catalogue's statement and still pass the axiom audit. This line, appended after the file, re-states the expected
+# type with every name taken from the root namespace and checks the submitted theorem against it: if the file proved
+# anything else, the file does not compile. (Reported privately by Ryan of Sentria, 28 Nov 2026.)
+GUARD="$(python3 -I -c '
+import json, sys
+d = json.loads(sys.argv[1]); t = d.get("target") or ""; th = d.get("theorem") or ""; ty = d.get("type")
+if not t or not th or ty == "statement":
+    sys.exit()
+root = ("type_of% @_root_." + t[len("type_of% @"):]) if t.startswith("type_of% @") else ("_root_." + t)
+if ty == "reduction":
+    ns = th[: -len(".main")]
+    chain = "".join("_root_.%s.H%d → " % (ns, i) for i in range(1, len(d.get("hypotheses") or []) + 1))
+    print("example : %s%s := _root_.%s" % (chain, root, th))
+elif d.get("skipAxiomsOf"):
+    print("example : _root_.%s = _root_.OMA.answer → %s := _root_.%s" % (d["skipAxiomsOf"][0], root, th))
+elif th.endswith(".disproof"):
+    print("example : ¬ (%s) := _root_.%s" % (root, th))
+else:
+    print("example : %s := _root_.%s" % (root, th))
+' "$LINT")"
 if [ -n "$SKIP" ]; then
-  { cat "$ROOT/$FILE" 2>/dev/null || cat "$FILE"; printf '\n'; cat "$ROOT/tools/oma_audit.lean"; printf '\n#oma_axioms %s skipping %s\n' "$THM" "$SKIP"; } > "$SUB"
+  { cat "$ROOT/$FILE" 2>/dev/null || cat "$FILE"; printf '\n%s\n' "$GUARD"; cat "$ROOT/tools/oma_audit.lean"; printf '\n#oma_axioms %s skipping %s\n' "$THM" "$SKIP"; } > "$SUB"
 else
-  { cat "$ROOT/$FILE" 2>/dev/null || cat "$FILE"; printf '\n#print axioms %s\n' "$THM"; } > "$SUB"
+  { cat "$ROOT/$FILE" 2>/dev/null || cat "$FILE"; printf '\n%s\n#print axioms %s\n' "$GUARD" "$THM"; } > "$SUB"
 fi
 LOG="$(timeout 1800 lake env lean "$SUB" 2>&1)"; RC=$?
 rm -f "$SUB"

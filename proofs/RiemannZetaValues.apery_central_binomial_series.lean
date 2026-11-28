@@ -324,63 +324,42 @@ private lemma abs_H_le (N k : ℕ) (hk1 : 1 ≤ k) (hkN : k ≤ N) :
 private lemma real_apery_identity :
     (∑' n : ℕ, (1 : ℝ) / ((n : ℝ) + 1) ^ 3) =
       (5 / 2 : ℝ) * ∑' n : ℕ, (-1 : ℝ) ^ n / (((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ)) := by
-  have hsum_zeta : Summable (fun n : ℕ => (1 : ℝ) / ((n : ℝ) + 1) ^ 3) := by
+  let z (n : ℕ) : ℝ := 1 / ((n : ℝ) + 1) ^ 3
+  let a (n : ℕ) : ℝ := (-1) ^ n / (((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ))
+  change (∑' n, z n) = (5 / 2 : ℝ) * ∑' n, a n
+  have hsum_zeta : Summable z := by
     have h1 : Summable (fun n : ℕ => (1 : ℝ) / (n : ℝ) ^ 3) :=
       Real.summable_one_div_nat_pow.mpr (by norm_num)
-    have h2 : Summable (fun n : ℕ => (1 : ℝ) / ((n + 1 : ℕ) : ℝ) ^ 3) :=
-      (summable_nat_add_iff 1).mpr h1
-    simpa only [Nat.cast_add, Nat.cast_one] using h2
-  have hsum_apery : Summable (fun n : ℕ => (-1 : ℝ) ^ n / (((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ))) := by
-    refine Summable.of_norm_bounded (g := fun n : ℕ => (1 : ℝ) / ((n : ℝ) + 1) ^ 3) hsum_zeta fun n => ?_
+    simpa only [z, Nat.cast_add, Nat.cast_one] using (summable_nat_add_iff 1).mpr h1
+  have hsum_apery : Summable a := by
+    refine Summable.of_norm_bounded (g := z) hsum_zeta fun n => ?_
+    dsimp [z, a]
     have hcbpos : (0 : ℝ) < (Nat.centralBinom (n + 1) : ℝ) :=
       Nat.cast_pos.mpr (Nat.centralBinom_pos (n + 1))
-    rw [Real.norm_eq_abs, abs_div, abs_pow, abs_neg, abs_one, one_pow,
+    rw [abs_div, abs_pow, abs_neg, abs_one, one_pow,
       abs_of_pos (by positivity : (0 : ℝ) < ((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ))]
     have hcb1 : (1 : ℝ) ≤ (Nat.centralBinom (n + 1) : ℝ) := by
       exact_mod_cast Nat.centralBinom_pos (n + 1)
     exact div_le_div_of_nonneg_left zero_le_one (by positivity) (le_mul_of_one_le_right (by positivity) hcb1)
-  have htend1 : Tendsto (fun N : ℕ => ∑ n ∈ Finset.range N, (1 : ℝ) / ((n : ℝ) + 1) ^ 3)
-      atTop (nhds (∑' n : ℕ, (1 : ℝ) / ((n : ℝ) + 1) ^ 3)) :=
-    hsum_zeta.hasSum.tendsto_sum_nat
-  have htend2 : Tendsto (fun N : ℕ => (5 / 2 : ℝ) * ∑ n ∈ Finset.range N,
-      (-1 : ℝ) ^ n / (((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ)))
-      atTop (nhds ((5 / 2 : ℝ) * ∑' n : ℕ, (-1 : ℝ) ^ n / (((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ)))) :=
-    (hsum_apery.hasSum.tendsto_sum_nat).const_mul (5 / 2 : ℝ)
-  have htend_diff : Tendsto (fun N : ℕ =>
-      (∑ n ∈ Finset.range N, (1 : ℝ) / ((n : ℝ) + 1) ^ 3) -
-      (5 / 2 : ℝ) * ∑ n ∈ Finset.range N,
-        (-1 : ℝ) ^ n / (((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ)))
-      atTop (nhds ((∑' n : ℕ, (1 : ℝ) / ((n : ℝ) + 1) ^ 3) -
-        (5 / 2 : ℝ) * ∑' n : ℕ, (-1 : ℝ) ^ n / (((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ)))) :=
-    htend1.sub htend2
+  have htend_diff := hsum_zeta.hasSum.tendsto_sum_nat.sub
+    (hsum_apery.hasSum.tendsto_sum_nat.const_mul (5 / 2 : ℝ))
+  have reindex (N : ℕ) (f : ℕ → ℝ) :
+      (∑ n ∈ Finset.range N, f (n + 1)) = ∑ n ∈ Finset.Icc 1 N, f n := by
+    refine Finset.sum_nbij (fun n => n + 1) ?_ ?_ ?_ ?_
+    · intro n hn; simp only [Finset.mem_range] at hn; simp only [Finset.mem_Icc]; omega
+    · intro a _ b _ h; dsimp only at h; omega
+    · intro n hn; simp only [Finset.mem_coe, Finset.mem_Icc] at hn
+      exact ⟨n - 1, by simp only [Finset.mem_coe, Finset.mem_range]; omega, by dsimp only; omega⟩
+    · intro n _; rfl
   have htend_zero : Tendsto (fun N : ℕ =>
-      (∑ n ∈ Finset.range N, (1 : ℝ) / ((n : ℝ) + 1) ^ 3) -
-      (5 / 2 : ℝ) * ∑ n ∈ Finset.range N,
-        (-1 : ℝ) ^ n / (((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ)))
+      (∑ n ∈ Finset.range N, z n) - (5 / 2 : ℝ) * ∑ n ∈ Finset.range N, a n)
       atTop (nhds 0) := by
     have hreindex : ∀ N : ℕ,
-        (∑ n ∈ Finset.range N, (1 : ℝ) / ((n : ℝ) + 1) ^ 3) -
-        (5 / 2 : ℝ) * ∑ n ∈ Finset.range N,
-          (-1 : ℝ) ^ n / (((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ)) =
+        (∑ n ∈ Finset.range N, z n) - (5 / 2 : ℝ) * ∑ n ∈ Finset.range N, a n =
         -(∑ k ∈ Finset.Icc 1 N, H N k) := by
       intro N
-      have hs1 : ∑ n ∈ Finset.range N, (1 : ℝ) / ((n : ℝ) + 1) ^ 3 =
-          ∑ n ∈ Finset.Icc 1 N, (1 : ℝ) / (n : ℝ) ^ 3 := by
-        refine Finset.sum_nbij (fun n => n + 1) ?_ ?_ ?_ ?_
-        · intro n hn; simp only [Finset.mem_range] at hn; simp only [Finset.mem_Icc]; omega
-        · intro a _ b _ h; dsimp only at h; omega
-        · intro n hn; simp only [Finset.mem_coe, Finset.mem_Icc] at hn
-          exact ⟨n - 1, by simp only [Finset.mem_coe, Finset.mem_range]; omega, by dsimp only; omega⟩
-        · intro n _; push_cast; rfl
-      have hs2 : ∑ n ∈ Finset.range N, (-1 : ℝ) ^ n / (((n : ℝ) + 1) ^ 3 * (Nat.centralBinom (n + 1) : ℝ)) =
-          ∑ n ∈ Finset.Icc 1 N, (-1 : ℝ) ^ (n - 1) / ((n : ℝ) ^ 3 * (Nat.centralBinom n : ℝ)) := by
-        refine Finset.sum_nbij (fun n => n + 1) ?_ ?_ ?_ ?_
-        · intro n hn; simp only [Finset.mem_range] at hn; simp only [Finset.mem_Icc]; omega
-        · intro a _ b _ h; dsimp only at h; omega
-        · intro n hn; simp only [Finset.mem_coe, Finset.mem_Icc] at hn
-          exact ⟨n - 1, by simp only [Finset.mem_coe, Finset.mem_range]; omega, by dsimp only; omega⟩
-        · intro n _; simp only [Nat.add_sub_cancel]; push_cast; rfl
-      rw [hs1, hs2, partial_sum_identity]
+      rw [← partial_sum_identity N, ← reindex, ← reindex]
+      simp only [z, a, Nat.add_sub_cancel, Nat.cast_add, Nat.cast_one]
     simp_rw [hreindex]
     refine squeeze_zero_norm' (a := fun N : ℕ => (1 : ℝ) / (2 * (N : ℝ))) ?_ ?_
     · filter_upwards [Filter.eventually_ge_atTop 1] with N hN

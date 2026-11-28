@@ -23,9 +23,6 @@ lemma entryDen_pos (p i j : ℕ) : 0 < entryDen p i j := by
   unfold entryDen
   omega
 
-lemma blockProd_pos (p t : ℕ) : 0 < blockProd p t :=
-  Finset.prod_pos fun i _ => entryDen_pos p i t
-
 lemma det_last_pivot {t : ℕ} (A : Matrix (Fin (t + 1)) (Fin (t + 1)) ℚ)
     (ha : A (Fin.last t) (Fin.last t) ≠ 0) :
     A.det = A (Fin.last t) (Fin.last t) *
@@ -49,8 +46,7 @@ lemma det_last_pivot {t : ℕ} (A : Matrix (Fin (t + 1)) (Fin (t + 1)) ℚ)
     ring
   rw [← hd, Matrix.det_succ_column B l, Fin.sum_univ_castSucc]
   simp only [hz, mul_zero, zero_mul, Finset.sum_const_zero, zero_add]
-  have hs : (-1 : ℚ) ^ ((l : ℕ) + (l : ℕ)) = 1 := by rw [← two_mul, pow_mul]; norm_num
-  rw [hs, one_mul]
+  rw [Even.neg_one_pow (α := ℚ) (.add_self (l : ℕ)), one_mul]
   change B l l * (B.submatrix l.succAbove l.succAbove).det = _
   rw [hl, hm]
 
@@ -61,13 +57,7 @@ lemma weight_prod (p t : ℕ) :
     (∏ i : Fin t, weight p t i) =
       ((p ^ t * t.factorial : ℕ) : ℚ) / (blockProd p t : ℚ) := by
   have hfac : (∏ i ∈ range t, (t - i)) = t.factorial := by
-    calc
-      _ = ∏ i ∈ range t, ((t - 1 - i) + 1) := by
-        apply prod_congr rfl
-        intro i hi
-        have := mem_range.mp hi
-        omega
-      _ = _ := (prod_range_reflect (fun i => i + 1) t).trans (prod_range_add_one_eq_factorial t)
+    rw [← Nat.descFactorial_eq_prod_range, Nat.descFactorial_self]
   unfold weight
   rw [Finset.prod_div_distrib]
   congr 1
@@ -83,8 +73,7 @@ lemma det_step (p t : ℕ) :
       (entryDen p t t : ℚ) := by
   let A := kernel p (t + 1)
   let l := Fin.last t
-  have hentry (i j : ℕ) : (entryDen p i j : ℚ) ≠ 0 :=
-    Nat.cast_ne_zero.mpr (entryDen_pos p i j).ne'
+  have hentry (i j : ℕ) : (entryDen p i j : ℚ) ≠ 0 := by unfold entryDen; positivity
   have ha : A l l ≠ 0 := one_div_ne_zero (hentry t t)
   let S := of fun i j : Fin t => A i.castSucc j.castSucc - A i.castSucc l * A l j.castSucc / A l l
   have hS : S = diagonal (weight p t) * kernel p t * diagonal (weight p t) := by
@@ -113,9 +102,7 @@ lemma coprime_entry (p i j : ℕ) : p.Coprime (entryDen p i j) :=
 progression is a unit multiple of a block of consecutive integers. -/
 lemma factorial_part_dvd {d p t : ℕ} (hd : d ∣ t.factorial) (hc : p.Coprime d) :
     d ∣ blockProd p t := by
-  have : NeZero d := ⟨by
-    rintro rfl
-    exact t.factorial_ne_zero (by simpa using hd)⟩
+  have : NeZero d := ⟨by rintro rfl; simp [t.factorial_ne_zero] at hd⟩
   let u := ((p : ZMod d)⁻¹).val
   have hu : (p : ZMod d) * (u : ZMod d) = 1 := by
     rw [show (u : ZMod d) = (p : ZMod d)⁻¹ from ZMod.natCast_zmod_val _]
@@ -143,11 +130,9 @@ lemma reduced_block {p : ℕ} (hp : p.Prime) (t : ℕ) :
   obtain ⟨d, hd⟩ := factorial_part_dvd (Nat.ordCompl_dvd t.factorial p)
     (Nat.coprime_ordCompl hp t.factorial_ne_zero)
   change blockProd p t = s * d at hd
-  have hbd := blockProd_pos p t
-  have hdpos : 0 < d := by
-    by_contra! hz
-    have : d = 0 := by omega
-    simp [hd, this] at hbd
+  have hdpos : 0 < d := Nat.pos_of_ne_zero fun h => by
+    simp [h] at hd
+    exact (prod_pos fun i _ => entryDen_pos p i t).ne' hd
   have hc : p.Coprime (blockProd p t) :=
     Nat.coprime_prod_right_iff.mpr fun i _ => coprime_entry p i t
   rw [hd] at hc
@@ -179,8 +164,7 @@ lemma reduced_det {p : ℕ} (hp : p.Prime) (n : ℕ) :
       (kernel p (n + 1)).det = ((p : ℚ) ^ 2) ^ (valuationSum p n) / (d : ℚ) := by
   induction n with
   | zero =>
-    refine ⟨1, by decide, Nat.coprime_one_right p, ?_⟩
-    simp [kernel, entryDen, valuationSum]
+    exact ⟨1, one_pos, p.coprime_one_right, by simp [kernel, entryDen, valuationSum]⟩
   | succ n ih =>
     obtain ⟨d, hd, hc, hdet⟩ := ih
     obtain ⟨b, hb, hcb, hblock⟩ := reduced_block hp (n + 1)
@@ -190,9 +174,7 @@ lemma reduced_det {p : ℕ} (hp : p.Prime) (n : ℕ) :
       (coprime_entry _ _ _), ?_⟩
     have hv : valuationSum p (n + 1) = valuationSum p n +
         (n + 1 + (n + 1).factorial.factorization p) := sum_range_succ _ _
-    have hs (k : ℕ) : ((p : ℚ) ^ 2) ^ k = ((p : ℚ) ^ k) ^ 2 := by
-      rw [← pow_mul, Nat.mul_comm, pow_mul]
-    rw [det_step, hdet, hblock, hv, pow_add ((p : ℚ) ^ 2), hs (n + 1 + _)]
+    rw [det_step, hdet, hblock, hv, pow_add ((p : ℚ) ^ 2), pow_right_comm _ 2 (n + 1 + _)]
     change _ / (z : ℚ) = _
     push_cast
     ring
@@ -205,10 +187,8 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a122251.main := by
   have hm : OMA.S_oeis_a122251.hankel p n = BarryHankel.kernel p (n + 1) := by
     ext i j
     simp [OMA.S_oeis_a122251.hankel, BarryHankel.kernel, BarryHankel.entryDen]
-  rw [hm]
-  rw [heq, BarryHankel.exponent_eq hp n]
+  rw [hm, heq, BarryHankel.exponent_eq hp n]
   let v := BarryHankel.valuationSum p n
-  have hcop : ((p ^ 2) ^ v).Coprime d := (hc.pow_left 2).pow_left v
   have hnum := Rat.num_div_eq_of_coprime (a := (((p ^ 2) ^ v : ℕ) : ℤ)) (b := (d : ℤ))
-    (by exact_mod_cast hd) (by simpa using hcop)
+    (by exact_mod_cast hd) (by simpa using (hc.pow_left 2).pow_left v)
   simpa [v] using hnum

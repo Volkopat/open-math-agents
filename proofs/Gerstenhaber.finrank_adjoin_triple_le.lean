@@ -571,7 +571,6 @@ theorem openUnit : IsUnit (openBase k r 0).det := by
   rw [openBase, ← RingHom.map_det]
   exact IsLocalization.Away.algebraMap_isUnit (delta k r)
 abbrev openVal := (openRing k r).val.toRingHom
-theorem openBase_val (i : Fin 3) : (openVal k r).mapMatrix (openBase k r i) = generic k r i := rfl
 theorem openInv_val : (openVal k r).mapMatrix (openBase k r 0)⁻¹ = (P k r)⁻¹ := by
   apply left_inv_eq_right_inv (a := P k r)
   · change _ * (openVal k r).mapMatrix (openBase k r 0) = 1
@@ -1715,8 +1714,6 @@ theorem trdeg_adjoin_family {ι : Type} [Fintype ι] (x : ι → F) :
 variable (r : ℕ) (φ : ring k r →ₐ[k] F)
 def residueCoordinates := IntermediateField.adjoin k (Set.range (φ ∘ gcoord k r))
 def reducedMatrices (i : Fin 6) := φ.mapMatrix (gmat k r i)
-theorem reduced_entry (l : Fin 6) (i j : Fin r) :
-    reducedMatrices k r φ l i j = φ (gcoord k r (l,i,j)) := rfl
 def pairField {n : ℕ} (center : Fin 2 → F) (u : Fin n → F) :=
   IntermediateField.adjoin k (Set.range (Sum.elim center u))
 theorem joint_coordinate_budget {s t : ℕ} (center : Fin 2 → F)
@@ -1948,8 +1945,6 @@ def polySeriesJetEquiv :
     (F[X] ⧸ Ideal.span {(X:F[X])^N}) ≃+* PowerSeries F ⧸ Ideal.span {(PowerSeries.X:PowerSeries F)^N} :=
   (Ideal.quotEquivOfEq (seriesJet_ker F N).symm).trans
     (RingHom.quotientKerEquivOfSurjective (seriesJet_surj F N))
-theorem polySeriesJetEquiv_apply (p : F[X]) :
-    polySeriesJetEquiv F N (Ideal.Quotient.mk _ p)=Ideal.Quotient.mk _ (p : PowerSeries F) := rfl
 end DVRMinimal
 end
 noncomputable section
@@ -2410,17 +2405,9 @@ namespace GKDivisor.Jet
 open PowerSeries DivisorG3 Module LinearMap Submodule
 open scoped Matrix
 variable {F : Type*} [Field F] {r : ℕ}
-abbrev redP (P : Matrix (Fin r) (Fin r) (PowerSeries F)) :=
-  (PowerSeries.constantCoeff (R:=F)).mapMatrix P
-def cvec : (Fin r → F) →ₗ[F] (Fin r → PowerSeries F) where
-  toFun v i := C (v i)
-  map_add' _ _ := funext fun _ => map_add ..
-  map_smul' x v := by funext i; change C (x * v i) = x • C (v i); rw [map_mul,PowerSeries.smul_eq_C_mul]
 section
 variable (P : Matrix (Fin r) (Fin r) (PowerSeries F))
 variable (t : Module.End F (QP P)) (hx : ∀ w, t w = (PowerSeries.X : PowerSeries F) • w)
-def headMap := t.range.mkQ.comp (P.mulVecLin.range.mkQ.restrictScalars F)
-def headFromConstants := (headMap P t).comp cvec
 end
 end GKDivisor.Jet
 end
@@ -2843,24 +2830,6 @@ def blockLift (f : V →ₗ[K] W) : Module.End K (V × W) :=
   (LinearMap.inr K V W).comp (f.comp (LinearMap.fst K V W))
 @[simp] theorem blockLift_apply (f : V →ₗ[K] W) (v : V) (w : W) :
     blockLift f (v,w) = (0,f v) := rfl
-def blockRangeEquiv (f : V →ₗ[K] W) :
-    LinearMap.range (blockLift f) ≃ₗ[K] LinearMap.range f where
-  toFun y := ⟨y.1.2, by
-    obtain ⟨x,hx⟩ := y.2
-    exact ⟨x.1, congrArg Prod.snd hx⟩⟩
-  invFun y := ⟨(0,y.1), by
-    obtain ⟨x,hx⟩ := y.2
-    exact ⟨(x,0), by simp [hx]⟩⟩
-  left_inv y := by
-    apply Subtype.ext
-    obtain ⟨x,hx⟩ := y.2
-    have hz : y.1.1 = 0 := by
-      have := congrArg Prod.fst hx
-      simpa [blockLift] using this.symm
-    exact Prod.ext hz.symm rfl
-  right_inv y := rfl
-  map_add' _ _ := rfl
-  map_smul' _ _ := rfl
 variable {E F : Type*} [AddCommGroup E] [Module K E]
   [AddCommGroup F] [Module K F]
 end Gerstenhaber.FourBlocks.MinimalSource
@@ -2892,14 +2861,6 @@ theorem finrank_ker_le_of_injective_intertwining [FiniteDimensional K W]
   intro x y hxy
   apply Subtype.ext
   exact hi (congrArg (fun z : LinearMap.ker g => (z : W)) hxy)
-def intertwiningCokernelMap (f : Module.End K V) (g : Module.End K W)
-    (p : V →ₗ[K] W) (hcomm : ∀ x, p (f x)=g (p x)) :
-    (V ⧸ LinearMap.range f) →ₗ[K] (W ⧸ LinearMap.range g) :=
-  (LinearMap.range f).liftQ ((LinearMap.range g).mkQ.comp p) (by
-    rintro _ ⟨x,rfl⟩
-    change (LinearMap.range g).mkQ (p (f x))=0
-    rw [hcomm]
-    exact (Submodule.Quotient.mk_eq_zero _).mpr ⟨p x,rfl⟩)
 end Gerstenhaber.FourBlocks.MinimalSource
 end
 noncomputable section
@@ -3303,21 +3264,8 @@ set_option maxHeartbeats 800000 in
 @[simp] theorem socleAction_mk (eps : A →ₐ[K] K) (s : algebraSocle eps) (x : M) :
     (socleAction (M := M) eps s ((moduleRadical eps).mkQ x) : M) = s.1 • x := rfl
 set_option maxHeartbeats 800000 in
-theorem socleAction_injective [FaithfulSMul A M] (eps : A →ₐ[K] K) :
-    Function.Injective (socleAction (M := M) eps) := by
-  intro s t hst
-  apply Subtype.ext
-  apply eq_of_smul_eq_smul (α := M)
-  intro x
-  have h := congrArg (fun F => (F ((moduleRadical eps).mkQ x) : M)) hst
-  exact h
-set_option maxHeartbeats 800000 in
 def topProjection (eps : A →ₐ[K] K) : M →ₗ[K] Top (M := M) eps :=
   (moduleRadical eps).mkQ.restrictScalars K
-set_option maxHeartbeats 800000 in
-theorem topProjection_surjective (eps : A →ₐ[K] K) :
-    Function.Surjective (topProjection (M := M) eps) :=
-  (moduleRadical eps).mkQ_surjective
 set_option maxHeartbeats 800000 in
 theorem sub_eps_smul_mem_radical (eps : A →ₐ[K] K) (a : A) (x : M) :
     a • x - eps a • x ∈ moduleRadical eps := by
@@ -3358,13 +3306,6 @@ set_option maxHeartbeats 800000 in
     (φ : Module.Dual K (Top (M := M) eps)) (x : M) :
     x ∈ topHyperplane eps φ ↔ φ (topProjection eps x) = 0 := Iff.rfl
 set_option maxHeartbeats 800000 in
-theorem moduleRadical_le_topHyperplane (eps : A →ₐ[K] K)
-    (φ : Module.Dual K (Top (M := M) eps)) : moduleRadical eps ≤ topHyperplane eps φ := by
-  intro x hx
-  have h : topProjection eps x = 0 := (Submodule.Quotient.mk_eq_zero _).mpr hx
-  change φ (topProjection eps x) = 0
-  rw [h,map_zero]
-set_option maxHeartbeats 800000 in
 def socleLine (eps : A →ₐ[K] K) (v : moduleSocle (M := M) eps) : Submodule A M where
   carrier := {x | ∃ c : K, c • v.1 = x}
   zero_mem' := ⟨0,zero_smul _ _⟩
@@ -3396,262 +3337,10 @@ theorem mem_annihilator_submodule_iff (N : Submodule A M) (g : A) :
   · intro h x
     apply Subtype.ext
     exact h x.1 x.2
-set_option maxHeartbeats 800000 in
-theorem mem_annihilator_quotient_iff (N : Submodule A M) (g : A) :
-    g ∈ Module.annihilator A (M ⧸ N) ↔ ∀ x : M, g • x ∈ N := by
-  rw [Module.mem_annihilator]
-  constructor
-  · intro h x
-    exact (Submodule.Quotient.mk_eq_zero N).mp (h (N.mkQ x))
-  · intro h q
-    obtain ⟨x,rfl⟩ := N.mkQ_surjective q
-    exact (Submodule.Quotient.mk_eq_zero N).mpr (h x)
-set_option maxHeartbeats 800000 in
-omit [Module K M] [IsScalarTower K A M] in
-theorem annihilator_le_algebraSocle_of_radical_le [FaithfulSMul A M]
-    (eps : A →ₐ[K] K) (N : Submodule A M) (hN : moduleRadical eps ≤ N) :
-    Module.annihilator A N ≤ algebraSocle eps := by
-  intro g hg a ha
-  apply eq_of_smul_eq_smul (α := M)
-  intro x
-  rw [zero_smul,mul_smul]
-  exact (mem_annihilator_submodule_iff N g).mp hg (a • x)
-    (hN (smul_mem_moduleRadical eps a ha x))
-set_option maxHeartbeats 800000 in
-theorem socleLine_le_moduleSocle (eps : A →ₐ[K] K)
-    (v : moduleSocle (M := M) eps) : socleLine eps v ≤ moduleSocle eps := by
-  rintro x ⟨c,rfl⟩
-  exact ((moduleSocle eps).restrictScalars K).smul_mem c v.2
-set_option maxHeartbeats 800000 in
-omit [Module K M] [IsScalarTower K A M] in
-theorem quotient_annihilator_le_algebraSocle [FaithfulSMul A M]
-    (eps : A →ₐ[K] K) (N : Submodule A M) (hN : N ≤ moduleSocle eps) :
-    Module.annihilator A (M ⧸ N) ≤ algebraSocle eps := by
-  intro g hg a ha
-  apply eq_of_smul_eq_smul (α := M)
-  intro x
-  rw [zero_smul,mul_smul,smul_comm]
-  exact hN ((mem_annihilator_quotient_iff N g).mp hg x) a ha
-set_option maxHeartbeats 800000 in
-def socleTensor (eps : A →ₐ[K] K) :
-    Submodule K (Top (M := M) eps →ₗ[K] moduleSocle (M := M) eps) :=
-  LinearMap.range (socleAction (M := M) eps)
-set_option maxHeartbeats 800000 in
-def hyperplaneAnnToSocle [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (φ : Module.Dual K (Top (M := M) eps)) :
-    Module.annihilator A (topHyperplane eps φ) →ₗ[K] algebraSocle eps where
-  toFun g := ⟨g.1,annihilator_le_algebraSocle_of_radical_le eps _
-    (moduleRadical_le_topHyperplane eps φ) g.2⟩
-  map_add' _ _ := rfl
-  map_smul' _ _ := rfl
-set_option maxHeartbeats 800000 in
-def lineQuotientAnnToSocle [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (v : moduleSocle (M := M) eps) :
-    Module.annihilator A (M ⧸ socleLine eps v) →ₗ[K] algebraSocle eps where
-  toFun g := ⟨g.1,quotient_annihilator_le_algebraSocle eps _
-    (socleLine_le_moduleSocle eps v) g.2⟩
-  map_add' _ _ := rfl
-  map_smul' _ _ := rfl
-set_option maxHeartbeats 800000 in
-theorem hyperplane_ann_action_kills_kernel [FaithfulSMul A M]
-    (eps : A →ₐ[K] K) (φ : Module.Dual K (Top (M := M) eps))
-    (g : Module.annihilator A (topHyperplane eps φ)) (q : Top (M := M) eps)
-    (hq : φ q = 0) : socleAction eps (hyperplaneAnnToSocle eps φ g) q = 0 := by
-  obtain ⟨x,rfl⟩ := topProjection_surjective eps q
-  apply Subtype.ext
-  exact (mem_annihilator_submodule_iff _ _).mp g.2 x hq
-set_option maxHeartbeats 800000 in
-theorem line_quotient_ann_action_range [FaithfulSMul A M]
-    (eps : A →ₐ[K] K) (v : moduleSocle (M := M) eps)
-    (g : Module.annihilator A (M ⧸ socleLine eps v)) (q : Top (M := M) eps) :
-    ∃ c : K, c • v = socleAction eps (lineQuotientAnnToSocle eps v g) q := by
-  obtain ⟨x,rfl⟩ := topProjection_surjective eps q
-  obtain ⟨c,hc⟩ := (mem_annihilator_quotient_iff _ _).mp g.2 x
-  exact ⟨c,Subtype.ext hc⟩
 section RankOneFactor
 variable {U V : Type*} [AddCommGroup U] [Module K U]
   [AddCommGroup V] [Module K V]
-set_option maxHeartbeats 800000 in
-theorem eq_smulRight_of_kills_kernel (f : U →ₗ[K] V) (φ : Module.Dual K U)
-    (u0 : U) (hu0 : φ u0=1) (hker : ∀ u, φ u=0 → f u=0) :
-    f = φ.smulRight (f u0) := by
-  ext u
-  change f u = φ u • f u0
-  have hz : φ (u-φ u • u0)=0 := by simp [hu0]
-  have h := hker _ hz
-  rw [map_sub,map_smul] at h
-  exact sub_eq_zero.mp h
-set_option maxHeartbeats 800000 in
-theorem eq_smulRight_of_range_line (f : U →ₗ[K] V) (v : V)
-    (ψ : Module.Dual K V) (hψ : ψ v=1)
-    (hline : ∀ u, ∃ c : K, c • v=f u) : f = (ψ.comp f).smulRight v := by
-  ext u
-  change f u = ψ (f u) • v
-  obtain ⟨c,hc⟩ := hline u
-  rw [← hc,map_smul,hψ,smul_eq_mul,mul_one]
 end RankOneFactor
-set_option maxHeartbeats 800000 in
-def hyperplaneAnnEval [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (φ : Module.Dual K (Top (M := M) eps)) (u0 : Top (M := M) eps) :
-    Module.annihilator A (topHyperplane eps φ) →ₗ[K] moduleSocle (M := M) eps where
-  toFun g := socleAction eps (hyperplaneAnnToSocle eps φ g) u0
-  map_add' := by
-    intro g h
-    change socleAction eps (hyperplaneAnnToSocle eps φ g+hyperplaneAnnToSocle eps φ h) u0 = _
-    rw [map_add,LinearMap.add_apply]
-  map_smul' := by
-    intro c g
-    change socleAction eps (c • hyperplaneAnnToSocle eps φ g) u0 = _
-    rw [map_smul,LinearMap.smul_apply]
-    rfl
-set_option maxHeartbeats 800000 in
-theorem hyperplane_ann_factor [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (φ : Module.Dual K (Top (M := M) eps)) (u0 : Top (M := M) eps) (hu0 : φ u0=1)
-    (g : Module.annihilator A (topHyperplane eps φ)) :
-    socleAction eps (hyperplaneAnnToSocle eps φ g) =
-      φ.smulRight (hyperplaneAnnEval eps φ u0 g) :=
-  eq_smulRight_of_kills_kernel _ φ u0 hu0 (hyperplane_ann_action_kills_kernel eps φ g)
-set_option maxHeartbeats 800000 in
-theorem hyperplaneAnnEval_injective [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (φ : Module.Dual K (Top (M := M) eps)) (u0 : Top (M := M) eps) (hu0 : φ u0=1) :
-    Function.Injective (hyperplaneAnnEval eps φ u0) := by
-  intro g h hgh
-  have hs := socleAction_injective (M := M) eps (show
-      socleAction eps (hyperplaneAnnToSocle eps φ g) =
-        socleAction eps (hyperplaneAnnToSocle eps φ h) by
-    rw [hyperplane_ann_factor eps φ u0 hu0 g,hyperplane_ann_factor eps φ u0 hu0 h,hgh])
-  exact Subtype.ext (congrArg (fun s : algebraSocle eps => (s : A)) hs)
-set_option maxHeartbeats 800000 in
-theorem range_hyperplaneAnnEval [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (φ : Module.Dual K (Top (M := M) eps)) (u0 : Top (M := M) eps) (hu0 : φ u0=1) :
-    LinearMap.range (hyperplaneAnnEval eps φ u0) = fixedFunctionalFiber (socleTensor eps) φ := by
-  ext v
-  constructor
-  · rintro ⟨g,rfl⟩
-    rw [mem_fixedFunctionalFiber]
-    exact ⟨hyperplaneAnnToSocle eps φ g,hyperplane_ann_factor eps φ u0 hu0 g⟩
-  · intro hv
-    rw [mem_fixedFunctionalFiber] at hv
-    obtain ⟨s,hs⟩ := hv
-    have hann : s.1 ∈ Module.annihilator A (topHyperplane eps φ) := by
-      rw [mem_annihilator_submodule_iff]
-      intro x hx
-      have h := congrArg (fun F => (F (topProjection eps x) : M)) hs
-      change s.1 • x = φ (topProjection eps x) • v.1 at h
-      rw [h,(mem_topHyperplane eps φ x).mp hx,zero_smul]
-    refine ⟨⟨s.1,hann⟩,?_⟩
-    change socleAction eps s u0 = v
-    rw [hs]
-    change φ u0 • v=v
-    rw [hu0,one_smul]
-set_option maxHeartbeats 800000 in
-def hyperplaneAnnFiberEquiv [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (φ : Module.Dual K (Top (M := M) eps)) (hφ : φ ≠ 0) :
-    Module.annihilator A (topHyperplane eps φ) ≃ₗ[K]
-      fixedFunctionalFiber (socleTensor eps) φ := by
-  classical
-  let u0 := Classical.choose (LinearMap.surjective hφ (1 : K))
-  have hu0 : φ u0=1 := Classical.choose_spec (LinearMap.surjective hφ (1 : K))
-  let f := hyperplaneAnnEval eps φ u0
-  let f' : Module.annihilator A (topHyperplane eps φ) →ₗ[K]
-      fixedFunctionalFiber (socleTensor eps) φ := f.codRestrict _ (fun g => by
-    rw [← range_hyperplaneAnnEval eps φ u0 hu0]
-    exact ⟨g,rfl⟩)
-  apply LinearEquiv.ofBijective f'
-  constructor
-  · intro g h hgh
-    exact hyperplaneAnnEval_injective eps φ u0 hu0 (congrArg Subtype.val hgh)
-  · intro v
-    have hv : v.1 ∈ LinearMap.range f := by
-      rw [range_hyperplaneAnnEval eps φ u0 hu0]
-      exact v.2
-    obtain ⟨g,hg⟩ := hv
-    exact ⟨g,Subtype.ext hg⟩
-set_option maxHeartbeats 800000 in
-set_option maxHeartbeats 6400000 in
-def lineQuotientAnnFunctional [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (v : moduleSocle (M := M) eps) (ψ : Module.Dual K (moduleSocle (M := M) eps)) :
-    Module.annihilator A (M ⧸ socleLine eps v) →ₗ[K] Module.Dual K (Top (M := M) eps) where
-  toFun g := ψ.comp (socleAction eps (lineQuotientAnnToSocle eps v g))
-  map_add' := by
-    intro g h
-    ext q
-    change ψ (socleAction eps
-      (lineQuotientAnnToSocle eps v g+lineQuotientAnnToSocle eps v h) q) = _
-    rw [map_add,LinearMap.add_apply,map_add]
-    rfl
-  map_smul' := by
-    intro c g
-    ext q
-    change ψ (socleAction eps (c • lineQuotientAnnToSocle eps v g) q) = _
-    rw [map_smul,LinearMap.smul_apply,map_smul]
-    rfl
-set_option maxHeartbeats 800000 in
-theorem line_quotient_ann_factor [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (v : moduleSocle (M := M) eps) (ψ : Module.Dual K (moduleSocle (M := M) eps))
-    (hψ : ψ v=1) (g : Module.annihilator A (M ⧸ socleLine eps v)) :
-    socleAction eps (lineQuotientAnnToSocle eps v g) =
-      (lineQuotientAnnFunctional eps v ψ g).smulRight v :=
-  eq_smulRight_of_range_line _ v ψ hψ (line_quotient_ann_action_range eps v g)
-set_option maxHeartbeats 800000 in
-theorem lineQuotientAnnFunctional_injective [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (v : moduleSocle (M := M) eps) (ψ : Module.Dual K (moduleSocle (M := M) eps))
-    (hψ : ψ v=1) : Function.Injective (lineQuotientAnnFunctional eps v ψ) := by
-  intro g h hgh
-  have hs := socleAction_injective (M := M) eps (show
-      socleAction eps (lineQuotientAnnToSocle eps v g) =
-        socleAction eps (lineQuotientAnnToSocle eps v h) by
-    rw [line_quotient_ann_factor eps v ψ hψ g,line_quotient_ann_factor eps v ψ hψ h,hgh])
-  exact Subtype.ext (congrArg (fun s : algebraSocle eps => (s : A)) hs)
-set_option maxHeartbeats 800000 in
-theorem range_lineQuotientAnnFunctional [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (v : moduleSocle (M := M) eps) (ψ : Module.Dual K (moduleSocle (M := M) eps))
-    (hψ : ψ v=1) : LinearMap.range (lineQuotientAnnFunctional eps v ψ) =
-      fixedVectorFiber (socleTensor eps) v := by
-  ext φ
-  constructor
-  · rintro ⟨g,rfl⟩
-    rw [mem_fixedVectorFiber]
-    exact ⟨lineQuotientAnnToSocle eps v g,line_quotient_ann_factor eps v ψ hψ g⟩
-  · intro hφ
-    rw [mem_fixedVectorFiber] at hφ
-    obtain ⟨s,hs⟩ := hφ
-    have hann : s.1 ∈ Module.annihilator A (M ⧸ socleLine eps v) := by
-      rw [mem_annihilator_quotient_iff]
-      intro x
-      refine ⟨φ (topProjection eps x),?_⟩
-      have h := congrArg (fun F => (F (topProjection eps x) : M)) hs
-      exact h.symm
-    refine ⟨⟨s.1,hann⟩,?_⟩
-    apply LinearMap.ext
-    intro q
-    change ψ (socleAction eps s q) = φ q
-    rw [hs]
-    change ψ (φ q • v) = φ q
-    rw [map_smul,hψ,smul_eq_mul,mul_one]
-set_option maxHeartbeats 800000 in
-def lineQuotientAnnFiberEquiv [FaithfulSMul A M] (eps : A →ₐ[K] K)
-    (v : moduleSocle (M := M) eps) (hv : v ≠ 0) :
-    Module.annihilator A (M ⧸ socleLine eps v) ≃ₗ[K]
-      fixedVectorFiber (socleTensor eps) v := by
-  classical
-  let ψ := Classical.choose (Module.Projective.exists_dual_eq_one K hv)
-  have hψ : ψ v=1 := Classical.choose_spec (Module.Projective.exists_dual_eq_one K hv)
-  let f := lineQuotientAnnFunctional eps v ψ
-  let f' : Module.annihilator A (M ⧸ socleLine eps v) →ₗ[K]
-      fixedVectorFiber (socleTensor eps) v := f.codRestrict _ (fun g => by
-    rw [← range_lineQuotientAnnFunctional eps v ψ hψ]
-    exact ⟨g,rfl⟩)
-  apply LinearEquiv.ofBijective f'
-  constructor
-  · intro g h hgh
-    exact lineQuotientAnnFunctional_injective eps v ψ hψ (congrArg Subtype.val hgh)
-  · intro φ
-    have hφ : φ.1 ∈ LinearMap.range f := by
-      rw [range_lineQuotientAnnFunctional eps v ψ hψ]
-      exact φ.2
-    obtain ⟨g,hg⟩ := hφ
-    exact ⟨g,Subtype.ext hg⟩
 end Gerstenhaber.FourBlocks.MinimalSource
 end
 noncomputable section
@@ -3690,12 +3379,6 @@ end
 noncomputable section
 namespace Gerstenhaber.FourBlocks.MinimalSource
 open Module LinearMap
-def RestrictedSafeBelow (K A : Type u) [Field K] [CommRing A] [Algebra K A]
-    (t : A) (n r : ℕ) : Prop :=
-  ∀ (N : Type u) [AddCommGroup N] [Module A N] [Module K N] [IsScalarTower K A N]
-    [FiniteDimensional K N],
-    finrank K N<n → finrank K (LinearMap.ker (Algebra.lsmul K K N t)) ≤ r →
-      finrank K (actualActionImage (K := K) (A := A) (M := N)) ≤ finrank K N
 variable {K A M : Type u} [Field K] [CommRing A] [Algebra K A]
   [AddCommGroup M] [Module A M] [Module K M] [IsScalarTower K A M]
 end Gerstenhaber.FourBlocks.MinimalSource
@@ -3703,14 +3386,6 @@ end
 noncomputable section
 namespace Gerstenhaber.DP2
 open Module Matrix
-set_option maxHeartbeats 400000 in
-def scalarMulVec {K R : Type*} [Field K] [CommRing R] [Algebra K R]
-    (L : Matrix (Fin 2) (Fin 2) R) : (Fin 2 → R) →ₗ[K] (Fin 2 → R) :=
-  (Matrix.toLin' L).restrictScalars K
-set_option maxHeartbeats 400000 in
-def fieldRank (K : Type*) [Field K] {R : Type*} [CommRing R] [Algebra K R]
-    (L : Matrix (Fin 2) (Fin 2) R) : ℕ :=
-  Module.finrank K (LinearMap.range (scalarMulVec (K := K) L))
 end Gerstenhaber.DP2
 end
 noncomputable section
@@ -3745,60 +3420,15 @@ theorem dualModule_tower (ρ : B →ₐ[K] Module.End K V) :
   simp
 section RelativeCH
 variable {A : Type*} [CommRing A] [Algebra K A]
-def relativeDualRep (ρ : A →ₐ[K] Module.End K V) (B : Subalgebra K A) :
-    letI := dualModule (ρ.comp B.val)
-    A →ₐ[B] Module.End B (Module.Dual K V) := by
-  letI := dualModule (ρ.comp B.val)
-  refine
-    { toFun := fun a =>
-        { toFun := (ρ a).dualMap
-          map_add' := fun φ ψ => by ext v; simp
-          map_smul' := fun b φ => ?_ }
-      map_one' := ?_
-      map_mul' := ?_
-      map_zero' := ?_
-      map_add' := ?_
-      commutes' := ?_ }
-  · ext v
-    change φ (ρ (b : A) (ρ a v)) = φ (ρ a (ρ (b : A) v))
-    have hc : ρ (b : A) * ρ a = ρ a * ρ (b : A) := by
-      rw [← map_mul, ← map_mul, mul_comm]
-    exact congrArg (fun h : Module.End K V => φ (h v)) hc
-  · ext φ v; simp
-  · intro a b
-    ext φ v
-    change φ (ρ (a*b) v) = φ (ρ b (ρ a v))
-    rw [mul_comm a b, map_mul]
-    rfl
-  · ext φ v; simp
-  · intro a b; ext φ v; simp
-  · intro b; ext φ v; rfl
 variable {Q : Type*} [CommRing Q] [Algebra K Q]
 end RelativeCH
 section QuotientBridge
 variable {S : Type*} [CommRing S] [Algebra K S]
 def quotientIdealModule (N P : Ideal S) : Submodule S (S ⧸ N) := Submodule.map N.mkQ P
 def quotientIdealAnnihilator (N P : Ideal S) : Ideal S := N.colon (P : Set S)
-def quotientIdealModuleEquiv (N P : Ideal S) :
-    (P ⧸ Submodule.comap P.subtype N) ≃ₗ[S] quotientIdealModule N P := by
-  let f : P →ₗ[S] S ⧸ N := N.mkQ.comp P.subtype
-  have hker : LinearMap.ker f = Submodule.comap P.subtype N := by
-    simp only [f, LinearMap.ker_comp, Submodule.ker_mkQ]
-  have hrange : LinearMap.range f = quotientIdealModule N P := by
-    simp only [f, LinearMap.range_comp, Submodule.range_subtype, quotientIdealModule]
-  exact (Submodule.quotEquivOfEq _ _ hker.symm).trans
-    (f.quotKerEquivRange.trans (LinearEquiv.ofEq _ _ hrange))
 theorem annihilator_quotientIdealModule (N P : Ideal S) :
     Module.annihilator S (quotientIdealModule N P) = quotientIdealAnnihilator N P := by
   exact Submodule.annihilator_map_mkQ_eq_colon
-def killedByIdeal (I : Ideal S) (M : Type*) [AddCommGroup M] [Module K M] [Module S M]
-    [IsScalarTower K S M] : Submodule K M where
-  carrier := {v | ∀ r ∈ I, r • v = 0}
-  zero_mem' := by simp
-  add_mem' := by intro u v hu hv r hr; simp only [smul_add, hu r hr, hv r hr, add_zero]
-  smul_mem' := by
-    intro c v hv r hr
-    rw [smul_comm r c, hv r hr, smul_zero]
 def quotientFactor (N J : Ideal S) (hNJ : N ≤ J) : (S ⧸ N) →ₐ[K] S ⧸ J :=
   Ideal.quotientMapₐ J (AlgHom.id K S) (by simpa using hNJ)
 def quotientIdealToAlgebra (N P : Ideal S) :
@@ -3808,8 +3438,6 @@ def quotientIdealToAlgebra (N P : Ideal S) :
 @[simp] theorem quotientIdealToAlgebra_mk (N P : Ideal S) (p : S) (hp : p ∈ P) :
     quotientIdealToAlgebra (K := K) N P ⟨N.mkQ p, Submodule.mem_map_of_mem hp⟩ =
       Ideal.Quotient.mk (quotientIdealAnnihilator N P) p := rfl
-def imageIdeal (N P : Ideal S) : Ideal (S ⧸ quotientIdealAnnihilator N P) :=
-  P.map (Ideal.Quotient.mk (quotientIdealAnnihilator N P))
 def quotientIdealRep (N P : Ideal S) :
     (S ⧸ quotientIdealAnnihilator N P) →ₐ[K] Module.End K (quotientIdealModule N P) :=
   Ideal.Quotient.liftₐ (quotientIdealAnnihilator N P)
@@ -3839,16 +3467,6 @@ def linearColumnMap (a b : T) : T →ₗ[T] (Fin 2 → T) where
 set_option maxHeartbeats 800000 in
 @[simp] theorem linearColumnMap_apply (a b c : T) :
     linearColumnMap a b c = ![a*c,b*c] := rfl
-set_option maxHeartbeats 800000 in
-def linearColumnMatrix (f g y z : T) : Matrix (Fin 2) (Fin 2) T :=
-  !![f,y;g,z]
-set_option maxHeartbeats 800000 in
-def columnClassMap (f g y z : T) :
-    T →ₗ[T] ((Fin 2 → T) ⧸ LinearMap.range (linearColumnMap y z)) :=
-  (LinearMap.range (linearColumnMap y z)).mkQ.comp (linearColumnMap f g)
-set_option maxHeartbeats 800000 in
-def columnClassIdeal (f g y z : T) : Ideal T :=
-  LinearMap.ker (columnClassMap f g y z)
 end Gerstenhaber.DP2
 end
 noncomputable section
@@ -3856,10 +3474,6 @@ namespace Gerstenhaber.FourBlocks
 open scoped Matrix
 open Matrix Module Polynomial
 variable {K E : Type*} [Field K] [AddCommGroup E] [Module K E]
-def LiteralThreeFrame (U V : Module.End K E) : Prop :=
-  ∃ u, LinearIndependent K (![u,U u,V u] : Fin 3 → E)
-def LocallyDependentTriple (U V : Module.End K E) : Prop :=
-  ∀ u, ¬ LinearIndependent K (![u,U u,V u] : Fin 3 → E)
 @[simp] theorem alt_three_repeat_left (f : E [⋀^Fin 3]→ₗ[K] K) (a b : E) :
     f ![a,b,a]=0 :=
   f.map_eq_zero_of_eq _ (i := 0) (j := 2) rfl (by decide)
@@ -3904,9 +3518,6 @@ end Gerstenhaber.DP2
 namespace Gerstenhaber.DP2
 open Module Matrix
 variable {K T : Type*} [Field K] [CommRing T] [Algebra K T]
-set_option maxHeartbeats 1000000 in
-def matrixEntryIdeal (L : Matrix (Fin 2) (Fin 2) T) : Ideal T :=
-  Ideal.span (Set.range (fun p : Fin 2 × Fin 2 => L p.1 p.2))
 end Gerstenhaber.DP2
 end
 noncomputable section
@@ -3980,8 +3591,6 @@ def NilThreeSafeBelow (K : Type u) [Field K] (n r : ℕ) : Prop :=
       finrank K (Algebra.adjoin K (Set.range X)) ≤ finrank K N
 variable {K A M : Type u} [Field K] [CommRing A] [Algebra K A]
   [AddCommGroup M] [Module A M] [Module K M] [IsScalarTower K A M]
-def inducedTriple (r : Fin 3 → A) : Fin 3 → Module.End K M :=
-  fun i => Algebra.lsmul K K M (r i)
 end Gerstenhaber.FourBlocks.MinimalSource
 end
 noncomputable section
@@ -4082,10 +3691,6 @@ noncomputable section
 namespace Gerstenhaber.FourBlocks.MinimalSource
 open Module LinearMap
 variable {K : Type u} [Field K]
-def NilThreeCounterAt (K : Type u) [Field K] (k n : ℕ) : Prop :=
-  ∃ X : FiniteNilTriple K,
-    finrank K X.Carrier = n ∧ finrank K (LinearMap.ker (X.operator 0)) ≤ k ∧
-      finrank K X.Carrier < finrank K (SourceAlgebra X)
 structure MinimalNilThreeCounter (K : Type u) [Field K] (k : ℕ) where
   source : FiniteNilTriple K
   block_bound : finrank K (LinearMap.ker (source.operator 0)) ≤ k
@@ -4095,8 +3700,6 @@ namespace MinimalNilThreeCounter
 variable {k : ℕ} (X : MinimalNilThreeCounter K k)
 instance carrier_nontrivial : Nontrivial X.source.Carrier :=
   sourceCarrier_nontrivial_of_failure X.source X.failure
-def excess : ℕ := finrank K (SourceAlgebra X.source)-finrank K X.source.Carrier
-def augmentation : SourceAlgebra X.source →ₐ[K] K := sourceAugmentation X.source
 end MinimalNilThreeCounter
 end Gerstenhaber.FourBlocks.MinimalSource
 end
@@ -4105,9 +3708,6 @@ namespace Gerstenhaber.CanonicalExtension
 open Module
 variable {K A R0 : Type*} [Field K] [CommRing A] [Algebra K A]
   [CommRing R0] [Algebra K R0]
-abbrev canonicalParentModule (pi : A →ₐ[K] R0) : Module A (Module.Dual K R0) :=
-  Gerstenhaber.IdealQuotient.dualModule
-    ((Algebra.lsmul K K R0 : R0 →ₐ[K] Module.End K R0).comp pi)
 end Gerstenhaber.CanonicalExtension
 end
 noncomputable section
@@ -4115,81 +3715,6 @@ namespace Gerstenhaber.DP2.LinearRow
 variable {B : Type*} [CommRing B]
 variable {P Q T : Type*} [AddCommGroup P] [Module B P]
   [AddCommGroup Q] [Module B Q] [AddCommGroup T] [Module B T]
-def mapPullback (f : P →ₗ[B] T) (g : Q →ₗ[B] T) : Submodule B (P × Q) where
-  carrier := {v | f v.1 = g v.2}
-  zero_mem' := by simp
-  add_mem' := by intro v w hv hw; simpa using congrArg₂ HAdd.hAdd hv hw
-  smul_mem' := by intro b v hv; simpa using congrArg (b • ·) hv
-def mapPullbackSplit (f : P →ₗ[B] T) (g : Q →ₗ[B] T)
-    (l : P →ₗ[B] Q) (hl : g.comp l = f) :
-    (LinearMap.ker g × P) ≃ₗ[B] mapPullback f g where
-  toFun v := ⟨(v.2,v.1+l v.2),by
-    change f v.2 = g (↑v.1 + l v.2)
-    rw [map_add,v.1.property,zero_add]
-    exact (DFunLike.congr_fun hl v.2).symm⟩
-  invFun v := (⟨v.1.2-l v.1.1,by
-    change g (v.1.2-l v.1.1)=0
-    have hlv : g (l v.1.1)=f v.1.1 := DFunLike.congr_fun hl v.1.1
-    rw [map_sub,hlv]
-    exact sub_eq_zero.mpr v.property.symm⟩,v.1.1)
-  left_inv v := by ext <;> simp
-  right_inv v := by
-    apply Subtype.ext
-    apply Prod.ext
-    · rfl
-    · show (v.1.2 - l v.1.1) + l v.1.1 = v.1.2
-      abel
-  map_add' v w := by
-    apply Subtype.ext
-    apply Prod.ext
-    · rfl
-    · show ((v.1 + w.1 : LinearMap.ker g) : Q) + l (v.2 + w.2) =
-        ((v.1 : Q) + l v.2) + ((w.1 : Q) + l w.2)
-      rw [map_add, Submodule.coe_add]
-      abel
-  map_smul' b v := by ext <;> simp [smul_add]
-def mapPullbackSwap (f : P →ₗ[B] T) (g : Q →ₗ[B] T) :
-    mapPullback f g ≃ₗ[B] mapPullback g f where
-  toFun v := ⟨(v.1.2,v.1.1),v.property.symm⟩
-  invFun v := ⟨(v.1.2,v.1.1),v.property.symm⟩
-  left_inv v := rfl
-  right_inv v := rfl
-  map_add' v w := rfl
-  map_smul' b v := rfl
-def schanuelEquiv [Module.Projective B P] [Module.Projective B Q]
-    (f : P →ₗ[B] T) (g : Q →ₗ[B] T)
-    (hf : Function.Surjective f) (hg : Function.Surjective g) :
-    (LinearMap.ker f × Q) ≃ₗ[B] (LinearMap.ker g × P) := by
-  let l := Classical.choose (Module.projective_lifting_property g f hg)
-  have hl := Classical.choose_spec (Module.projective_lifting_property g f hg)
-  let m := Classical.choose (Module.projective_lifting_property f g hf)
-  have hm := Classical.choose_spec (Module.projective_lifting_property f g hf)
-  exact (mapPullbackSplit g f m hm).trans
-    ((mapPullbackSwap g f).trans (mapPullbackSplit f g l hl).symm)
-def kernelProdIdEquiv (f : P →ₗ[B] T) (Q : Type*)
-    [AddCommGroup Q] [Module B Q] :
-    LinearMap.ker (f.prodMap (LinearMap.id : Q →ₗ[B] Q)) ≃ₗ[B]
-      LinearMap.ker f where
-  toFun v := ⟨v.1.1,by
-    have hv := congrArg Prod.fst v.property
-    exact hv⟩
-  invFun v := ⟨(v.1,0),by
-    apply Prod.ext
-    · exact v.property
-    · rfl⟩
-  left_inv v := by
-    apply Subtype.ext
-    apply Prod.ext
-    · rfl
-    · have hv := congrArg Prod.snd v.property
-      exact hv.symm
-  right_inv v := rfl
-  map_add' v w := rfl
-  map_smul' b v := rfl
-def syzygyMap {P₁ : Type*} [AddCommGroup P₁] [Module B P₁]
-    (f₀ : P →ₗ[B] T) (f₁ : P₁ →ₗ[B] P) (hzero : f₀.comp f₁=0) :
-    P₁ →ₗ[B] LinearMap.ker f₀ :=
-  f₁.codRestrict (LinearMap.ker f₀) (fun p => DFunLike.congr_fun hzero p)
 end Gerstenhaber.DP2.LinearRow
 end
 noncomputable section
@@ -4227,58 +3752,6 @@ def actionFunctional (l : M →ₗ[B] B) : M →ₗ[B] Module.Dual B R where
 set_option maxHeartbeats 600000 in
 @[simp] theorem actionFunctional_apply (l : M →ₗ[B] B) (m : M) (r : R) :
     actionFunctional l m r=l (r • m) := rfl
-set_option maxHeartbeats 600000 in
-def frobeniusInverseMap (τ : R →ₗ[B] B)
-    (hτ : Function.Bijective (frobeniusPairing τ)) (l : M →ₗ[B] B) :
-    M →ₗ[R] R where
-  toFun m := (LinearEquiv.ofBijective (frobeniusPairing τ) hτ).symm (actionFunctional l m)
-  map_add' m n := by simp only [map_add]
-  map_smul' a m := by
-    apply hτ.injective
-    ext r
-    have h (m : M) (r : R) :
-        τ ((LinearEquiv.ofBijective (frobeniusPairing τ) hτ).symm
-          (actionFunctional l m)*r)=l (r • m) := by
-      exact congrArg (fun f : Module.Dual B R => f r)
-        ((LinearEquiv.ofBijective (frobeniusPairing τ) hτ).apply_symm_apply
-          (actionFunctional l m))
-    change τ (_*r)=τ ((a*_)*r)
-    rw [h,show (a*(LinearEquiv.ofBijective (frobeniusPairing τ) hτ).symm
-      (actionFunctional l m))*r=
-      ((LinearEquiv.ofBijective (frobeniusPairing τ) hτ).symm
-        (actionFunctional l m))*(r*a) by ring,h]
-    rw [mul_smul]
-set_option maxHeartbeats 600000 in
-theorem frobeniusInverseMap_spec (τ : R →ₗ[B] B)
-    (hτ : Function.Bijective (frobeniusPairing τ)) (l : M →ₗ[B] B)
-    (m : M) (r : R) :
-    τ (frobeniusInverseMap τ hτ l m*r)=l (r • m) :=
-  congrArg (fun f : Module.Dual B R => f r)
-    ((LinearEquiv.ofBijective (frobeniusPairing τ) hτ).apply_symm_apply
-      (actionFunctional l m))
-set_option maxHeartbeats 600000 in
-def frobeniusDualEquiv (τ : R →ₗ[B] B)
-    (hτ : Function.Bijective (frobeniusPairing τ)) :
-    (M →ₗ[R] R) ≃ₗ[B] (M →ₗ[B] B) where
-  toFun f := τ.comp (f.restrictScalars B)
-  invFun := frobeniusInverseMap τ hτ
-  left_inv f := by
-    apply LinearMap.ext
-    intro m
-    apply hτ.injective
-    ext r
-    rw [frobeniusPairing_apply,frobeniusInverseMap_spec]
-    change τ (f (r • m))=τ (f m*r)
-    rw [f.map_smul]
-    congr 1
-    exact mul_comm _ _
-  right_inv l := by
-    apply LinearMap.ext
-    intro m
-    have h := frobeniusInverseMap_spec τ hτ l m 1
-    simpa using h
-  map_add' f g := by ext m; simp
-  map_smul' b f := by ext m; simp
 section KernelSplitting
 variable {X F : Type*} [AddCommGroup X] [Module B X]
   [AddCommGroup F] [Module B F]
@@ -4422,37 +3895,6 @@ namespace Gerstenhaber.CanonicalExtension
 open Gerstenhaber.DP2.LinearRow
 variable {K A B : Type*} [Field K] [CommRing A] [Algebra K A]
   [CommRing B] [Algebra K B]
-abbrev quotientKernelModule (pi : A →ₐ[K] B) : Module A B :=
-  Module.compHom B pi.toRingHom
-def kernelFrobeniusMap (pi : A →ₐ[K] B) (tau : B →ₗ[K] K) :
-    letI := quotientKernelModule pi
-    letI := canonicalParentModule pi
-    B →ₗ[A] Module.Dual K B := by
-  let := quotientKernelModule pi
-  let := canonicalParentModule pi
-  exact
-    { toFun := frobeniusPairing tau
-      map_add' := (frobeniusPairing tau).map_add
-      map_smul' := by
-        intro a b
-        ext c
-        change tau ((pi a*b)*c) = tau (b*(pi a*c))
-        simp only [mul_assoc,mul_left_comm] }
-theorem kernelFrobeniusMap_bijective (pi : A →ₐ[K] B) (tau : B →ₗ[K] K)
-    (htau : Function.Bijective (frobeniusPairing tau)) :
-    letI := quotientKernelModule pi
-    letI := canonicalParentModule pi
-    Function.Bijective (kernelFrobeniusMap pi tau) := by
-  exact htau
-def kernelFrobeniusEquiv (pi : A →ₐ[K] B) (tau : B →ₗ[K] K)
-    (htau : Function.Bijective (frobeniusPairing tau)) :
-    letI := quotientKernelModule pi
-    letI := canonicalParentModule pi
-    B ≃ₗ[A] Module.Dual K B := by
-  let := quotientKernelModule pi
-  let := canonicalParentModule pi
-  exact LinearEquiv.ofBijective (kernelFrobeniusMap pi tau)
-    (kernelFrobeniusMap_bijective pi tau htau)
 end Gerstenhaber.CanonicalExtension
 end
 noncomputable section
@@ -4501,9 +3943,6 @@ theorem positiveDual_annihilator :
     rw [ha,map_zero]
 section Quotient
 variable {B : Type*} [CommRing B] [Algebra K B]
-theorem positiveDual_quotient_action (pi : A →ₐ[K] B) :
-    letI := quotientKernelModule pi
-    positiveDualModule (K := K) (A := A) (M := B) = canonicalParentModule pi := rfl
 end Quotient
 end Gerstenhaber.CanonicalExtension
 end
@@ -4517,23 +3956,6 @@ local instance (priority := 50) : Module A (Module.Dual K M) :=
   positiveDualModule (K := K) (A := A) (M := M)
 local instance (priority := 50) : IsScalarTower K A (Module.Dual K M) :=
   positiveDual_tower (K := K) (A := A) (M := M)
-theorem socle_dual_vanishes_radical (eps : A →ₐ[K] K) (phi : Module.Dual K M)
-    (hphi : phi ∈ moduleSocle (M := Module.Dual K M) eps) :
-    (moduleRadical (M := M) eps).restrictScalars K ≤ phi.ker := by
-  intro x hx
-  change phi x=0
-  induction hx using Submodule.span_induction with
-  | mem x hx =>
-    obtain ⟨a,ha,y,rfl⟩ := hx
-    exact LinearMap.congr_fun (hphi a ha) y
-  | zero => exact phi.map_zero
-  | add x y _ _ hx hy => rw [map_add,hx,hy,add_zero]
-  | smul a x _ hx =>
-    have h := congrArg (fun psi : Module.Dual K M => psi x)
-      (smul_eq_eps_smul_of_mem_socle eps phi hphi a)
-    change phi (a • x)=0
-    change phi (a • x)=eps a*phi x at h
-    rw [h,hx,mul_zero]
 def dualTopToSocle (eps : A →ₐ[K] K) :
     Module.Dual K (Top (M := M) eps) →ₗ[K] moduleSocle (M := Module.Dual K M) eps where
   toFun phi := ⟨phi.comp (topProjection eps),by
@@ -4547,29 +3969,6 @@ def dualTopToSocle (eps : A →ₐ[K] K) :
 @[simp] theorem dualTopToSocle_apply (eps : A →ₐ[K] K)
     (phi : Module.Dual K (Top (M := M) eps)) (x : M) :
     (dualTopToSocle eps phi : Module.Dual K M) x=phi (topProjection eps x) := rfl
-theorem dualTopToSocle_bijective (eps : A →ₐ[K] K) :
-    Function.Bijective (dualTopToSocle (M := M) eps) := by
-  constructor
-  · intro phi psi h
-    apply LinearMap.ext
-    intro q
-    obtain ⟨x,rfl⟩ := topProjection_surjective eps q
-    exact congrArg (fun f : moduleSocle (M := Module.Dual K M) eps => f.1 x) h
-  · intro phi
-    let f : (M ⧸ (moduleRadical (M := M) eps).restrictScalars K) →ₗ[K] K :=
-      ((moduleRadical eps).restrictScalars K).liftQ phi.1
-        (socle_dual_vanishes_radical eps phi.1 phi.2)
-    let q : Top (M := M) eps ≃ₗ[K]
-        M ⧸ (moduleRadical (M := M) eps).restrictScalars K :=
-      (Submodule.Quotient.restrictScalarsEquiv K (moduleRadical eps)).symm
-    refine ⟨f.comp q.toLinearMap,?_⟩
-    apply Subtype.ext
-    apply LinearMap.ext
-    intro x
-    rfl
-def dualTopEquivSocle (eps : A →ₐ[K] K) :
-    Module.Dual K (Top (M := M) eps) ≃ₗ[K] moduleSocle (M := Module.Dual K M) eps :=
-  LinearEquiv.ofBijective (dualTopToSocle eps) (dualTopToSocle_bijective eps)
 theorem dual_radical_coannihilator (eps : A →ₐ[K] K) :
     ((moduleRadical (M := Module.Dual K M) eps).restrictScalars K).dualCoannihilator =
       (moduleSocle (M := M) eps).restrictScalars K := by
@@ -4628,8 +4027,6 @@ noncomputable section
 namespace Gerstenhaber.FourBlocks.SmallHeads
 open scoped Pointwise
 variable {S M : Type*} [CommRing S] [AddCommGroup M] [Module S M]
-def scalarRange (t : S) : Submodule S M :=
-  LinearMap.range (t • (LinearMap.id : M →ₗ[S] M))
 end Gerstenhaber.FourBlocks.SmallHeads
 end
 noncomputable section
@@ -4671,15 +4068,6 @@ theorem radical_map_le (eps : A →ₐ[K] K) (q : M →ₗ[A] N) :
   rw [q.map_smul]
   exact smul_mem_moduleRadical eps a ha (q x)
 omit [Module K M] [IsScalarTower K A M] [Module K N] [IsScalarTower K A N] in
-theorem radical_map_eq_of_surjective (eps : A →ₐ[K] K)
-    (q : M →ₗ[A] N) (hq : Function.Surjective q) :
-    (moduleRadical (M := M) eps).map q = moduleRadical (M := N) eps := by
-  apply le_antisymm (radical_map_le eps q)
-  apply Submodule.span_le.mpr
-  rintro _ ⟨a,ha,y,rfl⟩
-  obtain ⟨x,rfl⟩ := hq y
-  exact Submodule.mem_map.mpr ⟨a • x,smul_mem_moduleRadical eps a ha x,q.map_smul a x⟩
-omit [Module K M] [IsScalarTower K A M] [Module K N] [IsScalarTower K A N] in
 def actualTopMap (eps : A →ₐ[K] K) (q : M →ₗ[A] N) :
     Top (M := M) eps →ₗ[A] Top (M := N) eps :=
   (moduleRadical eps).mapQ (moduleRadical eps) q
@@ -4687,51 +4075,6 @@ def actualTopMap (eps : A →ₐ[K] K) (q : M →ₗ[A] N) :
 omit [Module K M] [IsScalarTower K A M] [Module K N] [IsScalarTower K A N] in
 @[simp] theorem actualTopMap_mk (eps : A →ₐ[K] K) (q : M →ₗ[A] N) (x : M) :
     actualTopMap eps q ((moduleRadical eps).mkQ x) = (moduleRadical eps).mkQ (q x) := rfl
-omit [Module K M] [IsScalarTower K A M] [Module K N] [IsScalarTower K A N] in
-theorem actualTopMap_surjective (eps : A →ₐ[K] K)
-    (q : M →ₗ[A] N) (hq : Function.Surjective q) :
-    Function.Surjective (actualTopMap eps q) := by
-  intro z
-  obtain ⟨y,rfl⟩ := (moduleRadical (M := N) eps).mkQ_surjective z
-  obtain ⟨x,rfl⟩ := hq y
-  exact ⟨(moduleRadical eps).mkQ x,rfl⟩
-omit [Module K M] [IsScalarTower K A M] [Module K N] [IsScalarTower K A N] in
-theorem actualTopMap_injective (eps : A →ₐ[K] K)
-    (q : M →ₗ[A] N) (hq : Function.Surjective q)
-    (hker : q.ker ≤ moduleRadical (M := M) eps) :
-    Function.Injective (actualTopMap eps q) := by
-  apply LinearMap.ker_eq_bot.mp
-  apply bot_unique
-  intro z hz
-  obtain ⟨x,rfl⟩ := (moduleRadical (M := M) eps).mkQ_surjective z
-  have hx : q x ∈ moduleRadical (M := N) eps :=
-    (Submodule.Quotient.mk_eq_zero _).mp hz
-  rw [← radical_map_eq_of_surjective eps q hq] at hx
-  obtain ⟨y,hy,hyx⟩ := Submodule.mem_map.mp hx
-  have hxy : x-y ∈ q.ker := by
-    rw [LinearMap.mem_ker,map_sub,hyx,sub_self]
-  have hrad : x ∈ moduleRadical (M := M) eps := by
-    have h := (moduleRadical eps).add_mem (hker hxy) hy
-    simpa only [sub_add_cancel] using h
-  exact (Submodule.Quotient.mk_eq_zero _).mpr hrad
-omit [Module K M] [IsScalarTower K A M] [Module K N] [IsScalarTower K A N] in
-def actualTopEquivOfSurjective (eps : A →ₐ[K] K)
-    (q : M →ₗ[A] N) (hq : Function.Surjective q)
-    (hker : q.ker ≤ moduleRadical (M := M) eps) :
-    Top (M := M) eps ≃ₗ[A] Top (M := N) eps :=
-  LinearEquiv.ofBijective (actualTopMap eps q)
-    ⟨actualTopMap_injective eps q hq hker,actualTopMap_surjective eps q hq⟩
-omit [Module K M] [IsScalarTower K A M] in
-theorem tImage_le_radical (eps : A →ₐ[K] K) (t : A) (ht : eps t=0) :
-    tImage (M := M) t ≤ moduleRadical eps := by
-  rintro _ ⟨x,rfl⟩
-  exact smul_mem_moduleRadical eps t ht x
-def headTopEquiv (eps : A →ₐ[K] K) (t : A) (ht : eps t=0) :
-    Top (M := M) eps ≃ₗ[K] Top (M := ActualHead (M := M) t) eps :=
-  (actualTopEquivOfSurjective eps (headProjection t) (headProjection_surjective t) (by
-    change (tImage t).mkQ.ker ≤ moduleRadical eps
-    rw [Submodule.ker_mkQ]
-    exact tImage_le_radical eps t ht)).restrictScalars K
 end Gerstenhaber.FourBlocks.HeadBounds
 end
 noncomputable section
@@ -4755,9 +4098,6 @@ def positiveBidualEvaluation : M →ₗ[A] Module.Dual K (Module.Dual K M) where
   map_smul' := by intro a x; ext phi; rfl
 @[simp] theorem positiveBidualEvaluation_apply (x : M) (phi : Module.Dual K M) :
     positiveBidualEvaluation (A := A) x phi=phi x := rfl
-def positiveBidualEquiv [FiniteDimensional K M] :
-    M ≃ₗ[A] Module.Dual K (Module.Dual K M) :=
-  LinearEquiv.ofBijective positiveBidualEvaluation (Module.bijective_dual_eval K M)
 def tKernel (t : A) : Submodule A M := (t • (LinearMap.id : M →ₗ[A] M)).ker
 @[simp] theorem mem_tKernel (t : A) (x : M) : x ∈ tKernel t ↔ t • x=0 := Iff.rfl
 local instance (priority := 50) (t : A) :
@@ -4837,26 +4177,6 @@ def cyclicEvaluation : M →ₗ[K] A →ₗ[K] M :=
   (Algebra.lsmul K K M).toLinearMap.flip
 @[simp] theorem cyclicEvaluation_apply (u : M) (a : A) :
     cyclicEvaluation (K := K) (A := A) u a=a • u := rfl
-def IsMaximalCyclic (u : M) : Prop :=
-  ∀ v : M, finrank K (LinearMap.range (cyclicEvaluation (K := K) (A := A) v)) ≤
-    finrank K (LinearMap.range (cyclicEvaluation (K := K) (A := A) u))
-def cyclicSocleInclusion (eps : A →ₐ[K] K) (u : M) :
-    moduleSocle (M := cyclicModule (A := A) u) eps →ₗ[K] moduleSocle (M := M) eps where
-  toFun v := ⟨v.1.1,fun a ha => congrArg Subtype.val (v.2 a ha)⟩
-  map_add' := by intro x y; rfl
-  map_smul' := by intro k x; rfl
-theorem cyclicSocleInclusion_injective (eps : A →ₐ[K] K) (u : M) :
-    Function.Injective (cyclicSocleInclusion (K := K) eps u) := by
-  intro x y h
-  apply Subtype.ext
-  apply Subtype.ext
-  exact congrArg (fun z : moduleSocle (M := M) eps => (z : M)) h
-def cyclicSocleEquiv (eps : A →ₐ[K] K) (u : M)
-    (hsoc : moduleSocle (M := M) eps ≤ cyclicModule (A := A) u) :
-    moduleSocle (M := cyclicModule (A := A) u) eps ≃ₗ[K] moduleSocle (M := M) eps :=
-  LinearEquiv.ofBijective (cyclicSocleInclusion eps u) ⟨cyclicSocleInclusion_injective eps u,by
-    intro v
-    exact ⟨⟨⟨v.1,hsoc v.2⟩,fun a ha => Subtype.ext (v.2 a ha)⟩,rfl⟩⟩
 theorem cyclic_annihilator_le_augmentation (eps : A →ₐ[K] K) (u : M)
     (hu : topProjection eps u ≠ 0) :
     Module.annihilator A (cyclicModule (A := A) u) ≤ augmentationIdeal eps := by
@@ -4904,9 +4224,6 @@ def cyclicParentEquiv (u : M) : CyclicParent (A := A) u ≃ₗ[A] cyclicModule (
 @[simp] theorem cyclicParentEquiv_mk (u : M) (a : A) :
     (cyclicParentEquiv (A := A) u
       (Ideal.Quotient.mk (Module.annihilator A (cyclicModule (A := A) u)) a) : M) = a • u := rfl
-theorem cyclicParent_smul (u : M) (a : A) (r : CyclicParent (A := A) u) :
-    a • r = Ideal.Quotient.mk (Module.annihilator A (cyclicModule (A := A) u)) a*r :=
-  Algebra.smul_def a r
 def cyclicParentAugmentation (eps : A →ₐ[K] K) (u : M) (hu : topProjection eps u ≠ 0) :
     CyclicParent (A := A) u →ₐ[K] K :=
   Ideal.Quotient.liftₐ _ eps (fun _ ha => cyclic_annihilator_le_augmentation eps u hu ha)
@@ -4914,46 +4231,6 @@ def cyclicParentAugmentation (eps : A →ₐ[K] K) (u : M) (hu : topProjection e
     (hu : topProjection eps u ≠ 0) (a : A) :
     cyclicParentAugmentation eps u hu
       (Ideal.Quotient.mk (Module.annihilator A (cyclicModule (A := A) u)) a) = eps a := rfl
-def cyclicParentSocleMap (eps : A →ₐ[K] K) (u : M) (hu : topProjection eps u ≠ 0) :
-    algebraSocle (cyclicParentAugmentation eps u hu) →ₗ[K]
-      moduleSocle (M := cyclicModule (A := A) u) eps := by
-  let f := (cyclicParentEquiv (A := A) u).restrictScalars K
-  let g := f.toLinearMap.comp
-    ((algebraSocle (cyclicParentAugmentation eps u hu)).subtype.restrictScalars K)
-  refine g.codRestrict ((moduleSocle (M := cyclicModule (A := A) u) eps).restrictScalars K) ?_
-  intro r a ha
-  change a • cyclicParentEquiv u r.1=0
-  rw [← (cyclicParentEquiv u).map_smul]
-  have hz : a • r.1=0 := by
-    rw [cyclicParent_smul,mul_comm]
-    exact r.2 _ (by rw [cyclicParentAugmentation_mk]; exact ha)
-  rw [hz,map_zero]
-theorem cyclicParentSocleMap_bijective (eps : A →ₐ[K] K) (u : M)
-    (hu : topProjection eps u ≠ 0) :
-    Function.Bijective (cyclicParentSocleMap eps u hu) := by
-  constructor
-  · intro r s h
-    apply Subtype.ext
-    apply (cyclicParentEquiv (A := A) u).injective
-    exact congrArg (fun x : moduleSocle (M := cyclicModule (A := A) u) eps => x.1) h
-  · intro v
-    let r := (cyclicParentEquiv (A := A) u).symm v.1
-    have hr : r ∈ algebraSocle (cyclicParentAugmentation eps u hu) := by
-      intro s hs
-      obtain ⟨a,rfl⟩ := Ideal.Quotient.mk_surjective s
-      have ha : eps a=0 := by rwa [cyclicParentAugmentation_mk] at hs
-      apply (cyclicParentEquiv (A := A) u).injective
-      rw [map_zero,mul_comm,← cyclicParent_smul,(cyclicParentEquiv u).map_smul]
-      change a • (cyclicParentEquiv u) ((cyclicParentEquiv u).symm v.1)=0
-      rw [LinearEquiv.apply_symm_apply]
-      exact v.2 a ha
-    refine ⟨⟨r,hr⟩,?_⟩
-    apply Subtype.ext
-    exact (cyclicParentEquiv (A := A) u).apply_symm_apply v.1
-def cyclicParentSocleEquiv (eps : A →ₐ[K] K) (u : M) (hu : topProjection eps u ≠ 0) :
-    algebraSocle (cyclicParentAugmentation eps u hu) ≃ₗ[K]
-      moduleSocle (M := cyclicModule (A := A) u) eps :=
-  LinearEquiv.ofBijective (cyclicParentSocleMap eps u hu) (cyclicParentSocleMap_bijective eps u hu)
 end Gerstenhaber.FourBlocks.MinimalSource
 end
 noncomputable section
@@ -4965,8 +4242,6 @@ abbrev UnaryAlgebra (f : Module.End K N) := Algebra.adjoin K ({f} : Set (Module.
 instance unaryAlgebra_commRing (f : Module.End K N) : CommRing (UnaryAlgebra f) := inferInstance
 instance unaryAlgebra_tower (f : Module.End K N) : IsScalarTower K (UnaryAlgebra f) N :=
   ⟨fun _ _ _ => rfl⟩
-def unaryRoot (f : Module.End K N) : UnaryAlgebra f :=
-  ⟨f,Algebra.subset_adjoin (Set.mem_singleton _)⟩
 section ActualAlgebra
 variable {A : Type*} [CommRing A] [Algebra K A] [Module A N] [IsScalarTower K A N]
 end ActualAlgebra
@@ -5133,8 +4408,6 @@ open Gerstenhaber.FourBlocks.PrimaryDecomposition Gerstenhaber.FourBlocks.Minima
 variable {k E : Type u} [Field k] [Field E] [Algebra k E] {r : ℕ} {s : GKGraph.selectCols r}
 variable (D : SeriesPole k E r s)
 abbrev SeriesPole.carrier := QP (D.T 0)
-abbrev SeriesPole.native := nativeTriple (D.T 0) (D.T 1) (D.T 3) (D.T 2) (D.T 4)
-  D.relations.y.symm D.relations.z.symm
 end GKDivisor.Jet
 end
 noncomputable section
@@ -5770,9 +5043,6 @@ namespace GKGraph
 variable (k : Type u) [Field k] (r : ℕ)
 variable {F : Type u} [Field F] [Algebra k F]
 variable {O : Type*} [CommRing O] [IsDomain O]
-set_option maxHeartbeats 800000 in
-set_option synthInstance.maxHeartbeats 100000 in
-def datum (φ : ring k r →+* O) : Fin 6 → Mat O r := fun i => φ.mapMatrix (gmat k r i)
 variable [IsDiscreteValuationRing O]
 open IsDiscreteValuationRing
 end GKGraph
@@ -6383,8 +5653,6 @@ theorem matrixJ_other (h l : Fin H) (p : Fin (h.val+1)) (q : Fin (l.val+1))
   split <;> simp [Pi.single_eq_of_ne hh]
 def rawBlock (Z : Matrix (Ix m) (Ix m) K) (h : Fin H) : Matrix (Fin (m h)) (Fin (m h)) K :=
   fun a b => Z ⟨h,0,a⟩ ⟨h,0,b⟩
-def Bmat (K : Type*) {H : ℕ} (m : Fin H → ℕ) :=
-  (h : Fin H) → Matrix (Fin (m h)) (Fin (m h)) K
 theorem block_entry (z : Cent (K:=K) m) (h : Fin H) :
     LinearMap.toMatrixAlgEquiv (Pi.basisFun K (Fin (m h))) (part m z h) =
       rawBlock m (LinearMap.toMatrixAlgEquiv (coordBasis m) z.1) h := by

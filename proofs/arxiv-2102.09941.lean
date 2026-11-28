@@ -9,8 +9,5 @@ import OMAStatements.S_arxiv_2102_09941
 
 theorem OMA.disproof : ¬ (type_of% @OMA.S_arxiv_2102_09941.main) := by
   intro h
-  have h6 := (h 6 (by norm_num)).mpr rfl
-  have h3 := h6.1 3 (by norm_num) (by decide)
-  have e : (OMA.S_arxiv_2102_09941.divisorSum^[3]) 6 = 56 := by decide
-  rw [e] at h3
-  omega
+  have divides := ((h 6 (by decide)).2 rfl).1 3 (by decide) (by decide)
+  exact absurd divides (by decide)

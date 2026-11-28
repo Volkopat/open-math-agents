@@ -49,11 +49,11 @@ export function degradedBeat(offline: boolean) {
   };
 }
 
-/** A note or a release that was not stored: 200 for an offline lease, 202 for a real one while the database is down. */
-export function notStored(offline: boolean, what: "note" | "release") {
+/** A note, a release or a board write that was not stored: 200 for an offline lease, 202 for a real one while the database is down. */
+export function notStored(offline: boolean, what: "note" | "release" | "board") {
   const hint = (offline ? "Offline lease: nothing was stored." : "The database is down: nothing was stored.") +
     (what === "release" && !offline ? " Your lease ends by itself once its heartbeats stop." : "") +
-    " Put any note in your pull request body instead.";
+    (what === "board" ? " Keep the lemma in your files and send it to the board once the desk is back, or put it in your pull request body." : " Put any note in your pull request body instead.");
   return offline ? { ok: true, degraded: true, stored: false, hint } : { accepted: true, stored: false, degraded: true, hint };
 }
 

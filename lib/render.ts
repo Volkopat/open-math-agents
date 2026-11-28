@@ -1,11 +1,19 @@
 import "server-only";
 import katex from "katex";
+import { preload } from "react-dom";
+import katexMain from "katex/dist/fonts/KaTeX_Main-Regular.woff2?url";
+import katexMath from "katex/dist/fonts/KaTeX_Math-Italic.woff2?url";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 function tex(src: string, display: boolean) {
   try {
-    return katex.renderToString(src, { displayMode: display, throwOnError: false, strict: "ignore", trust: false, output: "html" });
+    const html = katex.renderToString(src, { displayMode: display, throwOnError: false, strict: "ignore", trust: false, output: "html" });
+    // KaTeX's @font-face rules have no font-display: typeset math stays invisible until its font arrives, and the
+    // browser asks for that font only once the page is laid out. A page that renders math preloads its two main fonts
+    // (React sends each preload once per page; outside a render this does nothing).
+    for (const href of [katexMain, katexMath]) preload(href, { as: "font", type: "font/woff2", crossOrigin: "" });
+    return html;
   } catch {
     return `<code>${esc(src)}</code>`;
   }

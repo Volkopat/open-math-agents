@@ -69,10 +69,6 @@ noncomputable def copNumber (G : SimpleGraph V) : ℕ := sInf {k | WinsWith G k}
 theorem copNumber_le_of_win {G : SimpleGraph V} {k : ℕ} (hk : WinsWith G k) :
     copNumber G ≤ k := Nat.sInf_le hk
 
-theorem winsWith_card [Fintype V] (G : SimpleGraph V) : WinsWith G (Fintype.card V) := by
-  classical
-  exact ⟨(Fintype.equivFin V).symm, fun r => ⟨0, Fintype.equivFin V r, by simp⟩⟩
-
 end Meyniel
 end Meyniel_Game
 -- === END Meyniel.Game ===
@@ -411,30 +407,6 @@ lemma legal (p : G.Walk a b) (r : V) (h : List V) :
   simpa [index, and_comm] using approach_step (index p h) (shadow p r)
 
 @[simp] lemma position_nil (p : G.Walk a b) : position p [] = a := by simp [position, index]
-
-/-- On any legal history the actual position has a closed form. In particular
-acquisition takes at most the path length, irrespective of the robber moves. -/
-lemma index_on_legal_history (p : G.Walk a b) (r : V) (h : List V)
-    (hw : (r :: h).IsChain (fun x y ↦ x = y ∨ G.Adj x y)) :
-    index p (r :: h) = min (h.length + 1) (shadow p r) := by
-  induction h generalizing r with
-  | nil => simp [index, approach]
-  | cons s tail ih =>
-    obtain ⟨hrs, htail⟩ := List.isChain_cons_cons.mp hw
-    have hs := shadow_step p hrs
-    rw [index, ih s htail, List.length_cons]
-    unfold approach
-    omega
-
-/-- If the robber visits any vertex of the path after acquisition, the next
-cop move lands on that vertex, before the robber gets another move. -/
-lemma capture_on_path (p : G.Walk a b) (geo : p.length = G.dist a b) (r : V) (h : List V)
-    (hw : (r :: h).IsChain (fun x y ↦ x = y ∨ G.Adj x y))
-    (acquired : p.length ≤ h.length + 1) (hr : r ∈ p.support) : position p (r :: h) = r := by
-  obtain ⟨i, hi, hlen⟩ := Walk.mem_support_iff_exists_getVert.mp hr
-  subst r
-  rw [position, index_on_legal_history p _ _ hw, shadow_on_path p geo _ hlen,
-    min_eq_right (by omega)]
 
 /-- A diametral geodesic has exactly `diam + 1` distinct vertices available
 for deletion, even when the diameter is zero. -/
@@ -982,25 +954,6 @@ theorem logMean_mono [Fintype W] {f g : W → ℝ} (hf : ∀ w, 0 < f w) (h : �
   div_le_div_of_nonneg_right (sum_le_sum (fun w _ => Real.log_le_log (hf w) (h w)))
     (show 0 ≤ ((univ : Finset W).card : ℝ) by positivity)
 
-theorem logMean_bellman [Fintype W] [Nonempty W] [DecidableEq K]
-    (key : W → K) (old new pre post : W → ℝ)
-    (hn : ∀ w, 0 < new w) (hp : ∀ w, 0 < pre w) (hq : ∀ w, 0 < post w)
-    (hu : ∀ w, blockMean key (fun z => new z * pre z / post z) w ≤ old w) :
-    logMean new + (logMean pre - logMean post) ≤ logMean old := by
-  let f := fun z => new z * pre z / post z
-  have hf : ∀ z, 0 < f z := fun z => div_pos (mul_pos (hn z) (hp z)) (hq z)
-  calc
-    logMean new + (logMean pre - logMean post) = logMean f := by
-      have he (w : W) : Real.log (f w) = Real.log (new w) + Real.log (pre w) - Real.log (post w) := by
-        dsimp only [f]
-        rw [Real.log_div (mul_pos (hn w) (hp w)).ne' (hq w).ne',
-          Real.log_mul (hn w).ne' (hp w).ne']
-      simp only [logMean, mean, he, sum_sub_distrib, sum_add_distrib, sub_div, add_div]
-      ring
-    _ ≤ logMean (blockMean key f) := div_le_div_of_nonneg_right (block_log_le key f hf)
-      (show 0 ≤ ((univ : Finset W).card : ℝ) by positivity)
-    _ ≤ _ := logMean_mono (blockMean_pos key f hf) hu
-
 /-- Marginal mass of the tagged walk's own vertex at one specified time. -/
 def frequency [Fintype W] [DecidableEq V] (position : W → V) (w : W) : ℝ :=
   ((fiber position (position w)).card : ℝ) / Fintype.card W
@@ -1040,16 +993,6 @@ theorem logMean_frequency_ge [Fintype W] [Nonempty W] [DecidableEq V] (position 
 /-- Total along a diagonal, from time zero to the meeting row. -/
 def diagonalSum (b : ℕ) (a : ℕ → ℕ → ℝ) :=
   ∑ t ∈ range (b / 2 + 1), a t (b - t)
-
-theorem backward_telescope (b : ℕ) (a : ℕ → ℕ → ℝ) (v : ℕ → ℝ)
-    (h : ∀ t ≤ b / 2, v (t+1) + a t (b-t) ≤ v t) :
-    diagonalSum b a ≤ v 0 - v (b / 2 + 1) := by
-  unfold diagonalSum
-  rw [← sum_range_sub' v]
-  apply sum_le_sum
-  intro t ht
-  have := h t (by simpa using ht)
-  linarith
 
 theorem forward_telescope (b : ℕ) (a : ℕ → ℕ → ℝ) (v : ℕ → ℝ)
     (h : ∀ t ≤ b / 2, v t + a t (b-t) ≤ v (t+1)) :
@@ -1178,14 +1121,6 @@ theorem exists_good_diagonal (T d n : ℕ) (q : ℕ → ℕ → ℝ) (s : ℕ �
   push_cast at hsum hlt
   nlinarith
 
-/-- Converting the paper's natural-valued inequality to the logarithmic
-initialization used by the diagonal estimate. -/
-theorem horizon_log_of_pow {d T n : ℕ} (hn : 0 < n) (h : n^d ≤ 2^T) :
-    (d : ℝ) * Real.log n ≤ (T : ℝ) * Real.log 2 := by
-  have h' : (n : ℝ)^d ≤ (2 : ℝ)^T := by exact_mod_cast h
-  simpa only [Real.log_pow] using Real.log_le_log (pow_pos (by exact_mod_cast hn) d) h'
-
-
 @[simp] theorem logMean_one [Fintype W] : logMean (fun _ : W => 1) = 0 := by
   simp [logMean, mean]
 
@@ -1210,79 +1145,9 @@ theorem frequency_of_constant [Fintype W] [Nonempty W] [DecidableEq V] {position
     simp [fiber, h v w]
   simp [frequency, hs, Fintype.card_ne_zero]
 
-/-- Supply a cell-by-cell Bellman bound and a terminal condition, and obtain a
-good diagonal. The columns and their marginal frequencies are ordinary maps
-on the original finite family of walks. -/
-theorem exists_good_of_bellman [Fintype W] [Nonempty W] [Fintype V] [DecidableEq V]
-    [DecidableEq K] (T d n : ℕ) (hn : 1 ≤ n) (hsize : Fintype.card V ≤ n)
-    (hT : (d : ℝ) * Real.log n ≤ (T : ℝ) * Real.log 2)
-    (position : ℕ → W → V) (p v : ℕ → ℕ → W → ℝ) (key : ℕ → ℕ → W → K)
-    (s : ℕ → ℝ)
-    (hpos : ∀ t j w, 0 < p t j w ∧ p t j w ≤ 1)
-    (hzero : ∀ j, p 0 j = frequency (position j))
-    (hhome : ∀ j, T+d ≤ j → ∀ x y, position j x = position j y)
-    (hvend : ∀ b ≤ 2*T, v b (b/2+1) = fun _ => 1)
-    (hv : ∀ b ≤ 2*T, ∀ t ≤ b/2+1, ∀ w, 0 < v b t w)
-    (hstep : ∀ b ≤ 2*T, ∀ t ≤ b/2, ∀ w,
-      blockMean (key t (b-t))
-        (fun z => v b (t+1) z * p t (b-t) z / p (t+1) (b-t) z) w ≤ v b t w)
-    (hstart : ∀ b ≤ 2*T, mean univ (v b 0) ≤ s b) :
-    ∃ b ≤ 2*T, 1 / Real.sqrt (2*n) ≤ s b := by
-  apply exists_good_diagonal T d n (fun t j => logMean (p t j)) s hn hT
-  · intro b hb
-    exact (mean_pos univ_nonempty (fun w _ => hv b hb 0 (by omega) w)).trans_le (hstart b hb)
-  · intro j _
-    rw [hzero]
-    exact logMean_frequency_ge_of_card_le _ _ hsize
-  · intro j _ hj
-    rw [hzero]
-    have hh := funext (frequency_of_constant (hhome j hj))
-    rw [hh, logMean_one]
-  · intro j _
-    exact logMean_nonpos _ (hpos _ _)
-  · intro b hb
-    have ht := backward_telescope b (fun t j => logMean (p t j) - logMean (p (t+1) j))
-      (fun t => logMean (v b t))
-      (fun t hd => logMean_bellman (key t (b-t)) _ _ _ _ (hv b hb (t+1) (by omega))
-        (fun w => (hpos _ _ w).1) (fun w => (hpos _ _ w).1) (hstep b hb t hd))
-    rw [hvend b hb, logMean_one, sub_zero] at ht
-    have hp := hv b hb 0 (by omega)
-    exact ht.trans ((logMean_le_log_mean hp).trans
-      (Real.log_le_log (mean_pos univ_nonempty (fun w _ => hp w)) (hstart b hb)))
-
-
 @[simp] theorem logMean_const [Fintype W] [Nonempty W] (r : ℝ) :
     logMean (fun _ : W => r) = Real.log r := by
   simp [logMean, mean, Fintype.card_ne_zero]
-
-/-- For one diagonal it is enough to bound the first backward value by the
-success rate. Positivity of every intermediate value follows from the recursion. -/
-theorem bellman_diagonal [Fintype W] [Nonempty W] [DecidableEq K]
-    (b : ℕ) (p : ℕ → ℕ → W → ℝ) (v : ℕ → W → ℝ) (key : ℕ → W → K) (s : ℝ)
-    (hp : ∀ t j w, 0 < p t j w)
-    (hend : ∀ w, v (b/2+1) w = 1) (hstart : ∀ w, v 0 w ≤ s)
-    (hstep : ∀ t ≤ b/2, ∀ w, blockMean (key t)
-      (fun z => v (t+1) z * p t (b-t) z / p (t+1) (b-t) z) w ≤ v t w) :
-    0 < s ∧ diagonalSum b (fun t j => logMean (p t j) - logMean (p (t+1) j)) ≤
-      Real.log s := by
-  have hv (t : ℕ) (ht : t ≤ b/2+1) : ∀ w, 0 < v t w := by
-    induction ht using Nat.decreasingInduction with
-    | self => intro w; rw [hend w]; norm_num
-    | of_succ i hi ih =>
-      intro w
-      exact (blockMean_pos (key i) _
-        (fun z => div_pos (mul_pos (ih z) (hp i (b-i) z)) (hp (i+1) (b-i) z)) w).trans_le
-        (hstep i (by omega) w)
-  have hv0 := hv 0 (by omega)
-  constructor
-  · let w : W := Classical.choice (inferInstance : Nonempty W)
-    exact (hv0 w).trans_le (hstart w)
-  · have ht := backward_telescope b (fun t j => logMean (p t j) - logMean (p (t+1) j))
-      (fun t => logMean (v t))
-      (fun t hd => logMean_bellman (key t) _ _ _ _ (hv (t+1) (by omega))
-        (hp t (b-t)) (hp (t+1) (b-t)) (hstep t hd))
-    rw [funext hend, logMean_one, sub_zero] at ht
-    exact ht.trans ((logMean_mono hv0 hstart).trans_eq (logMean_const s))
 
 /-- Direct bridge from a fixed-diagonal strategy and the actual column marginal
 frequencies to a strategy attaining the claimed fraction. -/
@@ -1356,149 +1221,8 @@ def splice (x : V) (q : V → Policy G) (legal : ∀ r, Step G x ((q r).pos []))
 @[simp] theorem splice_append (x : V) (q : V → Policy G) (L) (h : List V) (r : V) :
     (splice x q L).pos (h ++ [r]) = (q r).pos h := splicePos_append ..
 
-private theorem hits_splice (x : V) (q : V → Policy G) (L) (r : V) :
-    ∀ (w h : List V), Hits (splice x q L) (h ++ [r]) w ↔ Hits (q r) h w
-  | [], _ => Iff.rfl
-  | [v], h => by simp [Hits]
-  | v :: z :: zs, h => by
-    change ((_ = v) ∨ (splice x q L).pos ((v :: h) ++ [r]) = v ∨
-      Hits (splice x q L) ((v :: h) ++ [r]) (z :: zs)) ↔ _
-    rw [hits_splice x q L r (z :: zs) (v :: h)]
-    rw [splice_append x q L (v :: h) r, splice_append x q L h r]
-    rfl
-
-/-- What is captured after revealing r and committing to q, including immediate
-collision and the absence of a final cop turn on a singleton walk. -/
-def stageHits (x r : V) (q : Policy G) : List V → Prop
-  | [] => x = r
-  | z :: zs => x = r ∨ q.pos [] = r ∨ Hits q [] (z :: zs)
-
-theorem stageHits_splice (x r : V) (q : V → Policy G) (L) (w : List V) :
-    Hits (splice x q L) [] (r :: w) ↔ stageHits x r (q r) w := by
-  cases w with
-  | nil => rfl
-  | cons z zs =>
-    change (x = r ∨ _ = r ∨ Hits (splice x q L) ([] ++ [r]) (z :: zs)) ↔ _
-    rw [hits_splice]
-    rfl
-
 noncomputable def count (A : Finset W) (P : W → Prop) : ℕ := by
   classical exact (A.filter P).card
-
-theorem count_le (A : Finset W) (P : W → Prop) : count A P ≤ A.card := by
-  classical exact card_filter_le ..
-
-private theorem exists_best {S : Type*} (witness : S) (f : S → ℕ) (cap : ℕ)
-    (hle : ∀ q, f q ≤ cap) : ∃ q, ∀ z, f z ≤ f q := by
-  have hb : BddAbove (Set.range f) := ⟨cap, by rintro _ ⟨s,rfl⟩; exact hle s⟩
-  obtain ⟨q, hq⟩ := Nat.sSup_mem (s := Set.range f) ⟨f witness, witness, rfl⟩ hb
-  exact ⟨q, fun z => hq ▸ le_csSup hb ⟨z,rfl⟩⟩
-
-/-- An optimal single cop among all policies with the indicated initial vertex. -/
-noncomputable def optimal (G : SimpleGraph V) (A : Finset W) (route : W → List V) (x : V) :
-    {s : Policy G // s.pos [] = x} :=
-  Classical.choose (exists_best (⟨Policy.stay G x, rfl⟩ : {s : Policy G // s.pos [] = x})
-    (fun s => count A fun w => Hits s.1 [] (route w)) A.card (fun _ => count_le ..))
-
-noncomputable def bestCount (G : SimpleGraph V) (A : Finset W) (route : W → List V) (x : V) : ℕ :=
-  count A fun w => Hits (optimal G A route x).1 [] (route w)
-
-theorem count_le_best (A : Finset W) (route : W → List V) (x : V) (q : Policy G) (hq : q.pos [] = x) :
-    (count A fun w => Hits q [] (route w)) ≤ bestCount G A route x := by
-  exact (Classical.choose_spec (exists_best (⟨Policy.stay G x, rfl⟩ : {s : Policy G // s.pos [] = x})
-    (fun s => count A fun w => Hits s.1 [] (route w)) A.card (fun _ => count_le ..))) ⟨q,hq⟩
-
-/-- The strategy selected for a child prefix can commit to any legal first move. -/
-noncomputable def bestChild (G : SimpleGraph V) (A : Finset W) (tail : W → List V) (x r : V) :
-    {q : Policy G // Step G x (q.pos [])} :=
-  Classical.choose (exists_best (⟨Policy.stay G x, Or.inl rfl⟩ : {s : Policy G // Step G x (s.pos [])})
-    (fun q => count A fun w => stageHits x r q.1 (tail w)) A.card (fun _ => count_le ..))
-
-noncomputable def childCount (G : SimpleGraph V) (A : Finset W) (tail : W → List V) (x r : V) : ℕ :=
-  count A fun w => stageHits x r (bestChild G A tail x r).1 (tail w)
-
-theorem count_le_child (A : Finset W) (tail : W → List V) (x r : V) (q : Policy G)
-    (hq : Step G x (q.pos [])) :
-    (count A fun w => stageHits x r q (tail w)) ≤ childCount G A tail x r := by
-  exact (Classical.choose_spec (exists_best (⟨Policy.stay G x, Or.inl rfl⟩ : {s : Policy G // Step G x (s.pos [])})
-    (fun s => count A fun w => stageHits x r s.1 (tail w)) A.card (fun _ => count_le ..))) ⟨q,hq⟩
-
-/-- Splitting the capture count among the possible revealed vertices is exact. -/
-private theorem count_partition [Fintype V] [DecidableEq V] (A : Finset W) (obs : W → V) (P : W → Prop) :
-    (∑ r, count (A.filter fun z => obs z = r) P) = count A P := by
-  classical
-  simpa only [count, Finset.card_filter] using Finset.sum_fiberwise A obs (fun z => if P z then 1 else (0:ℕ))
-
-/-- Maximizing the first response independently at each possible revelation is
-realizable by one policy starting at x, even for prefixes outside the family. -/
-theorem sum_childCount_le_best [Fintype V] [DecidableEq V] (G : SimpleGraph V) (A : Finset W)
-    (obs : W → V) (tail : W → List V) (x : V) :
-    (∑ r, childCount G (A.filter fun z => obs z = r) tail x r) ≤
-      bestCount G A (fun z => obs z :: tail z) x := by
-  classical
-  let q := fun r => bestChild G (A.filter fun z => obs z = r) tail x r
-  let s := splice x (fun r => (q r).1) (fun r => (q r).2)
-  calc
-    _ = ∑ r, count (A.filter fun z => obs z = r) (fun z => Hits s [] (obs z :: tail z)) := by
-      apply Finset.sum_congr rfl; intro r _
-      change ((A.filter _).filter _).card = ((A.filter _).filter _).card
-      congr 1
-      apply Finset.filter_congr
-      intro w hw
-      obtain ⟨_,hr⟩ := Finset.mem_filter.mp hw
-      rw [hr]; exact (stageHits_splice x r (fun u => (q u).1) (fun u => (q u).2) (tail w)).symm
-    _ = _ := count_partition A obs _
-    _ ≤ _ := count_le_best A _ x s rfl
-
-/-- Every compatible tag may propose its own legal backward move. The value
-of each such proposal is bounded by the same best response for this child. -/
-theorem best_next_le_child (G : SimpleGraph V) (A : Finset W) (tail : W → List V) (x r y : V)
-    (hxy : Step G x y) : bestCount G A tail y ≤ childCount G A tail x r := by
-  classical
-  let s := optimal G A tail y
-  apply le_trans _ (count_le_child A tail x r s.1 (s.2.symm ▸ hxy))
-  apply Finset.card_le_card; intro w hmem
-  obtain ⟨ha,hw⟩ := Finset.mem_filter.mp hmem
-  refine Finset.mem_filter.mpr ⟨ha,?_⟩
-  change Hits s.1 [] (tail w) at hw
-  cases H : tail w with
-  | nil => simp [H,Hits] at hw
-  | cons z zs => exact Or.inr (Or.inr (H ▸ hw))
-
-/-- At a terminal entry every walk with the compatible revealed vertex is
-captured, either immediately or on the next cop turn if there is one. -/
-theorem all_le_child (G : SimpleGraph V) (A : Finset W) (tail : W → List V) (x r : V)
-    (hxy : Step G x r) (ht : ∀ w ∈ A, x = r ∨ tail w ≠ []) :
-    A.card ≤ childCount G A tail x r := by
-  classical
-  apply le_trans _ (count_le_child A tail x r (Policy.stay G r) hxy)
-  apply Finset.card_le_card
-  intro w hw; apply Finset.mem_filter.mpr; refine ⟨hw, ?_⟩
-  cases H : tail w with
-  | nil => exact (ht w hw).resolve_right (not_not.mpr H)
-  | cons z zs => exact Or.inr (Or.inl rfl)
-
-/-- Each tag in one observed child is weighted by the inverse size of its
-fiber. This permits the guesses for different tags to overlap arbitrarily. -/
-theorem sum_div_fiber_le [Fintype V] [DecidableEq V] (M : Finset W) (obs : W → V)
-    (a : W → ℝ) (c : V → ℕ) (h : ∀ w ∈ M, a w ≤ c (obs w)) :
-    (∑ w ∈ M, a w / (M.filter fun z => obs z = obs w).card) ≤ ∑ r, (c r : ℝ) := by
-  classical
-  rw [← Finset.sum_fiberwise M obs]
-  apply Finset.sum_le_sum
-  intro r _
-  let B := M.filter fun z => obs z = r
-  change (∑ w ∈ B, _) ≤ _
-  calc
-    _ ≤ ∑ _w ∈ B, (c r : ℝ) / B.card := by
-      apply Finset.sum_le_sum; intro w hw
-      obtain ⟨hm,hr⟩ := Finset.mem_filter.mp hw
-      rw [hr]; exact div_le_div_of_nonneg_right (hr ▸ h w hm) (Nat.cast_nonneg _)
-    _ ≤ _ := by
-      by_cases hb : B.Nonempty
-      · have h0 : (B.card : ℝ) ≠ 0 := by exact_mod_cast Finset.card_ne_zero.mpr hb
-        simp only [Finset.sum_const, nsmul_eq_mul]; field_simp; exact le_rfl
-      · simp [Finset.not_nonempty_iff_eq_empty.mp hb]
 
 open Interception
 
@@ -1511,15 +1235,6 @@ def past (X : ℕ → W → V) : ℕ → W → List V
 def remainder (X : ℕ → W → V) (T t : ℕ) (w : W) : List V :=
   List.ofFn (fun i : Fin (T+1-t) => X (t+i.val) w)
 
-private theorem remainder_cons (X : ℕ → W → V) (T t : ℕ) (ht : t ≤ T) (w : W) :
-    remainder X T t w = X t w :: remainder X T (t+1) w := by
-  unfold remainder
-  have hh : T+1-t = (T+1-(t+1))+1 := by omega
-  conv_lhs => rw [hh]
-  rw [List.ofFn_succ]
-  congr 1
-  apply congrArg List.ofFn; funext i; congr 1; simp [Fin.val_succ]; omega
-
 variable [Fintype W] [DecidableEq V]
 
 def oldPrefix (X : ℕ → W → V) (t : ℕ) (w : W) := fiber (past X t) (past X t w)
@@ -1531,171 +1246,9 @@ def tags (X : ℕ → W → V) (t j : ℕ) (w : W) := fiber (key X t j) (key X t
 noncomputable def conditional (X : ℕ → W → V) (t j : ℕ) (w : W) : ℝ :=
   ((tags X t j w).card : ℝ)/(oldPrefix X t w).card
 
-private theorem mem_prefix {X : ℕ→W→V} {t : ℕ} {w z : W} :
-    z ∈ oldPrefix X t w ↔ past X t z = past X t w := by simp [oldPrefix,fiber]
-
-private theorem mem_tags {X : ℕ→W→V} {t j : ℕ} {w z : W} :
-    z ∈ tags X t j w ↔ past X t z = past X t w ∧ X j z = X j w := by simp [tags,key,fiber]
-
-private theorem prefix_pos (X : ℕ→W→V) (t : ℕ) (w : W) : 0 < ((oldPrefix X t w).card : ℝ) := by
-  exact_mod_cast (show (oldPrefix X t w).Nonempty from ⟨w, mem_prefix.mpr rfl⟩).card_pos
-
-private theorem tags_pos (X : ℕ→W→V) (t j : ℕ) (w : W) : 0 < ((tags X t j w).card : ℝ) := by
-  exact_mod_cast (show (tags X t j w).Nonempty from ⟨w, mem_tags.mpr ⟨rfl,rfl⟩⟩).card_pos
-
-theorem conditional_pos (X : ℕ→W→V) (t j : ℕ) (w : W) : 0 < conditional X t j w :=
-  div_pos (tags_pos ..) (prefix_pos ..)
-
-private theorem child_prefix {X : ℕ→W→V} {t j : ℕ} {w z : W} (hz : z ∈ tags X t j w) :
-    (oldPrefix X t w).filter (fun y => X t y = X t z) = oldPrefix X (t+1) z := by
-  ext u
-  obtain ⟨hp,-⟩ := mem_tags.mp hz
-  simp only [Finset.mem_filter, mem_prefix, past, List.cons.injEq]
-  rw [hp]; tauto
-
-private theorem child_tags {X : ℕ→W→V} {t j : ℕ} {w z : W} (hz : z ∈ tags X t j w) :
-    (tags X t j w).filter (fun y => X t y = X t z) = tags X (t+1) j z := by
-  ext u
-  obtain ⟨hp,hx⟩ := mem_tags.mp hz
-  simp only [Finset.mem_filter, mem_tags, past, List.cons.injEq]
-  rw [hp,hx]; tauto
-
-/-- At the fictitious row after the terminal entry the value is one. -/
-noncomputable def value (G : SimpleGraph V) (X : ℕ→W→V) (T b t : ℕ) (w : W) : ℝ :=
-  if t ≤ b/2 then (bestCount G (oldPrefix X t w) (remainder X T t) (X (b-t) w) : ℝ) /
-    (oldPrefix X t w).card else 1
-
-omit [DecidableEq V] in
-private theorem step_symm {x y : V} (h : Step G x y) : Step G y x :=
-  h.elim (fun e => Or.inl e.symm) (fun e => Or.inr e.symm)
-
-/-- The best number of continuations after one observed vertex dominates every
-compatible tag's next value, including both types of terminal entry. -/
-private theorem child_dominates (G : SimpleGraph V) (X : ℕ→W→V) (T b t j : ℕ)
-    (hb : b ≤ 2*T) (ht : t ≤ b/2) (hj : j=b-t) (w z : W) (hz : z ∈ tags X t j w)
-    (leg : ∀ i w, Step G (X i w) (X (i+1) w)) :
-    value G X T b (t+1) z * (oldPrefix X (t+1) z).card ≤
-    childCount G ((oldPrefix X t w).filter fun y => X t y = X t z)
-      (remainder X T (t+1)) (X j w) (X t z) := by
-  rw [child_prefix hz, ← (mem_tags.mp hz).2]
-  by_cases hnext : t+1 ≤ b/2
-  · have hi : b-(t+1)+1 = j := by omega
-    have hmove := step_symm (leg (b-(t+1)) z)
-    rw [hi] at hmove
-    simp only [value, if_pos hnext, div_mul_cancel₀ _ (prefix_pos X (t+1) z).ne']
-    exact_mod_cast best_next_le_child G _ _ _ _ _ hmove
-  · simp only [value, if_neg hnext, one_mul]
-    have split : j=t ∨ j=t+1 := by omega
-    apply Nat.cast_le.mpr
-    apply all_le_child
-    · rcases split with rfl | rfl
-      · exact Or.inl rfl
-      · exact step_symm (leg t z)
-    · intro u _
-      rcases split with rfl | rfl
-      · exact Or.inl rfl
-      · right; intro he
-        have hlen := congrArg List.length he
-        simp [remainder] at hlen; omega
-
 variable [Fintype V]
 
-/-- The finite Bellman inequality on each old-prefix, guessed-vertex fiber. -/
-theorem cell_bound (G : SimpleGraph V) (X : ℕ→W→V) (T b t j : ℕ)
-    (hb : b ≤ 2*T) (ht : t ≤ b/2) (hj : j=b-t) (w : W)
-    (leg : ∀ i w, Step G (X i w) (X (i+1) w)) :
-    blockMean (key X t j) (fun z => value G X T b (t+1) z * conditional X t j z /
-      conditional X (t+1) j z) w ≤ value G X T b t w := by
-  classical
-  let A := oldPrefix X t w
-  let M := tags X t j w
-  let c := fun r => childCount G (A.filter fun y => X t y = r) (remainder X T (t+1)) (X j w) r
-  let N := fun z => value G X T b (t+1) z * (oldPrefix X (t+1) z).card
-  let f := fun z => N z / (M.filter fun y => X t y = X t z).card
-  have hsum : (∑ z ∈ M, f z) ≤ ∑ r, (c r : ℝ) :=
-    sum_div_fiber_le M (X t) N c (fun z hz => child_dominates G X T b t j hb ht hj w z hz leg)
-  have hroute : (fun z => X t z :: remainder X T (t+1) z) = remainder X T t := by
-    funext z; exact (remainder_cons X T t (by omega) z).symm
-  have hcount := sum_childCount_le_best G A (X t) (remainder X T (t+1)) (X j w)
-  rw [hroute] at hcount
-  have htotal : (∑ r, (c r : ℝ)) ≤ (bestCount G A (remainder X T t) (X j w) : ℝ) := by
-    exact_mod_cast hcount
-  have hterm (z : W) (hz : z ∈ M) :
-      value G X T b (t+1) z * conditional X t j z / conditional X (t+1) j z =
-        f z * ((M.card : ℝ) / A.card) := by
-    obtain ⟨hp,hx⟩ := mem_tags.mp hz
-    have hM : tags X t j z = M := by simp [tags, key, M, hp, hx]
-    have hA : oldPrefix X t z = A := by simp [oldPrefix,A,hp]
-    dsimp only [f,N]; unfold conditional
-    rw [hM,hA, child_tags hz]
-    simp only [div_eq_mul_inv, mul_inv_rev, inv_inv]; ring
-  have hm : (M.card : ℝ) ≠ 0 := (tags_pos X t j w).ne'
-  change (∑ z ∈ M, _) / (M.card : ℝ) ≤ _
-  rw [Finset.sum_congr rfl hterm, ← Finset.sum_mul]
-  rw [value, if_pos ht, ←hj]
-  calc
-    _ = (∑ z ∈ M, f z) / A.card := by field_simp
-    _ ≤ _ := div_le_div_of_nonneg_right (hsum.trans htotal) (Nat.cast_nonneg _)
-
-/-- The optimal strategy when the starting vertex is also at the cop's disposal. -/
-noncomputable def unrestricted (G : SimpleGraph V) (A : Finset W) (route : W → List V) (base : V) : Policy G :=
-  Classical.choose (exists_best (Policy.stay G base)
-    (fun s => count A fun w => Hits s [] (route w)) A.card (fun _ => count_le ..))
-
-omit [Fintype W] [DecidableEq V] [Fintype V] in
-private theorem le_unrestricted (G : SimpleGraph V) (A : Finset W) (route : W → List V) (base x : V) :
-    bestCount G A route x ≤ count A (fun w => Hits (unrestricted G A route base) [] (route w)) :=
-  (Classical.choose_spec (exists_best (Policy.stay G base)
-    (fun s => count A fun w => Hits s [] (route w)) A.card (fun _ => count_le ..))) (optimal G A route x).1
-
-omit [Fintype V] in
-private theorem prefix_zero (X : ℕ→W→V) (w : W) : oldPrefix X 0 w = Finset.univ := by
-  simp [oldPrefix, fiber, past]
-
-omit [Fintype V] in
-private theorem cond_zero (X : ℕ→W→V) (j : ℕ) : conditional X 0 j = frequency (X j) := by
-  funext w
-  have htag : tags X 0 j w = fiber (X j) (X j w) := by
-    ext z; simp [tags, key, fiber, past]
-  simp [conditional, prefix_zero, frequency, htag]
-
-omit [Fintype V] in
-private theorem cond_le_one (X : ℕ→W→V) (t j : ℕ) (w : W) : conditional X t j w ≤ 1 := by
-  unfold conditional
-  rw [div_le_one (prefix_pos X t w)]
-  exact_mod_cast Finset.card_le_card (show tags X t j w ⊆ oldPrefix X t w from
-    fun _ hz => mem_prefix.mpr (mem_tags.mp hz).1)
-
 variable [Nonempty W]
-
-/-- One actual deterministic strategy catches the stated fraction of every
-nonempty tagged family. Only the first T+1 vertices are tested for capture;
-the later vertices, and the common home, are used solely for choosing guesses. -/
-theorem tagged_one_cop (G : SimpleGraph V) (X : ℕ→W→V) (T d n : ℕ) (home : V)
-    (leg : ∀ i w, Step G (X i w) (X (i+1) w)) (hhome : ∀ j, T+d ≤ j → ∀ w, X j w = home)
-    (hcard : Fintype.card V ≤ n) (htime : (d:ℝ)*Real.log n ≤ (T:ℝ)*Real.log 2) :
-    ∃ s : Policy G, 1 / Real.sqrt (2*(n:ℝ)) * Fintype.card W ≤
-      (count Finset.univ (fun w => Hits s [] (List.ofFn (fun i : Fin (T+1) => X i.val w))) : ℝ) := by
-  classical
-  let s := unrestricted G Finset.univ (remainder X T 0) home
-  let success : ℝ := (count Finset.univ (fun w => Hits s [] (remainder X T 0 w)) : ℝ) / Fintype.card W
-  let q := fun t j => logMean (conditional X t j)
-  have hd (b : ℕ) (hb : b ≤ 2*T) : 0 < success ∧
-      diagonalSum b (fun t j => q t j - q (t+1) j) ≤ Real.log success := by
-    apply bellman_diagonal b (conditional X) (value G X T b) (fun t => key X t (b-t)) success
-    · exact conditional_pos X
-    · intro w; simp [value]
-    · intro w; simp only [value, Nat.zero_le, if_true, prefix_zero, Finset.card_univ]
-      apply div_le_div_of_nonneg_right _ (Nat.cast_nonneg _)
-      exact_mod_cast le_unrestricted G Finset.univ (remainder X T 0) home (X (b-0) w)
-    · intro t ht w; exact cell_bound G X T b t (b-t) hb ht rfl w leg
-  have he : 1 ≤ n := (Fintype.card_pos_iff.mpr ⟨home⟩).trans_le hcard
-  obtain ⟨_, _, hbound⟩ := exists_good_from_diagonal T d n he hcard htime X (conditional X)
-    (fun _ => success) (fun t j w => ⟨conditional_pos X t j w, cond_le_one X t j w⟩) (cond_zero X)
-    (fun j hj w z => (hhome j hj w).trans (hhome j hj z).symm) hd
-  refine ⟨s,?_⟩
-  have hh := (le_div_iff₀ (show 0 < (Fintype.card W : ℝ) by exact_mod_cast Fintype.card_pos)).mp hbound
-  simpa [remainder] using hh
 
 end Meyniel.Sampler
 end Meyniel_Sampler
@@ -1853,121 +1406,6 @@ theorem exists_good_forward [Fintype V] (history : ℕ → W → K) (X : ℕ →
     (fun _ _ => conditional_bound _ _) (fun _ => conditional_initial _ hinit _)
     hhome (fun b _ => forward_diagonal history X b hinit)
 
-
-omit [Nonempty W] in
-/-- Uniform averaging on fibers is self-adjoint for the counting measure. -/
-theorem sum_blockMean_mul (k : W → K) (f g : W → ℝ) :
-    (∑ w, blockMean k f w * g w) = ∑ w, f w * blockMean k g w := by
-  rw [← sum_by_fiber k (fun w => blockMean k f w * g w),
-      ← sum_by_fiber k (fun w => f w * blockMean k g w)]
-  apply sum_congr rfl
-  intro i _
-  let A := fiber k i
-  calc
-    _ = ∑ w ∈ A, mean A f * g w := by
-      apply sum_congr rfl
-      intro w hw
-      simp [blockMean, (mem_filter.mp hw).2, A]
-    _ = (∑ w ∈ A, f w) * mean A g := by rw [← mul_sum]; unfold mean; ring
-    _ = ∑ w ∈ A, f w * mean A g := by rw [sum_mul]
-    _ = _ := by
-      apply sum_congr rfl
-      intro w hw
-      simp [blockMean, (mem_filter.mp hw).2, A]
-
-omit [Nonempty W] in
-/-- The live forward mass paired with a backward value cannot increase when
-the latter dominates the conditional arithmetic mean of all next positions. -/
-theorem pairing_step (k : W → K) (old new pre post vOld vNew : W → ℝ)
-    (hpos : ∀ w, 0 ≤ old w)
-    (hnew : ∀ w, new w = blockMean k old w * pre w / post w)
-    (hv : ∀ w, blockMean k (fun z => vNew z * pre z / post z) w ≤ vOld w) :
-    mean univ (fun w => new w * vNew w) ≤ mean univ (fun w => old w * vOld w) := by
-  apply div_le_div_of_nonneg_right _ (Nat.cast_nonneg _)
-  calc
-    ∑ w, new w * vNew w = ∑ w, blockMean k old w * (vNew w * pre w / post w) := by
-      apply sum_congr rfl
-      intro w _
-      rw [hnew]
-      ring
-    _ = _ := sum_blockMean_mul k old (fun z => vNew z * pre z / post z)
-    _ ≤ _ := sum_le_sum (fun w _ => mul_le_mul_of_nonneg_left (hv w) (hpos w))
-
-/-- The same explicit forward mass can be compared directly with *any*
-Bellman supersolution, using the arithmetic adjoint at each cell. -/
-theorem terminalLive_le_bellman (history : ℕ → W → K) (X : ℕ → W → V) (b : ℕ)
-    (hinit : ∀ x y, history 0 x = history 0 y)
-    (v : ℕ → W → ℝ) (s : ℝ) (hend : ∀ w, v (b/2+1) w = 1) (hstart : ∀ w, v 0 w ≤ s)
-    (hstep : ∀ t ≤ b/2, ∀ w,
-      blockMean (fun z => (history t z,X (b-t) z))
-        (fun z => v (t+1) z * conditional (history t) (X (b-t)) z /
-           conditional (history (t+1)) (X (b-t)) z) w ≤ v t w) :
-    terminalLive history X b ≤ s := by
-  let wt := fun t => weight (history t) (guessMass history X b t)
-  let pair := fun t => mean univ (fun w => wt t w * v t w)
-  have hs (t : ℕ) (ht : t ≤ b/2) : pair (t+1) ≤ pair t := by
-    exact pairing_step (fun z => (history t z,X (b-t) z)) _ _ _ _ _ _
-      (fun z => (mul_pos (block_pos _ z) (guessMass_pos history X b t z)).le)
-      (split_weight _ _ _ _) (hstep t ht)
-  have hm (t : ℕ) (ht : t ≤ b/2+1) : pair t ≤ pair 0 := by
-    induction t with
-    | zero => rfl
-    | succ i ih => exact (hs i (by omega)).trans (ih (by omega))
-  have he : pair (b/2+1) = terminalLive history X b := by
-    simp only [pair, hend, mul_one, terminalLive, mean_total_live, wt]
-  have hw (w : W) : wt 0 w = 1 := by
-    have h : block (history 0) w = univ := by ext z; simp [block,fiber,hinit z w]
-    simp [wt,weight,guessMass,h,Fintype.card_ne_zero]
-  have h0 : pair 0 ≤ s := by
-    simp only [pair,hw,one_mul,mean]
-    apply (div_le_iff₀ (by exact_mod_cast (univ_nonempty : (univ : Finset W).Nonempty).card_pos)).2
-    simpa [Finset.sum_const, mul_comm] using sum_le_sum (s := (univ : Finset W)) (fun w _ => hstart w)
-  rw [← he]
-  exact (hm _ le_rfl).trans h0
-
-
-omit [Nonempty W] in
-/-- For a prescribed next robber observation the total live guess mass can
-only decrease. The only loss is old mass at vertices with no compatible tag. -/
-theorem splitMass_total_le [Fintype V] (oldKey newKey : W → K) (x : W → V)
-    (mass : W → ℝ) (w : W) (hn : ∀ z, 0 ≤ mass z)
-    (refines : ∀ a b, newKey a = newKey b → oldKey a = oldKey b) :
-    ∑ z ∈ block newKey w, splitMass oldKey newKey x mass z ≤ ∑ z ∈ block oldKey w, mass z := by
-  classical
-  rw [← sum_fiberwise (block newKey w) x, ← sum_fiberwise (block oldKey w) x]
-  apply sum_le_sum
-  intro y _
-  let A := (block oldKey w).filter fun z => x z = y
-  let B := (block newKey w).filter fun z => x z = y
-  change (∑ z ∈ B, splitMass oldKey newKey x mass z) ≤ ∑ z ∈ A, mass z
-  by_cases hB : B.Nonempty
-  · have hb : (B.card : ℝ) ≠ 0 := by exact_mod_cast hB.card_pos.ne'
-    have he (z : W) (hz : z ∈ B) : splitMass oldKey newKey x mass z = (∑ v ∈ A, mass v)/B.card := by
-      obtain ⟨hnw, hxy⟩ := mem_filter.mp hz
-      have hnew : newKey z = newKey w := (mem_filter.mp hnw).2
-      have hold := refines _ _ hnew
-      have ha : joint oldKey x z = A := by
-        ext v; simp only [joint,block,fiber,A,mem_filter,mem_univ,true_and,Prod.mk.injEq,hold,hxy]
-      have hc : joint newKey x z = B := by
-        ext v; simp only [joint,block,fiber,B,mem_filter,mem_univ,true_and,Prod.mk.injEq,hnew,hxy]
-      simp [splitMass, ha,hc]
-    rw [sum_congr rfl he, sum_const,nsmul_eq_mul]
-    exact le_of_eq (by field_simp)
-  · rw [not_nonempty_iff_eq_empty.mp hB, sum_empty]
-    exact sum_nonneg (fun z _ => hn z)
-
-theorem total_live_le_one [Fintype V] (history : ℕ → W → K) (X : ℕ → W → V)
-    (refines : ∀ t a b, history (t+1) a = history (t+1) b → history t a = history t b)
-    (b t : ℕ) (w : W) :
-    ∑ z ∈ block (history t) w, guessMass history X b t z ≤ 1 := by
-  induction t with
-  | zero =>
-    have h : (block (history 0) w).card ≤ Fintype.card W := card_le_univ _
-    simp only [guessMass, sum_const, nsmul_eq_mul]
-    rw [mul_one_div, div_le_one (by exact_mod_cast Fintype.card_pos (α := W))]
-    exact_mod_cast h
-  | succ t ih =>
-    exact (splitMass_total_le _ _ _ _ w (fun z => (guessMass_pos history X b t z).le) (refines t)).trans ih
 
 end
 end Meyniel.ForwardWeights
@@ -2620,11 +2058,6 @@ theorem walks_interception [Fintype V] {G : SimpleGraph V} (hc : G.Connected)
     rw [Finset.filter_attach (fun w => Hits s [] (List.ofFn w))]
     simp
   rwa [eqcount] at hs
-
-/-- Lemma 2, with precisely the ceiling of diameter times the base-two log. -/
-theorem oneCop_lemma [Fintype V] {G : SimpleGraph V} (hc : G.Connected) :
-    WalkFraction G (horizon (Fintype.card V) G.diam) (1 / Real.sqrt (2*Fintype.card V)) :=
-  walks_interception hc _ _ _ le_rfl le_rfl (horizon_large ..)
 
 /-- An explicit form of the manuscript's order estimate, uniform in the graph. -/
 theorem copNumber_three_quarters [Fintype V] (G : SimpleGraph V) (hc : G.Connected) :

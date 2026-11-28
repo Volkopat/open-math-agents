@@ -56,20 +56,6 @@ variable [SeminormedAddCommGroup E'] [SeminormedAddCommGroup F'] [SeminormedAddC
   [SeminormedRing R']
 
 
-theorem isLittleO_const_id_cocompact [ProperSpace F'']
-    (c : E'') : (fun _x : F'' => c) =o[cocompact F''] id :=
-  isLittleO_const_left.2 <| Or.inr tendsto_norm_cocompact_atTop
-
--- to replace existing `isLittleO_const_id_atTop`
-theorem isLittleO_const_id_atTop2 [LinearOrder F''] [NoMaxOrder F''] [ClosedIciTopology F'']
-    [ProperSpace F''] (c : E'') : (fun _x : F'' => c) =o[atTop] id :=
- (isLittleO_const_id_cocompact c).mono atTop_le_cocompact
-
--- to replace existing `isLittleO_const_id_atBot`
-theorem isLittleO_const_id_atBot2 [LinearOrder F''] [NoMinOrder F''] [ClosedIicTopology F'']
-    [ProperSpace F''] (c : E'') : (fun _x : F'' => c) =o[atBot] id :=
-  (isLittleO_const_id_cocompact c).mono atBot_le_cocompact
-
 theorem _root_.Filter.Eventually.natCast {f : ℝ → Prop} (hf : ∀ᶠ x in atTop, f x) :
     ∀ᶠ n : ℕ in atTop, f n :=
   tendsto_natCast_atTop_atTop.eventually hf
@@ -173,8 +159,6 @@ noncomputable def deriv (f : CS (n + 1) E) : CS n E where
 
 lemma hasDerivAt (f : CS (n + 1) E) (x : ℝ) : HasDerivAt f (f.deriv x) x :=
   (f.h1.differentiable (by simp)).differentiableAt.hasDerivAt
-
-lemma deriv_apply {f : CS (n + 1) E} {x : ℝ} : f.deriv x = _root_.deriv f x := rfl
 
 lemma deriv_smul {f : CS (n + 1) E} : (R • f).deriv = R • f.deriv := by
   refine CS.ext (funext fun x => ?_) ; exact (f.hasDerivAt x |>.const_smul R).deriv
@@ -485,17 +469,6 @@ noncomputable def e (u : ℝ) : ℝ →ᵇ ℂ where
 
 @[simp] lemma e_apply (u : ℝ) (v : ℝ) : e u v = 𝐞 (-v * u) := rfl
 
-theorem hasDerivAt_e {u x : ℝ} : HasDerivAt (e u) (-2 * π * u * I * e u x) x := by
-  have l2 : HasDerivAt (fun v => -v * u) (-u) x := by
-    simpa only [neg_mul_comm] using hasDerivAt_mul_const (-u)
-  convert! (hasDerivAt_fourierChar (-x * u)).scomp x l2 using 1
-  change _ = ((-u : ℝ) : ℂ) * _ -- `scomp` introduces ℝ-smul on ℂ, which we undo
-  simp ; ring
-
-lemma fourierIntegral_deriv_aux2 (e : ℝ →ᵇ ℂ) {f : ℝ → ℂ} (hf : Integrable f) :
-    Integrable (⇑e * f) :=
-  hf.bdd_mul e.continuous.aestronglyMeasurable (ae_of_all _ e.norm_coe_le_norm)
-
 @[simp] lemma F_neg {f : ℝ → ℂ} {u : ℝ} : 𝓕 (fun x => -f x) u = - 𝓕 f u := by
   simp [fourier_eq, integral_neg]
 
@@ -527,122 +500,6 @@ theorem fourierIntegral_self_add_deriv_deriv (f : W21) (u : ℝ) :
 
 @[simp] lemma deriv_ofReal : deriv ofReal = fun _ => 1 := by
   ext x ; exact ((hasDerivAt_id x).ofReal_comp).deriv
-
-/-- If, eventually in `T`, the integrand `f T` is bounded on `uIoc lo hi` by `B T`
-and `B T * |hi - lo| → 0`, then the interval integral `∫ x in lo..hi, f T x → 0`. -/
-lemma tendsto_intervalIntegral_zero_of_uniform_norm_bound
-    {f : ℝ → ℝ → ℂ} {lo hi : ℝ} {B : ℝ → ℝ}
-    (hB : Filter.Tendsto (fun T : ℝ => B T * |hi - lo|) Filter.atTop (nhds 0))
-    (hf : ∀ᶠ T in Filter.atTop, ∀ x ∈ Set.uIoc lo hi, ‖f T x‖ ≤ B T) :
-    Filter.Tendsto (fun T : ℝ => ∫ x in lo..hi, f T x) Filter.atTop (nhds 0) := by
-  rw [tendsto_zero_iff_norm_tendsto_zero]
-  refine squeeze_zero' (Eventually.of_forall fun T => norm_nonneg _) ?_ hB
-  filter_upwards [hf] with T hT
-  exact intervalIntegral.norm_integral_le_of_norm_le_const (fun x hx => hT x hx)
-
-/-- The decay `K * (log (T + 2) / (T + 2)) → 0` as `T → ∞`, for any constant `K`. -/
-lemma tendsto_const_mul_log_add_two_div_add_two_atTop (K : ℝ) :
-    Filter.Tendsto (fun T : ℝ => K * (Real.log (T + 2) / (T + 2)))
-      Filter.atTop (nhds 0) := by
-  have h0 : Filter.Tendsto (fun x : ℝ => Real.log x / x) Filter.atTop (nhds 0) := by
-    simpa using (Real.tendsto_pow_log_div_mul_add_atTop 1 0 1 (by norm_num : (1 : ℝ) ≠ 0))
-  have hshift : Filter.Tendsto (fun T : ℝ => Real.log (T + 2) / (T + 2))
-      Filter.atTop (nhds 0) := by
-    have := h0.comp (tendsto_atTop_add_const_right Filter.atTop 2 tendsto_id)
-    simpa [Function.comp_def] using this
-  simpa using hshift.const_mul K
-
-/-- Fourier-transform decay from an integrable derivative: for integrable,
-differentiable `g` with integrable derivative, `‖𝓕 g w‖ ≤ (∫ ‖deriv g x‖) / (2π·|w|)`. -/
-lemma norm_fourier_le_integral_deriv_div
-    (g : ℝ → ℂ) (hg : Integrable g) (hdiff : Differentiable ℝ g)
-    (hg' : Integrable (deriv g)) {w : ℝ} (hw : w ≠ 0) :
-    ‖𝓕 g w‖ ≤ (∫ x, ‖deriv g x‖ ∂volume) / ((2 * Real.pi) * |w|) := by
-  have hmul :
-      𝓕 (deriv g) w = (2 * Real.pi * Complex.I * (w : ℂ)) * 𝓕 g w := by
-    have h := congrFun (Real.fourier_deriv hg hdiff hg') w
-    simpa [smul_eq_mul, mul_assoc] using h
-  have h_fourier :
-      ‖𝓕 (deriv g) w‖ ≤ ∫ x, ‖deriv g x‖ ∂volume := by
-    exact VectorFourier.norm_fourierIntegral_le_integral_norm 𝐞 volume (innerₗ ℝ)
-      (deriv g) w
-  have hleft :
-      ((2 * Real.pi) * |w|) * ‖𝓕 g w‖ =
-        ‖(2 * Real.pi * Complex.I * (w : ℂ)) * 𝓕 g w‖ := by
-    have htwopi : ‖(2 * ↑Real.pi : ℂ)‖ = 2 * Real.pi := by
-      rw [norm_mul, Complex.norm_two, Complex.norm_of_nonneg Real.pi_pos.le]
-    have hwc : ‖(w : ℂ)‖ = |w| := by rw [norm_real, Real.norm_eq_abs]
-    rw [norm_mul, norm_mul, norm_mul, htwopi, norm_I, hwc]
-    ring
-  have hmain : ((2 * Real.pi) * |w|) * ‖𝓕 g w‖ ≤ ∫ x, ‖deriv g x‖ ∂volume := by
-    rw [hleft, ← hmul]
-    exact h_fourier
-  have hpos : 0 < (2 * Real.pi) * |w| := by
-    positivity
-  exact (le_div_iff₀ hpos).mpr (by simpa [mul_comm, mul_left_comm, mul_assoc] using hmain)
-
-/-- The oscillatory-integral form of the decay bound: for `0 < T`,
-`‖∫ g y · exp(T·i·y)‖ ≤ (∫ ‖deriv g x‖) / T`. -/
-lemma norm_oscillatory_integral_le_integral_deriv_div
-    (g : ℝ → ℂ) (hg : Integrable g) (hdiff : Differentiable ℝ g)
-    (hg' : Integrable (deriv g)) {T : ℝ} (hT : 0 < T) :
-    ‖∫ y, g y * exp ((T : ℂ) * Complex.I * (y : ℂ)) ∂volume‖ ≤
-      (∫ x, ‖deriv g x‖ ∂volume) / T := by
-  have hw : -T / (2 * Real.pi) ≠ 0 := by
-    exact div_ne_zero (neg_ne_zero.mpr hT.ne') (mul_ne_zero two_ne_zero Real.pi_ne_zero)
-  have hfourier := norm_fourier_le_integral_deriv_div g hg hdiff hg' hw
-  have heq :
-      (∫ y, g y * exp ((T : ℂ) * Complex.I * (y : ℂ)) ∂volume) =
-        𝓕 g (-T / (2 * Real.pi)) := by
-    rw [Real.fourier_real_eq_integral_exp_smul]
-    apply integral_congr_ae
-    filter_upwards with y
-    rw [smul_eq_mul]
-    rw [mul_comm (g y)]
-    congr 1
-    congr 1
-    push_cast
-    field_simp [Real.pi_ne_zero]
-  rw [heq]
-  refine hfourier.trans_eq ?_
-  congr 1
-  have hden : (2 * Real.pi) * |-T / (2 * Real.pi)| = T := by
-    have htwopi_pos : 0 < 2 * Real.pi := by positivity
-    have hneg : -T / (2 * Real.pi) < 0 := div_neg_of_neg_of_pos (neg_neg_of_pos hT) htwopi_pos
-    rw [abs_of_neg hneg]
-    field_simp [Real.pi_ne_zero]
-  rw [hden]
-
-/-- The `|T|` variant of the oscillatory-integral decay bound: for `T ≠ 0`,
-`‖∫ g y · exp(T·i·y)‖ ≤ (∫ ‖deriv g x‖) / |T|`. -/
-lemma norm_oscillatory_integral_le_integral_deriv_div_abs
-    (g : ℝ → ℂ) (hg : Integrable g) (hdiff : Differentiable ℝ g)
-    (hg' : Integrable (deriv g)) {T : ℝ} (hT : T ≠ 0) :
-    ‖∫ y, g y * exp ((T : ℂ) * Complex.I * (y : ℂ)) ∂volume‖ ≤
-      (∫ x, ‖deriv g x‖ ∂volume) / |T| := by
-  have hw : -T / (2 * Real.pi) ≠ 0 := by
-    exact div_ne_zero (neg_ne_zero.mpr hT) (mul_ne_zero two_ne_zero Real.pi_ne_zero)
-  have hfourier := norm_fourier_le_integral_deriv_div g hg hdiff hg' hw
-  have heq :
-      (∫ y, g y * exp ((T : ℂ) * Complex.I * (y : ℂ)) ∂volume) =
-        𝓕 g (-T / (2 * Real.pi)) := by
-    rw [Real.fourier_real_eq_integral_exp_smul]
-    apply integral_congr_ae
-    filter_upwards with y
-    rw [smul_eq_mul]
-    rw [mul_comm (g y)]
-    congr 1
-    congr 1
-    push_cast
-    field_simp [Real.pi_ne_zero]
-  rw [heq]
-  refine hfourier.trans_eq ?_
-  congr 1
-  have hden : (2 * Real.pi) * |-T / (2 * Real.pi)| = |T| := by
-    have htwopi_pos : 0 < 2 * Real.pi := by positivity
-    rw [abs_div, abs_neg, abs_of_pos htwopi_pos]
-    field_simp [Real.pi_ne_zero]
-  rw [hden]
 
 end PNTX_Fourier
 
@@ -861,9 +718,6 @@ lemma first_fourier (hf : ∀ (σ' : ℝ), 1 < σ' → Summable (nterm f σ'))
 
 
 
-lemma continuous_multiplicative_ofAdd : Continuous (⇑Multiplicative.ofAdd : ℝ → ℝ) := ⟨fun _ ↦ id⟩
-
-
 lemma second_fourier_integrable_aux1a (hσ : 1 < σ') :
     IntegrableOn (fun (x : ℝ) ↦ cexp (-((x : ℂ) * ((σ' : ℂ) - 1)))) (Ici (-Real.log x)) := by
   norm_cast
@@ -959,9 +813,6 @@ lemma second_fourier (hcont : Measurable ψ) (hsupp : Integrable ψ)
 
 lemma one_add_sq_pos (u : ℝ) : 0 < 1 + u ^ 2 := zero_lt_one.trans_le (by simpa using sq_nonneg u)
 
-theorem prelim_decay (ψ : ℝ → ℂ) (u : ℝ) : ‖𝓕 (ψ : ℝ → ℂ) u‖ ≤ ∫ t, ‖ψ t‖ :=
-  VectorFourier.norm_fourierIntegral_le_integral_norm ..
-
 lemma decay_bounds_key (f : W21) (u : ℝ) : ‖𝓕 (f : ℝ → ℂ) u‖ ≤ ‖f‖ * (1 + u ^ 2)⁻¹ := by
   have l1 : 0 < 1 + u ^ 2 := one_add_sq_pos _
   have l2 : 1 + u ^ 2 = ‖(1 : ℂ) + u ^ 2‖ := by
@@ -975,41 +826,6 @@ lemma decay_bounds_key (f : W21) (u : ℝ) : ‖𝓕 (f : ℝ → ℂ) u‖ ≤ 
   change _ ≤ W21.norm _
   rw [norm_neg, F_mul, norm_mul, W21.norm]
   gcongr <;> apply VectorFourier.norm_fourierIntegral_le_integral_norm
-
-lemma decay_bounds_aux {f : ℝ → ℂ} (hf : AEStronglyMeasurable f volume)
-    (h : ∀ t, ‖f t‖ ≤ A * (1 + t ^ 2)⁻¹) :
-    ∫ t, ‖f t‖ ≤ π * A := by
-  have l1 : Integrable (fun x ↦ A * (1 + x ^ 2)⁻¹) := integrable_inv_one_add_sq.const_mul A
-  simp_rw [← integral_univ_inv_one_add_sq, mul_comm, ← integral_const_mul]
-  exact integral_mono (l1.mono' hf (Eventually.of_forall h)).norm l1 h
-
-theorem decay_bounds_W21 (f : W21) (hA : ∀ t, ‖f t‖ ≤ A / (1 + t ^ 2))
-    (hA' : ∀ t, ‖deriv (deriv f) t‖ ≤ A / (1 + t ^ 2)) (u) :
-    ‖𝓕 (f : ℝ → ℂ) u‖ ≤ (π + 1 / (4 * π)) * A / (1 + u ^ 2) := by
-  have l0 : 1 * (4 * π)⁻¹ * A = (4 * π ^ 2)⁻¹ * (π * A) := by field_simp
-  have l1 : ∫ (v : ℝ), ‖f v‖ ≤ π * A := by
-    apply decay_bounds_aux f.continuous.aestronglyMeasurable
-    simp_rw [← div_eq_mul_inv] ; exact hA
-  have l2 : ∫ (v : ℝ), ‖deriv (deriv f) v‖ ≤ π * A := by
-    apply decay_bounds_aux f.deriv.deriv.continuous.aestronglyMeasurable
-    simp_rw [← div_eq_mul_inv] ; exact hA'
-  apply decay_bounds_key f u |>.trans
-  change W21.norm _ * _ ≤ _
-  simp_rw [W21.norm, div_eq_mul_inv, add_mul, l0] ; gcongr
-
-lemma decay_bounds (ψ : CS 2 ℂ) (hA : ∀ t, ‖ψ t‖ ≤ A / (1 + t ^ 2))
-    (hA' : ∀ t, ‖deriv^[2] ψ t‖ ≤ A / (1 + t ^ 2)) :
-    ‖𝓕 (ψ : ℝ → ℂ) u‖ ≤ (π + 1 / (4 * π)) * A / (1 + u ^ 2) := by
-  exact decay_bounds_W21 ψ hA hA' u
-
-lemma decay_bounds_cor_aux (ψ : CS 2 ℂ) : ∃ C : ℝ, ∀ u, ‖ψ u‖ ≤ C / (1 + u ^ 2) := by
-  have l1 : HasCompactSupport (fun u : ℝ => ((1 + u ^ 2) : ℝ) * ψ u) := by exact ψ.h2.mul_left
-  have := ψ.h1.continuous
-  obtain ⟨C, hC⟩ := l1.exists_bound_of_continuous (by fun_prop)
-  refine ⟨C, fun u => ?_⟩
-  specialize hC u
-  simp only [norm_mul, Complex.norm_real, norm_of_nonneg (one_add_sq_pos u).le] at hC
-  rwa [le_div_iff₀' (one_add_sq_pos _)]
 
 lemma decay_bounds_cor (ψ : W21) :
     ∃ C : ℝ, ∀ u, ‖𝓕 (ψ : ℝ → ℂ) u‖ ≤ C / (1 + u ^ 2) := by
@@ -1132,26 +948,15 @@ omit [Sub α] in
     nnabla (fun n => c * u n) = c • nnabla u := by
   ext n ; simp [nnabla, mul_sub]
 
-lemma nnabla_cast (u : ℝ → E) [Sub E] : nnabla u ∘ ((↑) : ℕ → ℝ) = nnabla (u ∘ (↑)) := by
-  ext n ; simp [nnabla]
-
 end nabla
 
 lemma Finset.sum_shift_front {E : Type*} [Ring E] {u : ℕ → E} {n : ℕ} :
     cumsum u (n + 1) = u 0 + cumsum (shift u) n := by
   simp_rw [add_comm n, cumsum, sum_range_add, sum_range_one, add_comm 1] ; rfl
 
-lemma Finset.sum_shift_front' {E : Type*} [Ring E] {u : ℕ → E} :
-    shift (cumsum u) = (fun _ => u 0) + cumsum (shift u) := by
-  ext n ; apply Finset.sum_shift_front
-
 lemma Finset.sum_shift_back {E : Type*} [Ring E] {u : ℕ → E} {n : ℕ} :
     cumsum u (n + 1) = cumsum u n + u n := by
   simp [cumsum, Finset.range_add_one, add_comm]
-
-lemma Finset.sum_shift_back' {E : Type*} [Ring E] {u : ℕ → E} :
-    shift (cumsum u) = cumsum u + u := by
-  ext n ; apply Finset.sum_shift_back
 
 lemma summation_by_parts {E : Type*} [Ring E] {a A b : ℕ → E} (ha : a = nabla A) {n : ℕ} :
     cumsum (a * b) (n + 1) = A (n + 1) * b n - A 0 * b 0 -
@@ -1280,12 +1085,6 @@ lemma tendsto_mul_add_atTop {a : ℝ} (ha : 0 < a) (b : ℝ) :
 lemma isLittleO_const_of_tendsto_atTop {α : Type*} [Preorder α] (a : ℝ) {f : α → ℝ}
     (hf : Tendsto f atTop atTop) : (fun _ => a) =o[atTop] f := by
   simp [tendsto_norm_atTop_atTop.comp hf]
-
-lemma isBigO_pow_pow_of_le {m n : ℕ} (h : m ≤ n) :
-    (fun x : ℝ => x ^ m) =O[atTop] (fun x : ℝ => x ^ n) := by
-  apply IsBigO.of_bound 1
-  filter_upwards [eventually_ge_atTop 1] with x l1
-  simpa [abs_eq_self.mpr (zero_le_one.trans l1)] using pow_le_pow_right₀ l1 h
 
 lemma isLittleO_mul_add_sq (a b : ℝ) : (fun x => a * x + b) =o[atTop] (fun x => x ^ 2) := by
   apply IsLittleO.add
@@ -1732,22 +1531,7 @@ noncomputable def exists_trunc : trunc := by
   choose ψ h1 h2 h3 h4 using smooth_urysohn (-2) (-1) (1) (2) (by linarith) (by linarith)
   exact ⟨⟨ψ, h1.of_le (by norm_cast), h2⟩, h3, h4⟩
 
-lemma one_div_sub_one (n : ℕ) : 1 / (↑(n - 1) : ℝ) ≤ 2 / n := by
-  match n with
-  | 0 => simp
-  | 1 => simp
-  | n + 2 => { norm_cast ; rw [div_le_div_iff₀] <;> simp [mul_add] <;> linarith }
-
-lemma quadratic_pos (a b c x : ℝ) (ha : 0 < a) (hΔ : discrim a b c < 0) :
-    0 < a * x ^ 2 + b * x + c := by
-  have l1 : a * x ^ 2 + b * x + c = a * (x + b / (2 * a)) ^ 2 - discrim a b c / (4 * a) := by
-    simp only [discrim]; field_simp; ring
-  have l2 : 0 < - discrim a b c := by linarith
-  rw [l1, sub_eq_add_neg, ← neg_div] ; positivity
-
 noncomputable def pp (a x : ℝ) : ℝ := a ^ 2 * (x + 1) ^ 2 + (1 - a) * (1 + a)
-
-noncomputable def pp' (a x : ℝ) : ℝ := a ^ 2 * (2 * (x + 1))
 
 lemma pp_pos {a : ℝ} (ha : a ∈ Ioo (-1) 1) (x : ℝ) : 0 < pp a x := by
   simp only [pp]
@@ -1755,37 +1539,11 @@ lemma pp_pos {a : ℝ} (ha : a ∈ Ioo (-1) 1) (x : ℝ) : 0 < pp a x := by
   have : 0 < 1 + a := by linarith [ha.1]
   positivity
 
-lemma pp_deriv (a x : ℝ) : HasDerivAt (pp a) (pp' a x) x := by
-  unfold pp pp'
-  simpa using hasDerivAt_id x |>.add_const 1 |>.pow 2 |>.const_mul _
-
-lemma pp_deriv_eq (a : ℝ) : deriv (pp a) = pp' a := by
-  ext x ; exact pp_deriv a x |>.deriv
-
-lemma pp'_deriv (a x : ℝ) : HasDerivAt (pp' a) (a ^ 2 * 2) x := by
-  simpa using! hasDerivAt_id x |>.add_const 1 |>.const_mul 2 |>.const_mul (a ^ 2)
-
-lemma pp'_deriv_eq (a : ℝ) : deriv (pp' a) = fun _ => a ^ 2 * 2 := by
-  ext x ; exact pp'_deriv a x |>.deriv
-
 noncomputable def hh (a t : ℝ) : ℝ := (t * (1 + (a * log t) ^ 2))⁻¹
 
 noncomputable def hh' (a t : ℝ) : ℝ := - pp a (log t) * hh a t ^ 2
 
 lemma hh_nonneg (a : ℝ) {t : ℝ} (ht : 0 ≤ t) : 0 ≤ hh a t := by dsimp only [hh] ; positivity
-
-lemma hh_le (a t : ℝ) (ht : 0 ≤ t) : |hh a t| ≤ t⁻¹ := by
-  by_cases h0 : t = 0
-  · simp [hh, h0]
-  replace ht : 0 < t := lt_of_le_of_ne ht (by tauto)
-  unfold hh
-  rw [abs_inv, inv_le_inv₀ (by positivity) ht, abs_mul, abs_eq_self.mpr ht.le]
-  convert_to! t * 1 ≤ _
-  · simp
-  apply mul_le_mul le_rfl ?_ zero_le_one ht.le
-  rw [abs_eq_self.mpr (by positivity)]
-  simp only [le_add_iff_nonneg_right]
-  positivity
 
 lemma hh_deriv (a : ℝ) {t : ℝ} (ht : t ≠ 0) : HasDerivAt (hh a) (hh' a t) t := by
   have e1 : t * (1 + (a * log t) ^ 2) ≠ 0 := mul_ne_zero ht (_root_.ne_of_lt (by positivity)).symm
@@ -1822,12 +1580,6 @@ lemma gg_of_hh {x : ℝ} (hx : x ≠ 0) (i : ℝ) : gg x i = x⁻¹ * hh (1 / (2
   simp only [gg, hh]
   field_simp
 
-lemma gg_l1 {x : ℝ} (hx : 0 < x) (n : ℕ) : |gg x n| ≤ 1 / n := by
-  simp only [gg_of_hh hx.ne.symm, one_div, mul_inv_rev, abs_mul]
-  apply mul_le_mul le_rfl (hh_le _ _ (by positivity)) (by positivity) (by positivity) |>.trans
-    (le_of_eq ?_)
-  simp [abs_inv, abs_eq_self.mpr hx.le] ; field_simp
-
 lemma gg_le_one (i : ℕ) : gg x i ≤ 1 := by
   by_cases hi : i = 0 <;> simp only [gg, hi, CharP.cast_eq_zero, div_zero, one_div, mul_inv_rev,
     zero_div, Real.log_zero, mul_zero, ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true, zero_pow,
@@ -1850,9 +1602,6 @@ lemma one_div_two_pi_mem_Ioo : 1 / (2 * π) ∈ Ioo (-1) 1 := by
     trans 2
     · exact one_le_two
     · exact two_le_pi
-
-lemma sum_telescopic (a : ℕ → ℝ) (n : ℕ) : ∑ i ∈ Finset.range n, (a (i + 1) - a i) = a n - a 0 := by
-  apply Finset.sum_range_sub
 
 lemma cancel_aux {C : ℝ} {f g : ℕ → ℝ} (hf : 0 ≤ f) (hg : 0 ≤ g)
     (hf' : ∀ n, cumsum f n ≤ C * n) (hg' : Antitone g) (n : ℕ) :
@@ -1897,13 +1646,6 @@ lemma cancel_aux' {C : ℝ} {f g : ℕ → ℝ} (hf : 0 ≤ f) (hg : 0 ≤ g)
   have := cancel_aux hf hg hf' hg' n
   simp only [nsmul_eq_mul, ← Finset.mul_sum, sum_range_succ] at this
   convert this using 1 ; unfold cumsum ; ring
-
-lemma cancel_main {C : ℝ} {f g : ℕ → ℝ} (hf : 0 ≤ f) (hg : 0 ≤ g)
-    (hf' : ∀ n, cumsum f n ≤ C * n) (hg' : Antitone g) (n : ℕ) (hn : 2 ≤ n) :
-    cumsum (f * g) n ≤ C * cumsum g n := by
-  convert! cancel_aux' hf hg hf' hg' n using 1
-  match n with
-  | n + 2 => simp only [cumsum_succ] ; push_cast ; ring
 
 lemma cancel_main' {C : ℝ} {f g : ℕ → ℝ} (hf : 0 ≤ f) (hf0 : f 0 = 0) (hg : 0 ≤ g)
     (hf' : ∀ n, cumsum f n ≤ C * n) (hg' : Antitone g) (n : ℕ) :
@@ -2481,9 +2223,6 @@ lemma wiener_ikehara_smooth' (hf : ∀ (σ' : ℝ), 1 < σ' → Summable (nterm 
 
 local instance {E : Type*} : Coe (E → ℝ) (E → ℂ) := ⟨fun f n => f n⟩
 
-theorem set_integral_ofReal {f : ℝ → ℝ} {s : Set ℝ} : ∫ x in s, (f x : ℂ) = ∫ x in s, f x :=
-  integral_ofReal
-
 lemma wiener_ikehara_smooth_real {f : ℕ → ℝ} {Ψ : ℝ → ℝ}
     (hf : ∀ (σ' : ℝ), 1 < σ' → Summable (nterm f σ'))
     (hcheby : cheby f) (hG : ContinuousOn G {s | 1 ≤ s.re})
@@ -2744,17 +2483,11 @@ lemma WienerIkeharaInterval {f : ℕ → ℝ} (hpos : 0 ≤ f) (hf : ∀ (σ' : 
 
 
 
-lemma le_floor_mul_iff (hb : 0 ≤ b) (hx : 0 < x) : n ≤ ⌊b * x⌋₊ ↔ n / x ≤ b := by
-  rw [div_le_iff₀ hx, Nat.le_floor_iff] ; positivity
-
 lemma lt_ceil_mul_iff (hx : 0 < x) : n < ⌈b * x⌉₊ ↔ n / x < b := by
   rw [div_lt_iff₀ hx, Nat.lt_ceil]
 
 lemma ceil_mul_le_iff (hx : 0 < x) : ⌈a * x⌉₊ ≤ n ↔ a ≤ n / x := by
   rw [le_div_iff₀ hx, Nat.ceil_le]
-
-lemma mem_Icc_iff_div (hb : 0 ≤ b) (hx : 0 < x) : n ∈ Finset.Icc ⌈a * x⌉₊ ⌊b * x⌋₊ ↔ n / x ∈ Icc a b := by
-  rw [Finset.mem_Icc, mem_Icc, ceil_mul_le_iff hx, le_floor_mul_iff hb hx]
 
 lemma mem_Ico_iff_div (hx : 0 < x) : n ∈ Finset.Ico ⌈a * x⌉₊ ⌈b * x⌉₊ ↔ n / x ∈ Ico a b := by
   rw [Finset.mem_Ico, mem_Ico, ceil_mul_le_iff hx, lt_ceil_mul_iff hx]
@@ -3134,9 +2867,6 @@ lemma factor_construction {n : ℕ} (hn : 0<n) (hnf : 1 < n.factorial) (hb : bud
   · obtain ⟨v,hv,rfl⟩ := mem_image.mp hx
     have h := mem_Ioc.mp (Finset.mem_sdiff.mp (hV hv)).1
     omega
-
-lemma prod_pos_Ioc {a b : ℕ} : 0 < ∏ x ∈ Ioc a b,x :=
-  prod_pos fun _ hi => (Nat.zero_le a).trans_lt (mem_Ioc.mp hi).1
 
 lemma prod_interval {a b : ℕ} (hab : a≤b) :
     ∏ x ∈ Ioc a b,x = b.choose a * (b-a).factorial := by

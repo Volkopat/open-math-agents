@@ -121,12 +121,6 @@ noncomputable def diagFunctional (ξ : H) :
 noncomputable def diagMeasure (ξ : H) : Measure (spectrum ℂ a) :=
   RealRMK.rieszMeasure (diagFunctional ha ξ)
 
-/-- Equal diagonal functionals give equal diagonal measures, since the measure is produced from the
-functional by Riesz representation. -/
-theorem diagMeasure_congr {ξ η : H} (h : diagFunctional ha ξ = diagFunctional ha η) :
-    diagMeasure ha ξ = diagMeasure ha η := by
-  rw [diagMeasure, diagMeasure, h]
-
 /-- Diagonal measures are finite, inherited from the Riesz measure of a bounded functional. -/
 instance instIsFiniteMeasure_diagMeasure (ξ : H) :
     IsFiniteMeasure (diagMeasure ha ξ) := by
@@ -766,18 +760,6 @@ theorem isBoundedUnder_ge_prefixDensity (A : Set ℕ) :
   exact isBoundedUnder_of
     ⟨0, fun N => div_nonneg (Nat.cast_nonneg _) (Nat.cast_nonneg _)⟩
 
-/-- Prefix densities are bounded above by one. -/
-theorem isBoundedUnder_le_prefixDensity (A : Set ℕ) :
-    IsBoundedUnder (· ≤ ·) atTop (fun N : ℕ => (countIn A N : ℝ) / N) := by
-  classical
-  refine isBoundedUnder_of ⟨1, fun N => ?_⟩
-  have hcount : countIn A N ≤ N := by
-    simpa [countIn] using
-      (Finset.card_le_card (Finset.filter_subset (fun n => n ∈ A) (Finset.range N)))
-  exact div_le_one_of_le₀
-    (Nat.cast_le.2 hcount)
-    (Nat.cast_nonneg _)
-
 /-- Every level strictly below the upper density is exceeded at arbitrarily
 large prefix lengths. -/
 theorem frequently_lt_prefixDensity {A : Set ℕ} {ε : ℝ}
@@ -933,16 +915,6 @@ theorem empiricalMeasure_originCylinder (A : Set ℕ) (N : ℕ) :
     (Set.countable_univ.mono (Set.subset_univ _)).measurableSet]
   simp [ENNReal.toNNReal_div, ENNReal.toNNReal_add, countIn,
     originCylinder, symbolicPoint]
-
-/-- Compactness supplies a weak cluster point of the empirical orbit
-measures.  This is the first compactness step in the pointed Furstenberg
-correspondence principle. -/
-theorem exists_empiricalMeasure_cluster (A : Set ℕ) :
-    ∃ μ : MeasureTheory.ProbabilityMeasure SymbolicSpace,
-      MapClusterPt μ atTop (empiricalMeasure A) := by
-  obtain ⟨μ, hμ⟩ := exists_clusterPt_of_compactSpace
-    (Filter.map (empiricalMeasure A) atTop)
-  exact ⟨μ, hμ⟩
 
 /-- A positive-density set has a weak limit of prefix-orbit empirical
 measures which gives positive mass to the origin cylinder. -/
@@ -1118,10 +1090,6 @@ theorem isClosed_carriedProbabilities (A : Set ℕ) :
     simp only [le_refl, true_and, ProbabilityMeasure.toFiniteMeasure_apply]
   rw [hpre]
   exact hScompact.isClosed.preimage ProbabilityMeasure.toFiniteMeasure_continuous
-
-theorem isCompact_carriedProbabilities (A : Set ℕ) :
-    IsCompact (carriedProbabilities A) :=
-  (isClosed_carriedProbabilities A).isCompact
 
 theorem empiricalMeasure_mem_carriedProbabilities (A : Set ℕ) (N : ℕ) :
     empiricalMeasure A N ∈ carriedProbabilities A := by
@@ -2150,29 +2118,6 @@ theorem exists_genericAlongOrbitIntervals_of_carried
         (hint.trans_lt hnorm)
     _ = ε := by ring
 
-/-- The pointed correspondence construction up to the final orbit-block
-transfer: the ergodic measure has positive cylinder mass and admits a generic
-point lying in the forward orbit closure of the original coding point. -/
-theorem exists_carried_generic_point {A : Set ℕ}
-    (hA : HasPositiveUpperDensity A) :
-    ∃ ν : ProbabilityMeasure SymbolicSpace,
-      Ergodic symbolicShift (ν : Measure SymbolicSpace) ∧
-        0 < (ν : Measure SymbolicSpace) originCylinder ∧
-          ∃ y ∈ orbitClosure A, ∃ ns : ℕ → ℕ,
-            Tendsto ns atTop atTop ∧
-              ∀ f : BoundedContinuousFunction SymbolicSpace ℝ,
-                Tendsto
-                  (fun n ↦ birkhoffAverage ℝ symbolicShift f (ns n) y)
-                  atTop (nhds (∫ z, f z ∂(ν : Measure SymbolicSpace))) := by
-  obtain ⟨ν, hνerg, hνcarried, hνorigin⟩ :=
-    exists_carried_ergodic_probability hA
-  obtain ⟨y, hysupport, ns, hns, hygen⟩ :=
-    exists_pointwise_generic_subsequence symbolicShift
-      (ν : Measure SymbolicSpace) hνerg
-  refine ⟨ν, hνerg, hνorigin, y,
-    support_subset_orbitClosure_of_mem_carried hνcarried hysupport,
-    ns, hns, hygen⟩
-
 /-- Pointed Furstenberg correspondence for the exact coding point: positive
 upper density gives an ergodic measure of positive cylinder mass for which
 the original coding point is generic along long intervals. -/
@@ -2277,24 +2222,6 @@ theorem weaklyGenericAlong_orbitIntervalBlocks
     card_orbitIntervalBlocks, sum_orbitIntervalBlocks,
     smul_eq_mul] using h
 
-/-- A weak limit of the concrete empirical measures is exactly a genericity
-statement for the corresponding prefix blocks. -/
-theorem weaklyGenericAlong_of_empirical_tendsto (A : Set ℕ)
-    (μ : ProbabilityMeasure SymbolicSpace) (N : ℕ → ℕ)
-    (hlim : Tendsto (fun k => empiricalMeasure A (N k - 1)) atTop (𝓝 μ)) :
-    IsWeaklyGenericAlong
-      (fun n => symbolicShift^[n] (symbolicPoint A)) μ
-      (fun k => Finset.range (N k - 1 + 1)) := by
-  intro f
-  have h :=
-    (ProbabilityMeasure.tendsto_iff_forall_integral_tendsto.mp hlim) f
-  simpa only [integral_empiricalMeasure, Finset.card_range] using h
-
-/-- Every time appearing in the averaging blocks eventually lies beyond any
-fixed cutoff. -/
-def OrbitBlocksEscape (Φ : ℕ → Finset ℕ) : Prop :=
-  ∀ M : ℕ, ∀ᶠ k in atTop, ∀ n ∈ Φ k, M < n
-
 /-- The union of all forward return targets of a set. -/
 def forwardSaturation {X : Type*} (T : X → X) (E : Set X) : Set X :=
   ⋃ n : ℕ, (T^[n]) ⁻¹' E
@@ -2326,63 +2253,6 @@ theorem ae_mem_forwardSaturation_of_ergodic
   · filter_upwards [hfull] with x hx
     change x ∈ S
     exact hx.mpr (Set.mem_univ x)
-
-/-- A weakly generic orbit sampled on blocks escaping to infinity visits
-every neighborhood of every support point arbitrarily late. -/
-theorem supportGeneric_of_weaklyGenericAlong
-    {X : Type*} [MeasurableSpace X] [TopologicalSpace X]
-    [CompactSpace X] [NormalSpace X] [T1Space X] [BorelSpace X]
-    (u : ℕ → X) (μ : Measure X) [IsFiniteMeasure μ]
-    (Φ : ℕ → Finset ℕ)
-    (hgeneric : IsWeaklyGenericAlong u μ Φ)
-    (hescape : OrbitBlocksEscape Φ) :
-    IsSupportGeneric u μ := by
-  rw [IsSupportGeneric]
-  intro y hy
-  rw [mapClusterPt_iff_frequently]
-  intro U hU
-  rw [frequently_atTop]
-  intro M
-  obtain ⟨V, hVU, hVopen, hyV⟩ := mem_nhds_iff.mp hU
-  obtain ⟨f, hfzero, hfone, hfIcc⟩ :=
-    exists_continuous_zero_one_of_isClosed
-      hVopen.isClosed_compl isClosed_singleton
-      (Set.disjoint_left.2 (by
-        intro z hzU hzY
-        exact hzU (hzY ▸ hyV)))
-  let fb : BoundedContinuousFunction X ℝ :=
-    BoundedContinuousFunction.mkOfCompact f
-  have hfy : fb y = 1 := by
-    simpa [fb] using hfone (Set.mem_singleton y)
-  have hnonneg : 0 ≤ (fb : X → ℝ) := fun z ↦ by
-    simpa [fb] using (hfIcc z).1
-  have hsupportPos : 0 < μ {z | fb z ≠ 0} := by
-    apply (Measure.mem_support_iff_forall y).mp hy
-    apply IsOpen.mem_nhds
-    · exact isOpen_ne_fun fb.continuous continuous_const
-    · simp [hfy]
-  have hintPos : 0 < ∫ z, fb z ∂μ := by
-    rw [integral_pos_iff_support_of_nonneg hnonneg (fb.integrable μ)]
-    simpa only [Function.support] using hsupportPos
-  have havg : ∀ᶠ k in atTop,
-      0 < ((Φ k).card : ℝ)⁻¹ * ∑ n ∈ Φ k, fb (u n) :=
-    (hgeneric fb).eventually (isOpen_Ioi.mem_nhds hintPos)
-  obtain ⟨k, hkavg, hkescape⟩ := (havg.and (hescape M)).exists
-  have hsum : 0 < ∑ n ∈ Φ k, fb (u n) := by
-    by_contra h
-    have hsumle : ∑ n ∈ Φ k, fb (u n) ≤ 0 := le_of_not_gt h
-    have hinvnonneg : 0 ≤ ((Φ k).card : ℝ)⁻¹ :=
-      inv_nonneg.2 (Nat.cast_nonneg _)
-    exact (not_lt_of_ge (mul_nonpos_of_nonneg_of_nonpos hinvnonneg hsumle)) hkavg
-  have hterms : ∀ n ∈ Φ k, 0 ≤ fb (u n) := fun n _ ↦ hnonneg (u n)
-  obtain ⟨n, hnΦ, hnpos⟩ :=
-    (Finset.sum_pos_iff_of_nonneg hterms).mp hsum
-  refine ⟨n, (hkescape n hnΦ).le, ?_⟩
-  apply hVU
-  by_contra hnv
-  have hncomp : u n ∈ Vᶜ := by simpa using hnv
-  have hzero := hfzero hncomp
-  exact hnpos.ne' (by simpa [fb] using hzero)
 
 /-- A version of `supportGeneric_of_weaklyGenericAlong` adapted to Følner
 blocks: it is enough that their cardinalities tend to infinity.  A bounded
@@ -2519,104 +2389,9 @@ def HasPointedKMRRProgression (A : Set ℕ) : Prop :=
 
 /-! ### The progression-measure selection interface -/
 
-/-- The precise measure package produced by the analytic KMRR argument. -/
-def IsPointedProgressionMeasure (A : Set ℕ)
-    (σ : MeasureTheory.Measure (SymbolicSpace × SymbolicSpace)) : Prop :=
-  0 < σ (originCylinder ×ˢ (Set.univ : Set SymbolicSpace)) ∧
-    ∀ᵐ p ∂σ,
-      IsErdosProgression symbolicShift (symbolicPoint A) p.1 p.2 ∧
-        p.2 ∈ ⋃ t : ℕ, shiftedOriginCylinder t
-
-/-- The joining data isolated by the analytic part of the KMRR proof.
-The first marginal is the invariant measure, the second marginal is
-absolutely continuous with respect to it, and almost every sampled pair is
-both generic for and in the support of its component measure. -/
-def IsKMRRJoining (A : Set ℕ) (μ : Measure SymbolicSpace)
-    (σ : Measure (SymbolicSpace × SymbolicSpace))
-    (component : SymbolicSpace × SymbolicSpace →
-      Measure (SymbolicSpace × SymbolicSpace)) : Prop :=
-  Measure.map Prod.fst σ = μ ∧
-    MeasureTheory.Measure.AbsolutelyContinuous (Measure.map Prod.snd σ) μ ∧
-      ∀ᵐ p ∂σ,
-        IsSupportGeneric
-          (fun n : ℕ =>
-            (symbolicShift^[n] (symbolicPoint A),
-              symbolicShift^[n] p.1)) (component p) ∧
-          p ∈ (component p).support
-
-/-- The joining identities, support property, and generic-pair property
-produce the progression measure used by the elementary extraction. -/
-theorem progressionMeasure_of_kmrrJoining {A : Set ℕ}
-    {μ : Measure SymbolicSpace}
-    {σ : Measure (SymbolicSpace × SymbolicSpace)}
-    {component : SymbolicSpace × SymbolicSpace →
-      Measure (SymbolicSpace × SymbolicSpace)}
-    (hjoin : IsKMRRJoining A μ σ component)
-    (hμorigin : 0 < μ originCylinder)
-    (hsaturation : ∀ᵐ x ∂μ,
-      x ∈ ⋃ t : ℕ, shiftedOriginCylinder t) :
-    IsPointedProgressionMeasure A σ := by
-  have hpre : Prod.fst ⁻¹' originCylinder =
-      originCylinder ×ˢ (Set.univ : Set SymbolicSpace) := by
-    ext p
-    simp
-  constructor
-  · rw [← hpre, ← Measure.map_apply measurable_fst
-      isClopen_originCylinder.isOpen.measurableSet, hjoin.1]
-    exact hμorigin
-  · have hprogression : ∀ᵐ p ∂σ,
-        IsErdosProgression symbolicShift (symbolicPoint A) p.1 p.2 := by
-      filter_upwards [hjoin.2.2] with p hp
-      exact isErdosProgression_of_supportGeneric
-        symbolicShift (symbolicPoint A) p.1 p.2 (component p) hp.1 hp.2
-    have hsaturationMap : ∀ᵐ x ∂Measure.map Prod.snd σ,
-        x ∈ ⋃ t : ℕ, shiftedOriginCylinder t :=
-      hjoin.2.1.ae_le hsaturation
-    have hsaturationPair : ∀ᵐ p ∂σ,
-        p.2 ∈ ⋃ t : ℕ, shiftedOriginCylinder t :=
-      ae_of_ae_map measurable_snd.aemeasurable hsaturationMap
-    exact hprogression.and hsaturationPair
-
 theorem forwardSaturation_originCylinder :
     forwardSaturation symbolicShift originCylinder =
       ⋃ t : ℕ, shiftedOriginCylinder t := rfl
-
-/-- In the ergodic case the saturation hypothesis required above follows
-from positivity of the cylinder automatically. -/
-theorem progressionMeasure_of_ergodic_kmrrJoining {A : Set ℕ}
-    {μ : Measure SymbolicSpace} [IsFiniteMeasure μ]
-    {σ : Measure (SymbolicSpace × SymbolicSpace)}
-    {component : SymbolicSpace × SymbolicSpace →
-      Measure (SymbolicSpace × SymbolicSpace)}
-    (hT : Ergodic symbolicShift μ)
-    (hjoin : IsKMRRJoining A μ σ component)
-    (hμorigin : 0 < μ originCylinder) :
-    IsPointedProgressionMeasure A σ := by
-  apply progressionMeasure_of_kmrrJoining hjoin hμorigin
-  rw [← forwardSaturation_originCylinder]
-  exact ae_mem_forwardSaturation_of_ergodic hT
-    isClopen_originCylinder.isOpen.measurableSet (ne_of_gt hμorigin)
-
-/-- Positive mass and the two almost-everywhere properties select the
-pointed topological configuration needed by the extraction theorem. -/
-theorem pointedProgression_of_progressionMeasure {A : Set ℕ}
-    {σ : MeasureTheory.Measure (SymbolicSpace × SymbolicSpace)}
-    (hσ : IsPointedProgressionMeasure A σ) :
-    HasPointedKMRRProgression A := by
-  let F : Set (SymbolicSpace × SymbolicSpace) :=
-    originCylinder ×ˢ (Set.univ : Set SymbolicSpace)
-  have hF : MeasurableSet F :=
-    isClopen_originCylinder.isOpen.measurableSet.prod MeasurableSet.univ
-  have hFne : σ F ≠ 0 := ne_of_gt hσ.1
-  let : NeBot (ae (σ.restrict F)) := (ae_restrict_neBot.mpr hFne)
-  have hmem : ∀ᵐ p ∂σ.restrict F, p ∈ F := ae_restrict_mem hF
-  have hproperties : ∀ᵐ p ∂σ.restrict F,
-      IsErdosProgression symbolicShift (symbolicPoint A) p.1 p.2 ∧
-        p.2 ∈ ⋃ t : ℕ, shiftedOriginCylinder t :=
-    ae_restrict_of_ae hσ.2
-  obtain ⟨p, hpF, hprog, hsaturation⟩ := (hmem.and hproperties).exists
-  obtain ⟨t, ht⟩ := Set.mem_iUnion.mp hsaturation
-  exact ⟨t, p.1, p.2, hpF.1, ht, hprog⟩
 
 /-- The elementary extraction step in KMRR: an Erdős progression whose last
 two coordinates lie in `U` and `V` yields infinitely many return times to `U`
@@ -2712,66 +2487,6 @@ theorem conclusion_of_pointedProgression {A : Set ℕ}
   rfl
 
 /-! ### The ultrafilter interface to the analytic core -/
-
-/-- The ultrafilter configuration produced by the analytic part of KMRR. -/
-def IsKMRRWitness (A : Set ℕ) (p : Ultrafilter ℕ) (t : ℕ) : Prop :=
-  (p : Filter ℕ) ≤ cofinite ∧ A ∈ p ∧
-    {b : ℕ | {b' : ℕ | b + b' + t ∈ A} ∈ p} ∈ p
-
-/-- A KMRR ultrafilter witness gives the desired infinite restricted
-pair-sum configuration (with a nonnegative shift). -/
-theorem IsKMRRWitness.extract {A : Set ℕ} {p : Ultrafilter ℕ} {t : ℕ}
-    (h : IsKMRRWitness A p t) :
-    ∃ B : Set ℕ, B.Infinite ∧ B ⊆ A ∧
-      ∀ b₁ ∈ B, ∀ b₂ ∈ B, b₁ ≠ b₂ → b₁ + b₂ + t ∈ A := by
-  classical
-  rcases h with ⟨hfree, hA, hpartners⟩
-  let C : Set ℕ := {b : ℕ | {b' : ℕ | b + b' + t ∈ A} ∈ p}
-  let P : ℕ → Prop := fun b => b ∈ A ∧ b ∈ C
-  let r : ℕ → ℕ → Prop := fun b b' => b < b' ∧ b + b' + t ∈ A
-  have hext : ∀ s : Finset ℕ, (∀ b ∈ s, P b) →
-      ∃ b', P b' ∧ ∀ b ∈ s, r b b' := by
-    intro s hs
-    let M := s.sup id
-    have htail : ∀ᶠ n in p, M < n := by
-      apply hfree
-      rw [mem_cofinite]
-      exact (Set.finite_Iic M).subset (by intro n hn; simpa using Nat.le_of_not_gt hn)
-    have hsections : ∀ᶠ b' in p, ∀ b ∈ s, b + b' + t ∈ A := by
-      apply s.eventually_all.2
-      intro b hb
-      exact (hs b hb).2
-    have hlarge : ∀ᶠ b' in p,
-        b' ∈ A ∧ b' ∈ C ∧ M < b' ∧ ∀ b ∈ s, b + b' + t ∈ A := by
-      filter_upwards [hA, hpartners, htail, hsections] with b' hbA hbC hbM hbsec
-      exact ⟨hbA, hbC, hbM, hbsec⟩
-    obtain ⟨b', hbA, hbC, hbM, hbsec⟩ := hlarge.exists
-    refine ⟨b', ⟨hbA, hbC⟩, ?_⟩
-    intro b hb
-    exact ⟨lt_of_le_of_lt (Finset.le_sup (f := id) hb) hbM, hbsec b hb⟩
-  obtain ⟨f, hfP, hfr⟩ := exists_seq_of_forall_finset_exists P r hext
-  have hf_strict : StrictMono f := fun i j hij => (hfr i j hij).1
-  refine ⟨Set.range f, Set.infinite_range_of_injective hf_strict.injective, ?_, ?_⟩
-  · rintro b ⟨i, rfl⟩
-    exact (hfP i).1
-  · rintro b₁ ⟨i, rfl⟩ b₂ ⟨j, rfl⟩ hij
-    have hij' : i ≠ j := fun e => hij (congrArg f e)
-    rcases lt_or_gt_of_ne hij' with hij | hji
-    · exact (hfr i j hij).2
-    · simpa only [Nat.add_comm] using (hfr j i hji).2
-
-/-- Conversion of the nonnegative-shift KMRR witness to the literal integer
-shift formulation used on the Erdős Problems page. -/
-theorem conclusion_of_kmrrWitness {A : Set ℕ}
-    (h : ∃ p : Ultrafilter ℕ, ∃ t : ℕ, IsKMRRWitness A p t) :
-    ∃ B : Set ℕ, B.Infinite ∧ B ⊆ A ∧ HasTranslatedRestrictedPairSums A B := by
-  obtain ⟨p, t, hp⟩ := h
-  obtain ⟨B, hBinf, hBA, hpairs⟩ := hp.extract
-  refine ⟨B, hBinf, hBA, (t : ℤ), ?_⟩
-  intro b₁ hb₁ b₂ hb₂ hne
-  refine ⟨b₁ + b₂ + t, hpairs b₁ hb₁ b₂ hb₂ hne, ?_⟩
-  push_cast
-  rfl
 
 end
 
@@ -3214,38 +2929,6 @@ theorem exists_supportGeneric_pair_orbit_blocks
     (orbitIntervalBlocks start length) hx
   simpa only [card_orbitIntervalBlocks] using hlength
 
-theorem exists_supportGeneric_pair_orbit_blocks_of_prod_ae
-    {X : Type*} [MeasurableSpace X] [PseudoMetricSpace X]
-    [CompactSpace X] [T1Space X] [BorelSpace X] [SecondCountableTopology X]
-    (T : X → X) (hT : Continuous T) (a : X)
-    (mu : Measure X) [IsProbabilityMeasure mu]
-    (hTmu : MeasurePreserving T mu mu)
-    (horbit : IsSupportGeneric (fun n ↦ T^[n] a) mu)
-    (component : X × X → ProbabilityMeasure (X × X))
-    (hcomponent : Continuous component)
-    (hinv : ∀ p, component (diagonalTransform T p) = component p)
-    (htypical : ∀ᵐ p ∂mu.prod mu,
-      ∀ f : BoundedContinuousFunction (X × X) ℝ,
-        Tendsto
-          (fun m ↦ birkhoffAverage ℝ (diagonalTransform T) f (m + 1) p)
-          atTop (nhds (componentMoment component f p))) :
-    ∃ _start length : ℕ → ℕ,
-      Tendsto length atTop atTop ∧
-        ∀ᵐ x ∂mu, IsSupportGeneric
-          (fun n ↦ (T^[n] a, T^[n] x))
-          (component (a, x) : Measure (X × X)) := by
-  have hsections : ∀ᵐ b ∂mu, ∀ᵐ x ∂mu,
-      ∀ f : BoundedContinuousFunction (X × X) ℝ,
-        Tendsto
-          (fun m ↦ birkhoffAverage ℝ (diagonalTransform T) f (m + 1) (b, x))
-          atTop (nhds (componentMoment component f (b, x))) :=
-    Measure.ae_ae_of_ae_prod htypical
-  obtain ⟨b, hbtypical, hbsupport⟩ :=
-    (hsections.and Measure.support_mem_ae).exists
-  exact exists_supportGeneric_pair_orbit_blocks T hT a b mu hTmu horbit
-    hbsupport (fun m ↦ m + 1) (tendsto_add_atTop_nat 1)
-    component hcomponent hinv hbtypical
-
 /-! ### The abstract continuous Kronecker-decomposition package
 
 The remaining analytic construction in KMRR produces exactly the data below.
@@ -3380,28 +3063,6 @@ noncomputable def relativeProductProbability
     (eta : Kernel Z X) [IsMarkovKernel eta] (r s : Z) :
     (relativeProductProbability m eta r s : Measure (X × X)) =
       Measure.bind m (relativeProductKernel eta r s) := rfl
-
-theorem fst_relativeProductProbability
-    {Z X : Type*} [MeasurableSpace Z] [MeasurableSpace X]
-    [Add Z] [MeasurableAdd Z]
-    (m : Measure Z) [IsProbabilityMeasure m]
-    (eta : Kernel Z X) [IsMarkovKernel eta] (r s : Z) :
-    Measure.map Prod.fst (relativeProductProbability m eta r s : Measure (X × X)) =
-      Measure.bind m (translateKernel eta r) := by
-  change Measure.map Prod.fst (Measure.bind m (relativeProductKernel eta r s)) = _
-  rw [Measure.map_comp m (relativeProductKernel eta r s) measurable_fst]
-  rw [relativeProductKernel, ← Kernel.fst_eq, Kernel.fst_prod]
-
-theorem snd_relativeProductProbability
-    {Z X : Type*} [MeasurableSpace Z] [MeasurableSpace X]
-    [Add Z] [MeasurableAdd Z]
-    (m : Measure Z) [IsProbabilityMeasure m]
-    (eta : Kernel Z X) [IsMarkovKernel eta] (r s : Z) :
-    Measure.map Prod.snd (relativeProductProbability m eta r s : Measure (X × X)) =
-      Measure.bind m (translateKernel eta s) := by
-  change Measure.map Prod.snd (Measure.bind m (relativeProductKernel eta r s)) = _
-  rw [Measure.map_comp m (relativeProductKernel eta r s) measurable_snd]
-  rw [relativeProductKernel, ← Kernel.snd_eq, Kernel.snd_prod]
 
 /-! ### Base changes and the three-term progression kernel -/
 
@@ -4207,228 +3868,6 @@ open Filter Function Set Topology MeasureTheory Metric
 open ProbabilityTheory
 open scoped ENNReal Pointwise Topology ComplexConjugate
 
-noncomputable def densityRadius (j : ℕ) : ℝ := 1 / ((j : ℝ) + 1)
-
-def haarDensityNeighborhood
-    {Z : Type*} [PseudoMetricSpace Z] [Zero Z] (j : ℕ) : Set Z :=
-  Metric.closedBall 0 (densityRadius j)
-
-theorem tendsto_densityRadius :
-    Tendsto densityRadius atTop (nhdsWithin (0 : ℝ) (Set.Ioi 0)) := by
-  rw [tendsto_nhdsWithin_iff]
-  constructor
-  · change Tendsto (fun j : ℕ ↦ 1 / ((j : ℝ) + 1)) atTop (nhds 0)
-    simpa [one_div] using
-      (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ))
-  · exact Eventually.of_forall fun j ↦ by
-      change 0 < 1 / ((j : ℝ) + 1)
-      positivity
-
-theorem leftAddTranslate_closedBall
-    {Z : Type*} [PseudoMetricSpace Z] [AddCommGroup Z]
-    [IsIsometricVAdd Z Z] (c : Z) (r : ℝ) :
-    leftAddTranslate c (Metric.closedBall 0 r) = Metric.closedBall c r := by
-  ext z
-  change dist (z - c) 0 ≤ r ↔ dist z c ≤ r
-  have hdist : dist (z - c) 0 = dist z c := by
-    calc
-      dist (z - c) 0 = dist (c + (z - c)) (c + 0) :=
-        (dist_add_left c (z - c) 0).symm
-      _ = dist z c := by simp
-  rw [hdist]
-
-theorem leftAddTranslate_haarDensityNeighborhood
-    {Z : Type*} [PseudoMetricSpace Z] [AddCommGroup Z]
-    [IsIsometricVAdd Z Z] (c : Z) (j : ℕ) :
-    leftAddTranslate c (haarDensityNeighborhood j) =
-      Metric.closedBall c (densityRadius j) := by
-  exact leftAddTranslate_closedBall c (densityRadius j)
-
-theorem measurable_pos_haarDensityNeighborhood
-    {Z : Type*} [PseudoMetricSpace Z] [MeasurableSpace Z]
-    [BorelSpace Z] [AddCommGroup Z]
-    (m : Measure Z) [m.IsOpenPosMeasure] [IsFiniteMeasure m] (j : ℕ) :
-    MeasurableSet (haarDensityNeighborhood (Z := Z) j) ∧
-      0 < m.real (haarDensityNeighborhood (Z := Z) j) := by
-  constructor
-  · exact measurableSet_closedBall
-  · change 0 < (m (Metric.closedBall (0 : Z) (densityRadius j))).toReal
-    have hsub :
-        Metric.ball (0 : Z) (densityRadius j) ⊆
-          Metric.closedBall (0 : Z) (densityRadius j) :=
-      Metric.ball_subset_closedBall
-    have hpos : 0 < m (Metric.closedBall (0 : Z) (densityRadius j)) :=
-      (measure_ball_pos m (0 : Z) (by
-        change 0 < 1 / ((j : ℝ) + 1)
-        positivity)).trans_le (measure_mono hsub)
-    exact ENNReal.toReal_pos (ne_of_gt hpos) (measure_ne_top m _)
-
-theorem ae_tendsto_haarDensityRatio
-    {Z : Type*} [PseudoMetricSpace Z] [SecondCountableTopology Z]
-    [MeasurableSpace Z] [BorelSpace Z] [AddCommGroup Z]
-    [MeasurableAdd₂ Z]
-    [IsIsometricVAdd Z Z]
-    (m : Measure Z) [IsLocallyFiniteMeasure m]
-    [IsUnifLocDoublingMeasure m] [Measure.IsAddLeftInvariant m]
-    (S : Set Z) :
-    ∀ᵐ z ∂m.restrict S,
-      Tendsto (fun j : ℕ ↦
-        m (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) /
-          m (haarDensityNeighborhood (Z := Z) j)) atTop (nhds 1) := by
-  filter_upwards [IsUnifLocDoublingMeasure.ae_tendsto_measure_inter_div m S 1] with z hz
-  have hmem : ∀ᶠ j : ℕ in atTop,
-      z ∈ Metric.closedBall z (1 * densityRadius j) :=
-    Eventually.of_forall fun j ↦ by
-      rw [Metric.mem_closedBall]
-      simp only [dist_self, one_mul]
-      exact (by
-        change 0 ≤ 1 / ((j : ℝ) + 1)
-        positivity)
-  have hballs := hz (fun _ : ℕ ↦ z) densityRadius
-    tendsto_densityRadius hmem
-  have heq :
-      (fun j : ℕ ↦
-        m (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) /
-          m (haarDensityNeighborhood (Z := Z) j)) =
-        (fun j : ℕ ↦
-          m (S ∩ Metric.closedBall z (densityRadius j)) /
-            m (Metric.closedBall z (densityRadius j))) := by
-    funext j
-    have htranslate :
-        m (leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) =
-          m (haarDensityNeighborhood (Z := Z) j) := by
-      change m ((fun w : Z ↦ w - z) ⁻¹'
-          haarDensityNeighborhood (Z := Z) j) = _
-      simpa only [sub_eq_add_neg] using
-        (measure_preimage_add_right m (-z)
-          (haarDensityNeighborhood (Z := Z) j))
-    rw [← htranslate, leftAddTranslate_haarDensityNeighborhood]
-  rw [heq]
-  exact hballs
-
-theorem ae_three_quarters_haarDensity
-    {Z : Type*} [PseudoMetricSpace Z] [SecondCountableTopology Z]
-    [MeasurableSpace Z] [BorelSpace Z] [AddCommGroup Z]
-    [MeasurableAdd₂ Z]
-    [IsIsometricVAdd Z Z]
-    (m : Measure Z) [IsFiniteMeasure m] [IsLocallyFiniteMeasure m]
-    [m.IsOpenPosMeasure]
-    [IsUnifLocDoublingMeasure m] [Measure.IsAddLeftInvariant m]
-    (S : Set Z) :
-    ∀ᵐ z ∂m.restrict S, ∀ᶠ j : ℕ in atTop,
-      (3 / 4 : ℝ) * m.real (haarDensityNeighborhood (Z := Z) j) <
-        m.real (S ∩ leftAddTranslate z
-          (haarDensityNeighborhood (Z := Z) j)) := by
-  filter_upwards [ae_tendsto_haarDensityRatio m S] with z hz
-  have hratio : ∀ᶠ j : ℕ in atTop,
-      (3 / 4 : ℝ≥0∞) <
-        m (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) /
-          m (haarDensityNeighborhood (Z := Z) j) :=
-    (tendsto_order.mp hz).1 (3 / 4 : ℝ≥0∞) (by
-      apply (ENNReal.div_lt_iff (Or.inl (by norm_num))
-        (Or.inl (by norm_num))).2
-      norm_num)
-  filter_upwards [hratio] with j hj
-  have hQpos := (measurable_pos_haarDensityNeighborhood m j).2
-  have hfiniteRatio :
-      m (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) /
-          m (haarDensityNeighborhood (Z := Z) j) ≠ ⊤ := by
-    exact ENNReal.div_ne_top (measure_ne_top m _)
-      (ne_of_gt (ENNReal.toReal_pos_iff.mp hQpos).1)
-  have hreal :
-      (3 / 4 : ℝ) <
-        m.real (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) /
-          m.real (haarDensityNeighborhood (Z := Z) j) := by
-    have hconst : (3 / 4 : ℝ≥0∞) ≠ ⊤ :=
-      ENNReal.div_ne_top (by norm_num) (by norm_num)
-    have h := (ENNReal.toReal_lt_toReal hconst
-      hfiniteRatio).mpr hj
-    simpa only [ENNReal.toReal_div, ENNReal.toReal_ofNat, Measure.real] using h
-  exact (lt_div_iff₀ hQpos).mp hreal
-
-def IsHaarDensityPoint
-    {Z : Type*} [PseudoMetricSpace Z] [MeasurableSpace Z]
-    [AddCommGroup Z]
-    (m : Measure Z) (S : Set Z) (z : Z) : Prop :=
-  Tendsto (fun j : ℕ ↦
-    m (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) /
-      m (haarDensityNeighborhood (Z := Z) j)) atTop (nhds 1)
-
-theorem three_quarters_of_isHaarDensityPoint
-    {Z : Type*} [PseudoMetricSpace Z] [MeasurableSpace Z]
-    [BorelSpace Z] [AddCommGroup Z]
-    (m : Measure Z) [IsFiniteMeasure m] [m.IsOpenPosMeasure]
-    {S : Set Z} {z : Z} (hz : IsHaarDensityPoint m S z) :
-    ∀ᶠ j : ℕ in atTop,
-      (3 / 4 : ℝ) * m.real (haarDensityNeighborhood (Z := Z) j) <
-        m.real (S ∩ leftAddTranslate z
-          (haarDensityNeighborhood (Z := Z) j)) := by
-  have hratio : ∀ᶠ j : ℕ in atTop,
-      (3 / 4 : ℝ≥0∞) <
-        m (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) /
-          m (haarDensityNeighborhood (Z := Z) j) :=
-    (tendsto_order.mp hz).1 (3 / 4 : ℝ≥0∞) (by
-      apply (ENNReal.div_lt_iff (Or.inl (by norm_num))
-        (Or.inl (by norm_num))).2
-      norm_num)
-  filter_upwards [hratio] with j hj
-  have hQpos := (measurable_pos_haarDensityNeighborhood m j).2
-  have hfiniteRatio :
-      m (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) /
-          m (haarDensityNeighborhood (Z := Z) j) ≠ ⊤ :=
-    ENNReal.div_ne_top (measure_ne_top m _)
-      (ne_of_gt (ENNReal.toReal_pos_iff.mp hQpos).1)
-  have hconst : (3 / 4 : ℝ≥0∞) ≠ ⊤ :=
-    ENNReal.div_ne_top (by norm_num) (by norm_num)
-  have h := (ENNReal.toReal_lt_toReal hconst hfiniteRatio).mpr hj
-  have hreal :
-      (3 / 4 : ℝ) <
-        m.real (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) /
-          m.real (haarDensityNeighborhood (Z := Z) j) := by
-    simpa only [ENNReal.toReal_div, ENNReal.toReal_ofNat, Measure.real] using h
-  exact (lt_div_iff₀ hQpos).mp hreal
-
-theorem measurable_haarDensityRatioAt
-    {Z : Type*} [PseudoMetricSpace Z] [MeasurableSpace Z] [BorelSpace Z]
-    [AddCommGroup Z] [MeasurableAdd₂ Z] [MeasurableNeg Z]
-    (m : Measure Z) [SFinite m] {S : Set Z} (hS : MeasurableSet S)
-    (j : ℕ) :
-    Measurable (fun z : Z ↦
-      m (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j)) /
-        m (haarDensityNeighborhood (Z := Z) j)) := by
-  let R : Set (Z × Z) :=
-    {p | p.2 ∈ S ∧ p.2 - p.1 ∈ haarDensityNeighborhood (Z := Z) j}
-  have hR : MeasurableSet R := by
-    exact (hS.preimage measurable_snd).inter
-      (measurableSet_closedBall.preimage
-        (measurable_snd.sub measurable_fst))
-  have hnum : Measurable (fun z : Z ↦
-      m (S ∩ leftAddTranslate z (haarDensityNeighborhood (Z := Z) j))) := by
-    have h := measurable_measure_prodMk_left (ν := m) hR
-    convert h using 1
-    funext z
-    congr 1
-  exact hnum.div measurable_const
-
-theorem measurableSet_isHaarDensityPoint
-    {Z : Type*} [PseudoMetricSpace Z] [SecondCountableTopology Z]
-    [MeasurableSpace Z] [BorelSpace Z] [AddCommGroup Z]
-    [MeasurableAdd₂ Z] [MeasurableNeg Z]
-    (m : Measure Z) [SFinite m] {S : Set Z} (hS : MeasurableSet S) :
-    MeasurableSet {z : Z | IsHaarDensityPoint m S z} := by
-  exact MeasureTheory.measurableSet_tendsto_fun
-    (fun j ↦ measurable_haarDensityRatioAt m hS j) measurable_const
-
-theorem ae_isHaarDensityPoint
-    {Z : Type*} [PseudoMetricSpace Z] [SecondCountableTopology Z]
-    [MeasurableSpace Z] [BorelSpace Z] [AddCommGroup Z]
-    [MeasurableAdd₂ Z] [IsIsometricVAdd Z Z]
-    (m : Measure Z) [IsLocallyFiniteMeasure m]
-    [IsUnifLocDoublingMeasure m] [Measure.IsAddLeftInvariant m]
-    (S : Set Z) :
-    ∀ᵐ z ∂m.restrict S, IsHaarDensityPoint m S z := by
-  exact ae_tendsto_haarDensityRatio m S
-
 noncomputable def conditionalSupportBasis
     (X : Type*) [TopologicalSpace X] [SecondCountableTopology X] :
     ℕ → Set X :=
@@ -4445,180 +3884,6 @@ theorem isOpen_conditionalSupportBasis
     IsOpen (conditionalSupportBasis X i) := by
   exact (conditionalSupportBasis_isBasis X).isOpen
     (Set.mem_range_self i)
-
-def conditionalSupportDensitySet
-    {Z X : Type*} [PseudoMetricSpace Z] [MeasurableSpace Z]
-    [AddCommGroup Z] [TopologicalSpace X] [SecondCountableTopology X]
-    [MeasurableSpace X]
-    (m : Measure Z) (eta : Kernel Z X) (pi : X → Z) : Set X :=
-  {x | ∀ i : ℕ, x ∈ conditionalSupportBasis X i →
-    IsHaarDensityPoint m
-      {z : Z | eta z (conditionalSupportBasis X i) ≠ 0} (pi x)}
-
-theorem measurableSet_conditionalSupportDensitySet
-    {Z X : Type*} [PseudoMetricSpace Z] [SecondCountableTopology Z]
-    [MeasurableSpace Z] [BorelSpace Z] [AddCommGroup Z]
-    [MeasurableAdd₂ Z] [MeasurableNeg Z]
-    [TopologicalSpace X] [SecondCountableTopology X]
-    [MeasurableSpace X] [OpensMeasurableSpace X]
-    (m : Measure Z) [SFinite m] (eta : Kernel Z X)
-    (pi : X → Z) (hpi : Measurable pi) :
-    MeasurableSet (conditionalSupportDensitySet m eta pi) := by
-  have hall : MeasurableSet (⋂ i : ℕ,
-      (conditionalSupportBasis X i)ᶜ ∪ pi ⁻¹'
-        {z : Z | IsHaarDensityPoint m
-          {w : Z | eta w (conditionalSupportBasis X i) ≠ 0} z}) := by
-    apply MeasurableSet.iInter
-    intro i
-    have hBopen : IsOpen (conditionalSupportBasis X i) :=
-      isOpen_conditionalSupportBasis X i
-    have hB : MeasurableSet (conditionalSupportBasis X i) :=
-      hBopen.measurableSet
-    have hS : MeasurableSet
-        {z : Z | eta z (conditionalSupportBasis X i) ≠ 0} :=
-      (eta.measurable_coe hB) (measurableSet_singleton 0).compl
-    have hD : MeasurableSet {z : Z | IsHaarDensityPoint m
-        {w : Z | eta w (conditionalSupportBasis X i) ≠ 0} z} :=
-      measurableSet_isHaarDensityPoint m hS
-    exact hB.compl.union (hD.preimage hpi)
-  convert hall using 1
-  ext x
-  simp only [conditionalSupportDensitySet, Set.mem_iInter,
-    Set.mem_compl_iff, Set.mem_union, Set.mem_preimage, Set.mem_ofPred_eq]
-  constructor
-  · intro h i
-    by_cases hxi : x ∈ conditionalSupportBasis X i
-    · exact Or.inr (h i hxi)
-    · exact Or.inl hxi
-  · intro h i hxi
-    rcases h i with hnot | hd
-    · exact (hnot hxi).elim
-    · exact hd
-
-theorem ae_basis_conditionalSupportDensity
-    {Z X : Type*} [PseudoMetricSpace Z] [SecondCountableTopology Z]
-    [MeasurableSpace Z] [BorelSpace Z] [AddCommGroup Z]
-    [MeasurableAdd₂ Z] [MeasurableNeg Z] [IsIsometricVAdd Z Z]
-    [TopologicalSpace X] [SecondCountableTopology X]
-    [MeasurableSpace X] [OpensMeasurableSpace X]
-    (m : Measure Z) [SFinite m] [IsLocallyFiniteMeasure m]
-    [IsUnifLocDoublingMeasure m] [Measure.IsAddLeftInvariant m]
-    (eta : Kernel Z X) (pi : X → Z) (hpi : Measurable pi)
-    (hfiber : ∀ᵐ z ∂m, ∀ᵐ x ∂eta z, pi x = z) (i : ℕ) :
-    ∀ᵐ x ∂Measure.bind m eta,
-      x ∈ conditionalSupportBasis X i →
-        IsHaarDensityPoint m
-          {z : Z | eta z (conditionalSupportBasis X i) ≠ 0} (pi x) := by
-  let B : Set X := conditionalSupportBasis X i
-  let S : Set Z := {z : Z | eta z B ≠ 0}
-  have hBopen : IsOpen B := isOpen_conditionalSupportBasis X i
-  have hB : MeasurableSet B := hBopen.measurableSet
-  have hS : MeasurableSet S :=
-    (eta.measurable_coe hB) (measurableSet_singleton 0).compl
-  have hdBase : ∀ᵐ z ∂m, z ∈ S → IsHaarDensityPoint m S z :=
-    (ae_restrict_iff' hS).mp (ae_isHaarDensityPoint m S)
-  have hcond : ∀ᵐ z ∂m, ∀ᵐ x ∂eta z,
-      x ∈ B → IsHaarDensityPoint m S (pi x) := by
-    filter_upwards [hdBase, hfiber] with z hz hzpi
-    by_cases hzS : z ∈ S
-    · have hDz := hz hzS
-      filter_upwards [hzpi] with x hxpi
-      intro _
-      simpa only [hxpi] using hDz
-    · have hzero : eta z B = 0 := not_ne_iff.mp hzS
-      have hnotB : ∀ᵐ x ∂eta z, x ∉ B := by
-        rw [ae_iff]
-        have heq : {x : X | ¬x ∉ B} = B := by
-          ext x
-          simp
-        rw [heq]
-        exact hzero
-      filter_upwards [hnotB] with x hx
-      exact fun hxB ↦ (hx hxB).elim
-  have hpiece : MeasurableSet {x : X |
-      x ∈ B → IsHaarDensityPoint m S (pi x)} := by
-    have hD : MeasurableSet {z : Z | IsHaarDensityPoint m S z} :=
-      measurableSet_isHaarDensityPoint m hS
-    have hu : MeasurableSet (Bᶜ ∪ pi ⁻¹'
-        {z : Z | IsHaarDensityPoint m S z}) :=
-      hB.compl.union (hD.preimage hpi)
-    convert hu using 1
-    ext x
-    simp only [Set.mem_ofPred_eq, Set.mem_union, Set.mem_compl_iff,
-      Set.mem_preimage]
-    tauto
-  exact Measure.ae_comp_of_ae_ae hpiece hcond
-
-theorem ae_mem_conditionalSupportDensitySet
-    {Z X : Type*} [PseudoMetricSpace Z] [SecondCountableTopology Z]
-    [MeasurableSpace Z] [BorelSpace Z] [AddCommGroup Z]
-    [MeasurableAdd₂ Z] [MeasurableNeg Z] [IsIsometricVAdd Z Z]
-    [TopologicalSpace X] [SecondCountableTopology X]
-    [MeasurableSpace X] [OpensMeasurableSpace X]
-    (m : Measure Z) [SFinite m] [IsLocallyFiniteMeasure m]
-    [IsUnifLocDoublingMeasure m] [Measure.IsAddLeftInvariant m]
-    (eta : Kernel Z X) (pi : X → Z) (hpi : Measurable pi)
-    (hfiber : ∀ᵐ z ∂m, ∀ᵐ x ∂eta z, pi x = z) :
-    ∀ᵐ x ∂Measure.bind m eta,
-      x ∈ conditionalSupportDensitySet m eta pi := by
-  exact ae_all_iff.mpr fun i ↦
-    ae_basis_conditionalSupportDensity m eta pi hpi hfiber i
-
-theorem hasConditionalSupportDensityAlong_conditionalSupportDensitySet
-    {Z X : Type*} [PseudoMetricSpace Z] [SecondCountableTopology Z]
-    [MeasurableSpace Z] [BorelSpace Z] [AddCommGroup Z]
-    [MeasurableAdd₂ Z] [MeasurableNeg Z] [IsIsometricVAdd Z Z]
-    [TopologicalSpace X] [SecondCountableTopology X]
-    [MeasurableSpace X] [OpensMeasurableSpace X]
-    (m : Measure Z) [IsFiniteMeasure m] [IsLocallyFiniteMeasure m]
-    [m.IsOpenPosMeasure] [IsUnifLocDoublingMeasure m]
-    [Measure.IsAddLeftInvariant m]
-    (eta : Kernel Z X) (pi : X → Z) :
-    HasConditionalSupportDensityAlong m eta pi
-      (conditionalSupportDensitySet m eta pi)
-      (haarDensityNeighborhood (Z := Z)) := by
-  constructor
-  · exact measurable_pos_haarDensityNeighborhood m
-  · intro x hx U hUopen hxU
-    obtain ⟨V, hVB, hxV, hVU⟩ :=
-      (conditionalSupportBasis_isBasis X).exists_subset_of_mem_open hxU hUopen
-    rcases hVB with ⟨i, rfl⟩
-    have hxD : IsHaarDensityPoint m
-        {z : Z | eta z (conditionalSupportBasis X i) ≠ 0} (pi x) := by
-      exact hx i hxV
-    have hsmall := three_quarters_of_isHaarDensityPoint m hxD
-    filter_upwards [hsmall] with j hj
-    apply hj.trans_le
-    apply measureReal_mono
-    · rintro z ⟨hz, hzQ⟩
-      refine ⟨?_, hzQ⟩
-      intro hzero
-      exact hz (measure_mono_null hVU hzero)
-    · exact measure_ne_top m _
-
-theorem conditionalSupportOverlap_of_fiberDensity
-    {Z X : Type*} [PseudoMetricSpace Z] [SecondCountableTopology Z]
-    [MeasurableSpace Z] [BorelSpace Z] [AddCommGroup Z]
-    [MeasurableAdd₂ Z] [MeasurableNeg Z] [MeasurableEq Z]
-    [IsIsometricVAdd Z Z]
-    [TopologicalSpace X] [SecondCountableTopology X]
-    [MeasurableSpace X] [OpensMeasurableSpace X]
-    (m : Measure Z) [IsProbabilityMeasure m] [IsLocallyFiniteMeasure m]
-    [m.IsOpenPosMeasure] [IsUnifLocDoublingMeasure m]
-    [Measure.IsAddLeftInvariant m]
-    (eta : Kernel Z X) (pi : X → Z) (hpi : Measurable pi)
-    (hfiber : ∀ᵐ z ∂m, ∀ᵐ x ∂eta z, pi x = z)
-    (sigma : Measure (X × X))
-    (hfst : Measure.map Prod.fst sigma = Measure.bind m eta)
-    (hsnd : Measure.map Prod.snd sigma ≪ Measure.bind m eta) :
-    HasConditionalSupportOverlap m eta pi sigma := by
-  exact ae_conditionalSupportOverlap_of_densityAlong
-    m eta pi (Measure.bind m eta)
-      (conditionalSupportDensitySet m eta pi)
-      (haarDensityNeighborhood (Z := Z)) sigma
-      (hasConditionalSupportDensityAlong_conditionalSupportDensitySet m eta pi)
-      (ae_mem_conditionalSupportDensitySet m eta pi hpi hfiber)
-      hfst hsnd
 
 /-! ## Countability of the Koopman point spectrum
 
@@ -5708,57 +4973,6 @@ instance instIsMarkovKernelKroneckerFiberKernel
     (hT : Ergodic T mu) : IsMarkovKernel (kroneckerFiberKernel T mu hT) := by
   unfold kroneckerFiberKernel
   infer_instance
-
-theorem bind_kroneckerFiberKernel
-    {X : Type*} [MeasurableSpace X] [TopologicalSpace X]
-    [BorelSpace X] [SecondCountableTopology X]
-    [MeasurableSpace.CountablyGenerated X] [StandardBorelSpace X] [Nonempty X]
-    (T : X → X) (mu : Measure X) [IsProbabilityMeasure mu]
-    (hT : Ergodic T mu) :
-    Measure.bind (kroneckerFactorMeasure T mu hT)
-      (kroneckerFiberKernel T mu hT) = mu := by
-  have h := condDistrib_comp_map
-    (μ := mu) (X := kroneckerFactorMap T mu hT) (Y := id)
-    (measurable_kroneckerFactorMap T mu hT).aemeasurable aemeasurable_id
-  simpa only [kroneckerFiberKernel, kroneckerFactorMeasure,
-    Measure.map_id] using h
-
-theorem kroneckerFiberKernel_fiber
-    {X : Type*} [MeasurableSpace X] [TopologicalSpace X]
-    [BorelSpace X] [SecondCountableTopology X]
-    [MeasurableSpace.CountablyGenerated X] [StandardBorelSpace X] [Nonempty X]
-    (T : X → X) (mu : Measure X) [IsProbabilityMeasure mu]
-    (hT : Ergodic T mu) :
-    ∀ᵐ z ∂kroneckerFactorMeasure T mu hT,
-      ∀ᵐ x ∂kroneckerFiberKernel T mu hT z,
-        kroneckerFactorMap T mu hT x = z := by
-  let : Countable (KoopmanEigenvalueType T mu hT.toMeasurePreserving) :=
-    (countable_koopmanEigenvalues T mu hT.toMeasurePreserving).to_subtype
-  let H := KroneckerSubgroup T mu hT.toMeasurePreserving
-  let : SecondCountableTopology H :=
-    Topology.IsInducing.subtypeVal.secondCountableTopology
-  let : BorelSpace H := inferInstance
-  let : MeasurableEq H := inferInstance
-  let pi := kroneckerFactorMap T mu hT
-  let eta := kroneckerFiberKernel T mu hT
-  let m := kroneckerFactorMeasure T mu hT
-  have hgraph : ∀ᵐ p ∂mu.map (fun x ↦ (pi x, id x)), pi p.2 = p.1 := by
-    have hmeas : Measurable (fun x ↦ (pi x, id x)) :=
-      (measurable_kroneckerFactorMap T mu hT).prodMk measurable_id
-    have hset : MeasurableSet {p :
-        KroneckerSubgroup T mu hT.toMeasurePreserving × X | pi p.2 = p.1} :=
-      measurableSet_eq_fun ((measurable_kroneckerFactorMap T mu hT).comp measurable_snd)
-        measurable_fst
-    rw [ae_map_iff hmeas.aemeasurable hset]
-    exact Filter.Eventually.of_forall fun x ↦ rfl
-  have hjoint : m ⊗ₘ eta = mu.map (fun x ↦ (pi x, id x)) := by
-    simpa only [m, eta, pi, kroneckerFactorMeasure, kroneckerFiberKernel] using
-      (compProd_map_condDistrib (μ := mu) (X := kroneckerFactorMap T mu hT)
-        (Y := id) aemeasurable_id)
-  have hgraph' : ∀ᵐ p ∂m ⊗ₘ eta, pi p.2 = p.1 := by
-    rw [hjoint]
-    exact hgraph
-  exact Measure.ae_ae_of_ae_compProd hgraph'
 
 abbrev KroneckerGraphSpace
     {X : Type*} [MeasurableSpace X] [TopologicalSpace X]
@@ -8390,23 +7604,6 @@ theorem realPartLp_koopman
     _ = (f (e x)).re := congrArg Complex.re hc'
     _ = realPartLp mu f (e x) := hrex.symm
     _ = (koopmanL2 e mu he (realPartLp mu f) : X → ℝ) x := hr'.symm
-
-theorem realPartLp_koopman_iterate
-    {X : Type*} [MeasurableSpace X] (e : X → X)
-    (mu : Measure X) (he : MeasurePreserving e mu mu)
-    (f : Lp ℂ (2 : ℝ≥0∞) mu) (n : ℕ) :
-    realPartLp mu (((koopmanL2Complex e mu he) ^ n) f) =
-      ((koopmanL2 e mu he) ^ n) (realPartLp mu f) := by
-  induction n generalizing f with
-  | zero => rfl
-  | succ n ih =>
-      rw [pow_succ, pow_succ]
-      change realPartLp mu
-          (((koopmanL2Complex e mu he) ^ n)
-            (koopmanL2Complex e mu he f)) =
-        ((koopmanL2 e mu he) ^ n)
-          (koopmanL2 e mu he (realPartLp mu f))
-      rw [ih, realPartLp_koopman]
 
 theorem realPartLp_birkhoffAverage_koopman
     {X : Type*} [MeasurableSpace X] (e : X → X)

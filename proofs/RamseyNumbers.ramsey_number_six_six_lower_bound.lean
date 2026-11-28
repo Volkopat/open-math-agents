@@ -6,7 +6,7 @@ by larger vertices adjacent to all those already chosen. Credit: @Deldor14. -/
 open SimpleGraph Finset
 namespace OMA.Paley
 private def linked (x y : Fin 101) : Bool :=
-  Nat.testBit 1550432784880709368503235994226 ((101 + y.val - x.val) % 101)
+  Nat.testBit 1550432784880709368503235994226 ((y : ZMod 101) - x).val
 
 private def P : SimpleGraph (Fin 101) where
   Adj x y := linked x y = true
@@ -44,31 +44,18 @@ private lemma search_complete {V : Type*} [LinearOrder V] (G : SimpleGraph V)
 private def vertices : List (Fin 101) := List.finRange 101
 
 private def nonedge (u v : Fin 101) : Bool := decide (u ≠ v) && !(linked u v)
-private def shift (v : Fin 101) : Fin 101 ↪ Fin 101 where
-  toFun x := ⟨(x.val+101-v.val)%101, Nat.mod_lt _ (by decide)⟩
-  inj' := by
-    intro x y h
-    have h' := congrArg Fin.val h
-    change (x.val+101-v.val)%101 = (y.val+101-v.val)%101 at h'
-    have := x.isLt
-    have := y.isLt
-    have := v.isLt
-    apply Fin.ext
-    omega
+private def shift (v : Fin 101) : Fin 101 ↪ Fin 101 :=
+  (Equiv.addRight (-(v : ZMod 101))).toEmbedding
 
 private lemma shift_self (v : Fin 101) : shift v v = 0 := by
-  apply Fin.ext
-  change (v.val+101-v.val)%101 = 0
-  omega
+  change (v : ZMod 101) + -v = 0
+  simp
 
 private lemma shift_edge (a u v : Fin 101) : linked (shift a u) (shift a v) = linked u v := by
-  unfold linked
-  congr 1
-  change (101 + (v.val+101-a.val)%101 - (u.val+101-a.val)%101)%101 = _
-  have := a.isLt
-  have := u.isLt
-  have := v.isLt
-  omega
+  have hd : (shift a v : ZMod 101) - shift a u = (v : ZMod 101) - u := by
+    change (v : ZMod 101) + -a - (u + -a) = v - u
+    abel
+  simp only [linked, hd]
 
 private lemma no_six (G : SimpleGraph (Fin 101)) (adj : Fin 101 → Fin 101 → Bool)
     (hadj : ∀ ⦃u v⦄, G.Adj u v → adj u v = true)

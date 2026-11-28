@@ -19,21 +19,13 @@ private theorem balanced_iff {n : ℕ} (hn : 0 < n) :
       Nat.mem_divisors.mpr ⟨Nat.dvd_of_mem_primeFactors hp, hn.ne'⟩⟩
   have hsize := Finset.card_le_card hsub
   have herase := Finset.card_erase_add_one (Nat.one_mem_divisors.mpr hn.ne')
-  rw [a, Finset.card_sdiff_of_subset hsub]
-  constructor
-  · intro h
-    have heq := Nat.eq_of_dist_eq_zero h
-    omega
-  · intro h
-    apply Nat.dist_eq_zero
-    omega
+  rw [a, Finset.card_sdiff_of_subset hsub, Nat.dist]
+  omega
 
-private theorem three_pow_bound (j : ℕ) : 2 * (j + 2) + 1 < 3 ^ (j + 2) := by
-  induction j with
-  | zero => decide
-  | succ j ih =>
-    rw [show j.succ + 2 = (j + 2) + 1 by omega, pow_succ]
-    omega
+private theorem three_pow_bound {c : ℕ} (h : 2 ≤ c) : 2 * c + 1 < 3 ^ c := by
+  induction c, h using Nat.le_induction with
+  | base => decide
+  | succ c _ ih => rw [pow_succ]; omega
 
 /-- If the divisor counts agree, the odd total number of divisors forces each
 prime exponent plus one to be at least three. Two distinct primes are already too many. -/
@@ -55,9 +47,7 @@ private theorem at_most_one_prime {n : ℕ} (hn : 0 < n)
       _ = ∏ _p ∈ n.primeFactors, 3 := by simp
       _ ≤ _ := (Finset.prod_le_prod (fun _ _ => Nat.zero_le 3) hfactor).trans_eq hprod
   by_contra! hcard
-  obtain ⟨j, hj⟩ : ∃ j, n.primeFactors.card = j + 2 := ⟨n.primeFactors.card - 2, by omega⟩
-  rw [hj] at hbound
-  exact (three_pow_bound j).not_ge hbound
+  exact (three_pow_bound hcard).not_ge hbound
 
 end OMA.A306345Proof
 

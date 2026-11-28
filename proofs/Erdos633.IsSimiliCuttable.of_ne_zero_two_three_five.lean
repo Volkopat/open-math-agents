@@ -121,6 +121,29 @@ private lemma mem_subTri_setInterior_iff (I : Set ℝ) (T : Triangle ℝ ℝ²)
     field_simp [hs]
     ring
 
+private lemma weights_Icc {w : Fin 3 → ℝ} (hw : ∑ i, w i = 1) :
+    (∀ i, w i ∈ Set.Icc 0 1) ↔ ∀ i, 0 ≤ w i := by
+  refine ⟨fun h i => (h i).1, fun h i => ⟨h i, ?_⟩⟩
+  rw [Fin.sum_univ_three] at hw
+  match i with
+  | 0 => linarith [h 1, h 2]
+  | 1 => linarith [h 0, h 2]
+  | 2 => linarith [h 0, h 1]
+
+private lemma weights_Ioo {w : Fin 3 → ℝ} (hw : ∑ i, w i = 1) :
+    (∀ i, w i ∈ Set.Ioo 0 1) ↔ ∀ i, 0 < w i := by
+  refine ⟨fun h i => (h i).1, fun h i => ⟨h i, ?_⟩⟩
+  rw [Fin.sum_univ_three] at hw
+  match i with
+  | 0 => linarith [h 1, h 2]
+  | 1 => linarith [h 0, h 2]
+  | 2 => linarith [h 0, h 1]
+
+private lemma normalized_weights_sum {w a : Fin 3 → ℝ} {s : ℝ}
+    (hw : ∑ i, w i = 1) (ha : ∑ i, a i = 1 - s) (hs : s ≠ 0) :
+    ∑ i, (w i - a i) / s = 1 := by
+  rw [← Finset.sum_div, Finset.sum_sub_distrib, hw, ha, sub_sub_cancel, div_self hs]
+
 private lemma mem_subTri_closedInterior_pos (T : Triangle ℝ ℝ²) {s : ℝ} (hs : 0 < s)
     {a : Fin 3 → ℝ} (ha : ∑ i, a i = 1 - s) {x : ℝ²} :
     x ∈ (subTri T s (ne_of_gt hs) a).closedInterior ↔
@@ -130,23 +153,8 @@ private lemma mem_subTri_closedInterior_pos (T : Triangle ℝ ℝ²) {s : ℝ} (
   change x ∈ (subTri T s (ne_of_gt hs) a).setInterior (Set.Icc 0 1) ↔ _
   rw [mem_subTri_setInterior_iff (Set.Icc 0 1) T (ne_of_gt hs) ha]
   refine exists_congr fun w => and_congr_right fun hw => and_congr_left fun _ => ?_
-  constructor
-  · intro h i
-    have h0 : 0 ≤ (w i - a i) / s := (h i).1
-    have h1 : 0 ≤ w i - a i := (div_nonneg_iff.mp h0).elim (fun h' => h'.1) (fun h' => by linarith)
-    linarith
-  · intro h i
-    have hsum : (w 0 - a 0) + (w 1 - a 1) + (w 2 - a 2) = s := by
-      rw [Fin.sum_univ_three] at hw ha
-      linarith
-    have h0 : 0 ≤ w 0 - a 0 := sub_nonneg.mpr (h 0)
-    have h1 : 0 ≤ w 1 - a 1 := sub_nonneg.mpr (h 1)
-    have h2 : 0 ≤ w 2 - a 2 := sub_nonneg.mpr (h 2)
-    have hle : w i - a i ≤ s := match i with
-      | 0 => by linarith
-      | 1 => by linarith
-      | 2 => by linarith
-    exact ⟨div_nonneg (sub_nonneg.mpr (h i)) (le_of_lt hs), (div_le_one hs).mpr hle⟩
+  rw [weights_Icc (normalized_weights_sum hw ha (ne_of_gt hs))]
+  simp only [le_div_iff₀ hs, zero_mul, sub_nonneg]
 
 private lemma mem_subTri_interior_pos (T : Triangle ℝ ℝ²) {s : ℝ} (hs : 0 < s)
     {a : Fin 3 → ℝ} (ha : ∑ i, a i = 1 - s) {x : ℝ²} :
@@ -157,23 +165,8 @@ private lemma mem_subTri_interior_pos (T : Triangle ℝ ℝ²) {s : ℝ} (hs : 0
   change x ∈ (subTri T s (ne_of_gt hs) a).setInterior (Set.Ioo 0 1) ↔ _
   rw [mem_subTri_setInterior_iff (Set.Ioo 0 1) T (ne_of_gt hs) ha]
   refine exists_congr fun w => and_congr_right fun hw => and_congr_left fun _ => ?_
-  constructor
-  · intro h i
-    have h0 : 0 < (w i - a i) / s := (h i).1
-    have h1 : 0 < w i - a i := (div_pos_iff.mp h0).elim (fun h' => h'.1) (fun h' => by linarith)
-    linarith
-  · intro h i
-    have hsum : (w 0 - a 0) + (w 1 - a 1) + (w 2 - a 2) = s := by
-      rw [Fin.sum_univ_three] at hw ha
-      linarith
-    have h0 : 0 < w 0 - a 0 := sub_pos.mpr (h 0)
-    have h1 : 0 < w 1 - a 1 := sub_pos.mpr (h 1)
-    have h2 : 0 < w 2 - a 2 := sub_pos.mpr (h 2)
-    have hlt : w i - a i < s := match i with
-      | 0 => by linarith
-      | 1 => by linarith
-      | 2 => by linarith
-    exact ⟨div_pos (sub_pos.mpr (h i)) hs, (div_lt_one hs).mpr hlt⟩
+  rw [weights_Ioo (normalized_weights_sum hw ha (ne_of_gt hs))]
+  simp only [lt_div_iff₀ hs, zero_mul, sub_pos]
 
 private lemma mem_subTri_closedInterior_neg (T : Triangle ℝ ℝ²) {s : ℝ} (hs : s < 0)
     {a : Fin 3 → ℝ} (ha : ∑ i, a i = 1 - s) {x : ℝ²} :
@@ -184,29 +177,8 @@ private lemma mem_subTri_closedInterior_neg (T : Triangle ℝ ℝ²) {s : ℝ} (
   change x ∈ (subTri T s (ne_of_lt hs) a).setInterior (Set.Icc 0 1) ↔ _
   rw [mem_subTri_setInterior_iff (Set.Icc 0 1) T (ne_of_lt hs) ha]
   refine exists_congr fun w => and_congr_right fun hw => and_congr_left fun _ => ?_
-  have ht : 0 < -s := neg_pos.mpr hs
-  constructor
-  · intro h i
-    have h0 : 0 ≤ (a i - w i) / (-s) := by
-      have : (a i - w i) / (-s) = (w i - a i) / s := by field_simp [ne_of_lt hs]; ring
-      rw [this]
-      exact (h i).1
-    have h1 : 0 ≤ a i - w i := (div_nonneg_iff.mp h0).elim (fun h' => h'.1) (fun h' => by linarith)
-    linarith
-  · intro h i
-    have hsum : (a 0 - w 0) + (a 1 - w 1) + (a 2 - w 2) = -s := by
-      rw [Fin.sum_univ_three] at hw ha
-      linarith
-    have h0 : 0 ≤ a 0 - w 0 := sub_nonneg.mpr (h 0)
-    have h1 : 0 ≤ a 1 - w 1 := sub_nonneg.mpr (h 1)
-    have h2 : 0 ≤ a 2 - w 2 := sub_nonneg.mpr (h 2)
-    have hle : a i - w i ≤ -s := match i with
-      | 0 => by linarith
-      | 1 => by linarith
-      | 2 => by linarith
-    have heq : (w i - a i) / s = (a i - w i) / (-s) := by field_simp [ne_of_lt hs]; ring
-    rw [heq]
-    exact ⟨div_nonneg (sub_nonneg.mpr (h i)) (le_of_lt ht), (div_le_one ht).mpr hle⟩
+  rw [weights_Icc (normalized_weights_sum hw ha (ne_of_lt hs))]
+  simp only [le_div_iff_of_neg hs, zero_mul, sub_nonpos]
 
 private lemma mem_subTri_interior_neg (T : Triangle ℝ ℝ²) {s : ℝ} (hs : s < 0)
     {a : Fin 3 → ℝ} (ha : ∑ i, a i = 1 - s) {x : ℝ²} :
@@ -217,59 +189,18 @@ private lemma mem_subTri_interior_neg (T : Triangle ℝ ℝ²) {s : ℝ} (hs : s
   change x ∈ (subTri T s (ne_of_lt hs) a).setInterior (Set.Ioo 0 1) ↔ _
   rw [mem_subTri_setInterior_iff (Set.Ioo 0 1) T (ne_of_lt hs) ha]
   refine exists_congr fun w => and_congr_right fun hw => and_congr_left fun _ => ?_
-  have ht : 0 < -s := neg_pos.mpr hs
-  constructor
-  · intro h i
-    have h0 : 0 < (a i - w i) / (-s) := by
-      have : (a i - w i) / (-s) = (w i - a i) / s := by field_simp [ne_of_lt hs]; ring
-      rw [this]
-      exact (h i).1
-    have h1 : 0 < a i - w i := (div_pos_iff.mp h0).elim (fun h' => h'.1) (fun h' => by linarith)
-    linarith
-  · intro h i
-    have hsum : (a 0 - w 0) + (a 1 - w 1) + (a 2 - w 2) = -s := by
-      rw [Fin.sum_univ_three] at hw ha
-      linarith
-    have h0 : 0 < a 0 - w 0 := sub_pos.mpr (h 0)
-    have h1 : 0 < a 1 - w 1 := sub_pos.mpr (h 1)
-    have h2 : 0 < a 2 - w 2 := sub_pos.mpr (h 2)
-    have hlt : a i - w i < -s := match i with
-      | 0 => by linarith
-      | 1 => by linarith
-      | 2 => by linarith
-    have heq : (w i - a i) / s = (a i - w i) / (-s) := by field_simp [ne_of_lt hs]; ring
-    rw [heq]
-    exact ⟨div_pos (sub_pos.mpr (h i)) ht, (div_lt_one ht).mpr hlt⟩
+  rw [weights_Ioo (normalized_weights_sum hw ha (ne_of_lt hs))]
+  simp only [lt_div_iff_of_neg hs, zero_mul, sub_neg]
 
 private lemma mem_closedInterior_of_nonneg (T : Triangle ℝ ℝ²) {w : Fin 3 → ℝ}
     (hw : ∑ i, w i = 1) (hnn : ∀ i, 0 ≤ w i) :
-    Finset.univ.affineCombination ℝ T.points w ∈ T.closedInterior := by
-  rw [T.affineCombination_mem_closedInterior_iff hw]
-  intro i
-  rw [Fin.sum_univ_three] at hw
-  have h0 := hnn 0
-  have h1 := hnn 1
-  have h2 := hnn 2
-  refine ⟨hnn i, ?_⟩
-  match i with
-  | 0 => linarith
-  | 1 => linarith
-  | 2 => linarith
+    Finset.univ.affineCombination ℝ T.points w ∈ T.closedInterior :=
+  (T.affineCombination_mem_closedInterior_iff hw).2 ((weights_Icc hw).2 hnn)
 
 private lemma mem_interior_of_pos (T : Triangle ℝ ℝ²) {w : Fin 3 → ℝ}
     (hw : ∑ i, w i = 1) (hpos : ∀ i, 0 < w i) :
-    Finset.univ.affineCombination ℝ T.points w ∈ T.interior := by
-  rw [T.affineCombination_mem_interior_iff hw]
-  intro i
-  rw [Fin.sum_univ_three] at hw
-  have h0 := hpos 0
-  have h1 := hpos 1
-  have h2 := hpos 2
-  refine ⟨hpos i, ?_⟩
-  match i with
-  | 0 => linarith
-  | 1 => linarith
-  | 2 => linarith
+    Finset.univ.affineCombination ℝ T.points w ∈ T.interior :=
+  (T.affineCombination_mem_interior_iff hw).2 ((weights_Ioo hw).2 hpos)
 
 private def StrongSimiliCuttable (n : ℕ) (T : Triangle ℝ ℝ²) : Prop :=
   ∃ Ts : Fin n → Triangle ℝ ℝ²,

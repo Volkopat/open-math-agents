@@ -1,8 +1,6 @@
 import OMAStatements.S_oeis_a044279
 import Mathlib
 
-namespace NineCarry
-
 theorem main : ∀ k : ℕ, 0 < k →
     ([1, 3] : List ℕ).IsInfix (Nat.digits 9 k) →
     ¬ ([1, 3] : List ℕ).IsInfix (Nat.digits 9 (k - 1)) →
@@ -22,6 +20,5 @@ theorem main : ∀ k : ℕ, 0 < k →
     rw [Nat.digits_def' (by decide : 1 < 9) hpos, hd]
     exact List.infix_cons_iff.mpr (Or.inr ht)
 
-end NineCarry
 
-theorem OMA.solution : type_of% @OMA.S_oeis_a044279.main := NineCarry.main
+theorem OMA.solution : type_of% @OMA.S_oeis_a044279.main := main

@@ -11,30 +11,6 @@ open scoped Topology
 
 namespace StrictInverseFirstPower
 
-def disk : Set ℂ := Metric.ball 0 1
-
-def NormalizedUnivalent (f : ℂ → ℂ) : Prop :=
-  DifferentiableOn ℂ f disk ∧ Set.InjOn f disk ∧ f 0 = 0 ∧ deriv f 0 = 1
-
-def BoundedNormalizedUnivalent (f : ℂ → ℂ) : Prop :=
-  NormalizedUnivalent f ∧ ∃ R : ℝ, ∀ z ∈ disk, ‖f z‖ ≤ R
-
-noncomputable def integralMean (p : ℝ) (f : ℂ → ℂ) (r : ℝ) : ℝ :=
-  (2 * Real.pi)⁻¹ * ∫ θ in -Real.pi..Real.pi,
-    ‖deriv f ((r : ℂ) * Complex.exp ((θ : ℂ) * Complex.I))‖ ^ p
-
-noncomputable def growthExponent (p : ℝ) (f : ℂ → ℂ) : EReal :=
-  Filter.limsup (fun r : ℝ =>
-    ((Real.log (integralMean p f r) / Real.log (1 / (1 - r)) : ℝ) : EReal))
-    (𝓝[<] (1 : ℝ))
-
-noncomputable def boundedSpectrum (p : ℝ) : EReal :=
-  ⨆ (f : ℂ → ℂ) (_ : BoundedNormalizedUnivalent f), growthExponent p f
-
-noncomputable def kraetzerPrediction (p : ℝ) : EReal :=
-  if |p| ≤ 2 then ((p ^ (2 : ℕ) / 4 : ℝ) : EReal)
-  else ((|p| - 1 : ℝ) : EReal)
-
 end StrictInverseFirstPower
 end Definitions
 
@@ -47,52 +23,6 @@ open Set MeasureTheory Complex
 open scoped ENNReal Topology
 namespace StrictInverseFirstPower
 noncomputable section
-
-def complexBox (S a b : ℝ) : Set ℂ := {z | |z.re| ≤ S ∧ a ≤ z.im ∧ z.im ≤ b}
-
-lemma measurableSet_complexBox (S a b : ℝ) : MeasurableSet (complexBox S a b) :=
-  ((isClosed_le Complex.continuous_re.abs continuous_const).inter
-    ((isClosed_le continuous_const Complex.continuous_im).inter
-      (isClosed_le Complex.continuous_im continuous_const))).measurableSet
-
-lemma lintegral_inv_Icc {a b : ℝ} (ha : 0 < a) (hab : a ≤ b) :
-    (∫⁻ y in Icc a b, ENNReal.ofReal (y⁻¹)) = ENNReal.ofReal (Real.log b-Real.log a) := by
-  have hc : ContinuousOn (fun y : ℝ=>y⁻¹) (Icc a b) :=
-    continuousOn_id.inv₀ (fun y hy=>(ha.trans_le hy.1).ne')
-  have hi : IntegrableOn (fun y : ℝ=>y⁻¹) (Icc a b) := hc.integrableOn_Icc
-  rw [← ofReal_integral_eq_lintegral_ofReal hi (by
-    filter_upwards [ae_restrict_mem measurableSet_Icc] with y hy
-    exact inv_nonneg.mpr (ha.le.trans hy.1)),integral_Icc_eq_integral_Ioc,
-    ← intervalIntegral.integral_of_le hab,integral_inv (notMem_uIcc_of_lt ha (ha.trans_le hab)),
-    Real.log_div (ha.trans_le hab).ne' ha.ne']
-
-lemma lintegral_complexBox_inv {S a b : ℝ} (_hS : 0 ≤ S) (ha : 0 < a) (hab : a ≤ b) :
-    (∫⁻ z in complexBox S a b, ENNReal.ofReal (z.im⁻¹)) =
-      ENNReal.ofReal (2*S*(Real.log b-Real.log a)) := by
-  let E := Complex.measurableEquivRealProd
-  let R : Set (ℝ × ℝ) := Icc (-S) S ×ˢ Icc a b
-  have hR : MeasurableSet R := measurableSet_Icc.prod measurableSet_Icc
-  have he : E ⁻¹' R = complexBox S a b := by
-    ext z
-    simp [E,R,complexBox,abs_le,and_assoc,and_left_comm,and_comm]
-  have hm : Measurable (fun p : ℝ × ℝ=>ENNReal.ofReal (p.2⁻¹)) :=
-    measurable_snd.inv.ennreal_ofReal
-  have hi := Complex.volume_preserving_equiv_real_prod.lintegral_comp (hm.indicator hR)
-  rw [← lintegral_indicator (measurableSet_complexBox S a b)]
-  have hp : (fun z : ℂ=>(complexBox S a b).indicator
-      (fun z=>ENNReal.ofReal (z.im⁻¹)) z) =
-      (fun z=>(R.indicator (fun p=>ENNReal.ofReal (p.2⁻¹))) (E z)) := by
-    funext z
-    rw [← he]
-    rfl
-  rw [hp,hi,lintegral_indicator hR,Measure.volume_eq_prod,← Measure.prod_restrict]
-  rw [lintegral_prod _ (hm.aemeasurable)]
-  dsimp only
-  rw [lintegral_inv_Icc ha hab,lintegral_const,
-    Measure.restrict_apply_univ,Real.volume_Icc,← ENNReal.ofReal_mul]
-  · congr 1
-    ring
-  · exact sub_nonneg.mpr (Real.log_le_log ha hab)
 
 end
 end StrictInverseFirstPower
@@ -428,14 +358,6 @@ theorem holomorphic_area {f : ℂ → ℂ} {s : Set ℂ} (hs : MeasurableSet s)
     (hd z hz).hasDerivAt.complexToReal_fderiv.hasFDerivWithinAt (s := s)
   have h := lintegral_abs_det_fderiv_eq_addHaar_image volume hs hreal hi
   simpa only [det_complexDerivative, abs_sq] using h
-
-theorem holomorphic_integral_image {f : ℂ → ℂ} {s : Set ℂ} (hs : MeasurableSet s)
-    (hd : ∀ z ∈ s, DifferentiableAt ℂ f z) (hi : InjOn f s) (g : ℂ → ℝ) :
-    (∫ z in f '' s, g z) = ∫ z in s, ‖deriv f z‖ ^ 2 * g (f z) := by
-  have hreal (z : ℂ) (hz : z ∈ s) :=
-    (hd z hz).hasDerivAt.complexToReal_fderiv.hasFDerivWithinAt (s := s)
-  have h := integral_image_eq_integral_abs_det_fderiv_smul volume hs hreal hi g
-  simpa only [det_complexDerivative, abs_sq, smul_eq_mul] using h
 
 def ellipseLinear (c : ℂ) : ℂ →L[ℝ] ℂ :=
   1 + c • (Complex.conjCLE : ℂ →L[ℝ] ℂ)

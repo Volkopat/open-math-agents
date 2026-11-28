@@ -12,23 +12,14 @@ lemma key (p : ℕ) (h : InA269454 p) :
   have hodd : p % 2 = 1 := hp.eq_two_or_odd.resolve_left hp2
   have hpr : p = 2 * r + 1 := by omega
   have hr2 : 2 ≤ r := hr.two_le
-  have h87 : p % 8 ≠ 7 := by
-    intro h
-    apply h8
-    unfold Int.ModEq
-    omega
+  have h87 : p % 8 ≠ 7 := fun h => h8 (by unfold Int.ModEq; omega)
   have h81 : p % 8 ≠ 1 := by
     rcases hr.eq_two_or_odd with h | h <;> omega
   have := Fact.mk hp
   have hns : ¬ IsSquare (2 : ZMod p) := by
     rw [ZMod.exists_sq_eq_two_iff hp2]
     omega
-  have h2ne : (2 : ZMod p) ≠ 0 := by
-    intro h
-    have h' : ((2 : ℕ) : ZMod p) = 0 := by exact_mod_cast h
-    rw [ZMod.natCast_eq_zero_iff] at h'
-    have := Nat.le_of_dvd (by norm_num) h'
-    omega
+  have h2ne : (2 : ZMod p) ≠ 0 := fun h => hns ⟨0, by simp [h]⟩
   have hpow : (2 : ZMod p) ^ r ≠ 1 := by
     intro h
     apply hns
@@ -49,11 +40,8 @@ lemma key (p : ℕ) (h : InA269454 p) :
     · exfalso
       have h1 : (2 : ZMod p) ^ 2 = 1 := by
         rw [← orderOf_dvd_iff_pow_eq_one, ← hdd]
-      have h3 : ((3 : ℕ) : ZMod p) = 0 := by
-        push_cast
-        linear_combination h1
-      rw [ZMod.natCast_eq_zero_iff] at h3
-      have := Nat.le_of_dvd (by norm_num) h3
+      have := Nat.le_of_dvd (by norm_num)
+        ((ZMod.natCast_eq_zero_iff 3 p).mp (by push_cast; linear_combination h1))
       omega
     · exact hdd.symm
 

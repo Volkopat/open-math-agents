@@ -326,46 +326,10 @@ lemma arith (n : ℕ) (hn : 1 ≤ n) : ∃ a b : ℕ,
     2*a*b < 3*n^3*2^n := by
   rcases le_or_gt 40 n with h | h
   · exact arith_large n h
-  interval_cases n
-  · exact ⟨1, 1, by decide +kernel, by decide +kernel⟩
-  · exact ⟨3, 7, by decide +kernel, by decide +kernel⟩
-  · exact ⟨7, 29, by decide +kernel, by decide +kernel⟩
-  · exact ⟨11, 100, by decide +kernel, by decide +kernel⟩
-  · exact ⟨17, 273, by decide +kernel, by decide +kernel⟩
-  · exact ⟨23, 729, by decide +kernel, by decide +kernel⟩
-  · exact ⟨31, 1766, by decide +kernel, by decide +kernel⟩
-  · exact ⟨41, 4061, by decide +kernel, by decide +kernel⟩
-  · exact ⟨51, 9420, by decide +kernel, by decide +kernel⟩
-  · exact ⟨61, 21818, by decide +kernel, by decide +kernel⟩
-  · exact ⟨73, 48888, by decide +kernel, by decide +kernel⟩
-  · exact ⟨87, 107114, by decide +kernel, by decide +kernel⟩
-  · exact ⟨101, 235662, by decide +kernel, by decide +kernel⟩
-  · exact ⟨115, 518853, by decide +kernel, by decide +kernel⟩
-  · exact ⟨131, 1123709, by decide +kernel, by decide +kernel⟩
-  · exact ⟨149, 2403819, by decide +kernel, by decide +kernel⟩
-  · exact ⟨167, 5155384, by decide +kernel, by decide +kernel⟩
-  · exact ⟨185, 11067291, by decide +kernel, by decide +kernel⟩
-  · exact ⟨205, 23526690, by decide +kernel, by decide +kernel⟩
-  · exact ⟨227, 49623772, by decide +kernel, by decide +kernel⟩
-  · exact ⟨249, 104853151, by decide +kernel, by decide +kernel⟩
-  · exact ⟨271, 221746924, by decide +kernel, by decide +kernel⟩
-  · exact ⟨295, 465916010, by decide +kernel, by decide +kernel⟩
-  · exact ⟨321, 973690569, by decide +kernel, by decide +kernel⟩
-  · exact ⟨347, 2037473339, by decide +kernel, by decide +kernel⟩
-  · exact ⟨373, 4266682193, by decide +kernel, by decide +kernel⟩
-  · exact ⟨401, 8893616439, by decide +kernel, by decide +kernel⟩
-  · exact ⟨431, 18465398503, by decide +kernel, by decide +kernel⟩
-  · exact ⟨461, 38376456426, by decide +kernel, by decide +kernel⟩
-  · exact ⟨491, 79807975814, by decide +kernel, by decide +kernel⟩
-  · exact ⟨523, 165396068661, by decide +kernel, by decide +kernel⟩
-  · exact ⟨557, 341744457690, by decide +kernel, by decide +kernel⟩
-  · exact ⟨591, 706665403395, by decide +kernel, by decide +kernel⟩
-  · exact ⟨625, 1462036541719, by decide +kernel, by decide +kernel⟩
-  · exact ⟨661, 3016736088956, by decide +kernel, by decide +kernel⟩
-  · exact ⟨699, 6209979415462, by decide +kernel, by decide +kernel⟩
-  · exact ⟨737, 12791308737012, by decide +kernel, by decide +kernel⟩
-  · exact ⟨775, 26359486876553, by decide +kernel, by decide +kernel⟩
-  · exact ⟨815, 54203698889348, by decide +kernel, by decide +kernel⟩
+  obtain ⟨a, -, h⟩ := (by decide +kernel : ∀ n < 40, 1 ≤ n → ∃ a < 816,
+    2*(n-1)*a.descFactorial n < (2*(n-1)*a.descFactorial n / (((a+1)/2).descFactorial n + (a/2).descFactorial n) + 1)*(((a+1)/2).descFactorial n + (a/2).descFactorial n) ∧
+    2*a*(2*(n-1)*a.descFactorial n / (((a+1)/2).descFactorial n + (a/2).descFactorial n) + 1) < 3*n^3*2^n) n h hn
+  exact ⟨a, _, h⟩
 
 end OMA
 

@@ -48,24 +48,16 @@ theorem rec (m : ℕ) : a (m + 8) = 48 * a (m + 4) - 576 * a m := by
 
 end A203165Proof
 
-open PowerSeries in
+open PowerSeries OMA.S_oeis_a203165 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a203165.main := by
   refine ⟨fun n hn => ?_, ?_⟩
   · obtain ⟨m, rfl⟩ : ∃ m, n = m + 8 := ⟨n - 8, by omega⟩
-    rw [A203165Proof.rec m, show m + 8 - 4 = m + 4 by omega, show m + 8 - 8 = m by omega]
-  · ext n
-    have hexp : ((1 - C 24 * X ^ 4 : ℤ⟦X⟧)) ^ 2 * mk OMA.S_oeis_a203165.a =
-        mk OMA.S_oeis_a203165.a - C 48 * (X ^ 4 * mk OMA.S_oeis_a203165.a) +
-          C 576 * (X ^ 8 * mk OMA.S_oeis_a203165.a) := by
-      have h48 : (C 48 : ℤ⟦X⟧) = 2 * C 24 := by rw [show (48 : ℤ) = 2 * 24 by norm_num, map_mul]; rfl
-      have h576 : (C 576 : ℤ⟦X⟧) = C 24 * C 24 := by rw [← map_mul]; norm_num
-      rw [h48, h576]
-      ring
-    rw [hexp]
+    simpa using A203165Proof.rec m
+  · rw [show (1 - C 24 * X ^ 4 : ℤ⟦X⟧) ^ 2 * mk a = mk a - C 48 * (X ^ 4 * mk a) + C 576 * (X ^ 8 * mk a) by
+      simp; ring]
+    ext n
     simp only [map_sub, map_add, coeff_C_mul, coeff_X_pow_mul', coeff_mk, coeff_X_pow]
     rcases Nat.lt_or_ge n 8 with hn | hn
     · interval_cases n <;> decide
     · obtain ⟨m, rfl⟩ : ∃ m, n = m + 8 := ⟨n - 8, by omega⟩
-      rw [if_pos (by omega), if_pos (by omega), show m + 8 - 4 = m + 4 by omega,
-        show m + 8 - 8 = m by omega, A203165Proof.rec m]
-      simp
+      simp [A203165Proof.rec m]
