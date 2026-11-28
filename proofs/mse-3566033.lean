@@ -1,5 +1,12 @@
 import OMAStatements.S_mse_3566033
 
+/-!
+Retains @Genbox's complete localization counterexample from #32049 and
+@Dugongue's registered statement #14944. The standard idempotent criterion
+and direct polynomial-evaluation simplification replace elementary helpers.
+Source: https://math.stackexchange.com/questions/3566033.
+-/
+
 open Polynomial OMA.S_mse_3566033
 
 noncomputable section
@@ -14,11 +21,8 @@ private theorem denominators (d : M) : IsUnit (π d) := d.2
 
 private noncomputable def φ : R →+* S := IsLocalization.lift denominators
 
-private theorem integer_idempotent (a : ℤ) (h : a * a = a) : a = 0 ∨ a = 1 := by
-  have hz : a * (a - 1) = 0 := by nlinarith
-  rcases mul_eq_zero.mp hz with ha | ha
-  · exact Or.inl ha
-  · exact Or.inr (by omega)
+private theorem integer_idempotent (a : ℤ) (h : a * a = a) : a = 0 ∨ a = 1 :=
+  IsIdempotentElem.iff_eq_zero_or_one.mp h
 
 private theorem quotient_idempotent (e : S) (he : e * e = e) : e = 0 ∨ e = 1 := by
   have hleft := congrArg (fun a : S => a.1.1) he
@@ -90,23 +94,11 @@ theorem OMA.solution : type_of% @OMA.S_mse_3566033.main := by
   · intro h
     let x := π X
     let y := π (X - C 2)
-    have hx : x ≠ 0 := by
-      intro hzero
-      have hcoord := congrArg (fun a : S => a.1.2) hzero
-      change (X : ℤ[X]).eval 2 = 0 at hcoord
-      norm_num at hcoord
-    have hy : y ≠ 0 := by
-      intro hzero
-      have hcoord := congrArg (fun a : S => a.1.1) hzero
-      change (X - C 2 : ℤ[X]).eval 0 = 0 at hcoord
-      norm_num at hcoord
+    have hx : x ≠ 0 := by norm_num [x, π, ev, Subtype.ext_iff]
+    have hy : y ≠ 0 := by norm_num [y, π, ev, Subtype.ext_iff]
     have hxy : x * y = 0 := by
       apply Subtype.ext
-      apply Prod.ext
-      · change (X : ℤ[X]).eval 0 * (X - C 2 : ℤ[X]).eval 0 = 0
-        simp
-      · change (X : ℤ[X]).eval 2 * (X - C 2 : ℤ[X]).eval 2 = 0
-        simp
+      apply Prod.ext <;> norm_num [x, y, π, ev]
     obtain ⟨e, he, hAnn⟩ := h {x} ⟨x, rfl⟩
     rcases quotient_idempotent e he with rfl | rfl
     · have hyAnn : y ∈ {a : S | ∀ z ∈ ({x} : Set S), z * a = 0} := by simpa using hxy
