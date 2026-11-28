@@ -1,46 +1,44 @@
 import OMAStatements.S_mo_463783
-import Mathlib
 
-/-!
-# MathOverflow 463783: a vanishing sum does not force `z ^ k = 1`
+/-! Retains @RiverMint78’s complete earlier exact-target proof,
+e32c883cf537c319354c4fd7519ccac0088dfa4a/proofs/mo-463783.lean,
+linked in statement #32384. Taking real parts replaces the final
+contradiction via z=6 and its quadratic relation; Real.sqrt_eq_one
+replaces the separate squared-norm implication. Main #33235 by
+@rexmhall09 and pending #36900 by @caa1982 use another witness. -/
 
-Counterexample: `p = 3 - 3 X²`, `k = 4` and `z = exp(iπ/3)`.
-The values `p(1), …, p(4) = 0, -9, -24, -45` reduce to `0, 3, 0, 3` modulo `4`, so the sum is
-`2 + 2 z³ = 2 - 2 = 0` because `z³ = exp(iπ) = -1`.  But `z⁴ = -z ≠ 1`, since the real part of `z`
-is `cos(π/3) = 1/2`, not `-1`.
--/
+namespace MO463783
 
-open Polynomial in
+private noncomputable def z : ℂ := ⟨-1 / 4, Real.sqrt 15 / 4⟩
+
+private theorem unit_norm : ‖z‖ = 1 := by
+  have h := Real.sq_sqrt (show 0 ≤ (15 : ℝ) by norm_num)
+  rw [Complex.norm_def, Real.sqrt_eq_one, Complex.normSq_apply]
+  change (-1/4 : ℝ) * (-1/4) + (Real.sqrt 15 / 4) * (Real.sqrt 15 / 4) = 1
+  nlinarith
+
+private theorem quadratic : 2 * z ^ 2 + z + 2 = 0 := by
+  have h := Real.sq_sqrt (show 0 ≤ (15 : ℝ) by norm_num)
+  apply Complex.ext <;>
+    norm_num [z, pow_two, Complex.mul_re, Complex.mul_im] <;> nlinarith
+
+private theorem not_fifth : z ^ 5 ≠ 1 := by
+  intro h
+  have hr : 16 * z ^ 5 = 5 * z - 14 := by
+    linear_combination (8*z^3 - 4*z^2 - 6*z + 7) * quadratic
+  rw [h] at hr
+  have hre := congrArg Complex.re hr
+  norm_num [z] at hre
+
+end MO463783
+
+open MO463783
+
 theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_463783.main) := by
   intro h
-  have hz3 : Complex.exp ((Real.pi / 3 : ℝ) * Complex.I) ^ 3 = -1 := by
-    rw [← Complex.exp_nat_mul]
-    have e : ((3 : ℕ) : ℂ) * (((Real.pi / 3 : ℝ) : ℂ) * Complex.I) = Real.pi * Complex.I := by
-      push_cast
-      ring
-    rw [e, Complex.exp_pi_mul_I]
-  have hre : (Complex.exp ((Real.pi / 3 : ℝ) * Complex.I)).re = 1 / 2 := by
-    rw [Complex.exp_ofReal_mul_I_re, Real.cos_pi_div_three]
-  have hp : ∀ t : ℤ, (C 3 - C 3 * X ^ 2 : Polynomial ℤ).eval t = 3 - 3 * t ^ 2 := by
-    intro t
-    simp
-  have key := h (C 3 - C 3 * X ^ 2) 4 (by norm_num) (Complex.exp ((Real.pi / 3 : ℝ) * Complex.I))
-    (Complex.norm_exp_ofReal_mul_I _) (by
-      rw [Finset.sum_range_succ, Finset.sum_range_succ, Finset.sum_range_succ,
-        Finset.sum_range_one]
-      simp only [hp]
-      have v0 : ((3 - 3 * (((0 : ℕ) : ℤ) + 1) ^ 2) % ((4 : ℕ) : ℤ)).toNat = 0 := by decide
-      have v1 : ((3 - 3 * (((1 : ℕ) : ℤ) + 1) ^ 2) % ((4 : ℕ) : ℤ)).toNat = 3 := by decide
-      have v2 : ((3 - 3 * (((2 : ℕ) : ℤ) + 1) ^ 2) % ((4 : ℕ) : ℤ)).toNat = 0 := by decide
-      have v3 : ((3 - 3 * (((3 : ℕ) : ℤ) + 1) ^ 2) % ((4 : ℕ) : ℤ)).toNat = 3 := by decide
-      rw [v0, v1, v2, v3, hz3]
-      norm_num)
-  -- `z ^ 4 = z ^ 3 * z = -z`, so `z = -1`, contradicting `re z = 1/2`
-  have h4 : Complex.exp ((Real.pi / 3 : ℝ) * Complex.I) ^ 4 =
-      -Complex.exp ((Real.pi / 3 : ℝ) * Complex.I) := by
-    rw [pow_succ, hz3]
-    ring
-  rw [h4] at key
-  have hre' := congrArg Complex.re key
-  rw [Complex.neg_re, hre, Complex.one_re] at hre'
-  norm_num at hre'
+  apply not_fifth
+  apply h (Polynomial.X ^ 2 + 1) 5 (by decide) z unit_norm
+  norm_num [Finset.sum_range_succ, Polynomial.eval_add, Polynomial.eval_pow]
+  simp only [show (2 : ℤ).toNat = 2 from rfl]
+  linear_combination quadratic
+
