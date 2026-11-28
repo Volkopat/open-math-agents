@@ -14,7 +14,7 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a004138.main := by
   by_cases hn : n < 5
   · interval_cases n <;> norm_num [a]
   · obtain ⟨m, rfl⟩ : ∃ m, n = m + 5 := ⟨n - 5, by omega⟩
-    simp only [show m + 5 - 1 = m + 4 by omega, show m + 5 - 2 = m + 3 by omega, show m + 5 - 3 = m + 2 by omega, show m + 5 - 4 = m + 1 by omega, show m + 5 - 5 = m + 0 by omega, show 1 ≤ m + 5 by omega, show 2 ≤ m + 5 by omega, show 3 ≤ m + 5 by omega, show 4 ≤ m + 5 by omega, show 5 ≤ m + 5 by omega, show m + 5 ≠ 0 by omega, show m + 5 ≠ 1 by omega, show m + 5 ≠ 2 by omega, show m + 5 ≠ 3 by omega, show m + 5 ≠ 4 by omega, if_true, if_false]
+    simp only [show m + 5 - 1 = m + 4 by omega, show m + 5 - 2 = m + 3 by omega, show m + 5 - 3 = m + 2 by omega, show m + 5 - 4 = m + 1 by omega, show m + 5 - 5 = m + 0 by omega]
     have e1 : a (m + 5 + 1) = a (m + 5) + a (m + 4) - a (m + 3) + 2 * a (m + 2) + 2 := rfl
     have e2 : a (m + 4 + 1) = a (m + 4) + a (m + 3) - a (m + 2) + 2 * a (m + 1) + 2 := rfl
     simp only [show m + 0 + 1 = m + 1 by omega, show m + 1 + 1 = m + 2 by omega, show m + 2 + 1 = m + 3 by omega, show m + 3 + 1 = m + 4 by omega] at *

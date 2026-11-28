@@ -1,281 +1,272 @@
 import OMAStatements.S_oeis_a269876
 
+/-! Exact alternating checkerboard squares for the two-dimensional Rule 43. -/
+
+namespace Rule43Shape
+
+open OMA.S_oeis_a269876
+
+def inBox (r i j : ℤ) : Prop := -r ≤ i ∧ i ≤ r ∧ -r ≤ j ∧ j ≤ r
+
+def evenCell (i j : ℤ) : Prop := (i + j) % 2 = 0
+
+private theorem rule_bits : ∀ b l r d u : Bool,
+    rule 43 b (l.toNat + r.toNat + d.toNat + u.toNat) = true ↔
+      (l = false ∧ r = false ∧ d = false ∧ u = false) ∨
+      (b = true ∧ l.toNat + r.toNat + d.toNat + u.toNat ≤ 2) := by
+  decide
+
+private theorem false_iff_not_true (b : Bool) : b = false ↔ ¬ b = true := by
+  cases b <;> decide
+
+private theorem even_step {f : ℤ → ℤ → Bool} (r : ℤ) (hr : 0 ≤ r)
+    (hf : ∀ i j, f i j = true ↔ inBox r i j ∧ evenCell i j) (i j : ℤ) :
+    rule 43 (f i j) ((f (i - 1) j).toNat + (f (i + 1) j).toNat +
+      (f i (j - 1)).toNat + (f i (j + 1)).toNat) = false ↔
+        inBox (r + 1) i j ∧ (i + j) % 2 = 1 := by
+  rw [false_iff_not_true, rule_bits]
+  have hc := hf i j
+  have hl := hf (i - 1) j
+  have hh := hf (i + 1) j
+  have hd := hf i (j - 1)
+  have hu := hf i (j + 1)
+  cases c : f i j <;> cases l : f (i - 1) j <;> cases h : f (i + 1) j <;>
+    cases d : f i (j - 1) <;> cases u : f i (j + 1) <;>
+    simp [c, l, h, d, u, inBox, evenCell, Bool.toNat] at hc hl hh hd hu ⊢ <;> omega
+
+private theorem odd_step {f : ℤ → ℤ → Bool} (r : ℤ) (hr : 1 ≤ r)
+    (hf : ∀ i j, f i j = false ↔ inBox r i j ∧ (i + j) % 2 = 1) (i j : ℤ) :
+    rule 43 (f i j) ((f (i - 1) j).toNat + (f (i + 1) j).toNat +
+      (f i (j - 1)).toNat + (f i (j + 1)).toNat) = true ↔
+        inBox r i j ∧ evenCell i j := by
+  rw [rule_bits]
+  have hc := hf i j
+  have hl := hf (i - 1) j
+  have hh := hf (i + 1) j
+  have hd := hf i (j - 1)
+  have hu := hf i (j + 1)
+  cases c : f i j <;> cases l : f (i - 1) j <;> cases h : f (i + 1) j <;>
+    cases d : f i (j - 1) <;> cases u : f i (j + 1) <;>
+    simp [c, l, h, d, u, inBox, evenCell, Bool.toNat] at hc hl hh hd hu ⊢ <;> omega
+
+theorem even_shape (m : ℕ) (i j : ℤ) :
+    grid 43 (2 * m) i j = true ↔ inBox m i j ∧ evenCell i j := by
+  induction m generalizing i j with
+  | zero =>
+    simp only [grid, decide_eq_true_eq, Nat.cast_zero, inBox, evenCell, neg_zero]
+    constructor
+    · rintro ⟨rfl, rfl⟩
+      decide
+    · omega
+  | succ m ih =>
+    have hm : 0 ≤ (m : ℤ) := by omega
+    have hi (x y : ℤ) : grid 43 (2 * m + 1) x y = false ↔
+        inBox ((m : ℤ) + 1) x y ∧ (x + y) % 2 = 1 := by
+      rw [grid]
+      exact even_step m hm ih x y
+    rw [show 2 * (m + 1) = (2 * m + 1) + 1 by omega, grid, Nat.cast_succ]
+    exact odd_step ((m : ℤ) + 1) (by omega) hi i j
+
+theorem odd_shape (m : ℕ) (i j : ℤ) :
+    grid 43 (2 * m + 1) i j = false ↔ inBox ((m : ℤ) + 1) i j ∧ (i + j) % 2 = 1 := by
+  rw [grid]
+  exact even_step m (by omega) (even_shape m) i j
+
+end Rule43Shape
+
+namespace OMA.S_oeis_a269876
+
+open Finset
+
+private def rule43ParityLine (lo m r : ℕ) : Finset ℕ :=
+  (range (m + 1 - r)).map ⟨fun x => lo + 2 * x + r, by
+    intro a b h
+    change lo + 2 * a + r = lo + 2 * b + r at h
+    omega⟩
+
+private theorem mem_rule43ParityLine {lo m r x : ℕ} (hr : r ≤ 1) :
+    x ∈ rule43ParityLine lo m r ↔
+      lo ≤ x ∧ x < lo + 2 * m + 1 ∧ (x - lo) % 2 = r := by
+  unfold rule43ParityLine
+  rw [mem_map]
+  constructor
+  · rintro ⟨k, hk, rfl⟩
+    have hk' := mem_range.mp hk
+    change lo ≤ lo + 2 * k + r ∧ lo + 2 * k + r < lo + 2 * m + 1 ∧
+      (lo + 2 * k + r - lo) % 2 = r
+    omega
+  · rintro ⟨hlo, hhi, hm⟩
+    refine ⟨(x - lo) / 2, mem_range.mpr (by omega), ?_⟩
+    change lo + 2 * ((x - lo) / 2) + r = x
+    omega
+
+private theorem rule43ParityLine_card (lo m r : ℕ) :
+    (rule43ParityLine lo m r).card = m + 1 - r := by
+  simp [rule43ParityLine]
+
+private theorem rule43ParityLine_disjoint (lo m : ℕ) :
+    Disjoint (rule43ParityLine lo m 0) (rule43ParityLine lo m 1) := by
+  rw [Finset.disjoint_left]
+  intro x hx hy
+  have hx' := (mem_rule43ParityLine (by decide)).mp hx
+  have hy' := (mem_rule43ParityLine (by decide)).mp hy
+  omega
+
+theorem a_even_of_shape (m : ℕ)
+    (shape : ∀ i j : ℤ, grid 43 (2 * m) i j = true ↔
+      |i| ≤ (m : ℤ) ∧ |j| ≤ (m : ℤ) ∧ (i + j) % 2 = 0) :
+    a (2 * m) = 2 * m ^ 2 + 2 * m + 1 := by
+  have hs :
+      ((range (2 * (2 * m) + 1) ×ˢ range (2 * (2 * m) + 1)).filter
+          (fun p : ℕ × ℕ => grid 43 (2 * m) ((p.1 : ℤ) - (2 * m : ℕ))
+            ((p.2 : ℤ) - (2 * m : ℕ)) = true)) =
+        (rule43ParityLine m m 0 ×ˢ rule43ParityLine m m 0) ∪
+          (rule43ParityLine m m 1 ×ˢ rule43ParityLine m m 1) := by
+    ext ⟨x, y⟩
+    simp only [mem_filter, mem_product, mem_range, mem_union,
+      mem_rule43ParityLine (by decide : (0 : ℕ) ≤ 1),
+      mem_rule43ParityLine (by decide : (1 : ℕ) ≤ 1), shape, abs_le]
+    omega
+  unfold a
+  rw [hs, card_union_of_disjoint (disjoint_product.mpr
+    (Or.inl (rule43ParityLine_disjoint m m))), card_product, card_product]
+  simp only [rule43ParityLine_card, Nat.sub_zero, Nat.add_sub_cancel]
+  ring
+
+theorem a_odd_of_shape (m : ℕ)
+    (shape : ∀ i j : ℤ, grid 43 (2 * m + 1) i j = false ↔
+      |i| ≤ (m : ℤ) + 1 ∧ |j| ≤ (m : ℤ) + 1 ∧ (i + j) % 2 = 1) :
+    a (2 * m + 1) = 14 * m ^ 2 + 18 * m + 5 := by
+  let n := 2 * m + 1
+  let square := range (2 * n + 1) ×ˢ range (2 * n + 1)
+  let on (p : ℕ × ℕ) := grid 43 n ((p.1 : ℤ) - n) ((p.2 : ℤ) - n)
+  have hs : square.filter (fun p => on p = false) =
+      (rule43ParityLine m (m + 1) 0 ×ˢ rule43ParityLine m (m + 1) 1) ∪
+        (rule43ParityLine m (m + 1) 1 ×ˢ rule43ParityLine m (m + 1) 0) := by
+    ext ⟨x, y⟩
+    simp only [square, on, n, mem_filter, mem_product, mem_range, mem_union,
+      mem_rule43ParityLine (by decide : (0 : ℕ) ≤ 1),
+      mem_rule43ParityLine (by decide : (1 : ℕ) ≤ 1), shape, abs_le]
+    omega
+  have hcount := square.card_filter_add_card_filter_not (fun p => on p = true)
+  have hnot (p : ℕ × ℕ) : (¬ on p = true) ↔ on p = false := by cases on p <;> simp
+  simp only [hnot, hs, card_union_of_disjoint (disjoint_product.mpr
+    (Or.inl (rule43ParityLine_disjoint m (m + 1)))), card_product, rule43ParityLine_card,
+    Nat.sub_zero, Nat.add_sub_cancel, square, card_range] at hcount
+  change a n + ((m + 1 + 1) * (m + 1) + (m + 1) * (m + 1 + 1)) =
+      (2 * n + 1) * (2 * n + 1) at hcount
+  change a n = 14 * m ^ 2 + 18 * m + 5
+  apply Nat.add_right_cancel (m := (m + 1 + 1) * (m + 1) + (m + 1) * (m + 1 + 1))
+  rw [hcount]
+  dsimp [n]
+  ring
+
+end OMA.S_oeis_a269876
+
+/-! The two parity counts imply the closed forms, recurrence and generating function. -/
+
 namespace OMA.S_oeis_a269876
 
 open PowerSeries
 
-
-
-
-/-- Rule 43 on explicit neighbor values: an ON cell stays ON iff at most two neighbors are ON, an
-OFF cell turns ON iff no neighbor is ON. -/
-def r43 : Bool → Bool → Bool → Bool → Bool → Bool
-  | true, b1, b2, b3, b4 =>
-    !(b1 && b2 && b3) && !(b1 && b2 && b4) && !(b1 && b3 && b4) && !(b2 && b3 && b4)
-  | false, b1, b2, b3, b4 => !b1 && !b2 && !b3 && !b4
-
-lemma rule43 (s b1 b2 b3 b4 : Bool) :
-    rule 43 s (b1.toNat + b2.toNat + b3.toNat + b4.toNat) = r43 s b1 b2 b3 b4 := by
-  cases s <;> cases b1 <;> cases b2 <;> cases b3 <;> cases b4 <;> decide
-
-/-- Stage 2m: ON exactly on the even cells of [-m, m]^2. -/
-def Ev (m : ℕ) (i j : ℤ) : Bool :=
-  decide (-(m : ℤ) ≤ i ∧ i ≤ m ∧ -(m : ℤ) ≤ j ∧ j ≤ m ∧ (i + j) % 2 = 0)
-
-/-- Stage 2m+1: OFF exactly on the odd cells of [-(m+1), m+1]^2. -/
-def Od (m : ℕ) (i j : ℤ) : Bool :=
-  !decide (-(m : ℤ) - 1 ≤ i ∧ i ≤ m + 1 ∧ -(m : ℤ) - 1 ≤ j ∧ j ≤ m + 1 ∧ (i + j) % 2 = 1)
-
-/-- The box [-M, M]^2. -/
-abbrev box (M i j : ℤ) : Prop := -M ≤ i ∧ i ≤ M ∧ -M ≤ j ∧ j ≤ M
-
-lemma Ev_eq (m : ℕ) (i j : ℤ) : Ev m i j = decide (box m i j ∧ (i + j) % 2 = 0) := by
-  simp only [Ev, box, and_assoc]
-
-lemma Od_eq (m : ℕ) (i j : ℤ) : Od m i j = !decide (box ((m : ℤ) + 1) i j ∧ (i + j) % 2 = 1) := by
-  simp only [Od, box, and_assoc, neg_add']
-
-lemma step_even (m : ℕ) (i j : ℤ) :
-    rule 43 (Ev m i j) ((Ev m (i - 1) j).toNat + (Ev m (i + 1) j).toNat + (Ev m i (j - 1)).toNat +
-      (Ev m i (j + 1)).toNat) = Od m i j := by
-  rw [rule43]
-  symm
-  cases h0 : Ev m i j <;> cases h1 : Ev m (i - 1) j <;> cases h2 : Ev m (i + 1) j <;>
-    cases h3 : Ev m i (j - 1) <;> cases h4 : Ev m i (j + 1) <;>
-    simp only [Ev, decide_eq_true_eq, decide_eq_false_iff_not] at h0 h1 h2 h3 h4 <;>
-    simp only [r43, Bool.not_true, Bool.not_false, Bool.and_true, Bool.and_false, Bool.true_and,
-      Bool.false_and, Bool.and_self] <;>
-    simp only [Od, Bool.not_eq_true', Bool.not_eq_false', decide_eq_true_eq,
-      decide_eq_false_iff_not] <;>
-    omega
-
-lemma step_odd (m : ℕ) (i j : ℤ) :
-    rule 43 (Od m i j) ((Od m (i - 1) j).toNat + (Od m (i + 1) j).toNat + (Od m i (j - 1)).toNat +
-      (Od m i (j + 1)).toNat) = Ev (m + 1) i j := by
-  rw [rule43]
-  symm
-  cases h0 : Od m i j <;> cases h1 : Od m (i - 1) j <;> cases h2 : Od m (i + 1) j <;>
-    cases h3 : Od m i (j - 1) <;> cases h4 : Od m i (j + 1) <;>
-    simp only [Od, Bool.not_eq_true', Bool.not_eq_false', decide_eq_true_eq,
-      decide_eq_false_iff_not] at h0 h1 h2 h3 h4 <;>
-    simp only [r43, Bool.not_true, Bool.not_false, Bool.and_true, Bool.and_false, Bool.true_and,
-      Bool.false_and, Bool.and_self] <;>
-    simp only [Ev, decide_eq_true_eq, decide_eq_false_iff_not] <;>
-    push_cast <;>
-    omega
-
-/-- The explicit stage n. -/
-def E (n : ℕ) : ℤ → ℤ → Bool := if n % 2 = 0 then Ev (n / 2) else Od (n / 2)
-
-lemma pattern (n : ℕ) (i j : ℤ) : grid 43 n i j = E n i j := by
-  induction n generalizing i j with
-  | zero =>
-    simp only [grid, E, Nat.zero_mod, Nat.zero_div, if_true, Ev, CharP.cast_eq_zero, neg_zero]
-    by_cases h : i = 0 ∧ j = 0
-    · rw [decide_eq_true h, decide_eq_true (by omega)]
-    · rw [decide_eq_false h, decide_eq_false (by omega)]
-  | succ n ih =>
-    show rule 43 (grid 43 n i j) ((grid 43 n (i - 1) j).toNat + (grid 43 n (i + 1) j).toNat +
-      (grid 43 n i (j - 1)).toNat + (grid 43 n i (j + 1)).toNat) = E (n + 1) i j
-    rw [ih, ih, ih, ih, ih]
-    obtain ⟨m, rfl | rfl⟩ := Nat.even_or_odd' n
-    · have e1 : E (2 * m) = Ev m := by
-        simp only [E, show 2 * m % 2 = 0 by omega, if_true, show 2 * m / 2 = m by omega]
-      have e2 : E (2 * m + 1) = Od m := by
-        simp only [E, show (2 * m + 1) % 2 = 1 by omega, show ¬ (1 = 0) from by omega, if_false,
-          show (2 * m + 1) / 2 = m by omega]
-      rw [e1, e2, step_even]
-    · have e1 : E (2 * m + 1) = Od m := by
-        simp only [E, show (2 * m + 1) % 2 = 1 by omega, show ¬ (1 = 0) from by omega, if_false,
-          show (2 * m + 1) / 2 = m by omega]
-      have e2 : E (2 * m + 1 + 1) = Ev (m + 1) := by
-        simp only [E, show (2 * m + 1 + 1) % 2 = 0 by omega, if_true,
-          show (2 * m + 1 + 1) / 2 = m + 1 by omega]
-      rw [e1, e2, step_odd]
-
-/-! Counting. -/
-
-lemma row_even (x r : ℕ) :
-    ((Finset.range (2 * r + 1)).filter (fun y => (x + y) % 2 = 0)).card =
-      if x % 2 = 0 then r + 1 else r := by
-  induction r with
-  | zero =>
-    rcases Nat.mod_two_eq_zero_or_one x with h | h <;> simp [Finset.filter_singleton, h]
-  | succ r ih =>
-    rw [show 2 * (r + 1) + 1 = 2 * r + 1 + 1 + 1 by ring, Finset.range_add_one,
-      Finset.range_add_one, Finset.filter_insert, Finset.filter_insert]
-    rcases Nat.mod_two_eq_zero_or_one x with h | h
-    · rw [if_pos (show (x + (2 * r + 1 + 1)) % 2 = 0 by omega),
-        if_neg (show ¬ (x + (2 * r + 1)) % 2 = 0 by omega),
-        Finset.card_insert_of_notMem (by simp), ih, if_pos h, if_pos h]
-    · rw [if_neg (show ¬ (x + (2 * r + 1 + 1)) % 2 = 0 by omega),
-        if_pos (show (x + (2 * r + 1)) % 2 = 0 by omega),
-        Finset.card_insert_of_notMem (by simp), ih, if_neg (by omega), if_neg (by omega)]
-
-lemma sq_even (r : ℕ) :
-    ((Finset.range (2 * r + 1) ×ˢ Finset.range (2 * r + 1)).filter
-      (fun p : ℕ × ℕ => (p.1 + p.2) % 2 = 0)).card = 2 * r ^ 2 + 2 * r + 1 := by
-  rw [Finset.card_filter, Finset.sum_product]
-  simp only [← Finset.card_filter]
-  simp only [row_even]
-  have hsplit : ∀ x : ℕ, (if x % 2 = 0 then r + 1 else r) = r + (if x % 2 = 0 then 1 else 0) := by
-    intro x; split_ifs <;> ring
-  simp only [hsplit, Finset.sum_add_distrib, Finset.sum_const, Finset.card_range, smul_eq_mul]
-  rw [← Finset.card_filter]
-  have h0 := row_even 0 r
-  simp only [zero_add, Nat.zero_mod, if_true] at h0
-  rw [h0]
-  ring
-
-lemma sq_odd (r : ℕ) :
-    ((Finset.range (2 * r + 1) ×ˢ Finset.range (2 * r + 1)).filter
-      (fun p : ℕ × ℕ => (p.1 + p.2) % 2 = 1)).card = 2 * r ^ 2 + 2 * r := by
-  have htot := Finset.card_filter_add_card_filter_not
-    (s := Finset.range (2 * r + 1) ×ˢ Finset.range (2 * r + 1)) (fun p : ℕ × ℕ => (p.1 + p.2) % 2 = 0)
-  rw [sq_even, Finset.card_product, Finset.card_range] at htot
-  have hc : (Finset.range (2 * r + 1) ×ˢ Finset.range (2 * r + 1)).filter
-      (fun p : ℕ × ℕ => ¬ (p.1 + p.2) % 2 = 0) =
-      (Finset.range (2 * r + 1) ×ˢ Finset.range (2 * r + 1)).filter
-      (fun p : ℕ × ℕ => (p.1 + p.2) % 2 = 1) := by
-    apply Finset.filter_congr; intro p _; omega
-  rw [hc] at htot
-  have : (2 * r + 1) * (2 * r + 1) = 2 * r ^ 2 + 2 * r + 1 + (2 * r ^ 2 + 2 * r) := by ring
-  omega
-
-/-- A shifted square of side 2r+1 inside [0, 2n]^2: cells (x + s, y + s). -/
-lemma shift_card (n s r : ℕ) (hs : s + 2 * r ≤ 2 * n) (q : ℕ) (hq : q < 2)
-    (P : ℕ × ℕ → Prop) [DecidablePred P]
-    (hP : ∀ p : ℕ × ℕ, p.1 < 2 * n + 1 → p.2 < 2 * n + 1 →
-      (P p ↔ (s ≤ p.1 ∧ p.1 ≤ s + 2 * r ∧ s ≤ p.2 ∧ p.2 ≤ s + 2 * r ∧ (p.1 + p.2) % 2 = q))) :
-    ((Finset.range (2 * n + 1) ×ˢ Finset.range (2 * n + 1)).filter P).card =
-      ((Finset.range (2 * r + 1) ×ˢ Finset.range (2 * r + 1)).filter
-        (fun p : ℕ × ℕ => (p.1 + p.2) % 2 = q)).card := by
-  apply Finset.card_nbij' (fun p : ℕ × ℕ => (p.1 - s, p.2 - s)) (fun p : ℕ × ℕ => (p.1 + s, p.2 + s))
-  · intro p hp
-    simp only [Finset.coe_filter, Set.mem_ofPred_eq, Finset.mem_product, Finset.mem_range] at hp ⊢
-    have := (hP p hp.1.1 hp.1.2).1 hp.2
-    refine ⟨⟨by omega, by omega⟩, by omega⟩
-  · intro p hp
-    simp only [Finset.coe_filter, Set.mem_ofPred_eq, Finset.mem_product, Finset.mem_range] at hp ⊢
-    refine ⟨⟨by omega, by omega⟩, (hP _ (by omega) (by omega)).2 ⟨by omega, by omega, by omega,
-      by omega, by omega⟩⟩
-  · intro p hp
-    simp only [Finset.coe_filter, Set.mem_ofPred_eq, Finset.mem_product, Finset.mem_range] at hp
-    have := (hP p hp.1.1 hp.1.2).1 hp.2
-    simp only [Prod.ext_iff]; omega
-  · intro p _
-    simp only [Prod.ext_iff]; omega
-
-lemma a_even (m : ℕ) : a (2 * m) = 2 * m ^ 2 + 2 * m + 1 := by
-  rw [a, ← sq_even m]
-  apply shift_card (2 * m) m m (by omega) 0 (by norm_num)
-  intro p h1 h2
-  rw [pattern, E, if_pos (by omega), show 2 * m / 2 = m by omega, Ev, decide_eq_true_eq]
-  push_cast
-  omega
-
-lemma a_odd (m : ℕ) : a (2 * m + 1) = (4 * m + 3) ^ 2 - (2 * m ^ 2 + 6 * m + 4) := by
-  have htot := Finset.card_filter_add_card_filter_not
-    (s := Finset.range (2 * (2 * m + 1) + 1) ×ˢ Finset.range (2 * (2 * m + 1) + 1))
-    (fun p : ℕ × ℕ => grid 43 (2 * m + 1) ((p.1 : ℤ) - ↑(2 * m + 1)) ((p.2 : ℤ) - ↑(2 * m + 1)) = true)
-  rw [Finset.card_product, Finset.card_range] at htot
-  have hoff : ((Finset.range (2 * (2 * m + 1) + 1) ×ˢ Finset.range (2 * (2 * m + 1) + 1)).filter
-      (fun p : ℕ × ℕ => ¬ grid 43 (2 * m + 1) ((p.1 : ℤ) - ↑(2 * m + 1))
-        ((p.2 : ℤ) - ↑(2 * m + 1)) = true)).card = 2 * m ^ 2 + 6 * m + 4 := by
-    rw [show 2 * m ^ 2 + 6 * m + 4 = 2 * (m + 1) ^ 2 + 2 * (m + 1) by ring, ← sq_odd (m + 1)]
-    apply shift_card (2 * m + 1) m (m + 1) (by omega) 1 (by norm_num)
-    intro p h1 h2
-    rw [pattern, E, if_neg (by omega), show (2 * m + 1) / 2 = m by omega, Od]
-    simp only [Bool.not_eq_true', decide_eq_false_iff_not, not_not]
+private theorem count_recurrence
+    (evenCount : ∀ m : ℕ, a (2*m) = 2*m^2+2*m+1)
+    (oddCount : ∀ m : ℕ, a (2*m+1) = 14*m^2+18*m+5)
+    (n : ℕ) (hn : 5 < n) :
+    (a n : ℤ) = 3*a (n-2) - 3*a (n-4) + a (n-6) := by
+  let k := n / 2 - 3
+  by_cases he : n % 2 = 0
+  · rw [show n = 2*(k+3) by dsimp [k]; omega,
+      show 2*(k+3)-2 = 2*(k+2) by omega, show 2*(k+3)-4 = 2*(k+1) by omega,
+      show 2*(k+3)-6 = 2*k by omega, evenCount, evenCount, evenCount, evenCount]
     push_cast
-    omega
-  rw [a]
-  have : (2 * (2 * m + 1) + 1) * (2 * (2 * m + 1) + 1) = (4 * m + 3) ^ 2 := by ring
-  omega
+    ring
+  · rw [show n = 2*(k+3)+1 by dsimp [k]; omega,
+      show 2*(k+3)+1-2 = 2*(k+2)+1 by omega, show 2*(k+3)+1-4 = 2*(k+1)+1 by omega,
+      show 2*(k+3)+1-6 = 2*k+1 by omega, oddCount, oddCount, oddCount, oddCount]
+    push_cast
+    ring
 
-/-- Barker's closed forms (every n). -/
-theorem closed (n : ℕ) :
-    (a n : ℤ) = (1 + 3 * (-1) ^ n - 2 * (-3 + (-1) ^ n) * n + (8 - 6 * (-1) ^ n) * n ^ 2) / 4 ∧
-      (n % 2 = 0 → (a n : ℤ) = (n ^ 2 + 2 * n + 2) / 2) ∧
-      (n % 2 = 1 → (a n : ℤ) = (7 * n ^ 2 + 4 * n - 1) / 2) := by
-  obtain ⟨m, rfl | rfl⟩ := Nat.even_or_odd' n
-  · rw [a_even, (even_two_mul m).neg_one_pow]
-    refine ⟨?_, fun _ => ?_, fun h => absurd h (by omega)⟩
-    · push_cast; ring_nf; omega
-    · push_cast; ring_nf; omega
-  · rw [a_odd, (odd_two_mul_add_one m).neg_one_pow]
-    have hle : 2 * m ^ 2 + 6 * m + 4 ≤ (4 * m + 3) ^ 2 := by nlinarith
-    refine ⟨?_, fun h => absurd h (by omega), fun _ => ?_⟩
-    · push_cast [hle]; ring_nf; omega
-    · push_cast [hle]; ring_nf; omega
-
-lemma closed_int (n : ℕ) :
-    2 * (a n : ℤ) = if n % 2 = 0 then (n : ℤ) ^ 2 + 2 * n + 2 else 7 * (n : ℤ) ^ 2 + 4 * n - 1 := by
-  obtain ⟨m, rfl | rfl⟩ := Nat.even_or_odd' n
-  · rw [if_pos (by omega), a_even]; push_cast; ring
-  · rw [if_neg (by omega), a_odd]
-    have hle : 2 * m ^ 2 + 6 * m + 4 ≤ (4 * m + 3) ^ 2 := by nlinarith
-    push_cast [hle]; ring
-
-/-- Barker's recurrence a(n) = 3a(n-2) - 3a(n-4) + a(n-6), n > 5. -/
-theorem recurrence (n : ℕ) (hn : 5 < n) :
-    (a n : ℤ) = 3 * a (n - 2) - 3 * a (n - 4) + a (n - 6) := by
-  obtain ⟨k, rfl⟩ : ∃ k, n = k + 6 := ⟨n - 6, by omega⟩
-  rw [show k + 6 - 2 = k + 4 by omega, show k + 6 - 4 = k + 2 by omega, show k + 6 - 6 = k by omega]
-  have e0 := closed_int (k + 6)
-  have e1 := closed_int (k + 4)
-  have e2 := closed_int (k + 2)
-  have e3 := closed_int k
-  rcases Nat.mod_two_eq_zero_or_one k with h | h
-  · rw [if_pos (by omega)] at e0 e1 e2 e3
-    push_cast at e0 e1 e2 e3
-    have : 2 * (a (k + 6) : ℤ) = 2 * (3 * a (k + 4) - 3 * a (k + 2) + a k) := by
-      linear_combination e0 - 3 * e1 + 3 * e2 - e3
-    exact Int.eq_of_mul_eq_mul_left (by norm_num) this
-  · rw [if_neg (by omega)] at e0 e1 e2 e3
-    push_cast at e0 e1 e2 e3
-    have : 2 * (a (k + 6) : ℤ) = 2 * (3 * a (k + 4) - 3 * a (k + 2) + a k) := by
-      linear_combination e0 - 3 * e1 + 3 * e2 - e3
-    exact Int.eq_of_mul_eq_mul_left (by norm_num) this
-
-/-- Barker's generating function, as an identity of formal power series. -/
-theorem gf : PowerSeries.mk (fun n => (a n : ℤ)) * ((1 - X) ^ 3 * (1 + X) ^ 3) =
-    1 + 5 * X + 2 * X ^ 2 + 22 * X ^ 3 + X ^ 4 + X ^ 5 := by
-  have hD : ((1 - X) ^ 3 * (1 + X) ^ 3 : ℤ⟦X⟧) =
-      C 1 * X ^ 0 - C 3 * X ^ 2 + C 3 * X ^ 4 - C 1 * X ^ 6 := by
-    simp only [map_one, map_ofNat, pow_zero, mul_one, one_mul]; ring
-  have hN : (1 + 5 * X + 2 * X ^ 2 + 22 * X ^ 3 + X ^ 4 + X ^ 5 : ℤ⟦X⟧) =
-      C 1 * X ^ 0 + C 5 * X ^ 1 + C 2 * X ^ 2 + C 22 * X ^ 3 + C 1 * X ^ 4 + C 1 * X ^ 5 := by
-    simp only [map_one, map_ofNat, pow_zero, pow_one, mul_one, one_mul]
-  rw [hD, hN]
+private theorem count_gf
+    (evenCount : ∀ m : ℕ, a (2*m) = 2*m^2+2*m+1)
+    (oddCount : ∀ m : ℕ, a (2*m+1) = 14*m^2+18*m+5) :
+    mk (fun n ↦ (a n : ℤ)) * ((1 - X)^3*(1 + X)^3) =
+      1 + 5*X + 2*X^2 + 22*X^3 + X^4 + X^5 := by
+  let A := mk (fun n ↦ (a n : ℤ))
+  change A * _ = _
+  have hleft : A * ((1 - X)^3*(1 + X)^3) =
+      A - C 3 * (A*X^2) + C 3 * (A*X^4) - A*X^6 := by
+    rw [show C (3 : ℤ) = (3 : ℤ⟦X⟧) by norm_num]
+    ring
+  have hright : (1 : ℤ⟦X⟧) + 5*X + 2*X^2 + 22*X^3 + X^4 + X^5 =
+      1 + C 5*X^1 + C 2*X^2 + C 22*X^3 + X^4 + X^5 := by norm_num
+  rw [hleft, hright]
   ext n
-  simp only [map_sub, map_add, coeff_C_mul_X_pow]
-  simp only [mul_sub, mul_add, ← mul_assoc, map_sub, map_add, coeff_mul_X_pow', coeff_mul_C,
-    coeff_mk]
-  rcases Nat.lt_or_ge n 6 with hn | hn
-  · have v0 : a 0 = 1 := by rw [show (0 : ℕ) = 2 * 0 by rfl, a_even]; norm_num
-    have v1 : a 1 = 5 := by rw [show (1 : ℕ) = 2 * 0 + 1 by rfl, a_odd]; norm_num
-    have v2 : a 2 = 5 := by rw [show (2 : ℕ) = 2 * 1 by rfl, a_even]; norm_num
-    have v3 : a 3 = 37 := by rw [show (3 : ℕ) = 2 * 1 + 1 by rfl, a_odd]; norm_num
-    have v4 : a 4 = 13 := by rw [show (4 : ℕ) = 2 * 2 by rfl, a_even]; norm_num
-    have v5 : a 5 = 97 := by rw [show (5 : ℕ) = 2 * 2 + 1 by rfl, a_odd]; norm_num
-    interval_cases n <;> simp [v0, v1, v2, v3, v4, v5]
-  · obtain ⟨k, rfl⟩ : ∃ k, n = k + 6 := ⟨n - 6, by omega⟩
-    have := recurrence (k + 6) (by omega)
-    rw [show k + 6 - 2 = k + 4 by omega, show k + 6 - 4 = k + 2 by omega,
-      show k + 6 - 6 = k by omega] at this
-    rw [if_pos (show 0 ≤ k + 6 by omega), if_pos (show 2 ≤ k + 6 by omega),
-      if_pos (show 4 ≤ k + 6 by omega), if_pos (show 6 ≤ k + 6 by omega),
-      show k + 6 - 0 = k + 6 by omega, show k + 6 - 2 = k + 4 by omega,
-      show k + 6 - 4 = k + 2 by omega, show k + 6 - 6 = k by omega]
-    rw [if_neg (show ¬ (k + 6 = 0) by omega), if_neg (show ¬ (k + 6 = 1) by omega),
-      if_neg (show ¬ (k + 6 = 2) by omega), if_neg (show ¬ (k + 6 = 3) by omega),
-      if_neg (show ¬ (k + 6 = 4) by omega), if_neg (show ¬ (k + 6 = 5) by omega)]
+  simp only [map_add, map_sub, coeff_C_mul_X_pow]
+  simp only [coeff_C_mul, coeff_mul_X_pow', A, coeff_mk, coeff_one, coeff_X_pow]
+  by_cases hn : n < 6
+  · have h0 := evenCount 0
+    have h1 := oddCount 0
+    have h2 := evenCount 1
+    have h3 := oddCount 1
+    have h4 := evenCount 2
+    have h5 := oddCount 2
+    norm_num at h0 h1 h2 h3 h4 h5
+    interval_cases n <;> norm_num [h0, h1, h2, h3, h4, h5]
+  · have hrec := count_recurrence evenCount oddCount n (by omega)
+    simp only [if_pos (show 2 ≤ n by omega), if_pos (show 4 ≤ n by omega),
+      if_pos (show 6 ≤ n by omega), if_neg (show n ≠ 0 by omega),
+      if_neg (show n ≠ 1 by omega), if_neg (show n ≠ 2 by omega),
+      if_neg (show n ≠ 3 by omega), if_neg (show n ≠ 4 by omega),
+      if_neg (show n ≠ 5 by omega), add_zero]
     linarith
+
+theorem main_of_counts
+    (evenCount : ∀ m : ℕ, a (2*m) = 2*m^2+2*m+1)
+    (oddCount : ∀ m : ℕ, a (2*m+1) = 14*m^2+18*m+5) : type_of% @main := by
+  refine ⟨?_, ?_, ?_, count_recurrence evenCount oddCount, count_gf evenCount oddCount⟩
+  · intro n
+    let m := n / 2
+    by_cases he : n % 2 = 0
+    · rw [show n = 2*m by dsimp [m]; omega, evenCount, pow_mul]
+      push_cast
+      norm_num
+      have h : 4 + 4 * (2 * (m : ℤ)) + 2 * (2 * (m : ℤ)) ^ 2 =
+          4 * (2 * (m : ℤ)^2 + 2 * m + 1) := by ring
+      rw [h]
+      omega
+    · rw [show n = 2*m+1 by dsimp [m]; omega, oddCount, pow_add, pow_mul]
+      push_cast
+      norm_num
+      have h : (1 - 3 - 2 * (-3 - 1) * (2 * (m : ℤ) + 1) +
+          (8 + 6) * (2 * (m : ℤ) + 1)^2) = 4 * (14 * (m : ℤ)^2 + 18 * m + 5) := by ring
+      omega
+  · intro n he
+    let m := n / 2
+    rw [show n = 2*m by dsimp [m]; omega, evenCount]
+    push_cast
+    have h : (2 * (m : ℤ))^2 + 2 * (2*m) + 2 = 2 * (2 * (m : ℤ)^2 + 2*m + 1) := by ring
+    omega
+  · intro n ho
+    let m := n / 2
+    rw [show n = 2*m+1 by dsimp [m]; omega, oddCount]
+    push_cast
+    have h : 7 * (2 * (m : ℤ) + 1)^2 + 4 * (2*m+1) - 1 =
+        2 * (14 * (m : ℤ)^2 + 18*m + 5) := by ring
+    omega
 
 end OMA.S_oeis_a269876
 
-theorem OMA.solution : type_of% @OMA.S_oeis_a269876.main :=
-  ⟨fun n => (OMA.S_oeis_a269876.closed n).1, fun n => (OMA.S_oeis_a269876.closed n).2.1,
-    fun n => (OMA.S_oeis_a269876.closed n).2.2, OMA.S_oeis_a269876.recurrence,
-    OMA.S_oeis_a269876.gf⟩
+open OMA.S_oeis_a269876
+
+theorem OMA.solution : type_of% @OMA.S_oeis_a269876.main := by
+  apply main_of_counts
+  · intro m
+    apply a_even_of_shape m
+    intro i j
+    simpa [Rule43Shape.inBox, Rule43Shape.evenCell, abs_le, and_assoc] using
+      Rule43Shape.even_shape m i j
+  · intro m
+    apply a_odd_of_shape m
+    intro i j
+    simpa [Rule43Shape.inBox, abs_le, and_assoc] using Rule43Shape.odd_shape m i j

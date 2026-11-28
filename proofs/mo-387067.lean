@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_387067
 
 /-!
+Retains @romechenko’s grid counterexample from #16418.
+Uses standard outer-product and linear-map range APIs for the rank bounds.
+
 Index rows and columns by pairs in a square grid. Let B and D be the matrices
 recording equality of the first and second coordinates. Then the signed
 matrix B-D has rank linear in the grid side length, whereas its absolute value
@@ -21,8 +24,9 @@ private theorem rankAdd {ι κ : Type} [Fintype ι] [Fintype κ] (A B : Matrix �
 
 private theorem rankNeg {ι κ : Type} [Fintype κ] (A : Matrix ι κ ℝ) :
     (-A).rank = A.rank := by
-  simpa only [neg_one_smul] using rank_smul_of_mem_nonZeroDivisors A
-    (mem_nonZeroDivisors_of_ne_zero (show (-1 : ℝ) ≠ 0 by norm_num))
+  have h : (-A).mulVecLin = -A.mulVecLin := LinearMap.ext (fun v => neg_mulVec v A)
+  unfold Matrix.rank
+  rw [h, LinearMap.range_neg]
 
 private abbrev Grid (r : ℕ) := Fin r × Fin r
 
@@ -38,20 +42,14 @@ private def signedGrid (r : ℕ) : Matrix (Grid r) (Grid r) ℝ :=
 private def absMatrix {ι : Type} (A : Matrix ι ι ℝ) : Matrix ι ι ℝ := of fun i j => |A i j|
 
 private theorem rankFirst (r : ℕ) : (first r).rank ≤ r := by
-  have h : first r = (1 : Matrix (Fin r) (Fin r) ℝ).submatrix Prod.fst Prod.fst := by
-    ext i j
-    simp [first, Matrix.one_apply]
-  rw [h]
-  simpa using rank_submatrix_le (1 : Matrix (Fin r) (Fin r) ℝ)
-    (Prod.fst : Grid r → Fin r) (Prod.fst : Grid r → Fin r)
+  simpa [first, Matrix.submatrix, Matrix.one_apply] using
+    rank_submatrix_le (1 : Matrix (Fin r) (Fin r) ℝ)
+      (Prod.fst : Grid r → Fin r) (Prod.fst : Grid r → Fin r)
 
 private theorem rankSecond (r : ℕ) : (second r).rank ≤ r := by
-  have h : second r = (1 : Matrix (Fin r) (Fin r) ℝ).submatrix Prod.snd Prod.snd := by
-    ext i j
-    simp [second, Matrix.one_apply]
-  rw [h]
-  simpa using rank_submatrix_le (1 : Matrix (Fin r) (Fin r) ℝ)
-    (Prod.snd : Grid r → Fin r) (Prod.snd : Grid r → Fin r)
+  simpa [second, Matrix.submatrix, Matrix.one_apply] using
+    rank_submatrix_le (1 : Matrix (Fin r) (Fin r) ℝ)
+      (Prod.snd : Grid r → Fin r) (Prod.snd : Grid r → Fin r)
 
 private theorem rankUpper (r : ℕ) : (signedGrid r).rank ≤ 2 * r := by
   have h := rankAdd (first r) (-second r)
@@ -67,14 +65,8 @@ private theorem rankLower (r : ℕ) (hr : 0 < r) : r ≤ (signedGrid r).rank + 1
   let z : Fin r := ⟨0, hr⟩
   let J : Matrix (Fin r) (Fin r) ℝ := of fun _ _ => 1
   let K := (signedGrid r).submatrix (fun i : Fin r => (i, z)) (fun j : Fin r => (j, z))
-  have hJ : J = (1 : Matrix (Fin 1) (Fin 1) ℝ).submatrix
-      (fun _ : Fin r => 0) (fun _ : Fin r => 0) := by
-    ext i j
-    simp [J]
   have hjrank : J.rank ≤ 1 := by
-    rw [hJ]
-    simpa using rank_submatrix_le (1 : Matrix (Fin 1) (Fin 1) ℝ)
-      (fun _ : Fin r => 0) (fun _ : Fin r => 0)
+    simpa [J, vecMulVec] using rank_vecMulVec_le (fun _ : Fin r => (1 : ℝ)) (fun _ : Fin r => (1 : ℝ))
   have hK : K + J = (1 : Matrix (Fin r) (Fin r) ℝ) := by
     ext i j
     by_cases h : i = j <;> simp [K, J, signedGrid, first, second, Matrix.one_apply, h]

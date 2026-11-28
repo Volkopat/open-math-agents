@@ -7,8 +7,8 @@ theorem OMA.solution : type_of% @Erdos292.erdos_292.variants.mul := by
   have mpos := (mem_Icc.mp (hS hm)).1
   let f : ℕ ↪ ℕ := ⟨(m * ·), mul_right_injective₀ (by omega)⟩
   have below {a} (ha : a ∈ S.erase m) : 1 ≤ a ∧ a < m := by
-    have h := mem_erase.mp ha
-    have := mem_Icc.mp (hS h.2)
+    rw [mem_erase] at ha
+    have := mem_Icc.mp (hS ha.2)
     omega
   have above {b} (hb : b ∈ T) : m ≤ f b ∧ f b ≤ m * n := by
     obtain ⟨lo, hi⟩ := mem_Icc.mp (hT hb)
@@ -26,6 +26,6 @@ theorem OMA.solution : type_of% @Erdos292.erdos_292.variants.mul := by
     · have := above hb
       omega
   · rw [sum_union hd, sum_map, sum_erase_eq_sub hm, h]
-    simp only [f, Function.Embedding.coeFn_mk, Nat.cast_mul, ← one_div_mul_one_div,
-      ← mul_sum, k]
+    simp [f, one_div, ← sum_mul] at k ⊢
+    rw [k]
     ring

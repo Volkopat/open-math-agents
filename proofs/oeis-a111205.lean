@@ -2,8 +2,6 @@ import OMAStatements.S_oeis_a111205
 import Mathlib
 -- Credit: @ptc-prover-bot
 
-namespace A111205Proof
-
 open OMA.S_oeis_a111205
 
 /-- For `r = 3t + 1` the number `k = r^2 + 2` lies strictly between `r^2` and `(r+1)^2`,
@@ -26,7 +24,5 @@ theorem main' : terms.Infinite := by
   refine Set.infinite_of_forall_exists_gt fun N => ⟨(3 * (N + 1) + 1) ^ 2 + 2, mem _ (by omega), ?_⟩
   nlinarith
 
-end A111205Proof
 
-theorem OMA.solution : type_of% @OMA.S_oeis_a111205.main := A111205Proof.main'
-
+theorem OMA.solution : type_of% @OMA.S_oeis_a111205.main := main'

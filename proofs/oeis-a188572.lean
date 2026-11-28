@@ -1,121 +1,80 @@
 import OMAStatements.S_oeis_a188572
 
-/-!
-# Proof of Kimberling's conjecture for OEIS A188572
+/-! Modulo an odd prime, the update of the four coordinates is a permutation.
+Modulo two, applying it twice gives zero. -/
 
-`a(n)` is the coefficient of `√3` in `(1 + √2 + √3)^n`. The statement: every prime `p` divides
-`a(n)` for infinitely many `n`.
+namespace A188572Proof
 
-Multiplication by `α = 1 + √2 + √3` acts on the basis `(1, √2, √3, √6)` by the step map of the
-statement. Since `α · (-4 - 2√2 + 2√6) = -8`, the step map has an explicit inverse up to the
-factor `-8`. For an odd prime `p` it is therefore an injective self-map of the finite set
-`(ZMod p)^4`, hence a permutation, hence of finite order `T`; so the orbit of `(1, 0, 0, 0)`
-returns to its start at every multiple of `T`, and `a(kT) ≡ a(0) = 0 (mod p)` for all `k`.
-For `p = 2` all four coordinates of `α^n` are even as soon as `n ≥ 2`.
--/
+open OMA.S_oeis_a188572
 
-namespace OMA.S_oeis_a188572
+private abbrev Coords (p : ℕ) := ZMod p × ZMod p × ZMod p × ZMod p
 
-/-- The step map on quadruples over `ZMod p`. -/
-def stepZ (p : ℕ) (w : ZMod p × ZMod p × ZMod p × ZMod p) :
-    ZMod p × ZMod p × ZMod p × ZMod p :=
-  (w.1 + 2 * w.2.1 + 3 * w.2.2.1, w.1 + w.2.1 + 3 * w.2.2.2,
-    w.1 + w.2.2.1 + 2 * w.2.2.2, w.2.1 + w.2.2.1 + w.2.2.2)
+private def step {p : ℕ} (v : Coords p) : Coords p :=
+  let (a,b,c,d) := v
+  (a + 2*b + 3*c, a + b + 3*d, a + c + 2*d, b + c + d)
 
-/-- Multiplication by `-4 - 2√2 + 2√6`, which is `-8 / (1 + √2 + √3)`. -/
-def backZ (p : ℕ) (w : ZMod p × ZMod p × ZMod p × ZMod p) :
-    ZMod p × ZMod p × ZMod p × ZMod p :=
-  (-4 * w.1 - 4 * w.2.1 + 12 * w.2.2.2, -2 * w.1 - 4 * w.2.1 + 6 * w.2.2.1,
-    4 * w.2.1 - 4 * w.2.2.1 - 4 * w.2.2.2, 2 * w.1 - 2 * w.2.2.1 - 4 * w.2.2.2)
+private def undoScaled {p : ℕ} (v : Coords p) : Coords p :=
+  let (a,b,c,d) := v
+  (-4*a - 4*b + 12*d, -2*a - 4*b + 6*c, 4*b - 4*c - 4*d, 2*a - 2*c - 4*d)
 
-/-- Reduction of an integer quadruple modulo `p`. -/
-def red (p : ℕ) (v : ℤ × ℤ × ℤ × ℤ) : ZMod p × ZMod p × ZMod p × ZMod p :=
-  ((v.1 : ZMod p), (v.2.1 : ZMod p), (v.2.2.1 : ZMod p), (v.2.2.2 : ZMod p))
+private theorem undo_step {p : ℕ} (v : Coords p) : undoScaled (step v) =
+    ((-8)*v.1, (-8)*v.2.1, (-8)*v.2.2.1, (-8)*v.2.2.2) := by
+  rcases v with ⟨a,b,c,d⟩
+  simp only [step, undoScaled, Prod.mk.injEq]
+  exact ⟨by ring, by ring, by ring, by ring⟩
 
-theorem red_step (p : ℕ) (v : ℤ × ℤ × ℤ × ℤ) : red p (quadStep v) = stepZ p (red p v) := by
-  obtain ⟨c1, c2, c3, c6⟩ := v
-  simp [red, stepZ, quadStep]
+private def reduced (p n : ℕ) : Coords p :=
+  let (a,b,c,d) := quadPow n
+  ((a : ZMod p), (b : ZMod p), (c : ZMod p), (d : ZMod p))
 
-theorem back_step (p : ℕ) (w : ZMod p × ZMod p × ZMod p × ZMod p) :
-    backZ p (stepZ p w) = ((-8 : ZMod p) * w.1, (-8 : ZMod p) * w.2.1, (-8 : ZMod p) * w.2.2.1,
-      (-8 : ZMod p) * w.2.2.2) := by
-  obtain ⟨c1, c2, c3, c6⟩ := w
-  simp only [backZ, stepZ, Prod.mk.injEq]
-  refine ⟨?_, ?_, ?_, ?_⟩ <;> ring
+private theorem reduced_succ (p n : ℕ) : reduced p (n+1) = step (reduced p n) := by
+  rcases hx : quadPow n with ⟨a,b,c,d⟩
+  simp [reduced, quadPow, hx, quadStep, step, Int.cast_add, Int.cast_mul]
 
-theorem red_iterate (p : ℕ) (n : ℕ) : red p (quadPow n) = (stepZ p)^[n] (red p (quadPow 0)) := by
-  induction n with
-  | zero => rfl
-  | succ n ih =>
-    rw [Function.iterate_succ_apply', ← ih, ← red_step]
-    rfl
+private theorem to_dvd (p n : ℕ) (h : (reduced p n).2.2.1 = 0) : (p : ℤ) ∣ a n := by
+  apply (ZMod.intCast_zmod_eq_zero_iff_dvd (a n) p).mp
+  rcases hx : quadPow n with ⟨a,b,c,d⟩
+  simpa [reduced, OMA.S_oeis_a188572.a, hx] using h
 
-theorem eight_ne_zero {p : ℕ} (hp : p.Prime) (hodd : Odd p) : (-8 : ZMod p) ≠ 0 := by
-  intro h
-  have h8 : ((8 : ℕ) : ZMod p) = 0 := by
-    have : (8 : ZMod p) = 0 := by linear_combination -h
-    exact_mod_cast this
-  rw [ZMod.natCast_eq_zero_iff] at h8
-  have h2 : p ∣ 2 := hp.dvd_of_dvd_pow (show p ∣ 2 ^ 3 by simpa using h8)
-  have : p = 2 := (Nat.prime_dvd_prime_iff_eq hp Nat.prime_two).mp h2
-  subst this
-  exact absurd hodd (by decide)
+private theorem two_steps_zero : ∀ v : Coords 2, step (step v) = (0,0,0,0) := by
+  decide
 
-theorem stepZ_injective {p : ℕ} (hp : p.Prime) (hodd : Odd p) : Function.Injective (stepZ p) := by
-  have : Fact p.Prime := ⟨hp⟩
-  intro w w' h
-  have hb := congrArg (backZ p) h
-  rw [back_step, back_step] at hb
-  have h8 := eight_ne_zero hp hodd
-  simp only [Prod.mk.injEq] at hb
-  obtain ⟨h1, h2, h3, h4⟩ := hb
-  obtain ⟨c1, c2, c3, c6⟩ := w
-  obtain ⟨d1, d2, d3, d6⟩ := w'
-  simp only [Prod.mk.injEq]
-  exact ⟨mul_left_cancel₀ h8 h1, mul_left_cancel₀ h8 h2, mul_left_cancel₀ h8 h3,
-    mul_left_cancel₀ h8 h4⟩
+private theorem step_injective {p : ℕ} [Fact p.Prime] (hn : (-8 : ZMod p) ≠ 0) :
+    Function.Injective (step (p := p)) := by
+  rintro ⟨a,b,c,d⟩ ⟨a',b',c',d'⟩ h
+  have h' := congrArg undoScaled h
+  rw [undo_step, undo_step] at h'
+  simp only [Prod.mk.injEq] at h' ⊢
+  exact ⟨mul_left_cancel₀ hn h'.1, mul_left_cancel₀ hn h'.2.1,
+    mul_left_cancel₀ hn h'.2.2.1, mul_left_cancel₀ hn h'.2.2.2⟩
 
-theorem odd_case {p : ℕ} (hp : p.Prime) (hodd : Odd p) (N : ℕ) :
+theorem infinitely_often (p : ℕ) (hp : p.Prime) (N : ℕ) :
     ∃ n : ℕ, N ≤ n ∧ (p : ℤ) ∣ a n := by
-  have : Fact p.Prime := ⟨hp⟩
-  have hbij : Function.Bijective (stepZ p) :=
-    Finite.injective_iff_bijective.mp (stepZ_injective hp hodd)
-  let e : Equiv.Perm (ZMod p × ZMod p × ZMod p × ZMod p) := Equiv.ofBijective (stepZ p) hbij
-  have hT : 0 < orderOf e := orderOf_pos e
-  refine ⟨(N + 1) * orderOf e, ?_, ?_⟩
-  · calc N ≤ (N + 1) * 1 := by omega
-      _ ≤ (N + 1) * orderOf e := Nat.mul_le_mul_left _ hT
-  · have hpow : e ^ ((N + 1) * orderOf e) = 1 := by
-      rw [mul_comm, pow_mul, pow_orderOf_eq_one, one_pow]
-    have hit : (stepZ p)^[(N + 1) * orderOf e] = id := by
-      have h1 : (⇑e)^[(N + 1) * orderOf e] = ⇑(e ^ ((N + 1) * orderOf e)) :=
-        Equiv.Perm.iterate_eq_pow e _
-      rw [hpow] at h1
-      exact h1
-    have hred := red_iterate p ((N + 1) * orderOf e)
-    rw [hit] at hred
-    have h3 : ((a ((N + 1) * orderOf e) : ℤ) : ZMod p) = 0 := by
-      have := congrArg (fun w => w.2.2.1) hred
-      simpa [red, a, quadPow] using this
-    exact (ZMod.intCast_zmod_eq_zero_iff_dvd _ p).mp h3
+  by_cases htwo : p = 2
+  · subst p
+    refine ⟨N+2, by omega, to_dvd 2 _ ?_⟩
+    rw [show N+2 = (N+1)+1 by omega, reduced_succ, reduced_succ, two_steps_zero]
+  · let _ : Fact p.Prime := ⟨hp⟩
+    have h2 : (2 : ZMod p) ≠ 0 := by
+      intro h
+      have hdiv : p ∣ 2 := (ZMod.natCast_eq_zero_iff 2 p).mp h
+      have hle := Nat.le_of_dvd (by decide : 0 < 2) hdiv
+      have hge := hp.two_le
+      omega
+    have h8 : (-8 : ZMod p) ≠ 0 := by
+      rw [show (-8 : ZMod p) = -((2 : ZMod p)^3) by ring]
+      exact neg_ne_zero.mpr (pow_ne_zero _ h2)
+    have hi := step_injective h8
+    let e : Equiv.Perm (Coords p) := Equiv.ofBijective step ⟨hi, Finite.injective_iff_surjective.mp hi⟩
+    have hpow (n : ℕ) : reduced p n = (e^n) (1,0,0,0) := by
+      induction n with
+      | zero => simp [reduced, quadPow]
+      | succ n ih => rw [reduced_succ, ih, pow_succ']; rfl
+    refine ⟨orderOf e * (N+1), ?_, to_dvd p _ ?_⟩
+    · exact (Nat.le_succ N).trans (Nat.le_mul_of_pos_left _ (orderOf_pos e))
+    · rw [hpow, pow_mul, pow_orderOf_eq_one, one_pow]
+      rfl
 
-theorem two_dvd_all (n : ℕ) :
-    (2 : ℤ) ∣ (quadPow (n + 2)).1 ∧ (2 : ℤ) ∣ (quadPow (n + 2)).2.1 ∧
-      (2 : ℤ) ∣ (quadPow (n + 2)).2.2.1 ∧ (2 : ℤ) ∣ (quadPow (n + 2)).2.2.2 := by
-  induction n with
-  | zero => decide
-  | succ n ih =>
-    have h : quadPow (n + 1 + 2) = quadStep (quadPow (n + 2)) := rfl
-    rw [h]
-    generalize quadPow (n + 2) = v at ih
-    obtain ⟨c1, c2, c3, c6⟩ := v
-    simp only [quadStep] at ih ⊢
-    omega
+end A188572Proof
 
-end OMA.S_oeis_a188572
-
-theorem OMA.solution : type_of% @OMA.S_oeis_a188572.main := by
-  intro p hp N
-  rcases hp.eq_two_or_odd' with rfl | hodd
-  · exact ⟨N + 2, by omega, (OMA.S_oeis_a188572.two_dvd_all N).2.2.1⟩
-  · exact OMA.S_oeis_a188572.odd_case hp hodd N
+theorem OMA.solution : type_of% @OMA.S_oeis_a188572.main := A188572Proof.infinitely_often

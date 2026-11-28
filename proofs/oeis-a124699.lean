@@ -1,188 +1,147 @@
 import OMAStatements.S_oeis_a124699
 
--- Problem: A124699: Number of base 6 circular n-digit numbers with adjacent digits differing by 1 or less.
--- Upstream: statements/oeis-a124699.lean (declaration OMA.S_oeis_a124699.main)
--- Credit: @minimumnz (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+namespace OMA.CircularDigitWalks
+open OMA.S_oeis_a124699 Finset PowerSeries
 
-namespace OMA.Circ
+private abbrev Digit := Fin 6
+private abbrev Word (n : ℕ) := Fin n → Digit
 
-variable {k : ℕ}
+private def edge (u v : Digit) : Prop := Int.natAbs ((u : ℤ) - (v : ℤ)) ≤ 1
 
-def W (A : Matrix (Fin k) (Fin k) ℤ) : (m : ℕ) → Fin k → (Fin m → Fin k) → Fin k → ℤ
-  | 0, x, _, y => A x y
-  | m + 1, x, t, y => A x (t 0) * W A m (t 0) (Fin.tail t) y
+private instance (u v : Digit) : Decidable (edge u v) := by
+  unfold edge
+  infer_instance
 
-theorem W_sum (A : Matrix (Fin k) (Fin k) ℤ) : ∀ (m : ℕ) (x y : Fin k),
-    ∑ t : Fin m → Fin k, W A m x t y = (A ^ (m + 1)) x y := by
-  intro m
-  induction m with
-  | zero => intro x y; simp [W]
-  | succ m ih =>
-    intro x y
-    rw [← (Fin.consEquiv (fun _ : Fin (m + 1) => Fin k)).sum_comp, Fintype.sum_prod_type,
-      pow_succ' A (m + 1), Matrix.mul_apply]
-    refine Finset.sum_congr rfl fun z _ => ?_
-    rw [← ih z y, Finset.mul_sum]
-    refine Finset.sum_congr rfl fun t _ => ?_
-    simp [W, Fin.consEquiv]
+private def transition : Matrix Digit Digit ℚ := fun u v => if edge u v then 1 else 0
 
-theorem cyc_prod (A : Matrix (Fin k) (Fin k) ℤ) : ∀ (m : ℕ) (s : Fin (m + 1) → Fin k) (y : Fin k),
-    ∏ i : Fin (m + 1), A (s i) (if h : i.val + 1 < m + 1 then s ⟨i.val + 1, h⟩ else y)
-      = W A m (s 0) (Fin.tail s) y := by
-  intro m
-  induction m with
-  | zero => intro s y; simp [W]
-  | succ m ih =>
-    intro s y
-    rw [Fin.prod_univ_succ, W, ← ih (Fin.tail s) y]
+private def path (u v : Digit) (w : Word n) : Prop :=
+  (u :: (List.ofFn w ++ [v])).IsChain edge
+
+private instance (u v : Digit) (w : Word n) : Decidable (path u v w) := by
+  unfold path
+  infer_instance
+
+private theorem path_cons (u v d : Digit) (w : Word n) :
+    path u v (Fin.cons d w) ↔ edge u d ∧ path d v w := by
+  simp only [path, List.ofFn_succ, Fin.cons_zero, Fin.cons_succ, List.cons_append, List.isChain_cons_cons]
+
+private theorem sum_head {n : ℕ} (f : Word (n+1) → ℚ) :
+    ∑ w, f w = ∑ d : Digit, ∑ w : Word n, f (Fin.cons d w) := by
+  rw [← (Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n+1) => Digit)) f)]
+  exact Fintype.sum_prod_type _
+
+private theorem path_sum (n : ℕ) (u v : Digit) :
+    (∑ w : Word n, if path u v w then (1 : ℚ) else 0) = (transition ^ (n+1)) u v := by
+  induction n generalizing u with
+  | zero => simp [path, transition]
+  | succ n ih =>
+    rw [sum_head, pow_succ', Matrix.mul_apply]
+    apply sum_congr rfl
+    intro d _
+    by_cases h : edge u d
+    · simpa [path_cons, transition, h] using ih d
+    · simp [path_cons, transition, h]
+
+private theorem cyclic_next {n : ℕ} (w : Word (n+1)) (i : Fin (n+1)) :
+    Fin.snoc (α := fun _ => Digit) w (w 0) i.succ = w ⟨(i.val+1) % (n+1), Nat.mod_lt _ (Nat.succ_pos _)⟩ := by
+  by_cases hi : i.val+1 < n+1
+  · have h : i.succ = (⟨(i.val+1) % (n+1), Nat.mod_lt _ (Nat.succ_pos _)⟩ : Fin (n+1)).castSucc :=
+      Fin.ext (by simp [Nat.mod_eq_of_lt hi])
+    rw [h, Fin.snoc_castSucc]
+  · have he : i.val+1 = n+1 := by omega
+    rw [show i.succ = Fin.last (n+1) from Fin.ext he, Fin.snoc_last]
     congr 1
-    refine Finset.prod_congr rfl fun i _ => ?_
-    by_cases h : i.val + 1 < m + 1
-    · have h' : (i.succ).val + 1 < m + 1 + 1 := by simp; omega
-      rw [dif_pos h, dif_pos h']
-      rfl
-    · have h' : ¬ (i.succ).val + 1 < m + 1 + 1 := by simp; omega
-      rw [dif_neg h, dif_neg h']
-      rfl
+    exact Fin.ext (by simp [he])
 
-theorem card_eq_trace (A : Matrix (Fin k) (Fin k) ℤ) (R : Fin k → Fin k → Prop) [DecidableRel R]
-    (hA : ∀ x y, A x y = if R x y then 1 else 0) (m : ℕ) :
-    (((Finset.univ : Finset (Fin (m + 1) → Fin k)).filter (fun s =>
-      ∀ i : Fin (m + 1), R (s i)
-        (s ⟨(i.val + 1) % (m + 1), Nat.mod_lt _ (Nat.zero_lt_of_lt i.isLt)⟩))).card : ℤ)
-      = Matrix.trace (A ^ (m + 1)) := by
-  rw [Finset.card_filter]
-  push_cast
-  rw [Matrix.trace]
-  simp only [Matrix.diag_apply]
-  simp_rw [← W_sum A m]
-  rw [← (Fin.consEquiv (fun _ : Fin (m + 1) => Fin k)).sum_comp, Fintype.sum_prod_type]
-  refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun t _ => ?_
-  have key := cyc_prod A m (Fin.cons x t) x
-  simp only [Fin.cons_zero, Fin.tail_cons] at key
-  rw [← key]
-  simp only [hA]
-  rw [Finset.prod_ite_zero]
-  simp only [Finset.prod_const_one, Fin.consEquiv, Equiv.coe_fn_mk]
-  refine if_congr ?_ rfl rfl
-  refine forall_congr' fun i => ?_
-  simp only [Finset.mem_univ, forall_true_left]
-  by_cases h : i.val + 1 < m + 1
-  · rw [dif_pos h]
-    have : (i.val + 1) % (m + 1) = i.val + 1 := Nat.mod_eq_of_lt h
-    simp only [this]
-  · rw [dif_neg h]
-    have : (i.val + 1) % (m + 1) = 0 := by
-      have : i.val + 1 = m + 1 := by omega
-      rw [this]; exact Nat.mod_self _
-    simp only [this]
-    rfl
+private theorem cycle_path (d : Digit) (w : Word n) :
+    path d d w ↔
+      ∀ i : Fin (n+1), edge ((Fin.cons d w : Word (n+1)) i) ((Fin.cons d w : Word (n+1)) ⟨(i.val+1) % (n+1), Nat.mod_lt _ (Nat.succ_pos _)⟩) := by
+  let z : Word (n+1) := Fin.cons d w
+  let t : Word (n+2) := Fin.snoc z d
+  have hz : List.ofFn t = d :: (List.ofFn w ++ [d]) := by
+    rw [List.ofFn_succ']
+    simp only [t, Fin.snoc_castSucc, Fin.snoc_last, List.concat_eq_append]
+    simp only [z, List.ofFn_succ, Fin.cons_zero, Fin.cons_succ, List.cons_append]
+  rw [path, ← hz, List.isChain_iff_getElem]
+  simp only [List.length_ofFn, List.getElem_ofFn]
+  have hs (i : Fin (n+1)) : t i.succ = z ⟨(i.val+1) % (n+1), Nat.mod_lt _ (Nat.succ_pos _)⟩ := by
+    simpa only [z, t, Fin.cons_zero] using cyclic_next z i
+  have hcast (i : Fin (n+1)) : t i.castSucc = z i := Fin.snoc_castSucc ..
+  constructor
+  · intro h i
+    have hi := h i.val (by have := i.isLt; omega)
+    change edge (t i.castSucc) (t i.succ) at hi
+    rw [hcast, hs] at hi
+    exact hi
+  · intro h j hj
+    let i : Fin (n+1) := ⟨j, by omega⟩
+    change edge (t i.castSucc) (t i.succ)
+    rw [hcast, hs]
+    exact h i
 
-end OMA.Circ
+private theorem count_trace (n : ℕ) : (a (n+1) : ℚ) = Matrix.trace (transition^(n+1)) := by
+  classical
+  let good (w : Word (n+1)) := ∀ i : Fin (n+1),
+    edge (w i) (w ⟨(i.val+1) % (n+1), Nat.mod_lt _ (Nat.succ_pos _)⟩)
+  have hcount : (a (n+1) : ℚ) = ∑ w : Word (n+1), if good w then 1 else 0 := by
+    simp only [a, Int.cast_natCast, edge, decide_eq_true_eq, good]
+    exact (Finset.sum_boole _ _).symm
+  rw [hcount, sum_head, Matrix.trace]
+  change _ = ∑ d, (transition^(n+1)) d d
+  apply sum_congr rfl
+  intro d _
+  rw [← path_sum]
+  apply sum_congr rfl
+  intro w _
+  exact if_congr (cycle_path d w).symm rfl rfl
 
-namespace OMA.P124699
-open OMA.S_oeis_a124699
+private theorem a_zero : a 0 = 1 := by decide +kernel
 
-def R (x y : Fin 6) : Prop := Int.natAbs (((x : ℕ) : ℤ) - ((y : ℕ) : ℤ)) ≤ 1
+set_option maxRecDepth 15000 in
+private theorem matrixRelation : (1 : ℚ) • transition ^ 7 + (-6 : ℚ) • transition ^ 6 + (10 : ℚ) • transition ^ 5 + (-9 : ℚ) • transition ^ 3 + (2 : ℚ) • transition ^ 2 + (1 : ℚ) • transition ^ 1 = 0 := by
+  ext i j
+  fin_cases i <;> fin_cases j <;> decide +kernel
 
-instance (x y : Fin 6) : Decidable (R x y) := inferInstanceAs (Decidable (_ ≤ _))
+private theorem shifted (m : ℕ) : (1) * (a (m+7) : ℚ) + (-6) * (a (m+6) : ℚ) + (10) * (a (m+5) : ℚ) + (-9) * (a (m+3) : ℚ) + (2) * (a (m+2) : ℚ) + (1) * (a (m+1) : ℚ) = 0 := by
+  have h := congrArg (fun A : Matrix Digit Digit ℚ => (transition^m * A).trace) matrixRelation
+  simp only [mul_add, mul_smul_comm, mul_zero, ← pow_add, Matrix.trace_add,
+    Matrix.trace_smul, smul_eq_mul, Matrix.trace_zero, ← count_trace] at h
+  linear_combination h
 
-def A : Matrix (Fin 6) (Fin 6) ℤ := fun x y => if R x y then 1 else 0
+private noncomputable def term (c : ℚ) (j : ℕ) : ℚ⟦X⟧ := C c * X ^ j
 
-theorem a_eq (m : ℕ) : a (m + 1) = Matrix.trace (A ^ (m + 1)) := by
-  rw [← OMA.Circ.card_eq_trace A R (fun _ _ => rfl) m]
-  simp only [a, decide_eq_true_eq, R]
-  congr
+private theorem coeff_mulTerm (s : ℚ⟦X⟧) (c : ℚ) (n j : ℕ) :
+    coeff n (s * term c j) = if j ≤ n then c * coeff (n-j) s else 0 := by
+  rw [term, ← mul_assoc, coeff_mul_X_pow', coeff_mul_C]
+  split_ifs <;> ring
 
-theorem a0 : a 0 = 1 := by decide
+private theorem coeff_term (c : ℚ) (n j : ℕ) :
+    coeff n (term c j) = if n = j then c else 0 := coeff_C_mul_X_pow c j n
 
-set_option maxRecDepth 100000 in
-theorem Arec : A ^ 7 = (6 : ℤ) • A ^ 6 - (10 : ℤ) • A ^ 5 + (9 : ℤ) • A ^ 3 - (2 : ℤ) • A ^ 2 - A := by
-  decide
+set_option maxRecDepth 15000 in
+private theorem generating : mk (fun n => (a n : ℚ)) * ((1 - 2 * X - X ^ 2 + X ^ 3) * (1 - 4 * X + 3 * X ^ 2 + X ^ 3)) = 1 - 10 * X ^ 2 + 27 * X ^ 4 - 8 * X ^ 5 - 5 * X ^ 6 := by
+  have hD : (((1 - 2 * X - X ^ 2 + X ^ 3) * (1 - 4 * X + 3 * X ^ 2 + X ^ 3)) : ℚ⟦X⟧) = term (1) 0 + term (-6) 1 + term (10) 2 + term (-9) 4 + term (2) 5 + term (1) 6 := by simp only [term,map_neg,map_ofNat,map_one]; ring
+  have hN : (1 - 10 * X ^ 2 + 27 * X ^ 4 - 8 * X ^ 5 - 5 * X ^ 6 : ℚ⟦X⟧) = term (1) 0 + term (-10) 2 + term (27) 4 + term (-8) 5 + term (-5) 6 := by simp only [term,map_neg,map_ofNat,map_one]; ring
+  rw [hD,hN]
+  ext n
+  simp only [mul_add,map_add,coeff_mulTerm,coeff_term,coeff_mk]
+  by_cases hn : n ≤ 6
+  · interval_cases n <;> simp only [a_zero,count_trace] <;> decide +kernel
+  · obtain ⟨m,rfl⟩ : ∃ m, n = m+7 := ⟨n-7, by omega⟩
+    simp only [Nat.zero_le, Nat.sub_zero, if_true, if_false,
+      show 1 ≤ m+7 by omega, show 2 ≤ m+7 by omega, show 4 ≤ m+7 by omega,
+      show 5 ≤ m+7 by omega, show 6 ≤ m+7 by omega, show m+7 ≠ 0 by omega,
+      show m+7 ≠ 2 by omega, show m+7 ≠ 4 by omega, show m+7 ≠ 5 by omega,
+      show m+7 ≠ 6 by omega, show m+7-1=m+6 by omega, show m+7-2=m+5 by omega,
+      show m+7-4=m+3 by omega, show m+7-5=m+2 by omega, show m+7-6=m+1 by omega]
+    linear_combination shifted m
 
-set_option maxRecDepth 100000 in
-theorem tr1 : Matrix.trace (A ^ 1) = 6 ∧ Matrix.trace (A ^ 2) = 16 ∧ Matrix.trace (A ^ 3) = 36 ∧
-    Matrix.trace (A ^ 4) = 92 ∧ Matrix.trace (A ^ 5) = 236 ∧ Matrix.trace (A ^ 6) = 622 := by
-  decide
+end OMA.CircularDigitWalks
 
-theorem a1 : a 1 = 6 := (a_eq 0).trans tr1.1
-theorem a2 : a 2 = 16 := (a_eq 1).trans tr1.2.1
-theorem a3 : a 3 = 36 := (a_eq 2).trans tr1.2.2.1
-theorem a4 : a 4 = 92 := (a_eq 3).trans tr1.2.2.2.1
-theorem a5 : a 5 = 236 := (a_eq 4).trans tr1.2.2.2.2.1
-theorem a6 : a 6 = 622 := (a_eq 5).trans tr1.2.2.2.2.2
-
-theorem rec (m : ℕ) : a (m + 7) = 6 * a (m + 6) - 10 * a (m + 5) + 9 * a (m + 3)
-    - 2 * a (m + 2) - a (m + 1) := by
-  rw [a_eq (m + 6), a_eq (m + 5), a_eq (m + 4), a_eq (m + 2), a_eq (m + 1), a_eq m]
-  have h : A ^ (m + 6 + 1) = (6 : ℤ) • A ^ (m + 5 + 1) - (10 : ℤ) • A ^ (m + 4 + 1)
-      + (9 : ℤ) • A ^ (m + 2 + 1) - (2 : ℤ) • A ^ (m + 1 + 1) - A ^ (m + 1) := by
-    have e1 : A ^ (m + 6 + 1) = A ^ m * A ^ 7 := by rw [← pow_add]
-    have e2 : A ^ (m + 5 + 1) = A ^ m * A ^ 6 := by rw [← pow_add]
-    have e3 : A ^ (m + 4 + 1) = A ^ m * A ^ 5 := by rw [← pow_add]
-    have e4 : A ^ (m + 2 + 1) = A ^ m * A ^ 3 := by rw [← pow_add]
-    have e5 : A ^ (m + 1 + 1) = A ^ m * A ^ 2 := by rw [← pow_add]
-    have e6 : A ^ (m + 1) = A ^ m * A := by rw [pow_succ]
-    rw [e1, e2, e3, e4, e5, e6, Arec]
-    simp only [Matrix.mul_sub, Matrix.mul_add, Matrix.mul_smul]
-  rw [h]
-  simp only [Matrix.trace_sub, Matrix.trace_add, Matrix.trace_smul, smul_eq_mul]
-
-end OMA.P124699
-
+open OMA.S_oeis_a124699 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a124699.main := by
-  have hr : ∀ m : ℕ, (OMA.S_oeis_a124699.a (m + 7) : ℚ)
-      = 6 * OMA.S_oeis_a124699.a (m + 6) - 10 * OMA.S_oeis_a124699.a (m + 5)
-        + 9 * OMA.S_oeis_a124699.a (m + 3) - 2 * OMA.S_oeis_a124699.a (m + 2)
-        - OMA.S_oeis_a124699.a (m + 1) := by
-    intro m; exact_mod_cast OMA.P124699.rec m
-  refine ⟨?_, ?_⟩
-  · have hD : ((1 - 2 * PowerSeries.X - PowerSeries.X ^ 2 + PowerSeries.X ^ 3) *
-        (1 - 4 * PowerSeries.X + 3 * PowerSeries.X ^ 2 + PowerSeries.X ^ 3) : PowerSeries ℚ)
-        = 1 - PowerSeries.C (6 : ℚ) * PowerSeries.X + PowerSeries.C (10 : ℚ) * PowerSeries.X ^ 2
-          - PowerSeries.C (9 : ℚ) * PowerSeries.X ^ 4 + PowerSeries.C (2 : ℚ) * PowerSeries.X ^ 5
-          + PowerSeries.X ^ 6 := by
-      simp only [map_ofNat]; ring
-    have hN : (1 - 10 * PowerSeries.X ^ 2 + 27 * PowerSeries.X ^ 4 - 8 * PowerSeries.X ^ 5
-        - 5 * PowerSeries.X ^ 6 : PowerSeries ℚ)
-        = 1 - PowerSeries.C (10 : ℚ) * PowerSeries.X ^ 2 + PowerSeries.C (27 : ℚ) * PowerSeries.X ^ 4
-          - PowerSeries.C (8 : ℚ) * PowerSeries.X ^ 5 - PowerSeries.C (5 : ℚ) * PowerSeries.X ^ 6 := by
-      simp only [map_ofNat]
-    rw [hD, hN]
-    have hE : PowerSeries.mk (fun n => (OMA.S_oeis_a124699.a n : ℚ)) *
-        (1 - PowerSeries.C (6 : ℚ) * PowerSeries.X + PowerSeries.C (10 : ℚ) * PowerSeries.X ^ 2
-          - PowerSeries.C (9 : ℚ) * PowerSeries.X ^ 4 + PowerSeries.C (2 : ℚ) * PowerSeries.X ^ 5
-          + PowerSeries.X ^ 6)
-        = PowerSeries.mk (fun n => (OMA.S_oeis_a124699.a n : ℚ))
-          - PowerSeries.C (6 : ℚ) * (PowerSeries.mk (fun n => (OMA.S_oeis_a124699.a n : ℚ)) * PowerSeries.X ^ 1)
-          + PowerSeries.C (10 : ℚ) * (PowerSeries.mk (fun n => (OMA.S_oeis_a124699.a n : ℚ)) * PowerSeries.X ^ 2)
-          - PowerSeries.C (9 : ℚ) * (PowerSeries.mk (fun n => (OMA.S_oeis_a124699.a n : ℚ)) * PowerSeries.X ^ 4)
-          + PowerSeries.C (2 : ℚ) * (PowerSeries.mk (fun n => (OMA.S_oeis_a124699.a n : ℚ)) * PowerSeries.X ^ 5)
-          + PowerSeries.mk (fun n => (OMA.S_oeis_a124699.a n : ℚ)) * PowerSeries.X ^ 6 := by
-      ring
-    rw [hE]
-    ext n
-    rcases n with _ | _ | _ | _ | _ | _ | _ | m
-    · simp [OMA.P124699.a0, PowerSeries.coeff_X_pow, PowerSeries.coeff_mul_X_pow']
-    · simp [OMA.P124699.a0, OMA.P124699.a1, PowerSeries.coeff_X_pow, PowerSeries.coeff_mul_X_pow']
-    · simp [OMA.P124699.a0, OMA.P124699.a1, OMA.P124699.a2, PowerSeries.coeff_X_pow,
-        PowerSeries.coeff_mul_X_pow']
-      norm_num
-    · simp [OMA.P124699.a0, OMA.P124699.a1, OMA.P124699.a2, OMA.P124699.a3,
-        PowerSeries.coeff_X_pow, PowerSeries.coeff_mul_X_pow']
-      norm_num
-    · simp [OMA.P124699.a0, OMA.P124699.a1, OMA.P124699.a2, OMA.P124699.a3, OMA.P124699.a4,
-        PowerSeries.coeff_X_pow, PowerSeries.coeff_mul_X_pow']
-      norm_num
-    · simp [OMA.P124699.a0, OMA.P124699.a1, OMA.P124699.a2, OMA.P124699.a3, OMA.P124699.a4,
-        OMA.P124699.a5, PowerSeries.coeff_X_pow, PowerSeries.coeff_mul_X_pow']
-      norm_num
-    · simp [OMA.P124699.a0, OMA.P124699.a1, OMA.P124699.a2, OMA.P124699.a3, OMA.P124699.a4,
-        OMA.P124699.a5, OMA.P124699.a6, PowerSeries.coeff_X_pow, PowerSeries.coeff_mul_X_pow']
-      norm_num
-    · simp [PowerSeries.coeff_X_pow, PowerSeries.coeff_mul_X_pow', hr m]
-      ring
-  · intro n hn
-    obtain ⟨m, rfl⟩ : ∃ m, n = m + 7 := ⟨n - 7, by omega⟩
-    exact hr m
+  refine ⟨OMA.CircularDigitWalks.generating, ?_⟩
+  intro n hn
+  obtain ⟨m, rfl⟩ : ∃ m, n = m+7 := ⟨n-7, by omega⟩
+  simp only [show m+7-1=m+6 by omega, show m+7-2=m+5 by omega, show m+7-4=m+3 by omega, show m+7-5=m+2 by omega, show m+7-6=m+1 by omega]
+  linear_combination OMA.CircularDigitWalks.shifted m

@@ -1,6 +1,17 @@
 import OMAStatements.S_mo_109583
 import Mathlib
 
+/-
+Adapted from @marcusbuffett's complete proof, PR #32501, pinned at
+https://github.com/lefttosolve2/open-math-agents/blob/a768f129945e00b04d60d2e2e3424d362bc5bca5/proofs/mo-109583.lean
+The Lang cylinder construction and thickening argument are retained.
+This revision uses library APIs for bottom transport, Borel membership of
+inseparable points, and the empty row of a singleton.
+Original question: David Feldman, https://mathoverflow.net/questions/109583
+(CC BY-SA 4.0); related discussion: Joel David Hamkins,
+https://mathoverflow.net/questions/87838 (CC BY-SA 3.0), citing Lang (1986).
+-/
+
 /-!
 # A concrete sigma algebra with no abstract Borel representation
 
@@ -31,19 +42,18 @@ lemma pullbackTopology {X Y : Type u} (m : MeasurableSpace X)
     (hs : ∀ x : X, MeasurableSet[m] {x}) (t : TopologicalSpace Y)
     (e : MS m ≃o MS (@borel Y t)) : ∃ t' : TopologicalSpace X, @borel X t' = m := by
   classical
-  letI : MeasurableSpace X := m
-  letI : MeasurableSpace Y := @borel Y t
+  let : MeasurableSpace X := m
+  let : MeasurableSpace Y := @borel Y t
   let z : MS m := ⟨∅, .empty⟩
   let z' : MS (@borel Y t) := ⟨∅, .empty⟩
-  have ez : e z = z' := le_antisymm ((e.le_symm_apply).mp (show z ≤ e.symm z' from empty_subset _))
-    (empty_subset _)
+  have ez : e z = z' := e.map_bot' (fun _ => empty_subset _) (fun _ => empty_subset _)
   let atom (x : X) : MS m := ⟨{x}, hs x⟩
   have hn (x : X) : (e (atom x)).val.Nonempty := by
     by_contra h
     have he : e (atom x) = e z := Subtype.ext ((not_nonempty_iff_eq_empty.mp h).trans
       (congrArg Subtype.val ez).symm)
     have := congrArg Subtype.val (e.injective he)
-    simpa [atom, z] using this
+    simp [atom, z] at this
   choose f hf using hn
   have trace (s : MS m) : f ⁻¹' (e s).val = s.val := by
     ext x
@@ -81,25 +91,22 @@ abbrev lang := generateFrom (range cyl.{u})
 lemma lang_not_borel (t : TopologicalSpace Base.{u}) : @borel _ t ≠ lang := by
   classical
   intro he
-  letI : MeasurableSpace Base.{u} := borel _
-  haveI : BorelSpace Base.{u} := ⟨rfl⟩
+  let : MeasurableSpace Base.{u} := borel _
+  have : BorelSpace Base.{u} := ⟨rfl⟩
   let code (x : Base.{u}) : MS lang := ⟨closure {x}, he ▸ isClosed_closure.measurableSet⟩
   have hinj : Function.Injective code := by
     intro x y h
     have hi : Inseparable x y := inseparable_iff_closure_eq.mpr (congrArg Subtype.val h)
-    have same (s : Set Base.{u}) (hs : MeasurableSet[borel _] s) : x ∈ s ↔ y ∈ s := by
-      induction s, hs using generateFrom_induction with
-      | hC a ha _ => exact hi.mem_open_iff ha
-      | empty => simp
-      | compl a _ ih => exact not_congr ih
-      | iUnion a _ ih => simp only [mem_iUnion]; exact exists_congr fun n => ih n
     ext i
-    exact same (cyl i) (he ▸ measurableSet_generateFrom (mem_range_self i))
+    apply hi.mem_measurableSet_iff
+    change MeasurableSet[borel _] (cyl i)
+    rw [he]
+    exact measurableSet_generateFrom (mem_range_self i)
   have hsmall : #(MS lang.{u}) ≤ 𝔠 := by
     apply cardinal_measurableSet_le_continuum
     exact mk_range_le.trans (by simp [I])
   have hbig := (Cardinal.mk_le_of_injective hinj).trans hsmall
-  simpa [Base, I, Cardinal.mk_set, not_le_of_gt (Cardinal.cantor (𝔠 : Cardinal.{u}))] using hbig
+  simp [Base, I, Cardinal.mk_set, not_le_of_gt (Cardinal.cantor (𝔠 : Cardinal.{u}))] at hbig
 
 section Thickening
 
@@ -125,9 +132,8 @@ abbrev thick (m : MeasurableSpace X) : MeasurableSpace (J × X) where
 lemma thick_singleton (m : MeasurableSpace X) (hF : ∀ a : J, ∀ᶠ j in F, j ≠ a)
     (p : J × X) : MeasurableSet[thick F m] {p} := by
   refine ⟨∅, .empty, (hF p.1).mono fun j hj => ?_⟩
-  apply eq_empty_iff_forall_notMem.mpr
-  intro x hx
-  exact hj (congrArg Prod.fst (show (j,x) = p from hx))
+  ext x
+  simp [row, Prod.ext_iff, hj]
 
 variable {c : Cardinal.{u}} [CardinalInterFilter F c]
 
@@ -188,9 +194,9 @@ lemma failure : ¬ ∀ (X : Type u) (m : MeasurableSpace X),
   let J := c.out
   let F := cocardinal J hc
   have hf : #(Set Base.{u}) < c := (le_max_right _ _).trans_lt (Order.lt_succ _)
-  letI : CountableInterFilter F := CardinalInterFilter.toCountableInterFilter F
+  let : CountableInterFilter F := CardinalInterFilter.toCountableInterFilter F
     ((le_max_left _ _).trans_lt (Order.lt_succ d) : ℵ₀ < c)
-  haveI : F.NeBot := by
+  have : F.NeBot := by
     have hh := (cocardinal_inf_principal_neBot_iff (α := J) (hreg := hc) (s := univ)).2
       (show c ≤ #(univ : Set J) by simp [J])
     simpa [F] using hh

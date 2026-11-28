@@ -1,8 +1,6 @@
 import OMAStatements.S_oeis_a189045
 
-namespace OMA.S_oeis_a189045
-
-theorem solve_aux : ∀ n p q : ℕ, IsTerm n → p.Prime → q.Prime → n = p * q → p ≠ q := by
+theorem OMA.solution : type_of% @OMA.S_oeis_a189045.main := by
   rintro n p q ⟨_, m, k, hk, hm⟩ hp _ hn rfl
   subst hn
   obtain ⟨j, rfl⟩ : ∃ j, k = j + 2 := ⟨k - 2, by omega⟩
@@ -24,6 +22,3 @@ theorem solve_aux : ∀ n p q : ℕ, IsTerm n → p.Prime → q.Prime → n = p 
     · obtain ⟨t, ht⟩ := hodd.pow (n := j + 2)
       omega
 
-end OMA.S_oeis_a189045
-
-theorem OMA.solution : type_of% @OMA.S_oeis_a189045.main := OMA.S_oeis_a189045.solve_aux

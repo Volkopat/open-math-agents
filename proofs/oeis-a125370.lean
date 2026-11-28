@@ -1,333 +1,191 @@
 import OMAStatements.S_oeis_a125370
 
--- Credit: @Aryan-Poonacha
--- The finite path-to-trace argument adapts the base-six formalization for OEIS
--- A125316 in https://github.com/lefttosolve2/open-math-agents/pull/25779.
--- The transfer-matrix method is given by Rafał Wiktorowicz, Proposition 2,
--- https://oeis.org/A126371/a126371_1.pdf (2026). Formulas: Colin Barker (2017).
-namespace CircularDigitWords
-
+namespace OMA.CircularDigitWalks
 open OMA.S_oeis_a125370 Finset PowerSeries
 
-section Walks
+private abbrev Digit := Fin 7
+private abbrev Word (n : ℕ) := Fin n → Digit
 
-variable {Digit : Type*} (Edge : Digit → Digit → Prop)
+private def edge (u v : Digit) : Prop := adjOk u v
 
-private abbrev cons {n : ℕ} (u : Digit) (w : Fin n → Digit) : Fin (n + 1) → Digit :=
-  @Fin.cons n (fun _ ↦ Digit) u w
-
-private abbrev snoc {n : ℕ} (w : Fin n → Digit) (v : Digit) : Fin (n + 1) → Digit :=
-  @Fin.snoc n (fun _ ↦ Digit) w v
-
-def walkMatrix [DecidableRel Edge] : Matrix Digit Digit ℚ := fun u v ↦ if Edge u v then 1 else 0
-
-private def Path {n : ℕ} (u v : Digit) (w : Fin n → Digit) : Prop :=
-  ∀ i : Fin (n + 1),
-    Edge (snoc (cons u w) v i.castSucc) (snoc (cons u w) v i.succ)
-
-private instance [DecidableRel Edge] {n : ℕ} (u v : Digit) (w : Fin n → Digit) : Decidable (Path Edge u v w) := by
-  unfold Path
+private instance (u v : Digit) : Decidable (edge u v) := by
+  unfold edge
   infer_instance
 
-private lemma path_empty (u v : Digit) (w : Fin 0 → Digit) : Path Edge u v w ↔ Edge u v := by
-  have h0 : Edge (snoc (cons u w) v (0 : Fin 1).castSucc)
-      (snoc (cons u w) v (Fin.last 1)) ↔ Edge u v := by
-    rw [show snoc (cons u w) v (Fin.last 1) = v from Fin.snoc_last ..,
-      show snoc (cons u w) v (0 : Fin 1).castSucc = u from
-        (Fin.snoc_castSucc ..).trans (Fin.cons_zero ..)]
-  constructor
-  · intro h
-    exact h0.1 (h 0)
-  · intro h i
-    have hi : i = 0 := Fin.ext (by have hi := i.isLt; simp at hi; omega)
-    subst i
-    exact h0.2 h
+private def transition : Matrix Digit Digit ℚ := fun u v => if edge u v then 1 else 0
 
-private lemma path_cons {n : ℕ} (u v x : Digit) (w : Fin n → Digit) :
-    Path Edge u v (cons x w) ↔ Edge u x ∧ Path Edge x v w := by
-  unfold Path
-  have hs : snoc (cons u (cons x w)) v = cons u (snoc (cons x w) v) :=
-    (Fin.cons_snoc_eq_snoc_cons u (cons x w) v).symm
-  rw [hs, Fin.forall_fin_succ]
-  have hcast (i : Fin (n + 1)) : i.succ.castSucc = i.castSucc.succ := Fin.ext rfl
-  have hzero : snoc (cons x w) v 0 = x := by
-    change snoc (cons x w) v (0 : Fin (n + 1)).castSucc = x
-    simp [snoc, cons]
-  simp only [Fin.castSucc_zero, cons, Fin.cons_zero, Fin.cons_succ, hcast]
-  change (Edge u (snoc (cons x w) v 0) ∧ _) ↔ _
-  rw [hzero]
+private def path (u v : Digit) (w : Word n) : Prop :=
+  (u :: (List.ofFn w ++ [v])).IsChain edge
 
-private lemma path_sum [Fintype Digit] [DecidableEq Digit] [DecidableRel Edge] (n : ℕ) (u v : Digit) :
-    (∑ w : Fin n → Digit, (if Path Edge u v w then 1 else 0 : ℚ)) = ((walkMatrix Edge) ^ (n + 1)) u v := by
-  induction n generalizing u v with
-  | zero =>
-    simp only [path_empty, Fintype.sum_unique, Nat.zero_add, pow_one, walkMatrix]
+private instance (u v : Digit) (w : Word n) : Decidable (path u v w) := by
+  unfold path
+  infer_instance
+
+private theorem path_cons (u v d : Digit) (w : Word n) :
+    path u v (Fin.cons d w) ↔ edge u d ∧ path d v w := by
+  simp only [path, List.ofFn_succ, Fin.cons_zero, Fin.cons_succ, List.cons_append, List.isChain_cons_cons]
+
+private theorem sum_head {n : ℕ} (f : Word (n+1) → ℚ) :
+    ∑ w, f w = ∑ d : Digit, ∑ w : Word n, f (Fin.cons d w) := by
+  rw [← (Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n+1) => Digit)) f)]
+  exact Fintype.sum_prod_type _
+
+private theorem path_sum (n : ℕ) (u v : Digit) :
+    (∑ w : Word n, if path u v w then (1 : ℚ) else 0) = (transition ^ (n+1)) u v := by
+  induction n generalizing u with
+  | zero => simp [path, transition]
   | succ n ih =>
-    let e := Fin.consEquiv (fun _ : Fin (n + 1) ↦ Digit)
-    have hs :
-        (∑ w : Fin (n + 1) → Digit, (if Path Edge u v w then 1 else 0 : ℚ)) =
-          ∑ p : Digit × (Fin n → Digit), (if Path Edge u v (cons p.1 p.2) then 1 else 0 : ℚ) := by
-      exact (Fintype.sum_equiv e _ _ fun p ↦ rfl).symm
-    rw [hs, Fintype.sum_prod_type, pow_succ', Matrix.mul_apply]
-    apply Finset.sum_congr rfl
-    intro x _
-    simp only [path_cons]
-    by_cases hx : Edge u x
-    · simp only [hx, true_and, walkMatrix, if_true, one_mul]
-      exact ih x v
-    · simp only [hx, false_and, if_false, sum_const_zero, walkMatrix, zero_mul]
+    rw [sum_head, pow_succ', Matrix.mul_apply]
+    apply sum_congr rfl
+    intro d _
+    by_cases h : edge u d
+    · simpa [path_cons, transition, h] using ih d
+    · simp [path_cons, transition, h]
 
-private lemma snoc_next {n : ℕ} (w : Fin (n + 1) → Digit) (i : Fin (n + 1)) :
-    snoc w (w 0) i.succ = w ⟨(i.val + 1) % (n + 1), Nat.mod_lt _ (by omega)⟩ := by
-  by_cases h : i.val + 1 < n + 1
-  · have heq : i.succ = (⟨(i.val + 1) % (n + 1), Nat.mod_lt _ (by omega)⟩ : Fin (n + 1)).castSucc :=
-      Fin.ext (by simp [Nat.mod_eq_of_lt h])
-    rw [heq]
-    exact Fin.snoc_castSucc ..
-  · have hv : i.val + 1 = n + 1 := by omega
-    have heq : i.succ = Fin.last (n + 1) := Fin.ext hv
-    rw [heq, show snoc w (w 0) (Fin.last (n + 1)) = w 0 from Fin.snoc_last ..]
+private theorem cyclic_next {n : ℕ} (w : Word (n+1)) (i : Fin (n+1)) :
+    Fin.snoc (α := fun _ => Digit) w (w 0) i.succ = w ⟨(i.val+1) % (n+1), Nat.mod_lt _ (Nat.succ_pos _)⟩ := by
+  by_cases hi : i.val+1 < n+1
+  · have h : i.succ = (⟨(i.val+1) % (n+1), Nat.mod_lt _ (Nat.succ_pos _)⟩ : Fin (n+1)).castSucc :=
+      Fin.ext (by simp [Nat.mod_eq_of_lt hi])
+    rw [h, Fin.snoc_castSucc]
+  · have he : i.val+1 = n+1 := by omega
+    rw [show i.succ = Fin.last (n+1) from Fin.ext he, Fin.snoc_last]
     congr 1
-    exact Fin.ext (by simp [hv])
+    exact Fin.ext (by simp [he])
 
-private lemma path_cycle {n : ℕ} (u : Digit) (w : Fin n → Digit) :
-    Path Edge u u w ↔ ∀ i : Fin (n + 1),
-      Edge ((cons u w) i)
-        ((cons u w) ⟨(i.val + 1) % (n + 1), Nat.mod_lt _ (by omega)⟩) := by
-  unfold Path
-  apply forall_congr'
-  intro i
-  have h0 : snoc (cons u w) u i.castSucc = (cons u w) i := Fin.snoc_castSucc ..
-  have hn : snoc (cons u w) u i.succ =
-      (cons u w) ⟨(i.val + 1) % (n + 1), Nat.mod_lt _ (by omega)⟩ := by
-    simpa only [cons, Fin.cons_zero] using snoc_next (cons u w) i
-  rw [h0, hn]
+private theorem cycle_path (d : Digit) (w : Word n) :
+    path d d w ↔
+      ∀ i : Fin (n+1), edge ((Fin.cons d w : Word (n+1)) i) ((Fin.cons d w : Word (n+1)) ⟨(i.val+1) % (n+1), Nat.mod_lt _ (Nat.succ_pos _)⟩) := by
+  let z : Word (n+1) := Fin.cons d w
+  let t : Word (n+2) := Fin.snoc z d
+  have hz : List.ofFn t = d :: (List.ofFn w ++ [d]) := by
+    rw [List.ofFn_succ']
+    simp only [t, Fin.snoc_castSucc, Fin.snoc_last, List.concat_eq_append]
+    simp only [z, List.ofFn_succ, Fin.cons_zero, Fin.cons_succ, List.cons_append]
+  rw [path, ← hz, List.isChain_iff_getElem]
+  simp only [List.length_ofFn, List.getElem_ofFn]
+  have hs (i : Fin (n+1)) : t i.succ = z ⟨(i.val+1) % (n+1), Nat.mod_lt _ (Nat.succ_pos _)⟩ := by
+    simpa only [z, t, Fin.cons_zero] using cyclic_next z i
+  have hcast (i : Fin (n+1)) : t i.castSucc = z i := Fin.snoc_castSucc ..
+  constructor
+  · intro h i
+    have hi := h i.val (by have := i.isLt; omega)
+    change edge (t i.castSucc) (t i.succ) at hi
+    rw [hcast, hs] at hi
+    exact hi
+  · intro h j hj
+    let i : Fin (n+1) := ⟨j, by omega⟩
+    change edge (t i.castSucc) (t i.succ)
+    rw [hcast, hs]
+    exact h i
 
-theorem walks_as_trace [Fintype Digit] [DecidableEq Digit] [DecidableRel Edge] (n : ℕ) :
-    ((Finset.univ.filter (fun w : Fin (n+1) → Digit => ∀ i,
-      Edge (w i) (w ⟨(i.val+1) % (n+1), Nat.mod_lt _ (by omega)⟩))).card : ℚ) = Matrix.trace ((walkMatrix Edge) ^ (n + 1)) := by
-  classical
-  let e := Fin.consEquiv (fun _ : Fin (n + 1) ↦ Digit)
-  have hs :
-      (∑ w : Fin (n + 1) → Digit, (if ∀ i : Fin (n + 1),
-        Edge (w i) (w ⟨(i.val + 1) % (n + 1), Nat.mod_lt _ (by omega)⟩) then 1 else 0 : ℚ)) =
-      ∑ p : Digit × (Fin n → Digit), (if Path Edge p.1 p.1 p.2 then 1 else 0 : ℚ) := by
-    symm
-    apply Fintype.sum_equiv e
-    intro p
-    simp only [path_cycle]
-    rfl
-  rw [Fintype.sum_prod_type] at hs
-  simp_rw [path_sum] at hs
-  rw [Matrix.trace]
-  change _ = ∑ x, ((walkMatrix Edge) ^ (n + 1)) x x
-  rw [← hs]
-  exact (Finset.sum_boole _ _).symm
+private theorem count_trace (n : ℕ) : (a (n+1) : ℚ) = Matrix.trace (transition^(n+1)) := by
+  simp only [a, Finset.card_filter, Nat.cast_ofNat, Nat.cast_sum, Nat.cast_ite, Nat.cast_one,
+    Nat.cast_zero]
+  rw [sum_head, Matrix.trace]
+  change _ = ∑ d, (transition ^ (n+1)) d d
+  apply sum_congr rfl
+  intro d _
+  rw [← path_sum]
+  apply sum_congr rfl
+  intro w _
+  by_cases h : path d d w
+  · have hv : (isValid (n+1) (Fin.cons d w)) := (cycle_path d w).mp h
+    simp [h, hv]
+  · have hv : ¬ (isValid (n+1) (Fin.cons d w)) := fun H => h ((cycle_path d w).mpr H)
+    simp [h, hv]
 
-end Walks
+private theorem a_zero : a 0 = 1 := by decide +kernel
 
-
-/-- Quotient adjacency matrix for two forbidden extreme digits and m interior digits. -/
-def quotient (m : ℚ) : Matrix (Fin 3) (Fin 3) ℚ :=
-  !![1, m, 0; 1, m, 1; 0, m, 1]
-
-lemma class_relation (m : ℚ) :
-    (quotient m)^3 = (m+2) • (quotient m)^2 - quotient m - m • 1 := by
+set_option maxRecDepth 15000 in
+private theorem matrixRelation : (1 : ℚ) • transition ^ 4 + (-7 : ℚ) • transition ^ 3 + (1 : ℚ) • transition ^ 2 + (5 : ℚ) • transition ^ 1 = 0 := by
   ext i j
-  fin_cases i <;> fin_cases j <;>
-    simp [quotient, pow_succ, Matrix.mul_apply, Fin.sum_univ_succ] <;> ring
+  fin_cases i <;> fin_cases j <;> decide +kernel
 
-private lemma swap_power {I : Type} [Fintype I] [DecidableEq I]
-    (U : Matrix I (Fin 3) ℚ) (V : Matrix (Fin 3) I ℚ) (n : ℕ) :
-    (U*V)^(n+1) = U * (V*U)^n * V := by
-  induction n with
-  | zero => simp
-  | succ n ih =>
-    rw [pow_succ (U*V) (n+1), ih, pow_succ]
-    simp only [Matrix.mul_assoc]
+private theorem shifted (m : ℕ) : (1) * (a (m+4) : ℚ) + (-7) * (a (m+3) : ℚ) + (1) * (a (m+2) : ℚ) + (5) * (a (m+1) : ℚ) = 0 := by
+  have h := congrArg (fun A : Matrix Digit Digit ℚ => (transition^m * A).trace) matrixRelation
+  simp only [mul_add, mul_smul_comm, mul_zero, ← pow_add, Matrix.trace_add,
+    Matrix.trace_smul, smul_eq_mul, Matrix.trace_zero, ← count_trace] at h
+  linear_combination h
 
-/-- Lift the three-class polynomial identity through any adjacency factorization. -/
-lemma lifted_relation {I : Type} [Fintype I] [DecidableEq I]
-    (U : Matrix I (Fin 3) ℚ) (V : Matrix (Fin 3) I ℚ) (m : ℚ)
-    (H : V*U = quotient m) :
-    (U*V)^4 = (m+2) • (U*V)^3 - (U*V)^2 - m • (U*V) := by
-  have h := congrArg (fun A : Matrix (Fin 3) (Fin 3) ℚ => U * A * V) (class_relation m)
-  rw [← H] at h
-  simp only [Matrix.mul_sub, Matrix.sub_mul, Matrix.mul_smul, Matrix.smul_mul, Matrix.mul_one] at h
-  simpa only [swap_power U V 3, swap_power U V 2, swap_power U V 1, pow_one] using h
+private noncomputable def term (c : ℚ) (j : ℕ) : ℚ⟦X⟧ := C c * X ^ j
 
-/-- Class 0 is the low endpoint, class 2 the high endpoint; the remaining m digits form class 1. -/
-def digitClass (m : ℕ) (x : Fin (m+2)) : Fin 3 :=
-  if x = 0 then 0 else if x = Fin.last (m+1) then 2 else 1
+private theorem coeff_mulTerm (s : ℚ⟦X⟧) (c : ℚ) (n j : ℕ) :
+    coeff n (s * term c j) = if j ≤ n then c * coeff (n-j) s else 0 := by
+  rw [term, ← mul_assoc, coeff_mul_X_pow', coeff_mul_C]
+  split_ifs <;> ring
 
-def indicator (m : ℕ) : Matrix (Fin (m+2)) (Fin 3) ℚ :=
-  fun x i => if digitClass m x = i then 1 else 0
+private theorem coeff_term (c : ℚ) (n j : ℕ) :
+    coeff n (term c j) = if n = j then c else 0 := coeff_C_mul_X_pow c j n
 
-def allowed (m : ℕ) : Matrix (Fin 3) (Fin (m+2)) ℚ :=
-  fun i y => if (i = 0 ∧ digitClass m y = 2) ∨ (i = 2 ∧ digitClass m y = 0) then 0 else 1
-
-/-- All steps are allowed except a step from either endpoint to the opposite endpoint. -/
-def circularMatrix (m : ℕ) : Matrix (Fin (m+2)) (Fin (m+2)) ℚ :=
-  fun x y => allowed m (digitClass m x) y
-
-private lemma factorMatrix (m : ℕ) : indicator m * allowed m = circularMatrix m := by
-  ext x y
-  simp [Matrix.mul_apply, indicator, circularMatrix]
-
-private lemma classCounts (m : ℕ) : allowed m * indicator m = quotient m := by
-  have hlast : Fin.last (m+1) ≠ 0 := by intro h; have := congrArg Fin.val h; simp at this
-  have hzero : digitClass m 0 = 0 := by simp [digitClass]
-  have hlast' : digitClass m (Fin.last (m+1)) = 2 := by simp [digitClass, hlast]
-  have hmid' (x : Fin m) : digitClass m x.castSucc.succ = 1 := by
-    change digitClass m x.succ.castSucc = 1
-    simp [digitClass, Fin.castSucc_ne_last]
-  ext i j
-  rw [Matrix.mul_apply, Fin.sum_univ_castSucc, Fin.sum_univ_succ]
-  fin_cases i <;> fin_cases j <;>
-    simp [allowed, indicator, hzero, hlast', hmid', quotient]
-
-theorem circularMatrix_relation (m : ℕ) :
-    circularMatrix m ^ 4 = ((m:ℚ)+2) • circularMatrix m ^ 3 -
-      circularMatrix m ^ 2 - (m:ℚ) • circularMatrix m := by
-  simpa only [factorMatrix] using lifted_relation (indicator m) (allowed m) m (classCounts m)
-
-def boundedEdge (m : ℕ) (x y : Fin (m+2)) : Prop :=
-  ((x.val : ℤ) - y.val).natAbs ≤ m
-
-instance (m : ℕ) : DecidableRel (boundedEdge m) := fun _ _ => inferInstanceAs (Decidable (_ ≤ _))
-
-private lemma distanceMatrix (m : ℕ) : walkMatrix (boundedEdge m) = circularMatrix m := by
-  ext x y
-  have hx := x.isLt
-  have hy := y.isLt
-  have habs : ((x.val : ℤ) - y.val).natAbs ≤ m ↔
-      ¬ (x.val = 0 ∧ y.val = m+1 ∨ x.val = m+1 ∧ y.val = 0) := by
-    by_cases h : x.val ≤ y.val
-    · rw [Int.natAbs_natCast_sub_natCast_of_le h]
-      omega
-    · rw [← Int.natAbs_neg, neg_sub, Int.natAbs_natCast_sub_natCast_of_le (by omega : y.val ≤ x.val)]
-      omega
-  simp only [walkMatrix, boundedEdge, circularMatrix, allowed, digitClass, habs]
-  simp only [Fin.ext_iff, Fin.val_zero, Fin.val_last]
-  split_ifs <;> first | rfl | omega
-
-def circularCount (m n : ℕ) : ℕ :=
-  (Finset.univ.filter (fun w : Fin n → Fin (m+2) => ∀ i,
-    boundedEdge m (w i) (w ⟨(i.val+1) % n, Nat.mod_lt _ (Nat.zero_lt_of_lt i.isLt)⟩))).card
-
-private lemma count_trace (m n : ℕ) :
-    (circularCount m (n+1) : ℚ) = Matrix.trace (circularMatrix m ^ (n+1)) := by
-  rw [← distanceMatrix]
-  exact walks_as_trace (boundedEdge m) n
-
-/-- For every alphabet of size m+2, count circular words whose adjacent digits differ by at most m. -/
-theorem circular_recurrence (m k : ℕ) :
-    (circularCount m (k+4) : ℚ) = ((m:ℚ)+2)*circularCount m (k+3) -
-      circularCount m (k+2) - (m:ℚ)*circularCount m (k+1) := by
-  have h := congrArg (fun A : Matrix (Fin (m+2)) (Fin (m+2)) ℚ =>
-    Matrix.trace (circularMatrix m ^ k * A)) (circularMatrix_relation m)
-  simp only [mul_sub, mul_smul_comm, ← pow_add, ← pow_succ,
-    Matrix.trace_sub, Matrix.trace_smul, smul_eq_mul] at h
-  simpa only [count_trace m (k+3), count_trace m (k+2), count_trace m (k+1),
-    count_trace m k] using h
-
-private lemma count_quotient (m n : ℕ) :
-    (circularCount m (n+1) : ℚ) = Matrix.trace ((quotient m)^(n+1)) := by
-  rw [count_trace, ← factorMatrix, swap_power, Matrix.trace_mul_cycle,
-    classCounts, ← pow_succ']
-
-private lemma init0 (m : ℕ) : (circularCount m 0 : ℚ) = 1 := by
-  simp [circularCount]
-
-private lemma init1 (m : ℕ) : (circularCount m 1 : ℚ) = m+2 := by
-  rw [count_quotient m 0]
-  simp [quotient, Matrix.trace, Fin.sum_univ_succ]
-  ring
-
-private lemma init2 (m : ℕ) : (circularCount m 2 : ℚ) = (m+2)^2-2 := by
-  rw [count_quotient m 1]
-  simp [quotient, Matrix.trace, pow_succ, Fin.sum_univ_succ]
-  ring
-
-private lemma init3 (m : ℕ) : (circularCount m 3 : ℚ) = (m+2)^3-6*(m+2)+6 := by
-  rw [count_quotient m 2]
-  simp [quotient, Matrix.trace, pow_succ, Fin.sum_univ_succ]
-  ring
-
-theorem circular_gf (m : ℕ) :
-    PowerSeries.mk (fun n => (circularCount m n : ℚ)) *
-      ((1-X)*(1-C ((m:ℚ)+1)*X-C (m:ℚ)*X^2)) = 1-X^2-C (2*(m:ℚ))*X^3 := by
-  let F : PowerSeries ℚ := PowerSeries.mk (fun n => (circularCount m n : ℚ))
-  let w : ℚ := (m:ℚ)+2
-  change F * _ = _
-  have he : F * ((1-X)*(1-C ((m:ℚ)+1)*X-C (m:ℚ)*X^2)) =
-      F - C w * (X^1 * F) + X^2 * F + C (m:ℚ) * (X^3 * F) := by
-    simp only [w, map_add, map_one, map_ofNat]
-    ring
-  rw [he]
+set_option maxRecDepth 15000 in
+private theorem generating : mk (fun n => (a n : ℚ)) * ((1 - X) * (1 - 6 * X - 5 * X ^ 2)) = 1 - X ^ 2 - 10 * X ^ 3 := by
+  have hD : (((1 - X) * (1 - 6 * X - 5 * X ^ 2)) : ℚ⟦X⟧) = term (1) 0 + term (-7) 1 + term (1) 2 + term (5) 3 := by simp only [term,map_neg,map_ofNat,map_one]; ring
+  have hN : (1 - X ^ 2 - 10 * X ^ 3 : ℚ⟦X⟧) = term (1) 0 + term (-1) 2 + term (-10) 3 := by simp only [term,map_neg,map_ofNat,map_one]; ring
+  rw [hD,hN]
   ext n
-  simp only [map_add, map_sub, coeff_C_mul, coeff_X_pow_mul', coeff_X_pow, coeff_one, F, coeff_mk]
-  dsimp only [w]
-  by_cases hn : 4 ≤ n
-  · obtain ⟨k, rfl⟩ : ∃ k, n = k+4 := ⟨n-4, by omega⟩
-    simp only [if_pos (show 1 ≤ k+4 by omega), if_pos (show 2 ≤ k+4 by omega),
-      if_pos (show 3 ≤ k+4 by omega), if_neg (show k+4 ≠ 0 by omega),
-      if_neg (show k+4 ≠ 2 by omega), if_neg (show k+4 ≠ 3 by omega), mul_zero, sub_zero]
-    rw [show k+4-1 = k+3 by omega, show k+4-2 = k+2 by omega,
-      show k+4-3 = k+1 by omega, circular_recurrence]
-    ring
-  · interval_cases n <;> norm_num [init0, init1, init2, init3] <;> ring
+  simp only [mul_add,map_add,coeff_mulTerm,coeff_term,coeff_mk]
+  by_cases hn : n ≤ 3
+  · interval_cases n <;> simp only [a_zero,count_trace] <;> decide +kernel
+  · obtain ⟨m,rfl⟩ : ∃ m, n = m+4 := ⟨n-4, by omega⟩
+    simp only [Nat.zero_le, Nat.sub_zero, if_true, if_false,
+      show 1 ≤ m+4 by omega, show 2 ≤ m+4 by omega, show 3 ≤ m+4 by omega,
+      show m+4 ≠ 0 by omega, show m+4 ≠ 2 by omega, show m+4 ≠ 3 by omega,
+      show m+4-1=m+3 by omega, show m+4-2=m+2 by omega, show m+4-3=m+1 by omega]
+    linear_combination shifted m
 
-private lemma root_step (t x : ℝ) (hx : x^2 = (t+1)*x+t) (k : ℕ) :
-    x^(k+3) = (t+2)*x^(k+2) - x^(k+1) - t*x^k := by
-  have h3 : x^3 = (t+2)*x^2-x-t := by linear_combination (x-1)*hx
+private noncomputable def L : ℝ := (3 - Real.sqrt 14)
+private noncomputable def R : ℝ := (3 + Real.sqrt 14)
+private noncomputable def formula (n : ℕ) : ℝ := 1 + L ^ n + R ^ n
+
+private theorem radicalSquare : Real.sqrt 14 ^ 2 = 14 := Real.sq_sqrt (by norm_num)
+
+private theorem rootShift (x : ℝ) (hx : x^2 = 6*x+5) (m : ℕ) :
+    x^(m+4) - 7*x^(m+3) + x^(m+2) + 5*x^(m+1) = 0 := by
   simp only [pow_add]
-  rw [h3]
-  ring
+  linear_combination x^m * x * (x - 1) * hx
 
-theorem circular_closed (m : ℕ) (x y : ℝ)
-    (hsum : x+y = (m:ℝ)+1) (hprod : x*y = -(m:ℝ)) (n : ℕ) (hn : 1 ≤ n) :
-    (circularCount m n : ℝ) = 1+x^n+y^n := by
-  have hx : x^2 = ((m:ℝ)+1)*x+m := by linear_combination x*hsum - hprod
-  have hy : y^2 = ((m:ℝ)+1)*y+m := by linear_combination y*hsum - hprod
-  induction n using Nat.strong_induction_on with
-  | h n ih =>
-    by_cases hsmall : n ≤ 3
-    · interval_cases n
-      · have h : (circularCount m 1 : ℝ) = (m:ℝ)+2 := by exact_mod_cast init1 m
-        simp only [pow_one]
-        linarith
-      · have h : (circularCount m 2 : ℝ) = ((m:ℝ)+2)^2-2 := by exact_mod_cast init2 m
-        have H : x^2+y^2 = (x+y)^2-2*(x*y) := by ring
-        rw [hsum,hprod] at H
-        linarith
-      · have h : (circularCount m 3 : ℝ) = ((m:ℝ)+2)^3-6*((m:ℝ)+2)+6 := by exact_mod_cast init3 m
-        have H : x^3+y^3 = (x+y)^3-3*(x*y)*(x+y) := by ring
-        rw [hsum,hprod] at H
-        linarith
-    · obtain ⟨k, rfl⟩ : ∃ k, n = k+4 := ⟨n-4, by omega⟩
-      have h : (circularCount m (k+4) : ℝ) =
-          ((m:ℝ)+2)*circularCount m (k+3)-circularCount m (k+2)-(m:ℝ)*circularCount m (k+1) := by
-        exact_mod_cast circular_recurrence m k
-      rw [h, ih (k+3) (by omega) (by omega), ih (k+2) (by omega) (by omega),
-        ih (k+1) (by omega) (by omega), root_step _ x hx (k+1), root_step _ y hy (k+1)]
-      ring
+private theorem formulaRec (m : ℕ) :
+    (1) * (formula (m+4) : ℝ) + (-7) * (formula (m+3) : ℝ) + (1) * (formula (m+2) : ℝ) + (5) * (formula (m+1) : ℝ) = 0 := by
+  have hL : L^2 = 6*L+5 := by unfold L; nlinarith [radicalSquare]
+  have hR : R^2 = 6*R+5 := by unfold R; nlinarith [radicalSquare]
+  unfold formula
+  linear_combination rootShift L hL m + rootShift R hR m
 
-end CircularDigitWords
+private theorem closed (n : ℕ) (hn : 1 ≤ n) : (a n : ℝ) = formula n := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m+1 := ⟨n-1, by omega⟩
+  suffices h : (a (m+1) : ℝ) = formula (m+1) ∧
+      (a (m+2) : ℝ) = formula (m+2) ∧ (a (m+3) : ℝ) = formula (m+3) from h.1
+  clear hn
+  induction m with
+  | zero =>
+    have v1 : (a 1 : ℚ) = 7 := (count_trace 0).trans (by decide +kernel)
+    have r1 : (a 1 : ℝ) = 7 := by exact_mod_cast v1
+    have s1 : (a 1 : ℝ) = formula 1 := by
+      rw [r1]; unfold formula L R; nlinarith [radicalSquare]
+    have v2 : (a 2 : ℚ) = 47 := (count_trace 1).trans (by decide +kernel)
+    have r2 : (a 2 : ℝ) = 47 := by exact_mod_cast v2
+    have s2 : (a 2 : ℝ) = formula 2 := by
+      rw [r2]; unfold formula L R; nlinarith [radicalSquare]
+    have v3 : (a 3 : ℚ) = 307 := (count_trace 2).trans (by decide +kernel)
+    have r3 : (a 3 : ℝ) = 307 := by exact_mod_cast v3
+    have s3 : (a 3 : ℝ) = formula 3 := by
+      rw [r3]; unfold formula L R; nlinarith [radicalSquare]
+    exact ⟨s1,s2,s3⟩
+  | succ m ih =>
+    obtain ⟨h1,h2,h3⟩ := ih
+    refine ⟨h2,h3,?_⟩
+    have hA : (1) * (a (m+4) : ℝ) + (-7) * (a (m+3) : ℝ) + (1) * (a (m+2) : ℝ) + (5) * (a (m+1) : ℝ) = 0 := by exact_mod_cast shifted m
+    rw [h1,h2,h3] at hA
+    linarith [formulaRec m]
 
+end OMA.CircularDigitWalks
+
+open OMA.S_oeis_a125370 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a125370.main := by
-  have hg := CircularDigitWords.circular_gf 5
-  norm_num only [Nat.cast_ofNat, map_ofNat, show (5:ℚ)+1=6 by norm_num,
-    show (2:ℚ)*5=10 by norm_num] at hg
-  refine ⟨hg, ?_, ?_⟩
-  · intro n hn
-    apply CircularDigitWords.circular_closed 5 _ _ _ _ n hn
-    · norm_num
-    · have h := Real.sq_sqrt (show (0:ℝ) ≤ 14 by norm_num)
-      norm_num
-      nlinarith
-  · intro n hn
-    obtain ⟨k, rfl⟩ : ∃ k, n = k+4 := ⟨n-4, by omega⟩
-    have h := CircularDigitWords.circular_recurrence 5 k
-    norm_num only [Nat.cast_ofNat, show (5:ℚ)+2=7 by norm_num] at h
-    exact_mod_cast h
+  refine ⟨OMA.CircularDigitWalks.generating, OMA.CircularDigitWalks.closed, ?_⟩
+  intro n hn
+  obtain ⟨m, rfl⟩ : ∃ m, n = m+4 := ⟨n-4, by omega⟩
+  simp only [show m+4-1=m+3 by omega, show m+4-2=m+2 by omega, show m+4-3=m+1 by omega]
+  have h : (1) * (a (m+4) : ℤ) + (-7) * (a (m+3) : ℤ) + (1) * (a (m+2) : ℤ) + (5) * (a (m+1) : ℤ) = 0 := by exact_mod_cast OMA.CircularDigitWalks.shifted m
+  linear_combination h

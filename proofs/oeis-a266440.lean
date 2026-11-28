@@ -111,12 +111,6 @@ private lemma recur (n : ℕ) (hn : 4 < n) :
 
 open PowerSeries in
 private lemma gf : mk (fun n => (a n : ℤ)) * ((1 - X) ^ 3 * (1 + X) ^ 2) = (X ^ 2 * (5 - X ^ 2) : PowerSeries ℤ) := by
-  have v0 : a 0 = 0 := by simp [a, Finset.sum_range_succ, cn, bf]
-  have v1 : a 1 = 0 := by simp [a, Finset.sum_range_succ, cn, bf]
-  have v2 : a 2 = 5 := by simp [a, Finset.sum_range_succ, cn, bf]
-  have v3 : a 3 = 5 := by simp [a, Finset.sum_range_succ, cn, bf]
-  have v4 : a 4 = 14 := by simp [a, Finset.sum_range_succ, cn, bf]
-  have v5 : a 5 = 14 := by simp [a, Finset.sum_range_succ, cn, bf]
   set F : PowerSeries ℤ := mk (fun n => (a n : ℤ)) with hF
   have product : F * ((1 - X) ^ 3 * (1 + X) ^ 2) = F + (-1 : ℤ) • (F * X ^ 1) + (-2 : ℤ) • (F * X ^ 2) + (2 : ℤ) • (F * X ^ 3) + (1 : ℤ) • (F * X ^ 4) + (-1 : ℤ) • (F * X ^ 5) := by
     simp only [zsmul_eq_mul]; push_cast; ring
@@ -127,9 +121,8 @@ private lemma gf : mk (fun n => (a n : ℤ)) * ((1 - X) ^ 3 * (1 + X) ^ 2) = (X 
   simp only [map_add, map_sub, map_zsmul, coeff_mul_X_pow', hF, coeff_mk, coeff_X_pow, smul_eq_mul]
   by_cases h : 5 < n
   · have hr := recur n (by omega)
-    simp only [show 1 ≤ n by omega, show 2 ≤ n by omega, show 3 ≤ n by omega, show 4 ≤ n by omega, show 5 ≤ n by omega, show n ≠ 2 by omega, show n ≠ 4 by omega, if_true, if_false]
-    linarith
-  · interval_cases n <;> simp [v0, v1, v2, v3, v4, v5]
+    split_ifs <;> first | omega | linarith
+  · interval_cases n <;> simp [a, Finset.sum_range_succ, cn, bf] <;> decide +kernel
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a266440.main := by
   exact ⟨closed, fun n hn => by have := recur n hn; linarith, gf⟩

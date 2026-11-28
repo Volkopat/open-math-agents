@@ -2,8 +2,6 @@ import OMAStatements.S_oeis_a188484
 import Mathlib.NumberTheory.ArithmeticFunction.Misc
 import Mathlib.Tactic
 
-namespace OMA.P_oeis_a188484
-
 open OMA.S_oeis_a188484
 
 private lemma sigma_550564 : ∑ d ∈ (550564 : ℕ).divisors, d = 1142337 := by
@@ -34,7 +32,5 @@ private theorem prove_disproof : ¬ (type_of% @OMA.S_oeis_a188484.main) := by
   rw [hs]
   norm_num
 
-end OMA.P_oeis_a188484
 
-theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a188484.main) :=
-  OMA.P_oeis_a188484.prove_disproof
+theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a188484.main) := prove_disproof

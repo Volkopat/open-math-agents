@@ -15,7 +15,7 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a147821.main := by
     by_cases hn : n < 11
     · interval_cases n <;> norm_num [a]
     · obtain ⟨m, rfl⟩ : ∃ m, n = m + 11 := ⟨n - 11, by omega⟩
-      simp only [show m + 11 - 1 = m + 10 by omega, show m + 11 - 2 = m + 9 by omega, show m + 11 - 3 = m + 8 by omega, show m + 11 - 4 = m + 7 by omega, show m + 11 - 5 = m + 6 by omega, show m + 11 - 6 = m + 5 by omega, show m + 11 - 7 = m + 4 by omega, show m + 11 - 8 = m + 3 by omega, show m + 11 - 9 = m + 2 by omega, show m + 11 - 10 = m + 1 by omega, show m + 11 - 11 = m + 0 by omega, show 1 ≤ m + 11 by omega, show 2 ≤ m + 11 by omega, show 3 ≤ m + 11 by omega, show 4 ≤ m + 11 by omega, show 5 ≤ m + 11 by omega, show 6 ≤ m + 11 by omega, show 7 ≤ m + 11 by omega, show 8 ≤ m + 11 by omega, show 9 ≤ m + 11 by omega, show 10 ≤ m + 11 by omega, show 11 ≤ m + 11 by omega, show m + 11 ≠ 0 by omega, show m + 11 ≠ 1 by omega, show m + 11 ≠ 2 by omega, show m + 11 ≠ 3 by omega, show m + 11 ≠ 4 by omega, show m + 11 ≠ 5 by omega, show m + 11 ≠ 6 by omega, show m + 11 ≠ 7 by omega, show m + 11 ≠ 8 by omega, show m + 11 ≠ 9 by omega, show m + 11 ≠ 10 by omega, if_true, if_false]
+      simp only [show m + 11 - 1 = m + 10 by omega, show m + 11 - 2 = m + 9 by omega, show m + 11 - 3 = m + 8 by omega, show m + 11 - 4 = m + 7 by omega, show m + 11 - 5 = m + 6 by omega, show m + 11 - 6 = m + 5 by omega, show m + 11 - 7 = m + 4 by omega, show m + 11 - 8 = m + 3 by omega, show m + 11 - 9 = m + 2 by omega, show m + 11 - 10 = m + 1 by omega, show m + 11 - 11 = m + 0 by omega, if_true]
       simp only [a]; push_cast; ring
   · intro n hn
     obtain ⟨m, rfl⟩ : ∃ m, n = m + 11 := ⟨n - 11, by omega⟩

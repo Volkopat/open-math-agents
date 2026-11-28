@@ -24,36 +24,20 @@ def diracParity {k : ℕ} (r u : Fin (k + 3)) : Fin 2 :=
 
 lemma diracCycle_step {k : ℕ} {u v : Fin (k + 3)}
     (hadj : (cycleGraph (k + 3)).Adj u v) : u + 1 = v ∨ v + 1 = u := by
-  rcases (cycleGraph_adj (n := k + 1)).mp hadj with h | h
-  · right
-    calc
-      v + 1 = (u - v) + v := by rw [h]; exact add_comm _ _
-      _ = u := sub_add_cancel _ _
-  · left
-    calc
-      u + 1 = (v - u) + u := by rw [h]; exact add_comm _ _
-      _ = v := sub_add_cancel _ _
+  simpa [sub_eq_iff_eq_add, add_comm, eq_comm, or_comm] using
+    (cycleGraph_adj (n := k + 1)).mp hadj
 
 lemma diracParity_eq_of_step {k : ℕ} {r u v : Fin (k + 3)}
     (hstep : u + 1 = v) (heq : diracParity r u = diracParity r v) : v = r := by
-  let w := u - r
-  have hshift : v - r = w + 1 := by
-    rw [← hstep]
-    dsimp only [w]
-    abel
-  have hpar : w.val % 2 = (v - r).val % 2 := congrArg Fin.val heq
-  have hval : (v - r).val = (w.val + 1) % (k + 3) := by
+  have hshift : v - r = (u - r) + 1 := by rw [← hstep]; abel
+  have hval : (v-r).val = ((u-r).val+1) % (k+3) := by
     rw [hshift, Fin.val_add, Fin.val_one]
-  have hwrap : w.val + 1 = k + 3 := by
-    by_contra h
-    have hlt : w.val + 1 < k + 3 := by have := w.isLt; omega
-    rw [Nat.mod_eq_of_lt hlt] at hval
+  have hpar : (u-r).val % 2 = (v-r).val % 2 := congrArg Fin.val heq
+  by_cases h : (u-r).val+1 < k+3
+  · rw [Nat.mod_eq_of_lt h] at hval
     omega
-  have hz : v - r = 0 := by
-    apply Fin.ext
-    rw [hval, hwrap, Nat.mod_self]
-    rfl
-  exact sub_eq_zero.mp hz
+  have hw : (u-r).val+1 = k+3 := by have := (u-r).isLt; omega
+  exact sub_eq_zero.mp (Fin.ext (by simp [hval,hw]))
 
 lemma diracParity_collision {k : ℕ} {r u v : Fin (k + 3)}
     (hadj : (cycleGraph (k + 3)).Adj u v) (h : diracParity r u = diracParity r v) :
@@ -76,6 +60,15 @@ lemma diracParity_valid_without_edge {k : ℕ} {a b u v : Fin (k + 3)} (hab : a 
   · have hv : v = a := add_right_cancel (hstep.trans (hu.trans hab.symm))
     exact hpair (Sym2.eq_iff.mpr (Or.inr ⟨hu, hv⟩))
 
+lemma diracSumColors_ne {m p q : ℕ} {f : Fin m → Fin p} {g : Fin m → Fin q}
+    {x y : Fin m ⊕ Fin m}
+    (hl : ∀ u v, x = .inl u → y = .inl v → f u ≠ f v)
+    (hr : ∀ u v, x = .inr u → y = .inr v → g u ≠ g v) :
+    finSumFinEquiv (Sum.map f g x) ≠ finSumFinEquiv (Sum.map f g y) := by
+  intro h
+  have he := finSumFinEquiv.injective h
+  cases x <;> cases y <;> simp_all
+
 lemma diracJoin_chromatic (m : ℕ) (hm : 2 ≤ m) (hodd : Odd m) :
     (diracJoin m).chromaticNumber = 6 := by
   classical
@@ -83,17 +76,12 @@ lemma diracJoin_chromatic (m : ℕ) (hm : 2 ≤ m) (hodd : Odd m) :
   · let tri := cycleGraph.tricoloring m hm
     have h : (diracJoin m).Colorable 6 := by
       refine ⟨Coloring.mk (fun x => finSumFinEquiv (Sum.map tri tri x)) ?_⟩
-      intro x y hadj h
-      have he := finSumFinEquiv.injective h
-      cases x with
-      | inl a =>
-        cases y with
-        | inl b => exact tri.valid hadj (Sum.inl.inj he)
-        | inr b => cases he
-      | inr a =>
-        cases y with
-        | inl b => cases he
-        | inr b => exact tri.valid hadj (Sum.inr.inj he)
+      intro x y hadj
+      apply diracSumColors_ne
+      · rintro u v rfl rfl
+        exact tri.valid hadj
+      · rintro u v rfl rfl
+        exact tri.valid hadj
     exact h.chromaticNumber_le
   · change ((6 : ℕ) : ℕ∞) ≤ (diracJoin m).chromaticNumber
     apply (le_chromaticNumber_iff_not_colorable (G := diracJoin m) (by decide)).mpr
@@ -121,23 +109,6 @@ lemma diracJoin_chromatic (m : ℕ) (hm : 2 ≤ m) (hodd : Odd m) :
     have hcard : (left ∪ right).card ≤ 5 := by simpa using Finset.card_le_univ (left ∪ right)
     rw [Finset.card_union_of_disjoint hd] at hcard
     omega
-
-lemma diracSumColors_ne {m p q : ℕ} {f : Fin m → Fin p} {g : Fin m → Fin q}
-    {x y : Fin m ⊕ Fin m}
-    (hl : ∀ u v, x = .inl u → y = .inl v → f u ≠ f v)
-    (hr : ∀ u v, x = .inr u → y = .inr v → g u ≠ g v) :
-    finSumFinEquiv (Sum.map f g x) ≠ finSumFinEquiv (Sum.map f g y) := by
-  intro h
-  have he := finSumFinEquiv.injective h
-  cases x with
-  | inl u =>
-    cases y with
-    | inl v => exact hl u v rfl rfl (Sum.inl.inj he)
-    | inr v => cases he
-  | inr u =>
-    cases y with
-    | inl v => cases he
-    | inr v => exact hr u v rfl rfl (Sum.inr.inj he)
 
 lemma diracColors_without_left_vertex {k : ℕ} (r : Fin (k + 3)) :
     ∃ f : (Fin (k + 3) ⊕ Fin (k + 3)) → Fin 5,
@@ -198,12 +169,10 @@ lemma diracMarkedParity_valid {k : ℕ} {C : Type*} (e : Fin 2 ↪ C) (r : Fin (
     {u v : Fin (k + 3)} (h : (cycleGraph (k + 3)).Adj u v) :
     diracMarkedParity e r u ≠ diracMarkedParity e r v := by
   intro he
-  by_cases hu : u = r
-  · have hv : v ≠ r := fun hv => h.ne (hu.trans hv.symm)
-    simp [diracMarkedParity, hu, hv] at he
-  by_cases hv : v = r
-  · simp [diracMarkedParity, hu, hv] at he
-  exact diracParity_valid_away hu hv h (e.injective (by simpa [diracMarkedParity, hu, hv] using he))
+  by_cases hu : u = r <;> by_cases hv : v = r <;> simp [diracMarkedParity, hu, hv] at he
+  · exact h.ne (hu.trans hv.symm)
+  · exact diracParity_valid_away hu hv h he
+
 
 lemma diracColors_without_cross_edge {k : ℕ} (a b : Fin (k + 3)) :
     ∃ f : (Fin (k + 3) ⊕ Fin (k + 3)) → Fin 5, ∀ x y,
@@ -312,11 +281,7 @@ lemma diracJoin_comap_critical {V : Type*} {k : ℕ}
       obtain ⟨hAdj, hne⟩ := deleteEdges_adj.mp hadj
       apply hf _ _ _ (iso.toHom.map_adj hAdj)
       intro he
-      apply hne
-      apply Set.mem_singleton_iff.mpr
-      rcases Sym2.eq_iff.mp he with h | h
-      · exact Sym2.eq_iff.mpr (Or.inl ⟨iso.injective h.1, iso.injective h.2⟩)
-      · exact Sym2.eq_iff.mpr (Or.inr ⟨iso.injective h.1, iso.injective h.2⟩)
+      exact hne (Set.mem_singleton_iff.mpr (Sym2.map.injective iso.injective he))
     exact hcol.chromaticNumber_le.trans_lt (by decide)
 
 end OMA

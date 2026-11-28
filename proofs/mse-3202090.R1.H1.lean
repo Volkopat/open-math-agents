@@ -1,5 +1,7 @@
 import OMAReductions.R_mse_3202090_R1
 import Mathlib
+-- Retains @LordMike’s valuation/LTE proof #25057.
+-- Standard prime-power and subtraction divisibility APIs replace two local contradictions.
 -- Credit: @LordMike
 
 theorem qs_key (r s k : ℕ) (hr : r.Prime) (hs : s.Prime) (hro : Odd r) (hne : r ≠ s)
@@ -22,12 +24,7 @@ theorem qs_key (r s k : ℕ) (hr : r.Prime) (hs : s.Prime) (hro : Odd r) (hne : 
   have hsd : (s : ZMod r) ^ d = 1 := hd ▸ pow_orderOf_eq_one _
   have hrsd : r ∣ s ^ d - 1 := (hcast d).2 hsd
   have hlt : 1 < s ^ d := Nat.one_lt_pow hdpos.ne' hs.one_lt
-  have hnd : ¬ r ∣ s ^ d := by
-    intro h
-    have h2 := Nat.dvd_sub h hrsd
-    have h3 : s ^ d - (s ^ d - 1) = 1 := by omega
-    rw [h3] at h2
-    exact hr.one_lt.ne' (Nat.dvd_one.1 h2)
+  have hnd : ¬ r ∣ s ^ d := fun h => hrs (hr.dvd_of_dvd_pow h)
   have hlte : ∀ j, j ≠ 0 → padicValNat r ((s ^ d) ^ j - 1) =
       padicValNat r (s ^ d - 1) + padicValNat r j := by
     intro j hj
@@ -84,12 +81,8 @@ theorem qs_val (r s j k : ℕ) (hr : r.Prime) (hs : s.Prime) (hne : r ≠ s) (hj
   have hA : 1 < r ^ (j - 1) := Nat.one_lt_pow (by omega) hr.one_lt
   have hB : 1 < s ^ (k - 1) := Nat.one_lt_pow (by omega) hs.one_lt
   have hnd : ¬ r ∣ r ^ (j - 1) - 1 := by
-    intro hd
-    have hd2 : r ∣ r ^ (j - 1) := dvd_pow_self r (by omega)
-    have h3 := Nat.dvd_sub hd2 hd
-    have h4 : r ^ (j - 1) - (r ^ (j - 1) - 1) = 1 := by omega
-    rw [h4] at h3
-    exact hr.one_lt.ne' (Nat.dvd_one.1 h3)
+    rw [Nat.dvd_sub_iff_right hA.le (dvd_pow_self r (by omega))]
+    exact hr.not_dvd_one
   have hL : padicValNat r (r ^ j - r) = 1 := by
     rw [h1, padicValNat.mul hr.ne_zero (by omega), padicValNat.self hr.one_lt,
       padicValNat.eq_zero_of_not_dvd hnd]

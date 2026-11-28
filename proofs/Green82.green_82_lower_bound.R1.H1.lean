@@ -1,52 +1,29 @@
 import OMAReductions.R_Green82_green_82_lower_bound_R1
-import Mathlib
 
--- Credit: @LordMike
-
-open Filter Topology Asymptotics
+open Filter Real Asymptotics
+open scoped Topology
 
 theorem OMA.solution : OMA.R_Green82_green_82_lower_bound_R1.H1 := by
-  unfold OMA.R_Green82_green_82_lower_bound_R1.H1
   intro c hc
-  have hL : Tendsto (fun n : ℕ => Real.log (Real.log (n : ℝ))) atTop atTop :=
-    Real.tendsto_log_atTop.comp (Real.tendsto_log_atTop.comp tendsto_natCast_atTop_atTop)
-  have hM : Tendsto (fun n : ℕ => Real.log (Real.log (Real.log (n : ℝ)))) atTop atTop :=
-    Real.tendsto_log_atTop.comp hL
-  have hdiv : Tendsto (fun n : ℕ => Real.log (Real.log (Real.log (Real.log (n : ℝ)))) /
-      Real.log (Real.log (Real.log (n : ℝ)))) atTop (𝓝 0) :=
-    (Real.isLittleO_log_id_atTop.tendsto_div_nhds_zero).comp hM
-  refine ⟨fun n : ℕ => (Real.log (Real.log (Real.log (Real.log (n : ℝ)))) + |Real.log c| + 1) /
-    Real.log (Real.log (Real.log (n : ℝ))), ?_, ?_⟩
-  · refine (Asymptotics.isLittleO_one_iff _).2 ?_
-    have h2 : Tendsto (fun n : ℕ => (|Real.log c| + 1) / Real.log (Real.log (Real.log (n : ℝ))))
-        atTop (𝓝 0) :=
-      tendsto_const_nhds.div_atTop hM
-    have h3 := hdiv.add h2
-    rw [add_zero] at h3
-    refine Tendsto.congr (fun n => ?_) h3
-    try dsimp only
-    ring
-  · filter_upwards [hL.eventually_gt_atTop 0, hM.eventually_ge_atTop 1] with n hLn hM1
-    try dsimp only
-    set L := Real.log (Real.log (n : ℝ)) with hLdef
-    set M := Real.log L with hMdef
-    have hM0 : 0 < M := by linarith
-    have hMne : M ≠ 0 := hM0.ne'
-    have hcne : c ≠ 0 := hc.ne'
-    have hlogM : 0 ≤ Real.log M := Real.log_nonneg hM1
-    have hnum : 0 ≤ Real.log M + |Real.log c| + 1 := by
-      linarith [abs_nonneg (Real.log c)]
-    rw [abs_of_nonneg (div_nonneg hnum hM0.le)]
-    rw [Real.rpow_sub hLn, Real.rpow_one, Real.rpow_def_of_pos hLn, ← hMdef]
-    have hprod : M * ((Real.log M + |Real.log c| + 1) / M) = Real.log M + |Real.log c| + 1 := by
+  let x (n : ℕ) := log (log (n : ℝ))
+  let y (n : ℕ) := log (x n)
+  let o (n : ℕ) := (log (y n) - log c) / y n
+  have hx : Tendsto x atTop atTop :=
+    tendsto_log_atTop.comp (tendsto_log_atTop.comp tendsto_natCast_atTop_atTop)
+  have hy : Tendsto y atTop atTop := tendsto_log_atTop.comp hx
+  refine ⟨o, (isLittleO_one_iff ℝ).mpr ?_, ?_⟩
+  · have hlog : Tendsto (fun n => log (y n) / y n) atTop (𝓝 0) :=
+      isLittleO_log_id_atTop.tendsto_div_nhds_zero.comp hy
+    simpa only [o, sub_div, sub_zero] using hlog.sub (hy.const_div_atTop (log c))
+  · filter_upwards [hx.eventually (eventually_gt_atTop (0 : ℝ)),
+      hy.eventually (eventually_ge_atTop c)] with n hn hcny
+    have hyn : 0 < y n := hc.trans_le hcny
+    have ho : 0 ≤ o n := div_nonneg (sub_nonneg.mpr (log_le_log hc hcny)) hyn.le
+    change x n ^ (1 - |o n|) ≤ c * x n / y n
+    rw [abs_of_nonneg ho, rpow_def_of_pos hn]
+    have he : log (x n) * (1 - o n) = log (x n) - log (y n) + log c := by
+      change y n * (1 - (log (y n) - log c) / y n) = y n - log (y n) + log c
       field_simp
-    have hkey : M / c ≤ Real.exp (M * ((Real.log M + |Real.log c| + 1) / M)) := by
-      rw [hprod]
-      have h2 : M / c = Real.exp (Real.log M - Real.log c) := by
-        rw [Real.exp_sub, Real.exp_log hM0, Real.exp_log hc]
-      rw [h2]
-      apply Real.exp_le_exp.mpr
-      linarith [neg_le_abs (Real.log c), abs_nonneg (Real.log c)]
-    calc L / Real.exp (M * ((Real.log M + |Real.log c| + 1) / M))
-        ≤ L / (M / c) := div_le_div_of_nonneg_left hLn.le (div_pos hM0 hc) hkey
-      _ = c * L / M := by rw [div_div_eq_mul_div]; ring
+      <;> ring
+    rw [he, exp_add, exp_sub, exp_log hn, exp_log hyn, exp_log hc]
+    exact le_of_eq (by ring)

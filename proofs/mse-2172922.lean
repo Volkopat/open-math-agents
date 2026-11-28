@@ -1,16 +1,13 @@
 import OMAStatements.S_mse_2172922
 
+/-! Retains @hiattco’s proof #10362 and the first-crossing approach credited
+there to @ecirak42. Standard interval-sum and Nat.find APIs replace local steps. -/
+
 open OMA.S_mse_2172922
 
 private theorem log_sum_succ (n : ℕ) (hn : 2 ≤ n + 1) :
     logSum (n + 1) = logSum n + Real.log ((n + 1 : ℕ) : ℝ) := by
-  have hinterval : Finset.Icc 2 (n + 1) = insert (n + 1) (Finset.Icc 2 n) := by
-    ext k
-    simp only [Finset.mem_Icc, Finset.mem_insert]
-    omega
-  unfold logSum
-  rw [hinterval, Finset.sum_insert (by simp)]
-  exact add_comm _ _
+  exact Finset.sum_Icc_succ_top hn _
 
 private theorem cross_integer (f : ℕ → ℝ) (K : ℕ) (η : ℝ)
     (hspan : f 0 + 1 ≤ f K) (hsteps : ∀ i < K, f (i + 1) - f i < η) :
@@ -23,10 +20,7 @@ private theorem cross_integer (f : ℕ → ℝ) (K : ℕ) (η : ℝ)
   let i := Nat.find hExists
   have hi : (z : ℝ) ≤ f i := Nat.find_spec hExists
   have hiK : i ≤ K := Nat.find_min' hExists (hz.trans hspan)
-  have hipos : 0 < i := by
-    by_contra! hle
-    have he : i = 0 := by omega
-    exact (not_le_of_gt h0) (he ▸ hi)
+  have hipos : 0 < i := (Nat.find_pos hExists).mpr h0.not_ge
   have hprev : f (i - 1) < (z : ℝ) :=
     lt_of_not_ge (Nat.find_min hExists (show i - 1 < i by omega))
   have hstep := hsteps (i - 1) (by omega)

@@ -11,8 +11,6 @@ it and at least one of them survives. But the pair 01 lies in no remaining line,
 not a Steiner system S(2, 3, 7). All checks are finite and done by decide.
 -/
 
-namespace MO492060Disproof
-
 open OMA.S_mo_492060
 
 /-- The Fano plane without the line 012. -/
@@ -42,7 +40,5 @@ theorem not_main : ¬ (∀ (n k : ℕ), 1 ≤ n → 1 ≤ k → k ≤ n - 1 →
   intro h
   exact not_steiner (h 4 3 (by norm_num) (by norm_num) (by norm_num) F F_adm)
 
-end MO492060Disproof
 
-theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_492060.main) := MO492060Disproof.not_main
-
+theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_492060.main) := not_main
