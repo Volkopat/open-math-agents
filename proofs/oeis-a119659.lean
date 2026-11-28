@@ -159,9 +159,6 @@ private lemma floor_div_bounds {y : ℝ} (hy : 0 ≤ y) {k : ℕ} (hk : 1 ≤ k)
     have : (⌊y⌋₊ : ℝ) < (k : ℝ) * (⌊y / k⌋₊ + 1) := (Nat.floor_le hy).trans_lt hy_lt
     exact_mod_cast this
 
-theorem nu_sum_div_eq_zero : ν.sum (fun n w ↦ w / n) = 0 := by
-  norm_num [ν, add_div, sum_add_index', sub_div, sum_sub_index]
-
 theorem E_nu_eq_one (x : ℝ) (hx : x ∈ Set.Ico 1 6) : E ν x = 1 := by
   obtain ⟨h1, h6⟩ := hx
   have hx0 : (0 : ℝ) ≤ x := by linarith
@@ -522,56 +519,6 @@ theorem theta_interval_le (x y : ℝ) (hxy : x ≤ y) (hy : 0 ≤ y) :
       rw [hcard, Nat.cast_sub hcardle]
       simp only [s, t, Nat.primesLE_card_eq_primeCounting]
 
-theorem primeCounting_le_theta_split (y : ℝ) (hy : 1 < y) :
-    (Nat.primeCounting ⌊y⌋₊ : ℝ) ≤ 2 * Chebyshev.theta y / Real.log y + Real.sqrt y := by
-  have hy0 : 0 ≤ y := by linarith
-  have hlog : 0 < Real.log y := Real.log_pos hy
-  have hsqrt : Real.sqrt y ≤ y := (Real.sqrt_le_iff).mpr ⟨hy0, by nlinarith⟩
-  let s := (⌊Real.sqrt y⌋₊ : ℕ).primesLE
-  let t := (⌊y⌋₊ : ℕ).primesLE
-  have hsub : s ⊆ t := Nat.primesLE_mono (Nat.floor_mono hsqrt)
-  have hcardle : s.card ≤ t.card := Finset.card_le_card hsub
-  have hcard : (t \ s).card = t.card - s.card := by
-    rw [Finset.card_sdiff, Finset.inter_eq_left.mpr hsub]
-  have hs_bound : (s.card : ℝ) ≤ Real.sqrt y := by
-    have h : s.card ≤ ⌊Real.sqrt y⌋₊ := by
-      dsimp [s]
-      rw [Nat.primesLE_eq_filter_Icc_one]
-      have hc := Finset.card_filter_le (Finset.Icc 1 ⌊Real.sqrt y⌋₊) Nat.Prime
-      rw [Nat.card_Icc] at hc
-      omega
-    exact (Nat.cast_le.mpr h).trans (Nat.floor_le (Real.sqrt_nonneg y))
-  have hsum_lower : (↑((t \ s).card) : ℝ) * (Real.log y / 2) ≤ Chebyshev.theta y := by
-    have h1 : ∑ _p ∈ t \ s, Real.log (Real.sqrt y) ≤ ∑ p ∈ t \ s, Real.log (p : ℝ) := by
-      apply Finset.sum_le_sum
-      intro p hp
-      have hpt : p ∈ t := (Finset.mem_sdiff.mp hp).1
-      have hps : p ∉ s := (Finset.mem_sdiff.mp hp).2
-      have hpprime : p.Prime := (Nat.mem_primesLE.mp hpt).2
-      have hlt : ⌊Real.sqrt y⌋₊ < p := by
-        by_contra h
-        have hh : p ≤ ⌊Real.sqrt y⌋₊ := by omega
-        exact hps (Nat.mem_primesLE.mpr ⟨hh, hpprime⟩)
-      exact Real.log_le_log (Real.sqrt_pos.mpr (by linarith)) (Nat.lt_of_floor_lt hlt).le
-    have h2 : ∑ p ∈ t \ s, Real.log (p : ℝ) ≤ Chebyshev.theta y := by
-      have hsum := Finset.sum_sdiff (f := fun p : ℕ => Real.log (p : ℝ)) hsub
-      rw [Chebyshev.theta_eq_sum_primesLE] at *
-      have hs0 : 0 ≤ ∑ p ∈ s, Real.log (p : ℝ) := by
-        apply Finset.sum_nonneg
-        intro p hp
-        exact Real.log_nonneg (by exact_mod_cast (Nat.mem_primesLE.mp hp).2.one_lt.le)
-      linarith
-    calc
-      _ = ∑ _p ∈ t \ s, Real.log (Real.sqrt y) := by rw [Real.log_sqrt hy0]; simp [nsmul_eq_mul]
-      _ ≤ ∑ p ∈ t \ s, Real.log (p : ℝ) := h1
-      _ ≤ _ := h2
-  have hdiv : (↑((t \ s).card) : ℝ) ≤ 2 * Chebyshev.theta y / Real.log y := by
-    apply (le_div_iff₀ hlog).mpr
-    linarith
-  rw [hcard, Nat.cast_sub hcardle] at hdiv
-  have htc : (t.card : ℝ) = Nat.primeCounting ⌊y⌋₊ := by simp [t, Nat.primesLE_card_eq_primeCounting]
-  linarith
-
 theorem primeCounting_le_theta_split_rpow (y α : ℝ) (hy : 1 < y)
     (ha : 0 < α) (ha1 : α ≤ 1) :
     (Nat.primeCounting ⌊y⌋₊ : ℝ) ≤ Chebyshev.theta y / (α * Real.log y) + y ^ α := by
@@ -661,13 +608,6 @@ namespace Chebyshev
 
 open Real
 
-theorem log_threshold_lower (x : ℝ) (hx : (262144 : ℝ) ≤ x) :
-    (12 : ℝ) ≤ log x := by
-  have hlog := Real.log_le_log (show (0 : ℝ) < 262144 by norm_num) hx
-  rw [show (262144 : ℝ) = 2 ^ (18 : ℕ) by norm_num, Real.log_pow] at hlog
-  norm_num at hlog
-  linarith [Real.log_two_gt_d9]
-
 theorem log_scaled_le (x c : ℝ) (hx : 0 < x) (hc : 0 < c) (hc2 : c ≤ 2) :
     log (c * x) ≤ log x + (0.75 : ℝ) := by
   rw [Real.log_mul (ne_of_gt hc) (ne_of_gt hx)]
@@ -697,53 +637,10 @@ theorem theta_count_gap_of_bridge (x : ℝ) (hx : (262144 : ℝ) ≤ x) (p q : �
   have hm := mul_le_mul_of_nonneg_right hbad' hlog0
   linarith
 
-theorem theta_count_ratio_of_bridge (x : ℝ) (hx : (262144 : ℝ) ≤ x) (p q : ℕ)
-    (hbridge : θ (48*x/25) - θ x ≤ ((q : ℝ) - p) * log (48*x/25))
-    (hsplit : (p : ℝ) * log x ≤ 2 * θ x + Real.sqrt x * log x) :
-    5 * p < 4 * q := by
-  have hz : (262144 : ℝ) ≤ 48*x/25 := by linarith
-  have hθL := theta_explicit_lower_large (48*x/25) hz
-  have hθU := theta_explicit_upper_large x hx
-  have hlogX := log_threshold_lower x hx
-  have hlog0 : 0 < log x := by linarith
-  have hlogZ : 0 < log (48*x/25) := by linarith [log_threshold_lower (48*x/25) hz]
-  have hlog_scaled : log (48*x/25) ≤ log x + 0.75 := by
-    convert log_scaled_le x (48/25) (by linarith) (by norm_num) (by norm_num) using 1
-    ring_nf
-  have hlogratio : log (48*x/25) ≤ (17/16)* log x := by linarith
-  have hlog := log_le_sqrt_scaled x hx
-  have hs0 := Real.sqrt_nonneg x
-  have hsq := Real.sq_sqrt (show 0 ≤ x by linarith)
-  have hslog : Real.sqrt x * log x ≤ (13.5/512)*x := by
-    nlinarith [mul_le_mul_of_nonneg_left hlog hs0]
-  have hd : (0 : ℝ) ≤ (q : ℝ) - p := by
-    by_contra! hneg
-    have hm := mul_neg_of_neg_of_pos hneg hlogZ
-    linarith
-  have hD := mul_le_mul_of_nonneg_left hlogratio hd
-  have hfinal : (p : ℝ) * log x < 4*((q : ℝ)-p)*log x := by
-    nlinarith
-  have hfinal' : (p : ℝ) < 4*((q : ℝ)-p) := by
-    by_contra! hn
-    have hm := mul_le_mul_of_nonneg_right hn hlog0.le
-    linarith
-  exact_mod_cast (show (5 : ℝ) * p < 4 * (q : ℝ) by linarith)
-
 theorem primeCounting_gap_large (x : ℝ) (hx : (262144 : ℝ) ≤ x) :
     Nat.primeCounting ⌊x⌋₊ + 2 ≤ Nat.primeCounting ⌊5*x/4⌋₊ := by
   apply theta_count_gap_of_bridge x hx
   exact PrimeIntervalBridge.theta_interval_le x (5*x/4) (by linarith) (by linarith)
-
-theorem primeCounting_ratio_large (x : ℝ) (hx : (262144 : ℝ) ≤ x) :
-    5 * Nat.primeCounting ⌊x⌋₊ < 4 * Nat.primeCounting ⌊48*x/25⌋₊ := by
-  apply theta_count_ratio_of_bridge x hx
-  · exact PrimeIntervalBridge.theta_interval_le x (48*x/25) (by linarith) (by linarith)
-  · have hlog : 0 < Real.log x := by linarith [log_threshold_lower x hx]
-    calc (Nat.primeCounting ⌊x⌋₊ : ℝ) * Real.log x
-        ≤ (2 * θ x / Real.log x + Real.sqrt x) * Real.log x := by
-          exact mul_le_mul_of_nonneg_right
-            (PrimeIntervalBridge.primeCounting_le_theta_split x (by linarith)) hlog.le
-      _ = 2 * θ x + Real.sqrt x * Real.log x := by field_simp
 
 end Chebyshev
 
@@ -1692,19 +1589,6 @@ theorem double_index_lt_local
     exact hm.trans_le (Nat.div_mul_le_self _ _)
   simpa [Nat.mul_comm] using hdiv
 
-theorem double_index_lt
-    (f g : ℕ → ℕ) (hf : StrictMono f)
-    (hcount : ∀ n, g (f n) = n)
-    (hindex : ∀ n x, n ≤ g x → f n ≤ x)
-    (k A B C D : ℕ) (hB : 0 < B) (hD : 0 < D)
-    (hgap : g (f k) + 2 ≤ g (A * f k / B))
-    (hratio : A * g (f (f k)) < B * g (C * f (f k) / D)) :
-    D * f (f (k + 2)) < C * f (f k) := by
-  have hf' : ∀ {m n}, 1 ≤ m → m < n → f m < f n := fun _ h => hf h
-  have hkstep : 1 ≤ f (k+2) := by have hh := hf (show 0 < k+2 by omega); omega
-  exact double_index_lt_local f g hf' k A B C D hB hD hkstep (hcount k) (hcount (f k))
-    (fun n x _ => hindex n x) hgap hratio
-
 theorem double_index_lt_positive
     (f g : ℕ → ℕ) (hf : ∀ {m n}, 1 ≤ m → m < n → f m < f n)
     (hcount : ∀ n, 1 ≤ n → g (f n) = n)
@@ -1716,24 +1600,6 @@ theorem double_index_lt_positive
     D * f (f (k + 2)) < C * f (f k) := by
   exact double_index_lt_local f g hf k A B C D hB hD hkstep (hcount k hk)
     (hcount (f k) hfk) (fun n x hn => hindex n x (by omega)) hgap hratio
-
-theorem triangle_of_ratio (x y z C D : ℕ) (hxy : x ≤ y)
-    (hCD : C ≤ 2*D) (h : D*z < C*x) : z < x+y := by
-  by_contra! hb
-  have h1 := Nat.mul_le_mul_left D hb
-  have h2 := Nat.mul_le_mul_right x hCD
-  have h3 := Nat.mul_le_mul_left D hxy
-  rw [Nat.mul_add] at h1
-  rw [Nat.mul_assoc] at h2
-  omega
-
-theorem double_index_triangle_of_ratio
-    (f : ℕ → ℕ) (hf : ∀ {m n}, 1 ≤ m → m < n → f m < f n)
-    (k C D : ℕ) (hk : 1 ≤ k) (hfk : 1 ≤ f k)
-    (hCD : C ≤ 2*D) (hratio : D*f (f (k+2)) < C*f (f k)) :
-    f (f (k+2)) < f (f k) + f (f (k+1)) := by
-  have hmono : f (f k) < f (f (k+1)) := hf hfk (hf hk (by omega))
-  exact triangle_of_ratio _ _ _ C D hmono.le hCD hratio
 
 end CountTransfer
 
@@ -1983,12 +1849,6 @@ theorem main_from_counts
   · have hstrong := stronger_from_counts hG hR k (by omega)
     have hm : pip k ≤ pip (k+1) := prime_le_of_le (prime_le_of_le (by omega))
     constructor <;> intro h <;> omega
-
-/- Unconditional strengthening of the claimed result. -/
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 4000000 in
-theorem ratio_bound (k : ℕ) (hk : 5 ≤ k) : 25*pip (k+2) < 48*pip k :=
-  stronger_from_counts PrimeIntervalBridge.two_prime_count_gap PrimeIntervalBridge.prime_count_ratio k hk
 
 /- Precisely the first three positive indices fail the triangle inequality. -/
 set_option maxRecDepth 100000 in

@@ -68,33 +68,10 @@ lemma coeff_nonneg (B : Set ℕ) (n : ℕ) : 0 ≤ coeff B n := by
   · simp [coeff, h]
   · simp [coeff, h]
 set_option maxHeartbeats 0 in
-lemma partialSum_coeff_eq_countUpTo (B : Set ℕ) (N : ℕ) :
-    (∑ n ∈ Finset.Icc 0 N, coeff B n) = countUpTo B N := by
-  classical
-  have hfilter :
-      (Finset.Icc 0 N).filter (fun n => 0 < n ∧ n ∈ B) =
-        (Finset.Icc 1 N).filter (fun n => n ∈ B) := by
-    ext n
-    simp [Nat.succ_le_iff, and_left_comm, and_assoc]
-  calc
-    ∑ n ∈ Finset.Icc 0 N, coeff B n
-        = ∑ n ∈ Finset.Icc 0 N, if 0 < n ∧ n ∈ B then (1 : ℝ) else 0 := by
-            simp [coeff]
-    _ = ∑ n ∈ (Finset.Icc 0 N).filter (fun n => 0 < n ∧ n ∈ B), (1 : ℝ) := by
-          rw [← Finset.sum_filter]
-    _ = ∑ n ∈ (Finset.Icc 1 N).filter (fun n => n ∈ B), (1 : ℝ) := by
-          rw [hfilter]
-    _ = countUpTo B N := by
-          simp [countUpTo]
-set_option maxHeartbeats 0 in
 lemma countUpTo_le (B : Set ℕ) (N : ℕ) : countUpTo B N ≤ N := by
   classical
   rw [countUpTo]
   simpa using Finset.card_filter_le (Finset.Icc 1 N) (fun n => n ∈ B)
-set_option maxHeartbeats 0 in
-lemma partialSum_coeff_eq_countingFn (B : Set ℕ) (x : ℝ) :
-    (∑ n ∈ Finset.Icc 0 ⌊x⌋₊, coeff B n) = countingFn B x := by
-  simp [countingFn, partialSum_coeff_eq_countUpTo]
 set_option maxHeartbeats 0 in
 lemma countingFn_le (B : Set ℕ) {x : ℝ} (hx : 0 ≤ x) : countingFn B x ≤ x := by
   unfold countingFn
@@ -790,9 +767,6 @@ set_option maxHeartbeats 0 in
 noncomputable def R (A : Set ℕ) (N : ℕ) : ℝ :=
   finiteAvoidDensity (primitiveTrunc A N)
 set_option maxHeartbeats 0 in
-def AvoidSet (F : Finset ℕ) : Set ℕ :=
-  {n | 0 < n ∧ ∀ a ∈ F, ¬ a ∣ n}
-set_option maxHeartbeats 0 in
 lemma mem_trunc {A : Set ℕ} {N a : ℕ} :
     a ∈ trunc A N ↔ (1 ≤ a ∧ a ≤ N) ∧ a ∈ A := by
   simp [trunc]
@@ -808,15 +782,6 @@ lemma trunc_positive (A : Set ℕ) (N : ℕ) :
   intro a ha
   have hmem := (mem_trunc (A := A) (N := N) (a := a)).1 ha
   exact lt_of_lt_of_le Nat.zero_lt_one hmem.1.1
-set_option maxHeartbeats 0 in
-lemma primitiveTrunc_positive (A : Set ℕ) (N : ℕ) :
-    PositiveFinset (primitiveTrunc A N) := by
-  simpa [primitiveTrunc] using (trunc_positive (A := primitiveKernel A) N)
-set_option maxHeartbeats 0 in
-lemma primitiveKernel_subset (A : Set ℕ) :
-    primitiveKernel A ⊆ A := by
-  intro a ha
-  exact ha.1
 set_option maxHeartbeats 0 in
 lemma Multiples_mono {A B : Set ℕ} (hAB : A ⊆ B) :
     Multiples A ⊆ Multiples B := by
@@ -838,10 +803,6 @@ lemma mem_Multiples_trunc_iff_of_le {A : Set ℕ} {n N : ℕ} (hnN : n ≤ N) :
   · intro hn
     have hsubset : (((trunc A N : Finset ℕ) : Set ℕ) ⊆ A) := trunc_subset A N
     exact (Multiples_mono hsubset) hn
-set_option maxHeartbeats 0 in
-lemma finiteMultiplesDensity_eq_one_sub_R (A : Set ℕ) (N : ℕ) :
-    finiteMultiplesDensity (primitiveTrunc A N) = 1 - R A N := by
-  rfl
 set_option maxHeartbeats 0 in
 lemma hasNatDensity_iff_densityToDirichletHasNatDensity {S : Set ℕ} {δ : ℝ} :
     HasNatDensity S δ ↔ OMA.E691.DensityToDirichlet.HasNatDensity S δ := by
@@ -929,98 +890,6 @@ lemma countUpTo_eq_nat_count_shift (S : Set ℕ) (M : ℕ) :
       refine ⟨by omega, ?_⟩
       simpa [Nat.sub_add_cancel hn1] using hnS
   rw [← hmap, Finset.card_map]
-set_option maxHeartbeats 0 in
-lemma mem_AvoidSet_iff_not_mem_Multiples
-    {F : Finset ℕ} (hFpos : PositiveFinset F) {n : ℕ} (hn : 0 < n) :
-    n ∈ AvoidSet F ↔ n ∉ Multiples ((F : Set ℕ)) := by
-  constructor
-  · intro hnAvoid hmul
-    rcases hnAvoid with ⟨_, hnodiv⟩
-    rcases (mem_Multiples_finset_iff (F := F) hFpos (n := n) hn).1 hmul with
-      ⟨a, haF, hadiv⟩
-    exact hnodiv a haF hadiv
-  · intro hnotmul
-    refine ⟨hn, ?_⟩
-    intro a haF hadiv
-    exact hnotmul <|
-      (mem_Multiples_finset_iff (F := F) hFpos (n := n) hn).2 ⟨a, haF, hadiv⟩
-set_option maxHeartbeats 0 in
-lemma countUpTo_avoidSet_add_countUpTo_multiples
-    (F : Finset ℕ) (hFpos : PositiveFinset F) (N : ℕ) :
-    countUpTo (AvoidSet F) N + countUpTo (Multiples ((F : Set ℕ))) N = N := by
-  classical
-  have hEq :
-      ((Finset.Icc 1 N).filter fun n => n ∈ AvoidSet F) =
-        (Finset.Icc 1 N).filter fun n => ¬ n ∈ Multiples ((F : Set ℕ)) := by
-    ext n
-    constructor
-    · intro hn
-      rcases Finset.mem_filter.mp hn with ⟨hnIcc, hnAvoid⟩
-      refine Finset.mem_filter.mpr ⟨hnIcc, ?_⟩
-      have hnPos : 0 < n := by
-        exact (Finset.mem_Icc.mp hnIcc).1
-      exact (mem_AvoidSet_iff_not_mem_Multiples (F := F) hFpos
-        (n := n) hnPos).1 hnAvoid
-    · intro hn
-      rcases Finset.mem_filter.mp hn with ⟨hnIcc, hnotmul⟩
-      refine Finset.mem_filter.mpr ⟨hnIcc, ?_⟩
-      have hnPos : 0 < n := by
-        exact (Finset.mem_Icc.mp hnIcc).1
-      exact (mem_AvoidSet_iff_not_mem_Multiples (F := F) hFpos
-        (n := n) hnPos).2 hnotmul
-  have hpart :
-      ((Finset.Icc 1 N).filter fun n => n ∈ Multiples ((F : Set ℕ))).card +
-        ((Finset.Icc 1 N).filter fun n => n ∈ AvoidSet F).card =
-      (Finset.Icc 1 N).card := by
-    calc
-      ((Finset.Icc 1 N).filter fun n => n ∈ Multiples ((F : Set ℕ))).card +
-          ((Finset.Icc 1 N).filter fun n => n ∈ AvoidSet F).card
-          = ((Finset.Icc 1 N).filter fun n => n ∈ Multiples ((F : Set ℕ))).card +
-              ((Finset.Icc 1 N).filter fun n => ¬ n ∈ Multiples ((F : Set ℕ))).card := by
-                rw [hEq]
-      _ = (Finset.Icc 1 N).card := by
-            simpa using
-              (Finset.card_filter_add_card_filter_not
-                (s := Finset.Icc 1 N) (p := fun n => n ∈ Multiples ((F : Set ℕ))))
-  calc
-    countUpTo (AvoidSet F) N + countUpTo (Multiples ((F : Set ℕ))) N
-        = ((Finset.Icc 1 N).filter fun n => n ∈ AvoidSet F).card +
-            ((Finset.Icc 1 N).filter fun n => n ∈ Multiples ((F : Set ℕ))).card := by
-              simp [countUpTo]
-    _ = ((Finset.Icc 1 N).filter fun n => n ∈ Multiples ((F : Set ℕ))).card +
-          ((Finset.Icc 1 N).filter fun n => n ∈ AvoidSet F).card := by
-            rw [Nat.add_comm]
-    _ = (Finset.Icc 1 N).card := hpart
-    _ = N := by simp
-set_option maxHeartbeats 0 in
-lemma densSeq_avoidSet_eq_one_sub_densSeq_multiples
-    (F : Finset ℕ) (hFpos : PositiveFinset F) (N : ℕ) :
-    densSeq (AvoidSet F) N = 1 - densSeq (Multiples ((F : Set ℕ))) N := by
-  have hcount_nat :
-      countUpTo (AvoidSet F) (N + 1) + countUpTo (Multiples ((F : Set ℕ))) (N + 1) = N + 1 :=
-    countUpTo_avoidSet_add_countUpTo_multiples F hFpos (N + 1)
-  have hcount :
-      (countUpTo (AvoidSet F) (N + 1) : ℝ) +
-          (countUpTo (Multiples ((F : Set ℕ))) (N + 1) : ℝ) =
-        (N + 1 : ℝ) := by
-    exact_mod_cast hcount_nat
-  have hcount' :
-      (countUpTo (AvoidSet F) (N + 1) : ℝ) =
-        (N + 1 : ℝ) - (countUpTo (Multiples ((F : Set ℕ))) (N + 1) : ℝ) := by
-    linarith
-  have hN0 : (N + 1 : ℝ) ≠ 0 := by positivity
-  calc
-    densSeq (AvoidSet F) N
-        = ((N + 1 : ℝ) -
-            (countUpTo (Multiples ((F : Set ℕ))) (N + 1) : ℝ)) / (N + 1 : ℝ) := by
-            unfold densSeq
-            rw [hcount']
-    _ = (N + 1 : ℝ) / (N + 1 : ℝ) -
-          (countUpTo (Multiples ((F : Set ℕ))) (N + 1) : ℝ) / (N + 1 : ℝ) := by
-            rw [sub_div]
-    _ = 1 - densSeq (Multiples ((F : Set ℕ))) N := by
-          rw [div_self hN0]
-          rfl
 set_option maxHeartbeats 0 in
 lemma card_univ_filter_subtype_eq_card_filter
     {α : Type*} [DecidableEq α]
@@ -1336,27 +1205,6 @@ theorem hasNatDensity_multiples_finset
       exact hsmall'
     exact lt_of_le_of_lt hdist_bound hsmall
   simpa [hd0_eq] using hlim
-set_option maxHeartbeats 0 in
-theorem hasNatDensity_avoidSet_finset
-  (F : Finset ℕ) (hFpos : PositiveFinset F) :
-    HasNatDensity (AvoidSet F) (finiteAvoidDensity F) := by
-  have hmult :
-      HasNatDensity (Multiples ((F : Set ℕ))) (finiteMultiplesDensity F) :=
-    hasNatDensity_multiples_finset F hFpos
-  have hsub :
-      Tendsto (fun N : ℕ => 1 - densSeq (Multiples ((F : Set ℕ))) N)
-        Filter.atTop (nhds (1 - finiteMultiplesDensity F)) := by
-    simpa using (tendsto_const_nhds.sub hmult)
-  have havoid :
-      Tendsto (fun N : ℕ => densSeq (AvoidSet F) N)
-        Filter.atTop (nhds (1 - finiteMultiplesDensity F)) := by
-    convert hsub using 1
-    ext N
-    exact densSeq_avoidSet_eq_one_sub_densSeq_multiples F hFpos N
-  have hδ : 1 - finiteMultiplesDensity F = finiteAvoidDensity F := by
-    unfold finiteMultiplesDensity
-    ring
-  simpa [HasNatDensity, hδ] using havoid
 set_option maxHeartbeats 0 in
 def UpwardClosed {α : Type*} [Preorder α] (U : Set α) : Prop :=
   ∀ ⦃x y : α⦄, x ≤ y → x ∈ U → y ∈ U
@@ -2280,53 +2128,6 @@ lemma finset_prod_rpow_natPow (s : Finset ℕ) (f : ℕ → ℕ) (r : ℝ) :
         _ = (Finset.prod (insert a s) (fun p => (p : ℝ) ^ f p)) ^ r := by
               rw [Finset.prod_insert ha]
 set_option maxHeartbeats 0 in
-lemma prod_supportPrimes_rpow_expVec_eq
-    {F G : Finset ℕ} (hFpos : PositiveFinset F) (hGF : G ⊆ F) {s : ℝ} :
-    Finset.prod (supportPrimes F)
-      (fun p => ((p : ℝ) ^ (-s)) ^ (lcm0 G).factorization p) = (lcm0 G : ℝ) ^ (-s) := by
-  classical
-  have hGpos : PositiveFinset G := by
-    intro a ha
-    exact hFpos (hGF ha)
-  have hlcm_ne : lcm0 G ≠ 0 := Nat.ne_of_gt (lcm0_pos G hGpos)
-  have hsubset : (lcm0 G).factorization.support ⊆ supportPrimes F :=
-    factorizationSupport_lcm0_subset_supportPrimes (F := F) (G := G) hFpos hGF
-  have hprodCast :
-      Finset.prod (lcm0 G).factorization.support
-        (fun p => (p : ℝ) ^ (lcm0 G).factorization p) = (lcm0 G : ℝ) := by
-    exact_mod_cast (Nat.factorization_prod_pow_eq_self hlcm_ne)
-  calc
-    Finset.prod (supportPrimes F)
-        (fun p => ((p : ℝ) ^ (-s)) ^ (lcm0 G).factorization p)
-        = Finset.prod (supportPrimes F)
-            (fun p => ((p : ℝ) ^ (lcm0 G).factorization p) ^ (-s)) := by
-          refine Finset.prod_congr rfl ?_
-          intro p hp
-          have hp0 : 0 ≤ (p : ℝ) := by positivity
-          calc
-            ((p : ℝ) ^ (-s)) ^ (lcm0 G).factorization p
-                = (p : ℝ) ^ ((-s) * (lcm0 G).factorization p) := by
-                    symm
-                    exact Real.rpow_mul_natCast hp0 (-s) ((lcm0 G).factorization p)
-            _ = (p : ℝ) ^ ((lcm0 G).factorization p * (-s)) := by
-                    rw [mul_comm]
-            _ = ((p : ℝ) ^ (lcm0 G).factorization p) ^ (-s) := by
-                    simpa [mul_comm] using
-                      (Real.rpow_natCast_mul hp0 ((lcm0 G).factorization p) (-s))
-    _ = (Finset.prod (supportPrimes F)
-          (fun p => (p : ℝ) ^ (lcm0 G).factorization p)) ^ (-s) := by
-          simpa using (finset_prod_rpow_natPow (supportPrimes F)
-            (fun p => (lcm0 G).factorization p) (-s))
-    _ = (Finset.prod (lcm0 G).factorization.support
-          (fun p => (p : ℝ) ^ (lcm0 G).factorization p)) ^ (-s) := by
-          congr 1
-          symm
-          exact Finset.prod_subset hsubset (fun p hpP hpNot => by
-            have hzero : (lcm0 G).factorization p = 0 := Finsupp.notMem_support_iff.mp hpNot
-            simp [hzero])
-    _ = (lcm0 G : ℝ) ^ (-s) := by
-          rw [hprodCast]
-set_option maxHeartbeats 0 in
 lemma mu_multiples_finset_eq_finiteDirichlet
     (F : Finset ℕ) (hFpos : PositiveFinset F) {s : ℝ} (hs : 1 < s) :
     mu s (Multiples ((F : Set ℕ))) = finiteDirichletMultiples F s := by
@@ -2694,27 +2495,6 @@ theorem finiteMultiplesDensity_mono_of_subset
     (hasNatDensity_multiples_finset F hFpos)
     (hasNatDensity_multiples_finset G hGpos)
 set_option maxHeartbeats 0 in
-lemma subset_trunc_sup_of_subset
-    {A : Set ℕ} {F : Finset ℕ}
-    (hFpos : PositiveFinset F)
-    (hFA : ((F : Set ℕ) ⊆ A)) :
-    ((F : Set ℕ) ⊆ ((trunc A (F.sup id) : Finset ℕ) : Set ℕ)) := by
-  intro a ha
-  have haF : a ∈ F := ha
-  have haA : a ∈ A := hFA ha
-  have ha_pos : 0 < a := hFpos haF
-  have ha_le : a ≤ F.sup id := Finset.le_sup (f := id) haF
-  exact (mem_trunc (A := A) (N := F.sup id) (a := a)).2
-    ⟨⟨Nat.succ_le_of_lt ha_pos, ha_le⟩, haA⟩
-set_option maxHeartbeats 0 in
-lemma finiteMultiplesDensity_le_trunc_sup
-    {A : Set ℕ} {F : Finset ℕ}
-    (hFpos : PositiveFinset F)
-    (hFA : ((F : Set ℕ) ⊆ A)) :
-    finiteMultiplesDensity F ≤ finiteMultiplesDensity (trunc A (F.sup id)) := by
-  exact finiteMultiplesDensity_mono_of_subset
-    (subset_trunc_sup_of_subset hFpos hFA) hFpos (trunc_positive A (F.sup id))
-set_option maxHeartbeats 0 in
 theorem finiteMultiplesDensity_trunc_mono (A : Set ℕ) :
     Monotone (fun N => finiteMultiplesDensity (trunc A N)) := by
   intro N M hNM
@@ -2879,177 +2659,6 @@ theorem exists_trunc_of_mu_gt
     exact (lt_div_iff₀ hzeta_pos).2 hnumT
   simpa [mu, T, g] using this
 set_option maxHeartbeats 0 in
-def DivisibilityUpwardClosed (U : Set ℕ) : Prop :=
-  ∀ ⦃n m : ℕ⦄, n ∈ U → 0 < m → n ∣ m → m ∈ U
-set_option maxHeartbeats 0 in
-lemma divisibilityUpwardClosed_Multiples (A : Set ℕ) :
-    DivisibilityUpwardClosed (Multiples A) := by
-  intro n m hn hmpos hnm
-  rcases hn with ⟨hnpos, a, haA, hapos, hadiv⟩
-  exact ⟨hmpos, a, haA, hapos, dvd_trans hadiv hnm⟩
-set_option maxHeartbeats 0 in
-lemma zetaTerm_nonneg (s : ℝ) (n : ℕ) : 0 ≤ zetaTerm s n := by
-  unfold zetaTerm
-  exact one_div_nonneg.mpr (Real.rpow_nonneg (by positivity) s)
-set_option maxHeartbeats 0 in
-lemma zetaTerm_pos (s : ℝ) (n : ℕ) : 0 < zetaTerm s n := by
-  unfold zetaTerm
-  have hbase : 0 < (n + 1 : ℝ) := by
-    exact_mod_cast Nat.succ_pos n
-  exact one_div_pos.mpr (Real.rpow_pos_of_pos hbase s)
-set_option maxHeartbeats 0 in
-lemma summable_zetaTerm {s : ℝ} (hs : 1 < s) :
-    Summable (zetaTerm s) := by
-  have hzetaEq : zetaTerm s = fun n : ℕ => ((((n + 1 : ℕ) : ℝ) ^ s)⁻¹) := by
-    funext n
-    simp [zetaTerm, one_div]
-  rw [hzetaEq]
-  exact (summable_nat_add_iff (f := fun n : ℕ => ((n : ℝ) ^ s)⁻¹) 1).2
-    (Real.summable_nat_rpow_inv.mpr hs)
-set_option maxHeartbeats 0 in
-lemma zetaReal_pos {s : ℝ} (hs : 1 < s) : 0 < zetaReal s := by
-  have hzetaSummable : Summable (zetaTerm s) := summable_zetaTerm hs
-  simpa [zetaReal] using hzetaSummable.tsum_pos (zetaTerm_nonneg s) 0 (zetaTerm_pos s 0)
-set_option maxHeartbeats 0 in
-lemma mu_mono_set {S T : Set ℕ} {s : ℝ}
-    (hST : S ⊆ T) (hs : 1 < s) :
-    mu s S ≤ mu s T := by
-  let f : ℕ → ℝ := fun n => if n + 1 ∈ S then zetaTerm s n else 0
-  let g : ℕ → ℝ := fun n => if n + 1 ∈ T then zetaTerm s n else 0
-  have hzetaSummable : Summable (zetaTerm s) := summable_zetaTerm hs
-  have hf_nonneg : ∀ n : ℕ, 0 ≤ f n := by
-    intro n
-    by_cases hn : n + 1 ∈ S
-    · simp [f, hn, zetaTerm_nonneg s n]
-    · simp [f, hn]
-  have hg_nonneg : ∀ n : ℕ, 0 ≤ g n := by
-    intro n
-    by_cases hn : n + 1 ∈ T
-    · simp [g, hn, zetaTerm_nonneg s n]
-    · simp [g, hn]
-  have hf_le_zeta : ∀ n : ℕ, f n ≤ zetaTerm s n := by
-    intro n
-    by_cases hn : n + 1 ∈ S
-    · simp [f, hn]
-    · simp [f, hn, zetaTerm_nonneg s n]
-  have hg_le_zeta : ∀ n : ℕ, g n ≤ zetaTerm s n := by
-    intro n
-    by_cases hn : n + 1 ∈ T
-    · simp [g, hn]
-    · simp [g, hn, zetaTerm_nonneg s n]
-  have hfSummable : Summable f :=
-    Summable.of_nonneg_of_le hf_nonneg hf_le_zeta hzetaSummable
-  have hgSummable : Summable g :=
-    Summable.of_nonneg_of_le hg_nonneg hg_le_zeta hzetaSummable
-  have hfg : ∀ n : ℕ, f n ≤ g n := by
-    intro n
-    by_cases hnS : n + 1 ∈ S
-    · have hnT : n + 1 ∈ T := hST hnS
-      simp [f, g, hnS, hnT]
-    · by_cases hnT : n + 1 ∈ T
-      · simp [f, g, hnS, hnT, zetaTerm_nonneg s n]
-      · simp [f, g, hnS, hnT]
-  have hnum : ∑' n : ℕ, f n ≤ ∑' n : ℕ, g n :=
-    hfSummable.tsum_le_tsum hfg hgSummable
-  have hzeta_pos : 0 < zetaReal s := zetaReal_pos hs
-  unfold mu
-  simpa [f, g] using div_le_div_of_nonneg_right hnum hzeta_pos.le
-set_option maxHeartbeats 0 in
-lemma mu_eq_of_pos_mem_iff {S T : Set ℕ} {s : ℝ}
-    (hST : ∀ ⦃n : ℕ⦄, 0 < n → (n ∈ S ↔ n ∈ T)) :
-    mu s S = mu s T := by
-  have hfun :
-      (fun n : ℕ => if n + 1 ∈ S then zetaTerm s n else 0) =
-        (fun n : ℕ => if n + 1 ∈ T then zetaTerm s n else 0) := by
-    funext n
-    have hmem : n + 1 ∈ S ↔ n + 1 ∈ T := hST (n := n + 1) (Nat.succ_pos n)
-    by_cases hnS : n + 1 ∈ S
-    · have hnT : n + 1 ∈ T := hmem.mp hnS
-      simp [hnS, hnT]
-    · have hnT : ¬ n + 1 ∈ T := by
-        intro hT
-        exact hnS (hmem.mpr hT)
-      simp [hnS, hnT]
-  simp [mu, hfun]
-set_option maxHeartbeats 0 in
-lemma mu_multiples_eq_self_of_divisibilityUpwardClosed {U : Set ℕ} (hU : DivisibilityUpwardClosed U)
-    (s : ℝ) :
-    mu s (Multiples U) = mu s U := by
-  refine mu_eq_of_pos_mem_iff ?_
-  intro n hn
-  constructor
-  · intro hnM
-    rcases hnM with ⟨hnpos, a, haU, hapos, hadiv⟩
-    exact hU haU hn hadiv
-  · intro hnU
-    exact ⟨hn, n, hnU, hn, dvd_rfl⟩
-set_option maxHeartbeats 0 in
-lemma multiples_trunc_subset_of_divisibilityUpwardClosed {U : Set ℕ}
-    (hU : DivisibilityUpwardClosed U) (N : ℕ) :
-    Multiples (((trunc U N : Finset ℕ) : Set ℕ)) ⊆ U := by
-  intro n hn
-  rcases hn with ⟨hnpos, a, haF, hapos, hadiv⟩
-  have haU : a ∈ U := ((mem_trunc (A := U) (N := N) (a := a)).1 haF).2
-  exact hU haU hnpos hadiv
-set_option maxHeartbeats 0 in
-lemma mu_univ_eq_one {s : ℝ} (hs : 1 < s) :
-    mu s (Set.univ : Set ℕ) = 1 := by
-  have hzeta_pos : 0 < zetaReal s := zetaReal_pos hs
-  calc
-    mu s (Set.univ : Set ℕ) = zetaReal s / zetaReal s := by
-      simp [mu, zetaReal]
-    _ = 1 := div_self hzeta_pos.ne'
-set_option maxHeartbeats 0 in
-lemma mu_le_one {S : Set ℕ} {s : ℝ} (hs : 1 < s) :
-    mu s S ≤ 1 := by
-  calc
-    mu s S ≤ mu s (Set.univ : Set ℕ) :=
-      mu_mono_set (S := S) (T := Set.univ) (by intro n hn; trivial) hs
-    _ = 1 := mu_univ_eq_one hs
-set_option maxHeartbeats 0 in
-theorem mu_le_of_divisibilityUpwardClosed
-    {U : Set ℕ} (hU : DivisibilityUpwardClosed U)
-    {s t : ℝ} (hs : 1 < s) (ht : 1 < t) (hst : s ≤ t) :
-    mu t U ≤ mu s U := by
-  by_contra hcontra
-  let a : ℝ := (mu s U + mu t U) / 2
-  have hs_lt_a : mu s U < a := by
-    dsimp [a]
-    linarith
-  have ha_lt_t : a < mu t U := by
-    dsimp [a]
-    linarith
-  have ht_le_one : mu t U ≤ 1 := mu_le_one (S := U) ht
-  have ha_lt_one : a < 1 := lt_of_lt_of_le ha_lt_t ht_le_one
-  have hε : 0 < 1 - a := by
-    linarith
-  have happrox_input : 1 - (1 - a) < mu t (Multiples U) := by
-    simpa [mu_multiples_eq_self_of_divisibilityUpwardClosed (U := U) hU t] using ha_lt_t
-  rcases exists_trunc_of_mu_gt (A := U) (ε := 1 - a) (s := t) ht happrox_input with ⟨N, hN⟩
-  have hfin_mono := mu_multiples_finset_antitone (trunc U N) (trunc_positive U N)
-  have hN' : a < mu t (Multiples (((trunc U N : Finset ℕ) : Set ℕ))) := by
-    simpa using hN
-  have hfin_step : a < mu s (Multiples (((trunc U N : Finset ℕ) : Set ℕ))) := by
-    exact lt_of_lt_of_le hN' (hfin_mono hs ht hst)
-  have hsubset : Multiples (((trunc U N : Finset ℕ) : Set ℕ)) ⊆ U :=
-    multiples_trunc_subset_of_divisibilityUpwardClosed (U := U) hU N
-  have hmono_set :
-      mu s (Multiples (((trunc U N : Finset ℕ) : Set ℕ))) ≤ mu s U :=
-    mu_mono_set hsubset hs
-  have : a < mu s U := lt_of_lt_of_le hfin_step hmono_set
-  exact (not_lt_of_ge hs_lt_a.le) this
-set_option maxHeartbeats 0 in
-theorem mu_antitone_of_divisibilityUpwardClosed
-    {U : Set ℕ} (hU : DivisibilityUpwardClosed U) :
-    AntitoneOn (fun s : ℝ => mu s U) (Set.Ioi (1 : ℝ)) := by
-  intro s hs t ht hst
-  exact mu_le_of_divisibilityUpwardClosed hU hs ht hst
-set_option maxHeartbeats 0 in
-theorem mu_multiples_antitone (A : Set ℕ) :
-    AntitoneOn (fun s : ℝ => mu s (Multiples A)) (Set.Ioi (1 : ℝ)) := by
-  exact mu_antitone_of_divisibilityUpwardClosed
-    (U := Multiples A) (divisibilityUpwardClosed_Multiples A)
-set_option maxHeartbeats 0 in
 theorem behrend_iff_finiteApprox_eps (A : Set ℕ) :
     IsBehrend A ↔
       ∀ ε > 0, ∃ N : ℕ, 1 - ε < finiteMultiplesDensity (trunc A N) := by
@@ -3080,27 +2689,6 @@ theorem behrend_iff_finiteApprox_eps (A : Set ℕ) :
       exact lt_of_lt_of_le (hN0 K hK) ((densSeq_mono_of_subset hsubset) K)
     · intro N
       exact densSeq_le_one (Multiples A) N
-set_option maxHeartbeats 0 in
-theorem finiteApprox_eps_iff_finiteSubsetApprox_eps (A : Set ℕ) :
-    (∀ ε > 0, ∃ N : ℕ, 1 - ε < finiteMultiplesDensity (trunc A N)) ↔
-      ∀ ε > 0, ∃ F : Finset ℕ,
-        PositiveFinset F ∧ ((F : Set ℕ) ⊆ A) ∧
-        1 - ε < finiteMultiplesDensity F := by
-  constructor
-  · intro htrunc ε hε
-    rcases htrunc ε hε with ⟨N, hN⟩
-    exact ⟨trunc A N, trunc_positive A N, trunc_subset A N, hN⟩
-  · intro hfin ε hε
-    rcases hfin ε hε with ⟨F, hFpos, hFA, hFdens⟩
-    exact ⟨F.sup id, lt_of_lt_of_le hFdens (finiteMultiplesDensity_le_trunc_sup hFpos hFA)⟩
-set_option maxHeartbeats 0 in
-theorem behrend_iff_finiteSubsetApprox_eps (A : Set ℕ) :
-    IsBehrend A ↔
-      ∀ ε > 0, ∃ F : Finset ℕ,
-        PositiveFinset F ∧ ((F : Set ℕ) ⊆ A) ∧
-        1 - ε < finiteMultiplesDensity F := by
-  exact (behrend_iff_finiteApprox_eps A).trans
-    (finiteApprox_eps_iff_finiteSubsetApprox_eps A)
 set_option maxHeartbeats 0 in
 theorem behrend_iff_truncFiniteDensities_tendsto_one (A : Set ℕ) :
     IsBehrend A ↔
@@ -3138,38 +2726,6 @@ theorem behrend_iff_truncFiniteDensities_tendsto_one (A : Set ℕ) :
       (tendsto_order.1 hlim).1 _ (by linarith)
     rcases Filter.eventually_atTop.1 hEv with ⟨N, hN⟩
     exact ⟨N, hN N le_rfl⟩
-set_option maxHeartbeats 0 in
-theorem multiples_primitiveKernel (A : Set ℕ) :
-    Multiples A = Multiples (primitiveKernel A) := by
-  classical
-  ext n
-  constructor
-  · intro hn
-    rcases hn with ⟨hnpos, a, haA, hapos, hadiv⟩
-    let D : Finset ℕ := n.divisors.filter fun d => d ∈ A
-    have haD : a ∈ D := by
-      refine Finset.mem_filter.mpr ⟨?_, haA⟩
-      exact Nat.mem_divisors.2 ⟨hadiv, Nat.ne_of_gt hnpos⟩
-    have hDne : D.Nonempty := ⟨a, haD⟩
-    set m : ℕ := D.min' hDne with hm
-    have hmD : m ∈ D := by
-      rw [hm]
-      exact Finset.min'_mem D hDne
-    have hmDiv : m ∣ n := Nat.dvd_of_mem_divisors (Finset.mem_filter.mp hmD).1
-    have hmPos : 0 < m := Nat.pos_of_mem_divisors (Finset.mem_filter.mp hmD).1
-    have hmA : m ∈ A := (Finset.mem_filter.mp hmD).2
-    have hmPrim : m ∈ primitiveKernel A := by
-      refine ⟨hmA, hmPos, ?_⟩
-      intro b hbA hbPos hbDiv
-      have hbDn : b ∣ n := dvd_trans hbDiv hmDiv
-      have hbD : b ∈ D := by
-        refine Finset.mem_filter.mpr ⟨?_, hbA⟩
-        exact Nat.mem_divisors.2 ⟨hbDn, Nat.ne_of_gt hnpos⟩
-      rw [hm]
-      exact Finset.min'_le D b hbD
-    exact ⟨hnpos, m, hmPrim, hmPos, hmDiv⟩
-  · intro hn
-    exact (Multiples_mono (primitiveKernel_subset A)) hn
 set_option maxHeartbeats 0 in
 theorem finiteMultiplesDensity_eq_nonempty_powerset_sum (F : Finset ℕ) :
     finiteMultiplesDensity F =
@@ -3216,87 +2772,6 @@ theorem finiteMultiplesDensity_eq_nonempty_powerset_sum (F : Finset ℕ) :
     _ = Finset.sum A (fun G => (-1 : ℝ) ^ (G.card + 1) / (lcm0 G : ℝ)) := hneg
     _ = ∑ G ∈ F.powerset with G.Nonempty, (-1 : ℝ) ^ (G.card + 1) / (lcm0 G : ℝ) := by
           simp [A]
-set_option maxHeartbeats 0 in
-theorem hasNatDensity_avoidSet_eq_R (A : Set ℕ) (N : ℕ) :
-    HasNatDensity (AvoidSet (primitiveTrunc A N)) (R A N) := by
-  simpa [R] using
-    hasNatDensity_avoidSet_finset (primitiveTrunc A N) (primitiveTrunc_positive A N)
-set_option maxHeartbeats 0 in
-theorem one_sub_R_eq_nonempty_powerset_sum (A : Set ℕ) (N : ℕ) :
-    1 - R A N =
-      ∑ G ∈ (primitiveTrunc A N).powerset with G.Nonempty,
-        (-1 : ℝ) ^ (G.card + 1) / (lcm0 G : ℝ) := by
-  calc
-    1 - R A N = finiteMultiplesDensity (primitiveTrunc A N) := by
-      symm
-      exact finiteMultiplesDensity_eq_one_sub_R A N
-    _ =
-        ∑ G ∈ (primitiveTrunc A N).powerset with G.Nonempty,
-          (-1 : ℝ) ^ (G.card + 1) / (lcm0 G : ℝ) :=
-      finiteMultiplesDensity_eq_nonempty_powerset_sum (primitiveTrunc A N)
-set_option maxHeartbeats 0 in
-theorem behrend_iff_R_tendsto_zero (A : Set ℕ) :
-    IsBehrend A ↔ Tendsto (R A) Filter.atTop (nhds 0) := by
-  constructor
-  · intro hA
-    have hprim : IsBehrend (primitiveKernel A) := by
-      simpa [IsBehrend, multiples_primitiveKernel A] using hA
-    have hdens :
-        Tendsto (fun N : ℕ => finiteMultiplesDensity (primitiveTrunc A N))
-          Filter.atTop (nhds 1) := by
-      simpa [primitiveTrunc] using
-        (behrend_iff_truncFiniteDensities_tendsto_one (primitiveKernel A)).1 hprim
-    have hsub : Tendsto (fun N : ℕ => 1 - R A N) Filter.atTop (nhds 1) := by
-      simpa [finiteMultiplesDensity_eq_one_sub_R] using hdens
-    have hzero' :
-        Tendsto (fun N : ℕ => 1 - (1 - R A N)) Filter.atTop (nhds (1 - 1)) :=
-      tendsto_const_nhds.sub hsub
-    convert hzero' using 1
-    · ext N
-      ring
-    · ring
-  · intro hR
-    have hsub : Tendsto (fun N : ℕ => 1 - R A N) Filter.atTop (nhds 1) := by
-      simpa using (tendsto_const_nhds.sub hR)
-    have hdens :
-        Tendsto (fun N : ℕ => finiteMultiplesDensity (primitiveTrunc A N))
-          Filter.atTop (nhds 1) := by
-      simpa [finiteMultiplesDensity_eq_one_sub_R] using hsub
-    have hprim : IsBehrend (primitiveKernel A) := by
-      exact (behrend_iff_truncFiniteDensities_tendsto_one (primitiveKernel A)).2
-        (by simpa [primitiveTrunc] using hdens)
-    simpa [IsBehrend, multiples_primitiveKernel A] using hprim
-set_option maxHeartbeats 0 in
-theorem behrend_iff_nonempty_powerset_sum_tendsto_one (A : Set ℕ) :
-    IsBehrend A ↔
-      Tendsto
-        (fun N : ℕ =>
-          ∑ G ∈ (primitiveTrunc A N).powerset with G.Nonempty,
-            (-1 : ℝ) ^ (G.card + 1) / (lcm0 G : ℝ))
-        Filter.atTop (nhds 1) := by
-  constructor
-  · intro hA
-    have hsub : Tendsto (fun N : ℕ => 1 - R A N) Filter.atTop (nhds 1) := by
-      have hR : Tendsto (R A) Filter.atTop (nhds 0) :=
-        (behrend_iff_R_tendsto_zero A).1 hA
-      simpa using (tendsto_const_nhds.sub hR)
-    convert hsub using 1
-    ext N
-    exact (one_sub_R_eq_nonempty_powerset_sum A N).symm
-  · intro hsum
-    have hsub : Tendsto (fun N : ℕ => 1 - R A N) Filter.atTop (nhds 1) := by
-      convert hsum using 1
-      ext N
-      exact one_sub_R_eq_nonempty_powerset_sum A N
-    have hR : Tendsto (R A) Filter.atTop (nhds 0) := by
-      have hzero' :
-          Tendsto (fun N : ℕ => 1 - (1 - R A N)) Filter.atTop (nhds (1 - 1)) :=
-        tendsto_const_nhds.sub hsub
-      convert hzero' using 1
-      · ext N
-        ring
-      · ring
-    exact (behrend_iff_R_tendsto_zero A).2 hR
 end OMA.E691
 open scoped BigOperators Topology
 open Filter Set
@@ -3306,19 +2781,6 @@ variable {α : Type*}
 set_option maxHeartbeats 0 in
 noncomputable def mass (w : α → ℝ) (s : Set α) : ℝ :=
   ∑' x, s.indicator w x
-set_option maxHeartbeats 0 in
-lemma summable_mass {w : α → ℝ} (hw : Summable w) (s : Set α) :
-    Summable (s.indicator w) := hw.indicator s
-set_option maxHeartbeats 0 in
-lemma mass_nonneg {w : α → ℝ} (hw : ∀ x, 0 ≤ w x) (s : Set α) :
-    0 ≤ mass w s :=
-  tsum_nonneg fun x => Set.indicator_nonneg (fun _ _ => hw _) _
-set_option maxHeartbeats 0 in
-lemma mass_mono {w : α → ℝ} (hw : Summable w) (hw0 : ∀ x, 0 ≤ w x)
-    {s t : Set α} (hst : s ⊆ t) : mass w s ≤ mass w t := by
-  apply Summable.tsum_le_tsum _ (hw.indicator s) (hw.indicator t)
-  intro x
-  exact Set.indicator_le_indicator_of_subset hst hw0 x
 set_option maxHeartbeats 0 in
 lemma finite_mass_approximation {w : α → ℝ} (hw : Summable w)
     (s : Set α) {b : ℝ} (hb : b < mass w s) :
@@ -3451,9 +2913,6 @@ set_option maxHeartbeats 0 in
 noncomputable def primePrefix (l n : ℕ) : ℕ :=
   ∏ i ∈ Finset.range l, prime i ^ n.factorization (prime i)
 set_option maxHeartbeats 0 in
-theorem primePrefix_one (l : ℕ) : primePrefix l 1 = 1 := by
-  simp [primePrefix]
-set_option maxHeartbeats 0 in
 theorem primePrefix_pos (l n : ℕ) : 0 < primePrefix l n := by
   apply Finset.prod_pos
   intro i _
@@ -3505,39 +2964,6 @@ def multiples (A : Set ℕ) : Set ℕ :=
 set_option maxHeartbeats 0 in
 def HasMultiplesDensityOne (A : Set ℕ) : Prop :=
   Tendsto (densitySequence (multiples A)) atTop (𝓝 1)
-set_option maxHeartbeats 0 in
-def FullSolution : Prop :=
-  ∀ A : Set ℕ, HasMultiplesDensityOne A ↔ MeetsEveryTest A
-set_option maxHeartbeats 0 in
-theorem meetsEveryTest_of_one_mem {A : Set ℕ} (h : 1 ∈ A) : MeetsEveryTest A := by
-  intro T
-  exact ⟨0, 1, T.start ▸ Finset.mem_singleton_self 1, h⟩
-set_option maxHeartbeats 0 in
-theorem meetsEveryTest_mono {A B : Set ℕ} (hAB : A ⊆ B)
-    (hA : MeetsEveryTest A) : MeetsEveryTest B := by
-  intro T
-  obtain ⟨k, m, hm, hA⟩ := hA T
-  exact ⟨k, m, hm, hAB hA⟩
-set_option maxHeartbeats 0 in
-theorem test_entries_positive (T : AdmissibleTest) (k : ℕ) {m : ℕ}
-    (hm : m ∈ T.level k) : 0 < m := (T.supported k m hm).1
-set_option maxHeartbeats 0 in
-theorem test_levels_nonempty (T : AdmissibleTest) (k : ℕ) : (T.level k).Nonempty := by
-  induction k with
-  | zero => simp [T.start]
-  | succ k ih =>
-    obtain ⟨m, hm⟩ := ih
-    have hr := T.retention k m hm
-    have hl : 0 < 1 - loss k := by
-      have hp : (1 : ℝ) < 2 ^ (k + 3) := one_lt_pow₀ (by norm_num) (by omega)
-      have hpp : (0 : ℝ) < 2 ^ (k + 3) := by positivity
-      have : (1 : ℝ) / 2 ^ (k + 3) < 1 := (div_lt_one hpp).2 hp
-      unfold loss
-      linarith
-    by_contra h
-    have he : T.level (k + 1) = ∅ := Finset.not_nonempty_iff_eq_empty.mp h
-    simp [fiber, he] at hr
-    linarith
 end OMA.E691.Adaptive
 open scoped BigOperators Topology
 open Filter
@@ -3665,13 +3091,6 @@ def reset (n : ℕ) (u : Fin n → ℕ) (x : ValuationSpace) : ValuationSpace :=
 set_option maxHeartbeats 0 in
 def zeroExtension (n : ℕ) (u : Fin n → ℕ) : ValuationSpace := reset n u 0
 set_option maxHeartbeats 0 in
-theorem measurable_reset (n : ℕ) (u : Fin n → ℕ) : Measurable (reset n u) := by
-  apply measurable_pi_lambda
-  intro i
-  by_cases h : i < n
-  · simpa [reset, h] using (measurable_const : Measurable (fun _ : ValuationSpace => u ⟨i, h⟩))
-  · simpa [reset, h] using (measurable_pi_apply i : Measurable (fun x : ValuationSpace => x i))
-set_option maxHeartbeats 0 in
 theorem reset_mono {n : ℕ} {u v : Fin n → ℕ} (h : u ≤ v) (x : ValuationSpace) :
     reset n u x ≤ reset n v x := by
   intro i
@@ -3679,43 +3098,10 @@ theorem reset_mono {n : ℕ} {u v : Fin n → ℕ} (h : u ≤ v) (x : ValuationS
   · simpa only [reset, dif_pos hi] using h ⟨i, hi⟩
   · simp [reset, hi]
 set_option maxHeartbeats 0 in
-theorem zeroExtension_le_reset (n : ℕ) (u : Fin n → ℕ) (x : ValuationSpace) :
-    zeroExtension n u ≤ reset n u x := by
-  intro i
-  by_cases hi : i < n <;> simp [zeroExtension, reset, hi]
-set_option maxHeartbeats 0 in
 theorem zeroExtension_prefix_le (n : ℕ) (x : ValuationSpace) :
     zeroExtension n (valuationPrefix n x) ≤ x := by
   intro i
   by_cases hi : i < n <;> simp [zeroExtension, reset, valuationPrefix, hi]
-set_option maxHeartbeats 0 in
-noncomputable def continuation (μ : Measure ValuationSpace) (C : Set ValuationSpace)
-    (n : ℕ) (u : Fin n → ℕ) : ℝ := μ.real ((reset n u) ⁻¹' C)
-set_option maxHeartbeats 0 in
-theorem continuation_nonneg (μ : Measure ValuationSpace) (C : Set ValuationSpace)
-    (n : ℕ) (u : Fin n → ℕ) : 0 ≤ continuation μ C n u := ENNReal.toReal_nonneg
-set_option maxHeartbeats 0 in
-theorem continuation_le_one (μ : Measure ValuationSpace) [IsProbabilityMeasure μ]
-    (C : Set ValuationSpace) (n : ℕ) (u : Fin n → ℕ) : continuation μ C n u ≤ 1 := by
-  exact measureReal_le_one
-set_option maxHeartbeats 0 in
-theorem continuation_antitone (μ : Measure ValuationSpace) [IsProbabilityMeasure μ]
-    (C : Set ValuationSpace) (hC : IsLowerSet C) (n : ℕ) :
-    Antitone (continuation μ C n) := by
-  intro u v huv
-  apply measureReal_mono
-  · intro x hx
-    exact hC (reset_mono huv x) hx
-  · exact measure_ne_top _ _
-set_option maxHeartbeats 0 in
-theorem continuation_zero_of_unsafe (μ : Measure ValuationSpace)
-    (C : Set ValuationSpace) (hC : IsLowerSet C) (n : ℕ) (u : Fin n → ℕ)
-    (hu : zeroExtension n u ∉ C) : continuation μ C n u = 0 := by
-  have hempty : (reset n u) ⁻¹' C = ∅ := by
-    apply Set.eq_empty_iff_forall_notMem.2
-    intro x hx
-    exact hu (hC (zeroExtension_le_reset n u x) hx)
-  simp [continuation, hempty]
 set_option maxHeartbeats 0 in
 def prefixSafe (C : Set ValuationSpace) (n : ℕ) : Set ValuationSpace :=
   {x | zeroExtension n (valuationPrefix n x) ∈ C}
@@ -4353,13 +3739,6 @@ theorem restrict_append {n m : ℕ} (u : Fin n → ℕ) (v : Fin m → ℕ) :
   funext i
   simp [restrictPrefix, appendPrefix, i.isLt]
 set_option maxHeartbeats 0 in
-theorem append_injective_right {n m : ℕ} (u : Fin n → ℕ) :
-    Function.Injective (appendPrefix (m := m) u) := by
-  intro v w hvw
-  funext i
-  have h := congrFun hvw ⟨n + i, by omega⟩
-  simpa [appendPrefix] using h
-set_option maxHeartbeats 0 in
 theorem join_append {n m : ℕ} (u : Fin n → ℕ) (v : Fin m → ℕ) (x : ValuationSpace) :
     joinEquiv (n + m) (appendPrefix u v, x) = joinEquiv n (u, joinEquiv m (v, x)) := by
   funext i
@@ -4491,17 +3870,6 @@ theorem encodeBlock_factorization_inside (lo len : ℕ) (u : Fin len → ℕ) (i
   simp only [he]
   simp
 set_option maxHeartbeats 0 in
-theorem encodeBlock_factorization_outside (lo len j : ℕ) (u : Fin len → ℕ)
-    (hj : j < lo ∨ lo + len ≤ j) : (encodeBlock lo len u).factorization (prime j) = 0 := by
-  rw [encodeBlock_factorization]
-  apply Finset.sum_eq_zero
-  intro i _
-  have hneq : prime (lo + i) ≠ prime j := by
-    intro h
-    have h' := prime_injective h
-    rcases hj with hj | hj <;> have hi := i.isLt <;> omega
-  simp [hneq]
-set_option maxHeartbeats 0 in
 theorem decode_encode (n : ℕ) (u : Fin n → ℕ) : decodePrefix n (encodeBlock 0 n u) = u := by
   funext i
   simpa [decodePrefix] using encodeBlock_factorization_inside 0 n u i
@@ -4612,14 +3980,6 @@ theorem encode_append {n m : ℕ} (u : Fin n → ℕ) (v : Fin m → ℕ) :
   · apply Finset.prod_congr rfl
     intro i _
     simp [appendPrefix]
-set_option maxHeartbeats 0 in
-theorem decode_prefix_supported_zero {lo n a : ℕ} (ha : SupportedOn lo n a)
-    (i : Fin n) (hi : i.val < lo) : decodePrefix n a i = 0 := by
-  by_contra hn
-  have hp : prime i ∈ a.primeFactors := Finsupp.mem_support_iff.2 hn
-  obtain ⟨j, hj, _, he⟩ := ha.2 (prime i) hp
-  have he' := prime_injective he
-  omega
 set_option maxHeartbeats 0 in
 theorem prefix_dvd_of_dvd {d a : ℕ} (hd : 0 < d) (ha : 0 < a) (hda : d ∣ a) (n : ℕ) :
     primePrefix n d ∣ primePrefix n a := by
@@ -5096,73 +4456,9 @@ theorem meets_every_test_of_density_one (A : Set ℕ) (hA : HasMultiplesDensityO
 set_option maxHeartbeats 0 in
 theorem erdos691 (A : Set ℕ) : HasMultiplesDensityOne A ↔ MeetsEveryTest A :=
   ⟨meets_every_test_of_density_one A, density_one_of_meets_every_test A⟩
-set_option maxHeartbeats 0 in
-theorem fullSolution : FullSolution := erdos691
 end OMA.E691.Adaptive
 open scoped BigOperators Classical
 namespace OMA.E691.Adaptive
-set_option maxHeartbeats 0 in
-theorem supported_factorization_before {lo hi a : ℕ} (ha : SupportedOn lo hi a)
-    {i : ℕ} (hi' : i < lo) : a.factorization (prime i) = 0 := by
-  by_contra h
-  have hp : prime i ∈ a.primeFactors := Finsupp.mem_support_iff.2 h
-  obtain ⟨j, hj, _, he⟩ := ha.2 _ hp
-  have he' := prime_injective he
-  omega
-set_option maxHeartbeats 0 in
-theorem prefix_of_supported {lo hi a : ℕ} (ha : SupportedOn lo hi a) : primePrefix hi a = a := by
-  rw [primePrefix_eq_encode, encode_decode_of_supported (supported_weaken ha (Nat.zero_le _) le_rfl)]
-set_option maxHeartbeats 0 in
-theorem prefix_of_block_product {base old next m n : ℕ}
-    (hm : SupportedOn base old m) (hn : SupportedOn old next n) :
-    primePrefix old (m * n) = m := by
-  have he : primePrefix old (m * n) = primePrefix old m := by
-    unfold primePrefix
-    apply Finset.prod_congr rfl
-    intro i hi
-    congr 1
-    rw [Nat.factorization_mul hm.1.ne' hn.1.ne', Finsupp.add_apply,
-      supported_factorization_before hn (Finset.mem_range.1 hi), add_zero]
-  rw [he, prefix_of_supported hm]
-set_option maxHeartbeats 0 in
-theorem exact_fiber_characterization (T : AdmissibleTest) (k m : ℕ) (hm : m ∈ T.level k) (n : ℕ) :
-    n ∈ fiber (T.level (k + 1)) (T.cutoff k) m ↔
-      SupportedOn (T.cutoff k) (T.cutoff (k + 1)) n ∧ m * n ∈ T.level (k + 1) := by
-  constructor
-  · intro hn
-    obtain ⟨a, ha, rfl⟩ := Finset.mem_image.1 hn
-    obtain ⟨haT, hprefix⟩ := Finset.mem_filter.1 ha
-    have haS := T.supported (k + 1) a haT
-    have hmS := T.supported k m hm
-    have hma : m ∣ a := by rw [← hprefix]; exact primePrefix_dvd _ haS.1
-    have hmul : m * (a / m) = a := Nat.mul_div_cancel' hma
-    have hquot : 0 < a / m := by
-      by_contra h
-      have hz : a / m = 0 := Nat.eq_zero_of_not_pos h
-      rw [hz, mul_zero] at hmul
-      exact haS.1.ne' hmul.symm
-    refine ⟨⟨hquot, ?_⟩, ?_⟩
-    · intro p hp
-      have hpp := Nat.prime_of_mem_primeFactors hp
-      have hpn : p ∣ a / m := Nat.dvd_of_mem_primeFactors hp
-      have hpa : p ∣ a := by rw [← hmul]; exact dvd_mul_of_dvd_right hpn m
-      have hpA : p ∈ a.primeFactors := hpp.mem_primeFactors hpa haS.1.ne'
-      obtain ⟨i, _, hi, he⟩ := haS.2 p hpA
-      refine ⟨i, ?_, hi, he⟩
-      by_contra hbefore
-      have hlt : i < T.cutoff k := Nat.lt_of_not_ge hbefore
-      have hpref := congrFun (decode_primePrefix (T.cutoff k) a) ⟨i, hlt⟩
-      change (primePrefix (T.cutoff k) a).factorization (prime i) = a.factorization (prime i) at hpref
-      rw [hprefix, he] at hpref
-      have hzero : (a / m).factorization p = 0 := by
-        rw [Nat.factorization_div hma, Finsupp.tsub_apply, hpref, tsub_self]
-      exact (Finsupp.mem_support_iff.1 hp) hzero
-    · simpa only [hmul] using haT
-  · rintro ⟨hn, hmn⟩
-    apply Finset.mem_image.2
-    refine ⟨m * n, ?_, ?_⟩
-    · exact Finset.mem_filter.2 ⟨hmn, prefix_of_block_product (T.supported k m hm) hn⟩
-    · exact Nat.mul_div_cancel_left n (T.supported k m hm).1
 end OMA.E691.Adaptive
 end
 end

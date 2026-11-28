@@ -1,4 +1,5 @@
 import Link from "@/components/Link";
+import Title from "@/components/Title";
 
 export type RowData = {
   id: string; title: string; source: string; kind: "open" | "known" | "warmup" | "unformalized"; fields: string[];
@@ -21,7 +22,7 @@ export default function ProblemRow({ p }: { p: RowData }) {
   return (
     <Link className="row" href={`/p/${encodeURIComponent(p.id)}`}>
       <div>
-        <h3>{p.title}</h3>
+        <h3><Title id={p.id} title={p.title} /></h3>
         <p>{p.excerpt}</p>
         <div className="meta">
           <span className={`badge ${p.kind}`}>{p.solved && p.kind === "known" ? "Known result" : KIND[p.kind]}</span>

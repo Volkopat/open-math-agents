@@ -64,10 +64,6 @@ structure AnalyticSetting (q : ℕ) : Prop where
     ∃ a b : ℤ, a ^ 2 + a * b + (cq q : ℤ) * b ^ 2 = p
 def LemmaTwoA : Prop :=
   ∀ m : ℕ, 2 ≤ m → Real.log m - 7 / 3 < A m ∧ A m < Real.log m + 3 / 2
-def LemmaTwoTheta : Prop :=
-  ∀ x : ℝ, 1 ≤ x → Chebyshev.theta x < 3 / 2 * x
-def LemmaTwoB : Prop :=
-  Summable (fun p : Nat.Primes => Real.log (p : ℕ) / ((p : ℕ) : ℝ) ^ 2) ∧ B < 2 / 3
 def SplitBound : Prop :=
   ∀ q : ℕ, AnalyticSetting q → ∀ X : ℝ, (q : ℝ) / 4 ≤ X →
     Splus q X ≤ 4 / (5 * √(q : ℝ)) * Real.log X ^ 2 + 4 * (Real.log q + 1) / q
@@ -110,18 +106,6 @@ def principalForm (m : ℕ) (x y : ℤ) : ℤ :=
   if m % 4 = 3 then x ^ 2 + x * y + ((m + 1) / 4 : ℕ) * y ^ 2 else x ^ 2 + m * y ^ 2
 variable {K : Type*} [Field K] [NumberField K]
 noncomputable def omega (m : ℕ) (α : K) : K := if m % 4 = 3 then (1 + α) / 2 else α
-lemma disc_of_three_mod_four {m : ℕ} (h : m % 4 = 3) : disc m = m := by simp [disc, h]
-lemma disc_of_not_three_mod_four {m : ℕ} (h : m % 4 ≠ 3) : disc m = 4 * m := by simp [disc, h]
-lemma omega_of_three_mod_four {m : ℕ} (α : K) (h : m % 4 = 3) : omega m α = (1 + α) / 2 := by
-  simp [omega, h]
-lemma omega_of_not_three_mod_four {m : ℕ} (α : K) (h : m % 4 ≠ 3) : omega m α = α := by
-  simp [omega, h]
-lemma principalForm_of_three_mod_four {m : ℕ} (h : m % 4 = 3) (x y : ℤ) :
-    principalForm m x y = x ^ 2 + x * y + ((m + 1) / 4 : ℕ) * y ^ 2 := by
-  simp [principalForm, h]
-lemma principalForm_of_not_three_mod_four {m : ℕ} (h : m % 4 ≠ 3) (x y : ℤ) :
-    principalForm m x y = x ^ 2 + m * y ^ 2 := by
-  simp [principalForm, h]
 lemma squarefree_not_four_dvd {m : ℕ} (hm : Squarefree m) : ¬ 4 ∣ m := fun h ↦ by
   have := Nat.isUnit_iff.mp (hm 2 (by simpa using h))
   omega
@@ -206,10 +190,6 @@ theorem omega_isIntegral : IsIntegral ℤ (omega m α) := by
       Int.coe_castRingHom]
     linear_combination (1 / 4 : K) * hα + (1 / 4 : K) * hcK
   · exact IsIntegral.of_pow two_pos (hα ▸ (isIntegral_natCast m).neg)
-include hα in
-theorem isIntegral_int_add_int_mul_omega (x y : ℤ) :
-    IsIntegral ℤ ((x : K) + (y : K) * omega m α) :=
-  (isIntegral_intCast x).add ((isIntegral_intCast y).mul (omega_isIntegral hα))
 lemma exists_int_eq_two_mul_of_sq {m : ℕ} (hm : Squarefree m) {b : ℚ} {k : ℤ}
     (h : (m : ℚ) * (2 * b) ^ 2 = k) : ∃ v : ℤ, (v : ℚ) = 2 * b := by
   have hm0 : (m : ℚ) ≠ 0 := by exact_mod_cast hm.ne_zero
@@ -385,70 +365,9 @@ theorem norm_int_eq_principalForm {z : 𝓞 K} {x y : ℤ}
     Algebra.norm ℤ z = principalForm m x y := by
   apply Int.cast_injective (α := ℚ)
   rw [Algebra.coe_norm_int, h, coe_int_add_int_mul_omegaInt, norm_int_add_int_mul_omega hα hK hm0]
-theorem principalForm_nonneg (m : ℕ) (x y : ℤ) : 0 ≤ principalForm m x y := by
-  unfold principalForm
-  split_ifs with h3
-  · obtain ⟨c, hc⟩ : (4 : ℕ) ∣ m + 1 := by omega
-    have hc' : ((m + 1) / 4 : ℕ) = c := by omega
-    rw [hc']
-    have hc1 : (1 : ℤ) ≤ c := by omega
-    nlinarith [sq_nonneg (2 * x + y), sq_nonneg y]
-  · positivity
-theorem principalForm_eq_one {m : ℕ} (hm : Squarefree m) (hm1 : m ≠ 1) (hm3 : m ≠ 3) {x y : ℤ}
-    (h : principalForm m x y = 1) : y = 0 ∧ (x = 1 ∨ x = -1) := by
-  have hm0 := hm.ne_zero
-  unfold principalForm at h
-  split_ifs at h with h3
-  · obtain ⟨c, hc⟩ : (4 : ℕ) ∣ m + 1 := by omega
-    have hc' : ((m + 1) / 4 : ℕ) = c := by omega
-    rw [hc'] at h
-    have hm7 : (7 : ℤ) ≤ m := by omega
-    have hcz : (m : ℤ) + 1 = 4 * c := by exact_mod_cast hc
-    have hy : y = 0 := by
-      by_contra hy
-      have h1 : 0 < y ^ 2 := by positivity
-      have h2 : (1 : ℤ) ≤ y ^ 2 := by omega
-      nlinarith [sq_nonneg (2 * x + y)]
-    subst hy
-    refine ⟨rfl, Int.eq_one_or_neg_one_of_mul_eq_one (v := x) ?_⟩
-    nlinarith
-  · have hm2 : (2 : ℤ) ≤ m := by omega
-    have hy : y = 0 := by
-      by_contra hy
-      have h1 : 0 < y ^ 2 := by positivity
-      have h2 : (1 : ℤ) ≤ y ^ 2 := by omega
-      nlinarith
-    subst hy
-    refine ⟨rfl, Int.eq_one_or_neg_one_of_mul_eq_one (v := x) ?_⟩
-    nlinarith
 end NormForm
 section Units
 variable {m : ℕ} {α : K} (hα : α ^ 2 = -(m : K)) (hK : finrank ℚ K = 2) (hm : Squarefree m)
-include hα hK hm in
-theorem coe_unit_eq_one_or_neg_one (hm1 : m ≠ 1) (hm3 : m ≠ 3) (ε : (𝓞 K)ˣ) :
-    (ε : 𝓞 K) = 1 ∨ (ε : 𝓞 K) = -1 := by
-  obtain ⟨u, v, huv⟩ := exists_int_add_int_mul_omegaInt hα hK hm (ε : 𝓞 K)
-  have hN : IsUnit (Algebra.norm ℤ (ε : 𝓞 K)) := ε.isUnit.map (Algebra.norm ℤ)
-  rw [norm_int_eq_principalForm hα hK hm.ne_zero huv] at hN
-  have hQ : principalForm m u v = 1 := by
-    rcases Int.isUnit_iff.mp hN with h | h
-    · exact h
-    · have := principalForm_nonneg m u v; omega
-  obtain ⟨rfl, hu⟩ := principalForm_eq_one hm hm1 hm3 hQ
-  rw [huv]
-  rcases hu with rfl | rfl
-  · left; simp
-  · right; simp
-include hα hK hm in
-theorem eq_one_or_neg_one_of_norm_eq_one (hm1 : m ≠ 1) (hm3 : m ≠ 3) {z : 𝓞 K}
-    (h : Algebra.norm ℤ z = 1) : z = 1 ∨ z = -1 := by
-  obtain ⟨u, v, huv⟩ := exists_int_add_int_mul_omegaInt hα hK hm z
-  rw [norm_int_eq_principalForm hα hK hm.ne_zero huv] at h
-  obtain ⟨rfl, hu⟩ := principalForm_eq_one hm hm1 hm3 h
-  rw [huv]
-  rcases hu with rfl | rfl
-  · left; simp
-  · right; simp
 end Units
 end CN1.Foundations
 end
@@ -458,248 +377,14 @@ namespace CN1.Foundations
 open ZMod
 open DirichletCharacter (changeLevel changeLevel_eq_cast_of_dvd changeLevel_eq_cast_of_dvd')
 section JacobiChar
-lemma jacobiSym_val_eq (n : ℕ) [NeZero n] (a : ZMod n) (k : ℤ) (hk : (k : ZMod n) = a) :
-    jacobiSym a.val n = jacobiSym k n := by
-  apply jacobiSym.mod_left'
-  rw [← ZMod.intCast_eq_intCast_iff']
-  simp [hk]
-noncomputable def jacobiChar (n : ℕ) [NeZero n] : DirichletCharacter ℂ n where
-  toFun a := (jacobiSym a.val n : ℂ)
-  map_one' := by
-    show (jacobiSym (1 : ZMod n).val n : ℂ) = 1
-    rw [jacobiSym_val_eq n 1 1 (by simp), jacobiSym.one_left]; simp
-  map_mul' a b := by
-    show (jacobiSym (a * b).val n : ℂ) = (jacobiSym a.val n : ℂ) * (jacobiSym b.val n : ℂ)
-    rw [jacobiSym_val_eq n (a * b) (a.val * b.val) (by simp), jacobiSym.mul_left]
-    push_cast; rfl
-  map_nonunit' a ha := by
-    show (jacobiSym a.val n : ℂ) = 0
-    have hc : ¬ Nat.Coprime a.val n := by
-      rwa [← ZMod.isUnit_iff_coprime, ZMod.natCast_zmod_val]
-    have : jacobiSym a.val n = 0 := by
-      rw [jacobiSym.eq_zero_iff_not_coprime, Int.gcd_natCast_natCast]
-      exact hc
-    rw [this]; simp
-lemma jacobiChar_apply (n : ℕ) [NeZero n] (a : ZMod n) :
-    jacobiChar n a = (jacobiSym a.val n : ℂ) := rfl
-theorem jacobiChar_intCast (n : ℕ) [NeZero n] (k : ℤ) :
-    jacobiChar n (k : ZMod n) = (jacobiSym k n : ℂ) := by
-  rw [jacobiChar_apply, jacobiSym_val_eq n _ k rfl]
-theorem jacobiChar_natCast (n : ℕ) [NeZero n] (k : ℕ) :
-    jacobiChar n (k : ZMod n) = (jacobiSym k n : ℂ) := by
-  rw [← Int.cast_natCast, jacobiChar_intCast]
-theorem jacobiChar_isQuadratic (n : ℕ) [NeZero n] : (jacobiChar n).IsQuadratic := by
-  intro a
-  rw [jacobiChar_apply]
-  rcases jacobiSym.trichotomy a.val n with h | h | h <;> rw [h] <;> norm_num
 end JacobiChar
-noncomputable def chi4 : DirichletCharacter ℂ 4 := χ₄.ringHomComp (Int.castRingHom ℂ)
-noncomputable def chi8 : DirichletCharacter ℂ 8 := χ₈.ringHomComp (Int.castRingHom ℂ)
-noncomputable def chi8' : DirichletCharacter ℂ 8 := χ₈'.ringHomComp (Int.castRingHom ℂ)
-lemma chi4_apply (a : ZMod 4) : chi4 a = (χ₄ a : ℂ) := rfl
-lemma chi8_apply (a : ZMod 8) : chi8 a = (χ₈ a : ℂ) := rfl
-lemma chi8'_apply (a : ZMod 8) : chi8' a = (χ₈' a : ℂ) := rfl
-lemma chi4_isQuadratic : chi4.IsQuadratic := isQuadratic_χ₄.comp _
-lemma chi8_isQuadratic : chi8.IsQuadratic := isQuadratic_χ₈.comp _
-lemma chi8'_isQuadratic : chi8'.IsQuadratic := isQuadratic_χ₈'.comp _
 section Quadratic
 variable {R : Type*} [CommRing R]
-lemma isQuadratic_changeLevel {n N : ℕ} (h : n ∣ N) {ψ : DirichletCharacter R n}
-    (hψ : ψ.IsQuadratic) : (changeLevel h ψ).IsQuadratic := by
-  intro a
-  by_cases ha : IsUnit a
-  · obtain ⟨u, rfl⟩ := ha
-    rw [changeLevel_eq_cast_of_dvd]
-    exact hψ _
-  · left; exact MulChar.map_nonunit _ ha
-lemma isQuadratic_mul {M : Type*} [CommMonoid M] {χ ψ : MulChar M R}
-    (hχ : χ.IsQuadratic) (hψ : ψ.IsQuadratic) : (χ * ψ).IsQuadratic := by
-  intro a
-  rw [MulChar.mul_apply]
-  rcases hχ a with h | h | h <;> rcases hψ a with h' | h' | h' <;> simp [h, h']
-lemma isQuadratic_one {M : Type*} [CommMonoid M] [Nontrivial R] :
-    (1 : MulChar M R).IsQuadratic := by
-  intro a
-  by_cases ha : IsUnit a
-  · right; left; exact MulChar.one_apply ha
-  · left; exact MulChar.map_nonunit _ ha
 end Quadratic
 section Kronecker
 variable {m : ℕ}
-lemma four_dvd_disc (h3 : m % 4 ≠ 3) : 4 ∣ disc m := by
-  rw [disc_of_not_three_mod_four h3]; exact dvd_mul_right 4 m
-lemma dvd_disc (h3 : m % 4 ≠ 3) : m ∣ disc m := by
-  rw [disc_of_not_three_mod_four h3]; exact dvd_mul_left m 4
-lemma eight_dvd_disc (h3 : m % 4 ≠ 3) (h2 : m % 2 = 0) : 8 ∣ disc m := by
-  rw [disc_of_not_three_mod_four h3]; exact ⟨m / 2, by omega⟩
-lemma half_dvd_disc (h3 : m % 4 ≠ 3) (h2 : m % 2 = 0) : m / 2 ∣ disc m := by
-  rw [disc_of_not_three_mod_four h3]; exact ⟨8, by omega⟩
-noncomputable def kroneckerChar (m : ℕ) : DirichletCharacter ℂ (disc m) :=
-  if h0 : m = 0 then 1
-  else if h3 : m % 4 = 3 then
-    changeLevel (dvd_of_eq (disc_of_three_mod_four h3).symm) (@jacobiChar m ⟨h0⟩)
-  else if h2 : m % 2 = 1 then
-    changeLevel (four_dvd_disc h3) chi4 * changeLevel (dvd_disc h3) (@jacobiChar m ⟨h0⟩)
-  else
-    changeLevel (eight_dvd_disc h3 (by omega)) (if m / 2 % 4 = 1 then chi8' else chi8) *
-      changeLevel (half_dvd_disc h3 (by omega)) (@jacobiChar (m / 2) ⟨by omega⟩)
-theorem kroneckerChar_apply_of_three_mod_four (h3 : m % 4 = 3) {a : ℤ}
-    (ha : IsCoprime a (disc m)) : kroneckerChar m (a : ZMod (disc m)) = (jacobiSym a m : ℂ) := by
-  have h0 : m ≠ 0 := by omega
-  simp only [kroneckerChar, h0, h3, ↓reduceDIte]
-  rw [changeLevel_eq_cast_of_dvd' _ _ ha, jacobiChar_intCast]
-theorem kroneckerChar_apply_of_one_mod_four (h1 : m % 4 = 1) {a : ℤ}
-    (ha : IsCoprime a (disc m)) :
-    kroneckerChar m (a : ZMod (disc m)) = (χ₄ a : ℂ) * (jacobiSym a m : ℂ) := by
-  have h0 : m ≠ 0 := by omega
-  have h3 : m % 4 ≠ 3 := by omega
-  have h2 : m % 2 = 1 := by omega
-  simp only [kroneckerChar, h0, h3, h2, ↓reduceDIte]
-  rw [MulChar.mul_apply, changeLevel_eq_cast_of_dvd' _ _ ha, changeLevel_eq_cast_of_dvd' _ _ ha,
-    jacobiChar_intCast, chi4_apply]
-theorem kroneckerChar_apply_of_two_mod_four (h2 : m % 4 = 2) {a : ℤ}
-    (ha : IsCoprime a (disc m)) :
-    kroneckerChar m (a : ZMod (disc m)) =
-      (if m / 2 % 4 = 1 then (χ₈' a : ℂ) else (χ₈ a : ℂ)) * (jacobiSym a (m / 2) : ℂ) := by
-  have h0 : m ≠ 0 := by omega
-  have h3 : m % 4 ≠ 3 := by omega
-  have h2' : ¬ m % 2 = 1 := by omega
-  simp only [kroneckerChar, h0, h3, h2', ↓reduceDIte]
-  rw [MulChar.mul_apply, changeLevel_eq_cast_of_dvd' _ _ ha, changeLevel_eq_cast_of_dvd' _ _ ha,
-    jacobiChar_intCast]
-  split_ifs <;> rfl
-theorem kroneckerChar_isQuadratic (m : ℕ) : (kroneckerChar m).IsQuadratic := by
-  by_cases h0 : m = 0
-  · simp only [kroneckerChar, h0, ↓reduceDIte]
-    exact isQuadratic_one
-  have : NeZero m := ⟨h0⟩
-  by_cases h3 : m % 4 = 3
-  · simp only [kroneckerChar, h0, h3, ↓reduceDIte]
-    exact isQuadratic_changeLevel _ (jacobiChar_isQuadratic m)
-  by_cases h2 : m % 2 = 1
-  · simp only [kroneckerChar, h0, h3, h2, ↓reduceDIte]
-    exact isQuadratic_mul (isQuadratic_changeLevel _ chi4_isQuadratic)
-      (isQuadratic_changeLevel _ (jacobiChar_isQuadratic m))
-  · have : NeZero (m / 2) := ⟨by omega⟩
-    simp only [kroneckerChar, h0, h3, h2, ↓reduceDIte]
-    refine isQuadratic_mul (isQuadratic_changeLevel _ ?_)
-      (isQuadratic_changeLevel _ (jacobiChar_isQuadratic (m / 2)))
-    split_ifs
-    · exact chi8'_isQuadratic
-    · exact chi8_isQuadratic
-lemma squarefree_mod_four_cases (hm : Squarefree m) : m % 4 = 1 ∨ m % 4 = 2 ∨ m % 4 = 3 := by
-  have := squarefree_mod_four_ne_zero hm; omega
-theorem kroneckerChar_neg_one (hm : Squarefree m) : kroneckerChar m (-1) = -1 := by
-  have hcop : IsCoprime (-1 : ℤ) (disc m : ℤ) := isCoprime_one_left.neg_left
-  have hcast : (-1 : ZMod (disc m)) = ((-1 : ℤ) : ZMod (disc m)) := by simp
-  rw [hcast]
-  rcases squarefree_mod_four_cases hm with h1 | h2 | h3
-  · rw [kroneckerChar_apply_of_one_mod_four h1 hcop,
-      jacobiSym.at_neg_one (Nat.odd_iff.mpr (by omega)), χ₄_nat_one_mod_four h1,
-      χ₄_int_three_mod_four (by decide)]
-    simp
-  · rw [kroneckerChar_apply_of_two_mod_four h2 hcop,
-      jacobiSym.at_neg_one (Nat.odd_iff.mpr (by omega))]
-    have hm' : m / 2 % 4 = 1 ∨ m / 2 % 4 = 3 := by omega
-    rcases hm' with h | h
-    · rw [if_pos h, χ₄_nat_one_mod_four h, χ₈'_int_eq_if_mod_eight]
-      norm_num
-    · rw [if_neg (by omega), χ₄_nat_three_mod_four h, χ₈_int_eq_if_mod_eight]
-      norm_num
-  · rw [kroneckerChar_apply_of_three_mod_four h3 hcop,
-      jacobiSym.at_neg_one (Nat.odd_iff.mpr (by omega)), χ₄_nat_three_mod_four h3]
-    simp
-theorem kroneckerChar_ne_one (hm : Squarefree m) : kroneckerChar m ≠ 1 := by
-  intro h
-  have h1 := kroneckerChar_neg_one hm
-  rw [h, MulChar.one_apply isUnit_one.neg] at h1
-  norm_num at h1
 section Values
 variable {p : ℕ} [hp : Fact p.Prime]
-lemma jacobiSym_eq_legendreSym_neg_of_three_mod_four (h3 : m % 4 = 3) (hp2 : p ≠ 2) :
-    jacobiSym p m = legendreSym p (-(m : ℤ)) := by
-  have hpodd : p % 2 = 1 := Nat.odd_iff.mp (hp.out.odd_of_ne_two hp2)
-  rw [legendreSym.at_neg hp2, jacobiSym.legendreSym.to_jacobiSym]
-  rcases Nat.odd_mod_four_iff.mp hpodd with h1 | h1
-  · rw [jacobiSym.quadratic_reciprocity_one_mod_four h1 (Nat.odd_iff.mpr (by omega)),
-      χ₄_nat_one_mod_four h1, one_mul]
-  · rw [jacobiSym.quadratic_reciprocity_three_mod_four h1 h3, χ₄_nat_three_mod_four h1,
-      neg_one_mul]
-lemma chi4_mul_jacobiSym_eq_legendreSym_neg_of_one_mod_four (h1 : m % 4 = 1) (hp2 : p ≠ 2) :
-    χ₄ p * jacobiSym p m = legendreSym p (-(m : ℤ)) := by
-  have hpodd : _root_.Odd p := hp.out.odd_of_ne_two hp2
-  rw [legendreSym.at_neg hp2, jacobiSym.legendreSym.to_jacobiSym,
-    jacobiSym.quadratic_reciprocity_one_mod_four' hpodd h1]
-lemma chi8_mul_jacobiSym_eq_legendreSym_neg_of_two_mod_four (h2 : m % 4 = 2) (hp2 : p ≠ 2) :
-    (if m / 2 % 4 = 1 then χ₈' p else χ₈ p) * jacobiSym p (m / 2) = legendreSym p (-(m : ℤ)) := by
-  have hpodd : p % 2 = 1 := Nat.odd_iff.mp (hp.out.odd_of_ne_two hp2)
-  have hm : (m : ℤ) = 2 * ((m / 2 : ℕ) : ℤ) := by push_cast; omega
-  have hm'odd : _root_.Odd (m / 2) := Nat.odd_iff.mpr (by omega)
-  rw [hm, neg_mul_eq_neg_mul, legendreSym.mul, legendreSym.at_neg_two hp2,
-    jacobiSym.legendreSym.to_jacobiSym]
-  have hm' : m / 2 % 4 = 1 ∨ m / 2 % 4 = 3 := by omega
-  rcases hm' with h | h
-  · rw [if_pos h, jacobiSym.quadratic_reciprocity_one_mod_four' (Nat.odd_iff.mpr hpodd) h]
-  · rw [if_neg (by omega)]
-    have h8 : χ₈' (p : ZMod 8) = χ₄ (p : ZMod 4) * χ₈ (p : ZMod 8) := by
-      have := χ₈'_int_eq_χ₄_mul_χ₈ (p : ℤ)
-      simpa using this
-    rw [h8]
-    rcases Nat.odd_mod_four_iff.mp hpodd with h1 | h1
-    · rw [jacobiSym.quadratic_reciprocity_one_mod_four h1 hm'odd, χ₄_nat_one_mod_four h1, one_mul]
-    · rw [jacobiSym.quadratic_reciprocity_three_mod_four h1 h, χ₄_nat_three_mod_four h1]
-      ring
-theorem kroneckerChar_apply_prime_of_ne_two (hm : Squarefree m) (hp2 : p ≠ 2)
-    (hpd : ¬ p ∣ disc m) :
-    kroneckerChar m (p : ZMod (disc m)) = (legendreSym p (-(m : ℤ)) : ℂ) := by
-  have hcop : IsCoprime (p : ℤ) (disc m : ℤ) :=
-    Nat.isCoprime_iff_coprime.mpr ((Nat.Prime.coprime_iff_not_dvd hp.out).mpr hpd)
-  rw [← Int.cast_natCast (R := ZMod (disc m))]
-  rcases squarefree_mod_four_cases hm with h1 | h2 | h3
-  · rw [kroneckerChar_apply_of_one_mod_four h1 hcop,
-      ← chi4_mul_jacobiSym_eq_legendreSym_neg_of_one_mod_four h1 hp2]
-    push_cast
-    try rfl
-  · rw [kroneckerChar_apply_of_two_mod_four h2 hcop,
-      ← chi8_mul_jacobiSym_eq_legendreSym_neg_of_two_mod_four h2 hp2]
-    split_ifs <;> push_cast <;> try rfl
-  · rw [kroneckerChar_apply_of_three_mod_four h3 hcop,
-      ← jacobiSym_eq_legendreSym_neg_of_three_mod_four h3 hp2]
-theorem kroneckerChar_apply_two (h3 : m % 4 = 3) :
-    kroneckerChar m (2 : ZMod (disc m)) = (χ₈ (m : ZMod 8) : ℂ) := by
-  have hodd : _root_.Odd m := Nat.odd_iff.mpr (by omega)
-  have hcop : IsCoprime (2 : ℤ) (disc m : ℤ) := by
-    rw [disc_of_three_mod_four h3]
-    have : IsCoprime ((2 : ℕ) : ℤ) (m : ℤ) :=
-      Nat.isCoprime_iff_coprime.mpr (Nat.coprime_two_left.mpr hodd)
-    exact_mod_cast this
-  have hcast : (2 : ZMod (disc m)) = ((2 : ℤ) : ZMod (disc m)) := by simp
-  rw [hcast, kroneckerChar_apply_of_three_mod_four h3 hcop, jacobiSym.at_two hodd]
-lemma neg_natCast_ne_zero_of_not_dvd_disc (hpd : ¬ p ∣ disc m) : (-(m : ZMod p)) ≠ 0 := by
-  rw [neg_ne_zero, Ne, ZMod.natCast_eq_zero_iff]
-  intro h
-  refine hpd (h.trans ?_)
-  unfold disc; split_ifs
-  · exact dvd_rfl
-  · exact dvd_mul_left m 4
-theorem kroneckerChar_apply_prime_eq_one_iff (hm : Squarefree m) (hp2 : p ≠ 2)
-    (hpd : ¬ p ∣ disc m) :
-    kroneckerChar m (p : ZMod (disc m)) = 1 ↔ IsSquare (-(m : ZMod p)) := by
-  rw [kroneckerChar_apply_prime_of_ne_two hm hp2 hpd]
-  have hne : ((-(m : ℤ) : ℤ) : ZMod p) ≠ 0 := by
-    push_cast; exact neg_natCast_ne_zero_of_not_dvd_disc hpd
-  have := legendreSym.eq_one_iff p hne
-  push_cast at this
-  rw [← this]
-  norm_cast
-theorem kroneckerChar_apply_prime_eq_neg_one_iff (hm : Squarefree m) (hp2 : p ≠ 2)
-    (hpd : ¬ p ∣ disc m) :
-    kroneckerChar m (p : ZMod (disc m)) = -1 ↔ ¬ IsSquare (-(m : ZMod p)) := by
-  rw [kroneckerChar_apply_prime_of_ne_two hm hp2 hpd]
-  have := legendreSym.eq_neg_one_iff p (a := -(m : ℤ))
-  push_cast at this
-  rw [← this]
-  norm_cast
 end Values
 end Kronecker
 end CN1.Foundations
@@ -710,32 +395,9 @@ namespace CN1.Foundations
 open NumberField Polynomial Ideal
 def bInt (m : ℕ) : ℤ := if m % 4 = 3 then -1 else 0
 def cInt (m : ℕ) : ℤ := if m % 4 = 3 then ((m + 1) / 4 : ℕ) else m
-theorem bInt_sq_sub_four_mul_cInt (m : ℕ) : bInt m ^ 2 - 4 * cInt m = -(disc m : ℤ) := by
-  unfold bInt cInt disc
-  split_ifs with h3
-  · obtain ⟨c, hc⟩ : (4 : ℕ) ∣ m + 1 := by omega
-    have hc' : ((m + 1) / 4 : ℕ) = c := by omega
-    rw [hc']
-    have : (m : ℤ) + 1 = 4 * c := by exact_mod_cast hc
-    linear_combination this
-  · push_cast; ring
 section Setup
 variable {K : Type*} [Field K] [NumberField K] {m : ℕ} {α : K} (hα : α ^ 2 = -(m : K))
   (hK : Module.finrank ℚ K = 2) (hm : Squarefree m)
-include hα hK hm in
-theorem adjoin_omegaInt_eq_top : Algebra.adjoin ℤ {omegaInt hα} = ⊤ := by
-  rw [eq_top_iff]
-  rintro z -
-  obtain ⟨u, v, rfl⟩ := exists_int_add_int_mul_omegaInt hα hK hm z
-  exact Subalgebra.add_mem _ (Subalgebra.intCast_mem _ u)
-    (Subalgebra.mul_mem _ (Subalgebra.intCast_mem _ v) (Algebra.self_mem_adjoin_singleton ℤ _))
-include hα hK hm in
-theorem exponent_omegaInt_eq_one : RingOfIntegers.exponent (omegaInt hα) = 1 :=
-  RingOfIntegers.exponent_eq_one_iff.mpr (adjoin_omegaInt_eq_top hα hK hm)
-include hα hK hm in
-theorem not_dvd_exponent_omegaInt (p : ℕ) [hp : Fact p.Prime] :
-    ¬ p ∣ RingOfIntegers.exponent (omegaInt hα) := by
-  rw [exponent_omegaInt_eq_one hα hK hm]; exact hp.out.not_dvd_one
 include hα in
 theorem minpoly_rat_omega (hm0 : m ≠ 0) :
     minpoly ℚ (omega m α) = X ^ 2 + C (bInt m : ℚ) * X + C (cInt m : ℚ) := by
@@ -778,228 +440,8 @@ theorem minpoly_int_omegaInt (hm0 : m ≠ 0) :
   rw [← algebraMap_int_eq, ← minpoly.isIntegrallyClosed_eq_field_fractions' ℚ (omega_isIntegral hα),
     minpoly_rat_omega hα hm0]
   simp [Polynomial.map_add, Polynomial.map_mul, Polynomial.map_pow]
-include hα hK in
-theorem minpoly_omegaInt (hm0 : m ≠ 0) :
-    minpoly ℤ (omegaInt hα) =
-      if m % 4 = 3 then X ^ 2 - X + C (((m + 1) / 4 : ℕ) : ℤ) else X ^ 2 + C (m : ℤ) := by
-  rw [minpoly_int_omegaInt hα hm0]
-  unfold bInt cInt
-  split_ifs <;> simp <;> ring
 section Prime
 variable (p : ℕ) [hp : Fact p.Prime]
-include hα in
-theorem minpoly_omegaInt_map (hm0 : m ≠ 0) :
-    (minpoly ℤ (omegaInt hα)).map (Int.castRingHom (ZMod p)) =
-      X ^ 2 + C (bInt m : ZMod p) * X + C (cInt m : ZMod p) := by
-  rw [minpoly_int_omegaInt hα hm0]
-  simp [Polynomial.map_add, Polynomial.map_mul, Polynomial.map_pow]
-lemma quad_eq_mul_of_root (b c r : ZMod p) (hr : r ^ 2 + b * r + c = 0) :
-    X ^ 2 + C b * X + C c = (X - C r) * (X - C (-b - r)) := by
-  have hc : c = -(r ^ 2) - b * r := by linear_combination hr
-  rw [hc]
-  simp only [map_sub, map_neg, map_mul, map_pow]
-  ring
-lemma natDegree_quad (b c : ZMod p) : (X ^ 2 + C b * X + C c).natDegree = 2 := by
-  compute_degree!
-lemma monic_quad (b c : ZMod p) : (X ^ 2 + C b * X + C c).Monic := by
-  monicity!
-lemma irreducible_quad_of_no_root (b c : ZMod p) (h : ∀ x : ZMod p, x ^ 2 + b * x + c ≠ 0) :
-    Irreducible (X ^ 2 + C b * X + C c) := by
-  apply irreducible_of_degree_le_three_of_not_isRoot
-  · rw [natDegree_quad]; decide
-  · intro x hx
-    apply h x
-    rw [IsRoot.def, eval_add, eval_add, eval_mul, eval_pow, eval_X, eval_C, eval_C] at hx
-    exact hx
-include hα hK hm in
-theorem monicFactorsMod_of_root {r : ZMod p} (hr : r ^ 2 + (bInt m : ZMod p) * r + cInt m = 0) :
-    RingOfIntegers.monicFactorsMod (omegaInt hα) p =
-      {X - C r, X - C (-(bInt m : ZMod p) - r)} := by
-  unfold RingOfIntegers.monicFactorsMod
-  rw [minpoly_omegaInt_map hα p hm.ne_zero, quad_eq_mul_of_root p _ _ r hr,
-    UniqueFactorizationMonoid.normalizedFactors_mul (X_sub_C_ne_zero _) (X_sub_C_ne_zero _),
-    UniqueFactorizationMonoid.normalizedFactors_irreducible (irreducible_X_sub_C _),
-    UniqueFactorizationMonoid.normalizedFactors_irreducible (irreducible_X_sub_C _),
-    (monic_X_sub_C _).normalize_eq_self, (monic_X_sub_C _).normalize_eq_self,
-    Multiset.singleton_add, Multiset.toFinset_cons, Multiset.toFinset_singleton]
-include hα hK hm in
-theorem monicFactorsMod_of_no_root
-    (h : ∀ x : ZMod p, x ^ 2 + (bInt m : ZMod p) * x + cInt m ≠ 0) :
-    RingOfIntegers.monicFactorsMod (omegaInt hα) p =
-      {X ^ 2 + C (bInt m : ZMod p) * X + C (cInt m : ZMod p)} := by
-  unfold RingOfIntegers.monicFactorsMod
-  rw [minpoly_omegaInt_map hα p hm.ne_zero,
-    UniqueFactorizationMonoid.normalizedFactors_irreducible (irreducible_quad_of_no_root p _ _ h),
-    (monic_quad p _ _).normalize_eq_self, Multiset.toFinset_singleton]
-include hα hK hm in
-theorem ncard_primesOver_eq_card_monicFactorsMod :
-    (primesOver (span {(p : ℤ)}) (𝓞 K)).ncard =
-      (RingOfIntegers.monicFactorsMod (omegaInt hα) p).card := by
-  rw [← Nat.card_coe_set_eq,
-    Nat.card_congr (Ideal.primesOverSpanEquivMonicFactorsMod (not_dvd_exponent_omegaInt hα hK hm p)),
-    Nat.card_eq_finsetCard]
-include hα hK hm in
-theorem inertiaDeg_eq_natDegree {P : Ideal (𝓞 K)} (hP : P ∈ primesOver (span {(p : ℤ)}) (𝓞 K)) :
-    P.inertiaDeg ℤ =
-      ((Ideal.primesOverSpanEquivMonicFactorsMod (not_dvd_exponent_omegaInt hα hK hm p) ⟨P, hP⟩ :
-        (ZMod p)[X])).natDegree := by
-  set e := Ideal.primesOverSpanEquivMonicFactorsMod (not_dvd_exponent_omegaInt hα hK hm p)
-  have := Ideal.inertiaDeg_primesOverSpanEquivMonicFactorsMod_symm_apply'
-    (not_dvd_exponent_omegaInt hα hK hm p) (e ⟨P, hP⟩).2
-  rwa [Subtype.coe_eta, e.symm_apply_apply] at this
-lemma root_ne_other_root (hpd : ¬ p ∣ disc m) {r : ZMod p}
-    (hr : r ^ 2 + (bInt m : ZMod p) * r + cInt m = 0) : r ≠ -(bInt m : ZMod p) - r := by
-  intro heq
-  apply hpd
-  rw [← ZMod.natCast_eq_zero_iff]
-  have hdisc : (bInt m : ZMod p) ^ 2 - 4 * (cInt m : ZMod p) = -(disc m : ZMod p) := by
-    exact_mod_cast congrArg (Int.cast (R := ZMod p)) (bInt_sq_sub_four_mul_cInt m)
-  linear_combination hdisc + (-(2 * r + (bInt m : ZMod p))) * heq + 4 * hr
-lemma two_ne_zero_of_ne_two (hp2 : p ≠ 2) : (2 : ZMod p) ≠ 0 := by
-  intro h
-  have : ((2 : ℕ) : ZMod p) = 0 := by exact_mod_cast h
-  rw [ZMod.natCast_eq_zero_iff] at this
-  exact hp2 ((Nat.prime_dvd_prime_iff_eq hp.out Nat.prime_two).mp this)
-theorem exists_root_iff_isSquare (hp2 : p ≠ 2) :
-    (∃ x : ZMod p, x ^ 2 + (bInt m : ZMod p) * x + cInt m = 0) ↔ IsSquare (-(m : ZMod p)) := by
-  have h2 := two_ne_zero_of_ne_two p hp2
-  unfold bInt cInt
-  split_ifs with h3
-  · obtain ⟨c, hc⟩ : (4 : ℕ) ∣ m + 1 := by omega
-    have hc' : ((m + 1) / 4 : ℕ) = c := by omega
-    rw [hc']
-    push_cast
-    have hc4 : (m : ZMod p) + 1 = 4 * c := by
-      have := congrArg (Nat.cast (R := ZMod p)) hc
-      push_cast at this
-      exact this
-    constructor
-    · rintro ⟨x, hx⟩
-      exact ⟨2 * x - 1, by linear_combination (-4 : ZMod p) * hx + (-1 : ZMod p) * hc4⟩
-    · rintro ⟨y, hy⟩
-      refine ⟨(y + 1) * 2⁻¹, ?_⟩
-      have hi : (2 : ZMod p) * 2⁻¹ = 1 := mul_inv_cancel₀ h2
-      have h4 : (4 : ZMod p) ≠ 0 := by
-        have : (4 : ZMod p) = 2 * 2 := by norm_num
-        rw [this]; exact mul_ne_zero h2 h2
-      have key : (4 : ZMod p) * (((y + 1) * 2⁻¹) ^ 2 + -1 * ((y + 1) * 2⁻¹) + c) = 0 := by
-        linear_combination ((y + 1) ^ 2 * (2 * 2⁻¹ + 1)) * hi + (-2 * (y + 1)) * hi
-          + (-1 : ZMod p) * hy + (-1 : ZMod p) * hc4
-      exact (mul_eq_zero.mp key).resolve_left h4
-  · push_cast
-    constructor
-    · rintro ⟨x, hx⟩
-      exact ⟨x, by linear_combination -hx⟩
-    · rintro ⟨y, hy⟩
-      exact ⟨y, by linear_combination -hy⟩
-theorem exists_root_two_iff (h3 : m % 4 = 3) :
-    (∃ x : ZMod 2, x ^ 2 + (bInt m : ZMod 2) * x + cInt m = 0) ↔ m % 8 = 7 := by
-  unfold bInt cInt
-  rw [if_pos h3, if_pos h3]
-  obtain ⟨c, hc⟩ : (4 : ℕ) ∣ m + 1 := by omega
-  have hc' : ((m + 1) / 4 : ℕ) = c := by omega
-  rw [hc']
-  have key : ∀ c' : ZMod 2, (∃ x : ZMod 2, x ^ 2 + ((-1 : ℤ) : ZMod 2) * x + ((c' : ZMod 2)) = 0) ↔
-      c' = 0 := by decide
-  rw [show ((c : ℤ) : ZMod 2) = ((c : ℕ) : ZMod 2) from Int.cast_natCast c, key,
-    ZMod.natCast_eq_zero_iff_even, Nat.even_iff]
-  omega
-include hm in
-theorem kroneckerChar_eq_one_iff_exists_root (hpd : ¬ p ∣ disc m) :
-    kroneckerChar m (p : ZMod (disc m)) = 1 ↔
-      ∃ x : ZMod p, x ^ 2 + (bInt m : ZMod p) * x + cInt m = 0 := by
-  by_cases hp2 : p = 2
-  · subst hp2
-    have h3 : m % 4 = 3 := by
-      by_contra h3
-      exact hpd (by rw [disc_of_not_three_mod_four h3]; exact ⟨2 * m, by ring⟩)
-    rw [exists_root_two_iff h3, show ((2 : ℕ) : ZMod (disc m)) = 2 from Nat.cast_ofNat,
-      kroneckerChar_apply_two h3, ZMod.χ₈_nat_eq_if_mod_eight]
-    have h8 : m % 8 = 3 ∨ m % 8 = 7 := by omega
-    rcases h8 with h | h
-    · rw [if_neg (by omega), if_neg (by omega)]
-      norm_num
-      omega
-    · rw [if_neg (by omega), if_pos (by omega)]
-      norm_num
-      exact h
-  · rw [kroneckerChar_apply_prime_eq_one_iff hm hp2 hpd, exists_root_iff_isSquare p hp2]
-theorem kroneckerChar_eq_one_or_neg_one (hpd : ¬ p ∣ disc m) :
-    kroneckerChar m (p : ZMod (disc m)) = 1 ∨ kroneckerChar m (p : ZMod (disc m)) = -1 := by
-  have hcop : IsCoprime (p : ℤ) (disc m : ℤ) :=
-    Nat.isCoprime_iff_coprime.mpr ((Nat.Prime.coprime_iff_not_dvd hp.out).mpr hpd)
-  have hne : kroneckerChar m (p : ZMod (disc m)) ≠ 0 := by
-    rw [← Int.cast_natCast (R := ZMod (disc m))]
-    exact (DirichletCharacter.apply_ne_zero_iff _ _).mpr hcop
-  rcases kroneckerChar_isQuadratic m (p : ZMod (disc m)) with h | h | h
-  · exact absurd h hne
-  · exact Or.inl h
-  · exact Or.inr h
-include hα hK hm in
-theorem ncard_primesOver_eq_two_of_kroneckerChar_eq_one (hpd : ¬ p ∣ disc m)
-    (h1 : kroneckerChar m (p : ZMod (disc m)) = 1) :
-    (primesOver (span {(p : ℤ)}) (𝓞 K)).ncard = 2 ∧
-      ∀ P ∈ primesOver (span {(p : ℤ)}) (𝓞 K), P.inertiaDeg ℤ = 1 := by
-  obtain ⟨r, hr⟩ := (kroneckerChar_eq_one_iff_exists_root hm p hpd).mp h1
-  have hF := monicFactorsMod_of_root hα hK hm p hr
-  have hne : X - C r ≠ X - C (-(bInt m : ZMod p) - r) := by
-    intro h
-    exact root_ne_other_root p hpd hr (C_inj.mp (sub_right_injective h))
-  constructor
-  · rw [ncard_primesOver_eq_card_monicFactorsMod hα hK hm p, hF]
-    exact Finset.card_pair_eq_two_iff.mpr hne
-  · intro P hP
-    rw [inertiaDeg_eq_natDegree hα hK hm p hP]
-    have hmem := (Finset.ext_iff.mp hF _).mp
-      (Ideal.primesOverSpanEquivMonicFactorsMod (not_dvd_exponent_omegaInt hα hK hm p) ⟨P, hP⟩).2
-    rw [Finset.mem_insert, Finset.mem_singleton] at hmem
-    rcases hmem with h | h <;> rw [h, natDegree_X_sub_C]
-include hα hK hm in
-theorem ncard_primesOver_eq_one_of_kroneckerChar_eq_neg_one (hpd : ¬ p ∣ disc m)
-    (h1 : kroneckerChar m (p : ZMod (disc m)) = -1) :
-    (primesOver (span {(p : ℤ)}) (𝓞 K)).ncard = 1 ∧
-      ∀ P ∈ primesOver (span {(p : ℤ)}) (𝓞 K), P.inertiaDeg ℤ = 2 := by
-  have hno : ∀ x : ZMod p, x ^ 2 + (bInt m : ZMod p) * x + cInt m ≠ 0 := by
-    intro x hx
-    have := (kroneckerChar_eq_one_iff_exists_root hm p hpd).mpr ⟨x, hx⟩
-    rw [h1] at this
-    norm_num at this
-  have hF := monicFactorsMod_of_no_root hα hK hm p hno
-  constructor
-  · rw [ncard_primesOver_eq_card_monicFactorsMod hα hK hm p, hF, Finset.card_singleton]
-  · intro P hP
-    rw [inertiaDeg_eq_natDegree hα hK hm p hP]
-    have hmem := (Finset.ext_iff.mp hF _).mp
-      (Ideal.primesOverSpanEquivMonicFactorsMod (not_dvd_exponent_omegaInt hα hK hm p) ⟨P, hP⟩).2
-    rw [Finset.mem_singleton] at hmem
-    rw [hmem, natDegree_quad]
-include hα hK hm in
-theorem ncard_primesOver_eq_two_iff (hpd : ¬ p ∣ disc m) :
-    (primesOver (span {(p : ℤ)}) (𝓞 K)).ncard = 2 ↔ kroneckerChar m (p : ZMod (disc m)) = 1 := by
-  rcases kroneckerChar_eq_one_or_neg_one p hpd with h | h
-  · simp only [h, iff_true]
-    exact (ncard_primesOver_eq_two_of_kroneckerChar_eq_one hα hK hm p hpd h).1
-  · rw [h, (ncard_primesOver_eq_one_of_kroneckerChar_eq_neg_one hα hK hm p hpd h).1]
-    norm_num
-include hα hK hm in
-theorem ncard_primesOver_eq_one_iff (hpd : ¬ p ∣ disc m) :
-    (primesOver (span {(p : ℤ)}) (𝓞 K)).ncard = 1 ↔ kroneckerChar m (p : ZMod (disc m)) = -1 := by
-  rcases kroneckerChar_eq_one_or_neg_one p hpd with h | h
-  · rw [h, (ncard_primesOver_eq_two_of_kroneckerChar_eq_one hα hK hm p hpd h).1]
-    norm_num
-  · simp only [h, iff_true]
-    exact (ncard_primesOver_eq_one_of_kroneckerChar_eq_neg_one hα hK hm p hpd h).1
-include hα hK hm in
-theorem exists_prime_absNorm_eq_of_kroneckerChar_eq_one (hpd : ¬ p ∣ disc m)
-    (h1 : kroneckerChar m (p : ZMod (disc m)) = 1) :
-    ∃ P : Ideal (𝓞 K), P.IsPrime ∧ absNorm P = p := by
-  obtain ⟨hcard, hdeg⟩ := ncard_primesOver_eq_two_of_kroneckerChar_eq_one hα hK hm p hpd h1
-  obtain ⟨P, hP⟩ := Set.nonempty_of_ncard_ne_zero (s := primesOver (span {(p : ℤ)}) (𝓞 K))
-    (by rw [hcard]; norm_num)
-  have := hP.1
-  have := hP.2
-  refine ⟨P, hP.1, ?_⟩
-  rw [← Ideal.pow_inertiaDeg p P, hdeg P hP, pow_one]
 end Prime
 end Setup
 end CN1.Foundations
@@ -1070,8 +512,6 @@ theorem tOf_eq_zero_or_one (m : ℕ) : tOf m = 0 ∨ tOf m = 1 := by
   unfold tOf; split_ifs <;> simp
 theorem four_mul_cOf (m : ℕ) : 4 * cOf m = dOf m + tOf m ^ 2 := by
   unfold cOf dOf tOf; split_ifs with h <;> norm_num <;> omega
-theorem le_dOf (m : ℕ) : m ≤ dOf m := by
-  unfold dOf; split_ifs <;> omega
 theorem tOf_of_mod (m : ℕ) (h : m % 4 = 3) : tOf m = 1 := by simp [tOf, h]
 theorem four_mul_cOf_of_mod (m : ℕ) (h : m % 4 = 3) : 4 * cOf m = m + 1 := by
   simp only [cOf, h, if_true]; omega
@@ -1233,11 +673,6 @@ theorem classNumber_ne_one_of_isWitness {m p y : ℕ} (D : QuadInt K (tOf m) (cO
 def SqfBelow (m : ℕ) : Prop := ∀ k ∈ Finset.Icc 2 26, ¬ k * k ∣ m
 instance : DecidablePred SqfBelow := fun m =>
   inferInstanceAs (Decidable (∀ k ∈ Finset.Icc 2 26, ¬ k * k ∣ m))
-theorem sqfBelow_of_squarefree {m : ℕ} (hm : Squarefree m) : SqfBelow m := by
-  intro k hk h
-  have := Nat.isUnit_iff.mp (hm k h)
-  rw [Finset.mem_Icc] at hk
-  omega
 end CN1.Finite
 end
 
@@ -1417,446 +852,27 @@ end
 
 section
 namespace CN1.Finite
-theorem w_5 : IsWitness 5 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_6 : IsWitness 6 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_10 : IsWitness 10 7 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_13 : IsWitness 13 7 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_14 : IsWitness 14 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_15 : IsWitness 15 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_17 : IsWitness 17 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_21 : IsWitness 21 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_22 : IsWitness 22 13 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_23 : IsWitness 23 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_26 : IsWitness 26 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_29 : IsWitness 29 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_30 : IsWitness 30 11 5 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_31 : IsWitness 31 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_33 : IsWitness 33 7 3 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_34 : IsWitness 34 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_35 : IsWitness 35 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_37 : IsWitness 37 19 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_38 : IsWitness 38 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_39 : IsWitness 39 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_41 : IsWitness 41 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_42 : IsWitness 42 13 6 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_46 : IsWitness 46 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_47 : IsWitness 47 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_51 : IsWitness 51 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_53 : IsWitness 53 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_55 : IsWitness 55 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_57 : IsWitness 57 11 3 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_58 : IsWitness 58 31 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_59 : IsWitness 59 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_61 : IsWitness 61 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_62 : IsWitness 62 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_65 : IsWitness 65 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_66 : IsWitness 66 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_69 : IsWitness 69 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_70 : IsWitness 70 17 7 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_71 : IsWitness 71 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_73 : IsWitness 73 7 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_74 : IsWitness 74 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_77 : IsWitness 77 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_78 : IsWitness 78 19 6 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_79 : IsWitness 79 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_82 : IsWitness 82 7 3 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_83 : IsWitness 83 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_85 : IsWitness 85 11 5 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_86 : IsWitness 86 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_87 : IsWitness 87 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_89 : IsWitness 89 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_91 : IsWitness 91 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_93 : IsWitness 93 17 3 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-def chunk1 : List ℕ := [5, 6, 10, 13, 14, 15, 17, 21, 22, 23, 26, 29, 30, 31, 33, 34, 35, 37, 38, 39, 41, 42, 46, 47, 51, 53, 55, 57, 58, 59, 61, 62, 65, 66, 69, 70, 71, 73, 74, 77, 78, 79, 82, 83, 85, 86, 87, 89, 91, 93]
-theorem exists_witness_chunk1 : ∀ m ∈ chunk1, ∃ p y : ℕ, IsWitness m p y := by
-  intro m hm
-  simp only [chunk1, List.mem_cons, List.mem_nil_iff, or_false] at hm
-  rcases hm with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  exacts [⟨_, _, w_5⟩, ⟨_, _, w_6⟩, ⟨_, _, w_10⟩, ⟨_, _, w_13⟩, ⟨_, _, w_14⟩, ⟨_, _, w_15⟩, ⟨_, _, w_17⟩, ⟨_, _, w_21⟩, ⟨_, _, w_22⟩, ⟨_, _, w_23⟩, ⟨_, _, w_26⟩, ⟨_, _, w_29⟩, ⟨_, _, w_30⟩, ⟨_, _, w_31⟩, ⟨_, _, w_33⟩, ⟨_, _, w_34⟩, ⟨_, _, w_35⟩, ⟨_, _, w_37⟩, ⟨_, _, w_38⟩, ⟨_, _, w_39⟩, ⟨_, _, w_41⟩, ⟨_, _, w_42⟩, ⟨_, _, w_46⟩, ⟨_, _, w_47⟩, ⟨_, _, w_51⟩, ⟨_, _, w_53⟩, ⟨_, _, w_55⟩, ⟨_, _, w_57⟩, ⟨_, _, w_58⟩, ⟨_, _, w_59⟩, ⟨_, _, w_61⟩, ⟨_, _, w_62⟩, ⟨_, _, w_65⟩, ⟨_, _, w_66⟩, ⟨_, _, w_69⟩, ⟨_, _, w_70⟩, ⟨_, _, w_71⟩, ⟨_, _, w_73⟩, ⟨_, _, w_74⟩, ⟨_, _, w_77⟩, ⟨_, _, w_78⟩, ⟨_, _, w_79⟩, ⟨_, _, w_82⟩, ⟨_, _, w_83⟩, ⟨_, _, w_85⟩, ⟨_, _, w_86⟩, ⟨_, _, w_87⟩, ⟨_, _, w_89⟩, ⟨_, _, w_91⟩, ⟨_, _, w_93⟩]
 end CN1.Finite
 end
 
 section
 namespace CN1.Finite
-theorem w_94 : IsWitness 94 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_95 : IsWitness 95 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_97 : IsWitness 97 7 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_101 : IsWitness 101 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_102 : IsWitness 102 23 6 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_103 : IsWitness 103 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_105 : IsWitness 105 11 4 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_106 : IsWitness 106 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_107 : IsWitness 107 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_109 : IsWitness 109 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_110 : IsWitness 110 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_111 : IsWitness 111 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_113 : IsWitness 113 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_114 : IsWitness 114 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_115 : IsWitness 115 7 3 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_118 : IsWitness 118 7 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_119 : IsWitness 119 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_122 : IsWitness 122 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_123 : IsWitness 123 11 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_127 : IsWitness 127 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_129 : IsWitness 129 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_130 : IsWitness 130 23 10 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_131 : IsWitness 131 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_133 : IsWitness 133 13 6 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_134 : IsWitness 134 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_137 : IsWitness 137 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_138 : IsWitness 138 7 3 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_139 : IsWitness 139 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_141 : IsWitness 141 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_142 : IsWitness 142 11 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_143 : IsWitness 143 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_145 : IsWitness 145 7 3 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_146 : IsWitness 146 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_149 : IsWitness 149 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_151 : IsWitness 151 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_154 : IsWitness 154 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_155 : IsWitness 155 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_157 : IsWitness 157 7 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_158 : IsWitness 158 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_159 : IsWitness 159 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_161 : IsWitness 161 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_167 : IsWitness 167 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_179 : IsWitness 179 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_183 : IsWitness 183 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_187 : IsWitness 187 7 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_191 : IsWitness 191 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_195 : IsWitness 195 7 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_199 : IsWitness 199 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_203 : IsWitness 203 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_211 : IsWitness 211 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-def chunk2 : List ℕ := [94, 95, 97, 101, 102, 103, 105, 106, 107, 109, 110, 111, 113, 114, 115, 118, 119, 122, 123, 127, 129, 130, 131, 133, 134, 137, 138, 139, 141, 142, 143, 145, 146, 149, 151, 154, 155, 157, 158, 159, 161, 167, 179, 183, 187, 191, 195, 199, 203, 211]
-theorem exists_witness_chunk2 : ∀ m ∈ chunk2, ∃ p y : ℕ, IsWitness m p y := by
-  intro m hm
-  simp only [chunk2, List.mem_cons, List.mem_nil_iff, or_false] at hm
-  rcases hm with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  exacts [⟨_, _, w_94⟩, ⟨_, _, w_95⟩, ⟨_, _, w_97⟩, ⟨_, _, w_101⟩, ⟨_, _, w_102⟩, ⟨_, _, w_103⟩, ⟨_, _, w_105⟩, ⟨_, _, w_106⟩, ⟨_, _, w_107⟩, ⟨_, _, w_109⟩, ⟨_, _, w_110⟩, ⟨_, _, w_111⟩, ⟨_, _, w_113⟩, ⟨_, _, w_114⟩, ⟨_, _, w_115⟩, ⟨_, _, w_118⟩, ⟨_, _, w_119⟩, ⟨_, _, w_122⟩, ⟨_, _, w_123⟩, ⟨_, _, w_127⟩, ⟨_, _, w_129⟩, ⟨_, _, w_130⟩, ⟨_, _, w_131⟩, ⟨_, _, w_133⟩, ⟨_, _, w_134⟩, ⟨_, _, w_137⟩, ⟨_, _, w_138⟩, ⟨_, _, w_139⟩, ⟨_, _, w_141⟩, ⟨_, _, w_142⟩, ⟨_, _, w_143⟩, ⟨_, _, w_145⟩, ⟨_, _, w_146⟩, ⟨_, _, w_149⟩, ⟨_, _, w_151⟩, ⟨_, _, w_154⟩, ⟨_, _, w_155⟩, ⟨_, _, w_157⟩, ⟨_, _, w_158⟩, ⟨_, _, w_159⟩, ⟨_, _, w_161⟩, ⟨_, _, w_167⟩, ⟨_, _, w_179⟩, ⟨_, _, w_183⟩, ⟨_, _, w_187⟩, ⟨_, _, w_191⟩, ⟨_, _, w_195⟩, ⟨_, _, w_199⟩, ⟨_, _, w_203⟩, ⟨_, _, w_211⟩]
 end CN1.Finite
 end
 
 section
 namespace CN1.Finite
-theorem w_215 : IsWitness 215 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_219 : IsWitness 219 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_223 : IsWitness 223 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_227 : IsWitness 227 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_231 : IsWitness 231 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_235 : IsWitness 235 13 3 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_239 : IsWitness 239 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_247 : IsWitness 247 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_251 : IsWitness 251 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_255 : IsWitness 255 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_259 : IsWitness 259 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_263 : IsWitness 263 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_267 : IsWitness 267 23 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_271 : IsWitness 271 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_283 : IsWitness 283 7 3 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_287 : IsWitness 287 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_291 : IsWitness 291 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_295 : IsWitness 295 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_299 : IsWitness 299 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_303 : IsWitness 303 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_307 : IsWitness 307 7 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_311 : IsWitness 311 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_319 : IsWitness 319 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_323 : IsWitness 323 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_327 : IsWitness 327 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_331 : IsWitness 331 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_335 : IsWitness 335 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_339 : IsWitness 339 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_347 : IsWitness 347 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_355 : IsWitness 355 7 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_359 : IsWitness 359 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_367 : IsWitness 367 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_371 : IsWitness 371 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_379 : IsWitness 379 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_383 : IsWitness 383 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_391 : IsWitness 391 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_395 : IsWitness 395 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_399 : IsWitness 399 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_403 : IsWitness 403 11 5 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_407 : IsWitness 407 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_411 : IsWitness 411 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_415 : IsWitness 415 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_419 : IsWitness 419 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_427 : IsWitness 427 17 4 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_431 : IsWitness 431 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_435 : IsWitness 435 11 4 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_439 : IsWitness 439 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_443 : IsWitness 443 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_447 : IsWitness 447 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_451 : IsWitness 451 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-def chunk3 : List ℕ := [215, 219, 223, 227, 231, 235, 239, 247, 251, 255, 259, 263, 267, 271, 283, 287, 291, 295, 299, 303, 307, 311, 319, 323, 327, 331, 335, 339, 347, 355, 359, 367, 371, 379, 383, 391, 395, 399, 403, 407, 411, 415, 419, 427, 431, 435, 439, 443, 447, 451]
-theorem exists_witness_chunk3 : ∀ m ∈ chunk3, ∃ p y : ℕ, IsWitness m p y := by
-  intro m hm
-  simp only [chunk3, List.mem_cons, List.mem_nil_iff, or_false] at hm
-  rcases hm with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  exacts [⟨_, _, w_215⟩, ⟨_, _, w_219⟩, ⟨_, _, w_223⟩, ⟨_, _, w_227⟩, ⟨_, _, w_231⟩, ⟨_, _, w_235⟩, ⟨_, _, w_239⟩, ⟨_, _, w_247⟩, ⟨_, _, w_251⟩, ⟨_, _, w_255⟩, ⟨_, _, w_259⟩, ⟨_, _, w_263⟩, ⟨_, _, w_267⟩, ⟨_, _, w_271⟩, ⟨_, _, w_283⟩, ⟨_, _, w_287⟩, ⟨_, _, w_291⟩, ⟨_, _, w_295⟩, ⟨_, _, w_299⟩, ⟨_, _, w_303⟩, ⟨_, _, w_307⟩, ⟨_, _, w_311⟩, ⟨_, _, w_319⟩, ⟨_, _, w_323⟩, ⟨_, _, w_327⟩, ⟨_, _, w_331⟩, ⟨_, _, w_335⟩, ⟨_, _, w_339⟩, ⟨_, _, w_347⟩, ⟨_, _, w_355⟩, ⟨_, _, w_359⟩, ⟨_, _, w_367⟩, ⟨_, _, w_371⟩, ⟨_, _, w_379⟩, ⟨_, _, w_383⟩, ⟨_, _, w_391⟩, ⟨_, _, w_395⟩, ⟨_, _, w_399⟩, ⟨_, _, w_403⟩, ⟨_, _, w_407⟩, ⟨_, _, w_411⟩, ⟨_, _, w_415⟩, ⟨_, _, w_419⟩, ⟨_, _, w_427⟩, ⟨_, _, w_431⟩, ⟨_, _, w_435⟩, ⟨_, _, w_439⟩, ⟨_, _, w_443⟩, ⟨_, _, w_447⟩, ⟨_, _, w_451⟩]
 end CN1.Finite
 end
 
 section
 namespace CN1.Finite
-theorem w_455 : IsWitness 455 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_463 : IsWitness 463 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_467 : IsWitness 467 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_471 : IsWitness 471 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_479 : IsWitness 479 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_483 : IsWitness 483 11 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_487 : IsWitness 487 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_491 : IsWitness 491 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_499 : IsWitness 499 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_503 : IsWitness 503 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_511 : IsWitness 511 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_515 : IsWitness 515 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_519 : IsWitness 519 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_523 : IsWitness 523 7 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_527 : IsWitness 527 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_535 : IsWitness 535 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_543 : IsWitness 543 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_547 : IsWitness 547 11 3 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_551 : IsWitness 551 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_555 : IsWitness 555 13 6 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_559 : IsWitness 559 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_563 : IsWitness 563 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_571 : IsWitness 571 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_579 : IsWitness 579 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_583 : IsWitness 583 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_587 : IsWitness 587 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_591 : IsWitness 591 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_595 : IsWitness 595 13 5 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_599 : IsWitness 599 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_607 : IsWitness 607 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_611 : IsWitness 611 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_615 : IsWitness 615 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_619 : IsWitness 619 5 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_623 : IsWitness 623 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_627 : IsWitness 627 13 4 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_631 : IsWitness 631 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_635 : IsWitness 635 3 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_643 : IsWitness 643 7 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_647 : IsWitness 647 2 1 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-theorem w_651 : IsWitness 651 5 2 :=
-  ⟨by norm_num, by decide, by decide, by decide, by decide⟩
-def chunk4 : List ℕ := [455, 463, 467, 471, 479, 483, 487, 491, 499, 503, 511, 515, 519, 523, 527, 535, 543, 547, 551, 555, 559, 563, 571, 579, 583, 587, 591, 595, 599, 607, 611, 615, 619, 623, 627, 631, 635, 643, 647, 651]
-theorem exists_witness_chunk4 : ∀ m ∈ chunk4, ∃ p y : ℕ, IsWitness m p y := by
-  intro m hm
-  simp only [chunk4, List.mem_cons, List.mem_nil_iff, or_false] at hm
-  rcases hm with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  exacts [⟨_, _, w_455⟩, ⟨_, _, w_463⟩, ⟨_, _, w_467⟩, ⟨_, _, w_471⟩, ⟨_, _, w_479⟩, ⟨_, _, w_483⟩, ⟨_, _, w_487⟩, ⟨_, _, w_491⟩, ⟨_, _, w_499⟩, ⟨_, _, w_503⟩, ⟨_, _, w_511⟩, ⟨_, _, w_515⟩, ⟨_, _, w_519⟩, ⟨_, _, w_523⟩, ⟨_, _, w_527⟩, ⟨_, _, w_535⟩, ⟨_, _, w_543⟩, ⟨_, _, w_547⟩, ⟨_, _, w_551⟩, ⟨_, _, w_555⟩, ⟨_, _, w_559⟩, ⟨_, _, w_563⟩, ⟨_, _, w_571⟩, ⟨_, _, w_579⟩, ⟨_, _, w_583⟩, ⟨_, _, w_587⟩, ⟨_, _, w_591⟩, ⟨_, _, w_595⟩, ⟨_, _, w_599⟩, ⟨_, _, w_607⟩, ⟨_, _, w_611⟩, ⟨_, _, w_615⟩, ⟨_, _, w_619⟩, ⟨_, _, w_623⟩, ⟨_, _, w_627⟩, ⟨_, _, w_631⟩, ⟨_, _, w_635⟩, ⟨_, _, w_643⟩, ⟨_, _, w_647⟩, ⟨_, _, w_651⟩]
 end CN1.Finite
 end
 
 section
 open NumberField
 namespace CN1.Finite
-def nonHeegner190 : List ℕ := chunk1 ++ chunk2 ++ chunk3 ++ chunk4
-theorem length_nonHeegner190 : nonHeegner190.length = 190 := by decide +kernel
-theorem exists_witness_of_mem : ∀ m ∈ nonHeegner190, ∃ p y : ℕ, IsWitness m p y := by
-  unfold nonHeegner190
-  exact List.forall_mem_append.mpr ⟨List.forall_mem_append.mpr ⟨List.forall_mem_append.mpr ⟨exists_witness_chunk1, exists_witness_chunk2⟩, exists_witness_chunk3⟩, exists_witness_chunk4⟩
-theorem mem_nonHeegner190 : ∀ m ∈ Finset.range 653, SqfBelow m → dOf m ≤ 652 →
-    m ∉ ({1, 2, 3, 7, 11, 19, 43, 67, 163} : Finset ℕ) → m ∈ nonHeegner190 := by
-  decide +kernel
-theorem classNumber_ne_one_of_quadInt {K : Type*} [Field K] [NumberField K] {m : ℕ}
-    (D : QuadInt K (tOf m) (cOf m)) (hm : Squarefree m) (hd : dOf m ≤ 652)
-    (hnine : m ∉ ({1, 2, 3, 7, 11, 19, 43, 67, 163} : Finset ℕ)) : classNumber K ≠ 1 := by
-  have hrange : m ∈ Finset.range 653 := Finset.mem_range.mpr (by have := le_dOf m; omega)
-  obtain ⟨p, y, hw⟩ :=
-    exists_witness_of_mem m (mem_nonHeegner190 m hrange (sqfBelow_of_squarefree hm) hd hnine)
-  exact classNumber_ne_one_of_isWitness D hw
 end CN1.Finite
 end
 
@@ -1886,12 +902,6 @@ noncomputable def quadIntOfFoundations (hK : finrank ℚ K = 2) {m : ℕ} (hm : 
     rw [minpoly_int_omegaInt hα hm.ne_zero, bInt_eq, cInt_eq, map_neg, neg_mul, sub_eq_add_neg]
   norm_eq := fun x y => by
     rw [norm_int_eq_principalForm hα hK hm.ne_zero rfl, principalForm_eq]
-theorem classNumber_ne_one_of_foundations (hK : finrank ℚ K = 2) {m : ℕ} (hm : Squarefree m)
-    (hsq : ∃ α : K, α ^ 2 = -(m : K))
-    (hd : dOf m ≤ 652) (hnine : m ∉ ({1, 2, 3, 7, 11, 19, 43, 67, 163} : Finset ℕ)) :
-    classNumber K ≠ 1 := by
-  obtain ⟨α, hα⟩ := hsq
-  exact classNumber_ne_one_of_quadInt (quadIntOfFoundations hK hm hα) hm hd hnine
 theorem classNumber_eq_one_of_foundations (hK : finrank ℚ K = 2) {m : ℕ} (hm : Squarefree m)
     (hsq : ∃ α : K, α ^ 2 = -(m : K))
     (hnine : m ∈ ({1, 2, 3, 7, 11, 19, 43, 67, 163} : Finset ℕ)) : classNumber K = 1 := by
@@ -2147,13 +1157,6 @@ theorem false_of_analyticSetting (hA : LemmaTwoA) (h8 : SplitBound) (hL3 : AuxPr
     (Real.log (Delta q R f) / ((R : ℝ) ^ 2 * Sof R))
     (by exact_mod_cast hq0) (by exact_mod_cast hR4) (by exact_mod_cast hR5) hS13 hS0
     (Splus_nonneg q R) hdec hAR.1 hAR.2 hSp hY1 hY2
-theorem dOf_lt_of_classNumber_eq_one (hA : LemmaTwoA) (h8 : SplitBound) (hL3 : AuxPrime)
-    (hNV : Nonvanishing) (h11 : SizeBound) (h14 : DivisibilityBound) (hE : Endpoint)
-    (hK : finrank ℚ K = 2) {m : ℕ} (hm : Squarefree m) (hsq : ∃ α : K, α ^ 2 = -(m : K))
-    (h1 : classNumber K = 1) : dOf m < 32768 := by
-  by_contra hge
-  exact false_of_analyticSetting hA h8 hL3 hNV h11 h14 hE
-    (analyticSetting_of_classNumber_eq_one hK hm hsq (by omega) h1)
 theorem classNumber_eq_one_iff_of_hyps (hA : LemmaTwoA) (h8 : SplitBound) (hL3 : AuxPrime)
     (hNV : Nonvanishing) (h11 : SizeBound) (h14 : DivisibilityBound) (hE : Endpoint)
     (hS : Sieve)
@@ -2332,27 +1335,6 @@ theorem sum_log_div_sq_le {s : Finset ℕ} (hs : ∀ p ∈ s, p.Prime) :
 theorem sum_log_div_sq_lt_two_thirds {s : Finset ℕ} (hs : ∀ p ∈ s, p.Prime) :
     ∑ p ∈ s, log (p : ℝ) / (p : ℝ) ^ 2 < 2 / 3 :=
   (sum_log_div_sq_le hs).trans_lt sumLogDivSqBound_lt
-theorem summable_log_div_sq :
-    Summable fun p : Nat.Primes => log ((p : ℕ) : ℝ) / ((p : ℕ) : ℝ) ^ 2 := by
-  refine summable_of_sum_le (c := sumLogDivSqBound)
-    (fun p => div_nonneg (log_natCast_nonneg _) (sq_nonneg _)) fun u => ?_
-  have h := sum_log_div_sq_le (s := u.map (Function.Embedding.subtype _))
-    (by intro p hp; obtain ⟨q, _, rfl⟩ := Finset.mem_map.mp hp; exact q.2)
-  exact (Finset.sum_map u (Function.Embedding.subtype _)
-    fun p : ℕ => log (p : ℝ) / (p : ℝ) ^ 2).symm.trans_le h
-theorem tsum_log_div_sq_lt_two_thirds :
-    ∑' p : Nat.Primes, log ((p : ℕ) : ℝ) / ((p : ℕ) : ℝ) ^ 2 < 2 / 3 := by
-  refine lt_of_le_of_lt ?_ sumLogDivSqBound_lt
-  refine tsum_le_of_sum_le' ?_ fun u => ?_
-  · unfold sumLogDivSqBound
-    have h2 := Real.log_nonneg (show (1 : ℝ) ≤ 2 by norm_num)
-    have h3 := Real.log_nonneg (show (1 : ℝ) ≤ 3 by norm_num)
-    have h5 := Real.log_nonneg (show (1 : ℝ) ≤ 5 by norm_num)
-    positivity
-  · have h := sum_log_div_sq_le (s := u.map (Function.Embedding.subtype _))
-      (by intro p hp; obtain ⟨q, _, rfl⟩ := Finset.mem_map.mp hp; exact q.2)
-    exact (Finset.sum_map u (Function.Embedding.subtype _)
-    fun p : ℕ => log (p : ℝ) / (p : ℝ) ^ 2).symm.trans_le h
 end ELEM.Primes
 end
 
@@ -2470,21 +1452,13 @@ theorem log_sub_log_sub_lt_sum_Ioc {m n : ℕ} (hm : 1 ≤ m) (hmn : m ≤ n) :
     log (n : ℝ) - log (m : ℝ) - 23 / 6 < ∑ p ∈ (Ioc m n).filter Nat.Prime, log (p : ℝ) / p := by
   rw [sum_Ioc_eq_sub hmn]
   linarith [log_sub_lt_sum_log_div (hm.trans hmn), sum_log_div_lt_log_add hm]
-theorem sum_log_div_lt_log_add_of_subset {s : Finset ℕ} {n : ℕ} (hs : s ⊆ primesLE n)
-    (hn : 1 ≤ n) : ∑ p ∈ s, log (p : ℝ) / p < log (n : ℝ) + 3 / 2 :=
-  (sum_le_sum_of_subset_of_nonneg hs fun p _ _ =>
-    div_nonneg (log_natCast_nonneg p) p.cast_nonneg).trans_lt (sum_log_div_lt_log_add hn)
 end ELEM.Primes
 end
 
 section
 namespace ELEM.Primes
-theorem lemmaTwoTheta : ELEM.LemmaTwoTheta := fun _ hx =>
-  theta_lt_three_halves_mul (by linarith)
 theorem lemmaTwoA : ELEM.LemmaTwoA := fun _ hm =>
   ⟨log_sub_lt_sum_log_div (by omega), sum_log_div_lt_log_add (by omega)⟩
-theorem lemmaTwoB : ELEM.LemmaTwoB :=
-  ⟨summable_log_div_sq, tsum_log_div_sq_lt_two_thirds⟩
 end ELEM.Primes
 end
 
@@ -4182,9 +3156,6 @@ namespace ELEM.Endpoint
 theorem final_comparison :
     121 / 18 + 25 / 24 * (0.6931471808 : ℝ) + 1 / 25 < 1783 / 2400 * (15 * 0.6931471803) := by
   norm_num
-theorem companion_comparison :
-    (846 / 575 : ℚ) < 143 / 96 ∧ (143 / 96 : ℚ) - 846 / 575 = 1009 / 55200 := by
-  norm_num
 theorem endpoint : ELEM.Endpoint := by
   intro q R S A I Sp Y hq hR4 hR5 hS hS0 hSp hA hA1 hA2 hSpb hY1 hY2
   have hq0 : 0 < q := by linarith
@@ -4270,52 +3241,6 @@ instance (P : List ℕ) (q : ℕ) : Decidable (SieveHit P q) :=
 def SieveOK (S P : List ℕ) (q : ℕ) : Prop := q ∈ S ∨ SieveHit P q
 instance (S P : List ℕ) (q : ℕ) : Decidable (SieveOK S P q) :=
   inferInstanceAs (Decidable (q ∈ S ∨ SieveHit P q))
-theorem prime_of_mem_sievePrimes {p : ℕ} (hp : p ∈ sievePrimes) : p.Prime := by
-  simp only [sievePrimes, List.mem_cons, List.not_mem_nil, or_false] at hp
-  rcases hp with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> norm_num
-theorem isWitness_of_sieveHit {m : ℕ} (hm : m % 4 = 3) (h : SieveHit sievePrimes m) :
-    ∃ p y, IsWitness m p y := by
-  obtain ⟨p, hpP, hpq, y, hyp, hroot⟩ := h
-  have hp := prime_of_mem_sievePrimes hpP
-  have ht : tOf m = 1 := tOf_of_mod m hm
-  have hc : cOf m = (m + 1) / 4 := by simp [cOf, hm]
-  have hd : dOf m = m := dOf_of_mod m hm
-  have hp1 : 1 ≤ p := hp.one_lt.le
-  have hyy : y ≤ y ^ 2 := by nlinarith
-  have hsplit : y ^ 2 + (p - 1) * y + (m + 1) / 4 = (y ^ 2 + (m + 1) / 4 - y) + p * y := by
-    have : (p - 1) * y = p * y - y := Nat.sub_one_mul p y
-    have : y ≤ p * y := Nat.le_mul_of_pos_left y hp1
-    omega
-  refine ⟨p, y, hp, ?_, ?_, ?_, ?_⟩
-  · rw [ht, hc]; omega
-  · rw [ht, hc, one_mul]
-    have h0 : p ∣ y ^ 2 + (p - 1) * y + (m + 1) / 4 := Nat.dvd_of_mod_eq_zero hroot
-    rw [hsplit] at h0
-    exact (Nat.dvd_add_left (Dvd.intro y rfl)).mp h0
-  · rw [hd]; omega
-  · rw [hc]; omega
-theorem isWitness_two_of_mod_four_ne_three {m : ℕ} (h : m % 4 ≠ 3) (hm : 3 ≤ m) :
-    IsWitness m 2 (m % 2) := by
-  have ht : tOf m = 0 := by simp [tOf, h]
-  have hc : cOf m = m := by simp [cOf, h]
-  have hd : dOf m = 4 * m := by simp [dOf, h]
-  refine ⟨Nat.prime_two, ?_, ?_, ?_, ?_⟩
-  · rw [ht, zero_mul]; exact Nat.zero_le _
-  · rw [ht, hc, zero_mul, Nat.sub_zero]
-    rcases Nat.mod_two_eq_zero_or_one m with h2 | h2 <;> rw [h2] <;> omega
-  · rw [hd]; omega
-  · rw [hc]; omega
-theorem isWitness_two_of_mod_eight_eq_seven {m : ℕ} (h : m % 8 = 7) (hm : 15 ≤ m) :
-    IsWitness m 2 0 := by
-  have h4 : m % 4 = 3 := by omega
-  have ht : tOf m = 1 := tOf_of_mod m h4
-  have hc : cOf m = (m + 1) / 4 := by simp [cOf, h4]
-  have hd : dOf m = m := dOf_of_mod m h4
-  refine ⟨Nat.prime_two, ?_, ?_, ?_, ?_⟩
-  · rw [ht, mul_zero]; exact Nat.zero_le _
-  · rw [ht, hc, mul_zero, Nat.sub_zero]; omega
-  · rw [hd]; omega
-  · rw [hc]; omega
 end ELEM.Sieve
 end
 
@@ -4401,21 +3326,6 @@ theorem sieveOK_of_lt {q : ℕ} (hq : q < 32768) (h3 : q % 8 = 3) (h8 : 8 < q) :
   · exact sieveOK_chunk5 j hj h8
   · exact sieveOK_chunk6 j hj h8
   · exact sieveOK_chunk7 j hj h8
-theorem exists_isWitness_of_dOf_lt {m : ℕ} (hm0 : m ≠ 0) (hd : dOf m < 32768)
-    (hnine : m ∉ ({1, 2, 3, 7, 11, 19, 43, 67, 163} : Finset ℕ)) : ∃ p y, IsWitness m p y := by
-  simp only [Finset.mem_insert, Finset.mem_singleton, not_or] at hnine
-  obtain ⟨h1, h2, h3, h7, h11, h19, h43, h67, h163⟩ := hnine
-  by_cases h4 : m % 4 = 3
-  · rw [dOf_of_mod m h4] at hd
-    by_cases h87 : m % 8 = 7
-    · exact ⟨2, 0, isWitness_two_of_mod_eight_eq_seven h87 (by omega)⟩
-    · rcases sieveOK_of_lt hd (by omega) (by omega) with hs | hs
-      · simp only [survivors, List.mem_cons, List.not_mem_nil, or_false] at hs
-        omega
-      · exact isWitness_of_sieveHit h4 hs
-  · exact ⟨2, m % 2, isWitness_two_of_mod_four_ne_three h4 (by omega)⟩
-theorem not_sieveHit_survivors : ∀ q ∈ survivors, ¬ SieveHit sievePrimes q := by
-  decide +kernel
 end ELEM.Sieve
 end
 

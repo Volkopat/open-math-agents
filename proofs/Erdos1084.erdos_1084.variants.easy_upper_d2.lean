@@ -48,26 +48,18 @@ lemma OMA.unit_distance_sector_bound {A : Type*} (T : Finset A) (u : A → ℂ) 
     exact Finset.mem_range.mpr ((Nat.floor_lt (hnonneg (u a))).mpr (hlimit a ha))
   · intro a ha b hb heq
     by_contra hab
-    have hal := (Nat.floor_eq_iff (hnonneg (u a))).mp (show
-      ⌊OMA.unit_distance_sector_coordinate (u a)⌋₊ = sector b from heq)
-    have hbl := (Nat.floor_eq_iff (hnonneg (u b))).mp (show
-      ⌊OMA.unit_distance_sector_coordinate (u b)⌋₊ = sector b from rfl)
+    have hal := (Nat.floor_eq_iff (hnonneg (u a))).mp heq
+    have hbl := (Nat.floor_eq_iff (hnonneg (u b))).mp (rfl : sector b = sector b)
     have hdiff : ((u a).arg - (u b).arg) / (Real.pi / 3) =
         OMA.unit_distance_sector_coordinate (u b) - OMA.unit_distance_sector_coordinate (u a) := by
       unfold OMA.unit_distance_sector_coordinate
       ring
-    have hupper : (u a).arg - (u b).arg < Real.pi / 3 := by
-      have hh : ((u a).arg - (u b).arg) / (Real.pi / 3) < 1 := by
-        rw [hdiff]
-        linarith [hal.1, hbl.2]
-      simpa only [one_mul] using (div_lt_iff₀ hπ).mp hh
-    have hlower : -(Real.pi / 3) < (u a).arg - (u b).arg := by
-      have hh : -(1 : ℝ) < ((u a).arg - (u b).arg) / (Real.pi / 3) := by
-        rw [hdiff]
-        linarith [hal.2, hbl.1]
-      simpa only [neg_one_mul] using (lt_div_iff₀ hπ).mp hh
+    have hangle : |(u a).arg - (u b).arg| / (Real.pi / 3) < 1 := by
+      rw [← abs_of_pos hπ, ← abs_div, hdiff, abs_lt]
+      constructor <;> linarith [hal.1, hal.2, hbl.1, hbl.2]
     exact (not_lt_of_ge (hsep a ha b hb hab))
-      (OMA.unit_distance_chord_lt_one (hnorm a ha) (hnorm b hb) (abs_lt.mpr ⟨hlower, hupper⟩))
+      (OMA.unit_distance_chord_lt_one (hnorm a ha) (hnorm b hb)
+        (by simpa using (div_lt_iff₀ hπ).mp hangle))
 
 lemma OMA.unit_distance_card_lt (S : Finset ℝ²) (hS : S.Nonempty)
     (hsep : Metric.IsSeparated' 1 (S : Set ℝ²)) : unitDistNum S < 3 * S.card := by

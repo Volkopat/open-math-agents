@@ -46,21 +46,21 @@ open scoped Real
 
 section
 
-namespace Bernstein
+namespace Bern
 
 open scoped BigOperators
 
-def frequency (k : ℕ) : ℂ := (k : ℂ) * Complex.I
+def freq (k : ℕ) : ℂ := (k : ℂ) * Complex.I
 
-noncomputable def fourierDerivative (r : ℕ) (s : Finset ℕ) (a : ℕ → ℂ) (x : ℝ) : ℂ :=
-  ∑ k ∈ s, a k * frequency k ^ r *
+noncomputable def fourierDeriv (r : ℕ) (s : Finset ℕ) (a : ℕ → ℂ) (x : ℝ) : ℂ :=
+  ∑ k ∈ s, a k * freq k ^ r *
     Complex.exp (((k : ℂ) * (x : ℂ)) * Complex.I)
 
 @[simp]
-theorem fourierDerivative_zero (s : Finset ℕ) (a : ℕ → ℂ) (x : ℝ) :
-    fourierDerivative 0 s a x =
+theorem fourierDeriv_zero (s : Finset ℕ) (a : ℕ → ℂ) (x : ℝ) :
+    fourierDeriv 0 s a x =
       ∑ k ∈ s, a k * Complex.exp (((k : ℂ) * (x : ℂ)) * Complex.I) := by
-  simp [fourierDerivative]
+  simp [fourierDeriv]
 
 theorem eval_reflect_mul_pow {p : Polynomial ℂ} {n : ℕ} (hdeg : p.natDegree ≤ n)
     {w : ℂ} (hw : w ≠ 0) :
@@ -69,7 +69,7 @@ theorem eval_reflect_mul_pow {p : Polynomial ℂ} {n : ℕ} (hdeg : p.natDegree 
   simpa [invOf_eq_inv] using
     (@Polynomial.eval₂_reflect_mul_pow ℂ _ ℂ _ (RingHom.id ℂ) w iw n p hdeg)
 
-theorem norm_reflect_eval_le_of_circle_bound {p : Polynomial ℂ} {n : ℕ}
+theorem norm_reflect_eval_le_of_circ_bound {p : Polynomial ℂ} {n : ℕ}
     (hdeg : p.natDegree ≤ n) {M : ℝ}
     (hM : ∀ z : ℂ, ‖z‖ = 1 → ‖p.eval z‖ ≤ M)
     {u : ℂ} (hu : ‖u‖ ≤ 1) :
@@ -107,7 +107,7 @@ theorem norm_reflect_eval_le_of_circle_bound {p : Polynomial ℂ} {n : ℕ}
     simpa [Metric.mem_sphere, dist_zero_right] using hzsphere
   · exact subset_closure (by simpa [Metric.mem_ball, dist_zero_right] using hult)
 
-theorem norm_eval_le_circle_bound_mul_pow {p : Polynomial ℂ} {n : ℕ}
+theorem norm_eval_le_circ_bound_mul_pow {p : Polynomial ℂ} {n : ℕ}
     (hdeg : p.natDegree ≤ n) {M : ℝ}
     (hM : ∀ z : ℂ, ‖z‖ = 1 → ‖p.eval z‖ ≤ M)
     {w : ℂ} (hw : 1 ≤ ‖w‖) :
@@ -118,7 +118,7 @@ theorem norm_eval_le_circle_bound_mul_pow {p : Polynomial ℂ} {n : ℕ}
   have hu : ‖w⁻¹‖ ≤ 1 := by
     rw [norm_inv]
     exact (inv_le_one₀ (lt_of_lt_of_le zero_lt_one hw)).2 hw
-  have hq := norm_reflect_eval_le_of_circle_bound hdeg hM hu
+  have hq := norm_reflect_eval_le_of_circ_bound hdeg hM hu
   have hrel := eval_reflect_mul_pow hdeg hw0
   calc
     ‖p.eval w‖ = ‖(p.reflect n).eval w⁻¹‖ * ‖w‖ ^ n := by
@@ -126,16 +126,16 @@ theorem norm_eval_le_circle_bound_mul_pow {p : Polynomial ℂ} {n : ℕ}
     _ ≤ M * ‖w‖ ^ n :=
       mul_le_mul_of_nonneg_right hq (by positivity)
 
-theorem norm_coeff_le_of_circle_bound {p : Polynomial ℂ} {n : ℕ}
+theorem norm_coeff_le_of_circ_bound {p : Polynomial ℂ} {n : ℕ}
     (hdeg : p.natDegree ≤ n) {M : ℝ}
     (hM : ∀ z : ℂ, ‖z‖ = 1 → ‖p.eval z‖ ≤ M) :
     ‖p.coeff n‖ ≤ M := by
-  have hq := norm_reflect_eval_le_of_circle_bound hdeg hM (u := (0 : ℂ)) (by norm_num)
+  have hq := norm_reflect_eval_le_of_circ_bound hdeg hM (u := (0 : ℂ)) (by norm_num)
   rw [← Polynomial.coeff_zero_eq_eval_zero, Polynomial.coeff_reflect,
     Polynomial.revAt_zero] at hq
   exact hq
 
-theorem norm_derivative_eval_le_degree_mul_circleSup {p : Polynomial ℂ} {n : ℕ}
+theorem norm_deriv_eval_le_degree_mul_circSup {p : Polynomial ℂ} {n : ℕ}
     (hdeg : p.natDegree ≤ n) {M : ℝ}
     (hM : ∀ w : ℂ, ‖w‖ = 1 → ‖p.eval w‖ ≤ M)
     {z : ℂ} (hz : ‖z‖ = 1) :
@@ -166,7 +166,7 @@ theorem norm_derivative_eval_le_degree_mul_circleSup {p : Polynomial ℂ} {n : �
     rw [hβnorm, lt_div_iff₀ hnReal]
     simpa [mul_comm] using hbound
   let P : Polynomial ℂ := p - Polynomial.C β * Polynomial.X ^ n
-  have hpcoeff : ‖p.coeff n‖ ≤ M := norm_coeff_le_of_circle_bound hdeg hM
+  have hpcoeff : ‖p.coeff n‖ ≤ M := norm_coeff_le_of_circ_bound hdeg hM
   have hcoeffne : p.coeff n ≠ β := by
     intro heq
     rw [heq] at hpcoeff
@@ -200,7 +200,7 @@ theorem norm_derivative_eval_le_degree_mul_circleSup {p : Polynomial ℂ} {n : �
     have hwlt : ‖w‖ < 1 := by
       by_contra hwlt
       have hwge : 1 ≤ ‖w‖ := le_of_not_gt hwlt
-      have hout := norm_eval_le_circle_bound_mul_pow hdeg hM hwge
+      have hout := norm_eval_le_circ_bound_mul_pow hdeg hM hwge
       have hmul : ‖β‖ * ‖w‖ ^ n ≤ M * ‖w‖ ^ n := by
         rw [hPeval, norm_mul, norm_pow] at hout
         exact hout
@@ -216,21 +216,21 @@ theorem norm_derivative_eval_le_degree_mul_circleSup {p : Polynomial ℂ} {n : �
     simpa [Metric.mem_ball, dist_zero_right] using hconvex hzHull
   linarith
 
-noncomputable def eulerDerivative (p : Polynomial ℂ) : Polynomial ℂ :=
+noncomputable def eulerDeriv (p : Polynomial ℂ) : Polynomial ℂ :=
   Polynomial.X * p.derivative
 
 @[simp]
-theorem eval_eulerDerivative (p : Polynomial ℂ) (z : ℂ) :
-    (eulerDerivative p).eval z = z * p.derivative.eval z := by
-  simp [eulerDerivative]
+theorem eval_eulerDeriv (p : Polynomial ℂ) (z : ℂ) :
+    (eulerDeriv p).eval z = z * p.derivative.eval z := by
+  simp [eulerDeriv]
 
-theorem natDegree_eulerDerivative_le (p : Polynomial ℂ) :
-    (eulerDerivative p).natDegree ≤ p.natDegree := by
+theorem natDegree_eulerDeriv_le (p : Polynomial ℂ) :
+    (eulerDeriv p).natDegree ≤ p.natDegree := by
   by_cases hp : p.natDegree = 0
-  · simp [eulerDerivative, Polynomial.derivative_of_natDegree_zero hp, hp]
+  · simp [eulerDeriv, Polynomial.derivative_of_natDegree_zero hp, hp]
   have hd := Polynomial.natDegree_derivative_le p
   calc
-    (eulerDerivative p).natDegree ≤
+    (eulerDeriv p).natDegree ≤
         Polynomial.X.natDegree + p.derivative.natDegree := by
       exact natDegree_mul_le
     _ ≤ 1 + (p.natDegree - 1) := by
@@ -238,71 +238,71 @@ theorem natDegree_eulerDerivative_le (p : Polynomial ℂ) :
       exact Nat.add_le_add_left hd 1
     _ = p.natDegree := by omega
 
-theorem natDegree_iterate_eulerDerivative_le (r : ℕ) (p : Polynomial ℂ) :
-    (eulerDerivative^[r] p).natDegree ≤ p.natDegree := by
+theorem natDegree_iterate_eulerDeriv_le (r : ℕ) (p : Polynomial ℂ) :
+    (eulerDeriv^[r] p).natDegree ≤ p.natDegree := by
   induction r with
   | zero => simp
   | succ r ih =>
       rw [Function.iterate_succ_apply']
-      exact (natDegree_eulerDerivative_le _).trans ih
+      exact (natDegree_eulerDeriv_le _).trans ih
 
-theorem norm_iterate_eulerDerivative_eval_le_pow_mul_circleSup
+theorem norm_iterate_eulerDeriv_eval_le_pow_mul_circSup
     {p : Polynomial ℂ} {n : ℕ} (hdeg : p.natDegree ≤ n) {M : ℝ}
     (hM : ∀ w : ℂ, ‖w‖ = 1 → ‖p.eval w‖ ≤ M)
     (r : ℕ) {z : ℂ} (hz : ‖z‖ = 1) :
-    ‖(eulerDerivative^[r] p).eval z‖ ≤ (n : ℝ) ^ r * M := by
+    ‖(eulerDeriv^[r] p).eval z‖ ≤ (n : ℝ) ^ r * M := by
   induction r generalizing z with
   | zero => simpa using hM z hz
   | succ r ih =>
-      let q := eulerDerivative^[r] p
+      let q := eulerDeriv^[r] p
       have hqdeg : q.natDegree ≤ n :=
-        (natDegree_iterate_eulerDerivative_le r p).trans hdeg
+        (natDegree_iterate_eulerDeriv_le r p).trans hdeg
       have hqM : ∀ w : ℂ, ‖w‖ = 1 → ‖q.eval w‖ ≤ (n : ℝ) ^ r * M := by
         intro w hw
         exact ih hw
       have hderiv :=
-        norm_derivative_eval_le_degree_mul_circleSup hqdeg hqM hz
+        norm_deriv_eval_le_degree_mul_circSup hqdeg hqM hz
       rw [Function.iterate_succ_apply']
       calc
-        ‖(eulerDerivative q).eval z‖ = ‖q.derivative.eval z‖ := by
-          rw [eval_eulerDerivative, norm_mul, hz, one_mul]
+        ‖(eulerDeriv q).eval z‖ = ‖q.derivative.eval z‖ := by
+          rw [eval_eulerDeriv, norm_mul, hz, one_mul]
         _ ≤ (n : ℝ) * ((n : ℝ) ^ r * M) := hderiv
         _ = (n : ℝ) ^ (r + 1) * M := by rw [pow_succ]; ring
 
-end Bernstein
+end Bern
 
 end
 
-open Bernstein
+open Bern
 
 
 section
 
-namespace CosineAlgebra
+namespace CosAlgebra
 
-def leadingDerivative (k : ℕ) (A B : ℂ) : ℂ :=
+def leadingDeriv (k : ℕ) (A B : ℂ) : ℂ :=
   Complex.I ^ k * A + ((2 : ℂ) * Complex.I) ^ k * B
 
 def leadingReal (k : ℕ) (A B : ℂ) : ℝ :=
-  (leadingDerivative k A B).re
+  (leadingDeriv k A B).re
 
 @[simp] theorem leadingReal_zero (A B : ℂ) :
     leadingReal 0 A B = A.re + B.re := by
-  simp [leadingReal, leadingDerivative]
+  simp [leadingReal, leadingDeriv]
 
 @[simp] theorem leadingReal_one (A B : ℂ) :
     leadingReal 1 A B = -A.im - 2 * B.im := by
-  simp [leadingReal, leadingDerivative]
+  simp [leadingReal, leadingDeriv]
   ring
 
 @[simp] theorem leadingReal_two (A B : ℂ) :
     leadingReal 2 A B = -A.re - 4 * B.re := by
-  norm_num [leadingReal, leadingDerivative, pow_succ]
+  norm_num [leadingReal, leadingDeriv, pow_succ]
   ring
 
 @[simp] theorem leadingReal_three (A B : ℂ) :
     leadingReal 3 A B = A.im + 8 * B.im := by
-  norm_num [leadingReal, leadingDerivative, pow_succ]
+  norm_num [leadingReal, leadingDeriv, pow_succ]
 
 theorem energy_le_of_leadingReal_le {A B : ℂ} {ε : ℝ}
     (hε : 0 ≤ ε)
@@ -379,16 +379,16 @@ theorem exists_large_of_real_error {A B : ℂ} (D : Fin 4 → ℝ)
 
 theorem exists_large_re_of_complex_error {A B : ℂ} (D : Fin 4 → ℂ)
     (henergy : ‖A‖ ^ 2 + ‖B‖ ^ 2 = 1)
-    (herror : ∀ k : Fin 4, ‖D k - leadingDerivative k A B‖ ≤ 1 / 8) :
+    (herror : ∀ k : Fin 4, ‖D k - leadingDeriv k A B‖ ≤ 1 / 8) :
     ∃ k : Fin 4, 1 / 4 ≤ |(D k).re| := by
   apply exists_large_of_real_error (fun k ↦ (D k).re) henergy
   intro k
   have hre :
-      |(D k - leadingDerivative k A B).re| ≤
-        ‖D k - leadingDerivative k A B‖ :=
+      |(D k - leadingDeriv k A B).re| ≤
+        ‖D k - leadingDeriv k A B‖ :=
     abs_re_le_norm _
   have hid :
-      (D k - leadingDerivative k A B).re =
+      (D k - leadingDeriv k A B).re =
         (D k).re - leadingReal k A B := by
     rfl
   rw [hid] at hre
@@ -401,16 +401,16 @@ theorem phase_energy {u v α beta : ℂ}
   rw [norm_mul, norm_mul, hu, hv, one_mul, one_mul]
   exact henergy
 
-theorem exists_large_re_of_normalized_modes {u v α beta : ℂ}
+theorem exists_large_re_of_norm_modes {u v α beta : ℂ}
     (hu : ‖u‖ = 1) (hv : ‖v‖ = 1)
     (henergy : ‖α‖ ^ 2 + ‖beta‖ ^ 2 = 1)
     (D : Fin 4 → ℂ)
     (herror : ∀ k : Fin 4,
-      ‖D k - leadingDerivative k (u * α) (v * beta)‖ ≤ 1 / 8) :
+      ‖D k - leadingDeriv k (u * α) (v * beta)‖ ≤ 1 / 8) :
     ∃ k : Fin 4, 1 / 4 ≤ |(D k).re| :=
   exists_large_re_of_complex_error D (phase_energy hu hv henergy) herror
 
-end CosineAlgebra
+end CosAlgebra
 
 end
 
@@ -420,25 +420,25 @@ open scoped BigOperators ComplexConjugate
 
 noncomputable section
 
-def unitPoint (θ : ℝ) : ℂ :=
+def unitPt (θ : ℝ) : ℂ :=
   Complex.exp ((θ : ℂ) * Complex.I)
 
 @[simp]
-theorem norm_unitPoint (θ : ℝ) : ‖unitPoint θ‖ = 1 := by
-  simp [unitPoint, Complex.norm_exp]
+theorem norm_unitPt (θ : ℝ) : ‖unitPt θ‖ = 1 := by
+  simp [unitPt, Complex.norm_exp]
 
 @[simp]
-theorem unitPoint_ne_zero (θ : ℝ) : unitPoint θ ≠ 0 := by
-  simp [unitPoint]
+theorem unitPt_ne_zero (θ : ℝ) : unitPt θ ≠ 0 := by
+  simp [unitPt]
 
 @[simp]
-theorem unitPoint_neg (θ : ℝ) : unitPoint (-θ) = (unitPoint θ)⁻¹ := by
-  simp [unitPoint, Complex.exp_neg]
+theorem unitPt_neg (θ : ℝ) : unitPt (-θ) = (unitPt θ)⁻¹ := by
+  simp [unitPt, Complex.exp_neg]
 
-theorem unitPoint_pow (θ : ℝ) (k : ℕ) :
-    unitPoint θ ^ k =
+theorem unitPt_pow (θ : ℝ) (k : ℕ) :
+    unitPt θ ^ k =
       (cos (k * θ) : ℂ) + (sin (k * θ) : ℂ) * Complex.I := by
-  rw [unitPoint, ← exp_nat_mul]
+  rw [unitPt, ← exp_nat_mul]
   have harg : (k : ℂ) * ((θ : ℂ) * Complex.I) =
       (((k : ℝ) * θ : ℝ) : ℂ) * Complex.I := by
     push_cast
@@ -446,141 +446,141 @@ theorem unitPoint_pow (θ : ℝ) (k : ℕ) :
   rw [harg, ← Complex.cos_add_sin_I]
   simp
 
-theorem unitPoint_inv_pow (θ : ℝ) (k : ℕ) :
-    (unitPoint θ)⁻¹ ^ k =
+theorem unitPt_inv_pow (θ : ℝ) (k : ℕ) :
+    (unitPt θ)⁻¹ ^ k =
       (cos (k * θ) : ℂ) - (sin (k * θ) : ℂ) * Complex.I := by
-  rw [← unitPoint_neg, unitPoint_pow]
+  rw [← unitPt_neg, unitPt_pow]
   simp [cos_neg, sin_neg]
   ring_nf
 
-theorem unitPoint_pow_add_inv_pow (θ : ℝ) (k : ℕ) :
-    unitPoint θ ^ k + (unitPoint θ)⁻¹ ^ k =
+theorem unitPt_pow_add_inv_pow (θ : ℝ) (k : ℕ) :
+    unitPt θ ^ k + (unitPt θ)⁻¹ ^ k =
       (2 * cos (k * θ) : ℝ) := by
-  rw [unitPoint_pow, unitPoint_inv_pow]
+  rw [unitPt_pow, unitPt_inv_pow]
   push_cast
   ring
 
-theorem unitPoint_pow_sub_inv_pow (θ : ℝ) (k : ℕ) :
-    unitPoint θ ^ k - (unitPoint θ)⁻¹ ^ k =
+theorem unitPt_pow_sub_inv_pow (θ : ℝ) (k : ℕ) :
+    unitPt θ ^ k - (unitPt θ)⁻¹ ^ k =
       (2 * sin (k * θ) : ℝ) * Complex.I := by
-  rw [unitPoint_pow, unitPoint_inv_pow]
+  rw [unitPt_pow, unitPt_inv_pow]
   push_cast
   ring
 
-def cosineSum (s : Finset ℕ) (eps : ℕ → ℝ) (θ : ℝ) : ℝ :=
+def cosSum (s : Finset ℕ) (eps : ℕ → ℝ) (θ : ℝ) : ℝ :=
   ∑ k ∈ s, eps k * cos (k * θ)
 
 def sineSum (s : Finset ℕ) (eps : ℕ → ℝ) (θ : ℝ) : ℝ :=
   ∑ k ∈ s, eps k * sin (k * θ)
 
-def pairedLaurentValue (C Se So : Finset ℕ)
+def pairLaurentValue (C Se So : Finset ℕ)
     (epsC epsE epsO : ℕ → ℝ) (θ : ℝ) : ℂ :=
   1 +
     ∑ k ∈ C, (epsC k : ℂ) *
-      (unitPoint θ ^ k + (unitPoint θ)⁻¹ ^ k) +
+      (unitPt θ ^ k + (unitPt θ)⁻¹ ^ k) +
     ∑ k ∈ Se, (epsE k : ℂ) *
-      (unitPoint θ ^ k - (unitPoint θ)⁻¹ ^ k) +
+      (unitPt θ ^ k - (unitPt θ)⁻¹ ^ k) +
     ∑ k ∈ So, (epsO k : ℂ) *
-      (unitPoint θ ^ k - (unitPoint θ)⁻¹ ^ k)
+      (unitPt θ ^ k - (unitPt θ)⁻¹ ^ k)
 
-def assembledValue (c se so : ℝ) : ℂ :=
+def asmValue (c se so : ℝ) : ℂ :=
   ((1 + 2 * c : ℝ) : ℂ) + ((2 * (se + so) : ℝ) : ℂ) * Complex.I
 
 @[simp]
-theorem assembledValue_re (c se so : ℝ) :
-    (assembledValue c se so).re = 1 + 2 * c := by
-  simp [assembledValue]
+theorem asmValue_re (c se so : ℝ) :
+    (asmValue c se so).re = 1 + 2 * c := by
+  simp [asmValue]
 
 @[simp]
-theorem assembledValue_im (c se so : ℝ) :
-    (assembledValue c se so).im = 2 * (se + so) := by
-  simp [assembledValue]
+theorem asmValue_im (c se so : ℝ) :
+    (asmValue c se so).im = 2 * (se + so) := by
+  simp [asmValue]
 
-theorem pairedLaurentValue_eq_assembledValue (C Se So : Finset ℕ)
+theorem pairLaurentValue_eq_asmValue (C Se So : Finset ℕ)
     (epsC epsE epsO : ℕ → ℝ) (θ : ℝ) :
-    pairedLaurentValue C Se So epsC epsE epsO θ =
-      assembledValue (cosineSum C epsC θ)
+    pairLaurentValue C Se So epsC epsE epsO θ =
+      asmValue (cosSum C epsC θ)
         (sineSum Se epsE θ) (sineSum So epsO θ) := by
   classical
   have hC :
       (∑ k ∈ C, (epsC k : ℂ) *
-        (unitPoint θ ^ k + (unitPoint θ)⁻¹ ^ k)) =
-        ((2 * cosineSum C epsC θ : ℝ) : ℂ) := by
-    rw [cosineSum]
+        (unitPt θ ^ k + (unitPt θ)⁻¹ ^ k)) =
+        ((2 * cosSum C epsC θ : ℝ) : ℂ) := by
+    rw [cosSum]
     push_cast
     simp only [Finset.mul_sum]
     apply sum_congr rfl
     intro k hk
-    rw [unitPoint_pow_add_inv_pow]
+    rw [unitPt_pow_add_inv_pow]
     push_cast
     ring
   have hE :
       (∑ k ∈ Se, (epsE k : ℂ) *
-        (unitPoint θ ^ k - (unitPoint θ)⁻¹ ^ k)) =
+        (unitPt θ ^ k - (unitPt θ)⁻¹ ^ k)) =
         ((2 * sineSum Se epsE θ : ℝ) : ℂ) * Complex.I := by
     rw [sineSum]
     push_cast
     simp only [Finset.mul_sum, Finset.sum_mul]
     apply sum_congr rfl
     intro k hk
-    rw [unitPoint_pow_sub_inv_pow]
+    rw [unitPt_pow_sub_inv_pow]
     push_cast
     ring
   have hO :
       (∑ k ∈ So, (epsO k : ℂ) *
-        (unitPoint θ ^ k - (unitPoint θ)⁻¹ ^ k)) =
+        (unitPt θ ^ k - (unitPt θ)⁻¹ ^ k)) =
         ((2 * sineSum So epsO θ : ℝ) : ℂ) * Complex.I := by
     rw [sineSum]
     push_cast
     simp only [Finset.mul_sum, Finset.sum_mul]
     apply sum_congr rfl
     intro k hk
-    rw [unitPoint_pow_sub_inv_pow]
+    rw [unitPt_pow_sub_inv_pow]
     push_cast
     ring
-  rw [pairedLaurentValue, hC, hE, hO]
-  simp only [assembledValue]
+  rw [pairLaurentValue, hC, hE, hO]
+  simp only [asmValue]
   push_cast
   ring
 
-theorem two_mul_abs_sub_one_le_norm_assembledValue (c se so : ℝ) :
-    2 * |c| - 1 ≤ ‖assembledValue c se so‖ := by
+theorem two_mul_abs_sub_one_le_norm_asmValue (c se so : ℝ) :
+    2 * |c| - 1 ≤ ‖asmValue c se so‖ := by
   have htriangle : |2 * c| ≤ |1 + 2 * c| + 1 := by
     calc
       |2 * c| = |(1 + 2 * c) - 1| := by ring_nf
       _ ≤ |1 + 2 * c| + |(1 : ℝ)| := abs_sub _ _
       _ = |1 + 2 * c| + 1 := by norm_num
-  have hre : |1 + 2 * c| ≤ ‖assembledValue c se so‖ := by
-    simpa using abs_re_le_norm (assembledValue c se so)
+  have hre : |1 + 2 * c| ≤ ‖asmValue c se so‖ := by
+    simpa using abs_re_le_norm (asmValue c se so)
   rw [abs_mul] at htriangle
   norm_num at htriangle
   linarith
 
-theorem two_mul_abs_sub_abs_le_norm_assembledValue (c se so : ℝ) :
-    2 * (|so| - |se|) ≤ ‖assembledValue c se so‖ := by
+theorem two_mul_abs_sub_abs_le_norm_asmValue (c se so : ℝ) :
+    2 * (|so| - |se|) ≤ ‖asmValue c se so‖ := by
   have htriangle : |so| ≤ |se + so| + |se| := by
     calc
       |so| = |(se + so) - se| := by ring_nf
       _ ≤ |se + so| + |se| := abs_sub _ _
-  have him : |2 * (se + so)| ≤ ‖assembledValue c se so‖ := by
-    simpa using abs_im_le_norm (assembledValue c se so)
+  have him : |2 * (se + so)| ≤ ‖asmValue c se so‖ := by
+    simpa using abs_im_le_norm (asmValue c se so)
   rw [abs_mul] at him
   norm_num at him
   linarith
 
-theorem le_norm_assembledValue_of_sine_gap {a c se so : ℝ}
+theorem le_norm_asmValue_of_sin_gap {a c se so : ℝ}
     (hgap : a / 2 + |se| ≤ |so|) :
-    a ≤ ‖assembledValue c se so‖ := by
-  have h := two_mul_abs_sub_abs_le_norm_assembledValue c se so
+    a ≤ ‖asmValue c se so‖ := by
+  have h := two_mul_abs_sub_abs_le_norm_asmValue c se so
   linarith
 
-theorem norm_assembledValue_le (c se so A B D : ℝ)
+theorem norm_asmValue_le (c se so A B D : ℝ)
     (hA : |c| ≤ A) (hB : |se| ≤ B) (hD : |so| ≤ D) :
-    ‖assembledValue c se so‖ ≤ 1 + 2 * (A + B + D) := by
+    ‖asmValue c se so‖ ≤ 1 + 2 * (A + B + D) := by
   calc
-    ‖assembledValue c se so‖ ≤ |1 + 2 * c| + |2 * (se + so)| := by
-      simpa [assembledValue] using
-        Complex.norm_le_abs_re_add_abs_im (assembledValue c se so)
+    ‖asmValue c se so‖ ≤ |1 + 2 * c| + |2 * (se + so)| := by
+      simpa [asmValue] using
+        Complex.norm_le_abs_re_add_abs_im (asmValue c se so)
     _ ≤ (1 + 2 * |c|) + 2 * (|se| + |so|) := by
       calc
         |1 + 2 * c| + |2 * (se + so)| ≤
@@ -593,25 +593,25 @@ theorem norm_assembledValue_le (c se so A B D : ℝ)
         _ = (1 + 2 * |c|) + 2 * (|se| + |so|) := by norm_num
     _ ≤ 1 + 2 * (A + B + D) := by linarith
 
-theorem norm_assembledValue_le_two_pow_twelve_sqrt {n : ℕ} {c se so : ℝ}
+theorem norm_asmValue_le_two_pow_twelve_sqrt {n : ℕ} {c se so : ℝ}
     (hn : 1 ≤ n)
     (hc : |c| ≤ sqrt n)
     (hse : |se| ≤ 6 * sqrt n)
     (hso : |so| ≤ 2 ^ 10 * sqrt n) :
-    ‖assembledValue c se so‖ ≤ 2 ^ 12 * sqrt n := by
+    ‖asmValue c se so‖ ≤ 2 ^ 12 * sqrt n := by
   have hsqrt : 1 ≤ sqrt n := by
     rw [one_le_sqrt]
     exact_mod_cast hn
-  have h := norm_assembledValue_le c se so
+  have h := norm_asmValue_le c se so
     (sqrt n) (6 * sqrt n) (2 ^ 10 * sqrt n) hc hse hso
   norm_num at h ⊢
   nlinarith
 
-theorem eight_sqrt_le_norm_assembledValue_of_odd_sine {n : ℕ} {c se so : ℝ}
+theorem eight_sqrt_le_norm_asmValue_of_odd_sin {n : ℕ} {c se so : ℝ}
     (hse : |se| ≤ 6 * sqrt n)
     (hso : 10 * sqrt n ≤ |so|) :
-    8 * sqrt n ≤ ‖assembledValue c se so‖ := by
-  apply le_norm_assembledValue_of_sine_gap
+    8 * sqrt n ≤ ‖asmValue c se so‖ := by
+  apply le_norm_asmValue_of_sin_gap
   linarith
 
 end
@@ -635,26 +635,26 @@ mutual
     | t + 1 => rudinShapiroP t - Polynomial.X ^ (2 ^ t) * rudinShapiroQ t
 end
 
-@[simp] theorem rudinShapiroP_zero : rudinShapiroP 0 = 1 := rfl
-@[simp] theorem rudinShapiroQ_zero : rudinShapiroQ 0 = 1 := rfl
+@[simp] theorem rsP_zero : rudinShapiroP 0 = 1 := rfl
+@[simp] theorem rsQ_zero : rudinShapiroQ 0 = 1 := rfl
 
-@[simp] theorem rudinShapiroP_succ (t : ℕ) :
+@[simp] theorem rsP_succ (t : ℕ) :
     rudinShapiroP (t + 1) =
       rudinShapiroP t + Polynomial.X ^ (2 ^ t) * rudinShapiroQ t := rfl
 
-@[simp] theorem rudinShapiroQ_succ (t : ℕ) :
+@[simp] theorem rsQ_succ (t : ℕ) :
     rudinShapiroQ (t + 1) =
       rudinShapiroP t - Polynomial.X ^ (2 ^ t) * rudinShapiroQ t := rfl
 
-@[simp] theorem eval_rudinShapiroP_succ (t : ℕ) (z : ℂ) :
+@[simp] theorem eval_rsP_succ (t : ℕ) (z : ℂ) :
     (rudinShapiroP (t + 1)).eval z =
       (rudinShapiroP t).eval z + z ^ (2 ^ t) * (rudinShapiroQ t).eval z := by
-  simp [rudinShapiroP_succ]
+  simp [rsP_succ]
 
-@[simp] theorem eval_rudinShapiroQ_succ (t : ℕ) (z : ℂ) :
+@[simp] theorem eval_rsQ_succ (t : ℕ) (z : ℂ) :
     (rudinShapiroQ (t + 1)).eval z =
       (rudinShapiroP t).eval z - z ^ (2 ^ t) * (rudinShapiroQ t).eval z := by
-  simp [rudinShapiroQ_succ]
+  simp [rsQ_succ]
 
 lemma normSq_add_mul_add_normSq_sub_mul (a b u : ℂ) :
     normSq (a + u * b) + normSq (a - u * b) =
@@ -662,13 +662,13 @@ lemma normSq_add_mul_add_normSq_sub_mul (a b u : ℂ) :
   rw [Complex.normSq_add, Complex.normSq_sub, Complex.normSq_mul]
   ring
 
-theorem rudinShapiro_energy (t : ℕ) {z : ℂ} (hz : ‖z‖ = 1) :
+theorem rs_energy (t : ℕ) {z : ℂ} (hz : ‖z‖ = 1) :
     ‖(rudinShapiroP t).eval z‖ ^ 2 + ‖(rudinShapiroQ t).eval z‖ ^ 2 =
       (2 ^ (t + 1) : ℝ) := by
   induction t with
   | zero => norm_num
   | succ t ih =>
-      rw [eval_rudinShapiroP_succ, eval_rudinShapiroQ_succ,
+      rw [eval_rsP_succ, eval_rsQ_succ,
         ← normSq_eq_norm_sq, ← normSq_eq_norm_sq,
         normSq_add_mul_add_normSq_sub_mul]
       have hzu : normSq (z ^ (2 ^ t)) = 1 := by
@@ -678,23 +678,23 @@ theorem rudinShapiro_energy (t : ℕ) {z : ℂ} (hz : ‖z‖ = 1) :
         rw [pow_succ]]
       ring
 
-theorem norm_eval_rudinShapiroP_le (t : ℕ) {z : ℂ} (hz : ‖z‖ = 1) :
+theorem norm_eval_rsP_le (t : ℕ) {z : ℂ} (hz : ‖z‖ = 1) :
     ‖(rudinShapiroP t).eval z‖ ≤ sqrt (2 ^ (t + 1) : ℝ) := by
-  have h := rudinShapiro_energy t hz
+  have h := rs_energy t hz
   have hsq : ‖(rudinShapiroP t).eval z‖ ^ 2 ≤ (2 ^ (t + 1) : ℝ) := by
     nlinarith [sq_nonneg ‖(rudinShapiroQ t).eval z‖]
   nlinarith [sq_sqrt (show 0 ≤ (2 ^ (t + 1) : ℝ) by positivity),
     sqrt_nonneg (2 ^ (t + 1) : ℝ)]
 
-theorem norm_eval_rudinShapiroQ_le (t : ℕ) {z : ℂ} (hz : ‖z‖ = 1) :
+theorem norm_eval_rsQ_le (t : ℕ) {z : ℂ} (hz : ‖z‖ = 1) :
     ‖(rudinShapiroQ t).eval z‖ ≤ sqrt (2 ^ (t + 1) : ℝ) := by
-  have h := rudinShapiro_energy t hz
+  have h := rs_energy t hz
   have hsq : ‖(rudinShapiroQ t).eval z‖ ^ 2 ≤ (2 ^ (t + 1) : ℝ) := by
     nlinarith [sq_nonneg ‖(rudinShapiroP t).eval z‖]
   nlinarith [sq_sqrt (show 0 ≤ (2 ^ (t + 1) : ℝ) by positivity),
     sqrt_nonneg (2 ^ (t + 1) : ℝ)]
 
-structure RudinShapiroCoeffFacts (t : ℕ) : Prop where
+structure RsCoeffFacts (t : ℕ) : Prop where
   p_sign : ∀ k < 2 ^ t, (rudinShapiroP t).coeff k = 1 ∨
     (rudinShapiroP t).coeff k = -1
   q_sign : ∀ k < 2 ^ t, (rudinShapiroQ t).coeff k = 1 ∨
@@ -702,7 +702,7 @@ structure RudinShapiroCoeffFacts (t : ℕ) : Prop where
   p_zero : ∀ k, 2 ^ t ≤ k → (rudinShapiroP t).coeff k = 0
   q_zero : ∀ k, 2 ^ t ≤ k → (rudinShapiroQ t).coeff k = 0
 
-theorem rudinShapiro_coeffFacts (t : ℕ) : RudinShapiroCoeffFacts t := by
+theorem rs_coeffFacts (t : ℕ) : RsCoeffFacts t := by
   induction t with
   | zero =>
       constructor
@@ -725,7 +725,7 @@ theorem rudinShapiro_coeffFacts (t : ℕ) : RudinShapiroCoeffFacts t := by
         simp [pow_succ, mul_two]
       constructor
       · intro k hk
-        rw [rudinShapiroP_succ, coeff_add,
+        rw [rsP_succ, coeff_add,
           coeff_X_pow_mul']
         by_cases hlow : k < 2 ^ t
         · rw [if_neg (Nat.not_le.mpr hlow), add_zero]
@@ -735,7 +735,7 @@ theorem rudinShapiro_coeffFacts (t : ℕ) : RudinShapiroCoeffFacts t := by
           have hrest : k - 2 ^ t < 2 ^ t := by omega
           exact ih.q_sign (k - 2 ^ t) hrest
       · intro k hk
-        rw [rudinShapiroQ_succ, coeff_sub,
+        rw [rsQ_succ, coeff_sub,
           coeff_X_pow_mul']
         by_cases hlow : k < 2 ^ t
         · rw [if_neg (Nat.not_le.mpr hlow), sub_zero]
@@ -750,14 +750,14 @@ theorem rudinShapiro_coeffFacts (t : ℕ) : RudinShapiroCoeffFacts t := by
             rw [h]
             simp
       · intro k hk
-        rw [rudinShapiroP_succ, coeff_add,
+        rw [rsP_succ, coeff_add,
           coeff_X_pow_mul']
         have hle : 2 ^ t ≤ k := by omega
         rw [if_pos hle, ih.p_zero k hle, zero_add]
         apply ih.q_zero
         omega
       · intro k hk
-        rw [rudinShapiroQ_succ, coeff_sub,
+        rw [rsQ_succ, coeff_sub,
           coeff_X_pow_mul']
         have hle : 2 ^ t ≤ k := by omega
         rw [if_pos hle, ih.p_zero k hle, zero_sub]
@@ -765,134 +765,134 @@ theorem rudinShapiro_coeffFacts (t : ℕ) : RudinShapiroCoeffFacts t := by
         · simp
         · omega
 
-theorem coeff_rudinShapiroP_eq_one_or_neg_one {t k : ℕ} (hk : k < 2 ^ t) :
+theorem coeff_rsP_eq_one_or_neg_one {t k : ℕ} (hk : k < 2 ^ t) :
     (rudinShapiroP t).coeff k = 1 ∨ (rudinShapiroP t).coeff k = -1 :=
-  (rudinShapiro_coeffFacts t).p_sign k hk
+  (rs_coeffFacts t).p_sign k hk
 
-theorem coeff_rudinShapiroQ_eq_one_or_neg_one {t k : ℕ} (hk : k < 2 ^ t) :
+theorem coeff_rsQ_eq_one_or_neg_one {t k : ℕ} (hk : k < 2 ^ t) :
     (rudinShapiroQ t).coeff k = 1 ∨ (rudinShapiroQ t).coeff k = -1 :=
-  (rudinShapiro_coeffFacts t).q_sign k hk
+  (rs_coeffFacts t).q_sign k hk
 
-theorem coeff_rudinShapiroP_eq_zero {t k : ℕ} (hk : 2 ^ t ≤ k) :
+theorem coeff_rsP_eq_zero {t k : ℕ} (hk : 2 ^ t ≤ k) :
     (rudinShapiroP t).coeff k = 0 :=
-  (rudinShapiro_coeffFacts t).p_zero k hk
+  (rs_coeffFacts t).p_zero k hk
 
-theorem coeff_rudinShapiroQ_eq_zero {t k : ℕ} (hk : 2 ^ t ≤ k) :
+theorem coeff_rsQ_eq_zero {t k : ℕ} (hk : 2 ^ t ≤ k) :
     (rudinShapiroQ t).coeff k = 0 :=
-  (rudinShapiro_coeffFacts t).q_zero k hk
+  (rs_coeffFacts t).q_zero k hk
 
-theorem natDegree_rudinShapiroP (t : ℕ) :
+theorem natDegree_rsP (t : ℕ) :
     (rudinShapiroP t).natDegree = 2 ^ t - 1 := by
   apply natDegree_eq_of_le_of_coeff_ne_zero
   · rw [natDegree_le_iff_coeff_eq_zero]
     intro k hk
-    apply coeff_rudinShapiroP_eq_zero
+    apply coeff_rsP_eq_zero
     have hpos : 0 < 2 ^ t := by positivity
     omega
   · have hpos : 0 < 2 ^ t := by positivity
     have hlt : 2 ^ t - 1 < 2 ^ t := by omega
-    rcases coeff_rudinShapiroP_eq_one_or_neg_one hlt with h | h <;> simp [h]
+    rcases coeff_rsP_eq_one_or_neg_one hlt with h | h <;> simp [h]
 
-theorem natDegree_rudinShapiroQ (t : ℕ) :
+theorem natDegree_rsQ (t : ℕ) :
     (rudinShapiroQ t).natDegree = 2 ^ t - 1 := by
   apply natDegree_eq_of_le_of_coeff_ne_zero
   · rw [natDegree_le_iff_coeff_eq_zero]
     intro k hk
-    apply coeff_rudinShapiroQ_eq_zero
+    apply coeff_rsQ_eq_zero
     have hpos : 0 < 2 ^ t := by positivity
     omega
   · have hpos : 0 < 2 ^ t := by positivity
     have hlt : 2 ^ t - 1 < 2 ^ t := by omega
-    rcases coeff_rudinShapiroQ_eq_one_or_neg_one hlt with h | h <;> simp [h]
+    rcases coeff_rsQ_eq_one_or_neg_one hlt with h | h <;> simp [h]
 
-def polynomialPrefix (p : Polynomial ℂ) (m : ℕ) : Polynomial ℂ :=
+def polyPrefix (p : Polynomial ℂ) (m : ℕ) : Polynomial ℂ :=
   ∑ k ∈ Finset.range m, Polynomial.C (p.coeff k) * Polynomial.X ^ k
 
-@[simp] theorem polynomialPrefix_zero (p : Polynomial ℂ) : polynomialPrefix p 0 = 0 := by
-  simp [polynomialPrefix]
+@[simp] theorem polyPrefix_zero (p : Polynomial ℂ) : polyPrefix p 0 = 0 := by
+  simp [polyPrefix]
 
-theorem coeff_polynomialPrefix (p : Polynomial ℂ) (m k : ℕ) :
-    (polynomialPrefix p m).coeff k = if k < m then p.coeff k else 0 := by
-  simp [polynomialPrefix, coeff_C_mul]
+theorem coeff_polyPrefix (p : Polynomial ℂ) (m k : ℕ) :
+    (polyPrefix p m).coeff k = if k < m then p.coeff k else 0 := by
+  simp [polyPrefix, coeff_C_mul]
 
-theorem coeff_rudinShapiroP_succ_of_lt {t k : ℕ} (hk : k < 2 ^ t) :
+theorem coeff_rsP_succ_of_lt {t k : ℕ} (hk : k < 2 ^ t) :
     (rudinShapiroP (t + 1)).coeff k = (rudinShapiroP t).coeff k := by
-  rw [rudinShapiroP_succ, coeff_add, coeff_X_pow_mul',
+  rw [rsP_succ, coeff_add, coeff_X_pow_mul',
     if_neg (Nat.not_le.mpr hk), add_zero]
 
-theorem coeff_rudinShapiroQ_succ_of_lt {t k : ℕ} (hk : k < 2 ^ t) :
+theorem coeff_rsQ_succ_of_lt {t k : ℕ} (hk : k < 2 ^ t) :
     (rudinShapiroQ (t + 1)).coeff k = (rudinShapiroP t).coeff k := by
-  rw [rudinShapiroQ_succ, coeff_sub, coeff_X_pow_mul',
+  rw [rsQ_succ, coeff_sub, coeff_X_pow_mul',
     if_neg (Nat.not_le.mpr hk), sub_zero]
 
-@[simp] theorem coeff_rudinShapiroP_succ_add (t k : ℕ) :
+@[simp] theorem coeff_rsP_succ_add (t k : ℕ) :
     (rudinShapiroP (t + 1)).coeff (2 ^ t + k) = (rudinShapiroQ t).coeff k := by
-  rw [rudinShapiroP_succ, coeff_add, coeff_X_pow_mul',
-    if_pos (Nat.le_add_right _ _), coeff_rudinShapiroP_eq_zero]
+  rw [rsP_succ, coeff_add, coeff_X_pow_mul',
+    if_pos (Nat.le_add_right _ _), coeff_rsP_eq_zero]
   · simp
   · exact Nat.le_add_right _ _
 
-@[simp] theorem coeff_rudinShapiroQ_succ_add (t k : ℕ) :
+@[simp] theorem coeff_rsQ_succ_add (t k : ℕ) :
     (rudinShapiroQ (t + 1)).coeff (2 ^ t + k) = -(rudinShapiroQ t).coeff k := by
-  rw [rudinShapiroQ_succ, coeff_sub, coeff_X_pow_mul',
-    if_pos (Nat.le_add_right _ _), coeff_rudinShapiroP_eq_zero]
+  rw [rsQ_succ, coeff_sub, coeff_X_pow_mul',
+    if_pos (Nat.le_add_right _ _), coeff_rsP_eq_zero]
   · simp
   · exact Nat.le_add_right _ _
 
-theorem polynomialPrefix_rudinShapiroP_succ_of_le {t m : ℕ} (hm : m ≤ 2 ^ t) :
-    polynomialPrefix (rudinShapiroP (t + 1)) m =
-      polynomialPrefix (rudinShapiroP t) m := by
+theorem polyPrefix_rsP_succ_of_le {t m : ℕ} (hm : m ≤ 2 ^ t) :
+    polyPrefix (rudinShapiroP (t + 1)) m =
+      polyPrefix (rudinShapiroP t) m := by
   ext k
-  rw [coeff_polynomialPrefix, coeff_polynomialPrefix]
+  rw [coeff_polyPrefix, coeff_polyPrefix]
   split_ifs with hk
-  · exact coeff_rudinShapiroP_succ_of_lt (lt_of_lt_of_le hk hm)
+  · exact coeff_rsP_succ_of_lt (lt_of_lt_of_le hk hm)
   · rfl
 
-theorem polynomialPrefix_rudinShapiroQ_succ_of_le {t m : ℕ} (hm : m ≤ 2 ^ t) :
-    polynomialPrefix (rudinShapiroQ (t + 1)) m =
-      polynomialPrefix (rudinShapiroP t) m := by
+theorem polyPrefix_rsQ_succ_of_le {t m : ℕ} (hm : m ≤ 2 ^ t) :
+    polyPrefix (rudinShapiroQ (t + 1)) m =
+      polyPrefix (rudinShapiroP t) m := by
   ext k
-  rw [coeff_polynomialPrefix, coeff_polynomialPrefix]
+  rw [coeff_polyPrefix, coeff_polyPrefix]
   split_ifs with hk
-  · exact coeff_rudinShapiroQ_succ_of_lt (lt_of_lt_of_le hk hm)
+  · exact coeff_rsQ_succ_of_lt (lt_of_lt_of_le hk hm)
   · rfl
 
-theorem polynomialPrefix_rudinShapiroP_succ_add (t r : ℕ) :
-    polynomialPrefix (rudinShapiroP (t + 1)) (2 ^ t + r) =
-      rudinShapiroP t + Polynomial.X ^ (2 ^ t) * polynomialPrefix (rudinShapiroQ t) r := by
+theorem polyPrefix_rsP_succ_add (t r : ℕ) :
+    polyPrefix (rudinShapiroP (t + 1)) (2 ^ t + r) =
+      rudinShapiroP t + Polynomial.X ^ (2 ^ t) * polyPrefix (rudinShapiroQ t) r := by
   ext k
-  rw [coeff_polynomialPrefix, coeff_add, coeff_X_pow_mul',
-    coeff_polynomialPrefix]
+  rw [coeff_polyPrefix, coeff_add, coeff_X_pow_mul',
+    coeff_polyPrefix]
   by_cases hlow : k < 2 ^ t
   · have htotal : k < 2 ^ t + r := lt_of_lt_of_le hlow (Nat.le_add_right _ _)
     rw [if_pos htotal, if_neg (Nat.not_le.mpr hlow), add_zero]
-    exact coeff_rudinShapiroP_succ_of_lt hlow
+    exact coeff_rsP_succ_of_lt hlow
   · have hle : 2 ^ t ≤ k := Nat.le_of_not_gt hlow
-    rw [if_pos hle, coeff_rudinShapiroP_eq_zero hle, zero_add]
+    rw [if_pos hle, coeff_rsP_eq_zero hle, zero_add]
     by_cases htotal : k < 2 ^ t + r
     · have hrest : k - 2 ^ t < r := by omega
       rw [if_pos htotal, if_pos hrest]
-      rw [← Nat.add_sub_of_le hle, coeff_rudinShapiroP_succ_add]
+      rw [← Nat.add_sub_of_le hle, coeff_rsP_succ_add]
       simp
     · have hrest : ¬ k - 2 ^ t < r := by omega
       rw [if_neg htotal, if_neg hrest]
 
-theorem polynomialPrefix_rudinShapiroQ_succ_add (t r : ℕ) :
-    polynomialPrefix (rudinShapiroQ (t + 1)) (2 ^ t + r) =
-      rudinShapiroP t - Polynomial.X ^ (2 ^ t) * polynomialPrefix (rudinShapiroQ t) r := by
+theorem polyPrefix_rsQ_succ_add (t r : ℕ) :
+    polyPrefix (rudinShapiroQ (t + 1)) (2 ^ t + r) =
+      rudinShapiroP t - Polynomial.X ^ (2 ^ t) * polyPrefix (rudinShapiroQ t) r := by
   ext k
-  rw [coeff_polynomialPrefix, coeff_sub, coeff_X_pow_mul',
-    coeff_polynomialPrefix]
+  rw [coeff_polyPrefix, coeff_sub, coeff_X_pow_mul',
+    coeff_polyPrefix]
   by_cases hlow : k < 2 ^ t
   · have htotal : k < 2 ^ t + r := lt_of_lt_of_le hlow (Nat.le_add_right _ _)
     rw [if_pos htotal, if_neg (Nat.not_le.mpr hlow), sub_zero]
-    exact coeff_rudinShapiroQ_succ_of_lt hlow
+    exact coeff_rsQ_succ_of_lt hlow
   · have hle : 2 ^ t ≤ k := Nat.le_of_not_gt hlow
-    rw [if_pos hle, coeff_rudinShapiroP_eq_zero hle, zero_sub]
+    rw [if_pos hle, coeff_rsP_eq_zero hle, zero_sub]
     by_cases htotal : k < 2 ^ t + r
     · have hrest : k - 2 ^ t < r := by omega
       rw [if_pos htotal, if_pos hrest]
-      rw [← Nat.add_sub_of_le hle, coeff_rudinShapiroQ_succ_add]
+      rw [← Nat.add_sub_of_le hle, coeff_rsQ_succ_add]
       simp
     · have hrest : ¬ k - 2 ^ t < r := by omega
       rw [if_neg htotal, if_neg hrest, neg_zero]
@@ -911,19 +911,19 @@ private lemma sqrt_two_mul_add_five_sqrt_le_five_sqrt_add
   nlinarith [sq_nonneg (sqrt (2 * x) - sqrt y),
     sq_nonneg (sqrt (2 * x) + 5 * sqrt y - 5 * sqrt (x + y))]
 
-theorem norm_eval_polynomialPrefix_rudinShapiro (t m : ℕ) {z : ℂ}
+theorem norm_eval_polyPrefix_rs (t m : ℕ) {z : ℂ}
     (hm : m ≤ 2 ^ t) (hz : ‖z‖ = 1) :
-    ‖(polynomialPrefix (rudinShapiroP t) m).eval z‖ ≤ 5 * sqrt m ∧
-      ‖(polynomialPrefix (rudinShapiroQ t) m).eval z‖ ≤ 5 * sqrt m := by
+    ‖(polyPrefix (rudinShapiroP t) m).eval z‖ ≤ 5 * sqrt m ∧
+      ‖(polyPrefix (rudinShapiroQ t) m).eval z‖ ≤ 5 * sqrt m := by
   induction t generalizing m with
   | zero =>
       have hm' : m ≤ 1 := by simpa using hm
-      interval_cases m <;> norm_num [polynomialPrefix, rudinShapiroP, rudinShapiroQ]
+      interval_cases m <;> norm_num [polyPrefix, rudinShapiroP, rudinShapiroQ]
   | succ t ih =>
       have hpow : 2 ^ (t + 1) = 2 ^ t + 2 ^ t := by simp [pow_succ, mul_two]
       by_cases hlow : m ≤ 2 ^ t
-      · rw [polynomialPrefix_rudinShapiroP_succ_of_le hlow,
-          polynomialPrefix_rudinShapiroQ_succ_of_le hlow]
+      · rw [polyPrefix_rsP_succ_of_le hlow,
+          polyPrefix_rsQ_succ_of_le hlow]
         exact ⟨(ih m hlow).1, (ih m hlow).1⟩
       · have hAm : 2 ^ t ≤ m := by omega
         let r := m - 2 ^ t
@@ -932,7 +932,7 @@ theorem norm_eval_polynomialPrefix_rudinShapiro (t m : ℕ) {z : ℂ}
           omega
         have hr : r ≤ 2 ^ t := by omega
         have hir := ih r hr
-        have hfull := norm_eval_rudinShapiroP_le t hz
+        have hfull := norm_eval_rsP_le t hz
         have hcastpow : (2 ^ (t + 1) : ℝ) = 2 * (2 ^ t : ℝ) := by
           rw [pow_succ]
           ring
@@ -945,32 +945,32 @@ theorem norm_eval_polynomialPrefix_rudinShapiro (t m : ℕ) {z : ℂ}
           · positivity
           · exact_mod_cast hr
         constructor
-        · rw [← hm_eq, polynomialPrefix_rudinShapiroP_succ_add,
+        · rw [← hm_eq, polyPrefix_rsP_succ_add,
             eval_add, eval_mul, eval_pow, eval_X]
           calc
             ‖(rudinShapiroP t).eval z + z ^ 2 ^ t *
-                (polynomialPrefix (rudinShapiroQ t) r).eval z‖
+                (polyPrefix (rudinShapiroQ t) r).eval z‖
                 ≤ ‖(rudinShapiroP t).eval z‖ +
-                    ‖z ^ 2 ^ t * (polynomialPrefix (rudinShapiroQ t) r).eval z‖ :=
+                    ‖z ^ 2 ^ t * (polyPrefix (rudinShapiroQ t) r).eval z‖ :=
               norm_add_le _ _
             _ = ‖(rudinShapiroP t).eval z‖ +
-                ‖(polynomialPrefix (rudinShapiroQ t) r).eval z‖ := by
+                ‖(polyPrefix (rudinShapiroQ t) r).eval z‖ := by
               rw [norm_mul, norm_pow, hz, one_pow, one_mul]
             _ ≤ sqrt (2 * (2 ^ t : ℝ)) + 5 * sqrt (r : ℝ) := by
               rw [← hsqrt]
               exact add_le_add hfull hir.2
             _ ≤ 5 * sqrt ((2 ^ t : ℝ) + r) := hsqrt_bound
             _ = 5 * sqrt ((2 ^ t + r : ℕ) : ℝ) := by norm_num
-        · rw [← hm_eq, polynomialPrefix_rudinShapiroQ_succ_add,
+        · rw [← hm_eq, polyPrefix_rsQ_succ_add,
             eval_sub, eval_mul, eval_pow, eval_X]
           calc
             ‖(rudinShapiroP t).eval z - z ^ 2 ^ t *
-                (polynomialPrefix (rudinShapiroQ t) r).eval z‖
+                (polyPrefix (rudinShapiroQ t) r).eval z‖
                 ≤ ‖(rudinShapiroP t).eval z‖ +
-                    ‖z ^ 2 ^ t * (polynomialPrefix (rudinShapiroQ t) r).eval z‖ :=
+                    ‖z ^ 2 ^ t * (polyPrefix (rudinShapiroQ t) r).eval z‖ :=
               norm_sub_le _ _
             _ = ‖(rudinShapiroP t).eval z‖ +
-                ‖(polynomialPrefix (rudinShapiroQ t) r).eval z‖ := by
+                ‖(polyPrefix (rudinShapiroQ t) r).eval z‖ := by
               rw [norm_mul, norm_pow, hz, one_pow, one_mul]
             _ ≤ sqrt (2 * (2 ^ t : ℝ)) + 5 * sqrt (r : ℝ) := by
               rw [← hsqrt]
@@ -978,10 +978,10 @@ theorem norm_eval_polynomialPrefix_rudinShapiro (t m : ℕ) {z : ℂ}
             _ ≤ 5 * sqrt ((2 ^ t : ℝ) + r) := hsqrt_bound
             _ = 5 * sqrt ((2 ^ t + r : ℕ) : ℝ) := by norm_num
 
-theorem norm_eval_polynomialPrefix_rudinShapiroP_le (t m : ℕ) {z : ℂ}
+theorem norm_eval_polyPrefix_rsP_le (t m : ℕ) {z : ℂ}
     (hm : m ≤ 2 ^ t) (hz : ‖z‖ = 1) :
-    ‖(polynomialPrefix (rudinShapiroP t) m).eval z‖ ≤ 5 * sqrt m :=
-  (norm_eval_polynomialPrefix_rudinShapiro t m hm hz).1
+    ‖(polyPrefix (rudinShapiroP t) m).eval z‖ ≤ 5 * sqrt m :=
+  (norm_eval_polyPrefix_rs t m hm hz).1
 
 end
 
@@ -995,14 +995,14 @@ noncomputable section
 
 def evenT (t : ℕ) : ℕ := 2 ^ (t + 10)
 
-def gammaNumerator (t : ℕ) : ℕ :=
+def gammaNum (t : ℕ) : ℕ :=
   2 ^ (t + 11) + 2 ^ t - 1
 
-structure EvenParameters (n t : ℕ) (γ : ℝ) : Prop where
+structure EvenParams (n t : ℕ) (γ : ℝ) : Prop where
   t_odd : Odd t
   gamma_pos : 0 < γ
   gamma_le : γ ≤ 1 / 2 ^ 40
-  equation : γ * n = gammaNumerator t
+  equation : γ * n = gammaNum t
 
 def evenCPrime (t : ℕ) : Finset ℕ :=
   (Finset.range (2 ^ t)).image (fun j => evenT t + j) ∪
@@ -1017,22 +1017,22 @@ def evenSPrime (n t : ℕ) : Finset ℕ :=
 def evenS (n t : ℕ) : Finset ℕ :=
   (evenSPrime n t).image (fun j => 2 * j)
 
-def cosineBlock (t : ℕ) : Polynomial ℂ :=
+def cosBlk (t : ℕ) : Polynomial ℂ :=
   Polynomial.X ^ evenT t * rudinShapiroP t +
     Polynomial.X ^ (2 * evenT t) * rudinShapiroQ t
 
-def deletedEvenBlock (t : ℕ) : Polynomial ℂ :=
+def deletedEvenBlk (t : ℕ) : Polynomial ℂ :=
   Polynomial.X ^ evenT t * rudinShapiroP t +
     Polynomial.X ^ (2 * evenT t) * rudinShapiroP t
 
 def evenRemainder (n t u : ℕ) : Polynomial ℂ :=
-  polynomialPrefix (rudinShapiroP u) (n + 1) - deletedEvenBlock t
+  polyPrefix (rudinShapiroP u) (n + 1) - deletedEvenBlk t
 
-def evenCosine (t : ℕ) (θ : ℝ) : ℝ :=
-  (cosineBlock t).eval (unitPoint (2 * θ)) |>.re
+def evenCos (t : ℕ) (θ : ℝ) : ℝ :=
+  (cosBlk t).eval (unitPt (2 * θ)) |>.re
 
 def evenSine (n t u : ℕ) (θ : ℝ) : ℝ :=
-  (evenRemainder n t u).eval (unitPoint (2 * θ)) |>.im
+  (evenRemainder n t u).eval (unitPt (2 * θ)) |>.im
 
 lemma evenT_eq_pow_mul (t : ℕ) : evenT t = 2 ^ t * 2 ^ 10 := by
   simp [evenT, pow_add]
@@ -1051,52 +1051,52 @@ lemma pow_le_evenT (t : ℕ) : 2 ^ t ≤ evenT t := by
   have hpos : 0 < 2 ^ t := by positivity
   nlinarith [show (2 ^ 10 : ℕ) = 1024 by norm_num]
 
-lemma gammaNumerator_add_one (t : ℕ) :
-    gammaNumerator t + 1 = 2 * evenT t + 2 ^ t := by
+lemma gammaNum_add_one (t : ℕ) :
+    gammaNum t + 1 = 2 * evenT t + 2 ^ t := by
   have hp : 0 < 2 ^ (t + 11) := by positivity
   have hone : 1 ≤ 2 ^ (t + 11) := hp
   have hsum : 1 ≤ 2 ^ (t + 11) + 2 ^ t :=
     hone.trans (Nat.le_add_right _ _)
-  rw [gammaNumerator, Nat.sub_add_cancel hsum, two_mul_evenT]
+  rw [gammaNum, Nat.sub_add_cancel hsum, two_mul_evenT]
 
-lemma EvenParameters.gamma_le_one {n t : ℕ} {γ : ℝ}
-    (h : EvenParameters n t γ) : γ ≤ 1 := by
+lemma EvenParams.gamma_le_one {n t : ℕ} {γ : ℝ}
+    (h : EvenParams n t γ) : γ ≤ 1 := by
   calc
     γ ≤ 1 / (2 : ℝ) ^ 40 := h.gamma_le
     _ ≤ 1 := by norm_num
 
-lemma EvenParameters.numerator_le_n {n t : ℕ} {γ : ℝ}
-    (h : EvenParameters n t γ) : gammaNumerator t ≤ n := by
+lemma EvenParams.num_le_n {n t : ℕ} {γ : ℝ}
+    (h : EvenParams n t γ) : gammaNum t ≤ n := by
   have hnonneg : 0 ≤ (n : ℝ) := by positivity
-  have hreal : (gammaNumerator t : ℝ) ≤ n := by
+  have hreal : (gammaNum t : ℝ) ≤ n := by
     rw [← h.equation]
     nlinarith [h.gamma_le_one]
   exact_mod_cast hreal
 
-lemma EvenParameters.pow_t_add_eleven_le_n {n t : ℕ} {γ : ℝ}
-    (h : EvenParameters n t γ) : 2 ^ (t + 11) ≤ n := by
-  apply le_trans _ h.numerator_le_n
-  rw [gammaNumerator]
+lemma EvenParams.pow_t_add_eleven_le_n {n t : ℕ} {γ : ℝ}
+    (h : EvenParams n t γ) : 2 ^ (t + 11) ≤ n := by
+  apply le_trans _ h.num_le_n
+  rw [gammaNum]
   have hpos : 0 < 2 ^ t := by positivity
   omega
 
-lemma EvenParameters.five_le_n {n t : ℕ} {γ : ℝ}
-    (h : EvenParameters n t γ) : 5 ≤ n := by
+lemma EvenParams.five_le_n {n t : ℕ} {γ : ℝ}
+    (h : EvenParams n t γ) : 5 ≤ n := by
   have hp := h.pow_t_add_eleven_le_n
   have hbase : 2 ^ 11 ≤ 2 ^ (t + 11) :=
     Nat.pow_le_pow_right (by norm_num) (by omega)
   norm_num at hbase
   omega
 
-lemma EvenParameters.pow_t_add_five_le_n {n t : ℕ} {γ : ℝ}
-    (h : EvenParameters n t γ) : 2 ^ (t + 5) ≤ n :=
+lemma EvenParams.pow_t_add_five_le_n {n t : ℕ} {γ : ℝ}
+    (h : EvenParams n t γ) : 2 ^ (t + 5) ≤ n :=
   (Nat.pow_le_pow_right (by norm_num) (by omega)).trans h.pow_t_add_eleven_le_n
 
-lemma EvenParameters.blocks_fit {n t : ℕ} {γ : ℝ}
-    (h : EvenParameters n t γ) :
+lemma EvenParams.blks_fit {n t : ℕ} {γ : ℝ}
+    (h : EvenParams n t γ) :
     2 * evenT t + 2 ^ t ≤ n + 1 := by
-  rw [← gammaNumerator_add_one]
-  exact Nat.add_le_add_right h.numerator_le_n 1
+  rw [← gammaNum_add_one]
+  exact Nat.add_le_add_right h.num_le_n 1
 
 @[simp] lemma mem_evenCPrime (t k : ℕ) :
     k ∈ evenCPrime t ↔
@@ -1138,10 +1138,10 @@ lemma evenC_disjoint_evenS (n t : ℕ) : Disjoint (evenC t) (evenS n t) := by
   subst b
   exact (mem_evenSPrime n t a).mp hb |>.2.2 ha
 
-lemma coeff_cosineBlock_first (t j : ℕ) (hj : j < 2 ^ t) :
-    (cosineBlock t).coeff (evenT t + j) =
+lemma coeff_cosBlk_first (t j : ℕ) (hj : j < 2 ^ t) :
+    (cosBlk t).coeff (evenT t + j) =
       (rudinShapiroP t).coeff j := by
-  rw [cosineBlock, coeff_add,
+  rw [cosBlk, coeff_add,
     coeff_X_pow_mul', coeff_X_pow_mul']
   have hnot : ¬2 * evenT t ≤ evenT t + j := by
     have hsep := evenT_add_pow_le_two_mul_evenT t
@@ -1149,22 +1149,22 @@ lemma coeff_cosineBlock_first (t j : ℕ) (hj : j < 2 ^ t) :
   rw [if_pos (Nat.le_add_right _ _), if_neg hnot]
   simp
 
-lemma coeff_cosineBlock_second (t j : ℕ) (hj : j < 2 ^ t) :
-    (cosineBlock t).coeff (2 * evenT t + j) =
+lemma coeff_cosBlk_second (t j : ℕ) (hj : j < 2 ^ t) :
+    (cosBlk t).coeff (2 * evenT t + j) =
       (rudinShapiroQ t).coeff j := by
-  rw [cosineBlock, coeff_add,
+  rw [cosBlk, coeff_add,
     coeff_X_pow_mul', coeff_X_pow_mul']
   have hfirst : evenT t ≤ 2 * evenT t + j := by omega
   rw [if_pos hfirst, if_pos (Nat.le_add_right _ _)]
   have hsub : 2 * evenT t + j - evenT t = evenT t + j := by omega
-  rw [hsub, coeff_rudinShapiroP_eq_zero]
+  rw [hsub, coeff_rsP_eq_zero]
   · simp
   · exact (pow_le_evenT t).trans (Nat.le_add_right _ _)
 
-lemma coeff_cosineBlock_eq_zero_of_outside (t k : ℕ)
+lemma coeff_cosBlk_eq_zero_of_outside (t k : ℕ)
     (hk : k ∉ evenCPrime t) :
-    (cosineBlock t).coeff k = 0 := by
-  rw [cosineBlock, coeff_add,
+    (cosBlk t).coeff k = 0 := by
+  rw [cosBlk, coeff_add,
     coeff_X_pow_mul', coeff_X_pow_mul']
   by_cases hT : evenT t ≤ k
   · rw [if_pos hT]
@@ -1178,10 +1178,10 @@ lemma coeff_cosineBlock_eq_zero_of_outside (t k : ℕ)
         right
         exact ⟨k - 2 * evenT t, hq', (Nat.add_sub_of_le h2T).symm⟩
       have hp : 2 ^ t ≤ k - evenT t := by omega
-      rw [coeff_rudinShapiroP_eq_zero hp, coeff_rudinShapiroQ_eq_zero hq,
+      rw [coeff_rsP_eq_zero hp, coeff_rsQ_eq_zero hq,
         zero_add]
     · rw [if_neg h2T, add_zero]
-      apply coeff_rudinShapiroP_eq_zero
+      apply coeff_rsP_eq_zero
       by_contra hp
       have hp' : k - evenT t < 2 ^ t := Nat.lt_of_not_ge hp
       apply hk
@@ -1192,29 +1192,29 @@ lemma coeff_cosineBlock_eq_zero_of_outside (t k : ℕ)
     have h2T : ¬2 * evenT t ≤ k := by omega
     rw [if_neg h2T, zero_add]
 
-theorem support_cosineBlock (t : ℕ) :
-    (cosineBlock t).support = evenCPrime t := by
+theorem support_cosBlk (t : ℕ) :
+    (cosBlk t).support = evenCPrime t := by
   ext k
   simp only [mem_support_iff, ne_eq, mem_evenCPrime]
   constructor
   · intro hk
     by_contra hout
     apply hk
-    apply coeff_cosineBlock_eq_zero_of_outside t k
+    apply coeff_cosBlk_eq_zero_of_outside t k
     rwa [mem_evenCPrime]
   · intro hk
     rcases hk with ⟨j, hj, rfl⟩ | ⟨j, hj, rfl⟩
-    · rw [coeff_cosineBlock_first t j hj]
-      rcases coeff_rudinShapiroP_eq_one_or_neg_one hj with h | h <;>
+    · rw [coeff_cosBlk_first t j hj]
+      rcases coeff_rsP_eq_one_or_neg_one hj with h | h <;>
         rw [h] <;> norm_num
-    · rw [coeff_cosineBlock_second t j hj]
-      rcases coeff_rudinShapiroQ_eq_one_or_neg_one hj with h | h <;>
+    · rw [coeff_cosBlk_second t j hj]
+      rcases coeff_rsQ_eq_one_or_neg_one hj with h | h <;>
         rw [h] <;> norm_num
 
-lemma coeff_deletedEvenBlock_first (t j : ℕ) (hj : j < 2 ^ t) :
-    (deletedEvenBlock t).coeff (evenT t + j) =
+lemma coeff_deletedEvenBlk_first (t j : ℕ) (hj : j < 2 ^ t) :
+    (deletedEvenBlk t).coeff (evenT t + j) =
       (rudinShapiroP t).coeff j := by
-  rw [deletedEvenBlock, coeff_add,
+  rw [deletedEvenBlk, coeff_add,
     coeff_X_pow_mul', coeff_X_pow_mul']
   have hnot : ¬2 * evenT t ≤ evenT t + j := by
     have hsep := evenT_add_pow_le_two_mul_evenT t
@@ -1222,22 +1222,22 @@ lemma coeff_deletedEvenBlock_first (t j : ℕ) (hj : j < 2 ^ t) :
   rw [if_pos (Nat.le_add_right _ _), if_neg hnot]
   simp
 
-lemma coeff_deletedEvenBlock_second (t j : ℕ) (hj : j < 2 ^ t) :
-    (deletedEvenBlock t).coeff (2 * evenT t + j) =
+lemma coeff_deletedEvenBlk_second (t j : ℕ) (hj : j < 2 ^ t) :
+    (deletedEvenBlk t).coeff (2 * evenT t + j) =
       (rudinShapiroP t).coeff j := by
-  rw [deletedEvenBlock, coeff_add,
+  rw [deletedEvenBlk, coeff_add,
     coeff_X_pow_mul', coeff_X_pow_mul']
   have hfirst : evenT t ≤ 2 * evenT t + j := by omega
   rw [if_pos hfirst, if_pos (Nat.le_add_right _ _)]
   have hsub : 2 * evenT t + j - evenT t = evenT t + j := by omega
-  rw [hsub, coeff_rudinShapiroP_eq_zero]
+  rw [hsub, coeff_rsP_eq_zero]
   · simp
   · exact (pow_le_evenT t).trans (Nat.le_add_right _ _)
 
-lemma coeff_deletedEvenBlock_eq_zero_of_outside (t k : ℕ)
+lemma coeff_deletedEvenBlk_eq_zero_of_outside (t k : ℕ)
     (hk : k ∉ evenCPrime t) :
-    (deletedEvenBlock t).coeff k = 0 := by
-  rw [deletedEvenBlock, coeff_add,
+    (deletedEvenBlk t).coeff k = 0 := by
+  rw [deletedEvenBlk, coeff_add,
     coeff_X_pow_mul', coeff_X_pow_mul']
   by_cases hT : evenT t ≤ k
   · rw [if_pos hT]
@@ -1251,10 +1251,10 @@ lemma coeff_deletedEvenBlock_eq_zero_of_outside (t k : ℕ)
         exact ⟨k - 2 * evenT t, Nat.lt_of_not_ge hsecond,
           (Nat.add_sub_of_le h2T).symm⟩
       have hfirst : 2 ^ t ≤ k - evenT t := by omega
-      rw [coeff_rudinShapiroP_eq_zero hfirst,
-        coeff_rudinShapiroP_eq_zero hsecond, zero_add]
+      rw [coeff_rsP_eq_zero hfirst,
+        coeff_rsP_eq_zero hsecond, zero_add]
     · rw [if_neg h2T, add_zero]
-      apply coeff_rudinShapiroP_eq_zero
+      apply coeff_rsP_eq_zero
       by_contra hfirst
       apply hk
       rw [mem_evenCPrime]
@@ -1265,31 +1265,31 @@ lemma coeff_deletedEvenBlock_eq_zero_of_outside (t k : ℕ)
     have h2T : ¬2 * evenT t ≤ k := by omega
     rw [if_neg h2T, zero_add]
 
-lemma coeff_rudinShapiroP_stable {a b k : ℕ} (hab : a ≤ b) (hk : k < 2 ^ a) :
+lemma coeff_rsP_stable {a b k : ℕ} (hab : a ≤ b) (hk : k < 2 ^ a) :
     (rudinShapiroP b).coeff k = (rudinShapiroP a).coeff k := by
   induction b, hab using Nat.le_induction with
   | base => rfl
   | succ b hab ih =>
       have hpow : 2 ^ a ≤ 2 ^ b := Nat.pow_le_pow_right (by norm_num) hab
-      rw [coeff_rudinShapiroP_succ_of_lt (hk.trans_le hpow), ih]
+      rw [coeff_rsP_succ_of_lt (hk.trans_le hpow), ih]
 
-lemma coeff_rudinShapiroQ_add_ten (t j : ℕ) (hj : j < 2 ^ t) :
+lemma coeff_rsQ_add_ten (t j : ℕ) (hj : j < 2 ^ t) :
     (rudinShapiroQ (t + 10)).coeff j = (rudinShapiroP t).coeff j := by
   have hpow : 2 ^ t ≤ 2 ^ (t + 9) :=
     Nat.pow_le_pow_right (by norm_num) (by omega)
   rw [show t + 10 = (t + 9) + 1 by omega,
-    coeff_rudinShapiroQ_succ_of_lt (hj.trans_le hpow)]
-  exact coeff_rudinShapiroP_stable (by omega) hj
+    coeff_rsQ_succ_of_lt (hj.trans_le hpow)]
+  exact coeff_rsP_stable (by omega) hj
 
-lemma coeff_rudinShapiroQ_add_eleven (t j : ℕ) (hj : j < 2 ^ t) :
+lemma coeff_rsQ_add_eleven (t j : ℕ) (hj : j < 2 ^ t) :
     (rudinShapiroQ (t + 11)).coeff j = (rudinShapiroP t).coeff j := by
   have hpow : 2 ^ t ≤ 2 ^ (t + 10) :=
     Nat.pow_le_pow_right (by norm_num) (by omega)
   rw [show t + 11 = (t + 10) + 1 by omega,
-    coeff_rudinShapiroQ_succ_of_lt (hj.trans_le hpow)]
-  exact coeff_rudinShapiroP_stable (by omega) hj
+    coeff_rsQ_succ_of_lt (hj.trans_le hpow)]
+  exact coeff_rsP_stable (by omega) hj
 
-lemma coeff_rudinShapiroP_late_first_block {t u j : ℕ}
+lemma coeff_rsP_late_first_blk {t u j : ℕ}
     (hu : t + 12 ≤ u) (hj : j < 2 ^ t) :
     (rudinShapiroP u).coeff (evenT t + j) =
       (rudinShapiroP t).coeff j := by
@@ -1300,12 +1300,12 @@ lemma coeff_rudinShapiroP_late_first_block {t u j : ℕ}
   calc
     (rudinShapiroP u).coeff (evenT t + j) =
         (rudinShapiroP (t + 11)).coeff (evenT t + j) :=
-      coeff_rudinShapiroP_stable (by omega) hindex
+      coeff_rsP_stable (by omega) hindex
     _ = (rudinShapiroQ (t + 10)).coeff j := by
-      simpa [evenT] using coeff_rudinShapiroP_succ_add (t + 10) j
-    _ = (rudinShapiroP t).coeff j := coeff_rudinShapiroQ_add_ten t j hj
+      simpa [evenT] using coeff_rsP_succ_add (t + 10) j
+    _ = (rudinShapiroP t).coeff j := coeff_rsQ_add_ten t j hj
 
-lemma coeff_rudinShapiroP_late_second_block {t u j : ℕ}
+lemma coeff_rsP_late_second_blk {t u j : ℕ}
     (hu : t + 12 ≤ u) (hj : j < 2 ^ t) :
     (rudinShapiroP u).coeff (2 * evenT t + j) =
       (rudinShapiroP t).coeff j := by
@@ -1318,20 +1318,20 @@ lemma coeff_rudinShapiroP_late_second_block {t u j : ℕ}
   calc
     (rudinShapiroP u).coeff (2 * evenT t + j) =
         (rudinShapiroP (t + 12)).coeff (2 * evenT t + j) :=
-      coeff_rudinShapiroP_stable hu hindex
+      coeff_rsP_stable hu hindex
     _ = (rudinShapiroQ (t + 11)).coeff j := by
-      simpa [two_mul_evenT] using coeff_rudinShapiroP_succ_add (t + 11) j
-    _ = (rudinShapiroP t).coeff j := coeff_rudinShapiroQ_add_eleven t j hj
+      simpa [two_mul_evenT] using coeff_rsP_succ_add (t + 11) j
+    _ = (rudinShapiroP t).coeff j := coeff_rsQ_add_eleven t j hj
 
-lemma coeff_rudinShapiroP_late_eq_deleted {t u k : ℕ}
+lemma coeff_rsP_late_eq_deleted {t u k : ℕ}
     (hu : t + 12 ≤ u) (hk : k ∈ evenCPrime t) :
-    (rudinShapiroP u).coeff k = (deletedEvenBlock t).coeff k := by
+    (rudinShapiroP u).coeff k = (deletedEvenBlk t).coeff k := by
   rw [mem_evenCPrime] at hk
   rcases hk with ⟨j, hj, rfl⟩ | ⟨j, hj, rfl⟩
-  · rw [coeff_rudinShapiroP_late_first_block hu hj,
-      coeff_deletedEvenBlock_first t j hj]
-  · rw [coeff_rudinShapiroP_late_second_block hu hj,
-      coeff_deletedEvenBlock_second t j hj]
+  · rw [coeff_rsP_late_first_blk hu hj,
+      coeff_deletedEvenBlk_first t j hj]
+  · rw [coeff_rsP_late_second_blk hu hj,
+      coeff_deletedEvenBlk_second t j hj]
 
 lemma coeff_evenRemainder_of_mem_CPrime {n t u k : ℕ}
     (hu : t + 12 ≤ u) (hblock : 2 * evenT t + 2 ^ t ≤ n + 1)
@@ -1340,8 +1340,8 @@ lemma coeff_evenRemainder_of_mem_CPrime {n t u k : ℕ}
   have hkrange := evenCPrime_subset_range hblock hk
   simp only [Finset.mem_range] at hkrange
   rw [evenRemainder, coeff_sub,
-    coeff_polynomialPrefix, if_pos hkrange,
-    coeff_rudinShapiroP_late_eq_deleted hu hk, sub_self]
+    coeff_polyPrefix, if_pos hkrange,
+    coeff_rsP_late_eq_deleted hu hk, sub_self]
 
 lemma coeff_evenRemainder_sign_of_outside {n t u k : ℕ}
     (hprefix : n + 1 ≤ 2 ^ u) (hk : k < n + 1)
@@ -1349,9 +1349,9 @@ lemma coeff_evenRemainder_sign_of_outside {n t u k : ℕ}
     (evenRemainder n t u).coeff k = 1 ∨
       (evenRemainder n t u).coeff k = -1 := by
   rw [evenRemainder, coeff_sub,
-    coeff_polynomialPrefix, if_pos hk,
-    coeff_deletedEvenBlock_eq_zero_of_outside t k hkC, sub_zero]
-  exact coeff_rudinShapiroP_eq_one_or_neg_one (hk.trans_le hprefix)
+    coeff_polyPrefix, if_pos hk,
+    coeff_deletedEvenBlk_eq_zero_of_outside t k hkC, sub_zero]
+  exact coeff_rsP_eq_one_or_neg_one (hk.trans_le hprefix)
 
 theorem coeff_evenRemainder_sign_of_mem_evenSPrime {n t u k : ℕ}
     (hprefix : n + 1 ≤ 2 ^ u) (hk : k ∈ evenSPrime n t) :
@@ -1366,23 +1366,23 @@ theorem coeff_evenRemainder_eq_zero_on_CPrime {n t u k : ℕ}
     (evenRemainder n t u).coeff k = 0 :=
   coeff_evenRemainder_of_mem_CPrime hu hblock hk
 
-theorem evenCosine_eq (t : ℕ) (θ : ℝ) :
-    evenCosine t θ =
-      ((unitPoint (2 * θ)) ^ evenT t *
-          (rudinShapiroP t).eval (unitPoint (2 * θ)) +
-        (unitPoint (2 * θ)) ^ (2 * evenT t) *
-          (rudinShapiroQ t).eval (unitPoint (2 * θ))).re := by
-  simp [evenCosine, cosineBlock]
+theorem evenCos_eq (t : ℕ) (θ : ℝ) :
+    evenCos t θ =
+      ((unitPt (2 * θ)) ^ evenT t *
+          (rudinShapiroP t).eval (unitPt (2 * θ)) +
+        (unitPt (2 * θ)) ^ (2 * evenT t) *
+          (rudinShapiroQ t).eval (unitPt (2 * θ))).re := by
+  simp [evenCos, cosBlk]
 
 theorem evenSine_eq (n t u : ℕ) (θ : ℝ) :
     evenSine n t u θ =
-      ((polynomialPrefix (rudinShapiroP u) (n + 1)).eval
-          (unitPoint (2 * θ)) -
-        (unitPoint (2 * θ)) ^ evenT t *
-          (rudinShapiroP t).eval (unitPoint (2 * θ)) -
-        (unitPoint (2 * θ)) ^ (2 * evenT t) *
-          (rudinShapiroP t).eval (unitPoint (2 * θ))).im := by
-  simp [evenSine, evenRemainder, deletedEvenBlock]
+      ((polyPrefix (rudinShapiroP u) (n + 1)).eval
+          (unitPt (2 * θ)) -
+        (unitPt (2 * θ)) ^ evenT t *
+          (rudinShapiroP t).eval (unitPt (2 * θ)) -
+        (unitPt (2 * θ)) ^ (2 * evenT t) *
+          (rudinShapiroP t).eval (unitPt (2 * θ))).im := by
+  simp [evenSine, evenRemainder, deletedEvenBlk]
   ring
 
 private lemma two_mul_sqrt_pow_le_sqrt_nat {n t : ℕ}
@@ -1401,14 +1401,14 @@ private lemma two_mul_sqrt_pow_le_sqrt_nat {n t : ℕ}
   rw [hpow] at hcast
   nlinarith
 
-theorem abs_evenCosine_le_sqrt (n t : ℕ)
+theorem abs_evenCos_le_sqrt (n t : ℕ)
     (hscale : 2 ^ (t + 3) ≤ n) (θ : ℝ) :
-    |evenCosine t θ| ≤ sqrt n := by
-  let z := unitPoint (2 * θ)
-  have hz : ‖z‖ = 1 := norm_unitPoint _
-  have hP := norm_eval_rudinShapiroP_le t hz
-  have hQ := norm_eval_rudinShapiroQ_le t hz
-  rw [evenCosine_eq]
+    |evenCos t θ| ≤ sqrt n := by
+  let z := unitPt (2 * θ)
+  have hz : ‖z‖ = 1 := norm_unitPt _
+  have hP := norm_eval_rsP_le t hz
+  have hQ := norm_eval_rsQ_le t hz
+  rw [evenCos_eq]
   change |(z ^ evenT t * (rudinShapiroP t).eval z +
       z ^ (2 * evenT t) * (rudinShapiroQ t).eval z).re| ≤ _
   calc
@@ -1463,33 +1463,33 @@ theorem abs_evenSine_le_six_sqrt (n t u : ℕ)
     (hprefix : n + 1 ≤ 2 ^ u) (hn : 5 ≤ n)
     (hscale : 2 ^ (t + 5) ≤ n) (θ : ℝ) :
     |evenSine n t u θ| ≤ 6 * sqrt n := by
-  let z := unitPoint (2 * θ)
-  have hz : ‖z‖ = 1 := norm_unitPoint _
-  have hpref := norm_eval_polynomialPrefix_rudinShapiroP_le u (n + 1) hprefix hz
-  have hP := norm_eval_rudinShapiroP_le t hz
+  let z := unitPt (2 * θ)
+  have hz : ‖z‖ = 1 := norm_unitPt _
+  have hpref := norm_eval_polyPrefix_rsP_le u (n + 1) hprefix hz
+  have hP := norm_eval_rsP_le t hz
   rw [evenSine_eq]
-  change |((polynomialPrefix (rudinShapiroP u) (n + 1)).eval z -
+  change |((polyPrefix (rudinShapiroP u) (n + 1)).eval z -
       z ^ evenT t * (rudinShapiroP t).eval z -
       z ^ (2 * evenT t) * (rudinShapiroP t).eval z).im| ≤ _
   calc
-    |((polynomialPrefix (rudinShapiroP u) (n + 1)).eval z -
+    |((polyPrefix (rudinShapiroP u) (n + 1)).eval z -
         z ^ evenT t * (rudinShapiroP t).eval z -
         z ^ (2 * evenT t) * (rudinShapiroP t).eval z).im| ≤
-        ‖(polynomialPrefix (rudinShapiroP u) (n + 1)).eval z -
+        ‖(polyPrefix (rudinShapiroP u) (n + 1)).eval z -
           z ^ evenT t * (rudinShapiroP t).eval z -
           z ^ (2 * evenT t) * (rudinShapiroP t).eval z‖ :=
       abs_im_le_norm _
-    _ ≤ ‖(polynomialPrefix (rudinShapiroP u) (n + 1)).eval z‖ +
+    _ ≤ ‖(polyPrefix (rudinShapiroP u) (n + 1)).eval z‖ +
           ‖z ^ evenT t * (rudinShapiroP t).eval z‖ +
           ‖z ^ (2 * evenT t) * (rudinShapiroP t).eval z‖ := by
       calc
-        _ ≤ ‖(polynomialPrefix (rudinShapiroP u) (n + 1)).eval z -
+        _ ≤ ‖(polyPrefix (rudinShapiroP u) (n + 1)).eval z -
               z ^ evenT t * (rudinShapiroP t).eval z‖ +
               ‖z ^ (2 * evenT t) * (rudinShapiroP t).eval z‖ := norm_sub_le _ _
         _ ≤ _ := by
           gcongr
           exact norm_sub_le _ _
-    _ = ‖(polynomialPrefix (rudinShapiroP u) (n + 1)).eval z‖ +
+    _ = ‖(polyPrefix (rudinShapiroP u) (n + 1)).eval z‖ +
           2 * ‖(rudinShapiroP t).eval z‖ := by
       simp [norm_mul, norm_pow, hz]
       ring
@@ -1503,15 +1503,15 @@ theorem abs_evenSine_le_six_sqrt (n t u : ℕ)
         (two_mul_sqrt_pow_le_half_sqrt_nat hscale)
     _ = 6 * sqrt n := by ring
 
-theorem abs_evenCosine_le_sqrt_of_parameters {n t : ℕ} {γ : ℝ}
-    (h : EvenParameters n t γ) (θ : ℝ) :
-    |evenCosine t θ| ≤ sqrt n := by
-  apply abs_evenCosine_le_sqrt n t
+theorem abs_evenCos_le_sqrt_of_params {n t : ℕ} {γ : ℝ}
+    (h : EvenParams n t γ) (θ : ℝ) :
+    |evenCos t θ| ≤ sqrt n := by
+  apply abs_evenCos_le_sqrt n t
   exact (Nat.pow_le_pow_right (by norm_num) (by omega)).trans
     h.pow_t_add_five_le_n
 
-theorem abs_evenSine_le_six_sqrt_of_parameters {n t u : ℕ} {γ : ℝ}
-    (h : EvenParameters n t γ) (hprefix : n + 1 ≤ 2 ^ u)
+theorem abs_evenSin_le_six_sqrt_of_params {n t u : ℕ} {γ : ℝ}
+    (h : EvenParams n t γ) (hprefix : n + 1 ≤ 2 ^ u)
     (θ : ℝ) :
     |evenSine n t u θ| ≤ 6 * sqrt n :=
   abs_evenSine_le_six_sqrt n t u hprefix h.five_le_n
@@ -1523,7 +1523,7 @@ end
 
 section
 
-namespace Interpolation
+namespace Interp
 
 open scoped BigOperators
 
@@ -1565,22 +1565,22 @@ theorem exists_iteratedDeriv_eq_zero_of_strictMono :
       · exact hz.2.trans (hc_mem (Fin.last k)).2.le
       · simpa only [iteratedDeriv_succ'] using hz0
 
-noncomputable def derivativeWeight (k : ℕ) (y : Fin (k + 1) → ℝ)
+noncomputable def derivWt (k : ℕ) (y : Fin (k + 1) → ℝ)
     (j : Fin (k + 1)) : ℝ :=
   (k.factorial : ℝ) /
     ∏ i ∈ (Finset.univ.erase j), (y j - y i)
 
-theorem eval_iterate_derivative_interpolate_top (k : ℕ)
+theorem eval_iterate_deriv_interpolate_top (k : ℕ)
     (y : Fin (k + 1) → ℝ) (v : Fin (k + 1) → ℝ) (hy : Function.Injective y)
     (x : ℝ) :
     ((derivative^[k])
       (Lagrange.interpolate Finset.univ y v)).eval x =
-      ∑ i, derivativeWeight k y i * v i := by
+      ∑ i, derivWt k y i * v i := by
   rw [Lagrange.iterate_derivative_interpolate v hy.injOn (by simp)]
-  simp [derivativeWeight, Finset.mul_sum, div_eq_mul_inv, mul_comm]
+  simp [derivWt, Finset.mul_sum, div_eq_mul_inv, mul_comm]
   simp [eval_finsetSum, mul_left_comm]
 
-theorem iteratedDeriv_polynomial_eval (k : ℕ) (P : Polynomial ℝ) (x : ℝ) :
+theorem iteratedDeriv_poly_eval (k : ℕ) (P : Polynomial ℝ) (x : ℝ) :
     iteratedDeriv k (fun t ↦ P.eval t) x =
       ((derivative^[k]) P).eval x := by
   induction k generalizing P with
@@ -1596,14 +1596,14 @@ theorem iteratedDeriv_polynomial_eval (k : ℕ) (P : Polynomial ℝ) (x : ℝ) :
         ((Function.Commute.self_iterate
           (derivative : Polynomial ℝ → Polynomial ℝ) k) P).symm
 
-theorem howell_derivative_approximation (k : ℕ) (f : ℝ → ℝ)
+theorem howell_deriv_approx (k : ℕ) (f : ℝ → ℝ)
     (y : Fin (k + 1) → ℝ) (x Δ M : ℝ)
     (hf : ContDiff ℝ (k + 1) f) (hy : StrictMono y)
     (_hDelta : 0 ≤ Δ) (hM : 0 ≤ M)
     (hyx : ∀ i, |y i - x| ≤ Δ)
     (hderiv : ∀ t, |iteratedDeriv (k + 1) f t| ≤ M) :
     |iteratedDeriv k f x -
-      ∑ i, derivativeWeight k y i * f (y i)| ≤ Δ * M := by
+      ∑ i, derivWt k y i * f (y i)| ≤ Δ * M := by
   let P : Polynomial ℝ := Lagrange.interpolate Finset.univ y (fun i ↦ f (y i))
   let g : ℝ → ℝ := fun t ↦ f t - P.eval t
   have hP : ContDiff ℝ (k + 1) (fun t ↦ P.eval t) := by
@@ -1626,10 +1626,10 @@ theorem howell_derivative_approximation (k : ℕ) (f : ℝ → ℝ)
   have hPAt : ContDiffAt ℝ k (fun t ↦ P.eval t) z := (hP.of_le (by norm_num)).contDiffAt
   have hfAt : ContDiffAt ℝ k f z := (hf.of_le (by norm_num)).contDiffAt
   have hzEq : iteratedDeriv k f z =
-      ∑ i, derivativeWeight k y i * f (y i) := by
+      ∑ i, derivWt k y i * f (y i) := by
     change iteratedDeriv k (f - fun t ↦ P.eval t) z = 0 at hz0
-    rw [iteratedDeriv_sub hfAt hPAt, iteratedDeriv_polynomial_eval,
-      eval_iterate_derivative_interpolate_top k y (fun i ↦ f (y i)) hy.injective z] at hz0
+    rw [iteratedDeriv_sub hfAt hPAt, iteratedDeriv_poly_eval,
+      eval_iterate_deriv_interpolate_top k y (fun i ↦ f (y i)) hy.injective z] at hz0
     linarith
   have hzDist : |z - x| ≤ Δ := by
     have hleft := (abs_le.mp (hyx (0 : Fin (k + 1)))).1
@@ -1655,7 +1655,7 @@ theorem howell_derivative_approximation (k : ℕ) (f : ℝ → ℝ)
     _ ≤ M * Δ := mul_le_mul_of_nonneg_left hzDist hM
     _ = Δ * M := mul_comm _ _
 
-theorem pow_le_abs_prod_of_separated (k : ℕ) (y : Fin (k + 1) → ℝ) (eta : ℝ)
+theorem pow_le_abs_prod_of_sep (k : ℕ) (y : Fin (k + 1) → ℝ) (eta : ℝ)
     (heta : 0 ≤ eta)
     (hsep : ∀ i j, i ≠ j → eta ≤ |y i - y j|)
     (j : Fin (k + 1)) :
@@ -1672,13 +1672,13 @@ theorem pow_le_abs_prod_of_separated (k : ℕ) (y : Fin (k + 1) → ℝ) (eta : 
       have hij : i ≠ j := Finset.ne_of_mem_erase hi
       simpa only [abs_sub_comm] using hsep i j hij
 
-theorem abs_derivativeWeight_le (k : ℕ) (y : Fin (k + 1) → ℝ) (eta : ℝ)
+theorem abs_derivWt_le (k : ℕ) (y : Fin (k + 1) → ℝ) (eta : ℝ)
     (heta : 0 < eta)
     (hsep : ∀ i j, i ≠ j → eta ≤ |y i - y j|)
     (j : Fin (k + 1)) :
-    |derivativeWeight k y j| ≤ (k.factorial : ℝ) / eta ^ k := by
-  rw [derivativeWeight, abs_div, abs_of_nonneg (Nat.cast_nonneg _)]
-  have hprod := pow_le_abs_prod_of_separated k y eta heta.le hsep j
+    |derivWt k y j| ≤ (k.factorial : ℝ) / eta ^ k := by
+  rw [derivWt, abs_div, abs_of_nonneg (Nat.cast_nonneg _)]
+  have hprod := pow_le_abs_prod_of_sep k y eta heta.le hsep j
   exact div_le_div_of_nonneg_left (by positivity) (by positivity) hprod
 
 theorem abs_sum_le_card_mul {n : ℕ} (u : Fin n → ℝ) (A : ℝ)
@@ -1693,30 +1693,30 @@ theorem abs_lagrange_sum_le (k : ℕ) (y : Fin (k + 1) → ℝ) (eta ε : ℝ)
     (heta : 0 < eta) (_hepsilon : 0 ≤ ε)
     (hsep : ∀ i j, i ≠ j → eta ≤ |y i - y j|)
     (v : Fin (k + 1) → ℝ) (hv : ∀ i, |v i| ≤ ε) :
-    |∑ i, derivativeWeight k y i * v i| ≤
+    |∑ i, derivWt k y i * v i| ≤
       (k + 1) * ((k.factorial : ℝ) / eta ^ k * ε) := by
   have h := abs_sum_le_card_mul
-    (fun i ↦ derivativeWeight k y i * v i)
+    (fun i ↦ derivWt k y i * v i)
     ((k.factorial : ℝ) / eta ^ k * ε) (fun i ↦ by
       rw [abs_mul]
       exact mul_le_mul
-        (abs_derivativeWeight_le k y eta heta hsep i) (hv i)
+        (abs_derivWt_le k y eta heta hsep i) (hv i)
         (abs_nonneg _) (by positivity))
   simpa [Nat.cast_add, Nat.cast_one] using h
 
-theorem howell_bound_of_approximation (k : ℕ) (y : Fin (k + 1) → ℝ)
+theorem howell_bound_of_approx (k : ℕ) (y : Fin (k + 1) → ℝ)
     (eta ε remainder d : ℝ)
     (heta : 0 < eta) (hε : 0 ≤ ε) (_hremainder : 0 ≤ remainder)
     (hsep : ∀ i j, i ≠ j → eta ≤ |y i - y j|)
     (v : Fin (k + 1) → ℝ) (hv : ∀ i, |v i| ≤ ε)
-    (happrox : |d - ∑ i, derivativeWeight k y i * v i| ≤ remainder) :
+    (happrox : |d - ∑ i, derivWt k y i * v i| ≤ remainder) :
     |d| ≤ remainder + (k + 1) * ((k.factorial : ℝ) / eta ^ k * ε) := by
   have hsum := abs_lagrange_sum_le k y eta ε heta hε hsep v hv
   calc
-    |d| = |(d - ∑ i, derivativeWeight k y i * v i) +
-        ∑ i, derivativeWeight k y i * v i| := by ring_nf
-    _ ≤ |d - ∑ i, derivativeWeight k y i * v i| +
-        |∑ i, derivativeWeight k y i * v i| := abs_add_le _ _
+    |d| = |(d - ∑ i, derivWt k y i * v i) +
+        ∑ i, derivWt k y i * v i| := by ring_nf
+    _ ≤ |d - ∑ i, derivWt k y i * v i| +
+        |∑ i, derivWt k y i * v i| := abs_add_le _ _
     _ ≤ remainder + (k + 1) * ((k.factorial : ℝ) / eta ^ k * ε) :=
       add_le_add happrox hsum
 
@@ -1725,10 +1725,10 @@ theorem howell_lt_quarter (k : ℕ) (hk₁ : 1 ≤ k) (hk₃ : k ≤ 3)
     (heta : 0 < eta) (hetaSmall : eta < (1 : ℝ) / 2048)
     (hsep : ∀ i j, i ≠ j → eta ≤ |y i - y j|)
     (v : Fin (k + 1) → ℝ) (hv : ∀ i, |v i| ≤ eta ^ 3 / 128)
-    (happrox : |d - ∑ i, derivativeWeight k y i * v i| ≤ 126 * eta) :
+    (happrox : |d - ∑ i, derivWt k y i * v i| ≤ 126 * eta) :
     |d| < 1 / 4 := by
   have hetaPow : 0 ≤ eta ^ 3 / 128 := by positivity
-  have hbound := howell_bound_of_approximation k y eta (eta ^ 3 / 128)
+  have hbound := howell_bound_of_approx k y eta (eta ^ 3 / 128)
     (126 * eta) d heta hetaPow (by positivity) hsep v hv happrox
   have hetaOne : eta < 1 := by
     calc
@@ -1759,109 +1759,109 @@ theorem howell_lt_quarter_of_nodes (k : ℕ) (hk₁ : 1 ≤ k) (hk₃ : k ≤ 3)
     (hvalue : ∀ i, |f (y i)| ≤ eta ^ 3 / 128)
     (hderiv : ∀ t, |iteratedDeriv (k + 1) f t| ≤ 18) :
     |iteratedDeriv k f x| < 1 / 4 := by
-  have happrox' := howell_derivative_approximation k f y x (7 * eta) 18 hf hy
+  have happrox' := howell_deriv_approx k f y x (7 * eta) 18 hf hy
     (by positivity) (by norm_num) hyx hderiv
   have happrox :
       |iteratedDeriv k f x -
-        ∑ i, derivativeWeight k y i * f (y i)| ≤ 126 * eta := by
+        ∑ i, derivWt k y i * f (y i)| ≤ 126 * eta := by
     convert happrox' using 1
     ring
   exact howell_lt_quarter k hk₁ hk₃ y eta (iteratedDeriv k f x) heta hetaSmall
     hsep (fun i ↦ f (y i)) hvalue happrox
 
-end Interpolation
+end Interp
 
 end
 
 section
 
-namespace Intervals
+namespace Ivls
 
 open Set
 
-noncomputable def gridPoint (n k : ℕ) : ℝ := (k : ℝ) * π / n
+noncomputable def gridPt (n k : ℕ) : ℝ := (k : ℝ) * π / n
 
 noncomputable def gridCell (n k : ℕ) : Set ℝ :=
-  Icc (gridPoint n k) (gridPoint n (k + 1))
+  Icc (gridPt n k) (gridPt n (k + 1))
 
-def indexBlock (start length : ℕ) : Finset ℕ :=
+def idxBlk (start length : ℕ) : Finset ℕ :=
   (Finset.range length).image (start + ·)
 
-@[simp] theorem mem_indexBlock {start length i : ℕ} :
-    i ∈ indexBlock start length ↔ start ≤ i ∧ i < start + length := by
+@[simp] theorem mem_idxBlk {start length i : ℕ} :
+    i ∈ idxBlk start length ↔ start ≤ i ∧ i < start + length := by
   constructor
-  · simp only [indexBlock, Finset.mem_image, Finset.mem_range]
+  · simp only [idxBlk, Finset.mem_image, Finset.mem_range]
     rintro ⟨j, hj, rfl⟩
     omega
   · rintro ⟨hsi, hi⟩
-    simp only [indexBlock, Finset.mem_image, Finset.mem_range]
+    simp only [idxBlk, Finset.mem_image, Finset.mem_range]
     exact ⟨i - start, by omega, by omega⟩
 
-@[simp] theorem card_indexBlock (start length : ℕ) :
-    (indexBlock start length).card = length := by
-  rw [indexBlock, Finset.card_image_of_injective]
+@[simp] theorem card_idxBlk (start length : ℕ) :
+    (idxBlk start length).card = length := by
+  rw [idxBlk, Finset.card_image_of_injective]
   · simp
   · exact fun _ _ h ↦ Nat.add_left_cancel h
 
-theorem gridPoint_zero (n : ℕ) : gridPoint n 0 = 0 := by
-  simp [gridPoint]
+theorem gridPt_zero (n : ℕ) : gridPt n 0 = 0 := by
+  simp [gridPt]
 
-theorem gridPoint_add (n k l : ℕ) :
-    gridPoint n (k + l) = gridPoint n k + gridPoint n l := by
-  simp only [gridPoint, Nat.cast_add]
+theorem gridPt_add (n k l : ℕ) :
+    gridPt n (k + l) = gridPt n k + gridPt n l := by
+  simp only [gridPt, Nat.cast_add]
   ring
 
-theorem gridPoint_succ (n k : ℕ) :
-    gridPoint n (k + 1) = gridPoint n k + π / n := by
-  rw [gridPoint_add]
-  simp [gridPoint]
+theorem gridPt_succ (n k : ℕ) :
+    gridPt n (k + 1) = gridPt n k + π / n := by
+  rw [gridPt_add]
+  simp [gridPt]
 
-theorem gridPoint_strictMono {n : ℕ} (hn : 0 < n) :
-    StrictMono (gridPoint n) := by
+theorem gridPt_strictMono {n : ℕ} (hn : 0 < n) :
+    StrictMono (gridPt n) := by
   intro i j hij
-  simp only [gridPoint]
+  simp only [gridPt]
   have hn' : (0 : ℝ) < n := by exact_mod_cast hn
   have hpi : 0 < π / (n : ℝ) := div_pos pi_pos hn'
   simpa [mul_div_assoc] using (mul_lt_mul_of_pos_right (by exact_mod_cast hij) hpi)
 
-theorem gridPoint_mono {n : ℕ} (hn : 0 < n) :
-    Monotone (gridPoint n) := (gridPoint_strictMono hn).monotone
+theorem gridPt_mono {n : ℕ} (hn : 0 < n) :
+    Monotone (gridPt n) := (gridPt_strictMono hn).monotone
 
-def negInterval (I : ℝ × ℝ) : ℝ × ℝ := (-I.2, -I.1)
+def negIvl (I : ℝ × ℝ) : ℝ × ℝ := (-I.2, -I.1)
 
-noncomputable def piMinusInterval (I : ℝ × ℝ) : ℝ × ℝ :=
+noncomputable def piMinusIvl (I : ℝ × ℝ) : ℝ × ℝ :=
   (π - I.2, π - I.1)
 
-noncomputable def piPlusInterval (I : ℝ × ℝ) : ℝ × ℝ :=
+noncomputable def piPlusIvl (I : ℝ × ℝ) : ℝ × ℝ :=
   (π + I.1, π + I.2)
 
-@[simp] theorem mem_Icc_negInterval {a b x : ℝ} :
-    x ∈ Icc a b ↔ -x ∈ Icc (negInterval (a, b)).1 (negInterval (a, b)).2 := by
+@[simp] theorem mem_Icc_negIvl {a b x : ℝ} :
+    x ∈ Icc a b ↔ -x ∈ Icc (negIvl (a, b)).1 (negIvl (a, b)).2 := by
   change (a ≤ x ∧ x ≤ b) ↔ (-b ≤ -x ∧ -x ≤ -a)
   constructor <;> rintro ⟨h₁, h₂⟩ <;> constructor <;> linarith
 
-@[simp] theorem mem_Icc_piMinusInterval {a b x : ℝ} :
+@[simp] theorem mem_Icc_piMinusIvl {a b x : ℝ} :
     x ∈ Icc a b ↔
-      π - x ∈ Icc (piMinusInterval (a, b)).1 (piMinusInterval (a, b)).2 := by
+      π - x ∈ Icc (piMinusIvl (a, b)).1 (piMinusIvl (a, b)).2 := by
   change (a ≤ x ∧ x ≤ b) ↔
     (π - b ≤ π - x ∧ π - x ≤ π - a)
   constructor <;> rintro ⟨h₁, h₂⟩ <;> constructor <;> linarith
 
-@[simp] theorem mem_Icc_piPlusInterval {a b x : ℝ} :
+@[simp] theorem mem_Icc_piPlusIvl {a b x : ℝ} :
     x ∈ Icc a b ↔
-      π + x ∈ Icc (piPlusInterval (a, b)).1 (piPlusInterval (a, b)).2 := by
-  simp [piPlusInterval]
+      π + x ∈ Icc (piPlusIvl (a, b)).1 (piPlusIvl (a, b)).2 := by
+  simp [piPlusIvl]
 
-def changeIndices (N : ℕ) (bad : ℕ → Prop) [DecidablePred bad] : Finset ℕ :=
+def changeIdxs (N : ℕ) (bad : ℕ → Prop) [DecidablePred bad] : Finset ℕ :=
   (Finset.range N).filter fun i ↦ i + 1 < N ∧ ¬ (bad i ↔ bad (i + 1))
 
 def runStarts (N : ℕ) (bad : ℕ → Prop) [DecidablePred bad] : Finset ℕ :=
   (Finset.range N).filter fun i ↦ bad i ∧ (i = 0 ∨ ¬ bad (i - 1))
 
-@[simp] theorem mem_changeIndices {N i : ℕ} {bad : ℕ → Prop}
+@[simp] theorem mem_changeIdxs {N i : ℕ} {bad : ℕ → Prop}
     [DecidablePred bad] :
-    i ∈ changeIndices N bad ↔ i + 1 < N ∧ ¬ (bad i ↔ bad (i + 1)) := by
-  simp [changeIndices]
+    i ∈ changeIdxs N bad ↔ i + 1 < N ∧ ¬ (bad i ↔ bad (i + 1)) := by
+  simp [changeIdxs]
   omega
 
 @[simp] theorem mem_runStarts {N i : ℕ} {bad : ℕ → Prop}
@@ -2011,11 +2011,11 @@ theorem exists_abs_level_between {f : ℝ → ℝ} (hf : Continuous f)
     ∃ u ∈ Icc x y, |f u| = level :=
   exists_level_between hf.abs hxy hcross
 
-end Intervals
+end Ivls
 
 end
 
-open Intervals
+open Ivls
 
 
 section
@@ -2025,22 +2025,22 @@ open scoped BigOperators ENNReal NNReal
 
 namespace GaussianWalk
 
-noncomputable def rademacherMeasure : Measure ℝ :=
+noncomputable def radMeasure : Measure ℝ :=
   bernoulliMeasure 1 (-1) ⟨1 / 2, by norm_num⟩
 
 noncomputable instance instIsProbabilityMeasureRademacher :
-    IsProbabilityMeasure rademacherMeasure := by
-  unfold rademacherMeasure
+    IsProbabilityMeasure radMeasure := by
+  unfold radMeasure
   infer_instance
 
-theorem integral_id_rademacherMeasure :
-    ∫ x, x ∂rademacherMeasure = 0 := by
-  rw [rademacherMeasure, integral_bernoulliMeasure]
+theorem intg_id_radMeasure :
+    ∫ x, x ∂radMeasure = 0 := by
+  rw [radMeasure, integral_bernoulliMeasure]
   norm_num
 
-theorem ae_mem_Icc_rademacherMeasure :
-    ∀ᵐ x ∂rademacherMeasure, x ∈ Icc (-1 : ℝ) 1 := by
-  rw [rademacherMeasure, bernoulliMeasure_def]
+theorem ae_mem_Icc_radMeasure :
+    ∀ᵐ x ∂radMeasure, x ∈ Icc (-1 : ℝ) 1 := by
+  rw [radMeasure, bernoulliMeasure_def]
   simp only [ae_add_measure_iff]
   constructor
   · apply Measure.ae_smul_measure
@@ -2048,21 +2048,21 @@ theorem ae_mem_Icc_rademacherMeasure :
   · apply Measure.ae_smul_measure
     exact (ae_dirac_iff measurableSet_Icc).2 (by norm_num)
 
-theorem hasSubgaussianMGF_id_rademacherMeasure :
-    HasSubgaussianMGF id 1 rademacherMeasure := by
+theorem hasSubgaussianMGF_id_radMeasure :
+    HasSubgaussianMGF id 1 radMeasure := by
   have h := hasSubgaussianMGF_of_mem_Icc_of_integral_eq_zero
-    (μ := rademacherMeasure) (X := id) measurable_id.aemeasurable
-    ae_mem_Icc_rademacherMeasure integral_id_rademacherMeasure
+    (μ := radMeasure) (X := id) measurable_id.aemeasurable
+    ae_mem_Icc_radMeasure intg_id_radMeasure
   have hc : ((‖(1 : ℝ) - (-1)‖₊ / 2) ^ 2) = (1 : ℝ≥0) := by
     norm_num
   rw [hc] at h
   exact h
 
-theorem ae_abs_eq_one_rademacherMeasure :
-    ∀ᵐ x ∂rademacherMeasure, |x| = 1 := by
+theorem ae_abs_eq_one_radMeasure :
+    ∀ᵐ x ∂radMeasure, |x| = 1 := by
   have hmeas : MeasurableSet {x : ℝ | |x| = 1} :=
     measurable_abs (measurableSet_singleton 1)
-  rw [rademacherMeasure, bernoulliMeasure_def]
+  rw [radMeasure, bernoulliMeasure_def]
   simp only [ae_add_measure_iff]
   constructor
   · apply Measure.ae_smul_measure
@@ -2070,63 +2070,63 @@ theorem ae_abs_eq_one_rademacherMeasure :
   · apply Measure.ae_smul_measure
     exact (ae_dirac_iff hmeas).2 (by norm_num)
 
-noncomputable def rademacherLaw (iota : Type*) [Fintype iota] :
+noncomputable def radLaw (iota : Type*) [Fintype iota] :
     Measure (iota → ℝ) :=
-  Measure.pi fun _ : iota ↦ rademacherMeasure
+  Measure.pi fun _ : iota ↦ radMeasure
 
 noncomputable instance instIsProbabilityMeasureRademacherProduct
     (iota : Type*) [Fintype iota] :
-    IsProbabilityMeasure (rademacherLaw iota) := by
-  unfold rademacherLaw
+    IsProbabilityMeasure (radLaw iota) := by
+  unfold radLaw
   infer_instance
 
-theorem iIndepFun_rademacherLaw
+theorem iIndepFun_radLaw
     (iota : Type*) [Fintype iota] :
     iIndepFun (fun i : iota ↦ fun ω : iota → ℝ ↦ ω i)
-      (rademacherLaw iota) := by
-  unfold rademacherLaw
+      (radLaw iota) := by
+  unfold radLaw
   exact iIndepFun_pi fun _ ↦ measurable_id.aemeasurable
 
-theorem ae_forall_abs_eq_one_rademacherLaw
+theorem ae_forall_abs_eq_one_radLaw
     (iota : Type*) [Fintype iota] :
-    ∀ᵐ ω ∂rademacherLaw iota, ∀ i, |ω i| = 1 := by
+    ∀ᵐ ω ∂radLaw iota, ∀ i, |ω i| = 1 := by
   rw [ae_all_iff]
   intro i
-  exact (measurePreserving_eval (μ := fun _ : iota ↦ rademacherMeasure) i)
-    |>.quasiMeasurePreserving.tendsto_ae ae_abs_eq_one_rademacherMeasure
+  exact (measurePreserving_eval (μ := fun _ : iota ↦ radMeasure) i)
+    |>.quasiMeasurePreserving.tendsto_ae ae_abs_eq_one_radMeasure
 
-theorem hasSubgaussianMGF_rademacherCoord
+theorem hasSubgaussianMGF_radCoord
     (iota : Type*) [Fintype iota] (i : iota) :
     HasSubgaussianMGF (fun ω : iota → ℝ ↦ ω i) 1
-      (rademacherLaw iota) := by
-  refine HasSubgaussianMGF.of_map (μ := rademacherLaw iota) (X := id)
+      (radLaw iota) := by
+  refine HasSubgaussianMGF.of_map (μ := radLaw iota) (X := id)
     (Y := fun ω : iota → ℝ ↦ ω i)
     (measurable_pi_apply i).aemeasurable ?_
-  have hmap : (rademacherLaw iota).map (fun ω : iota → ℝ ↦ ω i) =
-      rademacherMeasure := by
-    unfold rademacherLaw
-    exact (measurePreserving_eval (μ := fun _ : iota ↦ rademacherMeasure) i).map_eq
+  have hmap : (radLaw iota).map (fun ω : iota → ℝ ↦ ω i) =
+      radMeasure := by
+    unfold radLaw
+    exact (measurePreserving_eval (μ := fun _ : iota ↦ radMeasure) i).map_eq
   rw [hmap]
-  exact hasSubgaussianMGF_id_rademacherMeasure
+  exact hasSubgaussianMGF_id_radMeasure
 
-theorem iIndepFun_weightedRademacher
+theorem iIndepFun_wtedRad
     (iota : Type*) [Fintype iota] (a : iota → ℝ) :
     iIndepFun (fun i : iota ↦ fun ω : iota → ℝ ↦ a i * ω i)
-      (rademacherLaw iota) := by
-  have h := (iIndepFun_rademacherLaw iota).comp
+      (radLaw iota) := by
+  have h := (iIndepFun_radLaw iota).comp
     (fun i x ↦ a i * x) (fun i ↦ measurable_const.mul measurable_id)
   simpa [Function.comp_def] using h
 
-theorem hasSubgaussianMGF_weightedRademacherSum
+theorem hasSubgaussianMGF_wtedRadSum
     (iota : Type*) [Fintype iota] (a : iota → ℝ) :
     HasSubgaussianMGF
       (fun ω : iota → ℝ ↦ ∑ i, a i * ω i)
       (∑ i, ⟨a i ^ 2, sq_nonneg (a i)⟩)
-      (rademacherLaw iota) := by
+      (radLaw iota) := by
   apply HasSubgaussianMGF.sum_of_iIndepFun
-    (iIndepFun_weightedRademacher iota a) (s := Finset.univ)
+    (iIndepFun_wtedRad iota a) (s := Finset.univ)
   intro i hi
-  have h := (hasSubgaussianMGF_rademacherCoord iota i).const_mul (a i)
+  have h := (hasSubgaussianMGF_radCoord iota i).const_mul (a i)
   have hc : (⟨a i ^ 2, sq_nonneg (a i)⟩ : ℝ≥0) * 1 =
       ⟨a i ^ 2, sq_nonneg (a i)⟩ := mul_one _
   exact hc ▸ h
@@ -2183,7 +2183,7 @@ end
 
 section
 
-namespace ProjectionWalk
+namespace ProjWalk
 
 open scoped BigOperators
 
@@ -2191,26 +2191,26 @@ noncomputable section
 
 variable {I K : Type*} [Fintype I]
 
-abbrev WalkSpace (I : Type*) [Fintype I] := EuclideanSpace ℝ I
+abbrev WalkSp (I : Type*) [Fintype I] := EuclideanSpace ℝ I
 
-def constraintSpan (w : K → WalkSpace I) : Submodule ℝ (WalkSpace I) :=
+def constrSpan (w : K → WalkSp I) : Submodule ℝ (WalkSp I) :=
   Submodule.span ℝ (Set.range w)
 
-def incrementSubspace (w : K → WalkSpace I) : Submodule ℝ (WalkSpace I) :=
-  (constraintSpan w)ᗮ
+def incsubsp (w : K → WalkSp I) : Submodule ℝ (WalkSp I) :=
+  (constrSpan w)ᗮ
 
-theorem normal_mem_constraintSpan (w : K → WalkSpace I) (k : K) :
-    w k ∈ constraintSpan w :=
+theorem normal_mem_constrSpan (w : K → WalkSp I) (k : K) :
+    w k ∈ constrSpan w :=
   Submodule.subset_span (Set.mem_range_self k)
 
-theorem mem_incrementSubspace_iff (w : K → WalkSpace I) (x : WalkSpace I) :
-    x ∈ incrementSubspace w ↔ ∀ k, inner ℝ (w k) x = 0 := by
+theorem mem_incsubsp_iff (w : K → WalkSp I) (x : WalkSp I) :
+    x ∈ incsubsp w ↔ ∀ k, inner ℝ (w k) x = 0 := by
   constructor
   · intro hx k
-    exact (Submodule.mem_orthogonal (constraintSpan w) x).1 hx
-      (w k) (normal_mem_constraintSpan w k)
+    exact (Submodule.mem_orthogonal (constrSpan w) x).1 hx
+      (w k) (normal_mem_constrSpan w k)
   · intro hx
-    rw [incrementSubspace, Submodule.mem_orthogonal]
+    rw [incsubsp, Submodule.mem_orthogonal]
     intro y hy
     induction hy using Submodule.span_induction with
     | mem y hy =>
@@ -2222,89 +2222,89 @@ theorem mem_incrementSubspace_iff (w : K → WalkSpace I) (x : WalkSpace I) :
 
 variable [Fintype K]
 
-theorem finrank_constraintSpan_le_card (w : K → WalkSpace I) :
-    Module.finrank ℝ (constraintSpan w) ≤ Fintype.card K :=
+theorem finrank_constrSpan_le_card (w : K → WalkSp I) :
+    Module.finrank ℝ (constrSpan w) ≤ Fintype.card K :=
   finrank_range_le_card w
 
 omit [Fintype K] in
 
-theorem finrank_constraintSpan_add_incrementSubspace (w : K → WalkSpace I) :
-    Module.finrank ℝ (constraintSpan w) +
-      Module.finrank ℝ (incrementSubspace w) = Fintype.card I := by
+theorem finrank_constrSpan_add_incsubsp (w : K → WalkSp I) :
+    Module.finrank ℝ (constrSpan w) +
+      Module.finrank ℝ (incsubsp w) = Fintype.card I := by
   calc
-    Module.finrank ℝ (constraintSpan w) +
-        Module.finrank ℝ (incrementSubspace w) =
-        Module.finrank ℝ (WalkSpace I) := by
-      exact Submodule.finrank_add_finrank_orthogonal (constraintSpan w)
+    Module.finrank ℝ (constrSpan w) +
+        Module.finrank ℝ (incsubsp w) =
+        Module.finrank ℝ (WalkSp I) := by
+      exact Submodule.finrank_add_finrank_orthogonal (constrSpan w)
     _ = Fintype.card I := finrank_euclideanSpace
 
-theorem card_sub_card_le_finrank_incrementSubspace (w : K → WalkSpace I) :
+theorem card_sub_card_le_finrank_incsubsp (w : K → WalkSp I) :
     Fintype.card I - Fintype.card K ≤
-      Module.finrank ℝ (incrementSubspace w) := by
-  have hrank := finrank_constraintSpan_le_card w
-  have hsum := finrank_constraintSpan_add_incrementSubspace w
+      Module.finrank ℝ (incsubsp w) := by
+  have hrank := finrank_constrSpan_le_card w
+  have hsum := finrank_constrSpan_add_incsubsp w
   omega
 
 variable {J : Type*} [DecidableEq I]
 
-def coordinateNormal (i : I) : WalkSpace I :=
+def coordNormal (i : I) : WalkSp I :=
   EuclideanSpace.single i 1
 
 @[simp]
-theorem inner_coordinateNormal (i : I) (x : WalkSpace I) :
-    inner ℝ (coordinateNormal i) x = x i := by
-  rw [coordinateNormal, EuclideanSpace.inner_single_left]
+theorem inner_coordNormal (i : I) (x : WalkSp I) :
+    inner ℝ (coordNormal i) x = x i := by
+  rw [coordNormal, EuclideanSpace.inner_single_left]
   norm_num
 
-def tightNormalFamily (v : J → WalkSpace I) (coordinates : Finset I)
+def tightNormalFam (v : J → WalkSp I) (coordinates : Finset I)
     (discrepancies : Finset J) :
-    Sum coordinates discrepancies → WalkSpace I
-  | Sum.inl i => coordinateNormal i.1
+    Sum coordinates discrepancies → WalkSp I
+  | Sum.inl i => coordNormal i.1
   | Sum.inr j => v j.1
 
-def tightIncrementSubspace (v : J → WalkSpace I) (coordinates : Finset I)
-    (discrepancies : Finset J) : Submodule ℝ (WalkSpace I) :=
-  incrementSubspace (tightNormalFamily v coordinates discrepancies)
+def tightIncsubsp (v : J → WalkSp I) (coordinates : Finset I)
+    (discrepancies : Finset J) : Submodule ℝ (WalkSp I) :=
+  incsubsp (tightNormalFam v coordinates discrepancies)
 
-theorem mem_tightIncrementSubspace_iff
-    (v : J → WalkSpace I) (coordinates : Finset I)
-    (discrepancies : Finset J) (x : WalkSpace I) :
-    x ∈ tightIncrementSubspace v coordinates discrepancies ↔
+theorem mem_tightIncsubsp_iff
+    (v : J → WalkSp I) (coordinates : Finset I)
+    (discrepancies : Finset J) (x : WalkSp I) :
+    x ∈ tightIncsubsp v coordinates discrepancies ↔
       (∀ i ∈ coordinates, x i = 0) ∧
       (∀ j ∈ discrepancies, inner ℝ (v j) x = 0) := by
-  rw [tightIncrementSubspace, mem_incrementSubspace_iff]
+  rw [tightIncsubsp, mem_incsubsp_iff]
   constructor
   · intro h
     constructor
     · intro i hi
-      simpa [tightNormalFamily, inner_coordinateNormal] using
+      simpa [tightNormalFam, inner_coordNormal] using
         h (Sum.inl ⟨i, hi⟩)
     · intro j hj
-      simpa [tightNormalFamily] using h (Sum.inr ⟨j, hj⟩)
+      simpa [tightNormalFam] using h (Sum.inr ⟨j, hj⟩)
   · rintro ⟨hcoord, hdisc⟩ k
     cases k with
     | inl i =>
-        simpa [tightNormalFamily, inner_coordinateNormal] using hcoord i.1 i.2
+        simpa [tightNormalFam, inner_coordNormal] using hcoord i.1 i.2
     | inr j =>
-        simpa [tightNormalFamily] using hdisc j.1 j.2
+        simpa [tightNormalFam] using hdisc j.1 j.2
 
 theorem card_sub_tight_card_le_finrank
-    (v : J → WalkSpace I) (coordinates : Finset I)
+    (v : J → WalkSp I) (coordinates : Finset I)
     (discrepancies : Finset J) :
     Fintype.card I - (coordinates.card + discrepancies.card) ≤
-      Module.finrank ℝ (tightIncrementSubspace v coordinates discrepancies) := by
-  have h := card_sub_card_le_finrank_incrementSubspace
-    (tightNormalFamily v coordinates discrepancies)
+      Module.finrank ℝ (tightIncsubsp v coordinates discrepancies) := by
+  have h := card_sub_card_le_finrank_incsubsp
+    (tightNormalFam v coordinates discrepancies)
   rw [card_sum, card_coe, card_coe] at h
   exact h
 
 end
 
-end ProjectionWalk
+end ProjWalk
 
 end
 
-open ProjectionWalk
+open ProjWalk
 
 
 section
@@ -2313,7 +2313,7 @@ open scoped BigOperators
 
 noncomputable section
 
-namespace Discrepancy
+namespace Disc
 
 variable {I J : Type*} [Fintype I] [Fintype J]
 
@@ -2329,23 +2329,23 @@ def IsSign (x : I → ℝ) : Prop := ∀ i, x i = 1 ∨ x i = -1
 
 def l2Norm (v : I → ℝ) : ℝ := sqrt (∑ i, (v i) ^ 2)
 
-def toWalkSpace (x : I → ℝ) : WalkSpace I :=
+def toWalkSp (x : I → ℝ) : WalkSp I :=
   WithLp.toLp 2 x
 
-@[simp] theorem toWalkSpace_apply (x : I → ℝ) (i : I) :
-    toWalkSpace x i = x i := rfl
+@[simp] theorem toWalkSp_apply (x : I → ℝ) (i : I) :
+    toWalkSp x i = x i := rfl
 
-theorem norm_toWalkSpace (v : I → ℝ) : ‖toWalkSpace v‖ = l2Norm v := by
+theorem norm_toWalkSp (v : I → ℝ) : ‖toWalkSp v‖ = l2Norm v := by
   rw [EuclideanSpace.norm_eq]
-  simp only [toWalkSpace_apply, norm_eq_abs, sq_abs, l2Norm]
+  simp only [toWalkSp_apply, norm_eq_abs, sq_abs, l2Norm]
 
 theorem l2Norm_eq_zero_iff (v : I → ℝ) : l2Norm v = 0 ↔ v = 0 := by
-  rw [← norm_toWalkSpace, norm_eq_zero]
+  rw [← norm_toWalkSp, norm_eq_zero]
   constructor
   · intro h
     funext i
-    have hi := congrArg (fun x : WalkSpace I ↦ x i) h
-    simpa [toWalkSpace] using hi
+    have hi := congrArg (fun x : WalkSp I ↦ x i) h
+    simpa [toWalkSp] using hi
   · rintro rfl
     rfl
 
@@ -2354,7 +2354,7 @@ theorem dot_eq_zero_of_l2Norm_eq_zero (x v : I → ℝ)
   rw [(l2Norm_eq_zero_iff v).mp hv]
   simp [dot]
 
-def fixedCoordinates [DecidableEq I] (x : I → ℝ) : Finset I :=
+def fixCoords [DecidableEq I] (x : I → ℝ) : Finset I :=
   Finset.univ.filter fun i ↦ |x i| = 1
 
 def dotOn (F : Finset I) (x v : I → ℝ) : ℝ :=
@@ -2446,7 +2446,7 @@ def HasPartialColoring [DecidableEq I]
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ) : Prop :=
   ∃ x : I → ℝ,
     InCube x ∧
-      Fintype.card I ≤ 2 * (fixedCoordinates x).card ∧
+      Fintype.card I ≤ 2 * (fixCoords x).card ∧
       ∀ j, |dot (x - x₀) (v j)| ≤ c j * l2Norm (v j)
 
 def PartialColoringPrinciple (I J : Type*)
@@ -2464,25 +2464,25 @@ def HasFullColoring
       |dot (x - x₀) (v j)| ≤
         (c j + 30) * sqrt (Fintype.card I) * ‖v j‖
 
-def partialParameter (c : J → ℝ) : J → ℝ := fun j ↦ 2 * c j / 7
+def partialParam (c : J → ℝ) : J → ℝ := fun j ↦ 2 * c j / 7
 
-theorem partialParameter_nonneg {c : J → ℝ} (hc : ∀ j, 0 ≤ c j) :
-    ∀ j, 0 ≤ partialParameter c j := by
+theorem partialParam_nonneg {c : J → ℝ} (hc : ∀ j, 0 ≤ c j) :
+    ∀ j, 0 ≤ partialParam c j := by
   intro j
-  simp only [partialParameter]
+  simp only [partialParam]
   exact div_nonneg (mul_nonneg (by norm_num) (hc j)) (by norm_num)
 
-theorem partialParameter_exponent (c : J → ℝ) (j : J) :
-    -((partialParameter c j) ^ 2) / 16 = -(c j) ^ 2 / 196 := by
-  simp only [partialParameter]
+theorem partialParam_exponent (c : J → ℝ) (j : J) :
+    -((partialParam c j) ^ 2) / 16 = -(c j) ^ 2 / 196 := by
+  simp only [partialParam]
   ring
 
-theorem partialParameter_budget {c : J → ℝ}
+theorem partialParam_budget {c : J → ℝ}
     (hbudget : (∑ j, Real.exp (-(c j) ^ 2 / 196)) ≤
       (Fintype.card I : ℝ) / 16) :
-    (∑ j, Real.exp (-((partialParameter c j) ^ 2) / 16)) ≤
+    (∑ j, Real.exp (-((partialParam c j) ^ 2) / 16)) ≤
       (Fintype.card I : ℝ) / 16 := by
-  simpa only [partialParameter_exponent] using hbudget
+  simpa only [partialParam_exponent] using hbudget
 
 theorem partialColoring_step [DecidableEq I]
     (hLM : PartialColoringPrinciple I J)
@@ -2490,11 +2490,11 @@ theorem partialColoring_step [DecidableEq I]
     (hx₀ : InCube x₀) (hc : ∀ j, 0 ≤ c j)
     (hbudget : (∑ j, Real.exp (-(c j) ^ 2 / 196)) ≤
       (Fintype.card I : ℝ) / 16) :
-    HasPartialColoring v x₀ (partialParameter c) := by
-  exact hLM v x₀ (partialParameter c) hx₀
-    (partialParameter_nonneg hc) (partialParameter_budget hbudget)
+    HasPartialColoring v x₀ (partialParam c) := by
+  exact hLM v x₀ (partialParam c) hx₀
+    (partialParam_nonneg hc) (partialParam_budget hbudget)
 
-theorem induction_constant_inequality (d : ℕ) (c : ℝ)
+theorem induction_const_ineq (d : ℕ) (c : ℝ)
     (hd : 900 < d) (hc : 0 ≤ c) :
     2 * c / 7 * sqrt d +
         (sqrt (c ^ 2 + 196 * log ((d : ℝ) / (d / 2 : ℕ))) + 30) *
@@ -2658,12 +2658,12 @@ theorem hasFullColoring_of_card_le_900
       gcongr
       linarith [hc j]
 
-end Discrepancy
+end Disc
 
 end
 end
 
-open Discrepancy
+open Disc
 
 
 section
@@ -2672,18 +2672,18 @@ open scoped BigOperators
 
 noncomputable section
 
-namespace Discrepancy
+namespace Disc
 
 universe uI uJ
 
 variable {I : Type uI} {J : Type uJ} [Fintype I] [Fintype J]
 
-def nextParameter (d : ℕ) (c : J → ℝ) : J → ℝ :=
+def nextParam (d : ℕ) (c : J → ℝ) : J → ℝ :=
   fun j ↦ sqrt (c j ^ 2 + 196 * log ((d : ℝ) / (d / 2 : ℕ)))
 
 omit [Fintype J] in
-theorem nextParameter_nonneg (d : ℕ) (c : J → ℝ) :
-    ∀ j, 0 ≤ nextParameter d c j := fun _ ↦ sqrt_nonneg _
+theorem nextParam_nonneg (d : ℕ) (c : J → ℝ) :
+    ∀ j, 0 ≤ nextParam d c j := fun _ ↦ sqrt_nonneg _
 
 theorem half_pos {d : ℕ} (hd : 900 < d) : 0 < d / 2 := by omega
 
@@ -2697,32 +2697,32 @@ theorem half_ratio_one_le {d : ℕ} (hd : 900 < d) :
   exact_mod_cast (show d / 2 ≤ d by omega)
 
 omit [Fintype J] in
-theorem nextParameter_sq {d : ℕ} (hd : 900 < d) (c : J → ℝ) (j : J) :
-    nextParameter d c j ^ 2 =
+theorem nextParam_sq {d : ℕ} (hd : 900 < d) (c : J → ℝ) (j : J) :
+    nextParam d c j ^ 2 =
       c j ^ 2 + 196 * log ((d : ℝ) / (d / 2 : ℕ)) := by
-  rw [nextParameter, sq_sqrt]
+  rw [nextParam, sq_sqrt]
   have hlog : 0 ≤ log ((d : ℝ) / (d / 2 : ℕ)) :=
     log_nonneg (half_ratio_one_le hd)
   positivity
 
 omit [Fintype J] in
-theorem nextParameter_exp_identity {d : ℕ} (hd : 900 < d)
+theorem nextParam_exp_id {d : ℕ} (hd : 900 < d)
     (c : J → ℝ) (j : J) :
-    Real.exp (-(nextParameter d c j) ^ 2 / 196) =
+    Real.exp (-(nextParam d c j) ^ 2 / 196) =
       Real.exp (-(c j) ^ 2 / 196) * ((d / 2 : ℕ) : ℝ) / d := by
   have hdR : (0 : ℝ) < d := by exact_mod_cast (show 0 < d by omega)
   have hqR : (0 : ℝ) < (d / 2 : ℕ) := by exact_mod_cast half_pos hd
-  rw [nextParameter_sq hd]
+  rw [nextParam_sq hd]
   rw [show -(c j ^ 2 + 196 * log ((d : ℝ) / (d / 2 : ℕ))) / 196 =
       -(c j) ^ 2 / 196 - log ((d : ℝ) / (d / 2 : ℕ)) by ring]
   rw [Real.exp_sub, exp_log (div_pos hdR hqR)]
   field_simp
 
-theorem nextParameter_budget {d : ℕ} (hd : 900 < d) (c : J → ℝ)
+theorem nextParam_budget {d : ℕ} (hd : 900 < d) (c : J → ℝ)
     (hbudget : (∑ j, Real.exp (-(c j) ^ 2 / 196)) ≤ (d : ℝ) / 16) :
-    (∑ j, Real.exp (-(nextParameter d c j) ^ 2 / 196)) ≤
+    (∑ j, Real.exp (-(nextParam d c j) ^ 2 / 196)) ≤
       ((d / 2 : ℕ) : ℝ) / 16 := by
-  simp_rw [nextParameter_exp_identity hd]
+  simp_rw [nextParam_exp_id hd]
   simp_rw [mul_div_assoc]
   rw [← Finset.sum_mul]
   have hfactor : 0 ≤ (((d / 2 : ℕ) : ℝ) / d) := by positivity
@@ -2734,30 +2734,30 @@ theorem nextParameter_budget {d : ℕ} (hd : 900 < d) (c : J → ℝ)
       have hd0 : (d : ℝ) ≠ 0 := by positivity
       field_simp
 
-def padVector [DecidableEq I] (F : Finset I) (q : ℕ) (v : I → ℝ) :
+def padVec [DecidableEq I] (F : Finset I) (q : ℕ) (v : I → ℝ) :
     Sum ↥(Fᶜ : Finset I) (Fin (q - Fᶜ.card)) → ℝ
   | Sum.inl i => v i
   | Sum.inr _ => 0
 
-def padPoint [DecidableEq I] (F : Finset I) (q : ℕ) (x : I → ℝ) :
+def padPt [DecidableEq I] (F : Finset I) (q : ℕ) (x : I → ℝ) :
     Sum ↥(Fᶜ : Finset I) (Fin (q - Fᶜ.card)) → ℝ
   | Sum.inl i => x i
   | Sum.inr _ => 0
 
-theorem inCube_padPoint [DecidableEq I] (F : Finset I) (q : ℕ)
-    {x : I → ℝ} (hx : InCube x) : InCube (padPoint F q x) := by
+theorem inCube_padPt [DecidableEq I] (F : Finset I) (q : ℕ)
+    {x : I → ℝ} (hx : InCube x) : InCube (padPt F q x) := by
   intro i
   cases i with
-  | inl i => simpa [padPoint] using hx i
-  | inr i => simp [padPoint]
+  | inl i => simpa [padPt] using hx i
+  | inr i => simp [padPt]
 
-theorem norm_padVector_le [DecidableEq I] (F : Finset I) (q : ℕ)
-    (v : I → ℝ) : ‖padVector F q v‖ ≤ ‖v‖ := by
+theorem norm_padVec_le [DecidableEq I] (F : Finset I) (q : ℕ)
+    (v : I → ℝ) : ‖padVec F q v‖ ≤ ‖v‖ := by
   rw [pi_norm_le_iff_of_nonneg (norm_nonneg _)]
   intro i
   cases i with
-  | inl i => simpa [padVector] using norm_le_pi_norm v i
-  | inr i => simp [padVector]
+  | inl i => simpa [padVec] using norm_le_pi_norm v i
+  | inr i => simp [padVec]
 
 theorem card_pad [DecidableEq I] (F : Finset I) (q : ℕ)
     (hcard : Fᶜ.card ≤ q) :
@@ -2768,21 +2768,21 @@ theorem card_pad [DecidableEq I] (F : Finset I) (q : ℕ)
 theorem dot_pad_sub [DecidableEq I] (F : Finset I) (q : ℕ)
     (y : Sum ↥(Fᶜ : Finset I) (Fin (q - Fᶜ.card)) → ℝ)
     (x v : I → ℝ) :
-    dot (y - padPoint F q x) (padVector F q v) =
+    dot (y - padPt F q x) (padVec F q v) =
       dot (fun i : ↥(Fᶜ : Finset I) ↦ y (Sum.inl i) - x i)
         (restrictOutside F v) := by
-  simp [dot, padPoint, padVector, restrictOutside]
+  simp [dot, padPt, padVec, restrictOutside]
 
-theorem fixed_restrict_isSign [DecidableEq I] (x : I → ℝ) :
-    IsSign (restrict (fixedCoordinates x) x) := by
+theorem fix_restrict_isSign [DecidableEq I] (x : I → ℝ) :
+    IsSign (restrict (fixCoords x) x) := by
   intro i
   have hi : |x i| = 1 := by
-    simpa [fixedCoordinates] using i.property
+    simpa [fixCoords] using i.property
   simpa [restrict] using (abs_eq (by norm_num : (0 : ℝ) ≤ 1)).mp hi
 
-theorem card_compl_fixed_le_half [DecidableEq I] {x : I → ℝ}
-    (hfixed : Fintype.card I ≤ 2 * (fixedCoordinates x).card) :
-    (fixedCoordinates x)ᶜ.card ≤ Fintype.card I / 2 := by
+theorem card_compl_fix_le_half [DecidableEq I] {x : I → ℝ}
+    (hfixed : Fintype.card I ≤ 2 * (fixCoords x).card) :
+    (fixCoords x)ᶜ.card ≤ Fintype.card I / 2 := by
   rw [Finset.card_compl]
   omega
 
@@ -2807,36 +2807,36 @@ theorem hasFullColoring_of_partialColoringPrinciple
               (Fintype.card I : ℝ) / 16 := by simpa [hdcard] using hbudget
         obtain ⟨x, hxCube, hxFixed, hxError⟩ :=
           partialColoring_step (hLM I) v x₀ c hx₀ hc hbudgetI
-        let F : Finset I := fixedCoordinates x
+        let F : Finset I := fixCoords x
         let q : ℕ := d / 2
         have hFcard : Fᶜ.card ≤ q := by
           dsimp only [F, q]
-          have hhalf := card_compl_fixed_le_half hxFixed
+          have hhalf := card_compl_fix_le_half hxFixed
           simpa [hdcard] using hhalf
         let K := Sum ↥(Fᶜ : Finset I) (Fin (q - Fᶜ.card))
-        let vK : J → K → ℝ := fun j ↦ padVector F q (v j)
-        let xK : K → ℝ := padPoint F q x
+        let vK : J → K → ℝ := fun j ↦ padVec F q (v j)
+        let xK : K → ℝ := padPt F q x
         have hcardK : Fintype.card K = q := by
           exact card_pad F q hFcard
         have hq_lt : q < d := by
           dsimp only [q]
           exact half_lt hdlarge
-        have hxK : InCube xK := inCube_padPoint F q hxCube
+        have hxK : InCube xK := inCube_padPt F q hxCube
         have hbudgetK :
-            (∑ j, Real.exp (-(nextParameter d c j) ^ 2 / 196)) ≤
+            (∑ j, Real.exp (-(nextParam d c j) ^ 2 / 196)) ≤
               (Fintype.card K : ℝ) / 16 := by
           rw [hcardK]
-          exact nextParameter_budget hdlarge c hbudget
-        have hrecursive : HasFullColoring vK xK (nextParameter d c) := by
-          apply ih q hq_lt (I := K) vK xK (nextParameter d c) hxK
-            (nextParameter_nonneg d c) hcardK
+          exact nextParam_budget hdlarge c hbudget
+        have hrecursive : HasFullColoring vK xK (nextParam d c) := by
+          apply ih q hq_lt (I := K) vK xK (nextParam d c) hxK
+            (nextParam_nonneg d c) hcardK
           simpa [hcardK] using hbudgetK
         obtain ⟨yK, hyKSign, hyKError⟩ := hrecursive
         let yOutside : ↥(Fᶜ : Finset I) → ℝ := fun i ↦ yK (Sum.inl i)
         let y : I → ℝ := glue F (restrict F x) yOutside
         have hyOutsideSign : IsSign yOutside := fun i ↦ hyKSign (Sum.inl i)
         have hySign : IsSign y := by
-          exact isSign_glue F (fixed_restrict_isSign x) hyOutsideSign
+          exact isSign_glue F (fix_restrict_isSign x) hyOutsideSign
         refine ⟨y, hySign, ?_⟩
         intro j
         have hpartial :
@@ -2844,28 +2844,28 @@ theorem hasFullColoring_of_partialColoringPrinciple
               (2 * c j / 7 * sqrt d) * ‖v j‖ := by
           calc
             |dot (x - x₀) (v j)|
-                ≤ partialParameter c j * l2Norm (v j) := hxError j
-            _ ≤ partialParameter c j *
+                ≤ partialParam c j * l2Norm (v j) := hxError j
+            _ ≤ partialParam c j *
                 (sqrt (Fintype.card I) * ‖v j‖) := by
                   exact mul_le_mul_of_nonneg_left
                     (l2Norm_le_sqrt_card_mul_norm (v j))
-                    (partialParameter_nonneg hc j)
+                    (partialParam_nonneg hc j)
             _ = (2 * c j / 7 * sqrt d) * ‖v j‖ := by
-                  simp [partialParameter, hdcard]
+                  simp [partialParam, hdcard]
                   ring
-        have hvKnorm : ‖vK j‖ ≤ ‖v j‖ := norm_padVector_le F q (v j)
+        have hvKnorm : ‖vK j‖ ≤ ‖v j‖ := norm_padVec_le F q (v j)
         have hrecursiveError :
             |dot (yK - xK) (vK j)| ≤
-              ((nextParameter d c j + 30) * sqrt q) * ‖v j‖ := by
+              ((nextParam d c j + 30) * sqrt q) * ‖v j‖ := by
           calc
             |dot (yK - xK) (vK j)|
-                ≤ (nextParameter d c j + 30) *
+                ≤ (nextParam d c j + 30) *
                     sqrt (Fintype.card K) * ‖vK j‖ := hyKError j
-            _ = ((nextParameter d c j + 30) * sqrt q) * ‖vK j‖ := by
+            _ = ((nextParam d c j + 30) * sqrt q) * ‖vK j‖ := by
                   rw [hcardK]
-            _ ≤ ((nextParameter d c j + 30) * sqrt q) * ‖v j‖ := by
+            _ ≤ ((nextParam d c j + 30) * sqrt q) * ‖v j‖ := by
                   exact mul_le_mul_of_nonneg_left hvKnorm
-                    (mul_nonneg (by linarith [nextParameter_nonneg d c j])
+                    (mul_nonneg (by linarith [nextParam_nonneg d c j])
                       (sqrt_nonneg _))
         have hyxDot :
             dot (y - x) (v j) = dot (yK - xK) (vK j) := by
@@ -2881,7 +2881,7 @@ theorem hasFullColoring_of_partialColoringPrinciple
               exact dot_pad_sub F q yK x (v j)
         have hyx :
             |dot (y - x) (v j)| ≤
-              ((nextParameter d c j + 30) * sqrt q) * ‖v j‖ := by
+              ((nextParam d c j + 30) * sqrt q) * ‖v j‖ := by
           rw [hyxDot]
           exact hrecursiveError
         have hsplit :
@@ -2893,19 +2893,19 @@ theorem hasFullColoring_of_partialColoringPrinciple
           |dot (x - x₀) (v j) + dot (y - x) (v j)|
               ≤ |dot (x - x₀) (v j)| + |dot (y - x) (v j)| := abs_add_le _ _
           _ ≤ (2 * c j / 7 * sqrt d) * ‖v j‖ +
-                ((nextParameter d c j + 30) * sqrt q) * ‖v j‖ :=
+                ((nextParam d c j + 30) * sqrt q) * ‖v j‖ :=
               add_le_add hpartial hyx
           _ = (2 * c j / 7 * sqrt d +
-                (nextParameter d c j + 30) * sqrt q) * ‖v j‖ := by ring
+                (nextParam d c j + 30) * sqrt q) * ‖v j‖ := by ring
           _ ≤ ((c j + 30) * sqrt d) * ‖v j‖ := by
               exact mul_le_mul_of_nonneg_right
-                (by simpa [nextParameter, q] using
-                  induction_constant_inequality d (c j) hdlarge (hc j))
+                (by simpa [nextParam, q] using
+                  induction_const_ineq d (c j) hdlarge (hc j))
                 (norm_nonneg _)
           _ = (c j + 30) * sqrt (Fintype.card I) * ‖v j‖ := by
               rw [hdcard]
 
-end Discrepancy
+end Disc
 
 end
 end
@@ -2922,7 +2922,7 @@ private lemma hasDerivAt_neg_cos_div (ω : ℝ) (hω : ω ≠ 0) (x : ℝ) :
       (sin (ω * x)) x := by
   simpa [hω] using ((hasDerivAt_const_mul ω).cos.neg.div_const ω)
 
-theorem abs_integral_mul_sin_le_of_deriv_nonneg
+theorem abs_intg_mul_sin_le_of_deriv_nonneg
     {h h' : ℝ → ℝ} {a b : ℝ} {n : ℕ}
     (hn : 0 < n) (hab : a ≤ b)
     (hderiv : ∀ x ∈ Icc a b, HasDerivAt h (h' x) x)
@@ -3004,7 +3004,7 @@ theorem abs_integral_mul_sin_le_of_deriv_nonneg
       field_simp
       ring
 
-theorem abs_integral_mul_sin_le_of_deriv_nonpos
+theorem abs_intg_mul_sin_le_of_deriv_nonpos
     {h h' : ℝ → ℝ} {a b : ℝ} {n : ℕ}
     (hn : 0 < n) (hab : a ≤ b)
     (hderiv : ∀ x ∈ Icc a b, HasDerivAt h (h' x) x)
@@ -3013,14 +3013,14 @@ theorem abs_integral_mul_sin_le_of_deriv_nonpos
     (hcos : cos ((2 * (n : ℝ)) * b) = cos ((2 * (n : ℝ)) * a)) :
     |∫ x in a..b, h x * sin ((2 * (n : ℝ)) * x)| ≤
       |h b - h a| / n := by
-  have h := abs_integral_mul_sin_le_of_deriv_nonneg
+  have h := abs_intg_mul_sin_le_of_deriv_nonneg
     (h := fun x ↦ -h x) (h' := fun x ↦ -h' x) hn hab
     (fun x hx ↦ (hderiv x hx).neg) hcont.neg
     (fun x hx ↦ neg_nonneg.mpr (hnonpos x hx)) hcos
   simpa only [neg_mul, intervalIntegral.integral_neg, abs_neg, neg_sub_neg,
     abs_sub_comm] using h
 
-theorem sum_interval_error_le_of_monotone_endpoints
+theorem sum_ivl_error_le_of_mono_endpts
     {m : ℕ} {A B E : ℕ → ℝ} {n : ℕ} (hn : 0 < n)
     (hlocal : ∀ k < m, E k ≤ (B k - A k) / n)
     (hchain : ∀ k < m, B k ≤ A (k + 1)) :
@@ -3037,7 +3037,7 @@ theorem sum_interval_error_le_of_monotone_endpoints
       congr 1
       simpa using sum_range_sub A m
 
-theorem normalized_kernel_bounds {value main error : ℝ}
+theorem norm_kernel_bounds {value main error : ℝ}
     (hvalue : value = main + error)
     (hmain_lower : 4 / 3 ≤ |main|)
     (hmain_upper : |main| ≤ 4)
@@ -3069,132 +3069,132 @@ open scoped BigOperators
 
 noncomputable section
 
-def oddFrequency (j : ℕ) : ℕ := 2 * j + 1
+def oddFreq (j : ℕ) : ℕ := 2 * j + 1
 
 def oddSineSum (n : ℕ) (a : ℕ → ℝ) (θ : ℝ) : ℝ :=
-  ∑ j ∈ Finset.range n, a j * sin ((oddFrequency j : ℝ) * θ)
+  ∑ j ∈ Finset.range n, a j * sin ((oddFreq j : ℝ) * θ)
 
-def oddExponentialDerivative (l n : ℕ) (a : ℕ → ℝ) (θ : ℝ) : ℂ :=
+def oddExpDeriv (l n : ℕ) (a : ℕ → ℝ) (θ : ℝ) : ℂ :=
   ∑ j ∈ Finset.range n, (a j : ℂ) *
-    (((oddFrequency j : ℝ) : ℂ) * Complex.I) ^ l *
-      Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) * Complex.I)
+    (((oddFreq j : ℝ) : ℂ) * Complex.I) ^ l *
+      Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) * Complex.I)
 
-def oddSineDerivative (l n : ℕ) (a : ℕ → ℝ) (θ : ℝ) : ℝ :=
-  (oddExponentialDerivative l n a θ).im
+def oddSinDeriv (l n : ℕ) (a : ℕ → ℝ) (θ : ℝ) : ℝ :=
+  (oddExpDeriv l n a θ).im
 
 @[simp]
-theorem oddSineDerivative_zero (n : ℕ) (a : ℕ → ℝ) (θ : ℝ) :
-    oddSineDerivative 0 n a θ = oddSineSum n a θ := by
+theorem oddSinDeriv_zero (n : ℕ) (a : ℕ → ℝ) (θ : ℝ) :
+    oddSinDeriv 0 n a θ = oddSineSum n a θ := by
   classical
-  simp only [oddSineDerivative, oddExponentialDerivative, oddSineSum, pow_zero,
+  simp only [oddSinDeriv, oddExpDeriv, oddSineSum, pow_zero,
     mul_one]
   change imLm
     (∑ j ∈ Finset.range n, (a j : ℂ) *
-      Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) * Complex.I)) = _
+      Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) * Complex.I)) = _
   rw [map_sum imLm]
   apply sum_congr rfl
   intro j hj
   change ((a j : ℂ) *
-    Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) * Complex.I)).im = _
+    Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) * Complex.I)).im = _
   rw [mul_im]
   simp [Complex.exp_im]
 
-theorem abs_oddSineDerivative_le (l n : ℕ) (a : ℕ → ℝ) (θ : ℝ) :
-    |oddSineDerivative l n a θ| ≤
-      ∑ j ∈ Finset.range n, |a j| * (oddFrequency j : ℝ) ^ l := by
+theorem abs_oddSinDeriv_le (l n : ℕ) (a : ℕ → ℝ) (θ : ℝ) :
+    |oddSinDeriv l n a θ| ≤
+      ∑ j ∈ Finset.range n, |a j| * (oddFreq j : ℝ) ^ l := by
   classical
   calc
-    |oddSineDerivative l n a θ| ≤ ‖oddExponentialDerivative l n a θ‖ :=
+    |oddSinDeriv l n a θ| ≤ ‖oddExpDeriv l n a θ‖ :=
       abs_im_le_norm _
     _ ≤ ∑ j ∈ Finset.range n,
         ‖(a j : ℂ) *
-          ((((oddFrequency j : ℝ) : ℂ) * Complex.I) ^ l) *
-          Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) * Complex.I)‖ := by
+          ((((oddFreq j : ℝ) : ℂ) * Complex.I) ^ l) *
+          Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) * Complex.I)‖ := by
       exact norm_sum_le _ _
-    _ = ∑ j ∈ Finset.range n, |a j| * (oddFrequency j : ℝ) ^ l := by
+    _ = ∑ j ∈ Finset.range n, |a j| * (oddFreq j : ℝ) ^ l := by
       apply sum_congr rfl
       intro j hj
       rw [norm_mul, norm_mul, norm_pow]
       have hexp :
-          ‖Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) * Complex.I)‖ = 1 :=
+          ‖Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) * Complex.I)‖ = 1 :=
         norm_exp_ofReal_mul_I _
-      have hfreq : 0 ≤ (oddFrequency j : ℝ) := by positivity
-      have hnormFreq : ‖((oddFrequency j : ℝ) : ℂ)‖ = (oddFrequency j : ℝ) :=
+      have hfreq : 0 ≤ (oddFreq j : ℝ) := by positivity
+      have hnormFreq : ‖((oddFreq j : ℝ) : ℂ)‖ = (oddFreq j : ℝ) :=
         Complex.norm_of_nonneg hfreq
       rw [hexp, mul_one, Complex.norm_mul, hnormFreq, norm_I, mul_one,
         Complex.norm_real, norm_eq_abs]
 
-theorem oddFrequency_le_two_mul {n j : ℕ} (hj : j ∈ Finset.range n) :
-    oddFrequency j ≤ 2 * n := by
+theorem oddFreq_le_two_mul {n j : ℕ} (hj : j ∈ Finset.range n) :
+    oddFreq j ≤ 2 * n := by
   simp only [Finset.mem_range] at hj
-  simp only [oddFrequency]
+  simp only [oddFreq]
   omega
 
-theorem abs_oddSineDerivative_le_card_mul (l n : ℕ) (a : ℕ → ℝ) (A : ℝ)
+theorem abs_oddSinDeriv_le_card_mul (l n : ℕ) (a : ℕ → ℝ) (A : ℝ)
     (hA : ∀ j < n, |a j| ≤ A) (hA0 : 0 ≤ A) (θ : ℝ) :
-    |oddSineDerivative l n a θ| ≤
+    |oddSinDeriv l n a θ| ≤
       n * A * (2 * n : ℝ) ^ l := by
-  refine (abs_oddSineDerivative_le l n a θ).trans ?_
+  refine (abs_oddSinDeriv_le l n a θ).trans ?_
   calc
-    (∑ j ∈ Finset.range n, |a j| * (oddFrequency j : ℝ) ^ l) ≤
+    (∑ j ∈ Finset.range n, |a j| * (oddFreq j : ℝ) ^ l) ≤
         ∑ _j ∈ Finset.range n, A * (2 * n : ℝ) ^ l := by
       apply sum_le_sum
       intro j hj
       have hj' : j < n := Finset.mem_range.mp hj
-      have hfreq : (oddFrequency j : ℝ) ≤ (2 * n : ℝ) := by
-        exact_mod_cast oddFrequency_le_two_mul hj
+      have hfreq : (oddFreq j : ℝ) ≤ (2 * n : ℝ) := by
+        exact_mod_cast oddFreq_le_two_mul hj
       exact mul_le_mul (hA j hj')
         (pow_le_pow_left₀ (by positivity) hfreq l) (by positivity) hA0
     _ = n * A * (2 * n : ℝ) ^ l := by
       simp [mul_assoc]
 
-theorem hasSum_oddExponentialDerivative_taylor (n : ℕ) (a : ℕ → ℝ)
+theorem hasSum_oddExpDeriv_taylor (n : ℕ) (a : ℕ → ℝ)
     (x h : ℝ) :
-    HasSum (fun l : ℕ => oddExponentialDerivative l n a x * (h : ℂ) ^ l / l.factorial)
-      (oddExponentialDerivative 0 n a (x + h)) := by
+    HasSum (fun l : ℕ => oddExpDeriv l n a x * (h : ℂ) ^ l / l.factorial)
+      (oddExpDeriv 0 n a (x + h)) := by
   classical
   have hj (j : ℕ) :
       HasSum
         (fun l : ℕ =>
           ((a j : ℂ) *
-            Complex.exp ((((oddFrequency j : ℝ) * x : ℝ) : ℂ) * Complex.I)) *
-            (((((oddFrequency j : ℝ) : ℂ) * Complex.I) * (h : ℂ)) ^ l /
+            Complex.exp ((((oddFreq j : ℝ) * x : ℝ) : ℂ) * Complex.I)) *
+            (((((oddFreq j : ℝ) : ℂ) * Complex.I) * (h : ℂ)) ^ l /
               l.factorial))
         ((a j : ℂ) *
-          Complex.exp ((((oddFrequency j : ℝ) * x : ℝ) : ℂ) * Complex.I) *
-          Complex.exp (((oddFrequency j : ℝ) : ℂ) * Complex.I * (h : ℂ))) := by
-    let z : ℂ := (((oddFrequency j : ℝ) : ℂ) * Complex.I) * (h : ℂ)
+          Complex.exp ((((oddFreq j : ℝ) * x : ℝ) : ℂ) * Complex.I) *
+          Complex.exp (((oddFreq j : ℝ) : ℂ) * Complex.I * (h : ℂ))) := by
+    let z : ℂ := (((oddFreq j : ℝ) : ℂ) * Complex.I) * (h : ℂ)
     let c : ℂ := (a j : ℂ) *
-      Complex.exp ((((oddFrequency j : ℝ) * x : ℝ) : ℂ) * Complex.I)
+      Complex.exp ((((oddFreq j : ℝ) * x : ℝ) : ℂ) * Complex.I)
     have hz : HasSum (fun l : ℕ => z ^ l / l.factorial) (Complex.exp z) :=
       Complex.exp_eq_exp_ℂ ▸ NormedSpace.expSeries_div_hasSum_exp z
     simpa only [z, c] using hz.mul_left c
   have hsum := hasSum_sum (s := Finset.range n) (fun j _ => hj j)
   convert hsum using 1
   · funext l
-    simp only [oddExponentialDerivative, Finset.sum_mul, sum_div]
+    simp only [oddExpDeriv, Finset.sum_mul, sum_div]
     apply sum_congr rfl
     intro j hjmem
     rw [mul_pow]
     ring
-  · simp only [oddExponentialDerivative, pow_zero, mul_one]
+  · simp only [oddExpDeriv, pow_zero, mul_one]
     apply sum_congr rfl
     intro j hjmem
-    rw [show ((((oddFrequency j : ℝ) * (x + h) : ℝ) : ℂ) * Complex.I) =
-        ((((oddFrequency j : ℝ) * x : ℝ) : ℂ) * Complex.I) +
-          (((oddFrequency j : ℝ) : ℂ) * Complex.I * (h : ℂ)) by
+    rw [show ((((oddFreq j : ℝ) * (x + h) : ℝ) : ℂ) * Complex.I) =
+        ((((oddFreq j : ℝ) * x : ℝ) : ℂ) * Complex.I) +
+          (((oddFreq j : ℝ) : ℂ) * Complex.I * (h : ℂ)) by
             push_cast; ring]
     rw [Complex.exp_add]
     ring
 
-theorem hasSum_oddSineDerivative_taylor (n : ℕ) (a : ℕ → ℝ) (x h : ℝ) :
-    HasSum (fun l : ℕ => oddSineDerivative l n a x * h ^ l / l.factorial)
-      (oddSineDerivative 0 n a (x + h)) := by
-  have him := Complex.hasSum_im (hasSum_oddExponentialDerivative_taylor n a x h)
+theorem hasSum_oddSinDeriv_taylor (n : ℕ) (a : ℕ → ℝ) (x h : ℝ) :
+    HasSum (fun l : ℕ => oddSinDeriv l n a x * h ^ l / l.factorial)
+      (oddSinDeriv 0 n a (x + h)) := by
+  have him := Complex.hasSum_im (hasSum_oddExpDeriv_taylor n a x h)
   convert him using 1
   · funext l
-    change (oddExponentialDerivative l n a x).im * h ^ l / l.factorial =
-      (oddExponentialDerivative l n a x * (h : ℂ) ^ l / l.factorial).im
+    change (oddExpDeriv l n a x).im * h ^ l / l.factorial =
+      (oddExpDeriv l n a x * (h : ℂ) ^ l / l.factorial).im
     have hcomponents : ((h : ℂ) ^ l).re = h ^ l ∧ ((h : ℂ) ^ l).im = 0 := by
       induction l with
       | zero => simp
@@ -3320,7 +3320,7 @@ theorem abs_oddSineSum_le_seventy_two_sqrt
     {n : ℕ} (hn : 0 < n) (a : ℕ → ℝ) (x θ : ℝ)
     (hnear : |θ - x| ≤ π / (64 * n))
     (hdisc : ∀ l : ℕ,
-      |oddSineDerivative l n a x| ≤
+      |oddSinDeriv l n a x| ≤
         (65 + 2 * l) * sqrt n * (2 * n : ℝ) ^ l) :
     |oddSineSum n a θ| ≤ 72 * sqrt n := by
   let h : ℝ := θ - x
@@ -3336,7 +3336,7 @@ theorem abs_oddSineSum_le_seventy_two_sqrt
         gcongr
       _ = π / 32 := by field_simp; ring
       _ ≤ 11 / 112 := by linarith
-  have htaylor := hasSum_oddSineDerivative_taylor n a x h
+  have htaylor := hasSum_oddSinDeriv_taylor n a x h
   let q : ℝ := |h| * (2 * n : ℝ)
   have hqdef : q = |h| * (2 * n : ℝ) := rfl
   have haff : Summable
@@ -3355,7 +3355,7 @@ theorem abs_oddSineSum_le_seventy_two_sqrt
     rw [norm_eq_abs, abs_div, abs_mul, abs_pow, hfacabs]
     exact div_le_div_of_nonneg_right
       (mul_le_mul_of_nonneg_right (hdisc l) (by positivity)) (by positivity))
-  rw [norm_eq_abs, oddSineDerivative_zero, hθ] at hTaylorBound
+  rw [norm_eq_abs, oddSinDeriv_zero, hθ] at hTaylorBound
   calc
     |oddSineSum n a θ| ≤ ∑' l : ℕ,
         ((65 + 2 * l) * sqrt n * (2 * n : ℝ) ^ l) *
@@ -3396,13 +3396,13 @@ def K : ℝ := 2 ^ 7
 
 @[simp] theorem K_eq : K = 128 := by norm_num [K]
 
-abbrev RealInterval := ℝ × ℝ
+abbrev RealIvl := ℝ × ℝ
 
-def InInterval (I : RealInterval) (θ : ℝ) : Prop :=
+def InIvl (I : RealIvl) (θ : ℝ) : Prop :=
   θ ∈ Icc I.1 I.2
 
-structure IntervalFamily (n : ℕ) where
-  base : Finset RealInterval
+structure IvlFam (n : ℕ) where
+  base : Finset RealIvl
   ordered : ∀ I ∈ base, I.1 ≤ I.2
 
   nondegenerate : ∀ I ∈ base, I.1 < I.2
@@ -3410,43 +3410,43 @@ structure IntervalFamily (n : ℕ) where
   grid_endpoints : ∀ I ∈ base, ∃ a b : ℤ,
     I.1 = (a : ℝ) * π / n ∧ I.2 = (b : ℝ) * π / n
   short : ∀ I ∈ base, I.2 - I.1 ≤ 6 * π / n
-  separated : Set.Pairwise ((↑base : Set RealInterval))
+  separated : Set.Pairwise ((↑base : Set RealIvl))
     (fun I J ↦ ∀ x ∈ Icc I.1 I.2, ∀ y ∈ Icc J.1 J.2,
       π / n ≤ |x - y|)
   away_from_axes : ∀ I ∈ base,
     100 * π / n ≤ I.1 ∧ I.2 ≤ π / 2 - 100 * π / n
 
-def IsDangerous {n : ℕ} (F : IntervalFamily n) (θ : ℝ) : Prop :=
+def IsDangerous {n : ℕ} (F : IvlFam n) (θ : ℝ) : Prop :=
   ∃ I ∈ F.base,
-    InInterval I θ ∨ InInterval I (-θ) ∨
-      InInterval I (π - θ) ∨ InInterval I (θ - π)
+    InIvl I θ ∨ InIvl I (-θ) ∨
+      InIvl I (π - θ) ∨ InIvl I (θ - π)
 
-def firstVector {n : ℕ} (F : IntervalFamily n) (j : Fin n) :
+def firstVec {n : ℕ} (F : IvlFam n) (j : Fin n) :
     ↥F.base → ℝ :=
   fun I ↦ 4 * K * sqrt n *
     ∫ θ in I.1.1..I.1.2,
-      sin ((oddFrequency j : ℝ) * θ)
+      sin ((oddFreq j : ℝ) * θ)
 
-theorem norm_firstVector_le {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) (j : Fin n) :
-    ‖firstVector F j‖ ≤
+theorem norm_firstVec_le {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) (j : Fin n) :
+    ‖firstVec F j‖ ≤
       24 * K * π * sqrt n / n := by
   rw [pi_norm_le_iff_of_nonneg]
   · intro I
     rw [norm_eq_abs]
-    simp only [firstVector, abs_mul]
+    simp only [firstVec, abs_mul]
     have hintegral :
         ‖∫ θ in I.1.1..I.1.2,
-            sin ((oddFrequency j : ℝ) * θ)‖ ≤
+            sin ((oddFreq j : ℝ) * θ)‖ ≤
           I.1.2 - I.1.1 := by
       have h := norm_integral_le_of_norm_le_const
         (a := I.1.1) (b := I.1.2) (C := (1 : ℝ))
         (f := fun θ : ℝ ↦
-          sin ((oddFrequency j : ℝ) * θ))
+          sin ((oddFreq j : ℝ) * θ))
         (fun θ hθ ↦ by
           simpa [norm_eq_abs] using
             abs_sin_le_one
-              ((oddFrequency j : ℝ) * θ))
+              ((oddFreq j : ℝ) * θ))
       simpa [abs_of_nonneg (sub_nonneg.2 (F.ordered I I.2))] using h
     have hwidth := F.short I I.2
     have hnR : (0 : ℝ) < n := by exact_mod_cast hn
@@ -3455,7 +3455,7 @@ theorem norm_firstVector_le {n : ℕ} (hn : 0 < n)
     calc
       |4| * |K| * |sqrt ↑n| *
           |∫ θ in I.1.1..I.1.2,
-            sin ((oddFrequency ↑j : ℝ) * θ)| ≤
+            sin ((oddFreq ↑j : ℝ) * θ)| ≤
           (4 * K * sqrt n) * (I.1.2 - I.1.1) := by
             rw [abs_of_nonneg (by norm_num : (0 : ℝ) ≤ 4),
               abs_of_nonneg (by norm_num [K] : (0 : ℝ) ≤ K),
@@ -3467,63 +3467,63 @@ theorem norm_firstVector_le {n : ℕ} (hn : 0 < n)
   · have hK : (0 : ℝ) ≤ K := by norm_num [K]
     positivity
 
-def fourierTarget {n : ℕ} (F : IntervalFamily n)
+def fourierTarget {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) (j : ℕ) : ℝ :=
   if _hj : j < n then
     ∑ I : ↥F.base,
       α I * (4 * K * sqrt n *
         ∫ θ in I.1.1..I.1.2,
-          sin ((oddFrequency j : ℝ) * θ))
+          sin ((oddFreq j : ℝ) * θ))
   else 0
 
-theorem fourierTarget_eq_dot {n : ℕ} (F : IntervalFamily n)
+theorem fourierTarget_eq_dot {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) (j : Fin n) :
-    fourierTarget F α j = dot α (firstVector F j) := by
-  simp [fourierTarget, firstVector, dot, j.isLt]
+    fourierTarget F α j = dot α (firstVec F j) := by
+  simp [fourierTarget, firstVec, dot, j.isLt]
 
-def targetSine {n : ℕ} (F : IntervalFamily n)
+def targetSine {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) (θ : ℝ) : ℝ :=
   oddSineSum n (fourierTarget F α) θ
 
-structure FirstColoringAdmissible {n : ℕ}
-    (F : IntervalFamily n) (c : Fin n → ℝ) : Prop where
+structure FirstColoringAdm {n : ℕ}
+    (F : IvlFam n) (c : Fin n → ℝ) : Prop where
   parameter_nonneg : ∀ j, 0 ≤ c j
   budget : (∑ j, Real.exp (-(c j) ^ 2 / 196)) ≤
     (Fintype.card ↥F.base : ℝ) / 16
   unit_error : ∀ j,
     (c j + 30) * sqrt (Fintype.card ↥F.base) *
-      ‖firstVector F j‖ ≤ 1
+      ‖firstVec F j‖ ≤ 1
 
-theorem firstColoringAdmissible_of_numeric {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) (c : Fin n → ℝ)
+theorem firstColoringAdm_of_numeric {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) (c : Fin n → ℝ)
     (hc : ∀ j, 0 ≤ c j)
     (hbudget : (∑ j, Real.exp (-(c j) ^ 2 / 196)) ≤
       (Fintype.card ↥F.base : ℝ) / 16)
     (hscalar : ∀ j,
       (c j + 30) * sqrt (Fintype.card ↥F.base) *
         (24 * K * π * sqrt n / n) ≤ 1) :
-    FirstColoringAdmissible F c := by
+    FirstColoringAdm F c := by
   refine ⟨hc, hbudget, ?_⟩
   intro j
   have hleft : 0 ≤
       (c j + 30) * sqrt (Fintype.card ↥F.base) :=
     mul_nonneg (by linarith [hc j]) (sqrt_nonneg _)
-  exact (mul_le_mul_of_nonneg_left (norm_firstVector_le hn F j) hleft).trans
+  exact (mul_le_mul_of_nonneg_left (norm_firstVec_le hn F j) hleft).trans
     (hscalar j)
 
-theorem exists_intervalColoring {n : ℕ} (F : IntervalFamily n)
-    (c : Fin n → ℝ) (hc : FirstColoringAdmissible F c)
+theorem exists_ivlColoring {n : ℕ} (F : IvlFam n)
+    (c : Fin n → ℝ) (hc : FirstColoringAdm F c)
     (hLM : ∀ (I : Type) [Fintype I] [DecidableEq I],
       PartialColoringPrinciple I (Fin n)) :
     ∃ α : ↥F.base → ℝ,
-      Discrepancy.IsSign α ∧ ∀ j < n, |fourierTarget F α j| ≤ 1 := by
+      Disc.IsSign α ∧ ∀ j < n, |fourierTarget F α j| ≤ 1 := by
   classical
   have hzero : InCube (0 : ↥F.base → ℝ) := by
     intro I
     simp
   obtain ⟨α, hα, herror⟩ :=
     hasFullColoring_of_partialColoringPrinciple hLM
-      (firstVector F) (0 : ↥F.base → ℝ) c hzero
+      (firstVec F) (0 : ↥F.base → ℝ) c hzero
       hc.parameter_nonneg hc.budget
   refine ⟨α, hα, ?_⟩
   intro j hj
@@ -3531,7 +3531,7 @@ theorem exists_intervalColoring {n : ℕ} (F : IntervalFamily n)
   rw [fourierTarget_eq_dot F α jf]
   simpa [jf] using (herror jf).trans (hc.unit_error jf)
 
-structure KernelCertificate {n : ℕ} (F : IntervalFamily n)
+structure KernelCert {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) where
   main : ℝ → ℝ
   error : ℝ → ℝ
@@ -3543,14 +3543,14 @@ structure KernelCertificate {n : ℕ} (F : IntervalFamily n)
   error_bound : ∀ θ, |error θ| ≤ 2 / 3
 
 theorem targetSine_kernel_bounds {n : ℕ} (_hn : 0 < n)
-    (F : IntervalFamily n) (α : ↥F.base → ℝ)
-    (hkernel : KernelCertificate F α) :
+    (F : IvlFam n) (α : ↥F.base → ℝ)
+    (hkernel : KernelCert F α) :
     (∀ θ, IsDangerous F θ →
       (2 * K / 3) * sqrt n ≤ |targetSine F α θ|) ∧
     (∀ θ, |targetSine F α θ| ≤ 5 * K * sqrt n) := by
   constructor
   · intro θ hθ
-    have hnormalized := normalized_kernel_bounds
+    have hnormalized := norm_kernel_bounds
       (value := hkernel.main θ + hkernel.error θ)
       (main := hkernel.main θ) (error := hkernel.error θ)
       (hvalue := (rfl : hkernel.main θ + hkernel.error θ =
@@ -3586,10 +3586,10 @@ theorem targetSine_kernel_bounds {n : ℕ} (_hn : 0 < n)
         mul_le_mul_of_nonneg_left hnormalized hfactor
       _ = 5 * K * sqrt n := by ring
 
-def derivativeVector (n l : ℕ) (θ : ℝ) : Fin n → ℝ :=
+def derivVec (n l : ℕ) (θ : ℝ) : Fin n → ℝ :=
   fun j ↦
-    ((((((oddFrequency j : ℝ) : ℂ) * Complex.I) ^ l) *
-      Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) *
+    ((((((oddFreq j : ℝ) : ℂ) * Complex.I) ^ l) *
+      Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) *
         Complex.I))).im
 
 structure RoundingSetup (n : ℕ) (G : Type) [Fintype G] where
@@ -3603,53 +3603,53 @@ structure RoundingSetup (n : ℕ) (G : Type) [Fintype G] where
       |oddSineSum n a θ| =
         |oddSineSum n a θ'|
 
-theorem oddSineDerivative_eq_dot (n l : ℕ) (a : ℕ → ℝ) (θ : ℝ) :
-    oddSineDerivative l n a θ =
+theorem oddSinDeriv_eq_dot (n l : ℕ) (a : ℕ → ℝ) (θ : ℝ) :
+    oddSinDeriv l n a θ =
       dot (fun j : Fin n ↦ a j)
-        (derivativeVector n l θ) := by
+        (derivVec n l θ) := by
   classical
-  simp only [oddSineDerivative,
-    oddExponentialDerivative,
-    derivativeVector, dot]
+  simp only [oddSinDeriv,
+    oddExpDeriv,
+    derivVec, dot]
   change imLm
       (∑ j ∈ Finset.range n, (a j : ℂ) *
-        (((oddFrequency j : ℝ) : ℂ) * Complex.I) ^ l *
-          Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) *
+        (((oddFreq j : ℝ) : ℂ) * Complex.I) ^ l *
+          Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) *
             Complex.I)) = _
   rw [map_sum imLm]
   change (∑ j ∈ Finset.range n,
     ((a j : ℂ) *
-      (((oddFrequency j : ℝ) : ℂ) * Complex.I) ^ l *
-        Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) *
+      (((oddFreq j : ℝ) : ℂ) * Complex.I) ^ l *
+        Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) *
           Complex.I)).im) = _
   rw [← Fin.sum_univ_eq_sum_range (fun j : ℕ ↦
     ((a j : ℂ) *
-      (((oddFrequency j : ℝ) : ℂ) * Complex.I) ^ l *
-        Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) *
+      (((oddFreq j : ℝ) : ℂ) * Complex.I) ^ l *
+        Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) *
           Complex.I)).im) n]
   apply sum_congr rfl
   intro j hj
   rw [mul_assoc, mul_im]
   simp
 
-theorem norm_derivativeVector_le {n l : ℕ} (θ : ℝ) :
-    ‖derivativeVector n l θ‖ ≤ (2 * n : ℝ) ^ l := by
+theorem norm_derivVec_le {n l : ℕ} (θ : ℝ) :
+    ‖derivVec n l θ‖ ≤ (2 * n : ℝ) ^ l := by
   rw [pi_norm_le_iff_of_nonneg (by positivity)]
   intro j
   rw [norm_eq_abs]
   have him := abs_im_le_norm
-    ((((((oddFrequency j : ℝ) : ℂ) * Complex.I) ^ l) *
-      Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) *
+    ((((((oddFreq j : ℝ) : ℂ) * Complex.I) ^ l) *
+      Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) *
         Complex.I)))
-  change |((((((oddFrequency j : ℝ) : ℂ) * Complex.I) ^ l) *
-      Complex.exp ((((oddFrequency j : ℝ) * θ : ℝ) : ℂ) *
+  change |((((((oddFreq j : ℝ) : ℂ) * Complex.I) ^ l) *
+      Complex.exp ((((oddFreq j : ℝ) * θ : ℝ) : ℂ) *
         Complex.I))).im| ≤ _
   refine him.trans ?_
   simp only [norm_mul, norm_pow, norm_I, mul_one,
       norm_exp_ofReal_mul_I]
   rw [Complex.norm_real, norm_eq_abs, abs_of_nonneg (by positivity)]
-  have hfreq : (oddFrequency j : ℝ) ≤ 2 * n := by
-    exact_mod_cast oddFrequency_le_two_mul
+  have hfreq : (oddFreq j : ℝ) ≤ 2 * n := by
+    exact_mod_cast oddFreq_le_two_mul
       (Finset.mem_range.2 j.isLt)
   exact pow_le_pow_left₀ (by positivity) hfreq l
 
@@ -3677,13 +3677,13 @@ theorem oddSineSum_pi_sub (n : ℕ) (a : ℕ → ℝ) (θ : ℝ) :
   congr 1
   rw [mul_sub]
   have hrewrite :
-      (oddFrequency j : ℝ) * π -
-          (oddFrequency j : ℝ) * θ =
-        (oddFrequency j : ℕ) * π -
-          (oddFrequency j : ℝ) * θ := by
+      (oddFreq j : ℝ) * π -
+          (oddFreq j : ℝ) * θ =
+        (oddFreq j : ℕ) * π -
+          (oddFreq j : ℝ) * θ := by
     norm_num
   rw [hrewrite, Real.sin_nat_mul_pi_sub]
-  simp [oddFrequency, pow_add]
+  simp [oddFreq, pow_add]
 
 theorem oddSineSum_add_pi (n : ℕ) (a : ℕ → ℝ) (θ : ℝ) :
     oddSineSum n a (θ + π) =
@@ -3693,14 +3693,14 @@ theorem oddSineSum_add_pi (n : ℕ) (a : ℕ → ℝ) (θ : ℝ) :
   rw [← sum_neg_distrib]
   apply sum_congr rfl
   intro j hj
-  rw [show (oddFrequency j : ℝ) * θ +
-      (oddFrequency j : ℝ) * π =
-      (oddFrequency j : ℝ) * θ +
-        (oddFrequency j : ℕ) * π by norm_num,
+  rw [show (oddFreq j : ℝ) * θ +
+      (oddFreq j : ℝ) * π =
+      (oddFreq j : ℝ) * θ +
+        (oddFreq j : ℕ) * π by norm_num,
     Real.sin_add_nat_mul_pi]
-  simp [oddFrequency, pow_add]
+  simp [oddFreq, pow_add]
 
-theorem exists_firstQuadrant_abs_oddSineSum_eq
+theorem exists_firstQuad_abs_oddSinSum_eq
     (n : ℕ) (a : ℕ → ℝ) (θ : ℝ) :
     ∃ θ' ∈ Icc 0 (π / 2),
       |oddSineSum n a θ| =
@@ -3740,7 +3740,7 @@ theorem exists_rounding {n : ℕ} (hn : 0 < n) {G : Type} [Fintype G]
   classical
   let x₀ : Fin n → ℝ := fun j ↦ hat j
   let v : G × Fin n → Fin n → ℝ :=
-    fun q ↦ derivativeVector n q.2 (setup.point q.1)
+    fun q ↦ derivVec n q.2 (setup.point q.1)
   have hx₀ : InCube x₀ := by
     intro j
     exact hhat j j.isLt
@@ -3761,17 +3761,17 @@ theorem exists_rounding {n : ℕ} (hn : 0 < n) {G : Type} [Fintype G]
     let a : ℕ → ℝ := eps - hat
     obtain ⟨g, θ', hnear, habs⟩ := setup.cover a θ
     have hdisc : ∀ l : ℕ,
-        |oddSineDerivative l n a (setup.point g)| ≤
+        |oddSinDeriv l n a (setup.point g)| ≤
           (65 + 2 * l) * sqrt n * (2 * n : ℝ) ^ l := by
       intro l
       by_cases hl : l < n
       · let lf : Fin n := ⟨l, hl⟩
         have hfull := hepsDisc (g, lf)
         have hdot : dot (epsFin - x₀) (v (g, lf)) =
-            oddSineDerivative l n a (setup.point g) := by
-          rw [oddSineDerivative_eq_dot]
+            oddSinDeriv l n a (setup.point g) := by
+          rw [oddSinDeriv_eq_dot]
           apply congrArg (fun z : Fin n → ℝ ↦
-            dot z (derivativeVector n l (setup.point g)))
+            dot z (derivVec n l (setup.point g)))
           funext j
           simp [a, eps, x₀, j.isLt]
         rw [← hdot]
@@ -3784,7 +3784,7 @@ theorem exists_rounding {n : ℕ} (hn : 0 < n) {G : Type} [Fintype G]
             · apply mul_le_mul_of_nonneg_right (setup.parameter_bound g lf)
                 (sqrt_nonneg _)
             · simpa [v, lf] using
-                (norm_derivativeVector_le (n := n) (l := l) (setup.point g))
+                (norm_derivVec_le (n := n) (l := l) (setup.point g))
             · exact norm_nonneg _
             · exact mul_nonneg (by linarith [setup.parameter_nonneg (g, lf)])
                 (sqrt_nonneg _)
@@ -3799,14 +3799,14 @@ theorem exists_rounding {n : ℕ} (hn : 0 < n) {G : Type} [Fintype G]
             _ ≤ |eps j| + |hat j| := abs_sub _ _
             _ ≤ 2 := by linarith [hhat j hj]
         have htrivial :=
-          abs_oddSineDerivative_le_card_mul l n a 2 hcoeff
+          abs_oddSinDeriv_le_card_mul l n a 2 hcoeff
           (by norm_num) (setup.point g)
         have hsqrt : 1 ≤ sqrt n := by
           rw [one_le_sqrt]
           exact_mod_cast hn
         have hln : n ≤ l := Nat.le_of_not_gt hl
         calc
-          |oddSineDerivative l n a (setup.point g)| ≤
+          |oddSinDeriv l n a (setup.point g)| ≤
               n * 2 * (2 * n : ℝ) ^ l := htrivial
           _ ≤ (65 + 2 * l) * sqrt n * (2 * n : ℝ) ^ l := by
             apply mul_le_mul_of_nonneg_right _ (by positivity)
@@ -3829,65 +3829,65 @@ open OddSine
 
 section
 
-namespace CosineConstruction
+namespace CosConstr
 
 open Set
 open scoped BigOperators
 
 noncomputable section
 
-def parameterNumerator (t : ℕ) : ℕ := 2 ^ (t + 11) + 2 ^ t - 1
+def paramNum (t : ℕ) : ℕ := 2 ^ (t + 11) + 2 ^ t - 1
 
-def cosineDelta (γ : ℝ) : ℝ :=
+def cosDelta (γ : ℝ) : ℝ :=
   (1 / 2 ^ 8 : ℝ) * γ ^ 3 * sqrt γ
 
-def threshold (n : ℕ) (γ : ℝ) : ℝ :=
-  cosineDelta γ * sqrt n
+def thr (n : ℕ) (γ : ℝ) : ℝ :=
+  cosDelta γ * sqrt n
 
-structure Parameters (n t : ℕ) (γ : ℝ) : Prop where
+structure Params (n t : ℕ) (γ : ℝ) : Prop where
   n_pos : 0 < n
   t_odd : Odd t
-  equation : γ * n = parameterNumerator t
+  equation : γ * n = paramNum t
   gamma_lower : (1 / 2 ^ 43 : ℝ) < γ
   gamma_upper : γ ≤ (1 / 2 ^ 40 : ℝ)
 
-theorem Parameters.gamma_pos {n t : ℕ} {γ : ℝ}
-    (h : Parameters n t γ) : 0 < γ :=
+theorem Params.gamma_pos {n t : ℕ} {γ : ℝ}
+    (h : Params n t γ) : 0 < γ :=
   lt_of_lt_of_le (by positivity : (0 : ℝ) < 1 / 2 ^ 43) h.gamma_lower.le
 
-theorem cosineDelta_pos {γ : ℝ} (hγ : 0 < γ) :
-    0 < cosineDelta γ := by
-  simp only [cosineDelta]
+theorem cosDelta_pos {γ : ℝ} (hγ : 0 < γ) :
+    0 < cosDelta γ := by
+  simp only [cosDelta]
   positivity
 
-theorem threshold_pos {n : ℕ} {γ : ℝ}
-    (hn : 0 < n) (hγ : 0 < γ) : 0 < threshold n γ := by
-  simp only [threshold]
-  exact mul_pos (cosineDelta_pos hγ) (sqrt_pos.2 (by exact_mod_cast hn))
+theorem thr_pos {n : ℕ} {γ : ℝ}
+    (hn : 0 < n) (hγ : 0 < γ) : 0 < thr n γ := by
+  simp only [thr]
+  exact mul_pos (cosDelta_pos hγ) (sqrt_pos.2 (by exact_mod_cast hn))
 
-theorem Parameters.toEvenParameters {n t : ℕ} {γ : ℝ}
-    (h : Parameters n t γ) : EvenParameters n t γ where
+theorem Params.toEvenParams {n t : ℕ} {γ : ℝ}
+    (h : Params n t γ) : EvenParams n t γ where
   t_odd := h.t_odd
   gamma_pos := h.gamma_pos
   gamma_le := h.gamma_upper
-  equation := by simpa [parameterNumerator, gammaNumerator] using h.equation
+  equation := by simpa [paramNum, gammaNum] using h.equation
 
-theorem Parameters.eta_pos {n t : ℕ} {γ : ℝ}
-    (h : Parameters n t γ) :
+theorem Params.eta_pos {n t : ℕ} {γ : ℝ}
+    (h : Params n t γ) :
     0 < 2 * (evenT t : ℝ) * π / n := by
   have hnR : (0 : ℝ) < n := by exact_mod_cast h.n_pos
   have hTR : (0 : ℝ) < evenT t := by
     exact_mod_cast (show 0 < evenT t by simp [evenT])
   exact div_pos (mul_pos (mul_pos (by norm_num) hTR) pi_pos) hnR
 
-theorem Parameters.eta_lt {n t : ℕ} {γ : ℝ}
-    (h : Parameters n t γ) :
+theorem Params.eta_lt {n t : ℕ} {γ : ℝ}
+    (h : Params n t γ) :
     2 * (evenT t : ℝ) * π / n < 1 / 2048 := by
   have hnR : (0 : ℝ) < n := by exact_mod_cast h.n_pos
   have hTle : (2 * evenT t : ℝ) ≤ γ * n := by
     rw [h.equation]
-    exact_mod_cast (show 2 * evenT t ≤ parameterNumerator t by
-      rw [parameterNumerator, two_mul_evenT]
+    exact_mod_cast (show 2 * evenT t ≤ paramNum t by
+      rw [paramNum, two_mul_evenT]
       have hp : 0 < 2 ^ t := by positivity
       omega)
   have hpi : π < 4 := pi_lt_four
@@ -3902,18 +3902,18 @@ theorem Parameters.eta_lt {n t : ℕ} {γ : ℝ}
     _ ≤ (1 / 2 ^ 40 : ℝ) * 4 := by gcongr
     _ < 1 / 2048 := by norm_num
 
-theorem Parameters.ratio_lower {n t : ℕ} {γ : ℝ}
-    (h : Parameters n t γ) :
+theorem Params.ratio_lo {n t : ℕ} {γ : ℝ}
+    (h : Params n t γ) :
     (15 / 16 : ℝ) * (γ * n) < 2 * evenT t := by
   rw [h.equation]
-  have hnat : 15 * parameterNumerator t < 16 * (2 * evenT t) := by
-    rw [parameterNumerator, evenT]
+  have hnat : 15 * paramNum t < 16 * (2 * evenT t) := by
+    rw [paramNum, evenT]
     have hp : 0 < 2 ^ t := by positivity
     rw [show 2 ^ (t + 11) = 2 ^ t * 2 ^ 11 by rw [pow_add],
       show 2 ^ (t + 10) = 2 ^ t * 2 ^ 10 by rw [pow_add]]
     norm_num
     omega
-  have hreal : (15 : ℝ) * parameterNumerator t < 16 * (2 * evenT t) := by
+  have hreal : (15 : ℝ) * paramNum t < 16 * (2 * evenT t) := by
     exact_mod_cast hnat
   norm_num at hreal ⊢
   nlinarith
@@ -3928,9 +3928,9 @@ private theorem sqrt_two_mul_evenT (t : ℕ) :
     sqrt_sq_eq_abs, abs_of_nonneg (by norm_num : (0 : ℝ) ≤ 32)]
   ring
 
-theorem Parameters.threshold_le_normalized_good {n t : ℕ} {γ : ℝ}
-    (h : Parameters n t γ) :
-    threshold n γ ≤
+theorem Params.thr_le_norm_good {n t : ℕ} {γ : ℝ}
+    (h : Params n t γ) :
+    thr n γ ≤
       sqrt (2 ^ (t + 1) : ℝ) *
         (2 * (evenT t : ℝ) * π / n) ^ 3 / 128 := by
   let A : ℝ := γ * n
@@ -3944,7 +3944,7 @@ theorem Parameters.threshold_le_normalized_good {n t : ℕ} {γ : ℝ}
       exact_mod_cast (show 0 < evenT t by simp [evenT])
     positivity
   have hratio : (15 / 16 : ℝ) * A < B := by
-    simpa [A, B] using h.ratio_lower
+    simpa [A, B] using h.ratio_lo
   have hratioSq : (15 / 16 : ℝ) ^ 2 * A < B := by
     have : (15 / 16 : ℝ) ^ 2 < 15 / 16 := by norm_num
     nlinarith
@@ -4021,64 +4021,64 @@ theorem Parameters.threshold_le_normalized_good {n t : ℕ} {γ : ℝ}
       ring
     rw [hlhs, hrhs]
     exact div_lt_div_of_pos_right hmain (by positivity)
-  norm_num [threshold, cosineDelta, B] at hscaled ⊢
+  norm_num [thr, cosDelta, B] at hscaled ⊢
   exact hscaled.le
 
 def rsNormalization (t : ℕ) : ℝ := (sqrt (2 ^ (t + 1) : ℝ))⁻¹
 
-def scaledDerivP (r t : ℕ) (x : ℝ) : ℂ :=
+def scDerivP (r t : ℕ) (x : ℝ) : ℂ :=
   (rsNormalization t : ℂ) *
     (Complex.I / (evenT t : ℝ)) ^ r *
-      ((eulerDerivative^[r]) (rudinShapiroP t)).eval
-        (unitPoint (x / evenT t))
+      ((eulerDeriv^[r]) (rudinShapiroP t)).eval
+        (unitPt (x / evenT t))
 
-def scaledDerivQ (r t : ℕ) (x : ℝ) : ℂ :=
+def scDerivQ (r t : ℕ) (x : ℝ) : ℂ :=
   (rsNormalization t : ℂ) *
     (Complex.I / (evenT t : ℝ)) ^ r *
-      ((eulerDerivative^[r]) (rudinShapiroQ t)).eval
-        (unitPoint (x / evenT t))
+      ((eulerDeriv^[r]) (rudinShapiroQ t)).eval
+        (unitPt (x / evenT t))
 
-def normalizedH (t : ℕ) (x : ℝ) : ℂ :=
-  unitPoint x * scaledDerivP 0 t x +
-    unitPoint (2 * x) * scaledDerivQ 0 t x
+def normH (t : ℕ) (x : ℝ) : ℂ :=
+  unitPt x * scDerivP 0 t x +
+    unitPt (2 * x) * scDerivQ 0 t x
 
 theorem rsNormalization_pos (t : ℕ) : 0 < rsNormalization t := by
   simp only [rsNormalization]
   positivity
 
-theorem normalized_energy (t : ℕ) (x : ℝ) :
-    ‖scaledDerivP 0 t x‖ ^ 2 +
-      ‖scaledDerivQ 0 t x‖ ^ 2 = 1 := by
-  have henergy := rudinShapiro_energy t (norm_unitPoint (x / evenT t))
+theorem norm_energy (t : ℕ) (x : ℝ) :
+    ‖scDerivP 0 t x‖ ^ 2 +
+      ‖scDerivQ 0 t x‖ ^ 2 = 1 := by
+  have henergy := rs_energy t (norm_unitPt (x / evenT t))
   have hEpos : (0 : ℝ) < (2 ^ (t + 1) : ℝ) := by positivity
   have hspos : 0 < sqrt (2 ^ (t + 1) : ℝ) := sqrt_pos.2 hEpos
   have hsquare := sq_sqrt hEpos.le
-  simp only [scaledDerivP, scaledDerivQ, pow_zero, one_mul,
+  simp only [scDerivP, scDerivQ, pow_zero, one_mul,
     Function.iterate_zero_apply, norm_one, norm_mul, Complex.norm_real, norm_eq_abs,
     abs_of_pos (rsNormalization_pos t)]
   rw [show
-    (rsNormalization t * 1 * ‖(rudinShapiroP t).eval (unitPoint (x / evenT t))‖) ^ 2 +
-      (rsNormalization t * 1 * ‖(rudinShapiroQ t).eval (unitPoint (x / evenT t))‖) ^ 2 =
+    (rsNormalization t * 1 * ‖(rudinShapiroP t).eval (unitPt (x / evenT t))‖) ^ 2 +
+      (rsNormalization t * 1 * ‖(rudinShapiroQ t).eval (unitPt (x / evenT t))‖) ^ 2 =
       rsNormalization t ^ 2 *
-        (‖(rudinShapiroP t).eval (unitPoint (x / evenT t))‖ ^ 2 +
-          ‖(rudinShapiroQ t).eval (unitPoint (x / evenT t))‖ ^ 2) by ring,
+        (‖(rudinShapiroP t).eval (unitPt (x / evenT t))‖ ^ 2 +
+          ‖(rudinShapiroQ t).eval (unitPt (x / evenT t))‖ ^ 2) by ring,
     henergy]
   simp only [rsNormalization]
   field_simp
   exact hsquare.symm
 
-private theorem normalizedDerivative_bound
+private theorem normDeriv_bound
     (p : Polynomial ℂ) (t r : ℕ) (x : ℝ)
     (hdeg : p.natDegree ≤ 2 ^ t)
     (hcircle : ∀ z : ℂ, ‖z‖ = 1 →
       ‖p.eval z‖ ≤ sqrt (2 ^ (t + 1) : ℝ)) :
     ‖(rsNormalization t : ℂ) *
         (Complex.I / (evenT t : ℝ)) ^ r *
-        ((eulerDerivative^[r]) p).eval
-          (unitPoint (x / evenT t))‖ ≤ (1 / 2 ^ 10 : ℝ) ^ r := by
+        ((eulerDeriv^[r]) p).eval
+          (unitPt (x / evenT t))‖ ≤ (1 / 2 ^ 10 : ℝ) ^ r := by
   have heuler :=
-    norm_iterate_eulerDerivative_eval_le_pow_mul_circleSup
-      hdeg hcircle r (norm_unitPoint (x / evenT t))
+    norm_iterate_eulerDeriv_eval_le_pow_mul_circSup
+      hdeg hcircle r (norm_unitPt (x / evenT t))
   have hTnat : 0 < evenT t := by simp [evenT]
   have hTpos : (0 : ℝ) < evenT t := by exact_mod_cast hTnat
   have hspos : 0 < sqrt (2 ^ (t + 1) : ℝ) := by positivity
@@ -4091,11 +4091,11 @@ private theorem normalizedDerivative_bound
   calc
     ‖(rsNormalization t : ℂ) *
         (Complex.I / (evenT t : ℝ)) ^ r *
-        ((eulerDerivative^[r]) p).eval
-          (unitPoint (x / evenT t))‖ =
+        ((eulerDeriv^[r]) p).eval
+          (unitPt (x / evenT t))‖ =
       rsNormalization t * (1 / (evenT t : ℝ)) ^ r *
-        ‖((eulerDerivative^[r]) p).eval
-          (unitPoint (x / evenT t))‖ := by
+        ‖((eulerDeriv^[r]) p).eval
+          (unitPt (x / evenT t))‖ := by
       rw [norm_mul, norm_mul, norm_pow, norm_div, norm_I]
       simp only [Complex.norm_real, norm_eq_abs,
         abs_of_pos (rsNormalization_pos t), abs_of_pos hTpos, one_div]
@@ -4109,106 +4109,106 @@ private theorem normalizedDerivative_bound
       ring
     _ = (1 / 2 ^ 10 : ℝ) ^ r := by rw [hpowcast]
 
-theorem norm_scaledDerivP_le (r t : ℕ) (x : ℝ) :
-    ‖scaledDerivP r t x‖ ≤ (1 / 2 ^ 10 : ℝ) ^ r := by
-  apply normalizedDerivative_bound (rudinShapiroP t) t r x
-  · rw [natDegree_rudinShapiroP]
+theorem norm_scDerivP_le (r t : ℕ) (x : ℝ) :
+    ‖scDerivP r t x‖ ≤ (1 / 2 ^ 10 : ℝ) ^ r := by
+  apply normDeriv_bound (rudinShapiroP t) t r x
+  · rw [natDegree_rsP]
     exact Nat.sub_le _ _
   · intro z hz
-    exact norm_eval_rudinShapiroP_le t hz
+    exact norm_eval_rsP_le t hz
 
-theorem norm_scaledDerivQ_le (r t : ℕ) (x : ℝ) :
-    ‖scaledDerivQ r t x‖ ≤ (1 / 2 ^ 10 : ℝ) ^ r := by
-  apply normalizedDerivative_bound (rudinShapiroQ t) t r x
-  · rw [natDegree_rudinShapiroQ]
+theorem norm_scDerivQ_le (r t : ℕ) (x : ℝ) :
+    ‖scDerivQ r t x‖ ≤ (1 / 2 ^ 10 : ℝ) ^ r := by
+  apply normDeriv_bound (rudinShapiroQ t) t r x
+  · rw [natDegree_rsQ]
     exact Nat.sub_le _ _
   · intro z hz
-    exact norm_eval_rudinShapiroQ_le t hz
+    exact norm_eval_rsQ_le t hz
 
-theorem evenCosine_eq_normalizedH (t : ℕ) (θ : ℝ) :
-    evenCosine t θ =
-      sqrt (2 ^ (t + 1) : ℝ) * (normalizedH t (2 * evenT t * θ)).re := by
+theorem evenCos_eq_normH (t : ℕ) (θ : ℝ) :
+    evenCos t θ =
+      sqrt (2 ^ (t + 1) : ℝ) * (normH t (2 * evenT t * θ)).re := by
   have hTnat : 0 < evenT t := by simp [evenT]
   have hT : (evenT t : ℝ) ≠ 0 := by exact_mod_cast hTnat.ne'
   have hs : sqrt (2 ^ (t + 1) : ℝ) ≠ 0 := by positivity
   have hdiv : (2 * (evenT t : ℝ) * θ) / evenT t = 2 * θ := by
     field_simp [hT]
-  have hphase₁ : unitPoint (2 * (evenT t : ℝ) * θ) =
-      unitPoint (2 * θ) ^ evenT t := by
-    simp only [unitPoint, ← exp_nat_mul]
+  have hphase₁ : unitPt (2 * (evenT t : ℝ) * θ) =
+      unitPt (2 * θ) ^ evenT t := by
+    simp only [unitPt, ← exp_nat_mul]
     congr 1
     push_cast
     ring
-  have hphase₂ : unitPoint (2 * (2 * (evenT t : ℝ) * θ)) =
-      unitPoint (2 * θ) ^ (2 * evenT t) := by
-    simp only [unitPoint, ← exp_nat_mul]
+  have hphase₂ : unitPt (2 * (2 * (evenT t : ℝ) * θ)) =
+      unitPt (2 * θ) ^ (2 * evenT t) := by
+    simp only [unitPt, ← exp_nat_mul]
     congr 1
     push_cast
     ring
-  rw [evenCosine_eq]
-  simp only [normalizedH, scaledDerivP, scaledDerivQ, pow_zero,
+  rw [evenCos_eq]
+  simp only [normH, scDerivP, scDerivQ, pow_zero,
     one_mul, mul_one, Function.iterate_zero_apply, hdiv, hphase₁, hphase₂, rsNormalization]
   rw [show
-    unitPoint (2 * θ) ^ evenT t *
+    unitPt (2 * θ) ^ evenT t *
           ((((sqrt (2 ^ (t + 1) : ℝ))⁻¹ : ℝ) : ℂ) *
-            (rudinShapiroP t).eval (unitPoint (2 * θ))) +
-      unitPoint (2 * θ) ^ (2 * evenT t) *
+            (rudinShapiroP t).eval (unitPt (2 * θ))) +
+      unitPt (2 * θ) ^ (2 * evenT t) *
           ((((sqrt (2 ^ (t + 1) : ℝ))⁻¹ : ℝ) : ℂ) *
-            (rudinShapiroQ t).eval (unitPoint (2 * θ))) =
+            (rudinShapiroQ t).eval (unitPt (2 * θ))) =
       (((sqrt (2 ^ (t + 1) : ℝ))⁻¹ : ℝ) : ℂ) *
-        (unitPoint (2 * θ) ^ evenT t *
-            (rudinShapiroP t).eval (unitPoint (2 * θ)) +
-          unitPoint (2 * θ) ^ (2 * evenT t) *
-            (rudinShapiroQ t).eval (unitPoint (2 * θ))) by ring]
+        (unitPt (2 * θ) ^ evenT t *
+            (rudinShapiroP t).eval (unitPt (2 * θ)) +
+          unitPt (2 * θ) ^ (2 * evenT t) *
+            (rudinShapiroQ t).eval (unitPt (2 * θ))) by ring]
   simp only [mul_re, Complex.inv_re, ofReal_re, ofReal_im,
     Complex.normSq_ofReal, zero_mul, sub_zero]
   field_simp
 
-private theorem cosineBlock_coeff_im_eq_zero {t k : ℕ}
-    (hk : k ∈ (cosineBlock t).support) :
-    ((cosineBlock t).coeff k).im = 0 := by
-  rw [support_cosineBlock] at hk
+private theorem cosBlk_coeff_im_eq_zero {t k : ℕ}
+    (hk : k ∈ (cosBlk t).support) :
+    ((cosBlk t).coeff k).im = 0 := by
+  rw [support_cosBlk] at hk
   rw [mem_evenCPrime] at hk
   rcases hk with ⟨j, hj, rfl⟩ | ⟨j, hj, rfl⟩
-  · rw [coeff_cosineBlock_first t j hj]
-    rcases coeff_rudinShapiroP_eq_one_or_neg_one hj with h | h <;> simp [h]
-  · rw [coeff_cosineBlock_second t j hj]
-    rcases coeff_rudinShapiroQ_eq_one_or_neg_one hj with h | h <;> simp [h]
+  · rw [coeff_cosBlk_first t j hj]
+    rcases coeff_rsP_eq_one_or_neg_one hj with h | h <;> simp [h]
+  · rw [coeff_cosBlk_second t j hj]
+    rcases coeff_rsQ_eq_one_or_neg_one hj with h | h <;> simp [h]
 
-theorem evenCosine_eq_sum_cos (t : ℕ) (θ : ℝ) :
-    evenCosine t θ =
-      ∑ k ∈ (cosineBlock t).support,
-        ((cosineBlock t).coeff k).re * cos (k * (2 * θ)) := by
+theorem evenCos_eq_sum_cos (t : ℕ) (θ : ℝ) :
+    evenCos t θ =
+      ∑ k ∈ (cosBlk t).support,
+        ((cosBlk t).coeff k).re * cos (k * (2 * θ)) := by
   classical
-  rw [evenCosine, eval_eq_sum, sum_def]
+  rw [evenCos, eval_eq_sum, sum_def]
   change reLm
-      (∑ k ∈ (cosineBlock t).support,
-        (cosineBlock t).coeff k * unitPoint (2 * θ) ^ k) = _
+      (∑ k ∈ (cosBlk t).support,
+        (cosBlk t).coeff k * unitPt (2 * θ) ^ k) = _
   rw [map_sum]
   apply sum_congr rfl
   intro k hk
-  have hre : (unitPoint (2 * θ) ^ k).re = cos (k * (2 * θ)) := by
-    have h := congrArg re (unitPoint_pow (2 * θ) k)
+  have hre : (unitPt (2 * θ) ^ k).re = cos (k * (2 * θ)) := by
+    have h := congrArg re (unitPt_pow (2 * θ) k)
     simpa only [add_re, ofReal_re, mul_re,
       ofReal_im, Complex.I_re, Complex.I_im, mul_zero, zero_mul,
       sub_zero, mul_one, add_zero] using h
-  change ((cosineBlock t).coeff k * unitPoint (2 * θ) ^ k).re = _
-  rw [mul_re, cosineBlock_coeff_im_eq_zero hk, zero_mul, sub_zero, hre]
+  change ((cosBlk t).coeff k * unitPt (2 * θ) ^ k).re = _
+  rw [mul_re, cosBlk_coeff_im_eq_zero hk, zero_mul, sub_zero, hre]
 
-@[simp] theorem evenCosine_neg (t : ℕ) (θ : ℝ) :
-    evenCosine t (-θ) = evenCosine t θ := by
+@[simp] theorem evenCos_neg (t : ℕ) (θ : ℝ) :
+    evenCos t (-θ) = evenCos t θ := by
   classical
-  rw [evenCosine_eq_sum_cos, evenCosine_eq_sum_cos]
+  rw [evenCos_eq_sum_cos, evenCos_eq_sum_cos]
   apply sum_congr rfl
   intro k hk
   congr 1
   rw [show (k : ℝ) * (2 * -θ) = -((k : ℝ) * (2 * θ)) by ring,
     cos_neg]
 
-@[simp] theorem evenCosine_pi_sub (t : ℕ) (θ : ℝ) :
-    evenCosine t (π - θ) = evenCosine t θ := by
+@[simp] theorem evenCos_pi_sub (t : ℕ) (θ : ℝ) :
+    evenCos t (π - θ) = evenCos t θ := by
   classical
-  rw [evenCosine_eq_sum_cos, evenCosine_eq_sum_cos]
+  rw [evenCos_eq_sum_cos, evenCos_eq_sum_cos]
   apply sum_congr rfl
   intro k hk
   congr 1
@@ -4216,17 +4216,17 @@ theorem evenCosine_eq_sum_cos (t : ℕ) (θ : ℝ) :
       (k : ℝ) * (2 * π) - (k : ℝ) * (2 * θ) by ring,
     Real.cos_nat_mul_two_pi_sub]
 
-@[simp] theorem evenCosine_sub_pi (t : ℕ) (θ : ℝ) :
-    evenCosine t (θ - π) = evenCosine t θ := by
-  rw [show θ - π = -(π - θ) by ring, evenCosine_neg,
-    evenCosine_pi_sub]
+@[simp] theorem evenCos_sub_pi (t : ℕ) (θ : ℝ) :
+    evenCos t (θ - π) = evenCos t θ := by
+  rw [show θ - π = -(π - θ) by ring, evenCos_neg,
+    evenCos_pi_sub]
 
 def HasGoodCellInEverySeven (f : ℝ → ℝ) (eta : ℝ) : Prop :=
   ∀ a : ℝ, ∃ j : ℕ, j < 7 ∧
     ∀ x ∈ Icc (a + (j : ℝ) * eta) (a + ((j : ℝ) + 1) * eta),
     eta ^ 3 / 128 ≤ |f x|
 
-theorem hasGoodCellInEverySeven_of_derivative_bounds
+theorem hasGoodCellInEverySeven_of_deriv_bounds
     (f : ℝ → ℝ) (eta : ℝ)
     (heta : 0 < eta) (hetaSmall : eta < (1 : ℝ) / 2048)
     (hf : ContDiff ℝ 4 f)
@@ -4331,7 +4331,7 @@ theorem hasGoodCellInEverySeven_of_derivative_bounds
       have hidx : 2 * (i : ℕ) < 7 := by omega
       exact (sample_small ⟨2 * (i : ℕ), hidx⟩).le
     have hk4 : (k : ℕ) + 1 ≤ 4 := by omega
-    have hquarter := Interpolation.howell_lt_quarter_of_nodes
+    have hquarter := Interp.howell_lt_quarter_of_nodes
       (k : ℕ) hk₁ hk₃ f node (sample 0) eta
       (hf.of_le (by exact_mod_cast hk4)) hnode_mono heta hetaSmall hnode_sep hnode_dist
       hnode_value
@@ -4340,7 +4340,7 @@ theorem hasGoodCellInEverySeven_of_derivative_bounds
 
 def BadCell (n t : ℕ) (γ : ℝ) (i : ℕ) : Prop :=
   ∃ θ ∈ gridCell n i,
-    |evenCosine t θ| < threshold n γ
+    |evenCos t θ| < thr n γ
 
 noncomputable instance instDecidablePredBadCell (n t : ℕ) (γ : ℝ) :
     DecidablePred (BadCell n t γ) := Classical.decPred _
@@ -4355,50 +4355,50 @@ noncomputable def dangerousRuns (n t : ℕ) (γ : ℝ) : Finset (ℕ × ℕ) :=
   classical
   exact mem_maximalBadRuns
 
-def runInterval (n : ℕ) (I : ℕ × ℕ) : Set ℝ :=
-  Icc (gridPoint n I.1)
-    (gridPoint n (I.2 + 1))
+def runIvl (n : ℕ) (I : ℕ × ℕ) : Set ℝ :=
+  Icc (gridPt n I.1)
+    (gridPt n (I.2 + 1))
 
-def runEndpoints (n : ℕ) (I : ℕ × ℕ) : RealInterval :=
-  (gridPoint n I.1,
-    gridPoint n (I.2 + 1))
+def runEndpts (n : ℕ) (I : ℕ × ℕ) : RealIvl :=
+  (gridPt n I.1,
+    gridPt n (I.2 + 1))
 
-noncomputable def firstQuadrantRuns (n t : ℕ) (γ : ℝ) : Finset (ℕ × ℕ) :=
+noncomputable def firstQuadRuns (n t : ℕ) (γ : ℝ) : Finset (ℕ × ℕ) :=
   (dangerousRuns n t γ).filter fun I ↦ 2 * (I.2 + 1) ≤ n
 
-noncomputable def firstQuadrantIntervals (n t : ℕ) (γ : ℝ) :
-    Finset RealInterval :=
-  (firstQuadrantRuns n t γ).image (runEndpoints n)
+noncomputable def firstQuadIvls (n t : ℕ) (γ : ℝ) :
+    Finset RealIvl :=
+  (firstQuadRuns n t γ).image (runEndpts n)
 
-@[simp] theorem mem_firstQuadrantRuns {n t : ℕ} {γ : ℝ} {I : ℕ × ℕ} :
-    I ∈ firstQuadrantRuns n t γ ↔
+@[simp] theorem mem_firstQuadRuns {n t : ℕ} {γ : ℝ} {I : ℕ × ℕ} :
+    I ∈ firstQuadRuns n t γ ↔
       I ∈ dangerousRuns n t γ ∧ 2 * (I.2 + 1) ≤ n := by
   classical
-  simp [firstQuadrantRuns]
+  simp [firstQuadRuns]
 
-theorem runEndpoints_injective {n : ℕ} (hn : 0 < n) :
-    Function.Injective (runEndpoints n) := by
+theorem runEndpts_injective {n : ℕ} (hn : 0 < n) :
+    Function.Injective (runEndpts n) := by
   rintro ⟨a, b⟩ ⟨c, d⟩ h
-  simp only [runEndpoints, Prod.mk.injEq] at h
-  have hstrict := gridPoint_strictMono hn
+  simp only [runEndpts, Prod.mk.injEq] at h
+  have hstrict := gridPt_strictMono hn
   have hac : a = c := hstrict.injective h.1
   have hbd : b + 1 = d + 1 := hstrict.injective h.2
   simp only [Prod.mk.injEq]
   exact ⟨hac, Nat.succ.inj hbd⟩
 
-theorem card_firstQuadrantIntervals {n t : ℕ} {γ : ℝ} (hn : 0 < n) :
-    (firstQuadrantIntervals n t γ).card =
-      (firstQuadrantRuns n t γ).card := by
+theorem card_firstQuadIvls {n t : ℕ} {γ : ℝ} (hn : 0 < n) :
+    (firstQuadIvls n t γ).card =
+      (firstQuadRuns n t γ).card := by
   classical
-  exact Finset.card_image_of_injective _ (runEndpoints_injective hn)
+  exact Finset.card_image_of_injective _ (runEndpts_injective hn)
 
 def SevenCellProperty (n t : ℕ) (γ : ℝ) : Prop :=
   ∀ a, a + 7 ≤ 2 * n →
     ∃ j < 7, ¬BadCell n t γ (a + j)
 
-theorem sevenCellProperty_of_normalized_good
-    {n t : ℕ} {γ : ℝ} (hparam : Parameters n t γ)
-    (hgood : HasGoodCellInEverySeven (fun x ↦ (normalizedH t x).re)
+theorem sevenCellProperty_of_norm_good
+    {n t : ℕ} {γ : ℝ} (hparam : Params n t γ)
+    (hgood : HasGoodCellInEverySeven (fun x ↦ (normH t x).re)
       (2 * (evenT t : ℝ) * π / n)) :
     SevenCellProperty n t γ := by
   intro a ha
@@ -4413,25 +4413,25 @@ theorem sevenCellProperty_of_normalized_good
   have hx : x ∈ Icc (a * eta + (j : ℝ) * eta)
       (a * eta + ((j : ℝ) + 1) * eta) := by
     rcases hθ with ⟨hθL, hθR⟩
-    simp only [gridCell, gridPoint] at hθL hθR
+    simp only [gridCell, gridPt] at hθL hθR
     dsimp [x, eta]
     constructor <;> push_cast at * <;>
       (field_simp [ne_of_gt hnR] at hθL hθR ⊢ <;> nlinarith [pi_pos])
-  have hnorm : eta ^ 3 / 128 ≤ |(normalizedH t x).re| := by
+  have hnorm : eta ^ 3 / 128 ≤ |(normH t x).re| := by
     simpa [eta] using hcell x hx
   have hsqrt : 0 ≤ sqrt (2 ^ (t + 1) : ℝ) := sqrt_nonneg _
-  have hlower : threshold n γ ≤
-      sqrt (2 ^ (t + 1) : ℝ) * |(normalizedH t x).re| := by
+  have hlower : thr n γ ≤
+      sqrt (2 ^ (t + 1) : ℝ) * |(normH t x).re| := by
     calc
-      threshold n γ ≤
+      thr n γ ≤
           sqrt (2 ^ (t + 1) : ℝ) * eta ^ 3 / 128 := by
-        simpa [eta] using hparam.threshold_le_normalized_good
-      _ ≤ sqrt (2 ^ (t + 1) : ℝ) * |(normalizedH t x).re| := by
+        simpa [eta] using hparam.thr_le_norm_good
+      _ ≤ sqrt (2 ^ (t + 1) : ℝ) * |(normH t x).re| := by
         have := mul_le_mul_of_nonneg_left hnorm hsqrt
         nlinarith
-  have heq : |evenCosine t θ| =
-      sqrt (2 ^ (t + 1) : ℝ) * |(normalizedH t x).re| := by
-    rw [evenCosine_eq_normalizedH]
+  have heq : |evenCos t θ| =
+      sqrt (2 ^ (t + 1) : ℝ) * |(normH t x).re| := by
+    rw [evenCos_eq_normH]
     dsimp [x]
     rw [abs_mul, abs_of_nonneg hsqrt]
   rw [← heq] at hlower
@@ -4454,11 +4454,11 @@ theorem dangerousRun_length_le_six {n t : ℕ} {γ : ℝ}
 theorem dangerousRun_width_le {n t : ℕ} {γ : ℝ}
     (hn : 0 < n) (hseven : SevenCellProperty n t γ) {I : ℕ × ℕ}
     (hI : I ∈ dangerousRuns n t γ) :
-    gridPoint n (I.2 + 1) -
-        gridPoint n I.1 ≤ 6 * π / n := by
+    gridPt n (I.2 + 1) -
+        gridPt n I.1 ≤ 6 * π / n := by
   rcases I with ⟨a, b⟩
   have hlen := dangerousRun_length_le_six hseven hI
-  simp only [gridPoint]
+  simp only [gridPt]
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
   have hba : a ≤ b + 1 := by
     rw [mem_dangerousRuns] at hI
@@ -4469,7 +4469,7 @@ theorem dangerousRun_width_le {n t : ℕ} {γ : ℝ}
   apply (div_le_div_iff_of_pos_right hnR).2
   nlinarith [pi_pos]
 
-theorem dangerousRuns_separated {n t : ℕ} {γ : ℝ} {a b c d : ℕ}
+theorem dangerousRuns_sep {n t : ℕ} {γ : ℝ} {a b c d : ℕ}
     (h₁ : (a, b) ∈ dangerousRuns n t γ)
     (h₂ : (c, d) ∈ dangerousRuns n t γ)
     (hbc : b < c) : b + 2 ≤ c := by
@@ -4484,55 +4484,55 @@ theorem dangerousRuns_separated {n t : ℕ} {γ : ℝ} {a b c d : ℕ}
     omega
   · exact hgood (by simpa [hc] using hbadc)
 
-structure GeometricCertificate (n t : ℕ) (γ : ℝ) : Prop where
+structure GeometricCert (n t : ℕ) (γ : ℝ) : Prop where
   separated : Set.Pairwise
-    (↑(firstQuadrantIntervals n t γ) :
-      Set RealInterval)
+    (↑(firstQuadIvls n t γ) :
+      Set RealIvl)
     (fun I J ↦ ∀ x ∈ Icc I.1 I.2, ∀ y ∈ Icc J.1 J.2,
       π / n ≤ |x - y|)
-  away_from_axes : ∀ I ∈ firstQuadrantIntervals n t γ,
+  away_from_axes : ∀ I ∈ firstQuadIvls n t γ,
     100 * π / n ≤ I.1 ∧
       I.2 ≤ π / 2 - 100 * π / n
 
-def suitableIntervalFamilyOfDangerousRuns
+def suitIvlFamOfDangerousRuns
     {n t : ℕ} {γ : ℝ} (hn : 0 < n)
     (hseven : SevenCellProperty n t γ)
-    (hgeom : GeometricCertificate n t γ) :
-    IntervalFamily n where
-  base := firstQuadrantIntervals n t γ
+    (hgeom : GeometricCert n t γ) :
+    IvlFam n where
+  base := firstQuadIvls n t γ
   ordered := by
     intro I hI
     classical
     obtain ⟨J, hJ, rfl⟩ := Finset.mem_image.mp hI
-    rw [mem_firstQuadrantRuns] at hJ
+    rw [mem_firstQuadRuns] at hJ
     rcases J with ⟨a, b⟩
-    simp only [runEndpoints]
-    apply gridPoint_mono hn
+    simp only [runEndpts]
+    apply gridPt_mono hn
     rw [mem_dangerousRuns] at hJ
     exact Nat.le_succ_of_le hJ.1.1
   nondegenerate := by
     intro I hI
     classical
     obtain ⟨J, hJ, rfl⟩ := Finset.mem_image.mp hI
-    rw [mem_firstQuadrantRuns] at hJ
+    rw [mem_firstQuadRuns] at hJ
     rcases J with ⟨a, b⟩
-    simp only [runEndpoints]
-    apply gridPoint_strictMono hn
+    simp only [runEndpts]
+    apply gridPt_strictMono hn
     rw [mem_dangerousRuns] at hJ
     exact Nat.lt_succ_of_le hJ.1.1
   in_first_quadrant := by
     intro I hI
     classical
     obtain ⟨J, hJ, rfl⟩ := Finset.mem_image.mp hI
-    rw [mem_firstQuadrantRuns] at hJ
+    rw [mem_firstQuadRuns] at hJ
     rcases J with ⟨a, b⟩
-    simp only [runEndpoints]
+    simp only [runEndpts]
     constructor
     · exact div_nonneg (mul_nonneg (Nat.cast_nonneg _) pi_pos.le)
         (Nat.cast_nonneg _)
     · have hnR : (0 : ℝ) < n := by exact_mod_cast hn
       have hidx : (2 * (b + 1) : ℝ) ≤ n := by exact_mod_cast hJ.2
-      simp only [gridPoint]
+      simp only [gridPt]
       norm_num [Nat.cast_add]
       apply (div_le_iff₀ hnR).2
       have hmul := mul_le_mul_of_nonneg_right hidx pi_pos.le
@@ -4543,35 +4543,35 @@ def suitableIntervalFamilyOfDangerousRuns
     classical
     obtain ⟨J, hJ, rfl⟩ := Finset.mem_image.mp hI
     rcases J with ⟨a, b⟩
-    exact ⟨a, b + 1, by simp [runEndpoints, gridPoint],
-      by simp [runEndpoints, gridPoint]⟩
+    exact ⟨a, b + 1, by simp [runEndpts, gridPt],
+      by simp [runEndpts, gridPt]⟩
   short := by
     intro I hI
     classical
     obtain ⟨J, hJ, rfl⟩ := Finset.mem_image.mp hI
-    rw [mem_firstQuadrantRuns] at hJ
-    simpa only [runEndpoints] using dangerousRun_width_le hn hseven hJ.1
+    rw [mem_firstQuadRuns] at hJ
+    simpa only [runEndpts] using dangerousRun_width_le hn hseven hJ.1
   separated := hgeom.separated
   away_from_axes := hgeom.away_from_axes
 
-def InBaseFamily {n : ℕ} (F : IntervalFamily n)
+def InBaseFam {n : ℕ} (F : IvlFam n)
     (θ : ℝ) : Prop :=
-  ∃ I ∈ F.base, InInterval I θ
+  ∃ I ∈ F.base, InIvl I θ
 
-theorem lower_on_fundamental_of_lower_off_base
-    {n t : ℕ} {γ : ℝ} (F : IntervalFamily n)
+theorem lo_on_fundamental_of_lo_off_base
+    {n t : ℕ} {γ : ℝ} (F : IvlFam n)
     (hfirst : ∀ θ ∈ Icc 0 (π / 2),
-      ¬InBaseFamily F θ →
-        threshold n γ ≤ |evenCosine t θ|) :
+      ¬InBaseFam F θ →
+        thr n γ ≤ |evenCos t θ|) :
     ∀ θ ∈ Icc (-π / 2) (3 * π / 2),
       ¬IsDangerous F θ →
-        threshold n γ ≤ |evenCosine t θ| := by
+        thr n γ ≤ |evenCos t θ| := by
   intro θ hθ hout
   rcases hθ with ⟨hθLower, hθUpper⟩
   by_cases h0 : θ ≤ 0
   · have hphi : -θ ∈ Icc 0 (π / 2) := by
       constructor <;> linarith
-    have hbase : ¬InBaseFamily F (-θ) := by
+    have hbase : ¬InBaseFam F (-θ) := by
       rintro ⟨I, hI, hmem⟩
       exact hout ⟨I, hI, Or.inr (Or.inl hmem)⟩
     simpa using hfirst (-θ) hphi hbase
@@ -4584,234 +4584,234 @@ theorem lower_on_fundamental_of_lower_off_base
       by_cases hpi : θ ≤ π
       · have hphi : π - θ ∈ Icc 0 (π / 2) := by
           constructor <;> linarith
-        have hbase : ¬InBaseFamily F (π - θ) := by
+        have hbase : ¬InBaseFam F (π - θ) := by
           rintro ⟨I, hI, hmem⟩
           exact hout ⟨I, hI, Or.inr (Or.inr (Or.inl hmem))⟩
         simpa using hfirst (π - θ) hphi hbase
       · have hpi' : π ≤ θ := le_of_not_ge hpi
         have hphi : θ - π ∈ Icc 0 (π / 2) := by
           constructor <;> linarith
-        have hbase : ¬InBaseFamily F (θ - π) := by
+        have hbase : ¬InBaseFam F (θ - π) := by
           rintro ⟨I, hI, hmem⟩
           exact hout ⟨I, hI, Or.inr (Or.inr (Or.inr hmem))⟩
         simpa using hfirst (θ - π) hphi hbase
 
-theorem suitableFamily_base_card
+theorem suitFam_base_card
     {n t : ℕ} {γ : ℝ} (hn : 0 < n)
     (hseven : SevenCellProperty n t γ)
-    (hgeom : GeometricCertificate n t γ) :
-    (suitableIntervalFamilyOfDangerousRuns hn hseven hgeom).base.card =
-      (firstQuadrantRuns n t γ).card :=
-  card_firstQuadrantIntervals hn
+    (hgeom : GeometricCert n t γ) :
+    (suitIvlFamOfDangerousRuns hn hseven hgeom).base.card =
+      (firstQuadRuns n t γ).card :=
+  card_firstQuadIvls hn
 
 end
 
-end CosineConstruction
+end CosConstr
 
 end
 
 section
 
-namespace CosineConstruction
+namespace CosConstr
 
 open scoped BigOperators
 
 noncomputable section
 
-private theorem hasDerivAt_unitPoint (c x : ℝ) :
-    HasDerivAt (fun y : ℝ ↦ unitPoint (c * y))
-      ((c : ℂ) * Complex.I * unitPoint (c * x)) x := by
+private theorem hasDerivAt_unitPt (c x : ℝ) :
+    HasDerivAt (fun y : ℝ ↦ unitPt (c * y))
+      ((c : ℂ) * Complex.I * unitPt (c * x)) x := by
   have hinner : HasDerivAt (fun y : ℝ ↦ ((c : ℂ) * Complex.I) * (y : ℂ))
       ((c : ℂ) * Complex.I) x := by
     simpa using (ofRealCLM.hasDerivAt (x := x)).const_mul
       ((c : ℂ) * Complex.I)
-  simpa only [unitPoint, Complex.ofReal_mul, mul_assoc, mul_comm, mul_left_comm] using
+  simpa only [unitPt, Complex.ofReal_mul, mul_assoc, mul_comm, mul_left_comm] using
     hinner.cexp
 
-private theorem hasDerivAt_scaledDerivP (r t : ℕ) (x : ℝ) :
-    HasDerivAt (scaledDerivP r t)
-      (scaledDerivP (r + 1) t x) x := by
+private theorem hasDerivAt_scDerivP (r t : ℕ) (x : ℝ) :
+    HasDerivAt (scDerivP r t)
+      (scDerivP (r + 1) t x) x := by
   have hTnat : 0 < evenT t := by simp [evenT]
   have hT : (evenT t : ℝ) ≠ 0 := by exact_mod_cast hTnat.ne'
   let p : Polynomial ℂ :=
-    (eulerDerivative^[r]) (rudinShapiroP t)
-  have hunit : HasDerivAt (fun y : ℝ ↦ unitPoint (y / evenT t))
-      ((Complex.I / (evenT t : ℝ)) * unitPoint (x / evenT t)) x := by
-    convert hasDerivAt_unitPoint (1 / evenT t) x using 1
+    (eulerDeriv^[r]) (rudinShapiroP t)
+  have hunit : HasDerivAt (fun y : ℝ ↦ unitPt (y / evenT t))
+      ((Complex.I / (evenT t : ℝ)) * unitPt (x / evenT t)) x := by
+    convert hasDerivAt_unitPt (1 / evenT t) x using 1
     · funext y
       congr 1
       field_simp
     · push_cast
       field_simp
-  have hpoly := (p.hasDerivAt (unitPoint (x / evenT t))).comp x hunit
+  have hpoly := (p.hasDerivAt (unitPt (x / evenT t))).comp x hunit
   let C : ℂ := (rsNormalization t : ℂ) * (Complex.I / (evenT t : ℝ)) ^ r
-  have hfun : scaledDerivP r t =
-      fun y ↦ C * p.eval (unitPoint (y / evenT t)) := by
+  have hfun : scDerivP r t =
+      fun y ↦ C * p.eval (unitPt (y / evenT t)) := by
     funext y
     rfl
   rw [hfun]
-  have hnext : scaledDerivP (r + 1) t x =
-      C * (p.derivative.eval (unitPoint (x / evenT t)) *
-        ((Complex.I / (evenT t : ℝ)) * unitPoint (x / evenT t))) := by
-    unfold scaledDerivP
-    rw [Function.iterate_succ_apply', eval_eulerDerivative,
+  have hnext : scDerivP (r + 1) t x =
+      C * (p.derivative.eval (unitPt (x / evenT t)) *
+        ((Complex.I / (evenT t : ℝ)) * unitPt (x / evenT t))) := by
+    unfold scDerivP
+    rw [Function.iterate_succ_apply', eval_eulerDeriv,
       pow_succ]
     dsimp only [C, p]
     ring
   rw [hnext]
   exact hpoly.const_mul C
 
-private theorem hasDerivAt_scaledDerivQ (r t : ℕ) (x : ℝ) :
-    HasDerivAt (scaledDerivQ r t)
-      (scaledDerivQ (r + 1) t x) x := by
+private theorem hasDerivAt_scDerivQ (r t : ℕ) (x : ℝ) :
+    HasDerivAt (scDerivQ r t)
+      (scDerivQ (r + 1) t x) x := by
   have hTnat : 0 < evenT t := by simp [evenT]
   have hT : (evenT t : ℝ) ≠ 0 := by exact_mod_cast hTnat.ne'
   let p : Polynomial ℂ :=
-    (eulerDerivative^[r]) (rudinShapiroQ t)
-  have hunit : HasDerivAt (fun y : ℝ ↦ unitPoint (y / evenT t))
-      ((Complex.I / (evenT t : ℝ)) * unitPoint (x / evenT t)) x := by
-    convert hasDerivAt_unitPoint (1 / evenT t) x using 1
+    (eulerDeriv^[r]) (rudinShapiroQ t)
+  have hunit : HasDerivAt (fun y : ℝ ↦ unitPt (y / evenT t))
+      ((Complex.I / (evenT t : ℝ)) * unitPt (x / evenT t)) x := by
+    convert hasDerivAt_unitPt (1 / evenT t) x using 1
     · funext y
       congr 1
       field_simp
     · push_cast
       field_simp
-  have hpoly := (p.hasDerivAt (unitPoint (x / evenT t))).comp x hunit
+  have hpoly := (p.hasDerivAt (unitPt (x / evenT t))).comp x hunit
   let C : ℂ := (rsNormalization t : ℂ) * (Complex.I / (evenT t : ℝ)) ^ r
-  have hfun : scaledDerivQ r t =
-      fun y ↦ C * p.eval (unitPoint (y / evenT t)) := by
+  have hfun : scDerivQ r t =
+      fun y ↦ C * p.eval (unitPt (y / evenT t)) := by
     funext y
     rfl
   rw [hfun]
-  have hnext : scaledDerivQ (r + 1) t x =
-      C * (p.derivative.eval (unitPoint (x / evenT t)) *
-        ((Complex.I / (evenT t : ℝ)) * unitPoint (x / evenT t))) := by
-    unfold scaledDerivQ
-    rw [Function.iterate_succ_apply', eval_eulerDerivative,
+  have hnext : scDerivQ (r + 1) t x =
+      C * (p.derivative.eval (unitPt (x / evenT t)) *
+        ((Complex.I / (evenT t : ℝ)) * unitPt (x / evenT t))) := by
+    unfold scDerivQ
+    rw [Function.iterate_succ_apply', eval_eulerDeriv,
       pow_succ]
     dsimp only [C, p]
     ring
   rw [hnext]
   exact hpoly.const_mul C
 
-private theorem contDiff_unitPoint_mul (c : ℝ) :
-    ContDiff ℝ ⊤ (fun x : ℝ ↦ unitPoint (c * x)) := by
+private theorem contDiff_unitPt_mul (c : ℝ) :
+    ContDiff ℝ ⊤ (fun x : ℝ ↦ unitPt (c * x)) := by
   have hr : ContDiff ℝ ⊤ (fun x : ℝ ↦ c * x) := contDiff_const.mul contDiff_id
   have hc : ContDiff ℝ ⊤ (fun x : ℝ ↦ ((c * x : ℝ) : ℂ)) :=
     ofRealCLM.contDiff.comp hr
-  unfold unitPoint
+  unfold unitPt
   exact (hc.mul contDiff_const).cexp
 
-theorem contDiff_scaledDerivP (r t : ℕ) :
-    ContDiff ℝ ⊤ (scaledDerivP r t) := by
-  let p := (eulerDerivative^[r]) (rudinShapiroP t)
+theorem contDiff_scDerivP (r t : ℕ) :
+    ContDiff ℝ ⊤ (scDerivP r t) := by
+  let p := (eulerDeriv^[r]) (rudinShapiroP t)
   have hp : ContDiff ℝ ⊤ (fun z : ℂ ↦ p.eval z) :=
     p.differentiable.contDiff.restrict_scalars ℝ
-  have hu : ContDiff ℝ ⊤ (fun x : ℝ ↦ unitPoint (x / evenT t)) := by
+  have hu : ContDiff ℝ ⊤ (fun x : ℝ ↦ unitPt (x / evenT t)) := by
     simpa only [div_eq_mul_inv, mul_comm] using
-      contDiff_unitPoint_mul ((evenT t : ℝ)⁻¹)
-  unfold scaledDerivP
+      contDiff_unitPt_mul ((evenT t : ℝ)⁻¹)
+  unfold scDerivP
   exact contDiff_const.mul (hp.comp hu)
 
-theorem contDiff_scaledDerivQ (r t : ℕ) :
-    ContDiff ℝ ⊤ (scaledDerivQ r t) := by
-  let p := (eulerDerivative^[r]) (rudinShapiroQ t)
+theorem contDiff_scDerivQ (r t : ℕ) :
+    ContDiff ℝ ⊤ (scDerivQ r t) := by
+  let p := (eulerDeriv^[r]) (rudinShapiroQ t)
   have hp : ContDiff ℝ ⊤ (fun z : ℂ ↦ p.eval z) :=
     p.differentiable.contDiff.restrict_scalars ℝ
-  have hu : ContDiff ℝ ⊤ (fun x : ℝ ↦ unitPoint (x / evenT t)) := by
+  have hu : ContDiff ℝ ⊤ (fun x : ℝ ↦ unitPt (x / evenT t)) := by
     simpa only [div_eq_mul_inv, mul_comm] using
-      contDiff_unitPoint_mul ((evenT t : ℝ)⁻¹)
-  unfold scaledDerivQ
+      contDiff_unitPt_mul ((evenT t : ℝ)⁻¹)
+  unfold scDerivQ
   exact contDiff_const.mul (hp.comp hu)
 
-theorem iteratedDeriv_scaledDerivP (q r t : ℕ) :
-    iteratedDeriv q (scaledDerivP r t) =
-      scaledDerivP (r + q) t := by
+theorem iteratedDeriv_scDerivP (q r t : ℕ) :
+    iteratedDeriv q (scDerivP r t) =
+      scDerivP (r + q) t := by
   induction q with
   | zero => simp
   | succ q ih =>
       rw [iteratedDeriv_succ, ih]
       funext x
-      simpa [Nat.add_assoc] using (hasDerivAt_scaledDerivP (r + q) t x).deriv
+      simpa [Nat.add_assoc] using (hasDerivAt_scDerivP (r + q) t x).deriv
 
-theorem iteratedDeriv_scaledDerivQ (q r t : ℕ) :
-    iteratedDeriv q (scaledDerivQ r t) =
-      scaledDerivQ (r + q) t := by
+theorem iteratedDeriv_scDerivQ (q r t : ℕ) :
+    iteratedDeriv q (scDerivQ r t) =
+      scDerivQ (r + q) t := by
   induction q with
   | zero => simp
   | succ q ih =>
       rw [iteratedDeriv_succ, ih]
       funext x
-      simpa [Nat.add_assoc] using (hasDerivAt_scaledDerivQ (r + q) t x).deriv
+      simpa [Nat.add_assoc] using (hasDerivAt_scDerivQ (r + q) t x).deriv
 
-private theorem iteratedDeriv_unitPoint_mul (q : ℕ) (c : ℝ) :
-    iteratedDeriv q (fun x : ℝ ↦ unitPoint (c * x)) =
-      fun x ↦ ((c : ℂ) * Complex.I) ^ q * unitPoint (c * x) := by
+private theorem iteratedDeriv_unitPt_mul (q : ℕ) (c : ℝ) :
+    iteratedDeriv q (fun x : ℝ ↦ unitPt (c * x)) =
+      fun x ↦ ((c : ℂ) * Complex.I) ^ q * unitPt (c * x) := by
   induction q with
   | zero => simp
   | succ q ih =>
       rw [iteratedDeriv_succ, ih]
       funext x
       simpa only [pow_succ, mul_assoc] using
-        (hasDerivAt_unitPoint c x).const_mul (((c : ℂ) * Complex.I) ^ q) |>.deriv
+        (hasDerivAt_unitPt c x).const_mul (((c : ℂ) * Complex.I) ^ q) |>.deriv
 
-def normalizedHDerivative (r t : ℕ) (x : ℝ) : ℂ :=
+def normHDeriv (r t : ℕ) (x : ℝ) : ℂ :=
   ∑ i ∈ Finset.range (r + 1),
       (r.choose i : ℂ) *
-        (Complex.I ^ i * unitPoint x) * scaledDerivP (r - i) t x +
+        (Complex.I ^ i * unitPt x) * scDerivP (r - i) t x +
     ∑ i ∈ Finset.range (r + 1),
       (r.choose i : ℂ) *
-        (((2 : ℂ) * Complex.I) ^ i * unitPoint (2 * x)) *
-          scaledDerivQ (r - i) t x
+        (((2 : ℂ) * Complex.I) ^ i * unitPt (2 * x)) *
+          scDerivQ (r - i) t x
 
-theorem contDiff_normalizedH (t : ℕ) :
-    ContDiff ℝ ⊤ (normalizedH t) := by
-  unfold normalizedH
+theorem contDiff_normH (t : ℕ) :
+    ContDiff ℝ ⊤ (normH t) := by
+  unfold normH
   simpa only [one_mul] using
-    (((contDiff_unitPoint_mul 1).mul (contDiff_scaledDerivP 0 t)).add
-      ((contDiff_unitPoint_mul 2).mul (contDiff_scaledDerivQ 0 t)))
+    (((contDiff_unitPt_mul 1).mul (contDiff_scDerivP 0 t)).add
+      ((contDiff_unitPt_mul 2).mul (contDiff_scDerivQ 0 t)))
 
-theorem iteratedDeriv_normalizedH (r t : ℕ) (x : ℝ) :
-    iteratedDeriv r (normalizedH t) x = normalizedHDerivative r t x := by
-  have hu1 : ContDiff ℝ ⊤ (fun y : ℝ ↦ unitPoint y) := by
-    simpa only [one_mul] using contDiff_unitPoint_mul 1
-  have hu2 : ContDiff ℝ ⊤ (fun y : ℝ ↦ unitPoint (2 * y)) :=
-    contDiff_unitPoint_mul 2
-  have hp := contDiff_scaledDerivP 0 t
-  have hq := contDiff_scaledDerivQ 0 t
-  have hdu1 (i : ℕ) : iteratedDeriv i (fun y : ℝ ↦ unitPoint y) x =
-      Complex.I ^ i * unitPoint x := by
-    have h := congrFun (iteratedDeriv_unitPoint_mul i 1) x
+theorem iteratedDeriv_normH (r t : ℕ) (x : ℝ) :
+    iteratedDeriv r (normH t) x = normHDeriv r t x := by
+  have hu1 : ContDiff ℝ ⊤ (fun y : ℝ ↦ unitPt y) := by
+    simpa only [one_mul] using contDiff_unitPt_mul 1
+  have hu2 : ContDiff ℝ ⊤ (fun y : ℝ ↦ unitPt (2 * y)) :=
+    contDiff_unitPt_mul 2
+  have hp := contDiff_scDerivP 0 t
+  have hq := contDiff_scDerivQ 0 t
+  have hdu1 (i : ℕ) : iteratedDeriv i (fun y : ℝ ↦ unitPt y) x =
+      Complex.I ^ i * unitPt x := by
+    have h := congrFun (iteratedDeriv_unitPt_mul i 1) x
     norm_num at h
     exact h
-  unfold normalizedH normalizedHDerivative
+  unfold normH normHDeriv
   change iteratedDeriv r
-      ((fun y ↦ unitPoint y * scaledDerivP 0 t y) +
-        fun y ↦ unitPoint (2 * y) * scaledDerivQ 0 t y) x = _
+      ((fun y ↦ unitPt y * scDerivP 0 t y) +
+        fun y ↦ unitPt (2 * y) * scDerivQ 0 t y) x = _
   rw [iteratedDeriv_add
     ((hu1.mul hp).contDiffAt.of_le (by simp))
     ((hu2.mul hq).contDiffAt.of_le (by simp))]
   congr 1
   · change iteratedDeriv r
-        ((fun y ↦ unitPoint y) * scaledDerivP 0 t) x = _
+        ((fun y ↦ unitPt y) * scDerivP 0 t) x = _
     rw [iteratedDeriv_mul
       (hu1.contDiffAt.of_le (by simp))
       (hp.contDiffAt.of_le (by simp))]
     simp_rw [hdu1,
-      congrFun (iteratedDeriv_scaledDerivP _ _ _) x]
+      congrFun (iteratedDeriv_scDerivP _ _ _) x]
     simp only [Nat.zero_add]
   · change iteratedDeriv r
-        ((fun y ↦ unitPoint (2 * y)) * scaledDerivQ 0 t) x = _
+        ((fun y ↦ unitPt (2 * y)) * scDerivQ 0 t) x = _
     rw [iteratedDeriv_mul
       (hu2.contDiffAt.of_le (by simp))
       (hq.contDiffAt.of_le (by simp))]
-    simp_rw [congrFun (iteratedDeriv_unitPoint_mul _ 2) x,
-      congrFun (iteratedDeriv_scaledDerivQ _ _ _) x]
+    simp_rw [congrFun (iteratedDeriv_unitPt_mul _ 2) x,
+      congrFun (iteratedDeriv_scDerivQ _ _ _) x]
     norm_num
 
-theorem contDiff_normalizedH_re (t : ℕ) :
-    ContDiff ℝ ⊤ (fun x ↦ (normalizedH t x).re) :=
-  reCLM.contDiff.comp (contDiff_normalizedH t)
+theorem contDiff_normH_re (t : ℕ) :
+    ContDiff ℝ ⊤ (fun x ↦ (normH t x).re) :=
+  reCLM.contDiff.comp (contDiff_normH t)
 
 private theorem hasDerivAt_re_of_hasDerivAt {f : ℝ → ℂ} {f' : ℂ} {x : ℝ}
     (hf : HasDerivAt f f' x) :
@@ -4819,44 +4819,44 @@ private theorem hasDerivAt_re_of_hasDerivAt {f : ℝ → ℂ} {f' : ℂ} {x : �
   have hc : HasDerivAt (fun _ : ℝ ↦ reCLM) 0 x := hasDerivAt_const x _
   simpa using hc.clm_apply hf
 
-theorem iteratedDeriv_normalizedH_re (r t : ℕ) :
-    iteratedDeriv r (fun x ↦ (normalizedH t x).re) =
-      fun x ↦ (iteratedDeriv r (normalizedH t) x).re := by
+theorem iteratedDeriv_normH_re (r t : ℕ) :
+    iteratedDeriv r (fun x ↦ (normH t x).re) =
+      fun x ↦ (iteratedDeriv r (normH t) x).re := by
   induction r with
   | zero => simp
   | succ r ih =>
       rw [iteratedDeriv_succ, ih, iteratedDeriv_succ]
       funext x
-      have hd : DifferentiableAt ℝ (iteratedDeriv r (normalizedH t)) x :=
-        ((contDiff_normalizedH t).differentiable_iteratedDeriv r (by simp)) x
+      have hd : DifferentiableAt ℝ (iteratedDeriv r (normH t)) x :=
+        ((contDiff_normH t).differentiable_iteratedDeriv r (by simp)) x
       exact (hasDerivAt_re_of_hasDerivAt hd.hasDerivAt).deriv
 
-theorem iteratedDeriv_normalizedH_re_eq (r t : ℕ) (x : ℝ) :
-    iteratedDeriv r (fun y ↦ (normalizedH t y).re) x =
-      (normalizedHDerivative r t x).re := by
-  rw [congrFun (iteratedDeriv_normalizedH_re r t) x,
-    iteratedDeriv_normalizedH]
+theorem iteratedDeriv_normH_re_eq (r t : ℕ) (x : ℝ) :
+    iteratedDeriv r (fun y ↦ (normH t y).re) x =
+      (normHDeriv r t x).re := by
+  rw [congrFun (iteratedDeriv_normH_re r t) x,
+    iteratedDeriv_normH]
 
-private theorem norm_normalizedHDerivative_le_sum (r t : ℕ) (x : ℝ) :
-    ‖normalizedHDerivative r t x‖ ≤
+private theorem norm_normHDeriv_le_sum (r t : ℕ) (x : ℝ) :
+    ‖normHDeriv r t x‖ ≤
       ∑ i ∈ Finset.range (r + 1),
           (r.choose i : ℝ) * (1 / 2 ^ 10 : ℝ) ^ (r - i) +
         ∑ i ∈ Finset.range (r + 1),
           (r.choose i : ℝ) * 2 ^ i * (1 / 2 ^ 10 : ℝ) ^ (r - i) := by
-  unfold normalizedHDerivative
+  unfold normHDeriv
   calc
     ‖∑ i ∈ Finset.range (r + 1),
-          (r.choose i : ℂ) * (Complex.I ^ i * unitPoint x) *
-              scaledDerivP (r - i) t x +
+          (r.choose i : ℂ) * (Complex.I ^ i * unitPt x) *
+              scDerivP (r - i) t x +
         ∑ i ∈ Finset.range (r + 1),
-          (r.choose i : ℂ) * (((2 : ℂ) * Complex.I) ^ i * unitPoint (2 * x)) *
-              scaledDerivQ (r - i) t x‖ ≤
+          (r.choose i : ℂ) * (((2 : ℂ) * Complex.I) ^ i * unitPt (2 * x)) *
+              scDerivQ (r - i) t x‖ ≤
         ‖∑ i ∈ Finset.range (r + 1),
-          (r.choose i : ℂ) * (Complex.I ^ i * unitPoint x) *
-              scaledDerivP (r - i) t x‖ +
+          (r.choose i : ℂ) * (Complex.I ^ i * unitPt x) *
+              scDerivP (r - i) t x‖ +
         ‖∑ i ∈ Finset.range (r + 1),
-          (r.choose i : ℂ) * (((2 : ℂ) * Complex.I) ^ i * unitPoint (2 * x)) *
-              scaledDerivQ (r - i) t x‖ := norm_add_le _ _
+          (r.choose i : ℂ) * (((2 : ℂ) * Complex.I) ^ i * unitPt (2 * x)) *
+              scDerivQ (r - i) t x‖ := norm_add_le _ _
     _ ≤
         ∑ i ∈ Finset.range (r + 1),
           (r.choose i : ℝ) * (1 / 2 ^ 10 : ℝ) ^ (r - i) +
@@ -4866,72 +4866,72 @@ private theorem norm_normalizedHDerivative_le_sum (r t : ℕ) (x : ℝ) :
       · refine (norm_sum_le _ _).trans (sum_le_sum ?_)
         intro i hi
         simp only [norm_mul, norm_pow, norm_I, one_pow,
-          norm_unitPoint, mul_one, norm_natCast]
+          norm_unitPt, mul_one, norm_natCast]
         exact mul_le_mul_of_nonneg_left
-          (norm_scaledDerivP_le (r - i) t x) (by positivity)
+          (norm_scDerivP_le (r - i) t x) (by positivity)
       · refine (norm_sum_le _ _).trans (sum_le_sum ?_)
         intro i hi
-        simp only [norm_mul, norm_pow, norm_I, norm_unitPoint, mul_one,
+        simp only [norm_mul, norm_pow, norm_I, norm_unitPt, mul_one,
           norm_natCast]
         rw [show ‖(2 : ℂ)‖ = (2 : ℝ) by norm_num]
         exact mul_le_mul_of_nonneg_left
-          (norm_scaledDerivQ_le (r - i) t x)
+          (norm_scDerivQ_le (r - i) t x)
           (mul_nonneg (by positivity) (by positivity))
 
-theorem norm_normalizedHDerivative_le_eighteen {r : ℕ} (hr : r ≤ 4)
+theorem norm_normHDeriv_le_eighteen {r : ℕ} (hr : r ≤ 4)
     (t : ℕ) (x : ℝ) :
-    ‖normalizedHDerivative r t x‖ ≤ 18 := by
-  refine (norm_normalizedHDerivative_le_sum r t x).trans ?_
+    ‖normHDeriv r t x‖ ≤ 18 := by
+  refine (norm_normHDeriv_le_sum r t x).trans ?_
   interval_cases r <;> norm_num [sum_range_succ, Nat.choose]
 
-theorem abs_iteratedDeriv_normalizedH_re_le_eighteen (r : ℕ) (hr : r ≤ 4)
+theorem abs_iteratedDeriv_normH_re_le_eighteen (r : ℕ) (hr : r ≤ 4)
     (t : ℕ) (x : ℝ) :
-    |iteratedDeriv r (fun y ↦ (normalizedH t y).re) x| ≤ 18 := by
-  rw [iteratedDeriv_normalizedH_re_eq]
+    |iteratedDeriv r (fun y ↦ (normH t y).re) x| ≤ 18 := by
+  rw [iteratedDeriv_normH_re_eq]
   exact (abs_re_le_norm _).trans
-    (norm_normalizedHDerivative_le_eighteen hr t x)
+    (norm_normHDeriv_le_eighteen hr t x)
 
-private def normalizedHDerivativeError (r t : ℕ) (x : ℝ) : ℂ :=
+private def normHDerivError (r t : ℕ) (x : ℝ) : ℂ :=
   ∑ i ∈ Finset.range r,
       (r.choose i : ℂ) *
-        (Complex.I ^ i * unitPoint x) * scaledDerivP (r - i) t x +
+        (Complex.I ^ i * unitPt x) * scDerivP (r - i) t x +
     ∑ i ∈ Finset.range r,
       (r.choose i : ℂ) *
-        (((2 : ℂ) * Complex.I) ^ i * unitPoint (2 * x)) *
-          scaledDerivQ (r - i) t x
+        (((2 : ℂ) * Complex.I) ^ i * unitPt (2 * x)) *
+          scDerivQ (r - i) t x
 
-private theorem normalizedHDerivative_sub_leading (r t : ℕ) (x : ℝ) :
-    normalizedHDerivative r t x -
-        CosineAlgebra.leadingDerivative r
-          (unitPoint x * scaledDerivP 0 t x)
-          (unitPoint (2 * x) * scaledDerivQ 0 t x) =
-      normalizedHDerivativeError r t x := by
-  unfold normalizedHDerivative normalizedHDerivativeError
-    CosineAlgebra.leadingDerivative
+private theorem normHDeriv_sub_leading (r t : ℕ) (x : ℝ) :
+    normHDeriv r t x -
+        CosAlgebra.leadingDeriv r
+          (unitPt x * scDerivP 0 t x)
+          (unitPt (2 * x) * scDerivQ 0 t x) =
+      normHDerivError r t x := by
+  unfold normHDeriv normHDerivError
+    CosAlgebra.leadingDeriv
   rw [sum_range_succ, sum_range_succ]
   simp only [Nat.choose_self, Nat.cast_one, one_mul, Nat.sub_self]
   ring
 
-private theorem norm_normalizedHDerivativeError_le_sum (r t : ℕ) (x : ℝ) :
-    ‖normalizedHDerivativeError r t x‖ ≤
+private theorem norm_normHDerivError_le_sum (r t : ℕ) (x : ℝ) :
+    ‖normHDerivError r t x‖ ≤
       ∑ i ∈ Finset.range r,
           (r.choose i : ℝ) * (1 / 2 ^ 10 : ℝ) ^ (r - i) +
         ∑ i ∈ Finset.range r,
           (r.choose i : ℝ) * 2 ^ i * (1 / 2 ^ 10 : ℝ) ^ (r - i) := by
-  unfold normalizedHDerivativeError
+  unfold normHDerivError
   calc
     ‖∑ i ∈ Finset.range r,
-          (r.choose i : ℂ) * (Complex.I ^ i * unitPoint x) *
-              scaledDerivP (r - i) t x +
+          (r.choose i : ℂ) * (Complex.I ^ i * unitPt x) *
+              scDerivP (r - i) t x +
         ∑ i ∈ Finset.range r,
-          (r.choose i : ℂ) * (((2 : ℂ) * Complex.I) ^ i * unitPoint (2 * x)) *
-              scaledDerivQ (r - i) t x‖ ≤
+          (r.choose i : ℂ) * (((2 : ℂ) * Complex.I) ^ i * unitPt (2 * x)) *
+              scDerivQ (r - i) t x‖ ≤
         ‖∑ i ∈ Finset.range r,
-          (r.choose i : ℂ) * (Complex.I ^ i * unitPoint x) *
-              scaledDerivP (r - i) t x‖ +
+          (r.choose i : ℂ) * (Complex.I ^ i * unitPt x) *
+              scDerivP (r - i) t x‖ +
         ‖∑ i ∈ Finset.range r,
-          (r.choose i : ℂ) * (((2 : ℂ) * Complex.I) ^ i * unitPoint (2 * x)) *
-              scaledDerivQ (r - i) t x‖ := norm_add_le _ _
+          (r.choose i : ℂ) * (((2 : ℂ) * Complex.I) ^ i * unitPt (2 * x)) *
+              scDerivQ (r - i) t x‖ := norm_add_le _ _
     _ ≤
         ∑ i ∈ Finset.range r,
           (r.choose i : ℝ) * (1 / 2 ^ 10 : ℝ) ^ (r - i) +
@@ -4941,56 +4941,56 @@ private theorem norm_normalizedHDerivativeError_le_sum (r t : ℕ) (x : ℝ) :
       · refine (norm_sum_le _ _).trans (sum_le_sum ?_)
         intro i hi
         simp only [norm_mul, norm_pow, norm_I, one_pow,
-          norm_unitPoint, mul_one, norm_natCast]
+          norm_unitPt, mul_one, norm_natCast]
         exact mul_le_mul_of_nonneg_left
-          (norm_scaledDerivP_le (r - i) t x) (by positivity)
+          (norm_scDerivP_le (r - i) t x) (by positivity)
       · refine (norm_sum_le _ _).trans (sum_le_sum ?_)
         intro i hi
-        simp only [norm_mul, norm_pow, norm_I, norm_unitPoint, mul_one,
+        simp only [norm_mul, norm_pow, norm_I, norm_unitPt, mul_one,
           norm_natCast]
         rw [show ‖(2 : ℂ)‖ = (2 : ℝ) by norm_num]
         exact mul_le_mul_of_nonneg_left
-          (norm_scaledDerivQ_le (r - i) t x)
+          (norm_scDerivQ_le (r - i) t x)
           (mul_nonneg (by positivity) (by positivity))
 
-private theorem norm_normalizedHDerivative_sub_leading_le_eighth {r : ℕ}
+private theorem norm_normHDeriv_sub_leading_le_eighth {r : ℕ}
     (hr : r < 4) (t : ℕ) (x : ℝ) :
-    ‖normalizedHDerivative r t x -
-        CosineAlgebra.leadingDerivative r
-          (unitPoint x * scaledDerivP 0 t x)
-          (unitPoint (2 * x) * scaledDerivQ 0 t x)‖ ≤ 1 / 8 := by
-  rw [normalizedHDerivative_sub_leading]
-  refine (norm_normalizedHDerivativeError_le_sum r t x).trans ?_
+    ‖normHDeriv r t x -
+        CosAlgebra.leadingDeriv r
+          (unitPt x * scDerivP 0 t x)
+          (unitPt (2 * x) * scDerivQ 0 t x)‖ ≤ 1 / 8 := by
+  rw [normHDeriv_sub_leading]
+  refine (norm_normHDerivError_le_sum r t x).trans ?_
   interval_cases r <;> norm_num [sum_range_succ, Nat.choose]
 
-theorem exists_large_iteratedDeriv_normalizedH_re (t : ℕ) (x : ℝ) :
+theorem exists_large_iteratedDeriv_normH_re (t : ℕ) (x : ℝ) :
     ∃ k : Fin 4,
-      1 / 4 ≤ |iteratedDeriv k (fun y ↦ (normalizedH t y).re) x| := by
-  have hlarge := CosineAlgebra.exists_large_re_of_normalized_modes
-    (u := unitPoint x) (v := unitPoint (2 * x))
-    (α := scaledDerivP 0 t x) (beta := scaledDerivQ 0 t x)
-    (norm_unitPoint x) (norm_unitPoint (2 * x)) (normalized_energy t x)
-    (fun k : Fin 4 ↦ normalizedHDerivative k t x)
-    (fun k ↦ norm_normalizedHDerivative_sub_leading_le_eighth k.isLt t x)
-  simpa only [iteratedDeriv_normalizedH_re_eq] using hlarge
+      1 / 4 ≤ |iteratedDeriv k (fun y ↦ (normH t y).re) x| := by
+  have hlarge := CosAlgebra.exists_large_re_of_norm_modes
+    (u := unitPt x) (v := unitPt (2 * x))
+    (α := scDerivP 0 t x) (beta := scDerivQ 0 t x)
+    (norm_unitPt x) (norm_unitPt (2 * x)) (norm_energy t x)
+    (fun k : Fin 4 ↦ normHDeriv k t x)
+    (fun k ↦ norm_normHDeriv_sub_leading_le_eighth k.isLt t x)
+  simpa only [iteratedDeriv_normH_re_eq] using hlarge
 
-theorem normalizedH_re_hasGoodCellInEverySeven (t : ℕ) {eta : ℝ}
+theorem normH_re_hasGoodCellInEverySeven (t : ℕ) {eta : ℝ}
     (heta : 0 < eta) (hetaSmall : eta < (1 : ℝ) / 2048) :
-    HasGoodCellInEverySeven (fun x ↦ (normalizedH t x).re) eta := by
-  exact hasGoodCellInEverySeven_of_derivative_bounds
-    (fun x ↦ (normalizedH t x).re) eta heta hetaSmall
-    ((contDiff_normalizedH_re t).of_le (by simp))
-    (exists_large_iteratedDeriv_normalizedH_re t)
-    (fun r hr x ↦ abs_iteratedDeriv_normalizedH_re_le_eighteen r hr t x)
+    HasGoodCellInEverySeven (fun x ↦ (normH t x).re) eta := by
+  exact hasGoodCellInEverySeven_of_deriv_bounds
+    (fun x ↦ (normH t x).re) eta heta hetaSmall
+    ((contDiff_normH_re t).of_le (by simp))
+    (exists_large_iteratedDeriv_normH_re t)
+    (fun r hr x ↦ abs_iteratedDeriv_normH_re_le_eighteen r hr t x)
 
 end
 
-end CosineConstruction
+end CosConstr
 
 end
 
 section
-namespace CosineConstruction
+namespace CosConstr
 
 open Set
 
@@ -5027,11 +5027,11 @@ private theorem maximalBadRuns_oriented {N a b c d : ℕ} {bad : ℕ → Prop}
     · omega
     · exact hgoodPred hbadPred
 
-theorem firstQuadrantIntervals_pairwise_separated
+theorem firstQuadIvls_pairwise_sep
     {n t : ℕ} {γ : ℝ} (hn : 0 < n) :
     Set.Pairwise
-      (↑(firstQuadrantIntervals n t γ) :
-        Set RealInterval)
+      (↑(firstQuadIvls n t γ) :
+        Set RealIvl)
       (fun I J ↦ ∀ x ∈ Icc I.1 I.2, ∀ y ∈ Icc J.1 J.2,
         π / n ≤ |x - y|) := by
   classical
@@ -5041,37 +5041,37 @@ theorem firstQuadrantIntervals_pairwise_separated
   have hrunsNe : (a, b) ≠ (c, d) := by
     intro heq
     apply hne
-    exact congrArg (runEndpoints n) heq
-  rw [mem_firstQuadrantRuns] at hab hcd
+    exact congrArg (runEndpts n) heq
+  rw [mem_firstQuadRuns] at hab hcd
   have horient := maximalBadRuns_oriented
     (show IsMaximalBadRun (2 * n) (BadCell n t γ) a b by
       simpa only [mem_dangerousRuns] using hab.1)
     (show IsMaximalBadRun (2 * n) (BadCell n t γ) c d by
       simpa only [mem_dangerousRuns] using hcd.1)
     hrunsNe
-  simp only [runEndpoints, mem_Icc] at hx hy ⊢
-  have hmono := gridPoint_mono hn
+  simp only [runEndpts, mem_Icc] at hx hy ⊢
+  have hmono := gridPt_mono hn
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
   have hmesh : 0 < π / (n : ℝ) := div_pos pi_pos hnR
   rcases horient with hbc | hda
-  · have hgap : b + 2 ≤ c := dangerousRuns_separated hab.1 hcd.1 hbc
+  · have hgap : b + 2 ≤ c := dangerousRuns_sep hab.1 hcd.1 hbc
     have hgrid :
-        gridPoint n (b + 1) + π / n ≤
-          gridPoint n c := by
-      rw [← gridPoint_succ]
+        gridPt n (b + 1) + π / n ≤
+          gridPt n c := by
+      rw [← gridPt_succ]
       exact hmono hgap
     rw [abs_of_nonpos (by linarith [hx.2, hy.1])]
     linarith [hx.2, hy.1]
-  · have hgap : d + 2 ≤ a := dangerousRuns_separated hcd.1 hab.1 hda
+  · have hgap : d + 2 ≤ a := dangerousRuns_sep hcd.1 hab.1 hda
     have hgrid :
-        gridPoint n (d + 1) + π / n ≤
-          gridPoint n a := by
-      rw [← gridPoint_succ]
+        gridPt n (d + 1) + π / n ≤
+          gridPt n a := by
+      rw [← gridPt_succ]
       exact hmono hgap
     rw [abs_of_nonneg (by linarith [hx.1, hy.2])]
     linarith [hx.1, hy.2]
 
-private theorem rudinShapiro_odd_axis_values (k : ℕ) :
+private theorem rs_odd_axis_values (k : ℕ) :
     (rudinShapiroP (2 * k + 1)).eval 1 = (2 ^ (k + 1) : ℕ) ∧
     (rudinShapiroQ (2 * k + 1)).eval 1 = 0 ∧
     (rudinShapiroP (2 * k + 1)).eval (-1) = 0 ∧
@@ -5082,14 +5082,14 @@ private theorem rudinShapiro_odd_axis_values (k : ℕ) :
       rcases ih with ⟨hP1, hQ1, hPm1, hQm1⟩
       have hs : 2 * (k + 1) + 1 = (2 * k + 1) + 2 := by omega
       rw [hs, show (2 * k + 1) + 2 = ((2 * k + 1) + 1) + 1 by omega]
-      rw [eval_rudinShapiroP_succ ((2 * k + 1) + 1) 1,
-        eval_rudinShapiroQ_succ ((2 * k + 1) + 1) 1,
-        eval_rudinShapiroP_succ ((2 * k + 1) + 1) (-1),
-        eval_rudinShapiroQ_succ ((2 * k + 1) + 1) (-1)]
-      rw [eval_rudinShapiroP_succ (2 * k + 1) 1,
-        eval_rudinShapiroQ_succ (2 * k + 1) 1,
-        eval_rudinShapiroP_succ (2 * k + 1) (-1),
-        eval_rudinShapiroQ_succ (2 * k + 1) (-1)]
+      rw [eval_rsP_succ ((2 * k + 1) + 1) 1,
+        eval_rsQ_succ ((2 * k + 1) + 1) 1,
+        eval_rsP_succ ((2 * k + 1) + 1) (-1),
+        eval_rsQ_succ ((2 * k + 1) + 1) (-1)]
+      rw [eval_rsP_succ (2 * k + 1) 1,
+        eval_rsQ_succ (2 * k + 1) 1,
+        eval_rsP_succ (2 * k + 1) (-1),
+        eval_rsQ_succ (2 * k + 1) (-1)]
       rw [hP1, hQ1, hPm1, hQm1]
       norm_num [pow_succ]
       ring
@@ -5101,95 +5101,95 @@ private theorem sqrt_two_pow_odd_succ (k : ℕ) :
   · norm_num
   · positivity
 
-theorem normalizedH_re_zero_of_odd {t : ℕ} (ht : Odd t) :
-    (normalizedH t 0).re = 1 := by
+theorem normH_re_zero_of_odd {t : ℕ} (ht : Odd t) :
+    (normH t 0).re = 1 := by
   obtain ⟨k, rfl⟩ := ht
-  rcases rudinShapiro_odd_axis_values k with ⟨hP1, hQ1, _hPm1, _hQm1⟩
-  have hunit0 : unitPoint 0 = 1 := by simp [unitPoint]
-  simp only [normalizedH, scaledDerivP, scaledDerivQ, pow_zero,
+  rcases rs_odd_axis_values k with ⟨hP1, hQ1, _hPm1, _hQm1⟩
+  have hunit0 : unitPt 0 = 1 := by simp [unitPt]
+  simp only [normH, scDerivP, scDerivQ, pow_zero,
     one_mul, Function.iterate_zero_apply, hunit0, zero_div, rsNormalization]
   rw [hP1, hQ1, sqrt_two_pow_odd_succ]
   norm_num
 
-private theorem unitPoint_evenT_mul_pi (t : ℕ) :
-    unitPoint ((evenT t : ℝ) * π) = 1 := by
-  rw [show unitPoint ((evenT t : ℝ) * π) = unitPoint π ^ evenT t by
-    simp only [unitPoint, ← exp_nat_mul]
+private theorem unitPt_evenT_mul_pi (t : ℕ) :
+    unitPt ((evenT t : ℝ) * π) = 1 := by
+  rw [show unitPt ((evenT t : ℝ) * π) = unitPt π ^ evenT t by
+    simp only [unitPt, ← exp_nat_mul]
     congr 1
     push_cast
     ring]
-  have hpi : unitPoint π = -1 := by simp [unitPoint]
+  have hpi : unitPt π = -1 := by simp [unitPt]
   rw [hpi]
   rw [show evenT t = 2 * 2 ^ (t + 9) by simp [evenT, pow_succ']]
   rw [pow_mul]
   norm_num
 
-theorem normalizedH_re_evenT_mul_pi_of_odd {t : ℕ} (ht : Odd t) :
-    (normalizedH t ((evenT t : ℝ) * π)).re = 1 := by
+theorem normH_re_evenT_mul_pi_of_odd {t : ℕ} (ht : Odd t) :
+    (normH t ((evenT t : ℝ) * π)).re = 1 := by
   obtain ⟨k, rfl⟩ := ht
-  rcases rudinShapiro_odd_axis_values k with ⟨_hP1, _hQ1, hPm1, hQm1⟩
+  rcases rs_odd_axis_values k with ⟨_hP1, _hQ1, hPm1, hQm1⟩
   have hTpos : (0 : ℝ) < evenT (2 * k + 1) := by
     exact_mod_cast (pow_pos (by norm_num : 0 < (2 : ℕ)) ((2 * k + 1) + 10))
   have hdiv :
       ((evenT (2 * k + 1) : ℝ) * π) / evenT (2 * k + 1) =
         π := by
     field_simp
-  have hphase₁ := unitPoint_evenT_mul_pi (2 * k + 1)
+  have hphase₁ := unitPt_evenT_mul_pi (2 * k + 1)
   have hphase₂ :
-      unitPoint (2 * ((evenT (2 * k + 1) : ℝ) * π)) = 1 := by
+      unitPt (2 * ((evenT (2 * k + 1) : ℝ) * π)) = 1 := by
     rw [show 2 * ((evenT (2 * k + 1) : ℝ) * π) =
       (evenT (2 * k + 1) : ℝ) * π +
         (evenT (2 * k + 1) : ℝ) * π by ring]
-    rw [show unitPoint
+    rw [show unitPt
         ((evenT (2 * k + 1) : ℝ) * π +
           (evenT (2 * k + 1) : ℝ) * π) =
-        unitPoint ((evenT (2 * k + 1) : ℝ) * π) *
-          unitPoint ((evenT (2 * k + 1) : ℝ) * π) by
-      simp [unitPoint, Complex.exp_add, add_mul]]
+        unitPt ((evenT (2 * k + 1) : ℝ) * π) *
+          unitPt ((evenT (2 * k + 1) : ℝ) * π) by
+      simp [unitPt, Complex.exp_add, add_mul]]
     rw [hphase₁]
     norm_num
-  simp only [normalizedH, scaledDerivP, scaledDerivQ, pow_zero,
+  simp only [normH, scDerivP, scDerivQ, pow_zero,
     one_mul, Function.iterate_zero_apply, hphase₁, hphase₂, hdiv,
-    show unitPoint π = -1 by simp [unitPoint], rsNormalization]
+    show unitPt π = -1 by simp [unitPt], rsNormalization]
   rw [hPm1, hQm1, sqrt_two_pow_odd_succ]
   norm_num
 
-theorem threshold_lt_half_normalization
-    {n t : ℕ} {γ : ℝ} (hparam : Parameters n t γ) :
-    threshold n γ < sqrt (2 ^ (t + 1) : ℝ) / 2 := by
+theorem thr_lt_half_normalization
+    {n t : ℕ} {γ : ℝ} (hparam : Params n t γ) :
+    thr n γ < sqrt (2 ^ (t + 1) : ℝ) / 2 := by
   have hγ0 : 0 ≤ γ := (hparam.gamma_pos).le
   have hn0 : (0 : ℝ) ≤ n := by positivity
-  have hthreshold0 : 0 ≤ threshold n γ := by
-    exact (threshold_pos hparam.n_pos hparam.gamma_pos).le
+  have hthreshold0 : 0 ≤ thr n γ := by
+    exact (thr_pos hparam.n_pos hparam.gamma_pos).le
   have hscale0 : 0 < sqrt (2 ^ (t + 1) : ℝ) := by positivity
   have hscaleSq : (sqrt (2 ^ (t + 1) : ℝ)) ^ 2 = 2 ^ (t + 1) :=
     sq_sqrt (by positivity)
   have hthresholdSq :
-      (threshold n γ) ^ 2 =
+      (thr n γ) ^ 2 =
         (1 / 2 ^ 16 : ℝ) * (γ ^ 7 * n) := by
-    simp only [threshold, cosineDelta, mul_pow]
+    simp only [thr, cosDelta, mul_pow]
     rw [sq_sqrt hγ0, sq_sqrt hn0]
     ring
   have hγOne : γ ≤ 1 :=
     hparam.gamma_upper.trans (by norm_num)
   have hγPow : γ ^ 6 ≤ 1 := by
     exact pow_le_one₀ hγ0 hγOne
-  have hnum : parameterNumerator t < 2 ^ (t + 12) := by
+  have hnum : paramNum t < 2 ^ (t + 12) := by
     have hpowpos : 0 < 2 ^ t := by positivity
-    simp only [parameterNumerator, pow_add]
+    simp only [paramNum, pow_add]
     norm_num
     omega
-  have hnumR : (parameterNumerator t : ℝ) < (2 : ℝ) ^ (t + 12) := by
+  have hnumR : (paramNum t : ℝ) < (2 : ℝ) ^ (t + 12) := by
     exact_mod_cast hnum
   have hγNum : γ ^ 7 * (n : ℝ) < (2 : ℝ) ^ (t + 12) := by
     calc
       γ ^ 7 * (n : ℝ) = γ ^ 6 * (γ * n) := by ring
-      _ = γ ^ 6 * parameterNumerator t := by rw [hparam.equation]
-      _ ≤ 1 * parameterNumerator t := by
+      _ = γ ^ 6 * paramNum t := by rw [hparam.equation]
+      _ ≤ 1 * paramNum t := by
         exact mul_le_mul_of_nonneg_right hγPow (by positivity)
       _ < (2 : ℝ) ^ (t + 12) := by simpa using hnumR
   have hsqLt :
-      (threshold n γ) ^ 2 <
+      (thr n γ) ^ 2 <
         (sqrt (2 ^ (t + 1) : ℝ) / 2) ^ 2 := by
     rw [hthresholdSq, div_pow, hscaleSq]
     calc
@@ -5201,19 +5201,19 @@ theorem threshold_lt_half_normalization
         nlinarith
   nlinarith
 
-private theorem normalizedH_re_gt_half_of_close
+private theorem normH_re_gt_half_of_close
     {t : ℕ} {axis x : ℝ}
-    (haxis : (normalizedH t axis).re = 1)
-    (hdiff : Differentiable ℝ (fun y ↦ (normalizedH t y).re))
+    (haxis : (normH t axis).re = 1)
+    (hdiff : Differentiable ℝ (fun y ↦ (normH t y).re))
     (hderiv : ∀ y,
-      |iteratedDeriv 1 (fun z ↦ (normalizedH t z).re) y| ≤ 18)
+      |iteratedDeriv 1 (fun z ↦ (normH t z).re) y| ≤ 18)
     (hclose : 18 * |x - axis| < 1 / 2) :
-    1 / 2 < (normalizedH t x).re := by
+    1 / 2 < (normH t x).re := by
   have hmean :
-      |(normalizedH t x).re - (normalizedH t axis).re| ≤
+      |(normH t x).re - (normH t axis).re| ≤
         18 * |x - axis| := by
     have h := Convex.norm_image_sub_le_of_norm_deriv_le
-      (s := Set.univ) (f := fun y ↦ (normalizedH t y).re)
+      (s := Set.univ) (f := fun y ↦ (normH t y).re)
       (x := axis) (y := x)
       (fun y _ ↦ hdiff.differentiableAt)
       (fun y _ ↦ by
@@ -5226,14 +5226,14 @@ private theorem normalizedH_re_gt_half_of_close
   linarith
 
 private theorem two_mul_evenT_div_n_lt_gamma
-    {n t : ℕ} {γ : ℝ} (hparam : Parameters n t γ) :
+    {n t : ℕ} {γ : ℝ} (hparam : Params n t γ) :
     (2 * evenT t : ℝ) / n < γ := by
   obtain ⟨k, ht⟩ := hparam.t_odd
   have htpos : 0 < t := by omega
   have hpow : 1 < 2 ^ t := by
     exact one_lt_pow₀ (by norm_num) htpos.ne'
-  have hnat : 2 * evenT t < parameterNumerator t := by
-    rw [parameterNumerator, two_mul_evenT]
+  have hnat : 2 * evenT t < paramNum t := by
+    rw [paramNum, two_mul_evenT]
     omega
   have hreal : (2 * evenT t : ℝ) < γ * n := by
     rw [hparam.equation]
@@ -5242,7 +5242,7 @@ private theorem two_mul_evenT_div_n_lt_gamma
   exact (div_lt_iff₀ hnR).2 hreal
 
 private theorem axis_close_numeric
-    {n t : ℕ} {γ : ℝ} (hparam : Parameters n t γ)
+    {n t : ℕ} {γ : ℝ} (hparam : Params n t γ)
     {C : ℝ} (hC0 : 0 ≤ C) (hC : C ≤ 101) :
     18 * C * π * ((2 * evenT t : ℝ) / n) < 1 / 2 := by
   have hratio := two_mul_evenT_div_n_lt_gamma hparam
@@ -5259,25 +5259,25 @@ private theorem axis_close_numeric
     _ < 1 / 2 := by norm_num
 
 theorem not_badCell_of_left_axis
-    {n t i : ℕ} {γ : ℝ} (hparam : Parameters n t γ)
-    (hdiff : Differentiable ℝ (fun y ↦ (normalizedH t y).re))
+    {n t i : ℕ} {γ : ℝ} (hparam : Params n t γ)
+    (hdiff : Differentiable ℝ (fun y ↦ (normH t y).re))
     (hderiv : ∀ y,
-      |iteratedDeriv 1 (fun z ↦ (normalizedH t z).re) y| ≤ 18)
+      |iteratedDeriv 1 (fun z ↦ (normH t z).re) y| ≤ 18)
     (hi : i < 100) :
     ¬BadCell n t γ i := by
   rintro ⟨θ, hθ, hsmall⟩
   have hnR : (0 : ℝ) < n := by exact_mod_cast hparam.n_pos
-  have hmono := gridPoint_mono hparam.n_pos
+  have hmono := gridPt_mono hparam.n_pos
   have hθ0 : 0 ≤ θ := by
-    have hgp : 0 ≤ gridPoint n i := by
-      rw [← gridPoint_zero n]
+    have hgp : 0 ≤ gridPt n i := by
+      rw [← gridPt_zero n]
       exact hmono (Nat.zero_le i)
     exact hgp.trans hθ.1
   have hθ100 : θ ≤ 100 * π / n := by
     calc
-      θ ≤ gridPoint n (i + 1) := hθ.2
-      _ ≤ gridPoint n 100 := hmono (by omega)
-      _ = 100 * π / n := by simp [gridPoint]
+      θ ≤ gridPt n (i + 1) := hθ.2
+      _ ≤ gridPt n 100 := hmono (by omega)
+      _ = 100 * π / n := by simp [gridPt]
   let x : ℝ := 2 * evenT t * θ
   have hxclose : 18 * |x - 0| < 1 / 2 := by
     have hT0 : (0 : ℝ) ≤ 2 * evenT t := by positivity
@@ -5287,24 +5287,24 @@ theorem not_badCell_of_left_axis
           18 * (2 * (evenT t : ℝ) * (100 * π / n)) := by gcongr
       _ = 18 * 100 * π * ((2 * evenT t : ℝ) / n) := by ring
       _ < 1 / 2 := axis_close_numeric hparam (by norm_num) (by norm_num)
-  have hxhalf : 1 / 2 < (normalizedH t x).re :=
-    normalizedH_re_gt_half_of_close
-      (normalizedH_re_zero_of_odd hparam.t_odd) hdiff hderiv hxclose
+  have hxhalf : 1 / 2 < (normH t x).re :=
+    normH_re_gt_half_of_close
+      (normH_re_zero_of_odd hparam.t_odd) hdiff hderiv hxclose
   have hscale : 0 < sqrt (2 ^ (t + 1) : ℝ) := by positivity
-  have hthreshold := threshold_lt_half_normalization hparam
-  have hcos : threshold n γ < evenCosine t θ := by
-    rw [evenCosine_eq_normalizedH]
-    change threshold n γ <
-      sqrt (2 ^ (t + 1) : ℝ) * (normalizedH t x).re
+  have hthreshold := thr_lt_half_normalization hparam
+  have hcos : thr n γ < evenCos t θ := by
+    rw [evenCos_eq_normH]
+    change thr n γ <
+      sqrt (2 ^ (t + 1) : ℝ) * (normH t x).re
     nlinarith
-  have habs : evenCosine t θ ≤ |evenCosine t θ| := le_abs_self _
+  have habs : evenCos t θ ≤ |evenCos t θ| := le_abs_self _
   linarith
 
 theorem not_badCell_of_right_axis
-    {n t i : ℕ} {γ : ℝ} (hparam : Parameters n t γ)
-    (hdiff : Differentiable ℝ (fun y ↦ (normalizedH t y).re))
+    {n t i : ℕ} {γ : ℝ} (hparam : Params n t γ)
+    (hdiff : Differentiable ℝ (fun y ↦ (normH t y).re))
     (hderiv : ∀ y,
-      |iteratedDeriv 1 (fun z ↦ (normalizedH t z).re) y| ≤ 18)
+      |iteratedDeriv 1 (fun z ↦ (normH t z).re) y| ≤ 18)
     (hiFirst : 2 * (i + 1) ≤ n)
     (hiNear : ¬2 * (i + 1 + 100) ≤ n) :
     ¬BadCell n t γ i := by
@@ -5314,17 +5314,17 @@ theorem not_badCell_of_right_axis
   have hiNearNat : n < 2 * (i + 101) := by omega
   have hiNearR : (n : ℝ) < 2 * (i + 101) := by exact_mod_cast hiNearNat
   have hrightEndpoint :
-      gridPoint n (i + 1) ≤ π / 2 := by
-    simp only [gridPoint, Nat.cast_add, Nat.cast_one]
+      gridPt n (i + 1) ≤ π / 2 := by
+    simp only [gridPt, Nat.cast_add, Nat.cast_one]
     apply (div_le_iff₀ hnR).2
     field_simp [hnR.ne']
     nlinarith [pi_pos]
   have hθAxis : θ ≤ π / 2 :=
     hθ.2.trans hrightEndpoint
   have hgridDist :
-      π / 2 - gridPoint n i <
+      π / 2 - gridPt n i <
         101 * π / n := by
-    simp only [gridPoint]
+    simp only [gridPt]
     apply (sub_lt_iff_lt_add).2
     rw [← add_div]
     apply (lt_div_iff₀ hnR).2
@@ -5347,27 +5347,27 @@ theorem not_badCell_of_right_axis
             gcongr
       _ = 18 * 101 * π * ((2 * evenT t : ℝ) / n) := by ring
       _ < 1 / 2 := axis_close_numeric hparam (by norm_num) (by norm_num)
-  have hxhalf : 1 / 2 < (normalizedH t x).re :=
-    normalizedH_re_gt_half_of_close
-      (show (normalizedH t axis).re = 1 by
+  have hxhalf : 1 / 2 < (normH t x).re :=
+    normH_re_gt_half_of_close
+      (show (normH t axis).re = 1 by
         dsimp only [axis]
-        exact normalizedH_re_evenT_mul_pi_of_odd hparam.t_odd)
+        exact normH_re_evenT_mul_pi_of_odd hparam.t_odd)
       hdiff hderiv hxclose
   have hscale : 0 < sqrt (2 ^ (t + 1) : ℝ) := by positivity
-  have hthreshold := threshold_lt_half_normalization hparam
-  have hcos : threshold n γ < evenCosine t θ := by
-    rw [evenCosine_eq_normalizedH]
-    change threshold n γ <
-      sqrt (2 ^ (t + 1) : ℝ) * (normalizedH t x).re
+  have hthreshold := thr_lt_half_normalization hparam
+  have hcos : thr n γ < evenCos t θ := by
+    rw [evenCos_eq_normH]
+    change thr n γ <
+      sqrt (2 ^ (t + 1) : ℝ) * (normH t x).re
     nlinarith
-  have habs : evenCosine t θ ≤ |evenCosine t θ| := le_abs_self _
+  have habs : evenCos t θ ≤ |evenCos t θ| := le_abs_self _
   linarith
 
 theorem not_badCell_middle_axis
-    {n t : ℕ} {γ : ℝ} (hparam : Parameters n t γ)
-    (hdiff : Differentiable ℝ (fun y ↦ (normalizedH t y).re))
+    {n t : ℕ} {γ : ℝ} (hparam : Params n t γ)
+    (hdiff : Differentiable ℝ (fun y ↦ (normH t y).re))
     (hderiv : ∀ y,
-      |iteratedDeriv 1 (fun z ↦ (normalizedH t z).re) y| ≤ 18) :
+      |iteratedDeriv 1 (fun z ↦ (normH t z).re) y| ≤ 18) :
     ¬BadCell n t γ (n / 2) := by
   rintro ⟨θ, hθ, hsmall⟩
   have hnR : (0 : ℝ) < n := by exact_mod_cast hparam.n_pos
@@ -5379,14 +5379,14 @@ theorem not_badCell_middle_axis
     exact_mod_cast hqUpper
   have hgridLower :
       π / 2 - π / n ≤
-        gridPoint n (n / 2) := by
-    simp only [gridPoint]
+        gridPt n (n / 2) := by
+    simp only [gridPt]
     field_simp [hnR.ne']
     nlinarith [pi_pos]
   have hgridUpper :
-      gridPoint n (n / 2 + 1) ≤
+      gridPt n (n / 2 + 1) ≤
         π / 2 + π / n := by
-    simp only [gridPoint, Nat.cast_add, Nat.cast_one]
+    simp only [gridPt, Nat.cast_add, Nat.cast_one]
     field_simp [hnR.ne']
     nlinarith [pi_pos]
   have hθDist : |θ - π / 2| ≤ π / n := by
@@ -5406,34 +5406,34 @@ theorem not_badCell_middle_axis
           18 * (2 * (evenT t : ℝ) * (π / n)) := by gcongr
       _ = 18 * 1 * π * ((2 * evenT t : ℝ) / n) := by ring
       _ < 1 / 2 := axis_close_numeric hparam (by norm_num) (by norm_num)
-  have hxhalf : 1 / 2 < (normalizedH t x).re :=
-    normalizedH_re_gt_half_of_close
-      (show (normalizedH t axis).re = 1 by
+  have hxhalf : 1 / 2 < (normH t x).re :=
+    normH_re_gt_half_of_close
+      (show (normH t axis).re = 1 by
         dsimp only [axis]
-        exact normalizedH_re_evenT_mul_pi_of_odd hparam.t_odd)
+        exact normH_re_evenT_mul_pi_of_odd hparam.t_odd)
       hdiff hderiv hxclose
   have hscale : 0 < sqrt (2 ^ (t + 1) : ℝ) := by positivity
-  have hthreshold := threshold_lt_half_normalization hparam
-  have hcos : threshold n γ < evenCosine t θ := by
-    rw [evenCosine_eq_normalizedH]
-    change threshold n γ <
-      sqrt (2 ^ (t + 1) : ℝ) * (normalizedH t x).re
+  have hthreshold := thr_lt_half_normalization hparam
+  have hcos : thr n γ < evenCos t θ := by
+    rw [evenCos_eq_normH]
+    change thr n γ <
+      sqrt (2 ^ (t + 1) : ℝ) * (normH t x).re
     nlinarith
-  have habs : evenCosine t θ ≤ |evenCosine t θ| := le_abs_self _
+  have habs : evenCos t θ ≤ |evenCos t θ| := le_abs_self _
   linarith
 
-theorem firstQuadrantIntervals_away_from_axes_of_badCell_exclusion
+theorem firstQuadIvls_away_from_axes_of_badCell_exclusion
     {n t : ℕ} {γ : ℝ} (hn : 0 < n)
     (hleft : ∀ i, i < 100 → ¬BadCell n t γ i)
     (hright : ∀ i, 2 * (i + 1) ≤ n → ¬2 * (i + 1 + 100) ≤ n →
       ¬BadCell n t γ i) :
-    ∀ I ∈ firstQuadrantIntervals n t γ,
+    ∀ I ∈ firstQuadIvls n t γ,
       100 * π / n ≤ I.1 ∧
         I.2 ≤ π / 2 - 100 * π / n := by
   classical
   intro I hI
   obtain ⟨⟨a, b⟩, hab, rfl⟩ := Finset.mem_image.mp hI
-  rw [mem_firstQuadrantRuns] at hab
+  rw [mem_firstQuadRuns] at hab
   have hrun :
       IsMaximalBadRun (2 * n) (BadCell n t γ) a b := by
     simpa only [mem_dangerousRuns] using hab.1
@@ -5447,83 +5447,83 @@ theorem firstQuadrantIntervals_away_from_axes_of_badCell_exclusion
   have hb100 : 2 * (b + 1 + 100) ≤ n := by
     by_contra hb
     exact hright b hab.2 hb hbadb
-  simp only [runEndpoints]
+  simp only [runEndpts]
   constructor
   · rw [show 100 * π / (n : ℝ) =
-        gridPoint n 100 by
-      simp [gridPoint]]
-    exact gridPoint_mono hn ha100
+        gridPt n 100 by
+      simp [gridPt]]
+    exact gridPt_mono hn ha100
   · have hnR : (0 : ℝ) < n := by exact_mod_cast hn
     have hb100R : (2 : ℝ) * (b + 1 + 100) ≤ n := by exact_mod_cast hb100
-    simp only [gridPoint, Nat.cast_add, Nat.cast_one,
+    simp only [gridPt, Nat.cast_add, Nat.cast_one,
       Nat.cast_ofNat]
     apply (div_le_iff₀ hnR).2
     field_simp [hnR.ne']
     nlinarith [pi_pos]
 
-theorem geometricCertificateOfBadCellExclusion
+theorem geometricCertOfBadCellExclusion
     {n t : ℕ} {γ : ℝ} (hn : 0 < n)
     (hleft : ∀ i, i < 100 → ¬BadCell n t γ i)
     (hright : ∀ i, 2 * (i + 1) ≤ n → ¬2 * (i + 1 + 100) ≤ n →
       ¬BadCell n t γ i) :
-    GeometricCertificate n t γ where
-  separated := firstQuadrantIntervals_pairwise_separated hn
+    GeometricCert n t γ where
+  separated := firstQuadIvls_pairwise_sep hn
   away_from_axes :=
-    firstQuadrantIntervals_away_from_axes_of_badCell_exclusion hn hleft hright
+    firstQuadIvls_away_from_axes_of_badCell_exclusion hn hleft hright
 
-theorem geometricCertificate_of_parameters
-    {n t : ℕ} {γ : ℝ} (hparam : Parameters n t γ) :
-    GeometricCertificate n t γ := by
-  have hdiff : Differentiable ℝ (fun y ↦ (normalizedH t y).re) :=
-    (contDiff_normalizedH_re t).differentiable (by norm_num)
+theorem geometricCert_of_params
+    {n t : ℕ} {γ : ℝ} (hparam : Params n t γ) :
+    GeometricCert n t γ := by
+  have hdiff : Differentiable ℝ (fun y ↦ (normH t y).re) :=
+    (contDiff_normH_re t).differentiable (by norm_num)
   have hderiv : ∀ y,
-      |iteratedDeriv 1 (fun z ↦ (normalizedH t z).re) y| ≤ 18 := by
+      |iteratedDeriv 1 (fun z ↦ (normH t z).re) y| ≤ 18 := by
     intro y
-    exact abs_iteratedDeriv_normalizedH_re_le_eighteen 1 (by omega) t y
-  apply geometricCertificateOfBadCellExclusion hparam.n_pos
+    exact abs_iteratedDeriv_normH_re_le_eighteen 1 (by omega) t y
+  apply geometricCertOfBadCellExclusion hparam.n_pos
   · intro i hi
     exact not_badCell_of_left_axis hparam hdiff hderiv hi
   · intro i hiFirst hiNear
     exact not_badCell_of_right_axis hparam hdiff hderiv hiFirst hiNear
 
-theorem low_point_covered_by_firstQuadrantIntervals
-    {n t : ℕ} {γ θ : ℝ} (hparam : Parameters n t γ)
+theorem low_pt_covered_by_firstQuadIvls
+    {n t : ℕ} {γ θ : ℝ} (hparam : Params n t γ)
     (hθ : θ ∈ Icc 0 (π / 2))
-    (hsmall : |evenCosine t θ| < threshold n γ) :
-    ∃ I ∈ firstQuadrantIntervals n t γ,
-      InInterval I θ := by
+    (hsmall : |evenCos t θ| < thr n γ) :
+    ∃ I ∈ firstQuadIvls n t γ,
+      InIvl I θ := by
   classical
-  have hdiff : Differentiable ℝ (fun y ↦ (normalizedH t y).re) :=
-    (contDiff_normalizedH_re t).differentiable (by norm_num)
+  have hdiff : Differentiable ℝ (fun y ↦ (normH t y).re) :=
+    (contDiff_normH_re t).differentiable (by norm_num)
   have hderiv : ∀ y,
-      |iteratedDeriv 1 (fun z ↦ (normalizedH t z).re) y| ≤ 18 := by
+      |iteratedDeriv 1 (fun z ↦ (normH t z).re) y| ≤ 18 := by
     intro y
-    exact abs_iteratedDeriv_normalizedH_re_le_eighteen 1 (by omega) t y
+    exact abs_iteratedDeriv_normH_re_le_eighteen 1 (by omega) t y
   have hnR : (0 : ℝ) < n := by exact_mod_cast hparam.n_pos
   let P : ℕ → Prop := fun k ↦
-    θ ≤ gridPoint n (k + 1)
+    θ ≤ gridPt n (k + 1)
   have hqUpper : n < 2 * (n / 2 + 1) := by omega
   have hqUpperR : (n : ℝ) < 2 * (((n / 2 : ℕ) : ℝ) + 1) := by
     exact_mod_cast hqUpper
   have haxisGrid :
-      π / 2 ≤ gridPoint n (n / 2 + 1) := by
-    simp only [gridPoint, Nat.cast_add, Nat.cast_one]
+      π / 2 ≤ gridPt n (n / 2 + 1) := by
+    simp only [gridPt, Nat.cast_add, Nat.cast_one]
     field_simp [hnR.ne']
     nlinarith [pi_pos]
   have hPex : ∃ k, P k :=
     ⟨n / 2, hθ.2.trans haxisGrid⟩
   let i : ℕ := Nat.find hPex
-  have hiright : θ ≤ gridPoint n (i + 1) := by
+  have hiright : θ ≤ gridPt n (i + 1) := by
     simpa only [i, P] using Nat.find_spec hPex
-  have hileft : gridPoint n i ≤ θ := by
+  have hileft : gridPt n i ≤ θ := by
     by_cases hi0 : i = 0
-    · rw [hi0, gridPoint_zero]
+    · rw [hi0, gridPt_zero]
       exact hθ.1
     · have hipos : 0 < i := Nat.pos_of_ne_zero hi0
       have hnot := Nat.find_min hPex (show i - 1 < Nat.find hPex by
         simpa only [i] using Nat.sub_lt hipos Nat.one_pos)
       have hpred : i - 1 + 1 = i := by omega
-      change ¬θ ≤ gridPoint n (i - 1 + 1) at hnot
+      change ¬θ ≤ gridPt n (i - 1 + 1) at hnot
       rw [hpred] at hnot
       exact (lt_of_not_ge hnot).le
   have hiq : i ≤ n / 2 := by
@@ -5551,40 +5551,40 @@ theorem low_point_covered_by_firstQuadrantIntervals
       hmax.2.2.1 (n / 2)
         (Finset.mem_range.mpr (by omega)) haq hqb
     exact not_badCell_middle_axis hparam hdiff hderiv hbadMiddle
-  have hfirstRun : (a, b) ∈ firstQuadrantRuns n t γ :=
-    mem_firstQuadrantRuns.mpr ⟨hrun, hfirst⟩
-  refine ⟨runEndpoints n (a, b), ?_, ?_⟩
+  have hfirstRun : (a, b) ∈ firstQuadRuns n t γ :=
+    mem_firstQuadRuns.mpr ⟨hrun, hfirst⟩
+  refine ⟨runEndpts n (a, b), ?_, ?_⟩
   · exact Finset.mem_image.mpr ⟨(a, b), hfirstRun, rfl⟩
-  · simp only [InInterval, runEndpoints, mem_Icc]
-    have hmono := gridPoint_mono hparam.n_pos
+  · simp only [InIvl, runEndpts, mem_Icc]
+    have hmono := gridPt_mono hparam.n_pos
     exact ⟨(hmono hai).trans hileft,
       hiright.trans (hmono (by omega))⟩
 
 end
 
-end CosineConstruction
+end CosConstr
 
 end
 
 section
 
-namespace CosineConstruction
+namespace CosConstr
 
 open Filter
 
 noncomputable section
 
-private lemma parameterNumerator_two_mul_add_one_add_one (k : ℕ) :
-    parameterNumerator (2 * k + 1) + 1 = 4098 * 4 ^ k := by
+private lemma paramNum_two_mul_add_one_add_one (k : ℕ) :
+    paramNum (2 * k + 1) + 1 = 4098 * 4 ^ k := by
   have hpow : 0 < 2 ^ ((2 * k + 1) + 11) := by positivity
   have hone : 1 ≤ 2 ^ ((2 * k + 1) + 11) + 2 ^ (2 * k + 1) :=
     hpow.trans_le (Nat.le_add_right _ _)
-  rw [parameterNumerator, Nat.sub_add_cancel hone]
+  rw [paramNum, Nat.sub_add_cancel hone]
   simp [pow_add, pow_mul]
   ring
 
-theorem eventually_exists_parameters :
-    ∀ᶠ n : ℕ in atTop, ∃ t γ, Parameters n t γ := by
+theorem eventually_exists_params :
+    ∀ᶠ n : ℕ in atTop, ∃ t γ, Params n t γ := by
   filter_upwards [eventually_ge_atTop (2 ^ 40 * 4098)] with n hn
   have hnpos : 0 < n := lt_of_lt_of_le (by positivity) hn
   have hx : (1 : ℝ) ≤ (n : ℝ) / (2 ^ 40 * 4098) := by
@@ -5592,7 +5592,7 @@ theorem eventually_exists_parameters :
     exact_mod_cast hn
   obtain ⟨k, hklo, hkhi⟩ := exists_nat_pow_near hx (by norm_num : (1 : ℝ) < 4)
   let t := 2 * k + 1
-  let γ := (parameterNumerator t : ℝ) / n
+  let γ := (paramNum t : ℝ) / n
   refine ⟨t, γ, ?_⟩
   constructor
   · exact hnpos
@@ -5600,9 +5600,9 @@ theorem eventually_exists_parameters :
   · dsimp only [γ]
     field_simp
   · dsimp only [γ, t]
-    have hnum : ((parameterNumerator (2 * k + 1) : ℕ) : ℝ) + 1 =
+    have hnum : ((paramNum (2 * k + 1) : ℕ) : ℝ) + 1 =
         4098 * 4 ^ k := by
-      exact_mod_cast parameterNumerator_two_mul_add_one_add_one k
+      exact_mod_cast paramNum_two_mul_add_one_add_one k
     rw [lt_div_iff₀ (by positivity : (0 : ℝ) < (n : ℝ))]
     have hkpow : (1 : ℝ) ≤ 4 ^ k := one_le_pow₀ (by norm_num)
     have hnupper : (n : ℝ) < (2 ^ 40 * 4098) * 4 ^ (k + 1) := by
@@ -5612,9 +5612,9 @@ theorem eventually_exists_parameters :
     norm_num at hnupper ⊢
     nlinarith
   · dsimp only [γ, t]
-    have hnum : ((parameterNumerator (2 * k + 1) : ℕ) : ℝ) + 1 =
+    have hnum : ((paramNum (2 * k + 1) : ℕ) : ℝ) + 1 =
         4098 * 4 ^ k := by
-      exact_mod_cast parameterNumerator_two_mul_add_one_add_one k
+      exact_mod_cast paramNum_two_mul_add_one_add_one k
     rw [div_le_iff₀ (by positivity : (0 : ℝ) < (n : ℝ))]
     have hnlower : (2 ^ 40 * 4098 : ℝ) * 4 ^ k ≤ n := by
       simpa [mul_comm] using (le_div_iff₀
@@ -5624,12 +5624,12 @@ theorem eventually_exists_parameters :
 
 end
 
-end CosineConstruction
+end CosConstr
 
 end
 
 section
-namespace CosineConstruction
+namespace CosConstr
 
 open Set
 
@@ -5644,106 +5644,106 @@ theorem eval_realChebyshev_cos
     (hreal : ∀ k ∈ p.support, (p.coeff k).im = 0)
     (x : ℝ) :
     (realChebyshev p).eval (cos x) =
-      (p.eval (unitPoint x)).re := by
+      (p.eval (unitPt x)).re := by
   classical
   rw [realChebyshev, eval_finsetSum,
     eval_eq_sum, sum_def]
   change (∑ k ∈ p.support,
       (Polynomial.C (p.coeff k).re * Polynomial.Chebyshev.T ℝ (k : ℤ)).eval
         (cos x)) =
-    reLm (∑ k ∈ p.support, p.coeff k * unitPoint x ^ k)
+    reLm (∑ k ∈ p.support, p.coeff k * unitPt x ^ k)
   rw [map_sum]
   apply sum_congr rfl
   intro k hk
   rw [eval_mul, Polynomial.eval_C,
     Polynomial.Chebyshev.T_real_cos]
-  have hpow := congrArg re (unitPoint_pow x k)
-  have hre : (unitPoint x ^ k).re = cos (k * x) := by
+  have hpow := congrArg re (unitPt_pow x k)
+  have hre : (unitPt x ^ k).re = cos (k * x) := by
     simpa only [add_re, ofReal_re, mul_re,
       ofReal_im, Complex.I_re, Complex.I_im, mul_zero, zero_mul,
       sub_zero, mul_one, add_zero] using hpow
   change (p.coeff k).re * cos ((k : ℤ) * x) =
-    (p.coeff k * unitPoint x ^ k).re
+    (p.coeff k * unitPt x ^ k).re
   rw [mul_re, hreal k hk, zero_mul, sub_zero, hre]
   norm_cast
 
-theorem cosineBlock_coeff_im (t k : ℕ) :
-    ((cosineBlock t).coeff k).im = 0 := by
+theorem cosBlk_coeff_im (t k : ℕ) :
+    ((cosBlk t).coeff k).im = 0 := by
   classical
-  by_cases hk : k ∈ (cosineBlock t).support
-  · rw [support_cosineBlock, mem_evenCPrime] at hk
+  by_cases hk : k ∈ (cosBlk t).support
+  · rw [support_cosBlk, mem_evenCPrime] at hk
     rcases hk with ⟨j, hj, rfl⟩ | ⟨j, hj, rfl⟩
-    · rw [coeff_cosineBlock_first t j hj]
-      rcases coeff_rudinShapiroP_eq_one_or_neg_one hj with h | h <;> simp [h]
-    · rw [coeff_cosineBlock_second t j hj]
-      rcases coeff_rudinShapiroQ_eq_one_or_neg_one hj with h | h <;> simp [h]
-  · have hcoeff : (cosineBlock t).coeff k = 0 := by
+    · rw [coeff_cosBlk_first t j hj]
+      rcases coeff_rsP_eq_one_or_neg_one hj with h | h <;> simp [h]
+    · rw [coeff_cosBlk_second t j hj]
+      rcases coeff_rsQ_eq_one_or_neg_one hj with h | h <;> simp [h]
+  · have hcoeff : (cosBlk t).coeff k = 0 := by
       simpa [mem_support_iff] using hk
     simp [hcoeff]
 
 def evenChebyshev (t : ℕ) : Polynomial ℝ :=
-  realChebyshev (cosineBlock t)
+  realChebyshev (cosBlk t)
 
 theorem eval_evenChebyshev (t : ℕ) (x : ℝ) :
     (evenChebyshev t).eval (cos (2 * x)) =
-      evenCosine t x := by
-  simpa only [evenChebyshev, evenCosine] using
-    eval_realChebyshev_cos (cosineBlock t)
-      (fun k _ ↦ cosineBlock_coeff_im t k) (2 * x)
+      evenCos t x := by
+  simpa only [evenChebyshev, evenCos] using
+    eval_realChebyshev_cos (cosBlk t)
+      (fun k _ ↦ cosBlk_coeff_im t k) (2 * x)
 
 theorem natDegree_evenChebyshev_le (t : ℕ) :
-    (evenChebyshev t).natDegree ≤ parameterNumerator t := by
+    (evenChebyshev t).natDegree ≤ paramNum t := by
   classical
   rw [evenChebyshev, realChebyshev]
   apply Polynomial.natDegree_sum_le_of_forall_le
   intro k hk
-  have hk' : k ∈ (cosineBlock t).support := by simpa using hk
-  have hkBound : k ≤ parameterNumerator t := by
-    rw [support_cosineBlock, mem_evenCPrime] at hk'
+  have hk' : k ∈ (cosBlk t).support := by simpa using hk
+  have hkBound : k ≤ paramNum t := by
+    rw [support_cosBlk, mem_evenCPrime] at hk'
     rcases hk' with ⟨j, hj, rfl⟩ | ⟨j, hj, rfl⟩
-    · rw [parameterNumerator, ← two_mul_evenT,
+    · rw [paramNum, ← two_mul_evenT,
         Nat.add_sub_assoc (Nat.one_le_iff_ne_zero.mpr (by positivity))]
       have hjle : j ≤ 2 ^ t - 1 := Nat.le_sub_one_of_lt hj
       omega
-    · rw [parameterNumerator, ← two_mul_evenT,
+    · rw [paramNum, ← two_mul_evenT,
         Nat.add_sub_assoc (Nat.one_le_iff_ne_zero.mpr (by positivity))]
       exact Nat.add_le_add_left (Nat.le_sub_one_of_lt hj) _
   calc
-    (Polynomial.C ((cosineBlock t).coeff k).re *
+    (Polynomial.C ((cosBlk t).coeff k).re *
         Polynomial.Chebyshev.T ℝ (k : ℤ)).natDegree ≤
-        (Polynomial.C ((cosineBlock t).coeff k).re).natDegree +
+        (Polynomial.C ((cosBlk t).coeff k).re).natDegree +
           (Polynomial.Chebyshev.T ℝ (k : ℤ)).natDegree :=
       natDegree_mul_le
     _ ≤ 0 + k := by simp
     _ = k := by omega
-    _ ≤ parameterNumerator t := hkBound
+    _ ≤ paramNum t := hkBound
 
-private theorem parameterNumerator_eq_topIndex (t : ℕ) :
-    parameterNumerator t = 2 * evenT t + (2 ^ t - 1) := by
-  rw [parameterNumerator, ← two_mul_evenT,
+private theorem paramNum_eq_topIdx (t : ℕ) :
+    paramNum t = 2 * evenT t + (2 ^ t - 1) := by
+  rw [paramNum, ← two_mul_evenT,
     Nat.add_sub_assoc (Nat.one_le_iff_ne_zero.mpr (by positivity))]
 
-private theorem topIndex_mem_cosineBlock_support (t : ℕ) :
-    parameterNumerator t ∈ (cosineBlock t).support := by
-  rw [parameterNumerator_eq_topIndex, support_cosineBlock,
+private theorem topIdx_mem_cosBlk_support (t : ℕ) :
+    paramNum t ∈ (cosBlk t).support := by
+  rw [paramNum_eq_topIdx, support_cosBlk,
     mem_evenCPrime]
   right
   exact ⟨2 ^ t - 1, Nat.sub_lt (by positivity) (by norm_num), rfl⟩
 
 theorem natDegree_evenChebyshev (t : ℕ) :
-    (evenChebyshev t).natDegree = parameterNumerator t := by
+    (evenChebyshev t).natDegree = paramNum t := by
   apply natDegree_eq_of_le_of_coeff_ne_zero
     (natDegree_evenChebyshev_le t)
-  let m := parameterNumerator t
-  have hm : m ∈ (cosineBlock t).support :=
-    topIndex_mem_cosineBlock_support t
+  let m := paramNum t
+  have hm : m ∈ (cosBlk t).support :=
+    topIdx_mem_cosBlk_support t
   have hj : 2 ^ t - 1 < 2 ^ t := by
     have : 0 < 2 ^ t := by positivity
     omega
-  have htop : ((cosineBlock t).coeff m).re ≠ 0 := by
-    rw [show m = 2 * evenT t + (2 ^ t - 1) from parameterNumerator_eq_topIndex t]
-    rw [coeff_cosineBlock_second t (2 ^ t - 1) hj]
-    rcases coeff_rudinShapiroQ_eq_one_or_neg_one hj with h | h <;> simp [h]
+  have htop : ((cosBlk t).coeff m).re ≠ 0 := by
+    rw [show m = 2 * evenT t + (2 ^ t - 1) from paramNum_eq_topIdx t]
+    rw [coeff_cosBlk_second t (2 ^ t - 1) hj]
+    rcases coeff_rsQ_eq_one_or_neg_one hj with h | h <;> simp [h]
   have hTtop : (Polynomial.Chebyshev.T ℝ (m : ℤ)).coeff m ≠ 0 := by
     have hdeg : (Polynomial.Chebyshev.T ℝ (m : ℤ)).natDegree = m := by simp
     have hc := Polynomial.coeff_natDegree
@@ -5758,12 +5758,12 @@ theorem natDegree_evenChebyshev (t : ℕ) :
     exact mul_ne_zero htop hTtop
   · intro k hk hkm
     have hkBound : k ≤ m := by
-      rw [support_cosineBlock, mem_evenCPrime] at hk
+      rw [support_cosBlk, mem_evenCPrime] at hk
       rcases hk with ⟨j, hj, rfl⟩ | ⟨j, hj, rfl⟩
-      · rw [show m = 2 * evenT t + (2 ^ t - 1) from parameterNumerator_eq_topIndex t]
+      · rw [show m = 2 * evenT t + (2 ^ t - 1) from paramNum_eq_topIdx t]
         have hjle := Nat.le_sub_one_of_lt hj
         omega
-      · rw [show m = 2 * evenT t + (2 ^ t - 1) from parameterNumerator_eq_topIndex t]
+      · rw [show m = 2 * evenT t + (2 ^ t - 1) from paramNum_eq_topIdx t]
         exact Nat.add_le_add_left (Nat.le_sub_one_of_lt hj) _
     have hklt : k < m := lt_of_le_of_ne hkBound hkm
     have hTzero : (Polynomial.Chebyshev.T ℝ (k : ℤ)).coeff m = 0 :=
@@ -5779,83 +5779,83 @@ theorem evenChebyshev_sub_C_ne_zero (t : ℕ) (c : ℝ) :
     sub_eq_zero.mp hzero
   have hdeg := natDegree_evenChebyshev t
   rw [hconst] at hdeg
-  have hmpos : 0 < parameterNumerator t := by
-    rw [parameterNumerator_eq_topIndex]
+  have hmpos : 0 < paramNum t := by
+    rw [paramNum_eq_topIdx]
     have hT : 0 < evenT t := by simp [evenT]
     omega
   simp at hdeg
   omega
 
-theorem continuous_evenCosine (t : ℕ) : Continuous (evenCosine t) := by
-  unfold evenCosine unitPoint
+theorem cont_evenCos (t : ℕ) : Continuous (evenCos t) := by
+  unfold evenCos unitPt
   fun_prop
 
-private abbrev QuadrantRun (n t : ℕ) (γ : ℝ) :=
-  ↑(firstQuadrantRuns n t γ)
+private abbrev QuadRun (n t : ℕ) (γ : ℝ) :=
+  ↑(firstQuadRuns n t γ)
 
 private noncomputable def runBadWitness {n t : ℕ} {γ : ℝ}
-    (I : QuadrantRun n t γ) : ℝ :=
+    (I : QuadRun n t γ) : ℝ :=
   Classical.choose (show BadCell n t γ I.1.1 by
-    have hI := (mem_firstQuadrantRuns.mp I.2).1
+    have hI := (mem_firstQuadRuns.mp I.2).1
     rw [mem_dangerousRuns] at hI
     exact hI.2.2.1 I.1.1 (Finset.mem_range.mpr (hI.1.trans_lt hI.2.1))
       le_rfl hI.1)
 
 private theorem runBadWitness_mem {n t : ℕ} {γ : ℝ}
-    (I : QuadrantRun n t γ) :
+    (I : QuadRun n t γ) :
     runBadWitness I ∈ gridCell n I.1.1 := by
   exact (Classical.choose_spec (show BadCell n t γ I.1.1 by
-    have hI := (mem_firstQuadrantRuns.mp I.2).1
+    have hI := (mem_firstQuadRuns.mp I.2).1
     rw [mem_dangerousRuns] at hI
     exact hI.2.2.1 I.1.1 (Finset.mem_range.mpr (hI.1.trans_lt hI.2.1))
       le_rfl hI.1)).1
 
 private theorem runBadWitness_lt {n t : ℕ} {γ : ℝ}
-    (I : QuadrantRun n t γ) :
-    |evenCosine t (runBadWitness I)| < threshold n γ := by
+    (I : QuadRun n t γ) :
+    |evenCos t (runBadWitness I)| < thr n γ := by
   exact (Classical.choose_spec (show BadCell n t γ I.1.1 by
-    have hI := (mem_firstQuadrantRuns.mp I.2).1
+    have hI := (mem_firstQuadRuns.mp I.2).1
     rw [mem_dangerousRuns] at hI
     exact hI.2.2.1 I.1.1 (Finset.mem_range.mpr (hI.1.trans_lt hI.2.1))
       le_rfl hI.1)).2
 
-private theorem left_endpoint_ge {n t : ℕ} {γ : ℝ}
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (I : QuadrantRun n t γ) :
-    threshold n γ ≤
-      |evenCosine t (gridPoint n I.1.1)| := by
-  have hI := (mem_firstQuadrantRuns.mp I.2).1
+private theorem left_endpt_ge {n t : ℕ} {γ : ℝ}
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (I : QuadRun n t γ) :
+    thr n γ ≤
+      |evenCos t (gridPt n I.1.1)| := by
+  have hI := (mem_firstQuadRuns.mp I.2).1
   rw [mem_dangerousRuns] at hI
   have hn : 0 < n := by
     have hb : I.1.2 < 2 * n := hI.2.1
     exact Nat.pos_of_ne_zero (fun hn0 ↦ by simpa [hn0] using hb)
   by_cases ha : I.1.1 = 0
-  · simpa [ha, gridPoint_zero] using hzero
+  · simpa [ha, gridPt_zero] using hzero
   · have hgood : ¬BadCell n t γ (I.1.1 - 1) :=
       hI.2.2.2.1.resolve_left ha
     by_contra hlt
     rw [not_le] at hlt
     apply hgood
-    refine ⟨gridPoint n I.1.1, ?_, hlt⟩
+    refine ⟨gridPt n I.1.1, ?_, hlt⟩
     simp only [gridCell, mem_Icc]
     constructor
-    · exact (gridPoint_mono (by omega)) (Nat.sub_le _ _)
+    · exact (gridPt_mono (by omega)) (Nat.sub_le _ _)
     · rw [Nat.sub_add_cancel (Nat.one_le_iff_ne_zero.mpr ha)]
 
-private theorem right_endpoint_ge {n t : ℕ} {γ : ℝ}
+private theorem right_endpt_ge {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|)
-    (I : QuadrantRun n t γ) :
-    threshold n γ ≤
-      |evenCosine t (gridPoint n (I.1.2 + 1))| := by
-  have hmem := mem_firstQuadrantRuns.mp I.2
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|)
+    (I : QuadRun n t γ) :
+    thr n γ ≤
+      |evenCos t (gridPt n (I.1.2 + 1))| := by
+  have hmem := mem_firstQuadRuns.mp I.2
   have hI := hmem.1
   rw [mem_dangerousRuns] at hI
   by_cases heq : 2 * (I.1.2 + 1) = n
   · have hnEven : (n : ℝ) = 2 * (I.1.2 + 1 : ℕ) := by exact_mod_cast heq.symm
     have hnR : (n : ℝ) ≠ 0 := by exact_mod_cast hn.ne'
-    have harg : gridPoint n (I.1.2 + 1) = π / 2 := by
-      rw [gridPoint, div_eq_iff hnR]
+    have harg : gridPt n (I.1.2 + 1) = π / 2 := by
+      rw [gridPt, div_eq_iff hnR]
       rw [hnEven]
       ring
     rwa [harg]
@@ -5866,69 +5866,69 @@ private theorem right_endpoint_ge {n t : ℕ} {γ : ℝ}
     by_contra hlt
     rw [not_le] at hlt
     apply hgood
-    refine ⟨gridPoint n (I.1.2 + 1), ?_, hlt⟩
+    refine ⟨gridPt n (I.1.2 + 1), ?_, hlt⟩
     simp only [gridCell, mem_Icc]
-    exact ⟨le_rfl, (gridPoint_mono hn) (by omega)⟩
+    exact ⟨le_rfl, (gridPt_mono hn) (by omega)⟩
 
 private theorem exists_left_contact {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (I : QuadrantRun n t γ) :
-    ∃ x ∈ Icc (gridPoint n I.1.1) (runBadWitness I),
-      |evenCosine t x| = threshold n γ := by
-  apply exists_abs_level_between (continuous_evenCosine t)
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (I : QuadRun n t γ) :
+    ∃ x ∈ Icc (gridPt n I.1.1) (runBadWitness I),
+      |evenCos t x| = thr n γ := by
+  apply exists_abs_level_between (cont_evenCos t)
   · exact (runBadWitness_mem I).1
-  · exact Or.inr ⟨runBadWitness_lt I, left_endpoint_ge hzero I⟩
+  · exact Or.inr ⟨runBadWitness_lt I, left_endpt_ge hzero I⟩
 
 private theorem exists_right_contact {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|)
-    (I : QuadrantRun n t γ) :
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|)
+    (I : QuadRun n t γ) :
     ∃ x ∈ Icc (runBadWitness I)
-        (gridPoint n (I.1.2 + 1)),
-      |evenCosine t x| = threshold n γ := by
-  apply exists_abs_level_between (continuous_evenCosine t)
+        (gridPt n (I.1.2 + 1)),
+      |evenCos t x| = thr n γ := by
+  apply exists_abs_level_between (cont_evenCos t)
   · have hw := (runBadWitness_mem I).2
-    have hI := (mem_firstQuadrantRuns.mp I.2).1
+    have hI := (mem_firstQuadRuns.mp I.2).1
     rw [mem_dangerousRuns] at hI
-    exact hw.trans ((gridPoint_mono hn)
+    exact hw.trans ((gridPt_mono hn)
       (Nat.add_le_add_right hI.1 1))
-  · exact Or.inl ⟨runBadWitness_lt I, right_endpoint_ge hn hhalf I⟩
+  · exact Or.inl ⟨runBadWitness_lt I, right_endpt_ge hn hhalf I⟩
 
 private noncomputable def leftContact {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (I : QuadrantRun n t γ) : ℝ :=
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (I : QuadRun n t γ) : ℝ :=
   Classical.choose (exists_left_contact hn hzero I)
 
 private noncomputable def rightContact {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|)
-    (I : QuadrantRun n t γ) : ℝ :=
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|)
+    (I : QuadRun n t γ) : ℝ :=
   Classical.choose (exists_right_contact hn hhalf I)
 
 private theorem leftContact_spec {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (I : QuadrantRun n t γ) :
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (I : QuadRun n t γ) :
     leftContact hn hzero I ∈
-        Icc (gridPoint n I.1.1) (runBadWitness I) ∧
-      |evenCosine t (leftContact hn hzero I)| = threshold n γ :=
+        Icc (gridPt n I.1.1) (runBadWitness I) ∧
+      |evenCos t (leftContact hn hzero I)| = thr n γ :=
   Classical.choose_spec (exists_left_contact hn hzero I)
 
 private theorem rightContact_spec {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|)
-    (I : QuadrantRun n t γ) :
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|)
+    (I : QuadRun n t γ) :
     rightContact hn hhalf I ∈
-        Icc (runBadWitness I) (gridPoint n (I.1.2 + 1)) ∧
-      |evenCosine t (rightContact hn hhalf I)| = threshold n γ :=
+        Icc (runBadWitness I) (gridPt n (I.1.2 + 1)) ∧
+      |evenCos t (rightContact hn hhalf I)| = thr n γ :=
   Classical.choose_spec (exists_right_contact hn hhalf I)
 
 private theorem leftContact_lt_witness {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (I : QuadrantRun n t γ) :
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (I : QuadRun n t γ) :
     leftContact hn hzero I < runBadWitness I := by
   have hs := leftContact_spec hn hzero I
   refine hs.1.2.lt_of_ne ?_
@@ -5939,8 +5939,8 @@ private theorem leftContact_lt_witness {n t : ℕ} {γ : ℝ}
 
 private theorem witness_lt_rightContact {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|)
-    (I : QuadrantRun n t γ) :
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|)
+    (I : QuadRun n t γ) :
     runBadWitness I < rightContact hn hhalf I := by
   have hs := rightContact_spec hn hhalf I
   refine hs.1.1.lt_of_ne ?_
@@ -5949,70 +5949,70 @@ private theorem witness_lt_rightContact {n t : ℕ} {γ : ℝ}
   rw [← heq] at hv
   exact (runBadWitness_lt I).ne hv
 
-private noncomputable def pairedContact {n t : ℕ} {γ : ℝ}
+private noncomputable def pairContact {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|) :
-    QuadrantRun n t γ × Fin 2 → ℝ
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|) :
+    QuadRun n t γ × Fin 2 → ℝ
   | (I, k) => if (k : ℕ) = 0 then leftContact hn hzero I else rightContact hn hhalf I
 
-private theorem pairedContact_bounds {n t : ℕ} {γ : ℝ}
+private theorem pairContact_bounds {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|)
-    (K : QuadrantRun n t γ) (k : Fin 2) :
-    gridPoint n K.1.1 ≤ pairedContact hn hzero hhalf (K, k) ∧
-    pairedContact hn hzero hhalf (K, k) ≤
-      gridPoint n (K.1.2 + 1) := by
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|)
+    (K : QuadRun n t γ) (k : Fin 2) :
+    gridPt n K.1.1 ≤ pairContact hn hzero hhalf (K, k) ∧
+    pairContact hn hzero hhalf (K, k) ≤
+      gridPt n (K.1.2 + 1) := by
   by_cases hk : (k : ℕ) = 0
-  · simp only [pairedContact, if_pos hk]
+  · simp only [pairContact, if_pos hk]
     refine ⟨(leftContact_spec hn hzero K).1.1, ?_⟩
-    have hrun := mem_dangerousRuns.mp (mem_firstQuadrantRuns.mp K.2).1
+    have hrun := mem_dangerousRuns.mp (mem_firstQuadRuns.mp K.2).1
     exact (leftContact_spec hn hzero K).1.2.trans <|
       (runBadWitness_mem K).2.trans <|
-        (gridPoint_mono hn) (Nat.add_le_add_right hrun.1 1)
-  · simp only [pairedContact, if_neg hk]
+        (gridPt_mono hn) (Nat.add_le_add_right hrun.1 1)
+  · simp only [pairContact, if_neg hk]
     have hleft := (runBadWitness_mem K).1
     exact ⟨hleft.trans (rightContact_spec hn hhalf K).1.1,
       (rightContact_spec hn hhalf K).1.2⟩
 
-private theorem pairedContact_level {n t : ℕ} {γ : ℝ}
+private theorem pairContact_level {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|)
-    (K : QuadrantRun n t γ) (k : Fin 2) :
-    |evenCosine t (pairedContact hn hzero hhalf (K, k))| =
-      threshold n γ := by
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|)
+    (K : QuadRun n t γ) (k : Fin 2) :
+    |evenCos t (pairContact hn hzero hhalf (K, k))| =
+      thr n γ := by
   by_cases hk : (k : ℕ) = 0
-  · simpa only [pairedContact, if_pos hk] using (leftContact_spec hn hzero K).2
-  · simpa only [pairedContact, if_neg hk] using (rightContact_spec hn hhalf K).2
+  · simpa only [pairContact, if_pos hk] using (leftContact_spec hn hzero K).2
+  · simpa only [pairContact, if_neg hk] using (rightContact_spec hn hhalf K).2
 
-private theorem pairedContact_injective {n t : ℕ} {γ : ℝ}
+private theorem pairContact_injective {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|) :
-    Function.Injective (pairedContact hn hzero hhalf) := by
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|) :
+    Function.Injective (pairContact hn hzero hhalf) := by
   rintro ⟨I, i⟩ ⟨J, j⟩ hij
-  have contact_bounds (K : QuadrantRun n t γ) (k : Fin 2) :
-      gridPoint n K.1.1 ≤ pairedContact hn hzero hhalf (K, k) ∧
-      pairedContact hn hzero hhalf (K, k) ≤
-        gridPoint n (K.1.2 + 1) := by
+  have contact_bounds (K : QuadRun n t γ) (k : Fin 2) :
+      gridPt n K.1.1 ≤ pairContact hn hzero hhalf (K, k) ∧
+      pairContact hn hzero hhalf (K, k) ≤
+        gridPt n (K.1.2 + 1) := by
     by_cases hk : (k : ℕ) = 0
-    · simp only [pairedContact, if_pos hk]
+    · simp only [pairContact, if_pos hk]
       have hspec := leftContact_spec hn hzero K
       refine ⟨hspec.1.1, ?_⟩
-      have hrun := mem_dangerousRuns.mp (mem_firstQuadrantRuns.mp K.2).1
+      have hrun := mem_dangerousRuns.mp (mem_firstQuadRuns.mp K.2).1
       exact (leftContact_spec hn hzero K).1.2.trans <|
         (runBadWitness_mem K).2.trans <|
-          (gridPoint_mono hn) (Nat.add_le_add_right hrun.1 1)
-    · simp only [pairedContact, if_neg hk]
+          (gridPt_mono hn) (Nat.add_le_add_right hrun.1 1)
+    · simp only [pairContact, if_neg hk]
       exact ⟨(runBadWitness_mem K).1.trans (rightContact_spec hn hhalf K).1.1,
         (rightContact_spec hn hhalf K).1.2⟩
   have hIJ : I = J := by
     apply Subtype.ext
     rcases lt_trichotomy I.1.1 J.1.1 with hlt | heq | hgt
-    · have hI := (mem_firstQuadrantRuns.mp I.2).1
-      have hJ := (mem_firstQuadrantRuns.mp J.2).1
+    · have hI := (mem_firstQuadRuns.mp I.2).1
+      have hJ := (mem_firstQuadRuns.mp J.2).1
       have hbc : I.1.2 < J.1.1 := by
         by_contra hnot
         have hmaxI := (mem_dangerousRuns.mp hI)
@@ -6023,23 +6023,23 @@ private theorem pairedContact_injective {n t : ℕ} {γ : ℝ}
         have hbad := hmaxI.2.2.1 (J.1.1 - 1)
           (Finset.mem_range.mpr (hpred_le.trans_lt hmaxI.2.1)) hpred hpred_le
         exact hmaxJ.2.2.2.1.resolve_left (Nat.ne_of_gt hJpos) hbad
-      have hsep := dangerousRuns_separated hI hJ hbc
+      have hsep := dangerousRuns_sep hI hJ hbc
       have hidx : I.1.2 + 1 < J.1.1 := by
         calc
           I.1.2 + 1 < (I.1.2 + 1) + 1 := Nat.lt_succ_self _
           _ ≤ J.1.1 := by simpa [Nat.add_assoc] using hsep
-      have hgrid : gridPoint n (I.1.2 + 1) <
-          gridPoint n J.1.1 :=
-        gridPoint_strictMono hn hidx
-      have hi := pairedContact_bounds hn hzero hhalf I i
-      have hj := pairedContact_bounds hn hzero hhalf J j
+      have hgrid : gridPt n (I.1.2 + 1) <
+          gridPt n J.1.1 :=
+        gridPt_strictMono hn hidx
+      have hi := pairContact_bounds hn hzero hhalf I i
+      have hj := pairContact_bounds hn hzero hhalf J j
       rw [hij] at hi
       linarith
-    · have hmaxI := mem_dangerousRuns.mp (mem_firstQuadrantRuns.mp I.2).1
-      have hmaxJ := mem_dangerousRuns.mp (mem_firstQuadrantRuns.mp J.2).1
+    · have hmaxI := mem_dangerousRuns.mp (mem_firstQuadRuns.mp I.2).1
+      have hmaxJ := mem_dangerousRuns.mp (mem_firstQuadRuns.mp J.2).1
       exact IsMaximalBadRun.eq_of_start_eq hmaxI hmaxJ heq
-    · have hI := (mem_firstQuadrantRuns.mp I.2).1
-      have hJ := (mem_firstQuadrantRuns.mp J.2).1
+    · have hI := (mem_firstQuadRuns.mp I.2).1
+      have hJ := (mem_firstQuadRuns.mp J.2).1
       have hdc : J.1.2 < I.1.1 := by
         by_contra hnot
         have hmaxI := (mem_dangerousRuns.mp hI)
@@ -6050,16 +6050,16 @@ private theorem pairedContact_injective {n t : ℕ} {γ : ℝ}
         have hbad := hmaxJ.2.2.1 (I.1.1 - 1)
           (Finset.mem_range.mpr (hpred_le.trans_lt hmaxJ.2.1)) hpred hpred_le
         exact hmaxI.2.2.2.1.resolve_left (Nat.ne_of_gt hIpos) hbad
-      have hsep := dangerousRuns_separated hJ hI hdc
+      have hsep := dangerousRuns_sep hJ hI hdc
       have hidx : J.1.2 + 1 < I.1.1 := by
         calc
           J.1.2 + 1 < (J.1.2 + 1) + 1 := Nat.lt_succ_self _
           _ ≤ I.1.1 := by simpa [Nat.add_assoc] using hsep
-      have hgrid : gridPoint n (J.1.2 + 1) <
-          gridPoint n I.1.1 :=
-        gridPoint_strictMono hn hidx
-      have hi := pairedContact_bounds hn hzero hhalf I i
-      have hj := pairedContact_bounds hn hzero hhalf J j
+      have hgrid : gridPt n (J.1.2 + 1) <
+          gridPt n I.1.1 :=
+        gridPt_strictMono hn hidx
+      have hi := pairContact_bounds hn hzero hhalf I i
+      have hj := pairContact_bounds hn hzero hhalf J j
       rw [hij] at hi
       linarith
   subst J
@@ -6069,21 +6069,21 @@ private theorem pairedContact_injective {n t : ℕ} {γ : ℝ}
       ((i : ℕ) ≠ 0 ∧ (j : ℕ) = 0) := by
     omega
   rcases hfin with ⟨hi, hj⟩ | ⟨hi, hj⟩
-  · simp only [pairedContact, if_pos hi, if_neg hj] at hij
+  · simp only [pairContact, if_pos hi, if_neg hj] at hij
     exact (leftContact_lt_witness hn hzero I).trans
       (witness_lt_rightContact hn hhalf I) |>.ne hij
-  · simp only [pairedContact, if_neg hi, if_pos hj] at hij
+  · simp only [pairContact, if_neg hi, if_pos hj] at hij
     exact (leftContact_lt_witness hn hzero I).trans
       (witness_lt_rightContact hn hhalf I) |>.ne hij.symm
 
-private noncomputable def absoluteLevelRoots
+private noncomputable def absLevelRoots
     (q : Polynomial ℝ) (level : ℝ) : Finset ℝ :=
   (q - Polynomial.C level).roots.toFinset ∪
     (q - Polynomial.C (-level)).roots.toFinset
 
-private theorem card_absoluteLevelRoots_le
+private theorem card_absLevelRoots_le
     (q : Polynomial ℝ) (level : ℝ) :
-    (absoluteLevelRoots q level).card ≤ 2 * q.natDegree := by
+    (absLevelRoots q level).card ≤ 2 * q.natDegree := by
   have hplus : (q - Polynomial.C level).roots.toFinset.card ≤ q.natDegree :=
     (Multiset.toFinset_card_le _).trans <|
       (card_roots' _).trans <|
@@ -6097,22 +6097,22 @@ private theorem card_absoluteLevelRoots_le
           simp only [max_le_iff]
           exact ⟨le_rfl, by simp⟩
   calc
-    (absoluteLevelRoots q level).card ≤
+    (absLevelRoots q level).card ≤
         (q - Polynomial.C level).roots.toFinset.card +
           (q - Polynomial.C (-level)).roots.toFinset.card :=
       card_union_le _ _
     _ ≤ q.natDegree + q.natDegree := Nat.add_le_add hplus hminus
     _ = 2 * q.natDegree := by omega
 
-private theorem eval_mem_absoluteLevelRoots
+private theorem eval_mem_absLevelRoots
     {q : Polynomial ℝ} {level x : ℝ}
     (hlevel : 0 ≤ level)
     (hplus : q - Polynomial.C level ≠ 0)
     (hminus : q - Polynomial.C (-level) ≠ 0)
     (hx : |q.eval x| = level) :
-    x ∈ absoluteLevelRoots q level := by
+    x ∈ absLevelRoots q level := by
   rw [abs_eq hlevel] at hx
-  rw [absoluteLevelRoots, Finset.mem_union]
+  rw [absLevelRoots, Finset.mem_union]
   rcases hx with hx | hx
   · left
     rw [Multiset.mem_toFinset, mem_roots hplus, Polynomial.IsRoot.def]
@@ -6121,23 +6121,23 @@ private theorem eval_mem_absoluteLevelRoots
     rw [Multiset.mem_toFinset, mem_roots hminus, Polynomial.IsRoot.def]
     simp [hx]
 
-theorem card_firstQuadrantRuns_le_polynomial_degree
+theorem card_firstQuadRuns_le_poly_degree
     {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hlevel : 0 ≤ threshold n γ)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|)
+    (hlevel : 0 ≤ thr n γ)
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|)
     (q : Polynomial ℝ)
-    (hq : ∀ x, q.eval (cos (2 * x)) = evenCosine t x)
-    (hplus : q - Polynomial.C (threshold n γ) ≠ 0)
-    (hminus : q - Polynomial.C (-threshold n γ) ≠ 0) :
-    (firstQuadrantRuns n t γ).card ≤ q.natDegree := by
-  let roots := absoluteLevelRoots q (threshold n γ)
-  let f : QuadrantRun n t γ × Fin 2 → ↑roots := fun p ↦
-    ⟨cos (2 * pairedContact hn hzero hhalf p), by
-      apply eval_mem_absoluteLevelRoots hlevel hplus hminus
+    (hq : ∀ x, q.eval (cos (2 * x)) = evenCos t x)
+    (hplus : q - Polynomial.C (thr n γ) ≠ 0)
+    (hminus : q - Polynomial.C (-thr n γ) ≠ 0) :
+    (firstQuadRuns n t γ).card ≤ q.natDegree := by
+  let roots := absLevelRoots q (thr n γ)
+  let f : QuadRun n t γ × Fin 2 → ↑roots := fun p ↦
+    ⟨cos (2 * pairContact hn hzero hhalf p), by
+      apply eval_mem_absLevelRoots hlevel hplus hminus
       rw [hq]
-      exact pairedContact_level hn hzero hhalf p.1 p.2⟩
+      exact pairContact_level hn hzero hhalf p.1 p.2⟩
   have hcos_inj : Set.InjOn (fun x : ℝ ↦ cos (2 * x))
       (Icc 0 (π / 2)) := by
     intro x hx y hy hxy
@@ -6157,70 +6157,70 @@ theorem card_firstQuadrantRuns_le_polynomial_degree
     linarith
   have hf : Function.Injective f := by
     intro p r hpr
-    apply pairedContact_injective hn hzero hhalf
+    apply pairContact_injective hn hzero hhalf
     apply hcos_inj
     · constructor
-      · exact (show 0 ≤ gridPoint n p.1.1.1 by
+      · exact (show 0 ≤ gridPt n p.1.1.1 by
           exact div_nonneg (mul_nonneg (Nat.cast_nonneg _) pi_pos.le)
             (Nat.cast_nonneg _)).trans
-          (pairedContact_bounds hn hzero hhalf p.1 p.2).1
-      · have hp := (mem_firstQuadrantRuns.mp p.1.2).2
+          (pairContact_bounds hn hzero hhalf p.1 p.2).1
+      · have hp := (mem_firstQuadRuns.mp p.1.2).2
         have hnR : (0 : ℝ) < n := by exact_mod_cast hn
         have hcast : (2 : ℝ) * ((p.1.1.2 + 1 : ℕ) : ℝ) ≤ n := by
           exact_mod_cast hp
-        apply (pairedContact_bounds hn hzero hhalf p.1 p.2).2.trans
-        simp only [gridPoint]
+        apply (pairContact_bounds hn hzero hhalf p.1 p.2).2.trans
+        simp only [gridPt]
         apply (div_le_iff₀ hnR).2
         nlinarith [pi_pos]
     · constructor
-      · exact (show 0 ≤ gridPoint n r.1.1.1 by
+      · exact (show 0 ≤ gridPt n r.1.1.1 by
           exact div_nonneg (mul_nonneg (Nat.cast_nonneg _) pi_pos.le)
             (Nat.cast_nonneg _)).trans
-          (pairedContact_bounds hn hzero hhalf r.1 r.2).1
-      · have hr := (mem_firstQuadrantRuns.mp r.1.2).2
+          (pairContact_bounds hn hzero hhalf r.1 r.2).1
+      · have hr := (mem_firstQuadRuns.mp r.1.2).2
         have hnR : (0 : ℝ) < n := by exact_mod_cast hn
         have hcast : (2 : ℝ) * ((r.1.1.2 + 1 : ℕ) : ℝ) ≤ n := by
           exact_mod_cast hr
-        apply (pairedContact_bounds hn hzero hhalf r.1 r.2).2.trans
-        simp only [gridPoint]
+        apply (pairContact_bounds hn hzero hhalf r.1 r.2).2.trans
+        simp only [gridPt]
         apply (div_le_iff₀ hnR).2
         nlinarith [pi_pos]
     · exact Subtype.ext_iff.mp hpr
   have hcard := Fintype.card_le_of_injective f hf
   have hrootcard : roots.card ≤ 2 * q.natDegree :=
-    card_absoluteLevelRoots_le q (threshold n γ)
-  have htwice : 2 * (firstQuadrantRuns n t γ).card ≤ 2 * q.natDegree := by
+    card_absLevelRoots_le q (thr n γ)
+  have htwice : 2 * (firstQuadRuns n t γ).card ≤ 2 * q.natDegree := by
     calc
-      2 * (firstQuadrantRuns n t γ).card = Fintype.card (QuadrantRun n t γ × Fin 2) := by
+      2 * (firstQuadRuns n t γ).card = Fintype.card (QuadRun n t γ × Fin 2) := by
         simp [Fintype.card_prod, mul_comm]
       _ ≤ Fintype.card ↑roots := hcard
       _ = roots.card := card_coe _
       _ ≤ 2 * q.natDegree := hrootcard
   omega
 
-theorem card_firstQuadrantRuns_le_parameterNumerator_of_polynomial
+theorem card_firstQuadRuns_le_paramNum_of_poly
     {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hlevel : 0 ≤ threshold n γ)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|)
+    (hlevel : 0 ≤ thr n γ)
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|)
     (q : Polynomial ℝ)
-    (hq : ∀ x, q.eval (cos (2 * x)) = evenCosine t x)
-    (hplus : q - Polynomial.C (threshold n γ) ≠ 0)
-    (hminus : q - Polynomial.C (-threshold n γ) ≠ 0)
-    (hdegree : q.natDegree ≤ parameterNumerator t) :
-    (firstQuadrantRuns n t γ).card ≤ parameterNumerator t :=
-  (card_firstQuadrantRuns_le_polynomial_degree hn hlevel hzero hhalf q hq hplus hminus).trans
+    (hq : ∀ x, q.eval (cos (2 * x)) = evenCos t x)
+    (hplus : q - Polynomial.C (thr n γ) ≠ 0)
+    (hminus : q - Polynomial.C (-thr n γ) ≠ 0)
+    (hdegree : q.natDegree ≤ paramNum t) :
+    (firstQuadRuns n t γ).card ≤ paramNum t :=
+  (card_firstQuadRuns_le_poly_degree hn hlevel hzero hhalf q hq hplus hminus).trans
     hdegree
 
-theorem card_firstQuadrantRuns_le_parameterNumerator
+theorem card_firstQuadRuns_le_paramNum
     {n t : ℕ} {γ : ℝ}
     (hn : 0 < n)
-    (hlevel : 0 ≤ threshold n γ)
-    (hzero : threshold n γ ≤ |evenCosine t 0|)
-    (hhalf : threshold n γ ≤ |evenCosine t (π / 2)|) :
-    (firstQuadrantRuns n t γ).card ≤ parameterNumerator t := by
-  apply card_firstQuadrantRuns_le_parameterNumerator_of_polynomial
+    (hlevel : 0 ≤ thr n γ)
+    (hzero : thr n γ ≤ |evenCos t 0|)
+    (hhalf : thr n γ ≤ |evenCos t (π / 2)|) :
+    (firstQuadRuns n t γ).card ≤ paramNum t := by
+  apply card_firstQuadRuns_le_paramNum_of_poly
     hn hlevel hzero hhalf (evenChebyshev t)
   · exact eval_evenChebyshev t
   · exact evenChebyshev_sub_C_ne_zero t _
@@ -6229,7 +6229,7 @@ theorem card_firstQuadrantRuns_le_parameterNumerator
 
 end
 
-end CosineConstruction
+end CosConstr
 
 end
 
@@ -6299,17 +6299,6 @@ theorem isLittlewood_ofCoeffs (n : ℕ) (a : Fin (n + 1) → ℂ)
     rw [coeff_ofCoeffs_of_le n i a hi]
     exact ha ⟨i, Nat.lt_succ_iff.mpr hi⟩
 
-noncomputable def shift (k : ℕ) (p : Polynomial ℂ) : Polynomial ℂ :=
-  Polynomial.X ^ k * p
-
-theorem eval_shift (k : ℕ) (p : Polynomial ℂ) (z : ℂ) :
-    (shift k p).eval z = z ^ k * p.eval z := by
-  simp [shift]
-
-theorem norm_eval_shift_of_norm_eq_one (k : ℕ) (p : Polynomial ℂ) {z : ℂ}
-    (hz : ‖z‖ = 1) : ‖(shift k p).eval z‖ = ‖p.eval z‖ := by
-  rw [eval_shift, norm_mul, norm_pow, hz, one_pow, one_mul]
-
 def HasFlatBounds (δ Δ : ℝ) (n : ℕ) (p : Polynomial ℂ) : Prop :=
   ∀ z : ℂ, ‖z‖ = 1 →
     δ * sqrt n ≤ ‖p.eval z‖ ∧ ‖p.eval z‖ ≤ Δ * sqrt n
@@ -6318,17 +6307,6 @@ def HasStrictTargetBounds (c₁ c₂ : ℝ) (n : ℕ) (p : Polynomial ℂ) : Pro
   ∀ z : ℂ, ‖z‖ = 1 →
     sqrt n < c₁ * ‖p.eval z‖ ∧
       ‖p.eval z‖ < c₂ * sqrt n
-
-theorem HasFlatBounds.shift {δ Δ : ℝ} {n k : ℕ} {p : Polynomial ℂ}
-    (hp : HasFlatBounds δ Δ n p) : HasFlatBounds δ Δ n (shift k p) := by
-  intro z hz
-  simpa [norm_eval_shift_of_norm_eq_one k p hz] using hp z hz
-
-theorem HasStrictTargetBounds.shift {c₁ c₂ : ℝ} {n k : ℕ} {p : Polynomial ℂ}
-    (hp : HasStrictTargetBounds c₁ c₂ n p) :
-    HasStrictTargetBounds c₁ c₂ n (shift k p) := by
-  intro z hz
-  simpa [norm_eval_shift_of_norm_eq_one k p hz] using hp z hz
 
 theorem hasStrictTargetBounds_of_hasFlatBounds {δ Δ : ℝ} {n : ℕ}
     {p : Polynomial ℂ} (hδ : 0 < δ) (hΔ : 0 < Δ) (hn : 0 < n)
@@ -6526,7 +6504,7 @@ theorem norm_eval_oneTail_le {base r : ℕ} {z : ℂ} (hz : ‖z‖ = 1) :
       simp [norm_pow, hz]
     _ = r := by simp
 
-theorem norm_eval_appendOnes_upper {base r : ℕ} {p : Polynomial ℂ}
+theorem norm_eval_appendOnes_up {base r : ℕ} {p : Polynomial ℂ}
     {z : ℂ} (hz : ‖z‖ = 1) :
     ‖(appendOnes base r p).eval z‖ ≤ ‖p.eval z‖ + r := by
   rw [appendOnes, eval_add]
@@ -6537,7 +6515,7 @@ theorem norm_eval_appendOnes_upper {base r : ℕ} {p : Polynomial ℂ}
       gcongr
       exact norm_eval_oneTail_le hz
 
-theorem norm_eval_appendOnes_lower {base r : ℕ} {p : Polynomial ℂ}
+theorem norm_eval_appendOnes_lo {base r : ℕ} {p : Polynomial ℂ}
     {z : ℂ} (hz : ‖z‖ = 1) :
     ‖p.eval z‖ - r ≤ ‖(appendOnes base r p).eval z‖ := by
   have htri : ‖p.eval z‖ ≤
@@ -6550,7 +6528,7 @@ theorem norm_eval_appendOnes_lower {base r : ℕ} {p : Polynomial ℂ}
       _ ≤ _ := norm_sub_le _ _
   linarith [norm_eval_oneTail_le (base := base) (r := r) hz]
 
-structure CenteredPairedInput (n : ℕ) where
+structure CtrPairInput (n : ℕ) where
   coeff : Fin (4 * n + 1) → ℂ
   coeff_isSign : ∀ j, IsSign (coeff j)
   cosine : ℝ → ℝ
@@ -6558,9 +6536,9 @@ structure CenteredPairedInput (n : ℕ) where
   oddSine : ℝ → ℝ
   dangerous : ℝ → Prop
   eval_eq : ∀ θ,
-    (ofCoeffs (4 * n) coeff).eval (unitPoint θ) =
-      unitPoint θ ^ (2 * n) *
-        assembledValue (cosine θ) (evenSine θ) (oddSine θ)
+    (ofCoeffs (4 * n) coeff).eval (unitPt θ) =
+      unitPt θ ^ (2 * n) *
+        asmValue (cosine θ) (evenSine θ) (oddSine θ)
   cosine_upper : ∀ θ, |cosine θ| ≤ sqrt n
   evenSine_upper : ∀ θ, |evenSine θ| ≤ 6 * sqrt n
   oddSine_upper : ∀ θ, |oddSine θ| ≤ 2 ^ 10 * sqrt n
@@ -6571,63 +6549,63 @@ structure CenteredPairedInput (n : ℕ) where
     dangerous θ →
     10 * sqrt n ≤ |oddSine θ|
 
-def CenteredPairedInput.polynomial {n : ℕ} (A : CenteredPairedInput n) :
+def CtrPairInput.poly {n : ℕ} (A : CtrPairInput n) :
     Polynomial ℂ :=
   ofCoeffs (4 * n) A.coeff
 
-theorem CenteredPairedInput.isLittlewood {n : ℕ}
-    (A : CenteredPairedInput n) : IsLittlewood (4 * n) A.polynomial :=
+theorem CtrPairInput.isLittlewood {n : ℕ}
+    (A : CtrPairInput n) : IsLittlewood (4 * n) A.poly :=
   isLittlewood_ofCoeffs (4 * n) A.coeff A.coeff_isSign
 
-theorem CenteredPairedInput.norm_eval_eq {n : ℕ}
-    (A : CenteredPairedInput n) (θ : ℝ) :
-    ‖A.polynomial.eval (unitPoint θ)‖ =
-      ‖assembledValue (A.cosine θ) (A.evenSine θ) (A.oddSine θ)‖ := by
-  rw [CenteredPairedInput.polynomial, A.eval_eq, norm_mul, norm_pow,
-    norm_unitPoint, one_pow, one_mul]
+theorem CtrPairInput.norm_eval_eq {n : ℕ}
+    (A : CtrPairInput n) (θ : ℝ) :
+    ‖A.poly.eval (unitPt θ)‖ =
+      ‖asmValue (A.cosine θ) (A.evenSine θ) (A.oddSine θ)‖ := by
+  rw [CtrPairInput.poly, A.eval_eq, norm_mul, norm_pow,
+    norm_unitPt, one_pow, one_mul]
 
-theorem CenteredPairedInput.flat_on_parametrized_circle {n : ℕ}
-    (hn : 1 ≤ n) (A : CenteredPairedInput n) (θ : ℝ)
+theorem CtrPairInput.flat_on_parametrized_circ {n : ℕ}
+    (hn : 1 ≤ n) (A : CtrPairInput n) (θ : ℝ)
     (hθ : InFundamentalAngle θ) :
     (1 / 2 ^ 160 : ℝ) * sqrt n ≤
-        ‖A.polynomial.eval (unitPoint θ)‖ ∧
-      ‖A.polynomial.eval (unitPoint θ)‖ ≤
+        ‖A.poly.eval (unitPt θ)‖ ∧
+      ‖A.poly.eval (unitPt θ)‖ ≤
         2 ^ 12 * sqrt n := by
   rw [A.norm_eval_eq]
   constructor
   · by_cases hdanger : A.dangerous θ
-    · have hbig := eight_sqrt_le_norm_assembledValue_of_odd_sine
+    · have hbig := eight_sqrt_le_norm_asmValue_of_odd_sin
           (c := A.cosine θ)
           (A.evenSine_upper θ)
           (A.oddSine_lower_on_dangerous θ hθ hdanger)
       have hsqrt : 0 ≤ sqrt n := sqrt_nonneg _
       norm_num at hbig ⊢
       nlinarith
-    · have hcos := two_mul_abs_sub_one_le_norm_assembledValue
+    · have hcos := two_mul_abs_sub_one_le_norm_asmValue
           (A.cosine θ) (A.evenSine θ) (A.oddSine θ)
       have hlower := A.cosine_lower_off_dangerous θ hθ hdanger
       norm_num at hlower ⊢
       linarith
-  · exact norm_assembledValue_le_two_pow_twelve_sqrt hn
+  · exact norm_asmValue_le_two_pow_twelve_sqrt hn
       (A.cosine_upper θ) (A.evenSine_upper θ) (A.oddSine_upper θ)
 
-@[simp] theorem unitPoint_add_two_pi (θ : ℝ) :
-    unitPoint (θ + 2 * π) = unitPoint θ := by
-  unfold unitPoint
+@[simp] theorem unitPt_add_two_pi (θ : ℝ) :
+    unitPt (θ + 2 * π) = unitPt θ := by
+  unfold unitPt
   rw [show (((θ + 2 * π : ℝ) : ℂ) * Complex.I) =
       (θ : ℂ) * Complex.I + 2 * (π : ℂ) * Complex.I by
         push_cast
         ring,
     Complex.exp_add, Complex.exp_two_pi_mul_I, mul_one]
 
-theorem exists_fundamental_unitPoint_of_norm_eq_one {z : ℂ} (hz : ‖z‖ = 1) :
-    ∃ θ : ℝ, InFundamentalAngle θ ∧ unitPoint θ = z := by
+theorem exists_fundamental_unitPt_of_norm_eq_one {z : ℂ} (hz : ‖z‖ = 1) :
+    ∃ θ : ℝ, InFundamentalAngle θ ∧ unitPt θ = z := by
   let a := z.arg
   have haLower : -π < a := Complex.neg_pi_lt_arg z
   have haUpper : a ≤ π := Complex.arg_le_pi z
-  have haPoint : unitPoint a = z := by
+  have haPoint : unitPt a = z := by
     calc
-      unitPoint a = Complex.exp ((a : ℂ) * Complex.I) := rfl
+      unitPt a = Complex.exp ((a : ℂ) * Complex.I) := rfl
       _ = ‖z‖ * Complex.exp ((a : ℂ) * Complex.I) := by rw [hz]; simp
       _ = z := Complex.norm_mul_exp_arg_mul_I z
   by_cases ha : -π / 2 ≤ a
@@ -6636,18 +6614,18 @@ theorem exists_fundamental_unitPoint_of_norm_eq_one {z : ℂ} (hz : ‖z‖ = 1)
   · refine ⟨a + 2 * π, ⟨?_, ?_⟩, ?_⟩
     · nlinarith [pi_pos]
     · nlinarith [lt_of_not_ge ha]
-    · rw [unitPoint_add_two_pi]
+    · rw [unitPt_add_two_pi]
       exact haPoint
 
-theorem CenteredPairedInput.flat_on_circle {n : ℕ}
-    (hn : 1 ≤ n) (A : CenteredPairedInput n) :
+theorem CtrPairInput.flat_on_circ {n : ℕ}
+    (hn : 1 ≤ n) (A : CtrPairInput n) :
     ∀ z : ℂ, ‖z‖ = 1 →
-      (1 / 2 ^ 160 : ℝ) * sqrt n ≤ ‖A.polynomial.eval z‖ ∧
-      ‖A.polynomial.eval z‖ ≤ 2 ^ 12 * sqrt n := by
+      (1 / 2 ^ 160 : ℝ) * sqrt n ≤ ‖A.poly.eval z‖ ∧
+      ‖A.poly.eval z‖ ≤ 2 ^ 12 * sqrt n := by
   intro z hz
   obtain ⟨θ, hθ, rfl⟩ :=
-    exists_fundamental_unitPoint_of_norm_eq_one hz
-  exact A.flat_on_parametrized_circle hn θ hθ
+    exists_fundamental_unitPt_of_norm_eq_one hz
+  exact A.flat_on_parametrized_circ hn θ hθ
 
 private theorem sqrt_sixteen_mul (n : ℕ) :
     sqrt (16 * (n : ℝ)) = 4 * sqrt n := by
@@ -6658,14 +6636,14 @@ private theorem sqrt_mono_nat {a b : ℕ} (h : a ≤ b) :
     sqrt a ≤ sqrt b :=
   sqrt_le_sqrt (by exact_mod_cast h)
 
-theorem extend_centered_to_degree (d : ℕ)
-    (hn : 1 ≤ d / 4) (A : CenteredPairedInput (d / 4))
+theorem extend_ctr_to_degree (d : ℕ)
+    (hn : 1 ≤ d / 4) (A : CtrPairInput (d / 4))
     (habsorb : 3 ≤ (1 / 2 ^ 163 : ℝ) * sqrt d) :
     ∃ p : Polynomial ℂ, IsLittlewood d p ∧
       HasFlatBounds (1 / 2 ^ 163) (2 ^ 13) d p := by
   let n := d / 4
   let r := d % 4
-  let q := A.polynomial
+  let q := A.poly
   let p := appendOnes (4 * n) r q
   have hr : r ≤ 3 := by
     dsimp [r]
@@ -6680,7 +6658,7 @@ theorem extend_centered_to_degree (d : ℕ)
     exact isLittlewood_appendOnes hqLittlewood
   refine ⟨p, hpLittlewood, ?_⟩
   intro z hz
-  have hqflat := A.flat_on_circle hn z hz
+  have hqflat := A.flat_on_circ hn z hz
   have hnle : n ≤ d := by
     dsimp [n]
     omega
@@ -6698,7 +6676,7 @@ theorem extend_centered_to_degree (d : ℕ)
     have hfactor : (1 / 2 ^ 163 : ℝ) ≤ 1 := by norm_num
     nlinarith [mul_le_mul_of_nonneg_right hfactor hsqrt_nonneg]
   constructor
-  · have htail := norm_eval_appendOnes_lower
+  · have htail := norm_eval_appendOnes_lo
         (base := 4 * n) (r := r) (p := q) hz
     change ‖q.eval z‖ - (r : ℝ) ≤ ‖p.eval z‖ at htail
     have hrR : (r : ℝ) ≤ 3 := by exact_mod_cast hr
@@ -6708,15 +6686,15 @@ theorem extend_centered_to_degree (d : ℕ)
       nlinarith
     norm_num at hqflat habsorb ⊢
     nlinarith
-  · have htail := norm_eval_appendOnes_upper
+  · have htail := norm_eval_appendOnes_up
         (base := 4 * n) (r := r) (p := q) hz
     change ‖p.eval z‖ ≤ ‖q.eval z‖ + (r : ℝ) at htail
     have hrR : (r : ℝ) ≤ 3 := by exact_mod_cast hr
     norm_num at hqflat ⊢
     nlinarith
 
-def EventuallyCenteredPaired : Prop :=
-  ∀ᶠ n : ℕ in atTop, Nonempty (CenteredPairedInput n)
+def EventuallyCtrPair : Prop :=
+  ∀ᶠ n : ℕ in atTop, Nonempty (CtrPairInput n)
 
 private theorem eventually_absorb_three :
     ∀ᶠ d : ℕ in atTop,
@@ -6730,21 +6708,21 @@ private theorem eventually_absorb_three :
     Filter.Tendsto.const_mul_atTop (by positivity) hsqrt
   exact hscaled (eventually_ge_atTop 3)
 
-theorem eventually_flat_of_eventually_centered
-    (hcentered : EventuallyCenteredPaired) :
+theorem eventually_flat_of_eventually_ctr
+    (hcentered : EventuallyCtrPair) :
     ∀ᶠ d : ℕ in atTop, ∃ p : Polynomial ℂ,
       IsLittlewood d p ∧
       HasFlatBounds (1 / 2 ^ 163) (2 ^ 13) d p := by
-  rw [EventuallyCenteredPaired, eventually_atTop] at hcentered
+  rw [EventuallyCtrPair, eventually_atTop] at hcentered
   obtain ⟨N, hN⟩ := hcentered
   filter_upwards [eventually_ge_atTop (4 * max N 1), eventually_absorb_three]
     with d hd habsorb
   have hnN : N ≤ d / 4 := by omega
   have hn1 : 1 ≤ d / 4 := by omega
   obtain ⟨A⟩ := hN (d / 4) hnN
-  exact extend_centered_to_degree d hn1 A habsorb
+  exact extend_ctr_to_degree d hn1 A habsorb
 
-theorem target_of_eventually_centered (hcentered : EventuallyCenteredPaired) :
+theorem target_of_eventually_ctr (hcentered : EventuallyCtrPair) :
     ∃ (c₁ : ℝ) (c₂ : ℝ), ∀ᶠ n : ℕ in atTop,
     ∃ p : Polynomial ℂ, p.degree = n ∧
     (∀ i ≤ n, p.coeff i = 1 ∨ p.coeff i = -1) ∧
@@ -6754,7 +6732,7 @@ theorem target_of_eventually_centered (hcentered : EventuallyCenteredPaired) :
   refine Iff.mp ?_ trivial
   constructor
   · intro _
-    have hflat := eventually_flat_of_eventually_centered hcentered
+    have hflat := eventually_flat_of_eventually_ctr hcentered
     have hstrict := eventually_strict_of_eventually_flat
       (δ := (1 / 2 ^ 163 : ℝ)) (Δ := (2 ^ 13 : ℝ))
       (by positivity) (by positivity) hflat
@@ -6768,71 +6746,71 @@ end
 
 section
 
-namespace CosineConstruction
+namespace CosConstr
 
 open Filter Set
 
 noncomputable section
 
-structure CosinePackage (n : ℕ) where
+structure CosPackage (n : ℕ) where
   t : ℕ
   γ : ℝ
-  parameters : Parameters n t γ
-  family : IntervalFamily n
+  parameters : Params n t γ
+  family : IvlFam n
   base_card : (family.base.card : ℝ) ≤ γ * n
-  upper : ∀ θ, |evenCosine t θ| ≤ sqrt n
+  upper : ∀ θ, |evenCos t θ| ≤ sqrt n
   lower : ∀ θ, InFundamentalAngle θ →
     ¬IsDangerous family θ →
-      cosineDelta γ * sqrt n ≤ |evenCosine t θ|
+      cosDelta γ * sqrt n ≤ |evenCos t θ|
 
-theorem sevenCellProperty_of_parameters
-    {n t : ℕ} {γ : ℝ} (hparam : Parameters n t γ) :
+theorem sevenCellProperty_of_params
+    {n t : ℕ} {γ : ℝ} (hparam : Params n t γ) :
     SevenCellProperty n t γ := by
-  apply sevenCellProperty_of_normalized_good hparam
-  exact normalizedH_re_hasGoodCellInEverySeven t hparam.eta_pos hparam.eta_lt
+  apply sevenCellProperty_of_norm_good hparam
+  exact normH_re_hasGoodCellInEverySeven t hparam.eta_pos hparam.eta_lt
 
-theorem endpoint_threshold_bounds
-    {n t : ℕ} {γ : ℝ} (hparam : Parameters n t γ) :
-    threshold n γ ≤ |evenCosine t 0| ∧
-      threshold n γ ≤ |evenCosine t (π / 2)| := by
-  have hthreshold := threshold_lt_half_normalization hparam
+theorem endpt_thr_bounds
+    {n t : ℕ} {γ : ℝ} (hparam : Params n t γ) :
+    thr n γ ≤ |evenCos t 0| ∧
+      thr n γ ≤ |evenCos t (π / 2)| := by
+  have hthreshold := thr_lt_half_normalization hparam
   have hscale : 0 < sqrt (2 ^ (t + 1) : ℝ) := by positivity
   constructor
-  · rw [evenCosine_eq_normalizedH]
+  · rw [evenCos_eq_normH]
     simp only [mul_zero]
-    rw [normalizedH_re_zero_of_odd hparam.t_odd]
+    rw [normH_re_zero_of_odd hparam.t_odd]
     simp only [abs_mul, abs_one, mul_one, abs_of_pos hscale]
     linarith
-  · rw [evenCosine_eq_normalizedH]
+  · rw [evenCos_eq_normH]
     have harg : 2 * (evenT t : ℝ) * (π / 2) =
         (evenT t : ℝ) * π := by ring
-    rw [harg, normalizedH_re_evenT_mul_pi_of_odd hparam.t_odd]
+    rw [harg, normH_re_evenT_mul_pi_of_odd hparam.t_odd]
     simp only [abs_mul, abs_one, mul_one, abs_of_pos hscale]
     linarith
 
-theorem suitableFamily_base_card_le
-    {n t : ℕ} {γ : ℝ} (hparam : Parameters n t γ)
+theorem suitFam_base_card_le
+    {n t : ℕ} {γ : ℝ} (hparam : Params n t γ)
     (hseven : SevenCellProperty n t γ)
-    (hgeom : GeometricCertificate n t γ) :
-    ((suitableIntervalFamilyOfDangerousRuns hparam.n_pos hseven hgeom).base.card : ℝ) ≤
+    (hgeom : GeometricCert n t γ) :
+    ((suitIvlFamOfDangerousRuns hparam.n_pos hseven hgeom).base.card : ℝ) ≤
       γ * n := by
-  have hend := endpoint_threshold_bounds hparam
-  have hcard := card_firstQuadrantRuns_le_parameterNumerator hparam.n_pos
-    (threshold_pos hparam.n_pos hparam.gamma_pos).le hend.1 hend.2
-  rw [suitableFamily_base_card hparam.n_pos hseven hgeom]
-  have hcardR : ((firstQuadrantRuns n t γ).card : ℝ) ≤
-      parameterNumerator t := by exact_mod_cast hcard
+  have hend := endpt_thr_bounds hparam
+  have hcard := card_firstQuadRuns_le_paramNum hparam.n_pos
+    (thr_pos hparam.n_pos hparam.gamma_pos).le hend.1 hend.2
+  rw [suitFam_base_card hparam.n_pos hseven hgeom]
+  have hcardR : ((firstQuadRuns n t γ).card : ℝ) ≤
+      paramNum t := by exact_mod_cast hcard
   rwa [hparam.equation]
 
-def cosinePackageOfParameters
-    {n t : ℕ} {γ : ℝ} (hparam : Parameters n t γ) :
-    CosinePackage n := by
+def cosPackageOfParams
+    {n t : ℕ} {γ : ℝ} (hparam : Params n t γ) :
+    CosPackage n := by
   let hseven : SevenCellProperty n t γ :=
-    sevenCellProperty_of_parameters hparam
-  let hgeom : GeometricCertificate n t γ :=
-    geometricCertificate_of_parameters hparam
-  let F : IntervalFamily n :=
-    suitableIntervalFamilyOfDangerousRuns hparam.n_pos hseven hgeom
+    sevenCellProperty_of_params hparam
+  let hgeom : GeometricCert n t γ :=
+    geometricCert_of_params hparam
+  let F : IvlFam n :=
+    suitIvlFamOfDangerousRuns hparam.n_pos hseven hgeom
   refine
     { t := t
       γ := γ
@@ -6841,34 +6819,34 @@ def cosinePackageOfParameters
       base_card := ?_
       upper := ?_
       lower := ?_ }
-  · simpa only [F] using suitableFamily_base_card_le hparam hseven hgeom
+  · simpa only [F] using suitFam_base_card_le hparam hseven hgeom
   · intro θ
-    exact abs_evenCosine_le_sqrt_of_parameters hparam.toEvenParameters θ
+    exact abs_evenCos_le_sqrt_of_params hparam.toEvenParams θ
   · intro θ hθ hout
     have hfirst : ∀ x ∈ Icc 0 (π / 2),
-        ¬InBaseFamily F x → threshold n γ ≤ |evenCosine t x| := by
+        ¬InBaseFam F x → thr n γ ≤ |evenCos t x| := by
       intro x hx hbase
       apply le_of_not_gt
       intro hsmall
       apply hbase
       obtain ⟨I, hI, hxI⟩ :=
-        low_point_covered_by_firstQuadrantIntervals hparam hx hsmall
+        low_pt_covered_by_firstQuadIvls hparam hx hsmall
       refine ⟨I, ?_, hxI⟩
-      change I ∈ firstQuadrantIntervals n t γ
+      change I ∈ firstQuadIvls n t γ
       exact hI
-    have hlower := lower_on_fundamental_of_lower_off_base F hfirst θ
+    have hlower := lo_on_fundamental_of_lo_off_base F hfirst θ
       (by simpa only [InFundamentalAngle] using hθ) hout
-    simpa only [threshold] using hlower
+    simpa only [thr] using hlower
 
-theorem eventually_exists_cosinePackage :
-    ∀ᶠ n : ℕ in atTop, Nonempty (CosinePackage n) := by
-  filter_upwards [eventually_exists_parameters] with n hparam
+theorem eventually_exists_cosPackage :
+    ∀ᶠ n : ℕ in atTop, Nonempty (CosPackage n) := by
+  filter_upwards [eventually_exists_params] with n hparam
   obtain ⟨t, γ, hparam⟩ := hparam
-  exact ⟨cosinePackageOfParameters hparam⟩
+  exact ⟨cosPackageOfParams hparam⟩
 
 end
 
-end CosineConstruction
+end CosConstr
 
 end
 
@@ -6880,7 +6858,7 @@ open scoped BigOperators
 
 noncomputable section
 
-def firstParameter (n N : ℕ) : ℝ :=
+def firstParam (n N : ℕ) : ℝ :=
   14 * sqrt (log ((16 * n : ℕ) / (N : ℝ)))
 
 private lemma firstColoring_ratio_ge
@@ -7002,16 +6980,16 @@ private lemma sqrt_log_mul_sqrt_card_scale_le
     field_simp
   nlinarith
 
-theorem exp_neg_firstParameter_sq
+theorem exp_neg_firstParam_sq
     {n N : ℕ} {γ : ℝ} (hn : 0 < n) (hN : 0 < N)
     (hγ : γ ≤ 1 / (2 : ℝ) ^ 40)
     (hcard : (N : ℝ) ≤ γ * n) :
-    Real.exp (-(firstParameter n N) ^ 2 / 196) =
+    Real.exp (-(firstParam n N) ^ 2 / 196) =
       (N : ℝ) / (16 * n) := by
   have hlog := firstColoring_log_ratio_nonneg hn hN hγ hcard
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
   have hNR : (0 : ℝ) < N := by exact_mod_cast hN
-  rw [firstParameter, mul_pow, sq_sqrt hlog]
+  rw [firstParam, mul_pow, sq_sqrt hlog]
   have hqpos : (0 : ℝ) < (16 * n : ℕ) / (N : ℝ) := by positivity
   rw [show -((14 : ℝ) ^ 2 * log ((16 * n : ℕ) / (N : ℝ))) / 196 =
       -log ((16 * n : ℕ) / (N : ℝ)) by ring]
@@ -7019,18 +6997,18 @@ theorem exp_neg_firstParameter_sq
   push_cast
   field_simp
 
-theorem firstColoringAdmissible_of_card_le
-    {n : ℕ} (hn : 0 < n) (F : IntervalFamily n) {γ : ℝ}
+theorem firstColoringAdm_of_card_le
+    {n : ℕ} (hn : 0 < n) (F : IvlFam n) {γ : ℝ}
     (hγ : γ ≤ 1 / (2 : ℝ) ^ 40)
     (hbase : 0 < F.base.card)
     (hcard : (F.base.card : ℝ) ≤ γ * n) :
-    FirstColoringAdmissible F
-      (fun _ ↦ firstParameter n F.base.card) := by
+    FirstColoringAdm F
+      (fun _ ↦ firstParam n F.base.card) := by
   classical
-  apply firstColoringAdmissible_of_numeric hn
+  apply firstColoringAdm_of_numeric hn
   · intro j
     exact mul_nonneg (by norm_num) (sqrt_nonneg _)
-  · simp_rw [exp_neg_firstParameter_sq hn hbase hγ hcard]
+  · simp_rw [exp_neg_firstParam_sq hn hbase hγ hcard]
     simp
     field_simp
     norm_num
@@ -7040,7 +7018,7 @@ theorem firstColoringAdmissible_of_card_le
       sqrt_log_mul_sqrt_card_scale_le hn hbase hγ hcard
     have hpi : π ≤ (22 / 7 : ℝ) :=
       Real.pi_lt_d4.le.trans (by norm_num)
-    rw [firstParameter]
+    rw [firstParam]
     simp only [K_eq]
     have hnonneg :
         0 ≤ (14 * sqrt (log ((16 * n : ℕ) / (F.base.card : ℝ))) + 30) *
@@ -7073,10 +7051,10 @@ theorem firstColoringAdmissible_of_card_le
                 30 * ((1 : ℝ) / 2 ^ 20) := by gcongr
       _ ≤ 1 := by norm_num
 
-theorem exists_intervalColoring_of_base_card_eq_zero
-    {n : ℕ} (F : IntervalFamily n) (hbase : F.base.card = 0) :
+theorem exists_ivlColoring_of_base_card_eq_zero
+    {n : ℕ} (F : IvlFam n) (hbase : F.base.card = 0) :
     ∃ α : ↥F.base → ℝ,
-      Discrepancy.IsSign α ∧
+      Disc.IsSign α ∧
         ∀ j < n, |fourierTarget F α j| ≤ 1 := by
   classical
   have hempty : F.base = ∅ := Finset.card_eq_zero.mp hbase
@@ -7234,11 +7212,11 @@ lemma sinc_le_taylor_four {x : ℝ} (hx : 0 ≤ x) :
   apply (div_le_iff₀ hxpos).2
   nlinarith [sin_le_taylor_five hxpos.le]
 
-noncomputable def sineIntegral (b : ℝ) : ℝ :=
+noncomputable def sinIntg (b : ℝ) : ℝ :=
   ∫ x in (0 : ℝ)..b, sinc x
 
-lemma sineIntegral_upper {b : ℝ} (hb : 0 ≤ b) :
-    sineIntegral b ≤ b - b ^ 3 / 18 + b ^ 5 / 600 := by
+lemma sinIntg_up {b : ℝ} (hb : 0 ≤ b) :
+    sinIntg b ≤ b - b ^ 3 / 18 + b ^ 5 / 600 := by
   have hs : IntervalIntegrable sinc volume 0 b :=
     continuous_sinc.intervalIntegrable 0 b
   have hp1 : IntervalIntegrable (fun x : ℝ => 1 - x ^ 2 / 6) volume 0 b :=
@@ -7250,15 +7228,15 @@ lemma sineIntegral_upper {b : ℝ} (hb : 0 ≤ b) :
   have hmono := integral_mono_on hb hs hp
     (fun x hx => sinc_le_taylor_four hx.1)
   calc
-    sineIntegral b = ∫ x in (0 : ℝ)..b, sinc x := rfl
+    sinIntg b = ∫ x in (0 : ℝ)..b, sinc x := rfl
     _ ≤ ∫ x in (0 : ℝ)..b, (1 - x ^ 2 / 6 + x ^ 4 / 120) := hmono
     _ = b - b ^ 3 / 18 + b ^ 5 / 600 := by
       rw [intervalIntegral.integral_add hp1 hp2]
       simp [intervalIntegral.integral_sub, intervalIntegral.integral_div, integral_pow]
       ring
 
-theorem sineIntegral_pi_lt_two : sineIntegral π < 2 := by
-  have hSi := sineIntegral_upper pi_pos.le
+theorem sinIntg_pi_lt_two : sinIntg π < 2 := by
+  have hSi := sinIntg_up pi_pos.le
   have hpi : π < (3.15 : ℝ) := pi_lt_d2
   have hcube : (3.14 : ℝ) ^ 3 < π ^ 3 :=
     pow_lt_pow_left₀ pi_gt_d2 (by norm_num) (by norm_num)
@@ -7276,7 +7254,7 @@ open Kernel
 
 section
 
-namespace OddKernelIdentity
+namespace OddKernelId
 
 open scoped BigOperators Interval
 open Set MeasureTheory
@@ -7285,20 +7263,20 @@ noncomputable section
 
 def oddKernel (n : ℕ) (x θ : ℝ) : ℝ :=
   4 * ∑ j ∈ Finset.range n,
-    sin ((oddFrequency j : ℝ) * x) *
-      sin ((oddFrequency j : ℝ) * θ)
+    sin ((oddFreq j : ℝ) * x) *
+      sin ((oddFreq j : ℝ) * θ)
 
-def integratedOddKernel (n : ℕ) (I : RealInterval)
+def integratedOddKernel (n : ℕ) (I : RealIvl)
     (θ : ℝ) : ℝ :=
   ∫ x in I.1..I.2, oddKernel n x θ
 
 theorem integratedOddKernel_eq_sum (n : ℕ)
-    (I : RealInterval) (θ : ℝ) :
+    (I : RealIvl) (θ : ℝ) :
     integratedOddKernel n I θ =
       4 * ∑ j ∈ Finset.range n,
         (∫ x in I.1..I.2,
-          sin ((oddFrequency j : ℝ) * x)) *
-            sin ((oddFrequency j : ℝ) * θ) := by
+          sin ((oddFreq j : ℝ) * x)) *
+            sin ((oddFreq j : ℝ) * θ) := by
   classical
   simp only [integratedOddKernel, oddKernel,
     intervalIntegral.integral_const_mul]
@@ -7306,11 +7284,11 @@ theorem integratedOddKernel_eq_sum (n : ℕ)
   · simp only [intervalIntegral.integral_mul_const]
   · intro j hj
     exact (by fun_prop : Continuous (fun x : ℝ ↦
-      sin ((oddFrequency j : ℝ) * x) *
-        sin ((oddFrequency j : ℝ) * θ))).intervalIntegrable _ _
+      sin ((oddFreq j : ℝ) * x) *
+        sin ((oddFreq j : ℝ) * θ))).intervalIntegrable _ _
 
 theorem targetSine_eq_sum_integratedOddKernel {n : ℕ}
-    (F : IntervalFamily n)
+    (F : IvlFam n)
     (α : ↥F.base → ℝ) (θ : ℝ) :
     targetSine F α θ =
       (K * sqrt n) *
@@ -7321,8 +7299,8 @@ theorem targetSine_eq_sum_integratedOddKernel {n : ℕ}
         (∑ I : ↥F.base,
           α I * (4 * K * sqrt n *
             ∫ x in I.1.1..I.1.2,
-              sin ((oddFrequency j : ℝ) * x))) *
-          sin ((oddFrequency j : ℝ) * θ) by
+              sin ((oddFreq j : ℝ) * x))) *
+          sin ((oddFreq j : ℝ) * θ) by
     simp only [targetSine,
       oddSineSum]
     apply sum_congr rfl
@@ -7340,7 +7318,7 @@ theorem targetSine_eq_sum_integratedOddKernel {n : ℕ}
   ring
 
 theorem targetSine_div_eq_sum_integratedOddKernel {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n)
+    (F : IvlFam n)
     (α : ↥F.base → ℝ) (θ : ℝ) :
     targetSine F α θ /
         (K * sqrt n) =
@@ -7355,7 +7333,7 @@ theorem oddKernel_eq_quotient (n : ℕ) {x θ : ℝ}
     oddKernel n x θ =
       sin ((2 * n : ℕ) * (x - θ)) / sin (x - θ) -
         sin ((2 * n : ℕ) * (x + θ)) / sin (x + θ) := by
-  simpa [oddKernel, oddFrequency, mul_comm] using
+  simpa [oddKernel, oddFreq, mul_comm] using
     (odd_dirichlet_kernel n
       (θ := x) (θ₀ := θ) hsub hadd)
 
@@ -7379,7 +7357,7 @@ theorem oddKernel_eq_quotient_of_theta_mem_Icc (n : ℕ) {x θ : ℝ}
         (by linarith [pi_pos])).mp hzero
     linarith
 
-theorem integral_oddKernel_eq_quotient_of_theta_mem_Icc (n : ℕ)
+theorem intg_oddKernel_eq_quotient_of_theta_mem_Icc (n : ℕ)
     {a b θ : ℝ} (hab : a ≤ b) (ha : 0 < a) (hb : b < π / 2)
     (hθ : θ ∈ Icc 0 (π / 2)) :
     (∫ x in a..b, oddKernel n x θ) =
@@ -7393,8 +7371,8 @@ theorem integral_oddKernel_eq_quotient_of_theta_mem_Icc (n : ℕ)
     (ha.trans hx.1) (hx.2.trans_lt hb) hθ hxt
 
 theorem integratedOddKernel_eq_quotient_of_mem_base_theta_mem_Icc {n : ℕ}
-    (hn : 0 < n) (F : IntervalFamily n)
-    (I : RealInterval) (hI : I ∈ F.base)
+    (hn : 0 < n) (F : IvlFam n)
+    (I : RealIvl) (hI : I ∈ F.base)
     {θ : ℝ} (hθ : θ ∈ Icc 0 (π / 2)) :
     integratedOddKernel n I θ =
       ∫ x in I.1..I.2,
@@ -7402,14 +7380,14 @@ theorem integratedOddKernel_eq_quotient_of_mem_base_theta_mem_Icc {n : ℕ}
           sin ((2 * n : ℕ) * (x + θ)) / sin (x + θ)) := by
   have hnℝ : (0 : ℝ) < n := by exact_mod_cast hn
   have hmesh : 0 < 100 * π / (n : ℝ) := by positivity
-  apply integral_oddKernel_eq_quotient_of_theta_mem_Icc n
+  apply intg_oddKernel_eq_quotient_of_theta_mem_Icc n
   · exact F.ordered I hI
   · linarith [F.away_from_axes I hI |>.1]
   · linarith [F.away_from_axes I hI |>.2]
   · exact hθ
 
-theorem targetSine_div_eq_sum_quotientIntegral_of_theta_mem_Icc {n : ℕ}
-    (hn : 0 < n) (F : IntervalFamily n)
+theorem targetSin_div_eq_sum_quotientIntg_of_theta_mem_Icc {n : ℕ}
+    (hn : 0 < n) (F : IvlFam n)
     (α : ↥F.base → ℝ) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
     targetSine F α θ /
@@ -7427,7 +7405,7 @@ theorem targetSine_div_eq_sum_quotientIntegral_of_theta_mem_Icc {n : ℕ}
 
 end
 
-end OddKernelIdentity
+end OddKernelId
 
 end
 
@@ -7442,71 +7420,71 @@ noncomputable section
 
 open OddSine
 
-def intervalGap (θ : ℝ) (I : RealInterval) : ℝ :=
+def ivlGap (θ : ℝ) (I : RealIvl) : ℝ :=
   max (I.1 - θ) (max (θ - I.2) 0)
 
-theorem intervalGap_eq_zero_of_mem {θ : ℝ} {I : RealInterval}
-    (hθ : InInterval I θ) :
-    intervalGap θ I = 0 := by
-  rw [InInterval, mem_Icc] at hθ
-  simp only [intervalGap]
+theorem ivlGap_eq_zero_of_mem {θ : ℝ} {I : RealIvl}
+    (hθ : InIvl I θ) :
+    ivlGap θ I = 0 := by
+  rw [InIvl, mem_Icc] at hθ
+  simp only [ivlGap]
   rw [max_eq_right (sub_nonpos.mpr hθ.2)]
   rw [max_eq_right (sub_nonpos.mpr hθ.1)]
 
-theorem intervalGap_eq_left {θ : ℝ} {I : RealInterval}
+theorem ivlGap_eq_left {θ : ℝ} {I : RealIvl}
     (hI : I.1 ≤ I.2) (hθ : θ ≤ I.1) :
-    intervalGap θ I = I.1 - θ := by
+    ivlGap θ I = I.1 - θ := by
   have hθ' : θ ≤ I.2 := hθ.trans hI
-  simp only [intervalGap]
+  simp only [ivlGap]
   rw [max_eq_right (sub_nonpos.mpr hθ')]
   rw [max_eq_left (sub_nonneg.mpr hθ)]
 
-theorem intervalGap_eq_right {θ : ℝ} {I : RealInterval}
+theorem ivlGap_eq_right {θ : ℝ} {I : RealIvl}
     (hI : I.1 ≤ I.2) (hθ : I.2 ≤ θ) :
-    intervalGap θ I = θ - I.2 := by
+    ivlGap θ I = θ - I.2 := by
   have hθ' : I.1 ≤ θ := hI.trans hθ
-  simp only [intervalGap]
+  simp only [ivlGap]
   rw [max_eq_left (sub_nonneg.mpr hθ)]
   rw [max_eq_right]
   exact (sub_nonpos.mpr hθ').trans (sub_nonneg.mpr hθ)
 
-def Near (n : ℕ) (θ : ℝ) (I : RealInterval) : Prop :=
-  intervalGap θ I < π / n
+def Near (n : ℕ) (θ : ℝ) (I : RealIvl) : Prop :=
+  ivlGap θ I < π / n
 
-noncomputable def nearIntervals {n : ℕ} (F : IntervalFamily n) (θ : ℝ) :
-    Finset RealInterval :=
+noncomputable def nearIvls {n : ℕ} (F : IvlFam n) (θ : ℝ) :
+    Finset RealIvl :=
   @Finset.filter _ (Near n θ) (Classical.decPred _) F.base
 
-def InBaseUnion {n : ℕ} (F : IntervalFamily n) (θ : ℝ) : Prop :=
-  ∃ I ∈ F.base, InInterval I θ
+def InBaseUnion {n : ℕ} (F : IvlFam n) (θ : ℝ) : Prop :=
+  ∃ I ∈ F.base, InIvl I θ
 
-noncomputable def nearLeftIntervals {n : ℕ} (F : IntervalFamily n) (θ : ℝ) :
-    Finset RealInterval :=
+noncomputable def nearLeftIvls {n : ℕ} (F : IvlFam n) (θ : ℝ) :
+    Finset RealIvl :=
   @Finset.filter _ (fun I ↦ Near n θ I ∧ I.2 < θ)
     (Classical.decPred _) F.base
 
-noncomputable def nearRightIntervals {n : ℕ} (F : IntervalFamily n) (θ : ℝ) :
-    Finset RealInterval :=
+noncomputable def nearRightIvls {n : ℕ} (F : IvlFam n) (θ : ℝ) :
+    Finset RealIvl :=
   @Finset.filter _ (fun I ↦ Near n θ I ∧ θ < I.1)
     (Classical.decPred _) F.base
 
-noncomputable def nearBaseIntervals {n : ℕ} (F : IntervalFamily n)
+noncomputable def nearBaseIvls {n : ℕ} (F : IvlFam n)
     (θ : ℝ) : Finset ↥F.base :=
   @Finset.filter ↥F.base (fun I ↦ Near n θ I.1)
     (Classical.decPred _) Finset.univ
 
-theorem nearIntervals_eq_image_nearBaseIntervals {n : ℕ}
-    (F : IntervalFamily n) (θ : ℝ) :
-    nearIntervals F θ =
-      (nearBaseIntervals F θ).image (fun I ↦ I.1) := by
+theorem nearIvls_eq_image_nearBaseIvls {n : ℕ}
+    (F : IvlFam n) (θ : ℝ) :
+    nearIvls F θ =
+      (nearBaseIvls F θ).image (fun I ↦ I.1) := by
   classical
   ext I
-  simp [nearIntervals, nearBaseIntervals, and_comm]
+  simp [nearIvls, nearBaseIvls, and_comm]
 
-theorem eq_of_mem_intervals {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ} {I J : RealInterval}
+theorem eq_of_mem_ivls {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ} {I J : RealIvl}
     (hI : I ∈ F.base) (hJ : J ∈ F.base)
-    (hθI : InInterval I θ) (hθJ : InInterval J θ) :
+    (hθI : InIvl I θ) (hθJ : InIvl J θ) :
     I = J := by
   by_contra hne
   have hsep := F.separated hI hJ hne θ hθI θ hθJ
@@ -7514,69 +7492,69 @@ theorem eq_of_mem_intervals {n : ℕ} (hn : 0 < n)
   have hpi : 0 < π / (n : ℝ) := div_pos pi_pos hnR
   exact (not_le_of_gt hpi) (by simpa using hsep)
 
-theorem intervalGap_ge_of_mem_of_ne {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ} {I J : RealInterval}
+theorem ivlGap_ge_of_mem_of_ne {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ} {I J : RealIvl}
     (hI : I ∈ F.base) (hJ : J ∈ F.base) (hne : I ≠ J)
-    (hθ : InInterval I θ) :
-    π / n ≤ intervalGap θ J := by
-  have hnotJ : ¬InInterval J θ := by
+    (hθ : InIvl I θ) :
+    π / n ≤ ivlGap θ J := by
+  have hnotJ : ¬InIvl J θ := by
     intro hθJ
-    exact hne (eq_of_mem_intervals hn F hI hJ hθ hθJ)
-  rw [InInterval, mem_Icc] at hnotJ
+    exact hne (eq_of_mem_ivls hn F hI hJ hθ hθJ)
+  rw [InIvl, mem_Icc] at hnotJ
   rcases not_and_or.mp hnotJ with hleft | hright
   · have hleft' : θ < J.1 := lt_of_not_ge hleft
-    rw [intervalGap_eq_left (F.ordered J hJ) hleft'.le]
+    rw [ivlGap_eq_left (F.ordered J hJ) hleft'.le]
     have hsep := F.separated hI hJ hne θ hθ J.1
       ⟨le_rfl, F.ordered J hJ⟩
     rw [abs_of_neg (sub_neg.mpr hleft')] at hsep
     linarith
   · have hright' : J.2 < θ := lt_of_not_ge hright
-    rw [intervalGap_eq_right (F.ordered J hJ) hright'.le]
+    rw [ivlGap_eq_right (F.ordered J hJ) hright'.le]
     have hsep := F.separated hI hJ hne θ hθ J.2
       ⟨F.ordered J hJ, le_rfl⟩
     rw [abs_of_pos (sub_pos.mpr hright')] at hsep
     exact hsep
 
-theorem nearBaseIntervals_eq_singleton_of_mem {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ} {I : RealInterval}
-    (hI : I ∈ F.base) (hθ : InInterval I θ) :
-    nearBaseIntervals F θ = {⟨I, hI⟩} := by
+theorem nearBaseIvls_eq_singleton_of_mem {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ} {I : RealIvl}
+    (hI : I ∈ F.base) (hθ : InIvl I θ) :
+    nearBaseIvls F θ = {⟨I, hI⟩} := by
   classical
   ext J
-  simp only [nearBaseIntervals, mem_filter, Finset.mem_univ, true_and,
+  simp only [nearBaseIvls, mem_filter, Finset.mem_univ, true_and,
     Finset.mem_singleton]
   constructor
   · intro hnear
     apply Subtype.ext
     by_contra hne
-    have hgap := intervalGap_ge_of_mem_of_ne hn F hI J.property
+    have hgap := ivlGap_ge_of_mem_of_ne hn F hI J.property
       (fun h ↦ hne h.symm) hθ
     exact (not_lt_of_ge hgap) hnear
   · intro hJI
     subst J
-    rw [Near, intervalGap_eq_zero_of_mem hθ]
+    rw [Near, ivlGap_eq_zero_of_mem hθ]
     have hnR : (0 : ℝ) < n := by exact_mod_cast hn
     exact div_pos pi_pos hnR
 
-theorem card_nearBaseIntervals_eq_card_nearIntervals {n : ℕ}
-    (F : IntervalFamily n) (θ : ℝ) :
-    (nearBaseIntervals F θ).card = (nearIntervals F θ).card := by
-  rw [nearIntervals_eq_image_nearBaseIntervals]
+theorem card_nearBaseIvls_eq_card_nearIvls {n : ℕ}
+    (F : IvlFam n) (θ : ℝ) :
+    (nearBaseIvls F θ).card = (nearIvls F θ).card := by
+  rw [nearIvls_eq_image_nearBaseIvls]
   exact (Finset.card_image_of_injective _ Subtype.val_injective).symm
 
-theorem nearIntervals_eq_left_union_right_of_not_inBaseUnion {n : ℕ}
-    (F : IntervalFamily n) {θ : ℝ}
+theorem nearIvls_eq_left_union_right_of_not_inBaseUnion {n : ℕ}
+    (F : IvlFam n) {θ : ℝ}
     (hout : ¬InBaseUnion F θ) :
-    nearIntervals F θ =
-      nearLeftIntervals F θ ∪ nearRightIntervals F θ := by
+    nearIvls F θ =
+      nearLeftIvls F θ ∪ nearRightIvls F θ := by
   classical
   ext I
-  simp only [nearIntervals, nearLeftIntervals, nearRightIntervals,
+  simp only [nearIvls, nearLeftIvls, nearRightIvls,
     mem_filter, Finset.mem_union]
   constructor
   · rintro ⟨hI, hnear⟩
-    have hnot : ¬InInterval I θ := fun h ↦ hout ⟨I, hI, h⟩
-    rw [InInterval, mem_Icc] at hnot
+    have hnot : ¬InIvl I θ := fun h ↦ hout ⟨I, hI, h⟩
+    rw [InIvl, mem_Icc] at hnot
     rcases not_and_or.mp hnot with hright | hleft
     · exact Or.inr ⟨hI, hnear, lt_of_not_ge hright⟩
     · exact Or.inl ⟨hI, hnear, lt_of_not_ge hleft⟩
@@ -7584,141 +7562,141 @@ theorem nearIntervals_eq_left_union_right_of_not_inBaseUnion {n : ℕ}
     · exact ⟨hleft.1, hleft.2.1⟩
     · exact ⟨hright.1, hright.2.1⟩
 
-theorem card_nearLeftIntervals_le_one {n : ℕ} (_hn : 0 < n)
-    (F : IntervalFamily n) (θ : ℝ) :
-    (nearLeftIntervals F θ).card ≤ 1 := by
+theorem card_nearLeftIvls_le_one {n : ℕ} (_hn : 0 < n)
+    (F : IvlFam n) (θ : ℝ) :
+    (nearLeftIvls F θ).card ≤ 1 := by
   classical
   rw [card_le_one]
   intro I hI J hJ
-  simp only [nearLeftIntervals, mem_filter] at hI hJ
+  simp only [nearLeftIvls, mem_filter] at hI hJ
   by_contra hne
   have hsep := F.separated hI.1 hJ.1 hne I.2
     ⟨F.ordered I hI.1, le_rfl⟩ J.2 ⟨F.ordered J hJ.1, le_rfl⟩
   have hgapI : θ - I.2 < π / n := by
-    rw [← intervalGap_eq_right (F.ordered I hI.1) hI.2.2.le]
+    rw [← ivlGap_eq_right (F.ordered I hI.1) hI.2.2.le]
     exact hI.2.1
   have hgapJ : θ - J.2 < π / n := by
-    rw [← intervalGap_eq_right (F.ordered J hJ.1) hJ.2.2.le]
+    rw [← ivlGap_eq_right (F.ordered J hJ.1) hJ.2.2.le]
     exact hJ.2.1
   have habs : |I.2 - J.2| < π / n := by
     rw [abs_lt]
     constructor <;> linarith [hI.2.2, hJ.2.2]
   exact (not_lt_of_ge hsep) habs
 
-theorem card_nearRightIntervals_le_one {n : ℕ} (_hn : 0 < n)
-    (F : IntervalFamily n) (θ : ℝ) :
-    (nearRightIntervals F θ).card ≤ 1 := by
+theorem card_nearRightIvls_le_one {n : ℕ} (_hn : 0 < n)
+    (F : IvlFam n) (θ : ℝ) :
+    (nearRightIvls F θ).card ≤ 1 := by
   classical
   rw [card_le_one]
   intro I hI J hJ
-  simp only [nearRightIntervals, mem_filter] at hI hJ
+  simp only [nearRightIvls, mem_filter] at hI hJ
   by_contra hne
   have hsep := F.separated hI.1 hJ.1 hne I.1
     ⟨le_rfl, F.ordered I hI.1⟩ J.1 ⟨le_rfl, F.ordered J hJ.1⟩
   have hgapI : I.1 - θ < π / n := by
-    rw [← intervalGap_eq_left (F.ordered I hI.1) hI.2.2.le]
+    rw [← ivlGap_eq_left (F.ordered I hI.1) hI.2.2.le]
     exact hI.2.1
   have hgapJ : J.1 - θ < π / n := by
-    rw [← intervalGap_eq_left (F.ordered J hJ.1) hJ.2.2.le]
+    rw [← ivlGap_eq_left (F.ordered J hJ.1) hJ.2.2.le]
     exact hJ.2.1
   have habs : |I.1 - J.1| < π / n := by
     rw [abs_lt]
     constructor <;> linarith [hI.2.2, hJ.2.2]
   exact (not_lt_of_ge hsep) habs
 
-theorem card_nearIntervals_le_two_of_not_inBaseUnion {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ}
+theorem card_nearIvls_le_two_of_not_inBaseUnion {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ}
     (hout : ¬InBaseUnion F θ) :
-    (nearIntervals F θ).card ≤ 2 := by
-  rw [nearIntervals_eq_left_union_right_of_not_inBaseUnion F hout]
+    (nearIvls F θ).card ≤ 2 := by
+  rw [nearIvls_eq_left_union_right_of_not_inBaseUnion F hout]
   calc
-    (nearLeftIntervals F θ ∪ nearRightIntervals F θ).card ≤
-        (nearLeftIntervals F θ).card +
-          (nearRightIntervals F θ).card :=
+    (nearLeftIvls F θ ∪ nearRightIvls F θ).card ≤
+        (nearLeftIvls F θ).card +
+          (nearRightIvls F θ).card :=
       card_union_le _ _
     _ ≤ 1 + 1 := Nat.add_le_add
-      (card_nearLeftIntervals_le_one hn F θ)
-      (card_nearRightIntervals_le_one hn F θ)
+      (card_nearLeftIvls_le_one hn F θ)
+      (card_nearRightIvls_le_one hn F θ)
     _ = 2 := rfl
 
-theorem card_nearBaseIntervals_le_two_of_not_inBaseUnion {n : ℕ}
-    (hn : 0 < n) (F : IntervalFamily n) {θ : ℝ}
+theorem card_nearBaseIvls_le_two_of_not_inBaseUnion {n : ℕ}
+    (hn : 0 < n) (F : IvlFam n) {θ : ℝ}
     (hout : ¬InBaseUnion F θ) :
-    (nearBaseIntervals F θ).card ≤ 2 := by
-  rw [card_nearBaseIntervals_eq_card_nearIntervals]
-  exact card_nearIntervals_le_two_of_not_inBaseUnion hn F hout
+    (nearBaseIvls F θ).card ≤ 2 := by
+  rw [card_nearBaseIvls_eq_card_nearIvls]
+  exact card_nearIvls_le_two_of_not_inBaseUnion hn F hout
 
-theorem existsUnique_baseInterval_of_dangerous_firstQuadrant {n : ℕ}
-    (hn : 0 < n) (F : IntervalFamily n) {θ : ℝ}
+theorem existsUnique_baseIvl_of_dangerous_firstQuad {n : ℕ}
+    (hn : 0 < n) (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2))
     (hdangerous : IsDangerous F θ) :
-    ∃! I : RealInterval, I ∈ F.base ∧ InInterval I θ := by
+    ∃! I : RealIvl, I ∈ F.base ∧ InIvl I θ := by
   rcases hdangerous with ⟨I, hI, hmain | hneg | hreflect | htranslate⟩
   · refine ⟨I, ⟨hI, hmain⟩, ?_⟩
     rintro J ⟨hJ, hθJ⟩
-    exact eq_of_mem_intervals hn F hJ hI hθJ hmain
+    exact eq_of_mem_ivls hn F hJ hI hθJ hmain
   · have hquadI := F.in_first_quadrant I hI
-    rw [InInterval, mem_Icc] at hneg
+    rw [InIvl, mem_Icc] at hneg
     have hθ0 : θ = 0 := by linarith [hθ.1, hquadI.1, hneg.1]
-    have hmain : InInterval I θ := by
-      rw [InInterval, mem_Icc]
+    have hmain : InIvl I θ := by
+      rw [InIvl, mem_Icc]
       simpa [hθ0] using hneg
     refine ⟨I, ⟨hI, hmain⟩, ?_⟩
     rintro J ⟨hJ, hθJ⟩
-    exact eq_of_mem_intervals hn F hJ hI hθJ hmain
+    exact eq_of_mem_ivls hn F hJ hI hθJ hmain
   · have hquadI := F.in_first_quadrant I hI
-    rw [InInterval, mem_Icc] at hreflect
+    rw [InIvl, mem_Icc] at hreflect
     have hθMid : θ = π / 2 := by
       linarith [hθ.2, hquadI.2, hreflect.2]
     have harg : π - θ = θ := by
       rw [hθMid]
       ring
-    have hmain : InInterval I θ := by
-      rw [InInterval, mem_Icc, ← harg]
+    have hmain : InIvl I θ := by
+      rw [InIvl, mem_Icc, ← harg]
       exact hreflect
     refine ⟨I, ⟨hI, hmain⟩, ?_⟩
     rintro J ⟨hJ, hθJ⟩
-    exact eq_of_mem_intervals hn F hJ hI hθJ hmain
+    exact eq_of_mem_ivls hn F hJ hI hθJ hmain
   · have hquadI := F.in_first_quadrant I hI
-    rw [InInterval, mem_Icc] at htranslate
+    rw [InIvl, mem_Icc] at htranslate
     exfalso
     nlinarith [hθ.2, hquadI.1, htranslate.1, pi_pos]
 
-theorem existsUnique_baseSubtype_of_dangerous_firstQuadrant {n : ℕ}
-    (hn : 0 < n) (F : IntervalFamily n) {θ : ℝ}
+theorem existsUnique_baseSubtype_of_dangerous_firstQuad {n : ℕ}
+    (hn : 0 < n) (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2))
     (hdangerous : IsDangerous F θ) :
-    ∃! I : ↥F.base, InInterval I.1 θ := by
+    ∃! I : ↥F.base, InIvl I.1 θ := by
   obtain ⟨I, hI, hunique⟩ :=
-    existsUnique_baseInterval_of_dangerous_firstQuadrant hn F hθ hdangerous
+    existsUnique_baseIvl_of_dangerous_firstQuad hn F hθ hdangerous
   refine ⟨⟨I, hI.1⟩, hI.2, ?_⟩
   intro J hθJ
   apply Subtype.ext
   exact hunique J.1 ⟨J.property, hθJ⟩
 
-theorem sum_nearBaseIntervals_eq_of_mem {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ} {I : RealInterval}
-    (hI : I ∈ F.base) (hθ : InInterval I θ)
+theorem sum_nearBaseIvls_eq_of_mem {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ} {I : RealIvl}
+    (hI : I ∈ F.base) (hθ : InIvl I θ)
     (f : ↥F.base → ℝ) :
-    ∑ J ∈ nearBaseIntervals F θ, f J = f ⟨I, hI⟩ := by
-  rw [nearBaseIntervals_eq_singleton_of_mem hn F hI hθ]
+    ∑ J ∈ nearBaseIvls F θ, f J = f ⟨I, hI⟩ := by
+  rw [nearBaseIvls_eq_singleton_of_mem hn F hI hθ]
   simp
 
-theorem abs_sum_nearBaseIntervals_le_two_mul_of_not_inBaseUnion {n : ℕ}
-    (hn : 0 < n) (F : IntervalFamily n) {θ C : ℝ}
+theorem abs_sum_nearBaseIvls_le_two_mul_of_not_inBaseUnion {n : ℕ}
+    (hn : 0 < n) (F : IvlFam n) {θ C : ℝ}
     (hout : ¬InBaseUnion F θ) (hC : 0 ≤ C)
     (f : ↥F.base → ℝ)
-    (hf : ∀ I ∈ nearBaseIntervals F θ, |f I| ≤ C) :
-    |∑ I ∈ nearBaseIntervals F θ, f I| ≤ 2 * C := by
+    (hf : ∀ I ∈ nearBaseIvls F θ, |f I| ≤ C) :
+    |∑ I ∈ nearBaseIvls F θ, f I| ≤ 2 * C := by
   classical
-  have hcard := card_nearBaseIntervals_le_two_of_not_inBaseUnion hn F hout
+  have hcard := card_nearBaseIvls_le_two_of_not_inBaseUnion hn F hout
   calc
-    |∑ I ∈ nearBaseIntervals F θ, f I| ≤
-        ∑ I ∈ nearBaseIntervals F θ, |f I| := by
+    |∑ I ∈ nearBaseIvls F θ, f I| ≤
+        ∑ I ∈ nearBaseIvls F θ, |f I| := by
           exact abs_sum_le_sum_abs _ _
-    _ ≤ ∑ _I ∈ nearBaseIntervals F θ, C := by
+    _ ≤ ∑ _I ∈ nearBaseIvls F θ, C := by
       exact sum_le_sum fun I hI ↦ hf I hI
-    _ = ((nearBaseIntervals F θ).card : ℝ) * C := by simp
+    _ = ((nearBaseIvls F θ).card : ℝ) * C := by simp
     _ ≤ 2 * C := by
       gcongr
       exact_mod_cast hcard
@@ -7733,17 +7711,17 @@ open KernelNearGeometry
 
 
 section
-namespace SineIntegralGrid
+namespace SinIntgGrid
 
 open scoped Interval
 open Real Set MeasureTheory intervalIntegral
 
 noncomputable section
 
-private def lowerSincPolynomial (x : ℝ) : ℝ :=
+private def loSincPoly (x : ℝ) : ℝ :=
   1 - x ^ 2 / 6 + x ^ 4 / 120 - x ^ 6 / 5040
 
-private def geometricLower (x : ℝ) : ℝ :=
+private def geometricLo (x : ℝ) : ℝ :=
   1 - x / π + (x / π) ^ 2 - (x / π) ^ 3
 
 private lemma sin_taylor_seven_le {x : ℝ} (hx : 0 ≤ x) :
@@ -7790,14 +7768,14 @@ private lemma sin_taylor_seven_le {x : ℝ} (hx : 0 ≤ x) :
   norm_num at h
   linarith
 
-private lemma lowerSincPolynomial_le_sinc {x : ℝ} (hx : 0 ≤ x) :
-    lowerSincPolynomial x ≤ sinc x := by
+private lemma loSincPoly_le_sinc {x : ℝ} (hx : 0 ≤ x) :
+    loSincPoly x ≤ sinc x := by
   obtain rfl | hxpos := hx.eq_or_lt
-  · norm_num [lowerSincPolynomial]
+  · norm_num [loSincPoly]
   rw [sinc_of_ne_zero hxpos.ne']
   apply (le_div_iff₀ hxpos).2
   have h := sin_taylor_seven_le hxpos.le
-  dsimp [lowerSincPolynomial]
+  dsimp [loSincPoly]
   nlinarith
 
 private lemma sinc_nonneg_on_zero_pi {x : ℝ} (hx0 : 0 ≤ x)
@@ -7807,26 +7785,26 @@ private lemma sinc_nonneg_on_zero_pi {x : ℝ} (hx0 : 0 ≤ x)
   rw [sinc_of_ne_zero hxpos.ne']
   exact div_nonneg (sin_nonneg_of_nonneg_of_le_pi hx0 hxpi) hx0
 
-private lemma geometricLower_nonneg {x : ℝ} (hx0 : 0 ≤ x)
-    (hxpi : x ≤ π) : 0 ≤ geometricLower x := by
+private lemma geometricLo_nonneg {x : ℝ} (hx0 : 0 ≤ x)
+    (hxpi : x ≤ π) : 0 ≤ geometricLo x := by
   have hpi : 0 < π := pi_pos
   have hu0 : 0 ≤ x / π := div_nonneg hx0 hpi.le
   have hu1 : x / π ≤ 1 := (div_le_one hpi).2 hxpi
-  dsimp [geometricLower]
+  dsimp [geometricLo]
   nlinarith [sq_nonneg (x / π)]
 
-private lemma geometricLower_le_weight {x : ℝ} (hx0 : 0 ≤ x)
+private lemma geometricLo_le_wt {x : ℝ} (hx0 : 0 ≤ x)
     (hxpi : x ≤ π) :
-    geometricLower x ≤ π / (x + π) := by
+    geometricLo x ≤ π / (x + π) := by
   have hpi : 0 < π := pi_pos
   have hxpi_pos : 0 < x + π := add_pos_of_nonneg_of_pos hx0 hpi
   apply (le_div_iff₀ hxpi_pos).2
-  dsimp [geometricLower]
+  dsimp [geometricLo]
   field_simp
   ring_nf
   nlinarith [sq_nonneg (x ^ 2)]
 
-private lemma sinc_add_pi_eq_weight (x : ℝ) (hx0 : 0 ≤ x)
+private lemma sinc_add_pi_eq_wt (x : ℝ) (hx0 : 0 ≤ x)
     (hxpi : x ≤ π) :
     sinc x + sinc (x + π) =
       sinc x * (π / (x + π)) := by
@@ -7838,20 +7816,20 @@ private lemma sinc_add_pi_eq_weight (x : ℝ) (hx0 : 0 ≤ x)
   field_simp
   ring
 
-private lemma polynomial_pair_le (x : ℝ) (hx : x ∈ Icc (0 : ℝ) π) :
-    lowerSincPolynomial x * geometricLower x ≤
+private lemma poly_pair_le (x : ℝ) (hx : x ∈ Icc (0 : ℝ) π) :
+    loSincPoly x * geometricLo x ≤
       sinc x + sinc (x + π) := by
   have hsinc0 := sinc_nonneg_on_zero_pi hx.1 hx.2
-  have hpoly := lowerSincPolynomial_le_sinc hx.1
-  have hgeom0 := geometricLower_nonneg hx.1 hx.2
-  have hweight := geometricLower_le_weight hx.1 hx.2
-  rw [sinc_add_pi_eq_weight x hx.1 hx.2]
+  have hpoly := loSincPoly_le_sinc hx.1
+  have hgeom0 := geometricLo_nonneg hx.1 hx.2
+  have hweight := geometricLo_le_wt hx.1 hx.2
+  rw [sinc_add_pi_eq_wt x hx.1 hx.2]
   exact (mul_le_mul_of_nonneg_right hpoly hgeom0).trans
     (mul_le_mul_of_nonneg_left hweight hsinc0)
 
-private lemma integral_polynomial_pair :
+private lemma intg_poly_pair :
     (∫ x in (0 : ℝ)..π,
-      lowerSincPolynomial x * geometricLower x) =
+      loSincPoly x * geometricLo x) =
       -(73 * π ^ 7) / 12700800 +
         43 * π ^ 5 / 100800 - 7 * π ^ 3 / 360 +
           7 * π / 12 := by
@@ -7864,7 +7842,7 @@ private lemma integral_polynomial_pair :
     x ^ 10 / (50400 * π ^ 3) - x ^ 8 / (960 * π ^ 3) +
     x ^ 6 / (36 * π ^ 3) - x ^ 4 / (4 * π ^ 3)
   rw [integral_eq_sub_of_hasDerivAt
-    (f := F) (f' := fun x => lowerSincPolynomial x * geometricLower x)]
+    (f := F) (f' := fun x => loSincPoly x * geometricLo x)]
   · dsimp [F]
     field_simp [pi_ne_zero]
     ring
@@ -7873,8 +7851,8 @@ private lemma integral_polynomial_pair :
       dsimp [F]
       fun_prop
     have hderiv : deriv F x =
-        lowerSincPolynomial x * geometricLower x := by
-      simp (disch := fun_prop) [F, lowerSincPolynomial, geometricLower]
+        loSincPoly x * geometricLo x := by
+      simp (disch := fun_prop) [F, loSincPoly, geometricLo]
       field_simp [pi_ne_zero]
       ring
     rw [← hderiv]
@@ -7883,10 +7861,10 @@ private lemma integral_polynomial_pair :
       (fun x : ℝ => (1 - x ^ 2 / 6 + x ^ 4 / 120 - x ^ 6 / 5040) *
         (1 - x / π + (x / π) ^ 2 - (x / π) ^ 3))).intervalIntegrable _ _
 
-private lemma four_thirds_lt_integral_polynomial_pair :
+private lemma four_thirds_lt_intg_poly_pair :
     (4 : ℝ) / 3 < ∫ x in (0 : ℝ)..π,
-      lowerSincPolynomial x * geometricLower x := by
-  rw [integral_polynomial_pair]
+      loSincPoly x * geometricLo x := by
+  rw [intg_poly_pair]
   have hpi : (3.14 : ℝ) < π := pi_gt_d2
   have hpi' : π < (3.15 : ℝ) := pi_lt_d2
   have h3 : π ^ 3 < (3.15 : ℝ) ^ 3 :=
@@ -7898,106 +7876,106 @@ private lemma four_thirds_lt_integral_polynomial_pair :
   norm_num at hpi hpi' h3 h5 h7 ⊢
   linarith
 
-theorem four_thirds_lt_sineIntegral_two_pi :
-    (4 : ℝ) / 3 < sineIntegral (2 * π) := by
+theorem four_thirds_lt_sinIntg_two_pi :
+    (4 : ℝ) / 3 < sinIntg (2 * π) := by
   have hsinc : IntervalIntegrable sinc volume (0 : ℝ) π :=
     continuous_sinc.intervalIntegrable _ _
   have hsinc' : IntervalIntegrable (fun x : ℝ => sinc (x + π))
       volume (0 : ℝ) π :=
     (continuous_sinc.comp (continuous_id.add continuous_const)).intervalIntegrable _ _
   have hpoly : IntervalIntegrable
-      (fun x : ℝ => lowerSincPolynomial x * geometricLower x)
+      (fun x : ℝ => loSincPoly x * geometricLo x)
       volume (0 : ℝ) π :=
     (by fun_prop : Continuous
       (fun x : ℝ => (1 - x ^ 2 / 6 + x ^ 4 / 120 - x ^ 6 / 5040) *
         (1 - x / π + (x / π) ^ 2 - (x / π) ^ 3))).intervalIntegrable _ _
   have hmono := integral_mono_on pi_pos.le hpoly
-    (hsinc.add hsinc') polynomial_pair_le
+    (hsinc.add hsinc') poly_pair_le
   calc
     (4 : ℝ) / 3 < ∫ x in (0 : ℝ)..π,
-        lowerSincPolynomial x * geometricLower x :=
-      four_thirds_lt_integral_polynomial_pair
+        loSincPoly x * geometricLo x :=
+      four_thirds_lt_intg_poly_pair
     _ ≤ ∫ x in (0 : ℝ)..π,
         (sinc x + sinc (x + π)) := hmono
-    _ = sineIntegral (2 * π) := by
+    _ = sinIntg (2 * π) := by
       rw [intervalIntegral.integral_add hsinc hsinc']
       rw [integral_comp_add_right sinc Real.pi]
       have hadd := integral_add_adjacent_intervals hsinc
         (continuous_sinc.intervalIntegrable π (2 * π))
-      unfold sineIntegral
+      unfold sinIntg
       convert hadd using 1 <;> ring
 
-private def evenPoint (k : ℕ) : ℝ := (k : ℝ) * (2 * π)
+private def evenPt (k : ℕ) : ℝ := (k : ℝ) * (2 * π)
 
-private lemma evenPoint_nonneg (k : ℕ) : 0 ≤ evenPoint k :=
+private lemma evenPt_nonneg (k : ℕ) : 0 ≤ evenPt k :=
   mul_nonneg (Nat.cast_nonneg k) (by positivity)
 
-private lemma evenPoint_pos {k : ℕ} (hk : 0 < k) : 0 < evenPoint k := by
-  dsimp [evenPoint]
+private lemma evenPt_pos {k : ℕ} (hk : 0 < k) : 0 < evenPt k := by
+  dsimp [evenPt]
   exact mul_pos (by exact_mod_cast hk) (by positivity)
 
-private lemma sin_evenPoint_add (k : ℕ) (x : ℝ) :
-    sin (evenPoint k + x) = sin x := by
+private lemma sin_evenPt_add (k : ℕ) (x : ℝ) :
+    sin (evenPt k + x) = sin x := by
   rw [add_comm]
   exact Real.sin_add_nat_mul_two_pi x k
 
 private lemma sinc_even_pair_nonneg {k : ℕ} (hk : 0 < k)
     {x : ℝ} (hx0 : 0 ≤ x) (hxpi : x ≤ π) :
-    0 ≤ sinc (evenPoint k + x) +
-      sinc (evenPoint k + π + x) := by
-  have hc : 0 < evenPoint k := evenPoint_pos hk
-  have hcx : 0 < evenPoint k + x := add_pos_of_pos_of_nonneg hc hx0
-  have hcxpi : 0 < evenPoint k + π + x := by positivity
+    0 ≤ sinc (evenPt k + x) +
+      sinc (evenPt k + π + x) := by
+  have hc : 0 < evenPt k := evenPt_pos hk
+  have hcx : 0 < evenPt k + x := add_pos_of_pos_of_nonneg hc hx0
+  have hcxpi : 0 < evenPt k + π + x := by positivity
   have hsin : 0 ≤ sin x :=
     sin_nonneg_of_nonneg_of_le_pi hx0 hxpi
   rw [sinc_of_ne_zero hcx.ne', sinc_of_ne_zero hcxpi.ne']
-  rw [sin_evenPoint_add]
-  have hphase : evenPoint k + π + x = evenPoint k + (x + π) := by ring
-  rw [hphase, sin_evenPoint_add, sin_add_pi]
-  have hden : evenPoint k + x ≤ evenPoint k + (x + π) := by
+  rw [sin_evenPt_add]
+  have hphase : evenPt k + π + x = evenPt k + (x + π) := by ring
+  rw [hphase, sin_evenPt_add, sin_add_pi]
+  have hden : evenPt k + x ≤ evenPt k + (x + π) := by
     linarith [pi_pos]
   have hrecip := one_div_le_one_div_of_le hcx hden
   calc
     0 ≤ sin x *
-        (1 / (evenPoint k + x) - 1 / (evenPoint k + (x + π))) :=
+        (1 / (evenPt k + x) - 1 / (evenPt k + (x + π))) :=
       mul_nonneg hsin (sub_nonneg.2 hrecip)
-    _ = sin x / (evenPoint k + x) +
-        -sin x / (evenPoint k + (x + π)) := by ring
+    _ = sin x / (evenPt k + x) +
+        -sin x / (evenPt k + (x + π)) := by ring
 
 private lemma sinc_odd_pair_nonpos (k : ℕ)
     {x : ℝ} (hx0 : 0 ≤ x) (hxpi : x ≤ π) :
-    sinc (evenPoint k + π + x) +
-      sinc (evenPoint (k + 1) + x) ≤ 0 := by
-  have hfirst : 0 < evenPoint k + π + x := by
-    have := evenPoint_nonneg k
+    sinc (evenPt k + π + x) +
+      sinc (evenPt (k + 1) + x) ≤ 0 := by
+  have hfirst : 0 < evenPt k + π + x := by
+    have := evenPt_nonneg k
     positivity
-  have hsecond : 0 < evenPoint (k + 1) + x := by
+  have hsecond : 0 < evenPt (k + 1) + x := by
     apply add_pos_of_pos_of_nonneg
-    · exact evenPoint_pos (Nat.succ_pos k)
+    · exact evenPt_pos (Nat.succ_pos k)
     · exact hx0
   have hsin : 0 ≤ sin x :=
     sin_nonneg_of_nonneg_of_le_pi hx0 hxpi
   rw [sinc_of_ne_zero hfirst.ne', sinc_of_ne_zero hsecond.ne']
-  have hphase1 : evenPoint k + π + x = evenPoint k + (x + π) := by ring
-  rw [hphase1, sin_evenPoint_add, sin_add_pi, sin_evenPoint_add]
-  have heven : evenPoint (k + 1) = evenPoint k + 2 * π := by
-    simp [evenPoint]
+  have hphase1 : evenPt k + π + x = evenPt k + (x + π) := by ring
+  rw [hphase1, sin_evenPt_add, sin_add_pi, sin_evenPt_add]
+  have heven : evenPt (k + 1) = evenPt k + 2 * π := by
+    simp [evenPt]
     ring
-  have hden : evenPoint k + (x + π) ≤ evenPoint (k + 1) + x := by
+  have hden : evenPt k + (x + π) ≤ evenPt (k + 1) + x := by
     rw [heven]
     linarith [pi_pos]
-  have hfirst' : 0 < evenPoint k + (x + π) := by
+  have hfirst' : 0 < evenPt k + (x + π) := by
     linarith
   have hrecip := one_div_le_one_div_of_le hfirst' hden
   calc
-    -sin x / (evenPoint k + (x + π)) +
-        sin x / (evenPoint (k + 1) + x) =
+    -sin x / (evenPt k + (x + π)) +
+        sin x / (evenPt (k + 1) + x) =
         sin x *
-          (1 / (evenPoint (k + 1) + x) -
-            1 / (evenPoint k + (x + π))) := by ring
+          (1 / (evenPt (k + 1) + x) -
+            1 / (evenPt k + (x + π))) := by ring
     _ ≤ 0 := mul_nonpos_of_nonneg_of_nonpos hsin (sub_nonpos.2 hrecip)
 
-private lemma integral_nonpos_of_nonpos {a b : ℝ} (hab : a ≤ b)
+private lemma intg_nonpos_of_nonpos {a b : ℝ} (hab : a ≤ b)
     {f : ℝ → ℝ} (hf : ∀ x ∈ Icc a b, f x ≤ 0) :
     (∫ x in a..b, f x) ≤ 0 := by
   have h := intervalIntegral.integral_nonneg (μ := volume) hab
@@ -8005,40 +7983,40 @@ private lemma integral_nonpos_of_nonpos {a b : ℝ} (hab : a ≤ b)
   rw [intervalIntegral.integral_neg] at h
   linarith
 
-private lemma even_full_block_nonneg {k : ℕ} (hk : 0 < k) :
-    0 ≤ ∫ x in evenPoint k..evenPoint (k + 1), sinc x := by
+private lemma even_full_blk_nonneg {k : ℕ} (hk : 0 < k) :
+    0 ≤ ∫ x in evenPt k..evenPt (k + 1), sinc x := by
   have hs : IntervalIntegrable sinc volume
-      (evenPoint k) (evenPoint k + π) :=
+      (evenPt k) (evenPt k + π) :=
     continuous_sinc.intervalIntegrable _ _
   have hs' : IntervalIntegrable sinc volume
-      (evenPoint k + π) (evenPoint (k + 1)) :=
+      (evenPt k + π) (evenPt (k + 1)) :=
     continuous_sinc.intervalIntegrable _ _
-  have hshift1 := integral_comp_add_right sinc (evenPoint k)
+  have hshift1 := integral_comp_add_right sinc (evenPt k)
     (a := (0 : ℝ)) (b := π)
   have hshift2 := integral_comp_add_right sinc
-    (evenPoint k + π) (a := (0 : ℝ)) (b := π)
+    (evenPt k + π) (a := (0 : ℝ)) (b := π)
   have hp : 0 ≤ ∫ x in (0 : ℝ)..π,
-      (sinc (evenPoint k + x) +
-        sinc (evenPoint k + π + x)) := by
+      (sinc (evenPt k + x) +
+        sinc (evenPt k + π + x)) := by
     apply intervalIntegral.integral_nonneg pi_pos.le
     intro x hx
     exact sinc_even_pair_nonneg hk hx.1 hx.2
   have hadd := integral_add_adjacent_intervals hs hs'
-  have hi1 : (∫ x in evenPoint k..evenPoint k + π, sinc x) =
-      ∫ x in (0 : ℝ)..π, sinc (evenPoint k + x) := by
-    rw [add_comm (evenPoint k)]
+  have hi1 : (∫ x in evenPt k..evenPt k + π, sinc x) =
+      ∫ x in (0 : ℝ)..π, sinc (evenPt k + x) := by
+    rw [add_comm (evenPt k)]
     convert hshift1.symm using 1 <;> ring
-  have hi2 : (∫ x in evenPoint k + Real.pi..evenPoint (k + 1), sinc x) =
-      ∫ x in (0 : ℝ)..π, sinc (evenPoint k + π + x) := by
-    convert hshift2.symm using 1 <;> simp [evenPoint] <;> ring
+  have hi2 : (∫ x in evenPt k + Real.pi..evenPt (k + 1), sinc x) =
+      ∫ x in (0 : ℝ)..π, sinc (evenPt k + π + x) := by
+    convert hshift2.symm using 1 <;> simp [evenPt] <;> ring
   rw [← hadd]
   rw [hi1, hi2]
-  have ha : IntervalIntegrable (fun x : ℝ => sinc (evenPoint k + x))
+  have ha : IntervalIntegrable (fun x : ℝ => sinc (evenPt k + x))
       volume (0 : ℝ) π := by
     exact (continuous_sinc.comp
       (continuous_const.add continuous_id)).intervalIntegrable _ _
   have hb : IntervalIntegrable
-      (fun x : ℝ => sinc (evenPoint k + π + x))
+      (fun x : ℝ => sinc (evenPt k + π + x))
       volume (0 : ℝ) π := by
     exact (continuous_sinc.comp
       ((continuous_const.add continuous_const).add continuous_id)).intervalIntegrable _ _
@@ -8046,43 +8024,43 @@ private lemma even_full_block_nonneg {k : ℕ} (hk : 0 < k) :
   rw [← hsum]
   exact hp
 
-private lemma odd_full_block_nonpos (k : ℕ) :
-    (∫ x in evenPoint k + Real.pi..evenPoint (k + 1) + π,
+private lemma odd_full_blk_nonpos (k : ℕ) :
+    (∫ x in evenPt k + Real.pi..evenPt (k + 1) + π,
       sinc x) ≤ 0 := by
   have hs : IntervalIntegrable sinc volume
-      (evenPoint k + π) (evenPoint (k + 1)) :=
+      (evenPt k + π) (evenPt (k + 1)) :=
     continuous_sinc.intervalIntegrable _ _
   have hs' : IntervalIntegrable sinc volume
-      (evenPoint (k + 1)) (evenPoint (k + 1) + π) :=
+      (evenPt (k + 1)) (evenPt (k + 1) + π) :=
     continuous_sinc.intervalIntegrable _ _
   have hshift1 := integral_comp_add_right sinc
-    (evenPoint k + π) (a := (0 : ℝ)) (b := π)
+    (evenPt k + π) (a := (0 : ℝ)) (b := π)
   have hshift2 := integral_comp_add_right sinc
-    (evenPoint (k + 1)) (a := (0 : ℝ)) (b := π)
+    (evenPt (k + 1)) (a := (0 : ℝ)) (b := π)
   have hp : (∫ x in (0 : ℝ)..π,
-      (sinc (evenPoint k + π + x) +
-        sinc (evenPoint (k + 1) + x))) ≤ 0 := by
-    apply integral_nonpos_of_nonpos pi_pos.le
+      (sinc (evenPt k + π + x) +
+        sinc (evenPt (k + 1) + x))) ≤ 0 := by
+    apply intg_nonpos_of_nonpos pi_pos.le
     intro x hx
     exact sinc_odd_pair_nonpos k hx.1 hx.2
   have hadd := integral_add_adjacent_intervals hs hs'
-  have hi1 : (∫ x in evenPoint k + Real.pi..evenPoint (k + 1), sinc x) =
-      ∫ x in (0 : ℝ)..π, sinc (evenPoint k + π + x) := by
-    convert hshift1.symm using 1 <;> simp [evenPoint] <;> ring
-  have hi2 : (∫ x in evenPoint (k + 1)..evenPoint (k + 1) + π,
+  have hi1 : (∫ x in evenPt k + Real.pi..evenPt (k + 1), sinc x) =
+      ∫ x in (0 : ℝ)..π, sinc (evenPt k + π + x) := by
+    convert hshift1.symm using 1 <;> simp [evenPt] <;> ring
+  have hi2 : (∫ x in evenPt (k + 1)..evenPt (k + 1) + π,
       sinc x) =
-      ∫ x in (0 : ℝ)..π, sinc (evenPoint (k + 1) + x) := by
-    rw [add_comm (evenPoint (k + 1))]
+      ∫ x in (0 : ℝ)..π, sinc (evenPt (k + 1) + x) := by
+    rw [add_comm (evenPt (k + 1))]
     convert hshift2.symm using 1 <;> ring
   rw [← hadd]
   rw [hi1, hi2]
   have ha : IntervalIntegrable
-      (fun x : ℝ => sinc (evenPoint k + π + x))
+      (fun x : ℝ => sinc (evenPt k + π + x))
       volume (0 : ℝ) π := by
     exact (continuous_sinc.comp
       ((continuous_const.add continuous_const).add continuous_id)).intervalIntegrable _ _
   have hb : IntervalIntegrable
-      (fun x : ℝ => sinc (evenPoint (k + 1) + x))
+      (fun x : ℝ => sinc (evenPt (k + 1) + x))
       volume (0 : ℝ) π := by
     exact (continuous_sinc.comp
       (continuous_const.add continuous_id)).intervalIntegrable _ _
@@ -8091,35 +8069,35 @@ private lemma odd_full_block_nonpos (k : ℕ) :
   exact hp
 
 private lemma sinc_nonneg_even_half (k : ℕ) {x : ℝ}
-    (hlo : evenPoint k ≤ x) (hhi : x ≤ evenPoint k + π) :
+    (hlo : evenPt k ≤ x) (hhi : x ≤ evenPt k + π) :
     0 ≤ sinc x := by
   by_cases hx : x = 0
   · subst x
     simp
-  have hx0 : 0 ≤ x := (evenPoint_nonneg k).trans hlo
-  have ht0 : 0 ≤ x - evenPoint k := sub_nonneg.2 hlo
-  have htpi : x - evenPoint k ≤ π := by linarith
-  have hsin_t : 0 ≤ sin (x - evenPoint k) :=
+  have hx0 : 0 ≤ x := (evenPt_nonneg k).trans hlo
+  have ht0 : 0 ≤ x - evenPt k := sub_nonneg.2 hlo
+  have htpi : x - evenPt k ≤ π := by linarith
+  have hsin_t : 0 ≤ sin (x - evenPt k) :=
     sin_nonneg_of_nonneg_of_le_pi ht0 htpi
-  have hphase : evenPoint k + (x - evenPoint k) = x := by ring
-  have hsin : sin x = sin (x - evenPoint k) := by
+  have hphase : evenPt k + (x - evenPt k) = x := by ring
+  have hsin : sin x = sin (x - evenPt k) := by
     calc
-      sin x = sin (evenPoint k + (x - evenPoint k)) :=
+      sin x = sin (evenPt k + (x - evenPt k)) :=
         congrArg sin hphase.symm
-      _ = sin (x - evenPoint k) := sin_evenPoint_add _ _
+      _ = sin (x - evenPt k) := sin_evenPt_add _ _
   rw [sinc_of_ne_zero hx, hsin]
   exact div_nonneg hsin_t hx0
 
 private lemma sinc_nonpos_odd_half (k : ℕ) {x : ℝ}
-    (hlo : evenPoint k + π ≤ x) (hhi : x ≤ evenPoint (k + 1)) :
+    (hlo : evenPt k + π ≤ x) (hhi : x ≤ evenPt (k + 1)) :
     sinc x ≤ 0 := by
-  have hc0 := evenPoint_nonneg k
+  have hc0 := evenPt_nonneg k
   have hxpos : 0 < x := lt_of_lt_of_le (by linarith [pi_pos] :
-    0 < evenPoint k + π) hlo
-  let t := x - (evenPoint k + π)
+    0 < evenPt k + π) hlo
+  let t := x - (evenPt k + π)
   have ht0 : 0 ≤ t := sub_nonneg.2 hlo
-  have heven : evenPoint (k + 1) = evenPoint k + 2 * π := by
-    simp [evenPoint]
+  have heven : evenPt (k + 1) = evenPt k + 2 * π := by
+    simp [evenPt]
     ring
   have htpi : t ≤ π := by
     dsimp [t]
@@ -8127,161 +8105,161 @@ private lemma sinc_nonpos_odd_half (k : ℕ) {x : ℝ}
     linarith
   have hsint : 0 ≤ sin t :=
     sin_nonneg_of_nonneg_of_le_pi ht0 htpi
-  have hphase : x = evenPoint k + (t + π) := by
+  have hphase : x = evenPt k + (t + π) := by
     dsimp [t]
     ring
-  have hden : 0 ≤ evenPoint k + (t + π) := by
+  have hden : 0 ≤ evenPt k + (t + π) := by
     rw [← hphase]
     exact hxpos.le
-  rw [sinc_of_ne_zero hxpos.ne', hphase, sin_evenPoint_add,
+  rw [sinc_of_ne_zero hxpos.ne', hphase, sin_evenPt_add,
     sin_add_pi]
   exact div_nonpos_of_nonpos_of_nonneg (neg_nonpos.2 hsint) hden
 
-private lemma even_partial_block_nonneg {k : ℕ} (hk : 0 < k) {x : ℝ}
-    (hlo : evenPoint k ≤ x) (hhi : x ≤ evenPoint (k + 1)) :
-    0 ≤ ∫ t in evenPoint k..x, sinc t := by
-  by_cases hmid : x ≤ evenPoint k + π
+private lemma even_partial_blk_nonneg {k : ℕ} (hk : 0 < k) {x : ℝ}
+    (hlo : evenPt k ≤ x) (hhi : x ≤ evenPt (k + 1)) :
+    0 ≤ ∫ t in evenPt k..x, sinc t := by
+  by_cases hmid : x ≤ evenPt k + π
   · apply intervalIntegral.integral_nonneg (μ := volume) hlo
     intro t ht
     exact sinc_nonneg_even_half k ht.1 (ht.2.trans hmid)
-  · have hxmid : evenPoint k + π ≤ x := le_of_not_ge hmid
-    have htail : (∫ t in x..evenPoint (k + 1), sinc t) ≤ 0 := by
-      apply integral_nonpos_of_nonpos hhi
+  · have hxmid : evenPt k + π ≤ x := le_of_not_ge hmid
+    have htail : (∫ t in x..evenPt (k + 1), sinc t) ≤ 0 := by
+      apply intg_nonpos_of_nonpos hhi
       intro t ht
       exact sinc_nonpos_odd_half k (hxmid.trans ht.1) ht.2
     have hadd := integral_add_adjacent_intervals (μ := volume)
-      (continuous_sinc.intervalIntegrable (evenPoint k) x)
-      (continuous_sinc.intervalIntegrable x (evenPoint (k + 1)))
-    linarith [even_full_block_nonneg hk]
+      (continuous_sinc.intervalIntegrable (evenPt k) x)
+      (continuous_sinc.intervalIntegrable x (evenPt (k + 1)))
+    linarith [even_full_blk_nonneg hk]
 
-private lemma odd_partial_block_nonpos (k : ℕ) {x : ℝ}
-    (hlo : evenPoint k + π ≤ x)
-    (hhi : x ≤ evenPoint (k + 1) + π) :
-    (∫ t in evenPoint k + Real.pi..x, sinc t) ≤ 0 := by
-  by_cases hmid : x ≤ evenPoint (k + 1)
-  · apply integral_nonpos_of_nonpos hlo
+private lemma odd_partial_blk_nonpos (k : ℕ) {x : ℝ}
+    (hlo : evenPt k + π ≤ x)
+    (hhi : x ≤ evenPt (k + 1) + π) :
+    (∫ t in evenPt k + Real.pi..x, sinc t) ≤ 0 := by
+  by_cases hmid : x ≤ evenPt (k + 1)
+  · apply intg_nonpos_of_nonpos hlo
     intro t ht
     exact sinc_nonpos_odd_half k ht.1 (ht.2.trans hmid)
-  · have hxmid : evenPoint (k + 1) ≤ x := le_of_not_ge hmid
-    have htail : 0 ≤ ∫ t in x..evenPoint (k + 1) + π,
+  · have hxmid : evenPt (k + 1) ≤ x := le_of_not_ge hmid
+    have htail : 0 ≤ ∫ t in x..evenPt (k + 1) + π,
         sinc t := by
       apply intervalIntegral.integral_nonneg (μ := volume) hhi
       intro t ht
       exact sinc_nonneg_even_half (k + 1) (hxmid.trans ht.1) ht.2
     have hadd := integral_add_adjacent_intervals (μ := volume)
-      (continuous_sinc.intervalIntegrable (evenPoint k + π) x)
-      (continuous_sinc.intervalIntegrable x (evenPoint (k + 1) + π))
-    linarith [odd_full_block_nonpos k]
+      (continuous_sinc.intervalIntegrable (evenPt k + π) x)
+      (continuous_sinc.intervalIntegrable x (evenPt (k + 1) + π))
+    linarith [odd_full_blk_nonpos k]
 
 private lemma even_grid_tail_nonneg (k : ℕ) :
-    0 ≤ ∫ x in evenPoint 1..evenPoint (k + 1), sinc x := by
+    0 ≤ ∫ x in evenPt 1..evenPt (k + 1), sinc x := by
   induction k with
   | zero => simp
   | succ k ih =>
       have hadd := integral_add_adjacent_intervals (μ := volume)
-        (continuous_sinc.intervalIntegrable (evenPoint 1) (evenPoint (k + 1)))
-        (continuous_sinc.intervalIntegrable (evenPoint (k + 1))
-          (evenPoint (k + 2)))
-      have hblock := even_full_block_nonneg (k := k + 1) (Nat.succ_pos k)
+        (continuous_sinc.intervalIntegrable (evenPt 1) (evenPt (k + 1)))
+        (continuous_sinc.intervalIntegrable (evenPt (k + 1))
+          (evenPt (k + 2)))
+      have hblock := even_full_blk_nonneg (k := k + 1) (Nat.succ_pos k)
       rw [← hadd]
       exact add_nonneg ih hblock
 
 private lemma odd_grid_tail_nonpos (k : ℕ) :
-    (∫ x in Real.pi..evenPoint k + π, sinc x) ≤ 0 := by
+    (∫ x in Real.pi..evenPt k + π, sinc x) ≤ 0 := by
   induction k with
-  | zero => simp [evenPoint]
+  | zero => simp [evenPt]
   | succ k ih =>
       have hadd := integral_add_adjacent_intervals (μ := volume)
-        (continuous_sinc.intervalIntegrable π (evenPoint k + π))
-        (continuous_sinc.intervalIntegrable (evenPoint k + π)
-          (evenPoint (k + 1) + π))
-      have hblock := odd_full_block_nonpos k
+        (continuous_sinc.intervalIntegrable π (evenPt k + π))
+        (continuous_sinc.intervalIntegrable (evenPt k + π)
+          (evenPt (k + 1) + π))
+      have hblock := odd_full_blk_nonpos k
       rw [← hadd]
       exact add_nonpos ih hblock
 
 private lemma even_tail_nonneg_of_le_fourteen_pi {x : ℝ}
-    (hlo : evenPoint 1 ≤ x) (hhi : x ≤ evenPoint 7) :
-    0 ≤ ∫ t in evenPoint 1..x, sinc t := by
-  have join (k : ℕ) (hk : 0 < k) (hklow : evenPoint k ≤ x)
-      (hkhi : x ≤ evenPoint (k + 1)) :
-      0 ≤ ∫ t in evenPoint 1..x, sinc t := by
+    (hlo : evenPt 1 ≤ x) (hhi : x ≤ evenPt 7) :
+    0 ≤ ∫ t in evenPt 1..x, sinc t := by
+  have join (k : ℕ) (hk : 0 < k) (hklow : evenPt k ≤ x)
+      (hkhi : x ≤ evenPt (k + 1)) :
+      0 ≤ ∫ t in evenPt 1..x, sinc t := by
     have hadd := integral_add_adjacent_intervals (μ := volume)
-      (continuous_sinc.intervalIntegrable (evenPoint 1) (evenPoint k))
-      (continuous_sinc.intervalIntegrable (evenPoint k) x)
+      (continuous_sinc.intervalIntegrable (evenPt 1) (evenPt k))
+      (continuous_sinc.intervalIntegrable (evenPt k) x)
     rw [← hadd]
     exact add_nonneg (by simpa [Nat.sub_add_cancel hk] using even_grid_tail_nonneg (k - 1))
-      (even_partial_block_nonneg hk hklow hkhi)
-  by_cases h2 : x ≤ evenPoint 2
+      (even_partial_blk_nonneg hk hklow hkhi)
+  by_cases h2 : x ≤ evenPt 2
   · exact join 1 (by norm_num) hlo h2
-  by_cases h3 : x ≤ evenPoint 3
+  by_cases h3 : x ≤ evenPt 3
   · exact join 2 (by norm_num) (le_of_not_ge h2) h3
-  by_cases h4 : x ≤ evenPoint 4
+  by_cases h4 : x ≤ evenPt 4
   · exact join 3 (by norm_num) (le_of_not_ge h3) h4
-  by_cases h5 : x ≤ evenPoint 5
+  by_cases h5 : x ≤ evenPt 5
   · exact join 4 (by norm_num) (le_of_not_ge h4) h5
-  by_cases h6 : x ≤ evenPoint 6
+  by_cases h6 : x ≤ evenPt 6
   · exact join 5 (by norm_num) (le_of_not_ge h5) h6
   exact join 6 (by norm_num) (le_of_not_ge h6) hhi
 
 private lemma odd_tail_nonpos_of_le_fourteen_pi {x : ℝ}
-    (hlo : π ≤ x) (hhi : x ≤ evenPoint 7) :
+    (hlo : π ≤ x) (hhi : x ≤ evenPt 7) :
     (∫ t in Real.pi..x, sinc t) ≤ 0 := by
-  have join (k : ℕ) (hklow : evenPoint k + π ≤ x)
-      (hkhi : x ≤ evenPoint (k + 1) + π) :
+  have join (k : ℕ) (hklow : evenPt k + π ≤ x)
+      (hkhi : x ≤ evenPt (k + 1) + π) :
       (∫ t in Real.pi..x, sinc t) ≤ 0 := by
     have hadd := integral_add_adjacent_intervals (μ := volume)
-      (continuous_sinc.intervalIntegrable π (evenPoint k + π))
-      (continuous_sinc.intervalIntegrable (evenPoint k + π) x)
+      (continuous_sinc.intervalIntegrable π (evenPt k + π))
+      (continuous_sinc.intervalIntegrable (evenPt k + π) x)
     rw [← hadd]
     exact add_nonpos (odd_grid_tail_nonpos k)
-      (odd_partial_block_nonpos k hklow hkhi)
-  by_cases h1 : x ≤ evenPoint 1 + π
-  · exact join 0 (by simpa [evenPoint] using hlo) h1
-  by_cases h2 : x ≤ evenPoint 2 + π
+      (odd_partial_blk_nonpos k hklow hkhi)
+  by_cases h1 : x ≤ evenPt 1 + π
+  · exact join 0 (by simpa [evenPt] using hlo) h1
+  by_cases h2 : x ≤ evenPt 2 + π
   · exact join 1 (le_of_not_ge h1) h2
-  by_cases h3 : x ≤ evenPoint 3 + π
+  by_cases h3 : x ≤ evenPt 3 + π
   · exact join 2 (le_of_not_ge h2) h3
-  by_cases h4 : x ≤ evenPoint 4 + π
+  by_cases h4 : x ≤ evenPt 4 + π
   · exact join 3 (le_of_not_ge h3) h4
-  by_cases h5 : x ≤ evenPoint 5 + π
+  by_cases h5 : x ≤ evenPt 5 + π
   · exact join 4 (le_of_not_ge h4) h5
-  by_cases h6 : x ≤ evenPoint 6 + π
+  by_cases h6 : x ≤ evenPt 6 + π
   · exact join 5 (le_of_not_ge h5) h6
-  have hlast : x ≤ evenPoint 7 + π := hhi.trans (le_add_of_nonneg_right pi_pos.le)
+  have hlast : x ≤ evenPt 7 + π := hhi.trans (le_add_of_nonneg_right pi_pos.le)
   exact join 6 (le_of_not_ge h6) hlast
 
-theorem sineIntegral_mem_zero_two {x : ℝ} (hx0 : 0 ≤ x)
+theorem sinIntg_mem_zero_two {x : ℝ} (hx0 : 0 ≤ x)
     (hx14 : x ≤ 14 * π) :
-    sineIntegral x ∈ Icc (0 : ℝ) 2 := by
-  have hxEven : x ≤ evenPoint 7 := by
-    dsimp [evenPoint]
+    sinIntg x ∈ Icc (0 : ℝ) 2 := by
+  have hxEven : x ≤ evenPt 7 := by
+    dsimp [evenPt]
     convert hx14 using 1 <;> ring
   constructor
   · by_cases hxpi : x ≤ π
     · apply intervalIntegral.integral_nonneg hx0
       intro t ht
       exact sinc_nonneg_on_zero_pi ht.1 (ht.2.trans hxpi)
-    by_cases hx2 : x ≤ evenPoint 1
-    · have htail : (∫ t in x..evenPoint 1, sinc t) ≤ 0 := by
-        apply integral_nonpos_of_nonpos hx2
+    by_cases hx2 : x ≤ evenPt 1
+    · have htail : (∫ t in x..evenPt 1, sinc t) ≤ 0 := by
+        apply intg_nonpos_of_nonpos hx2
         intro t ht
         have htpi : π ≤ t := (le_of_not_ge hxpi).trans ht.1
-        exact sinc_nonpos_odd_half 0 (by simpa [evenPoint] using htpi) ht.2
+        exact sinc_nonpos_odd_half 0 (by simpa [evenPt] using htpi) ht.2
       have hadd := integral_add_adjacent_intervals (μ := volume)
         (continuous_sinc.intervalIntegrable (0 : ℝ) x)
-        (continuous_sinc.intervalIntegrable x (evenPoint 1))
-      have hfirst := four_thirds_lt_sineIntegral_two_pi
-      unfold sineIntegral at hfirst ⊢
-      have heq : evenPoint 1 = 2 * π := by simp [evenPoint]
+        (continuous_sinc.intervalIntegrable x (evenPt 1))
+      have hfirst := four_thirds_lt_sinIntg_two_pi
+      unfold sinIntg at hfirst ⊢
+      have heq : evenPt 1 = 2 * π := by simp [evenPt]
       rw [heq] at hadd htail
       linarith
     · have htail := even_tail_nonneg_of_le_fourteen_pi (le_of_not_ge hx2) hxEven
       have hadd := integral_add_adjacent_intervals (μ := volume)
-        (continuous_sinc.intervalIntegrable (0 : ℝ) (evenPoint 1))
-        (continuous_sinc.intervalIntegrable (evenPoint 1) x)
-      have hfirst := four_thirds_lt_sineIntegral_two_pi
-      unfold sineIntegral at hfirst ⊢
-      have heq : evenPoint 1 = 2 * π := by simp [evenPoint]
+        (continuous_sinc.intervalIntegrable (0 : ℝ) (evenPt 1))
+        (continuous_sinc.intervalIntegrable (evenPt 1) x)
+      have hfirst := four_thirds_lt_sinIntg_two_pi
+      unfold sinIntg at hfirst ⊢
+      have heq : evenPt 1 = 2 * π := by simp [evenPt]
       rw [heq] at hadd htail
       linarith
   · by_cases hxpi : x ≤ π
@@ -8292,37 +8270,37 @@ theorem sineIntegral_mem_zero_two {x : ℝ} (hx0 : 0 ≤ x)
       have hadd := integral_add_adjacent_intervals (μ := volume)
         (continuous_sinc.intervalIntegrable (0 : ℝ) x)
         (continuous_sinc.intervalIntegrable x π)
-      have hpi := sineIntegral_pi_lt_two
-      unfold sineIntegral at hpi ⊢
+      have hpi := sinIntg_pi_lt_two
+      unfold sinIntg at hpi ⊢
       linarith
     · have htail := odd_tail_nonpos_of_le_fourteen_pi (le_of_not_ge hxpi) hxEven
       have hadd := integral_add_adjacent_intervals (μ := volume)
         (continuous_sinc.intervalIntegrable (0 : ℝ) π)
         (continuous_sinc.intervalIntegrable π x)
-      have hpi := sineIntegral_pi_lt_two
-      unfold sineIntegral at hpi ⊢
+      have hpi := sinIntg_pi_lt_two
+      unfold sinIntg at hpi ⊢
       linarith
 
-theorem four_thirds_le_sineIntegral_of_two_pi_le {x : ℝ}
+theorem four_thirds_le_sinIntg_of_two_pi_le {x : ℝ}
     (hx2 : 2 * π ≤ x) (hx14 : x ≤ 14 * π) :
-    (4 : ℝ) / 3 ≤ sineIntegral x := by
-  have hlo : evenPoint 1 ≤ x := by simpa [evenPoint] using hx2
-  have hhi : x ≤ evenPoint 7 := by
-    dsimp [evenPoint]
+    (4 : ℝ) / 3 ≤ sinIntg x := by
+  have hlo : evenPt 1 ≤ x := by simpa [evenPt] using hx2
+  have hhi : x ≤ evenPt 7 := by
+    dsimp [evenPt]
     convert hx14 using 1 <;> ring
   have htail := even_tail_nonneg_of_le_fourteen_pi hlo hhi
   have hadd := integral_add_adjacent_intervals (μ := volume)
-    (continuous_sinc.intervalIntegrable (0 : ℝ) (evenPoint 1))
-    (continuous_sinc.intervalIntegrable (evenPoint 1) x)
-  have hfirst := four_thirds_lt_sineIntegral_two_pi
-  unfold sineIntegral at hfirst ⊢
-  have heq : evenPoint 1 = 2 * π := by simp [evenPoint]
+    (continuous_sinc.intervalIntegrable (0 : ℝ) (evenPt 1))
+    (continuous_sinc.intervalIntegrable (evenPt 1) x)
+  have hfirst := four_thirds_lt_sinIntg_two_pi
+  unfold sinIntg at hfirst ⊢
+  have heq : evenPt 1 = 2 * π := by simp [evenPt]
   rw [heq] at hadd htail
   linarith
 
-theorem sineIntegral_neg (x : ℝ) :
-    sineIntegral (-x) = -sineIntegral x := by
-  unfold sineIntegral
+theorem sinIntg_neg (x : ℝ) :
+    sinIntg (-x) = -sinIntg x := by
+  unfold sinIntg
   have h := intervalIntegral.integral_comp_neg (f := sinc)
     (a := (0 : ℝ)) (b := x)
   simp only [sinc_neg] at h
@@ -8333,12 +8311,12 @@ theorem sineIntegral_neg (x : ℝ) :
     _ = -(∫ y in (0 : ℝ)..x, sinc y) := by
       simpa using (congrArg Neg.neg h).symm
 
-theorem integral_scaled_sinc_eq_sineIntegral_sub (n : ℕ) (hn : 0 < n)
+theorem intg_sc_sinc_eq_sinIntg_sub (n : ℕ) (hn : 0 < n)
     (u v θ : ℝ) :
     (∫ x in u..v,
       2 * (n : ℝ) * sinc (2 * (n : ℝ) * (x - θ))) =
-      sineIntegral (2 * (n : ℝ) * (v - θ)) -
-        sineIntegral (2 * (n : ℝ) * (u - θ)) := by
+      sinIntg (2 * (n : ℝ) * (v - θ)) -
+        sinIntg (2 * (n : ℝ) * (u - θ)) := by
   let c : ℝ := 2 * (n : ℝ)
   have hc : c ≠ 0 := by
     dsimp [c]
@@ -8354,7 +8332,7 @@ theorem integral_scaled_sinc_eq_sineIntegral_sub (n : ℕ) (hn : 0 < n)
     (continuous_sinc.intervalIntegrable (0 : ℝ) (c * u + -c * θ))
     (continuous_sinc.intervalIntegrable (c * u + -c * θ)
       (c * v + -c * θ))
-  unfold sineIntegral
+  unfold sinIntg
   rw [show (∫ x in u..v,
       2 * (n : ℝ) * sinc (2 * (n : ℝ) * (x - θ))) =
       ∫ x in u..v, c * sinc (c * x + -c * θ) by
@@ -8368,27 +8346,27 @@ theorem integral_scaled_sinc_eq_sineIntegral_sub (n : ℕ) (hn : 0 < n)
   rw [hu, hv] at hadd ⊢
   linarith
 
-private lemma four_thirds_le_sineIntegral_add_of_add_eq_two_pi
+private lemma four_thirds_le_sinIntg_add_of_add_eq_two_pi
     {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v)
     (huv : u + v = 2 * π) :
-    (4 : ℝ) / 3 ≤ sineIntegral u +
-      sineIntegral v := by
+    (4 : ℝ) / 3 ≤ sinIntg u +
+      sinIntg v := by
   have hbound (z w : ℝ) (hzpi : π ≤ z) (hz2 : z ≤ 2 * π)
       (hw0 : 0 ≤ w) (hw14 : w ≤ 14 * π) :
-      (4 : ℝ) / 3 ≤ sineIntegral w +
-        sineIntegral z := by
+      (4 : ℝ) / 3 ≤ sinIntg w +
+        sinIntg z := by
     have htail : (∫ t in z..2 * π, sinc t) ≤ 0 := by
-      apply integral_nonpos_of_nonpos hz2
+      apply intg_nonpos_of_nonpos hz2
       intro t ht
-      exact sinc_nonpos_odd_half 0 (by simpa [evenPoint] using hzpi.trans ht.1)
-        (by simpa [evenPoint] using ht.2)
+      exact sinc_nonpos_odd_half 0 (by simpa [evenPt] using hzpi.trans ht.1)
+        (by simpa [evenPt] using ht.2)
     have hadd := integral_add_adjacent_intervals (μ := volume)
       (continuous_sinc.intervalIntegrable (0 : ℝ) z)
       (continuous_sinc.intervalIntegrable z (2 * π))
-    have hw := sineIntegral_mem_zero_two hw0 hw14
+    have hw := sinIntg_mem_zero_two hw0 hw14
     rcases hw with ⟨hw_nonneg, hw_le⟩
-    have hfirst := four_thirds_lt_sineIntegral_two_pi
-    unfold sineIntegral at hfirst hw_nonneg hw_le ⊢
+    have hfirst := four_thirds_lt_sinIntg_two_pi
+    unfold sinIntg at hfirst hw_nonneg hw_le ⊢
     linarith
   by_cases hupi : u ≤ π
   · have hvpi : π ≤ v := by linarith
@@ -8401,7 +8379,7 @@ private lemma four_thirds_le_sineIntegral_add_of_add_eq_two_pi
     have hv14 : v ≤ 14 * π := by nlinarith [pi_pos]
     simpa [add_comm] using hbound u v hupi' hu2 hv hv14
 
-theorem principal_grid_interval_inside (n : ℕ) (hn : 0 < n)
+theorem pr_grid_ivl_inside (n : ℕ) (hn : 0 < n)
     (a b : ℤ) (hab : a < b)
     (hshort : (b : ℝ) * π / n - (a : ℝ) * π / n ≤
       6 * π / n)
@@ -8441,14 +8419,14 @@ theorem principal_grid_interval_inside (n : ℕ) (hn : 0 < n)
     nlinarith [pi_pos]
   have hv14 : v ≤ 14 * π := by
     nlinarith [pi_pos]
-  have huMem := sineIntegral_mem_zero_two hu hu14
-  have hvMem := sineIntegral_mem_zero_two hv hv14
+  have huMem := sinIntg_mem_zero_two hu hu14
+  have hvMem := sinIntg_mem_zero_two hv hv14
   rcases huMem with ⟨huSi0, huSi2⟩
   rcases hvMem with ⟨hvSi0, hvSi2⟩
-  have hlower : (4 : ℝ) / 3 ≤ sineIntegral u +
-      sineIntegral v := by
+  have hlower : (4 : ℝ) / 3 ≤ sinIntg u +
+      sinIntg v := by
     by_cases hgap : b - a = 1
-    · apply four_thirds_le_sineIntegral_add_of_add_eq_two_pi hu hv
+    · apply four_thirds_le_sinIntg_add_of_add_eq_two_pi hu hv
       rw [htotal, hgap]
       norm_num
     · have hgap2 : (2 : ℤ) ≤ b - a := by omega
@@ -8457,23 +8435,23 @@ theorem principal_grid_interval_inside (n : ℕ) (hn : 0 < n)
         have hcast : (2 : ℝ) ≤ ((b - a : ℤ) : ℝ) := by exact_mod_cast hgap2
         nlinarith [pi_pos]
       by_cases hu2 : 2 * π ≤ u
-      · have hmain := four_thirds_le_sineIntegral_of_two_pi_le hu2 hu14
+      · have hmain := four_thirds_le_sinIntg_of_two_pi_le hu2 hu14
         linarith
       · have hv2 : 2 * π ≤ v := by linarith
-        have hmain := four_thirds_le_sineIntegral_of_two_pi_le hv2 hv14
+        have hmain := four_thirds_le_sinIntg_of_two_pi_le hv2 hv14
         linarith
-  have hupper : sineIntegral u +
-      sineIntegral v ≤ 4 := by linarith
-  have hid := integral_scaled_sinc_eq_sineIntegral_sub n hn L U θ
+  have hupper : sinIntg u +
+      sinIntg v ≤ 4 := by linarith
+  have hid := intg_sc_sinc_eq_sinIntg_sub n hn L U θ
   have hL : 2 * (n : ℝ) * (L - θ) = -u := by
     dsimp [c, u]
     ring
   have hU : 2 * (n : ℝ) * (U - θ) = v := by rfl
   dsimp [L, U] at hid ⊢
-  rw [hid, hL, hU, sineIntegral_neg]
+  rw [hid, hL, hU, sinIntg_neg]
   constructor <;> linarith
 
-theorem principal_grid_interval_outside_near (n : ℕ) (hn : 0 < n)
+theorem pr_grid_ivl_outside_near (n : ℕ) (hn : 0 < n)
     (a b : ℤ) (hab : a < b)
     (hshort : (b : ℝ) * π / n - (a : ℝ) * π / n ≤
       6 * π / n)
@@ -8501,7 +8479,7 @@ theorem principal_grid_interval_outside_near (n : ℕ) (hn : 0 < n)
     have hmul : (a : ℝ) * π ≤ (b : ℝ) * π :=
       mul_le_mul_of_nonneg_right habR.le pi_pos.le
     exact sub_nonneg.2 (div_le_div_of_nonneg_right hmul hnR.le)
-  have hid := integral_scaled_sinc_eq_sineIntegral_sub n hn L U θ
+  have hid := intg_sc_sinc_eq_sinIntg_sub n hn L U θ
   rcases hnear with hleft | hright
   · let z : ℝ := c * (L - θ)
     let w : ℝ := c * (U - θ)
@@ -8516,8 +8494,8 @@ theorem principal_grid_interval_outside_near (n : ℕ) (hn : 0 < n)
       field_simp at hm ⊢
       nlinarith
     have hw14 : w ≤ 14 * π := by rw [hzw]; linarith
-    have hzMem := sineIntegral_mem_zero_two hz0 (hz2.trans (by nlinarith [pi_pos]))
-    have hwMem := sineIntegral_mem_zero_two hw0 hw14
+    have hzMem := sinIntg_mem_zero_two hz0 (hz2.trans (by nlinarith [pi_pos]))
+    have hwMem := sinIntg_mem_zero_two hw0 hw14
     rcases hzMem with ⟨hzSi0, hzSi2⟩
     rcases hwMem with ⟨hwSi0, hwSi2⟩
     have hL : 2 * (n : ℝ) * (L - θ) = z := by rfl
@@ -8539,26 +8517,26 @@ theorem principal_grid_interval_outside_near (n : ℕ) (hn : 0 < n)
       field_simp at hm ⊢
       nlinarith
     have hw14 : w ≤ 14 * π := by rw [hzw]; linarith
-    have hzMem := sineIntegral_mem_zero_two hz0 (hz2.trans (by nlinarith [pi_pos]))
-    have hwMem := sineIntegral_mem_zero_two hw0 hw14
+    have hzMem := sinIntg_mem_zero_two hz0 (hz2.trans (by nlinarith [pi_pos]))
+    have hwMem := sinIntg_mem_zero_two hw0 hw14
     rcases hzMem with ⟨hzSi0, hzSi2⟩
     rcases hwMem with ⟨hwSi0, hwSi2⟩
     have hL : 2 * (n : ℝ) * (L - θ) = -w := by dsimp [c, w]; ring
     have hU : 2 * (n : ℝ) * (U - θ) = -z := by dsimp [c, z]; ring
     dsimp [L, U] at hid ⊢
-    rw [hid, hL, hU, sineIntegral_neg z, sineIntegral_neg w]
+    rw [hid, hL, hU, sinIntg_neg z, sinIntg_neg w]
     rw [abs_le]
     constructor <;> linarith
 
 end
 
-end SineIntegralGrid
+end SinIntgGrid
 
 end
 
 section
 
-namespace KernelDistantClaim
+namespace KernelFarClaim
 
 open scoped BigOperators Interval
 open Real Set MeasureTheory intervalIntegral
@@ -8567,53 +8545,53 @@ noncomputable section
 
 open OddSine
 
-def principalIntegral (n : ℕ) (I : RealInterval) (θ : ℝ) : ℝ :=
+def prIntg (n : ℕ) (I : RealIvl) (θ : ℝ) : ℝ :=
   ∫ x in I.1..I.2,
     2 * (n : ℝ) * sinc (2 * (n : ℝ) * (x - θ))
 
-def distantBaseIntervals {n : ℕ} (F : IntervalFamily n)
+def farBaseIvls {n : ℕ} (F : IvlFam n)
     (θ : ℝ) : Finset ↥F.base :=
   @Finset.filter ↥F.base
     (fun I ↦ ¬Near n θ I.1)
     (Classical.decPred _) Finset.univ
 
-theorem distantBaseIntervals_eq_sdiff {n : ℕ}
-    (F : IntervalFamily n) (θ : ℝ) :
-    distantBaseIntervals F θ =
+theorem farBaseIvls_eq_sdiff {n : ℕ}
+    (F : IvlFam n) (θ : ℝ) :
+    farBaseIvls F θ =
       Finset.univ \
-        nearBaseIntervals F θ := by
+        nearBaseIvls F θ := by
   classical
   ext I
-  simp [distantBaseIntervals,
-    nearBaseIntervals]
+  simp [farBaseIvls,
+    nearBaseIvls]
 
-private def distantIntervals {n : ℕ} (F : IntervalFamily n)
-    (θ : ℝ) : Finset RealInterval :=
-  @Finset.filter RealInterval
+private def farIvls {n : ℕ} (F : IvlFam n)
+    (θ : ℝ) : Finset RealIvl :=
+  @Finset.filter RealIvl
     (fun I ↦ ¬Near n θ I)
     (Classical.decPred _) F.base
 
-private lemma sum_distantBaseIntervals_eq_sum_distantIntervals {n : ℕ}
-    (F : IntervalFamily n) (θ : ℝ) (f : RealInterval → ℝ) :
-    ∑ I ∈ distantBaseIntervals F θ, f I.1 =
-      ∑ I ∈ distantIntervals F θ, f I := by
+private lemma sum_farBaseIvls_eq_sum_farIvls {n : ℕ}
+    (F : IvlFam n) (θ : ℝ) (f : RealIvl → ℝ) :
+    ∑ I ∈ farBaseIvls F θ, f I.1 =
+      ∑ I ∈ farIvls F θ, f I := by
   classical
   apply sum_bij (fun I _ ↦ I.1)
   · intro I hI
-    simp only [distantBaseIntervals, mem_filter, Finset.mem_univ,
+    simp only [farBaseIvls, mem_filter, Finset.mem_univ,
       true_and] at hI
-    simp [distantIntervals, I.property, hI]
+    simp [farIvls, I.property, hI]
   · intro I hI J hJ hIJ
     exact Subtype.ext hIJ
   · intro I hI
-    simp only [distantIntervals, mem_filter] at hI
+    simp only [farIvls, mem_filter] at hI
     refine ⟨⟨I, hI.1⟩, ?_, rfl⟩
-    simp [distantBaseIntervals, hI.2]
+    simp [farBaseIvls, hI.2]
   · intro I hI
     rfl
 
-private lemma shifted_endpoint_cos_eq {n : ℕ} (hn : 0 < n)
-    {I : RealInterval}
+private lemma sh_endpt_cos_eq {n : ℕ} (hn : 0 < n)
+    {I : RealIvl}
     (hgrid : ∃ a b : ℤ,
       I.1 = (a : ℝ) * π / n ∧ I.2 = (b : ℝ) * π / n)
     (θ : ℝ) :
@@ -8635,14 +8613,14 @@ private lemma shifted_endpoint_cos_eq {n : ℕ} (hn : 0 < n)
           congr 1
           field_simp [hn0]
 
-theorem principalIntegral_eq_reciprocal_sine_of_zero_not_mem
+theorem prIntg_eq_reciprocal_sin_of_zero_not_mem
     {n : ℕ} (hn : 0 < n)
-    {I : RealInterval} {θ : ℝ}
+    {I : RealIvl} {θ : ℝ}
     (hzero : ∀ u ∈ uIcc (I.1 - θ) (I.2 - θ), u ≠ 0) :
-    principalIntegral n I θ =
+    prIntg n I θ =
       ∫ u in (I.1 - θ)..(I.2 - θ),
         u⁻¹ * sin ((2 * (n : ℝ)) * u) := by
-  rw [principalIntegral]
+  rw [prIntg]
   rw [integral_comp_sub_right
     (fun u : ℝ ↦ 2 * (n : ℝ) * sinc (2 * (n : ℝ) * u)) θ]
   apply intervalIntegral.integral_congr
@@ -8654,13 +8632,13 @@ theorem principalIntegral_eq_reciprocal_sine_of_zero_not_mem
   rw [sinc_of_ne_zero (mul_ne_zero hn0 hu0)]
   field_simp [hn0, hu0]
 
-theorem abs_principalIntegral_le_endpointVariation {n : ℕ} (hn : 0 < n)
-    {I : RealInterval} {θ : ℝ} (hord : I.1 ≤ I.2)
+theorem abs_prIntg_le_endptVar {n : ℕ} (hn : 0 < n)
+    {I : RealIvl} {θ : ℝ} (hord : I.1 ≤ I.2)
     (hgrid : ∃ a b : ℤ,
       I.1 = (a : ℝ) * π / n ∧ I.2 = (b : ℝ) * π / n)
     (hside : I.2 ≤ θ - π / n ∨
       θ + π / n ≤ I.1) :
-    |principalIntegral n I θ| ≤
+    |prIntg n I θ| ≤
       ((I.1 - θ)⁻¹ - (I.2 - θ)⁻¹) / n := by
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
   have hpiN : 0 < π / (n : ℝ) := div_pos pi_pos hnR
@@ -8676,9 +8654,9 @@ theorem abs_principalIntegral_le_endpointVariation {n : ℕ} (hn : 0 < n)
       exact this.ne
     · have : 0 < u := lt_of_lt_of_le (sub_pos.mpr hright) hu.1
       exact this.ne'
-  rw [principalIntegral_eq_reciprocal_sine_of_zero_not_mem hn hzero]
+  rw [prIntg_eq_reciprocal_sin_of_zero_not_mem hn hzero]
   have hlocal :=
-    abs_integral_mul_sin_le_of_deriv_nonpos
+    abs_intg_mul_sin_le_of_deriv_nonpos
       (h := fun u : ℝ ↦ u⁻¹) (h' := fun u : ℝ ↦ -(u ^ 2)⁻¹)
       hn (sub_le_sub_right hord θ)
       (fun u hu ↦ hasDerivAt_inv (hzero u (by
@@ -8690,7 +8668,7 @@ theorem abs_principalIntegral_le_endpointVariation {n : ℕ} (hn : 0 < n)
         exact pow_ne_zero 2 (hzero u (by
           simpa [uIcc_of_le (sub_le_sub_right hord θ)] using hu)))
       (fun u hu ↦ neg_nonpos.mpr (inv_nonneg.mpr (sq_nonneg u)))
-      (shifted_endpoint_cos_eq hn hgrid θ)
+      (sh_endpt_cos_eq hn hgrid θ)
   have hanti : (I.2 - θ)⁻¹ ≤ (I.1 - θ)⁻¹ := by
     rcases hleftOrRight with hleft | hright
     · exact inv_antitoneOn_Iio
@@ -8705,31 +8683,31 @@ theorem abs_principalIntegral_le_endpointVariation {n : ℕ} (hn : 0 < n)
   convert hlocal using 1
   ring
 
-private lemma endpoint_variation_le_of_monotone
-    (s : Finset RealInterval) (f : ℝ → ℝ) (L U : ℝ)
+private lemma endpt_var_le_of_mono
+    (s : Finset RealIvl) (f : ℝ → ℝ) (L U : ℝ)
     (hord : ∀ I ∈ s, I.1 < I.2)
     (hLU : L ≤ U)
     (hinside : ∀ I ∈ s, L ≤ I.1 ∧ I.2 ≤ U)
-    (hsep : Set.Pairwise (↑s : Set RealInterval)
+    (hsep : Set.Pairwise (↑s : Set RealIvl)
       (fun I J ↦ I.2 ≤ J.1 ∨ J.2 ≤ I.1))
     (hmono : MonotoneOn f (Icc L U)) :
     ∑ I ∈ s, (f I.2 - f I.1) ≤ f U - f L := by
   classical
-  let t : Finset (Lex RealInterval) := s.image toLex
+  let t : Finset (Lex RealIvl) := s.image toLex
   let m := t.card
   let e : Fin m ≃o ↑t := orderIsoOfFin t rfl
-  have emem (k : Fin m) : ofLex ((e k : ↑t) : Lex RealInterval) ∈ s := by
+  have emem (k : Fin m) : ofLex ((e k : ↑t) : Lex RealIvl) ∈ s := by
     have hk := (e k).property
-    change ((e k : ↑t) : Lex RealInterval) ∈ s.image toLex at hk
+    change ((e k : ↑t) : Lex RealIvl) ∈ s.image toLex at hk
     rw [Finset.mem_image] at hk
     rcases hk with ⟨I, hI, hEq⟩
     simpa [← hEq] using hI
   let A : ℕ → ℝ := fun k ↦
     if hk : k < m then
-      f (ofLex ((e ⟨k, hk⟩ : ↑t) : Lex RealInterval)).1 else f U
+      f (ofLex ((e ⟨k, hk⟩ : ↑t) : Lex RealIvl)).1 else f U
   let B : ℕ → ℝ := fun k ↦
     if hk : k < m then
-      f (ofLex ((e ⟨k, hk⟩ : ↑t) : Lex RealInterval)).2 else f U
+      f (ofLex ((e ⟨k, hk⟩ : ↑t) : Lex RealIvl)).2 else f U
   let E : ℕ → ℝ := fun k ↦ B k - A k
   have hchain : ∀ k < m, B k ≤ A (k + 1) := by
     intro k hk
@@ -8745,11 +8723,11 @@ private lemma endpoint_variation_le_of_monotone
             (hinside _ (emem ⟨k + 1, hks⟩)).2⟩
       have horder : e ⟨k, hk⟩ ≤ e ⟨k + 1, hks⟩ :=
         e.le_iff_le.mpr (by simp)
-      have hleft : (ofLex ((e ⟨k, hk⟩ : ↑t) : Lex RealInterval)).1 ≤
-          (ofLex ((e ⟨k + 1, hks⟩ : ↑t) : Lex RealInterval)).1 := by
+      have hleft : (ofLex ((e ⟨k, hk⟩ : ↑t) : Lex RealIvl)).1 ≤
+          (ofLex ((e ⟨k + 1, hks⟩ : ↑t) : Lex RealIvl)).1 := by
         exact (Prod.Lex.le_iff.mp horder).elim (fun h ↦ h.le) (fun h ↦ h.1.le)
-      have hne : ofLex ((e ⟨k, hk⟩ : ↑t) : Lex RealInterval) ≠
-          ofLex ((e ⟨k + 1, hks⟩ : ↑t) : Lex RealInterval) := by
+      have hne : ofLex ((e ⟨k, hk⟩ : ↑t) : Lex RealIvl) ≠
+          ofLex ((e ⟨k + 1, hks⟩ : ↑t) : Lex RealIvl) := by
         intro heq
         have heq' : e ⟨k, hk⟩ = e ⟨k + 1, hks⟩ := by
           apply Subtype.ext
@@ -8766,7 +8744,7 @@ private lemma endpoint_variation_le_of_monotone
           (hinside _ (emem ⟨k, hk⟩)).2⟩
         ⟨hLU, le_rfl⟩ (hinside _ (emem ⟨k, hk⟩)).2
   have htelescope :=
-    sum_interval_error_le_of_monotone_endpoints
+    sum_ivl_error_le_of_mono_endpts
       (n := 1) (m := m) (A := A) (B := B) (E := E) (by norm_num)
       (fun k hk ↦ by simp [E]) hchain
   have hsum : (∑ I ∈ s, (f I.2 - f I.1)) =
@@ -8776,19 +8754,19 @@ private lemma endpoint_variation_le_of_monotone
           ∑ J ∈ t, (f (ofLex J).2 - f (ofLex J).1) := by
             symm
             simpa [t] using (sum_image (s := s)
-              (f := fun J : Lex RealInterval ↦
+              (f := fun J : Lex RealIvl ↦
                 f (ofLex J).2 - f (ofLex J).1) toLex.injective.injOn)
-      _ = ∑ J : ↑t, (f (ofLex (J.1 : Lex RealInterval)).2 -
-          f (ofLex (J.1 : Lex RealInterval)).1) := by
+      _ = ∑ J : ↑t, (f (ofLex (J.1 : Lex RealIvl)).2 -
+          f (ofLex (J.1 : Lex RealIvl)).1) := by
             symm
             exact (sum_subtype (M := ℝ) (s := t) (p := fun J ↦ J ∈ t)
-              (by simp) (fun J : Lex RealInterval ↦
+              (by simp) (fun J : Lex RealIvl ↦
                 f (ofLex J).2 - f (ofLex J).1)).symm
-      _ = ∑ i : Fin m, (f (ofLex ((e i : ↑t) : Lex RealInterval)).2 -
-          f (ofLex ((e i : ↑t) : Lex RealInterval)).1) := by
+      _ = ∑ i : Fin m, (f (ofLex ((e i : ↑t) : Lex RealIvl)).2 -
+          f (ofLex ((e i : ↑t) : Lex RealIvl)).1) := by
             exact (e.toEquiv.sum_comp (fun J : ↑t ↦
-              f (ofLex (J.1 : Lex RealInterval)).2 -
-                f (ofLex (J.1 : Lex RealInterval)).1)).symm
+              f (ofLex (J.1 : Lex RealIvl)).2 -
+                f (ofLex (J.1 : Lex RealIvl)).1)).symm
       _ = ∑ i : Fin m, E i := by
             apply sum_congr rfl
             intro i _
@@ -8800,7 +8778,7 @@ private lemma endpoint_variation_le_of_monotone
       (hmono ⟨le_rfl, hLU⟩ ⟨hLU, le_rfl⟩ hLU)
   · have hmpos : 0 < m := Nat.pos_of_ne_zero hm
     have hA0 : A 0 =
-        f (ofLex ((e ⟨0, hmpos⟩ : ↑t) : Lex RealInterval)).1 := by
+        f (ofLex ((e ⟨0, hmpos⟩ : ↑t) : Lex RealIvl)).1 := by
       simp [A, hmpos]
     have hAm : A m = f U := by simp [A]
     rw [hA0, hAm] at htelescope
@@ -8812,22 +8790,22 @@ private lemma endpoint_variation_le_of_monotone
             (hinside _ (emem ⟨0, hmpos⟩)).2⟩
         (hinside _ (emem ⟨0, hmpos⟩)).1) _)
 
-private lemma endpoint_variation_le_of_antitone
-    (s : Finset RealInterval) (f : ℝ → ℝ) (L U : ℝ)
+private lemma endpt_var_le_of_anti
+    (s : Finset RealIvl) (f : ℝ → ℝ) (L U : ℝ)
     (hord : ∀ I ∈ s, I.1 < I.2)
     (hLU : L ≤ U)
     (hinside : ∀ I ∈ s, L ≤ I.1 ∧ I.2 ≤ U)
-    (hsep : Set.Pairwise (↑s : Set RealInterval)
+    (hsep : Set.Pairwise (↑s : Set RealIvl)
       (fun I J ↦ I.2 ≤ J.1 ∨ J.2 ≤ I.1))
     (hanti : AntitoneOn f (Icc L U)) :
     ∑ I ∈ s, (f I.1 - f I.2) ≤ f L - f U := by
-  have h := endpoint_variation_le_of_monotone s (-f) L U hord hLU hinside hsep
+  have h := endpt_var_le_of_mono s (-f) L U hord hLU hinside hsep
     (fun _ hx _ hy hxy ↦ neg_le_neg (hanti hx hy hxy))
   simpa only [Pi.neg_apply, neg_sub_neg] using h
 
 private lemma pairwise_disjoint_base {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) :
-    Set.Pairwise (↑F.base : Set RealInterval)
+    (F : IvlFam n) :
+    Set.Pairwise (↑F.base : Set RealIvl)
       (fun I J ↦ I.2 ≤ J.1 ∨ J.2 ≤ I.1) := by
   intro I hI J hJ hne
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
@@ -8848,33 +8826,33 @@ private lemma pairwise_disjoint_base {n : ℕ} (hn : 0 < n)
     have : π / (n : ℝ) ≤ 0 := by simpa using hsep
     exact (not_le_of_gt hpiN) this
 
-private def leftDistantIntervals {n : ℕ} (F : IntervalFamily n)
-    (θ : ℝ) : Finset RealInterval :=
-  @Finset.filter RealInterval (fun I ↦ I.2 ≤ θ)
-    (Classical.decPred _) (distantIntervals F θ)
+private def leftFarIvls {n : ℕ} (F : IvlFam n)
+    (θ : ℝ) : Finset RealIvl :=
+  @Finset.filter RealIvl (fun I ↦ I.2 ≤ θ)
+    (Classical.decPred _) (farIvls F θ)
 
-private def rightDistantIntervals {n : ℕ} (F : IntervalFamily n)
-    (θ : ℝ) : Finset RealInterval :=
-  @Finset.filter RealInterval (fun I ↦ ¬I.2 ≤ θ)
-    (Classical.decPred _) (distantIntervals F θ)
+private def rightFarIvls {n : ℕ} (F : IvlFam n)
+    (θ : ℝ) : Finset RealIvl :=
+  @Finset.filter RealIvl (fun I ↦ ¬I.2 ≤ θ)
+    (Classical.decPred _) (farIvls F θ)
 
-private lemma leftDistant_upper {n : ℕ} (_hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ} {I : RealInterval}
-    (hI : I ∈ leftDistantIntervals F θ) :
+private lemma leftFar_up {n : ℕ} (_hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ} {I : RealIvl}
+    (hI : I ∈ leftFarIvls F θ) :
     I.2 ≤ θ - π / n := by
-  simp only [leftDistantIntervals, distantIntervals, mem_filter] at hI
+  simp only [leftFarIvls, farIvls, mem_filter] at hI
   have hgap : π / (n : ℝ) ≤
-      intervalGap θ I := by
+      ivlGap θ I := by
     exact le_of_not_gt hI.1.2
-  rw [intervalGap_eq_right
+  rw [ivlGap_eq_right
     (F.ordered I hI.1.1) hI.2] at hgap
   linarith
 
-private lemma rightDistant_lower {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ} {I : RealInterval}
-    (hI : I ∈ rightDistantIntervals F θ) :
+private lemma rightFar_lo {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ} {I : RealIvl}
+    (hI : I ∈ rightFarIvls F θ) :
     θ + π / n ≤ I.1 := by
-  simp only [rightDistantIntervals, distantIntervals, mem_filter] at hI
+  simp only [rightFarIvls, farIvls, mem_filter] at hI
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
   have hpiN : 0 < π / (n : ℝ) := div_pos pi_pos hnR
   have hright : θ ≤ I.1 := by
@@ -8883,32 +8861,32 @@ private lemma rightDistant_lower {n : ℕ} (hn : 0 < n)
     have hright : θ < I.2 := lt_of_not_ge hI.2
     apply hI.1.2
     rw [Near,
-      intervalGap_eq_zero_of_mem]
+      ivlGap_eq_zero_of_mem]
     · exact hpiN
     · exact ⟨hleft.le, hright.le⟩
   have hgap : π / (n : ℝ) ≤
-      intervalGap θ I := by
+      ivlGap θ I := by
     exact le_of_not_gt hI.1.2
-  rw [intervalGap_eq_left
+  rw [ivlGap_eq_left
     (F.ordered I hI.1.1) hright] at hgap
   linarith
 
 private lemma side_pairwise_disjoint {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) (s : Finset RealInterval)
+    (F : IvlFam n) (s : Finset RealIvl)
     (hs : s ⊆ F.base) :
-    Set.Pairwise (↑s : Set RealInterval)
+    Set.Pairwise (↑s : Set RealIvl)
       (fun I J ↦ I.2 ≤ J.1 ∨ J.2 ≤ I.1) := by
   intro I hI J hJ hne
   exact pairwise_disjoint_base hn F (hs hI) (hs hJ) hne
 
-private lemma sum_left_endpointVariation_le {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ}
+private lemma sum_left_endptVar_le {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I ∈ leftDistantIntervals F θ,
+    ∑ I ∈ leftFarIvls F θ,
         ((I.1 - θ)⁻¹ - (I.2 - θ)⁻¹) ≤
       (n : ℝ) / π := by
   classical
-  let s := leftDistantIntervals F θ
+  let s := leftFarIvls F θ
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
   have hn0 : (n : ℝ) ≠ 0 := ne_of_gt hnR
   have hpiN : 0 < π / (n : ℝ) := div_pos pi_pos hnR
@@ -8918,18 +8896,18 @@ private lemma sum_left_endpointVariation_le {n : ℕ} (hn : 0 < n)
       intro J hJ
       have hJ' : (J ∈ F.base ∧
           ¬Near n θ J) ∧ J.2 ≤ θ := by
-        simpa only [s, leftDistantIntervals, distantIntervals,
+        simpa only [s, leftFarIvls, farIvls,
           mem_filter] using hJ
       exact hJ'.1.1
     have hinside : ∀ J ∈ s,
         (0 : ℝ) ≤ J.1 ∧ J.2 ≤ θ - π / n := by
       intro J hJ
       exact ⟨(F.in_first_quadrant J (hbase J hJ)).1,
-        leftDistant_upper hn F (by simpa [s] using hJ)⟩
+        leftFar_up hn F (by simpa [s] using hJ)⟩
     have hLU : (0 : ℝ) ≤ θ - π / n :=
       (hinside I hI).1.trans
         ((F.ordered I (hbase I hI)).trans (hinside I hI).2)
-    have htel := endpoint_variation_le_of_antitone s
+    have htel := endpt_var_le_of_anti s
       (fun x : ℝ ↦ (x - θ)⁻¹) 0 (θ - π / n)
       (fun J hJ ↦ F.nondegenerate J (hbase J hJ)) hLU hinside
       (side_pairwise_disjoint hn F s hbase)
@@ -8944,27 +8922,27 @@ private lemma sum_left_endpointVariation_le {n : ℕ} (hn : 0 < n)
     rw [hfarEndpoint] at htel
     dsimp [s] at htel
     calc
-      ∑ I ∈ leftDistantIntervals F θ,
+      ∑ I ∈ leftFarIvls F θ,
           ((I.1 - θ)⁻¹ - (I.2 - θ)⁻¹) ≤
           (0 - θ)⁻¹ - (-(n : ℝ) / π) := htel
       _ ≤ 0 - (-(n : ℝ) / π) :=
         sub_le_sub_right hzeroEndpoint _
       _ = (n : ℝ) / π := by ring
-  · have hs0 : leftDistantIntervals F θ = ∅ := by
+  · have hs0 : leftFarIvls F θ = ∅ := by
       apply Finset.not_nonempty_iff_eq_empty.mp
       simpa [s] using hs
     rw [hs0]
     simp
     positivity
 
-private lemma sum_right_endpointVariation_le {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ}
+private lemma sum_right_endptVar_le {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I ∈ rightDistantIntervals F θ,
+    ∑ I ∈ rightFarIvls F θ,
         ((I.1 - θ)⁻¹ - (I.2 - θ)⁻¹) ≤
       (n : ℝ) / π := by
   classical
-  let s := rightDistantIntervals F θ
+  let s := rightFarIvls F θ
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
   have hn0 : (n : ℝ) ≠ 0 := ne_of_gt hnR
   have hpiN : 0 < π / (n : ℝ) := div_pos pi_pos hnR
@@ -8974,18 +8952,18 @@ private lemma sum_right_endpointVariation_le {n : ℕ} (hn : 0 < n)
       intro J hJ
       have hJ' : (J ∈ F.base ∧
           ¬Near n θ J) ∧ ¬J.2 ≤ θ := by
-        simpa only [s, rightDistantIntervals, distantIntervals,
+        simpa only [s, rightFarIvls, farIvls,
           mem_filter] using hJ
       exact hJ'.1.1
     have hinside : ∀ J ∈ s,
         θ + π / n ≤ J.1 ∧ J.2 ≤ π / 2 := by
       intro J hJ
-      exact ⟨rightDistant_lower hn F (by simpa [s] using hJ),
+      exact ⟨rightFar_lo hn F (by simpa [s] using hJ),
         (F.in_first_quadrant J (hbase J hJ)).2⟩
     have hLU : θ + π / n ≤ π / 2 :=
       (hinside I hI).1.trans
         ((F.ordered I (hbase I hI)).trans (hinside I hI).2)
-    have htel := endpoint_variation_le_of_antitone s
+    have htel := endpt_var_le_of_anti s
       (fun x : ℝ ↦ (x - θ)⁻¹)
       (θ + π / n) (π / 2)
       (fun J hJ ↦ F.nondegenerate J (hbase J hJ)) hLU hinside
@@ -9001,112 +8979,112 @@ private lemma sum_right_endpointVariation_le {n : ℕ} (hn : 0 < n)
     rw [hnearEndpoint] at htel
     dsimp [s] at htel
     calc
-      ∑ I ∈ rightDistantIntervals F θ,
+      ∑ I ∈ rightFarIvls F θ,
           ((I.1 - θ)⁻¹ - (I.2 - θ)⁻¹) ≤
           (n : ℝ) / π - (π / 2 - θ)⁻¹ := htel
       _ ≤ (n : ℝ) / π - 0 :=
         sub_le_sub_left hlastEndpoint _
       _ = (n : ℝ) / π := by ring
-  · have hs0 : rightDistantIntervals F θ = ∅ := by
+  · have hs0 : rightFarIvls F θ = ∅ := by
       apply Finset.not_nonempty_iff_eq_empty.mp
       simpa [s] using hs
     rw [hs0]
     simp
     positivity
 
-private lemma sum_left_abs_principalIntegral_le {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ}
+private lemma sum_left_abs_prIntg_le {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I ∈ leftDistantIntervals F θ, |principalIntegral n I θ| ≤
+    ∑ I ∈ leftFarIvls F θ, |prIntg n I θ| ≤
       1 / π := by
   classical
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
   have hn0 : (n : ℝ) ≠ 0 := ne_of_gt hnR
   calc
-    ∑ I ∈ leftDistantIntervals F θ, |principalIntegral n I θ| ≤
-        ∑ I ∈ leftDistantIntervals F θ,
+    ∑ I ∈ leftFarIvls F θ, |prIntg n I θ| ≤
+        ∑ I ∈ leftFarIvls F θ,
           (((I.1 - θ)⁻¹ - (I.2 - θ)⁻¹) / n) := by
       apply sum_le_sum
       intro I hI
       have hI' : (I ∈ F.base ∧
           ¬Near n θ I) ∧ I.2 ≤ θ := by
-        simpa only [leftDistantIntervals, distantIntervals,
+        simpa only [leftFarIvls, farIvls,
           mem_filter] using hI
-      exact abs_principalIntegral_le_endpointVariation hn
+      exact abs_prIntg_le_endptVar hn
         (F.ordered I hI'.1.1) (F.grid_endpoints I hI'.1.1)
-        (Or.inl (leftDistant_upper hn F hI))
-    _ = (∑ I ∈ leftDistantIntervals F θ,
+        (Or.inl (leftFar_up hn F hI))
+    _ = (∑ I ∈ leftFarIvls F θ,
           ((I.1 - θ)⁻¹ - (I.2 - θ)⁻¹)) / n := by
       rw [sum_div]
     _ ≤ ((n : ℝ) / π) / n :=
       div_le_div_of_nonneg_right
-        (sum_left_endpointVariation_le hn F hθ) hnR.le
+        (sum_left_endptVar_le hn F hθ) hnR.le
     _ = 1 / π := by
       field_simp [hn0, pi_ne_zero]
 
-private lemma sum_right_abs_principalIntegral_le {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ}
+private lemma sum_right_abs_prIntg_le {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I ∈ rightDistantIntervals F θ, |principalIntegral n I θ| ≤
+    ∑ I ∈ rightFarIvls F θ, |prIntg n I θ| ≤
       1 / π := by
   classical
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
   have hn0 : (n : ℝ) ≠ 0 := ne_of_gt hnR
   calc
-    ∑ I ∈ rightDistantIntervals F θ, |principalIntegral n I θ| ≤
-        ∑ I ∈ rightDistantIntervals F θ,
+    ∑ I ∈ rightFarIvls F θ, |prIntg n I θ| ≤
+        ∑ I ∈ rightFarIvls F θ,
           (((I.1 - θ)⁻¹ - (I.2 - θ)⁻¹) / n) := by
       apply sum_le_sum
       intro I hI
       have hI' : (I ∈ F.base ∧
           ¬Near n θ I) ∧ ¬I.2 ≤ θ := by
-        simpa only [rightDistantIntervals, distantIntervals,
+        simpa only [rightFarIvls, farIvls,
           mem_filter] using hI
-      exact abs_principalIntegral_le_endpointVariation hn
+      exact abs_prIntg_le_endptVar hn
         (F.ordered I hI'.1.1) (F.grid_endpoints I hI'.1.1)
-        (Or.inr (rightDistant_lower hn F hI))
-    _ = (∑ I ∈ rightDistantIntervals F θ,
+        (Or.inr (rightFar_lo hn F hI))
+    _ = (∑ I ∈ rightFarIvls F θ,
           ((I.1 - θ)⁻¹ - (I.2 - θ)⁻¹)) / n := by
       rw [sum_div]
     _ ≤ ((n : ℝ) / π) / n :=
       div_le_div_of_nonneg_right
-        (sum_right_endpointVariation_le hn F hθ) hnR.le
+        (sum_right_endptVar_le hn F hθ) hnR.le
     _ = 1 / π := by
       field_simp [hn0, pi_ne_zero]
 
-theorem sum_abs_principalIntegral_distant_le_two_div_pi {n : ℕ}
-    (hn : 0 < n) (F : IntervalFamily n) {θ : ℝ}
+theorem sum_abs_prIntg_far_le_two_div_pi {n : ℕ}
+    (hn : 0 < n) (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I ∈ distantBaseIntervals F θ,
-        |principalIntegral n I.1 θ| ≤ 2 / π := by
+    ∑ I ∈ farBaseIvls F θ,
+        |prIntg n I.1 θ| ≤ 2 / π := by
   classical
-  rw [sum_distantBaseIntervals_eq_sum_distantIntervals F θ
-    (fun I ↦ |principalIntegral n I θ|)]
+  rw [sum_farBaseIvls_eq_sum_farIvls F θ
+    (fun I ↦ |prIntg n I θ|)]
   have hsplit :
-      (∑ I ∈ distantIntervals F θ, |principalIntegral n I θ|) =
-        (∑ I ∈ leftDistantIntervals F θ,
-          |principalIntegral n I θ|) +
-        ∑ I ∈ rightDistantIntervals F θ,
-          |principalIntegral n I θ| := by
-    rw [leftDistantIntervals, rightDistantIntervals,
+      (∑ I ∈ farIvls F θ, |prIntg n I θ|) =
+        (∑ I ∈ leftFarIvls F θ,
+          |prIntg n I θ|) +
+        ∑ I ∈ rightFarIvls F θ,
+          |prIntg n I θ| := by
+    rw [leftFarIvls, rightFarIvls,
       Finset.sum_filter_add_sum_filter_not]
   rw [hsplit]
   calc
-    (∑ I ∈ leftDistantIntervals F θ, |principalIntegral n I θ|) +
-        ∑ I ∈ rightDistantIntervals F θ,
-          |principalIntegral n I θ| ≤
+    (∑ I ∈ leftFarIvls F θ, |prIntg n I θ|) +
+        ∑ I ∈ rightFarIvls F θ,
+          |prIntg n I θ| ≤
         1 / π + 1 / π :=
-      add_le_add (sum_left_abs_principalIntegral_le hn F hθ)
-        (sum_right_abs_principalIntegral_le hn F hθ)
+      add_le_add (sum_left_abs_prIntg_le hn F hθ)
+        (sum_right_abs_prIntg_le hn F hθ)
     _ = 2 / π := by ring
 
 end
 
-end KernelDistantClaim
+end KernelFarClaim
 
 end
 
-open KernelDistantClaim
+open KernelFarClaim
 
 
 section
@@ -9117,11 +9095,11 @@ open Real Set
 
 noncomputable section
 
-def amplitude : ℝ → ℝ :=
+def amp : ℝ → ℝ :=
   dslope (fun u : ℝ ↦ (sinc u)⁻¹) 0
 
-@[simp] theorem amplitude_zero : amplitude 0 = 0 := by
-  rw [amplitude, dslope_same]
+@[simp] theorem amp_zero : amp 0 = 0 := by
+  rw [amp, dslope_same]
   have hsinc : AnalyticAt ℝ sinc 0 := by
     rw [sinc_eq_dslope]
     exact analyticAt_sin.hasFPowerSeriesAt.has_fpower_series_dslope_fslope.analyticAt
@@ -9139,11 +9117,11 @@ def amplitude : ℝ → ℝ :=
   dsimp [d] at this ⊢
   linarith
 
-theorem amplitude_eq {u : ℝ} (hu : u ≠ 0)
+theorem amp_eq {u : ℝ} (hu : u ≠ 0)
     (hsu : sin u ≠ 0) :
-    amplitude u = 1 / sin u - 1 / u := by
-  have hmul : u * amplitude u = (sinc u)⁻¹ - 1 := by
-    simpa [amplitude] using
+    amp u = 1 / sin u - 1 / u := by
+  have hmul : u * amp u = (sinc u)⁻¹ - 1 := by
+    simpa [amp] using
       (sub_smul_dslope (fun x : ℝ ↦ (sinc x)⁻¹) 0 u)
   apply (mul_left_cancel₀ hu)
   rw [hmul, sinc_of_ne_zero hu]
@@ -9153,8 +9131,8 @@ private lemma analyticAt_sinc_zero : AnalyticAt ℝ sinc 0 := by
   rw [sinc_eq_dslope]
   exact analyticAt_sin.hasFPowerSeriesAt.has_fpower_series_dslope_fslope.analyticAt
 
-theorem analyticAt_amplitude_zero :
-    AnalyticAt ℝ amplitude 0 := by
+theorem analyticAt_amp_zero :
+    AnalyticAt ℝ amp 0 := by
   have hinv : AnalyticAt ℝ (fun u : ℝ ↦ (sinc u)⁻¹) 0 :=
     analyticAt_sinc_zero.inv (by simp)
   exact hinv.hasFPowerSeriesAt.has_fpower_series_dslope_fslope.analyticAt
@@ -9168,38 +9146,38 @@ theorem sin_ne_zero_of_mem_half {u : ℝ}
     (by linarith [hu.1, pi_pos])
     (by linarith [hu.2, pi_pos])).mp hsu
 
-theorem analyticAt_amplitude {u : ℝ}
+theorem analyticAt_amp {u : ℝ}
     (hu : u ∈ Icc (-(π / 2)) (π / 2)) :
-    AnalyticAt ℝ amplitude u := by
+    AnalyticAt ℝ amp u := by
   by_cases hu0 : u = 0
-  · simpa [hu0] using analyticAt_amplitude_zero
+  · simpa [hu0] using analyticAt_amp_zero
   have hsu := sin_ne_zero_of_mem_half hu hu0
   have hrhs : AnalyticAt ℝ (fun x : ℝ ↦ 1 / sin x - 1 / x) u := by
     fun_prop
   apply hrhs.congr
   filter_upwards [eventually_ne_nhds hu0,
       (continuous_sin.tendsto u) (isOpen_ne.mem_nhds hsu)] with x hx0 hsx
-  exact (amplitude_eq hx0 hsx).symm
+  exact (amp_eq hx0 hsx).symm
 
-theorem differentiableAt_amplitude {u : ℝ}
+theorem differentiableAt_amp {u : ℝ}
     (hu : u ∈ Icc (-(π / 2)) (π / 2)) :
-    DifferentiableAt ℝ amplitude u :=
-  (analyticAt_amplitude hu).differentiableAt
+    DifferentiableAt ℝ amp u :=
+  (analyticAt_amp hu).differentiableAt
 
-theorem hasDerivAt_amplitude {u : ℝ}
+theorem hasDerivAt_amp {u : ℝ}
     (hu : u ∈ Icc (-(π / 2)) (π / 2)) :
-    HasDerivAt amplitude (deriv amplitude u) u :=
-  (differentiableAt_amplitude hu).hasDerivAt
+    HasDerivAt amp (deriv amp u) u :=
+  (differentiableAt_amp hu).hasDerivAt
 
-theorem amplitude_mul_self_nonneg {u : ℝ}
+theorem amp_mul_self_nonneg {u : ℝ}
     (hu : u ∈ Icc (-(π / 2)) (π / 2)) :
-    0 ≤ amplitude u * u := by
+    0 ≤ amp u * u := by
   rcases lt_trichotomy u 0 with hu0 | rfl | hu0
   · have hsu : sin u < 0 := by
       rw [← neg_pos, ← sin_neg]
       exact sin_pos_of_pos_of_lt_pi (neg_pos.mpr hu0)
         (by linarith [hu.1, pi_pos])
-    rw [amplitude_eq hu0.ne (ne_of_lt hsu)]
+    rw [amp_eq hu0.ne (ne_of_lt hsu)]
     have hsle : u ≤ sin u := by
       have := sin_le (show 0 ≤ -u by linarith)
       rw [sin_neg] at this
@@ -9212,7 +9190,7 @@ theorem amplitude_mul_self_nonneg {u : ℝ}
   · simp
   · have hsu : 0 < sin u :=
       sin_pos_of_pos_of_lt_pi hu0 (by linarith [hu.2, pi_pos])
-    rw [amplitude_eq hu0.ne' (ne_of_gt hsu)]
+    rw [amp_eq hu0.ne' (ne_of_gt hsu)]
     have hsle := sin_le hu0.le
     rw [show (1 / sin u - 1 / u) * u =
         (u - sin u) / sin u by
@@ -9220,12 +9198,12 @@ theorem amplitude_mul_self_nonneg {u : ℝ}
       ]
     exact div_nonneg (sub_nonneg.mpr hsle) hsu.le
 
-theorem deriv_amplitude_nonneg {u : ℝ}
+theorem deriv_amp_nonneg {u : ℝ}
     (hu : u ∈ Icc (-(π / 2)) (π / 2)) :
-    0 ≤ deriv amplitude u := by
+    0 ≤ deriv amp u := by
   by_cases hu0 : u = 0
   · subst u
-    have hd := analyticAt_amplitude_zero.differentiableAt.hasDerivAt
+    have hd := analyticAt_amp_zero.differentiableAt.hasDerivAt
     rw [hasDerivAt_iff_tendsto_slope] at hd
     apply ge_of_tendsto hd
     have hIcc : Icc (-(π / 2)) (π / 2) ∈ nhds (0 : ℝ) :=
@@ -9235,19 +9213,19 @@ theorem deriv_amplitude_nonneg {u : ℝ}
       mem_nhdsWithin_of_mem_nhds hIcc
     filter_upwards [self_mem_nhdsWithin, hIcc'] with x hx hxmem
     have hx0 : x ≠ 0 := by simpa using hx
-    simp only [slope, amplitude_zero, sub_zero, vsub_eq_sub,
+    simp only [slope, amp_zero, sub_zero, vsub_eq_sub,
       smul_eq_mul]
-    rw [show x⁻¹ * amplitude x =
-        (amplitude x * x) / x ^ 2 by
+    rw [show x⁻¹ * amp x =
+        (amp x * x) / x ^ 2 by
       field_simp [hx0]
       ]
-    exact div_nonneg (amplitude_mul_self_nonneg hxmem) (sq_nonneg x)
+    exact div_nonneg (amp_mul_self_nonneg hxmem) (sq_nonneg x)
   · have hsu := sin_ne_zero_of_mem_half hu hu0
-    have heq : amplitude =ᶠ[nhds u]
+    have heq : amp =ᶠ[nhds u]
         (fun x : ℝ ↦ 1 / sin x - 1 / x) := by
       filter_upwards [eventually_ne_nhds hu0,
         (continuous_sin.tendsto u) (isOpen_ne.mem_nhds hsu)] with x hx0 hsx
-      exact amplitude_eq hx0 hsx
+      exact amp_eq hx0 hsx
     have hbase := ((hasDerivAt_sin u).inv hsu).sub
       ((hasDerivAt_id u).inv hu0)
     have hbase' : HasDerivAt (fun x : ℝ ↦ 1 / sin x - 1 / x)
@@ -9262,7 +9240,7 @@ theorem deriv_amplitude_nonneg {u : ℝ}
         ring
       rw [hfun, hcoef]
       exact hbase
-    have hderiv : HasDerivAt amplitude
+    have hderiv : HasDerivAt amp
         (1 / u ^ 2 - cos u / sin u ^ 2) u := by
       exact heq.hasDerivAt_iff.mpr hbase'
     rw [hderiv.deriv]
@@ -9308,46 +9286,46 @@ theorem deriv_amplitude_nonneg {u : ℝ}
       ]
     exact div_nonneg (sub_nonneg.mpr hsin_sq) hden.le
 
-theorem amplitude_derivative_data :
+theorem amp_deriv_data :
     (∀ u ∈ Icc (-(π / 2)) (π / 2),
-      HasDerivAt amplitude (deriv amplitude u) u) ∧
-    ContinuousOn (deriv amplitude)
+      HasDerivAt amp (deriv amp u) u) ∧
+    ContinuousOn (deriv amp)
       (Icc (-(π / 2)) (π / 2)) ∧
     (∀ u ∈ Icc (-(π / 2)) (π / 2),
-      0 ≤ deriv amplitude u) := by
-  refine ⟨fun u hu ↦ hasDerivAt_amplitude hu, ?_,
-    fun u hu ↦ deriv_amplitude_nonneg hu⟩
+      0 ≤ deriv amp u) := by
+  refine ⟨fun u hu ↦ hasDerivAt_amp hu, ?_,
+    fun u hu ↦ deriv_amp_nonneg hu⟩
   intro u hu
-  exact (analyticAt_amplitude hu).deriv.continuousAt.continuousWithinAt
+  exact (analyticAt_amp hu).deriv.continuousAt.continuousWithinAt
 
-theorem monotoneOn_amplitude :
-    MonotoneOn amplitude
+theorem monoOn_amp :
+    MonotoneOn amp
       (Icc (-(π / 2)) (π / 2)) := by
   apply monotoneOn_of_deriv_nonneg (convex_Icc _ _)
   · exact fun u hu ↦
-      (analyticAt_amplitude hu).continuousAt.continuousWithinAt
+      (analyticAt_amp hu).continuousAt.continuousWithinAt
   · exact fun u hu ↦
-      (differentiableAt_amplitude (interior_subset hu)).differentiableWithinAt
+      (differentiableAt_amp (interior_subset hu)).differentiableWithinAt
   · intro u hu
-    exact deriv_amplitude_nonneg (interior_subset hu)
+    exact deriv_amp_nonneg (interior_subset hu)
 
-@[simp] theorem amplitude_pi_div_two :
-    amplitude (π / 2) = 1 - 2 / π := by
-  rw [amplitude_eq (by positivity) (by simp), sin_pi_div_two]
+@[simp] theorem amp_pi_div_two :
+    amp (π / 2) = 1 - 2 / π := by
+  rw [amp_eq (by positivity) (by simp), sin_pi_div_two]
   field_simp [pi_ne_zero]
 
-@[simp] theorem amplitude_neg_pi_div_two :
-    amplitude (-(π / 2)) = -(1 - 2 / π) := by
-  rw [amplitude_eq
+@[simp] theorem amp_neg_pi_div_two :
+    amp (-(π / 2)) = -(1 - 2 / π) := by
+  rw [amp_eq
       (neg_ne_zero.mpr (div_ne_zero pi_ne_zero (by norm_num))) (by simp), sin_neg,
     sin_pi_div_two]
   field_simp [pi_ne_zero]
   ring
 
-theorem amplitude_endpoint_variation :
-    amplitude (π / 2) -
-      amplitude (-(π / 2)) = 2 - 4 / π := by
-  rw [amplitude_pi_div_two, amplitude_neg_pi_div_two]
+theorem amp_endpt_var :
+    amp (π / 2) -
+      amp (-(π / 2)) = 2 - 4 / π := by
+  rw [amp_pi_div_two, amp_neg_pi_div_two]
   ring
 
 end
@@ -9361,7 +9339,7 @@ open KernelMonotonicity
 
 section
 
-namespace KernelReflectedClaim
+namespace KernelReflClaim
 
 open scoped BigOperators Interval
 open Real Set MeasureTheory intervalIntegral
@@ -9370,27 +9348,27 @@ noncomputable section
 
 open OddSine
 
-def reflectedIntegral (n : ℕ) (I : RealInterval) (θ : ℝ) : ℝ :=
+def reflIntg (n : ℕ) (I : RealIvl) (θ : ℝ) : ℝ :=
   ∫ x in I.1..I.2,
     sin (((2 * n : ℕ) : ℝ) * (x + θ)) / sin (x + θ)
 
 private def eta (n : ℕ) : ℝ := 100 * π / n
 
-private def amplitude (θ x : ℝ) : ℝ := (sin (x + θ))⁻¹
+private def amp (θ x : ℝ) : ℝ := (sin (x + θ))⁻¹
 
-private def turningPoint (θ : ℝ) : ℝ := π / 2 - θ
+private def turnPt (θ : ℝ) : ℝ := π / 2 - θ
 
-private noncomputable def leftIntervals {n : ℕ}
-    (F : IntervalFamily n) (θ : ℝ) : Finset RealInterval :=
-  F.base.filter fun I ↦ I.2 ≤ turningPoint θ
+private noncomputable def leftIvls {n : ℕ}
+    (F : IvlFam n) (θ : ℝ) : Finset RealIvl :=
+  F.base.filter fun I ↦ I.2 ≤ turnPt θ
 
-private noncomputable def rightIntervals {n : ℕ}
-    (F : IntervalFamily n) (θ : ℝ) : Finset RealInterval :=
-  F.base.filter fun I ↦ turningPoint θ ≤ I.1
+private noncomputable def rightIvls {n : ℕ}
+    (F : IvlFam n) (θ : ℝ) : Finset RealIvl :=
+  F.base.filter fun I ↦ turnPt θ ≤ I.1
 
-private noncomputable def crossingIntervals {n : ℕ}
-    (F : IntervalFamily n) (θ : ℝ) : Finset RealInterval :=
-  F.base.filter fun I ↦ I.1 < turningPoint θ ∧ turningPoint θ < I.2
+private noncomputable def crossingIvls {n : ℕ}
+    (F : IvlFam n) (θ : ℝ) : Finset RealIvl :=
+  F.base.filter fun I ↦ I.1 < turnPt θ ∧ turnPt θ < I.2
 
 private lemma eta_pos {n : ℕ} (hn : 0 < n) : 0 < eta n :=
   div_pos (mul_pos (by norm_num) pi_pos) (by exact_mod_cast hn)
@@ -9403,9 +9381,9 @@ private lemma eta_le_pi_div_two {n : ℕ} (hn : 4096 ≤ n) :
   apply (div_le_iff₀ hnpos).2
   nlinarith [pi_pos]
 
-private lemma shifted_mem_band {n : ℕ} (F : IntervalFamily n)
+private lemma sh_mem_band {n : ℕ} (F : IvlFam n)
     {θ : ℝ} (hθ : θ ∈ Icc 0 (π / 2))
-    {I : RealInterval} (hI : I ∈ F.base) {x : ℝ}
+    {I : RealIvl} (hI : I ∈ F.base) {x : ℝ}
     (hx : x ∈ Icc I.1 I.2) :
     eta n ≤ x + θ ∧ x + θ ≤ π - eta n := by
   have haway := F.away_from_axes I hI
@@ -9417,29 +9395,29 @@ private lemma shifted_mem_band {n : ℕ} (F : IntervalFamily n)
         dsimp [eta]
         linarith [haway.2])
 
-private lemma sin_shifted_pos {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ}
+private lemma sin_sh_pos {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2))
-    {I : RealInterval} (hI : I ∈ F.base) {x : ℝ}
+    {I : RealIvl} (hI : I ∈ F.base) {x : ℝ}
     (hx : x ∈ Icc I.1 I.2) : 0 < sin (x + θ) := by
-  have hband := shifted_mem_band F hθ hI hx
+  have hband := sh_mem_band F hθ hI hx
   have heta := eta_pos hn
   exact sin_pos_of_pos_of_lt_pi (heta.trans_le hband.1)
     (by linarith [hband.2, heta])
 
-private lemma sin_pos_of_mem_shifted_interval {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ}
+private lemma sin_pos_of_mem_sh_ivl {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2))
-    {I : RealInterval} (hI : I ∈ F.base) {u : ℝ}
+    {I : RealIvl} (hI : I ∈ F.base) {u : ℝ}
     (hu : u ∈ Icc (I.1 + θ) (I.2 + θ)) :
     0 < sin u := by
   have hx : u - θ ∈ Icc I.1 I.2 := ⟨by linarith [hu.1], by linarith [hu.2]⟩
   simpa only [sub_add_cancel] using
-    sin_shifted_pos hn F hθ hI hx
+    sin_sh_pos hn F hθ hI hx
 
-private lemma endpointSeparated {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) :
-    Set.Pairwise (↑F.base : Set RealInterval)
+private lemma endptSep {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) :
+    Set.Pairwise (↑F.base : Set RealIvl)
       (fun I J ↦ I.2 ≤ J.1 ∨ J.2 ≤ I.1) := by
   intro I hI J hJ hne
   have hgrid : 0 < π / (n : ℝ) := by
@@ -9461,31 +9439,31 @@ private lemma endpointSeparated {n : ℕ} (hn : 0 < n)
     have : π / (n : ℝ) ≤ 0 := by simpa using hsep
     exact (not_le_of_gt hgrid) this
 
-private abbrev Interval := ℝ × ℝ
+private abbrev Ivl := ℝ × ℝ
 
-private lemma endpoint_variation_le_of_monotone
-    (s : Finset Interval) (f : ℝ → ℝ) (L U : ℝ)
+private lemma endpt_var_le_of_mono
+    (s : Finset Ivl) (f : ℝ → ℝ) (L U : ℝ)
     (hord : ∀ I ∈ s, I.1 < I.2)
     (hLU : L ≤ U)
     (hinside : ∀ I ∈ s, L ≤ I.1 ∧ I.2 ≤ U)
-    (hsep : Set.Pairwise (↑s : Set Interval)
+    (hsep : Set.Pairwise (↑s : Set Ivl)
       (fun I J ↦ I.2 ≤ J.1 ∨ J.2 ≤ I.1))
     (hmono : MonotoneOn f (Icc L U)) :
     ∑ I ∈ s, (f I.2 - f I.1) ≤ f U - f L := by
   classical
-  let t : Finset (Lex Interval) := s.image toLex
+  let t : Finset (Lex Ivl) := s.image toLex
   let m := t.card
   let e : Fin m ≃o ↥t := orderIsoOfFin t rfl
-  have emem (k : Fin m) : ofLex ((e k : ↥t) : Lex Interval) ∈ s := by
+  have emem (k : Fin m) : ofLex ((e k : ↥t) : Lex Ivl) ∈ s := by
     have hk := (e k).property
-    change ((e k : ↥t) : Lex Interval) ∈ s.image toLex at hk
+    change ((e k : ↥t) : Lex Ivl) ∈ s.image toLex at hk
     rw [Finset.mem_image] at hk
     rcases hk with ⟨I, hI, hEq⟩
     simpa [← hEq] using hI
   let A : ℕ → ℝ := fun k ↦
-    if hk : k < m then f (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Interval)).1 else f U
+    if hk : k < m then f (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Ivl)).1 else f U
   let B : ℕ → ℝ := fun k ↦
-    if hk : k < m then f (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Interval)).2 else f U
+    if hk : k < m then f (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Ivl)).2 else f U
   let E : ℕ → ℝ := fun k ↦ B k - A k
   have hchain : ∀ k < m, B k ≤ A (k + 1) := by
     intro k hk
@@ -9501,11 +9479,11 @@ private lemma endpoint_variation_le_of_monotone
             (hinside _ (emem ⟨k + 1, hks⟩)).2⟩
       have horder : e ⟨k, hk⟩ ≤ e ⟨k + 1, hks⟩ :=
         e.le_iff_le.mpr (by simp)
-      have hleft : (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Interval)).1 ≤
-          (ofLex ((e ⟨k + 1, hks⟩ : ↥t) : Lex Interval)).1 := by
+      have hleft : (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Ivl)).1 ≤
+          (ofLex ((e ⟨k + 1, hks⟩ : ↥t) : Lex Ivl)).1 := by
         exact (Prod.Lex.le_iff.mp horder).elim (fun h ↦ h.le) (fun h ↦ h.1.le)
-      have hne : ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Interval) ≠
-          ofLex ((e ⟨k + 1, hks⟩ : ↥t) : Lex Interval) := by
+      have hne : ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Ivl) ≠
+          ofLex ((e ⟨k + 1, hks⟩ : ↥t) : Lex Ivl) := by
         intro heq
         have heq' : e ⟨k, hk⟩ = e ⟨k + 1, hks⟩ := by
           apply Subtype.ext
@@ -9522,7 +9500,7 @@ private lemma endpoint_variation_le_of_monotone
           (hinside _ (emem ⟨k, hk⟩)).2⟩
         ⟨hLU, le_rfl⟩ (hinside _ (emem ⟨k, hk⟩)).2
   have htelescope :=
-    sum_interval_error_le_of_monotone_endpoints
+    sum_ivl_error_le_of_mono_endpts
       (n := 1) (m := m) (A := A) (B := B) (E := E) (by norm_num)
       (fun k hk ↦ by simp [E]) hchain
   have hsum : (∑ I ∈ s, (f I.2 - f I.1)) =
@@ -9532,19 +9510,19 @@ private lemma endpoint_variation_le_of_monotone
           ∑ J ∈ t, (f (ofLex J).2 - f (ofLex J).1) := by
             symm
             simpa [t] using (sum_image (s := s)
-              (f := fun J : Lex Interval ↦ f (ofLex J).2 - f (ofLex J).1)
+              (f := fun J : Lex Ivl ↦ f (ofLex J).2 - f (ofLex J).1)
               toLex.injective.injOn)
-      _ = ∑ J : ↥t, (f (ofLex (J.1 : Lex Interval)).2 -
-          f (ofLex (J.1 : Lex Interval)).1) := by
+      _ = ∑ J : ↥t, (f (ofLex (J.1 : Lex Ivl)).2 -
+          f (ofLex (J.1 : Lex Ivl)).1) := by
             symm
             exact (sum_subtype (M := ℝ) (s := t) (p := fun J ↦ J ∈ t)
-              (by simp) (fun J : Lex Interval ↦
+              (by simp) (fun J : Lex Ivl ↦
                 f (ofLex J).2 - f (ofLex J).1)).symm
-      _ = ∑ i : Fin m, (f (ofLex ((e i : ↥t) : Lex Interval)).2 -
-          f (ofLex ((e i : ↥t) : Lex Interval)).1) := by
+      _ = ∑ i : Fin m, (f (ofLex ((e i : ↥t) : Lex Ivl)).2 -
+          f (ofLex ((e i : ↥t) : Lex Ivl)).1) := by
             exact (e.toEquiv.sum_comp (fun J : ↥t ↦
-              f (ofLex (J.1 : Lex Interval)).2 -
-                f (ofLex (J.1 : Lex Interval)).1)).symm
+              f (ofLex (J.1 : Lex Ivl)).2 -
+                f (ofLex (J.1 : Lex Ivl)).1)).symm
       _ = ∑ i : Fin m, E i := by
             apply sum_congr rfl
             intro i _
@@ -9554,7 +9532,7 @@ private lemma endpoint_variation_le_of_monotone
   by_cases hm : m = 0
   · simpa [hm] using sub_nonneg.mpr (hmono ⟨le_rfl, hLU⟩ ⟨hLU, le_rfl⟩ hLU)
   · have hmpos : 0 < m := Nat.pos_of_ne_zero hm
-    have hA0 : A 0 = f (ofLex ((e ⟨0, hmpos⟩ : ↥t) : Lex Interval)).1 := by
+    have hA0 : A 0 = f (ofLex ((e ⟨0, hmpos⟩ : ↥t) : Lex Ivl)).1 := by
       simp [A, hmpos]
     have hAm : A m = f U := by simp [A]
     rw [hA0, hAm] at htelescope
@@ -9566,21 +9544,21 @@ private lemma endpoint_variation_le_of_monotone
             (hinside _ (emem ⟨0, hmpos⟩)).2⟩
         (hinside _ (emem ⟨0, hmpos⟩)).1) _)
 
-private lemma endpoint_variation_le_of_antitone
-    (s : Finset Interval) (f : ℝ → ℝ) (L U : ℝ)
+private lemma endpt_var_le_of_anti
+    (s : Finset Ivl) (f : ℝ → ℝ) (L U : ℝ)
     (hord : ∀ I ∈ s, I.1 < I.2)
     (hLU : L ≤ U)
     (hinside : ∀ I ∈ s, L ≤ I.1 ∧ I.2 ≤ U)
-    (hsep : Set.Pairwise (↑s : Set Interval)
+    (hsep : Set.Pairwise (↑s : Set Ivl)
       (fun I J ↦ I.2 ≤ J.1 ∨ J.2 ≤ I.1))
     (hanti : AntitoneOn f (Icc L U)) :
     ∑ I ∈ s, (f I.1 - f I.2) ≤ f L - f U := by
-  have h := endpoint_variation_le_of_monotone s (-f) L U hord hLU hinside hsep
+  have h := endpt_var_le_of_mono s (-f) L U hord hLU hinside hsep
     (fun _ hx _ hy hxy ↦ neg_le_neg (hanti hx hy hxy))
   simpa only [Pi.neg_apply, neg_sub_neg] using h
 
-private lemma endpoint_cos_eq {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ} {I : RealInterval}
+private lemma endpt_cos_eq {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ} {I : RealIvl}
     (hI : I ∈ F.base) :
     cos ((2 * (n : ℝ)) * (I.2 + θ)) =
       cos ((2 * (n : ℝ)) * (I.1 + θ)) := by
@@ -9595,15 +9573,15 @@ private lemma endpoint_cos_eq {n : ℕ} (hn : 0 < n)
   rw [hphase a, hphase b, cos_add_int_mul_two_pi,
     cos_add_int_mul_two_pi]
 
-private lemma shifted_integral_eq {n : ℕ} (I : RealInterval) (θ : ℝ) :
-    reflectedIntegral n I θ =
+private lemma sh_intg_eq {n : ℕ} (I : RealIvl) (θ : ℝ) :
+    reflIntg n I θ =
       ∫ u in I.1 + θ..I.2 + θ,
         (sin u)⁻¹ * sin ((2 * (n : ℝ)) * u) := by
   have hshift := integral_comp_add_right
     (fun u : ℝ ↦ (sin u)⁻¹ * sin ((2 * (n : ℝ)) * u))
     θ (a := I.1) (b := I.2)
   rw [← hshift]
-  unfold reflectedIntegral
+  unfold reflIntg
   apply intervalIntegral.integral_congr
   intro x hx
   simp only [Nat.cast_mul, Nat.cast_ofNat]
@@ -9611,212 +9589,212 @@ private lemma shifted_integral_eq {n : ℕ} (I : RealInterval) (θ : ℝ) :
   ring
 
 private lemma local_left_bound {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n) {θ : ℝ}
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2))
-    {I : RealInterval} (hI : I ∈ leftIntervals F θ) :
-    |reflectedIntegral n I θ| ≤
-      (amplitude θ I.1 - amplitude θ I.2) / n := by
+    {I : RealIvl} (hI : I ∈ leftIvls F θ) :
+    |reflIntg n I θ| ≤
+      (amp θ I.1 - amp θ I.2) / n := by
   have hn0 : 0 < n := lt_of_lt_of_le (by norm_num) hn
   have hbase : I ∈ F.base := (mem_filter.mp hI).1
-  have hside : I.2 ≤ turningPoint θ := (mem_filter.mp hI).2
+  have hside : I.2 ≤ turnPt θ := (mem_filter.mp hI).2
   have hab : I.1 + θ ≤ I.2 + θ := by
     linarith [F.ordered I hbase]
   have hderiv : ∀ u ∈ Icc (I.1 + θ) (I.2 + θ),
       HasDerivAt sin⁻¹ (-cos u / sin u ^ 2) u := by
     intro u hu
     exact (hasDerivAt_sin u).inv
-      (ne_of_gt (sin_pos_of_mem_shifted_interval hn0 F hθ hbase hu))
+      (ne_of_gt (sin_pos_of_mem_sh_ivl hn0 F hθ hbase hu))
   have hcont : ContinuousOn (fun u : ℝ ↦ -cos u / sin u ^ 2)
       (Icc (I.1 + θ) (I.2 + θ)) := by
     intro u hu
     have hsin : sin u ≠ 0 := ne_of_gt
-      (sin_pos_of_mem_shifted_interval hn0 F hθ hbase hu)
+      (sin_pos_of_mem_sh_ivl hn0 F hθ hbase hu)
     exact ((continuous_cos.continuousAt.neg).div
       (continuous_sin.continuousAt.pow 2) (pow_ne_zero 2 hsin)).continuousWithinAt
   have hnonpos : ∀ u ∈ Icc (I.1 + θ) (I.2 + θ),
       -cos u / sin u ^ 2 ≤ 0 := by
     intro u hu
     have huHalf : u ≤ π / 2 := by
-      dsimp [turningPoint] at hside
+      dsimp [turnPt] at hside
       linarith [hu.2]
     have huNonneg : -(π / 2) ≤ u := by
       have hx : u - θ ∈ Icc I.1 I.2 :=
         ⟨by linarith [hu.1], by linarith [hu.2]⟩
-      have hband := shifted_mem_band F hθ hbase hx
+      have hband := sh_mem_band F hθ hbase hx
       linarith [hband.1, eta_pos hn0, pi_pos]
     exact div_nonpos_of_nonpos_of_nonneg
       (neg_nonpos.mpr (cos_nonneg_of_mem_Icc ⟨huNonneg, huHalf⟩))
       (sq_nonneg _)
-  have hosc := abs_integral_mul_sin_le_of_deriv_nonpos
+  have hosc := abs_intg_mul_sin_le_of_deriv_nonpos
     (h := sin⁻¹) (h' := fun u : ℝ ↦ -cos u / sin u ^ 2)
-    hn0 hab hderiv hcont hnonpos (endpoint_cos_eq hn0 F hbase)
-  rw [shifted_integral_eq]
-  have hamp : amplitude θ I.2 ≤ amplitude θ I.1 := by
+    hn0 hab hderiv hcont hnonpos (endpt_cos_eq hn0 F hbase)
+  rw [sh_intg_eq]
+  have hamp : amp θ I.2 ≤ amp θ I.1 := by
     have hsinA : 0 < sin (I.1 + θ) :=
-      sin_shifted_pos hn0 F hθ hbase ⟨le_rfl, F.ordered I hbase⟩
-    have hbandA := shifted_mem_band F hθ hbase
+      sin_sh_pos hn0 F hθ hbase ⟨le_rfl, F.ordered I hbase⟩
+    have hbandA := sh_mem_band F hθ hbase
       ⟨le_rfl, F.ordered I hbase⟩
     have hsinmono : sin (I.1 + θ) ≤ sin (I.2 + θ) :=
       sin_le_sin_of_le_of_le_pi_div_two
         (by linarith [hbandA.1, eta_pos hn0, pi_pos])
-        (by dsimp [turningPoint] at hside; linarith)
+        (by dsimp [turnPt] at hside; linarith)
         (by linarith [F.ordered I hbase])
-    simpa only [amplitude, one_div] using
+    simpa only [amp, one_div] using
       one_div_le_one_div_of_le hsinA hsinmono
   change |∫ u in I.1 + θ..I.2 + θ,
       (sin u)⁻¹ * sin ((2 * (n : ℝ)) * u)| ≤
     |(sin (I.2 + θ))⁻¹ - (sin (I.1 + θ))⁻¹| / n at hosc
   have hamp' : (sin (I.2 + θ))⁻¹ ≤
-      (sin (I.1 + θ))⁻¹ := by simpa only [amplitude] using hamp
+      (sin (I.1 + θ))⁻¹ := by simpa only [amp] using hamp
   rw [abs_of_nonpos (sub_nonpos.mpr hamp')] at hosc
-  simpa only [amplitude, neg_sub] using hosc
+  simpa only [amp, neg_sub] using hosc
 
 private lemma local_right_bound {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n) {θ : ℝ}
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2))
-    {I : RealInterval} (hI : I ∈ rightIntervals F θ) :
-    |reflectedIntegral n I θ| ≤
-      (amplitude θ I.2 - amplitude θ I.1) / n := by
+    {I : RealIvl} (hI : I ∈ rightIvls F θ) :
+    |reflIntg n I θ| ≤
+      (amp θ I.2 - amp θ I.1) / n := by
   have hn0 : 0 < n := lt_of_lt_of_le (by norm_num) hn
   have hbase : I ∈ F.base := (mem_filter.mp hI).1
-  have hside : turningPoint θ ≤ I.1 := (mem_filter.mp hI).2
+  have hside : turnPt θ ≤ I.1 := (mem_filter.mp hI).2
   have hab : I.1 + θ ≤ I.2 + θ := by
     linarith [F.ordered I hbase]
   have hderiv : ∀ u ∈ Icc (I.1 + θ) (I.2 + θ),
       HasDerivAt sin⁻¹ (-cos u / sin u ^ 2) u := by
     intro u hu
     exact (hasDerivAt_sin u).inv
-      (ne_of_gt (sin_pos_of_mem_shifted_interval hn0 F hθ hbase hu))
+      (ne_of_gt (sin_pos_of_mem_sh_ivl hn0 F hθ hbase hu))
   have hcont : ContinuousOn (fun u : ℝ ↦ -cos u / sin u ^ 2)
       (Icc (I.1 + θ) (I.2 + θ)) := by
     intro u hu
     have hsin : sin u ≠ 0 := ne_of_gt
-      (sin_pos_of_mem_shifted_interval hn0 F hθ hbase hu)
+      (sin_pos_of_mem_sh_ivl hn0 F hθ hbase hu)
     exact ((continuous_cos.continuousAt.neg).div
       (continuous_sin.continuousAt.pow 2) (pow_ne_zero 2 hsin)).continuousWithinAt
   have hnonneg : ∀ u ∈ Icc (I.1 + θ) (I.2 + θ),
       0 ≤ -cos u / sin u ^ 2 := by
     intro u hu
     have huHalf : π / 2 ≤ u := by
-      dsimp [turningPoint] at hside
+      dsimp [turnPt] at hside
       linarith [hu.1]
     have huTop : u ≤ π + π / 2 := by
       have hx : u - θ ∈ Icc I.1 I.2 :=
         ⟨by linarith [hu.1], by linarith [hu.2]⟩
-      have hband := shifted_mem_band F hθ hbase hx
+      have hband := sh_mem_band F hθ hbase hx
       linarith [hband.2, eta_pos hn0, pi_pos]
     exact div_nonneg (neg_nonneg.mpr
       (Real.cos_nonpos_of_pi_div_two_le_of_le huHalf huTop)) (sq_nonneg _)
-  have hosc := abs_integral_mul_sin_le_of_deriv_nonneg
+  have hosc := abs_intg_mul_sin_le_of_deriv_nonneg
     (h := sin⁻¹) (h' := fun u : ℝ ↦ -cos u / sin u ^ 2)
-    hn0 hab hderiv hcont hnonneg (endpoint_cos_eq hn0 F hbase)
-  rw [shifted_integral_eq]
-  have hamp : amplitude θ I.1 ≤ amplitude θ I.2 := by
+    hn0 hab hderiv hcont hnonneg (endpt_cos_eq hn0 F hbase)
+  rw [sh_intg_eq]
+  have hamp : amp θ I.1 ≤ amp θ I.2 := by
     have hsinB : 0 < sin (I.2 + θ) :=
-      sin_shifted_pos hn0 F hθ hbase ⟨F.ordered I hbase, le_rfl⟩
+      sin_sh_pos hn0 F hθ hbase ⟨F.ordered I hbase, le_rfl⟩
     have hcompOrder : π - (I.2 + θ) ≤
         π - (I.1 + θ) := by linarith [F.ordered I hbase]
     have hcompTop : π - (I.1 + θ) ≤ π / 2 := by
-      dsimp [turningPoint] at hside
+      dsimp [turnPt] at hside
       linarith
     have hcompLow : -(π / 2) ≤ π - (I.2 + θ) := by
-      have hband := shifted_mem_band F hθ hbase
+      have hband := sh_mem_band F hθ hbase
         ⟨F.ordered I hbase, le_rfl⟩
       linarith [hband.2, eta_pos hn0, pi_pos]
     have hsinmono := sin_le_sin_of_le_of_le_pi_div_two
       hcompLow hcompTop hcompOrder
     rw [sin_pi_sub, sin_pi_sub] at hsinmono
-    simpa only [amplitude, one_div] using
+    simpa only [amp, one_div] using
       one_div_le_one_div_of_le hsinB hsinmono
   change |∫ u in I.1 + θ..I.2 + θ,
       (sin u)⁻¹ * sin ((2 * (n : ℝ)) * u)| ≤
     |(sin (I.2 + θ))⁻¹ - (sin (I.1 + θ))⁻¹| / n at hosc
   have hamp' : (sin (I.1 + θ))⁻¹ ≤
-      (sin (I.2 + θ))⁻¹ := by simpa only [amplitude] using hamp
+      (sin (I.2 + θ))⁻¹ := by simpa only [amp] using hamp
   rw [abs_of_nonneg (sub_nonneg.mpr hamp')] at hosc
-  simpa only [amplitude] using hosc
+  simpa only [amp] using hosc
 
-private lemma amplitude_antitone_left {n : ℕ} (hn : 4096 ≤ n)
+private lemma amp_anti_left {n : ℕ} (hn : 4096 ≤ n)
     {θ : ℝ} (hθ : θ ∈ Icc 0 (π / 2))
-    (hbranch : eta n ≤ turningPoint θ) :
-    AntitoneOn (amplitude θ) (Icc (eta n) (turningPoint θ)) := by
+    (hbranch : eta n ≤ turnPt θ) :
+    AntitoneOn (amp θ) (Icc (eta n) (turnPt θ)) := by
   intro x hx y hy hxy
   have hn0 : 0 < n := lt_of_lt_of_le (by norm_num) hn
   have hsinX : 0 < sin (x + θ) := by
     apply sin_pos_of_pos_of_lt_pi
     · linarith [hx.1, eta_pos hn0, hθ.1]
-    · dsimp [turningPoint] at hy
+    · dsimp [turnPt] at hy
       linarith [hy.2, pi_pos]
   have hsinmono : sin (x + θ) ≤ sin (y + θ) :=
     sin_le_sin_of_le_of_le_pi_div_two
       (by linarith [hx.1, eta_pos hn0, hθ.1, pi_pos])
-      (by dsimp [turningPoint] at hy; linarith [hy.2])
+      (by dsimp [turnPt] at hy; linarith [hy.2])
       (by linarith)
-  simpa only [amplitude, one_div] using
+  simpa only [amp, one_div] using
     one_div_le_one_div_of_le hsinX hsinmono
 
-private lemma amplitude_monotone_right {n : ℕ} (hn : 4096 ≤ n)
+private lemma amp_mono_right {n : ℕ} (hn : 4096 ≤ n)
     {θ : ℝ} (hθ : θ ∈ Icc 0 (π / 2))
-    (hbranch : turningPoint θ ≤ π / 2 - eta n) :
-    MonotoneOn (amplitude θ)
-      (Icc (turningPoint θ) (π / 2 - eta n)) := by
+    (hbranch : turnPt θ ≤ π / 2 - eta n) :
+    MonotoneOn (amp θ)
+      (Icc (turnPt θ) (π / 2 - eta n)) := by
   intro x hx y hy hxy
   have hn0 : 0 < n := lt_of_lt_of_le (by norm_num) hn
   have hsinY : 0 < sin (y + θ) := by
     apply sin_pos_of_pos_of_lt_pi
-    · dsimp [turningPoint] at hx
+    · dsimp [turnPt] at hx
       linarith [hx.1, pi_pos]
     · linarith [hy.2, eta_pos hn0, hθ.2]
   have hcompOrder : π - (y + θ) ≤ π - (x + θ) := by
     linarith
   have hcompTop : π - (x + θ) ≤ π / 2 := by
-    dsimp [turningPoint] at hx
+    dsimp [turnPt] at hx
     linarith [hx.1]
   have hcompLow : -(π / 2) ≤ π - (y + θ) := by
     linarith [hy.2, eta_pos hn0, hθ.2, pi_pos]
   have hsinmono := sin_le_sin_of_le_of_le_pi_div_two
     hcompLow hcompTop hcompOrder
   rw [sin_pi_sub, sin_pi_sub] at hsinmono
-  simpa only [amplitude, one_div] using
+  simpa only [amp, one_div] using
     one_div_le_one_div_of_le hsinY hsinmono
 
 private lemma sum_left_le {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n) {θ : ℝ}
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I ∈ leftIntervals F θ, |reflectedIntegral n I θ| ≤
+    ∑ I ∈ leftIvls F θ, |reflIntg n I θ| ≤
       1 / ((n : ℝ) * sin (eta n)) := by
   classical
   have hn0 : 0 < n := lt_of_lt_of_le (by norm_num) hn
-  by_cases hbranch : eta n ≤ turningPoint θ
-  · have hvar := endpoint_variation_le_of_antitone
-      (leftIntervals F θ) (amplitude θ) (eta n) (turningPoint θ)
+  by_cases hbranch : eta n ≤ turnPt θ
+  · have hvar := endpt_var_le_of_anti
+      (leftIvls F θ) (amp θ) (eta n) (turnPt θ)
       (fun I hI ↦ F.nondegenerate I (mem_filter.mp hI).1)
       hbranch
       (fun I hI ↦ ⟨(F.away_from_axes I (mem_filter.mp hI).1).1,
         (mem_filter.mp hI).2⟩)
-      (fun I hI J hJ hne ↦ endpointSeparated hn0 F
+      (fun I hI J hJ hne ↦ endptSep hn0 F
         (mem_filter.mp hI).1 (mem_filter.mp hJ).1 hne)
-      (amplitude_antitone_left hn hθ hbranch)
-    have hturn : amplitude θ (turningPoint θ) = 1 := by
-      simp [amplitude, turningPoint]
-    have hampEta : amplitude θ (eta n) ≤ 1 / sin (eta n) := by
+      (amp_anti_left hn hθ hbranch)
+    have hturn : amp θ (turnPt θ) = 1 := by
+      simp [amp, turnPt]
+    have hampEta : amp θ (eta n) ≤ 1 / sin (eta n) := by
       have hsineta : 0 < sin (eta n) :=
         sin_pos_of_pos_of_lt_pi (eta_pos hn0)
           ((eta_le_pi_div_two hn).trans_lt (by linarith [pi_pos]))
       have hsinmono : sin (eta n) ≤ sin (eta n + θ) :=
         sin_le_sin_of_le_of_le_pi_div_two
           (by linarith [eta_pos hn0, pi_pos])
-          (by dsimp [turningPoint] at hbranch; linarith)
+          (by dsimp [turnPt] at hbranch; linarith)
           (by linarith [hθ.1])
-      simpa only [amplitude, one_div] using
+      simpa only [amp, one_div] using
         one_div_le_one_div_of_le hsineta hsinmono
     calc
-      ∑ I ∈ leftIntervals F θ, |reflectedIntegral n I θ| ≤
-          ∑ I ∈ leftIntervals F θ,
-            (amplitude θ I.1 - amplitude θ I.2) / n :=
+      ∑ I ∈ leftIvls F θ, |reflIntg n I θ| ≤
+          ∑ I ∈ leftIvls F θ,
+            (amp θ I.1 - amp θ I.2) / n :=
         sum_le_sum fun I hI ↦ local_left_bound hn F hθ hI
-      _ = (∑ I ∈ leftIntervals F θ,
-            (amplitude θ I.1 - amplitude θ I.2)) / n := by
+      _ = (∑ I ∈ leftIvls F θ,
+            (amp θ I.1 - amp θ I.2)) / n := by
         rw [sum_div]
       _ ≤ (1 / sin (eta n)) / n := by
         apply (div_le_div_iff_of_pos_right (by exact_mod_cast hn0)).2
@@ -9824,14 +9802,14 @@ private lemma sum_left_le {n : ℕ} (hn : 4096 ≤ n)
         linarith
       _ = 1 / ((n : ℝ) * sin (eta n)) := by
         field_simp [show (n : ℝ) ≠ 0 by exact_mod_cast Nat.ne_of_gt hn0]
-  · have hempty : leftIntervals F θ = ∅ := by
+  · have hempty : leftIvls F θ = ∅ := by
       apply Finset.eq_empty_iff_forall_notMem.mpr
       intro I hmem
       have hI := (mem_filter.mp hmem).1
       have hside := (mem_filter.mp hmem).2
       have haway := (F.away_from_axes I hI).1
       have hstrict := F.nondegenerate I hI
-      dsimp [eta, turningPoint] at hbranch hside
+      dsimp [eta, turnPt] at hbranch hside
       linarith
     rw [hempty]
     simp
@@ -9842,26 +9820,26 @@ private lemma sum_left_le {n : ℕ} (hn : 4096 ≤ n)
       (inv_nonneg.mpr (show (0 : ℝ) ≤ n by positivity))
 
 private lemma sum_right_le {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n) {θ : ℝ}
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I ∈ rightIntervals F θ, |reflectedIntegral n I θ| ≤
+    ∑ I ∈ rightIvls F θ, |reflIntg n I θ| ≤
       1 / ((n : ℝ) * sin (eta n)) := by
   classical
   have hn0 : 0 < n := lt_of_lt_of_le (by norm_num) hn
-  by_cases hbranch : turningPoint θ ≤ π / 2 - eta n
-  · have hvar := endpoint_variation_le_of_monotone
-      (rightIntervals F θ) (amplitude θ) (turningPoint θ)
+  by_cases hbranch : turnPt θ ≤ π / 2 - eta n
+  · have hvar := endpt_var_le_of_mono
+      (rightIvls F θ) (amp θ) (turnPt θ)
         (π / 2 - eta n)
       (fun I hI ↦ F.nondegenerate I (mem_filter.mp hI).1)
       hbranch
       (fun I hI ↦ ⟨(mem_filter.mp hI).2,
         (F.away_from_axes I (mem_filter.mp hI).1).2⟩)
-      (fun I hI J hJ hne ↦ endpointSeparated hn0 F
+      (fun I hI J hJ hne ↦ endptSep hn0 F
         (mem_filter.mp hI).1 (mem_filter.mp hJ).1 hne)
-      (amplitude_monotone_right hn hθ hbranch)
-    have hturn : amplitude θ (turningPoint θ) = 1 := by
-      simp [amplitude, turningPoint]
-    have hampU : amplitude θ (π / 2 - eta n) ≤
+      (amp_mono_right hn hθ hbranch)
+    have hturn : amp θ (turnPt θ) = 1 := by
+      simp [amp, turnPt]
+    have hampU : amp θ (π / 2 - eta n) ≤
         1 / sin (eta n) := by
       have hsineta : 0 < sin (eta n) :=
         sin_pos_of_pos_of_lt_pi (eta_pos hn0)
@@ -9871,22 +9849,22 @@ private lemma sum_right_le {n : ℕ} (hn : 4096 ≤ n)
         linarith [hθ.2]
       have hcompTop : π - ((π / 2 - eta n) + θ) ≤
           π / 2 := by
-        dsimp [turningPoint] at hbranch
+        dsimp [turnPt] at hbranch
         linarith
       have hsinmono := sin_le_sin_of_le_of_le_pi_div_two
         (x := eta n)
         (y := π - ((π / 2 - eta n) + θ))
         (by linarith [eta_pos hn0, pi_pos]) hcompTop hcompOrder
       rw [sin_pi_sub] at hsinmono
-      simpa only [amplitude, one_div] using
+      simpa only [amp, one_div] using
         one_div_le_one_div_of_le hsineta hsinmono
     calc
-      ∑ I ∈ rightIntervals F θ, |reflectedIntegral n I θ| ≤
-          ∑ I ∈ rightIntervals F θ,
-            (amplitude θ I.2 - amplitude θ I.1) / n :=
+      ∑ I ∈ rightIvls F θ, |reflIntg n I θ| ≤
+          ∑ I ∈ rightIvls F θ,
+            (amp θ I.2 - amp θ I.1) / n :=
         sum_le_sum fun I hI ↦ local_right_bound hn F hθ hI
-      _ = (∑ I ∈ rightIntervals F θ,
-            (amplitude θ I.2 - amplitude θ I.1)) / n := by
+      _ = (∑ I ∈ rightIvls F θ,
+            (amp θ I.2 - amp θ I.1)) / n := by
         rw [sum_div]
       _ ≤ (1 / sin (eta n)) / n := by
         apply (div_le_div_iff_of_pos_right (by exact_mod_cast hn0)).2
@@ -9894,14 +9872,14 @@ private lemma sum_right_le {n : ℕ} (hn : 4096 ≤ n)
         linarith
       _ = 1 / ((n : ℝ) * sin (eta n)) := by
         field_simp [show (n : ℝ) ≠ 0 by exact_mod_cast Nat.ne_of_gt hn0]
-  · have hempty : rightIntervals F θ = ∅ := by
+  · have hempty : rightIvls F θ = ∅ := by
       apply Finset.eq_empty_iff_forall_notMem.mpr
       intro I hmem
       have hI := (mem_filter.mp hmem).1
       have hside := (mem_filter.mp hmem).2
       have haway := (F.away_from_axes I hI).2
       have hstrict := F.nondegenerate I hI
-      dsimp [eta, turningPoint] at hbranch hside
+      dsimp [eta, turnPt] at hbranch hside
       linarith
     rw [hempty]
     simp
@@ -9911,11 +9889,11 @@ private lemma sum_right_le {n : ℕ} (hn : 4096 ≤ n)
     exact mul_nonneg (inv_nonneg.mpr hsineta.le)
       (inv_nonneg.mpr (show (0 : ℝ) ≤ n by positivity))
 
-private lemma crossing_pointwise_bound {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n) {θ : ℝ}
+private lemma crossing_ptwise_bound {n : ℕ} (hn : 4096 ≤ n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2))
-    {I : RealInterval} (hI : I ∈ crossingIntervals F θ) :
-    |reflectedIntegral n I θ| ≤ 12 * π / n := by
+    {I : RealIvl} (hI : I ∈ crossingIvls F θ) :
+    |reflIntg n I θ| ≤ 12 * π / n := by
   have hn0 : 0 < n := lt_of_lt_of_le (by norm_num) hn
   have hnR : (4096 : ℝ) ≤ n := by exact_mod_cast hn
   have hnRpos : (0 : ℝ) < n := by exact_mod_cast hn0
@@ -9930,7 +9908,7 @@ private lemma crossing_pointwise_bound {n : ℕ} (hn : 4096 ≤ n)
       have hxI : x ∈ Icc I.1 I.2 := ⟨hx.1.le, hx.2⟩
       have hdist : |(x + θ) - π / 2| ≤ 6 * π / n := by
         have hwidth := F.short I hbase
-        dsimp [turningPoint] at hcross
+        dsimp [turnPt] at hcross
         rw [abs_le]
         constructor <;> linarith [hxI.1, hxI.2]
       have hsmall : |(x + θ) - π / 2| ≤ 1 := by
@@ -9953,7 +9931,7 @@ private lemma crossing_pointwise_bound {n : ℕ} (hn : 4096 ≤ n)
       apply (div_le_iff₀ (by linarith : 0 < sin (x + θ))).2
       nlinarith [abs_sin_le_one
         (((2 * n : ℕ) : ℝ) * (x + θ))])
-  unfold reflectedIntegral
+  unfold reflIntg
   rw [norm_eq_abs] at hnorm
   calc
     |∫ x in I.1..I.2,
@@ -9967,8 +9945,8 @@ private lemma crossing_pointwise_bound {n : ℕ} (hn : 4096 ≤ n)
     _ = 12 * π / n := by ring
 
 private lemma card_crossing_le_one {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) (θ : ℝ) :
-    (crossingIntervals F θ).card ≤ 1 := by
+    (F : IvlFam n) (θ : ℝ) :
+    (crossingIvls F θ).card ≤ 1 := by
   classical
   rw [card_le_one]
   intro I hI J hJ
@@ -9977,8 +9955,8 @@ private lemma card_crossing_le_one {n : ℕ} (hn : 0 < n)
   by_contra hne
   have hcrossI := (mem_filter.mp hI).2
   have hcrossJ := (mem_filter.mp hJ).2
-  have hsep := F.separated hbaseI hbaseJ hne (turningPoint θ)
-    ⟨hcrossI.1.le, hcrossI.2.le⟩ (turningPoint θ)
+  have hsep := F.separated hbaseI hbaseJ hne (turnPt θ)
+    ⟨hcrossI.1.le, hcrossI.2.le⟩ (turnPt θ)
     ⟨hcrossJ.1.le, hcrossJ.2.le⟩
   have hpi : 0 < π / (n : ℝ) :=
     div_pos pi_pos (by exact_mod_cast hn)
@@ -9986,39 +9964,39 @@ private lemma card_crossing_le_one {n : ℕ} (hn : 0 < n)
   exact (not_le_of_gt hpi) this
 
 private lemma sum_crossing_le {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n) {θ : ℝ}
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I ∈ crossingIntervals F θ, |reflectedIntegral n I θ| ≤
+    ∑ I ∈ crossingIvls F θ, |reflIntg n I θ| ≤
       12 * π / n := by
   have hn0 : 0 < n := lt_of_lt_of_le (by norm_num) hn
   calc
-    ∑ I ∈ crossingIntervals F θ, |reflectedIntegral n I θ| ≤
-        ∑ _I ∈ crossingIntervals F θ, 12 * π / n :=
-      sum_le_sum fun I hI ↦ crossing_pointwise_bound hn F hθ hI
-    _ = ((crossingIntervals F θ).card : ℝ) * (12 * π / n) := by simp
+    ∑ I ∈ crossingIvls F θ, |reflIntg n I θ| ≤
+        ∑ _I ∈ crossingIvls F θ, 12 * π / n :=
+      sum_le_sum fun I hI ↦ crossing_ptwise_bound hn F hθ hI
+    _ = ((crossingIvls F θ).card : ℝ) * (12 * π / n) := by simp
     _ ≤ 1 * (12 * π / n) := by
       gcongr
       exact_mod_cast card_crossing_le_one hn0 F θ
     _ = 12 * π / n := one_mul _
 
-private lemma base_partition {n : ℕ} (F : IntervalFamily n) (θ : ℝ) :
-    F.base = (leftIntervals F θ ∪ rightIntervals F θ) ∪
-      crossingIntervals F θ := by
+private lemma base_part {n : ℕ} (F : IvlFam n) (θ : ℝ) :
+    F.base = (leftIvls F θ ∪ rightIvls F θ) ∪
+      crossingIvls F θ := by
   classical
   ext I
-  simp only [leftIntervals, rightIntervals, crossingIntervals, mem_filter,
+  simp only [leftIvls, rightIvls, crossingIvls, mem_filter,
     Finset.mem_union]
   constructor
   · intro hI
-    by_cases hleft : I.2 ≤ turningPoint θ
+    by_cases hleft : I.2 ≤ turnPt θ
     · exact Or.inl (Or.inl ⟨hI, hleft⟩)
-    · by_cases hright : turningPoint θ ≤ I.1
+    · by_cases hright : turnPt θ ≤ I.1
       · exact Or.inl (Or.inr ⟨hI, hright⟩)
       · exact Or.inr ⟨hI, lt_of_not_ge hright, lt_of_not_ge hleft⟩
   · rintro ((⟨hI, _⟩ | ⟨hI, _⟩) | ⟨hI, _⟩) <;> exact hI
 
-private lemma disjoint_left_right {n : ℕ} (F : IntervalFamily n)
-    (θ : ℝ) : Disjoint (leftIntervals F θ) (rightIntervals F θ) := by
+private lemma disjoint_left_right {n : ℕ} (F : IvlFam n)
+    (θ : ℝ) : Disjoint (leftIvls F θ) (rightIvls F θ) := by
   classical
   rw [Finset.disjoint_left]
   intro I hleft hright
@@ -10026,10 +10004,10 @@ private lemma disjoint_left_right {n : ℕ} (F : IntervalFamily n)
   have hstrict := F.nondegenerate I hbase
   linarith [(mem_filter.mp hleft).2, (mem_filter.mp hright).2]
 
-private lemma disjoint_sides_crossing {n : ℕ} (F : IntervalFamily n)
+private lemma disjoint_sides_crossing {n : ℕ} (F : IvlFam n)
     (θ : ℝ) :
-    Disjoint (leftIntervals F θ ∪ rightIntervals F θ)
-      (crossingIntervals F θ) := by
+    Disjoint (leftIvls F θ ∪ rightIvls F θ)
+      (crossingIvls F θ) := by
   classical
   rw [Finset.disjoint_left]
   intro I hsides hcross
@@ -10039,15 +10017,15 @@ private lemma disjoint_sides_crossing {n : ℕ} (F : IntervalFamily n)
   · linarith [(mem_filter.mp hleft).2, hc.2]
   · linarith [(mem_filter.mp hright).2, hc.1]
 
-theorem sum_abs_reflectedIntegral_le {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n) {θ : ℝ}
+theorem sum_abs_reflIntg_le {n : ℕ} (hn : 4096 ≤ n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I : ↥F.base, |reflectedIntegral n I.1 θ| ≤
+    ∑ I : ↥F.base, |reflIntg n I.1 θ| ≤
       2 / ((n : ℝ) * sin (100 * π / n)) + 12 * π / n := by
   classical
   rw [← sum_subtype F.base (by simp)
-    (fun I ↦ |reflectedIntegral n I θ|)]
-  rw [base_partition F θ,
+    (fun I ↦ |reflIntg n I θ|)]
+  rw [base_part F θ,
     sum_union (disjoint_sides_crossing F θ),
     sum_union (disjoint_left_right F θ)]
   have hleft := sum_left_le hn F hθ
@@ -10055,9 +10033,9 @@ theorem sum_abs_reflectedIntegral_le {n : ℕ} (hn : 4096 ≤ n)
   have hcross := sum_crossing_le hn F hθ
   dsimp [eta] at hleft hright
   calc
-    (∑ I ∈ leftIntervals F θ, |reflectedIntegral n I θ|) +
-          (∑ I ∈ rightIntervals F θ, |reflectedIntegral n I θ|) +
-        ∑ I ∈ crossingIntervals F θ, |reflectedIntegral n I θ| ≤
+    (∑ I ∈ leftIvls F θ, |reflIntg n I θ|) +
+          (∑ I ∈ rightIvls F θ, |reflIntg n I θ|) +
+        ∑ I ∈ crossingIvls F θ, |reflIntg n I θ| ≤
       1 / ((n : ℝ) * sin (100 * π / n)) +
         1 / ((n : ℝ) * sin (100 * π / n)) +
           12 * π / n := by linarith
@@ -10066,7 +10044,7 @@ theorem sum_abs_reflectedIntegral_le {n : ℕ} (hn : 4096 ≤ n)
 
 end
 
-end KernelReflectedClaim
+end KernelReflClaim
 
 end
 
@@ -10081,31 +10059,31 @@ noncomputable section
 
 open OddSine
 
-private abbrev Interval := ℝ × ℝ
+private abbrev Ivl := ℝ × ℝ
 
-theorem endpoint_variation_le_of_monotone
-    (s : Finset Interval) (f : ℝ → ℝ) (L U : ℝ)
+theorem endpt_var_le_of_mono
+    (s : Finset Ivl) (f : ℝ → ℝ) (L U : ℝ)
     (hord : ∀ I ∈ s, I.1 < I.2)
     (hLU : L ≤ U)
     (hinside : ∀ I ∈ s, L ≤ I.1 ∧ I.2 ≤ U)
-    (hsep : Set.Pairwise (↑s : Set Interval)
+    (hsep : Set.Pairwise (↑s : Set Ivl)
       (fun I J ↦ I.2 ≤ J.1 ∨ J.2 ≤ I.1))
     (hmono : MonotoneOn f (Icc L U)) :
     ∑ I ∈ s, (f I.2 - f I.1) ≤ f U - f L := by
   classical
-  let t : Finset (Lex Interval) := s.image toLex
+  let t : Finset (Lex Ivl) := s.image toLex
   let m := t.card
   let e : Fin m ≃o ↥t := orderIsoOfFin t rfl
-  have emem (k : Fin m) : ofLex ((e k : ↥t) : Lex Interval) ∈ s := by
+  have emem (k : Fin m) : ofLex ((e k : ↥t) : Lex Ivl) ∈ s := by
     have hk := (e k).property
-    change ((e k : ↥t) : Lex Interval) ∈ s.image toLex at hk
+    change ((e k : ↥t) : Lex Ivl) ∈ s.image toLex at hk
     rw [Finset.mem_image] at hk
     rcases hk with ⟨I, hI, hEq⟩
     simpa [← hEq] using hI
   let A : ℕ → ℝ := fun k ↦
-    if hk : k < m then f (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Interval)).1 else f U
+    if hk : k < m then f (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Ivl)).1 else f U
   let B : ℕ → ℝ := fun k ↦
-    if hk : k < m then f (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Interval)).2 else f U
+    if hk : k < m then f (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Ivl)).2 else f U
   let E : ℕ → ℝ := fun k ↦ B k - A k
   have hchain : ∀ k < m, B k ≤ A (k + 1) := by
     intro k hk
@@ -10121,11 +10099,11 @@ theorem endpoint_variation_le_of_monotone
             (hinside _ (emem ⟨k + 1, hks⟩)).2⟩
       have horder : e ⟨k, hk⟩ ≤ e ⟨k + 1, hks⟩ :=
         e.le_iff_le.mpr (by simp)
-      have hleft : (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Interval)).1 ≤
-          (ofLex ((e ⟨k + 1, hks⟩ : ↥t) : Lex Interval)).1 := by
+      have hleft : (ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Ivl)).1 ≤
+          (ofLex ((e ⟨k + 1, hks⟩ : ↥t) : Lex Ivl)).1 := by
         exact (Prod.Lex.le_iff.mp horder).elim (fun h ↦ h.le) (fun h ↦ h.1.le)
-      have hne : ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Interval) ≠
-          ofLex ((e ⟨k + 1, hks⟩ : ↥t) : Lex Interval) := by
+      have hne : ofLex ((e ⟨k, hk⟩ : ↥t) : Lex Ivl) ≠
+          ofLex ((e ⟨k + 1, hks⟩ : ↥t) : Lex Ivl) := by
         intro heq
         have heq' : e ⟨k, hk⟩ = e ⟨k + 1, hks⟩ := by
           apply Subtype.ext
@@ -10142,7 +10120,7 @@ theorem endpoint_variation_le_of_monotone
           (hinside _ (emem ⟨k, hk⟩)).2⟩
         ⟨hLU, le_rfl⟩ (hinside _ (emem ⟨k, hk⟩)).2
   have htelescope :=
-    sum_interval_error_le_of_monotone_endpoints
+    sum_ivl_error_le_of_mono_endpts
       (n := 1) (m := m) (A := A) (B := B) (E := E) (by norm_num)
       (fun k hk ↦ by simp [E]) hchain
   have hsum : (∑ I ∈ s, (f I.2 - f I.1)) = ∑ k ∈ Finset.range m, E k := by
@@ -10151,19 +10129,19 @@ theorem endpoint_variation_le_of_monotone
           ∑ J ∈ t, (f (ofLex J).2 - f (ofLex J).1) := by
             symm
             simpa [t] using (sum_image (s := s)
-              (f := fun J : Lex Interval ↦ f (ofLex J).2 - f (ofLex J).1)
+              (f := fun J : Lex Ivl ↦ f (ofLex J).2 - f (ofLex J).1)
               toLex.injective.injOn)
-      _ = ∑ J : ↥t, (f (ofLex (J.1 : Lex Interval)).2 -
-          f (ofLex (J.1 : Lex Interval)).1) := by
+      _ = ∑ J : ↥t, (f (ofLex (J.1 : Lex Ivl)).2 -
+          f (ofLex (J.1 : Lex Ivl)).1) := by
             symm
             exact (sum_subtype (M := ℝ) (s := t) (p := fun J ↦ J ∈ t)
-              (by simp) (fun J : Lex Interval ↦
+              (by simp) (fun J : Lex Ivl ↦
                 f (ofLex J).2 - f (ofLex J).1)).symm
-      _ = ∑ i : Fin m, (f (ofLex ((e i : ↥t) : Lex Interval)).2 -
-          f (ofLex ((e i : ↥t) : Lex Interval)).1) := by
+      _ = ∑ i : Fin m, (f (ofLex ((e i : ↥t) : Lex Ivl)).2 -
+          f (ofLex ((e i : ↥t) : Lex Ivl)).1) := by
             exact (e.toEquiv.sum_comp (fun J : ↥t ↦
-              f (ofLex (J.1 : Lex Interval)).2 -
-                f (ofLex (J.1 : Lex Interval)).1)).symm
+              f (ofLex (J.1 : Lex Ivl)).2 -
+                f (ofLex (J.1 : Lex Ivl)).1)).symm
       _ = ∑ i : Fin m, E i := by
             apply sum_congr rfl
             intro i _
@@ -10173,7 +10151,7 @@ theorem endpoint_variation_le_of_monotone
   by_cases hm : m = 0
   · simpa [hm] using sub_nonneg.mpr (hmono ⟨le_rfl, hLU⟩ ⟨hLU, le_rfl⟩ hLU)
   · have hmpos : 0 < m := Nat.pos_of_ne_zero hm
-    have hA0 : A 0 = f (ofLex ((e ⟨0, hmpos⟩ : ↥t) : Lex Interval)).1 := by
+    have hA0 : A 0 = f (ofLex ((e ⟨0, hmpos⟩ : ↥t) : Lex Ivl)).1 := by
       simp [A, hmpos]
     have hAm : A m = f U := by simp [A]
     rw [hA0, hAm] at htelescope
@@ -10185,27 +10163,14 @@ theorem endpoint_variation_le_of_monotone
             (hinside _ (emem ⟨0, hmpos⟩)).2⟩
         (hinside _ (emem ⟨0, hmpos⟩)).1) _)
 
-theorem endpoint_variation_le_of_antitone
-    (s : Finset Interval) (f : ℝ → ℝ) (L U : ℝ)
-    (hord : ∀ I ∈ s, I.1 < I.2)
-    (hLU : L ≤ U)
-    (hinside : ∀ I ∈ s, L ≤ I.1 ∧ I.2 ≤ U)
-    (hsep : Set.Pairwise (↑s : Set Interval)
-      (fun I J ↦ I.2 ≤ J.1 ∨ J.2 ≤ I.1))
-    (hanti : AntitoneOn f (Icc L U)) :
-    ∑ I ∈ s, (f I.1 - f I.2) ≤ f L - f U := by
-  have h := endpoint_variation_le_of_monotone s (-f) L U hord hLU hinside hsep
-    (fun _ hx _ hy hxy ↦ neg_le_neg (hanti hx hy hxy))
-  simpa only [Pi.neg_apply, neg_sub_neg] using h
-
-def replacementIntegral (n : ℕ) (I : RealInterval) (θ : ℝ) : ℝ :=
+def replacementIntg (n : ℕ) (I : RealIvl) (θ : ℝ) : ℝ :=
   ∫ x in I.1..I.2,
-    amplitude (x - θ) *
+    amp (x - θ) *
       sin ((2 * (n : ℝ)) * (x - θ))
 
-private lemma endpointSeparated {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) :
-    Set.Pairwise (↑F.base : Set RealInterval)
+private lemma endptSep {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) :
+    Set.Pairwise (↑F.base : Set RealIvl)
       (fun I J ↦ I.2 ≤ J.1 ∨ J.2 ≤ I.1) := by
   intro I hI J hJ hne
   have hgrid : 0 < π / (n : ℝ) :=
@@ -10229,9 +10194,9 @@ private lemma endpointSeparated {n : ℕ} (hn : 0 < n)
     have : π / (n : ℝ) ≤ 0 := by simpa using hsep
     exact (not_le_of_gt hgrid) this
 
-private lemma shifted_mem_half {n : ℕ} (F : IntervalFamily n)
+private lemma sh_mem_half {n : ℕ} (F : IvlFam n)
     {θ : ℝ} (hθ : θ ∈ Icc 0 (π / 2))
-    {I : RealInterval} (hI : I ∈ F.base) {u : ℝ}
+    {I : RealIvl} (hI : I ∈ F.base) {u : ℝ}
     (hu : u ∈ Icc (I.1 - θ) (I.2 - θ)) :
     u ∈ Icc (-(π / 2)) (π / 2) := by
   have hquadrant := F.in_first_quadrant I hI
@@ -10239,8 +10204,8 @@ private lemma shifted_mem_half {n : ℕ} (F : IntervalFamily n)
   · linarith [hu.1, hquadrant.1, hθ.2]
   · linarith [hu.2, hquadrant.2, hθ.1]
 
-private lemma shifted_endpoint_cos_eq {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ} {I : RealInterval}
+private lemma sh_endpt_cos_eq {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ} {I : RealIvl}
     (hI : I ∈ F.base) :
     cos ((2 * (n : ℝ)) * (I.2 - θ)) =
       cos ((2 * (n : ℝ)) * (I.1 - θ)) := by
@@ -10260,135 +10225,135 @@ private lemma shifted_endpoint_cos_eq {n : ℕ} (hn : 0 < n)
           congr 1
           field_simp [hn0]
 
-private lemma replacementIntegral_shifted (n : ℕ) (I : RealInterval)
+private lemma replacementIntg_sh (n : ℕ) (I : RealIvl)
     (θ : ℝ) :
-    replacementIntegral n I θ =
+    replacementIntg n I θ =
       ∫ u in I.1 - θ..I.2 - θ,
-        amplitude u *
+        amp u *
           sin ((2 * (n : ℝ)) * u) := by
   exact integral_comp_sub_right
     (fun u : ℝ ↦
-      amplitude u *
+      amp u *
         sin ((2 * (n : ℝ)) * u)) θ
 
-private lemma abs_replacementIntegral_le {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ}
+private lemma abs_replacementIntg_le {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2))
-    {I : RealInterval} (hI : I ∈ F.base) :
-    |replacementIntegral n I θ| ≤
-      (amplitude (I.2 - θ) -
-        amplitude (I.1 - θ)) / n := by
-  rw [replacementIntegral_shifted]
+    {I : RealIvl} (hI : I ∈ F.base) :
+    |replacementIntg n I θ| ≤
+      (amp (I.2 - θ) -
+        amp (I.1 - θ)) / n := by
+  rw [replacementIntg_sh]
   have hdata :=
-    amplitude_derivative_data
-  have hosc := abs_integral_mul_sin_le_of_deriv_nonneg
-    (h := amplitude)
-    (h' := deriv amplitude)
+    amp_deriv_data
+  have hosc := abs_intg_mul_sin_le_of_deriv_nonneg
+    (h := amp)
+    (h' := deriv amp)
     hn (sub_le_sub_right (F.ordered I hI) θ)
-    (fun u hu ↦ hdata.1 u (shifted_mem_half F hθ hI hu))
-    (hdata.2.1.mono (fun u hu ↦ shifted_mem_half F hθ hI hu))
-    (fun u hu ↦ hdata.2.2 u (shifted_mem_half F hθ hI hu))
-    (shifted_endpoint_cos_eq hn F hI)
-  have hmono := monotoneOn_amplitude
-    (shifted_mem_half F hθ hI
+    (fun u hu ↦ hdata.1 u (sh_mem_half F hθ hI hu))
+    (hdata.2.1.mono (fun u hu ↦ sh_mem_half F hθ hI hu))
+    (fun u hu ↦ hdata.2.2 u (sh_mem_half F hθ hI hu))
+    (sh_endpt_cos_eq hn F hI)
+  have hmono := monoOn_amp
+    (sh_mem_half F hθ hI
       ⟨le_rfl, sub_le_sub_right (F.ordered I hI) θ⟩)
-    (shifted_mem_half F hθ hI
+    (sh_mem_half F hθ hI
       ⟨sub_le_sub_right (F.ordered I hI) θ, le_rfl⟩)
     (sub_le_sub_right (F.ordered I hI) θ)
   rw [abs_of_nonneg (sub_nonneg.mpr hmono)] at hosc
   exact hosc
 
-theorem sum_abs_replacementIntegral_le {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n) {θ : ℝ}
+theorem sum_abs_replacementIntg_le {n : ℕ} (hn : 4096 ≤ n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I ∈ F.base, |replacementIntegral n I θ| ≤
+    ∑ I ∈ F.base, |replacementIntg n I θ| ≤
       (2 - 4 / π) / n := by
   have hn0 : 0 < n := lt_of_lt_of_le (by norm_num) hn
   let f : ℝ → ℝ := fun x ↦
-    amplitude (x - θ)
+    amp (x - θ)
   have hfmono : MonotoneOn f (Icc 0 (π / 2)) := by
     intro x hx y hy hxy
-    exact monotoneOn_amplitude
+    exact monoOn_amp
       ⟨by linarith [hx.1, hθ.2], by linarith [hx.2, hθ.1]⟩
       ⟨by linarith [hy.1, hθ.2], by linarith [hy.2, hθ.1]⟩
       (sub_le_sub_right hxy θ)
-  have htel := endpoint_variation_le_of_monotone F.base f 0 (π / 2)
+  have htel := endpt_var_le_of_mono F.base f 0 (π / 2)
     F.nondegenerate (by positivity) F.in_first_quadrant
-    (endpointSeparated hn0 F) hfmono
+    (endptSep hn0 F) hfmono
   have hglobal : f (π / 2) - f 0 ≤
-      amplitude (π / 2) -
-        amplitude (-(π / 2)) := by
+      amp (π / 2) -
+        amp (-(π / 2)) := by
     apply sub_le_sub
-    · exact monotoneOn_amplitude
+    · exact monoOn_amp
         ⟨by linarith [hθ.2, pi_pos], by linarith [hθ.1]⟩
         ⟨by linarith [pi_pos], le_rfl⟩ (by linarith [hθ.1])
-    · exact monotoneOn_amplitude
+    · exact monoOn_amp
         ⟨le_rfl, by linarith [pi_pos]⟩
         ⟨by linarith [hθ.2], by linarith [hθ.1, pi_pos]⟩
         (by linarith [hθ.2])
   calc
-    ∑ I ∈ F.base, |replacementIntegral n I θ| ≤
+    ∑ I ∈ F.base, |replacementIntg n I θ| ≤
         ∑ I ∈ F.base, (f I.2 - f I.1) / n := by
           apply sum_le_sum
           intro I hI
-          exact abs_replacementIntegral_le hn0 F hθ hI
+          exact abs_replacementIntg_le hn0 F hθ hI
     _ = (∑ I ∈ F.base, (f I.2 - f I.1)) / n := by
           rw [sum_div]
     _ ≤ (f (π / 2) - f 0) / n := by
           exact div_le_div_of_nonneg_right htel (Nat.cast_nonneg n)
-    _ ≤ (amplitude (π / 2) -
-        amplitude (-(π / 2))) / n := by
+    _ ≤ (amp (π / 2) -
+        amp (-(π / 2))) / n := by
           exact div_le_div_of_nonneg_right hglobal (Nat.cast_nonneg n)
     _ = (2 - 4 / π) / n := by
-          rw [amplitude_endpoint_variation]
+          rw [amp_endpt_var]
 
-theorem sum_abs_replacementIntegral_subtype_le {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n) {θ : ℝ}
+theorem sum_abs_replacementIntg_subtype_le {n : ℕ} (hn : 4096 ≤ n)
+    (F : IvlFam n) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    ∑ I : ↥F.base, |replacementIntegral n I.1 θ| ≤
+    ∑ I : ↥F.base, |replacementIntg n I.1 θ| ≤
       (2 - 4 / π) / n := by
   rw [Finset.univ_eq_attach]
   calc
-    ∑ I ∈ F.base.attach, |replacementIntegral n I.1 θ| =
-        ∑ I ∈ F.base, |replacementIntegral n I θ| :=
-      sum_attach F.base (fun I ↦ |replacementIntegral n I θ|)
+    ∑ I ∈ F.base.attach, |replacementIntg n I.1 θ| =
+        ∑ I ∈ F.base, |replacementIntg n I θ| :=
+      sum_attach F.base (fun I ↦ |replacementIntg n I θ|)
     _ ≤ (2 - 4 / π) / n :=
-      sum_abs_replacementIntegral_le hn F hθ
+      sum_abs_replacementIntg_le hn F hθ
 
-def quotientIntegral (n : ℕ) (I : RealInterval) (θ : ℝ) : ℝ :=
+def quotientIntg (n : ℕ) (I : RealIvl) (θ : ℝ) : ℝ :=
   ∫ x in I.1..I.2,
     (sin ((2 * n : ℕ) * (x - θ)) / sin (x - θ) -
       sin ((2 * n : ℕ) * (x + θ)) / sin (x + θ))
 
-private lemma quotientFirst_eq_principal_add_replacement {n : ℕ} (hn : 0 < n)
+private lemma quotientFirst_eq_pr_add_replacement {n : ℕ} (hn : 0 < n)
     {u : ℝ} (huHalf : u ∈ Icc (-(π / 2)) (π / 2))
     (hu : u ≠ 0) :
     sin ((2 * n : ℕ) * u) / sin u =
       2 * (n : ℝ) * sinc (2 * (n : ℝ) * u) +
-        amplitude u *
+        amp u *
           sin (2 * (n : ℝ) * u) := by
   have hsin := sin_ne_zero_of_mem_half
     huHalf hu
   have hscale : (2 * (n : ℝ)) ≠ 0 := by positivity
   have harg : 2 * (n : ℝ) * u ≠ 0 := mul_ne_zero hscale hu
   rw [sinc_of_ne_zero harg,
-    amplitude_eq hu hsin]
+    amp_eq hu hsin]
   norm_cast
   field_simp [hu, hsin, hscale]
   ring
 
-theorem quotientIntegral_eq_principal_add_replacement_sub_reflected
-    {n : ℕ} (hn : 0 < n) (F : IntervalFamily n)
-    {I : RealInterval} (hI : I ∈ F.base) {θ : ℝ}
+theorem quotientIntg_eq_pr_add_replacement_sub_refl
+    {n : ℕ} (hn : 0 < n) (F : IvlFam n)
+    {I : RealIvl} (hI : I ∈ F.base) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    quotientIntegral n I θ =
-      principalIntegral n I θ +
-        replacementIntegral n I θ -
-          KernelReflectedClaim.reflectedIntegral n I θ := by
+    quotientIntg n I θ =
+      prIntg n I θ +
+        replacementIntg n I θ -
+          KernelReflClaim.reflIntg n I θ := by
   let p : ℝ → ℝ := fun x ↦
     2 * (n : ℝ) * sinc (2 * (n : ℝ) * (x - θ))
   let r : ℝ → ℝ := fun x ↦
-    amplitude (x - θ) *
+    amp (x - θ) *
       sin (2 * (n : ℝ) * (x - θ))
   let q : ℝ → ℝ := fun x ↦
     sin ((2 * n : ℕ) * (x - θ)) / sin (x - θ)
@@ -10404,15 +10369,15 @@ theorem quotientIntegral_eq_principal_add_replacement_sub_reflected
     have hxI : x ∈ Icc I.1 I.2 := by
       simpa [uIcc_of_le hord] using hx
     have hxHalf : x - θ ∈ Icc (-(π / 2)) (π / 2) :=
-      shifted_mem_half F hθ hI
+      sh_mem_half F hθ hI
         ⟨sub_le_sub_right hxI.1 θ, sub_le_sub_right hxI.2 θ⟩
     have hamp : ContinuousAt
         (fun y : ℝ ↦
-          amplitude (y - θ)) x := by
+          amp (y - θ)) x := by
       have hsub : ContinuousAt (fun y : ℝ ↦ y - θ) x :=
         continuousAt_id.sub continuousAt_const
       simpa only [Function.comp_def] using
-        (analyticAt_amplitude
+        (analyticAt_amp
           hxHalf).continuousAt.comp_of_eq hsub rfl
     exact (hamp.mul (by fun_prop)).continuousWithinAt
   have hrint : IntervalIntegrable r volume I.1 I.2 := hrcont.intervalIntegrable
@@ -10443,9 +10408,9 @@ theorem quotientIntegral_eq_principal_add_replacement_sub_reflected
     have hxI : x ∈ Icc I.1 I.2 := ⟨hxIoc.1.le, hxIoc.2⟩
     have hu : x - θ ≠ 0 := sub_ne_zero.mpr hxt
     have huHalf : x - θ ∈ Icc (-(π / 2)) (π / 2) :=
-      shifted_mem_half F hθ hI
+      sh_mem_half F hθ hI
         ⟨sub_le_sub_right hxI.1 θ, sub_le_sub_right hxI.2 θ⟩
-    exact quotientFirst_eq_principal_add_replacement hn huHalf hu
+    exact quotientFirst_eq_pr_add_replacement hn huHalf hu
   have hqrRestrict : p + r =ᵐ[volume.restrict (uIoc I.1 I.2)] q := by
     filter_upwards [ae_restrict_mem measurableSet_uIoc,
       ae_restrict_of_ae (Measure.ae_ne volume θ)] with x hx hxt
@@ -10454,16 +10419,16 @@ theorem quotientIntegral_eq_principal_add_replacement_sub_reflected
     have hxI : x ∈ Icc I.1 I.2 := ⟨hxIoc.1.le, hxIoc.2⟩
     have hu : x - θ ≠ 0 := sub_ne_zero.mpr hxt
     have huHalf : x - θ ∈ Icc (-(π / 2)) (π / 2) :=
-      shifted_mem_half F hθ hI
+      sh_mem_half F hθ hI
         ⟨sub_le_sub_right hxI.1 θ, sub_le_sub_right hxI.2 θ⟩
-    exact (quotientFirst_eq_principal_add_replacement hn huHalf hu).symm
+    exact (quotientFirst_eq_pr_add_replacement hn huHalf hu).symm
   have hqint : IntervalIntegrable q volume I.1 I.2 :=
     (hpint.add hrint).congr_ae hqrRestrict
   have hfirst : (∫ x in I.1..I.2, q x) =
       (∫ x in I.1..I.2, p x) + ∫ x in I.1..I.2, r x := by
     rw [intervalIntegral.integral_congr_ae hqr,
       intervalIntegral.integral_add hpint hrint]
-  rw [quotientIntegral, show (fun x : ℝ ↦
+  rw [quotientIntg, show (fun x : ℝ ↦
       sin ((2 * n : ℕ) * (x - θ)) / sin (x - θ) -
         sin ((2 * n : ℕ) * (x + θ)) / sin (x + θ)) =
       fun x ↦ q x - s x by rfl,
@@ -10516,60 +10481,60 @@ theorem total_kernel_error_le_two_thirds {n : ℕ} (hn : 4096 ≤ n) :
     _ ≤ 2 / 3 := by norm_num
 
 theorem signed_kernel_residual_le_two_thirds {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n) (α : ↥F.base → ℝ)
-    (hα : Discrepancy.IsSign α) {θ : ℝ}
+    (F : IvlFam n) (α : ↥F.base → ℝ)
+    (hα : Disc.IsSign α) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
-    |(∑ I : ↥F.base, α I * quotientIntegral n I.1 θ) -
-        (∑ I ∈ nearBaseIntervals F θ,
-          α I * principalIntegral n I.1 θ)| ≤
+    |(∑ I : ↥F.base, α I * quotientIntg n I.1 θ) -
+        (∑ I ∈ nearBaseIvls F θ,
+          α I * prIntg n I.1 θ)| ≤
       2 / 3 := by
   classical
   have hn0 : 0 < n := lt_of_lt_of_le (by norm_num) hn
   let principal : ↥F.base → ℝ := fun I ↦
-    principalIntegral n I.1 θ
+    prIntg n I.1 θ
   let replacement : ↥F.base → ℝ := fun I ↦
-    replacementIntegral n I.1 θ
+    replacementIntg n I.1 θ
   let reflected : ↥F.base → ℝ := fun I ↦
-    KernelReflectedClaim.reflectedIntegral n I.1 θ
+    KernelReflClaim.reflIntg n I.1 θ
   have hαAbs (I : ↥F.base) : |α I| = 1 := by
     rcases hα I with hI | hI <;> simp [hI]
   have hquotient :
-      (∑ I : ↥F.base, α I * quotientIntegral n I.1 θ) =
+      (∑ I : ↥F.base, α I * quotientIntg n I.1 θ) =
         (∑ I : ↥F.base, α I * principal I) +
           (∑ I : ↥F.base, α I * replacement I) -
             ∑ I : ↥F.base, α I * reflected I := by
-    simp_rw [quotientIntegral_eq_principal_add_replacement_sub_reflected
+    simp_rw [quotientIntg_eq_pr_add_replacement_sub_refl
       hn0 F (hI := Subtype.property _) hθ]
     simp_rw [mul_sub, mul_add, sum_sub_distrib,
       sum_add_distrib]
     rfl
   have hpartition :
       (∑ I : ↥F.base, α I * principal I) =
-        (∑ I ∈ nearBaseIntervals F θ,
+        (∑ I ∈ nearBaseIvls F θ,
           α I * principal I) +
-        ∑ I ∈ distantBaseIntervals F θ,
+        ∑ I ∈ farBaseIvls F θ,
           α I * principal I := by
-    rw [distantBaseIntervals_eq_sdiff]
+    rw [farBaseIvls_eq_sdiff]
     calc
       (∑ I : ↥F.base, α I * principal I) =
           (∑ I ∈ Finset.univ \
-              nearBaseIntervals F θ,
+              nearBaseIvls F θ,
             α I * principal I) +
-          ∑ I ∈ nearBaseIntervals F θ,
+          ∑ I ∈ nearBaseIvls F θ,
             α I * principal I :=
         (Finset.sum_sdiff
           (Finset.subset_univ
-            (nearBaseIntervals F θ))).symm
-      _ = (∑ I ∈ nearBaseIntervals F θ,
+            (nearBaseIvls F θ))).symm
+      _ = (∑ I ∈ nearBaseIvls F θ,
             α I * principal I) +
           ∑ I ∈ Finset.univ \
-              nearBaseIntervals F θ,
+              nearBaseIvls F θ,
             α I * principal I := add_comm _ _
   have hresidual :
-      (∑ I : ↥F.base, α I * quotientIntegral n I.1 θ) -
-          (∑ I ∈ nearBaseIntervals F θ,
-            α I * principalIntegral n I.1 θ) =
-        (∑ I ∈ distantBaseIntervals F θ,
+      (∑ I : ↥F.base, α I * quotientIntg n I.1 θ) -
+          (∑ I ∈ nearBaseIvls F θ,
+            α I * prIntg n I.1 θ) =
+        (∑ I ∈ farBaseIvls F θ,
           α I * principal I) +
         (∑ I : ↥F.base, α I * replacement I) -
           ∑ I : ↥F.base, α I * reflected I := by
@@ -10577,20 +10542,20 @@ theorem signed_kernel_residual_le_two_thirds {n : ℕ} (hn : 4096 ≤ n)
     dsimp only [principal]
     ring
   have hprincipal :
-      |∑ I ∈ distantBaseIntervals F θ,
+      |∑ I ∈ farBaseIvls F θ,
           α I * principal I| ≤ 2 / π := by
     calc
-      |∑ I ∈ distantBaseIntervals F θ,
+      |∑ I ∈ farBaseIvls F θ,
           α I * principal I| ≤
-          ∑ I ∈ distantBaseIntervals F θ,
+          ∑ I ∈ farBaseIvls F θ,
             |α I * principal I| := abs_sum_le_sum_abs _ _
-      _ = ∑ I ∈ distantBaseIntervals F θ,
+      _ = ∑ I ∈ farBaseIvls F θ,
             |principal I| := by
           apply sum_congr rfl
           intro I hI
           rw [abs_mul, hαAbs, one_mul]
       _ ≤ 2 / π :=
-        sum_abs_principalIntegral_distant_le_two_div_pi
+        sum_abs_prIntg_far_le_two_div_pi
           hn0 F hθ
   have hreplacement :
       |∑ I : ↥F.base, α I * replacement I| ≤
@@ -10604,7 +10569,7 @@ theorem signed_kernel_residual_le_two_thirds {n : ℕ} (hn : 4096 ≤ n)
           intro I hI
           rw [abs_mul, hαAbs, one_mul]
       _ ≤ (2 - 4 / π) / n :=
-        sum_abs_replacementIntegral_subtype_le hn F hθ
+        sum_abs_replacementIntg_subtype_le hn F hθ
   have hreflected :
       |∑ I : ↥F.base, α I * reflected I| ≤
         2 / ((n : ℝ) * sin (100 * π / n)) +
@@ -10619,23 +10584,23 @@ theorem signed_kernel_residual_le_two_thirds {n : ℕ} (hn : 4096 ≤ n)
           rw [abs_mul, hαAbs, one_mul]
       _ ≤ 2 / ((n : ℝ) * sin (100 * π / n)) +
           12 * π / n :=
-        KernelReflectedClaim.sum_abs_reflectedIntegral_le hn F hθ
+        KernelReflClaim.sum_abs_reflIntg_le hn F hθ
   rw [hresidual]
   calc
-    |(∑ I ∈ distantBaseIntervals F θ,
+    |(∑ I ∈ farBaseIvls F θ,
           α I * principal I) +
         (∑ I : ↥F.base, α I * replacement I) -
           ∑ I : ↥F.base, α I * reflected I| ≤
-        |∑ I ∈ distantBaseIntervals F θ,
+        |∑ I ∈ farBaseIvls F θ,
           α I * principal I| +
         |∑ I : ↥F.base, α I * replacement I| +
         |∑ I : ↥F.base, α I * reflected I| := by
           linarith [abs_add_le
-            (∑ I ∈ distantBaseIntervals F θ,
+            (∑ I ∈ farBaseIvls F θ,
               α I * principal I)
             (∑ I : ↥F.base, α I * replacement I),
             abs_sub
-              ((∑ I ∈ distantBaseIntervals F θ,
+              ((∑ I ∈ farBaseIvls F θ,
                 α I * principal I) +
                 ∑ I : ↥F.base, α I * replacement I)
               (∑ I : ↥F.base, α I * reflected I)]
@@ -10653,7 +10618,7 @@ end
 
 section
 
-namespace KernelCertificate
+namespace KernelCert
 
 open scoped BigOperators Interval
 open Set
@@ -10664,7 +10629,7 @@ open OddSine
 
 open scoped Classical
 
-def normalizedTarget {n : ℕ} (F : IntervalFamily n)
+def normTarget {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) (θ : ℝ) : ℝ :=
   targetSine F α θ / (K * sqrt n)
 
@@ -10724,55 +10689,55 @@ private lemma abs_sub_clippedMagnitude_le {dangerous : Prop}
         abs_of_nonneg (sub_nonneg.2 (le_of_not_ge ha4))]
       linarith
 
-private def clippedMain {n : ℕ} (F : IntervalFamily n)
+private def clippedMain {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) (θ : ℝ) : ℝ :=
   let m := clippedMagnitude (IsDangerous F θ)
-    |normalizedTarget F α θ|
-  if 0 ≤ normalizedTarget F α θ then m else -m
+    |normTarget F α θ|
+  if 0 ≤ normTarget F α θ then m else -m
 
-private def clippedError {n : ℕ} (F : IntervalFamily n)
+private def clippedError {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) (θ : ℝ) : ℝ :=
-  normalizedTarget F α θ - clippedMain F α θ
+  normTarget F α θ - clippedMain F α θ
 
-private lemma abs_clippedMain {n : ℕ} (F : IntervalFamily n)
+private lemma abs_clippedMain {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) (θ : ℝ) :
     |clippedMain F α θ| =
       clippedMagnitude (IsDangerous F θ)
-        |normalizedTarget F α θ| := by
+        |normTarget F α θ| := by
   classical
   simp only [clippedMain]
-  by_cases hv : 0 ≤ normalizedTarget F α θ
+  by_cases hv : 0 ≤ normTarget F α θ
   · rw [if_pos hv,
       abs_of_nonneg (clippedMagnitude_nonneg _ (abs_nonneg _))]
   · rw [if_neg hv, abs_neg,
       abs_of_nonneg (clippedMagnitude_nonneg _ (abs_nonneg _))]
 
-private lemma abs_clippedError {n : ℕ} (F : IntervalFamily n)
+private lemma abs_clippedError {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) (θ : ℝ) :
     |clippedError F α θ| =
-      |(|normalizedTarget F α θ| -
+      |(|normTarget F α θ| -
         clippedMagnitude (IsDangerous F θ)
-          |normalizedTarget F α θ|)| := by
+          |normTarget F α θ|)| := by
   classical
   unfold clippedError clippedMain
-  by_cases hv : 0 ≤ normalizedTarget F α θ
+  by_cases hv : 0 ≤ normTarget F α θ
   · rw [if_pos hv, abs_of_nonneg hv]
   · rw [if_neg hv, abs_of_neg (lt_of_not_ge hv)]
-    have heq : normalizedTarget F α θ +
+    have heq : normTarget F α θ +
         clippedMagnitude (IsDangerous F θ)
-            (-normalizedTarget F α θ) =
-          -(-normalizedTarget F α θ -
+            (-normTarget F α θ) =
+          -(-normTarget F α θ -
             clippedMagnitude (IsDangerous F θ)
-              (-normalizedTarget F α θ)) := by ring
+              (-normTarget F α θ)) := by ring
     rw [sub_neg_eq_add, heq, abs_neg]
 
-noncomputable def kernelCertificate_of_normalized_bounds {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n)
+noncomputable def kernelCert_of_norm_bounds {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n)
     (α : ↥F.base → ℝ)
     (hlower : ∀ θ, IsDangerous F θ →
-      2 / 3 ≤ |normalizedTarget F α θ|)
-    (hupper : ∀ θ, |normalizedTarget F α θ| ≤ 14 / 3) :
-    KernelCertificate F α := by
+      2 / 3 ≤ |normTarget F α θ|)
+    (hupper : ∀ θ, |normTarget F α θ| ≤ 14 / 3) :
+    KernelCert F α := by
   classical
   refine
     { main := clippedMain F α
@@ -10787,10 +10752,10 @@ noncomputable def kernelCertificate_of_normalized_bounds {n : ℕ} (hn : 0 < n)
       · norm_num [K]
       · exact ne_of_gt (sqrt_pos.2 (by exact_mod_cast hn))
     rw [show clippedMain F α θ + clippedError F α θ =
-        normalizedTarget F α θ by
+        normTarget F α θ by
       simp only [clippedError]
       ring]
-    simp only [normalizedTarget]
+    simp only [normTarget]
     rw [mul_comm]
     exact (div_mul_cancel₀ _ hscale).symm
   · intro θ hθ
@@ -10804,16 +10769,16 @@ noncomputable def kernelCertificate_of_normalized_bounds {n : ℕ} (hn : 0 < n)
     exact abs_sub_clippedMagnitude_le (abs_nonneg _)
       (hupper θ) (hlower θ)
 
-theorem normalized_bounds_of_firstQuadrant {n : ℕ}
-    (F : IntervalFamily n)
+theorem norm_bounds_of_firstQuad {n : ℕ}
+    (F : IvlFam n)
     (α : ↥F.base → ℝ)
     (hlower : ∀ θ ∈ Icc 0 (π / 2),
-      IsDangerous F θ → 2 / 3 ≤ |normalizedTarget F α θ|)
+      IsDangerous F θ → 2 / 3 ≤ |normTarget F α θ|)
     (hupper : ∀ θ ∈ Icc 0 (π / 2),
-      |normalizedTarget F α θ| ≤ 14 / 3) :
+      |normTarget F α θ| ≤ 14 / 3) :
     (∀ θ, IsDangerous F θ →
-      2 / 3 ≤ |normalizedTarget F α θ|) ∧
-    (∀ θ, |normalizedTarget F α θ| ≤ 14 / 3) := by
+      2 / 3 ≤ |normTarget F α θ|) ∧
+    (∀ θ, |normTarget F α θ| ≤ 14 / 3) := by
   constructor
   · intro θ hθ
     obtain ⟨I, hI, hmem | hmem | hmem | hmem⟩ := hθ
@@ -10827,7 +10792,7 @@ theorem normalized_bounds_of_firstQuadrant {n : ℕ}
       have hqdanger : IsDangerous F (-θ) :=
         ⟨I, hI, Or.inl hmem⟩
       have hq := hlower (-θ) hqmem hqdanger
-      simpa only [normalizedTarget, targetSine,
+      simpa only [normTarget, targetSine,
         oddSineSum_neg, abs_div, abs_neg] using hq
     · have hqmem : π - θ ∈ Icc 0 (π / 2) :=
         ⟨(F.in_first_quadrant I hI).1.trans hmem.1,
@@ -10835,7 +10800,7 @@ theorem normalized_bounds_of_firstQuadrant {n : ℕ}
       have hqdanger : IsDangerous F (π - θ) :=
         ⟨I, hI, Or.inl hmem⟩
       have hq := hlower (π - θ) hqmem hqdanger
-      simpa only [normalizedTarget, targetSine,
+      simpa only [normTarget, targetSine,
         oddSineSum_pi_sub, abs_div] using hq
     · have hqmem : θ - π ∈ Icc 0 (π / 2) :=
         ⟨(F.in_first_quadrant I hI).1.trans hmem.1,
@@ -10845,18 +10810,18 @@ theorem normalized_bounds_of_firstQuadrant {n : ℕ}
       have hq := hlower (θ - π) hqmem hqdanger
       have heq : θ = (θ - π) + π := by ring
       rw [heq]
-      simpa only [normalizedTarget, targetSine,
+      simpa only [normTarget, targetSine,
         oddSineSum_add_pi, abs_div, abs_neg] using hq
   · intro θ
     obtain ⟨θ', hθ', heq⟩ :=
-      exists_firstQuadrant_abs_oddSineSum_eq n (fourierTarget F α) θ
+      exists_firstQuad_abs_oddSinSum_eq n (fourierTarget F α) θ
     have hq := hupper θ' hθ'
-    simp only [normalizedTarget, targetSine, abs_div] at hq ⊢
+    simp only [normTarget, targetSine, abs_div] at hq ⊢
     rw [heq]
     exact hq
 
-theorem exists_gridIndices_lt {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) (I : ↥F.base) :
+theorem exists_gridIdxs_lt {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) (I : ↥F.base) :
     ∃ a b : ℤ, a < b ∧
       I.1.1 = (a : ℝ) * π / n ∧
       I.1.2 = (b : ℝ) * π / n := by
@@ -10872,12 +10837,12 @@ theorem exists_gridIndices_lt {n : ℕ} (hn : 0 < n)
     nlinarith [hscalePos]
   exact_mod_cast habR
 
-theorem principalIntegral_self_mem {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {θ : ℝ}
-    (I : ↥F.base) (hθ : InInterval I.1 θ) :
-    principalIntegral n I.1 θ ∈
+theorem prIntg_self_mem {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n) {θ : ℝ}
+    (I : ↥F.base) (hθ : InIvl I.1 θ) :
+    prIntg n I.1 θ ∈
       Icc ((4 : ℝ) / 3) 4 := by
-  obtain ⟨a, b, hab, ha, hb⟩ := exists_gridIndices_lt hn F I
+  obtain ⟨a, b, hab, ha, hb⟩ := exists_gridIdxs_lt hn F I
   have hshort : (b : ℝ) * π / n - (a : ℝ) * π / n ≤
       6 * π / n := by
     rw [← ha, ← hb]
@@ -10886,25 +10851,25 @@ theorem principalIntegral_self_mem {n : ℕ} (hn : 0 < n)
       ((b : ℝ) * π / n) := by
     change θ ∈ Icc I.1.1 I.1.2 at hθ
     simpa only [← ha, ← hb] using hθ
-  have hmain := SineIntegralGrid.principal_grid_interval_inside
+  have hmain := SinIntgGrid.pr_grid_ivl_inside
     n hn a b hab hshort hθ'
-  simpa only [principalIntegral, ha, hb] using hmain
+  simpa only [prIntg, ha, hb] using hmain
 
-theorem abs_principalIntegral_le_two_of_near_of_not_mem {n : ℕ}
-    (hn : 0 < n) (F : IntervalFamily n) {θ : ℝ}
+theorem abs_prIntg_le_two_of_near_of_not_mem {n : ℕ}
+    (hn : 0 < n) (F : IvlFam n) {θ : ℝ}
     (I : ↥F.base)
-    (hnear : I ∈ nearBaseIntervals F θ)
-    (hout : ¬InInterval I.1 θ) :
-    |principalIntegral n I.1 θ| ≤ 2 := by
-  obtain ⟨a, b, hab, ha, hb⟩ := exists_gridIndices_lt hn F I
+    (hnear : I ∈ nearBaseIvls F θ)
+    (hout : ¬InIvl I.1 θ) :
+    |prIntg n I.1 θ| ≤ 2 := by
+  obtain ⟨a, b, hab, ha, hb⟩ := exists_gridIdxs_lt hn F I
   have hshort : (b : ℝ) * π / n - (a : ℝ) * π / n ≤
       6 * π / n := by
     rw [← ha, ← hb]
     exact F.short I.1 I.property
   have hnearGap : Near n θ I.1 := by
-    simpa only [nearBaseIntervals,
+    simpa only [nearBaseIvls,
       mem_filter, Finset.mem_univ, true_and] using hnear
-  rw [InInterval, mem_Icc] at hout
+  rw [InIvl, mem_Icc] at hout
   have hside :
       (θ ≤ (a : ℝ) * π / n ∧
         (a : ℝ) * π / n - θ ≤ π / n) ∨
@@ -10915,7 +10880,7 @@ theorem abs_principalIntegral_le_two_of_near_of_not_mem {n : ℕ}
       have hθ : θ ≤ I.1.1 := (lt_of_not_ge hleft).le
       have hgap := hnearGap
       rw [Near,
-        intervalGap_eq_left
+        ivlGap_eq_left
           (F.ordered I.1 I.property) hθ] at hgap
       rw [← ha]
       exact ⟨hθ, hgap.le⟩
@@ -10923,53 +10888,53 @@ theorem abs_principalIntegral_le_two_of_near_of_not_mem {n : ℕ}
       have hθ : I.1.2 ≤ θ := (lt_of_not_ge hright).le
       have hgap := hnearGap
       rw [Near,
-        intervalGap_eq_right
+        ivlGap_eq_right
           (F.ordered I.1 I.property) hθ] at hgap
       rw [← hb]
       exact ⟨hθ, hgap.le⟩
-  have hoff := SineIntegralGrid.principal_grid_interval_outside_near
+  have hoff := SinIntgGrid.pr_grid_ivl_outside_near
     n hn a b hab hshort hside
-  simpa only [principalIntegral, ha, hb] using hoff
+  simpa only [prIntg, ha, hb] using hoff
 
-theorem firstQuadrant_normalized_bounds_of_decomposition {n : ℕ}
-    (hn : 0 < n) (F : IntervalFamily n)
+theorem firstQuad_norm_bounds_of_decomposition {n : ℕ}
+    (hn : 0 < n) (F : IvlFam n)
     (α : ↥F.base → ℝ)
-    (hα : Discrepancy.IsSign α)
+    (hα : Disc.IsSign α)
     (principal : ↥F.base → ℝ → ℝ) (error : ℝ → ℝ)
     (hdecomposition : ∀ θ ∈ Icc 0 (π / 2),
-      normalizedTarget F α θ =
-        (∑ I ∈ nearBaseIntervals F θ,
+      normTarget F α θ =
+        (∑ I ∈ nearBaseIvls F θ,
           α I * principal I θ) + error θ)
     (herror : ∀ θ ∈ Icc 0 (π / 2),
       |error θ| ≤ 2 / 3)
     (hself_lower : ∀ θ ∈ Icc 0 (π / 2),
-      ∀ I : ↥F.base, InInterval I.1 θ →
+      ∀ I : ↥F.base, InIvl I.1 θ →
         4 / 3 ≤ |principal I θ|)
     (hself_upper : ∀ θ ∈ Icc 0 (π / 2),
-      ∀ I : ↥F.base, InInterval I.1 θ →
+      ∀ I : ↥F.base, InIvl I.1 θ →
         |principal I θ| ≤ 4)
     (hoff_upper : ∀ θ ∈ Icc 0 (π / 2),
-      ∀ I ∈ nearBaseIntervals F θ,
-        ¬InInterval I.1 θ → |principal I θ| ≤ 2) :
+      ∀ I ∈ nearBaseIvls F θ,
+        ¬InIvl I.1 θ → |principal I θ| ≤ 2) :
     (∀ θ ∈ Icc 0 (π / 2), IsDangerous F θ →
-      2 / 3 ≤ |normalizedTarget F α θ|) ∧
+      2 / 3 ≤ |normTarget F α θ|) ∧
     (∀ θ ∈ Icc 0 (π / 2),
-      |normalizedTarget F α θ| ≤ 14 / 3) := by
+      |normTarget F α θ| ≤ 14 / 3) := by
   classical
   have hα_abs (I : ↥F.base) : |α I| = 1 := by
     rcases hα I with hI | hI <;> simp [hI]
   constructor
   · intro θ hθ hdangerous
     obtain ⟨I, hθI, _hunique⟩ :=
-      existsUnique_baseSubtype_of_dangerous_firstQuadrant
+      existsUnique_baseSubtype_of_dangerous_firstQuad
         hn F hθ hdangerous
-    have hnear := sum_nearBaseIntervals_eq_of_mem hn F
+    have hnear := sum_nearBaseIvls_eq_of_mem hn F
       I.property hθI (fun J ↦ α J * principal J θ)
     have hmainLower : 4 / 3 ≤ |α I * principal I θ| := by
       rw [abs_mul, hα_abs, one_mul]
       exact hself_lower θ hθ I hθI
     have hreverse : |α I * principal I θ| ≤
-        |normalizedTarget F α θ| + |error θ| := by
+        |normTarget F α θ| + |error θ| := by
       rw [hdecomposition θ hθ, hnear]
       calc
         |α I * principal I θ| =
@@ -10979,15 +10944,15 @@ theorem firstQuadrant_normalized_bounds_of_decomposition {n : ℕ}
     linarith [herror θ hθ]
   · intro θ hθ
     have hmainUpper :
-        |∑ I ∈ nearBaseIntervals F θ,
+        |∑ I ∈ nearBaseIvls F θ,
           α I * principal I θ| ≤ 4 := by
       by_cases hin : InBaseUnion F θ
       · obtain ⟨I, hI, hθI⟩ := hin
-        rw [sum_nearBaseIntervals_eq_of_mem hn F hI hθI]
+        rw [sum_nearBaseIvls_eq_of_mem hn F hI hθI]
         rw [abs_mul, hα_abs, one_mul]
         exact hself_upper θ hθ ⟨I, hI⟩ hθI
       · have htwo :=
-          abs_sum_nearBaseIntervals_le_two_mul_of_not_inBaseUnion
+          abs_sum_nearBaseIvls_le_two_mul_of_not_inBaseUnion
             hn F hin (show (0 : ℝ) ≤ 2 by norm_num)
             (fun I ↦ α I * principal I θ) (by
               intro I hI
@@ -10998,84 +10963,84 @@ theorem firstQuadrant_normalized_bounds_of_decomposition {n : ℕ}
         exact htwo
     rw [hdecomposition θ hθ]
     calc
-      |(∑ I ∈ nearBaseIntervals F θ,
+      |(∑ I ∈ nearBaseIvls F θ,
             α I * principal I θ) + error θ| ≤
-          |∑ I ∈ nearBaseIntervals F θ,
+          |∑ I ∈ nearBaseIvls F θ,
             α I * principal I θ| + |error θ| := abs_add_le _ _
       _ ≤ 4 + 2 / 3 := add_le_add hmainUpper (herror θ hθ)
       _ = 14 / 3 := by norm_num
 
-def concreteError {n : ℕ} (F : IntervalFamily n)
+def concreteError {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) (θ : ℝ) : ℝ :=
-  normalizedTarget F α θ -
-    ∑ I ∈ nearBaseIntervals F θ,
-      α I * principalIntegral n I.1 θ
+  normTarget F α θ -
+    ∑ I ∈ nearBaseIvls F θ,
+      α I * prIntg n I.1 θ
 
-theorem concrete_decomposition {n : ℕ} (F : IntervalFamily n)
+theorem concrete_decomposition {n : ℕ} (F : IvlFam n)
     (α : ↥F.base → ℝ) (θ : ℝ) :
-    normalizedTarget F α θ =
-      (∑ I ∈ nearBaseIntervals F θ,
-        α I * principalIntegral n I.1 θ) +
+    normTarget F α θ =
+      (∑ I ∈ nearBaseIvls F θ,
+        α I * prIntg n I.1 θ) +
         concreteError F α θ := by
   simp only [concreteError]
   ring
 
 theorem abs_concreteError_le_two_thirds {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n)
+    (F : IvlFam n)
     (α : ↥F.base → ℝ)
-    (hα : Discrepancy.IsSign α) {θ : ℝ}
+    (hα : Disc.IsSign α) {θ : ℝ}
     (hθ : θ ∈ Icc 0 (π / 2)) :
     |concreteError F α θ| ≤ 2 / 3 := by
   have hnpos : 0 < n := lt_of_lt_of_le (by norm_num) hn
   have htarget :=
-    OddKernelIdentity.targetSine_div_eq_sum_quotientIntegral_of_theta_mem_Icc
+    OddKernelId.targetSin_div_eq_sum_quotientIntg_of_theta_mem_Icc
       hnpos F α hθ
   rw [concreteError]
-  change normalizedTarget F α θ =
+  change normTarget F α θ =
       ∑ I : ↥F.base, α I *
-        ConcreteKernelClaims.quotientIntegral n I.1 θ at htarget
+        ConcreteKernelClaims.quotientIntg n I.1 θ at htarget
   rw [htarget]
   exact ConcreteKernelClaims.signed_kernel_residual_le_two_thirds
     hn F α hα hθ
 
-theorem concrete_firstQuadrant_normalized_bounds {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n)
+theorem concrete_firstQuad_norm_bounds {n : ℕ} (hn : 4096 ≤ n)
+    (F : IvlFam n)
     (α : ↥F.base → ℝ)
-    (hα : Discrepancy.IsSign α) :
+    (hα : Disc.IsSign α) :
     (∀ θ ∈ Icc 0 (π / 2), IsDangerous F θ →
-      2 / 3 ≤ |normalizedTarget F α θ|) ∧
+      2 / 3 ≤ |normTarget F α θ|) ∧
     (∀ θ ∈ Icc 0 (π / 2),
-      |normalizedTarget F α θ| ≤ 14 / 3) := by
+      |normTarget F α θ| ≤ 14 / 3) := by
   have hnpos : 0 < n := lt_of_lt_of_le (by norm_num) hn
-  apply firstQuadrant_normalized_bounds_of_decomposition hnpos F α hα
-    (fun I θ ↦ principalIntegral n I.1 θ)
+  apply firstQuad_norm_bounds_of_decomposition hnpos F α hα
+    (fun I θ ↦ prIntg n I.1 θ)
     (concreteError F α)
   · exact fun θ _ ↦ concrete_decomposition F α θ
   · exact fun _ hθ ↦ abs_concreteError_le_two_thirds hn F α hα hθ
   · intro θ _ I hθ
-    have hmain := principalIntegral_self_mem hnpos F I hθ
+    have hmain := prIntg_self_mem hnpos F I hθ
     rw [abs_of_nonneg (by linarith [hmain.1])]
     exact hmain.1
   · intro θ _ I hθ
-    have hmain := principalIntegral_self_mem hnpos F I hθ
+    have hmain := prIntg_self_mem hnpos F I hθ
     rw [abs_of_nonneg (by linarith [hmain.1])]
     exact hmain.2
   · intro θ _ I hnear hout
-    exact abs_principalIntegral_le_two_of_near_of_not_mem hnpos F I hnear hout
+    exact abs_prIntg_le_two_of_near_of_not_mem hnpos F I hnear hout
 
-noncomputable def kernelCertificate {n : ℕ} (hn : 4096 ≤ n)
-    (F : IntervalFamily n)
+noncomputable def kernelCert {n : ℕ} (hn : 4096 ≤ n)
+    (F : IvlFam n)
     (α : ↥F.base → ℝ)
-    (hα : Discrepancy.IsSign α) :
-    KernelCertificate F α := by
+    (hα : Disc.IsSign α) :
+    KernelCert F α := by
   have hnpos : 0 < n := lt_of_lt_of_le (by norm_num) hn
-  have hfirst := concrete_firstQuadrant_normalized_bounds hn F α hα
-  have hglobal := normalized_bounds_of_firstQuadrant F α hfirst.1 hfirst.2
-  exact kernelCertificate_of_normalized_bounds hnpos F α hglobal.1 hglobal.2
+  have hfirst := concrete_firstQuad_norm_bounds hn F α hα
+  have hglobal := norm_bounds_of_firstQuad F α hfirst.1 hfirst.2
+  exact kernelCert_of_norm_bounds hnpos F α hglobal.1 hglobal.2
 
 end
 
-end KernelCertificate
+end KernelCert
 
 end
 
@@ -11090,27 +11055,27 @@ noncomputable section
 
 def roundingMeshSize (n : ℕ) : ℕ := 16 * n
 
-def roundingMeshPoint (n : ℕ) (g : Fin (roundingMeshSize n)) : ℝ :=
+def roundingMeshPt (n : ℕ) (g : Fin (roundingMeshSize n)) : ℝ :=
   (2 * (g : ℕ) + 1 : ℕ) * π / (64 * n)
 
-def roundingParameter (l : ℕ) : ℝ :=
+def roundingParam (l : ℕ) : ℝ :=
   14 * sqrt ((9 + l : ℕ) * log 2)
 
 @[simp] theorem roundingMeshSize_eq (n : ℕ) : roundingMeshSize n = 16 * n := rfl
 
-theorem roundingParameter_nonneg (l : ℕ) : 0 ≤ roundingParameter l :=
+theorem roundingParam_nonneg (l : ℕ) : 0 ≤ roundingParam l :=
   mul_nonneg (by norm_num) (sqrt_nonneg _)
 
-theorem roundingParameter_sq (l : ℕ) :
-    (roundingParameter l) ^ 2 = 196 * ((9 + l : ℕ) * log 2) := by
-  rw [roundingParameter, mul_pow, sq_sqrt]
+theorem roundingParam_sq (l : ℕ) :
+    (roundingParam l) ^ 2 = 196 * ((9 + l : ℕ) * log 2) := by
+  rw [roundingParam, mul_pow, sq_sqrt]
   · norm_num
   · exact mul_nonneg (by positivity) (log_nonneg (by norm_num))
 
-theorem exp_roundingParameter (l : ℕ) :
-    Real.exp (-(roundingParameter l) ^ 2 / 196) =
+theorem exp_roundingParam (l : ℕ) :
+    Real.exp (-(roundingParam l) ^ 2 / 196) =
       (1 / 2 : ℝ) ^ (9 + l) := by
-  rw [roundingParameter_sq]
+  rw [roundingParam_sq]
   have hcancel :
       -(196 * (((9 + l : ℕ) : ℝ) * log 2)) / 196 =
         -(((9 + l : ℕ) : ℝ) * log 2) := by ring
@@ -11123,10 +11088,10 @@ theorem exp_roundingParameter (l : ℕ) :
       rw [Real.exp_neg, exp_log (by norm_num : (0 : ℝ) < 2)]
       norm_num
 
-theorem sum_exp_roundingParameter_le (n : ℕ) :
-    (∑ l : Fin n, Real.exp (-(roundingParameter l) ^ 2 / 196)) ≤
+theorem sum_exp_roundingParam_le (n : ℕ) :
+    (∑ l : Fin n, Real.exp (-(roundingParam l) ^ 2 / 196)) ≤
       (1 / 256 : ℝ) := by
-  simp_rw [exp_roundingParameter]
+  simp_rw [exp_roundingParam]
   calc
     (∑ l : Fin n, (1 / 2 : ℝ) ^ (9 + (l : ℕ))) =
         (1 / 512 : ℝ) * ∑ l : Fin n, (1 / 2 : ℝ) ^ (l : ℕ) := by
@@ -11139,8 +11104,8 @@ theorem sum_exp_roundingParameter_le (n : ℕ) :
       exact sum_geometric_two_le n
     _ = 1 / 256 := by norm_num
 
-theorem roundingParameter_add_thirty_le (l : ℕ) :
-    roundingParameter l + 30 ≤ 65 + 2 * l := by
+theorem roundingParam_add_thirty_le (l : ℕ) :
+    roundingParam l + 30 ≤ 65 + 2 * l := by
   have htwo_exp : (2 : ℝ) < Real.exp (25 / 36) := by
     refine lt_of_lt_of_le ?_
       (Real.sum_le_exp_of_nonneg (x := (25 / 36 : ℝ)) (by norm_num) 5)
@@ -11159,13 +11124,13 @@ theorem roundingParameter_add_thirty_le (l : ℕ) :
   have hsqrt := sqrt_le_sqrt hradicand
   have hright : 0 ≤ (35 + 2 * (l : ℝ)) / 14 := by positivity
   rw [sqrt_sq hright] at hsqrt
-  unfold roundingParameter
+  unfold roundingParam
   nlinarith
 
-theorem exists_roundingMeshPoint {n : ℕ} (hn : 0 < n) (θ : ℝ)
+theorem exists_roundingMeshPt {n : ℕ} (hn : 0 < n) (θ : ℝ)
     (hθ : θ ∈ Icc 0 (π / 2)) :
     ∃ g : Fin (roundingMeshSize n),
-      |θ - roundingMeshPoint n g| ≤ π / (64 * n) := by
+      |θ - roundingMeshPt n g| ≤ π / (64 * n) := by
   have hnR : (0 : ℝ) < n := by exact_mod_cast hn
   have hpi : (0 : ℝ) < π := pi_pos
   have hmesh : 0 < roundingMeshSize n := by
@@ -11177,9 +11142,9 @@ theorem exists_roundingMeshPoint {n : ℕ} (hn : 0 < n) (θ : ℝ)
     have hsub : (roundingMeshSize n - 1 : ℕ) + 1 = roundingMeshSize n := by
       omega
     have hdifference :
-        θ - roundingMeshPoint n g = π / (64 * n) := by
+        θ - roundingMeshPt n g = π / (64 * n) := by
       rw [hend]
-      simp only [roundingMeshPoint, g]
+      simp only [roundingMeshPt, g]
       rw [show 2 * (roundingMeshSize n - 1) + 1 =
           2 * roundingMeshSize n - 1 by omega]
       simp only [roundingMeshSize]
@@ -11211,9 +11176,9 @@ theorem exists_roundingMeshPoint {n : ℕ} (hn : 0 < n) (θ : ℝ)
       rw [abs_le]
       constructor <;> linarith
     have hdifference :
-        θ - roundingMeshPoint n g =
+        θ - roundingMeshPt n g =
           (y - ((k : ℝ) + 1 / 2)) * (π / (32 * n)) := by
-      simp only [roundingMeshPoint, g]
+      simp only [roundingMeshPt, g]
       dsimp only [y]
       push_cast
       field_simp
@@ -11228,31 +11193,31 @@ theorem exists_roundingMeshPoint {n : ℕ} (hn : 0 < n) (θ : ℝ)
 
 def explicitRoundingSetup {n : ℕ} (hn : 0 < n) :
     RoundingSetup n (Fin (roundingMeshSize n)) where
-  point := roundingMeshPoint n
-  parameter := fun q ↦ roundingParameter q.2
-  parameter_nonneg := fun q ↦ roundingParameter_nonneg q.2
+  point := roundingMeshPt n
+  parameter := fun q ↦ roundingParam q.2
+  parameter_nonneg := fun q ↦ roundingParam_nonneg q.2
   budget := by
     rw [Fintype.sum_prod_type]
     simp only
     calc
       (∑ _g : Fin (roundingMeshSize n),
-          ∑ l : Fin n, Real.exp (-(roundingParameter l) ^ 2 / 196)) =
+          ∑ l : Fin n, Real.exp (-(roundingParam l) ^ 2 / 196)) =
           (roundingMeshSize n : ℝ) *
-            ∑ l : Fin n, Real.exp (-(roundingParameter l) ^ 2 / 196) := by
+            ∑ l : Fin n, Real.exp (-(roundingParam l) ^ 2 / 196) := by
         simp only [Finset.sum_const, Finset.card_univ, card_fin,
           nsmul_eq_mul]
       _ ≤ (roundingMeshSize n : ℝ) * (1 / 256 : ℝ) := by
-        apply mul_le_mul_of_nonneg_left (sum_exp_roundingParameter_le n)
+        apply mul_le_mul_of_nonneg_left (sum_exp_roundingParam_le n)
         positivity
       _ = (n : ℝ) / 16 := by
         simp [roundingMeshSize]
         ring
-  parameter_bound := fun _g l ↦ roundingParameter_add_thirty_le l
+  parameter_bound := fun _g l ↦ roundingParam_add_thirty_le l
   cover := by
     intro a θ
     obtain ⟨θ', hθ', habs⟩ :=
-      exists_firstQuadrant_abs_oddSineSum_eq n a θ
-    obtain ⟨g, hnear⟩ := exists_roundingMeshPoint hn θ' hθ'
+      exists_firstQuad_abs_oddSinSum_eq n a θ
+    obtain ⟨g, hnear⟩ := exists_roundingMeshPt hn θ' hθ'
     exact ⟨g, θ', hnear, habs⟩
 
 theorem exists_roundingSetup {n : ℕ} (hn : 0 < n) :
@@ -11272,19 +11237,19 @@ open scoped BigOperators Topology
 
 noncomputable section
 
-namespace Discrepancy
+namespace Disc
 
 variable {I J : Type*} [Fintype I] [Fintype J]
 
-def approximateFixedCoordinates [DecidableEq I]
+def approxFixCoords [DecidableEq I]
     (ε : ℝ) (x : I → ℝ) : Finset I :=
   Finset.univ.filter fun i ↦ 1 - ε ≤ |x i|
 
 @[simp]
-theorem mem_approximateFixedCoordinates [DecidableEq I]
+theorem mem_approxFixCoords [DecidableEq I]
     {ε : ℝ} {x : I → ℝ} {i : I} :
-    i ∈ approximateFixedCoordinates ε x ↔ 1 - ε ≤ |x i| := by
-  simp [approximateFixedCoordinates]
+    i ∈ approxFixCoords ε x ↔ 1 - ε ≤ |x i| := by
+  simp [approxFixCoords]
 
 omit [Fintype I] in
 
@@ -11303,13 +11268,13 @@ theorem isCompact_inCube : IsCompact {x : I → ℝ | InCube x} := by
 
 omit [Fintype J] in
 
-theorem hasPartialColoring_of_approximate [DecidableEq I]
+theorem hasPartialColoring_of_approx [DecidableEq I]
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
     (happrox : ∀ ε : ℝ, 0 < ε →
       ∃ x : I → ℝ,
         InCube x ∧
           Fintype.card I ≤
-            2 * (approximateFixedCoordinates ε x).card ∧
+            2 * (approxFixCoords ε x).card ∧
           ∀ j, |dot (x - x₀) (v j)| ≤ c j * l2Norm (v j)) :
     HasPartialColoring v x₀ c := by
   let ε : ℕ → ℝ := fun n ↦ 1 / ((n : ℝ) + 1)
@@ -11319,7 +11284,7 @@ theorem hasPartialColoring_of_approximate [DecidableEq I]
   have hwitness : ∀ n : ℕ, ∃ x : I → ℝ,
       InCube x ∧
         Fintype.card I ≤
-          2 * (approximateFixedCoordinates (ε n) x).card ∧
+          2 * (approxFixCoords (ε n) x).card ∧
         ∀ j, |dot (x - x₀) (v j)| ≤ c j * l2Norm (v j) := by
     intro n
     exact happrox (ε n) (hε_pos n)
@@ -11338,12 +11303,12 @@ theorem hasPartialColoring_of_approximate [DecidableEq I]
     have hxCoordinate (i : I) :
         Tendsto (fun n ↦ x (phi n) i) atTop (nhds (xLimit i)) :=
       tendsto_pi_nhds.mp hxLimit i
-    have hnotApprox (i : I) (hi : i ∉ fixedCoordinates xLimit) :
+    have hnotApprox (i : I) (hi : i ∉ fixCoords xLimit) :
         ∀ᶠ n in atTop,
-          i ∉ approximateFixedCoordinates (ε (phi n)) (x (phi n)) := by
+          i ∉ approxFixCoords (ε (phi n)) (x (phi n)) := by
       have habs_le : |xLimit i| ≤ 1 := hxLimitCube i
       have habs_ne : |xLimit i| ≠ 1 := by
-        simpa [fixedCoordinates] using hi
+        simpa [fixCoords] using hi
       have hgap : 0 < 1 - |xLimit i| := sub_pos.mpr (lt_of_le_of_ne habs_le habs_ne)
       have htendsto :
           Tendsto
@@ -11356,19 +11321,19 @@ theorem hasPartialColoring_of_approximate [DecidableEq I]
           ∀ᶠ n in atTop, 0 < 1 - ε (phi n) - |x (phi n) i| :=
         htendsto.eventually (isOpen_Ioi.mem_nhds hgap)
       filter_upwards [hpositive] with n hn
-      simp only [mem_approximateFixedCoordinates, not_le]
+      simp only [mem_approxFixCoords, not_le]
       linarith
     have hsubset_eventually :
         ∀ᶠ n in atTop,
-          approximateFixedCoordinates (ε (phi n)) (x (phi n)) ⊆
-            fixedCoordinates xLimit := by
+          approxFixCoords (ε (phi n)) (x (phi n)) ⊆
+            fixCoords xLimit := by
       have hall :
           ∀ᶠ n in atTop, ∀ i : I,
-            i ∈ approximateFixedCoordinates (ε (phi n)) (x (phi n)) →
-              i ∈ fixedCoordinates xLimit := by
+            i ∈ approxFixCoords (ε (phi n)) (x (phi n)) →
+              i ∈ fixCoords xLimit := by
         apply Filter.eventually_all.mpr
         intro i
-        by_cases hfixed : i ∈ fixedCoordinates xLimit
+        by_cases hfixed : i ∈ fixCoords xLimit
         · exact Eventually.of_forall fun _ _ ↦ hfixed
         · exact (hnotApprox i hfixed).mono fun _ hnot hmem ↦
             False.elim (hnot hmem)
@@ -11389,7 +11354,7 @@ theorem hasPartialColoring_of_approximate [DecidableEq I]
       exact ((hxCoordinate i).sub tendsto_const_nhds).mul_const (v j i)
     exact le_of_tendsto' hdot.abs fun n ↦ hxDiscrepancy (phi n) j
 
-end Discrepancy
+end Disc
 
 end
 end
@@ -11403,13 +11368,13 @@ noncomputable section
 
 namespace EdgeWalk
 
-open Discrepancy GaussianWalk ProjectionWalk
+open Disc GaussianWalk ProjWalk
 
 variable {I J : Type*} [Fintype I] [Fintype J]
 
-abbrev toWalk (v : I → ℝ) : WalkSpace I := WithLp.toLp 2 v
+abbrev toWalk (v : I → ℝ) : WalkSp I := WithLp.toLp 2 v
 
-theorem norm_walkSpace_sq (v : WalkSpace I) :
+theorem norm_walkSp_sq (v : WalkSp I) :
     ‖v‖ ^ 2 = ∑ i, v i ^ 2 := by
   rw [EuclideanSpace.norm_sq_eq]
   simp [norm_eq_abs, sq_abs]
@@ -11423,32 +11388,32 @@ theorem dot_eq_inner (x v : I → ℝ) :
   simp [dot, toWalk, EuclideanSpace.inner_eq_star_dotProduct,
     RCLike.star_def, dotProduct, mul_comm]
 
-def normalizedConstraint (v : I → ℝ) : WalkSpace I :=
+def normConstr (v : I → ℝ) : WalkSp I :=
   (l2Norm v)⁻¹ • toWalk v
 
-theorem norm_normalizedConstraint_le_one (v : I → ℝ) :
-    ‖normalizedConstraint v‖ ≤ 1 := by
+theorem norm_normConstr_le_one (v : I → ℝ) :
+    ‖normConstr v‖ ≤ 1 := by
   by_cases hv : l2Norm v = 0
-  · simp [normalizedConstraint, hv]
-  · rw [normalizedConstraint, norm_smul, norm_eq_abs,
+  · simp [normConstr, hv]
+  · rw [normConstr, norm_smul, norm_eq_abs,
       abs_inv, l2Norm_eq_norm]
     have hnorm : ‖toWalk v‖ ≠ 0 := by
       rw [← l2Norm_eq_norm]
       exact hv
     rw [abs_of_nonneg (norm_nonneg _), inv_mul_cancel₀ hnorm]
 
-def scaledDiscrepancy (v : I → ℝ) (x₀ : I → ℝ)
-    (x : WalkSpace I) : ℝ :=
-  inner ℝ (normalizedConstraint v) (x - toWalk x₀)
+def scDisc (v : I → ℝ) (x₀ : I → ℝ)
+    (x : WalkSp I) : ℝ :=
+  inner ℝ (normConstr v) (x - toWalk x₀)
 
-theorem scaledDiscrepancy_mul_l2Norm {v : I → ℝ}
-    (hv : 0 < l2Norm v) (x₀ : I → ℝ) (x : WalkSpace I) :
-    scaledDiscrepancy v x₀ x * l2Norm v =
+theorem scDisc_mul_l2Norm {v : I → ℝ}
+    (hv : 0 < l2Norm v) (x₀ : I → ℝ) (x : WalkSp I) :
+    scDisc v x₀ x * l2Norm v =
       dot (fun i ↦ x i - x₀ i) v := by
   calc
-    scaledDiscrepancy v x₀ x * l2Norm v =
+    scDisc v x₀ x * l2Norm v =
         inner ℝ (toWalk v) (x - toWalk x₀) := by
-      rw [scaledDiscrepancy, normalizedConstraint, inner_smul_left]
+      rw [scDisc, normConstr, inner_smul_left]
       simp only [starRingEnd_apply, star_trivial]
       field_simp [hv.ne']
     _ = inner ℝ (toWalk v) (toWalk (fun i ↦ x i - x₀ i)) := by
@@ -11456,216 +11421,216 @@ theorem scaledDiscrepancy_mul_l2Norm {v : I → ℝ}
     _ = dot (fun i ↦ x i - x₀ i) v :=
       (dot_eq_inner _ _).symm
 
-def activeCoordinates [DecidableEq I] (δ : ℝ) (x : WalkSpace I) : Finset I :=
+def actCoords [DecidableEq I] (δ : ℝ) (x : WalkSp I) : Finset I :=
   Finset.univ.filter fun i ↦ 1 - δ ≤ |x i|
 
-def activeDiscrepancies [DecidableEq J] (δ : ℝ)
+def actDiscrepancies [DecidableEq J] (δ : ℝ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) : Finset J :=
+    (x : WalkSp I) : Finset J :=
   Finset.univ.filter fun j ↦
-    0 < l2Norm (v j) ∧ c j - δ ≤ |scaledDiscrepancy (v j) x₀ x|
+    0 < l2Norm (v j) ∧ c j - δ ≤ |scDisc (v j) x₀ x|
 
-@[simp] theorem mem_activeCoordinates [DecidableEq I]
-    {δ : ℝ} {x : WalkSpace I} {i : I} :
-    i ∈ activeCoordinates δ x ↔ 1 - δ ≤ |x i| := by
-  simp [activeCoordinates]
+@[simp] theorem mem_actCoords [DecidableEq I]
+    {δ : ℝ} {x : WalkSp I} {i : I} :
+    i ∈ actCoords δ x ↔ 1 - δ ≤ |x i| := by
+  simp [actCoords]
 
-@[simp] theorem mem_activeDiscrepancies [DecidableEq J]
+@[simp] theorem mem_actDiscrepancies [DecidableEq J]
     {δ : ℝ} {v : J → I → ℝ} {x₀ : I → ℝ} {c : J → ℝ}
-    {x : WalkSpace I} {j : J} :
-    j ∈ activeDiscrepancies δ v x₀ c x ↔
+    {x : WalkSp I} {j : J} :
+    j ∈ actDiscrepancies δ v x₀ c x ↔
       0 < l2Norm (v j) ∧
-        c j - δ ≤ |scaledDiscrepancy (v j) x₀ x| := by
-  simp [activeDiscrepancies]
+        c j - δ ≤ |scDisc (v j) x₀ x| := by
+  simp [actDiscrepancies]
 
-def sampleVector (ω : I → ℝ) : WalkSpace I := toWalk ω
+def sampVec (ω : I → ℝ) : WalkSp I := toWalk ω
 
-def projectedCoefficients (K : Submodule ℝ (WalkSpace I))
-    (v : WalkSpace I) : I → ℝ := fun i ↦ K.starProjection v i
+def projectedCoeffs (K : Submodule ℝ (WalkSp I))
+    (v : WalkSp I) : I → ℝ := fun i ↦ K.starProjection v i
 
-theorem inner_starProjection_sample_eq_sum
-    (K : Submodule ℝ (WalkSpace I)) (v : WalkSpace I) (ω : I → ℝ) :
-    inner ℝ v (K.starProjection (sampleVector ω)) =
-      ∑ i, projectedCoefficients K v i * ω i := by
+theorem inner_starProj_samp_eq_sum
+    (K : Submodule ℝ (WalkSp I)) (v : WalkSp I) (ω : I → ℝ) :
+    inner ℝ v (K.starProjection (sampVec ω)) =
+      ∑ i, projectedCoeffs K v i * ω i := by
   rw [real_inner_comm, K.inner_starProjection_left_eq_right, real_inner_comm]
-  simp [PiLp.inner_apply, projectedCoefficients, sampleVector, toWalk, mul_comm]
+  simp [PiLp.inner_apply, projectedCoeffs, sampVec, toWalk, mul_comm]
 
-theorem integrable_exp_inner_starProjection_sample
-    (K : Submodule ℝ (WalkSpace I)) (v : WalkSpace I) (t : ℝ) :
+theorem integrable_exp_inner_starProj_samp
+    (K : Submodule ℝ (WalkSp I)) (v : WalkSp I) (t : ℝ) :
     Integrable (fun ω : I → ℝ ↦
-      exp (t * inner ℝ v (K.starProjection (sampleVector ω))))
-      (rademacherLaw I) := by
+      exp (t * inner ℝ v (K.starProjection (sampVec ω))))
+      (radLaw I) := by
   rw [show (fun ω : I → ℝ ↦
-      exp (t * inner ℝ v (K.starProjection (sampleVector ω)))) =
-      (fun ω ↦ exp (t * ∑ i, projectedCoefficients K v i * ω i)) by
+      exp (t * inner ℝ v (K.starProjection (sampVec ω)))) =
+      (fun ω ↦ exp (t * ∑ i, projectedCoeffs K v i * ω i)) by
     funext ω
-    rw [inner_starProjection_sample_eq_sum]]
-  exact (hasSubgaussianMGF_weightedRademacherSum I
-    (projectedCoefficients K v)).integrable_exp_mul t
+    rw [inner_starProj_samp_eq_sum]]
+  exact (hasSubgaussianMGF_wtedRadSum I
+    (projectedCoeffs K v)).integrable_exp_mul t
 
-theorem sum_projectedCoefficients_sq
-    (K : Submodule ℝ (WalkSpace I)) (v : WalkSpace I) :
-    ∑ i, projectedCoefficients K v i ^ 2 = ‖K.starProjection v‖ ^ 2 := by
-  simpa [projectedCoefficients, EuclideanSpace.norm_sq_eq]
+theorem sum_projectedCoeffs_sq
+    (K : Submodule ℝ (WalkSp I)) (v : WalkSp I) :
+    ∑ i, projectedCoeffs K v i ^ 2 = ‖K.starProjection v‖ ^ 2 := by
+  simpa [projectedCoeffs, EuclideanSpace.norm_sq_eq]
 
-theorem sum_projectedCoefficients_sq_le
-    (K : Submodule ℝ (WalkSpace I)) (v : WalkSpace I) :
-    ∑ i, projectedCoefficients K v i ^ 2 ≤ ‖v‖ ^ 2 := by
-  rw [sum_projectedCoefficients_sq]
+theorem sum_projectedCoeffs_sq_le
+    (K : Submodule ℝ (WalkSp I)) (v : WalkSp I) :
+    ∑ i, projectedCoeffs K v i ^ 2 ≤ ‖v‖ ^ 2 := by
+  rw [sum_projectedCoeffs_sq]
   nlinarith [norm_nonneg (K.starProjection v), norm_nonneg v,
     K.norm_starProjection_apply_le v]
 
-theorem integral_exp_inner_starProjection_sample_le
-    (K : Submodule ℝ (WalkSpace I)) (v : WalkSpace I) (t : ℝ) :
+theorem intg_exp_inner_starProj_samp_le
+    (K : Submodule ℝ (WalkSp I)) (v : WalkSp I) (t : ℝ) :
     ∫ ω : I → ℝ,
-        exp (t * inner ℝ v (K.starProjection (sampleVector ω)))
-      ∂(rademacherLaw I) ≤ exp (t ^ 2 * ‖v‖ ^ 2 / 2) := by
+        exp (t * inner ℝ v (K.starProjection (sampVec ω)))
+      ∂(radLaw I) ≤ exp (t ^ 2 * ‖v‖ ^ 2 / 2) := by
   rw [show (fun ω : I → ℝ ↦
-      exp (t * inner ℝ v (K.starProjection (sampleVector ω)))) =
-      (fun ω ↦ exp (t * ∑ i, projectedCoefficients K v i * ω i)) by
+      exp (t * inner ℝ v (K.starProjection (sampVec ω)))) =
+      (fun ω ↦ exp (t * ∑ i, projectedCoeffs K v i * ω i)) by
     funext ω
-    rw [inner_starProjection_sample_eq_sum]]
-  have hmgf := (hasSubgaussianMGF_weightedRademacherSum I
-    (projectedCoefficients K v)).mgf_le t
+    rw [inner_starProj_samp_eq_sum]]
+  have hmgf := (hasSubgaussianMGF_wtedRadSum I
+    (projectedCoeffs K v)).mgf_le t
   rw [mgf] at hmgf
-  let q : I → ℝ≥0 := fun i ↦ ⟨projectedCoefficients K v i ^ 2,
-    sq_nonneg (projectedCoefficients K v i)⟩
+  let q : I → ℝ≥0 := fun i ↦ ⟨projectedCoeffs K v i ^ 2,
+    sq_nonneg (projectedCoeffs K v i)⟩
   let variance : ℝ≥0 := ∑ i, q i
   change (∫ ω : I → ℝ,
-      exp (t * ∑ i, projectedCoefficients K v i * ω i)
-    ∂(rademacherLaw I)) ≤ exp ((variance : ℝ) * t ^ 2 / 2) at hmgf
-  have hcoe : (variance : ℝ) = ∑ i, projectedCoefficients K v i ^ 2 := by
+      exp (t * ∑ i, projectedCoeffs K v i * ω i)
+    ∂(radLaw I)) ≤ exp ((variance : ℝ) * t ^ 2 / 2) at hmgf
+  have hcoe : (variance : ℝ) = ∑ i, projectedCoeffs K v i ^ 2 := by
     calc
       (variance : ℝ) = ↑(∑ i, q i) := rfl
       _ = ∑ i, (q i : ℝ) := by
         simpa using NNReal.coe_sum Finset.univ q
-      _ = ∑ i, projectedCoefficients K v i ^ 2 := by
+      _ = ∑ i, projectedCoeffs K v i ^ 2 := by
         apply sum_congr rfl
         intro i hi
         rfl
   calc
     ∫ ω : I → ℝ,
-        exp (t * ∑ i, projectedCoefficients K v i * ω i)
-      ∂(rademacherLaw I) ≤
+        exp (t * ∑ i, projectedCoeffs K v i * ω i)
+      ∂(radLaw I) ≤
         exp ((variance : ℝ) * t ^ 2 / 2) := hmgf
     _ ≤ exp (t ^ 2 * ‖v‖ ^ 2 / 2) := by
       apply exp_le_exp.mpr
       rw [hcoe]
-      nlinarith [sum_projectedCoefficients_sq_le K v, sq_nonneg t]
+      nlinarith [sum_projectedCoeffs_sq_le K v, sq_nonneg t]
 
-theorem memLp_id_rademacherMeasure : MemLp id 2 rademacherMeasure := by
-  exact memLp_of_bounded ae_mem_Icc_rademacherMeasure
+theorem memLp_id_radMeasure : MemLp id 2 radMeasure := by
+  exact memLp_of_bounded ae_mem_Icc_radMeasure
     measurable_id.aestronglyMeasurable 2
 
-theorem memLp_weighted_rademacher_coord (a : I → ℝ) (i : I) :
-    MemLp (fun ω : I → ℝ ↦ a i * ω i) 2 (rademacherLaw I) := by
-  exact (memLp_id_rademacherMeasure.comp_measurePreserving
-    (measurePreserving_eval (μ := fun _ : I ↦ rademacherMeasure) i)).const_mul (a i)
+theorem memLp_wted_rad_coord (a : I → ℝ) (i : I) :
+    MemLp (fun ω : I → ℝ ↦ a i * ω i) 2 (radLaw I) := by
+  exact (memLp_id_radMeasure.comp_measurePreserving
+    (measurePreserving_eval (μ := fun _ : I ↦ radMeasure) i)).const_mul (a i)
 
-theorem integral_weighted_rademacher_sum (a : I → ℝ) :
-    ∫ ω, (∑ i, a i * ω i) ∂rademacherLaw I = 0 := by
+theorem intg_wted_rad_sum (a : I → ℝ) :
+    ∫ ω, (∑ i, a i * ω i) ∂radLaw I = 0 := by
   rw [integral_finset_sum]
   · apply sum_eq_zero
     intro i hi
     rw [integral_const_mul]
-    have hmap : (rademacherLaw I).map (fun ω : I → ℝ ↦ ω i) =
-        rademacherMeasure := by
-      unfold rademacherLaw
-      exact (measurePreserving_eval (μ := fun _ : I ↦ rademacherMeasure) i).map_eq
-    rw [← integral_map (μ := rademacherLaw I) (f := fun x : ℝ ↦ x)
+    have hmap : (radLaw I).map (fun ω : I → ℝ ↦ ω i) =
+        radMeasure := by
+      unfold radLaw
+      exact (measurePreserving_eval (μ := fun _ : I ↦ radMeasure) i).map_eq
+    rw [← integral_map (μ := radLaw I) (f := fun x : ℝ ↦ x)
       (measurable_pi_apply i).aemeasurable measurable_id.aestronglyMeasurable, hmap]
-    rw [integral_id_rademacherMeasure]
+    rw [intg_id_radMeasure]
     ring
   · intro i hi
-    exact (memLp_weighted_rademacher_coord a i).integrable (by norm_num)
+    exact (memLp_wted_rad_coord a i).integrable (by norm_num)
 
-theorem integral_inner_starProjection_sample_eq_zero
-    (K : Submodule ℝ (WalkSpace I)) (v : WalkSpace I) :
-    ∫ ω, inner ℝ v (K.starProjection (sampleVector ω))
-      ∂rademacherLaw I = 0 := by
-  simp_rw [inner_starProjection_sample_eq_sum]
-  exact integral_weighted_rademacher_sum (projectedCoefficients K v)
+theorem intg_inner_starProj_samp_eq_zero
+    (K : Submodule ℝ (WalkSp I)) (v : WalkSp I) :
+    ∫ ω, inner ℝ v (K.starProjection (sampVec ω))
+      ∂radLaw I = 0 := by
+  simp_rw [inner_starProj_samp_eq_sum]
+  exact intg_wted_rad_sum (projectedCoeffs K v)
 
-theorem memLp_weighted_rademacher_sum (a : I → ℝ) :
+theorem memLp_wted_rad_sum (a : I → ℝ) :
     MemLp (fun ω : I → ℝ ↦ ∑ i, a i * ω i) 2
-      (rademacherLaw I) := by
+      (radLaw I) := by
   have h := memLp_finsetSum Finset.univ
-    (fun i _ ↦ memLp_weighted_rademacher_coord a i)
+    (fun i _ ↦ memLp_wted_rad_coord a i)
   simpa only [Finset.sum_apply] using h
 
-theorem integral_sq_weighted_rademacher_sum (a : I → ℝ) :
-    ∫ ω, (∑ i, a i * ω i) ^ 2 ∂rademacherLaw I = ∑ i, a i ^ 2 := by
+theorem intg_sq_wted_rad_sum (a : I → ℝ) :
+    ∫ ω, (∑ i, a i * ω i) ^ 2 ∂radLaw I = ∑ i, a i ^ 2 := by
   have hvar : Var[fun ω : I → ℝ ↦ ∑ i, a i * ω i;
-      rademacherLaw I] = ∑ i, a i ^ 2 := by
+      radLaw I] = ∑ i, a i ^ 2 := by
     have hfun : (fun ω : I → ℝ ↦ ∑ i, a i * ω i) =
         ∑ i, fun ω : I → ℝ ↦ a i * ω i := by
       funext ω
       simp
     rw [hfun]
-    unfold rademacherLaw
+    unfold radLaw
     rw [variance_sum_pi]
     · apply sum_congr rfl
       intro i hi
       rw [variance_const_mul]
-      have hid : Var[id; rademacherMeasure] = 1 := by
-        rw [variance_eq_sub memLp_id_rademacherMeasure]
-        simp only [Pi.pow_apply, id_eq, integral_id_rademacherMeasure, sub_zero]
-        have hsq : (fun x : ℝ ↦ x ^ 2) =ᵐ[rademacherMeasure] fun _ ↦ 1 := by
-          filter_upwards [ae_abs_eq_one_rademacherMeasure] with x hx
+      have hid : Var[id; radMeasure] = 1 := by
+        rw [variance_eq_sub memLp_id_radMeasure]
+        simp only [Pi.pow_apply, id_eq, intg_id_radMeasure, sub_zero]
+        have hsq : (fun x : ℝ ↦ x ^ 2) =ᵐ[radMeasure] fun _ ↦ 1 := by
+          filter_upwards [ae_abs_eq_one_radMeasure] with x hx
           rw [← sq_abs, hx]
           norm_num
         rw [integral_congr_ae hsq]
         simp
-      change a i ^ 2 * Var[id; rademacherMeasure] = a i ^ 2
+      change a i ^ 2 * Var[id; radMeasure] = a i ^ 2
       rw [hid, mul_one]
     · intro i
-      exact memLp_id_rademacherMeasure.const_mul (a i)
+      exact memLp_id_radMeasure.const_mul (a i)
   rw [← hvar]
   rw [variance_of_integral_eq_zero]
   · exact (Finset.measurable_fun_sum Finset.univ fun i _ ↦
       measurable_const.mul (measurable_pi_apply i)).aemeasurable
-  · exact integral_weighted_rademacher_sum a
+  · exact intg_wted_rad_sum a
 
-theorem norm_sq_starProjection_eq_sum_inner_sq
-    (K : Submodule ℝ (WalkSpace I)) (ω : I → ℝ) :
-    ‖K.starProjection (sampleVector ω)‖ ^ 2 =
+theorem norm_sq_starProj_eq_sum_inner_sq
+    (K : Submodule ℝ (WalkSp I)) (ω : I → ℝ) :
+    ‖K.starProjection (sampVec ω)‖ ^ 2 =
       ∑ k : Fin (Module.finrank ℝ K),
-        inner ℝ ((stdOrthonormalBasis ℝ K k : K) : WalkSpace I)
-          (sampleVector ω) ^ 2 := by
+        inner ℝ ((stdOrthonormalBasis ℝ K k : K) : WalkSp I)
+          (sampVec ω) ^ 2 := by
   let b : OrthonormalBasis (Fin (Module.finrank ℝ K)) ℝ K :=
     stdOrthonormalBasis ℝ K
-  let y : K := ⟨K.starProjection (sampleVector ω),
-    K.starProjection_apply_mem (sampleVector ω)⟩
+  let y : K := ⟨K.starProjection (sampVec ω),
+    K.starProjection_apply_mem (sampVec ω)⟩
   change ‖y‖ ^ 2 = _
   rw [← real_inner_self_eq_norm_sq y, ← b.sum_inner_mul_inner y y]
   apply sum_congr rfl
   intro k hk
   have hproj : inner ℝ (b k) y =
-      inner ℝ ((b k : K) : WalkSpace I) (sampleVector ω) := by
-    change inner ℝ (b k) (K.orthogonalProjectionOnto (sampleVector ω)) = _
-    exact K.inner_orthogonalProjectionOnto_eq_of_mem_left (b k) (sampleVector ω)
+      inner ℝ ((b k : K) : WalkSp I) (sampVec ω) := by
+    change inner ℝ (b k) (K.orthogonalProjectionOnto (sampVec ω)) = _
+    exact K.inner_orthogonalProjectionOnto_eq_of_mem_left (b k) (sampVec ω)
   have hcomm : inner ℝ y (b k) = inner ℝ (b k) y :=
     (real_inner_comm y (b k)).symm
   rw [hcomm, hproj]
   ring
 
-theorem integral_norm_sq_starProjection (K : Submodule ℝ (WalkSpace I)) :
-    ∫ ω, ‖K.starProjection (sampleVector ω)‖ ^ 2
-      ∂rademacherLaw I = (Module.finrank ℝ K : ℝ) := by
-  simp_rw [norm_sq_starProjection_eq_sum_inner_sq K]
+theorem intg_norm_sq_starProj (K : Submodule ℝ (WalkSp I)) :
+    ∫ ω, ‖K.starProjection (sampVec ω)‖ ^ 2
+      ∂radLaw I = (Module.finrank ℝ K : ℝ) := by
+  simp_rw [norm_sq_starProj_eq_sum_inner_sq K]
   rw [integral_finsetSum]
-  · have hsquare (w : WalkSpace I) :
-        ∫ ω, inner ℝ w (sampleVector ω) ^ 2 ∂rademacherLaw I = ‖w‖ ^ 2 := by
-      simp_rw [show ∀ ω, inner ℝ w (sampleVector ω) =
+  · have hsquare (w : WalkSp I) :
+        ∫ ω, inner ℝ w (sampVec ω) ^ 2 ∂radLaw I = ‖w‖ ^ 2 := by
+      simp_rw [show ∀ ω, inner ℝ w (sampVec ω) =
           ∑ i, w i * ω i by
         intro ω
-        simp [PiLp.inner_apply, sampleVector, toWalk, mul_comm]]
-      rw [integral_sq_weighted_rademacher_sum]
+        simp [PiLp.inner_apply, sampVec, toWalk, mul_comm]]
+      rw [intg_sq_wted_rad_sum]
       exact (EuclideanSpace.real_norm_sq_eq w).symm
     simp_rw [hsquare]
     calc
       (∑ k : Fin (Module.finrank ℝ K),
-          ‖((stdOrthonormalBasis ℝ K k : K) : WalkSpace I)‖ ^ 2) =
+          ‖((stdOrthonormalBasis ℝ K k : K) : WalkSp I)‖ ^ 2) =
           ∑ _k : Fin (Module.finrank ℝ K), (1 : ℝ) := by
         apply sum_congr rfl
         intro k hk
@@ -11676,67 +11641,67 @@ theorem integral_norm_sq_starProjection (K : Submodule ℝ (WalkSpace I)) :
   · intro k hk
     have hmem : MemLp
         (fun ω ↦ inner ℝ
-          ((stdOrthonormalBasis ℝ K k : K) : WalkSpace I) (sampleVector ω))
-        2 (rademacherLaw I) := by
+          ((stdOrthonormalBasis ℝ K k : K) : WalkSp I) (sampVec ω))
+        2 (radLaw I) := by
       simp_rw [show ∀ ω, inner ℝ
-          ((stdOrthonormalBasis ℝ K k : K) : WalkSpace I) (sampleVector ω) =
-          ∑ i, (((stdOrthonormalBasis ℝ K k : K) : WalkSpace I) i) * ω i by
+          ((stdOrthonormalBasis ℝ K k : K) : WalkSp I) (sampVec ω) =
+          ∑ i, (((stdOrthonormalBasis ℝ K k : K) : WalkSp I) i) * ω i by
         intro ω
-        simp [PiLp.inner_apply, sampleVector, toWalk, mul_comm]]
-      exact memLp_weighted_rademacher_sum _
+        simp [PiLp.inner_apply, sampVec, toWalk, mul_comm]]
+      exact memLp_wted_rad_sum _
     exact hmem.integrable_sq
 
 variable [DecidableEq I] [DecidableEq J]
 
-def edgeSubspace (δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) : Submodule ℝ (WalkSpace I) :=
-  tightIncrementSubspace (fun j ↦ normalizedConstraint (v j))
-    (activeCoordinates δ x) (activeDiscrepancies δ v x₀ c x)
+def edgeSubsp (δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
+    (c : J → ℝ) (x : WalkSp I) : Submodule ℝ (WalkSp I) :=
+  tightIncsubsp (fun j ↦ normConstr (v j))
+    (actCoords δ x) (actDiscrepancies δ v x₀ c x)
 
-def edgeIncrement (δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ) : WalkSpace I :=
-  (edgeSubspace δ v x₀ c x).starProjection (sampleVector ω)
+def edgeInc (δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ) : WalkSp I :=
+  (edgeSubsp δ v x₀ c x).starProjection (sampVec ω)
 
 def edgeStep (δ γ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ) : WalkSpace I :=
-  x + γ • edgeIncrement δ v x₀ c x ω
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ) : WalkSp I :=
+  x + γ • edgeInc δ v x₀ c x ω
 
-theorem edgeIncrement_mem (δ : ℝ) (v : J → I → ℝ)
-    (x₀ : I → ℝ) (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ) :
-    edgeIncrement δ v x₀ c x ω ∈ edgeSubspace δ v x₀ c x :=
-  (edgeSubspace δ v x₀ c x).starProjection_apply_mem _
+theorem edgeInc_mem (δ : ℝ) (v : J → I → ℝ)
+    (x₀ : I → ℝ) (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ) :
+    edgeInc δ v x₀ c x ω ∈ edgeSubsp δ v x₀ c x :=
+  (edgeSubsp δ v x₀ c x).starProjection_apply_mem _
 
-theorem edgeIncrement_apply_eq_zero_of_active
+theorem edgeInc_apply_eq_zero_of_act
     (δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ)
-    {i : I} (hi : i ∈ activeCoordinates δ x) :
-    edgeIncrement δ v x₀ c x ω i = 0 := by
-  exact (mem_tightIncrementSubspace_iff
-    (fun j ↦ normalizedConstraint (v j))
-    (activeCoordinates δ x) (activeDiscrepancies δ v x₀ c x) _).1
-      (edgeIncrement_mem δ v x₀ c x ω) |>.1 i hi
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ)
+    {i : I} (hi : i ∈ actCoords δ x) :
+    edgeInc δ v x₀ c x ω i = 0 := by
+  exact (mem_tightIncsubsp_iff
+    (fun j ↦ normConstr (v j))
+    (actCoords δ x) (actDiscrepancies δ v x₀ c x) _).1
+      (edgeInc_mem δ v x₀ c x ω) |>.1 i hi
 
-theorem inner_edgeIncrement_eq_zero_of_active
+theorem inner_edgeInc_eq_zero_of_act
     (δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ)
-    {j : J} (hj : j ∈ activeDiscrepancies δ v x₀ c x) :
-    inner ℝ (normalizedConstraint (v j))
-      (edgeIncrement δ v x₀ c x ω) = 0 := by
-  exact (mem_tightIncrementSubspace_iff
-    (fun j ↦ normalizedConstraint (v j))
-    (activeCoordinates δ x) (activeDiscrepancies δ v x₀ c x) _).1
-      (edgeIncrement_mem δ v x₀ c x ω) |>.2 j hj
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ)
+    {j : J} (hj : j ∈ actDiscrepancies δ v x₀ c x) :
+    inner ℝ (normConstr (v j))
+      (edgeInc δ v x₀ c x ω) = 0 := by
+  exact (mem_tightIncsubsp_iff
+    (fun j ↦ normConstr (v j))
+    (actCoords δ x) (actDiscrepancies δ v x₀ c x) _).1
+      (edgeInc_mem δ v x₀ c x ω) |>.2 j hj
 
-theorem norm_edgeIncrement_le (δ : ℝ) (v : J → I → ℝ)
-    (x₀ : I → ℝ) (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ) :
-    ‖edgeIncrement δ v x₀ c x ω‖ ≤ ‖sampleVector ω‖ :=
-  (edgeSubspace δ v x₀ c x).norm_starProjection_apply_le _
+theorem norm_edgeInc_le (δ : ℝ) (v : J → I → ℝ)
+    (x₀ : I → ℝ) (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ) :
+    ‖edgeInc δ v x₀ c x ω‖ ≤ ‖sampVec ω‖ :=
+  (edgeSubsp δ v x₀ c x).norm_starProjection_apply_le _
 
-theorem norm_sampleVector_sq_of_signs {ω : I → ℝ}
+theorem norm_sampVec_sq_of_signs {ω : I → ℝ}
     (hω : ∀ i, |ω i| = 1) :
-    ‖sampleVector ω‖ ^ 2 = Fintype.card I := by
-  rw [norm_walkSpace_sq]
-  simp only [sampleVector, toWalk, PiLp.toLp_apply]
+    ‖sampVec ω‖ ^ 2 = Fintype.card I := by
+  rw [norm_walkSp_sq]
+  simp only [sampVec, toWalk, PiLp.toLp_apply]
   calc
     ∑ i, ω i ^ 2 = ∑ _i : I, (1 : ℝ) := by
       apply sum_congr rfl
@@ -11744,275 +11709,275 @@ theorem norm_sampleVector_sq_of_signs {ω : I → ℝ}
       nlinarith [sq_abs (ω i), hω i]
     _ = Fintype.card I := by simp
 
-theorem norm_sampleVector_le_sqrt_card {ω : I → ℝ}
+theorem norm_sampVec_le_sqrt_card {ω : I → ℝ}
     (hω : ∀ i, |ω i| = 1) :
-    ‖sampleVector ω‖ ≤ sqrt (Fintype.card I) := by
-  have hsq := norm_sampleVector_sq_of_signs hω
+    ‖sampVec ω‖ ≤ sqrt (Fintype.card I) := by
+  have hsq := norm_sampVec_sq_of_signs hω
   rw [← sqrt_sq (norm_nonneg _), hsq]
 
-theorem scaledDiscrepancy_edgeStep
+theorem scDisc_edgeStep
     (δ γ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ) (j : J) :
-    scaledDiscrepancy (v j) x₀ (edgeStep δ γ v x₀ c x ω) =
-      scaledDiscrepancy (v j) x₀ x +
-        γ * inner ℝ (normalizedConstraint (v j))
-          (edgeIncrement δ v x₀ c x ω) := by
-  rw [scaledDiscrepancy, scaledDiscrepancy, edgeStep]
-  have hsub : x + γ • edgeIncrement δ v x₀ c x ω - toWalk x₀ =
-      (x - toWalk x₀) + γ • edgeIncrement δ v x₀ c x ω := by
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ) (j : J) :
+    scDisc (v j) x₀ (edgeStep δ γ v x₀ c x ω) =
+      scDisc (v j) x₀ x +
+        γ * inner ℝ (normConstr (v j))
+          (edgeInc δ v x₀ c x ω) := by
+  rw [scDisc, scDisc, edgeStep]
+  have hsub : x + γ • edgeInc δ v x₀ c x ω - toWalk x₀ =
+      (x - toWalk x₀) + γ • edgeInc δ v x₀ c x ω := by
     abel
   rw [hsub, inner_add_right, inner_smul_right]
 
-def entropyWeight (a : ℝ) : ℝ := exp (-a ^ 2 / 16)
+def entropyWt (a : ℝ) : ℝ := exp (-a ^ 2 / 16)
 
-def signedRowPotential (sigma γ : ℝ) (t : ℕ) (a y : ℝ) : ℝ :=
-  entropyWeight a *
+def signedRowPot (sigma γ : ℝ) (t : ℕ) (a y : ℝ) : ℝ :=
+  entropyWt a *
     exp (sigma * (a / 5) * y - (a / 5) ^ 2 * γ ^ 2 * t / 2)
 
-def rowPotential (γ : ℝ) (t : ℕ) (a y : ℝ) : ℝ :=
-  signedRowPotential 1 γ t a y + signedRowPotential (-1) γ t a y
+def rowPot (γ : ℝ) (t : ℕ) (a y : ℝ) : ℝ :=
+  signedRowPot 1 γ t a y + signedRowPot (-1) γ t a y
 
-def discrepancyPotential (γ : ℝ) (t : ℕ)
+def discPot (γ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) : ℝ :=
-  ∑ j, rowPotential γ t (c j) (scaledDiscrepancy (v j) x₀ x)
+    (x : WalkSp I) : ℝ :=
+  ∑ j, rowPot γ t (c j) (scDisc (v j) x₀ x)
 
 def edgeScore (γ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) : ℝ :=
-  ‖x‖ ^ 2 - 5 * discrepancyPotential γ t v x₀ c x
+    (x : WalkSp I) : ℝ :=
+  ‖x‖ ^ 2 - 5 * discPot γ t v x₀ c x
 
-theorem discrepancyPotential_zero (γ : ℝ) (v : J → I → ℝ)
+theorem discPot_zero (γ : ℝ) (v : J → I → ℝ)
     (x₀ : I → ℝ) (c : J → ℝ) :
-    discrepancyPotential γ 0 v x₀ c (toWalk x₀) =
-      2 * ∑ j, entropyWeight (c j) := by
-  simp [discrepancyPotential, rowPotential, signedRowPotential,
-    scaledDiscrepancy, entropyWeight, Finset.mul_sum, two_mul]
+    discPot γ 0 v x₀ c (toWalk x₀) =
+      2 * ∑ j, entropyWt (c j) := by
+  simp [discPot, rowPot, signedRowPot,
+    scDisc, entropyWt, Finset.mul_sum, two_mul]
 
-theorem signedRowPotential_nonneg (sigma γ : ℝ) (t : ℕ) (a y : ℝ) :
-    0 ≤ signedRowPotential sigma γ t a y :=
+theorem signedRowPot_nonneg (sigma γ : ℝ) (t : ℕ) (a y : ℝ) :
+    0 ≤ signedRowPot sigma γ t a y :=
   mul_nonneg (le_of_lt (exp_pos _)) (le_of_lt (exp_pos _))
 
-theorem rowPotential_nonneg (γ : ℝ) (t : ℕ) (a y : ℝ) :
-    0 ≤ rowPotential γ t a y :=
-  add_nonneg (signedRowPotential_nonneg _ _ _ _ _)
-    (signedRowPotential_nonneg _ _ _ _ _)
+theorem rowPot_nonneg (γ : ℝ) (t : ℕ) (a y : ℝ) :
+    0 ≤ rowPot γ t a y :=
+  add_nonneg (signedRowPot_nonneg _ _ _ _ _)
+    (signedRowPot_nonneg _ _ _ _ _)
 
-theorem integral_signedRowPotential_step_le
+theorem intg_signedRowPot_step_le
     (sigma γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) (j : J) (hsigma : sigma ^ 2 = 1) :
+    (x : WalkSp I) (j : J) (hsigma : sigma ^ 2 = 1) :
     ∫ ω,
-        signedRowPotential sigma γ (t + 1) (c j)
-          (scaledDiscrepancy (v j) x₀
+        signedRowPot sigma γ (t + 1) (c j)
+          (scDisc (v j) x₀
             (edgeStep δ γ v x₀ c x ω))
-      ∂rademacherLaw I ≤
-        signedRowPotential sigma γ t (c j)
-          (scaledDiscrepancy (v j) x₀ x) := by
-  let S := edgeSubspace δ v x₀ c x
-  let w := normalizedConstraint (v j)
+      ∂radLaw I ≤
+        signedRowPot sigma γ t (c j)
+          (scDisc (v j) x₀ x) := by
+  let S := edgeSubsp δ v x₀ c x
+  let w := normConstr (v j)
   let a := c j / 5
-  let y := scaledDiscrepancy (v j) x₀ x
+  let y := scDisc (v j) x₀ x
   let q := sigma * a * γ
   let base := sigma * a * y - a ^ 2 * γ ^ 2 * t / 2 -
     a ^ 2 * γ ^ 2 / 2
-  let B := entropyWeight (c j) * exp base
+  let B := entropyWt (c j) * exp base
   have hrewrite (ω : I → ℝ) :
-      signedRowPotential sigma γ (t + 1) (c j)
-          (scaledDiscrepancy (v j) x₀
+      signedRowPot sigma γ (t + 1) (c j)
+          (scDisc (v j) x₀
             (edgeStep δ γ v x₀ c x ω)) =
-        B * exp (q * inner ℝ w (S.starProjection (sampleVector ω))) := by
-    rw [scaledDiscrepancy_edgeStep]
-    unfold signedRowPotential
-    change entropyWeight (c j) * exp _ =
-      (entropyWeight (c j) * exp base) * exp _
+        B * exp (q * inner ℝ w (S.starProjection (sampVec ω))) := by
+    rw [scDisc_edgeStep]
+    unfold signedRowPot
+    change entropyWt (c j) * exp _ =
+      (entropyWt (c j) * exp base) * exp _
     calc
-      entropyWeight (c j) * exp _ =
-          entropyWeight (c j) *
+      entropyWt (c j) * exp _ =
+          entropyWt (c j) *
             (exp base * exp (q * inner ℝ w
-              (S.starProjection (sampleVector ω)))) := by
+              (S.starProjection (sampVec ω)))) := by
         congr 1
         rw [← exp_add]
         congr 1
-        dsimp only [base, a, y, q, S, w, edgeIncrement]
+        dsimp only [base, a, y, q, S, w, edgeInc]
         push_cast
         ring
-      _ = (entropyWeight (c j) * exp base) *
-          exp (q * inner ℝ w (S.starProjection (sampleVector ω))) := by
+      _ = (entropyWt (c j) * exp base) *
+          exp (q * inner ℝ w (S.starProjection (sampVec ω))) := by
         ring
   simp_rw [hrewrite]
   rw [integral_const_mul]
   have hB : 0 ≤ B := mul_nonneg (le_of_lt (exp_pos _)) (le_of_lt (exp_pos _))
   calc
-    B * ∫ ω, exp (q * inner ℝ w (S.starProjection (sampleVector ω)))
-        ∂rademacherLaw I ≤ B * exp (q ^ 2 * ‖w‖ ^ 2 / 2) :=
+    B * ∫ ω, exp (q * inner ℝ w (S.starProjection (sampVec ω)))
+        ∂radLaw I ≤ B * exp (q ^ 2 * ‖w‖ ^ 2 / 2) :=
       mul_le_mul_of_nonneg_left
-        (integral_exp_inner_starProjection_sample_le S w q) hB
+        (intg_exp_inner_starProj_samp_le S w q) hB
     _ ≤ B * exp (q ^ 2 / 2) := by
       gcongr
       have hwSq : ‖w‖ ^ 2 ≤ 1 := by
         nlinarith [mul_self_le_mul_self (norm_nonneg w)
-          (norm_normalizedConstraint_le_one (v j))]
+          (norm_normConstr_le_one (v j))]
       nlinarith [hwSq, sq_nonneg q]
-    _ = signedRowPotential sigma γ t (c j) y := by
+    _ = signedRowPot sigma γ t (c j) y := by
       dsimp only [B, base, q, a]
-      unfold signedRowPotential
+      unfold signedRowPot
       rw [mul_assoc, ← exp_add]
       congr 2
       push_cast
       nlinarith
 
-theorem integrable_signedRowPotential_step
+theorem integrable_signedRowPot_step
     (sigma γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) (j : J) :
+    (x : WalkSp I) (j : J) :
     Integrable (fun ω ↦
-      signedRowPotential sigma γ (t + 1) (c j)
-        (scaledDiscrepancy (v j) x₀
+      signedRowPot sigma γ (t + 1) (c j)
+        (scDisc (v j) x₀
           (edgeStep δ γ v x₀ c x ω)))
-      (rademacherLaw I) := by
-  let S := edgeSubspace δ v x₀ c x
-  let w := normalizedConstraint (v j)
+      (radLaw I) := by
+  let S := edgeSubsp δ v x₀ c x
+  let w := normConstr (v j)
   let q := sigma * (c j / 5) * γ
-  let base := sigma * (c j / 5) * scaledDiscrepancy (v j) x₀ x -
+  let base := sigma * (c j / 5) * scDisc (v j) x₀ x -
     (c j / 5) ^ 2 * γ ^ 2 * t / 2 -
     (c j / 5) ^ 2 * γ ^ 2 / 2
-  let B := entropyWeight (c j) * exp base
+  let B := entropyWt (c j) * exp base
   have heq : (fun ω ↦
-      signedRowPotential sigma γ (t + 1) (c j)
-        (scaledDiscrepancy (v j) x₀
+      signedRowPot sigma γ (t + 1) (c j)
+        (scDisc (v j) x₀
           (edgeStep δ γ v x₀ c x ω))) =
       (fun ω ↦ B * exp (q * inner ℝ w
-        (S.starProjection (sampleVector ω)))) := by
+        (S.starProjection (sampVec ω)))) := by
     funext ω
-    rw [scaledDiscrepancy_edgeStep]
-    unfold signedRowPotential
-    change entropyWeight (c j) * exp _ =
-      (entropyWeight (c j) * exp base) * exp _
+    rw [scDisc_edgeStep]
+    unfold signedRowPot
+    change entropyWt (c j) * exp _ =
+      (entropyWt (c j) * exp base) * exp _
     calc
-      entropyWeight (c j) * exp _ =
-          entropyWeight (c j) *
+      entropyWt (c j) * exp _ =
+          entropyWt (c j) *
             (exp base * exp (q * inner ℝ w
-              (S.starProjection (sampleVector ω)))) := by
+              (S.starProjection (sampVec ω)))) := by
         congr 1
         rw [← exp_add]
         congr 1
-        dsimp only [base, q, S, w, edgeIncrement]
+        dsimp only [base, q, S, w, edgeInc]
         push_cast
         ring
-      _ = (entropyWeight (c j) * exp base) *
-          exp (q * inner ℝ w (S.starProjection (sampleVector ω))) := by
+      _ = (entropyWt (c j) * exp base) *
+          exp (q * inner ℝ w (S.starProjection (sampVec ω))) := by
         ring
   rw [heq]
-  exact (integrable_exp_inner_starProjection_sample S w q).const_mul B
+  exact (integrable_exp_inner_starProj_samp S w q).const_mul B
 
-theorem integral_rowPotential_step_le
+theorem intg_rowPot_step_le
     (γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) (j : J) :
+    (x : WalkSp I) (j : J) :
     ∫ ω,
-        rowPotential γ (t + 1) (c j)
-          (scaledDiscrepancy (v j) x₀
+        rowPot γ (t + 1) (c j)
+          (scDisc (v j) x₀
             (edgeStep δ γ v x₀ c x ω))
-      ∂rademacherLaw I ≤
-        rowPotential γ t (c j)
-          (scaledDiscrepancy (v j) x₀ x) := by
-  unfold rowPotential
+      ∂radLaw I ≤
+        rowPot γ t (c j)
+          (scDisc (v j) x₀ x) := by
+  unfold rowPot
   rw [integral_add]
   · exact add_le_add
-      (integral_signedRowPotential_step_le 1 γ δ t v x₀ c x j (by norm_num))
-      (integral_signedRowPotential_step_le (-1) γ δ t v x₀ c x j (by norm_num))
-  · exact integrable_signedRowPotential_step 1 γ δ t v x₀ c x j
-  · exact integrable_signedRowPotential_step (-1) γ δ t v x₀ c x j
+      (intg_signedRowPot_step_le 1 γ δ t v x₀ c x j (by norm_num))
+      (intg_signedRowPot_step_le (-1) γ δ t v x₀ c x j (by norm_num))
+  · exact integrable_signedRowPot_step 1 γ δ t v x₀ c x j
+  · exact integrable_signedRowPot_step (-1) γ δ t v x₀ c x j
 
-theorem integrable_discrepancyPotential_step
+theorem integrable_discPot_step
     (γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) :
-    Integrable (fun ω ↦ discrepancyPotential γ (t + 1) v x₀ c
-      (edgeStep δ γ v x₀ c x ω)) (rademacherLaw I) := by
-  unfold discrepancyPotential
+    (x : WalkSp I) :
+    Integrable (fun ω ↦ discPot γ (t + 1) v x₀ c
+      (edgeStep δ γ v x₀ c x ω)) (radLaw I) := by
+  unfold discPot
   exact integrable_finset_sum Finset.univ fun j hj ↦
-    integrable_signedRowPotential_step 1 γ δ t v x₀ c x j |>.add
-      (integrable_signedRowPotential_step (-1) γ δ t v x₀ c x j)
+    integrable_signedRowPot_step 1 γ δ t v x₀ c x j |>.add
+      (integrable_signedRowPot_step (-1) γ δ t v x₀ c x j)
 
-theorem integral_discrepancyPotential_step_le
+theorem intg_discPot_step_le
     (γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) :
-    ∫ ω, discrepancyPotential γ (t + 1) v x₀ c
+    (x : WalkSp I) :
+    ∫ ω, discPot γ (t + 1) v x₀ c
         (edgeStep δ γ v x₀ c x ω)
-      ∂rademacherLaw I ≤ discrepancyPotential γ t v x₀ c x := by
-  unfold discrepancyPotential
+      ∂radLaw I ≤ discPot γ t v x₀ c x := by
+  unfold discPot
   rw [integral_finsetSum]
   exact sum_le_sum fun j hj ↦
-    integral_rowPotential_step_le γ δ t v x₀ c x j
+    intg_rowPot_step_le γ δ t v x₀ c x j
   intro j hj
-  exact (integrable_signedRowPotential_step 1 γ δ t v x₀ c x j).add
-    (integrable_signedRowPotential_step (-1) γ δ t v x₀ c x j)
+  exact (integrable_signedRowPot_step 1 γ δ t v x₀ c x j).add
+    (integrable_signedRowPot_step (-1) γ δ t v x₀ c x j)
 
-theorem integrable_inner_starProjection_sample
-    (K : Submodule ℝ (WalkSpace I)) (v : WalkSpace I) :
-    Integrable (fun ω ↦ inner ℝ v (K.starProjection (sampleVector ω)))
-      (rademacherLaw I) := by
-  simp_rw [inner_starProjection_sample_eq_sum]
-  exact (memLp_weighted_rademacher_sum (projectedCoefficients K v)).integrable
+theorem integrable_inner_starProj_samp
+    (K : Submodule ℝ (WalkSp I)) (v : WalkSp I) :
+    Integrable (fun ω ↦ inner ℝ v (K.starProjection (sampVec ω)))
+      (radLaw I) := by
+  simp_rw [inner_starProj_samp_eq_sum]
+  exact (memLp_wted_rad_sum (projectedCoeffs K v)).integrable
     (by norm_num)
 
-theorem integrable_norm_sq_starProjection
-    (K : Submodule ℝ (WalkSpace I)) :
-    Integrable (fun ω ↦ ‖K.starProjection (sampleVector ω)‖ ^ 2)
-      (rademacherLaw I) := by
-  simp_rw [norm_sq_starProjection_eq_sum_inner_sq K]
+theorem integrable_norm_sq_starProj
+    (K : Submodule ℝ (WalkSp I)) :
+    Integrable (fun ω ↦ ‖K.starProjection (sampVec ω)‖ ^ 2)
+      (radLaw I) := by
+  simp_rw [norm_sq_starProj_eq_sum_inner_sq K]
   exact integrable_finset_sum Finset.univ fun k hk ↦
-    ((memLp_weighted_rademacher_sum
-      (fun i ↦ (((stdOrthonormalBasis ℝ K k : K) : WalkSpace I) i))).integrable_sq.congr
+    ((memLp_wted_rad_sum
+      (fun i ↦ (((stdOrthonormalBasis ℝ K k : K) : WalkSp I) i))).integrable_sq.congr
         (Filter.Eventually.of_forall fun ω ↦ by
           congr 1
-          simp [PiLp.inner_apply, sampleVector, toWalk, mul_comm]))
+          simp [PiLp.inner_apply, sampVec, toWalk, mul_comm]))
 
 theorem norm_edgeStep_sq
     (γ δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ) :
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ) :
     ‖edgeStep δ γ v x₀ c x ω‖ ^ 2 = ‖x‖ ^ 2 +
-      2 * γ * inner ℝ x (edgeIncrement δ v x₀ c x ω) +
-      γ ^ 2 * ‖edgeIncrement δ v x₀ c x ω‖ ^ 2 := by
+      2 * γ * inner ℝ x (edgeInc δ v x₀ c x ω) +
+      γ ^ 2 * ‖edgeInc δ v x₀ c x ω‖ ^ 2 := by
   rw [edgeStep, norm_add_sq_real]
   simp only [norm_smul, norm_eq_abs, inner_smul_right,
     starRingEnd_apply, star_trivial]
   rw [mul_pow, sq_abs]
   ring
 
-theorem integral_norm_edgeStep_sq
+theorem intg_norm_edgeStep_sq
     (γ δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) :
+    (c : J → ℝ) (x : WalkSp I) :
     ∫ ω, ‖edgeStep δ γ v x₀ c x ω‖ ^ 2
-      ∂rademacherLaw I = ‖x‖ ^ 2 +
-        γ ^ 2 * Module.finrank ℝ (edgeSubspace δ v x₀ c x) := by
+      ∂radLaw I = ‖x‖ ^ 2 +
+        γ ^ 2 * Module.finrank ℝ (edgeSubsp δ v x₀ c x) := by
   simp_rw [norm_edgeStep_sq]
   have hconst : Integrable (fun _omega : I → ℝ ↦ ‖x‖ ^ 2)
-      (rademacherLaw I) := integrable_const _
+      (radLaw I) := integrable_const _
   have hlinear : Integrable (fun ω : I → ℝ ↦
-      2 * γ * inner ℝ x (edgeIncrement δ v x₀ c x ω))
-      (rademacherLaw I) :=
-    (integrable_inner_starProjection_sample
-      (edgeSubspace δ v x₀ c x) x).const_mul (2 * γ)
+      2 * γ * inner ℝ x (edgeInc δ v x₀ c x ω))
+      (radLaw I) :=
+    (integrable_inner_starProj_samp
+      (edgeSubsp δ v x₀ c x) x).const_mul (2 * γ)
   have hquadratic : Integrable (fun ω : I → ℝ ↦
-      γ ^ 2 * ‖edgeIncrement δ v x₀ c x ω‖ ^ 2)
-      (rademacherLaw I) :=
-    (integrable_norm_sq_starProjection
-      (edgeSubspace δ v x₀ c x)).const_mul (γ ^ 2)
+      γ ^ 2 * ‖edgeInc δ v x₀ c x ω‖ ^ 2)
+      (radLaw I) :=
+    (integrable_norm_sq_starProj
+      (edgeSubsp δ v x₀ c x)).const_mul (γ ^ 2)
   have hzero : ∫ ω,
-      inner ℝ x (edgeIncrement δ v x₀ c x ω)
-        ∂rademacherLaw I = 0 := by
-    exact integral_inner_starProjection_sample_eq_zero
-      (edgeSubspace δ v x₀ c x) x
+      inner ℝ x (edgeInc δ v x₀ c x ω)
+        ∂radLaw I = 0 := by
+    exact intg_inner_starProj_samp_eq_zero
+      (edgeSubsp δ v x₀ c x) x
   have hsquare : ∫ ω,
-      ‖edgeIncrement δ v x₀ c x ω‖ ^ 2
-        ∂rademacherLaw I =
-        (Module.finrank ℝ (edgeSubspace δ v x₀ c x) : ℝ) := by
-    exact integral_norm_sq_starProjection (edgeSubspace δ v x₀ c x)
-  have hmeasure : (rademacherLaw I).real Set.univ = 1 := by
+      ‖edgeInc δ v x₀ c x ω‖ ^ 2
+        ∂radLaw I =
+        (Module.finrank ℝ (edgeSubsp δ v x₀ c x) : ℝ) := by
+    exact intg_norm_sq_starProj (edgeSubsp δ v x₀ c x)
+  have hmeasure : (radLaw I).real Set.univ = 1 := by
     rw [Measure.real, IsProbabilityMeasure.measure_univ, ENNReal.toReal_one]
   rw [integral_add]
   · rw [integral_add]
@@ -12028,66 +11993,66 @@ theorem integral_norm_edgeStep_sq
 
 theorem integrable_norm_edgeStep_sq
     (γ δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) :
+    (c : J → ℝ) (x : WalkSp I) :
     Integrable (fun ω ↦ ‖edgeStep δ γ v x₀ c x ω‖ ^ 2)
-      (rademacherLaw I) := by
+      (radLaw I) := by
   simp_rw [norm_edgeStep_sq]
   exact (integrable_const _).add
-    ((integrable_inner_starProjection_sample
-      (edgeSubspace δ v x₀ c x) x).const_mul (2 * γ)) |>.add
-        ((integrable_norm_sq_starProjection
-          (edgeSubspace δ v x₀ c x)).const_mul (γ ^ 2))
+    ((integrable_inner_starProj_samp
+      (edgeSubsp δ v x₀ c x) x).const_mul (2 * γ)) |>.add
+        ((integrable_norm_sq_starProj
+          (edgeSubsp δ v x₀ c x)).const_mul (γ ^ 2))
 
 theorem integrable_edgeScore_step
     (γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) :
+    (x : WalkSp I) :
     Integrable (fun ω ↦ edgeScore γ (t + 1) v x₀ c
-      (edgeStep δ γ v x₀ c x ω)) (rademacherLaw I) := by
+      (edgeStep δ γ v x₀ c x ω)) (radLaw I) := by
   unfold edgeScore
   exact (integrable_norm_edgeStep_sq γ δ v x₀ c x).sub
-    ((integrable_discrepancyPotential_step γ δ t v x₀ c x).const_mul 5)
+    ((integrable_discPot_step γ δ t v x₀ c x).const_mul 5)
 
-theorem integral_edgeScore_step_ge
+theorem intg_edgeScore_step_ge
     (γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) :
+    (x : WalkSp I) :
     edgeScore γ t v x₀ c x +
-        γ ^ 2 * Module.finrank ℝ (edgeSubspace δ v x₀ c x) ≤
+        γ ^ 2 * Module.finrank ℝ (edgeSubsp δ v x₀ c x) ≤
       ∫ ω, edgeScore γ (t + 1) v x₀ c
-        (edgeStep δ γ v x₀ c x ω) ∂rademacherLaw I := by
+        (edgeStep δ γ v x₀ c x ω) ∂radLaw I := by
   rw [edgeScore]
   simp_rw [edgeScore]
-  rw [integral_sub, integral_const_mul, integral_norm_edgeStep_sq]
-  · have hp := integral_discrepancyPotential_step_le γ δ t v x₀ c x
+  rw [integral_sub, integral_const_mul, intg_norm_edgeStep_sq]
+  · have hp := intg_discPot_step_le γ δ t v x₀ c x
     linarith
   · exact integrable_norm_edgeStep_sq γ δ v x₀ c x
-  · exact (integrable_discrepancyPotential_step γ δ t v x₀ c x).const_mul 5
+  · exact (integrable_discPot_step γ δ t v x₀ c x).const_mul 5
 
 theorem measure_not_signs_eq_zero :
-    rademacherLaw I {ω | ¬ ∀ i, |ω i| = 1} = 0 := by
+    radLaw I {ω | ¬ ∀ i, |ω i| = 1} = 0 := by
   rw [← ae_iff]
   simpa only [Set.mem_setOf_eq, not_not] using
-    (ae_forall_abs_eq_one_rademacherLaw I)
+    (ae_forall_abs_eq_one_radLaw I)
 
 theorem exists_sign_edgeScore_step
     (γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) :
+    (x : WalkSp I) :
     ∃ ω : I → ℝ, (∀ i, |ω i| = 1) ∧
       edgeScore γ t v x₀ c x +
-          γ ^ 2 * Module.finrank ℝ (edgeSubspace δ v x₀ c x) ≤
+          γ ^ 2 * Module.finrank ℝ (edgeSubsp δ v x₀ c x) ≤
         edgeScore γ (t + 1) v x₀ c
           (edgeStep δ γ v x₀ c x ω) := by
   let N : Set (I → ℝ) := {ω | ¬ ∀ i, |ω i| = 1}
   obtain ⟨ω, hωN, hω⟩ :=
     exists_notMem_null_integral_le
-      (μ := rademacherLaw I)
+      (μ := radLaw I)
       (f := fun ω ↦ edgeScore γ (t + 1) v x₀ c
         (edgeStep δ γ v x₀ c x ω))
       (integrable_edgeScore_step γ δ t v x₀ c x)
-      (show rademacherLaw I N = 0 by exact measure_not_signs_eq_zero)
-  refine ⟨ω, ?_, (integral_edgeScore_step_ge γ δ t v x₀ c x).trans hω⟩
+      (show radLaw I N = 0 by exact measure_not_signs_eq_zero)
+  refine ⟨ω, ?_, (intg_edgeScore_step_ge γ δ t v x₀ c x).trans hω⟩
   simpa only [N, Set.mem_setOf_eq, not_not] using hωN
 
 end EdgeWalk
@@ -12104,7 +12069,7 @@ noncomputable section
 
 namespace EdgeWalk
 
-open Discrepancy ProjectionWalk
+open Disc ProjWalk
 
 universe u v
 
@@ -12113,21 +12078,21 @@ variable [DecidableEq I] [DecidableEq J]
 
 def edgeChoice (γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) : I → ℝ :=
+    (x : WalkSp I) : I → ℝ :=
   Classical.choose (exists_sign_edgeScore_step γ δ t v x₀ c x)
 
 theorem edgeChoice_isSign (γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) :
+    (x : WalkSp I) :
     ∀ i, |edgeChoice γ δ t v x₀ c x i| = 1 :=
   (Classical.choose_spec
     (exists_sign_edgeScore_step γ δ t v x₀ c x)).1
 
 theorem edgeChoice_score (γ δ : ℝ) (t : ℕ)
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) :
+    (x : WalkSp I) :
     edgeScore γ t v x₀ c x +
-        γ ^ 2 * Module.finrank ℝ (edgeSubspace δ v x₀ c x) ≤
+        γ ^ 2 * Module.finrank ℝ (edgeSubsp δ v x₀ c x) ≤
       edgeScore γ (t + 1) v x₀ c
         (edgeStep δ γ v x₀ c x
           (edgeChoice γ δ t v x₀ c x)) :=
@@ -12135,7 +12100,7 @@ theorem edgeChoice_score (γ δ : ℝ) (t : ℕ)
     (exists_sign_edgeScore_step γ δ t v x₀ c x)).2
 
 def edgeWalk (δ γ : ℝ) (v : J → I → ℝ)
-    (x₀ : I → ℝ) (c : J → ℝ) : ℕ → WalkSpace I
+    (x₀ : I → ℝ) (c : J → ℝ) : ℕ → WalkSp I
   | 0 => toWalk x₀
   | t + 1 => edgeStep δ γ v x₀ c (edgeWalk δ γ v x₀ c t)
       (edgeChoice γ δ t v x₀ c (edgeWalk δ γ v x₀ c t))
@@ -12154,113 +12119,113 @@ theorem edgeWalk_score_step (δ γ : ℝ) (v : J → I → ℝ)
     (x₀ : I → ℝ) (c : J → ℝ) (t : ℕ) :
     edgeScore γ t v x₀ c (edgeWalk δ γ v x₀ c t) +
         γ ^ 2 * Module.finrank ℝ
-          (edgeSubspace δ v x₀ c (edgeWalk δ γ v x₀ c t)) ≤
+          (edgeSubsp δ v x₀ c (edgeWalk δ γ v x₀ c t)) ≤
       edgeScore γ (t + 1) v x₀ c
         (edgeWalk δ γ v x₀ c (t + 1)) := by
   simpa only [edgeWalk_succ] using
     edgeChoice_score γ δ t v x₀ c (edgeWalk δ γ v x₀ c t)
 
-theorem abs_apply_le_norm_walkSpace (x : WalkSpace I) (i : I) :
+theorem abs_apply_le_norm_walkSp (x : WalkSp I) (i : I) :
     |x i| ≤ ‖x‖ := by
   have hi : x i ^ 2 ≤ ‖x‖ ^ 2 := by
-    rw [norm_walkSpace_sq]
+    rw [norm_walkSp_sq]
     exact Finset.single_le_sum (fun j _ ↦ sq_nonneg (x j)) (Finset.mem_univ i)
   nlinarith [sq_abs (x i), abs_nonneg (x i), norm_nonneg x]
 
-theorem abs_edgeIncrement_le_sqrt_card
+theorem abs_edgeInc_le_sqrt_card
     (δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ)
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ)
     (hω : ∀ i, |ω i| = 1) (i : I) :
-    |edgeIncrement δ v x₀ c x ω i| ≤
+    |edgeInc δ v x₀ c x ω i| ≤
       sqrt (Fintype.card I) := by
-  exact (abs_apply_le_norm_walkSpace _ i).trans
-    ((norm_edgeIncrement_le δ v x₀ c x ω).trans
-      (norm_sampleVector_le_sqrt_card hω))
+  exact (abs_apply_le_norm_walkSp _ i).trans
+    ((norm_edgeInc_le δ v x₀ c x ω).trans
+      (norm_sampVec_le_sqrt_card hω))
 
-theorem abs_inner_edgeIncrement_le_sqrt_card
+theorem abs_inner_edgeInc_le_sqrt_card
     (δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ)
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ)
     (hω : ∀ i, |ω i| = 1) (j : J) :
-    |inner ℝ (normalizedConstraint (v j))
-        (edgeIncrement δ v x₀ c x ω)| ≤
+    |inner ℝ (normConstr (v j))
+        (edgeInc δ v x₀ c x ω)| ≤
       sqrt (Fintype.card I) := by
   calc
-    |inner ℝ (normalizedConstraint (v j))
-        (edgeIncrement δ v x₀ c x ω)| ≤
-        ‖normalizedConstraint (v j)‖ *
-          ‖edgeIncrement δ v x₀ c x ω‖ :=
+    |inner ℝ (normConstr (v j))
+        (edgeInc δ v x₀ c x ω)| ≤
+        ‖normConstr (v j)‖ *
+          ‖edgeInc δ v x₀ c x ω‖ :=
       abs_real_inner_le_norm _ _
     _ ≤ 1 * sqrt (Fintype.card I) := by
       gcongr
-      · exact norm_normalizedConstraint_le_one (v j)
-      · exact (norm_edgeIncrement_le δ v x₀ c x ω).trans
-          (norm_sampleVector_le_sqrt_card hω)
+      · exact norm_normConstr_le_one (v j)
+      · exact (norm_edgeInc_le δ v x₀ c x ω).trans
+          (norm_sampVec_le_sqrt_card hω)
     _ = sqrt (Fintype.card I) := one_mul _
 
 theorem edgeStep_inCube
     (δ γ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ)
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ)
     (hx : InCube x) (hω : ∀ i, |ω i| = 1)
     (hγ : 0 ≤ γ)
     (hδ : δ = γ * sqrt (Fintype.card I)) :
     InCube (edgeStep δ γ v x₀ c x ω) := by
   intro i
-  by_cases hi : i ∈ activeCoordinates δ x
+  by_cases hi : i ∈ actCoords δ x
   · rw [edgeStep]
     simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul,
-      edgeIncrement_apply_eq_zero_of_active δ v x₀ c x ω hi,
+      edgeInc_apply_eq_zero_of_act δ v x₀ c x ω hi,
       mul_zero, add_zero]
     exact hx i
   · have hxi : |x i| < 1 - δ := by
-      simpa only [mem_activeCoordinates, not_le] using hi
-    have hinc := abs_edgeIncrement_le_sqrt_card
+      simpa only [mem_actCoords, not_le] using hi
+    have hinc := abs_edgeInc_le_sqrt_card
       δ v x₀ c x ω hω i
     rw [edgeStep]
     simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
     calc
-      |x i + γ * edgeIncrement δ v x₀ c x ω i| ≤
-          |x i| + |γ * edgeIncrement δ v x₀ c x ω i| :=
+      |x i + γ * edgeInc δ v x₀ c x ω i| ≤
+          |x i| + |γ * edgeInc δ v x₀ c x ω i| :=
         abs_add_le _ _
-      _ = |x i| + γ * |edgeIncrement δ v x₀ c x ω i| := by
+      _ = |x i| + γ * |edgeInc δ v x₀ c x ω i| := by
         rw [abs_mul, abs_of_nonneg hγ]
       _ ≤ |x i| + γ * sqrt (Fintype.card I) := by gcongr
       _ ≤ 1 := by rw [← hδ]; linarith
 
-theorem edgeStep_scaledDiscrepancy_le
+theorem edgeStep_scDisc_le
     (δ γ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ)
-    (hx : ∀ j, |scaledDiscrepancy (v j) x₀ x| ≤ c j)
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ)
+    (hx : ∀ j, |scDisc (v j) x₀ x| ≤ c j)
     (hω : ∀ i, |ω i| = 1) (hγ : 0 ≤ γ)
     (hδ : δ = γ * sqrt (Fintype.card I)) :
-    ∀ j, |scaledDiscrepancy (v j) x₀
+    ∀ j, |scDisc (v j) x₀
       (edgeStep δ γ v x₀ c x ω)| ≤ c j := by
   intro j
   by_cases hv : l2Norm (v j) = 0
-  · simpa [scaledDiscrepancy, normalizedConstraint, hv] using hx j
-  by_cases hj : j ∈ activeDiscrepancies δ v x₀ c x
-  · rw [scaledDiscrepancy_edgeStep,
-      inner_edgeIncrement_eq_zero_of_active δ v x₀ c x ω hj,
+  · simpa [scDisc, normConstr, hv] using hx j
+  by_cases hj : j ∈ actDiscrepancies δ v x₀ c x
+  · rw [scDisc_edgeStep,
+      inner_edgeInc_eq_zero_of_act δ v x₀ c x ω hj,
       mul_zero, add_zero]
     exact hx j
   · have hvpos : 0 < l2Norm (v j) :=
       lt_of_le_of_ne (sqrt_nonneg _) (Ne.symm hv)
-    have hy : |scaledDiscrepancy (v j) x₀ x| < c j - δ := by
-      simpa only [mem_activeDiscrepancies, hvpos, true_and, not_le] using hj
-    have hinc := abs_inner_edgeIncrement_le_sqrt_card
+    have hy : |scDisc (v j) x₀ x| < c j - δ := by
+      simpa only [mem_actDiscrepancies, hvpos, true_and, not_le] using hj
+    have hinc := abs_inner_edgeInc_le_sqrt_card
       δ v x₀ c x ω hω j
-    rw [scaledDiscrepancy_edgeStep]
+    rw [scDisc_edgeStep]
     calc
-      |scaledDiscrepancy (v j) x₀ x + γ *
-          inner ℝ (normalizedConstraint (v j))
-            (edgeIncrement δ v x₀ c x ω)| ≤
-          |scaledDiscrepancy (v j) x₀ x| +
-            |γ * inner ℝ (normalizedConstraint (v j))
-              (edgeIncrement δ v x₀ c x ω)| := abs_add_le _ _
-      _ = |scaledDiscrepancy (v j) x₀ x| + γ *
-            |inner ℝ (normalizedConstraint (v j))
-              (edgeIncrement δ v x₀ c x ω)| := by
+      |scDisc (v j) x₀ x + γ *
+          inner ℝ (normConstr (v j))
+            (edgeInc δ v x₀ c x ω)| ≤
+          |scDisc (v j) x₀ x| +
+            |γ * inner ℝ (normConstr (v j))
+              (edgeInc δ v x₀ c x ω)| := abs_add_le _ _
+      _ = |scDisc (v j) x₀ x| + γ *
+            |inner ℝ (normConstr (v j))
+              (edgeInc δ v x₀ c x ω)| := by
         rw [abs_mul, abs_of_nonneg hγ]
-      _ ≤ |scaledDiscrepancy (v j) x₀ x| +
+      _ ≤ |scDisc (v j) x₀ x| +
             γ * sqrt (Fintype.card I) := by gcongr
       _ ≤ c j := by rw [← hδ]; linarith
 
@@ -12277,80 +12242,80 @@ theorem edgeWalk_inCube
       exact edgeStep_inCube δ γ v x₀ c _ _ ht
         (edgeChoice_isSign γ δ t v x₀ c _) hγ hδ
 
-theorem edgeWalk_scaledDiscrepancy_le
+theorem edgeWalk_scDisc_le
     (δ γ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
     (c : J → ℝ) (hc : ∀ j, 0 ≤ c j) (hγ : 0 ≤ γ)
     (hδ : δ = γ * sqrt (Fintype.card I)) :
-    ∀ t j, |scaledDiscrepancy (v j) x₀
+    ∀ t j, |scDisc (v j) x₀
       (edgeWalk δ γ v x₀ c t)| ≤ c j := by
   intro t
   induction t with
   | zero =>
       intro j
-      simpa [edgeWalk, scaledDiscrepancy] using hc j
+      simpa [edgeWalk, scDisc] using hc j
   | succ t ht =>
       rw [edgeWalk_succ]
-      exact edgeStep_scaledDiscrepancy_le δ γ v x₀ c _ _ ht
+      exact edgeStep_scDisc_le δ γ v x₀ c _ _ ht
         (edgeChoice_isSign γ δ t v x₀ c _) hγ hδ
 
-theorem activeCoordinates_mono_edgeStep
+theorem actCoords_mono_edgeStep
     (δ γ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ) :
-    activeCoordinates δ x ⊆
-      activeCoordinates δ (edgeStep δ γ v x₀ c x ω) := by
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ) :
+    actCoords δ x ⊆
+      actCoords δ (edgeStep δ γ v x₀ c x ω) := by
   intro i hi
-  rw [mem_activeCoordinates]
+  rw [mem_actCoords]
   rw [edgeStep]
   simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul,
-    edgeIncrement_apply_eq_zero_of_active δ v x₀ c x ω hi,
+    edgeInc_apply_eq_zero_of_act δ v x₀ c x ω hi,
     mul_zero, add_zero]
-  exact mem_activeCoordinates.mp hi
+  exact mem_actCoords.mp hi
 
-theorem activeDiscrepancies_mono_edgeStep
+theorem actDiscrepancies_mono_edgeStep
     (δ γ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
-    (c : J → ℝ) (x : WalkSpace I) (ω : I → ℝ) :
-    activeDiscrepancies δ v x₀ c x ⊆
-      activeDiscrepancies δ v x₀ c
+    (c : J → ℝ) (x : WalkSp I) (ω : I → ℝ) :
+    actDiscrepancies δ v x₀ c x ⊆
+      actDiscrepancies δ v x₀ c
         (edgeStep δ γ v x₀ c x ω) := by
   intro j hj
-  rw [mem_activeDiscrepancies]
-  have hj' := (mem_activeDiscrepancies.mp hj)
+  rw [mem_actDiscrepancies]
+  have hj' := (mem_actDiscrepancies.mp hj)
   refine ⟨hj'.1, ?_⟩
-  rw [scaledDiscrepancy_edgeStep,
-    inner_edgeIncrement_eq_zero_of_active δ v x₀ c x ω hj,
+  rw [scDisc_edgeStep,
+    inner_edgeInc_eq_zero_of_act δ v x₀ c x ω hj,
     mul_zero, add_zero]
   exact hj'.2
 
-theorem activeCoordinates_mono_edgeWalk
+theorem actCoords_mono_edgeWalk
     (δ γ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
     (c : J → ℝ) {s t : ℕ} (hst : s ≤ t) :
-    activeCoordinates δ (edgeWalk δ γ v x₀ c s) ⊆
-      activeCoordinates δ (edgeWalk δ γ v x₀ c t) := by
+    actCoords δ (edgeWalk δ γ v x₀ c s) ⊆
+      actCoords δ (edgeWalk δ γ v x₀ c t) := by
   induction t, hst using Nat.le_induction with
   | base => exact Finset.Subset.rfl
   | succ t hst ih =>
       exact ih.trans (by
         rw [edgeWalk_succ]
-        exact activeCoordinates_mono_edgeStep δ γ v x₀ c _ _)
+        exact actCoords_mono_edgeStep δ γ v x₀ c _ _)
 
-theorem activeDiscrepancies_mono_edgeWalk
+theorem actDiscrepancies_mono_edgeWalk
     (δ γ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ)
     (c : J → ℝ) {s t : ℕ} (hst : s ≤ t) :
-    activeDiscrepancies δ v x₀ c (edgeWalk δ γ v x₀ c s) ⊆
-      activeDiscrepancies δ v x₀ c (edgeWalk δ γ v x₀ c t) := by
+    actDiscrepancies δ v x₀ c (edgeWalk δ γ v x₀ c s) ⊆
+      actDiscrepancies δ v x₀ c (edgeWalk δ γ v x₀ c t) := by
   induction t, hst using Nat.le_induction with
   | base => exact Finset.Subset.rfl
   | succ t hst ih =>
       exact ih.trans (by
         rw [edgeWalk_succ]
-        exact activeDiscrepancies_mono_edgeStep δ γ v x₀ c _ _)
+        exact actDiscrepancies_mono_edgeStep δ γ v x₀ c _ _)
 
-theorem one_le_rowPotential_of_near_boundary
+theorem one_le_rowPot_of_near_boundary
     (γ δ : ℝ) (t : ℕ) (a y : ℝ)
     (ha : 0 ≤ a) (hδ : 0 ≤ δ) (hδSmall : δ ≤ 1 / 4)
     (htime : γ ^ 2 * (t : ℝ) ≤ 5)
     (hnear : a - δ ≤ |y|) :
-    1 ≤ rowPotential γ t a y := by
+    1 ≤ rowPot γ t a y := by
   let Q : ℝ := (a / 5) ^ 2 * γ ^ 2 * (t : ℝ) / 2
   have hQ : Q ≤ a ^ 2 / 10 := by
     have hmul := mul_le_mul_of_nonneg_left htime
@@ -12367,8 +12332,8 @@ theorem one_le_rowPotential_of_near_boundary
       have hexponent :
           0 ≤ -a ^ 2 / 16 + a / 5 * y - Q := by
         nlinarith
-      have hone : 1 ≤ signedRowPotential 1 γ t a y := by
-        rw [signedRowPotential, entropyWeight, ← exp_add]
+      have hone : 1 ≤ signedRowPot 1 γ t a y := by
+        rw [signedRowPot, entropyWt, ← exp_add]
         have heq : -a ^ 2 / 16 +
             (1 * (a / 5) * y - (a / 5) ^ 2 * γ ^ 2 * (t : ℝ) / 2) =
             -a ^ 2 / 16 + a / 5 * y - Q := by
@@ -12377,7 +12342,7 @@ theorem one_le_rowPotential_of_near_boundary
         rw [heq]
         simpa only [exp_zero] using exp_le_exp.mpr hexponent
       exact hone.trans (le_add_of_nonneg_right
-        (signedRowPotential_nonneg (-1) γ t a y))
+        (signedRowPot_nonneg (-1) γ t a y))
     · have hy' : y ≤ 0 := le_of_not_ge hy
       have hay : a - δ ≤ -y := by simpa [abs_of_nonpos hy'] using hnear
       have haymul : a * (a - δ) ≤ a * (-y) :=
@@ -12385,8 +12350,8 @@ theorem one_le_rowPotential_of_near_boundary
       have hexponent :
           0 ≤ -a ^ 2 / 16 + (-1) * (a / 5) * y - Q := by
         nlinarith
-      have hone : 1 ≤ signedRowPotential (-1) γ t a y := by
-        rw [signedRowPotential, entropyWeight, ← exp_add]
+      have hone : 1 ≤ signedRowPot (-1) γ t a y := by
+        rw [signedRowPot, entropyWt, ← exp_add]
         have heq : -a ^ 2 / 16 +
             ((-1) * (a / 5) * y - (a / 5) ^ 2 * γ ^ 2 * (t : ℝ) / 2) =
             -a ^ 2 / 16 + (-1) * (a / 5) * y - Q := by
@@ -12395,7 +12360,7 @@ theorem one_le_rowPotential_of_near_boundary
         rw [heq]
         simpa only [exp_zero] using exp_le_exp.mpr hexponent
       exact hone.trans (le_add_of_nonneg_left
-        (signedRowPotential_nonneg 1 γ t a y))
+        (signedRowPot_nonneg 1 γ t a y))
   · have haUpper : a < 4 / 3 := by
       have : 3 * a < 16 * δ := lt_of_not_ge hlarge
       nlinarith
@@ -12413,8 +12378,8 @@ theorem one_le_rowPotential_of_near_boundary
       _ ≤ exp (base + z) + exp (base - z) :=
         add_le_add (by simpa [add_comm] using add_one_le_exp (base + z))
           (by simpa [add_comm] using add_one_le_exp (base - z))
-      _ = rowPotential γ t a y := by
-        unfold rowPotential signedRowPotential entropyWeight
+      _ = rowPot γ t a y := by
+        unfold rowPot signedRowPot entropyWt
         rw [← exp_add, ← exp_add]
         dsimp only [base, z, Q]
         congr 1 <;> ring
@@ -12425,7 +12390,7 @@ theorem edgeWalk_score_sum
     edgeScore γ 0 v x₀ c (toWalk x₀) +
         γ ^ 2 * ∑ s ∈ Finset.range t,
           (Module.finrank ℝ
-            (edgeSubspace δ v x₀ c (edgeWalk δ γ v x₀ c s)) : ℝ) ≤
+            (edgeSubsp δ v x₀ c (edgeWalk δ γ v x₀ c s)) : ℝ) ≤
       edgeScore γ t v x₀ c (edgeWalk δ γ v x₀ c t) := by
   induction t with
   | zero => simp
@@ -12434,68 +12399,68 @@ theorem edgeWalk_score_sum
       calc
         edgeScore γ 0 v x₀ c (toWalk x₀) + γ ^ 2 *
             ((∑ s ∈ Finset.range t,
-              (Module.finrank ℝ (edgeSubspace δ v x₀ c
+              (Module.finrank ℝ (edgeSubsp δ v x₀ c
                 (edgeWalk δ γ v x₀ c s)) : ℝ)) +
-              (Module.finrank ℝ (edgeSubspace δ v x₀ c
+              (Module.finrank ℝ (edgeSubsp δ v x₀ c
                 (edgeWalk δ γ v x₀ c t)) : ℝ)) =
             (edgeScore γ 0 v x₀ c (toWalk x₀) + γ ^ 2 *
               ∑ s ∈ Finset.range t,
-                (Module.finrank ℝ (edgeSubspace δ v x₀ c
+                (Module.finrank ℝ (edgeSubsp δ v x₀ c
                   (edgeWalk δ γ v x₀ c s)) : ℝ)) +
-              γ ^ 2 * (Module.finrank ℝ (edgeSubspace δ v x₀ c
+              γ ^ 2 * (Module.finrank ℝ (edgeSubsp δ v x₀ c
                 (edgeWalk δ γ v x₀ c t)) : ℝ) := by ring
         _ ≤ edgeScore γ t v x₀ c (edgeWalk δ γ v x₀ c t) +
-              γ ^ 2 * (Module.finrank ℝ (edgeSubspace δ v x₀ c
+              γ ^ 2 * (Module.finrank ℝ (edgeSubsp δ v x₀ c
                 (edgeWalk δ γ v x₀ c t)) : ℝ) :=
           add_le_add ht (le_refl _)
         _ ≤ edgeScore γ (t + 1) v x₀ c
               (edgeWalk δ γ v x₀ c (t + 1)) :=
           edgeWalk_score_step δ γ v x₀ c t
 
-theorem card_le_finrank_add_active
+theorem card_le_finrank_add_act
     (δ : ℝ) (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
-    (x : WalkSpace I) :
+    (x : WalkSp I) :
     Fintype.card I ≤
-      Module.finrank ℝ (edgeSubspace δ v x₀ c x) +
-        (activeCoordinates δ x).card +
-        (activeDiscrepancies δ v x₀ c x).card := by
+      Module.finrank ℝ (edgeSubsp δ v x₀ c x) +
+        (actCoords δ x).card +
+        (actDiscrepancies δ v x₀ c x).card := by
   have h := card_sub_tight_card_le_finrank
-    (fun j ↦ normalizedConstraint (v j))
-    (activeCoordinates δ x) (activeDiscrepancies δ v x₀ c x)
+    (fun j ↦ normConstr (v j))
+    (actCoords δ x) (actDiscrepancies δ v x₀ c x)
   change Fintype.card I -
-      ((activeCoordinates δ x).card +
-        (activeDiscrepancies δ v x₀ c x).card) ≤
-    Module.finrank ℝ (edgeSubspace δ v x₀ c x) at h
+      ((actCoords δ x).card +
+        (actDiscrepancies δ v x₀ c x).card) ≤
+    Module.finrank ℝ (edgeSubsp δ v x₀ c x) at h
   omega
 
-theorem card_activeDiscrepancies_le_potential
+theorem card_actDiscrepancies_le_pot
     (γ δ : ℝ) (t : ℕ)
-    (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ) (x : WalkSpace I)
+    (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ) (x : WalkSp I)
     (hc : ∀ j, 0 ≤ c j) (hδ : 0 ≤ δ)
     (hδSmall : δ ≤ 1 / 4)
     (htime : γ ^ 2 * (t : ℝ) ≤ 5) :
-    ((activeDiscrepancies δ v x₀ c x).card : ℝ) ≤
-      discrepancyPotential γ t v x₀ c x := by
-  let A := activeDiscrepancies δ v x₀ c x
+    ((actDiscrepancies δ v x₀ c x).card : ℝ) ≤
+      discPot γ t v x₀ c x := by
+  let A := actDiscrepancies δ v x₀ c x
   calc
     (A.card : ℝ) = ∑ _j ∈ A, (1 : ℝ) := by simp [A]
     _ ≤ ∑ j ∈ A,
-        rowPotential γ t (c j) (scaledDiscrepancy (v j) x₀ x) := by
+        rowPot γ t (c j) (scDisc (v j) x₀ x) := by
       apply sum_le_sum
       intro j hj
-      exact one_le_rowPotential_of_near_boundary γ δ t (c j)
-        (scaledDiscrepancy (v j) x₀ x) (hc j) hδ hδSmall htime
-        ((mem_activeDiscrepancies.mp hj).2)
+      exact one_le_rowPot_of_near_boundary γ δ t (c j)
+        (scDisc (v j) x₀ x) (hc j) hδ hδSmall htime
+        ((mem_actDiscrepancies.mp hj).2)
     _ ≤ ∑ j,
-        rowPotential γ t (c j) (scaledDiscrepancy (v j) x₀ x) := by
+        rowPot γ t (c j) (scDisc (v j) x₀ x) := by
       exact Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ A)
-        (fun j hj₁ hj₂ ↦ rowPotential_nonneg γ t (c j)
-          (scaledDiscrepancy (v j) x₀ x))
-    _ = discrepancyPotential γ t v x₀ c x := rfl
+        (fun j hj₁ hj₂ ↦ rowPot_nonneg γ t (c j)
+          (scDisc (v j) x₀ x))
+    _ = discPot γ t v x₀ c x := rfl
 
-theorem norm_sq_le_card_of_inCube (x : WalkSpace I) (hx : InCube x) :
+theorem norm_sq_le_card_of_inCube (x : WalkSp I) (hx : InCube x) :
     ‖x‖ ^ 2 ≤ Fintype.card I := by
-  rw [norm_walkSpace_sq]
+  rw [norm_walkSp_sq]
   calc
     ∑ i, x i ^ 2 ≤ ∑ _i : I, (1 : ℝ) := by
       apply sum_le_sum
@@ -12515,10 +12480,10 @@ theorem edgeWalk_terminal_half
     (hδ : 0 ≤ δ) (hδSmall : δ ≤ 1 / 4)
     (htime : γ ^ 2 * (T : ℝ) = 5) :
     Fintype.card I ≤ 2 *
-      (activeCoordinates δ (edgeWalk δ γ v x₀ c T)).card := by
+      (actCoords δ (edgeWalk δ γ v x₀ c T)).card := by
   let xT := edgeWalk δ γ v x₀ c T
-  let C := (activeCoordinates δ xT).card
-  let D := (activeDiscrepancies δ v x₀ c xT).card
+  let C := (actCoords δ xT).card
+  let D := (actDiscrepancies δ v x₀ c xT).card
   let N : ℝ := Fintype.card I
   by_contra hhalf
   have hClt : 2 * C < Fintype.card I := by
@@ -12529,26 +12494,26 @@ theorem edgeWalk_terminal_half
   have hrank (s : ℕ) (hs : s ∈ Finset.range T) :
       N - C - D ≤
         (Module.finrank ℝ
-          (edgeSubspace δ v x₀ c (edgeWalk δ γ v x₀ c s)) : ℝ) := by
+          (edgeSubsp δ v x₀ c (edgeWalk δ γ v x₀ c s)) : ℝ) := by
     have hsT : s ≤ T := Nat.le_of_lt (Finset.mem_range.mp hs)
     have hcoord := Finset.card_le_card
-      (activeCoordinates_mono_edgeWalk δ γ v x₀ c hsT)
+      (actCoords_mono_edgeWalk δ γ v x₀ c hsT)
     have hdisc := Finset.card_le_card
-      (activeDiscrepancies_mono_edgeWalk δ γ v x₀ c hsT)
-    have hdim := card_le_finrank_add_active δ v x₀ c
+      (actDiscrepancies_mono_edgeWalk δ γ v x₀ c hsT)
+    have hdim := card_le_finrank_add_act δ v x₀ c
       (edgeWalk δ γ v x₀ c s)
     have hcoordR :
-        ((activeCoordinates δ (edgeWalk δ γ v x₀ c s)).card : ℝ) ≤ C := by
+        ((actCoords δ (edgeWalk δ γ v x₀ c s)).card : ℝ) ≤ C := by
       exact_mod_cast hcoord
     have hdiscR :
-        ((activeDiscrepancies δ v x₀ c
+        ((actDiscrepancies δ v x₀ c
           (edgeWalk δ γ v x₀ c s)).card : ℝ) ≤ D := by
       exact_mod_cast hdisc
     have hdimR : N ≤
         (Module.finrank ℝ
-          (edgeSubspace δ v x₀ c (edgeWalk δ γ v x₀ c s)) : ℝ) +
-        (activeCoordinates δ (edgeWalk δ γ v x₀ c s)).card +
-        (activeDiscrepancies δ v x₀ c
+          (edgeSubsp δ v x₀ c (edgeWalk δ γ v x₀ c s)) : ℝ) +
+        (actCoords δ (edgeWalk δ γ v x₀ c s)).card +
+        (actDiscrepancies δ v x₀ c
           (edgeWalk δ γ v x₀ c s)).card := by
       dsimp only [N]
       exact_mod_cast hdim
@@ -12556,7 +12521,7 @@ theorem edgeWalk_terminal_half
   have hrankSum : (T : ℝ) * (N - C - D) ≤
       ∑ s ∈ Finset.range T,
         (Module.finrank ℝ
-          (edgeSubspace δ v x₀ c (edgeWalk δ γ v x₀ c s)) : ℝ) := by
+          (edgeSubsp δ v x₀ c (edgeWalk δ γ v x₀ c s)) : ℝ) := by
     calc
       (T : ℝ) * (N - C - D) =
           ∑ _s ∈ Finset.range T, (N - C - D) := by
@@ -12576,14 +12541,14 @@ theorem edgeWalk_terminal_half
         ring
       _ ≤ edgeScore γ 0 v x₀ c (toWalk x₀) + γ ^ 2 *
           ∑ s ∈ Finset.range T,
-            (Module.finrank ℝ (edgeSubspace δ v x₀ c
+            (Module.finrank ℝ (edgeSubsp δ v x₀ c
               (edgeWalk δ γ v x₀ c s)) : ℝ) := by linarith
       _ ≤ edgeScore γ T v x₀ c xT := hscore
-  have hD : (D : ℝ) ≤ discrepancyPotential γ T v x₀ c xT := by
-    exact card_activeDiscrepancies_le_potential γ δ T v x₀ c xT hc
+  have hD : (D : ℝ) ≤ discPot γ T v x₀ c xT := by
+    exact card_actDiscrepancies_le_pot γ δ T v x₀ c xT hc
       hδ hδSmall htime.le
-  have hP0 : discrepancyPotential γ 0 v x₀ c (toWalk x₀) ≤ N / 8 := by
-    rw [discrepancyPotential_zero]
+  have hP0 : discPot γ 0 v x₀ c (toWalk x₀) ≤ N / 8 := by
+    rw [discPot_zero]
     change 2 * ∑ j, exp (-(c j) ^ 2 / 16) ≤ N / 8
     linarith
   have hxTCube : InCube xT :=
@@ -12600,7 +12565,7 @@ theorem edgeWalk_terminal_half
     exact_mod_cast hClt
   nlinarith
 
-theorem exists_walk_parameters (ε : ℝ) (hε : 0 < ε) :
+theorem exists_walk_params (ε : ℝ) (hε : 0 < ε) :
     ∃ q : ℕ, 0 < q ∧
       let γ : ℝ := 1 / (q : ℝ)
       let δ : ℝ := γ * sqrt (Fintype.card I)
@@ -12639,7 +12604,7 @@ theorem exists_walk_parameters (ε : ℝ) (hε : 0 < ε) :
   push_cast
   field_simp
 
-theorem exists_approximate_partialColoring
+theorem exists_approx_partialColoring
     (v : J → I → ℝ) (x₀ : I → ℝ) (c : J → ℝ)
     (hx₀ : InCube x₀) (hc : ∀ j, 0 ≤ c j)
     (hentropy : (∑ j, exp (-(c j) ^ 2 / 16)) ≤
@@ -12647,35 +12612,35 @@ theorem exists_approximate_partialColoring
     (ε : ℝ) (hε : 0 < ε) :
     ∃ x : I → ℝ,
       InCube x ∧
-        Fintype.card I ≤ 2 * (approximateFixedCoordinates ε x).card ∧
+        Fintype.card I ≤ 2 * (approxFixCoords ε x).card ∧
         ∀ j, |dot (x - x₀) (v j)| ≤ c j * l2Norm (v j) := by
   obtain ⟨q, hq, hγ, hδ, hδSmall, hδEpsilon, htime⟩ :=
-    exists_walk_parameters (I := I) ε hε
+    exists_walk_params (I := I) ε hε
   let γ : ℝ := 1 / (q : ℝ)
   let δ : ℝ := γ * sqrt (Fintype.card I)
   let T : ℕ := 5 * q ^ 2
-  let xT : WalkSpace I := edgeWalk δ γ v x₀ c T
+  let xT : WalkSp I := edgeWalk δ γ v x₀ c T
   have hγ' : 0 ≤ γ := hγ
   have hδ' : 0 ≤ δ := hδ
   have hδSmall' : δ ≤ 1 / 4 := hδSmall
   have hδEpsilon' : δ ≤ ε := hδEpsilon
   have htime' : γ ^ 2 * (T : ℝ) = 5 := htime
   have hhalf : Fintype.card I ≤
-      2 * (activeCoordinates δ xT).card := by
+      2 * (actCoords δ xT).card := by
     exact edgeWalk_terminal_half δ γ T v x₀ c hx₀ hc hentropy
       hγ' rfl hδ' hδSmall' htime'
   have hxTCube : InCube xT :=
     edgeWalk_inCube δ γ v x₀ c hx₀ hγ' rfl T
   have hnormalized : ∀ j,
-      |scaledDiscrepancy (v j) x₀ xT| ≤ c j :=
-    edgeWalk_scaledDiscrepancy_le δ γ v x₀ c hc hγ' rfl T
+      |scDisc (v j) x₀ xT| ≤ c j :=
+    edgeWalk_scDisc_le δ γ v x₀ c hc hγ' rfl T
   let x : I → ℝ := fun i ↦ xT i
   refine ⟨x, hxTCube, ?_, ?_⟩
-  · have hsubset : activeCoordinates δ xT ⊆
-        approximateFixedCoordinates ε x := by
+  · have hsubset : actCoords δ xT ⊆
+        approxFixCoords ε x := by
       intro i hi
-      rw [mem_approximateFixedCoordinates]
-      have hi' := mem_activeCoordinates.mp hi
+      rw [mem_approxFixCoords]
+      have hi' := mem_actCoords.mp hi
       dsimp only [x]
       linarith
     exact hhalf.trans (Nat.mul_le_mul_left 2 (Finset.card_le_card hsubset))
@@ -12685,7 +12650,7 @@ theorem exists_approximate_partialColoring
       simp
     · have hvpos : 0 < l2Norm (v j) :=
         lt_of_le_of_ne (sqrt_nonneg _) (Ne.symm hv)
-      have hscale := scaledDiscrepancy_mul_l2Norm hvpos x₀ xT
+      have hscale := scDisc_mul_l2Norm hvpos x₀ xT
       have hnormNonneg : 0 ≤ l2Norm (v j) := sqrt_nonneg _
       change |dot (fun i ↦ xT i - x₀ i) (v j)| ≤ c j * l2Norm (v j)
       rw [← hscale, abs_mul, abs_of_nonneg hnormNonneg]
@@ -12698,9 +12663,9 @@ theorem partialColoringPrinciple (I : Type u) (J : Type v)
     PartialColoringPrinciple I J := by
   letI : DecidableEq J := Classical.decEq J
   intro v x₀ c hx₀ hc hentropy
-  apply hasPartialColoring_of_approximate v x₀ c
+  apply hasPartialColoring_of_approx v x₀ c
   intro ε hε
-  exact exists_approximate_partialColoring v x₀ c hx₀ hc hentropy ε hε
+  exact exists_approx_partialColoring v x₀ c hx₀ hc hentropy ε hε
 
 end EdgeWalk
 
@@ -12713,7 +12678,7 @@ open scoped BigOperators
 
 noncomputable section
 
-structure PairedSignData (n : ℕ) where
+structure PairSignData (n : ℕ) where
   C : Finset ℕ
   Se : Finset ℕ
   So : Finset ℕ
@@ -12728,26 +12693,26 @@ structure PairedSignData (n : ℕ) where
   epsE_isSign : ∀ k ∈ Se, epsE k = 1 ∨ epsE k = -1
   epsO_isSign : ∀ k ∈ So, epsO k = 1 ∨ epsO k = -1
 
-def PairedSignData.positiveCoefficient {n : ℕ} (D : PairedSignData n)
+def PairSignData.posCoeff {n : ℕ} (D : PairSignData n)
     (k : ℕ) : ℂ :=
   if k ∈ D.C then D.epsC k
   else if k ∈ D.Se then D.epsE k
   else D.epsO k
 
-def PairedSignData.negativeCoefficient {n : ℕ} (D : PairedSignData n)
+def PairSignData.negCoeff {n : ℕ} (D : PairSignData n)
     (k : ℕ) : ℂ :=
   if k ∈ D.C then D.epsC k
   else if k ∈ D.Se then -D.epsE k
   else -D.epsO k
 
-def PairedSignData.coeff {n : ℕ} (D : PairedSignData n) :
+def PairSignData.coeff {n : ℕ} (D : PairSignData n) :
     Fin (4 * n + 1) → ℂ := fun j ↦
-  if (j : ℕ) < 2 * n then D.negativeCoefficient (2 * n - j)
+  if (j : ℕ) < 2 * n then D.negCoeff (2 * n - j)
   else if (j : ℕ) = 2 * n then 1
-  else D.positiveCoefficient ((j : ℕ) - 2 * n)
+  else D.posCoeff ((j : ℕ) - 2 * n)
 
-private theorem PairedSignData.disjoint_CSe_So {n : ℕ}
-    (D : PairedSignData n) : Disjoint (D.C ∪ D.Se) D.So := by
+private theorem PairSignData.disjoint_CSe_So {n : ℕ}
+    (D : PairSignData n) : Disjoint (D.C ∪ D.Se) D.So := by
   rw [Finset.disjoint_left]
   intro k hk hko
   simp only [Finset.mem_union] at hk
@@ -12755,25 +12720,25 @@ private theorem PairedSignData.disjoint_CSe_So {n : ℕ}
   · exact (Finset.disjoint_left.mp D.disjoint_C_So) hkc hko
   · exact (Finset.disjoint_left.mp D.disjoint_Se_So) hke hko
 
-private theorem PairedSignData.C_subset {n : ℕ} (D : PairedSignData n) :
+private theorem PairSignData.C_subset {n : ℕ} (D : PairSignData n) :
     D.C ⊆ Finset.Icc 1 (2 * n) := by
   intro k hk
   rw [← D.cover]
   simp [hk]
 
-private theorem PairedSignData.Se_subset {n : ℕ} (D : PairedSignData n) :
+private theorem PairSignData.Se_subset {n : ℕ} (D : PairSignData n) :
     D.Se ⊆ Finset.Icc 1 (2 * n) := by
   intro k hk
   rw [← D.cover]
   simp [hk]
 
-private theorem PairedSignData.So_subset {n : ℕ} (D : PairedSignData n) :
+private theorem PairSignData.So_subset {n : ℕ} (D : PairSignData n) :
     D.So ⊆ Finset.Icc 1 (2 * n) := by
   intro k hk
   rw [← D.cover]
   simp [hk]
 
-theorem PairedSignData.coeff_isSign {n : ℕ} (D : PairedSignData n) :
+theorem PairSignData.coeff_isSign {n : ℕ} (D : PairSignData n) :
     ∀ j, IsSign (D.coeff j) := by
   intro j
   by_cases hjlt : (j : ℕ) < 2 * n
@@ -12782,8 +12747,8 @@ theorem PairedSignData.coeff_isSign {n : ℕ} (D : PairedSignData n) :
       omega
     rw [← D.cover] at hk
     simp only [Finset.mem_union] at hk
-    simp only [PairedSignData.coeff, if_pos hjlt,
-      PairedSignData.negativeCoefficient]
+    simp only [PairSignData.coeff, if_pos hjlt,
+      PairSignData.negCoeff]
     by_cases hC : 2 * n - (j : ℕ) ∈ D.C
     · rw [if_pos hC]
       rcases D.epsC_isSign _ hC with h | h <;> simp [h, IsSign]
@@ -12799,7 +12764,7 @@ theorem PairedSignData.coeff_isSign {n : ℕ} (D : PairedSignData n) :
           · exact hO
         rcases D.epsO_isSign _ hO with h | h <;> simp [h, IsSign]
   · by_cases hjeq : (j : ℕ) = 2 * n
-    · simp [PairedSignData.coeff, hjeq, IsSign]
+    · simp [PairSignData.coeff, hjeq, IsSign]
     · have hjgt : 2 * n < (j : ℕ) := by omega
       have hk : (j : ℕ) - 2 * n ∈ Finset.Icc 1 (2 * n) := by
         simp only [Finset.mem_Icc]
@@ -12807,8 +12772,8 @@ theorem PairedSignData.coeff_isSign {n : ℕ} (D : PairedSignData n) :
         omega
       rw [← D.cover] at hk
       simp only [Finset.mem_union] at hk
-      simp only [PairedSignData.coeff, if_neg hjlt, if_neg hjeq,
-        PairedSignData.positiveCoefficient]
+      simp only [PairSignData.coeff, if_neg hjlt, if_neg hjeq,
+        PairSignData.posCoeff]
       by_cases hC : (j : ℕ) - 2 * n ∈ D.C
       · rw [if_pos hC]
         rcases D.epsC_isSign _ hC with h | h <;> simp [h, IsSign]
@@ -12824,12 +12789,12 @@ theorem PairedSignData.coeff_isSign {n : ℕ} (D : PairedSignData n) :
             · exact hO
           rcases D.epsO_isSign _ hO with h | h <;> simp [h, IsSign]
 
-private theorem sum_range_center_sub {n : ℕ} (D : PairedSignData n)
+private theorem sum_range_center_sub {n : ℕ} (D : PairSignData n)
     (z : ℂ) :
     (∑ j ∈ Finset.range (2 * n),
-        D.negativeCoefficient (2 * n - j) * z ^ j) =
+        D.negCoeff (2 * n - j) * z ^ j) =
       ∑ k ∈ Finset.Icc 1 (2 * n),
-        D.negativeCoefficient k * z ^ (2 * n - k) := by
+        D.negCoeff k * z ^ (2 * n - k) := by
   classical
   apply sum_bij (fun j _ ↦ 2 * n - j)
   · intro j hj
@@ -12850,12 +12815,12 @@ private theorem sum_range_center_sub {n : ℕ} (D : PairedSignData n)
     congr 2
     omega
 
-private theorem sum_range_center_add {n : ℕ} (D : PairedSignData n)
+private theorem sum_range_center_add {n : ℕ} (D : PairSignData n)
     (z : ℂ) :
     (∑ j ∈ Finset.range (2 * n),
-        D.positiveCoefficient (j + 1) * z ^ (2 * n + (j + 1))) =
+        D.posCoeff (j + 1) * z ^ (2 * n + (j + 1))) =
       ∑ k ∈ Finset.Icc 1 (2 * n),
-        D.positiveCoefficient k * z ^ (2 * n + k) := by
+        D.posCoeff k * z ^ (2 * n + k) := by
   classical
   apply sum_bij (fun j _ ↦ j + 1)
   · intro j hj
@@ -12873,9 +12838,9 @@ private theorem sum_range_center_add {n : ℕ} (D : PairedSignData n)
   · intro j hj
     rfl
 
-private theorem PairedSignData.sum_positive_partition {n : ℕ}
-    (D : PairedSignData n) (f : ℕ → ℂ) :
-    (∑ k ∈ Finset.Icc 1 (2 * n), D.positiveCoefficient k * f k) =
+private theorem PairSignData.sum_pos_part {n : ℕ}
+    (D : PairSignData n) (f : ℕ → ℂ) :
+    (∑ k ∈ Finset.Icc 1 (2 * n), D.posCoeff k * f k) =
       (∑ k ∈ D.C, (D.epsC k : ℂ) * f k) +
       (∑ k ∈ D.Se, (D.epsE k : ℂ) * f k) +
       ∑ k ∈ D.So, (D.epsO k : ℂ) * f k := by
@@ -12886,23 +12851,23 @@ private theorem PairedSignData.sum_positive_partition {n : ℕ}
   · apply congrArg₂ (· + ·)
     · apply sum_congr rfl
       intro k hk
-      simp [PairedSignData.positiveCoefficient, hk]
+      simp [PairSignData.posCoeff, hk]
     · apply sum_congr rfl
       intro k hk
       have hnotC : k ∉ D.C := fun hC ↦
         (Finset.disjoint_left.mp D.disjoint_C_Se) hC hk
-      simp [PairedSignData.positiveCoefficient, hk, hnotC]
+      simp [PairSignData.posCoeff, hk, hnotC]
   · apply sum_congr rfl
     intro k hk
     have hnotC : k ∉ D.C := fun hC ↦
       (Finset.disjoint_left.mp D.disjoint_C_So) hC hk
     have hnotE : k ∉ D.Se := fun hE ↦
       (Finset.disjoint_left.mp D.disjoint_Se_So) hE hk
-    simp [PairedSignData.positiveCoefficient, hnotC, hnotE]
+    simp [PairSignData.posCoeff, hnotC, hnotE]
 
-private theorem PairedSignData.sum_negative_partition {n : ℕ}
-    (D : PairedSignData n) (f : ℕ → ℂ) :
-    (∑ k ∈ Finset.Icc 1 (2 * n), D.negativeCoefficient k * f k) =
+private theorem PairSignData.sum_neg_part {n : ℕ}
+    (D : PairSignData n) (f : ℕ → ℂ) :
+    (∑ k ∈ Finset.Icc 1 (2 * n), D.negCoeff k * f k) =
       (∑ k ∈ D.C, (D.epsC k : ℂ) * f k) -
       (∑ k ∈ D.Se, (D.epsE k : ℂ) * f k) -
       ∑ k ∈ D.So, (D.epsO k : ℂ) * f k := by
@@ -12914,19 +12879,19 @@ private theorem PairedSignData.sum_negative_partition {n : ℕ}
   · apply congrArg₂ (· + ·)
     · apply sum_congr rfl
       intro k hk
-      simp [PairedSignData.negativeCoefficient, hk]
+      simp [PairSignData.negCoeff, hk]
     · apply sum_congr rfl
       intro k hk
       have hnotC : k ∉ D.C := fun hC ↦
         (Finset.disjoint_left.mp D.disjoint_C_Se) hC hk
-      simp [PairedSignData.negativeCoefficient, hk, hnotC]
+      simp [PairSignData.negCoeff, hk, hnotC]
   · apply sum_congr rfl
     intro k hk
     have hnotC : k ∉ D.C := fun hC ↦
       (Finset.disjoint_left.mp D.disjoint_C_So) hC hk
     have hnotE : k ∉ D.Se := fun hE ↦
       (Finset.disjoint_left.mp D.disjoint_Se_So) hE hk
-    simp [PairedSignData.negativeCoefficient, hnotC, hnotE]
+    simp [PairSignData.negCoeff, hnotC, hnotE]
 
 private theorem sum_center_sub_factor {n : ℕ} (s : Finset ℕ)
     (eps : ℕ → ℝ) (hs : s ⊆ Finset.Icc 1 (2 * n))
@@ -12952,14 +12917,14 @@ private theorem sum_center_add_factor {n : ℕ} (s : Finset ℕ)
   rw [pow_add]
   ring
 
-theorem PairedSignData.eval_eq {n : ℕ} (D : PairedSignData n)
+theorem PairSignData.eval_eq {n : ℕ} (D : PairSignData n)
     (θ : ℝ) :
-    (ofCoeffs (4 * n) D.coeff).eval (unitPoint θ) =
-      unitPoint θ ^ (2 * n) *
-        pairedLaurentValue D.C D.Se D.So D.epsC D.epsE D.epsO θ := by
+    (ofCoeffs (4 * n) D.coeff).eval (unitPt θ) =
+      unitPt θ ^ (2 * n) *
+        pairLaurentValue D.C D.Se D.So D.epsC D.epsE D.epsO θ := by
   classical
-  let z := unitPoint θ
-  have hz : z ≠ 0 := unitPoint_ne_zero θ
+  let z := unitPt θ
+  have hz : z ≠ 0 := unitPt_ne_zero θ
   rw [eval_ofCoeffs]
   change (∑ i : Fin (4 * n + 1), D.coeff i * z ^ (i : ℕ)) = _
   let term : ℕ → ℂ := fun j ↦
@@ -12982,7 +12947,7 @@ theorem PairedSignData.eval_eq {n : ℕ} (D : PairedSignData n)
       (∑ j ∈ Finset.range (2 * n),
           term j) =
         ∑ k ∈ Finset.Icc 1 (2 * n),
-          D.negativeCoefficient k * z ^ (2 * n - k) := by
+          D.negCoeff k * z ^ (2 * n - k) := by
     rw [← sum_range_center_sub D z]
     apply sum_congr rfl
     intro j hj
@@ -12990,17 +12955,17 @@ theorem PairedSignData.eval_eq {n : ℕ} (D : PairedSignData n)
     have hjtop : j < 4 * n + 1 := by omega
     rw [show term j = D.coeff ⟨j, hjtop⟩ * z ^ j by
       simp only [term, dif_pos hjtop]]
-    simp only [PairedSignData.coeff, if_pos hj]
+    simp only [PairSignData.coeff, if_pos hj]
   have hcenter : term (2 * n) = z ^ (2 * n) := by
     have hjtop : 2 * n < 4 * n + 1 := by omega
     rw [show term (2 * n) = D.coeff ⟨2 * n, hjtop⟩ * z ^ (2 * n) by
       simp only [term, dif_pos hjtop]]
-    simp [PairedSignData.coeff]
+    simp [PairSignData.coeff]
   have hpositive :
       (∑ j ∈ Finset.range (2 * n),
           term (2 * n + (1 + j))) =
         ∑ k ∈ Finset.Icc 1 (2 * n),
-          D.positiveCoefficient k * z ^ (2 * n + k) := by
+          D.posCoeff k * z ^ (2 * n + k) := by
     rw [← sum_range_center_add D z]
     apply sum_congr rfl
     intro j hj
@@ -13010,42 +12975,42 @@ theorem PairedSignData.eval_eq {n : ℕ} (D : PairedSignData n)
     rw [show term (2 * n + (1 + j)) =
         D.coeff ⟨2 * n + (1 + j), hjtop⟩ * z ^ (2 * n + (1 + j)) by
       simp only [term, dif_pos hjtop]]
-    simp only [PairedSignData.coeff, if_neg (by omega : ¬2 * n + (1 + j) < 2 * n),
+    simp only [PairSignData.coeff, if_neg (by omega : ¬2 * n + (1 + j) < 2 * n),
       if_neg hne]
     congr 2 <;> omega
   rw [hnegative, hcenter, hpositive]
-  rw [D.sum_negative_partition (fun k ↦ z ^ (2 * n - k)),
-    D.sum_positive_partition (fun k ↦ z ^ (2 * n + k))]
+  rw [D.sum_neg_part (fun k ↦ z ^ (2 * n - k)),
+    D.sum_pos_part (fun k ↦ z ^ (2 * n + k))]
   rw [sum_center_sub_factor D.C D.epsC D.C_subset z hz,
     sum_center_sub_factor D.Se D.epsE D.Se_subset z hz,
     sum_center_sub_factor D.So D.epsO D.So_subset z hz,
     sum_center_add_factor D.C D.epsC z,
     sum_center_add_factor D.Se D.epsE z,
     sum_center_add_factor D.So D.epsO z]
-  simp only [pairedLaurentValue, z]
+  simp only [pairLaurentValue, z]
   simp only [mul_add, mul_sub, sum_add_distrib, sum_sub_distrib]
   ring
 
-def PairedSignData.toCenteredPairedInput {n : ℕ} (D : PairedSignData n)
+def PairSignData.toCtrPairInput {n : ℕ} (D : PairSignData n)
     (dangerous : ℝ → Prop)
-    (hcosUpper : ∀ θ, |cosineSum D.C D.epsC θ| ≤ sqrt n)
+    (hcosUpper : ∀ θ, |cosSum D.C D.epsC θ| ≤ sqrt n)
     (hevenUpper : ∀ θ, |sineSum D.Se D.epsE θ| ≤ 6 * sqrt n)
     (hoddUpper : ∀ θ, |sineSum D.So D.epsO θ| ≤ 2 ^ 10 * sqrt n)
     (hcosLower : ∀ θ, InFundamentalAngle θ → ¬dangerous θ →
       (1 / 2 ^ 160 : ℝ) * sqrt n + 1 ≤
-        2 * |cosineSum D.C D.epsC θ|)
+        2 * |cosSum D.C D.epsC θ|)
     (hoddLower : ∀ θ, InFundamentalAngle θ → dangerous θ →
       10 * sqrt n ≤ |sineSum D.So D.epsO θ|) :
-    CenteredPairedInput n where
+    CtrPairInput n where
   coeff := D.coeff
   coeff_isSign := D.coeff_isSign
-  cosine := cosineSum D.C D.epsC
+  cosine := cosSum D.C D.epsC
   evenSine := sineSum D.Se D.epsE
   oddSine := sineSum D.So D.epsO
   dangerous := dangerous
   eval_eq := fun θ ↦ D.eval_eq θ |>.trans
-    (congrArg (unitPoint θ ^ (2 * n) * ·)
-      (pairedLaurentValue_eq_assembledValue
+    (congrArg (unitPt θ ^ (2 * n) * ·)
+      (pairLaurentValue_eq_asmValue
         D.C D.Se D.So D.epsC D.epsE D.epsO θ))
   cosine_upper := hcosUpper
   evenSine_upper := hevenUpper
@@ -13054,11 +13019,11 @@ def PairedSignData.toCenteredPairedInput {n : ℕ} (D : PairedSignData n)
   oddSine_lower_on_dangerous := hoddLower
 
 def oddS (n : ℕ) : Finset ℕ :=
-  (Finset.range n).image oddFrequency
+  (Finset.range n).image oddFreq
 
 @[simp] theorem mem_oddS {n k : ℕ} :
     k ∈ oddS n ↔ ∃ j < n, k = 2 * j + 1 := by
-  simp [oddS, oddFrequency, eq_comm]
+  simp [oddS, oddFreq, eq_comm]
 
 private theorem evenC_union_evenS {n t : ℕ}
     (hblock : 2 * evenT t + 2 ^ t ≤ n + 1) :
@@ -13127,52 +13092,52 @@ private theorem evenS_disjoint_oddS (n t : ℕ) :
   obtain ⟨b, hb, hab⟩ := hkO
   omega
 
-def evenCosineCoefficient (t k : ℕ) : ℝ :=
-  ((cosineBlock t).coeff (k / 2)).re
+def evenCosCoeff (t k : ℕ) : ℝ :=
+  ((cosBlk t).coeff (k / 2)).re
 
-def evenSineCoefficient (n t u k : ℕ) : ℝ :=
+def evenSinCoeff (n t u k : ℕ) : ℝ :=
   ((evenRemainder n t u).coeff (k / 2)).re
 
-def oddSineCoefficient (eps : ℕ → ℝ) (k : ℕ) : ℝ :=
+def oddSinCoeff (eps : ℕ → ℝ) (k : ℕ) : ℝ :=
   eps (k / 2)
 
-private theorem evenCosineCoefficient_isSign {t k : ℕ} (hk : k ∈ evenC t) :
-    evenCosineCoefficient t k = 1 ∨ evenCosineCoefficient t k = -1 := by
+private theorem evenCosCoeff_isSign {t k : ℕ} (hk : k ∈ evenC t) :
+    evenCosCoeff t k = 1 ∨ evenCosCoeff t k = -1 := by
   rw [mem_evenC] at hk
   obtain ⟨j, hj, rfl⟩ := hk
   have hdiv : 2 * j / 2 = j := by omega
-  simp only [evenCosineCoefficient, hdiv]
+  simp only [evenCosCoeff, hdiv]
   rw [mem_evenCPrime] at hj
   rcases hj with ⟨a, ha, rfl⟩ | ⟨a, ha, rfl⟩
-  · rw [coeff_cosineBlock_first t a ha]
-    rcases coeff_rudinShapiroP_eq_one_or_neg_one ha with h | h <;>
+  · rw [coeff_cosBlk_first t a ha]
+    rcases coeff_rsP_eq_one_or_neg_one ha with h | h <;>
       simp [h]
-  · rw [coeff_cosineBlock_second t a ha]
-    rcases coeff_rudinShapiroQ_eq_one_or_neg_one ha with h | h <;>
+  · rw [coeff_cosBlk_second t a ha]
+    rcases coeff_rsQ_eq_one_or_neg_one ha with h | h <;>
       simp [h]
 
-private theorem evenSineCoefficient_isSign {n t u k : ℕ}
+private theorem evenSinCoeff_isSign {n t u k : ℕ}
     (hprefix : n + 1 ≤ 2 ^ u) (hk : k ∈ evenS n t) :
-    evenSineCoefficient n t u k = 1 ∨ evenSineCoefficient n t u k = -1 := by
+    evenSinCoeff n t u k = 1 ∨ evenSinCoeff n t u k = -1 := by
   rw [mem_evenS] at hk
   obtain ⟨j, hj, rfl⟩ := hk
   have hdiv : 2 * j / 2 = j := by omega
-  simp only [evenSineCoefficient, hdiv]
+  simp only [evenSinCoeff, hdiv]
   rcases coeff_evenRemainder_sign_of_mem_evenSPrime hprefix hj with h | h <;>
     simp [h]
 
-private theorem oddSineCoefficient_isSign {n k : ℕ} {eps : ℕ → ℝ}
+private theorem oddSinCoeff_isSign {n k : ℕ} {eps : ℕ → ℝ}
     (heps : ∀ j, eps j = 1 ∨ eps j = -1) (hk : k ∈ oddS n) :
-    oddSineCoefficient eps k = 1 ∨ oddSineCoefficient eps k = -1 := by
+    oddSinCoeff eps k = 1 ∨ oddSinCoeff eps k = -1 := by
   rw [mem_oddS] at hk
   obtain ⟨j, hj, rfl⟩ := hk
   have hdiv : (2 * j + 1) / 2 = j := by omega
-  simpa [oddSineCoefficient, hdiv] using heps j
+  simpa [oddSinCoeff, hdiv] using heps j
 
-def concretePairedSignData (n t u : ℕ) (eps : ℕ → ℝ)
+def concretePairSignData (n t u : ℕ) (eps : ℕ → ℝ)
     (hblock : 2 * evenT t + 2 ^ t ≤ n + 1)
     (hprefix : n + 1 ≤ 2 ^ u)
-    (heps : ∀ j, eps j = 1 ∨ eps j = -1) : PairedSignData n where
+    (heps : ∀ j, eps j = 1 ∨ eps j = -1) : PairSignData n where
   C := evenC t
   Se := evenS n t
   So := oddS n
@@ -13180,73 +13145,73 @@ def concretePairedSignData (n t u : ℕ) (eps : ℕ → ℝ)
   disjoint_C_Se := evenC_disjoint_evenS n t
   disjoint_C_So := evenC_disjoint_oddS n t
   disjoint_Se_So := evenS_disjoint_oddS n t
-  epsC := evenCosineCoefficient t
-  epsE := evenSineCoefficient n t u
-  epsO := oddSineCoefficient eps
-  epsC_isSign := fun _ hk ↦ evenCosineCoefficient_isSign hk
-  epsE_isSign := fun _ hk ↦ evenSineCoefficient_isSign hprefix hk
-  epsO_isSign := fun _ hk ↦ oddSineCoefficient_isSign heps hk
+  epsC := evenCosCoeff t
+  epsE := evenSinCoeff n t u
+  epsO := oddSinCoeff eps
+  epsC_isSign := fun _ hk ↦ evenCosCoeff_isSign hk
+  epsE_isSign := fun _ hk ↦ evenSinCoeff_isSign hprefix hk
+  epsO_isSign := fun _ hk ↦ oddSinCoeff_isSign heps hk
 
-private theorem eval_unitPoint_re_eq_cosine_support (p : Polynomial ℂ)
+private theorem eval_unitPt_re_eq_cos_support (p : Polynomial ℂ)
     (hreal : ∀ k ∈ p.support, (p.coeff k).im = 0) (θ : ℝ) :
-    (p.eval (unitPoint θ)).re =
+    (p.eval (unitPt θ)).re =
       ∑ k ∈ p.support, (p.coeff k).re * cos (k * θ) := by
   classical
   rw [eval_eq_sum, sum_def]
-  change reLm (∑ k ∈ p.support, p.coeff k * unitPoint θ ^ k) = _
+  change reLm (∑ k ∈ p.support, p.coeff k * unitPt θ ^ k) = _
   rw [map_sum]
   apply sum_congr rfl
   intro k hk
-  have hre : (unitPoint θ ^ k).re = cos (k * θ) := by
-    have h := congrArg re (unitPoint_pow θ k)
+  have hre : (unitPt θ ^ k).re = cos (k * θ) := by
+    have h := congrArg re (unitPt_pow θ k)
     simpa only [add_re, ofReal_re, mul_re,
       ofReal_im, Complex.I_re, Complex.I_im, mul_zero, zero_mul,
       sub_zero, mul_one, add_zero] using h
-  change (p.coeff k * unitPoint θ ^ k).re = _
+  change (p.coeff k * unitPt θ ^ k).re = _
   rw [mul_re, hreal k hk, zero_mul, sub_zero, hre]
 
-private theorem eval_unitPoint_im_eq_sine_support (p : Polynomial ℂ)
+private theorem eval_unitPt_im_eq_sin_support (p : Polynomial ℂ)
     (hreal : ∀ k ∈ p.support, (p.coeff k).im = 0) (θ : ℝ) :
-    (p.eval (unitPoint θ)).im =
+    (p.eval (unitPt θ)).im =
       ∑ k ∈ p.support, (p.coeff k).re * sin (k * θ) := by
   classical
   rw [eval_eq_sum, sum_def]
-  change imLm (∑ k ∈ p.support, p.coeff k * unitPoint θ ^ k) = _
+  change imLm (∑ k ∈ p.support, p.coeff k * unitPt θ ^ k) = _
   rw [map_sum]
   apply sum_congr rfl
   intro k hk
-  have him : (unitPoint θ ^ k).im = sin (k * θ) := by
-    have h := congrArg Complex.im (unitPoint_pow θ k)
+  have him : (unitPt θ ^ k).im = sin (k * θ) := by
+    have h := congrArg Complex.im (unitPt_pow θ k)
     simpa only [Complex.add_im, ofReal_re, mul_im,
       ofReal_im, Complex.I_re, Complex.I_im, mul_zero, zero_mul,
       mul_one, add_zero, zero_add] using h
-  change (p.coeff k * unitPoint θ ^ k).im = _
+  change (p.coeff k * unitPt θ ^ k).im = _
   rw [mul_im, hreal k hk, zero_mul, add_zero, him]
 
-private theorem cosineBlock_coeff_im_eq_zero {t k : ℕ}
-    (hk : k ∈ (cosineBlock t).support) :
-    ((cosineBlock t).coeff k).im = 0 := by
-  rw [support_cosineBlock] at hk
+private theorem cosBlk_coeff_im_eq_zero {t k : ℕ}
+    (hk : k ∈ (cosBlk t).support) :
+    ((cosBlk t).coeff k).im = 0 := by
+  rw [support_cosBlk] at hk
   rw [mem_evenCPrime] at hk
   rcases hk with ⟨j, hj, rfl⟩ | ⟨j, hj, rfl⟩
-  · rw [coeff_cosineBlock_first t j hj]
-    rcases coeff_rudinShapiroP_eq_one_or_neg_one hj with h | h <;> simp [h]
-  · rw [coeff_cosineBlock_second t j hj]
-    rcases coeff_rudinShapiroQ_eq_one_or_neg_one hj with h | h <;> simp [h]
+  · rw [coeff_cosBlk_first t j hj]
+    rcases coeff_rsP_eq_one_or_neg_one hj with h | h <;> simp [h]
+  · rw [coeff_cosBlk_second t j hj]
+    rcases coeff_rsQ_eq_one_or_neg_one hj with h | h <;> simp [h]
 
-theorem cosineSum_evenC_eq_evenCosine (t : ℕ) (θ : ℝ) :
-    cosineSum (evenC t) (evenCosineCoefficient t) θ =
-      evenCosine t θ := by
+theorem cosSum_evenC_eq_evenCos (t : ℕ) (θ : ℝ) :
+    cosSum (evenC t) (evenCosCoeff t) θ =
+      evenCos t θ := by
   classical
-  rw [cosineSum, evenC, sum_image]
-  · rw [evenCosine]
-    rw [eval_unitPoint_re_eq_cosine_support
-      (cosineBlock t) (fun k hk ↦ cosineBlock_coeff_im_eq_zero hk)]
-    rw [support_cosineBlock]
+  rw [cosSum, evenC, sum_image]
+  · rw [evenCos]
+    rw [eval_unitPt_re_eq_cos_support
+      (cosBlk t) (fun k hk ↦ cosBlk_coeff_im_eq_zero hk)]
+    rw [support_cosBlk]
     apply sum_congr rfl
     intro j hj
     have hdiv : 2 * j / 2 = j := by omega
-    simp only [evenCosineCoefficient, hdiv]
+    simp only [evenCosCoeff, hdiv]
     congr 2
     push_cast
     ring
@@ -13267,9 +13232,9 @@ private theorem coeff_evenRemainder_zero {n t u : ℕ} :
       have hT : 0 < evenT t := by simp [evenT]
       omega
   rw [evenRemainder, coeff_sub,
-    coeff_polynomialPrefix, if_pos (by omega),
-    coeff_deletedEvenBlock_eq_zero_of_outside t 0 hzero, sub_zero]
-  have hstable := coeff_rudinShapiroP_stable
+    coeff_polyPrefix, if_pos (by omega),
+    coeff_deletedEvenBlk_eq_zero_of_outside t 0 hzero, sub_zero]
+  have hstable := coeff_rsP_stable
     (a := 0) (b := u) (k := 0) (Nat.zero_le u) (by norm_num)
   simpa [rudinShapiroP] using hstable
 
@@ -13297,8 +13262,8 @@ private theorem support_evenRemainder {n t u : ℕ}
           omega
         apply hk
         rw [evenRemainder, coeff_sub,
-          coeff_polynomialPrefix, if_neg (by omega),
-          coeff_deletedEvenBlock_eq_zero_of_outside t k hkC,
+          coeff_polyPrefix, if_neg (by omega),
+          coeff_deletedEvenBlk_eq_zero_of_outside t k hkC,
           sub_zero]
       refine ⟨by omega, by omega, ?_⟩
       intro hkC
@@ -13321,15 +13286,15 @@ private theorem evenRemainder_coeff_im_eq_zero {n t u k : ℕ}
   · rcases coeff_evenRemainder_sign_of_mem_evenSPrime hprefix hk with h | h <;>
       simp [h]
 
-theorem sineSum_evenS_eq_evenSine (n t u : ℕ)
+theorem sinSum_evenS_eq_evenSin (n t u : ℕ)
     (hu : t + 12 ≤ u) (hblock : 2 * evenT t + 2 ^ t ≤ n + 1)
     (hprefix : n + 1 ≤ 2 ^ u) (θ : ℝ) :
-    sineSum (evenS n t) (evenSineCoefficient n t u) θ =
+    sineSum (evenS n t) (evenSinCoeff n t u) θ =
       evenSine n t u θ := by
   classical
   rw [sineSum, evenS, sum_image]
   · rw [evenSine]
-    rw [eval_unitPoint_im_eq_sine_support
+    rw [eval_unitPt_im_eq_sin_support
       (evenRemainder n t u)
       (fun k hk ↦ evenRemainder_coeff_im_eq_zero hu hblock hprefix hk)]
     rw [support_evenRemainder hu hblock hprefix]
@@ -13338,7 +13303,7 @@ theorem sineSum_evenS_eq_evenSine (n t u : ℕ)
       apply sum_congr rfl
       intro j hj
       have hdiv : 2 * j / 2 = j := by omega
-      simp only [evenSineCoefficient, hdiv]
+      simp only [evenSinCoeff, hdiv]
       congr 2
       push_cast
       ring
@@ -13347,24 +13312,24 @@ theorem sineSum_evenS_eq_evenSine (n t u : ℕ)
     dsimp only at hab
     omega
 
-theorem sineSum_oddS_eq_oddSineSum (n : ℕ) (eps : ℕ → ℝ) (θ : ℝ) :
-    sineSum (oddS n) (oddSineCoefficient eps) θ =
+theorem sinSum_oddS_eq_oddSinSum (n : ℕ) (eps : ℕ → ℝ) (θ : ℝ) :
+    sineSum (oddS n) (oddSinCoeff eps) θ =
       oddSineSum n eps θ := by
   classical
   rw [sineSum, oddS, sum_image]
   · apply sum_congr rfl
     intro j hj
     have hdiv : (2 * j + 1) / 2 = j := by omega
-    simp [oddSineCoefficient, hdiv, oddFrequency]
+    simp [oddSinCoeff, hdiv, oddFreq]
   · intro a ha b hb hab
-    simp only [oddFrequency] at hab
+    simp only [oddFreq] at hab
     omega
 
-private theorem exists_oddSine_of_intervalColoring {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n)
+private theorem exists_oddSin_of_ivlColoring {n : ℕ} (hn : 0 < n)
+    (F : IvlFam n)
     (α : ↥F.base → ℝ)
     (htarget : ∀ j < n, |fourierTarget F α j| ≤ 1)
-    (hkernel : KernelCertificate F α)
+    (hkernel : KernelCert F α)
     {G : Type} [Fintype G]
     (setup : RoundingSetup n G) :
     ∃ eps : ℕ → ℝ, (∀ j, eps j = 1 ∨ eps j = -1) ∧
@@ -13415,12 +13380,12 @@ private theorem exists_oddSine_of_intervalColoring {n : ℕ} (hn : 0 < n)
     nlinarith [sqrt_nonneg n]
 
 theorem exists_concrete_oddSine {n : ℕ} (hn : 0 < n)
-    (F : IntervalFamily n) {γ : ℝ}
+    (F : IvlFam n) {γ : ℝ}
     (hγ : γ ≤ 1 / (2 : ℝ) ^ 40)
     (hcard : (F.base.card : ℝ) ≤ γ * n)
     (hkernel : ∀ α : ↥F.base → ℝ,
-      Discrepancy.IsSign α →
-        KernelCertificate F α) :
+      Disc.IsSign α →
+        KernelCert F α) :
     ∃ eps : ℕ → ℝ, (∀ j, eps j = 1 ∨ eps j = -1) ∧
       (∀ θ, IsDangerous F θ →
         10 * sqrt n < |oddSineSum n eps θ|) ∧
@@ -13429,19 +13394,19 @@ theorem exists_concrete_oddSine {n : ℕ} (hn : 0 < n)
   classical
   obtain ⟨α, hα, htarget⟩ :
       ∃ α : ↥F.base → ℝ,
-        Discrepancy.IsSign α ∧
+        Disc.IsSign α ∧
           ∀ j < n, |fourierTarget F α j| ≤ 1 := by
     by_cases hbase : F.base.card = 0
-    · exact exists_intervalColoring_of_base_card_eq_zero F hbase
+    · exact exists_ivlColoring_of_base_card_eq_zero F hbase
     · have hbasePos : 0 < F.base.card := Nat.pos_of_ne_zero hbase
-      have hadmissible := firstColoringAdmissible_of_card_le
+      have hadmissible := firstColoringAdm_of_card_le
         hn F hγ hbasePos hcard
-      exact exists_intervalColoring F
-        (fun _ ↦ firstParameter n F.base.card)
+      exact exists_ivlColoring F
+        (fun _ ↦ firstParam n F.base.card)
         hadmissible
         (fun I _ _ ↦ EdgeWalk.partialColoringPrinciple I (Fin n))
   obtain ⟨setup⟩ := exists_roundingSetup hn
-  exact exists_oddSine_of_intervalColoring hn F α htarget
+  exact exists_oddSin_of_ivlColoring hn F α htarget
     (hkernel α hα) setup
 
 private theorem nat_succ_le_two_pow (m : ℕ) : m + 1 ≤ 2 ^ m := by
@@ -13451,9 +13416,9 @@ private theorem nat_succ_le_two_pow (m : ℕ) : m + 1 ≤ 2 ^ m := by
       rw [pow_succ]
       omega
 
-private theorem cosineDelta_gt_two_pow_neg_160 {γ : ℝ}
+private theorem cosDelta_gt_two_pow_neg_160 {γ : ℝ}
     (hγLower : (1 / 2 ^ 43 : ℝ) < γ) :
-    (1 / 2 ^ 160 : ℝ) < CosineConstruction.cosineDelta γ := by
+    (1 / 2 ^ 160 : ℝ) < CosConstr.cosDelta γ := by
   have hγ : 0 < γ := by
     exact lt_trans (by positivity : (0 : ℝ) < 1 / 2 ^ 43) hγLower
   have hcube : (1 / 2 ^ 43 : ℝ) ^ 3 < γ ^ 3 := by
@@ -13464,7 +13429,7 @@ private theorem cosineDelta_gt_two_pow_neg_160 {γ : ℝ}
   have hsqrtSq := sq_sqrt hγ.le
   have hsqrt : (1 / 2 ^ 22 : ℝ) < sqrt γ := by
     nlinarith [sqrt_nonneg γ]
-  rw [CosineConstruction.cosineDelta]
+  rw [CosConstr.cosDelta]
   calc
     (1 / 2 ^ 160 : ℝ) < (1 / 2 ^ 159 : ℝ) := by norm_num
     _ = (1 / 2 ^ 8 : ℝ) * (1 / 2 ^ 43 : ℝ) ^ 3 * (1 / 2 ^ 22 : ℝ) := by
@@ -13472,22 +13437,22 @@ private theorem cosineDelta_gt_two_pow_neg_160 {γ : ℝ}
     _ < (1 / 2 ^ 8 : ℝ) * γ ^ 3 * sqrt γ := by
       gcongr
 
-theorem exists_centeredPairedInput_of_components
+theorem exists_ctrPairInput_of_comps
     {n t : ℕ} {γ : ℝ}
-    (hparam : CosineConstruction.Parameters n t γ)
-    (F : IntervalFamily n)
+    (hparam : CosConstr.Params n t γ)
+    (F : IvlFam n)
     (hcard : (F.base.card : ℝ) ≤ γ * n)
-    (hcosUpper : ∀ θ, |evenCosine t θ| ≤ sqrt n)
+    (hcosUpper : ∀ θ, |evenCos t θ| ≤ sqrt n)
     (hcosLower : ∀ θ, InFundamentalAngle θ →
       ¬IsDangerous F θ →
-      CosineConstruction.cosineDelta γ * sqrt n ≤
-        |evenCosine t θ|)
+      CosConstr.cosDelta γ * sqrt n ≤
+        |evenCos t θ|)
     (hkernel : ∀ α : ↥F.base → ℝ,
-      Discrepancy.IsSign α →
-        KernelCertificate F α)
+      Disc.IsSign α →
+        KernelCert F α)
     (habsorb : 1 ≤ (1 / 2 ^ 160 : ℝ) * sqrt n) :
-    Nonempty (CenteredPairedInput n) := by
-  have heven := hparam.toEvenParameters
+    Nonempty (CtrPairInput n) := by
+  have heven := hparam.toEvenParams
   have hu : t + 12 ≤ n := by
     have ht : t + 12 ≤ 2 ^ (t + 11) := by
       simpa only [Nat.reduceAdd] using nat_succ_le_two_pow (t + 11)
@@ -13495,32 +13460,32 @@ theorem exists_centeredPairedInput_of_components
   have hprefix : n + 1 ≤ 2 ^ n := nat_succ_le_two_pow n
   obtain ⟨eps, heps, hoddLower, hoddUpper⟩ :=
     exists_concrete_oddSine hparam.n_pos F hparam.gamma_upper hcard hkernel
-  let D := concretePairedSignData n t n eps heven.blocks_fit hprefix heps
-  refine ⟨D.toCenteredPairedInput (IsDangerous F) ?_ ?_ ?_ ?_ ?_⟩
+  let D := concretePairSignData n t n eps heven.blks_fit hprefix heps
+  refine ⟨D.toCtrPairInput (IsDangerous F) ?_ ?_ ?_ ?_ ?_⟩
   · intro θ
-    rw [show cosineSum D.C D.epsC θ = evenCosine t θ by
-      exact cosineSum_evenC_eq_evenCosine t θ]
+    rw [show cosSum D.C D.epsC θ = evenCos t θ by
+      exact cosSum_evenC_eq_evenCos t θ]
     exact hcosUpper θ
   · intro θ
     rw [show sineSum D.Se D.epsE θ = evenSine n t n θ by
-      exact sineSum_evenS_eq_evenSine n t n hu heven.blocks_fit hprefix θ]
-    exact abs_evenSine_le_six_sqrt_of_parameters heven hprefix θ
+      exact sinSum_evenS_eq_evenSin n t n hu heven.blks_fit hprefix θ]
+    exact abs_evenSin_le_six_sqrt_of_params heven hprefix θ
   · intro θ
     rw [show sineSum D.So D.epsO θ =
         oddSineSum n eps θ by
-      exact sineSum_oddS_eq_oddSineSum n eps θ]
+      exact sinSum_oddS_eq_oddSinSum n eps θ]
     exact hoddUpper θ
   · intro θ hθ hsafe
-    rw [show cosineSum D.C D.epsC θ = evenCosine t θ by
-      exact cosineSum_evenC_eq_evenCosine t θ]
+    rw [show cosSum D.C D.epsC θ = evenCos t θ by
+      exact cosSum_evenC_eq_evenCos t θ]
     have hlower := hcosLower θ hθ hsafe
-    have hδ := cosineDelta_gt_two_pow_neg_160 hparam.gamma_lower
+    have hδ := cosDelta_gt_two_pow_neg_160 hparam.gamma_lower
     have hsqrt : 0 ≤ sqrt n := sqrt_nonneg _
     nlinarith
   · intro θ _htheta hdanger
     rw [show sineSum D.So D.epsO θ =
         oddSineSum n eps θ by
-      exact sineSum_oddS_eq_oddSineSum n eps θ]
+      exact sinSum_oddS_eq_oddSinSum n eps θ]
     exact (hoddLower θ hdanger).le
 
 private theorem eventually_absorb_one :
@@ -13535,15 +13500,15 @@ private theorem eventually_absorb_one :
     Filter.Tendsto.const_mul_atTop (by positivity) hsqrt
   exact hscaled (eventually_ge_atTop 1)
 
-theorem eventuallyCenteredPaired : EventuallyCenteredPaired := by
-  rw [EventuallyCenteredPaired]
-  filter_upwards [CosineConstruction.eventually_exists_cosinePackage,
+theorem eventuallyCtrPair : EventuallyCtrPair := by
+  rw [EventuallyCtrPair]
+  filter_upwards [CosConstr.eventually_exists_cosPackage,
     eventually_ge_atTop 4096, eventually_absorb_one]
     with n hpackage hn habsorb
   obtain ⟨P⟩ := hpackage
-  exact exists_centeredPairedInput_of_components P.parameters P.family
+  exact exists_ctrPairInput_of_comps P.parameters P.family
     P.base_card P.upper P.lower
-    (KernelCertificate.kernelCertificate hn P.family) habsorb
+    (KernelCert.kernelCert hn P.family) habsorb
 
 end
 
@@ -13552,4 +13517,4 @@ end
 end Erdos228
 
 theorem OMA.solution : type_of% @Erdos228.erdos_228 :=
-  Erdos228.target_of_eventually_centered Erdos228.eventuallyCenteredPaired
+  Erdos228.target_of_eventually_ctr Erdos228.eventuallyCtrPair

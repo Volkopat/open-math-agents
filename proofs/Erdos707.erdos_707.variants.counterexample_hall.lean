@@ -3,6 +3,9 @@ import Mathlib.Tactic
 
 /-!
 # Proof of Erdos 707 Hall counterexample
+
+Original Lean proof: @mattdorman, PR #276. The involution-parity and modular-cancellation
+helpers use Mathlib’s fixed-point and unit APIs.
 -/
 
 section OMA707
@@ -14,45 +17,20 @@ lemma oma_even_card_of_fpf_involution {α : Type*} [DecidableEq α] :
       (∀ x ∈ T, f (f x) = x) →
       (∀ x ∈ T, f x ≠ x) →
       Even T.card
-  | 0, T, _, hcard, _, _, _ => by simp [hcard]
-  | 1, T, f, hcard, hmem, _, hne => by
-    obtain ⟨x, rfl⟩ := Finset.card_eq_one.1 hcard
-    have hx : f x ∈ ({x} : Finset α) := hmem x (Finset.mem_singleton_self x)
-    exact (hne x (Finset.mem_singleton_self x) (Finset.mem_singleton.1 hx)).elim
-  | n + 2, T, f, hcard, hmem, hinv, hne => by
-    have hpos : 0 < T.card := by omega
-    obtain ⟨x, hx⟩ := Finset.card_pos.1 hpos
-    set y := f x
-    have hy : y ∈ T := hmem x hx
-    have hxy : x ≠ y := (hne x hx).symm
-    set T' := (T.erase y).erase x
-    have hx_er : x ∈ T.erase y := Finset.mem_erase.2 ⟨hxy, hx⟩
-    have hcard_er : (T.erase y).card = n + 1 := by
-      have := Finset.card_erase_of_mem hy
-      omega
-    have hcard' : T'.card = n := by
-      dsimp [T']
-      rw [Finset.card_erase_of_mem hx_er, hcard_er]
-      rfl
-    have hmem' : ∀ z ∈ T', f z ∈ T' := by
-      intro z hz
-      have hz1 := Finset.mem_erase.1 hz
-      have hz2 := Finset.mem_erase.1 hz1.2
-      refine Finset.mem_erase.2 ⟨?_, Finset.mem_erase.2 ⟨?_, hmem z hz2.2⟩⟩
-      · intro hfz
-        have h1 : f (f z) = f x := congrArg f hfz
-        rw [hinv z hz2.2] at h1
-        exact hz2.1 h1
-      · intro hfz
-        have h1 : f (f z) = f y := congrArg f hfz
-        rw [hinv z hz2.2, hinv x hx] at h1
-        exact hz1.1 h1
-    have hsub : ∀ z ∈ T', z ∈ T := fun z hz => (Finset.mem_erase.1 (Finset.mem_erase.1 hz).2).2
-    have hev : Even T'.card :=
-      oma_even_card_of_fpf_involution n T' f hcard' hmem'
-        (fun z hz => hinv z (hsub z hz)) (fun z hz => hne z (hsub z hz))
-    rw [hcard, ← hcard']
-    exact hev.add (by decide : Even 2)
+  := by
+  intro n T f _ hmem hinv hne
+  classical
+  let g : T → T := fun x => ⟨f x, hmem x x.property⟩
+  have hg : Function.Involutive g := fun x => Subtype.ext (hinv x x.property)
+  let e : Equiv.Perm T := hg.toPerm g
+  rw [even_iff_two_dvd, ← Fintype.card_coe]
+  by_contra hc
+  have he : e ^ 2 ^ 1 = 1 := by
+    apply Equiv.ext
+    intro x
+    exact hg x
+  obtain ⟨x, hx⟩ := Equiv.Perm.exists_fixed_point_of_prime (p := 2) (n := 1) hc he
+  exact hne x x.property (congrArg Subtype.val hx)
 
 structure IsFinsetPDS {v : ℕ} [NeZero v] (S : Finset (ZMod v)) : Prop where
   uniq_diff : ∀ d : ZMod v, d ≠ 0 →
@@ -136,23 +114,8 @@ lemma oma_finsetPDS_card_eq {v : ℕ} [NeZero v] {S : Finset (ZMod v)} (hS : IsF
   omega
 
 lemma oma_two_mul_cancel {v : ℕ} [NeZero v] (hv_odd : Odd v) {x y : ZMod v}
-    (h : (2 : ZMod v) * x = (2 : ZMod v) * y) : x = y := by
-  rcases hv_odd with ⟨m, rfl⟩
-  have hunit : ((m + 1 : ℕ) : ZMod (2 * m + 1)) * 2 = 1 := by
-    have hcast : (((2 * m + 1 + 1) : ℕ) : ZMod (2 * m + 1)) = 1 := by
-      have h0 : ((2 * m + 1 : ℕ) : ZMod (2 * m + 1)) = 0 := ZMod.natCast_self (2 * m + 1)
-      push_cast at h0 ⊢
-      linear_combination h0
-    calc ((m + 1 : ℕ) : ZMod (2 * m + 1)) * 2
-      _ = (((2 * m + 1 + 1) : ℕ) : ZMod (2 * m + 1)) := by push_cast; ring
-      _ = 1 := hcast
-  calc x = 1 * x := (one_mul x).symm
-    _ = (((m + 1 : ℕ) : ZMod (2 * m + 1)) * 2) * x := by rw [hunit]
-    _ = ((m + 1 : ℕ) : ZMod (2 * m + 1)) * ((2 : ZMod (2 * m + 1)) * x) := by ring
-    _ = ((m + 1 : ℕ) : ZMod (2 * m + 1)) * ((2 : ZMod (2 * m + 1)) * y) := by rw [h]
-    _ = (((m + 1 : ℕ) : ZMod (2 * m + 1)) * 2) * y := by ring
-    _ = 1 * y := by rw [hunit]
-    _ = y := one_mul y
+    (h : (2 : ZMod v) * x = (2 : ZMod v) * y) : x = y :=
+  ((ZMod.isUnit_iff_coprime 2 v).2 hv_odd.coprime_two_left).mul_left_cancel h
 
 def omaLine {v : ℕ} (S : Finset (ZMod v)) (y : ZMod v) : Finset (ZMod v) :=
   S.map ⟨fun s => s + y, add_left_injective y⟩

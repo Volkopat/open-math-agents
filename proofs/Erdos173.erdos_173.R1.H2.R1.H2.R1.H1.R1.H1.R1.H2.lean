@@ -33,17 +33,8 @@ namespace Carrier
 
 variable [Carrier]
 
-theorem re_mem {z : ℂ} (hz : z ∈ E) : z.re ∈ F := ((mem_iff z).mp hz).1
-
-theorem im_mem {z : ℂ} (hz : z ∈ E) : z.im ∈ F := ((mem_iff z).mp hz).2
-
-theorem ofReal_mem {t : ℝ} (ht : t ∈ F) : (t : ℂ) ∈ E :=
-  (mem_iff _).mpr ⟨by simpa using ht, by simp⟩
-
 theorem I_mem : Complex.I ∈ E :=
   (mem_iff _).mpr ⟨by simp, by simp⟩
-
-theorem ratCast_mem (q : ℚ) : (q : ℝ) ∈ F := SubfieldClass.ratCast_mem F q
 
 theorem mem_of_pow_mem {w : ℂ} {n : ℕ} (hn : n ≠ 0) (hw : w ^ n ∈ E) : w ∈ E := by
   classical
@@ -61,30 +52,6 @@ theorem mem_of_pow_mem {w : ℂ} {n : ℕ} (hn : n ≠ 0) (hw : w ^ n ∈ E) : w
     · simpa using E.neg_mem hw
     · simp
   · simp
-
-theorem sqrt_mem {t : ℝ} (ht : t ∈ F) : Real.sqrt t ∈ F := by
-  by_cases h : 0 ≤ t
-  · have hc : ((Real.sqrt t : ℝ) : ℂ) ∈ E := by
-      apply mem_of_pow_mem (n := 2) (by norm_num)
-      rw [← Complex.ofReal_pow, Real.sq_sqrt h]
-      exact ofReal_mem ht
-    simpa using re_mem hc
-  · rw [Real.sqrt_eq_zero_of_nonpos (le_of_not_ge h)]
-    exact F.zero_mem
-
-theorem norm_mem {z : ℂ} (hz : z ∈ E) : ‖z‖ ∈ F := by
-  have h : ‖z‖ = Real.sqrt (z.re * z.re + z.im * z.im) := by
-    rw [← Complex.normSq_apply, Complex.normSq_eq_norm_sq, Real.sqrt_sq (norm_nonneg z)]
-  rw [h]
-  exact sqrt_mem (F.add_mem (F.mul_mem (re_mem hz) (re_mem hz))
-    (F.mul_mem (im_mem hz) (im_mem hz)))
-
-theorem countable_F : Countable F := by
-  have := countable
-  let f : F → E := fun t => ⟨((t : ℝ) : ℂ), ofReal_mem t.property⟩
-  apply Function.Injective.countable (f := f)
-  intro s t h
-  exact Subtype.ext (Complex.ofReal_injective (congrArg Subtype.val h))
 
 end Carrier
 end ParishOrth.PlaneFiveColor.Spectral
@@ -127,13 +94,6 @@ theorem K_pow_surjective (n : ℕ) (hn : n ≠ 0) :
 private instance K_rootable : RootableBy K ℕ := rootableByOfPowLeftSurj K ℕ (fun {n} hn => K_pow_surjective n hn)
 
 omit [Carrier] in
-
-theorem finite_image_trivial {G H : Type*} [Group G] [Group H] [Finite H]
-    [RootableBy G ℕ] (f : G →* H) (g : G) : f g = 1 := by
-  classical
-  let := Fintype.ofFinite H
-  obtain ⟨x, hx⟩ := RootableBy.surjective_pow G ℕ (Fintype.card_ne_zero : Fintype.card H ≠ 0) g
-  rw [← hx, map_pow, pow_card_eq_one]
 
 private def DiscreteE := Multiplicative E deriving CommGroup
 private instance : TopologicalSpace DiscreteE := ⊥
@@ -245,92 +205,27 @@ private def scalar (a : E) (d : D) : D := d.comp (scaleE a)
   congr 1
   ring
 
-theorem scalar_mem_C (a : E) {d : D} (hd : d ∈ C) : scalar a d ∈ C := by
-  obtain ⟨ξ, rfl⟩ := hd
-  exact ⟨Multiplicative.ofAdd (conj (a : ℂ) * Multiplicative.toAdd ξ), scalar_j a _ |>.symm⟩
-
-theorem scalar_mem_C_iff {a : E} (ha : a ≠ 0) (d : D) : scalar a d ∈ C ↔ d ∈ C := by
-  constructor
-  · intro h
-    have h' := scalar_mem_C a⁻¹ h
-    simpa [ha] using h'
-  · exact scalar_mem_C a
 private def kCoeff (u : K) : E := ⟨(u.val : ℂ), u.property⟩
 
 @[simp] theorem kCoeff_one : kCoeff 1 = 1 := rfl
 @[simp] theorem kCoeff_mul (u v : K) : kCoeff (u * v) = kCoeff u * kCoeff v := rfl
-
-private def scalarHom (a : E) : D →* D where
-  toFun := scalar a
-  map_one' := by apply PontryaginDual.ext; intro z; rfl
-  map_mul' d e := by apply PontryaginDual.ext; intro z; rfl
 
 private instance : MulAction K D where
   smul u d := scalar (kCoeff u) d
   one_smul d := scalar_one d
   mul_smul u v d := (scalar_mul (kCoeff u) (kCoeff v) d).symm
 
-private def IsWild (ν : MeasureTheory.Measure D) : Prop :=
-  (∀ u : K, MeasureTheory.MeasurePreserving (fun d : D => u • d) ν ν) ∧
-    ν (C : Set D) = 0
-
-theorem continuous_scalar (a : E) : Continuous (scalar a) :=
-  (scaleE a).continuous_comp_left
-
 omit [Carrier] in
-
-theorem frequency_zero_of_rational_tests (a : ℝ)
-    (h : ∀ q : ℚ, Circle.exp (a * (q : ℝ)) = 1) : a = 0 := by
-  have heq : (fun t : ℝ => Circle.exp (a * t)) = fun _ => 1 :=
-    Rat.denseRange_cast.equalizer
-      (Circle.exp.continuous.comp (continuous_const.mul continuous_id))
-      continuous_const (funext h)
-  have hpi : Circle.exp Real.pi ≠ 1 := by
-    intro hone
-    have ha := congrArg (fun u : Circle => (u : ℂ).arg) hone
-    rw [Circle.arg_exp (by linarith [Real.pi_pos]) le_rfl] at ha
-    simp at ha
-  by_contra ha
-  have ht := congrFun heq (Real.pi / a)
-  have hmul : a * (Real.pi / a) = Real.pi := by field_simp
-  rw [hmul] at ht
-  exact hpi ht
 
 private def imagUnit : E := ⟨Complex.I, Carrier.I_mem⟩
 
 @[simp] theorem coe_imagUnit : (imagUnit : ℂ) = Complex.I := rfl
-
-theorem j_eq_one_iff (ξ : ℂ) : j ξ = 1 ↔ ξ = 0 := by
-  constructor
-  · intro h
-    have hre : ξ.re = 0 := frequency_zero_of_rational_tests ξ.re (by
-      intro q
-      have ht := congrArg (fun d : D => d (Multiplicative.ofAdd (q : E))) h
-      change Circle.exp (inner ℝ ξ ((q : E) : ℂ)) = 1 at ht
-      simpa [Complex.inner, Complex.mul_re, mul_comm] using ht)
-    have him : ξ.im = 0 := frequency_zero_of_rational_tests ξ.im (by
-      intro q
-      have ht := congrArg (fun d : D => d (Multiplicative.ofAdd ((q : E) * imagUnit))) h
-      change Circle.exp (inner ℝ ξ (((q : E) * imagUnit : E) : ℂ)) = 1 at ht
-      simpa [Complex.inner, Complex.mul_re, mul_comm] using ht)
-    exact Complex.ext hre him
-  · rintro rfl
-    exact j_zero
 
 @[simp] theorem j_neg (ξ : ℂ) : j (-ξ) = (j ξ)⁻¹ :=
   map_inv jHom (Multiplicative.ofAdd ξ)
 
 @[simp] theorem j_sub (ξ η : ℂ) : j (ξ - η) = j ξ / j η := by
   rw [sub_eq_add_neg, j_add, j_neg, div_eq_mul_inv]
-
-theorem j_injective : Function.Injective j := by
-  intro ξ η h
-  apply sub_eq_zero.mp
-  apply (j_eq_one_iff _).mp
-  rw [j_sub, h, div_self']
-
-theorem j_measurableEmbedding : MeasurableEmbedding j :=
-  continuous_j.measurableEmbedding j_injective
 
 @[simp] theorem kCoeff_inv (u : K) : kCoeff u⁻¹ = (kCoeff u)⁻¹ := by
   apply Subtype.ext
@@ -362,11 +257,6 @@ variable {A H : Type*} [AddCommGroup A]
   (U : Multiplicative A →* unitary (H →L[ℂ] H))
 private def op (a : A) : H →L[ℂ] H := U (Multiplicative.ofAdd a)
 @[simp] lemma op_zero (v : H) : op U 0 v = v := by simp [op]
-lemma op_add (a b : A) (v : H) : op U (a+b) v = op U a (op U b v) := by
-  change ((U (Multiplicative.ofAdd a * Multiplicative.ofAdd b) : unitary _) : H →L[ℂ] H) v = _
-  rw [map_mul]; rfl
-lemma op_comm (a b : A) (v : H) : op U a (op U b v) = op U b (op U a v) := by
-  rw [← op_add,← op_add,add_comm]
 lemma norm_op (a : A) (v : H) : ‖op U a v‖ = ‖v‖ := Unitary.norm_map _ _
 lemma dist_op (a : A) (v w : H) : dist (op U a v) (op U a w) = dist v w := by
   simp only [dist_eq_norm,← map_sub,norm_op]
@@ -382,7 +272,6 @@ private def space : Submodule ℂ H where
     intro c v hv
     change Tendsto (fun a => op U a (c • v)) (𝓝 0) (𝓝 (c • v))
     simpa only [map_smul] using hv.const_smul c
-lemma mem_space (v : H) : v ∈ space U ↔ Tendsto (fun a => op U a v) (𝓝 0) (𝓝 v) := Iff.rfl
 lemma isClosed_space : IsClosed (space U : Set H) := by
   apply isClosed_of_closure_subset
   intro v hv
@@ -399,26 +288,7 @@ lemma isClosed_space : IsClosed (space U : Set H) := by
       _ = _ := by rw [dist_op,dist_comm w v]; ring
   linarith
 private instance : CompleteSpace (space U) := (isClosed_space U).completeSpace_coe
-lemma op_mem (a : A) {v : H} (hv : v ∈ space U) : op U a v ∈ space U := by
-  have ht := ((op U a).continuous.tendsto v).comp hv
-  change Tendsto (fun z => op U z (op U a v)) (𝓝 0) (𝓝 (op U a v))
-  simpa only [Function.comp_def,op_comm U a] using ht
 variable [IsTopologicalAddGroup A]
-lemma orbit_continuous {v : H} (hv : v ∈ space U) : Continuous (fun a => op U a v) := by
-  rw [continuous_iff_continuousAt]
-  intro a
-  have ht0 : Tendsto (fun b : A => b-a) (𝓝 a) (𝓝 0) := by
-    have hh := ((tendsto_id : Tendsto (fun b : A => b) (𝓝 a) (𝓝 a)).sub_const a)
-    rw [sub_self] at hh
-    exact hh
-  have ht := (((op U a).continuous.tendsto v).comp hv).comp ht0
-  change Tendsto (fun b => op U b v) (𝓝 a) (𝓝 (op U a v))
-  convert ht using 1
-  ext b
-  change op U b v = op U a (op U (b-a) v)
-  rw [← op_add]
-  congr 1
-  abel_nf
 end EuclideanFiveColor.ContinuousVectors
 end
 
@@ -495,10 +365,6 @@ lemma integral_complex (f : C(X,ℂ)) : ∫ x, f x ∂measure Φ v = ⟪v,Φ f v
     _ = (∫ x, (fr x : ℂ) ∂measure Φ v) +
         (∫ x, Complex.I • (fi x : ℂ) ∂measure Φ v) := integral_add hir (hii.smul Complex.I)
     _ = _ := by rw [integral_smul,hb,hb]; rfl
-lemma measure_univ : (measure Φ v).real Set.univ = ‖v‖^2 := by
-  have he := integral_real Φ v (1:C(X,ℝ))
-  simp only [ContinuousMap.one_apply,integral_const,smul_eq_mul,mul_one,realCM_one,map_one,one_apply_eq_self] at he
-  exact he.trans (inner_self_eq_norm_sq (𝕜 := ℂ) v)
 end EuclideanFiveColor.VectorMeasure
 end
 
@@ -560,8 +426,6 @@ private def character (φ : Spectrum U) : PontryaginDual G where
       (gelfandStarTransform (algebra U) (generator U h) φ)
     simp
   continuous_toFun := continuous_of_discreteTopology
-lemma character_apply (φ : Spectrum U) (g : G) :
-    (character U φ g : ℂ) = gelfandStarTransform (algebra U) (generator U g) φ := rfl
 lemma character_continuous : Continuous (character U) := by
   apply ContinuousMonoidHom.isClosedEmbedding_coe.isEmbedding.isInducing.continuous_iff.mpr
   apply continuous_pi; intro g
@@ -584,85 +448,14 @@ open MeasureTheory
 open scoped ComplexConjugate
 namespace EuclideanFiveColor.CommutingSpectral
 variable {G : Type*} [CommGroup G] [TopologicalSpace G] [DiscreteTopology G]
-lemma evaluation_one : evaluation (1:G) = 1 := by
-  ext d
-  change (d 1 : ℂ) = 1
-  rw [map_one]; rfl
-lemma evaluation_mul (g h : G) : evaluation (g*h) = evaluation g * evaluation h := by
-  ext d
-  change (d (g*h) : ℂ) = (d g : ℂ)*(d h : ℂ)
-  rw [map_mul]; rfl
-lemma star_evaluation (g : G) : star (evaluation g) = evaluation g⁻¹ := by
-  ext d
-  change star (d g : ℂ) = (d g⁻¹ : ℂ)
-  rw [map_inv]
-  exact (Circle.coe_inv_eq_conj (d g)).symm
-private def evaluationHom : G →* C(PontryaginDual G,ℂ) where
-  toFun := evaluation
-  map_one' := evaluation_one
-  map_mul' := evaluation_mul
-lemma evaluation_span_dense : Dense (Submodule.span ℂ (Set.range (evaluation (G := G))) : Set C(PontryaginDual G,ℂ)) := by
-  let A := StarAlgebra.adjoin ℂ (Set.range (evaluation (G := G)))
-  have hs : star (Set.range (evaluation (G := G))) = Set.range (evaluation (G := G)) := by
-    ext f
-    rw [Set.mem_star]
-    constructor
-    · rintro ⟨g,hg⟩
-      refine ⟨g⁻¹,?_⟩
-      rw [← star_evaluation,hg,star_star]
-    · rintro ⟨g,rfl⟩
-      exact ⟨g⁻¹,(star_evaluation g).symm⟩
-  have he : A.toSubalgebra.toSubmodule = Submodule.span ℂ (Set.range (evaluation (G := G))) := by
-    rw [StarAlgebra.adjoin_eq_span,hs,Set.union_self]
-    have hc : Submonoid.closure (Set.range (evaluation (G := G))) = MonoidHom.mrange (evaluationHom (G := G)) :=
-      Submonoid.closure_eq (MonoidHom.mrange (evaluationHom (G := G)))
-    rw [hc]
-    rfl
-  have hsep : A.SeparatesPoints := by
-    intro d e hde
-    have hn : ∃ g, d g ≠ e g := by
-      by_contra! h
-      exact hde (DFunLike.ext _ _ h)
-    obtain ⟨g,hg⟩ := hn
-    refine ⟨evaluation g,⟨evaluation g,StarAlgebra.subset_adjoin ℂ _ (Set.mem_range_self g),rfl⟩,?_⟩
-    change (d g : ℂ) ≠ (e g : ℂ)
-    exact fun h => hg (Subtype.ext h)
-  have ht := ContinuousMap.starSubalgebra_topologicalClosure_eq_top_of_separatesPoints A hsep
-  rw [dense_iff_closure_eq,← he]
-  change closure (A:Set C(PontryaginDual G,ℂ)) = _
-  rw [← StarSubalgebra.topologicalClosure_coe,ht]
-  rfl
 end EuclideanFiveColor.CommutingSpectral
 namespace EuclideanFiveColor.CompactIntegral
 variable {X : Type*} [TopologicalSpace X] [CompactSpace X] [MeasurableSpace X] [OpensMeasurableSpace X]
   (μ : Measure X) [IsFiniteMeasure μ]
-lemma integrableCM (f : C(X,ℂ)) : Integrable (f : X → ℂ) μ :=
-  f.continuous.integrable_of_hasCompactSupport (HasCompactSupport.of_compactSpace _)
-private def linear : C(X,ℂ) →ₗ[ℂ] ℂ where
-  toFun f := ∫ x, f x ∂μ
-  map_add' f g := integral_add (integrableCM μ f) (integrableCM μ g)
-  map_smul' c f := integral_smul c f
-lemma norm_le (f : C(X,ℂ)) : ‖linear μ f‖ ≤ μ.real Set.univ * ‖f‖ := by
-  simpa only [linear,LinearMap.coe_mk,AddHom.coe_mk,mul_comm] using
-    norm_integral_le_of_norm_le_const (μ := μ) (Filter.Eventually.of_forall (ContinuousMap.norm_coe_le_norm f))
-private def clm : C(X,ℂ) →L[ℂ] ℂ := (linear μ).mkContinuous (μ.real Set.univ) (norm_le μ)
-lemma apply_clm (f : C(X,ℂ)) : clm μ f = ∫ x, f x ∂μ := rfl
 end EuclideanFiveColor.CompactIntegral
 namespace EuclideanFiveColor.CommutingSpectral
 variable {G : Type*} [CommGroup G] [TopologicalSpace G] [DiscreteTopology G]
   [MeasurableSpace (PontryaginDual G)] [BorelSpace (PontryaginDual G)]
-lemma measure_eq_of_fourier (μ ν : Measure (PontryaginDual G)) [IsFiniteMeasure μ] [IsFiniteMeasure ν]
-    [μ.Regular] [ν.Regular]
-    (h : ∀ g, ∫ d, (d g : ℂ) ∂μ = ∫ d, (d g : ℂ) ∂ν) : μ = ν := by
-  have he : CompactIntegral.clm μ = CompactIntegral.clm ν := by
-    apply ContinuousLinearMap.ext_on evaluation_span_dense
-    rintro _ ⟨g,rfl⟩
-    exact h g
-  apply Measure.ext_of_integral_eq_on_compactlySupported
-  intro f
-  let fc : C(PontryaginDual G,ℂ) := ⟨fun d => (f d : ℂ),by fun_prop⟩
-  have hh := congrArg (fun L : C(PontryaginDual G,ℂ) →L[ℂ] ℂ => (L fc).re) he
-  simpa only [CompactIntegral.apply_clm,fc,ContinuousMap.coe_mk,integral_complex_ofReal,Complex.ofReal_re] using hh
 end EuclideanFiveColor.CommutingSpectral
 end
 
@@ -713,14 +506,6 @@ private def eval (a : E) : D →* Circle where
   map_one' := rfl
   map_mul' _ _ := rfl
 
-lemma continuous_eval (a : E) : Continuous (eval a) :=
-  (continuous_apply (Multiplicative.ofAdd a)).comp
-    ContinuousMonoidHom.isClosedEmbedding_coe.continuous
-
-lemma measurable_eval (a : E) : Measurable (eval a) := (continuous_eval a).measurable
-lemma measurable_eval_coe (a : E) : Measurable (fun d => (eval a d : ℂ)) :=
-  ((show Continuous (fun z : Circle => (z : ℂ)) from continuous_subtype_val).comp
-    (continuous_eval a)).measurable
 end PlaneFiveColor.Spectral
 end
 end ParishOrth
@@ -785,9 +570,6 @@ lemma memLp (f : Func X) (p : ℝ≥0∞) : MemLp (f : X → ℂ) p μ :=
 private def lp (p : ℝ≥0∞) (f : Func X) : Lp ℂ p μ := (memLp μ f p).toLp f
 lemma coe_lp (p : ℝ≥0∞) (f : Func X) : lp μ p f =ᵐ[μ] f := MemLp.coeFn_toLp _
 
-lemma lp_congr (p : ℝ≥0∞) {f g : Func X} (h : f =ᵐ[μ] g) : lp μ p f = lp μ p g :=
-  MemLp.toLp_congr _ _ h
-
 lemma lp_add (p : ℝ≥0∞) (f g : Func X) : lp μ p (f+g) = lp μ p f + lp μ p g :=
   (MemLp.toLp_add (memLp μ f p) (memLp μ g p)).symm
 
@@ -800,15 +582,6 @@ private def l2 : Func X →ₗ[ℝ] Lp ℂ 2 μ where
 
 lemma l2_ae (f : Func X) : l2 μ f =ᵐ[μ] f := coe_lp μ 2 f
 
-lemma l2_eq_iff (f g : Func X) : l2 μ f = l2 μ g ↔ f =ᵐ[μ] g := by
-  constructor
-  · intro h
-    exact (l2_ae μ f).symm.trans (h ▸ l2_ae μ g)
-  · exact lp_congr μ 2
-
-lemma integral_l2 (f : Func X) : ∫ x, l2 μ f x ∂μ = ∫ x, f x ∂μ :=
-  integral_congr_ae (l2_ae μ f)
-
 lemma inner_l2 (f g : Func X) :
     inner ℝ (l2 μ f) (l2 μ g) = ∫ x, inner ℝ (f x) (g x) ∂μ := by
   rw [L2.inner_def]
@@ -816,34 +589,10 @@ lemma inner_l2 (f g : Func X) :
   filter_upwards [l2_ae μ f, l2_ae μ g] with x hx hy
   rw [hx, hy]
 
-lemma l2_norm_mul_le (f g : Func X) {C : ℝ} (hf : ∀ x, ‖f x‖ ≤ C) :
-    ‖l2 μ (f*g)‖ ≤ C * ‖l2 μ g‖ := by
-  apply Lp.norm_le_mul_norm_of_ae_le_mul
-  filter_upwards [l2_ae μ (f*g), l2_ae μ g] with x hx hy
-  rw [hx, hy, mul_apply, norm_mul]
-  exact mul_le_mul_of_nonneg_right (hf x) (norm_nonneg _)
-
-lemma l2_norm_le [IsProbabilityMeasure μ] (f : Func X) {C : ℝ} (hf : ∀ x, ‖f x‖ ≤ C) :
-    ‖l2 μ f‖ ≤ C := by
-  have hn : ∀ᵐ x ∂μ, ‖l2 μ f x‖ ≤ C := (l2_ae μ f).mono (fun x hx => by rw [hx]; exact hf x)
-  have hC : 0 ≤ C := by
-    obtain ⟨x, hx⟩ := hn.exists
-    exact (norm_nonneg _).trans hx
-  simpa [measureUnivNNReal] using Lp.norm_le_of_ae_bound hC hn
-
 end
 open MeasureTheory ProbabilityTheory Filter
 open scoped NNReal ENNReal
 variable {X Y : Type*} [MeasurableSpace X] [MeasurableSpace Y]
-
-lemma integrable (μ : Measure X) [IsFiniteMeasure μ] (f : Func X) : Integrable (f : X → ℂ) μ :=
-  (memLp μ f 1).integrable le_rfl
-
-lemma integrable_norm_sq (μ : Measure X) [IsFiniteMeasure μ] (f : Func X) :
-    Integrable (fun x => ‖f x‖^2) μ :=
-  Integrable.of_bound ((measurable f).norm.pow_const 2).aestronglyMeasurable ((bound f : ℝ)^2)
-    (.of_forall (fun x => by simpa only [Real.norm_eq_abs, abs_sq] using
-      (pow_le_pow_left₀ (norm_nonneg _) (norm_le_bound f x) 2)))
 
 lemma norm_l2_sq (μ : Measure X) [IsFiniteMeasure μ] (f : Func X) :
     ‖l2 μ f‖^2 = ∫ x, ‖f x‖^2 ∂μ := by

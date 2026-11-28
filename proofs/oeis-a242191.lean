@@ -1,4 +1,5 @@
 import OMAStatements.S_oeis_a242191
+open OMA.S_oeis_a242191
 
 theorem OMA_cnt (n k : ℕ) (hk : k ≤ 6) :
     (Finset.univ.filter (fun f : Fin n → Fin 6 => ∀ i, (f i : ℕ) < k)).card = k ^ n := by
@@ -10,19 +11,19 @@ theorem OMA_cnt (n k : ℕ) (hk : k ≤ 6) :
   simp [this]
 
 theorem OMA_hi (n : ℕ) (f : Fin n → Fin 6) :
-    OMA.S_oeis_a242191.highest f =
+    highest f =
       ((Finset.range 6).filter (fun k => ¬ ∀ i, (f i : ℕ) < k)).card := by
-  have hle : OMA.S_oeis_a242191.highest f ≤ 6 := by
-    unfold OMA.S_oeis_a242191.highest
+  have hle : highest f ≤ 6 := by
+    unfold highest
     apply Finset.sup_le
     intro i _
     have := (f i).2
     omega
   have : (Finset.range 6).filter (fun k => ¬ ∀ i, (f i : ℕ) < k) =
-      (Finset.range 6).filter (fun k => k < OMA.S_oeis_a242191.highest f) := by
+      (Finset.range 6).filter (fun k => k < highest f) := by
     apply Finset.filter_congr
     intro k _
-    unfold OMA.S_oeis_a242191.highest
+    unfold highest
     constructor
     · intro h
       simp only [not_forall, not_lt] at h
@@ -36,14 +37,14 @@ theorem OMA_hi (n : ℕ) (f : Fin n → Fin 6) :
         omega
       omega
   rw [this]
-  generalize OMA.S_oeis_a242191.highest f = h at hle ⊢
+  generalize highest f = h at hle ⊢
   interval_cases h <;> decide
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a242191.main := by
   intro n hn
-  have h1 : OMA.S_oeis_a242191.a n =
+  have h1 : a n =
       ∑ k ∈ Finset.range 6, (Finset.univ.filter (fun f : Fin n → Fin 6 => ¬ ∀ i, (f i : ℕ) < k)).card := by
-    unfold OMA.S_oeis_a242191.a
+    unfold a
     simp_rw [OMA_hi n, Finset.card_filter]
     rw [Finset.sum_comm]
   have h2 : ∀ k ∈ Finset.range 6,

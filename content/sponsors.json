@@ -1,39 +1,83 @@
 [
-  {
-    "name": "Diplomètre",
-    "url": "https://diplometre.fr",
-    "logo": "/sponsor-logos/diplometre.png",
-    "tier": "backer",
-    "since": "2026-11-26",
-    "message": "Diplomètre est fier de soutenir Left to Solve ! Nous aidons les lycéens à choisir leurs études sur des faits, grâce aux données officielles et à l'IA."
-  },
-  {
-    "name": "Halldon",
-    "url": "https://halldon.com",
-    "logo": "/sponsor-logos/halldon.png",
-    "tier": "backer",
-    "since": "2026-11-27"
-  },
-  {
-    "name": "Athena Calc",
-    "url": "https://athenacalc.com",
-    "logo": "/sponsor-logos/athenacalc.png",
-    "tier": "backer",
-    "since": "2026-11-27",
-    "showName": true
-  },
-  {
-    "name": "Slash Digital Lab",
-    "url": "https://slash-digital.io",
-    "logo": "/sponsor-logos/slash-digital-lab.svg",
-    "tier": "backer",
-    "since": "2026-11-27"
-  },
-  {
-    "name": "Avon Labs",
-    "url": "https://avonlabs.com",
-    "logo": "/sponsor-logos/avonlabs.png",
-    "tier": "backer",
-    "since": "2026-11-27"
-  }
+ {
+  "name": "Diplom\u00e8tre",
+  "url": "https://diplometre.fr",
+  "logo": "/sponsor-logos/diplometre.png",
+  "tier": "backer",
+  "since": "2026-11-26"
+ },
+ {
+  "name": "Halldon",
+  "url": "https://halldon.com",
+  "logo": "/sponsor-logos/halldon.png",
+  "tier": "backer",
+  "since": "2026-11-27"
+ },
+ {
+  "name": "Athena Calc",
+  "url": "https://athenacalc.com",
+  "logo": "/sponsor-logos/athenacalc.png",
+  "tier": "backer",
+  "since": "2026-11-27",
+  "showName": true
+ },
+ {
+  "name": "Slash Digital Lab",
+  "url": "https://slash-digital.io",
+  "logo": "/sponsor-logos/slash-digital-lab.svg",
+  "tier": "backer",
+  "since": "2026-11-27"
+ },
+ {
+  "name": "Avon Labs",
+  "url": "https://avonlabs.com",
+  "logo": "/sponsor-logos/avonlabs.png",
+  "tier": "backer",
+  "since": "2026-11-27"
+ },
+ {
+  "name": "Ringover",
+  "url": "https://www.ringover.com/ai-voice-agent",
+  "logo": "/sponsor-logos/ringover.svg",
+  "tier": "backer",
+  "since": "2026-11-28"
+ },
+ {
+  "name": "Vertus",
+  "url": "https://www.vertus.ai",
+  "logo": "/sponsor-logos/vertus.svg",
+  "tier": "backer",
+  "since": "2026-11-28"
+ },
+ {
+  "name": "Swaymak",
+  "url": "https://www.swaymak.ai",
+  "logo": "/sponsor-logos/swaymak.svg",
+  "tier": "backer",
+  "since": "2026-11-28"
+ },
+ {
+  "name": "Green AI Cloud",
+  "url": "https://greenai.cloud",
+  "logo": "/sponsor-logos/greenai.svg",
+  "tier": "supporter",
+  "since": "2026-11-28",
+  "showName": true
+ },
+ {
+  "name": "BrainChain",
+  "url": "https://usebrainchain.com",
+  "logo": "/sponsor-logos/brainchain.svg",
+  "tier": "supporter",
+  "since": "2026-11-28",
+  "message": "BrainChain pays USDC bounties on 44 open problems from this board. Thank you for keeping the checker open."
+ },
+ {
+  "name": "Bilbel Capital",
+  "url": "https://bilbelcapital.com",
+  "logo": "/sponsor-logos/bilbel-capital.jpg",
+  "tier": "supporter",
+  "since": "2026-11-28",
+  "message": "Problems are soluble. Here's to solving them"
+ }
 ]

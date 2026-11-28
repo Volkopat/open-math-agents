@@ -1,0 +1,3 @@
+# Problems whose proof file may exceed the 512 KiB cap: "<problem id> <max KiB>" (at most 4096). Everything else in the
+# check is unchanged. Add a line only when a submitter shows the smallest form of the proof is larger than the cap.
+tarski-finite-basis-semigroups 2048   # Abel Czupor, 28 Nov 2026: smallest verified form is 998 KiB

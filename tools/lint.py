@@ -165,8 +165,20 @@ if errors:
     sys.exit(1)
 
 raw = open(path, "rb").read()
-if len(raw) > 512 * 1024:
-    errors.append("file larger than 512 KiB")
+# Proofs are capped at 512 KiB. A problem listed in tools/large_proofs.txt ("<id> <max KiB>", for a proof whose
+# smallest known form is larger, e.g. a long formal reduction) allows that much for its proof file only; the sandbox,
+# the time limit, the axiom audit and the statement guard are the same as for every other proof.
+cap_kib = 512
+if ftype == "proof":
+    try:
+        for line in open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "large_proofs.txt"), encoding="utf-8"):
+            f = line.split("#", 1)[0].split()
+            if len(f) == 2 and f[0] == pid and f[1].isdigit():
+                cap_kib = max(cap_kib, min(int(f[1]), 4096))
+    except OSError:
+        pass
+if len(raw) > cap_kib * 1024:
+    errors.append(f"file larger than {cap_kib} KiB")
 try:
     src = raw.decode("utf-8")
 except UnicodeDecodeError:
@@ -241,6 +253,16 @@ polarity, theorem = "proof", None
 _PH_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "placeholders.json")
 PLACEHOLDERS = json.load(open(_PH_FILE, encoding="utf-8")) if os.path.exists(_PH_FILE) else {}
 ph = PLACEHOLDERS.get(pid, []) if ftype == "proof" else []
+# Problems whose formal statement leaves the asked-for formula free (r_k(N) ~ answer): any restatement of the quantity
+# itself (a brute-force count, a partition function, ...) "proves" it, so Lean cannot tell a real answer from the
+# question. A specialist pointed this out for Erdős #142 (28 Nov 2026), and one such answer had already been merged and
+# then flagged. These are not accepted automatically: a candidate formula goes to a person, as a GitHub issue.
+FORMULA_BY_PERSON_ONLY = {"Erdos142.erdos_142", "Erdos142.erdos_142.variants.isTheta", "Erdos142.erdos_142.variants.three"}
+if ph and pid in FORMULA_BY_PERSON_ONLY:
+    errors.append("this problem asks for an explicit asymptotic formula, which the Lean statement cannot check (any restatement of "
+                  "the quantity would pass), so proofs of it are not accepted automatically. Open a GitHub issue titled "
+                  f"\"Answer: {pid}\" with the formula and a written proof for a person to review, or work on sharper bounds, "
+                  "special cases or reductions instead")
 if ph:
     d = re.escape(target["decl"]); a = re.escape(ph[0])
     sol = re.findall(r"\btheorem\s+OMA\.solution\s*:\s*" + a + r"\s*=\s*OMA\.answer\s*→\s*type_of%\s*@" + d + r"\s*:=", code)
@@ -290,6 +312,138 @@ elif ftype == "statement":
     theorem = f"{ns}.main"
     out["module"] = f"OMAStatements.{ssan(pid)}"
 else:  # reduction
+    _OPEN, _CLOSE = "([{⟨⦃", ")]}⟩⦄"
+
+    def _close_of(t, i):
+        """Index of the bracket that closes t[i], or -1."""
+        d = 0
+        for j in range(i, len(t)):
+            if t[j] in _OPEN: d += 1
+            elif t[j] in _CLOSE:
+                d -= 1
+                if d == 0: return j
+        return -1
+
+    def _binder_at(t, i):
+        if t[i] in "∀∃λΠ": return True
+        if i > 0 and (t[i - 1].isalnum() or t[i - 1] in "_.'"): return False
+        return any(t.startswith(w, i) and (i + len(w) == len(t) or not (t[i + len(w)].isalnum() or t[i + len(w)] in "_.'"))
+                   for w in ("fun", "let", "have", "show"))
+
+    def _split(t, ops):
+        """t split at its top-level occurrences of ops: outside brackets and before any binder (whose body runs to the end)."""
+        parts, d, last, i = [], 0, 0, 0
+        while i < len(t):
+            c = t[i]
+            if c in _OPEN: d += 1
+            elif c in _CLOSE: d -= 1
+            elif d == 0:
+                if _binder_at(t, i): break
+                op = next((o for o in ops if t.startswith(o, i)), None)
+                if op and not (op == "=" and (t[i + 1:i + 2] in (">", "=") or t[i - 1:i] in (":", "=", "<", ">", "!"))) \
+                        and not (op in ("<", ">") and (t[i + 1:i + 2] == "=" or t[i - 1:i] in ("=", "-", "<"))):
+                    parts.append((t[last:i].strip(), op)); last = i + len(op); i = last; continue
+            i += 1
+        parts.append((t[last:].strip(), None))
+        return parts
+
+    def _norm(t):
+        t = " ".join(t.split())
+        for a, b in (("<->", "↔"), ("->", "→"), ("/\\", "∧"), ("\\/", "∨"), ("!=", "≠")):
+            t = t.replace(a, b)
+        t = re.sub(r"\(\s*(\d+)\s*:\s*[^()]*\)", r"\1", t)  # (1 : ℕ) -> 1
+        while t[:1] == "(" and _close_of(t, 0) == len(t) - 1:
+            t = t[1:-1].strip()
+        return t
+
+    def _args(t):
+        """Top-level space-separated words of an application `f a b`."""
+        out, d, cur = [], 0, ""
+        for c in t:
+            if c in _OPEN: d += 1
+            elif c in _CLOSE: d -= 1
+            if c == " " and d == 0:
+                if cur: out.append(cur)
+                cur = ""
+            else:
+                cur += c
+        return out + ([cur] if cur else [])
+
+    def _triv(t, depth=0):
+        """'T' plainly true, 'F' plainly false, '?' trivially decidable either way, None: not obviously trivial."""
+        if depth > 60: return None
+        t = _norm(t)
+        rec = lambda s: _triv(s, depth + 1)
+        if t in ("True", "⊤"): return "T"
+        if t in ("False", "⊥"): return "F"
+        # a leading ∀/∃ x, body: as trivial as its body (for a nonempty domain)
+        m = re.match(r"^(∀|∃!|∃|Π)", t)
+        if m:
+            j, d = m.end(), 0
+            while j < len(t) and not (t[j] == "," and d == 0):
+                d += t[j] in _OPEN; d -= t[j] in _CLOSE; j += 1
+            if j >= len(t): return None
+            r = rec(t[j + 1:])
+            return None if m.group(1) == "∃!" and r != "F" else r
+        # (fun x => body) a: as trivial as the body, whatever x is
+        if t[:1] == "(":
+            j = _close_of(t, 0)
+            inner = _norm(t[1:j]) if j > 0 else ""
+            fm = re.match(r"^(fun|λ)\s[^=↦]*(=>|↦)\s*(.*)$", inner)
+            if fm and t[j + 1:].strip(): return rec(fm.group(3))
+        for ops in (("↔",), ("→",), ("∨",), ("∧",)):
+            parts = [p for p, _ in _split(t, ops)]
+            if len(parts) < 2: continue
+            rs = [rec(p) for p in parts]
+            if ops[0] == "↔":
+                if len(parts) != 2: return None
+                if _norm(parts[0]) == _norm(parts[1]): return "T"
+                if rs[0] in ("T", "F") and rs[1] in ("T", "F"): return "T" if rs[0] == rs[1] else "F"
+                return "?" if None not in rs else None
+            if ops[0] == "→":
+                *prem, concl = parts
+                if rs[-1] == "T" or "F" in rs[:-1] or _norm(concl) in [_norm(p) for p in prem]: return "T"
+                if all(r == "T" for r in rs[:-1]): return rs[-1]
+                return "?" if None not in rs else None
+            if ops[0] == "∨":
+                if "T" in rs: return "T"
+                if all(r == "F" for r in rs): return "F"
+                return "?" if None not in rs else None
+            if "F" in rs: return "F"
+            if all(r == "T" for r in rs): return "T"
+            return "?" if None not in rs else None
+        if t[:1] == "¬":
+            r = rec(t[1:])
+            return {"T": "F", "F": "T"}.get(r, r)
+        a = _args(t)
+        if len(a) == 2 and a[0] in ("id", "Id", "Not"):
+            r = rec(a[1])
+            return {"T": "F", "F": "T"}.get(r, r) if a[0] == "Not" else r
+        if len(a) == 3 and a[0] in ("Eq", "HEq", "Iff", "And", "Or"):
+            if a[0] in ("Eq", "HEq"): return "T" if _norm(a[1]) == _norm(a[2]) else None
+            return rec(f"({a[1]}) {dict(Iff='↔', And='∧', Or='∨')[a[0]]} ({a[2]})")
+        rel = _split(t, ("==", "≠", "≤", "≥", "<=", ">=", "=", "<", ">"))
+        if len(rel) == 2:
+            (lhs, op), (rhs, _) = rel
+            lhs, rhs = _norm(lhs), _norm(rhs)
+            if lhs and lhs == rhs: return "F" if op in ("≠", "<", ">") else "T"
+            closed = r"[\d\s+*()]+"
+            if lhs and rhs and re.fullmatch(closed, lhs) and re.fullmatch(closed, rhs):
+                try:
+                    x, y = eval(lhs, {"__builtins__": {}}), eval(rhs, {"__builtins__": {}})
+                except Exception:
+                    return "?"
+                v = {"==": x == y, "=": x == y, "≠": x != y, "≤": x <= y, "<=": x <= y, "≥": x >= y, ">=": x >= y, "<": x < y, ">": x > y}[op]
+                return "T" if v else "F"
+            if lhs and rhs and re.fullmatch(r"[\d\s+*()\-/%^]+", lhs) and re.fullmatch(r"[\d\s+*()\-/%^]+", rhs): return "?"
+        return None
+
+    def trivial_hypothesis(txt):
+        """A hypothesis that is plainly true or false says nothing: its step would earn points for `rfl` (or never close).
+        Text-level check of the obvious shapes (True/False combined with ∧ ∨ → ↔ ¬, x = x, Eq x x, closed numerals,
+        id/fun wrappers, under ∀/∃); it cannot catch everything (`∀ n, n + 0 = n`), so a person still reviews
+        reductions of famous problems."""
+        return _triv(txt) is not None
     ns = ns_of(pid)
     if not re.search(r"^namespace\s+" + re.escape(ns) + r"\s*$", code, re.M) or not re.search(r"^end\s+" + re.escape(ns) + r"\s*$", code, re.M):
         errors.append(f"the file must open `namespace {ns}` and close it with `end {ns}`")
@@ -302,6 +456,8 @@ else:  # reduction
             errors.append(f"H{i} may not mention the target, another hypothesis or main")
         if len(txt) > 2000:
             errors.append(f"H{i} is longer than 2000 characters")
+        if trivial_hypothesis(txt):
+            errors.append(f"H{i} is trivially true or false (True, False, x = x, … → True): a reduction must split the target into real lemmas")
     if len(set(hs.values())) != len(hs):
         errors.append("two hypotheses are identical")
     others = re.findall(r"^\s*(?:noncomputable\s+)?(def|abbrev|structure|inductive|class|instance)\s+(\S+)", code, re.M)
@@ -318,6 +474,9 @@ else:  # reduction
 
 ok = not errors
 out.update(ok=ok, kind=target["kind"], polarity=polarity, theorem=theorem, imports=target["import"], errors=errors)
+# The statement the submitted theorem must have, exactly as written in the file (tools/check.sh re-checks it from the
+# root namespace: inside `theorem OMA.solution : ...` names resolve in namespace OMA first).
+out["target"] = target.get("statement") or ""
 if target.get("decl"):
     out["decl"] = target["decl"]
 if target.get("reduction"):

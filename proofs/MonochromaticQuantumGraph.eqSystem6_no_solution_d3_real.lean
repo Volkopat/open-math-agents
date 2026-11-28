@@ -60,6 +60,19 @@ Changes: group imports, concatenate modules, condense comments, remove unused ex
 replace generated extensionality with a proof, and adapt to pinned Mathlib.
 The original source paths appear at their respective boundaries.
 -/
+open MvPolynomial renaming coeff → mvCoeff
+open MvPolynomial renaming eval → mvEval
+open MvPolynomial renaming rename → mvRename
+open MvPolynomial renaming pderiv → mvDeriv
+open MvPolynomial renaming monomial → mvMono
+open MvPolynomial renaming eval_X → evalVar
+open MvPolynomial renaming coeff_C_mul → coeffCMul
+open MvPolynomial renaming funext → mvFunext
+open Finset renaming sum_add_distrib → sumAdd
+open Finset renaming sum_eq_single → sumSingle
+open Fintype renaming card → cardFt
+open Finsupp renaming single → fsSingle
+open List renaming mem_toFinset → memListSet
 -- formal/all-orders/MatchingModel.lean
 namespace Krenn.MatchingModel
 open scoped BigOperators
@@ -131,30 +144,10 @@ noncomputable def selector (ι : V N → Fin D) : SiteVariable N D → α :=
   fun z => if z.2 = ι z.1 then 1 else 0
 @[simp]
 theorem eval_edgePolynomial (W : WeightsN N D α) (ι : V N → Fin D) (v u : V N) :
-    MvPolynomial.eval (selector ι) (edgePolynomial W v u) =
+    mvEval (selector ι) (edgePolynomial W v u) =
       W (mkEdge v u (ι v) (ι u)) := by
   classical
   simp [edgePolynomial, selector, MvPolynomial.eval_mul]
-theorem eval_matchingPolynomialAux (W : WeightsN N D α) (ι : V N → Fin D) :
-    ∀ (n : ℕ) (L : List (V N)),
-      MvPolynomial.eval (selector ι) (matchingPolynomialAux W n L) =
-        pmSumListAux W ι n L
-  | 0, _ => by simp [matchingPolynomialAux, pmSumListAux]
-  | 1, _ => by simp [matchingPolynomialAux, pmSumListAux]
-  | _ + 2, [] => by simp [matchingPolynomialAux, pmSumListAux]
-  | _ + 2, [_] => by simp [matchingPolynomialAux, pmSumListAux]
-  | n + 2, v :: u :: L => by
-    simp only [matchingPolynomialAux, pmSumListAux]
-    rw [map_list_sum]
-    congr 1
-    simp only [List.map_map]
-    apply List.map_congr_left
-    intro r _
-    simp only [Function.comp_apply]
-    rw [map_mul, eval_edgePolynomial, eval_matchingPolynomialAux W ι n]
-theorem eval_matchingPolynomialN (W : WeightsN N D α) (ι : V N → Fin D) :
-    MvPolynomial.eval (selector ι) (matchingPolynomialN W) = pmSumN N D W ι :=
-  eval_matchingPolynomialAux W ι _ _
 @[simp]
 theorem matchingPolynomialList_nil (W : WeightsN N D α) :
     matchingPolynomialList W [] = 1 := rfl
@@ -163,7 +156,7 @@ theorem matchingPolynomialList_singleton (W : WeightsN N D α) (v : V N) :
     matchingPolynomialList W [v] = 0 := rfl
 noncomputable def wordExponent (ι : V N → Fin D) : List (V N) → SiteVariable N D →₀ ℕ
   | [] => 0
-  | v :: L => Finsupp.single (v, ι v) 1 + wordExponent ι L
+  | v :: L => fsSingle (v, ι v) 1 + wordExponent ι L
 theorem wordExponent_wrong_color (ι : V N → Fin D) (L : List (V N))
     (v : V N) (i : Fin D) (hi : i ≠ ι v) : wordExponent ι L (v, i) = 0 := by
   induction L with
@@ -177,7 +170,7 @@ theorem wordExponent_wrong_color (ι : V N → Fin D) (L : List (V N))
     simp [wordExponent, h, ih]
 theorem wordExponent_erase (ι : V N → Fin D) (L : List (V N)) (u : V N)
     (hu : u ∈ L) :
-    wordExponent ι L = Finsupp.single (u, ι u) 1 + wordExponent ι (L.erase u) := by
+    wordExponent ι L = fsSingle (u, ι u) 1 + wordExponent ι (L.erase u) := by
   induction L with
   | nil => simp at hu
   | cons v L ih =>
@@ -191,20 +184,20 @@ theorem wordExponent_erase (ι : V N → Fin D) (L : List (V N)) (u : V N)
       ac_rfl
 private theorem coeff_X_mul_zero (P : MatchingPolynomial N D α)
     (m : SiteVariable N D →₀ ℕ) (z : SiteVariable N D) (hz : m z = 0) :
-    MvPolynomial.coeff m (MvPolynomial.X z * P) = 0 := by
+    mvCoeff m (MvPolynomial.X z * P) = 0 := by
   classical
   simp [MvPolynomial.coeff_X_mul', Finsupp.mem_support_iff, hz]
 theorem coeff_edgePolynomial_mul (W : WeightsN N D α) (ι : V N → Fin D)
     (L : List (V N)) (v u : V N) (P : MatchingPolynomial N D α) :
-    MvPolynomial.coeff (wordExponent ι L) (edgePolynomial W v u * P) =
+    mvCoeff (wordExponent ι L) (edgePolynomial W v u * P) =
       W (mkEdge v u (ι v) (ι u)) *
-        MvPolynomial.coeff (wordExponent ι L)
+        mvCoeff (wordExponent ι L)
           (MvPolynomial.X (v, ι v) * MvPolynomial.X (u, ι u) * P) := by
   classical
   simp only [edgePolynomial, Finset.sum_mul, MvPolynomial.coeff_sum]
-  rw [Finset.sum_eq_single (ι v)]
-  · rw [Finset.sum_eq_single (ι u)]
-    · rw [mul_assoc, mul_assoc, MvPolynomial.coeff_C_mul, mul_assoc]
+  rw [sumSingle (ι v)]
+  · rw [sumSingle (ι u)]
+    · rw [mul_assoc, mul_assoc, coeffCMul, mul_assoc]
     · intro j _ hj
       rw [show MvPolynomial.C (W (mkEdge v u (ι v) j)) *
           MvPolynomial.X (v, ι v) * MvPolynomial.X (u, j) * P =
@@ -225,7 +218,7 @@ theorem coeff_edgePolynomial_mul (W : WeightsN N D α) (ι : V N → Fin D)
   · simp
 theorem coeff_matchingPolynomialAux (W : WeightsN N D α) (ι : V N → Fin D) :
     ∀ (n : ℕ) (L : List (V N)), L.length = n →
-      MvPolynomial.coeff (wordExponent ι L) (matchingPolynomialAux W n L) =
+      mvCoeff (wordExponent ι L) (matchingPolynomialAux W n L) =
         pmSumListAux W ι n L
   | 0, L, h => by
     cases L with
@@ -245,7 +238,7 @@ theorem coeff_matchingPolynomialAux (W : WeightsN N D α) (ι : V N → Fin D) :
     simp only [Function.comp_apply, MvPolynomial.coeffAddMonoidHom_apply]
     rw [coeff_edgePolynomial_mul]
     have hw : wordExponent ι (v :: u :: L) =
-        Finsupp.single (v, ι v) 1 + Finsupp.single (r, ι r) 1 +
+        fsSingle (v, ι v) 1 + fsSingle (r, ι r) 1 +
           wordExponent ι ((u :: L).erase r) := by
       rw [wordExponent, wordExponent_erase ι (u :: L) r hr]
       ac_rfl
@@ -257,30 +250,24 @@ theorem coeff_matchingPolynomialAux (W : WeightsN N D α) (ι : V N → Fin D) :
     omega
 theorem coeff_matchingPolynomialList (W : WeightsN N D α) (ι : V N → Fin D)
     (L : List (V N)) :
-    MvPolynomial.coeff (wordExponent ι L) (matchingPolynomialList W L) =
+    mvCoeff (wordExponent ι L) (matchingPolynomialList W L) =
       pmSumList W ι L :=
   coeff_matchingPolynomialAux W ι L.length L rfl
 theorem coeff_matchingPolynomialN (W : WeightsN N D α) (ι : V N → Fin D) :
-    MvPolynomial.coeff (wordExponent ι (vertices N)) (matchingPolynomialN W) =
+    mvCoeff (wordExponent ι (vertices N)) (matchingPolynomialN W) =
       pmSumN N D W ι :=
   coeff_matchingPolynomialList W ι _
-theorem coeff_matchingPolynomialList_eq_selector (W : WeightsN N D α)
-    (ι : V N → Fin D) (L : List (V N)) :
-    MvPolynomial.coeff (wordExponent ι L) (matchingPolynomialList W L) =
-      MvPolynomial.eval (selector ι) (matchingPolynomialList W L) :=
-  (coeff_matchingPolynomialList W ι L).trans
-    (eval_matchingPolynomialAux W ι L.length L).symm
 noncomputable def siteWeight (z : SiteVariable N D) : V N →₀ ℕ :=
-  Finsupp.single z.1 1
+  fsSingle z.1 1
 noncomputable def siteProfile : List (V N) → V N →₀ ℕ
   | [] => 0
-  | v :: L => Finsupp.single v 1 + siteProfile L
+  | v :: L => fsSingle v 1 + siteProfile L
 theorem siteWeight_apply (m : SiteVariable N D →₀ ℕ) (v : V N) :
     Finsupp.weight siteWeight m v = ∑ i : Fin D, m (v, i) := by
   classical
   simp [Finsupp.weight_eq_sum, siteWeight, Fintype.sum_prod_type, Finsupp.single_apply]
 theorem siteProfile_erase (L : List (V N)) (u : V N) (hu : u ∈ L) :
-    siteProfile L = Finsupp.single u 1 + siteProfile (L.erase u) := by
+    siteProfile L = fsSingle u 1 + siteProfile (L.erase u) := by
   induction L with
   | nil => simp at hu
   | cons v L ih =>
@@ -311,7 +298,7 @@ private theorem weighted_list_sum (L : List (MatchingPolynomial N D α))
     exact (h P (by simp)).add (ih fun Q hQ => h Q (by simp [hQ]))
 theorem edgePolynomial_siteHomogeneous (W : WeightsN N D α) (v u : V N) :
     MvPolynomial.IsWeightedHomogeneous siteWeight (edgePolynomial W v u)
-      (Finsupp.single v 1 + Finsupp.single u 1) := by
+      (fsSingle v 1 + fsSingle u 1) := by
   classical
   unfold edgePolynomial
   apply MvPolynomial.IsWeightedHomogeneous.sum
@@ -345,7 +332,7 @@ theorem matchingPolynomialAux_siteHomogeneous (W : WeightsN N D α) :
     have hs := (edgePolynomial_siteHomogeneous W v r).mul
       (matchingPolynomialAux_siteHomogeneous W n ((u :: L).erase r) hlen)
     have hp : siteProfile (v :: u :: L) =
-        (Finsupp.single v 1 + Finsupp.single r 1) +
+        (fsSingle v 1 + fsSingle r 1) +
           siteProfile ((u :: L).erase r) := by
       rw [siteProfile, siteProfile_erase (u :: L) r hr]
       ac_rfl
@@ -373,61 +360,6 @@ theorem matchingPolynomialN_siteHomogeneous (W : WeightsN N D α) :
     MvPolynomial.IsWeightedHomogeneous siteWeight (matchingPolynomialN W)
       (siteProfile (vertices N)) :=
   matchingPolynomialList_siteHomogeneous W _
-theorem matchingPolynomialN_siteDegree (W : WeightsN N D α)
-    (m : SiteVariable N D →₀ ℕ)
-    (hm : MvPolynomial.coeff m (matchingPolynomialN W) ≠ 0) (v : V N) :
-    Finsupp.weight siteWeight m v = 1 := by
-  rw [matchingPolynomialN_siteHomogeneous W hm]
-  rw [siteProfile_nodup _ (vertices_nodup N)]
-  simp
-theorem matchingPolynomialN_localDegree (W : WeightsN N D α)
-    (m : SiteVariable N D →₀ ℕ)
-    (hm : MvPolynomial.coeff m (matchingPolynomialN W) ≠ 0) (v : V N) :
-    (∑ i : Fin D, m (v, i)) = 1 := by
-  rw [← siteWeight_apply]
-  exact matchingPolynomialN_siteDegree W m hm v
-theorem eqSystemN_iff_coefficients (W : WeightsN N D α) :
-    EqSystemN N D W ↔ ∀ ι : V N → Fin D,
-      MvPolynomial.coeff (wordExponent ι (vertices N)) (matchingPolynomialN W) =
-        if allEqual ι then 1 else 0 := by
-  simp only [EqSystemN, coeff_matchingPolynomialN]
-theorem edgePolynomial_add (W W' : WeightsN N D α) (v u : V N) :
-    edgePolynomial (fun e => W e + W' e) v u =
-      edgePolynomial W v u + edgePolynomial W' v u := by
-  classical
-  simp [edgePolynomial, map_add, add_mul, Finset.sum_add_distrib]
-def reverseEdge (e : EdgeN N D) : EdgeN N D := ⟨e.v, e.u, e.j, e.i⟩
-theorem edgePolynomial_reverse (W : WeightsN N D α) (v u : V N) :
-    edgePolynomial (fun e => W (reverseEdge e)) v u = edgePolynomial W u v := by
-  classical
-  unfold edgePolynomial
-  rw [Finset.sum_comm]
-  apply Finset.sum_congr rfl
-  intro i _
-  apply Finset.sum_congr rfl
-  intro j _
-  simp only [mkEdge, reverseEdge]
-  ring
-theorem pmSumListAux_congr_ordered (W W' : WeightsN N D α) (ι : V N → Fin D)
-    (hW : ∀ v u : V N, v < u → ∀ i j, W (mkEdge v u i j) = W' (mkEdge v u i j)) :
-    ∀ (n : ℕ) (L : List (V N)), L.Pairwise (fun v u => v < u) →
-      pmSumListAux W ι n L = pmSumListAux W' ι n L
-  | 0, _, _ => rfl
-  | 1, _, _ => rfl
-  | _ + 2, [], _ => rfl
-  | _ + 2, [_], _ => rfl
-  | n + 2, v :: u :: L, hL => by
-    simp only [pmSumListAux]
-    congr 1
-    apply List.map_congr_left
-    intro r hr
-    rw [hW v r (List.rel_of_pairwise_cons hL hr)]
-    rw [pmSumListAux_congr_ordered W W' ι hW n ((u :: L).erase r)
-      (List.Pairwise.erase r (List.pairwise_cons.mp hL).2)]
-theorem pmSumN_congr_ordered (W W' : WeightsN N D α) (ι : V N → Fin D)
-    (hW : ∀ v u : V N, v < u → ∀ i j, W (mkEdge v u i j) = W' (mkEdge v u i j)) :
-    pmSumN N D W ι = pmSumN N D W' ι :=
-  pmSumListAux_congr_ordered W W' ι hW _ _ (vertices_pairwise_lt N)
 end Krenn.MatchingModel
 -- formal/all-orders/SiteAlgebra.lean
 namespace Krenn.SiteAlgebra
@@ -488,10 +420,10 @@ noncomputable def rowPolynomial (S : SiteVariable N D → SiteVariable N D → R
 theorem pderiv_symmetricQuadratic
     (S : SiteVariable N D → SiteVariable N D → R)
     (hS : ∀ z t, S z t = S t z) (z : SiteVariable N D) :
-    MvPolynomial.pderiv z (symmetricQuadratic S) = rowPolynomial S z := by
+    mvDeriv z (symmetricQuadratic S) = rowPolynomial S z := by
   classical
   have hterm (a b : SiteVariable N D) :
-      MvPolynomial.pderiv z
+      mvDeriv z
         (MvPolynomial.C (S a b) * MvPolynomial.X a * MvPolynomial.X b) =
       (if a = z then MvPolynomial.C (S a b) * MvPolynomial.X b else 0) +
         (if b = z then MvPolynomial.C (S a b) * MvPolynomial.X a else 0) := by
@@ -506,11 +438,11 @@ theorem pderiv_symmetricQuadratic
       (∑ a : SiteVariable N D, ∑ b : SiteVariable N D,
         if b = z then MvPolynomial.C (S a b) * MvPolynomial.X a else 0) =
       rowPolynomial S z := by simp [rowPolynomial, hS]
-  have hgrad : MvPolynomial.pderiv z
+  have hgrad : mvDeriv z
       (∑ a : SiteVariable N D, ∑ b : SiteVariable N D,
         MvPolynomial.C (S a b) * MvPolynomial.X a * MvPolynomial.X b) =
       rowPolynomial S z + rowPolynomial S z := by
-    simp_rw [map_sum, hterm, Finset.sum_add_distrib]
+    simp_rw [map_sum, hterm, sumAdd]
     rw [hfirst, hsecond]
   rw [symmetricQuadratic, MvPolynomial.pderiv_C_mul, hgrad]
   have htwo : (2 : R) ≠ 0 := by norm_num
@@ -527,7 +459,7 @@ theorem pderiv_symmetricQuadratic
 noncomputable def sourceQuadratic (W : WeightsN N D R) : MatchingPolynomial N D R :=
   symmetricQuadratic (edgeMatrix W)
 theorem pderiv_sourceQuadratic (W : WeightsN N D R) (z : SiteVariable N D) :
-    MvPolynomial.pderiv z (sourceQuadratic W) = rowPolynomial (edgeMatrix W) z :=
+    mvDeriv z (sourceQuadratic W) = rowPolynomial (edgeMatrix W) z :=
   pderiv_symmetricQuadratic _ (edgeMatrix_symm W) z
 theorem wordExponent_not_mem (ι : V N → Fin D) (L : List (V N))
     (v : V N) (hv : v ∉ L) (i : Fin D) : wordExponent ι L (v, i) = 0 := by
@@ -549,24 +481,24 @@ theorem coeff_rowPolynomial_mul
     (S : SiteVariable N D → SiteVariable N D → R) (z : SiteVariable N D)
     (ι : V N → Fin D) (L : List (V N)) (hL : L.Nodup)
     (P : MatchingPolynomial N D R) :
-    MvPolynomial.coeff (wordExponent ι L) (rowPolynomial S z * P) =
+    mvCoeff (wordExponent ι L) (rowPolynomial S z * P) =
       (L.map fun u => S z (u, ι u) *
-        MvPolynomial.coeff (wordExponent ι (L.erase u)) P).sum := by
+        mvCoeff (wordExponent ι (L.erase u)) P).sum := by
   classical
   simp only [rowPolynomial, Finset.sum_mul, MvPolynomial.coeff_sum,
-    Fintype.sum_prod_type, mul_assoc, MvPolynomial.coeff_C_mul]
+    Fintype.sum_prod_type, mul_assoc, coeffCMul]
   have hcolor (u : V N) :
-      (∑ i : Fin D, S z (u, i) * MvPolynomial.coeff (wordExponent ι L)
+      (∑ i : Fin D, S z (u, i) * mvCoeff (wordExponent ι L)
         (MvPolynomial.X (u, i) * P)) =
-      S z (u, ι u) * MvPolynomial.coeff (wordExponent ι L)
+      S z (u, ι u) * mvCoeff (wordExponent ι L)
         (MvPolynomial.X (u, ι u) * P) := by
-    apply Finset.sum_eq_single (ι u)
+    apply sumSingle (ι u)
     · intro i _ hi
       simp [MvPolynomial.coeff_X_mul', Finsupp.mem_support_iff,
         wordExponent_wrong_color ι L u i hi]
     · simp
   simp_rw [hcolor]
-  let f := fun u : V N => S z (u, ι u) * MvPolynomial.coeff (wordExponent ι L)
+  let f := fun u : V N => S z (u, ι u) * mvCoeff (wordExponent ι L)
     (MvPolynomial.X (u, ι u) * P)
   change (∑ u, f u) = _
   calc
@@ -578,24 +510,24 @@ theorem coeff_rowPolynomial_mul
       simp [f, MvPolynomial.coeff_X_mul', Finsupp.mem_support_iff,
         wordExponent_not_mem ι L u huL (ι u)]
     _ = ∑ u ∈ L.toFinset, S z (u, ι u) *
-        MvPolynomial.coeff (wordExponent ι (L.erase u)) P := by
+        mvCoeff (wordExponent ι (L.erase u)) P := by
       apply Finset.sum_congr rfl
       intro u hu
-      have huL : u ∈ L := List.mem_toFinset.mp hu
+      have huL : u ∈ L := memListSet.mp hu
       simp only [f]
       rw [wordExponent_erase ι L u huL, MvPolynomial.coeff_X_mul]
     _ = _ := List.sum_toFinset _ hL
 theorem coeff_root_pderiv (P : MatchingPolynomial N D R) (ι : V N → Fin D)
     (v : V N) (L : List (V N)) (hv : v ∉ L) :
-    MvPolynomial.coeff (wordExponent ι (v :: L)) P =
-      MvPolynomial.coeff (wordExponent ι L) (MvPolynomial.pderiv (v, ι v) P) := by
+    mvCoeff (wordExponent ι (v :: L)) P =
+      mvCoeff (wordExponent ι L) (mvDeriv (v, ι v) P) := by
   rw [MvPolynomial.coeff_pderiv, wordExponent_not_mem ι L v hv (ι v)]
   simp [wordExponent, add_comm]
 theorem coeff_sourceQuadratic_pow_succ (W : WeightsN N D R) (ι : V N → Fin D)
     (k : ℕ) (v : V N) (L : List (V N)) (hv : v ∉ L) (hL : L.Nodup) :
-    MvPolynomial.coeff (wordExponent ι (v :: L)) (sourceQuadratic W ^ (k + 1)) =
+    mvCoeff (wordExponent ι (v :: L)) (sourceQuadratic W ^ (k + 1)) =
       (k + 1 : R) * (L.map fun u => edgeMatrix W (v, ι v) (u, ι u) *
-        MvPolynomial.coeff (wordExponent ι (L.erase u)) (sourceQuadratic W ^ k)).sum := by
+        mvCoeff (wordExponent ι (L.erase u)) (sourceQuadratic W ^ k)).sum := by
   rw [coeff_root_pderiv _ ι v L hv, MvPolynomial.pderiv_pow,
     pderiv_sourceQuadratic]
   simp only [Nat.add_sub_cancel]
@@ -605,11 +537,11 @@ theorem coeff_sourceQuadratic_pow_succ (W : WeightsN N D R) (ι : V N → Fin D)
         (rowPolynomial (edgeMatrix W) (v, ι v) * sourceQuadratic W ^ k) by
       simp only [Nat.cast_add, Nat.cast_one, map_add, map_natCast, map_one]
       ring]
-  rw [MvPolynomial.coeff_C_mul, coeff_rowPolynomial_mul _ _ ι L hL]
+  rw [coeffCMul, coeff_rowPolynomial_mul _ _ ι L hL]
 theorem coeff_sourceQuadratic_pow (W : WeightsN N D R) (ι : V N → Fin D) :
     ∀ (k : ℕ) (L : List (V N)), L.length = 2 * k →
       L.Pairwise (fun v u => v < u) →
-      MvPolynomial.coeff (wordExponent ι L) (sourceQuadratic W ^ k) =
+      mvCoeff (wordExponent ι L) (sourceQuadratic W ^ k) =
         (k.factorial : R) * pmSumListAux W ι (2 * k) L := by
   intro k
   induction k with
@@ -629,7 +561,7 @@ theorem coeff_sourceQuadratic_pow (W : WeightsN N D R) (ι : V N → Fin D) :
       rw [coeff_sourceQuadratic_pow_succ W ι k v vs hv hvs]
       have hterm :
           (vs.map fun u => edgeMatrix W (v, ι v) (u, ι u) *
-            MvPolynomial.coeff (wordExponent ι (vs.erase u))
+            mvCoeff (wordExponent ι (vs.erase u))
               (sourceQuadratic W ^ k)).sum =
           (k.factorial : R) *
             (vs.map fun u => W (mkEdge v u (ι v) (ι u)) *
@@ -655,7 +587,7 @@ theorem coeff_sourceQuadratic_pow (W : WeightsN N D R) (ι : V N → Fin D) :
         ring
 theorem coeff_sourceQuadratic_pow_full (k : ℕ)
     (W : WeightsN (2 * k) D R) (ι : V (2 * k) → Fin D) :
-    MvPolynomial.coeff (wordExponent ι (vertices (2 * k)))
+    mvCoeff (wordExponent ι (vertices (2 * k)))
       (sourceQuadratic W ^ k) = (k.factorial : R) * pmSumN (2 * k) D W ι := by
   simpa [pmSumN, pmSumList] using
     coeff_sourceQuadratic_pow W ι k (vertices (2 * k))
@@ -665,9 +597,9 @@ noncomputable def dividedSourcePower (W : WeightsN N D R) (k : ℕ) :
   MvPolynomial.C ((k.factorial : R)⁻¹) * sourceQuadratic W ^ k
 theorem coeff_dividedSourcePower_full (k : ℕ)
     (W : WeightsN (2 * k) D R) (ι : V (2 * k) → Fin D) :
-    MvPolynomial.coeff (wordExponent ι (vertices (2 * k)))
+    mvCoeff (wordExponent ι (vertices (2 * k)))
       (dividedSourcePower W k) = pmSumN (2 * k) D W ι := by
-  rw [dividedSourcePower, MvPolynomial.coeff_C_mul, coeff_sourceQuadratic_pow_full]
+  rw [dividedSourcePower, coeffCMul, coeff_sourceQuadratic_pow_full]
   have hf : (k.factorial : R) ≠ 0 := Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero k)
   rw [← mul_assoc, inv_mul_cancel₀ hf, one_mul]
 end Field
@@ -694,36 +626,36 @@ theorem weight_one_eq_exponentDegree (m : SiteVariable N D →₀ ℕ) :
   simp [Finsupp.weight_eq_sum, exponentDegree, siteDegree, Fintype.sum_prod_type]
 theorem exists_same_site_pair_le (m : SiteVariable N D →₀ ℕ) (v : V N)
     (h : 2 ≤ siteDegree m v) :
-    ∃ i j : Fin D, Finsupp.single (v, i) 1 + Finsupp.single (v, j) 1 ≤ m := by
+    ∃ i j : Fin D, fsSingle (v, i) 1 + fsSingle (v, j) 1 ≤ m := by
   classical
   obtain ⟨i, _, hi⟩ := Finset.sum_pos_iff.mp (show 0 < ∑ i : Fin D, m (v, i) by
     change 0 < siteDegree m v
     omega)
-  have hile : Finsupp.single (v, i) 1 ≤ m := Finsupp.single_le_iff.mpr hi
-  let t := m - Finsupp.single (v, i) 1
-  have ht : t + Finsupp.single (v, i) 1 = m := tsub_add_cancel_of_le hile
+  have hile : fsSingle (v, i) 1 ≤ m := Finsupp.single_le_iff.mpr hi
+  let t := m - fsSingle (v, i) 1
+  have ht : t + fsSingle (v, i) 1 = m := tsub_add_cancel_of_le hile
   have hd : siteDegree t v + 1 = siteDegree m v := by
     rw [← ht]
-    simp [siteDegree, Finset.sum_add_distrib, Finsupp.single_apply]
+    simp [siteDegree, sumAdd, Finsupp.single_apply]
   obtain ⟨j, _, hj⟩ := Finset.sum_pos_iff.mp (show 0 < ∑ j : Fin D, t (v, j) by
     change 0 < siteDegree t v
     omega)
   refine ⟨i, j, ?_⟩
-  have hjle : Finsupp.single (v, j) 1 ≤ t := Finsupp.single_le_iff.mpr hj
+  have hjle : fsSingle (v, j) 1 ≤ t := Finsupp.single_le_iff.mpr hj
   calc
-    Finsupp.single (v, i) 1 + Finsupp.single (v, j) 1 ≤
-        Finsupp.single (v, i) 1 + t := add_le_add le_rfl hjle
+    fsSingle (v, i) 1 + fsSingle (v, j) 1 ≤
+        fsSingle (v, i) 1 + t := add_le_add le_rfl hjle
     _ = m := by rw [add_comm, ht]
 theorem monomial_mem_siteIdeal_of_doubled (m : SiteVariable N D →₀ ℕ) (a : R)
     (v : V N) (h : 2 ≤ siteDegree m v) :
-    MvPolynomial.monomial m a ∈ siteIdeal N D R := by
+    mvMono m a ∈ siteIdeal N D R := by
   classical
   obtain ⟨i, j, hij⟩ := exists_same_site_pair_le m v h
-  have hgen : (MvPolynomial.monomial
-      (Finsupp.single (v, i) 1 + Finsupp.single (v, j) 1) (1 : R)) ∈ siteIdeal N D R := by
+  have hgen : (mvMono
+      (fsSingle (v, i) 1 + fsSingle (v, j) 1) (1 : R)) ∈ siteIdeal N D R := by
     have heq : (MvPolynomial.X (v, i) * MvPolynomial.X (v, j) :
-        MatchingPolynomial N D R) = MvPolynomial.monomial
-          (Finsupp.single (v, i) 1 + Finsupp.single (v, j) 1) 1 := by
+        MatchingPolynomial N D R) = mvMono
+          (fsSingle (v, i) 1 + fsSingle (v, j) 1) 1 := by
       simp [MvPolynomial.X, MvPolynomial.monomial_mul]
     rw [← heq]
     exact Ideal.subset_span ⟨v, i, j, rfl⟩
@@ -731,7 +663,7 @@ theorem monomial_mem_siteIdeal_of_doubled (m : SiteVariable N D →₀ ℕ) (a :
   rw [← heq]
   simpa only [MvPolynomial.monomial_mul, one_mul] using
     (siteIdeal N D R).mul_mem_right
-      (MvPolynomial.monomial (m - (Finsupp.single (v, i) 1 + Finsupp.single (v, j) 1)) a)
+      (mvMono (m - (fsSingle (v, i) 1 + fsSingle (v, j) 1)) a)
       hgen
 theorem exists_word_of_full_squarefree (m : SiteVariable N D →₀ ℕ)
     (hs : ∀ v, siteDegree m v ≤ 1) (hd : exponentDegree m = N) :
@@ -778,8 +710,8 @@ theorem project_eq_of_full_coefficients (P Q : MatchingPolynomial N D R)
     (hP : MvPolynomial.IsWeightedHomogeneous (fun _ : SiteVariable N D => (1 : ℕ)) P N)
     (hQ : MvPolynomial.IsWeightedHomogeneous (fun _ : SiteVariable N D => (1 : ℕ)) Q N)
     (hc : ∀ ι : V N → Fin D,
-      MvPolynomial.coeff (wordExponent ι (vertices N)) P =
-        MvPolynomial.coeff (wordExponent ι (vertices N)) Q) : project P = project Q := by
+      mvCoeff (wordExponent ι (vertices N)) P =
+        mvCoeff (wordExponent ι (vertices N)) Q) : project P = project Q := by
   apply sub_eq_zero.mp
   rw [← map_sub project]
   apply Ideal.Quotient.eq_zero_iff_mem.mpr
@@ -806,10 +738,10 @@ theorem wordExponent_selected_le_one (ι : V N → Fin D) (L : List (V N))
   split_ifs <;> omega
 theorem coeff_siteRelation_mul (ι : V N → Fin D) (L : List (V N)) (hL : L.Nodup)
     (v : V N) (i j : Fin D) (P : MatchingPolynomial N D R) :
-    MvPolynomial.coeff (wordExponent ι L)
+    mvCoeff (wordExponent ι L)
       ((MvPolynomial.X (v, i) * MvPolynomial.X (v, j)) * P) = 0 := by
   classical
-  have hnot : ¬ (Finsupp.single (v, i) 1 + Finsupp.single (v, j) 1 ≤
+  have hnot : ¬ (fsSingle (v, i) 1 + fsSingle (v, j) 1 ≤
       wordExponent ι L) := by
     intro h
     by_cases hi : i = ι v
@@ -824,15 +756,15 @@ theorem coeff_siteRelation_mul (ι : V N → Fin D) (L : List (V N)) (hL : L.Nod
       simp [wordExponent_wrong_color ι L v i hi] at hc
   have hmono : (MvPolynomial.X (v, i) * MvPolynomial.X (v, j) :
       MatchingPolynomial N D R) =
-      MvPolynomial.monomial (Finsupp.single (v, i) 1 + Finsupp.single (v, j) 1) 1 := by
+      mvMono (fsSingle (v, i) 1 + fsSingle (v, j) 1) 1 := by
     simp [MvPolynomial.X, MvPolynomial.monomial_mul]
   rw [hmono, MvPolynomial.coeff_monomial_mul', if_neg hnot]
 theorem coeff_siteIdeal_zero (ι : V N → Fin D) (L : List (V N)) (hL : L.Nodup)
     (P : MatchingPolynomial N D R) (hP : P ∈ siteIdeal N D R) :
-    MvPolynomial.coeff (wordExponent ι L) P = 0 := by
+    mvCoeff (wordExponent ι L) P = 0 := by
   classical
   have hall : ∀ Q ∈ siteIdeal N D R, ∀ A : MatchingPolynomial N D R,
-      MvPolynomial.coeff (wordExponent ι L) (Q * A) = 0 := by
+      mvCoeff (wordExponent ι L) (Q * A) = 0 := by
     intro Q hQ
     induction hQ using Submodule.span_induction with
     | mem Q hQ =>
@@ -848,37 +780,21 @@ theorem coeff_siteIdeal_zero (ι : V N → Fin D) (L : List (V N)) (hL : L.Nodup
   simpa using hall P hP 1
 theorem coeff_eq_of_project_eq (ι : V N → Fin D) (L : List (V N)) (hL : L.Nodup)
     (P Q : MatchingPolynomial N D R) (h : project P = project Q) :
-    MvPolynomial.coeff (wordExponent ι L) P =
-      MvPolynomial.coeff (wordExponent ι L) Q := by
+    mvCoeff (wordExponent ι L) P =
+      mvCoeff (wordExponent ι L) Q := by
   have hmem : P - Q ∈ siteIdeal N D R :=
     (Ideal.Quotient.mk_eq_mk_iff_sub_mem P Q).mp h
   have hc := coeff_siteIdeal_zero ι L hL (P - Q) hmem
   rw [MvPolynomial.coeff_sub] at hc
   exact sub_eq_zero.mp hc
 noncomputable def siteCoefficient (ι : V N → Fin D) : SiteRing N D R → R :=
-  fun q => MvPolynomial.coeff (wordExponent ι (vertices N)) (Quotient.out q)
+  fun q => mvCoeff (wordExponent ι (vertices N)) (Quotient.out q)
 @[simp]
 theorem siteCoefficient_project (ι : V N → Fin D) (P : MatchingPolynomial N D R) :
     siteCoefficient ι (project P) =
-      MvPolynomial.coeff (wordExponent ι (vertices N)) P := by
+      mvCoeff (wordExponent ι (vertices N)) P := by
   apply coeff_eq_of_project_eq ι (vertices N) (vertices_nodup N)
   exact Ideal.Quotient.mk_out (project P)
-noncomputable def siteCoefficientHom (ι : V N → Fin D) : SiteRing N D R →+ R where
-  toFun := siteCoefficient ι
-  map_zero' := by
-    rw [← map_zero project, siteCoefficient_project]
-    exact MvPolynomial.coeff_zero _
-  map_add' := by
-    intro q r
-    obtain ⟨P, rfl⟩ := Ideal.Quotient.mk_surjective q
-    obtain ⟨Q, rfl⟩ := Ideal.Quotient.mk_surjective r
-    change siteCoefficient ι (project P + project Q) =
-      siteCoefficient ι (project P) + siteCoefficient ι (project Q)
-    calc
-      siteCoefficient ι (project P + project Q) = siteCoefficient ι (project (P + Q)) :=
-        congrArg (siteCoefficient ι) (map_add project P Q).symm
-      _ = _ := by rw [siteCoefficient_project, MvPolynomial.coeff_add,
-        siteCoefficient_project, siteCoefficient_project]
 @[simp]
 theorem siteCoefficient_project_mul_C (ι : V N → Fin D)
     (a : R) (q : SiteRing N D R) :
@@ -890,7 +806,7 @@ theorem siteCoefficient_project_mul_C (ι : V N → Fin D)
     siteCoefficient ι (project (MvPolynomial.C a) * project P) =
         siteCoefficient ι (project (MvPolynomial.C a * P)) :=
       congrArg (siteCoefficient ι) (map_mul project (MvPolynomial.C a) P).symm
-    _ = _ := by rw [siteCoefficient_project, MvPolynomial.coeff_C_mul,
+    _ = _ := by rw [siteCoefficient_project, coeffCMul,
       siteCoefficient_project]
 end QuotientCoefficients
 section DividedPhysicalCoefficients
@@ -924,15 +840,6 @@ theorem matchingPolynomialN_totalHomogeneous (W : WeightsN N D R) :
     simp
   simp_rw [hv]
   simp
-theorem project_sourceQuadratic_pow_full (k : ℕ) (W : WeightsN (2 * k) D R) :
-    project (sourceQuadratic W ^ k) =
-      project (MvPolynomial.C (k.factorial : R) * matchingPolynomialN W) := by
-  apply project_eq_of_full_coefficients
-  · simpa [nsmul_eq_mul, Nat.mul_comm] using (sourceQuadratic_totalHomogeneous W).pow k
-  · exact (matchingPolynomialN_totalHomogeneous W).C_mul _
-  · intro ι
-    rw [coeff_sourceQuadratic_pow_full, MvPolynomial.coeff_C_mul,
-      coeff_matchingPolynomialN]
 theorem project_dividedSourcePower_full (k : ℕ) (W : WeightsN (2 * k) D R) :
     project (dividedSourcePower W k) = project (matchingPolynomialN W) := by
   apply project_eq_of_full_coefficients
@@ -942,10 +849,6 @@ theorem project_dividedSourcePower_full (k : ℕ) (W : WeightsN (2 * k) D R) :
   · exact matchingPolynomialN_totalHomogeneous W
   · intro ι
     rw [coeff_dividedSourcePower_full, coeff_matchingPolynomialN]
-theorem siteCoefficient_dividedSourcePower (k : ℕ)
-    (W : WeightsN (2 * k) D R) (ι : V (2 * k) → Fin D) :
-    siteCoefficient ι (project (dividedSourcePower W k)) = pmSumN (2 * k) D W ι := by
-  rw [siteCoefficient_project, coeff_dividedSourcePower_full]
 end DividedPhysicalCoefficients
 end Krenn.SiteAlgebra
 -- formal/all-orders/RootResponse.lean
@@ -970,7 +873,7 @@ theorem eraseSite_X (p : V N) (z : SiteVariable N D) :
   simp [eraseSite]
 noncomputable def rootExtract (p : V N) (i : Fin D)
     (P : MatchingPolynomial N D R) : MatchingPolynomial N D R :=
-  eraseSite p (MvPolynomial.pderiv (p, i) P)
+  eraseSite p (mvDeriv (p, i) P)
 @[simp]
 theorem rootExtract_add (p : V N) (i : Fin D) (P Q : MatchingPolynomial N D R) :
     rootExtract p i (P + Q) = rootExtract p i P + rootExtract p i Q := by
@@ -1105,7 +1008,7 @@ theorem pmSumN_rootExpansion (k : ℕ) (W : WeightsN (2 * (k + 1)) D R)
   have hrec := coeff_sourceQuadratic_pow_succ W ι k p L hp hnodup
   rw [hex, coeff_sourceQuadratic_pow_full] at hrec
   have hterm : (L.map fun q => edgeMatrix W (p, ι p) (q, ι q) *
-      MvPolynomial.coeff (wordExponent ι (L.erase q)) (sourceQuadratic W ^ k)).sum =
+      mvCoeff (wordExponent ι (L.erase q)) (sourceQuadratic W ^ k)).sum =
       (k.factorial : R) * (L.map fun q => edgeMatrix W (p, ι p) (q, ι q) *
         pmSumList W ι (L.erase q)).sum := by
     rw [← List.sum_map_mul_left]
@@ -1167,14 +1070,14 @@ theorem pureCofactor_rowSum_eq_one (k : ℕ) (W : WeightsN (2 * (k + 1)) D R)
         have hqp : q ≠ p := by
           intro hqp
           subst q
-          exact (vertices_nodup _).not_mem_erase (List.mem_toFinset.mp hq)
+          exact (vertices_nodup _).not_mem_erase (memListSet.mp hq)
         rw [pureCofactor, if_neg (Ne.symm hqp)]
       _ = _ := by
         apply Finset.sum_subset (Finset.subset_univ _)
         intro q _ hq
         have hqp : q = p := by
           by_contra hh
-          exact hq (List.mem_toFinset.mpr ((List.mem_erase_of_ne hh).mpr (mem_vertices q)))
+          exact hq (memListSet.mpr ((List.mem_erase_of_ne hh).mpr (mem_vertices q)))
         subst q
         simp
   rw [← heq]
@@ -1232,10 +1135,10 @@ theorem wordExponent_full_injective :
   rw [heq, hzero] at hown
   norm_num at hown
 noncomputable def diagonalPolynomial (N D : ℕ) : MatchingPolynomial N D R :=
-  ∑ h : Fin D, MvPolynomial.monomial (wordExponent (fun _ => h) (vertices N)) 1
+  ∑ h : Fin D, mvMono (wordExponent (fun _ => h) (vertices N)) 1
 omit [CharZero R] in
 theorem coeff_diagonalPolynomial (ι : V N → Fin D) (p : V N) :
-    MvPolynomial.coeff (wordExponent ι (vertices N)) (diagonalPolynomial (R := R) N D) =
+    mvCoeff (wordExponent ι (vertices N)) (diagonalPolynomial (R := R) N D) =
       if allEqual ι then 1 else 0 := by
   classical
   unfold diagonalPolynomial
@@ -1243,7 +1146,7 @@ theorem coeff_diagonalPolynomial (ι : V N → Fin D) (p : V N) :
   by_cases hι : allEqual ι
   · rw [if_pos hι]
     have hc := (allEqual_iff_constant_at ι p).mp hι
-    rw [Finset.sum_eq_single (ι p)]
+    rw [sumSingle (ι p)]
     · rw [← hc]
       simp
     · intro h _ hh
@@ -1268,7 +1171,7 @@ theorem wordExponent_full_degree (ι : V N → Fin D) :
   classical
   unfold exponentDegree siteDegree
   have hsite (v : V N) : (∑ i : Fin D, wordExponent ι (vertices N) (v, i)) = 1 := by
-    rw [Finset.sum_eq_single (ι v)]
+    rw [sumSingle (ι v)]
     · rw [wordExponent_selected, (vertices_nodup N).count]
       simp
     · intro i _ hi
@@ -1298,8 +1201,8 @@ theorem project_matchingPolynomial_eq_diagonal (W : WeightsN N D R)
 omit [CharZero R] in
 theorem eraseSite_wordMonomial (p : V N) (ι : V N → Fin D) (L : List (V N))
     (hp : p ∉ L) :
-    eraseSite p (MvPolynomial.monomial (wordExponent ι L) (1 : R)) =
-      MvPolynomial.monomial (wordExponent ι L) 1 := by
+    eraseSite p (mvMono (wordExponent ι L) (1 : R)) =
+      mvMono (wordExponent ι L) 1 := by
   induction L with
   | nil => simp [wordExponent, MvPolynomial.monomial_eq]
   | cons v L ih =>
@@ -1310,15 +1213,15 @@ theorem eraseSite_wordMonomial (p : V N) (ι : V N → Fin D) (L : List (V N))
     have hpL : p ∉ L := by
       intro h
       exact hp (List.mem_cons_of_mem v h)
-    have heq : (MvPolynomial.monomial (wordExponent ι (v :: L)) (1 : R)) =
-        MvPolynomial.monomial (wordExponent ι L) 1 * MvPolynomial.X (v, ι v) := by
+    have heq : (mvMono (wordExponent ι (v :: L)) (1 : R)) =
+        mvMono (wordExponent ι L) 1 * MvPolynomial.X (v, ι v) := by
       rw [wordExponent, add_comm, MvPolynomial.monomial_add_single, pow_one]
     rw [heq, map_mul, eraseSite_X, if_neg hvp, ih hpL]
 noncomputable def pureRootWord (p : V N) (h : Fin D) : MatchingPolynomial N D R :=
-  MvPolynomial.monomial (wordExponent (fun _ => h) ((vertices N).erase p)) 1
+  mvMono (wordExponent (fun _ => h) ((vertices N).erase p)) 1
 omit [CharZero R] in
 theorem rootExtract_pureWord (p : V N) (i h : Fin D) :
-    rootExtract p i (MvPolynomial.monomial (wordExponent (fun _ : V N => h) (vertices N)) (1 : R)) =
+    rootExtract p i (mvMono (wordExponent (fun _ : V N => h) (vertices N)) (1 : R)) =
       if i = h then pureRootWord p h else 0 := by
   classical
   unfold rootExtract
@@ -1339,7 +1242,7 @@ theorem rootExtract_diagonalPolynomial (p : V N) (i : Fin D) :
   unfold diagonalPolynomial rootExtract
   simp only [map_sum]
   change (∑ h : Fin D, rootExtract p i
-    (MvPolynomial.monomial (wordExponent (fun _ => h) (vertices N)) (1 : R))) = _
+    (mvMono (wordExponent (fun _ => h) (vertices N)) (1 : R))) = _
   simp_rw [rootExtract_pureWord]
   simp
 theorem quadraticRootResponse_eq_pure (k : ℕ) (W : WeightsN (2 * (k + 1)) D R)
@@ -1414,31 +1317,8 @@ theorem toSubgraph_isPerfectMatching (M : Matching V) (G : SimpleGraph V)
   rw [SimpleGraph.Subgraph.isPerfectMatching_iff]
   intro v
   exact ⟨M.partner v, rfl, fun w h => (show M.partner v = w from h).symm⟩
-theorem even_card [Fintype V] (M : Matching V) : Even (Fintype.card V) :=
+theorem even_card [Fintype V] (M : Matching V) : Even (cardFt V) :=
   (M.toSubgraph_isPerfectMatching M.toGraph (fun _ => rfl)).even_card
-noncomputable def ofSubgraph {G : SimpleGraph V} (M : G.Subgraph)
-    (hM : M.IsPerfectMatching) : Matching V where
-  partner v := (SimpleGraph.Subgraph.isPerfectMatching_iff.mp hM v).choose
-  partner_partner v := by
-    let h := SimpleGraph.Subgraph.isPerfectMatching_iff.mp hM
-    exact ((h ((h v).choose)).choose_spec.2 v (h v).choose_spec.1.symm).symm
-  partner_ne_self v := by
-    intro heq
-    have hadj := (SimpleGraph.Subgraph.isPerfectMatching_iff.mp hM v).choose_spec.1
-    rw [heq] at hadj
-    exact G.irrefl (M.adj_sub hadj)
-theorem ofSubgraph_partner_adj {G : SimpleGraph V} (M : G.Subgraph)
-    (hM : M.IsPerfectMatching) (v : V) :
-    M.Adj v ((ofSubgraph M hM).partner v) :=
-  (SimpleGraph.Subgraph.isPerfectMatching_iff.mp hM v).choose_spec.1
-theorem ofSubgraph_partner_eq_iff {G : SimpleGraph V} (M : G.Subgraph)
-    (hM : M.IsPerfectMatching) (v w : V) :
-    (ofSubgraph M hM).partner v = w ↔ M.Adj v w := by
-  constructor
-  · intro h
-    simpa only [h] using ofSubgraph_partner_adj M hM v
-  · intro h
-    exact ((SimpleGraph.Subgraph.isPerfectMatching_iff.mp hM v).choose_spec.2 w h).symm
 def Closed (M : Matching V) (S : Set V) : Prop :=
   ∀ ⦃v⦄, v ∈ S → M.partner v ∈ S
 theorem Closed.partner_mem_iff {M : Matching V} {S : Set V} (hS : M.Closed S)
@@ -1479,12 +1359,6 @@ def Realizes (colours : C → Matching V) (word : V → C) (M : Matching V) : Pr
 def HasMixedMatching (colours : C → Matching V) : Prop :=
   ∃ (M : Matching V) (word : V → C), Realizes colours word M ∧
     ∃ v w, word v ≠ word w
-theorem realizes_unique {colours : C → Matching V} {word : V → C}
-    {M N : Matching V} (hM : Realizes colours word M) (hN : Realizes colours word N) :
-    M = N := by
-  apply Matching.ext
-  funext v
-  exact (hM v).1.trans (hN v).1.symm
 theorem realizes_switch (colours : C → Matching V) (a b : C) (S : Set V)
     (ha : (colours a).Closed S) (hb : (colours b).Closed S) :
     Realizes colours (fun v => if v ∈ S then a else b)
@@ -1521,15 +1395,6 @@ theorem hasMixedMatching_of_shared_edge (colours : C → Matching V) {a b : C}
       Set.mem_singleton_iff, not_or]; exact ⟨hrp, hrq⟩⟩
 def pairGraph (colours : C → Matching V) (a b : C) : SimpleGraph V :=
   (colours a).toGraph ⊔ (colours b).toGraph
-theorem pairGraph_other_step (colours : C → Matching V) {a b : C} {v w z : V}
-    (hfirst : (colours a).partner v = w) (hnext : (pairGraph colours a b).Adj w z)
-    (hback : z ≠ v) : (colours b).partner w = z := by
-  change (colours a).partner w = z ∨ (colours b).partner w = z at hnext
-  rcases hnext with ha | hb
-  · have hreturn : (colours a).partner w = v := by
-      rw [← hfirst, (colours a).partner_partner]
-    exact False.elim (hback (ha.symm.trans hreturn))
-  · exact hb
 theorem pairGraph_reachable_closed_left (colours : C → Matching V) (a b : C) (p : V) :
     (colours a).Closed {v | (pairGraph colours a b).Reachable p v} := by
   intro v hv
@@ -1556,7 +1421,7 @@ theorem pairGraph_preconnected_of_no_mixed (colours : C → Matching V) {a b : C
   by_contra hpq
   exact hno (hasMixedMatching_of_not_reachable colours hab hpq)
 theorem hasMixedMatching_of_shared_partner [Fintype V] (colours : C → Matching V)
-    (hcard : 2 < Fintype.card V) {a b : C} (hab : a ≠ b) (p : V)
+    (hcard : 2 < cardFt V) {a b : C} (hab : a ≠ b) (p : V)
     (hshare : (colours a).partner p = (colours b).partner p) :
     HasMixedMatching colours := by
   classical
@@ -1576,7 +1441,7 @@ theorem hasMixedMatching_of_shared_partner [Fintype V] (colours : C → Matching
   obtain ⟨r, hrp, hrq⟩ := hex
   exact hasMixedMatching_of_shared_edge colours hab rfl hshare.symm hrp hrq
 theorem colour_partner_injective_of_no_mixed [Fintype V] (colours : C → Matching V)
-    (hcard : 2 < Fintype.card V) (hno : ¬HasMixedMatching colours) (p : V) :
+    (hcard : 2 < cardFt V) (hno : ¬HasMixedMatching colours) (p : V) :
     Function.Injective (fun a => (colours a).partner p) := by
   intro a b hshare
   by_contra hab
@@ -1593,7 +1458,7 @@ theorem pairGraph_isCycles (colours : C → Matching V) {a b : C}
   rw [hs]
   exact Set.ncard_pair (hdisjoint v)
 theorem exists_spanning_cycle_of_no_mixed [Fintype V] (colours : C → Matching V)
-    (hcard : 2 < Fintype.card V) (hno : ¬HasMixedMatching colours) {a b : C}
+    (hcard : 2 < cardFt V) (hno : ¬HasMixedMatching colours) {a b : C}
     (hab : a ≠ b) (p : V) :
     ∃ walk : (pairGraph colours a b).Walk p p,
       walk.IsCycle ∧ ∀ v, v ∈ walk.support := by
@@ -1885,10 +1750,10 @@ end Krenn.ThreeMatching
 namespace Krenn.ThreeMatching
 variable {V C : Type*} [Fintype V]
 theorem exists_cycle_equiv_of_spanning {G : SimpleGraph V}
-    (hcard : 2 < Fintype.card V) {p : V} (walk : G.Walk p p)
+    (hcard : 2 < cardFt V) {p : V} (walk : G.Walk p p)
     (hcycle : walk.IsCycle) (hspan : ∀ v, v ∈ walk.support) :
-    ∃ e : Fin (Fintype.card V) ≃ V, ∀ i j,
-      (SimpleGraph.cycleGraph (Fintype.card V)).Adj i j → G.Adj (e i) (e j) := by
+    ∃ e : Fin (cardFt V) ≃ V, ∀ i j,
+      (SimpleGraph.cycleGraph (cardFt V)).Adj i j → G.Adj (e i) (e j) := by
   classical
   have htail : walk.tail.IsHamiltonian := by
     apply hcycle.isPath_tail.isHamiltonian_of_mem
@@ -1907,10 +1772,10 @@ theorem exists_cycle_equiv_of_spanning {G : SimpleGraph V}
       (Fintype.equivFin V).symm⟩
   exact ⟨Equiv.ofBijective copy hbij, fun _ _ h => copy.toHom.map_rel h⟩
 theorem exists_cycle_equiv_of_no_mixed (colours : C → Matching V)
-    (hcard : 2 < Fintype.card V) (hno : ¬ HasMixedMatching colours)
+    (hcard : 2 < cardFt V) (hno : ¬ HasMixedMatching colours)
     {a b : C} (hab : a ≠ b) (p : V) :
-    ∃ e : Fin (Fintype.card V) ≃ V, ∀ i j,
-      (SimpleGraph.cycleGraph (Fintype.card V)).Adj i j →
+    ∃ e : Fin (cardFt V) ≃ V, ∀ i j,
+      (SimpleGraph.cycleGraph (cardFt V)).Adj i j →
         (pairGraph colours a b).Adj (e i) (e j) := by
   obtain ⟨walk, hcycle, hspan⟩ := exists_spanning_cycle_of_no_mixed colours hcard hno hab p
   exact exists_cycle_equiv_of_spanning hcard walk hcycle hspan
@@ -1974,16 +1839,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 namespace Krenn.ThreeMatching
 variable {V C : Type*} [Fintype V]
 theorem hasMixedMatching_of_three_colours (colours : C → Matching V)
-    (hcard : 4 < Fintype.card V) {a b c : C}
+    (hcard : 4 < cardFt V) {a b c : C}
     (hab : a ≠ b) (hac : a ≠ c) (hbc : b ≠ c) :
     HasMixedMatching colours := by
   classical
   by_contra hno
-  have htwo : 2 < Fintype.card V := by omega
+  have htwo : 2 < cardFt V := by omega
   have hdisjoint := colour_partner_injective_of_no_mixed colours htwo hno
-  obtain ⟨p⟩ := Fintype.card_pos_iff.mp (show 0 < Fintype.card V by omega)
-  obtain ⟨n, hsize⟩ : ∃ n : ℕ, Fintype.card V = n + 2 :=
-    ⟨Fintype.card V - 2, by omega⟩
+  obtain ⟨p⟩ := Fintype.card_pos_iff.mp (show 0 < cardFt V by omega)
+  obtain ⟨n, hsize⟩ : ∃ n : ℕ, cardFt V = n + 2 :=
+    ⟨cardFt V - 2, by omega⟩
   have heven : (n + 2) % 2 = 0 := by
     simpa only [hsize, Nat.even_iff] using (colours a).even_card
   have hbig : 4 < n + 2 := by omega
@@ -2026,16 +1891,9 @@ theorem hasMixedMatching_of_three_colours (colours : C → Matching V)
       exact (Matching.map_partner M e v).trans hb.symm
     exact hno (hasMixedMatching_of_partner_cover colours N hdisjoint hcoverN hbc.symm hc hNb)
 theorem hasMixedMatching_three (colours : Fin 3 → Matching V)
-    (hcard : 4 < Fintype.card V) : HasMixedMatching colours :=
+    (hcard : 4 < cardFt V) : HasMixedMatching colours :=
   hasMixedMatching_of_three_colours colours hcard
     (a := 0) (b := 1) (c := 2) (by decide) (by decide) (by decide)
-theorem colour_eq_of_no_mixed (colours : C → Matching V)
-    (hcard : 4 < Fintype.card V) (hno : ¬HasMixedMatching colours)
-    {a b : C} (hab : a ≠ b) (c : C) : c = a ∨ c = b := by
-  by_contra h
-  have hca : c ≠ a := fun hca => h (Or.inl hca)
-  have hcb : c ≠ b := fun hcb => h (Or.inr hcb)
-  exact hno (hasMixedMatching_of_three_colours colours hcard hab hca.symm hcb.symm)
 end Krenn.ThreeMatching
 -- formal/all-orders/ForcedMatchingSum.lean
 namespace Krenn.ForcedMatchingSum
@@ -2096,15 +1954,15 @@ theorem pmSumListAux_ne_zero_of_forced (W : WeightsN N D K) (word : Fin N → Fi
         W (mkEdge v (M.partner v) (word v) (word (M.partner v))) *
           pmSumListAux W word n (tail.erase (M.partner v)) := by
       rw [← List.sum_toFinset _ ht]
-      apply Finset.sum_eq_single (M.partner v)
+      apply sumSingle (M.partner v)
       · intro x hx hne
-        have hxL : x ∈ tail := List.mem_toFinset.mp hx
+        have hxL : x ∈ tail := memListSet.mp hx
         have hw : W (mkEdge v x (word v) (word x)) = 0 := by
           by_contra h
           exact hne ((hweight v x (horder x hxL)).mp h).symm
         rw [hw, zero_mul]
       · intro h
-        exact False.elim (h (List.mem_toFinset.mpr hp))
+        exact False.elim (h (memListSet.mpr hp))
     change (tail.map fun x => W (mkEdge v x (word v) (word x)) *
       pmSumListAux W word n (tail.erase x)).sum ≠ 0
     rw [hsum]
@@ -2355,15 +2213,6 @@ theorem wickMoment_permute (B : E →ₗ[R] E →ₗ[R] R) (m : ℕ)
   simp only [wickMoment_apply]
   congr 1
   exact Fintype.sum_equiv (Equiv.mulLeft τ) _ _ (fun _ => rfl)
-theorem wickMoment_const (B : E →ₗ[R] E →ₗ[R] R) (m : ℕ) (x : E) :
-    wickMoment B m (fun _ => x) =
-      ((2 : R) ^ m * (m.factorial : R))⁻¹ *
-        ((2 * m).factorial : R) * B x x ^ m := by
-  simp only [wickMoment_apply, Finset.prod_const, Finset.card_univ, Fintype.card_fin,
-    Finset.sum_const, nsmul_eq_mul, Fintype.card_perm, Fintype.card_sigma,
-    Finset.sum_const, Nat.cast_id]
-  rw [Nat.mul_comm m 2]
-  ring
 theorem slots_one_cases (i : Slots 1) : i = ⟨0, 0⟩ ∨ i = ⟨0, 1⟩ := by
   rcases i with ⟨i, j⟩
   fin_cases i
@@ -2393,39 +2242,14 @@ theorem wickMoment_one [CharZero R] (B : E →ₗ[R] E →ₗ[R] R)
   simp_rw [hterm]
   norm_num [Fintype.card_perm, Slots, nsmul_eq_mul]
   ring
-theorem wickMoment_update_add (B : E →ₗ[R] E →ₗ[R] R) (m : ℕ)
-    (v : Slots m → E) (i : Slots m) (x y : E) :
-    wickMoment B m (Function.update v i (x + y)) =
-      wickMoment B m (Function.update v i x) + wickMoment B m (Function.update v i y) :=
-  (wickMoment B m).map_update_add v i x y
-theorem wickMoment_update_smul (B : E →ₗ[R] E →ₗ[R] R) (m : ℕ)
-    (v : Slots m → E) (i : Slots m) (c : R) (x : E) :
-    wickMoment B m (Function.update v i (c • x)) =
-      c * wickMoment B m (Function.update v i x) :=
-  (wickMoment B m).map_update_smul v i c x
-theorem wickMoment_linear_expansion {ι : Type*} [Fintype ι]
-    (B : E →ₗ[R] E →ₗ[R] R) (m : ℕ)
-    (a : Slots m → ι → R) (v : ι → E) :
-    wickMoment B m (fun i => ∑ j, a i j • v j) =
-      ∑ choices : Slots m → ι,
-        (∏ i, a i (choices i)) * wickMoment B m (fun i => v (choices i)) := by
-  classical
-  rw [(wickMoment B m).map_sum]
-  apply Finset.sum_congr rfl
-  intro choices _
-  exact (wickMoment B m).map_smul_univ (fun i => a i (choices i)) _
 theorem wickMoment_naturality (B : F →ₗ[R] F →ₗ[R] R) (T : E →ₗ[R] F)
     (m : ℕ) (v : Slots m → E) :
     wickMoment (B.compl₁₂ T T) m v = wickMoment B m (fun i => T (v i)) := by
   simp only [wickMoment_apply, LinearMap.compl₁₂_apply]
-theorem wickMoment_invariant (B : E →ₗ[R] E →ₗ[R] R) (T : E →ₗ[R] E)
-    (hT : ∀ x y, B (T x) (T y) = B x y) (m : ℕ) (v : Slots m → E) :
-    wickMoment B m (fun i => T (v i)) = wickMoment B m v := by
-  simp only [wickMoment_apply, hT]
 section ArbitrarySlots
 variable {ι : Type*} [Fintype ι]
-noncomputable def evenSlotsEquiv (h : Even (Fintype.card ι)) :
-    Slots (Fintype.card ι / 2) ≃ ι :=
+noncomputable def evenSlotsEquiv (h : Even (cardFt ι)) :
+    Slots (cardFt ι / 2) ≃ ι :=
   Fintype.equivOfCardEq (by
     simp only [Slots, Fintype.card_sigma, Fintype.card_fin, Finset.sum_const,
       Finset.card_univ, smul_eq_mul]
@@ -2433,32 +2257,32 @@ noncomputable def evenSlotsEquiv (h : Even (Fintype.card ι)) :
     omega)
 noncomputable def centeredMoment (B : E →ₗ[R] E →ₗ[R] R) :
     MultilinearMap R (fun _ : ι => E) R :=
-  if h : Even (Fintype.card ι) then
-    (wickMoment B (Fintype.card ι / 2)).domDomCongr (evenSlotsEquiv h)
+  if h : Even (cardFt ι) then
+    (wickMoment B (cardFt ι / 2)).domDomCongr (evenSlotsEquiv h)
   else 0
 theorem centeredMoment_of_even (B : E →ₗ[R] E →ₗ[R] R)
-    (h : Even (Fintype.card ι)) (v : ι → E) :
-    centeredMoment B v = wickMoment B (Fintype.card ι / 2)
+    (h : Even (cardFt ι)) (v : ι → E) :
+    centeredMoment B v = wickMoment B (cardFt ι / 2)
       (fun i => v (evenSlotsEquiv h i)) := by
   simp only [centeredMoment, dif_pos h, MultilinearMap.domDomCongr_apply]
 @[simp]
 theorem centeredMoment_of_not_even (B : E →ₗ[R] E →ₗ[R] R)
-    (h : ¬Even (Fintype.card ι)) (v : ι → E) : centeredMoment B v = 0 := by
+    (h : ¬Even (cardFt ι)) (v : ι → E) : centeredMoment B v = 0 := by
   simp [centeredMoment, h]
 theorem centeredMoment_naturality (B : F →ₗ[R] F →ₗ[R] R) (T : E →ₗ[R] F)
     (v : ι → E) :
     centeredMoment (B.compl₁₂ T T) v = centeredMoment B (fun i => T (v i)) := by
-  by_cases h : Even (Fintype.card ι)
+  by_cases h : Even (cardFt ι)
   · simp only [centeredMoment_of_even _ h]
     exact wickMoment_naturality B T _ _
   · simp only [centeredMoment_of_not_even _ h]
 theorem centeredMoment_permute (B : E →ₗ[R] E →ₗ[R] R)
     (τ : Equiv.Perm ι) (v : ι → E) :
     centeredMoment B (fun i => v (τ i)) = centeredMoment B v := by
-  by_cases h : Even (Fintype.card ι)
+  by_cases h : Even (cardFt ι)
   · simp only [centeredMoment_of_even _ h]
     let e := evenSlotsEquiv (ι := ι) h
-    have hw := wickMoment_permute B (Fintype.card ι / 2)
+    have hw := wickMoment_permute B (cardFt ι / 2)
       ((e.trans τ).trans e.symm) (fun i => v (e i))
     simpa only [Equiv.trans_apply, Equiv.apply_symm_apply] using hw
   · simp only [centeredMoment_of_not_even _ h]
@@ -2485,16 +2309,6 @@ theorem shiftedMoment_apply (B : E →ₗ[R] E →ₗ[R] R) (μ : E →ₗ[R] R)
       (∏ i : {i // i ∈ s}, μ (v i)) *
         centeredMoment B (fun i : {i // i ∉ s} => v i) := by
   simp [shiftedMoment, shiftedTerm_apply]
-theorem shiftedMoment_linear_expansion {κ : Type*} [Fintype κ]
-    (B : E →ₗ[R] E →ₗ[R] R) (μ : E →ₗ[R] R)
-    (a : ι → κ → R) (v : κ → E) :
-    shiftedMoment B μ (fun i => ∑ j, a i j • v j) =
-      ∑ choices : ι → κ,
-        (∏ i, a i (choices i)) * shiftedMoment B μ (fun i => v (choices i)) := by
-  rw [(shiftedMoment B μ).map_sum]
-  apply Finset.sum_congr rfl
-  intro choices _
-  exact (shiftedMoment B μ).map_smul_univ (fun i => a i (choices i)) _
 theorem shiftedMoment_naturality (B : F →ₗ[R] F →ₗ[R] R) (μ : F →ₗ[R] R)
     (T : E →ₗ[R] F) (v : ι → E) :
     shiftedMoment (B.compl₁₂ T T) (μ.comp T) v =
@@ -2532,47 +2346,12 @@ theorem replicaLinear_covariance (B : E →ₗ[R] E →ₗ[R] R) (a b c d : R)
     _ = (a ^ 2 + c ^ 2) * B x.1 y.1 + (b ^ 2 + d ^ 2) * B x.2 y.2 +
         (a * b + c * d) * (B x.1 y.2 + B x.2 y.1) := by ring
     _ = _ := by rw [hfirst, hsecond, hcross]; ring
-def alternatingProduct (μ ν : E →ₗ[R] R) (x : E × E) : R :=
-  μ x.1 * ν x.2 - ν x.1 * μ x.2
-theorem alternatingProduct_replicaLinear (μ ν : E →ₗ[R] R)
-    (a b c d : R) (x : E × E) :
-    alternatingProduct μ ν (replicaLinear a b c d x) =
-      (a * d - b * c) * alternatingProduct μ ν x := by
-  simp only [alternatingProduct, replicaLinear_apply, map_add, map_smul, smul_eq_mul]
-  ring
 def replicaRotation (a b : R) : (E × E) →ₗ[R] (E × E) :=
   (a • LinearMap.fst R E E + b • LinearMap.snd R E E).prod
     ((-b) • LinearMap.fst R E E + a • LinearMap.snd R E E)
 @[simp]
 theorem replicaRotation_apply (a b : R) (x : E × E) :
     replicaRotation a b x = (a • x.1 + b • x.2, (-b) • x.1 + a • x.2) := rfl
-theorem replicaRotation_covariance (B : E →ₗ[R] E →ₗ[R] R) (a b : R)
-    (h : a ^ 2 + b ^ 2 = 1) (x y : E × E) :
-    replicaCovariance B (replicaRotation a b x) (replicaRotation a b y) =
-      replicaCovariance B x y := by
-  simp only [replicaCovariance_apply, replicaRotation_apply, map_add, map_smul,
-    LinearMap.add_apply, LinearMap.smul_apply, smul_eq_mul]
-  calc
-    _ = (a ^ 2 + b ^ 2) * (B x.1 y.1 + B x.2 y.2) := by ring
-    _ = _ := by rw [h, one_mul]
-theorem wickMoment_replicaRotation (B : E →ₗ[R] E →ₗ[R] R) (a b : R)
-    (h : a ^ 2 + b ^ 2 = 1) (m : ℕ) (v : Slots m → E × E) :
-    wickMoment (replicaCovariance B) m (fun i => replicaRotation a b (v i)) =
-      wickMoment (replicaCovariance B) m v :=
-  wickMoment_invariant _ _ (replicaRotation_covariance B a b h) m v
-theorem shiftedMoment_replicaRotation {ι : Type*} [Fintype ι]
-    (B : E →ₗ[R] E →ₗ[R] R) (μ : (E × E) →ₗ[R] R) (a b : R)
-    (h : a ^ 2 + b ^ 2 = 1) (v : ι → E × E) :
-    shiftedMoment (replicaCovariance B) μ (fun i => replicaRotation a b (v i)) =
-      shiftedMoment (replicaCovariance B) (μ.comp (replicaRotation a b)) v :=
-  shiftedMoment_invariant _ μ _ (replicaRotation_covariance B a b h) v
-theorem shiftedMoment_replicaLinear {ι : Type*} [Fintype ι]
-    (B : E →ₗ[R] E →ₗ[R] R) (μ : (E × E) →ₗ[R] R) (a b c d : R)
-    (hfirst : a ^ 2 + c ^ 2 = 1) (hsecond : b ^ 2 + d ^ 2 = 1)
-    (hcross : a * b + c * d = 0) (v : ι → E × E) :
-    shiftedMoment (replicaCovariance B) μ (fun i => replicaLinear a b c d (v i)) =
-      shiftedMoment (replicaCovariance B) (μ.comp (replicaLinear a b c d)) v :=
-  shiftedMoment_invariant _ μ _ (replicaLinear_covariance B a b c d hfirst hsecond hcross) v
 end Krenn.WickCovariance
 -- formal/all-orders/WickCoefficientBridge.lean
 /-
@@ -2584,15 +2363,15 @@ open scoped BigOperators Classical
 open WickCovariance
 variable {R ι : Type*} [CommRing R] [Fintype ι] [DecidableEq ι]
 noncomputable def topExponent (ι : Type*) [Fintype ι] : ι →₀ ℕ :=
-  ∑ i, Finsupp.single i 1
+  ∑ i, fsSingle i 1
 @[simp]
 theorem topExponent_apply (i : ι) : topExponent ι i = 1 := by
   simp [topExponent, Finsupp.single_apply]
 @[simp]
-theorem topExponent_degree : (topExponent ι).degree = Fintype.card ι := by
+theorem topExponent_degree : (topExponent ι).degree = cardFt ι := by
   simp [Finsupp.degree_eq_sum]
 noncomputable def choiceExponent (f : ι → ι) : ι →₀ ℕ :=
-  ∑ i, Finsupp.single (f i) 1
+  ∑ i, fsSingle (f i) 1
 theorem choiceExponent_eq_top_iff (f : ι → ι) :
     choiceExponent f = topExponent ι ↔ Function.Bijective f := by
   constructor
@@ -2604,16 +2383,16 @@ theorem choiceExponent_eq_top_iff (f : ι → ι) :
     have hc := congrArg (fun d : ι →₀ ℕ => d j) h
     simp [choiceExponent, hn] at hc
   · intro h
-    exact h.sum_comp (fun i => Finsupp.single i 1)
+    exact h.sum_comp (fun i => fsSingle i 1)
 omit [DecidableEq ι] in
 theorem prod_X_choice (f : ι → ι) :
     (∏ i, (MvPolynomial.X (f i) : MvPolynomial ι R)) =
-      MvPolynomial.monomial (choiceExponent f) 1 := by
+      mvMono (choiceExponent f) 1 := by
   simpa only [choiceExponent, MvPolynomial.X] using
     (MvPolynomial.monomial_sum_one (R := R) Finset.univ
-      (fun i => Finsupp.single (f i) 1)).symm
+      (fun i => fsSingle (f i) 1)).symm
 theorem coeff_top_prod_X_choice (f : ι → ι) :
-    MvPolynomial.coeff (topExponent ι) (∏ i, (MvPolynomial.X (f i) : MvPolynomial ι R)) =
+    mvCoeff (topExponent ι) (∏ i, (MvPolynomial.X (f i) : MvPolynomial ι R)) =
       if Function.Bijective f then 1 else 0 := by
   rw [prod_X_choice]
   simp only [MvPolynomial.coeff_monomial, choiceExponent_eq_top_iff]
@@ -2632,10 +2411,10 @@ theorem sum_bijective_eq_sum_perm (w : (ι → ι) → R) :
     (fun _ => by simp only [Finset.mem_filter, Finset.mem_univ, true_and])]
   exact Fintype.sum_equiv bijectiveEquivPerm _ _ (fun _ => rfl)
 theorem coeff_top_weighted_choices (w : (ι → ι) → R) :
-    MvPolynomial.coeff (topExponent ι)
+    mvCoeff (topExponent ι)
       (∑ f : ι → ι, MvPolynomial.C (w f) * ∏ i, MvPolynomial.X (f i)) =
       ∑ σ : Equiv.Perm ι, w σ := by
-  simp only [MvPolynomial.coeff_sum, MvPolynomial.coeff_C_mul, coeff_top_prod_X_choice]
+  simp only [MvPolynomial.coeff_sum, coeffCMul, coeff_top_prod_X_choice]
   simp only [mul_ite, mul_one, mul_zero]
   exact sum_bijective_eq_sum_perm w
 noncomputable def rawQuadratic (S : ι → ι → R) : MvPolynomial ι R :=
@@ -2681,7 +2460,7 @@ theorem rawQuadratic_pow_assignments (S : ι → ι → R) (m : ℕ) :
       simp only [Equiv.piCurry_symm_apply, Finset.prod_mul_distrib, ← map_prod,
         Fintype.prod_sigma, Sigma.uncurry]
 theorem coeff_top_rawQuadratic_pow (m : ℕ) (S : Slots m → Slots m → R) :
-    MvPolynomial.coeff (topExponent (Slots m)) (rawQuadratic S ^ m) =
+    mvCoeff (topExponent (Slots m)) (rawQuadratic S ^ m) =
       ∑ σ : Equiv.Perm (Slots m), ∏ i : Fin m, S (σ ⟨i, 0⟩) (σ ⟨i, 1⟩) := by
   rw [rawQuadratic_pow_assignments]
   exact coeff_top_weighted_choices (R := R) (ι := Slots m)
@@ -2691,13 +2470,13 @@ variable {κ : Type*}
 omit [Fintype ι] [DecidableEq ι] in
 theorem coeff_sumRingEquiv (P : MvPolynomial (ι ⊕ κ) R)
     (d : ι →₀ ℕ) (e : κ →₀ ℕ) :
-    MvPolynomial.coeff e (MvPolynomial.coeff d (MvPolynomial.sumRingEquiv R ι κ P)) =
-      MvPolynomial.coeff (Finsupp.sumElim d e) P := by
-  simp [MvPolynomial.sumRingEquiv, MvPolynomial.coeff,
+    mvCoeff e (mvCoeff d (MvPolynomial.sumRingEquiv R ι κ P)) =
+      mvCoeff (Finsupp.sumElim d e) P := by
+  simp [MvPolynomial.sumRingEquiv, mvCoeff,
     AddMonoidAlgebra.curryRingEquiv, AddMonoidAlgebra.curryAddEquiv]
 omit [Fintype ι] [DecidableEq ι] in
 theorem sumRingEquiv_rename_left (P : MvPolynomial ι R) :
-    MvPolynomial.sumRingEquiv R ι κ (MvPolynomial.rename Sum.inl P) =
+    MvPolynomial.sumRingEquiv R ι κ (mvRename Sum.inl P) =
       MvPolynomial.map MvPolynomial.C P := by
   induction P using MvPolynomial.induction_on with
   | C r => simp
@@ -2705,7 +2484,7 @@ theorem sumRingEquiv_rename_left (P : MvPolynomial ι R) :
   | mul_X P i hP => simp [map_mul, hP]
 omit [Fintype ι] [DecidableEq ι] in
 theorem sumRingEquiv_rename_right (P : MvPolynomial κ R) :
-    MvPolynomial.sumRingEquiv R ι κ (MvPolynomial.rename Sum.inr P) =
+    MvPolynomial.sumRingEquiv R ι κ (mvRename Sum.inr P) =
       MvPolynomial.C P := by
   induction P using MvPolynomial.induction_on with
   | C r => simp
@@ -2714,12 +2493,12 @@ theorem sumRingEquiv_rename_right (P : MvPolynomial κ R) :
 omit [Fintype ι] [DecidableEq ι] in
 theorem coeff_rename_mul_rename (P : MvPolynomial ι R) (Q : MvPolynomial κ R)
     (d : ι →₀ ℕ) (e : κ →₀ ℕ) :
-    MvPolynomial.coeff (Finsupp.sumElim d e)
-      (MvPolynomial.rename Sum.inl P * MvPolynomial.rename Sum.inr Q) =
-        MvPolynomial.coeff d P * MvPolynomial.coeff e Q := by
+    mvCoeff (Finsupp.sumElim d e)
+      (mvRename Sum.inl P * mvRename Sum.inr Q) =
+        mvCoeff d P * mvCoeff e Q := by
   rw [← coeff_sumRingEquiv, map_mul, sumRingEquiv_rename_left, sumRingEquiv_rename_right]
-  rw [mul_comm (MvPolynomial.map MvPolynomial.C P), MvPolynomial.coeff_C_mul,
-    MvPolynomial.coeff_map, mul_comm Q, MvPolynomial.coeff_C_mul]
+  rw [mul_comm (MvPolynomial.map MvPolynomial.C P), coeffCMul,
+    MvPolynomial.coeff_map, mul_comm Q, coeffCMul]
 variable [Fintype κ] [DecidableEq κ]
 @[simp]
 theorem topExponent_sumElim :
@@ -2727,34 +2506,34 @@ theorem topExponent_sumElim :
   ext i
   cases i <;> simp
 theorem coeff_top_rename_mul_rename (P : MvPolynomial ι R) (Q : MvPolynomial κ R) :
-    MvPolynomial.coeff (topExponent (ι ⊕ κ))
-      (MvPolynomial.rename Sum.inl P * MvPolynomial.rename Sum.inr Q) =
-        MvPolynomial.coeff (topExponent ι) P * MvPolynomial.coeff (topExponent κ) Q := by
+    mvCoeff (topExponent (ι ⊕ κ))
+      (mvRename Sum.inl P * mvRename Sum.inr Q) =
+        mvCoeff (topExponent ι) P * mvCoeff (topExponent κ) Q := by
   rw [← topExponent_sumElim, coeff_rename_mul_rename]
 theorem coeff_top_sum_rename_pow (P : MvPolynomial ι R) (Q : MvPolynomial κ R) (n : ℕ) :
-    MvPolynomial.coeff (topExponent (ι ⊕ κ))
-      ((MvPolynomial.rename Sum.inl P + MvPolynomial.rename Sum.inr Q) ^ n) =
+    mvCoeff (topExponent (ι ⊕ κ))
+      ((mvRename Sum.inl P + mvRename Sum.inr Q) ^ n) =
       ∑ k ∈ Finset.range (n + 1), (n.choose k : R) *
-        MvPolynomial.coeff (topExponent ι) (P ^ k) *
-        MvPolynomial.coeff (topExponent κ) (Q ^ (n - k)) := by
+        mvCoeff (topExponent ι) (P ^ k) *
+        mvCoeff (topExponent κ) (Q ^ (n - k)) := by
   rw [add_pow, MvPolynomial.coeff_sum]
   apply Finset.sum_congr rfl
   intro k _
   rw [show (↑(n.choose k) : MvPolynomial (ι ⊕ κ) R) =
       MvPolynomial.C (n.choose k : R) by simp]
-  rw [mul_comm ((_ ^ k) * (_ ^ (n - k))), MvPolynomial.coeff_C_mul,
+  rw [mul_comm ((_ ^ k) * (_ ^ (n - k))), coeffCMul,
     ← map_pow, ← map_pow, coeff_top_rename_mul_rename]
   ring
 end SplitCoefficients
 theorem coeff_top_pow_eq_zero (P : MvPolynomial ι R) (hP : P.IsHomogeneous 2)
-    {m k : ℕ} (hcard : Fintype.card ι = 2 * m) (hne : k ≠ m) :
-    MvPolynomial.coeff (topExponent ι) (P ^ k) = 0 := by
+    {m k : ℕ} (hcard : cardFt ι = 2 * m) (hne : k ≠ m) :
+    mvCoeff (topExponent ι) (P ^ k) = 0 := by
   apply (hP.pow k).coeff_eq_zero
   rw [topExponent_degree, hcard]
   omega
 theorem coeff_top_pow_eq_zero_of_odd (P : MvPolynomial ι R)
-    (hP : P.IsHomogeneous 2) (hodd : ¬Even (Fintype.card ι)) (k : ℕ) :
-    MvPolynomial.coeff (topExponent ι) (P ^ k) = 0 := by
+    (hP : P.IsHomogeneous 2) (hodd : ¬Even (cardFt ι)) (k : ℕ) :
+    mvCoeff (topExponent ι) (P ^ k) = 0 := by
   apply (hP.pow k).coeff_eq_zero
   rw [topExponent_degree]
   intro h
@@ -2768,12 +2547,12 @@ theorem topExponent_mapDomain (e : ι ≃ κ) :
   rw [Finsupp.mapDomain_equiv_apply]
   simp
 theorem coeff_top_rename_equiv (e : ι ≃ κ) (P : MvPolynomial ι R) :
-    MvPolynomial.coeff (topExponent κ) (MvPolynomial.rename e P) =
-      MvPolynomial.coeff (topExponent ι) P := by
+    mvCoeff (topExponent κ) (mvRename e P) =
+      mvCoeff (topExponent ι) P := by
   rw [← topExponent_mapDomain e, MvPolynomial.coeff_rename_mapDomain e e.injective]
 omit [DecidableEq ι] [DecidableEq κ] in
 theorem rawQuadratic_rename_equiv (e : ι ≃ κ) (S : κ → κ → R) :
-    MvPolynomial.rename e (rawQuadratic (fun i j => S (e i) (e j))) = rawQuadratic S := by
+    mvRename e (rawQuadratic (fun i j => S (e i) (e j))) = rawQuadratic S := by
   simp only [rawQuadratic, map_sum, map_mul, MvPolynomial.rename_C, MvPolynomial.rename_X]
   apply Fintype.sum_equiv e
   intro i
@@ -2787,8 +2566,8 @@ def blockCovariance (S : ι → ι → R) (T : κ → κ → R) : (ι ⊕ κ) �
 omit [DecidableEq ι] [DecidableEq κ] in
 theorem rawQuadratic_blockCovariance (S : ι → ι → R) (T : κ → κ → R) :
     rawQuadratic (blockCovariance S T) =
-      MvPolynomial.rename Sum.inl (rawQuadratic S) +
-        MvPolynomial.rename Sum.inr (rawQuadratic T) := by
+      mvRename Sum.inl (rawQuadratic S) +
+        mvRename Sum.inr (rawQuadratic T) := by
   simp [rawQuadratic, blockCovariance, Fintype.sum_sum_type, map_sum, map_mul]
 end Relabelling
 section Field
@@ -2804,54 +2583,54 @@ theorem symmetricQuadratic_isHomogeneous (S : ι → ι → K) :
 omit [DecidableEq ι] in
 theorem dividedQuadratic_rename_equiv {κ : Type*} [Fintype κ] [DecidableEq κ]
     (e : ι ≃ κ) (S : κ → κ → K) (m : ℕ) :
-    MvPolynomial.rename e (dividedQuadratic (fun i j => S (e i) (e j)) m) =
+    mvRename e (dividedQuadratic (fun i j => S (e i) (e j)) m) =
       dividedQuadratic S m := by
   simp only [dividedQuadratic, symmetricQuadratic, map_mul, map_pow,
     MvPolynomial.rename_C, rawQuadratic_rename_equiv]
 theorem coeff_top_dividedQuadratic (m : ℕ) (S : Slots m → Slots m → K) :
-    MvPolynomial.coeff (topExponent (Slots m)) (dividedQuadratic S m) =
+    mvCoeff (topExponent (Slots m)) (dividedQuadratic S m) =
       ((2 : K) ^ m * (m.factorial : K))⁻¹ *
         ∑ σ : Equiv.Perm (Slots m), ∏ i : Fin m, S (σ ⟨i, 0⟩) (σ ⟨i, 1⟩) := by
   rw [dividedQuadratic, symmetricQuadratic, mul_pow, ← map_pow,
-    MvPolynomial.coeff_C_mul, MvPolynomial.coeff_C_mul, coeff_top_rawQuadratic_pow]
+    coeffCMul, coeffCMul, coeff_top_rawQuadratic_pow]
   simp only [mul_inv_rev, inv_pow, mul_assoc]
 theorem wickMoment_eq_coeff_dividedQuadratic (B : E →ₗ[K] E →ₗ[K] K)
     (m : ℕ) (v : Slots m → E) :
-    wickMoment B m v = MvPolynomial.coeff (topExponent (Slots m))
+    wickMoment B m v = mvCoeff (topExponent (Slots m))
       (dividedQuadratic (fun i j => B (v i) (v j)) m) := by
   rw [wickMoment_apply, coeff_top_dividedQuadratic]
 theorem centeredMoment_eq_coeff_dividedQuadratic (B : E →ₗ[K] E →ₗ[K] K)
-    (h : Even (Fintype.card ι)) (v : ι → E) :
-    centeredMoment B v = MvPolynomial.coeff (topExponent ι)
-      (dividedQuadratic (fun i j => B (v i) (v j)) (Fintype.card ι / 2)) := by
+    (h : Even (cardFt ι)) (v : ι → E) :
+    centeredMoment B v = mvCoeff (topExponent ι)
+      (dividedQuadratic (fun i j => B (v i) (v j)) (cardFt ι / 2)) := by
   rw [centeredMoment_of_even B h, wickMoment_eq_coeff_dividedQuadratic]
   rw [← coeff_top_rename_equiv (evenSlotsEquiv h)]
-  exact congrArg (MvPolynomial.coeff (topExponent ι))
+  exact congrArg (mvCoeff (topExponent ι))
     (dividedQuadratic_rename_equiv (evenSlotsEquiv h)
-      (fun i j => B (v i) (v j)) (Fintype.card ι / 2))
+      (fun i j => B (v i) (v j)) (cardFt ι / 2))
 variable [CharZero K]
 theorem coeff_top_divided_sum_factorization {κ : Type*} [Fintype κ] [DecidableEq κ]
     (P : MvPolynomial ι K) (Q : MvPolynomial κ K)
     (hP : P.IsHomogeneous 2) (_hQ : Q.IsHomogeneous 2) (m n : ℕ)
-    (hm : Fintype.card ι = 2 * m) (_hn : Fintype.card κ = 2 * n) :
-    MvPolynomial.coeff (topExponent (ι ⊕ κ))
+    (hm : cardFt ι = 2 * m) (_hn : cardFt κ = 2 * n) :
+    mvCoeff (topExponent (ι ⊕ κ))
       (MvPolynomial.C (((m + n).factorial : K)⁻¹) *
-        (MvPolynomial.rename Sum.inl P + MvPolynomial.rename Sum.inr Q) ^ (m + n)) =
-      MvPolynomial.coeff (topExponent ι) (MvPolynomial.C ((m.factorial : K)⁻¹) * P ^ m) *
-        MvPolynomial.coeff (topExponent κ) (MvPolynomial.C ((n.factorial : K)⁻¹) * Q ^ n) := by
-  rw [MvPolynomial.coeff_C_mul, coeff_top_sum_rename_pow]
+        (mvRename Sum.inl P + mvRename Sum.inr Q) ^ (m + n)) =
+      mvCoeff (topExponent ι) (MvPolynomial.C ((m.factorial : K)⁻¹) * P ^ m) *
+        mvCoeff (topExponent κ) (MvPolynomial.C ((n.factorial : K)⁻¹) * Q ^ n) := by
+  rw [coeffCMul, coeff_top_sum_rename_pow]
   have hsum : (∑ k ∈ Finset.range (m + n + 1), ((m + n).choose k : K) *
-      MvPolynomial.coeff (topExponent ι) (P ^ k) *
-      MvPolynomial.coeff (topExponent κ) (Q ^ (m + n - k))) =
-      ((m + n).choose m : K) * MvPolynomial.coeff (topExponent ι) (P ^ m) *
-        MvPolynomial.coeff (topExponent κ) (Q ^ n) := by
-    rw [Finset.sum_eq_single m]
+      mvCoeff (topExponent ι) (P ^ k) *
+      mvCoeff (topExponent κ) (Q ^ (m + n - k))) =
+      ((m + n).choose m : K) * mvCoeff (topExponent ι) (P ^ m) *
+        mvCoeff (topExponent κ) (Q ^ n) := by
+    rw [sumSingle m]
     · simp only [Nat.add_sub_cancel_left]
     · intro k _ hkm
       rw [coeff_top_pow_eq_zero P hP hm hkm, mul_zero, zero_mul]
     · intro h
       exact False.elim (h (Finset.mem_range.mpr (by omega)))
-  rw [hsum, MvPolynomial.coeff_C_mul, MvPolynomial.coeff_C_mul]
+  rw [hsum, coeffCMul, coeffCMul]
   have hfac : ((m + n).choose m : K) * (m.factorial : K) * (n.factorial : K) =
       ((m + n).factorial : K) := by
     exact_mod_cast (by simpa only [Nat.add_sub_cancel_left] using
@@ -2861,33 +2640,33 @@ theorem coeff_top_divided_sum_factorization {κ : Type*} [Fintype κ] [Decidable
   have hmn0 : ((m + n).factorial : K) ≠ 0 :=
     Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero (m + n))
   field_simp
-  linear_combination (MvPolynomial.coeff (topExponent ι) (P ^ m) *
-    MvPolynomial.coeff (topExponent κ) (Q ^ n)) * hfac
+  linear_combination (mvCoeff (topExponent ι) (P ^ m) *
+    mvCoeff (topExponent κ) (Q ^ n)) * hfac
 omit [CharZero K] [DecidableEq ι] in
 theorem symmetricQuadratic_blockCovariance {κ : Type*} [Fintype κ] [DecidableEq κ]
     (S : ι → ι → K) (T : κ → κ → K) :
     symmetricQuadratic (blockCovariance S T) =
-      MvPolynomial.rename Sum.inl (symmetricQuadratic S) +
-        MvPolynomial.rename Sum.inr (symmetricQuadratic T) := by
+      mvRename Sum.inl (symmetricQuadratic S) +
+        mvRename Sum.inr (symmetricQuadratic T) := by
   simp only [symmetricQuadratic, rawQuadratic_blockCovariance, map_mul,
     MvPolynomial.rename_C, mul_add]
 theorem coeff_top_divided_blockCovariance {κ : Type*} [Fintype κ] [DecidableEq κ]
     (S : ι → ι → K) (T : κ → κ → K) (m n : ℕ)
-    (hm : Fintype.card ι = 2 * m) (hn : Fintype.card κ = 2 * n) :
-    MvPolynomial.coeff (topExponent (ι ⊕ κ)) (dividedQuadratic (blockCovariance S T) (m + n)) =
-      MvPolynomial.coeff (topExponent ι) (dividedQuadratic S m) *
-        MvPolynomial.coeff (topExponent κ) (dividedQuadratic T n) := by
+    (hm : cardFt ι = 2 * m) (hn : cardFt κ = 2 * n) :
+    mvCoeff (topExponent (ι ⊕ κ)) (dividedQuadratic (blockCovariance S T) (m + n)) =
+      mvCoeff (topExponent ι) (dividedQuadratic S m) *
+        mvCoeff (topExponent κ) (dividedQuadratic T n) := by
   simp only [dividedQuadratic, symmetricQuadratic_blockCovariance]
   exact coeff_top_divided_sum_factorization _ _ (symmetricQuadratic_isHomogeneous S)
     (symmetricQuadratic_isHomogeneous T) m n hm hn
 omit [CharZero K] in
 theorem coeff_top_divided_blockCovariance_of_odd {κ : Type*}
     [Fintype κ] [DecidableEq κ] (S : ι → ι → K) (T : κ → κ → K)
-    (hodd : ¬Even (Fintype.card ι)) (m : ℕ) :
-    MvPolynomial.coeff (topExponent (ι ⊕ κ))
+    (hodd : ¬Even (cardFt ι)) (m : ℕ) :
+    mvCoeff (topExponent (ι ⊕ κ))
       (dividedQuadratic (blockCovariance S T) m) = 0 := by
   rw [dividedQuadratic, symmetricQuadratic_blockCovariance,
-    MvPolynomial.coeff_C_mul, coeff_top_sum_rename_pow]
+    coeffCMul, coeff_top_sum_rename_pow]
   simp only [coeff_top_pow_eq_zero_of_odd _ (symmetricQuadratic_isHomogeneous S) hodd,
     mul_zero, zero_mul, Finset.sum_const_zero]
 omit [CharZero K] in
@@ -2895,13 +2674,13 @@ theorem centeredMoment_relabel {κ : Type*} [Fintype κ] [DecidableEq κ]
     (B : E →ₗ[K] E →ₗ[K] K) (e : ι ≃ κ) (v : κ → E) :
     centeredMoment B (fun i => v (e i)) = centeredMoment B v := by
   have hc := Fintype.card_congr e
-  by_cases h : Even (Fintype.card ι)
-  · have hk : Even (Fintype.card κ) := hc ▸ h
+  by_cases h : Even (cardFt ι)
+  · have hk : Even (cardFt κ) := hc ▸ h
     rw [centeredMoment_eq_coeff_dividedQuadratic B h,
       centeredMoment_eq_coeff_dividedQuadratic B hk]
     rw [← coeff_top_rename_equiv e]
     rw [dividedQuadratic_rename_equiv e (fun i j => B (v i) (v j)), hc]
-  · have hk : ¬Even (Fintype.card κ) := by simpa only [hc] using h
+  · have hk : ¬Even (cardFt κ) := by simpa only [hc] using h
     simp only [centeredMoment_of_not_even _ h, centeredMoment_of_not_even _ hk]
 theorem centeredMoment_independent_replicas {κ : Type*} [Fintype κ] [DecidableEq κ]
     (B : E →ₗ[K] E →ₗ[K] K) (v : ι → E) (w : κ → E) :
@@ -2914,32 +2693,32 @@ theorem centeredMoment_independent_replicas {κ : Type*} [Fintype κ] [Decidable
       blockCovariance (fun i j => B (v i) (v j)) (fun i j => B (w i) (w j)) := by
     funext i j
     cases i <;> cases j <;> simp [blockCovariance]
-  by_cases hi : Even (Fintype.card ι)
-  · by_cases hk : Even (Fintype.card κ)
-    · have hi' : Fintype.card ι = 2 * (Fintype.card ι / 2) := by
+  by_cases hi : Even (cardFt ι)
+  · by_cases hk : Even (cardFt κ)
+    · have hi' : cardFt ι = 2 * (cardFt ι / 2) := by
         obtain ⟨m, hm⟩ := hi
         omega
-      have hk' : Fintype.card κ = 2 * (Fintype.card κ / 2) := by
+      have hk' : cardFt κ = 2 * (cardFt κ / 2) := by
         obtain ⟨m, hm⟩ := hk
         omega
-      have hsum : Even (Fintype.card (ι ⊕ κ)) := by
+      have hsum : Even (cardFt (ι ⊕ κ)) := by
         rw [Fintype.card_sum]
         exact hi.add hk
-      have hhalf : Fintype.card (ι ⊕ κ) / 2 =
-          Fintype.card ι / 2 + Fintype.card κ / 2 := by
+      have hhalf : cardFt (ι ⊕ κ) / 2 =
+          cardFt ι / 2 + cardFt κ / 2 := by
         rw [Fintype.card_sum]
         omega
       rw [centeredMoment_eq_coeff_dividedQuadratic _ hsum, hcov, hhalf,
         coeff_top_divided_blockCovariance _ _ _ _ hi' hk',
         centeredMoment_eq_coeff_dividedQuadratic B hi,
         centeredMoment_eq_coeff_dividedQuadratic B hk]
-    · have hs : ¬Even (Fintype.card (ι ⊕ κ)) := by
+    · have hs : ¬Even (cardFt (ι ⊕ κ)) := by
         simp only [Fintype.card_sum]
         intro h
         exact hk ((Nat.even_add.mp h).mp hi)
       simp only [centeredMoment_of_not_even _ hs,
         centeredMoment_of_not_even _ hk, mul_zero]
-  · by_cases hs : Even (Fintype.card (ι ⊕ κ))
+  · by_cases hs : Even (cardFt (ι ⊕ κ))
     · rw [centeredMoment_eq_coeff_dividedQuadratic _ hs, hcov,
         coeff_top_divided_blockCovariance_of_odd _ _ hi,
         centeredMoment_of_not_even _ hi, zero_mul]
@@ -2954,20 +2733,14 @@ open WickCovariance WickCoefficientBridge
 variable {R ι : Type*} [CommRing R] [Fintype ι] [DecidableEq ι]
 noncomputable def linearPolynomial (μ : ι → R) : MvPolynomial ι R :=
   ∑ i, MvPolynomial.C (μ i) * MvPolynomial.X i
-omit [DecidableEq ι] in
-theorem linearPolynomial_isHomogeneous (μ : ι → R) :
-    (linearPolynomial μ).IsHomogeneous 1 := by
-  apply MvPolynomial.IsHomogeneous.sum
-  intro i _
-  exact MvPolynomial.isHomogeneous_C_mul_X _ _
-theorem topExponent_multinomial : (topExponent ι).multinomial = (Fintype.card ι).factorial := by
+theorem topExponent_multinomial : (topExponent ι).multinomial = (cardFt ι).factorial := by
   rw [Finsupp.multinomial_eq_of_support_subset (Finset.subset_univ _)]
   simp [Nat.multinomial]
 theorem coeff_top_sum_X_pow (k : ℕ) :
-    MvPolynomial.coeff (topExponent ι) ((∑ i : ι, MvPolynomial.X i : MvPolynomial ι R) ^ k) =
-      if Fintype.card ι = k then ((Fintype.card ι).factorial : R) else 0 := by
+    mvCoeff (topExponent ι) ((∑ i : ι, MvPolynomial.X i : MvPolynomial ι R) ^ k) =
+      if cardFt ι = k then ((cardFt ι).factorial : R) else 0 := by
   rw [MvPolynomial.coeff_sum_X_pow_of_fintype, topExponent_multinomial]
-  have hd : (topExponent ι).sum (fun _ m => m) = Fintype.card ι :=
+  have hd : (topExponent ι).sum (fun _ m => m) = cardFt ι :=
     topExponent_degree (ι := ι)
   rw [hd]
   split_ifs <;> simp
@@ -2981,11 +2754,11 @@ omit [DecidableEq ι] in
 theorem rawQuadratic_auxiliaryCovariance {κ : Type*} [Fintype κ]
     (S : ι → ι → R) (μ : ι → R) :
     rawQuadratic (auxiliaryCovariance (κ := κ) S μ) =
-      MvPolynomial.rename Sum.inl (rawQuadratic S) +
-        2 * (MvPolynomial.rename Sum.inl (linearPolynomial μ) *
-          MvPolynomial.rename Sum.inr (∑ i : κ, MvPolynomial.X i)) := by
-  have hmul : MvPolynomial.rename Sum.inl (linearPolynomial μ) *
-      MvPolynomial.rename Sum.inr (∑ i : κ, MvPolynomial.X i) =
+      mvRename Sum.inl (rawQuadratic S) +
+        2 * (mvRename Sum.inl (linearPolynomial μ) *
+          mvRename Sum.inr (∑ i : κ, MvPolynomial.X i)) := by
+  have hmul : mvRename Sum.inl (linearPolynomial μ) *
+      mvRename Sum.inr (∑ i : κ, MvPolynomial.X i) =
       ∑ i : ι, ∑ j : κ,
         MvPolynomial.C (μ i) * MvPolynomial.X (Sum.inl i) * MvPolynomial.X (Sum.inr j) := by
     simp only [linearPolynomial, map_sum, map_mul, MvPolynomial.rename_C,
@@ -2995,7 +2768,7 @@ theorem rawQuadratic_auxiliaryCovariance {κ : Type*} [Fintype κ]
   simp only [rawQuadratic, auxiliaryCovariance, Fintype.sum_sum_type,
     MvPolynomial.C_0, zero_mul, Finset.sum_const_zero, add_zero,
     map_sum, map_mul, MvPolynomial.rename_C, MvPolynomial.rename_X,
-    Finset.sum_add_distrib]
+    sumAdd]
   rw [Finset.sum_comm (f := fun j : κ => fun i : ι =>
     MvPolynomial.C (μ i) * MvPolynomial.X (Sum.inr j) * MvPolynomial.X (Sum.inl i))]
   have hcross : (∑ i : ι, ∑ j : κ,
@@ -3015,54 +2788,54 @@ omit [DecidableEq ι] in
 theorem symmetricQuadratic_auxiliaryCovariance {κ : Type*} [Fintype κ]
     (S : ι → ι → K) (μ : ι → K) :
     symmetricQuadratic (auxiliaryCovariance (κ := κ) S μ) =
-      MvPolynomial.rename Sum.inl (symmetricQuadratic S) +
-        MvPolynomial.rename Sum.inl (linearPolynomial μ) *
-          MvPolynomial.rename Sum.inr (∑ i : κ, MvPolynomial.X i) := by
+      mvRename Sum.inl (symmetricQuadratic S) +
+        mvRename Sum.inl (linearPolynomial μ) *
+          mvRename Sum.inr (∑ i : κ, MvPolynomial.X i) := by
   rw [symmetricQuadratic, rawQuadratic_auxiliaryCovariance]
   simp only [symmetricQuadratic, map_mul, MvPolynomial.rename_C, mul_add]
   have htwo : (MvPolynomial.C ((2 : K)⁻¹) : MvPolynomial (ι ⊕ κ) K) * 2 = 1 := by
     rw [show (2 : MvPolynomial (ι ⊕ κ) K) = MvPolynomial.C (2 : K) from
         (map_ofNat MvPolynomial.C 2).symm,
       ← map_mul, inv_mul_cancel₀ (by norm_num : (2 : K) ≠ 0), map_one]
-  linear_combination (MvPolynomial.rename Sum.inl (linearPolynomial μ) *
-    MvPolynomial.rename Sum.inr (∑ i : κ, MvPolynomial.X i)) * htwo
+  linear_combination (mvRename Sum.inl (linearPolynomial μ) *
+    mvRename Sum.inr (∑ i : κ, MvPolynomial.X i)) * htwo
 theorem coeff_top_auxiliary_root {κ : Type*} [Fintype κ] [DecidableEq κ]
-    (Q L : MvPolynomial ι K) (k d : ℕ) (hd : Fintype.card κ = d) :
-    MvPolynomial.coeff (topExponent (ι ⊕ κ))
+    (Q L : MvPolynomial ι K) (k d : ℕ) (hd : cardFt κ = d) :
+    mvCoeff (topExponent (ι ⊕ κ))
       (MvPolynomial.C (((k + d).factorial : K)⁻¹) *
-        (MvPolynomial.rename Sum.inl Q +
-          MvPolynomial.rename Sum.inl L *
-            MvPolynomial.rename Sum.inr (∑ i : κ, MvPolynomial.X i)) ^ (k + d)) =
-      MvPolynomial.coeff (topExponent ι)
+        (mvRename Sum.inl Q +
+          mvRename Sum.inl L *
+            mvRename Sum.inr (∑ i : κ, MvPolynomial.X i)) ^ (k + d)) =
+      mvCoeff (topExponent ι)
         (MvPolynomial.C ((k.factorial : K)⁻¹) * L ^ d * Q ^ k) := by
-  rw [MvPolynomial.coeff_C_mul, add_comm (MvPolynomial.rename Sum.inl Q), add_pow,
+  rw [coeffCMul, add_comm (mvRename Sum.inl Q), add_pow,
     MvPolynomial.coeff_sum]
   have hterm : ∀ j : ℕ,
-      MvPolynomial.coeff (topExponent (ι ⊕ κ))
-        (((MvPolynomial.rename Sum.inl L *
-            MvPolynomial.rename Sum.inr (∑ i : κ, MvPolynomial.X i)) ^ j *
-          (MvPolynomial.rename Sum.inl Q) ^ (k + d - j)) *
+      mvCoeff (topExponent (ι ⊕ κ))
+        (((mvRename Sum.inl L *
+            mvRename Sum.inr (∑ i : κ, MvPolynomial.X i)) ^ j *
+          (mvRename Sum.inl Q) ^ (k + d - j)) *
           ((k + d).choose j : MvPolynomial (ι ⊕ κ) K)) =
         ((k + d).choose j : K) *
-          MvPolynomial.coeff (topExponent ι) (L ^ j * Q ^ (k + d - j)) *
+          mvCoeff (topExponent ι) (L ^ j * Q ^ (k + d - j)) *
             (if d = j then (d.factorial : K) else 0) := by
     intro j
     rw [show ((k + d).choose j : MvPolynomial (ι ⊕ κ) K) =
         MvPolynomial.C ((k + d).choose j : K) by simp]
-    rw [mul_comm (_ * _), MvPolynomial.coeff_C_mul]
-    have hpoly : ((MvPolynomial.rename Sum.inl L *
-        MvPolynomial.rename Sum.inr (∑ i : κ, MvPolynomial.X i)) ^ j *
-        (MvPolynomial.rename Sum.inl Q) ^ (k + d - j)) =
-        MvPolynomial.rename Sum.inl (L ^ j * Q ^ (k + d - j)) *
-          MvPolynomial.rename Sum.inr ((∑ i : κ, MvPolynomial.X i) ^ j) := by
+    rw [mul_comm (_ * _), coeffCMul]
+    have hpoly : ((mvRename Sum.inl L *
+        mvRename Sum.inr (∑ i : κ, MvPolynomial.X i)) ^ j *
+        (mvRename Sum.inl Q) ^ (k + d - j)) =
+        mvRename Sum.inl (L ^ j * Q ^ (k + d - j)) *
+          mvRename Sum.inr ((∑ i : κ, MvPolynomial.X i) ^ j) := by
       simp only [mul_pow, map_mul, map_pow]
       ring
     rw [hpoly, coeff_top_rename_mul_rename, coeff_top_sum_X_pow, hd]
     ring
   simp_rw [hterm]
-  rw [Finset.sum_eq_single d]
+  rw [sumSingle d]
   · simp only [Nat.add_sub_cancel_right, eq_self, ↓reduceIte]
-    rw [mul_assoc (MvPolynomial.C _) (L ^ d), MvPolynomial.coeff_C_mul]
+    rw [mul_assoc (MvPolynomial.C _) (L ^ d), coeffCMul]
     have hfac : ((k + d).choose d : K) * (d.factorial : K) * (k.factorial : K) =
         ((k + d).factorial : K) := by
       exact_mod_cast (by simpa only [Nat.add_sub_cancel_right] using
@@ -3071,7 +2844,7 @@ theorem coeff_top_auxiliary_root {κ : Type*} [Fintype κ] [DecidableEq κ]
     have hkd0 : ((k + d).factorial : K) ≠ 0 :=
       Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero (k + d))
     field_simp
-    linear_combination MvPolynomial.coeff (topExponent ι) (L ^ d * Q ^ k) * hfac
+    linear_combination mvCoeff (topExponent ι) (L ^ d * Q ^ k) * hfac
   · intro j _ hj
     rw [if_neg (Ne.symm hj), mul_zero]
   · intro h
@@ -3079,18 +2852,18 @@ theorem coeff_top_auxiliary_root {κ : Type*} [Fintype κ] [DecidableEq κ]
 theorem centeredMoment_isotropic_roots {κ E : Type*}
     [Fintype κ] [DecidableEq κ] [AddCommGroup E] [Module K E]
     (B : E →ₗ[K] E →ₗ[K] K) (v : ι → E) (g : E)
-    (k d : ℕ) (hi : Fintype.card ι = 2 * k + d) (hd : Fintype.card κ = d)
+    (k d : ℕ) (hi : cardFt ι = 2 * k + d) (hd : cardFt κ = d)
     (hgg : B g g = 0) (hcross : ∀ i, B (v i) g = B g (v i)) :
     centeredMoment B (Sum.elim v (fun _ : κ => g)) =
-      MvPolynomial.coeff (topExponent ι)
+      mvCoeff (topExponent ι)
         (MvPolynomial.C ((k.factorial : K)⁻¹) *
           linearPolynomial (fun i => B g (v i)) ^ d *
             symmetricQuadratic (fun i j => B (v i) (v j)) ^ k) := by
-  have heven : Even (Fintype.card (ι ⊕ κ)) := by
+  have heven : Even (cardFt (ι ⊕ κ)) := by
     refine ⟨k + d, ?_⟩
     simp only [Fintype.card_sum, hi, hd]
     omega
-  have hhalf : Fintype.card (ι ⊕ κ) / 2 = k + d := by
+  have hhalf : cardFt (ι ⊕ κ) / 2 = k + d := by
     simp only [Fintype.card_sum, hi, hd]
     omega
   have hcov : (fun i j => B (Sum.elim v (fun _ : κ => g) i)
@@ -3109,7 +2882,7 @@ open scoped BigOperators Classical
 open WickCovariance WickCoefficientBridge WickRootBridge
 variable {R ι : Type*} [CommRing R] [Fintype ι] [DecidableEq ι]
 noncomputable def subsetExponent (s : Finset ι) : ι →₀ ℕ :=
-  ∑ i ∈ s, Finsupp.single i 1
+  ∑ i ∈ s, fsSingle i 1
 omit [Fintype ι] in
 @[simp]
 theorem subsetExponent_apply (s : Finset ι) (i : ι) :
@@ -3158,9 +2931,9 @@ theorem antidiagonal_top_eq :
   · rintro ⟨s, rfl, rfl⟩
     exact subsetExponent_sum_compl s
 theorem coeff_top_mul (P Q : MvPolynomial ι R) :
-    MvPolynomial.coeff (topExponent ι) (P * Q) =
-      ∑ s : Finset ι, MvPolynomial.coeff (subsetExponent s) P *
-        MvPolynomial.coeff (subsetExponent sᶜ) Q := by
+    mvCoeff (topExponent ι) (P * Q) =
+      ∑ s : Finset ι, mvCoeff (subsetExponent s) P *
+        mvCoeff (subsetExponent sᶜ) Q := by
   rw [MvPolynomial.coeff_mul, antidiagonal_top_eq, Finset.sum_image]
   intro s _ t _ h
   exact subsetExponent_injective (congrArg Prod.fst h)
@@ -3177,8 +2950,8 @@ theorem subsetExponent_mapDomain (s : Finset ι) :
     · simpa using hi
 omit [Fintype ι] in
 theorem coeff_subset_eq_restrict (s : Finset ι) (P : MvPolynomial ι R) :
-    MvPolynomial.coeff (subsetExponent s) P =
-      MvPolynomial.coeff (topExponent {i // i ∈ s})
+    mvCoeff (subsetExponent s) P =
+      mvCoeff (topExponent {i // i ∈ s})
         (MvPolynomial.killCompl (Subtype.val_injective (p := fun i => i ∈ s)) P) := by
   rw [MvPolynomial.coeff_killCompl, subsetExponent_mapDomain]
 omit [Fintype ι] in
@@ -3193,7 +2966,7 @@ theorem subsetExponent_multinomial (s : Finset ι) :
   congr 1
   simp
 theorem coeff_subset_linearPolynomial_pow (μ : ι → R) (s : Finset ι) (d : ℕ) :
-    MvPolynomial.coeff (subsetExponent s) (linearPolynomial μ ^ d) =
+    mvCoeff (subsetExponent s) (linearPolynomial μ ^ d) =
       if s.card = d then (s.card.factorial : R) * ∏ i ∈ s, μ i else 0 := by
   have hlin : linearPolynomial μ = ∑ i : ι, μ i • (MvPolynomial.X i : MvPolynomial ι R) := by
     simp only [linearPolynomial, MvPolynomial.smul_eq_C_mul]
@@ -3209,7 +2982,7 @@ theorem restrict_X_of_mem (s : Finset ι) (i : ι) (hi : i ∈ s) :
     MvPolynomial.killCompl (Subtype.val_injective (p := fun i => i ∈ s))
       (MvPolynomial.X i : MvPolynomial ι R) = MvPolynomial.X (⟨i, hi⟩ : {i // i ∈ s}) := by
   have hrename : (MvPolynomial.X i : MvPolynomial ι R) =
-      MvPolynomial.rename Subtype.val (MvPolynomial.X (⟨i, hi⟩ : {i // i ∈ s})) := by simp
+      mvRename Subtype.val (MvPolynomial.X (⟨i, hi⟩ : {i // i ∈ s})) := by simp
   rw [hrename, MvPolynomial.killCompl_rename_app]
 omit [Fintype ι] [DecidableEq ι] in
 theorem restrict_X_of_not_mem (s : Finset ι) (i : ι) (hi : i ∉ s) :
@@ -3251,33 +3024,26 @@ theorem restrict_dividedQuadratic (s : Finset ι) (S : ι → ι → K) (k : ℕ
 omit [CharZero K] in
 theorem coeff_subset_dividedQuadratic (B : E →ₗ[K] E →ₗ[K] K) (v : ι → E)
     (s : Finset ι) (k : ℕ) (hk : s.card = 2 * k) :
-    MvPolynomial.coeff (subsetExponent s) (dividedQuadratic (fun i j => B (v i) (v j)) k) =
+    mvCoeff (subsetExponent s) (dividedQuadratic (fun i j => B (v i) (v j)) k) =
       centeredMoment B (fun i : {i // i ∈ s} => v i) := by
-  have hc : Fintype.card {i // i ∈ s} = 2 * k := by simpa using hk
-  have heven : Even (Fintype.card {i // i ∈ s}) := ⟨k, by omega⟩
+  have hc : cardFt {i // i ∈ s} = 2 * k := by simpa using hk
+  have heven : Even (cardFt {i // i ∈ s}) := ⟨k, by omega⟩
   rw [coeff_subset_eq_restrict, restrict_dividedQuadratic,
     centeredMoment_eq_coeff_dividedQuadratic _ heven]
   rw [hc, Nat.mul_div_right k (by omega : 0 < 2)]
-omit [CharZero K] in
-theorem coeff_subset_dividedQuadratic_of_ne (S : ι → ι → K)
-    (s : Finset ι) (k : ℕ) (hk : s.card ≠ 2 * k) :
-    MvPolynomial.coeff (subsetExponent s) (dividedQuadratic S k) = 0 := by
-  apply ((symmetricQuadratic_isHomogeneous S).pow k).C_mul _ |>.coeff_eq_zero
-  rw [subsetExponent_degree]
-  omega
 noncomputable def meanSlice (B : E →ₗ[K] E →ₗ[K] K) (μ : E →ₗ[K] K)
     (d : ℕ) (v : ι → E) : K :=
   ∑ s : Finset ι, if s.card = d then shiftedTerm B μ s v else 0
 omit [DecidableEq ι] in
 theorem meanSlice_eq_coeff (B : E →ₗ[K] E →ₗ[K] K) (μ : E →ₗ[K] K)
-    (v : ι → E) (d k : ℕ) (hcard : Fintype.card ι = d + 2 * k) :
+    (v : ι → E) (d k : ℕ) (hcard : cardFt ι = d + 2 * k) :
     meanSlice B μ d v =
-      MvPolynomial.coeff (topExponent ι)
+      mvCoeff (topExponent ι)
         (MvPolynomial.C ((d.factorial : K)⁻¹) *
           linearPolynomial (fun i => μ (v i)) ^ d *
             dividedQuadratic (fun i j => B (v i) (v j)) k) := by
   classical
-  rw [meanSlice, mul_assoc, MvPolynomial.coeff_C_mul, coeff_top_mul, Finset.mul_sum]
+  rw [meanSlice, mul_assoc, coeffCMul, coeff_top_mul, Finset.mul_sum]
   apply Finset.sum_congr rfl
   intro s _
   rw [coeff_subset_linearPolynomial_pow]
@@ -3301,12 +3067,12 @@ theorem meanSlice_eq_coeff (B : E →ₗ[K] E →ₗ[K] K) (μ : E →ₗ[K] K)
 omit [DecidableEq ι] [CharZero K] in
 theorem shiftedMoment_eq_sum_meanSlice (B : E →ₗ[K] E →ₗ[K] K)
     (μ : E →ₗ[K] K) (v : ι → E) :
-    shiftedMoment B μ v = ∑ d ∈ Finset.range (Fintype.card ι + 1), meanSlice B μ d v := by
+    shiftedMoment B μ v = ∑ d ∈ Finset.range (cardFt ι + 1), meanSlice B μ d v := by
   simp only [shiftedMoment_apply, meanSlice, shiftedTerm_apply]
   rw [Finset.sum_comm]
   apply Finset.sum_congr rfl
   intro s _
-  rw [Finset.sum_eq_single s.card]
+  rw [sumSingle s.card]
   · simp
   · intro d _ hd
     rw [if_neg (Ne.symm hd)]
@@ -3314,36 +3080,36 @@ theorem shiftedMoment_eq_sum_meanSlice (B : E →ₗ[K] E →ₗ[K] K)
     exact False.elim (h (Finset.mem_range.mpr (by have := Finset.card_le_univ s; omega)))
 omit [CharZero K] [DecidableEq ι] in
 theorem meanSlice_eq_zero_of_odd (B : E →ₗ[K] E →ₗ[K] K) (μ : E →ₗ[K] K)
-    (v : ι → E) (d : ℕ) (hodd : ¬Even (Fintype.card ι - d)) :
+    (v : ι → E) (d : ℕ) (hodd : ¬Even (cardFt ι - d)) :
     meanSlice B μ d v = 0 := by
   classical
   apply Finset.sum_eq_zero
   intro s _
   split_ifs with hs
   · rw [shiftedTerm_apply]
-    have hc : Fintype.card {i // i ∉ s} = Fintype.card ι - d := by
+    have hc : cardFt {i // i ∉ s} = cardFt ι - d := by
       simpa only [Finset.mem_compl, Fintype.card_coe, Finset.card_compl, hs] using
-        (show Fintype.card {i // i ∈ sᶜ} = sᶜ.card from Fintype.card_coe sᶜ)
+        (show cardFt {i // i ∈ sᶜ} = sᶜ.card from Fintype.card_coe sᶜ)
     rw [centeredMoment_of_not_even B (by simpa only [hc] using hodd), mul_zero]
   · rfl
 omit [DecidableEq ι] in
 theorem shiftedMoment_eq_coeff_sum (B : E →ₗ[K] E →ₗ[K] K)
     (μ : E →ₗ[K] K) (v : ι → E) :
     shiftedMoment B μ v =
-      ∑ d ∈ Finset.range (Fintype.card ι + 1),
-        if Even (Fintype.card ι - d) then
-          MvPolynomial.coeff (topExponent ι)
+      ∑ d ∈ Finset.range (cardFt ι + 1),
+        if Even (cardFt ι - d) then
+          mvCoeff (topExponent ι)
             (MvPolynomial.C ((d.factorial : K)⁻¹) *
               linearPolynomial (fun i => μ (v i)) ^ d *
-                dividedQuadratic (fun i j => B (v i) (v j)) ((Fintype.card ι - d) / 2))
+                dividedQuadratic (fun i j => B (v i) (v j)) ((cardFt ι - d) / 2))
         else 0 := by
   rw [shiftedMoment_eq_sum_meanSlice]
   apply Finset.sum_congr rfl
   intro d hd
-  by_cases heven : Even (Fintype.card ι - d)
+  by_cases heven : Even (cardFt ι - d)
   · rw [if_pos heven]
     apply meanSlice_eq_coeff
-    have hdn : d ≤ Fintype.card ι := by simpa using Finset.mem_range.mp hd
+    have hdn : d ≤ cardFt ι := by simpa using Finset.mem_range.mp hd
     obtain ⟨k, hk⟩ := heven
     omega
   · rw [if_neg heven, meanSlice_eq_zero_of_odd B μ v d heven]
@@ -3421,7 +3187,7 @@ theorem shiftedMoment_independent_replicas (B : E →ₗ[K] E →ₗ[K] K)
     _ = _ := by rw [Fintype.sum_prod_type, Finset.sum_mul_sum]
 omit [CharZero K] in
 theorem linearPolynomial_rename_equiv (e : ι ≃ κ) (μ : κ → K) :
-    MvPolynomial.rename e (WickRootBridge.linearPolynomial (fun i => μ (e i))) =
+    mvRename e (WickRootBridge.linearPolynomial (fun i => μ (e i))) =
       WickRootBridge.linearPolynomial μ := by
   simp only [WickRootBridge.linearPolynomial, map_sum, map_mul,
     MvPolynomial.rename_C, MvPolynomial.rename_X]
@@ -3435,7 +3201,7 @@ theorem shiftedMoment_relabel (B : E →ₗ[K] E →ₗ[K] K) (μ : E →ₗ[K] 
   intro d _
   split_ifs
   · rw [← coeff_top_rename_equiv e]
-    apply congrArg (MvPolynomial.coeff (topExponent κ))
+    apply congrArg (mvCoeff (topExponent κ))
     simp only [map_mul, map_pow, MvPolynomial.rename_C,
       linearPolynomial_rename_equiv e (fun i => μ (v i)),
       dividedQuadratic_rename_equiv e (fun i j => B (v i) (v j))]
@@ -3463,10 +3229,6 @@ theorem exists_common_factor (H : σ → MvPolynomial σ K)
   calc
     MvPolynomial.X a * H i = MvPolynomial.X i * H a := hcross a i
     _ = MvPolynomial.X a * (MvPolynomial.X i * q) := by rw [hq]; ring
-theorem common_factor_unique (H : σ → MvPolynomial σ K) {a : σ}
-    {q r : MvPolynomial σ K}
-    (hq : H a = MvPolynomial.X a * q) (hr : H a = MvPolynomial.X a * r) : q = r :=
-  mul_left_cancel₀ (MvPolynomial.X_ne_zero a) (hq.symm.trans hr)
 theorem mixed_response_eq_zero {H f : MvPolynomial σ K}
     (hf : f ≠ 0) (hreflection : f * H = 0) : H = 0 :=
   (mul_eq_zero.mp hreflection).resolve_left hf
@@ -3500,15 +3262,15 @@ theorem lineMap_scaleVariables (x : σ → K) (s : K) (g : MvPolynomial σ K) :
   exact RingHom.congr_fun hhom g
 omit [IsDomain K] in
 theorem eval_lineMap (x : σ → K) (t : K) (g : MvPolynomial σ K) :
-    (lineMap x g).eval t = MvPolynomial.eval (fun i => x i * t) g := by
+    (lineMap x g).eval t = mvEval (fun i => x i * t) g := by
   have hhom : (Polynomial.evalRingHom t).comp (lineMap x) =
-      MvPolynomial.eval (fun i => x i * t) := by
+      mvEval (fun i => x i * t) := by
     ext <;> simp [lineMap]
   exact RingHom.congr_fun hhom g
 theorem eq_one_of_rescaling_square [Infinite K] (g : MvPolynomial σ K) (s : K)
-    (hs : s ≠ 0) (hzero : MvPolynomial.eval (fun _ => 0) g = 1)
+    (hs : s ≠ 0) (hzero : mvEval (fun _ => 0) g = 1)
     (h : (scaleVariables s g) ^ 2 = g) : g = 1 := by
-  apply MvPolynomial.funext
+  apply mvFunext
   intro x
   have hline : lineMap x g = 1 := by
     apply polynomial_eq_one_of_rescaling_square _ s hs
@@ -3531,12 +3293,12 @@ theorem siteScalar_apply (a : K) :
     siteScalar (N := N) (D := D) a = project (MvPolynomial.C a) := rfl
 noncomputable def retainedCoefficient (p : V N) (ι : V N → Fin D)
     (q : SiteRing N D K) : K :=
-  MvPolynomial.coeff (wordExponent ι ((vertices N).erase p)) (Quotient.out q)
+  mvCoeff (wordExponent ι ((vertices N).erase p)) (Quotient.out q)
 @[simp]
 theorem retainedCoefficient_project (p : V N) (ι : V N → Fin D)
     (P : MatchingPolynomial N D K) :
     retainedCoefficient p ι (project P) =
-      MvPolynomial.coeff (wordExponent ι ((vertices N).erase p)) P := by
+      mvCoeff (wordExponent ι ((vertices N).erase p)) P := by
   apply coeff_eq_of_project_eq ι _ ((vertices_nodup N).erase p)
   exact Ideal.Quotient.mk_out (project P)
 noncomputable def retainedCoefficientHom (p : V N) (ι : V N → Fin D) :
@@ -3565,7 +3327,7 @@ theorem retainedCoefficient_scalar_mul (p : V N) (ι : V N → Fin D)
   calc
     _ = retainedCoefficient p ι (project (MvPolynomial.C a * P)) :=
       congrArg (retainedCoefficient p ι) (map_mul project (MvPolynomial.C a) P).symm
-    _ = _ := by rw [retainedCoefficient_project, MvPolynomial.coeff_C_mul,
+    _ = _ := by rw [retainedCoefficient_project, coeffCMul,
       retainedCoefficient_project]
 abbrev ParameterTensor (N D : ℕ) (K : Type*) [CommRing K] :=
   MvPolynomial (Fin D) (SiteRing N D K)
@@ -3575,20 +3337,20 @@ noncomputable def coefficientPolynomial (p : V N) (ι : V N → Fin D)
 @[simp]
 theorem coeff_coefficientPolynomial (p : V N) (ι : V N → Fin D)
     (T : ParameterTensor N D K) (s : Fin D →₀ ℕ) :
-    MvPolynomial.coeff s (coefficientPolynomial p ι T) =
-      retainedCoefficient p ι (MvPolynomial.coeff s T) :=
+    mvCoeff s (coefficientPolynomial p ι T) =
+      retainedCoefficient p ι (mvCoeff s T) :=
   MvPolynomial.coeff_addMonoidAlgebraMap _ _ _
 theorem eval_coefficientPolynomial (p : V N) (ι : V N → Fin D)
     (T : ParameterTensor N D K) (a : Fin D → K) :
-    MvPolynomial.eval a (coefficientPolynomial p ι T) =
-      retainedCoefficient p ι (MvPolynomial.eval (fun i => siteScalar (a i)) T) := by
+    mvEval a (coefficientPolynomial p ι T) =
+      retainedCoefficient p ι (mvEval (fun i => siteScalar (a i)) T) := by
   classical
   induction T using MvPolynomial.induction_on' with
   | monomial m c =>
     unfold coefficientPolynomial
     have hmap : AddMonoidAlgebra.map (retainedCoefficientHom p ι)
-        (MvPolynomial.monomial m c) =
-        MvPolynomial.monomial m (retainedCoefficient p ι c) :=
+        (mvMono m c) =
+        mvMono m (retainedCoefficient p ι c) :=
       AddMonoidAlgebra.map_single _ _ _
     rw [hmap, MvPolynomial.eval_monomial, MvPolynomial.eval_monomial]
     have hprod : m.prod (fun i n => siteScalar (N := N) (D := D) (a i) ^ n) =
@@ -3599,10 +3361,10 @@ theorem eval_coefficientPolynomial (p : V N) (ι : V N → Fin D)
     ring
   | add P Q ih ih' =>
     have hadd : retainedCoefficient p ι
-        (MvPolynomial.eval (fun i => siteScalar (a i)) P +
-          MvPolynomial.eval (fun i => siteScalar (a i)) Q) =
-        retainedCoefficient p ι (MvPolynomial.eval (fun i => siteScalar (a i)) P) +
-          retainedCoefficient p ι (MvPolynomial.eval (fun i => siteScalar (a i)) Q) :=
+        (mvEval (fun i => siteScalar (a i)) P +
+          mvEval (fun i => siteScalar (a i)) Q) =
+        retainedCoefficient p ι (mvEval (fun i => siteScalar (a i)) P) +
+          retainedCoefficient p ι (mvEval (fun i => siteScalar (a i)) Q) :=
       (retainedCoefficientHom p ι).map_add _ _
     simp only [coefficientPolynomial, AddMonoidAlgebra.map_add, map_add] at ih ih' ⊢
     rw [hadd, ih, ih']
@@ -3639,15 +3401,15 @@ noncomputable def oddResponsePolynomial (W : WeightsN N D K) (p : V N)
   coefficientPolynomial p ι (oddResponseTensor W p k r)
 omit [CharZero K] in
 theorem eval_parameterRow (W : WeightsN N D K) (p : V N) (a : Fin D → K) :
-    MvPolynomial.eval (fun i => siteScalar (N := N) (D := D) (a i)) (parameterRow W p) =
+    mvEval (fun i => siteScalar (N := N) (D := D) (a i)) (parameterRow W p) =
       project (rowAt W p a) := by
   classical
   unfold parameterRow rowAt rootFamilyRow
-  simp only [map_sum, map_mul, MvPolynomial.eval_X, MvPolynomial.eval_C, siteScalar_apply]
+  simp only [map_sum, map_mul, evalVar, MvPolynomial.eval_C, siteScalar_apply]
 omit [CharZero K] in
 theorem eval_oddResponseTensor (W : WeightsN N D K) (p : V N)
     (k r : ℕ) (a : Fin D → K) :
-    MvPolynomial.eval (fun i => siteScalar (N := N) (D := D) (a i))
+    mvEval (fun i => siteScalar (N := N) (D := D) (a i))
       (oddResponseTensor W p k r) = oddResponse W p k r a := by
   unfold oddResponseTensor oddResponse
   by_cases hr : r ≤ k
@@ -3659,7 +3421,7 @@ theorem eval_oddResponseTensor (W : WeightsN N D K) (p : V N)
 omit [CharZero K] in
 theorem eval_oddResponsePolynomial (W : WeightsN N D K) (p : V N)
     (k r : ℕ) (ι : V N → Fin D) (a : Fin D → K) :
-    MvPolynomial.eval a (oddResponsePolynomial W p k r ι) =
+    mvEval a (oddResponsePolynomial W p k r ι) =
       retainedCoefficient p ι (oddResponse W p k r a) := by
   rw [oddResponsePolynomial, eval_coefficientPolynomial, eval_oddResponseTensor]
 theorem oddResponse_zero (k : ℕ) (W : WeightsN (2 * (k + 1)) D K)
@@ -3668,10 +3430,6 @@ theorem oddResponse_zero (k : ℕ) (W : WeightsN (2 * (k + 1)) D K)
   simp only [oddResponse, Nat.zero_le, if_true, Nat.sub_zero, Nat.mul_zero,
     zero_add, pow_one, rowAt, siteScalar_apply]
   exact rootFamily_response_eq_pure k W hW p _
-omit [CharZero K] in
-theorem oddResponse_terminal (W : WeightsN N D K) (p : V N) (k : ℕ) (a : Fin D → K) :
-    oddResponse W p k k a = project (rowAt W p a ^ (2 * k + 1)) := by
-  simp [oddResponse]
 omit [CharZero K] in
 @[simp]
 theorem oddResponse_above_terminal (W : WeightsN N D K) (p : V N)
@@ -3745,9 +3503,9 @@ theorem oddResponsePolynomial_zero_pure (k : ℕ) (W : WeightsN (2 * (k + 1)) D 
     intro hh
     subst q
     exact (vertices_nodup _).not_mem_erase hq
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
-  rw [eval_oddResponsePolynomial, oddResponse_zero k W hW p a, MvPolynomial.eval_X]
+  rw [eval_oddResponsePolynomial, oddResponse_zero k W hW p a, evalVar]
   have hsum : retainedCoefficient p (fun _ => h)
       (∑ i : Fin D, siteScalar (a i) * project (pureRootWord p i)) =
       ∑ i : Fin D, retainedCoefficient p (fun _ => h)
@@ -3773,7 +3531,7 @@ theorem pure_response_factor_homogeneous (W : WeightsN N D K) (p : V N) (k r : �
   intro m hm
   have hpoly := oddResponsePolynomial_homogeneous W p k r (fun _ => i)
   rw [hq] at hpoly
-  have hc : MvPolynomial.coeff (Finsupp.single i 1 + m) (MvPolynomial.X i * q) ≠ 0 := by
+  have hc : mvCoeff (fsSingle i 1 + m) (MvPolynomial.X i * q) ≠ 0 := by
     rw [MvPolynomial.coeff_X_mul]
     exact hm
   have hd := hpoly hc
@@ -3791,18 +3549,18 @@ noncomputable def finiteScalarFactor (k : ℕ) (q : ℕ → MvPolynomial (Fin D)
 omit [CharZero K] in
 theorem finiteScalarFactor_eval_zero (k : ℕ) (q : ℕ → MvPolynomial (Fin D) K)
     (hq : ∀ r ≤ k, MvPolynomial.IsWeightedHomogeneous (fun _ : Fin D => (1 : ℕ)) (q r) (2 * r))
-    (hzero : q 0 = 1) : MvPolynomial.eval (fun _ => 0) (finiteScalarFactor k q) = 1 := by
+    (hzero : q 0 = 1) : mvEval (fun _ => 0) (finiteScalarFactor k q) = 1 := by
   classical
   unfold finiteScalarFactor
-  rw [map_sum, Finset.sum_eq_single 0]
+  rw [map_sum, sumSingle 0]
   · simp [hzero]
   · intro r hr hr0
     have hrk : r ≤ k := by
       have := Finset.mem_range.mp hr
       omega
-    have heval : MvPolynomial.eval (fun _ => 0) (q r) = 0 := by
+    have heval : mvEval (fun _ => 0) (q r) = 0 := by
       rw [MvPolynomial.eval_zero']
-      change MvPolynomial.coeff 0 (q r) = 0
+      change mvCoeff 0 (q r) = 0
       exact (hq r hrk).coeff_eq_zero 0 (by simp only [map_zero]; omega)
     rw [map_mul, MvPolynomial.eval_C, heval, mul_zero]
   · simp
@@ -3821,7 +3579,7 @@ theorem factors_zero_of_finiteScalarFactor_eq_one (k : ℕ)
   let w := fun _ : Fin D => (1 : ℕ)
   have hh := congrArg (MvPolynomial.weightedHomogeneousComponent w (2 * r)) hsum
   unfold finiteScalarFactor at hh
-  rw [map_sum, Finset.sum_eq_single r] at hh
+  rw [map_sum, sumSingle r] at hh
   · have hsame : MvPolynomial.weightedHomogeneousComponent w (2 * r)
         (MvPolynomial.C (((2 * r + 1).factorial : K)⁻¹) * q r) =
         MvPolynomial.C (((2 * r + 1).factorial : K)⁻¹) * q r :=
@@ -3842,23 +3600,6 @@ theorem factors_zero_of_finiteScalarFactor_eq_one (k : ℕ)
     exact hhom.weightedHomogeneousComponent_ne (2 * r) (by omega)
   · intro hnot
     exact False.elim (hnot (Finset.mem_range.mpr (by omega)))
-theorem factors_zero_of_rescaling_square (k : ℕ)
-    (q : ℕ → MvPolynomial (Fin D) K)
-    (hq : ∀ r ≤ k, MvPolynomial.IsWeightedHomogeneous (fun _ : Fin D => (1 : ℕ)) (q r) (2 * r))
-    (s : K) (hs : s ≠ 0)
-    (hzero : MvPolynomial.eval (fun _ => 0) (finiteScalarFactor k q) = 1)
-    (hrotation : (FiniteResponseRigidity.scaleVariables s (finiteScalarFactor k q)) ^ 2 =
-      finiteScalarFactor k q) (r : ℕ) (hr : r ≤ k) (hpos : 0 < r) : q r = 0 := by
-  have hg := FiniteResponseRigidity.eq_one_of_rescaling_square _ s hs hzero hrotation
-  exact factors_zero_of_finiteScalarFactor_eq_one k q hq hg r hr hpos
-theorem factors_zero_of_normalized_rotation (k : ℕ)
-    (q : ℕ → MvPolynomial (Fin D) K)
-    (hq : ∀ r ≤ k, MvPolynomial.IsWeightedHomogeneous (fun _ : Fin D => (1 : ℕ)) (q r) (2 * r))
-    (hzero : q 0 = 1) (s : K) (hs : s ≠ 0)
-    (hrotation : (FiniteResponseRigidity.scaleVariables s (finiteScalarFactor k q)) ^ 2 =
-      finiteScalarFactor k q) (r : ℕ) (hr : r ≤ k) (hpos : 0 < r) : q r = 0 :=
-  factors_zero_of_rescaling_square k q hq s hs (finiteScalarFactor_eval_zero k q hq hzero)
-    hrotation r hr hpos
 end Field
 end Krenn.OddResponseVanishing
 -- formal/all-orders/ReflectionResponses.lean
@@ -4132,14 +3873,14 @@ noncomputable def rootPolynomial [Fintype κ]
     (f : MultilinearMap R (fun _ : κ => F) R) (X Y : F) : MvPolynomial (Fin 2) R :=
   ∑ A : Finset κ,
     MvPolynomial.C (f (A.piecewise (fun _ => Y) (fun _ => X))) *
-      MvPolynomial.X 0 ^ (Fintype.card κ - A.card) * MvPolynomial.X 1 ^ A.card
+      MvPolynomial.X 0 ^ (cardFt κ - A.card) * MvPolynomial.X 1 ^ A.card
 theorem eval_rootPolynomial [Fintype κ]
     (f : MultilinearMap R (fun _ : κ => F) R) (X Y : F) (s t : R) :
-    MvPolynomial.eval (fun i => if i = 0 then s else t) (rootPolynomial f X Y) =
+    mvEval (fun i => if i = 0 then s else t) (rootPolynomial f X Y) =
       f (fun _ => s • X + t • Y) := by
   classical
   unfold rootPolynomial
-  simp only [map_sum, map_mul, MvPolynomial.eval_C, map_pow, MvPolynomial.eval_X,
+  simp only [map_sum, map_mul, MvPolynomial.eval_C, map_pow, evalVar,
     ite_true, show (1 : Fin 2) ≠ 0 by decide, ite_false]
   rw [show (fun _ : κ => s • X + t • Y) =
       (fun _ => t • Y) + (fun _ => s • X) by funext i; simp [add_comm]]
@@ -4153,7 +3894,7 @@ theorem eval_rootPolynomial [Fintype κ]
     by_cases hi : i ∈ A <;> simp [Finset.piecewise, hi]
   rw [hv, f.map_smul_univ]
   have hp : (∏ i : κ, if i ∈ A then t else s) =
-      t ^ A.card * s ^ (Fintype.card κ - A.card) := by
+      t ^ A.card * s ^ (cardFt κ - A.card) := by
     rw [Finset.prod_ite]
     have hA : Finset.univ.filter (fun i : κ => i ∈ A) = A := by ext i; simp
     have hAc : Finset.univ.filter (fun i : κ => i ∉ A) = Aᶜ := by ext i; simp
@@ -4166,12 +3907,12 @@ theorem rootPolynomial_reflectedMoment_eq_zero [Fintype κ] [CharZero R]
   let P := rootPolynomial (reflectedMoment B n u v (κ := κ)) (L, 0) (0, L)
   let δ : MvPolynomial (Fin 2) R := MvPolynomial.X 0 ^ 2 + MvPolynomial.X 1 ^ 2
   have hzero : δ * P = 0 := by
-    apply MvPolynomial.funext
+    apply mvFunext
     intro z
     have hz : (fun i : Fin 2 => if i = 0 then z 0 else z 1) = z := by
       funext i
       fin_cases i <;> rfl
-    have he : MvPolynomial.eval z P =
+    have he : mvEval z P =
         reflectedMoment B n u v (fun _ : κ => (z 0 • L, z 1 • L)) := by
       rw [← hz]
       rw [eval_rootPolynomial]
@@ -4180,15 +3921,15 @@ theorem rootPolynomial_reflectedMoment_eq_zero [Fintype κ] [CharZero R]
       simp
     simp only [map_mul, map_zero]
     by_cases hh : z 0 ^ 2 + z 1 ^ 2 = 0
-    · have hd : MvPolynomial.eval z δ = 0 := by simpa [δ] using hh
+    · have hd : mvEval z δ = 0 := by simpa [δ] using hh
       rw [hd, zero_mul]
     · rw [he, reflectedMoment_const_eq_zero B n hn u v L (z 0) (z 1) hh, mul_zero]
   have hδ : δ ≠ 0 := by
     intro h
-    have he := congrArg (MvPolynomial.eval (fun i : Fin 2 => if i = 0 then (1 : R) else 0)) h
+    have he := congrArg (mvEval (fun i : Fin 2 => if i = 0 then (1 : R) else 0)) h
     norm_num [δ] at he
   exact (mul_eq_zero.mp hzero).resolve_left hδ
-noncomputable def twoExponent (a b : ℕ) : Fin 2 →₀ ℕ := Finsupp.single 0 a + Finsupp.single 1 b
+noncomputable def twoExponent (a b : ℕ) : Fin 2 →₀ ℕ := fsSingle 0 a + fsSingle 1 b
 theorem twoExponent_eq_iff (a b c d : ℕ) :
     twoExponent a b = twoExponent c d ↔ a = c ∧ b = d := by
   constructor
@@ -4200,24 +3941,24 @@ theorem twoExponent_eq_iff (a b c d : ℕ) :
     rfl
 theorem X_pow_mul_X_pow (a b : ℕ) :
     (MvPolynomial.X 0 ^ a * MvPolynomial.X 1 ^ b : MvPolynomial (Fin 2) R) =
-      MvPolynomial.monomial (twoExponent a b) 1 := by
+      mvMono (twoExponent a b) 1 := by
   rw [MvPolynomial.X_pow_eq_monomial, MvPolynomial.X_pow_eq_monomial,
     MvPolynomial.monomial_mul]
   simp only [one_mul]
   rfl
 theorem coeff_rootPolynomial_one [Fintype κ]
     (f : MultilinearMap R (fun _ : κ => F) R) (X Y : F) :
-    MvPolynomial.coeff (twoExponent (Fintype.card κ - 1) 1) (rootPolynomial f X Y) =
+    mvCoeff (twoExponent (cardFt κ - 1) 1) (rootPolynomial f X Y) =
       ∑ i : κ, f (Function.update (fun _ : κ => X) i Y) := by
   classical
   unfold rootPolynomial
   rw [MvPolynomial.coeff_sum]
   have heach (A : Finset κ) :
-      MvPolynomial.coeff (twoExponent (Fintype.card κ - 1) 1)
+      mvCoeff (twoExponent (cardFt κ - 1) 1)
         (MvPolynomial.C (f (A.piecewise (fun _ => Y) (fun _ => X))) *
-          MvPolynomial.X 0 ^ (Fintype.card κ - A.card) * MvPolynomial.X 1 ^ A.card) =
+          MvPolynomial.X 0 ^ (cardFt κ - A.card) * MvPolynomial.X 1 ^ A.card) =
       if A.card = 1 then f (A.piecewise (fun _ => Y) (fun _ => X)) else 0 := by
-    rw [mul_assoc, X_pow_mul_X_pow, MvPolynomial.coeff_C_mul]
+    rw [mul_assoc, X_pow_mul_X_pow, coeffCMul]
     simp only [MvPolynomial.coeff_monomial, twoExponent_eq_iff]
     by_cases hA : A.card = 1
     · simp [hA]
@@ -4259,7 +4000,7 @@ theorem one_root_replacement_eq_zero [Fintype κ] [CharZero R]
   have he (i : κ) := symmetric_one_root_replacements _ hs (L, 0) (0, L) i j
   simp_rw [he] at h
   simp only [Finset.sum_const, Finset.card_univ, nsmul_eq_mul] at h
-  have hc : (Fintype.card κ : R) ≠ 0 := by
+  have hc : (cardFt κ : R) ≠ 0 := by
     apply Nat.cast_ne_zero.mpr
     exact Nat.ne_of_gt (Fintype.card_pos_iff.mpr ⟨j⟩)
   exact (mul_eq_zero.mp h).resolve_left hc
@@ -4283,16 +4024,16 @@ def sign (w : ι → Bool) : R := ∏ i, if w i then (-1 : R) else 1
 noncomputable def pairing (P Q : Tensor ι R) : R :=
   ∑ w : ι → Bool, sign w * P w * Q (complement w)
 @[simp] theorem sign_false : sign (fun _ : ι => false) = (1 : R) := by simp [sign]
-@[simp] theorem sign_true : sign (fun _ : ι => true) = (-1 : R) ^ Fintype.card ι := by
+@[simp] theorem sign_true : sign (fun _ : ι => true) = (-1 : R) ^ cardFt ι := by
   simp [sign]
 theorem sign_complement (w : ι → Bool) :
-    sign (complement w) = (-1 : R) ^ Fintype.card ι * sign w := by
+    sign (complement w) = (-1 : R) ^ cardFt ι * sign w := by
   have heach (i : ι) : (if complement w i then (-1 : R) else 1) =
       (-1 : R) * (if w i then -1 else 1) := by
     cases h : w i <;> simp [complement, h]
   simp only [sign, heach, Finset.prod_mul_distrib, Finset.prod_const, Finset.card_univ]
 theorem pairing_swap (P Q : Tensor ι R) :
-    pairing Q P = (-1 : R) ^ Fintype.card ι * pairing P Q := by
+    pairing Q P = (-1 : R) ^ cardFt ι * pairing P Q := by
   rw [pairing, ← Equiv.sum_comp (complementEquiv (ι := ι))]
   change (∑ w : ι → Bool, sign (complement w) * Q (complement w) *
     P (complement (complement w))) = _
@@ -4303,10 +4044,10 @@ theorem pairing_swap (P Q : Tensor ι R) :
   ring
 theorem pairing_add_left (P Q U : Tensor ι R) :
     pairing (P + Q) U = pairing P U + pairing Q U := by
-  simp only [pairing, Pi.add_apply, mul_add, add_mul, Finset.sum_add_distrib]
+  simp only [pairing, Pi.add_apply, mul_add, add_mul, sumAdd]
 theorem pairing_add_right (P Q U : Tensor ι R) :
     pairing P (Q + U) = pairing P Q + pairing P U := by
-  simp only [pairing, Pi.add_apply, mul_add, Finset.sum_add_distrib]
+  simp only [pairing, Pi.add_apply, mul_add, sumAdd]
 theorem pairing_smul_left (c : R) (P Q : Tensor ι R) :
     pairing (c • P) Q = c * pairing P Q := by
   simp only [pairing, Pi.smul_apply, smul_eq_mul, Finset.mul_sum]
@@ -4324,7 +4065,7 @@ theorem pairing_pure_left (b : Bool) (P : Tensor ι R) :
     pairing (pure b) P = sign (fun _ : ι => b) * P (fun _ => !b) := by
   classical
   simp only [pairing, pure]
-  rw [Finset.sum_eq_single (fun _ : ι => b)]
+  rw [sumSingle (fun _ : ι => b)]
   · simp only [ite_true, mul_one]
     rfl
   · intro w _ hw
@@ -4334,7 +4075,7 @@ theorem pairing_pure_false (P : Tensor ι R) : pairing (pure false) P = P (fun _
   rw [pairing_pure_left]
   simp
 theorem pairing_pure_true (P : Tensor ι R) :
-    pairing (pure true) P = (-1 : R) ^ Fintype.card ι * P (fun _ => false) := by
+    pairing (pure true) P = (-1 : R) ^ cardFt ι * P (fun _ => false) := by
   rw [pairing_pure_left]
   simp
 omit [Fintype ι] in
@@ -4352,7 +4093,7 @@ theorem pairing_pure_right (P : Tensor ι R) (b : Bool) :
     pairing P (pure b) = sign (fun _ : ι => !b) * P (fun _ => !b) := by
   classical
   simp only [pairing, pure, complement_eq_constant_iff]
-  rw [Finset.sum_eq_single (fun _ : ι => !b)]
+  rw [sumSingle (fun _ : ι => !b)]
   · simp
   · intro w _ hw
     simp [hw]
@@ -4362,7 +4103,7 @@ theorem pairing_right_pure_true (P : Tensor ι R) :
   rw [pairing_pure_right]
   simp
 theorem pairing_right_pure_false (P : Tensor ι R) :
-    pairing P (pure false) = (-1 : R) ^ Fintype.card ι * P (fun _ => true) := by
+    pairing P (pure false) = (-1 : R) ^ cardFt ι * P (fun _ => true) := by
   rw [pairing_pure_right]
   simp
 noncomputable def bilinearPairing : Tensor ι R →ₗ[R] Tensor ι R →ₗ[R] R where
@@ -4380,20 +4121,20 @@ noncomputable def bilinearPairing : Tensor ι R →ₗ[R] Tensor ι R →ₗ[R] 
     exact pairing_smul_left c P Q
 theorem pairing_pure_combinations [Nonempty ι] (a b c d : R) :
     pairing (a • pure false + b • pure true : Tensor ι R)
-      (c • pure false + d • pure true) = a * d + (-1 : R) ^ Fintype.card ι * b * c := by
+      (c • pure false + d • pure true) = a * d + (-1 : R) ^ cardFt ι * b * c := by
   rw [pairing_add_left, pairing_smul_left, pairing_smul_left,
     pairing_pure_false, pairing_pure_true]
   simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]
   simp only [pure, funext_iff, Bool.false_eq_true, Bool.true_eq_false,
     forall_const, ite_false, ite_true, mul_zero, mul_one, zero_add, add_zero]
   ring
-theorem pairing_pure_combinations_odd [Nonempty ι] (hodd : Odd (Fintype.card ι))
+theorem pairing_pure_combinations_odd [Nonempty ι] (hodd : Odd (cardFt ι))
     (a b c d : R) :
     pairing (a • pure false + b • pure true : Tensor ι R)
       (c • pure false + d • pure true) = a * d - b * c := by
   rw [pairing_pure_combinations, hodd.neg_one_pow]
   ring
-theorem pairing_symmetric_of_even (heven : Even (Fintype.card ι)) (P Q : Tensor ι R) :
+theorem pairing_symmetric_of_even (heven : Even (cardFt ι)) (P Q : Tensor ι R) :
     pairing P Q = pairing Q P := by
   rw [pairing_swap, heven.neg_one_pow, one_mul]
 end Krenn.BinaryPairing
@@ -4434,7 +4175,7 @@ theorem contractSites_expansion (n : ℕ)
       wordSign, wordInputs, contractSite, pairAlternation, pairValue_eq, sub_apply,
       MultilinearMap.currySum_apply', ite_true, Bool.false_eq_true, ite_false]
     simp only [one_mul, neg_one_mul, smul_sub, neg_smul]
-    rw [← Finset.sum_add_distrib]
+    rw [← sumAdd]
     apply Finset.sum_congr rfl
     intro w _
     module
@@ -4761,13 +4502,6 @@ theorem response_pairing_diagonal {n : ℕ} (B : E →ₗ[K] E →ₗ[K] K)
       BinaryPairing.pairing (responseTensor B 0 u v) (responseTensor B (s • μ) u v) := by
   simp only [← contractedShifted_eq_pairing]
   exact contractedShifted_diagonal B μ u v s hs
-theorem response_pairing_diagonal_line {n : ℕ} (B : E →ₗ[K] E →ₗ[K] K)
-    (μ ν : E →ₗ[K] K) (u v : Fin n → E) (s : K) (hs : s * s = 2) (t : K) :
-    BinaryPairing.pairing (responseTensor B (μ + t • ν) u v)
-      (responseTensor B (μ + t • ν) u v) =
-      BinaryPairing.pairing (responseTensor B 0 u v)
-        (responseTensor B (s • (μ + t • ν)) u v) :=
-  response_pairing_diagonal B (μ + t • ν) u v s hs
 end Krenn.WickPairing
 -- formal/all-orders/WickFinitePairing.lean
 namespace Krenn.WickFinitePairing
@@ -4830,13 +4564,6 @@ theorem response_pairing_diagonal (B : E →ₗ[K] E →ₗ[K] K)
   have h := response_pairing_rotation B μ μ u v (s / 2) (s / 2) hab
   rw [sub_self, ← add_smul, show s / 2 + s / 2 = s by ring] at h
   exact h.symm
-theorem response_pairing_diagonal_line (B : E →ₗ[K] E →ₗ[K] K)
-    (μ ν : E →ₗ[K] K) (u v : ι → E) (s : K) (hs : s * s = 2) (t : K) :
-    BinaryPairing.pairing (responseTensor B (μ + t • ν) u v)
-      (responseTensor B (μ + t • ν) u v) =
-      BinaryPairing.pairing (responseTensor B 0 u v)
-        (responseTensor B (s • (μ + t • ν)) u v) :=
-  response_pairing_diagonal B (μ + t • ν) u v s hs
 end Krenn.WickFinitePairing
 -- formal/all-orders/OddRotation.lean
 namespace Krenn.OddRotation
@@ -4892,7 +4619,7 @@ theorem cancel_alternating_rotation (g : MvPolynomial σ K) {i j : σ}
         (a i * b j - a j * b i) * (eval a g * eval b g)) :
     rotatedLeft s g * rotatedRight s g = leftCopy g * rightCopy g := by
   apply mul_left_cancel₀ (alternatingFactor_ne_zero hij)
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   simpa only [map_mul, eval_rotatedLeft, eval_rotatedRight, eval_leftCopy,
     eval_rightCopy, alternatingFactor, map_sub, eval_X] using
@@ -4905,7 +4632,7 @@ theorem rescaling_square_of_alternating_rotation (g : MvPolynomial σ K) {i j : 
         (a i * b j - a j * b i) * (eval a g * eval b g)) :
     (FiniteResponseRigidity.scaleVariables s g) ^ 2 = g := by
   have hpoly := cancel_alternating_rotation g hij s hrotation
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   have h := congrArg (eval (Sum.elim a (fun _ => 0))) hpoly
   simp only [map_mul, eval_rotatedLeft, eval_rotatedRight, eval_leftCopy,
@@ -4923,7 +4650,7 @@ variable {ι E : Type*} [Fintype ι] [Nonempty ι] [AddCommGroup E] [Module K E]
 omit [CharZero K] in
 theorem pairing_factored_response (B : E →ₗ[K] E →ₗ[K] K)
     (μ : (σ → K) →ₗ[K] (E →ₗ[K] K)) (u v : ι → E)
-    (g : MvPolynomial σ K) (i j : σ) (hodd : Odd (Fintype.card ι))
+    (g : MvPolynomial σ K) (i j : σ) (hodd : Odd (cardFt ι))
     (hfactor : ∀ a : σ → K, WickFinitePairing.responseTensor B (μ a) u v =
       eval a g • (a i • BinaryPairing.pure false + a j • BinaryPairing.pure true))
     (a b : σ → K) :
@@ -4935,7 +4662,7 @@ theorem pairing_factored_response (B : E →ₗ[K] E →ₗ[K] K)
   ring
 theorem actual_alternating_rotation (B : E →ₗ[K] E →ₗ[K] K)
     (μ : (σ → K) →ₗ[K] (E →ₗ[K] K)) (u v : ι → E)
-    (g : MvPolynomial σ K) (i j : σ) (hodd : Odd (Fintype.card ι))
+    (g : MvPolynomial σ K) (i j : σ) (hodd : Odd (cardFt ι))
     (hfactor : ∀ a : σ → K, WickFinitePairing.responseTensor B (μ a) u v =
       eval a g • (a i • BinaryPairing.pure false + a j • BinaryPairing.pure true))
     (s : K) (hs : s * s + s * s = 1) (a b : σ → K) :
@@ -4964,7 +4691,7 @@ theorem actual_alternating_rotation (B : E →ₗ[K] E →ₗ[K] K)
 theorem actual_scalar_factor_eq_one (B : E →ₗ[K] E →ₗ[K] K)
     (μ : (σ → K) →ₗ[K] (E →ₗ[K] K)) (u v : ι → E)
     (g : MvPolynomial σ K) {i j : σ} (hij : i ≠ j)
-    (hodd : Odd (Fintype.card ι))
+    (hodd : Odd (cardFt ι))
     (hfactor : ∀ a : σ → K, WickFinitePairing.responseTensor B (μ a) u v =
       eval a g • (a i • BinaryPairing.pure false + a j • BinaryPairing.pure true))
     (hzero : eval (fun _ => 0) g = 1) (s : K) (hs : s * s + s * s = 1) : g = 1 := by
@@ -4978,7 +4705,7 @@ theorem higher_factors_zero_of_actual_rotation {D : ℕ}
     (k : ℕ) (q : ℕ → MvPolynomial (Fin D) K)
     (hq : ∀ r ≤ k, IsWeightedHomogeneous (fun _ : Fin D => (1 : ℕ)) (q r) (2 * r))
     (hzero : q 0 = 1) {i j : Fin D} (hij : i ≠ j)
-    (hodd : Odd (Fintype.card ι))
+    (hodd : Odd (cardFt ι))
     (hfactor : ∀ a : Fin D → K, WickFinitePairing.responseTensor B (μ a) u v =
       eval a (OddResponseVanishing.finiteScalarFactor k q) •
         (a i • BinaryPairing.pure false + a j • BinaryPairing.pure true))
@@ -4988,17 +4715,6 @@ theorem higher_factors_zero_of_actual_rotation {D : ℕ}
   have hg := actual_scalar_factor_eq_one B μ u v
     (OddResponseVanishing.finiteScalarFactor k q) hij hodd hfactor hnorm s hs
   exact OddResponseVanishing.factors_zero_of_finiteScalarFactor_eq_one k q hq hg r hr hpos
-theorem actual_response_eq_linear (B : E →ₗ[K] E →ₗ[K] K)
-    (μ : (σ → K) →ₗ[K] (E →ₗ[K] K)) (u v : ι → E)
-    (g : MvPolynomial σ K) {i j : σ} (hij : i ≠ j)
-    (hodd : Odd (Fintype.card ι))
-    (hfactor : ∀ a : σ → K, WickFinitePairing.responseTensor B (μ a) u v =
-      eval a g • (a i • BinaryPairing.pure false + a j • BinaryPairing.pure true))
-    (hzero : eval (fun _ => 0) g = 1) (s : K) (hs : s * s + s * s = 1)
-    (a : σ → K) : WickFinitePairing.responseTensor B (μ a) u v =
-      a i • BinaryPairing.pure false + a j • BinaryPairing.pure true := by
-  have hg := actual_scalar_factor_eq_one B μ u v g hij hodd hfactor hzero s hs
-  rw [hfactor a, hg, map_one, one_smul]
 end ActualResponse
 end Krenn.OddRotation
 -- formal/all-orders/WickPhysicalBridge.lean
@@ -5102,38 +4818,32 @@ noncomputable def selectedRestriction (S : Finset (V N)) (ι : V N → Fin D) :
   MvPolynomial.killCompl (selectedInput_injective S ι)
 theorem topExponent_map_selectedInput (S : Finset (V N)) (ι : V N → Fin D) :
     (topExponent (↥S)).mapDomain (selectedInput S ι) =
-      ∑ q ∈ S, Finsupp.single (q, ι q) 1 := by
+      ∑ q ∈ S, fsSingle (q, ι q) 1 := by
   classical
   rw [topExponent]
   change (Finsupp.mapDomain.addMonoidHom (selectedInput S ι))
-    (∑ i : ↥S, Finsupp.single i 1) = _
+    (∑ i : ↥S, fsSingle i 1) = _
   rw [map_sum (Finsupp.mapDomain.addMonoidHom (selectedInput S ι))]
-  change (∑ i : ↥S, (Finsupp.single i 1).mapDomain (selectedInput S ι)) = _
+  change (∑ i : ↥S, (fsSingle i 1).mapDomain (selectedInput S ι)) = _
   simp only [Finsupp.mapDomain_single, selectedInput]
   symm
   exact Finset.sum_subtype S (fun q => Iff.rfl) _
 theorem coeff_selectedRestriction (S : Finset (V N)) (ι : V N → Fin D)
     (P : MatchingPolynomial N D K) :
-    MvPolynomial.coeff (topExponent (↥S)) (selectedRestriction S ι P) =
-      MvPolynomial.coeff (∑ q ∈ S, Finsupp.single (q, ι q) 1) P := by
+    mvCoeff (topExponent (↥S)) (selectedRestriction S ι P) =
+      mvCoeff (∑ q ∈ S, fsSingle (q, ι q) 1) P := by
   rw [selectedRestriction, MvPolynomial.coeff_killCompl,
     topExponent_map_selectedInput]
 theorem wordExponent_eq_list_sum (ι : V N → Fin D) (L : List (V N)) :
-    wordExponent ι L = (L.map (fun q => Finsupp.single (q, ι q) 1)).sum := by
+    wordExponent ι L = (L.map (fun q => fsSingle (q, ι q) 1)).sum := by
   induction L with
   | nil => rfl
   | cons q L ih => simp only [wordExponent, List.map_cons, List.sum_cons, ih]
 theorem wordExponent_eq_finset_sum (ι : V N → Fin D) (L : List (V N))
     (hL : L.Nodup) :
-    wordExponent ι L = ∑ q ∈ L.toFinset, Finsupp.single (q, ι q) 1 := by
+    wordExponent ι L = ∑ q ∈ L.toFinset, fsSingle (q, ι q) 1 := by
   rw [wordExponent_eq_list_sum]
   exact (List.sum_toFinset _ hL).symm
-theorem coeff_selectedRestriction_list (ι : V N → Fin D) (L : List (V N))
-    (hL : L.Nodup) (P : MatchingPolynomial N D K) :
-    MvPolynomial.coeff (topExponent (↥L.toFinset))
-      (selectedRestriction L.toFinset ι P) =
-        MvPolynomial.coeff (wordExponent ι L) P := by
-  rw [coeff_selectedRestriction, wordExponent_eq_finset_sum ι L hL]
 theorem selectedRestriction_eraseSite (S : Finset (V N)) (ι : V N → Fin D)
     (p : V N) (hp : p ∉ S) (P : MatchingPolynomial N D K) :
     selectedRestriction S ι (eraseSite p P) = selectedRestriction S ι P := by
@@ -5191,11 +4901,11 @@ variable [CharZero K]
 theorem centeredMoment_selected_roots {κ : Type*} [Fintype κ] [DecidableEq κ]
     (S : Finset (V N)) (ι : V N → Fin D) (W : WeightsN N D K) (p : V N)
     (a : Fin D → K) (k d : ℕ) (hS : S.card = 2 * k + d)
-    (hκ : Fintype.card κ = d) (hp : p ∉ S) :
+    (hκ : cardFt κ = d) (hp : p ∉ S) :
     centeredMoment (physicalCovariance W)
       (Sum.elim (fun q : ↥S => physicalBasis (selectedInput S ι q))
         (fun _ : κ => physicalRoot p a)) =
-      MvPolynomial.coeff (∑ q ∈ S, Finsupp.single (q, ι q) 1)
+      mvCoeff (∑ q ∈ S, fsSingle (q, ι q) 1)
         (MvPolynomial.C ((k.factorial : K)⁻¹) *
           rowAt W p a ^ d * deletedQuadratic W p ^ k) := by
   classical
@@ -5210,7 +4920,7 @@ theorem centeredMoment_selected_roots {κ : Type*} [Fintype κ] [DecidableEq κ]
 noncomputable def retainedSites (p : V N) : Finset (V N) :=
   ((vertices N).erase p).toFinset
 theorem root_not_mem_retainedSites (p : V N) : p ∉ retainedSites p := by
-  simpa only [retainedSites, List.mem_toFinset] using
+  simpa only [retainedSites, memListSet] using
     (vertices_nodup N).not_mem_erase (a := p)
 theorem retainedSites_card (p : V N) : (retainedSites p).card = N - 1 := by
   rw [retainedSites, List.toFinset_card_of_nodup ((vertices_nodup N).erase p),
@@ -5223,7 +4933,7 @@ theorem centeredMoment_eq_eval_oddResponsePolynomial (k r : ℕ) (hr : r ≤ k)
       (Sum.elim (fun q : ↥(retainedSites p) =>
         physicalBasis (selectedInput (retainedSites p) ι q))
         (fun _ : Fin (2 * r + 1) => physicalRoot p a)) =
-      MvPolynomial.eval a (oddResponsePolynomial W p k r ι) := by
+      mvEval a (oddResponsePolynomial W p k r ι) := by
   rw [centeredMoment_selected_roots (retainedSites p) ι W p a (k - r) (2 * r + 1)
     (by rw [retainedSites_card]; omega) (Fintype.card_fin _) (root_not_mem_retainedSites p)]
   rw [eval_oddResponsePolynomial]
@@ -5249,8 +4959,8 @@ theorem factorial_inverse_succ (n : ℕ) :
   rw [Nat.factorial_succ, Nat.cast_mul, Nat.cast_add, Nat.cast_one]
   field_simp
 theorem pderiv_dividedPower_succ (P : MvPolynomial σ A) (z : σ) (n : ℕ) :
-    MvPolynomial.pderiv z (dividedPower (K := K) P (n + 1)) =
-      dividedPower (K := K) P n * MvPolynomial.pderiv z P := by
+    mvDeriv z (dividedPower (K := K) P (n + 1)) =
+      dividedPower (K := K) P n * mvDeriv z P := by
   have hscalar : algebraMap K A (((n + 1).factorial : K)⁻¹) * (n + 1 : A) =
       algebraMap K A ((n.factorial : K)⁻¹) := by
     simpa only [map_mul, map_add, map_natCast, map_one] using
@@ -5263,7 +4973,7 @@ theorem pderiv_dividedPower_succ (P : MvPolynomial σ A) (z : σ) (n : ℕ) :
     rw [← map_mul, hscalar]
   calc
     _ = (MvPolynomial.C (algebraMap K A (((n + 1).factorial : K)⁻¹)) *
-      MvPolynomial.C (n + 1 : A)) * P ^ n * MvPolynomial.pderiv z P := by
+      MvPolynomial.C (n + 1 : A)) * P ^ n * mvDeriv z P := by
         simp only [map_add, map_natCast, map_one]
         ring
     _ = _ := by rw [hC]
@@ -5276,18 +4986,14 @@ noncomputable def evenResponse (m : ℕ) (Q L : MvPolynomial σ A) : MvPolynomia
 noncomputable def lowerOddResponse (m : ℕ) (Q L : MvPolynomial σ A) : MvPolynomial σ A :=
   ∑ r ∈ Finset.range m,
     dividedPower (K := K) L (2 * r + 1) * dividedPower (K := K) Q (m - 1 - r)
-omit [CharZero K] in
-theorem lowerOddResponse_succ (m : ℕ) (Q L : MvPolynomial σ A) :
-    lowerOddResponse (K := K) (m + 1) Q L = oddResponse (K := K) m Q L := by
-  simp only [lowerOddResponse, oddResponse, Nat.add_sub_cancel]
 theorem pderiv_oddResponse (m : ℕ) (Q L : MvPolynomial σ A) (z : σ) :
-    MvPolynomial.pderiv z (oddResponse (K := K) m Q L) =
-      MvPolynomial.pderiv z L * evenResponse (K := K) m Q L +
-      MvPolynomial.pderiv z Q * lowerOddResponse (K := K) m Q L := by
+    mvDeriv z (oddResponse (K := K) m Q L) =
+      mvDeriv z L * evenResponse (K := K) m Q L +
+      mvDeriv z Q * lowerOddResponse (K := K) m Q L := by
   classical
   unfold oddResponse
   simp only [map_sum, MvPolynomial.pderiv_mul, pderiv_dividedPower_succ,
-    Finset.sum_add_distrib]
+    sumAdd]
   congr 1
   · simp only [evenResponse, Finset.mul_sum]
     apply Finset.sum_congr rfl
@@ -5304,11 +5010,11 @@ theorem pderiv_oddResponse (m : ℕ) (Q L : MvPolynomial σ A) (z : σ) :
     ring
 theorem pderiv_evenResponse_of_pderiv_quadratic_zero
     (m : ℕ) (Q L : MvPolynomial σ A) (z : σ)
-    (hQ : MvPolynomial.pderiv z Q = 0) :
-    MvPolynomial.pderiv z (evenResponse (K := K) m Q L) =
-      MvPolynomial.pderiv z L * lowerOddResponse (K := K) m Q L := by
+    (hQ : mvDeriv z Q = 0) :
+    mvDeriv z (evenResponse (K := K) m Q L) =
+      mvDeriv z L * lowerOddResponse (K := K) m Q L := by
   classical
-  have hDQ : ∀ n, MvPolynomial.pderiv z (dividedPower (K := K) Q n) = 0 := by
+  have hDQ : ∀ n, mvDeriv z (dividedPower (K := K) Q n) = 0 := by
     intro n
     cases n with
     | zero => simp
@@ -5335,10 +5041,6 @@ theorem map_dividedPower (P : MvPolynomial σ A) (n : ℕ) :
     f (dividedPower (K := K) P n) = dividedPower (K := K) (f P) n := by
   simp only [dividedPower, map_mul, map_pow, hf]
 omit [CharZero K] in
-theorem map_oddResponse (m : ℕ) (Q L : MvPolynomial σ A) :
-    f (oddResponse (K := K) m Q L) = oddResponse (K := K) m (f Q) (f L) := by
-  simp only [oddResponse, map_sum, map_mul, map_dividedPower f hf]
-omit [CharZero K] in
 theorem map_evenResponse (m : ℕ) (Q L : MvPolynomial σ A) :
     f (evenResponse (K := K) m Q L) = evenResponse (K := K) m (f Q) (f L) := by
   simp only [evenResponse, map_sum, map_mul, map_dividedPower f hf]
@@ -5363,8 +5065,8 @@ section RootAlgebra
 variable {R : Type*} [Field R] {N D : ℕ}
 theorem pderiv_eraseSite_of_ne (P : MatchingPolynomial N D R)
     (p q : V N) (h : Fin D) (hpq : p ≠ q) :
-    MvPolynomial.pderiv (q, h) (RootResponse.eraseSite p P) =
-      RootResponse.eraseSite p (MvPolynomial.pderiv (q, h) P) := by
+    mvDeriv (q, h) (RootResponse.eraseSite p P) =
+      RootResponse.eraseSite p (mvDeriv (q, h) P) := by
   classical
   induction P using MvPolynomial.induction_on with
   | C a => simp
@@ -5383,7 +5085,7 @@ theorem pderiv_eraseSite_of_ne (P : MatchingPolynomial N D R)
       · simp [MvPolynomial.pderiv_X, heq]
 theorem pderiv_rowPolynomial
     (S : SiteVariable N D → SiteVariable N D → R) (z t : SiteVariable N D) :
-    MvPolynomial.pderiv t (rowPolynomial S z) = MvPolynomial.C (S z t) := by
+    mvDeriv t (rowPolynomial S z) = MvPolynomial.C (S z t) := by
   classical
   simp [rowPolynomial, MvPolynomial.pderiv_X, Pi.single_apply]
 theorem rootExtract_rowPolynomial
@@ -5418,7 +5120,7 @@ theorem sum_range_pairs {A : Type*} [AddCommMonoid A] (f : ℕ → A) (m : ℕ) 
 omit [CharZero K] in
 theorem meanSlice_odd_eq_zero (B : E →ₗ[K] E →ₗ[K] K)
     (μ : E →ₗ[K] K) (v : ι → E) (m r : ℕ)
-    (hcard : Fintype.card ι = 2 * m) (hr : r < m) :
+    (hcard : cardFt ι = 2 * m) (hr : r < m) :
     meanSlice B μ (2 * r + 1) v = 0 := by
   apply meanSlice_eq_zero_of_odd
   rw [hcard]
@@ -5427,7 +5129,7 @@ theorem meanSlice_odd_eq_zero (B : E →ₗ[K] E →ₗ[K] K)
 omit [CharZero K] in
 theorem meanSlice_even_eq_zero (B : E →ₗ[K] E →ₗ[K] K)
     (μ : E →ₗ[K] K) (v : ι → E) (m r : ℕ)
-    (hcard : Fintype.card ι = 2 * m + 1) (hr : r ≤ m) :
+    (hcard : cardFt ι = 2 * m + 1) (hr : r ≤ m) :
     meanSlice B μ (2 * r) v = 0 := by
   apply meanSlice_eq_zero_of_odd
   rw [hcard]
@@ -5435,9 +5137,9 @@ theorem meanSlice_even_eq_zero (B : E →ₗ[K] E →ₗ[K] K)
   omega
 theorem shiftedMoment_eq_evenResponse (B : E →ₗ[K] E →ₗ[K] K)
     (μ : E →ₗ[K] K) (v : ι → E) (m : ℕ)
-    (hcard : Fintype.card ι = 2 * m) :
+    (hcard : cardFt ι = 2 * m) :
     shiftedMoment B μ v =
-      MvPolynomial.coeff (topExponent ι)
+      mvCoeff (topExponent ι)
         (EvenResponse.evenResponse (K := K) m
           (symmetricQuadratic (fun i j => B (v i) (v j)))
           (linearPolynomial (fun i => μ (v i)))) := by
@@ -5454,24 +5156,6 @@ theorem shiftedMoment_eq_evenResponse (B : E →ₗ[K] E →ₗ[K] K)
   intro r hr
   have hrm : r ≤ m := by simpa using Finset.mem_range.mp hr
   rw [meanSlice_eq_coeff B μ v (2 * r) (m - r) (by omega)]
-  simp only [EvenResponse.dividedPower, dividedQuadratic, Algebra.algebraMap_self,
-    RingHom.id_apply]
-theorem shiftedMoment_eq_oddResponse (B : E →ₗ[K] E →ₗ[K] K)
-    (μ : E →ₗ[K] K) (v : ι → E) (m : ℕ)
-    (hcard : Fintype.card ι = 2 * m + 1) :
-    shiftedMoment B μ v =
-      MvPolynomial.coeff (topExponent ι)
-        (EvenResponse.oddResponse (K := K) m
-          (symmetricQuadratic (fun i j => B (v i) (v j)))
-          (linearPolynomial (fun i => μ (v i)))) := by
-  rw [shiftedMoment_eq_sum_meanSlice, hcard,
-    show 2 * m + 1 + 1 = 2 * (m + 1) by omega, sum_range_pairs]
-  simp only [EvenResponse.oddResponse, MvPolynomial.coeff_sum]
-  apply Finset.sum_congr rfl
-  intro r hr
-  have hrm : r ≤ m := by simpa using Finset.mem_range.mp hr
-  rw [meanSlice_even_eq_zero B μ v m r hcard hrm, zero_add,
-    meanSlice_eq_coeff B μ v (2 * r + 1) (m - r) (by omega)]
   simp only [EvenResponse.dividedPower, dividedQuadratic, Algebra.algebraMap_self,
     RingHom.id_apply]
 end Krenn.WickEvenResponse
@@ -5518,7 +5202,7 @@ theorem indexedMomentTensor_reindex {η : Type*} [Fintype η]
   funext i
   cases i <;> simp [reindexWord, Function.comp_def]
 theorem pairing_indexedMoment_roots_eq_zero (B : E →ₗ[K] E →ₗ[K] K)
-    (u v : ι → E) (g : E) (p : ℕ) (hι : Odd (Fintype.card ι)) :
+    (u v : ι → E) (g : E) (p : ℕ) (hι : Odd (cardFt ι)) :
     BinaryPairing.pairing
       (indexedMomentTensor B u v (fun _ : Fin p => g))
       (indexedMomentTensor B u v (fun _ : Fin 1 => g)) = 0 := by
@@ -5528,13 +5212,13 @@ theorem pairing_indexedMoment_roots_eq_zero (B : E →ₗ[K] E →ₗ[K] K)
   let v' := v ∘ e.symm
   have hreindex {η : Type} [Fintype η] (z : η → E) :
       indexedMomentTensor B u v z =
-        fun w => momentTensor B (Fintype.card ι) u' v' z (reindexWord e w) := by
+        fun w => momentTensor B (cardFt ι) u' v' z (reindexWord e w) := by
     funext w
     convert! indexedMomentTensor_reindex B e u' v' z w using 1
     simp [u', v', Function.comp_def]
   rw [hreindex (fun _ : Fin p => g), hreindex (fun _ : Fin 1 => g), pairing_reindex e]
-  have hunit : momentTensor B (Fintype.card ι) u' v' (fun _ : Fin 1 => g) =
-      momentTensor B (Fintype.card ι) u' v' (fun _ : Unit => g) := by
+  have hunit : momentTensor B (cardFt ι) u' v' (fun _ : Fin 1 => g) =
+      momentTensor B (cardFt ι) u' v' (fun _ : Unit => g) := by
     funext w
     let t : Fin 1 ≃ Unit := Fintype.equivOfCardEq (by simp)
     unfold momentTensor
@@ -5559,7 +5243,7 @@ noncomputable def originalResponseTensor (k : ℕ)
     (W : WeightsN (2 * (k + 1)) D K) (p : V (2 * (k + 1))) (r : ℕ)
     (ι ρ : V (2 * (k + 1)) → Fin D) (a : Fin D → K) :
     BinaryPairing.Tensor (↥(retainedSites p)) K :=
-  fun w => MvPolynomial.eval a
+  fun w => mvEval a
     (oddResponsePolynomial W p k r (receivingWord (retainedSites p) ι ρ w))
 theorem originalResponseTensor_eq_moments (k r : ℕ) (hr : r ≤ k)
     (W : WeightsN (2 * (k + 1)) D K) (p : V (2 * (k + 1)))
@@ -5623,7 +5307,7 @@ theorem retainedCoefficient_pureRootWord_word (p : V N) (ι : V N → Fin D)
 theorem original_linear_response (k : ℕ) (W : WeightsN (2 * (k + 1)) D K)
     (hW : EqSystemN (2 * (k + 1)) D W) (p : V (2 * (k + 1)))
     (a : Fin D → K) (ι : V (2 * (k + 1)) → Fin D) :
-    MvPolynomial.eval a (oddResponsePolynomial W p k 0 ι) =
+    mvEval a (oddResponsePolynomial W p k 0 ι) =
       ∑ h, a h * if ∀ q ∈ (vertices (2 * (k + 1))).erase p, ι q = h then 1 else 0 := by
   rw [eval_oddResponsePolynomial, oddResponse_zero k W hW p a]
   change (retainedCoefficientHom p ι) _ = _
@@ -5652,9 +5336,9 @@ theorem original_linear_response_of_constant (k : ℕ)
     (W : WeightsN (2 * (k + 1)) D K) (hW : EqSystemN (2 * (k + 1)) D W)
     (p : V (2 * (k + 1))) (a : Fin D → K) (ι : V (2 * (k + 1)) → Fin D)
     (i : Fin D) (hι : ∀ q ∈ (vertices (2 * (k + 1))).erase p, ι q = i) :
-    MvPolynomial.eval a (oddResponsePolynomial W p k 0 ι) = a i := by
+    mvEval a (oddResponsePolynomial W p k 0 ι) = a i := by
   rw [oddResponsePolynomial_congr_word W p k 0 ι (fun _ => i) hι,
-    oddResponsePolynomial_zero_pure k W hW p i, MvPolynomial.eval_X]
+    oddResponsePolynomial_zero_pure k W hW p i, evalVar]
 theorem retainedSites_nonempty (k : ℕ) (p : V (2 * (k + 1))) :
     Nonempty (↥(retainedSites p)) := by
   apply Fintype.card_pos_iff.mp
@@ -5673,14 +5357,14 @@ theorem originalResponseTensor_linear_pair (k : ℕ)
     rw [originalResponseTensor, original_linear_response_of_constant k W hW p a _ i]
     · simp [BinaryPairing.pure, funext_iff]
     · intro q hq
-      have hqS : q ∈ retainedSites p := List.mem_toFinset.mpr hq
+      have hqS : q ∈ retainedSites p := memListSet.mpr hq
       simp [receivingWord, hqS]
   · by_cases hwt : w = fun _ => true
     · subst w
       rw [originalResponseTensor, original_linear_response_of_constant k W hW p a _ j]
       · simp [BinaryPairing.pure, funext_iff]
       · intro q hq
-        have hqS : q ∈ retainedSites p := List.mem_toFinset.mpr hq
+        have hqS : q ∈ retainedSites p := memListSet.mpr hq
         simp [receivingWord, hqS]
     · have htrue : ∃ q, w q = true := by
         by_contra h
@@ -5700,8 +5384,8 @@ theorem originalResponseTensor_linear_pair (k : ℕ)
       have hzero : ∀ h : Fin D, ¬∀ z ∈ (vertices (2 * (k + 1))).erase p,
           receivingWord (retainedSites p) (fun _ => i) (fun _ => j) w z = h := by
         intro h hc
-        have hq' := hc q.1 (List.mem_toFinset.mp q.2)
-        have ht' := hc t.1 (List.mem_toFinset.mp t.2)
+        have hq' := hc q.1 (memListSet.mp q.2)
+        have ht' := hc t.1 (memListSet.mp t.2)
         have hj : j = h := by simpa [receivingWord, q.2, hq] using hq'
         have hi : i = h := by simpa [receivingWord, t.2, ht] using ht'
         exact hij (hi.trans hj.symm)
@@ -5713,24 +5397,24 @@ theorem originalResponseTensor_false (k r : ℕ)
     (W : WeightsN (2 * (k + 1)) D K) (p : V (2 * (k + 1)))
     (ι ρ : V (2 * (k + 1)) → Fin D) (a : Fin D → K) :
     originalResponseTensor k W p r ι ρ a (fun _ => false) =
-      MvPolynomial.eval a (oddResponsePolynomial W p k r ι) := by
+      mvEval a (oddResponsePolynomial W p k r ι) := by
   rw [originalResponseTensor]
   congr 1
   apply oddResponsePolynomial_congr_word
   intro q hq
-  have hqS : q ∈ retainedSites p := List.mem_toFinset.mpr hq
+  have hqS : q ∈ retainedSites p := memListSet.mpr hq
   simp [receivingWord, hqS]
 omit [CharZero K] in
 theorem originalResponseTensor_true (k r : ℕ)
     (W : WeightsN (2 * (k + 1)) D K) (p : V (2 * (k + 1)))
     (ι ρ : V (2 * (k + 1)) → Fin D) (a : Fin D → K) :
     originalResponseTensor k W p r ι ρ a (fun _ => true) =
-      MvPolynomial.eval a (oddResponsePolynomial W p k r ρ) := by
+      mvEval a (oddResponsePolynomial W p k r ρ) := by
   rw [originalResponseTensor]
   congr 1
   apply oddResponsePolynomial_congr_word
   intro q hq
-  have hqS : q ∈ retainedSites p := List.mem_toFinset.mpr hq
+  have hqS : q ∈ retainedSites p := memListSet.mpr hq
   simp [receivingWord, hqS]
 theorem pure_response_cross (k r : ℕ) (hr : r ≤ k)
     (W : WeightsN (2 * (k + 1)) D K) (hW : EqSystemN (2 * (k + 1)) D W)
@@ -5740,7 +5424,7 @@ theorem pure_response_cross (k r : ℕ) (hr : r ≤ k)
   by_cases hij : i = j
   · subst j
     rfl
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   have href := originalResponseTensor_reflection k r hr W p (fun _ => i) (fun _ => j) a
   rw [originalResponseTensor_linear_pair k W hW p a i j hij,
@@ -5748,11 +5432,11 @@ theorem pure_response_cross (k r : ℕ) (hr : r ≤ k)
     BinaryPairing.pairing_smul_right, BinaryPairing.pairing_right_pure_false,
     BinaryPairing.pairing_right_pure_true, originalResponseTensor_true,
     originalResponseTensor_false] at href
-  have ho : Odd (Fintype.card (↥(retainedSites p))) := by
+  have ho : Odd (cardFt (↥(retainedSites p))) := by
     rw [Fintype.card_coe, retainedSites_card]
     exact ⟨k, by omega⟩
   rw [ho.neg_one_pow] at href
-  simp only [map_mul, MvPolynomial.eval_X]
+  simp only [map_mul, evalVar]
   linear_combination -href
 theorem originalResponseTensor_linear_mixed (k : ℕ)
     (W : WeightsN (2 * (k + 1)) D K) (hW : EqSystemN (2 * (k + 1)) D W)
@@ -5767,7 +5451,7 @@ theorem originalResponseTensor_linear_mixed (k : ℕ)
   by_cases hwt : w = fun _ => true
   · subst w
     rw [originalResponseTensor_true, oddResponsePolynomial_zero_pure k W hW p h,
-      MvPolynomial.eval_X]
+      evalVar]
     simp [BinaryPairing.pure]
   · have hfalse : ∃ q, w q = false := by
       by_contra hn
@@ -5781,21 +5465,21 @@ theorem originalResponseTensor_linear_mixed (k : ℕ)
         receivingWord (retainedSites p) ι (fun _ => h) w q = c := by
       intro c hc
       have ht' : ι t.1 = c := by
-        simpa [receivingWord, t.2, ht] using hc t.1 (List.mem_toFinset.mp t.2)
+        simpa [receivingWord, t.2, ht] using hc t.1 (memListSet.mp t.2)
       have hch : c ≠ h := by
         rw [← ht']
-        exact havoid t.1 (List.mem_toFinset.mp t.2)
+        exact havoid t.1 (memListSet.mp t.2)
       have hwf : ∀ q : ↥(retainedSites p), w q = false := by
         intro q
         by_cases hq : w q = true
         · have hh : h = c := by
-            simpa [receivingWord, q.2, hq] using hc q.1 (List.mem_toFinset.mp q.2)
+            simpa [receivingWord, q.2, hq] using hc q.1 (memListSet.mp q.2)
           exact False.elim (hch hh.symm)
         · cases heq : w q <;> simp_all
       apply hnon
       refine ⟨c, ?_⟩
       intro q hq
-      have hqS : q ∈ retainedSites p := List.mem_toFinset.mpr hq
+      have hqS : q ∈ retainedSites p := memListSet.mpr hq
       simpa [receivingWord, hqS, hwf ⟨q, hqS⟩] using hc q hq
     simp only [hzero, if_false, mul_zero, Finset.sum_const_zero,
       Pi.smul_apply, smul_eq_mul, BinaryPairing.pure, if_neg hwt, mul_zero]
@@ -5805,13 +5489,13 @@ theorem mixed_response_cross (k r : ℕ) (hr : r ≤ k)
     (hnon : ¬∃ c, ∀ q ∈ (vertices (2 * (k + 1))).erase p, ι q = c)
     (havoid : ∀ q ∈ (vertices (2 * (k + 1))).erase p, ι q ≠ h) :
     MvPolynomial.X h * oddResponsePolynomial W p k r ι = 0 := by
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   have href := originalResponseTensor_reflection k r hr W p ι (fun _ => h) a
   rw [originalResponseTensor_linear_mixed k W hW p a ι h hnon havoid,
     BinaryPairing.pairing_smul_right, BinaryPairing.pairing_right_pure_true,
     originalResponseTensor_false] at href
-  simpa only [map_mul, MvPolynomial.eval_X, map_zero] using href
+  simpa only [map_mul, evalVar, map_zero] using href
 end PhysicalTensors
 end Krenn.PhysicalReflection
 -- formal/all-orders/WholeBinaryResponse.lean
@@ -5824,7 +5508,7 @@ variable {K : Type*} [Field K] [CharZero K] {N D : ℕ}
 noncomputable def rootVector (p : V N) : (Fin D → K) →ₗ[K] PhysicalSpace N D K where
   toFun := physicalRoot p
   map_add' a b := by
-    simp only [physicalRoot, Pi.add_apply, add_smul, Finset.sum_add_distrib]
+    simp only [physicalRoot, Pi.add_apply, add_smul, sumAdd]
   map_smul' c a := by
     simp only [physicalRoot, Pi.smul_apply, smul_eq_mul, RingHom.id_apply,
       Finset.smul_sum, smul_smul]
@@ -5846,22 +5530,22 @@ theorem oddResponsePolynomial_congr (W : WeightsN N D K) (p : V N)
     (m r : ℕ) (ι ν : V N → Fin D)
     (h : ∀ v ∈ retainedSites p, ι v = ν v) :
     oddResponsePolynomial W p m r ι = oddResponsePolynomial W p m r ν := by
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   simp only [eval_oddResponsePolynomial, retainedCoefficient]
   congr 1
-  exact wordExponent_congr_list _ _ _ (fun v hv => h v (List.mem_toFinset.mpr hv))
+  exact wordExponent_congr_list _ _ _ (fun v hv => h v (memListSet.mpr hv))
 theorem meanSlice_eq_isotropic_root_moment {E ι : Type*}
     [AddCommGroup E] [Module K E] [Fintype ι]
     (B : E →ₗ[K] E →ₗ[K] K) (v : ι → E) (g : E) (k d : ℕ)
-    (hcard : Fintype.card ι = 2 * k + d)
+    (hcard : cardFt ι = 2 * k + d)
     (hgg : B g g = 0) (hcross : ∀ i, B (v i) g = B g (v i)) :
     meanSlice B (B g) d v = ((d.factorial : K)⁻¹) *
       centeredMoment B (Sum.elim v (fun _ : Fin d => g)) := by
   classical
   rw [meanSlice_eq_coeff B (B g) v d k (by omega),
     centeredMoment_isotropic_roots B v g k d hcard (Fintype.card_fin _) hgg hcross]
-  rw [← MvPolynomial.coeff_C_mul]
+  rw [← coeffCMul]
   unfold dividedQuadratic
   congr 1
   ring
@@ -5873,7 +5557,7 @@ theorem shiftedMoment_eq_oddResponse_sum (m : ℕ)
       ∑ r ∈ Finset.range (m + 1), (((2 * r + 1).factorial : K)⁻¹) *
         eval a (oddResponsePolynomial W p m r ι) := by
   classical
-  have hcard : Fintype.card ↥(retainedSites p) = 2 * m + 1 := by
+  have hcard : cardFt ↥(retainedSites p) = 2 * m + 1 := by
     simp only [Fintype.card_coe, retainedSites_card]
     omega
   rw [shiftedMoment_eq_sum_meanSlice, hcard,
@@ -5990,8 +5674,8 @@ theorem binaryWord_nonconstant (p : V N) {i j : Fin D} (hij : i ≠ j)
   obtain ⟨v, hv⟩ := hf
   obtain ⟨t, ht⟩ := ht
   rintro ⟨c, hc⟩
-  have hv' := hc v (List.mem_toFinset.mp v.property)
-  have ht' := hc t (List.mem_toFinset.mp t.property)
+  have hv' := hc v (memListSet.mp v.property)
+  have ht' := hc t (memListSet.mp t.property)
   rw [binaryWord_retained, hv] at hv'
   rw [binaryWord_retained, ht] at ht'
   simp only [Bool.false_eq_true, ↓reduceIte] at hv' ht'
@@ -6007,7 +5691,7 @@ theorem binary_mixed_response_zero (m r : ℕ) (hr : r ≤ m)
   apply PhysicalReflection.mixed_response_cross m r hr W hW p _ h
   · exact binaryWord_nonconstant p hij w hw0 hw1
   · intro v hv
-    have hv' : v ∈ retainedSites p := List.mem_toFinset.mpr hv
+    have hv' : v ∈ retainedSites p := memListSet.mpr hv
     simp only [binaryWord, dif_pos hv']
     split_ifs <;> exact Ne.symm ‹h ≠ _›
 theorem exists_actual_pure_factors (m : ℕ)
@@ -6042,7 +5726,7 @@ theorem pure_response_zero_of_rotation (m r : ℕ) (hr : r ≤ m) (hpos : 0 < r)
   let : Nonempty ↥(retainedSites p) := Fintype.card_pos_iff.mp (by
     simp only [Fintype.card_coe, retainedSites_card]
     omega)
-  have hodd : Odd (Fintype.card ↥(retainedSites p)) := by
+  have hodd : Odd (cardFt ↥(retainedSites p)) := by
     simp only [Fintype.card_coe, retainedSites_card]
     exact ⟨m, by omega⟩
   have hfactor := actual_binary_factorization m W p q (0 : Fin 3) (1 : Fin 3) hpure
@@ -6071,14 +5755,14 @@ theorem whole_binary_response_zero_of_rotation (m r : ℕ) (hr : r ≤ m) (hpos 
   by_cases hpure : ∃ c, ∀ q ∈ (vertices (2 * (m + 1))).erase p, ι q = c
   · obtain ⟨c, hc⟩ := hpure
     rw [oddResponsePolynomial_congr W p m r ι (fun _ => c)
-      (fun v hv => hc v (List.mem_toFinset.mp hv))]
+      (fun v hv => hc v (memListSet.mp hv))]
     exact pure_response_zero_of_rotation m r hr hpos W hW p c s hs
   · apply mixed_response_zero m r hr W hW p ι hpure
     obtain ⟨i, j, hij⟩ := hbinary
     obtain ⟨h, hhi, hhj⟩ := exists_third_colour i j
     refine ⟨h, ?_⟩
     intro v hv
-    rcases hij v (List.mem_toFinset.mpr hv) with hvi | hvj
+    rcases hij v (memListSet.mpr hv) with hvi | hvj
     · rw [hvi]; exact hhi.symm
     · rw [hvj]; exact hhj.symm
 noncomputable def halfRotation : ℂ := (Real.sqrt 2 : ℂ) / 2
@@ -6096,23 +5780,6 @@ theorem whole_binary_response_zero (m r : ℕ) (hr : r ≤ m) (hpos : 0 < r)
     oddResponsePolynomial W p m r ι = 0 :=
   whole_binary_response_zero_of_rotation m r hr hpos W hW p ι hbinary
     halfRotation halfRotation_normalized
-theorem pure_response_zero (m r : ℕ) (hr : r ≤ m) (hpos : 0 < r)
-    (W : WeightsN (2 * (m + 1)) 3 ℂ) (hW : EqSystemN (2 * (m + 1)) 3 W)
-    (p : V (2 * (m + 1))) (i : Fin 3) :
-    oddResponsePolynomial W p m r (fun _ => i) = 0 :=
-  whole_binary_response_zero m r hr hpos W hW p (fun _ => i)
-    ⟨i, i, fun _ _ => Or.inl rfl⟩
-theorem whole_binary_coefficient_zero (m r : ℕ) (hr : r ≤ m) (hpos : 0 < r)
-    (W : WeightsN (2 * (m + 1)) 3 ℂ) (hW : EqSystemN (2 * (m + 1)) 3 W)
-    (p : V (2 * (m + 1))) (ι : V (2 * (m + 1)) → Fin 3)
-    (hbinary : ∃ i j : Fin 3, ∀ v ∈ retainedSites p, ι v = i ∨ ι v = j)
-    (a : Fin 3 → ℂ) :
-    coeff (wordExponent ι ((vertices (2 * (m + 1))).erase p))
-      (C (((m - r).factorial : ℂ)⁻¹) * rowAt W p a ^ (2 * r + 1) *
-        deletedQuadratic W p ^ (m - r)) = 0 := by
-  have h := congrArg (eval a) (whole_binary_response_zero m r hr hpos W hW p ι hbinary)
-  simpa only [eval_oddResponsePolynomial, oddResponse, hr, if_true,
-    retainedCoefficient_project, map_zero] using h
 end Krenn.WholeBinaryResponse
 -- formal/all-orders/ReplicaCovariance.lean
 namespace Krenn.ReplicaCovariance
@@ -6191,34 +5858,6 @@ theorem normal_form_of_wedges_and_divisibility
   ext i j
   fin_cases i <;> fin_cases j <;>
     simp [Matrix.vecMulVec, h₀₀, h₀₁', h₁₀', h₁₁, mul_assoc]
-theorem normal_form_of_eigenvectors_and_divisibility
-    {M : Matrix (Fin 2) (Fin 2) R} {P Q : Fin 2 → R} {b b' lval rval : R}
-    (hp : P 0 * P 1 ≠ 0) (hq : Q 0 * Q 1 ≠ 0) (hc : dot₂ P Q ≠ 0)
-    (h₀₁ : M 0 1 = P 0 * Q 1 * b) (h₁₀ : M 1 0 = P 1 * Q 0 * b')
-    (hP : M *ᵥ P = lval • P) (hQ : Mᵀ *ᵥ Q = rval • Q) :
-    b = b' ∧ ∃ a : R, M = a • (1 : Matrix (Fin 2) (Fin 2) R) +
-      b • Matrix.vecMulVec P Q := by
-  apply normal_form_of_wedges_and_divisibility hp hq hc h₀₁ h₁₀
-  · rw [hP]
-    simp [cross₂]
-    ring
-  · rw [hQ]
-    simp [cross₂]
-    ring
-theorem scalar_outer_coefficients_unique
-    {P Q : Fin 2 → R} {a b a' b' : R} (hpq : P 0 * Q 1 ≠ 0)
-    (h : a • (1 : Matrix (Fin 2) (Fin 2) R) + b • Matrix.vecMulVec P Q =
-      a' • (1 : Matrix (Fin 2) (Fin 2) R) + b' • Matrix.vecMulVec P Q) :
-    a = a' ∧ b = b' := by
-  have h₀₁ := congrArg (fun M : Matrix (Fin 2) (Fin 2) R => M 0 1) h
-  have hb : b = b' := by
-    apply mul_right_cancel₀ hpq
-    simpa [Matrix.vecMulVec] using h₀₁
-  have h₀₀ := congrArg (fun M : Matrix (Fin 2) (Fin 2) R => M 0 0) h
-  have ha : a = a' := by
-    apply add_right_cancel (b := b * (P 0 * Q 0))
-    simpa [Matrix.vecMulVec, ← hb] using h₀₀
-  exact ⟨ha, hb⟩
 end Domain
 section AdaptedFrames
 variable {K : Type*} [Field K]
@@ -6269,21 +5908,21 @@ theorem parameterQ_product_ne_zero :
 theorem parameter_dot_ne_zero :
     dot₂ (parameterP (K := K)) (parameterQ (K := K)) ≠ 0 := by
   intro h
-  have heval := congrArg (MvPolynomial.eval (![1, 0, 1, 0] : Fin 4 → K)) h
+  have heval := congrArg (mvEval (![1, 0, 1, 0] : Fin 4 → K)) h
   simp [dot₂, parameterP, parameterQ, MvPolynomial.eval_add,
-    MvPolynomial.eval_mul, MvPolynomial.eval_X] at heval
+    MvPolynomial.eval_mul, evalVar] at heval
 theorem parameterP_norm_ne_zero :
     dot₂ (parameterP (K := K)) (parameterP (K := K)) ≠ 0 := by
   intro h
-  have heval := congrArg (MvPolynomial.eval (![1, 0, 0, 0] : Fin 4 → K)) h
+  have heval := congrArg (mvEval (![1, 0, 0, 0] : Fin 4 → K)) h
   simp [dot₂, parameterP, MvPolynomial.eval_add,
-    MvPolynomial.eval_mul, MvPolynomial.eval_X] at heval
+    MvPolynomial.eval_mul, evalVar] at heval
 theorem parameterQ_norm_ne_zero :
     dot₂ (parameterQ (K := K)) (parameterQ (K := K)) ≠ 0 := by
   intro h
-  have heval := congrArg (MvPolynomial.eval (![0, 0, 1, 0] : Fin 4 → K)) h
+  have heval := congrArg (mvEval (![0, 0, 1, 0] : Fin 4 → K)) h
   simp [dot₂, parameterQ, MvPolynomial.eval_add,
-    MvPolynomial.eval_mul, MvPolynomial.eval_X] at heval
+    MvPolynomial.eval_mul, evalVar] at heval
 theorem polynomial_normal_form
     {M : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)}
     (h₀₁ : parameterP (K := K) 0 * parameterQ (K := K) 1 ∣ M 0 1)
@@ -6299,15 +5938,6 @@ theorem polynomial_normal_form
     parameterP_product_ne_zero parameterQ_product_ne_zero parameter_dot_ne_zero
     hb hb' hP hQ
   exact ⟨a, b, ha⟩
-theorem polynomial_normal_form_unique
-    {a b a' b' : MvPolynomial (Fin 4) K}
-    (h : a • (1 : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)) +
-        b • Matrix.vecMulVec (parameterP (K := K)) (parameterQ (K := K)) =
-      a' • (1 : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)) +
-        b' • Matrix.vecMulVec (parameterP (K := K)) (parameterQ (K := K))) :
-    a = a' ∧ b = b' := by
-  exact scalar_outer_coefficients_unique
-    (mul_ne_zero (MvPolynomial.X_ne_zero 0) (MvPolynomial.X_ne_zero 3)) h
 end IndependentParameters
 noncomputable section PolynomialCovariance
 variable {K : Type*} [Field K]
@@ -6315,7 +5945,7 @@ def columnAssignment (P Q : Fin 2 → K) : Fin 4 → K :=
   ![P 0, P 1, Q 0, Q 1]
 def evalAtColumns (M : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K))
     (P Q : Fin 2 → K) : Matrix (Fin 2) (Fin 2) K :=
-  fun i j => MvPolynomial.eval (columnAssignment P Q) (M i j)
+  fun i j => mvEval (columnAssignment P Q) (M i j)
 omit [Field K] in
 theorem columnAssignment_recover (z : Fin 4 → K) :
     columnAssignment ![z 0, z 1] ![z 2, z 3] = z := by
@@ -6323,20 +5953,20 @@ theorem columnAssignment_recover (z : Fin 4 → K) :
   fin_cases i <;> rfl
 theorem eval_right_wedge
     (M : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)) (z : Fin 4 → K) :
-    MvPolynomial.eval z (cross₂ (parameterP (K := K))
+    mvEval z (cross₂ (parameterP (K := K))
       (M *ᵥ parameterP (K := K))) =
       cross₂ ![z 0, z 1] (evalAtColumns M ![z 0, z 1] ![z 2, z 3] *ᵥ ![z 0, z 1]) := by
   simp [cross₂, parameterP, Matrix.mulVec, dotProduct, Fin.sum_univ_two,
     evalAtColumns, columnAssignment_recover, map_sub, map_add, map_mul,
-    MvPolynomial.eval_X]
+    evalVar]
 theorem eval_left_wedge
     (M : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)) (z : Fin 4 → K) :
-    MvPolynomial.eval z (cross₂ (parameterQ (K := K))
+    mvEval z (cross₂ (parameterQ (K := K))
       (Mᵀ *ᵥ parameterQ (K := K))) =
       cross₂ ![z 2, z 3] ((evalAtColumns M ![z 0, z 1] ![z 2, z 3])ᵀ *ᵥ ![z 2, z 3]) := by
   simp [cross₂, parameterQ, Matrix.mulVec, dotProduct, Fin.sum_univ_two,
     evalAtColumns, columnAssignment_recover, map_sub, map_add, map_mul,
-    MvPolynomial.eval_X]
+    evalVar]
 def OrthogonalCovariant
     (M : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)) : Prop :=
   ∀ (O : Matrix (Fin 2) (Fin 2) K) (P Q : Fin 2 → K), Oᵀ * O = 1 →
@@ -6347,14 +5977,14 @@ theorem evalAtColumns_transverse_right_zero
     {P Q : Fin 2 → K} (hp : P 0 = 0) : evalAtColumns M P Q 0 1 = 0 := by
   obtain ⟨b, hb⟩ := h₀₁
   simp [evalAtColumns, hb, parameterP, parameterQ, columnAssignment, hp,
-    MvPolynomial.eval_mul, MvPolynomial.eval_X]
+    MvPolynomial.eval_mul, evalVar]
 theorem evalAtColumns_transverse_left_zero
     {M : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)}
     (h₁₀ : parameterP (K := K) 1 * parameterQ (K := K) 0 ∣ M 1 0)
     {P Q : Fin 2 → K} (hq : Q 0 = 0) : evalAtColumns M P Q 1 0 = 0 := by
   obtain ⟨b, hb⟩ := h₁₀
   simp [evalAtColumns, hb, parameterP, parameterQ, columnAssignment, hq,
-    MvPolynomial.eval_mul, MvPolynomial.eval_X]
+    MvPolynomial.eval_mul, evalVar]
 variable [IsAlgClosed K]
 theorem evaluated_right_wedge_zero
     {M : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)}
@@ -6398,13 +6028,13 @@ theorem polynomial_right_wedge_zero
     cross₂ (parameterP (K := K)) (M *ᵥ parameterP (K := K)) = 0 := by
   have hprod : dot₂ (parameterP (K := K)) (parameterP (K := K)) *
       cross₂ (parameterP (K := K)) (M *ᵥ parameterP (K := K)) = 0 := by
-    apply MvPolynomial.funext
+    apply mvFunext
     intro z
     rw [map_zero, map_mul, eval_right_wedge]
-    have hnormeval : MvPolynomial.eval z
+    have hnormeval : mvEval z
         (dot₂ (parameterP (K := K)) (parameterP (K := K))) =
         dot₂ ![z 0, z 1] ![z 0, z 1] := by
-      simp [dot₂, parameterP, map_add, map_mul, MvPolynomial.eval_X]
+      simp [dot₂, parameterP, map_add, map_mul, evalVar]
     rw [hnormeval]
     by_cases hn : dot₂ ![z 0, z 1] ![z 0, z 1] = 0
     · rw [hn, zero_mul]
@@ -6417,13 +6047,13 @@ theorem polynomial_left_wedge_zero
     cross₂ (parameterQ (K := K)) (Mᵀ *ᵥ parameterQ (K := K)) = 0 := by
   have hprod : dot₂ (parameterQ (K := K)) (parameterQ (K := K)) *
       cross₂ (parameterQ (K := K)) (Mᵀ *ᵥ parameterQ (K := K)) = 0 := by
-    apply MvPolynomial.funext
+    apply mvFunext
     intro z
     rw [map_zero, map_mul, eval_left_wedge]
-    have hnormeval : MvPolynomial.eval z
+    have hnormeval : mvEval z
         (dot₂ (parameterQ (K := K)) (parameterQ (K := K))) =
         dot₂ ![z 2, z 3] ![z 2, z 3] := by
-      simp [dot₂, parameterQ, map_add, map_mul, MvPolynomial.eval_X]
+      simp [dot₂, parameterQ, map_add, map_mul, evalVar]
     rw [hnormeval]
     by_cases hn : dot₂ ![z 2, z 3] ![z 2, z 3] = 0
     · rw [hn, zero_mul]
@@ -6505,19 +6135,19 @@ def OrthogonalInvariant (p : MvPolynomial (Fin 4) K) : Prop :=
   ∀ O : Matrix (Fin 2) (Fin 2) K, Oᵀ * O = 1 → framePullback O p = p
 theorem eval_framePullback (O : Matrix (Fin 2) (Fin 2) K)
     (p : MvPolynomial (Fin 4) K) (z : Fin 4 → K) :
-    MvPolynomial.eval z (framePullback O p) =
-      MvPolynomial.eval (columnAssignment (O *ᵥ ![z 0, z 1])
+    mvEval z (framePullback O p) =
+      mvEval (columnAssignment (O *ᵥ ![z 0, z 1])
         (O *ᵥ ![z 2, z 3])) p := by
-  change MvPolynomial.eval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
+  change mvEval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
   rw [← MvPolynomial.eval_assoc]
-  have hassign : MvPolynomial.eval z ∘
+  have hassign : mvEval z ∘
       columnAssignment ((O.map MvPolynomial.C) *ᵥ parameterP (K := K))
         ((O.map MvPolynomial.C) *ᵥ parameterQ (K := K)) =
       columnAssignment (O *ᵥ ![z 0, z 1]) (O *ᵥ ![z 2, z 3]) := by
     ext i
     fin_cases i <;>
       simp [columnAssignment, parameterP, parameterQ, Matrix.mulVec, dotProduct,
-        Fin.sum_univ_two, map_add, map_mul, MvPolynomial.eval_C, MvPolynomial.eval_X]
+        Fin.sum_univ_two, map_add, map_mul, MvPolynomial.eval_C, evalVar]
   rw [hassign]
 theorem eval_normal_form
     {M : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)}
@@ -6526,13 +6156,13 @@ theorem eval_normal_form
       b • Matrix.vecMulVec (parameterP (K := K)) (parameterQ (K := K)))
     (P Q : Fin 2 → K) :
     evalAtColumns M P Q =
-      MvPolynomial.eval (columnAssignment P Q) a • (1 : Matrix (Fin 2) (Fin 2) K) +
-      MvPolynomial.eval (columnAssignment P Q) b • Matrix.vecMulVec P Q := by
+      mvEval (columnAssignment P Q) a • (1 : Matrix (Fin 2) (Fin 2) K) +
+      mvEval (columnAssignment P Q) b • Matrix.vecMulVec P Q := by
   rw [hm]
   ext i j
   fin_cases i <;> fin_cases j <;>
     simp [evalAtColumns, columnAssignment, parameterP, parameterQ, Matrix.vecMulVec,
-      map_add, map_mul, MvPolynomial.eval_X]
+      map_add, map_mul, evalVar]
 theorem evaluated_coefficients_invariant
     {M : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)}
     {a b : MvPolynomial (Fin 4) K} (hcov : OrthogonalCovariant M)
@@ -6540,17 +6170,17 @@ theorem evaluated_coefficients_invariant
       b • Matrix.vecMulVec (parameterP (K := K)) (parameterQ (K := K)))
     {O : Matrix (Fin 2) (Fin 2) K} (ho : Oᵀ * O = 1)
     {P Q : Fin 2 → K} (hp : P ≠ 0) (hq : Q ≠ 0) :
-    MvPolynomial.eval (columnAssignment (O *ᵥ P) (O *ᵥ Q)) a =
-        MvPolynomial.eval (columnAssignment P Q) a ∧
-      MvPolynomial.eval (columnAssignment (O *ᵥ P) (O *ᵥ Q)) b =
-        MvPolynomial.eval (columnAssignment P Q) b := by
+    mvEval (columnAssignment (O *ᵥ P) (O *ᵥ Q)) a =
+        mvEval (columnAssignment P Q) a ∧
+      mvEval (columnAssignment (O *ᵥ P) (O *ᵥ Q)) b =
+        mvEval (columnAssignment P Q) b := by
   have hforms :
-      MvPolynomial.eval (columnAssignment (O *ᵥ P) (O *ᵥ Q)) a •
+      mvEval (columnAssignment (O *ᵥ P) (O *ᵥ Q)) a •
           (1 : Matrix (Fin 2) (Fin 2) K) +
-        MvPolynomial.eval (columnAssignment (O *ᵥ P) (O *ᵥ Q)) b •
+        mvEval (columnAssignment (O *ᵥ P) (O *ᵥ Q)) b •
           Matrix.vecMulVec P Q =
-      MvPolynomial.eval (columnAssignment P Q) a • (1 : Matrix (Fin 2) (Fin 2) K) +
-        MvPolynomial.eval (columnAssignment P Q) b • Matrix.vecMulVec P Q := by
+      mvEval (columnAssignment P Q) a • (1 : Matrix (Fin 2) (Fin 2) K) +
+        mvEval (columnAssignment P Q) b • Matrix.vecMulVec P Q := by
     calc
       _ = Oᵀ * evalAtColumns M (O *ᵥ P) (O *ᵥ Q) * O := by
         rw [eval_normal_form hm, conjugate_scalar_outer ho]
@@ -6570,28 +6200,28 @@ theorem normal_form_coefficients_invariant
   have hext (p : MvPolynomial (Fin 4) K)
       (hp : ∀ (O : Matrix (Fin 2) (Fin 2) K), Oᵀ * O = 1 →
         ∀ (P Q : Fin 2 → K), P ≠ 0 → Q ≠ 0 →
-          MvPolynomial.eval (columnAssignment (O *ᵥ P) (O *ᵥ Q)) p =
-            MvPolynomial.eval (columnAssignment P Q) p) : OrthogonalInvariant p := by
+          mvEval (columnAssignment (O *ᵥ P) (O *ᵥ Q)) p =
+            mvEval (columnAssignment P Q) p) : OrthogonalInvariant p := by
     intro O ho
     have hprod :
         (dot₂ (parameterP (K := K)) (parameterP (K := K)) *
           dot₂ (parameterQ (K := K)) (parameterQ (K := K))) *
           (framePullback O p - p) = 0 := by
-      apply MvPolynomial.funext
+      apply mvFunext
       intro z
       simp only [map_mul, map_sub, map_zero, eval_framePullback]
-      have hrecover : MvPolynomial.eval z p =
-          MvPolynomial.eval (columnAssignment ![z 0, z 1] ![z 2, z 3]) p := by
+      have hrecover : mvEval z p =
+          mvEval (columnAssignment ![z 0, z 1] ![z 2, z 3]) p := by
         rw [columnAssignment_recover]
       rw [hrecover]
-      have hevalP : MvPolynomial.eval z
+      have hevalP : mvEval z
           (dot₂ (parameterP (K := K)) (parameterP (K := K))) =
           dot₂ ![z 0, z 1] ![z 0, z 1] := by
-        simp [dot₂, parameterP, map_add, map_mul, MvPolynomial.eval_X]
-      have hevalQ : MvPolynomial.eval z
+        simp [dot₂, parameterP, map_add, map_mul, evalVar]
+      have hevalQ : mvEval z
           (dot₂ (parameterQ (K := K)) (parameterQ (K := K))) =
           dot₂ ![z 2, z 3] ![z 2, z 3] := by
-        simp [dot₂, parameterQ, map_add, map_mul, MvPolynomial.eval_X]
+        simp [dot₂, parameterQ, map_add, map_mul, evalVar]
       rw [hevalP, hevalQ]
       by_cases hP : dot₂ ![z 0, z 1] ![z 0, z 1] = 0
       · rw [hP, zero_mul, zero_mul]
@@ -6641,17 +6271,17 @@ theorem axisRestriction_comp_gramMap :
     fin_cases i <;>
       simp [axisRestriction, gramMap, axisGramMap, dot₂, parameterP, parameterQ, pow_two]
 theorem eval_axisGramMap (p : MvPolynomial (Fin 3) K) (z : Fin 3 → K) :
-    MvPolynomial.eval z (axisGramMap p) =
-      MvPolynomial.eval ![z 0 ^ 2 + z 1 ^ 2, z 2 ^ 2, z 1 * z 2] p := by
-  change MvPolynomial.eval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
+    mvEval z (axisGramMap p) =
+      mvEval ![z 0 ^ 2 + z 1 ^ 2, z 2 ^ 2, z 1 * z 2] p := by
+  change mvEval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
   rw [← MvPolynomial.eval_assoc]
-  have hassign : MvPolynomial.eval z ∘
+  have hassign : mvEval z ∘
       (![MvPolynomial.X 0 ^ 2 + MvPolynomial.X 1 ^ 2,
         MvPolynomial.X 2 ^ 2, MvPolynomial.X 1 * MvPolynomial.X 2] :
           Fin 3 → MvPolynomial (Fin 3) K) =
       ![z 0 ^ 2 + z 1 ^ 2, z 2 ^ 2, z 1 * z 2] := by
     ext i
-    fin_cases i <;> simp [map_add, map_mul, map_pow, MvPolynomial.eval_X]
+    fin_cases i <;> simp [map_add, map_mul, map_pow, evalVar]
   rw [hassign]
 end GramMaps
 noncomputable section GramInjectivity
@@ -6678,13 +6308,13 @@ theorem exists_axis_gram_preimage (z : Fin 3 → K) (hτ : z 1 ≠ 0) :
 theorem axisGramMap_injective : Function.Injective (axisGramMap (K := K)) := by
   have hker (p : MvPolynomial (Fin 3) K) (hp : axisGramMap p = 0) : p = 0 := by
     have hprod : MvPolynomial.X 1 * p = 0 := by
-      apply MvPolynomial.funext
+      apply mvFunext
       intro z
-      rw [map_zero, map_mul, MvPolynomial.eval_X]
+      rw [map_zero, map_mul, evalVar]
       by_cases hz : z 1 = 0
       · rw [hz, zero_mul]
       obtain ⟨w, hw⟩ := exists_axis_gram_preimage z hz
-      have heval := congrArg (MvPolynomial.eval w) hp
+      have heval := congrArg (mvEval w) hp
       rw [eval_axisGramMap, hw, map_zero] at heval
       rw [heval, mul_zero]
     exact (mul_eq_zero.mp hprod).resolve_left (MvPolynomial.X_ne_zero 1)
@@ -6692,16 +6322,6 @@ theorem axisGramMap_injective : Function.Injective (axisGramMap (K := K)) := by
   apply sub_eq_zero.mp
   apply hker
   rw [map_sub, hpq, sub_self]
-theorem gramMap_injective : Function.Injective (gramMap (K := K)) := by
-  intro p q hpq
-  apply axisGramMap_injective
-  have hcomp := congrArg (fun f : MvPolynomial (Fin 3) K →+*
-      MvPolynomial (Fin 3) K => f p) (axisRestriction_comp_gramMap (K := K))
-  have hcomp' := congrArg (fun f : MvPolynomial (Fin 3) K →+*
-      MvPolynomial (Fin 3) K => f q) (axisRestriction_comp_gramMap (K := K))
-  change axisRestriction (gramMap p) = axisGramMap p at hcomp
-  change axisRestriction (gramMap q) = axisGramMap q at hcomp'
-  rw [← hcomp, ← hcomp', hpq]
 end GramInjectivity
 section PowerSums
 variable {A B : Type*} [CommRing A] [CommRing B]
@@ -6755,7 +6375,7 @@ def lightScaling (r s : K) : MvPolynomial (Fin 4) K →+* MvPolynomial (Fin 4) K
         MvPolynomial (Fin 4) K) := by
   simp [lightReflection]
 private theorem monomial_four (d : Fin 4 →₀ ℕ) (a : K) :
-    MvPolynomial.monomial d a = MvPolynomial.C a *
+    mvMono d a = MvPolynomial.C a *
       (MvPolynomial.X 0 ^ d 0 * MvPolynomial.X 1 ^ d 1 *
         MvPolynomial.X 2 ^ d 2 * MvPolynomial.X 3 ^ d 3) := by
   have hd : Finsupp.indicator Finset.univ (fun i _ => d i) = d := by
@@ -6764,15 +6384,15 @@ private theorem monomial_four (d : Fin 4 →₀ ℕ) (a : K) :
   have hm := MvPolynomial.prod_X_pow (R := K) d Finset.univ
   rw [hd] at hm
   calc
-    _ = MvPolynomial.C a * MvPolynomial.monomial d 1 := by
+    _ = MvPolynomial.C a * mvMono d 1 := by
       rw [MvPolynomial.C_mul_monomial, mul_one]
     _ = _ := by
       rw [← hm]
       congr 1
       simp [Fin.prod_univ_succ, mul_assoc]
 theorem lightScaling_monomial (r s : K) (d : Fin 4 →₀ ℕ) (a : K) :
-    lightScaling r s (MvPolynomial.monomial d a) =
-      MvPolynomial.monomial d (a * r ^ (d 0 + d 2) * s ^ (d 1 + d 3)) := by
+    lightScaling r s (mvMono d a) =
+      mvMono d (a * r ^ (d 0 + d 2) * s ^ (d 1 + d 3)) := by
   rw [monomial_four, monomial_four]
   simp only [map_mul, map_pow, lightScaling_C, lightScaling_X]
   simp only [Matrix.cons_val_zero, Matrix.cons_val_one,
@@ -6781,18 +6401,18 @@ theorem lightScaling_monomial (r s : K) (d : Fin 4 →₀ ℕ) (a : K) :
   simp only [pow_add, mul_pow]
   ring
 theorem coeff_lightScaling (r s : K) (p : MvPolynomial (Fin 4) K) (d : Fin 4 →₀ ℕ) :
-    MvPolynomial.coeff d (lightScaling r s p) =
-      MvPolynomial.coeff d p * r ^ (d 0 + d 2) * s ^ (d 1 + d 3) := by
+    mvCoeff d (lightScaling r s p) =
+      mvCoeff d p * r ^ (d 0 + d 2) * s ^ (d 1 + d 3) := by
   have hs := congrArg (lightScaling r s) (MvPolynomial.as_sum p)
   rw [map_sum] at hs
   rw [hs, MvPolynomial.coeff_sum]
   simp only [lightScaling_monomial, MvPolynomial.coeff_monomial]
-  rw [Finset.sum_eq_single d]
+  rw [sumSingle d]
   · simp
   · intro b hb hbd
     simp [hbd]
   · intro hd
-    have hcoeff : MvPolynomial.coeff d p = 0 :=
+    have hcoeff : mvCoeff d p = 0 :=
       (MvPolynomial.notMem_support_iff).mp hd
     simp [hcoeff]
 private theorem light_generator_mem (i : Fin 3) :
@@ -6816,7 +6436,7 @@ private theorem light_power_sum_mem (n : ℕ) :
     ring
 theorem balanced_monomial_symmetrization_mem (d : Fin 4 →₀ ℕ) (a : K)
     (hd : d 0 + d 2 = d 1 + d 3) :
-    MvPolynomial.monomial d a + lightReflection (MvPolynomial.monomial d a) ∈
+    mvMono d a + lightReflection (mvMono d a) ∈
       (lightGramMap (K := K)).range := by
   have hC : (MvPolynomial.C a : MvPolynomial (Fin 4) K) ∈
       (lightGramMap (K := K)).range := ⟨MvPolynomial.C a, by simp [lightGramMap]⟩
@@ -6827,7 +6447,7 @@ theorem balanced_monomial_symmetrization_mem (d : Fin 4 →₀ ℕ) (a : K)
   by_cases h : d 1 ≤ d 0
   · have h₀ : d 0 = d 1 + (d 0 - d 1) := by omega
     have h₃ : d 3 = d 2 + (d 0 - d 1) := by omega
-    have heq : MvPolynomial.monomial d a = MvPolynomial.C a *
+    have heq : mvMono d a = MvPolynomial.C a *
         (MvPolynomial.X 0 * MvPolynomial.X 1) ^ d 1 *
         (MvPolynomial.X 2 * MvPolynomial.X 3) ^ d 2 *
         (MvPolynomial.X 0 * MvPolynomial.X 3) ^ (d 0 - d 1) := by
@@ -6849,7 +6469,7 @@ theorem balanced_monomial_symmetrization_mem (d : Fin 4 →₀ ℕ) (a : K)
     ring
   · have h₁ : d 1 = d 0 + (d 1 - d 0) := by omega
     have h₂ : d 2 = d 3 + (d 1 - d 0) := by omega
-    have heq : MvPolynomial.monomial d a = MvPolynomial.C a *
+    have heq : mvMono d a = MvPolynomial.C a *
         (MvPolynomial.X 0 * MvPolynomial.X 1) ^ d 0 *
         (MvPolynomial.X 2 * MvPolynomial.X 3) ^ d 3 *
         (MvPolynomial.X 1 * MvPolynomial.X 2) ^ (d 1 - d 0) := by
@@ -6876,8 +6496,8 @@ theorem balanced_of_lightScaling_two
     (p : MvPolynomial (Fin 4) K) (hscale : lightScaling 2 (2 : K)⁻¹ p = p) :
     ∀ d ∈ p.support, d 0 + d 2 = d 1 + d 3 := by
   intro d hd
-  have hc : MvPolynomial.coeff d p ≠ 0 := MvPolynomial.mem_support_iff.mp hd
-  have hcoeff := congrArg (MvPolynomial.coeff d) hscale
+  have hc : mvCoeff d p ≠ 0 := MvPolynomial.mem_support_iff.mp hd
+  have hcoeff := congrArg (mvCoeff d) hscale
   rw [coeff_lightScaling] at hcoeff
   have hpow : (2 : K) ^ (d 0 + d 2) = (2 : K) ^ (d 1 + d 3) := by
     have hprod : (2 : K) ^ (d 0 + d 2) * ((2 : K)⁻¹) ^ (d 1 + d 3) = 1 := by
@@ -6894,12 +6514,12 @@ theorem light_gram_representation_of_balanced_reflection
     (hbalance : ∀ d ∈ p.support, d 0 + d 2 = d 1 + d 3)
     (hreflection : lightReflection p = p) :
     ∃ g : MvPolynomial (Fin 3) K, lightGramMap g = p := by
-  have hsum : ∑ d ∈ p.support, MvPolynomial.monomial d (MvPolynomial.coeff d p) = p :=
+  have hsum : ∑ d ∈ p.support, mvMono d (mvCoeff d p) = p :=
     MvPolynomial.support_sum_monomial_coeff p
   have hsumsym : p + lightReflection p =
-      ∑ d ∈ p.support, (MvPolynomial.monomial d (MvPolynomial.coeff d p) +
-        lightReflection (MvPolynomial.monomial d (MvPolynomial.coeff d p))) := by
-    rw [Finset.sum_add_distrib, ← map_sum, hsum]
+      ∑ d ∈ p.support, (mvMono d (mvCoeff d p) +
+        lightReflection (mvMono d (mvCoeff d p))) := by
+    rw [sumAdd, ← map_sum, hsum]
   have hsym : p + lightReflection p ∈ (lightGramMap (K := K)).range := by
     rw [hsumsym]
     apply (lightGramMap (K := K)).range.sum_mem
@@ -6940,10 +6560,10 @@ def fromLightCone (i : K) : MvPolynomial (Fin 4) K →+* MvPolynomial (Fin 4) K 
       MvPolynomial.X 2 - MvPolynomial.C i * MvPolynomial.X 3]
 omit [CharZero K] in
 theorem eval_toLightCone (i : K) (p : MvPolynomial (Fin 4) K) (z : Fin 4 → K) :
-    MvPolynomial.eval z (toLightCone i p) = MvPolynomial.eval (cartesianOfLight i z) p := by
-  change MvPolynomial.eval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
+    mvEval z (toLightCone i p) = mvEval (cartesianOfLight i z) p := by
+  change mvEval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
   rw [← MvPolynomial.eval_assoc]
-  have hassign : MvPolynomial.eval z ∘
+  have hassign : mvEval z ∘
       (![MvPolynomial.C ((2 : K)⁻¹) * (MvPolynomial.X 0 + MvPolynomial.X 1),
         MvPolynomial.C (-i / 2) * (MvPolynomial.X 0 - MvPolynomial.X 1),
         MvPolynomial.C ((2 : K)⁻¹) * (MvPolynomial.X 2 + MvPolynomial.X 3),
@@ -6951,14 +6571,14 @@ theorem eval_toLightCone (i : K) (p : MvPolynomial (Fin 4) K) (z : Fin 4 → K) 
           Fin 4 → MvPolynomial (Fin 4) K) = cartesianOfLight i z := by
     ext j
     fin_cases j <;> simp [cartesianOfLight, map_add, map_sub, map_mul,
-      MvPolynomial.eval_C, MvPolynomial.eval_X, div_eq_mul_inv, mul_comm]
+      MvPolynomial.eval_C, evalVar, div_eq_mul_inv, mul_comm]
   rw [hassign]
 omit [CharZero K] in
 theorem eval_fromLightCone (i : K) (p : MvPolynomial (Fin 4) K) (z : Fin 4 → K) :
-    MvPolynomial.eval z (fromLightCone i p) = MvPolynomial.eval (lightOfCartesian i z) p := by
-  change MvPolynomial.eval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
+    mvEval z (fromLightCone i p) = mvEval (lightOfCartesian i z) p := by
+  change mvEval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
   rw [← MvPolynomial.eval_assoc]
-  have hassign : MvPolynomial.eval z ∘
+  have hassign : mvEval z ∘
       (![MvPolynomial.X 0 + MvPolynomial.C i * MvPolynomial.X 1,
         MvPolynomial.X 0 - MvPolynomial.C i * MvPolynomial.X 1,
         MvPolynomial.X 2 + MvPolynomial.C i * MvPolynomial.X 3,
@@ -6966,7 +6586,7 @@ theorem eval_fromLightCone (i : K) (p : MvPolynomial (Fin 4) K) (z : Fin 4 → K
           Fin 4 → MvPolynomial (Fin 4) K) = lightOfCartesian i z := by
     ext j
     fin_cases j <;> simp [lightOfCartesian, map_add, map_sub, map_mul,
-      MvPolynomial.eval_C, MvPolynomial.eval_X]
+      MvPolynomial.eval_C, evalVar]
   rw [hassign]
 theorem cartesian_light_inverse {i : K} (hi : i ^ 2 = -1) (z : Fin 4 → K) :
     cartesianOfLight i (lightOfCartesian i z) = z := by
@@ -6978,7 +6598,7 @@ theorem cartesian_light_inverse {i : K} (hi : i ^ 2 = -1) (z : Fin 4 → K) :
 variable [Infinite K]
 theorem fromLightCone_toLightCone {i : K} (hi : i ^ 2 = -1)
     (p : MvPolynomial (Fin 4) K) : fromLightCone i (toLightCone i p) = p := by
-  apply MvPolynomial.funext
+  apply mvFunext
   intro z
   rw [eval_fromLightCone, eval_toLightCone, cartesian_light_inverse hi]
 def scalingFrame (i : K) : Matrix (Fin 2) (Fin 2) K :=
@@ -6993,27 +6613,27 @@ theorem scalingFrame_orthogonal {i : K} (hi : i ^ 2 = -1) :
     ring_nf <;> norm_num [hi]
 omit [CharZero K] [Infinite K] in
 theorem eval_lightScaling (r s : K) (p : MvPolynomial (Fin 4) K) (z : Fin 4 → K) :
-    MvPolynomial.eval z (lightScaling r s p) =
-      MvPolynomial.eval ![r * z 0, s * z 1, r * z 2, s * z 3] p := by
-  change MvPolynomial.eval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
+    mvEval z (lightScaling r s p) =
+      mvEval ![r * z 0, s * z 1, r * z 2, s * z 3] p := by
+  change mvEval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
   rw [← MvPolynomial.eval_assoc]
-  have hassign : MvPolynomial.eval z ∘
+  have hassign : mvEval z ∘
       (![MvPolynomial.C r * MvPolynomial.X 0, MvPolynomial.C s * MvPolynomial.X 1,
         MvPolynomial.C r * MvPolynomial.X 2, MvPolynomial.C s * MvPolynomial.X 3] :
           Fin 4 → MvPolynomial (Fin 4) K) = ![r * z 0, s * z 1, r * z 2, s * z 3] := by
     ext j
-    fin_cases j <;> simp [map_mul, MvPolynomial.eval_C, MvPolynomial.eval_X]
+    fin_cases j <;> simp [map_mul, MvPolynomial.eval_C, evalVar]
   rw [hassign]
 omit [CharZero K] [Infinite K] in
 theorem eval_lightReflection (p : MvPolynomial (Fin 4) K) (z : Fin 4 → K) :
-    MvPolynomial.eval z (lightReflection p) = MvPolynomial.eval ![z 1, z 0, z 3, z 2] p := by
-  change MvPolynomial.eval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
+    mvEval z (lightReflection p) = mvEval ![z 1, z 0, z 3, z 2] p := by
+  change mvEval z (MvPolynomial.eval₂ MvPolynomial.C _ p) = _
   rw [← MvPolynomial.eval_assoc]
-  have hassign : MvPolynomial.eval z ∘
+  have hassign : mvEval z ∘
       (![MvPolynomial.X 1, MvPolynomial.X 0, MvPolynomial.X 3, MvPolynomial.X 2] :
           Fin 4 → MvPolynomial (Fin 4) K) = ![z 1, z 0, z 3, z 2] := by
     ext j
-    fin_cases j <;> simp [MvPolynomial.eval_X]
+    fin_cases j <;> simp [evalVar]
   rw [hassign]
 omit [Infinite K] in
 theorem cartesian_scalingFrame {i : K} (hi : i ^ 2 = -1) (z : Fin 4 → K) :
@@ -7046,14 +6666,14 @@ theorem lightScaling_toLightCone {i : K} (hi : i ^ 2 = -1)
     (p : MvPolynomial (Fin 4) K) :
     lightScaling 2 (2 : K)⁻¹ (toLightCone i p) =
       toLightCone i (framePullback (scalingFrame i) p) := by
-  apply MvPolynomial.funext
+  apply mvFunext
   intro z
   rw [eval_lightScaling, eval_toLightCone, eval_toLightCone, eval_framePullback,
     cartesian_scalingFrame hi]
 omit [CharZero K] in
 theorem lightReflection_toLightCone (i : K) (p : MvPolynomial (Fin 4) K) :
     lightReflection (toLightCone i p) = toLightCone i (framePullback reflectionFrame p) := by
-  apply MvPolynomial.funext
+  apply mvFunext
   intro z
   rw [eval_lightReflection, eval_toLightCone, eval_toLightCone, eval_framePullback,
     cartesian_reflectionFrame]
@@ -7075,14 +6695,14 @@ theorem fromLightCone_comp_lightGramMap {i : K} (hi : i ^ 2 = -1) :
   · intro a
     simp [fromLightCone, lightGramMap, gramMap, doubleThird]
   · intro j
-    apply MvPolynomial.funext
+    apply mvFunext
     intro z
-    change MvPolynomial.eval z (fromLightCone i (lightGramMap (MvPolynomial.X j))) =
-      MvPolynomial.eval z (gramMap (doubleThird (MvPolynomial.X j)))
+    change mvEval z (fromLightCone i (lightGramMap (MvPolynomial.X j))) =
+      mvEval z (gramMap (doubleThird (MvPolynomial.X j)))
     rw [eval_fromLightCone]
     fin_cases j <;>
       simp [lightGramMap, gramMap, doubleThird, lightOfCartesian, dot₂,
-        parameterP, parameterQ, map_add, map_mul, MvPolynomial.eval_X]
+        parameterP, parameterQ, map_add, map_mul, evalVar]
     all_goals
       ring_nf
       norm_num [hi, map_ofNat]
@@ -7118,19 +6738,6 @@ theorem orthogonal_covariant_gram_normal_form
   obtain ⟨a, b, hm⟩ := polynomial_normal_form_of_covariance hcov h₀₁ h₁₀
   obtain ⟨A, B, hA, hB⟩ := normal_form_coefficients_gram_representation hcov hm
   exact ⟨A, B, by simpa [hA, hB] using hm⟩
-theorem orthogonal_covariant_gram_normal_form_unique
-    {M : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)}
-    (hcov : OrthogonalCovariant M)
-    (h₀₁ : parameterP (K := K) 0 * parameterQ (K := K) 1 ∣ M 0 1)
-    (h₁₀ : parameterP (K := K) 1 * parameterQ (K := K) 0 ∣ M 1 0) :
-    ∃! AB : MvPolynomial (Fin 3) K × MvPolynomial (Fin 3) K,
-      M = gramMap AB.1 • (1 : Matrix (Fin 2) (Fin 2) (MvPolynomial (Fin 4) K)) +
-        gramMap AB.2 • Matrix.vecMulVec (parameterP (K := K)) (parameterQ (K := K)) := by
-  obtain ⟨A, B, hm⟩ := orthogonal_covariant_gram_normal_form hcov h₀₁ h₁₀
-  refine ⟨(A, B), hm, ?_⟩
-  intro AB hAB
-  obtain ⟨hA, hB⟩ := polynomial_normal_form_unique (hAB.symm.trans hm)
-  exact Prod.ext (gramMap_injective hA) (gramMap_injective hB)
 end LightConeCoordinates
 end Krenn.GramInvariants
 -- formal/all-orders/PolynomialODE.lean
@@ -7174,23 +6781,9 @@ theorem eq_C_of_derivative_add_C_mul_eq_C_mul {p : R[X]} {d a : R}
   have hcoeff : p.coeff 0 = a :=
     mul_left_cancel₀ hd (mul_coeff_zero_of_derivative_add_C_mul_eq_C hd h)
   simpa [hcoeff] using eq_C_coeff_zero_of_derivative_add_C_mul_eq_C hd h
-theorem endpoint_eq_of_polynomial_ode {p : R[X]} {d β η α : R}
-    (hd : d ≠ 0) (hη : η ≠ 0)
-    (h : derivative p + C d * p = C (β * η))
-    (hzero : p.coeff 0 = η * α) : β = d * α := by
-  have hscalar := mul_coeff_zero_of_derivative_add_C_mul_eq_C hd h
-  rw [hzero] at hscalar
-  apply mul_right_cancel₀ hη
-  simpa [mul_assoc, mul_comm, mul_left_comm] using hscalar.symm
 end Domain
 section Field
 variable {K : Type*} [Field K]
-theorem eq_C_div_of_derivative_add_C_mul_eq_C {p : K[X]} {d k : K}
-    (hd : d ≠ 0) (h : derivative p + C d * p = C k) : p = C (k / d) := by
-  have hcoeff : p.coeff 0 = k / d := by
-    apply (eq_div_iff hd).2
-    simpa [mul_comm] using mul_coeff_zero_of_derivative_add_C_mul_eq_C hd h
-  simpa [hcoeff] using eq_C_coeff_zero_of_derivative_add_C_mul_eq_C hd h
 end Field
 end Krenn
 -- formal/all-orders/EndpointPDE.lean
@@ -7203,11 +6796,11 @@ theorem axisRestriction_gramMap (p : MvPolynomial (Fin 3) K) :
     axisRestriction (gramMap p) = axisGramMap p :=
   DFunLike.congr_fun axisRestriction_comp_gramMap p
 theorem eval_zero_gramMap (p : MvPolynomial (Fin 3) K) :
-    MvPolynomial.eval (0 : Fin 4 → K) (gramMap p) =
-      MvPolynomial.eval (0 : Fin 3 → K) p := by
-  change MvPolynomial.eval (0 : Fin 4 → K) (MvPolynomial.eval₂ C _ p) = _
+    mvEval (0 : Fin 4 → K) (gramMap p) =
+      mvEval (0 : Fin 3 → K) p := by
+  change mvEval (0 : Fin 4 → K) (MvPolynomial.eval₂ C _ p) = _
   rw [← MvPolynomial.eval_assoc]
-  have hassign : MvPolynomial.eval (0 : Fin 4 → K) ∘
+  have hassign : mvEval (0 : Fin 4 → K) ∘
       ![Krenn.ReplicaCovariance.dot₂
           (Krenn.ReplicaCovariance.parameterP (K := K))
           (Krenn.ReplicaCovariance.parameterP (K := K)),
@@ -7345,7 +6938,7 @@ theorem scalar_eq_constant {a : MvPolynomial (Fin 3) K} {d k : K}
   eq_C_div_of_c_ode hd (c_ode_of_scalarBoundary h)
 theorem endpoint_of_scalarBoundary {a : MvPolynomial (Fin 3) K} {d β η α : K}
     (hd : d ≠ 0) (hη : η ≠ 0) (h : ScalarBoundary a d (β * η))
-    (hzero : MvPolynomial.eval (0 : Fin 3 → K) a = η * α) : β = d * α := by
+    (hzero : mvEval (0 : Fin 3 → K) a = η * α) : β = d * α := by
   have ha := scalar_eq_constant hd h
   have hconst : β * η / d = η * α := by simpa [ha] using hzero
   apply mul_right_cancel₀ hη
@@ -7389,7 +6982,7 @@ theorem endpoint_of_covariant_matrix_boundaries
     (h₁₀ : parameterP (K := K) 1 * parameterQ (K := K) 0 ∣ T 1 0)
     (hoff : MatrixOffDiagonalBoundary T d)
     (hscalar : MatrixScalarBoundary T d (β * η))
-    (horigin : MvPolynomial.eval (0 : Fin 4 → K) (T 1 1) = η * α) :
+    (horigin : mvEval (0 : Fin 4 → K) (T 1 1) = η * α) :
     β = d * α := by
   obtain ⟨a, b, ht⟩ := orthogonal_covariant_gram_normal_form hcov h₀₁ h₁₀
   have hb : b = 0 := offDiagonal_eq_zero hd
@@ -7418,10 +7011,10 @@ theorem pderiv_substitution (f : σ → MvPolynomial τ K)
   induction p using MvPolynomial.induction_on with
   | C a => simp
   | add p q hp hq =>
-    simp only [map_add, hp, hq, add_mul, Finset.sum_add_distrib]
+    simp only [map_add, hp, hq, add_mul, sumAdd]
   | mul_X p n hp =>
     simp only [map_mul, pderiv_mul, hp, eval₂Hom_X', map_add,
-      pderiv_X, Pi.single_apply, Finset.sum_add_distrib, add_mul,
+      pderiv_X, Pi.single_apply, sumAdd, add_mul,
       Finset.sum_mul]
     simp only [apply_ite, map_one, map_zero, mul_one, mul_zero, ite_mul, zero_mul]
     rw [Finset.sum_ite_eq]
@@ -7481,7 +7074,7 @@ theorem pderiv_contraction {σ : Type*} (κ : ι → ι → K)
       contraction κ (fun s => pderiv j (A s)) B +
         contraction κ A (fun s => pderiv j (B s)) := by
   simp only [contraction, map_sum, pderiv_mul, pderiv_C, zero_mul, zero_add,
-    Finset.sum_add_distrib]
+    sumAdd]
 theorem map_contraction {σ τ : Type*} (f : MvPolynomial σ K →+* MvPolynomial τ K)
     (hf : ∀ a, f (C a) = C a) (κ : ι → ι → K)
     (A B : ι → MvPolynomial σ K) :
@@ -7525,12 +7118,12 @@ theorem contraction_add_left {σ : Type*} (κ : ι → ι → K)
     (A B D : ι → MvPolynomial σ K) :
     contraction κ (fun s => A s + B s) D =
       contraction κ A D + contraction κ B D := by
-  simp [contraction, add_mul, mul_add, Finset.sum_add_distrib]
+  simp [contraction, add_mul, mul_add, sumAdd]
 theorem contraction_add_right {σ : Type*} (κ : ι → ι → K)
     (A B D : ι → MvPolynomial σ K) :
     contraction κ A (fun s => B s + D s) =
       contraction κ A B + contraction κ A D := by
-  simp [contraction, mul_add, Finset.sum_add_distrib]
+  simp [contraction, mul_add, sumAdd]
 theorem contraction_mul_left {σ : Type*} (κ : ι → ι → K)
     (A B : ι → MvPolynomial σ K) (c : MvPolynomial σ K) :
     contraction κ (fun s => c * A s) B = c * contraction κ A B := by
@@ -7653,7 +7246,7 @@ theorem auxiliaryMatrix_covariant {g : ReplicaPolynomial K}
   apply Matrix.ext
   intro i j
   have hij := congrArg (fun A : Matrix (Fin 2) (Fin 2) (CartesianPolynomial K) =>
-      MvPolynomial.eval (columnAssignment P Q) (A i j)) hconj.symm
+      mvEval (columnAssignment P Q) (A i j)) hconj.symm
   have hP : (![columnAssignment P Q 0, columnAssignment P Q 1] : Fin 2 → K) = P := by
     funext k
     fin_cases k <;> rfl
@@ -7674,7 +7267,7 @@ theorem evalAtColumns_add
   simp [evalAtColumns]
 theorem evalAtColumns_scalar (f : CartesianPolynomial K) (P Q : Fin 2 → K) :
     evalAtColumns (f • (1 : Matrix (Fin 2) (Fin 2) (CartesianPolynomial K))) P Q =
-      MvPolynomial.eval (columnAssignment P Q) f • (1 : Matrix (Fin 2) (Fin 2) K) := by
+      mvEval (columnAssignment P Q) f • (1 : Matrix (Fin 2) (Fin 2) K) := by
   apply Matrix.ext
   intro i j
   by_cases hij : i = j
@@ -7692,7 +7285,7 @@ theorem covariant_add_scalar
   have hQ : (![columnAssignment P Q 2, columnAssignment P Q 3] : Fin 2 → K) = Q := by
     funext k
     fin_cases k <;> rfl
-  have hfeval := congrArg (MvPolynomial.eval (columnAssignment P Q)) (hf O ho)
+  have hfeval := congrArg (mvEval (columnAssignment P Q)) (hf O ho)
   rw [eval_framePullback, hP, hQ] at hfeval
   rw [evalAtColumns_add, evalAtColumns_scalar, hm O P Q ho,
     evalAtColumns_add, evalAtColumns_scalar, hfeval]
@@ -7845,16 +7438,16 @@ def scalarContraction (κ : ι → ι → K) (A B : ι → K) : K :=
   ∑ s : ι, ∑ t : ι, κ s t * A s * B t
 theorem eval_contraction {σ : Type*} (κ : ι → ι → K)
     (A B : ι → MvPolynomial σ K) (z : σ → K) :
-    MvPolynomial.eval z (contraction κ A B) =
-      scalarContraction κ (fun s => MvPolynomial.eval z (A s))
-        (fun s => MvPolynomial.eval z (B s)) := by
+    mvEval z (contraction κ A B) =
+      scalarContraction κ (fun s => mvEval z (A s))
+        (fun s => mvEval z (B s)) := by
   simp [contraction, scalarContraction]
 theorem eval_zero_binaryMean (i : Fin 2) (p : MeanPolynomial K) :
-    MvPolynomial.eval (0 : Fin 4 → K) (binaryMean i p) =
-      MvPolynomial.eval (0 : Fin 4 → K) p := by
-  change MvPolynomial.eval (0 : Fin 4 → K) (eval₂ C _ p) = _
+    mvEval (0 : Fin 4 → K) (binaryMean i p) =
+      mvEval (0 : Fin 4 → K) p := by
+  change mvEval (0 : Fin 4 → K) (eval₂ C _ p) = _
   rw [← MvPolynomial.eval_assoc]
-  have hh : MvPolynomial.eval (0 : Fin 4 → K) ∘
+  have hh : mvEval (0 : Fin 4 → K) ∘
       ![parameterP (K := K) i, parameterQ (K := K) i, 0, 0] =
       (0 : Fin 4 → K) := by
     funext j
@@ -7862,9 +7455,9 @@ theorem eval_zero_binaryMean (i : Fin 2) (p : MeanPolynomial K) :
   rw [hh]
 theorem correctedMatrix_origin (κ : ι → ι → K)
     (E : ι → MeanPolynomial K) (e : K) :
-    MvPolynomial.eval (0 : Fin 4 → K) (correctedMatrix κ E e 1 1) =
-      scalarContraction κ (fun s => MvPolynomial.eval (0 : Fin 4 → K) (E s))
-        (fun s => MvPolynomial.eval (0 : Fin 4 → K)
+    mvEval (0 : Fin 4 → K) (correctedMatrix κ E e 1 1) =
+      scalarContraction κ (fun s => mvEval (0 : Fin 4 → K) (E s))
+        (fun s => mvEval (0 : Fin 4 → K)
           (pderiv 2 (pderiv 3 (E s)) + C e * E s)) := by
   rw [correctedMatrix_one_one, eval_contraction]
   simp only [eval_zero_binaryMean]
@@ -7951,8 +7544,8 @@ theorem endpoint_of_tensor_kernel
     (hcap : contraction κ (fun s => C (b s))
       (fun s => binaryMean 1 (pderiv 2 (pderiv 3 (E s)) + C e * E s)) = C η)
     (horigin : scalarContraction κ
-      (fun s => MvPolynomial.eval (0 : Fin 4 → K) (E s))
-      (fun s => MvPolynomial.eval (0 : Fin 4 → K)
+      (fun s => mvEval (0 : Fin 4 → K) (E s))
+      (fun s => mvEval (0 : Fin 4 → K)
         (pderiv 2 (pderiv 3 (E s)) + C e * E s)) = η * α) : β = d * α := by
   obtain ⟨h₀₁, h₁₀⟩ := correctedMatrix_offDiagonal_divisibility κ E e hu hv
   exact endpoint_of_covariant_matrix_boundaries hd hη (correctedMatrix_covariant hcov)
@@ -8007,7 +7600,7 @@ variable {R : Type*} [Field R] [CharZero R] {N D : ℕ}
 omit [CharZero R] in
 theorem coeff_eraseSite_of_omitted (p : V N) (P : MatchingPolynomial N D R)
     (m : SiteVariable N D →₀ ℕ) (hm : ∀ i, m (p, i) = 0) :
-    MvPolynomial.coeff m (eraseSite p P) = MvPolynomial.coeff m P := by
+    mvCoeff m (eraseSite p P) = mvCoeff m P := by
   classical
   induction P using MvPolynomial.induction_on generalizing m with
   | C a => rw [eraseSite_C]
@@ -8028,14 +7621,14 @@ theorem coeff_eraseSite_of_omitted (p : V N) (P : MatchingPolynomial N D R)
 omit [CharZero R] in
 theorem coeff_word_eraseSite (p : V N) (P : MatchingPolynomial N D R)
     (ι : V N → Fin D) (L : List (V N)) (hp : p ∉ L) :
-    MvPolynomial.coeff (wordExponent ι L) (eraseSite p P) =
-      MvPolynomial.coeff (wordExponent ι L) P :=
+    mvCoeff (wordExponent ι L) (eraseSite p P) =
+      mvCoeff (wordExponent ι L) P :=
   coeff_eraseSite_of_omitted p P _ (wordExponent_not_mem ι L p hp)
 theorem coeff_dividedSourcePower_list (W : WeightsN N D R) (ι : V N → Fin D)
     (k : ℕ) (L : List (V N)) (hlen : L.length = 2 * k) (hL : L.Pairwise (· < ·)) :
-    MvPolynomial.coeff (wordExponent ι L) (dividedSourcePower W k) =
+    mvCoeff (wordExponent ι L) (dividedSourcePower W k) =
       pmSumList W ι L := by
-  rw [dividedSourcePower, MvPolynomial.coeff_C_mul,
+  rw [dividedSourcePower, coeffCMul,
     coeff_sourceQuadratic_pow W ι k L hlen hL, pmSumList, hlen]
   rw [← mul_assoc, inv_mul_cancel₀ (Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero k)), one_mul]
 theorem pmSumList_rootExpansion (W : WeightsN N D R) (ι : V N → Fin D)
@@ -8056,7 +7649,7 @@ theorem pmSumList_rootExpansion (W : WeightsN N D R) (ι : V N → Fin D)
   have hrec := coeff_sourceQuadratic_pow_succ W ι k p L hp hnodup
   rw [hex, coeff_sourceQuadratic_pow W ι (k + 1) S hlenS hS] at hrec
   have hterm : (L.map fun q => edgeMatrix W (p, ι p) (q, ι q) *
-      MvPolynomial.coeff (wordExponent ι (L.erase q)) (sourceQuadratic W ^ k)).sum =
+      mvCoeff (wordExponent ι (L.erase q)) (sourceQuadratic W ^ k)).sum =
       (k.factorial : R) * (L.map fun q => edgeMatrix W (p, ι p) (q, ι q) *
         pmSumList W ι (L.erase q)).sum := by
     rw [← List.sum_map_mul_left]
@@ -8083,7 +7676,7 @@ theorem pmSumList_rootExpansion (W : WeightsN N D R) (ι : V N → Fin D)
 theorem coeff_two_rows_dividedPower (W : WeightsN N D R) (ι : V N → Fin D)
     (z t : SiteVariable N D) (k : ℕ) (L : List (V N))
     (hlen : L.length = 2 * (k + 1)) (hL : L.Pairwise (· < ·)) :
-    MvPolynomial.coeff (wordExponent ι L)
+    mvCoeff (wordExponent ι L)
       (rowPolynomial (edgeMatrix W) z * rowPolynomial (edgeMatrix W) t *
         dividedSourcePower W k) =
       (L.map fun r => edgeMatrix W z (r, ι r) *
@@ -8150,7 +7743,7 @@ theorem pureCofactor_retained_rootExpansion (k : ℕ) (W : WeightsN (2 * (k + 2)
 theorem cofactorSum_eq_two_row_coefficient (k : ℕ) (W : WeightsN (2 * (k + 2)) D R)
     (i h : Fin D) (p q : V (2 * (k + 2))) (hpq : p ≠ q) :
     (∑ r, edgeMatrix W (p, i) (r, h) * pureCofactor W h r q) =
-      MvPolynomial.coeff (wordExponent (fun _ => h) (retainedVertices p q))
+      mvCoeff (wordExponent (fun _ => h) (retainedVertices p q))
         (rowPolynomial (edgeMatrix W) (p, i) * rowPolynomial (edgeMatrix W) (p, h) *
           dividedSourcePower W k) := by
   classical
@@ -8173,7 +7766,7 @@ theorem cofactorSum_eq_two_row_coefficient (k : ℕ) (W : WeightsN (2 * (k + 2))
     by_cases hrq : r = q
     · subst r
       rw [pureCofactor_self, mul_zero]
-    exact False.elim (hr (List.mem_toFinset.mpr ((mem_retainedVertices p q r).mpr ⟨hrp, hrq⟩)))
+    exact False.elim (hr (memListSet.mpr ((mem_retainedVertices p q r).mpr ⟨hrp, hrq⟩)))
   rw [hrestrict]
   congr 1
   apply List.map_congr_left
@@ -8238,7 +7831,7 @@ theorem cofactorSum_same_root (k : ℕ) (W : WeightsN (2 * (k + 2)) D R)
         have hrp : r ≠ p := by
           intro hrp
           subst r
-          exact (vertices_nodup _).not_mem_erase (List.mem_toFinset.mp hr)
+          exact (vertices_nodup _).not_mem_erase (memListSet.mp hr)
         simp only [word, oneDefectWord, if_neg hrp]
         rw [pureCofactor_symm W h r p, pureCofactor, if_neg hrp.symm]
         congr 1
@@ -8254,7 +7847,7 @@ theorem cofactorSum_same_root (k : ℕ) (W : WeightsN (2 * (k + 2)) D R)
         intro r _ hr
         have hrp : r = p := by
           by_contra h
-          exact hr (List.mem_toFinset.mpr ((List.mem_erase_of_ne h).mpr (mem_vertices r)))
+          exact hr (memListSet.mpr ((List.mem_erase_of_ne h).mpr (mem_vertices r)))
         subst r
         rw [edgeMatrix_same_site, zero_mul]
   rw [heq] at hEq
@@ -8262,7 +7855,7 @@ theorem cofactorSum_same_root (k : ℕ) (W : WeightsN (2 * (k + 2)) D R)
 theorem source_diagonal_of_two_row_vanishing (k : ℕ)
     (W : WeightsN (2 * (k + 2)) D R) (hW : EqSystemN (2 * (k + 2)) D W)
     (hvanish : ∀ p q, p ≠ q → ∀ i h,
-      MvPolynomial.coeff (wordExponent (fun _ => h) (retainedVertices p q))
+      mvCoeff (wordExponent (fun _ => h) (retainedVertices p q))
         (rowPolynomial (edgeMatrix W) (p, i) * rowPolynomial (edgeMatrix W) (p, h) *
           dividedSourcePower W k) = 0) :
     ∀ p q i h, i ≠ h → edgeMatrix W (p, i) (q, h) = 0 := by
@@ -8289,7 +7882,7 @@ theorem cofactorSum_eq_omitted_two_row_coefficient (k : ℕ)
     (W : WeightsN (2 * (k + 2)) D R) (i h : Fin D)
     (p q : V (2 * (k + 2))) (hpq : p ≠ q) :
     (∑ r, edgeMatrix W (p, i) (r, h) * pureCofactor W h r q) =
-      MvPolynomial.coeff (wordExponent (fun _ => h) (retainedVertices p q))
+      mvCoeff (wordExponent (fun _ => h) (retainedVertices p q))
         (omittedTwoRowPolynomial W p q i h k) := by
   have hp : p ∉ retainedVertices p q := by simp [mem_retainedVertices]
   have hq : q ∉ retainedVertices p q := by simp [mem_retainedVertices]
@@ -8302,7 +7895,7 @@ theorem cofactorSum_eq_omitted_two_row_coefficient (k : ℕ)
 theorem source_diagonal_of_omission_vanishing (k : ℕ)
     (W : WeightsN (2 * (k + 2)) D R) (hW : EqSystemN (2 * (k + 2)) D W)
     (hvanish : ∀ p q, p ≠ q → ∀ i h,
-      MvPolynomial.coeff (wordExponent (fun _ => h) (retainedVertices p q))
+      mvCoeff (wordExponent (fun _ => h) (retainedVertices p q))
         (omittedTwoRowPolynomial W p q i h k) = 0) :
     ∀ p q i h, i ≠ h → edgeMatrix W (p, i) (q, h) = 0 := by
   apply source_diagonal_of_two_row_vanishing k W hW
@@ -8328,14 +7921,14 @@ omit [CharZero K] in
 theorem coeff_oddResponse_eq_linear_of_higher_zero
     (k : ℕ) (Q L : MatchingPolynomial N D K) (m : SiteVariable N D →₀ ℕ)
     (hzero : ∀ r, 0 < r → r ≤ k →
-      MvPolynomial.coeff m
+      mvCoeff m
         (MvPolynomial.C (((k - r).factorial : K)⁻¹) * L ^ (2 * r + 1) * Q ^ (k - r)) = 0) :
-    MvPolynomial.coeff m (EvenResponse.oddResponse (K := K) k Q L) =
-      MvPolynomial.coeff m (MvPolynomial.C ((k.factorial : K)⁻¹) * L * Q ^ k) := by
+    mvCoeff m (EvenResponse.oddResponse (K := K) k Q L) =
+      mvCoeff m (MvPolynomial.C ((k.factorial : K)⁻¹) * L * Q ^ k) := by
   classical
   simp only [EvenResponse.oddResponse, MvPolynomial.coeff_sum, oddResponse_term,
-    MvPolynomial.coeff_C_mul]
-  rw [Finset.sum_eq_single 0]
+    coeffCMul]
+  rw [sumSingle 0]
   · simp
   · intro r hr hr0
     rw [hzero r (Nat.pos_of_ne_zero hr0) (by have := Finset.mem_range.mp hr; omega), mul_zero]
@@ -8344,11 +7937,11 @@ omit [CharZero K] in
 theorem raw_coefficient_zero_of_response_zero (W : WeightsN N D K)
     (p : V N) (k r : ℕ) (hr : r ≤ k) (ι : V N → Fin D) (a : Fin D → K)
     (hz : OddResponseVanishing.oddResponsePolynomial W p k r ι = 0) :
-    MvPolynomial.coeff (wordExponent ι ((vertices N).erase p))
+    mvCoeff (wordExponent ι ((vertices N).erase p))
       (MvPolynomial.C (((k - r).factorial : K)⁻¹) *
         OddResponseVanishing.rowAt W p a ^ (2 * r + 1) *
         deletedQuadratic W p ^ (k - r)) = 0 := by
-  have h := congrArg (MvPolynomial.eval a) hz
+  have h := congrArg (mvEval a) hz
   rw [OddResponseVanishing.eval_oddResponsePolynomial] at h
   simpa only [OddResponseVanishing.oddResponse, if_pos hr,
     OddResponseVanishing.retainedCoefficient_project, map_zero] using h
@@ -8357,10 +7950,10 @@ theorem coeff_source_oddResponse (k : ℕ) (W : WeightsN (2 * (k + 1)) D K)
     (ι : V (2 * (k + 1)) → Fin D) (a : Fin D → K)
     (hzero : ∀ r, 0 < r → r ≤ k →
       OddResponseVanishing.oddResponsePolynomial W p k r ι = 0) :
-    MvPolynomial.coeff (wordExponent ι ((vertices (2 * (k + 1))).erase p))
+    mvCoeff (wordExponent ι ((vertices (2 * (k + 1))).erase p))
       (EvenResponse.oddResponse (K := K) k (deletedQuadratic W p)
         (OddResponseVanishing.rowAt W p a)) =
-      ∑ i : Fin D, a i * MvPolynomial.coeff
+      ∑ i : Fin D, a i * mvCoeff
         (wordExponent ι ((vertices (2 * (k + 1))).erase p)) (pureRootWord p i) := by
   classical
   rw [coeff_oddResponse_eq_linear_of_higher_zero k _ _ _
@@ -8383,15 +7976,15 @@ theorem coeff_source_oddResponse (k : ℕ) (W : WeightsN (2 * (k + 1)) D K)
     (congrArg (a i * ·) (OddResponseVanishing.retainedCoefficient_project p ι _))
 theorem coeff_rootExtract (P : MatchingPolynomial N D K)
     (q : V N) (ι : V N → Fin D) (L : List (V N)) (hq : q ∉ L) :
-    MvPolynomial.coeff (wordExponent ι L) (rootExtract q (ι q) P) =
-      MvPolynomial.coeff (wordExponent ι (q :: L)) P := by
+    mvCoeff (wordExponent ι L) (rootExtract q (ι q) P) =
+      mvCoeff (wordExponent ι (q :: L)) P := by
   rw [rootExtract, coeff_word_eraseSite q _ ι L hq]
   exact (coeff_root_pderiv P ι q L hq).symm
 theorem coeff_retained_rootExtract (P : MatchingPolynomial N D K)
     (p q : V N) (hpq : p ≠ q) (ι : V N → Fin D) :
-    MvPolynomial.coeff (wordExponent ι (retainedVertices p q))
+    mvCoeff (wordExponent ι (retainedVertices p q))
       (rootExtract q (ι q) P) =
-      MvPolynomial.coeff (wordExponent ι ((vertices N).erase p)) P := by
+      mvCoeff (wordExponent ι ((vertices N).erase p)) P := by
   have hq : q ∉ retainedVertices p q := by simp [mem_retainedVertices]
   rw [coeff_rootExtract P q ι _ hq]
   congr 1
@@ -8404,7 +7997,7 @@ theorem coeff_omitted_source (k : ℕ) (W : WeightsN (2 * (k + 1)) D K)
     (ι : V (2 * (k + 1)) → Fin D) (a : Fin D → K)
     (hzero : ∀ r, 0 < r → r ≤ k →
       OddResponseVanishing.oddResponsePolynomial W p k r ι = 0) :
-    MvPolynomial.coeff (wordExponent ι (retainedVertices p q))
+    mvCoeff (wordExponent ι (retainedVertices p q))
       (rootExtract q (ι q) (OddResponseVanishing.rowAt W p a) *
         EvenResponse.evenResponse (K := K) k
           (eraseSite q (deletedQuadratic W p))
@@ -8413,7 +8006,7 @@ theorem coeff_omitted_source (k : ℕ) (W : WeightsN (2 * (k + 1)) D K)
         EvenResponse.lowerOddResponse (K := K) k
           (eraseSite q (deletedQuadratic W p))
           (eraseSite q (OddResponseVanishing.rowAt W p a))) =
-      ∑ i : Fin D, a i * MvPolynomial.coeff
+      ∑ i : Fin D, a i * mvCoeff
         (wordExponent ι ((vertices (2 * (k + 1))).erase p)) (pureRootWord p i) := by
   rw [← EvenResponse.rootExtract_oddResponse, coeff_retained_rootExtract _ p q hpq ι]
   exact coeff_source_oddResponse k W hW p ι a hzero
@@ -8582,7 +8175,7 @@ theorem rowAt_twoColorParameters (W : WeightsN N D K) (p : V N)
       (C (if i = j then a else 0) : PhysicalPolynomial N D K) =
         if i = j then C a else 0 := by split_ifs <;> simp
   simp only [OddResponseVanishing.rowAt, rootFamilyRow, twoColorParameters,
-    map_add, hc, add_mul, Finset.sum_add_distrib, ite_mul, zero_mul]
+    map_add, hc, add_mul, sumAdd, ite_mul, zero_mul]
   simp
 omit [CharZero K] in
 theorem eraseSite_rowAt_twoColorParameters (W : WeightsN N D K) (p q : V N)
@@ -8619,8 +8212,6 @@ theorem coeff_pureRootWord_wrong_color (p q : V N) (hpq : p ≠ q)
   exact if_neg heq
 noncomputable def meanPplane : ReplicaKernel.MeanPolynomial K →+*
     ReplicaKernel.MeanPolynomial K := eval₂Hom C ![X 0, 0, X 2, 0]
-noncomputable def meanQplane : ReplicaKernel.MeanPolynomial K →+*
-    ReplicaKernel.MeanPolynomial K := eval₂Hom C ![0, X 1, 0, X 3]
 omit [CharZero K] in
 theorem eval_meanPplane (P : ReplicaKernel.MeanPolynomial K) (a : Fin 4 → K) :
     eval a (meanPplane P) = eval ![a 0, 0, a 2, 0] P := by
@@ -8655,7 +8246,7 @@ theorem numerical_source_boundary (m : ℕ) (W : WeightsN (2 * (m + 1)) D K)
   rw [hz]
   have hpure := coeff_pureRootWord_wrong_color (K := K) p q hpq ι h
     (hι.symm ▸ hbh.symm)
-  simp only [twoColorParameters, add_mul, Finset.sum_add_distrib, ite_mul, zero_mul]
+  simp only [twoColorParameters, add_mul, sumAdd, ite_mul, zero_mul]
   simp only [Finset.sum_ite_eq', Finset.mem_univ, if_true, hpure, mul_zero, add_zero]
 theorem mean_source_boundary (m : ℕ) (W : WeightsN (2 * (m + 1)) D K)
     (hW : EqSystemN (2 * (m + 1)) D W)
@@ -8670,7 +8261,7 @@ theorem mean_source_boundary (m : ℕ) (W : WeightsN (2 * (m + 1)) D K)
         (wordExponent ι (CofactorResponse.retainedVertices p q))) =
       X 0 * C (coeff (wordExponent ι ((vertices (2 * (m + 1))).erase p))
         (pureRootWord p b)) := by
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   rw [eval_meanPplane]
   simp only [map_add, map_mul, eval_C, eval_X]
@@ -8695,8 +8286,8 @@ theorem mean_pderiv_commute (P : ReplicaKernel.MeanPolynomial K) (i j : Fin 4) :
   · ext n
     simp only [coeff_pderiv, Finsupp.add_apply, Finsupp.single_apply,
       if_neg hij, if_neg (Ne.symm hij), add_zero]
-    rw [show (n + Finsupp.single i 1) + Finsupp.single j 1 =
-      (n + Finsupp.single j 1) + Finsupp.single i 1 by ac_rfl]
+    rw [show (n + fsSingle i 1) + fsSingle j 1 =
+      (n + fsSingle j 1) + fsSingle i 1 by ac_rfl]
     ring
 omit [CharZero K] in
 theorem pderiv_meanPplane_two (P : ReplicaKernel.MeanPolynomial K) :
@@ -8781,7 +8372,7 @@ theorem numerical_second_source_boundary (m : ℕ)
   rw [hz]
   have hpure := coeff_pureRootWord_wrong_color (K := K) p q hpq ι b
     (hι.symm ▸ hbh)
-  simp only [twoColorParameters, add_mul, Finset.sum_add_distrib, ite_mul, zero_mul]
+  simp only [twoColorParameters, add_mul, sumAdd, ite_mul, zero_mul]
   simp only [Finset.sum_ite_eq', Finset.mem_univ, if_true, hpure, mul_zero, zero_add]
 theorem mean_second_source_boundary (m : ℕ)
     (W : WeightsN (2 * (m + 1)) D K) (hW : EqSystemN (2 * (m + 1)) D W)
@@ -8796,7 +8387,7 @@ theorem mean_second_source_boundary (m : ℕ)
         (wordExponent ι (CofactorResponse.retainedVertices p q))) =
       X 2 * C (coeff (wordExponent ι ((vertices (2 * (m + 1))).erase p))
         (pureRootWord p h)) := by
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   rw [eval_meanPplane]
   simp only [map_add, map_mul, eval_C, eval_X]
@@ -8901,18 +8492,14 @@ theorem coeff_pureRetainedWord (p q : V N) (b h : Fin D) (hbh : b ≠ h)
     exact Nat.one_ne_zero hc
 noncomputable def retainedListEquiv (p q : V N) :
     RetainedSites p q ≃ ↥(retainedVertices p q).toFinset where
-  toFun v := ⟨v.val, List.mem_toFinset.mpr ((mem_retainedVertices p q v.val).mpr v.property)⟩
-  invFun v := ⟨v.val, (mem_retainedVertices p q v.val).mp (List.mem_toFinset.mp v.property)⟩
+  toFun v := ⟨v.val, memListSet.mpr ((mem_retainedVertices p q v.val).mpr v.property)⟩
+  invFun v := ⟨v.val, (mem_retainedVertices p q v.val).mp (memListSet.mp v.property)⟩
   left_inv _ := rfl
   right_inv _ := rfl
 theorem card_retainedSites (p q : V N) (hpq : p ≠ q) :
-    Fintype.card (RetainedSites p q) = N - 2 := by
+    cardFt (RetainedSites p q) = N - 2 := by
   rw [Fintype.card_congr (retainedListEquiv p q), Fintype.card_coe,
     List.toFinset_card_of_nodup (retainedVertices_nodup p q), retainedVertices_length p q hpq]
-theorem even_card_retainedSites (k : ℕ) (p q : V (2 * (k + 2))) (hpq : p ≠ q) :
-    Even (Fintype.card (RetainedSites p q)) := by
-  rw [card_retainedSites p q hpq]
-  exact ⟨k + 1, by omega⟩
 theorem wordExponent_congr_on_list (ι κ : V N → Fin D) (L : List (V N))
     (h : ∀ v ∈ L, ι v = κ v) : wordExponent ι L = wordExponent κ L := by
   induction L with
@@ -9062,7 +8649,7 @@ theorem u_boundary (m : ℕ) (W : WeightsN (2 * (m + 1)) D K)
     ReplicaKernel.meanYAxis (pderiv 2 (endpointResponse m W p q b h
       (wordExponent ι (CofactorResponse.retainedVertices p q)))) = 0 := by
   classical
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   rw [eval_meanYAxis, eval_pderiv_endpointResponse]
   have hrow : (∑ j : Fin 4, C (![0, a 1, 0, 0] j) * endpointRows W p q b h j) =
@@ -9116,7 +8703,7 @@ theorem pure_second_response_pderiv_zero (m : ℕ) (W : WeightsN N D K)
     (j : Fin 4) (hj : j = 0 ∨ j = 1) :
     pderiv j (endpointResponse m W p q b h
       (wordExponent (fun _ => h) (CofactorResponse.retainedVertices p q))) = 0 := by
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   rw [eval_pderiv_endpointResponse, map_zero]
   rcases hj with rfl | rfl
@@ -9127,12 +8714,12 @@ theorem coeff_zero_of_pderiv_zero (P : ReplicaKernel.MeanPolynomial K)
     (i : Fin 4) (n : Fin 4 →₀ ℕ) (hn : n i ≠ 0) (hP : pderiv i P = 0) :
     coeff n P = 0 := by
   classical
-  have hle : Finsupp.single i 1 ≤ n := Finsupp.single_le_iff.mpr (by omega)
-  have hi : (n - Finsupp.single i 1 : Fin 4 →₀ ℕ) i + 1 = n i := by
+  have hle : fsSingle i 1 ≤ n := Finsupp.single_le_iff.mpr (by omega)
+  have hi : (n - fsSingle i 1 : Fin 4 →₀ ℕ) i + 1 = n i := by
     simp only [Finsupp.tsub_apply, Finsupp.single_eq_same]
     omega
-  have hc := congrArg (coeff (n - Finsupp.single i 1)) hP
-  have hiK : ((n - Finsupp.single i 1 : Fin 4 →₀ ℕ) i : K) + 1 = (n i : K) := by
+  have hc := congrArg (coeff (n - fsSingle i 1)) hP
+  have hiK : ((n - fsSingle i 1 : Fin 4 →₀ ℕ) i : K) + 1 = (n i : K) := by
     exact_mod_cast hi
   rw [coeff_pderiv, tsub_add_cancel_of_le hle, hiK, coeff_zero] at hc
   exact (mul_eq_zero.mp hc).resolve_right (Nat.cast_ne_zero.mpr hn)
@@ -9231,7 +8818,7 @@ theorem evenResponse_zero_mean (m : ℕ) (Q : PhysicalPolynomial N D K) :
       EvenResponse.dividedPower (K := K) Q m := by
   classical
   unfold EvenResponse.evenResponse
-  rw [Finset.sum_eq_single 0]
+  rw [sumSingle 0]
   · simp
   · intro r _ hr
     have hp : 2 * r ≠ 0 := by omega
@@ -9303,7 +8890,7 @@ theorem contraction_eq_binaryPairing (p q : V N)
   unfold ReplicaKernel.contraction BinaryPairing.pairing
   refine Finset.sum_congr (by ext w; simp) ?_
   intro w _
-  rw [Finset.sum_eq_single (BinaryPairing.complement w)]
+  rw [sumSingle (BinaryPairing.complement w)]
   · simp only [binaryKernel, if_true, C_binarySign]
   · intro z _ hz
     simp only [binaryKernel, if_neg hz, map_zero, zero_mul]
@@ -9317,7 +8904,7 @@ theorem scalarContraction_eq_binaryPairing (p q : V N)
   unfold ReplicaKernel.scalarContraction BinaryPairing.pairing
   refine Finset.sum_congr (by ext w; simp) ?_
   intro w _
-  rw [Finset.sum_eq_single (BinaryPairing.complement w)]
+  rw [sumSingle (BinaryPairing.complement w)]
   · simp only [binaryKernel, if_true]
   · intro z _ hz
     simp only [binaryKernel, if_neg hz, zero_mul]
@@ -9473,7 +9060,7 @@ theorem shiftedMoment_even_selected (W : WeightsN N D K)
     (m : ℕ) (hS : S.card = 2 * m) :
     shiftedMoment (physicalCovariance W) (meanFunctional W z a)
       (fun v : ↥S => physicalBasis (selectedInput S ι v)) =
-      coeff (∑ v ∈ S, Finsupp.single (v, ι v) 1)
+      coeff (∑ v ∈ S, fsSingle (v, ι v) 1)
         (EvenResponse.evenResponse (K := K) m (sourceQuadratic W) (meanRow W z a)) := by
   rw [WickEvenResponse.shiftedMoment_eq_evenResponse _ _ _ m (by simpa using hS)]
   rw [← selectedRestriction_sourceQuadratic, ← selectedRestriction_meanRow]
@@ -9491,7 +9078,7 @@ noncomputable def meanFunctionalLinear (W : WeightsN N D K) (z : τ → SiteVari
   toFun := meanFunctional W z
   map_add' := by
     intro a b
-    simp [meanFunctional, add_smul, Finset.sum_add_distrib]
+    simp [meanFunctional, add_smul, sumAdd]
   map_smul' := by
     intro t a
     simp [meanFunctional, mul_smul, Finset.smul_sum]
@@ -9587,7 +9174,7 @@ theorem response_pairing_linear (B : E →ₗ[K] E →ₗ[K] K)
     (h12 : a * b + c * d = 0) :
     BinaryPairing.pairing (responseTensor B (a • μ + c • ν) u v)
       (responseTensor B (b • μ + d • ν) u v) =
-      (a * d - b * c) ^ Fintype.card ι *
+      (a * d - b * c) ^ cardFt ι *
         BinaryPairing.pairing (responseTensor B μ u v) (responseTensor B ν u v) := by
   let e := (Fintype.equivFin ι).symm
   have h := WickPairing.contractedShifted_linear B μ ν
@@ -9603,7 +9190,7 @@ theorem response_pairing_linear (B : E →ₗ[K] E →ₗ[K] K)
 theorem response_pairing_orthogonal_even (B : E →ₗ[K] E →ₗ[K] K)
     (μ ν : E →ₗ[K] K) (u v : ι → E) (a b c d : K)
     (h1 : a * a + c * c = 1) (h2 : b * b + d * d = 1)
-    (h12 : a * b + c * d = 0) (heven : Even (Fintype.card ι)) :
+    (h12 : a * b + c * d = 0) (heven : Even (cardFt ι)) :
     BinaryPairing.pairing (responseTensor B (a • μ + c • ν) u v)
       (responseTensor B (b • μ + d • ν) u v) =
       BinaryPairing.pairing (responseTensor B μ u v) (responseTensor B ν u v) := by
@@ -9611,7 +9198,7 @@ theorem response_pairing_orthogonal_even (B : E →ₗ[K] E →ₗ[K] K)
     calc
       _ = (a * a + c * c) * (b * b + d * d) - (a * b + c * d) ^ 2 := by ring
       _ = 1 := by rw [h1, h2, h12]; ring
-  have hpow : (a * d - b * c) ^ Fintype.card ι = 1 := by
+  have hpow : (a * d - b * c) ^ cardFt ι = 1 := by
     obtain ⟨k, hk⟩ := heven
     rw [hk, ← two_mul, pow_mul, hdet, one_pow]
   rw [response_pairing_linear B μ ν u v a b c d h1 h2 h12, hpow, one_mul]
@@ -9691,7 +9278,7 @@ theorem endpoint_kernel_invariant (m : ℕ)
     ReplicaKernel.KernelInvariant
       (ReplicaKernel.kernel (binaryKernel (K := K) p q) (endpointTensor m W p q b h)) := by
   intro O hO
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   rw [eval_replicaFramePullback, eval_endpointKernel, eval_endpointKernel]
   have ht (v : Fin 4 → K) :
@@ -9718,7 +9305,7 @@ theorem endpoint_kernel_invariant (m : ℕ)
     have hh := congrArg (fun M : Matrix (Fin 2) (Fin 2) K => M 0 1) hoo
     simpa only [Matrix.mul_apply, Matrix.transpose_apply, Matrix.one_apply,
       Fin.sum_univ_two, if_neg (by decide : (0 : Fin 2) ≠ 1)] using hh
-  have heven : Even (Fintype.card (RetainedSites p q)) := by
+  have heven : Even (cardFt (RetainedSites p q)) := by
     rw [card_retainedSites p q hpq]
     exact ⟨m, by omega⟩
   exact WickFiniteOrthogonal.response_pairing_orthogonal_even (physicalCovariance W)
@@ -9781,34 +9368,34 @@ theorem map_pairing (f : R →+* S) (E F : Tensor ι R) :
     f (pairing E F) = pairing (fun w => f (E w)) (fun w => f (F w)) := by
   simp only [pairing, map_sum, map_mul, map_sign]
 theorem pderiv_pairing (z : σ) (E F : Tensor ι (MvPolynomial σ R)) :
-    MvPolynomial.pderiv z (pairing E F) =
-      pairing (fun w => MvPolynomial.pderiv z (E w)) F +
-      pairing E (fun w => MvPolynomial.pderiv z (F w)) := by
+    mvDeriv z (pairing E F) =
+      pairing (fun w => mvDeriv z (E w)) F +
+      pairing E (fun w => mvDeriv z (F w)) := by
   classical
   have hsign (w : ι → Bool) : (sign w : MvPolynomial σ R) = MvPolynomial.C (sign w : R) :=
     (map_sign MvPolynomial.C w).symm
   simp only [pairing, hsign, map_sum, MvPolynomial.pderiv_mul,
-    MvPolynomial.pderiv_C, zero_mul, zero_add, Finset.sum_add_distrib]
-theorem pderiv_pairing_self_even (heven : Even (Fintype.card ι))
+    MvPolynomial.pderiv_C, zero_mul, zero_add, sumAdd]
+theorem pderiv_pairing_self_even (heven : Even (cardFt ι))
     (z : σ) (E : Tensor ι (MvPolynomial σ R)) :
-    MvPolynomial.pderiv z (pairing E E) =
-      2 * pairing E (fun w => MvPolynomial.pderiv z (E w)) := by
+    mvDeriv z (pairing E E) =
+      2 * pairing E (fun w => mvDeriv z (E w)) := by
   rw [pderiv_pairing, pairing_symmetric_of_even heven
-    (fun w => MvPolynomial.pderiv z (E w)) E]
+    (fun w => mvDeriv z (E w)) E]
   ring
 theorem differentiated_norm_two_rotation {K : Type*} [Field K] [CharZero K]
-    (heven : Even (Fintype.card ι)) (z : σ) (s : K) (hsq : s * s = 2)
+    (heven : Even (cardFt ι)) (z : σ) (s : K) (hsq : s * s = 2)
     (E F Es V Vs : Tensor ι (MvPolynomial σ K))
-    (hE : ∀ w, MvPolynomial.pderiv z (E w) = V w)
-    (hF : ∀ w, MvPolynomial.pderiv z (F w) = 0)
-    (hEs : ∀ w, MvPolynomial.pderiv z (Es w) = MvPolynomial.C s * Vs w)
+    (hE : ∀ w, mvDeriv z (E w) = V w)
+    (hF : ∀ w, mvDeriv z (F w) = 0)
+    (hEs : ∀ w, mvDeriv z (Es w) = MvPolynomial.C s * Vs w)
     (hrotation : pairing E E = pairing F Es) :
     MvPolynomial.C s * pairing E V = pairing F Vs := by
-  have h := congrArg (MvPolynomial.pderiv z) hrotation
+  have h := congrArg (mvDeriv z) hrotation
   rw [pderiv_pairing_self_even heven, pderiv_pairing] at h
-  have he : (fun w => MvPolynomial.pderiv z (E w)) = V := funext hE
-  have hf : (fun w => MvPolynomial.pderiv z (F w)) = 0 := funext hF
-  have hes : (fun w => MvPolynomial.pderiv z (Es w)) = (MvPolynomial.C s : MvPolynomial σ K) • Vs := by
+  have he : (fun w => mvDeriv z (E w)) = V := funext hE
+  have hf : (fun w => mvDeriv z (F w)) = 0 := funext hF
+  have hes : (fun w => mvDeriv z (Es w)) = (MvPolynomial.C s : MvPolynomial σ K) • Vs := by
     funext w
     simpa only [Pi.smul_apply, smul_eq_mul] using hEs w
   rw [he, hf, hes, pairing_smul_right] at h
@@ -9889,7 +9476,7 @@ theorem quadratic_coefficient_zero_of_constant_even_series
   have hc := congrArg (fun p : Polynomial K => p.coeff 2) hP
   simp only [P, Polynomial.finsetSum_coeff, Polynomial.coeff_C_mul_X_pow,
     Polynomial.coeff_C] at hc
-  rw [Finset.sum_eq_single 1] at hc
+  rw [sumSingle 1] at hc
   · simpa using hc
   · intro r _ hr
     simp [hr]
@@ -9904,31 +9491,31 @@ theorem dividedPower_C_mul {σ : Type*} (P : MvPolynomial σ K) (a : K) (n : ℕ
 theorem squared_row_coefficient_zero {σ : Type*}
     (k : ℕ) (Q L : MvPolynomial σ K) (m : σ →₀ ℕ)
     (hconstant : ∀ t : K,
-      MvPolynomial.coeff m (evenResponse (K := K) (k + 1) Q (MvPolynomial.C t * L)) =
-        MvPolynomial.coeff m (dividedPower (K := K) Q (k + 1))) :
-    MvPolynomial.coeff m (L ^ 2 * dividedPower (K := K) Q k) = 0 := by
+      mvCoeff m (evenResponse (K := K) (k + 1) Q (MvPolynomial.C t * L)) =
+        mvCoeff m (dividedPower (K := K) Q (k + 1))) :
+    mvCoeff m (L ^ 2 * dividedPower (K := K) Q k) = 0 := by
   classical
-  let c : ℕ → K := fun r => MvPolynomial.coeff m
+  let c : ℕ → K := fun r => mvCoeff m
     (dividedPower (K := K) L (2 * r) * dividedPower (K := K) Q (k + 1 - r))
   have hc : c 1 = 0 := by
     apply quadratic_coefficient_zero_of_constant_even_series k c
     intro t
     have ht := hconstant t
     simp only [evenResponse, MvPolynomial.coeff_sum, dividedPower_C_mul,
-      mul_assoc, MvPolynomial.coeff_C_mul] at ht
+      mul_assoc, coeffCMul] at ht
     simp only [c, Nat.mul_zero, dividedPower_zero, Nat.sub_zero, one_mul]
     simpa only [Nat.add_assoc, show (1 + 1 : ℕ) = 2 from rfl, mul_comm] using ht
   have hfac : ((2 : ℕ).factorial : K)⁻¹ ≠ 0 := inv_ne_zero (by norm_num)
   apply (mul_eq_zero.mp (show ((2 : ℕ).factorial : K)⁻¹ *
-    MvPolynomial.coeff m (L ^ 2 * dividedPower (K := K) Q k) = 0 from ?_)).resolve_left hfac
+    mvCoeff m (L ^ 2 * dividedPower (K := K) Q k) = 0 from ?_)).resolve_left hfac
   simpa only [c, Nat.mul_one, Nat.add_sub_cancel, dividedPower, Algebra.algebraMap_self,
-    RingHom.id_apply, mul_assoc, MvPolynomial.coeff_C_mul] using hc
+    RingHom.id_apply, mul_assoc, coeffCMul] using hc
 theorem two_row_coefficient_zero {σ E : Type*} [AddCommGroup E] [Module K E]
     (k : ℕ) (Q : MvPolynomial σ K) (L : E →ₗ[K] MvPolynomial σ K)
     (m : σ →₀ ℕ)
-    (hconstant : ∀ v, MvPolynomial.coeff m (evenResponse (K := K) (k + 1) Q (L v)) =
-      MvPolynomial.coeff m (dividedPower (K := K) Q (k + 1))) (v w : E) :
-    MvPolynomial.coeff m (L v * L w * dividedPower (K := K) Q k) = 0 := by
+    (hconstant : ∀ v, mvCoeff m (evenResponse (K := K) (k + 1) Q (L v)) =
+      mvCoeff m (dividedPower (K := K) Q (k + 1))) (v w : E) :
+    mvCoeff m (L v * L w * dividedPower (K := K) Q k) = 0 := by
   apply OmissionCancellation.polarized_quadratic_coefficient_eq_zero
     (MvPolynomial.lcoeff K m) L (dividedPower (K := K) Q k) _ v w
   intro u
@@ -9942,7 +9529,7 @@ noncomputable def omittedRowLinear {N D : ℕ} (W : WeightsN N D K)
   map_add' := by
     intro a b
     simp [OddResponseVanishing.rowAt, RootResponse.rootFamilyRow,
-      add_mul, Finset.sum_add_distrib]
+      add_mul, sumAdd]
   map_smul' := by
     intro t a
     simp [OddResponseVanishing.rowAt, RootResponse.rootFamilyRow,
@@ -9959,14 +9546,14 @@ theorem omittedRowLinear_single {N D : ℕ} (W : WeightsN N D K)
 theorem omitted_two_row_zero_of_pure_even_constancy {N D : ℕ}
     (k : ℕ) (W : WeightsN N D K) (p q : V N) (i h : Fin D)
     (hconstant : ∀ a : Fin D → K,
-      MvPolynomial.coeff (wordExponent (fun _ => h) (CofactorResponse.retainedVertices p q))
+      mvCoeff (wordExponent (fun _ => h) (CofactorResponse.retainedVertices p q))
         (evenResponse (K := K) (k + 1)
           (RootResponse.eraseSite q (RootResponse.deletedQuadratic W p))
           (omittedRowLinear W p q a)) =
-      MvPolynomial.coeff (wordExponent (fun _ => h) (CofactorResponse.retainedVertices p q))
+      mvCoeff (wordExponent (fun _ => h) (CofactorResponse.retainedVertices p q))
         (dividedPower (K := K)
           (RootResponse.eraseSite q (RootResponse.deletedQuadratic W p)) (k + 1))) :
-    MvPolynomial.coeff (wordExponent (fun _ => h) (CofactorResponse.retainedVertices p q))
+    mvCoeff (wordExponent (fun _ => h) (CofactorResponse.retainedVertices p q))
       (CofactorResponse.omittedTwoRowPolynomial W p q i h k) = 0 := by
   have hz := two_row_coefficient_zero k _ (omittedRowLinear W p q) _ hconstant
     (Pi.single i 1) (Pi.single h 1)
@@ -10002,10 +9589,6 @@ theorem eval_directionZero (P : ReplicaKernel.MeanPolynomial K) (a : Fin 4 → K
   congr 1
   funext j
   by_cases hj : j = 3 <;> simp [hj]
-omit [CharZero K] in
-theorem omissionRows_castSucc (W : WeightsN N 3 K) (p q : V N) (h i : Fin 3) :
-    omissionRows W p q h i.castSucc = retainedRow W p q i := by
-  fin_cases i <;> rfl
 omit [CharZero K] in
 theorem omissionRows_three (W : WeightsN N 3 K) (p q : V N) (h : Fin 3) :
     omissionRows W p q h 3 = retainedRow W q p h := rfl
@@ -10066,7 +9649,7 @@ theorem omitted_source_polynomial (m : ℕ) (W : WeightsN (2 * (m + 1)) 3 K)
       X h.castSucc * C (BinaryPairing.pure true w : K) -
         directPolynomial W p q h * directionZero (responseTensor m W p q b h w) := by
   classical
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   rw [eval_directionZero_pderiv_responseTensor]
   simp only [map_sub, map_mul, eval_X, eval_C, eval_directPolynomial,
@@ -10078,7 +9661,7 @@ theorem omitted_source_polynomial (m : ℕ) (W : WeightsN (2 * (m + 1)) 3 K)
   have hrhs : (∑ i : Fin 3, a i.castSucc *
       coeff (wordExponent (receivingWord p q b h w) ((vertices (2 * (m + 1))).erase p))
         (pureRootWord p i)) = a h.castSucc * (BinaryPairing.pure true w : K) := by
-    rw [Finset.sum_eq_single h]
+    rw [sumSingle h]
     · rw [coeff_pureRootWord_eq_retained p q hpq _ h (receivingWord_at_q p q b h w),
         coeff_pureRetainedWord p q b h hbh w]
     · intro i _ hi
@@ -10114,7 +9697,7 @@ theorem coefficientTensor_rotation (m : ℕ) (W : WeightsN (2 * (m + 1)) D K)
       pairing (constantTensor (coefficientTensor m W p q b h z))
         (fun w => scaleVariables s (coefficientTensor m W p q b h z w)) := by
   classical
-  apply MvPolynomial.funext
+  apply mvFunext
   intro a
   simp only [PairingDerivative.map_pairing, constantTensor, eval_C, eval_scaleVariables]
   have hE : (fun w => eval a (coefficientTensor m W p q b h z w)) =
@@ -10232,7 +9815,7 @@ theorem pure_tensor_constancy (m : ℕ) (W : WeightsN (2 * (m + 1)) 3 K)
   let Es := fun w => scaleVariables s (E w)
   let Vt := fun w => pderiv 3 (E w)
   let Vst := fun w => scaleVariables s (Vt w)
-  have heven : Even (Fintype.card (RetainedSites p q)) := by
+  have heven : Even (cardFt (RetainedSites p q)) := by
     rw [card_retainedSites p q hpq]
     exact ⟨m, by omega⟩
   have hrot := omitted_tensor_rotation m W p q hpq b h s hsq
@@ -10310,19 +9893,6 @@ theorem pure_even_constancy (m : ℕ) (W : WeightsN (2 * (m + 1)) 3 K)
   simpa only [OmissionDegree.omittedRowLinear, LinearMap.coe_mk, AddHom.coe_mk,
     OddResponseVanishing.rowAt, rootFamilyRow, zero_mul,
     Finset.sum_const_zero, map_zero, EndpointSource.evenResponse_zero_mean] using hca
-theorem pure_even_constancy_of_eqSystem (m : ℕ)
-    (W : WeightsN (2 * (m + 1)) 3 ℂ)
-    (hW : EqSystemN (2 * (m + 1)) 3 W)
-    (p q : V (2 * (m + 1))) (hpq : p ≠ q) (b h : Fin 3) (hbh : b ≠ h)
-    (a : Fin 3 → ℂ) :
-    coeff (wordExponent (fun _ => b) (retainedVertices p q))
-      (EvenResponse.evenResponse (K := ℂ) m (retainedQuadratic W p q)
-        (OmissionDegree.omittedRowLinear W p q a)) =
-    coeff (wordExponent (fun _ => b) (retainedVertices p q))
-      (EvenResponse.dividedPower (K := ℂ) (retainedQuadratic W p q) m) :=
-  pure_even_constancy m W hW p q hpq b h hbh
-    BinarySourceInterface.normTwo BinarySourceInterface.normTwo_sq
-    (BinarySourceInterface.omitted_higher_zero m W hW p q b h) a
 end Krenn.OmissionConstancy
 -- formal/all-orders/DiagonalSource.lean
 namespace Krenn.DiagonalSource

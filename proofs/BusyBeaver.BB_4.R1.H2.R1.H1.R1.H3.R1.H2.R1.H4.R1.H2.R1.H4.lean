@@ -19,7 +19,6 @@ open Turing Turing.BusyBeaver
 
 abbrev Symbol := Fin 2
 abbrev State := Fin 4
-abbrev Key := State × Symbol
 abbrev Machine4 := Machine Symbol State
 
 structure Move where
@@ -38,8 +37,6 @@ structure Table where
   t30 : Option Move
   t31 : Option Move
 
-def Table.empty : Table := ⟨none, none, none, none, none, none, none, none⟩
-
 def Table.get (tb : Table) (q : State) (a : Symbol) : Option Move :=
   match q.val, a.val with
   | 0, 0 => tb.t00
@@ -51,17 +48,6 @@ def Table.get (tb : Table) (q : State) (a : Symbol) : Option Move :=
   | _, 0 => tb.t30
   | _, _ => tb.t31
 
-def Table.set (tb : Table) (q : State) (a : Symbol) (m : Move) : Table :=
-  match q.val, a.val with
-  | 0, 0 => { tb with t00 := some m }
-  | 0, _ => { tb with t01 := some m }
-  | 1, 0 => { tb with t10 := some m }
-  | 1, _ => { tb with t11 := some m }
-  | 2, 0 => { tb with t20 := some m }
-  | 2, _ => { tb with t21 := some m }
-  | _, 0 => { tb with t30 := some m }
-  | _, _ => { tb with t31 := some m }
-
 def Move.flip (m : Move) : Move := { m with left := !m.left }
 
 def Table.flip (tb : Table) : Table :=
@@ -69,15 +55,6 @@ def Table.flip (tb : Table) : Table :=
    tb.t10.map Move.flip, tb.t11.map Move.flip,
    tb.t20.map Move.flip, tb.t21.map Move.flip,
    tb.t30.map Move.flip, tb.t31.map Move.flip⟩
-
-theorem Table.get_set_self (tb : Table) (q : State) (a : Symbol) (m : Move) :
-    (tb.set q a m).get q a = some m := by
-  fin_cases q <;> fin_cases a <;> rfl
-
-theorem Table.get_set_ne (tb : Table) {q q' : State} {a a' : Symbol} (m : Move)
-    (h : (q', a') ≠ (q, a)) : (tb.set q a m).get q' a' = tb.get q' a' := by
-  fin_cases q <;> fin_cases a <;> fin_cases q' <;> fin_cases a' <;>
-    first | rfl | exact absurd rfl h
 
 theorem Table.get_flip (tb : Table) (q : State) (a : Symbol) :
     tb.flip.get q a = (tb.get q a).map Move.flip := by
@@ -104,21 +81,6 @@ def symHead : List Symbol → Symbol
 theorem symHead_eq_headI (xs : List Symbol) : symHead xs = xs.headI := by
   cases xs <;> rfl
 
-def listEq : List Symbol → List Symbol → Bool
-  | [], [] => true
-  | x :: xs, y :: ys => Nat.beq x.val y.val && listEq xs ys
-  | _, _ => false
-
-theorem listEq_eq_true {xs ys : List Symbol} (h : listEq xs ys = true) : xs = ys := by
-  induction xs generalizing ys with
-  | nil => cases ys with | nil => rfl | cons _ _ => simp [listEq] at h
-  | cons x xs ih =>
-    cases ys with
-    | nil => simp [listEq] at h
-    | cons y ys =>
-      simp only [listEq, Bool.and_eq_true] at h
-      rw [Fin.ext (Nat.eq_of_beq_eq_true h.1), ih h.2]
-
 def Position.move (c : Position) (m : Move) : Position :=
   if m.left then ⟨m.state, c.ls.tail, symHead c.ls, push m.write c.rs⟩
   else ⟨m.state, push m.write c.ls, symHead c.rs, c.rs.tail⟩
@@ -140,23 +102,11 @@ theorem mk_push (a : Symbol) (xs : List Symbol) :
 def Position.view (c : Position) : Cfg Symbol State :=
   ⟨some c.state, ⟨c.head, ListBlank.mk c.ls, ListBlank.mk c.rs⟩⟩
 
-theorem view_start : startPos.view = Machine.init [] := rfl
-
 def Move.command (m : Move) : Option (Option State × Stmt Symbol) :=
   some (some m.state, Stmt.write m.write (if m.left then Dir.left else Dir.right))
 
 def Matches (M : Machine4) (tb : Table) : Prop :=
   ∀ q a m, tb.get q a = some m → M q a = m.command
-
-theorem matches_set {M : Machine4} {tb : Table} {q : State} {a : Symbol} {m : Move}
-    (hm : Matches M tb) (h : M q a = m.command) : Matches M (tb.set q a m) := by
-  intro q' a' m' hh
-  by_cases e : (q', a') = (q, a)
-  · rcases Prod.mk.inj e with ⟨rfl, rfl⟩
-    rw [Table.get_set_self] at hh
-    exact (Option.some.inj hh) ▸ h
-  · rw [Table.get_set_ne tb m e] at hh
-    exact hm q' a' m' hh
 
 theorem step_move {M : Machine4} {tb : Table} (hm : Matches M tb) (c : Position) (m : Move)
     (h : tb.get c.state c.head = some m) :

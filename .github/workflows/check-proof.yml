@@ -13,6 +13,10 @@ concurrency:
   cancel-in-progress: true
 jobs:
   check:
+    # Off switch for when the batch checker (batch-check.yml) answers every pull request: the repository variable
+    # OMA_CHECK_PROOF set to "off" skips this job, so it takes no runner (the merger ignores skipped runs). Unset, or
+    # not visible to a run, it runs as before.
+    if: vars.OMA_CHECK_PROOF != 'off'
     runs-on: ubuntu-latest
     # Above every limit inside (20 min to build the imports + 30 min for the proof + ~3 min of setup), so a slow proof
     # always ends with a verdict: a job killed by this limit counts as cancelled and would get none.

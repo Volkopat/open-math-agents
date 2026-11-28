@@ -226,90 +226,10 @@ end PrimeRemainderBlocks
 open Finset
 open scoped BigOperators
 
-namespace PrimeRemainderSmallData
-
-def rowValid (row : ℕ × List ℕ) : Bool :=
-  row.2.all (fun q => decide (q ≤ row.1 ∧ q.Prime)) &&
-    decide (row.1 < ∑ q ∈ row.2.toFinset, row.1 % q)
-
-def rows : List (ℕ × List ℕ) := [
-  (17, [11, 13, 7, 5, 3, 2]),
-  (19, [11, 13, 7, 5]),
-  (23, [13, 17, 19, 5, 7]),
-  (29, [17, 19, 11, 23]),
-  (31, [17, 19, 11]),
-  (37, [19, 23, 13]),
-  (41, [23, 29, 31, 11]),
-  (43, [23, 29, 31]),
-  (47, [29, 31, 17, 37]),
-  (53, [29, 31, 37]),
-  (59, [31, 37, 41]),
-  (61, [31, 37, 41]),
-  (67, [37, 41, 43]),
-  (71, [37, 41, 43]),
-  (73, [37, 41, 43]),
-  (79, [41, 43, 47]),
-  (83, [43, 47, 53]),
-  (89, [47, 53, 59]),
-  (97, [53, 59, 61]),
-  (101, [53, 59, 61]),
-  (103, [53, 59, 61]),
-  (107, [59, 61, 67]),
-  (109, [59, 61, 67]),
-  (113, [59, 61, 67]),
-  (127, [67, 71, 73]),
-  (131, [67, 71, 73]),
-  (137, [71, 73, 79]),
-  (139, [71, 73, 79]),
-  (149, [79, 83, 89]),
-  (151, [79, 83, 89]),
-  (157, [79, 83, 89]),
-  (163, [83, 89, 97]),
-  (167, [89, 97, 101]),
-  (173, [89, 97, 101]),
-  (179, [97, 101, 103]),
-  (181, [97, 101, 103]),
-  (191, [97, 101, 103]),
-  (193, [97, 101, 103]),
-  (197, [101, 103, 107]),
-  (199, [101, 103, 107]),
-  (211, [107, 109, 113]),
-  (223, [113, 127, 131]),
-  (227, [127, 131, 137]),
-  (229, [127, 131, 137]),
-  (233, [127, 131, 137]),
-  (239, [127, 131, 137]),
-  (241, [127, 131, 137]),
-  (251, [127, 131, 137])
-]
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-theorem rowsValid : rows.all rowValid = true := by
-  simp only [rows, rowValid, Bool.and_eq_true, decide_eq_true_eq, List.all_cons, List.all_nil,
-    List.toFinset_cons, List.toFinset_nil]
-  norm_num [Finset.sum_insert]
-
-set_option maxHeartbeats 0 in
-theorem rowsCover (p : ℕ) (hp : p.Prime) (hlo : 17 ≤ p) (hhi : p < 256) :
-    p ∈ rows.map Prod.fst := by
-  interval_cases p <;> (try norm_num at hp) <;> norm_num [rows]
-
-end PrimeRemainderSmallData
-open PrimeRemainderSmallData
-
+-- kernel evaluation of every prime from 17 to 251, about 20 s
 theorem prime_remainders_small (p : ℕ) (hp : p.Prime) (hlo : 17 ≤ p) (hhi : p < 256) :
-    p < ∑ q ∈ p.primesLE, p % q := by
-  obtain ⟨⟨r, qs⟩, hm, he⟩ := List.mem_map.mp (rowsCover p hp hlo hhi)
-  change r = p at he
-  subst r
-  have hv := List.all_eq_true.mp rowsValid (p, qs) hm
-  simp only [rowValid, Bool.and_eq_true, decide_eq_true_eq] at hv
-  have hsub : qs.toFinset ⊆ p.primesLE := by
-    intro q hq
-    exact Nat.mem_primesLE.mpr
-      (of_decide_eq_true (List.all_eq_true.mp hv.1 q (List.mem_toFinset.mp hq)))
-  exact hv.2.trans_le (Finset.sum_le_sum_of_subset_of_nonneg hsub (fun _ _ _ => Nat.zero_le _))
+    p < ∑ q ∈ p.primesLE, p % q :=
+  (by decide +kernel : ∀ p < 256, 17 ≤ p → p.Prime → p < ∑ q ∈ p.primesLE, p % q) p hhi hlo hp
 
 
 open Finset

@@ -333,10 +333,6 @@ theorem nonzero_capable_card_le_representation_card (d s : ℕ) :
 noncomputable def representationCount (d s : ℕ) : ℕ :=
   Nat.card (TernaryRepresentation d s)
 
-theorem capable_card_le_representationCount (d s : ℕ) :
-    Nat.card (CapableDifference d s) ≤ representationCount d s :=
-  capable_card_le_representation_card d s
-
 end Green25Fractional
 
 end
@@ -362,38 +358,11 @@ the `moment` already used in the finite `B₈` certificate.
 
 namespace Green25Fractional
 
-/-- All terminal carry states after `n` output bits, retaining multiplicity. -/
-def carryLeaves : ℕ → ℕ → ℕ → List (ℕ × ℕ)
-  | 0, a, b => [(a, b)]
-  | n + 1, a, b => carryLeaves n a (a + b) ++ carryLeaves n (a + b) b
-
 /-- Fractional sum over both final carries at every leaf. -/
 noncomputable def terminalMoment : ℕ → ℝ → ℝ → ℝ → ℝ
   | 0, q, a, b => a ^ q + b ^ q
   | n + 1, q, a, b =>
       terminalMoment n q a (a + b) + terminalMoment n q (a + b) b
-
-theorem carryLeaves_length (n a b : ℕ) :
-    (carryLeaves n a b).length = 2 ^ n := by
-  induction n generalizing a b with
-  | zero => simp [carryLeaves]
-  | succ n ih =>
-      simp only [carryLeaves, List.length_append, ih, pow_succ]
-      omega
-
-/-- The recursive real expression is exactly the sum over the integer carry
-states.  Thus no analytic recurrence is being assumed independently of the
-finite counting tree. -/
-theorem terminalMoment_eq_carryLeaves (n a b : ℕ) (q : ℝ) :
-    terminalMoment n q a b =
-      ((carryLeaves n a b).map
-        (fun p : ℕ × ℕ => (p.1 : ℝ) ^ q + (p.2 : ℝ) ^ q)).sum := by
-  induction n generalizing a b with
-  | zero => simp [terminalMoment, carryLeaves]
-  | succ n ih =>
-      simp only [terminalMoment, carryLeaves, List.map_append, List.sum_append]
-      simpa only [Nat.cast_add] using
-        congrArg₂ (fun u v : ℝ => u + v) (ih a (a + b)) (ih (a + b) b)
 
 /-- At every depth, replacing the two final carry multiplicities by their sum
 costs only the factor `2^(1-q)`. -/
@@ -1194,17 +1163,6 @@ theorem representationCount_moment_eq_terminalMoment (d : ℕ) (q : ℝ) :
     _ = terminalMoment d q 1 0 := by
       simpa only [add_comm] using carryMultiplicity_moment_eq_terminalMoment d q
 
-/-- The finite block certificate now bounds the actual `h_d(s)` histogram,
-not merely the abstract carry recurrence. -/
-theorem representationCount_moment_block_bound (L k r : ℕ) (q : ℝ)
-    (hq₀ : 0 ≤ q) (hq₁ : q ≤ 1) :
-    (∑ s : Fin (2 ^ (L * k + r + 1)),
-        (representationCount (L * k + r) (s : ℕ) : ℝ) ^ q) ≤
-      (2 : ℝ) ^ (1 - q) * blockCoeff L q ^ k *
-        (2 * (3 / 2 : ℝ) ^ q) ^ r := by
-  rw [representationCount_moment_eq_terminalMoment]
-  exact representation_terminal_bound L k r q hq₀ hq₁
-
 end Green25Fractional
 
 end
@@ -1336,11 +1294,6 @@ theorem block8_coefficient_bound :
     _ = (312445416 : ℝ) / 1000000 := by
       simpa [List.map_map, root_sum] using! scaled_nat_sum ((terminalNorms 8 1 1).map rootUpper)
 
-/-- The original 683-digit integer inequality, checked independently of Python. -/
-theorem integer_decay_certificate :
-    1000 * (312445416 : ℕ) ^ 80 < 999 * 256000000 ^ 80 * 2 ^ 23 := by
-  norm_num
-
 end Green25Fractional
 
 end
@@ -1389,10 +1342,6 @@ theorem decay8_lt_one : decay8 < 1 := by
   have hpow : 1 ≤ decay8 ^ (80 : ℕ) := one_le_pow₀ (le_of_not_gt h)
   linarith [decay8_power_bound]
 
-theorem decay8_tendsto_zero :
-    Filter.Tendsto (fun k : ℕ => decay8 ^ k) Filter.atTop (nhds 0) :=
-  tendsto_pow_atTop_nhds_zero_of_lt_one decay8_nonneg decay8_lt_one
-
 end Green25Fractional
 
 end
@@ -1436,19 +1385,6 @@ theorem aggregate_bad_ratio_le_terminalMoment (d t : ℕ) (q : ℝ)
           (show (0 : ℝ) ≤ ((2 ^ t : ℕ) : ℝ) by positivity) q
     _ = terminalMoment d q 1 0 / (((2 ^ t : ℕ) : ℝ) ^ q) := by
       rw [representationCount_moment_eq_terminalMoment]
-
-/-- The general block estimate for the aggregate bad-sum probability. -/
-theorem aggregate_bad_ratio_block_bound (L k r t : ℕ) (q : ℝ)
-    (hq₀ : 0 ≤ q) (hq₁ : q ≤ 1) :
-    (∑ s : CandidateSum (L * k + r),
-        ((badForSumFinset (L * k + r) t s).card : ℝ) /
-          Fintype.card (LinearColoring (L * k + r) t)) ≤
-      ((2 : ℝ) ^ (1 - q) * blockCoeff L q ^ k *
-        (2 * (3 / 2 : ℝ) ^ q) ^ r) /
-          (((2 ^ t : ℕ) : ℝ) ^ q) := by
-  refine (aggregate_bad_ratio_le_terminalMoment (L * k + r) t q hq₀ hq₁).trans ?_
-  exact div_le_div_of_nonneg_right
-    (representation_terminal_bound L k r q hq₀ hq₁) (by positivity)
 
 /-- Convert a strict real aggregate estimate back to the natural-number
 incidence inequality required by finite averaging. -/
@@ -1580,29 +1516,6 @@ theorem exists_coloring_with_few_collision_sums (d t B : ℕ) (q : ℝ)
     exists_coloring_of_terminalMoment_ratio_lt d t B q hq₀ hq₁ hterminal
   exact ⟨H, (collisionSumFinset_card_le_badSumCount H).trans_lt hH⟩
 
-/-- Concrete dyadic reduction at exponent `23/40`: on `2^(40m)` words use
-`2^(23m)` linear colors.  Only the displayed one-variable decay inequality
-remains to obtain fewer than `2^(40m)/16` collision sums. -/
-theorem exists_block8_collision_coloring (m : ℕ)
-    (hscalar :
-      ((2 : ℝ) ^ (15 / 16 : ℝ) * blockCoeff 8 (1 / 16) ^ (5 * m)) /
-          (((2 ^ (23 * m) : ℕ) : ℝ) ^ (1 / 16 : ℝ)) <
-        (2 ^ (40 * m - 4) : ℕ)) :
-    ∃ H : LinearColoring (40 * m) (23 * m),
-      (collisionSumFinset (40 * m) (23 * m) H).card < 2 ^ (40 * m - 4) := by
-  apply exists_coloring_with_few_collision_sums
-    (40 * m) (23 * m) (2 ^ (40 * m - 4)) (1 / 16)
-    (by norm_num) (by norm_num)
-  have hd : 8 * (5 * m) + 0 = 40 * m := by omega
-  have hb := representation_terminal_bound 8 (5 * m) 0 (1 / 16 : ℝ)
-    (by norm_num) (by norm_num)
-  rw [hd] at hb
-  rw [show (1 : ℝ) - 1 / 16 = 15 / 16 by norm_num] at hb
-  have hb' : terminalMoment (40 * m) (1 / 16) 1 0 ≤
-      (2 : ℝ) ^ (15 / 16 : ℝ) * blockCoeff 8 (1 / 16) ^ (5 * m) := by
-    simpa only [pow_zero, mul_one] using hb
-  exact (div_le_div_of_nonneg_right hb' (by positivity)).trans_lt hscalar
-
 end Green25Fractional
 
 end
@@ -1653,24 +1566,6 @@ theorem decay8_pow_very_small {n : ℕ} (hn : 1280000 ≤ n) :
   have hmono : decay8 ^ n ≤ decay8 ^ (1280000 : ℕ) :=
     pow_le_pow_of_le_one decay8_nonneg decay8_lt_one.le hn
   exact hmono.trans_lt hfixed
-
-/-- A deliberately conservative explicit threshold.  It avoids any
-non-effective use of the limit theorem: 4000 blocks of the certified
-80th-power contraction already beat the remaining constant factor. -/
-theorem decay8_scaled_small {m : ℕ} (hm : 64000 ≤ m) :
-    (2 : ℝ) ^ (15 / 16 : ℝ) * decay8 ^ (5 * m) < 1 / 16 := by
-  have hexp : 320000 ≤ 5 * m := by omega
-  have hdecay : decay8 ^ (5 * m) < 1 / 32 := decay8_pow_small hexp
-  have htwo : (2 : ℝ) ^ (15 / 16 : ℝ) < 2 := by
-    simpa only [Real.rpow_one] using
-      Real.rpow_lt_rpow_of_exponent_lt (by norm_num : (1 : ℝ) < 2)
-        (by norm_num : (15 / 16 : ℝ) < 1)
-  calc
-    (2 : ℝ) ^ (15 / 16 : ℝ) * decay8 ^ (5 * m) <
-        (2 : ℝ) ^ (15 / 16 : ℝ) * (1 / 32 : ℝ) :=
-      mul_lt_mul_of_pos_left hdecay (Real.rpow_pos_of_pos (by norm_num) _)
-    _ < 2 * (1 / 32 : ℝ) := mul_lt_mul_of_pos_right htwo (by norm_num)
-    _ = 1 / 16 := by norm_num
 
 end Green25Fractional
 
@@ -1784,104 +1679,6 @@ section
 
 namespace Green25Fractional
 
-/-- The normalization exponent is exact: five 8-bit blocks contribute
-`40m` input bits and the remaining `23m/16` exponent is precisely cancelled
-by the number of colors. -/
-theorem decay8_scale_factor (m : ℕ) :
-    (((2 : ℝ) ^ (663 / 80 : ℝ)) ^ (5 * m : ℕ)) =
-      ((2 ^ (40 * m) : ℕ) : ℝ) *
-        (((2 ^ (23 * m) : ℕ) : ℝ) ^ (1 / 16 : ℝ)) := by
-  have h40 : ((2 ^ (40 * m) : ℕ) : ℝ) = (2 : ℝ) ^ (40 * m : ℕ) := by
-    norm_num
-  have h23 : ((2 ^ (23 * m) : ℕ) : ℝ) = (2 : ℝ) ^ (23 * m : ℕ) := by
-    norm_num
-  rw [h40, h23]
-  calc
-    (((2 : ℝ) ^ (663 / 80 : ℝ)) ^ (5 * m : ℕ)) =
-        (2 : ℝ) ^ ((663 / 80 : ℝ) * ((5 * m : ℕ) : ℝ)) := by
-      rw [Real.rpow_mul_natCast (by norm_num : (0 : ℝ) ≤ 2)]
-    _ = (2 : ℝ) ^ (((40 * m : ℕ) : ℝ) +
-        ((23 * m : ℕ) : ℝ) * (1 / 16 : ℝ)) := by
-      congr 1
-      push_cast
-      ring
-    _ = (2 : ℝ) ^ (((40 * m : ℕ) : ℝ)) *
-        (2 : ℝ) ^ (((23 * m : ℕ) : ℝ) * (1 / 16 : ℝ)) :=
-      Real.rpow_add (by norm_num : (0 : ℝ) < 2) _ _
-    _ = (2 : ℝ) ^ (40 * m : ℕ) *
-        (((2 : ℝ) ^ (23 * m : ℕ)) ^ (1 / 16 : ℝ)) := by
-      congr 1
-      · exact Real.rpow_natCast 2 (40 * m)
-      · rw [Real.rpow_mul (by norm_num : (0 : ℝ) ≤ 2),
-          Real.rpow_natCast]
-
-/-- Rewrite the concrete scalar in the dyadic reduction as `2^(40m)` times
-the certified decaying factor. -/
-theorem block8_scalar_eq_scaled_decay (m : ℕ) :
-    ((2 : ℝ) ^ (15 / 16 : ℝ) * blockCoeff 8 (1 / 16) ^ (5 * m)) /
-        (((2 ^ (23 * m) : ℕ) : ℝ) ^ (1 / 16 : ℝ)) =
-      ((2 ^ (40 * m) : ℕ) : ℝ) *
-        ((2 : ℝ) ^ (15 / 16 : ℝ) * decay8 ^ (5 * m)) := by
-  have hexp :
-      (8 + 8 * (1 / 16 : ℝ) * (23 / 40 : ℝ)) = 663 / 80 := by norm_num
-  have hbase :
-      blockCoeff 8 (1 / 16) = decay8 * (2 : ℝ) ^ (663 / 80 : ℝ) := by
-    unfold decay8
-    rw [hexp]
-    field_simp
-  rw [hbase, mul_pow, decay8_scale_factor]
-  have hden : (0 : ℝ) < (((2 ^ (23 * m) : ℕ) : ℝ) ^ (1 / 16 : ℝ)) :=
-    Real.rpow_pos_of_pos (by positivity) _
-  field_simp
-
-/-- The concrete scalar inequality required by the dyadic construction holds
-from the explicit threshold onward. -/
-theorem block8_scalar_small {m : ℕ} (hm : 64000 ≤ m) :
-    ((2 : ℝ) ^ (15 / 16 : ℝ) * blockCoeff 8 (1 / 16) ^ (5 * m)) /
-          (((2 ^ (23 * m) : ℕ) : ℝ) ^ (1 / 16 : ℝ)) <
-        (2 ^ (40 * m - 4) : ℕ) := by
-  have hn : 4 ≤ 40 * m := by omega
-  have hpowNat : 2 ^ (40 * m - 4) * 2 ^ 4 = 2 ^ (40 * m) :=
-    pow_sub_mul_pow 2 hn
-  have hcast : ((2 ^ (40 * m - 4) : ℕ) : ℝ) =
-      ((2 ^ (40 * m) : ℕ) : ℝ) * (1 / 16 : ℝ) := by
-    have h := congrArg (fun n : ℕ => (n : ℝ)) hpowNat
-    norm_num at h ⊢
-    linarith
-  rw [block8_scalar_eq_scaled_decay, hcast]
-  exact mul_lt_mul_of_pos_left (decay8_scaled_small hm) (by positivity)
-
-/-- Unconditional dyadic `23/40` construction at all explicit large block
-indices. -/
-theorem exists_large_dyadic_collision_coloring {m : ℕ} (hm : 64000 ≤ m) :
-    ∃ H : LinearColoring (40 * m) (23 * m),
-      (collisionSumFinset (40 * m) (23 * m) H).card < 2 ^ (40 * m - 4) :=
-  exists_block8_collision_coloring m (block8_scalar_small hm)
-
-/-- Colors which are actually used by a linear coloring. -/
-noncomputable def usedColorFinset (d t : ℕ) (H : LinearColoring d t) :
-    Finset (F2Word t) := by
-  classical
-  exact Finset.univ.image fun x : BitWord d => H (boolToF2Word x)
-
-theorem usedColorFinset_card_le (d t : ℕ) (H : LinearColoring d t) :
-    (usedColorFinset d t H).card ≤ 2 ^ t := by
-  calc
-    (usedColorFinset d t H).card ≤ Fintype.card (F2Word t) :=
-      Finset.card_le_card (Finset.subset_univ _)
-    _ = 2 ^ t := by
-      rw [← Nat.card_eq_fintype_card]
-      exact f2Word_card t
-
-/-- Dyadic construction packaged with both its number of nonempty colors and
-its actual same-color restricted-sum bound. -/
-theorem exists_large_dyadic_coloring_data {m : ℕ} (hm : 64000 ≤ m) :
-    ∃ H : LinearColoring (40 * m) (23 * m),
-      (usedColorFinset (40 * m) (23 * m) H).card ≤ 2 ^ (23 * m) ∧
-      (collisionSumFinset (40 * m) (23 * m) H).card < 2 ^ (40 * m - 4) := by
-  obtain ⟨H, hH⟩ := exists_large_dyadic_collision_coloring hm
-  exact ⟨H, usedColorFinset_card_le _ _ H, hH⟩
-
 /-- A sum realized by two distinct points in one fiber of an arbitrary
 finite coloring. -/
 def FiberSameColorSum {d : ℕ} {K : Type*} (g : BitWord d → K) (s : ℕ) : Prop :=
@@ -1907,33 +1704,6 @@ theorem fiberCollisionSumFinset_subset_of_refines {d t : ℕ} {K : Type*}
     Finset.mem_univ, true_and] at hs ⊢
   rcases hs with ⟨x, y, hxy, hcolor, hsum⟩
   exact ⟨x, y, hxy, hrefines hcolor, hsum⟩
-
-/-- For every explicit large dyadic block, the construction can be made to
-use exactly `2^(23m)` nonempty colors, without weakening its collision-sum
-bound. -/
-theorem exists_large_dyadic_exact_coloring {m : ℕ} (hm : 64000 ≤ m) :
-    ∃ g : BitWord (40 * m) → Fin (2 ^ (23 * m)),
-      Function.Surjective g ∧
-      (fiberCollisionSumFinset (40 * m) g).card < 2 ^ (40 * m - 4) := by
-  obtain ⟨H, hH⟩ := exists_large_dyadic_collision_coloring hm
-  let f : BitWord (40 * m) → F2Word (23 * m) :=
-    fun x => H (boolToF2Word x)
-  have hused : Nat.card (Set.range f) ≤ 2 ^ (23 * m) := by
-    calc
-      Nat.card (Set.range f) ≤ Nat.card (F2Word (23 * m)) :=
-        Nat.card_le_card_of_injective Subtype.val Subtype.val_injective
-      _ = 2 ^ (23 * m) := f2Word_card (23 * m)
-  have hdomain : Nat.card (BitWord (40 * m)) = 2 ^ (40 * m) := by
-    rw [Nat.card_eq_fintype_card]
-    simp [BitWord]
-  have hk : 2 ^ (23 * m) ≤ Nat.card (BitWord (40 * m)) := by
-    rw [hdomain]
-    exact Nat.pow_le_pow_right (by norm_num) (by omega)
-  obtain ⟨g, hsurj, hrefines⟩ :=
-    exists_surjective_refinement f (2 ^ (23 * m)) hused hk
-  refine ⟨g, hsurj, ?_⟩
-  exact (Finset.card_le_card
-    (fiberCollisionSumFinset_subset_of_refines H g hrefines)).trans_lt hH
 
 end Green25Fractional
 
@@ -1990,14 +1760,6 @@ def shiftCandidate (d : ℕ) (s : CandidateSum d) : Fin (2 * 2 ^ d + 2) :=
         _ = 2 * 2 ^ d := by rw [pow_succ]; omega
     omega⟩
 
-theorem shiftCandidate_injective (d : ℕ) :
-    Function.Injective (shiftCandidate d) := by
-  intro s t h
-  apply Fin.ext
-  have := congrArg Fin.val h
-  simp only [shiftCandidate] at this
-  omega
-
 /-- The interval sums of the transported coloring inject into the shifted
 binary-cube collision sums. -/
 theorem finIntervalCollisionSumFinset_subset_shift {d k : ℕ}
@@ -2037,33 +1799,6 @@ theorem finIntervalCollisionSumFinset_subset_shift {d k : ℕ}
   apply Fin.ext
   simp only [shiftCandidate, old]
   omega
-
-/-- Exact-color interval form of the dyadic construction.  The interval has
-`N = 2^(40m)` points, all `N^(23/40) = 2^(23m)` colors are nonempty, and
-fewer than `N/16` restricted monochromatic sums occur. -/
-theorem exists_large_dyadic_exact_interval_coloring {m : ℕ} (hm : 64000 ≤ m) :
-    ∃ g : Fin (2 ^ (40 * m)) → Fin (2 ^ (23 * m)),
-      Function.Surjective g ∧
-      (finIntervalCollisionSumFinset (2 ^ (40 * m)) g).card <
-        2 ^ (40 * m - 4) := by
-  obtain ⟨g, hsurj, hsum⟩ := exists_large_dyadic_exact_coloring hm
-  let e := binaryValueEquiv (40 * m)
-  let g' : Fin (2 ^ (40 * m)) → Fin (2 ^ (23 * m)) :=
-    fun i => g (e.symm i)
-  have hsurj' : Function.Surjective g' := by
-    intro c
-    obtain ⟨w, hw⟩ := hsurj c
-    exact ⟨e w, by simpa only [g', e, Equiv.symm_apply_apply] using hw⟩
-  refine ⟨g', hsurj', ?_⟩
-  calc
-    (finIntervalCollisionSumFinset (2 ^ (40 * m)) g').card ≤
-        ((fiberCollisionSumFinset (40 * m) g).image
-          (shiftCandidate (40 * m))).card :=
-      Finset.card_le_card (by
-        simpa only [g', e] using
-          finIntervalCollisionSumFinset_subset_shift g)
-    _ ≤ (fiberCollisionSumFinset (40 * m) g).card := Finset.card_image_le
-    _ < 2 ^ (40 * m - 4) := hsum
 
 end Green25Fractional
 
@@ -2261,35 +1996,6 @@ theorem finpartition_restrictedSumset_card_le {N k : ℕ}
         Finset.card_le_card
           (finpartition_restrictedSumset_subset_collisionValues g hsurj)
     _ = (finIntervalCollisionSumFinset N g).card := intervalCollisionValues_card g
-
-/-- A genuine FC `Finpartition` counterexample on every sufficiently large
-member of the dyadic subsequence. -/
-theorem exists_large_dyadic_finpartition_counterexample
-    {m : ℕ} (hm : 64000 ≤ m) :
-    ∃ P : Finpartition (Icc 1 (2 ^ (40 * m))),
-      P.parts.card = 2 ^ (23 * m) ∧
-      (P.parts.biUnion Finset.restrictedSumset).card <
-        2 ^ (40 * m - 4) := by
-  obtain ⟨g, hsurj, hsmall⟩ :=
-    exists_large_dyadic_exact_interval_coloring hm
-  let P := intervalFinpartition g hsurj
-  refine ⟨P, intervalFinpartition_card_parts g hsurj, ?_⟩
-  exact (finpartition_restrictedSumset_card_le g hsurj).trans_lt hsmall
-
-/-- Directly in the current Formal Conjectures predicate: at the dyadic
-sizes `N = 2^(40m)`, `k = 2^(23m)` fails `Property25`. -/
-theorem not_property25_large_dyadic {m : ℕ} (hm : 64000 ≤ m) :
-    ¬ Green25.Property25 (2 ^ (23 * m)) (2 ^ (40 * m)) := by
-  obtain ⟨P, hparts, hsmall⟩ :=
-    exists_large_dyadic_finpartition_counterexample hm
-  intro hproperty
-  have hlower := hproperty.2.2 P hparts
-  have hfour : 4 ≤ 40 * m := by omega
-  have hscale : 2 ^ (40 * m - 4) * 16 = 2 ^ (40 * m) := by
-    have h := pow_sub_mul_pow 2 hfour
-    norm_num at h ⊢
-    exact h
-  omega
 
 end Green25Fractional
 
@@ -2703,19 +2409,6 @@ namespace Green25Fractional
 
 open Finset
 
-/-- Exact coloring on every sufficiently large binary dimension, including
-dimensions which are not multiples of forty. -/
-theorem exists_large_dimension_exact_interval_coloring
-    {ell r : ℕ} (hell : 1280000 ≤ ell) (hr : r < 8) :
-    ∃ g : Fin (2 ^ (8 * ell + r)) →
-        Fin (2 ^ targetBitCount (8 * ell + r)),
-      Function.Surjective g ∧
-      (finIntervalCollisionSumFinset (2 ^ (8 * ell + r)) g).card <
-        2 ^ ((8 * ell + r) - 6) := by
-  exact exists_block8_remainder_exact_interval_coloring ell r
-    (targetBitCount (8 * ell + r)) (2 ^ ((8 * ell + r) - 6))
-    (targetBitCount_le _) (block8_remainder_scalar_small hell hr)
-
 /-- The collision allowance `2^(d-6)` is already less than one tenth of
 every prefix lying above `2^(d-1)`. -/
 theorem ten_pow_sub_six_lt_pow_sub_one {d : ℕ} (hd : 6 ≤ d) :
@@ -3018,17 +2711,6 @@ theorem green_25_upper_concrete :
     green25ColorCount_isLittleO_bestUpper,
     green25ColorCount_not_eventually_property⟩
 
-/-- A version of the FC upper statement with the witness quantified explicitly.
-This is the statement to which `green25ColorCount` can actually be supplied. -/
-theorem exists_improved_upper_witness :
-    ∃ k : ℕ → ℕ,
-      (∀ᶠ N in atTop, 1 ≤ k N ∧ k N ≤ N) ∧
-      (fun N => (k N : ℝ)) =o[atTop] Green25.bestUpper ∧
-      ¬ ∀ᶠ N in atTop, Green25.Property25 (k N) N := by
-  exact ⟨green25ColorCount, green25ColorCount_eventually_valid,
-    green25ColorCount_isLittleO_bestUpper,
-    green25ColorCount_not_eventually_property⟩
-
 end Green25Fractional
 
 end
@@ -3038,16 +2720,6 @@ end
 open Asymptotics Filter
 
 namespace Green25Fractional
-
-/-- Formal Conjectures variant `Green25.green_25.variants.upper_pow_23_40`:
-for `k(N) = ⌈N ^ (23 / 40)⌉`, `Property25` fails for all sufficiently large `N`. -/
-theorem green_25_variants_upper_pow_23_40 :
-    let k : ℕ → ℕ := fun N => Nat.ceil ((N : ℝ) ^ (23 / 40 : ℝ))
-    (∀ᶠ N in atTop, 1 ≤ k N ∧ k N ≤ N) ∧
-    (fun N => (k N : ℝ)) =o[atTop] Green25.bestUpper ∧
-    ∀ᶠ N in atTop, ¬ Green25.Property25 (k N) N :=
-  ⟨green25ColorCount_eventually_valid, green25ColorCount_isLittleO_bestUpper,
-    green25ColorCount_eventually_not_property⟩
 
 end Green25Fractional
 

@@ -1,3 +1,4 @@
+import { shownSolved } from "@/lib/outcome";
 import { NextRequest, NextResponse } from "next/server";
 import { META, search, withExcerpts, getFullMany } from "@/lib/catalog";
 import { getLiveMap, getStats } from "@/lib/db";
@@ -47,7 +48,7 @@ async function compute(sp: URLSearchParams) {
     items: items.map((p) => ({
       ...(details ? details.get(p.id) ?? p : cards!.get(p.id)),
       liveAgents: live.get(p.id) ?? 0,
-      solved: solved.has(p.id),
+      solved: shownSolved(solved, p.kind, p.id),
     })),
   };
 }

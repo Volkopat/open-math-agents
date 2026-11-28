@@ -1,5 +1,6 @@
 import FormalConjectures.ErdosProblems.«780»
 
+open Finset
 -- Problem: Erdős Problem 780 — sharp
 -- Upstream: formal-conjectures FormalConjectures/ErdosProblems/780.lean:61 (declaration Erdos780.erdos_780.variants.sharp)
 -- Credit: @rorcores (the owner of the agent is credited as the solver)
@@ -24,7 +25,7 @@ Why no colour has k pairwise disjoint edges:
 theorem OMA.solution : type_of% @Erdos780.erdos_780.variants.sharp := by
   intro k r t hk hr ht
   have hne : ∀ e : {e : Finset (Fin (k * r - 1 + (t - 1) * (k - 1))) // e.card = r},
-      e.1.Nonempty := fun e => Finset.card_pos.mp (by rw [e.2]; exact hr)
+      e.1.Nonempty := fun e => card_pos.mp (by rw [e.2]; exact hr)
   refine ⟨fun e => ⟨min ((e.1.min' (hne e)).val / (k - 1)) (t - 1),
     lt_of_le_of_lt (Nat.min_le_right _ _) (by omega)⟩, ?_⟩
   rintro ⟨i, e, hc, hd⟩
@@ -35,33 +36,33 @@ theorem OMA.solution : type_of% @Erdos780.erdos_780.variants.sharp := by
   by_cases hA : ∀ j, (t - 1) * (k - 1) ≤ (least j).val
   · -- Case 1: every edge lies inside the big part.
     have hcard : ∀ j, (e j).1.card = r := fun j => (e j).2
-    have hpd : ((Finset.univ : Finset (Fin k)) : Set (Fin k)).PairwiseDisjoint
+    have hpd : ((univ : Finset (Fin k)) : Set (Fin k)).PairwiseDisjoint
         (fun j => (e j).1) := fun a _ b _ hab => hd hab
-    have hU : (Finset.univ.biUnion fun j => (e j).1).card = k * r := by
-      rw [Finset.card_biUnion hpd]
+    have hU : (univ.biUnion fun j => (e j).1).card = k * r := by
+      rw [card_biUnion hpd]
       simp [hcard]
-    have hle : (Finset.univ.biUnion fun j => (e j).1).card ≤ (Finset.range (k * r - 1)).card := by
-      refine Finset.card_le_card_of_injOn (fun v => v.val - (t - 1) * (k - 1)) ?_ ?_
+    have hle : (univ.biUnion fun j => (e j).1).card ≤ (range (k * r - 1)).card := by
+      refine card_le_card_of_injOn (fun v => v.val - (t - 1) * (k - 1)) ?_ ?_
       · intro v hv
-        obtain ⟨j, -, hj⟩ := Finset.mem_biUnion.mp (Finset.mem_coe.mp hv)
+        obtain ⟨j, -, hj⟩ := mem_biUnion.mp (mem_coe.mp hv)
         have h1 : (least j).val ≤ v.val :=
-          Fin.le_def.mp (Finset.min'_le _ v hj)
+          Fin.le_def.mp (min'_le _ v hj)
         have h2 := hA j
         have h3 := v.isLt
         have h4 : v.val - (t - 1) * (k - 1) < k * r - 1 := by omega
-        exact Finset.mem_coe.mpr (Finset.mem_range.mpr h4)
+        exact mem_coe.mpr (mem_range.mpr h4)
       · intro v hv w hw hvw
-        obtain ⟨j, -, hj⟩ := Finset.mem_biUnion.mp (Finset.mem_coe.mp hv)
-        obtain ⟨j', -, hj'⟩ := Finset.mem_biUnion.mp (Finset.mem_coe.mp hw)
+        obtain ⟨j, -, hj⟩ := mem_biUnion.mp (mem_coe.mp hv)
+        obtain ⟨j', -, hj'⟩ := mem_biUnion.mp (mem_coe.mp hw)
         have h1 : (least j).val ≤ v.val :=
-          Fin.le_def.mp (Finset.min'_le _ v hj)
+          Fin.le_def.mp (min'_le _ v hj)
         have h1' : (least j').val ≤ w.val :=
-          Fin.le_def.mp (Finset.min'_le _ w hj')
+          Fin.le_def.mp (min'_le _ w hj')
         have h2 := hA j
         have h2' := hA j'
         have hvw' : v.val - (t - 1) * (k - 1) = w.val - (t - 1) * (k - 1) := hvw
         exact Fin.ext (by omega)
-    rw [hU, Finset.card_range] at hle
+    rw [hU, card_range] at hle
     have hpos : 0 < k * r := Nat.mul_pos hk hr
     omega
   · -- Case 2: some edge starts in a block, hence all of them start in that same block.
@@ -96,5 +97,5 @@ theorem OMA.solution : type_of% @Erdos780.erdos_780.variants.sharp := by
         ← Nat.div_add_mod (least b).val (k - 1), hdiv a, hdiv b, hmod]
     have hmem : least a ∈ (e b).1 := by
       rw [heq]
-      exact Finset.min'_mem _ _
-    exact Finset.disjoint_left.mp (hd hab) (Finset.min'_mem _ _) hmem
+      exact min'_mem _ _
+    exact disjoint_left.mp (hd hab) (min'_mem _ _) hmem

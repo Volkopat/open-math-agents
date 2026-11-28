@@ -43,12 +43,10 @@ theorem zinj (ξ η : ℝ) (hξ : IsZNumber ξ) (hη : IsZNumber η)
     induction n, hn using Nat.le_induction with
     | base => exact h1
     | succ n hn ih =>
-      have e1 : ξ * (3 / 2 : ℝ) ^ (n + 1) = ξ * (3 / 2) ^ n * (3 / 2) := by ring
-      have e2 : η * (3 / 2 : ℝ) ^ (n + 1) = η * (3 / 2) ^ n * (3 / 2) := by ring
-      rw [e1, e2]
-      refine step _ _ ih (hξ.2 n hn) (hη.2 n hn) ?_ ?_
-      · rw [← e1]; exact hξ.2 (n + 1) (by omega)
-      · rw [← e2]; exact hη.2 (n + 1) (by omega)
+      have hx := hξ.2 (n + 1) (by omega)
+      have hy := hη.2 (n + 1) (by omega)
+      simp only [pow_succ, ← mul_assoc] at hx hy ⊢
+      exact step _ _ ih (hξ.2 n hn) (hη.2 n hn) hx hy
   have hb : ∀ n, 1 ≤ n → |ξ - η| * (3 / 2 : ℝ) ^ n < 1 := by
     intro n hn
     have hx := hξ.2 n hn
@@ -73,8 +71,6 @@ end OMAQ
 
 theorem OMA.solution : type_of% @Bugeaud09.problem_10_9.variants.measure_zero := by
   apply Set.Countable.measure_zero
-  have hi : Function.Injective
-      (fun x : {ξ : ℝ | IsZNumber ξ} => ⌊x.1 * (3 / 2 : ℝ) ^ 1⌋) := by
-    intro a b h
-    exact Subtype.ext (OMAQ.zinj a.1 b.1 a.2 b.2 h)
-  exact Set.countable_coe_iff.1 hi.countable
+  exact Set.countable_of_injective_of_countable_image
+    (f := fun ξ : ℝ => ⌊ξ * (3 / 2 : ℝ) ^ 1⌋)
+    (fun a ha b hb h => OMAQ.zinj a b ha hb h) (Set.to_countable _)

@@ -126,31 +126,6 @@ theorem IsTriangle.exists_third_of_mem {T : Finset (Sym2 V)}
       ext e
       simp [triangleEdges, Sym2.eq_swap, or_comm, or_assoc]
 
-theorem IsTriangle.eq_of_two_common_edges {T U : Finset (Sym2 V)}
-    (hT : IsTriangle T) (hU : IsTriangle U) {e f : Sym2 V}
-    (hef : e ≠ f) (heT : e ∈ T) (hfT : f ∈ T)
-    (heU : e ∈ U) (hfU : f ∈ U) : T = U := by
-  obtain ⟨u, hue, huf⟩ := hT.edges_incident heT hfT
-  obtain ⟨v, rfl⟩ := Sym2.mem_iff_exists.mp hue
-  obtain ⟨w, rfl⟩ := Sym2.mem_iff_exists.mp huf
-  have huv : u ≠ v := hT.ne_of_mem heT
-  have huw : u ≠ w := hT.ne_of_mem hfT
-  have hvw : v ≠ w := by
-    rintro rfl
-    exact hef rfl
-  exact (hT.eq_of_spokes huv huw hvw heT hfT).trans
-    (hU.eq_of_spokes huv huw hvw heU hfU).symm
-
-theorem IsTriangle.inter_card_le_one {T U : Finset (Sym2 V)}
-    (hT : IsTriangle T) (hU : IsTriangle U) (hne : T ≠ U) :
-    (T ∩ U).card ≤ 1 := by
-  apply Finset.card_le_one.mpr
-  intro e he f hf
-  by_contra hef
-  exact hne (hT.eq_of_two_common_edges hU hef
-    (Finset.mem_inter.mp he).1 (Finset.mem_inter.mp hf).1
-    (Finset.mem_inter.mp he).2 (Finset.mem_inter.mp hf).2)
-
 /-- Triangles whose listed vertices have only the first vertex in common share no edge. -/
 theorem triangleEdges_disjoint_of_five_distinct {u v w x y : V}
     (hvertices : [u, v, w, x, y].Nodup) :
@@ -336,14 +311,6 @@ theorem IsMaximumPacking.card_eq {F P : Finset (Finset E)}
   apply Nat.le_antisymm hP.1.card_le
   exact hP.2 _ (maximumPacking_spec F).1
 
-omit [DecidableEq E] in
-theorem IsPacking.maximum_of_card_eq {F P : Finset (Finset E)}
-    (hP : IsPacking F P) (hc : P.card = packingNumber F) :
-    IsMaximumPacking F P := by
-  refine ⟨hP, fun Q hQ => ?_⟩
-  rw [hc]
-  exact hQ.card_le
-
 theorem packing_insert {F P : Finset (Finset E)} {T : Finset E}
     (hP : IsPacking F P) (hT : T ∈ F) (hd : Disjoint T (support P)) :
     IsPacking F (insert T P) := by
@@ -503,19 +470,6 @@ theorem IsPacking.card_support_uniform {F P : Finset (Finset E)}
     ∑ T ∈ P, T.card = ∑ _T ∈ P, k := sum_congr rfl hcard
     _ = k * P.card := by simp [Nat.mul_comm]
 
-theorem transversalNumber_le_three_packingNumber (F : Finset (Finset E))
-    (hF : ∀ T ∈ F, T.card = 3) :
-    transversalNumber F ≤ 3 * packingNumber F := by
-  have hne : ∀ T ∈ F, T.Nonempty := by
-    intro T hT
-    exact card_pos.mp (by rw [hF T hT]; decide)
-  have hP := maximumPacking_spec F
-  calc
-    transversalNumber F ≤ (support (maximumPacking F)).card :=
-      (hP.support_covers hne).number_le
-    _ = 3 * packingNumber F :=
-      hP.1.card_support_uniform (fun T hT => hF T (hP.1.1 hT))
-
 /-- First maximize the number of members in S, then the total packing size. -/
 def IsLexMaximumPacking (F S P : Finset (Finset E)) : Prop :=
   IsPacking F P ∧ ∀ Q, IsPacking F Q →
@@ -672,27 +626,11 @@ theorem mem_graphTriangles_iff {G : SimpleGraph V} {T : Finset (Sym2 V)} :
     · exact pair_mem_graphEdges.mpr huw
     · exact pair_mem_graphEdges.mpr hvw
 
-/-- The representation agrees with mathlib's standard three-vertex clique predicate. -/
-theorem triangleEdges_mem_graphTriangles_iff {G : SimpleGraph V} {u v w : V} :
-    triangleEdges u v w ∈ graphTriangles G ↔ G.IsNClique 3 {u, v, w} := by
-  rw [SimpleGraph.is3Clique_triple_iff]
-  constructor
-  · intro h
-    have hsub := (mem_trianglesOn.mp h).2
-    exact ⟨pair_mem_graphEdges.mp (hsub (by simp)),
-      pair_mem_graphEdges.mp (hsub (by simp)),
-      pair_mem_graphEdges.mp (hsub (by simp))⟩
-  · rintro ⟨hab, hac, hbc⟩
-    exact mem_graphTriangles_iff.mpr ⟨u, v, w, hab, hac, hbc, rfl⟩
-
 /-- The paper's ν(G). -/
 noncomputable def nu (G : SimpleGraph V) : ℕ := packingNumber (graphTriangles G)
 
 /-- The paper's τ(G). -/
 noncomputable def tau (G : SimpleGraph V) : ℕ := transversalNumber (graphTriangles G)
-
-theorem graph_trivial_bound (G : SimpleGraph V) : tau G ≤ 3 * nu G :=
-  transversalNumber_le_three_packingNumber _ (fun _ hT => trianglesOn_card hT)
 
 /-- The finite-family cover condition is exactly the usual requirement on
 every triple of pairwise adjacent vertices. -/
@@ -729,27 +667,6 @@ theorem exists_graph_minimumCover (G : SimpleGraph V) :
     (fun _ hT => trianglesOn_nonempty hT)
   exact ⟨C, hsub.trans (graphTriangles_support_subset G), hC, hc⟩
 
-/-- An upper bound on the formal τ is equivalent to an ordinary graph-edge
-transversal of that size. -/
-theorem tau_le_iff (G : SimpleGraph V) (n : ℕ) :
-    tau G ≤ n ↔ ∃ C, C ⊆ graphEdges G ∧
-      IsCover (graphTriangles G) C ∧ C.card ≤ n := by
-  constructor
-  · intro h
-    obtain ⟨C, hsub, hC, hc⟩ := exists_graph_minimumCover G
-    exact ⟨C, hsub, hC, hc ▸ h⟩
-  · rintro ⟨C, _, hC, hc⟩
-    exact hC.number_le.trans hc
-
-/-- The formal ν is the maximum size over actual edge-disjoint graph triangles. -/
-theorem le_nu_iff (G : SimpleGraph V) (n : ℕ) :
-    n ≤ nu G ↔ ∃ P, IsPacking (graphTriangles G) P ∧ n ≤ P.card := by
-  constructor
-  · intro h
-    exact ⟨maximumPacking (graphTriangles G), (maximumPacking_spec _).1, h⟩
-  · rintro ⟨P, hP, hc⟩
-    exact hc.trans hP.card_le
-
 end Tuza
 
 -- ==== Tuza.Books.Families
@@ -785,14 +702,6 @@ theorem page_subset_support {pages : I → Finset (Finset E)} {i : I}
     {T : Finset E} (hT : T ∈ pages i) : T ⊆ support (pages i) := by
   intro e he
   exact mem_support.mpr ⟨T, hT, he⟩
-
-omit [DecidableEq E] [Fintype I] in
-theorem exists_choice {pages : I → Finset (Finset E)}
-    (hne : ∀ i, (pages i).Nonempty) :
-    ∃ f, ChoosesPages pages f := by
-  classical
-  choose f hf using hne
-  exact ⟨f, hf⟩
 
 omit [Fintype I] in
 theorem choices_pairwise_disjoint {pages : I → Finset (Finset E)}
@@ -982,26 +891,6 @@ theorem pages_card_le_three (b : Book V) : b.pages.card ≤ 3 := by
   rw [pages_card]
   cases b <;> simp [pageCount]
 
-theorem page_isTriangle (b : Book V) {T : Finset (Sym2 V)} (hT : T ∈ b.pages) :
-    IsTriangle T := by
-  cases b with
-  | single u v x h =>
-    simp only [pages, mem_singleton] at hT
-    subst T
-    apply isTriangle_triangleEdges <;> simp_all [List.nodup_cons]
-  | double u v x y h =>
-    simp only [pages, mem_insert, mem_singleton] at hT
-    rcases hT with rfl | rfl <;>
-      apply isTriangle_triangleEdges <;> simp_all [List.nodup_cons]
-  | triple u v x y z h =>
-    simp only [pages, mem_insert, mem_singleton] at hT
-    rcases hT with rfl | rfl | rfl <;>
-      apply isTriangle_triangleEdges <;> simp_all [List.nodup_cons]
-
-theorem spine_mem_page (b : Book V) {T : Finset (Sym2 V)} (hT : T ∈ b.pages) :
-    b.spine ∈ T := by
-  cases b <;> simp_all [pages, spine] <;> aesop
-
 theorem cover_card_add_pages_card_le_four (b : Book V) :
     b.cover.card + b.pages.card ≤ 4 := by
   rw [pages_card]
@@ -1176,23 +1065,8 @@ def ColoredFamily (F : Finset (Finset E)) (R : Finset E) : Prop :=
 theorem redEdges_subset_support (R : Finset E) (P : Finset (Finset E)) :
     redEdges R P ⊆ support P := inter_subset_left
 
-theorem redEdges_subset_red (R : Finset E) (P : Finset (Finset E)) :
-    redEdges R P ⊆ R := inter_subset_right
-
 theorem blueEdges_subset_support (R : Finset E) (P : Finset (Finset E)) :
     blueEdges R P ⊆ support P := sdiff_subset
-
-theorem redEdges_disjoint_blueEdges (R : Finset E) (P : Finset (Finset E)) :
-    Disjoint (redEdges R P) (blueEdges R P) := by
-  apply disjoint_left.mpr
-  intro e heR heB
-  exact (mem_blueEdges.mp heB).2 (mem_redEdges.mp heR).2
-
-theorem blueEdges_disjoint_red (R : Finset E) (P : Finset (Finset E)) :
-    Disjoint (blueEdges R P) R := by
-  apply disjoint_left.mpr
-  intro e heB heR
-  exact (mem_blueEdges.mp heB).2 heR
 
 @[simp] theorem redEdges_union_blueEdges (R : Finset E) (P : Finset (Finset E)) :
     redEdges R P ∪ blueEdges R P = support P := by
@@ -1299,21 +1173,6 @@ theorem residual_inter_support_eq_inter_red {F P : Finset (Finset E)}
   subst e
   exact hf
 
-/-- The residual consists of the family members meeting the parent support
-exactly in their red edge. -/
-theorem mem_residual_blueEdges_iff {F P : Finset (Finset E)} {R T : Finset E}
-    (hF : ColoredFamily F R) (hP : IsMaximumPacking F P) :
-    T ∈ residual F (blueEdges R P) ↔ T ∈ F ∧ T ∩ support P = T ∩ R := by
-  constructor
-  · intro hT
-    exact ⟨(mem_residual.mp hT).1, residual_inter_support_eq_inter_red hF hP hT⟩
-  · rintro ⟨hTF, heq⟩
-    refine mem_residual.mpr ⟨hTF, disjoint_left.mpr ?_⟩
-    intro e heT heB
-    obtain ⟨heP, heR⟩ := mem_blueEdges.mp heB
-    have he : e ∈ T ∩ R := heq ▸ mem_inter.mpr ⟨heT, heP⟩
-    exact heR (mem_inter.mp he).2
-
 theorem residual_red_subset_parent_red {F P : Finset (Finset E)} {R T : Finset E}
     (hF : ColoredFamily F R) (hP : IsMaximumPacking F P)
     (hT : T ∈ residual F (blueEdges R P)) : T ∩ R ⊆ redEdges R P := by
@@ -1321,16 +1180,6 @@ theorem residual_red_subset_parent_red {F P : Finset (Finset E)} {R T : Finset E
   have heP : e ∈ T ∩ support P :=
     (residual_inter_support_eq_inter_red hF hP hT).symm ▸ he
   exact mem_redEdges.mpr ⟨(mem_inter.mp heP).2, (mem_inter.mp he).2⟩
-
-theorem IsPacking.redEdges_subset_parent {F P Q : Finset (Finset E)}
-    {R : Finset E} (hQ : IsPacking (residual F (blueEdges R P)) Q)
-    (hF : ColoredFamily F R) (hP : IsMaximumPacking F P) :
-    redEdges R Q ⊆ redEdges R P := by
-  intro e he
-  obtain ⟨heQ, heR⟩ := mem_redEdges.mp he
-  obtain ⟨T, hT, heT⟩ := mem_support.mp heQ
-  exact residual_red_subset_parent_red hF hP (hQ.1 hT)
-    (mem_inter.mpr ⟨heT, heR⟩)
 
 /-- Blue residual edges avoid the parent support. -/
 theorem IsPacking.blueEdges_disjoint_parent_support {F P Q : Finset (Finset E)}
@@ -1342,22 +1191,6 @@ theorem IsPacking.blueEdges_disjoint_parent_support {F P Q : Finset (Finset E)}
   obtain ⟨T, hT, heT⟩ := mem_support.mp heQ
   have hdis := (mem_residual.mp (hQ.1 hT)).2
   exact disjoint_left.mp hdis heT (mem_blueEdges.mpr ⟨heP, heR⟩)
-
-theorem IsPacking.support_inter_parent_eq_redEdges {F P Q : Finset (Finset E)}
-    {R : Finset E} (hQ : IsPacking (residual F (blueEdges R P)) Q)
-    (hF : ColoredFamily F R) (hP : IsMaximumPacking F P) :
-    support Q ∩ support P = redEdges R Q := by
-  ext e
-  constructor
-  · intro he
-    obtain ⟨heQ, heP⟩ := mem_inter.mp he
-    refine mem_redEdges.mpr ⟨heQ, ?_⟩
-    by_contra heR
-    exact disjoint_left.mp hQ.blueEdges_disjoint_parent_support
-      (mem_blueEdges.mpr ⟨heQ, heR⟩) heP
-  · intro he
-    exact mem_inter.mpr ⟨(mem_redEdges.mp he).1,
-      (mem_redEdges.mp (hQ.redEdges_subset_parent hF hP he)).1⟩
 
 /-- Packing members whose red edge occurs in no other member of the family. -/
 noncomputable def privateRedPages (F : Finset (Finset E)) (R : Finset E)
@@ -1551,11 +1384,6 @@ theorem pairedParents_card (hF : ColoredFamily F R) (hP : IsMaximumPacking F P)
     exact parent_injective hF hP hQ (Subtype.ext heq)
   rw [card_image_of_injective _ hinj, card_attach]
 
-theorem residual_packing_card_le (hF : ColoredFamily F R) (hP : IsMaximumPacking F P)
-    (hQ : IsPacking (residual F (blueEdges R P)) Q) : Q.card ≤ P.card := by
-  rw [← pairedParents_card hF hP hQ]
-  exact card_le_card (pairedParents_subset R P Q)
-
 /-- A residual page cannot be an original parent page: its two blue edges
 avoid the parent support. -/
 theorem residual_member_not_parent (hF : ColoredFamily F R)
@@ -1684,35 +1512,6 @@ theorem pages_card_unpaired (p : {T // T ∈ P})
     (hp : p.val ∉ pairedParents R P Q) : (twoLayerPages R P Q p).card = 1 := by
   rw [pages_eq_singleton_unpaired p hp, card_singleton]
 
-theorem pages_eq_pair (hF : ColoredFamily F R)
-    (hQ : IsPacking (residual F (blueEdges R P)) Q) (p : {T // T ∈ P})
-    {q : Finset E} (hq : q ∈ Q) (heq : q ∩ R = p.val ∩ R) :
-    twoLayerPages R P Q p = {p.val, q} := by
-  have hchild : children R Q p.val = {q} := by
-    ext T
-    constructor
-    · intro hT
-      obtain ⟨hTQ, hTR⟩ := mem_children.mp hT
-      exact mem_singleton.mpr
-        (hQ.red_inter_injective hF.residual hTQ hq (hTR.trans heq.symm))
-    · intro hT
-      have hTq := mem_singleton.mp hT
-      subst T
-      exact mem_children.mpr ⟨hq, heq⟩
-  rw [twoLayerPages, hchild]
-
-/-- If an actual red edge occurs only in its parent within the entire family,
-that parent has no residual page. -/
-theorem unique_red_parent_unpaired (hF : ColoredFamily F R)
-    (hQ : IsPacking (residual F (blueEdges R P)) Q) (p : {T // T ∈ P})
-    {e : E} (hep : e ∈ p.val) (heR : e ∈ R)
-    (hunique : ∀ T ∈ F, e ∈ T → T = p.val) : p.val ∉ pairedParents R P Q := by
-  intro hp
-  obtain ⟨_, q, hq, heq⟩ := mem_pairedParents.mp hp
-  have heqR : e ∈ q ∩ R := heq ▸ mem_inter.mpr ⟨hep, heR⟩
-  have hqp := hunique q (mem_residual.mp (hQ.1 hq)).1 (mem_inter.mp heqR).1
-  exact residual_member_not_parent hF hQ hq (hqp ▸ p.property)
-
 end Layered
 end Tuza
 
@@ -1752,11 +1551,6 @@ theorem oneRedTriangles_sdiff (A R C : Finset (Sym2 V)) :
   simp only [oneRedTriangles, mem_filter, trianglesOn_sdiff, mem_residual]
   tauto
 
-theorem oneRedTriangles_subset {A R : Finset (Sym2 V)} :
-    oneRedTriangles A R ⊆ trianglesOn A := by
-  classical
-  exact filter_subset _ _
-
 end Tuza
 
 -- ==== Tuza.Construction.Types
@@ -1784,13 +1578,6 @@ theorem typeFamily_subset (A O : Finset (Sym2 V)) (j : ℕ) :
     typeFamily A O j ⊆ trianglesOn A := by
   classical
   exact filter_subset _ _
-
-theorem typeFamily_sdiff (A O C : Finset (Sym2 V)) (j : ℕ) :
-    typeFamily (A \ C) O j = residual (typeFamily A O j) C := by
-  classical
-  ext T
-  simp only [typeFamily, mem_filter, trianglesOn_sdiff, mem_residual]
-  tauto
 
 theorem typeOne_colored (A O : Finset (Sym2 V)) :
     ColoredFamily (typeFamily A O 1) O := by
@@ -3395,10 +3182,6 @@ theorem finiteAverage_finset_sum [Fintype Ω] (s : Finset I) (f : I → Ω → �
   unfold finiteAverage
   rw [Finset.sum_comm, Finset.sum_div]
 
-theorem finiteAverage_sum [Fintype Ω] [Fintype I] (f : I → Ω → ℚ) :
-    finiteAverage (fun ω => ∑ i, f i ω) = ∑ i, finiteAverage (f i) := by
-  exact finiteAverage_finset_sum Finset.univ f
-
 theorem finiteAverage_mono [Fintype Ω] (f g : Ω → ℚ)
     (h : ∀ ω, f ω ≤ g ω) : finiteAverage f ≤ finiteAverage g := by
   unfold finiteAverage
@@ -3418,25 +3201,6 @@ theorem exists_le_finiteAverage [Fintype Ω] [Nonempty Ω] (f : Ω → ℚ) :
   calc
     f ω * (Fintype.card Ω : ℚ) = ∑ _ : Ω, f ω := by simp [mul_comm]
     _ ≤ ∑ a : Ω, f a := Finset.sum_le_sum fun a ha => hω a ha
-
-/-- Finite-sum accounting: pointwise charges and individual average bounds
-produce one outcome obeying the sum of the budgets. -/
-theorem exists_le_sum_of_average_le [Fintype Ω] [Nonempty Ω]
-    (s : Finset I) (cost : Ω → ℚ) (base : ℚ)
-    (charge : I → Ω → ℚ) (budget : I → ℚ)
-    (hcost : ∀ ω, cost ω ≤ base + ∑ i ∈ s, charge i ω)
-    (hcharge : ∀ i ∈ s, finiteAverage (charge i) ≤ budget i) :
-    ∃ ω, cost ω ≤ base + ∑ i ∈ s, budget i := by
-  obtain ⟨ω, hω⟩ := exists_le_finiteAverage cost
-  refine ⟨ω, hω.trans ?_⟩
-  calc
-    finiteAverage cost ≤
-        finiteAverage (fun ω => base + ∑ i ∈ s, charge i ω) :=
-      finiteAverage_mono _ _ hcost
-    _ = base + ∑ i ∈ s, finiteAverage (charge i) := by
-      rw [finiteAverage_add, finiteAverage_const, finiteAverage_finset_sum]
-    _ ≤ base + ∑ i ∈ s, budget i :=
-      add_le_add_right (Finset.sum_le_sum hcharge) base
 
 private theorem finiteAverage_prod_fst [Fintype Ω] [Fintype Ω']
     [Nonempty Ω] [Nonempty Ω'] (f : Ω → ℚ) :
@@ -3599,11 +3363,6 @@ theorem IsTriangle.exists_noncrossing {T : Finset (Sym2 V)} (hT : IsTriangle T)
   · exact ⟨s(u, w), by simp, (noncrossingEdge_pair χ u w).mpr h⟩
   · exact ⟨s(v, w), by simp, (noncrossingEdge_pair χ v w).mpr h⟩
 
-omit [Fintype V] in
-theorem selectedOld_subset_old {W O : Finset (Sym2 V)} (hW : W ⊆ O)
-    (χ : V → Bool) : selectedOld W O χ ⊆ O := by
-  exact union_subset hW (filter_subset _ _)
-
 /-- A noncrossing edge of an uncovered triangle cannot be old. -/
 theorem residual_noncrossing_not_old {A W O T : Finset (Sym2 V)} {χ : V → Bool}
     (hT : T ∈ residual (trianglesOn A) (selectedOld W O χ))
@@ -3635,12 +3394,6 @@ theorem cutAddedEdges_subset {A W O : Finset (Sym2 V)} (χ : V → Bool) :
   obtain ⟨heT, heO⟩ := mem_sdiff.mp heT
   exact mem_sdiff.mpr
     ⟨(mem_trianglesOn.mp (mem_residual.mp hT).1).2 heT, heO⟩
-
-theorem cutCover_subset {A W O : Finset (Sym2 V)}
-    (hW : W ⊆ O) (hO : O ⊆ A) (χ : V → Bool) :
-    cutCover A W O χ ⊆ A := by
-  exact union_subset ((selectedOld_subset_old hW χ).trans hO)
-    ((cutAddedEdges_subset χ).trans sdiff_subset)
 
 /-- There is only one possible new edge in a triangle with at least two old
 edges, so every added edge equals its noncrossing edge. -/
@@ -3735,20 +3488,6 @@ theorem selectedOld_average {W O : Finset (Sym2 V)} (hW : W ⊆ O)
     _ = (W.card : ℚ) + ((O.card : ℚ) - W.card) / 2 := by
       rw [card_sdiff_of_subset hW, Nat.cast_sub (card_le_card hW)]
 
-theorem selectedOld_average_le {W O : Finset (Sym2 V)} (hW : W ⊆ O)
-    (hO : ∀ e ∈ O, ¬ e.IsDiag) :
-    bitAverage (fun χ => ((selectedOld W O χ).card : ℚ)) ≤
-      (W.card : ℚ) + ((O.card : ℚ) - W.card) / 2 :=
-  (selectedOld_average hW hO).le
-
-/-- The nonloop hypothesis is automatic for a set of actual simple-graph edges. -/
-theorem noncrossingGraphEdges_average (G : SimpleGraph V) (E : Finset (Sym2 V))
-    (hE : E ⊆ graphEdges G) :
-    bitAverage (fun χ => ((E.filter (noncrossingEdge χ)).card : ℚ)) =
-      (E.card : ℚ) / 2 :=
-  noncrossingEdges_average E
-    (fun _ he => G.not_isDiag_of_mem_edgeSet (mem_graphEdges.mp (hE he)))
-
 /-- The pointwise cover cost, separating added edges inside and outside `N`. -/
 theorem cutCover_card_le {A W O : Finset (Sym2 V)}
     (hOld : ∀ T ∈ trianglesOn A, 2 ≤ (T ∩ O).card)
@@ -3762,18 +3501,6 @@ theorem cutCover_card_le {A W O : Finset (Sym2 V)}
   rw [selectedOld_card] at hu
   change (selectedOld W O χ ∪ cutAddedEdges A W O χ).card ≤ _
   omega
-
-/-- The same pointwise inequality in the indicator form consumed by finite
-average linearity. -/
-theorem cutCover_charge_le {A W O : Finset (Sym2 V)}
-    (hOld : ∀ T ∈ trianglesOn A, 2 ≤ (T ∩ O).card)
-    (N : Finset (Sym2 V)) (χ : V → Bool) :
-    ((cutCover A W O χ).card : ℚ) ≤ (W.card : ℚ) +
-      (∑ e ∈ O \ W, if noncrossingEdge χ e then (1 : ℚ) else 0) +
-      (∑ e ∈ N, if noncrossingEdge χ e then (1 : ℚ) else 0) +
-      ((cutAddedEdges A W O χ \ N).card : ℚ) := by
-  simp only [sum_boole]
-  exact_mod_cast cutCover_card_le hOld N χ
 
 end Tuza
 
@@ -4429,21 +4156,6 @@ theorem triangles_bound (edges : Finset (Sym2 V)) :
 /-- The main theorem for a finite simple graph, with denominators cleared. -/
 theorem tuza_bound_nat (G : SimpleGraph V) : 59 * tau G ≤ 165 * nu G :=
   triangles_bound (graphEdges G)
-
-/-- The main theorem in rational form. -/
-theorem tuza_bound (G : SimpleGraph V) : (tau G : ℚ) ≤ (165 / 59 : ℚ) * nu G := by
-  have h : (59 : ℚ) * tau G ≤ 165 * nu G := by exact_mod_cast tuza_bound_nat G
-  linarith
-
-/-- An equivalent concrete graph-edge transversal, stated directly in terms
-of every triple of adjacent vertices. -/
-theorem exists_small_triangle_transversal (G : SimpleGraph V) :
-    ∃ C : Finset (Sym2 V), C ⊆ graphEdges G ∧
-      (∀ u v w, G.Adj u v → G.Adj u w → G.Adj v w →
-        s(u, v) ∈ C ∨ s(u, w) ∈ C ∨ s(v, w) ∈ C) ∧
-      59 * C.card ≤ 165 * nu G := by
-  obtain ⟨C, hsub, hcover, hcard⟩ := exists_graph_minimumCover G
-  exact ⟨C, hsub, (graph_cover_iff_adj G C).mp hcover, hcard.symm ▸ tuza_bound_nat G⟩
 
 end Tuza
 

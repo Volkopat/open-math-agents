@@ -8,13 +8,6 @@ namespace OMAStepFT
 
 open Finset
 
-lemma geom_cast (p q : ℕ) (n : ℕ) (hq : q % p = 1) :
-    ((∑ k ∈ range n, q ^ k : ℕ) : ZMod p) = n := by
-  have h1 : (q : ZMod p) = 1 := by
-    rw [← ZMod.natCast_mod, hq, Nat.cast_one]
-  push_cast
-  simp [h1]
-
 lemma geom_mod_base (p n : ℕ) :
     ((∑ k ∈ range (n + 1), p ^ k : ℕ) : ZMod p) = 1 := by
   rw [Finset.sum_range_succ']

@@ -76,29 +76,6 @@ lemma free_shell {A P : Finset ℕ} {a J r : ℕ} (hJ : 0 < J)
     (Nat.le_of_mul_le_mul_right hlow hpos) (Nat.le_of_mul_le_mul_right (by
       rwa [Nat.mul_assoc] : k*u ≤ r*J*u) hpos) (by simpa [Nat.mul_comm] using hk)
 
-/-- Integer rounding lets the permitted shell extend below X/J. -/
-lemma free_wide_shell {A P : Finset ℕ} {a J r : ℕ} (hJ : 0 < J)
-    (allLifts : ∀ u ∈ P, ∀ i ∈ Icc 1 J, i * a + u ∈ A)
-    (free : Free r A) (X : ℕ) :
-    Free r (P.filter fun x => x ≤ X ∧ r * X < (r * J + 1) * x) := by
-  intro u hu b hb hlt hdiv
-  obtain ⟨huP, huX, hJu⟩ := mem_filter.mp hu
-  have hpos : 0 < u := by by_contra! hn; simp [show u = 0 by omega] at hJu
-  obtain ⟨k, hk⟩ := hdiv
-  have hlow : r * u ≤ ∑ i, b i := by
-    simpa using Finset.sum_le_sum (s := (univ : Finset (Fin r)))
-      (f := fun _ => u) (g := b) (fun i _ => (hlt i).le)
-  have hhigh : ∑ i, b i ≤ r * X := by
-    simpa using Finset.sum_le_sum (s := (univ : Finset (Fin r)))
-      (f := b) (g := fun _ => X) (fun i _ => (mem_filter.mp (hb i)).2.1)
-  rw [hk, mul_comm u k] at hlow hhigh
-  have upper : k ≤ r * J := by
-    by_contra! big
-    have := Nat.mul_le_mul_right u (show r * J + 1 ≤ k by omega)
-    omega
-  exact lift_forbidden hJ allLifts free huP b (fun i => (mem_filter.mp (hb i)).1) hlt
-    (Nat.le_of_mul_le_mul_right hlow hpos) upper (by simpa [Nat.mul_comm] using hk)
-
 def complete (B : Finset ℕ) (a J : ℕ) : Finset ℕ :=
   (B.image (· % a)).filter fun u => ∀ k ∈ Icc 1 J, k * a + u ∈ B
 
@@ -342,8 +319,6 @@ lemma mem_mulStab (hs : s.Nonempty) : a ∈ s.mulStab ↔ a • s = s := by
   obtain ⟨b, hb⟩ := hs
   exact fun h ↦ ⟨_, by rw [← h]; exact smul_mem_smul_finset hb, _, hb, mul_div_cancel_right _ _⟩
 
-lemma mulStab_subset_div : s.mulStab ⊆ s / s := filter_subset _ _
-
 lemma mulStab_subset_div_right (ha : a ∈ s) : s.mulStab ⊆ s / {a} := by
   refine fun b hb ↦ mem_div.2 ⟨_, ?_, _, mem_singleton_self _, mul_div_cancel_right _ _⟩
   rw [mem_mulStab ⟨a, ha⟩] at hb
@@ -412,11 +387,6 @@ lemma mul_subset_right_iff (ht : t.Nonempty) : s * t ⊆ t ↔ s ⊆ t.mulStab :
   simp_rw [← smul_eq_mul, ← biUnion_smul_finset, biUnion_subset,
     ← mem_mulStab_iff_smul_finset_subset ht, subset_iff]
 
-lemma mul_subset_right : s ⊆ t.mulStab → s * t ⊆ t := by
-  obtain rfl | ht := t.eq_empty_or_nonempty
-  · simp
-  · exact (mul_subset_right_iff ht).2
-
 lemma smul_mulStab (ha : a ∈ s.mulStab) : a • s.mulStab = s.mulStab := by
   obtain rfl | hs := s.eq_empty_or_nonempty
   · simp
@@ -444,11 +414,6 @@ end Group
 
 variable [CommGroup α] [DecidableEq α] {s t : Finset α} {a : α}
 
-lemma mulStab_subset_div_left (ha : a ∈ s) : s.mulStab ⊆ {a} / s := by
-  refine fun b hb ↦ mem_div.2 ⟨_, mem_singleton_self _, _, ?_, div_div_cancel _ _⟩
-  rw [mem_mulStab ⟨a, ha⟩] at hb
-  rwa [← hb, ← inv_smul_mem_iff, smul_eq_mul, inv_mul_eq_div] at ha
-
 lemma subset_mulStab_mul_right (hs : s.Nonempty) : t.mulStab ⊆ (s * t).mulStab := by
   rw [mul_comm]; exact subset_mulStab_mul_left hs
 
@@ -465,8 +430,6 @@ lemma smul_finset_mulStab_subset (ha : a ∈ s) : a • s.mulStab ⊆ s :=
 
 lemma mul_subset_left_iff (hs : s.Nonempty) : s * t ⊆ s ↔ t ⊆ s.mulStab := by
   rw [mul_comm, mul_subset_right_iff hs]
-
-lemma mul_subset_left : t ⊆ s.mulStab → s * t ⊆ s := by rw [mul_comm]; exact mul_subset_right
 
 @[simp]
 lemma mulStab_idem (s : Finset α) : s.mulStab.mulStab = s.mulStab := by
@@ -521,11 +484,6 @@ lemma card_mulStab_dvd_card_mul_mulStab (s t : Finset α) : #t.mulStab ∣ #(s *
 
 lemma card_mulStab_dvd_card (s : Finset α) : #s.mulStab ∣ #s := by
   simpa only [mul_mulStab] using s.card_mulStab_dvd_card_mul_mulStab s
-
-lemma card_mulStab_le_card : #s.mulStab ≤ #s := by
-  obtain rfl | hs := s.eq_empty_or_nonempty
-  · rfl
-  · exact Nat.le_of_dvd hs.card_pos s.card_mulStab_dvd_card
 
 /-- A fintype instance for the stabilizer of a nonempty finset `s` in terms of `s.mulStab`. -/
 
@@ -1341,18 +1299,8 @@ namespace Finset
 
 variable {G : Type*} [AddCommGroup G] [DecidableEq G]
 
-lemma coe_addStab {s : Finset G} (hs : s.Nonempty) :
-    (s.addStab : Set G) = AddAction.stabilizer G (s : Set G) :=
-  @coe_mulStab (Multiplicative G) _ _ s hs
-
 lemma zero_mem_addStab {s : Finset G} : (0 : G) ∈ s.addStab ↔ s.Nonempty :=
   @one_mem_mulStab (Multiplicative G) _ _ s
-
-lemma add_addStab (s : Finset G) : s + s.addStab = s :=
-  @mul_mulStab (Multiplicative G) _ _ s
-
-lemma addStab_add_addStab (s : Finset G) : s.addStab + s.addStab = s.addStab :=
-  @mulStab_mul_mulStab (Multiplicative G) _ _ s
 
 lemma subset_addStab_add_left {s t : Finset G} (ht : t.Nonempty) :
     s.addStab ⊆ (s + t).addStab :=
@@ -1389,21 +1337,6 @@ lemma card_nsmul_bound {r : ℕ} (hr : 0 < r) (B : Finset G) (hB : B.Nonempty) :
       nlinarith only [hsmall, hcard, ind]
   obtain ⟨j, rfl⟩ := Nat.exists_eq_succ_of_ne_zero hr.ne'
   simpa using aux j le_rfl
-
-/-- The r-fold Kneser inequality for the stabilizer of the final sumset. -/
-lemma card_nsmul_addStab_bound {r : ℕ} (hr : 0 < r) (B : Finset G) (hB : B.Nonempty) :
-    r * (B + (r • B).addStab).card ≤ (r • B).card + (r - 1) * (r • B).addStab.card := by
-  let H := (r • B).addStab
-  have hH : H.Nonempty := ⟨0, zero_mem_addStab.mpr hB.nsmul⟩
-  have hidem : H + H = H := addStab_add_addStab _
-  have powH (j : ℕ) : (j + 1) • H = H := by
-    induction j with
-    | zero => exact one_nsmul H
-    | succ j ih => rw [succ_nsmul, ih, hidem]
-  obtain ⟨j, hj⟩ := Nat.exists_eq_succ_of_ne_zero hr.ne'
-  have hrH : r • H = H := hj ▸ powH j
-  have heq : r • (B + H) = r • B := by rw [nsmul_add, hrH]; exact add_addStab _
-  simpa only [heq] using card_nsmul_bound hr (B + H) (hB.add hH)
 
 end Finset
 
@@ -1626,75 +1559,6 @@ theorem upper_shell_tail {r a d N : ℕ} (hr : 2 ≤ r) (ha : N ≤ 2*a)
     have hL : (N-a) + a = N := by omega
     have h2 := Nat.mul_le_mul_right B.card hr
     nlinarith only [hc, hk, hqr, hdb, hq, hh, hL, ha, han, h2, Nat.zero_le N, Nat.zero_le r]
-
-/-- The only additive input is the cyclic quotient witness. -/
-theorem upper_shell_of_quotients {r N : ℕ} (hr : 2 ≤ r) (A : Finset ℕ)
-    (sub : ∀ a ∈ A, 0 < a ∧ N ≤ 2*a ∧ a ≤ N)
-    (witness : ∀ a ∈ A, (A.filter fun x => a < x).Nonempty →
-      ∃ d : ℕ, 0 < d ∧ d ∣ a ∧ (∀ b ∈ A, a < b → ¬ d ∣ b) ∧
-        r * ((A.filter fun x => a < x).image (fun x => x % d)).card ≤ d + r - 2) :
-    (r+1)*A.card ≤ N + (r+1)*(16*r+1) + 16*r := by
-  classical
-  have aw (a) (ha : a ∈ A) : ∃ d : ℕ, 0 < d ∧ d ∣ a ∧
-      (∀ b ∈ A, a < b → ¬ d ∣ b) ∧
-      r * ((A.filter fun x => a < x).image (fun x => x % d)).card ≤ d+r-2 := by
-    by_cases ht : (A.filter fun x => a < x).Nonempty
-    · exact witness a ha ht
-    · rw [not_nonempty_iff_eq_empty] at ht
-      refine ⟨a, (sub a ha).1, dvd_refl _, ?_, by simp [ht]⟩
-      intro b hb hlt
-      have hmem : b ∈ (A.filter fun x => a < x) := mem_filter.mpr ⟨hb, hlt⟩
-      simp [ht] at hmem
-  choose! f pos div later size using aw
-  let E := A.filter fun x => f x ≤ 16*r
-  have low : E.card ≤ 16*r := by
-    have hc : E.card ≤ (Icc 1 (16*r)).card := by
-      apply card_le_card_of_injOn f
-      · intro x hx
-        have h := mem_filter.mp hx
-        exact mem_Icc.mpr ⟨pos x h.1, h.2⟩
-      · intro x hx y hy he
-        have hxa := (mem_filter.mp hx).1
-        have hya := (mem_filter.mp hy).1
-        rcases lt_trichotomy x y with h | h | h
-        · exact False.elim (later x hxa y hya h (he ▸ div y hya))
-        · exact h
-        · exact False.elim (later y hya x hxa h (he ▸ div x hxa))
-    simpa using hc
-  let G := A.filter fun x => 16*r < f x
-  by_cases non : G.Nonempty
-  · let a := G.min' non
-    have hag : a ∈ G := min'_mem _ _
-    have hf := mem_filter.mp hag
-    let B := A.filter fun x => a < x
-    have hB : B ⊆ Ioc a N := by
-      intro x hx
-      have hx' := mem_filter.mp hx
-      exact mem_Ioc.mpr ⟨hx'.2, (sub x hx'.1).2.2⟩
-    have ht := upper_shell_tail hr (sub a hf.1).2.1 (sub a hf.1).2.2 hf.2
-      (div a hf.1) B hB (size a hf.1)
-    have cover : A ⊆ E ∪ insert a B := by
-      intro x hx
-      by_cases h : f x ≤ 16*r
-      · exact mem_union_left _ (mem_filter.mpr ⟨hx,h⟩)
-      · have hxg : x ∈ G := mem_filter.mpr ⟨hx, by omega⟩
-        have hax : a ≤ x := min'_le _ _ hxg
-        by_cases eq : x = a
-        · exact mem_union_right _ (mem_insert.mpr (Or.inl eq))
-        · exact mem_union_right _ (mem_insert.mpr (Or.inr (mem_filter.mpr ⟨hx, by omega⟩)))
-    have cnt := (card_le_card cover).trans (card_union_le _ _)
-    have ins := card_insert_le a B
-    have hcard : A.card ≤ 16*r+1+B.card := by omega
-    have := Nat.mul_le_mul_left (r+1) hcard
-    nlinarith only [this, ht]
-  · have cover : A ⊆ E := by
-      intro x hx
-      apply mem_filter.mpr
-      refine ⟨hx, ?_⟩
-      by_contra! h
-      exact non ⟨x,mem_filter.mpr ⟨hx,h⟩⟩
-    have hc := Nat.mul_le_mul_left (r+1) ((card_le_card cover).trans low)
-    nlinarith only [hc, Nat.zero_le N, Nat.zero_le r]
 
 end OMA.Erdos13UpperShell
 
@@ -2904,103 +2768,6 @@ lemma count_by_period (q t s : ℕ) (hs : s ≤ q) (R : Finset ℕ) :
     rw [Nat.succ_mul]
     omega
 
-/-- A period q with at most (q+1)/3 occupied classes cannot support a
-strict majority for two full periods, once q exceeds four. For one full
-period, its length is forced to lie within one of three quarters of m. -/
-lemma small_period_or_near {m q c b : ℕ} (hq : 0 < q)
-    (hqm : q ≤ m) (he : 3*c ≤ q+1) (major : m < 2*b)
-    (cap : b ≤ (m / q) * c + min (m % q) c) :
-    q ≤ 4 ∨ (3*m / 4 - 2 ≤ q ∧ q ≤ 3*m / 4 + 2) := by
-  by_cases hsmall : q ≤ 4
-  · exact Or.inl hsmall
-  right
-  let t := m/q
-  let s := m%q
-  have dec : s + t*q = m := by
-    dsimp [s, t]
-    simpa only [Nat.mul_comm] using Nat.mod_add_div m q
-  have hs : s < q := Nat.mod_lt _ hq
-  have hcap : b ≤ t*c + min s c := cap
-  have ht : t ≤ 1 := by
-    by_contra! high
-    have h2c : 2*c ≤ q := by omega
-    have hdiff : 2*(q-2*c) ≤ t*(q-2*c) := Nat.mul_le_mul_right _ high
-    rw [Nat.mul_sub] at hdiff
-    have aux : t*(2*c) ≤ t*q := Nat.mul_le_mul_left t h2c
-    have ident : t*(2*c) = 2*(t*c) := by ring
-    have hd : t*(q-2*c) = t*q-t*(2*c) := Nat.mul_sub _ _ _
-    have hmin : 2*min s c ≤ s+c := by omega
-    omega
-  have hone : t = 1 := Nat.le_antisymm ht (Nat.div_pos hqm hq)
-  rw [hone, Nat.one_mul] at dec hcap
-  omega
-
-/-- All but boundedly many possible divisors force the selected small element
-above r times the size of the upper interval, up to r-2. -/
-lemma force_large_divisor {r m q a v : ℕ} (hr : 3 ≤ r) (hq : 0 < q)
-    (hqa : q ≤ a) (B : Finset ℕ) (hB : B ⊆ Ico v (v+m))
-    (major : m < 2*B.card)
-    (quotient : r * (B.image (fun x => x%q)).card ≤ q + r - 2) :
-    q ∈ range 5 ∪ Icc (3*m / 4 - 2) (3*m / 4 + 2) ∨
-      (m < q ∧ r*B.card ≤ a+r-2) := by
-  classical
-  let R := B.image (fun x => x%q)
-  have hR (b) (hb : b ∈ B) : b%q ∈ R := mem_image_of_mem _ hb
-  change r * R.card ≤ q+r-2 at quotient
-  by_cases hqm : q ≤ m
-  · left
-    have h3 : 3 * R.card ≤ q + 1 := by
-      by_cases hc : R.card = 0
-      · simp [hc]
-      have hr3 := Nat.mul_le_mul_right (R.card-1) hr
-      rw [Nat.mul_sub, Nat.mul_sub] at hr3
-      have hrc : r ≤ r*R.card := by
-        simpa only [Nat.mul_one] using Nat.mul_le_mul_left r (show 1 ≤ R.card by omega)
-      omega
-    have rem := Nat.mod_add_div m q
-    have dec : m / q * q + m % q = m := by
-      simpa only [Nat.mul_comm, Nat.add_comm] using rem
-    have hI : B ⊆ Ico v (v + (m/q*q + m%q)) := by simpa only [dec] using hB
-    have cap := count_by_period q (m/q) (m%q) (Nat.mod_lt _ hq).le R v B hI hR
-    rcases small_period_or_near hq hqm h3 major cap with h | h
-    · exact mem_union_left _ (mem_range.mpr (by omega))
-    · exact mem_union_right _ (mem_Icc.mpr h)
-  · right
-    refine ⟨by omega, ?_⟩
-    have hinj : (B : Set ℕ).InjOn (fun x => x % q) := by
-      apply (Nat.mod_injOn_Ico v q).mono
-      intro b hb
-      have := mem_Ico.mp (hB hb)
-      exact mem_Ico.mpr ⟨this.1, by omega⟩
-    have heq : R.card = B.card := card_image_of_injOn hinj
-    rw [heq] at quotient
-    omega
-
-lemma exceptional_card (m : ℕ) :
-    (range 5 ∪ Icc (3*m/4-2) (3*m/4+2)).card ≤ 10 := by
-  have h := card_union_le (range 5) (Icc (3*m/4-2) (3*m/4+2))
-  simp only [card_range, Nat.card_Icc] at h
-  omega
-
-/-- The chosen quotient for the smaller of two elements cannot also divide
-the larger element. Therefore all exceptional quotients cost at most ten
-elements of a finite set, even when the quotients vary along the set. -/
-lemma exceptional_elements (A : Finset ℕ) (f : ℕ → ℕ) (m : ℕ)
-    (divides : ∀ a ∈ A, f a ∣ a)
-    (only_here : ∀ a ∈ A, ∀ b ∈ A, a < b → ¬ f a ∣ b) :
-    (A.filter (fun a => f a ∈ range 5 ∪ Icc (3*m/4-2) (3*m/4+2))).card ≤ 10 := by
-  classical
-  refine le_trans (card_le_card_of_injOn f ?_ ?_) (exceptional_card m)
-  · intro a ha
-    exact (mem_filter.mp ha).2
-  · intro a ha b hb hfb
-    have ha' := (mem_filter.mp ha).1
-    have hb' := (mem_filter.mp hb).1
-    rcases lt_trichotomy a b with h | h | h
-    · exact False.elim (only_here a ha' b hb' h (hfb.symm ▸ divides b hb'))
-    · exact h
-    · exact False.elim (only_here b hb' a ha' h (hfb ▸ divides a ha'))
-
 end Erdos13HalfOccupied
 
 end
@@ -3035,133 +2802,6 @@ lemma paired_residues (D : Finset ℕ) {q : ℕ} (cop : (3:ℕ).Coprime q)
       obtain ⟨y',_,rfl⟩ := mem_image.mp hy
       simpa [Nat.ModEq] using eq)
   simpa [card_product, R] using h
-
-lemma split_period (B : Finset ℕ) {v q t w : ℕ} (hq : 0<q)
-    (cop : (3:ℕ).Coprime q) (avoid : ∀ b ∈ B, ¬3 ∣ b)
-    (sub : B ⊆ Ico v (v+t*(3*q)+w)) (hw : w < 3*q) :
-    ∃ u : ℕ, B.card ≤ t*(2*(B.image (·%q)).card)+u ∧
-      u ≤ 2*(B.image (·%q)).card ∧
-      (w ≤ q → u ≤ min w (B.image (·%q)).card) ∧
-      (q ≤ w → w ≤ 2*q → u ≤ (B.image (·%q)).card + min (w-q) (B.image (·%q)).card) := by
-  classical
-  let P := B.filter fun b => b < v+t*(3*q)
-  let S := B.filter fun b => ¬b < v+t*(3*q)
-  let R := B.image (·%q)
-  let U := B.image (·%(3*q))
-  have inclP : P ⊆ Ico v (v+(t*(3*q)+0)) := by
-    intro x hx
-    obtain ⟨h,hh⟩ := mem_filter.mp hx
-    exact mem_Ico.mpr ⟨(mem_Ico.mp (sub h)).1,by omega⟩
-  have countP := Erdos13HalfOccupied.count_by_period (3*q) t 0 (by omega) U v P inclP
-    (fun x hx => mem_image_of_mem _ (mem_filter.mp hx).1)
-  have smallP : P.card ≤ t*(2*R.card) := by
-    have b := Nat.mul_le_mul_left t (paired_residues B cop avoid)
-    simp only [Nat.zero_min, Nat.add_zero] at countP
-    exact countP.trans b
-  have sincl : S ⊆ Ico (v+t*(3*q)) (v+t*(3*q)+w) := by
-    intro x hx
-    obtain ⟨h,hh⟩ := mem_filter.mp hx
-    exact mem_Ico.mpr ⟨le_of_not_gt hh,(mem_Ico.mp (sub h)).2⟩
-  have rmem (x) (hx : x ∈ S) : x%q ∈ R := mem_image_of_mem _ (mem_filter.mp hx).1
-  have smem (x) (hx : x ∈ S) : x%(3*q) ∈ U := mem_image_of_mem _ (mem_filter.mp hx).1
-  have ucap := Erdos13HalfOccupied.count_by_period (3*q) 0 w hw.le U _ S (by simpa using sincl) smem
-  have uc : S.card ≤ 2*R.card := (show S.card ≤ U.card by simpa using ucap.trans (by simp)).trans (paired_residues B cop avoid)
-  have part : P.card + S.card = B.card := B.card_filter_add_card_filter_not _
-  refine ⟨S.card,?_,uc,?_,?_⟩
-  · change B.card ≤ t*(2*R.card)+S.card
-    omega
-  · intro h
-    simpa using Erdos13HalfOccupied.count_by_period q 0 w h R _ S (by simpa using sincl) rmem
-  · intro lo hi
-    have h := Erdos13HalfOccupied.count_by_period q 1 (w-q) (by omega) R _ S (by
-      simpa [Nat.add_sub_of_le lo] using sincl) rmem
-    simpa using h
-
-lemma three_tail {r N a q : ℕ} (hr : 3 ≤ r) (low : 3*a ≤ N)
-    (hq : 8*r < q) (qa : q ≤ a) (cop : (3:ℕ).Coprime q)
-    (B : Finset ℕ) (avoid : ∀ b ∈ B, ¬3 ∣ b) (sub : B ⊆ Ioc a N)
-    (hR : r*(B.image (·%q)).card ≤ q+r-2) : (r+1)*B.card ≤ N+5*r := by
-  let c := (B.image (·%q)).card
-  let t := (N-a)/(3*q)
-  let w := (N-a)%(3*q)
-  have dec : t*(3*q)+w = N-a := by simpa [t,w,Nat.mul_comm,Nat.add_comm] using Nat.mod_add_div (N-a) (3*q)
-  have small : w < 3*q := Nat.mod_lt _ (by omega)
-  have cover : B ⊆ Ico (a+1) ((a+1)+t*(3*q)+w) := by
-    intro x hx
-    have h := mem_Ioc.mp (sub hx)
-    exact mem_Ico.mpr ⟨by omega,by omega⟩
-  obtain ⟨u,cap,uc,short,mid⟩ := split_period B (by omega) cop avoid cover small
-  change B.card ≤ t*(2*c)+u at cap
-  change u ≤ 2*c at uc
-  change w ≤ q → u ≤ min w c at short
-  change q ≤ w → w ≤ 2*q → u ≤ c+min (w-q) c at mid
-  change r*c ≤ q+r-2 at hR
-  have rc : r*c ≤ q+r := by omega
-  have rc3 := Nat.mul_le_mul_right c hr
-  have full : (r+1)*(2*c) ≤ 3*q := by nlinarith only [rc,rc3,hq]
-  have triple : (r+1)*(3*c) ≤ 4*q+4*r := by nlinarith only [rc,rc3]
-  have spend (w' : ℕ) : (r+1)*min w' c ≤ q+r+w' := by
-    have h := Nat.mul_le_mul_left r (min_le_right w' c)
-    have hw := min_le_left w' c
-    nlinarith only [h,hw,rc]
-  have total := Nat.mul_le_mul_left (r+1) cap
-  have number := Nat.sub_add_cancel (show a ≤ N by omega)
-  by_cases wsmall : w ≤ q
-  · have f := Nat.mul_le_mul_left t full
-    have cost := (Nat.mul_le_mul_left (r+1) (short wsmall)).trans (spend w)
-    nlinarith only [total,f,cost,dec,number,qa,Nat.zero_le r]
-  by_cases wbig : 2*q ≤ w
-  · have f := Nat.mul_le_mul_left t full
-    have cost := (Nat.mul_le_mul_left (r+1) uc).trans full
-    nlinarith only [total,f,cost,dec,number,qa,wbig,Nat.zero_le r]
-  have ht : 0<t := by
-    by_contra hx
-    have hzero : t=0 := Nat.eq_zero_of_not_pos hx
-    rw [hzero, Nat.zero_mul, Nat.zero_add] at dec
-    omega
-  have f := Nat.mul_le_mul_left (t-1) full
-  have tdec : t-1+1=t := by omega
-  have fm := congrArg (fun k : ℕ => k*(3*q)) tdec
-  have fc := congrArg (fun k : ℕ => (r+1)*(k*(2*c))) tdec
-  have cost := Nat.mul_le_mul_left (r+1) (mid (by omega) (by omega))
-  have wdec := Nat.sub_add_cancel (show q ≤ w by omega)
-  nlinarith only [total,f,fm,fc,triple,cost,spend (w-q),wdec,dec,number,qa]
-
-/-- Every admissible set containing no multiple of three has the conjectured
-bound, with no requirement on its distribution between classes one and two. -/
-theorem no_three_multiples_bound (r : ℕ) (hr : 3 ≤ r) : ∃ C : ℕ,
-    ∀ (N : ℕ) (A : Finset ℕ), A ⊆ Icc 1 N → (∀ b ∈ A, ¬3 ∣ b) →
-      FullColumns.Free r A → (r+1)*A.card ≤ N+C := by
-  let C := (128*r + 24*((r+1)*(16*r+1)+32*r+1)+2) + (r+1)*(64*r+1)
-  refine ⟨(C+5*r)+(r+1)*(8*r+1), ?_⟩
-  intro N A sub avoid free
-  have pos (a : ℕ) (ha : a ∈ A) := (mem_Icc.mp (sub ha)).1
-  rw [← Nat.add_assoc N]
-  apply OMA.Erdos13UpperShell.select_large_quotient (N := N) (K := C+5*r) (L := 8*r) A pos
-    (OMA.Erdos13Cyclic.witness_of_free (by omega) free pos)
-  intro a ha q hq dvd quotient
-  let B := A.filter (a < ·)
-  have hB : B ⊆ Ioc a N := by
-    intro b hb
-    have h := mem_filter.mp hb
-    exact mem_Ioc.mpr ⟨h.2,(mem_Icc.mp (sub h.1)).2⟩
-  have good : B ⊆ A := filter_subset _ _
-  by_cases low : 3*a ≤ N
-  · have cop : (3:ℕ).Coprime q := Nat.prime_three.coprime_iff_not_dvd.mpr
-      (fun hz => avoid a ha (hz.trans dvd))
-    have t := three_tail hr low hq (Nat.le_of_dvd (pos a ha) dvd) cop B
-      (fun b hb => avoid b (good hb)) hB quotient
-    change (r+1)*B.card ≤ _
-    omega
-  · have hs : ∀ b ∈ B, 0<b ∧ N ≤ 3*b ∧ b ≤ N := by
-      intro b hb
-      have h := mem_Ioc.mp (hB hb)
-      exact ⟨by omega,by omega,h.2⟩
-    have hf : FullColumns.Free r B := fun a ha b hb => free a (good ha) b (fun i => good (hb i))
-    have h := OMA.Erdos13UpperShell.bound_on_third_shell hr B hs hf
-    change (r+1)*B.card ≤ _
-    dsimp [C]
-    omega
 
 end Erdos13NoThreeMultiples
 

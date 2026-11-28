@@ -4,32 +4,25 @@ open Erdos954
 
 lemma OMA.rosenAux_succ_of_ne (k i : ℕ) (h : i ≠ k + 2) :
     rosenAux (k + 1) i = rosenAux k i := by
-  show (if i = k + 2 then _ else rosenAux k i) = rosenAux k i
-  rw [if_neg h]
+  exact if_neg h
 
 lemma OMA.rosenAux_stable : ∀ k i : ℕ, i ≤ k + 1 → rosenAux k i = rosen i := by
   intro k
   induction k with
   | zero =>
     intro i hi
-    have h : i = 0 ∨ i = 1 := by omega
-    rcases h with rfl | rfl
-    · rfl
-    · show rosenAux 0 1 = rosenAux (0 + 1) 1
-      rw [OMA.rosenAux_succ_of_ne 0 1 (by omega)]
+    interval_cases i <;> rfl
   | succ k ih =>
     intro i hi
     by_cases h : i = k + 2
-    · subst h
-      show rosenAux (k + 1) (k + 2) = rosenAux (k + 1 + 1) (k + 2)
-      rw [OMA.rosenAux_succ_of_ne (k + 1) (k + 2) (by omega)]
+    · subst i
+      exact (OMA.rosenAux_succ_of_ne (k + 1) (k + 2) (by omega)).symm
     · exact (OMA.rosenAux_succ_of_ne k i h).trans (ih i (by omega))
 
 lemma OMA.rosen_add_two (k : ℕ) :
     rosen (k + 2) = sInf {n : ℕ | pairCount (rosenAux k) (k + 1) n < n} := by
   rw [← OMA.rosenAux_stable (k + 1) (k + 2) (by omega)]
-  show (if k + 2 = k + 2 then _ else rosenAux k (k + 2)) = _
-  rw [if_pos rfl]
+  exact if_pos rfl
 
 -- The same pair persists when the index bound grows and all earlier terms are copied.
 lemma OMA.pairCount_le {a b : ℕ → ℕ} {m m' : ℕ} (hm : m ≤ m')

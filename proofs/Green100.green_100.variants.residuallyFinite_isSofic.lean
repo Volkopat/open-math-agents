@@ -1,80 +1,50 @@
 import FormalConjectures.GreensOpenProblems.«100»
 
--- Problem: Ben Green's Open Problem 100 — residuallyFinite isSofic
--- Upstream: formal-conjectures FormalConjectures/GreensOpenProblems/100.lean (declaration Green100.green_100.variants.residuallyFinite_isSofic)
--- Credit: @niclorusso (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
-
-/-!
-Residually finite groups are sofic.
-
-Given a finite set `F`, residual finiteness gives, for every pair of distinct elements of `F`,
-a finite index normal subgroup separating them. The product of the corresponding finite
-quotients is a finite group `Q` with a homomorphism `π : G →* Q` that is injective on `F`.
-Letting `G` act on `Q` by left multiplication through `π` gives an exact homomorphism into a
-symmetric group, so the approximate-homomorphism conditions hold with error `0`, and distinct
-elements of `F` act as permutations that differ at every point, at normalised distance `1`.
--/
-
-namespace OMA.Sofic
+/-! Residually finite groups are sofic. Original proof: @niclorusso (#692);
+this version follows @LordMike's pending proof (#499). -/
 
 open Green100
 
-/-- A homomorphism to a finite group that is injective on `F` gives a sofic approximation of `F`
-with any error. -/
-lemma sofic_of_hom {G Q : Type*} [Group G] [Group Q] [Fintype Q] (F : Finset G) (π : G →* Q)
-    (hπ : ∀ x ∈ F, ∀ y ∈ F, x ≠ y → π x ≠ π y) (ε : ℝ) (hε : 0 < ε) :
-    ∃ (n : ℕ) (θ : G → Equiv.Perm (Fin n)),
-      (∀ g ∈ F, ∀ h ∈ F, g * h ∈ F → hammingDistNorm (θ g * θ h) (θ (g * h)) < ε) ∧
-      (1 ∈ F → hammingDistNorm (θ 1) 1 < ε) ∧
-      ∀ x ∈ F, ∀ y ∈ F, x ≠ y → (1 / 4 : ℝ) ≤ hammingDistNorm (θ x) (θ y) := by
-  let e := Fintype.equivFin Q
-  let θ : G → Equiv.Perm (Fin (Fintype.card Q)) := fun g => e.permCongr (Equiv.mulLeft (π g))
-  have hθ : ∀ g h, θ g * θ h = θ (g * h) := by
-    intro g h
-    ext i
-    simp [θ, Equiv.permCongr_apply]
-  have h1 : θ 1 = 1 := by
-    ext i
-    simp [θ, Equiv.permCongr_apply]
-  refine ⟨Fintype.card Q, θ, ?_, ?_, ?_⟩
-  · intro g _ h _ _
-    rw [hθ]
-    simp [hammingDistNorm, hε]
-  · intro _
-    rw [h1]
-    simp [hammingDistNorm, hε]
-  · intro x hx y hy hxy
-    have hne := hπ x hx y hy hxy
-    have hcard : 0 < Fintype.card Q := Fintype.card_pos
-    have hd : hammingDist (⇑(θ x)) (⇑(θ y)) = Fintype.card Q := by
-      unfold hammingDist
-      rw [Finset.filter_true_of_mem, Finset.card_univ, Fintype.card_fin]
-      intro i _
-      simp [θ, Equiv.permCongr_apply, hne]
-    unfold hammingDistNorm
-    rw [hd, div_self (by exact_mod_cast hcard.ne')]
-    norm_num
+namespace OMA
 
-end OMA.Sofic
+theorem hamming_self {n : ℕ} (σ : Equiv.Perm (Fin n)) : hammingDistNorm σ σ = 0 := by
+  simp [hammingDistNorm]
 
-open Green100 OMA.Sofic in
+theorem hamming_all {n : ℕ} (hn : 0 < n) (σ τ : Equiv.Perm (Fin n)) (h : ∀ i, σ i ≠ τ i) :
+    hammingDistNorm σ τ = 1 := by
+  simp [hammingDistNorm, hammingDist, h, hn.ne']
+
+end OMA
+
 theorem OMA.solution : type_of% @Green100.green_100.variants.residuallyFinite_isSofic := by
-  intro G _ _
+  intro G _ _ F ε hε
   classical
-  unfold IsSofic
-  intro F ε hε
-  have hsep : ∀ p : F.offDiag, ∃ H : FiniteIndexNormalSubgroup G,
-      (p.1.1 : G ⧸ H.toSubgroup) ≠ ↑p.1.2 := fun p =>
-    Group.exists_finiteIndexNormalSubgroup_of_residuallyFinite _ _ (Finset.mem_offDiag.1 p.2).2.2
-  choose H hH using hsep
-  have hN : ∀ p, (H p).toSubgroup.Normal := fun p => (H p).isNormal'
-  have hI : ∀ p, (H p).toSubgroup.FiniteIndex := fun p => (H p).isFiniteIndex'
-  have : Finite (∀ p : F.offDiag, G ⧸ (H p).toSubgroup) := Pi.finite
-  let _ : Fintype (∀ p : F.offDiag, G ⧸ (H p).toSubgroup) := Fintype.ofFinite _
-  let π : G →* ∀ p : F.offDiag, G ⧸ (H p).toSubgroup :=
-    MonoidHom.pi fun p => QuotientGroup.mk' (H p).toSubgroup
-  refine sofic_of_hom F π ?_ ε hε
-  intro x hx y hy hxy h
-  have := congrFun h ⟨(x, y), Finset.mem_offDiag.2 ⟨hx, hy, hxy⟩⟩
-  exact hH ⟨(x, y), Finset.mem_offDiag.2 ⟨hx, hy, hxy⟩⟩ this
+  have hK : ∀ p : F.offDiag, ∃ K : FiniteIndexNormalSubgroup G,
+      (p.1.1 : G ⧸ K.toSubgroup) ≠ ↑p.1.2 := fun p =>
+    Group.exists_finiteIndexNormalSubgroup_of_residuallyFinite _ _
+      (Finset.mem_offDiag.mp p.2).2.2
+  choose K hK using hK
+  let Q := ∀ p : F.offDiag, G ⧸ (K p).toSubgroup
+  let φ : G →* Q := MonoidHom.pi fun p => QuotientGroup.mk' (K p).toSubgroup
+  have : Finite Q := inferInstance
+  let n := Nat.card Q
+  let e : Q ≃ Fin n := Finite.equivFin Q
+  have hn : 0 < n := Nat.card_pos
+  let θ : G →* Equiv.Perm (Fin n) :=
+    e.permCongrHom.toMonoidHom.comp ((MulAction.toPermHom Q Q).comp φ)
+  refine ⟨n, θ, ?_, ?_, ?_⟩
+  · intro g _ h _ _
+    rw [← map_mul, OMA.hamming_self]; exact hε
+  · intro _
+    rw [map_one, OMA.hamming_self]; exact hε
+  · intro x hx y hy hxy
+    have hφ : φ x ≠ φ y := by
+      intro h
+      exact hK ⟨(x, y), Finset.mem_offDiag.mpr ⟨hx, hy, hxy⟩⟩
+        (congrFun h ⟨(x, y), Finset.mem_offDiag.mpr ⟨hx, hy, hxy⟩⟩)
+    rw [OMA.hamming_all hn]
+    · norm_num
+    · intro i hi
+      apply hφ
+      have := e.injective hi
+      simpa [θ, Equiv.permCongr_apply] using this

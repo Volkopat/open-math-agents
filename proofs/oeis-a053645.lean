@@ -1,29 +1,17 @@
 import OMAStatements.S_oeis_a053645
+import Mathlib
 
--- Problem: oeis-a053645
--- Credit: @LAPRAI (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
-
+open OMA.S_oeis_a053645 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a053645.main := by
-  refine ⟨by simp [OMA.S_oeis_a053645.a], ?_⟩
-  intro n hn
-  have hL1 : 2 ^ Nat.log 2 (n - 1) ≤ n - 1 := Nat.pow_log_le_self 2 (by omega)
-  have hL2 : n - 1 < 2 ^ (Nat.log 2 (n - 1) + 1) := Nat.lt_pow_succ_log_self (by norm_num) _
-  unfold OMA.S_oeis_a053645.a OMA.S_oeis_a053645.a036987
-  by_cases hp : ∃ k ≤ n - 1 + 1, n - 1 + 1 = 2 ^ k
-  · rw [if_pos hp]
-    obtain ⟨k, -, hk⟩ := hp
-    have hn' : n = 2 ^ k := by omega
-    rw [hn', Nat.log_pow (by norm_num)]
+  refine ⟨by simp [a], fun n hn => ?_⟩
+  have := Nat.pow_log_le_self 2 (show n - 1 ≠ 0 by omega)
+  have := Nat.lt_pow_succ_log_self one_lt_two (n - 1)
+  have := @Nat.lt_two_pow_self (Nat.log 2 (n - 1) + 1)
+  unfold a a036987
+  split_ifs with hp
+  · obtain ⟨k, -, hk⟩ := hp
+    rw [show n = 2 ^ k by omega, Nat.log_pow (by norm_num)]
     simp
-  · rw [if_neg hp]
-    have hne : n ≠ 2 ^ (Nat.log 2 (n - 1) + 1) := by
-      intro h
-      apply hp
-      refine ⟨Nat.log 2 (n - 1) + 1, ?_, by omega⟩
-      have := @Nat.lt_two_pow_self (Nat.log 2 (n - 1) + 1)
-      omega
-    have hlog : Nat.log 2 n = Nat.log 2 (n - 1) :=
-      Nat.log_eq_of_pow_le_of_lt_pow (by omega) (by omega)
-    rw [hlog]
+  · rw [Nat.log_eq_of_pow_le_of_lt_pow (n := n) (m := Nat.log 2 (n - 1)) (by omega)
+      (by by_contra; exact hp ⟨Nat.log 2 (n - 1) + 1, by omega, by omega⟩)]
     omega

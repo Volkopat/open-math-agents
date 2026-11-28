@@ -52,28 +52,15 @@ lemma inside {n : ℕ} (hn : n ≠ 0) {a b : ℕ} (ha : a < n) (hb : b < n) {s t
   have hN : (0 : ℝ) < n := by exact_mod_cast Nat.pos_of_ne_zero hn
   have ha' : (a : ℝ) + 1 ≤ n := by exact_mod_cast ha
   have hb' : (b : ℝ) + 1 ≤ n := by exact_mod_cast hb
-  have ha0 : (0 : ℝ) ≤ a := Nat.cast_nonneg a
-  have hb0 : (0 : ℝ) ≤ b := Nat.cast_nonneg b
   unfold rr aa bb
   split_ifs with h
   · have h' : (a : ℝ) + b + 1 ≤ n := by exact_mod_cast h
-    refine ⟨?_, ?_, ?_⟩
-    · rw [show 1 / (n : ℝ) * s + (a : ℝ) / n = (s + a) / n by ring]
-      exact div_nonneg (by linarith) hN.le
-    · rw [show 1 / (n : ℝ) * t + (b : ℝ) / n = (t + b) / n by ring]
-      exact div_nonneg (by linarith) hN.le
-    · rw [show 1 / (n : ℝ) * s + (a : ℝ) / n + (1 / (n : ℝ) * t + (b : ℝ) / n)
-          = (s + t + a + b) / n by ring, div_le_one hN]
-      linarith
+    simp only [div_mul_eq_mul_div, one_mul, ← add_div, div_le_one hN]
+    exact ⟨by positivity, by positivity, by linarith⟩
   · have h' : (n : ℝ) ≤ a + b := by exact_mod_cast not_lt.1 h
-    refine ⟨?_, ?_, ?_⟩
-    · rw [show -(1 / (n : ℝ)) * s + ((n : ℝ) - a) / n = ((n : ℝ) - a - s) / n by ring]
-      exact div_nonneg (by linarith) hN.le
-    · rw [show -(1 / (n : ℝ)) * t + ((n : ℝ) - b) / n = ((n : ℝ) - b - t) / n by ring]
-      exact div_nonneg (by linarith) hN.le
-    · rw [show -(1 / (n : ℝ)) * s + ((n : ℝ) - a) / n + (-(1 / (n : ℝ)) * t + ((n : ℝ) - b) / n)
-          = (2 * (n : ℝ) - a - b - s - t) / n by ring, div_le_one hN]
-      linarith
+    simp only [neg_mul, div_mul_eq_mul_div, one_mul, ← neg_div, ← add_div,
+      div_le_one hN]
+    exact ⟨div_nonneg (by linarith) hN.le, div_nonneg (by linarith) hN.le, by linarith⟩
 
 /-- The pieces cover the big triangle. -/
 lemma cover {n : ℕ} (hn : n ≠ 0) {x y : ℝ} (hx : 0 ≤ x) (hy : 0 ≤ y) (hxy : x + y ≤ 1) :
@@ -157,69 +144,36 @@ lemma disj {n : ℕ} (hn : n ≠ 0) {a b a' b' : ℕ} {s t s' t' : ℝ}
     (hs : 0 < s) (ht : 0 < t) (hst : s + t < 1) (hs' : 0 < s') (ht' : 0 < t') (hst' : s' + t' < 1)
     (h1 : rr n a b * s + aa n a b = rr n a' b' * s' + aa n a' b')
     (h2 : rr n a b * t + bb n a b = rr n a' b' * t' + bb n a' b') : a = a' ∧ b = b' := by
-  have hN : (0 : ℝ) < n := by exact_mod_cast Nat.pos_of_ne_zero hn
-  have hN' : (n : ℝ) ≠ 0 := hN.ne'
+  have hn' : (n : ℝ) ≠ 0 := by exact_mod_cast hn
+  have same {i j : ℕ} {x y : ℝ} (hx : 0 < x) (hy : 0 < y) (hx' : x < 1) (hy' : y < 1)
+      (e : x + i = y + j) : i = j := by
+    have h : (i : ℝ) < j + 1 := by linarith
+    have h' : (j : ℝ) < i + 1 := by linarith
+    have hi : i < j + 1 := by exact_mod_cast h
+    have hj : j < i + 1 := by exact_mod_cast h'
+    omega
+  have cross {i j : ℕ} {x y : ℝ} (hx : 0 < x) (hy : 0 < y) (hx' : x < 1) (hy' : y < 1)
+      (e : x + i = -y + ((n : ℝ) - j)) : (i : ℝ) + j + 1 = n := by
+    have h : (i : ℝ) + j < n := by linarith
+    have h' : (n : ℝ) < i + j + 2 := by linarith
+    have hi : i + j < n := by exact_mod_cast h
+    have hj : n < i + j + 2 := by exact_mod_cast h'
+    exact_mod_cast (show i + j + 1 = n by omega)
   unfold rr aa at h1
   unfold rr bb at h2
-  split_ifs at h1 h2 with c c'
-  · -- both upright
-    have e1 : s + a = s' + a' := by field_simp at h1; linarith
-    have e2 : t + b = t' + b' := by field_simp at h2; linarith
-    have k1 : (a : ℝ) < a' + 1 := by linarith
-    have k2 : (a' : ℝ) < a + 1 := by linarith
-    have k3 : (b : ℝ) < b' + 1 := by linarith
-    have k4 : (b' : ℝ) < b + 1 := by linarith
-    have k1' : a < a' + 1 := by exact_mod_cast k1
-    have k2' : a' < a + 1 := by exact_mod_cast k2
-    have k3' : b < b' + 1 := by exact_mod_cast k3
-    have k4' : b' < b + 1 := by exact_mod_cast k4
-    exact ⟨by omega, by omega⟩
-  · -- upright against turned: impossible
+  split_ifs at h1 h2 <;> field_simp [hn'] at h1 h2
+  · exact ⟨same hs hs' (by linarith) (by linarith) (by linarith),
+      same ht ht' (by linarith) (by linarith) (by linarith)⟩
+  · have h := cross (i := a) (j := a') hs hs' (by linarith) (by linarith) (by linarith)
+    have h' := cross (i := b) (j := b') ht ht' (by linarith) (by linarith) (by linarith)
     exfalso
-    have e1 : s + a = -s' + (n - a') := by field_simp at h1; linarith
-    have e2 : t + b = -t' + (n - b') := by field_simp at h2; linarith
-    have k1 : (a : ℝ) + a' < n := by linarith
-    have k2 : (n : ℝ) < a + a' + 2 := by linarith
-    have k3 : (b : ℝ) + b' < n := by linarith
-    have k4 : (n : ℝ) < b + b' + 2 := by linarith
-    have k1' : a + a' < n := by exact_mod_cast k1
-    have k2' : n < a + a' + 2 := by exact_mod_cast k2
-    have k3' : b + b' < n := by exact_mod_cast k3
-    have k4' : n < b + b' + 2 := by exact_mod_cast k4
-    have m1 : a + a' + 1 = n := by omega
-    have m2 : b + b' + 1 = n := by omega
-    have m1' : (a : ℝ) + a' + 1 = n := by exact_mod_cast m1
-    have m2' : (b : ℝ) + b' + 1 = n := by exact_mod_cast m2
     linarith
-  · -- turned against upright: impossible
+  · have h := cross (i := a') (j := a) hs' hs (by linarith) (by linarith) (by linarith)
+    have h' := cross (i := b') (j := b) ht' ht (by linarith) (by linarith) (by linarith)
     exfalso
-    have e1 : -s + (n - a) = s' + a' := by field_simp at h1; linarith
-    have e2 : -t + (n - b) = t' + b' := by field_simp at h2; linarith
-    have k1 : (a : ℝ) + a' < n := by linarith
-    have k2 : (n : ℝ) < a + a' + 2 := by linarith
-    have k3 : (b : ℝ) + b' < n := by linarith
-    have k4 : (n : ℝ) < b + b' + 2 := by linarith
-    have k1' : a + a' < n := by exact_mod_cast k1
-    have k2' : n < a + a' + 2 := by exact_mod_cast k2
-    have k3' : b + b' < n := by exact_mod_cast k3
-    have k4' : n < b + b' + 2 := by exact_mod_cast k4
-    have m1 : a + a' + 1 = n := by omega
-    have m2 : b + b' + 1 = n := by omega
-    have m1' : (a : ℝ) + a' + 1 = n := by exact_mod_cast m1
-    have m2' : (b : ℝ) + b' + 1 = n := by exact_mod_cast m2
     linarith
-  · -- both turned
-    have e1 : s + a = s' + a' := by field_simp at h1; linarith
-    have e2 : t + b = t' + b' := by field_simp at h2; linarith
-    have k1 : (a : ℝ) < a' + 1 := by linarith
-    have k2 : (a' : ℝ) < a + 1 := by linarith
-    have k3 : (b : ℝ) < b' + 1 := by linarith
-    have k4 : (b' : ℝ) < b + 1 := by linarith
-    have k1' : a < a' + 1 := by exact_mod_cast k1
-    have k2' : a' < a + 1 := by exact_mod_cast k2
-    have k3' : b < b' + 1 := by exact_mod_cast k3
-    have k4' : b' < b + 1 := by exact_mod_cast k4
-    exact ⟨by omega, by omega⟩
+  · exact ⟨same hs hs' (by linarith) (by linarith) (by linarith),
+      same ht ht' (by linarith) (by linarith) (by linarith)⟩
 
 -- Geometry: coordinates relative to a triangle.
 

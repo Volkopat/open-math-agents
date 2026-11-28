@@ -1,0 +1,1 @@
+{"about":"Problems in the catalogue that were already settled elsewhere (literature, the source entry itself, an earlier public proof). scripts/build_data.mjs stops listing them as open: with a Lean statement they become known results, without one they are dropped. Filled by the solved-elsewhere scans; each entry gives the evidence.","entries":{}}

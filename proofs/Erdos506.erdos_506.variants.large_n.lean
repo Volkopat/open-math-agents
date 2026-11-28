@@ -488,11 +488,6 @@ lemma collinear_right (a b : Point) : Collinear a b b := by
   simp [Collinear, det]
   ring
 
-lemma collinear_swap_left {a b c : Point} :
-    Collinear a b c ↔ Collinear b a c := by
-  simp only [Collinear, det]
-  constructor <;> intro h <;> nlinarith
-
 lemma collinear_rotate {a b c : Point} :
     Collinear a b c ↔ Collinear b c a := by
   simp only [Collinear, det]
@@ -1370,12 +1365,6 @@ lemma connectingLine_card_two_le {P : Finset Point} {L : Finset Point}
   have hcard := Finset.card_le_card hsub
   simpa [hab] using hcard
 
-/-- Connecting lines containing exactly `r` points. -/
-noncomputable def linesOfSize (P : Finset Point) (r : ℕ) :
-    Finset (Finset Point) := by
-  classical
-  exact (connectingLines P).filter fun L ↦ L.card = r
-
 /-- Number of connecting lines through a point. -/
 noncomputable def pointDegree (P : Finset Point) (p : Point) : ℕ := by
   classical
@@ -1392,61 +1381,6 @@ lemma connectingLine_eq_of_two_mem {P : Finset Point} {L M : Finset Point}
   have h₂ : lineBlock P a b = lineBlock P e f :=
     lineBlock_eq_of_mem hef hab haM hbM
   exact h₁.symm.trans h₂
-
-lemma powersetCard_two_pairwiseDisjoint (P : Finset Point) :
-    ((connectingLines P : Finset (Finset Point)) : Set (Finset Point)).PairwiseDisjoint
-      (fun L ↦ L.powersetCard 2) := by
-  classical
-  intro L hL M hM hLM
-  change Disjoint (L.powersetCard 2) (M.powersetCard 2)
-  rw [Finset.disjoint_left]
-  intro A hAL hAM
-  rw [Finset.mem_powersetCard] at hAL hAM
-  rcases Finset.card_eq_two.mp hAL.2 with ⟨a, b, hab, rfl⟩
-  have haL : a ∈ L := hAL.1 (by simp)
-  have hbL : b ∈ L := hAL.1 (by simp)
-  have haM : a ∈ M := hAM.1 (by simp)
-  have hbM : b ∈ M := hAM.1 (by simp)
-  exact hLM (connectingLine_eq_of_two_mem hL hM hab haL hbL haM hbM)
-
-/-- Every unordered pair of points belongs to exactly one connecting block. -/
-lemma biUnion_linePairs (P : Finset Point) :
-    (connectingLines P).biUnion (fun L ↦ L.powersetCard 2) = P.powersetCard 2 := by
-  classical
-  apply Finset.ext
-  intro A
-  constructor
-  · intro hA
-    rcases Finset.mem_biUnion.mp hA with ⟨L, hL, hAL⟩
-    rw [Finset.mem_powersetCard] at hAL ⊢
-    refine ⟨hAL.1.trans ?_, hAL.2⟩
-    rcases mem_connectingLines.mp hL with ⟨a, ha, b, hb, hab, rfl⟩
-    exact lineBlock_subset P a b
-  · intro hA
-    rw [Finset.mem_powersetCard] at hA
-    rcases Finset.card_eq_two.mp hA.2 with ⟨a, b, hab, rfl⟩
-    apply Finset.mem_biUnion.mpr
-    refine ⟨lineBlock P a b, ?_, ?_⟩
-    · exact mem_connectingLines.mpr
-        ⟨a, hA.1 (by simp), b, hA.1 (by simp), hab, rfl⟩
-    · rw [Finset.mem_powersetCard]
-      refine ⟨?_, by simp [hab]⟩
-      intro x hx
-      simp only [Finset.mem_insert, Finset.mem_singleton] at hx
-      rcases hx with rfl | rfl
-      · exact left_mem_lineBlock (hA.1 (by simp))
-      · exact right_mem_lineBlock (hA.1 (by simp))
-
-/-- Pair partition identity for connecting lines. -/
-lemma sum_choose_two_line_card (P : Finset Point) :
-    ∑ L ∈ connectingLines P, Nat.choose L.card 2 = Nat.choose P.card 2 := by
-  classical
-  rw [← Finset.card_powersetCard]
-  rw [← biUnion_linePairs P]
-  rw [Finset.card_biUnion (powersetCard_two_pairwiseDisjoint P)]
-  apply Finset.sum_congr rfl
-  intro L hL
-  exact (Finset.card_powersetCard 2 L).symm
 
 lemma connectingLine_subset {P : Finset Point} {L : Finset Point}
     (hL : L ∈ connectingLines P) : L ⊆ P := by
@@ -1477,12 +1411,6 @@ lemma sum_pointDegree (P : Finset Point) :
 
 /-! ## The numerical form of Melchior's inequality -/
 
-/-- The projective-arrangement defect `sum (3 - multiplicity)`.  Melchior's
-inequality says that this integer is at least three for every non-collinear
-real point configuration. -/
-noncomputable def lineDefect (P : Finset Point) : ℤ :=
-  ∑ L ∈ connectingLines P, ((3 : ℤ) - L.card)
-
 /-! ### A dual-line sweep
 
 The eventual incidence estimate is proved by sweeping a dual affine line
@@ -1511,15 +1439,6 @@ lemma sortByKey_perm {α β : Type*} [DecidableEq α] [LinearOrder β]
     (sortByKey s key hinj).Perm s.toList := by
   let : LinearOrder α := LinearOrder.lift' key hinj
   exact Finset.sort_perm_toList s _
-
-lemma sortByKey_eq_of_pairwise_perm {α β : Type*} [DecidableEq α] [LinearOrder β]
-    (s : Finset α) (key : α → β) (hinj : Function.Injective key)
-    (l : List α) (hl : l.Pairwise fun x y ↦ key x ≤ key y)
-    (hp : l.Perm s.toList) : sortByKey s key hinj = l := by
-  apply List.Perm.eq_of_pairwise
-      (fun x y _ _ hxy hyx ↦ hinj (le_antisymm hxy hyx))
-      (sortByKey_pairwise s key hinj) hl
-  exact (sortByKey_perm s key hinj).trans hp.symm
 
 noncomputable def descentCount {α : Type*} (f : α → ℝ) : List α → ℕ
   | x :: y :: l => (if f y < f x then 1 else 0) + descentCount f (y :: l)
@@ -1585,25 +1504,6 @@ lemma descentCount_eq_zero_of_pairwise_lt
           have hxy : ¬ f y < f x := not_lt.mpr (le_of_lt (h.1 y (by simp)))
           have htail : (y :: l).Pairwise fun u v ↦ f u < f v := h.2
           simp only [descentCount, if_neg hxy, ih htail, zero_add]
-
-lemma descentCount_reverse_block_bound
-    {α : Type*} (f : α → ℝ) (pre block post : List α)
-    (hblock : block.Pairwise fun x y ↦ f y < f x) :
-    block.length ≤
-      descentCount f (pre ++ block ++ post) -
-        descentCount f (pre ++ block.reverse ++ post) + 3 := by
-  have hdesc := descentCount_eq_length_sub_one_of_pairwise_gt hblock
-  have hasc : block.reverse.Pairwise fun x y ↦ f x < f y := by
-    rw [List.pairwise_reverse]
-    exact hblock
-  have hzero := descentCount_eq_zero_of_pairwise_lt hasc
-  rw [descentCount_append, descentCount_append,
-    descentCount_append, descentCount_append, hdesc, hzero]
-  have h₁ := descentBoundary_le_one f pre block
-  have h₂ := descentBoundary_le_one f (pre ++ block) post
-  have h₃ := descentBoundary_le_one f pre block.reverse
-  have h₄ := descentBoundary_le_one f (pre ++ block.reverse) post
-  omega
 
 lemma descentCount_reverse_block_add_bound
     {α : Type*} (f : α → ℝ) (pre block post : List α)
@@ -1913,18 +1813,6 @@ lemma afterTieOrder_eq_reversed_parts_of_unique
     afterTieBlock_eq_reverse hf y,
     ← before_after_filter_gt_eq_of_unique hf y hunique]
 
-lemma tie_order_descent_drop
-    {α : Type*} [Fintype α] [DecidableEq α] {h f : α → ℝ}
-    (hf : Function.Injective f) (y : ℝ)
-    (hunique : ∀ x z, h x = h z → x = z ∨ h x = y) :
-    (tieBlock h f hf y).length ≤
-      descentCount f (beforeTieOrder h f hf) -
-        descentCount f (afterTieOrder h f hf) + 3 := by
-  rw [beforeTieOrder_partition hf y,
-    afterTieOrder_eq_reversed_parts_of_unique hf y hunique]
-  exact descentCount_reverse_block_bound f _ _ _
-    (tieBlock_pairwise_descending hf y)
-
 lemma tie_order_descent_add_bound
     {α : Type*} [Fintype α] [DecidableEq α] {h f : α → ℝ}
     (hf : Function.Injective f) (y : ℝ)
@@ -1939,14 +1827,6 @@ lemma tie_order_descent_add_bound
 
 noncomputable def dualMeetX (t : ℝ) (a b : Point) : ℝ :=
   (a.2 - b.2) / (sweepSlope t a - sweepSlope t b)
-
-lemma dualHeight_dualMeetX_eq {t : ℝ} {a b : Point}
-    (hab : sweepSlope t a ≠ sweepSlope t b) :
-    dualHeight t a (dualMeetX t a b) =
-      dualHeight t b (dualMeetX t a b) := by
-  simp only [dualHeight, dualMeetX]
-  field_simp [hab]
-  ring
 
 lemma dualHeight_dualMeetX_eq_iff_collinear {t : ℝ} {a b c : Point}
     (hab : sweepSlope t a ≠ sweepSlope t b) :
@@ -2024,82 +1904,6 @@ lemma exists_sweepSlope_injOn_avoiding (P : Finset Point) (B : Finset ℝ) :
       have hden : a.2 - b.2 ≠ 0 := sub_ne_zero.mpr hy
       field_simp [hden]
       nlinarith
-
-lemma mem_linesOfSize {P : Finset Point} {r : ℕ} {L : Finset Point} :
-    L ∈ linesOfSize P r ↔ L ∈ connectingLines P ∧ L.card = r := by
-  classical
-  simp [linesOfSize]
-
-lemma card_linesOfSize_eq_sum_indicator (P : Finset Point) (r : ℕ) :
-    (linesOfSize P r).card =
-      ∑ L ∈ connectingLines P, if L.card = r then 1 else 0 := by
-  classical
-  exact (Finset.sum_boole (fun L : Finset Point ↦ L.card = r)
-    (connectingLines P)).symm
-
-/-- The first numerical consequence of Melchior: three times the number of
-connecting lines dominates three plus the number of point-line incidences. -/
-lemma three_mul_line_count_ge_incidence_of_lineDefect
-    (P : Finset Point) (hM : (3 : ℤ) ≤ lineDefect P) :
-    (3 : ℤ) + ∑ L ∈ connectingLines P, (L.card : ℤ) ≤
-      3 * (connectingLines P).card := by
-  rw [lineDefect] at hM
-  have hcard :
-      ∑ L ∈ connectingLines P, (3 : ℤ) =
-        3 * (connectingLines P).card := by
-    rw [Finset.sum_const]
-    simp [mul_comm]
-  rw [Finset.sum_sub_distrib, hcard] at hM
-  omega
-
-/-- The second numerical consequence of Melchior: lines containing two or
-three points already account for at least half of all connecting lines. -/
-lemma small_lines_of_lineDefect
-    (P : Finset Point) (hM : (3 : ℤ) ≤ lineDefect P) :
-    (connectingLines P).card + 3 ≤
-      2 * (linesOfSize P 2).card + (linesOfSize P 3).card := by
-  classical
-  have hpointwise : ∀ L ∈ connectingLines P,
-      ((3 : ℤ) - L.card) ≤
-        (if L.card = 2 then (2 : ℤ) else if L.card = 3 then 1 else 0) - 1 := by
-    intro L hL
-    have hr := connectingLine_card_two_le hL
-    split_ifs with h2 h3
-    · omega
-    · omega
-    · omega
-  have hsum : lineDefect P ≤
-      ∑ L ∈ connectingLines P,
-        ((if L.card = 2 then (2 : ℤ) else if L.card = 3 then 1 else 0) - 1) := by
-    rw [lineDefect]
-    exact Finset.sum_le_sum fun L hL ↦ hpointwise L hL
-  have hcount2 := card_linesOfSize_eq_sum_indicator P 2
-  have hcount3 := card_linesOfSize_eq_sum_indicator P 3
-  have hcount2z := congrArg (fun z : ℕ ↦ (z : ℤ)) hcount2
-  have hcount3z := congrArg (fun z : ℕ ↦ (z : ℤ)) hcount3
-  simp only [Nat.cast_sum, Nat.cast_ite, Nat.cast_one, Nat.cast_zero] at hcount2z hcount3z
-  have hrewrite :
-      ∑ L ∈ connectingLines P,
-          ((if L.card = 2 then (2 : ℤ) else if L.card = 3 then 1 else 0) - 1) =
-        2 * (linesOfSize P 2).card + (linesOfSize P 3).card -
-          (connectingLines P).card := by
-    rw [Finset.sum_sub_distrib]
-    have hindicator :
-        ∑ L ∈ connectingLines P,
-            (if L.card = 2 then (2 : ℤ) else if L.card = 3 then 1 else 0) =
-          2 * ∑ L ∈ connectingLines P, (if L.card = 2 then (1 : ℤ) else 0) +
-            ∑ L ∈ connectingLines P, (if L.card = 3 then (1 : ℤ) else 0) := by
-      rw [Finset.mul_sum]
-      rw [← Finset.sum_add_distrib]
-      apply Finset.sum_congr rfl
-      intro L hL
-      by_cases h2 : L.card = 2
-      · simp [h2]
-      · by_cases h3 : L.card = 3 <;> simp [h2, h3]
-    rw [hindicator, ← hcount2z, ← hcount3z, Finset.sum_const]
-    simp
-  rw [hrewrite] at hsum
-  omega
 
 /-! ## Finite two-term inclusion--exclusion -/
 
@@ -2594,80 +2398,6 @@ lemma six_mul_sub_fifty_le_line_expression
   have hraw : 6 * N + Nat.choose s 2 ≤ 51 + s * m := by
     omega
   omega
-
-/-- Kelly and Moser's specialization at `k = 6`.  The only geometric input
-is Melchior's defect inequality, supplied explicitly as `hM`. -/
-lemma kellyMoser_six_of_lineDefect
-    {P : Finset Point} (hN : 393 ≤ P.card)
-    (hP : ¬ ContainedInLine P)
-    (hmax : ∀ L ∈ connectingLines P, L.card ≤ P.card - 6)
-    (hM : (3 : ℤ) ≤ lineDefect P) :
-    6 * P.card - 50 ≤ (connectingLines P).card := by
-  classical
-  by_cases hlow : ∃ x ∈ P, ∃ y ∈ P,
-      x ≠ y ∧ pointDegree P x ≤ 17 ∧ pointDegree P y ≤ 17
-  · obtain ⟨x, hx, y, hy, hxy, hdx, hdy⟩ := hlow
-    let L := lineBlock P x y
-    let Q := P \ L
-    have hLconn : L ∈ connectingLines P := lineBlock_mem_connectingLines hx hy hxy
-    have hLcard : L.card ≤ P.card - 6 := hmax L hLconn
-    have hQcard : Q.card = P.card - L.card := by
-      dsimp [Q]
-      rw [Finset.card_sdiff_of_subset (lineBlock_subset P x y)]
-    have hsumcard : P.card = L.card + Q.card := by omega
-    have hQdegree : Q.card ≤
-        (pointDegree P x - 1) * (pointDegree P y - 1) := by
-      exact card_off_line_le_degree_product hx hy hxy rfl
-    have hdx16 : pointDegree P x - 1 ≤ 16 := by omega
-    have hdy16 : pointDegree P y - 1 ≤ 16 := by omega
-    have hQ256 : Q.card ≤ 256 := by
-      exact hQdegree.trans (by
-        simpa using Nat.mul_le_mul hdx16 hdy16)
-    have hQ6 : 6 ≤ Q.card := by omega
-    have hnum : 6 * P.card - 50 ≤
-        1 + Q.card * L.card - Nat.choose Q.card 2 :=
-      six_mul_sub_fifty_le_line_expression hsumcard hN hQ6 hQ256
-    exact hnum.trans (connectingLines_lower_of_lineBlock hx hy hxy rfl)
-  · have hincZ := three_mul_line_count_ge_incidence_of_lineDefect P hM
-    have hinc : 3 + ∑ p ∈ P, pointDegree P p ≤
-        3 * (connectingLines P).card := by
-      rw [sum_pointDegree]
-      exact_mod_cast hincZ
-    have hsum : 18 * P.card - 16 ≤ ∑ p ∈ P, pointDegree P p := by
-      by_cases hex : ∃ p ∈ P, pointDegree P p ≤ 17
-      · obtain ⟨p, hp, hdp⟩ := hex
-        have hother : ∀ q ∈ P.erase p, 18 ≤ pointDegree P q := by
-          intro q hq
-          have hqP := (Finset.mem_erase.mp hq).2
-          have hqp := (Finset.mem_erase.mp hq).1
-          by_contra hdeg
-          have hdeg' : pointDegree P q ≤ 17 := by omega
-          exact hlow ⟨p, hp, q, hqP, Ne.symm hqp, hdp, hdeg'⟩
-        have herase : 18 * (P.erase p).card ≤
-            ∑ q ∈ P.erase p, pointDegree P q := by
-          calc
-            _ = ∑ _q ∈ P.erase p, 18 := by simp [mul_comm]
-            _ ≤ _ := by
-              apply Finset.sum_le_sum
-              intro q hq
-              exact hother q hq
-        have hpdeg := two_le_pointDegree_of_not_contained hP hp
-        have hdecomp := P.sum_erase_add (fun q ↦ pointDegree P q) hp
-        have hcarderase := Finset.card_erase_of_mem hp
-        omega
-      · push Not at hex
-        have hall : ∀ p ∈ P, 18 ≤ pointDegree P p := by
-          intro p hp
-          have := hex p hp
-          omega
-        calc
-          18 * P.card - 16 ≤ 18 * P.card := Nat.sub_le _ _
-          _ = ∑ _p ∈ P, 18 := by simp [mul_comm]
-          _ ≤ _ := by
-            apply Finset.sum_le_sum
-            intro p hp
-            exact hall p hp
-    omega
 
 /-! ## Inversion about a point -/
 
@@ -3297,29 +3027,6 @@ lemma sweptPointSlope_injective {P : Finset Point} {t a : ℝ}
   intro p q hpq
   exact Subtype.ext (sweptDualSlope_injOn ht hden p.2 q.2 hpq)
 
-lemma event_line_card_le_descent_drop {P : Finset Point} {t a : ℝ}
-    (ht : Set.InjOn (sweepSlope t) P)
-    (ha : Set.InjOn (sweepSlope a) (dualEventPoints P t))
-    (hden : ∀ p ∈ P, 1 + a * sweepSlope t p ≠ 0)
-    (L : {L // L ∈ connectingLines P}) :
-    L.1.card ≤
-      descentCount (sweptPointSlope (P := P) t a)
-          (beforeTieOrder
-            (sweptPointHeight t a (dualEventCoord t a L))
-            (sweptPointSlope t a) (sweptPointSlope_injective ht hden)) -
-        descentCount (sweptPointSlope (P := P) t a)
-          (afterTieOrder
-            (sweptPointHeight t a (dualEventCoord t a L))
-            (sweptPointSlope t a) (sweptPointSlope_injective ht hden)) + 3 := by
-  let f := sweptPointSlope (P := P) t a
-  let h := sweptPointHeight (P := P) t a (dualEventCoord t a L)
-  let hf : Function.Injective f := sweptPointSlope_injective ht hden
-  change L.1.card ≤ descentCount f (beforeTieOrder h f hf) -
-    descentCount f (afterTieOrder h f hf) + 3
-  rw [← event_tieBlock_length ht hden L]
-  exact tie_order_descent_drop hf (dualEventPoint t L).2
-    (fun p q hpq ↦ event_height_ties_only_on_line ht ha hden L p q hpq)
-
 lemma event_line_card_add_descent_le {P : Finset Point} {t a : ℝ}
     (ht : Set.InjOn (sweepSlope t) P)
     (ha : Set.InjOn (sweepSlope a) (dualEventPoints P t))
@@ -3938,28 +3645,6 @@ lemma sum_line_card_le_card_add_three_mul_lines
       rw [hsum, ← List.length_cons, hlength] at htelescope
       exact htelescope
 
-/-- The affine sweep form of Melchior's defect estimate.  It is weaker than
-the projective bound `3 ≤ lineDefect P`, but retains enough linear margin for
-the sharp circle count after allowing connecting lines of size four. -/
-lemma one_sub_card_le_lineDefect {P : Finset Point}
-    (hP : ¬ ContainedInLine P) :
-    (1 : ℤ) - P.card ≤ lineDefect P := by
-  have hPne := connectingLines_nonempty_of_not_contained hP
-  have hpoints : 1 ≤ P.card := by
-    obtain ⟨L, hL⟩ := hPne
-    have htwo := connectingLine_card_two_le hL
-    have hsub := Finset.card_le_card (connectingLine_subset hL)
-    omega
-  have hinc := sum_line_card_le_card_add_three_mul_lines hP
-  have hincz : ((∑ L ∈ connectingLines P, L.card : ℕ) : ℤ) ≤
-      ((P.card - 1 + 3 * (connectingLines P).card : ℕ) : ℤ) := by
-    exact_mod_cast hinc
-  simp only [Nat.cast_sum, Nat.cast_sub hpoints, Nat.cast_one,
-    Nat.cast_add, Nat.cast_mul, Nat.cast_ofNat] at hincz
-  rw [lineDefect, Finset.sum_sub_distrib, Finset.sum_const]
-  simp only [nsmul_eq_mul]
-  omega
-
 /-- Kelly--Moser's degree dichotomy combined with the affine sweep bound.
 The denominator-free form is convenient for the later size-four-line count. -/
 lemma seventeen_mul_card_sub_fifteen_le_three_mul_lines
@@ -4032,102 +3717,6 @@ lemma seventeen_mul_card_sub_fifteen_le_three_mul_lines
             intro p hp
             exact hall p hp
     omega
-/-- Connecting lines containing two or three inverted points, with membership
-in the ambient connecting-line family retained in their subtype. -/
-noncomputable def lowLineSubtypes (P : Finset Point) :
-    Finset {L // L ∈ connectingLines P} := by
-  classical
-  exact (connectingLines P).attach.filter fun L ↦ L.1.card ≤ 3
-
-/-- The low lines through the inversion center. -/
-noncomputable def radialLowLines (P : Finset Point) (p : Point) :
-    Finset {L // L ∈ connectingLines P} := by
-  classical
-  exact (lowLineSubtypes P).filter fun L ↦
-    Collinear p (chosenLineFirst L) (chosenLineSecond L)
-
-/-- The low lines avoiding the inversion center.  These are precisely the
-lines that invert to proper circles through the center. -/
-noncomputable def nonradialLowLines (P : Finset Point) (p : Point) :
-    Finset {L // L ∈ connectingLines P} := by
-  classical
-  exact (lowLineSubtypes P).filter fun L ↦
-    Noncollinear p (chosenLineFirst L) (chosenLineSecond L)
-
-lemma mem_lowLineSubtypes {P : Finset Point}
-    {L : {L // L ∈ connectingLines P}} :
-    L ∈ lowLineSubtypes P ↔ L.1.card ≤ 3 := by
-  classical
-  simp [lowLineSubtypes]
-
-lemma mem_radialLowLines {P : Finset Point} {p : Point}
-    {L : {L // L ∈ connectingLines P}} :
-    L ∈ radialLowLines P p ↔
-      L.1.card ≤ 3 ∧ Collinear p (chosenLineFirst L) (chosenLineSecond L) := by
-  classical
-  simp [radialLowLines, mem_lowLineSubtypes]
-
-lemma mem_nonradialLowLines {P : Finset Point} {p : Point}
-    {L : {L // L ∈ connectingLines P}} :
-    L ∈ nonradialLowLines P p ↔
-      L.1.card ≤ 3 ∧ Noncollinear p (chosenLineFirst L) (chosenLineSecond L) := by
-  classical
-  simp [nonradialLowLines, mem_lowLineSubtypes]
-
-lemma card_lowLineSubtypes (P : Finset Point) :
-    (lowLineSubtypes P).card =
-      (linesOfSize P 2).card + (linesOfSize P 3).card := by
-  classical
-  have hfilter :
-      ((connectingLines P).filter fun L ↦ L.card ≤ 3) =
-        linesOfSize P 2 ∪ linesOfSize P 3 := by
-    apply Finset.ext
-    intro L
-    simp only [Finset.mem_filter, Finset.mem_union, mem_linesOfSize]
-    constructor
-    · rintro ⟨hL, hcard⟩
-      have htwo := connectingLine_card_two_le hL
-      have hcases : L.card = 2 ∨ L.card = 3 := by omega
-      rcases hcases with hcases | hcases
-      · exact Or.inl ⟨hL, hcases⟩
-      · exact Or.inr ⟨hL, hcases⟩
-    · rintro (⟨hL, hcard⟩ | ⟨hL, hcard⟩) <;> exact ⟨hL, by omega⟩
-  have hdisj : Disjoint (linesOfSize P 2) (linesOfSize P 3) := by
-    rw [Finset.disjoint_left]
-    intro L hL2 hL3
-    rw [mem_linesOfSize] at hL2 hL3
-    omega
-  calc
-    (lowLineSubtypes P).card =
-        ((connectingLines P).filter fun L ↦ L.card ≤ 3).card := by
-      rw [lowLineSubtypes]
-      have h := congrArg Finset.card
-        (Finset.filter_attach (fun L : Finset Point ↦ L.card ≤ 3)
-          (connectingLines P))
-      simpa using h
-    _ = (linesOfSize P 2 ∪ linesOfSize P 3).card := by rw [hfilter]
-    _ = _ := Finset.card_union_of_disjoint hdisj
-
-lemma card_radial_add_card_nonradial {P : Finset Point} {p : Point} :
-    (radialLowLines P p).card + (nonradialLowLines P p).card =
-      (lowLineSubtypes P).card := by
-  classical
-  rw [radialLowLines, nonradialLowLines]
-  have hsecond :
-      (lowLineSubtypes P).filter (fun L ↦
-        Noncollinear p (chosenLineFirst L) (chosenLineSecond L)) =
-      (lowLineSubtypes P).filter (fun L ↦
-        ¬ Collinear p (chosenLineFirst L) (chosenLineSecond L)) := by
-    apply Finset.ext
-    intro L
-    simp only [Finset.mem_filter]
-    refine and_congr_right fun _ ↦ ?_
-    simp only [Noncollinear, Collinear]
-  rw [hsecond]
-  exact Finset.card_filter_add_card_filter_not
-    (s := lowLineSubtypes P)
-    (fun L ↦ Collinear p (chosenLineFirst L) (chosenLineSecond L))
-
 lemma mem_radialLine_iff {P : Finset Point} {p x y : Point}
     (hp : p ∉ P) (L : {L // L ∈ connectingLines P})
     (hrad : Collinear p (chosenLineFirst L) (chosenLineSecond L))
@@ -4142,49 +3731,6 @@ lemma mem_radialLine_iff {P : Finset Point} {p x y : Point}
       (collinear_rotate.mp hrad) (chosenLine_collinear_of_mem L hx)
   rw [← lineBlock_chosenLine_eq L, mem_lineBlock]
   exact and_congr_right fun _ ↦ hline
-
-lemma radialLowLines_pairwiseDisjoint {P : Finset Point} {p : Point}
-    (hp : p ∉ P) :
-    (((radialLowLines P p : Finset {L // L ∈ connectingLines P}) :
-      Set {L // L ∈ connectingLines P}).PairwiseDisjoint fun L ↦ L.1) := by
-  classical
-  intro L hL M hM hLM
-  change Disjoint L.1 M.1
-  rw [Finset.disjoint_left]
-  intro x hxL hxM
-  have hradL := (mem_radialLowLines.mp hL).2
-  have hradM := (mem_radialLowLines.mp hM).2
-  apply hLM
-  apply Subtype.ext
-  apply Finset.ext
-  intro y
-  rw [mem_radialLine_iff hp L hradL hxL,
-    mem_radialLine_iff hp M hradM hxM]
-
-lemma two_mul_card_radialLowLines_le {P : Finset Point} {p : Point}
-    (hp : p ∉ P) : 2 * (radialLowLines P p).card ≤ P.card := by
-  classical
-  let R := radialLowLines P p
-  have hdisj : (((R : Finset {L // L ∈ connectingLines P}) :
-      Set {L // L ∈ connectingLines P}).PairwiseDisjoint fun L ↦ L.1) := by
-    dsimp [R]
-    exact radialLowLines_pairwiseDisjoint hp
-  have hsum : ∑ L ∈ R, L.1.card = (R.biUnion fun L ↦ L.1).card := by
-    exact (Finset.card_biUnion hdisj).symm
-  have hunion : (R.biUnion fun L ↦ L.1) ⊆ P := by
-    intro x hx
-    rw [Finset.mem_biUnion] at hx
-    obtain ⟨L, hLR, hxL⟩ := hx
-    exact connectingLine_subset L.2 hxL
-  have hsmall : 2 * R.card ≤ ∑ L ∈ R, L.1.card := by
-    calc
-      2 * R.card = ∑ _L ∈ R, 2 := by simp [mul_comm]
-      _ ≤ _ := by
-        apply Finset.sum_le_sum
-        intro L hL
-        exact connectingLine_card_two_le L.2
-  rw [hsum] at hsmall
-  exact hsmall.trans (Finset.card_le_card hunion)
 
 /-- Connecting lines with at most four points.  The affine sweep loses two
 units of projective defect, and this one-extra-point cutoff recovers more
@@ -4401,125 +3947,6 @@ lemma mem_line_iff_inverse_on_circle {P : Finset Point} {p z : Point}
   rw [← lineBlock_chosenLine_eq L, mem_lineBlock]
   exact ⟨fun hz ↦ hkey.mp hz.2, fun hz ↦ ⟨hzP, hkey.mpr hz⟩⟩
 
-lemma circleOfInvertedLine_injOn {P : Finset Point} {p : Point}
-    (hp : p ∉ P) :
-    Set.InjOn (circleOfInvertedLine p)
-      (nonradialLowLines P p : Set {L // L ∈ connectingLines P}) := by
-  intro L hL M hM hcircle
-  apply Subtype.ext
-  apply Finset.ext
-  intro z
-  have hnonradL := (mem_nonradialLowLines.mp hL).2
-  have hnonradM := (mem_nonradialLowLines.mp hM).2
-  constructor
-  · intro hzL
-    have hzP : z ∈ P := connectingLine_subset L.2 hzL
-    apply (mem_line_iff_inverse_on_circle hp M hnonradM hzP).2
-    rw [← hcircle]
-    exact (mem_line_iff_inverse_on_circle hp L hnonradL hzP).1 hzL
-  · intro hzM
-    have hzP : z ∈ P := connectingLine_subset M.2 hzM
-    apply (mem_line_iff_inverse_on_circle hp L hnonradL hzP).2
-    rw [hcircle]
-    exact (mem_line_iff_inverse_on_circle hp M hnonradM hzP).1 hzM
-
-/-- The finite family of circles obtained from nonradial low lines after
-inversion about `p`. -/
-noncomputable def inversionCircles (P : Finset Point) (p : Point) : Finset Circle := by
-  classical
-  exact (nonradialLowLines (invertedPoints P p) p).image
-    (circleOfInvertedLine p)
-
-lemma card_inversionCircles (P : Finset Point) (p : Point) :
-    (inversionCircles P p).card =
-      (nonradialLowLines (invertedPoints P p) p).card := by
-  classical
-  rw [inversionCircles, Finset.card_image_iff.mpr]
-  exact (circleOfInvertedLine_injOn center_not_mem_invertedPoints)
-
-lemma inversionCircles_subset_determined {P : Finset Point} {p : Point}
-    (hp : p ∈ P) : inversionCircles P p ⊆ determinedCircles P := by
-  classical
-  intro C hC
-  rw [inversionCircles, Finset.mem_image] at hC
-  obtain ⟨L, hL, rfl⟩ := hC
-  have hnonrad := (mem_nonradialLowLines.mp hL).2
-  have haX : chosenLineFirst L ∈ invertedPoints P p := chosenLineFirst_mem_points L
-  have hbX : chosenLineSecond L ∈ invertedPoints P p := chosenLineSecond_mem_points L
-  have ha := pointInversion_mem_original_of_mem_inverted haX
-  have hb := pointInversion_mem_original_of_mem_inverted hbX
-  have hnc := circleOfInvertedLine_noncollinear
-    (P := invertedPoints P p) center_not_mem_invertedPoints L hnonrad
-  exact mem_determinedCircles.mpr
-    ⟨p, hp,
-      pointInversion p (chosenLineFirst L), ha.1,
-      pointInversion p (chosenLineSecond L), hb.1,
-      hnc, circleThrough_on_left _ _ _,
-      circleThrough_on_middle hnc, circleThrough_on_right hnc⟩
-
-lemma circleTrace_circleOfInvertedLine_le_four {P : Finset Point} {p : Point}
-    (L : {L // L ∈ connectingLines (invertedPoints P p)})
-    (hLlow : L ∈ nonradialLowLines (invertedPoints P p) p) :
-    (circleTrace P (circleOfInvertedLine p L)).card ≤ 4 := by
-  classical
-  have hnonrad := (mem_nonradialLowLines.mp hLlow).2
-  let I := L.1.image (pointInversion p)
-  have hsub : circleTrace P (circleOfInvertedLine p L) ⊆ insert p I := by
-    intro z hz
-    rw [mem_circleTrace] at hz
-    by_cases hzp : z = p
-    · rw [hzp]
-      exact Finset.mem_insert_self _ _
-    · have hyX : pointInversion p z ∈ invertedPoints P p := by
-        rw [mem_invertedPoints]
-        exact ⟨z, hz.1, hzp, rfl⟩
-      have hyL : pointInversion p z ∈ L.1 := by
-        apply (mem_line_iff_inverse_on_circle center_not_mem_invertedPoints
-          L hnonrad hyX).2
-        rw [pointInversion_involutive hzp]
-        exact hz.2
-      exact Finset.mem_insert_of_mem (Finset.mem_image.mpr
-        ⟨pointInversion p z, hyL, pointInversion_involutive hzp⟩)
-  have hcardI : I.card ≤ L.1.card := by
-    exact Finset.card_image_le
-  have hcardInsert : (insert p I).card ≤ I.card + 1 := by
-    by_cases hpI : p ∈ I
-    · rw [Finset.insert_eq_of_mem hpI]
-      omega
-    · rw [Finset.card_insert_of_notMem hpI]
-  have hLcard : L.1.card ≤ 3 := (mem_nonradialLowLines.mp hLlow).1
-  exact (Finset.card_le_card hsub).trans (by omega)
-
-/-- Determined circles containing at most four points of the configuration. -/
-noncomputable def smallDeterminedCircles (P : Finset Point) : Finset Circle := by
-  classical
-  exact (determinedCircles P).filter fun C ↦ (circleTrace P C).card ≤ 4
-
-lemma mem_smallDeterminedCircles {P : Finset Point} {C : Circle} :
-    C ∈ smallDeterminedCircles P ↔
-      C ∈ determinedCircles P ∧ (circleTrace P C).card ≤ 4 := by
-  classical
-  simp [smallDeterminedCircles]
-
-lemma inversionCircles_subset_smallDetermined {P : Finset Point} {p : Point}
-    (hp : p ∈ P) : inversionCircles P p ⊆ smallDeterminedCircles P := by
-  classical
-  intro C hC
-  rw [inversionCircles, Finset.mem_image] at hC
-  obtain ⟨L, hL, rfl⟩ := hC
-  rw [mem_smallDeterminedCircles]
-  refine ⟨inversionCircles_subset_determined hp ?_, ?_⟩
-  · rw [inversionCircles, Finset.mem_image]
-    exact ⟨L, hL, rfl⟩
-  · exact circleTrace_circleOfInvertedLine_le_four L hL
-
-lemma inversionCircles_on_center {P : Finset Point} {p : Point}
-    {C : Circle} (hC : C ∈ inversionCircles P p) : OnCircle C p := by
-  classical
-  rw [inversionCircles, Finset.mem_image] at hC
-  obtain ⟨L, hL, rfl⟩ := hC
-  exact circleOfInvertedLine_on_center L
-
 lemma circleOfInvertedLine_injOn_medium {P : Finset Point} {p : Point}
     (hp : p ∉ P) :
     Set.InjOn (circleOfInvertedLine p)
@@ -4670,16 +4097,6 @@ lemma center_not_mem_inverseLinePoints {P : Finset Point} {p : Point}
     (h ▸ connectingLine_subset L.2 hx)
   exact pointInversion_ne_center hxne hxp
 
-lemma inverseLinePoints_subset_original {P : Finset Point} {p : Point}
-    (L : {L // L ∈ connectingLines (invertedPoints P p)}) :
-    inverseLinePoints p L ⊆ P := by
-  classical
-  intro x hx
-  rw [inverseLinePoints, Finset.mem_image] at hx
-  obtain ⟨y, hy, rfl⟩ := hx
-  exact (pointInversion_mem_original_of_mem_inverted
-    (connectingLine_subset L.2 hy)).1
-
 /-- The generic case: no connecting line and no circle contains all but at
 most five points. -/
 def NoLargeLineOrCircle (P : Finset Point) : Prop :=
@@ -4796,38 +4213,6 @@ lemma invertedPoints_not_containedInLine {P : Finset Point} {p : Point}
       rw [pointInversion_involutive hxp, pointInversion_involutive hyp] at hkey
       exact hkey.mp (hxyLine _ hizX)
 
-lemma inversionCircles_many_of_lineDefect {P : Finset Point} {p : Point}
-    (hN : 394 ≤ P.card) (hpP : p ∈ P)
-    (hPline : ¬ ContainedInLine P) (hPcircle : ¬ ContainedInCircle P)
-    (hgeneric : NoLargeLineOrCircle P)
-    (hM : (3 : ℤ) ≤ lineDefect (invertedPoints P p)) :
-    5 * P.card - 52 ≤ 2 * (inversionCircles P p).card := by
-  classical
-  let X := invertedPoints P p
-  have hXcard : X.card = P.card - 1 := card_invertedPoints hpP
-  have hXlarge : 393 ≤ X.card := by omega
-  have hXline : ¬ ContainedInLine X :=
-    invertedPoints_not_containedInLine (by omega) hpP hPline hPcircle
-  have hmax : ∀ L ∈ connectingLines X, L.card ≤ X.card - 6 := by
-    intro L hL
-    exact inverted_connectingLine_card_le hpP hgeneric ⟨L, hL⟩
-  have hlines : 6 * X.card - 50 ≤ (connectingLines X).card :=
-    kellyMoser_six_of_lineDefect hXlarge hXline hmax hM
-  have hsmall := small_lines_of_lineDefect X hM
-  have hlowcard := card_lowLineSubtypes X
-  have hpartition := card_radial_add_card_nonradial (P := X) (p := p)
-  have hradial := two_mul_card_radialLowLines_le
-    (P := X) (p := p) center_not_mem_invertedPoints
-  have hcirclecard := card_inversionCircles P p
-  change (inversionCircles P p).card = (nonradialLowLines X p).card at hcirclecard
-  have hthree : 6 * X.card - 47 ≤
-      2 * (linesOfSize X 2).card + (linesOfSize X 3).card := by
-    omega
-  have htwolow :
-      2 * (linesOfSize X 2).card + (linesOfSize X 3).card ≤
-        2 * ((linesOfSize X 2).card + (linesOfSize X 3).card) := by omega
-  omega
-
 lemma mediumInversionCircles_many {P : Finset Point} {p : Point}
     (hN : 394 ≤ P.card) (hpP : p ∈ P)
     (hPline : ¬ ContainedInLine P) (hPcircle : ¬ ContainedInCircle P)
@@ -4847,118 +4232,6 @@ lemma mediumInversionCircles_many {P : Finset Point} {p : Point}
   change (mediumInversionCircles P p).card =
     (nonradialMediumLines X p).card at hcard
   omega
-
-/-- Small determined circles incident with one point. -/
-noncomputable def smallCirclesThrough (P : Finset Point) (p : Point) :
-    Finset Circle := by
-  classical
-  exact (smallDeterminedCircles P).filter fun C ↦ OnCircle C p
-
-lemma inversionCircles_subset_smallCirclesThrough {P : Finset Point} {p : Point}
-    (hp : p ∈ P) : inversionCircles P p ⊆ smallCirclesThrough P p := by
-  classical
-  intro C hC
-  rw [smallCirclesThrough, Finset.mem_filter]
-  exact ⟨inversionCircles_subset_smallDetermined hp hC,
-    inversionCircles_on_center hC⟩
-
-lemma sum_card_smallCirclesThrough (P : Finset Point) :
-    ∑ p ∈ P, (smallCirclesThrough P p).card =
-      ∑ C ∈ smallDeterminedCircles P, (circleTrace P C).card := by
-  classical
-  calc
-    _ = ∑ p ∈ P, ∑ C ∈ smallDeterminedCircles P,
-        if OnCircle C p then 1 else 0 := by
-      apply Finset.sum_congr rfl
-      intro p hp
-      rw [smallCirclesThrough]
-      exact (Finset.sum_boole (fun C : Circle ↦ OnCircle C p)
-        (smallDeterminedCircles P)).symm
-    _ = ∑ C ∈ smallDeterminedCircles P, ∑ p ∈ P,
-        if OnCircle C p then 1 else 0 := by rw [Finset.sum_comm]
-    _ = _ := by
-      apply Finset.sum_congr rfl
-      intro C hC
-      rw [circleTrace]
-      exact Finset.sum_boole (OnCircle C) P
-
-lemma sum_circleTrace_small_le (P : Finset Point) :
-    ∑ C ∈ smallDeterminedCircles P, (circleTrace P C).card ≤
-      4 * (smallDeterminedCircles P).card := by
-  classical
-  calc
-    _ ≤ ∑ _C ∈ smallDeterminedCircles P, 4 := by
-      apply Finset.sum_le_sum
-      intro C hC
-      exact (mem_smallDeterminedCircles.mp hC).2
-    _ = _ := by simp [mul_comm]
-
-lemma eight_mul_smallDetermined_ge_of_lineDefect
-    {P : Finset Point} (hN : 394 ≤ P.card)
-    (hPline : ¬ ContainedInLine P) (hPcircle : ¬ ContainedInCircle P)
-    (hgeneric : NoLargeLineOrCircle P)
-    (hM : ∀ p ∈ P, (3 : ℤ) ≤ lineDefect (invertedPoints P p)) :
-    P.card * (5 * P.card - 52) ≤
-      8 * (smallDeterminedCircles P).card := by
-  classical
-  have hpoint : ∀ p ∈ P,
-      5 * P.card - 52 ≤ 2 * (smallCirclesThrough P p).card := by
-    intro p hp
-    have hinv := inversionCircles_many_of_lineDefect hN hp hPline hPcircle
-      hgeneric (hM p hp)
-    exact hinv.trans (Nat.mul_le_mul_left 2
-      (Finset.card_le_card (inversionCircles_subset_smallCirclesThrough hp)))
-  have hsum : P.card * (5 * P.card - 52) ≤
-      2 * ∑ p ∈ P, (smallCirclesThrough P p).card := by
-    calc
-      _ = ∑ _p ∈ P, (5 * P.card - 52) := by simp [mul_comm]
-      _ ≤ ∑ p ∈ P, 2 * (smallCirclesThrough P p).card := by
-        apply Finset.sum_le_sum
-        intro p hp
-        exact hpoint p hp
-      _ = _ := by rw [Finset.mul_sum]
-  rw [sum_card_smallCirclesThrough] at hsum
-  have hupp : 2 * ∑ C ∈ smallDeterminedCircles P, (circleTrace P C).card ≤
-      2 * (4 * (smallDeterminedCircles P).card) :=
-    Nat.mul_le_mul_left 2 (sum_circleTrace_small_le P)
-  exact hsum.trans (by
-    calc
-      _ ≤ 2 * (4 * (smallDeterminedCircles P).card) := hupp
-      _ = _ := by ring)
-
-lemma correctedBound_le_of_eight_circle_estimate {n c : ℕ}
-    (hn : 394 ≤ n) (hest : n * (5 * n - 52) ≤ 8 * c) :
-    correctedBound n ≤ c := by
-  have hchoose := two_mul_choose_two (n - 1)
-  have hnsub : n - 1 - 1 = n - 2 := by omega
-  rw [hnsub] at hchoose
-  have hsubfive : 5 * n - 52 + 52 = 5 * n := by omega
-  have hsubone : n - 1 + 1 = n := by omega
-  have hsubtwo : n - 2 + 2 = n := by omega
-  have hquad : 40 * n + 16 ≤ n * n := by
-    have hmul : 41 * n ≤ n * n := by
-      exact Nat.mul_le_mul_right n (by omega)
-    have hlin : 40 * n + 16 ≤ 41 * n := by omega
-    exact hlin.trans hmul
-  have hpoly : 8 * (Nat.choose (n - 1) 2 + 1) ≤ n * (5 * n - 52) := by
-    nlinarith
-  have hbound : correctedBound n ≤ Nat.choose (n - 1) 2 + 1 := by
-    rw [correctedBound]
-    omega
-  have heighth := Nat.mul_le_mul_left 8 hbound
-  omega
-
-lemma correctedBound_le_determined_of_generic_of_lineDefect
-    {P : Finset Point} (hN : 394 ≤ P.card)
-    (hPline : ¬ ContainedInLine P) (hPcircle : ¬ ContainedInCircle P)
-    (hgeneric : NoLargeLineOrCircle P)
-    (hM : ∀ p ∈ P, (3 : ℤ) ≤ lineDefect (invertedPoints P p)) :
-    correctedBound P.card ≤ (determinedCircles P).card := by
-  have hsmall := eight_mul_smallDetermined_ge_of_lineDefect hN hPline hPcircle
-    hgeneric hM
-  have hnum : correctedBound P.card ≤ (smallDeterminedCircles P).card :=
-    correctedBound_le_of_eight_circle_estimate hN hsmall
-  exact hnum.trans (Finset.card_le_card (Finset.filter_subset _ _))
 
 /-- Five-point-bounded determined circles incident with one point. -/
 noncomputable def mediumCirclesThrough (P : Finset Point) (p : Point) :

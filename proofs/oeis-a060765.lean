@@ -26,11 +26,6 @@ private theorem reverse_lt {n a b : ℕ} (hn : 0 < n) (ha : a ∣ n) (hb : b ∣
   have h₄ := Nat.div_mul_cancel hb
   omega
 
-private theorem quotient_twice {n d : ℕ} (hn : 0 < n) (hd : d ∣ n) :
-    n / (n / d) = d := by
-  apply Nat.div_eq_of_eq_mul_right (quotient_pos hn hd)
-  exact (Nat.div_mul_cancel hd).symm
-
 private theorem neighbor {n p : ℕ} (hn : 0 < n) (hp : p.Prime) :
     ∃ a : ℕ, a ∣ n ∧ a < p ∧ (∀ d : ℕ, d ∣ n → a < d → d < p → False) := by
   let s := (n.divisors).filter (· < p)
@@ -53,17 +48,14 @@ private theorem gap_dvd_product {n a b : ℕ} (hn : 0 < n) (ha : a ∣ n) (hb : 
   have hq := reverse_lt hn ha hb hab
   have hadj (d : ℕ) (hd : d ∣ n) (h₁ : n / b < d) (h₂ : d < n / a) : False := by
     apply adj (n / d) (Nat.div_dvd_of_dvd hd)
-    · simpa only [quotient_twice hn ha] using reverse_lt hn hd hqa h₂
-    · simpa only [quotient_twice hn hb] using reverse_lt hn hqb hd h₁
+    · simpa only [Nat.div_div_self ha hn.ne'] using reverse_lt hn hd hqa h₂
+    · simpa only [Nat.div_div_self hb hn.ne'] using reverse_lt hn hqb hd h₁
   obtain ⟨t,ht⟩ := property.2 (n / b) (n / a) hqb hqa hq hadj
   have hs : (n / a - n / b) * (a * b) = n * (b - a) := by
     rw [Nat.sub_mul, Nat.mul_sub, ← Nat.mul_assoc, Nat.div_mul_cancel ha,
       mul_comm a b, ← Nat.mul_assoc, Nat.div_mul_cancel hb]
   have he : (n / a - n / b) * (a * b) = (n / a - n / b) * ((b - a) * t) := by
-    calc
-      _ = n * (b - a) := hs
-      _ = ((n / a - n / b) * t) * (b - a) := congrArg (fun v => v * (b-a)) ht
-      _ = _ := by ring
+    rw [hs]; nth_rw 1 [ht]; ring
   exact ⟨t, Nat.eq_of_mul_eq_mul_left (Nat.sub_pos_of_lt hq) he⟩
 
 end A060765

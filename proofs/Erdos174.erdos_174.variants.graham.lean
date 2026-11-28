@@ -55,23 +55,12 @@ computability, continuity of the coloring, or extension of the copy is assumed. 
 def AvoidsCopy {d n r : ℕ} (X : Set (Point d)) (color : Point n → Fin r) : Prop :=
   ¬ ∃ f : X → Point n, Isometry f ∧ ∃ c : Fin r, ∀ x, color (f x) = c
 
-def EuclideanRamsey {d : ℕ} (X : Set (Point d)) : Prop :=
-  ∀ r : ℕ, 0 < r → ∃ n : ℕ, 0 < n ∧
-    ∀ color : Point n → Fin r,
-      ∃ f : X → Point n, Isometry f ∧ ∃ c : Fin r, ∀ x, color (f x) = c
-
 end GrahamSpherical
 
 end
 
 /- Independent statement of the full authored result. -/
 namespace GrahamSpherical.Specification
-
-def FullAuthoredResult : Prop :=
-  witness.ncard = 12 ∧
-  witness ⊆ Metric.sphere (0 : Point 2) 1 ∧
-  (∀ n : ℕ, 0 < n → ∃ color : Point n → Fin 50, AvoidsCopy witness color) ∧
-  ¬ EuclideanRamsey witness
 
 end GrahamSpherical.Specification
 
@@ -94,27 +83,6 @@ section
 namespace OAI
 
 namespace GrahamSpherical
-
-/-- Fixed fifty-color avoidance in every positive dimension contradicts the
-ordinary Ramsey quantifier, without assuming any copy exists. -/
-theorem not_euclideanRamsey_of_fifty_colorings
-    (havoid : ∀ n : ℕ, 0 < n →
-      ∃ color : Point n → Fin 50, AvoidsCopy witness color) :
-    ¬ EuclideanRamsey witness := by
-  intro hRamsey
-  obtain ⟨n, hn, hall⟩ := hRamsey 50 (by decide)
-  obtain ⟨color, hc⟩ := havoid n hn
-  exact hc (hall color)
-
-/-- The geometric and coloring properties jointly imply the spherical
-non-Ramsey conclusion. -/
-theorem assemble_full_result
-    (hcard : witness.ncard = 12)
-    (hsphere : witness ⊆ Metric.sphere (0 : Point 2) 1)
-    (havoid : ∀ n : ℕ, 0 < n →
-      ∃ color : Point n → Fin 50, AvoidsCopy witness color) :
-    Specification.FullAuthoredResult :=
-  ⟨hcard, hsphere, havoid, not_euclideanRamsey_of_fifty_colorings havoid⟩
 
 end GrahamSpherical
 
@@ -797,12 +765,6 @@ theorem value_algebraMap (x : F) :
   rw [deriv_algebraMap]
   rfl
 
-theorem differentialAlgebraAlgebraic :
-    let := differentialAlgebraic (F := F) (K := K)
-    DifferentialAlgebra F K := by
-  let := differentialAlgebraic (F := F) (K := K)
-  exact ⟨value_algebraMap⟩
-
 omit [Differential F] in
 /-- Explicit derivation interface, avoiding any preexisting derivative on the target. -/
 theorem exists_extension (D : Derivation ℤ F F) :
@@ -872,10 +834,6 @@ theorem parameter_add_tenth :
   simpa [LiouvilleNumber.partialSum, LiouvilleNumber.remainder, parameter] using
     (LiouvilleNumber.partialSum_add_remainder (m := (10 : ℝ)) (by norm_num) 0)
 
-theorem parameter_eq_liouville_sub :
-    parameter = liouvilleNumber 10 - (1 : ℝ) / 10 := by
-  linarith [parameter_add_tenth]
-
 /-- Transcendence of the factorial-series parameter, over the rational field. -/
 theorem parameter_transcendental : Transcendental ℚ parameter := by
   intro hp
@@ -888,16 +846,6 @@ theorem parameter_transcendental : Transcendental ℚ parameter := by
   have hint : IsAlgebraic ℤ (liouvilleNumber 10) :=
     (IsFractionRing.isAlgebraic_iff ℤ ℚ ℝ).mpr hsum
   exact (transcendental_liouvilleNumber (m := 10) (by norm_num)) hint
-
-/-- The strict rational bounds stated for the literal factorial series. -/
-theorem parameter_bounds :
-    (11 : ℝ) / 100 < parameter ∧ parameter < 12 / 100 := by
-  have hsplit := LiouvilleNumber.partialSum_add_remainder
-    (m := (10 : ℝ)) (by norm_num) 2
-  have hpos := LiouvilleNumber.remainder_pos (m := (10 : ℝ)) (by norm_num) 2
-  have hupp := LiouvilleNumber.remainder_lt (m := (10 : ℝ)) 2 (by norm_num)
-  norm_num [LiouvilleNumber.partialSum, Finset.sum_range_succ, Nat.factorial] at hsplit hupp
-  constructor <;> linarith [parameter_add_tenth]
 
 end GrahamSpherical
 
@@ -923,25 +871,6 @@ theorem u_sq_add_v_sq : u ^ 2 + v ^ 2 = 1 := by
   field_simp [ne_of_gt parameter_den_pos]
   ring
 
-theorem v_pos : 0 < v := by
-  have ht : 0 < parameter := by linarith [parameter_bounds.1]
-  exact div_pos (mul_pos (by norm_num) ht) parameter_den_pos
-
-theorem v_lt_u : v < u := by
-  apply (div_lt_div_iff_of_pos_right parameter_den_pos).2
-  have ht := parameter_bounds
-  have hprod : 0 ≤ (12 / 100 - parameter) * (12 / 100 + parameter) :=
-    mul_nonneg (by linarith) (by linarith)
-  nlinarith
-
-theorem u_lt_one : u < 1 := by
-  change (1 - parameter ^ 2) / (1 + parameter ^ 2) < 1
-  apply (div_lt_one parameter_den_pos).2
-  have ht : 0 < parameter := by linarith [parameter_bounds.1]
-  nlinarith [sq_pos_of_pos ht]
-
-theorem u_pos : 0 < u := lt_trans v_pos v_lt_u
-
 end GrahamSpherical
 
 end
@@ -959,19 +888,6 @@ namespace OAI
 noncomputable section
 namespace GrahamSpherical
 
-theorem vertex_injective : Function.Injective vertex := by
-  rintro ⟨a, b⟩ ⟨c, d⟩ h
-  have h0 := congrArg (fun x : Point 2 => x 0) h
-  have h1 := congrArg (fun x : Point 2 => x 1) h
-  have hp := v_pos
-  have hpu := u_pos
-  have hlt := v_lt_u
-  have hu := u_lt_one
-  fin_cases a <;> fin_cases b <;> fin_cases c <;> fin_cases d
-  all_goals norm_num [vertex, coordinates, squareCoordinate, Fin.ext_iff] at h0
-  all_goals norm_num [vertex, coordinates, squareCoordinate, Fin.ext_iff] at h1
-  all_goals first | rfl | linarith
-
 theorem vertex_norm (i : Label) : ‖vertex i‖ = 1 := by
   have hs : ‖vertex i‖ ^ 2 = 1 := by
     rw [EuclideanSpace.real_norm_sq_eq]
@@ -984,10 +900,6 @@ theorem vertex_norm (i : Label) : ‖vertex i‖ = 1 := by
 theorem witness_subset_sphere : witness ⊆ Metric.sphere (0 : Point 2) 1 := by
   rintro x ⟨i, rfl⟩
   simpa [Metric.mem_sphere, dist_zero_right] using vertex_norm i
-
-theorem witness_ncard : witness.ncard = 12 := by
-  rw [witness, Set.ncard_range_of_injective vertex_injective]
-  norm_num [Label]
 
 end GrahamSpherical
 
@@ -1014,14 +926,6 @@ theorem exists_common_derivation_colorings :
   obtain ⟨D, hD⟩ := exists_real_derivation parameter
     ((1 + parameter ^ 2) / 2) parameter_transcendental
   exact ⟨D, hD, fun _ => derivationColor_avoids D hD⟩
-
-/-- The literal twelve-point spherical witness defeats fifty colors in every
-positive dimension, hence is not Euclidean Ramsey. No auxiliary premise remains. -/
-theorem full_main : Specification.FullAuthoredResult := by
-  obtain ⟨D, _hD, hcolors⟩ := exists_common_derivation_colorings
-  apply assemble_full_result witness_ncard witness_subset_sphere
-  intro n _hn
-  exact ⟨energyColor (derivationEnergy (n := n) D), hcolors n⟩
 
 end GrahamSpherical
 

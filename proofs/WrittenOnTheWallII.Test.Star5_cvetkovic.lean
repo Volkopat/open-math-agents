@@ -1,65 +1,36 @@
 import FormalConjectures.WrittenOnTheWallII.Test
 
--- Problem: Testing Graph Invariants — Star5 cvetkovic
--- Upstream: formal-conjectures FormalConjectures/WrittenOnTheWallII/Test.lean:626 (declaration WrittenOnTheWallII.Test.Star5_cvetkovic)
--- Credit: @LordMike (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
-
-
-open Polynomial Matrix SimpleGraph WrittenOnTheWallII.Test
-
-namespace OMA
-
-def M6 : Matrix (Fin 6) (Fin 6) ℝ :=
-  !![0, 1, 1, 1, 1, 1;
-     1, 0, 0, 0, 0, 0;
-     1, 0, 0, 0, 0, 0;
-     1, 0, 0, 0, 0, 0;
-     1, 0, 0, 0, 0, 0;
-     1, 0, 0, 0, 0, 0]
-
-lemma adj_eq : Star5.adjMatrix ℝ = Matrix.reindex finSumFinEquiv.symm finSumFinEquiv.symm M6 := by
-  ext i j
-  rcases i with i | i <;> rcases j with j | j <;> fin_cases i <;> fin_cases j <;>
-    simp [M6, adjMatrix_apply] <;> rfl
-
-lemma M6_charpoly : M6.charpoly = X ^ 6 - 5 * X ^ 4 := by
-  unfold Matrix.charpoly
-  have h : M6.charmatrix =
-      !![X, -1, -1, -1, -1, -1;
-         -1, X, 0, 0, 0, 0;
-         -1, 0, X, 0, 0, 0;
-         -1, 0, 0, X, 0, 0;
-         -1, 0, 0, 0, X, 0;
-         -1, 0, 0, 0, 0, (X : ℝ[X])] := by
-    ext i j
-    fin_cases i <;> fin_cases j <;> simp [M6]
-  rw [h]
-  simp [Matrix.det_succ_row_zero, Fin.sum_univ_succ, Fin.succAbove]
-  ring
-
-lemma factor : (X ^ 6 - 5 * X ^ 4 : ℝ[X]) =
-    X ^ 4 * ((X - C (Real.sqrt 5)) * (X - C (-Real.sqrt 5))) := by
-  have h : (C (Real.sqrt 5) : ℝ[X]) ^ 2 = 5 := by
-    rw [← C_pow, Real.sq_sqrt (by norm_num)]
-    rfl
-  rw [C_neg]
-  linear_combination (X ^ 4 : ℝ[X]) * h
-
-lemma roots_eq : (X ^ 6 - 5 * X ^ 4 : ℝ[X]).roots =
-    4 • ({0} : Multiset ℝ) + ({Real.sqrt 5} + {-Real.sqrt 5}) := by
-  have hne : (X ^ 4 * ((X - C (Real.sqrt 5)) * (X - C (-Real.sqrt 5))) : ℝ[X]) ≠ 0 :=
-    ((monic_X_pow 4).mul ((monic_X_sub_C _).mul (monic_X_sub_C _))).ne_zero
-  rw [factor, roots_mul hne, roots_mul (right_ne_zero_of_mul hne), roots_pow, roots_X,
-    roots_X_sub_C, roots_X_sub_C]
-
-end OMA
+open SimpleGraph Matrix Polynomial WrittenOnTheWallII.Test
 
 theorem OMA.solution : type_of% @WrittenOnTheWallII.Test.Star5_cvetkovic := by
-  have hr : 0 < Real.sqrt 5 := Real.sqrt_pos.mpr (by norm_num)
+  let A : Matrix (Fin 1 ⊕ Fin 5) (Fin 2) ℝ := fun i j =>
+    if i.isLeft = (j == 0) then 1 else 0
+  let B : Matrix (Fin 2) (Fin 1 ⊕ Fin 5) ℝ := fun i j =>
+    if j.isRight = (i == 0) then 1 else 0
+  have hA : Star5.adjMatrix ℝ = A * B := by
+    ext i j
+    rw [adjMatrix_apply, Matrix.mul_apply]
+    cases i <;> cases j <;>
+      norm_num [Star5, completeBipartiteGraph_adj, Fin.sum_univ_two, A, B]
+  have hB : B * A = !![0, 5; 1, 0] := by
+    ext i j
+    rw [Matrix.mul_apply, Fintype.sum_sum_type]
+    fin_cases i <;> fin_cases j <;> norm_num [Fin.sum_univ_succ, A, B]
+  have hpoly : (Star5.adjMatrix ℝ).charpoly = X^4 * (X^2 - C 5) := by
+    rw [hA, Matrix.charpoly_mul_comm_of_le _ _ (by decide), hB]
+    norm_num [Matrix.charpoly, Matrix.charmatrix, Matrix.det_fin_two, Matrix.one_apply]
+    ring
+  have hfactor : (X ^ 2 - C 5 : ℝ[X]) =
+      (X - C (Real.sqrt 5)) * (X - C (-Real.sqrt 5)) := by
+    rw [map_neg]
+    calc
+      _ = X ^ 2 - (C (Real.sqrt 5)) ^ 2 := by rw [← map_pow, Real.sq_sqrt (by norm_num)]
+      _ = _ := by ring
+  have hne : (X - C (Real.sqrt 5)) * (X - C (-Real.sqrt 5)) ≠ 0 :=
+    mul_ne_zero (X_sub_C_ne_zero _) (X_sub_C_ne_zero _)
   unfold cvetkovic
-  rw [OMA.adj_eq, Matrix.charpoly_reindex, OMA.M6_charpoly, OMA.roots_eq]
-  have hs : ∀ a : ℝ, ({a} : Multiset ℝ) = a ::ₘ 0 := fun _ => rfl
-  simp only [hs, Multiset.countP_add, Multiset.countP_nsmul, Multiset.countP_cons,
-    Multiset.countP_zero]
-  simp [hr, hr.ne, hr.ne', not_lt.mpr hr.le]
+  rw [hpoly, hfactor, roots_mul (mul_ne_zero (pow_ne_zero _ X_ne_zero) hne),
+    roots_pow, roots_X, roots_mul hne, roots_X_sub_C, roots_X_sub_C]
+  have hr : 0 < Real.sqrt 5 := by positivity
+  simp [Multiset.countP_eq_card_filter, Multiset.filter_nsmul, Multiset.filter_singleton, hr,
+    hr.le, hr.ne, hr.ne', hr.not_ge, hr.asymm]

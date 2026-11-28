@@ -14,8 +14,7 @@ private theorem dsStep (m : ℕ) : ds m = m%10 + ds (m/10) := by
 private theorem complement (u a : ℕ) (h : a < 10^u) : ds a + ds (10^u-1-a) = 9*u := by
   induction u generalizing a with
   | zero =>
-    have : a = 0 := by simpa using h
-    subst a
+    obtain rfl : a = 0 := by simpa using h
     decide
   | succ u ih =>
     rw [pow_succ] at h ⊢
@@ -27,15 +26,8 @@ private theorem complement (u a : ℕ) (h : a < 10^u) : ds a + ds (10^u-1-a) = 9
     omega
 
 private theorem digitBound (n : ℕ) : ds n ≤ 9*width n := by
-  have aux (l : List ℕ) (hs : ∀ d ∈ l, d < 10) : l.sum ≤ 9*l.length := by
-    induction l with
-    | nil => decide
-    | cons d l ih =>
-      have hd := hs d (by simp)
-      have htl := ih (fun c hc => hs c (List.mem_cons_of_mem _ hc))
-      simp only [List.sum_cons, List.length_cons]
-      omega
-  exact aux _ (fun _ h => Nat.digits_lt_base (by decide : 1 < 10) h)
+  simpa [mul_comm] using List.sum_le_card_nsmul _ 9 fun x hx =>
+    Nat.le_of_lt_succ (Nat.digits_lt_base (by decide) hx)
 
 private theorem widthBound {n : ℕ} (hn : 36 ≤ n) : 18*width n ≤ n := by
   have hp (i : ℕ) : 18*(i+3) ≤ 10^(i+2) := by
@@ -82,14 +74,22 @@ private theorem glueSpec {n W hi lo j : ℕ} (hh : 0 < hi) (hl : 0 < lo)
 
 /-- The blocks `n` and `n*(10^u-1)` have digit sums adding to `n`. Either
 block can lead; the other may move among the unused positions below it. -/
-private theorem largeRow {n : ℕ} (hn : 36 ≤ n) :
+private theorem largeRow {n : ℕ} (hn : 20 ≤ n) :
     ∃ s : Finset ℕ, n ≤ s.card ∧ ∀ m ∈ s, qualifies n m := by
   let d := width n
   let u := (n-ds n)/9
   let W := u+d
   let A := n*(10^u-1)
   have hd : 0 < d := List.length_pos_iff.mpr (Nat.digits_ne_nil_iff_ne_zero.mpr (by omega))
-  have h18 : 18*d ≤ n := widthBound hn
+  have h18 : 18*d ≤ n ∨ d = 2 ∧ ds n + 9*(n/10) = n := by
+    by_cases h : 36 ≤ n
+    · exact .inl (widthBound h)
+    · have e : Nat.digits 10 n = [n % 10, n / 10] := by
+        rw [Nat.digits_def' (by decide : 1 < 10) (show 0 < n by omega),
+          Nat.digits_def' (by decide : 1 < 10) (show 0 < n / 10 by omega),
+          show n / 10 / 10 = 0 by omega, Nat.digits_zero, Nat.mod_eq_of_lt (show n / 10 < 10 by omega)]
+      right
+      simp [d, width, ds, e] <;> omega
   have h9 : ds n ≤ 9*d := digitBound n
   have hmod : n%9 = ds n%9 := Nat.modEq_nine_digits_sum n
   have htotal : ds n + 9*u = n := by dsimp [u]; omega
@@ -124,20 +124,13 @@ private theorem largeRow {n : ℕ} (hn : 36 ≤ n) :
     cases b
     · exact glueSpec (by omega) hA hdn hWA hi (by omega) (by omega) dvd_rfl (dvd_mul_right ..)
     · exact glueSpec hA (by omega) hWA hdn hi (by omega) (by omega) (dvd_mul_right ..) dvd_rfl
-  have hpow3 (l : ℕ) : (10:ℕ)^l % 3 = 1 := by
-    induction l with
-    | zero => decide
-    | succ l ih => rw [pow_succ, Nat.mul_mod, ih]
   have hdiff (i j : ℕ) : 10^i*A ≠ 10^j*n := by
     intro he
-    have hc : 10^i*(10^u-1) = 10^j := by
-      apply Nat.eq_of_mul_eq_mul_left (show 0 < n by omega)
-      calc n * (10^i*(10^u-1)) = 10^i*A := by dsimp [A]; ring
-           _ = 10^j*n := he
-           _ = n*10^j := Nat.mul_comm ..
+    have hc : 10^i*(10^u-1) = 10^j :=
+      Nat.eq_of_mul_eq_mul_left (show 0 < n by omega) (by dsimp [A] at he; linarith)
     have hh := congrArg (fun x : ℕ => x%3) hc
-    have hzero : (10^u-1)%3 = 0 := by have := hpow3 u; omega
-    simp [Nat.mul_mod, hpow3, hzero] at hh
+    have hzero : (10^u-1)%3 = 0 := by have := Nat.pow_mod 10 u 3; simp at this; omega
+    simp [Nat.mul_mod, Nat.pow_mod, hzero] at hh
   have same (z : ℕ) (hz : 0 < z) {i j : Fin K} (h : 10^i.val*z = 10^j.val*z) : i = j := by
     exact Fin.ext ((Nat.pow_right_inj (by decide : 1 < 10)).mp (Nat.eq_of_mul_eq_mul_right hz h))
   have hinj : Function.Injective f := by
@@ -178,28 +171,12 @@ private def offsets : ℕ → List ℕ
   | 17 => [169, 475, 628, 781, 934, 1087, 1393, 1546, 1852, 2158, 2464, 2617, 2770, 2923, 3076, 3229, 3382]
   | 18 => [98, 188, 278, 296, 368, 386, 458, 476, 494, 548, 566, 584, 638, 656, 674, 692, 728, 746]
   | 19 => [189, 873, 1386, 1557, 1728, 2583, 2754, 2925, 3096, 3267, 3438, 3609, 3780, 3951, 4293, 4464, 4635, 4806, 5148]
-  | 20 => [2980, 3880, 4780, 4960, 5680, 5860, 6580, 6760, 6940, 7480, 7660, 7840, 8380, 8560, 8740, 8920, 9280, 9460, 9640, 9820]
-  | 21 => [299, 488, 677, 866, 929, 992, 1496, 1559, 1685, 1748, 1874, 1937, 2189, 2378, 2567, 2693, 2756, 2819, 2882, 2945, 3197]
-  | 22 => [1398, 1596, 1794, 1992, 2388, 2586, 2784, 2982, 3378, 3576, 3774, 3972, 4368, 4566, 4764, 4962, 5358, 5556, 5754, 5952, 6348, 6546]
-  | 23 => [1678, 1885, 2299, 3748, 3955, 4369, 4576, 4783, 4990, 5197, 5818, 6439, 6646, 6853, 7267, 7474, 7681, 8095, 8509, 8716, 8923, 9337, 9544]
-  | 24 => [896, 968, 1688, 1976, 2696, 2768, 2984, 3488, 3776, 3848, 3992, 4496, 4568, 4784, 4856, 4928, 5288, 5576, 5648, 5792, 5864, 5936, 6296, 6368]
-  | 25 => [3975, 4875, 5775, 6675, 7575, 8475, 8925, 9375, 9825, 12975, 13875, 14775, 15675, 16575, 17475, 17925, 18375, 18825, 19275, 19725, 19950, 21975, 22875, 23775, 24675]
-  | 26 => [1888, 3994, 4696, 5398, 5866, 6568, 7738, 7972, 8674, 8908, 9376, 9844, 12886, 13588, 14758, 14992, 15694, 15928, 16396, 16864, 17098, 17566, 18268, 18736, 18970, 19438]
-  | 27 => [899, 1898, 1979, 2789, 2897, 2978, 3599, 3788, 3869, 3896, 3977, 4598, 4679, 4787, 4868, 4895, 4949, 4976, 5489, 5597, 5678, 5759, 5786, 5867, 5894, 5948, 5975]
-  | 28 => [6588, 7596, 7848, 8856, 9864, 12888, 13896, 16668, 17676, 17928, 18684, 18936, 19188, 19692, 19944, 22968, 23976, 24984, 25488, 25992, 26496, 26748, 27756, 28764, 29268, 29772, 31788, 32796]
-  | 29 => [2899, 4987, 7597, 7858, 9685, 9946, 15688, 15949, 16993, 17776, 18298, 18559, 19864, 22996, 23779, 25867, 26389, 27694, 27955, 28477, 28738, 29782, 33697, 33958, 35785, 36568, 36829, 37873, 38395]
-  | 30 => [29990, 38990, 39890, 39980, 47990, 48890, 48980, 49790, 49880, 49970, 56990, 57890, 57980, 58790, 58880, 58970, 59690, 59780, 59870, 59960, 65990, 66890, 66980, 67790, 67880, 67970, 68690, 68780, 68870, 68960]
-  | 31 => [5889, 8679, 8958, 9795, 17886, 19839, 25698, 25977, 28488, 28767, 29883, 30999, 33789, 36579, 36858, 37695, 37974, 39369, 39648, 39927, 42996, 44949, 45786, 47739, 48297, 48576, 48855, 49692, 49971, 53598, 53877]
-  | 32 => [8896, 18688, 18976, 25888, 28768, 35968, 37696, 37984, 38848, 44896, 47488, 47776, 48928, 49792, 54688, 54976, 56992, 57568, 57856, 59296, 59584, 59872, 61888, 64768, 66496, 66784, 67648, 67936, 69088, 69376, 69664, 69952]
-  | 33 => [32999, 33989, 34979, 35969, 36959, 37949, 38939, 39929, 42899, 42998, 43889, 43988, 44879, 44978, 45869, 45968, 46859, 46958, 47849, 47948, 48839, 48938, 49829, 49928, 52799, 52898, 52997, 53789, 53888, 53987, 54779, 54878, 54977]
-  | 34 => [8898, 18996, 28788, 37968, 38886, 39498, 48678, 48984, 49596, 54798, 57858, 58776, 59388, 59694, 63978, 64896, 67956, 68568, 68874, 69486, 69792, 74688, 74994, 77748, 78666, 78972, 79278, 79584, 79890, 83868, 84786, 85398, 86928, 87846]
-  | 35 => [47995, 49885, 59965, 66895, 68785, 76975, 78865, 79495, 85795, 87685, 88945, 89575, 89890, 93985, 95875, 97765, 98395, 99655, 99970, 129895, 139975, 148795, 156985, 158875, 167695, 168955, 169585, 173995, 175885, 177775, 179665, 179980, 185965, 186595, 187855]
   | _ => []
 
 private def shortEntries (n : ℕ) : Finset ℕ :=
   ((offsets n).map (fun i => 10^(n-1) + i)).toFinset
 
-private theorem shortRows (j : Fin 36) : 0 < j.val → j.val ≠ 2 →
+private theorem shortRows (j : Fin 20) : 0 < j.val → j.val ≠ 2 →
     j.val ≤ (shortEntries j.val).card ∧ ∀ m ∈ shortEntries j.val, qualifies j.val m := by
   revert j
   unfold qualifies
@@ -219,8 +196,5 @@ end OMA.S_oeis_a084029
 
 open OMA.S_oeis_a084029 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a084029.main := by
-  refine ⟨second, ?_⟩
-  intro n hn h2
-  by_cases h : 36 ≤ n
-  · exact largeRow h
-  · exact ⟨shortEntries n, shortRows ⟨n, by omega⟩ hn h2⟩
+  exact ⟨second, fun n hn h2 => if h : 20 ≤ n then largeRow h else
+    ⟨shortEntries n, shortRows ⟨n, by omega⟩ hn h2⟩⟩
