@@ -1,91 +1,78 @@
 import OMAStatements.S_mo_346020
 import Mathlib
 
+/-!
+Retains @amtamaddon's cubic counterexample from pending PR #35418, pinned at
+https://github.com/lefttosolve2/open-math-agents/blob/0167a0d54d1efa3cf26a65ac8092b56d7a9e7356/proofs/mo-346020.lean
+Original merged cubic proof and statement: @AkiRA-COM-FP, PRs #17057 and #13046.
+This revision uses Measure.dense_of_ae and Dense.exists_mem_open in place of
+an explicit positive-volume box calculation. All fibre arguments are retained.
+Question by S. Dewar: https://mathoverflow.net/questions/346020 (CC BY-SA 4.0).
+-/
+
 open Set MeasureTheory
-
-open OMA.S_mo_346020
-
-private def cubicValue (x : ℝ) : ℝ := x^3-x
-
-private def cubicOneDimension (p : Fin 1 → ℝ) : Fin 1 → ℝ :=
-  fun _ => cubicValue (p 0)
-
-private theorem cubic_is_analytic : AnalyticOnNhd ℝ cubicOneDimension univ := by
-  intro x _
-  have h : AnalyticAt ℝ (fun y : Fin 1 → ℝ => y 0) x :=
-    (ContinuousLinearMap.proj (R := ℝ) (φ := fun _ : Fin 1 => ℝ) 0).analyticAt x
-  change AnalyticAt ℝ (fun y (i : Fin 1) => (y 0 : ℝ)^3-y 0) x
-  exact AnalyticAt.pi (fun _ => (h.pow 3).sub h)
-
-private theorem cubic_factor (x y : ℝ) :
-    cubicValue y-cubicValue x = (y-x)*(y^2+x*y+x^2-1) := by
-  unfold cubicValue
-  ring
-
-private theorem far_fibre_singleton (x : Fin 1 → ℝ) (hx : 2 < x 0) :
-    (AnalyticFibre cubicOneDimension x).Subsingleton := by
-  have unique (y : Fin 1 → ℝ) (hy : y ∈ AnalyticFibre cubicOneDimension x) : y = x := by
-    have he : cubicValue (y 0) = cubicValue (x 0) :=
-      congrFun hy (0 : Fin 1)
-    have hFactor := cubic_factor (x 0) (y 0)
-    rw [he,sub_self] at hFactor
-    have hp : 0 < (y 0)^2+x 0*y 0+(x 0)^2-1 := by
-      nlinarith [sq_nonneg (y 0+x 0/2),mul_pos (sub_pos.mpr hx) (show 0 < x 0+2 by linarith)]
-    have hAt : y 0 = x 0 := sub_eq_zero.mp ((mul_eq_zero.mp hFactor.symm).resolve_right hp.ne')
-    funext i
-    fin_cases i
-    exact hAt
-  intro y hy z hz
-  exact (unique y hy).trans (unique z hz).symm
-
-private theorem middle_fibre_multiple (x : Fin 1 → ℝ)
-    (hx : -(1/4 : ℝ) < x 0 ∧ x 0 < 1/4) :
-    ¬ (AnalyticFibre cubicOneDimension x).Subsingleton := by
-  let a := x 0
-  have ha : a^2 < 1/16 := by
-    change -(1/4 : ℝ) < a ∧ a < 1/4 at hx
-    nlinarith [mul_pos (sub_pos.mpr hx.2) (show 0 < 1/4+a by linarith [hx.1])]
-  let d := Real.sqrt (4-3*a^2)
-  have hd : d^2 = 4-3*a^2 := Real.sq_sqrt (by linarith)
-  let b := (-a+d)/2
-  have hb : b^2+a*b+a^2-1 = 0 := by
-    dsimp only [b]
-    nlinarith only [hd]
-  have hba : b ≠ a := by
-    intro he
-    rw [he] at hb
-    nlinarith
-  let y : Fin 1 → ℝ := fun _ => b
-  have hy : y ∈ AnalyticFibre cubicOneDimension x := by
-    change cubicOneDimension y = cubicOneDimension x
-    funext i
-    change cubicValue b = cubicValue a
-    have he := cubic_factor a b
-    rw [hb,mul_zero] at he
-    exact sub_eq_zero.mp he
-  intro h
-  have hEq := h hy (show x ∈ AnalyticFibre cubicOneDimension x from rfl)
-  exact hba (congrFun hEq (0 : Fin 1))
 
 theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_346020.main) := by
   intro h
-  obtain ⟨U,hU,hConst⟩ := h 1 1 cubicOneDimension cubic_is_analytic
-  have hAE : ∀ᵐ p ∂volume, p ∈ U := by
-    rw [ae_iff]
-    exact hU
-  let M : Set (Fin 1 → ℝ) := (fun p => p 0) ⁻¹' Ioo (-1/4) (1/4)
-  let R : Set (Fin 1 → ℝ) := (fun p => p 0) ⁻¹' Ioi 2
-  have hMOpen : IsOpen M := isOpen_Ioo.preimage (continuous_apply 0)
-  have hROpen : IsOpen R := isOpen_Ioi.preimage (continuous_apply 0)
-  have hMNonempty : M.Nonempty :=
-    ⟨fun _ => 0,by norm_num [M]⟩
-  have hRNonempty : R.Nonempty := ⟨fun _ => 3,by norm_num [R]⟩
-  obtain ⟨p,hpM,hpU⟩ := Measure.exists_mem_of_measure_ne_zero_of_ae
-    (hMOpen.measure_pos volume hMNonempty).ne' (ae_restrict_of_ae hAE)
-  obtain ⟨q,hqR,hqU⟩ := Measure.exists_mem_of_measure_ne_zero_of_ae
-    (hROpen.measure_pos volume hRNonempty).ne' (ae_restrict_of_ae hAE)
-  have hRight := (Cardinal.mk_le_one_iff_set_subsingleton).2 (far_fibre_singleton q hqR)
-  rw [← hConst p hpU q hqU] at hRight
-  have hpRange : -(1/4 : ℝ) < p 0 ∧ p 0 < 1/4 := by
-    simpa [M,neg_div] using hpM
-  exact middle_fibre_multiple p hpRange ((Cardinal.mk_le_one_iff_set_subsingleton).1 hRight)
+  let f : (Fin 1 → ℝ) → (Fin 1 → ℝ) := fun x _ => x 0 ^ 3 - 3 * x 0
+  have hf : AnalyticOnNhd ℝ f univ := by
+    intro x _
+    have h0 : AnalyticAt ℝ (fun y : Fin 1 → ℝ => y 0) x :=
+      (ContinuousLinearMap.proj (R := ℝ) (φ := fun _ : Fin 1 => ℝ) 0).analyticAt x
+    rw [analyticAt_pi_iff]
+    intro i
+    exact (h0.pow 3).sub (analyticAt_const.mul h0)
+  obtain ⟨U, hU, hcard⟩ := h 1 1 f hf
+  have key : ∀ a b : ℝ, a < b → ∃ p ∈ U, a < p 0 ∧ p 0 < b := by
+    intro a b hab
+    have hDense : Dense U := Measure.dense_of_ae (μ := volume) (p := fun x => x ∈ U) (by rwa [ae_iff])
+    exact hDense.exists_mem_open (isOpen_Ioo.preimage (continuous_apply 0))
+      ⟨fun _ => (a+b)/2, by change a < (a+b)/2 ∧ (a+b)/2 < b; constructor <;> linarith⟩
+  obtain ⟨p, hpU, hp1, hp2⟩ := key 0 1 one_pos
+  obtain ⟨q, hqU, hq1, hq2⟩ := key 3 4 (by norm_num)
+  have hc := hcard p hpU q hqU
+  have hq : (OMA.S_mo_346020.AnalyticFibre f q).Subsingleton := by
+    have hall : ∀ x ∈ OMA.S_mo_346020.AnalyticFibre f q, x = q := by
+      intro x hx
+      have hx0 : x 0 ^ 3 - 3 * x 0 = q 0 ^ 3 - 3 * q 0 := congrFun hx 0
+      have hxq : x 0 = q 0 := by
+        by_contra hne
+        have hne' : x 0 - q 0 ≠ 0 := sub_ne_zero.mpr hne
+        have hfac : (x 0 - q 0) * (x 0 ^ 2 + q 0 * x 0 + q 0 ^ 2 - 3) = 0 := by
+          have e : (x 0 - q 0) * (x 0 ^ 2 + q 0 * x 0 + q 0 ^ 2 - 3)
+              = (x 0 ^ 3 - 3 * x 0) - (q 0 ^ 3 - 3 * q 0) := by ring
+          rw [e, hx0]
+          ring
+        rcases mul_eq_zero.mp hfac with h1 | h1
+        · exact hne' h1
+        · have hq9 : 9 < q 0 ^ 2 := by nlinarith
+          nlinarith [sq_nonneg (x 0 + q 0 / 2)]
+      funext i
+      fin_cases i
+      exact hxq
+    intro x hx y hy
+    rw [hall x hx, hall y hy]
+  have hp : (OMA.S_mo_346020.AnalyticFibre f p).Nontrivial := by
+    set s := Real.sqrt (12 - 3 * p 0 ^ 2) with hs
+    have hpp : p 0 ^ 2 < 1 := by nlinarith
+    have hs3 : 3 ≤ s := (Real.le_sqrt' (by norm_num)).mpr (by nlinarith)
+    have hsq : s ^ 2 = 12 - 3 * p 0 ^ 2 := Real.sq_sqrt (by nlinarith)
+    refine ⟨p, rfl, (fun _ => (-p 0 + s) / 2), ?_, ?_⟩
+    · funext i
+      show ((-p 0 + s) / 2) ^ 3 - 3 * ((-p 0 + s) / 2) = p 0 ^ 3 - 3 * p 0
+      have e : ((-p 0 + s) / 2) ^ 3 - 3 * ((-p 0 + s) / 2) - (p 0 ^ 3 - 3 * p 0)
+          = ((-p 0 + s) / 2 - p 0) * ((s ^ 2 + 3 * p 0 ^ 2 - 12) / 4) := by ring
+      rw [hsq] at e
+      have e2 : ((-p 0 + s) / 2 - p 0) * ((12 - 3 * p 0 ^ 2 + 3 * p 0 ^ 2 - 12) / 4) = 0 := by
+        ring
+      linarith
+    · intro heq
+      have h3 : p 0 = (-p 0 + s) / 2 := congrFun heq 0
+      linarith
+  have h1 : Cardinal.mk (OMA.S_mo_346020.AnalyticFibre f q) ≤ 1 :=
+    Cardinal.mk_le_one_iff_set_subsingleton.mpr hq
+  have h2 : 1 < Cardinal.mk (OMA.S_mo_346020.AnalyticFibre f p) := by
+    rw [Cardinal.one_lt_iff_nontrivial]
+    exact Set.nontrivial_coe_sort.mpr hp
+  rw [hc] at h2
+  exact absurd h1 (not_le.mpr h2)
