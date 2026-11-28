@@ -2,6 +2,17 @@ import OMAStatements.S_mo_304819
 import Mathlib
 
 /-!
+This shortening retains @Andyi955's proof from PR #14706, pinned at
+b0562c865bc6fd46184b65d3bdb10a5f9e09450f. The statement is due to
+@Dugongue (PR #11761). The Chebyshev/Fejer polynomial argument, integral
+representation, and final inequality are unchanged. Only the vanishing power
+sum and positivity of the kernel integral use shorter standard Mathlib APIs.
+
+Original question: Đào Thanh Oai, https://mathoverflow.net/questions/304819,
+CC BY-SA 4.0.
+-/
+
+/-!
 # Proof of MathOverflow 304819
 
 For `n ≥ 2`, `1 ≤ α ≤ 2`, and `n` points `B : Fin n → ℂ` on the unit circle,
@@ -304,51 +315,14 @@ private lemma norm_regPt (n : ℕ) (i : Fin n) : ‖regPt n i‖ = 1 := by
 
 private lemma sum_regPt_pow_eq_zero {n j : ℕ} (hj1 : 1 ≤ j) (hjn : j < n) :
     ∑ i : Fin n, regPt n i ^ j = 0 := by
-  let ω : ℂ := Complex.exp (2 * Real.pi * Complex.I * (j : ℕ) / (n : ℕ))
-  have hpow : ∀ i : Fin n, regPt n i ^ j = ω ^ (i : ℕ) := by
-    intro i
-    unfold regPt
-    rw [← Complex.exp_nat_mul, ← Complex.exp_nat_mul]
+  let ζ := Complex.exp (2 * Real.pi * Complex.I / n)
+  have hζ : IsPrimitiveRoot ζ n := Complex.isPrimitiveRoot_exp n (by omega)
+  have hpow (i : Fin n) : regPt n i ^ j = (ζ ^ j) ^ (i : ℕ) := by
+    simp only [regPt, ζ, ← Complex.exp_nat_mul]
     congr 1; ring
   simp_rw [hpow]
-  rw [Fin.sum_univ_eq_sum_range (fun k => ω ^ k) n]
-  have hω_ne : ω ≠ 1 := by
-    intro heq
-    have hre := congrArg Complex.re heq
-    have harg : (2 * Real.pi * Complex.I * (j : ℕ) / (n : ℕ) : ℂ) =
-        (((2 * Real.pi * (j : ℕ) / (n : ℕ) : ℝ) : ℂ) * Complex.I) := by
-      push_cast; ring
-    have hcos : Real.cos (2 * Real.pi * j / n) = 1 := by
-      have hωeq : ω = Complex.exp (((2 * Real.pi * (j : ℕ) / (n : ℕ) : ℝ) : ℂ) * Complex.I) := by
-        dsimp only [ω]; rw [harg]
-      rw [hωeq, Complex.exp_ofReal_mul_I_re] at hre
-      exact hre
-    have hpos : 0 < 2 * Real.pi * j / n := by
-      have : (0 : ℝ) < j := Nat.cast_pos.mpr (by omega)
-      have : (0 : ℝ) < n := Nat.cast_pos.mpr (by omega)
-      positivity
-    have hlt : 2 * Real.pi * j / n < 2 * Real.pi := by
-      have hn0 : (0 : ℝ) < n := Nat.cast_pos.mpr (by omega)
-      have hjn' : (j : ℝ) < n := Nat.cast_lt.mpr hjn
-      rw [div_lt_iff₀ hn0]
-      nlinarith [Real.pi_pos]
-    rcases lt_or_ge (2 * Real.pi * j / n) Real.pi with h | h
-    · have := Real.strictAntiOn_cos (Set.left_mem_Icc.mpr Real.pi_pos.le) ⟨hpos.le, h.le⟩ hpos
-      rw [Real.cos_zero] at this; linarith
-    · have h2 : 2 * Real.pi - 2 * Real.pi * j / n ∈ Set.Icc 0 Real.pi := by
-        constructor <;> linarith
-      have := Real.strictAntiOn_cos (Set.left_mem_Icc.mpr Real.pi_pos.le) h2 (by linarith)
-      rw [Real.cos_two_pi_sub, Real.cos_zero] at this; linarith
-  have hωn : ω ^ n = 1 := by
-    dsimp only [ω]
-    rw [← Complex.exp_nat_mul]
-    have hn0 : (n : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr (by omega)
-    have hmul : (n : ℂ) * (2 * ↑Real.pi * Complex.I * ↑j / ↑n) = ↑j * (2 * ↑Real.pi * Complex.I) := by
-      field_simp
-    rw [hmul, Complex.exp_nat_mul, Complex.exp_two_pi_mul_I, one_pow]
-  have hgeom := mul_geom_sum ω n
-  rw [hωn, sub_self] at hgeom
-  exact (mul_eq_zero.mp hgeom).resolve_left (sub_ne_zero.mpr hω_ne)
+  rw [Fin.sum_univ_eq_sum_range, geom_sum_eq (hζ.pow_ne_one_of_pos_of_lt (by omega) hjn)]
+  rw [← pow_mul, Nat.mul_comm j n, pow_mul, hζ.pow_eq_one, one_pow, sub_self, zero_div]
 
 private lemma sum_T_re_nonneg {n : ℕ} (B : Fin n → ℂ) (hB : ∀ i, ‖B i‖ = 1) (j : ℕ) :
     ∑ i : Fin n, ∑ l : Fin n, T j (B i * starRingEnd ℂ (B l)).re =
@@ -593,34 +567,15 @@ private lemma integrableOn_kernel {s : ℝ} (hs0 : 0 < s) (hs1 : s < 1) :
 
 private lemma integral_kernel_pos {s : ℝ} (hs0 : 0 < s) (hs1 : s < 1) :
     0 < ∫ u in Set.Ioi (0 : ℝ), (1 + u)⁻¹ * u ^ (s - 1) := by
-  have hint := integrableOn_kernel hs0 hs1
-  have hsub : Set.Icc (1 : ℝ) 2 ⊆ Set.Ioi 0 := fun u hu => lt_of_lt_of_le zero_lt_one hu.1
-  have hnonneg : ∀ u ∈ Set.Ioi (0 : ℝ), 0 ≤ (1 + u)⁻¹ * u ^ (s - 1) := fun u hu => by
-    have hu0 : 0 < u := hu
-    exact mul_nonneg (inv_nonneg.mpr (by linarith)) (Real.rpow_nonneg hu0.le _)
-  have hge : ∫ u in Set.Icc (1 : ℝ) 2, (1 + u)⁻¹ * u ^ (s - 1) ≤
-      ∫ u in Set.Ioi (0 : ℝ), (1 + u)⁻¹ * u ^ (s - 1) :=
-    setIntegral_mono_set hint
-      (ae_restrict_of_forall_mem measurableSet_Ioi hnonneg)
-      (LE.le.eventuallyLE hsub)
-  have hlb : ∀ u ∈ Set.Icc (1 : ℝ) 2, (3 : ℝ)⁻¹ * (2 : ℝ) ^ (s - 1) ≤ (1 + u)⁻¹ * u ^ (s - 1) := by
-    intro u hu
-    have h1 : (3 : ℝ)⁻¹ ≤ (1 + u)⁻¹ := inv_anti₀ (by linarith [hu.1]) (by linarith [hu.2])
-    have h2 : (2 : ℝ) ^ (s - 1) ≤ u ^ (s - 1) :=
-      Real.rpow_le_rpow_of_nonpos (lt_of_lt_of_le zero_lt_one hu.1) hu.2 (by linarith)
-    exact mul_le_mul h1 h2 (Real.rpow_nonneg (by norm_num) _) (inv_nonneg.mpr (by linarith [hu.1]))
-  have hint_sub : IntegrableOn (fun u : ℝ => (1 + u)⁻¹ * u ^ (s - 1)) (Set.Icc 1 2) :=
-    hint.mono_set hsub
-  have hconst_int : IntegrableOn (fun _ : ℝ => (3 : ℝ)⁻¹ * (2 : ℝ) ^ (s - 1)) (Set.Icc 1 2) :=
-    integrableOn_const (by simp)
-  have hmono := setIntegral_mono_on hconst_int hint_sub measurableSet_Icc hlb
-  have hval : ∫ _ in Set.Icc (1 : ℝ) 2, (3 : ℝ)⁻¹ * (2 : ℝ) ^ (s - 1) =
-      (3 : ℝ)⁻¹ * (2 : ℝ) ^ (s - 1) := by
-    rw [setIntegral_const, Measure.real_def, Real.volume_Icc]
-    norm_num
-  rw [hval] at hmono
-  have hpos : 0 < (3 : ℝ)⁻¹ * (2 : ℝ) ^ (s - 1) := by positivity
-  linarith
+  have hp (u : ℝ) (hu : u ∈ Set.Ioi (0:ℝ)) : 0 < (1+u)⁻¹ * u^(s-1) :=
+    mul_pos (inv_pos.mpr (by change 0<u at hu; linarith)) (Real.rpow_pos_of_pos hu _)
+  have hsup : Set.Ioi (0:ℝ) ⊆ Function.support (fun u : ℝ => (1+u)⁻¹ * u^(s-1)) :=
+    fun u hu => (hp u hu).ne'
+  rw [setIntegral_pos_iff_support_of_nonneg_ae
+    (ae_restrict_of_forall_mem measurableSet_Ioi fun u hu => (hp u hu).le)
+    (integrableOn_kernel hs0 hs1),
+    Set.inter_eq_self_of_subset_right hsup]
+  simp
 
 private lemma integrableOn_scaled {x s : ℝ} (hx : 0 ≤ x) (hs0 : 0 < s) (hs1 : s < 1) :
     IntegrableOn (fun lam : ℝ => (x / (x + lam)) * lam ^ (s - 1)) (Set.Ioi 0) := by
