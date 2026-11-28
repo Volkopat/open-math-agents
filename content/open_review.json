@@ -23421,6 +23421,47 @@
     "https://oeis.org/A284940"
    ],
    "reason": "Disproof exploits a printed range slip. The g.f. reproduces the data (a(8)=11110), while Barker's recurrence 'for n>6' fails exactly at n = 6, 8, 10, 12 and holds from n=13 on, because the numerator has degree 12. So the conjunction is false only because of the printed range n>6 (should be n>12); the intended formulas are true."
+  },
+  "oeis-a278664": {
+   "date": "2026-11-28",
+   "pr": 30478,
+   "evidence": [
+    "https://oeis.org/A278664"
+   ],
+   "reason": "Disproof exploits a printed range slip: Barker's g.f. (numerator degree 10) is correct; simulating Rule 62 shows the recurrence fails only at n=10 and holds for n=8,9 and all n>10, so 'n>7' should read 'n>10'. The Lean disproof only shows that the g.f. plus 'n>7' are inconsistent, without touching the cellular automaton."
+  },
+  "mo-479120": {
+   "date": "2026-11-28",
+   "pr": 34009,
+   "evidence": [
+    "https://mathoverflow.net/questions/479120",
+    "https://math.stackexchange.com/questions/4973119"
+   ],
+   "reason": "Literal-wording loophole: the counterexample is h=1, a_1=10, giving a_2=12 > 3*2. Since a_n >= a_h, any large starting value trivially breaks a_n <= 3n, so the asker's 'for any initial condition a_h>h' was ill-posed. The intended claim (eventual or asymptotic bounds 3(n+1)/2 <= a_n <= 3n) is not addressed."
+  },
+  "mo-211276": {
+   "date": "2026-11-28",
+   "pr": 34005,
+   "evidence": [
+    "https://mathoverflow.net/questions/211276"
+   ],
+   "reason": "Disproof uses the degenerate case l=1: the only additive permutations of {-1,0,1} are a 3-cycle and its inverse (even), generating only A_3. The asker wrongly believed l=0,1,2 work; l=2 also fails (they generate a group of order 20, my computation), but they do generate S_7 and S_9 at l=3,4. So the real question (large l) is untouched, and the counterexample is a small-case slip."
+  },
+  "oeis-a286772": {
+   "date": "2026-11-28",
+   "pr": 30528,
+   "evidence": [
+    "https://oeis.org/A286772"
+   ],
+   "reason": "Disproof exploits a printed range slip: Barker's g.f. (numerator degree 6) is correct (Rule 221 simulation agrees), and the recurrence a(n)=5a(n-2)-4a(n-4) holds for every n>6. It fails only at n=6 because a(2)=0, so 'n>4' should be 'n>6'. The Lean proof just shows that the g.f. and 'n>4' are inconsistent. Barker's other two lines (a(n)=1, a(n)=2^(n+1)-2) are evidently meant for even and odd n and were omitted."
+  },
+  "wp-disk-covering-problem": {
+   "date": "2026-11-28",
+   "pr": 33936,
+   "evidence": [
+    "https://en.wikipedia.org/wiki/Disk_covering_problem"
+   ],
+   "reason": "Self-chosen weak formalization of an open-ended problem. The source asks to determine the least radius r(n) for each n, but main only asserts that for each n the infimum is attained (∃ r, IsLeast {radius | cover exists} (r n)), a compactness fact that gives no value of r(n)."
   }
  },
  "known": {
@@ -43537,6 +43578,152 @@
     "https://mathoverflow.net/questions/105026"
    ],
    "reason": "Nasehpour (the asker) answered this himself in arXiv:1208.5637 (v4 2015). Theorem 19 there: weak Gaussian <=> every prime ideal subtractive. Prop. 20/21 there: S = P ∪ {1} with P an idempotent monoid and P^2=0 is weak Gaussian but not subtractive once |S| >= 4. The site's 4-element semiring {0,1,a,b} is exactly this construction; the MO answer by Korbelar retracted itself."
+  },
+  "oeis-a284817": {
+   "date": "2026-11-28",
+   "pr": 13887,
+   "evidence": [
+    "https://oeis.org/A284817",
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/Combinatorics/A284817MatharJunLists.lean"
+   ],
+   "reason": "Mathar's conjecture a(n)=A189664(n-1) is proved sorry-free in thatnealpatel/proofs (Proofs/Combinatorics/A284817MatharJunLists.lean, present in the shallow clone at commit 39d62b2 dated 2026-10-25), before the site proof (first authored 2026-11-27 23:05 UTC)."
+  },
+  "oeis-a255683": {
+   "date": "2026-11-28",
+   "pr": 13667,
+   "evidence": [
+    "https://oeis.org/A255683",
+    "https://oeis.org/A063787"
+   ],
+   "reason": "Bala's conjecture follows immediately from formula lines already in the OEIS: A255683 has a(n)=A000120(n)*(A000918(A000523(n)+1)+1)=popcount(n)*(2^L-1) (Gomez Calderon, Jul 2025), and A063787(n)=A000120(n-1)+1, so a(2^n+i)=(2^(n+1)-1)*(1+popcount(i))=(2^(n+1)-1)*A063787(i+1). Elementary; site proof correct but adds nothing beyond these lines."
+  },
+  "oeis-a289057": {
+   "date": "2026-11-28",
+   "pr": 34038,
+   "evidence": [
+    "https://zenodo.org/records/23407381",
+    "https://oeis.org/A289057"
+   ],
+   "reason": "Ashburn, 'Iterated string replacements from 00...' (Zenodo 23407381, 2026-10-16), Theorem 12 / Table: map M53 (00->0010, 01->010, 10->011), 'A289057 ... A289060 true (Theorem 12)': the iterate lengths are A289060. Predates the site proof (2026-11-28)."
+  },
+  "oeis-a289104": {
+   "date": "2026-11-28",
+   "pr": 34034,
+   "evidence": [
+    "https://zenodo.org/records/23407381",
+    "https://oeis.org/A289104"
+   ],
+   "reason": "Ashburn (Zenodo 23407381, 2026-10-16) table lists map M56 (00->0010, 01->011, 10->000) with 'A289104 M56 A289107 true': the iterate lengths are A289107, proved by the Cayley-Hamilton window argument. Predates the site proof."
+  },
+  "oeis-a233175": {
+   "date": "2026-11-28",
+   "pr": 34036,
+   "evidence": [
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S3/Combinatorics/TraceAvoidingArrays/HardinA233175PairStrip.lean",
+    "https://isitsolved.com/journal/df182c39e7cd"
+   ],
+   "reason": "Barker's g.f. for this exact count is proved sorry-free in trureturing (HardinA233175PairStrip.lean, theorem result; first committed 2026-11-08) and is in iis:2611.00233; the closed form for n>1 follows from the g.f. Site proof came 2026-11-28."
+  },
+  "oeis-a239657": {
+   "date": "2026-11-28",
+   "pr": 34030,
+   "evidence": [
+    "https://oeis.org/A239657",
+    "https://oeis.org/A379288",
+    "https://oeis.org/A384149",
+    "https://oeis.org/A237271"
+   ],
+   "reason": "Pol's Nov 2025 conjecture follows from two published proofs by H. F. W. Hoft: A379288 (Jan 2025) proves A237271(n) = #odd divisors minus #odd e with d<e<2d, i.e. A239657 = A001227 - A237271; A384149 (Jan 2026 pdf) proves the number of 2-dense sublists equals A237271 (A237271 Conjecture 2). Combining them gives exactly the statement."
+  },
+  "oeis-a067076": {
+   "date": "2026-11-28",
+   "pr": 15203,
+   "evidence": [
+    "https://oeis.org/A067076",
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/Enumerative/A067076PrimeMathar.lean"
+   ],
+   "reason": "Mathar's three identities (all just (prime(n+1)-3)/2) are proved sorry-free in thatnealpatel/proofs (Proofs/Enumerative/A067076PrimeMathar.lean, in the 2026-10-25 clone), before the site proof; also essentially definitional (A008507 formula lines already state them)."
+  },
+  "mo-378413": {
+   "date": "2026-11-28",
+   "pr": 34008,
+   "evidence": [
+    "https://mathoverflow.net/questions/378413"
+   ],
+   "reason": "Disproof via the annulus 1<|x|<2 versus the disk |x|<2 minus the unit circle (same boundary: two circles, locally path connected). The MO comments (Vejnar, Dec 2020: graph with three bounded faces, U1=A∪C vs U2=A∪B∪C; and the Sierpinski triangle) already give exactly this kind of counterexample and say local path connectedness does not suffice."
+  },
+  "oeis-a282911": {
+   "date": "2026-11-28",
+   "pr": 33979,
+   "evidence": [
+    "https://oeis.org/A282911",
+    "https://oeis.org/A282914",
+    "https://github.com/lefttosolve2/open-math-agents/pull/33348"
+   ],
+   "reason": "Sister entry of the same Rule 526 x-axis row: A282914 (origin to right edge, base-2 reading) was proved on site by PR #33348 (authored 14:59 UTC, merged 18:00 UTC on 2026-11-28) through the row structure (period-4 stripe), before this proof (authored 15:11, merged 18:28). By symmetry A282911 is the reversed, base-10 reading of the same cells. This is the base-2 vs base-10 sister case the brief counts as known."
+  },
+  "oeis-a103974": {
+   "date": "2026-11-28",
+   "pr": 16385,
+   "evidence": [
+    "https://oeis.org/A103974"
+   ],
+   "reason": "The entry already contains a Q.E.D. proof (Mihailovs/Terr, 2005) of the Pell parametrization and closed form a(n)=((2+sqrt3)^(2n-2)+(2-sqrt3)^(2n-2)+1)/3, from which a(n+1)/a(n) -> 7+4sqrt3 is immediate. The proof file says it follows that comment."
+  },
+  "mo-309137": {
+   "date": "2026-11-28",
+   "pr": 15948,
+   "evidence": [
+    "https://mathoverflow.net/questions/309137"
+   ],
+   "reason": "The accepted-type answer by bof (Aug 2018) gives G_n = K_2 x K_(n+2) with D(G_n)=n; the site proof uses exactly this graph (K_2 x K_(n+3)). The question is answered in the source."
+  },
+  "oeis-a364507": {
+   "date": "2026-11-28",
+   "pr": 17379,
+   "evidence": [
+    "https://oeis.org/A364507",
+    "https://arxiv.org/abs/1111.3057"
+   ],
+   "reason": "The entry itself notes: '[added Aug 04 2023: the conjecture follows from Mestrovic, equation 39]'. The site proof is exactly that unit-product (Kazandzidis/Mestrovic) supercongruence."
+  },
+  "oeis-a174905": {
+   "date": "2026-11-28",
+   "pr": 33954,
+   "evidence": [
+    "https://oeis.org/A174905",
+    "https://oeis.org/A384149",
+    "https://oeis.org/A379288",
+    "https://oeis.org/A239657"
+   ],
+   "reason": "Pol's Feb 2026 conjecture: NoPair(m) iff A239657(m)=0 (Pol's 2017 comment in A239657; elementary, a pair d<e<2d yields one with an odd middle term). A239657 = A001227 - A237271 (Hoft, A379288, Jan 2025), and A237271 = #2-dense sublists (Hoft, A384149, Jan 2026). So the statement follows from proofs published before it was conjectured."
+  },
+  "oeis-a317297": {
+   "date": "2026-11-28",
+   "pr": 33892,
+   "evidence": [
+    "https://oeis.org/A317297",
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/Sorry/Combinatorics/A317297Boustrophedon.lean"
+   ],
+   "reason": "thatnealpatel/proofs (file present in the 2026-10-25 clone, sorry-free) proves charpoly M(N) = X^(N-2)(X^2 - A317614(N)X - A322844(N)) for this zig-zag matrix. That leaves only the trivial step of solving the quadratic to get a(n) as the largest eigenvalue. The site proof came 2026-11-28."
+  },
+  "oeis-a186828": {
+   "date": "2026-11-28",
+   "pr": 33864,
+   "evidence": [
+    "https://oeis.org/A186828",
+    "https://isitsolved.com/journal/376c7d060532"
+   ],
+   "reason": "iis:2611.00219 ('220 more open OEIS recurrence conjectures decided exactly', submitted 2026-11-28 03:18 UTC) lists A186828 'true, all n>=7'. That is about 12 hours before the site proof commit (2026-11-28 15:17 UTC)."
+  },
+  "oeis-a352796": {
+   "date": "2026-11-28",
+   "pr": 33870,
+   "evidence": [
+    "https://oeis.org/A352796",
+    "https://oeis.org/A072389"
+   ],
+   "reason": "A072389 comment (Yifan Xie, Jun 28 2024): bipronics are exactly the k = a*b = c*d with a+b = c+d+1, i.e. the numbers whose divisor-pair sums contain consecutive integers. The complement statement of A352796 is that comment restated, and the statement file even cites it."
   }
  },
  "reviewed": "2026-11-28"
