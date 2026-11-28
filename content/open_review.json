@@ -23462,6 +23462,46 @@
     "https://en.wikipedia.org/wiki/Disk_covering_problem"
    ],
    "reason": "Self-chosen weak formalization of an open-ended problem. The source asks to determine the least radius r(n) for each n, but main only asserts that for each n the infimum is attained (∃ r, IsLeast {radius | cover exists} (r n)), a compactness fact that gives no value of r(n)."
+  },
+  "wp-degree-diameter-problem": {
+   "date": "2026-11-28",
+   "pr": 33858,
+   "evidence": [
+    "https://en.wikipedia.org/wiki/Degree_diameter_problem"
+   ],
+   "reason": "The statement only asserts that the maximum n_{d,k} is attained (the vertex-count set is nonempty and bounded, i.e. the Moore bound), which is definitional/well known. The actual open problem is to determine n_{d,k}; nothing about its value is proved. Statement weaker than the source."
+  },
+  "mo-238612": {
+   "date": "2026-11-28",
+   "pr": 33814,
+   "evidence": [
+    "https://mathoverflow.net/questions/238612"
+   ],
+   "reason": "The asker wants simple conditions for existence and explicitly says the LP feasibility/duality characterization is not what he wants. Part 1 is exactly that LP-duality criterion (heterogeneous caps), and part 2 is a self-chosen 6-event example (with cap 1, i.e. no cap at all) showing a self-chosen family of uniform-weight tests is insufficient; the asker's own conditions are never formalized. Self-formulated statement, not the source question."
+  },
+  "mo-472264": {
+   "date": "2026-11-28",
+   "pr": 33738,
+   "evidence": [
+    "https://mathoverflow.net/questions/472264"
+   ],
+   "reason": "The disproof takes a degree-2 extension L/K with A=B=L: there are no intermediate fields strictly between K and L, so the hypothesis is vacuous, and dim<AB> = 2 < 2+2-1. This uses the literal 'proper' (M != L) wording and the trivial cap dim<AB> <= [L:K]; the asker's group analogue includes H=G, and Remark 5 shows he knows large A,B give AB=L. A literal-wording loophole, not an answer to the intended question."
+  },
+  "mo-463379": {
+   "date": "2026-11-28",
+   "pr": 33720,
+   "evidence": [
+    "https://mathoverflow.net/questions/463379"
+   ],
+   "reason": "The question is open-ended ('is it possible to get a tighter bound?' on max |L^+_ij|). The statement proves a self-chosen package of cut-profile entry bounds, their constant-weight evaluation, path-graph attainment, and an (N-1)/N spectral improvement. A self-chosen bound, not a settlement of a definite question."
+  },
+  "oeis-a114213": {
+   "date": "2026-11-28",
+   "pr": 33689,
+   "evidence": [
+    "https://oeis.org/A114213"
+   ],
+   "reason": "True but trivial: column 0 of the triangle is all ones by definition (T(n,0)=C(0,0)C(n,0) mod 2 = 1), so M e_0 = 1 and M^{-1}1 = e_0, i.e. the inverse row sums are 0^n; the diagonal is 1, so M is invertible. The statement follows directly from the definition."
   }
  },
  "known": {
@@ -43724,6 +43764,217 @@
     "https://oeis.org/A072389"
    ],
    "reason": "A072389 comment (Yifan Xie, Jun 28 2024): bipronics are exactly the k = a*b = c*d with a+b = c+d+1, i.e. the numbers whose divisor-pair sums contain consecutive integers. The complement statement of A352796 is that comment restated, and the statement file even cites it."
+  },
+  "oeis-a127767": {
+   "date": "2026-11-28",
+   "pr": 33840,
+   "evidence": [
+    "https://oeis.org/A127767",
+    "https://github.com/lefttosolve2/open-math-agents/blob/main/proofs/oeis-a127771.lean",
+    "https://oeis.org/A127771"
+   ],
+   "reason": "Barry's integrality conjecture is correct, but the triangle is diag(1/C(n)) times the unimodular 0/1 band matrix U, so the inverse is U^{-1} diag(C(n)). The identical argument was merged earlier for the sister entry A127771 (same band, scaling 1/phi(n+1); site proof 2026-11-27 19:05 UTC, before this one on 11-28 15:17 UTC). Sister differing only by diagonal scaling, hence known."
+  },
+  "oeis-a127755": {
+   "date": "2026-11-28",
+   "pr": 33843,
+   "evidence": [
+    "https://oeis.org/A127755",
+    "https://github.com/lefttosolve2/open-math-agents/blob/main/proofs/oeis-a127771.lean",
+    "https://oeis.org/A127771"
+   ],
+   "reason": "Same as A127767: triangle = diag(1/n!) times the unimodular band matrix U, so the inverse is integral. The identical argument was merged earlier for sister A127771 (scaling 1/phi(n+1), 2026-11-27); this differs only by the diagonal scaling. Correct but known."
+  },
+  "oeis-a095380": {
+   "date": "2026-11-28",
+   "pr": 33834,
+   "evidence": [
+    "https://oeis.org/A095380",
+    "https://oeis.org/A007369",
+    "https://doi.org/10.1090/S0002-9904-1951-09543-9"
+   ],
+   "reason": "The density of the non-sigma-values tending to 1 is a classical theorem: the range of sigma has asymptotic density 0 (Niven 1951; Rao-Murty 1979; also Erdos), recorded in sister entries A007369/A002191 (Amiram Eldar 2020). Formalization faithful; result known."
+  },
+  "oeis-a389000": {
+   "date": "2026-11-28",
+   "pr": 33823,
+   "evidence": [
+    "https://oeis.org/A389000",
+    "https://github.com/the-omega-institute/trureturing/blob/main/Problems/oeis-a389000-digit-sum-square-least-witness.md",
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/NumberComplexity/A389000LeastDividesBoth.lean"
+   ],
+   "reason": "trureturing proved the full least-witness formula a(9m+5)=2*10^(2m+1)-1 (DigitSumSquareLeastWitness, added 2026-09-08) with the same mod-9 argument; thatnealpatel/proofs also has A389000LeastDividesBoth.lean (present in a tree listing taken 2026-11-28 13:47 UTC, before the site proof 15:16 UTC)."
+  },
+  "oeis-a001354": {
+   "date": "2026-11-28",
+   "pr": 30445,
+   "evidence": [
+    "https://oeis.org/A001354"
+   ],
+   "reason": "Friedlich's conjecture (a(k)/7 = F(2k), (a(k+1)-a(k))/7 = F(2k+1)) follows at once from the formula a(n) = 7*A001906(n) = 7*F(2n) already in the same entry, plus F(2k+2)=F(2k)+F(2k+1). Statement defines the sequence by its recurrence; trivial and settled in the source."
+  },
+  "mo-422632": {
+   "date": "2026-11-28",
+   "pr": 33803,
+   "evidence": [
+    "https://mathoverflow.net/questions/422632"
+   ],
+   "reason": "The positive part (closed epigraph cone gives Jensen for Pettis/Bochner integrals) is the separation argument already written in the question's own 'discussion' section (Wengenroth's suggestion; the header credits him). The negative part uses a discontinuous linear functional and a degenerate 'non-sigma-finite' measure count + infinity*dirac_0 with X(0)=0, i.e. the infinite atom is irrelevant (flag: degenerate parameter); the asker also anticipated the non-closed counterexample."
+  },
+  "oeis-a392003": {
+   "date": "2026-11-28",
+   "pr": 33801,
+   "evidence": [
+    "https://oeis.org/A392003",
+    "https://github.com/the-omega-institute/trureturing/blob/main/D5/S3/StatisticalMechanics/CellularAutomata/Rule163EvenSubsequence.lean",
+    "https://zenodo.org/records/24552741"
+   ],
+   "reason": "trureturing Rule163EvenSubsequence.lean (added 2026-11-07) 'proves the OEIS A392003 even-subsequence and A266753 Rule 163 conjectures'; Munoz Zenodo 24552741 (2026-11-26) also lists Barker's A266753 g.f. (rule 163) as proved, which gives a(2n)=(7*4^n-4)/6=A266753(n) directly. Site proof 2026-11-28 17:22 UTC."
+  },
+  "oeis-a166588": {
+   "date": "2026-11-28",
+   "pr": 33005,
+   "evidence": [
+    "https://oeis.org/A166588",
+    "https://oeis.org/A155587"
+   ],
+   "reason": "The entry says A166588 is 'A155587 doubled' (a(2m-1)=a(2m)=A155587(m)); with that, Mathar's recurrence is trivial at even n and at odd n reduces to (m+1)C(m)=2(2m-1)C(m-1), which is exactly Hadjicostas's proof (2020) of Mathar's conjecture in sister A155587 via a(m+1)-a(m)=C(m). Correct, settled by the sister entry (index doubling)."
+  },
+  "oeis-a361035": {
+   "date": "2026-11-28",
+   "pr": 33799,
+   "evidence": [
+    "https://oeis.org/A361035",
+    "https://github.com/the-omega-institute/trureturing/blob/main/D5/S3/Arith/FactorialRatio/BalaA361035Parity.lean",
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/NumberComplexity/A361035OddSome.lean"
+   ],
+   "reason": "trureturing BalaA361035Parity.lean (added 2026-10-29) proves exactly 'a(n) odd iff n=2^k-3, k>=2' with the same definition; thatnealpatel/proofs A361035OddSome.lean also predates the site proof (2026-11-28 15:11 UTC)."
+  },
+  "oeis-a232656": {
+   "date": "2026-11-28",
+   "pr": 33793,
+   "evidence": [
+    "https://oeis.org/A232656",
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/NumberComplexity/A232656PairsWhoseFibonacci.lean"
+   ],
+   "reason": "thatnealpatel/proofs A232656PairsWhoseFibonacci.lean proves Kleinwaks' formula a(n)=Sum_{d|n} phi(d)A001177(d) with the same orbit-of-(0,c) bijection; present in the 2026-11-28 13:47 UTC tree listing, before the site proof (15:15 UTC). The entry also lists the formula unconditionally (Ollerton 2021)."
+  },
+  "oeis-a007755": {
+   "date": "2026-11-28",
+   "pr": 32861,
+   "evidence": [
+    "https://oeis.org/A007755"
+   ],
+   "reason": "Shapiro's primality conjecture is refuted in the entry itself: Greathouse (Oct 28 2011) notes a(13)=2329=17*137 is composite (and Catlin's comment gives a(12)=a(5)a(8)). The proof uses that same counterexample, as its header says."
+  },
+  "oeis-a341763": {
+   "date": "2026-11-28",
+   "pr": 33782,
+   "evidence": [
+    "https://oeis.org/A341763",
+    "https://oeis.org/A346630",
+    "https://lib.dr.iastate.edu/creativecomponents/109"
+   ],
+   "reason": "That every multiple of 3 reaches 153 under the sum-of-cubes-of-digits map is classical: A346630 gives the argument (map preserves n mod 3, trajectories enter a bounded range, the only multiple-of-3 fixed point/cycle is 153; Todd, Gupta). The site proof is that same argument plus a finite check."
+  },
+  "oeis-a289128": {
+   "date": "2026-11-28",
+   "pr": 33778,
+   "evidence": [
+    "https://oeis.org/A289128",
+    "https://zenodo.org/records/23407380",
+    "https://github.com/blakestone-x/math/tree/main/A289128"
+   ],
+   "reason": "Ashburn, Zenodo 23407380 (2026-10-16), map M58 (00->0010, 01->011, 10->010) proves the A289131 length conjecture for A289128 (Table 4: 'A289128 M58 A289131 true'); blakestone-x/math also has an A289128 Lean development with a length theorem."
+  },
+  "oeis-a238806": {
+   "date": "2026-11-28",
+   "pr": 33777,
+   "evidence": [
+    "https://oeis.org/A238806",
+    "https://isitsolved.com/journal/d7e3cd59d1bb"
+   ],
+   "reason": "iis:2611.00246 (filed 2026-11-28 05:39 UTC, before the site proof at 17:20 UTC) proves Barker's recurrence and the g.f. for A238806 'up to an index shift', i.e. as Sum a(n+1)x^n, which is exactly how the site statement reads it."
+  },
+  "oeis-a107363": {
+   "date": "2026-11-28",
+   "pr": 33773,
+   "evidence": [
+    "https://oeis.org/A107363",
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/Enumerative/A107363StatedRationalOrder.lean"
+   ],
+   "reason": "thatnealpatel/proofs A107363StatedRationalOrder.lean proves both Dement conjectures (nonnegative values = Fibonacci numbers, also the values off 6n+2, and a(6n+2) = -A048876(n)) for the entry's g.f.; present in the 2026-11-28 13:47 UTC tree listing, before the site proof (15:14 UTC)."
+  },
+  "oeis-a100381": {
+   "date": "2026-11-28",
+   "pr": 33769,
+   "evidence": [
+    "https://oeis.org/A100381"
+   ],
+   "reason": "Bala's finite continued fractions are stated in the formula section as results (no 'Conjecture'), the series values 1-log 2 (McRae 2006) and 3 log(3/2)-1 (Eldar 2020) are classical, and the CF convergents follow from Euler's continued-fraction formula for the partial sums. Not an open problem; the formal proof is fine but proves known statements."
+  },
+  "arxiv-2005.12115": {
+   "date": "2026-11-28",
+   "pr": 14806,
+   "evidence": [
+    "https://arxiv.org/abs/2005.12115"
+   ],
+   "reason": "The statement is Theorem 2 of Zelinsky's paper, which the paper proves (bound 2k*rad(n)); the open Conjecture 1 (bound 2*rad(n)) is explicitly not asserted. The proof says it follows the paper's idea. Proved in the source; weaker than the open conjecture."
+  },
+  "oeis-a265735": {
+   "date": "2026-11-28",
+   "pr": 16325,
+   "evidence": [
+    "https://oeis.org/A265735",
+    "https://oeis.org/A265739",
+    "https://github.com/lefttosolve2/open-math-agents/blob/main/proofs/oeis-a265739.lean"
+   ],
+   "reason": "Infinitude follows from Dirichlet's theorem, as Greathouse notes (2022) in sister A265739, whose site solve was merged 2026-11-27 12:38 UTC (this one 2026-11-28 00:45 UTC). Distinct k give distinct integers m, so the two statements are equivalent; the statement itself calls them the same up to quantifier roles."
+  },
+  "mo-297709": {
+   "date": "2026-11-28",
+   "pr": 16228,
+   "evidence": [
+    "https://mathoverflow.net/questions/297709"
+   ],
+   "reason": "Both MO answers already give the answer: rank-one matrices xx* are extreme, and x=(1,1/2) gives [[1,1/2],[1/2,1/4]] with diagonal entry 1/4, a counterexample. The site disproof uses exactly this matrix."
+  },
+  "oeis-a095121": {
+   "date": "2026-11-28",
+   "pr": 15547,
+   "evidence": [
+    "https://oeis.org/A095121",
+    "https://oeis.org/A048881",
+    "https://doi.org/10.1016/0097-3165(73)90072-1"
+   ],
+   "reason": "v_2(Catalan(m)) = wt(m+1)-1 is the classical result recorded in sister A048881 (Alter-Kubota 1973; Deutsch-Sagan 2006), and the entry's Jeffery comment cites A048881. The least m>0 with wt(m+1)=n+1 is 2^(n+1)-2 (and 1 for n=0), which is a(n). Immediate from a known sister result."
+  },
+  "oeis-a280172": {
+   "date": "2026-11-28",
+   "pr": 33735,
+   "evidence": [
+    "https://oeis.org/A280172",
+    "https://arxiv.org/abs/2506.04991"
+   ],
+   "reason": "The entry already gives T(n,k) = ((n-1) XOR (k-1)) + 1 (Sigrist 2019; the mex table is the classical nim-sum table), and both conjectures follow at once from it. The site proof's key fact is this XOR formula."
+  },
+  "oeis-a110735": {
+   "date": "2026-11-28",
+   "pr": 33719,
+   "evidence": [
+    "https://oeis.org/A110735",
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/Enumerative/A110735Refutation.lean"
+   ],
+   "reason": "thatnealpatel/proofs A110735Refutation.lean already proves a(101)=0 (and a(10^(2m)+1)=0), with the same nonzero-leading-digit reading; present in the 2026-11-28 13:47 UTC tree listing, before the site proof (15:13 UTC). The reading matches the data (a(1)=110)."
+  },
+  "oeis-a087372": {
+   "date": "2026-11-28",
+   "pr": 33713,
+   "evidence": [
+    "https://oeis.org/A087372",
+    "https://github.com/the-omega-institute/trureturing/blob/main/D5/S3/Arith/Primes/MurthyA087372ExponentRefutation.lean"
+   ],
+   "reason": "trureturing MurthyA087372ExponentRefutation.lean (added 2026-11-15) refutes the boundedness via large prime gaps. Fidelity slip: the site's a(n)=sInf{k : 3^k+2n prime} allows k=0 (gives a(1)=0, but the data has a(1)=1, and a(3)=0 means 'none'), whereas the entry uses k>=1; the refutation holds either way."
   }
  },
  "reviewed": "2026-11-28"
