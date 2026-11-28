@@ -23,8 +23,6 @@ private theorem quadratic_bound {ι : Type*} [Fintype ι] [DecidableEq ι]
     simpa [L, Finset.sum_apply] using congrFun hc k
   have hAdd (F G : ι → ι → ℝ) : T (F + G) = T F + T G := by
     simp [T, L, mul_add, sum_add_distrib]
-  have hScale (s : ℝ) (F : ι → ι → ℝ) : T (fun i j => s * F i j) = s * T F := by
-    simp only [T, L, mul_left_comm _ s, Finset.mul_sum]
   have hProd (f g : ι → ℝ) : T (prod f g) = L f * L g := by
     simp only [T, L, prod, Finset.sum_mul, Finset.mul_sum]
     rw [Finset.sum_comm]
@@ -38,27 +36,22 @@ private theorem quadratic_bound {ι : Type*} [Fintype ι] [DecidableEq ι]
     have e : L q = L (fun i => x i^2) + L (fun i => y i^2) := by simp [L,q,mul_add,sum_add_distrib]
     rw [e, show L (fun i => x i^2) = 0 from hL 3, show L (fun i => y i^2) = 0 from hL 5, add_zero]
   -- Every summand separates, with a factor of degree at most two in one point.
-  have he : K = prod (fun i => q i^2) one +
-      prod one (fun i => q i^2) +
-      (fun i j => (2) * prod q q i j) +
-      (fun i j => (-4) * prod (fun i => q i*x i) x i j) +
-      (fun i j => (-4) * prod x (fun i => q i*x i) i j) +
-      (fun i j => (-4) * prod (fun i => q i*y i) y i j) +
-      (fun i j => (-4) * prod y (fun i => q i*y i) i j) +
-      (fun i j => (4) * prod (fun i => x i^2) (fun i => x i^2) i j) +
-      (fun i j => (8) * prod (fun i => x i*y i) (fun i => x i*y i) i j) +
-      (fun i j => (4) * prod (fun i => y i^2) (fun i => y i^2) i j) +
-      (fun i j => (-(a+b)) * prod q one i j) +
-      (fun i j => (-(a+b)) * prod one q i j) +
-      (fun i j => (2*(a+b)) * prod x x i j) +
-      (fun i j => (2*(a+b)) * prod y y i j) +
-      (fun i j => (a*b) * prod one one i j) := by
+  have he : K = prod (fun i => q i^2 - (a+b)*q i + a*b) one +
+      prod one (fun i => q i^2 - (a+b)*q i) +
+      prod (fun i => 2*q i) q +
+      prod (fun i => (a+b-4*q i)*x i) x +
+      prod x (fun i => (a+b-4*q i)*x i) +
+      prod (fun i => (a+b-4*q i)*y i) y +
+      prod y (fun i => (a+b-4*q i)*y i) +
+      prod (fun i => 4*x i^2) (fun i => x i^2) +
+      prod (fun i => 8*x i*y i) (fun i => x i*y i) +
+      prod (fun i => 4*y i^2) (fun i => y i^2) := by
     funext i j
     simp only [K, prod, q, one, Pi.add_apply]
     ring
   have hzero : T K = 0 := by
     rw [he]
-    simp only [hAdd, hScale, hProd, hq, show L one = 0 from hL 0,
+    simp only [hAdd, hProd, hq, show L one = 0 from hL 0,
       show L x = 0 from hL 1, show L y = 0 from hL 2,
       show L (fun i => x i^2) = 0 from hL 3, show L (fun i => x i*y i) = 0 from hL 4,
       show L (fun i => y i^2) = 0 from hL 5, zero_mul, mul_zero, add_zero]
@@ -119,9 +112,7 @@ private theorem chord_pos {k : ℕ} (hk : 0 < k) (hk' : k < 7) : 0 < chord k := 
   positivity
 private theorem vertex_dist {i j : ℕ} (hij : i < j) (hj : j < 7) :
     dist (vertex i) (vertex j) = chord (j-i) := by
-  have hk : 0 < j-i := by omega
-  have hk' : j-i < 7 := by omega
-  apply (sq_eq_sq₀ dist_nonneg (chord_pos hk hk').le).mp
+  apply (sq_eq_sq₀ dist_nonneg (chord_pos (by omega : 0 < j-i) (by omega)).le).mp
   let t := Real.pi * (↑(j-i) : ℝ) / 7
   have hab : angle j - angle i = 2 * t := by
     dsimp [angle,t]; rw [Nat.cast_sub hij.le]; ring
@@ -145,14 +136,13 @@ private theorem circle_card : Erdos91.circleSeven.card = 7 := by
   change ((range 7).image vertex).card = 7
   rw [Finset.card_image_of_injOn, Finset.card_range]
   intro i hi j hj he
-  have aux {n m : ℕ} (hn : n < m) (hm : m < 7) : vertex n ≠ vertex m := by
-    apply dist_pos.mp
-    rw [vertex_dist hn hm]
-    exact chord_pos (by omega) (by omega)
-  rcases lt_trichotomy i j with h | h | h
-  · exact False.elim (aux h (mem_range.mp hj) he)
-  · exact h
-  · exact False.elim (aux h (mem_range.mp hi) he.symm)
+  by_contra hn
+  wlog h : i < j generalizing i j
+  · exact this hj hi he.symm (Ne.symm hn) (by omega)
+  have hpos := chord_pos (k := j-i) (by omega) (by have := mem_range.mp hj; omega)
+  rw [← vertex_dist h (mem_range.mp hj), he, dist_self] at hpos
+  exact (lt_irrefl _ hpos)
+
 private theorem circle_upper : distinctDistances Erdos91.circleSeven ≤ 3 := by
   classical
   have sub : distanceSet Erdos91.circleSeven ⊆ {chord 1,chord 2,chord 3} := by

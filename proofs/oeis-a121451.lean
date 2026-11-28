@@ -42,25 +42,19 @@ lemma cases4 (n : ℕ) : (∃ s, n = 2 * s) ∨ n = 1 ∨ n = 3 ∨ ∃ t, n = 2
     · right; right; right; exact ⟨k - 2, by omega⟩
 
 lemma G_mul (a b : ℕ) : G a * G b ≤ G (a + b) := by
-  rcases cases4 a with ⟨s, rfl⟩ | rfl | rfl | ⟨s, rfl⟩
-  · rcases cases4 b with ⟨t, rfl⟩ | rfl | rfl | ⟨t, rfl⟩
-    · rw [G_even, G_even, show 2 * s + 2 * t = 2 * (s + t) by ring, G_even, pow_add]
-    · rw [G_one, mul_zero]; exact Nat.zero_le _
-    · rw [G_three, mul_zero]; exact Nat.zero_le _
-    · rw [G_even, G_odd, show 2 * s + (2 * t + 5) = 2 * (s + t) + 5 by ring, G_odd, pow_add]
-      exact le_of_eq (by ring)
-  · rw [G_one, zero_mul]; exact Nat.zero_le _
-  · rw [G_three, zero_mul]; exact Nat.zero_le _
-  · rcases cases4 b with ⟨t, rfl⟩ | rfl | rfl | ⟨t, rfl⟩
-    · rw [G_odd, G_even, show 2 * s + 5 + 2 * t = 2 * (s + t) + 5 by ring, G_odd, pow_add]
-      exact le_of_eq (by ring)
-    · rw [G_one, mul_zero]; exact Nat.zero_le _
-    · rw [G_three, mul_zero]; exact Nat.zero_le _
-    · rw [G_odd, G_odd, show 2 * s + 5 + (2 * t + 5) = 2 * (s + t + 5) by ring, G_even]
-      have h : 2 ^ (s + t + 5) = 32 * (2 ^ s * 2 ^ t) := by rw [pow_add, pow_add]; ring
-      rw [h]
-      calc 5 * 2 ^ s * (5 * 2 ^ t) = 25 * (2 ^ s * 2 ^ t) := by ring
-        _ ≤ 32 * (2 ^ s * 2 ^ t) := Nat.mul_le_mul_right _ (by norm_num)
+  rcases cases4 a with ⟨s, rfl⟩ | rfl | rfl | ⟨s, rfl⟩ <;>
+  rcases cases4 b with ⟨t, rfl⟩ | rfl | rfl | ⟨t, rfl⟩ <;>
+  try simp only [G_one, G_three, mul_zero, zero_mul, zero_le]
+  · rw [G_even, G_even, show 2 * s + 2 * t = 2 * (s + t) by ring, G_even, pow_add]
+  · rw [G_even, G_odd, show 2 * s + (2 * t + 5) = 2 * (s + t) + 5 by ring, G_odd, pow_add]
+    exact le_of_eq (by ring)
+  · rw [G_odd, G_even, show 2 * s + 5 + 2 * t = 2 * (s + t) + 5 by ring, G_odd, pow_add]
+    exact le_of_eq (by ring)
+  · rw [G_odd, G_odd, show 2 * s + 5 + (2 * t + 5) = 2 * (s + t + 5) by ring, G_even]
+    have h : 2 ^ (s + t + 5) = 32 * (2 ^ s * 2 ^ t) := by rw [pow_add, pow_add]; ring
+    rw [h]
+    calc 5 * 2 ^ s * (5 * 2 ^ t) = 25 * (2 ^ s * 2 ^ t) := by ring
+      _ ≤ 32 * (2 ^ s * 2 ^ t) := Nat.mul_le_mul_right _ (by norm_num)
 
 lemma le_G (x : ℕ) (hx : x % 3 = 2) : x ≤ G x := by
   rcases cases4 x with ⟨s, rfl⟩ | rfl | rfl | ⟨t, rfl⟩

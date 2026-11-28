@@ -1,5 +1,6 @@
 import OMAStatements.S_oeis_a143310
 
+open Finset
 -- Problem: A143310: Triangle read by rows, A000012 * A127446, 1 <= k <= n.
 -- Upstream: formal-conjectures statements/oeis-a143310.lean:0 (declaration OMA.S_oeis_a143310.main)
 -- Credit: @marcelopierry (the owner of the agent is credited as the solver)
@@ -10,27 +11,27 @@ namespace OMA.P_oeis_a143310
 open OMA.S_oeis_a143310
 
 lemma solve : ∀ n k : ℕ, 1 ≤ k → k ≤ n →
-    T n k = ∑ i ∈ Finset.Icc 1 n, if i * k ≤ n then i * k else 0 := by
+    T n k = ∑ i ∈ Icc 1 n, if i * k ≤ n then i * k else 0 := by
   intro n k hk hkn
   unfold T
-  have h1 : ∑ j ∈ Finset.Icc 1 n, A000012 n j * A127446 j k =
-      ∑ j ∈ (Finset.Icc 1 n).filter (fun j => k ∣ j), j := by
-    rw [Finset.sum_filter]
-    apply Finset.sum_congr rfl
+  have h1 : ∑ j ∈ Icc 1 n, A000012 n j * A127446 j k =
+      ∑ j ∈ (Icc 1 n).filter (fun j => k ∣ j), j := by
+    rw [sum_filter]
+    apply sum_congr rfl
     intro j hj
-    rw [Finset.mem_Icc] at hj
+    rw [mem_Icc] at hj
     unfold A000012 A127446
     rw [if_pos hj.2, one_mul]
     by_cases hd : k ∣ j
     · rw [if_pos ⟨hk, Nat.le_of_dvd (by omega) hd, hd⟩, if_pos hd]
     · rw [if_neg (fun h => hd h.2.2), if_neg hd]
-  have h2 : ∑ i ∈ Finset.Icc 1 n, (if i * k ≤ n then i * k else 0) =
-      ∑ i ∈ (Finset.Icc 1 n).filter (fun i => i * k ≤ n), i * k := by
-    rw [Finset.sum_filter]
-  have h3 : (Finset.Icc 1 n).filter (fun j => k ∣ j) =
-      ((Finset.Icc 1 n).filter (fun i => i * k ≤ n)).image (fun i => i * k) := by
+  have h2 : ∑ i ∈ Icc 1 n, (if i * k ≤ n then i * k else 0) =
+      ∑ i ∈ (Icc 1 n).filter (fun i => i * k ≤ n), i * k := by
+    rw [sum_filter]
+  have h3 : (Icc 1 n).filter (fun j => k ∣ j) =
+      ((Icc 1 n).filter (fun i => i * k ≤ n)).image (fun i => i * k) := by
     ext j
-    simp only [Finset.mem_filter, Finset.mem_Icc, Finset.mem_image]
+    simp only [mem_filter, mem_Icc, mem_image]
     constructor
     · rintro ⟨⟨hj1, hjn⟩, ⟨m, rfl⟩⟩
       refine ⟨m, ⟨⟨?_, ?_⟩, ?_⟩, by ring⟩
@@ -44,7 +45,7 @@ lemma solve : ∀ n k : ℕ, 1 ≤ k → k ≤ n →
     · rintro ⟨i, ⟨⟨hi1, hin⟩, hik⟩, rfl⟩
       refine ⟨⟨?_, hik⟩, Dvd.intro_left i rfl⟩
       nlinarith
-  rw [h1, h2, h3, Finset.sum_image]
+  rw [h1, h2, h3, sum_image]
   intro x _ y _ hxy
   exact Nat.eq_of_mul_eq_mul_right hk hxy
 

@@ -9,34 +9,17 @@ namespace OMA252
 
 open Nat ArithmeticFunction
 
-lemma succ_le_two_pow (k : ℕ) : k + 1 ≤ 2 ^ k := by
-  induction k with
-  | zero => simp
-  | succ k ih => rw [pow_succ]; omega
-
-/-- A positive integer `n` has at most `n / 2 + 1` divisors. -/
+/-- All proper divisors lie in the lower half of the interval. -/
 lemma card_div_le_half (n : ℕ) : n.divisors.card ≤ n / 2 + 1 := by
-  have hsub : n.divisors ⊆ insert n (Finset.Icc 1 (n / 2)) := by
+  rcases eq_or_ne n 0 with rfl | hn
+  · simp
+  have hs : n.properDivisors ⊆ Finset.Icc 1 (n / 2) := by
     intro d hd
-    rw [Nat.mem_divisors] at hd
-    obtain ⟨⟨e, he⟩, hn⟩ := hd
-    rw [Finset.mem_insert, Finset.mem_Icc]
-    by_cases hdn : d = n
-    · left; exact hdn
-    · right
-      have hd0 : 0 < d := Nat.pos_of_ne_zero (by rintro rfl; simp at he; exact hn he)
-      have he2 : 2 ≤ e := by
-        rcases e with _ | _ | e
-        · simp at he; exact absurd he hn
-        · simp at he; exact absurd he.symm hdn
-        · omega
-      refine ⟨hd0, ?_⟩
-      rw [Nat.le_div_iff_mul_le (by norm_num)]
-      calc d * 2 ≤ d * e := Nat.mul_le_mul_left d he2
-        _ = n := he.symm
-  calc n.divisors.card ≤ (insert n (Finset.Icc 1 (n / 2))).card := Finset.card_le_card hsub
-    _ ≤ (Finset.Icc 1 (n / 2)).card + 1 := Finset.card_insert_le _ _
-    _ = n / 2 + 1 := by simp
+    refine Finset.mem_Icc.mpr ⟨Nat.pos_of_mem_properDivisors hd, ?_⟩
+    obtain ⟨k, hk, he⟩ := (Nat.mem_properDivisors_iff_exists hn).mp hd
+    exact (Nat.le_div_iff_mul_le (by decide)).mpr (he ▸ Nat.mul_le_mul_left d hk)
+  rw [← Nat.cons_self_properDivisors hn, Finset.card_cons]
+  exact Nat.add_le_add_right (by simpa using Finset.card_le_card hs) 1
 
 end OMA252
 
@@ -50,10 +33,7 @@ theorem OMA.solution : type_of% @Erdos252.erdos_252.variants.k_eq_zero := by
     simp only [f]
     apply div_le_div_of_nonneg_right _ (by positivity)
     rw [sigma_zero_apply]
-    have e1 := card_divisors_le_self n
-    have e2 := OMA252.succ_le_two_pow n
-    have : n.divisors.card ≤ 2 ^ n := by omega
-    exact_mod_cast this
+    exact_mod_cast (card_divisors_le_self n).trans n.lt_two_pow_self.le
   have hsum : Summable f :=
     Summable.of_nonneg_of_le hf0 hfle (Real.summable_pow_div_factorial 2)
   rintro ⟨r, hr⟩

@@ -38,8 +38,6 @@ private lemma exists_vertex_ordering {α : Type*} [Fintype α] [DecidableEq α]
   have hnodup : L.Nodup := hperm.nodup_iff.mpr (Finset.nodup_toList Finset.univ)
   have hlen : L.length = Fintype.card α := by
     rw [hperm.length_eq, Finset.length_toList, Finset.card_univ]
-  have hmem_all : ∀ v : α, v ∈ L := fun v =>
-    hperm.mem_iff.mpr (Finset.mem_toList.mpr (Finset.mem_univ v))
   have hsorted : (L.map (fun v => G.degree v)).Pairwise (· ≤ ·) := by
     have hp := List.pairwise_mergeSort (le := fun u v : α => decide (G.degree u ≤ G.degree v))
       (fun a b c hab hbc => by
@@ -147,53 +145,21 @@ private lemma degreeSequence_step {α : Type*} [Fintype α] [DecidableEq α]
   set x := (degreeSequence G).getD k 0
   have hlen : (degreeSequence G).length = Fintype.card α := degreeSequence_length G
   have hcount_ge : 3 ≤ (degreeSequence G).count x := by
-    have hcount_eq : (degreeSequence G).count x =
-        ((Finset.univ : Finset (Fin (degreeSequence G).length)).filter
-          (fun i => (degreeSequence G)[i.1] = x)).card := by
-      rw [List.count_eq_countP, List.countP_eq_length_filter]
-      have hcard_fin : ((Finset.univ : Finset (Fin (degreeSequence G).length)).filter
-          (fun i => (degreeSequence G)[i.1] = x)).card =
-          ((List.finRange (degreeSequence G).length).filter
-            (fun i => (degreeSequence G)[i.1] == x)).length := by
-        rw [← List.toFinset_card_of_nodup ((List.nodup_finRange _).filter _)]
-        congr 1
-        ext i
-        simp
-      rw [hcard_fin]
-      have hfin : (List.finRange (degreeSequence G).length).map
-          (fun i : Fin (degreeSequence G).length => (degreeSequence G)[i.1]) = degreeSequence G := by
-        refine List.ext_getElem (by simp) fun i hi _ => by simp
-      have hmap : ((List.finRange (degreeSequence G).length).filter
-          (fun i => (degreeSequence G)[i.1] == x)).map (fun i => (degreeSequence G)[i.1]) =
-          (degreeSequence G).filter (· == x) := by
-        change ((List.finRange (degreeSequence G).length).filter
-          ((· == x) ∘ (fun i : Fin (degreeSequence G).length => (degreeSequence G)[i.1]))).map
-          (fun i => (degreeSequence G)[i.1]) = _
-        rw [← List.filter_map, hfin]
-      rw [← hmap, List.length_map]
-    rw [hcount_eq]
     let i0 : Fin (degreeSequence G).length := ⟨k, by omega⟩
     let i1 : Fin (degreeSequence G).length := ⟨k + 1, by omega⟩
     let i2 : Fin (degreeSequence G).length := ⟨k + 2, by omega⟩
-    have hsub : ({i0, i1, i2} : Finset (Fin (degreeSequence G).length)) ⊆
-        (Finset.univ : Finset (Fin (degreeSequence G).length)).filter
-          (fun i => (degreeSequence G)[i.1] = x) := by
-      intro i hi
-      simp only [Finset.mem_insert, Finset.mem_singleton] at hi
-      simp only [Finset.mem_filter, Finset.mem_univ, true_and]
-      rcases hi with rfl | rfl | rfl
-      · rw [← List.getD_eq_getElem _ _ (show k < (degreeSequence G).length by omega)]
-      · rw [← List.getD_eq_getElem _ _ (show k + 1 < (degreeSequence G).length by omega)]
-        exact heq01
-      · rw [← List.getD_eq_getElem _ _ (show k + 2 < (degreeSequence G).length by omega)]
-        exact heq02
-    have hcard3 : ({i0, i1, i2} : Finset (Fin (degreeSequence G).length)).card = 3 := by
-      have h01 : i0 ≠ i1 := fun h => by have := congrArg Fin.val h; dsimp [i0, i1] at this; omega
-      have h02 : i0 ≠ i2 := fun h => by have := congrArg Fin.val h; dsimp [i0, i2] at this; omega
-      have h12 : i1 ≠ i2 := fun h => by have := congrArg Fin.val h; dsimp [i1, i2] at this; omega
-      rw [Finset.card_insert_of_notMem (by simp [h01, h02]), Finset.card_pair h12]
-    calc 3 = ({i0, i1, i2} : Finset (Fin (degreeSequence G).length)).card := hcard3.symm
-      _ ≤ _ := Finset.card_le_card hsub
+    have hs := List.map_getElem_sublist (l := degreeSequence G)
+      (is := [i0, i1, i2]) (by simp [i0, i1, i2])
+    have h0 : (degreeSequence G)[k] = x := by
+      rw [← List.getD_eq_getElem _ _ (show k < (degreeSequence G).length by omega)]
+    have h1 : (degreeSequence G)[k + 1] = x := by
+      rw [← List.getD_eq_getElem _ _ (show k + 1 < (degreeSequence G).length by omega)]
+      exact heq01
+    have h2 : (degreeSequence G)[k + 2] = x := by
+      rw [← List.getD_eq_getElem _ _ (show k + 2 < (degreeSequence G).length by omega)]
+      exact heq02
+    apply List.replicate_sublist_iff.mp
+    simpa [i0, i1, i2, h0, h1, h2] using hs
   have hcount_le := degreeSequence_count_le G h₂ x
   omega
 
@@ -230,6 +196,22 @@ private lemma telescope_excess {a : ℕ → ℕ} {N : ℕ}
     have hidx : k + 2 * (r + 1) = k + 2 * r + 2 := by ring
     rw [hidx]
     omega
+
+private lemma zero_of_double_sum {δ : ℕ → ℕ} {s t k : ℕ}
+    (hsum : (∑ i ∈ Finset.range s, ∑ j ∈ Finset.range t, δ (i + 2 * j)) = 0)
+    (ht : 0 < t) (hs : 2 ≤ s ∨ t = 1) (hk : k < s + 2 * (t - 1)) : δ k = 0 := by
+  by_cases hkS : k < s
+  · have h := (Finset.sum_eq_zero_iff.mp hsum) k (Finset.mem_range.mpr hkS)
+    simpa using (Finset.sum_eq_zero_iff.mp h) 0 (Finset.mem_range.mpr ht)
+  · have hs2 : 2 ≤ s := by omega
+    let j : ℕ := (k - s) / 2 + 1
+    let i : ℕ := k - 2 * j
+    have hi : i < s := by dsimp [i, j]; omega
+    have hj : j < t := by dsimp [j]; omega
+    have heq : i + 2 * j = k := by dsimp [i, j]; omega
+    have h := (Finset.sum_eq_zero_iff.mp hsum) i (Finset.mem_range.mpr hi)
+    have h' := (Finset.sum_eq_zero_iff.mp h) j (Finset.mem_range.mpr hj)
+    rwa [heq] at h'
 
 /- ### Section 2: Partition degree identity and Mantel's theorem with equality -/
 
@@ -313,26 +295,7 @@ private lemma mantel_bound_and_eq {β : Type*} [Fintype β] [DecidableEq β]
     intro u hu v hv huv
     have hxu : H.Adj x u := (mem_neighborFinset H x u).mp hu
     have hxv : H.Adj x v := (mem_neighborFinset H x v).mp hv
-    have hclq : H.IsNClique 3 {x, u, v} := by
-      refine ⟨?_, ?_⟩
-      · intro a ha b hb hab
-        simp only [Finset.coe_insert, Finset.coe_singleton, Set.mem_insert_iff,
-          Set.mem_singleton_iff] at ha hb
-        rcases ha with rfl | rfl | rfl <;> rcases hb with rfl | rfl | rfl
-        · exact absurd rfl hab
-        · exact hxu
-        · exact hxv
-        · exact hxu.symm
-        · exact absurd rfl hab
-        · exact huv
-        · exact hxv.symm
-        · exact huv.symm
-        · exact absurd rfl hab
-      · have hne1 : x ≠ u := H.ne_of_adj hxu
-        have hne2 : x ≠ v := H.ne_of_adj hxv
-        have hne3 : u ≠ v := H.ne_of_adj huv
-        rw [Finset.card_insert_of_notMem (by simp [hne1, hne2]), Finset.card_pair hne3]
-    exact hH {x, u, v} hclq
+    exact hH {x, u, v} (is3Clique_triple_iff.mpr ⟨hxu, hxv, huv⟩)
   have hdeg_split : ∀ v : β,
       H.degree v = (H.neighborFinset v ∩ A).card + (H.neighborFinset v ∩ B).card := by
     intro v
@@ -441,14 +404,7 @@ private lemma mantel_bound_and_eq {β : Type*} [Fintype β] [DecidableEq β]
 private lemma cliqueFree_induce {α : Type*} [DecidableEq α]
     (G : SimpleGraph α) {n : ℕ} (h : G.CliqueFree n) (T : Finset α) :
     (G.induce (T : Set α)).CliqueFree n := by
-  intro c hc
-  refine h (c.image Subtype.val) ⟨?_, ?_⟩
-  · intro x hx y hy hxy
-    simp only [Finset.coe_image, Set.mem_image] at hx hy
-    obtain ⟨u, hu, rfl⟩ := hx
-    obtain ⟨v, hv, rfl⟩ := hy
-    exact hc.1 hu hv (fun huv => hxy (congrArg Subtype.val huv))
-  · rw [Finset.card_image_of_injective _ Subtype.val_injective, hc.2]
+  exact SimpleGraph.CliqueFree.comap ⟨SimpleGraph.Copy.induce G (T : Set α)⟩ h
 
 private lemma bipartite_and_S_deg_of_mantel_eq {α : Type*} [Fintype α] [DecidableEq α]
     (G : SimpleGraph α) [DecidableRel G.Adj] (h₁ : G.CliqueFree 3)
@@ -526,26 +482,7 @@ private lemma bipartite_and_S_deg_of_mantel_eq {α : Type*} [Fintype α] [Decida
   have hS_not_both : ∀ s ∈ S, ¬ ((∃ a ∈ A, G.Adj s a) ∧ (∃ b ∈ B, G.Adj s b)) := by
     rintro s hs ⟨⟨a, ha, hsa⟩, ⟨b, hb, hsb⟩⟩
     have hab : G.Adj a b := (hAB_adj' a (hA_sub ha) b (hB_sub hb)).mpr (Or.inl ⟨ha, hb⟩)
-    have hclq : G.IsNClique 3 {s, a, b} := by
-      refine ⟨?_, ?_⟩
-      · intro x hx y hy hxy
-        simp only [Finset.coe_insert, Finset.coe_singleton, Set.mem_insert_iff,
-          Set.mem_singleton_iff] at hx hy
-        rcases hx with rfl | rfl | rfl <;> rcases hy with rfl | rfl | rfl
-        · exact absurd rfl hxy
-        · exact hsa
-        · exact hsb
-        · exact hsa.symm
-        · exact absurd rfl hxy
-        · exact hab
-        · exact hsb.symm
-        · exact hab.symm
-        · exact absurd rfl hxy
-      · have hne1 : s ≠ a := G.ne_of_adj hsa
-        have hne2 : s ≠ b := G.ne_of_adj hsb
-        have hne3 : a ≠ b := G.ne_of_adj hab
-        rw [Finset.card_insert_of_notMem (by simp [hne1, hne2]), Finset.card_pair hne3]
-    exact h₁ {s, a, b} hclq
+    exact h₁ {s, a, b} (is3Clique_triple_iff.mpr ⟨hsa, hsb, hab⟩)
   constructor
   · classical
     let col : α → Fin 2 := fun v =>
@@ -685,14 +622,7 @@ theorem OMA.solution : type_of% @SimpleGraph.theorem1 := by
         exact Finset.mem_image.mpr ⟨ord.symm v, by simp [show s ≤ (ord.symm v).1 by omega],
           Equiv.apply_symm_apply _ _⟩
     have hScard : S.card = s := by
-      rw [Finset.card_image_of_injective _ ord.injective]
-      have hbij : (Finset.univ.filter (fun i : Fin N => i.1 < s)).card = (Finset.range s).card := by
-        refine Finset.card_bij (fun i _ => i.1)
-          (fun i hi => Finset.mem_range.mpr (by simpa using hi))
-          (fun _ _ _ _ h => Fin.ext h)
-          (fun k hk => ⟨⟨k, by have := Finset.mem_range.mp hk; omega⟩,
-            by simp [Finset.mem_range.mp hk], rfl⟩)
-      rw [hbij, Finset.card_range]
+      rw [Finset.card_image_of_injective _ ord.injective, Fin.card_filter_val_lt, min_eq_right hs]
     have hTcard : T.card = N - s := by
       have h := Finset.card_union_of_disjoint hdisj
       rw [hunion, Finset.card_univ, hScard] at h
@@ -755,18 +685,7 @@ theorem OMA.solution : type_of% @SimpleGraph.theorem1 := by
     obtain ⟨hδ_sum0, heS0, heT_eq⟩ := hdiff_eq
     have hδ0 : ∀ k, k + 2 < N → δ k = 0 := by
       intro k hk
-      by_cases hk_lo : k < 2 * n
-      · have h1 := (Finset.sum_eq_zero_iff.mp hδ_sum0) k (Finset.mem_range.mpr hk_lo)
-        have h2 := (Finset.sum_eq_zero_iff.mp h1) 0 (Finset.mem_range.mpr (by omega))
-        simpa using h2
-      · let j : ℕ := (k - 2 * n) / 2 + 1
-        let i : ℕ := k - 2 * j
-        have hi_lt : i < 2 * n := by omega
-        have hj_lt : j < n := by omega
-        have hij : i + 2 * j = k := by omega
-        have h1 := (Finset.sum_eq_zero_iff.mp hδ_sum0) i (Finset.mem_range.mpr hi_lt)
-        have h2 := (Finset.sum_eq_zero_iff.mp h1) j (Finset.mem_range.mpr hj_lt)
-        rwa [hij] at h2
+      exact Theorem1EFSProof.zero_of_double_sum hδ_sum0 (by omega) (by omega) (by omega)
     obtain ⟨hbip, hSdeg⟩ := Theorem1EFSProof.bipartite_and_S_deg_of_mantel_eq G h₁ S T
       hdisj hunion (by omega) heS0 heT_eq
     have hmin1 : G.minDegree = 1 := by
@@ -890,18 +809,7 @@ theorem OMA.solution : type_of% @SimpleGraph.theorem1 := by
       obtain ⟨hδ_sum0, heS0, heT_eq⟩ := hdiff_eq
       have hδ0 : ∀ k, k + 2 < N → δ k = 0 := by
         intro k hk
-        by_cases hk_lo : k < 2 * n
-        · have h1 := (Finset.sum_eq_zero_iff.mp hδ_sum0) k (Finset.mem_range.mpr hk_lo)
-          have h2 := (Finset.sum_eq_zero_iff.mp h1) 0 (Finset.mem_range.mpr (by omega))
-          simpa using h2
-        · let j : ℕ := (k - 2 * n) / 2 + 1
-          let i : ℕ := k - 2 * j
-          have hi_lt : i < 2 * n := by omega
-          have hj_lt : j < n + 1 := by omega
-          have hij : i + 2 * j = k := by omega
-          have h1 := (Finset.sum_eq_zero_iff.mp hδ_sum0) i (Finset.mem_range.mpr hi_lt)
-          have h2 := (Finset.sum_eq_zero_iff.mp h1) j (Finset.mem_range.mpr hj_lt)
-          rwa [hij] at h2
+        exact Theorem1EFSProof.zero_of_double_sum hδ_sum0 (by omega) (by omega) (by omega)
       obtain ⟨hbip, hSdeg⟩ := Theorem1EFSProof.bipartite_and_S_deg_of_mantel_eq G h₁ S T
         hdisj hunion (by omega) heS0 heT_eq
       have hmin1 : G.minDegree = 1 := by
@@ -962,18 +870,7 @@ theorem OMA.solution : type_of% @SimpleGraph.theorem1 := by
     obtain ⟨hδ_sum0, ha1_eq, heS0, heT_eq⟩ := hdiff_eq
     have hδ0 : ∀ k, k + 2 < N → δ k = 0 := by
       intro k hk
-      by_cases hk_lo : k < 2 * n + 1
-      · have h1 := (Finset.sum_eq_zero_iff.mp hδ_sum0) k (Finset.mem_range.mpr hk_lo)
-        have h2 := (Finset.sum_eq_zero_iff.mp h1) 0 (Finset.mem_range.mpr (by omega))
-        simpa using h2
-      · let j : ℕ := (k - (2 * n + 1)) / 2 + 1
-        let i : ℕ := k - 2 * j
-        have hi_lt : i < 2 * n + 1 := by omega
-        have hj_lt : j < n + 1 := by omega
-        have hij : i + 2 * j = k := by omega
-        have h1 := (Finset.sum_eq_zero_iff.mp hδ_sum0) i (Finset.mem_range.mpr hi_lt)
-        have h2 := (Finset.sum_eq_zero_iff.mp h1) j (Finset.mem_range.mpr hj_lt)
-        rwa [hij] at h2
+      exact Theorem1EFSProof.zero_of_double_sum hδ_sum0 (by omega) (by omega) (by omega)
     obtain ⟨hbip, _⟩ := Theorem1EFSProof.bipartite_and_S_deg_of_mantel_eq G h₁ S T
       hdisj hunion (by omega) heS0 heT_eq
     have hmin1 : G.minDegree = 1 := by

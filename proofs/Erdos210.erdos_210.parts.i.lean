@@ -37,10 +37,6 @@ lemma collinear3_swap_left {a b c : Point} : Collinear3 a b c ↔ Collinear3 b a
   simp only [Collinear3, orient]
   constructor <;> intro h <;> nlinarith
 
-lemma collinear3_rotate {a b c : Point} : Collinear3 a b c ↔ Collinear3 b c a := by
-  simp only [Collinear3, orient]
-  constructor <;> intro h <;> nlinarith
-
 /-- A two-element finset is an ordinary pair when its joining line contains no
 other point of `P`.  Counting these finsets counts geometric ordinary lines:
 an ordinary line has exactly one two-element intersection with `P`. -/
@@ -67,16 +63,8 @@ def ordinaryCount (P : Finset Point) : ℕ := (ordinaryPairs P).card
   · intro he
     exact Finset.mem_filter.mpr ⟨Finset.mem_powersetCard.mpr ⟨he.2.1, he.1⟩, he⟩
 
-lemma ordinaryPair_subset {P e : Finset Point} (he : e ∈ ordinaryPairs P) : e ⊆ P :=
-  (mem_ordinaryPairs.mp he).2.1
-
 lemma ordinaryPair_card {P e : Finset Point} (he : e ∈ ordinaryPairs P) : e.card = 2 :=
   (mem_ordinaryPairs.mp he).1
-
-lemma ordinaryPair_collinear_mem {P e : Finset Point} (he : e ∈ ordinaryPairs P)
-    {a b c : Point} (ha : a ∈ e) (hb : b ∈ e) (hab : a ≠ b)
-    (hc : c ∈ P) (hcol : Collinear3 a b c) : c ∈ e :=
-  (mem_ordinaryPairs.mp he).2.2 ha hb hab hc hcol
 
 /-- Ordinary partners of a point; its cardinality is the usual order of the point. -/
 def ordinaryPartners (P : Finset Point) (p : Point) : Finset Point :=
@@ -88,14 +76,6 @@ def order (P : Finset Point) (p : Point) : ℕ := (ordinaryPartners P p).card
 @[simp] lemma mem_ordinaryPartners {P : Finset Point} {p q : Point} :
     q ∈ ordinaryPartners P p ↔ q ∈ P ∧ q ≠ p ∧ {p, q} ∈ ordinaryPairs P := by
   simp [ordinaryPartners]
-
-lemma ordinaryPair_symm (P : Finset Point) (p q : Point) :
-    ({p, q} ∈ ordinaryPairs P) ↔ ({q, p} ∈ ordinaryPairs P) := by
-  have hpair : ({p, q} : Finset Point) = {q, p} := by
-    ext x
-    simp only [Finset.mem_insert, Finset.mem_singleton]
-    tauto
-  rw [hpair]
 
 /-- Squared Euclidean length of the vector from `a` to `b`. -/
 def lengthSq (a b : Point) : ℝ :=
@@ -127,16 +107,6 @@ lemma lengthSq_eq_zero_iff {a b : Point} : lengthSq a b = 0 ↔ a = b := by
 /-- Squared distance from `p` to the affine line through distinct `a,b`.
 The definition is algebraic, avoiding square roots in all comparisons. -/
 def lineDistSq (p a b : Point) : ℝ := orient a b p ^ 2 / lengthSq a b
-
-lemma lineDistSq_nonneg (p a b : Point) : 0 ≤ lineDistSq p a b := by
-  by_cases hab : a = b
-  · subst b
-    simp [lineDistSq, lengthSq]
-  · exact div_nonneg (sq_nonneg _) (lengthSq_pos hab).le
-
-lemma lineDistSq_eq_zero_iff {p a b : Point} (hab : a ≠ b) :
-    lineDistSq p a b = 0 ↔ Collinear3 a b p := by
-  simp [lineDistSq, Collinear3, div_eq_zero_iff, (lengthSq_pos hab).ne']
 
 /-- The direct similarity sending `a` to `(0,0)` and `b` to `(1,0)`. -/
 def normalize (a b p : Point) : Point :=
@@ -1379,87 +1349,6 @@ lemma attainableCounts_nonempty {n : ℕ} (hn : 3 ≤ n) :
   refine ⟨ordinaryCount (nearPencil n), nearPencil n, ?_, nearPencil_noncollinear hn, rfl⟩
   exact nearPencil_card (by omega)
 
-lemma basePoints_snd_zero {n : ℕ} {p : Point} (hp : p ∈ basePoints n) : p.2 = 0 := by
-  classical
-  obtain ⟨j, hj, rfl⟩ := Finset.mem_image.mp hp
-  rfl
-
-lemma basePoints_collinear {n : ℕ} {a b c : Point}
-    (ha : a ∈ basePoints n) (hb : b ∈ basePoints n) (hc : c ∈ basePoints n) :
-    Collinear3 a b c := by
-  simp only [Collinear3, orient, basePoints_snd_zero ha, basePoints_snd_zero hb,
-    basePoints_snd_zero hc]
-  ring
-
-def spokePairs (n : ℕ) : Finset (Finset Point) := by
-  classical
-  exact (basePoints n).image fun q ↦ {apex, q}
-
-lemma spokePairs_card (n : ℕ) : (spokePairs n).card = n - 1 := by
-  classical
-  rw [spokePairs, Finset.card_image_of_injOn]
-  · exact basePoints_card n
-  · intro q hq r hr hqr
-    have hqa : q ≠ apex := by
-      intro h
-      subst q
-      exact apex_not_mem_basePoints n hq
-    have hra : r ≠ apex := by
-      intro h
-      subst r
-      exact apex_not_mem_basePoints n hr
-    have horient := pair_eq_pair_or_swap (Ne.symm hqa) (Ne.symm hra) hqr
-    rcases horient with ⟨_, h⟩ | ⟨h, _⟩
-    · exact h
-    · exact (hra h.symm).elim
-
-lemma ordinaryPairs_nearPencil_subset_spokes {n : ℕ} (hn : 4 ≤ n) :
-    ordinaryPairs (nearPencil n) ⊆ spokePairs n := by
-  classical
-  intro e he
-  have hecard := ordinaryPair_card he
-  obtain ⟨u, v, huv, rfl⟩ := Finset.card_eq_two.mp hecard
-  have hsub := ordinaryPair_subset he
-  have huP : u ∈ nearPencil n := hsub (by simp)
-  have hvP : v ∈ nearPencil n := hsub (by simp)
-  have hcontains : apex = u ∨ apex = v := by
-    by_contra h
-    push Not at h
-    have huB : u ∈ basePoints n := by
-      simp only [nearPencil, Finset.mem_insert] at huP
-      exact huP.resolve_left (Ne.symm h.1)
-    have hvB : v ∈ basePoints n := by
-      simp only [nearPencil, Finset.mem_insert] at hvP
-      exact hvP.resolve_left (Ne.symm h.2)
-    have hbaseSub : basePoints n ⊆ ({u, v} : Finset Point) := by
-      intro w hw
-      exact ordinaryPair_collinear_mem he (by simp) (by simp) huv
-        (Finset.mem_insert_of_mem hw)
-        (basePoints_collinear huB hvB hw)
-    have := Finset.card_le_card hbaseSub
-    rw [basePoints_card] at this
-    simp [huv] at this
-    omega
-  rcases hcontains with hau | hav
-  · subst u
-    have hvB : v ∈ basePoints n := by
-      simp only [nearPencil, Finset.mem_insert] at hvP
-      exact hvP.resolve_left (by exact Ne.symm huv)
-    exact Finset.mem_image.mpr ⟨v, hvB, rfl⟩
-  · subst v
-    have huB : u ∈ basePoints n := by
-      simp only [nearPencil, Finset.mem_insert] at huP
-      exact huP.resolve_left huv
-    refine Finset.mem_image.mpr ⟨u, huB, ?_⟩
-    ext q
-    simp only [Finset.mem_insert, Finset.mem_singleton]
-    tauto
-
-lemma ordinaryCount_nearPencil_le {n : ℕ} (hn : 4 ≤ n) :
-    ordinaryCount (nearPencil n) ≤ n - 1 := by
-  rw [ordinaryCount, ← spokePairs_card n]
-  exact Finset.card_le_card (ordinaryPairs_nearPencil_subset_spokes hn)
-
 theorem ordinaryMinimum_lower {n : ℕ} (hn : 3 ≤ n) :
     n ≤ 10 * ordinaryMinimum n := by
   have hmem : ordinaryMinimum n ∈ attainableCounts n :=
@@ -1467,12 +1356,6 @@ theorem ordinaryMinimum_lower {n : ℕ} (hn : 3 ≤ n) :
   obtain ⟨P, hcard, hnoncol, hcount⟩ := hmem
   have hbound := ten_mul_ordinaryCount_ge_card P hnoncol
   omega
-
-theorem ordinaryMinimum_upper {n : ℕ} (hn : 4 ≤ n) :
-    ordinaryMinimum n ≤ n - 1 := by
-  have hmem : ordinaryCount (nearPencil n) ∈ attainableCounts n :=
-    ⟨nearPencil n, nearPencil_card (by omega), nearPencil_noncollinear (by omega), rfl⟩
-  exact (Nat.sInf_le hmem).trans (ordinaryCount_nearPencil_le hn)
 
 /-- Resolution of Erdős Problem 210: the minimum number of ordinary lines
 tends to infinity. -/
@@ -1484,12 +1367,6 @@ theorem erdos_210 : Filter.Tendsto ordinaryMinimum Filter.atTop Filter.atTop := 
   have hn3 : 3 ≤ n := by omega
   have hlower := ordinaryMinimum_lower hn3
   omega
-
-/-- The quantitative answer: `f(n)` has linear order of growth. -/
-theorem erdos_210_linear_bounds {n : ℕ} (hn : 4 ≤ n) :
-    n ≤ 10 * ordinaryMinimum n ∧ ordinaryMinimum n ≤ n - 1 :=
-  ⟨ordinaryMinimum_lower (by omega), ordinaryMinimum_upper hn⟩
-
 
 end E210P
 

@@ -9,49 +9,25 @@ the number p times a P i is again P-smooth and larger than a P i, so it is enume
 index larger than i, which bounds a P (i + 1).
 -/
 
-namespace O1E240H2
-
-theorem pow_mem {P : Set ℕ} {p : ℕ} (hp : p ∈ P) (hpp : p.Prime) (k : ℕ) :
-    p ^ k ∈ Erdos675.composedOf P := by
-  refine ⟨pow_pos hpp.pos k, fun q hq hqd => ?_⟩
-  have := (Nat.prime_dvd_prime_iff_eq hq hpp).1 (hq.dvd_of_dvd_pow hqd)
-  rw [this]; exact hp
-
-theorem mul_mem {P : Set ℕ} {p m : ℕ} (hp : p ∈ P) (hpp : p.Prime)
-    (hm : m ∈ Erdos675.composedOf P) : p * m ∈ Erdos675.composedOf P := by
-  refine ⟨Nat.mul_pos hpp.pos hm.1, fun q hq hqd => ?_⟩
-  rcases (Nat.Prime.dvd_mul hq).1 hqd with h | h
-  · rw [(Nat.prime_dvd_prime_iff_eq hq hpp).1 h]; exact hp
-  · exact hm.2 q hq h
-
-theorem infinite_of {P : Set ℕ} {p : ℕ} (hp : p ∈ P) (hpp : p.Prime) :
-    (Set.ofPred (· ∈ Erdos675.composedOf P)).Infinite := by
-  have hinj : Function.Injective (fun k : ℕ => p ^ k) := Nat.pow_right_injective hpp.two_le
-  refine Set.infinite_of_injective_forall_mem hinj (fun k => ?_)
-  exact pow_mem hp hpp k
-
-end O1E240H2
-
-open O1E240H2 in
 theorem OMA.solution : OMA.R_Erdos240_erdos_240_variants_tijdeman_finite_R1.H2 := by
   classical
-  intro P _ hne hsub
-  obtain ⟨p₀, hp₀⟩ := hne
-  have hinf := infinite_of hp₀ (hsub hp₀)
-  have hmem : ∀ i, Erdos240.a P i ∈ Erdos675.composedOf P := fun i =>
-    Nat.nth_mem_of_infinite hinf i
-  refine ⟨Nat.nth_strictMono hinf, hmem, fun p hp i => ?_⟩
-  have hpp : p.Prime := hsub hp
-  have hpm := mul_mem hp hpp (hmem i)
-  have hpos := (hmem i).1
-  obtain ⟨k, hk⟩ : ∃ k, Nat.nth (· ∈ Erdos675.composedOf P) k = p * Erdos240.a P i :=
-    ⟨_, Nat.nth_count hpm⟩
-  have hlt : Erdos240.a P i < Nat.nth (· ∈ Erdos675.composedOf P) k := by
-    rw [hk]
-    have := hpp.two_le
-    nlinarith
-  have hik : i < k := (Nat.nth_lt_nth hinf).1 hlt
-  have : Erdos240.a P (i + 1) ≤ Nat.nth (· ∈ Erdos675.composedOf P) k :=
-    (Nat.nth_le_nth hinf).2 hik
-  rw [hk] at this
-  exact this
+  intro P _ ⟨q, hq⟩ hprime
+  have hqp := hprime hq
+  have hinf : (Set.ofPred (· ∈ Erdos675.composedOf P)).Infinite := by
+    refine Set.infinite_of_injective_forall_mem (Nat.pow_right_injective hqp.two_le) fun k => ?_
+    refine ⟨pow_pos hqp.pos k, fun r hr hd => ?_⟩
+    rwa [(Nat.prime_dvd_prime_iff_eq hr hqp).1 (hr.dvd_of_dvd_pow hd)]
+  have hmono := Nat.nth_strictMono hinf
+  have hmem (i : ℕ) : Erdos240.a P i ∈ Erdos675.composedOf P := Nat.nth_mem_of_infinite hinf i
+  refine ⟨hmono, hmem, fun p hp i => ?_⟩
+  have hpp := hprime hp
+  have hpm : p * Erdos240.a P i ∈ Erdos675.composedOf P := by
+    refine ⟨mul_pos hpp.pos (hmem i).1, fun r hr hd => ?_⟩
+    rcases hr.dvd_mul.mp hd with hd | hd
+    · rwa [(Nat.prime_dvd_prime_iff_eq hr hpp).1 hd]
+    · exact (hmem i).2 r hr hd
+  have hcount := Nat.nth_count (p := (· ∈ Erdos675.composedOf P)) hpm
+  have hlt : Erdos240.a P i < p * Erdos240.a P i :=
+    lt_mul_of_one_lt_left (hmem i).1 hpp.one_lt
+  rw [← hcount] at hlt ⊢
+  exact hmono.monotone (Nat.succ_le_of_lt (hmono.lt_iff_lt.mp hlt))

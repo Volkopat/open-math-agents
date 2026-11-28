@@ -2,7 +2,7 @@ import FormalConjectures.ErdosProblems.«539»
 
 /-! Erdős–Szemerédi lower bound `√n ≪ h(n)`: fixing a nonzero `a ∈ A`, the map
 `b ↦ (a / (a, b), b / (a, b))` is injective from `A` into `B × B`, where `B` is the cofactor set,
-so `|A| ≤ |B|^2`. -/
+so `|A| ≤ |B|^2`. Original proof: @Genbox (#565). -/
 
 open Filter Finset
 
@@ -35,15 +35,9 @@ lemma card_le_sq (A : Finset ℕ) :
       _ = #B * #B := Finset.card_product _ _
   · simp only [not_exists, not_and, not_not] at h
     have hsub : A ⊆ {0} := fun x hx ↦ by simp [h x hx]
-    have hA : #A ≤ 1 := (Finset.card_le_card hsub).trans (by simp)
-    rcases Nat.eq_zero_or_pos #A with h0 | hpos
-    · rw [h0]; exact Nat.zero_le _
-    · obtain ⟨x, hx⟩ := Finset.card_pos.mp hpos
-      have hBpos : 0 < #B := Finset.card_pos.mpr
-        ⟨x / x.gcd x, Finset.mem_image.mpr ⟨(x, x), Finset.mem_product.mpr ⟨hx, hx⟩, rfl⟩⟩
-      nlinarith
+    rcases Finset.subset_singleton_iff.mp hsub with rfl | rfl <;> simp [B]
 
-lemma sqrt_le_threshold (n : ℕ) : Nat.sqrt n ≤ Erdos539.cofactorThreshold n := by
+lemma ceil_sqrt_le_threshold (n : ℕ) : ⌈Real.sqrt n⌉₊ ≤ Erdos539.cofactorThreshold n := by
   unfold Erdos539.cofactorThreshold
   apply le_csSup
   · refine ⟨n * n, ?_⟩
@@ -51,26 +45,18 @@ lemma sqrt_le_threshold (n : ℕ) : Nat.sqrt n ≤ Erdos539.cofactorThreshold n 
     have h := hm (Finset.range n) (by simp)
     exact h.trans ((Finset.card_image_le).trans (by simp))
   · intro A hA
+    apply Nat.ceil_le.mpr
+    apply (Real.sqrt_le_iff).mpr
+    refine ⟨by positivity, ?_⟩
     have h := card_le_sq A
     rw [hA] at h
-    calc Nat.sqrt n ≤ Nat.sqrt (#((A ×ˢ A).image fun (p : ℕ × ℕ) ↦ p.1 / p.1.gcd p.2) *
-          #((A ×ˢ A).image fun (p : ℕ × ℕ) ↦ p.1 / p.1.gcd p.2)) := Nat.sqrt_le_sqrt h
-      _ = _ := Nat.sqrt_eq _
+    rw [pow_two]
+    exact_mod_cast h
 
 end OMA539
 
 theorem OMA.solution : type_of% @Erdos539.erdos_539.variants.sq_isBigO := by
-  apply Asymptotics.IsBigO.of_bound 2
-  filter_upwards [eventually_ge_atTop 1] with n hn
-  have hs := OMA539.sqrt_le_threshold n
-  have hs1 : 1 ≤ Nat.sqrt n := Nat.le_sqrt.mpr (by simpa using hn)
-  have hlt : n < (Nat.sqrt n + 1) * (Nat.sqrt n + 1) := Nat.lt_succ_sqrt n
-  have hreal : Real.sqrt n < (Nat.sqrt n : ℝ) + 1 := by
-    rw [Real.sqrt_lt' (by positivity)]
-    have : ((n : ℕ) : ℝ) < ((Nat.sqrt n + 1) * (Nat.sqrt n + 1) : ℕ) := by exact_mod_cast hlt
-    push_cast at this
-    nlinarith
-  have hs' : (Nat.sqrt n : ℝ) ≤ (Erdos539.cofactorThreshold n : ℝ) := by exact_mod_cast hs
-  have hs1' : (1 : ℝ) ≤ (Nat.sqrt n : ℝ) := by exact_mod_cast hs1
-  rw [Real.norm_of_nonneg (Real.sqrt_nonneg _), Real.norm_of_nonneg (by positivity)]
-  linarith
+  apply Asymptotics.IsBigO.of_bound 1
+  filter_upwards [] with n
+  rw [one_mul, Real.norm_of_nonneg (Real.sqrt_nonneg _), Real.norm_of_nonneg (by positivity)]
+  exact Nat.le_of_ceil_le (OMA539.ceil_sqrt_le_threshold n)

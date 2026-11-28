@@ -41,40 +41,6 @@ def hAlpha (α : ℝ) (n : ℕ) : ℝ :=
           ((orderedDivisor n ⟨i.1, by omega⟩ : ℕ) : ℝ) - 1)
       α
 
-lemma relativeGap_nonneg (n : ℕ) (i : Fin (n.divisors.card - 1)) :
-    0 ≤ (((orderedDivisor n ⟨i.1 + 1, by omega⟩ : ℕ) : ℝ) /
-      ((orderedDivisor n ⟨i.1, by omega⟩ : ℕ) : ℝ) - 1) := by
-  have hlt :
-      orderedDivisor n ⟨i.1, by omega⟩ <
-        orderedDivisor n ⟨i.1 + 1, by omega⟩ :=
-    (orderedDivisor n).strictMono (by simp)
-  have hden : (0 : ℝ) < orderedDivisor n ⟨i.1, by omega⟩ := by
-    exact_mod_cast orderedDivisor_pos n ⟨i.1, by omega⟩
-  rw [sub_nonneg, one_le_div hden]
-  exact_mod_cast hlt.le
-
-lemma hAlpha_nonneg (α : ℝ) (n : ℕ) : 0 ≤ hAlpha α n := by
-  unfold hAlpha
-  exact Finset.sum_nonneg fun i _ ↦ Real.rpow_nonneg (relativeGap_nonneg n i) α
-
-/-- The substantive, non-vacuous interpretation of a finite liminf in the problem. -/
-def IsBoundedFrequently (f : ℕ → ℝ) : Prop :=
-  ∃ C : ℝ, 0 ≤ C ∧ ∃ᶠ n : ℕ in atTop, f n ≤ C
-
-lemma frequently_le_of_cofinal_sequence {f : ℕ → ℝ} {u : ℕ → ℕ} {C : ℝ}
-    (hu : Tendsto u atTop atTop) (hC : ∀ k, f (u k) ≤ C) :
-    ∃ᶠ n : ℕ in atTop, f n ≤ C := by
-  rw [frequently_atTop]
-  intro N
-  obtain ⟨K, hK⟩ := (tendsto_atTop_atTop.mp hu) N
-  exact ⟨u K, hK K le_rfl, hC K⟩
-
-lemma liminf_le_of_frequently_hAlpha_le {α C : ℝ}
-    (hfreq : ∃ᶠ n : ℕ in atTop, hAlpha α n ≤ C) :
-    Filter.liminf (hAlpha α) atTop ≤ C := by
-  exact Filter.liminf_le_of_frequently_le hfreq
-    (Filter.isBoundedUnder_of ⟨0, hAlpha_nonneg α⟩)
-
 end
 
 end Vose1099
@@ -165,9 +131,6 @@ lemma generator_ne_zero (i : ℕ) : generator i ≠ 0 :=
 lemma generatorProduct_pos (k : ℕ) : 0 < generatorProduct k := by
   simp [generatorProduct, generator_pos]
 
-lemma generatorProduct_ne_zero (k : ℕ) : generatorProduct k ≠ 0 :=
-  Nat.ne_of_gt (generatorProduct_pos k)
-
 lemma voseNumber_pos (k : ℕ) : 0 < voseNumber k := by
   simp [voseNumber, generatorProduct, generator_pos]
 
@@ -203,10 +166,6 @@ lemma selectedDivisor_dvd {k r t : ℕ} {E : Finset ℕ}
 lemma selectedDivisor_pos (t : ℕ) (E : Finset ℕ) :
     0 < selectedDivisor t E := by
   simp [selectedDivisor, selectedProduct, generator_pos]
-
-lemma selectedDivisor_ne_zero (t : ℕ) (E : Finset ℕ) :
-    selectedDivisor t E ≠ 0 :=
-  Nat.ne_of_gt (selectedDivisor_pos t E)
 
 lemma selectedProduct_pos (E : Finset ℕ) : 0 < selectedProduct E := by
   simp [selectedProduct, generator_pos]
@@ -259,31 +218,6 @@ lemma triangular_mono : Monotone triangular := by
 lemma triangular_succ (k : ℕ) : triangular (k + 1) = triangular k + (k + 1) := by
   rw [triangular, triangular, Finset.sum_Icc_succ_top (by omega)]
 
-lemma generatorProduct_succ (k : ℕ) :
-    generatorProduct (k + 1) = generatorProduct k * generator (k + 1) := by
-  rw [generatorProduct, generatorProduct, Finset.prod_Icc_succ_top (by omega)]
-
-lemma voseNumber_succ (k : ℕ) :
-    voseNumber (k + 1) =
-      voseNumber k * (2 ^ (k + 1) * generator (k + 1)) := by
-  rw [voseNumber, voseNumber, triangular_succ, generatorProduct_succ, pow_add]
-  ac_rfl
-
-lemma voseNumber_dvd_succ (k : ℕ) : voseNumber k ∣ voseNumber (k + 1) := by
-  rw [voseNumber_succ]
-  exact dvd_mul_right _ _
-
-lemma voseNumber_dvd_of_le {j k : ℕ} (hjk : j ≤ k) :
-    voseNumber j ∣ voseNumber k := by
-  induction k with
-  | zero => simp_all
-  | succ k ih =>
-      by_cases h : j ≤ k
-      · exact (ih h).trans (voseNumber_dvd_succ k)
-      · have : j = k + 1 := by omega
-        subst j
-        exact dvd_refl _
-
 lemma triangular_ge_id (k : ℕ) : k ≤ triangular k := by
   cases k with
   | zero => simp
@@ -305,10 +239,6 @@ lemma voseNumber_tendsto_atTop : Tendsto voseNumber atTop atTop := by
   exact tendsto_atTop_mono' atTop
     (Filter.Eventually.of_forall pow_two_le_voseNumber)
     pow_two_triangular_tendsto_atTop
-
-/-- Cofinality in the elementary form most convenient for the final theorem. -/
-lemma exists_voseNumber_ge (B : ℕ) : ∃ k, B ≤ voseNumber k := by
-  exact (tendsto_atTop.1 voseNumber_tendsto_atTop B).exists
 
 end
 
@@ -438,10 +368,6 @@ lemma delta_le_terminal_add_sum {i r : ℕ} (hir : i ≤ r) :
 
 /- ## Concrete finite subset sums -/
 
-/-- All subset sums of the first `r` logarithmic digits. -/
-def subsetSums (r : ℕ) : Set ℝ :=
-  {x | ∃ S : Finset ℕ, S ⊆ Finset.Icc 1 r ∧ x = ∑ i ∈ S, delta i}
-
 /-- Internal interval version of the finite greedy construction. -/
 lemma exists_finset_sum_net_aux (i n : ℕ) {x : ℝ}
     (hx0 : 0 ≤ x)
@@ -529,48 +455,6 @@ lemma exists_subsetSum_below {r : ℕ} {x : ℝ}
       have hb : x ≤ dyadic (1 + n) + ∑ j ∈ Finset.Icc 1 (1 + n), delta j := by
         simpa [Nat.add_comm] using hx2.trans hbudget
       simpa [Nat.add_comm] using exists_finset_sum_net_aux 1 n hx0 hb
-
-/-- A set is a one-sided net on `[A,B]` with error `g`.  Requiring the
-approximating point itself to remain in `[A,B]` makes the mesh consequence
-available at both endpoints. -/
-def IsOneSidedNet (P : Set ℝ) (A B g : ℝ) : Prop :=
-  ∀ x ∈ Set.Icc A B, ∃ y ∈ P ∩ Set.Icc A B, 0 ≤ x - y ∧ x - y ≤ g
-
-/-- Every adjacent pair of points in `P ∩ [A,B]` is at distance at most `m`. -/
-def HasMeshAtMost (P : Set ℝ) (A B m : ℝ) : Prop :=
-  ∀ x ∈ P ∩ Set.Icc A B, ∀ y ∈ P ∩ Set.Icc A B, x < y →
-    (∀ z ∈ P ∩ Set.Icc A B, ¬ (x < z ∧ z < y)) → y - x ≤ m
-
-/-- A one-sided `g`-net has mesh at most `2g`, by applying the net property
-at the midpoint of a hypothetical larger gap. -/
-lemma IsOneSidedNet.hasMeshAtMost {P : Set ℝ} {A B g : ℝ}
-    (hnet : IsOneSidedNet P A B g) : HasMeshAtMost P A B (2 * g) := by
-  intro x hx y hy hxy hadj
-  by_contra hgap
-  have hmid : (x + y) / 2 ∈ Set.Icc A B := by
-    constructor
-    · linarith [hx.2.1, hy.2.1]
-    · linarith [hx.2.2, hy.2.2]
-  obtain ⟨z, hz, hz0, hzg⟩ := hnet ((x + y) / 2) hmid
-  apply hadj z hz
-  constructor <;> linarith
-
-lemma subsetSums_oneSidedNet (r : ℕ) :
-    IsOneSidedNet (subsetSums r) 0 (Real.log 2) (dyadic r) := by
-  intro x hx
-  obtain ⟨S, hSsub, hS0, hSg⟩ := exists_subsetSum_below hx.1 hx.2
-  let y := ∑ i ∈ S, delta i
-  have hy0 : 0 ≤ y := by
-    dsimp [y]
-    exact Finset.sum_nonneg fun i _ ↦ delta_nonneg i
-  have hyx : y ≤ x := by linarith
-  refine ⟨y, ⟨?_, hy0, hyx.trans hx.2⟩, hS0, hSg⟩
-  exact ⟨S, hSsub, rfl⟩
-
-/-- The concrete subset sums have mesh at most `2 * 2⁻ʳ = 2^(1-r)`. -/
-lemma subsetSums_hasMeshAtMost (r : ℕ) :
-    HasMeshAtMost (subsetSums r) 0 (Real.log 2) (2 * dyadic r) :=
-  (subsetSums_oneSidedNet r).hasMeshAtMost
 
 /- ## Two elementary bounds used to locate the logarithmic shells -/
 
@@ -668,12 +552,6 @@ lemma gapEnergy_le_mesh_mul_length {alpha : ℝ} (halpha : 1 ≤ alpha)
     _ = g ^ (alpha - 1) *
         (x ⟨m, by omega⟩ - x ⟨0, by omega⟩) := by
           rw [← Finset.mul_sum, sum_fin_consecutive_sub]
-
-/-- Two nonnegative subgaps have no more `alpha`-energy than their sum. -/
-lemma two_gap_energy_le {alpha a b : ℝ} (halpha : 1 ≤ alpha)
-    (ha : 0 ≤ a) (hb : 0 ≤ b) :
-    a ^ alpha + b ^ alpha ≤ (a + b) ^ alpha :=
-  Real.add_rpow_le_rpow_add ha hb halpha
 
 end
 
@@ -912,15 +790,6 @@ theorem hAlpha_le_divisorChainEnergy {alpha : ℝ} (halpha : 1 ≤ alpha)
   have hblock := sum_Ico_relativeGap_rpow_le halpha x
     (extendedDivisorValue_pos n hn) (extendedDivisorValue_monotone n hn) hpq
   simpa [x, cv, relativeGap, extendedDivisorValue_eq] using hblock
-
-/-- Strict-chain version of `hAlpha_le_divisorChainEnergy`. -/
-theorem hAlpha_le_divisorChainEnergy_orderEmb {alpha : ℝ} (halpha : 1 ≤ alpha)
-    {n m : ℕ} (hn : n ≠ 0)
-    (c : Fin (m + 1) ↪o Fin n.divisors.card)
-    (hc0 : (c ⟨0, by omega⟩).1 = 0)
-    (hclast : (c ⟨m, by omega⟩).1 = n.divisors.card - 1) :
-    hAlpha alpha n ≤ divisorChainEnergy alpha n c :=
-  hAlpha_le_divisorChainEnergy halpha hn c c.monotone hc0 hclast
 
 private lemma card_divisors_pos {n : ℕ} (hn : n ≠ 0) : 0 < n.divisors.card :=
   Finset.card_pos.mpr (Nat.nonempty_divisors.mpr hn)
@@ -1805,24 +1674,6 @@ lemma cap_log_gap_lt_one (k : ℕ) :
   have := Net.sum_delta_lt_one k
   linarith
 
-/-- Consequently the cap's relative gap is less than `2`. -/
-lemma cap_relative_gap_lt_two (k : ℕ) :
-    (generatorProduct k : ℝ) / (2 ^ triangular k : ℕ) - 1 < 2 := by
-  have hpowpos : (0 : ℝ) < (2 ^ triangular k : ℕ) := by positivity
-  have hprodpos : (0 : ℝ) < generatorProduct k := by
-    exact_mod_cast generatorProduct_pos k
-  have hlog : Real.log ((generatorProduct k : ℝ) /
-      (2 ^ triangular k : ℕ)) < 1 := by
-    rw [Real.log_div hprodpos.ne' hpowpos.ne']
-    exact cap_log_gap_lt_one k
-  have hratio_pos : 0 < (generatorProduct k : ℝ) /
-      (2 ^ triangular k : ℕ) := div_pos hprodpos hpowpos
-  have hratio : (generatorProduct k : ℝ) /
-      (2 ^ triangular k : ℕ) < Real.exp 1 := by
-    exact (Real.log_lt_iff_lt_exp hratio_pos).mp (by simpa using hlog)
-  have hexp : Real.exp 1 < 3 := Real.exp_one_lt_three
-  linarith
-
 /-- The cap from the last power of two to the generator product. -/
 theorem exists_cap_chain {alpha : ℝ} (halpha : 1 ≤ alpha) (k : ℕ) :
     ∃ c : LogDivisorChain k (2 ^ triangular k) (generatorProduct k),
@@ -2003,12 +1854,6 @@ lemma one_le_globalLogBound {alpha : ℝ} :
     mul_nonneg (by positivity) (mul_nonneg hpow hlog)
   unfold globalLogBound
   linarith
-
-lemma globalRelativeBound_nonneg {alpha : ℝ} :
-    0 ≤ globalRelativeBound alpha := by
-  unfold globalRelativeBound
-  exact mul_nonneg (Real.rpow_nonneg (Real.exp_pos _).le _)
-    (le_trans (by norm_num) one_le_globalLogBound)
 
 /-- Final construction-side estimate: for every `k ≥ 3` there is a finite
 increasing divisor chain from `1` to `voseNumber k` whose relative-gap

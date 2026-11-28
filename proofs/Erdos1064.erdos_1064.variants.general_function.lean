@@ -182,27 +182,6 @@ lemma Per.hasDensity_dvd {Y : Set ℕ} {N p : ℕ} (h : Per Y N) (hN : 0 < N) (h
   convert this using 1
   rw [e]; push_cast; field_simp
 
-/-- Cauchy criterion for densities. -/
-lemma exists_hasDensity (S : Set ℕ)
-    (h : ∀ ε > 0, ∃ d : ℝ, ∀ᶠ n in atTop, |(cnt S n : ℝ) / n - d| ≤ ε) :
-    ∃ L, S.HasDensity L := by
-  have hc : CauchySeq (fun n => (cnt S n : ℝ) / n) := by
-    rw [Metric.cauchySeq_iff]
-    intro ε hε
-    obtain ⟨d, hd⟩ := h (ε / 3) (by positivity)
-    obtain ⟨N, hN⟩ := eventually_atTop.1 hd
-    refine ⟨N, fun m hm n hn => ?_⟩
-    have h1 := hN m hm
-    have h2 := hN n hn
-    rw [Real.dist_eq]
-    calc |(cnt S m : ℝ) / m - cnt S n / n|
-        = |((cnt S m : ℝ) / m - d) - ((cnt S n : ℝ) / n - d)| := by ring_nf
-      _ ≤ |(cnt S m : ℝ) / m - d| + |(cnt S n : ℝ) / n - d| := abs_sub _ _
-      _ < ε := by linarith
-  obtain ⟨L, hL⟩ := cauchySeq_tendsto_of_complete hc
-  exact ⟨L, (hasDensity_iff S L).2 hL⟩
-
-
 /-! ## The finite model -/
 
 def status (Q : Finset ℕ) (n : ℕ) : Finset ℕ := Q.filter (· ∣ n)
@@ -368,40 +347,6 @@ lemma phi_split {n : ℕ} (hn : n ≠ 0) (K : ℕ) :
   constructor
   · rintro ⟨⟨h1, h2, _⟩, h4⟩; exact ⟨⟨by omega, h1⟩, h2⟩
   · rintro ⟨⟨h1, h2⟩, h3⟩; exact ⟨⟨h2, h3, hn⟩, by omega⟩
-
-lemma lower_incl {n : ℕ} (hn : n ≠ 0) (K : ℕ) {c : ℝ} (h : g (status (QK K) n) < c) :
-    (Nat.totient n : ℝ) < c * n := by
-  rw [phi_split hn K]
-  have hR : ∏ p ∈ n.primeFactors.filter (fun p => ¬ p ≤ K), (1 - 1 / (p : ℝ)) ≤ 1 :=
-    Finset.prod_le_one (fun p _ => one_sub_nonneg' p) (fun p _ => by
-      have : 0 ≤ 1 / (p : ℝ) := by positivity
-      linarith)
-  have hR0 : 0 ≤ ∏ p ∈ n.primeFactors.filter (fun p => ¬ p ≤ K), (1 - 1 / (p : ℝ)) :=
-    Finset.prod_nonneg fun p _ => one_sub_nonneg' p
-  have hg := g_nonneg (status (QK K) n)
-  have hn' : (0 : ℝ) < n := by exact_mod_cast Nat.pos_of_ne_zero hn
-  have : g (status (QK K) n) * ∏ p ∈ n.primeFactors.filter (fun p => ¬ p ≤ K),
-      (1 - 1 / (p : ℝ)) < c := by nlinarith
-  nlinarith
-
-lemma upper_incl {n : ℕ} (K : ℕ) {c δ : ℝ} (hδ : δ < 1) (h : (Nat.totient n : ℝ) < c * n)
-    (hb : hK K n ≤ δ) : g (status (QK K) n) < c / (1 - δ) := by
-  have hn : n ≠ 0 := by rintro rfl; simp at h
-  rw [phi_split hn K] at h
-  have hR := prod_ge (n.primeFactors.filter (fun p => ¬ p ≤ K))
-  unfold hK at hb
-  have hg := g_nonneg (status (QK K) n)
-  have hn' : (0 : ℝ) < n := by exact_mod_cast Nat.pos_of_ne_zero hn
-  rw [lt_div_iff₀ (by linarith)]
-  have h1 : g (status (QK K) n) * ∏ p ∈ n.primeFactors.filter (fun p => ¬ p ≤ K),
-      (1 - 1 / (p : ℝ)) < c := by
-    by_contra hc
-    have hc' := le_of_not_gt hc
-    nlinarith [mul_le_mul_of_nonneg_left hc' hn'.le]
-  have h2 : g (status (QK K) n) * (1 - δ) ≤ g (status (QK K) n) *
-      ∏ p ∈ n.primeFactors.filter (fun p => ¬ p ≤ K), (1 - 1 / (p : ℝ)) :=
-    mul_le_mul_of_nonneg_left (by linarith) hg
-  linarith
 
 /-! ## The bad set -/
 

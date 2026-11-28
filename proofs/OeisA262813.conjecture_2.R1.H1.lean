@@ -1,5 +1,6 @@
 import OMAReductions.R_OeisA262813_conjecture_2_R1
 
+open Finset
 /-!
 # Step H1 of the reduction OeisA262813.conjecture_2.R1
 
@@ -20,45 +21,45 @@ theorem a262813_triangular_mono {a b : ℕ} (h : a ≤ b) : Nat.triangular a ≤
 /-- Truncation of the three sums defining `OeisA262813.a`. -/
 theorem a262813_trunc (n X Y Z : ℕ) (hX : X ≤ n + 1) (hY : Y ≤ n + 1) (hZ1 : 1 ≤ Z)
     (hZ : Z ≤ n + 1) (hx : n < X ^ 3) (hy : n < Y ^ 2) (hz : n < Nat.triangular Z) :
-    OeisA262813.a n = ∑ x ∈ Finset.range X, ∑ y ∈ Finset.range Y, ∑ z ∈ Finset.Ico 1 Z,
+    OeisA262813.a n = ∑ x ∈ range X, ∑ y ∈ range Y, ∑ z ∈ Ico 1 Z,
         (if x ^ 3 + y ^ 2 + Nat.triangular z == n then 1 else 0) := by
   unfold OeisA262813.a
-  rw [← Finset.sum_range_add_sum_Ico _ hX]
-  have h1 : ∑ x ∈ Finset.Ico X (n + 1), ∑ y ∈ Finset.range (n + 1), ∑ z ∈ Finset.Ico 1 (n + 1),
+  rw [← sum_range_add_sum_Ico _ hX]
+  have h1 : ∑ x ∈ Ico X (n + 1), ∑ y ∈ range (n + 1), ∑ z ∈ Ico 1 (n + 1),
       (if x ^ 3 + y ^ 2 + Nat.triangular z == n then 1 else 0) = 0 := by
-    apply Finset.sum_eq_zero
+    apply sum_eq_zero
     intro x hxm
-    apply Finset.sum_eq_zero
+    apply sum_eq_zero
     intro y _
-    apply Finset.sum_eq_zero
+    apply sum_eq_zero
     intro z _
-    have hxX : X ≤ x := (Finset.mem_Ico.mp hxm).1
+    have hxX : X ≤ x := (mem_Ico.mp hxm).1
     have : X ^ 3 ≤ x ^ 3 := Nat.pow_le_pow_left hxX 3
     have hne : x ^ 3 + y ^ 2 + Nat.triangular z ≠ n := by omega
     simp [hne]
   rw [h1, Nat.add_zero]
-  apply Finset.sum_congr rfl
+  apply sum_congr rfl
   intro x _
-  rw [← Finset.sum_range_add_sum_Ico _ hY]
-  have h2 : ∑ y ∈ Finset.Ico Y (n + 1), ∑ z ∈ Finset.Ico 1 (n + 1),
+  rw [← sum_range_add_sum_Ico _ hY]
+  have h2 : ∑ y ∈ Ico Y (n + 1), ∑ z ∈ Ico 1 (n + 1),
       (if x ^ 3 + y ^ 2 + Nat.triangular z == n then 1 else 0) = 0 := by
-    apply Finset.sum_eq_zero
+    apply sum_eq_zero
     intro y hym
-    apply Finset.sum_eq_zero
+    apply sum_eq_zero
     intro z _
-    have hyY : Y ≤ y := (Finset.mem_Ico.mp hym).1
+    have hyY : Y ≤ y := (mem_Ico.mp hym).1
     have : Y ^ 2 ≤ y ^ 2 := Nat.pow_le_pow_left hyY 2
     have hne : x ^ 3 + y ^ 2 + Nat.triangular z ≠ n := by omega
     simp [hne]
   rw [h2, Nat.add_zero]
-  apply Finset.sum_congr rfl
+  apply sum_congr rfl
   intro y _
-  rw [← Finset.sum_Ico_consecutive _ hZ1 hZ]
-  have h3 : ∑ z ∈ Finset.Ico Z (n + 1),
+  rw [← sum_Ico_consecutive _ hZ1 hZ]
+  have h3 : ∑ z ∈ Ico Z (n + 1),
       (if x ^ 3 + y ^ 2 + Nat.triangular z == n then 1 else 0) = 0 := by
-    apply Finset.sum_eq_zero
+    apply sum_eq_zero
     intro z hzm
-    have hzZ : Z ≤ z := (Finset.mem_Ico.mp hzm).1
+    have hzZ : Z ≤ z := (mem_Ico.mp hzm).1
     have : Nat.triangular Z ≤ Nat.triangular z := a262813_triangular_mono hzZ
     have hne : x ^ 3 + y ^ 2 + Nat.triangular z ≠ n := by omega
     simp [hne]
@@ -68,7 +69,7 @@ end OMA.Helpers
 
 theorem OMA.solution : OMA.R_OeisA262813_conjecture_2_R1.H1 := by
   intro n hn
-  simp only [Finset.mem_insert, Finset.mem_singleton] at hn
+  simp only [mem_insert, mem_singleton] at hn
   rcases hn with h | h | h | h | h | h | h <;> subst h
   · rw [OMA.Helpers.a262813_trunc 1 2 2 2 (by norm_num) (by norm_num) (by norm_num)
       (by norm_num) (by norm_num) (by norm_num) (by decide)]

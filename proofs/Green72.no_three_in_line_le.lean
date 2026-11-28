@@ -208,242 +208,43 @@ private theorem from_valid (n : ℕ) (h : valid n = true) : Green72.NoKInLineFor
   simp only [valid, Bool.and_eq_true, decide_eq_true_eq, List.all_eq_true] at h
   exact witness h.1.1.1 h.1.1.2 h.1.2 h.2
 
+private lemma of_all {l k n : ℕ} (h : (List.range' l k).all valid = true) (h1 : l ≤ n) (h2 : n < l + k) :
+    valid n = true := List.all_eq_true.mp h n (List.mem_range'_1.mpr ⟨h1, h2⟩)
+set_option maxHeartbeats 0 in
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked3 : valid 3 = true := by decide +kernel
+private theorem c0 : (List.range' 3 27).all valid = true := by decide +kernel
+set_option maxHeartbeats 0 in
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked4 : valid 4 = true := by decide +kernel
+private theorem c1 : (List.range' 30 8).all valid = true := by decide +kernel
+set_option maxHeartbeats 0 in
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked5 : valid 5 = true := by decide +kernel
+private theorem c2 : (List.range' 38 6).all valid = true := by decide +kernel
+set_option maxHeartbeats 0 in
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked6 : valid 6 = true := by decide +kernel
+private theorem c3 : (List.range' 44 5).all valid = true := by decide +kernel
+set_option maxHeartbeats 0 in
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked7 : valid 7 = true := by decide +kernel
+private theorem c4 : (List.range' 49 4).all valid = true := by decide +kernel
+set_option maxHeartbeats 0 in
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked8 : valid 8 = true := by decide +kernel
+private theorem c5 : (List.range' 53 3).all valid = true := by decide +kernel
+set_option maxHeartbeats 0 in
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked9 : valid 9 = true := by decide +kernel
+private theorem c6 : (List.range' 56 3).all valid = true := by decide +kernel
+set_option maxHeartbeats 0 in
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked10 : valid 10 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked11 : valid 11 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked12 : valid 12 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked13 : valid 13 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked14 : valid 14 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked15 : valid 15 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked16 : valid 16 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked17 : valid 17 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked18 : valid 18 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked19 : valid 19 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked20 : valid 20 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked21 : valid 21 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked22 : valid 22 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked23 : valid 23 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked24 : valid 24 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked25 : valid 25 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked26 : valid 26 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked27 : valid 27 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked28 : valid 28 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked29 : valid 29 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked30 : valid 30 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked31 : valid 31 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked32 : valid 32 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked33 : valid 33 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked34 : valid 34 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked35 : valid 35 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked36 : valid 36 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked37 : valid 37 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked38 : valid 38 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked39 : valid 39 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked40 : valid 40 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked41 : valid 41 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked42 : valid 42 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked43 : valid 43 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked44 : valid 44 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked45 : valid 45 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked46 : valid 46 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked47 : valid 47 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked48 : valid 48 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked49 : valid 49 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked50 : valid 50 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked51 : valid 51 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked52 : valid 52 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked53 : valid 53 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked54 : valid 54 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked55 : valid 55 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked56 : valid 56 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked57 : valid 57 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked58 : valid 58 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked59 : valid 59 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 2000000 in
-private theorem checked60 : valid 60 = true := by decide +kernel
+private theorem c7 : (List.range' 59 2).all valid = true := by decide +kernel
 
-theorem all_sizes {n : ℕ} (lo : 3 ≤ n) (hi : n ≤ 60) : Green72.NoKInLineFor 3 n := by
-  apply from_valid
-  interval_cases n
-  · exact checked3
-  · exact checked4
-  · exact checked5
-  · exact checked6
-  · exact checked7
-  · exact checked8
-  · exact checked9
-  · exact checked10
-  · exact checked11
-  · exact checked12
-  · exact checked13
-  · exact checked14
-  · exact checked15
-  · exact checked16
-  · exact checked17
-  · exact checked18
-  · exact checked19
-  · exact checked20
-  · exact checked21
-  · exact checked22
-  · exact checked23
-  · exact checked24
-  · exact checked25
-  · exact checked26
-  · exact checked27
-  · exact checked28
-  · exact checked29
-  · exact checked30
-  · exact checked31
-  · exact checked32
-  · exact checked33
-  · exact checked34
-  · exact checked35
-  · exact checked36
-  · exact checked37
-  · exact checked38
-  · exact checked39
-  · exact checked40
-  · exact checked41
-  · exact checked42
-  · exact checked43
-  · exact checked44
-  · exact checked45
-  · exact checked46
-  · exact checked47
-  · exact checked48
-  · exact checked49
-  · exact checked50
-  · exact checked51
-  · exact checked52
-  · exact checked53
-  · exact checked54
-  · exact checked55
-  · exact checked56
-  · exact checked57
-  · exact checked58
-  · exact checked59
-  · exact checked60
+theorem all_sizes {n : ℕ} (lo : 3 ≤ n) (hi : n ≤ 60) : Green72.NoKInLineFor 3 n :=
+  from_valid n <|
+  if h0 : n < 30 then of_all c0 (by omega) h0 else
+  if h1 : n < 38 then of_all c1 (by omega) h1 else
+  if h2 : n < 44 then of_all c2 (by omega) h2 else
+  if h3 : n < 49 then of_all c3 (by omega) h3 else
+  if h4 : n < 53 then of_all c4 (by omega) h4 else
+  if h5 : n < 56 then of_all c5 (by omega) h5 else
+  if h6 : n < 59 then of_all c6 (by omega) h6 else
+  of_all c7 (by omega) (by omega)
 
 end OMA.GridProof
 

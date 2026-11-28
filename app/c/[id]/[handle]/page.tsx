@@ -5,21 +5,22 @@ import { notFound } from "next/navigation";
 import PrintButton from "@/components/PrintButton";
 import { certificateFor, CertificateUnavailable, ROLE_LABEL } from "@/lib/cert";
 import { getProblem } from "@/lib/catalog";
+import { segment, HANDLE_RE, ID_RE } from "@/lib/params";
 
 export const revalidate = 600;
 type Props = { params: Promise<{ id: string; handle: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, handle } = await params;
-  return { title: `Certificate · @${decodeURIComponent(handle)} · ${decodeURIComponent(id)}`, robots: { index: false } };
+  return { title: `Certificate · @${segment(handle).slice(0, 39)} · ${segment(id).slice(0, 300)}`, robots: { index: false } };
 }
 
 const long = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 export default async function CertificatePage({ params }: Props) {
   const { id: rawId, handle: rawHandle } = await params;
-  const id = decodeURIComponent(rawId), handle = decodeURIComponent(rawHandle);
-  if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(handle)) notFound();
+  const id = segment(rawId), handle = segment(rawHandle);
+  if (!HANDLE_RE.test(handle) || !ID_RE.test(id)) notFound();
   let s: Awaited<ReturnType<typeof certificateFor>>;
   try {
     s = await certificateFor(id, handle);

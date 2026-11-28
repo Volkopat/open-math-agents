@@ -15,8 +15,6 @@ abbrev QInt := Quaternion ℤ
 
 lemma normSq_mk (a b c d : ℤ) : Quaternion.normSq (⟨a,b,c,d⟩:QInt) = a^2+b^2+c^2+d^2 := Quaternion.normSq_def' _
 
-lemma neg_mk (a b c d : ℤ) : -(⟨a,b,c,d⟩:QInt) = ⟨-a,-b,-c,-d⟩ := rfl
-
 abbrev coordsEquiv := Quaternion.equivProd ℤ
 
 noncomputable def quatShell (N : ℕ) : Finset QInt :=
@@ -231,25 +229,6 @@ lemma adj_mul_zero_iff {l : Option K} {A : M2 K} (hA : A≠0)
     · intro h; change ∀ j, B 1 j=r*B 0 j at h
       ext i j; fin_cases i <;> simp [Matrix.mul_apply,Fin.sum_univ_two,hdl,h] <;> ring
 
-lemma reversed_product_zero {A B : M2 K} (ha : A.det=0) (hb : B.det=0)
-    (hab : A*B≠0) (htr : (A*B).trace=0) : B*A=0 := by
-  obtain ⟨l,hl,_⟩ := line_unique A (by rintro rfl; simp at hab) ha
-  obtain ⟨m,hm,_⟩ := line_unique B (by rintro rfl; simp at hab) hb
-  rw [←line_factored hl,←line_factored hm] at hab htr ⊢
-  let u := direction l
-  let v := rowOf l A
-  let x := direction m
-  let y := rowOf m B
-  have mul (a b c d : V2 K) : vecMulVec a b * vecMulVec c d = (b ⬝ᵥ c) • vecMulVec a d := by
-    rw [Matrix.vecMulVec_mul_vecMulVec]
-    ext i j
-    simp [mul_left_comm]
-  rw [mul] at hab htr ⊢
-  have hd : (v ⬝ᵥ x) ≠ 0 := by intro h; exact hab (by rw [show rowOf l A ⬝ᵥ direction m = 0 from h,zero_smul])
-  rw [Matrix.trace_smul,Matrix.trace_vecMulVec] at htr
-  have e := (mul_eq_zero.mp htr).resolve_left hd
-  rw [dotProduct_comm, e,zero_smul]
-
 end TunnellQuaternion
 
 end
@@ -438,40 +417,12 @@ open Matrix
 
 abbrev Mat (p : ℕ) := Matrix (Fin 2) (Fin 2) (ZMod p)
 
-def vec {p : ℕ} : Option (ZMod p) → Fin 2 → ZMod p
-  | none => ![0, 1]
-  | some r => ![1, r]
-
 def invariant {p : ℕ} (W : Mat p) : Option (ZMod p) → Prop
   | none => W 0 1 = 0
   | some r => W 1 0 + W 1 1 * r = r * (W 0 0 + W 0 1 * r)
 
 instance {p : ℕ} [NeZero p] (W : Mat p) (l : Option (ZMod p)) : Decidable (invariant W l) := by
   cases l <;> unfold invariant <;> infer_instance
-
-theorem invariant_iff {p : ℕ} (W : Mat p) (l : Option (ZMod p)) : invariant W l ↔
-    ∃ k : ZMod p, W.mulVec (vec l) = k • vec l := by
-  cases l with
-  | none =>
-    constructor
-    · intro h
-      refine ⟨W 1 1, ?_⟩
-      ext i
-      fin_cases i <;> simp_all [vec, invariant, Matrix.mulVec, Matrix.vecHead, Matrix.vecTail]
-    · rintro ⟨k, h⟩
-      simpa [vec, invariant, Matrix.mulVec, Matrix.vecHead, Matrix.vecTail] using congrFun h 0
-  | some r =>
-    constructor
-    · intro h
-      refine ⟨W 0 0 + W 0 1 * r, ?_⟩
-      ext i
-      fin_cases i <;> simp_all [vec, invariant, Matrix.mulVec, Matrix.vecHead, Matrix.vecTail, mul_comm]
-    · rintro ⟨k, h⟩
-      have h0 := congrFun h 0
-      have h1 := congrFun h 1
-      simp [vec, Matrix.mulVec, Matrix.vecHead, Matrix.vecTail] at h0 h1
-      rw [← h0] at h1
-      simpa [invariant, mul_comm] using h1
 
 theorem card_invariant {p : ℕ} [Fact p.Prime] (hp : p ≠ 2) (W : Mat p)
     (ht : W.trace = 0) :
@@ -876,28 +827,6 @@ private lemma primitive_lift {p n k : ℕ} [Fact p.Prime] (hp : p ≠ 2) (M : Mo
   have e := lower.trans upper
   rw [Nat.mul_assoc] at e
   exact Nat.le_of_mul_le_mul_left e (by decide : 0 < 8)
-
-private lemma nilpotent_lift {p n : ℕ} [Fact p.Prime] (hp : p ≠ 2) (hd : p ∣ n) :
-    p*(primitive p n).card ≤ (primitive p (p^2*n)).card := by
-  let M := localModel hp
-  apply primitive_lift hp M
-  intro x hx
-  obtain ⟨hn,hr,hnz⟩ := data_mem hx
-  have nz : residue M x ≠ 0 := fun e => hnz ((residue_zero M x).mp e)
-  have tr : (residue M x).trace=0 := by
-    rw [show residue M x=M.f (red p x) by rfl,M.trace]
-    change 2*(x.re:ZMod p)=0
-    rw [hr]
-    simp
-  have hd' : (residue M x).det=0 := by
-    rw [residue_det,hn,Int.cast_natCast,ZMod.natCast_eq_zero_iff]
-    exact hd
-  have h := TunnellEigenlines.card_invariant hp _ tr
-  rw [if_neg nz,hd'] at h
-  simp at h
-  have hs := card_filter_add_card_filter_not (s:=univ) (TunnellEigenlines.invariant (residue M x))
-  simp only [card_univ,Fintype.card_option,ZMod.card] at hs
-  omega
 
 end ThreeSquareLift
 

@@ -105,15 +105,6 @@ theorem countable_union_of_countable_fibers [Countable β]
   refine Set.mem_iUnion.2 ⟨f x, ?_⟩
   simp [C, hx.2, hx.1]
 
-/-- Removing a countable set from an uncountable set leaves an uncountable
-set. -/
-theorem uncountable_sdiff_countable {I C : Set α}
-    (hI : ¬ I.Countable) (hC : C.Countable) :
-    ¬ (I \ C).Countable := by
-  intro hdiff
-  apply hI
-  exact (hdiff.union hC).mono (Set.subset_sdiff_union I C)
-
 /-- A point can be chosen outside any countable exceptional subset of an
 uncountable set. -/
 theorem exists_mem_not_mem_of_uncountable_of_countable
@@ -121,19 +112,6 @@ theorem exists_mem_not_mem_of_uncountable_of_countable
     ∃ x ∈ I, x ∉ C := by
   by_contra! h
   exact hI (hC.mono h)
-
-/-- Delete precisely the points lying in countable relative fibres.  What
-remains is uncountable, and every fibre represented there is uncountable. -/
-theorem uncountable_after_deleting_countable_fibers [Countable β]
-    (f : α → β) {I : Set α} (hI : ¬ I.Countable) :
-    ∃ J ⊆ I, ¬ J.Countable ∧
-      ∀ x ∈ J, ¬ {y ∈ I | f y = f x}.Countable := by
-  let C : Set α := {x ∈ I | {y ∈ I | f y = f x}.Countable}
-  refine ⟨I \ C, fun _ hx ↦ hx.1, ?_, ?_⟩
-  · exact uncountable_sdiff_countable hI
-      (countable_union_of_countable_fibers f I)
-  · intro x hx hxfib
-    exact hx.2 ⟨hx.1, hxfib⟩
 
 /-- Lower-countable normalization of an injective map into a well-order.  The
 resulting uncountable set has only countably many earlier elements below each
@@ -187,51 +165,6 @@ theorem uncountable_lowerNormalized {r : β → β → Prop} [IsWellOrder β r]
       exact ⟨⟨y, hy.1, rfl⟩, hy.2⟩
     exact Set.countable_of_injective_of_countable_image
       (hp.mono fun _ hy ↦ hy.1) himage
-
-/-- From two uncountable subsets of a lower-normalized set, choose a cross
-pair in the forward well-order orientation. -/
-theorem exists_cross_forward {r : β → β → Prop} [IsWellOrder β r]
-    (p : α → β) {D U V : Set α} (hp : InjOn p D)
-    (hlower : ∀ x ∈ D, {y ∈ D | r (p y) (p x)}.Countable)
-    (hUD : U ⊆ D) (hVD : V ⊆ D) (hU : ¬ U.Countable) (hV : ¬ V.Countable) :
-    ∃ u ∈ U, ∃ v ∈ V, r (p u) (p v) := by
-  have hUne : U.Nonempty := by
-    by_contra hn
-    exact hU (Set.not_nonempty_iff_eq_empty.mp hn ▸ Set.countable_empty)
-  obtain ⟨u, huU⟩ := hUne
-  have hlowerV : {v ∈ V | r (p v) (p u)}.Countable := by
-    refine Set.Countable.mono ?_ (hlower u (hUD huU))
-    intro v hv
-    exact And.intro (hVD hv.1) hv.2
-  have hexception : ({v ∈ V | r (p v) (p u)} ∪ {u}).Countable :=
-    hlowerV.union (Set.countable_singleton u)
-  obtain ⟨v, hvV, hv⟩ :=
-    exists_mem_not_mem_of_uncountable_of_countable hV hexception
-  refine ⟨u, huU, v, hvV, ?_⟩
-  have hnvu : v ≠ u := by
-    intro hvu
-    apply hv
-    exact Or.inr hvu
-  have hpne : p u ≠ p v := fun huv ↦
-    hnvu (hp (hVD hvV) (hUD huU) huv.symm)
-  rcases trichotomous_of r (p u) (p v) with huv | huv | hvu
-  · exact huv
-  · exact (hpne huv).elim
-  · exact (hv (Or.inl ⟨hvV, hvu⟩)).elim
-
-/-- Both well-order orientations occur between any two uncountable subsets
-of a lower-normalized set. -/
-theorem exists_cross_orientations {r : β → β → Prop} [IsWellOrder β r]
-    (p : α → β) {D U V : Set α} (hp : InjOn p D)
-    (hlower : ∀ x ∈ D, {y ∈ D | r (p y) (p x)}.Countable)
-    (hUD : U ⊆ D) (hVD : V ⊆ D) (hU : ¬ U.Countable) (hV : ¬ V.Countable) :
-    (∃ u ∈ U, ∃ v ∈ V, r (p u) (p v)) ∧
-      ∃ u ∈ U, ∃ v ∈ V, r (p v) (p u) := by
-  constructor
-  · exact exists_cross_forward p hp hlower hUD hVD hU hV
-  · obtain ⟨v, hv, u, hu, hvu⟩ :=
-      exists_cross_forward p hp hlower hVD hUD hV hU
-    exact ⟨u, hu, v, hv, hvu⟩
 
 end Erdos965
 
@@ -665,17 +598,6 @@ theorem exists_uncountable_deltaSystem [DecidableEq α]
     deltaSystem_uniform n F In (fun _ hi ↦ hi.2) hn
   exact ⟨J, hJIn.trans fun _ hi ↦ hi.1, hJunc, r, hr⟩
 
-/-- Set-of-finsets formulation of the uncountable Δ-system lemma. -/
-theorem exists_uncountable_deltaSystem_set [DecidableEq α]
-    {S : Set (Finset α)} (hS : ¬ S.Countable) :
-    ∃ T ⊆ S, ¬ T.Countable ∧ ∃ r : Finset α,
-      T.Pairwise fun s t ↦ s ∩ t = r := by
-  obtain ⟨T, hTS, hTunc, r, hr⟩ :=
-    exists_uncountable_deltaSystem (fun s : Finset α ↦ s) hS
-  refine ⟨T, hTS, hTunc, r, ?_⟩
-  intro s hs t ht hst
-  exact hr hs ht hst
-
 end Erdos965
 
 end
@@ -957,59 +879,6 @@ theorem exists_coordinateNormalization {n : ℕ}
 noncomputable def coordinate {n : ℕ} (F : ι → Finset HamelIndex)
     (hcard : ∀ i, (F i).card = n) (j : Fin n) (i : ι) : HamelIndex :=
   finsetCoord F hcard i j
-
-theorem coordinate_mem {n : ℕ} (F : ι → Finset HamelIndex)
-    (hcard : ∀ i, (F i).card = n) (j : Fin n) (i : ι) :
-    coordinate F hcard j i ∈ F i := by
-  exact finsetCoord_mem F hcard i j
-
-theorem coordinate_strictMono {n : ℕ} (F : ι → Finset HamelIndex)
-    (hcard : ∀ i, (F i).card = n) (i : ι) :
-    StrictMono (fun j : Fin n ↦ coordinate F hcard j i) := by
-  exact finsetCoord_strictMono F hcard i
-
-/-- The ordered coordinate of a family whose cardinality is known only on
-`I`.  Its value outside `I` is irrelevant; all normalization conclusions are
-on subsets of `I`. -/
-noncomputable def coordinateWithin {n : ℕ} (F : ι → Finset HamelIndex)
-    (I : Set ι) (hcard : ∀ i ∈ I, (F i).card = n)
-    (j : Fin n) (i : ι) : HamelIndex := by
-  classical
-  exact if hi : i ∈ I then (F i).orderEmbOfFin (hcard i hi) j
-    else hamelBasis.index_nonempty.some
-
-theorem coordinateWithin_of_mem {n : ℕ} (F : ι → Finset HamelIndex)
-    (I : Set ι) (hcard : ∀ i ∈ I, (F i).card = n)
-    (j : Fin n) {i : ι} (hi : i ∈ I) :
-    coordinateWithin F I hcard j i = (F i).orderEmbOfFin (hcard i hi) j := by
-  simp only [coordinateWithin, dif_pos hi]
-
-theorem coordinateWithin_mem {n : ℕ} (F : ι → Finset HamelIndex)
-    (I : Set ι) (hcard : ∀ i ∈ I, (F i).card = n)
-    (j : Fin n) {i : ι} (hi : i ∈ I) :
-    coordinateWithin F I hcard j i ∈ F i := by
-  rw [coordinateWithin_of_mem F I hcard j hi]
-  exact Finset.orderEmbOfFin_mem (F i) (hcard i hi) j
-
-/-- A uniform finite-set family admits an uncountable thinning on which
-each ordered coordinate is constant or injective and lower-normalized in
-`WellOrderingRel`.  This is the main interface for the finite-set colouring
-argument. -/
-theorem exists_coordinateNormalization_of_uniformCard {n : ℕ}
-    (F : ι → Finset HamelIndex) (hcard : ∀ i, (F i).card = n)
-    {I : Set ι} (hI : ¬ I.Countable) :
-    ∃ J, CoordinateNormalization
-      (fun j i ↦ finsetCoord F hcard i j) I J :=
-  exists_coordinateNormalization (fun j i ↦ finsetCoord F hcard i j) hI
-
-/-- Relative-cardinality version of
-`exists_coordinateNormalization_of_uniformCard`. -/
-theorem exists_coordinateNormalization_of_uniformCardOn {n : ℕ}
-    (F : ι → Finset HamelIndex) {I : Set ι}
-    (hcard : ∀ i ∈ I, (F i).card = n) (hI : ¬ I.Countable) :
-    ∃ J, CoordinateNormalization
-      (fun j ↦ coordinateWithin F I hcard j) I J :=
-  exists_coordinateNormalization (fun j ↦ coordinateWithin F I hcard j) hI
 
 /-- Normalize all ordered coordinates of a uniform-prefix witness while
 remaining inside its carrier.  Thus every prefix identity furnished by `W`

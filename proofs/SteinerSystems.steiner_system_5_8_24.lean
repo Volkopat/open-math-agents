@@ -40,321 +40,53 @@ private def test (a b c d e : Nat) :=
   decide (x.log2 < 759 ∧ x = 2^x.log2)
 private def check (a : Nat) := (List.range a).all fun b =>
   (List.range b).all fun c => (List.range c).all fun d => (List.range d).all (test a b c d)
+private lemma of_all {P : Nat → Bool} {l n a : Nat} (h : (List.range' l n).all P = true) (h1 : l ≤ a)
+    (h2 : a < l + n) : P a = true := List.all_eq_true.mp h a (List.mem_range'_1.mpr ⟨h1, h2⟩)
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c0 : check 0 = true := by decide +kernel
+set_option maxHeartbeats 0 in
+private theorem c0 : (List.range' 0 18).all check = true := by decide +kernel
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c1 : check 1 = true := by decide +kernel
+set_option maxHeartbeats 0 in
+private theorem c1 : (List.range' 18 2).all check = true := by decide +kernel
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c2 : check 2 = true := by decide +kernel
+set_option maxHeartbeats 0 in
+private theorem c2 : (List.range' 20 2).all check = true := by decide +kernel
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c3 : check 3 = true := by decide +kernel
+set_option maxHeartbeats 0 in
+private theorem c3 : (List.range' 22 1).all check = true := by decide +kernel
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c4 : check 4 = true := by decide +kernel
+set_option maxHeartbeats 0 in
+private theorem c4 : (List.range' 23 1).all check = true := by decide +kernel
+private theorem checked : ∀ a < 24, check a = true := fun a ha =>
+  if h : a < 18 then of_all c0 (Nat.zero_le _) h else if h1 : a < 20 then of_all c1 (by omega) h1 else
+  if h2 : a < 22 then of_all c2 (by omega) h2 else if h3 : a < 23 then of_all c3 (by omega) h3 else
+  of_all c4 (by omega) (by omega)
+private def cb (n : Nat) : Bool := if h : n < 759 then decide ((block ⟨n,h⟩).card = 8) else true
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c5 : check 5 = true := by decide +kernel
+set_option maxHeartbeats 0 in
+private theorem k0 : (List.range' 0 190).all cb = true := by decide +kernel
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c6 : check 6 = true := by decide +kernel
+set_option maxHeartbeats 0 in
+private theorem k1 : (List.range' 190 190).all cb = true := by decide +kernel
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c7 : check 7 = true := by decide +kernel
+set_option maxHeartbeats 0 in
+private theorem k2 : (List.range' 380 190).all cb = true := by decide +kernel
 set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c8 : check 8 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c9 : check 9 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c10 : check 10 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c11 : check 11 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c12 : check 12 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c13 : check 13 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c14 : check 14 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c15 : check 15 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c16 : check 16 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c17 : check 17 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c18 : check 18 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c19 : check 19 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c20 : check 20 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c21 : check 21 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c22 : check 22 = true := by decide +kernel
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem c23 : check 23 = true := by decide +kernel
-set_option maxRecDepth 10000 in
-set_option maxHeartbeats 1000000 in
-private theorem checked (a : Fin 24) : check a = true := by
-  fin_cases a
-  · exact c0
-  · exact c1
-  · exact c2
-  · exact c3
-  · exact c4
-  · exact c5
-  · exact c6
-  · exact c7
-  · exact c8
-  · exact c9
-  · exact c10
-  · exact c11
-  · exact c12
-  · exact c13
-  · exact c14
-  · exact c15
-  · exact c16
-  · exact c17
-  · exact c18
-  · exact c19
-  · exact c20
-  · exact c21
-  · exact c22
-  · exact c23
-private def cardOK (n : Nat) : Bool := if h : n < 759 then decide ((block ⟨n,h⟩).card = 8) else true
-private def cardRange (l r : Nat) := ∀ i, l ≤ i → i < r → cardOK i = true
-private lemma cardBase {l r : Nat} (h : (List.range (r-l)).all (fun j => cardOK (l+j)) = true) :
-    cardRange l r := by
-  intro i hl hr
-  have hh := List.all_eq_true.mp h (i-l) (List.mem_range.mpr (by omega))
-  simpa [Nat.add_sub_of_le hl] using hh
-private lemma cardJoin {l m r : Nat} (h : cardRange l m) (g : cardRange m r) : cardRange l r := by
-  intro i hl hr
-  by_cases hi : i < m
-  · exact h i hl hi
-  · exact g i (by omega) hr
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k0 : cardRange 0 12 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k12 : cardRange 12 24 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k24 : cardRange 24 36 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k36 : cardRange 36 48 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k48 : cardRange 48 60 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k60 : cardRange 60 72 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k72 : cardRange 72 84 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k84 : cardRange 84 96 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k96 : cardRange 96 108 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k108 : cardRange 108 120 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k120 : cardRange 120 132 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k132 : cardRange 132 144 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k144 : cardRange 144 156 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k156 : cardRange 156 168 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k168 : cardRange 168 180 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k180 : cardRange 180 192 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k192 : cardRange 192 204 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k204 : cardRange 204 216 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k216 : cardRange 216 228 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k228 : cardRange 228 240 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k240 : cardRange 240 252 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k252 : cardRange 252 264 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k264 : cardRange 264 276 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k276 : cardRange 276 288 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k288 : cardRange 288 300 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k300 : cardRange 300 312 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k312 : cardRange 312 324 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k324 : cardRange 324 336 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k336 : cardRange 336 348 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k348 : cardRange 348 360 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k360 : cardRange 360 372 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k372 : cardRange 372 384 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k384 : cardRange 384 396 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k396 : cardRange 396 408 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k408 : cardRange 408 420 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k420 : cardRange 420 432 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k432 : cardRange 432 444 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k444 : cardRange 444 456 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k456 : cardRange 456 468 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k468 : cardRange 468 480 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k480 : cardRange 480 492 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k492 : cardRange 492 504 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k504 : cardRange 504 516 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k516 : cardRange 516 528 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k528 : cardRange 528 540 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k540 : cardRange 540 552 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k552 : cardRange 552 564 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k564 : cardRange 564 576 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k576 : cardRange 576 588 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k588 : cardRange 588 600 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k600 : cardRange 600 612 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k612 : cardRange 612 624 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k624 : cardRange 624 636 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k636 : cardRange 636 648 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k648 : cardRange 648 660 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k660 : cardRange 660 672 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k672 : cardRange 672 684 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k684 : cardRange 684 696 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k696 : cardRange 696 708 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k708 : cardRange 708 720 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k720 : cardRange 720 732 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k732 : cardRange 732 744 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k744 : cardRange 744 756 := cardBase (by decide +kernel)
-set_option maxRecDepth 20000 in
-set_option maxHeartbeats 4000000 in
-private theorem k756 : cardRange 756 759 := cardBase (by decide +kernel)
-private theorem cardAll : cardRange 0 759 := (cardJoin (cardJoin (cardJoin (cardJoin (cardJoin (cardJoin k0 k12) (cardJoin k24 k36)) (cardJoin (cardJoin k48 k60) (cardJoin k72 k84))) (cardJoin (cardJoin (cardJoin k96 k108) (cardJoin k120 k132)) (cardJoin (cardJoin k144 k156) (cardJoin k168 k180)))) (cardJoin (cardJoin (cardJoin (cardJoin k192 k204) (cardJoin k216 k228)) (cardJoin (cardJoin k240 k252) (cardJoin k264 k276))) (cardJoin (cardJoin (cardJoin k288 k300) (cardJoin k312 k324)) (cardJoin (cardJoin k336 k348) (cardJoin k360 k372))))) (cardJoin (cardJoin (cardJoin (cardJoin (cardJoin k384 k396) (cardJoin k408 k420)) (cardJoin (cardJoin k432 k444) (cardJoin k456 k468))) (cardJoin (cardJoin (cardJoin k480 k492) (cardJoin k504 k516)) (cardJoin (cardJoin k528 k540) (cardJoin k552 k564)))) (cardJoin (cardJoin (cardJoin (cardJoin k576 k588) (cardJoin k600 k612)) (cardJoin (cardJoin k624 k636) (cardJoin k648 k660))) (cardJoin (cardJoin (cardJoin k672 k684) (cardJoin k696 k708)) (cardJoin (cardJoin k720 k732) (cardJoin k744 k756))))))
+set_option maxHeartbeats 0 in
+private theorem k3 : (List.range' 570 189).all cb = true := by decide +kernel
 private lemma cardBlock (j : Fin 759) : (block j).card = 8 := by
-  have h := cardAll j (Nat.zero_le _) j.isLt
-  simpa [cardOK,j.isLt] using h
+  have hj := j.isLt
+  have : cb j = true := if h : j.val < 190 then of_all k0 (Nat.zero_le _) h else
+    if h1 : j.val < 380 then of_all k1 (by omega) h1 else if h2 : j.val < 570 then of_all k2 (by omega) h2 else
+    of_all k3 (by omega) (by omega)
+  simpa [cb, hj] using this
 private lemma cover (R : Finset (Fin 24)) (hR : R.card = 5) : (B.filter (R ⊆ ·)).card = 1 := by
   let f := R.orderEmbOfFin hR
   have h₁ : (f 1).val < (f 2).val := f.strictMono (by decide : (1 : Fin 5) < 2)
   have h₂ : (f 2).val < (f 3).val := f.strictMono (by decide : (2 : Fin 5) < 3)
   have h₃ : (f 3).val < (f 4).val := f.strictMono (by decide : (3 : Fin 5) < 4)
   have h₀ : (f 0).val < (f 1).val := f.strictMono (by decide : (0 : Fin 5) < 1)
-  have H := checked (f 4)
+  have H := checked _ (f 4).isLt
   simp only [check,List.all_eq_true,List.mem_range] at H
   have he := of_decide_eq_true (H _ h₃ _ h₂ _ h₁ _ h₀)
   let w := meet (f 4) (f 3) (f 2) (f 1) (f 0)

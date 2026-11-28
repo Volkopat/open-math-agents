@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_228227
 import Mathlib
 
+-- Original Lean proof by @justusklocke-cloud (PR #9614); statement by
+-- @zarnab222-dev (PR #7863). Finite-set witness arguments use Mathlib.
+
 namespace MO228227Aux
 
 /-- `A` sits just below `B`: all of `A` except its top element `x` lies below the bottom
@@ -19,18 +22,9 @@ lemma chain {n : ℕ} {X Y Z : Finset (Fin n)} (hY : 3 ≤ Y.card)
   obtain ⟨x, hxX, y, hyY, hyx, hXy, hxY⟩ := h1
   obtain ⟨y', hy'Y, z, hzZ, hzy', hYz, hy'Z⟩ := h2
   obtain ⟨w, hwY, hwy, hwy'⟩ : ∃ w ∈ Y, w ≠ y ∧ w ≠ y' := by
-    by_contra hcon
-    have hsub : Y ⊆ {y, y'} := by
-      intro w hw
-      by_cases h : w = y
-      · simp [h]
-      · have h' : w = y' := by
-          by_contra hne
-          exact hcon ⟨w, hw, h, hne⟩
-        simp [h']
-    have hle := Finset.card_le_card hsub
-    have h2 : ({y, y'} : Finset (Fin n)).card ≤ 2 := Finset.card_le_two
-    omega
+    simpa using Finset.exists_mem_notMem_of_card_lt_card
+      (lt_of_le_of_lt (show ({y, y'} : Finset (Fin n)).card ≤ 2 from Finset.card_le_two)
+        (by omega : 2 < Y.card))
   have hxw : x < w := hxY w hwY hwy
   have hwz : w < z := hYz w hwY hwy'
   have hxz : x < z := lt_trans hxw hwz
@@ -49,15 +43,7 @@ lemma not_red_of_below {n : ℕ} {X Z : Finset (Fin n)} (hX : 2 ≤ X.card)
     (h : ∀ a ∈ X, ∀ c ∈ Z, a < c) : ¬ red X Z := by
   rintro (⟨x, hxX, z, hzZ, hzx, -, -⟩ | ⟨z, hzZ, x, hxX, hxz, -, hzX⟩)
   · exact lt_asymm (h x hxX z hzZ) hzx
-  · obtain ⟨a, haX, hax⟩ : ∃ a ∈ X, a ≠ x := by
-      by_contra hcon
-      have hsub : X ⊆ {x} := by
-        intro a ha
-        by_contra hne
-        exact hcon ⟨a, ha, fun h => hne (by simp [h])⟩
-      have hle := Finset.card_le_card hsub
-      rw [Finset.card_singleton] at hle
-      omega
+  · obtain ⟨a, haX, hax⟩ := Finset.exists_mem_ne (by omega : 1 < X.card) x
     exact lt_asymm (h a haX z hzZ) (hzX a haX hax)
 
 lemma no_triangle {n : ℕ} {A B C : Finset (Fin n)}
@@ -143,12 +129,10 @@ lemma exists_red {n k : ℕ} (hk : 2 ≤ k) (S : Finset (Fin n)) (hS : S.card = 
   · intro a ha
     obtain ⟨i, -, rfl⟩ := Finset.mem_image.mp ha
     exact hfS _
-  · have hinj : Function.Injective (fun i => f (gA k i)) :=
-      fun i j h => gA_inj k (hfinj h)
-    rw [Finset.card_image_of_injective _ hinj, Finset.card_univ, Fintype.card_fin]
-  · have hinj : Function.Injective (fun i => f (gB k i)) :=
-      fun i j h => gB_inj k (hfinj h)
-    rw [Finset.card_image_of_injective _ hinj, Finset.card_univ, Fintype.card_fin]
+  · simpa [Function.comp_def] using
+      Finset.card_image_of_injective Finset.univ (hfinj.comp (gA_inj k))
+  · simpa [Function.comp_def] using
+      Finset.card_image_of_injective Finset.univ (hfinj.comp (gB_inj k))
   · rw [Finset.disjoint_left]
     intro a ha hb
     obtain ⟨i, -, rfl⟩ := Finset.mem_image.mp ha

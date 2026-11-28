@@ -193,33 +193,6 @@ theorem abs_sum_log_div_sub_log_le_nat (N : ℕ) :
   have h4 : 0 ≤ Real.log 4 := Real.log_nonneg (by norm_num)
   rw [abs_le]; unfold mertens1Const; constructor <;> linarith
 
-theorem log_le_log_floor_add (x : ℝ) (hx : 1 ≤ x) :
-    Real.log ⌊x⌋₊ ≤ Real.log x ∧ Real.log x ≤ Real.log ⌊x⌋₊ + Real.log 2 := by
-  have hN1 : 1 ≤ ⌊x⌋₊ := Nat.one_le_floor_iff _ |>.mpr hx
-  have hN : (1 : ℝ) ≤ ⌊x⌋₊ := by exact_mod_cast hN1
-  have hle : (⌊x⌋₊ : ℝ) ≤ x := Nat.floor_le (by linarith)
-  have hlt : x < ⌊x⌋₊ + 1 := Nat.lt_floor_add_one x
-  constructor
-  · exact Real.log_le_log (by linarith) hle
-  · rw [← Real.log_mul (by linarith) (by norm_num)]
-    apply Real.log_le_log (by linarith)
-    linarith
-
-/-- **Mertens' first theorem.** For real `x ≥ 1`,
-`|∑_{p ≤ x} log p / p - log x| ≤ log 4 + log 2 + 1 + primePowerConst`. -/
-theorem abs_sum_log_div_sub_log_le (x : ℝ) (hx : 1 ≤ x) :
-    |∑ p ∈ Nat.primesLE ⌊x⌋₊, Real.log p / p - Real.log x| ≤ mertens1Const + Real.log 2 := by
-  have h := abs_sum_log_div_sub_log_le_nat ⌊x⌋₊
-  obtain ⟨h1, h2⟩ := log_le_log_floor_add x hx
-  have h3 : 0 ≤ Real.log 2 := Real.log_nonneg (by norm_num)
-  rw [abs_le] at h ⊢
-  constructor <;> linarith [h.1, h.2]
-
-/-- **Mertens' first theorem**, existential form. -/
-theorem mertens1 : ∃ C : ℝ, ∀ x : ℝ, 2 ≤ x →
-    |∑ p ∈ Nat.primesLE ⌊x⌋₊, Real.log p / p - Real.log x| ≤ C :=
-  ⟨mertens1Const + Real.log 2, fun x hx => abs_sum_log_div_sub_log_le x (by linarith)⟩
-
 theorem sum_succ_eq (N : ℕ) (f : ℕ → ℝ) :
     ∑ p ∈ Nat.primesLE (N + 1), f p =
       (∑ p ∈ Nat.primesLE N, f p) + if (N + 1).Prime then f (N + 1) else 0 := by
@@ -322,7 +295,6 @@ open Filter Finset Real Asymptotics
 open scoped Topology BigOperators
 open OMALib.Mertens
 namespace Mass377
-noncomputable abbrev S (x : ℝ) := ∑ p ∈ Nat.primesLE ⌊x⌋₊, (1:ℝ)/p
 lemma Cpos : 0 ≤ mertens1Const := by
   exact (abs_nonneg _).trans (abs_sum_log_div_sub_log_le_nat 2)
 lemma Gdiff (m n : ℕ) (hm : 2 ≤ m) (hn : m ≤ n) :

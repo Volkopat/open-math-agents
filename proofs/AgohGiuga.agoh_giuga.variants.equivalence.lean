@@ -49,22 +49,8 @@ private lemma den_intCast_div_natCast_dvd (a : ℤ) (d : ℕ) :
 
 private lemma coprime_den_natCast_mul {n : ℕ} (hn : n ≠ 0) (q : ℚ) (hq : Squarefree q.den) :
     n.Coprime ((n : ℚ) * q).den := by
-  let g := q.den.gcd n
-  obtain ⟨d, hd⟩ : g ∣ q.den := Nat.gcd_dvd_left _ _
-  obtain ⟨m, hm⟩ : g ∣ n := Nat.gcd_dvd_right _ _
-  have hg : 0 < g := Nat.gcd_pos_of_pos_left _ q.pos
-  have hd' : q.den / g = d := by rw [hd, Nat.mul_div_cancel_left _ hg]
-  have hc : n.Coprime d := by
-    simpa only [← hd'] using (Nat.coprime_div_gcd_of_squarefree (n := n) hq hn).symm
-  have hfrac : (n : ℚ) * q = ((↑(m * q.num) : ℚ) / d) := by
-    have hg' : (g : ℚ) ≠ 0 := by exact_mod_cast hg.ne'
-    have hd0 : d ≠ 0 := fun e => q.den_nz (by simp [hd, e])
-    have hd0' : (d : ℚ) ≠ 0 := by exact_mod_cast hd0
-    conv_lhs => rw [← Rat.num_div_den q]
-    push_cast [hd, hm]
-    field_simp [hg', hd0']
-  rw [hfrac]
-  exact hc.of_dvd_right (den_intCast_div_natCast_dvd _ _)
+  simpa [Rat.mul_den, Int.natAbs_mul, q.reduced.gcd_mul_right_cancel, Nat.gcd_comm n q.den] using
+    (Nat.coprime_div_gcd_of_squarefree (n := n) hq hn).symm
 
 private lemma dvd_of_coprime_fraction_den {a : ℤ} {n d : ℕ} (hd : d ≠ 0)
     (hnd : n ∣ d) (hc : n.Coprime ((a : ℚ) / d).den) : (n : ℤ) ∣ a := by

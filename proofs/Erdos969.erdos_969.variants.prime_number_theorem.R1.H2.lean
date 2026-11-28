@@ -1,13 +1,14 @@
 import OMAReductions.R_Erdos969_erdos_969_variants_prime_number_theorem_R1
 import Mathlib.Data.Nat.Factorization.Root
 
+open Finset
 /-! Adapted from the Möbius indicator in the checked proof of Erdős 121.
 Only square divisors with square root at most √x can contribute. -/
 open ArithmeticFunction Finset
 open scoped Moebius
 private theorem mobius_indicator (n N : ℕ) (hn : 0 < n) (hN : n ≤ N) :
     (if Squarefree n then (1 : ℤ) else 0) =
-      ∑ d ∈ Finset.Ioc 0 N, if d ^ 2 ∣ n then (μ d : ℤ) else 0 := by
+      ∑ d ∈ Ioc 0 N, if d ^ 2 ∣ n then (μ d : ℤ) else 0 := by
   classical
   let r := Nat.floorRoot 2 n
   have hr : 0 < r := Nat.pos_of_ne_zero (Nat.floorRoot_ne_zero.mpr ⟨by decide, hn.ne'⟩)
@@ -22,9 +23,9 @@ private theorem mobius_indicator (n N : ℕ) (hn : 0 < n) (hN : n ≤ N) :
       have hd' : d ∣ r := Nat.pow_dvd_iff_dvd_floorRoot.mp (by simpa only [pow_two] using hd)
       rw [he] at hd'
       exact Nat.isUnit_iff.mpr (Nat.dvd_one.mp hd')
-  have hfilter : (Finset.Ioc 0 N).filter (fun d => d ^ 2 ∣ n) = r.divisors := by
+  have hfilter : (Ioc 0 N).filter (fun d => d ^ 2 ∣ n) = r.divisors := by
     ext d
-    simp only [Finset.mem_filter, Finset.mem_Ioc, Nat.mem_divisors, Nat.pow_dvd_iff_dvd_floorRoot]
+    simp only [mem_filter, mem_Ioc, Nat.mem_divisors, Nat.pow_dvd_iff_dvd_floorRoot]
     change (0 < d ∧ d ≤ N) ∧ d ∣ r ↔ d ∣ r ∧ r ≠ 0
     constructor
     · exact fun hd => ⟨hd.2, hr.ne'⟩
@@ -35,30 +36,30 @@ private theorem mobius_indicator (n N : ℕ) (hn : 0 < n) (hN : n ≤ N) :
     · simp [he, hfree.mpr he]
     · have hf : ¬Squarefree n := fun hs => he (hfree.mp hs)
       simp [he, hf]
-  rw [hif, ← Finset.sum_filter, hfilter]
+  rw [hif, ← sum_filter, hfilter]
   have hm := congrArg (fun f : ArithmeticFunction ℤ => f r) moebius_mul_coe_zeta
   change (μ * ArithmeticFunction.zeta : ArithmeticFunction ℤ) r = (1 : ArithmeticFunction ℤ) r at hm
   rw [coe_mul_zeta_apply, one_apply] at hm
   exact_mod_cast hm.symm
 
 private theorem count_formula (N : ℕ) :
-    (((Finset.Ioc 0 N).filter Squarefree).card : ℤ) =
-      ∑ d ∈ Finset.Ioc 0 N, (μ d : ℤ) * ((N / d ^ 2 : ℕ) : ℤ) := by
+    (((Ioc 0 N).filter Squarefree).card : ℤ) =
+      ∑ d ∈ Ioc 0 N, (μ d : ℤ) * ((N / d ^ 2 : ℕ) : ℤ) := by
   classical
-  have hcard : (((Finset.Ioc 0 N).filter Squarefree).card : ℤ) =
-      ∑ _n ∈ (Finset.Ioc 0 N).filter Squarefree, (1 : ℤ) := by
-    simp [Finset.sum_const]
-  rw [hcard, Finset.sum_filter]
+  have hcard : (((Ioc 0 N).filter Squarefree).card : ℤ) =
+      ∑ _n ∈ (Ioc 0 N).filter Squarefree, (1 : ℤ) := by
+    simp [sum_const]
+  rw [hcard, sum_filter]
   calc
-    _ = ∑ n ∈ Finset.Ioc 0 N, ∑ d ∈ Finset.Ioc 0 N, if d ^ 2 ∣ n then (μ d : ℤ) else 0 := by
-      refine Finset.sum_congr rfl (fun n hn => ?_)
-      obtain ⟨hp, hN⟩ := Finset.mem_Ioc.mp hn
+    _ = ∑ n ∈ Ioc 0 N, ∑ d ∈ Ioc 0 N, if d ^ 2 ∣ n then (μ d : ℤ) else 0 := by
+      refine sum_congr rfl (fun n hn => ?_)
+      obtain ⟨hp, hN⟩ := mem_Ioc.mp hn
       exact mobius_indicator n N hp hN
-    _ = ∑ d ∈ Finset.Ioc 0 N, ∑ n ∈ Finset.Ioc 0 N, if d ^ 2 ∣ n then (μ d : ℤ) else 0 :=
-      Finset.sum_comm
+    _ = ∑ d ∈ Ioc 0 N, ∑ n ∈ Ioc 0 N, if d ^ 2 ∣ n then (μ d : ℤ) else 0 :=
+      sum_comm
     _ = _ := by
-      refine Finset.sum_congr rfl (fun d _ => ?_)
-      rw [← Finset.sum_filter, Finset.sum_const, nsmul_eq_mul, Nat.Ioc_filter_dvd_card_eq_div, mul_comm]
+      refine sum_congr rfl (fun d _ => ?_)
+      rw [← sum_filter, sum_const, nsmul_eq_mul, Nat.Ioc_filter_dvd_card_eq_div, mul_comm]
 
 theorem OMA.solution : OMA.R_Erdos969_erdos_969_variants_prime_number_theorem_R1.H2 := by
   intro x
@@ -66,7 +67,7 @@ theorem OMA.solution : OMA.R_Erdos969_erdos_969_variants_prime_number_theorem_R1
   unfold Erdos969.squarefreeCounting
   rw [he, count_formula, he]
   symm
-  apply Finset.sum_subset_zero_on_sdiff (s₁ := Ioc 0 (Nat.sqrt x)) (s₂ := Ioc 0 x) <;> try exact fun _ _ => rfl
+  apply sum_subset_zero_on_sdiff (s₁ := Ioc 0 (Nat.sqrt x)) (s₂ := Ioc 0 x) <;> try exact fun _ _ => rfl
   · exact Ioc_subset_Ioc le_rfl (Nat.sqrt_le_self x)
   · intro d hd
     have hm := mem_sdiff.mp hd

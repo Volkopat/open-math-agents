@@ -280,18 +280,6 @@ theorem not_eventual_iff_unbounded :
   simp only [EventualRepresentation, Filter.eventually_atTop, UnboundedExceptions,
     Exceptional, not_exists, not_forall, exists_prop]
 
-theorem unbounded_iff_infinite :
-    UnboundedExceptions ↔ Set.Infinite {n : ℕ | Exceptional n} := by
-  constructor
-  · intro h
-    apply Set.infinite_of_forall_exists_gt
-    intro m
-    obtain ⟨n, hn, he⟩ := h (m + 1)
-    exact ⟨n, he, by omega⟩
-  · intro h N
-    obtain ⟨n, hn, hnN⟩ := h.exists_gt N
-    exact ⟨n, le_of_lt hnN, hn⟩
-
 noncomputable def dyadicExceptions (X : ℕ) : Finset ℕ :=
   @Finset.filter ℕ Exceptional (Classical.decPred Exceptional) (Finset.Ioc X (2 * X))
 
@@ -316,60 +304,6 @@ open scoped BigOperators
 
 namespace Erdos676
 
-
-theorem restricted_mass_lower_bound {ι : Type*} [DecidableEq ι]
-    (I U : Finset ι) (f : ι → ℝ) (hUI : U ⊆ I)
-    (hf : ∀ x ∈ I, 0 ≤ f x) :
-    (∑ x ∈ I, f x) -
-        Real.sqrt ((I \ U).card * ∑ x ∈ I, (f x) ^ 2) ≤
-      ∑ x ∈ U, f x := by
-  have hsplit : (∑ x ∈ I \ U, f x) + (∑ x ∈ U, f x) = ∑ x ∈ I, f x :=
-    Finset.sum_sdiff hUI
-  have hcs := sq_sum_le_card_mul_sum_sq (s := I \ U) (f := f)
-  have hsquares : (∑ x ∈ I \ U, (f x) ^ 2) ≤ ∑ x ∈ I, (f x) ^ 2 :=
-    Finset.sum_le_sum_of_subset_of_nonneg Finset.sdiff_subset
-      (fun x _ _ => sq_nonneg (f x))
-  have hcard : (0 : ℝ) ≤ (I \ U).card := Nat.cast_nonneg _
-  have hnonneg : 0 ≤ ((I \ U).card : ℝ) * ∑ x ∈ I, (f x) ^ 2 :=
-    mul_nonneg hcard (Finset.sum_nonneg (fun x _ => sq_nonneg (f x)))
-  have hbound : (∑ x ∈ I \ U, f x) ≤
-      Real.sqrt ((I \ U).card * ∑ x ∈ I, (f x) ^ 2) := by
-    apply (Real.le_sqrt (Finset.sum_nonneg (fun x hx => hf x (Finset.mem_sdiff.mp hx).1))
-      hnonneg).mpr
-    exact hcs.trans (mul_le_mul_of_nonneg_left hsquares hcard)
-  linarith
-
-
-theorem mass_le_card {ι : Type*} (S : Finset ι) (f : ι → ℝ)
-    (h : ∀ x ∈ S, f x ≤ 1) : ∑ x ∈ S, f x ≤ S.card := by
-  simpa using Finset.sum_le_sum h
-
-
-theorem positive_restricted_mass_of_moment_gap {ι : Type*} [DecidableEq ι]
-    (I U : Finset ι) (f : ι → ℝ) (hUI : U ⊆ I)
-    (hf : ∀ x ∈ I, 0 ≤ f x)
-    (hfirst : 0 < ∑ x ∈ I, f x)
-    (hgap : ((I \ U).card : ℝ) * (∑ x ∈ I, (f x) ^ 2) <
-      (∑ x ∈ I, f x) ^ 2) :
-    0 < ∑ x ∈ U, f x := by
-  have hsplit := Finset.sum_sdiff (f := f) hUI
-  have hcs := sq_sum_le_card_mul_sum_sq (s := I \ U) (f := f)
-  have hsq : (∑ x ∈ I \ U, (f x) ^ 2) ≤ ∑ x ∈ I, (f x) ^ 2 :=
-    Finset.sum_le_sum_of_subset_of_nonneg Finset.sdiff_subset
-      (fun x _ _ => sq_nonneg (f x))
-  have hupper := hcs.trans (mul_le_mul_of_nonneg_left hsq (Nat.cast_nonneg _))
-  have hnonneg : 0 ≤ ∑ x ∈ I \ U, f x :=
-    Finset.sum_nonneg fun x hx => hf x (Finset.mem_sdiff.mp hx).1
-  by_contra h
-  have hu : (∑ x ∈ U, f x) ≤ 0 := le_of_not_gt h
-  nlinarith
-
-
-theorem scalar_moment_gap {d e : ℝ} (hd : 0 ≤ d) (he : 0 ≤ e)
-    (hsmall : 3 * e < d) :
-    (1 - d) * (1 + e) < (1 - e) ^ 2 := by
-  have : 0 ≤ d * e := mul_nonneg hd he
-  nlinarith [sq_nonneg e]
 
 end Erdos676
 end
@@ -525,11 +459,6 @@ theorem overlap_le_card (A : Finset G) (k : G) : overlap A k ≤ A.card := by
     _ ≤ ∑ _x ∈ A, 1 := Finset.sum_le_sum fun x hx => by split_ifs <;> omega
     _ = A.card := by simp
 
-omit [Fintype G] in
-theorem overlap_zero (A : Finset G) : overlap A 0 = A.card := by
-  simp [overlap]
-
-
 theorem sum_overlap (A : Finset G) : ∑ k : G, overlap A k = A.card ^ 2 := by
   classical
   unfold overlap
@@ -572,16 +501,6 @@ theorem periodic_count_decomposition (p : ℕ → Prop) [DecidablePred p] (m N :
     funext j
     simpa [Nat.add_comm] using (hp.nat_mul (N / m)) j
   simp [hshift]
-
-theorem periodic_count_bounds (p : ℕ → Prop) [DecidablePred p] (m N : ℕ)
-    (hm : 0 < m) (hp : Function.Periodic p m) :
-    (N / m) * Nat.count p m ≤ Nat.count p N ∧
-      Nat.count p N ≤ (N / m + 1) * Nat.count p m := by
-  have hr : Nat.count p (N % m) ≤ Nat.count p m :=
-    Nat.count_monotone p (Nat.mod_lt N hm).le
-  rw [periodic_count_decomposition p m N hp]
-  constructor <;> nlinarith
-
 
 theorem periodic_count_scaled_error (p : ℕ → Prop) [DecidablePred p] (m N : ℕ)
     (hm : 0 < m) (hp : Function.Periodic p m) :
@@ -756,71 +675,6 @@ theorem mem_smallResidues (p n : ℕ) (hp : 1 ≤ p) :
     refine ⟨n % p ^ 2, Finset.mem_range.mpr hn, ?_⟩
     exact (ZMod.natCast_eq_natCast_iff _ _ _).mpr (Nat.mod_mod _ _)
 
-theorem prime_square_condition_count_period (s : Finset ℕ)
-    (hs : ∀ p ∈ s, p.Prime) :
-    @Nat.count (fun n => ∀ p ∈ s, n % p ^ 2 < p) (Classical.decPred _)
-      ((∏ p ∈ s, p) ^ 2) = ∏ p ∈ s, p := by
-  classical
-  let m (p : s) := (p.val) ^ 2
-  let A (p : s) := smallResidues p.val
-  have hm : ∀ p : s, 0 < m p := fun p => pow_pos (hs p p.property).pos _
-  have hc : Pairwise (fun p q : s => (m p).Coprime (m q)) := by
-    intro p q hpq
-    exact ((Nat.coprime_primes (hs p p.property) (hs q q.property)).mpr
-      (Subtype.coe_ne_coe.mpr hpq)).pow 2 2
-  have hpredicate : residueCondition m A = (fun n => ∀ p ∈ s, n % p ^ 2 < p) := by
-    funext n
-    apply propext
-    constructor
-    · intro hn p hp
-      exact (mem_smallResidues p n (hs p hp).one_lt.le).mp (hn ⟨p, hp⟩)
-    · intro hn p
-      exact (mem_smallResidues p n (hs p p.property).one_lt.le).mpr (hn p p.property)
-  have h := residueCondition_count_period m A hm hc
-  rw [hpredicate] at h
-  have hcard : ∀ p : s, (A p).card = p.val := fun p =>
-    smallResidues_card p (hs p p.property).one_lt.le
-  simp only [hcard, m, Finset.prod_pow] at h
-  have hprod : (∏ p : s, (p : ℕ)) = ∏ p ∈ s, p :=
-    Finset.prod_coe_sort s (fun p : ℕ => p)
-  rwa [hprod] at h
-
-theorem prime_square_condition_periodic (s : Finset ℕ) :
-    Function.Periodic (fun n => ∀ p ∈ s, n % p ^ 2 < p) ((∏ p ∈ s, p) ^ 2) := by
-  intro n
-  apply propext
-  apply forall_congr'
-  intro p
-  apply forall_congr'
-  intro hp
-  have hd : p ^ 2 ∣ (∏ q ∈ s, q) ^ 2 :=
-    pow_dvd_pow_of_dvd (Finset.dvd_prod_of_mem (fun q : ℕ => q) hp) 2
-  rw [Nat.add_mod, Nat.mod_eq_zero_of_dvd hd, Nat.add_zero, Nat.mod_mod]
-
-
-theorem prime_square_interval_scaled_error (s : Finset ℕ)
-    (hs : ∀ p ∈ s, p.Prime) (S N : ℕ) :
-    |(((∏ p ∈ s, p) ^ 2 : ℕ) : ℤ) *
-        @Nat.count (fun j => ∀ p ∈ s, (S + j) % p ^ 2 < p) (Classical.decPred _) N -
-      (N : ℤ) * (∏ p ∈ s, p : ℕ)| ≤
-      (((∏ p ∈ s, p) ^ 2 : ℕ) : ℤ) * (∏ p ∈ s, p : ℕ) := by
-  classical
-  have hm : 0 < ∏ p ∈ s, p := Finset.prod_pos (fun p hp => (hs p hp).pos)
-  have h := periodic_interval_count_scaled_error
-    (fun n => ∀ p ∈ s, n % p ^ 2 < p) ((∏ p ∈ s, p) ^ 2) S N
-    (pow_pos hm _) (prime_square_condition_periodic s)
-  have hcount : Nat.count (fun n => ∀ p ∈ s, n % p ^ 2 < p)
-      ((∏ p ∈ s, p) ^ 2) = ∏ p ∈ s, p := by
-    convert prime_square_condition_count_period s hs using 1
-    exact congrArg (fun D : DecidablePred _ => @Nat.count _ D _)
-      (Subsingleton.elim _ _)
-  rw [hcount] at h
-  convert h using 1
-  congr 2
-  congr 2
-  exact congrArg (fun D : DecidablePred _ => @Nat.count _ D _)
-    (Subsingleton.elim _ _)
-
 end Erdos676
 end
 
@@ -830,18 +684,6 @@ open scoped BigOperators
 namespace Erdos676
 
 noncomputable def normalizedFactor (p a : ℝ) : ℝ := 1 + (a - 1) / (p - 1) ^ 2
-
-theorem normalizedFactor_formula (p a : ℝ) (hp : 2 ≤ p) :
-    normalizedFactor p a = (1 - 2 / p + a / p ^ 2) / (1 - 1 / p) ^ 2 := by
-  have hp0 : p ≠ 0 := by linarith
-  have hp1 : p - 1 ≠ 0 := by linarith
-  have hi : 1 - 1 / p ≠ 0 := by
-    intro h
-    have := (div_eq_one_iff_eq hp0).mp (by linarith : 1 / p = 1)
-    linarith
-  unfold normalizedFactor
-  field_simp [hp0, hp1, hi]
-  <;> ring
 
 theorem normalizedFactor_nonneg {p a : ℝ} (hp : 2 ≤ p) (ha : 0 ≤ a) :
     0 ≤ normalizedFactor p a := by
@@ -923,12 +765,6 @@ end AddGroup
 noncomputable def twoPositionResidues (p : ℕ) (k : ZMod (p ^ 2)) :
     Finset (ZMod (p ^ 2)) := smallResidues p ∪ translatedBack (smallResidues p) k
 
-theorem mem_twoPositionResidues (p : ℕ) (hp : 1 ≤ p) (k n : ℕ) :
-    (n : ZMod (p ^ 2)) ∈ twoPositionResidues p (k : ZMod (p ^ 2)) ↔
-      n % p ^ 2 < p ∨ (n + k) % p ^ 2 < p := by
-  simp only [twoPositionResidues, Finset.mem_union, mem_translatedBack,
-    mem_smallResidues p n hp, ← Nat.cast_add, mem_smallResidues p (n + k) hp]
-
 theorem twoPositionResidues_card (p : ℕ) (hp : 1 ≤ p) (k : ZMod (p ^ 2)) :
     (twoPositionResidues p k).card + overlap (smallResidues p) k = 2 * p := by
   rw [twoPositionResidues, two_position_card, smallResidues_card p hp]
@@ -945,17 +781,6 @@ theorem twoPositionDensity_formula (p : ℕ) (hp : 1 ≤ p) (k : ZMod (p ^ 2)) :
   unfold twoPositionDensity
   field_simp
   nlinarith
-
-theorem twoPositionDensity_bounds (p : ℕ) (hp : 1 ≤ p) (k : ZMod (p ^ 2)) :
-    0 ≤ twoPositionDensity p k ∧ twoPositionDensity p k ≤ 2 / p := by
-  have hp0 : (0 : ℝ) < p := by exact_mod_cast (by omega : 0 < p)
-  constructor
-  · unfold twoPositionDensity
-    positivity
-  · rw [twoPositionDensity_formula p hp k]
-    have h : (0 : ℝ) ≤ overlap (smallResidues p) k := Nat.cast_nonneg _
-    have := div_nonneg h (sq_nonneg (p : ℝ))
-    linarith
 
 theorem twoPositionDensity_le_one (p : ℕ) (hp : 1 ≤ p) (k : ZMod (p ^ 2)) :
     twoPositionDensity p k ≤ 1 := by
@@ -1072,10 +897,6 @@ noncomputable def boxSmooth (H : ℕ) : ℕ → (ℤ → ℂ) → (ℤ → ℂ)
   | 0, f => f
   | J + 1, f => boxMean H (boxSmooth H J f)
 
-theorem boxMean_add (H : ℕ) (f g : ℤ → ℂ) (n : ℤ) :
-    boxMean H (fun k => f k + g k) n = boxMean H f n + boxMean H g n := by
-  simp only [boxMean, Finset.sum_add_distrib, add_div]
-
 theorem boxMean_const_mul (H : ℕ) (c : ℂ) (f : ℤ → ℂ) (n : ℤ) :
     boxMean H (fun k => c * f k) n = c * boxMean H f n := by
   simp only [boxMean, ← Finset.mul_sum]
@@ -1123,17 +944,6 @@ theorem norm_boxMultiplier_decay (H : ℕ) (hH : 0 < H) (χ : AddChar ℤ ℂ)
   unfold boxMultiplier
   rw [hgeom, norm_div, norm_div, Complex.norm_natCast, div_div]
   simpa only [mul_comm] using div_le_div_of_nonneg_right hnum (mul_pos hdiff hHreal).le
-
-theorem norm_boxSmooth_character_le (H J : ℕ) (hH : 0 < H) (χ : AddChar ℤ ℂ)
-    (hχ : ∀ n, ‖χ n‖ = 1) (n : ℤ) : ‖boxSmooth H J χ n‖ ≤ 1 := by
-  rw [boxSmooth_character, norm_mul, norm_pow, hχ, mul_one]
-  exact pow_le_one₀ (norm_nonneg _) (norm_boxMultiplier_le_one H hH χ hχ)
-
-theorem norm_boxSmooth_character_decay (H J : ℕ) (hH : 0 < H) (χ : AddChar ℤ ℂ)
-    (hχ : ∀ n, ‖χ n‖ = 1) (hχ1 : χ 1 ≠ 1) (n : ℤ) :
-    ‖boxSmooth H J χ n‖ ≤ (2 / ((H : ℝ) * ‖χ 1 - 1‖)) ^ J := by
-  rw [boxSmooth_character, norm_mul, norm_pow, hχ, mul_one]
-  exact pow_le_pow_left₀ (norm_nonneg _) (norm_boxMultiplier_decay H hH χ hχ hχ1) J
 
 end Erdos676
 end
@@ -1260,13 +1070,6 @@ theorem pair_character_sum_norm_le (L : ℕ) (χ : AddChar ℤ ℂ) (hχ : ∀ n
   rw [pair_character_sum_norm L χ hχ]
   exact pow_le_pow_left₀ (norm_nonneg _) (character_sum_norm_le L χ hχ) 2
 
-theorem pair_character_sum_decay (L : ℕ) (χ : AddChar ℤ ℂ)
-    (hχ : ∀ n, ‖χ n‖ = 1) (hχ1 : χ 1 ≠ 1) :
-    ‖∑ a ∈ Finset.range L, ∑ b ∈ Finset.range L, χ ((a : ℤ) - b)‖ ≤
-      (2 / ‖χ 1 - 1‖) ^ 2 := by
-  rw [pair_character_sum_norm L χ hχ]
-  exact pow_le_pow_left₀ (norm_nonneg _) (character_sum_decay L χ hχ hχ1) 2
-
 end Erdos676
 end
 
@@ -1385,76 +1188,9 @@ open Finset Interval MeasureTheory
 variable {𝕜 : Type*} [RCLike 𝕜] {f : ℝ → 𝕜} {a b : ℝ}
 
 
-noncomputable def B1 (x : ℝ) : ℝ := x - ⌊x⌋₊ - 1 / 2
-
-lemma aestronglyMeasurable_B1 : AEStronglyMeasurable B1 := by
-  unfold B1
-  fun_prop
-
-lemma abs_B1_le_half {x : ℝ} (hx : 0 ≤ x) : |B1 x| ≤ 1 / 2 := by
-  unfold B1
-  refine abs_le.mpr ⟨?_, ?_⟩
-  · grind [Nat.floor_le hx]
-  · grind [Nat.lt_succ_floor x]
-
-lemma integral_deriv_mul_add_const (c : 𝕜) (hab : a ≤ b) (h_int : IntervalIntegrable (deriv f) volume a b)
-    (hf_diff : ∀ t ∈ Set.Icc a b, DifferentiableAt ℝ f t) :
-    ∫ t in a..b, (t + c) * deriv f t = (b + c) * f b - (a + c) * f a - ∫ t in a..b, f t := by
-  rw [← Set.uIcc_of_le hab] at hf_diff
-  have : ∀ t ∈ [[a, b]], HasDerivAt (fun (t : ℝ) ↦ t + c) 1 t := by
-    intro t ht
-    simp only [hasDerivAt_add_const_iff]
-    convert! ContinuousLinearMap.hasDerivAt (RCLike.ofRealCLM (K := 𝕜)) using 1
-    simp
-  replace hf_diff := fun t ht ↦ (hf_diff t ht).hasDerivAt
-  rw [intervalIntegral.integral_mul_deriv_eq_deriv_mul this hf_diff (by simp) h_int]
-  simp
-
-lemma intervalIntegrable_deriv_mul_B1 (ha : 0 ≤ a) (hab : a ≤ b) (h_cont : ContinuousOn (deriv f) [[a, b]]) :
-    IntervalIntegrable (fun t ↦ deriv f t * B1 t) volume a b := by
-  refine IntervalIntegrable.continuousOn_mul ?_ h_cont
-  rw [intervalIntegrable_iff']
-  apply MeasureTheory.Measure.integrableOn_of_bounded (by simp)
-    (RCLike.continuous_ofReal.comp_aestronglyMeasurable aestronglyMeasurable_B1) (M := 1 / 2)
-  filter_upwards [self_mem_ae_restrict (by measurability)] with x hx
-  rw [Set.uIcc_of_le hab, Set.mem_Icc] at hx
-  norm_cast
-  exact abs_B1_le_half (by linarith)
-
-lemma integral_deriv_mul_floor_add_one (ha : 0 ≤ a) (hab : a ≤ b)
-    (hf_diff : ∀ t ∈ Set.Icc a b, DifferentiableAt ℝ f t) (h_cont : ContinuousOn (deriv f) [[a, b]]) :
-    ∫ t in a..b, deriv f t * (⌊t⌋₊ + 1) = (b + 1 / 2) * f b - (a + 1 / 2) * f a - (∫ t in a..b, f t) - ∫ t in a..b, deriv f t * B1 t := by
-  calc
-  _ = ∫ t in a..b, (deriv f t * (t + 1 / 2) -deriv f t * B1 t) := by
-    congr
-    ext
-    simp only [B1]
-    push_cast
-    ring
-  _ = (∫ t in a..b, deriv f t * (t + 1 / 2)) - ∫ t in a..b, deriv f t * B1 t := by
-    exact intervalIntegral.integral_sub (ContinuousOn.intervalIntegrable (by fun_prop)) (intervalIntegrable_deriv_mul_B1 ha hab h_cont)
-  _ = _ := by
-    conv => lhs; arg 1; arg 1; ext; rw [mul_comm]
-    rw [integral_deriv_mul_add_const _ hab h_cont.intervalIntegrable hf_diff]
-
-theorem sum_eq_integral_add_integral_deriv (ha : 0 ≤ a) (hab : a ≤ b)
-    (hf_diff : ∀ t ∈ Set.Icc a b, DifferentiableAt ℝ f t)
-    (h_cont : ContinuousOn (deriv f) [[a, b]]) :
-    ∑ k ∈ Ioc ⌊a⌋₊ ⌊b⌋₊, f k =
-      f a * B1 a - f b * B1 b + (∫ t in a..b, f t) + ∫ t in a..b, deriv f t * B1 t  := by
-  have := sum_mul_eq_sub_sub_integral_mul (fun _ ↦ 1) ha hab hf_diff (Set.uIcc_of_le hab ▸ h_cont).integrableOn_Icc
-  simp only [mul_one, sum_const, Nat.card_Icc, tsub_zero, nsmul_eq_mul, Nat.cast_add,
-    Nat.cast_one] at this
-  rw [this, ← intervalIntegral.integral_of_le hab]
-  rw [integral_deriv_mul_floor_add_one ha hab hf_diff h_cont]
-  unfold B1
-  push_cast
-  ring
 end
 
 section
-theorem Filter.EventuallyEq.iff_eventually {α : Type _} {β : Type _} {l : Filter α} {f g : α → β} : f =ᶠ[l] g ↔ ∀ᶠ (x : α) in l, f x = g x := by rfl
-
 namespace Real
 
 open Filter Asymptotics
@@ -1463,10 +1199,6 @@ theorem inv_log_eq_o_one : (fun x ↦ 1 / log x) =o[atTop] (fun _ ↦ (1:ℝ)) :
     rw [isLittleO_one_iff]
     convert tendsto_log_atTop.inv_tendsto_atTop using 1
     ext; simp
-
-theorem one_eq_o_log_log : (fun _ ↦ (1:ℝ)) =o[atTop] (fun x ↦ log (log x)) := by
-    simp only [isLittleO_one_left_iff, norm_eq_abs]
-    exact tendsto_abs_atTop_atTop.comp (tendsto_log_atTop.comp tendsto_log_atTop)
 
 end Real
 
@@ -1702,23 +1434,6 @@ lemma sum_Ioc_one_eq_sum_Ioc_zero {f : ℕ → ℝ} {x : ℕ} (hx : 1 ≤ x) (hf
   rw [(by rfl : Ioc 0 x = Icc 1 x), ← add_sum_Ioc_eq_sum_Icc hx]
   simpa
 
-theorem sum_log_eq {x : ℝ} (hx : 1 ≤ x) :
-    ∑ n ∈ Ioc 0 ⌊ x ⌋₊, log n =
-      x * log x - (x - ⌊x⌋₊ - 1 / 2) * log x - x + 1 + ∫ t in 1..x, (t - ⌊t⌋₊ - 1 / 2) / t := by
-  rw [← sum_Ioc_one_eq_sum_Ioc_zero (Nat.le_floor (by grind)) (by simp)]
-  have : 1 = ⌊(1 : ℝ)⌋₊ := by simp
-  nth_rw 1 [this]
-  rw [sum_eq_integral_add_integral_deriv (by norm_num) hx (fun _ _ ↦ (by fun_prop (disch := grind)))]
-  · simp only [log_one, B1, Nat.floor_one, Nat.cast_one, sub_self, zero_sub,
-    RCLike.ofReal_real_eq_id, id_eq, mul_neg, zero_mul, neg_zero, integral_log, mul_zero, sub_zero,
-    deriv_log']
-    ring_nf
-    congr
-    ext
-    ring
-  · simp only [deriv_log', Set.uIcc_of_le hx]
-    fun_prop (disch := grind)
-
 theorem sum_log_le {x : ℝ} (hx : 1 ≤ x) :
     ∑ n ∈ Ioc 0 ⌊ x ⌋₊, log n ≤ x * log x := by
   calc
@@ -1771,13 +1486,6 @@ theorem sum_log_ge {x : ℝ} (hx : 1 ≤ x) :
   _ ≥ x * log x - x - log x := by simp only [integral_log, log_one, mul_zero, sub_zero, ge_iff_le,
     tsub_le_iff_right, sub_add_cancel, le_add_iff_nonneg_right, zero_le_one]
   _ ≥ _ := by linarith [log_le_self (by linarith : 0 ≤ x)]
-
-theorem sum_log_eq_log_factorial (x : ℝ) :
-    ∑ n ∈ Ioc 0 ⌊ x ⌋₊, log n = log (Nat.floor x).factorial := by
-    rw [←prod_Ico_id_eq_factorial, ←log_prod, prod_natCast]
-    · congr
-    intro x hx
-    simp at hx ⊢; grind
 
 theorem sum_log_eq_sum_mangoldt {x : ℝ} :
     ∑ n ∈ Ioc 0 ⌊x⌋₊, log n = ∑ d ∈ Ioc 0 ⌊x⌋₊, Λ d * ⌊x / d⌋₊ := by
@@ -1837,15 +1545,6 @@ theorem E₁Λ.bounded : E₁Λ =O[atTop] (fun _ ↦ (1:ℝ)) := by
   simp only [isBigO_iff, norm_eq_abs, norm_one, mul_one,
     eventually_atTop]
   exact ⟨log 4 + 4, 1, fun _ hx ↦ sum_mangoldt_div_eq_log hx⟩
-
-theorem one_eq_o_log : (fun _ ↦ (1:ℝ)) =o[atTop] (fun x ↦ log x) := by
-    simp only [isLittleO_one_left_iff, norm_eq_abs]
-    exact tendsto_abs_atTop_atTop.comp tendsto_log_atTop
-
-theorem sum_mangoldt_div_eq_log' :
-    (fun x ↦ ∑ d ∈ Ioc 0 ⌊ x ⌋₊, (Λ d) / d) ~[atTop] (fun x ↦ log x) := by
-    apply IsLittleO.isEquivalent (IsBigO.trans_isLittleO _ one_eq_o_log)
-    convert! E₁Λ.bounded using 1
 
 noncomputable abbrev E₁p (x : ℝ) : ℝ := ∑ p ∈ Ioc 0 ⌊ x ⌋₊ with p.Prime, (log p) / p - log x
 
@@ -2006,9 +1705,6 @@ theorem E₁.le : E₁ ≤ (5 * log 2 + 3) / 4 := by
     ring_nf
     rfl
 
-theorem E₁.nonneg : E₁ ≥ 0 :=
-  tsum_nonneg E₁.summand_nonneg
-
 theorem E₁Λ.le_E₁p_add_E₁ {x : ℝ} (hx : 1 ≤ x) :
     E₁Λ x ≤ E₁p x + E₁ := by
   unfold E₁Λ E₁p
@@ -2066,15 +1762,6 @@ theorem sum_log_prime_div_eq_log {x : ℝ} (hx : 1 ≤ x) :
 
 theorem E₁p.bounded : ∃ c > 0, ∀ x ≥ 1, |E₁p x| ≤ c := by
   exact ⟨log 4 + 4, (by positivity), fun _ hx ↦ sum_log_prime_div_eq_log  hx⟩
-
-theorem sum_log_prime_div_eq_log' : E₁p =O[atTop] (fun _ ↦ (1:ℝ)) := by
-    simp only [isBigO_iff, norm_eq_abs, one_mem, CStarRing.norm_of_mem_unitary, mul_one,
-      eventually_atTop, E₁p]
-    exact ⟨ log 4 + 4, 1, fun _ ↦ sum_log_prime_div_eq_log ⟩
-
-theorem sum_log_prime_div_eq_log'' : (fun x ↦ ∑ p ∈ Ioc 0 ⌊ x ⌋₊ with p.Prime, (log p) / p) ~[atTop] (fun x ↦ log x) := by
-    apply IsLittleO.isEquivalent (IsBigO.trans_isLittleO _ one_eq_o_log)
-    convert! sum_log_prime_div_eq_log' using 1
 
 noncomputable abbrev γ : ℝ := (∫ t in Set.Ioi 2, E₁Λ t / (t * log t^2)) + 1 - log (log 2)
 
@@ -2977,29 +2664,6 @@ theorem deriv_gamma_add_γ_eq_zero : deriv Gamma 1 + γ = 0 := by
 theorem γ.eq_eulerMascheroni : γ = eulerMascheroniConstant := by
   linarith [Real.eulerMascheroniConstant_eq_neg_deriv, deriv_gamma_add_γ_eq_zero]
 
-theorem sum_mangoldt_div_log_eq (x : ℝ) : ∑ d ∈ Ioc 0 ⌊ x ⌋₊, (Λ d) / (d * log d) = log (log x) + eulerMascheroniConstant + E₂Λ x := by
-    grind [γ.eq_eulerMascheroni]
-
-theorem sum_mangoldt_div_log_eq_log_log : ∃ C, ∀ x, 2 ≤ x →
-    |∑ d ∈ Ioc 0 ⌊ x ⌋₊, (Λ d) / (d * log d) - log (log x)| ≤ C := by
-    use (log 4 + 6)/log 2 + |eulerMascheroniConstant|
-    intro x hx
-    rw [sum_mangoldt_div_log_eq]
-    calc
-      _ = |E₂Λ x + eulerMascheroniConstant| := by ring_nf
-      _ ≤ (log 4 + 6)/log x + |eulerMascheroniConstant| := by grw [abs_add_le, E₂Λ.abs_le hx]
-      _ ≤ _ := by gcongr
-
-theorem sum_mangoldt_div_log_eq_log_log' : (fun x ↦ ∑ d ∈ Ioc 0 ⌊ x ⌋₊, (Λ d) / (d * log d) - log (log x)) =O[atTop] (fun _ ↦ (1:ℝ)) := by
-    simp only [isBigO_iff, norm_eq_abs, one_mem, CStarRing.norm_of_mem_unitary, mul_one,
-      eventually_atTop]
-    obtain ⟨ C, _ ⟩ := sum_mangoldt_div_log_eq_log_log
-    use C, 2
-
-theorem sum_mangoldt_div_log_eq_log_log'' : (fun x ↦ ∑ d ∈ Ioc 0 ⌊ x ⌋₊, (Λ d) / (d * log d)) ~[atTop] (fun x ↦ log (log x)) := by
-    apply IsLittleO.isEquivalent (IsBigO.trans_isLittleO _ one_eq_o_log_log)
-    convert! sum_mangoldt_div_log_eq_log_log' using 1
-
 noncomputable def M : ℝ := (∫ t in Set.Ioi 2, E₁p t / (t * log t^2)) + 1 - log (log 2)
 
 theorem M.le : M ≤ (log 4 + 4) / log 2 + 1 - log (log 2) := calc
@@ -3096,29 +2760,6 @@ theorem E₂p.bound : E₂p =O[atTop] (fun x ↦ 1 / log x) := by
     grind [abs_of_pos this]
 
 theorem E₂p.bound' : E₂p =o[atTop] (fun _ ↦ (1:ℝ)) := E₂p.bound.trans_isLittleO inv_log_eq_o_one
-
-theorem sum_prime_div_eq_log_log : ∃ C, ∀ x, 2 ≤ x →
-    |∑ p ∈ Ioc 0 ⌊x⌋₊ with p.Prime, (1:ℝ) / p - log (log x)| ≤ C := by
-    use |M| + (log 4 + 6 + E₁) / log 2
-    intro x hx
-    rw [sum_prime_div_eq]
-    calc
-      _ = |M + E₂p x| := by ring_nf
-      _ ≤ |M| + (log 4 + 6 + E₁) / log x := by grw [abs_add_le, E₂p.abs_le hx]
-      _ ≤ _ := by
-        gcongr
-        have : 0 < log 4 := by apply log_pos; norm_num
-        linarith [E₁.nonneg]
-
-theorem sum_prime_div_eq_log_log' : (fun x ↦ ∑ p ∈ Ioc 0 ⌊x⌋₊ with p.Prime, (1:ℝ) / p - log (log x)) =O[atTop] (fun _ ↦ (1:ℝ)) := by
-    simp only [isBigO_iff, norm_eq_abs, one_mem, CStarRing.norm_of_mem_unitary, mul_one,
-      eventually_atTop]
-    obtain ⟨ C, hC ⟩ := sum_prime_div_eq_log_log
-    use C, 2
-
-theorem sum_prime_div_eq_log_log'' : (fun x ↦ ∑ p ∈ Ioc 0 ⌊x⌋₊ with p.Prime, (1:ℝ) / p) ~[atTop] (fun x ↦ log (log x)) := by
-    apply IsLittleO.isEquivalent (IsBigO.trans_isLittleO _ one_eq_o_log_log)
-    convert! sum_prime_div_eq_log_log' using 1
 
 lemma HasSum_log_one_sub_one_div_prime {p : ℕ} (hp : p.Prime) :
     HasSum (fun n : ℕ ↦ (-1 : ℝ) / (( n + 1) * p ^ (n + 1))) (log (1 - 1 / p)) := by
@@ -3347,39 +2988,6 @@ theorem E₃.bound : E₃ =O[atTop] (fun x ↦ 1 / log x) := by
 
 theorem E₃.bound' : E₃ =o[atTop] (fun _ ↦ (1:ℝ)) := E₃.bound.trans_isLittleO inv_log_eq_o_one
 
-theorem E₃.bound'' : (fun x ↦ ∏ p ∈ Ioc 0 ⌊ x ⌋₊ with p.Prime, (1 - (1:ℝ) / p)) ~[atTop] (fun x ↦ exp (-eulerMascheroniConstant) / log x) := by
-   rw [isEquivalent_iff_tendsto_one]
-   · convert Tendsto.congr' ?_ (Tendsto.rexp ((isLittleO_one_iff ℝ).mp E₃.bound')) using 2 with x
-     · simp
-     simp only [EventuallyEq.iff_eventually, Pi.div_apply, eventually_atTop]; use 2; intro x hx
-     rw [prod_one_minus_div_prime_eq (by linarith)]
-     have : 0 < log x := by apply log_pos; linarith
-     field_simp
-   simp only [ne_eq, div_eq_zero_iff, exp_ne_zero, log_eq_zero, eventually_atTop]; use 2
-   grind
-
-theorem E₃.bound''' : (fun x ↦ ∏ p ∈ Ioc 0 ⌊ x ⌋₊ with p.Prime, (1 - (1:ℝ) / p) - exp (-eulerMascheroniConstant) / log x) =O[atTop] (fun x ↦ 1 / (log x)^2) := by
-  obtain ⟨c, hc⟩ := E₃.abs_le
-  rw [isBigO_iff]
-  refine ⟨exp (-eulerMascheroniConstant) * 2 * c, ?_⟩
-  filter_upwards [eventually_ge_atTop 2, eventually_ge_atTop c.exp] with x hx hx2
-  rw [prod_one_minus_div_prime_eq (by linarith)]
-  specialize hc x hx
-  rw [norm_eq_abs, norm_eq_abs]
-  calc
-  _ = |exp (-eulerMascheroniConstant) / log x * (exp (E₃ x) - 1)| := by ring_nf
-  _ = |exp (-eulerMascheroniConstant) / log x| * |exp (E₃ x) - 1| := by rw [abs_mul]
-  _ ≤ _ := by
-    have : |E₃ x| ≤ 1 := by
-      apply hc.trans
-      have := log_le_log (exp_pos _) hx2
-      rw [log_exp] at this
-      apply div_le_one_iff.mpr <| Or.inl ⟨log_pos (by linarith), this⟩
-    grw [abs_exp_sub_one_le this, hc]
-    apply le_of_eq
-    rw [abs_div, abs_div, abs_one, abs_of_nonneg (exp_nonneg _), abs_of_nonneg (log_nonneg (by linarith)), abs_of_nonneg (sq_nonneg _)]
-    ring
-
 end Mertens
 end
 
@@ -3397,22 +3005,6 @@ noncomputable def primeReciprocalSum (x : ℝ) : ℝ :=
 
 noncomputable def survivalProduct (x : ℝ) : ℝ :=
   ∏ p ∈ primesUpToReal x, (1 - (1 : ℝ) / p)
-
-theorem prime_reciprocal_error :
-    ∃ B C : ℝ, 0 < C ∧ ∀ x : ℝ, 2 ≤ x →
-      |primeReciprocalSum x - Real.log (Real.log x) - B| ≤ C / Real.log x := by
-  refine ⟨Mertens.M, Real.log 4 + 6 + Mertens.E₁, ?_, ?_⟩
-  · have hE := Mertens.E₁.nonneg
-    have hl : 0 ≤ Real.log 4 := Real.log_nonneg (by norm_num)
-    linarith
-  · intro x hx
-    simpa only [primeReciprocalSum, primesUpToReal, Mertens.E₂p, one_div]
-      using Mertens.E₂p.abs_le hx
-
-theorem survivalProduct_asymptotic :
-    survivalProduct ~[atTop]
-      (fun x : ℝ => Real.exp (-Real.eulerMascheroniConstant) / Real.log x) := by
-  exact Mertens.E₃.bound''
 
 theorem survivalProduct_pos (x : ℝ) : 0 < survivalProduct x := by
   unfold survivalProduct
@@ -3434,45 +3026,6 @@ end
 section
 namespace Erdos676
 
-
-theorem moment_gap_from_bounds {A Q K N V d e : ℝ}
-    (hN : 0 < N) (hV : 0 < V) (hQ : 0 ≤ Q)
-    (hd : 0 ≤ d) (hd1 : d ≤ 1) (he : 0 ≤ e) (he1 : e < 1)
-    (hsmall : 3 * e < d)
-    (hfirst : (1 - e) * N * V ≤ A)
-    (hsecond : Q ≤ (1 + e) * N * V ^ 2)
-    (hcomplement : K ≤ (1 - d) * N) :
-    0 < A ∧ K * Q < A ^ 2 := by
-  have hpositive : 0 < (1 - e) * N * V :=
-    mul_pos (mul_pos (sub_pos.mpr he1) hN) hV
-  have hA : 0 < A := lt_of_lt_of_le hpositive hfirst
-  refine ⟨hA, ?_⟩
-  have hcompare := scalar_moment_gap hd he hsmall
-  have hscale : 0 < N ^ 2 * V ^ 2 := mul_pos (sq_pos_of_pos hN) (sq_pos_of_pos hV)
-  have hscaled := mul_lt_mul_of_pos_right hcompare hscale
-  calc
-    K * Q ≤ ((1 - d) * N) * ((1 + e) * N * V ^ 2) :=
-      mul_le_mul hcomplement hsecond hQ (mul_nonneg (sub_nonneg.mpr hd1) hN.le)
-    _ < ((1 - e) * N * V) ^ 2 := by nlinarith [hscaled]
-    _ ≤ A ^ 2 := by nlinarith
-
-
-theorem exists_linear_quadratic_margin {c C : ℝ} (hc : 0 < c) (hC : 0 < C) :
-    ∃ α : ℝ, 0 < α ∧ c * α ≤ 1 ∧ 0 ≤ C * α ^ 2 ∧ C * α ^ 2 < 1 ∧
-      3 * (C * α ^ 2) < c * α := by
-  let α := min (1 / (2 * c)) (c / (6 * C))
-  have hα : 0 < α := lt_min (div_pos (by norm_num) (by positivity))
-    (div_pos hc (by positivity))
-  have hleft : α * (2 * c) ≤ 1 :=
-    (le_div_iff₀ (by positivity : 0 < 2 * c)).mp (min_le_left _ _)
-  have hright : α * (6 * C) ≤ c :=
-    (le_div_iff₀ (by positivity : 0 < 6 * C)).mp (min_le_right _ _)
-  have hpos : 0 < 3 * C * α := by positivity
-  have hfirst : 3 * C * α < c := by nlinarith
-  have hgap : 3 * (C * α ^ 2) < c * α := by
-    have := mul_lt_mul_of_pos_right hfirst hα
-    nlinarith
-  refine ⟨α, hα, ?_, mul_nonneg hC.le (sq_nonneg α), ?_, hgap⟩ <;> nlinarith
 
 end Erdos676
 end
@@ -3730,18 +3283,6 @@ theorem bernoulli_second_moment_le {ι : Type*} [DecidableEq ι]
   exact mul_le_mul_of_nonneg_right h (sq_nonneg _)
 
 
-theorem truncated_sieve_second_moment {ι : Type*} [DecidableEq ι]
-    (s : Finset ι) (g f : ι → ℝ) (R : ℝ) (hR : 0 ≤ R)
-    (hg0 : ∀ i ∈ s, 0 ≤ g i) (hg1 : ∀ i ∈ s, g i < 1) :
-    (1 - (∑ t ∈ s.powerset with (∑ i ∈ t, f i) ≤ R,
-        ∏ i ∈ t, g i / (1 - g i)) * (∏ i ∈ s, (1 - g i))) * R ^ 2 ≤
-      (∑ i ∈ s, g i * f i) ^ 2 + ∑ i ∈ s, g i * (f i) ^ 2 := by
-  classical
-  rw [truncated_sieve_normalization s g _ (fun i hi => ne_of_lt (hg1 i hi))]
-  exact (bernoulli_truncation_bound s g (fun t => ∑ i ∈ t, f i) R hR hg0
-    (fun i hi => (hg1 i hi).le)).trans
-      (bernoulli_second_moment_le s g f)
-
 end Erdos676
 end
 
@@ -3755,75 +3296,6 @@ theorem prime_log_reciprocal_upper {z : ℝ} (hz : 1 ≤ z) :
   have h := (abs_le.mp (Mertens.sum_log_prime_div_eq_log hz)).2
   change (∑ p ∈ primesUpToReal z, Real.log p / p) - Real.log z ≤ Real.log 4 + 4 at h
   linarith
-
-theorem prime_log_moments {z : ℝ} (hz : 2 ≤ z)
-    (hlarge : Real.log 4 + 4 ≤ Real.log z) (g : ℕ → ℝ)
-    (hg0 : ∀ p ∈ primesUpToReal z, 0 ≤ g p)
-    (hg : ∀ p ∈ primesUpToReal z, g p ≤ 2 / p) :
-    (∑ p ∈ primesUpToReal z, g p * Real.log p) ≤ 4 * Real.log z ∧
-      (∑ p ∈ primesUpToReal z, g p * (Real.log p) ^ 2) ≤ 4 * (Real.log z) ^ 2 := by
-  have hL : 0 ≤ Real.log z := Real.log_nonneg (by linarith)
-  have hfirst : (∑ p ∈ primesUpToReal z, g p * Real.log p) ≤ 4 * Real.log z := by
-    calc
-      _ ≤ ∑ p ∈ primesUpToReal z, (2 / p) * Real.log p := by
-        apply Finset.sum_le_sum
-        intro p hp
-        exact mul_le_mul_of_nonneg_right (hg p hp) (Real.log_natCast_nonneg p)
-      _ = 2 * (∑ p ∈ primesUpToReal z, Real.log p / p) := by
-        rw [Finset.mul_sum]
-        apply Finset.sum_congr rfl
-        intro p _
-        ring
-      _ ≤ 2 * (Real.log z + (Real.log 4 + 4)) := by
-        exact mul_le_mul_of_nonneg_left (prime_log_reciprocal_upper (by linarith)) (by norm_num)
-      _ ≤ 4 * Real.log z := by linarith
-  refine ⟨hfirst, ?_⟩
-  calc
-    _ ≤ ∑ p ∈ primesUpToReal z, Real.log z * (g p * Real.log p) := by
-      apply Finset.sum_le_sum
-      intro p hp
-      have hpz : (p : ℝ) ≤ z := by
-        have hp' := (Finset.mem_Ioc.mp (Finset.mem_filter.mp hp).1).2
-        exact (Nat.cast_le.mpr hp').trans (Nat.floor_le (by linarith))
-      have hp0 : (0 : ℝ) < p := by
-        exact_mod_cast (Finset.mem_filter.mp hp).2.pos
-      have hlog := Real.log_le_log hp0 hpz
-      have hnonneg := mul_nonneg (hg0 p hp) (Real.log_natCast_nonneg p)
-      have h := mul_le_mul_of_nonneg_right hlog hnonneg
-      nlinarith
-    _ = Real.log z * (∑ p ∈ primesUpToReal z, g p * Real.log p) :=
-      (Finset.mul_sum _ _ _).symm
-    _ ≤ Real.log z * (4 * Real.log z) := mul_le_mul_of_nonneg_left hfirst hL
-    _ = 4 * (Real.log z) ^ 2 := by ring
-
-theorem bernoulli_prime_log_second_moment {z : ℝ} (hz : 2 ≤ z)
-    (hlarge : Real.log 4 + 4 ≤ Real.log z) (g : ℕ → ℝ)
-    (hg0 : ∀ p ∈ primesUpToReal z, 0 ≤ g p)
-    (hg : ∀ p ∈ primesUpToReal z, g p ≤ 2 / p) :
-    (∑ t ∈ (primesUpToReal z).powerset, bernoulliWeight (primesUpToReal z) t g *
-      (∑ p ∈ t, Real.log p) ^ 2) ≤ 20 * (Real.log z) ^ 2 := by
-  have h := prime_log_moments hz hlarge g hg0 hg
-  have hfirst0 : 0 ≤ ∑ p ∈ primesUpToReal z, g p * Real.log p :=
-    Finset.sum_nonneg fun p hp => mul_nonneg (hg0 p hp) (Real.log_natCast_nonneg p)
-  have hsq : (∑ p ∈ primesUpToReal z, g p * Real.log p) ^ 2 ≤
-      (4 * Real.log z) ^ 2 := by nlinarith [h.1]
-  have hbound := bernoulli_second_moment_le (primesUpToReal z) g (fun p => Real.log p)
-  nlinarith [h.2]
-
-theorem prime_sieve_normalizer_tail {z R : ℝ} (hz : 2 ≤ z)
-    (hlarge : Real.log 4 + 4 ≤ Real.log z) (hR : 0 ≤ R) (g : ℕ → ℝ)
-    (hg0 : ∀ p ∈ primesUpToReal z, 0 ≤ g p)
-    (hg : ∀ p ∈ primesUpToReal z, g p ≤ 2 / p)
-    (hg1 : ∀ p ∈ primesUpToReal z, g p < 1) :
-    (1 - (∑ t ∈ (primesUpToReal z).powerset with (∑ p ∈ (t : Finset ℕ), Real.log p) ≤ R,
-        ∏ p ∈ t, g p / (1 - g p)) * (∏ p ∈ primesUpToReal z, (1 - g p))) * R ^ 2 ≤
-      20 * (Real.log z) ^ 2 := by
-  classical
-  rw [truncated_sieve_normalization (primesUpToReal z) g _
-    (fun p hp => ne_of_lt (hg1 p hp))]
-  exact (bernoulli_truncation_bound (primesUpToReal z) g
-    (fun t => ∑ p ∈ t, Real.log p) R hR hg0 (fun p hp => (hg1 p hp).le)).trans
-      (bernoulli_prime_log_second_moment hz hlarge g hg0 hg)
 
 end Erdos676
 end
@@ -3912,104 +3384,6 @@ theorem eventProduct_union {P N : Type*} [DecidableEq P]
   simp only [eventProduct, Finset.forall_mem_union]
   split_ifs <;> simp_all
 
-noncomputable def sieveSquareRoot {P N : Type*}
-    (T : Finset (Finset P)) (weights : Finset P → ℝ) (E : P → N → Prop) (n : N) : ℝ :=
-  ∑ t ∈ T, weights t * eventProduct E t n
-
-theorem sieveSquareRoot_of_avoids {P N : Type*} [DecidableEq P]
-    (s : Finset P) (T : Finset (Finset P)) (weights : Finset P → ℝ) (E : P → N → Prop)
-    (hT : ∀ t ∈ T, t ⊆ s) (hEmpty : ∅ ∈ T) (hweights : weights ∅ = 1)
-    (n : N) (hn : ∀ p ∈ s, ¬ E p n) :
-    sieveSquareRoot T weights E n = 1 := by
-  classical
-  unfold sieveSquareRoot
-  rw [Finset.sum_eq_single ∅]
-  · simp [eventProduct, hweights]
-  · intro t ht htne
-    obtain ⟨p, hp⟩ := Finset.nonempty_iff_ne_empty.mpr htne
-    have hfalse : ¬ ∀ q ∈ t, E q n := fun h => hn p (hT t ht hp) (h p hp)
-    simp [eventProduct, hfalse]
-  · exact fun h => (h hEmpty).elim
-
-theorem avoidance_le_sieveSquare {P N : Type*} [DecidableEq P]
-    (s : Finset P) (T : Finset (Finset P)) (weights : Finset P → ℝ) (E : P → N → Prop)
-    (hT : ∀ t ∈ T, t ⊆ s) (hEmpty : ∅ ∈ T) (hweights : weights ∅ = 1) (n : N) :
-    eventProduct (fun p n => ¬ E p n) s n ≤ (sieveSquareRoot T weights E n) ^ 2 := by
-  classical
-  unfold eventProduct
-  split_ifs with hn
-  · rw [sieveSquareRoot_of_avoids s T weights E hT hEmpty hweights n hn]
-    norm_num
-  · exact sq_nonneg _
-
-theorem sieveSquare_expansion {P N : Type*} [DecidableEq P]
-    (T : Finset (Finset P)) (weights : Finset P → ℝ) (E : P → N → Prop) (n : N) :
-    (sieveSquareRoot T weights E n) ^ 2 =
-      ∑ t ∈ T, ∑ u ∈ T, weights t * weights u * eventProduct E (t ∪ u) n := by
-  unfold sieveSquareRoot
-  rw [pow_two, Finset.sum_mul]
-  apply Finset.sum_congr rfl
-  intro t ht
-  rw [Finset.mul_sum]
-  apply Finset.sum_congr rfl
-  intro u hu
-  rw [eventProduct_union]
-  ring
-
-theorem avoidance_sum_le_sieveSquare {P N : Type*} [DecidableEq P]
-    (I : Finset N) (s : Finset P) (T : Finset (Finset P))
-    (weights : Finset P → ℝ) (E : P → N → Prop)
-    (hT : ∀ t ∈ T, t ⊆ s) (hEmpty : ∅ ∈ T) (hweights : weights ∅ = 1) :
-    (∑ n ∈ I, eventProduct (fun p n => ¬ E p n) s n) ≤
-      ∑ t ∈ T, ∑ u ∈ T, weights t * weights u * (∑ n ∈ I, eventProduct E (t ∪ u) n) := by
-  classical
-  calc
-    _ ≤ ∑ n ∈ I, (sieveSquareRoot T weights E n) ^ 2 :=
-      Finset.sum_le_sum fun n _ => avoidance_le_sieveSquare s T weights E hT hEmpty hweights n
-    _ = _ := by
-      simp_rw [sieveSquare_expansion]
-      rw [Finset.sum_comm]
-      apply Finset.sum_congr rfl
-      intro t ht
-      rw [Finset.sum_comm]
-      apply Finset.sum_congr rfl
-      intro u hu
-      exact (Finset.mul_sum _ _ _).symm
-
-theorem selberg_square_upper_bound {P N : Type*} [DecidableEq P]
-    (I : Finset N) (s : Finset P) (T : Finset (Finset P))
-    (weights : Finset P → ℝ) (E : P → N → Prop)
-    (hT : ∀ t ∈ T, t ⊆ s) (hEmpty : ∅ ∈ T) (hweights : weights ∅ = 1)
-    (mass : ℝ) (density : Finset P → ℝ) (error : Finset P → Finset P → ℝ)
-    (happrox : ∀ t ∈ T, ∀ u ∈ T,
-      |(∑ n ∈ I, eventProduct E (t ∪ u) n) - mass * density (t ∪ u)| ≤ error t u) :
-    (∑ n ∈ I, eventProduct (fun p n => ¬ E p n) s n) ≤
-      mass * (∑ t ∈ T, ∑ u ∈ T, weights t * weights u * density (t ∪ u)) +
-        ∑ t ∈ T, ∑ u ∈ T, |weights t * weights u| * error t u := by
-  classical
-  have hterm (t : Finset P) (ht : t ∈ T) (u : Finset P) (hu : u ∈ T) :
-      weights t * weights u * (∑ n ∈ I, eventProduct E (t ∪ u) n) ≤
-        mass * (weights t * weights u * density (t ∪ u)) +
-          |weights t * weights u| * error t u := by
-    have hscaled := mul_le_mul_of_nonneg_left (happrox t ht u hu)
-      (abs_nonneg (weights t * weights u))
-    have habs : weights t * weights u *
-        ((∑ n ∈ I, eventProduct E (t ∪ u) n) - mass * density (t ∪ u)) ≤
-        |weights t * weights u| *
-          |(∑ n ∈ I, eventProduct E (t ∪ u) n) - mass * density (t ∪ u)| := by
-      simpa only [abs_mul] using le_abs_self (weights t * weights u *
-        ((∑ n ∈ I, eventProduct E (t ∪ u) n) - mass * density (t ∪ u)))
-    nlinarith
-  calc
-    _ ≤ ∑ t ∈ T, ∑ u ∈ T,
-        weights t * weights u * (∑ n ∈ I, eventProduct E (t ∪ u) n) :=
-      avoidance_sum_le_sieveSquare I s T weights E hT hEmpty hweights
-    _ ≤ ∑ t ∈ T, ∑ u ∈ T,
-        (mass * (weights t * weights u * density (t ∪ u)) +
-          |weights t * weights u| * error t u) := by
-      exact Finset.sum_le_sum fun t ht => Finset.sum_le_sum fun u hu => hterm t ht u hu
-    _ = _ := by simp_rw [Finset.sum_add_distrib, ← Finset.mul_sum]
-
 end Erdos676
 end
 
@@ -4050,10 +3424,6 @@ theorem bernoulli_product_expectation {P : Type*} [DecidableEq P]
 noncomputable def bernoulliBasis {P : Type*} [Fintype P] [DecidableEq P]
     (g : P → ℝ) (r t : Finset P) : ℝ :=
   ∏ p : P, if p ∈ t then (if p ∈ r then 1 - 1 / g p else 1) else 1
-
-theorem bernoulliBasis_empty {P : Type*} [Fintype P] [DecidableEq P]
-    (g : P → ℝ) (r : Finset P) : bernoulliBasis g r ∅ = 1 := by
-  simp [bernoulliBasis]
 
 theorem bernoulliBasis_product_expectation {P : Type*} [Fintype P] [DecidableEq P]
     (g : P → ℝ) (r u : Finset P) :
@@ -4211,12 +3581,6 @@ theorem selbergQ_mul_norm {P : Type*} (g : P → ℝ)
   apply Finset.prod_eq_one
   intro p _
   field_simp [hg0 p, sub_ne_zero.mpr (Ne.symm (hg1 p))]
-
-theorem selbergMixture_empty {P : Type*} [Fintype P] [DecidableEq P]
-    (T : Finset (Finset P)) (g : P → ℝ) (hG : selbergNormalizer T g ≠ 0) :
-    selbergMixture T g ∅ = 1 := by
-  simp only [selbergMixture, bernoulliBasis_empty, mul_one, ← Finset.sum_div]
-  exact div_self hG
 
 theorem selbergMixture_second_moment {P : Type*} [Fintype P] [DecidableEq P]
     (T : Finset (Finset P)) (g : P → ℝ)
@@ -4990,17 +4354,6 @@ theorem alternatingChoose_odd_lower (K m : ℕ) (hm : Odd m) :
       rw [alternatingChoose_succ, hm.neg_one_pow]
       simp
 
-theorem alternatingChoose_nonneg (K m : ℕ) (hm : Even m) :
-    0 ≤ alternatingChoose K m := by
-  have h := alternatingChoose_even_upper K m hm
-  split_ifs at h <;> omega
-
-theorem alternatingChoose_successor_gap (K m : ℕ) (hm : Even (m + 1)) :
-    alternatingChoose K (m + 1) - alternatingChoose K m = (K.choose (m + 1) : ℤ) := by
-  unfold alternatingChoose
-  rw [Finset.sum_range_succ, hm.neg_one_pow]
-  ring
-
 end Erdos676
 end
 
@@ -5065,14 +4418,6 @@ theorem bonferroniEvent_odd_lower {P N : Type*} [DecidableEq P]
   classical
   rw [eventAvoidance_eq_zero_count, bonferroniEvent_eq_alternatingChoose]
   exact_mod_cast alternatingChoose_odd_lower ((s.filter (fun p => E p n)).card) k hk
-
-theorem bonferroniEvent_gap {P N : Type*} [DecidableEq P]
-    (s : Finset P) (k : ℕ) (E : P → N → Prop) (n : N) (hk : Even (k + 1)) :
-    bonferroniEvent s (k + 1) E n - bonferroniEvent s k E n =
-      ∑ d ∈ s.powersetCard (k + 1), eventProduct E d n := by
-  classical
-  simp only [bonferroniEvent_eq_alternatingChoose, event_choose_count]
-  exact_mod_cast alternatingChoose_successor_gap ((s.filter (fun p => E p n)).card) k hk
 
 end Erdos676
 end
@@ -5158,17 +4503,6 @@ theorem bonferroniModel_even_upper {P : Type*} [Fintype P] [DecidableEq P]
   apply Finset.sum_le_sum
   intro t _
   exact mul_le_mul_of_nonneg_left (bonferroniEvent_even_upper s k (fun p u => p ∈ u) t hk)
-    (bernoulliWeight_nonneg Finset.univ t g (Finset.subset_univ _)
-      (fun p _ => hg0 p) (fun p _ => hg1 p))
-
-theorem bonferroniModel_odd_lower {P : Type*} [Fintype P] [DecidableEq P]
-    (g : P → ℝ) (s : Finset P) (k : ℕ) (hk : Odd k)
-    (hg0 : ∀ p, 0 ≤ g p) (hg1 : ∀ p, g p ≤ 1) :
-    bonferroniModel s k g ≤ ∏ p ∈ s, (1 - g p) := by
-  rw [← bernoulli_avoidance_mean, ← bonferroni_model_expectation]
-  apply Finset.sum_le_sum
-  intro t _
-  exact mul_le_mul_of_nonneg_left (bonferroniEvent_odd_lower s k (fun p u => p ∈ u) t hk)
     (bernoulliWeight_nonneg Finset.univ t g (Finset.subset_univ _)
       (fun p _ => hg0 p) (fun p _ => hg1 p))
 
@@ -6238,13 +5572,6 @@ noncomputable def smallAverage (z H n : ℕ) : ℝ := by
   classical
   exact (∑ j ∈ Finset.range H, if SmallAvoidance z (n + j) then 1 else 0) / (H : ℝ)
 
-theorem smallAverage_nonneg (z H n : ℕ) : 0 ≤ smallAverage z H n := by
-  classical
-  unfold smallAverage
-  exact div_nonneg (Finset.sum_nonneg fun j _ => by split_ifs <;> norm_num)
-    (Nat.cast_nonneg _)
-
-
 theorem smallAverage_mass_le_exceptions (U E : Finset ℕ) (z H : ℕ) (hH : 0 < H)
     (hlarge : ∀ n ∈ U, ∀ j < H, LargeAvoidance z (n + j))
     (hmem : ∀ n ∈ U, ∀ j < H, Exceptional (n + j) → n + j ∈ E) :
@@ -6509,22 +5836,6 @@ theorem shifted_reciprocal_square_le (p : ℕ) (hp : 2 ≤ p) :
   rw [← div_eq_mul_inv]
   apply (div_le_div_iff₀ (sq_pos_of_pos hp1) (sq_pos_of_pos hp0)).mpr
   nlinarith
-
-theorem shifted_reciprocal_square_tail (s : Finset ℕ) (m n : ℕ)
-    (hm : 1 ≤ m) (hn : m ≤ n) (hs : s ⊆ Finset.Ioc m n) :
-    (∑ p ∈ s, 1 / ((p : ℝ) - 1) ^ 2) ≤ (4 : ℝ) / (m : ℝ) := by
-  have hsum : (∑ p ∈ s, 1 / ((p : ℝ) - 1) ^ 2) ≤
-      4 * ∑ p ∈ s, ((p : ℝ) ^ 2)⁻¹ := by
-    rw [Finset.mul_sum]
-    apply Finset.sum_le_sum
-    intro p hp
-    exact shifted_reciprocal_square_le p (by have := (Finset.mem_Ioc.mp (hs hp)).1; omega)
-  have hsub : (∑ p ∈ s, ((p : ℝ) ^ 2)⁻¹) ≤ ∑ p ∈ Finset.Ioc m n, ((p : ℝ) ^ 2)⁻¹ :=
-    Finset.sum_le_sum_of_subset_of_nonneg hs (fun _ _ _ => by positivity)
-  have htail := sum_Ioc_inv_sq_le_sub (α := ℝ) (by omega : m ≠ 0) hn
-  have hinv : 0 ≤ (n : ℝ)⁻¹ := by positivity
-  have hupper : (∑ p ∈ s, ((p : ℝ) ^ 2)⁻¹) ≤ (m : ℝ)⁻¹ := by linarith
-  simpa only [div_eq_mul_inv] using hsum.trans (mul_le_mul_of_nonneg_left hupper (by norm_num))
 
 end Erdos676
 end
@@ -7679,31 +6990,6 @@ theorem realBoxSmooth_const (H J : ℕ) (hH : 0 < H) (c : ℝ) (n : ℤ) :
   rw [← coe_realBoxSmooth] at h
   exact_mod_cast h
 
-theorem realBoxSmooth_nonneg (H J : ℕ) (f : ℤ → ℝ) (hf : ∀ k, 0 ≤ f k) (n : ℤ) :
-    0 ≤ realBoxSmooth H J f n := by
-  exact div_nonneg (Finset.sum_nonneg (fun p hp => hf _)) (pow_nonneg (Nat.cast_nonneg H) J)
-
-theorem realBoxSmooth_le_of_local (H J : ℕ) (hH : 0 < H) (f : ℤ → ℝ) (n : ℤ) (c : ℝ)
-    (hf : ∀ k : ℤ, n ≤ k → k ≤ n + (J : ℤ) * H → f k ≤ c) :
-    realBoxSmooth H J f n ≤ c := by
-  have hsum : (∑ p : Fin J → Fin H, f (n + boxPathShift p)) ≤
-      ∑ _p : Fin J → Fin H, c := by
-    apply Finset.sum_le_sum
-    intro p hp
-    exact hf _ (by linarith [boxPathShift_nonneg p]) (by linarith [boxPathShift_le p])
-  have h := div_le_div_of_nonneg_right hsum (pow_nonneg (Nat.cast_nonneg H) J)
-  exact h.trans_eq (realBoxSmooth_const H J hH c n)
-
-theorem realBoxSmooth_ge_of_local (H J : ℕ) (hH : 0 < H) (f : ℤ → ℝ) (n : ℤ) (c : ℝ)
-    (hf : ∀ k : ℤ, n ≤ k → k ≤ n + (J : ℤ) * H → c ≤ f k) :
-    c ≤ realBoxSmooth H J f n := by
-  have hsum : (∑ _p : Fin J → Fin H, c) ≤ ∑ p : Fin J → Fin H, f (n + boxPathShift p) := by
-    apply Finset.sum_le_sum
-    intro p hp
-    exact hf _ (by linarith [boxPathShift_nonneg p]) (by linarith [boxPathShift_le p])
-  have h := div_le_div_of_nonneg_right hsum (pow_nonneg (Nat.cast_nonneg H) J)
-  exact (realBoxSmooth_const H J hH c n).symm.trans_le h
-
 end Erdos676
 end
 
@@ -7864,18 +7150,6 @@ theorem boundaryResidues_card_le (m p R : ℕ) (hp : p ≤ m) :
     (expandedResidues m p R).card at hcard
   omega
 
-theorem outside_boundary_shift (m p R h : ℕ) (hh : h ≤ R) (n : ZMod m)
-    (hn : n ∉ boundaryResidues m p R) :
-    n + h ∈ initialResidues m p ↔ n ∈ initialResidues m p := by
-  have hcon (he : n ∈ expandedResidues m p R) : n ∈ contractedResidues m p R := by
-    by_contra hc
-    exact hn (Finset.mem_sdiff.mpr ⟨he, hc⟩)
-  constructor
-  · intro hmem
-    exact contracted_subset_initial m p R (hcon (initial_shift_expanded m p R h hh n hmem))
-  · intro hmem
-    exact contracted_shift_initial m p R h hh n (hcon (initial_subset_expanded m p R hmem))
-
 theorem initial_prime_square (p : ℕ) : initialResidues (p ^ 2) p = smallResidues p := rfl
 
 end Erdos676
@@ -8024,42 +7298,6 @@ theorem periodic_sum_error (f : ℕ → ℝ) (m N : ℕ) (hm : 0 < m)
   rw [periodic_sum_decomposition f m N hf, hratio, abs_le]
   constructor <;> nlinarith
 
-theorem periodic_sum_shift_period (f : ℕ → ℝ) (m S : ℕ)
-    (hf : Function.Periodic f m) :
-    (∑ i ∈ Finset.range m, f (S + i)) = ∑ i ∈ Finset.range m, f i := by
-  have hshift : (fun i => f (m + i)) = f := by
-    funext i
-    simpa [Nat.add_comm] using hf i
-  have h := congrArg (fun n => ∑ i ∈ Finset.range n, f i) (Nat.add_comm S m)
-  simp only [Finset.sum_range_add, hshift] at h
-  linarith
-
-
-theorem periodic_double_average_upper (f : ℕ → ℝ) (m H : ℕ) (shift : ℕ → ℕ)
-    (hm : 0 < m) (hH : 0 < H) (hf : Function.Periodic f m)
-    (hf0 : ∀ i, 0 ≤ f i) (hmean : (∑ i ∈ Finset.range m, f i) = m) :
-    (∑ j ∈ Finset.range H, ∑ i ∈ Finset.range H, f (shift j + i)) / (H : ℝ) ^ 2 ≤
-      1 + (m : ℝ) / H := by
-  have hmreal : (0 : ℝ) < m := by exact_mod_cast hm
-  have hHreal : (0 : ℝ) < H := by exact_mod_cast hH
-  have hinner (j : ℕ) : (∑ i ∈ Finset.range H, f (shift j + i)) ≤ (H : ℝ) + m := by
-    have hp : Function.Periodic (fun i => f (shift j + i)) m := by
-      intro i
-      simpa only [Nat.add_assoc] using hf (shift j + i)
-    have h := (abs_le.mp (periodic_sum_error (fun i => f (shift j + i)) m H hm hp
-      (fun i => hf0 _))).2
-    rw [periodic_sum_shift_period f m (shift j) hf, hmean] at h
-    rw [div_mul_cancel₀ _ (ne_of_gt hmreal)] at h
-    linarith
-  have htotal : (∑ j ∈ Finset.range H, ∑ i ∈ Finset.range H, f (shift j + i)) ≤
-      (H : ℝ) * ((H : ℝ) + m) := by
-    simpa only [Finset.sum_const, Finset.card_range, nsmul_eq_mul] using
-      Finset.sum_le_sum (fun j (_ : j ∈ Finset.range H) => hinner j)
-  apply (div_le_iff₀ (sq_pos_of_pos hHreal)).mpr
-  have hid : (1 + (m : ℝ) / H) * (H : ℝ) ^ 2 = (H : ℝ) * ((H : ℝ) + m) := by
-    field_simp
-  rwa [hid]
-
 end Erdos676
 end
 
@@ -8094,54 +7332,6 @@ theorem crt_sum_product {ι : Type*} [Fintype ι] [DecidableEq ι]
       change (∑ r : ZMod (∏ i, m i), ∏ i, f i (ZMod.prodEquivPi m hc r i)) = _ at h
       simpa only [ZMod.prodEquivPi_apply] using h
     _ = _ := (Fintype.prod_sum f).symm
-
-theorem crt_product_mean_one {ι : Type*} [Fintype ι] [DecidableEq ι]
-    (m : ι → ℕ) [∀ i, NeZero (m i)] [NeZero (∏ i, m i)]
-    (hc : Pairwise (fun i j => (m i).Coprime (m j)))
-    (f : ∀ i, ZMod (m i) → ℝ)
-    (hf : ∀ i, (∑ r : ZMod (m i), f i r) = m i) :
-    (∑ r : ZMod (∏ i, m i), ∏ i,
-      f i (ZMod.castHom (Finset.dvd_prod_of_mem m (Finset.mem_univ i)) _ r)) =
-      (∏ i, m i : ℕ) := by
-  rw [crt_sum_product m hc f]
-  simp only [hf, Nat.cast_prod]
-
-theorem crt_natural_sum_mean_one {ι : Type*} [Fintype ι] [DecidableEq ι]
-    (m : ι → ℕ) [∀ i, NeZero (m i)] [NeZero (∏ i, m i)]
-    (hc : Pairwise (fun i j => (m i).Coprime (m j)))
-    (f : ∀ i, ZMod (m i) → ℝ)
-    (hf : ∀ i, (∑ r : ZMod (m i), f i r) = m i) :
-    (∑ n ∈ Finset.range (∏ i, m i), ∏ i, f i (n : ZMod (m i))) =
-      (∏ i, m i : ℕ) := by
-  have h := sum_range_zmod (∏ i, m i)
-    (fun r => ∏ i, f i (ZMod.castHom (Finset.dvd_prod_of_mem m (Finset.mem_univ i)) _ r))
-  simp only [map_natCast] at h
-  rw [h]
-  exact crt_product_mean_one m hc f hf
-
-theorem crt_product_periodic {ι : Type*} [Fintype ι]
-    (m : ι → ℕ) (f : ∀ i, ZMod (m i) → ℝ) :
-    Function.Periodic (fun n : ℕ => ∏ i, f i (n : ZMod (m i))) (∏ i, m i) := by
-  intro n
-  apply Finset.prod_congr rfl
-  intro i _
-  have hz : ((∏ j, m j : ℕ) : ZMod (m i)) = 0 :=
-    (ZMod.natCast_eq_zero_iff _ _).mpr (Finset.dvd_prod_of_mem m (Finset.mem_univ i))
-  rw [Nat.cast_add, hz, add_zero]
-
-theorem crt_double_average_upper {ι : Type*} [Fintype ι] [DecidableEq ι]
-    (m : ι → ℕ) [∀ i, NeZero (m i)] [NeZero (∏ i, m i)]
-    (hc : Pairwise (fun i j => (m i).Coprime (m j)))
-    (f : ∀ i, ZMod (m i) → ℝ)
-    (hf : ∀ i, (∑ r : ZMod (m i), f i r) = m i)
-    (hf0 : ∀ i r, 0 ≤ f i r) (H : ℕ) (hH : 0 < H) (shift : ℕ → ℕ) :
-    (∑ j ∈ Finset.range H, ∑ n ∈ Finset.range H,
-      ∏ i, f i ((shift j + n : ℕ) : ZMod (m i))) / (H : ℝ) ^ 2 ≤
-      1 + (∏ i, m i : ℕ) / (H : ℝ) := by
-  exact periodic_double_average_upper (fun n => ∏ i, f i (n : ZMod (m i)))
-    (∏ i, m i) H shift (Nat.pos_of_ne_zero (NeZero.ne _)) hH
-    (crt_product_periodic m f) (fun _ => Finset.prod_nonneg (fun i _ => hf0 i _))
-    (crt_natural_sum_mean_one m hc f hf)
 
 end Erdos676
 end
@@ -8828,24 +8018,6 @@ theorem avoidance_block_lower {I P : Type*} [Fintype P] (U : Finset I)
   have h := avoid_filter_card_lower U B
   nlinarith
 
-theorem finite_affine_iteration_lower (y : ℕ → ℝ) (d e : ℝ) (N : ℕ)
-    (hd0 : 0 ≤ d) (hd1 : d ≤ 1) (he : 0 ≤ e)
-    (hstep : ∀ n < N, d * y n - e ≤ y (n + 1)) :
-    d ^ N * y 0 - N * e ≤ y N := by
-  have haux : ∀ n ≤ N, d ^ n * y 0 - n * e ≤ y n := by
-    intro n hn
-    induction n with
-    | zero => simp
-    | succ n ih =>
-        have hprev := ih (by omega)
-        have hrec := hstep n (by omega)
-        have hscaled := mul_le_mul_of_nonneg_left hprev hd0
-        have herror := mul_le_mul_of_nonneg_right hd1 (show 0 ≤ (n : ℝ) * e by positivity)
-        rw [pow_succ]
-        push_cast
-        nlinarith
-  exact haux N le_rfl
-
 end Erdos676
 end
 
@@ -8891,14 +8063,6 @@ theorem primeAvoidSet_mono {s t : Finset ℕ} (hst : s ⊆ t) (A B : ℤ) :
   intro n hn
   obtain ⟨hnI, hnP⟩ := Finset.mem_filter.mp hn
   exact Finset.mem_filter.mpr ⟨hnI, fun p hp => hnP p (hst hp)⟩
-
-theorem primeAvoidSet_union (s t : Finset ℕ) (A B : ℤ) :
-    primeAvoidSet (s ∪ t) A B = (primeAvoidSet s A B).filter
-      (fun n => ∀ p ∈ t, (n : ZMod (p ^ 2)) ∉ initialResidues (p ^ 2) p) := by
-  classical
-  ext n
-  simp only [primeAvoidSet, Finset.mem_filter, Finset.mem_union]
-  aesop
 
 theorem prime_avoidance_step (s t : Finset ℕ) (A B : ℤ) (mass error : ℝ)
     (hcount : (∑ n ∈ primeAvoidSet s A B, primeWitnessCount t n) ≤
@@ -8983,21 +8147,6 @@ theorem truncation_loss_discrete (C : ℝ) (L : ℕ) :
   unfold discreteCutoff
   rw [← pow_mul, Nat.mul_comm L 2, one_div_pow]
   ring
-
-theorem exists_discrete_cutoff_parameters {c C : ℝ} (hc : 0 < c) (hC : 0 < C) :
-    ∃ L : ℕ, 1 ≤ L ∧ discreteCutoff L < 1 / 4 ∧
-      discreteCutoff L * (8 * L + 8 : ℕ) ≤ 1 / 2 ∧
-      C * (discreteCutoff L) ^ 2 < (c / 8) * discreteCutoff L := by
-  have hsmall : ∀ᶠ L in atTop, discreteCutoff L < min (1 / 4) (c / (8 * C)) :=
-    (tendsto_order.mp discreteCutoff_tendsto).2 _ (lt_min (by norm_num) (by positivity))
-  have hdegree : ∀ᶠ L in atTop, discreteCutoff L * (8 * L + 8 : ℕ) < (1 / 2 : ℝ) :=
-    (tendsto_order.mp discreteCutoff_degree_tendsto).2 _ (by norm_num)
-  obtain ⟨L, hL, hs, hd⟩ := ((eventually_ge_atTop 1).and (hsmall.and hdegree)).exists
-  refine ⟨L, hL, lt_of_lt_of_le hs (min_le_left _ _), hd.le, ?_⟩
-  have hratio := lt_of_lt_of_le hs (min_le_right _ _)
-  have hprod := (lt_div_iff₀ (by positivity : 0 < 8 * C)).mp hratio
-  have hscaled := mul_lt_mul_of_pos_right hprod (discreteCutoff_pos L)
-  nlinarith
 
 end Erdos676
 end
@@ -9976,14 +9125,6 @@ end
 section
 namespace Erdos676
 
-theorem first_moment_loss_dyadic (C : ℝ) (L : ℕ) :
-    2 * Real.exp (4 * C) / (2 : ℝ) ^ (2 * L) =
-      (2 * Real.exp (4 * C)) * (discreteCutoff L) ^ 2 := by
-  rw [discreteCutoff_sq]
-  simp only [pow_mul, div_pow, one_pow]
-  norm_num
-  ring
-
 theorem final_parameter_choice {d : ℝ} (hd : 0 < d) (C : ℝ) :
     ∃ L : ℕ, 3 ≤ L ∧ discreteCutoff L ≤ 1 / 200 ∧
       discreteCutoff L * (8 * L + 8 : ℕ) ≤ 1 / 2 ∧
@@ -10005,17 +9146,6 @@ theorem pairMean_mono (H : ℕ) {f g : ℤ → ℝ} (hfg : ∀ k, f k ≤ g k) :
     pairMean H f ≤ pairMean H g := by
   apply div_le_div_of_nonneg_right _ (sq_nonneg _)
   exact Finset.sum_le_sum (fun j _ => Finset.sum_le_sum (fun i _ => hfg _))
-
-theorem pairMean_nonneg (H : ℕ) {f : ℤ → ℝ} (hf : ∀ k, 0 ≤ f k) :
-    0 ≤ pairMean H f := by
-  apply div_nonneg _ (sq_nonneg _)
-  exact Finset.sum_nonneg (fun j _ => Finset.sum_nonneg (fun i _ => hf _))
-
-theorem pairMean_const (H : ℕ) (hH : 0 < H) (c : ℝ) :
-    pairMean H (fun _ => c) = c := by
-  have hH' : (H : ℝ) ≠ 0 := by exact_mod_cast (Nat.ne_of_gt hH)
-  simp only [pairMean, Finset.sum_const, Finset.card_range, nsmul_eq_mul]
-  field_simp
 
 theorem pairMean_add (H : ℕ) (f g : ℤ → ℝ) :
     pairMean H (fun k => f k + g k) = pairMean H f + pairMean H g := by
@@ -10075,15 +9205,6 @@ theorem singular_mixed_average_upper {P : Type*} [Fintype P] [DecidableEq P]
         localSingularExcess_sum_le (a p) (hprime p).two_le
     · simp only [hp, if_false, mul_one, Nat.cast_pow]
       exact (localSingularFactor_sum (a p) (hprime p).one_lt.le).le
-
-theorem singular_product_average_upper {P : Type*} [Fintype P] [DecidableEq P]
-    (a : P → ℕ) (hinj : Function.Injective a) (hprime : ∀ p, (a p).Prime)
-    (H : ℕ) (hH : 0 < H) :
-    (∑ j ∈ Finset.range H, ∑ i ∈ Finset.range H,
-      ∏ p : P, localSingularFactor (a p) ((i : ZMod ((a p) ^ 2)) - j)) /
-        (H : ℝ) ^ 2 ≤ 1 + (∏ p : P, (a p) ^ 2 : ℕ) / (H : ℝ) := by
-  simpa only [Finset.notMem_empty, if_false, Finset.prod_const_one, mul_one] using
-    singular_mixed_average_upper a hinj hprime ∅ H hH
 
 end Erdos676
 end
@@ -10858,17 +9979,6 @@ theorem exists_singular_core_error_bound {b : ℝ} (hb : (1 / 4 : ℝ) ≤ b) :
     simpa only [mul_assoc] using h
   exact singular_core_bound H C b hx hC.le hb hy hlogy hpower hmajor1 hmajor2
 
-theorem singular_core_average_eventually {b ε : ℝ} (hb : (1 / 4 : ℝ) ≤ b)
-    (hb1 : b < 1) (hε : 0 < ε) :
-    ∀ᶠ H : ℕ in atTop,
-      pairMean H (singularFactorProduct ((H : ℝ) ^ b)) ≤ 1 + ε := by
-  obtain ⟨C, hC, hbound⟩ := exists_singular_core_error_bound hb
-  have hlimit := (singularCoreError_tendsto C hb1).comp (tendsto_natCast_atTop_atTop (R := ℝ))
-  have herr : ∀ᶠ H : ℕ in atTop, singularCoreError C b H < ε :=
-    (tendsto_order.mp hlimit).2 ε hε
-  filter_upwards [hbound, herr] with H hH hE
-  linarith
-
 end Erdos676
 end
 
@@ -11049,12 +10159,6 @@ theorem smallAverage_square_sum_eq_pairs (z H S N : ℕ) :
   intro n hn
   by_cases hi' : SmallAvoidance z (S + n + i) <;>
     by_cases hj' : SmallAvoidance z (S + n + j) <;> simp [hi', hj']
-
-theorem smallAverage_dyadic_square_sum_eq_pairs (z H X : ℕ) :
-    (∑ n ∈ Finset.Ioc X (2 * X), (smallAverage z H n) ^ 2) =
-      (∑ i ∈ Finset.range H, ∑ j ∈ Finset.range H, smallPairCount z (X + 1) X i j) / (H : ℝ) ^ 2 := by
-  rw [sum_dyadic_interval_eq_range]
-  exact smallAverage_square_sum_eq_pairs z H (X + 1) X
 
 theorem smallAverage_second_upper (z H S N : ℕ) (hH : 0 < H)
     (V : ℕ → ℕ → ℝ) (B E : ℝ)
@@ -11350,32 +10454,6 @@ structure SieveData (X : ℕ) where
     ∀ n ∈ centers, ∀ j < window, X < n + j ∧ n + j ≤ 2 * X
 
 
-theorem SieveData.exception_exists {X : ℕ} (D : SieveData X) :
-    (dyadicExceptions X).Nonempty := by
-  have hpositive : 0 < ∑ n ∈ D.centers, smallAverage D.cutoff D.window n :=
-    positive_restricted_mass_of_moment_gap (Finset.Ioc X (2 * X)) D.centers
-      (smallAverage D.cutoff D.window) D.centers_subset
-      (fun n _ => smallAverage_nonneg _ _ n) D.first_pos D.moment_gap
-  have hcard := smallAverage_mass_le_exceptions D.centers (dyadicExceptions X)
-    D.cutoff D.window D.window_pos D.large_avoidance (by
-      intro n hn j hj he
-      exact (mem_dyadicExceptions X (n + j)).mpr
-        ⟨(D.shifts_stay_in_interval n hn j hj).1,
-          (D.shifts_stay_in_interval n hn j hj).2, he⟩)
-  have : 0 < (dyadicExceptions X).card := by
-    exact_mod_cast (lt_of_lt_of_le hpositive hcard)
-  exact Finset.card_pos.mp this
-
-
-theorem disproof_of_eventual_sieve_data
-    (h : ∀ᶠ X : ℕ in Filter.atTop, Nonempty (SieveData X)) :
-    ¬ EventualRepresentation := by
-  apply not_eventual_iff_unbounded.mpr
-  apply unbounded_of_eventually_dyadic_nonempty
-  filter_upwards [h] with X hX
-  obtain ⟨D⟩ := hX
-  exact D.exception_exists
-
 end Erdos676
 end
 
@@ -11564,9 +10642,6 @@ theorem full_quantitative_disproof : QuantitativeDisproof := by
 theorem full_disproof : ¬ EventualRepresentation :=
   quantitativeDisproof_implies_disproof full_quantitative_disproof
 
-theorem full_unbounded_exceptions : UnboundedExceptions :=
-  not_eventual_iff_unbounded.mp full_disproof
-
 end Erdos676
 end
 
@@ -11579,11 +10654,6 @@ theorem erdos676_negative :
     ¬ (∀ᶠ n : ℕ in atTop, ∃ a p b : ℕ,
       p.Prime ∧ 1 ≤ a ∧ b < p ∧ n = a * p ^ 2 + b) :=
   full_disproof
-
-theorem erdos676_infinite_exceptions :
-    Set.Infinite {n : ℕ | ¬ ∃ a p b : ℕ,
-      p.Prime ∧ 1 ≤ a ∧ b < p ∧ n = a * p ^ 2 + b} :=
-  unbounded_iff_infinite.mp full_unbounded_exceptions
 
 end Erdos676
 end

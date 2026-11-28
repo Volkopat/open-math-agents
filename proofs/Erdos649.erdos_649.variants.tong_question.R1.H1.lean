@@ -1,7 +1,5 @@
 import OMAReductions.R_Erdos649_erdos_649_variants_tong_question_R1
-import Mathlib.Algebra.Ring.GeomSum
-import Mathlib.GroupTheory.OrderOfElement
-import Mathlib.Data.ZMod.Basic
+import Mathlib
 
 namespace OMA.Erdos649
 

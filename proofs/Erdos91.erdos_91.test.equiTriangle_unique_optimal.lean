@@ -15,30 +15,21 @@ open Erdos91 EuclideanGeometry
 
 private theorem equiTriangle_distinctDistances_le : distinctDistances equiTriangle ≤ 1 := by
   classical
-  let e : ℝ² ≃ₗᵢ[ℝ] ℂ := Complex.orthonormalBasisOneI.repr.symm
   let a : ℝ² := !₂[0, 0]
   let b : ℝ² := !₂[1, 0]
   let c : ℝ² := !₂[1 / 2, Real.sqrt 3 / 2]
-  have ha : e a = 0 := by simp [e, a]
-  have hb : e b = 1 := by simp [e, b]
-  have hc : e c = ⟨1 / 2, Real.sqrt 3 / 2⟩ := by
-    apply Complex.ext <;> norm_num [e, c, Complex.mul_re, Complex.mul_im]
   have hsq : (Real.sqrt 3) ^ 2 = 3 := Real.sq_sqrt (by norm_num)
-  have hab : dist a b = 1 := by rw [← e.isometry.dist_eq, ha, hb]; simp
+  have hab : dist a b = 1 := by
+    apply (sq_eq_sq₀ dist_nonneg zero_le_one).mp
+    norm_num [EuclideanSpace.dist_sq_eq, Fin.sum_univ_two, Real.dist_eq, sq_abs, a, b]
   have hac : dist a c = 1 := by
-    rw [← e.isometry.dist_eq, ha, hc, dist_comm, dist_zero_right]
-    have h : ‖(⟨1 / 2, Real.sqrt 3 / 2⟩ : ℂ)‖ ^ 2 = 1 := by
-      rw [Complex.sq_norm, Complex.normSq_apply]
-      dsimp
-      nlinarith
-    nlinarith [norm_nonneg (⟨1 / 2, Real.sqrt 3 / 2⟩ : ℂ)]
+    apply (sq_eq_sq₀ dist_nonneg zero_le_one).mp
+    norm_num [EuclideanSpace.dist_sq_eq, Fin.sum_univ_two, Real.dist_eq, sq_abs, a, c]
+    nlinarith
   have hbc : dist b c = 1 := by
-    rw [← e.isometry.dist_eq, hb, hc, dist_eq_norm]
-    have h : ‖1 - (⟨1 / 2, Real.sqrt 3 / 2⟩ : ℂ)‖ ^ 2 = 1 := by
-      rw [Complex.sq_norm, Complex.normSq_apply]
-      simp only [Complex.sub_re, Complex.sub_im, Complex.one_re, Complex.one_im]
-      nlinarith
-    nlinarith [norm_nonneg (1 - (⟨1 / 2, Real.sqrt 3 / 2⟩ : ℂ))]
+    apply (sq_eq_sq₀ dist_nonneg zero_le_one).mp
+    norm_num [EuclideanSpace.dist_sq_eq, Fin.sum_univ_two, Real.dist_eq, sq_abs, b, c]
+    nlinarith
   change (distanceSet {a, b, c}).card ≤ 1
   suffices h : distanceSet {a, b, c} ⊆ {1} by
     simpa using Finset.card_le_card h

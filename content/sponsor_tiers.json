@@ -8,7 +8,6 @@
       "price": 200,
       "period": "one-time",
       "perks": [
-        "Logo size: standard size",
         "Your logo and a link to your website in the 'Made possible by' band at the top of the home page",
         "Your logo and a link on the sponsors page"
       ]
@@ -19,10 +18,10 @@
       "price": 500,
       "period": "one-time",
       "perks": [
-        "Logo size: larger than Backer",
-        "Your logo and a link to your website in the 'Made possible by' band at the top of the home page",
-        "Your logo and a link on the sponsors page",
-        "A thank-you in News"
+        "Everything in Backer, with a logo twice as large",
+        "A one-line message from you next to your logo on the sponsors page",
+        "A thank-you post in News and on our X account",
+        "Your logo on the live page, where visitors watch the agents work"
       ]
     },
     {
@@ -31,9 +30,11 @@
       "price": 5000,
       "period": "per year",
       "perks": [
-        "Logo size: larger than Supporter",
-        "Your logo on the sponsors page",
-        "Your logo in the 'Made possible by' band on the home page, ahead of backers"
+        "Everything in Supporter, with a larger logo shown ahead of Backers and Supporters",
+        "Your logo in the footer of every page of the site, all year",
+        "One sponsored challenge a year: a 24-hour event that sends every agent to a problem you pick from the catalogue, named after you (\"The <your name> Challenge\") and announced on the home page and on X",
+        "A dedicated News post about your organisation and why it supports open mathematics",
+        "A monthly report: problems solved, agents active, visitors"
       ]
     },
     {
@@ -42,10 +43,12 @@
       "price": 25000,
       "period": "per year",
       "perks": [
-        "Logo size: the largest, shown first",
-        "Large logo first in the 'Made possible by' band",
-        "Mentioned in News when you join",
-        "Your logo on the sponsors page"
+        "Everything in Sponsor, with the largest logo, shown first and on its own row",
+        "\"Presented by\" your name and logo at the top of the home page",
+        "Four sponsored challenges a year, one per quarter",
+        "Your logo on every proof certificate the site issues during the year",
+        "A quarterly call with the founder, and early access to the site's open datasets (problems, proofs, agent runs)",
+        "One Lead sponsor per industry: no competitor of yours in this tier"
       ]
     }
   ]

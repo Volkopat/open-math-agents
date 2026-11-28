@@ -1,6 +1,6 @@
 import FormalConjectures.ErdosProblems.«750»
 
-/-! The shift graph witnesses the Erdős–Hajnal bound. Credit: @Genbox. -/
+/-! The shift graph witnesses the Erdős–Hajnal bound. Credit: @Genbox (#867). -/
 
 open Finset
 open scoped BigOperators
@@ -42,35 +42,25 @@ private theorem card_cuts (t : Finset ℕ) {a b : ℕ}
     (ha : a ∈ t) (hb : b ∈ t) (hab : a ≠ b) :
     (t.powerset.filter (fun d => a ∈ d ∧ b ∉ d)).card = 2 ^ (t.card - 2) := by
   classical
-  let u := (t.erase a).erase b
-  have hua : a ∉ u := fun h => (notMem_erase a _) (mem_of_mem_erase h)
-  have hub : b ∉ u := notMem_erase b _
-  have hinj : Set.InjOn (fun d : Finset ℕ => insert a d) u.powerset := by
-    intro d hd e he h
-    have hda : a ∉ d := notMem_mono (mem_powerset.mp hd) hua
-    have hea : a ∉ e := notMem_mono (mem_powerset.mp he) hua
-    simpa [hda, hea] using congrArg (fun f : Finset ℕ => f.erase a) h
-  have himage :
-      u.powerset.image (fun d => insert a d) =
-        t.powerset.filter (fun d => a ∈ d ∧ b ∉ d) := by
-    ext d
-    constructor
-    · intro hd
-      obtain ⟨e, he, rfl⟩ := mem_image.mp hd
-      have he' := mem_powerset.mp he
-      exact mem_filter.mpr ⟨mem_powerset.mpr (insert_subset ha
-        (he'.trans ((erase_subset _ _).trans (erase_subset _ _)))),
-        mem_insert_self _ _, by simpa [Ne.symm hab] using notMem_mono he' hub⟩
-    · intro hd
-      obtain ⟨hdt, hda, hdb⟩ := mem_filter.mp hd
-      refine mem_image.mpr ⟨d.erase a, mem_powerset.mpr ?_, insert_erase hda⟩
-      intro x hx
-      have hxd := mem_of_mem_erase hx
-      exact mem_erase.mpr ⟨fun h => hdb (h ▸ hxd),
-        mem_erase.mpr ⟨(mem_erase.mp hx).1, mem_powerset.mp hdt hxd⟩⟩
-  rw [← himage, card_image_of_injOn hinj, card_powerset]
-  rw [card_erase_of_mem (mem_erase.mpr ⟨Ne.symm hab, hb⟩), card_erase_of_mem ha]
-  simp [Nat.sub_sub]
+  calc
+    _ = ((t.erase a).erase b).powerset.card := by
+      apply card_bij (fun d _ => d.erase a)
+      · intro d hd
+        obtain ⟨hd, hda, hdb⟩ := mem_filter.mp hd
+        exact mem_powerset.mpr (subset_erase.mpr
+          ⟨erase_subset_erase a (mem_powerset.mp hd), notMem_mono (erase_subset a d) hdb⟩)
+      · intro d hd e he h
+        simpa [(mem_filter.mp hd).2.1, (mem_filter.mp he).2.1] using congrArg (insert a) h
+      · intro d hd
+        obtain ⟨hdt, hdb⟩ := subset_erase.mp (mem_powerset.mp hd)
+        have hda := notMem_mono hdt (notMem_erase a t)
+        refine ⟨insert a d, mem_filter.mpr ⟨mem_powerset.mpr
+          (insert_subset ha (hdt.trans (erase_subset a t))), mem_insert_self _ _, ?_⟩, ?_⟩
+        · simp [hab.symm, hdb]
+        · simp [hda]
+    _ = _ := by
+      rw [card_powerset, card_erase_of_mem (mem_erase.mpr ⟨Ne.symm hab, hb⟩),
+        card_erase_of_mem ha, Nat.sub_sub]
 
 
 end OMA
