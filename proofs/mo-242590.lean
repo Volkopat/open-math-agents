@@ -1,4 +1,10 @@
 import OMAStatements.S_mo_242590
+
+/-! Retains @connoranderson’s full left-coefficient quaternion construction
+from #32626 and the earlier signed proof8bea18614b110fd2a11d5c0e8175c11ed3035aad,
+linked in statement #28152. Standard coordinate simplification replaces
+repeated quaternion-square and nonzero-coordinate calculations. -/
+
 namespace OMA.S_mo_242590
 open Polynomial Quaternion
 
@@ -6,19 +12,15 @@ private def a : H := ⟨0,0,0,-1⟩
 private def b : H := ⟨0,1,0,0⟩
 
 private lemma a_sq : a*a= -1 := by
-  apply Quaternion.ext
-  · exact (Quaternion.re_mul a a).trans (by norm_num [a])
-  · exact (Quaternion.imI_mul a a).trans (by norm_num [a])
-  · exact (Quaternion.imJ_mul a a).trans (by norm_num [a])
-  · exact (Quaternion.imK_mul a a).trans (by norm_num [a])
+  ext <;>
+    simp only [Quaternion.re_mul, Quaternion.imI_mul, Quaternion.imJ_mul, Quaternion.imK_mul] <;>
+    norm_num [a]
 private lemma b_sq : b*b= -1 := by
-  apply Quaternion.ext
-  · exact (Quaternion.re_mul b b).trans (by norm_num [b])
-  · exact (Quaternion.imI_mul b b).trans (by norm_num [b])
-  · exact (Quaternion.imJ_mul b b).trans (by norm_num [b])
-  · exact (Quaternion.imK_mul b b).trans (by norm_num [b])
-private lemma a_ne : a≠0 := by intro h; have := congrArg (fun x : H => x.imK) h; norm_num [a] at this
-private lemma ab_ne : a+b≠0 := by intro h; have := congrArg (fun x : H => x.imI) h; change (0:ℝ)+1=0 at this; norm_num at this
+  ext <;>
+    simp only [Quaternion.re_mul, Quaternion.imI_mul, Quaternion.imJ_mul, Quaternion.imK_mul] <;>
+    norm_num [b]
+private lemma a_ne : a≠0 := ne_of_apply_ne (fun x : H => x.imK) (by norm_num [a])
+private lemma ab_ne : a+b≠0 := ne_of_apply_ne (fun x : H => x.imI) (by rw [Quaternion.imI_add]; norm_num [a, b])
 
 private noncomputable def L : Polynomial H := X-C a
 private noncomputable def family (m : ℕ) : Polynomial H := L^m*(X-C b)
