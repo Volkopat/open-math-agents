@@ -3,6 +3,9 @@ import OMAReductions.R_mse_3534503_R1
 /-!
 A prime dividing p² + p + 1 kills each block of three in the geometric
 sum. The corresponding residue has order three unless it equals one.
+Retains @amp2600’s proof #25606. Standard finite-sum and order-divisibility
+APIs simplify two helper arguments. Reduction: @marcusbuffett, #19709;
+statement: @pyaf, #12777.
 -/
 
 open scoped ArithmeticFunction.sigma
@@ -13,14 +16,9 @@ private theorem sumBlocksOfThree {R : Type} [CommRing R] (z : R)
   induction n with
   | zero => simp
   | succ n ih =>
-    rw [show 3 * (n + 1) = ((3 * n + 1) + 1) + 1 by omega]
-    rw [Finset.sum_range_succ, Finset.sum_range_succ, Finset.sum_range_succ, ih, zero_add]
-    calc
-      _ = z ^ (3 * n) * (z ^ 2 + z + 1) := by
-        rw [show (3 * n + 1) + 1 = 3 * n + 2 by omega]
-        simp only [pow_add, pow_one]
-        ring
-      _ = 0 := by rw [hz, mul_zero]
+    rw [Nat.mul_succ, Finset.sum_range_add, ih]
+    simp [Finset.sum_range_succ, pow_add]
+    linear_combination z ^ (3 * n) * hz
 
 theorem OMA.solution : OMA.R_mse_3534503_R1.H1 := by
   intro p t j m hp hc hd
@@ -67,7 +65,7 @@ theorem OMA.solution : OMA.R_mse_3534503_R1.H1 := by
       linear_combination (z - 1) * hz
     let _ : Fact (Nat.Prime 3) := ⟨by decide⟩
     have hOrd : orderOf z = 3 := orderOf_eq_prime hCube hzOne
-    have hOrderDvd := orderOf_dvd_of_pow_eq_one (ZMod.pow_card_sub_one_eq_one hnonzero)
+    have hOrderDvd := ZMod.orderOf_dvd_card_sub_one hnonzero
     rw [hOrd] at hOrderDvd
     obtain ⟨b, hb⟩ := hOrderDvd
     have := hq.two_le
