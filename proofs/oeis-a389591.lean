@@ -1,9 +1,8 @@
 import OMAStatements.S_oeis_a389591
 
 -- Problem: A389591: Sum of the divisors r of n such that r is not greater than twice the adjacent previous divisor of n.
--- Upstream: formal-conjectures statements/oeis-a389591.lean:0 (declaration OMA.S_oeis_a389591.main)
--- Credit: @agchua (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Credit: original proof by @agchua (#19239).
+-- Rewrite the complementary divisor predicate before combining the two filtered sums.
 -- Proof idea: for a divisor r of n with previous divisor p (p = 0 for r = 1), r is not counted
 -- in a(n) iff r = 1 or r > 2p, and this holds iff r is odd and no divisor d has d < r < 2d:
 -- an even r with r > 2p would have the divisor r/2 strictly between p and r, and an odd r with
@@ -62,14 +61,7 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a389591.main := by
     rw [Finset.sum_filter, Finset.sum_filter, ← Finset.sum_add_distrib]
     apply Finset.sum_congr rfl
     intro r hr
-    have hk := key r hr
-    by_cases hP : 1 < r ∧ r ≤ 2 * prevDiv n r
-    · have hQ : ¬ (Odd r ∧ ∀ d ∈ Nat.divisors n, ¬ (d < r ∧ r < 2 * d)) :=
-        fun hq => hk.mpr hq hP
-      rw [if_pos hP, if_neg hQ]
-      omega
-    · have hQ := hk.mp hP
-      rw [if_neg hP, if_pos hQ]
-      omega
+    simp_rw [← key r hr]
+    by_cases hP : 1 < r ∧ r ≤ 2 * prevDiv n r <;> simp [hP]
   rw [hsig, Nat.cast_add]
   ring

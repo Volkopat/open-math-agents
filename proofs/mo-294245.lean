@@ -1,5 +1,14 @@
 import OMAStatements.S_mo_294245
 
+/-!
+Shortening of @Genbox’s merged proof #31410, head
+2a718f33589d53da2bcfd90408bf1863c37f18f2, retaining its ZMod 2 counterexample.
+CharTwo.add_self_eq_zero replaces the manual exponent-two calculation.
+The larger pending @tox5tox5 proof #34011 uses a cyclic group of order three;
+its complete source was read for comparison. Source: MathOverflow 294245,
+Alex M. (CC BY-SA 3.0).
+-/
+
 open MeasureTheory OMA.S_mo_294245
 open scoped ENNReal
 
@@ -11,11 +20,8 @@ theorem OMA.solution : type_of% @OMA.S_mo_294245.main := by
   let _ : BorelSpace G := ⟨rfl⟩
   let g : G := Multiplicative.ofAdd (1 : ZMod 2)
   have hg : g ≠ 1 := by decide
-  have hsquare (x : G) : x * x = 1 := by
-    change Multiplicative.ofAdd (Multiplicative.toAdd x + Multiplicative.toAdd x) =
-      Multiplicative.ofAdd (0 : ZMod 2)
-    congr 1
-    rw [← two_mul, show (2 : ZMod 2) = 0 by decide, zero_mul]
+  have hsquare (x : G) : x * x = 1 :=
+    congrArg Multiplicative.ofAdd (CharTwo.add_self_eq_zero x.toAdd)
   have hid (k : ℕ) : convPow (Measure.dirac (1 : G)) k = Measure.dirac 1 := by
     induction k with
     | zero => rfl

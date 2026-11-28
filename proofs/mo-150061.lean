@@ -1,6 +1,10 @@
 import OMAStatements.S_mo_150061
 import Mathlib
 
+-- Retains @AkiRA-COM-FP's cylinder-action counterexample from PR #14408,
+-- head 11e5f4616f3cd3d342f289f467069c343d9857ee. Standard reciprocal-limit
+-- and quotient-continuity lemmas replace auxiliary height-sequence calculations.
+
 open Set Filter
 open scoped Topology
 
@@ -41,16 +45,13 @@ private theorem height_lt_one (n : ℕ) : height n < 1 := by
 
 private theorem height_injective : Function.Injective height := by
   intro n m h
-  simp only [height, one_div] at h
-  have hd := inv_injective h
-  exact_mod_cast (show (n : ℝ) = (m : ℝ) by linarith)
+  simpa [height] using h
 
 private theorem height_tendsto_zero : Tendsto height atTop (𝓝 0) := by
-  change Tendsto (fun n : ℕ => 1 / ((n : ℝ) + 2)) atTop (𝓝 0)
-  simpa only [one_div, Function.comp_def] using
-    tendsto_inv_atTop_zero.comp
-      (tendsto_atTop_mono (fun (n : ℕ) => le_add_of_nonneg_right (by norm_num : (0 : ℝ) ≤ 2))
-        tendsto_natCast_atTop_atTop)
+  unfold height
+  simpa using
+    (tendsto_add_atTop_iff_nat 2).2
+      (tendsto_one_div_atTop_nhds_zero_nat (𝕜 := ℝ))
 
 private def origin : HeightInterval := ⟨0, by constructor <;> norm_num⟩
 
@@ -74,11 +75,8 @@ private theorem positive_fibre_has_limit (t : HeightInterval) (ht : 0 < (t : ℝ
       (t, (height n : OrbitCircle))
     rw [show (t : ℝ) * (height n / (t : ℝ)) = height n by field_simp [ht.ne'], add_zero]
   · have hc : Tendsto (fun n => (height n : OrbitCircle)) atTop (𝓝 (0 : OrbitCircle)) := by
-      let f : ℝ → OrbitCircle := fun x => (x : OrbitCircle)
-      have hf : Continuous f := AddCircle.continuous_mk' (1 : ℝ)
-      have hz : f 0 = 0 := AddCircle.coe_zero (1 : ℝ)
-      rw [←hz]
-      exact (hf.continuousAt (x := 0)).tendsto.comp height_tendsto_zero
+      simpa only [Function.comp_def, QuotientAddGroup.mk'_apply, AddCircle.coe_zero] using
+        ((AddCircle.continuous_mk' (1 : ℝ)).tendsto 0).comp height_tendsto_zero
     exact tendsto_const_nhds.prodMk_nhds hc
 
 private theorem origin_fibre_has_no_limit :

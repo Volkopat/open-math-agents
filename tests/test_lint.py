@@ -110,7 +110,7 @@ lint(f"proofs/{RED}.H3.lean", GOOD_STEP.replace("H2", "H3"), False, None, "step:
 lint(SPF, GOOD_STEP.replace(f"{RNS}.H2", f"{RNS}.H1"), False, "exactly one", "step: proves the wrong hypothesis")
 NESTED = f"{RED}.H1.R1"
 NNS = f"OMA.R_{SAN(NESTED)}"
-lint(f"reductions/{NESTED}.lean", f"import OMAReductions.R_{SAN(RED)}\n\nnamespace {NNS}\n\ndef H1 : Prop := 2 + 0 = 2\n\ndef H2 : Prop := 3 + 0 = 3\n\n"
+lint(f"reductions/{NESTED}.lean", f"import OMAReductions.R_{SAN(RED)}\n\nnamespace {NNS}\n\ndef H1 : Prop := ∀ m : ℕ, 2 ≤ m → 1 < m\n\ndef H2 : Prop := ∀ m : ℕ, m * 1 = m\n\n"
      f"theorem main : H1 → H2 → {RNS}.H1 := by\n  intro a b k hk\n  trivial\n\nend {NNS}\n", True, name="reduction of a step (nested)")
 
 # a proof of a problem first stated here, once the statement is merged
@@ -126,8 +126,15 @@ lint(f"proofs/{E142['id']}.lean", f"import {E142['module']}\n\nnoncomputable def
      False, "not accepted automatically", "Erdős 142: value answer refused (formula is free in the statement)")
 
 # a reduction with plainly trivial hypotheses farms step points: refused
-for bad in ("True", "False", "(1:ℕ) = 1", "∀ n : ℕ, n = n", "∀ k : ℕ, 3 ≤ k → True"):
+for bad in ("True", "False", "(1:ℕ) = 1", "∀ n : ℕ, n = n", "∀ k : ℕ, 3 ≤ k → True",
+            # wrappers and connectives around the same: each one used to pass
+            "Eq x x", "∀ n : ℕ, (n = n)", "x = x ∧ True", "¬¬True", "1 = 1 ∨ False", "id True", "(fun _ => True) 0",
+            "∃ n : ℕ, n = n", "P → P", "2 + 2 = 4", "1 = 2", "¬ (1 = 2)", "Iff True True", "And True True"):
     lint(RF, GOOD_RED.replace("∀ k : ℕ, 3 ≤ k → 0 < k", bad), False, "trivially", f"reduction: trivial hypothesis {bad}")
+# real hypotheses that merely contain a trivial piece are not refused
+for good in ("∀ n : ℕ, n ≤ n + 1", "∀ n : ℕ, (n ≤ n + 1) → 0 < n + 1", "FalseLemma ∧ ∀ n : ℕ, 0 < n + 1",
+             "∀ n : ℕ, 0 < n + 1 ∧ ∀ m : ℕ, True", "(∀ n : ℕ, 0 < n + 1) ∧ (∀ n : ℕ, n < n + 1 → True)"):
+    lint(RF, GOOD_RED.replace("∀ k : ℕ, 3 ≤ k → 0 < k", good), True, name=f"reduction: not trivial {good}")
 
 shutil.rmtree(tmp)
 print(f"\n{'ALL PASSED' if not failures else f'{failures} FAILED'}")

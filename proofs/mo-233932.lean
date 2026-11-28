@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_233932
 
 /-!
+Retains @connoranderson’s proof from #31937 and its earlier companion linked in #22563.
+Uses standard finite-set counting APIs; pending @artnoage #36700 was also inspected.
+
 The radius-r ball volume is the sum of the numbers of ways to choose the
 moved positions and derange them. A cover requires enough total ball volume.
 Choosing a representative for every ordered prefix gives an explicit cover.
@@ -25,10 +28,9 @@ private lemma support_fiber {n : ℕ} (s : Finset (Fin n)) :
         exact not_iff_comm.mp (h i)
       · intro h i
         exact (not_iff_comm.mpr (h i)))
-  calc
-    _ = Fintype.card {p : P n // p.support=s} := (Fintype.card_of_subtype _ (by simp)).symm
-    _ = Fintype.card (derangements s) := Fintype.card_congr E.symm
-    _ = _ := by rw [card_derangements_eq_numDerangements,Fintype.card_coe]
+  rw [← Fintype.card_subtype, ← Fintype.card_congr E,
+    card_derangements_eq_numDerangements, Fintype.card_coe]
+
 
 private lemma shell_card (n j : ℕ) :
     (univ.filter (fun p : P n => p.support.card=j)).card=n.choose j*numDerangements j := by
@@ -80,10 +82,8 @@ private lemma ball_card {n : ℕ} (x : P n) (r : ℕ) :
   let e : P n ≃ P n := Equiv.mulLeft x
   have he (u : P n) : u.support.card≤r ↔ distP x (e u)≤r := by rw [show e u=x*u from rfl,dist_left]
   let E := e.subtypeEquiv (p:=fun u => u.support.card≤r) (q:=fun y => distP x y≤r) he
-  calc
-    _ = Fintype.card {y : P n // distP x y≤r} := (Fintype.card_of_subtype _ (by simp)).symm
-    _ = Fintype.card {u : P n // u.support.card≤r} := Fintype.card_congr E.symm
-    _ = _ := (Fintype.card_of_subtype _ (by simp)).trans (radius_card n r)
+  simpa only [Fintype.card_subtype, radius_card] using Fintype.card_congr E.symm
+
 
 private lemma prefix_cover (n r : ℕ) (hr : r≤n) :
     ∃ C : Finset (P n), C.card ≤ n.factorial/r.factorial ∧ covers C r := by
@@ -104,22 +104,17 @@ private lemma prefix_cover (n r : ℕ) (hr : r≤n) :
     refine ⟨c,mem_image_of_mem _ (mem_univ _),?_⟩
     have he : firstEntries c=firstEntries p := Function.apply_invFun_apply
     let D := univ.filter (fun i : Fin n => p i≠c i)
-    have hi (i : D) : t ≤ i.val.val := by
+    have hsub : D ⊆ (univ.filter (fun i : Fin n => i.val < t))ᶜ := by
+      intro i hi
+      simp only [mem_compl, mem_filter, mem_univ, true_and, not_lt]
       by_contra! h
-      have hh := congrArg (fun f : Fin t ↪ Fin n => f ⟨i.val,h⟩) he
-      exact (mem_filter.mp i.property).2 hh.symm
-    let f (i : D) : Fin r := ⟨i.val.val-t,by have := i.val.isLt; have := hi i; dsimp [t] at *; omega⟩
-    have hf : Function.Injective f := by
-      intro i j h
-      have heq := congrArg Fin.val h
-      change i.val.val-t=j.val.val-t at heq
-      apply Subtype.ext
-      apply Fin.ext
-      have := hi i
-      have := hi j
-      omega
+      have hh := congrArg (fun f : Fin t ↪ Fin n => f ⟨i,h⟩) he
+      exact (mem_filter.mp hi).2 hh.symm
     change D.card ≤ r
-    simpa only [Fintype.card_coe,Fintype.card_fin] using Fintype.card_le_of_injective f hf
+    have hc := card_le_card hsub
+    rw [card_compl, Fintype.card_fin, Fin.card_filter_val_lt, Nat.min_eq_right ht] at hc
+    simpa only [t, Nat.sub_sub_self hr] using hc
+
 
 private lemma ball_lower {n r : ℕ} (C : Finset (P n)) (h : covers C r) :
     n.factorial≤C.card*volume n r := by
@@ -152,9 +147,7 @@ private lemma random_cover {n r K : ℕ}
     _ ≤ ∑ x : P n, (bad x).card := card_biUnion_le
     _ = n.factorial*(n.factorial-volume n r)^K := by simp [bad,Fintype.card_piFinset,ho,hn]
     _ < _ := by simpa [hn] using h
-  have hnot : ¬(univ : Finset (Fin K → P n)) ⊆ univ.biUnion bad :=
-    fun hsub => (not_le_of_gt hs) (card_le_card hsub)
-  obtain ⟨v,_,hv⟩ := Finset.not_subset.mp hnot
+  obtain ⟨v,_,hv⟩ := Finset.exists_mem_notMem_of_card_lt_card hs
   refine ⟨univ.image v,card_image_le.trans (by simp),?_⟩
   intro x
   by_contra! hx

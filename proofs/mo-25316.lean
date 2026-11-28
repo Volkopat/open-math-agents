@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_25316
 
 /-!
+Retains @justusklocke-cloud’s proof #14088; the infinite-dimensional witness uses
+Mathlib’s canonical Hilbert basis of ℓ².
+
 Put two disjoint sequences on one line, one bounded and the other unbounded. The map
 interleaves the sequences and its square shifts each separately. Any square root must
 map the bounded sequence onto a tail of the unbounded sequence, ruling out even weak
@@ -80,16 +83,7 @@ private abbrev Hilbert := lp (fun _ : ℕ => ℝ) 2
 
 private theorem hilbert_infinite : ¬ FiniteDimensional ℝ Hilbert := by
   intro h
-  let coeffs : Hilbert →ₗ[ℝ] (ℕ → ℝ) :=
-    LinearMap.pi fun i => lp.evalₗ (fun _ : ℕ => ℝ) 2 i
-  let e : ℕ → Hilbert := fun i => lp.single 2 i 1
-  have hcomp : coeffs ∘ e = fun i => Pi.single i (1 : ℝ) := by
-    ext i j
-    exact lp.single_apply (E := fun _ : ℕ => ℝ) 2 i (1 : ℝ) j
-  have hl : LinearIndependent ℝ e := LinearIndependent.of_comp coeffs (by
-    rw [hcomp]
-    exact Pi.linearIndependent_single_one ℕ ℝ)
-  have hc := hl.lt_aleph0_of_finiteDimensional
+  have hc := (default : HilbertBasis ℕ ℝ Hilbert).orthonormal.linearIndependent.lt_aleph0_of_finiteDimensional
   simp at hc
 
 private noncomputable def coordinate : Hilbert →L[ℝ] ℝ :=
@@ -120,14 +114,7 @@ private theorem boundedParam_mem (n : ℕ) : boundedParam n ∈ Set.Icc (0 : ℝ
 
 private theorem A_injective : Injective A := by
   intro i j he
-  have h := congrArg coordinate he
-  rw [coordinate_A, coordinate_A] at h
-  unfold boundedParam at h
-  have hi : (i : ℝ) + 2 ≠ 0 := by positivity
-  have hj : (j : ℝ) + 2 ≠ 0 := by positivity
-  have hval := (div_eq_div_iff hi hj).mp h
-  have hij : (i : ℝ) = j := by linarith
-  exact_mod_cast hij
+  simpa [coordinate_A, boundedParam, one_div] using congrArg coordinate he
 
 private theorem B_injective : Injective B := by
   intro i j he

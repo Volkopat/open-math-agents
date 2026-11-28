@@ -14,7 +14,165 @@ a limiting profile to mass four gives the asymptotic odd upper bound.
 The even branch reuses Devin Robison's merged proof (PR 4480) and its
 contributions credited below to @green-notes and @MrSeizy.
 -/
-section dX
+open Classical renaming choose_spec → clCS
+open Finset renaming card → fsCard
+open Finset renaming card_biUnion_le → fsCBL
+open Finset renaming card_insert_of_notMem → fsCION
+open Finset renaming card_le_card → fsCLC
+open Finset renaming card_le_univ → fsCLU
+open Finset renaming card_pos → fsCP
+open Finset renaming card_union_le → fsCUL
+open Finset renaming card_univ → fsCU
+open Finset renaming disjoint_left → fsDL
+open Finset renaming disjoint_of_subset_right → fsDOSR
+open Finset renaming disjoint_right → fsDR
+open Finset renaming erase_subset → fsES
+open Finset renaming inter_subset_right → fsISR
+open Finset renaming mem_biUnion → fsMB
+open Finset renaming mem_erase → fsME
+open Finset renaming mem_filter → fsMF
+open Finset renaming mem_image → fsMI
+open Finset renaming mem_insert → fsMI2
+open Finset renaming mem_insert_of_mem → fsMIOM
+open Finset renaming mem_insert_self → fsMIS
+open Finset renaming mem_inter → fsMI3
+open Finset renaming mem_of_mem_erase → fsMOME
+open Finset renaming mem_offDiag → fsMO
+open Finset renaming mem_product → fsMP
+open Finset renaming mem_range → fsMR
+open Finset renaming mem_sdiff → fsMS
+open Finset renaming mem_singleton → fsMS2
+open Finset renaming mem_union → fsMU
+open Finset renaming mem_union_left → fsMUL
+open Finset renaming mem_union_right → fsMUR
+open Finset renaming mem_univ → fsMU2
+open Finset renaming mul_sum → fsMS3
+open Finset renaming ne_of_mem_erase → fsNOME
+open Finset renaming notMem_empty → fsNE
+open Finset renaming range → fsRange
+open Finset renaming sum_congr → fsSC
+open Finset renaming sum_le_sum → fsSLS
+open Finset renaming univ → fsUniv
+open Fintype renaming card → ftCard
+open Fintype renaming card_coe → ftCC
+open Fintype renaming card_congr → ftCC2
+open Fintype renaming card_fin → ftCF
+open Fintype renaming card_le_of_injective → ftCLOI
+open Fintype renaming card_pos_iff → ftCPI
+open Fintype renaming card_prod → ftCP
+open Fintype renaming ofFinite → ftOfFin
+open Fintype renaming one_lt_card_iff_nontrivial → ftOLCIN
+open Fintype renaming sum_equiv → ftSE
+open Function.Embedding renaming subtype → fnSubty
+open List renaming cons_append → lsCA
+open List renaming disjoint_left → lsDL
+open List renaming filter_cons → lsFC
+open List renaming flatMap_cons → lsFC2
+open List renaming getElem_cons_succ → lsGCS
+open List renaming getElem_cons_zero → lsGCZ
+open List renaming getElem_mem → lsGM
+open List renaming getElem_of_mem → lsGOM
+open List renaming getLast_cons → lsGC
+open List renaming getLast_eq_getElem → lsGEG
+open List renaming head_append_of_ne_nil → lsHAONN
+open List renaming head_eq_getElem → lsHEG
+open List.IsChain renaming cons_cons → lsCC
+open List.IsChain renaming singleton → lsSingl
+open List renaming isChain_iff_getElem → lsIIG
+open List renaming length_cons → lsLC
+open List renaming length_take → lsLT
+open List renaming mem_append → lsMA
+open List renaming mem_append_left → lsMAL
+open List renaming mem_append_right → lsMAR
+open List renaming mem_cons → lsMC
+open List renaming mem_cons_of_mem → lsMCOM
+open List renaming mem_cons_self → lsMCS
+open List renaming mem_filter → lsMF
+open List renaming mem_flatMap → lsMF2
+open List renaming mem_map → lsMM
+open List renaming mem_of_mem_tail → lsMOMT
+open List renaming mem_of_mem_take → lsMOMT2
+open List renaming mem_reverse → lsMR
+open List renaming mem_singleton → lsMS
+open List renaming mem_toFinset → lsMT
+open List renaming ne_nil_of_length_pos → lsNNOLP
+open List renaming nil_append → lsNA
+open List renaming nodup_append → lsNA2
+open List renaming nodup_cons → lsNC
+open List renaming not_mem_nil → lsNMN
+open List.Perm renaming mem_iff → lsMI
+open List renaming toFinset_append → lsTA
+open List renaming toFinset_card_le → lsTCL
+open List renaming toFinset_card_of_nodup → lsTCON
+open List renaming toFinset_cons → lsTC
+open List renaming toFinset_nil → lsTN
+open Nat renaming add_assoc → natAA
+open Nat renaming add_le_add_right → natALAR
+open Nat renaming add_sub_of_le → natASOL
+open Nat renaming card → natCard
+open Nat renaming card_eq_fintype_card → natCEFC
+open Nat renaming cast_add → natCA
+open Nat renaming cast_le → natCL
+open Nat renaming cast_mul → natCM
+open Nat renaming cast_nonneg → natCN
+open Nat renaming cast_ofNat → natCO
+open Nat renaming cast_zero → natCZ
+open Nat renaming div_add_mod → natDAM
+open Nat renaming div_mul_le_self → natDMLS
+open Nat renaming even_iff → natEI
+open Nat renaming le_ceil → natLC
+open Nat renaming le_div_iff_mul_le → natLDIML
+open Nat renaming lt_succ_of_le → natLSOL
+open Nat renaming mod_eq_of_lt → natMEOL
+open Nat renaming mod_lt → natML
+open Nat renaming mul_comm → natMC
+open Nat renaming mul_le_mul_left → natMLML
+open Nat renaming mul_le_mul_right → natMLMR
+open Nat renaming odd_iff → natOI
+open Nat renaming strong_induction_on → natSIO
+open Nat renaming sub_add_cancel → natSAC
+open Nat renaming sub_le_sub_right → natSLSR
+open Or renaming inl → orInl
+open Or renaming inr → orInr
+open Set renaming mem_compl_iff → stMCI
+open Set renaming mem_range_self → stMRS
+open Set renaming mem_singleton_iff → stMSI
+open Set renaming mem_toFinset → stMT
+open Set renaming ncard_coe_finset → stNCF
+open SimpleGraph renaming disjoint_edgeFinset → sgDE
+open SimpleGraph renaming edgeDensity_comm → sgEC
+open SimpleGraph renaming edgeDensity_def → sgED
+open SimpleGraph.Embedding renaming induce → sgInduce
+open SimpleGraph renaming mem_neighborFinset → sgMN
+open SimpleGraph renaming mk_mem_interedges_iff → sgMMII
+open SimpleGraph.Walk renaming mem_support_iff → sgMSI
+open SimpleGraph.Walk renaming mem_support_rotate_iff → sgMSRI
+open SimpleGraph.Walk renaming not_nil_iff_lt_length → sgNNILL
+open SimpleGraph.Walk renaming not_nil_of_ne → sgNNON
+open SimpleGraph.Walk renaming support_reverse → sgSR
+open Subtype renaming ext → subExt
+open Subtype renaming val → subVal
+open Subtype renaming val_injective → subVI
+open SimpleGraph.Walk renaming cons → wkCons
+open SimpleGraph.Walk renaming cons_isPath_iff → wkCII
+open SimpleGraph.Walk renaming drop_getVert → wkDG
+open SimpleGraph.Walk renaming drop_length → wkDL
+open SimpleGraph.Walk renaming length_append → wkLA
+open SimpleGraph.Walk renaming length_concat → wkLC
+open SimpleGraph.Walk renaming length_cons → wkLC2
+open SimpleGraph.Walk renaming length_map → wkLM
+open SimpleGraph.Walk renaming length_reverse → wkLR
+open SimpleGraph.Walk renaming length_support → wkLS
+open SimpleGraph.Walk renaming length_tail → wkLT
+open SimpleGraph.Walk renaming mem_support_append_iff → wkMSAI
+open SimpleGraph.Walk renaming mem_support_iff_exists_getVert → wkMSIEG
+open SimpleGraph.Walk renaming not_nil_of_ne → wkNNON
+open SimpleGraph.Walk renaming support_concat → wkSC
+open SimpleGraph.Walk renaming support_cons → wkSC2
+open SimpleGraph.Walk renaming support_map → wkSM
+open SimpleGraph.Walk renaming support_reverse → wkSR
+open SimpleGraph.Walk renaming take_length → wkTL
+
 namespace Erdos556
 open SimpleGraph
 open scoped SimpleGraph
@@ -53,16 +211,7 @@ theorem rr.mono {n a b:ℕ} (h:rr n a) (hab:a ≤ b) :
   refine ⟨i,?_⟩
   rw [c.tY f i] at hi
   exact hi.trans (SimpleGraph.Embedding.comap f (c.graph i)).isContained
-theorem rr.of_equiv {n m :ℕ} {V:Type*}
-    (h:rr n m) (e:Fin m ≃ V) (c:q4 V) :
-    ∃ i :Fin 3,cycleGraph n ⊑ c.graph i :=by
-  obtain ⟨i,hi⟩ :=h (c.comap e.toEmbedding)
-  refine ⟨i,?_⟩
-  rw [c.tY e.toEmbedding i] at hi
-  exact hi.trans (SimpleGraph.Embedding.comap e.toEmbedding (c.graph i)).isContained
 end Erdos556
-end dX
-section dR
 namespace Erdos556
 open Finset
 abbrev wz:=Fin 3 → Bool
@@ -76,7 +225,7 @@ def cubeFace (i:Fin 3) (b:Bool) : q1:=
 def qF:q1:=fun _ => none
 theorem sM (p:q1) : q3 p ≤ 3 :=by
   have h :=card_le_univ (univ.filter (fun i :Fin 3 => p i=none))
-  simpa only [q3,Fintype.card_fin] using h
+  simpa only [q3,ftCF] using h
 theorem qU: ∀ p:q1,
     (q0 p).card=2^q3 p :=by
   decide
@@ -90,8 +239,6 @@ theorem u1: ∀ p:q1,
     q3 p =2 ↔ ∃ (i:Fin 3) (b:Bool),p=cubeFace i b:=by
   decide
 end Erdos556
-end dR
-section e2
 namespace Erdos556
 theorem ru: ∀ p q:q1,
     q3 p =1 → q3 q =1 → p ≠ q →
@@ -103,8 +250,6 @@ theorem ui: ∀ (i j :Fin 3) (b c :Bool),
       i=j ∧ b ≠ c:=by
   decide
 end Erdos556
-end e2
-section dQ
 namespace Erdos556
 open Finset
 structure q6 (w:q1 → ℝ) : Prop where
@@ -139,7 +284,7 @@ theorem vh (E:Finset q1) (S:Finset wz)
         intro p hp
         rw [qU,hdim p hp]
         norm_num
-      _=2*E.card:=by simp [Nat.mul_comm]
+      _=2*E.card:=by simp [natMC]
   rw [← hsum,← card_biUnion hdisj]
   apply card_le_card
   intro v hv
@@ -163,8 +308,6 @@ theorem q6.vl {w:q1 → ℝ} (hw:q6 w) :
   rw [hcard] at h
   omega
 end Erdos556
-end dQ
-section dO
 namespace Erdos556
 open Finset
 theorem vn {V P R:Type*} [Fintype V] [Fintype P] [DecidableEq P]
@@ -174,7 +317,7 @@ theorem vn {V P R:Type*} [Fintype V] [Fintype P] [DecidableEq P]
   have h :=sum_fiberwise' (univ:Finset V) label f
   simpa only [sum_const,nsmul_eq_mul] using h.symm
 theorem aE {V P :Type*} [Fintype V] [Fintype P] [DecidableEq P]
-    (label:V → P) : (∑ p,(univ.filter (fun v => label v =p)).card) = Fintype.card V :=by
+    (label:V → P) : (∑ p,(univ.filter (fun v => label v =p)).card) = ftCard V :=by
   simpa using (vn label (fun _ => (1:ℕ))).symm
 theorem yG {V P R:Type*} [Fintype V] [Fintype P] [DecidableEq P]
     [Semiring R] (label:V → P) (f:P → P → R) :
@@ -193,13 +336,11 @@ theorem yG {V P R:Type*} [Fintype V] [Fintype P] [DecidableEq P]
         p q)
     _=_:=by simp only [mul_sum,mul_assoc]
 end Erdos556
-end dO
-section dV
 namespace Erdos556
 open SimpleGraph Finset
 theorem q7 {V:Type*} (G:SimpleGraph V) [Fintype G.edgeSet] :
-    G.edgeFinset.card=Nat.card G.edgeSet:=
-  G.card_edgeSet.symm.trans Nat.card_eq_fintype_card.symm
+    G.edgeFinset.card=natCard G.edgeSet:=
+  G.card_edgeSet.symm.trans natCEFC.symm
 theorem tf {V W :Type*} [Fintype V]
     [DecidableEq W] (G:SimpleGraph V) [DecidableRel G.Adj]
     (f:V ↪ W) (A:Finset W) :
@@ -209,7 +350,7 @@ theorem tf {V W :Type*} [Fintype V]
   let B :=univ.filter (fun v :V=> f v ∈ A)
   let g : (B:Set V) ↪ (A:Set W) :=
     { toFun:=fun v => ⟨f v.val,(mem_filter.mp v.property).2⟩
-      inj':=fun u v h => Subtype.ext (f.injective (congrArg Subtype.val h))}
+      inj':=fun u v h => subExt (f.injective (congrArg subVal h))}
   have e : (G.map f).induce (A:Set W) ≃g (G.induce (B:Set V)).map g :=
     { toEquiv:=Equiv.refl _
       map_rel_iff':=by
@@ -217,17 +358,17 @@ theorem tf {V W :Type*} [Fintype V]
         constructor
         · rintro ⟨hne,a,b,hab,ha,hb⟩
           change (G.map f).Adj u.val v.val
-          refine ⟨fun h => hne (Subtype.ext h),a.val,b.val,hab,?_,?_⟩
-          · exact congrArg Subtype.val ha
-          · exact congrArg Subtype.val hb
+          refine ⟨fun h => hne (subExt h),a.val,b.val,hab,?_,?_⟩
+          · exact congrArg subVal ha
+          · exact congrArg subVal hb
         · intro huv
           change (G.map f).Adj u.val v.val at huv
           obtain ⟨hne,a,b,hab,ha,hb⟩ :=huv
           have haB:a ∈ B:=mem_filter.mpr ⟨mem_univ _,ha ▸ u.property⟩
           have hbB:b ∈ B:=mem_filter.mpr ⟨mem_univ _,hb ▸ v.property⟩
-          refine ⟨fun h => hne (congrArg Subtype.val h),⟨a,haB⟩,⟨b,hbB⟩,hab,?_,?_⟩
-          · exact Subtype.ext ha
-          · exact Subtype.ext hb}
+          refine ⟨fun h => hne (congrArg subVal h),⟨a,haB⟩,⟨b,hbB⟩,hab,?_,?_⟩
+          · exact subExt ha
+          · exact subExt hb}
   exact e.card_edgeFinset_eq.trans (card_edgeFinset_map g (G.induce (B:Set V)))
 theorem t1 {V W :Type*} [Fintype V]
     [DecidableEq W] (f:V ↪ W) (A:Finset W) :
@@ -236,16 +377,16 @@ theorem t1 {V W :Type*} [Fintype V]
   let B :=univ.filter (fun v :V=> f v ∈ A)
   let g : (B:Set V) ↪ (A:Set W) :=
     { toFun:=fun v => ⟨f v.val,(mem_filter.mp v.property).2⟩
-      inj':=fun u v h => Subtype.ext (f.injective (congrArg Subtype.val h))}
-  have h :=Fintype.card_le_of_injective g g.injective
-  have hcardB:Fintype.card (B:Set V) = B.card:=by
+      inj':=fun u v h => subExt (f.injective (congrArg subVal h))}
+  have h :=ftCLOI g g.injective
+  have hcardB:ftCard (B:Set V) = B.card:=by
     calc
-      Fintype.card (B:Set V) = (B:Set V).ncard:=Nat.card_eq_fintype_card.symm
-      _=B.card:=Set.ncard_coe_finset B
-  have hcardA:Fintype.card (A:Set W) = A.card:=by
+      ftCard (B:Set V) = (B:Set V).ncard:=natCEFC.symm
+      _=B.card:=stNCF B
+  have hcardA:ftCard (A:Set W) = A.card:=by
     calc
-      Fintype.card (A:Set W) = (A:Set W).ncard:=Nat.card_eq_fintype_card.symm
-      _=A.card:=Set.ncard_coe_finset A
+      ftCard (A:Set W) = (A:Set W).ncard:=natCEFC.symm
+      _=A.card:=stNCF A
   rw [hcardB,hcardA] at h
   exact h
 theorem x2 {V W :Type*} [Fintype V]
@@ -278,8 +419,6 @@ theorem tW {V W :Type*}
     exact hx ((f.injective hyx) ▸ hy)
   exact ⟨hoff u (h u v huv).1,hoff v (h u v huv).2⟩
 end Erdos556
-end dV
-section cG
 namespace Erdos556
 open SimpleGraph Finset
 def qJ {V:Type*} (label:V → q1) : SimpleGraph V where
@@ -296,7 +435,7 @@ def qO (w:q1 → ℝ) : ℝ:=
   ∑ p,∑ q,if Disjoint (q0 p) (q0 q) then w p*w q else 0
 theorem sb {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] :
-    2* (Nat.card G.edgeSet:ℝ) = ∑ u,∑ v,if G.Adj u v then (1:ℝ) else 0 :=by
+    2* (natCard G.edgeSet:ℝ) = ∑ u,∑ v,if G.Adj u v then (1:ℝ) else 0 :=by
   classical
   have hdegree (u:V) : G.degree u = ∑ v,if G.Adj u v then (1:ℕ) else 0 :=by
     rw [sum_boole,← card_neighborFinset_eq_degree]
@@ -308,7 +447,7 @@ theorem sb {V:Type*} [Fintype V]
   exact_mod_cast h.symm
 theorem sY {V:Type*} [Fintype V]
     (label:V → q1) :
-    2* (Nat.card (qJ label).edgeSet:ℝ) =
+    2* (natCard (qJ label).edgeSet:ℝ) =
       qO (fun p => ((univ.filter (fun v => label v =p)).card:ℝ)) :=by
   classical
   rw [sb]
@@ -351,8 +490,6 @@ theorem zv (w:q1 → ℝ) :
   unfold qd
   linarith
 end Erdos556
-end cG
-section cH
 namespace Erdos556
 open SimpleGraph
 theorem rq {V:Type*} {G:SimpleGraph V}
@@ -384,19 +521,17 @@ theorem qr {V:Type*} {G:SimpleGraph V}
   | nil=> simpa using hq
   | @cons u z v huz p ih=>
       have hp':=hp.of_cons
-      have hu:u ∉ p.support:= (Walk.cons_isPath_iff huz p).mp hp |>.2
+      have hu:u ∉ p.support:= (wkCII huz p).mp hp |>.2
       have huv:u ≠ v:=fun h => hu (h ▸ p.end_mem_support)
       have huq:u ∉ q.support:=fun h => huv (hinter u (by simp) h)
       have hi: ∀ x ∈ p.support,x ∈ q.support → x=v:=
         fun x hx hxq=> hinter x (by simp [hx]) hxq
       exact (ih q hp' hq hi).cons (by
         intro hx
-        rcases (Walk.mem_support_append_iff _ _).mp hx with hx | hx
+        rcases (wkMSAI _ _).mp hx with hx | hx
         · exact hu hx
         · exact huq hx)
 end Erdos556
-end cH
-section dD
 namespace Erdos556
 open SimpleGraph
 theorem qz {V:Type*} {G:SimpleGraph V} {u v x:V}
@@ -404,34 +539,34 @@ theorem qz {V:Type*} {G:SimpleGraph V} {u v x:V}
     x ∈ (p.take i).support ↔ ∃ j,j ≤ i ∧ p.getVert j =x:=by
   constructor
   · intro hx
-    obtain ⟨j,hjx,hj⟩ :=Walk.mem_support_iff_exists_getVert.mp hx
-    have hj':j ≤ i:=by simpa only [Walk.take_length,min_eq_left hi] using hj
+    obtain ⟨j,hjx,hj⟩ :=wkMSIEG.mp hx
+    have hj':j ≤ i:=by simpa only [wkTL,min_eq_left hi] using hj
     refine ⟨j,hj',?_⟩
     simpa only [Walk.take_getVert,inf_eq_right.mpr hj'] using hjx
   · rintro ⟨j,hj,hjx⟩
-    apply Walk.mem_support_iff_exists_getVert.mpr
+    apply wkMSIEG.mpr
     refine ⟨j,?_,?_⟩
     · simpa only [Walk.take_getVert,inf_eq_right.mpr hj] using hjx
-    · simpa only [Walk.take_length,min_eq_left hi] using hj
+    · simpa only [wkTL,min_eq_left hi] using hj
 theorem rd {V:Type*} {G:SimpleGraph V} {u v x:V}
     (p:G.Walk u v) (i:ℕ) (hi:i ≤ p.length) :
     x ∈ (p.drop i).support ↔ ∃ j,i ≤ j ∧ j ≤ p.length ∧ p.getVert j =x:=by
   constructor
   · intro hx
-    obtain ⟨j,hjx,hj⟩ :=Walk.mem_support_iff_exists_getVert.mp hx
-    rw [Walk.drop_length] at hj
+    obtain ⟨j,hjx,hj⟩ :=wkMSIEG.mp hx
+    rw [wkDL] at hj
     refine ⟨i+j,by omega,by omega,?_⟩
-    simpa only [Walk.drop_getVert] using hjx
+    simpa only [wkDG] using hjx
   · rintro ⟨j,hij,hj,hjx⟩
-    apply Walk.mem_support_iff_exists_getVert.mpr
+    apply wkMSIEG.mpr
     refine ⟨j-i,?_,?_⟩
-    · simpa only [Walk.drop_getVert,Nat.add_sub_of_le hij] using hjx
-    · rw [Walk.drop_length]
+    · simpa only [wkDG,natASOL hij] using hjx
+    · rw [wkDL]
       omega
 theorem vJ {V:Type*} {G:SimpleGraph V} {u v :V}
     (p:G.Walk u v) (hp:p.IsPath) (i j :ℕ) (hij:i < j) (hj:j ≤ p.length) :
     (p.take i).support.Disjoint (p.drop j).support:=by
-  rw [List.disjoint_left]
+  rw [lsDL]
   intro x hx hy
   obtain ⟨a,ha,hax⟩ := (qz p i (by omega)).mp hx
   obtain ⟨b,hjb,hb,hbx⟩ := (rd p j hj).mp hy
@@ -440,11 +575,11 @@ theorem vJ {V:Type*} {G:SimpleGraph V} {u v :V}
 def sX {V:Type*} {G:SimpleGraph V} {u v :V}
     (p:G.Walk u v) (i j :ℕ) (hij:i ≤ j) : G.Walk (p.getVert i) (p.getVert j) :=
   ((p.drop i).take (j-i)).copy rfl (by
-    rw [Walk.drop_getVert,Nat.add_sub_of_le hij])
+    rw [wkDG,natASOL hij])
 theorem y2 {V:Type*} {G:SimpleGraph V} {u v :V}
     (p:G.Walk u v) (i j :ℕ) (hij:i ≤ j) (hj:j ≤ p.length) :
     (sX p i j hij).length=j-i:=by
-  simp only [sX,Walk.length_copy,Walk.take_length,Walk.drop_length]
+  simp only [sX,Walk.length_copy,wkTL,wkDL]
   exact min_eq_left (by omega)
 theorem aj {V:Type*} {G:SimpleGraph V} {u v :V}
     (p:G.Walk u v) (hp:p.IsPath) (i j :ℕ) (hij:i ≤ j) :
@@ -455,18 +590,16 @@ theorem vo {V:Type*} {G:SimpleGraph V} {u v x:V}
     x ∈ (sX p i j hij).support ↔
       ∃ a,i ≤ a ∧ a ≤ j ∧ p.getVert a =x:=by
   rw [sX,Walk.support_copy]
-  have hlen:j-i ≤ (p.drop i).length:=by rw [Walk.drop_length];omega
+  have hlen:j-i ≤ (p.drop i).length:=by rw [wkDL];omega
   rw [qz (p.drop i) (j-i) hlen]
   constructor
   · rintro ⟨a,ha,hax⟩
     refine ⟨i+a,by omega,by omega,?_⟩
-    simpa only [Walk.drop_getVert] using hax
+    simpa only [wkDG] using hax
   · rintro ⟨a,hia,haj,hax⟩
     refine ⟨a-i,by omega,?_⟩
-    simpa only [Walk.drop_getVert,Nat.add_sub_of_le hia] using hax
+    simpa only [wkDG,natASOL hia] using hax
 end Erdos556
-end dD
-section dL
 namespace Erdos556
 open SimpleGraph
 def rF {V:Type*} {G:SimpleGraph V} {v:V}
@@ -475,8 +608,8 @@ def rF {V:Type*} {G:SimpleGraph V} {v:V}
 theorem uF {V:Type*} {G:SimpleGraph V} {v:V}
     (c:G.Walk v v) (i j :ℕ) (hi:i ≤ c.length) :
     (rF c i j).length=c.length-j+i:=by
-  simp only [rF,Walk.length_append,Walk.drop_length,
-    Walk.take_length,min_eq_left hi]
+  simp only [rF,wkLA,wkDL,
+    wkTL,min_eq_left hi]
 theorem x5 {V:Type*} {G:SimpleGraph V} {v:V}
     (c:G.Walk v v) (hc:c.IsCycle) (i j :ℕ) (hij:i < j) (hj:j ≤ c.length) :
     (rF c i j).IsPath:=by
@@ -494,7 +627,7 @@ theorem x5 {V:Type*} {G:SimpleGraph V} {v:V}
 theorem xU {V:Type*} {G:SimpleGraph V} {v x :V}
     (c:G.Walk v v) (i j :ℕ) (hi:i ≤ c.length) (hj:j ≤ c.length)
     (hx:x ∈ (rF c i j).support) : x ∈ c.support:=by
-  rcases (Walk.mem_support_append_iff (c.drop j) (c.take i)).mp hx with hxd | hxt
+  rcases (wkMSAI (c.drop j) (c.take i)).mp hx with hxd | hxt
   · obtain ⟨a,_,_,hax⟩ := (rd c j hj).mp hxd
     exact hax ▸ c.getVert_mem_support a
   · obtain ⟨a,_,hax⟩ := (qz c i hi).mp hxt
@@ -503,7 +636,7 @@ theorem rA {V:Type*} {G:SimpleGraph V} {v:V}
     (c:G.Walk v v) (hc:c.IsCycle) (i j a:ℕ)
     (hia:i ≤ a) (haj:a ≤ j) (hj:j < c.length)
     (ha:c.getVert a ∈ (rF c i j).support) : a=i ∨ a=j:=by
-  rcases (Walk.mem_support_append_iff (c.drop j) (c.take i)).mp ha with had | hat
+  rcases (wkMSAI (c.drop j) (c.take i)).mp ha with had | hat
   · obtain ⟨b,hjb,hb,hba⟩ := (rd c j hj.le).mp had
     by_cases hbe:b=c.length
     · rw [hbe,Walk.getVert_length] at hba
@@ -520,8 +653,6 @@ theorem rA {V:Type*} {G:SimpleGraph V} {v:V}
     left
     omega
 end Erdos556
-end dL
-section ds
 namespace Erdos556
 open Finset
 theorem wj {I V :Type*} [DecidableEq V]
@@ -563,13 +694,13 @@ theorem wj {I V :Type*} [DecidableEq V]
 theorem yl {I V :Type*} [Fintype I] [Fintype V]
     [DecidableEq V] (S:I → Finset V) (d m :ℕ)
     (hsize: ∀ i,d ≤ (S i).card)
-    (hcount:Fintype.card V + (Fintype.card I) ^ 2*m < Fintype.card I *d) :
+    (hcount:ftCard V + (ftCard I) ^ 2*m < ftCard I *d) :
     ∃ i j:I,i ≠ j ∧ m < (S i ∩ S j).card:=by
   classical
   by_contra! h
-  have hsum:Fintype.card I *d ≤ ∑ i,(S i).card:=by
+  have hsum:ftCard I *d ≤ ∑ i,(S i).card:=by
     calc
-      Fintype.card I *d= ∑ _i:I,d:=by simp
+      ftCard I *d= ∑ _i:I,d:=by simp
       _ ≤ ∑ i,(S i).card:=sum_le_sum fun i _=> hsize i
   have hbound:=wj univ S m
     (fun i _ j _ hij=> h i j hij)
@@ -578,11 +709,11 @@ theorem yl {I V :Type*} [Fintype I] [Fintype V]
   omega
 theorem vN {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (D d :ℕ)
-    (hN:0 < Fintype.card V) (hscale:Fintype.card V ≤ D *d)
+    (hN:0 < ftCard V) (hscale:ftCard V ≤ D *d)
     (hdegree: ∀ v,d ≤ G.degree v) (S:Finset V) (hS:2*S.card ≤ d)
     (a:Fin (4*D) → V) :
     ∃ i j:Fin (4*D),i ≠ j ∧
-      Fintype.card V / (2* (4*D) ^ 2) <
+      ftCard V / (2* (4*D) ^ 2) <
         ((G.neighborFinset (a i) ∩ G.neighborFinset (a j)) \ S).card:=by
   classical
   let W (i:Fin (4*D)) :=G.neighborFinset (a i) \ S
@@ -593,14 +724,14 @@ theorem vN {V:Type*} [Fintype V] [DecidableEq V]
     rw [card_sdiff]
     rw [G.card_neighborFinset_eq_degree]
     omega
-  have hcount:Fintype.card V + (4*D) ^ 2*
-      (Fintype.card V / (2* (4*D) ^ 2)) < 4*D* (d-S.card) :=by
+  have hcount:ftCard V + (4*D) ^ 2*
+      (ftCard V / (2* (4*D) ^ 2)) < 4*D* (d-S.card) :=by
     have hd:d ≤ 2* (d-S.card) :=by omega
-    have hmul:=Nat.mul_le_mul_left (2*D) hd
-    have hdiv:=Nat.div_mul_le_self (Fintype.card V) (2* (4*D) ^ 2)
+    have hmul:=natMLML (2*D) hd
+    have hdiv:=natDMLS (ftCard V) (2* (4*D) ^ 2)
     nlinarith
   obtain ⟨i,j,hij,hc⟩ :=yl W (d-S.card)
-    (Fintype.card V / (2* (4*D) ^ 2)) hsize (by simpa only [Fintype.card_fin] using hcount)
+    (ftCard V / (2* (4*D) ^ 2)) hsize (by simpa only [ftCF] using hcount)
   refine ⟨i,j,hij,?_⟩
   have heq:W i ∩ W j= (G.neighborFinset (a i) ∩ G.neighborFinset (a j)) \ S:=by
     ext v
@@ -608,16 +739,14 @@ theorem vN {V:Type*} [Fintype V] [DecidableEq V]
     tauto
   rwa [heq] at hc
 end Erdos556
-end ds
-section ci
 namespace Erdos556
 open Finset
 theorem wC {V:Type*} [Fintype V]
-    (D L d:ℕ) (hL:0 < L) (hN:0 < Fintype.card V)
-    (hscale:Fintype.card V ≤ D *d)
+    (D L d:ℕ) (hL:0 < L) (hN:0 < ftCard V)
+    (hscale:ftCard V ≤ D *d)
     (S:Fin (2*D*L) → Finset V) (hsize: ∀ i,d ≤ (S i).card) :
     ∃ (X:Finset (Fin (2*D*L))) (W:Finset V),
-      L ≤ X.card ∧ Fintype.card V ≤ 2 *D*2^ (2*D*L) * W.card ∧
+      L ≤ X.card ∧ ftCard V ≤ 2 *D*2^ (2*D*L) * W.card ∧
       ∀ i ∈ X,∀ v ∈ W,v ∈ S i:=by
   classical
   let I :=Fin (2*D*L)
@@ -638,20 +767,20 @@ theorem wC {V:Type*} [Fintype V]
     by_cases hv:v ∈ A
     · rw [if_pos hv]
       have h :=card_le_univ (pattern v)
-      simp only [I,Fintype.card_fin] at h
+      simp only [I,ftCF] at h
       omega
     · rw [if_neg hv]
       have h : ¬ L ≤ (pattern v).card:=by simpa only [A,mem_filter,mem_univ,true_and] using hv
       omega
-  have hupper: (∑ v :V,(pattern v).card) ≤ L*Fintype.card V + (2*D*L) * A.card:=by
+  have hupper: (∑ v :V,(pattern v).card) ≤ L*ftCard V + (2*D*L) * A.card:=by
     calc
       (∑ v :V,(pattern v).card) ≤ ∑ v :V,(L+if v ∈ A then 2 *D*L else 0) :=
         sum_le_sum fun v _=> hpoint v
-      _=L*Fintype.card V + (2*D*L) * A.card:=by
-        simp [sum_add_distrib,Nat.mul_comm]
-  have hA:Fintype.card V ≤ 2 *D*A.card:=by
-    have hscaled:=Nat.mul_le_mul_left (2*L) hscale
-    have h :L*Fintype.card V ≤ L * (2*D*A.card) :=by
+      _=L*ftCard V + (2*D*L) * A.card:=by
+        simp [sum_add_distrib,natMC]
+  have hA:ftCard V ≤ 2 *D*A.card:=by
+    have hscaled:=natMLML (2*L) hscale
+    have h :L*ftCard V ≤ L * (2*D*A.card) :=by
       nlinarith only [hlower,hupper,hscaled]
     exact (mul_le_mul_iff_right₀ hL).mp h
   let fiber (X:Finset I) :=A.filter (fun v => pattern v =X)
@@ -665,10 +794,10 @@ theorem wC {V:Type*} [Fintype V]
       (∑ Y :Finset I,(fiber Y).card) ≤ ∑ _Y:Finset I,(fiber X).card:=
         sum_le_sum fun Y _=> hmax Y (mem_univ Y)
       _=2^ (2*D*L) * (fiber X).card:=by simp [I]
-  have hlarge:Fintype.card V ≤ 2 *D*2^ (2*D*L) * (fiber X).card:=by
+  have hlarge:ftCard V ≤ 2 *D*2^ (2*D*L) * (fiber X).card:=by
     calc
-      Fintype.card V ≤ 2 *D*A.card:=hA
-      _ ≤ 2*D* (2^ (2*D*L) * (fiber X).card) :=Nat.mul_le_mul_left _ hbound
+      ftCard V ≤ 2 *D*A.card:=hA
+      _ ≤ 2*D* (2^ (2*D*L) * (fiber X).card) :=natMLML _ hbound
       _=2*D*2^ (2*D*L) * (fiber X).card:=by ring
   have hnon: (fiber X).Nonempty:=by
     apply card_pos.mp
@@ -688,8 +817,6 @@ theorem wC {V:Type*} [Fintype V]
   have hi':i ∈ pattern v :=by rw [hpat];exact hi
   exact (mem_filter.mp hi').2
 end Erdos556
-end ci
-section d4
 namespace Erdos556
 open SimpleGraph Finset
 def xW {V:Type*} [DecidableEq V] {G:SimpleGraph V} {z:V}
@@ -704,7 +831,7 @@ theorem ae {V:Type*} [DecidableEq V] {G:SimpleGraph V} {z:V}
     obtain ⟨i,hi,hix⟩ :=mem_image.mp hx
     exact hix ▸ (mem_filter.mp hi).2
   · intro hx
-    obtain ⟨i,hix,hi⟩ :=Walk.mem_support_iff_exists_getVert.mp (hW x hx)
+    obtain ⟨i,hix,hi⟩ :=wkMSIEG.mp (hW x hx)
     by_cases hie:i=c.length
     · have hzx:z=x:=by simpa only [hie,Walk.getVert_length] using hix
       apply mem_image.mpr
@@ -726,16 +853,16 @@ theorem ax {V:Type*} [DecidableEq V] {G:SimpleGraph V} {z:V}
   exact hcard.symm
 theorem vC {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] {z:V} (c:G.Walk z z) (hc:c.IsCycle)
-    (D L d:ℕ) (hL:0 < L) (hscale:Fintype.card V ≤ D *d)
+    (D L d:ℕ) (hL:0 < L) (hscale:ftCard V ≤ D *d)
     (hdegree: ∀ v,d ≤ G.degree v) (hlen:4*D*L ≤ c.length) :
     ∃ (A:Finset ℕ) (W:Finset V),A.card=L ∧
       (∀ i ∈ A,i < 4*D*L ∧ Even i) ∧
       (A.image c.getVert).card=L ∧
-      Fintype.card V ≤ 2 *D*2^ (2*D*L) * W.card ∧
+      ftCard V ≤ 2 *D*2^ (2*D*L) * W.card ∧
       ∀ i ∈ A,∀ w ∈ W,G.Adj (c.getVert i) w :=by
   classical
   obtain ⟨I,W,hI,hW,hcommon⟩ :=wC D L d hL
-    (Fintype.card_pos_iff.mpr ⟨z⟩) hscale
+    (ftCPI.mpr ⟨z⟩) hscale
     (fun i => G.neighborFinset (c.getVert (2*i.val)))
     (fun i => by simpa only [G.card_neighborFinset_eq_degree] using hdegree (c.getVert (2*i.val)))
   obtain ⟨J,hJI,hJ⟩ :=exists_subset_card_eq hI
@@ -765,8 +892,6 @@ theorem vC {V:Type*} [Fintype V] [DecidableEq V]
   obtain ⟨a,ha,rfl⟩ :=mem_map.mp hi
   exact (G.mem_neighborFinset _ _).mp (hcommon a (hJI ha) w hw)
 end Erdos556
-end d4
-section d9
 namespace Erdos556
 open SimpleGraph Finset
 theorem xB {V:Type*} [DecidableEq V] {G:SimpleGraph V} {z:V}
@@ -779,8 +904,8 @@ theorem xB {V:Type*} [DecidableEq V] {G:SimpleGraph V} {z:V}
   let E :=W \ c.support.toFinset
   let U := (W ∩ c.support.toFinset) \ P
   have hP:P.card ≤ M+1:=by
-    have h :=List.toFinset_card_le (c.take M).support
-    simpa only [Walk.length_support,Walk.take_length,min_eq_left hM] using h
+    have h :=lsTCL (c.take M).support
+    simpa only [wkLS,wkTL,min_eq_left hM] using h
   have hcover:W ⊆ U ∪ E ∪ P:=by
     intro x hxW
     by_cases hxP:x ∈ P
@@ -796,16 +921,14 @@ theorem xB {V:Type*} [DecidableEq V] {G:SimpleGraph V} {z:V}
     omega
   refine ⟨U,(sdiff_subset).trans inter_subset_left,?_,?_,?_⟩
   · intro x hx
-    exact List.mem_toFinset.mp (mem_inter.mp (mem_sdiff.mp hx).1).2
+    exact lsMT.mp (mem_inter.mp (mem_sdiff.mp hx).1).2
   · intro i hi hmem
-    have hp:c.getVert i ∈ P :=List.mem_toFinset.mpr
+    have hp:c.getVert i ∈ P :=lsMT.mpr
       ((qz c M hM).mpr ⟨i,hi,rfl⟩)
     exact (mem_sdiff.mp hmem).2 hp
-  · have hmul:=Nat.mul_le_mul_left K hcount
+  · have hmul:=natMLML K hcount
     nlinarith only [hsize,hN,hmul]
 end Erdos556
-end d9
-section cU
 namespace Erdos556
 open SimpleGraph Finset
 theorem xa (S:Finset ℕ) (N Q :ℕ) (hQ:0 < Q)
@@ -813,20 +936,20 @@ theorem xa (S:Finset ℕ) (N Q :ℕ) (hQ:0 < Q)
     ∃ i ∈ S,∃ j ∈ S,i < j ∧ j < i+Q ∧ i%2=j%2:=by
   let f (i:ℕ) := (i/Q,i%2)
   let T :=range (N/Q+1) ×ˢ range 2
-  have hT:T.card < S.card:=by simpa only [T,card_product,card_range,Nat.mul_comm] using hc
+  have hT:T.card < S.card:=by simpa only [T,card_product,card_range,natMC] using hc
   have hf: ∀ i ∈ S,f i ∈ T:=by
     intro i hi
     apply mem_product.mpr
-    refine ⟨mem_range.mpr ?_,mem_range.mpr (Nat.mod_lt _ (by decide))⟩
-    exact Nat.lt_succ_of_le (Nat.div_le_div_right (hS i hi).le)
+    refine ⟨mem_range.mpr ?_,mem_range.mpr (natML _ (by decide))⟩
+    exact natLSOL (Nat.div_le_div_right (hS i hi).le)
   obtain ⟨i,hi,j,hj,hij,heq⟩ :=exists_ne_map_eq_of_card_lt_of_maps_to hT hf
   have hdiv:i/Q=j/Q:=congrArg Prod.fst heq
   have hpar:i%2=j%2:=congrArg Prod.snd heq
   have hclose:j < i+Q ∧ i < j+Q:=by
-    have hiq:=Nat.div_add_mod i Q
-    have hjq:=Nat.div_add_mod j Q
-    have him:=Nat.mod_lt i hQ
-    have hjm:=Nat.mod_lt j hQ
+    have hiq:=natDAM i Q
+    have hjq:=natDAM j Q
+    have him:=natML i hQ
+    have hjm:=natML j hQ
     rw [hdiv] at hiq
     omega
   rcases lt_or_gt_of_ne hij with hij | hji
@@ -834,10 +957,10 @@ theorem xa (S:Finset ℕ) (N Q :ℕ) (hQ:0 < Q)
   · exact ⟨j,hj,i,hi,hji,hclose.2,hpar.symm⟩
 theorem th (N K :ℕ) (hK:0 < K) (hN:4*K ≤ N) :
     2* (N/ (4*K) + 1) ≤ N/K:=by
-  have hq:1 ≤ N/ (4*K) := (Nat.le_div_iff_mul_le (by omega)).mpr (by omega)
-  have hmul:=Nat.div_mul_le_self N (4*K)
+  have hq:1 ≤ N/ (4*K) := (natLDIML (by omega)).mpr (by omega)
+  have hmul:=natDMLS N (4*K)
   have hdiv:4* (N/ (4*K)) ≤ N/K:=by
-    apply (Nat.le_div_iff_mul_le hK).mpr
+    apply (natLDIML hK).mpr
     nlinarith only [hmul]
   omega
 theorem vE {V:Type*}
@@ -851,7 +974,7 @@ theorem vE {V:Type*}
   let S :=W.image (fun x => p.support.idxOf x)
   have hidx (x:V) (hx:x ∈ W) : p.support.idxOf x ≤ p.length:=by
     have h :=List.idxOf_lt_length_of_mem (hW x hx)
-    rw [Walk.length_support] at h
+    rw [wkLS] at h
     omega
   have hinj:Set.InjOn (fun x => p.support.idxOf x) (W:Set V) :=by
     intro x hx y hy hxy
@@ -874,8 +997,6 @@ theorem vE {V:Type*}
   rw [← hyj]
   exact hidx y hy
 end Erdos556
-end cU
-section dF
 namespace Erdos556
 open Finset
 theorem yJ (S:Finset ℕ) (N Q L:ℕ) (hQ:0 < Q)
@@ -888,10 +1009,10 @@ theorem yJ (S:Finset ℕ) (N Q L:ℕ) (hQ:0 < Q)
   have hf: ∀ i ∈ S,f i ∈ B:=by
     intro i hi
     apply mem_product.mpr
-    refine ⟨mem_range.mpr ?_,mem_range.mpr (Nat.mod_lt _ (by decide))⟩
-    exact Nat.lt_succ_of_le (Nat.div_le_div_right (hS i hi).le)
+    refine ⟨mem_range.mpr ?_,mem_range.mpr (natML _ (by decide))⟩
+    exact natLSOL (Nat.div_le_div_right (hS i hi).le)
   have hBc:B.card* (L-1) < S.card:=by
-    simpa only [B,card_product,card_range,Nat.mul_comm (N/Q+1) 2] using hc
+    simpa only [B,card_product,card_range,natMC (N/Q+1) 2] using hc
   obtain ⟨b,_,hb⟩ :=exists_lt_card_fiber_of_mul_lt_card_of_maps_to hf hBc
   obtain ⟨T,hT,hTc⟩ :=exists_subset_card_eq (show L ≤ (S.filter (fun i => f i=b)).card by
     omega)
@@ -903,28 +1024,26 @@ theorem yJ (S:Finset ℕ) (N Q L:ℕ) (hQ:0 < Q)
   have hdiv:i/Q=j/Q:=congrArg Prod.fst heq
   have hpar:i%2=j%2:=congrArg Prod.snd heq
   refine ⟨hpar,?_⟩
-  have hiq:=Nat.div_add_mod i Q
-  have hjq:=Nat.div_add_mod j Q
-  have him:=Nat.mod_lt i hQ
-  have hjm:=Nat.mod_lt j hQ
+  have hiq:=natDAM i Q
+  have hjq:=natDAM j Q
+  have him:=natML i hQ
+  have hjm:=natML j hQ
   rw [hdiv] at hiq
   omega
 theorem yL (N K L:ℕ) (hK:0 < K) (hL:0 < L)
     (hN:8*K*L ≤ N) :
     2* (N/ (8*K*L) + 1) * (L-1) < N/ (2*K) :=by
   have hQ:0 < 8*K*L:=by positivity
-  have hq:1 ≤ N/ (8*K*L) := (Nat.le_div_iff_mul_le hQ).mpr (by omega)
-  have hmul:=Nat.div_mul_le_self N (8*K*L)
+  have hq:1 ≤ N/ (8*K*L) := (natLDIML hQ).mpr (by omega)
+  have hmul:=natDMLS N (8*K*L)
   have hdiv:4*L* (N/ (8*K*L)) ≤ N/ (2*K) :=by
-    apply (Nat.le_div_iff_mul_le (by omega)).mpr
+    apply (natLDIML (by omega)).mpr
     nlinarith only [hmul]
   have hsub:L-1+1=L:=by omega
   have hprod:0 ≤ (N/ (8*K*L) - 1) * (L-1) :=Nat.zero_le _
   have hqsub:N/ (8*K*L) - 1+1=N/ (8*K*L) :=by omega
   nlinarith
 end Erdos556
-end dF
-section dI
 namespace Erdos556
 open SimpleGraph Finset
 theorem ys {V:Type*} {G:SimpleGraph V} {z:V}
@@ -953,8 +1072,6 @@ theorem ys {V:Type*} {G:SimpleGraph V} {z:V}
   obtain ⟨hiN,hiW⟩ :=mem_filter.mp (hBS hi)
   exact ⟨by by_contra h;exact hoff i (by omega) hiW,mem_range.mp hiN,hiW⟩
 end Erdos556
-end dI
-section cO
 namespace Erdos556
 open SimpleGraph Finset
 theorem vx {V:Type*} [DecidableEq V]
@@ -1002,8 +1119,6 @@ theorem vx {V:Type*} [DecidableEq V]
         rw [← haz,haj]
     · exact (hY z hzY (xU c i j (by omega) (by omega) hz)).elim
 end Erdos556
-end cO
-section dJ
 namespace Erdos556
 open SimpleGraph
 theorem vb {V:Type*} {G:SimpleGraph V} {z:V}
@@ -1036,17 +1151,17 @@ theorem vb {V:Type*} {G:SimpleGraph V} {z:V}
       (by change y ≤ c.length-1;omega) hky
     omega
   have hqr:q.support.Disjoint r.support:=by
-    rw [List.disjoint_left]
+    rw [lsDL]
     intro a haq har
     obtain ⟨k,hvk,hkw,hka⟩ :=hrmem a har
     exact hqavoid k (by omega) (by omega) (hka ▸ haq)
-  let p := (q.concat huy).append (Walk.cons hvy.symm r)
+  let p := (q.concat huy).append (wkCons hvy.symm r)
   have hp:p.IsPath:=by
-    apply qr (q.concat huy) (Walk.cons hvy.symm r)
-      (hq.concat hyq huy) ((Walk.cons_isPath_iff _ _).mpr ⟨hr,hyr⟩)
+    apply qr (q.concat huy) (wkCons hvy.symm r)
+      (hq.concat hyq huy) ((wkCII _ _).mpr ⟨hr,hyr⟩)
     intro a ha hb
-    simp only [Walk.support_concat,List.mem_append,List.mem_singleton] at ha
-    simp only [Walk.support_cons,List.mem_cons] at hb
+    simp only [wkSC,lsMA,lsMS] at ha
+    simp only [wkSC2,lsMC] at hb
     rcases ha with haq | hay
     · rcases hb with hay | har
       · exact hay
@@ -1055,13 +1170,13 @@ theorem vb {V:Type*} {G:SimpleGraph V} {z:V}
   have havoid (a:ℕ) (hua:u < a) (haw:a < w')
       (havw: ¬ (v ≤ a ∧ a ≤ w)) (hay:a ≠ y) : c.getVert a ∉ p.support:=by
     intro ha
-    rcases (Walk.mem_support_append_iff (q.concat huy) (Walk.cons hvy.symm r)).mp ha with ha | ha
-    · simp only [Walk.support_concat,List.mem_append,List.mem_singleton] at ha
+    rcases (wkMSAI (q.concat huy) (wkCons hvy.symm r)).mp ha with ha | ha
+    · simp only [wkSC,lsMA,lsMS] at ha
       rcases ha with haq | hay'
       · exact hqavoid a hua haw haq
       · exact hay (hc.getVert_injOn' (by change a ≤ c.length-1;omega)
           (by change y ≤ c.length-1;omega) hay')
-    · simp only [Walk.support_cons,List.mem_cons] at ha
+    · simp only [wkSC2,lsMC] at ha
       rcases ha with hay' | har
       · exact hay (hc.getVert_injOn' (by change a ≤ c.length-1;omega)
           (by change y ≤ c.length-1;omega) hay')
@@ -1070,7 +1185,7 @@ theorem vb {V:Type*} {G:SimpleGraph V} {z:V}
           (by change a ≤ c.length-1;omega) hka
         exact havw (by omega)
   refine ⟨p,hp,?_,?_,?_⟩
-  · simp only [p,q,r,Walk.length_append,Walk.length_concat,Walk.length_cons,
+  · simp only [p,q,r,wkLA,wkLC,wkLC2,
       uF c u w' (by omega),y2 c v w (by omega) (by omega)]
     omega
   · intro a hua hav
@@ -1078,8 +1193,6 @@ theorem vb {V:Type*} {G:SimpleGraph V} {z:V}
   · intro a hwa haw hay
     exact havoid a (by omega) haw (by omega) hay
 end Erdos556
-end dJ
-section cX
 namespace Erdos556
 open SimpleGraph Finset
 theorem vg {V:Type*} [DecidableEq V]
@@ -1153,7 +1266,7 @@ theorem vg {V:Type*} [DecidableEq V]
     obtain ⟨j,hj,rfl⟩ :=mem_image.mp (mem_of_mem_erase (mem_of_mem_erase hv))
     exact (hcomplete j hj i hi).symm
   have hXY:Disjoint X Y:=by
-    rw [Finset.disjoint_left]
+    rw [fsDL]
     intro x hx hy
     exact (hXYcomplete x hx x hy).ne rfl
   obtain ⟨p,hp,hlen,havoidA,havoidB⟩ :=vb c hc a b w y w'
@@ -1190,8 +1303,6 @@ theorem vg {V:Type*} [DecidableEq V]
       have hib':i ≠ b:=fun h => hvb (by rw [← hiv,h])
       exact (havoidA i (by omega) (by omega) (hiv ▸ hv)).elim
 end Erdos556
-end cX
-section dr
 namespace Erdos556
 open SimpleGraph Finset
 def rR (D Q :ℕ) :=4*D* (Q+2)
@@ -1200,11 +1311,11 @@ def sd (D Q :ℕ) :=8*rl D Q* (Q+3)
 theorem tl {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] {z:V} (c:G.Walk z z) (hc:c.IsCycle)
     (D d Q:ℕ) (hD:0 < D) (hQ:0 < Q)
-    (hscale:Fintype.card V ≤ D *d) (hdegree: ∀ v,d ≤ G.degree v)
+    (hscale:ftCard V ≤ D *d) (hdegree: ∀ v,d ≤ G.degree v)
     (hlen:rR D Q < c.length)
     (hNloss:2*rl D Q* (Q+rR D Q+1) ≤
-      Fintype.card V)
-    (hNblock:sd D Q ≤ Fintype.card V) :
+      ftCard V)
+    (hNblock:sd D Q ≤ ftCard V) :
     ∃ X Y:Finset V,X.card=Q+2 ∧ Y.card=Q ∧ Disjoint X Y ∧
       (∀ x ∈ X,∀ y ∈ Y,G.Adj x y) ∧
       ∃ u ∈ X,∃ v ∈ X,u ≠ v ∧ ∃ p:G.Walk u v,p.IsPath ∧
@@ -1219,8 +1330,8 @@ theorem tl {V:Type*} [Fintype V] [DecidableEq V]
     G c hc D (Q+2) d (by omega) hscale hdegree hlen.le
   have hAM (i:ℕ) (hi:i ∈ A) : i ≤ M:= (hAP i hi).1.le
   have hparA (i:ℕ) (hi:i ∈ A) (j:ℕ) (hj:j ∈ A) : i%2=j%2:=by
-    have hiE:=Nat.even_iff.mp (hAP i hi).2
-    have hjE:=Nat.even_iff.mp (hAP j hj).2
+    have hiE:=natEI.mp (hAP i hi).2
+    have hjE:=natEI.mp (hAP j hj).2
     omega
   let E :=W \ c.support.toFinset
   by_cases hext:Q ≤ E.card
@@ -1228,13 +1339,13 @@ theorem tl {V:Type*} [Fintype V] [DecidableEq V]
     have hYW:Y ⊆ W:=hYE.trans sdiff_subset
     have hYoff (y:V) (hy:y ∈ Y) : y ∉ c.support:=by
       intro hyc
-      exact (mem_sdiff.mp (hYE hy)).2 (List.mem_toFinset.mpr hyc)
+      exact (mem_sdiff.mp (hYE hy)).2 (lsMT.mpr hyc)
     let X :=A.image c.getVert
     have hcomp (x:V) (hx:x ∈ X) (y:V) (hy:y ∈ Y) : G.Adj x y:=by
       obtain ⟨i,hi,rfl⟩ :=mem_image.mp hx
       exact hcomplete i hi y (hYW hy)
     have hXY:Disjoint X Y:=by
-      rw [Finset.disjoint_left]
+      rw [fsDL]
       intro x hx hy
       exact (hcomp x hx x hy).ne rfl
     obtain ⟨u,hu,v,hv,huv,p,hp,hpL,hpPar,hpOff⟩ :=
@@ -1243,22 +1354,20 @@ theorem tl {V:Type*} [Fintype V] [DecidableEq V]
       by omega,hpPar,hpOff⟩
   · have hK:0 < K:=by dsimp [K,rl];positivity
     obtain ⟨U,hUW,hUC,hUoff,hUsize⟩ :=xB c W
-      (Fintype.card V) K Q M hlen.le hWsize hNloss (Nat.lt_of_not_ge hext)
-    have hcN:c.length ≤ Fintype.card V :=by
+      (ftCard V) K Q M hlen.le hWsize hNloss (Nat.lt_of_not_ge hext)
+    have hcN:c.length ≤ ftCard V :=by
       have h :=hc.isPath_tail.length_lt
-      rw [Walk.length_tail] at h
+      rw [wkLT] at h
       have hlen3:=hc.three_le_length
       omega
     obtain ⟨B,hB,hBM,hblock⟩ :=ys c hc U hUC M
-      (Fintype.card V) K (Q+3) hK (by omega) hNblock hcN hUsize hUoff
+      (ftCard V) K (Q+3) hK (by omega) hNblock hcN hUsize hUoff
     have hcomp (i:ℕ) (hi:i ∈ A) (j:ℕ) (hj:j ∈ B) :
         G.Adj (c.getVert i) (c.getVert j) :=hcomplete i hi _ (hUW (hBM j hj).2.2)
     exact vg c hc A B Q M H hQ hA hB hlen hAM
       (fun j hj=> ⟨(hBM j hj).1,(hBM j hj).2.1⟩) hparA
       (fun i hi j hj=> (hblock i hi j hj).1) (fun i hi j hj=> (hblock i hi j hj).2) hcomp
 end Erdos556
-end dr
-section cd
 namespace Erdos556
 open SimpleGraph
 theorem zg {V:Type*} {G:SimpleGraph V} {u v :V}
@@ -1275,30 +1384,30 @@ theorem zg {V:Type*} {G:SimpleGraph V} {u v :V}
     obtain ⟨a,_,_,hax⟩ := (rd p j hj).mp hz
     exact hax ▸ p.getVert_mem_support a
   let a :G.Walk u x:= (p.take i).concat hix
-  let b :G.Walk x v:=Walk.cons hjx.symm (p.drop j)
+  let b :G.Walk x v:=wkCons hjx.symm (p.drop j)
   have ha:a.IsPath:= (hp.take i).concat (fun h => hx (hpre x h)) hix
-  have hb:b.IsPath:= (Walk.cons_isPath_iff _ _).mpr
+  have hb:b.IsPath:= (wkCII _ _).mpr
     ⟨hp.drop j,fun h => hx (hpost x h)⟩
   have hab: (a.append b).IsPath:=by
     apply qr a b ha hb
     intro z hza hzb
-    simp only [a,Walk.support_concat,List.mem_append,List.mem_singleton] at hza
-    simp only [b,Walk.support_cons,List.mem_cons] at hzb
+    simp only [a,wkSC,lsMA,lsMS] at hza
+    simp only [b,wkSC2,lsMC] at hzb
     rcases hza with hza | hzx
     · rcases hzb with hzx | hzb
       · exact hzx
       · exact ((vJ p hp i j hij hj) hza hzb).elim
     · exact hzx
   refine ⟨a.append b,hab,?_,?_⟩
-  · simp only [a,b,Walk.length_append,Walk.length_concat,Walk.length_cons,
-      Walk.take_length,min_eq_left hi,Walk.drop_length]
+  · simp only [a,b,wkLA,wkLC,wkLC2,
+      wkTL,min_eq_left hi,wkDL]
     omega
   · intro z hz
-    rcases (Walk.mem_support_append_iff a b).mp hz with hz | hz
-    · simp only [a,Walk.support_concat,List.mem_append,List.mem_singleton] at hz
-      exact hz.elim (fun h => Or.inl (hpre z h)) Or.inr
-    · simp only [b,Walk.support_cons,List.mem_cons] at hz
-      exact hz.elim Or.inr (fun h => Or.inl (hpost z h))
+    rcases (wkMSAI a b).mp hz with hz | hz
+    · simp only [a,wkSC,lsMA,lsMS] at hz
+      exact hz.elim (fun h => orInl (hpre z h)) orInr
+    · simp only [b,wkSC2,lsMC] at hz
+      exact hz.elim orInr (fun h => orInl (hpost z h))
 theorem v7 {V:Type*} {G:SimpleGraph V} {u v :V}
     (p:G.Walk u v) (hp:p.IsPath) (i j :ℕ) (hij:i+4 ≤ j)
     (hj:j ≤ p.length) (hpar:i%2=j%2)
@@ -1321,11 +1430,11 @@ theorem zm {V:Type*} {G:SimpleGraph V} {u v :V}
   have hj:j ≤ p.length:=by omega
   let a := (p.take i).concat hchord₁
   let b := (sX p i' j hij).reverse
-  let c :=Walk.cons hchord₂ (p.drop j')
+  let c :=wkCons hchord₂ (p.drop j')
   have hbmem (z:V) (hz:z ∈ b.support) :
       ∃ k,i' ≤ k ∧ k ≤ j ∧ p.getVert k =z:=by
     apply (vo p i' j hij hj).mp
-    simpa only [b,Walk.support_reverse,List.mem_reverse] using hz
+    simpa only [b,wkSR,lsMR] using hz
   have ha:a.IsPath:=by
     apply (hp.take i).concat
     intro hz
@@ -1336,7 +1445,7 @@ theorem zm {V:Type*} {G:SimpleGraph V} {u v :V}
   have hab: (a.append b).IsPath:=by
     apply qr a b ha hb
     intro z hza hzb
-    simp only [a,Walk.support_concat,List.mem_append,List.mem_singleton] at hza
+    simp only [a,wkSC,lsMA,lsMS] at hza
     rcases hza with hza | hzj
     · obtain ⟨k,hk,hkz⟩ := (qz p i hi).mp hza
       obtain ⟨l,hil,hlj,hlz⟩ :=hbmem z hzb
@@ -1345,7 +1454,7 @@ theorem zm {V:Type*} {G:SimpleGraph V} {u v :V}
       omega
     · exact hzj
   have hc:c.IsPath:=by
-    apply (Walk.cons_isPath_iff _ _).mpr
+    apply (wkCII _ _).mpr
     refine ⟨hp.drop j',?_⟩
     intro hz
     obtain ⟨k,hjk,hk,hki⟩ := (rd p j' hj').mp hz
@@ -1353,8 +1462,8 @@ theorem zm {V:Type*} {G:SimpleGraph V} {u v :V}
     omega
   have habpre (z:V) (hz:z ∈ (a.append b).support) : z ∈ (p.take j).support:=by
     apply (qz p j hj).mpr
-    rcases (Walk.mem_support_append_iff a b).mp hz with hza | hzb
-    · simp only [a,Walk.support_concat,List.mem_append,List.mem_singleton] at hza
+    rcases (wkMSAI a b).mp hz with hza | hzb
+    · simp only [a,wkSC,lsMA,lsMS] at hza
       rcases hza with hza | hzj
       · obtain ⟨k,hk,hkz⟩ := (qz p i hi).mp hza
         exact ⟨k,by omega,hkz⟩
@@ -1364,20 +1473,20 @@ theorem zm {V:Type*} {G:SimpleGraph V} {u v :V}
   have hpath: ((a.append b).append c).IsPath:=by
     apply qr (a.append b) c hab hc
     intro z hzab hzc
-    simp only [c,Walk.support_cons,List.mem_cons] at hzc
+    simp only [c,wkSC2,lsMC] at hzc
     rcases hzc with hzi | hzc
     · exact hzi
     · exact ((vJ p hp j j' hjj hj') (habpre z hzab) hzc).elim
   refine ⟨(a.append b).append c,hpath,?_,?_⟩
-  · simp only [a,b,c,Walk.length_append,Walk.length_concat,Walk.take_length,
-      min_eq_left hi,Walk.length_reverse,y2 p i' j hij hj,
-      Walk.length_cons,Walk.drop_length]
+  · simp only [a,b,c,wkLA,wkLC,wkTL,
+      min_eq_left hi,wkLR,y2 p i' j hij hj,
+      wkLC2,wkDL]
     omega
   · intro z hz
-    rcases (Walk.mem_support_append_iff (a.append b) c).mp hz with hzab | hzc
+    rcases (wkMSAI (a.append b) c).mp hz with hzab | hzc
     · obtain ⟨k,_,hkz⟩ := (qz p j hj).mp (habpre z hzab)
       exact hkz ▸ p.getVert_mem_support k
-    · simp only [c,Walk.support_cons,List.mem_cons] at hzc
+    · simp only [c,wkSC2,lsMC] at hzc
       rcases hzc with hzi | hzc
       · exact hzi ▸ p.getVert_mem_support i'
       · obtain ⟨k,_,_,hkz⟩ := (rd p j' hj').mp hzc
@@ -1395,14 +1504,12 @@ theorem vf {V:Type*} {G:SimpleGraph V} {u v :V}
     (by omega) hij (by omega) hj' hchord₁ hchord₂
   exact ⟨q,hq,by omega,by omega,by omega,hs⟩
 end Erdos556
-end cd
-section cM
 namespace Erdos556
 open SimpleGraph Finset
 theorem u8 {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (D d :ℕ) (hD:0 < D)
-    (hscale:Fintype.card V ≤ D *d) (hdegree: ∀ v,d ≤ G.degree v)
-    (hN:8* (4*D) ^ 2 ≤ Fintype.card V)
+    (hscale:ftCard V ≤ D *d) (hdegree: ∀ v,d ≤ G.degree v)
+    (hN:8* (4*D) ^ 2 ≤ ftCard V)
     (R:Finset V) (hR:2* (R.card+16*D+1) ≤ d)
     {u v :V} (p:G.Walk u v) (hp:p.IsPath) (hlen:16*D ≤ p.length) :
     ∃ q :G.Walk u v,q.IsPath ∧ q.length < p.length ∧
@@ -1412,18 +1519,18 @@ theorem u8 {V:Type*} [Fintype V]
   classical
   let S :=R ∪ (p.take (16*D)).support.toFinset
   have hprefix: (p.take (16*D)).support.toFinset.card ≤ 16*D+1:=by
-    have h :=List.toFinset_card_le (p.take (16*D)).support
-    simpa only [Walk.length_support,Walk.take_length,min_eq_left hlen] using h
+    have h :=lsTCL (p.take (16*D)).support
+    simpa only [wkLS,wkTL,min_eq_left hlen] using h
   have hS:2*S.card ≤ d:=by
     have h :=card_union_le R (p.take (16*D)).support.toFinset
     change S.card ≤ R.card+ (p.take (16*D)).support.toFinset.card at h
     omega
   let a (i:Fin (4*D)) :=p.getVert (4*i.val)
-  have hpositive:0 < Fintype.card V :=by nlinarith
+  have hpositive:0 < ftCard V :=by nlinarith
   obtain ⟨i₀,j₀,hne,hc⟩ :=vN G D d hpositive
     hscale hdegree S hS a
   have hordered: ∃ i j:Fin (4*D),i.val < j.val ∧
-      Fintype.card V / (2* (4*D) ^ 2) <
+      ftCard V / (2* (4*D) ^ 2) <
         ((G.neighborFinset (a i) ∩ G.neighborFinset (a j)) \ S).card:=by
     have hne':i₀.val ≠ j₀.val:=fun h => hne (Fin.ext h)
     rcases lt_or_gt_of_ne hne' with hij | hji
@@ -1452,40 +1559,38 @@ theorem u8 {V:Type*} [Fintype V]
       omega
     · intro z hz
       rcases hsupport z hz with hzp | hzx
-      · exact Or.inl hzp
-      · exact Or.inr (hzx ▸ hxR)
+      · exact orInl hzp
+      · exact orInr (hzx ▸ hxR)
   · have hW: ∀ x ∈ W,x ∈ p.support:=by
       intro x hx
       by_contra h
       exact hex ⟨x,hx,h⟩
     have hK:0 < 2* (4*D) ^ 2:=by positivity
-    have hN':4* (2* (4*D) ^ 2) ≤ Fintype.card V :=by nlinarith only [hN]
+    have hN':4* (2* (4*D) ^ 2) ≤ ftCard V :=by nlinarith only [hN]
     obtain ⟨s,t,hst,ht,hclose,hparst,hsW,htW⟩ :=
-      vE p W hW (Fintype.card V)
+      vE p W hW (ftCard V)
         (2* (4*D) ^ 2) hK hN' hp.length_lt hcommon
     have hs:16*D < s:=by
       by_contra h
       have hs':s ≤ 16*D:=by omega
       have hsP:p.getVert s ∈ (p.take (16*D)).support:=
         (qz p (16*D) hlen).mpr ⟨s,hs',rfl⟩
-      exact (hmem _ hsW).2.2 (mem_union_right R (List.mem_toFinset.mpr hsP))
+      exact (hmem _ hsW).2.2 (mem_union_right R (lsMT.mpr hsP))
     have hst2:s+2 ≤ t:=by omega
     have hjs:4*j.val ≤ s:=by have hjlt:=j.isLt;omega
     obtain ⟨q,hq,hlt,hbound,hparq,hsupport⟩ :=
       vf p hp (4*i.val) (4*j.val) s t
         h4i hjs hst2 ht hpar hparst (hmem _ hsW).1 (hmem _ htW).2.1
-    refine ⟨q,hq,hlt,?_,hparq,fun z hz=> Or.inl (hsupport z hz)⟩
+    refine ⟨q,hq,hlt,?_,hparq,fun z hz=> orInl (hsupport z hz)⟩
     have hjlt:=j.isLt
     omega
 end Erdos556
-end cM
-section cD
 namespace Erdos556
 open SimpleGraph
 theorem zu {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (D d :ℕ) (hD:0 < D)
-    (hscale:Fintype.card V ≤ D *d) (hdegree: ∀ v,d ≤ G.degree v)
-    (hN:8* (4*D) ^ 2 ≤ Fintype.card V)
+    (hscale:ftCard V ≤ D *d) (hdegree: ∀ v,d ≤ G.degree v)
+    (hN:8* (4*D) ^ 2 ≤ ftCard V)
     (R:Finset V) (hR:2* (R.card+16*D+1) ≤ d)
     (t:ℕ) (ht:16*D ≤ t) {u v :V}
     (p:G.Walk u v) (hp:p.IsPath) (hlen:t ≤ p.length)
@@ -1502,7 +1607,7 @@ theorem zu {V:Type*} [Fintype V]
         q.length%2=p.length%2 ∧
         ∀ z ∈ q.support,z ∈ R → z=u ∨ z=v:=by
     intro M
-    induction M using Nat.strong_induction_on with
+    induction M using natSIO with
     | h M ih=>
         intro p hpM hp htP hoff
         by_cases hstop:p.length ≤ t
@@ -1522,8 +1627,6 @@ theorem zu {V:Type*} [Fintype V]
         · exact ⟨q,hq,by omega,by omega,hpar,hoffq⟩
   exact aux p.length p rfl hp hlen hoff
 end Erdos556
-end cD
-section dv
 namespace Erdos556
 open SimpleGraph
 theorem yP {V:Type*} {G:SimpleGraph V}
@@ -1532,21 +1635,21 @@ theorem yP {V:Type*} {G:SimpleGraph V}
     G.dist (p.getVert i) (p.getVert j) = j-i:=by
   have hsub:= ((p.take j).isSubwalk_drop i).trans (p.isSubwalk_take j)
   have h :=length_eq_dist_of_subwalk hp hsub
-  simpa only [Walk.drop_length,Walk.take_length,Walk.take_getVert,
+  simpa only [wkDL,wkTL,Walk.take_getVert,
     inf_eq_left.mpr hj,inf_eq_right.mpr hij] using h.symm
 theorem sx {V:Type*} {G:SimpleGraph V}
     {u v :V} (p:G.Walk u v) (hp:p.length=G.dist u v)
     {i j :ℕ} (hij:i+3 ≤ j) (hj:j ≤ p.length) (z:V) :
     ¬ (G.Adj (p.getVert i) z ∧ G.Adj (p.getVert j) z) :=by
   rintro ⟨hi,hjz⟩
-  have hdist:=G.dist_le (Walk.cons hi (Walk.cons hjz.symm Walk.nil))
+  have hdist:=G.dist_le (wkCons hi (wkCons hjz.symm Walk.nil))
   rw [yP p hp (by omega) hj] at hdist
-  simp only [Walk.length_cons,Walk.length_nil] at hdist
+  simp only [wkLC2,Walk.length_nil] at hdist
   omega
 theorem sU {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] {u v :V} (p:G.Walk u v)
     (hp:p.length=G.dist u v) (d:ℕ) (hdeg: ∀ w,d ≤ G.degree w) :
-    (p.length/3+1) * d ≤ Fintype.card V :=by
+    (p.length/3+1) * d ≤ ftCard V :=by
   classical
   let I :=Fin (p.length/3+1)
   let W (i:I) :=G.neighborSet (p.getVert (3*i.val))
@@ -1573,23 +1676,23 @@ theorem sU {V:Type*} [Fintype V]
         rw [← heq]
         exact x.property
     subst j
-    have heq:x=y:=Subtype.ext hxy
+    have heq:x=y:=subExt hxy
     subst y
     rfl
-  have hc:=Fintype.card_le_of_injective f hinj
-  have hsum: (p.length/3+1) * d ≤ Fintype.card (Σ i :I,W i) :=by
+  have hc:=ftCLOI f hinj
+  have hsum: (p.length/3+1) * d ≤ ftCard (Σ i :I,W i) :=by
     rw [Fintype.card_sigma]
     calc
       (p.length/3+1) * d= ∑ _i:I,d:=by simp [I]
-      _ ≤ ∑ i :I,Fintype.card (W i) :=by
-        apply Finset.sum_le_sum
+      _ ≤ ∑ i :I,ftCard (W i) :=by
+        apply fsSLS
         intro i _
         simpa only [W,card_neighborSet_eq_degree] using hdeg (p.getVert (3*i.val))
   exact hsum.trans hc
 theorem xD {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (hconn:G.Connected)
     (d:ℕ) (hd:0 < d) (hdeg: ∀ w,d ≤ G.degree w) (u v :V) :
-    ∃ p :G.Walk u v,p.IsPath ∧ d*p.length < 3*Fintype.card V :=by
+    ∃ p :G.Walk u v,p.IsPath ∧ d*p.length < 3*ftCard V :=by
   classical
   obtain ⟨p,hp,hdist⟩ :=hconn.exists_path_of_dist u v
   refine ⟨p,hp,?_⟩
@@ -1597,8 +1700,6 @@ theorem xD {V:Type*} [Fintype V]
   have hlen:p.length < 3* (p.length/3+1) :=by omega
   nlinarith
 end Erdos556
-end dv
-section d1
 namespace Erdos556
 open SimpleGraph Finset
 def q8 {V:Type*} (G:SimpleGraph V) (b:ℕ) : Prop:=
@@ -1613,7 +1714,7 @@ theorem qW {V:Type*} [Fintype V]
   classical
   have hdeg: (G.induce (S:Set V)ᶜ).degree v =
       (G.neighborFinset v.val \ S).card:=by
-    have h :=congrArg Finset.card (G.map_neighborFinset_induce v)
+    have h :=congrArg fsCard (G.map_neighborFinset_induce v)
     simpa [← sdiff_eq_inter_compl] using h
   rw [hdeg,← G.card_neighborFinset_eq_degree v.val]
   have h :=card_sdiff_add_card_inter (G.neighborFinset v.val) S
@@ -1624,7 +1725,7 @@ theorem sB {V:Type*} [Fintype V]
     (hconn:q8 G b) (hd:0 < d)
     (hdeg: ∀ w,d+b ≤ G.degree w) (S:Finset V) (hS:S.card ≤ b)
     (u v :V) (hu:u ∉ S) (hv:v ∉ S) :
-    ∃ p :G.Walk u v,p.IsPath ∧ d*p.length < 3*Fintype.card V ∧
+    ∃ p :G.Walk u v,p.IsPath ∧ d*p.length < 3*ftCard V ∧
       ∀ x ∈ p.support,x ∉ S:=by
   classical
   let U := (S:Set V)ᶜ
@@ -1639,21 +1740,19 @@ theorem sB {V:Type*} [Fintype V]
     omega
   obtain ⟨p,hp,hlen⟩ :=xD
     (G.induce U) hc d hd hmin u' v'
-  let f :G.induce U ↪g G :=SimpleGraph.Embedding.induce U
+  let f :G.induce U ↪g G :=sgInduce U
   refine ⟨p.map f.toHom,hp.map f.injective,?_,?_⟩
-  · change d * (p.map f.toHom).length < 3*Fintype.card V
-    simp only [Walk.length_map]
-    exact hlen.trans_le (Nat.mul_le_mul_left 3 (Fintype.card_le_of_injective
-      (fun x :U=> x.val) Subtype.val_injective))
+  · change d * (p.map f.toHom).length < 3*ftCard V
+    simp only [wkLM]
+    exact hlen.trans_le (natMLML 3 (ftCLOI
+      (fun x :U=> x.val) subVI))
   · intro x hx
     change x ∈ (p.map f.toHom).support at hx
-    rw [Walk.support_map,List.mem_map] at hx
+    rw [wkSM,lsMM] at hx
     obtain ⟨y,_,hy⟩ :=hx
     subst x
     exact y.property
 end Erdos556
-end d1
-section d8
 namespace Erdos556
 open SimpleGraph
 theorem uX {V:Type*} {G:SimpleGraph V}
@@ -1668,7 +1767,7 @@ theorem uX {V:Type*} {G:SimpleGraph V}
     exact Nat.find_min' hex ⟨z,r,hr,rfl⟩
   have hnotnil: ¬ q.Nil:=by
     rw [Walk.not_nil_iff_lt_length]
-    have hmod:=Nat.odd_iff.mp hodd
+    have hmod:=natOI.mp hodd
     omega
   have htail:q.tail.IsPath:=by
     apply Walk.isPath_iff_isSubwalk_imp_nil.mpr
@@ -1676,29 +1775,29 @@ theorem uX {V:Type*} {G:SimpleGraph V}
     by_contra hrnil
     have hrpos:0 < r.length:=Walk.not_nil_iff_lt_length.mp hrnil
     have hrle:=Walk.length_le_of_isSubwalk hr
-    rw [Walk.length_tail] at hrle
+    rw [wkLT] at hrle
     by_cases hrodd:Odd r.length
     · have:=hmin r hrodd
       omega
     · obtain ⟨a,b,hab⟩ :=hr
       have htotal:q.length=a.length+r.length+b.length+1:=by
         have h :=congrArg Walk.length hab
-        simp only [Walk.length_tail,Walk.length_append] at h
+        simp only [wkLT,wkLA] at h
         have hpos:=Walk.not_nil_iff_lt_length.mp hnotnil
         omega
-      let s :=Walk.cons (q.adj_snd hnotnil) (a.append b)
+      let s :=wkCons (q.adj_snd hnotnil) (a.append b)
       have hslen:s.length=a.length+b.length+1:=by
-        simp only [s,Walk.length_cons,Walk.length_append]
+        simp only [s,wkLC2,wkLA]
       have hsodd:Odd s.length:=by
-        have hqmod:=Nat.odd_iff.mp hodd
-        have hrmod:=Nat.even_iff.mp (Nat.not_odd_iff_even.mp hrodd)
-        apply Nat.odd_iff.mpr
+        have hqmod:=natOI.mp hodd
+        have hrmod:=natEI.mp (Nat.not_odd_iff_even.mp hrodd)
+        apply natOI.mpr
         omega
       have:=hmin s hsodd
       omega
   have hthree:3 ≤ q.length:=by
     have hne:q.length ≠ 1:=fun h => (Walk.adj_of_length_eq_one h).ne rfl
-    have hmod:=Nat.odd_iff.mp hodd
+    have hmod:=natOI.mp hodd
     omega
   exact ⟨w,q,Walk.isCycle_iff_isPath_tail_and_le_length.mpr ⟨htail,hthree⟩,
     hodd,hmin p hp⟩
@@ -1718,10 +1817,10 @@ theorem tr {V:Type*} [Fintype V]
     (hnonbip: ¬ G.Colorable 2) (d:ℕ) (hd:0 < d)
     (hdeg: ∀ v,d ≤ G.degree v) :
     ∃ (w:V) (q:G.Walk w w),q.IsCycle ∧ Odd q.length ∧
-      d*q.length < 6*Fintype.card V +d:=by
+      d*q.length < 6*ftCard V +d:=by
   classical
   let root:V:=Classical.choice hconn.nonempty
-  let f (v:V) : Fin 2 := ⟨G.dist root v %2,Nat.mod_lt _ (by decide)⟩
+  let f (v:V) : Fin 2 := ⟨G.dist root v %2,natML _ (by decide)⟩
   have hex: ∃ a b,G.Adj a b ∧ f a =f b:=by
     by_contra h
     push Not at h
@@ -1731,7 +1830,7 @@ theorem tr {V:Type*} [Fintype V]
   obtain ⟨pa,_,hpa⟩ :=hconn.exists_path_of_dist root a
   obtain ⟨pb,_,hpb⟩ :=hconn.exists_path_of_dist root b
   have hshort {x y :V} (r:G.Walk x y) (hr:r.length=G.dist x y) :
-      d*r.length < 3*Fintype.card V :=by
+      d*r.length < 3*ftCard V :=by
     have hc:=sU G r hr d hdeg
     have hlen:r.length < 3* (r.length/3+1) :=by omega
     nlinarith
@@ -1739,19 +1838,17 @@ theorem tr {V:Type*} [Fintype V]
   have hb:=hshort pb hpb
   let p := (pa.concat hab).append pb.reverse
   have hlen:p.length=pa.length+1+pb.length:=by
-    simp only [p,Walk.length_append,Walk.length_concat,Walk.length_reverse]
+    simp only [p,wkLA,wkLC,wkLR]
   have hodd:Odd p.length:=by
     have heq:=congrArg Fin.val hpar
     change G.dist root a %2=G.dist root b %2 at heq
     rw [← hpa,← hpb] at heq
-    apply Nat.odd_iff.mpr
+    apply natOI.mpr
     omega
-  have hbound:d*p.length < 6*Fintype.card V +d:=by nlinarith
+  have hbound:d*p.length < 6*ftCard V +d:=by nlinarith
   obtain ⟨w,q,hq,hqodd,hqle⟩ :=uX p hodd
-  exact ⟨w,q,hq,hqodd,(Nat.mul_le_mul_left d hqle).trans_lt hbound⟩
+  exact ⟨w,q,hq,hqodd,(natMLML d hqle).trans_lt hbound⟩
 end Erdos556
-end d8
-section cP
 namespace Erdos556
 open SimpleGraph
 def qT {V:Type*} (G:SimpleGraph V) (b:ℕ) : Prop:=
@@ -1770,7 +1867,7 @@ theorem xA {V:Type*} [Fintype V]
     (hd:0 < d) (hdeg: ∀ w,d+b ≤ G.degree w)
     (S:Finset V) (hS:S.card ≤ b) :
     ∃ (w:V) (c:G.Walk w w),c.IsCycle ∧ Odd c.length ∧
-      d*c.length < 6*Fintype.card V +d ∧ ∀ x ∈ c.support,x ∉ S:=by
+      d*c.length < 6*ftCard V +d ∧ ∀ x ∈ c.support,x ∉ S:=by
   classical
   let U := (S:Set V)ᶜ
   have hnb: ¬ (G.induce U).Colorable 2 :=hnonbip S hS
@@ -1782,26 +1879,24 @@ theorem xA {V:Type*} [Fintype V]
     change G.degree v.val ≤ (G.induce U).degree v +S.card at h
     omega
   obtain ⟨w,c,hcyc,hodd,hlen⟩ :=tr (G.induce U) hc hnb d hd hmin
-  let f :G.induce U ↪g G :=SimpleGraph.Embedding.induce U
+  let f :G.induce U ↪g G :=sgInduce U
   refine ⟨f w,c.map f.toHom,hcyc.map f.injective,?_,?_,?_⟩
-  · simpa only [Walk.length_map] using hodd
-  · simp only [Walk.length_map]
-    have hcard:=Fintype.card_le_of_injective (fun x :U=> x.val) Subtype.val_injective
+  · simpa only [wkLM] using hodd
+  · simp only [wkLM]
+    have hcard:=ftCLOI (fun x :U=> x.val) subVI
     omega
   · intro x hx
-    rw [Walk.support_map,List.mem_map] at hx
+    rw [wkSM,lsMM] at hx
     obtain ⟨y,_,hy⟩ :=hx
     subst x
     exact y.property
 end Erdos556
-end cP
-section cT
 namespace Erdos556
 open SimpleGraph Finset
 theorem wX {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (b d D:ℕ)
     (hconn:q8 G b) (hd:0 < d)
-    (hdeg: ∀ w,d+b ≤ G.degree w) (hN:Fintype.card V ≤ D *d)
+    (hdeg: ∀ w,d+b ≤ G.degree w) (hN:ftCard V ≤ D *d)
     (S:Finset V) (hbudget:S.card+3*D+1 ≤ b)
     (C:Set V) (hC:C.Nontrivial) (hCS: ∀ z ∈ C,z ∉ S)
     (u v :V) (hu:u ∉ S) (hv:v ∉ S) (huv:u ≠ v) :
@@ -1822,17 +1917,17 @@ theorem wX {V:Type*} [Fintype V]
   have hpav (z:V) (hz:z ∈ p.support) : z ∉ insert v S:=
     hpavoid z (hpsub hz)
   have hpcard:p.support.toFinset.card ≤ 3*D:=by
-    have hcard:=List.toFinset_card_le p.support
+    have hcard:=lsTCL p.support
     rw [p.length_support] at hcard
     omega
   let T :=S ∪ p.support.toFinset
   have hT:T.card ≤ b:= (card_union_le S p.support.toFinset).trans (by omega)
   obtain ⟨z,hzC,hzx⟩ :=hC.exists_ne x
   have hzT:z ∉ T:=by
-    simp only [T,mem_union,List.mem_toFinset,not_or]
+    simp only [T,mem_union,lsMT,not_or]
     exact ⟨hCS z hzC,fun h => hzx (hpC z h hzC)⟩
   have hvT:v ∉ T:=by
-    simp only [T,mem_union,List.mem_toFinset,not_or]
+    simp only [T,mem_union,lsMT,not_or]
     exact ⟨hv,fun h => hpav v h (mem_insert_self v S)⟩
   obtain ⟨q',hq',hqlen,hqavoid⟩ :=sB G b d hconn hd hdeg
     T hT v z hvT hzT
@@ -1840,7 +1935,7 @@ theorem wX {V:Type*} [Fintype V]
   have hqbound:q.length < 3*D:=by nlinarith
   have hqav (z:V) (hz:z ∈ q.support) : z ∉ T:=hqavoid z (hqsub hz)
   have hpq (z:V) (hzp:z ∈ p.support) (hzq:z ∈ q.support) : False:=
-    hqav z hzq (mem_union_right S (List.mem_toFinset.mpr hzp))
+    hqav z hzq (mem_union_right S (lsMT.mpr hzp))
   have hxy:x ≠ y:=by
     intro h
     exact hpq x p.end_mem_support (h ▸ q.end_mem_support)
@@ -1850,8 +1945,6 @@ theorem wX {V:Type*} [Fintype V]
   · intro z hz hzS
     exact hqav z hz (mem_union_left _ hzS)
 end Erdos556
-end cT
-section da
 namespace Erdos556
 open SimpleGraph
 theorem zH {V:Type*} {G:SimpleGraph V}
@@ -1870,17 +1963,17 @@ theorem zH {V:Type*} {G:SimpleGraph V}
   have hs:s.IsPath:=by
     have hcycle: (p.append s).IsCycle:=by
       simpa only [p,s,Walk.take_spec] using hr
-    exact hcycle.isPath_of_append_right (Walk.not_nil_of_ne huv)
+    exact hcycle.isPath_of_append_right (wkNNON huv)
   have hlen:p.length+s.reverse.length=c.length:=by
     have h :=congrArg Walk.length (r.take_spec hvr)
-    simpa only [Walk.length_append,r,Walk.length_rotate,Walk.length_reverse] using h
+    simpa only [wkLA,r,Walk.length_rotate,wkLR] using h
   refine ⟨p,s.reverse,hp,hs.reverse,hlen,?_,?_,?_⟩
-  · have ho:=Nat.odd_iff.mp hodd
+  · have ho:=natOI.mp hodd
     omega
   · intro x hx
     exact (c.mem_support_rotate_iff u hu).mp (r.support_takeUntil_subset_support hvr hx)
   · intro x hx
-    rw [Walk.support_reverse,List.mem_reverse] at hx
+    rw [wkSR,lsMR] at hx
     exact (c.mem_support_rotate_iff u hu).mp (r.support_dropUntil_subset_support hvr hx)
 theorem rE {V:Type*} {G:SimpleGraph V}
     {w u v x y:V} (c:G.Walk w w) (hc:c.IsCycle) (hodd:Odd c.length)
@@ -1903,29 +1996,27 @@ theorem rE {V:Type*} {G:SimpleGraph V}
       (fun z hz hzr=> hpC z hz (hrC hzr))
     apply qr (p.append r) q.reverse hpr hq.reverse
     intro z hz hzq
-    rw [Walk.support_reverse,List.mem_reverse] at hzq
-    rcases (Walk.mem_support_append_iff _ _).mp hz with hzp | hzr
+    rw [wkSR,lsMR] at hzq
+    rcases (wkMSAI _ _).mp hz with hzp | hzr
     · exact (hpq z hzp hzq).elim
     · exact hqC z hzq (hrC hzr)
   have hsupport (r:G.Walk x y) (hrC:r.support ⊆ c.support) (z:V)
       (hz:z ∈ ((p.append r).append q.reverse).support) :
       z ∈ p.support ∨ z ∈ q.support ∨ z ∈ c.support:=by
-    rcases (Walk.mem_support_append_iff _ _).mp hz with hzpr | hzq
-    · rcases (Walk.mem_support_append_iff _ _).mp hzpr with hzp | hzr
-      · exact Or.inl hzp
-      · exact Or.inr (Or.inr (hrC hzr))
-    · exact Or.inr (Or.inl (by simpa only [Walk.support_reverse,List.mem_reverse] using hzq))
+    rcases (wkMSAI _ _).mp hz with hzpr | hzq
+    · rcases (wkMSAI _ _).mp hzpr with hzp | hzr
+      · exact orInl hzp
+      · exact orInr (orInr (hrC hzr))
+    · exact orInr (orInl (by simpa only [wkSR,lsMR] using hzq))
   refine ⟨(p.append a).append q.reverse,(p.append b).append q.reverse,
     hpath a ha haC,hpath b hb hbC,?_,?_,?_,hsupport a haC,hsupport b hbC⟩
-  · simp only [Walk.length_append,Walk.length_reverse]
+  · simp only [wkLA,wkLR]
     omega
-  · simp only [Walk.length_append,Walk.length_reverse]
+  · simp only [wkLA,wkLR]
     omega
-  · simp only [Walk.length_append,Walk.length_reverse]
+  · simp only [wkLA,wkLR]
     omega
 end Erdos556
-end da
-section dz
 namespace Erdos556
 open SimpleGraph Finset
 def qZ {V:Type*} (G:SimpleGraph V) (L:ℕ) (u v :V)
@@ -1943,7 +2034,7 @@ theorem vz {V:Type*} [Fintype V]
     (hconn:q8 G (b+3*D+3))
     (hnonbip:qT G (b+3*D+3))
     (hd:0 < d) (hdeg: ∀ w,d+ (b+3*D+3) ≤ G.degree w)
-    (hN:Fintype.card V ≤ D *d) (u v :V) (huv:u ≠ v)
+    (hN:ftCard V ≤ D *d) (u v :V) (huv:u ≠ v)
     (S:Finset V) (hS:S.card ≤ b) :
     ∃ T :Finset V,qZ G (12*D+3) u v T ∧
       T.card ≤ 12*D+3 ∧ Disjoint S T:=by
@@ -1963,7 +2054,7 @@ theorem vz {V:Type*} [Fintype V]
   let C :Set V := {z | z ∈ c.support}
   have hC:C.Nontrivial:=by
     refine ⟨w,c.start_mem_support,c.snd,?_,(c.adj_snd hc.not_nil).ne⟩
-    exact List.mem_of_mem_tail (Walk.snd_mem_tail_support hc.not_nil)
+    exact lsMOMT (Walk.snd_mem_tail_support hc.not_nil)
   have hCS (z:V) (hz:z ∈ C) : z ∉ S₀:=by
     intro hzS
     exact hcav z hz (mem_insert_of_mem (mem_insert_of_mem hzS))
@@ -1976,25 +2067,25 @@ theorem vz {V:Type*} [Fintype V]
   let T := (U.erase u).erase v
   have hmem {z:V} (hz:z ∈ p.support ∨ z ∈ q.support ∨ z ∈ c.support)
       (hzu:z ≠ u) (hzv:z ≠ v) : z ∈ T:=by
-    simp only [T,U,mem_erase,mem_union,List.mem_toFinset]
+    simp only [T,U,mem_erase,mem_union,lsMT]
     exact ⟨hzv,hzu,by tauto⟩
   have hTsize:T.card ≤ 12*D+3:=by
     have hTle:T.card ≤ U.card:=
       card_le_card ((erase_subset v (U.erase u)).trans (erase_subset u U))
     have hUle:U.card ≤ p.support.toFinset.card+q.support.toFinset.card+
         c.support.toFinset.card:=
-      (card_union_le _ _).trans (Nat.add_le_add_right (card_union_le _ _) _)
-    have hpcard:=List.toFinset_card_le p.support
-    have hqcard:=List.toFinset_card_le q.support
-    have hccard:=List.toFinset_card_le c.support
+      (card_union_le _ _).trans (natALAR (card_union_le _ _) _)
+    have hpcard:=lsTCL p.support
+    have hqcard:=lsTCL q.support
+    have hccard:=lsTCL c.support
     rw [p.length_support] at hpcard
     rw [q.length_support] at hqcard
     rw [c.length_support] at hccard
     omega
   have hST:Disjoint S T:=by
-    rw [Finset.disjoint_left]
+    rw [fsDL]
     intro z hzS hzT
-    simp only [T,U,mem_erase,mem_union,List.mem_toFinset] at hzT
+    simp only [T,U,mem_erase,mem_union,lsMT] at hzT
     have hzS₀:z ∈ S₀:=by
       simp only [S₀,mem_erase]
       exact ⟨hzT.1,hzT.2.1,hzS⟩
@@ -2009,7 +2100,6 @@ theorem vz {V:Type*} [Fintype V]
   · have hr:p₁.length%2=r.val:=by have:=r.isLt;omega
     exact ⟨p₁,hp₁,by omega,hr,fun z hz hzu hzv=> hmem (hs₁ z hz) hzu hzv⟩
 end Erdos556
-end dz
 section cw
 /-
 Copyright 2026 The Lean-Proofs Authors.
@@ -2143,10 +2233,10 @@ abbrev Subsets (U:Finset E) := {S:Finset E //S ⊆ U}
 def y1 (U:Finset E) :
     Subsets U ≃ ↥U.powerset:=
   Equiv.subtypeEquivRight (by intro S;simp)
-def t4:Subsets (Finset.univ:Finset E) ≃ Finset E where
+def t4:Subsets (fsUniv:Finset E) ≃ Finset E where
   toFun S :=S.1
   invFun S := ⟨S,subset_univ S⟩
-  left_inv _S:=Subtype.ext rfl
+  left_inv _S:=subExt rfl
   right_inv _S:=rfl
 def tT {U V :Finset E} (hUV:Disjoint U V) :
     Subsets (U ∪ V) ≃ Subsets U × Subsets V where
@@ -2154,7 +2244,7 @@ def tT {U V :Finset E} (hUV:Disjoint U V) :
     (⟨S.1 ∩ U,inter_subset_right⟩,⟨S.1 ∩ V,inter_subset_right⟩)
   invFun P := ⟨P.1.1 ∪ P.2.1,union_subset_union P.1.2 P.2.2⟩
   left_inv S :=by
-    apply Subtype.ext
+    apply subExt
     ext e
     simp only [mem_union,mem_inter]
     constructor
@@ -2166,29 +2256,29 @@ def tT {U V :Finset E} (hUV:Disjoint U V) :
       have hsplit:e ∈ U ∨ e ∈ V:=by
         simpa only [mem_union] using S.2 heS
       rcases hsplit with heU | heV
-      · exact Or.inl ⟨heS,heU⟩
-      · exact Or.inr ⟨heS,heV⟩
+      · exact orInl ⟨heS,heU⟩
+      · exact orInr ⟨heS,heV⟩
   right_inv P :=by
     rcases P with ⟨A,B⟩
     apply Prod.ext
-    · apply Subtype.ext
+    · apply subExt
       ext e
       simp only [mem_inter,mem_union]
       constructor
       · rintro ⟨heA | heB,heU⟩
         · exact heA
-        · exact False.elim ((Finset.disjoint_left.mp hUV) heU (B.2 heB))
+        · exact False.elim ((fsDL.mp hUV) heU (B.2 heB))
       · intro heA
-        exact ⟨Or.inl heA,A.2 heA⟩
-    · apply Subtype.ext
+        exact ⟨orInl heA,A.2 heA⟩
+    · apply subExt
       ext e
       simp only [mem_inter,mem_union]
       constructor
       · rintro ⟨heA | heB,heV⟩
-        · exact False.elim ((Finset.disjoint_left.mp hUV) (A.2 heA) heV)
+        · exact False.elim ((fsDL.mp hUV) (A.2 heA) heV)
         · exact heB
       · intro heB
-        exact ⟨Or.inr heB,B.2 heB⟩
+        exact ⟨orInr heB,B.2 heB⟩
 def qo (U:Finset E) (p:E → ℝ) (event:Finset E → Prop) : ℝ:=
   ∑ S :Subsets U,if event S.1 then q9 U p S.1 else 0
 lemma zp (U:Finset E) (p:E → ℝ) :
@@ -2196,7 +2286,7 @@ lemma zp (U:Finset E) (p:E → ℝ) :
   calc
     (∑ S :Subsets U,q9 U p S.1) =
         ∑ S : ↥U.powerset,q9 U p S.1:=by
-      apply Fintype.sum_equiv (y1 U)
+      apply ftSE (y1 U)
       intro S
       rfl
     _= ∑ S ∈ U.powerset,q9 U p S :=by
@@ -2211,11 +2301,11 @@ lemma wh (U:Finset E) (p:E → ℝ) :
 lemma s1 (p:E → ℝ)
     (event:Finset E → Prop) :
     qv
-        (fun S :Finset E ↦ q9 Finset.univ p S) event=
-      qo Finset.univ p event:=by
+        (fun S :Finset E ↦ q9 fsUniv p S) event=
+      qo fsUniv p event:=by
   unfold qv qo
   symm
-  apply Fintype.sum_equiv t4
+  apply ftSE t4
   intro S
   by_cases h :event S.1 <;> simp [h,t4]
 omit [Fintype E] in
@@ -2229,16 +2319,16 @@ lemma xy {U V A B :Finset E} {p:E → ℝ}
     simp only [mem_sdiff,mem_union]
     constructor
     · rintro ⟨heU | heV,hnot⟩
-      · exact Or.inl ⟨heU,fun heA ↦ hnot (Or.inl heA)⟩
-      · exact Or.inr ⟨heV,fun heB ↦ hnot (Or.inr heB)⟩
+      · exact orInl ⟨heU,fun heA ↦ hnot (orInl heA)⟩
+      · exact orInr ⟨heV,fun heB ↦ hnot (orInr heB)⟩
     · rintro (⟨heU,heA⟩ | ⟨heV,heB⟩)
-      · refine ⟨Or.inl heU,?_⟩
+      · refine ⟨orInl heU,?_⟩
         rintro (hAe | hBe)
         · exact heA hAe
-        · exact (Finset.disjoint_left.mp hUV) heU (hB hBe)
-      · refine ⟨Or.inr heV,?_⟩
+        · exact (fsDL.mp hUV) heU (hB hBe)
+      · refine ⟨orInr heV,?_⟩
         rintro (hAe | hBe)
-        · exact (Finset.disjoint_left.mp hUV) (hA hAe) heV
+        · exact (fsDL.mp hUV) (hA hAe) heV
         · exact heB hBe
   have hdiffDisj:Disjoint (U \ A) (V \ B) :=
     hUV.mono sdiff_subset sdiff_subset
@@ -2261,7 +2351,7 @@ lemma sk {U V :Finset E} {p:E → ℝ}
       intro S _
       by_cases h :A S.1 ∧ B S.1 <;> simp [summand,h]
     _= ∑ P:Subsets U × Subsets V,summand (split.symm P) :=by
-      apply Fintype.sum_equiv split
+      apply ftSE split
       intro S
       simp only [Equiv.symm_apply_apply]
     _= ∑ X:Subsets U,∑ Y:Subsets V,summand (split.symm (X,Y)) :=by
@@ -2281,19 +2371,19 @@ lemma sk {U V :Finset E} {p:E → ℝ}
         constructor
         · rintro ⟨heX | heY,heU⟩
           · exact ⟨heX,X.2 heX⟩
-          · exact False.elim ((Finset.disjoint_left.mp hUV) heU (Y.2 heY))
+          · exact False.elim ((fsDL.mp hUV) heU (Y.2 heY))
         · rintro ⟨heX,heU⟩
-          exact ⟨Or.inl heX,heU⟩
+          exact ⟨orInl heX,heU⟩
       have hAgreeB:AgreesOn V (X.1 ∪ Y.1) Y.1:=by
         unfold AgreesOn
         ext e
         simp only [mem_inter,mem_union]
         constructor
         · rintro ⟨heX | heY,heV⟩
-          · exact False.elim ((Finset.disjoint_left.mp hUV) (X.2 heX) heV)
+          · exact False.elim ((fsDL.mp hUV) (X.2 heX) heV)
           · exact ⟨heY,Y.2 heY⟩
         · rintro ⟨heY,heV⟩
-          exact ⟨Or.inr heY,heV⟩
+          exact ⟨orInr heY,heV⟩
       have hAE:A (X.1 ∪ Y.1) ↔ A X.1:=hA _ _ hAgreeA
       have hBE:B (X.1 ∪ Y.1) ↔ B Y.1:=hB _ _ hAgreeB
       rw [show summand (split.symm (X,Y)) =
@@ -2316,19 +2406,19 @@ lemma sk {U V :Finset E} {p:E → ℝ}
 lemma r9 {R:Finset E} {p:E → ℝ}
     {event:Finset E → Prop} (hlocal:qP R event) :
     qv
-        (fun S :Finset E ↦ q9 Finset.univ p S) event=
+        (fun S :Finset E ↦ q9 fsUniv p S) event=
       qo R p event:=by
   calc
     qv
-        (fun S :Finset E ↦ q9 Finset.univ p S) event=
-        qo Finset.univ p event:=
+        (fun S :Finset E ↦ q9 fsUniv p S) event=
+        qo fsUniv p event:=
       s1 p event
     _=qo R p event:=by
       have hfactor:=sk
-        (p:=p) (U:=R) (V:=Finset.univ \ R)
+        (p:=p) (U:=R) (V:=fsUniv \ R)
         (A:=event) (B:=fun _ ↦ True) Finset.disjoint_sdiff hlocal
-        (a9 (Finset.univ \ R))
-      have hcover:R ∪ (Finset.univ \ R) = (Finset.univ:Finset E) :=
+        (a9 (fsUniv \ R))
+      have hcover:R ∪ (fsUniv \ R) = (fsUniv:Finset E) :=
         union_sdiff_of_subset (subset_univ R)
       rw [hcover] at hfactor
       simpa [wh] using hfactor
@@ -2336,24 +2426,24 @@ theorem yz {R T :Finset E} {p:E → ℝ}
     {A B :Finset E → Prop} (hRT:Disjoint R T)
     (hA:qP R A) (hB:qP T B) :
     qv
-        (fun S :Finset E ↦ q9 Finset.univ p S)
+        (fun S :Finset E ↦ q9 fsUniv p S)
         (fun S ↦ A S ∧ B S) =
       qv
-          (fun S :Finset E ↦ q9 Finset.univ p S) A *
+          (fun S :Finset E ↦ q9 fsUniv p S) A *
         qv
-          (fun S :Finset E ↦ q9 Finset.univ p S) B :=by
+          (fun S :Finset E ↦ q9 fsUniv p S) B :=by
   calc
     qv
-        (fun S :Finset E ↦ q9 Finset.univ p S)
+        (fun S :Finset E ↦ q9 fsUniv p S)
         (fun S ↦ A S ∧ B S) =
         qo (R ∪ T) p (fun S ↦ A S ∧ B S) :=
       r9 (av hA hB)
     _=qo R p A *qo T p B :=
       sk hRT hA hB
     _=qv
-          (fun S :Finset E ↦ q9 Finset.univ p S) A *
+          (fun S :Finset E ↦ q9 fsUniv p S) A *
         qv
-          (fun S :Finset E ↦ q9 Finset.univ p S) B :=by
+          (fun S :Finset E ↦ q9 fsUniv p S) B :=by
       rw [r9 hA,
         r9 hB]
 end
@@ -2452,7 +2542,7 @@ theorem au (p:E → ℝ) (L:Finset E) :
   · intro X _ hX
     have hn: ¬ L ⊆ X.val:=by
       intro h
-      exact hX (Subtype.ext (Subset.antisymm X.property h))
+      exact hX (subExt (Subset.antisymm X.property h))
     simp [hn]
   · simp
 omit [Fintype E] in
@@ -2529,9 +2619,9 @@ theorem wY {I:Type*} [Fintype I]
     (hdisj: ∀ i,(Set.univ:Set (Fin m)).Pairwise
       fun j k=> Disjoint (R i j) (R i k))
     (hsize: ∀ i j,(R i j).card ≤ L)
-    (hfail: (Fintype.card I :ℝ) * (1-q^L) ^ m < 1/2)
-    (hE:0 < Fintype.card E) :
-    ∃ S :Finset E,(S.card:ℝ) ≤ 2*q*Fintype.card E ∧
+    (hfail: (ftCard I :ℝ) * (1-q^L) ^ m < 1/2)
+    (hE:0 < ftCard E) :
+    ∃ S :Finset E,(S.card:ℝ) ≤ 2*q*ftCard E ∧
       ∀ i,∃ j,R i j ⊆ S:=by
   classical
   let mass:Finset E → ℝ :=q9 univ (fun _ => q)
@@ -2539,10 +2629,10 @@ theorem wY {I:Type*} [Fintype I]
     tO (subset_univ S) (fun _ _=> hq0.le) (fun _ _=> hq1)
   have hsum: ∑ S,mass S =1:=uM _
   have hmean: ∑ S:Finset E,mass S * (S.card:ℝ) =
-      q*Fintype.card E :=by
+      q*ftCard E :=by
     simpa [mass,mul_comm] using
       yc (univ:Finset E) (fun _ => q)
-  let t :ℝ:=2*q*Fintype.card E
+  let t :ℝ:=2*q*ftCard E
   have ht:0 < t:=by
     dsimp [t]
     exact mul_pos (mul_pos (by norm_num) hq0) (by exact_mod_cast hE)
@@ -2555,7 +2645,7 @@ theorem wY {I:Type*} [Fintype I]
       _=t* (1/2) :=by rw [hmean];dsimp [t];ring
   let bad:I → Finset E → Prop:=fun i S=> ∀ j,¬ R i j ⊆ S
   have hbad (i:I) : qv mass (bad i) ≤ (1-q^L) ^ m:=by
-    simpa only [mass,bad,mem_univ,forall_true_left,card_univ,Fintype.card_fin]
+    simpa only [mass,bad,mem_univ,forall_true_left,card_univ,ftCF]
       using yQ q hq0.le hq1 (R i) univ
         (by simpa only [coe_univ] using hdisj i) L (fun j _=> hsize i j)
   have hsome:qv mass (fun S => ∃ i,bad i S) < 1/2:=by
@@ -2563,22 +2653,21 @@ theorem wY {I:Type*} [Fintype I]
       qv mass (fun S => ∃ i,bad i S) ≤ ∑ i,qv mass (bad i) :=
         a5 mass hmass bad
       _ ≤ ∑ _i:I,(1-q^L) ^ m:=sum_le_sum (fun i _=> hbad i)
-      _= (Fintype.card I :ℝ) * (1-q^L) ^ m:=by simp
+      _= (ftCard I :ℝ) * (1-q^L) ^ m:=by simp
       _ < 1/2:=hfail
   have hall:qv mass (fun S => t < (S.card:ℝ) ∨ ∃ i,bad i S) < 1:=by
     have h :=bu mass hmass
       (fun S => t < (S.card:ℝ)) (fun S => ∃ i,bad i S)
     linarith
   obtain ⟨S,hS⟩ :=wl mass hsum _ hall
-  refine ⟨S,le_of_not_gt (fun h => hS (Or.inl h)),?_⟩
+  refine ⟨S,le_of_not_gt (fun h => hS (orInl h)),?_⟩
   intro i
   by_contra hi
   push Not at hi
-  exact hS (Or.inr ⟨i,hi⟩)
+  exact hS (orInr ⟨i,hi⟩)
 end
 end Erdos556.Bernoulli
 end du
-section cl
 namespace Erdos556
 open Finset
 theorem tt {E:Type*}
@@ -2622,30 +2711,28 @@ theorem tt {E:Type*}
 theorem xq {E I :Type*}
     [Fintype I] (R:I → Finset E) (T:Finset E)
     (hD:Pairwise (fun i j=> Disjoint (R i) (R j)))
-    (hmeet: ∀ i,¬ Disjoint T (R i)) : Fintype.card I ≤ T.card:=by
+    (hmeet: ∀ i,¬ Disjoint T (R i)) : ftCard I ≤ T.card:=by
   classical
   have hx: ∀ i,∃ x,x ∈ T ∧ x ∈ R i:=by
     intro i
-    simpa only [Finset.disjoint_left,not_forall,not_not,exists_prop] using hmeet i
+    simpa only [fsDL,not_forall,not_not,exists_prop] using hmeet i
   choose x hxT hxR using hx
   let f :I → T:=fun i => ⟨x i,hxT i⟩
   have hinj:Function.Injective f :=by
     intro i j hij
     by_contra hne
-    have heq:x i=x j:=congrArg Subtype.val hij
-    exact Finset.disjoint_left.mp (hD hne) (hxR i) (heq ▸ hxR j)
-  simpa only [Fintype.card_coe] using Fintype.card_le_of_injective f hinj
+    have heq:x i=x j:=congrArg subVal hij
+    exact fsDL.mp (hD hne) (hxR i) (heq ▸ hxR j)
+  simpa only [ftCC] using ftCLOI f hinj
 theorem y7 {E I :Type*}
     [Fintype I] (R:I → Finset E) (T:Finset E)
     (hD:Pairwise (fun i j=> Disjoint (R i) (R j)))
-    (hcard:T.card < Fintype.card I) : ∃ i,Disjoint T (R i) :=by
+    (hcard:T.card < ftCard I) : ∃ i,Disjoint T (R i) :=by
   classical
   by_contra h
   push Not at h
   exact (Nat.not_le_of_gt hcard) (xq R T hD h)
 end Erdos556
-end cl
-section dn
 namespace Erdos556
 open Finset
 theorem uA {E I :Type*} [Fintype E]
@@ -2653,9 +2740,9 @@ theorem uA {E I :Type*} [Fintype E]
     (L b m a :ℕ) (hbound: ((a+1) * m) * L ≤ b)
     (havoid: ∀ i S,S.card ≤ b →
       ∃ T :Finset E,P i T ∧ T.card ≤ L ∧ Disjoint S T)
-    (hfail: (Fintype.card I :ℝ) * (a+1) * (1-q^L) ^ m < 1/2)
-    (hE:0 < Fintype.card E) :
-    ∃ S :Finset E,(S.card:ℝ) ≤ 2*q*Fintype.card E ∧
+    (hfail: (ftCard I :ℝ) * (a+1) * (1-q^L) ^ m < 1/2)
+    (hE:0 < ftCard E) :
+    ∃ S :Finset E,(S.card:ℝ) ≤ 2*q*ftCard E ∧
       ∀ i T,T.card ≤ a → ∃ U :Finset E,
         U ⊆ S ∧ P i U ∧ U.card ≤ L ∧ Disjoint T U:=by
   classical
@@ -2672,9 +2759,9 @@ theorem uA {E I :Type*} [Fintype E]
     exact hjk (congrArg Prod.snd (finProdFinEquiv.injective heq))
   have hQS (i:I × Fin (a+1)) (j:Fin m) : (Q i j).card ≤ L:=
     (hR i.1 (finProdFinEquiv (i.2,j))).2
-  have hfailure: (Fintype.card (I × Fin (a+1)) : ℝ) *
+  have hfailure: (ftCard (I × Fin (a+1)) : ℝ) *
       (1-q^L) ^ m < 1/2:=by
-    simpa only [Fintype.card_prod,Fintype.card_fin,Nat.cast_mul,Nat.cast_add,
+    simpa only [ftCP,ftCF,natCM,natCA,
       Nat.cast_one] using hfail
   obtain ⟨S,hS,hhit⟩ :=Bernoulli.wY
     q hq0 hq1 L m Q hQD hQS hfailure hE
@@ -2689,11 +2776,9 @@ theorem uA {E I :Type*} [Fintype E]
     intro heq
     exact hgh (congrArg Prod.fst (finProdFinEquiv.injective heq))
   obtain ⟨g,hgT⟩ :=y7 F T hFD
-    (by simpa only [Fintype.card_fin] using Nat.lt_succ_of_le hT)
+    (by simpa only [ftCF] using natLSOL hT)
   exact ⟨F g,hj g,(hR i (finProdFinEquiv (g,j g))).1,hQS (i,g) (j g),hgT⟩
 end Erdos556
-end dn
-section cr
 namespace Erdos556
 open SimpleGraph Finset
 def qY {V:Type*} (G:SimpleGraph V) (L:ℕ) (u v :V)
@@ -2708,51 +2793,51 @@ theorem qY.mono {V:Type*} {G:SimpleGraph V} {L:ℕ} {u v :V}
 theorem x6 {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (b d L:ℕ)
     (hconn:q8 G b) (hd:0 < d)
-    (hdeg: ∀ w,d+b ≤ G.degree w) (hdiam:3*Fintype.card V ≤ d *L)
+    (hdeg: ∀ w,d+b ≤ G.degree w) (hdiam:3*ftCard V ≤ d *L)
     (u v :V) (S:Finset V) (hS:S.card ≤ b) :
     ∃ T :Finset V,qY G L u v T ∧ T.card ≤ L ∧ Disjoint S T:=by
   classical
   let S':= (S.erase u).erase v
   have hS':S'.card ≤ b:=
-    (Finset.card_le_card ((erase_subset v (S.erase u)).trans (erase_subset u S))).trans hS
+    (fsCLC ((erase_subset v (S.erase u)).trans (erase_subset u S))).trans hS
   obtain ⟨p,hp,hlen,hav⟩ :=sB G b d hconn hd hdeg S' hS'
     u v (by simp [S']) (by simp [S'])
   have hlen':p.length+1 ≤ L:=by nlinarith
   let T := (p.support.toFinset.erase u).erase v
   refine ⟨T,⟨p,hp,by omega,?_⟩,?_,?_⟩
   · intro x hx hxu hxv
-    simp only [T,mem_erase,List.mem_toFinset]
+    simp only [T,mem_erase,lsMT]
     exact ⟨hxv,hxu,hx⟩
   · calc
       T.card ≤ p.support.toFinset.card:=
-        Finset.card_le_card ((erase_subset v _).trans (erase_subset u _))
-      _ ≤ p.support.length:=List.toFinset_card_le p.support
+        fsCLC ((erase_subset v _).trans (erase_subset u _))
+      _ ≤ p.support.length:=lsTCL p.support
       _=p.length+1:=p.length_support
       _ ≤ L:=hlen'
-  · rw [Finset.disjoint_left]
+  · rw [fsDL]
     intro x hxS hxT
-    simp only [T,mem_erase,List.mem_toFinset] at hxT
+    simp only [T,mem_erase,lsMT] at hxT
     apply hav x hxT.2.2
     simp only [S',mem_erase]
     exact ⟨hxT.1,hxT.2.1,hxS⟩
 theorem zM {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (b d L m a:ℕ)
     (hconn:q8 G b) (hd:0 < d)
-    (hdeg: ∀ w,d+b ≤ G.degree w) (hdiam:3*Fintype.card V ≤ d *L)
+    (hdeg: ∀ w,d+b ≤ G.degree w) (hdiam:3*ftCard V ≤ d *L)
     (hbound: ((a+1) * m) * L ≤ b)
     (q:ℝ) (hq0:0 < q) (hq1:q ≤ 1)
-    (hfail: (Fintype.card V :ℝ) ^ 2* (a+1) * (1-q^L) ^ m < 1/2)
-    (hV:0 < Fintype.card V) :
-    ∃ R :Finset V,(R.card:ℝ) ≤ 2*q*Fintype.card V ∧
+    (hfail: (ftCard V :ℝ) ^ 2* (a+1) * (1-q^L) ^ m < 1/2)
+    (hV:0 < ftCard V) :
+    ∃ R :Finset V,(R.card:ℝ) ≤ 2*q*ftCard V ∧
       ∀ u v S,S.card ≤ a → qY G L u v (R \ S) :=by
   classical
   let P : (V × V) → Finset V → Prop:=fun uv=> qY G L uv.1 uv.2
   have hav (uv:V × V) (S:Finset V) (hS:S.card ≤ b) :
       ∃ T :Finset V,P uv T ∧ T.card ≤ L ∧ Disjoint S T:=
     x6 G b d L hconn hd hdeg hdiam uv.1 uv.2 S hS
-  have hf: (Fintype.card (V × V) : ℝ) * (a+1) *
+  have hf: (ftCard (V × V) : ℝ) * (a+1) *
       (1-q^L) ^ m < 1/2:=by
-    simpa only [Fintype.card_prod,Nat.cast_mul,pow_two] using hfail
+    simpa only [ftCP,natCM,pow_two] using hfail
   obtain ⟨R,hR,hhit⟩ :=uA P q hq0 hq1 L b m a
     hbound hav hf hV
   refine ⟨R,hR,?_⟩
@@ -2760,27 +2845,25 @@ theorem zM {V:Type*} [Fintype V] [DecidableEq V]
   obtain ⟨T,hTR,hP,_,hST⟩ :=hhit (u,v) S hS
   apply hP.mono
   intro x hx
-  exact mem_sdiff.mpr ⟨hTR hx,fun hxS=> Finset.disjoint_left.mp hST hxS hx⟩
+  exact mem_sdiff.mpr ⟨hTR hx,fun hxS=> fsDL.mp hST hxS hx⟩
 end Erdos556
-end cr
-section dE
 namespace Erdos556
 open SimpleGraph
 theorem s9 {V:Type*} {G:SimpleGraph V}
     {u v :V} (p:G.Walk u v) (hp:p.IsPath) : u ∉ p.support.tail:=by
   have h :=hp.support_nodup
-  rw [← p.cons_tail_support,List.nodup_cons] at h
+  rw [← p.cons_tail_support,lsNC] at h
   exact h.1
 theorem qy {V:Type*} {G:SimpleGraph V}
     {u v :V} (p q :G.Walk u v) (hp:p.IsPath) (hq:q.IsPath) (hlen:1 < p.length)
     (hinter: ∀ x ∈ p.support,x ∈ q.support → x=u ∨ x=v) :
     (p.append q.reverse).IsCycle:=by
-  apply hp.isCycle_append hq.reverse _ (Or.inl hlen)
-  rw [List.disjoint_left]
+  apply hp.isCycle_append hq.reverse _ (orInl hlen)
+  rw [lsDL]
   intro x hxp hxq
-  have hxp':x ∈ p.support:=List.mem_of_mem_tail hxp
+  have hxp':x ∈ p.support:=lsMOMT hxp
   have hxq':x ∈ q.support:=by
-    simpa only [Walk.support_reverse,List.mem_reverse] using List.mem_of_mem_tail hxq
+    simpa only [wkSR,lsMR] using lsMOMT hxq
   rcases hinter x hxp' hxq' with hxu | hxv
   · exact s9 p hp (hxu ▸ hxp)
   · exact s9 q.reverse hq.reverse (hxv ▸ hxq)
@@ -2790,28 +2873,26 @@ theorem sZ {V:Type*} {G:SimpleGraph V}
     (hconn:qZ G L u v R) :
     ∃ c :G.Walk u u,c.IsCycle ∧ Odd c.length ∧
       p.length ≤ c.length ∧ c.length ≤ p.length+L:=by
-  let r :Fin 2 := ⟨(p.length+1) % 2,Nat.mod_lt _ (by decide)⟩
+  let r :Fin 2 := ⟨(p.length+1) % 2,natML _ (by decide)⟩
   obtain ⟨q,hq,hqL,hqpar,hqR⟩ :=hconn r
   have hc: (p.append q.reverse).IsCycle:=by
     apply qy p q hp hq hlen
     intro x hxp hxq
     by_cases hxu:x=u
-    · exact Or.inl hxu
+    · exact orInl hxu
     by_cases hxv:x=v
-    · exact Or.inr hxv
+    · exact orInr hxv
     exact (hav x hxp (hqR x hxq hxu hxv)).elim
   refine ⟨p.append q.reverse,hc,?_,?_,?_⟩
-  · apply Nat.odd_iff.mpr
-    simp only [Walk.length_append,Walk.length_reverse]
+  · apply natOI.mpr
+    simp only [wkLA,wkLR]
     change q.length%2= (p.length+1) % 2 at hqpar
     omega
-  · simp only [Walk.length_append,Walk.length_reverse]
+  · simp only [wkLA,wkLR]
     omega
-  · simp only [Walk.length_append,Walk.length_reverse]
+  · simp only [wkLA,wkLR]
     omega
 end Erdos556
-end dE
-section cg
 namespace Erdos556
 open SimpleGraph Finset
 theorem rf {V:Type*} [DecidableEq V]
@@ -2826,22 +2907,22 @@ theorem rf {V:Type*} [DecidableEq V]
   | succ L ih=>
       classical
       obtain ⟨y,hy⟩ :=card_pos.mp (show 0 < Y.card by omega)
-      have huy:u ≠ y:=fun h => Finset.disjoint_left.mp hXY hu (h.symm ▸ hy)
-      have hvy:v ≠ y:=fun h => Finset.disjoint_left.mp hXY hv (h.symm ▸ hy)
+      have huy:u ≠ y:=fun h => fsDL.mp hXY hu (h.symm ▸ hy)
+      have hvy:v ≠ y:=fun h => fsDL.mp hXY hv (h.symm ▸ hy)
       by_cases hzero:L=0
       · subst L
-        let p :G.Walk u v:=Walk.cons (hcomplete u hu y hy)
-          (Walk.cons (hcomplete v hv y hy).symm Walk.nil)
+        let p :G.Walk u v:=wkCons (hcomplete u hu y hy)
+          (wkCons (hcomplete v hv y hy).symm Walk.nil)
         refine ⟨p,?_,rfl,?_⟩
-        · apply (Walk.cons_isPath_iff _ _).mpr
-          refine ⟨(Walk.cons_isPath_iff _ _).mpr ⟨?_,?_⟩,?_⟩
+        · apply (wkCII _ _).mpr
+          refine ⟨(wkCII _ _).mpr ⟨?_,?_⟩,?_⟩
           · exact Walk.IsPath.nil
           · simpa using hvy.symm
-          · simpa only [Walk.support_cons,Walk.support_nil,List.mem_cons,
-              List.not_mem_nil,or_false,not_or] using And.intro huy huv
+          · simpa only [wkSC2,Walk.support_nil,lsMC,
+              lsNMN,or_false,not_or] using And.intro huy huv
         · intro z hz
-          simp only [p,Walk.support_cons,Walk.support_nil,List.mem_cons,
-            List.not_mem_nil,or_false] at hz
+          simp only [p,wkSC2,Walk.support_nil,lsMC,
+            lsNMN,or_false] at hz
           rcases hz with rfl | rfl | rfl
           · exact mem_union_left _ hu
           · exact mem_union_right _ hy
@@ -2872,22 +2953,22 @@ theorem rf {V:Type*} [DecidableEq V]
           intro h
           rcases mem_union.mp (hqS u h) with hx | hz
           · exact (mem_erase.mp hx).1 rfl
-          · exact Finset.disjoint_left.mp hXY hu (mem_of_mem_erase hz)
+          · exact fsDL.mp hXY hu (mem_of_mem_erase hz)
         have hyq:y ∉ q.support:=by
           intro h
           rcases mem_union.mp (hqS y h) with hx | hz
-          · exact Finset.disjoint_left.mp hXY (mem_of_mem_erase hx) hy
+          · exact fsDL.mp hXY (mem_of_mem_erase hx) hy
           · exact (mem_erase.mp hz).1 rfl
-        let p :G.Walk u v:=Walk.cons (hcomplete u hu y hy)
-          (Walk.cons (hcomplete w hwX y hy).symm q)
+        let p :G.Walk u v:=wkCons (hcomplete u hu y hy)
+          (wkCons (hcomplete w hwX y hy).symm q)
         refine ⟨p,?_,?_,?_⟩
-        · apply (Walk.cons_isPath_iff _ _).mpr
-          refine ⟨(Walk.cons_isPath_iff _ _).mpr ⟨hq,hyq⟩,?_⟩
-          simpa only [Walk.support_cons,List.mem_cons,not_or] using And.intro huy huq
-        · simp only [p,Walk.length_cons,hqlen]
+        · apply (wkCII _ _).mpr
+          refine ⟨(wkCII _ _).mpr ⟨hq,hyq⟩,?_⟩
+          simpa only [wkSC2,lsMC,not_or] using And.intro huy huq
+        · simp only [p,wkLC2,hqlen]
           omega
         · intro z hz
-          simp only [p,Walk.support_cons,List.mem_cons] at hz
+          simp only [p,wkSC2,lsMC] at hz
           rcases hz with rfl | rfl | hz
           · exact mem_union_left _ hu
           · exact mem_union_right _ hy
@@ -2905,16 +2986,14 @@ theorem wq {V:Type*} [DecidableEq V]
   refine ⟨p.append q.reverse,?_,?_⟩
   · exact qy p q hp hq hlen
       (fun z hzp hzq=> hoff z hzp (hqS z hzq))
-  · simp only [Walk.length_append,Walk.length_reverse,hqL]
+  · simp only [wkLA,wkLR,hqL]
 end Erdos556
-end cg
-section cj
 namespace Erdos556
 open SimpleGraph Finset
 theorem u9 {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (D d :ℕ) (hD:0 < D)
-    (hscale:Fintype.card V ≤ D *d) (hdegree: ∀ v,d ≤ G.degree v)
-    (hN:8* (4*D) ^ 2 ≤ Fintype.card V)
+    (hscale:ftCard V ≤ D *d) (hdegree: ∀ v,d ≤ G.degree v)
+    (hN:8* (4*D) ^ 2 ≤ ftCard V)
     (X Y :Finset V) (hXY:Disjoint X Y)
     (hcomplete: ∀ x ∈ X,∀ y ∈ Y,G.Adj x y)
     (hX:16*D+8* (4*D) ^ 2+1 ≤ X.card)
@@ -2938,14 +3017,12 @@ theorem u9 {V:Type*} [Fintype V] [DecidableEq V]
     (by omega) (by omega) u v hu hv huv q hq hqgt hqoff
   exact ⟨c,hc,hclen.trans hlen⟩
 end Erdos556
-end cj
-section dy
 namespace Erdos556
 open SimpleGraph Finset
 theorem zG (D:ℕ) (hD:0 < D) :
     ∃ N₀ K :ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (d:ℕ),
-      N₀ ≤ Fintype.card V → Fintype.card V ≤ D *d → (∀ v,d ≤ G.degree v) →
+      N₀ ≤ ftCard V → ftCard V ≤ D *d → (∀ v,d ≤ G.degree v) →
       ∀ (z:V) (c:G.Walk z z),c.IsCycle →
       ∀ n :ℕ,K ≤ n → n+K ≤ c.length → n%2=c.length%2 →
       ∃ (w:V) (q:G.Walk w w),q.IsCycle ∧ q.length=n:=by
@@ -2959,11 +3036,11 @@ theorem zG (D:ℕ) (hD:0 < D) :
   have hQ:0 < Q:=by dsimp [Q];omega
   refine ⟨N₀,K,?_⟩
   intro V _ _ G _ d hN hscale hdegree z c hc n hn hnc hpar
-  have hNshort:8* (4*D) ^ 2 ≤ Fintype.card V :=by dsimp [N₀] at hN;omega
-  have hNloss:2*L* (Q+M+1) ≤ Fintype.card V :=by dsimp [N₀] at hN;omega
-  have hNblock:H ≤ Fintype.card V :=by dsimp [N₀] at hN;omega
+  have hNshort:8* (4*D) ^ 2 ≤ ftCard V :=by dsimp [N₀] at hN;omega
+  have hNloss:2*L* (Q+M+1) ≤ ftCard V :=by dsimp [N₀] at hN;omega
+  have hNblock:H ≤ ftCard V :=by dsimp [N₀] at hN;omega
   have hDC:D*C ≤ D*d:=by
-    have h :D*C ≤ Fintype.card V :=by dsimp [N₀] at hN;omega
+    have h :D*C ≤ ftCard V :=by dsimp [N₀] at hN;omega
     exact h.trans hscale
   have hC:C ≤ d:= (mul_le_mul_iff_right₀ hD).mp hDC
   have hlen:M < c.length:=by dsimp [K] at hn hnc;omega
@@ -2989,20 +3066,18 @@ theorem zG (D:ℕ) (hD:0 < D) :
 theorem uR (D:ℕ) (hD:0 < D) :
     ∃ N₀ K :ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (d n :ℕ),
-      N₀ ≤ Fintype.card V → Fintype.card V ≤ D *d → (∀ v,d ≤ G.degree v) →
+      N₀ ≤ ftCard V → ftCard V ≤ D *d → (∀ v,d ≤ G.degree v) →
       3 ≤ n → Odd n → K ≤ n → ¬ cycleGraph n ⊑ G →
       ∀ (z:V) (c:G.Walk z z),c.IsCycle → Odd c.length → c.length < n+K:=by
   obtain ⟨N₀,K,hspec⟩ :=zG D hD
   refine ⟨N₀,K,?_⟩
   intro V _ _ G _ d n hN hscale hdegree hn hodd hnK hno z c hc hcodd
   by_contra hlong
-  have hpar:n%2=c.length%2:= (Nat.odd_iff.mp hodd).trans (Nat.odd_iff.mp hcodd).symm
+  have hpar:n%2=c.length%2:= (natOI.mp hodd).trans (natOI.mp hcodd).symm
   obtain ⟨w,q,hq,hqlen⟩ :=hspec G d hN hscale hdegree z c hc n hnK (by omega) hpar
   apply hno
   exact (cycleGraph_isContained_iff (by omega)).mpr ⟨w,q,hq,hqlen⟩
 end Erdos556
-end dy
-section cY
 namespace Erdos556
 open SimpleGraph
 def dj {V:Type*} [DecidableEq V] (G:SimpleGraph V)
@@ -3010,12 +3085,12 @@ def dj {V:Type*} [DecidableEq V] (G:SimpleGraph V)
     (G.induce (S:Set V)).induce ({v}ᶜ:Set S) ≃g
       G.induce (S.erase v.val:Set V) where
   toEquiv:=
-    { toFun:=fun x => ⟨x.val.val,Finset.mem_erase.mpr ⟨by
+    { toFun:=fun x => ⟨x.val.val,fsME.mpr ⟨by
         intro h
-        exact x.property (Subtype.ext h),x.val.property⟩⟩
-      invFun:=fun x => ⟨⟨x.val,(Finset.mem_erase.mp x.property).2⟩,by
+        exact x.property (subExt h),x.val.property⟩⟩
+      invFun:=fun x => ⟨⟨x.val,(fsME.mp x.property).2⟩,by
         intro h
-        exact (Finset.mem_erase.mp x.property).1 (congrArg Subtype.val h)⟩
+        exact (fsME.mp x.property).1 (congrArg subVal h)⟩
       left_inv:=fun _ => rfl
       right_inv:=fun _ => rfl}
   map_rel_iff':=by intro x y;rfl
@@ -3025,26 +3100,26 @@ theorem rN {V:Type*} [DecidableEq V]
       (G.induce (S:Set V)).degree v = (G.induce (S:Set V)).edgeFinset.card:=by
   rw [← (dj G S v).card_edgeFinset_eq]
   rw [card_edgeFinset_induce_compl_singleton,card_edgeFinset_deleteIncidenceSet]
-  exact Nat.sub_add_cancel ((G.induce (S:Set V)).degree_le_card_edgeFinset v)
+  exact natSAC ((G.induce (S:Set V)).degree_le_card_edgeFinset v)
 theorem a4 {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (d:ℝ) :
     ∃ S :Finset V,
-      (G.edgeFinset.card:ℝ) - d*Fintype.card V ≤
+      (G.edgeFinset.card:ℝ) - d*ftCard V ≤
         ((G.induce (S:Set V)).edgeFinset.card:ℝ) - d*S.card ∧
       ∀ v :S,d < (G.induce (S:Set V)).degree v :=by
   classical
   let excess (S:Finset V) : ℝ:=
     ((G.induce (S:Set V)).edgeFinset.card:ℝ) - d*S.card
-  let baseline:ℝ:= (G.edgeFinset.card:ℝ) - d*Fintype.card V
-  let good:Finset (Finset V) :=Finset.univ.filter fun S => baseline ≤ excess S
-  have huniv: (Finset.univ:Finset V) ∈ good:=by
-    have he: (G.induce ((Finset.univ:Finset V) : Set V)).edgeFinset.card=
+  let baseline:ℝ:= (G.edgeFinset.card:ℝ) - d*ftCard V
+  let good:Finset (Finset V) :=fsUniv.filter fun S => baseline ≤ excess S
+  have huniv: (fsUniv:Finset V) ∈ good:=by
+    have he: (G.induce ((fsUniv:Finset V) : Set V)).edgeFinset.card=
         G.edgeFinset.card:=by
-      rw [← G.card_filter_edgeFinset_toFinset_subset Finset.univ]
+      rw [← G.card_filter_edgeFinset_toFinset_subset fsUniv]
       simp
     simp [good,excess,baseline,he]
-  obtain ⟨S,hS,hminimal⟩ :=good.exists_min_image Finset.card ⟨_,huniv⟩
-  have hgood:baseline ≤ excess S := (Finset.mem_filter.mp hS).2
+  obtain ⟨S,hS,hminimal⟩ :=good.exists_min_image fsCard ⟨_,huniv⟩
+  have hgood:baseline ≤ excess S := (fsMF.mp hS).2
   refine ⟨S,hgood,?_⟩
   intro v
   by_contra hdegree
@@ -3058,33 +3133,31 @@ theorem a4 {V:Type*} [Fintype V]
     exact_mod_cast hedge
   have hcardR: (T.card:ℝ) + 1=S.card:=by exact_mod_cast hcard
   have hT:T ∈ good:=by
-    apply Finset.mem_filter.mpr
-    refine ⟨Finset.mem_univ _,?_⟩
+    apply fsMF.mpr
+    refine ⟨fsMU2 _,?_⟩
     dsimp [excess] at hgood ⊢
     nlinarith
   have hle:=hminimal T hT
   omega
 end Erdos556
-end cY
-section dq
 namespace Erdos556
 open SimpleGraph Finset
 noncomputable def sy {V:Type*} [DecidableEq V] (G:SimpleGraph V)
     (S:Finset V) (T:Finset S) :
     (G.induce (S:Set V)).induce (T:Set S) ≃g
-      G.induce (T.map (Function.Embedding.subtype (fun v => v ∈ S)) : Set V) :=by
-  let f : ↥(T:Set S) → ↥(T.map (Function.Embedding.subtype (fun v => v ∈ S)) : Set V) :=
+      G.induce (T.map (fnSubty (fun v => v ∈ S)) : Set V) :=by
+  let f : ↥(T:Set S) → ↥(T.map (fnSubty (fun v => v ∈ S)) : Set V) :=
     fun x => ⟨x.val.val,mem_map.mpr ⟨x.val,x.property,rfl⟩⟩
   have hinj:Function.Injective f :=by
     intro x y h
-    apply Subtype.ext
-    apply Subtype.ext
+    apply subExt
+    apply subExt
     change (f x).val= (f y).val
-    exact congrArg Subtype.val h
+    exact congrArg subVal h
   have hsurj:Function.Surjective f :=by
     intro y
     obtain ⟨x,hx,hxy⟩ :=mem_map.mp y.property
-    exact ⟨⟨x,hx⟩,Subtype.ext hxy⟩
+    exact ⟨⟨x,hx⟩,subExt hxy⟩
   exact { toEquiv:=Equiv.ofBijective f ⟨hinj,hsurj⟩,map_rel_iff':=Iff.rfl}
 theorem u7 {V:Type*} [Finite V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (k η :ℝ) (hη:0 ≤ η)
@@ -3096,11 +3169,11 @@ theorem u7 {V:Type*} [Finite V]
       ∀ T :Finset V,T.card < S.card →
         ((G.induce (T:Set V)).edgeFinset.card:ℝ) ≤ k*T.card+η* (T.card:ℝ) ^ 2:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   let good:Finset (Finset V) :=univ.filter fun S =>
     k*S.card+η* (S.card:ℝ) ^ 2 < ((G.induce (S:Set V)).edgeFinset.card:ℝ)
   have hA:A ∈ good:=mem_filter.mpr ⟨mem_univ _,he⟩
-  obtain ⟨S,hS,hminimal⟩ :=good.exists_min_image Finset.card ⟨_,hA⟩
+  obtain ⟨S,hS,hminimal⟩ :=good.exists_min_image fsCard ⟨_,hA⟩
   have hgood:= (mem_filter.mp hS).2
   have hsmall (T:Finset V) (hT:T.card < S.card) :
       ((G.induce (T:Set V)).edgeFinset.card:ℝ) ≤ k*T.card+η* (T.card:ℝ) ^ 2:=by
@@ -3124,10 +3197,10 @@ theorem u7 {V:Type*} [Finite V]
   have hnonempty:S.Nonempty:=by
     by_contra h
     have hzero:S.card=0:=card_eq_zero.mpr (not_nonempty_iff_eq_empty.mp h)
-    have hScard:Fintype.card (S:Set V) = S.card:=by
+    have hScard:ftCard (S:Set V) = S.card:=by
       calc
-        Fintype.card (S:Set V) = (S:Set V).ncard:=Nat.card_eq_fintype_card.symm
-        _=S.card:=Set.ncard_coe_finset S
+        ftCard (S:Set V) = (S:Set V).ncard:=natCEFC.symm
+        _=S.card:=stNCF S
     have hb:= (G.induce (S:Set V)).card_edgeFinset_le_card_choose_two
     rw [hScard,hzero] at hb
     norm_num only [Nat.choose_zero_succ] at hb
@@ -3145,12 +3218,12 @@ theorem s5
         (((G.induce (S:Set V)).induce (T:Set S)).edgeFinset.card:ℝ) ≤
           k*T.card+η* (T.card:ℝ) ^ 2:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   obtain ⟨S,hS,hdense,hdeg,hsmall⟩ :=
     u7 G k η hη A he
   refine ⟨S,hS,hdense,hdeg,?_⟩
   intro T hT
-  have h :=hsmall (T.map (Function.Embedding.subtype (fun v => v ∈ S)))
+  have h :=hsmall (T.map (fnSubty (fun v => v ∈ S)))
     (by simpa only [card_map] using hT)
   rw [← (sy G S T).card_edgeFinset_eq,card_map] at h
   exact h
@@ -3176,8 +3249,6 @@ theorem yr (a b t N k β η e :ℝ)
     ring
   nlinarith
 end Erdos556
-end dq
-section cR
 namespace Erdos556
 open SimpleGraph Finset
 theorem rk {V:Type*} [Fintype V] [DecidableEq V]
@@ -3193,17 +3264,17 @@ theorem rk {V:Type*} [Fintype V] [DecidableEq V]
   let A := ({x:V | ∃ hx:x ∉ S,H.Reachable u ⟨x,hx⟩} : Set V).toFinset
   let B := (S ∪ A)ᶜ
   have hA (x:V) : x ∈ A ↔ ∃ hx:x ∉ S,H.Reachable u ⟨x,hx⟩ :=by
-    simp only [A,Set.mem_toFinset,Set.mem_ofPred_eq]
+    simp only [A,stMT,Set.mem_ofPred_eq]
   have hAS:Disjoint A S:=by
-    rw [Finset.disjoint_left]
+    rw [fsDL]
     intro x hx
     exact ((hA x).mp hx).choose
   have hAB:Disjoint A B:=by
-    rw [Finset.disjoint_left]
+    rw [fsDL]
     intro x hxA hxB
     exact (mem_compl.mp hxB) (mem_union_right S hxA)
   have hBS:Disjoint B S:=by
-    rw [Finset.disjoint_left]
+    rw [fsDL]
     intro x hxB hxS
     exact (mem_compl.mp hxB) (mem_union_left A hxS)
   have hAnon:A.Nonempty:= ⟨u.val,(hA _).mpr ⟨u.property,.rfl⟩⟩
@@ -3243,7 +3314,7 @@ theorem vp {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (A B S:Finset V)
     (hcover:A ∪ B ∪ S=univ) (hcross: ∀ a ∈ A,∀ b ∈ B,¬ G.Adj a b) :
     G.edgeFinset.card ≤ (G.induce (A:Set V)).edgeFinset.card+
-      (G.induce (B:Set V)).edgeFinset.card+S.card*Fintype.card V :=by
+      (G.induce (B:Set V)).edgeFinset.card+S.card*ftCard V :=by
   classical
   let X :=G.edgeFinset.filter (fun e => e.toFinset ⊆ A)
   let Y :=G.edgeFinset.filter (fun e => e.toFinset ⊆ B)
@@ -3280,31 +3351,29 @@ theorem vp {V:Type*} [Fintype V] [DecidableEq V]
     G.card_filter_edgeFinset_toFinset_subset A
   have hY:Y.card= (G.induce (B:Set V)).edgeFinset.card:=
     G.card_filter_edgeFinset_toFinset_subset B
-  have hZ:Z.card ≤ S.card*Fintype.card V :=by
+  have hZ:Z.card ≤ S.card*ftCard V :=by
     calc
       Z.card ≤ ∑ v ∈ S,(G.incidenceFinset v).card:=card_biUnion_le
-      _ ≤ ∑ _v ∈ S,Fintype.card V :=by
+      _ ≤ ∑ _v ∈ S,ftCard V :=by
         apply sum_le_sum
         intro v _
         rw [G.card_incidenceFinset_eq_degree]
         exact (G.degree_lt_card_verts v).le
-      _=S.card*Fintype.card V :=by simp
+      _=S.card*ftCard V :=by simp
   have h1:=card_le_card hedgecover
   have h2:=card_union_le (X ∪ Y) Z
   have h3:=card_union_le X Y
   omega
 end Erdos556
-end cR
-section cz
 namespace Erdos556
 open SimpleGraph Finset
 theorem sl
     {V:Type*} [Fintype V] (G:SimpleGraph V) [DecidableRel G.Adj]
     (b:ℕ) (k η :ℝ) (hk:0 ≤ k) (hη:0 ≤ η) (hbk: (b:ℝ) ≤ k)
-    (hbudget: (b:ℝ) * Fintype.card V ≤ 2 *η* (k-b) ^ 2)
-    (he:k*Fintype.card V +η* (Fintype.card V :ℝ) ^ 2 < (G.edgeFinset.card:ℝ))
+    (hbudget: (b:ℝ) * ftCard V ≤ 2 *η* (k-b) ^ 2)
+    (he:k*ftCard V +η* (ftCard V :ℝ) ^ 2 < (G.edgeFinset.card:ℝ))
     (hdeg: ∀ v,k < (G.degree v :ℝ))
-    (hsmall: ∀ T:Finset V,T.card < Fintype.card V →
+    (hsmall: ∀ T:Finset V,T.card < ftCard V →
       ((G.induce (T:Set V)).edgeFinset.card:ℝ) ≤ k*T.card+η* (T.card:ℝ) ^ 2) :
     q8 G b:=by
   classical
@@ -3313,8 +3382,8 @@ theorem sl
   obtain ⟨A,B,hA,hB,hAB,hAS,hBS,hcover,hcross⟩ :=
     rk G S hconn
   have hASBS:Disjoint (A ∪ B) S :=Finset.disjoint_union_left.mpr ⟨hAS,hBS⟩
-  have hcards:A.card+B.card+S.card=Fintype.card V :=by
-    have h :=congrArg Finset.card hcover
+  have hcards:A.card+B.card+S.card=ftCard V :=by
+    have h :=congrArg fsCard hcover
     simpa only [card_union_of_disjoint hASBS,card_union_of_disjoint hAB,card_univ] using h
   have hApos:=hA.card_pos
   have hBpos:=hB.card_pos
@@ -3334,10 +3403,10 @@ theorem sl
   have hedge:=vp G A B S hcover hcross
   have hedgeR: (G.edgeFinset.card:ℝ) ≤
       ((G.induce (A:Set V)).edgeFinset.card:ℝ) +
-      ((G.induce (B:Set V)).edgeFinset.card:ℝ) + (S.card:ℝ) * Fintype.card V :=by
+      ((G.induce (B:Set V)).edgeFinset.card:ℝ) + (S.card:ℝ) * ftCard V :=by
     exact_mod_cast hedge
   have hbound:=yr (A.card:ℝ) (B.card:ℝ) (S.card:ℝ)
-    (Fintype.card V :ℝ) k (b:ℝ) η (G.edgeFinset.card:ℝ)
+    (ftCard V :ℝ) k (b:ℝ) η (G.edgeFinset.card:ℝ)
     (by positivity) (by positivity) (by positivity) hk hη
     (by exact_mod_cast hcards.symm) hSR hbk ha hb hbudget (by linarith)
   exact (not_le_of_gt he) hbound
@@ -3345,7 +3414,7 @@ theorem sR
     {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (b:ℕ) (k η :ℝ)
     (hk:0 ≤ k) (hη:0 ≤ η) (hbk: (b:ℝ) ≤ k)
-    (hbudget: (b:ℝ) * Fintype.card V ≤ 2 *η* (k-b) ^ 2)
+    (hbudget: (b:ℝ) * ftCard V ≤ 2 *η* (k-b) ^ 2)
     (A:Finset V)
     (he:k*A.card+η* (A.card:ℝ) ^ 2 < ((G.induce (A:Set V)).edgeFinset.card:ℝ)) :
     ∃ S :Finset V,S.Nonempty ∧
@@ -3355,14 +3424,14 @@ theorem sR
   classical
   obtain ⟨S,hS,hdense,hdeg,hsmall⟩ :=
     s5 G k η hη A he
-  have hcard:Fintype.card (S:Set V) = S.card:=by
+  have hcard:ftCard (S:Set V) = S.card:=by
     calc
-      Fintype.card (S:Set V) = (S:Set V).ncard:=Nat.card_eq_fintype_card.symm
-      _=S.card:=Set.ncard_coe_finset S
-  have hcardle: (Fintype.card (S:Set V) : ℝ) ≤ Fintype.card V :=by
-    exact_mod_cast Fintype.card_le_of_injective (fun x : (S:Set V) => x.val) Subtype.val_injective
-  have hbudget': (b:ℝ) * Fintype.card (S:Set V) ≤ 2*η* (k-b) ^ 2:=
-    (mul_le_mul_of_nonneg_left hcardle (Nat.cast_nonneg b)).trans hbudget
+      ftCard (S:Set V) = (S:Set V).ncard:=natCEFC.symm
+      _=S.card:=stNCF S
+  have hcardle: (ftCard (S:Set V) : ℝ) ≤ ftCard V :=by
+    exact_mod_cast ftCLOI (fun x : (S:Set V) => x.val) subVI
+  have hbudget': (b:ℝ) * ftCard (S:Set V) ≤ 2*η* (k-b) ^ 2:=
+    (mul_le_mul_of_nonneg_left hcardle (natCN b)).trans hbudget
   refine ⟨S,hS,hdense,hdeg,?_⟩
   apply sl (G.induce (S:Set V))
     b k η hk hη hbk hbudget'
@@ -3371,14 +3440,12 @@ theorem sR
   · intro T hT
     exact hsmall T (by simpa only [hcard] using hT)
 end Erdos556
-end cz
-section dk
 namespace Erdos556
 open SimpleGraph Finset
 theorem rc {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (S:Finset V) :
     G.edgeFinset.card ≤ (G.induce (S:Set V)ᶜ).edgeFinset.card+
-      S.card*Fintype.card V :=by
+      S.card*ftCard V :=by
   classical
   let A :=G.edgeFinset.filter (fun e => e.toFinset ⊆ Sᶜ)
   let B :=S.biUnion (fun v => G.incidenceFinset v)
@@ -3394,24 +3461,23 @@ theorem rc {V:Type*} [Fintype V] [DecidableEq V]
       rw [G.incidenceFinset_eq_filter]
       exact mem_filter.mpr ⟨he,by simpa using hxe⟩
   have hA:A.card= (G.induce (S:Set V)ᶜ).edgeFinset.card:=by
-    have h :=congrArg Finset.card (G.map_edgeFinset_induce (s:= (S:Set V)ᶜ))
+    have h :=congrArg fsCard (G.map_edgeFinset_induce (s:= (S:Set V)ᶜ))
     simp only [card_map] at h
     have heq:G.edgeFinset ∩ ((S:Set V)ᶜ).toFinset.sym2=A:=by
       simp [A,G.filter_edgeFinset_toFinset_subset]
     rw [heq] at h
     exact h.symm
-  have hB:B.card ≤ S.card*Fintype.card V :=by
+  have hB:B.card ≤ S.card*ftCard V :=by
     calc
       B.card ≤ ∑ v ∈ S,(G.incidenceFinset v).card:=card_biUnion_le
-      _ ≤ ∑ _v ∈ S,Fintype.card V :=by
+      _ ≤ ∑ _v ∈ S,ftCard V :=by
         apply sum_le_sum
         intro v _
         rw [G.card_incidenceFinset_eq_degree]
         exact (G.degree_lt_card_verts v).le
-      _=S.card*Fintype.card V :=by simp
+      _=S.card*ftCard V :=by simp
   exact (card_le_card hcover).trans ((card_union_le A B).trans (by omega))
 end Erdos556
-end dk
 section dK
 /-
 Copyright (c) 2024 Shuhao Song. All rights reserved.
@@ -3429,7 +3495,7 @@ lemma Monotone.eventuallyConst_atTop {ι:Type*}
   refine ⟨x,fun z hz ↦ ?_⟩
   have hxz:g x ≤ g z:=hg hz
   have hnlt: ¬g x < g z:=by
-    simpa [hx] using hα.wf.not_lt_min (Set.range g) (Set.mem_range_self z)
+    simpa [hx] using hα.wf.not_lt_min (Set.range g) (stMRS z)
   exact (eq_of_le_of_not_lt hxz hnlt).symm
 lemma rH (hf:id ≤ f) (x:α) :
     EventuallyConst (fun n ↦ f^[n] x) atTop:=
@@ -3475,7 +3541,7 @@ open scoped List
 variable {V:Type*} [Fintype V] [DecidableEq V] (G:SimpleGraph V)
 def rO:=by
   classical
-  exact { (u,v) : V × V | G.degree u +G.degree v ≥ (Fintype.card V) ∧ u ≠ v ∧ ¬G.Adj u v}
+  exact { (u,v) : V × V | G.degree u +G.degree v ≥ (ftCard V) ∧ u ≠ v ∧ ¬G.Adj u v}
 noncomputable def qg:SimpleGraph V :=by
   classical
   exact if h : (rO G).Nonempty then
@@ -3507,7 +3573,7 @@ lemma xx {u v :V} (huv: ¬G.Adj u v)
   classical
   rw [← edgeSet_inj]
   ext e
-  simp only [edgeSet_deleteEdges,Set.mem_sdiff,Set.mem_singleton_iff]
+  simp only [edgeSet_deleteEdges,Set.mem_sdiff,stMSI]
   apply Iff.intro
   · rintro ⟨he₁,he₂⟩
     by_contra he₃
@@ -3529,7 +3595,7 @@ lemma uY:
       rw [sup_eq_left,iff_false]
       intro hle
       have hedge: (edge h.some.1 h.some.2).Adj h.some.1 h.some.2:=
-        (edge_adj ..).mpr ⟨Or.inl ⟨rfl,rfl⟩,h.some_mem.2.1⟩
+        (edge_adj ..).mpr ⟨orInl ⟨rfl,rfl⟩,h.some_mem.2.1⟩
       exact h.some_mem.2.2 (hle hedge)
     simp only [this,false_iff]
     simpa [← Set.not_nonempty_iff_eq_empty] using h
@@ -3537,7 +3603,7 @@ lemma uY:
 omit [DecidableEq V] in
 open Classical in
 lemma zF:qg G =G ↔
-    ∀ {u} {v},u ≠ v → G.degree u +G.degree v ≥ (Fintype.card V) → G.Adj u v:=by
+    ∀ {u} {v},u ≠ v → G.degree u +G.degree v ≥ (ftCard V) → G.Adj u v:=by
   classical
   rw [uY]
   constructor
@@ -3557,7 +3623,7 @@ omit [DecidableEq V] in
 open Classical in
 lemma zr {u v :V} (huv: ¬G.Adj u v)
     (huv':G.qg.Adj u v) :
-    G.degree u +G.degree v ≥ (Fintype.card V) :=by
+    G.degree u +G.degree v ≥ (ftCard V) :=by
   classical
   have ne: (rO G).Nonempty:=by
     by_contra h
@@ -3565,7 +3631,7 @@ lemma zr {u v :V} (huv: ¬G.Adj u v)
     rw [h] at huv'
     exact huv huv'
   let w :=ne.some
-  have prop₁:G.degree w.1+G.degree w.2 ≥ (Fintype.card V) :=ne.some_mem.1
+  have prop₁:G.degree w.1+G.degree w.2 ≥ (ftCard V) :=ne.some_mem.1
   have mem₁:s(u,v) ∈ (qg G \ G).edgeSet:=by simpa using ⟨huv',huv⟩
   have mem₂:s(w.1,w.2) ∈ (qg G \ G).edgeSet:=by
     have prop₂:w.1 ≠ w.2:=ne.some_mem.2.1
@@ -3588,7 +3654,7 @@ lemma rs:G ≤ qE G :=by
 omit [DecidableEq V] in
 open Classical in
 lemma rK: ∀ {u} {v},u ≠ v →
-    G.qE.degree u +G.qE.degree v ≥ (Fintype.card V) →
+    G.qE.degree u +G.qE.degree v ≥ (ftCard V) →
       G.qE.Adj u v:=by
   classical
   have:qg (qE G) = qE G :=
@@ -3602,7 +3668,7 @@ protected theorem IsHamiltonianCycle.aC [Finite V] (hp:p.IsHamiltonianCycle)
     {H:SimpleGraph V} (h: ∀ e ∈ p.edges,e ∈ H.edgeSet) :
     (p.transfer H h).IsHamiltonianCycle:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   rw [isHamiltonianCycle_iff_isCycle_and_length_eq]
   exact ⟨hp.isCycle.transfer h,by simpa using hp.length_eq⟩
 omit [DecidableEq V] [Fintype V] in
@@ -3610,8 +3676,8 @@ private lemma IsCycle.rB (hp:p.IsCycle)
     {d e :G.Dart} (hd:d ∈ p.darts) (he:e ∈ p.darts)
     (hfst:d.fst=e.fst) : d=e:=by
   classical
-  obtain ⟨i,hi,rfl⟩ :=List.getElem_of_mem hd
-  obtain ⟨j,hj,rfl⟩ :=List.getElem_of_mem he
+  obtain ⟨i,hi,rfl⟩ :=lsGOM hd
+  obtain ⟨j,hj,rfl⟩ :=lsGOM he
   have hget:p.getVert i =p.getVert j :=by
     simpa [p.darts_getElem_eq_getVert i hi,p.darts_getElem_eq_getVert j hj] using hfst
   have hi':i ≤ p.length-1:=by
@@ -3628,8 +3694,8 @@ private lemma IsCycle.zU (hp:p.IsCycle)
     {d e :G.Dart} (hd:d ∈ p.darts) (he:e ∈ p.darts)
     (hsnd:d.snd=e.snd) : d=e:=by
   classical
-  obtain ⟨i,hi,rfl⟩ :=List.getElem_of_mem hd
-  obtain ⟨j,hj,rfl⟩ :=List.getElem_of_mem he
+  obtain ⟨i,hi,rfl⟩ :=lsGOM hd
+  obtain ⟨j,hj,rfl⟩ :=lsGOM he
   have hget:p.getVert (i+1) = p.getVert (j+1) :=by
     simpa [p.darts_getElem_eq_getVert i hi,p.darts_getElem_eq_getVert j hj] using hsnd
   have hi':i < p.length:=by simpa using hi
@@ -3646,8 +3712,8 @@ private lemma uj {u v :V}
     {d e :G.Dart} (hd:d ∈ r.darts) (he:e ∈ r.darts)
     (hfst:d.fst=e.fst) : d=e:=by
   classical
-  obtain ⟨i,hi,rfl⟩ :=List.getElem_of_mem hd
-  obtain ⟨j,hj,rfl⟩ :=List.getElem_of_mem he
+  obtain ⟨i,hi,rfl⟩ :=lsGOM hd
+  obtain ⟨j,hj,rfl⟩ :=lsGOM he
   have hi':i < r.support.dropLast.length:=by simpa using hi
   have hj':j < r.support.dropLast.length:=by simpa using hj
   have hget:r.support.dropLast[i]'hi'=r.support.dropLast[j]'hj':=by
@@ -3656,8 +3722,8 @@ private lemma uj {u v :V}
   subst j
   rfl
 private theorem rV
-    (hp:p.length=Fintype.card V) (hV:3 ≤ Fintype.card V)
-    (hsupport:p.support.tail.toFinset=Finset.univ) :
+    (hp:p.length=ftCard V) (hV:3 ≤ ftCard V)
+    (hsupport:p.support.tail.toFinset=fsUniv) :
     p.IsHamiltonianCycle:=by
   classical
   rw [isHamiltonianCycle_iff_isCycle_and_length_eq]
@@ -3685,7 +3751,7 @@ private lemma zj (hp:p.IsHamiltonianCycle) :
   have hb:b ∈ p.tail.support:=by
     simpa [support_tail_of_not_nil p hp.not_nil] using hp.yk b
   have hb':b ∈ p.dropLast.support:=
-    (List.Perm.mem_iff (support_tail_perm_support_dropLast p)).mp hb
+    (lsMI (support_tail_perm_support_dropLast p)).mp hb
   simpa [support_dropLast hp.not_nil] using hb'
 noncomputable def zf (hp:p.IsHamiltonianCycle) : G.Dart:=
   Exists.choose <| show ∃ d ∈ p.darts,d.fst=b by
@@ -3714,7 +3780,7 @@ lemma uE (hp:p.IsHamiltonianCycle)
     p.getVert (i+1) = hp.qk b :=by
   classical
   have hiD:i < p.darts.length:=by simpa using hi
-  have hdi:p.darts[i] ∈ p.darts:=List.getElem_mem hiD
+  have hdi:p.darts[i] ∈ p.darts:=lsGM hiD
   obtain ⟨d,hd,hdfst,hdsnd⟩ :=hp.qH b
   have hfst:p.darts[i].fst=d.fst:=by
     rw [p.darts_getElem_eq_getVert i hiD,hdfst]
@@ -3766,12 +3832,12 @@ end IsHamiltonianCycle
 end Walk
 private theorem zi
     {u u' v v':V} {p:G.Walk u u'}
-    (hV: (Fintype.card V) ≥ 3) (hp:p.support ~ Finset.univ.toList)
+    (hV: (ftCard V) ≥ 3) (hp:p.support ~ fsUniv.toList)
     (ne:v ≠ u') (vu':G.Adj v u') (v'u:G.Adj v' u)
     (d:G.Dart) (hd:d ∈ p.darts) (hd₁:d.fst=v) (hd₂:d.snd=v') :
     IsHamiltonian G :=by
   classical
-  have hv:v ∈ p.support:=by simp [List.Perm.mem_iff hp]
+  have hv:v ∈ p.support:=by simp [lsMI hp]
   have not_nil: ¬(p.dropUntil v hv).Nil:=not_nil_of_ne ne
   have snd_eq_v': (p.dropUntil v hv).getVert 1 =v':=by
     have hsupport:p.support.Nodup:=by
@@ -3793,58 +3859,58 @@ private theorem zi
   apply rV
   · have hsum: (p.takeUntil v hv).length+ (p.dropUntil v hv).length=p.length:=by
       have hwalk:=congrArg Walk.length (p.take_spec hv)
-      simpa only [Walk.length_append] using hwalk
+      simpa only [wkLA] using hwalk
     have:=calc
       p.length+1=p.support.length:=by simp
-      _=Finset.univ.toList.length:=by apply List.Perm.length_eq hp
-      _= (Fintype.card V) :=by simp
+      _=fsUniv.toList.length:=by apply List.Perm.length_eq hp
+      _= (ftCard V) :=by simp
     have:=Walk.length_tail_add_one not_nil
     simp [q,add_assoc]
     omega
   · assumption
   · simp only [tail_support_append,support_cons,support_nil,List.tail_cons,support_copy,
       support_reverse,List.append_assoc,
-      List.cons_append,List.toFinset_append,List.toFinset_cons,
-      List.toFinset_nil,insert_empty_eq,Finset.union_insert,Finset.eq_univ_iff_forall,
-      Finset.mem_insert,Finset.mem_union,List.mem_toFinset,Finset.mem_singleton,
-      Finset.notMem_empty,false_or,q]
+      lsCA,lsTA,lsTC,
+      lsTN,insert_empty_eq,Finset.union_insert,Finset.eq_univ_iff_forall,
+      fsMI2,fsMU,lsMT,fsMS2,
+      fsNE,false_or,q]
     intro w
     by_contra hw
     simp only [not_or] at hw
     rcases hw with ⟨hw₁,hw₂,hw₃,hw₄⟩
     have mem_tail:w ∈ p.support.tail:=by
-      have mem:w ∈ p.support:=by simp [List.Perm.mem_iff hp]
+      have mem:w ∈ p.support:=by simp [lsMI hp]
       rw [← Walk.cons_tail_support] at mem
-      simp only [List.mem_cons] at mem
+      simp only [lsMC] at mem
       exact mem.resolve_left hw₄
     have not_mem_drop:w ∉ (p.dropUntil v hv).support.tail:=by
       have tail_not_nil: (p.dropUntil v hv).support.tail ≠ [] :=by
         have hpos:0 < (p.dropUntil v hv).length:=
           not_nil_iff_lt_length.mp not_nil
-        apply List.ne_nil_of_length_pos
+        apply lsNNOLP
         rw [List.length_tail,length_support]
         omega
       have: (p.dropUntil v hv).support.tail.getLast tail_not_nil=u':=by
         rw [List.getLast_tail,getLast_support]
       have hw_dropLast:
           w ∉ (p.dropUntil v hv).support.tail.dropLast:=by
-        simpa only [List.tail_reverse,List.mem_reverse,
+        simpa only [List.tail_reverse,lsMR,
           support_tail_of_not_nil _ not_nil] using hw₃
       intro hwmem
       rw [← List.dropLast_append_getLast tail_not_nil,this,
-        List.mem_append,List.mem_singleton] at hwmem
+        lsMA,lsMS] at hwmem
       exact hwmem.elim hw_dropLast hw₁
     have append:p.support.tail=
         (p.takeUntil v hv).support.tail++ (p.dropUntil v hv).support.tail:=by
       rw [← tail_support_append,take_spec]
-    simp only [append,List.mem_append] at mem_tail
+    simp only [append,lsMA] at mem_tail
     rcases mem_tail with h | h
     · exact hw₂ h
     · exact not_mem_drop h
 open Classical in
 private theorem xN
     {u v :V} {q:G.qg.Walk u u} (hq:q.IsHamiltonianCycle)
-    (hV: (Fintype.card V) ≥ 3) (huv:G.degree u +G.degree v ≥ (Fintype.card V))
+    (hV: (ftCard V) ≥ 3) (huv:G.degree u +G.degree v ≥ (ftCard V))
     (hv:v=hq.qk u) (not_adj: ¬G.Adj u v) :
     ∃ w w' d,G.Adj w v ∧ G.Adj w' u ∧ d ∈ q.darts ∧ d.fst=w' ∧ d.snd=w:=by
   classical
@@ -3852,29 +3918,29 @@ private theorem xN
   let Y := {w | G.Adj v w} \ {hq.qk v}
   have cardX:G.degree u -1 ≤ X.toFinset.card:=calc
     _= (G.neighborFinset u).card-1:=by simp
-    _= (Finset.univ.filter (G.Adj u)).card-1:=by rw [neighborFinset_eq_filter]
-    _ ≤ ((Finset.univ.filter (G.Adj u)).image (hq.qk ·)).card-
+    _= (fsUniv.filter (G.Adj u)).card-1:=by rw [neighborFinset_eq_filter]
+    _ ≤ ((fsUniv.filter (G.Adj u)).image (hq.qk ·)).card-
         ({u} : Finset _).card:=by
       simp [Finset.card_image_of_injective _ hq.xe]
-    _ ≤ (((Finset.univ.filter (G.Adj u)).image (hq.qk ·)) \ {u}).card:=by
+    _ ≤ (((fsUniv.filter (G.Adj u)).image (hq.qk ·)) \ {u}).card:=by
       apply Finset.le_card_sdiff
     _=_:=by simp [X]
   have cardY:G.degree v -1 ≤ Y.toFinset.card:=calc
     _= (G.neighborFinset v).card-1:=by simp
-    _ ≤ (Finset.univ.filter (G.Adj v)).card- ({hq.qk v} : Finset _).card:=by
+    _ ≤ (fsUniv.filter (G.Adj v)).card- ({hq.qk v} : Finset _).card:=by
       simp [neighborFinset_eq_filter]
-    _ ≤ (Finset.univ.filter (G.Adj v) \ {hq.qk v}).card:=by
+    _ ≤ (fsUniv.filter (G.Adj v) \ {hq.qk v}).card:=by
       apply Finset.le_card_sdiff
     _=_:=by simp [Y]
-  have card_union: (X ∪ Y).toFinset.card ≤ (Fintype.card V) - 3:=calc
+  have card_union: (X ∪ Y).toFinset.card ≤ (ftCard V) - 3:=calc
     _ ≤ ({v,hq.qk v,u}ᶜ:Finset _).card:=by
-      apply Finset.card_le_card
+      apply fsCLC
       rw [Finset.subset_compl_comm]
       intro w hw
-      simp only [Finset.mem_insert,Finset.mem_singleton,Set.toFinset_union,
+      simp only [fsMI2,fsMS2,Set.toFinset_union,
         Set.toFinset_sdiff,Set.toFinset_image,Set.toFinset_ofPred,Set.toFinset_singleton,
-        Finset.compl_union,Finset.mem_inter,Finset.mem_compl,Finset.mem_sdiff,
-        Finset.mem_image,Finset.mem_filter,Finset.mem_univ,true_and,not_and,
+        Finset.compl_union,fsMI3,Finset.mem_compl,fsMS,
+        fsMI,fsMF,fsMU2,true_and,not_and,
         Decidable.not_not,forall_exists_index,and_imp,X,Y] at hw ⊢
       apply And.intro
       · intro w' adj qk
@@ -3895,24 +3961,24 @@ private theorem xN
           exact False.elim (not_adj adj.symm)
     _=_:=by
       suffices ({v,hq.qk v,u} : Finset _).card=3 by rw [Finset.card_compl,this]
-      rw [Finset.card_insert_of_notMem,Finset.card_insert_of_notMem]
+      rw [fsCION,fsCION]
       · simp
       · simpa [hv] using hq.tL
       · simpa [hv] using And.intro hq.t7.symm hq.t7
   have non_empty: (X ∩ Y).toFinset.card ≠ 0:=fun h ↦ by
-    suffices (Fintype.card V) - 2 ≤ (Fintype.card V) - 3 by omega
+    suffices (ftCard V) - 2 ≤ (ftCard V) - 3 by omega
     calc
-      _ ≤ (G.degree u +G.degree v) - 2:=Nat.sub_le_sub_right huv _
+      _ ≤ (G.degree u +G.degree v) - 2:=natSLSR huv _
       _ ≤ (G.degree u -1) + (G.degree v -1) :=by omega
       _ ≤ X.toFinset.card+Y.toFinset.card:=add_le_add cardX cardY
       _= (X ∪ Y).toFinset.card+ (X ∩ Y).toFinset.card:=by
         simpa [-Set.toFinset_card] using (Finset.card_union_add_card_inter _ _).symm
-      _ ≤ (Fintype.card V) - 3+0:=add_le_add card_union (le_of_eq h)
-      _= (Fintype.card V) - 3:=by simp
+      _ ≤ (ftCard V) - 3+0:=add_le_add card_union (le_of_eq h)
+      _= (ftCard V) - 3:=by simp
   obtain ⟨w,hw⟩ :=Finset.card_ne_zero.mp non_empty
   simp only [Set.toFinset_inter,Set.toFinset_sdiff,Set.toFinset_image,
-    Set.toFinset_ofPred,Set.toFinset_singleton,Finset.mem_inter,Finset.mem_sdiff,
-    Finset.mem_image,Finset.mem_filter,Finset.mem_univ,true_and,Finset.mem_singleton,
+    Set.toFinset_ofPred,Set.toFinset_singleton,fsMI3,fsMS,
+    fsMI,fsMF,fsMU2,true_and,fsMS2,
     X,Y] at hw
   rcases hw with ⟨⟨⟨w',hw'₁,hw'₂⟩,-⟩,hw₂,-⟩
   obtain ⟨d,hd₁,hd₂⟩ :=hq.qH w'
@@ -3921,7 +3987,7 @@ private theorem xN
 theorem yp (hG:IsHamiltonian (qg G)) :
     IsHamiltonian G :=by
   classical
-  by_cases trivial:Fintype.card V =1
+  by_cases trivial:ftCard V =1
   · exact absurd trivial
   · by_contra nonHamiltonian
     obtain ⟨a,p,hp⟩ :=hG trivial
@@ -3929,7 +3995,7 @@ theorem yp (hG:IsHamiltonian (qg G)) :
       by_contra h
       simp only [not_exists,not_and,Decidable.not_not] at h
       have edgeSubset (e) (he:e ∈ p.edges) : e ∈ G.edgeSet:=by
-        simp only [edges,List.mem_map] at he
+        simp only [edges,lsMM] at he
         obtain ⟨d,hd,hd'⟩ :=he
         rw [← hd']
         exact h _ hd
@@ -3969,14 +4035,14 @@ theorem yp (hG:IsHamiltonian (qg G)) :
         simp (config:= {singlePass:=true}) only [← G_closure_del]
         exact edges_subset_edgeSet _)
       |>.copy next_u_eq_v rfl
-    have perm_q':q'.support ~ Finset.univ.toList:=by
+    have perm_q':q'.support ~ fsUniv.toList:=by
       rw [isHamiltonianCycle_iff_isCycle_and_support_count_tail_eq_one] at hq
       simp only [transfer_transfer,support_copy,support_transfer,
         List.perm_iff_count,q']
       intro a
       rw [List.count_eq_one_of_mem (Finset.nodup_toList _) (by simp)]
       simpa [support_tail_of_not_nil _ q_not_nil] using hq.2 _
-    have hV: (Fintype.card V) ≥ 3:=hq.length_eq ▸ hq.isCycle.three_le_length
+    have hV: (ftCard V) ≥ 3:=hq.length_eq ▸ hq.isCycle.three_le_length
     have deg_sum:=zr G hd' d.adj
     have next_u:v=hq.qk u :=by
       obtain ⟨d',hd'₁,hd'₂,hd'₃⟩ :=hq.qH u
@@ -3989,7 +4055,7 @@ theorem yp (hG:IsHamiltonian (qg G)) :
       xN hq hV deg_sum next_u hd'
     have q'_support:q'.support=q.support.tail:=by
       simp [q',support_tail_of_not_nil _ q_not_nil]
-    obtain ⟨i,i_lt,hi⟩ :=List.getElem_of_mem d'_mem
+    obtain ⟨i,i_lt,hi⟩ :=lsGOM d'_mem
     simp only [length_darts] at i_lt
     have hi_darts:i < q.darts.length:=by simpa using i_lt
     rw [← hi,q.darts_getElem_eq_getVert i hi_darts] at hd'₂
@@ -4020,7 +4086,7 @@ theorem yp (hG:IsHamiltonian (qg G)) :
     have w'_ne_u:w' ≠ u:=fun eq ↦ by simp [eq] at hw'
     have Hamiltonian:=
       zi hV perm_q' w'_ne_u hw' hw q'.darts[i-1]
-      (List.getElem_mem i_min_1) hd''₁ hd''₂
+      (lsGM i_min_1) hd''₁ hd''₂
     exact nonHamiltonian Hamiltonian
 private theorem yt {n} (hG: ¬IsHamiltonian G) :
     ¬IsHamiltonian (qg^[n] G) :=by
@@ -4039,11 +4105,11 @@ theorem sI:IsHamiltonian (qE G) ↔ IsHamiltonian G :=by
     contrapose hG
     exact yt hG
   · exact IsHamiltonian.mono (rs _) hG
-private theorem wg (hV:3 ≤ Fintype.card V) :
+private theorem wg (hV:3 ≤ ftCard V) :
     (⊤ : SimpleGraph V).IsHamiltonian:=by
   classical
-  obtain ⟨r,hr⟩ : ∃ r,Fintype.card V =r+3:=
-    ⟨Fintype.card V -3,by omega⟩
+  obtain ⟨r,hr⟩ : ∃ r,ftCard V =r+3:=
+    ⟨ftCard V -3,by omega⟩
   let e :Fin (r+3) ≃ V:=by
     simpa [hr] using (Fintype.equivFin V).symm
   let f :cycleGraph (r+3) →g (⊤ : SimpleGraph V) :=
@@ -4057,8 +4123,8 @@ private theorem wg (hV:3 ≤ Fintype.card V) :
   refine ⟨?_,?_⟩
   · exact cycleGraph.isCycle_cycle.map e.injective
   · simp [p,hr]
-theorem x3 [DecidableRel G.Adj] (hV: (Fintype.card V) ≥ 3)
-    (hG: ∀ u,2*G.degree u ≥ (Fintype.card V)) : G.IsHamiltonian:=by
+theorem x3 [DecidableRel G.Adj] (hV: (ftCard V) ≥ 3)
+    (hG: ∀ u,2*G.degree u ≥ (ftCard V)) : G.IsHamiltonian:=by
   classical
   suffices G.qE= (⊤ : SimpleGraph V) from
     sI.mp (this ▸ wg hV)
@@ -4067,7 +4133,7 @@ theorem x3 [DecidableRel G.Adj] (hV: (Fintype.card V) ≥ 3)
   simp only [top_adj,ne_eq] at ne
   apply rK G ne
   calc
-    (Fintype.card V) ≤ G.degree u +G.degree v :=by
+    (ftCard V) ≤ G.degree u +G.degree v :=by
       have:=hG u
       have:=hG v
       omega
@@ -4076,20 +4142,11 @@ theorem x3 [DecidableRel G.Adj] (hV: (Fintype.card V) ≥ 3)
         (G.degree_le_of_le (v:=v) (rs G))
 end SimpleGraph
 end d0
-section cB
 namespace Erdos556
 open SimpleGraph
-def ed {k n :ℕ} (h:k ≤ n) :
-    (pathGraph k).Copy (pathGraph n) where
-  toHom:=
-    { toFun:=Fin.castLE h
-      map_rel':=by
-        intro a b hab
-        simpa only [pathGraph_adj,Fin.val_castLE] using hab}
-  injective':=fun _ _ he=> Fin.ext (congrArg (Fin.val (n:=n)) he)
 theorem wH {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] {u v :V} (p:G.Walk u v) (hp:p.IsHamiltonian)
-    (hcard:3 ≤ Fintype.card V) (hdeg:Fintype.card V ≤ G.degree u +G.degree v) :
+    (hcard:3 ≤ ftCard V) (hdeg:ftCard V ≤ G.degree u +G.degree v) :
     G.IsHamiltonian:=by
   classical
   have hlen:=hp.length_eq
@@ -4111,7 +4168,7 @@ theorem wH {V:Type*} [Fintype V] [DecidableEq V]
     intro x
     rw [Walk.support_transfer]
     exact hp.mem_support x
-  let q :=Walk.cons hcladj.symm p'
+  let q :=wkCons hcladj.symm p'
   have hq:q.IsCycle:=by
     apply (Walk.cons_isCycle_iff p' hcladj.symm).mpr
     refine ⟨hp'.isPath,?_⟩
@@ -4123,7 +4180,7 @@ theorem wH {V:Type*} [Fintype V] [DecidableEq V]
     apply Walk.isHamiltonianCycle_iff_isCycle_and_length_eq.mpr
     refine ⟨hq,?_⟩
     dsimp only [q,p']
-    rw [Walk.length_cons,Walk.length_transfer]
+    rw [wkLC2,Walk.length_transfer]
     omega
   exact (SimpleGraph.sI (G:=G)).mp (fun _ ↦ ⟨v,q,hqham⟩)
 theorem s7 {V:Type*} [Fintype V]
@@ -4147,13 +4204,13 @@ theorem s7 {V:Type*} [Fintype V]
     intro x
     rw [Walk.support_induce]
     simpa only [List.mem_attachWith] using (show x.val ∈ p.support from x.property)
-  have hcard:Fintype.card S =p.length+1:=by
+  have hcard:ftCard S =p.length+1:=by
     have hS:S= (p.support.toFinset:Set V) :=by ext x;simp [S]
     calc
-      Fintype.card S =S.ncard:=Nat.card_eq_fintype_card.symm
-      _=p.support.toFinset.card:=by rw [hS,Set.ncard_coe_finset]
+      ftCard S =S.ncard:=natCEFC.symm
+      _=p.support.toFinset.card:=by rw [hS,stNCF]
       _=p.length+1:=by
-        rw [List.toFinset_card_of_nodup hp.support_nodup,Walk.length_support]
+        rw [lsTCON hp.support_nodup,wkLS]
   have hG:=wH (G.induce S) p' hham
     (by rw [hcard];omega) (by rw [hcard];exact hdeg)
   obtain ⟨z,q,hq⟩ :=hG (by rw [hcard];omega)
@@ -4187,13 +4244,13 @@ theorem vK {V:Type*} [Fintype V] [DecidableEq V]
       intro hmem
       have hmem':d.snd ∈ r.support:=by
         rw [← Walk.cons_support_tail hr.not_nil]
-        exact List.mem_cons_of_mem _ hmem
+        exact lsMCOM _ hmem
       exact hdout ((q.mem_support_rotate_iff d.fst hd).mp hmem')
     have hp':=hr.isPath_tail.concat houts d.adj
     have hlt:=hmax _ hp'
     have heq: (r.tail.concat d.adj).length=q.length:=by
-      rw [Walk.length_concat,Walk.length_tail,Walk.length_rotate]
-      exact Nat.sub_add_cancel (by have:=hq.three_le_length;omega)
+      rw [wkLC,wkLT,Walk.length_rotate]
+      exact natSAC (by have:=hq.three_le_length;omega)
     rw [heq] at hlt
     exact hlt.false
   refine fun _ ↦ ⟨v,q,⟨hq,?_⟩⟩
@@ -4201,7 +4258,7 @@ theorem vK {V:Type*} [Fintype V] [DecidableEq V]
   intro x
   have hx:=hall x
   rw [← Walk.cons_tail_support q] at hx
-  rcases List.mem_cons.mp hx with rfl | hx
+  rcases lsMC.mp hx with rfl | hx
   · exact q.tail.end_mem_support
   · rwa [Walk.support_tail_of_not_nil q hq.not_nil]
 lemma sD {V:Type*} [Fintype V]
@@ -4215,7 +4272,7 @@ lemma sD {V:Type*} [Fintype V]
       left_inv:=fun _ ↦ rfl
       right_inv:=fun _ ↦ rfl}
   rw [← card_neighborSet_eq_degree,← card_neighborSet_eq_degree]
-  exact Fintype.card_congr e
+  exact ftCC2 e
 theorem sV {V:Type*}
     [Fintype V] [DecidableEq V] (G:SimpleGraph V) [DecidableRel G.Adj]
     (hconn:G.Connected) {u v :V} (p:G.Walk u v) (hp:p.IsPath)
@@ -4226,15 +4283,15 @@ theorem sV {V:Type*}
   have hstart: ∀ w,G.Adj u w → w ∈ p.support:=by
     intro w hw
     by_contra hnot
-    have hq: (Walk.cons hw.symm p).IsPath:= (Walk.cons_isPath_iff _ _).mpr ⟨hp,hnot⟩
+    have hq: (wkCons hw.symm p).IsPath:= (wkCII _ _).mpr ⟨hp,hnot⟩
     have h :=hmax _ hq
-    simp only [Walk.length_cons] at h
+    simp only [wkLC2] at h
     omega
   have hend: ∀ w,G.Adj v w → w ∈ p.support:=by
     intro w hw
     by_contra hnot
     have h :=hmax _ (hp.concat hnot hw)
-    simp only [Walk.length_concat] at h
+    simp only [wkLC] at h
     omega
   have hcopy:=uz G p hp hlen (by
     rw [sD G {x | x ∈ p.support} u p.start_mem_support hstart,
@@ -4244,10 +4301,8 @@ theorem sV {V:Type*}
   apply vK G hconn q hq
   intro a b r hr
   rw [hqlen]
-  exact Nat.lt_succ_of_le (hmax r hr)
+  exact natLSOL (hmax r hr)
 end Erdos556
-end cB
-section dh
 namespace Erdos556
 open SimpleGraph
 theorem z8 {V:Type*} [Fintype V]
@@ -4260,20 +4315,20 @@ theorem z8 {V:Type*} [Fintype V]
   obtain ⟨a,ha,b,hb,hab⟩ :=Finset.one_lt_card.mp hnb
   have hua:G.Adj u a:= (G.mem_neighborFinset u a).mp ha
   have hub:G.Adj u b:= (G.mem_neighborFinset u b).mp hb
-  let p :=Walk.cons hua.symm (Walk.cons hub Walk.nil)
+  let p :=wkCons hua.symm (wkCons hub Walk.nil)
   refine ⟨a,b,p,?_,rfl⟩
-  simp [p,Walk.cons_isPath_iff,hua.ne.symm,hub.ne,hab]
+  simp [p,wkCII,hua.ne.symm,hub.ne,hab]
 theorem ur {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (hconn:G.Connected)
     (d:ℕ) (hd:2 ≤ d) (hdeg: ∀ v,d ≤ G.degree v) :
     ∃ (u v :V) (p:G.Walk u v),p.IsPath ∧
-      min (2*d+1) (Fintype.card V) ≤ p.length+1:=by
+      min (2*d+1) (ftCard V) ≤ p.length+1:=by
   classical
   have:Nonempty V :=hconn.nonempty
   obtain ⟨u,v,p,hp,hmax⟩ :=Walk.exists_isPath_forall_isPath_length_le_length G
   refine ⟨u,v,p,hp,?_⟩
   by_contra hlong
-  have hshort:p.length+1 < min (2*d+1) (Fintype.card V) :=by omega
+  have hshort:p.length+1 < min (2*d+1) (ftCard V) :=by omega
   obtain ⟨a,b,q,hq,hqlen⟩ :=z8 G u (hd.trans (hdeg u))
   have hlen:2 ≤ p.length:=by
     have h :=hmax a b q hq
@@ -4285,7 +4340,7 @@ theorem ur {V:Type*} [Fintype V]
       omega)
   obtain ⟨z,q,hq⟩ :=hham (by omega)
   have h :=hmax _ _ q.tail hq.isCycle.isPath_tail
-  rw [Walk.length_tail,hq.length_eq] at h
+  rw [wkLT,hq.length_eq] at h
   omega
 theorem wk {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj]
@@ -4303,14 +4358,14 @@ theorem vW {V:Type*} [Fintype V]
   classical
   by_contra h
   have hn: (G.neighborFinset v).Nonempty:=by
-    rw [← Finset.card_pos,card_neighborFinset_eq_degree]
+    rw [← fsCP,card_neighborFinset_eq_degree]
     omega
   obtain ⟨w,hw⟩ :=hn
   have hadj:G.Adj v w:= (G.mem_neighborFinset v w).mp hw
-  have hp: (Walk.cons hadj Walk.nil).IsPath:=by
-    simp [Walk.cons_isPath_iff,hadj.ne]
+  have hp: (wkCons hadj Walk.nil).IsPath:=by
+    simp [wkCII,hadj.ne]
   have:=hmax _ hp
-  simp only [Walk.length_cons,Walk.length_nil] at this
+  simp only [wkLC2,Walk.length_nil] at this
   omega
 theorem tc {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (C:G.ConnectedComponent)
@@ -4324,7 +4379,7 @@ theorem tc {V:Type*} [Fintype V]
       left_inv:=fun _ => rfl
       right_inv:=fun _ => rfl}
   rw [← card_neighborSet_eq_degree,← card_neighborSet_eq_degree]
-  exact Fintype.card_congr e
+  exact ftCC2 e
 theorem wP {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (k:ℕ) (hk:2 ≤ k)
     (hmin: ∀ v,k < 2*G.degree v)
@@ -4340,10 +4395,10 @@ theorem wP {V:Type*} [Fintype V]
   obtain ⟨a,b,p,hp,hlen⟩ :=ur C.toSimpleGraph
     C.connected_toSimpleGraph (k/2+1) (by omega) hd
   have hp': (p.map C.toSimpleGraph_hom).IsPath:=
-    hp.map (by intro x y h;exact Subtype.ext h)
+    hp.map (by intro x y h;exact subExt h)
   have hbound:=hmax _ hp'
-  rw [Walk.length_map] at hbound
-  have hcard:Fintype.card C ≤ k +1:=by omega
+  rw [wkLM] at hbound
+  have hcard:ftCard C ≤ k +1:=by omega
   let v':C:= ⟨v,ConnectedComponent.connectedComponentMk_mem⟩
   have hdeg:=C.toSimpleGraph.degree_lt_card_verts v'
   rw [tc] at hdeg
@@ -4351,21 +4406,21 @@ theorem wP {V:Type*} [Fintype V]
 theorem vi {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (k:ℕ)
     (hdeg: ∀ v,G.degree v ≤ k) :
-    2*G.edgeFinset.card ≤ k*Fintype.card V :=by
+    2*G.edgeFinset.card ≤ k*ftCard V :=by
   classical
   calc
     2*G.edgeFinset.card= ∑ v,G.degree v :=G.sum_degrees_eq_twice_card_edges.symm
-    _ ≤ ∑ _v:V,k:=Finset.sum_le_sum fun v _=> hdeg v
-    _=k*Fintype.card V :=by simp [Nat.mul_comm]
+    _ ≤ ∑ _v:V,k:=fsSLS fun v _=> hdeg v
+    _=k*ftCard V :=by simp [natMC]
 universe u
 private theorem a3 (N:ℕ) :
     ∀ (V:Type u) [Fintype V]
-      (G:SimpleGraph V) [DecidableRel G.Adj],Fintype.card V =N →
+      (G:SimpleGraph V) [DecidableRel G.Adj],ftCard V =N →
       ∀ k :ℕ,
       (∀ {a b :V} (p:G.Walk a b),p.IsPath → p.length ≤ k) →
-      2*G.edgeFinset.card ≤ k*Fintype.card V :=by
+      2*G.edgeFinset.card ≤ k*ftCard V :=by
   classical
-  induction N using Nat.strong_induction_on with
+  induction N using natSIO with
   | h N ih=>
       intro V _ G _ hcard k hmax
       classical
@@ -4380,24 +4435,24 @@ private theorem a3 (N:ℕ) :
         · obtain ⟨v,hv⟩ :=hlow
           let S :Set V := {v}ᶜ
           let H :=G.induce S
-          have hS:Fintype.card S =Fintype.card V -1:=by
+          have hS:ftCard S =ftCard V -1:=by
             simpa [S] using Set.card_ne_eq v
-          have hpos:0 < Fintype.card V :=Fintype.card_pos_iff.mpr ⟨v⟩
-          have hlt:Fintype.card S < N :=by omega
+          have hpos:0 < ftCard V :=ftCPI.mpr ⟨v⟩
+          have hlt:ftCard S < N :=by omega
           have hmaxH: ∀ {a b :S} (p:H.Walk a b),p.IsPath → p.length ≤ k:=by
             intro a b p hp
             let f := (Embedding.induce (G:=G) S).toHom
             have hp': (p.map f).IsPath:=hp.map (by
               intro x y h
-              exact Subtype.ext h)
-            simpa only [Walk.length_map] using hmax (p.map f) hp'
-          have hrec:=ih (Fintype.card S) hlt S H rfl k hmaxH
+              exact subExt h)
+            simpa only [wkLM] using hmax (p.map f) hp'
+          have hrec:=ih (ftCard S) hlt S H rfl k hmaxH
           have hedge:H.edgeFinset.card+G.degree v =G.edgeFinset.card:=by
             dsimp [H,S]
             rw [card_edgeFinset_induce_compl_singleton,
               card_edgeFinset_deleteIncidenceSet]
-            exact Nat.sub_add_cancel (G.degree_le_card_edgeFinset v)
-          have hcardadd:Fintype.card S +1=Fintype.card V :=by omega
+            exact natSAC (G.degree_le_card_edgeFinset v)
+          have hcardadd:ftCard S +1=ftCard V :=by omega
           nlinarith
         · apply vi G k
           apply wP G k hk
@@ -4408,11 +4463,11 @@ private theorem a3 (N:ℕ) :
 theorem ty {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (k:ℕ)
     (hmax: ∀ {a b :V} (p:G.Walk a b),p.IsPath → p.length ≤ k) :
-    2*G.edgeFinset.card ≤ k*Fintype.card V :=
-  a3 (Fintype.card V) V G rfl k hmax
+    2*G.edgeFinset.card ≤ k*ftCard V :=
+  a3 (ftCard V) V G rfl k hmax
 theorem z6 {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (k:ℕ)
-    (he:k*Fintype.card V < 2 *G.edgeFinset.card) :
+    (he:k*ftCard V < 2 *G.edgeFinset.card) :
     ∃ (a b :V) (p:G.Walk a b),p.IsPath ∧ k < p.length:=by
   classical
   by_contra h
@@ -4420,8 +4475,6 @@ theorem z6 {V:Type*} [Fintype V]
   have hb:=ty G k (fun p hp=> h _ _ p hp)
   omega
 end Erdos556
-end dh
-section db
 namespace Erdos556
 open Filter
 open scoped Topology
@@ -4450,7 +4503,7 @@ theorem ti (K:ℕ) (hK:0 < K) (C:ℝ) (hC:0 ≤ C)
     · simp
   apply squeeze_zero (fun n => by positivity) (fun n => ?_) hmajor
   have hn:n ≤ K* (n/K+1) :=by
-    have hmod:=Nat.mod_lt n hK
+    have hmod:=natML n hK
     have hdecomp:=Nat.mod_add_div n K
     nlinarith
   have hnR: (n:ℝ) ≤ (K:ℝ) * (((n/K:ℕ) : ℝ) + 1) :=by
@@ -4471,8 +4524,6 @@ theorem uW (q:ℝ) (hq0:0 < q) (hq1:q ≤ 1)
   have h :=ti K hK ((a:ℝ) + 1) (by positivity) hr0 hr1
   exact h.eventually (gt_mem_nhds (by norm_num: (0:ℝ) < 1/2))
 end Erdos556
-end db
-section dg
 namespace Erdos556
 open SimpleGraph Finset Filter
 theorem td {V:Type*} [Fintype V] [DecidableEq V]
@@ -4480,13 +4531,13 @@ theorem td {V:Type*} [Fintype V] [DecidableEq V]
     (hconn:q8 G (b+3*D+3))
     (hnonbip:qT G (b+3*D+3))
     (hd:0 < d) (hdeg: ∀ w,d+ (b+3*D+3) ≤ G.degree w)
-    (hN:Fintype.card V ≤ D *d)
+    (hN:ftCard V ≤ D *d)
     (hbound: ((a+1) * m) * (12*D+3) ≤ b)
     (q:ℝ) (hq0:0 < q) (hq1:q ≤ 1)
-    (hfail: (Fintype.card V :ℝ) ^ 2* (a+1) *
+    (hfail: (ftCard V :ℝ) ^ 2* (a+1) *
       (1-q^ (12*D+3)) ^ m < 1/2)
-    (hV:0 < Fintype.card V) :
-    ∃ R :Finset V,(R.card:ℝ) ≤ 2*q*Fintype.card V ∧
+    (hV:0 < ftCard V) :
+    ∃ R :Finset V,(R.card:ℝ) ≤ 2*q*ftCard V ∧
       ∀ u v,u ≠ v → ∀ S,S.card ≤ a →
         qZ G (12*D+3) u v (R \ S) :=by
   classical
@@ -4496,13 +4547,13 @@ theorem td {V:Type*} [Fintype V] [DecidableEq V]
       ∃ T :Finset V,P uv T ∧ T.card ≤ 12*D+3 ∧ Disjoint S T:=
     vz G b d D hconn hnonbip hd hdeg hN
       uv.val.1 uv.val.2 uv.property S hS
-  have hI: (Fintype.card I :ℝ) ≤ (Fintype.card V :ℝ) ^ 2:=by
-    have h :=Fintype.card_le_of_injective (fun uv:I=> uv.val) Subtype.val_injective
-    rw [Fintype.card_prod] at h
+  have hI: (ftCard I :ℝ) ≤ (ftCard V :ℝ) ^ 2:=by
+    have h :=ftCLOI (fun uv:I=> uv.val) subVI
+    rw [ftCP] at h
     rw [pow_two]
     exact_mod_cast h
   have hr:0 ≤ 1-q^ (12*D+3) :=sub_nonneg.mpr (pow_le_one₀ hq0.le hq1)
-  have hf: (Fintype.card I :ℝ) * (a+1) * (1-q^ (12*D+3)) ^ m < 1/2:=by
+  have hf: (ftCard I :ℝ) * (a+1) * (1-q^ (12*D+3)) ^ m < 1/2:=by
     apply lt_of_le_of_lt _ hfail
     exact mul_le_mul_of_nonneg_right
       (mul_le_mul_of_nonneg_right hI (by positivity)) (pow_nonneg hr _)
@@ -4513,16 +4564,16 @@ theorem td {V:Type*} [Fintype V] [DecidableEq V]
   obtain ⟨T,hTR,hP,_,hST⟩ :=hhit ⟨(u,v),huv⟩ S hS
   apply hP.mono
   intro x hx
-  exact mem_sdiff.mpr ⟨hTR hx,fun hxS=> Finset.disjoint_left.mp hST hxS hx⟩
+  exact mem_sdiff.mpr ⟨hTR hx,fun hxS=> fsDL.mp hST hxS hx⟩
 theorem xw (D B a:ℕ) (hB:0 < B)
     (q:ℝ) (hq0:0 < q) (hq1:q ≤ 1) :
     ∃ N₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (b d :ℕ),
-      N₀ ≤ Fintype.card V → q8 G (b+3*D+3) →
+      N₀ ≤ ftCard V → q8 G (b+3*D+3) →
       qT G (b+3*D+3) →
-      (∀ w,d+ (b+3*D+3) ≤ G.degree w) → Fintype.card V ≤ D *d →
-      Fintype.card V ≤ B *b →
-      ∃ R :Finset V,(R.card:ℝ) ≤ 2*q*Fintype.card V ∧
+      (∀ w,d+ (b+3*D+3) ≤ G.degree w) → ftCard V ≤ D *d →
+      ftCard V ≤ B *b →
+      ∃ R :Finset V,(R.card:ℝ) ≤ 2*q*ftCard V ∧
         ∀ u v,u ≠ v → ∀ S,S.card ≤ a →
           qZ G (12*D+3) u v (R \ S) :=by
   let L :=12*D+3
@@ -4532,21 +4583,19 @@ theorem xw (D B a:ℕ) (hB:0 < B)
   obtain ⟨N₁,hN₁⟩ :=eventually_atTop.mp (uW q hq0 hq1 L K a hK)
   refine ⟨max N₁ 1,?_⟩
   intro V _ _ G _ b d hN hc hnb hg hd hb
-  have hV:0 < Fintype.card V :=by omega
+  have hV:0 < ftCard V :=by omega
   have hdpos:0 < d:=by nlinarith
-  let m :=Fintype.card V /K
+  let m :=ftCard V /K
   have hbudget: ((a+1) * m) * L ≤ b:=by
     have hmul:B* (((a+1) * m) * L) ≤ B*b:=by
       calc
         B* (((a+1) * m) * L) = m*K:=by dsimp [K];ring
-        _ ≤ Fintype.card V :=Nat.div_mul_le_self _ _
+        _ ≤ ftCard V :=natDMLS _ _
         _ ≤ B*b:=hb
     nlinarith
   exact td G b d D m a hc hnb hdpos hg hd hbudget q hq0 hq1
     (hN₁ _ (by omega)) hV
 end Erdos556
-end dg
-section cq
 namespace Erdos556
 open SimpleGraph
 theorem wL {V:Type*} {G:SimpleGraph V}
@@ -4568,39 +4617,39 @@ theorem xO {V:Type*} [Fintype V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (R:Finset V) (L k :ℕ) (hk:1 ≤ k)
     (hres: ∀ u v,u ≠ v → qZ G L u v R)
     (hodd: ∀ (w:V) (c:G.Walk w w),c.IsCycle → Odd c.length → c.length ≤ 2*k) :
-    G.edgeFinset.card ≤ (k+R.card) * Fintype.card V :=by
+    G.edgeFinset.card ≤ (k+R.card) * ftCard V :=by
   classical
   let U := (R:Set V)ᶜ
   let H :=G.induce U
-  let f :H ↪g G :=SimpleGraph.Embedding.induce U
+  let f :H ↪g G :=sgInduce U
   have hpaths {u v :U} (p:H.Walk u v) (hp:p.IsPath) : p.length ≤ 2*k:=by
     have h :=wL R L k hk hres hodd
       (p.map f.toHom) (hp.map f.injective) (by
         intro x hx
-        rw [Walk.support_map,List.mem_map] at hx
+        rw [wkSM,lsMM] at hx
         obtain ⟨y,_,hy⟩ :=hx
         subst x
         exact y.property)
-    simpa only [Walk.length_map] using h
+    simpa only [wkLM] using h
   have hbound:=ty H (2*k) hpaths
-  have hcard:=Fintype.card_le_of_injective (fun x :U=> x.val) Subtype.val_injective
-  have hretained:H.edgeFinset.card ≤ k*Fintype.card V :=by
-    have hmul:=Nat.mul_le_mul_left k hcard
+  have hcard:=ftCLOI (fun x :U=> x.val) subVI
+  have hretained:H.edgeFinset.card ≤ k*ftCard V :=by
+    have hmul:=natMLML k hcard
     nlinarith
   have hdeleted:=rc G R
-  change G.edgeFinset.card ≤ H.edgeFinset.card+R.card*Fintype.card V at hdeleted
+  change G.edgeFinset.card ≤ H.edgeFinset.card+R.card*ftCard V at hdeleted
   nlinarith
 theorem ua (D B :ℕ) (hB:0 < B)
     (q:ℝ) (hq0:0 < q) (hq1:q ≤ 1) :
     ∃ N₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (b d k:ℕ),
-      N₀ ≤ Fintype.card V → q8 G (b+3*D+3) →
+      N₀ ≤ ftCard V → q8 G (b+3*D+3) →
       qT G (b+3*D+3) →
-      (∀ w,d+ (b+3*D+3) ≤ G.degree w) → Fintype.card V ≤ D *d →
-      Fintype.card V ≤ B *b → 1 ≤ k →
+      (∀ w,d+ (b+3*D+3) ≤ G.degree w) → ftCard V ≤ D *d →
+      ftCard V ≤ B *b → 1 ≤ k →
       (∀ (w:V) (c:G.Walk w w),c.IsCycle → Odd c.length → c.length ≤ 2*k) →
-      (G.edgeFinset.card:ℝ) ≤ (k:ℝ) * Fintype.card V +
-        2*q* (Fintype.card V :ℝ) ^ 2:=by
+      (G.edgeFinset.card:ℝ) ≤ (k:ℝ) * ftCard V +
+        2*q* (ftCard V :ℝ) ^ 2:=by
   obtain ⟨N₀,hN₀⟩ :=xw D B 0 hB q hq0 hq1
   refine ⟨N₀,?_⟩
   intro V _ _ G _ b d k hN hc hnb hg hd hb hk ho
@@ -4608,25 +4657,23 @@ theorem ua (D B :ℕ) (hB:0 < B)
   have hres' (u v :V) (huv:u ≠ v) : qZ G (12*D+3) u v R :=by
     simpa only [Finset.sdiff_empty] using hres u v huv ∅ (by simp)
   have he:=xO G R (12*D+3) k hk hres' ho
-  have heR: (G.edgeFinset.card:ℝ) ≤ ((k:ℝ) + R.card) * Fintype.card V :=by
+  have heR: (G.edgeFinset.card:ℝ) ≤ ((k:ℝ) + R.card) * ftCard V :=by
     exact_mod_cast he
-  have hm:=mul_le_mul_of_nonneg_right hR (Nat.cast_nonneg (Fintype.card V) :
-    (0:ℝ) ≤ Fintype.card V)
+  have hm:=mul_le_mul_of_nonneg_right hR (natCN (ftCard V) :
+    (0:ℝ) ≤ ftCard V)
   nlinarith
 end Erdos556
-end cq
-section cN
 namespace Erdos556
 open SimpleGraph
 universe u
 variable {V:Type u} [Fintype V] [DecidableEq V]
 variable {G:SimpleGraph V}
 def qh (G:SimpleGraph V) : Prop:=
-  3 ≤ Fintype.card V ∧ G.Connected ∧
+  3 ≤ ftCard V ∧ G.Connected ∧
     ∀ v :V,(G.induce ({v}ᶜ:Set V)).Connected
 namespace qh
 omit [DecidableEq V] in
-theorem xV (hG:qh G) : 3 ≤ Fintype.card V :=hG.1
+theorem xV (hG:qh G) : 3 ≤ ftCard V :=hG.1
 omit [DecidableEq V] in
 theorem connected (hG:qh G) : G.Connected:=hG.2.1
 omit [DecidableEq V] in
@@ -4636,7 +4683,7 @@ theorem t9 (hG:qh G) (v:V) :
 omit [DecidableEq V] in
 theorem nontrivial (hG:qh G) : Nontrivial V :=by
   classical
-  exact Fintype.one_lt_card_iff_nontrivial.mp (by
+  exact ftOLCIN.mp (by
     have h :=hG.xV
     omega)
 omit [DecidableEq V] in
@@ -4648,18 +4695,18 @@ omit [DecidableEq V] in
 theorem dU (hG:qh G) (v:V) :
     ∃ x y:V,x ≠ v ∧ y ≠ v ∧ x ≠ y:=by
   classical
-  have hcard:2 ≤ Fintype.card ({v}ᶜ:Set V) :=by
+  have hcard:2 ≤ ftCard ({v}ᶜ:Set V) :=by
     rw [Fintype.card_compl_set,Set.card_singleton]
     have h :=hG.xV
     omega
   let:Nontrivial ({v}ᶜ:Set V) :=
-    Fintype.one_lt_card_iff_nontrivial.mp (by omega)
+    ftOLCIN.mp (by omega)
   obtain ⟨x,y,hxy⟩ :=exists_pair_ne ({v}ᶜ:Set V)
   have hx: (x:V) ≠ v:=by
-    simpa only [Set.mem_compl_iff,Set.mem_singleton_iff] using x.2
+    simpa only [stMCI,stMSI] using x.2
   have hy: (y:V) ≠ v:=by
-    simpa only [Set.mem_compl_iff,Set.mem_singleton_iff] using y.2
-  exact ⟨x,y,hx,hy,fun h ↦ hxy (Subtype.ext h)⟩
+    simpa only [stMCI,stMSI] using y.2
+  exact ⟨x,y,hx,hy,fun h ↦ hxy (subExt h)⟩
 omit [DecidableEq V] in
 theorem sT (hG:qh G) (z:V) {x y :V}
     (hx:x ≠ z) (hy:y ≠ z) :
@@ -4669,17 +4716,17 @@ theorem sT (hG:qh G) (z:V) {x y :V}
   let y': ({z}ᶜ:Set V) := ⟨y,hy⟩
   obtain ⟨p,hp⟩ := (hG.t9 z).exists_isPath x' y'
   let e :G.induce ({z}ᶜ:Set V) ↪g G :=
-    SimpleGraph.Embedding.induce ({z}ᶜ:Set V)
+    sgInduce ({z}ᶜ:Set V)
   let q :=p.map e.toHom
   have hqpath:q.IsPath:=hp.map e.injective
   have hqavoid:z ∉ q.support:=by
     intro hz
     have hsupport:q.support=p.support.map e :=by
       exact SimpleGraph.Walk.support_map e.toHom p
-    rw [hsupport,List.mem_map] at hz
+    rw [hsupport,lsMM] at hz
     obtain ⟨w,hw,hwz⟩ :=hz
     have hwne: (w:V) ≠ z:=by
-      simpa only [Set.mem_compl_iff,Set.mem_singleton_iff] using w.2
+      simpa only [stMCI,stMSI] using w.2
     exact hwne hwz
   have hex:e x'=x:=by rfl
   have hey:e y'=y:=by rfl
@@ -4717,7 +4764,7 @@ theorem qh.iso {V W :Type*} [Fintype V] [Fintype W]
     (hG:qh G) (e:G ≃g H) : qh H :=by
   classical
   refine ⟨?_,hG.connected.map e.toHom e.surjective,?_⟩
-  · rw [← Fintype.card_congr e.toEquiv]
+  · rw [← ftCC2 e.toEquiv]
     exact hG.xV
   · intro w
     have hbij:Set.BijOn e ({e.symm w}ᶜ:Set V) ({w}ᶜ:Set W) :=by
@@ -4734,7 +4781,6 @@ theorem qh.iso {V W :Type*} [Fintype V] [Fintype W]
     let f :=e.induce hbij
     exact (hG.t9 (e.symm w)).map f.toHom f.surjective
 end Erdos556
-end cN
 section dx
 /-
 Copyright 2026 The Lean-Proofs Authors.
@@ -4756,9 +4802,6 @@ variable {G:SimpleGraph V}
 variable {A B S:Set V}
 namespace te
 end te
-def ec (G:SimpleGraph V) (A B S:Set V) : Prop:=
-  ∀ ⦃a b :V⦄,a ∈ A → b ∈ B →
-    ∀ p :G.Walk a b,∃ x,x ∈ S ∧ x ∈ p.support
 namespace qh
 end qh
 structure x7 (G:SimpleGraph V) (A B :Set V) where
@@ -4822,7 +4865,7 @@ theorem yg {v:V} {c:G.Walk v v} (hc:c.IsCycle)
   let c':G.Walk a a:=c.rotate a ha
   have hc':c'.IsCycle:= (SimpleGraph.Walk.isCycle_rotate ha).mpr hc
   have hb':b ∈ c'.support:=
-    (SimpleGraph.Walk.mem_support_rotate_iff c a ha).mpr hb
+    (sgMSRI c a ha).mpr hb
   let p :G.Walk a b:=c'.takeUntil b hb'
   let r :G.Walk b a:=c'.dropUntil b hb'
   let q :G.Walk a b:=r.reverse
@@ -4833,15 +4876,15 @@ theorem yg {v:V} {c:G.Walk v v} (hc:c.IsCycle)
     rw [hdecomp]
     exact hc'
   have hrPath:r.IsPath:=by
-    exact happCycle.isPath_of_append_right (SimpleGraph.Walk.not_nil_of_ne hab)
+    exact happCycle.isPath_of_append_right (sgNNON hab)
   have hqPath:q.IsPath:=hrPath.reverse
   have hpPos:1 ≤ p.length:=by
-    have:0 < p.length:=SimpleGraph.Walk.not_nil_iff_lt_length.mp
-      (SimpleGraph.Walk.not_nil_of_ne hab)
+    have:0 < p.length:=sgNNILL.mp
+      (sgNNON hab)
     omega
   have hqPos:1 ≤ q.length:=by
-    have:0 < r.length:=SimpleGraph.Walk.not_nil_iff_lt_length.mp
-      (SimpleGraph.Walk.not_nil_of_ne hab.symm)
+    have:0 < r.length:=sgNNILL.mp
+      (sgNNON hab.symm)
     have:1 ≤ r.length:=by omega
     simpa [q] using this
   have hlen:p.length+q.length=c.length:=by
@@ -4856,18 +4899,18 @@ theorem yg {v:V} {c:G.Walk v v} (hc:c.IsCycle)
     by_contra h
     push Not at h
     have hxpt:x ∈ p.support.tail:=
-      (SimpleGraph.Walk.mem_support_iff p).mp hxp |>.resolve_left h.1
+      (sgMSI p).mp hxp |>.resolve_left h.1
     have hxr:x ∈ r.support:=by
-      simpa [q,SimpleGraph.Walk.support_reverse] using hxq
+      simpa [q,sgSR] using hxq
     have hxrt:x ∈ r.support.tail:=
-      (SimpleGraph.Walk.mem_support_iff r).mp hxr |>.resolve_left h.2
+      (sgMSI r).mp hxr |>.resolve_left h.2
     exact (List.disjoint_of_nodup_append htailNodup hxpt hxrt)
   have hsupp: ∀ x,x ∈ c.support ↔ x ∈ p.support ∨ x ∈ q.support:=by
     intro x
-    rw [← SimpleGraph.Walk.mem_support_rotate_iff c a ha]
+    rw [← sgMSRI c a ha]
     change x ∈ c'.support ↔ x ∈ p.support ∨ x ∈ q.support
     rw [← hdecomp,SimpleGraph.Walk.mem_support_append_iff]
-    simp only [q,SimpleGraph.Walk.support_reverse,List.mem_reverse]
+    simp only [q,sgSR,lsMR]
   have hedg: ∀ e:Sym2 V,e ∈ c'.edges ↔ e ∈ c.edges:=fun _ ↦
     (SimpleGraph.Walk.rotate_edges c a ha).mem_iff
   have hpEdges: ∀ e,e ∈ p.edges → e ∈ c.edges:=by
@@ -4973,12 +5016,12 @@ theorem vX (hG:qh G) {x y :V}
     · exact hrx
   obtain ⟨p,hp,hpy⟩ :=hG.sT y hxy.ne hty
   have hp_nonNil: ¬ p.Nil:=by
-    exact Walk.not_nil_of_ne htx.symm
+    exact wkNNON htx.symm
   let w :V:=p.snd
   have hxw:G.Adj x w:=p.adj_snd hp_nonNil
   have hwy:w ≠ y:=by
     intro h
-    exact hpy (h ▸ List.mem_of_mem_tail (p.snd_mem_tail_support hp_nonNil))
+    exact hpy (h ▸ lsMOMT (p.snd_mem_tail_support hp_nonNil))
   obtain ⟨q₀,hq₀,hq₀x⟩ :=
     hG.sT x hxy.ne.symm hxw.ne.symm
   let q :G.Walk y x:=q₀.concat hxw.symm
@@ -4991,7 +5034,7 @@ theorem vX (hG:qh G) {x y :V}
       have:q.length=q₀.length+1:=by simp [q]
       omega
     exact hwy (q₀.eq_of_length_eq_zero hq₀len).symm
-  let c :G.Walk x x:=Walk.cons hxy q
+  let c :G.Walk x x:=wkCons hxy q
   have hc:c.IsCycle:= (Walk.cons_isCycle_iff q hxy).2 ⟨hq,hedge⟩
   refine ⟨c,hc,?_⟩
   simp [c]
@@ -5017,7 +5060,7 @@ private theorem yM
     apply Walk.isPath_reverse_iff d |>.mpr
     have hcycleappend: (r₁.append d).IsCycle:=by
       simpa [r₁,d] using hc'
-    exact Walk.IsCycle.isPath_of_append_right (Walk.not_nil_of_ne hxw) hcycleappend
+    exact Walk.IsCycle.isPath_of_append_right (wkNNON hxw) hcycleappend
   have hr₁_sub: ∀ v ∈ r₁.support,v ∈ c.support:=by
     intro v hv
     have hv':v ∈ c'.support:=c'.support_takeUntil_subset_support hw' hv
@@ -5032,7 +5075,7 @@ private theorem yM
   · refine ⟨r₂,hr₂,?_,hr₂_sub⟩
     have htappend:t ∈ (r₁.append d).support:=by
       simpa [r₁,d,Walk.take_spec c' hw'] using ht'
-    rw [Walk.mem_support_append_iff] at htappend
+    rw [wkMSAI] at htappend
     have htd:t ∈ d.support:=htappend.resolve_left htr₁
     simpa [r₂] using htd
 omit [DecidableEq V] [Fintype V] in
@@ -5060,11 +5103,11 @@ private theorem vT
     yM hc hx hwc hroot hxw
   let body:G.Walk x y:=r.append q.reverse
   have hdisj:r.support.Disjoint q.reverse.support.tail:=by
-    rw [List.disjoint_left]
+    rw [lsDL]
     intro v hvr hvqtail
     have hvc:v ∈ c.support:=hrsub v hvr
     have hvq:v ∈ q.support:=by
-      have:v ∈ q.reverse.support:=List.mem_of_mem_tail hvqtail
+      have:v ∈ q.reverse.support:=lsMOMT hvqtail
       simpa using this
     have hvw:v=w:=hfirst v (by simpa [Cset] using hvc) hvq
     subst v
@@ -5075,7 +5118,7 @@ private theorem vT
     exact List.Nodup.append hr.support_nodup hq.reverse.support_nodup.tail hdisj
   have hedge:s(y,x) ∉ body.edges:=by
     intro he
-    simp only [body,Walk.edges_append,List.mem_append] at he
+    simp only [body,Walk.edges_append,lsMA] at he
     rcases he with her | heq
     · have hyv:y ∈ r.support:=r.fst_mem_support_of_mem_edges her
       exact hyc (hrsub y hyv)
@@ -5085,14 +5128,14 @@ private theorem vT
         exact p.support_takeUntil_subset_support hwp
           (q.fst_mem_support_of_mem_edges hex)
       exact hpx hxp
-  let d :G.Walk y y:=Walk.cons hxy.symm body
+  let d :G.Walk y y:=wkCons hxy.symm body
   have hd:d.IsCycle:= (Walk.cons_isCycle_iff body hxy.symm).2 ⟨hbody,hedge⟩
   refine ⟨y,d,hd,?_,?_⟩
   · have:root ∈ body.support:=by
-      simp only [body,Walk.mem_support_append_iff]
-      exact Or.inl hrootr
-    simp only [d,Walk.support_cons,List.mem_cons]
-    exact Or.inr this
+      simp only [body,wkMSAI]
+      exact orInl hrootr
+    simp only [d,wkSC2,lsMC]
+    exact orInr this
   · simp [d]
 omit [DecidableEq V] in
 private theorem tV
@@ -5113,7 +5156,7 @@ private theorem ye
   induction l generalizing x with
   | nil=>
       intro _ _ hcycle y hy
-      simp only [List.mem_singleton] at hy
+      simp only [lsMS] at hy
       simpa [hy] using hcycle
   | cons v l ih=>
       intro hchain hroot hcycle y hy
@@ -5125,13 +5168,13 @@ private theorem ye
         exact hroot (by simp [h])
       have hroottail:root ∉ v::l:=by
         intro h
-        exact hroot (List.mem_cons_of_mem x h)
+        exact hroot (lsMCOM x h)
       have hnext:rg G root v :=
         tV hG hrootx hrel hcycle
-      simp only [List.mem_cons] at hy
+      simp only [lsMC] at hy
       rcases hy with rfl | hy
       · exact hcycle
-      · exact ih htailchain hroottail hnext y (by simpa only [List.mem_cons] using hy)
+      · exact ih htailchain hroottail hnext y (by simpa only [lsMC] using hy)
 omit [DecidableEq V] in
 private theorem yI
     (hG:qh G) {root x y:V}
@@ -5149,7 +5192,7 @@ theorem ar (hG:qh G) (x:V) :
   classical
   obtain ⟨t,htx⟩ :=hG.exists_ne x
   obtain ⟨p,hp⟩ :=hG.connected.exists_isPath x t
-  have hp_nonNil: ¬ p.Nil:=Walk.not_nil_of_ne htx.symm
+  have hp_nonNil: ¬ p.Nil:=wkNNON htx.symm
   have hxsnd:G.Adj x p.snd:=p.adj_snd hp_nonNil
   obtain ⟨c,hc,-⟩ :=hG.vX hxsnd
   exact ⟨x,c,hc,c.start_mem_support,c.start_mem_support⟩
@@ -5165,7 +5208,7 @@ theorem dS (hG:qh G) (x y :V) :
   | nil=> exact (hxy rfl).elim
   | @cons x v y h p =>
       have hp':p.IsPath:=hp.of_cons
-      have hxnot:x ∉ p.support:= (Walk.cons_isPath_iff h p).1 hp |>.2
+      have hxnot:x ∉ p.support:= (wkCII h p).1 hp |>.2
       obtain ⟨c,hc,hv⟩ :=hG.vX h
       have hbase:rg G x v :=
         ⟨x,c,hc,c.start_mem_support,hv⟩
@@ -5196,14 +5239,14 @@ private theorem r0
   let w :H.Walk u v:=p.append q.reverse
   have hw: ∀ x ∈ w.support,x ∈ ({z}ᶜ:Set W) :=by
     intro x hx
-    rw [Walk.mem_support_append_iff] at hx
-    simp only [Set.mem_compl_iff,Set.mem_singleton_iff]
+    rw [wkMSAI] at hx
+    simp only [stMCI,stMSI]
     rcases hx with hxp | hxq
     · exact fun hzx ↦ hp (hzx ▸ hxp)
     · have hxq':x ∈ q.support:=by simpa using hxq
       exact fun hzx ↦ hq (hzx ▸ hxq')
   let wi:=w.induce ({z}ᶜ:Set W) hw
-  exact ⟨wi.copy (Subtype.ext rfl) (Subtype.ext rfl)⟩
+  exact ⟨wi.copy (subExt rfl) (subExt rfl)⟩
 omit [DecidableEq V] [Fintype V] in
 private theorem wu (hG:G.Connected) (A B :Set V) (x y :V) :
     ∃ p : (qA G A B).Walk (Sum.inl x) (Sum.inl y),
@@ -5214,9 +5257,9 @@ private theorem wu (hG:G.Connected) (A B :Set V) (x y :V) :
   have hr: ∀ z ∈ r.support,
       z ∈ Set.range (Sum.inl:V → sg V) :=by
     intro z hz
-    simp only [r,Walk.support_map,List.mem_map] at hz
+    simp only [r,wkSM,lsMM] at hz
     obtain ⟨w,-,rfl⟩ :=hz
-    exact Set.mem_range_self w
+    exact stMRS w
   let hx: (qn G A B) x =Sum.inl x :=rfl
   let hy: (qn G A B) y =Sum.inl y :=rfl
   let r':=r.copy hx hy
@@ -5235,7 +5278,7 @@ private theorem wr (hG:qh G)
   intro hz
   change (qn G A B) z ∈
     (p.map (qn G A B).toHom).support at hz
-  rw [Walk.support_map,List.mem_map] at hz
+  rw [wkSM,lsMM] at hz
   obtain ⟨w,hw,hwz⟩ :=hz
   exact hpz ((Sum.inl_injective hwz) ▸ hw)
 omit [DecidableEq V] [Fintype V] in
@@ -5254,10 +5297,10 @@ private theorem tF (hG:G.Connected)
   | inr i =>
       cases i with
       | false=>
-          exact ⟨Walk.cons (u2.mpr ha) Walk.nil⟩
+          exact ⟨wkCons (u2.mpr ha) Walk.nil⟩
       | true=>
           obtain ⟨p,-⟩ :=wu hG A B b a
-          exact ⟨Walk.cons (sJ.mpr hb) p⟩
+          exact ⟨wkCons (sJ.mpr hb) p⟩
 omit [DecidableEq V] in
 private theorem xh (hG:qh G)
     {A B :Set V} (hA:2 ≤ A.ncard) (hB:2 ≤ B.ncard) (z:V) :
@@ -5278,11 +5321,11 @@ private theorem xh (hG:qh G)
   | inr i =>
       cases i with
       | false=>
-          refine ⟨Walk.cons (u2.mpr ha) Walk.nil,?_⟩
+          refine ⟨wkCons (u2.mpr ha) Walk.nil,?_⟩
           simp [haz.symm]
       | true=>
           obtain ⟨p,hp⟩ :=wr hG A B z hbz haz
-          refine ⟨Walk.cons (sJ.mpr hb) p,?_⟩
+          refine ⟨wkCons (sJ.mpr hb) p,?_⟩
           simpa using hp
 omit [DecidableEq V] [Fintype V] in
 private theorem wV (hG:G.Connected)
@@ -5305,7 +5348,7 @@ private theorem wV (hG:G.Connected)
       cases i with
       | false=> exact (hw rfl).elim
       | true=>
-          refine ⟨Walk.cons (sJ.mpr hb) Walk.nil,?_⟩
+          refine ⟨wkCons (sJ.mpr hb) Walk.nil,?_⟩
           simp
 omit [DecidableEq V] [Fintype V] in
 private theorem wI (hG:G.Connected)
@@ -5327,7 +5370,7 @@ private theorem wI (hG:G.Connected)
   | inr i =>
       cases i with
       | false=>
-          refine ⟨Walk.cons (u2.mpr ha) Walk.nil,?_⟩
+          refine ⟨wkCons (u2.mpr ha) Walk.nil,?_⟩
           simp
       | true=> exact (hw rfl).elim
 omit [DecidableEq V] in
@@ -5364,7 +5407,7 @@ private theorem ya {A B :Set V}
     (p: (qA G A B).Walk (Sum.inr false) (Sum.inr true))
     (hp:p.IsPath) : Nonempty (w5 G A B p) :=by
   classical
-  have hp_nonNil: ¬p.Nil:=Walk.not_nil_of_ne (by simp)
+  have hp_nonNil: ¬p.Nil:=wkNNON (by simp)
   have htailPath:p.tail.IsPath:=hp.tail
   have htail_nonNil: ¬p.tail.Nil:=by
     intro hnil
@@ -5408,7 +5451,7 @@ private theorem ya {A B :Set V}
       have halpha:Sum.inr false ∉ p.support.tail:=by
         have hn:=hp.support_nodup
         rw [← p.cons_tail_support] at hn
-        exact (List.nodup_cons.mp hn).1
+        exact (lsNC.mp hn).1
       have hbeta:Sum.inr true ∉ m.support:=by
         intro hx
         have hx₀:Sum.inr true ∈ m₀.support:=by simpa [m] using hx
@@ -5448,10 +5491,10 @@ private theorem ad {A B :Set V} {a b :V}
   let p':=p.induce (Set.range e) hold'
   let q₀:=p'.map e.isoInduceRange.symm.toHom
   have hqa:e.isoInduceRange.symm
-      ⟨Sum.inl a,Set.mem_range_self a⟩ = a:=by
+      ⟨Sum.inl a,stMRS a⟩ = a:=by
     exact e.isoInduceRange.symm_apply_apply a
   have hqb:e.isoInduceRange.symm
-      ⟨Sum.inl b,Set.mem_range_self b⟩ = b:=by
+      ⟨Sum.inl b,stMRS b⟩ = b:=by
     exact e.isoInduceRange.symm_apply_apply b
   let q :G.Walk a b:=q₀.copy hqa hqb
   refine ⟨q,?_⟩
@@ -5461,15 +5504,15 @@ private theorem ad {A B :Set V} {a b :V}
         (q₀.map e.toHom).support:=by
       simp [q,e]
     _=p.support:=by
-      simp only [q₀,Walk.support_map,List.map_map]
+      simp only [q₀,wkSM,List.map_map]
       change List.map (fun x :Set.range e => e (e.isoInduceRange.symm x))
           p'.support=p.support
       have hfun: (fun x :Set.range e => e (e.isoInduceRange.symm x)) =
           (fun x :Set.range e => (x:sg V)) :=by
         funext x
-        exact congrArg Subtype.val (e.isoInduceRange.apply_symm_apply x)
+        exact congrArg subVal (e.isoInduceRange.apply_symm_apply x)
       rw [hfun]
-      change ((p.induce (Set.range e) hold').support.map Subtype.val) = p.support
+      change ((p.induce (Set.range e) hold').support.map subVal) = p.support
       rw [Walk.support_induce]
       exact List.attachWith_map_subtype_val hold'
 omit [DecidableEq V] [Fintype V] in
@@ -5503,26 +5546,26 @@ theorem yF (hG:qh G) {A B :Set V}
   obtain ⟨pG,hpG,hpmap⟩ :=P.tw
   obtain ⟨qG,hqG,hqmap⟩ :=Q.tw
   have hdisj:pG.support.Disjoint qG.support:=by
-    rw [List.disjoint_left]
+    rw [lsDL]
     intro x hxp hxq
     have hxp':Sum.inl x ∈ P.walk.support:=by
       have hxpmap: (qn G A B) x ∈
           (pG.map (qn G A B).toHom).support:=by
-        rw [Walk.support_map]
-        exact List.mem_map.mpr ⟨x,hxp,rfl⟩
+        rw [wkSM]
+        exact lsMM.mpr ⟨x,hxp,rfl⟩
       rw [hpmap] at hxpmap
       exact hxpmap
     have hxq':Sum.inl x ∈ Q.walk.support:=by
       have hxqmap: (qn G A B) x ∈
           (qG.map (qn G A B).toHom).support:=by
-        rw [Walk.support_map]
-        exact List.mem_map.mpr ⟨x,hxq,rfl⟩
+        rw [wkSM]
+        exact lsMM.mpr ⟨x,hxq,rfl⟩
       rw [hqmap] at hxqmap
       exact hxqmap
     have hxpArc:Sum.inl x ∈ p.support:=
-      List.mem_of_mem_tail (P.support_subset_tail hxp')
+      lsMOMT (P.support_subset_tail hxp')
     have hxqArc:Sum.inl x ∈ q.support:=
-      List.mem_of_mem_tail (Q.support_subset_tail hxq')
+      lsMOMT (Q.support_subset_tail hxq')
     rcases hmeet (Sum.inl x) hxpArc hxqArc with h | h <;> simp at h
   exact ⟨{
     a₁:=P.a
@@ -5541,7 +5584,6 @@ theorem yF (hG:qh G) {A B :Set V}
 end qh
 end Erdos556
 end cL
-section ch
 namespace Erdos556
 open SimpleGraph
 private theorem y4 (A B C:Prop) :
@@ -5569,7 +5611,7 @@ theorem xt {V:Type*} {G:SimpleGraph V}
     exact (Nat.not_le_of_gt hlt) (hmin (x:=x) (y:=y) r hr hw)
   have hab:a.val ≠ b.val:=by
     intro h
-    have heq:a=b:=Subtype.ext h
+    have heq:a=b:=subExt h
     subst b
     have hz:= (Walk.isPath_iff_nil.mp hq).length_eq_zero
     exact hqw (by simp [hz])
@@ -5582,7 +5624,7 @@ theorem xt {V:Type*} {G:SimpleGraph V}
   have hs:=hcons (x:=x) (y:=b) s (hq.dropUntil hz) (q.length_dropUntil_lt_length hz hza)
   have hsum:q.length=r.length+s.length:=by
     have h :=congrArg Walk.length (q.take_spec hz)
-    simpa only [Walk.length_append] using h.symm
+    simpa only [wkLA] using h.symm
   apply hqw
   rw [hsum,Nat.even_add,hr,hs]
   exact y4 _ _ _
@@ -5594,39 +5636,37 @@ theorem xC {V:Type*} {G:SimpleGraph V}
     (hwrong: ¬ (Even q.length ↔ (colour u ↔ colour v))) :
     ∃ c :G.Walk u.val u.val,c.IsCycle ∧ Odd c.length ∧ p.length ≤ c.length:=by
   let f :G.induce S ↪g G :=
-    { toFun:=Subtype.val,inj':=Subtype.val_injective,map_rel_iff':=Iff.rfl}
+    { toFun:=subVal,inj':=subVI,map_rel_iff':=Iff.rfl}
   have hpS (z:V) (hz:z ∈ (p.map f.toHom).support) : z ∈ S:=by
-    rw [Walk.support_map,List.mem_map] at hz
+    rw [wkSM,lsMM] at hz
     obtain ⟨x,_,hx⟩ :=hz
     subst z
     exact x.property
   have hcycle: ((p.map f.toHom).append q.reverse).IsCycle:=by
     apply qy (p.map f.toHom) q
-      (hp.map f.injective) hq (by simpa only [Walk.length_map] using hlen)
+      (hp.map f.injective) hq (by simpa only [wkLM] using hlen)
     intro z hzp hzq
     by_cases hzu:z=u.val
-    · exact Or.inl hzu
+    · exact orInl hzu
     by_cases hzv:z=v.val
-    · exact Or.inr hzv
+    · exact orInr hzv
     exact (hqS z hzq hzu hzv (hpS z hzp)).elim
   have hpar:p.length%2 ≠ q.length%2:=by
     intro h
     apply hwrong
     have heq:Even q.length ↔ Even p.length:=by
-      simp only [Nat.even_iff]
+      simp only [natEI]
       omega
     exact heq.trans (colour.even_length_iff_congr p)
   refine ⟨(p.map f.toHom).append q.reverse,hcycle,?_,?_⟩
-  · apply Nat.odd_iff.mpr
+  · apply natOI.mpr
     change ((p.map f.toHom).append q.reverse).length%2=1
-    simp only [Walk.length_append,Walk.length_map,Walk.length_reverse]
+    simp only [wkLA,wkLM,wkLR]
     omega
   · change p.length ≤ ((p.map f.toHom).append q.reverse).length
-    simp only [Walk.length_append,Walk.length_map,Walk.length_reverse]
+    simp only [wkLA,wkLM,wkLR]
     omega
 end Erdos556
-end ch
-section de
 namespace Erdos556
 open SimpleGraph
 theorem ve {V:Type*} [Fintype V]
@@ -5644,7 +5684,7 @@ theorem ve {V:Type*} [Fintype V]
   let C :Set V := {z | z ∈ c.support}
   have hC:C.Nontrivial:=by
     refine ⟨w,c.start_mem_support,c.snd,?_,(c.adj_snd hc.not_nil).ne⟩
-    exact List.mem_of_mem_tail (Walk.snd_mem_tail_support hc.not_nil)
+    exact lsMOMT (Walk.snd_mem_tail_support hc.not_nil)
   have hCcard:2 ≤ C.ncard:=Set.one_lt_ncard_iff_nontrivial.mpr hC
   obtain ⟨P⟩ :=hG.yF hS hCcard
   obtain ⟨x,hxC,p,hp,_,hpsub,hpC⟩ :=
@@ -5664,7 +5704,7 @@ theorem ve {V:Type*} [Fintype V]
   · refine ⟨a,b,s,hs,?_⟩
     intro h'
     have he:=h.trans h'.symm
-    simp only [Nat.even_iff] at he
+    simp only [natEI] at he
     apply hpar
     omega
   · exact ⟨a,b,r,hr,h⟩
@@ -5680,8 +5720,6 @@ theorem vu {V:Type*} [Fintype V]
     xt S colour (u:=u) (v:=v) p hp hw
   exact ⟨a,b,hab,q,hq,hqw,hav⟩
 end Erdos556
-end de
-section cQ
 namespace Erdos556
 open SimpleGraph Finset
 theorem ub {V:Type*} [DecidableEq V]
@@ -5711,14 +5749,14 @@ theorem ub {V:Type*} [DecidableEq V]
     intro h
     exact hab (hrP b h p.end_mem_support).symm
   have hcard:r.support.toFinset.card ≤ L+1:=by
-    have h :=List.toFinset_card_le r.support
+    have h :=lsTCL r.support
     rw [r.length_support] at h
     omega
   obtain ⟨s,hs,hslen,hsR⟩ :=hres v b r.support.toFinset hcard
   have hrs (z:V) (hzr:z ∈ r.support) (hzs:z ∈ s.support) : False:=by
     have hzv:z ≠ v:=fun h => hrv (h ▸ hzr)
     have hzb:z ≠ b:=fun h => hrb (h ▸ hzr)
-    exact (mem_sdiff.mp (hsR z hzs hzv hzb)).2 (List.mem_toFinset.mpr hzr)
+    exact (mem_sdiff.mp (hsR z hzs hzv hzb)).2 (lsMT.mpr hzr)
   have hsP (z:V) (hzp:z ∈ p.support) (hzs:z ∈ s.support) : z=b:=by
     by_contra hzb
     have hzv:= (hav z hzp).2.2
@@ -5728,25 +5766,23 @@ theorem ub {V:Type*} [DecidableEq V]
     apply qr (r.append p) s.reverse hrp hs.reverse
     intro z hz hzsr
     have hzs:z ∈ s.support:=by
-      simpa only [Walk.support_reverse,List.mem_reverse] using hzsr
-    rcases (Walk.mem_support_append_iff _ _).mp hz with hzr | hzp
+      simpa only [wkSR,lsMR] using hzsr
+    rcases (wkMSAI _ _).mp hz with hzr | hzp
     · exact (hrs z hzr hzs).elim
     · exact hsP z hzp hzs
   refine ⟨(r.append p).append s.reverse,hq,?_,?_⟩ <;>
-    simp only [Walk.length_append,Walk.length_reverse] <;> omega
+    simp only [wkLA,wkLR] <;> omega
 end Erdos556
-end cQ
-section cK
 namespace Erdos556
 open SimpleGraph Filter
 theorem sh (D B a:ℕ) (hD:0 < D) (hB:0 < B)
     (q:ℝ) (hq0:0 < q) (hq1:q ≤ 1) :
     ∃ N₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (b d :ℕ),
-      N₀ ≤ Fintype.card V → q8 G b →
-      (∀ w,d+b ≤ G.degree w) → Fintype.card V ≤ D *d →
-      Fintype.card V ≤ B *b →
-      ∃ R :Finset V,(R.card:ℝ) ≤ 2*q*Fintype.card V ∧
+      N₀ ≤ ftCard V → q8 G b →
+      (∀ w,d+b ≤ G.degree w) → ftCard V ≤ D *d →
+      ftCard V ≤ B *b →
+      ∃ R :Finset V,(R.card:ℝ) ≤ 2*q*ftCard V ∧
         ∀ u v S,S.card ≤ a → qY G (3*D) u v (R \ S) :=by
   let L :=3*D
   let K :=B* ((a+1) * L)
@@ -5755,28 +5791,26 @@ theorem sh (D B a:ℕ) (hD:0 < D) (hB:0 < B)
   obtain ⟨N₁,hN₁⟩ :=eventually_atTop.mp (uW q hq0 hq1 L K a hK)
   refine ⟨max N₁ 1,?_⟩
   intro V _ _ G _ b d hN hc hg hd hb
-  have hV:0 < Fintype.card V :=by omega
+  have hV:0 < ftCard V :=by omega
   have hdpos:0 < d:=by nlinarith
-  let m :=Fintype.card V /K
+  let m :=ftCard V /K
   have hbudget: ((a+1) * m) * L ≤ b:=by
     have hmul:B* (((a+1) * m) * L) ≤ B*b:=by
       calc
         B* (((a+1) * m) * L) = m*K:=by dsimp [K];ring
-        _ ≤ Fintype.card V :=Nat.div_mul_le_self _ _
+        _ ≤ ftCard V :=natDMLS _ _
         _ ≤ B*b:=hb
     nlinarith
-  have hdiam:3*Fintype.card V ≤ d *L:=by dsimp [L];nlinarith
+  have hdiam:3*ftCard V ≤ d *L:=by dsimp [L];nlinarith
   exact zM G b d L m a hc hdpos hg hdiam hbudget q hq0 hq1
     (hN₁ _ (by omega)) hV
 end Erdos556
-end cK
-section cS
 namespace Erdos556
 open SimpleGraph Finset
 theorem vA {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (L k :ℕ) (R:Finset V)
     (hres: ∀ x y S,S.card ≤ L+1 → qY G L x y (R \ S))
-    (he: (k+R.card+2) * Fintype.card V < G.edgeFinset.card)
+    (he: (k+R.card+2) * ftCard V < G.edgeFinset.card)
     (u v :V) (huv:u ≠ v) :
     ∃ p :G.Walk u v,p.IsPath ∧ 2*k < p.length:=by
   classical
@@ -5789,17 +5823,17 @@ theorem vA {V:Type*} [Fintype V] [DecidableEq V]
     dsimp [S]
     omega
   have hdeleted:=rc G S
-  change G.edgeFinset.card ≤ H.edgeFinset.card+S.card*Fintype.card V at hdeleted
-  have hmul:=Nat.mul_le_mul_right (Fintype.card V) hS
-  have hH:k*Fintype.card V < H.edgeFinset.card:=by nlinarith
-  have hcard:=Fintype.card_le_of_injective (fun x :U=> x.val) Subtype.val_injective
-  have hH': (2*k) * Fintype.card U < 2 *H.edgeFinset.card:=by
-    have hmul':=Nat.mul_le_mul_left k hcard
+  change G.edgeFinset.card ≤ H.edgeFinset.card+S.card*ftCard V at hdeleted
+  have hmul:=natMLMR (ftCard V) hS
+  have hH:k*ftCard V < H.edgeFinset.card:=by nlinarith
+  have hcard:=ftCLOI (fun x :U=> x.val) subVI
+  have hH': (2*k) * ftCard U < 2 *H.edgeFinset.card:=by
+    have hmul':=natMLML k hcard
     nlinarith
   obtain ⟨a,b,p,hp,hlen⟩ :=z6 H (2*k) hH'
-  let f :H ↪g G :=SimpleGraph.Embedding.induce U
+  let f :H ↪g G :=sgInduce U
   have hav (x:V) (hx:x ∈ (p.map f.toHom).support) : x ∉ R ∧ x ≠ u ∧ x ≠ v:=by
-    rw [Walk.support_map,List.mem_map] at hx
+    rw [wkSM,lsMM] at hx
     obtain ⟨y,_,hy⟩ :=hx
     subst x
     have h :=y.property
@@ -5807,33 +5841,31 @@ theorem vA {V:Type*} [Fintype V] [DecidableEq V]
     simp only [mem_insert,not_or] at h
     exact ⟨h.2.2,h.1,h.2.1⟩
   have hpos:0 < (p.map f.toHom).length:=by
-    simpa only [Walk.length_map] using (Nat.lt_of_le_of_lt (Nat.zero_le _) hlen)
+    simpa only [wkLM] using (Nat.lt_of_le_of_lt (Nat.zero_le _) hlen)
   obtain ⟨q,hq,hge,_⟩ :=ub L R hres u v huv
     (p.map f.toHom) (hp.map f.injective) hpos hav
-  simp only [Walk.length_map] at hge
+  simp only [wkLM] at hge
   exact ⟨q,hq,hlen.trans_le hge⟩
 theorem w1 (D B :ℕ) (hD:0 < D) (hB:0 < B)
     (q:ℝ) (hq0:0 < q) (hq1:q ≤ 1) :
     ∃ N₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (b d k:ℕ),
-      N₀ ≤ Fintype.card V → q8 G b →
-      (∀ w,d+b ≤ G.degree w) → Fintype.card V ≤ D *d → Fintype.card V ≤ B *b →
-      (k:ℝ) * Fintype.card V +2*q* (Fintype.card V :ℝ) ^ 2+
-        2*Fintype.card V < (G.edgeFinset.card:ℝ) →
+      N₀ ≤ ftCard V → q8 G b →
+      (∀ w,d+b ≤ G.degree w) → ftCard V ≤ D *d → ftCard V ≤ B *b →
+      (k:ℝ) * ftCard V +2*q* (ftCard V :ℝ) ^ 2+
+        2*ftCard V < (G.edgeFinset.card:ℝ) →
       ∀ u v,u ≠ v → ∃ p:G.Walk u v,p.IsPath ∧ 2*k < p.length:=by
   obtain ⟨N₀,hN₀⟩ :=sh D B (3*D+1) hD hB q hq0 hq1
   refine ⟨N₀,?_⟩
   intro V _ _ G _ b d k hN hc hg hd hb he u v huv
   obtain ⟨R,hR,hres⟩ :=hN₀ G b d hN hc hg hd hb
-  have hmul:=mul_le_mul_of_nonneg_right hR (Nat.cast_nonneg (Fintype.card V) :
-    (0:ℝ) ≤ Fintype.card V)
-  have heR: ((k:ℝ) + R.card+2) * Fintype.card V < (G.edgeFinset.card:ℝ) :=by
+  have hmul:=mul_le_mul_of_nonneg_right hR (natCN (ftCard V) :
+    (0:ℝ) ≤ ftCard V)
+  have heR: ((k:ℝ) + R.card+2) * ftCard V < (G.edgeFinset.card:ℝ) :=by
     nlinarith
-  have heN: (k+R.card+2) * Fintype.card V < G.edgeFinset.card:=by exact_mod_cast heR
+  have heN: (k+R.card+2) * ftCard V < G.edgeFinset.card:=by exact_mod_cast heR
   exact vA G (3*D) k R hres heN u v huv
 end Erdos556
-end cS
-section cJ
 namespace Erdos556
 open SimpleGraph
 theorem xl {V:Type*} [Fintype V]
@@ -5846,7 +5878,7 @@ theorem xl {V:Type*} [Fintype V]
   classical
   obtain ⟨u,v,huv,q,hq,hwrong,hqS⟩ :=
     vu hG hnonbip S hS colour
-  obtain ⟨p,hp,hlen⟩ :=hlong u v (fun h => huv (congrArg Subtype.val h))
+  obtain ⟨p,hp,hlen⟩ :=hlong u v (fun h => huv (congrArg subVal h))
   obtain ⟨c,hc,ho,hge⟩ :=xC S colour p hp (by omega)
     q hq hqS hwrong
   exact ⟨u.val,c,hc,ho,hlen.trans_le hge⟩
@@ -5855,14 +5887,14 @@ theorem ux (D B :ℕ) (hD:0 < D) (hB:0 < B)
     ∃ N₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (S:Finset V) (b d k:ℕ),
       qh G → ¬ G.Colorable 2 → 2 ≤ S.card →
-      N₀ ≤ Fintype.card (S:Set V) → q8 (G.induce (S:Set V)) b →
+      N₀ ≤ ftCard (S:Set V) → q8 (G.induce (S:Set V)) b →
       (∀ w : (S:Set V),d+b ≤ (G.induce (S:Set V)).degree w) →
-      Fintype.card (S:Set V) ≤ D*d → Fintype.card (S:Set V) ≤ B*b → 1 ≤ k →
+      ftCard (S:Set V) ≤ D*d → ftCard (S:Set V) ≤ B*b → 1 ≤ k →
       (G.induce (S:Set V)).Colorable 2 →
       (∀ (w:V) (c:G.Walk w w),c.IsCycle → Odd c.length → c.length ≤ 2*k) →
       ((G.induce (S:Set V)).edgeFinset.card:ℝ) ≤
-        (k:ℝ) * Fintype.card (S:Set V) + 2*q* (Fintype.card (S:Set V) : ℝ) ^ 2+
-          2*Fintype.card (S:Set V) :=by
+        (k:ℝ) * ftCard (S:Set V) + 2*q* (ftCard (S:Set V) : ℝ) ^ 2+
+          2*ftCard (S:Set V) :=by
   obtain ⟨N₀,hN₀⟩ :=w1 D B hD hB q hq0 hq1
   refine ⟨N₀,?_⟩
   intro V _ _ G _ S b d k hG hnb hS hN hc hg hd hb hk hcol ho
@@ -5872,35 +5904,33 @@ theorem ux (D B :ℕ) (hD:0 < D) (hB:0 < B)
   obtain ⟨colour⟩ :=hcol
   let col: (G.induce (S:Set V)).Coloring Bool:=
     SimpleGraph.recolorOfEquiv _ finTwoEquiv colour
-  have hScard:2 ≤ (S:Set V).ncard:=by simpa only [Set.ncard_coe_finset] using hS
+  have hScard:2 ≤ (S:Set V).ncard:=by simpa only [stNCF] using hS
   obtain ⟨w,c,hcyc,hodd,hlen⟩ :=xl
     hG hnb (S:Set V) hScard col k hk hlong
   exact (Nat.not_le_of_gt hlen) (ho w c hcyc hodd)
 end Erdos556
-end cJ
-section d3
 namespace Erdos556
 open SimpleGraph Finset
 noncomputable def bB {V:Type*} [DecidableEq V] (G:SimpleGraph V)
     (S:Finset V) (T:Finset ↥((S:Set V)ᶜ)) :
     (G.induce (S:Set V)ᶜ).induce (T:Set ↥((S:Set V)ᶜ))ᶜ ≃g
-      G.induce (↑(S ∪ T.map (Function.Embedding.subtype (fun v => v ∈ (S:Set V)ᶜ)) :
+      G.induce (↑(S ∪ T.map (fnSubty (fun v => v ∈ (S:Set V)ᶜ)) :
         Finset V) : Set V)ᶜ:=by
   let U := (S:Set V)ᶜ
-  let F :=S ∪ T.map (Function.Embedding.subtype (fun v => v ∈ U))
+  let F :=S ∪ T.map (fnSubty (fun v => v ∈ U))
   let f : ↥((T:Set U)ᶜ) → ↥((F:Set V)ᶜ) :=fun x => ⟨x.val.val,by
     intro hx
     rcases mem_union.mp hx with hxS | hxT
     · exact x.val.property hxS
     · obtain ⟨y,hyT,hyx⟩ :=mem_map.mp hxT
-      have heq:y=x.val:=Subtype.ext hyx
+      have heq:y=x.val:=subExt hyx
       exact x.property (heq ▸ hyT)⟩
   have hinj:Function.Injective f :=by
     intro x y h
-    apply Subtype.ext
-    apply Subtype.ext
+    apply subExt
+    apply subExt
     change (f x).val= (f y).val
-    exact congrArg Subtype.val h
+    exact congrArg subVal h
   have hsurj:Function.Surjective f :=by
     intro y
     have hyS:y.val ∉ S:=fun h => y.property (mem_union_left _ h)
@@ -5916,16 +5946,14 @@ theorem q8.e6 {V:Type*}
     q8 (G.induce (S:Set V)ᶜ) b :=by
   classical
   intro T hT
-  let F :=S ∪ T.map (Function.Embedding.subtype (fun v => v ∈ (S:Set V)ᶜ))
+  let F :=S ∪ T.map (fnSubty (fun v => v ∈ (S:Set V)ᶜ))
   have hF:F.card ≤ b+s:=by
-    have h :=card_union_le S (T.map (Function.Embedding.subtype (fun v => v ∈ (S:Set V)ᶜ)))
+    have h :=card_union_le S (T.map (fnSubty (fun v => v ∈ (S:Set V)ᶜ)))
     rw [card_map] at h
     dsimp [F]
     omega
   exact (bB G S T).preconnected_iff.mpr (hG F hF)
 end Erdos556
-end d3
-section cf
 namespace Erdos556
 open SimpleGraph Finset
 noncomputable def cZ {V W :Type*} [DecidableEq V] [DecidableEq W]
@@ -5939,8 +5967,8 @@ noncomputable def cZ {V W :Type*} [DecidableEq V] [DecidableEq W]
       invFun:=fun y => ⟨e.symm y.val,by
         intro hy
         exact y.property (mem_map.mpr ⟨e.symm y.val,hy,e.apply_symm_apply y.val⟩)⟩
-      left_inv:=fun x => Subtype.ext (e.symm_apply_apply x.val)
-      right_inv:=fun y => Subtype.ext (e.apply_symm_apply y.val)}
+      left_inv:=fun x => subExt (e.symm_apply_apply x.val)
+      right_inv:=fun y => subExt (e.apply_symm_apply y.val)}
   map_rel_iff':=by intro x y;exact e.map_adj_iff
 theorem q8.iso {V W :Type*}
     {G:SimpleGraph V} {H:SimpleGraph W} {b:ℕ}
@@ -5950,8 +5978,6 @@ theorem q8.iso {V W :Type*}
   have h :=hG (S.map e.symm.toEquiv.toEmbedding) (by simpa only [card_map] using hS)
   exact (cZ e.symm S).preconnected_iff.mpr h
 end Erdos556
-end cf
-section df
 namespace Erdos556
 open SimpleGraph Finset
 def x8 {V:Type*} (G:SimpleGraph V) (S T :Set V) (h:S=T) :
@@ -5959,10 +5985,10 @@ def x8 {V:Type*} (G:SimpleGraph V) (S T :Set V) (h:S=T) :
   subst T
   exact SimpleGraph.Iso.refl
 def xX {V:Type*} [DecidableEq V] (S:Finset V) (T:Finset S) : Finset V :=
-  Tᶜ.map (Function.Embedding.subtype (fun v => v ∈ S))
+  Tᶜ.map (fnSubty (fun v => v ∈ S))
 theorem ak {V:Type*} [DecidableEq V] (S:Finset V) (T:Finset S) :
     (xX S T).card=S.card-T.card:=by
-  simp only [xX,card_map,card_compl,Fintype.card_coe]
+  simp only [xX,card_map,card_compl,ftCC]
 noncomputable def tk {V:Type*} [DecidableEq V]
     (G:SimpleGraph V) (S:Finset V) (T:Finset S) :
     (G.induce (S:Set V)).induce (T:Set S)ᶜ ≃g
@@ -5971,8 +5997,6 @@ noncomputable def tk {V:Type*} [DecidableEq V]
     (↑(Tᶜ:Finset S) : Set S) (Finset.coe_compl T).symm).trans
       (sy G S Tᶜ)
 end Erdos556
-end df
-section cs
 namespace Erdos556
 open SimpleGraph Finset
 theorem wW (D B :ℕ) (hD:0 < D) (hB:0 < B)
@@ -5993,16 +6017,16 @@ theorem wW (D B :ℕ) (hD:0 < D) (hB:0 < B)
   classical
   let J :=G.induce (S:Set V)
   let t :=b+3*D+3
-  have hScard:Fintype.card (S:Set V) = S.card:=by
+  have hScard:ftCard (S:Set V) = S.card:=by
     calc
-      Fintype.card (S:Set V) = (S:Set V).ncard:=Nat.card_eq_fintype_card.symm
-      _=S.card:=Set.ncard_coe_finset S
+      ftCard (S:Set V) = (S:Set V).ncard:=natCEFC.symm
+      _=S.card:=stNCF S
   have hoJ (w: (S:Set V)) (c:J.Walk w w) (hcyc:c.IsCycle) (hodd:Odd c.length) :
       c.length ≤ 2*k:=by
-    let f :J ↪g G :=SimpleGraph.Embedding.induce (S:Set V)
+    let f :J ↪g G :=sgInduce (S:Set V)
     have h :=ho (f w) (c.map f.toHom) (hcyc.map f.injective)
-      (by simpa only [Walk.length_map] using hodd)
-    simpa only [Walk.length_map] using h
+      (by simpa only [wkLM] using hodd)
+    simpa only [wkLM] using h
   by_cases hrobust:qT J t
   · have hg' (w: (S:Set V)) : d+ (b+3*D+3) ≤ J.degree w :=by
       have h :=hg w
@@ -6021,10 +6045,10 @@ theorem wW (D B :ℕ) (hD:0 < D) (hB:0 < B)
     let e :H ≃g G.induce (K:Set V) :=tk G S T
     have hK:K.card=S.card-T.card:=ak S T
     have hKle:K.card ≤ S.card:=by omega
-    have hKcard:Fintype.card (K:Set V) = K.card:=by
+    have hKcard:ftCard (K:Set V) = K.card:=by
       calc
-        Fintype.card (K:Set V) = (K:Set V).ncard:=Nat.card_eq_fintype_card.symm
-        _=K.card:=Set.ncard_coe_finset K
+        ftCard (K:Set V) = (K:Set V).ncard:=natCEFC.symm
+        _=K.card:=stNCF K
     have hHC:q8 H b:=
       (hc.mono (show b +t ≤ 2* (b+3*D+3) by dsimp [t];omega)).e6 T hT
     have hHD (w: ↥((T:Set (S:Set V))ᶜ)) : d+b ≤ H.degree w :=by
@@ -6048,17 +6072,15 @@ theorem wW (D B :ℕ) (hD:0 < D) (hB:0 < B)
         (k:ℝ) * S.card+2*q* (S.card:ℝ) ^ 2+2*S.card:=by
       gcongr
     have hdel:=rc J T
-    change J.edgeFinset.card ≤ H.edgeFinset.card+T.card*Fintype.card (S:Set V) at hdel
+    change J.edgeFinset.card ≤ H.edgeFinset.card+T.card*ftCard (S:Set V) at hdel
     rw [e.card_edgeFinset_eq,hScard] at hdel
     have hdelR: (J.edgeFinset.card:ℝ) ≤ ((G.induce (K:Set V)).edgeFinset.card:ℝ) +
         (T.card:ℝ) * S.card:=by exact_mod_cast hdel
     have hTR: (T.card:ℝ) ≤ (b+3*D+3:ℕ) :=by exact_mod_cast hT
-    have hmul:=mul_le_mul_of_nonneg_right hTR (Nat.cast_nonneg S.card: (0:ℝ) ≤ S.card)
+    have hmul:=mul_le_mul_of_nonneg_right hTR (natCN S.card: (0:ℝ) ≤ S.card)
     push_cast at hmul ⊢
     nlinarith
 end Erdos556
-end cs
-section cW
 namespace Erdos556
 open SimpleGraph Finset
 theorem uV (D B :ℕ) (hD:0 < D) (hB:0 < B)
@@ -6067,12 +6089,12 @@ theorem uV (D B :ℕ) (hD:0 < D) (hB:0 < B)
       (G:SimpleGraph V) [DecidableRel G.Adj] (b d k:ℕ) (r η :ℝ),
       qh G → ¬ G.Colorable 2 → 1 ≤ k → 0 ≤ r → 0 ≤ η →
       ((2* (b+3*D+3) : ℕ) : ℝ) ≤ r →
-      ((2* (b+3*D+3) : ℕ) : ℝ) * Fintype.card V ≤
+      ((2* (b+3*D+3) : ℕ) : ℝ) * ftCard V ≤
         2*η* (r- (2* (b+3*D+3) : ℕ)) ^ 2 →
       ((d+2* (b+3*D+3) : ℕ) : ℝ) ≤ r →
-      Fintype.card V ≤ D *d → Fintype.card V ≤ B *b →
+      ftCard V ≤ D *d → ftCard V ≤ B *b →
       ((N₀+ (b+3*D+3) + 2:ℕ) : ℝ) ≤ r →
-      (k:ℝ) + 2*q*Fintype.card V + (b+3*D+5:ℕ) ≤ r →
+      (k:ℝ) + 2*q*ftCard V + (b+3*D+5:ℕ) ≤ r →
       (∀ (w:V) (c:G.Walk w w),c.IsCycle → Odd c.length → c.length ≤ 2*k) →
       ∀ A :Finset V,((G.induce (A:Set V)).edgeFinset.card:ℝ) ≤
         r*A.card+η* (A.card:ℝ) ^ 2:=by
@@ -6082,11 +6104,11 @@ theorem uV (D B :ℕ) (hD:0 < D) (hB:0 < B)
   by_contra hA
   obtain ⟨S,hS,hdense,hmin,hc⟩ :=sR
     G (2* (b+3*D+3)) r η hr hη ht hbudget A (lt_of_not_ge hA)
-  have hScard:Fintype.card (S:Set V) = S.card:=by
+  have hScard:ftCard (S:Set V) = S.card:=by
     calc
-      Fintype.card (S:Set V) = (S:Set V).ncard:=Nat.card_eq_fintype_card.symm
-      _=S.card:=Set.ncard_coe_finset S
-  have hSle:S.card ≤ Fintype.card V :=card_le_univ S
+      ftCard (S:Set V) = (S:Set V).ncard:=natCEFC.symm
+      _=S.card:=stNCF S
+  have hSle:S.card ≤ ftCard V :=card_le_univ S
   obtain ⟨v,hv⟩ :=hS
   have hminv:=hmin ⟨v,hv⟩
   have hvdeg:= (G.induce (S:Set V)).degree_lt_card_verts ⟨v,hv⟩
@@ -6100,15 +6122,13 @@ theorem uV (D B :ℕ) (hD:0 < D) (hB:0 < B)
     exact_mod_cast h
   have hbound:=hN₀ G S b d k hG hnb hSorder hc hdegrees
     (hSle.trans hDcard) (hSle.trans hBcard) hk ho
-  have hSleR: (S.card:ℝ) ≤ Fintype.card V :=by exact_mod_cast hSle
-  have hsq:=mul_le_mul_of_nonneg_right hSleR (Nat.cast_nonneg S.card: (0:ℝ) ≤ S.card)
+  have hSleR: (S.card:ℝ) ≤ ftCard V :=by exact_mod_cast hSle
+  have hsq:=mul_le_mul_of_nonneg_right hSleR (natCN S.card: (0:ℝ) ≤ S.card)
   have hqmul:=mul_le_mul_of_nonneg_left hsq (by positivity: (0:ℝ) ≤ 2*q)
-  have hrmul:=mul_le_mul_of_nonneg_right hmargin (Nat.cast_nonneg S.card: (0:ℝ) ≤ S.card)
+  have hrmul:=mul_le_mul_of_nonneg_right hmargin (natCN S.card: (0:ℝ) ≤ S.card)
   have hηmul:=mul_nonneg hη (sq_nonneg (S.card:ℝ))
   nlinarith
 end Erdos556
-end cW
-section cn
 namespace Erdos556
 private theorem zJ (ε B t N x:ℝ)
     (hε:0 ≤ ε) (ht:0 ≤ t) (hN:0 ≤ N)
@@ -6122,9 +6142,9 @@ private theorem zJ (ε B t N x:ℝ)
 private theorem tG (N B :ℕ) (hB:0 < B) (hN:B ≤ N) :
     N ≤ 2*B* (N/B) :=by
   have hb:1 ≤ N/B:=Nat.div_pos hN hB
-  have hmod:=Nat.mod_lt N hB
+  have hmod:=natML N hB
   have hsum:=Nat.mod_add_div N B
-  have hmul:=Nat.mul_le_mul_left B hb
+  have hmul:=natMLML B hb
   nlinarith
 theorem ay (ε:ℝ) (hε:0 < ε) (B N₀ N k:ℕ)
     (hB:128 ≤ B) (hεB:4096 ≤ ε*B)
@@ -6145,23 +6165,23 @@ theorem ay (ε:ℝ) (hε:0 < ε) (B N₀ N k:ℕ)
   have hBN:B ≤ N:=by nlinarith
   have hdb:N ≤ (2*B) * b:=tG N B hBpos hBN
   have hdd:N ≤ 64*d:=by dsimp [d];omega
-  have hBb:b*B ≤ N:=Nat.div_mul_le_self _ _
+  have hBb:b*B ≤ N:=natDMLS _ _
   have hBt:B*t ≤ 2*N:=by dsimp [t];nlinarith
   have hBtR: (B:ℝ) * t ≤ 2*N:=by exact_mod_cast hBt
   have hB128: (128:ℝ) ≤ B:=by exact_mod_cast hB
   have h64t: (64:ℝ) * t ≤ N:=by
-    have h :=mul_le_mul_of_nonneg_right hB128 (Nat.cast_nonneg t : (0:ℝ) ≤ t)
+    have h :=mul_le_mul_of_nonneg_right hB128 (natCN t : (0:ℝ) ≤ t)
     nlinarith
   have hdN: (32:ℝ) * d ≤ N:=by
-    have h :d*32 ≤ N:=Nat.div_mul_le_self _ _
+    have h :d*32 ≤ N:=natDMLS _ _
     exact_mod_cast (by nlinarith:32*d ≤ N)
   have hkR: (N:ℝ) ≤ 16*k:=by exact_mod_cast hk
   have hrk: (k:ℝ) ≤ r:=by dsimp [r];exact le_add_of_nonneg_right (by positivity)
   have hdegree: (d:ℝ) + 2*t ≤ r:=by nlinarith
-  have htR: (2:ℝ) * t ≤ r:=by have:= (Nat.cast_nonneg d : (0:ℝ) ≤ d);linarith
+  have htR: (2:ℝ) * t ≤ r:=by have:= (natCN d : (0:ℝ) ≤ d);linarith
   have hx: (N:ℝ) ≤ 32* (r-2*t) :=by nlinarith
   have hbudget:=zJ ε B t N (r-2*t) hε.le
-    (Nat.cast_nonneg _) (Nat.cast_nonneg _) hεB hBtR hx
+    (natCN _) (natCN _) hεB hBtR hx
   have hN₀R: (64:ℝ) * ((N₀:ℝ) + 2) ≤ N:=by exact_mod_cast hN₀
   have horder: (N₀:ℝ) + t+2 ≤ r:=by nlinarith
   have hBNR: (B:ℝ) ≤ N:=by exact_mod_cast hBN
@@ -6169,31 +6189,29 @@ theorem ay (ε:ℝ) (hε:0 < ε) (B N₀ N k:ℕ)
     hεB.trans (mul_le_mul_of_nonneg_left hBNR hε.le)
   have h8t: (8:ℝ) * t ≤ ε*N:=by
     have h1:=mul_le_mul_of_nonneg_right (show (16:ℝ) ≤ ε*B by linarith)
-      (Nat.cast_nonneg t : (0:ℝ) ≤ t)
+      (natCN t : (0:ℝ) ≤ t)
     have h2:=mul_le_mul_of_nonneg_left hBtR hε.le
     nlinarith
   have hmargin: (k:ℝ) + ε/8*N+ ((t:ℝ) + 2) ≤ r:=by
     dsimp [r]
     nlinarith
   refine ⟨b,d,hdd,hdb,?_,?_,?_,?_,?_⟩
-  · simpa only [Nat.cast_mul,Nat.cast_ofNat,r,t] using htR
-  · simpa only [Nat.cast_mul,Nat.cast_ofNat,r,t] using hbudget
-  · simpa only [Nat.cast_add,Nat.cast_mul,Nat.cast_ofNat,r,t] using hdegree
-  · simpa only [Nat.cast_add,Nat.cast_ofNat,r,t] using horder
+  · simpa only [natCM,natCO,r,t] using htR
+  · simpa only [natCM,natCO,r,t] using hbudget
+  · simpa only [natCA,natCM,natCO,r,t] using hdegree
+  · simpa only [natCA,natCO,r,t] using horder
   · have heq:b+197=t+2:=by dsimp [t]
-    simpa only [heq,Nat.cast_add,Nat.cast_ofNat,r] using hmargin
+    simpa only [heq,natCA,natCO,r] using hmargin
 end Erdos556
-end cn
-section ce
 namespace Erdos556
 open SimpleGraph Finset
 theorem v2 (ε:ℝ) (hε:0 < ε) (hε1:ε ≤ 1) :
     ∃ N₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (k:ℕ),
-      N₀ ≤ Fintype.card V → Fintype.card V ≤ 16*k → qh G → ¬ G.Colorable 2 →
+      N₀ ≤ ftCard V → ftCard V ≤ 16*k → qh G → ¬ G.Colorable 2 →
       (∀ (w:V) (c:G.Walk w w),c.IsCycle → Odd c.length → c.length ≤ 2*k) →
       ∀ A :Finset V,((G.induce (A:Set V)).edgeFinset.card:ℝ) ≤
-        ((k:ℝ) + ε*Fintype.card V) * A.card:=by
+        ((k:ℝ) + ε*ftCard V) * A.card:=by
   obtain ⟨B,hB⟩ :=exists_nat_gt ((4096:ℝ) / ε+128)
   have hdiv0: (0:ℝ) ≤ 4096/ε:=by positivity
   have hB128R: (128:ℝ) ≤ B:=by linarith
@@ -6209,7 +6227,7 @@ theorem v2 (ε:ℝ) (hε:0 < ε) (hε1:ε ≤ 1) :
     (by decide) hBpos (ε/16) hqpos hqle
   refine ⟨max (195*B) (64* (N₁+2)),?_⟩
   intro V _ _ G _ k hN hk hG hnb ho
-  let N :=Fintype.card V
+  let N :=ftCard V
   have hLarge:195*B ≤ N:=by dsimp [N];omega
   have hThreshold:64* (N₁+2) ≤ N:=by dsimp [N];omega
   have hkpos:1 ≤ k:=by dsimp [N] at hLarge;nlinarith
@@ -6219,25 +6237,25 @@ theorem v2 (ε:ℝ) (hε:0 < ε) (hε1:ε ≤ 1) :
   have hqeq:2* (ε/16) = ε/8:=by ring
   have hquad:=hN₁ G b d k ((k:ℝ) + ε*N/2) (ε/2) hG hnb hkpos
     (by positivity) (by positivity)
-    (by simpa [Nat.add_assoc] using ht)
-    (by simpa [Nat.add_assoc,hηeq] using hbudget)
-    (by simpa [Nat.add_assoc] using hdegree)
-    hDd hBb (by simpa [Nat.add_assoc] using horder)
-    (by simpa [Nat.add_assoc,hqeq] using hmargin) ho
+    (by simpa [natAA] using ht)
+    (by simpa [natAA,hηeq] using hbudget)
+    (by simpa [natAA] using hdegree)
+    hDd hBb (by simpa [natAA] using horder)
+    (by simpa [natAA,hqeq] using hmargin) ho
   intro A
   have hA:=hquad A
   have hcard: (A.card:ℝ) ≤ N:=by exact_mod_cast card_le_univ A
-  have hsq:=mul_le_mul_of_nonneg_right hcard (Nat.cast_nonneg A.card: (0:ℝ) ≤ A.card)
+  have hsq:=mul_le_mul_of_nonneg_right hcard (natCN A.card: (0:ℝ) ≤ A.card)
   have hεsq:=mul_le_mul_of_nonneg_left hsq (by positivity: (0:ℝ) ≤ ε/2)
   change ((G.induce (A:Set V)).edgeFinset.card:ℝ) ≤ ((k:ℝ) + ε*N) * A.card
   nlinarith
 theorem xz (ε:ℝ) (hε:0 < ε) :
     ∃ N₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (k:ℕ),
-      N₀ ≤ Fintype.card V → Fintype.card V ≤ 16*k → qh G → ¬ G.Colorable 2 →
+      N₀ ≤ ftCard V → ftCard V ≤ 16*k → qh G → ¬ G.Colorable 2 →
       (∀ (w:V) (c:G.Walk w w),c.IsCycle → Odd c.length → c.length ≤ 2*k) →
       ∀ A :Finset V,((G.induce (A:Set V)).edgeFinset.card:ℝ) ≤
-        ((k:ℝ) + ε*Fintype.card V) * A.card:=by
+        ((k:ℝ) + ε*ftCard V) * A.card:=by
   have hδ:0 < min ε 1:=lt_min hε (by norm_num)
   obtain ⟨N₀,hN₀⟩ :=v2 (min ε 1) hδ (min_le_right _ _)
   refine ⟨N₀,?_⟩
@@ -6246,8 +6264,6 @@ theorem xz (ε:ℝ) (hε:0 < ε) :
   gcongr
   exact min_le_left ε 1
 end Erdos556
-end ce
-section cp
 namespace Erdos556
 open SimpleGraph Finset
 def rp {V:Type*} (G:SimpleGraph V) (P:Finset (Finset V)) : SimpleGraph V where
@@ -6280,12 +6296,12 @@ theorem xE {V:Type*} [Fintype V]
       exact ⟨huv,A,hA,hu,hv⟩
   have hdisj: (P:Set (Finset V)).Pairwise fun A B=> Disjoint (E A) (E B) :=by
     intro A hA B hB hAB
-    rw [Finset.disjoint_left]
+    rw [fsDL]
     intro e heA heB
     have ha:= (mem_filter.mp heA).2
     have hb:= (mem_filter.mp heB).2
     obtain ⟨v,hv⟩ :=Finset.nonempty_iff_ne_empty.mpr (Sym2.toFinset_ne_empty e)
-    exact Finset.disjoint_left.mp (hP hA hB hAB) (ha hv) (hb hv)
+    exact fsDL.mp (hP hA hB hAB) (ha hv) (hb hv)
   rw [hedges,card_biUnion hdisj]
   apply sum_congr rfl
   intro A _
@@ -6300,16 +6316,16 @@ theorem a1 {V:Type*}
     Classical.choice (hcolour A.val A.property)
   let Q (v:V) : Prop:= ∃ A:P,v ∈ A.val
   let f (v:V) : Fin n :=if h :Q v then
-    C (Classical.choose h) ⟨v,Classical.choose_spec h⟩ else 0
+    C (Classical.choose h) ⟨v,clCS h⟩ else 0
   have hf (A:P) (v:V) (hv:v ∈ A.val) : f v =C A ⟨v,hv⟩ :=by
     have hvQ:Q v:= ⟨A,hv⟩
     dsimp [f]
     rw [dif_pos hvQ]
     have heq:Classical.choose hvQ=A:=by
-      apply Subtype.ext
+      apply subExt
       by_contra hne
-      exact Finset.disjoint_left.mp
-        (hP (Classical.choose hvQ).property A.property hne) (Classical.choose_spec hvQ) hv
+      exact fsDL.mp
+        (hP (Classical.choose hvQ).property A.property hne) (clCS hvQ) hv
     subst heq
     rfl
   refine ⟨{ toFun:=f,map_rel':= ?_}⟩
@@ -6318,8 +6334,6 @@ theorem a1 {V:Type*}
   rw [hf ⟨A,hA⟩ u hu,hf ⟨A,hA⟩ v hv]
   exact (C ⟨A,hA⟩).valid hG
 end Erdos556
-end cp
-section cy
 namespace Erdos556
 open SimpleGraph Finset
 def qp {V:Type*} [DecidableEq V]
@@ -6332,10 +6346,10 @@ theorem qp.nonempty {V:Type*} [DecidableEq V]
   card_pos.mp ((Nat.zero_le r).trans_lt (hP.2 A hA).1)
 def s4 {V:Type*} [DecidableEq V] (S:Finset V) (P:Finset (Finset S)) :
     Finset (Finset V) :=
-  P.map (Finset.mapEmbedding (Function.Embedding.subtype (fun v => v ∈ S))).toEmbedding
+  P.map (Finset.mapEmbedding (fnSubty (fun v => v ∈ S))).toEmbedding
 theorem vH {V:Type*} [DecidableEq V] (S:Finset V) (P:Finset (Finset S))
     (A:Finset V) : A ∈ s4 S P ↔
-      ∃ T ∈ P,T.map (Function.Embedding.subtype (fun v => v ∈ S)) = A:=by
+      ∃ T ∈ P,T.map (fnSubty (fun v => v ∈ S)) = A:=by
   exact Finset.mem_map
 theorem rP {V:Type*} [DecidableEq V]
     {S:Finset V} {P:Finset (Finset S)} {A:Finset V} (hA:A ∈ s4 S P) : A ⊆ S:=by
@@ -6368,15 +6382,15 @@ theorem vF {V:Type*} [DecidableEq V]
 theorem ab {V:Type*} [DecidableEq V]
     {S T :Finset V} (hST:Disjoint S T) (P:Finset (Finset S)) (Q:Finset (Finset T))
     (hP: ∀ A ∈ P,A.Nonempty) : Disjoint (s4 S P) (s4 T Q) :=by
-  rw [Finset.disjoint_left]
+  rw [fsDL]
   intro A hAP hAQ
   have hAS:=rP hAP
   have hAT:=rP hAQ
   obtain ⟨U,hU,rfl⟩ := (vH S P A).mp hAP
   obtain ⟨x,hx⟩ :=hP U hU
-  have hxmap:x.val ∈ U.map (Function.Embedding.subtype (fun v => v ∈ S)) :=
+  have hxmap:x.val ∈ U.map (fnSubty (fun v => v ∈ S)) :=
     mem_map.mpr ⟨x,hx,rfl⟩
-  exact Finset.disjoint_left.mp hST (hAS hxmap) (hAT hxmap)
+  exact fsDL.mp hST (hAS hxmap) (hAT hxmap)
 theorem qp.union {V:Type*} [DecidableEq V]
     {G:SimpleGraph V} {r:ℕ} {P Q :Finset (Finset V)}
     (hP:qp G r P) (hQ:qp G r Q)
@@ -6392,8 +6406,6 @@ theorem qp.union {V:Type*} [DecidableEq V]
   · intro A hA
     exact (mem_union.mp hA).elim (hP.2 A) (hQ.2 A)
 end Erdos556
-end cy
-section dw
 namespace Erdos556
 open SimpleGraph Finset
 theorem uU {V:Type*} [Fintype V]
@@ -6415,7 +6427,7 @@ theorem uU {V:Type*} [Fintype V]
       rw [G.incidenceFinset_eq_filter]
       exact mem_filter.mpr ⟨he,by simpa using hxe⟩
   have hA:A.card= (G.induce (S:Set V)ᶜ).edgeFinset.card:=by
-    have h :=congrArg Finset.card (G.map_edgeFinset_induce (s:= (S:Set V)ᶜ))
+    have h :=congrArg fsCard (G.map_edgeFinset_induce (s:= (S:Set V)ᶜ))
     simp only [card_map] at h
     have heq:G.edgeFinset ∩ ((S:Set V)ᶜ).toFinset.sym2=A:=by
       simp [A,G.filter_edgeFinset_toFinset_subset]
@@ -6441,16 +6453,14 @@ theorem ze (r a b s N:ℕ)
       (r+1) * (s*N) ≤ (r+1) ^ 2*N+N^2:=by
   have hra:r+1 ≤ a:=ha
   have hrb:r+1 ≤ b:=hb
-  have h1:=Nat.mul_le_mul_right b hra
-  have h2:=Nat.mul_le_mul_right a hrb
+  have h1:=natMLMR b hra
+  have h2:=natMLMR a hrb
   interval_cases s <;> nlinarith
 end Erdos556
-end dw
-section cF
 namespace Erdos556
 open SimpleGraph Finset
 theorem uw {V:Type*} [Fintype V]
-    [DecidableEq V] (G:SimpleGraph V) (hcard:3 ≤ Fintype.card V)
+    [DecidableEq V] (G:SimpleGraph V) (hcard:3 ≤ ftCard V)
     (hG: ¬ qh G) :
     ∃ A B S :Finset V,A.Nonempty ∧ B.Nonempty ∧ Disjoint A B ∧
       Disjoint A S ∧ Disjoint B S ∧ A ∪ B ∪ S=univ ∧ S.card ≤ 1 ∧
@@ -6465,15 +6475,15 @@ theorem uw {V:Type*} [Fintype V]
       refine ⟨{v},by simp,?_⟩
       rw [Finset.coe_singleton]
       intro hp
-      have hn:0 < Fintype.card ({v}ᶜ:Set V) :=by
+      have hn:0 < ftCard ({v}ᶜ:Set V) :=by
         rw [Fintype.card_compl_set,Set.card_singleton]
         omega
-      let:Nonempty ({v}ᶜ:Set V) :=Fintype.card_pos_iff.mp hn
+      let:Nonempty ({v}ᶜ:Set V) :=ftCPI.mp hn
       exact hv ⟨hp⟩
     · refine ⟨∅,by simp,?_⟩
       rw [Finset.coe_empty,Set.compl_empty]
       intro hp
-      let:Nonempty V :=Fintype.card_pos_iff.mp (by omega)
+      let:Nonempty V :=ftCPI.mp (by omega)
       exact hc ⟨(G.induceUnivIso.preconnected_iff).mp hp⟩
   obtain ⟨S,hS,hdisc⟩ :=hex
   obtain ⟨A,B,hA,hB,hAB,hAS,hBS,hcover,hcross⟩ :=
@@ -6482,48 +6492,46 @@ theorem uw {V:Type*} [Fintype V]
 theorem tp {V:Type*} [Fintype V] [DecidableEq V]
     (A B S:Finset V) (hAB:Disjoint A B) (hAS:Disjoint A S)
     (hBS:Disjoint B S) (hcover:A ∪ B ∪ S=univ) :
-    A.card+B.card+S.card=Fintype.card V :=by
-  have h :=congrArg Finset.card hcover
+    A.card+B.card+S.card=ftCard V :=by
+  have h :=congrArg fsCard hcover
   rwa [card_union_of_disjoint (Finset.disjoint_union_left.mpr ⟨hAS,hBS⟩),
     card_union_of_disjoint hAB,card_univ] at h
 end Erdos556
-end cF
-section d2
 namespace Erdos556
 open SimpleGraph Finset
 private theorem yu (r N e:ℕ) (hN:N ≤ r)
     (he:2*e ≤ N*N) : (r+1) * e ≤ (r+1) ^ 2*N+N^2:=by
-  have h1:=Nat.mul_le_mul_right N hN
+  have h1:=natMLMR N hN
   have h2:e ≤ (r+1) * N:=by nlinarith
-  have h3:=Nat.mul_le_mul_left (r+1) h2
+  have h3:=natMLML (r+1) h2
   nlinarith
 private theorem tZ (r a b N e f s:ℕ) (hN:a+b=N)
     (he:e ≤ f+a* (r+1))
     (hf: (r+1) * f ≤ (r+1) * s+ (r+1) ^ 2*b+b^2) :
     (r+1) * e ≤ (r+1) * s+ (r+1) ^ 2*N+N^2:=by
-  have h :=Nat.mul_le_mul_left (r+1) he
+  have h :=natMLML (r+1) he
   nlinarith
 universe u
 private theorem xP (N:ℕ) :
     ∀ (V:Type u) [Fintype V] [DecidableEq V]
-      (G:SimpleGraph V) [DecidableRel G.Adj],Fintype.card V =N →
+      (G:SimpleGraph V) [DecidableRel G.Adj],ftCard V =N →
       ∀ r :ℕ,2 ≤ r → ∃ P:Finset (Finset V),
         qp G r P ∧
         (r+1) * G.edgeFinset.card ≤
           (r+1) * (∑ A ∈ P,(G.induce (A:Set V)).edgeFinset.card) +
-            (r+1) ^ 2*Fintype.card V + (Fintype.card V) ^ 2:=by
-  induction N using Nat.strong_induction_on with
+            (r+1) ^ 2*ftCard V + (ftCard V) ^ 2:=by
+  induction N using natSIO with
   | h N ih=>
       intro V _ _ G _ hcard r hr
       classical
-      by_cases hsmall:Fintype.card V ≤ r
+      by_cases hsmall:ftCard V ≤ r
       · refine ⟨∅,⟨by simp,by simp⟩,?_⟩
         simp only [sum_empty,mul_zero,zero_add]
-        apply yu r (Fintype.card V) G.edgeFinset.card hsmall
+        apply yu r (ftCard V) G.edgeFinset.card hsmall
         calc
           2*G.edgeFinset.card= ∑ v,G.degree v :=G.sum_degrees_eq_twice_card_edges.symm
-          _ ≤ ∑ _v:V,Fintype.card V :=sum_le_sum fun v _=> (G.degree_lt_card_verts v).le
-          _=Fintype.card V *Fintype.card V :=by simp
+          _ ≤ ∑ _v:V,ftCard V :=sum_le_sum fun v _=> (G.degree_lt_card_verts v).le
+          _=ftCard V *ftCard V :=by simp
       by_cases htwo:qh G
       · let e :G.induce (↑(univ:Finset V) : Set V) ≃g G :=
           (x8 G _ _ Finset.coe_univ).trans G.induceUnivIso
@@ -6538,23 +6546,23 @@ private theorem xP (N:ℕ) :
           exact ⟨by simpa only [card_univ] using Nat.lt_of_not_ge hsmall,hc⟩
         · simp only [sum_singleton,he]
           omega
-      have hsmallside: ∀ A:Finset V,A.Nonempty → A.card < Fintype.card V →
+      have hsmallside: ∀ A:Finset V,A.Nonempty → A.card < ftCard V →
           (∀ v ∈ A,G.degree v ≤ r +1) → ∃ P :Finset (Finset V),
           qp G r P ∧
           (r+1) * G.edgeFinset.card ≤
             (r+1) * (∑ A ∈ P,(G.induce (A:Set V)).edgeFinset.card) +
-              (r+1) ^ 2*Fintype.card V + (Fintype.card V) ^ 2:=by
+              (r+1) ^ 2*ftCard V + (ftCard V) ^ 2:=by
         intro A hA hAlt hdeg
         let T :=Aᶜ
-        have hTcard:Fintype.card (T:Set V) = T.card:=Fintype.card_coe T
-        have hsum:A.card+T.card=Fintype.card V :=by
+        have hTcard:ftCard (T:Set V) = T.card:=ftCC T
+        have hsum:A.card+T.card=ftCard V :=by
           dsimp [T]
           rw [card_compl]
-          exact Nat.add_sub_of_le (card_le_univ A)
-        have hTlt:Fintype.card (T:Set V) < N:=by
+          exact natASOL (card_le_univ A)
+        have hTlt:ftCard (T:Set V) < N:=by
           have hpos:=card_pos.mpr hA
           omega
-        obtain ⟨P,hP,heP⟩ :=ih (Fintype.card (T:Set V)) hTlt
+        obtain ⟨P,hP,heP⟩ :=ih (ftCard (T:Set V)) hTlt
           (T:Set V) (G.induce (T:Set V)) rfl r hr
         refine ⟨s4 T P,hP.lift,?_⟩
         rw [vF]
@@ -6566,7 +6574,7 @@ private theorem xP (N:ℕ) :
             (Finset.coe_compl A).symm).card_edgeFinset_eq
           rw [heq] at he
           exact he
-        exact tZ r A.card T.card (Fintype.card V) _ _ _ hsum he' heP
+        exact tZ r A.card T.card (ftCard V) _ _ _ hsum he' heP
       obtain ⟨A,B,S,hA,hB,hAB,hAS,hBS,hcover,hS,hcross⟩ :=
         uw G (by omega) htwo
       have hsum:=tp A B S hAB hAS hBS hcover
@@ -6585,11 +6593,11 @@ private theorem xP (N:ℕ) :
           fun b hb a ha hadj=> hcross a ha b hb hadj.symm
         have hd:=qR G B A S hcover' hcross' v hv
         omega
-      have hAc:Fintype.card (A:Set V) = A.card:=Fintype.card_coe A
-      have hBc:Fintype.card (B:Set V) = B.card:=Fintype.card_coe B
-      obtain ⟨P,hP,heP⟩ :=ih (Fintype.card (A:Set V)) (by omega)
+      have hAc:ftCard (A:Set V) = A.card:=ftCC A
+      have hBc:ftCard (B:Set V) = B.card:=ftCC B
+      obtain ⟨P,hP,heP⟩ :=ih (ftCard (A:Set V)) (by omega)
         (A:Set V) (G.induce (A:Set V)) rfl r hr
-      obtain ⟨Q,hQ,heQ⟩ :=ih (Fintype.card (B:Set V)) (by omega)
+      obtain ⟨Q,hQ,heQ⟩ :=ih (ftCard (B:Set V)) (by omega)
         (B:Set V) (G.induce (B:Set V)) rfl r hr
       have hPQ:Disjoint (s4 A P) (s4 B Q) :=
         ab hAB P Q (fun _ h=> hP.nonempty h)
@@ -6600,8 +6608,8 @@ private theorem xP (N:ℕ) :
         rw [hAc] at heP
         rw [hBc] at heQ
         have hedge:=vp G A B S hcover hcross
-        have hedge':=Nat.mul_le_mul_left (r+1) hedge
-        have hpot:=ze r A.card B.card S.card (Fintype.card V)
+        have hedge':=natMLML (r+1) hedge
+        have hpot:=ze r A.card B.card S.card (ftCard V)
           (by omega) (by omega) hS hsum
         nlinarith only [heP,heQ,hedge',hpot]
 theorem zY {V:Type*} [Fintype V] [DecidableEq V]
@@ -6609,11 +6617,9 @@ theorem zY {V:Type*} [Fintype V] [DecidableEq V]
     ∃ P :Finset (Finset V),qp G r P ∧
       (r+1) * G.edgeFinset.card ≤
         (r+1) * (∑ A ∈ P,(G.induce (A:Set V)).edgeFinset.card) +
-          (r+1) ^ 2*Fintype.card V + (Fintype.card V) ^ 2:=
-  xP (Fintype.card V) V G rfl r hr
+          (r+1) ^ 2*ftCard V + (ftCard V) ^ 2:=
+  xP (ftCard V) V G rfl r hr
 end Erdos556
-end d2
-section cu
 namespace Erdos556
 open SimpleGraph Finset
 private theorem yH (r N e s :ℕ) (ε:ℝ)
@@ -6632,34 +6638,32 @@ private theorem yH (r N e s :ℕ) (ε:ℝ)
   exact (mul_le_mul_iff_right₀ (by positivity: (0:ℝ) < (r:ℝ) + 1)).mp hbound
 theorem wF (ε:ℝ) (hε:0 < ε) (R:ℕ) :
     ∃ N₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
-      (G:SimpleGraph V) [DecidableRel G.Adj],N₀ ≤ Fintype.card V →
+      (G:SimpleGraph V) [DecidableRel G.Adj],N₀ ≤ ftCard V →
       ∃ P :Finset (Finset V),qp G R P ∧
         (G.edgeFinset.card:ℝ) ≤
           (∑ A ∈ P,((G.induce (A:Set V)).edgeFinset.card:ℝ)) +
-            ε* (Fintype.card V :ℝ) ^ 2:=by
+            ε* (ftCard V :ℝ) ^ 2:=by
   obtain ⟨r,hr⟩ :=exists_nat_gt ((R:ℝ) + 2+2/ε)
   have hdiv: (0:ℝ) ≤ 2/ε:=by positivity
   have hrR:R ≤ r:=by exact_mod_cast (show (R:ℝ) ≤ r by linarith)
   have hr2:2 ≤ r:=by exact_mod_cast (show (2:ℝ) ≤ r by linarith)
   have hrε: (2:ℝ) ≤ ε* (r+1) :=by
-    have hx:2/ε < (r:ℝ) + 1:=by linarith [Nat.cast_nonneg R (α:=ℝ)]
+    have hx:2/ε < (r:ℝ) + 1:=by linarith [natCN R (α:=ℝ)]
     have hx':= (div_lt_iff₀ hε).mp hx
     nlinarith
   obtain ⟨N₀,hN₀⟩ :=exists_nat_gt (2* ((r:ℝ) + 1) / ε)
   refine ⟨N₀,?_⟩
   intro V _ _ G _ hN
   obtain ⟨P,hP,heP⟩ :=zY G r hr2
-  have hNreal: (N₀:ℝ) ≤ Fintype.card V :=by exact_mod_cast hN
-  have hNε:2* ((r:ℝ) + 1) ≤ ε*Fintype.card V :=by
+  have hNreal: (N₀:ℝ) ≤ ftCard V :=by exact_mod_cast hN
+  have hNε:2* ((r:ℝ) + 1) ≤ ε*ftCard V :=by
     have hx:= (div_lt_iff₀ hε).mp (hN₀.trans_le hNreal)
     nlinarith
   refine ⟨P,⟨hP.1,fun A hA=> ⟨hrR.trans_lt (hP.2 A hA).1,(hP.2 A hA).2⟩⟩,?_⟩
-  have h :=yH r (Fintype.card V) G.edgeFinset.card
+  have h :=yH r (ftCard V) G.edgeFinset.card
     (∑ A ∈ P,(G.induce (A:Set V)).edgeFinset.card) ε hε hrε hNε heP
   simpa only [Nat.cast_sum] using h
 end Erdos556
-end cu
-section ck
 namespace Erdos556
 open SimpleGraph Finset
 theorem zo {V:Type*}
@@ -6670,10 +6674,10 @@ theorem zo {V:Type*}
   classical
   intro S hS
   let T :Finset A :=S.subtype (fun v => v ∈ A)
-  have hmap:T.map (Function.Embedding.subtype (fun v => v ∈ A)) = S:=
+  have hmap:T.map (fnSubty (fun v => v ∈ A)) = S:=
     subtype_map_of_mem (fun v hv=> hS hv)
   have hcard:T.card=S.card:=by
-    have hc:=congrArg Finset.card hmap
+    have hc:=congrArg fsCard hmap
     simpa only [card_map] using hc
   let e : (G.induce (A:Set V)).induce (T:Set A) ≃g G.induce (S:Set V) :=
     (sy G A T).trans (x8 G _ _ (congrArg (fun U :Finset V =>
@@ -6687,7 +6691,7 @@ theorem xs {V:Type*} [Finite V] [DecidableEq V]
     ((rp G P).induce (S:Set V)).edgeFinset.card ≤
       ∑ A ∈ P,(G.induce (↑(A ∩ S) : Set V)).edgeFinset.card:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   let E (A:Finset V) :=G.edgeFinset.filter (fun e => e.toFinset ⊆ A ∩ S)
   let F := (rp G P).edgeFinset.filter (fun e => e.toFinset ⊆ S)
   have hcover:F ⊆ P.biUnion E :=by
@@ -6731,7 +6735,7 @@ theorem z5 {V:Type*} [Finite V]
       ((G.induce (S:Set V)).edgeFinset.card:ℝ) ≤ d*S.card) :
     ∀ S :Finset V,(((rp G P).induce (S:Set V)).edgeFinset.card:ℝ) ≤ d*S.card:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   intro S
   have hcard: (∑ A ∈ P,((A ∩ S).card:ℝ)) ≤ S.card:=by
     exact_mod_cast z0 P hP S
@@ -6746,24 +6750,22 @@ theorem z5 {V:Type*} [Finite V]
     _=d* ∑ A ∈ P,((A ∩ S).card:ℝ) := (mul_sum _ _ _).symm
     _ ≤ d*S.card:=mul_le_mul_of_nonneg_left hcard hd
 end Erdos556
-end ck
-section dB
 namespace Erdos556
 open SimpleGraph Finset
 open scoped Classical in
 theorem xK (ε:ℝ) (hε:0 < ε) :
     ∃ N₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (k:ℕ),
-      N₀ ≤ Fintype.card V → Fintype.card V ≤ 16*k →
+      N₀ ≤ ftCard V → ftCard V ≤ 16*k →
       (∀ (w:V) (c:G.Walk w w),c.IsCycle → Odd c.length → c.length ≤ 2*k) →
       ∃ (B F :SimpleGraph V) (S:Finset V),
         B ≤ G ∧ F ≤ G ∧ B.Colorable 2 ∧
         (∀ u v,B.Adj u v → u ∉ S ∧ v ∉ S) ∧
         (∀ u v,F.Adj u v → u ∈ S ∧ v ∈ S) ∧
         (G.edgeFinset.card:ℝ) ≤ B.edgeFinset.card+F.edgeFinset.card+
-          ε* (Fintype.card V :ℝ) ^ 2 ∧
+          ε* (ftCard V :ℝ) ^ 2 ∧
         (∀ A :Finset V,((F.induce (A:Set V)).edgeFinset.card:ℝ) ≤
-          ((k:ℝ) + ε*Fintype.card V) * A.card) :=by
+          ((k:ℝ) + ε*ftCard V) * A.card) :=by
   obtain ⟨R,hR⟩ :=xz ε hε
   obtain ⟨N₀,hN₀⟩ :=wF ε hε R
   refine ⟨N₀,?_⟩
@@ -6782,7 +6784,7 @@ theorem xK (ε:ℝ) (hε:0 < ε) :
   have hB:B.Colorable 2 :=a1 G Q 2 hQ
     (fun A hA=> (mem_filter.mp hA).2)
   have hQT:Disjoint Q T:=by
-    rw [Finset.disjoint_left]
+    rw [fsDL]
     intro A hAQ hAT
     exact (mem_filter.mp hAT).2 (mem_filter.mp hAQ).2
   have hQTunion:Q ∪ T=P:=filter_union_filter_not_eq _ _
@@ -6799,8 +6801,8 @@ theorem xK (ε:ℝ) (hε:0 < ε) :
       have hAC:A ≠ C:=by
         intro he
         subst C
-        exact Finset.disjoint_left.mp hQT hA hC
-      exact Finset.disjoint_left.mp (hP.1 (hQsub hA) (hTsub hC) hAC) hx hxC
+        exact fsDL.mp hQT hA hC
+      exact fsDL.mp (hP.1 (hQsub hA) (hTsub hC) hAC) hx hxC
     exact ⟨hoff u hu,hoff v hv⟩
   · intro u v huv
     obtain ⟨_,A,hA,hu,hv⟩ :=huv
@@ -6810,19 +6812,19 @@ theorem xK (ε:ℝ) (hε:0 < ε) :
     rw [heqR]
     exact heP
   · apply z5 G T hT
-      ((k:ℝ) + ε*Fintype.card V) (by positivity)
+      ((k:ℝ) + ε*ftCard V) (by positivity)
     intro A hA
     have hAR:R < A.card:= (hP.2 A (hTsub hA)).1
-    have hAc:Fintype.card (A:Set V) = A.card:=Fintype.card_coe A
-    have hAk:Fintype.card (A:Set V) ≤ 16*k:=by
+    have hAc:ftCard (A:Set V) = A.card:=ftCC A
+    have hAk:ftCard (A:Set V) ≤ 16*k:=by
       rw [hAc]
       exact (card_le_univ A).trans hk
     have hoA (w: (A:Set V)) (c: (G.induce (A:Set V)).Walk w w)
         (hc:c.IsCycle) (hcodd:Odd c.length) : c.length ≤ 2*k:=by
-      let f :G.induce (A:Set V) ↪g G :=SimpleGraph.Embedding.induce (A:Set V)
+      let f :G.induce (A:Set V) ↪g G :=sgInduce (A:Set V)
       have h :=ho (f w) (c.map f.toHom) (hc.map f.injective)
-        (by simpa only [Walk.length_map] using hcodd)
-      simpa only [Walk.length_map] using h
+        (by simpa only [wkLM] using hcodd)
+      simpa only [wkLM] using h
     have hd:=hR (G.induce (A:Set V)) k (by omega) hAk
       (hP.2 A (hTsub hA)).2 (mem_filter.mp hA).2 hoA
     apply zo G A
@@ -6832,24 +6834,22 @@ theorem xK (ε:ℝ) (hε:0 < ε) :
     rw [hAc]
     exact_mod_cast card_le_univ A
 end Erdos556
-end dB
-section d6
 namespace Erdos556
 open SimpleGraph Finset
 open scoped Classical in
 theorem vd (ε:ℝ) (hε:0 < ε) :
     ∃ n₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (G:SimpleGraph V) [DecidableRel G.Adj] (n:ℕ),
-      n₀ ≤ n → Odd n → n ≤ Fintype.card V → Fintype.card V ≤ 7 *n →
+      n₀ ≤ n → Odd n → n ≤ ftCard V → ftCard V ≤ 7 *n →
       (¬ cycleGraph n ⊑ G) →
       ∃ (B F :SimpleGraph V) (T:Finset V),
         B ≤ G ∧ F ≤ G ∧ B.Colorable 2 ∧
         (∀ u v,B.Adj u v → u ∉ T ∧ v ∉ T) ∧
         (∀ u v,F.Adj u v → u ∈ T ∧ v ∈ T) ∧
         (G.edgeFinset.card:ℝ) ≤ B.edgeFinset.card+F.edgeFinset.card+
-          ε* (Fintype.card V :ℝ) ^ 2 ∧
+          ε* (ftCard V :ℝ) ^ 2 ∧
         (∀ A :Finset V,((F.induce (A:Set V)).edgeFinset.card:ℝ) ≤
-          ((n:ℝ) / 2+ε*Fintype.card V) * A.card) :=by
+          ((n:ℝ) / 2+ε*ftCard V) * A.card) :=by
   obtain ⟨D,hDreal⟩ :=exists_nat_gt (2/ε)
   have hD:0 < D:=by
     have hp:0 < 2/ε:=by positivity
@@ -6868,7 +6868,7 @@ theorem vd (ε:ℝ) (hε:0 < ε) :
   refine ⟨max (D* (R+1)) (max K (max M 8)),?_⟩
   intro V _ _ G _ n hn hodd hnN hNn hno
   classical
-  let N :=Fintype.card V
+  let N :=ftCard V
   let q :=N/D
   have hn3:3 ≤ n:=by omega
   have hnK:K ≤ n:=by omega
@@ -6884,10 +6884,10 @@ theorem vd (ε:ℝ) (hε:0 < ε) :
     have h :=mul_le_mul_of_nonneg_right hqsmall (show 0 ≤ (N:ℝ) by positivity)
     nlinarith only [h]
   obtain ⟨S,hprune,hdegree⟩ :=a4 G (q:ℝ)
-  have hcardS:Fintype.card (S:Set V) = S.card:=by
+  have hcardS:ftCard (S:Set V) = S.card:=by
     calc
-      Fintype.card (S:Set V) = (S:Set V).ncard:=Nat.card_eq_fintype_card.symm
-      _=S.card:=Set.ncard_coe_finset S
+      ftCard (S:Set V) = (S:Set V).ncard:=natCEFC.symm
+      _=S.card:=stNCF S
   have hSN:S.card ≤ N:=card_le_univ S
   have hcoreLoss: (G.edgeFinset.card:ℝ) ≤ (G.induce (S:Set V)).edgeFinset.card+
       ε/2* (N:ℝ) ^ 2:=by
@@ -6901,39 +6901,39 @@ theorem vd (ε:ℝ) (hε:0 < ε) :
       have hSc:S.card=0:=by rw [hSempty,card_empty]
       rw [hcardS,hSc] at h
       exact Nat.eq_zero_of_le_zero (by simpa only [Nat.choose_zero_succ] using h)
-    rw [hezero,Nat.cast_zero,zero_add] at hcoreLoss
+    rw [hezero,natCZ,zero_add] at hcoreLoss
     refine ⟨⊥,⊥,∅,bot_le,bot_le,?_,?_,?_,?_,?_⟩
     · exact ⟨{ toFun:=fun _ => (0:Fin 2),map_rel':=fun h => h.elim}⟩
     · intro u v h
       exact h.elim
     · intro u v h
       exact h.elim
-    · have hbot:Nat.card (⊥ : SimpleGraph V).edgeSet=0:=by
+    · have hbot:natCard (⊥ : SimpleGraph V).edgeSet=0:=by
         rw [edgeSet_bot]
         simp
       have hnonneg:0 ≤ ε* (N:ℝ) ^ 2:=by positivity
       have hres: (G.edgeFinset.card:ℝ) ≤ ε* (N:ℝ) ^ 2:=by linarith
-      simpa only [q7,hbot,Nat.cast_zero,zero_add] using hres
+      simpa only [q7,hbot,natCZ,zero_add] using hres
     · intro A
-      have he:Nat.card (((⊥ : SimpleGraph V).induce (A:Set V)).edgeSet) = 0:=by
-        change Nat.card (⊥ : SimpleGraph (A:Set V)).edgeSet=0
+      have he:natCard (((⊥ : SimpleGraph V).induce (A:Set V)).edgeSet) = 0:=by
+        change natCard (⊥ : SimpleGraph (A:Set V)).edgeSet=0
         rw [edgeSet_bot]
         simp
-      simpa only [q7,he,Nat.cast_zero] using
-        (show (0:ℝ) ≤ ((n:ℝ) / 2+ε*Fintype.card V) * A.card by positivity)
+      simpa only [q7,he,natCZ] using
+        (show (0:ℝ) ≤ ((n:ℝ) / 2+ε*ftCard V) * A.card by positivity)
   · have hqR:R+1 ≤ q:=by
-      apply (Nat.le_div_iff_mul_le hD).mpr
+      apply (natLDIML hD).mpr
       have hnR:D* (R+1) ≤ n:=by omega
-      exact (by simpa only [Nat.mul_comm] using hnR.trans hnN)
+      exact (by simpa only [natMC] using hnR.trans hnN)
     obtain ⟨s,hs⟩ :=nonempty_iff_ne_empty.mpr hSempty
     have hdegNat (v: (S:Set V)) : q+1 ≤ (G.induce (S:Set V)).degree v :=by
       have h :q < (G.induce (S:Set V)).degree v :=by exact_mod_cast hdegree v
       omega
-    have hSlarge:R ≤ Fintype.card (S:Set V) :=by
+    have hSlarge:R ≤ ftCard (S:Set V) :=by
       have h₁:=hdegNat ⟨s,hs⟩
       have h₂:= (G.induce (S:Set V)).degree_lt_card_verts ⟨s,hs⟩
       omega
-    have hscale:Fintype.card (S:Set V) ≤ D* (q+1) :=by
+    have hscale:ftCard (S:Set V) ≤ D* (q+1) :=by
       rw [hcardS]
       exact hSN.trans (Nat.lt_mul_div_succ N hD).le
     have hnoS: ¬ cycleGraph n ⊑ G.induce (S:Set V) :=fun h =>
@@ -6941,7 +6941,7 @@ theorem vd (ε:ℝ) (hε:0 < ε) :
     have hcut:=hspec (G.induce (S:Set V)) (q+1) n
       (by dsimp only [R] at hSlarge;omega) hscale hdegNat hn3 hodd hnK hnoS
     let k := (n+K) / 2
-    have hkN:Fintype.card (S:Set V) ≤ 16*k:=by
+    have hkN:ftCard (S:Set V) ≤ 16*k:=by
       rw [hcardS]
       have h :7*n ≤ 16*k:=by dsimp only [k];omega
       exact hSN.trans (hNn.trans h)
@@ -6952,7 +6952,7 @@ theorem vd (ε:ℝ) (hε:0 < ε) :
       omega
     obtain ⟨B,F,T,hBG,hFG,hBcol,hBoff,hFon,hE,hFden⟩ :=
       hdecomp (G.induce (S:Set V)) k (by dsimp only [R] at hSlarge;omega) hkN hoddBound
-    let f : (S:Set V) ↪ V:=Function.Embedding.subtype _
+    let f : (S:Set V) ↪ V:=fnSubty _
     have hBmap:B.map f ≤ G := (map_le_iff_le_comap f B G).mpr hBG
     have hFmap:F.map f ≤ G := (map_le_iff_le_comap f F G).mpr hFG
     refine ⟨B.map f,F.map f,T.map f,hBmap,hFmap,hBcol.map f,
@@ -6966,58 +6966,29 @@ theorem vd (ε:ℝ) (hε:0 < ε) :
       have herror:=mul_le_mul_of_nonneg_left hsq (show 0 ≤ ε /2 by positivity)
       rw [hcardS] at hE
       simp only [q7] at hE hcoreLoss
-      change (Nat.card G.edgeSet:ℝ) ≤ (Nat.card B.edgeSet:ℝ) + Nat.card F.edgeSet+ε* (N:
+      change (natCard G.edgeSet:ℝ) ≤ (natCard B.edgeSet:ℝ) + natCard F.edgeSet+ε* (N:
         ℝ) ^ 2
       linarith
     · have hkReal:2* (k:ℝ) ≤ (n:ℝ) + K:=by
         exact_mod_cast (show 2 *k ≤ n+K from Nat.mul_div_le (n+K) 2)
-      have hSNreal: (Fintype.card (S:Set V) : ℝ) ≤ N:=by rw [hcardS];exact_mod_cast hSN
+      have hSNreal: (ftCard (S:Set V) : ℝ) ≤ N:=by rw [hcardS];exact_mod_cast hSN
       have hmul:=mul_le_mul_of_nonneg_left hSNreal hε.le
-      have hcoef: (k:ℝ) + ε/2*Fintype.card (S:Set V) ≤ (n:ℝ) / 2+ε*N:=by
+      have hcoef: (k:ℝ) + ε/2*ftCard (S:Set V) ≤ (n:ℝ) / 2+ε*N:=by
         nlinarith only [hkReal,hKN,hmul]
       have hden:=x2 F f
-        ((k:ℝ) + ε/2*Fintype.card (S:Set V)) (by positivity) hFden
+        ((k:ℝ) + ε/2*ftCard (S:Set V)) (by positivity) hFden
       intro A
       have hres:= (hden A).trans (mul_le_mul_of_nonneg_right hcoef (by positivity))
       simpa only [q7] using hres
 end Erdos556
-end d6
-section cA
 namespace Erdos556
 open SimpleGraph
 instance q4.graphDecidableAdj {V:Type*} [DecidableEq V]
     (c:q4 V) (i:Fin 3) : DecidableRel (c.graph i).Adj:=
   fun u v=> inferInstanceAs (Decidable (u ≠ v ∧ c.colour u v=i))
-theorem sN (i:Fin 3) : i=0 ∨ i=1 ∨ i=2:=by omega
-theorem q4.r7 {V:Type*}
-    (c:q4 V) (S:Finset V) (i j k:Fin 3)
-    (hall: ∀ a:Fin 3,a=i ∨ a=j ∨ a=k)
-    (hi: ∀ u ∈ S,∀ v ∈ S,¬ (c.graph i).Adj u v)
-    (hj: ∀ u ∈ S,∀ v ∈ S,¬ (c.graph j).Adj u v) : (c.graph k).IsClique (S:Set V) :=by
-  intro u hu v hv huv
-  rcases hall (c.colour u v) with h | h | h
-  · exact (hi u hu v hv ⟨huv,h⟩).elim
-  · exact (hj u hu v hv ⟨huv,h⟩).elim
-  · exact ⟨huv,h⟩
 end Erdos556
-end cA
-section dc
 namespace Erdos556
 open Finset
-def qc (i:Fin 4) : wz:=
-  ![![false,false,false],![false,true,true],![true,false,true],![true,true,false]] i
-def qu (i:Fin 4) (a:Fin 3) : q1:=
-  fun j => if j =a then none else some (qc i j)
-def vI (i:Fin 4) (a:Fin 3) : wz:=
-  fun j => if j =a then !(qc i j) else qc i j
-theorem yh: ∀ (i:Fin 4) (a:Fin 3),
-    q3 (qu i a) = 1:=by decide
-theorem r5: ∀ (i:Fin 4) (a:Fin 3),
-    qc i ∈ q0 (qu i a) :=by decide
-theorem un: ∀ (i:Fin 4) (a:Fin 3),
-    vI i a ∈ q0 (qu i a) :=by decide
-theorem tq: ∀ p:q1,q3 p =1 →
-    ∃ (i:Fin 4) (a:Fin 3),p=qu i a:=by decide
 def qV (p q :q1) (i:Fin 3) : Prop:=
   (p i =some false ∧ q i =some true) ∨ (p i =some true ∧ q i =some false)
 instance (p q :q1) (i:Fin 3) : Decidable (qV p q i) :=
@@ -7044,8 +7015,6 @@ instance (p:Fin 4 → q1) (k:Fin 3 → Fin 3) : Decidable (uq p k) :=
     q5 (p 1) (p 3) (k 0) ∧ q5 (p 0) (p 1) (k 1) ∧
     q5 (p 2) (p 3) (k 2)))
 end Erdos556
-end dc
-section cx
 namespace Erdos556
 open SimpleGraph Finset
 structure q2 {V:Type*} (c:q4 V) (E D :ℝ) where
@@ -7057,17 +7026,17 @@ structure q2 {V:Type*} (c:q4 V) (E D :ℝ) where
   sparse_le: ∀ i,sparse i ≤ c.graph i
   bipartite_off: ∀ i u v,(bipartite i).Adj u v → u ∉ stars i ∧ v ∉ stars i
   sparse_on: ∀ i u v,(sparse i).Adj u v → u ∈ stars i ∧ v ∈ stars i
-  edge_loss: ∀ i,(Nat.card (c.graph i).edgeSet:ℝ) ≤
-    Nat.card (bipartite i).edgeSet+Nat.card (sparse i).edgeSet+E
-  hereditary_density: ∀ i (A:Finset V),(Nat.card ((sparse i).induce (A:Set V)).edgeSet:ℝ) ≤
+  edge_loss: ∀ i,(natCard (c.graph i).edgeSet:ℝ) ≤
+    natCard (bipartite i).edgeSet+natCard (sparse i).edgeSet+E
+  hereditary_density: ∀ i (A:Finset V),(natCard ((sparse i).induce (A:Set V)).edgeSet:ℝ) ≤
     D*A.card
 theorem wZ (ε:ℝ) (hε:0 < ε) :
     ∃ n₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
       (c:q4 V) (n:ℕ),
-      n₀ ≤ n → Odd n → n ≤ Fintype.card V → Fintype.card V ≤ 7 *n →
+      n₀ ≤ n → Odd n → n ≤ ftCard V → ftCard V ≤ 7 *n →
       (∀ i,¬ cycleGraph n ⊑ c.graph i) →
-      Nonempty (q2 c (ε* (Fintype.card V :ℝ) ^ 2)
-        ((n:ℝ) / 2+ε*Fintype.card V)) :=by
+      Nonempty (q2 c (ε* (ftCard V :ℝ) ^ 2)
+        ((n:ℝ) / 2+ε*ftCard V)) :=by
   obtain ⟨n₀,hn₀⟩ :=vd ε hε
   refine ⟨n₀,?_⟩
   intro V _ _ c n hn hodd hnN hNn hno
@@ -7119,8 +7088,6 @@ theorem q2.z1 {V:Type*} [DecidableEq V]
   have hv:= (h.sparse_on i u v huv).2
   simp only [profile,if_pos hu,if_pos hv,and_self]
 end Erdos556
-end cx
-section dA
 namespace Erdos556
 open SimpleGraph Finset
 theorem q2.r3 {V:Type*} [Fintype V] [DecidableEq V]
@@ -7128,16 +7095,9 @@ theorem q2.r3 {V:Type*} [Fintype V] [DecidableEq V]
       V) :
     v ∈ h.qa p ↔ h.profile v =p:=by
   simp only [qa,mem_filter,mem_univ,true_and]
-theorem q2.tK {V:Type*} [Fintype V] [DecidableEq V]
-    {c:q4 V} {E D :ℝ} (h:q2 c E D)
-    (p q :q1) (hpq:p ≠ q) : Disjoint (h.qa p) (h.qa q) :=by
-  apply Finset.disjoint_left.mpr
-  intro v hvp hvq
-  exact hpq ((h.r3 p v).mp hvp |>.symm.trans ((h.r3 q v).mp
-    hvq))
 theorem q2.xF {V:Type*} [Fintype V] [DecidableEq V]
     {c:q4 V} {E D :ℝ} (h:q2 c E D) :
-    (∑ p,(h.qa p).card) = Fintype.card V :=aE h.profile
+    (∑ p,(h.qa p).card) = ftCard V :=aE h.profile
 theorem q2.aK {V:Type*} [DecidableEq V]
     {c:q4 V} {E D :ℝ} (h:q2 c E D) (v:V) (i:Fin 3) :
     h.profile v i=none ↔ v ∈ h.stars i :=by
@@ -7161,18 +7121,16 @@ theorem q2.tQ {V:Type*} [Fintype V] [DecidableEq V]
       simp only [Nat.cast_id]
     _= ∑ p,(h.qa p).card*q3 p :=vn h.profile
       q3
-    _=_:=sum_congr rfl (fun _ _=> Nat.mul_comm _ _)
+    _=_:=sum_congr rfl (fun _ _=> natMC _ _)
 end Erdos556
-end dA
-section dG
 namespace Erdos556
 open SimpleGraph Finset
 theorem vZ {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] :
-    G.edgeFinset.card+Gᶜ.edgeFinset.card= (Fintype.card V).choose 2 :=by
+    G.edgeFinset.card+Gᶜ.edgeFinset.card= (ftCard V).choose 2 :=by
   classical
   have hdisj:Disjoint G.edgeFinset Gᶜ.edgeFinset:=by
-    rw [Finset.disjoint_left]
+    rw [fsDL]
     intro e he hec
     rcases e with ⟨⟨u,v⟩⟩
     have hG:G.Adj u v:=by simpa using he
@@ -7189,35 +7147,13 @@ theorem vZ {V:Type*} [Fintype V] [DecidableEq V]
       · exact h.1
     · intro hne
       by_cases h :G.Adj u v
-      · exact Or.inl h
-      · exact Or.inr ⟨hne,h⟩
+      · exact orInl h
+      · exact orInr ⟨hne,h⟩
   calc
     G.edgeFinset.card+Gᶜ.edgeFinset.card= (G.edgeFinset ∪ Gᶜ.edgeFinset).card:=
       (card_union_of_disjoint hdisj).symm
-    _= (Fintype.card V).choose 2 :=by rw [hunion,card_edgeFinset_top_eq_card_choose_two]
-theorem rn {V:Type*} [Fintype V] [DecidableEq V]
-    (G:SimpleGraph V) [DecidableRel G.Adj] :
-    2* ((G.edgeFinset.card:ℝ) + Gᶜ.edgeFinset.card) =
-      (Fintype.card V :ℝ) * ((Fintype.card V :ℝ) - 1) :=by
-  have h : (G.edgeFinset.card:ℝ) + Gᶜ.edgeFinset.card= ((Fintype.card V).choose 2 :ℝ) :=by
-    exact_mod_cast vZ G
-  rw [h,Nat.cast_choose_two]
-  ring
-theorem uh {V:Type*} [Fintype V]
-    (G:SimpleGraph V) [DecidableRel G.Adj] :
-    2* (G.edgeFinset.card:ℝ) ≤ (Fintype.card V :ℝ) * ((Fintype.card V :ℝ) - 1) :=by
-  classical
-  have h : (G.edgeFinset.card:ℝ) ≤ ((Fintype.card V).choose 2 :ℝ) :=by
-    exact_mod_cast G.card_edgeFinset_le_card_choose_two
-  rw [Nat.cast_choose_two] at h
-  linarith
-theorem z9 {V:Type*} (G:SimpleGraph V) (S:Set V) :
-    (G.induce S)ᶜ=Gᶜ.induce S :=by
-  ext x y
-  simp only [compl_adj,induce_adj,ne_eq,Subtype.coe_inj]
+    _= (ftCard V).choose 2 :=by rw [hunion,card_edgeFinset_top_eq_card_choose_two]
 end Erdos556
-end dG
-section dp
 namespace Erdos556
 open SimpleGraph Finset
 open scoped Classical in
@@ -7227,29 +7163,29 @@ theorem c8 {V I :Type*} [Fintype V] [DecidableEq V] [Fintype I]
   simp only [mem_edgeFinset,edgeSet_iSup,Set.mem_iUnion,mem_biUnion,mem_univ,true_and]
 theorem wD {V I :Type*} [Finite V] [Fintype I]
     (G:I → SimpleGraph V) (hdis: ∀ i j,i ≠ j → Disjoint (G i) (G j)) :
-    Nat.card (⨆ i,G i).edgeSet= ∑ i,Nat.card (G i).edgeSet:=by
+    natCard (⨆ i,G i).edgeSet= ∑ i,natCard (G i).edgeSet:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   have hd: ((univ:Finset I) : Set I).Pairwise (fun i j=> Disjoint (G i).edgeFinset (G
     j).edgeFinset) :=by
     intro i _ j _ hij
-    exact SimpleGraph.disjoint_edgeFinset.mpr (hdis i j hij)
+    exact sgDE.mpr (hdis i j hij)
   have h : (⨆ i,G i).edgeFinset.card= ∑ i,(G i).edgeFinset.card:=by
     rw [c8,card_biUnion hd]
   simpa only [q7] using h
 theorem yD {V:Type*} [Finite V]
     (G H :SimpleGraph V) (hdis:Disjoint G H) :
-    Nat.card (G ⊔ H).edgeSet=Nat.card G.edgeSet+Nat.card H.edgeSet:=by
+    natCard (G ⊔ H).edgeSet=natCard G.edgeSet+natCard H.edgeSet:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   have h : (G ⊔ H).edgeFinset.card=G.edgeFinset.card+H.edgeFinset.card:=by
-    rw [edgeFinset_sup,card_union_of_disjoint (SimpleGraph.disjoint_edgeFinset.mpr hdis)]
+    rw [edgeFinset_sup,card_union_of_disjoint (sgDE.mpr hdis)]
   simpa only [q7] using h
 theorem v1 {V:Type*} [Finite V]
-    (G:SimpleGraph V) : Nat.card G.edgeSet+Nat.card Gᶜ.edgeSet=Nat.card (⊤ : SimpleGraph
+    (G:SimpleGraph V) : natCard G.edgeSet+natCard Gᶜ.edgeSet=natCard (⊤ : SimpleGraph
       V).edgeSet:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   have h :=vZ G
   have ht:=card_edgeFinset_top_eq_card_choose_two (V:=V)
   simp only [q7] at h ht
@@ -7270,15 +7206,13 @@ theorem q4.aF {V:Type*} (c:q4 V) :
     exact ⟨c.colour u v,huv,rfl⟩
 theorem q4.bz {V:Type*} [Finite V]
     (c:q4 V) :
-    (∑ i,Nat.card (c.graph i).edgeSet) = Nat.card (⊤ : SimpleGraph V).edgeSet:=by
+    (∑ i,natCard (c.graph i).edgeSet) = natCard (⊤ : SimpleGraph V).edgeSet:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   have h :=wD c.graph c.zs
   rw [c.aF] at h
   exact h.symm
 end Erdos556
-end dp
-section di
 namespace Erdos556
 open SimpleGraph Finset
 theorem q2.co {V:Type*}
@@ -7289,10 +7223,10 @@ theorem q2.co {V:Type*}
   exact (h.bipartite_off i u v hB).1 (h.sparse_on i u v hF).1
 theorem q2.zD {V:Type*} [Finite V]
     {c:q4 V} {E D :ℝ} (h:q2 c E D) :
-    Nat.card h.retained.edgeSet=
-      ∑ i,(Nat.card (h.bipartite i).edgeSet+Nat.card (h.sparse i).edgeSet) :=by
+    natCard h.retained.edgeSet=
+      ∑ i,(natCard (h.bipartite i).edgeSet+natCard (h.sparse i).edgeSet) :=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   have hdis (i j :Fin 3) (hij:i ≠ j) :
       Disjoint (h.bipartite i ⊔ h.sparse i) (h.bipartite j ⊔ h.sparse j) :=
     (c.zs i j hij).mono (sup_le (h.bipartite_le i) (h.sparse_le i))
@@ -7304,29 +7238,29 @@ theorem q2.zD {V:Type*} [Finite V]
   exact yD _ _ (h.co i)
 theorem q2.v9 {V:Type*} [Finite V]
     {c:q4 V} {E D :ℝ} (h:q2 c E D) :
-    (Nat.card h.missing.edgeSet:ℝ) ≤ 3*E:=by
+    (natCard h.missing.edgeSet:ℝ) ≤ 3*E:=by
   classical
-  let:=Fintype.ofFinite V
-  have hcol: (∑ i,(Nat.card (c.graph i).edgeSet:ℝ)) = Nat.card (⊤ : SimpleGraph V).edgeSet:=by
+  let:=ftOfFin V
+  have hcol: (∑ i,(natCard (c.graph i).edgeSet:ℝ)) = natCard (⊤ : SimpleGraph V).edgeSet:=by
     exact_mod_cast c.bz
-  have hret: (Nat.card h.retained.edgeSet:ℝ) =
-      ∑ i,((Nat.card (h.bipartite i).edgeSet:ℝ) + Nat.card (h.sparse i).edgeSet) :=by
+  have hret: (natCard h.retained.edgeSet:ℝ) =
+      ∑ i,((natCard (h.bipartite i).edgeSet:ℝ) + natCard (h.sparse i).edgeSet) :=by
     exact_mod_cast h.zD
-  have hcomp: (Nat.card h.retained.edgeSet:ℝ) + Nat.card h.missing.edgeSet=
-      Nat.card (⊤ : SimpleGraph V).edgeSet:=by
+  have hcomp: (natCard h.retained.edgeSet:ℝ) + natCard h.missing.edgeSet=
+      natCard (⊤ : SimpleGraph V).edgeSet:=by
     exact_mod_cast v1 h.retained
-  have hsum: (∑ i,(Nat.card (c.graph i).edgeSet:ℝ)) ≤
-      (∑ i,((Nat.card (h.bipartite i).edgeSet:ℝ) + Nat.card (h.sparse i).edgeSet)) + 3*E:=by
+  have hsum: (∑ i,(natCard (c.graph i).edgeSet:ℝ)) ≤
+      (∑ i,((natCard (h.bipartite i).edgeSet:ℝ) + natCard (h.sparse i).edgeSet)) + 3*E:=by
     calc
-      _ ≤ ∑ i,((Nat.card (h.bipartite i).edgeSet:ℝ) + Nat.card (h.sparse i).edgeSet+E) :=
+      _ ≤ ∑ i,((natCard (h.bipartite i).edgeSet:ℝ) + natCard (h.sparse i).edgeSet+E) :=
         sum_le_sum (fun i _=> h.edge_loss i)
       _=_:=by rw [sum_add_distrib];simp
   linarith
 theorem q2.tU {V:Type*} [Finite V]
     {c:q4 V} {E D :ℝ} (h:q2 c E D) (i:Fin 3) :
-    (Nat.card (h.sparse i).edgeSet:ℝ) ≤ D* (h.stars i).card:=by
+    (natCard (h.sparse i).edgeSet:ℝ) ≤ D* (h.stars i).card:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   have hsupp: (h.sparse i).support ⊆ (h.stars i :Set V) :=by
     intro u hu
     obtain ⟨v,huv⟩ :=hu
@@ -7337,8 +7271,6 @@ theorem q2.tU {V:Type*} [Finite V]
   rw [hcount] at hd
   exact hd
 end Erdos556
-end di
-section dt
 namespace Erdos556
 theorem re: ∀ (p q :q1) (i:Fin 3),
     qV p q i → Disjoint (q0 p) (q0 q) :=by decide
@@ -7347,8 +7279,6 @@ theorem uc: ∀ (p q :q1) (i:Fin 3),
 theorem xm: ∀ p:q1,q3 p =1 →
     ∃ i,p i=none ∧ ∀ j,p j=none → j=i:=by decide
 end Erdos556
-end dt
-section cC
 namespace Erdos556
 open SimpleGraph Finset
 theorem xj {V:Type*} [Fintype V]
@@ -7368,41 +7298,39 @@ theorem xj {V:Type*} [Fintype V]
 theorem xb {V:Type*} [Fintype V]
     (G:SimpleGraph V) (A B :Finset V)
     (h: ∀ u ∈ A,∀ v ∈ B,u ≠ v → G.Adj u v) :
-    A.card*B.card ≤ 2*Nat.card G.edgeSet+Fintype.card V :=by
+    A.card*B.card ≤ 2*natCard G.edgeSet+ftCard V :=by
   classical
   calc
     A.card*B.card= ∑ _u ∈ A,B.card:=by simp
     _ ≤ ∑ u ∈ A,(G.degree u +1) :=
       sum_le_sum (fun u hu=> xj G B u (h u hu))
     _= (∑ u ∈ A,G.degree u) + A.card:=by rw [sum_add_distrib];simp
-    _ ≤ (∑ u,G.degree u) + Fintype.card V :=
+    _ ≤ (∑ u,G.degree u) + ftCard V :=
       Nat.add_le_add (sum_le_sum_of_subset (subset_univ _)) (card_le_univ A)
     _=_:=by rw [G.sum_degrees_eq_twice_card_edges,q7]
 theorem zW {V:Type*} [Finite V]
-    (G H :SimpleGraph V) (h:G ≤ H) : Nat.card G.edgeSet ≤ Nat.card H.edgeSet:=by
+    (G H :SimpleGraph V) (h:G ≤ H) : natCard G.edgeSet ≤ natCard H.edgeSet:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   have hc:=card_le_card (edgeFinset_mono h)
   simpa only [q7] using hc
 theorem t2 {V:Type*} [Finite V]
-    (G:SimpleGraph V) (S:Finset V) : Nat.card (G.induce (S:Set V)).edgeSet ≤ Nat.card
+    (G:SimpleGraph V) (S:Finset V) : natCard (G.induce (S:Set V)).edgeSet ≤ natCard
       G.edgeSet:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   let f := (Embedding.induce (G:=G) (S:Set V)).toCopy.mapEdgeSet
-  have h :=Fintype.card_le_of_injective f f.injective
-  simpa only [← Nat.card_eq_fintype_card] using h
+  have h :=ftCLOI f f.injective
+  simpa only [← natCEFC] using h
 end Erdos556
-end cC
-section cV
 namespace Erdos556
 open SimpleGraph Finset
 theorem yx {V:Type*} [Fintype V] :
-    2* (Nat.card (⊤ : SimpleGraph V).edgeSet:ℝ) + Fintype.card V =
-      (Fintype.card V :ℝ) ^ 2:=by
+    2* (natCard (⊤ : SimpleGraph V).edgeSet:ℝ) + ftCard V =
+      (ftCard V :ℝ) ^ 2:=by
   classical
   rw [sb]
-  have hd: (∑ u :V,∑ v:V,if u =v then (1:ℝ) else 0) = Fintype.card V :=by
+  have hd: (∑ u :V,∑ v:V,if u =v then (1:ℝ) else 0) = ftCard V :=by
     simp
   rw [← hd]
   calc
@@ -7428,24 +7356,24 @@ theorem q2.vm {V:Type*} [DecidableEq V]
 theorem q2.yj {V:Type*}
     [Finite V] {c:q4 V} {E D :ℝ}
     (h:q2 c E D) :
-    Nat.card h.bipartiteUnion.edgeSet= ∑ i,Nat.card (h.bipartite i).edgeSet:=by
+    natCard h.bipartiteUnion.edgeSet= ∑ i,natCard (h.bipartite i).edgeSet:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   apply wD
   intro i j hij
   exact (c.zs i j hij).mono (h.bipartite_le i) (h.bipartite_le j)
 theorem q2.yE {V:Type*}
     [Fintype V] [DecidableEq V] {c:q4 V} {E D :ℝ}
     (h:q2 c E D) :
-    (Fintype.card V :ℝ) ^ 2 ≤ Fintype.card V +
-      2*Nat.card h.bipartiteUnion.edgeSet+
+    (ftCard V :ℝ) ^ 2 ≤ ftCard V +
+      2*natCard h.bipartiteUnion.edgeSet+
       2*D* (∑ p,(q3 p :ℝ) * (h.qa p).card) + 6*E:=by
-  have hret: (Nat.card h.retained.edgeSet:ℝ) =
-      (Nat.card h.bipartiteUnion.edgeSet:ℝ) + ∑ i,(Nat.card (h.sparse i).edgeSet:ℝ) :=by
+  have hret: (natCard h.retained.edgeSet:ℝ) =
+      (natCard h.bipartiteUnion.edgeSet:ℝ) + ∑ i,(natCard (h.sparse i).edgeSet:ℝ) :=by
     have hh:=h.zD
     rw [sum_add_distrib,← h.yj] at hh
     exact_mod_cast hh
-  have hf: (∑ i,(Nat.card (h.sparse i).edgeSet:ℝ)) ≤
+  have hf: (∑ i,(natCard (h.sparse i).edgeSet:ℝ)) ≤
       D* (∑ p,(q3 p :ℝ) * (h.qa p).card) :=by
     calc
       _ ≤ ∑ i,D* (h.stars i).card:=sum_le_sum (fun i _=> h.tU i)
@@ -7453,8 +7381,8 @@ theorem q2.yE {V:Type*}
       _=_:=by
         congr 1
         exact_mod_cast h.tQ
-  have hcomp: (Nat.card h.retained.edgeSet:ℝ) + Nat.card h.missing.edgeSet=
-      Nat.card (⊤ : SimpleGraph V).edgeSet:=by
+  have hcomp: (natCard h.retained.edgeSet:ℝ) + natCard h.missing.edgeSet=
+      natCard (⊤ : SimpleGraph V).edgeSet:=by
     exact_mod_cast v1 h.retained
   have hm:=h.v9
   have ht:=yx (V:=V)
@@ -7462,32 +7390,30 @@ theorem q2.yE {V:Type*}
 theorem q2.yS {V:Type*}
     [Fintype V] [DecidableEq V] {c:q4 V} {E D :ℝ}
     (h:q2 c E D) (n:ℝ) :
-    (Fintype.card V :ℝ) ^ 2-
+    (ftCard V :ℝ) ^ 2-
         qO (fun p => ((h.qa p).card:ℝ)) -
         n* (∑ p,(q3 p :ℝ) * (h.qa p).card) ≤
-      Fintype.card V + (2*D-n) *
+      ftCard V + (2*D-n) *
         (∑ p,(q3 p :ℝ) * (h.qa p).card) + 6*E:=by
   have hpot:=sY h.profile
-  have hle: (Nat.card h.bipartiteUnion.edgeSet:ℝ) ≤
-      Nat.card (qJ h.profile).edgeSet:=by
+  have hle: (natCard h.bipartiteUnion.edgeSet:ℝ) ≤
+      natCard (qJ h.profile).edgeSet:=by
     exact_mod_cast zW _ _ h.vm
   have hb:=h.yE
-  change 2 * (Nat.card (qJ h.profile).edgeSet:ℝ) =
+  change 2 * (natCard (qJ h.profile).edgeSet:ℝ) =
     qO (fun p => ((h.qa p).card:ℝ)) at hpot
   nlinarith
 theorem q2.wR {V:Type*}
     [Fintype V] [DecidableEq V] {c:q4 V} {E D :ℝ}
     (h:q2 c E D) :
-    (∑ p,(q3 p :ℝ) * (h.qa p).card) ≤ 3*Fintype.card V :=by
-  have hs: (∑ i,(h.stars i).card) ≤ 3*Fintype.card V :=by
+    (∑ p,(q3 p :ℝ) * (h.qa p).card) ≤ 3*ftCard V :=by
+  have hs: (∑ i,(h.stars i).card) ≤ 3*ftCard V :=by
     calc
-      _ ≤ ∑ _i:Fin 3,Fintype.card V :=sum_le_sum (fun i _=> card_le_univ _)
+      _ ≤ ∑ _i:Fin 3,ftCard V :=sum_le_sum (fun i _=> card_le_univ _)
       _=_:=by simp
   rw [h.tQ] at hs
   exact_mod_cast hs
 end Erdos556
-end cV
-section cv
 namespace Erdos556
 open SimpleGraph Finset
 theorem q2.uZ {V:Type*}
@@ -7511,7 +7437,7 @@ theorem q2.su {V:Type*}
     [Fintype V] [DecidableEq V] {c:q4 V} {E D :ℝ}
     (h:q2 c E D) (p q :q1)
     (hpq: (q0 p ∩ q0 q).card=1) :
-    ((h.qa p).card:ℝ) * (h.qa q).card ≤ 6*E+Fintype.card V :=by
+    ((h.qa p).card:ℝ) * (h.qa q).card ≤ 6*E+ftCard V :=by
   classical
   have hpair: ∀ u ∈ h.qa p,∀ v ∈ h.qa q,u ≠ v → h.missing.Adj u v:=by
     intro u hu v hv huv
@@ -7520,13 +7446,13 @@ theorem q2.su {V:Type*}
     exact hpq
   have hc:=xb h.missing (h.qa p) (h.qa q) hpair
   have hcR: ((h.qa p).card:ℝ) * (h.qa q).card ≤
-      2* (Nat.card h.missing.edgeSet:ℝ) + Fintype.card V :=by exact_mod_cast hc
+      2* (natCard h.missing.edgeSet:ℝ) + ftCard V :=by exact_mod_cast hc
   have hm:=h.v9
   linarith
 theorem q2.zQ {V:Type*}
     [Fintype V] [DecidableEq V] {c:q4 V} {E D :ℝ}
     (h:q2 c E D) (p:q1) (hp:q3 p =0) :
-    ((h.qa p).card:ℝ) ^ 2 ≤ 6*E+Fintype.card V :=by
+    ((h.qa p).card:ℝ) ^ 2 ≤ 6*E+ftCard V :=by
   have hpq: (q0 p ∩ q0 p).card=1:=by
     rw [inter_self,qU,hp]
     rfl
@@ -7554,8 +7480,6 @@ theorem q2.w4 {V:Type*}
     subst j
     exact hwrong.2 (h.sparse_le i hF)
 end Erdos556
-end cv
-section cm
 namespace Erdos556
 open SimpleGraph Finset
 theorem wo {V:Type*} [Fintype V]
@@ -7573,21 +7497,21 @@ theorem wo {V:Type*} [Fintype V]
   omega
 theorem zO {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (A:Finset V) (d:ℕ)
-    (hN:3 ≤ Fintype.card V)
-    (hsize:Fintype.card V +2*d ≤ 2*A.card)
+    (hN:3 ≤ ftCard V)
+    (hsize:ftCard V +2*d ≤ 2*A.card)
     (hcore: ∀ v ∈ A,A.card ≤ G.degree v +d)
-    (hout: ∀ v ∉ A,Fintype.card V -A.card+1 ≤ G.degree v) :
+    (hout: ∀ v ∉ A,ftCard V -A.card+1 ≤ G.degree v) :
     G.IsHamiltonian:=by
   classical
   let H :=G.qE
   have hle:G ≤ H:=G.rs
-  have hcard:A.card ≤ Fintype.card V :=card_le_univ A
+  have hcard:A.card ≤ ftCard V :=card_le_univ A
   have hcoreH (u v :V) (hu:u ∈ A) (hv:v ∈ A) (huv:u ≠ v) :
       H.Adj u v:=by
     apply G.rK huv
-    change Fintype.card V ≤ H.degree u +H.degree v
-    have hu':= (hcore u hu).trans (Nat.add_le_add_right (G.degree_le_of_le hle) d)
-    have hv':= (hcore v hv).trans (Nat.add_le_add_right (G.degree_le_of_le hle) d)
+    change ftCard V ≤ H.degree u +H.degree v
+    have hu':= (hcore u hu).trans (natALAR (G.degree_le_of_le hle) d)
+    have hv':= (hcore v hv).trans (natALAR (G.degree_le_of_le hle) d)
     omega
   have hdegA (u:V) (hu:u ∈ A) : A.card ≤ H.degree u +1:=by
     apply wo H A u hu
@@ -7596,7 +7520,7 @@ theorem zO {V:Type*} [Fintype V] [DecidableEq V]
   have hcross (u v :V) (hu:u ∈ A) (hv:v ∉ A) : H.Adj u v:=by
     have huv:u ≠ v:=fun h => hv (h ▸ hu)
     apply G.rK huv
-    change Fintype.card V ≤ H.degree u +H.degree v
+    change ftCard V ≤ H.degree u +H.degree v
     have hu':=hdegA u hu
     have hv':= (hout v hv).trans (G.degree_le_of_le hle)
     omega
@@ -7616,7 +7540,7 @@ theorem zO {V:Type*} [Fintype V] [DecidableEq V]
     · by_cases hv:v ∈ A
       · exact (hcross v u hv hu).symm
       · apply G.rK hne
-        change Fintype.card V ≤ H.degree u +H.degree v
+        change ftCard V ≤ H.degree u +H.degree v
         have hu':=hdegOut u hu
         have hv':=hdegOut v hv
         omega
@@ -7631,9 +7555,9 @@ theorem wS {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (S:Finset V) (v: (S:Set V)) :
     (G.induce (S:Set V)).degree v = (G.neighborFinset v.val ∩ S).card:=by
   classical
-  have h :=congrArg Finset.card (G.map_neighborFinset_induce v)
+  have h :=congrArg fsCard (G.map_neighborFinset_induce v)
   simpa only [card_map,card_neighborFinset_eq_degree,Finset.toFinset_coe,
-    ← SimpleGraph.card_neighborSet_eq_degree,← Nat.card_eq_fintype_card] using h
+    ← SimpleGraph.card_neighborSet_eq_degree,← natCEFC] using h
 theorem wE {V:Type*} [Fintype V] [DecidableEq V]
     (G:SimpleGraph V) [DecidableRel G.Adj] (A W :Finset V) (d:ℕ)
     (hdis:Disjoint A W) (hN:3 ≤ A.card+W.card)
@@ -7645,12 +7569,12 @@ theorem wE {V:Type*} [Fintype V] [DecidableEq V]
   let S :=A ∪ W
   let H :=G.induce (S:Set V)
   let A':Finset (S:Set V) :=univ.filter (fun v => v.val ∈ A)
-  have hcard:Fintype.card (S:Set V) = A.card+W.card:=by
+  have hcard:ftCard (S:Set V) = A.card+W.card:=by
     calc
-      Fintype.card (S:Set V) = (S:Set V).ncard:=Nat.card_eq_fintype_card.symm
-      _=S.card:=Set.ncard_coe_finset S
+      ftCard (S:Set V) = (S:Set V).ncard:=natCEFC.symm
+      _=S.card:=stNCF S
       _=A.card+W.card:=card_union_of_disjoint hdis
-  have himage:A'.image Subtype.val=A:=by
+  have himage:A'.image subVal=A:=by
     ext v
     simp only [A',mem_image,mem_filter,mem_univ,true_and]
     constructor
@@ -7659,7 +7583,7 @@ theorem wE {V:Type*} [Fintype V] [DecidableEq V]
     · intro hv
       exact ⟨⟨v,mem_union_left W hv⟩,hv,rfl⟩
   have hAcard:A'.card=A.card:=by
-    rw [← himage,card_image_of_injective _ Subtype.val_injective]
+    rw [← himage,card_image_of_injective _ subVI]
   have hdeg (v: (S:Set V)) : (G.neighborFinset v.val ∩ A).card ≤ H.degree v :=by
     rw [wS]
     apply card_le_card
@@ -7671,7 +7595,7 @@ theorem wE {V:Type*} [Fintype V] [DecidableEq V]
   · intro v hv
     have hvA:v.val ∈ A:= (mem_filter.mp hv).2
     rw [hAcard]
-    exact (hcore v.val hvA).trans (Nat.add_le_add_right (hdeg v) d)
+    exact (hcore v.val hvA).trans (natALAR (hdeg v) d)
   · intro v hv
     have hvA:v.val ∉ A:=by simpa only [A',mem_filter,mem_univ,true_and] using hv
     have hvW:v.val ∈ W:= (mem_union.mp v.property).resolve_left hvA
@@ -7686,23 +7610,21 @@ theorem sr {V:Type*} [Fintype V] [DecidableEq V]
     ∃ (v:V) (c:G.Walk v v),c.IsCycle ∧ c.length=A.card+W.card:=by
   classical
   let S :=A ∪ W
-  have hcard:Fintype.card (S:Set V) = A.card+W.card:=by
+  have hcard:ftCard (S:Set V) = A.card+W.card:=by
     calc
-      Fintype.card (S:Set V) = (S:Set V).ncard:=Nat.card_eq_fintype_card.symm
-      _=S.card:=Set.ncard_coe_finset S
+      ftCard (S:Set V) = (S:Set V).ncard:=natCEFC.symm
+      _=S.card:=stNCF S
       _=A.card+W.card:=card_union_of_disjoint hdis
   have hHam: (G.induce (S:Set V)).IsHamiltonian:=
     wE G A W d hdis hN hsize hcore hout
-  let:Nontrivial (S:Set V) :=Fintype.one_lt_card_iff_nontrivial.mp (by omega)
+  let:Nontrivial (S:Set V) :=ftOLCIN.mp (by omega)
   obtain ⟨v⟩ := (inferInstance:Nonempty (S:Set V))
   obtain ⟨c,hc⟩ :=hHam.exists_isHamiltonianCycle v
   refine ⟨(Embedding.induce (S:Set V)).toHom v,
     c.map (Embedding.induce (S:Set V)).toHom,
-    hc.isCycle.map Subtype.val_injective,?_⟩
-  rw [Walk.length_map,hc.length_eq,hcard]
+    hc.isCycle.map subVI,?_⟩
+  rw [wkLM,hc.length_eq,hcard]
 end Erdos556
-end cm
-section dm
 namespace Erdos556
 open SimpleGraph Finset
 theorem a7 {V:Type*} [Fintype V] [DecidableEq V]
@@ -7731,7 +7653,7 @@ theorem vk {V:Type*} [Fintype V] [DecidableEq V]
     omega
   calc
     r* (S.card-A.card) = ∑ _v ∈ S \ A,r:=by
-      rw [sum_const,smul_eq_mul,card_sdiff,inter_eq_left.mpr hAS,Nat.mul_comm]
+      rw [sum_const,smul_eq_mul,card_sdiff,inter_eq_left.mpr hAS,natMC]
     _ ≤ ∑ v ∈ S \ A,(G.neighborFinset v ∩ S).card:=sum_le_sum hbad
     _ ≤ ∑ v ∈ S,(G.neighborFinset v ∩ S).card:=
       sum_le_sum_of_subset sdiff_subset
@@ -7741,7 +7663,7 @@ theorem r1 {V:Type*} [Fintype V] [DecidableEq V]
     (G.neighborFinset v ∩ S).card+ (Gᶜ.neighborFinset v ∩ S).card+1=S.card:=by
   classical
   have hdis:Disjoint (G.neighborFinset v ∩ S) (Gᶜ.neighborFinset v ∩ S) :=by
-    apply Finset.disjoint_left.mpr
+    apply fsDL.mpr
     intro u hu huc
     have h := (G.mem_neighborFinset v u).mp (mem_inter.mp hu).1
     have hc:= (Gᶜ.mem_neighborFinset v u).mp (mem_inter.mp huc).1
@@ -7755,9 +7677,9 @@ theorem r1 {V:Type*} [Fintype V] [DecidableEq V]
       · exact ⟨h.symm,hu⟩
     · rintro ⟨huv,hu⟩
       by_cases h :G.Adj v u
-      · exact Or.inl ⟨h,hu⟩
-      · exact Or.inr ⟨⟨huv.symm,h⟩,hu⟩
-  have h :=congrArg Finset.card hunion
+      · exact orInl ⟨h,hu⟩
+      · exact orInr ⟨⟨huv.symm,h⟩,hu⟩
+  have h :=congrArg fsCard hunion
   rw [card_union_of_disjoint hdis,card_erase_of_mem hv] at h
   have hp:=card_pos.mpr ⟨v,hv⟩
   omega
@@ -7771,16 +7693,14 @@ theorem sL {V:Type*} [Fintype V] [DecidableEq V]
     (card_le_card (inter_subset_inter_left hAS)).trans (hclean v hv)
   omega
 end Erdos556
-end dm
-section dH
 namespace Erdos556
 open SimpleGraph Finset
 theorem uN {V:Type*} [Finite V]
     (G:SimpleGraph V) (S:Finset V) (n:ℕ) (hn:8 ≤ n)
     (hno: ¬ cycleGraph n ⊑ G) :
-    n*S.card ≤ n*n+16*Nat.card (Gᶜ.induce (S:Set V)).edgeSet:=by
+    n*S.card ≤ n*n+16*natCard (Gᶜ.induce (S:Set V)).edgeSet:=by
   classical
-  let:=Fintype.ofFinite V
+  let:=ftOfFin V
   let q :=n/4
   obtain ⟨A,hAS,hbad,hclean⟩ :=vk Gᶜ S q
   have hAn:A.card < n:=by
@@ -7797,17 +7717,15 @@ theorem uN {V:Type*} [Finite V]
     apply (cycleGraph_isContained_iff (by omega:2 < n)).mpr
     exact ⟨v,c,hc,by simpa only [card_empty,add_zero,hCc] using hlen⟩
   have hq:n ≤ 8*q:=by dsimp only [q];omega
-  have hloss:=Nat.mul_le_mul_right (S.card-A.card) hq
+  have hloss:=natMLMR (S.card-A.card) hq
   rw [q7] at hbad
-  have hNl:n* (S.card-A.card) ≤ 16*Nat.card (Gᶜ.induce (S:Set V)).edgeSet:=by
+  have hNl:n* (S.card-A.card) ≤ 16*natCard (Gᶜ.induce (S:Set V)).edgeSet:=by
     nlinarith only [hloss,hbad]
   have hAc:=card_le_card hAS
-  have hsum:=Nat.sub_add_cancel hAc
-  have hAn':=Nat.mul_le_mul_left n hAn.le
+  have hsum:=natSAC hAc
+  have hAn':=natMLML n hAn.le
   nlinarith only [hNl,hsum,hAn']
 end Erdos556
-end dH
-section dC
 namespace Erdos556
 open SimpleGraph Finset
 theorem q2.t5 {V:Type*} [Fintype V] [DecidableEq V]
@@ -7821,21 +7739,19 @@ theorem q2.t5 {V:Type*} [Fintype V] [DecidableEq V]
   have hsub: (c.graph i)ᶜ.induce (S:Set V) ≤ h.missing.induce (S:Set V) :=by
     intro u v huv
     exact h.w4 p i huniq u.val v.val u.property v.property huv
-  have hwrong:Nat.card ((c.graph i)ᶜ.induce (S:Set V)).edgeSet ≤ Nat.card h.missing.edgeSet:=
+  have hwrong:natCard ((c.graph i)ᶜ.induce (S:Set V)).edgeSet ≤ natCard h.missing.edgeSet:=
     (zW _ _ hsub).trans (t2 h.missing S)
   have hbound:=uN (c.graph i) S n hn (hno i)
   have hboundR: (n:ℝ) * S.card ≤ (n:ℝ) ^ 2+
-      16* (Nat.card ((c.graph i)ᶜ.induce (S:Set V)).edgeSet:ℝ) :=by
+      16* (natCard ((c.graph i)ᶜ.induce (S:Set V)).edgeSet:ℝ) :=by
     rw [pow_two]
     exact_mod_cast hbound
-  have hwrongR: (Nat.card ((c.graph i)ᶜ.induce (S:Set V)).edgeSet:ℝ) ≤
-      Nat.card h.missing.edgeSet:=by exact_mod_cast hwrong
+  have hwrongR: (natCard ((c.graph i)ᶜ.induce (S:Set V)).edgeSet:ℝ) ≤
+      natCard h.missing.edgeSet:=by exact_mod_cast hwrong
   have hmissing:=h.v9
   change (n:ℝ) * S.card ≤ (n:ℝ) ^ 2+48*E
   linarith
 end Erdos556
-end dC
-section d7
 namespace Erdos556
 open Finset
 def qQ (x y :q1 → ℝ) : ℝ:=
@@ -7895,8 +7811,6 @@ theorem uk (w:q1 → ℝ) (p q :q1) (t:ℝ) :
   rw [hsum]
   ring
 end Erdos556
-end d7
-section dl
 namespace Erdos556
 def up (w:q1 → ℝ) (p q :q1) (t:ℝ) : q1 → ℝ:=
   (w+Pi.single p t) + Pi.single q (-t)
@@ -7906,13 +7820,6 @@ theorem xT (w:q1 → ℝ) (p q :q1) (t:ℝ)
     (hpq:qb p q=1) :
     qd (up w p q t) = qd w +t* (qm w p-qm w q) :=by
   rw [up,rI,rI,uk,
-    sm q p,hpq]
-  ring
-theorem zl (w:q1 → ℝ) (p q :q1) (t:ℝ)
-    (hpq:qb p q=1) :
-    qm (up w p q t) p -qm (up w p q t) q =
-      qm w p-qm w q:=by
-  simp only [up,uk,vU,
     sm q p,hpq]
   ring
 theorem uG (w:q1 → ℝ) (p q :q1) (hpq:p ≠ q) :
@@ -7943,8 +7850,6 @@ theorem si (w:q1 → ℝ) (p q :q1)
       p ≤ 0)
     linarith
 end Erdos556
-end dl
-section cE
 namespace Erdos556
 open Finset
 theorem e1 (w:q1 → ℝ) (p q :q1) (t:ℝ) :
@@ -8016,8 +7921,6 @@ theorem rh {w:q1 → ℝ} (hw:q6 w)
   rw [za hw p q hpq hp hpdim]
   exact card_erase_lt_of_mem (mem_filter.mpr ⟨mem_univ q,hqdim,hq⟩)
 end Erdos556
-end cE
-section bq
 namespace Erdos556
 open Finset
 theorem yW (w:q1 → ℝ) (hw:q6 w) :
@@ -8033,7 +7936,7 @@ theorem yW (w:q1 → ℝ) (hw:q6 w) :
           (fun p q=> Disjoint (q0 p) (q0 q)) ∧
         qd v ≤ qd w :=by
     intro M
-    induction M using Nat.strong_induction_on with
+    induction M using natSIO with
     | h M ih=>
         intro w hw hM
         by_cases hdisj: (qe w :Set q1).Pairwise
@@ -8064,8 +7967,6 @@ theorem yW (w:q1 → ℝ) (hw:q6 w) :
             (rh hw q p hpq.symm hq hp hqdim hpdim) hE
   exact aux (qe w).card w hw rfl
 end Erdos556
-end bq
-section bS
 namespace Erdos556
 open Finset
 theorem ws (x:q1 → ℝ)
@@ -8122,14 +8023,12 @@ theorem tE (p:q1) : qb qF p =1:=by
   have hnot: ¬ Disjoint (q0 qF) (q0 p) :=by
     intro hd
     obtain ⟨v,hv⟩ :=hnon
-    exact Finset.disjoint_left.mp hd (by rw [hfull];exact mem_univ v) hv
+    exact fsDL.mp hd (by rw [hfull];exact mem_univ v) hv
   simp only [qb,if_neg hnot]
 theorem xg (x:q1 → ℝ) :
     qm x qF=2* (∑ p,x p) - 3:=by
-  simp only [qm,tE,one_mul,zx,Nat.cast_ofNat]
+  simp only [qm,tE,one_mul,zx,natCO]
 end Erdos556
-end bS
-section b4
 namespace Erdos556
 open Finset
 theorem wT {I:Type*} (S:Finset I) (f:I → ℝ)
@@ -8146,23 +8045,10 @@ theorem zC {I:Type*} (S:Finset I) (f:I → ℝ)
   calc
     (∑ i ∈ S,f i) ≤ ∑ _i ∈ S,(1:ℝ) :=sum_le_sum hf
     _=S.card:=by simp
-theorem uB {I:Type*} (S:Finset I) (f:I → ℝ)
-    (m:ℕ) (hcard:S.card ≤ m) (hf: ∀ i ∈ S,f i ≤ 1)
-    (hsum: ∑ i ∈ S,f i= (m:ℝ)) : S.card=m ∧ ∀ i ∈ S,f i=1:=by
-  have hcR: (m:ℝ) ≤ S.card:=by rw [← hsum];exact zC S f hf
-  have hc:S.card=m:=by exact_mod_cast le_antisymm (by exact_mod_cast hcard) hcR
-  refine ⟨hc,?_⟩
-  intro i hi
-  by_contra hne
-  have hlt: (∑ j ∈ S,f j) < ∑ _j ∈ S,(1:ℝ) :=
-    sum_lt_sum hf ⟨i,hi,lt_of_le_of_ne (hf i hi) hne⟩
-  simp only [hsum,sum_const,nsmul_eq_mul,mul_one,hc,lt_self_iff_false] at hlt
 theorem q6.aB {w:q1 → ℝ} (hw:q6 w) :
     (∑ p ∈ ql w,w p) ^ 2 ≤ 4* ∑ p ∈ ql w,w p^2:=by
   exact wT (ql w) w 4 hw.vl
 end Erdos556
-end b4
-section aY
 namespace Erdos556
 theorem a8 (z E S:ℝ) (hz:0 ≤ z) (hE:0 ≤ E)
     (htotal:E+z=4) (hS:E^2 ≤ 4*S) :
@@ -8197,14 +8083,12 @@ theorem y5 (y₀ y₁ E₀ E₁ S₀ S₁:ℝ)
   have hE₁zero:E₁* (2-E₁) = 0:=by nlinarith
   refine ⟨hL₀,hL₁,?_,?_⟩
   · rcases mul_eq_zero.mp hE₀zero with h | h
-    · exact Or.inl h
+    · exact orInl h
     · right;linarith
   · rcases mul_eq_zero.mp hE₁zero with h | h
-    · exact Or.inl h
+    · exact orInl h
     · right;linarith
 end Erdos556
-end aY
-section be
 namespace Erdos556
 open Finset
 theorem q6.u6 {w:q1 → ℝ}
@@ -8264,8 +8148,6 @@ theorem q6.u6 {w:q1 → ℝ}
   rw [hfull]
   nlinarith only [hbound]
 end Erdos556
-end be
-section aZ
 namespace Erdos556
 open Finset
 theorem z4: ∀ (i:Fin 3) (b:Bool),cubeFace i b ≠ cubeFace i (!b) :=by
@@ -8290,7 +8172,7 @@ theorem tC {p q :q1} (hsub:q0 q ⊆ q0 p) :
   have hnot: ¬ Disjoint (q0 p) (q0 q) :=by
     intro h
     obtain ⟨v,hv⟩ :=hnon
-    exact Finset.disjoint_left.mp h (hsub hv) hv
+    exact fsDL.mp h (hsub hv) hv
   simp only [qb,if_neg hnot]
 theorem zZ (i:Fin 3) (b:Bool) :
     qb (cubeFace i b) (cubeFace i (!b)) = 0:=by
@@ -8304,8 +8186,6 @@ theorem we (i:Fin 3) (b:Bool) (p:q1)
   have hdisj:= ((ui i i b (!b)).mpr ⟨rfl,hb⟩).mono_right hsub
   simp only [qb,if_pos hdisj]
 end Erdos556
-end aZ
-section aQ
 namespace Erdos556
 open Finset
 noncomputable def qf (w:q1 → ℝ) (i:Fin 3) (b:Bool) :
@@ -8324,7 +8204,7 @@ theorem q6.uL {w:q1 → ℝ} (hw:q6 w)
   omega
 theorem w0 (w:q1 → ℝ) (i:Fin 3) (b:Bool) :
     Disjoint (qf w i b) (qf w i (!b)) :=by
-  rw [Finset.disjoint_left]
+  rw [fsDL]
   intro p hp hq
   have hd:= (mem_filter.mp (mem_filter.mp hp).1).2.1
   exact ta i b p hd ⟨(mem_filter.mp hp).2,(mem_filter.mp hq).2⟩
@@ -8374,10 +8254,8 @@ theorem sG (w x :q1 → ℝ) (i:Fin 3) (b:Bool)
         · rw [if_pos hsub,tC hsub,one_mul]
         · rw [if_neg hsub,
             we i b p ((hpart p hp).resolve_left hsub),zero_mul]
-  simp only [qm,hsum,r4,Nat.cast_ofNat]
+  simp only [qm,hsum,r4,natCO]
 end Erdos556
-end aQ
-section bo
 namespace Erdos556
 open Finset
 theorem q6.sQ {w:q1 → ℝ}
@@ -8500,8 +8378,6 @@ theorem q6.zc {w:q1 → ℝ}
     0 ≤ qd w :=
   (hw.sQ i b hface hhigh).1
 end Erdos556
-end bo
-section aX
 namespace Erdos556
 open Finset
 theorem u5: ∀ (i:Fin 3) (b:Bool) (p:q1),
@@ -8536,7 +8412,6 @@ theorem zS (w:q1 → ℝ) (hw:q6 w) : 0 ≤ qd w :=by
   obtain ⟨v,hv,hdisj,henergy⟩ :=yW w hw
   exact (uy v hv hdisj).trans henergy
 end Erdos556
-end aX
 open Finset
 
 namespace LuczakProfile
@@ -8558,7 +8433,7 @@ theorem mass_le_four {ι : Type*} [Fintype ι] (w : ι → ℝ)
   have ha : 0 < a := div_pos (by norm_num) hs
   have halt : a < 1 := (div_lt_one hs).mpr he
   have hsum : (∑ i, a * w i) = 4 := by
-    rw [← Finset.mul_sum]
+    rw [← fsMS3]
     exact div_mul_cancel₀ _ hs.ne'
   have h := hnormal a ha halt.le hsum
   rw [hQ, hL, pow_two, mul_assoc] at h
@@ -8581,24 +8456,24 @@ theorem asymptotic_cube_mass (w : q1 → ℝ) (hw : ∀ p, 0 ≤ w p)
   apply LuczakProfile.mass_le_four w Q L
   · intro a
     dsimp only [Q]
-    simp only [Finset.mul_sum]
-    exact Finset.sum_congr rfl fun p _ => Finset.sum_congr rfl fun q _ => by ring
+    simp only [fsMS3]
+    exact fsSC rfl fun p _ => fsSC rfl fun q _ => by ring
   · intro a
     dsimp only [L]
-    simp only [Finset.mul_sum]
-    exact Finset.sum_congr rfl fun p _ => by ring
+    simp only [fsMS3]
+    exact fsSC rfl fun p _ => by ring
   · intro hmass
     have hex : ∃ p, 0 < w p := by
       by_contra! hall
-      have h := Finset.sum_nonpos (fun i (_ : i ∈ Finset.univ) => hall i)
+      have h := Finset.sum_nonpos (fun i (_ : i ∈ fsUniv) => hall i)
       linarith
     obtain ⟨p, hp⟩ := hex
     have hb (i j : q1) : 0 ≤ qb i j := by unfold qb; split <;> norm_num
     have ht (i j : q1) : 0 ≤ qb i j * w i * w j :=
       mul_nonneg (mul_nonneg (hb i j) (hw i)) (hw j)
-    have hdiag := Finset.single_le_sum (fun j _ => ht p j) (Finset.mem_univ p)
-    have hrow := Finset.single_le_sum (fun i (_ : i ∈ Finset.univ) =>
-      Finset.sum_nonneg (fun j (_ : j ∈ Finset.univ) => ht i j)) (Finset.mem_univ p)
+    have hdiag := Finset.single_le_sum (fun j _ => ht p j) (fsMU2 p)
+    have hrow := Finset.single_le_sum (fun i (_ : i ∈ fsUniv) =>
+      Finset.sum_nonneg (fun j (_ : j ∈ fsUniv) => ht i j)) (fsMU2 p)
     have hd : 0 < qb p p * w p * w p := by rw [vU, one_mul]; exact mul_pos hp hp
     exact (hd.trans_le hdiag).trans_le hrow
   · exact sub_nonpos.mp henergy
@@ -8653,7 +8528,6 @@ theorem asymptotic_mass_bound (η : ℝ) (hη : 0 < η) :
   have hlow := ge_of_tendsto' hs (fun n => (hlarge (φ n)).le)
   linarith
 end Erdos556
-section bX
 namespace Erdos556
 open SimpleGraph Finset
 theorem tP (w:q1 → ℝ) (n:ℝ) :
@@ -8679,7 +8553,7 @@ noncomputable def q2.rQ {V:Type*} [Fintype V] [DecidableEq V]
     (n:ℝ) (p:q1) : ℝ:= (h.qa p).card/n
 theorem q2.aH {V:Type*} [Fintype V] [DecidableEq V]
     {c:q4 V} {E D :ℝ} (h:q2 c E D) (n:ℝ) :
-    (∑ p,h.rQ n p) = Fintype.card V /n:=by
+    (∑ p,h.rQ n p) = ftCard V /n:=by
   unfold rQ
   rw [← sum_div]
   congr 1
@@ -8687,30 +8561,30 @@ theorem q2.aH {V:Type*} [Fintype V] [DecidableEq V]
 theorem q2.uC {V:Type*}
     [Fintype V] [DecidableEq V] {c:q4 V} {E D :ℝ}
     (h:q2 c E D) (n:ℝ) (hn:n ≠ 0) :
-    qd (h.rQ n) * n^2= (Fintype.card V :ℝ) ^ 2-
+    qd (h.rQ n) * n^2= (ftCard V :ℝ) ^ 2-
       qO (fun p => ((h.qa p).card:ℝ)) -
       n* (∑ p,(q3 p :ℝ) * (h.qa p).card) :=by
   unfold rQ
   rw [yX _ n hn]
-  have hs: (∑ p,((h.qa p).card:ℝ)) = Fintype.card V :=by
+  have hs: (∑ p,((h.qa p).card:ℝ)) = ftCard V :=by
     exact_mod_cast h.xF
   rw [hs]
 theorem q2.yw {V:Type*}
     [Fintype V] [DecidableEq V] {c:q4 V} {E D :ℝ}
     (h:q2 c E D) (n:ℕ) (hn:8 ≤ n)
     (hno: ∀ i,¬ cycleGraph n ⊑ c.graph i) (δ:ℝ) (hδ:0 ≤ δ)
-    (hsize: (Fintype.card V :ℝ) ≤ 7*n)
-    (hvertex:6*E+Fintype.card V ≤ δ ^2* (n:ℝ) ^ 2)
+    (hsize: (ftCard V :ℝ) ≤ 7*n)
+    (hvertex:6*E+ftCard V ≤ δ ^2* (n:ℝ) ^ 2)
     (hedge:48*E ≤ δ* (n:ℝ) ^ 2)
-    (hpair:6*E+Fintype.card V ≤ δ * (n:ℝ) ^ 2)
-    (henergy: (Fintype.card V :ℝ) + (2*D-n) *
+    (hpair:6*E+ftCard V ≤ δ * (n:ℝ) ^ 2)
+    (henergy: (ftCard V :ℝ) + (2*D-n) *
         (∑ p,(q3 p :ℝ) * (h.qa p).card) + 6*E ≤ δ* (n:ℝ) ^ 2) :
     LooseProfile (h.rQ n) δ :=by
   have hnpos: (0:ℝ) < n:=by exact_mod_cast (show 0 < n by omega)
   have hnsq: (0:ℝ) < (n:ℝ) ^ 2:=sq_pos_of_pos hnpos
   refine ⟨?_,?_,?_,?_,?_,?_⟩
   · intro p
-    exact div_nonneg (Nat.cast_nonneg _) hnpos.le
+    exact div_nonneg (natCN _) hnpos.le
   · rw [h.aH]
     exact (div_le_iff₀ hnpos).mpr (by linarith)
   · intro p hp
@@ -8732,16 +8606,14 @@ theorem q2.yw {V:Type*}
     have hb:= (h.yS n).trans henergy
     nlinarith
 end Erdos556
-end bX
-section br
 namespace Erdos556
 open SimpleGraph Finset
 theorem vy (δ:ℝ) (hδ:0 < δ) :
     ∃ ε :ℝ,0 < ε ∧ ε ≤ δ ∧ ∃ n₀:ℕ,∀ {V:Type*} [Fintype V] [DecidableEq V]
-      (c:q4 V) (n:ℕ),n₀ ≤ n → Fintype.card V ≤7*n →
+      (c:q4 V) (n:ℕ),n₀ ≤ n → ftCard V ≤7*n →
       (∀ i,¬ cycleGraph n ⊑ c.graph i) →
-      ∀ h :q2 c (ε* (Fintype.card V :ℝ) ^ 2)
-        ((n:ℝ) / 2+ε*Fintype.card V),LooseProfile (h.rQ n) δ :=by
+      ∀ h :q2 c (ε* (ftCard V :ℝ) ^ 2)
+        ((n:ℝ) / 2+ε*ftCard V),LooseProfile (h.rQ n) δ :=by
   let t :ℝ:=min δ (min (δ^2) 1)
   have ht:0 < t:=lt_min hδ (lt_min (sq_pos_of_pos hδ) zero_lt_one)
   have htδ:t ≤ δ:=min_le_left _ _
@@ -8761,20 +8633,20 @@ theorem vy (δ:ℝ) (hδ:0 < δ) :
     have hmnR: (m:ℝ) ≤ n:=by exact_mod_cast hmn
     have hh:= (div_le_iff₀ ht).mp (hm.trans hmnR)
     nlinarith
-  have hNnonneg: (0:ℝ) ≤ Fintype.card V :=by positivity
-  have hNle: (Fintype.card V :ℝ) ≤ 7*n:=by exact_mod_cast hN
-  have hNsq: (Fintype.card V :ℝ) ^ 2 ≤ 49* (n:ℝ) ^ 2:=by nlinarith [sq_nonneg (7*(n:ℝ) - Fintype.card V), mul_nonneg (sub_nonneg.mpr hNle) (add_nonneg (by positivity : 0 ≤ 7*(n:ℝ)) hNnonneg)]
+  have hNnonneg: (0:ℝ) ≤ ftCard V :=by positivity
+  have hNle: (ftCard V :ℝ) ≤ 7*n:=by exact_mod_cast hN
+  have hNsq: (ftCard V :ℝ) ^ 2 ≤ 49* (n:ℝ) ^ 2:=by nlinarith [sq_nonneg (7*(n:ℝ) - ftCard V), mul_nonneg (sub_nonneg.mpr hNle) (add_nonneg (by positivity : 0 ≤ 7*(n:ℝ)) hNnonneg)]
   have heq:100000*ε=t:=by dsimp only [ε];ring
   have hlarge:100000* (n:ℝ) ≤ t* (n:ℝ) ^ 2:=by
     nlinarith [mul_le_mul_of_nonneg_right htn hnpos.le]
-  have hcommon: (Fintype.card V :ℝ) + 48* (ε* (Fintype.card V :ℝ) ^ 2) ≤
+  have hcommon: (ftCard V :ℝ) + 48* (ε* (ftCard V :ℝ) ^ 2) ≤
       t* (n:ℝ) ^ 2:=by
     have hscaled:=mul_le_mul_of_nonneg_left hNsq hε.le
     have heqscaled:100000*ε* (n:ℝ) ^ 2=t* (n:ℝ) ^ 2:=by rw [heq]
     nlinarith [mul_nonneg ht.le (sq_nonneg (n:ℝ))]
   have htδn:=mul_le_mul_of_nonneg_right htδ (sq_nonneg (n:ℝ))
   have htδsqn:=mul_le_mul_of_nonneg_right htδsq (sq_nonneg (n:ℝ))
-  have hE:0 ≤ ε* (Fintype.card V :ℝ) ^ 2:=mul_nonneg hε.le (sq_nonneg _)
+  have hE:0 ≤ ε* (ftCard V :ℝ) ^ 2:=mul_nonneg hε.le (sq_nonneg _)
   apply h.yw n hn8 hno δ hδ.le
   · exact hNle
   · linarith
@@ -8785,7 +8657,6 @@ theorem vy (δ:ℝ) (hδ:0 < δ) :
       hNnonneg)
     nlinarith
 end Erdos556
-end br
 
 
 section R1Section
@@ -8845,7 +8716,7 @@ lemma dense_color_of_three_colouring (N : ℕ) (c : Fin 3 → SimpleGraph (Fin N
     (hc : (⊤ : SimpleGraph (Fin N)).IsEdgeColouring c) :
     ∃ i : Fin 3, N * (N - 1) ≤ 6 * (c i).edgeFinset.card := by
   have hcov : (⊤ : SimpleGraph (Fin N)).edgeFinset ⊆
-      (Finset.univ : Finset (Fin 3)).biUnion (fun i => (c i).edgeFinset) := by
+      (fsUniv : Finset (Fin 3)).biUnion (fun i => (c i).edgeFinset) := by
     intro e he
     induction e using Sym2.ind with
     | _ x y =>
@@ -8856,7 +8727,7 @@ lemma dense_color_of_three_colouring (N : ℕ) (c : Fin 3 → SimpleGraph (Fin N
       exact mem_biUnion.mpr ⟨i, mem_univ i, mem_edgeFinset.mpr hi⟩
   have hcard : (⊤ : SimpleGraph (Fin N)).edgeFinset.card ≤
       ∑ i : Fin 3, (c i).edgeFinset.card :=
-    (Finset.card_le_card hcov).trans Finset.card_biUnion_le
+    (fsCLC hcov).trans fsCBL
   have htop : (⊤ : SimpleGraph (Fin N)).edgeFinset.card = Nat.choose N 2 := by
     convert SimpleGraph.card_edgeFinset_top_eq_card_choose_two (V := Fin N)
     simp
@@ -8891,7 +8762,7 @@ lemma regularity_cluster_graph (N : ℕ) (hN : 0 < N)
         (N : ℝ) * (N + t) / t + η * (N + t) ^ 2 + d * (N + t) ^ 2 +
           2 * (R.edgeFinset.card : ℝ) * ((N / t : ℕ) + 1 : ℝ) ^ 2 := by
   classical
-  have hl_card : l ≤ Fintype.card (Fin N) := by simpa using hl
+  have hl_card : l ≤ ftCard (Fin N) := by simpa using hl
   obtain ⟨P, hP₁, hP₂, hP₃, hP₄⟩ := szemeredi_regularity G hη hl_card
   set t := P.parts.card
   have ht_pos : 0 < t := lt_of_lt_of_le hl_pos hP₂
@@ -8901,47 +8772,47 @@ lemma regularity_cluster_graph (N : ℕ) (hN : 0 < N)
     { Adj := fun u v => u ≠ v ∧ G.IsUniform η (parts u) (parts v) ∧
         d ≤ (G.edgeDensity (parts u) (parts v) : ℝ)
       symm := ⟨fun u v ⟨hne, hu, hd_uv⟩ =>
-        ⟨hne.symm, hu.symm, by rwa [SimpleGraph.edgeDensity_comm]⟩⟩
+        ⟨hne.symm, hu.symm, by rwa [sgEC]⟩⟩
       loopless := ⟨fun u ⟨hne, _⟩ => hne rfl⟩ }
   letI : DecidableRel R.Adj := Classical.decRel R.Adj
   refine ⟨t, parts, R, inferInstance, hP₂, hP₃, ?_, ?_, ?_, ?_⟩
   · intro i j hij
-    exact P.disjoint (e i).2 (e j).2 (fun h => hij (e.injective (Subtype.ext h)))
+    exact P.disjoint (e i).2 (e j).2 (fun h => hij (e.injective (subExt h)))
   · intro i
     have hmem : parts i ∈ P.parts := (e i).2
     have h1 := hP₁.average_le_card_part hmem
     have h2 := hP₁.card_part_le_average_add_one hmem
-    simp only [Finset.card_univ, Fintype.card_fin] at h1 h2
+    simp only [fsCU, ftCF] at h1 h2
     exact ⟨h1, h2⟩
   · intro u v huv
     exact ⟨huv.2.1, huv.2.2⟩
-  · have hA : (Finset.univ : Finset (Fin N)).Nonempty := ⟨⟨0, hN⟩, Finset.mem_univ _⟩
+  · have hA : (fsUniv : Finset (Fin N)).Nonempty := ⟨⟨0, hN⟩, fsMU2 _⟩
     let densePairs : Finset (Finset (Fin N) × Finset (Fin N)) :=
       P.parts.offDiag.filter (fun uv => G.IsUniform η uv.1 uv.2 ∧
         d ≤ (G.edgeDensity uv.1 uv.2 : ℝ))
-    have hsub : (Finset.univ ×ˢ Finset.univ).filter (fun xy : Fin N × Fin N => G.Adj xy.1 xy.2) ⊆
+    have hsub : (fsUniv ×ˢ fsUniv).filter (fun xy : Fin N × Fin N => G.Adj xy.1 xy.2) ⊆
         (P.nonUniforms G η).biUnion (fun uv => uv.1 ×ˢ uv.2) ∪
           P.parts.biUnion Finset.offDiag ∪
           (P.sparsePairs G d).biUnion (fun uv => G.interedges uv.1 uv.2) ∪
           densePairs.biUnion (fun uv => G.interedges uv.1 uv.2) := by
       rintro ⟨x, y⟩ hxy
-      simp only [Finset.mem_filter, Finset.mem_product, Finset.mem_univ, true_and] at hxy
-      obtain ⟨U, hU, hx⟩ := P.exists_mem (Finset.mem_univ x)
-      obtain ⟨V, hV, hy⟩ := P.exists_mem (Finset.mem_univ y)
+      simp only [fsMF, fsMP, fsMU2, true_and] at hxy
+      obtain ⟨U, hU, hx⟩ := P.exists_mem (fsMU2 x)
+      obtain ⟨V, hV, hy⟩ := P.exists_mem (fsMU2 y)
       by_cases hUV : U = V
       · subst hUV
-        refine Finset.mem_union_left _ (Finset.mem_union_left _ (Finset.mem_union_right _ ?_))
-        exact Finset.mem_biUnion.mpr ⟨U, hU, Finset.mem_offDiag.mpr ⟨hx, hy, G.ne_of_adj hxy⟩⟩
+        refine fsMUL _ (fsMUL _ (fsMUR _ ?_))
+        exact fsMB.mpr ⟨U, hU, fsMO.mpr ⟨hx, hy, G.ne_of_adj hxy⟩⟩
       · by_cases huni : G.IsUniform η U V
         · by_cases hd_uv : d ≤ (G.edgeDensity U V : ℝ)
-          · refine Finset.mem_union_right _ (Finset.mem_biUnion.mpr ⟨(U, V), ?_, ?_⟩)
-            · exact Finset.mem_filter.mpr ⟨Finset.mem_offDiag.mpr ⟨hU, hV, hUV⟩, huni, hd_uv⟩
+          · refine fsMUR _ (fsMB.mpr ⟨(U, V), ?_, ?_⟩)
+            · exact fsMF.mpr ⟨fsMO.mpr ⟨hU, hV, hUV⟩, huni, hd_uv⟩
             · exact G.mk_mem_interedges_iff.mpr ⟨hx, hy, hxy⟩
-          · refine Finset.mem_union_left _ (Finset.mem_union_right _ ?_)
-            refine Finset.mem_biUnion.mpr ⟨(U, V), ?_, G.mk_mem_interedges_iff.mpr ⟨hx, hy, hxy⟩⟩
+          · refine fsMUL _ (fsMUR _ ?_)
+            refine fsMB.mpr ⟨(U, V), ?_, G.mk_mem_interedges_iff.mpr ⟨hx, hy, hxy⟩⟩
             exact (P.mk_mem_sparsePairs G U V d).mpr ⟨hU, hV, hUV, not_le.mp hd_uv⟩
-        · refine Finset.mem_union_left _ (Finset.mem_union_left _ (Finset.mem_union_left _ ?_))
-          refine Finset.mem_biUnion.mpr ⟨(U, V), ?_, Finset.mem_product.mpr ⟨hx, hy⟩⟩
+        · refine fsMUL _ (fsMUL _ (fsMUL _ ?_))
+          refine fsMB.mpr ⟨(U, V), ?_, fsMP.mpr ⟨hx, hy⟩⟩
           exact (P.mk_mem_nonUniforms G).mpr ⟨hU, hV, hUV, huni⟩
     have hcard_edges : 2 * G.edgeFinset.card ≤
         ((P.nonUniforms G η).biUnion (fun uv => uv.1 ×ˢ uv.2)).card +
@@ -8950,12 +8821,12 @@ lemma regularity_cluster_graph (N : ℕ) (hN : 0 < N)
         (densePairs.biUnion (fun uv => G.interedges uv.1 uv.2)).card := by
       have h2 := G.two_mul_card_edgeFinset
       rw [Finset.univ_product_univ] at hsub
-      have hc := Finset.card_le_card hsub
+      have hc := fsCLC hsub
       rw [← h2] at hc
       exact hc.trans (by
-        refine (Finset.card_union_le _ _).trans (Nat.add_le_add_right ?_ _)
-        refine (Finset.card_union_le _ _).trans (Nat.add_le_add_right ?_ _)
-        exact Finset.card_union_le _ _)
+        refine (fsCUL _ _).trans (natALAR ?_ _)
+        refine (fsCUL _ _).trans (natALAR ?_ _)
+        exact fsCUL _ _)
     have h_dense_card : densePairs.card = 2 * R.edgeFinset.card := by
       have h2R := R.two_mul_card_edgeFinset
       rw [← Finset.univ_product_univ] at h2R
@@ -8963,35 +8834,35 @@ lemma regularity_cluster_graph (N : ℕ) (hN : 0 < N)
       symm
       refine Finset.card_bij (fun uv _ => (parts uv.1, parts uv.2)) ?_ ?_ ?_
       · intro ⟨u, v⟩ huv
-        simp only [Finset.mem_filter, Finset.mem_product, Finset.mem_univ, true_and] at huv
-        refine Finset.mem_filter.mpr ⟨Finset.mem_offDiag.mpr ⟨(e u).2, (e v).2, ?_⟩, huv.2.1, huv.2.2⟩
-        exact fun h => huv.1 (e.injective (Subtype.ext h))
+        simp only [fsMF, fsMP, fsMU2, true_and] at huv
+        refine fsMF.mpr ⟨fsMO.mpr ⟨(e u).2, (e v).2, ?_⟩, huv.2.1, huv.2.2⟩
+        exact fun h => huv.1 (e.injective (subExt h))
       · intro ⟨u₁, v₁⟩ _ ⟨u₂, v₂⟩ _ heq
         simp only [Prod.mk.injEq] at heq
-        exact Prod.ext (e.injective (Subtype.ext heq.1)) (e.injective (Subtype.ext heq.2))
+        exact Prod.ext (e.injective (subExt heq.1)) (e.injective (subExt heq.2))
       · intro ⟨U, V⟩ hUV
-        simp only [densePairs, Finset.mem_filter, Finset.mem_offDiag] at hUV
+        simp only [densePairs, fsMF, fsMO] at hUV
         obtain ⟨⟨hU, hV, hne⟩, huni, hd_uv⟩ := hUV
         refine ⟨(e.symm ⟨U, hU⟩, e.symm ⟨V, hV⟩), ?_, ?_⟩
-        · simp only [Finset.mem_filter, Finset.mem_product, Finset.mem_univ, true_and]
+        · simp only [fsMF, fsMP, fsMU2, true_and]
           refine ⟨fun h => hne ?_, ?_, ?_⟩
-          · exact congrArg Subtype.val (e.symm.injective h)
+          · exact congrArg subVal (e.symm.injective h)
           · simpa [parts] using huni
           · simpa [parts] using hd_uv
         · simp [parts]
     have h_dense_inter : ((densePairs.biUnion (fun uv => G.interedges uv.1 uv.2)).card : ℝ) ≤
         2 * (R.edgeFinset.card : ℝ) * ((N / t : ℕ) + 1 : ℝ) ^ 2 := by
       have h1 : (densePairs.biUnion (fun uv => G.interedges uv.1 uv.2)).card ≤
-          ∑ uv ∈ densePairs, (G.interedges uv.1 uv.2).card := Finset.card_biUnion_le
+          ∑ uv ∈ densePairs, (G.interedges uv.1 uv.2).card := fsCBL
       have h2 : ∑ uv ∈ densePairs, (G.interedges uv.1 uv.2).card ≤
           densePairs.card * (N / t + 1) ^ 2 := by
         calc ∑ uv ∈ densePairs, (G.interedges uv.1 uv.2).card
             ≤ ∑ _uv ∈ densePairs, (N / t + 1) ^ 2 := by
-              refine Finset.sum_le_sum fun uv huv => ?_
-              have hmem := Finset.mem_offDiag.mp (Finset.mem_filter.mp huv).1
+              refine fsSLS fun uv huv => ?_
+              have hmem := fsMO.mp (fsMF.mp huv).1
               have hu := hP₁.card_part_le_average_add_one hmem.1
               have hv := hP₁.card_part_le_average_add_one hmem.2.1
-              simp only [Finset.card_univ, Fintype.card_fin] at hu hv
+              simp only [fsCU, ftCF] at hu hv
               rw [sq]
               exact (G.card_interedges_le_mul uv.1 uv.2).trans (Nat.mul_le_mul hu hv)
           _ = densePairs.card * (N / t + 1) ^ 2 := by simp
@@ -9005,15 +8876,15 @@ lemma regularity_cluster_graph (N : ℕ) (hN : 0 < N)
       have h1 : ((P.nonUniforms G η).biUnion (fun uv => uv.1 ×ˢ uv.2)).card ≤
           ∑ uv ∈ P.nonUniforms G η, uv.1.card * uv.2.card := by
         calc ((P.nonUniforms G η).biUnion (fun uv => uv.1 ×ˢ uv.2)).card
-            ≤ ∑ uv ∈ P.nonUniforms G η, (uv.1 ×ˢ uv.2).card := Finset.card_biUnion_le
+            ≤ ∑ uv ∈ P.nonUniforms G η, (uv.1 ×ˢ uv.2).card := fsCBL
           _ = ∑ uv ∈ P.nonUniforms G η, uv.1.card * uv.2.card := by
-              refine Finset.sum_congr rfl fun uv _ => Finset.card_product _ _
+              refine fsSC rfl fun uv _ => Finset.card_product _ _
       have h2 := hP₁.sum_nonUniforms_lt' (𝕜 := ℝ) hA hη hP₄
-      simp only [Finset.card_univ, Fintype.card_fin] at h2
+      simp only [fsCU, ftCF] at h2
       have h2le : (∑ uv ∈ P.nonUniforms G η, (#uv.1 : ℝ) * (#uv.2 : ℝ)) ≤ η * ((N : ℝ) + t) ^ 2 := by
         simpa [t] using h2.le
       calc (((P.nonUniforms G η).biUnion (fun uv => uv.1 ×ˢ uv.2)).card : ℝ)
-          ≤ ((∑ uv ∈ P.nonUniforms G η, uv.1.card * uv.2.card : ℕ) : ℝ) := Nat.cast_le.mpr h1
+          ≤ ((∑ uv ∈ P.nonUniforms G η, uv.1.card * uv.2.card : ℕ) : ℝ) := natCL.mpr h1
         _ = ∑ uv ∈ P.nonUniforms G η, (#uv.1 : ℝ) * (#uv.2 : ℝ) := by push_cast; rfl
         _ ≤ η * ((N : ℝ) + t) ^ 2 := h2le
     have h_off : ((P.parts.biUnion Finset.offDiag).card : ℝ) ≤ (N : ℝ) * ((N : ℝ) + t) / t := by
@@ -9026,8 +8897,8 @@ lemma regularity_cluster_graph (N : ℕ) (hN : 0 < N)
     have hG_real : (N : ℝ) * ((N : ℝ) - 1) / 3 ≤ 2 * (G.edgeFinset.card : ℝ) := by
       have hG' : (N : ℝ) * ((N : ℝ) - 1) ≤ 6 * (G.edgeFinset.card : ℝ) := by
         have hcast : ((N * (N - 1) : ℕ) : ℝ) ≤ ((6 * G.edgeFinset.card : ℕ) : ℝ) :=
-          Nat.cast_le.mpr hG
-        rw [Nat.cast_mul, Nat.cast_sub hN, Nat.cast_one] at hcast
+          natCL.mpr hG
+        rw [natCM, Nat.cast_sub hN, Nat.cast_one] at hcast
         push_cast at hcast
         exact hcast
       linarith
@@ -9066,7 +8937,7 @@ lemma cluster_edge_bound (ε' η d : ℝ) (N t k eR : ℕ)
     have hNt1 : (N : ℝ) / (t : ℝ) ≤ (N : ℝ) := div_le_self hN_real_pos.le ht_ge1
     nlinarith
   have h_m_cast_le : (↑(N / t) : ℝ) ≤ (N : ℝ) / (t : ℝ) :=
-    (le_div_iff₀ ht_real_pos).mpr (by exact_mod_cast Nat.div_mul_le_self N t)
+    (le_div_iff₀ ht_real_pos).mpr (by exact_mod_cast natDMLS N t)
   have h_N_add_t : (N : ℝ) + (t : ℝ) ≤ (1 + ε' / 10000) * (N : ℝ) := by linarith
   have h_N_sub_1 : (1 - ε' / 10000) * (N : ℝ) ≤ (N : ℝ) - 1 := by linarith
   have h_m_add_1 : (↑(N / t) : ℝ) + 1 ≤ (1 + ε' / 10000) * ((N : ℝ) / (t : ℝ)) := by linarith
@@ -9242,7 +9113,7 @@ theorem main : H1 → H2 → type_of% @Erdos556.erdos_556.variants.luczak_asympt
   have hη_le0 : η ≤ η₀ := min_le_left _ _
   have hη_le : η ≤ ε' / 1000 := min_le_right _ _
   set l : ℕ := Nat.ceil (1000 / ε')
-  have hl_real : 1000 / ε' ≤ (l : ℝ) := Nat.le_ceil _
+  have hl_real : 1000 / ε' ≤ (l : ℝ) := natLC _
   have hl_ge : 1000 ≤ l := by
     have : (1000 : ℝ) ≤ 1000 / ε' := by rw [le_div_iff₀ hε']; nlinarith
     exact_mod_cast this.trans hl_real
@@ -9250,7 +9121,7 @@ theorem main : H1 → H2 → type_of% @Erdos556.erdos_556.variants.luczak_asympt
   obtain ⟨M_bound, hM_eq⟩ : ∃ M, M = SzemerediRegularity.bound η l := ⟨_, rfl⟩
   have hM_pos : 0 < M_bound := hM_eq ▸ SzemerediRegularity.bound_pos η l
   have hl_le_M : l ≤ M_bound := hM_eq ▸ SzemerediRegularity.le_bound η l
-  obtain ⟨m_req, hm_req_eq⟩ : ∃ mr, mr = (Finset.range (M_bound + 1)).sup (fun t => (hm₀_all t).choose) :=
+  obtain ⟨m_req, hm_req_eq⟩ : ∃ mr, mr = (fsRange (M_bound + 1)).sup (fun t => (hm₀_all t).choose) :=
     ⟨_, rfl⟩
   obtain ⟨N₀, hN₀_eq⟩ : ∃ n0, n0 = Nat.ceil ((10000 * (M_bound : ℝ) / ε' + (m_req : ℝ) * M_bound + 100) / 3) + 4 :=
     ⟨_, rfl⟩
@@ -9266,7 +9137,7 @@ theorem main : H1 → H2 → type_of% @Erdos556.erdos_556.variants.luczak_asympt
     have h1n : (N₀ : ℝ) ≤ (n : ℝ) := by exact_mod_cast hn
     have h2n : (10000 * (M_bound : ℝ) / ε' + (m_req : ℝ) * M_bound + 100) / 3 ≤
         (Nat.ceil ((10000 * (M_bound : ℝ) / ε' + (m_req : ℝ) * M_bound + 100) / 3) : ℝ) :=
-      Nat.le_ceil _
+      natLC _
     have h3n : ((Nat.ceil ((10000 * (M_bound : ℝ) / ε' + (m_req : ℝ) * M_bound + 100) / 3) : ℕ) : ℝ) ≤ (N₀ : ℝ) := by
       rw [hN₀_eq]; exact_mod_cast Nat.le_add_right _ 4
     linarith
@@ -9289,7 +9160,7 @@ theorem main : H1 → H2 → type_of% @Erdos556.erdos_556.variants.luczak_asympt
         rw [le_div_iff₀ hε']; nlinarith only [hε', hε'1]
       have h3 : (10000 * (M_bound : ℝ) / ε' : ℝ) ≤ (N : ℝ) := by
         linarith [show (0 : ℝ) ≤ (m_req : ℝ) * M_bound + 99 by positivity]
-      exact Nat.cast_le.mp (h1.trans (h2.trans h3))
+      exact natCL.mp (h1.trans (h2.trans h3))
     obtain ⟨t, parts, R, _, htl, htM, hdisj, hparts_card, hR_prop, hR_ineq⟩ :=
       regularity_cluster_graph N hN_pos G hic η d hη hd.le l hlN hl_pos
     rw [← hM_eq] at htM
@@ -9307,7 +9178,7 @@ theorem main : H1 → H2 → type_of% @Erdos556.erdos_556.variants.luczak_asympt
       have hsup : (hm₀_all t).choose ≤ m_req := by
         rw [hm_req_eq]
         exact Finset.le_sup (f := fun s => (hm₀_all s).choose)
-          (Finset.mem_range.mpr (Nat.lt_succ_of_le htM))
+          (fsMR.mpr (natLSOL htM))
       have hmul : m_req * t ≤ N := by
         have h1 : (m_req : ℝ) * (t : ℝ) ≤ (m_req : ℝ) * (M_bound : ℝ) := by gcongr
         have h2 : (m_req : ℝ) * (M_bound : ℝ) ≤ (N : ℝ) := by
@@ -9315,7 +9186,7 @@ theorem main : H1 → H2 → type_of% @Erdos556.erdos_556.variants.luczak_asympt
           linarith
         exact_mod_cast h1.trans h2
       rw [hm_eq]
-      exact hsup.trans ((Nat.le_div_iff_mul_le ht_pos).mpr hmul)
+      exact hsup.trans ((natLDIML ht_pos).mpr hmul)
     have ht_le_epsN : (t : ℝ) ≤ ε' / 10000 * (N : ℝ) := by
       have h1 : (t : ℝ) ≤ (M_bound : ℝ) := by exact_mod_cast htM
       have h2 : 10000 * (M_bound : ℝ) / ε' ≤ (N : ℝ) := by
@@ -9401,12 +9272,12 @@ theorem h1_proof : OMA.Erdos556R1.H1 := by
   let label (x : Fin t) : Fin (S c).card := if hx : x ∈ S c then equiv ⟨x, hx⟩ else 0
   have hinj {x y} (hx : x ∈ S c) (hy : y ∈ S c) (h : label x = label y) : x = y := by
     simp only [label, dif_pos hx, dif_pos hy] at h
-    exact congrArg Subtype.val (equiv.injective h)
+    exact congrArg subVal (equiv.injective h)
   let color : Sym2 (Fin t) → Fin (S c).card :=
     Sym2.lift ⟨fun x y => label x + label y, fun x y => add_comm _ _⟩
   obtain ⟨a, _, ha⟩ := exists_lt_card_fiber_of_mul_lt_card_of_maps_to
     (s := E c) (t := univ) (f := color) (fun _ _ => mem_univ _)
-    (by simpa [Nat.mul_comm] using hc)
+    (by simpa [natMC] using hc)
   let F := (E c).filter (fun e => color e = a)
   have hsize : k ≤ F.card := by
     change k - 1 < F.card at ha
@@ -9428,7 +9299,7 @@ theorem h1_proof : OMA.Erdos556R1.H1 := by
     exact ⟨y, he⟩
   have disj : (F : Set (Sym2 (Fin t))).PairwiseDisjoint Sym2.toFinset := by
     intro e he f hf hne
-    apply Finset.disjoint_left.mpr
+    apply fsDL.mpr
     intro x hx hx'
     obtain ⟨y, rfl⟩ := Sym2.mem_iff_exists.mp (Sym2.mem_toFinset.mp hx)
     obtain ⟨z, rfl⟩ := Sym2.mem_iff_exists.mp (Sym2.mem_toFinset.mp hx')
@@ -9444,7 +9315,7 @@ theorem h1_proof : OMA.Erdos556R1.H1 := by
       e.card_toFinset_of_not_isDiag (R.not_isDiag_of_mem_edgeFinset
         (mem_filter.mp (mem_filter.mp he).1).1)
     change 2 * k ≤ (↑(F.biUnion Sym2.toFinset) : Set (Fin t)).ncard
-    rw [Set.ncard_coe_finset, card_biUnion disj, sum_const_nat hcard, Nat.mul_comm F.card]
+    rw [stNCF, card_biUnion disj, sum_const_nat hcard, natMC F.card]
     omega
 end H1Section
 
@@ -9477,28 +9348,28 @@ private lemma card_bad_lt {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G.Ad
   have hsub : G.interedges B V' ⊆
       B.biUnion (fun u => (G.neighborFinset u ∩ V').image (fun v => (u, v))) := by
     intro ⟨u, v⟩ huv
-    rw [SimpleGraph.mk_mem_interedges_iff] at huv
-    exact Finset.mem_biUnion.mpr ⟨u, huv.1,
-      Finset.mem_image.mpr ⟨v, Finset.mem_inter.mpr ⟨(G.mem_neighborFinset u v).mpr huv.2.2, huv.2.1⟩, rfl⟩⟩
+    rw [sgMMII] at huv
+    exact fsMB.mpr ⟨u, huv.1,
+      fsMI.mpr ⟨v, fsMI3.mpr ⟨(G.mem_neighborFinset u v).mpr huv.2.2, huv.2.1⟩, rfl⟩⟩
   have hcard_ie : (G.interedges B V').card ≤ ∑ u ∈ B, (G.neighborFinset u ∩ V').card := by
     calc (G.interedges B V').card
         ≤ (B.biUnion (fun u => (G.neighborFinset u ∩ V').image (fun v => (u, v)))).card :=
-          Finset.card_le_card hsub
+          fsCLC hsub
       _ ≤ ∑ u ∈ B, ((G.neighborFinset u ∩ V').image (fun v => (u, v))).card :=
-          Finset.card_biUnion_le
+          fsCBL
       _ ≤ ∑ u ∈ B, (G.neighborFinset u ∩ V').card :=
-          Finset.sum_le_sum fun _ _ => Finset.card_image_le
+          fsSLS fun _ _ => Finset.card_image_le
   have hcard_real : ((G.interedges B V').card : ℝ) ≤ (B.card : ℝ) * ((d - η) * (V'.card : ℝ)) := by
     calc ((G.interedges B V').card : ℝ)
-        ≤ ((∑ u ∈ B, (G.neighborFinset u ∩ V').card : ℕ) : ℝ) := Nat.cast_le.mpr hcard_ie
+        ≤ ((∑ u ∈ B, (G.neighborFinset u ∩ V').card : ℕ) : ℝ) := natCL.mpr hcard_ie
       _ = ∑ u ∈ B, ((G.neighborFinset u ∩ V').card : ℝ) := by push_cast; rfl
       _ ≤ ∑ _u ∈ B, (d - η) * (V'.card : ℝ) := by
-          refine Finset.sum_le_sum fun u hu => ?_
-          exact (Finset.mem_filter.mp hu).2
+          refine fsSLS fun u hu => ?_
+          exact (fsMF.mp hu).2
       _ = (B.card : ℝ) * ((d - η) * (V'.card : ℝ)) := by simp [Finset.sum_const, nsmul_eq_mul]
   have hden_pos : (0 : ℝ) < (B.card : ℝ) * (V'.card : ℝ) := by positivity
   have hle_den : (G.edgeDensity B V' : ℝ) ≤ d - η := by
-    rw [SimpleGraph.edgeDensity_def]
+    rw [sgED]
     push_cast
     rw [div_le_iff₀ hden_pos]
     linarith
@@ -9522,28 +9393,28 @@ private lemma exists_good_two {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel 
   set rem := P \ (avoid ∪ B₁ ∪ B₂)
   have hrem_pos : 0 < rem.card := by
     have h1 : P.card ≤ rem.card + (avoid ∪ B₁ ∪ B₂).card := by
-      calc P.card ≤ (rem ∪ (avoid ∪ B₁ ∪ B₂)).card := Finset.card_le_card (fun x hx => by
+      calc P.card ≤ (rem ∪ (avoid ∪ B₁ ∪ B₂)).card := fsCLC (fun x hx => by
             by_cases h : x ∈ avoid ∪ B₁ ∪ B₂
-            · exact Finset.mem_union_right _ h
-            · exact Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨hx, h⟩))
-        _ ≤ rem.card + (avoid ∪ B₁ ∪ B₂).card := Finset.card_union_le _ _
+            · exact fsMUR _ h
+            · exact fsMUL _ (fsMS.mpr ⟨hx, h⟩))
+        _ ≤ rem.card + (avoid ∪ B₁ ∪ B₂).card := fsCUL _ _
     have h2 : (avoid ∪ B₁ ∪ B₂).card ≤ avoid.card + B₁.card + B₂.card :=
-      (Finset.card_union_le _ _).trans (Nat.add_le_add_right (Finset.card_union_le _ _) _)
+      (fsCUL _ _).trans (natALAR (fsCUL _ _) _)
     have h12 : P.card ≤ rem.card + avoid.card + B₁.card + B₂.card := by omega
     have h3 : ((P.card : ℝ)) ≤ (rem.card : ℝ) + (avoid.card : ℝ) + (B₁.card : ℝ) + (B₂.card : ℝ) := by
       exact_mod_cast h12
     have h4 : (0 : ℝ) < (rem.card : ℝ) := by linarith
     exact_mod_cast h4
-  obtain ⟨u, hu⟩ := Finset.card_pos.mp hrem_pos
-  rw [Finset.mem_sdiff, Finset.mem_union, Finset.mem_union] at hu
+  obtain ⟨u, hu⟩ := fsCP.mp hrem_pos
+  rw [fsMS, fsMU, fsMU] at hu
   have huU : u ∈ U := hPU hu.1
-  have hnotB₁ : u ∉ B₁ := fun h => hu.2 (Or.inl (Or.inr h))
-  have hnotB₂ : u ∉ B₂ := fun h => hu.2 (Or.inr h)
-  refine ⟨u, hu.1, fun h => hu.2 (Or.inl (Or.inl h)), ?_, ?_⟩
+  have hnotB₁ : u ∉ B₁ := fun h => hu.2 (orInl (orInr h))
+  have hnotB₂ : u ∉ B₂ := fun h => hu.2 (orInr h)
+  refine ⟨u, hu.1, fun h => hu.2 (orInl (orInl h)), ?_, ?_⟩
   · by_contra! hle
-    exact hnotB₁ (Finset.mem_filter.mpr ⟨huU, hle⟩)
+    exact hnotB₁ (fsMF.mpr ⟨huU, hle⟩)
   · by_contra! hle
-    exact hnotB₂ (Finset.mem_filter.mpr ⟨huU, hle⟩)
+    exact hnotB₂ (fsMF.mpr ⟨huU, hle⟩)
 
 private lemma no_empty_pair_of_uniform {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G.Adj]
     {d η : ℝ} (hd_gt : η < d) {U V A' B' : Finset (Fin N)}
@@ -9552,19 +9423,19 @@ private lemma no_empty_pair_of_uniform {N : ℕ} (G : SimpleGraph (Fin N)) [Deci
     (hcA : (U.card : ℝ) * η ≤ (cA : ℝ)) (hcB : (V.card : ℝ) * η ≤ (cB : ℝ)) :
     ∀ X ⊆ A', ∀ Y ⊆ B', cA ≤ X.card → cB ≤ Y.card → ∃ x ∈ X, ∃ y ∈ Y, G.Adj x y := by
   intro X hX Y hY hXc hYc
-  have hX' : (U.card : ℝ) * η ≤ (X.card : ℝ) := hcA.trans (Nat.cast_le.mpr hXc)
-  have hY' : (V.card : ℝ) * η ≤ (Y.card : ℝ) := hcB.trans (Nat.cast_le.mpr hYc)
+  have hX' : (U.card : ℝ) * η ≤ (X.card : ℝ) := hcA.trans (natCL.mpr hXc)
+  have hY' : (V.card : ℝ) * η ≤ (Y.card : ℝ) := hcB.trans (natCL.mpr hYc)
   have hdiff := huni (hX.trans hA') (hY.trans hB') hX' hY'
   have hpos : (0 : ℝ) < (G.edgeDensity X Y : ℝ) := by
     rw [abs_sub_lt_iff] at hdiff
     linarith
   have hne : (G.interedges X Y).Nonempty := by
-    rw [SimpleGraph.edgeDensity_def] at hpos
+    rw [sgED] at hpos
     push_cast at hpos
     by_contra! hem
     simp [hem] at hpos
   obtain ⟨⟨x, y⟩, hxy⟩ := hne
-  rw [SimpleGraph.mk_mem_interedges_iff] at hxy
+  rw [sgMMII] at hxy
   exact ⟨x, hxy.1, y, hxy.2.1, hxy.2.2⟩
 
 /- ### Splitting a cluster into disjoint Res, Cap, Body -/
@@ -9589,37 +9460,37 @@ private lemma split_cluster {N : ℕ} (S : Finset (Fin N)) (q : ℕ) (hq : 2 * q
     rw [List.append_assoc, h1]
     exact List.take_append_drop q L
   have hnodup_cat : (L1 ++ L2 ++ L3).Nodup := hcat.symm ▸ hnodup
-  have hn12 : (L1 ++ L2).Nodup := (List.nodup_append.mp hnodup_cat).1
-  have hn1 : L1.Nodup := (List.nodup_append.mp hn12).1
-  have hn2 : L2.Nodup := (List.nodup_append.mp hn12).2.1
-  have hn3 : L3.Nodup := (List.nodup_append.mp hnodup_cat).2.1
+  have hn12 : (L1 ++ L2).Nodup := (lsNA2.mp hnodup_cat).1
+  have hn1 : L1.Nodup := (lsNA2.mp hn12).1
+  have hn2 : L2.Nodup := (lsNA2.mp hn12).2.1
+  have hn3 : L3.Nodup := (lsNA2.mp hnodup_cat).2.1
   refine ⟨L1.toFinset, L2.toFinset, L3.toFinset, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · intro x hx
-    rw [List.mem_toFinset] at hx
-    exact S.mem_toList.mp (by show x ∈ L; rw [← hcat]; exact List.mem_append_left _ (List.mem_append_left _ hx))
+    rw [lsMT] at hx
+    exact S.mem_toList.mp (by show x ∈ L; rw [← hcat]; exact lsMAL _ (lsMAL _ hx))
   · intro x hx
-    rw [List.mem_toFinset] at hx
-    exact S.mem_toList.mp (by show x ∈ L; rw [← hcat]; exact List.mem_append_left _ (List.mem_append_right _ hx))
+    rw [lsMT] at hx
+    exact S.mem_toList.mp (by show x ∈ L; rw [← hcat]; exact lsMAL _ (lsMAR _ hx))
   · intro x hx
-    rw [List.mem_toFinset] at hx
-    exact S.mem_toList.mp (by show x ∈ L; rw [← hcat]; exact List.mem_append_right _ hx)
-  · rw [Finset.disjoint_left]
+    rw [lsMT] at hx
+    exact S.mem_toList.mp (by show x ∈ L; rw [← hcat]; exact lsMAR _ hx)
+  · rw [fsDL]
     intro x hx1 hx2
-    rw [List.mem_toFinset] at hx1 hx2
-    exact (List.nodup_append.mp hn12).2.2 x hx1 x hx2 rfl
-  · rw [Finset.disjoint_left]
+    rw [lsMT] at hx1 hx2
+    exact (lsNA2.mp hn12).2.2 x hx1 x hx2 rfl
+  · rw [fsDL]
     intro x hx1 hx3
-    rw [List.mem_toFinset] at hx1 hx3
-    exact (List.nodup_append.mp hnodup_cat).2.2 x (List.mem_append_left _ hx1) x hx3 rfl
-  · rw [Finset.disjoint_left]
+    rw [lsMT] at hx1 hx3
+    exact (lsNA2.mp hnodup_cat).2.2 x (lsMAL _ hx1) x hx3 rfl
+  · rw [fsDL]
     intro x hx2 hx3
-    rw [List.mem_toFinset] at hx2 hx3
-    exact (List.nodup_append.mp hnodup_cat).2.2 x (List.mem_append_right _ hx2) x hx3 rfl
-  · rw [List.toFinset_card_of_nodup hn1, List.length_take, hlen]
+    rw [lsMT] at hx2 hx3
+    exact (lsNA2.mp hnodup_cat).2.2 x (lsMAR _ hx2) x hx3 rfl
+  · rw [lsTCON hn1, lsLT, hlen]
     omega
-  · rw [List.toFinset_card_of_nodup hn2, List.length_take, List.length_drop, hlen]
+  · rw [lsTCON hn2, lsLT, List.length_drop, hlen]
     omega
-  · rw [List.toFinset_card_of_nodup hn3, List.length_drop, hlen]
+  · rw [lsTCON hn3, List.length_drop, hlen]
 
 /- ### DFS long alternating path lemma -/
 
@@ -9629,7 +9500,7 @@ private noncomputable def bipartAdj {N : ℕ} (G : SimpleGraph (Fin N))
 
 private lemma bipartAdj_symm {N : ℕ} {G : SimpleGraph (Fin N)} {A' B' : Finset (Fin N)}
     {x y : Fin N} (h : bipartAdj G A' B' x y) : bipartAdj G A' B' y x :=
-  ⟨by rcases h.1 with ⟨hx, hy⟩ | ⟨hx, hy⟩ <;> [exact Or.inr ⟨hy, hx⟩; exact Or.inl ⟨hy, hx⟩],
+  ⟨by rcases h.1 with ⟨hx, hy⟩ | ⟨hx, hy⟩ <;> [exact orInr ⟨hy, hx⟩; exact orInl ⟨hy, hx⟩],
     h.2.symm⟩
 
 open Classical in
@@ -9648,9 +9519,9 @@ private noncomputable def dfsStep {N : ℕ} (G : SimpleGraph (Fin N)) [Decidable
 termination_by 2 * W.card + P.length
 decreasing_by
   · have hc : (W.erase hex.choose).card < W.card := Finset.card_erase_lt_of_mem hex.choose_spec.1
-    simp only [List.length_cons]
+    simp only [lsLC]
     omega
-  · simp only [List.length_cons]
+  · simp only [lsLC]
     omega
 
 open Classical in
@@ -9687,7 +9558,7 @@ private lemma dfsStep_spec {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G.A
       (res.2.1 ∩ B').card ≤ cB ∧
       (cA ≤ (res.2.1 ∩ A').card ∨ cB ≤ (res.2.1 ∩ B').card) := by
   intro n
-  induction n using Nat.strong_induction_on with
+  induction n using natSIO with
   | _ n ih =>
     intro P D W hn hPne hPlast hPnodup hPchain hPsub hDsub hWsub hcov
       hDW hDP hWP hnoEdge hDA hDB
@@ -9704,49 +9575,49 @@ private lemma dfsStep_spec {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G.A
           have hwW : w ∈ W := hex.choose_spec.1
           have hvw : bipartAdj G A' B' v w := hex.choose_spec.2
           have hwsub : w ∈ A' ∪ B' := hWsub hwW
-          have hwnP : w ∉ (v :: rest).toFinset := Finset.disjoint_left.mp hWP hwW
-          have hwnD : w ∉ D := Finset.disjoint_right.mp hDW hwW
+          have hwnP : w ∉ (v :: rest).toFinset := fsDL.mp hWP hwW
+          have hwnD : w ∉ D := fsDR.mp hDW hwW
           have hlt : 2 * (W.erase w).card + (w :: v :: rest).length < n := by
             have hc := Finset.card_erase_lt_of_mem hwW
-            simp only [List.length_cons] at hn ⊢
+            simp only [lsLC] at hn ⊢
             omega
           refine ih _ hlt (w :: v :: rest) D (W.erase w) rfl (by simp) ?_ ?_ ?_ ?_ hDsub ?_ ?_ ?_ ?_ ?_ ?_ hDA hDB
           · simpa using hPlast
-          · exact List.nodup_cons.mpr ⟨by simpa [List.mem_toFinset] using hwnP, hPnodup⟩
-          · exact List.IsChain.cons_cons (bipartAdj_symm hvw) hPchain
+          · exact lsNC.mpr ⟨by simpa [lsMT] using hwnP, hPnodup⟩
+          · exact lsCC (bipartAdj_symm hvw) hPchain
           · intro x hx
-            rw [List.toFinset_cons, Finset.mem_insert] at hx
+            rw [lsTC, fsMI2] at hx
             rcases hx with rfl | hx
             · exact hwsub
             · exact hPsub hx
-          · exact (Finset.erase_subset w W).trans hWsub
+          · exact (fsES w W).trans hWsub
           · intro x hx
-            rcases Finset.mem_union.mp (hcov hx) with hPD | hW
-            · rcases Finset.mem_union.mp hPD with hP | hD
-              · rw [List.toFinset_cons, Finset.mem_union, Finset.mem_union, Finset.mem_insert]
-                exact Or.inl (Or.inl (Or.inr hP))
-              · exact Finset.mem_union_left _ (Finset.mem_union_right _ hD)
+            rcases fsMU.mp (hcov hx) with hPD | hW
+            · rcases fsMU.mp hPD with hP | hD
+              · rw [lsTC, fsMU, fsMU, fsMI2]
+                exact orInl (orInl (orInr hP))
+              · exact fsMUL _ (fsMUR _ hD)
             · by_cases hxw : x = w
               · subst hxw
-                rw [List.toFinset_cons, Finset.mem_union, Finset.mem_union, Finset.mem_insert]
-                exact Or.inl (Or.inl (Or.inl rfl))
-              · exact Finset.mem_union_right _ (Finset.mem_erase.mpr ⟨hxw, hW⟩)
-          · exact Finset.disjoint_of_subset_right (Finset.erase_subset w W) hDW
-          · rw [List.toFinset_cons, Finset.disjoint_insert_right]
+                rw [lsTC, fsMU, fsMU, fsMI2]
+                exact orInl (orInl (orInl rfl))
+              · exact fsMUR _ (fsME.mpr ⟨hxw, hW⟩)
+          · exact fsDOSR (fsES w W) hDW
+          · rw [lsTC, Finset.disjoint_insert_right]
             exact ⟨hwnD, hDP⟩
-          · rw [List.toFinset_cons, Finset.disjoint_insert_right]
-            exact ⟨Finset.notMem_erase w W, Finset.disjoint_of_subset_left (Finset.erase_subset w W) hWP⟩
+          · rw [lsTC, Finset.disjoint_insert_right]
+            exact ⟨Finset.notMem_erase w W, Finset.disjoint_of_subset_left (fsES w W) hWP⟩
           · intro d hd x hx
-            exact hnoEdge d hd x (Finset.mem_of_mem_erase hx)
+            exact hnoEdge d hd x (fsMOME hx)
         · simp only [dif_neg hex]
           have hvP : v ∈ (v :: rest).toFinset := by simp
           have hvsub : v ∈ A' ∪ B' := hPsub hvP
-          have hvnD : v ∉ D := Finset.disjoint_right.mp hDP hvP
-          have hvnW : v ∉ W := Finset.disjoint_right.mp hWP hvP
+          have hvnD : v ∉ D := fsDR.mp hDP hvP
+          have hvnW : v ∉ W := fsDR.mp hWP hvP
           have hvnR : v ∉ rest.toFinset := by
             intro h
-            have : v ∈ rest := List.mem_toFinset.mp h
-            exact (List.nodup_cons.mp hPnodup).1 this
+            have : v ∈ rest := lsMT.mp h
+            exact (lsNC.mp hPnodup).1 this
           have hrest_ne : rest ≠ [] := by
             intro hnil
             subst hnil
@@ -9754,75 +9625,75 @@ private lemma dfsStep_spec {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G.A
             subst hPlast
             have hsubB : G.neighborFinset v ∩ B' ⊆ D ∩ B' := by
               intro b hb
-              rw [Finset.mem_inter, SimpleGraph.mem_neighborFinset] at hb
-              have hbAB : b ∈ A' ∪ B' := Finset.mem_union_right _ hb.2
-              rcases Finset.mem_union.mp (hcov hbAB) with hPD | hW
-              · rcases Finset.mem_union.mp hPD with hP | hD
-                · rw [List.mem_toFinset, List.mem_singleton] at hP
+              rw [fsMI3, sgMN] at hb
+              have hbAB : b ∈ A' ∪ B' := fsMUR _ hb.2
+              rcases fsMU.mp (hcov hbAB) with hPD | hW
+              · rcases fsMU.mp hPD with hP | hD
+                · rw [lsMT, lsMS] at hP
                   subst hP
-                  exact (Finset.disjoint_left.mp hdisj ha₀ hb.2).elim
-                · exact Finset.mem_inter.mpr ⟨hD, hb.2⟩
-              · exact (hex ⟨b, hW, Or.inl ⟨ha₀, hb.2⟩, hb.1⟩).elim
-            have hle : cB ≤ (D ∩ B').card := hdeg₀.trans (Finset.card_le_card hsubB)
-            exact hstop (Or.inr hle)
+                  exact (fsDL.mp hdisj ha₀ hb.2).elim
+                · exact fsMI3.mpr ⟨hD, hb.2⟩
+              · exact (hex ⟨b, hW, orInl ⟨ha₀, hb.2⟩, hb.1⟩).elim
+            have hle : cB ≤ (D ∩ B').card := hdeg₀.trans (fsCLC hsubB)
+            exact hstop (orInr hle)
           have hlt : 2 * W.card + rest.length < n := by
-            simp only [List.length_cons] at hn
+            simp only [lsLC] at hn
             omega
           have hDA' : ((insert v D) ∩ A').card ≤ cA := by
             by_cases hvA : v ∈ A'
             · have : insert v D ∩ A' = insert v (D ∩ A') := by
-                ext x; simp only [Finset.mem_inter, Finset.mem_insert]
-                exact ⟨fun ⟨h1, h2⟩ => h1.elim Or.inl (fun hd => Or.inr ⟨hd, h2⟩),
-                       fun h => h.elim (fun he => ⟨Or.inl he, he ▸ hvA⟩) (fun ⟨hd, ha⟩ => ⟨Or.inr hd, ha⟩)⟩
-              rw [this, Finset.card_insert_of_notMem (fun h => hvnD (Finset.mem_inter.mp h).1)]
-              have : (D ∩ A').card < cA := not_le.mp (fun h => hstop (Or.inl h))
+                ext x; simp only [fsMI3, fsMI2]
+                exact ⟨fun ⟨h1, h2⟩ => h1.elim orInl (fun hd => orInr ⟨hd, h2⟩),
+                       fun h => h.elim (fun he => ⟨orInl he, he ▸ hvA⟩) (fun ⟨hd, ha⟩ => ⟨orInr hd, ha⟩)⟩
+              rw [this, fsCION (fun h => hvnD (fsMI3.mp h).1)]
+              have : (D ∩ A').card < cA := not_le.mp (fun h => hstop (orInl h))
               omega
             · have : insert v D ∩ A' = D ∩ A' := by
-                ext x; simp only [Finset.mem_inter, Finset.mem_insert]
+                ext x; simp only [fsMI3, fsMI2]
                 exact ⟨fun ⟨h1, h2⟩ => ⟨h1.elim (fun he => (hvA (he ▸ h2)).elim) id, h2⟩,
-                       fun ⟨hd, ha⟩ => ⟨Or.inr hd, ha⟩⟩
+                       fun ⟨hd, ha⟩ => ⟨orInr hd, ha⟩⟩
               rw [this]
-              exact (not_le.mp (fun h => hstop (Or.inl h))).le
+              exact (not_le.mp (fun h => hstop (orInl h))).le
           have hDB' : ((insert v D) ∩ B').card ≤ cB := by
             by_cases hvB : v ∈ B'
             · have : insert v D ∩ B' = insert v (D ∩ B') := by
-                ext x; simp only [Finset.mem_inter, Finset.mem_insert]
-                exact ⟨fun ⟨h1, h2⟩ => h1.elim Or.inl (fun hd => Or.inr ⟨hd, h2⟩),
-                       fun h => h.elim (fun he => ⟨Or.inl he, he ▸ hvB⟩) (fun ⟨hd, hb⟩ => ⟨Or.inr hd, hb⟩)⟩
-              rw [this, Finset.card_insert_of_notMem (fun h => hvnD (Finset.mem_inter.mp h).1)]
-              have : (D ∩ B').card < cB := not_le.mp (fun h => hstop (Or.inr h))
+                ext x; simp only [fsMI3, fsMI2]
+                exact ⟨fun ⟨h1, h2⟩ => h1.elim orInl (fun hd => orInr ⟨hd, h2⟩),
+                       fun h => h.elim (fun he => ⟨orInl he, he ▸ hvB⟩) (fun ⟨hd, hb⟩ => ⟨orInr hd, hb⟩)⟩
+              rw [this, fsCION (fun h => hvnD (fsMI3.mp h).1)]
+              have : (D ∩ B').card < cB := not_le.mp (fun h => hstop (orInr h))
               omega
             · have : insert v D ∩ B' = D ∩ B' := by
-                ext x; simp only [Finset.mem_inter, Finset.mem_insert]
+                ext x; simp only [fsMI3, fsMI2]
                 exact ⟨fun ⟨h1, h2⟩ => ⟨h1.elim (fun he => (hvB (he ▸ h2)).elim) id, h2⟩,
-                       fun ⟨hd, hb⟩ => ⟨Or.inr hd, hb⟩⟩
+                       fun ⟨hd, hb⟩ => ⟨orInr hd, hb⟩⟩
               rw [this]
-              exact (not_le.mp (fun h => hstop (Or.inr h))).le
-          refine ih _ hlt rest (insert v D) W rfl hrest_ne ?_ (List.nodup_cons.mp hPnodup).2
+              exact (not_le.mp (fun h => hstop (orInr h))).le
+          refine ih _ hlt rest (insert v D) W rfl hrest_ne ?_ (lsNC.mp hPnodup).2
             hPchain.tail ?_ ?_ hWsub ?_ ?_ ?_ ?_ ?_ hDA' hDB'
           · rcases rest with _ | ⟨r, rs⟩
             · exact (hrest_ne rfl).elim
             · simpa using hPlast
-          · exact fun x hx => hPsub (by simp [List.mem_toFinset] at hx ⊢; right; exact hx)
+          · exact fun x hx => hPsub (by simp [lsMT] at hx ⊢; right; exact hx)
           · rw [Finset.insert_subset_iff]
             exact ⟨hvsub, hDsub⟩
           · intro x hx
-            rcases Finset.mem_union.mp (hcov hx) with hPD | hW
-            · rcases Finset.mem_union.mp hPD with hP | hD
-              · simp only [List.toFinset_cons, Finset.mem_insert] at hP
+            rcases fsMU.mp (hcov hx) with hPD | hW
+            · rcases fsMU.mp hPD with hP | hD
+              · simp only [lsTC, fsMI2] at hP
                 rcases hP with rfl | hxR
-                · exact Finset.mem_union_left _ (Finset.mem_union_right _ (Finset.mem_insert_self _ _))
-                · exact Finset.mem_union_left _ (Finset.mem_union_left _ hxR)
-              · exact Finset.mem_union_left _ (Finset.mem_union_right _ (Finset.mem_insert_of_mem hD))
-            · exact Finset.mem_union_right _ hW
+                · exact fsMUL _ (fsMUR _ (fsMIS _ _))
+                · exact fsMUL _ (fsMUL _ hxR)
+              · exact fsMUL _ (fsMUR _ (fsMIOM hD))
+            · exact fsMUR _ hW
           · exact Finset.disjoint_insert_left.mpr ⟨hvnW, hDW⟩
           · rw [Finset.disjoint_insert_left]
-            exact ⟨hvnR, Finset.disjoint_of_subset_right
-              (by intro x hx; simp [List.mem_toFinset] at hx ⊢; right; exact hx) hDP⟩
-          · exact Finset.disjoint_of_subset_right
-              (by intro x hx; simp [List.mem_toFinset] at hx ⊢; right; exact hx) hWP
+            exact ⟨hvnR, fsDOSR
+              (by intro x hx; simp [lsMT] at hx ⊢; right; exact hx) hDP⟩
+          · exact fsDOSR
+              (by intro x hx; simp [lsMT] at hx ⊢; right; exact hx) hWP
           · intro d hd w hw hadj
-            rcases Finset.mem_insert.mp hd with rfl | hd
+            rcases fsMI2.mp hd with rfl | hd
             · exact hex ⟨w, hw, hadj⟩
             · exact hnoEdge d hd w hw hadj
 
@@ -9840,7 +9711,7 @@ private lemma alternating_chain_props {N : ℕ} (G : SimpleGraph (Fin N)) :
   | cons a t ih =>
     intro A' B' hdisj _ hhead hchain hnodup
     have haA : a ∈ A' := hhead (by simp)
-    have haB : a ∉ B' := Finset.disjoint_left.mp hdisj haA
+    have haB : a ∉ B' := fsDL.mp hdisj haA
     rcases t with _ | ⟨b, ts⟩
     · refine ⟨?_, ?_, ?_⟩
       · simp [haA]
@@ -9857,23 +9728,23 @@ private lemma alternating_chain_props {N : ℕ} (G : SimpleGraph (Fin N)) :
       have hchain_t : (b :: ts).IsChain (bipartAdj G B' A') := by
         refine hchain.tail.imp fun {x y} hxy => ?_
         rcases hxy.1 with ⟨hx, hy⟩ | ⟨hx, hy⟩
-        · exact ⟨Or.inr ⟨hx, hy⟩, hxy.2⟩
-        · exact ⟨Or.inl ⟨hx, hy⟩, hxy.2⟩
-      have hrec := ih B' A' hdisj.symm (by simp) (fun _ => hbB) hchain_t (List.nodup_cons.mp hnodup).2
+        · exact ⟨orInr ⟨hx, hy⟩, hxy.2⟩
+        · exact ⟨orInl ⟨hx, hy⟩, hxy.2⟩
+      have hrec := ih B' A' hdisj.symm (by simp) (fun _ => hbB) hchain_t (lsNC.mp hnodup).2
       have hanT : a ∉ (b :: ts).toFinset := by
-        simpa [List.mem_toFinset] using (List.nodup_cons.mp hnodup).1
+        simpa [lsMT] using (lsNC.mp hnodup).1
       have hsubA : (a :: b :: ts).toFinset ∩ A' = insert a ((b :: ts).toFinset ∩ A') := by
         ext x; simp [haA]
       have hsubB : (a :: b :: ts).toFinset ∩ B' = (b :: ts).toFinset ∩ B' := by
         ext x; simp [haB]
       refine ⟨?_, ?_, ?_⟩
-      · rw [hsubA, Finset.card_insert_of_notMem (fun h => hanT (Finset.mem_inter.mp h).1)]
+      · rw [hsubA, fsCION (fun h => hanT (fsMI3.mp h).1)]
         have := hrec.2.1
-        simp only [List.length_cons] at this ⊢
+        simp only [lsLC] at this ⊢
         omega
       · rw [hsubB]
         have := hrec.1
-        simp only [List.length_cons] at this ⊢
+        simp only [lsLC] at this ⊢
         omega
       · intro i hi
         rcases i with _ | i
@@ -9898,15 +9769,15 @@ private lemma dfs_long_path {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G.
       Q.toFinset ⊆ A' ∪ B' ∧
       2 * (min A'.card B'.card - 2 * max cA cB) + 1 ≤ Q.length ∧
       (∀ i (hi : i < Q.length), (Even i → Q[i] ∈ A') ∧ (Odd i → Q[i] ∈ B')) := by
-  have ha₀_sub : a₀ ∈ A' ∪ B' := Finset.mem_union_left _ ha₀
+  have ha₀_sub : a₀ ∈ A' ∪ B' := fsMUL _ ha₀
   set W₀ := (A' ∪ B').erase a₀
   have hspec := dfsStep_spec G A' B' hdisj cA cB a₀ ha₀ hdeg₀
     (2 * W₀.card + [a₀].length) [a₀] ∅ W₀ rfl (by simp) (by simp) (by simp) (by simp)
-    (by simp [ha₀_sub]) (by simp) (Finset.erase_subset _ _)
+    (by simp [ha₀_sub]) (by simp) (fsES _ _)
     (fun x hx => by
       by_cases h : x = a₀
       · subst h; simp
-      · exact Finset.mem_union_right _ (Finset.mem_erase.mpr ⟨h, hx⟩))
+      · exact fsMUR _ (fsME.mpr ⟨h, hx⟩))
     (by simp) (by simp) (by simp [W₀]) (by simp) (by simp) (by simp)
   set res := dfsStep G A' B' cA cB [a₀] ∅ W₀
   set P := res.1
@@ -9934,22 +9805,22 @@ private lemma dfs_long_path {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G.
     rcases hstop with hDA_ge | hDB_ge
     · have hWB : (W ∩ B').card < cB := by
         by_contra! hWB_ge
-        obtain ⟨x, hx, y, hy, hadj⟩ := hnoempty (D ∩ A') Finset.inter_subset_right
-          (W ∩ B') Finset.inter_subset_right hDA_ge hWB_ge
-        exact hnoEdge x (Finset.mem_inter.mp hx).1 y (Finset.mem_inter.mp hy).1
-          ⟨Or.inl ⟨(Finset.mem_inter.mp hx).2, (Finset.mem_inter.mp hy).2⟩, hadj⟩
+        obtain ⟨x, hx, y, hy, hadj⟩ := hnoempty (D ∩ A') fsISR
+          (W ∩ B') fsISR hDA_ge hWB_ge
+        exact hnoEdge x (fsMI3.mp hx).1 y (fsMI3.mp hy).1
+          ⟨orInl ⟨(fsMI3.mp hx).2, (fsMI3.mp hy).2⟩, hadj⟩
       have hB_cov : B' ⊆ (Q.toFinset ∩ B') ∪ (D ∩ B') ∪ (W ∩ B') := by
         intro b hb
-        have hbAB : b ∈ A' ∪ B' := Finset.mem_union_right _ hb
-        rcases Finset.mem_union.mp (hcov hbAB) with hPD | hW
-        · rcases Finset.mem_union.mp hPD with hP | hD
-          · exact Finset.mem_union_left _ (Finset.mem_union_left _
-              (Finset.mem_inter.mpr ⟨by simpa [Q] using hP, hb⟩))
-          · exact Finset.mem_union_left _ (Finset.mem_union_right _ (Finset.mem_inter.mpr ⟨hD, hb⟩))
-        · exact Finset.mem_union_right _ (Finset.mem_inter.mpr ⟨hW, hb⟩)
+        have hbAB : b ∈ A' ∪ B' := fsMUR _ hb
+        rcases fsMU.mp (hcov hbAB) with hPD | hW
+        · rcases fsMU.mp hPD with hP | hD
+          · exact fsMUL _ (fsMUL _
+              (fsMI3.mpr ⟨by simpa [Q] using hP, hb⟩))
+          · exact fsMUL _ (fsMUR _ (fsMI3.mpr ⟨hD, hb⟩))
+        · exact fsMUR _ (fsMI3.mpr ⟨hW, hb⟩)
       have hB_card : B'.card ≤ (Q.toFinset ∩ B').card + (D ∩ B').card + (W ∩ B').card :=
-        (Finset.card_le_card hB_cov).trans
-          ((Finset.card_union_le _ _).trans (Nat.add_le_add_right (Finset.card_union_le _ _) _))
+        (fsCLC hB_cov).trans
+          ((fsCUL _ _).trans (natALAR (fsCUL _ _) _))
       have hQB := hprops.2.1
       have hDB' : (D ∩ B').card ≤ cB := hDB
       have hmin := min_le_right A'.card B'.card
@@ -9957,22 +9828,22 @@ private lemma dfs_long_path {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G.
       omega
     · have hWA : (W ∩ A').card < cA := by
         by_contra! hWA_ge
-        obtain ⟨x, hx, y, hy, hadj⟩ := hnoempty (W ∩ A') Finset.inter_subset_right
-          (D ∩ B') Finset.inter_subset_right hWA_ge hDB_ge
-        exact hnoEdge y (Finset.mem_inter.mp hy).1 x (Finset.mem_inter.mp hx).1
-          ⟨Or.inr ⟨(Finset.mem_inter.mp hy).2, (Finset.mem_inter.mp hx).2⟩, hadj.symm⟩
+        obtain ⟨x, hx, y, hy, hadj⟩ := hnoempty (W ∩ A') fsISR
+          (D ∩ B') fsISR hWA_ge hDB_ge
+        exact hnoEdge y (fsMI3.mp hy).1 x (fsMI3.mp hx).1
+          ⟨orInr ⟨(fsMI3.mp hy).2, (fsMI3.mp hx).2⟩, hadj.symm⟩
       have hA_cov : A' ⊆ (Q.toFinset ∩ A') ∪ (D ∩ A') ∪ (W ∩ A') := by
         intro a ha
-        have haAB : a ∈ A' ∪ B' := Finset.mem_union_left _ ha
-        rcases Finset.mem_union.mp (hcov haAB) with hPD | hW
-        · rcases Finset.mem_union.mp hPD with hP | hD
-          · exact Finset.mem_union_left _ (Finset.mem_union_left _
-              (Finset.mem_inter.mpr ⟨by simpa [Q] using hP, ha⟩))
-          · exact Finset.mem_union_left _ (Finset.mem_union_right _ (Finset.mem_inter.mpr ⟨hD, ha⟩))
-        · exact Finset.mem_union_right _ (Finset.mem_inter.mpr ⟨hW, ha⟩)
+        have haAB : a ∈ A' ∪ B' := fsMUL _ ha
+        rcases fsMU.mp (hcov haAB) with hPD | hW
+        · rcases fsMU.mp hPD with hP | hD
+          · exact fsMUL _ (fsMUL _
+              (fsMI3.mpr ⟨by simpa [Q] using hP, ha⟩))
+          · exact fsMUL _ (fsMUR _ (fsMI3.mpr ⟨hD, ha⟩))
+        · exact fsMUR _ (fsMI3.mpr ⟨hW, ha⟩)
       have hA_card : A'.card ≤ (Q.toFinset ∩ A').card + (D ∩ A').card + (W ∩ A').card :=
-        (Finset.card_le_card hA_cov).trans
-          ((Finset.card_union_le _ _).trans (Nat.add_le_add_right (Finset.card_union_le _ _) _))
+        (fsCLC hA_cov).trans
+          ((fsCUL _ _).trans (natALAR (fsCUL _ _) _))
       have hQA := hprops.1
       have hDA' : (D ∩ A').card ≤ cA := hDA
       have hmin := min_le_left A'.card B'.card
@@ -10000,60 +9871,60 @@ private lemma extract_matching_pairs {t : ℕ} {R : SimpleGraph (Fin t)} (M : R.
     exact ⟨[], rfl, by simp, by simp, by simp⟩
   | succ k ih =>
     intro S hSverts hSclosed hScard
-    have hSne : S.Nonempty := Finset.card_pos.mp (by omega)
+    have hSne : S.Nonempty := fsCP.mp (by omega)
     obtain ⟨u, huS⟩ := hSne
     obtain ⟨v, hvAdj, hvUniq⟩ := hM (hSverts u huS)
     have hvS : v ∈ S := hSclosed u huS v hvAdj
     have huv : u ≠ v := R.ne_of_adj (M.adj_sub hvAdj)
     set S' := (S.erase u).erase v
     have hS'verts : ∀ x ∈ S', x ∈ M.verts := fun x hx =>
-      hSverts x (Finset.mem_of_mem_erase (Finset.mem_of_mem_erase hx))
+      hSverts x (fsMOME (fsMOME hx))
     have hS'closed : ∀ x ∈ S', ∀ y, M.Adj x y → y ∈ S' := by
       intro x hx y hxy
-      have hxS := Finset.mem_of_mem_erase (Finset.mem_of_mem_erase hx)
-      have hxv : x ≠ v := Finset.ne_of_mem_erase hx
-      have hxu : x ≠ u := Finset.ne_of_mem_erase (Finset.mem_of_mem_erase hx)
+      have hxS := fsMOME (fsMOME hx)
+      have hxv : x ≠ v := fsNOME hx
+      have hxu : x ≠ u := fsNOME (fsMOME hx)
       have hyS := hSclosed x hxS y hxy
-      refine Finset.mem_erase.mpr ⟨?_, Finset.mem_erase.mpr ⟨?_, hyS⟩⟩
+      refine fsME.mpr ⟨?_, fsME.mpr ⟨?_, hyS⟩⟩
       · intro hyv; subst hyv
         exact hxu (hM.eq_of_adj_right hxy hvAdj)
       · intro hyu; subst hyu
         exact hxv (hvUniq x hxy.symm)
     have hS'card : 2 * k ≤ S'.card := by
       have h1 : (S.erase u).card = S.card - 1 := Finset.card_erase_of_mem huS
-      have hv_er : v ∈ S.erase u := Finset.mem_erase.mpr ⟨huv.symm, hvS⟩
+      have hv_er : v ∈ S.erase u := fsME.mpr ⟨huv.symm, hvS⟩
       have h2 : S'.card = (S.erase u).card - 1 := Finset.card_erase_of_mem hv_er
       omega
     obtain ⟨edges, hlen, hadj, hmemS', hnodup⟩ := ih S' hS'verts hS'closed hS'card
     have hnotU : u ∉ edges.flatMap (fun p => [p.1, p.2]) := by
-      rw [List.mem_flatMap]
+      rw [lsMF2]
       rintro ⟨q, hq, hzq⟩
       have hqS' := hmemS' q hq
-      simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hzq
+      simp only [lsMC, lsMS, lsNMN, or_false] at hzq
       rcases hzq with rfl | rfl
-      · exact Finset.ne_of_mem_erase (Finset.mem_of_mem_erase hqS'.1) rfl
-      · exact Finset.ne_of_mem_erase (Finset.mem_of_mem_erase hqS'.2) rfl
+      · exact fsNOME (fsMOME hqS'.1) rfl
+      · exact fsNOME (fsMOME hqS'.2) rfl
     have hnotV : v ∉ edges.flatMap (fun p => [p.1, p.2]) := by
-      rw [List.mem_flatMap]
+      rw [lsMF2]
       rintro ⟨q, hq, hzq⟩
       have hqS' := hmemS' q hq
-      simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hzq
+      simp only [lsMC, lsMS, lsNMN, or_false] at hzq
       rcases hzq with rfl | rfl
-      · exact Finset.ne_of_mem_erase hqS'.1 rfl
-      · exact Finset.ne_of_mem_erase hqS'.2 rfl
+      · exact fsNOME hqS'.1 rfl
+      · exact fsNOME hqS'.2 rfl
     refine ⟨(u, v) :: edges, by simp [hlen], ?_, ?_, ?_⟩
     · intro p hp
-      rcases List.mem_cons.mp hp with rfl | hp
+      rcases lsMC.mp hp with rfl | hp
       · exact hvAdj
       · exact hadj p hp
     · intro p hp
-      rcases List.mem_cons.mp hp with rfl | hp
+      rcases lsMC.mp hp with rfl | hp
       · exact ⟨huS, hvS⟩
-      · exact ⟨Finset.mem_of_mem_erase (Finset.mem_of_mem_erase (hmemS' p hp).1),
-               Finset.mem_of_mem_erase (Finset.mem_of_mem_erase (hmemS' p hp).2)⟩
-    · simp only [List.flatMap_cons, List.cons_append, List.nil_append, List.nodup_cons]
+      · exact ⟨fsMOME (fsMOME (hmemS' p hp).1),
+               fsMOME (fsMOME (hmemS' p hp).2)⟩
+    · simp only [lsFC2, lsCA, lsNA, lsNC]
       refine ⟨?_, hnotV, hnodup⟩
-      simp only [List.mem_cons]
+      simp only [lsMC]
       rintro (rfl | h)
       · exact huv rfl
       · exact hnotU h
@@ -10084,12 +9955,12 @@ private lemma isChain_append {α : Type*} {r : α → α → Prop} {l₁ l₂ : 
   | nil => simpa using h₂
   | cons x xs ih =>
     rcases xs with _ | ⟨y, ys⟩
-    · simp only [List.nil_append, List.singleton_append]
+    · simp only [lsNA, List.singleton_append]
       rcases l₂ with _ | ⟨b, bs⟩
       · exact h₁
-      · exact List.IsChain.cons_cons (hbd x (by simp) b (by simp)) h₂
-    · simp only [List.cons_append]
-      exact List.IsChain.cons_cons (List.IsChain.rel_head h₁)
+      · exact lsCC (hbd x (by simp) b (by simp)) h₂
+    · simp only [lsCA]
+      exact lsCC (List.IsChain.rel_head h₁)
         (ih h₁.tail (fun a ha b hb => hbd a (by simpa using ha) b hb))
 
 private lemma spliceAt_props {α : Type*} [DecidableEq α] (x : α)
@@ -10117,7 +9988,7 @@ private lemma spliceAt_props {α : Type*} [DecidableEq α] (x : α)
       have hne' : ins ++ e :: rest ≠ [] := List.append_ne_nil_of_right_ne_nil _ (by simp)
       refine ⟨hne', ?_, ?_, ?_, ?_, ?_, ?_⟩
       · intro h'
-        rw [List.head_append_of_ne_nil hins_ne]
+        rw [lsHAONN hins_ne]
         simpa [he] using hins_head
       · intro h'
         exact List.getLast_append_of_ne_nil _ (by simp)
@@ -10135,32 +10006,32 @@ private lemma spliceAt_props {α : Type*} [DecidableEq α] (x : α)
     · rw [if_neg he]
       have hex_rest : ∃ e' ∈ rest, e'.1 = x := by
         rcases hex with ⟨e', he', hx'⟩
-        rcases List.mem_cons.mp he' with rfl | he'
+        rcases lsMC.mp he' with rfl | he'
         · exact (he hx').elim
         · exact ⟨e', he', hx'⟩
       have hrest_ne : rest ≠ [] := by
-        rintro rfl; obtain ⟨e', he', _⟩ := hex_rest; exact (List.not_mem_nil he').elim
+        rintro rfl; obtain ⟨e', he', _⟩ := hex_rest; exact (lsNMN he').elim
       obtain ⟨hne_r, hhead_r, hlast_r, hlen_r, hchain_r, hmem_r, hperm_r⟩ :=
         ih hrest_ne hex_rest hWchain.tail
       refine ⟨by simp, ?_, ?_, ?_, ?_, ?_, ?_⟩
       · intro _; simp
       · intro h'
-        rw [List.getLast_cons hne_r, hlast_r hne_r, List.getLast_cons hrest_ne]
+        rw [lsGC hne_r, hlast_r hne_r, lsGC hrest_ne]
       · simp [hlen_r]; omega
       · refine List.IsChain.cons_of_ne_nil hne_r hchain_r ?_
         rw [hhead_r hne_r]
         rcases rest with _ | ⟨r, rs⟩
         · exact (hrest_ne rfl).elim
         · simp only [List.head_cons]
-          exact List.isChain_iff_getElem.mp hWchain 0 (by simp)
+          exact lsIIG.mp hWchain 0 (by simp)
       · intro z
-        simp only [List.mem_cons, hmem_r]
+        simp only [lsMC, hmem_r]
         tauto
       · by_cases hp : e.2.2 = true
-        · simp only [List.filter_cons, hp, ↓reduceIte]
+        · simp only [lsFC, hp, ↓reduceIte]
           exact (hperm_r.cons e).trans (List.perm_middle.symm)
         · have hp' : e.2.2 = false := Bool.eq_false_iff.mpr hp
-          simp only [List.filter_cons, hp', Bool.false_eq_true, ↓reduceIte]
+          simp only [lsFC, hp', Bool.false_eq_true, ↓reduceIte]
           exact hperm_r
 
 private lemma nodup_flatMap_pair_unique {α : Type*} :
@@ -10169,30 +10040,30 @@ private lemma nodup_flatMap_pair_unique {α : Type*} :
       p ∈ L → q ∈ L → (q.1 = p.1 ∨ q.1 = p.2 ∨ q.2 = p.1 ∨ q.2 = p.2) → q = p := by
   intro L
   induction L with
-  | nil => intro p q _ hp; exact (List.not_mem_nil hp).elim
+  | nil => intro p q _ hp; exact (lsNMN hp).elim
   | cons a t ih =>
     intro p q hnodup hp hq heq
-    simp only [List.flatMap_cons, List.cons_append, List.nil_append, List.nodup_cons] at hnodup
-    rcases List.mem_cons.mp hp with hpa | hp'
-    · rcases List.mem_cons.mp hq with hqa | hq'
+    simp only [lsFC2, lsCA, lsNA, lsNC] at hnodup
+    rcases lsMC.mp hp with hpa | hp'
+    · rcases lsMC.mp hq with hqa | hq'
       · exact hqa.trans hpa.symm
       · exfalso
-        have h1 : q.1 ∈ t.flatMap (fun r => [r.1, r.2]) := List.mem_flatMap.mpr ⟨q, hq', by simp⟩
-        have h2 : q.2 ∈ t.flatMap (fun r => [r.1, r.2]) := List.mem_flatMap.mpr ⟨q, hq', by simp⟩
+        have h1 : q.1 ∈ t.flatMap (fun r => [r.1, r.2]) := lsMF2.mpr ⟨q, hq', by simp⟩
+        have h2 : q.2 ∈ t.flatMap (fun r => [r.1, r.2]) := lsMF2.mpr ⟨q, hq', by simp⟩
         rw [hpa] at heq
         rcases heq with h | h | h | h
-        · exact hnodup.1 (List.mem_cons.mpr (Or.inr (h ▸ h1)))
+        · exact hnodup.1 (lsMC.mpr (orInr (h ▸ h1)))
         · exact hnodup.2.1 (h ▸ h1)
-        · exact hnodup.1 (List.mem_cons.mpr (Or.inr (h ▸ h2)))
+        · exact hnodup.1 (lsMC.mpr (orInr (h ▸ h2)))
         · exact hnodup.2.1 (h ▸ h2)
-    · rcases List.mem_cons.mp hq with hqa | hq'
+    · rcases lsMC.mp hq with hqa | hq'
       · exfalso
-        have h1 : p.1 ∈ t.flatMap (fun r => [r.1, r.2]) := List.mem_flatMap.mpr ⟨p, hp', by simp⟩
-        have h2 : p.2 ∈ t.flatMap (fun r => [r.1, r.2]) := List.mem_flatMap.mpr ⟨p, hp', by simp⟩
+        have h1 : p.1 ∈ t.flatMap (fun r => [r.1, r.2]) := lsMF2.mpr ⟨p, hp', by simp⟩
+        have h2 : p.2 ∈ t.flatMap (fun r => [r.1, r.2]) := lsMF2.mpr ⟨p, hp', by simp⟩
         rw [hqa] at heq
         rcases heq with h | h | h | h
-        · exact hnodup.1 (List.mem_cons.mpr (Or.inr (h.symm ▸ h1)))
-        · exact hnodup.1 (List.mem_cons.mpr (Or.inr (h.symm ▸ h2)))
+        · exact hnodup.1 (lsMC.mpr (orInr (h.symm ▸ h1)))
+        · exact hnodup.1 (lsMC.mpr (orInr (h.symm ▸ h2)))
         · exact hnodup.2.1 (h.symm ▸ h1)
         · exact hnodup.2.1 (h.symm ▸ h2)
       · exact ih p q hnodup.2.2 hp' hq' heq
@@ -10205,11 +10076,11 @@ private lemma filter_length_insert_two {α : Type*} [DecidableEq α]
     (L.filter (fun q => decide (q.1 ∈ insert y (insert y' V)))).length =
       (L.filter (fun q => decide (q.1 ∈ V))).length + 1 := by
   induction L with
-  | nil => exact (List.not_mem_nil hpL).elim
+  | nil => exact (lsNMN hpL).elim
   | cons a t ih =>
-    have hat : a ∉ t := (List.nodup_cons.mp hL).1
-    have ht : t.Nodup := (List.nodup_cons.mp hL).2
-    rcases List.mem_cons.mp hpL with hpa | hp
+    have hat : a ∉ t := (lsNC.mp hL).1
+    have ht : t.Nodup := (lsNC.mp hL).2
+    rcases lsMC.mp hpL with hpa | hp
     · have hp_old : decide (p.1 ∈ V) = false := by
         rw [decide_eq_false_iff_not]
         rcases hp_eq with ⟨h1, _⟩ | ⟨h1, _⟩
@@ -10218,26 +10089,26 @@ private lemma filter_length_insert_two {α : Type*} [DecidableEq α]
       have hp_new : decide (p.1 ∈ insert y (insert y' V)) = true := by
         rw [decide_eq_true_eq]
         rcases hp_eq with ⟨h1, _⟩ | ⟨h1, _⟩
-        · exact h1 ▸ Finset.mem_insert_self _ _
-        · exact h1 ▸ Finset.mem_insert_of_mem (Finset.mem_insert_self _ _)
+        · exact h1 ▸ fsMIS _ _
+        · exact h1 ▸ fsMIOM (fsMIS _ _)
       have hcongr : t.filter (fun q => decide (q.1 ∈ insert y (insert y' V))) =
           t.filter (fun q => decide (q.1 ∈ V)) := by
         refine List.filter_congr fun q hqt => ?_
         have hqn : q ≠ p := fun h => hat (hpa ▸ h ▸ hqt)
-        have hqnot : ¬ (q.1 = y ∨ q.1 = y') := fun h => hqn (huniq q (List.mem_cons_of_mem _ hqt) h)
-        have hiff : q.1 ∈ insert y (insert y' V) ↔ q.1 ∈ V := by simp only [Finset.mem_insert]; tauto
+        have hqnot : ¬ (q.1 = y ∨ q.1 = y') := fun h => hqn (huniq q (lsMCOM _ hqt) h)
+        have hiff : q.1 ∈ insert y (insert y' V) ↔ q.1 ∈ V := by simp only [fsMI2]; tauto
         simp only [hiff]
       rw [← hpa]
-      simp only [List.filter_cons, hp_old, hp_new, Bool.false_eq_true, ↓reduceIte, hcongr, List.length_cons]
+      simp only [lsFC, hp_old, hp_new, Bool.false_eq_true, ↓reduceIte, hcongr, lsLC]
     · have ha_neq : a ≠ p := fun h => hat (h ▸ hp)
-      have ha_not : ¬ (a.1 = y ∨ a.1 = y') := fun h => ha_neq (huniq a List.mem_cons_self h)
-      have hiff : a.1 ∈ insert y (insert y' V) ↔ a.1 ∈ V := by simp only [Finset.mem_insert]; tauto
+      have ha_not : ¬ (a.1 = y ∨ a.1 = y') := fun h => ha_neq (huniq a lsMCS h)
+      have hiff : a.1 ∈ insert y (insert y' V) ↔ a.1 ∈ V := by simp only [fsMI2]; tauto
       have hsame : decide (a.1 ∈ insert y (insert y' V)) = decide (a.1 ∈ V) := by simp only [hiff]
-      have ih' := ih ht hp (fun q hqt h => huniq q (List.mem_cons_of_mem _ hqt) h)
-      simp only [List.filter_cons, hsame]
+      have ih' := ih ht hp (fun q hqt h => huniq q (lsMCOM _ hqt) h)
+      simp only [lsFC, hsame]
       cases h : decide (a.1 ∈ V)
       · simp only [Bool.false_eq_true, ↓reduceIte, ih']
-      · simp only [↓reduceIte, List.length_cons, ih']
+      · simp only [↓reduceIte, lsLC, ih']
 
 private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
     (chosen : List (Fin t × Fin t)) (hchosen_ne : chosen ≠ [])
@@ -10258,22 +10129,22 @@ private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
   classical
   rcases chosen with _ | ⟨⟨u₁, v₁⟩, rest_ch⟩
   · exact (hchosen_ne rfl).elim
-  have h1_mem : (u₁, v₁) ∈ (u₁, v₁) :: rest_ch := List.mem_cons_self
+  have h1_mem : (u₁, v₁) ∈ (u₁, v₁) :: rest_ch := lsMCS
   have h1_adj : R.Adj u₁ v₁ := hchosen_adj _ h1_mem
   have huv1 : u₁ ≠ v₁ := R.ne_of_adj h1_adj
   set W₀ : List (Fin t × Fin t × Bool) := [(u₁, v₁, true), (v₁, u₁, false)]
   set V₀ : Finset (Fin t) := {u₁, v₁}
   have hV₀_card : V₀.card = 2 := Finset.card_pair huv1
   have ht2 : 2 ≤ t := by
-    have h1 : V₀.card ≤ t := by simpa using Finset.card_le_univ V₀
+    have h1 : V₀.card ≤ t := by simpa using fsCLU V₀
     omega
   by_cases hrest : rest_ch = []
   · subst hrest
-    refine ⟨W₀, by simp [W₀], ?_, List.IsChain.cons_cons rfl (List.IsChain.singleton _),
+    refine ⟨W₀, by simp [W₀], ?_, lsCC rfl (lsSingl _),
       by simp [W₀], by simp [W₀], ⟨1, rfl⟩, by simp [W₀], by simp [W₀]; omega,
       by simp [W₀], fun _ => by simp [W₀], by simp [W₀], by simp [W₀, huv1]⟩
     intro e he
-    simp only [W₀, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at he
+    simp only [W₀, lsMC, lsMS, lsNMN, or_false] at he
     rcases he with rfl | rfl
     · exact h1_adj
     · exact h1_adj.symm
@@ -10284,9 +10155,9 @@ private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
       induction L with
       | nil => simp
       | cons a ts ih =>
-        simp only [List.flatMap_cons, List.cons_append, List.nil_append, List.nodup_cons] at h
-        refine List.nodup_cons.mpr ⟨fun ha => ?_, ih h.2.2⟩
-        exact h.1 (List.mem_cons_of_mem _ (List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩))
+        simp only [lsFC2, lsCA, lsNA, lsNC] at h
+        refine lsNC.mpr ⟨fun ha => ?_, ih h.2.2⟩
+        exact h.1 (lsMCOM _ (lsMF2.mpr ⟨a, ha, lsMCS⟩))
     exact this ch hchosen_nodup
   have hstep : ∀ n : ℕ, ∀ (W : List (Fin t × Fin t × Bool)) (V : Finset (Fin t)),
       t - V.card = n →
@@ -10314,7 +10185,7 @@ private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
         W'.countP (·.2.2) = ch.length ∧
         ((W'.filter (·.2.2)).flatMap (fun e => [e.1, e.2.1])).Nodup := by
     intro n
-    induction n using Nat.strong_induction_on with
+    induction n using natSIO with
     | _ n ih =>
       intro W V hn hWne hWadj hWchain hWwrap hWlastf hu1V hWV hVW hWlen hV2 hchInv hWcnt hWnodup
       by_cases hall : ∀ p ∈ ch, p.1 ∈ V ∧ p.2 ∈ V
@@ -10322,23 +10193,23 @@ private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
           List.filter_eq_self.mpr fun p hp => decide_eq_true (hall p hp).1
         have hch_sub : ∀ z ∈ ch.flatMap (fun p => [p.1, p.2]), z ∈ V := by
           intro z hz
-          rw [List.mem_flatMap] at hz
+          rw [lsMF2] at hz
           obtain ⟨p, hp, hzp⟩ := hz
-          rcases List.mem_cons.mp hzp with rfl | hzp
+          rcases lsMC.mp hzp with rfl | hzp
           · exact (hall p hp).1
-          · rw [List.mem_singleton] at hzp; subst hzp; exact (hall p hp).2
+          · rw [lsMS] at hzp; subst hzp; exact (hall p hp).2
         have h2ch : 2 * ch.length ≤ V.card := by
           have h1 : (ch.flatMap (fun p => [p.1, p.2])).toFinset ⊆ V := fun z hz =>
-            hch_sub z (List.mem_toFinset.mp hz)
-          have h2 := Finset.card_le_card h1
-          rw [List.toFinset_card_of_nodup hchosen_nodup] at h2
+            hch_sub z (lsMT.mp hz)
+          have h2 := fsCLC h1
+          rw [lsTCON hchosen_nodup] at h2
           have h3 : (ch.flatMap (fun p => [p.1, p.2])).length = 2 * ch.length := by
             clear h1 h2 hch_sub hfilt hall
             induction ch with
             | nil => simp
             | cons a ts ihc => simp [ihc]; omega
           omega
-        have hVt : V.card ≤ t := by simpa using Finset.card_le_univ V
+        have hVt : V.card ≤ t := by simpa using fsCLU V
         refine ⟨W, hWne, hWadj, hWchain, hWwrap, hWlastf, ?_, by omega, by omega, by omega,
           fun hch1 => by exfalso; simp [ch] at hch1; exact hrest hch1, ?_, hWnodup⟩
         · exact ⟨V.card - 1, by omega⟩
@@ -10357,8 +10228,8 @@ private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
           set y' := if q.1 = y then q.2 else q.1
           have hy'_eq : (q.1 = y ∧ q.2 = y') ∨ (q.1 = y' ∧ q.2 = y) := by
             by_cases h : q.1 = y
-            · exact Or.inl ⟨h, by simp [y', h]⟩
-            · exact Or.inr ⟨by simp [y', h], hqy.resolve_left h⟩
+            · exact orInl ⟨h, by simp [y', h]⟩
+            · exact orInr ⟨by simp [y', h], hqy.resolve_left h⟩
           have hq_adj : R.Adj y y' := by
             rcases hy'_eq with ⟨h1, h2⟩ | ⟨h1, h2⟩
             · rw [← h1, ← h2]; exact hchosen_adj q hq_ch
@@ -10378,8 +10249,8 @@ private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
           have hins_ne : ins ≠ [] := by simp [ins]
           have hins_chain : ins.IsChain (fun a b => a.2.1 = b.1) := by
             simp only [ins]
-            exact List.IsChain.cons_cons rfl (List.IsChain.cons_cons rfl
-              (List.IsChain.cons_cons rfl (List.IsChain.singleton _)))
+            exact lsCC rfl (lsCC rfl
+              (lsCC rfl (lsSingl _)))
           obtain ⟨hne', hhead', hlast', hlen', hchain', hmem', hperm'⟩ :=
             spliceAt_props x ins W hWne ⟨ex, hexW, hex1⟩ hWchain hins_ne rfl rfl hins_chain
           set W' := spliceAt x ins W
@@ -10387,14 +10258,14 @@ private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
           have hV'card : V'.card = V.card + 2 := by
             have hy_ins : y ∉ insert y' V := by
               simp [hyy', hyV]
-            rw [Finset.card_insert_of_notMem hy_ins, Finset.card_insert_of_notMem hy'V]
-          have hVt : V.card ≤ t := by simpa using Finset.card_le_univ V
-          have hV't : V'.card ≤ t := by simpa using Finset.card_le_univ V'
+            rw [fsCION hy_ins, fsCION hy'V]
+          have hVt : V.card ≤ t := by simpa using fsCLU V
+          have hV't : V'.card ≤ t := by simpa using fsCLU V'
           have hlt : t - V'.card < n := by omega
           refine ih _ hlt W' V' rfl hne' ?_ hchain' ?_ ?_ ?_ ?_ ?_ ?_ (by omega) ?_ ?_ ?_
           · intro e he
             rcases (hmem' e).mp he with he_ins | he_W
-            · simp only [ins, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at he_ins
+            · simp only [ins, lsMC, lsMS, lsNMN, or_false] at he_ins
               rcases he_ins with rfl | rfl | rfl | rfl
               · exact hxyAdj
               · exact hq_adj
@@ -10405,52 +10276,52 @@ private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
             rw [hlast' h', hhead' h', hWwrap hWne]
           · intro h'
             rw [hlast' h', hWlastf hWne]
-          · exact Finset.mem_insert_of_mem (Finset.mem_insert_of_mem hu1V)
+          · exact fsMIOM (fsMIOM hu1V)
           · intro e he
             rcases (hmem' e).mp he with he_ins | he_W
-            · simp only [ins, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at he_ins
+            · simp only [ins, lsMC, lsMS, lsNMN, or_false] at he_ins
               rcases he_ins with rfl | rfl | rfl | rfl
-              · exact ⟨Finset.mem_insert_of_mem (Finset.mem_insert_of_mem hxV),
-                       Finset.mem_insert_self _ _⟩
-              · exact ⟨Finset.mem_insert_self _ _,
-                       Finset.mem_insert_of_mem (Finset.mem_insert_self _ _)⟩
-              · exact ⟨Finset.mem_insert_of_mem (Finset.mem_insert_self _ _),
-                       Finset.mem_insert_self _ _⟩
-              · exact ⟨Finset.mem_insert_self _ _,
-                       Finset.mem_insert_of_mem (Finset.mem_insert_of_mem hxV)⟩
+              · exact ⟨fsMIOM (fsMIOM hxV),
+                       fsMIS _ _⟩
+              · exact ⟨fsMIS _ _,
+                       fsMIOM (fsMIS _ _)⟩
+              · exact ⟨fsMIOM (fsMIS _ _),
+                       fsMIS _ _⟩
+              · exact ⟨fsMIS _ _,
+                       fsMIOM (fsMIOM hxV)⟩
             · have := hWV e he_W
-              exact ⟨Finset.mem_insert_of_mem (Finset.mem_insert_of_mem this.1),
-                     Finset.mem_insert_of_mem (Finset.mem_insert_of_mem this.2)⟩
+              exact ⟨fsMIOM (fsMIOM this.1),
+                     fsMIOM (fsMIOM this.2)⟩
           · intro v hv
-            simp only [V', Finset.mem_insert] at hv
+            simp only [V', fsMI2] at hv
             rcases hv with hvy | hvy' | hv
-            · exact ⟨(y, y', true), (hmem' _).mpr (Or.inl (by simp [ins])), hvy.symm⟩
-            · exact ⟨(y', y, false), (hmem' _).mpr (Or.inl (by simp [ins])), hvy'.symm⟩
+            · exact ⟨(y, y', true), (hmem' _).mpr (orInl (by simp [ins])), hvy.symm⟩
+            · exact ⟨(y', y, false), (hmem' _).mpr (orInl (by simp [ins])), hvy'.symm⟩
             · obtain ⟨e, heW, he1⟩ := hVW v hv
-              exact ⟨e, (hmem' _).mpr (Or.inr heW), he1⟩
+              exact ⟨e, (hmem' _).mpr (orInr heW), he1⟩
           · rw [hlen', hV'card, hWlen]; simp [ins]; omega
           · intro r hr
             rcases hchInv r hr with ⟨hr1, hr2⟩ | ⟨hr1, hr2⟩
-            · exact Or.inl ⟨Finset.mem_insert_of_mem (Finset.mem_insert_of_mem hr1),
-                            Finset.mem_insert_of_mem (Finset.mem_insert_of_mem hr2)⟩
+            · exact orInl ⟨fsMIOM (fsMIOM hr1),
+                            fsMIOM (fsMIOM hr2)⟩
             · by_cases hr_eq : r = q
               · subst hr_eq
                 rcases hy'_eq with ⟨h1, h2⟩ | ⟨h1, h2⟩
-                · exact Or.inl ⟨h1 ▸ Finset.mem_insert_self _ _,
-                                h2 ▸ Finset.mem_insert_of_mem (Finset.mem_insert_self _ _)⟩
-                · exact Or.inl ⟨h1 ▸ Finset.mem_insert_of_mem (Finset.mem_insert_self _ _),
-                                h2 ▸ Finset.mem_insert_self _ _⟩
-              · refine Or.inr ⟨?_, ?_⟩
-                · simp only [V', Finset.mem_insert, not_or]
+                · exact orInl ⟨h1 ▸ fsMIS _ _,
+                                h2 ▸ fsMIOM (fsMIS _ _)⟩
+                · exact orInl ⟨h1 ▸ fsMIOM (fsMIS _ _),
+                                h2 ▸ fsMIS _ _⟩
+              · refine orInr ⟨?_, ?_⟩
+                · simp only [V', fsMI2, not_or]
                   refine ⟨fun h => hr_eq (nodup_flatMap_pair_unique ch q r hchosen_nodup hq_ch hr ?_),
                           fun h => hr_eq (nodup_flatMap_pair_unique ch q r hchosen_nodup hq_ch hr ?_), hr1⟩
-                  · rcases hy'_eq with ⟨h1, _⟩ | ⟨_, h2⟩ <;> [exact Or.inl (h.trans h1.symm); exact Or.inr (Or.inl (h.trans h2.symm))]
-                  · rcases hy'_eq with ⟨_, h2⟩ | ⟨h1, _⟩ <;> [exact Or.inr (Or.inl (h.trans h2.symm)); exact Or.inl (h.trans h1.symm)]
-                · simp only [V', Finset.mem_insert, not_or]
+                  · rcases hy'_eq with ⟨h1, _⟩ | ⟨_, h2⟩ <;> [exact orInl (h.trans h1.symm); exact orInr (orInl (h.trans h2.symm))]
+                  · rcases hy'_eq with ⟨_, h2⟩ | ⟨h1, _⟩ <;> [exact orInr (orInl (h.trans h2.symm)); exact orInl (h.trans h1.symm)]
+                · simp only [V', fsMI2, not_or]
                   refine ⟨fun h => hr_eq (nodup_flatMap_pair_unique ch q r hchosen_nodup hq_ch hr ?_),
                           fun h => hr_eq (nodup_flatMap_pair_unique ch q r hchosen_nodup hq_ch hr ?_), hr2⟩
-                  · rcases hy'_eq with ⟨h1, _⟩ | ⟨_, h2⟩ <;> [exact Or.inr (Or.inr (Or.inl (h.trans h1.symm))); exact Or.inr (Or.inr (Or.inr (h.trans h2.symm)))]
-                  · rcases hy'_eq with ⟨_, h2⟩ | ⟨h1, _⟩ <;> [exact Or.inr (Or.inr (Or.inr (h.trans h2.symm))); exact Or.inr (Or.inr (Or.inl (h.trans h1.symm)))]
+                  · rcases hy'_eq with ⟨h1, _⟩ | ⟨_, h2⟩ <;> [exact orInr (orInr (orInl (h.trans h1.symm))); exact orInr (orInr (orInr (h.trans h2.symm)))]
+                  · rcases hy'_eq with ⟨_, h2⟩ | ⟨h1, _⟩ <;> [exact orInr (orInr (orInr (h.trans h2.symm))); exact orInr (orInr (orInl (h.trans h1.symm)))]
           · rw [List.countP_eq_length_filter] at hWcnt ⊢
             have hperm_len := hperm'.length_eq
             have hins_filt : ins.filter (·.2.2) = [(y, y', true)] := by simp [ins]
@@ -10461,89 +10332,89 @@ private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
               refine nodup_flatMap_pair_unique ch q r hchosen_nodup hq_ch hr ?_
               rcases h with h | h
               · rcases hy'_eq with ⟨h1, _⟩ | ⟨_, h2⟩
-                · exact Or.inl (h.trans h1.symm)
-                · exact Or.inr (Or.inl (h.trans h2.symm))
+                · exact orInl (h.trans h1.symm)
+                · exact orInr (orInl (h.trans h2.symm))
               · rcases hy'_eq with ⟨_, h2⟩ | ⟨h1, _⟩
-                · exact Or.inr (Or.inl (h.trans h2.symm))
-                · exact Or.inl (h.trans h1.symm)
+                · exact orInr (orInl (h.trans h2.symm))
+                · exact orInl (h.trans h1.symm)
             rw [hperm_len, hWcnt, filter_length_insert_two ch hch_nodup V y y' q hq_ch hy'_eq huniq_q hyV hy'V]
             omega
           · have hperm_flat : List.Perm ((W'.filter (·.2.2)).flatMap (fun e => [e.1, e.2.1]))
                 (y :: y' :: (W.filter (·.2.2)).flatMap (fun e => [e.1, e.2.1])) := by
               have h1 := hperm'.flatMap (fun e _ => List.Perm.refl [e.1, e.2.1])
               simpa [ins] using h1
-            rw [hperm_flat.nodup_iff, List.nodup_cons, List.nodup_cons]
+            rw [hperm_flat.nodup_iff, lsNC, lsNC]
             refine ⟨?_, ?_, hWnodup⟩
             · intro h
-              rcases List.mem_cons.mp h with hy0 | h
+              rcases lsMC.mp h with hy0 | h
               · exact hyy' hy0
-              · rw [List.mem_flatMap] at h
+              · rw [lsMF2] at h
                 rcases h with ⟨e, he, hye⟩
-                have heW : e ∈ W := (List.mem_filter.mp he).1
-                rcases List.mem_cons.mp hye with hye | hye
+                have heW : e ∈ W := (lsMF.mp he).1
+                rcases lsMC.mp hye with hye | hye
                 · exact hyV (hye ▸ (hWV e heW).1)
-                · rw [List.mem_singleton] at hye
+                · rw [lsMS] at hye
                   exact hyV (hye ▸ (hWV e heW).2)
-            · rw [List.mem_flatMap]
+            · rw [lsMF2]
               rintro ⟨e, he, hy'e⟩
-              have heW : e ∈ W := (List.mem_filter.mp he).1
-              rcases List.mem_cons.mp hy'e with hy'e | hy'e
+              have heW : e ∈ W := (lsMF.mp he).1
+              rcases lsMC.mp hy'e with hy'e | hy'e
               · exact hy'V (hy'e ▸ (hWV e heW).1)
-              · rw [List.mem_singleton] at hy'e
+              · rw [lsMS] at hy'e
                 exact hy'V (hy'e ▸ (hWV e heW).2)
         · push_neg at hy_ch
           set ins : List (Fin t × Fin t × Bool) := [(x, y, false), (y, x, false)]
           have hins_ne : ins ≠ [] := by simp [ins]
           have hins_chain : ins.IsChain (fun a b => a.2.1 = b.1) := by
             simp only [ins]
-            exact List.IsChain.cons_cons rfl (List.IsChain.singleton _)
+            exact lsCC rfl (lsSingl _)
           obtain ⟨hne', hhead', hlast', hlen', hchain', hmem', hperm'⟩ :=
             spliceAt_props x ins W hWne ⟨ex, hexW, hex1⟩ hWchain hins_ne rfl rfl hins_chain
           set W' := spliceAt x ins W
           set V' := insert y V
-          have hV'card : V'.card = V.card + 1 := Finset.card_insert_of_notMem hyV
-          have hV't : V'.card ≤ t := by simpa using Finset.card_le_univ V'
+          have hV'card : V'.card = V.card + 1 := fsCION hyV
+          have hV't : V'.card ≤ t := by simpa using fsCLU V'
           have hlt : t - V'.card < n := by omega
           refine ih _ hlt W' V' rfl hne' ?_ hchain' ?_ ?_ ?_ ?_ ?_ ?_ (by omega) ?_ ?_ ?_
           · intro e he
             rcases (hmem' e).mp he with he_ins | he_W
-            · simp only [ins, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at he_ins
+            · simp only [ins, lsMC, lsMS, lsNMN, or_false] at he_ins
               rcases he_ins with rfl | rfl
               · exact hxyAdj
               · exact hxyAdj.symm
             · exact hWadj e he_W
           · intro h'; rw [hlast' h', hhead' h', hWwrap hWne]
           · intro h'; rw [hlast' h', hWlastf hWne]
-          · exact Finset.mem_insert_of_mem hu1V
+          · exact fsMIOM hu1V
           · intro e he
             rcases (hmem' e).mp he with he_ins | he_W
-            · simp only [ins, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at he_ins
+            · simp only [ins, lsMC, lsMS, lsNMN, or_false] at he_ins
               rcases he_ins with rfl | rfl
-              · exact ⟨Finset.mem_insert_of_mem hxV, Finset.mem_insert_self _ _⟩
-              · exact ⟨Finset.mem_insert_self _ _, Finset.mem_insert_of_mem hxV⟩
+              · exact ⟨fsMIOM hxV, fsMIS _ _⟩
+              · exact ⟨fsMIS _ _, fsMIOM hxV⟩
             · have := hWV e he_W
-              exact ⟨Finset.mem_insert_of_mem this.1, Finset.mem_insert_of_mem this.2⟩
+              exact ⟨fsMIOM this.1, fsMIOM this.2⟩
           · intro v hv
-            rcases Finset.mem_insert.mp hv with hvy | hv
-            · exact ⟨(y, x, false), (hmem' _).mpr (Or.inl (by simp [ins])), hvy.symm⟩
+            rcases fsMI2.mp hv with hvy | hv
+            · exact ⟨(y, x, false), (hmem' _).mpr (orInl (by simp [ins])), hvy.symm⟩
             · obtain ⟨e, heW, he1⟩ := hVW v hv
-              exact ⟨e, (hmem' _).mpr (Or.inr heW), he1⟩
+              exact ⟨e, (hmem' _).mpr (orInr heW), he1⟩
           · rw [hlen', hV'card, hWlen]; simp [ins]; omega
           · intro r hr
             rcases hchInv r hr with ⟨hr1, hr2⟩ | ⟨hr1, hr2⟩
-            · exact Or.inl ⟨Finset.mem_insert_of_mem hr1, Finset.mem_insert_of_mem hr2⟩
-            · exact Or.inr ⟨fun h => by
-                  rcases Finset.mem_insert.mp h with h | h
+            · exact orInl ⟨fsMIOM hr1, fsMIOM hr2⟩
+            · exact orInr ⟨fun h => by
+                  rcases fsMI2.mp h with h | h
                   · exact (hy_ch r hr).1 h
                   · exact hr1 h,
                 fun h => by
-                  rcases Finset.mem_insert.mp h with h | h
+                  rcases fsMI2.mp h with h | h
                   · exact (hy_ch r hr).2 h
                   · exact hr2 h⟩
           · rw [List.countP_eq_length_filter] at hWcnt ⊢
             have hperm_len := hperm'.length_eq
             have hins_filt : ins.filter (·.2.2) = [] := by simp [ins]
-            rw [hins_filt, List.nil_append] at hperm_len
+            rw [hins_filt, lsNA] at hperm_len
             have hcongr : ch.filter (fun r => decide (r.1 ∈ V')) = ch.filter (fun r => decide (r.1 ∈ V)) := by
               refine List.filter_congr fun r hr => ?_
               have hry : r.1 ≠ y := fun h => (hy_ch r hr).1 h
@@ -10557,50 +10428,50 @@ private lemma build_closed_walk {t : ℕ} {R : SimpleGraph (Fin t)}
   have hchInv₀ : ∀ p ∈ ch, (p.1 ∈ V₀ ∧ p.2 ∈ V₀) ∨ (p.1 ∉ V₀ ∧ p.2 ∉ V₀) := by
     intro p hp
     by_cases hp1 : p = (u₁, v₁)
-    · subst hp1; exact Or.inl ⟨by simp [V₀], by simp [V₀]⟩
-    · refine Or.inr ⟨?_, ?_⟩
-      · simp only [V₀, Finset.mem_insert, Finset.mem_singleton, not_or]
-        exact ⟨fun h => hp1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem hp (Or.inl h)),
-               fun h => hp1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem hp (Or.inr (Or.inl h)))⟩
-      · simp only [V₀, Finset.mem_insert, Finset.mem_singleton, not_or]
-        exact ⟨fun h => hp1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem hp (Or.inr (Or.inr (Or.inl h)))),
-               fun h => hp1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem hp (Or.inr (Or.inr (Or.inr h))))⟩
+    · subst hp1; exact orInl ⟨by simp [V₀], by simp [V₀]⟩
+    · refine orInr ⟨?_, ?_⟩
+      · simp only [V₀, fsMI2, fsMS2, not_or]
+        exact ⟨fun h => hp1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem hp (orInl h)),
+               fun h => hp1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem hp (orInr (orInl h)))⟩
+      · simp only [V₀, fsMI2, fsMS2, not_or]
+        exact ⟨fun h => hp1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem hp (orInr (orInr (orInl h)))),
+               fun h => hp1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem hp (orInr (orInr (orInr h))))⟩
   have hWcnt₀ : W₀.countP (·.2.2) = (ch.filter (fun p => decide (p.1 ∈ V₀))).length := by
     have hfilt : ch.filter (fun p => decide (p.1 ∈ V₀)) = [(u₁, v₁)] := by
-      simp only [ch, List.filter_cons, decide_eq_true (by simp [V₀] : u₁ ∈ V₀),
+      simp only [ch, lsFC, decide_eq_true (by simp [V₀] : u₁ ∈ V₀),
         ↓reduceIte, List.cons.injEq, true_and]
       rw [List.filter_eq_nil_iff]
       intro p hp
       have hne1 : p ≠ (u₁, v₁) := by
         intro h; subst h
-        simp only [ch, List.flatMap_cons, List.cons_append, List.nil_append, List.nodup_cons] at hchosen_nodup
-        exact hchosen_nodup.1 (List.mem_cons_of_mem _ (List.mem_flatMap.mpr ⟨(u₁, v₁), hp, List.mem_cons_self⟩))
+        simp only [ch, lsFC2, lsCA, lsNA, lsNC] at hchosen_nodup
+        exact hchosen_nodup.1 (lsMCOM _ (lsMF2.mpr ⟨(u₁, v₁), hp, lsMCS⟩))
       have hp_out : p.1 ∉ V₀ := by
-        rcases hchInv₀ p (List.mem_cons_of_mem _ hp) with h | h
+        rcases hchInv₀ p (lsMCOM _ hp) with h | h
         · exfalso
-          exact hne1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem (List.mem_cons_of_mem _ hp)
-            (Or.inl (by
-              rcases Finset.mem_insert.mp h.1 with h1 | h1
+          exact hne1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem (lsMCOM _ hp)
+            (orInl (by
+              rcases fsMI2.mp h.1 with h1 | h1
               · exact h1
-              · rw [Finset.mem_singleton] at h1
+              · rw [fsMS2] at h1
                 exfalso; exact hne1 (nodup_flatMap_pair_unique ch (u₁, v₁) p hchosen_nodup h1_mem
-                  (List.mem_cons_of_mem _ hp) (Or.inr (Or.inl h1))))))
+                  (lsMCOM _ hp) (orInr (orInl h1))))))
         · exact h.1
       simp [hp_out]
     simp [W₀, hfilt]
   refine hstep (t - V₀.card) W₀ V₀ rfl (by simp [W₀]) ?_ ?_ (by simp [W₀]) (by simp [W₀])
     (by simp [V₀]) ?_ ?_ (by simp [W₀, hV₀_card]) (by omega) hchInv₀ hWcnt₀ ?_
   · intro e he
-    simp only [W₀, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at he
+    simp only [W₀, lsMC, lsMS, lsNMN, or_false] at he
     rcases he with rfl | rfl
     · exact h1_adj
     · exact h1_adj.symm
-  · exact List.IsChain.cons_cons rfl (List.IsChain.singleton _)
+  · exact lsCC rfl (lsSingl _)
   · intro e he
-    simp only [W₀, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at he
+    simp only [W₀, lsMC, lsMS, lsNMN, or_false] at he
     rcases he with rfl | rfl <;> simp [V₀]
   · intro v hv
-    simp only [V₀, Finset.mem_insert, Finset.mem_singleton] at hv
+    simp only [V₀, fsMI2, fsMS2] at hv
     rcases hv with hvu | hvv
     · rw [hvu]; exact ⟨(u₁, v₁, true), by simp [W₀], rfl⟩
     · rw [hvv]; exact ⟨(v₁, u₁, false), by simp [W₀], rfl⟩
@@ -10654,13 +10525,13 @@ private lemma assignList_props {α : Type*} (B : ℕ) :
       · simp only [assignList, if_pos hf, List.sum_cons, hsum]; omega
       · intro i hi
         rcases i with _ | i
-        · simp only [assignList, if_pos hf, List.getElem_cons_zero]; exact min_le_left B D
-        · simp only [assignList, if_pos hf, List.getElem_cons_succ]
+        · simp only [assignList, if_pos hf, lsGCZ]; exact min_le_left B D
+        · simp only [assignList, if_pos hf, lsGCS]
           exact hleB i (by simpa using hi)
       · intro i hi hif
         rcases i with _ | i
         · simp [hf] at hif
-        · simp only [assignList, if_pos hf, List.getElem_cons_succ]
+        · simp only [assignList, if_pos hf, lsGCS]
           exact hzero i (by simpa using hi) (by simpa using hif)
     · have hf' : e.2.2 = false := Bool.eq_false_iff.mpr hf
       have hcnt : (e :: rest).countP (·.2.2) = rest.countP (·.2.2) := by
@@ -10671,28 +10542,28 @@ private lemma assignList_props {α : Type*} (B : ℕ) :
       · simp only [assignList, if_neg hf, List.sum_cons, zero_add, hsum]
       · intro i hi
         rcases i with _ | i
-        · simp only [assignList, if_neg hf, List.getElem_cons_zero]; omega
-        · simp only [assignList, if_neg hf, List.getElem_cons_succ]
+        · simp only [assignList, if_neg hf, lsGCZ]; omega
+        · simp only [assignList, if_neg hf, lsGCS]
           exact hleB i (by simpa using hi)
       · intro i hi hif
         rcases i with _ | i
-        · simp only [assignList, if_neg hf, List.getElem_cons_zero]
-        · simp only [assignList, if_neg hf, List.getElem_cons_succ]
+        · simp only [assignList, if_neg hf, lsGCZ]
+        · simp only [assignList, if_neg hf, lsGCS]
           exact hzero i (by simpa using hi) (by simpa using hif)
 
 private lemma sum_range_eq_list_sum : ∀ (l : List ℕ) (f : ℕ → ℕ),
     (∀ i (hi : i < l.length), f i = l[i]) →
-    ∑ i ∈ Finset.range l.length, f i = l.sum := by
+    ∑ i ∈ fsRange l.length, f i = l.sum := by
   intro l
   induction l with
   | nil => simp
   | cons a t ih =>
     intro f hf
-    rw [List.length_cons, Finset.sum_range_succ', List.sum_cons, add_comm]
+    rw [lsLC, Finset.sum_range_succ', List.sum_cons, add_comm]
     congr 1
     · exact hf 0 (Nat.zero_lt_succ _)
     · exact ih (fun i => f (i + 1)) (fun i hi => by
-        rw [hf (i + 1) (Nat.succ_lt_succ hi), List.getElem_cons_succ])
+        rw [hf (i + 1) (Nat.succ_lt_succ hi), lsGCS])
 
 private lemma cycleGraph_of_cycleList {N n : ℕ} (G : SimpleGraph (Fin N)) (hn4 : 4 ≤ n)
     (cyc : List (Fin N)) (hlen : cyc.length = n) (hnodup : cyc.Nodup)
@@ -10716,12 +10587,12 @@ private lemma cycleGraph_of_cycleList {N n : ℕ} (G : SimpleGraph (Fin N)) (hn4
         by_cases hle : x.val ≤ y.val
         · have h1 : y.val - x.val = 1 := by
             rw [show (n - x.val + y.val) % n = (n + (y.val - x.val)) % n by congr 1; omega,
-              Nat.add_mod_left, Nat.mod_eq_of_lt (by omega)] at hxy
+              Nat.add_mod_left, natMEOL (by omega)] at hxy
             exact hxy
           have : x.val + 1 < n := by omega
-          rw [Nat.mod_eq_of_lt this]; omega
+          rw [natMEOL this]; omega
         · have h1 : n - x.val + y.val = 1 := by
-            rw [Nat.mod_eq_of_lt (by omega)] at hxy; exact hxy
+            rw [natMEOL (by omega)] at hxy; exact hxy
           have hx_last : x.val = n - 1 := by omega
           have hy0 : y.val = 0 := by omega
           rw [hx_last, show n - 1 + 1 = n by omega, Nat.mod_self, hy0]
@@ -10730,7 +10601,7 @@ private lemma cycleGraph_of_cycleList {N n : ℕ} (G : SimpleGraph (Fin N)) (hn4
         have hxlast : x.val = cyc.length - 1 := by omega
         simpa [f, hxlast, hy0] using hwrap (hlen ▸ hn0)
       · have hlt' : x.val + 1 < cyc.length := by omega
-        have hy' : y.val = x.val + 1 := by rw [hy_val, Nat.mod_eq_of_lt (by omega)]
+        have hy' : y.val = x.val + 1 := by rw [hy_val, natMEOL (by omega)]
         simpa [f, hy'] using hstep x.val hlt'
     rcases hcases with h | h
     · exact (step_adj b a h).symm
@@ -10745,7 +10616,7 @@ private lemma assemble_cycle {N n L : ℕ} (G : SimpleGraph (Fin N)) (hn4 : 4 �
     (hchain : ∀ i < L, (segs i).IsChain G.Adj)
     (hnext : ∀ i < L, ∀ h : segs i ≠ [], G.Adj ((segs i).getLast h) (z ((i + 1) % L)))
     (hdisj : ∀ i₁ < L, ∀ i₂ < L, i₁ ≠ i₂ → Disjoint (segs i₁).toFinset (segs i₂).toFinset)
-    (hsum : ∑ i ∈ Finset.range L, (segs i).length = n) :
+    (hsum : ∑ i ∈ fsRange L, (segs i).length = n) :
     (cycleGraph n).IsContained G := by
   have hbuild : ∀ k : ℕ, 1 ≤ k → k ≤ L →
       let pref := (List.range k).flatMap segs
@@ -10754,8 +10625,8 @@ private lemma assemble_cycle {N n L : ℕ} (G : SimpleGraph (Fin N)) (hn4 : 4 �
       (∀ h : pref ≠ [], ∀ hk : segs (k - 1) ≠ [], pref.getLast h = (segs (k - 1)).getLast hk) ∧
       pref.Nodup ∧
       pref.IsChain G.Adj ∧
-      pref.toFinset = (Finset.range k).biUnion (fun i => (segs i).toFinset) ∧
-      pref.length = ∑ i ∈ Finset.range k, (segs i).length := by
+      pref.toFinset = (fsRange k).biUnion (fun i => (segs i).toFinset) ∧
+      pref.length = ∑ i ∈ fsRange k, (segs i).length := by
     intro k hk1 hkL
     induction k with
     | zero => omega
@@ -10783,16 +10654,16 @@ private lemma assemble_cycle {N n L : ℕ} (G : SimpleGraph (Fin N)) (hn4 : 4 �
         have hdisj_k : Disjoint pref.toFinset (segs k).toFinset := by
           rw [hpfin, Finset.disjoint_biUnion_left]
           intro i hi
-          exact hdisj i (by rw [Finset.mem_range] at hi; omega) k hkL (by rw [Finset.mem_range] at hi; omega)
+          exact hdisj i (by rw [fsMR] at hi; omega) k hkL (by rw [fsMR] at hi; omega)
         refine ⟨hne', ?_, ?_, ?_, ?_, ?_, ?_⟩
         · intro h'
-          rw [List.head_append_of_ne_nil hpne, hphead hpne]
+          rw [lsHAONN hpne, hphead hpne]
         · intro h' _
           simpa using List.getLast_append_of_ne_nil h' hkne
-        · rw [List.nodup_append]
+        · rw [lsNA2]
           refine ⟨hpnodup, hnodup k hkL, fun a ha b hb heq => ?_⟩
           subst heq
-          exact Finset.disjoint_left.mp hdisj_k (List.mem_toFinset.mpr ha) (List.mem_toFinset.mpr hb)
+          exact fsDL.mp hdisj_k (lsMT.mpr ha) (lsMT.mpr hb)
         · refine isChain_append hpchain (hchain k hkL) ?_
           intro a ha b hb
           have ha' : a = pref.getLast hpne := (by
@@ -10802,20 +10673,20 @@ private lemma assemble_cycle {N n L : ℕ} (G : SimpleGraph (Fin N)) (hn4 : 4 �
           subst ha'; subst hb'
           rw [hplast hpne hk1ne, hhead k hkL hkne]
           have hmod : (k - 1 + 1) % L = k := by
-            rw [show k - 1 + 1 = k by omega, Nat.mod_eq_of_lt hkL]
+            rw [show k - 1 + 1 = k by omega, natMEOL hkL]
           simpa [hmod] using hnext (k - 1) (by omega) hk1ne
-        · rw [List.toFinset_append, hpfin, Finset.range_add_one, Finset.biUnion_insert, Finset.union_comm]
+        · rw [lsTA, hpfin, Finset.range_add_one, Finset.biUnion_insert, Finset.union_comm]
         · rw [List.length_append, hplen, Finset.sum_range_succ]
   obtain ⟨hcyne, hcyhead, hcylast, hcynodup, hcychain, _, hcylen⟩ := hbuild L hL le_rfl
   set cyc := (List.range L).flatMap segs
   have hL1ne : segs (L - 1) ≠ [] := hne (L - 1) (by omega)
   refine cycleGraph_of_cycleList G hn4 cyc (hcylen.trans hsum) hcynodup ?_ ?_
   · intro i hi
-    exact List.isChain_iff_getElem.mp hcychain i hi
+    exact lsIIG.mp hcychain i hi
   · intro h0
-    have hne' : cyc ≠ [] := List.ne_nil_of_length_pos h0
-    have hlast_eq : cyc[cyc.length - 1] = cyc.getLast hne' := (List.getLast_eq_getElem hne').symm
-    have hhead_eq : cyc[0] = cyc.head hne' := (List.head_eq_getElem hne').symm
+    have hne' : cyc ≠ [] := lsNNOLP h0
+    have hlast_eq : cyc[cyc.length - 1] = cyc.getLast hne' := (lsGEG hne').symm
+    have hhead_eq : cyc[0] = cyc.head hne' := (lsHEG hne').symm
     rw [hlast_eq, hhead_eq, hcylast hne' hL1ne, hcyhead hne']
     have hmod : (L - 1 + 1) % L = 0 := by rw [show L - 1 + 1 = L by omega, Nat.mod_self]
     simpa [hmod] using hnext (L - 1) (by omega) hL1ne
@@ -10835,31 +10706,31 @@ private lemma true_indices_disjoint {α : Type*} [DecidableEq α] :
     intro hnodup i₁ i₂ hi₁ hi₂ hlt h1 h2
     have hnodup_rest : ((rest.filter (·.2.2)).flatMap (fun x => [x.1, x.2.1])).Nodup := by
       by_cases he : e.2.2 = true
-      · simp only [List.filter_cons, he, ↓reduceIte, List.flatMap_cons, List.cons_append,
-          List.nil_append, List.nodup_cons] at hnodup
+      · simp only [lsFC, he, ↓reduceIte, lsFC2, lsCA,
+          lsNA, lsNC] at hnodup
         exact hnodup.2.2
       · have he' : e.2.2 = false := Bool.eq_false_iff.mpr he
-        simp only [List.filter_cons, he', Bool.false_eq_true, ↓reduceIte] at hnodup
+        simp only [lsFC, he', Bool.false_eq_true, ↓reduceIte] at hnodup
         exact hnodup
     rcases i₁ with _ | j₁ <;> rcases i₂ with _ | j₂
     · omega
-    · simp only [List.getElem_cons_zero] at h1
-      simp only [List.filter_cons, h1, ↓reduceIte, List.flatMap_cons, List.cons_append,
-        List.nil_append, List.nodup_cons] at hnodup
+    · simp only [lsGCZ] at h1
+      simp only [lsFC, h1, ↓reduceIte, lsFC2, lsCA,
+        lsNA, lsNC] at hnodup
       have hj₂ : j₂ < rest.length := by simpa using hi₂
       have hmem : rest[j₂]'hj₂ ∈ rest.filter (·.2.2) :=
-        List.mem_filter.mpr ⟨List.getElem_mem hj₂, by simpa using h2⟩
+        lsMF.mpr ⟨lsGM hj₂, by simpa using h2⟩
       have hm1 : (rest[j₂]'hj₂).1 ∈ (rest.filter (·.2.2)).flatMap (fun x => [x.1, x.2.1]) :=
-        List.mem_flatMap.mpr ⟨rest[j₂]'hj₂, hmem, by simp⟩
+        lsMF2.mpr ⟨rest[j₂]'hj₂, hmem, by simp⟩
       have hm2 : (rest[j₂]'hj₂).2.1 ∈ (rest.filter (·.2.2)).flatMap (fun x => [x.1, x.2.1]) :=
-        List.mem_flatMap.mpr ⟨rest[j₂]'hj₂, hmem, by simp⟩
-      rw [Finset.disjoint_left]
+        lsMF2.mpr ⟨rest[j₂]'hj₂, hmem, by simp⟩
+      rw [fsDL]
       intro z hz1 hz2
-      simp only [List.getElem_cons_zero, List.getElem_cons_succ, Finset.mem_insert,
-        Finset.mem_singleton] at hz1 hz2
+      simp only [lsGCZ, lsGCS, fsMI2,
+        fsMS2] at hz1 hz2
       rcases hz1 with rfl | rfl <;> rcases hz2 with heq | heq
-      · exact hnodup.1 (List.mem_cons_of_mem _ (heq ▸ hm1))
-      · exact hnodup.1 (List.mem_cons_of_mem _ (heq ▸ hm2))
+      · exact hnodup.1 (lsMCOM _ (heq ▸ hm1))
+      · exact hnodup.1 (lsMCOM _ (heq ▸ hm2))
       · exact hnodup.2.1 (heq ▸ hm1)
       · exact hnodup.2.1 (heq ▸ hm2)
     · omega
@@ -10894,10 +10765,10 @@ private lemma bridge_segment {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G
       seg.IsChain G.Adj ∧
       seg.toFinset ⊆ insert zu (BodyU ∪ BodyV ∪ CapU) := by
   set S_end := G.neighborFinset zv ∩ CapU
-  have hSend_sub : S_end ⊆ U := Finset.inter_subset_right.trans hCapU
+  have hSend_sub : S_end ⊆ U := fsISR.trans hCapU
   have hSend_card : (U.card : ℝ) * η ≤ (S_end.card : ℝ) := hSend_big.trans hzv_deg.le
   have huniVU : G.IsUniform η V U := huni.symm
-  have hdVU : d ≤ (G.edgeDensity V U : ℝ) := by rwa [SimpleGraph.edgeDensity_comm]
+  have hdVU : d ≤ (G.edgeDensity V U : ℝ) := by rwa [sgEC]
   set B_bad := V.filter (fun y => ((G.neighborFinset y ∩ S_end).card : ℝ) ≤ (d - η) * (S_end.card : ℝ))
   have hB_bad : (B_bad.card : ℝ) < (V.card : ℝ) * η :=
     card_bad_lt G hη huniVU hdVU hVpos hUpos hSend_sub hSend_card
@@ -10908,32 +10779,32 @@ private lemma bridge_segment {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G
       have h1 : (B_bad.card : ℝ) < (c : ℝ) := hB_bad.trans_le hcV
       exact_mod_cast h1.le
     have h2 : BodyV.card ≤ Body'V.card + B_bad.card := by
-      calc BodyV.card ≤ (Body'V ∪ B_bad).card := Finset.card_le_card (fun x hx => by
+      calc BodyV.card ≤ (Body'V ∪ B_bad).card := fsCLC (fun x hx => by
             by_cases h : x ∈ B_bad
-            · exact Finset.mem_union_right _ h
-            · exact Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨hx, h⟩))
-        _ ≤ Body'V.card + B_bad.card := Finset.card_union_le _ _
+            · exact fsMUR _ h
+            · exact fsMUL _ (fsMS.mpr ⟨hx, h⟩))
+        _ ≤ Body'V.card + B_bad.card := fsCUL _ _
     omega
   set P := G.neighborFinset zu ∩ Body'V
-  have hP_sub : P ⊆ V := Finset.inter_subset_right.trans hBody'V_sub
+  have hP_sub : P ⊆ V := fsISR.trans hBody'V_sub
   have hP_card : ((∅ : Finset (Fin N)).card : ℝ) + 2 * (V.card : ℝ) * η ≤ (P.card : ℝ) := by
     have h1 : (G.neighborFinset zu ∩ BodyV).card ≤ P.card + B_bad.card := by
       calc (G.neighborFinset zu ∩ BodyV).card
-          ≤ (P ∪ B_bad).card := Finset.card_le_card (fun x hx => by
-              rw [Finset.mem_inter] at hx
+          ≤ (P ∪ B_bad).card := fsCLC (fun x hx => by
+              rw [fsMI3] at hx
               by_cases h : x ∈ B_bad
-              · exact Finset.mem_union_right _ h
-              · exact Finset.mem_union_left _ (Finset.mem_inter.mpr ⟨hx.1, Finset.mem_sdiff.mpr ⟨hx.2, h⟩⟩))
-        _ ≤ P.card + B_bad.card := Finset.card_union_le _ _
+              · exact fsMUR _ h
+              · exact fsMUL _ (fsMI3.mpr ⟨hx.1, fsMS.mpr ⟨hx.2, h⟩⟩))
+        _ ≤ P.card + B_bad.card := fsCUL _ _
     have h1r : ((G.neighborFinset zu ∩ BodyV).card : ℝ) ≤ (P.card : ℝ) + (B_bad.card : ℝ) := by
       exact_mod_cast h1
     have hmaxV : (V.card : ℝ) ≤ (max U.card V.card : ℝ) := by exact_mod_cast le_max_right U.card V.card
-    simp only [Finset.card_empty, Nat.cast_zero, zero_add]
+    simp only [Finset.card_empty, natCZ, zero_add]
     nlinarith
   obtain ⟨y₁, hy₁P, _, hy₁_BodyU, _⟩ := exists_good_two G hη hP_sub hVpos huniVU hdVU
     hUpos hBodyU hBodyUcard huniVU hdVU hUpos hBodyU hBodyUcard hP_card
-  have hy₁_Body'V : y₁ ∈ Body'V := (Finset.mem_inter.mp hy₁P).2
-  have hzy₁ : G.Adj zu y₁ := (G.mem_neighborFinset zu y₁).mp (Finset.mem_inter.mp hy₁P).1
+  have hy₁_Body'V : y₁ ∈ Body'V := (fsMI3.mp hy₁P).2
+  have hzy₁ : G.Adj zu y₁ := (G.mem_neighborFinset zu y₁).mp (fsMI3.mp hy₁P).1
   have hy₁_deg : c ≤ (G.neighborFinset y₁ ∩ BodyU).card := by
     exact_mod_cast (hcBodyU.trans_lt hy₁_BodyU).le
   have hc_pos : 0 < c := by
@@ -10951,11 +10822,11 @@ private lemma bridge_segment {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G
     omega
   set Q' := Q.take (2 * ℓ - 1)
   have hQ'len : Q'.length = 2 * ℓ - 1 := List.length_take_of_le htake_le
-  have hQ'ne : Q' ≠ [] := List.ne_nil_of_length_pos (by omega)
+  have hQ'ne : Q' ≠ [] := lsNNOLP (by omega)
   have hQ'head : Q'.head hQ'ne = y₁ := by
-    rw [List.head_eq_getElem hQ'ne]
+    rw [lsHEG hQ'ne]
     simp only [Q', List.getElem_take]
-    rw [← List.head_eq_getElem hQne, ← Option.some.injEq]
+    rw [← lsHEG hQne, ← Option.some.injEq]
     rw [List.head?_eq_some_head hQne] at hQhead
     exact hQhead
   have hQ'nodup : Q'.Nodup := hQnodup.take
@@ -10964,66 +10835,66 @@ private lemma bridge_segment {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G
     exact h1.imp (fun {_ _} h => h.2)
   have hQ'sub : Q'.toFinset ⊆ BodyU ∪ BodyV := by
     intro x hx
-    have hxQ : x ∈ Q := List.mem_of_mem_take (List.mem_toFinset.mp hx)
-    rcases Finset.mem_union.mp (hQsub (List.mem_toFinset.mpr hxQ)) with hV | hU
-    · exact Finset.mem_union_right _ (Finset.sdiff_subset hV)
-    · exact Finset.mem_union_left _ hU
+    have hxQ : x ∈ Q := lsMOMT2 (lsMT.mp hx)
+    rcases fsMU.mp (hQsub (lsMT.mpr hxQ)) with hV | hU
+    · exact fsMUR _ (Finset.sdiff_subset hV)
+    · exact fsMUL _ hU
   set y_last := Q'.getLast hQ'ne
   have hy_last_eq : y_last = Q[2 * ℓ - 2]'(by omega) := by
     change Q'.getLast hQ'ne = Q[2 * ℓ - 2]'(by omega)
-    rw [List.getLast_eq_getElem hQ'ne]
+    rw [lsGEG hQ'ne]
     simp only [Q', hQ'len]
     exact List.getElem_take
   have hy_last_Body'V : y_last ∈ Body'V := by
     rw [hy_last_eq]
     exact (hQalt (2 * ℓ - 2) (by omega)).1 ⟨ℓ - 1, by omega⟩
-  have hy_last_bad : y_last ∉ B_bad := (Finset.mem_sdiff.mp hy_last_Body'V).2
+  have hy_last_bad : y_last ∉ B_bad := (fsMS.mp hy_last_Body'V).2
   have hy_last_V : y_last ∈ V := hBody'V_sub hy_last_Body'V
   have hy_last_deg : (d - η) * (S_end.card : ℝ) < ((G.neighborFinset y_last ∩ S_end).card : ℝ) := by
     by_contra! hle
-    exact hy_last_bad (Finset.mem_filter.mpr ⟨hy_last_V, hle⟩)
+    exact hy_last_bad (fsMF.mpr ⟨hy_last_V, hle⟩)
   have hy_last_pos : 0 < (G.neighborFinset y_last ∩ S_end).card := by
     have hSpos : (0 : ℝ) < (S_end.card : ℝ) := by
       have : (0 : ℝ) < (U.card : ℝ) * η := by positivity
       exact this.trans_le hSend_card
     have h1 : (0 : ℝ) < (d - η) * (S_end.card : ℝ) := mul_pos (sub_pos.mpr hd_gt) hSpos
     exact_mod_cast h1.trans hy_last_deg
-  obtain ⟨x_last, hx_last⟩ := Finset.card_pos.mp hy_last_pos
-  rw [Finset.mem_inter, SimpleGraph.mem_neighborFinset] at hx_last
-  have hx_last_CapU : x_last ∈ CapU := (Finset.mem_inter.mp hx_last.2).2
+  obtain ⟨x_last, hx_last⟩ := fsCP.mp hy_last_pos
+  rw [fsMI3, sgMN] at hx_last
+  have hx_last_CapU : x_last ∈ CapU := (fsMI3.mp hx_last.2).2
   have hx_last_zv : G.Adj x_last zv :=
-    ((G.mem_neighborFinset zv x_last).mp (Finset.mem_inter.mp hx_last.2).1).symm
+    ((G.mem_neighborFinset zv x_last).mp (fsMI3.mp hx_last.2).1).symm
   set seg := zu :: (Q' ++ [x_last])
   have hseg_ne : seg ≠ [] := by simp [seg]
   have hzu_not_BUV : zu ∉ BodyU ∪ BodyV := by
     intro h
-    rcases Finset.mem_union.mp h with hU | hV
-    · exact Finset.disjoint_left.mp hRB hzu hU
-    · exact Finset.disjoint_left.mp hdisjUV (hResU hzu) (hBodyV hV)
+    rcases fsMU.mp h with hU | hV
+    · exact fsDL.mp hRB hzu hU
+    · exact fsDL.mp hdisjUV (hResU hzu) (hBodyV hV)
   have hx_not_BUV : x_last ∉ BodyU ∪ BodyV := by
     intro h
-    rcases Finset.mem_union.mp h with hU | hV
-    · exact Finset.disjoint_left.mp hCB hx_last_CapU hU
-    · exact Finset.disjoint_left.mp hdisjUV (hCapU hx_last_CapU) (hBodyV hV)
+    rcases fsMU.mp h with hU | hV
+    · exact fsDL.mp hCB hx_last_CapU hU
+    · exact fsDL.mp hdisjUV (hCapU hx_last_CapU) (hBodyV hV)
   have hzu_ne_x : zu ≠ x_last := fun h =>
-    Finset.disjoint_left.mp hRC hzu (h ▸ hx_last_CapU)
+    fsDL.mp hRC hzu (h ▸ hx_last_CapU)
   refine ⟨seg, hseg_ne, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · simp [seg, hQ'len]; omega
   · intro _; simp [seg]
   · intro _
     have h1 : seg.getLast hseg_ne = (Q' ++ [x_last]).getLast (by simp) :=
-      List.getLast_cons (by simp)
+      lsGC (by simp)
     rw [h1, List.getLast_append_singleton]
     exact hx_last_zv
-  · rw [show seg = zu :: (Q' ++ [x_last]) from rfl, List.nodup_cons]
+  · rw [show seg = zu :: (Q' ++ [x_last]) from rfl, lsNC]
     refine ⟨?_, ?_⟩
-    · simp only [List.mem_append, List.mem_singleton, not_or]
-      exact ⟨fun h => hzu_not_BUV (hQ'sub (List.mem_toFinset.mpr h)), hzu_ne_x⟩
-    · rw [List.nodup_append]
+    · simp only [lsMA, lsMS, not_or]
+      exact ⟨fun h => hzu_not_BUV (hQ'sub (lsMT.mpr h)), hzu_ne_x⟩
+    · rw [lsNA2]
       refine ⟨hQ'nodup, List.nodup_singleton _, fun a ha b hb heq => ?_⟩
-      rw [List.mem_singleton] at hb
+      rw [lsMS] at hb
       subst hb; subst heq
-      exact hx_not_BUV (hQ'sub (List.mem_toFinset.mpr ha))
+      exact hx_not_BUV (hQ'sub (lsMT.mpr ha))
   · refine List.IsChain.cons_of_ne_nil (by simp) ?_ ?_
     · refine isChain_append hQ'chain (List.isChain_singleton _) ?_
       intro a ha b hb
@@ -11032,19 +10903,19 @@ private lemma bridge_segment {N : ℕ} (G : SimpleGraph (Fin N)) [DecidableRel G
       have hb' : b = x_last := (by simpa using hb : x_last = b).symm
       subst ha'; subst hb'
       exact hx_last.1
-    · rw [List.head_append_of_ne_nil hQ'ne, hQ'head]
+    · rw [lsHAONN hQ'ne, hQ'head]
       exact hzy₁
   · intro x hx
-    simp only [seg, List.toFinset_cons, List.toFinset_append, List.toFinset_nil,
-      Finset.mem_insert, Finset.mem_union, Finset.notMem_empty, or_false] at hx
+    simp only [seg, lsTC, lsTA, lsTN,
+      fsMI2, fsMU, fsNE, or_false] at hx
     rcases hx with rfl | hxQ | rfl
-    · exact Finset.mem_insert_self _ _
-    · exact Finset.mem_insert_of_mem (Finset.mem_union_left _ (by
+    · exact fsMIS _ _
+    · exact fsMIOM (fsMUL _ (by
         have := hQ'sub hxQ
-        rcases Finset.mem_union.mp this with h | h
-        · exact Finset.mem_union_left _ h
-        · exact Finset.mem_union_right _ h))
-    · exact Finset.mem_insert_of_mem (Finset.mem_union_right _ hx_last_CapU)
+        rcases fsMU.mp this with h | h
+        · exact fsMUL _ h
+        · exact fsMUR _ h))
+    · exact fsMIOM (fsMUR _ hx_last_CapU)
 
 /- ### Selecting tour transition vertices along closed walk W -/
 
@@ -11099,7 +10970,7 @@ private lemma embed_tour_vertices {N t : ℕ} (G : SimpleGraph (Fin N)) [Decidab
         have hL1 : i + 1 = L - 1 := by omega
         rw [← hL1, ← hw'_eq i hi]
       rw [← heq]
-      exact Finset.inter_subset_right.trans (hRes_sub _)
+      exact fsISR.trans (hRes_sub _)
   have hbind : ∀ k : ℕ, 1 ≤ k → k ≤ L →
       ∃ z : ℕ → Fin N,
         (∀ i < k, z i ∈ Res (w i)) ∧
@@ -11133,7 +11004,7 @@ private lemma embed_tour_vertices {N t : ℕ} (G : SimpleGraph (Fin N)) [Decidab
           exact this.symm
         have hR0L := hR (w 0) (w (L - 1)) hRL0
         have hP0 : ((∅ : Finset (Fin N)).card : ℝ) + 2 * ((parts (w 0)).card : ℝ) * η ≤ (Res (w 0)).card := by
-          simp only [Finset.card_empty, Nat.cast_zero, zero_add]
+          simp only [Finset.card_empty, natCZ, zero_add]
           exact le_trans (by linarith) (hPool_Res (w 0))
         obtain ⟨z0, hz0_Res, _, hz0_T1, hz0_SL⟩ := exists_good_two G hη (hRes_sub (w 0))
           (hparts_pos _) hR01.1 hR01.2 (hparts_pos _) hT1_sub hT1_sz
@@ -11155,7 +11026,7 @@ private lemma embed_tour_vertices {N t : ℕ} (G : SimpleGraph (Fin N)) [Decidab
         · intro i hi hik; omega
         · intro hL1; omega
       · obtain ⟨z, hz_Res, hz_inj, hz0_SL, hz_next, hz_prev, _⟩ := ih (by omega) (by omega)
-        set avoid := (Finset.range k).image z
+        set avoid := (fsRange k).image z
         have havoid_card : avoid.card ≤ L :=
           (Finset.card_image_le.trans (Finset.card_range k).le).trans (by omega)
         have hSend_sz : (parts (w (L - 1))).card * η ≤ ((S_end (z 0)).card : ℝ) :=
@@ -11178,7 +11049,7 @@ private lemma embed_tour_vertices {N t : ℕ} (G : SimpleGraph (Fin N)) [Decidab
           rw [hk_w] at this
           exact this.symm
         have hR_prev_p := hR (w k) (w (k - 1)) hR_prev
-        have hSend_sub_wk : S_end (z 0) ⊆ parts (w (L - 1)) := Finset.inter_subset_right.trans (hRes_sub _)
+        have hSend_sub_wk : S_end (z 0) ⊆ parts (w (L - 1)) := fsISR.trans (hRes_sub _)
         have hpick : ∃ zk : Fin N,
             zk ∈ Res (w k) ∧ zk ∉ avoid ∧
             (if 0 < len (k - 1) then
@@ -11192,7 +11063,7 @@ private lemma embed_tour_vertices {N t : ℕ} (G : SimpleGraph (Fin N)) [Decidab
           · by_cases hk1L : k + 1 < L
             · have hR_next := hR (w k) (w' k) (hw_adj k hkL)
               have hP : (avoid.card : ℝ) + 2 * ((parts (w k)).card : ℝ) * η ≤ (Res (w k)).card := by
-                have hav : (avoid.card : ℝ) ≤ (L : ℝ) := Nat.cast_le.mpr havoid_card
+                have hav : (avoid.card : ℝ) ≤ (L : ℝ) := natCL.mpr havoid_card
                 linarith only [hav, hPool_Res (w k)]
               obtain ⟨zk, hzkP, hzk_av, hzk_cap, hzk_next⟩ := exists_good_two G hη (hRes_sub (w k))
                 (hparts_pos _) hR_prev_p.1 hR_prev_p.2 (hparts_pos _) (hCap_sub _) (hCap_sz _ _)
@@ -11201,16 +11072,16 @@ private lemma embed_tour_vertices {N t : ℕ} (G : SimpleGraph (Fin N)) [Decidab
             · have hk_eq : k = L - 1 := by omega
               have hP_sub : S_end (z 0) ⊆ parts (w k) := by rw [hk_eq]; exact hSend_sub_wk
               have hP : (avoid.card : ℝ) + 2 * ((parts (w k)).card : ℝ) * η ≤ ((S_end (z 0)).card : ℝ) := by
-                have hav : (avoid.card : ℝ) ≤ (L : ℝ) := Nat.cast_le.mpr havoid_card
+                have hav : (avoid.card : ℝ) ≤ (L : ℝ) := natCL.mpr havoid_card
                 have hps := (hPool_Send (w (L - 1)) (w k)).2
                 rw [hk_eq] at hps ⊢
                 linarith only [hav, hps, hz0_SL]
               obtain ⟨zk, hzkP, hzk_av, hzk_cap, _⟩ := exists_good_two G hη hP_sub
                 (hparts_pos _) hR_prev_p.1 hR_prev_p.2 (hparts_pos _) (hCap_sub _) (hCap_sz _ _)
                 hR_prev_p.1 hR_prev_p.2 (hparts_pos _) (hCap_sub _) (hCap_sz _ _) hP
-              have hzk_Res : zk ∈ Res (w k) := by rw [hk_eq]; exact (Finset.mem_inter.mp hzkP).2
+              have hzk_Res : zk ∈ Res (w k) := by rw [hk_eq]; exact (fsMI3.mp hzkP).2
               have hzk_z0 : G.Adj zk (z 0) :=
-                ((G.mem_neighborFinset (z 0) zk).mp (Finset.mem_inter.mp hzkP).1).symm
+                ((G.mem_neighborFinset (z 0) zk).mp (fsMI3.mp hzkP).1).symm
               exact ⟨zk, hzk_Res, hzk_av, by simp [hlen_prev, hzk_cap], fun h => (hk1L h).elim, fun _ => hzk_z0⟩
           · have hk_prev_lt : k - 1 + 1 < L := by omega
             have hz_prev_deg := hz_next (k - 1) (by omega) hk_prev_lt
@@ -11220,17 +11091,17 @@ private lemma embed_tour_vertices {N t : ℕ} (G : SimpleGraph (Fin N)) [Decidab
                 simp only [TargetNext, hlen_prev, ↓reduceIte, hk_lt_L1, hk_w]
               rw [hT_eq] at hz_prev_deg
               set P := G.neighborFinset (z (k - 1)) ∩ Res (w k)
-              have hP_sub : P ⊆ parts (w k) := Finset.inter_subset_right.trans (hRes_sub _)
+              have hP_sub : P ⊆ parts (w k) := fsISR.trans (hRes_sub _)
               have hP : (avoid.card : ℝ) + 2 * ((parts (w k)).card : ℝ) * η ≤ (P.card : ℝ) := by
-                have hav : (avoid.card : ℝ) ≤ (L : ℝ) := Nat.cast_le.mpr havoid_card
+                have hav : (avoid.card : ℝ) ≤ (L : ℝ) := natCL.mpr havoid_card
                 have hps := (hPool_Send (w k) (w k)).2
                 linarith only [hav, hps, hz_prev_deg]
               have hR_next := hR (w k) (w' k) (hw_adj k hkL)
               obtain ⟨zk, hzkP, hzk_av, hzk_next, _⟩ := exists_good_two G hη hP_sub
                 (hparts_pos _) hR_next.1 hR_next.2 (hparts_pos _) (hT_sub (z 0) k hk1L) (hT_sz k hk1L)
                 hR_next.1 hR_next.2 (hparts_pos _) (hT_sub (z 0) k hk1L) (hT_sz k hk1L) hP
-              have hzk_Res : zk ∈ Res (w k) := (Finset.mem_inter.mp hzkP).2
-              have hzk_adj : G.Adj (z (k - 1)) zk := (G.mem_neighborFinset (z (k - 1)) zk).mp (Finset.mem_inter.mp hzkP).1
+              have hzk_Res : zk ∈ Res (w k) := (fsMI3.mp hzkP).2
+              have hzk_adj : G.Adj (z (k - 1)) zk := (G.mem_neighborFinset (z (k - 1)) zk).mp (fsMI3.mp hzkP).1
               exact ⟨zk, hzk_Res, hzk_av, by simp [hlen_prev, hzk_adj], fun _ => hzk_next, fun h => by omega⟩
             · have hk_eq : k = L - 1 := by omega
               have hk_lt_L1 : ¬ (k - 1 + 1 < L - 1) := by omega
@@ -11239,7 +11110,7 @@ private lemma embed_tour_vertices {N t : ℕ} (G : SimpleGraph (Fin N)) [Decidab
               rw [hT_eq] at hz_prev_deg
               set P := G.neighborFinset (z (k - 1)) ∩ S_end (z 0)
               have hP_pos : avoid.card < P.card := by
-                have h1 : (avoid.card : ℝ) ≤ (L : ℝ) := Nat.cast_le.mpr havoid_card
+                have h1 : (avoid.card : ℝ) ≤ (L : ℝ) := natCL.mpr havoid_card
                 have h2 : (L : ℝ) < (d - η) * ((d - η) * ((Res (w (L - 1))).card : ℝ)) := by
                   have hnn := hPool_Send2 (w (L - 1)) (w k)
                   have hp : (0 : ℝ) < 2 * ((parts (w k)).card : ℝ) * η := by
@@ -11252,22 +11123,22 @@ private lemma embed_tour_vertices {N t : ℕ} (G : SimpleGraph (Fin N)) [Decidab
                     have hps1 := (hPool_Send (w (L - 1)) (w (L - 1))).1
                     have hpos1 : (0 : ℝ) < (parts (w (L - 1))).card * η := by
                       have := hparts_pos (w (L - 1)); positivity
-                    have hpos2 : (0 : ℝ) ≤ (Res (w (L - 1))).card := Nat.cast_nonneg _
+                    have hpos2 : (0 : ℝ) ≤ (Res (w (L - 1))).card := natCN _
                     nlinarith only [hps1, hpos1, hpos2]
                   exact mul_lt_mul_of_pos_left hz0_SL hdn
                 exact_mod_cast (h1.trans_lt (h2.trans h3)).trans hz_prev_deg
-              have hrem : (P \ avoid).Nonempty := Finset.card_pos.mp (by
+              have hrem : (P \ avoid).Nonempty := fsCP.mp (by
                 have : P.card ≤ (P \ avoid).card + avoid.card := by
-                  calc P.card ≤ ((P \ avoid) ∪ avoid).card := Finset.card_le_card (fun x hx => by
+                  calc P.card ≤ ((P \ avoid) ∪ avoid).card := fsCLC (fun x hx => by
                         by_cases h : x ∈ avoid
-                        · exact Finset.mem_union_right _ h
-                        · exact Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨hx, h⟩))
-                    _ ≤ (P \ avoid).card + avoid.card := Finset.card_union_le _ _
+                        · exact fsMUR _ h
+                        · exact fsMUL _ (fsMS.mpr ⟨hx, h⟩))
+                    _ ≤ (P \ avoid).card + avoid.card := fsCUL _ _
                 omega)
               obtain ⟨zk, hzk⟩ := hrem
-              rw [Finset.mem_sdiff] at hzk
-              have hzk_mem := Finset.mem_inter.mp hzk.1
-              have hzk_Send := Finset.mem_inter.mp hzk_mem.2
+              rw [fsMS] at hzk
+              have hzk_mem := fsMI3.mp hzk.1
+              have hzk_Send := fsMI3.mp hzk_mem.2
               have hzk_Res : zk ∈ Res (w k) := by rw [hk_eq]; exact hzk_Send.2
               have hzk_adj : G.Adj (z (k - 1)) zk := (G.mem_neighborFinset (z (k - 1)) zk).mp hzk_mem.1
               have hzk_z0 : G.Adj zk (z 0) := ((G.mem_neighborFinset (z 0) zk).mp hzk_Send.1).symm
@@ -11285,10 +11156,10 @@ private lemma embed_tour_vertices {N t : ℕ} (G : SimpleGraph (Fin N)) [Decidab
           · exact (hne (h1.trans h2.symm)).elim
           · subst h1; dsimp only [z']; rw [if_pos rfl, if_neg h2]
             intro heq
-            exact hzk_av (Finset.mem_image.mpr ⟨i₂, Finset.mem_range.mpr (by omega), heq.symm⟩)
+            exact hzk_av (fsMI.mpr ⟨i₂, fsMR.mpr (by omega), heq.symm⟩)
           · subst h2; dsimp only [z']; rw [if_neg h1, if_pos rfl]
             intro heq
-            exact hzk_av (Finset.mem_image.mpr ⟨i₁, Finset.mem_range.mpr (by omega), heq⟩)
+            exact hzk_av (fsMI.mpr ⟨i₁, fsMR.mpr (by omega), heq⟩)
           · dsimp only [z']; rw [if_neg h1, if_neg h2]
             exact hz_inj i₁ (by omega) i₂ (by omega) hne
         · rw [hz'0]; exact hz0_SL
@@ -11349,8 +11220,8 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
     rwa [← Set.ncard_eq_toFinset_card']
   obtain ⟨edges, hedges_len, hedges_adj, _, hedges_nodup⟩ :=
     H2Proof.extract_matching_pairs M hM k M.verts.toFinset
-      (fun x hx => Set.mem_toFinset.mp hx)
-      (fun x hx y hxy => Set.mem_toFinset.mpr (M.edge_vert hxy.symm))
+      (fun x hx => stMT.mp hx)
+      (fun x hx y hxy => stMT.mpr (M.edge_vert hxy.symm))
       hS_card
   have hR_has_edge : ∃ u v : Fin t, R.Adj u v := by
     have hne : edges ≠ [] := by intro h; simp [h] at hedges_len; omega
@@ -11374,70 +11245,70 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
   have hm_t_den : (t : ℝ) / (1 - δ) ≤ (m : ℝ) := by
     have h1 : (256 * (t : ℝ) / (d' ^ 2 * δ) + (t : ℝ) / (1 - δ) + 32 / δ + 32 / (d' * δ)) ≤ (m₀ : ℝ) := by
       calc _ ≤ (Nat.ceil (256 * (t : ℝ) / (d' ^ 2 * δ) + (t : ℝ) / (1 - δ) + 32 / δ + 32 / (d' * δ)) : ℝ) :=
-            Nat.le_ceil _
-        _ ≤ (m₀ : ℝ) := by simp only [m₀, Nat.cast_add, Nat.cast_ofNat]; linarith
+            natLC _
+        _ ≤ (m₀ : ℝ) := by simp only [m₀, natCA, natCO]; linarith
     have h2 : (0 : ℝ) ≤ 256 * (t : ℝ) / (d' ^ 2 * δ) := by positivity
     have h3 : (0 : ℝ) ≤ 32 / δ := by positivity
     have h4 : (0 : ℝ) ≤ 32 / (d' * δ) := by positivity
-    have h5 : (m₀ : ℝ) ≤ (m : ℝ) := Nat.cast_le.mpr hm
+    have h5 : (m₀ : ℝ) ≤ (m : ℝ) := natCL.mpr hm
     linarith
   have hm_t_sq : 256 * (t : ℝ) / (d' ^ 2 * δ) ≤ (m : ℝ) := by
     have h1 : (256 * (t : ℝ) / (d' ^ 2 * δ) + (t : ℝ) / (1 - δ) + 32 / δ + 32 / (d' * δ)) ≤ (m₀ : ℝ) := by
       calc _ ≤ (Nat.ceil (256 * (t : ℝ) / (d' ^ 2 * δ) + (t : ℝ) / (1 - δ) + 32 / δ + 32 / (d' * δ)) : ℝ) :=
-            Nat.le_ceil _
-        _ ≤ (m₀ : ℝ) := by simp only [m₀, Nat.cast_add, Nat.cast_ofNat]; linarith
+            natLC _
+        _ ≤ (m₀ : ℝ) := by simp only [m₀, natCA, natCO]; linarith
     have h2 : (0 : ℝ) ≤ (t : ℝ) / (1 - δ) := by positivity
     have h3 : (0 : ℝ) ≤ 32 / δ := by positivity
     have h4 : (0 : ℝ) ≤ 32 / (d' * δ) := by positivity
-    have h5 : (m₀ : ℝ) ≤ (m : ℝ) := Nat.cast_le.mpr hm
+    have h5 : (m₀ : ℝ) ≤ (m : ℝ) := natCL.mpr hm
     linarith
   have hm_δ : 32 / δ ≤ (m : ℝ) := by
     have h1 : (256 * (t : ℝ) / (d' ^ 2 * δ) + (t : ℝ) / (1 - δ) + 32 / δ + 32 / (d' * δ)) ≤ (m₀ : ℝ) := by
       calc _ ≤ (Nat.ceil (256 * (t : ℝ) / (d' ^ 2 * δ) + (t : ℝ) / (1 - δ) + 32 / δ + 32 / (d' * δ)) : ℝ) :=
-            Nat.le_ceil _
-        _ ≤ (m₀ : ℝ) := by simp only [m₀, Nat.cast_add, Nat.cast_ofNat]; linarith
+            natLC _
+        _ ≤ (m₀ : ℝ) := by simp only [m₀, natCA, natCO]; linarith
     have h2 : (0 : ℝ) ≤ 256 * (t : ℝ) / (d' ^ 2 * δ) := by positivity
     have h3 : (0 : ℝ) ≤ (t : ℝ) / (1 - δ) := by positivity
     have h4 : (0 : ℝ) ≤ 32 / (d' * δ) := by positivity
-    have h5 : (m₀ : ℝ) ≤ (m : ℝ) := Nat.cast_le.mpr hm
+    have h5 : (m₀ : ℝ) ≤ (m : ℝ) := natCL.mpr hm
     linarith
   have hm_dδ : 32 / (d' * δ) ≤ (m : ℝ) := by
     have h1 : (256 * (t : ℝ) / (d' ^ 2 * δ) + (t : ℝ) / (1 - δ) + 32 / δ + 32 / (d' * δ)) ≤ (m₀ : ℝ) := by
       calc _ ≤ (Nat.ceil (256 * (t : ℝ) / (d' ^ 2 * δ) + (t : ℝ) / (1 - δ) + 32 / δ + 32 / (d' * δ)) : ℝ) :=
-            Nat.le_ceil _
-        _ ≤ (m₀ : ℝ) := by simp only [m₀, Nat.cast_add, Nat.cast_ofNat]; linarith
+            natLC _
+        _ ≤ (m₀ : ℝ) := by simp only [m₀, natCA, natCO]; linarith
     have h2 : (0 : ℝ) ≤ 256 * (t : ℝ) / (d' ^ 2 * δ) := by positivity
     have h3 : (0 : ℝ) ≤ (t : ℝ) / (1 - δ) := by positivity
     have h4 : (0 : ℝ) ≤ 32 / δ := by positivity
-    have h5 : (m₀ : ℝ) ≤ (m : ℝ) := Nat.cast_le.mpr hm
+    have h5 : (m₀ : ℝ) ≤ (m : ℝ) := natCL.mpr hm
     linarith
   have hchoose_r : ∃ r : ℕ, 1 ≤ r ∧ r ≤ k ∧ (n : ℝ) ≤ (1 - δ) * (2 * (r : ℝ) * (m : ℝ)) ∧
       (2 ≤ r → (1 - δ) * (2 * ((r - 1 : ℕ) : ℝ) * (m : ℝ)) < (n : ℝ)) := by
     let S : Finset ℕ := (Finset.Icc (1 : ℕ) k).filter (fun j => (n : ℝ) ≤ (1 - δ) * (2 * (j : ℝ) * (m : ℝ)))
-    have hkS : k ∈ S := Finset.mem_filter.mpr ⟨Finset.mem_Icc.mpr ⟨hk1, le_rfl⟩, hm₀⟩
+    have hkS : k ∈ S := fsMF.mpr ⟨Finset.mem_Icc.mpr ⟨hk1, le_rfl⟩, hm₀⟩
     have hSne : S.Nonempty := ⟨k, hkS⟩
     let r := S.min' hSne
     have hrS : r ∈ S := Finset.min'_mem S hSne
-    have hr_mem := Finset.mem_filter.mp hrS
+    have hr_mem := fsMF.mp hrS
     have hr_icc := Finset.mem_Icc.mp hr_mem.1
     refine ⟨r, hr_icc.1, hr_icc.2, hr_mem.2, fun hr2 => ?_⟩
     by_contra! hle
-    have hr1_mem : r - 1 ∈ S := Finset.mem_filter.mpr ⟨Finset.mem_Icc.mpr ⟨by omega, by omega⟩, hle⟩
+    have hr1_mem : r - 1 ∈ S := fsMF.mpr ⟨Finset.mem_Icc.mpr ⟨by omega, by omega⟩, hle⟩
     have := Finset.min'_le S (r - 1) hr1_mem
     omega
   obtain ⟨r, hr1, hrk, hnr, hnr_min⟩ := hchoose_r
   set chosen := edges.take r
-  have hchosen_len : chosen.length = r := by rw [List.length_take, hedges_len]; exact min_eq_left hrk
-  have hchosen_ne : chosen ≠ [] := List.ne_nil_of_length_pos (by omega)
+  have hchosen_len : chosen.length = r := by rw [lsLT, hedges_len]; exact min_eq_left hrk
+  have hchosen_ne : chosen ≠ [] := lsNNOLP (by omega)
   have hchosen_adj : ∀ p ∈ chosen, R.Adj p.1 p.2 := fun p hp =>
-    M.adj_sub (hedges_adj p (List.mem_of_mem_take hp))
+    M.adj_sub (hedges_adj p (lsMOMT2 hp))
   have hchosen_nodup : (chosen.flatMap (fun p => [p.1, p.2])).Nodup := by
     have h1 : chosen.flatMap (fun p => [p.1, p.2]) <+: edges.flatMap (fun p => [p.1, p.2]) :=
       (List.take_prefix r edges).flatMap (fun p => [p.1, p.2])
     exact hedges_nodup.sublist h1.sublist
   have hchosen_reach : ∀ p ∈ chosen, ∀ q ∈ chosen, R.Reachable p.1 q.1 := fun p hp q hq =>
-    hMreach p.1 (M.edge_vert (hedges_adj p (List.mem_of_mem_take hp)))
-      q.1 (M.edge_vert (hedges_adj q (List.mem_of_mem_take hq)))
+    hMreach p.1 (M.edge_vert (hedges_adj p (lsMOMT2 hp)))
+      q.1 (M.edge_vert (hedges_adj q (lsMOMT2 hq)))
   obtain ⟨W, hWne, hWadj, hWchain, hWwrap, hWlastf, hWeven, hW2, hW2t, hr_le_W2, hW1_eq, hWcnt, hWnodup⟩ :=
     H2Proof.build_closed_walk chosen hchosen_ne hchosen_adj hchosen_nodup hchosen_reach
   rw [hchosen_len] at hr_le_W2 hW1_eq hWcnt
@@ -11481,7 +11352,7 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
     simp only [len, dif_pos (by omega : L - 1 < L)]
     refine hlens_zero (L - 1) (by omega) ?_
     have h1 := hWlastf hWne
-    rwa [List.getLast_eq_getElem hWne] at h1
+    rwa [lsGEG hWne] at h1
   have hL2_len0 : L = 2 → 0 < len 0 := by
     intro hL2
     have hlen1_0 : len 1 = 0 := by simpa [hL2] using hlen_L
@@ -11495,7 +11366,7 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
       simpa [Finset.sum_range_succ] using hsum_rng
     omega
   set q := Nat.ceil (δ / 8 * (m : ℝ))
-  have hq_ge : δ / 8 * (m : ℝ) ≤ (q : ℝ) := Nat.le_ceil _
+  have hq_ge : δ / 8 * (m : ℝ) ≤ (q : ℝ) := natLC _
   have hq_lt : (q : ℝ) < δ / 8 * (m : ℝ) + 1 := Nat.ceil_lt_add_one (by positivity)
   have h2q_le : 2 * q ≤ m := by
     have h1 : (2 * q : ℝ) < δ / 4 * (m : ℝ) + 2 := by linarith only [hq_lt]
@@ -11511,7 +11382,7 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
     fun i => H2Proof.split_cluster (parts i) q (h2q_le.trans (hparts i).1)
   choose Res Cap Body hRes_sub hCap_sub hBody_sub hRC hRB hCB hRes_card hCap_card hBody_card using hsplit_all
   set c := Nat.ceil ((m + 1 : ℝ) * η)
-  have hc_ge : (m + 1 : ℝ) * η ≤ (c : ℝ) := Nat.le_ceil _
+  have hc_ge : (m + 1 : ℝ) * η ≤ (c : ℝ) := natLC _
   have hc_lt : (c : ℝ) < (m + 1 : ℝ) * η + 1 := Nat.ceil_lt_add_one (by positivity)
   have hm1_2m : (m + 1 : ℝ) ≤ 2 * (m : ℝ) := by
     have : (1 : ℝ) ≤ (m : ℝ) := by exact_mod_cast hm_pos
@@ -11530,7 +11401,7 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
     rw [hCap_card i]
     exact (mul_le_mul_of_nonneg_right (hparts_le j) hη.le).trans h_m1η_q
   have hBody_ge : ∀ i : Fin t, (m : ℝ) / 2 ≤ ((Body i).card : ℝ) := fun i => by
-    have hb1 : m - 2 * q ≤ (Body i).card := by rw [hBody_card i]; exact Nat.sub_le_sub_right (hparts i).1 _
+    have hb1 : m - 2 * q ≤ (Body i).card := by rw [hBody_card i]; exact natSLSR (hparts i).1 _
     have hb2 : (m : ℝ) - 2 * (q : ℝ) ≤ ((Body i).card : ℝ) := by
       have : ((m - 2 * q : ℕ) : ℝ) = (m : ℝ) - 2 * (q : ℝ) := by
         rw [Nat.cast_sub h2q_le]; push_cast; rfl
@@ -11658,14 +11529,14 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
   let w' : ℕ → Fin t := fun i => if h : i < L then W[i].2.1 else (W.head hWne).1
   have hw_adj : ∀ i (hi : i < L), R.Adj (w i) (w' i) := fun i hi => by
     simp only [w, w', dif_pos hi]
-    exact hWadj W[i] (List.getElem_mem hi)
+    exact hWadj W[i] (lsGM hi)
   have hw'_eq : ∀ i (hi : i + 1 < L), w' i = w (i + 1) := fun i hi => by
     simp only [w', w, dif_pos (by omega : i < L), dif_pos hi]
-    exact List.isChain_iff_getElem.mp hWchain i hi
+    exact lsIIG.mp hWchain i hi
   have hw_wrap : w' (L - 1) = w 0 := by
     simp only [w', w, dif_pos (by omega : L - 1 < L), dif_pos (by omega : 0 < L)]
     have h1 := hWwrap hWne
-    rwa [List.getLast_eq_getElem hWne, List.head_eq_getElem hWne] at h1
+    rwa [lsGEG hWne, lsHEG hWne] at h1
   obtain ⟨z, hz_Res, hz_inj, hz_next, hz_prev, hz_wrap⟩ :=
     H2Proof.embed_tour_vertices G hη parts R hparts_pos hR Res Cap Body
       hRes_sub hCap_sub hBody_sub hRes_sz hCap_sz hBody_sz
@@ -11682,20 +11553,20 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
     have hq_ub : (q : ℝ) < δ / 8 * (m : ℝ) + 1 := hq_lt
     have hBU : (m : ℝ) - 2 * (q : ℝ) ≤ ((Body (w i)).card : ℝ) := by
       have hb1 : m - 2 * q ≤ (Body (w i)).card := by
-        rw [hBody_card (w i)]; exact Nat.sub_le_sub_right (hparts (w i)).1 _
+        rw [hBody_card (w i)]; exact natSLSR (hparts (w i)).1 _
       have hb2 : ((m - 2 * q : ℕ) : ℝ) = (m : ℝ) - 2 * (q : ℝ) := by
         rw [Nat.cast_sub h2q_le]; push_cast; rfl
       rw [← hb2]; exact_mod_cast hb1
     have hBV : (m : ℝ) - 2 * (q : ℝ) ≤ ((Body (w' i)).card : ℝ) := by
       have hb1 : m - 2 * q ≤ (Body (w' i)).card := by
-        rw [hBody_card (w' i)]; exact Nat.sub_le_sub_right (hparts (w' i)).1 _
+        rw [hBody_card (w' i)]; exact natSLSR (hparts (w' i)).1 _
       have hb2 : ((m - 2 * q : ℕ) : ℝ) = (m : ℝ) - 2 * (q : ℝ) := by
         rw [Nat.cast_sub h2q_le]; push_cast; rfl
       rw [← hb2]; exact_mod_cast hb1
     have h32 : (32 : ℝ) ≤ δ * (m : ℝ) := by
       have := (div_le_iff₀ hδ0).mp hm_δ
       linarith only [this]
-    have h1 : (len i : ℝ) ≤ (1 - δ) * (m : ℝ) := (Nat.cast_le.mpr hleB).trans hB_real
+    have h1 : (len i : ℝ) ≤ (1 - δ) * (m : ℝ) := (natCL.mpr hleB).trans hB_real
     have h2 : (1 - δ) * (m : ℝ) ≤ ((Body (w' i)).card : ℝ) - 3 * (c : ℝ) := by
       nlinarith only [hBV, hc_ub, hq_ub, h32, hδ0, hδ1, hm_real_pos]
     have h3 : (1 - δ) * (m : ℝ) ≤ ((Body (w i)).card : ℝ) - 3 * (c : ℝ) := by
@@ -11726,7 +11597,7 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
         have : i = L - 1 := by omega
         subst this
         omega
-      have hmod : (i + 1) % L = i + 1 := Nat.mod_eq_of_lt hi1
+      have hmod : (i + 1) % L = i + 1 := natMEOL hi1
       have hzu_deg := hz_next i hi1
       simp only [hli, ↓reduceIte] at hzu_deg
       have hzv_deg := hz_prev (i + 1) (by omega) hi1
@@ -11748,7 +11619,7 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
       intro _
       simp only [List.getLast_singleton]
       by_cases hi1 : i + 1 < L
-      · have hmod : (i + 1) % L = i + 1 := Nat.mod_eq_of_lt hi1
+      · have hmod : (i + 1) % L = i + 1 := natMEOL hi1
         rw [hmod]
         have hp := hz_prev (i + 1) (by omega) hi1
         simpa [show i + 1 - 1 = i by omega, hli0] using hp
@@ -11793,82 +11664,82 @@ theorem h2_proof : OMA.Erdos556R1.H2 := by
     intro i₁ hi₁ i₂ hi₂ hmem
     have hz1 : z i₁ ∈ Res (w i₁) := hz_Res i₁ hi₁
     have hzR := hRes_sub (w i₁) hz1
-    simp only [Finset.mem_union] at hmem
+    simp only [fsMU] at hmem
     rcases hmem with (hB1 | hB2) | hC
     · by_cases heq : w i₁ = w i₂
       · rw [heq] at hz1
-        exact Finset.disjoint_left.mp (hRB (w i₂)) hz1 hB1
-      · exact Finset.disjoint_left.mp (hdisj heq) hzR (hBody_sub _ hB1)
+        exact fsDL.mp (hRB (w i₂)) hz1 hB1
+      · exact fsDL.mp (hdisj heq) hzR (hBody_sub _ hB1)
     · by_cases heq : w i₁ = w' i₂
       · rw [heq] at hz1
-        exact Finset.disjoint_left.mp (hRB (w' i₂)) hz1 hB2
-      · exact Finset.disjoint_left.mp (hdisj heq) hzR (hBody_sub _ hB2)
+        exact fsDL.mp (hRB (w' i₂)) hz1 hB2
+      · exact fsDL.mp (hdisj heq) hzR (hBody_sub _ hB2)
     · by_cases heq : w i₁ = w i₂
       · rw [heq] at hz1
-        exact Finset.disjoint_left.mp (hRC (w i₂)) hz1 hC
-      · exact Finset.disjoint_left.mp (hdisj heq) hzR (hCap_sub _ hC)
+        exact fsDL.mp (hRC (w i₂)) hz1 hC
+      · exact fsDL.mp (hdisj heq) hzR (hCap_sub _ hC)
   have hdisj_segs : ∀ i₁ < L, ∀ i₂ < L, i₁ ≠ i₂ →
       Disjoint (segs i₁).toFinset (segs i₂).toFinset := by
     intro i₁ hi₁ i₂ hi₂ hne
-    rw [Finset.disjoint_left]
+    rw [fsDL]
     intro x hx₁ hx₂
     by_cases h1 : 0 < len i₁ <;> by_cases h2 : 0 < len i₂
     · have hs1 := (hsegs_spec i₁ hi₁).2.2.2.2.2.2.1 h1 hx₁
       have hs2 := (hsegs_spec i₂ hi₂).2.2.2.2.2.2.1 h2 hx₂
-      rcases Finset.mem_insert.mp hs1 with rfl | hx1' <;>
-        rcases Finset.mem_insert.mp hs2 with hzx | hx2'
+      rcases fsMI2.mp hs1 with rfl | hx1' <;>
+        rcases fsMI2.mp hs2 with hzx | hx2'
       · exact hz_inj i₁ hi₁ i₂ hi₂ hne hzx
       · exact hz_not_BBC i₁ hi₁ i₂ hi₂ hx2'
       · exact hz_not_BBC i₂ hi₂ i₁ hi₁ (hzx ▸ hx1')
       · have hd := hW_disj_true i₁ hi₁ i₂ hi₂ hne h1 h2
         have hx_in₁ : ∃ u ∈ ({w i₁, w' i₁} : Finset (Fin t)), x ∈ parts u := by
-          simp only [Finset.mem_union] at hx1'
+          simp only [fsMU] at hx1'
           rcases hx1' with (h | h) | h
           · exact ⟨w i₁, by simp, hBody_sub _ h⟩
           · exact ⟨w' i₁, by simp, hBody_sub _ h⟩
           · exact ⟨w i₁, by simp, hCap_sub _ h⟩
         have hx_in₂ : ∃ v ∈ ({w i₂, w' i₂} : Finset (Fin t)), x ∈ parts v := by
-          simp only [Finset.mem_union] at hx2'
+          simp only [fsMU] at hx2'
           rcases hx2' with (h | h) | h
           · exact ⟨w i₂, by simp, hBody_sub _ h⟩
           · exact ⟨w' i₂, by simp, hBody_sub _ h⟩
           · exact ⟨w i₂, by simp, hCap_sub _ h⟩
         obtain ⟨u, hu, hxu⟩ := hx_in₁
         obtain ⟨v, hv, hxv⟩ := hx_in₂
-        have huv : u ≠ v := fun h => Finset.disjoint_left.mp hd hu (h ▸ hv)
-        exact Finset.disjoint_left.mp (hdisj huv) hxu hxv
+        have huv : u ≠ v := fun h => fsDL.mp hd hu (h ▸ hv)
+        exact fsDL.mp (hdisj huv) hxu hxv
     · have hl2 : len i₂ = 0 := by omega
       have hs1 := (hsegs_spec i₁ hi₁).2.2.2.2.2.2.1 h1 hx₁
       have hs2 := (hsegs_spec i₂ hi₂).2.2.2.2.2.2.2 hl2
       rw [hs2] at hx₂
-      simp only [List.toFinset_cons, List.toFinset_nil, Finset.mem_insert,
-        Finset.notMem_empty, or_false] at hx₂
+      simp only [lsTC, lsTN, fsMI2,
+        fsNE, or_false] at hx₂
       subst hx₂
-      rcases Finset.mem_insert.mp hs1 with hzx | hx1'
+      rcases fsMI2.mp hs1 with hzx | hx1'
       · exact hz_inj i₂ hi₂ i₁ hi₁ hne.symm hzx
       · exact hz_not_BBC i₂ hi₂ i₁ hi₁ hx1'
     · have hl1 : len i₁ = 0 := by omega
       have hs1 := (hsegs_spec i₁ hi₁).2.2.2.2.2.2.2 hl1
       have hs2 := (hsegs_spec i₂ hi₂).2.2.2.2.2.2.1 h2 hx₂
       rw [hs1] at hx₁
-      simp only [List.toFinset_cons, List.toFinset_nil, Finset.mem_insert,
-        Finset.notMem_empty, or_false] at hx₁
+      simp only [lsTC, lsTN, fsMI2,
+        fsNE, or_false] at hx₁
       subst hx₁
-      rcases Finset.mem_insert.mp hs2 with hzx | hx2'
+      rcases fsMI2.mp hs2 with hzx | hx2'
       · exact hz_inj i₁ hi₁ i₂ hi₂ hne hzx
       · exact hz_not_BBC i₁ hi₁ i₂ hi₂ hx2'
     · have hl1 : len i₁ = 0 := by omega
       have hl2 : len i₂ = 0 := by omega
-      rw [List.mem_toFinset, (hsegs_spec i₁ hi₁).2.2.2.2.2.2.2 hl1, List.mem_singleton] at hx₁
-      rw [List.mem_toFinset, (hsegs_spec i₂ hi₂).2.2.2.2.2.2.2 hl2, List.mem_singleton] at hx₂
+      rw [lsMT, (hsegs_spec i₁ hi₁).2.2.2.2.2.2.2 hl1, lsMS] at hx₁
+      rw [lsMT, (hsegs_spec i₂ hi₂).2.2.2.2.2.2.2 hl2, lsMS] at hx₂
       exact hz_inj i₁ hi₁ i₂ hi₂ hne (hx₁.symm.trans hx₂)
-  have hsum_segs : ∑ i ∈ Finset.range L, (segs i).length = n := by
-    have h1 : ∑ i ∈ Finset.range L, (segs i).length = ∑ i ∈ Finset.range L, (2 * len i + 1) :=
-      Finset.sum_congr rfl fun i hi => (hsegs_spec i (Finset.mem_range.mp hi)).2.1
+  have hsum_segs : ∑ i ∈ fsRange L, (segs i).length = n := by
+    have h1 : ∑ i ∈ fsRange L, (segs i).length = ∑ i ∈ fsRange L, (2 * len i + 1) :=
+      fsSC rfl fun i hi => (hsegs_spec i (fsMR.mp hi)).2.1
     rw [h1, Finset.sum_add_distrib, Finset.sum_const, Finset.card_range, smul_eq_mul, mul_one,
-      ← Finset.mul_sum]
-    have h2 : ∑ i ∈ Finset.range L, len i = D := by
-      have h3 : ∑ i ∈ Finset.range L, len i = lens.sum := by
+      ← fsMS3]
+    have h2 : ∑ i ∈ fsRange L, len i = D := by
+      have h3 : ∑ i ∈ fsRange L, len i = lens.sum := by
         rw [← hlens_L]
         exact H2Proof.sum_range_eq_list_sum lens len (fun i hi => by
           have hiL : i < L := hlens_L ▸ hi
@@ -11920,7 +11791,7 @@ theorem ap {V:Type*} (c:Fin 3 → SimpleGraph V)
   have chosen {u v :V} (h:u ≠ v) : (c (col u v)).Adj u v:=by
     dsimp only [col]
     rw [dif_neg h]
-    exact Classical.choose_spec (exists_colour u v h)
+    exact clCS (exists_colour u v h)
   have symm (u v :V) : col u v=col v u:=by
     by_cases huv:u=v
     · subst v;rfl
@@ -11984,10 +11855,10 @@ theorem oddAsymptotic (ε : ℝ) (hε : 0 < ε) :
     intro c
     by_contra hbad
     have hno : ∀ i, ¬ cycleGraph n ⊑ c.graph i := fun i hi => hbad ⟨i, hi⟩
-    have hc : Fintype.card (Fin m) ≤ 7*n := by simpa using hm7
+    have hc : ftCard (Fin m) ≤ 7*n := by simpa using hm7
     obtain ⟨d⟩ := hj c n hnj ho (by simpa using hmn) hc hno
     have hb := hbound _ (hk c n hnk hc hno d)
-    rw [d.aH, Fintype.card_fin] at hb
+    rw [d.aH, ftCF] at hb
     exact (not_lt_of_ge ((div_le_iff₀ hnpos).mp hb)) hgap
   rw [aM]
   have hu : sS n ≤ m := csInf_le (OrderBot.bddBelow _) hr
@@ -12000,5 +11871,5 @@ theorem OMA.solution : type_of% @Erdos556.erdos_556.variants.luczak_asymptotic :
   filter_upwards [OMA556.oddAsymptotic ε hε, LuczakEvenBound 1 zero_lt_one] with n ho he
   rcases Nat.even_or_odd n with hn | hn
   · have h := he hn
-    linarith [mul_nonneg hε.le (Nat.cast_nonneg (α := ℝ) n)]
+    linarith [mul_nonneg hε.le (natCN (α := ℝ) n)]
   · exact ho hn

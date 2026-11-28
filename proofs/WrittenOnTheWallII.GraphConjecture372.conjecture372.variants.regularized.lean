@@ -22,54 +22,30 @@ lemma card_le_of_inj (D X : Finset α) (hD : T.IsTotalDominating (D : Set α))
     (hX : ∀ x ∈ X, x ∉ D → ∃ y, y ∈ D ∧ y ∉ X ∧ T.Adj x y ∧ NB2 T y) :
     X.card ≤ D.card := by
   classical
-  let ψ : α → α := fun x =>
-    if h : x ∈ X ∧ x ∉ D then Classical.choose (hX x h.1 h.2) else x
-  have hψ1 : ∀ x, x ∈ X → x ∉ D →
-      ψ x ∈ D ∧ ψ x ∉ X ∧ T.Adj x (ψ x) ∧ NB2 T (ψ x) := by
-    intro x hx hxD
-    have h : x ∈ X ∧ x ∉ D := ⟨hx, hxD⟩
-    simp only [ψ, dif_pos h]
-    exact Classical.choose_spec (hX x hx hxD)
-  have hψ2 : ∀ x, x ∈ D → ψ x = x := by
-    intro x hxD
-    have h : ¬ (x ∈ X ∧ x ∉ D) := fun h => h.2 hxD
-    simp only [ψ, dif_neg h]
-  apply Finset.card_le_card_of_injOn ψ
-  · intro x hx
-    by_cases hxD : x ∈ D
-    · rw [hψ2 x hxD]; exact hxD
-    · exact (hψ1 x hx hxD).1
-  · intro x1 hx1 x2 hx2 heq
-    have hx1 : x1 ∈ X := hx1
-    have hx2 : x2 ∈ X := hx2
-    by_cases h1 : x1 ∈ D <;> by_cases h2 : x2 ∈ D
-    · rwa [hψ2 x1 h1, hψ2 x2 h2] at heq
-    · exfalso
-      have := (hψ1 x2 hx2 h2).2.1
-      rw [← heq, hψ2 x1 h1] at this
-      exact this hx1
-    · exfalso
-      have := (hψ1 x1 hx1 h1).2.1
-      rw [heq, hψ2 x2 h2] at this
-      exact this hx2
-    · obtain ⟨hyD, -, hadj1, hnb⟩ := hψ1 x1 hx1 h1
-      obtain ⟨-, -, hadj2, -⟩ := hψ1 x2 hx2 h2
-      rw [← heq] at hadj2
-      obtain ⟨z, hzD, hz⟩ := hD (ψ x1)
-      rcases hnb x1 x2 z hadj1.symm hadj2.symm hz with h | h | h
-      · exact h
-      · exact absurd (h ▸ hzD) h1
-      · exact absurd (h ▸ hzD) h2
+  have hx (x : ↥(X \ D)) := Finset.mem_sdiff.mp x.prop
+  choose f hf using fun (x : ↥(X \ D)) => hX x (hx x).1 (hx x).2
+  have inj : Function.Injective f := by
+    intro x y he
+    obtain ⟨z, hz, hza⟩ := hD (f x)
+    have hy : T.Adj y (f x) := he ▸ (hf y).2.2.1
+    rcases (hf x).2.2.2 x y z (hf x).2.2.1.symm hy.symm hza with h | h | h
+    · exact Subtype.ext h
+    · exact ((hx x).2 (h ▸ hz)).elim
+    · exact ((hx y).2 (h ▸ hz)).elim
+  have hcard := Fintype.card_le_of_injective
+    (fun x => (⟨f x, Finset.mem_sdiff.mpr ⟨(hf x).1, (hf x).2.1⟩⟩ : ↥(D \ X)))
+    (fun _ _ h => inj (Subtype.mk.inj h))
+  rw [Fintype.card_coe, Fintype.card_coe] at hcard
+  have h1 := Finset.card_sdiff_add_card_inter X D
+  have h2 := Finset.card_sdiff_add_card_inter D X
+  rw [Finset.inter_comm D X] at h2
+  omega
 
 lemma vc_two (hT : T.IsTree) (D : Finset α) (hD : T.IsTotalDominating (D : Set α)) :
     T.vertexCoverNum.toNat ≤ 2 * D.card := by
   classical
-  have hf : ∀ v, ∃ d, d ∈ D ∧ T.Adj v d := fun v => by
-    obtain ⟨d, hd, h⟩ := hD v
-    exact ⟨d, hd, h⟩
-  let f : α → α := fun v => Classical.choose (hf v)
-  have hfD : ∀ v, f v ∈ D := fun v => (Classical.choose_spec (hf v)).1
-  have hfA : ∀ v, T.Adj v (f v) := fun v => (Classical.choose_spec (hf v)).2
+  have hf : ∀ v, ∃ d ∈ D, T.Adj v d := hD
+  choose f hfD hfA using hf
   let O := Dᶜ
   let EOO := T.edgeFinset.filter (fun e => ∀ v ∈ e, v ∉ D)
   let EDO := O.image (fun v => s(v, f v))
@@ -117,7 +93,7 @@ lemma vc_two (hT : T.IsTree) (D : Finset α) (hD : T.IsTotalDominating (D : Set 
     · left; rw [← h]; exact hm
     · right; rw [← h]; exact hm
   have hCc : C.card ≤ D.card + EOO.card :=
-    (Finset.card_union_le _ _).trans (by have := Finset.card_image_le (s := EOO) (f := fun e => e.out.1); omega)
+    (Finset.card_union_le _ _).trans (Nat.add_le_add_left Finset.card_image_le _)
   have := vc_le C hC
   omega
 
@@ -366,64 +342,37 @@ lemma two_path (hT : T.IsTree) {a1 b1 a2 b2 : α} (p1 : T.Walk a1 b1) (p2 : T.Wa
   have wX : ∀ c c', w ∈ XX c c' ↔ (Even iw ↔ c') := by
     intro c c'
     rw [memX2 c c' w hw2, ← hiw, PX_getVert hp2 c' hiwl]
-  by_cases hu : u ∈ D ∨ ∃ y ∈ D, T.Adj u y ∧ y ≠ w
-  · by_cases hw : w ∈ D ∨ ∃ y ∈ D, T.Adj w y ∧ y ≠ u
-    · apply key (Even iu) (Even iw)
-      · left; exact (uX _ _).mpr Iff.rfl
-      · intro y _ hy
-        refine ⟨fun h => hy (h ▸ (uX _ _).mpr Iff.rfl), fun h => hy (h ▸ (wX _ _).mpr Iff.rfl)⟩
-      · intro x _ hxD
-        by_cases hxu : x = u
-        · rw [hxu] at hxD ⊢
-          rcases hu with h | ⟨y, hyD, hy, hyw⟩
-          · exact absurd h hxD
-          · refine ⟨y, hyD, hy, fun h => hyw ?_⟩
-            exact (Sym2.congr_right.mp h)
-        by_cases hxw : x = w
-        · rw [hxw] at hxD ⊢
-          rcases hw with h | ⟨y, hyD, hy, hyu⟩
-          · exact absurd h hxD
-          · refine ⟨y, hyD, hy, fun h => hyu ?_⟩
-            rw [Sym2.eq_swap (a := u)] at h
-            exact (Sym2.congr_right.mp h)
-        obtain ⟨y, hyD, hy⟩ := hD x
-        exact ⟨y, hyD, hy, sym2_ne hxu hxw⟩
-    · -- w is dominated only by u
-      push_neg at hw
-      obtain ⟨hwD, hwonly⟩ := hw
-      have huD : u ∈ D := by
-        obtain ⟨y, hyD, hy⟩ := hD w
-        rw [← hwonly y hyD hy]; exact hyD
-      apply key (Even iu) (¬ Even iw)
-      · left; exact (uX _ _).mpr Iff.rfl
-      · intro y hyD hy
-        refine ⟨fun h => hy (h ▸ (uX _ _).mpr Iff.rfl), fun h => hwD (h ▸ hyD)⟩
-      · intro x hx hxD
-        have hxu : x ≠ u := fun h => hxD (h ▸ huD)
-        have hxw : x ≠ w := by
-          intro h
-          have := (wX (Even iu) (¬ Even iw)).mp (h ▸ hx)
-          tauto
-        obtain ⟨y, hyD, hy⟩ := hD x
-        exact ⟨y, hyD, hy, sym2_ne hxu hxw⟩
-  · -- u is dominated only by w
-    push_neg at hu
-    obtain ⟨huD, huonly⟩ := hu
-    have hwD : w ∈ D := by
-      obtain ⟨y, hyD, hy⟩ := hD u
-      rw [← huonly y hyD hy]; exact hyD
-    apply key (¬ Even iu) (Even iw)
-    · right; exact (wX _ _).mpr Iff.rfl
-    · intro y hyD hy
-      refine ⟨fun h => huD (h ▸ hyD), fun h => hy (h ▸ (wX _ _).mpr Iff.rfl)⟩
-    · intro x hx hxD
-      have hxw : x ≠ w := fun h => hxD (h ▸ hwD)
-      have hxu : x ≠ u := by
-        intro h
-        have := (uX (¬ Even iu) (Even iw)).mp (h ▸ hx)
-        tauto
-      obtain ⟨y, hyD, hy⟩ := hD x
-      exact ⟨y, hyD, hy, sym2_ne hxu hxw⟩
+  let eligible (x z : α) := x ∈ D ∨ ∃ y ∈ D, T.Adj x y ∧ y ≠ z
+  let c := Even iu ↔ eligible u w
+  let c' := Even iw ↔ eligible w u
+  have hu : u ∈ XX c c' ↔ eligible u w := by
+    by_cases e : Even iu <;> simp [uX, c, e]
+  have hw : w ∈ XX c c' ↔ eligible w u := by
+    by_cases e : Even iw <;> simp [wX, c', e]
+  apply key c c'
+  · by_cases h : eligible u w
+    · exact Or.inl (hu.mpr h)
+    · obtain ⟨y, hyD, hy⟩ := hD u
+      have he : y = w := by
+        by_contra hn
+        exact h (Or.inr ⟨y, hyD, hy, hn⟩)
+      exact Or.inr (hw.mpr (Or.inl (he ▸ hyD)))
+  · intro y hyD hy
+    exact ⟨fun e => hy (e ▸ hu.mpr (Or.inl (e ▸ hyD))),
+      fun e => hy (e ▸ hw.mpr (Or.inl (e ▸ hyD)))⟩
+  · intro x hx hxD
+    by_cases hxu : x = u
+    · subst x
+      obtain ⟨y, hyD, hy, hyw⟩ := (hu.mp hx).resolve_left hxD
+      exact ⟨y, hyD, hy, fun h => hyw (Sym2.congr_right.mp h)⟩
+    by_cases hxw : x = w
+    · subst x
+      obtain ⟨y, hyD, hy, hyu⟩ := (hw.mp hx).resolve_left hxD
+      refine ⟨y, hyD, hy, fun h => hyu ?_⟩
+      rw [Sym2.eq_swap (a := u)] at h
+      exact Sym2.congr_right.mp h
+    obtain ⟨y, hyD, hy⟩ := hD x
+    exact ⟨y, hyD, hy, sym2_ne hxu hxw⟩
 
 lemma core2 (hT : T.IsTree) (hn : 2 ≤ Fintype.card α) (hp : T.pathCoverNumber ≤ 2) :
     T.vertexCoverNum.toNat ≤ T.totalDominationNumber := by
@@ -491,12 +440,8 @@ end W372
 theorem OMA.solution :
     type_of% @WrittenOnTheWallII.GraphConjecture372.conjecture372.variants.regularized := by
   intro α _ _ T hT hn
-  rcases (show T.pathCoverNumber ≤ 2 ∨ 3 ≤ T.pathCoverNumber by omega) with h | h
-  · have := W372.core2 hT hn h
-    have h1 : max 1 (T.pathCoverNumber - 1) = 1 := by omega
-    rw [h1, mul_one]; exact this
-  · have := W372.core3 hT hn
-    have h3 : 2 ≤ max 1 (T.pathCoverNumber - 1) := by omega
-    have h2 : T.totalDominationNumber * 2 ≤ T.totalDominationNumber * max 1 (T.pathCoverNumber - 1) :=
-      Nat.mul_le_mul_left _ h3
-    omega
+  by_cases h : T.pathCoverNumber ≤ 2
+  · simpa [show max 1 (T.pathCoverNumber - 1) = 1 by omega] using W372.core2 hT hn h
+  · apply (W372.core3 hT hn).trans
+    rw [Nat.mul_comm 2]
+    exact Nat.mul_le_mul_left _ (by omega)

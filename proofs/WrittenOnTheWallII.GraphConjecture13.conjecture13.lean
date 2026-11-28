@@ -21,7 +21,7 @@ theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture13.conjecture
       (length_eq_dist_of_subwalk hp (p.isSubwalk_take i)).symm
   have gap (y) (hy : y ∈ T) : G.dist a y + 1 < r ∨ r + 1 < G.dist a y := by
     obtain ⟨i, hi, rfl⟩ := mem_image.mp hy; rw [pos _ hi]; exact (mem_filter.mp hi).2
-  have hxT : x ∉ T := fun h => by have := gap x h; dsimp [r] at this; omega
+  have hxT : x ∉ T := fun h => by have := gap x h; omega
   have hTcard : T.card = I.card := card_image_of_injOn fun i hi j hj he => by
     simpa only [pos i hi, pos j hj] using congrArg (G.dist a) he
   let bad := (range (p.length + 1)).filter fun i => ¬(i + 1 < r ∨ r + 1 < i)
@@ -33,14 +33,13 @@ theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture13.conjecture
     simpa [I, bad] using (range (p.length + 1)).card_filter_add_card_filter_not
       fun i => i + 1 < r ∨ r + 1 < i
   let C := insert x T
-  have hC : p.length ≤ C.card + 1 := by rw [card_insert_of_notMem hxT, hTcard]; omega
   have cgap (v) (hv : v ∈ C) : v = x ∨ G.dist a v + 1 < r ∨ r + 1 < G.dist a v :=
     (mem_insert.mp hv).imp_right (gap v)
   have uniq {v w} (hv : v ∈ C) (hw : w ∈ C) (he : G.dist a v = G.dist a w) : v = w := by
     rcases mem_insert.mp hv with rfl | hv <;> rcases mem_insert.mp hw with rfl | hw
     · rfl
-    · have := gap w hw; dsimp [r] at this; omega
-    · have := gap v hv; dsimp [r] at this; omega
+    · have := gap w hw; omega
+    · have := gap v hv; omega
     · obtain ⟨i, hi, rfl⟩ := mem_image.mp hv; obtain ⟨j, hj, rfl⟩ := mem_image.mp hw
       rw [pos _ hi, pos _ hj] at he; rw [he]
   obtain ⟨N, hN⟩ := (G.induce (G.neighborSet x)).exists_isNIndepSet_indepNum
@@ -70,8 +69,10 @@ theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture13.conjecture
         have := he.diff_dist_adj (u := a); simp only [col, vm, wm, if_false]; split_ifs <;> omega⟩
   have sz : (C ∪ M).card ≤ G.largestInducedBipartiteSubgraphSize :=
     le_csSup ⟨Fintype.card V, fun _ ⟨s, _, hs⟩ => hs ▸ s.card_le_univ⟩ ⟨_, bip, rfl⟩
-  rw [card_union_of_disjoint hdisj, hM, hx] at sz
+  rw [card_union_of_disjoint hdisj, card_insert_of_notMem hxT, hTcard, hM, hx] at sz
   unfold SimpleGraph.b
-  have h' : (G.diam : ℝ) + (vals.max' hn : ℝ) ≤ G.largestInducedBipartiteSubgraphSize + 1 := by
-    exact_mod_cast (by omega : G.diam + vals.max' hn ≤ G.largestInducedBipartiteSubgraphSize + 1)
-  linarith
+  rw [sub_le_iff_le_add]
+  norm_cast
+  change G.diam + vals.max' hn ≤ _
+  rw [← hx, ← hM]
+  omega

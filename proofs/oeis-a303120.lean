@@ -43,16 +43,17 @@ theorem closed (n : ℕ) :
 
 end A303120Proof
 
+open OMA.S_oeis_a303120 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a303120.main := by
   refine ⟨fun n _ => A303120Proof.closed n, fun n hn => ?_⟩
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 13 := ⟨n - 13, by omega⟩
-  have key : ((OMA.S_oeis_a303120.a (m + 13) : ℤ) : ℚ) =
-      ((2 * OMA.S_oeis_a303120.a (m + 12) + 4 * OMA.S_oeis_a303120.a (m + 11) -
-        10 * OMA.S_oeis_a303120.a (m + 10) - 5 * OMA.S_oeis_a303120.a (m + 9) +
-        20 * OMA.S_oeis_a303120.a (m + 8) - 20 * OMA.S_oeis_a303120.a (m + 6) +
-        5 * OMA.S_oeis_a303120.a (m + 5) + 10 * OMA.S_oeis_a303120.a (m + 4) -
-        4 * OMA.S_oeis_a303120.a (m + 3) - 2 * OMA.S_oeis_a303120.a (m + 2) +
-        OMA.S_oeis_a303120.a (m + 1) : ℤ) : ℚ) := by
+  have key : ((a (m + 13) : ℤ) : ℚ) =
+      ((2 * a (m + 12) + 4 * a (m + 11) -
+        10 * a (m + 10) - 5 * a (m + 9) +
+        20 * a (m + 8) - 20 * a (m + 6) +
+        5 * a (m + 5) + 10 * a (m + 4) -
+        4 * a (m + 3) - 2 * a (m + 2) +
+        a (m + 1) : ℤ) : ℚ) := by
     push_cast
     simp only [A303120Proof.closed]
     push_cast

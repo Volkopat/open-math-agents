@@ -1,56 +1,18 @@
 import FormalConjectures.ErdosProblems.«477»
 
-theorem erdos477_sq_sub_sq_of_mod_four (m : ℤ) (h : m % 4 ≠ 2) : ∃ k l : ℤ, m = k ^ 2 - l ^ 2 := by
-  rcases Int.emod_two_eq_zero_or_one m with h2 | h2
-  · obtain ⟨t, rfl⟩ : ∃ t, m = 4 * t := ⟨m / 4, by omega⟩
-    exact ⟨t + 1, t - 1, by ring⟩
-  · obtain ⟨t, rfl⟩ : ∃ t, m = 2 * t + 1 := ⟨m / 2, by omega⟩
-    exact ⟨t + 1, t, by ring⟩
-
-theorem erdos477_no_square_tiling :
-    ¬ ∃ A : Set ℤ, ∀ n : ℤ, ∃! p : ℤ × ℤ, p.1 ∈ A ∧ (∃ k : ℤ, p.2 = k ^ 2) ∧ n = p.1 + p.2 := by
-  rintro ⟨A, hA⟩
-  have hdiff : ∀ a ∈ A, ∀ a' ∈ A, a ≠ a' → (a - a') % 4 = 2 := by
-    intro a ha a' ha' hne
-    by_contra hmod
-    obtain ⟨k, l, hkl⟩ := erdos477_sq_sub_sq_of_mod_four (a - a') hmod
-    obtain ⟨p, _, huniq⟩ := hA (a + l ^ 2)
-    have h1 : (a, l ^ 2) = p := huniq (a, l ^ 2) ⟨ha, ⟨l, rfl⟩, rfl⟩
-    have h2 : (a', k ^ 2) = p := huniq (a', k ^ 2) ⟨ha', ⟨k, rfl⟩, by linarith⟩
-    have h3 := congrArg Prod.fst (h1.trans h2.symm)
-    simp at h3
-    exact hne h3
-  obtain ⟨p0, ⟨ha0, _, _⟩, _⟩ := hA 0
-  have ha0' : p0.1 ∈ A := ha0
-  by_cases hsingle : ∀ a ∈ A, a = p0.1
-  · obtain ⟨p, ⟨hp1, ⟨k, hk⟩, hn⟩, _⟩ := hA (p0.1 - 1)
-    have hp := hsingle p.1 hp1
-    linarith [sq_nonneg k]
-  · push_neg at hsingle
-    obtain ⟨a1, ha1, hne⟩ := hsingle
-    have htwo : ∀ a ∈ A, a = p0.1 ∨ a = a1 := by
-      intro a ha
-      by_contra hcon
-      push_neg at hcon
-      have h01 := hdiff p0.1 ha0' a1 ha1 (Ne.symm hne)
-      have h0a := hdiff a ha p0.1 ha0' hcon.1
-      have h1a := hdiff a ha a1 ha1 hcon.2
-      omega
-    obtain ⟨p, ⟨hp1, ⟨k, hk⟩, hn⟩, _⟩ := hA (min p0.1 a1 - 1)
-    rcases htwo p.1 hp1 with h | h
-    · have := min_le_left p0.1 a1
-      linarith [sq_nonneg k]
-    · have := min_le_right p0.1 a1
-      linarith [sq_nonneg k]
-
-open Polynomial
+/-! If `a ∈ A`, the representation of `a - 4` is `c + m ^ 2` with `c ∈ A`. Then `a - c = m ^ 2 + 4`
+is a difference of two squares, so some integer has two representations. -/
 
 theorem OMA.solution : type_of% @Erdos477.erdos_477.variants.S_sq := by
-  classical
   intro A
-  by_contra hn
-  apply erdos477_no_square_tiling
-  refine ⟨A, ?_⟩
-  intro n
-  have hz := not_not.mp (not_exists.mp hn n)
-  simpa only [Set.mem_prod, Set.mem_range, Polynomial.eval_pow, Polynomial.eval_X, and_assoc, eq_comm] using hz
+  by_contra! h
+  have key (x y k l : ℤ) (hx : x ∈ A) (hy : y ∈ A) (e : x + k ^ 2 = y + l ^ 2) : x = y :=
+    congrArg Prod.fst ((h (x + k ^ 2)).unique (y₁ := (x, k ^ 2)) (y₂ := (y, l ^ 2))
+      ⟨⟨hx, k, by simp⟩, rfl⟩ ⟨⟨hy, l, by simp⟩, e⟩)
+  obtain ⟨⟨a, _⟩, ⟨⟨ha, -⟩, -⟩, -⟩ := h 0
+  obtain ⟨⟨c, _⟩, ⟨⟨hc, m, rfl⟩, hm⟩, -⟩ := h (a - 4)
+  simp at hm
+  obtain ⟨t, rfl | rfl⟩ := m.even_or_odd'
+  · nlinarith [key c a (t ^ 2 + 2) (t ^ 2) hc ha (by linear_combination -hm)]
+  · nlinarith [key c a (2 * t ^ 2 + 2 * t + 3) (2 * t ^ 2 + 2 * t + 2) hc ha
+      (by linear_combination -hm)]

@@ -3,9 +3,11 @@ import Mathlib.Data.Finset.Max
 import Mathlib.Data.Fintype.BigOperators
 import Mathlib.Data.Fintype.Powerset
 import Mathlib.Tactic.IntervalCases
+import Mathlib.Tactic.LinearCombination
 import Mathlib.Tactic.NormNum
 import Mathlib.Tactic.Ring
 
+-- Original proof by @eliayousf.
 namespace A250354
 
 open OMA.S_oeis_a250354
@@ -130,21 +132,6 @@ private theorem gap_five : ∀ d : Fin 5, gapCount (r := 5) (by decide) d =
     if d.val = 4 then 1 else 0 := by
   decide
 
-private theorem sum_by_gap {r : ℕ} (h : 0 < r) (f : Fin 5 → ℕ) :
-    (∑ s : Block r, f (gap h s)) = ∑ d : Fin 5, gapCount h d * f d := by
-  calc
-    _ = ∑ s : Block r, ∑ d : Fin 5, if gap h s = d then f d else 0 := by
-      apply Finset.sum_congr rfl
-      intro s _
-      simp
-    _ = ∑ d : Fin 5, ∑ s : Block r, if gap h s = d then f d else 0 :=
-      Finset.sum_comm
-    _ = _ := by
-      apply Finset.sum_congr rfl
-      intro d _
-      rw [← Finset.sum_filter, Finset.sum_const, nsmul_eq_mul]
-      rfl
-
 private noncomputable def totalBlocks (n r : ℕ) : ℕ :=
   ∑ s : Block r, Fintype.card {w : ArrayChoice n // uniform w s.val}
 
@@ -152,13 +139,15 @@ private theorem total_by_gap (n : ℕ) {r : ℕ} (h : 0 < r) :
     totalBlocks n r = ∑ d : Fin 5, gapCount h d * ((n + 1 - d.val) * (n + 1)^(5 - r)) := by
   unfold totalBlocks
   simp only [uniform_card n h]
-  exact sum_by_gap h (fun d => (n + 1 - d.val) * (n + 1)^(5 - r))
+  simpa only [gapCount, Finset.sum_const, Nat.nsmul_eq_mul] using
+    (Finset.sum_fiberwise' Finset.univ (gap h)
+      (fun d => (n + 1 - d.val) * (n + 1)^(5 - r))).symm
 
 private theorem total_three (n : ℕ) :
     totalBlocks n 3 = (n + 1)^2 * (3 * (n - 1) + 4 * (n - 2) + 3 * (n - 3)) := by
   rw [total_by_gap n (by decide : 0 < 3)]
   norm_num [gap_three, Fin.sum_univ_succ]
-  rw [show n + 1 - 2 = n - 1 by omega, show n + 1 - 3 = n - 2 by omega,
+  try simp only [show n + 1 - 2 = n - 1 by omega, show n + 1 - 3 = n - 2 by omega,
     show n + 1 - 4 = n - 3 by omega]
   ring
 
@@ -166,13 +155,12 @@ private theorem total_four (n : ℕ) :
     totalBlocks n 4 = (n + 1) * (2 * (n - 2) + 3 * (n - 3)) := by
   rw [total_by_gap n (by decide : 0 < 4)]
   norm_num [gap_four, Fin.sum_univ_succ]
-  rw [show n + 1 - 3 = n - 2 by omega, show n + 1 - 4 = n - 3 by omega]
+  try simp only [show n + 1 - 3 = n - 2 by omega, show n + 1 - 4 = n - 3 by omega]
   ring
 
 private theorem total_five (n : ℕ) : totalBlocks n 5 = n - 3 := by
   rw [total_by_gap n (by decide : 0 < 5)]
-  norm_num [gap_five, Fin.sum_univ_succ]
-  omega
+  norm_num [gap_five, Fin.sum_univ_succ] <;> omega
 
 private theorem pos_mem {n : ℕ} {w : ArrayChoice n} {t : ℕ} {i : Fin 5} :
     i ∈ positions w t ↔ value w i = t := by simp [positions]
@@ -299,21 +287,12 @@ private theorem polynomial (n : ℕ) (hn : 3 ≤ n) :
   rw [Int.ofNat_sub (show 1 ≤ n by omega), Int.ofNat_sub (show 2 ≤ n by omega),
     Int.ofNat_sub hn] at h
   norm_num at h
-  calc
-    (a n : ℤ) = (n + 1)^5 + 3 * ((n + 1) * (2 * (n - 2) + 3 * (n - 3))) -
-      (((n : ℤ) + 1)^2 * (3 * (n - 1) + 4 * (n - 2) + 3 * (n - 3)) + 6 * (n - 3)) := by omega
-    _ = _ := by ring
+  linear_combination h
 
-private theorem recurrence (n : ℕ) (hn : 3 ≤ n) :
-    (a (n + 6) : ℤ) - 6 * a (n + 5) + 15 * a (n + 4) - 20 * a (n + 3) +
-      15 * a (n + 2) - 6 * a (n + 1) + a n = 0 := by
-  rw [polynomial (n + 6) (Nat.le_add_right_of_le hn),
-    polynomial (n + 5) (Nat.le_add_right_of_le hn),
-    polynomial (n + 4) (Nat.le_add_right_of_le hn),
-    polynomial (n + 3) (Nat.le_add_right_of_le hn),
-    polynomial (n + 2) (Nat.le_add_right_of_le hn),
-    polynomial (n + 1) (Nat.le_add_right_of_le hn), polynomial n hn]
-  push_cast
+private theorem recurrence (n : ℕ) (hn : 9 ≤ n) :
+    (a n : ℤ) - 6 * a (n - 1) + 15 * a (n - 2) - 20 * a (n - 3) +
+      15 * a (n - 4) - 6 * a (n - 5) + a (n - 6) = 0 := by
+  simp (disch := omega) only [polynomial, Int.ofNat_sub]
   ring
 
 open PowerSeries in
@@ -341,32 +320,14 @@ private theorem series :
   by_cases hn : n < 9
   · have h0 : a 0 = 0 := by simp [a]
     interval_cases n <;> norm_num [h0, count]
-  obtain ⟨k, rfl⟩ : ∃ k, n = k + 6 := ⟨n - 6, by omega⟩
-  simp only [if_pos (show 1 ≤ k + 6 by omega), if_pos (show 2 ≤ k + 6 by omega),
-    if_pos (show 3 ≤ k + 6 by omega), if_pos (show 4 ≤ k + 6 by omega),
-    if_pos (show 5 ≤ k + 6 by omega), if_pos (show 6 ≤ k + 6 by omega),
-    if_neg (show k + 6 ≠ 1 by omega), if_neg (show k + 6 ≠ 2 by omega),
-    if_neg (show k + 6 ≠ 3 by omega), if_neg (show k + 6 ≠ 4 by omega),
-    if_neg (show k + 6 ≠ 5 by omega), if_neg (show k + 6 ≠ 6 by omega),
-    if_neg (show k + 6 ≠ 7 by omega), if_neg (show k + 6 ≠ 8 by omega)]
-  change (a (k + 6) : ℤ) - 6 * a (k + 5) + 15 * a (k + 4) - 20 * a (k + 3) +
-    15 * a (k + 2) - 6 * a (k + 1) + a k = _
-  have hk := recurrence k (by omega)
-  omega
+  simp (disch := omega) only [if_pos, if_neg, mul_zero, add_zero, sub_zero]
+  exact recurrence n (by omega)
 
-private theorem exactRecurrence :
-    ∀ n : ℕ, 8 < n →
-      (a n : ℤ) = 6 * a (n - 1) - 15 * a (n - 2) + 20 * a (n - 3) -
-        15 * a (n - 4) + 6 * a (n - 5) - a (n - 6) := by
+theorem solve : type_of% @main := by
+  refine ⟨series, ?_⟩
   intro n hn
-  obtain ⟨k, rfl⟩ : ∃ k, n = k + 6 := ⟨n - 6, by omega⟩
-  have hk := recurrence k (by omega)
-  simp only [show k + 6 - 1 = k + 5 by omega, show k + 6 - 2 = k + 4 by omega,
-    show k + 6 - 3 = k + 3 by omega, show k + 6 - 4 = k + 2 by omega,
-    show k + 6 - 5 = k + 1 by omega, show k + 6 - 6 = k by omega]
+  have h := recurrence n (by omega)
   omega
-
-theorem solve : type_of% @main := ⟨series, exactRecurrence⟩
 
 end A250354
 

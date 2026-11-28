@@ -1,5 +1,7 @@
 import OMAStatements.S_oeis_a235882
 
+/-! The row-transfer counting framework is from @jleguina, PR #29537. -/
+
 namespace OMA.S_oeis_a235882
 
 open PowerSeries Finset
@@ -138,309 +140,234 @@ lemma W_succ (n : ℕ) (r : Row) :
     rintro ⟨⟨hok, _⟩, h0⟩
     exact hrs (h0 ▸ hok)
 
-lemma sum_cons {m : ℕ} (f : (Fin (m + 1) → Fin 3) → ℕ) :
-    ∑ s : Fin (m + 1) → Fin 3, f s = ∑ x : Fin 3, ∑ t : Fin m → Fin 3, f (Fin.cons x t) := by
-  rw [← Fintype.sum_prod_type']
-  exact Fintype.sum_equiv (Fin.consEquiv fun _ => Fin 3).symm _ _
-    (fun s => by simp [Fin.consEquiv, Fin.cons_self_tail])
+/-! The median condition says each color occurs an even number of times.
+The three colors embed in the two-bit group, so successor rows differ by
+one fixed XOR translation. A row can use any translation that avoids the
+fourth vector, and translations preserve the number of colors in a row. -/
 
-lemma sum_row (f : Row → ℕ) :
-    ∑ s : Row, f s = ∑ x0 : Fin 3, ∑ x1 : Fin 3, ∑ x2 : Fin 3, ∑ x3 : Fin 3, ∑ x4 : Fin 3, ∑ x5 : Fin 3, ∑ x6 : Fin 3, f ![x0, x1, x2, x3, x4, x5, x6] := by
-  rw [sum_cons]
-  refine Finset.sum_congr rfl (fun x0 _ => ?_)
-  rw [sum_cons]
-  refine Finset.sum_congr rfl (fun x1 _ => ?_)
-  rw [sum_cons]
-  refine Finset.sum_congr rfl (fun x2 _ => ?_)
-  rw [sum_cons]
-  refine Finset.sum_congr rfl (fun x3 _ => ?_)
-  rw [sum_cons]
-  refine Finset.sum_congr rfl (fun x4 _ => ?_)
-  rw [sum_cons]
-  refine Finset.sum_congr rfl (fun x5 _ => ?_)
-  rw [sum_cons]
-  refine Finset.sum_congr rfl (fun x6 _ => ?_)
-  rw [Fintype.sum_unique]
-  exact congrArg f (by funext j; fin_cases j <;> rfl)
+private abbrev Bits := Bool × Bool
 
-lemma row_eta (r : Row) : r = ![r 0, r 1, r 2, r 3, r 4, r 5, r 6] := by
-  funext j
-  fin_cases j <;> rfl
+private def xor2 (u v : Bits) : Bits := (u.1 != v.1, u.2 != v.2)
 
-lemma rowOK_iff (r s : Row) : rowOK r s ↔ P (r 0) (r 1) (s 0) (s 1) ∧ P (r 1) (r 2) (s 1) (s 2) ∧ P (r 2) (r 3) (s 2) (s 3) ∧ P (r 3) (r 4) (s 3) (s 4) ∧ P (r 4) (r 5) (s 4) (s 5) ∧ P (r 5) (r 6) (s 5) (s 6) := by
+private def pack (c : Fin 3) : Bits := (c == 1, c == 2)
+
+private def missing : Bits := (true, true)
+
+private def unpack (v : Bits) : Fin 3 := if v.1 then 1 else if v.2 then 2 else 0
+
+private theorem xor_right (u v : Bits) : xor2 (xor2 u v) v = u :=
+  (by decide : ∀ u v, xor2 (xor2 u v) v = u) u v
+
+private theorem xor_left (u v : Bits) : xor2 u (xor2 u v) = v :=
+  (by decide : ∀ u v, xor2 u (xor2 u v) = v) u v
+
+private theorem pack_inj : Function.Injective pack := by decide
+
+private theorem pack_ne_missing (c : Fin 3) : pack c ≠ missing :=
+  (by decide : ∀ c, pack c ≠ missing) c
+
+private theorem pack_unpack (v : Bits) (h : v ≠ missing) : pack (unpack v) = v :=
+  (by decide : ∀ v, v ≠ missing → pack (unpack v) = v) v h
+
+private theorem block_iff (p q r s : Fin 3) :
+    P p q r s ↔ xor2 (pack r) (pack p) = xor2 (pack s) (pack q) :=
+  (by decide : ∀ p q r s,
+    P p q r s ↔ xor2 (pack r) (pack p) = xor2 (pack s) (pack q)) p q r s
+
+private theorem row_constant (r s : Row) : rowOK r s ↔
+    ∀ j, xor2 (pack (s j)) (pack (r j)) = xor2 (pack (s 0)) (pack (r 0)) := by
+  constructor
+  · intro h j
+    induction j using Fin.induction with
+    | zero => rfl
+    | succ i ih =>
+      exact ((block_iff _ _ _ _).1 (h i.castSucc i.succ rfl)).symm.trans ih
+  · intro h j j' _
+    exact (block_iff _ _ _ _).2 ((h j).trans (h j').symm)
+
+private def used (r : Row) : Finset Bits := univ.image fun j : Fin 7 => pack (r j)
+
+private def offsets (r : Row) : Finset Bits :=
+  univ \ (univ.image fun j : Fin 7 => xor2 missing (pack (r j)))
+
+private theorem mem_offsets {r : Row} {v : Bits} :
+    v ∈ offsets r ↔ ∀ j, xor2 v (pack (r j)) ≠ missing := by
+  simp only [offsets, mem_sdiff, mem_univ, true_and, mem_image, not_exists]
+  apply forall_congr'
+  intro j
+  constructor <;> intro h he <;> apply h <;>
+    simpa only [xor_right] using (congrArg (fun u => xor2 u (pack (r j))) he).symm
+
+private def shift (r : Row) (v : Bits) : Row := fun j => unpack (xor2 v (pack (r j)))
+
+private theorem pack_shift {r : Row} {v : Bits} (hv : v ∈ offsets r) (j : Fin 7) :
+    pack (shift r v j) = xor2 v (pack (r j)) := pack_unpack _ (mem_offsets.1 hv j)
+
+private def successors (r : Row) : Finset Row := univ.filter (rowOK r)
+
+private theorem successors_image (r : Row) : successors r = (offsets r).image (shift r) := by
+  ext s
+  simp only [successors, mem_filter, mem_univ, true_and, mem_image, row_constant]
   constructor
   · intro h
-    exact ⟨h 0 1 rfl, h 1 2 rfl, h 2 3 rfl, h 3 4 rfl, h 4 5 rfl, h 5 6 rfl⟩
-  · rintro ⟨h0, h1, h2, h3, h4, h5⟩ j j' hj
-    rcases j with ⟨j, hj0⟩
-    rcases j' with ⟨j', hj1⟩
-    simp only at hj
-    subst hj
-    have hjw : j < 6 := by omega
-    interval_cases j
-    · exact h0
-    · exact h1
-    · exact h2
-    · exact h3
-    · exact h4
-    · exact h5
+    let v := xor2 (pack (s 0)) (pack (r 0))
+    have he (j : Fin 7) : xor2 v (pack (r j)) = pack (s j) := by
+      change xor2 (xor2 (pack (s 0)) (pack (r 0))) (pack (r j)) = _
+      rw [← h j, xor_right]
+    have hv : v ∈ offsets r := mem_offsets.2 fun j => by rw [he j]; exact pack_ne_missing _
+    exact ⟨v, hv, funext fun j => pack_inj ((pack_shift hv j).trans (he j))⟩
+  · rintro ⟨v, hv, rfl⟩ j
+    rw [pack_shift hv j, pack_shift hv 0, xor_right, xor_right]
 
-/-! ## The transfer on row codes, as evaluated by the kernel -/
+private def weight (r : Row) : ℕ := 4 - (used r).card
 
-/-- The window condition on numbers: bit ((p K + q) K + r) K + s of a mask. -/
-def PN (p q r s : ℕ) : Bool := Nat.testBit 1290683019976669863613713 (((p * 3 + q) * 3 + r) * 3 + s)
+private theorem xor_inj (v : Bits) : Function.Injective (xor2 v) := by
+  intro u w h
+  simpa only [xor_left] using congrArg (xor2 v) h
 
-lemma P_iff (p q r s : Fin 3) : P p q r s ↔ PN p.val q.val r.val s.val = true := by
-  revert p q r s
-  decide +kernel
+private theorem successors_card (r : Row) : (successors r).card = weight r := by
+  rw [successors_image, card_image_of_injOn]
+  · have h : (univ.image fun j : Fin 7 => xor2 missing (pack (r j))).card = (used r).card := by
+      change (univ.image (xor2 missing ∘ fun j : Fin 7 => pack (r j))).card = (used r).card
+      rw [← image_image, card_image_of_injective _ (xor_inj missing)]
+      rfl
+    rw [offsets, card_sdiff_of_subset (subset_univ _), h, weight]
+    simp [Fintype.card_prod]
+  · intro v hv w hw he
+    have h := congrArg (fun s : Row => pack (s 0)) he
+    change pack (shift r v 0) = pack (shift r w 0) at h
+    rw [pack_shift hv, pack_shift hw] at h
+    simpa only [xor_right] using congrArg (fun u => xor2 u (pack (r 0))) h
 
-/-- The sum of f over 0, ..., 2. -/
-def sumK (f : ℕ → ℕ) : ℕ := f 0 + f 1 + f 2
+private theorem used_card_eq {r s : Row} (h : rowOK r s) : (used s).card = (used r).card := by
+  have hs : s ∈ successors r := mem_filter.2 ⟨mem_univ _, h⟩
+  rw [successors_image] at hs
+  obtain ⟨v, hv, rfl⟩ := mem_image.1 hs
+  have he : used (shift r v) = (used r).image (xor2 v) := by
+    unfold used
+    rw [image_image]
+    congr 1
+    funext j
+    exact pack_shift hv j
+  rw [he, card_image_of_injective _ (xor_inj v)]
 
-lemma sumK_fin (f : ℕ → ℕ) : ∑ x : Fin 3, f x.val = sumK f := by
-  rw [Fin.sum_univ_eq_sum_range (fun x => f x) 3]
-  simp [Finset.sum_range_succ, sumK]
+private theorem W_pow (n : ℕ) (r : Row) : W n r = weight r ^ n := by
+  induction n generalizing r with
+  | zero => simp [W_zero]
+  | succ n ih =>
+    rw [W_succ, ← sum_filter]
+    calc
+      _ = ∑ s ∈ successors r, weight r ^ n := by
+        apply sum_congr rfl
+        intro s hs
+        have h := used_card_eq (mem_filter.1 hs).2
+        simpa only [weight, h] using ih s
+      _ = _ := by rw [sum_const, smul_eq_mul, successors_card, pow_succ, Nat.mul_comm]
 
-/-- The code of a row: its entries as base-K digits, r 0 the most significant. -/
-def code (r : Row) : ℕ := ((((((r 0).val * 3 + (r 1).val) * 3 + (r 2).val) * 3 + (r 3).val) * 3 + (r 4).val) * 3 + (r 5).val) * 3 + (r 6).val
+private def colors (r : Row) : Finset (Fin 3) := univ.image r
 
-lemma code_lt (r : Row) : code r < 2187 := by
-  unfold code; have h0 := (r 0).isLt; have h1 := (r 1).isLt; have h2 := (r 2).isLt; have h3 := (r 3).isLt; have h4 := (r 4).isLt; have h5 := (r 5).isLt; have h6 := (r 6).isLt; omega
+private theorem used_card_colors (r : Row) : (used r).card = (colors r).card := by
+  change (univ.image (pack ∘ r)).card = (colors r).card
+  rw [← image_image, card_image_of_injective _ pack_inj]
+  rfl
 
-lemma dig0 (r : Row) : code r / 729 % 3 = (r 0).val := by
-  unfold code; have h0 := (r 0).isLt; have h1 := (r 1).isLt; have h2 := (r 2).isLt; have h3 := (r 3).isLt; have h4 := (r 4).isLt; have h5 := (r 5).isLt; have h6 := (r 6).isLt; omega
+private def paletteCount (s : Finset (Fin 3)) : ℕ :=
+  ((univ : Finset Row).filter (fun r => colors r = s)).card
 
-lemma dig1 (r : Row) : code r / 243 % 3 = (r 1).val := by
-  unfold code; have h0 := (r 0).isLt; have h1 := (r 1).isLt; have h2 := (r 2).isLt; have h3 := (r 3).isLt; have h4 := (r 4).isLt; have h5 := (r 5).isLt; have h6 := (r 6).isLt; omega
+private theorem palette_sum (s : Finset (Fin 3)) :
+    ∑ t ∈ s.powerset, paletteCount t = s.card ^ 7 := by
+  let R : Finset Row := univ.filter (fun r => ∀ j, r j ∈ s)
+  have hCard : R.card = s.card ^ 7 := by
+    let e : {r : Row // ∀ j, r j ∈ s} ≃ (Fin 7 → ↥s) :=
+      { toFun := fun r j => ⟨r.1 j, r.2 j⟩
+        invFun := fun f => ⟨fun j => (f j).1, fun j => (f j).2⟩
+        left_inv := fun _ => rfl
+        right_inv := fun _ => rfl }
+    rw [show R.card = Fintype.card {r : Row // ∀ j, r j ∈ s} from
+      (Fintype.card_subtype _).symm, Fintype.card_congr e]
+    simp
+  have hMaps : (R : Set Row).MapsTo colors s.powerset := by
+    intro r hr
+    have hr' := (mem_filter.1 (show r ∈ R from hr)).2
+    apply mem_powerset.2
+    intro c hc
+    obtain ⟨j, _, rfl⟩ := mem_image.1 hc
+    exact hr' j
+  rw [← hCard, card_eq_sum_card_fiberwise hMaps]
+  apply sum_congr rfl
+  intro t ht
+  unfold paletteCount
+  congr 1
+  ext r
+  simp only [R, mem_filter, mem_univ, true_and]
+  refine ⟨fun he => ⟨?_, he⟩, And.right⟩
+  intro j
+  apply mem_powerset.1 ht
+  rw [← he]
+  exact mem_image_of_mem r (mem_univ j)
 
-lemma dig2 (r : Row) : code r / 81 % 3 = (r 2).val := by
-  unfold code; have h0 := (r 0).isLt; have h1 := (r 1).isLt; have h2 := (r 2).isLt; have h3 := (r 3).isLt; have h4 := (r 4).isLt; have h5 := (r 5).isLt; have h6 := (r 6).isLt; omega
+/-- Counts for an exact palette of zero, one, two, or three colors. -/
+private def expected : ℕ → ℕ
+  | 1 => 1
+  | 2 => 126
+  | 3 => 1806
+  | _ => 0
 
-lemma dig3 (r : Row) : code r / 27 % 3 = (r 3).val := by
-  unfold code; have h0 := (r 0).isLt; have h1 := (r 1).isLt; have h2 := (r 2).isLt; have h3 := (r 3).isLt; have h4 := (r 4).isLt; have h5 := (r 5).isLt; have h6 := (r 6).isLt; omega
+private theorem expected_sum : ∀ s : Finset (Fin 3),
+    ∑ t ∈ s.powerset, expected t.card = s.card ^ 7 := by decide
 
-lemma dig4 (r : Row) : code r / 9 % 3 = (r 4).val := by
-  unfold code; have h0 := (r 0).isLt; have h1 := (r 1).isLt; have h2 := (r 2).isLt; have h3 := (r 3).isLt; have h4 := (r 4).isLt; have h5 := (r 5).isLt; have h6 := (r 6).isLt; omega
-
-lemma dig5 (r : Row) : code r / 3 % 3 = (r 5).val := by
-  unfold code; have h0 := (r 0).isLt; have h1 := (r 1).isLt; have h2 := (r 2).isLt; have h3 := (r 3).isLt; have h4 := (r 4).isLt; have h5 := (r 5).isLt; have h6 := (r 6).isLt; omega
-
-lemma dig6 (r : Row) : code r % 3 = (r 6).val := by
-  unfold code; have h0 := (r 0).isLt; have h1 := (r 1).isLt; have h2 := (r 2).isLt; have h3 := (r 3).isLt; have h4 := (r 4).isLt; have h5 := (r 5).isLt; have h6 := (r 6).isLt; omega
-
-/-- Level 6 of the transfer: the entry x below r6, next to the previous entry p. -/
-def N6 (g : ℕ → ℕ) (r5 r6 : ℕ) (p acc : ℕ) : ℕ :=
-  sumK (fun x => if PN r5 r6 p x then g (acc * 3 + x) else 0)
-
-/-- Level 5 of the transfer: the entry x below r5, next to the previous entry p. -/
-def N5 (g : ℕ → ℕ) (r4 r5 r6 : ℕ) (p acc : ℕ) : ℕ :=
-  sumK (fun x => if PN r4 r5 p x then N6 g r5 r6 x (acc * 3 + x) else 0)
-
-/-- Level 4 of the transfer: the entry x below r4, next to the previous entry p. -/
-def N4 (g : ℕ → ℕ) (r3 r4 r5 r6 : ℕ) (p acc : ℕ) : ℕ :=
-  sumK (fun x => if PN r3 r4 p x then N5 g r4 r5 r6 x (acc * 3 + x) else 0)
-
-/-- Level 3 of the transfer: the entry x below r3, next to the previous entry p. -/
-def N3 (g : ℕ → ℕ) (r2 r3 r4 r5 r6 : ℕ) (p acc : ℕ) : ℕ :=
-  sumK (fun x => if PN r2 r3 p x then N4 g r3 r4 r5 r6 x (acc * 3 + x) else 0)
-
-/-- Level 2 of the transfer: the entry x below r2, next to the previous entry p. -/
-def N2 (g : ℕ → ℕ) (r1 r2 r3 r4 r5 r6 : ℕ) (p acc : ℕ) : ℕ :=
-  sumK (fun x => if PN r1 r2 p x then N3 g r2 r3 r4 r5 r6 x (acc * 3 + x) else 0)
-
-/-- Level 1 of the transfer: the entry x below r1, next to the previous entry p. -/
-def N1 (g : ℕ → ℕ) (r0 r1 r2 r3 r4 r5 r6 : ℕ) (p acc : ℕ) : ℕ :=
-  sumK (fun x => if PN r0 r1 p x then N2 g r1 r2 r3 r4 r5 r6 x (acc * 3 + x) else 0)
-
-/-- One step of the transfer: the sum of g over the codes of the rows allowed below the row with entries r0, r1, .... -/
-def Tn (g : ℕ → ℕ) (r0 r1 r2 r3 r4 r5 r6 : ℕ) : ℕ :=
-  sumK (fun x => N1 g r0 r1 r2 r3 r4 r5 r6 x x)
-
-/-- The sum of g over all row codes. -/
-def Ts (g : ℕ → ℕ) : ℕ := sumK (fun x0 => sumK (fun x1 => sumK (fun x2 => sumK (fun x3 => sumK (fun x4 => sumK (fun x5 => sumK (fun x6 => g ((((((x0 * 3 + x1) * 3 + x2) * 3 + x3) * 3 + x4) * 3 + x5) * 3 + x6))))))))
-
-lemma bridge (g : ℕ → ℕ) (r : Row) :
-    (∑ s : Row, if rowOK r s then g (code s) else 0) = Tn g (r 0).val (r 1).val (r 2).val (r 3).val (r 4).val (r 5).val (r 6).val := by
-  rw [sum_row]
-  simp only [rowOK_iff, P_iff, code, Matrix.cons_val, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons, Matrix.tail_cons, Matrix.cons_val_succ]
-  simp only [ite_and, Finset.sum_ite_irrel, Finset.sum_const_zero]
-  unfold Tn N1 N2 N3 N4 N5 N6
-  simp only [← sumK_fin]
-
-lemma total (g : ℕ → ℕ) : (∑ s : Row, g (code s)) = Ts g := by
-  rw [sum_row]
-  simp only [code, Matrix.cons_val, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons, Matrix.tail_cons, Matrix.cons_val_succ]
-  unfold Ts
-  simp only [← sumK_fin]
-
-/-- W(0, r) = 1. -/
-def tab0 (_ : ℕ) : ℕ := 1
-
-/-- W(1, r) for every row r, packed: the entry of r is the base 2^2 digit number code r. -/
-def L1 : ℕ := 0x3aa66a69566566a69569a55555566566555566566a69569a55555569a55a69555555555555555555566566555566566555555555555566566555566566a69569a55555569a55a69555555555555555555569a55a69555555a69569a55555555555555555555555555555555555555555555555555555555555566566555566566555555555555566566555566566555555555555555555555555555555555555555566566555566566555555555555566566555566566a69569a55555569a55a69555555555555555555569a55a69555555a69569a55555555555555555555555555555555555555555555555555555555555569a55a69555555a69569a55555555555555555555a69569a55555569a55a6e69569a55555569a55a69555555555555555555569a55a69555555a69569a55555555555555555555555555555555555555555555555555555555555569a55a69555555a69569a55555555555555555555a69569a55555569a55a6a656655556656655555555555556656655556656655555555555555555555555555555555555555556656655556656655555555555556656655556656655555555555555555555555555555555555555555555555555555555555569a55a69555555a69569a55555555555555555555a69569a55555569a55a6a656655556656655555555555556656655556656655555555555555555555a69569a55555569a55a6a656655556656655555569a55a6a656655a6a66ab
-
-def tab1 (c : ℕ) : ℕ := L1 / 2 ^ (2 * c) % 2 ^ 2
-
-/-- W(2, r) for every row r, packed: the entry of r is the base 2^4 digit number code r. -/
-def L2 : ℕ := 0x944441414441441111414111414441441111441441111111111111414111414111111111414111414441441111441441111111111111441441111441441111111111111111111111111111111111111111414111414111111111414111414111111111111111111111111111414111414111111111414111414441441111441441111111111111441441111441441111111111111111111111111111111111111111441441111441441111111111111441441111441441111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111414111414111111111414111414111111111111111111111111111414111414111111111414111414111111111111111111111111111111111111111111111111111111111111111111111111111111111414111414111111111414111414111111111111111111111111111414111414111111111414111414441441111441441111111111111441441111441441111111111111111111111111111111111111111441441111441441111111111111441441111441441111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111441441111441441111111111111441441111441441111111111111111111111111111111111111111441441111441441111111111111441441111441494144111144144111111111111144144111144144111111111111111111111111111111111111111144144111144144111111111111144144111144144111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111144144111144144111111111111144144111144144111111111111111111111111111111111111111144144111144144111111111111144144111144144414111414111111111414111414111111111111111111111111111414111414111111111414111414111111111111111111111111111111111111111111111111111111111111111111111111111111111414111414111111111414111414111111111111111111111111111414111414111111111414111414111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111144144111144144111111111111144144111144144111111111111111111111111111111111111111144144111144144111111111111144144111144144414111414111111111414111414111111111111111111111111111414111414111111111414111414111111111111111111111111111111111111111144144111144144111111111111144144111144144414111414111111111414111414111111111111144144111144144414111414111144144414144449
-
-def tab2 (c : ℕ) : ℕ := L2 / 2 ^ (4 * c) % 2 ^ 4
-
-def t0 (r : Row) : ℕ := tab0 (code r)
-
-def t1 (r : Row) : ℕ := tab1 (code r)
-
-def t2 (r : Row) : ℕ := tab2 (code r)
-
-lemma W0f : W 0 = t0 := by
-  funext r
-  exact W_zero r
-
-/-- The table step W(1) = T W(0) at the row with code c. -/
-def stepB1 (c : ℕ) : Bool := Tn tab0 (c / 729 % 3) (c / 243 % 3) (c / 81 % 3) (c / 27 % 3) (c / 9 % 3) (c / 3 % 3) (c % 3) == tab1 c
-
-/-- The table step W(2) = T W(1) at the row with code c. -/
-def stepB2 (c : ℕ) : Bool := Tn tab1 (c / 729 % 3) (c / 243 % 3) (c / 81 % 3) (c / 27 % 3) (c / 9 % 3) (c / 3 % 3) (c % 3) == tab2 c
-
-/-- The relation on the tables, at the row with code c. -/
-def relB (c : ℕ) : Bool := Tn tab2 (c / 729 % 3) (c / 243 % 3) (c / 81 % 3) (c / 27 % 3) (c / 9 % 3) (c / 3 % 3) (c % 3) + 11 * tab1 c == 6 * tab2 c + 6 * tab0 c
-
-/-- Every check on the row with code c: the table steps and the relation. -/
-def rowB (c : ℕ) : Bool := stepB1 c && stepB2 c && relB c
-
-lemma chunk0_ok : (List.range' 0 729).all rowB = true := by
-  decide +kernel
-
-lemma chunk1_ok : (List.range' 729 729).all rowB = true := by
-  decide +kernel
-
-lemma chunk2_ok : (List.range' 1458 729).all rowB = true := by
-  decide +kernel
-
-/-- The totals of the tables. -/
-def allB : Bool := (Ts tab0 == 2187) && (Ts tab1 == 2571) && (Ts tab2 == 3345)
-
-lemma all_ok : allB = true := by
-  decide +kernel
-
-lemma all_parts : True ∧ (Ts tab0 == 2187) = true ∧ (Ts tab1 == 2571) = true ∧ (Ts tab2 == 3345) = true := by
-  have h := all_ok
-  unfold allB at h
-  simp only [Bool.and_eq_true] at h
-  exact ⟨trivial, h.1.1, h.1.2, h.2⟩
-
-lemma row_ok (c : ℕ) (hc : c < 2187) : stepB1 c = true ∧ stepB2 c = true ∧ relB c = true := by
-  have h : rowB c = true := by
-    by_cases h0 : c < 729
-    · exact List.all_eq_true.mp chunk0_ok c (List.mem_range'_1.mpr ⟨by omega, by omega⟩)
-    by_cases h1 : c < 1458
-    · exact List.all_eq_true.mp chunk1_ok c (List.mem_range'_1.mpr ⟨by omega, by omega⟩)
-    by_cases h2 : c < 2187
-    · exact List.all_eq_true.mp chunk2_ok c (List.mem_range'_1.mpr ⟨by omega, by omega⟩)
+private theorem palette_formula (s : Finset (Fin 3)) : paletteCount s = expected s.card := by
+  induction s using Finset.strongInductionOn with
+  | _ s ih =>
+    have h : ∑ t ∈ s.powerset.erase s, paletteCount t =
+        ∑ t ∈ s.powerset.erase s, expected t.card := by
+      apply sum_congr rfl
+      intro t ht
+      exact ih t (ssubset_of_subset_of_ne (mem_powerset.1 (mem_erase.1 ht).2) (mem_erase.1 ht).1)
+    have hs := mem_powerset_self s
+    have h₁ := (sum_erase_add _ paletteCount hs).trans (palette_sum s)
+    have h₂ := (sum_erase_add _ (fun t => expected t.card) hs).trans (expected_sum s)
     omega
-  unfold rowB at h
-  simp only [Bool.and_eq_true] at h
-  exact ⟨h.1.1, h.1.2, h.2⟩
 
-lemma W1f : W 1 = t1 := by
-  funext r
-  rw [W_succ]
-  simp only [W0f, t0]
-  rw [bridge]
-  have h := (row_ok (code r) (code_lt r)).1
-  unfold stepB1 at h
-  rw [dig0 r, dig1 r, dig2 r, dig3 r, dig4 r, dig5 r, dig6 r] at h
-  exact beq_iff_eq.mp h
+private theorem palette_total (n : ℕ) :
+    ∑ s : Finset (Fin 3), expected s.card * (4 - s.card) ^ n = 1806 + 378 * 2 ^ n + 3 * 3 ^ n := by
+  have h₁ : ∑ s : Finset (Fin 3), (if s.card = 3 then expected s.card else 0) = 1806 := by decide
+  have h₂ : ∑ s : Finset (Fin 3), (if s.card = 2 then expected s.card else 0) = 378 := by decide
+  have h₃ : ∑ s : Finset (Fin 3), (if s.card = 1 then expected s.card else 0) = 3 := by decide
+  calc
+    _ = ∑ s : Finset (Fin 3), ((if s.card = 3 then expected s.card else 0) * 1 ^ n +
+        (if s.card = 2 then expected s.card else 0) * 2 ^ n +
+        (if s.card = 1 then expected s.card else 0) * 3 ^ n) := by
+      apply sum_congr rfl
+      intro s _
+      have h : s.card ≤ 3 := by simpa using card_le_univ s
+      interval_cases he : s.card <;> simp [expected]
+    _ = _ := by rw [sum_add_distrib, sum_add_distrib, ← sum_mul, ← sum_mul, ← sum_mul,
+      h₁, h₂, h₃, one_pow, mul_one]
 
-lemma W2f : W 2 = t2 := by
-  funext r
-  rw [W_succ]
-  simp only [W1f, t1]
-  rw [bridge]
-  have h := (row_ok (code r) (code_lt r)).2.1
-  unfold stepB2 at h
-  rw [dig0 r, dig1 r, dig2 r, dig3 r, dig4 r, dig5 r, dig6 r] at h
-  exact beq_iff_eq.mp h
+private theorem a_formula (n : ℕ) : a n = 1806 + 378 * 2 ^ n + 3 * 3 ^ n := by
+  rw [a_eq, cnt_sum]
+  simp only [W_pow, weight, used_card_colors]
+  rw [← sum_fiberwise_of_maps_to' (g := colors) (t := univ) (fun _ _ => mem_univ _)
+    (fun s => (4 - s.card) ^ n)]
+  simp only [sum_const, smul_eq_mul]
+  change (∑ s : Finset (Fin 3), paletteCount s * (4 - s.card) ^ n) = _
+  simp only [palette_formula]
+  exact palette_total n
 
-lemma rel_at (r : Row) : Tn tab2 (r 0).val (r 1).val (r 2).val (r 3).val (r 4).val (r 5).val (r 6).val + 11 * tab1 (code r) = 6 * tab2 (code r) + 6 * tab0 (code r) := by
-  have h := (row_ok (code r) (code_lt r)).2.2
-  unfold relB at h
-  rw [dig0 r, dig1 r, dig2 r, dig3 r, dig4 r, dig5 r, dig6 r] at h
-  exact beq_iff_eq.mp h
+private theorem a_rec (k : ℕ) : (a (k + 3) : ℚ) + 11 * (a (k + 1) : ℚ) =
+    6 * (a (k + 2) : ℚ) + 6 * (a (k + 0) : ℚ) := by
+  simp only [a_formula, Nat.cast_add, Nat.cast_mul, Nat.cast_pow, Nat.cast_ofNat, pow_add]
+  ring
 
-/-- The per-row relation: the g.f. denominator annihilates W(k + 0), ..., W(k + 3). -/
-lemma W_rec (k : ℕ) : ∀ r : Row, W (k + 3) r + 11 * W (k + 1) r = 6 * W (k + 2) r + 6 * W (k + 0) r := by
-  induction k with
-  | zero =>
-    intro r
-    simp only [Nat.zero_add, W0f, W1f, W2f, t0, t1, t2]
-    rw [W_succ]
-    simp only [W2f, t2]
-    rw [bridge]
-    exact rel_at r
-  | succ k ih =>
-    intro r
-    rw [show k + 1 + 0 = (k + 0) + 1 from rfl, show k + 1 + 1 = (k + 1) + 1 from rfl, show k + 1 + 2 = (k + 2) + 1 from rfl, show k + 1 + 3 = (k + 3) + 1 from rfl]
-    rw [W_succ (k + 0), W_succ (k + 1), W_succ (k + 2), W_succ (k + 3)]
-    simp only [Finset.mul_sum, ← Finset.sum_add_distrib]
-    refine Finset.sum_congr rfl (fun s _ => ?_)
-    split_ifs
-    · exact ih s
-    · simp
+private theorem a1 : (a 1 : ℚ) = 2571 := by norm_num [a_formula]
+private theorem a2 : (a 2 : ℚ) = 3345 := by norm_num [a_formula]
+private theorem a3 : (a 3 : ℚ) = 4911 := by norm_num [a_formula]
 
-lemma cnt_rec (k : ℕ) : cnt (k + 3)  + 11 * cnt (k + 1)  = 6 * cnt (k + 2)  + 6 * cnt (k + 0)  := by
-  simp only [cnt_sum, Finset.mul_sum, ← Finset.sum_add_distrib]
-  exact Finset.sum_congr rfl (fun r _ => W_rec k r)
-
-lemma cnt0 : cnt 0 = 2187 := by
-  rw [cnt_sum, W0f]
-  unfold t0
-  rw [total]
-  exact beq_iff_eq.mp all_parts.2.1
-
-lemma cnt1 : cnt 1 = 2571 := by
-  rw [cnt_sum, W1f]
-  unfold t1
-  rw [total]
-  exact beq_iff_eq.mp all_parts.2.2.1
-
-lemma cnt2 : cnt 2 = 3345 := by
-  rw [cnt_sum, W2f]
-  unfold t2
-  rw [total]
-  exact beq_iff_eq.mp all_parts.2.2.2
-
-lemma cnt3 : cnt 3 = 4911 := by
-  have h := cnt_rec 0
-  simp only [Nat.zero_add] at h
-  rw [cnt0, cnt1, cnt2] at h
-  generalize cnt 3 = x at h ⊢
-  omega
-
-lemma a_cast (n : ℕ) : (a n : ℚ) = (cnt n : ℚ) := by
-  rw [a_eq]
-
-lemma a_rec (k : ℕ) : (a (k + 3) : ℚ) + 11 * (a (k + 1) : ℚ) = 6 * (a (k + 2) : ℚ) + 6 * (a (k + 0) : ℚ) := by
-  simp only [a_cast]
-  have h : cnt (k + 3) + 11 * cnt (k + 1) = 6 * cnt (k + 2) + 6 * cnt (k + 0) := by simpa only [Nat.add_assoc, Nat.reduceAdd] using cnt_rec (k + 0)
-  have h' : ((cnt (k + 3) : ℕ) : ℚ) + 11 * ((cnt (k + 1) : ℕ) : ℚ) = 6 * ((cnt (k + 2) : ℕ) : ℚ) + 6 * ((cnt (k + 0) : ℕ) : ℚ) := by exact_mod_cast h
-  linear_combination h'
-
-lemma a0 : (a 0 : ℚ) = 2187 := by
-  rw [a_cast, cnt0]
-  norm_num
-
-lemma a1 : (a 1 : ℚ) = 2571 := by
-  rw [a_cast, cnt1]
-  norm_num
-
-lemma a2 : (a 2 : ℚ) = 3345 := by
-  rw [a_cast, cnt2]
-  norm_num
-
-lemma a3 : (a 3 : ℚ) = 4911 := by
-  rw [a_cast, cnt3]
-  norm_num
+private theorem closed : ∀ n : ℕ, 1 ≤ n → (a n : ℚ) = 3 * (602 + 63 * 2 ^ (1 + n) + 3 ^ n) := by
+  intro n _
+  simp only [a_formula, Nat.cast_add, Nat.cast_mul, Nat.cast_pow, Nat.cast_ofNat, pow_add]
+  ring
 
 /-- The g.f. as stated. -/
 theorem gf : PowerSeries.mk (fun n => if n = 0 then (0 : ℚ) else (a n : ℚ)) *
@@ -464,168 +391,9 @@ theorem gf : PowerSeries.mk (fun n => if n = 0 then (0 : ℚ) else (a n : ℚ)) 
     simp only [show k + 4 - 1 = k + 3 by omega, show k + 4 - 2 = k + 2 by omega, show k + 4 - 3 = k + 1 by omega, show ¬ (k + 4 = 0) by omega, show ¬ (k + 3 = 0) by omega, show ¬ (k + 2 = 0) by omega, show ¬ (k + 1 = 0) by omega, show 1 ≤ k + 4 by omega, show 2 ≤ k + 4 by omega, show 3 ≤ k + 4 by omega, show ¬ (k + 4 = 0) by omega, show ¬ (k + 4 = 1) by omega, show ¬ (k + 4 = 2) by omega, show ¬ (k + 4 = 3) by omega, if_true, if_false]
     linear_combination h'
 
-def closed_Q (n : ℕ) : ℚ := 3 * (602 + 63 * 2 ^ (1 + n) + 3 ^ n)
-
-lemma closed_Q_rec (m : ℕ) : closed_Q (m + 3) - 6 * closed_Q (m + 2) + 11 * closed_Q (m + 1) - 6 * closed_Q (m + 0) = 0 := by
-  unfold closed_Q
-  push_cast
-  ring
-
-lemma closed_key (n : ℕ) (hn : 1 ≤ n) : (a n : ℚ) = closed_Q n := by
-  induction n using Nat.strong_induction_on with
-  | _ n ih =>
-    rcases Nat.lt_or_ge n 4 with h | h
-    · interval_cases n
-      · have hk : (a 1 : ℚ) = 2571 := by exact_mod_cast a1
-        rw [hk]
-        unfold closed_Q
-        norm_num
-      · have hk : (a 2 : ℚ) = 3345 := by exact_mod_cast a2
-        rw [hk]
-        unfold closed_Q
-        norm_num
-      · have hk : (a 3 : ℚ) = 4911 := by exact_mod_cast a3
-        rw [hk]
-        unfold closed_Q
-        norm_num
-    · obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
-      have hR := (show (a (m + 4) : ℚ) + 11 * (a (m + 2) : ℚ) = 6 * (a (m + 3) : ℚ) + 6 * (a (m + 1) : ℚ) by simpa only [Nat.add_assoc, Nat.reduceAdd] using a_rec (m + 1))
-      have hR' : (a (m + 4) : ℚ) + 11 * (a (m + 2) : ℚ) = 6 * (a (m + 3) : ℚ) + 6 * (a (m + 1) : ℚ) := by exact_mod_cast hR
-      have h1 := ih (m + 3) (by omega) (by omega)
-      have h2 := ih (m + 2) (by omega) (by omega)
-      have h3 := ih (m + 1) (by omega) (by omega)
-      have hG := closed_Q_rec (m + 1)
-      simp only [show m + 1 + 3 = m + 4 from rfl, show m + 1 + 2 = m + 3 from rfl, show m + 1 + 1 = m + 2 from rfl, show m + 1 + 0 = m + 1 from rfl] at hG
-      linear_combination hR' + (-(-6 : ℚ)) * h1 + (-(11 : ℚ)) * h2 + (-(-6 : ℚ)) * h3 + (-1 : ℚ) * hG
-
-theorem closed : ∀ n : ℕ, 1 ≤ n → (a n : ℚ) = 3 * (602 + 63 * 2 ^ (1 + n) + 3 ^ n) := fun n hn => closed_key n hn
-
 /-- Controls: the entry's data. -/
 theorem controls : a 1 = 2571 ∧ a 2 = 3345 ∧ a 3 = 4911 ∧ a 4 = 8097 ∧ a 5 = 14631 ∧ a 6 = 28185 ∧ a 7 = 56751 ∧ a 8 = 118257 ∧ a 9 = 254391 ∧ a 10 = 566025 ∧ a 11 = 1307391 ∧ a 12 = 3144417 ∧ a 13 = 7881351 ∧ a 14 = 20543865 ∧ a 15 = 55434831 ∧ a 16 = 153914577 ∧ a 17 = 436967511 ∧ a 18 = 1261353705 ∧ a 19 = 3684967071 ∧ a 20 = 10856716737 ∧ a 21 = 32173784871 ∧ a 22 = 95728627545 ∧ a 23 = 285600432111 := by
-  have v4 : (a 4 : ℚ) = 8097 := by
-    have h := a_rec 1
-    simp only [Nat.reduceAdd] at h
-    rw [a1, a2, a3] at h
-    linarith
-  have v5 : (a 5 : ℚ) = 14631 := by
-    have h := a_rec 2
-    simp only [Nat.reduceAdd] at h
-    rw [a2, a3, v4] at h
-    linarith
-  have v6 : (a 6 : ℚ) = 28185 := by
-    have h := a_rec 3
-    simp only [Nat.reduceAdd] at h
-    rw [a3, v4, v5] at h
-    linarith
-  have v7 : (a 7 : ℚ) = 56751 := by
-    have h := a_rec 4
-    simp only [Nat.reduceAdd] at h
-    rw [v4, v5, v6] at h
-    linarith
-  have v8 : (a 8 : ℚ) = 118257 := by
-    have h := a_rec 5
-    simp only [Nat.reduceAdd] at h
-    rw [v5, v6, v7] at h
-    linarith
-  have v9 : (a 9 : ℚ) = 254391 := by
-    have h := a_rec 6
-    simp only [Nat.reduceAdd] at h
-    rw [v6, v7, v8] at h
-    linarith
-  have v10 : (a 10 : ℚ) = 566025 := by
-    have h := a_rec 7
-    simp only [Nat.reduceAdd] at h
-    rw [v7, v8, v9] at h
-    linarith
-  have v11 : (a 11 : ℚ) = 1307391 := by
-    have h := a_rec 8
-    simp only [Nat.reduceAdd] at h
-    rw [v8, v9, v10] at h
-    linarith
-  have v12 : (a 12 : ℚ) = 3144417 := by
-    have h := a_rec 9
-    simp only [Nat.reduceAdd] at h
-    rw [v9, v10, v11] at h
-    linarith
-  have v13 : (a 13 : ℚ) = 7881351 := by
-    have h := a_rec 10
-    simp only [Nat.reduceAdd] at h
-    rw [v10, v11, v12] at h
-    linarith
-  have v14 : (a 14 : ℚ) = 20543865 := by
-    have h := a_rec 11
-    simp only [Nat.reduceAdd] at h
-    rw [v11, v12, v13] at h
-    linarith
-  have v15 : (a 15 : ℚ) = 55434831 := by
-    have h := a_rec 12
-    simp only [Nat.reduceAdd] at h
-    rw [v12, v13, v14] at h
-    linarith
-  have v16 : (a 16 : ℚ) = 153914577 := by
-    have h := a_rec 13
-    simp only [Nat.reduceAdd] at h
-    rw [v13, v14, v15] at h
-    linarith
-  have v17 : (a 17 : ℚ) = 436967511 := by
-    have h := a_rec 14
-    simp only [Nat.reduceAdd] at h
-    rw [v14, v15, v16] at h
-    linarith
-  have v18 : (a 18 : ℚ) = 1261353705 := by
-    have h := a_rec 15
-    simp only [Nat.reduceAdd] at h
-    rw [v15, v16, v17] at h
-    linarith
-  have v19 : (a 19 : ℚ) = 3684967071 := by
-    have h := a_rec 16
-    simp only [Nat.reduceAdd] at h
-    rw [v16, v17, v18] at h
-    linarith
-  have v20 : (a 20 : ℚ) = 10856716737 := by
-    have h := a_rec 17
-    simp only [Nat.reduceAdd] at h
-    rw [v17, v18, v19] at h
-    linarith
-  have v21 : (a 21 : ℚ) = 32173784871 := by
-    have h := a_rec 18
-    simp only [Nat.reduceAdd] at h
-    rw [v18, v19, v20] at h
-    linarith
-  have v22 : (a 22 : ℚ) = 95728627545 := by
-    have h := a_rec 19
-    simp only [Nat.reduceAdd] at h
-    rw [v19, v20, v21] at h
-    linarith
-  have v23 : (a 23 : ℚ) = 285600432111 := by
-    have h := a_rec 20
-    simp only [Nat.reduceAdd] at h
-    rw [v20, v21, v22] at h
-    linarith
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · exact_mod_cast a1
-  · exact_mod_cast a2
-  · exact_mod_cast a3
-  · exact_mod_cast v4
-  · exact_mod_cast v5
-  · exact_mod_cast v6
-  · exact_mod_cast v7
-  · exact_mod_cast v8
-  · exact_mod_cast v9
-  · exact_mod_cast v10
-  · exact_mod_cast v11
-  · exact_mod_cast v12
-  · exact_mod_cast v13
-  · exact_mod_cast v14
-  · exact_mod_cast v15
-  · exact_mod_cast v16
-  · exact_mod_cast v17
-  · exact_mod_cast v18
-  · exact_mod_cast v19
-  · exact_mod_cast v20
-  · exact_mod_cast v21
-  · exact_mod_cast v22
-  · exact_mod_cast v23
+  norm_num [a_formula]
 
 /-- The conjunction stated as `main`. -/
 theorem conjecture :

@@ -1,6 +1,14 @@
 import OMAStatements.S_mse_4439933
 import Mathlib
 
+/-!
+Retains @Genbox’s merged proof #29696, head 0f08e3de9567f6118affe220fcc0d836cbf959fa.
+The direct product derivative and concise integrating-factor derivative conversion
+are adapted from @etaubman’s earlier verified proof linked by statement #20446:
+https://github.com/etaubman/open-math-agents/blob/b66349f9bd2e565b04a933b85b56a67568dbb6f6/verified/mse-4439933.lean
+Original question: Galen, Math StackExchange 4439933 (CC BY-SA 4.0).
+-/
+
 open scoped BigOperators
 open Set MeasureTheory OMA.S_mse_4439933
 
@@ -15,10 +23,7 @@ private theorem product_equation {n : ℕ} {f df : Fin n → ℝ → ℝ} {g : �
     {dg x : ℝ} (hf : ∀ i, HasDerivAt (f i) (df i x) x) (hg : HasDerivAt g dg x) :
     (deriv (fun t => productValue f t * g t) x = productValue df x * dg) ↔
       (productValue df x - productValue f x) * dg = productDerivative f df x * g x := by
-  have hd : deriv (fun t => productValue f t * g t) x =
-      productDerivative f df x * g x + productValue f x * dg :=
-    ((product_hasDerivAt hf).mul hg).deriv
-  rw [hd]
+  rw [((product_hasDerivAt hf).fun_mul hg).deriv]
   constructor <;> intro h <;> linarith
 
 theorem OMA.solution : type_of% @OMA.S_mse_4439933.main := by
@@ -67,15 +72,9 @@ theorem OMA.solution : type_of% @OMA.S_mse_4439933.main := by
           unfold coefficient
           field_simp [sub_ne_zero.mpr (hne t ht)]
           linarith
-        have hh : HasDerivAt F (deriv g t * Real.exp (-primitive f df x₀ t) +
-            g t * (Real.exp (-primitive f df x₀ t) * -coefficient f df t)) t :=
-          hgt.mul (hprim t ht).neg.exp
-        have hz : deriv g t * Real.exp (-primitive f df x₀ t) +
-            g t * (Real.exp (-primitive f df x₀ t) * -coefficient f df t) = 0 := by
-          rw [hr]
-          ring
-        rw [hz] at hh
-        exact hh
+        apply (hgt.mul (hprim t ht).neg.exp).congr_deriv
+        rw [hr]
+        ring
       have hconst : F x = F x₀ :=
         hs.is_const_of_deriv_eq_zero hconn.isPreconnected
           (fun t ht => (hF t ht).differentiableAt.differentiableWithinAt)

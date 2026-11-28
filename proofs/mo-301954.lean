@@ -1,22 +1,9 @@
 import OMAStatements.S_mo_301954
 
+-- Retains @Genbox's lexicographic-leading-index proof from PR #27797.
+-- Uses the ordered additive structure on lexicographic finite function spaces.
+
 open OMA.S_mo_301954
-
-private theorem lex_add_right {n : ℕ} {a b : Fin n → ℕ}
-    (h : toLex a < toLex b) (c : Fin n → ℕ) :
-    toLex (a + c) < toLex (b + c) := by
-  obtain ⟨i, he, hi⟩ := h
-  refine ⟨i, ?_, ?_⟩
-  · intro j hj
-    change a j + c j = b j + c j
-    exact congrArg (fun t => t + c j) (he j hj)
-  · change a i + c i < b i + c i
-    exact Nat.add_lt_add_right hi _
-
-private theorem lex_add_left {n : ℕ} {a b : Fin n → ℕ}
-    (h : toLex a < toLex b) (c : Fin n → ℕ) :
-    toLex (c + a) < toLex (c + b) := by
-  simpa only [add_comm c] using lex_add_right h c
 
 private def bump {n : ℕ} (i : Fin n) : Fin n → ℕ := fun j => if j = i then 1 else 0
 
@@ -40,14 +27,8 @@ private theorem unique_largest {n m k : ℕ} (row : Fin (k+1) ↪ Fin n)
   have hadd : (col j).val + bump (row i) = (col j₀).val + bump (row i₀) :=
     congrArg Subtype.val he
   rcases lt_or_eq_of_le h₁ with hl | he₁
-  · have hl' := lex_add_left hl (col j).val
-    rw [hadd] at hl'
-    rcases lt_or_eq_of_le h₂ with hl₂ | he₂
-    · exact (not_lt_of_ge (lex_add_right hl₂ (bump (row i₀))).le hl').elim
-    · have hh := congrArg ofLex he₂
-      change (col j).val = (col j₀).val at hh
-      rw [hh] at hl'
-      exact (lt_irrefl _ hl').elim
+  · have hl' := add_lt_add_of_le_of_lt h₂ hl
+    exact (ne_of_lt hl' (congrArg toLex hadd)).elim
   · have hh := congrArg ofLex he₁
     change bump (row i) = bump (row i₀) at hh
     have hi' := row.injective (bump_injective n hh)

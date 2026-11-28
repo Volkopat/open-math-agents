@@ -1,4 +1,9 @@
 import OMAStatements.S_mo_319396
+
+-- Retains @Genbox's proof (#28516) and the moment-kernel method from
+-- @connoranderson's companion to statement #24301, commit
+-- f8995b994da1d2d663f84287869e182e9c2dc230. Uses standard interval-square
+-- and geometric-series normalization lemmas for the same measure formula.
 import Mathlib
 
 open MeasureTheory Set OMA.S_mo_319396
@@ -18,11 +23,7 @@ private theorem kernel_eq (j : ℕ) (x : I) :
   ring
 
 private theorem kernel_nonneg (j : ℕ) (x : I) : 0 ≤ kernel j x := by
-  have h : x.val ^ 2 ≤ 1 := by
-    have h₁ := x.property.1
-    have h₂ := x.property.2
-    nlinarith [mul_nonneg (show 0 ≤ 1 - x.val by linarith)
-      (show 0 ≤ 1 + x.val by linarith)]
+  have h : x.val ^ 2 ≤ 1 := (sq_le_one_iff_abs_le_one _).mpr (abs_le.mpr x.property)
   exact mul_nonneg (sq_nonneg _) (pow_nonneg (sub_nonneg.mpr h) _)
 
 private theorem sumKernel (x : I) :
@@ -36,18 +37,12 @@ private theorem sumKernel (x : I) :
       intro hm
       exact hz (congrArg Subtype.val (Set.mem_singleton_iff.mp hm))
     rw [Set.indicator_of_mem hxo, Pi.one_apply]
-    have h₂ : x.val ^ 2 ≤ 1 := by
-      have hl := x.property.1
-      have hu := x.property.2
-      nlinarith [mul_nonneg (show 0 ≤ 1 - x.val by linarith)
-        (show 0 ≤ 1 + x.val by linarith)]
+    have h₂ : x.val ^ 2 ≤ 1 := (sq_le_one_iff_abs_le_one _).mpr (abs_le.mpr x.property)
     have hx2 : 0 < x.val ^ 2 := sq_pos_of_ne_zero hz
     have hG := (hasSum_geometric_of_lt_one (sub_nonneg.mpr h₂)
       (sub_lt_self (1 : ℝ) hx2)).mul_left (x.val ^ 2)
-    have hA : x.val ^ 2 * (1 - (1 - x.val ^ 2))⁻¹ = 1 := by
-      rw [sub_sub_cancel, mul_inv_cancel₀ hx2.ne']
     have hsum : HasSum (fun j => kernel j x) 1 := by
-      simpa only [kernel, hA] using hG
+      simpa only [kernel, sub_sub_cancel, mul_inv_cancel₀ hx2.ne'] using hG
     rw [← ENNReal.ofReal_tsum_of_nonneg (fun j => kernel_nonneg j x) hsum.summable,
       hsum.tsum_eq, ENNReal.ofReal_one]
 

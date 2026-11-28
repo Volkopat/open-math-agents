@@ -1,10 +1,10 @@
 import OMAStatements.S_oeis_a289927
 
+-- Original proof by @jleguina.
+
 namespace OMA.S_oeis_a289927
 
 open PowerSeries
-
-
 
 /-- Lucas numbers. -/
 def L : ℕ → ℤ
@@ -74,11 +74,10 @@ lemma s_rec (n : ℕ) (hn : 5 ≤ n) :
   have e1 : (m + 5) % 2 = (m + 1) % 2 := by omega
   have e2 : (m + 4) % 2 = (m + 2) % 2 := by omega
   have e3 : (m + 3) % 2 = (m + 1) % 2 := by omega
-  have e4 : (m + 2) % 2 = (m + 2) % 2 := rfl
   rw [e1, e2, e3, l5, l4, l3]
   have : (m + 2) % 2 = 0 ∨ (m + 2) % 2 = 1 := by omega
   have h' : (m + 1) % 2 = 0 ↔ (m + 2) % 2 = 1 := by omega
-  rcases this with h | h <;> simp [h, h'.not, h'] <;> push_cast <;> ring_nf <;> simp_all <;> omega
+  rcases this with h | h <;> simp [h, h'] <;> ring
 
 /-- S * (1 - x - 2x^2 + x^3 + x^4) = x + x^2 - x^4. -/
 lemma S_mul : S * (1 - X ^ 1 - C (2 : ℚ) * X ^ 2 + X ^ 3 + X ^ 4) = X ^ 1 + X ^ 2 - X ^ 4 := by
@@ -91,9 +90,7 @@ lemma S_mul : S * (1 - X ^ 1 - C (2 : ℚ) * X ^ 2 + X ^ 3 + X ^ 4) = X ^ 1 + X 
   rcases Nat.lt_or_ge n 5 with hn | hn
   · interval_cases n <;> simp [s, v1, v2, v3, v4] <;> norm_num [s] at v1 v2 v3 v4 ⊢ <;> linarith
   · have hr := s_rec n hn
-    simp only [show 1 ≤ n by omega, show 2 ≤ n by omega, show 3 ≤ n by omega,
-      show 4 ≤ n by omega, if_true, show n ≠ 1 by omega, show n ≠ 2 by omega,
-      show n ≠ 4 by omega, if_false]
+    simp (disch := omega) [if_pos, if_neg]
     linarith
 
 lemma constCoeff_F : constantCoeff (1 - S - S ^ 2) = 1 := by
@@ -148,27 +145,18 @@ theorem recurrence (n : ℕ) (hn : 7 < n) :
       C (5 : ℚ) * (PowerSeries.mk a * X ^ 4) - C (7 : ℚ) * (PowerSeries.mk a * X ^ 5) -
       C (4 : ℚ) * (PowerSeries.mk a * X ^ 6) + C (3 : ℚ) * (PowerSeries.mk a * X ^ 7) +
       PowerSeries.mk a * X ^ 8 := by
-    rw [show (C (3 : ℚ) : ℚ⟦X⟧) = 3 from map_ofNat C 3, show (C (4 : ℚ) : ℚ⟦X⟧) = 4 from map_ofNat C 4,
-      show (C (7 : ℚ) : ℚ⟦X⟧) = 7 from map_ofNat C 7, show (C (5 : ℚ) : ℚ⟦X⟧) = 5 from map_ofNat C 5]
+    simp only [map_ofNat]
     ring
+
   have eN : ((1 - X ^ 2 + X ^ 3) * (1 + X - X ^ 3) : ℚ⟦X⟧) =
       1 + X ^ 1 - X ^ 2 - X ^ 3 + X ^ 4 + X ^ 5 - X ^ 6 := by ring
   rw [eD, eN] at h
-  simp only [map_sub, map_add, coeff_C_mul, coeff_mul_X_pow', coeff_mk, coeff_one, coeff_X_pow,
-    show 1 ≤ n by omega, show 2 ≤ n by omega, show 3 ≤ n by omega, show 4 ≤ n by omega,
-    show 5 ≤ n by omega, show 6 ≤ n by omega, show 7 ≤ n by omega, show 8 ≤ n by omega, if_true,
-    show n ≠ 0 by omega, show n ≠ 1 by omega, show n ≠ 2 by omega, show n ≠ 3 by omega,
-    show n ≠ 4 by omega, show n ≠ 5 by omega, show n ≠ 6 by omega, if_false] at h
+  simp only [map_sub, map_add, coeff_C_mul, coeff_mul_X_pow', coeff_mk, coeff_one, coeff_X_pow] at h
+  simp (disch := omega) [if_pos, if_neg] at h
   linarith
-
-/-- Both of Barker's conjectures. -/
-theorem conjecture : (PowerSeries.mk a * (1 - 3 * X - 4 * X ^ 2 + 7 * X ^ 3 + 5 * X ^ 4 -
-      7 * X ^ 5 - 4 * X ^ 6 + 3 * X ^ 7 + X ^ 8) = (1 - X ^ 2 + X ^ 3) * (1 + X - X ^ 3)) ∧
-    (∀ n : ℕ, 7 < n → a n = 3 * a (n - 1) + 4 * a (n - 2) - 7 * a (n - 3) - 5 * a (n - 4) +
-      7 * a (n - 5) + 4 * a (n - 6) - 3 * a (n - 7) - a (n - 8)) :=
-  ⟨gf, recurrence⟩
 
 end OMA.S_oeis_a289927
 
+open OMA.S_oeis_a289927 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a289927.main :=
-  OMA.S_oeis_a289927.conjecture
+  ⟨gf, recurrence⟩

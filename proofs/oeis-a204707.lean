@@ -1,29 +1,23 @@
 import OMAStatements.S_oeis_a204707
 import Mathlib.Tactic
 
+/-!
+For common permanent 1, the row `101` can precede all four rows with middle bit
+one. Each of those rows can precede `101` and one other middle-bit-one row.
+This gives two scalar counts. The common permanent 2 contributes one array.
+
+Original proof by @Volkopat.
+-/
 namespace OMA.P_oeis_a204707
 
 open OMA.S_oeis_a204707
+open scoped BigOperators
 
 private def adj (r1 r2 : Bool × Bool × Bool) : Bool :=
   decide (blockPerm r1.1 r1.2.1 r2.1 r2.2.1 = 1 ∧ blockPerm r1.2.1 r1.2.2 r2.2.1 r2.2.2 = 1)
 
 private def stepVec (v : Bool × Bool × Bool → ℤ) (r2 : Bool × Bool × Bool) : ℤ :=
   ∑ r1 : Bool × Bool × Bool, if adj r1 r2 then v r1 else 0
-
-private lemma stepVec_add (u v : Bool × Bool × Bool → ℤ) (r : Bool × Bool × Bool) :
-    stepVec (fun x => u x + v x) r = stepVec u r + stepVec v r := by
-  unfold stepVec
-  simp only [← Finset.sum_add_distrib]
-  refine Finset.sum_congr rfl fun r1 _ => ?_
-  split_ifs <;> ring
-
-private lemma stepVec_smul (c : ℤ) (v : Bool × Bool × Bool → ℤ) (r : Bool × Bool × Bool) :
-    stepVec (fun x => c * v x) r = c * stepVec v r := by
-  unfold stepVec
-  simp only [Finset.mul_sum]
-  refine Finset.sum_congr rfl fun r1 _ => ?_
-  split_ifs <;> ring
 
 private def isValid1 (n : ℕ) (A : Fin (n + 1) × Fin 3 → Bool) : Prop :=
   ∀ (i : Fin n) (j : Fin 2),
@@ -101,16 +95,7 @@ private lemma A204707_eq_one_add_perm1Count (n : ℕ) (hn : 1 ≤ n) :
     rintro ⟨_, h⟩
     have h0 := h ⟨0, by omega⟩ ⟨0, by omega⟩
     simp [allTrue, blockPerm] at h0
-  have hcard_eq :
-      (@Finset.filter _ (fun A : Fin (n + 1) × Fin 3 → Bool =>
-        ∃ p : ℕ, p ≠ 0 ∧
-          ∀ (i : Fin n) (j : Fin 2),
-            blockPerm (A (⟨i.1, by omega⟩, ⟨j.1, by omega⟩))
-              (A (⟨i.1, by omega⟩, ⟨j.1 + 1, by omega⟩))
-              (A (⟨i.1 + 1, by omega⟩, ⟨j.1, by omega⟩))
-              (A (⟨i.1 + 1, by omega⟩, ⟨j.1 + 1, by omega⟩)) = p)
-        _ Finset.univ).card = (insert allTrue S1).card := by
-    exact congrArg Finset.card hS_eq
+  have hcard_eq := congrArg Finset.card hS_eq
   rw [hcard_eq, Finset.card_insert_of_notMem hnotmem]
   omega
 
@@ -247,40 +232,56 @@ private lemma rowCount_succ (n : ℕ) (r : Bool × Bool × Bool) :
     · intro r1 _ hne; simp [hne.symm]
     · intro hnot; exact (hnot (Finset.mem_univ _)).elim
 
-private lemma rowCount_zero_fun : rowCount 0 = fun _ => 1 := funext rowCount_zero
-private lemma rowCount_succ_fun (n : ℕ) : rowCount (n + 1) = stepVec (rowCount n) :=
-  funext (rowCount_succ n)
+/-- Active rows have middle bit one, or are the single row 101. -/
+private def classCount (u v : ℤ) (r : Bool × Bool × Bool) : ℤ :=
+  if r.2.1 then v else if r.1 && r.2.2 then u else 0
 
-private lemma rowCount_rec_base :
-    rowCount 3 = fun r => rowCount 2 r + 4 * rowCount 1 r := by
-  funext r
-  simp only [rowCount_succ_fun, rowCount_zero_fun]
-  revert r; decide
+private lemma class_step (u v : ℤ) (r : Bool × Bool × Bool) :
+    stepVec (classCount u v) r = classCount (4 * v) (u + v) r := by
+  simp only [stepVec, Fintype.sum_prod_type, Fintype.sum_bool]
+  rcases r with ⟨a, b, c⟩
+  cases a <;> cases b <;> cases c <;>
+    simp [adj, blockPerm, classCount] <;> ring
 
-private lemma rowCount_rec (m : ℕ) :
-    rowCount (m + 3) = fun r => rowCount (m + 2) r + 4 * rowCount (m + 1) r := by
+private lemma class_sum (u v : ℤ) : (∑ r : Bool × Bool × Bool, classCount u v r) = u + 4 * v := by
+  simp only [Fintype.sum_prod_type, Fintype.sum_bool]
+  simp [classCount]
+  ring
+
+private def counts : ℕ → ℤ × ℤ
+  | 0 => (4, 2)
+  | m + 1 => let c := counts m; (4 * c.2, c.1 + c.2)
+
+private lemma rowCount_formula (m : ℕ) :
+    rowCount (m + 1) = classCount (counts m).1 (counts m).2 := by
   induction m with
-  | zero => exact rowCount_rec_base
+  | zero =>
+    funext r
+    rw [rowCount_succ, funext rowCount_zero]
+    revert r
+    decide
   | succ m ih =>
     funext r
-    conv_lhs =>
-      rw [rowCount_succ (m + 3) r, ih, stepVec_add, stepVec_smul,
-        ← rowCount_succ (m + 2) r, ← rowCount_succ (m + 1) r]
+    rw [rowCount_succ, ih, class_step]
+    rfl
+
+private lemma perm1Count_formula (m : ℕ) :
+    (perm1Count (m + 1) : ℤ) = (counts m).1 + 4 * (counts m).2 := by
+  rw [perm1Count_eq_sum_rowCount, rowCount_formula, class_sum]
 
 private lemma perm1Count_rec (m : ℕ) :
     (perm1Count (m + 3) : ℤ) = perm1Count (m + 2) + 4 * perm1Count (m + 1) := by
-  simp only [perm1Count_eq_sum_rowCount]
-  rw [rowCount_rec m, Finset.sum_add_distrib, ← Finset.mul_sum]
+  rw [perm1Count_formula (m + 2), perm1Count_formula (m + 1), perm1Count_formula m]
+  simp only [counts]
+  ring
 
 private lemma perm1Count_small : perm1Count 1 = 12 ∧ perm1Count 2 = 32 ∧ perm1Count 3 = 80 := by
-  have h1 : (perm1Count 1 : ℤ) = 12 := by
-    rw [perm1Count_eq_sum_rowCount, rowCount_succ_fun, rowCount_zero_fun]; decide
-  have h2 : (perm1Count 2 : ℤ) = 32 := by
-    rw [perm1Count_eq_sum_rowCount, rowCount_succ_fun, rowCount_succ_fun, rowCount_zero_fun]; decide
-  have h3 : (perm1Count 3 : ℤ) = 80 := by
-    rw [perm1Count_eq_sum_rowCount, rowCount_succ_fun, rowCount_succ_fun, rowCount_succ_fun,
-      rowCount_zero_fun]; decide
+  have h1 := perm1Count_formula 0
+  have h2 := perm1Count_formula 1
+  have h3 := perm1Count_formula 2
+  norm_num [counts] at h1 h2 h3
   exact ⟨by exact_mod_cast h1, by exact_mod_cast h2, by exact_mod_cast h3⟩
+
 
 private lemma A204707_small : A204707 1 = 13 ∧ A204707 2 = 33 ∧ A204707 3 = 81 := by
   obtain ⟨h1, h2, h3⟩ := perm1Count_small
@@ -291,33 +292,11 @@ private lemma A204707_small : A204707 1 = 13 ∧ A204707 2 = 33 ∧ A204707 3 = 
 private lemma A204707_rec (m : ℕ) :
     (A204707 (m + 4) : ℤ) =
       2 * A204707 (m + 3) + 3 * A204707 (m + 2) - 4 * A204707 (m + 1) := by
-  have h4 : (A204707 (m + 4) : ℤ) = 1 + perm1Count (m + 4) := by
-    exact_mod_cast A204707_eq_one_add_perm1Count (m + 4) (by omega)
-  have h3 : (A204707 (m + 3) : ℤ) = 1 + perm1Count (m + 3) := by
-    exact_mod_cast A204707_eq_one_add_perm1Count (m + 3) (by omega)
-  have h2 : (A204707 (m + 2) : ℤ) = 1 + perm1Count (m + 2) := by
-    exact_mod_cast A204707_eq_one_add_perm1Count (m + 2) (by omega)
-  have h1 : (A204707 (m + 1) : ℤ) = 1 + perm1Count (m + 1) := by
-    exact_mod_cast A204707_eq_one_add_perm1Count (m + 1) (by omega)
-  have hr1 := perm1Count_rec (m + 1)
-  have hr0 := perm1Count_rec m
-  linarith
+  have h (k : ℕ) : (A204707 (k + 1) : ℤ) = 1 + perm1Count (k + 1) := by
+    exact_mod_cast A204707_eq_one_add_perm1Count (k + 1) (by omega)
+  rw [h (m + 3), h (m + 2), h (m + 1), h m]
+  linarith [perm1Count_rec m, perm1Count_rec (m + 1)]
 
-private lemma coeff_X_pow_mul_eq (k : ℕ) (f : PowerSeries ℤ) (n : ℕ) :
-    PowerSeries.coeff n (PowerSeries.X ^ k * f) =
-      if k ≤ n then PowerSeries.coeff (n - k) f else 0 := by
-  rw [PowerSeries.coeff_mul]
-  split_ifs with hk
-  · rw [Finset.sum_eq_single (k, n - k)]
-    · rw [PowerSeries.coeff_X_pow, if_pos rfl, one_mul]
-    · intro p hp hne
-      rw [Finset.mem_antidiagonal] at hp
-      have hne1 : p.1 ≠ k := fun h => hne (Prod.ext h (by omega))
-      rw [PowerSeries.coeff_X_pow, if_neg hne1, zero_mul]
-    · intro hnot; exfalso; apply hnot; rw [Finset.mem_antidiagonal]; omega
-  · apply Finset.sum_eq_zero
-    intro p hp; rw [Finset.mem_antidiagonal] at hp
-    rw [PowerSeries.coeff_X_pow, if_neg (by omega), zero_mul]
 
 private lemma A204707_gf :
     (1 - PowerSeries.X) * (1 - PowerSeries.X - 4 * PowerSeries.X ^ 2) *
@@ -327,29 +306,23 @@ private lemma A204707_gf :
   have hlhs : (1 - PowerSeries.X) * (1 - PowerSeries.X - 4 * PowerSeries.X ^ 2) * F =
       F - PowerSeries.C 2 * (PowerSeries.X ^ 1 * F) -
         PowerSeries.C 3 * (PowerSeries.X ^ 2 * F) + PowerSeries.C 4 * (PowerSeries.X ^ 3 * F) := by
-    have h2 : PowerSeries.C (2 : ℤ) = (2 : PowerSeries ℤ) := rfl
-    have h3 : PowerSeries.C (3 : ℤ) = (3 : PowerSeries ℤ) := rfl
-    have h4 : PowerSeries.C (4 : ℤ) = (4 : PowerSeries ℤ) := rfl
-    rw [h2, h3, h4, pow_one]; ring
+    simp only [map_ofNat]
+    ring
   have hrhs : (PowerSeries.X : PowerSeries ℤ) *
         (13 + 7 * PowerSeries.X - 24 * PowerSeries.X ^ 2) =
       PowerSeries.C 13 * PowerSeries.X + PowerSeries.C 7 * PowerSeries.X ^ 2 -
       PowerSeries.C 24 * PowerSeries.X ^ 3 := by
-    have h13 : PowerSeries.C (13 : ℤ) = (13 : PowerSeries ℤ) := rfl
-    have h7 : PowerSeries.C (7 : ℤ) = (7 : PowerSeries ℤ) := rfl
-    have h24 : PowerSeries.C (24 : ℤ) = (24 : PowerSeries ℤ) := rfl
-    rw [h13, h7, h24]; ring
+    simp only [map_ofNat]
+    ring
   rw [hlhs, hrhs]
   ext n
-  simp only [map_add, map_sub, PowerSeries.coeff_C_mul, coeff_X_pow_mul_eq,
+  simp only [map_add, map_sub, PowerSeries.coeff_C_mul, PowerSeries.coeff_X_pow_mul',
     PowerSeries.coeff_X_pow, PowerSeries.coeff_X]
   obtain ⟨h1, h2, h3⟩ := A204707_small
   by_cases hn3 : n ≤ 3
   · interval_cases n <;> simp [F, h1, h2, h3]
-  · simp only [F, PowerSeries.coeff_mk, show n ≠ 0 by omega, show n ≠ 1 by omega,
-      show n ≠ 2 by omega, show n ≠ 3 by omega, show 1 ≤ n by omega, show 2 ≤ n by omega,
-      show 3 ≤ n by omega, show n - 1 ≠ 0 by omega, show n - 2 ≠ 0 by omega,
-      show n - 3 ≠ 0 by omega, ↓reduceIte, mul_zero, sub_zero, add_zero]
+  · simp (disch := omega) only [F, PowerSeries.coeff_mk, if_pos, if_neg,
+      mul_zero, sub_zero, add_zero]
     have hrec := A204707_rec (n - 4)
     simp only [show n - 4 + 4 = n by omega, show n - 4 + 3 = n - 1 by omega,
       show n - 4 + 2 = n - 2 by omega, show n - 4 + 1 = n - 3 by omega] at hrec
@@ -396,9 +369,15 @@ private lemma A204707_binet (n : ℕ) (hn : 1 ≤ n) :
   have hr2_sq : r2 ^ 2 = r2 + 4 := by
     have : r2 ^ 2 - (r2 + 4) = (s ^ 2 - 17) / 4 := by simp only [r2]; ring
     linarith [this, hs]
+  have root_rec (r : ℝ) (hr : r ^ 2 = r + 4) (m : ℕ) :
+      r ^ (m + 3) = r ^ (m + 2) + 4 * r ^ (m + 1) := by
+    calc
+      _ = r ^ 2 * r ^ (m + 1) := by ring
+      _ = (r + 4) * r ^ (m + 1) := by rw [hr]
+      _ = _ := by ring
   intro k
   induction k using Nat.strong_induction_on with
-  | h k ih =>
+  | _ k ih =>
     obtain ⟨h1, h2, _⟩ := perm1Count_small
     rcases k with _ | _ | m
     · rw [show (0 : ℕ) + 1 = 1 by rfl, h1]
@@ -416,15 +395,7 @@ private lemma A204707_binet (n : ℕ) (hn : 1 ≤ n) :
         exact_mod_cast perm1Count_rec m
       have ih1 := ih (m + 1) (by omega)
       have ih0 := ih m (by omega)
-      have hpow1 : r1 ^ (m + 3) = r1 ^ (m + 2) + 4 * r1 ^ (m + 1) := by
-        calc r1 ^ (m + 3) = r1 ^ 2 * r1 ^ (m + 1) := by ring
-          _ = (r1 + 4) * r1 ^ (m + 1) := by rw [hr1_sq]
-          _ = r1 ^ (m + 2) + 4 * r1 ^ (m + 1) := by ring
-      have hpow2 : r2 ^ (m + 3) = r2 ^ (m + 2) + 4 * r2 ^ (m + 1) := by
-        calc r2 ^ (m + 3) = r2 ^ 2 * r2 ^ (m + 1) := by ring
-          _ = (r2 + 4) * r2 ^ (m + 1) := by rw [hr2_sq]
-          _ = r2 ^ (m + 2) + 4 * r2 ^ (m + 1) := by ring
-      rw [show m + 2 + 1 = m + 3 by omega, hrec, hpow1, hpow2]
+      rw [show m + 2 + 1 = m + 3 by omega, hrec, root_rec r1 hr1_sq, root_rec r2 hr2_sq]
       rw [show m + 1 + 1 = m + 2 by omega] at ih1
       linarith
 

@@ -1,6 +1,8 @@
 import OMAStatements.S_oeis_a192759
 import Mathlib
 
+-- Original proof by @justusklocke-cloud.
+
 namespace A192759
 open Polynomial
 
@@ -14,14 +16,11 @@ def uv : ℕ → ℤ × ℤ
 
 lemma cc_shift (n : ℕ) : cc (n + 5) = cc n + 1 := by
   unfold cc
-  have h : ((n + 5 + 1) + 5) / 5 = ((n + 1) + 5) / 5 + 1 := by omega
-  rw [h]; push_cast; ring
+  omega
 
 lemma cc_succ (n : ℕ) : cc (n + 1) = cc n + (if (n + 2) % 5 = 0 then 1 else 0) := by
   unfold cc
-  have h : ((n + 1 + 1) + 5) / 5 = ((n + 1) + 5) / 5 + (if (n + 2) % 5 = 0 then 1 else 0) := by
-    split_ifs <;> omega
-  rw [h]; push_cast; ring
+  split_ifs <;> omega
 
 lemma p_eq (n : ℕ) : ∃ q : ℤ[X], OMA.S_oeis_a192759.p n
     = (X ^ 2 - X - 1) * q + (C (uv n).1 + C (uv n).2 * X) := by
@@ -78,35 +77,21 @@ lemma inv (n : ℕ) : (uv n).1 = OMA.S_oeis_a192759.A124502 (n + 1) ∧
 
 end A192759
 
-open PowerSeries in
+open PowerSeries A192759 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a192759.main := by
-  constructor
-  · have ha : OMA.S_oeis_a192759.a = fun n => (A192759.uv n).2 := funext A192759.a_eq
-    rw [ha]
-    have hD : (((X : PowerSeries ℤ) ^ 2 + X - 1) * (X ^ 4 + X ^ 3 + X ^ 2 + X + 1) * (X - 1) ^ 2)
-        = C (-1) * X ^ 0 + C 2 * X ^ 1 + C (-1) * X ^ 3 + C 1 * X ^ 5 + C (-2) * X ^ 6
-          + C 1 * X ^ 8 := by
-      simp only [map_neg, map_ofNat, map_one]; ring
-    have hN : -(X : PowerSeries ℤ) = C (-1) * X ^ 1 := by
-      simp only [map_neg, map_one]; ring
-    rw [hD, hN]
-    ext n
-    simp only [mul_add, map_add, ← mul_assoc, PowerSeries.coeff_mul_X_pow', PowerSeries.coeff_mul_C,
-      PowerSeries.coeff_mk, PowerSeries.coeff_C]
-    rcases n with _ | _ | _ | _ | _ | _ | _ | _ | n
-    · simp [A192759.uv]
-    · simp [A192759.uv, A192759.cc]
-    · simp [A192759.uv, A192759.cc]
-    · simp [A192759.uv, A192759.cc]
-    · simp [A192759.uv, A192759.cc]
-    · simp [A192759.uv, A192759.cc]
-    · simp [A192759.uv, A192759.cc]
-    · simp [A192759.uv, A192759.cc]
-    · have h5 := A192759.cc_shift n
-      have h6 : A192759.cc (n + 6) = A192759.cc (n + 1) + 1 := A192759.cc_shift (n + 1)
-      simp [A192759.uv]
-      rw [h5, h6]
-      ring
-  · intro n
-    rw [A192759.a_eq]
-    exact (A192759.inv n).2.1
+  rw [show OMA.S_oeis_a192759.a = fun n => (uv n).2 from funext a_eq]
+  refine ⟨?_, fun n => (A192759.inv n).2.1⟩
+  have hD : (((X : PowerSeries ℤ) ^ 2 + X - 1) * (X ^ 4 + X ^ 3 + X ^ 2 + X + 1) * (X - 1) ^ 2)
+      = C (-1) * X ^ 0 + C 2 * X ^ 1 + C (-1) * X ^ 3 + C 1 * X ^ 5 + C (-2) * X ^ 6
+        + C 1 * X ^ 8 := by
+    simp only [map_neg, map_ofNat, map_one]; ring
+  have hN : -(X : PowerSeries ℤ) = C (-1) * X ^ 1 := by simp
+  rw [hD, hN]
+  ext n
+  simp only [mul_add, map_add, ← mul_assoc, coeff_mul_X_pow', coeff_mul_C, coeff_mk, coeff_C]
+  by_cases hn : n < 8
+  · interval_cases n <;> norm_num [uv, cc]
+  · obtain ⟨k, rfl⟩ : ∃ k, n = k + 8 := ⟨n - 8, by omega⟩
+    simp [uv]
+    rw [cc_shift k, cc_shift (k + 1)]
+    ring

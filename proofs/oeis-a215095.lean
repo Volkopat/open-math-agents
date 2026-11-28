@@ -3,6 +3,7 @@ import Mathlib.Order.Monotone.Basic
 import Mathlib.Tactic.NormNum
 
 /-!
+Original proof by @jatin6.
 Ratushnyak defined the greedy sequence and Scambler proposed its generating
 function. The proof locates each threshold between consecutive Jacobsthal
 numbers and shows that the greedy construction skips none of them.
@@ -37,53 +38,40 @@ private theorem nextInGap (j x y : ℕ) (lo : jac j ≤ x + y) (hi : x + y < jac
   change y < sInf S ∧ sInf S + x = jac (j+1)
   exact ⟨hy, by omega⟩
 
-/-- Two adjacent greedy terms straddle the threshold for the next choice. -/
-private theorem bounds (n : ℕ) :
+private theorem greedy (n : ℕ) :
     a n ≤ a (n+1) ∧ a (n+1) ≤ jac (n+2) ∧
-    jac (n+2) ≤ a n + a (n+1) ∧ a n + a (n+1) < jac (n+3) := by
+    a (n+1) < a (n+2) ∧ a (n+2) + a n = jac (n+3) := by
   induction n with
-  | zero => change 0 ≤ 1 ∧ 1 ≤ 1 ∧ 1 ≤ 0+1 ∧ 0+1 < 3; decide
+  | zero => exact ⟨by decide, by decide, nextInGap 2 0 1 (by decide) (by decide)⟩
   | succ n ih =>
-    obtain ⟨hxy, hy, lo, hi⟩ := ih
-    have step := nextInGap (n+2) (a n) (a (n+1)) lo hi
-    change a (n+1) < a (n+2) ∧ a (n+2) + a n = jac (n+3) at step
-    have pos : 1 ≤ jac (n+2) := jacMono (show 1 ≤ n+2 by omega)
-    have jump : jac (n+4) = jac (n+3) + 2*jac (n+2) := jacStep (n+2)
-    change a (n+1) ≤ a (n+2) ∧ a (n+2) ≤ jac (n+3) ∧
-      jac (n+3) ≤ a (n+1) + a (n+2) ∧ a (n+1) + a (n+2) < jac (n+4)
-    omega
+    obtain ⟨hm, hu, hs, he⟩ := ih
+    have hp : 1 ≤ jac (n+2) := jacMono (show 1 ≤ n+2 by omega)
+    have hj : jac (n+4) = jac (n+3) + 2*jac (n+2) := jacStep (n+2)
+    refine ⟨hs.le, ?_, nextInGap (n+3) (a (n+1)) (a (n+2)) (by omega) ?_⟩
+    · change a (n+2) ≤ jac (n+3)
+      omega
+    · change a (n+1) + a (n+2) < jac (n+4)
+      omega
 
-theorem twoApart (n : ℕ) : a (n+2) + a n = jac (n+3) := by
-  obtain ⟨_, _, lo, hi⟩ := bounds n
-  exact (nextInGap (n+2) (a n) (a (n+1)) lo hi).2
-
-theorem recurrence (n : ℕ) :
-    a (n+4) = a (n+3) + a (n+2) + a (n+1) + 2 * a n := by
-  have h0 := twoApart n
-  have h1 : a (n+3) + a (n+1) = jac (n+4) := twoApart (n+1)
-  have h2 : a (n+4) + a (n+2) = jac (n+5) := twoApart (n+2)
-  have hj : jac (n+5) = jac (n+4) + 2*jac (n+3) := jacStep (n+3)
-  omega
+private theorem twoApart (n : ℕ) : a (n+2) + a n = jac (n+3) :=
+  (greedy n).2.2.2
 
 end OMA.A215095
 
+open OMA.A215095 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a215095.main := by
-  intro n
   have h0 : a 0 = 0 := rfl
   have h1 : a 1 = 1 := rfl
-  have h2 := OMA.A215095.twoApart 0
-  have h3 := OMA.A215095.twoApart 1
-  change a 2 + a 0 = 3 at h2
-  change a 3 + a 1 = 5 at h3
-  have firstTwo : a 2 = 3 := by omega
-  have firstThree : a 3 = 4 := by omega
-  rcases n with _ | _ | _ | _ | n
-  · norm_num [denominatorProduct, h0]
-  · norm_num [denominatorProduct, h0, h1]
-  · norm_num [denominatorProduct, h0, h1, firstTwo]
-  · norm_num [denominatorProduct, h0, h1, firstTwo, firstThree]
-  · have h := OMA.A215095.recurrence n
-    change (a (n+4):ℤ) - a (n+3) - a (n+2) - a (n+1) - 2*a n =
-      (if n+4 = 1 then 1 else if n+4 = 2 then 2 else 0)
-    rw [if_neg (by omega : n+4 ≠ 1), if_neg (by omega : n+4 ≠ 2)]
+  have h2 : a 2 = 3 := twoApart 0
+  have h3 : a 3 = 4 := by
+    have h := twoApart 1
+    change a 3 + 1 = 5 at h
     omega
+  intro n
+  rcases n with _ | _ | _ | _ | n
+  all_goals norm_num [denominatorProduct, h0, h1, h2, h3]
+  have h := twoApart n
+  have h' : a (n+3) + a (n+1) = jac (n+4) := twoApart (n+1)
+  have h'' : a (n+4) + a (n+2) = jac (n+5) := twoApart (n+2)
+  have hj : jac (n+5) = jac (n+4) + 2*jac (n+3) := jacStep (n+3)
+  omega

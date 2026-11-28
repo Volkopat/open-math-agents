@@ -9,6 +9,8 @@ Credit: @connoranderson. Identifying two variables kills an alternating
 polynomial. Each earlier factor in the product survives the next identification,
 so each remaining quotient still vanishes on that diagonal. The determinant
 formula for the Vandermonde matrix then gives symmetry of the final quotient.
+This shortening uses standard swap-invariance, coefficient-map injectivity and
+product-difference divisibility lemmas in the same argument.
 -/
 
 namespace OMA.S_mo_139071
@@ -31,27 +33,19 @@ private lemma factorDifference (i j : Fin n) (p : P n R) :
     rw [map_mul, rename_X]
     have h : X j - X i ∣ X k - (X (collapse i j k) : P n R) := by
       by_cases hk : k = j <;> simp [collapse, hk]
-    convert dvd_add (dvd_mul_of_dvd_left hp (X k))
-      (dvd_mul_of_dvd_right h (rename (collapse i j) p)) using 1
-    ring
+    exact dvd_mul_sub_mul hp h
 
 private lemma collapseZero (h₂ : (2 : R) ≠ 0) (p : P n R)
     (hp : ∀ σ : Perm (Fin n), rename σ p = σ.sign • p) {i j : Fin n} (hij : i < j) :
     rename (collapse i j) p = 0 := by
   have he : collapse i j ∘ swap i j = collapse i j := by
-    ext t
-    by_cases ht : t = i <;> by_cases hu : t = j <;>
-      simp_all [collapse, Equiv.swap_apply_def, hij.ne, Ne.symm hij.ne]
+    funext t
+    exact Equiv.apply_swap_eq_self (by simp [collapse]) t
   have hs : rename (swap i j) p = -p := by simpa [Perm.sign_swap hij.ne] using hp (swap i j)
   have hh := congrArg (rename (collapse i j) (R := R)) hs
   rw [rename_rename, he, map_neg] at hh
   have hn : (2 : P n R) ≠ 0 := by
-    intro hz
-    apply (MvPolynomial.C_injective (Fin n) R).ne h₂
-    calc
-      C (2 : R) = (2 : P n R) := MvPolynomial.C_eq_coe_nat 2
-      _ = 0 := hz
-      _ = C (0 : R) := (map_zero _).symm
+    simpa only [map_ofNat] using (C_ne_zero (σ := Fin n)).mpr h₂
   apply (mul_eq_zero.mp (show 2 * rename (collapse i j) p = 0 by linear_combination hh)).resolve_left hn
 
 private lemma remainsDistinct {i j u v : Fin n} (hij : i < j) (huv : u < v)

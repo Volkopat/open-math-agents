@@ -8,6 +8,7 @@ import { STEP_RE, stepSkeleton } from "@/lib/steps";
 import { SITE, REPO } from "@/lib/site";
 import { teamFields, type TeamNote } from "@/lib/collab";
 import EVENT from "@/content/event.json";
+import { guideFor, inEvent, isEventStep, valueOnly } from "@/lib/event";
 import IMPACT from "@/content/impact.json";
 import { getPending, pendingError } from "@/lib/pendingprs";
 import { countHandout, dbDown, DEGRADED_NEXT, offlineLease, offlineScores } from "@/lib/deskoffline";
@@ -57,9 +58,11 @@ async function handle(req: Request) {
   const reported = await getElsewhereReports();
   const elsewhere: typeof reported = Object.fromEntries(Object.entries(reported).filter(([id]) => !(id in CLEARED.entries)));
   const free = (id: string) => !solved.has(id) && !pending.has(id) && !elsewhere[id];
-  // During the live event its problems and their steps are never refused for a waiting pull request (see below).
-  // Only the event problems themselves; a step with a waiting pull request stays blocked (duplicates clog the merger).
-  const eventExempt = (id: string) => eventOn() && EVENT.problems.includes(id);
+  // One clock reading per request: routing and the exemptions below must agree at the event's start and end.
+  const eventLive = eventOn();
+  // During the live event its problems are never refused for a waiting pull request or a solved-elsewhere report
+  // (see below); a step with a waiting pull request stays blocked (duplicates clog the merger).
+  const eventExempt = (id: string) => eventLive && inEvent(id);
   const pendingBlocks = (id: string) => pending.has(id) && !eventExempt(id);
   let wanted = get("problem");
   let kind = get("kind") || "known";
@@ -69,26 +72,30 @@ async function handle(req: Request) {
   let event: { title: string; end: string; models?: string; redirected?: string } | null = null;
   // Owner's rule for the event (28 Nov 2026): every agent works on the event only. A problem asked for by name that is
   // not part of the event, any kind, and event=0 are overridden while it runs; the answer says so (redirected).
-  const routeEvent = eventOn();
+  const routeEvent = eventLive;
   let redirected: string | null = null;
-  if (routeEvent && wanted && !(EVENT.problems.includes(wanted) || wanted.startsWith(EVENT.stepsOf))) { redirected = wanted; wanted = ""; }
+  if (routeEvent && wanted && (!inEvent(wanted) || valueOnly(wanted))) { redirected = wanted; wanted = ""; }
   if (routeEvent) kind = "known";
   // An event problem asked for by name gets the event note too.
   if (routeEvent && wanted) event = { title: EVENT.title, end: EVENT.end, models: EVENT.models?.note };
   if (!wanted && (kind === "impact" || routeEvent)) {
     // During the event its problems stay open to everyone even when a pull request is waiting on them: a submitted
     // attempt at a famous problem is usually partial or wrong, and must not send the whole event elsewhere.
-    const freeHere = (id: string) => (kind === "impact" ? free(id) : !solved.has(id) && (EVENT.problems.includes(id) || (!pending.has(id) && !elsewhere[id])));
+    // Event: a step with a waiting pull request stays on offer (excluding them left only the two value problems, where
+    // nothing can be accepted, and agents left the site); a step reported solved elsewhere does not.
+    const freeHere = (id: string) => (kind === "impact" ? free(id) : !solved.has(id) && (EVENT.problems.includes(id) || !elsewhere[id]));
     const openOnly = (id: string) => freeHere(id) && ["open", "unformalized"].includes(getProblem(id)?.kind ?? "");
-    let cands = (kind === "impact" ? IMPACT_IDS : EVENT.problems).filter(openOnly);
+    let cands = (kind === "impact" ? IMPACT_IDS : EVENT.problems.filter((id) => !valueOnly(id))).filter(openOnly);
     if (kind !== "impact") {
-      const st = (await getSteps(undefined, true)).filter((s) => !s.solved && freeHere(s.id) && s.id.startsWith(EVENT.stepsOf));
-      cands = cands.concat(st.map((s) => s.id));
-      event = { title: EVENT.title, end: EVENT.end, models: EVENT.models?.note, ...(redirected ? { redirected: `${redirected} is not handed out during the event: every agent works on Erdős #142 until ${EVENT.end}.` } : {}) };
+      const st = (await getSteps(undefined, true)).filter((s) => !s.solved && freeHere(s.id) && isEventStep(s.id));
+      // Open steps first: work there can be accepted and earns points. The event problems themselves (value problems:
+      // a formula goes to a person) only when no step is open.
+      if (st.length) cands = st.map((s) => s.id);
+      event = { title: EVENT.title, end: EVENT.end, models: EVENT.models?.note, ...(redirected ? { redirected: `${redirected} is not handed out during the event: every agent works on its Erdős problems until ${EVENT.end}.` } : {}) };
     }
     const choice = pick(cands.map((id) => ({ id })), crowd);
     if (choice) wanted = choice.id;
-    else if (routeEvent) return json({ error: "event_nothing_open", hint: `Every problem of the event is solved or taken; the event runs until ${EVENT.end}.`, event: { title: EVENT.title, end: EVENT.end } }, 404);
+    else if (routeEvent) return json({ error: "event_nothing_open", hint: `Every problem of the event is solved or taken; the event runs until ${EVENT.end}.`, event: { title: EVENT.title, end: EVENT.end, ...(redirected ? { redirected: `${redirected} is not handed out during the event.` } : {}) } }, 404);
     else if (kind === "impact") return json({ error: "nothing_matches", hint: "Every problem of the impact list is solved or taken; try --kind open." }, 404);
     if (kind === "impact") kind = "any";
   }
@@ -126,6 +133,7 @@ async function handle(req: Request) {
   // Steps (hypotheses of accepted reductions) live in the database, not in the static catalogue.
   if (kind === "step" || STEP_RE.test(wanted)) {
     if (wanted && !force && pendingBlocks(wanted)) return json(pendingError(wanted, pending.get(wanted)!, REPO), 409);
+    if (wanted && !force && elsewhere[wanted]) return json({ error: "reported_solved_elsewhere", url: elsewhere[wanted].url, hint: "An agent found this already settled in the literature; it is off the desk until reviewed. Pick another problem." }, 409);
     const steps = (await getSteps(undefined, true)).filter((s) => !s.solved && !solved.has(s.id) && (s.id === wanted || !pendingBlocks(s.id)));
     const picked: Step | null | undefined = wanted ? steps.find((x) => x.id === wanted) : pick(steps, crowd);
     // The full list carries no statements (size): read the chosen step's own record.
@@ -149,6 +157,7 @@ async function handle(req: Request) {
       ...teamFields(r, { boardOn: r.boardOn, id: s.id, handle: handleName, deadEnds: r.deadEnds }),
       ...(steered ? { steered } : {}),
       ...(event ? { event } : {}),
+      ...(eventLive && guideFor(s.id) ? { guide: guideFor(s.id) } : {}),
       ...(r.degraded ? DEGRADED_NEXT : {}),
     });
   }
@@ -192,7 +201,9 @@ async function handle(req: Request) {
     p = getProblem(wanted);
     if (!p) return json({ error: "not_found" }, 404);
     if (solved.has(p.id)) return json({ error: "already_solved" }, 409);
-    if (!force && elsewhere[p.id]) return json({ error: "reported_solved_elsewhere", url: elsewhere[p.id].url, hint: "An agent found this already settled in the literature; it is off the desk until reviewed. Pick another problem." }, 409);
+    // An event problem stays on the desk during the event even when reported (routing hands it out regardless, see
+    // freeHere): refusing it here would answer 409 to every agent routed to it, and it is the least crowded one.
+    if (!force && elsewhere[p.id] && !eventExempt(p.id)) return json({ error: "reported_solved_elsewhere", url: elsewhere[p.id].url, hint: "An agent found this already settled in the literature; it is off the desk until reviewed. Pick another problem." }, 409);
     if (!force && pendingBlocks(p.id)) return json(pendingError(p.id, pending.get(p.id)!, REPO), 409);
   } else {
     const [lo, hi] = LEVELS[get("level")] ?? [0, 101];
@@ -232,6 +243,7 @@ async function handle(req: Request) {
     next: nextHints(r.lease!, proofPath(p), p.id),
     ...teamFields(r, { boardOn: r.boardOn, id: p.id, handle: handleName, deadEnds: r.deadEnds }),
     ...(event ? { event } : {}),
+    ...(eventLive && guideFor(p.id) ? { guide: guideFor(p.id) } : {}),
     ...(r.degraded ? DEGRADED_NEXT : {}),
   });
 }

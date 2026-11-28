@@ -4,84 +4,50 @@ import OMAStatements.S_oeis_a182025
 -- Upstream: formal-conjectures statements/oeis-a182025.lean:0 (declaration OMA.S_oeis_a182025.main)
 -- Credit: @agchua (the owner of the agent is credited as the solver)
 -- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
--- Proof idea: Sum_{j<=k} (m+4-j) C(2m+8,j) = (m+4) C(2m+7,k) telescopes the sum, so 2a(n) = (n+58) C(2n,n+4) for all n; with (j+8) j C(2j+8,j+8) = 2(j+4)(2j+7) C(2j+6,j+7) the recurrence is a linear combination.
 
-open OMA.S_oeis_a182025 in
+open scoped BigOperators
+
+namespace OMA.P_oeis_a182025
+
+private lemma weighted_prefix (n k : ℕ) (hk : k ≤ n) :
+    2 * (∑ j ∈ Finset.range k, (n - j) * (2 * n).choose j) =
+      k * (2 * n).choose k := by
+  induction k with
+  | zero => simp
+  | succ k ih =>
+    rw [Finset.sum_range_succ, Nat.mul_add, ih (by omega)]
+    rw [← Nat.mul_assoc, ← Nat.add_mul, show k + 2 * (n - k) = 2 * n - k by omega]
+    rw [Nat.mul_comm (2 * n - k), Nat.mul_comm (k + 1), Nat.choose_succ_right_eq]
+
+private lemma weighted_tail (n : ℕ) (hn : 4 ≤ n) :
+    2 * (∑ i ∈ Finset.Icc 1 (n - 4), (2 * n).choose (n - 4 - i) * (4 + i)) =
+      (n - 4) * (2 * n).choose (n - 4) := by
+  have h :
+      (∑ i ∈ Finset.Icc 1 (n - 4), (2 * n).choose (n - 4 - i) * (4 + i)) =
+      ∑ i ∈ Finset.Ico 1 (n - 4 + 1),
+        (n - (n - 4 - i)) * (2 * n).choose (n - 4 - i) := by
+    refine Finset.sum_congr (by ext i; simp) fun i hi => ?_
+    have hi' := Finset.mem_Icc.mp hi
+    rw [show n - (n - 4 - i) = 4 + i by omega, Nat.mul_comm]
+  rw [h, Finset.sum_Ico_reflect (fun j => (n - j) * (2 * n).choose j) 1
+    (n := n - 4) (m := n - 4 + 1) le_rfl, Nat.sub_self, Nat.add_sub_cancel,
+    Nat.Ico_zero_eq_range]
+  exact weighted_prefix n (n - 4) (by omega)
+
+end OMA.P_oeis_a182025
+
+open OMA.S_oeis_a182025 OMA.P_oeis_a182025 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a182025.main := by
-  have hpart : ∀ m k : ℕ, k ≤ 2 * m + 7 →
-      ∑ j ∈ Finset.range (k + 1), ((m : ℤ) + 4 - (j : ℤ)) * ((2 * m + 8).choose j : ℤ)
-        = ((m : ℤ) + 4) * ((2 * m + 7).choose k : ℤ) := by
-    intro m k
-    induction k with
-    | zero =>
-      intro _
-      simp
-    | succ k ih =>
-      intro hk
-      rw [Finset.sum_range_succ, ih (by omega)]
-      have p1 := Nat.choose_succ_succ' (2 * m + 7) k
-      rw [show 2 * m + 7 + 1 = 2 * m + 8 by omega] at p1
-      have p2 := Nat.choose_succ_right_eq (2 * m + 7) k
-      have p1' : ((2 * m + 8).choose (k + 1) : ℤ)
-          = ((2 * m + 7).choose k : ℤ) + ((2 * m + 7).choose (k + 1) : ℤ) := by
-        exact_mod_cast p1
-      have p2' : ((2 * m + 7).choose (k + 1) : ℤ) * ((k : ℤ) + 1)
-          = ((2 * m + 7).choose k : ℤ) * (2 * (m : ℤ) + 7 - (k : ℤ)) := by
-        have h := congrArg (Nat.cast : ℕ → ℤ) p2
-        push_cast [Nat.cast_sub (show k ≤ 2 * m + 7 by omega)] at h
-        linear_combination h
-      push_cast
-      linear_combination ((m : ℤ) + 3 - (k : ℤ)) * p1' - p2'
-  have hclosed : ∀ n : ℕ, 2 * a n = ((n : ℤ) + 58) * ((2 * n).choose (n + 4) : ℤ) := by
-    intro n
-    rcases Nat.lt_or_ge n 4 with h | h
-    · unfold a
-      rw [if_pos h, Nat.choose_eq_zero_of_lt (by omega : 2 * n < n + 4)]
-      simp
-    rcases Nat.eq_or_lt_of_le h with h4 | h5
-    · subst h4
-      norm_num [a]
-    obtain ⟨p, rfl⟩ : ∃ p, n = p + 5 := ⟨n - 5, by omega⟩
-    unfold a
-    rw [if_neg (by omega), show p + 5 - 4 = p + 1 by omega]
-    have hre : ∑ i ∈ Finset.Icc 1 (p + 1), ((2 * (p + 5)).choose (p + 1 - i) : ℤ) * (4 + (i : ℤ))
-        = ∑ j ∈ Finset.range (p + 1),
-            (((p + 1 : ℕ) : ℤ) + 4 - (j : ℤ)) * ((2 * (p + 1) + 8).choose j : ℤ) := by
-      refine Finset.sum_nbij' (fun i => p + 1 - i) (fun j => p + 1 - j) ?_ ?_ ?_ ?_ ?_
-      · intro i hi
-        simp only [Finset.mem_Icc] at hi
-        simp only [Finset.mem_range]
-        omega
-      · intro j hj
-        simp only [Finset.mem_range] at hj
-        simp only [Finset.mem_Icc]
-        omega
-      · intro i hi
-        simp only [Finset.mem_Icc] at hi
-        show p + 1 - (p + 1 - i) = i
-        omega
-      · intro j hj
-        simp only [Finset.mem_range] at hj
-        show p + 1 - (p + 1 - j) = j
-        omega
-      · intro i hi
-        simp only [Finset.mem_Icc] at hi
-        show ((2 * (p + 5)).choose (p + 1 - i) : ℤ) * (4 + (i : ℤ))
-          = (((p + 1 : ℕ) : ℤ) + 4 - ((p + 1 - i : ℕ) : ℤ)) * ((2 * (p + 1) + 8).choose (p + 1 - i) : ℤ)
-        rw [show 2 * (p + 1) + 8 = 2 * (p + 5) by ring, Nat.cast_sub hi.2]
-        push_cast
-        ring
-    rw [hre, hpart (p + 1) p (by omega)]
-    have hsym : (2 * (p + 5)).choose (p + 5 + 4) = (2 * (p + 5)).choose (p + 1) :=
-      Nat.choose_symm_of_eq_add (by ring)
-    have habs := Nat.add_one_mul_choose_eq (2 * (p + 1) + 7) p
-    rw [show 2 * (p + 1) + 7 + 1 = 2 * (p + 5) by ring] at habs
-    have hz : 2 * ((p : ℤ) + 5) * ((2 * (p + 1) + 7).choose p : ℤ)
-        = ((2 * (p + 5)).choose (p + 1) : ℤ) * ((p : ℤ) + 1) := by
-      exact_mod_cast habs
-    rw [hsym]
-    push_cast
-    linear_combination hz
+  have hclosed (n : ℕ) : 2 * a n = ((n : ℤ) + 58) * ((2 * n).choose (n + 4) : ℤ) := by
+    by_cases hn : n < 4
+    · simp [a, hn, Nat.choose_eq_zero_of_lt (show 2 * n < n + 4 by omega)]
+    · have h4 : 4 ≤ n := by omega
+      have ht := congrArg (Nat.cast : ℕ → ℤ) (weighted_tail n h4)
+      push_cast [Nat.cast_sum, Nat.cast_sub h4] at ht
+      have hs : (2 * n).choose (n + 4) = (2 * n).choose (n - 4) :=
+        Nat.choose_symm_of_eq_add (by omega)
+      rw [a, if_neg hn, hs]
+      linear_combination ht
   have hR : ∀ j : ℕ, ((j : ℤ) + 8) * (j : ℤ) * ((2 * j + 8).choose (j + 8) : ℤ)
       = 2 * ((j : ℤ) + 4) * (2 * (j : ℤ) + 7) * ((2 * j + 6).choose (j + 7) : ℤ) := by
     intro j

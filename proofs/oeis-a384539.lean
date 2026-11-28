@@ -1,700 +1,603 @@
 import OMAStatements.S_oeis_a384539
-import Mathlib
-
--- Credit: @grp06
 
 /-!
-OEIS A384539.
-Problem and sequence data from The OEIS Foundation Inc. (CC BY-SA 4.0):
-https://oeis.org/A384539/internal and https://oeis.org/A384539/b384539.txt
-The official Lean statement is credited to Sai-yr.
-Middle-split argument and parameter ranges adapted from the task dossier
-`library-scout/digit-split-0215/route.md`.
+Three consecutive splits around the centre force one linear relation in the
+scale `10^(k-1)`. The constant difference is below 10^8, whereas a zero
+linear coefficient would make the product of the outer quotients exactly 100.
+The two positive central differences require that product to exceed 100.
+Thus only finitely many half-lengths remain. The finite checker derives the
+possible left half by division and verifies the original split test.
 -/
 
-namespace A384539
 
-open OMA.S_oeis_a384539 (term entries)
+/-! An arithmetic constraint on three consecutive divisible decimal splits. -/
 
-private theorem decimal_succ (j : ℕ) : (10 : ℕ)^(j+1) = 10*10^j := by
-  rw [pow_succ, Nat.mul_comm (10^j) 10]
+namespace OMA.DecimalSplit
 
-private theorem quotient_mod {n P L R : ℕ}
-    (hp : 0 < P) (hr : R < P) (hn : n = P * L + R) :
-    n / P = L ∧ n % P = R := by
-  rw [hn, Nat.mul_add_div hp, Nat.mul_add_mod, Nat.div_eq_of_lt hr, Nat.mod_eq_of_lt hr,
-    Nat.add_zero]
-  exact ⟨rfl, rfl⟩
+private theorem coefficient_zero {x q r : ℤ} (hq : 0 < q)
+    (hr0 : -q < r) (hr1 : r < q) (h : x*q = r) : x = 0 := by
+  by_contra hn
+  rcases (show x ≤ -1 ∨ 1 ≤ x by omega) with hl | hl
+  · have g := mul_le_mul_of_nonneg_right hl hq.le
+    rw [h] at g
+    linarith
+  · have g := mul_le_mul_of_nonneg_right hl hq.le
+    rw [h] at g
+    linarith
 
-private theorem suffix_lower {n i : ℕ} (hd : n / 10^i % 10 ≠ 0) :
-    10^i ≤ n % (10 * 10^i) := by
-  let P := 10^i
-  let T := 10 * P
-  let L := n / T
-  let R := n % T
-  let b := R / P
-  let D := R % P
-  have hp : 0 < P := by dsimp [P]; positivity
-  have ht : 0 < T := by dsimp [T]; omega
-  have hR : R < T := Nat.mod_lt _ ht
-  have hb : b < 10 := (Nat.div_lt_iff_lt_mul hp).2 hR
-  have hD : D < P := Nat.mod_lt _ hp
-  have hRD : P * b + D = R := Nat.div_add_mod _ _
-  have hn : n = P * (10 * L + b) + D := calc
-    n = T * L + R := (Nat.div_add_mod _ _).symm
-    _ = T * L + (P * b + D) := by rw [hRD]
-    _ = P * (10 * L + b) + D := by dsimp [T]; ring
-  have hq := (quotient_mod hp hD hn).1
-  change n / P % 10 ≠ 0 at hd
-  rw [hq, Nat.mul_add_mod, Nat.mod_eq_of_lt hb] at hd
-  change P ≤ R
-  change b ≠ 0 at hd
-  have h := (Nat.le_div_iff_mul_le hp).1 (Nat.pos_of_ne_zero hd)
-  simpa only [Nat.one_mul] using h
-
-private theorem prefix_bounds {n i j : ℕ} (hn : n ≠ 0)
-    (hl : Nat.log 10 n = i + j) :
-    10^j ≤ n / 10^i ∧ n / 10^i < 10 * 10^j := by
-  have hp : 0 < (10 : ℕ)^i := by positivity
-  constructor
-  · apply (Nat.le_div_iff_mul_le hp).2
-    rw [Nat.mul_comm, ← pow_add, ← hl]
-    exact Nat.pow_log_le_self 10 hn
-  · apply (Nat.div_lt_iff_lt_mul hp).2
-    calc
-      n < 10^(Nat.log 10 n + 1) := Nat.lt_pow_succ_log_self (by decide) n
-      _ = (10 * 10^j) * 10^i := by
-        rw [hl, pow_succ, pow_add]
-        ring
-
-private theorem split_at {n i P L R : ℕ} (ht : term n)
-    (hi : i < Nat.log 10 n) (hp : 10^(i+1) = P) (hr : R < P)
-    (hn : n = P * L + R) : L ∣ R ∨ R ∣ L := by
-  have hp' : 0 < P := by rw [← hp]; positivity
-  have h := ht.2.2 i (List.mem_range.mpr hi)
-  rw [hp, (quotient_mod hp' hr hn).1, (quotient_mod hp' hr hn).2] at h
-  exact h
-
-private theorem bounded_divisor {L S low bound : ℕ}
-    (hL : 0 < L) (hlo : low ≤ S) (hhi : L < bound * low) (hd : S ∣ L) :
-    ∃ q : ℕ, 0 < q ∧ q < bound ∧ L = q * S := by
-  obtain ⟨q, hq⟩ := hd
-  have he : L = q * S := by simpa only [Nat.mul_comm S q] using hq
-  have hqp : 0 < q := by
-    by_contra! h
-    have hz : q = 0 := by omega
-    simp [hz] at he
+theorem midpoint_bound {A B P Q R a b u v f g : ℤ}
+    (hA : A = 10*P+a) (hB : B=b*Q+R) (hc : v*B=u*A)
+    (hl : g*P=10*a*Q+B) (hr : f*R=10*A+b)
+    (hP : 0 < P) (hQ : 0 < Q) (ha : 0 < a) (ha' : a ≤ 9)
+    (hb : 0 < b) (hb' : b ≤ 9) (hu : 0 < u) (hu' : u ≤ 9)
+    (hv : 0 < v) (hv' : v ≤ 99) (hf : 0 < f) (hg : 0 < g)
+    (hg' : g < 1000) (hfg : f*g < 1000000) :
+    Q < 100000000 := by
+  let D := v*g-10*u
+  let C := f*u-10*v
+  have hDP : D*P = a*(10*v*Q+u) := by
+    dsimp [D]
+    linear_combination v*hl + hc + u*hA
+  have hD : 0 < D := by
+    have hp : 0 < a*(10*v*Q+u) := by positivity
+    by_contra hd
+    have hneg := mul_nonpos_of_nonpos_of_nonneg (le_of_not_gt hd) hP.le
+    rw [hDP] at hneg
     omega
-  refine ⟨q, hqp, ?_, he⟩
-  by_contra! h
-  have h' := Nat.mul_le_mul h hlo
-  omega
+  have hDA : D*A = a*v*(100*Q+g) := by
+    calc
+      D*A = 10*(D*P)+D*a := by rw [hA]; ring
+      _ = a*v*(100*Q+g) := by rw [hDP]; dsimp [D]; ring
+  have hCA : C*A = b*v*(f*Q+1) := by
+    dsimp [C]
+    linear_combination -f*hc + f*v*hB + v*hr
+  have hApos : 0 < A := by rw [hA]; positivity
+  have hC : 0 < C := by
+    have hp : 0 < b*v*(f*Q+1) := by positivity
+    by_contra hd
+    have hneg := mul_nonpos_of_nonpos_of_nonneg (le_of_not_gt hd) hApos.le
+    rw [hCA] at hneg
+    omega
+  have hcros : C*a*(100*Q+g) = D*b*(f*Q+1) := by
+    apply mul_left_cancel₀ hv.ne'
+    linear_combination D*hCA - C*hDA
+  have hcoeff : (100*C*a - D*b*f)*Q = D*b - C*a*g := by
+    linear_combination hcros
+  have hD' : D ≤ v*g := by dsimp [D]; linarith
+  have hC' : C ≤ f*u := by dsimp [C]; linarith
+  have hDb : D*b < 100000000 := by
+    have h0 := mul_le_mul_of_nonneg_right hD' hb.le
+    have h1 : v*g ≤ 99*1000 :=
+      mul_le_mul hv' (le_of_lt hg') hg.le (by decide)
+    have h2 := mul_le_mul h1 hb' hb.le (show (0:ℤ) ≤ 99*1000 by decide)
+    calc
+      D*b ≤ v*g*b := h0
+      _ ≤ 99*1000*9 := h2
+      _ < 100000000 := by decide
+  have hCag : C*a*g < 100000000 := by
+    have h0 := mul_le_mul_of_nonneg_right hC' (show 0 ≤ a*g by positivity)
+    have h1 : u*a ≤ 81 := by
+      simpa using mul_le_mul hu' ha' ha.le (show (0:ℤ) ≤ 9 by decide)
+    have h2 := mul_le_mul (le_of_lt hfg) h1 (show 0 ≤ u*a by positivity)
+      (show (0:ℤ) ≤ 1000000 by decide)
+    calc
+      C*a*g = C*(a*g) := by ring
+      _ ≤ (f*u)*(a*g) := h0
+      _ = (f*g)*(u*a) := by ring
+      _ ≤ 1000000*81 := h2
+      _ < 100000000 := by decide
+  by_contra hlarge
+  have hDbpos : 0 < D*b := by positivity
+  have hCagpos : 0 < C*a*g := by positivity
+  have hzero := coefficient_zero hQ (by omega) (by omega) hcoeff
+  have hconstant : D*b = C*a*g := by rw [hzero, zero_mul] at hcoeff; linarith
+  have hprod : (C*a)*(100-f*g) = 0 := by
+    linear_combination hzero + f*hconstant
+  have hCa : 0 < C*a := by positivity
+  have h100 : f*g = 100 := by
+    rcases mul_eq_zero.mp hprod with h | h
+    · exact (hCa.ne' h).elim
+    · omega
+  have l : 10*u < v*g := by dsimp [D] at hD; omega
+  have r : 10*v < f*u := by dsimp [C] at hC; omega
+  have bad : 10*u*(10*v) < v*g*(f*u) :=
+    mul_lt_mul'' l r (by positivity) (by positivity)
+  have eq : v*g*(f*u) = 10*u*(10*v) := by
+    calc
+      v*g*(f*u) = u*v*(f*g) := by ring
+      _ = 10*u*(10*v) := by rw [h100]; ring
+  exact (ne_of_lt bad) eq.symm
 
-private theorem shorter_divides {L S : ℕ} (hS : 0 < S) (hlt : S < L)
-    (hd : L ∣ S ∨ S ∣ L) : S ∣ L := by
-  rcases hd with h | h
-  · exact (not_le_of_gt hlt (Nat.le_of_dvd hS h)).elim
-  · exact h
+end OMA.DecimalSplit
 
-private structure EvenData (n C : ℕ) where
+
+/-! A large term has three consecutive divisible splits around its centre. -/
+
+namespace OMA.DecimalSplit
+
+open OMA.S_oeis_a384539
+
+private theorem digitTimesBase_lt {a B T : ℕ} (ha : a < 10) (hB : B < T) :
+    a*T+B < 10*T := by
+  have h := Nat.mul_le_mul_right T (show a ≤ 9 by omega)
+  calc
+    a*T+B ≤ 9*T+B := Nat.add_le_add_right h _
+    _ < 10*T := by omega
+
+private theorem topDigit_remainder (n e : ℕ)
+    (h : n / 10^e % 10 ≠ 0) : 10^e ≤ n % 10^(e+1) := by
+  let d : ℕ := 10^e
+  let a := n/d%10
+  let b := n%d
+  have hd : 0 < d := by dsimp [d]; positivity
+  have ha : 0 < a := Nat.pos_of_ne_zero h
+  have ha' : a < 10 := Nat.mod_lt _ (by decide)
+  have hb : b < d := Nat.mod_lt _ hd
+  have h₀ : n = d*(n/d)+b := (Nat.div_add_mod n d).symm
+  have h₁ : n/d = 10*(n/d/10)+a := (Nat.div_add_mod (n/d) 10).symm
+  have hrem : a*d+b < d*10 := by simpa [Nat.mul_comm d 10] using digitTimesBase_lt ha' hb
+  have h₂ : n = (d*10)*(n/d/10)+(a*d+b) := by
+    conv_lhs => rw [h₀,h₁]
+    ring
+  have he : n%(d*10) = a*d+b := by
+    conv_lhs => rw [h₂, Nat.mul_add_mod, Nat.mod_eq_of_lt hrem]
+  rw [pow_succ]
+  change d ≤ n%(d*10)
+  rw [he]
+  exact (by simpa using Nat.mul_le_mul_right d (show 1 ≤ a by omega) : d ≤ a*d).trans
+    (Nat.le_add_right _ _)
+
+private theorem larger_dvd {a b : ℕ} (ha : 0 < a) (hab : a < b)
+    (h : a ∣ b ∨ b ∣ a) : a ∣ b :=
+  h.resolve_right (fun hd => (not_le_of_gt hab) (Nat.le_of_dvd ha hd))
+
+private theorem quotient_lt {p s x m : ℕ} (hsp : s ≤ p)
+    (h : x*p < m*s) : x < m :=
+  Nat.lt_of_mul_lt_mul_right ((Nat.mul_le_mul_left x hsp).trans_lt h)
+
+private structure Center (n k : ℕ) where
   A : ℕ
   B : ℕ
-  a : ℕ
-  b : ℕ
-  D : ℕ
-  U : ℕ
-  q : ℕ
-  r : ℕ
-  k : ℕ
-  number : n = (10*C)*A + B
-  front : A = 10*U + a
-  back : B = C*b + D
-  Apos : 0 < A
-  Bpos : 0 < B
-  digitA : 0 < a ∧ a < 10
-  digitB : 0 < b ∧ b < 10
-  shortBack : C ≤ 10*D
-  left : 10*A + b = q*D
-  right : (10*C)*a + B = r*U
-  qBound : 0 < q ∧ q < 1000
-  rBound : 0 < r ∧ r < 1000
-  kBound : 0 < k ∧ k < 10
-  center : A = k*B ∨ B = k*A
-  Aband : C ≤ A ∧ A < 10*C
-  Bband : C ≤ B ∧ B < 10*C
+  u : ℕ
+  v : ℕ
+  f : ℕ
+  g : ℕ
+  expansion : n = A*10^k+B
+  leftDigitPos : 0 < A%10
+  leftPos : 0 < A/10
+  rightPos : 0 < B%10^(k-1)
+  rightLow : 10^(k-1) ≤ B
+  rightHigh : B < 10^k
+  middle : v*B=u*A
+  left : g*(A/10)=A%10*10^k+B
+  right : f*(B%10^(k-1))=10*A+B/10^(k-1)
+  fpos : 0 < f
+  gpos : 0 < g
+  product : f*g < 1000000
+  shape :
+    (10^(k-1)≤A ∧ A<10^k ∧
+      ((u=1 ∧ 0<v ∧ v<10) ∨ (v=1 ∧ 0<u ∧ u<10)) ∧ g<1000) ∨
+    (10^k≤A ∧ A<10^(k+1) ∧ u=1 ∧ 1<v ∧ v<100 ∧ g<100)
 
-private structure OddData (n C : ℕ) where
-  A : ℕ
-  B : ℕ
-  a : ℕ
-  b : ℕ
-  D : ℕ
-  q : ℕ
-  r : ℕ
-  s : ℕ
-  number : n = (10*C)*(10*A+a) + B
-  back : B = C*b + D
-  Apos : 0 < A
-  Bpos : 0 < B
-  digitA : 0 < a ∧ a < 10
-  digitB : 0 < b ∧ b < 10
-  left : 10*A+a = q*B
-  right : a*(10*C)+B = r*A
-  outer : 10*(10*A+a)+b = s*D
-  qBound : 0 < q ∧ q < 100
-  rBound : 0 < r ∧ r < 100
-  sBound : 0 < s ∧ s < 10000
-  Aband : C ≤ A ∧ A < 10*C
-  Bband : C ≤ B ∧ B < 10*C
-
-private theorem even_data {n j : ℕ} (hj : 0 < j) (ht : term n)
-    (hl : Nat.log 10 n = 2*j+1) : Nonempty (EvenData n (10^j)) := by
-  let C := (10 : ℕ)^j
-  let W := (10 : ℕ)^(j-1)
-  let T := 10*C
+set_option maxHeartbeats 3000000 in
+private theorem extract_center {n k : ℕ} (hk : 2 ≤ k)
+    (hLen : Nat.log 10 n + 1 = 2*k ∨ Nat.log 10 n + 1 = 2*k+1)
+    (hterm : term n) : Nonempty (Center n k) := by
+  obtain ⟨hn, hz, hdiv⟩ := hterm
+  have digit (i : ℕ) (hi : i ≤ Nat.log 10 n) : n / 10^i % 10 ≠ 0 :=
+    hz i (List.mem_range.mpr (by omega))
+  have split (j : ℕ) (hj : 0 < j) (hj' : j ≤ Nat.log 10 n) :
+      n / 10^j ∣ n % 10^j ∨ n % 10^j ∣ n / 10^j := by
+    have h := hdiv (j-1) (List.mem_range.mpr (by omega))
+    simpa only [show j-1+1=j by omega] using h
+  let T : ℕ := 10^k
+  let Q : ℕ := 10^(k-1)
+  let S : ℕ := 10^(k-2)
+  have hT : T = 10*Q := by
+    dsimp [T,Q]
+    conv_lhs => rw [show k=(k-1)+1 by omega]
+    rw [pow_succ, Nat.mul_comm]
+  have hQ : Q = 10*S := by
+    dsimp [Q,S]
+    conv_lhs => rw [show k-1=(k-2)+1 by omega]
+    rw [pow_succ, Nat.mul_comm]
+  have tpos : 0 < T := by dsimp [T]; positivity
+  have qpos : 0 < Q := by dsimp [Q]; positivity
+  have spos : 0 < S := by dsimp [S]; positivity
   let A := n/T
   let B := n%T
-  let U := A/10
+  let P := A/10
+  let R := B%Q
   let a := A%10
-  let b := B/C
-  let D := B%C
-  have hc : 0 < C := by dsimp [C]; positivity
-  have hw : 0 < W := by dsimp [W]; positivity
-  have hJ : j-1+1 = j := by omega
-  have hcw : C = 10*W := by
-    simpa only [C, W, hJ] using decimal_succ (j-1)
-  have htpos : 0 < T := by dsimp [T]; omega
-  have hpT : (10 : ℕ)^(j+1) = T := decimal_succ j
-  have hpTT : (10 : ℕ)^(j+1+1) = 10*T := by
-    calc
-      (10 : ℕ)^(j+1+1) = 10*10^(j+1) := decimal_succ (j+1)
-      _ = 10*T := congrArg (fun x : ℕ => 10*x) hpT
-  have hpC : (10 : ℕ)^(j-1+1) = C := by rw [hJ]
-  have hn : n = T*A+B := (Nat.div_add_mod _ _).symm
-  have hA : A = 10*U+a := (Nat.div_add_mod _ _).symm
-  have hB : B = C*b+D := (Nat.div_add_mod _ _).symm
-  have hAt : C ≤ A ∧ A < T := by
-    have h := prefix_bounds (i := j+1) (j := j) (show n ≠ 0 from by have := ht.1; omega)
-      (show Nat.log 10 n = j+1+j by omega)
-    rw [hpT] at h
+  let b := B/Q
+  have hexp : n = A*T+B := by simpa [A,B,Nat.mul_comm] using (Nat.div_add_mod n T).symm
+  have hA : A = 10*P+a := (Nat.div_add_mod A 10).symm
+  have hB : B = b*Q+R := by simpa [b,R,Nat.mul_comm] using (Nat.div_add_mod B Q).symm
+  have hBlt : B < T := Nat.mod_lt _ tpos
+  have hBge : Q ≤ B := by
+    have h := topDigit_remainder n (k-1) (digit _ (by omega))
+    simpa [T,Q,B,show k-1+1=k by omega] using h
+  have hRlt : R < Q := Nat.mod_lt _ qpos
+  have hap : 0 < a := Nat.pos_of_ne_zero (digit k (by omega))
+  have ha10 : a < 10 := Nat.mod_lt _ (by decide)
+  have hb10 : b < 10 := (Nat.div_lt_iff_lt_mul qpos).mpr (hT ▸ hBlt)
+  have hlDiv : n/(10*T) = P := by
+    rw [Nat.mul_comm 10 T, ← Nat.div_div_eq_div_mul]
+  have hlMod : n%(10*T) = a*T+B := by
+    have h : a*T+B < 10*T := digitTimesBase_lt ha10 hBlt
+    have e : n=(10*T)*P+(a*T+B) := by rw [hexp,hA]; ring
+    rw [e,Nat.mul_add_mod, Nat.mod_eq_of_lt h]
+  have hrDiv : n/Q = 10*A+b := by
+    have e : n = Q*(10*A)+B := by rw [hexp,hT]; ring
+    rw [e,Nat.mul_add_div qpos]
+  have hrMod : n%Q = R := by
+    change n%Q = B%Q
+    have e : n = Q*(10*A)+B := by rw [hexp,hT]; ring
+    conv_lhs => rw [e,Nat.mul_add_mod]
+  have hRge : S ≤ R := by
+    have h := topDigit_remainder n (k-2) (digit _ (by omega))
+    rw [show k-2+1=k-1 by omega] at h
+    change S ≤ n%Q at h
+    rwa [hrMod] at h
+  have hMiddle : A ∣ B ∨ B ∣ A := split k (by omega) (by omega)
+  have hLeft : P ∣ a*T+B ∨ a*T+B ∣ P := by
+    have h := split (k+1) (by omega) (by omega)
+    rw [show (10:ℕ)^(k+1)=10*T by simp [T,pow_succ,Nat.mul_comm],hlDiv,hlMod] at h
     exact h
-  have hd (i : ℕ) (hi : i ≤ Nat.log 10 n) : n / 10^i % 10 ≠ 0 :=
-    ht.2.1 i (List.mem_range.mpr (by omega))
-  have hBt : C ≤ B ∧ B < T :=
-    ⟨suffix_lower (hd j (by omega)), Nat.mod_lt _ htpos⟩
-  have ha0 : a ≠ 0 := by simpa only [a, A, hpT] using hd (j+1) (by omega)
-  have ha : 0 < a ∧ a < 10 := ⟨Nat.pos_of_ne_zero ha0, Nat.mod_lt _ (by decide)⟩
-  have hb : 0 < b ∧ b < 10 := by
-    have h1 : 1 ≤ b := (Nat.le_div_iff_mul_le hc).2 (by simpa only [Nat.one_mul] using hBt.1)
-    exact ⟨by omega, (Nat.div_lt_iff_lt_mul hc).2 hBt.2⟩
-  have hD : D < C := Nat.mod_lt _ hc
-  have hNC : n = C*(10*A+b)+D := calc
-    n = T*A+B := hn
-    _ = T*A+(C*b+D) := by rw [← hB]
-    _ = C*(10*A+b)+D := by dsimp [T]; ring
-  have hNCC : n = (10*T)*U + (T*a+B) := calc
-    n = T*A+B := hn
-    _ = T*(10*U+a)+B := by rw [← hA]
-    _ = (10*T)*U + (T*a+B) := by ring
-  have hDlo : W ≤ D := by
-    have hh := suffix_lower (hd (j-1) (by omega))
-    change W ≤ n % (10*W) at hh
-    rw [← hcw, (quotient_mod hc hD hNC).2] at hh
-    exact hh
-  have hUlo : W ≤ U := by
-    apply (Nat.le_div_iff_mul_le (by decide : 0 < (10 : ℕ))).2
-    rw [Nat.mul_comm, ← hcw]
-    exact hAt.1
-  have hUhi : U < C := by
-    change A / 10 < C
-    exact (Nat.div_lt_iff_lt_mul (by decide)).2 (by simpa only [T, Nat.mul_comm] using hAt.2)
-  have hRlo : T ≤ T*a+B :=
-    (by simpa only [Nat.mul_one] using Nat.mul_le_mul_left T (show 1 ≤ a by omega) :
-      T ≤ T*a).trans (Nat.le_add_right _ _)
-  have hRhi : T*a+B < 10*T := by
-    have h := Nat.mul_le_mul_left T (show a ≤ 9 by omega)
-    omega
-  have hPlo : C < 10*A+b := by omega
-  have hPhi : 10*A+b < 100*C := by dsimp [T] at hAt; omega
-  obtain ⟨q, hqp, hqb, hq⟩ := bounded_divisor
-    (show 0 < 10*A+b by omega) hDlo
-    (show 10*A+b < 1000*W by omega)
-    (shorter_divides (show 0 < D by omega) (show D < 10*A+b by omega)
-      (split_at ht (i := j-1) (by omega) hpC hD hNC))
-  have hright : U ∣ T*a+B ∨ T*a+B ∣ U :=
-    split_at ht (i := j+1) (by omega) hpTT hRhi hNCC
-  have hUshort : U < T*a+B := hUhi.trans_le
-    ((show C ≤ T by change C ≤ 10*C; omega).trans hRlo)
-  have hRbound : T*a+B < 1000*W := calc
-    T*a+B < 10*T := hRhi
-    _ = 1000*W := by change 10*(10*C) = 1000*W; omega
-  obtain ⟨r, hrp, hrb, hr⟩ := bounded_divisor
-    (htpos.trans_le hRlo) hUlo hRbound
-    (shorter_divides (show 0 < U by omega) hUshort hright.symm)
-  have hcenter := split_at ht (i := j) (by omega) hpT hBt.2 hn
-  have hAp : 0 < A := by have := hAt.1; omega
-  have hBp : 0 < B := by have := hBt.1; omega
-  obtain ⟨k, hkp, hkb, hk⟩ : ∃ k : ℕ, 0 < k ∧ k < 10 ∧ (A = k*B ∨ B = k*A) := by
-    rcases hcenter with h | h
-    · obtain ⟨k, hp, hbnd, he⟩ := bounded_divisor hBp hAt.1 hBt.2 h
-      exact ⟨k, hp, hbnd, Or.inr he⟩
-    · obtain ⟨k, hp, hbnd, he⟩ := bounded_divisor hAp hBt.1 hAt.2 h
-      exact ⟨k, hp, hbnd, Or.inl he⟩
-  exact ⟨⟨A, B, a, b, D, U, q, r, k, hn, hA, hB, hAp, hBp, ha, hb,
-    by omega, hq, hr, ⟨hqp,hqb⟩, ⟨hrp,hrb⟩, ⟨hkp,hkb⟩, hk, hAt, hBt⟩⟩
-
-private theorem odd_data {n j : ℕ} (hj : 0 < j) (ht : term n)
-    (hl : Nat.log 10 n = 2*j+2) : Nonempty (OddData n (10^j)) := by
-  let C := (10 : ℕ)^j
-  let W := (10 : ℕ)^(j-1)
-  let T := 10*C
-  let E := n/T
-  let A := E/10
-  let B := n%T
-  let a := E%10
-  let b := B/C
-  let D := B%C
-  have hc : 0 < C := by dsimp [C]; positivity
-  have hw : 0 < W := by dsimp [W]; positivity
-  have hJ : j-1+1 = j := by omega
-  have hcw : C = 10*W := by
-    simpa only [C, W, hJ] using decimal_succ (j-1)
-  have htpos : 0 < T := by dsimp [T]; omega
-  have hpT : (10 : ℕ)^(j+1) = T := decimal_succ j
-  have hpTT : (10 : ℕ)^(j+1+1) = 10*T := by
-    calc
-      (10 : ℕ)^(j+1+1) = 10*10^(j+1) := decimal_succ (j+1)
-      _ = 10*T := congrArg (fun x : ℕ => 10*x) hpT
-  have hpC : (10 : ℕ)^(j-1+1) = C := by rw [hJ]
-  have hn : n = T*E+B := (Nat.div_add_mod _ _).symm
-  have hE : E = 10*A+a := (Nat.div_add_mod _ _).symm
-  have hB : B = C*b+D := (Nat.div_add_mod _ _).symm
-  have hAt : C ≤ A ∧ A < T := by
-    have h := prefix_bounds (i := j+1+1) (j := j) (show n ≠ 0 from by have := ht.1; omega)
-      (show Nat.log 10 n = j+1+1+j by omega)
-    rw [hpTT, Nat.mul_comm 10 T, ← Nat.div_div_eq_div_mul] at h
-    exact h
-  have hd (i : ℕ) (hi : i ≤ Nat.log 10 n) : n / 10^i % 10 ≠ 0 :=
-    ht.2.1 i (List.mem_range.mpr (by omega))
-  have hBt : C ≤ B ∧ B < T :=
-    ⟨suffix_lower (hd j (by omega)), Nat.mod_lt _ htpos⟩
-  have ha0 : a ≠ 0 := by simpa only [a, E, hpT] using hd (j+1) (by omega)
-  have ha : 0 < a ∧ a < 10 := ⟨Nat.pos_of_ne_zero ha0, Nat.mod_lt _ (by decide)⟩
-  have hb : 0 < b ∧ b < 10 := by
-    have h1 : 1 ≤ b := (Nat.le_div_iff_mul_le hc).2 (by simpa only [Nat.one_mul] using hBt.1)
-    exact ⟨by omega, (Nat.div_lt_iff_lt_mul hc).2 hBt.2⟩
-  have hD : D < C := Nat.mod_lt _ hc
-  have hNC : n = C*(10*E+b)+D := calc
-    n = T*E+B := hn
-    _ = T*E+(C*b+D) := by rw [← hB]
-    _ = C*(10*E+b)+D := by dsimp [T]; ring
-  have hNCC : n = (10*T)*A + (a*T+B) := calc
-    n = T*E+B := hn
-    _ = T*(10*A+a)+B := by rw [← hE]
-    _ = (10*T)*A+(a*T+B) := by ring
-  have hDlo : W ≤ D := by
-    have hh := suffix_lower (hd (j-1) (by omega))
-    change W ≤ n % (10*W) at hh
-    rw [← hcw, (quotient_mod hc hD hNC).2] at hh
-    exact hh
-  have hRlo : T ≤ a*T+B := by
-    have h := Nat.mul_le_mul_right T (show 1 ≤ a by omega)
-    rw [Nat.one_mul] at h
+  have hRight : 10*A+b ∣ R ∨ R ∣ 10*A+b := by
+    have h := split (k-1) (by omega) (by omega)
+    change n/Q ∣ n%Q ∨ n%Q ∣ n/Q at h
+    rwa [hrDiv,hrMod] at h
+  have upper := Nat.lt_pow_succ_log_self (b := 10) (by decide) n
+  have lower := Nat.pow_log_le_self 10 (by omega : n≠0)
+  have hAbounds :
+      (Q≤A ∧ A<T) ∨ (T≤A ∧ A<10*T) := by
+    rcases hLen with e | e
+    · left
+      have l : Nat.log 10 n = (k-1)+k := by omega
+      have r : (Nat.log 10 n).succ = k+k := by omega
+      rw [l,pow_add] at lower
+      rw [r,pow_add] at upper
+      exact ⟨(Nat.le_div_iff_mul_le tpos).mpr lower,
+        (Nat.div_lt_iff_lt_mul tpos).mpr upper⟩
+    · right
+      have l : Nat.log 10 n = k+k := by omega
+      have r : (Nat.log 10 n).succ = (k+1)+k := by omega
+      rw [l,pow_add] at lower
+      rw [r,pow_add,pow_succ] at upper
+      exact ⟨(Nat.le_div_iff_mul_le tpos).mpr lower,
+        (Nat.div_lt_iff_lt_mul tpos).mpr (by simpa only [T,Nat.mul_comm 10] using upper)⟩
+  have hAge : Q ≤ A := hAbounds.elim And.left fun h => by omega
+  have hAlt : A < 10*T := hAbounds.elim (fun h => by omega) And.right
+  have hPge : S ≤ P := (Nat.le_div_iff_mul_le (by decide : 0<10)).mpr (by omega)
+  have hp : 0 < P := spos.trans_le hPge
+  have hRpos : 0 < R := spos.trans_le hRge
+  have hPlt : P < T := (Nat.div_lt_iff_lt_mul (by decide : 0<10)).mpr (by rwa [Nat.mul_comm])
+  have tLower : T ≤ a*T := by simpa using Nat.mul_le_mul_right T (show 1 ≤ a by omega)
+  have heLeft : P ∣ a*T+B := larger_dvd hp (hPlt.trans_le
+    (tLower.trans (Nat.le_add_right _ _))) hLeft
+  have aLower : A ≤ 10*A+b := by
+    have h : A ≤ 10*A := by simpa using Nat.mul_le_mul_right A (by decide : 1 ≤ 10)
     exact h.trans (Nat.le_add_right _ _)
-  have hRhi : a*T+B < 10*T := by
-    have h := Nat.mul_le_mul_right T (show a ≤ 9 by omega)
-    omega
-  have hElo : T ≤ E := by dsimp [T]; omega
-  have hEhi : E < 10*T := by dsimp [T] at hAt ⊢; omega
-  have hAp : 0 < A := by have := hAt.1; omega
-  have hBp : 0 < B := by have := hBt.1; omega
-  obtain ⟨q, hqp, hqb, hq⟩ := bounded_divisor
-    (show 0 < E by omega) hBt.1
-    (show E < 100*C by dsimp [T] at hEhi; omega)
-    (shorter_divides hBp (show B < E by omega)
-      (split_at ht (i := j) (by omega) hpT hBt.2 hn))
-  have hright : A ∣ a*T+B ∨ a*T+B ∣ A :=
-    split_at ht (i := j+1) (by omega) hpTT hRhi hNCC
-  have hRbound : a*T+B < 100*C := calc
-    a*T+B < 10*T := hRhi
-    _ = 100*C := by change 10*(10*C) = 100*C; omega
-  obtain ⟨r, hrp, hrb, hr⟩ := bounded_divisor
-    (htpos.trans_le hRlo) hAt.1 hRbound
-    (shorter_divides hAp (hAt.2.trans_le hRlo) hright.symm)
-  have hPlo : C < 10*E+b := by dsimp [T] at hElo; omega
-  have hPhi : 10*E+b < 1000*C := by dsimp [T] at hEhi; omega
-  obtain ⟨s, hsp, hsb, hs⟩ := bounded_divisor
-    (show 0 < 10*E+b by omega) hDlo
-    (show 10*E+b < 10000*W by omega)
-    (shorter_divides (show 0 < D by omega) (show D < 10*E+b by omega)
-      (split_at ht (i := j-1) (by omega) hpC hD hNC))
-  rw [hE] at hn hq hs
-  exact ⟨⟨A, B, a, b, D, q, r, s, hn, hB, hAp, hBp, ha, hb,
-    hq, hr, hs, ⟨hqp,hqb⟩, ⟨hrp,hrb⟩, ⟨hsp,hsb⟩, hAt, hBt⟩⟩
+  have heRight : R ∣ 10*A+b :=
+    larger_dvd hRpos (hRlt.trans_le (hAge.trans aLower)) hRight.symm
+  obtain ⟨g,hg⟩ := heLeft
+  obtain ⟨f,hf⟩ := heRight
+  have eqG : g*P = a*T+B := by rw [hg,Nat.mul_comm]
+  have eqF : f*R = 10*A+b := by rw [hf,Nat.mul_comm]
+  have gp : 0 < g := by
+    apply Nat.pos_of_ne_zero
+    intro h
+    rw [h, zero_mul] at eqG
+    exact (Nat.ne_of_gt (tpos.trans_le (tLower.trans (Nat.le_add_right _ _)))) eqG.symm
+  have fp : 0 < f := by
+    apply Nat.pos_of_ne_zero
+    intro h
+    rw [h, zero_mul] at eqF
+    exact (Nat.ne_of_gt (qpos.trans_le (hAge.trans aLower))) eqF.symm
+  have gHi : a*T+B < 10*T := digitTimesBase_lt ha10 hBlt
+  rcases hAbounds with ⟨hA0,hA1⟩ | ⟨hA0,hA1⟩
+  · have gBound : g < 1000 :=
+      quotient_lt hPge (by rw [eqG]; omega)
+    have fBound : f < 1000 :=
+      quotient_lt hRge (by rw [eqF]; omega)
+    have hfg := Nat.mul_lt_mul_of_lt_of_lt fBound gBound
+    rcases hMiddle with ⟨u,hu⟩ | ⟨v,hv⟩
+    · have H : 0<u ∧ u<10 := by
+        refine ⟨?_,quotient_lt hAge ?_⟩
+        · by_contra! e; simp [show u=0 by omega] at hu; omega
+        · rw [Nat.mul_comm u, ← hu]
+          omega
+      refine ⟨⟨A,B,u,1,f,g,hexp,hap,hp,hRpos,hBge,hBlt,?_,eqG,eqF,fp,gp,
+        hfg,Or.inl ⟨hA0,hA1,Or.inr ⟨rfl,H⟩,gBound⟩⟩⟩
+      simpa [Nat.mul_comm] using hu
+    · have H : 0<v ∧ v<10 := by
+        refine ⟨?_,quotient_lt hBge ?_⟩
+        · by_contra! e; simp [show v=0 by omega] at hv; omega
+        · rw [Nat.mul_comm v, ← hv]
+          omega
+      refine ⟨⟨A,B,1,v,f,g,hexp,hap,hp,hRpos,hBge,hBlt,?_,eqG,eqF,fp,gp,
+        hfg,Or.inl ⟨hA0,hA1,Or.inl ⟨rfl,H⟩,gBound⟩⟩⟩
+      simpa [Nat.mul_comm] using hv.symm
+  · have pBound : Q ≤ P :=
+      (Nat.le_div_iff_mul_le (by decide : 0<10)).mpr (by omega)
+    have gBound : g < 100 :=
+      quotient_lt pBound (by rw [eqG]; omega)
+    have fBound : f < 10000 :=
+      quotient_lt hRge (by rw [eqF]; omega)
+    have hfg := Nat.mul_lt_mul_of_lt_of_lt fBound gBound
+    have hba : B ∣ A := larger_dvd (qpos.trans_le hBge) (hBlt.trans_le hA0) hMiddle.symm
+    obtain ⟨v,hv⟩ := hba
+    have H : 1<v ∧ v<100 := by
+      refine ⟨?_,quotient_lt hBge ?_⟩
+      · by_contra! e
+        have h := Nat.mul_le_mul_left B e
+        rw [← hv, mul_one] at h
+        exact (not_le_of_gt (hBlt.trans_le hA0)) h
+      · rw [Nat.mul_comm v, ← hv]
+        omega
+    have hA1' : A < 10^(k+1) := by simpa [T,pow_succ,Nat.mul_comm] using hA1
+    refine ⟨⟨A,B,1,v,f,g,hexp,hap,hp,hRpos,hBge,hBlt,?_,eqG,eqF,fp,gp,
+      hfg,Or.inr ⟨hA0,hA1',rfl,H.1,H.2,gBound⟩⟩⟩
+    simpa [Nat.mul_comm] using hv.symm
 
-/-! For a sufficiently long block, compare the coefficients of the power of ten. -/
+end OMA.DecimalSplit
 
-private theorem product_below {x y X Y : ℤ}
-    (hx : 0 ≤ x) (hx' : x < X) (hy' : y < Y) (hY : 0 < Y) :
-    x*y < X*Y :=
-  (mul_le_mul_of_nonneg_left hy'.le hx).trans_lt (mul_lt_mul_of_pos_right hx' hY)
 
-private theorem positive_left {x y z : ℤ}
-    (hy : 0 < y) (hz : 0 < z) (h : x*y = z) : 0 < x := by
-  by_contra! hx
-  have := mul_nonpos_of_nonpos_of_nonneg hx hy.le
+namespace OMA.DecimalSplit
+
+private theorem center_small {n k : ℕ} (hk : 2 ≤ k) (c : Center n k) : k ≤ 8 := by
+  let Q : ℕ := 10^(k-1)
+  let A := c.A
+  let B := c.B
+  let a := A%10
+  let b := B/Q
+  have qt : (10:ℕ)^k = 10*Q := by
+    conv_lhs => rw [show k=k-1+1 by omega, pow_succ,Nat.mul_comm]
+  have qp : 0 < Q := by dsimp [Q]; positivity
+  have aL : 0 < a := c.leftDigitPos
+  have aH : a≤9 := by have := Nat.mod_lt A (by decide : 0<10); omega
+  have bL : 0 < b := by
+    have hB : Q ≤ B := c.rightLow
+    change 0 < B/Q
+    exact Nat.div_pos hB qp
+  have bH : b≤9 := by
+    have hB := c.rightHigh
+    change B < 10^k at hB
+    rw [qt] at hB
+    have hh : B/Q<10 := (Nat.div_lt_iff_lt_mul qp).mpr hB
+    exact Nat.le_of_lt_succ hh
+  have uv : 0<c.u ∧ c.u≤9 ∧ 0<c.v ∧ c.v≤99 ∧ c.g<1000 := by
+    rcases c.shape with ⟨_,_,(⟨hu,hv,hv'⟩ | ⟨hv,hu,hu'⟩),hg⟩ | ⟨_,_,hu,hv,hv',hg⟩ <;>
+      exact ⟨by omega,by omega,by omega,by omega,by omega⟩
+  obtain ⟨uL,uH,vL,vH,gH⟩ := uv
+  have left : c.g*(A/10)=10*a*Q+B := by
+    have h := c.left
+    change c.g*(A/10)=a*10^k+B at h
+    rw [qt] at h
+    calc
+      c.g*(A/10) = a*(10*Q)+B := h
+      _ = 10*a*Q+B := by ring
+  have right : c.f*(B%Q)=10*A+b := c.right
+  have intBound :=
+    midpoint_bound
+      (A := (A:ℤ)) (B := (B:ℤ)) (P := ((A/10 : ℕ):ℤ)) (Q := (Q:ℤ))
+      (R := ((B%Q : ℕ):ℤ)) (a := (a:ℤ)) (b := (b:ℤ))
+      (u := (c.u:ℤ)) (v := (c.v:ℤ)) (f := (c.f:ℤ)) (g := (c.g:ℤ))
+      (by exact_mod_cast (Nat.div_add_mod A 10).symm)
+      (by exact_mod_cast (show B=b*Q+B%Q by simpa [b,Nat.mul_comm] using (Nat.div_add_mod B Q).symm))
+      (by exact_mod_cast c.middle) (by exact_mod_cast left) (by exact_mod_cast right)
+      (by exact_mod_cast c.leftPos) (by exact_mod_cast qp)
+      (by exact_mod_cast aL) (by exact_mod_cast aH) (by exact_mod_cast bL) (by exact_mod_cast bH)
+      (by exact_mod_cast uL) (by exact_mod_cast uH) (by exact_mod_cast vL) (by exact_mod_cast vH)
+      (by exact_mod_cast c.fpos) (by exact_mod_cast c.gpos)
+      (by exact_mod_cast gH) (by exact_mod_cast c.product)
+  have natBound : Q < 100000000 := by exact_mod_cast intBound
+  by_contra! h
+  have large : (10:ℕ)^8 ≤ Q := Nat.pow_le_pow_right (by decide) (by omega)
   omega
 
-private theorem compare_coefficients {C X a b q r u v : ℤ}
-    (hC : 10000000 ≤ C) (ha : 0 < a) (hb : 0 < b)
-    (hu : 0 < u) (hv : 0 < v) (hr : 0 < r)
-    (hsmall₁ : a*r*u < 10000000) (hsmall₂ : b*v < 10000000)
-    (hU : u*X = b*(q*C+1)) (hV : v*X = a*(100*C+r)) :
-    q*r = 100 := by
-  have he : (b*q*v - 100*a*u)*C = a*r*u - b*v := by
-    linear_combination u*hV - v*hU
-  have hpos₁ := mul_pos (mul_pos ha hr) hu
-  have hpos₂ := mul_pos hb hv
-  have hcoeff : b*q*v - 100*a*u = 0 := by
-    rcases lt_trichotomy (b*q*v - 100*a*u) 0 with h | h | h
-    · have hle : b*q*v - 100*a*u ≤ -1 := by omega
-      have hh := mul_le_mul_of_nonneg_right hle (show 0 ≤ C by omega)
-      rw [neg_one_mul] at hh
-      omega
-    · exact h
-    · have hle : 1 ≤ b*q*v - 100*a*u := by omega
-      have hh := mul_le_mul_of_nonneg_right hle (show 0 ≤ C by omega)
-      rw [one_mul] at hh
-      omega
-  have hconst : b*v - a*r*u = 0 := by rw [hcoeff, zero_mul] at he; omega
-  have hzero : (q*r-100)*(a*u) = 0 := by linear_combination hcoeff - q*hconst
-  rcases mul_eq_zero.mp hzero with h | h
-  · omega
-  · exact (ne_of_gt (mul_pos ha hu) h).elim
+end OMA.DecimalSplit
 
-private theorem even_algebra {C A B a b D U q r k : ℤ}
-    (hC : 10000000 ≤ C) (hA : A = 10*U+a) (hB : B = C*b+D)
-    (hAp : 0 < A) (hBp : 0 < B) (ha : 0 < a ∧ a < 10) (hb : 0 < b ∧ b < 10)
-    (hD : C ≤ 10*D) (hq : 10*A+b = q*D) (hr : (10*C)*a+B = r*U)
-    (hqB : 0 < q ∧ q < 1000) (hrB : 0 < r ∧ r < 1000)
-    (hkB : 0 < k ∧ k < 10) (hc : A = k*B ∨ B = k*A) : False := by
-  have hCp : 0 < C := by omega
-  have hRHS₁ : 0 < b*(q*C+1) := mul_pos hb.1 (by have := mul_pos hqB.1 hCp; omega)
-  have hRHS₂ : 0 < a*(100*C+r) := mul_pos ha.1 (by omega)
-  have har := product_below ha.1.le ha.2 hrB.2 (by decide)
-  rcases hc with hk | hk
-  · have hU : (q-10*k)*B = b*(q*C+1) := by linear_combination q*hB - hq + 10*hk
-    have hV : (r*k-10)*B = a*(100*C+r) := by linear_combination r*hA - 10*hr - r*hk
-    have hu := positive_left hBp hRHS₁ hU
-    have hv := positive_left hBp hRHS₂ hV
-    have huhi : q-10*k < 1000 := by omega
-    have hvhi : r*k-10 < 10000 := by
-      have hh := product_below hrB.1.le hrB.2 hkB.2 (by decide)
-      omega
-    have h₁ : a*r*(q-10*k) < 10000000 := by
-      have hh := product_below (mul_pos ha.1 hrB.1).le har huhi (by decide)
-      exact hh
-    have h₂ : b*(r*k-10) < 10000000 := by
-      have hh := product_below hb.1.le hb.2 hvhi (by decide)
-      omega
-    have he := compare_coefficients hC ha.1 hb.1 hu hv hrB.1 h₁ h₂ hU hV
-    have hh := mul_pos hu hrB.1
-    nlinarith only [he, hh, hv]
-  · have hU : (q*k-10)*A = b*(q*C+1) := by linear_combination q*hB - hq - q*hk
-    have hV : (r-10*k)*A = a*(100*C+r) := by linear_combination r*hA - 10*hr + 10*hk
-    have hu := positive_left hAp hRHS₁ hU
-    have hv := positive_left hAp hRHS₂ hV
-    -- The leading digit bounds the left quotient after multiplication by k.
-    have hshort : (q*k-10)*D = b*(10*C+k) := by
-      linear_combination -k*hq + 10*hB - 10*hk
-    have huhi : q*k-10 < 1000 := by
-      by_contra! h
-      have hDp : 0 < D := by omega
-      have hlow := mul_le_mul_of_nonneg_right h hDp.le
-      have hbC := mul_le_mul_of_nonneg_right (show b ≤ 9 by omega) hCp.le
-      have hbk := mul_le_mul_of_nonneg_right (show b ≤ 9 by omega) hkB.1.le
-      nlinarith only [hshort, hD, hC, hkB.2, hlow, hbC, hbk]
-    have hvhi : r-10*k < 1000 := by omega
-    have h₁ : a*r*(q*k-10) < 10000000 :=
-      product_below (mul_pos ha.1 hrB.1).le har huhi (by decide)
-    have h₂ : b*(r-10*k) < 10000000 := by
-      have hh := product_below hb.1.le hb.2 hvhi (by decide)
-      omega
-    have he := compare_coefficients hC ha.1 hb.1 hu hv hrB.1 h₁ h₂ hU hV
-    have hh := mul_pos hv hqB.1
-    nlinarith only [he, hh, hu]
 
-private theorem odd_algebra {C A B a b D q r s : ℤ}
-    (hC : 10000000 ≤ C) (hBp : 0 < B)
-    (ha : 0 < a ∧ a < 10) (hb : 0 < b ∧ b < 10) (hB : B = C*b+D)
-    (hq : 10*A+a = q*B) (hr : a*(10*C)+B = r*A)
-    (hs : 10*(10*A+a)+b = s*D)
-    (hqB : 0 < q ∧ q < 100) (hrB : 0 < r ∧ r < 100)
-    (hsB : 0 < s ∧ s < 10000) : False := by
-  have hU : (s-10*q)*B = b*(s*C+1) := by linear_combination s*hB - hs + 10*hq
-  have hV : (q*r-10)*B = a*(100*C+r) := by linear_combination -10*hr - r*hq
-  have hRHS₁ : 0 < b*(s*C+1) :=
-    mul_pos hb.1 (by have := mul_pos hsB.1 (show 0 < C by omega); omega)
-  have hRHS₂ : 0 < a*(100*C+r) := mul_pos ha.1 (by omega)
-  have hu := positive_left hBp hRHS₁ hU
-  have hv := positive_left hBp hRHS₂ hV
-  have huhi : s-10*q < 10000 := by omega
-  have hvhi : q*r-10 < 10000 := by
-    have hh := product_below hqB.1.le hqB.2 hrB.2 (by decide)
-    omega
-  have har := product_below ha.1.le ha.2 hrB.2 (by decide)
-  have h₁ : a*r*(s-10*q) < 10000000 :=
-    product_below (mul_pos ha.1 hrB.1).le har huhi (by decide)
-  have h₂ : b*(q*r-10) < 10000000 := by
-    have hh := product_below hb.1.le hb.2 hvhi (by decide)
-    omega
-  have he := compare_coefficients hC ha.1 hb.1 hu hv hrB.1 h₁ h₂ hU hV
-  have hh := mul_pos hu hrB.1
-  nlinarith only [he, hh, hv]
 
-private theorem even_impossible {n C : ℕ} (hC : 10000000 ≤ C)
-    (d : EvenData n C) : False := by
-  rcases d with ⟨A, B, a, b, D, U, q, r, k, _, hA, hB, hAp, hBp, ha, hb,
-    hD, hq, hr, hqb, hrb, hkb, hc, _, _⟩
-  zify at hC hA hB hAp hBp ha hb hD hq hr hqb hrb hkb hc
-  exact even_algebra hC hA hB hAp hBp ha hb hD hq hr hqb hrb hkb hc
+namespace OMA.A384539Center
 
-private theorem odd_impossible {n C : ℕ} (hC : 10000000 ≤ C)
-    (d : OddData n C) : False := by
-  rcases d with ⟨A, B, a, b, D, q, r, s, _, hB, _, hBp, ha, hb,
-    hq, hr, hs, hqb, hrb, hsb, _, _⟩
-  zify at hC hB hBp ha hb hq hr hs hqb hrb hsb
-  exact odd_algebra hC hBp ha hb hB hq hr hs hqb hrb hsb
+open OMA.S_oeis_a384539
 
-private theorem parity_index {n : ℕ} (ht : term n) :
-    ∃ j, Nat.log 10 n = 2*j+1 ∨ Nat.log 10 n = 2*j+2 := by
-  have hpos : 0 < Nat.log 10 n := Nat.log_pos_iff.mpr ⟨ht.1, by decide⟩
-  refine ⟨(Nat.log 10 n - 1) / 2, ?_⟩
-  omega
+private def firstPart (k u v g a : ℕ) : ℕ :=
+  10 * (a * (v * 10^k + u) / (v * g - 10 * u)) + a
 
-private theorem width_bound {n : ℕ} (ht : term n) : Nat.log 10 n ≤ 14 := by
-  obtain ⟨j, hj⟩ := parity_index ht
-  by_contra! hlarge
-  have hj7 : 7 ≤ j := by omega
-  have hC : 10000000 ≤ (10 : ℕ)^j :=
-    Nat.pow_le_pow_right (show 0 < (10 : ℕ) by decide) hj7
-  rcases hj with heven | hodd
-  · obtain ⟨d⟩ := even_data (by omega) ht heven
-    exact even_impossible hC d
-  · obtain ⟨d⟩ := odd_data (by omega) ht hodd
-    exact odd_impossible hC d
+private def secondPart (k u v g a : ℕ) : ℕ :=
+  u * firstPart k u v g a / v
 
-/-! Reconstruct candidates from the middle-split quotients and check the remaining splits. -/
+private def passes (odd : Bool) (k u v g a : ℕ) : Prop :=
+  let T := 10^k
+  let Q := 10^(k-1)
+  let A := firstPart k u v g a
+  let B := secondPart k u v g a
+  let n := A*T+B
+  10*u < v*g →
+    (v*g-10*u) ∣ a*(v*T+u) → v ∣ u*A →
+    (if odd then T ≤ A ∧ A < 10^(k+1) else Q ≤ A ∧ A < T) →
+    Q ≤ B → B < T → (B%Q) ∣ 10*A+B/Q → term n → n ∈ entries
 
-private theorem solve_product {x y D N : ℕ}
-    (hN : 0 < N) (he : x*D = y*D+N) :
-    0 < x-y ∧ N % (x-y) = 0 ∧ D = N / (x-y) := by
-  have hxy : y < x := by
+private def CheckEven (k : ℕ) : Prop :=
+  ∀ t : Fin 9, ∀ a : Fin 9, ∀ g : Fin 1000,
+    passes false k (t.val+1) 1 g.val (a.val+1) ∧
+      passes false k 1 (t.val+1) g.val (a.val+1)
+
+private def CheckOdd (k : ℕ) : Prop :=
+  ∀ t : Fin 98, ∀ a : Fin 9, ∀ g : Fin 100, passes true k 1 (t.val+2) g.val (a.val+1)
+
+private def checkOne (odd : Bool) (k u v g a : ℕ) : Bool :=
+  let T := 10^k
+  let Q := 10^(k-1)
+  let A := firstPart k u v g a
+  let B := secondPart k u v g a
+  let n := A*T+B
+  let relevant := decide (10*u < v*g) && decide ((v*g-10*u) ∣ a*(v*T+u)) &&
+    decide (v ∣ u*A) && decide (if odd then T ≤ A ∧ A < 10^(k+1) else Q ≤ A ∧ A < T) &&
+    decide (Q ≤ B) && decide (B < T) && decide ((B%Q) ∣ 10*A+B/Q) && decide (term n)
+  !relevant || decide (n ∈ entries)
+
+private theorem checkOne_correct (odd : Bool) (k u v g a : ℕ)
+    (h : checkOne odd k u v g a = true) : passes odd k u v g a := by
+  unfold passes
+  dsimp only
+  intro hD hN hDiv hA hB hB' hR hTerm
+  simpa [checkOne, hD, hN, hDiv, hA, hB, hB', hR, hTerm] using h
+
+private def checkDigits (odd : Bool) (k u v g : ℕ) : Bool :=
+  let possible := decide (10*u < v*g) && decide ((v*g-10*u) ∣ 2520*(v*10^k+u))
+  !possible || (List.range 9).all fun a => checkOne odd k u v g (a+1)
+
+private theorem digit_dvd : ∀ i : Fin 9, i.val + 1 ∣ 2520 := by decide +kernel
+
+private theorem checkDigits_correct (odd : Bool) (k u v g : ℕ) (a : Fin 9)
+    (h : checkDigits odd k u v g = true) : passes odd k u v g (a.val+1) := by
+  intro hD hN
+  have hG : (v*g-10*u) ∣ 2520*(v*10^k+u) :=
+    hN.trans (Nat.mul_dvd_mul_right (digit_dvd a) (v*10^k+u))
+  have hall : (List.range 9).all (fun j => checkOne odd k u v g (j+1)) = true := by
+    simpa only [checkDigits, hD, hG, decide_true, Bool.true_and, Bool.not_true, Bool.false_or] using h
+  have hOne := List.all_eq_true.mp hall a.val (List.mem_range.mpr a.isLt)
+  exact checkOne_correct _ _ _ _ _ _ hOne hD hN
+
+private def runEven (k : ℕ) : Bool :=
+  (List.range 9).all fun t => (List.range 1000).all fun g =>
+    checkDigits false k (t+1) 1 g && checkDigits false k 1 (t+1) g
+
+private def runOdd (k : ℕ) : Bool :=
+  (List.range 98).all fun t => (List.range 100).all fun g =>
+    checkDigits true k 1 (t+2) g
+
+set_option maxHeartbeats 0 in
+set_option maxRecDepth 20000 in
+private theorem evenChecked (k : ℕ) (hk : 2 ≤ k) (hk' : k ≤ 8) : CheckEven k := by
+  have h : runEven k = true := by
+    interval_cases k <;> decide +kernel
+  intro t a g
+  have ht := List.all_eq_true.mp h t.val (List.mem_range.mpr t.isLt)
+  have hg := List.all_eq_true.mp ht g.val (List.mem_range.mpr g.isLt)
+  have both := Bool.and_eq_true_iff.mp hg
+  exact ⟨checkDigits_correct _ _ _ _ _ a both.1, checkDigits_correct _ _ _ _ _ a both.2⟩
+
+set_option maxHeartbeats 0 in
+set_option maxRecDepth 20000 in
+private theorem oddChecked (k : ℕ) (hk : 2 ≤ k) (hk' : k ≤ 8) : CheckOdd k := by
+  have h : runOdd k = true := by
+    interval_cases k <;> decide +kernel
+  intro t a g
+  have ht := List.all_eq_true.mp h t.val (List.mem_range.mpr t.isLt)
+  have hg := List.all_eq_true.mp ht g.val (List.mem_range.mpr g.isLt)
+  exact checkDigits_correct _ _ _ _ _ a hg
+
+theorem entries_sound : ∀ n ∈ entries, term n := by decide +kernel
+
+theorem entries_nodup : entries.Nodup := by decide +kernel
+
+theorem entries_length : entries.length = 132 := by decide +kernel
+
+set_option maxHeartbeats 0 in
+set_option maxRecDepth 20000 in
+theorem small_complete {n : ℕ} (hn : n < 1000) (hterm : term n) : n ∈ entries := by
+  have h : ∀ i : Fin 1000, term i.val → i.val ∈ entries := by decide +kernel
+  exact h ⟨n, hn⟩ hterm
+
+theorem centered_complete {k n A B u v g a : ℕ}
+    (hk : 2 ≤ k) (hk' : k ≤ 8) (hn : n = A*10^k+B)
+    (haEq : a = A%10) (ha : 0 < a) (_ha' : a < 10)
+    (hc : v*B = u*A) (hg : g*(A/10) = a*10^k+B)
+    (hr : B%10^(k-1) ∣ 10*A+B/10^(k-1))
+    (hB : 10^(k-1) ≤ B) (hB' : B < 10^k)
+    (hbnds : (10^(k-1) ≤ A ∧ A < 10^k ∧
+        ((u=1 ∧ 0<v ∧ v<10) ∨ (v=1 ∧ 0<u ∧ u<10)) ∧ g<1000) ∨
+      (10^k ≤ A ∧ A < 10^(k+1) ∧ u=1 ∧ 1<v ∧ v<100 ∧ g<100))
+    (hterm : term n) : n ∈ entries := by
+  have hv : 0 < v := by
+    rcases hbnds with ⟨_, _, h, _⟩ | ⟨_, _, _, h, _, _⟩
+    · rcases h with ⟨_, h, _⟩ | ⟨rfl, _, _⟩ <;> omega
+    · omega
+  have hA : A = 10 * (A/10) + a := by
+    rw [haEq]
+    exact (Nat.div_add_mod A 10).symm
+  have hbal : (v*g)*(A/10) = (10*u)*(A/10) + a*(v*10^k+u) := by
+    calc
+      (v*g)*(A/10) = v*(g*(A/10)) := by ring
+      _ = v*(a*10^k+B) := by rw [hg]
+      _ = v*(a*10^k) + u*A := by rw [mul_add, hc]
+      _ = (10*u)*(A/10) + a*(v*10^k+u) := by
+        nth_rw 1 [hA]
+        ring
+  have hm : 0 < a*(v*10^k+u) := by positivity
+  have hD : 10*u < v*g := by
     by_contra! h
-    have hh := Nat.mul_le_mul_right D h
+    have hh := Nat.mul_le_mul_right (A/10) h
     omega
-  have hp : 0 < x-y := by omega
-  have hprod : N = (x-y)*D := by rw [Nat.sub_mul]; omega
-  refine ⟨hp, ?_, ?_⟩
-  · calc
-      N % (x-y) = ((x-y)*D) % (x-y) := congrArg (fun M => M % (x-y)) hprod
-      _ = 0 := Nat.mul_mod_right _ _
-  · calc
-      D = ((x-y)*D) / (x-y) := (Nat.mul_div_cancel_left D hp).symm
-      _ = N / (x-y) := congrArg (fun M => M / (x-y)) hprod.symm
+  have hcalc : (v*g-10*u)*(A/10) = a*(v*10^k+u) := by
+    rw [Nat.sub_mul, hbal]
+    omega
+  have hFirst : firstPart k u v g a = A := by
+    unfold firstPart
+    rw [← hcalc, Nat.mul_div_cancel_left _ (by omega : 0 < v*g-10*u)]
+    exact hA.symm
+  have hSecond : secondPart k u v g a = B := by
+    unfold secondPart
+    rw [hFirst, ← hc, Nat.mul_div_cancel_left _ hv]
+  have hApply (odd : Bool)
+      (hcheck : passes odd k u v g a)
+      (hSize : if odd then 10^k ≤ A ∧ A < 10^(k+1) else 10^(k-1) ≤ A ∧ A < 10^k) :
+      n ∈ entries := by
+    unfold passes at hcheck
+    simp only [hFirst, hSecond, ← hn] at hcheck
+    exact hcheck hD ⟨A/10, hcalc.symm⟩ ⟨B, hc.symm⟩ hSize hB hB' hr hterm
+  let aa : Fin 9 := ⟨a-1, by omega⟩
+  have ha0 : aa.val+1 = a := by dsimp [aa]; omega
+  rcases hbnds with ⟨hAmin, hAmax, hSides, hgmax⟩ | ⟨hAmin, hAmax, rfl, hvmin, hvmax, hgmax⟩
+  · let gg : Fin 1000 := ⟨g, hgmax⟩
+    rcases hSides with ⟨rfl, _, hvmax⟩ | ⟨rfl, humin, humax⟩
+    · let vv : Fin 9 := ⟨v-1, by omega⟩
+      have hv0 : vv.val+1 = v := by dsimp [vv]; omega
+      have h := (evenChecked k hk hk' vv aa gg).2
+      rw [ha0, hv0] at h
+      exact hApply false h ⟨hAmin, hAmax⟩
+    · let uu : Fin 9 := ⟨u-1, by omega⟩
+      have hu0 : uu.val+1 = u := by dsimp [uu]; omega
+      have h := (evenChecked k hk hk' uu aa gg).1
+      rw [ha0, hu0] at h
+      exact hApply false h ⟨hAmin, hAmax⟩
+  · let gg : Fin 100 := ⟨g, hgmax⟩
+    let vv : Fin 98 := ⟨v-2, by omega⟩
+    have hv0 : vv.val+2 = v := by dsimp [vv]; omega
+    have h := oddChecked k hk hk' vv aa gg
+    rw [ha0, hv0] at h
+    exact hApply true h ⟨hAmin, hAmax⟩
 
-private def accepted (n : ℕ) : Bool :=
-  if term n then decide (n ∈ entries) else true
+end OMA.A384539Center
 
-private theorem accepted_sound {n : ℕ} (h : accepted n = true) (ht : term n) :
-    n ∈ entries := by
-  unfold accepted at h
-  rw [if_pos ht] at h
-  exact of_decide_eq_true h
 
-private def checkHalves (C A B n : ℕ) : Bool :=
-  if (C ≤ A ∧ A < 10*C) ∧ (C ≤ B ∧ B < 10*C) then accepted n else true
+namespace OMA.DecimalSplit
 
-private theorem checkHalves_sound {C A B n : ℕ}
-    (hA : C ≤ A ∧ A < 10*C) (hB : C ≤ B ∧ B < 10*C)
-    (h : checkHalves C A B n = true) (hn : term n) : n ∈ entries := by
-  unfold checkHalves at h
-  rw [if_pos ⟨hA, hB⟩] at h
-  exact accepted_sound h hn
+open OMA.S_oeis_a384539 OMA.A384539Center
 
-private def evenOne (C b k q : ℕ) : Bool :=
-  let u := q-10*k
-  let N := b*(10*C*k+1)
-  if 0 < u ∧ N % u = 0 then
-    let B := C*b + N/u
-    let A := k*B
-    checkHalves C A B ((10*C)*A+B)
-  else true
+private theorem complete {n : ℕ} (hterm : term n) : n ∈ entries := by
+  by_cases small : n < 1000
+  · exact small_complete small hterm
+  have hlog : 3 ≤ Nat.log 10 n :=
+    (Nat.le_log_iff_pow_le (by decide : 1 < 10) (by omega : n ≠ 0)).mpr (by omega)
+  let k := (Nat.log 10 n+1)/2
+  have hk : 2 ≤ k := by omega
+  have hl : Nat.log 10 n+1 = 2*k ∨ Nat.log 10 n+1 = 2*k+1 := by omega
+  obtain ⟨c⟩ := extract_center hk hl hterm
+  have kbound := center_small hk c
+  have hr : c.B % 10^(k-1) ∣ 10*c.A+c.B/10^(k-1) :=
+    ⟨c.f, by rw [← c.right, Nat.mul_comm]⟩
+  exact centered_complete hk kbound c.expansion rfl c.leftDigitPos
+    (Nat.mod_lt _ (by decide)) c.middle c.left hr c.rightLow c.rightHigh c.shape hterm
 
-private def evenTwo (C b k q : ℕ) : Bool :=
-  let u := q*k-10
-  let N := b*(10*C+k)
-  if 0 < u ∧ N % u = 0 then
-    let B := C*b + N/u
-    let A := B/k
-    checkHalves C A B ((10*C)*A+B)
-  else true
+end OMA.DecimalSplit
 
-private def oddCheck (C a q r : ℕ) : Bool :=
-  let v := q*r-10
-  let N := a*(q*(10*C)+1)
-  let M := a*(100*C+r)
-  if 0 < v ∧ N % v = 0 ∧ M % v = 0 then
-    let A := N/v
-    let B := M/v
-    checkHalves C A B ((10*C)*(10*A+a)+B)
-  else true
-
-private def scan (blocks width : ℕ) (f : ℕ → Bool) : Bool :=
-  (List.range blocks).all fun block =>
-    (List.range width).all fun offset => f (width*block+offset)
-
-private theorem scan_sound {blocks width i : ℕ} {f : ℕ → Bool} (hw : 0 < width)
-    (hi : i < blocks*width) (hs : scan blocks width f = true) : f i = true := by
-  have hb : i / width < blocks := (Nat.div_lt_iff_lt_mul hw).2 hi
-  have ho : i % width < width := Nat.mod_lt _ hw
-  unfold scan at hs
-  have h := List.all_eq_true.mp hs (i/width) (List.mem_range.mpr hb)
-  have h' : f (width*(i/width)+i%width) = true :=
-    List.all_eq_true.mp h (i%width) (List.mem_range.mpr ho)
-  simpa only [Nat.div_add_mod] using h'
-
-set_option maxRecDepth 4000 in
-set_option maxHeartbeats 0 in
-private theorem even_one_small {j b k q : ℕ}
-    (hj : 0 < j) (hj' : j < 7) (hb : 0 < b) (hb' : b < 10)
-    (hk : k < 10) (hq : q < 1000) : evenOne (10^j) b k q = true := by
-  have h : (List.range 10).all (fun k' => scan 20 50 (evenOne (10^j) b k')) = true := by
-    interval_cases j <;> interval_cases b <;> decide +kernel
-  exact scan_sound (blocks := 20) (width := 50) (by decide) hq
-    (List.all_eq_true.mp h k (List.mem_range.mpr hk))
-
-set_option maxRecDepth 4000 in
-set_option maxHeartbeats 0 in
-private theorem even_two_small {j b k q : ℕ}
-    (hj : 0 < j) (hj' : j < 7) (hb : 0 < b) (hb' : b < 10)
-    (hk : k < 10) (hq : q < 1000) : evenTwo (10^j) b k q = true := by
-  have h : (List.range 10).all (fun k' => scan 20 50 (evenTwo (10^j) b k')) = true := by
-    interval_cases j <;> interval_cases b <;> decide +kernel
-  exact scan_sound (blocks := 20) (width := 50) (by decide) hq
-    (List.all_eq_true.mp h k (List.mem_range.mpr hk))
-
-set_option maxRecDepth 4000 in
-set_option maxHeartbeats 0 in
-private theorem odd_small {j a q r : ℕ}
-    (hj : 0 < j) (hj' : j < 7) (ha : 0 < a) (ha' : a < 10)
-    (hq : q < 100) (hr : r < 100) : oddCheck (10^j) a q r = true := by
-  have h : (List.range 100).all (fun q' => scan 2 50 (oddCheck (10^j) a q')) = true := by
-    interval_cases j <;> interval_cases a <;> decide +kernel
-  exact scan_sound (blocks := 2) (width := 50) (by decide) hr
-    (List.all_eq_true.mp h q (List.mem_range.mpr hq))
-
-private theorem even_entries {n j : ℕ} (hj : 0 < j) (hj' : j < 7)
-    (d : EvenData n (10^j)) (ht : term n) : n ∈ entries := by
-  let C : ℕ := 10^j
-  rcases d.center with hc | hc
-  · have he : d.q*d.D = (10*d.k)*d.D + d.b*(10*C*d.k+1) := by
-      have hq := d.left
-      have hB := d.back
-      have hc' := hc
-      change d.B = C*d.b+d.D at hB
-      zify at hq hB hc' ⊢
-      linear_combination -hq + 10*hc' + 10*(d.k : ℤ)*hB
-    have hN : 0 < d.b*(10*C*d.k+1) := Nat.mul_pos d.digitB.1 (by omega)
-    obtain ⟨hu, hm, hD⟩ := solve_product hN he
-    have h := even_one_small hj hj' d.digitB.1 d.digitB.2 d.kBound.2 d.qBound.2
-    change evenOne C d.b d.k d.q = true at h
-    dsimp only [evenOne] at h
-    rw [if_pos ⟨hu, hm⟩, ← hD, ← d.back, ← hc] at h
-    have hmemb := checkHalves_sound d.Aband d.Bband h
-    rw [← d.number] at hmemb
-    exact hmemb ht
-  · have he : (d.q*d.k)*d.D = 10*d.D + d.b*(10*C+d.k) := by
-      have hq := d.left
-      have hB := d.back
-      have hc' := hc
-      change d.B = C*d.b+d.D at hB
-      zify at hq hB hc' ⊢
-      linear_combination -(d.k : ℤ)*hq + 10*hB - 10*hc'
-    have hN : 0 < d.b*(10*C+d.k) := Nat.mul_pos d.digitB.1 (by have := d.kBound.1; omega)
-    obtain ⟨hu, hm, hD⟩ := solve_product hN he
-    have hdiv : d.B/d.k = d.A := by
-      calc
-        d.B/d.k = (d.k*d.A)/d.k := congrArg (fun B => B/d.k) hc
-        _ = d.A := Nat.mul_div_cancel_left _ d.kBound.1
-    have h := even_two_small hj hj' d.digitB.1 d.digitB.2 d.kBound.2 d.qBound.2
-    change evenTwo C d.b d.k d.q = true at h
-    dsimp only [evenTwo] at h
-    rw [if_pos ⟨hu, hm⟩, ← hD, ← d.back, hdiv] at h
-    have hmemb := checkHalves_sound d.Aband d.Bband h
-    rw [← d.number] at hmemb
-    exact hmemb ht
-
-private theorem odd_entries {n j : ℕ} (hj : 0 < j) (hj' : j < 7)
-    (d : OddData n (10^j)) (ht : term n) : n ∈ entries := by
-  let C : ℕ := 10^j
-  have hA : (d.q*d.r)*d.A = 10*d.A + d.a*(d.q*(10*C)+1) := by
-    have hq := d.left
-    have hr := d.right
-    change d.a*(10*C)+d.B = d.r*d.A at hr
-    zify at hq hr ⊢
-    linear_combination -(d.q : ℤ)*hr - hq
-  have hB : (d.q*d.r)*d.B = 10*d.B + d.a*(100*C+d.r) := by
-    have hq := d.left
-    have hr := d.right
-    change d.a*(10*C)+d.B = d.r*d.A at hr
-    zify at hq hr ⊢
-    linear_combination -10*hr - (d.r : ℤ)*hq
-  have hN : 0 < d.a*(d.q*(10*C)+1) := Nat.mul_pos d.digitA.1 (by omega)
-  have hM : 0 < d.a*(100*C+d.r) := Nat.mul_pos d.digitA.1 (by have := d.rBound.1; omega)
-  obtain ⟨hv, hmA, heA⟩ := solve_product hN hA
-  obtain ⟨_, hmB, heB⟩ := solve_product hM hB
-  have h := odd_small hj hj' d.digitA.1 d.digitA.2 d.qBound.2 d.rBound.2
-  change oddCheck C d.a d.q d.r = true at h
-  dsimp only [oddCheck] at h
-  rw [if_pos ⟨hv, hmA, hmB⟩, ← heA, ← heB] at h
-  have hmemb := checkHalves_sound d.Aband d.Bband h
-  rw [← d.number] at hmemb
-  exact hmemb ht
-
-set_option maxRecDepth 4000 in
-set_option maxHeartbeats 0 in
-private theorem base_entries {n : ℕ} (hn : n < 1000) (ht : term n) :
-    n ∈ entries := by
-  have hs : scan 20 50 accepted = true := by decide +kernel
-  exact accepted_sound (scan_sound (blocks := 20) (width := 50) (by decide) hn hs) ht
-
-private theorem entries_complete {n : ℕ} (ht : term n) : n ∈ entries := by
-  have hbound := width_bound ht
-  obtain ⟨j, hj⟩ := parity_index ht
-  have hj' : j < 7 := by omega
-  by_cases hj0 : j = 0
-  · have hn : n ≠ 0 := by have := ht.1; omega
-    have hlog : Nat.log 10 n < 3 := by omega
-    have hsmall : n < 10^3 := (Nat.log_lt_iff_lt_pow (by decide) hn).1 hlog
-    exact base_entries hsmall ht
-  · rcases hj with heven | hodd
-    · obtain ⟨d⟩ := even_data (by omega) ht heven
-      exact even_entries (by omega) hj' d ht
-    · obtain ⟨d⟩ := odd_data (by omega) ht hodd
-      exact odd_entries (by omega) hj' d ht
-
-set_option maxRecDepth 4000 in
-set_option maxHeartbeats 0 in
-private theorem entries_sound {n : ℕ} (hn : n ∈ entries) : term n := by
-  have hs : entries.all (fun x => decide (term x)) = true := by decide +kernel
-  exact of_decide_eq_true (List.all_eq_true.mp hs n hn)
-
-end A384539
-
-set_option maxRecDepth 4000 in
-set_option maxHeartbeats 0 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a384539.main := by
-  refine ⟨fun n => ⟨A384539.entries_complete, A384539.entries_sound⟩, ?_, ?_⟩
-  · decide +kernel
-  · decide
+  exact ⟨fun n => ⟨OMA.DecimalSplit.complete, OMA.A384539Center.entries_sound n⟩,
+    OMA.A384539Center.entries_nodup, OMA.A384539Center.entries_length⟩

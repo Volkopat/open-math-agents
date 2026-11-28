@@ -1,85 +1,56 @@
 import OMAStatements.S_mo_369944
-import Mathlib
 
-open Set
-
-open OMA.S_mo_369944
-
-private abbrev ExtensionWitnessInterval := Set.Icc (-1 : ℝ) 1
-
-private theorem linear_term_zero {a b : ℝ}
-    (h : ∀ x ∈ Icc (-1 : ℝ) 1, 0 ≤ a * x^2 + b*x) : b = 0 := by
-  by_contra hb
-  let t := min 1 (|b| / (2 * (|a|+1)))
-  have ha : 0 < 2 * (|a|+1) := by positivity
-  have ht : 0 < t := lt_min (by norm_num) (div_pos (abs_pos.mpr hb) ha)
-  have ht₁ : t ≤ 1 := min_le_left _ _
-  have ht₂ : t ≤ |b| / (2 * (|a|+1)) := min_le_right _ _
-  have hpos := h t ⟨by linarith,ht₁⟩
-  have hneg := h (-t) ⟨by linarith,by linarith⟩
-  have hLeft : 0 ≤ (a*t+b)*t := by nlinarith
-  have hRight : 0 ≤ (a*t-b)*t := by nlinarith
-  have hBL : -a*t ≤ b := by linarith [(mul_nonneg_iff_of_pos_right ht).mp hLeft]
-  have hBR : b ≤ a*t := by linarith [(mul_nonneg_iff_of_pos_right ht).mp hRight]
-  have hAbs : |b| ≤ a*t := abs_le.mpr ⟨by linarith,hBR⟩
-  have hBound := (le_div_iff₀ ha).mp ht₂
-  have hAt := mul_le_mul_of_nonneg_right (le_abs_self a) ht.le
-  nlinarith [abs_nonneg a, mul_nonneg (abs_nonneg a) ht.le]
-
-private def identityMap : C(ExtensionWitnessInterval,ℝ) := ⟨Subtype.val,continuous_subtype_val⟩
-
-private def squareMap : C(ExtensionWitnessInterval,ℝ) :=
-  ⟨fun x => (x.val : ℝ)^2,continuous_subtype_val.pow 2⟩
-
-private noncomputable def quadraticSubspace : Submodule ℝ C(ExtensionWitnessInterval,ℝ) :=
-  Submodule.span ℝ {squareMap,identityMap}
-
-private def rightEnd : ExtensionWitnessInterval := ⟨1,by norm_num⟩
-private def leftEnd : ExtensionWitnessInterval := ⟨-1,by norm_num⟩
-
-private noncomputable def difference : C(ExtensionWitnessInterval,ℝ) →L[ℝ] ℝ :=
-  ContinuousMap.evalCLM ℝ rightEnd - ContinuousMap.evalCLM ℝ leftEnd
+/-!
+Adapted from @amtamaddon’s pending PR #34565, head
+35f61203e78b99edea0cc951e826110745c9e07b. The original merged proof is
+@AkiRA-COM-FP’s #16035, head 46ef2c1125e854e2415d23d124d6e84bb7d951d5.
+The one-sided positivity argument now uses continuity on the closure of (0,1).
+The pending construction and its positive-extension contradiction are retained.
+-/
 
 theorem OMA.solution : type_of% @OMA.S_mo_369944.main := by
-  classical
-  let M := quadraticSubspace
-  let L := difference.domRestrict M
-  have hI : IsCompact (Icc (-1 : ℝ) 1) := isCompact_Icc
-  let compact : CompactSpace ExtensionWitnessInterval := isCompact_iff_compactSpace.mp hI
-  refine ⟨ExtensionWitnessInterval,inferInstance,compact,M,L,?_,?_⟩
-  · intro f hf
-    have hMem : f.val ∈ Submodule.span ℝ ({squareMap,identityMap} : Set C(ExtensionWitnessInterval,ℝ)) := f.property
-    obtain ⟨a,b,he⟩ := Submodule.mem_span_pair.mp hMem
-    have hb : b = 0 := by
-      apply linear_term_zero (a := a)
+  let f : C(unitInterval, ℝ) := ⟨fun x => (x : ℝ), continuous_subtype_val⟩
+  let p : unitInterval := ⟨1/2, by constructor <;> norm_num⟩
+  let Φ : C(unitInterval, ℝ) →L[ℝ] ℝ :=
+    (4 : ℝ) • ContinuousMap.evalCLM ℝ p - ContinuousMap.evalCLM ℝ (1 : unitInterval)
+  have hΦf : Φ f = 1 := by
+    simp [Φ, f, p]; norm_num
+  have hΦg : Φ (f * f) = 0 := by
+    simp [Φ, f, p]; norm_num
+  refine ⟨unitInterval, inferInstance, inferInstance, Submodule.span ℝ {f, f * f},
+    Φ.comp (Submodule.subtypeL _), ?_, ?_⟩
+  · rintro ⟨h, hh⟩ hpos
+    obtain ⟨a, b, rfl⟩ := Submodule.mem_span_pair.1 hh
+    have hL : Φ (a • f + b • (f * f)) = a := by
+      rw [map_add, map_smul, map_smul, hΦf, hΦg]; simp
+    show 0 ≤ Φ (a • f + b • (f * f))
+    rw [hL]
+    have hs : Set.Ioo (0:ℝ) 1 ⊆ {x | 0 ≤ a+b*x} := by
       intro x hx
-      have hfx := hf ⟨x,hx⟩
-      rw [← he] at hfx
-      simpa [squareMap,identityMap,smul_eq_mul] using hfx
-    have hzero : L f = 0 := by
-      change difference f.val = 0
-      rw [← he,hb,zero_smul,add_zero,map_smul]
-      norm_num [difference,squareMap,rightEnd,leftEnd]
-    exact hzero.ge
-  · rintro ⟨E,hE,hEq⟩
-    have hF : squareMap ∈ M := Submodule.subset_span (by simp)
-    have hG : identityMap ∈ M := Submodule.subset_span (by simp)
-    have hf : E squareMap = 0 := by
-      rw [hEq ⟨squareMap,hF⟩]
-      change difference squareMap = 0
-      norm_num [difference,squareMap,rightEnd,leftEnd]
-    have hg : E identityMap = 2 := by
-      rw [hEq ⟨identityMap,hG⟩]
-      change difference identityMap = 2
-      norm_num [difference,identityMap,rightEnd,leftEnd]
-    have hUnit : 0 ≤ E 1 := hE 1 (fun x => by simp)
-    let r : ℝ := E 1 + 1
-    let f : C(ExtensionWitnessInterval,ℝ) := 1 + (r^2) • squareMap - (2*r) • identityMap
-    have hNonneg (x : ExtensionWitnessInterval) : 0 ≤ f x := by
-      change 0 ≤ (1 : ℝ) + r^2 * x.val^2 - (2*r)*x.val
-      nlinarith [sq_nonneg (1-r*x.val)]
-    have hBad := hE f hNonneg
-    dsimp [f] at hBad
-    simp only [map_sub,map_add,map_smul,hf,hg,smul_eq_mul,mul_zero,add_zero] at hBad
-    dsimp [r] at hBad
-    linarith
+      apply (mul_nonneg_iff_of_pos_right hx.1).mp
+      have hp := hpos ⟨x, hx.1.le, hx.2.le⟩
+      simp only [ContinuousMap.add_apply, ContinuousMap.smul_apply,
+        ContinuousMap.mul_apply, smul_eq_mul] at hp
+      change 0 ≤ a*x+b*(x*x) at hp
+      nlinarith
+    have hz : (0:ℝ) ∈ closure (Set.Ioo (0:ℝ) 1) := by norm_num [closure_Ioo]
+    have := closure_minimal hs (isClosed_le continuous_const (by fun_prop)) hz
+    simpa using this
+  · rintro ⟨E, hE, hext⟩
+    have hf : E f = 1 := by
+      have := hext ⟨f, Submodule.subset_span (by simp)⟩
+      simpa [hΦf] using this
+    have hg : E (f * f) = 0 := by
+      have := hext ⟨f * f, Submodule.subset_span (by simp)⟩
+      simpa [hΦg] using this
+    have key : ∀ t : ℝ, 0 ≤ E 1 - 2 * t * E f + t ^ 2 * E (f * f) := by
+      intro t
+      have := hE (1 - (2 * t) • f + (t ^ 2) • (f * f)) (by
+        intro x
+        simp [f]
+        nlinarith [sq_nonneg (1 - t * (x : ℝ))])
+      simpa [map_sub, map_add, map_smul] using this
+    have h0 := key 0
+    have h1 := key (E 1 + 1)
+    rw [hf, hg] at h0 h1
+    nlinarith

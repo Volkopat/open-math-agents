@@ -178,23 +178,8 @@ def bv : List ℕ := [1, 3, 10, 35, 126, 462, 1716, 6435, 24310, 92378, 352716, 
 
 lemma bv_eq (c : ℕ) (hc : c ≤ 15) : OMA.S_oeis_a303639.binomial c = bv.getD c 0 := by
   unfold OMA.S_oeis_a303639.binomial
-  interval_cases c
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
-  · norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
+  interval_cases c <;>
+    norm_num [bv, Nat.choose_eq_descFactorial_div_factorial, Nat.descFactorial, Nat.factorial]
 
 /-- (c, d, q, k): q^k exactly divides N - binomial(2c+1,c) - binomial(2d+1,d). -/
 def tab : List (ℕ × ℕ × ℕ × ℕ) := [(0, 0, 647, 1), (0, 1, 163, 1), (0, 2, 67, 1), (0, 3, 3, 1), (0, 4, 23, 1), (0, 5, 467, 1), (0, 6, 223, 1), (0, 7, 991, 1), (0, 8, 7, 1), (0, 9, 3, 1), (0, 10, 23, 1), (0, 11, 3, 1), (0, 12, 887, 1), (0, 13, 26905651, 1), (0, 14, 7, 1), (0, 15, 1999, 1), (1, 1, 3, 3), (1, 2, 643, 1), (1, 3, 19, 1), (1, 4, 3, 1), (1, 5, 3, 7), (1, 6, 3, 1), (1, 7, 3, 1), (1, 8, 78607, 1), (1, 9, 27594131, 1), (1, 10, 3, 1), (1, 11, 31, 1), (1, 12, 11, 1), (1, 13, 3, 1), (1, 14, 3, 1), (1, 15, 3, 1), (2, 2, 11, 1), (2, 3, 3, 1), (2, 4, 200080511, 1), (2, 5, 23, 1), (2, 6, 284003, 1), (2, 7, 4326031, 1), (2, 8, 19, 1), (2, 9, 3, 1), (2, 10, 399984727, 1), (2, 11, 3, 1), (2, 12, 79512187, 1), (2, 13, 127, 1), (2, 14, 2819, 1), (2, 15, 7, 1), (3, 3, 7, 1), (3, 4, 7, 1), (3, 5, 7, 1), (3, 6, 43, 1), (3, 7, 5843, 1), (3, 8, 3, 1), (3, 9, 7923067, 1), (3, 10, 7, 1), (3, 11, 7, 1), (3, 12, 3, 1), (3, 13, 23, 1), (3, 14, 23, 1), (3, 15, 23, 1), (4, 4, 3, 1), (4, 5, 3, 1), (4, 6, 719, 1), (4, 7, 3, 1), (4, 8, 563, 1), (4, 9, 200057419, 1), (4, 10, 3, 3), (4, 11, 7, 1), (4, 12, 7, 1), (4, 13, 3, 1), (4, 14, 3, 1), (4, 15, 3, 1), (5, 5, 3, 3), (5, 6, 3, 1), (5, 7, 3, 1), (5, 8, 12504647, 1), (5, 9, 23, 1), (5, 10, 3, 1), (5, 11, 7, 1), (5, 12, 7, 1), (5, 13, 3, 1), (5, 14, 3, 1), (5, 15, 3, 1), (6, 6, 3, 1), (6, 7, 19, 1), (6, 8, 7, 1), (6, 9, 7, 1), (6, 10, 3, 1), (6, 11, 139, 1), (6, 12, 227, 1), (6, 13, 11, 1), (6, 14, 3, 5), (6, 15, 67, 1), (7, 7, 3, 1), (7, 8, 199, 1), (7, 9, 31, 1), (7, 10, 31, 1), (7, 11, 3331, 1), (7, 12, 139, 1), (7, 13, 3, 1), (7, 14, 3, 1), (7, 15, 3, 1), (8, 8, 689891, 1), (8, 9, 3, 1), (8, 10, 223, 1), (8, 11, 3, 1), (8, 12, 59, 1), (8, 13, 11, 1), (8, 14, 7591, 1), (8, 15, 19990307, 1), (9, 9, 19, 1), (9, 10, 887, 1), (9, 11, 19, 1), (9, 12, 3, 1), (9, 13, 11, 1), (9, 14, 19, 1), (9, 15, 19, 1), (10, 10, 3, 1), (10, 11, 19, 1), (10, 12, 7, 1), (10, 13, 19, 1), (10, 14, 3, 3), (10, 15, 19, 1), (11, 11, 7, 1), (11, 12, 3, 1), (11, 13, 19, 1), (11, 14, 19, 1), (11, 15, 19, 1), (12, 12, 7, 1), (12, 13, 19, 1), (12, 14, 19, 1), (12, 15, 19, 1), (13, 13, 3, 1), (13, 14, 3, 1), (13, 15, 3, 1), (14, 14, 3, 1), (14, 15, 3, 1), (15, 15, 3, 1)]

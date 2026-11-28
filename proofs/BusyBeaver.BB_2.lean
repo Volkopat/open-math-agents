@@ -78,24 +78,12 @@ def pop (s : Side) : List (Bool × Side) := match s with
   | some (b, true) => [(b, blankSide)]
   | some (b, false) => [(b, none)]
 
-lemma emp_head : emp.head = false := rfl
-
-lemma emp_tail : emp.tail = emp := rfl
-
 lemma eq_emp_of (l : ListBlank Bool) (h1 : l.head = false) (h2 : l.tail = emp) : l = emp := by
-  have h := ListBlank.cons_head_tail l
-  have h' := ListBlank.cons_head_tail emp
-  rw [h1, h2] at h
-  rw [emp_head, emp_tail] at h'
-  rw [← h, h']
+  rw [← ListBlank.cons_head_tail l, h1, h2]
+  exact ListBlank.cons_head_tail emp
 
-lemma gam_blank (l : ListBlank Bool) : gam blankSide l ↔ l = emp := by
-  constructor
-  · intro h
-    exact eq_emp_of l h.1 (h.2 rfl)
-  · intro h
-    subst h
-    exact ⟨emp_head, fun _ => emp_tail⟩
+lemma gam_blank (l : ListBlank Bool) : gam blankSide l ↔ l = emp :=
+  ⟨fun h => eq_emp_of l h.1 (h.2 rfl), fun h => h.symm ▸ ⟨rfl, fun _ => rfl⟩⟩
 
 lemma gam_push (w : Bool) (s : Side) (l : ListBlank Bool) (h : gam s l) :
     gam (push w s) (l.cons w) := by
@@ -108,13 +96,10 @@ lemma gam_push (w : Bool) (s : Side) (l : ListBlank Bool) (h : gam s l) :
 lemma gam_pop (s : Side) (l : ListBlank Bool) (h : gam s l) :
     ∃ p ∈ pop s, l.head = p.1 ∧ gam p.2 l.tail := by
   rcases s with _ | ⟨b, tb⟩
-  · cases hh : l.head
-    · exact ⟨(false, none), by simp [pop], rfl, trivial⟩
-    · exact ⟨(true, none), by simp [pop], rfl, trivial⟩
+  · exact ⟨(l.head, none), by cases l.head <;> simp [pop], rfl, trivial⟩
   · cases tb
     · exact ⟨(b, none), by simp [pop], h.1, trivial⟩
-    · refine ⟨(b, blankSide), by simp [pop], h.1, ?_⟩
-      exact (gam_blank _).2 (h.2 rfl)
+    · exact ⟨(b, blankSide), by simp [pop], h.1, (gam_blank _).2 (h.2 rfl)⟩
 
 def astep (e : Table) (c : ACfg) : Option (List ACfg) :=
   match entry e c.1 c.2.2.1 with
@@ -283,12 +268,8 @@ end Transfer
 
 lemma exists_equiv (α : Type) [Fintype α] [Inhabited α] (h : Fintype.card α = 2) :
     ∃ e : α ≃ Bool, e default = default := by
-  have e0 : α ≃ Bool := Fintype.equivOfCardEq (h.trans Fintype.card_bool.symm)
-  by_cases h0 : e0 default = false
-  · exact ⟨e0, h0⟩
-  · refine ⟨e0.trans Equiv.boolNot, ?_⟩
-    have : e0 default = true := by simpa using h0
-    simp [this]
+  let e := Fintype.equivOfCardEq (h.trans Fintype.card_bool.symm)
+  exact ⟨e.trans (Equiv.swap (e default) default), by simp⟩
 
 lemma halts_within (C : _root_.BusyBeaver.Candidate 2) :
     Machine.HaltsAfter C.M (Machine.init []) 6 := by
@@ -308,31 +289,20 @@ def champT : Table :=
   (some (some true, true, true), some (some true, true, false),
     some (some false, true, false), some (none, true, true))
 
-lemma champ6 : (Machine.multiStep (mkM champT) init0 6).isSome = true := by decide +kernel
+lemma champ7 : Machine.multiStep (mkM champT) init0 7 = none :=
+  Option.isNone_iff_eq_none.1 (by decide +kernel)
 
-lemma champ7 : Machine.multiStep (mkM champT) init0 7 = none := by
-  have h : (Machine.multiStep (mkM champT) init0 7).isNone = true := by decide +kernel
-  simpa using h
-
-def champ : _root_.BusyBeaver.Candidate 2 where
-  Γ := Bool
-  Λ := Bool
-  Γ_fintype := inferInstance
-  Γ_card := Fintype.card_bool
-  Γ_inhabited := inferInstance
-  Λ_fintype := inferInstance
-  Λ_card := Fintype.card_bool
-  Λ_inhabited := inferInstance
-  M := mkM champT
-  M_isHalting := (Machine.isHalting_iff_exists_haltsAt _).2 ⟨6, champ7⟩
+def champ : _root_.BusyBeaver.Candidate 2 :=
+  ⟨Bool, Bool, inferInstance, rfl, inferInstance, inferInstance, rfl, inferInstance,
+    mkM champT, (Machine.isHalting_iff_exists_haltsAt _).2 ⟨6, champ7⟩⟩
 
 lemma champ_number : champ.M.haltingNumber = ((6 : ℕ) : ENat) :=
-  Machine.haltingNumber_def (mkM champT) 6 (Option.isSome_iff_exists.1 champ6) champ7
+  Machine.haltingNumber_def (mkM champT) 6 (Option.isSome_iff_exists.1 (by decide +kernel)) champ7
 
 end OMA.BB2
 
 theorem OMA.solution : type_of% @BusyBeaver.BB_2 := by
-  show sSup {N : ℕ | ∃ C : BusyBeaver.Candidate 2, C.M.haltingNumber = N} = 6
+  unfold BusyBeaver.BB
   refine IsGreatest.csSup_eq ⟨⟨OMA.BB2.champ, OMA.BB2.champ_number⟩, ?_⟩
   rintro N ⟨C, hC⟩
   have h := OMA.BB2.halts_within C

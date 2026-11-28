@@ -1,5 +1,7 @@
 import OMAStatements.S_mo_369067
-import Mathlib
+
+-- Retains @caa1982's projective-group counterexample from PR #26819.
+-- The gcd-of-exponents and generator-closure APIs shorten the kernel argument.
 
 open OMA.S_mo_369067
 
@@ -8,7 +10,7 @@ def chi : GL (Fin 3) (ZMod 7) →* (ZMod 7)ˣ :=
   (powMonoidHom 2).comp Matrix.GeneralLinearGroup.det
 
 lemma units7_pow_six (u : (ZMod 7)ˣ) : u ^ 6 = 1 := by
-  haveI : Fact (Nat.Prime 7) := ⟨by norm_num⟩
+  have : Fact (Nat.Prime 7) := ⟨by norm_num⟩
   have := ZMod.units_pow_card_sub_one_eq_one 7 u
   simpa using this
 
@@ -42,7 +44,7 @@ lemma chi_g3 : chi g3 ≠ 1 := by
 
 theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_369067.main) := by
   intro h
-  haveI : Fact (Nat.Prime 7) := ⟨by norm_num⟩
+  have : Fact (Nat.Prime 7) := ⟨by norm_num⟩
   obtain ⟨a, b, c, ha, hb, hc, hgen⟩ := h (ZMod 7)
   -- every value of chiBar is a square of a unit, hence has cube 1
   have hcube : ∀ x, chiBar x ^ 3 = 1 := by
@@ -55,17 +57,9 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_369067.main) := by
     intro x hx
     rw [MonoidHom.mem_ker]
     have h2 : chiBar x ^ 2 = 1 := by rw [← map_pow, hx.1, map_one]
-    have h3 := hcube x
-    calc chiBar x = chiBar x ^ 3 * (chiBar x ^ 2)⁻¹ := by group
-      _ = 1 := by rw [h2, h3]; simp
+    simpa using (pow_gcd_eq_one.mpr ⟨h2, hcube x⟩)
   have hle : Subgroup.closure {a, b, c} ≤ chiBar.ker := by
-    rw [Subgroup.closure_le]
-    intro x hx
-    simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hx
-    rcases hx with rfl | rfl | rfl
-    · exact hinv _ ha
-    · exact hinv _ hb
-    · exact hinv _ hc
+    simpa [Subgroup.closure_le, Set.insert_subset_iff] using ⟨hinv a ha, hinv b hb, hinv c hc⟩
   rw [hgen] at hle
   have hg := hle (Subgroup.mem_top (Matrix.ProjGenLinGroup.mk g3))
   rw [MonoidHom.mem_ker] at hg

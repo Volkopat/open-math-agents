@@ -2,35 +2,19 @@ import OMAReductions.R_PoincareConjecture_poincare_conjecture_variants_dimension
 import Mathlib
 
 /-!
-Compactness of a homotopy n-sphere (n at least 5): the n-sphere has nonzero top integral
-homology, a connected noncompact n-manifold has vanishing top integral homology, and
-connectedness passes along the homotopy equivalence from the simply connected sphere.
+# Compactness of a high-dimensional homotopy sphere
 
-Credit: this file combines three merged proofs of the sibling reduction
-dimension_ge_five.R1 essentially verbatim, each wrapped in its own namespace:
-- proofs/PoincareConjecture.poincare_conjecture.variants.dimension_ge_five.R1.H1.lean
-  by @marcusbuffett (PR #5271), itself adapted from the PoincareLib contributors
-  (LehengChen/PoincareConjecture, frenzymath/Poincare-Conjecture; Apache-2.0);
-- proofs/PoincareConjecture.poincare_conjecture.variants.dimension_ge_five.R1.H2.lean
-  by @marcusbuffett (PR #5493), same provenance;
-- proofs/PoincareConjecture.poincare_conjecture.variants.dimension_ge_five.R1.H3.lean
-  by @ivillar (PR #3619).
-The final combination follows the main theorem of reduction dimension_ge_five.R1.
--/
+This proof joins the sphere and noncompact-manifold homology calculations from
+the accepted Left to Solve steps R1.H1 and R1.H2 for this same Poincaré problem.
+Credit for those formalizations goes to @marcusbuffett (PRs 5271 and 5493).
+The shared chain complex and subdivision constructions occur once. The final
+argument transports a generator through the homotopy equivalence.
 
-namespace O2SphereTopHomology
-
-
-/-!
-Integral sphere homology, using the PoincareLib construction of the singular subdivision, excision and sphere recurrence.
 Adapted from the PoincareLib contributors, LehengChen/PoincareConjecture at
 60de1a94ca7038d04ed123b490a3229f8aa5fa75, via frenzymath/Poincare-Conjecture at
-432c38f2aa5a30efb13871292d17b4a3309a496a and its byte-identical PoincareLib
-delivery in frenzymath/PoincareConjecture at 62db01af9388dc1d9b56b66d6674f4c09b2318a2.
+432c38f2aa5a30efb13871292d17b4a3309a496a and frenzymath/PoincareConjecture at
+62db01af9388dc1d9b56b66d6674f4c09b2318a2.
 Licensed under Apache-2.0. Copyright (c) 2026 The PoincareLib contributors.
-The original module names are preserved in section headings. This adaptation makes
-category composition explicit, combines the modules, transports the module-valued
-homology to abelian groups and applies the sphere recurrence in all positive degrees.
 -/
 
 noncomputable section FzIntegralRelativeChains
@@ -44,6 +28,7 @@ Homotopies of pairs descend the natural singular prism through these cokernels.
 -/
 
 
+section
 open CategoryTheory Limits MonoidalCategory
 open scoped Simplicial BigOperators unitInterval
 
@@ -118,3215 +103,124 @@ theorem integralPairSequence_shortExact (A : Set X) :
   exact := ShortComplex.cokernelSequence_exact (integralSubspaceChains A)
   mono_f := integralSubspaceChains_mono A
 
-theorem integral_contractible_homology_isZero
-    (X : Type u) [TopologicalSpace X] [ContractibleSpace X]
-    (n : Nat) (hn : n ≠ 0) : IsZero (integralHomology X n) := by
-  obtain ⟨x, ⟨H⟩⟩ := id_nullhomotopic X
-  let a : TopCat.of X ⟶ TopCat.of (ULift.{u} Unit) :=
-    TopCat.ofHom (ContinuousMap.const X (ULift.up ()))
-  let b : TopCat.of (ULift.{u} Unit) ⟶ TopCat.of X :=
-    TopCat.ofHom (ContinuousMap.const (ULift.{u} Unit) x)
-  have hz : IsZero (integralHomology (ULift.{u} Unit) n) :=
-    AlgebraicTopology.isZero_singularHomologyFunctor_of_totallyDisconnectedSpace
-      (ModuleCat.{u} Int) n integralCoefficient (TopCat.of (ULift.{u} Unit)) hn
-  have H' : TopCat.Homotopy (𝟙 (TopCat.of X)) ((CategoryStruct.comp (a ) ( b))) := H
-  have heq := H'.congr_homologyMap_singularChainComplexFunctor integralCoefficient n
-  rw [IsZero.iff_id_eq_zero]
-  have hmap : HomologicalComplex.homologyMap (integralChainsFunctor.map ((CategoryStruct.comp (a ) ( b)))) n = 0 := by
-    rw [Functor.map_comp, HomologicalComplex.homologyMap_comp]
-    rw [hz.eq_of_tgt (HomologicalComplex.homologyMap (integralChainsFunctor.map a) n) 0,
-      zero_comp]
-  have hid : HomologicalComplex.homologyMap
-      (integralChainsFunctor.map (𝟙 (TopCat.of X))) n = 0 := heq.trans hmap
-  rw [CategoryTheory.Functor.map_id, HomologicalComplex.homologyMap_id] at hid
-  exact hid
-
-end Poincare.Topology
-
-end FzIntegralRelativeChains
-
-noncomputable section FzIntegralChainCoordinates
-
-/-!
-# Coordinates of actual integral singular chains
-
-The coproduct coordinates are indexed by continuous maps from the standard
-simplex. Subspace chains correspond to the coordinates whose entire simplex
-image lies in the subspace. The resulting splitting is degreewise.
--/
-
-
-open CategoryTheory Limits
-open scoped Simplicial BigOperators
-
-universe u
-
-namespace Poincare.Topology
-
-abbrev integralSimplex (n : Nat) := stdSimplex Real (Fin (n + 1))
-
-def integralSimplexFace (n : Nat) (i : Fin (n + 2)) :
-    C(integralSimplex n, integralSimplex (n + 1)) :=
-  ⟨stdSimplex.map i.succAbove, stdSimplex.continuous_map i.succAbove⟩
-
-variable {X Y : Type u} [TopologicalSpace X] [TopologicalSpace Y]
-
-def integralSingularGenerator {n : Nat} (s : C(integralSimplex n, X)) :
-    integralCoefficient.{u} ⟶ (integralChains X).X n :=
-  (TopCat.toSSet.obj (TopCat.of X)).ιChainComplex
-    (((TopCat.of X).toSSetObjEquiv (Opposite.op ⦋n⦌)).symm s)
-
-def integralChainCoordinates (X : Type u) [TopologicalSpace X] (n : Nat) :
-    (integralChains X).X n ≃ₗ[Int]
-      (C(integralSimplex n, X) →₀ ULift.{u} Int) :=
-  let S := TopCat.toSSet.obj (TopCat.of X)
-  let e := (S.isColimitChainComplexXCofan integralCoefficient n).coconePointUniqueUpToIso
-    (ModuleCat.finsuppCoconeIsColimit Int (ULift.{u} Int) (S.obj (Opposite.op ⦋n⦌)))
-  e.toLinearEquiv.trans
-    (Finsupp.domLCongr ((TopCat.of X).toSSetObjEquiv (Opposite.op ⦋n⦌)))
-
-theorem integralChainCoordinates_generator {n : Nat}
-    (s : C(integralSimplex n, X)) (a : ULift.{u} Int) :
-    integralChainCoordinates X n (integralSingularGenerator s a) = Finsupp.single s a := by
-  let S := TopCat.toSSet.obj (TopCat.of X)
-  let E := (TopCat.of X).toSSetObjEquiv (Opposite.op ⦋n⦌)
-  let e := (S.isColimitChainComplexXCofan integralCoefficient n).coconePointUniqueUpToIso
-    (ModuleCat.finsuppCoconeIsColimit Int (ULift.{u} Int) (S.obj (Opposite.op ⦋n⦌)))
-  have hι := IsColimit.comp_coconePointUniqueUpToIso_hom
-    (S.isColimitChainComplexXCofan integralCoefficient n)
-    (ModuleCat.finsuppCoconeIsColimit Int (ULift.{u} Int) (S.obj (Opposite.op ⦋n⦌)))
-    (Discrete.mk (E.symm s))
-  have he : e.hom (integralSingularGenerator s a) = Finsupp.single (E.symm s) a :=
-    congrArg (fun f => f a) hι
-  change Finsupp.domLCongr (R := Int) (M := ULift.{u} Int) E
-    (e.hom (integralSingularGenerator s a)) = Finsupp.single s a
-  rw [he, Finsupp.domLCongr_single, E.apply_symm_apply]
-
-theorem integralSingularGenerator_boundary {n : Nat}
-    (s : C(integralSimplex (n + 1), X)) :
-    (CategoryStruct.comp (integralSingularGenerator s ) ( (integralChains X).d (n + 1) n)) =
-      ∑ i : Fin (n + 2), ((-1 : Int) ^ i.val) •
-        integralSingularGenerator (s.comp (integralSimplexFace n i)) := by
-  let S := TopCat.toSSet.obj (TopCat.of X)
-  let E := (TopCat.of X).toSSetObjEquiv (Opposite.op ⦋n⦌)
-  let E' := (TopCat.of X).toSSetObjEquiv (Opposite.op ⦋n + 1⦌)
-  change (CategoryStruct.comp (S.ιChainComplex (E'.symm s) ) ( (S.chainComplex integralCoefficient).d (n + 1) n)) =
-    ∑ i : Fin (n + 2), ((-1 : Int) ^ i.val) •
-      S.ιChainComplex (E.symm (s.comp (integralSimplexFace n i)))
-  rw [SSet.ιChainComplex_d]
-  apply Finset.sum_congr rfl
-  intro i _
-  apply congrArg (fun x : S.obj (Opposite.op ⦋n⦌) =>
-    ((-1 : Int) ^ i.val) • S.ιChainComplex (R := integralCoefficient) x)
-  apply E.injective
-  ext z
-  change (TopCat.of X).toSSetObjEquiv _ (S.δ i (E'.symm s)) z =
-    (E (E.symm (s.comp (integralSimplexFace n i)))) z
-  rw [TopCat.toSSetObjEquiv_δ_apply, E'.apply_symm_apply, E.apply_symm_apply]
-  rfl
-
-theorem integralSingularGenerator_map {n : Nat}
-    (s : C(integralSimplex n, X)) (f : C(X, Y)) :
-    (CategoryStruct.comp (integralSingularGenerator s ) (
-      (integralChainsFunctor.map (TopCat.ofHom f)).f n)) =
-        integralSingularGenerator (f.comp s) := by
-  change (CategoryStruct.comp ((TopCat.toSSet.obj (TopCat.of X)).ιChainComplex
-      (((TopCat.of X).toSSetObjEquiv (Opposite.op ⦋n⦌)).symm s) ) (
-      (SSet.chainComplexMap (TopCat.toSSet.map (TopCat.ofHom f)) integralCoefficient).f n)) =
-    (TopCat.toSSet.obj (TopCat.of Y)).ιChainComplex
-      (((TopCat.of Y).toSSetObjEquiv (Opposite.op ⦋n⦌)).symm (f.comp s))
-  rw [SSet.ι_chainComplexMap_f]
-  rfl
-
-theorem integral_subspace_range_iff (A : Set X) (n : Nat)
-    (c : (integralChains X).X n) :
-    c ∈ LinearMap.range ((integralSubspaceChains A).f n).hom ↔
-      ∀ s ∈ (integralChainCoordinates X n c).support, Set.range s ⊆ A := by
-  classical
-  let v : C(A, X) := ⟨Subtype.val, continuous_subtype_val⟩
-  let f : C(integralSimplex n, A) → C(integralSimplex n, X) := fun s => v.comp s
-  let i := (integralSubspaceChains A).f n
-  let EA := integralChainCoordinates A n
-  let EX := integralChainCoordinates X n
-  have hf : Function.Injective f := by
-    intro s t h
-    ext z
-    exact congrArg (fun k : C(integralSimplex n, X) => k z) h
-  have hgen (s : C(integralSimplex n, A)) :
-      (CategoryStruct.comp (integralSingularGenerator s ) ( i)) = integralSingularGenerator (f s) :=
-    integralSingularGenerator_map s v
-  have hcoord : EX.toLinearMap.comp (i.hom.comp EA.symm.toLinearMap) =
-      Finsupp.lmapDomain (ULift.{u} Int) Int f := by
-    apply Finsupp.lhom_ext
-    intro s a
-    change EX (i (EA.symm (Finsupp.single s a))) =
-      Finsupp.mapDomain f (Finsupp.single s a)
-    have hs : EA.symm (Finsupp.single s a) = integralSingularGenerator s a := by
-      apply EA.injective
-      rw [EA.apply_symm_apply]
-      exact (integralChainCoordinates_generator s a).symm
-    have hg : i (integralSingularGenerator s a) = integralSingularGenerator (f s) a :=
-      congrArg (fun k => k a) (hgen s)
-    rw [hs, hg, integralChainCoordinates_generator, Finsupp.mapDomain_single]
-  have happ (a : (integralChains A).X n) :
-      EX (i a) = Finsupp.mapDomain f (EA a) := by
-    have h := LinearMap.congr_fun hcoord (EA a)
-    change EX (i (EA.symm (EA a))) = Finsupp.mapDomain f (EA a) at h
-    simpa only [EA.symm_apply_apply] using h
-  have hfrange (s : C(integralSimplex n, X)) :
-      s ∈ Set.range f ↔ Set.range s ⊆ A := by
-    constructor
-    · rintro ⟨t, rfl⟩ y ⟨z, rfl⟩
-      exact (t z).property
-    · intro hs
-      refine ⟨⟨fun z => ⟨s z, hs ⟨z, rfl⟩⟩, s.continuous.subtype_mk _⟩, ?_⟩
-      ext z
-      rfl
-  have hrange : c ∈ LinearMap.range i.hom ↔ EX c ∈ Set.range (Finsupp.mapDomain f) := by
-    constructor
-    · rintro ⟨a, rfl⟩
-      exact ⟨EA a, (happ a).symm⟩
-    · rintro ⟨a, ha⟩
-      refine ⟨EA.symm a, EX.injective ?_⟩
-      rw [happ, EA.apply_symm_apply, ha]
-  change c ∈ LinearMap.range i.hom ↔ ∀ s ∈ (EX c).support, Set.range s ⊆ A
-  rw [hrange, Finsupp.mem_range_mapDomain_iff f hf]
-  constructor
-  · intro h s hs
-    apply (hfrange s).mp
-    by_contra hn
-    exact (Finsupp.mem_support_iff.mp hs) (h s hn)
-  · intro h s hs
-    by_contra hn
-    exact hs ((hfrange s).mpr (h s (Finsupp.mem_support_iff.mpr hn)))
-
-theorem integral_chain_finite_representation (n : Nat)
-    (c : (integralChains X).X n) :
-    c = ∑ s ∈ (integralChainCoordinates X n c).support,
-      integralSingularGenerator s (integralChainCoordinates X n c s) := by
-  apply (integralChainCoordinates X n).injective
-  simp only [map_sum]
-  calc
-    integralChainCoordinates X n c =
-        ∑ s ∈ (integralChainCoordinates X n c).support,
-          Finsupp.single s (integralChainCoordinates X n c s) :=
-      (Finsupp.sum_single (integralChainCoordinates X n c)).symm
-    _ = _ := by
-      apply Finset.sum_congr rfl
-      intro s _
-      exact (integralChainCoordinates_generator s _).symm
-
-end Poincare.Topology
-
-end FzIntegralChainCoordinates
-
-noncomputable section FzIntegralHomologyZero
-
-/-!
-# The augmentation of integral homology in degree zero
-
-Point classes generate degree-zero singular homology. The augmentation sends
-each point class to one and is natural for every continuous map.
--/
-
-
-open CategoryTheory Limits
-open scoped Simplicial
-
-universe u
-
-namespace Poincare.Topology
-
-variable {X Y : Type u} [TopologicalSpace X] [TopologicalSpace Y]
-
-def integralHomologyZeroAugmentation (X : Type u) [TopologicalSpace X] :
-    integralHomology X 0 ⟶ integralCoefficient :=
-  (TopCat.of X).singularHomology₀ε integralCoefficient
-
-def integralPointClass (x : X) : integralCoefficient ⟶ integralHomology X 0 :=
-  (CategoryStruct.comp ((integralChains X).liftCycles
-    (integralSingularGenerator (ContinuousMap.const (integralSimplex 0) x))
-    0 (by simp) (by simp) ) ( (integralChains X).homologyπ 0))
-
-theorem integralPointClass_augmentation (x : X) :
-    (CategoryStruct.comp (integralPointClass x ) ( integralHomologyZeroAugmentation X)) = 𝟙 _ := by
-  exact (TopCat.toSSet.obj (TopCat.of X)).liftCycles_ιChainComplex_homologyπ_homology₀ε
-    integralCoefficient _
-
-theorem integralHomologyZero_hom_ext {M : ModuleCat.{u} Int}
-    (f g : integralHomology X 0 ⟶ M)
-    (h : ∀ x : X, (CategoryStruct.comp (integralPointClass x ) ( f)) = (CategoryStruct.comp (integralPointClass x ) ( g))) : f = g := by
-  let K := integralChains X
-  let e := K.iCyclesIso 0 0 (by simp) (by simp)
-  apply (cancel_epi (K.homologyπ 0)).mp
-  apply (cancel_epi e.inv).mp
-  apply SSet.chainComplex_hom_ext
-  intro z
-  obtain ⟨s, rfl⟩ := ((TopCat.of X).toSSetObjEquiv (Opposite.op ⦋0⦌)).symm.surjective z
-  have hs : s = ContinuousMap.const (integralSimplex 0) (s default) := by
-    ext t
-    exact congrArg s (Subsingleton.elim t default)
-  have hl : (CategoryStruct.comp (integralSingularGenerator s ) ( e.inv)) =
-      K.liftCycles (integralSingularGenerator s) 0 (by simp) (by simp) := by
-    apply (cancel_mono (K.iCycles 0)).mp
-    rw [Category.assoc, HomologicalComplex.iCyclesIso_inv_hom_id,
-      Category.comp_id, HomologicalComplex.liftCycles_i]
-  change (CategoryStruct.comp (integralSingularGenerator s ) ( (CategoryStruct.comp (e.inv ) ( (CategoryStruct.comp (K.homologyπ 0 ) ( f)))))) =
-    (CategoryStruct.comp (integralSingularGenerator s ) ( (CategoryStruct.comp (e.inv ) ( (CategoryStruct.comp (K.homologyπ 0 ) ( g))))))
-  rw [← Category.assoc (integralSingularGenerator s), hl,
-    ← Category.assoc (integralSingularGenerator s), hl, hs]
-  exact h (s default)
-
-theorem integralPointClass_map (f : C(X, Y)) (x : X) :
-    (CategoryStruct.comp (integralPointClass x ) ( HomologicalComplex.homologyMap
-        (integralChainsFunctor.map (TopCat.ofHom f)) 0)) = integralPointClass (f x) := by
-  let F := integralChainsFunctor.map (TopCat.ofHom f)
-  let sx := integralSingularGenerator (ContinuousMap.const (integralSimplex 0) x)
-  let sy := integralSingularGenerator (ContinuousMap.const (integralSimplex 0) (f x))
-  have hs : (CategoryStruct.comp (sx ) ( F.f 0)) = sy := by
-    exact integralSingularGenerator_map (ContinuousMap.const (integralSimplex 0) x) f
-  have hl : (integralChains Y).liftCycles ((CategoryStruct.comp (sx ) ( F.f 0))) 0 (by simp)
-      (by rw [Category.assoc, F.comm, ← Category.assoc]; simp) =
-        (integralChains Y).liftCycles sy 0 (by simp) (by simp) := by
-    apply (cancel_mono ((integralChains Y).iCycles 0)).mp
-    rw [HomologicalComplex.liftCycles_i, HomologicalComplex.liftCycles_i, hs]
-  change (CategoryStruct.comp (((CategoryStruct.comp ((integralChains X).liftCycles sx 0 (by simp) (by simp) ) (
-      (integralChains X).homologyπ 0))) ) ( HomologicalComplex.homologyMap F 0)) =
-    (CategoryStruct.comp ((integralChains Y).liftCycles sy 0 (by simp) (by simp) ) (
-      (integralChains Y).homologyπ 0))
-  rw [Category.assoc, HomologicalComplex.homologyπ_naturality,
-    ← Category.assoc, HomologicalComplex.liftCycles_comp_cyclesMap, hl]
-
-theorem integralHomologyZeroAugmentation_natural (f : C(X, Y)) :
-    (CategoryStruct.comp (HomologicalComplex.homologyMap (integralChainsFunctor.map (TopCat.ofHom f)) 0 ) (
-      integralHomologyZeroAugmentation Y)) = integralHomologyZeroAugmentation X := by
-  apply integralHomologyZero_hom_ext
-  intro x
-  rw [← Category.assoc, integralPointClass_map,
-    integralPointClass_augmentation, integralPointClass_augmentation]
-
-theorem integralHomologyZeroAugmentation_isIso (X : Type u) [TopologicalSpace X]
-    [PathConnectedSpace X] : IsIso (integralHomologyZeroAugmentation X) := by
-  change IsIso ((TopCat.of X).singularHomology₀ε integralCoefficient)
-  infer_instance
-
-/-- For a path-connected target the kernel on `H_0` is the augmentation kernel. -/
-def integralHomologyZeroMapKernelIso (f : C(X, Y)) [PathConnectedSpace Y] :
-    kernel (HomologicalComplex.homologyMap (integralChainsFunctor.map (TopCat.ofHom f)) 0) ≅
-      kernel (integralHomologyZeroAugmentation X) := by
-  let := integralHomologyZeroAugmentation_isIso Y
-  exact (kernelCompMono _ (integralHomologyZeroAugmentation Y)).symm ≪≫
-    kernelIsoOfEq (integralHomologyZeroAugmentation_natural f)
-
-end Poincare.Topology
-
-end FzIntegralHomologyZero
-
-noncomputable section FzIntegralZeroSphere
-
-/-!
-# The integral reduced homology of the zero-sphere
-
-The two point classes give two free integral coordinates. Augmentation is
-their sum, whose kernel is the integral module generated by their difference.
--/
-
-
-open CategoryTheory Limits
-
-universe u
-
-namespace Poincare.Topology
-
-private def integralPairSum :
-    ModuleCat.of Int (Bool → ULift.{u} Int) ⟶ integralCoefficient :=
-  ModuleCat.ofHom
-    ((LinearMap.proj false : (Bool → ULift.{u} Int) →ₗ[Int] ULift.{u} Int) +
-      LinearMap.proj true)
-
-private def integralPairSumKernelIso : kernel integralPairSum.{u} ≅ integralCoefficient := by
-  let e : LinearMap.ker integralPairSum.{u}.hom ≃ₗ[Int] ULift.{u} Int :=
-    { toFun := fun z => z.val false
-      invFun := fun a => ⟨fun b => if b then -a else a, by
-        change a + -a = 0
-        exact add_neg_cancel a⟩
-      left_inv := by
-        intro z
-        apply Subtype.ext
-        funext b
-        cases b
-        · rfl
-        · have hz : z.val false + z.val true = 0 := z.property
-          have ht : z.val true = -z.val false := by
-            simpa using congrArg (fun a => a - z.val false) hz
-          exact ht.symm
-      right_inv := fun _ => rfl
-      map_add' := fun _ _ => rfl
-      map_smul' := fun _ _ => rfl }
-  exact ModuleCat.kernelIsoKer integralPairSum ≪≫ e.toModuleIso
-
-/-- A space with exactly two path components has augmentation kernel `Z`. -/
-def integralTwoComponentsAugmentationKernelIso
-    (X : Type u) [TopologicalSpace X] (e : ZerothHomotopy X ≃ Bool) :
-    kernel (integralHomologyZeroAugmentation X) ≅ integralCoefficient := by
-  classical
-  let Q : ZerothHomotopy X → ModuleCat.{u} Int := fun _ => integralCoefficient
-  let eS : (∐ Q) ≅ ModuleCat.of Int (ZerothHomotopy X →₀ ULift.{u} Int) :=
-    colimit.isoColimitCocone
-      ⟨_, ModuleCat.finsuppCoconeIsColimit Int (ULift.{u} Int) (ZerothHomotopy X)⟩
-  let eF : ModuleCat.of Int (ZerothHomotopy X →₀ ULift.{u} Int) ≅
-      ModuleCat.of Int (Bool → ULift.{u} Int) :=
-    ((Finsupp.domLCongr (R := Int) (M := ULift.{u} Int) e).trans
-      (Finsupp.linearEquivFunOnFinite Int (ULift.{u} Int) Bool)).toModuleIso
-  let eH := (TopCat.of X).singularHomology₀Iso integralCoefficient
-  let E := eH ≪≫ eS ≪≫ eF
-  have hsum : (CategoryStruct.comp (eS.hom ) ( (CategoryStruct.comp (eF.hom ) ( integralPairSum)))) = Limits.Sigma.desc (fun _ => 𝟙 integralCoefficient) := by
-    apply Sigma.hom_ext
-    intro i
-    have hi : (CategoryStruct.comp (Sigma.ι Q i ) ( eS.hom)) =
-        ModuleCat.ofHom (Finsupp.lsingle i (R := Int) (M := ULift.{u} Int)) :=
-      colimit.isoColimitCocone_ι_hom _ _
-    rw [← Category.assoc, hi, Sigma.ι_desc]
-    apply ModuleCat.hom_ext
-    apply LinearMap.ext
-    intro a
-    change ((Finsupp.linearEquivFunOnFinite Int (ULift.{u} Int) Bool)
-        ((Finsupp.domLCongr (R := Int) (M := ULift.{u} Int) e) (Finsupp.single i a))) false +
-      ((Finsupp.linearEquivFunOnFinite Int (ULift.{u} Int) Bool)
-        ((Finsupp.domLCongr (R := Int) (M := ULift.{u} Int) e) (Finsupp.single i a))) true = a
-    rw [Finsupp.domLCongr_single, Finsupp.linearEquivFunOnFinite_single]
-    cases e i <;> simp
-  have hE : (CategoryStruct.comp (integralHomologyZeroAugmentation X ) ( (Iso.refl integralCoefficient).hom)) =
-      (CategoryStruct.comp (E.hom ) ( integralPairSum)) := by
-    rw [Iso.refl_hom, Category.comp_id]
-    change integralHomologyZeroAugmentation X = (CategoryStruct.comp (((CategoryStruct.comp (eH.hom ) ( (CategoryStruct.comp (eS.hom ) ( eF.hom))))) ) ( integralPairSum))
-    rw [Category.assoc, Category.assoc, hsum]
-    exact ((TopCat.of X).singularHomology₀Iso_sigma_desc_id integralCoefficient).symm
-  exact kernel.mapIso _ _ E (Iso.refl _) hE ≪≫ integralPairSumKernelIso
-
-private def integralZerothHomotopyEquivOfTotallyDisconnected
-    (X : Type u) [TopologicalSpace X] [TotallyDisconnectedSpace X] :
-    ZerothHomotopy X ≃ X where
-  toFun := ZerothHomotopy.lift id (by
-    intro x y p
-    have h := TotallyDisconnectedSpace.eq_of_continuous p p.continuous 0 1
-    simpa using h)
-  invFun := ZerothHomotopy.mk
-  left_inv := by
-    intro q
-    obtain ⟨x, rfl⟩ := ZerothHomotopy.mk_surjective q
-    rfl
-  right_inv := fun _ => rfl
-
-private def integralRealUnitSphereEquivBool : Metric.sphere (0 : Real) 1 ≃ Bool where
-  toFun x := if x.val = 1 then true else false
-  invFun b := ⟨if b then 1 else -1, by cases b <;> simp⟩
-  left_inv x := by
-    have hxnorm : |x.val| = 1 := by
-      have hx : dist x.val (0 : Real) = 1 := x.property
-      rw [Real.dist_eq, sub_zero] at hx
-      exact hx
-    have hx : x.val = 1 ∨ x.val = -1 := abs_eq_abs.mp (by simpa using hxnorm)
-    apply Subtype.ext
-    rcases hx with hx | hx <;> norm_num [hx]
-  right_inv b := by cases b <;> norm_num
-
-private def integralZeroSphereEquivBool :
-    Metric.sphere (0 : EuclideanSpace Real (Fin 1)) 1 ≃ Bool := by
-  let e := (OrthonormalBasis.singleton (Fin 1) Real).repr.symm
-  let eS : Metric.sphere (0 : EuclideanSpace Real (Fin 1)) 1 ≃ Metric.sphere (0 : Real) 1 :=
-    e.toEquiv.subtypeEquiv (fun x => by
-      simp only [Metric.mem_sphere, dist_zero_right]
-      change (‖x‖ = 1) ↔ ‖e x‖ = 1
-      rw [e.norm_map]
-      rfl)
-  exact eS.trans integralRealUnitSphereEquivBool
-
-/-- The zero-sphere supplies the explicit integral base of sphere homology. -/
-def integralZeroSphereAugmentationKernelIso :
-    kernel (integralHomologyZeroAugmentation
-      (Metric.sphere (0 : EuclideanSpace Real (Fin 1)) 1)) ≅ integralCoefficient := by
-  let S := Metric.sphere (0 : EuclideanSpace Real (Fin 1)) 1
-  let : Finite S := Finite.of_equiv Bool integralZeroSphereEquivBool.symm
-  exact integralTwoComponentsAugmentationKernelIso S
-    ((integralZerothHomotopyEquivOfTotallyDisconnected S).trans integralZeroSphereEquivBool)
-
-end Poincare.Topology
-
-end FzIntegralZeroSphere
-
-noncomputable section FzIntegralSmallChains
-
-/-!
-# Small integral singular chains
-
-Small chains are the integer span of singular simplices whose entire image
-lies in one member of the supplied family. The differential and inclusion
-are restrictions of the actual singular-chain maps.
--/
-
-
-open CategoryTheory
-open scoped BigOperators
-
-universe u v
-
-namespace Poincare.Topology
-
-variable {X : Type u} [TopologicalSpace X] {I : Type v}
-
-def IntegralSmallSimplex (U : I → Set X) {n : Nat}
-    (s : C(integralSimplex n, X)) : Prop :=
-  ∃ i, Set.range s ⊆ U i
-
-def integralSmallChains (U : I → Set X) (n : Nat) :
-    Submodule Int ((integralChains X).X n) :=
-  Submodule.span Int (Set.range (fun s : {s : C(integralSimplex n, X) //
-    IntegralSmallSimplex U s} => integralSingularGenerator s.val (ULift.up 1)))
-
-def integralSmallChainComplex (U : I → Set X) :
-    ChainComplex (ModuleCat.{u} Int) Nat := by
-  have hpres (i j : Nat) (c : integralSmallChains U i) :
-      (integralChains X).d i j c.val ∈ integralSmallChains U j := by
-    by_cases hij : (ComplexShape.down Nat).Rel i j
-    · change j + 1 = i at hij
-      subst i
-      have hle : integralSmallChains U (j + 1) ≤
-          (integralSmallChains U j).comap ((integralChains X).d (j + 1) j).hom := by
-        apply Submodule.span_le.mpr
-        rintro _ ⟨s, rfl⟩
-        change (integralChains X).d (j + 1) j
-          (integralSingularGenerator s.val (ULift.up 1)) ∈ integralSmallChains U j
-        let ev : (integralCoefficient.{u} ⟶ (integralChains X).X j) →+
-            (integralChains X).X j :=
-          { toFun := fun f => f (ULift.up 1)
-            map_zero' := rfl
-            map_add' := fun _ _ => rfl }
-        have he := congrArg ev (integralSingularGenerator_boundary s.val)
-        rw [map_sum] at he
-        change (integralChains X).d (j + 1) j
-          (integralSingularGenerator s.val (ULift.up 1)) = _ at he
-        rw [he]
-        apply Submodule.sum_mem
-        intro k _
-        rw [map_zsmul]
-        apply (integralSmallChains U j).toAddSubgroup.zsmul_mem
-        change integralSingularGenerator (s.val.comp (integralSimplexFace j k))
-          (ULift.up 1) ∈ integralSmallChains U j
-        apply Submodule.subset_span
-        refine ⟨⟨s.val.comp (integralSimplexFace j k), ?_⟩, rfl⟩
-        rcases s.property with ⟨a, ha⟩
-        refine ⟨a, ?_⟩
-        rintro _ ⟨z, rfl⟩
-        exact ha ⟨integralSimplexFace j k z, rfl⟩
-      exact hle c.property
-    · rw [(integralChains X).shape i j hij]
-      exact (integralSmallChains U j).zero_mem
-  let C : Nat → ModuleCat.{u} Int := fun n =>
-    letI : Module Int (integralSmallChains U n) := (integralSmallChains U n).module
-    ModuleCat.of Int (integralSmallChains U n)
-  let d (i j : Nat) : C i ⟶ C j := by
-    letI : Module Int (integralSmallChains U i) := (integralSmallChains U i).module
-    letI : Module Int (integralSmallChains U j) := (integralSmallChains U j).module
-    exact ModuleCat.ofHom (LinearMap.codRestrict (integralSmallChains U j)
-      (((integralChains X).d i j).hom.domRestrict (integralSmallChains U i)) (hpres i j))
-  refine { X := C, d := d, shape := ?_, d_comp_d' := ?_ }
-  · intro i j hij
-    apply ConcreteCategory.hom_ext
-    intro c
-    apply Subtype.ext
-    change (integralChains X).d i j c.val = 0
-    rw [(integralChains X).shape i j hij]
-    rfl
-  · intro i j k _ _
-    apply ConcreteCategory.hom_ext
-    intro c
-    apply Subtype.ext
-    change (integralChains X).d j k ((integralChains X).d i j c.val) = 0
-    exact congrArg (fun f : (integralChains X).X i ⟶ (integralChains X).X k =>
-      f c.val) ((integralChains X).d_comp_d i j k)
-
-def integralSmallChainInclusion (U : I → Set X) :
-    integralSmallChainComplex U ⟶ integralChains X where
-  f n := by
-    letI : Module Int (integralSmallChains U n) := (integralSmallChains U n).module
-    exact ModuleCat.ofHom (integralSmallChains U n).subtype
-  comm' i j _ := by
-    apply ModuleCat.hom_ext
-    apply LinearMap.ext
-    intro c
-    rfl
-
-theorem integralSmallChainInclusion_mono (U : I → Set X) :
-    Mono (integralSmallChainInclusion U) := by
-  apply HomologicalComplex.mono_of_mono_f
-  intro n
-  apply (ModuleCat.mono_iff_injective _).mpr
-  intro a b h
-  exact Subtype.ext h
-
-end Poincare.Topology
-
-end FzIntegralSmallChains
-
-noncomputable section FzIntegralChainSupport
-
-/-!
-# Support of integral singular chains
-
-These identities express the sum and intersection used in singular excision
-in the actual free modules on continuous singular simplices.
--/
-
-
-open CategoryTheory
-open scoped BigOperators
-
-universe u v
-
-namespace Poincare.Topology
-
-variable {X Y : Type u} [TopologicalSpace X] [TopologicalSpace Y]
-  {I : Type v}
-
-theorem integralChainCoordinates_map (f : C(X, Y)) (n : Nat)
-    (c : (integralChains X).X n) :
-    integralChainCoordinates Y n ((integralChainsFunctor.map (TopCat.ofHom f)).f n c) =
-      Finsupp.mapDomain (fun s => f.comp s) (integralChainCoordinates X n c) := by
-  let EX := integralChainCoordinates X n
-  let EY := integralChainCoordinates Y n
-  let q := (integralChainsFunctor.map (TopCat.ofHom f)).f n
-  have he : EY.toLinearMap.comp (q.hom.comp EX.symm.toLinearMap) =
-      Finsupp.lmapDomain (ULift.{u} Int) Int (fun s => f.comp s) := by
-    apply Finsupp.lhom_ext
-    intro s a
-    have hs : EX.symm (Finsupp.single s a) = integralSingularGenerator s a := by
-      apply EX.injective
-      rw [EX.apply_symm_apply]
-      exact (integralChainCoordinates_generator s a).symm
-    change EY (q (EX.symm (Finsupp.single s a))) =
-      Finsupp.mapDomain (fun s => f.comp s) (Finsupp.single s a)
-    rw [hs]
-    have hq : q (integralSingularGenerator s a) = integralSingularGenerator (f.comp s) a :=
-      congrArg (fun k => k a) (integralSingularGenerator_map s f)
-    rw [hq, integralChainCoordinates_generator, Finsupp.mapDomain_single]
-  have hec := LinearMap.congr_fun he (EX c)
-  change EY (q (EX.symm (EX c))) = Finsupp.mapDomain (fun s => f.comp s) (EX c) at hec
-  simpa only [EX.symm_apply_apply] using hec
-
-theorem integralSingularGenerator_mem_small (U : I → Set X) {n : Nat}
-    (s : C(integralSimplex n, X)) (hs : IntegralSmallSimplex U s)
-    (a : ULift.{u} Int) : integralSingularGenerator s a ∈ integralSmallChains U n := by
-  have ha : a = a.down • (ULift.up 1 : ULift.{u} Int) := by
-    apply ULift.ext
-    simp
-  rw [ha, map_zsmul]
-  apply (integralSmallChains U n).toAddSubgroup.zsmul_mem
-  exact Submodule.subset_span ⟨⟨s, hs⟩, rfl⟩
-
-theorem integralSmallChains_of_support (U : I → Set X) (n : Nat)
-    (c : (integralChains X).X n)
-    (hc : ∀ s ∈ (integralChainCoordinates X n c).support, IntegralSmallSimplex U s) :
-    c ∈ integralSmallChains U n := by
-  rw [integral_chain_finite_representation n c]
-  apply Submodule.sum_mem
-  intro s hs
-  exact integralSingularGenerator_mem_small U s (hc s hs) _
-
-theorem integralSmallChains_eq_top_of_univ (U : I → Set X) (i : I)
-    (hi : U i = Set.univ) (n : Nat) : integralSmallChains U n = ⊤ := by
-  apply top_unique
-  intro c _
-  apply integralSmallChains_of_support U n c
-  intro s _
-  exact ⟨i, by rw [hi]; exact Set.subset_univ _⟩
-
-theorem integralSmallChainInclusion_isIso_of_univ (U : I → Set X) (i : I)
-    (hi : U i = Set.univ) : IsIso (integralSmallChainInclusion U) := by
-  have hdeg (n : Nat) : IsIso ((integralSmallChainInclusion U).f n) := by
-    let : Mono ((integralSmallChainInclusion U).f n) :=
-      (ModuleCat.mono_iff_injective _).mpr (fun _ _ h => Subtype.ext h)
-    let : Epi ((integralSmallChainInclusion U).f n) :=
-      (ModuleCat.epi_iff_surjective _).mpr (by
-        intro c
-        refine ⟨⟨c, ?_⟩, rfl⟩
-        rw [integralSmallChains_eq_top_of_univ U i hi n]
-        exact Submodule.mem_top)
-    exact isIso_of_mono_of_epi _
-  let := hdeg
-  exact HomologicalComplex.Hom.isIso_of_components _
-
-theorem integralSubspaceChains_range_le_small (U : I → Set X) (A : Set X)
-    (i : I) (hi : A ⊆ U i) (n : Nat) :
-    LinearMap.range ((integralSubspaceChains A).f n).hom ≤ integralSmallChains U n := by
-  rintro _ ⟨c, rfl⟩
-  apply integralSmallChains_of_support
-  intro s hs
-  let v : C(A, X) := ⟨Subtype.val, continuous_subtype_val⟩
-  have hcoord := integralChainCoordinates_map v n c
-  change integralChainCoordinates X n ((integralSubspaceChains A).f n c) = _ at hcoord
-  rw [hcoord] at hs
-  obtain ⟨t, rfl⟩ := Finsupp.mem_range_of_mapDomain_ne_zero (Finsupp.mem_support_iff.mp hs)
-  refine ⟨i, ?_⟩
-  rintro _ ⟨z, rfl⟩
-  exact hi (t z).property
-
-theorem integralSingularGenerator_mem_subspace (A : Set X) {n : Nat}
-    (s : C(integralSimplex n, X)) (hs : Set.range s ⊆ A) (a : ULift.{u} Int) :
-    integralSingularGenerator s a ∈ LinearMap.range ((integralSubspaceChains A).f n).hom := by
-  classical
-  apply (integral_subspace_range_iff A n _).mpr
-  rw [integralChainCoordinates_generator]
-  intro t ht
-  have hts : t = s := by
-    by_contra hne
-    exact (Finsupp.mem_support_iff.mp ht) (Finsupp.single_eq_of_ne hne)
-  exact hts ▸ hs
-
-theorem integralSubspaceChains_range_inf (A B : Set X) (n : Nat) :
-    LinearMap.range ((integralSubspaceChains A).f n).hom ⊓
-        LinearMap.range ((integralSubspaceChains B).f n).hom =
-      LinearMap.range ((integralSubspaceChains (A ∩ B)).f n).hom := by
-  ext c
-  simp only [Submodule.mem_inf, integral_subspace_range_iff]
-  constructor
-  · rintro ⟨hA, hB⟩ s hs x hx
-    exact ⟨hA s hs hx, hB s hs hx⟩
-  · intro h
-    exact ⟨fun s hs x hx => (h s hs hx).1, fun s hs x hx => (h s hs hx).2⟩
-
-theorem integralSubspaceChains_range_preimage (A B : Set X) (n : Nat)
-    (c : (integralChains B).X n) :
-    (integralSubspaceChains B).f n c ∈ LinearMap.range ((integralSubspaceChains A).f n).hom ↔
-      c ∈ LinearMap.range
-        ((integralSubspaceChains ((Subtype.val : B → X) ⁻¹' A)).f n).hom := by
-  let v : C(B, X) := ⟨Subtype.val, continuous_subtype_val⟩
-  let g : C(integralSimplex n, B) → C(integralSimplex n, X) := fun s => v.comp s
-  have hg : Function.Injective g := by
-    intro s t h
-    ext z
-    exact congrArg (fun q : C(integralSimplex n, X) => q z) h
-  rw [integral_subspace_range_iff, integral_subspace_range_iff]
-  have hcoord := integralChainCoordinates_map v n c
-  change integralChainCoordinates X n ((integralSubspaceChains B).f n c) =
-    Finsupp.mapDomain g (integralChainCoordinates B n c) at hcoord
-  rw [hcoord]
-  constructor
-  · intro h s hs x hx
-    have hmem : g s ∈ (Finsupp.mapDomain g (integralChainCoordinates B n c)).support := by
-      rw [Finsupp.mem_support_iff, Finsupp.mapDomain_apply hg]
-      exact Finsupp.mem_support_iff.mp hs
-    obtain ⟨z, rfl⟩ := hx
-    exact h (g s) hmem ⟨z, rfl⟩
-  · intro h s hs x hx
-    obtain ⟨t, rfl⟩ := Finsupp.mem_range_of_mapDomain_ne_zero (Finsupp.mem_support_iff.mp hs)
-    have ht : t ∈ (integralChainCoordinates B n c).support := by
-      rw [Finsupp.mem_support_iff, Finsupp.mapDomain_apply hg] at hs
-      exact Finsupp.mem_support_iff.mpr hs
-    obtain ⟨z, rfl⟩ := hx
-    exact h t ht ⟨z, rfl⟩
-
-theorem integralSmallChains_two_eq_sup (A B : Set X) (n : Nat) :
-    integralSmallChains (fun b : Bool => if b then A else B) n =
-      LinearMap.range ((integralSubspaceChains A).f n).hom ⊔
-        LinearMap.range ((integralSubspaceChains B).f n).hom := by
-  apply le_antisymm
-  · apply Submodule.span_le.mpr
-    rintro _ ⟨s, rfl⟩
-    obtain ⟨b, hb⟩ := s.property
-    cases b with
-    | false =>
-        exact Submodule.mem_sup_right (integralSingularGenerator_mem_subspace B s.val hb _)
-    | true =>
-        exact Submodule.mem_sup_left (integralSingularGenerator_mem_subspace A s.val hb _)
-  · apply sup_le
-    · exact integralSubspaceChains_range_le_small _ A true (fun _ h => h) n
-    · exact integralSubspaceChains_range_le_small _ B false (fun _ h => h) n
-
-end Poincare.Topology
-
-end FzIntegralChainSupport
-
-noncomputable section FzIntegralOrderedChains
-
-/-!
-# Integral chains on ordered vertex tuples
-
-The index counts vertices. The empty tuple supplies the auxiliary
-augmentation used by the cone formula and the finite subdivision recursion.
--/
-
-
-open scoped BigOperators
-
-universe u v w
-
-namespace Poincare.Topology
-
-abbrev integralOrderedChains (V : Type u) (k : Nat) :=
-  (Fin k → V) →₀ Int
-
-def integralOrderedBoundary (V : Type u) (k : Nat) :
-    integralOrderedChains V (k + 1) →ₗ[Int] integralOrderedChains V k :=
-  ∑ i : Fin (k + 1), ((-1 : Int) ^ i.val) •
-    Finsupp.lmapDomain Int Int (fun v : Fin (k + 1) → V => v ∘ i.succAbove)
-
-def integralOrderedCone {V : Type u} (k : Nat) (b : V) :
-    integralOrderedChains V k →ₗ[Int] integralOrderedChains V (k + 1) :=
-  Finsupp.lmapDomain Int Int
-    (fun v : Fin k → V => Fin.cons (α := fun _ : Fin (k + 1) => V) b v)
-
-def integralOrderedMap {V : Type u} {W : Type v} (k : Nat) (f : V → W) :
-    integralOrderedChains V k →ₗ[Int] integralOrderedChains W k :=
-  Finsupp.lmapDomain Int Int (fun v : Fin k → V => f ∘ v)
-
-theorem integralOrderedBoundary_single {V : Type u} (k : Nat)
-    (v : Fin (k + 1) → V) (a : Int) :
-    integralOrderedBoundary V k (Finsupp.single v a) =
-      ∑ i : Fin (k + 1), ((-1 : Int) ^ i.val) •
-        Finsupp.single (v ∘ i.succAbove) a := by
-  simp [integralOrderedBoundary, Finsupp.lmapDomain_apply]
-
-theorem integralOrderedCone_single {V : Type u} (k : Nat) (b : V)
-    (v : Fin k → V) (a : Int) :
-    integralOrderedCone k b (Finsupp.single v a) =
-      Finsupp.single (Fin.cons (α := fun _ : Fin (k + 1) => V) b v) a := by
-  simp [integralOrderedCone, Finsupp.lmapDomain_apply]
-
-theorem integralOrderedMap_single {V : Type u} {W : Type v} (k : Nat)
-    (f : V → W) (v : Fin k → V) (a : Int) :
-    integralOrderedMap k f (Finsupp.single v a) = Finsupp.single (f ∘ v) a := by
-  simp [integralOrderedMap, Finsupp.lmapDomain_apply]
-
-theorem integralOrderedBoundary_cone_zero {V : Type u} (b : V)
-    (c : integralOrderedChains V 0) :
-    integralOrderedBoundary V 0 (integralOrderedCone 0 b c) = c := by
-  have h : (integralOrderedBoundary V 0).comp (integralOrderedCone 0 b) =
-      LinearMap.id := by
-    apply Finsupp.lhom_ext
-    intro v a
-    change integralOrderedBoundary V 0 (integralOrderedCone 0 b (Finsupp.single v a)) =
-      Finsupp.single v a
-    rw [integralOrderedCone_single, integralOrderedBoundary_single, Fin.sum_univ_one]
-    simp only [Fin.val_zero, pow_zero, one_smul]
-    exact congrArg (fun t : Fin 0 → V => Finsupp.single t a) (Subsingleton.elim _ _)
-  exact LinearMap.congr_fun h c
-
-theorem integralOrderedBoundary_cone_succ {V : Type u} (k : Nat) (b : V)
-    (c : integralOrderedChains V (k + 1)) :
-    integralOrderedBoundary V (k + 1) (integralOrderedCone (k + 1) b c) =
-      c - integralOrderedCone k b (integralOrderedBoundary V k c) := by
-  have h : (integralOrderedBoundary V (k + 1)).comp (integralOrderedCone (k + 1) b) =
-      LinearMap.id - (integralOrderedCone k b).comp (integralOrderedBoundary V k) := by
-    apply Finsupp.lhom_ext
-    intro v a
-    change integralOrderedBoundary V (k + 1)
-        (integralOrderedCone (k + 1) b (Finsupp.single v a)) =
-      Finsupp.single v a - integralOrderedCone k b
-        (integralOrderedBoundary V k (Finsupp.single v a))
-    have hzero :
-        Fin.cons (α := fun _ : Fin (k + 2) => V) b v ∘
-          (0 : Fin (k + 2)).succAbove = v := by
-      funext i
-      rfl
-    have hremove (i : Fin (k + 1)) : i.removeNth v = v ∘ i.succAbove := by
-      funext j
-      rfl
-    rw [integralOrderedCone_single, integralOrderedBoundary_single,
-      integralOrderedBoundary_single, map_sum, Fin.sum_univ_succ]
-    simp only [Fin.val_zero, pow_zero, one_smul, hzero, Fin.val_succ, pow_succ,
-      mul_neg, mul_one, neg_smul, map_smul, integralOrderedCone_single,
-      Fin.cons_comp_succ_succAbove, hremove, ← Finset.sum_neg_distrib,
-      sub_eq_add_neg]
-  exact LinearMap.congr_fun h c
-
-theorem integralOrderedBoundary_boundary {V : Type u} (k : Nat)
-    (c : integralOrderedChains V (k + 2)) :
-    integralOrderedBoundary V k (integralOrderedBoundary V (k + 1) c) = 0 := by
-  induction k with
-  | zero =>
-      have h : (integralOrderedBoundary V 0).comp (integralOrderedBoundary V 1) = 0 := by
-        apply Finsupp.lhom_ext
-        intro v a
-        change integralOrderedBoundary V 0
-          (integralOrderedBoundary V 1 (Finsupp.single v a)) = 0
-        have hv : Finsupp.single v a =
-            integralOrderedCone 1 (v 0) (Finsupp.single (Fin.tail v) a) := by
-          rw [integralOrderedCone_single, Fin.cons_self_tail]
-        rw [hv, integralOrderedBoundary_cone_succ, map_sub,
-          integralOrderedBoundary_cone_zero, sub_self]
-      exact LinearMap.congr_fun h c
-  | succ k ih =>
-      have h : (integralOrderedBoundary V (k + 1)).comp
-          (integralOrderedBoundary V (k + 2)) = 0 := by
-        apply Finsupp.lhom_ext
-        intro v a
-        change integralOrderedBoundary V (k + 1)
-          (integralOrderedBoundary V (k + 2) (Finsupp.single v a)) = 0
-        have hv : Finsupp.single v a =
-            integralOrderedCone (k + 2) (v 0) (Finsupp.single (Fin.tail v) a) := by
-          rw [integralOrderedCone_single, Fin.cons_self_tail]
-        rw [hv, integralOrderedBoundary_cone_succ, map_sub,
-          integralOrderedBoundary_cone_succ, ih, map_zero, sub_zero, sub_self]
-      exact LinearMap.congr_fun h c
-
-theorem integralOrderedMap_boundary {V : Type u} {W : Type v} (k : Nat)
-    (f : V → W) (c : integralOrderedChains V (k + 1)) :
-    integralOrderedMap k f (integralOrderedBoundary V k c) =
-      integralOrderedBoundary W k (integralOrderedMap (k + 1) f c) := by
-  have h : (integralOrderedMap k f).comp (integralOrderedBoundary V k) =
-      (integralOrderedBoundary W k).comp (integralOrderedMap (k + 1) f) := by
-    apply Finsupp.lhom_ext
-    intro v a
-    change integralOrderedMap k f (integralOrderedBoundary V k (Finsupp.single v a)) =
-      integralOrderedBoundary W k (integralOrderedMap (k + 1) f (Finsupp.single v a))
-    rw [integralOrderedBoundary_single, map_sum, integralOrderedMap_single,
-      integralOrderedBoundary_single]
-    simp only [map_smul, integralOrderedMap_single, Function.comp_assoc]
-  exact LinearMap.congr_fun h c
-
-theorem integralOrderedMap_cone {V : Type u} {W : Type v} (k : Nat)
-    (f : V → W) (b : V) (c : integralOrderedChains V k) :
-    integralOrderedMap (k + 1) f (integralOrderedCone k b c) =
-      integralOrderedCone k (f b) (integralOrderedMap k f c) := by
-  have h : (integralOrderedMap (k + 1) f).comp (integralOrderedCone k b) =
-      (integralOrderedCone k (f b)).comp (integralOrderedMap k f) := by
-    apply Finsupp.lhom_ext
-    intro v a
-    change integralOrderedMap (k + 1) f (integralOrderedCone k b (Finsupp.single v a)) =
-      integralOrderedCone k (f b) (integralOrderedMap k f (Finsupp.single v a))
-    rw [integralOrderedCone_single, integralOrderedMap_single,
-      integralOrderedMap_single, integralOrderedCone_single]
-    apply congrArg (fun t : Fin (k + 1) → W => Finsupp.single t a)
-    funext i
-    exact Fin.cases rfl (fun _ => rfl) i
-  exact LinearMap.congr_fun h c
-
-end Poincare.Topology
-
-end FzIntegralOrderedChains
-
-noncomputable section FzIntegralOrderedSubdivision
-
-/-!
-# Subdivision and prism on ordered integral chains
-
-Both maps use the augmented vertex-count grading. Their recursions require
-only a center of each nonempty tuple; geometric properties of the center
-are explicit hypotheses of the naturality and support statements.
--/
-
-
-open scoped BigOperators
-
-universe u v
-
-namespace Poincare.Topology
-
-def integralOrderedSubdivision {V : Type u}
-    (b : ∀ n : Nat, (Fin (n + 1) → V) → V) (k : Nat) :
-    integralOrderedChains V k →ₗ[Int] integralOrderedChains V k :=
-  Nat.rec (motive := fun k => integralOrderedChains V k →ₗ[Int] integralOrderedChains V k)
-    LinearMap.id
-    (fun k S => Finsupp.lsum Int (fun v : Fin (k + 1) → V =>
-      (LinearMap.id : Int →ₗ[Int] Int).smulRight
-        (integralOrderedCone k (b k v)
-          (S (integralOrderedBoundary V k (Finsupp.single v 1)))))) k
-
-def integralOrderedPrism {V : Type u}
-    (b : ∀ n : Nat, (Fin (n + 1) → V) → V) (k : Nat) :
-    integralOrderedChains V k →ₗ[Int] integralOrderedChains V (k + 1) :=
-  Nat.rec (motive := fun k =>
-      integralOrderedChains V k →ₗ[Int] integralOrderedChains V (k + 1))
-    0
-    (fun k T => Finsupp.lsum Int (fun v : Fin (k + 1) → V =>
-      (LinearMap.id : Int →ₗ[Int] Int).smulRight
-        (integralOrderedCone (k + 1) (b k v)
-          (Finsupp.single v 1 -
-            integralOrderedSubdivision b (k + 1) (Finsupp.single v 1) -
-            T (integralOrderedBoundary V k (Finsupp.single v 1)))))) k
-
-variable {V : Type u}
-variable (b : ∀ n : Nat, (Fin (n + 1) → V) → V)
-
-theorem integralOrderedSubdivision_zero :
-    integralOrderedSubdivision b 0 = LinearMap.id := rfl
-
-theorem integralOrderedSubdivision_single_succ (k : Nat)
-    (v : Fin (k + 1) → V) :
-    integralOrderedSubdivision b (k + 1) (Finsupp.single v 1) =
-      integralOrderedCone k (b k v)
-        (integralOrderedSubdivision b k
-          (integralOrderedBoundary V k (Finsupp.single v 1))) := by
-  simp [integralOrderedSubdivision, Finsupp.lsum_single, LinearMap.smulRight_apply]
-
-theorem integralOrderedPrism_zero : integralOrderedPrism b 0 = 0 := rfl
-
-theorem integralOrderedPrism_single_succ (k : Nat)
-    (v : Fin (k + 1) → V) :
-    integralOrderedPrism b (k + 1) (Finsupp.single v 1) =
-      integralOrderedCone (k + 1) (b k v)
-        (Finsupp.single v 1 -
-          integralOrderedSubdivision b (k + 1) (Finsupp.single v 1) -
-          integralOrderedPrism b k
-            (integralOrderedBoundary V k (Finsupp.single v 1))) := by
-  simp [integralOrderedPrism, Finsupp.lsum_single, LinearMap.smulRight_apply]
-
-theorem integralOrderedSubdivision_one
-    (hb : ∀ v : Fin 1 → V, b 0 v = v 0) :
-    integralOrderedSubdivision b 1 = LinearMap.id := by
-  apply Finsupp.lhom_ext'
-  intro v
-  apply LinearMap.ext_ring
-  change integralOrderedSubdivision b 1 (Finsupp.single v 1) = Finsupp.single v 1
-  rw [integralOrderedSubdivision_single_succ, integralOrderedSubdivision_zero]
-  change integralOrderedCone 0 (b 0 v)
-    (integralOrderedBoundary V 0 (Finsupp.single v 1)) = Finsupp.single v 1
-  rw [integralOrderedBoundary_single, Fin.sum_univ_one]
-  simp only [Fin.val_zero, pow_zero, one_smul, integralOrderedCone_single, hb]
-  apply congrArg (fun t : Fin 1 → V => Finsupp.single t (1 : Int))
-  funext i
-  have hi : i = 0 := Fin.eq_zero i
-  subst i
-  rfl
-
-theorem integralOrderedPrism_one
-    (hb : ∀ v : Fin 1 → V, b 0 v = v 0) :
-    integralOrderedPrism b 1 = 0 := by
-  apply Finsupp.lhom_ext'
-  intro v
-  apply LinearMap.ext_ring
-  change integralOrderedPrism b 1 (Finsupp.single v 1) = 0
-  rw [integralOrderedPrism_single_succ, integralOrderedSubdivision_one b hb,
-    integralOrderedPrism_zero]
-  simp
-
-theorem integralOrderedSubdivision_boundary (k : Nat)
-    (c : integralOrderedChains V (k + 1)) :
-    integralOrderedBoundary V k (integralOrderedSubdivision b (k + 1) c) =
-      integralOrderedSubdivision b k (integralOrderedBoundary V k c) := by
-  induction k with
-  | zero =>
-      have h : (integralOrderedBoundary V 0).comp (integralOrderedSubdivision b 1) =
-          (integralOrderedSubdivision b 0).comp (integralOrderedBoundary V 0) := by
-        apply Finsupp.lhom_ext'
-        intro v
-        apply LinearMap.ext_ring
-        change integralOrderedBoundary V 0
-          (integralOrderedSubdivision b 1 (Finsupp.single v 1)) =
-            integralOrderedSubdivision b 0
-              (integralOrderedBoundary V 0 (Finsupp.single v 1))
-        rw [integralOrderedSubdivision_single_succ, integralOrderedBoundary_cone_zero]
-      exact LinearMap.congr_fun h c
-  | succ k ih =>
-      have h : (integralOrderedBoundary V (k + 1)).comp
-          (integralOrderedSubdivision b (k + 2)) =
-          (integralOrderedSubdivision b (k + 1)).comp
-            (integralOrderedBoundary V (k + 1)) := by
-        apply Finsupp.lhom_ext'
-        intro v
-        apply LinearMap.ext_ring
-        change integralOrderedBoundary V (k + 1)
-          (integralOrderedSubdivision b (k + 2) (Finsupp.single v 1)) =
-            integralOrderedSubdivision b (k + 1)
-              (integralOrderedBoundary V (k + 1) (Finsupp.single v 1))
-        rw [integralOrderedSubdivision_single_succ, integralOrderedBoundary_cone_succ,
-          ih, integralOrderedBoundary_boundary, map_zero, map_zero, sub_zero]
-      exact LinearMap.congr_fun h c
-
-theorem integralOrderedPrism_boundary (k : Nat)
-    (c : integralOrderedChains V (k + 1)) :
-    integralOrderedBoundary V (k + 1) (integralOrderedPrism b (k + 1) c) +
-      integralOrderedPrism b k (integralOrderedBoundary V k c) =
-        c - integralOrderedSubdivision b (k + 1) c := by
-  induction k with
-  | zero =>
-      have h : (integralOrderedBoundary V 1).comp (integralOrderedPrism b 1) +
-          (integralOrderedPrism b 0).comp (integralOrderedBoundary V 0) =
-          LinearMap.id - integralOrderedSubdivision b 1 := by
-        apply Finsupp.lhom_ext'
-        intro v
-        apply LinearMap.ext_ring
-        change integralOrderedBoundary V 1
-            (integralOrderedPrism b 1 (Finsupp.single v 1)) +
-          integralOrderedPrism b 0 (integralOrderedBoundary V 0 (Finsupp.single v 1)) =
-            Finsupp.single v 1 - integralOrderedSubdivision b 1 (Finsupp.single v 1)
-        rw [integralOrderedPrism_single_succ, integralOrderedPrism_zero]
-        simp only [LinearMap.zero_apply, sub_zero, add_zero]
-        have hz : integralOrderedBoundary V 0
-            (Finsupp.single v 1 - integralOrderedSubdivision b 1 (Finsupp.single v 1)) =
-            0 := by
-          rw [map_sub, integralOrderedSubdivision_boundary, integralOrderedSubdivision_zero]
-          exact sub_self _
-        rw [integralOrderedBoundary_cone_succ, hz, map_zero, sub_zero]
-      exact LinearMap.congr_fun h c
-  | succ k ih =>
-      have h : (integralOrderedBoundary V (k + 2)).comp
-          (integralOrderedPrism b (k + 2)) +
-          (integralOrderedPrism b (k + 1)).comp (integralOrderedBoundary V (k + 1)) =
-          LinearMap.id - integralOrderedSubdivision b (k + 2) := by
-        apply Finsupp.lhom_ext'
-        intro v
-        apply LinearMap.ext_ring
-        change integralOrderedBoundary V (k + 2)
-            (integralOrderedPrism b (k + 2) (Finsupp.single v 1)) +
-          integralOrderedPrism b (k + 1)
-            (integralOrderedBoundary V (k + 1) (Finsupp.single v 1)) =
-          Finsupp.single v 1 - integralOrderedSubdivision b (k + 2) (Finsupp.single v 1)
-        have ht := ih (integralOrderedBoundary V (k + 1) (Finsupp.single v 1))
-        rw [integralOrderedBoundary_boundary, map_zero, add_zero] at ht
-        have hz : integralOrderedBoundary V (k + 1)
-            (Finsupp.single v 1 - integralOrderedSubdivision b (k + 2) (Finsupp.single v 1) -
-              integralOrderedPrism b (k + 1)
-                (integralOrderedBoundary V (k + 1) (Finsupp.single v 1))) = 0 := by
-          rw [map_sub, map_sub, integralOrderedSubdivision_boundary, ht, sub_self]
-        rw [integralOrderedPrism_single_succ, integralOrderedBoundary_cone_succ,
-          hz, map_zero, sub_zero, sub_add_cancel]
-      exact LinearMap.congr_fun h c
-
-theorem integralOrderedSubdivision_map {W : Type v}
-    (bW : ∀ n : Nat, (Fin (n + 1) → W) → W) (f : V → W)
-    (hb : ∀ (n : Nat) (v : Fin (n + 1) → V), f (b n v) = bW n (f ∘ v))
-    (k : Nat) (c : integralOrderedChains V k) :
-    integralOrderedMap k f (integralOrderedSubdivision b k c) =
-      integralOrderedSubdivision bW k (integralOrderedMap k f c) := by
-  induction k with
-  | zero => rfl
-  | succ k ih =>
-      have h : (integralOrderedMap (k + 1) f).comp (integralOrderedSubdivision b (k + 1)) =
-          (integralOrderedSubdivision bW (k + 1)).comp (integralOrderedMap (k + 1) f) := by
-        apply Finsupp.lhom_ext'
-        intro v
-        apply LinearMap.ext_ring
-        change integralOrderedMap (k + 1) f
-            (integralOrderedSubdivision b (k + 1) (Finsupp.single v 1)) =
-          integralOrderedSubdivision bW (k + 1)
-            (integralOrderedMap (k + 1) f (Finsupp.single v 1))
-        rw [integralOrderedSubdivision_single_succ, integralOrderedMap_cone, ih,
-          integralOrderedMap_boundary, integralOrderedMap_single,
-          integralOrderedSubdivision_single_succ, hb]
-      exact LinearMap.congr_fun h c
-
-theorem integralOrderedPrism_map {W : Type v}
-    (bW : ∀ n : Nat, (Fin (n + 1) → W) → W) (f : V → W)
-    (hb : ∀ (n : Nat) (v : Fin (n + 1) → V), f (b n v) = bW n (f ∘ v))
-    (k : Nat) (c : integralOrderedChains V k) :
-    integralOrderedMap (k + 1) f (integralOrderedPrism b k c) =
-      integralOrderedPrism bW k (integralOrderedMap k f c) := by
-  induction k with
-  | zero => simp only [integralOrderedPrism_zero, LinearMap.zero_apply, map_zero]
-  | succ k ih =>
-      have h : (integralOrderedMap (k + 2) f).comp (integralOrderedPrism b (k + 1)) =
-          (integralOrderedPrism bW (k + 1)).comp (integralOrderedMap (k + 1) f) := by
-        apply Finsupp.lhom_ext'
-        intro v
-        apply LinearMap.ext_ring
-        change integralOrderedMap (k + 2) f
-            (integralOrderedPrism b (k + 1) (Finsupp.single v 1)) =
-          integralOrderedPrism bW (k + 1)
-            (integralOrderedMap (k + 1) f (Finsupp.single v 1))
-        rw [integralOrderedPrism_single_succ, integralOrderedMap_cone,
-          (integralOrderedMap (k + 1) f).map_sub,
-          (integralOrderedMap (k + 1) f).map_sub,
-          integralOrderedMap_single, integralOrderedSubdivision_map b bW f hb,
-          ih, integralOrderedMap_boundary, integralOrderedMap_single,
-          integralOrderedPrism_single_succ, hb]
-      exact LinearMap.congr_fun h c
-
-theorem integralOrderedSubdivision_support (A : Set V)
-    (hA : ∀ (n : Nat) (v : Fin (n + 1) → V), Set.range v ⊆ A → b n v ∈ A)
-    (k : Nat) (c : integralOrderedChains V k)
-    (hc : ∀ v ∈ c.support, Set.range v ⊆ A) :
-    ∀ v ∈ (integralOrderedSubdivision b k c).support, Set.range v ⊆ A := by
-  classical
-  induction k with
-  | zero => exact hc
-  | succ k ih =>
-      have hfaces (v : Fin (k + 1) → V) (hv : Set.range v ⊆ A) :
-          ∀ w ∈ (integralOrderedBoundary V k (Finsupp.single v 1)).support,
-            Set.range w ⊆ A := by
-        intro w hw
-        rw [integralOrderedBoundary_single] at hw
-        obtain ⟨i, _, hwi⟩ := Finset.mem_biUnion.mp (Finsupp.support_finsetSum hw)
-        have heq : w = v ∘ i.succAbove :=
-          ((Finsupp.mem_support_single _ _ _).mp (Finsupp.support_smul hwi)).1
-        subst w
-        rintro _ ⟨j, rfl⟩
-        exact hv ⟨i.succAbove j, rfl⟩
-      intro w hw
-      change w ∈ (c.sum (fun v a => a • integralOrderedCone k (b k v)
-        (integralOrderedSubdivision b k
-          (integralOrderedBoundary V k (Finsupp.single v 1))))).support at hw
-      obtain ⟨v, hvc, hw⟩ := Finset.mem_biUnion.mp (Finsupp.support_sum hw)
-      have hwcone := Finsupp.support_smul hw
-      change w ∈ (Finsupp.mapDomain
-        (fun t : Fin k → V => Fin.cons (α := fun _ : Fin (k + 1) => V) (b k v) t)
-        (integralOrderedSubdivision b k
-          (integralOrderedBoundary V k (Finsupp.single v 1)))).support at hwcone
-      obtain ⟨t, ht, rfl⟩ := Finset.mem_image.mp (Finsupp.mapDomain_support hwcone)
-      have htA : Set.range t ⊆ A :=
-        ih _ (hfaces v (hc v hvc)) t ht
-      rintro _ ⟨j, rfl⟩
-      refine Fin.cases ?_ (fun i => ?_) j
-      · exact hA k v (hc v hvc)
-      · exact htA ⟨i, rfl⟩
-
-end Poincare.Topology
-
-end FzIntegralOrderedSubdivision
-
-noncomputable section FzIntegralSimplexSubdivisionGeometry
-
-/-!
-# Geometry of integral simplex subdivision
-
-The mean and affine maps use the ambient real coordinates of the actual
-standard simplex. The mesh estimates concern every supported ordered tuple,
-including repeated vertices and zero-dimensional simplices.
--/
-
-
-open scoped BigOperators
-
-namespace Poincare.Topology
-
-def integralSimplexVertices (n : Nat) : Fin (n + 1) → integralSimplex n :=
-  fun i => stdSimplex.vertex (S := Real) i
-
-def integralSimplexBarycenter (d n : Nat)
-    (v : Fin (n + 1) → integralSimplex d) : integralSimplex d := by
-  refine ⟨((n + 1 : Real)⁻¹) • ∑ i, (v i).val, ?_⟩
-  rw [Finset.smul_sum]
-  apply (convex_stdSimplex Real (Fin (d + 1))).sum_mem
-  · intro i _
-    positivity
-  · have hn : (n + 1 : Real) ≠ 0 := by positivity
-    simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin,
-      nsmul_eq_mul, Nat.cast_add, Nat.cast_one]
-    exact mul_inv_cancel₀ hn
-  · intro i _
-    exact (v i).property
-
-def integralSimplexAffine {d n : Nat}
-    (v : Fin (n + 1) → integralSimplex d) :
-    C(integralSimplex n, integralSimplex d) where
-  toFun x := ⟨∑ i, x.val i • (v i).val,
-    (convex_stdSimplex Real (Fin (d + 1))).sum_mem
-      (fun i _ => x.property.1 i) x.property.2 (fun i _ => (v i).property)⟩
-  continuous_toFun := Continuous.subtype_mk
-    (continuous_finsetSum Finset.univ (fun i _ =>
-      ((continuous_apply i).comp continuous_subtype_val).smul continuous_const)) _
-
-theorem integralSimplexBarycenter_val (d n : Nat)
-    (v : Fin (n + 1) → integralSimplex d) :
-    (integralSimplexBarycenter d n v).val =
-      ((n + 1 : Real)⁻¹) • ∑ i, (v i).val := rfl
-
-theorem integralSimplexBarycenter_one (d : Nat) (v : Fin 1 → integralSimplex d) :
-    integralSimplexBarycenter d 0 v = v 0 := by
-  apply Subtype.ext
-  simp [integralSimplexBarycenter_val]
-
-theorem integralSimplexAffine_apply {d n : Nat}
-    (v : Fin (n + 1) → integralSimplex d) (x : integralSimplex n) :
-    (integralSimplexAffine v x).val = ∑ i, x.val i • (v i).val := rfl
-
-theorem integralSimplexAffine_vertex {d n : Nat}
-    (v : Fin (n + 1) → integralSimplex d) (i : Fin (n + 1)) :
-    integralSimplexAffine v (integralSimplexVertices n i) = v i := by
-  apply Subtype.ext
-  funext j
-  simp [integralSimplexAffine, integralSimplexVertices, stdSimplex.vertex,
-    Pi.single_apply]
-
-theorem integralSimplexAffine_vertices (n : Nat) :
-    integralSimplexAffine (integralSimplexVertices n) = ContinuousMap.id _ := by
-  apply ContinuousMap.ext
-  intro x
-  apply Subtype.ext
-  funext j
-  simp [integralSimplexAffine, integralSimplexVertices, stdSimplex.vertex,
-    Pi.single_apply]
-
-theorem integralSimplexAffine_comp {d n k : Nat}
-    (v : Fin (n + 1) → integralSimplex d)
-    (w : Fin (k + 1) → integralSimplex n) :
-    (integralSimplexAffine v).comp (integralSimplexAffine w) =
-      integralSimplexAffine (fun i => integralSimplexAffine v (w i)) := by
-  apply ContinuousMap.ext
-  intro x
-  apply Subtype.ext
-  simp only [ContinuousMap.comp_apply, integralSimplexAffine_apply]
-  funext j
-  simp only [Finset.sum_apply, Pi.smul_apply, smul_eq_mul, Finset.sum_mul,
-    Finset.mul_sum, mul_assoc]
-  exact Finset.sum_comm
-
-theorem integralSimplexAffine_barycenter {d n k : Nat}
-    (v : Fin (n + 1) → integralSimplex d)
-    (w : Fin (k + 1) → integralSimplex n) :
-    integralSimplexAffine v (integralSimplexBarycenter n k w) =
-      integralSimplexBarycenter d k (fun i => integralSimplexAffine v (w i)) := by
-  apply Subtype.ext
-  simp only [integralSimplexAffine_apply, integralSimplexBarycenter_val]
-  funext j
-  simp only [Finset.sum_apply, Pi.smul_apply, smul_eq_mul, Finset.sum_mul,
-    Finset.mul_sum, mul_assoc]
-  exact Finset.sum_comm
-
-theorem integralSimplexAffine_face {d n : Nat}
-    (v : Fin (n + 2) → integralSimplex d) (i : Fin (n + 2)) :
-    (integralSimplexAffine v).comp (integralSimplexFace n i) =
-      integralSimplexAffine (v ∘ i.succAbove) := by
-  apply ContinuousMap.ext
-  intro x
-  apply Subtype.ext
-  simp only [ContinuousMap.comp_apply, integralSimplexAffine_apply]
-  funext j
-  simp only [Finset.sum_apply, Pi.smul_apply, smul_eq_mul]
-  change (∑ k : Fin (n + 2),
-      FunOnFinite.linearMap Real Real i.succAbove x.val k * (v k).val j) =
-    ∑ k : Fin (n + 1), x.val k * (v (i.succAbove k)).val j
-  simp only [FunOnFinite.linearMap_apply_apply, Finset.sum_mul,
-    Finset.sum_filter, ite_mul, zero_mul]
-  rw [Finset.sum_comm]
-  apply Finset.sum_congr rfl
-  intro k _
-  simp
-
-theorem integralSimplexBarycenter_dist_le {d n : Nat}
-    (v : Fin (n + 1) → integralSimplex d) (D : Real) (hD : 0 ≤ D)
-    (hv : ∀ i j, dist (v i) (v j) ≤ D)
-    (z : integralSimplex d)
-    (hz : z.val ∈ convexHull Real (Set.range (fun i => (v i).val))) :
-    dist (integralSimplexBarycenter d n v) z ≤ (n : Real) / (n + 1) * D := by
-  have _ := hD
-  have hn : (n + 1 : Real) ≠ 0 := by positivity
-  have hmean (j : Fin (n + 1)) :
-      (integralSimplexBarycenter d n v).val - (v j).val =
-        (n + 1 : Real)⁻¹ • ∑ i, ((v i).val - (v j).val) := by
-    rw [integralSimplexBarycenter_val]
-    funext l
-    simp only [Pi.sub_apply, Pi.smul_apply, Finset.sum_apply, smul_eq_mul,
-      Finset.sum_sub_distrib, Finset.sum_const, Finset.card_univ, Fintype.card_fin,
-      nsmul_eq_mul, Nat.cast_add, Nat.cast_one, mul_sub, Pi.mul_apply,
-      Pi.add_apply, Pi.natCast_apply, Pi.one_apply, ← mul_assoc,
-      inv_mul_cancel₀ hn, one_mul]
-  have hvertex (j : Fin (n + 1)) :
-      dist (integralSimplexBarycenter d n v).val (v j).val ≤
-        (n : Real) / (n + 1) * D := by
-    have hsum : ‖∑ i : Fin (n + 1), ((v i).val - (v j).val)‖ ≤ (n : Real) * D := by
-      rw [Fin.sum_univ_succAbove (fun i => (v i).val - (v j).val) j]
-      simp only [sub_self, zero_add]
-      calc
-        ‖∑ i : Fin n, ((v (j.succAbove i)).val - (v j).val)‖ ≤
-            ∑ i : Fin n, ‖(v (j.succAbove i)).val - (v j).val‖ := norm_sum_le _ _
-        _ ≤ ∑ _ : Fin n, D := Finset.sum_le_sum (fun i _ => by
-          simpa only [Subtype.dist_eq, dist_eq_norm] using hv (j.succAbove i) j)
-        _ = (n : Real) * D := by simp
-    rw [dist_eq_norm, hmean, norm_smul, Real.norm_of_nonneg (by positivity)]
-    calc
-      (n + 1 : Real)⁻¹ * ‖∑ i : Fin (n + 1), ((v i).val - (v j).val)‖ ≤
-          (n + 1 : Real)⁻¹ * ((n : Real) * D) :=
-        mul_le_mul_of_nonneg_left hsum (by positivity)
-      _ = (n : Real) / (n + 1) * D := by rw [div_eq_mul_inv]; ring
-  have hball : convexHull Real (Set.range (fun i => (v i).val)) ⊆
-      Metric.closedBall (integralSimplexBarycenter d n v).val
-        ((n : Real) / (n + 1) * D) := by
-    apply convexHull_min _ (convex_closedBall _ _)
-    rintro _ ⟨j, rfl⟩
-    simpa only [Metric.mem_closedBall, dist_comm] using hvertex j
-  change dist (integralSimplexBarycenter d n v).val z.val ≤ _
-  rw [dist_comm]
-  exact hball hz
-
-theorem integralSimplexAffine_dist_le {d n : Nat}
-    (v : Fin (n + 1) → integralSimplex d) (D : Real) (hD : 0 ≤ D)
-    (hv : ∀ i j, dist (v i) (v j) ≤ D)
-    (x y : integralSimplex n) : dist (integralSimplexAffine v x)
-      (integralSimplexAffine v y) ≤ D := by
-  have _ := hD
-  have hmem (z : integralSimplex n) :
-      (integralSimplexAffine v z).val ∈
-        convexHull Real (Set.range (fun i => (v i).val)) := by
-    rw [integralSimplexAffine_apply]
-    apply (convex_convexHull Real _).sum_mem
-    · intro i _
-      exact z.property.1 i
-    · exact z.property.2
-    · intro i _
-      exact subset_convexHull Real _ ⟨i, rfl⟩
-  obtain ⟨_, ⟨i, rfl⟩, _, ⟨j, rfl⟩, h⟩ :=
-    convexHull_exists_dist_ge2 (hmem x) (hmem y)
-  exact h.trans (hv i j)
-
-theorem integralSimplexSubdivision_mesh {d n : Nat}
-    (v : Fin (n + 1) → integralSimplex d) (D : Real) (hD : 0 ≤ D)
-    (hv : ∀ i j, dist (v i) (v j) ≤ D)
-    (w : Fin (n + 1) → integralSimplex d)
-    (hw : w ∈ (integralOrderedSubdivision (integralSimplexBarycenter d)
-      (n + 1) (Finsupp.single v 1)).support) :
-    ∀ i j, dist (w i) (w j) ≤ (n : Real) / (n + 1) * D := by
-  classical
-  induction n generalizing D with
-  | zero =>
-      intro i j
-      have hi : i = 0 := Fin.eq_zero i
-      have hj : j = 0 := Fin.eq_zero j
-      subst i
-      subst j
-      simp
-  | succ n ih =>
-      rw [integralOrderedSubdivision_single_succ] at hw
-      change w ∈ (Finsupp.mapDomain
-        (fun t : Fin (n + 1) → integralSimplex d =>
-          Fin.cons (α := fun _ : Fin (n + 2) => integralSimplex d)
-            (integralSimplexBarycenter d (n + 1) v) t)
-        (integralOrderedSubdivision (integralSimplexBarycenter d) (n + 1)
-          (integralOrderedBoundary (integralSimplex d) (n + 1)
-            (Finsupp.single v 1)))).support at hw
-      obtain ⟨t, ht, rfl⟩ := Finset.mem_image.mp (Finsupp.mapDomain_support hw)
-      rw [integralOrderedBoundary_single, map_sum] at ht
-      simp only [map_smul] at ht
-      obtain ⟨a, _, hta⟩ := Finset.mem_biUnion.mp (Finsupp.support_finsetSum ht)
-      have hta' := Finsupp.support_smul hta
-      have hface (i j : Fin (n + 1)) :
-          dist ((v ∘ a.succAbove) i) ((v ∘ a.succAbove) j) ≤ D :=
-        hv (a.succAbove i) (a.succAbove j)
-      have htail := ih (v ∘ a.succAbove) D hD hface t hta'
-      let A : Set (integralSimplex d) :=
-        {p | p.val ∈ convexHull Real (Set.range (fun i => (v i).val))}
-      have hA (m : Nat) (u : Fin (m + 1) → integralSimplex d)
-          (hu : Set.range u ⊆ A) : integralSimplexBarycenter d m u ∈ A := by
-        change (integralSimplexBarycenter d m u).val ∈
-          convexHull Real (Set.range (fun i => (v i).val))
-        rw [integralSimplexBarycenter_val, Finset.smul_sum]
-        apply (convex_convexHull Real _).sum_mem
-        · intro i _
-          positivity
-        · have hm : (m + 1 : Real) ≠ 0 := by positivity
-          simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin,
-            nsmul_eq_mul, Nat.cast_add, Nat.cast_one]
-          exact mul_inv_cancel₀ hm
-        · intro i _
-          exact hu ⟨i, rfl⟩
-      have hunit : ∀ u ∈ (Finsupp.single (v ∘ a.succAbove) (1 : Int)).support,
-          Set.range u ⊆ A := by
-        intro u hu
-        have he : u = v ∘ a.succAbove := ((Finsupp.mem_support_single _ _ _).mp hu).1
-        subst u
-        rintro _ ⟨j, rfl⟩
-        exact subset_convexHull Real _ ⟨a.succAbove j, rfl⟩
-      have htA : Set.range t ⊆ A :=
-        integralOrderedSubdivision_support (integralSimplexBarycenter d)
-          A hA (n + 1) _ hunit t hta'
-      have hcenter (j : Fin (n + 1)) :
-          dist (integralSimplexBarycenter d (n + 1) v) (t j) ≤
-            ((n + 1 : Nat) : Real) / (((n + 1 : Nat) : Real) + 1) * D :=
-        integralSimplexBarycenter_dist_le v D hD hv (t j) (htA ⟨j, rfl⟩)
-      have hfactor : (n : Real) / (n + 1) ≤
-          ((n + 1 : Nat) : Real) / (((n + 1 : Nat) : Real) + 1) := by
-        rw [div_le_div_iff₀ (by positivity) (by positivity)]
-        push_cast
-        nlinarith
-      have hR : 0 ≤ ((n + 1 : Nat) : Real) /
-          (((n + 1 : Nat) : Real) + 1) * D := by positivity
-      intro i j
-      refine Fin.cases ?_ (fun i => ?_) i
-      · refine Fin.cases ?_ (fun j => ?_) j
-        · simpa only [dist_self] using hR
-        · exact hcenter j
-      · refine Fin.cases ?_ (fun j => ?_) j
-        · simpa only [Fin.cons_succ, Fin.cons_zero, dist_comm] using hcenter i
-        · exact (htail i j).trans (mul_le_mul_of_nonneg_right hfactor hD)
-
-theorem integralSimplexSubdivision_iterate_mesh {d n : Nat}
-    (r : Nat) (v : Fin (n + 1) → integralSimplex d)
-    (D : Real) (hD : 0 ≤ D) (hv : ∀ i j, dist (v i) (v j) ≤ D)
-    (w : Fin (n + 1) → integralSimplex d)
-    (hw : w ∈ (((integralOrderedSubdivision (integralSimplexBarycenter d)
-      (n + 1)) ^ r) (Finsupp.single v 1)).support) :
-    ∀ i j, dist (w i) (w j) ≤ ((n : Real) / (n + 1)) ^ r * D := by
-  classical
-  induction r generalizing w with
-  | zero =>
-      simp only [pow_zero, Module.End.one_apply, Finsupp.mem_support_single] at hw
-      obtain ⟨rfl, _⟩ := hw
-      simpa only [pow_zero, one_mul] using hv
-  | succ r ih =>
-      rw [pow_succ', Module.End.mul_apply] at hw
-      let c := ((integralOrderedSubdivision (integralSimplexBarycenter d)
-        (n + 1)) ^ r) (Finsupp.single v 1)
-      change w ∈ (c.sum (fun u a => a • integralOrderedCone n
-        (integralSimplexBarycenter d n u)
-        (integralOrderedSubdivision (integralSimplexBarycenter d) n
-          (integralOrderedBoundary (integralSimplex d) n
-            (Finsupp.single u 1))))).support at hw
-      obtain ⟨u, hu, hwu⟩ := Finset.mem_biUnion.mp (Finsupp.support_sum hw)
-      have hwu' : w ∈ (integralOrderedSubdivision (integralSimplexBarycenter d)
-          (n + 1) (Finsupp.single u 1)).support := by
-        rw [integralOrderedSubdivision_single_succ]
-        exact Finsupp.support_smul hwu
-      have huD := ih u hu
-      have hbound := integralSimplexSubdivision_mesh u
-        (((n : Real) / (n + 1)) ^ r * D) (by positivity) huD w hwu'
-      simpa only [pow_succ', mul_assoc] using hbound
-
-end Poincare.Topology
-
-end FzIntegralSimplexSubdivisionGeometry
-
-noncomputable section FzIntegralTupleRealization
-
-/-!
-# Realization of ordered tuples in actual integral singular chains
-
-Each tuple realizes as its affine singular simplex. Integer linear
-extension preserves boundaries, affine changes of model and small support.
--/
-
-
-open CategoryTheory
-open scoped BigOperators
-
-universe u v
-
-namespace Poincare.Topology
-
-variable {X Y : Type u} [TopologicalSpace X] [TopologicalSpace Y] {I : Type v}
-
-def integralTupleRealization (d n : Nat) (s : C(integralSimplex d, X)) :
-    integralOrderedChains (integralSimplex d) (n + 1) →ₗ[Int]
-      (integralChains X).X n :=
-  letI : MulAction Int ((integralChains X).X n) :=
-    ((integralChains X).X n).isModule.toDistribMulAction.toMulAction
-  Finsupp.lsum (N := (integralChains X).X n) Int
-    (fun v : Fin (n + 1) → integralSimplex d =>
-      (LinearMap.id : Int →ₗ[Int] Int).smulRight (M := (integralChains X).X n)
-        (integralSingularGenerator (s.comp (integralSimplexAffine v)) (ULift.up 1)))
-
-theorem integralTupleRealization_single (d n : Nat)
-    (s : C(integralSimplex d, X))
-    (v : Fin (n + 1) → integralSimplex d) (a : Int) :
-    integralTupleRealization d n s (Finsupp.single v a) =
-      a • integralSingularGenerator (s.comp (integralSimplexAffine v)) (ULift.up 1) := by
-  simp only [integralTupleRealization, Finsupp.lsum_single,
-    LinearMap.smulRight_apply, LinearMap.id_apply]
-  exact int_smul_eq_zsmul ((integralChains X).X n).isModule a _
-
-theorem integralTupleRealization_boundary (d n : Nat)
-    (s : C(integralSimplex d, X))
-    (c : integralOrderedChains (integralSimplex d) (n + 2)) :
-    (integralChains X).d (n + 1) n (integralTupleRealization d (n + 1) s c) =
-      integralTupleRealization d n s
-        (integralOrderedBoundary (integralSimplex d) (n + 1) c) := by
-  have h : ((integralChains X).d (n + 1) n).hom.comp
-        (integralTupleRealization d (n + 1) s) =
-      (integralTupleRealization d n s).comp
-        (integralOrderedBoundary (integralSimplex d) (n + 1)) := by
-    apply Finsupp.lhom_ext'
-    intro v
-    apply LinearMap.ext_ring
-    change (integralChains X).d (n + 1) n
-        (integralTupleRealization d (n + 1) s (Finsupp.single v 1)) =
-      integralTupleRealization d n s
-        (integralOrderedBoundary (integralSimplex d) (n + 1) (Finsupp.single v 1))
-    rw [integralTupleRealization_single, one_smul,
-      integralOrderedBoundary_single, map_sum]
-    simp only [map_zsmul, integralTupleRealization_single, one_smul]
-    let ev : (integralCoefficient.{u} ⟶ (integralChains X).X n) →+
-        (integralChains X).X n :=
-      { toFun := fun f => f (ULift.up 1)
-        map_zero' := rfl
-        map_add' := fun _ _ => rfl }
-    have hg := congrArg ev
-      (integralSingularGenerator_boundary (s.comp (integralSimplexAffine v)))
-    rw [map_sum] at hg
-    change (integralChains X).d (n + 1) n
-      (integralSingularGenerator (s.comp (integralSimplexAffine v)) (ULift.up 1)) = _ at hg
-    rw [hg]
-    apply Finset.sum_congr rfl
-    intro i _
-    rw [map_zsmul]
-    apply congrArg (fun x : (integralChains X).X n => ((-1 : Int) ^ i.val) • x)
-    change integralSingularGenerator
-        (s.comp ((integralSimplexAffine v).comp (integralSimplexFace n i)))
-          (ULift.up 1) =
-      integralSingularGenerator (s.comp (integralSimplexAffine (v ∘ i.succAbove)))
-        (ULift.up 1)
-    rw [integralSimplexAffine_face]
-  exact LinearMap.congr_fun h c
-
-theorem integralTupleRealization_affine {d e : Nat} (n : Nat)
-    (v : Fin (d + 1) → integralSimplex e) (s : C(integralSimplex e, X))
-    (c : integralOrderedChains (integralSimplex d) (n + 1)) :
-    integralTupleRealization d n (s.comp (integralSimplexAffine v)) c =
-      integralTupleRealization e n s
-        (integralOrderedMap (n + 1) (integralSimplexAffine v) c) := by
-  have h : integralTupleRealization d n (s.comp (integralSimplexAffine v)) =
-      (integralTupleRealization e n s).comp
-        (integralOrderedMap (n + 1) (integralSimplexAffine v)) := by
-    apply Finsupp.lhom_ext
-    intro w a
-    change integralTupleRealization d n (s.comp (integralSimplexAffine v))
-        (Finsupp.single w a) =
-      integralTupleRealization e n s
-        (integralOrderedMap (n + 1) (integralSimplexAffine v) (Finsupp.single w a))
-    rw [integralOrderedMap_single, integralTupleRealization_single,
-      integralTupleRealization_single]
-    apply congrArg (fun x : (integralChains X).X n => a • x)
-    change integralSingularGenerator
-        (s.comp ((integralSimplexAffine v).comp (integralSimplexAffine w)))
-          (ULift.up 1) =
-      integralSingularGenerator
-        (s.comp (integralSimplexAffine ((integralSimplexAffine v) ∘ w))) (ULift.up 1)
-    rw [integralSimplexAffine_comp]
-    rfl
-  exact LinearMap.congr_fun h c
-
-theorem integralTupleRealization_small (U : I → Set X) (d n : Nat)
-    (s : C(integralSimplex d, X)) (hs : IntegralSmallSimplex U s)
-    (c : integralOrderedChains (integralSimplex d) (n + 1)) :
-    integralTupleRealization d n s c ∈ integralSmallChains U n := by
-  classical
-  have hgen (v : Fin (n + 1) → integralSimplex d) (a : Int) :
-      integralTupleRealization d n s (Finsupp.single v a) ∈
-        integralSmallChains U n := by
-    rw [integralTupleRealization_single]
-    apply (integralSmallChains U n).toAddSubgroup.zsmul_mem
-    apply Submodule.subset_span
-    refine ⟨⟨s.comp (integralSimplexAffine v), ?_⟩, rfl⟩
-    rcases hs with ⟨i, hi⟩
-    refine ⟨i, ?_⟩
-    rintro _ ⟨z, rfl⟩
-    exact hi ⟨integralSimplexAffine v z, rfl⟩
-  rw [← Finsupp.sum_single c]
-  change integralTupleRealization d n s
-    (∑ v ∈ c.support, Finsupp.single v (c v)) ∈ integralSmallChains U n
-  rw [map_sum]
-  apply Submodule.sum_mem
-  intro v _
-  exact hgen v (c v)
-
-end Poincare.Topology
-
-end FzIntegralTupleRealization
-
-noncomputable section FzIntegralSubdivision
-
-/-!
-# Barycentric subdivision of actual integral singular chains
-
-The signed ordered operators are realized on each singular simplex.
-Their prism, support bounds and geometric mesh control the actual iterates.
--/
-
-
-open CategoryTheory
-open scoped BigOperators Simplicial
-
-universe u v
-
-namespace Poincare.Topology
-
-def integralBarycentricSubdivision (X : Type u) [TopologicalSpace X] :
-    integralChains X ⟶ integralChains X := by
-  classical
-  let R (n : Nat) (s : C(integralSimplex n, X)) :=
-    integralTupleRealization n n s
-      (integralOrderedSubdivision (integralSimplexBarycenter n) (n + 1)
-        (Finsupp.single (integralSimplexVertices n) 1))
-  let F (n : Nat) : (integralChains X).X n ⟶ (integralChains X).X n :=
-    letI : MulAction Int ((integralChains X).X n) :=
-      ((integralChains X).X n).isModule.toDistribMulAction.toMulAction
-    ModuleCat.ofHom
-      ((Finsupp.lsum (N := (integralChains X).X n) Int
-        (fun s : C(integralSimplex n, X) =>
-          (ULift.moduleEquiv : ULift.{u} Int ≃ₗ[Int] Int).toLinearMap.smulRight
-            (M := (integralChains X).X n) (R n s))).comp
-        (integralChainCoordinates X n).toLinearMap)
-  have hF (n : Nat) (s : C(integralSimplex n, X)) (a : ULift.{u} Int) :
-      F n (integralSingularGenerator s a) = a.down • R n s := by
-    let : MulAction Int ((integralChains X).X n) :=
-      ((integralChains X).X n).isModule.toDistribMulAction.toMulAction
-    change (Finsupp.lsum (N := (integralChains X).X n) Int
-      (fun t : C(integralSimplex n, X) =>
-        (ULift.moduleEquiv : ULift.{u} Int ≃ₗ[Int] Int).toLinearMap.smulRight
-          (M := (integralChains X).X n) (R n t)))
-      (integralChainCoordinates X n (integralSingularGenerator s a)) = _
-    rw [integralChainCoordinates_generator, Finsupp.lsum_single,
-      LinearMap.smulRight_apply]
-    exact int_smul_eq_zsmul ((integralChains X).X n).isModule a.down _
-  have hface (n : Nat) (s : C(integralSimplex (n + 1), X)) (i : Fin (n + 2)) :
-      R n (s.comp (integralSimplexFace n i)) =
-        integralTupleRealization (n + 1) n s
-          (integralOrderedSubdivision (integralSimplexBarycenter (n + 1)) (n + 1)
-            (Finsupp.single (integralSimplexVertices (n + 1) ∘ i.succAbove) 1)) := by
-    let w := integralSimplexVertices (n + 1) ∘ i.succAbove
-    have hw : integralSimplexAffine w = integralSimplexFace n i := by
-      simpa only [w, integralSimplexAffine_vertices, ContinuousMap.id_comp] using
-        (integralSimplexAffine_face (integralSimplexVertices (n + 1)) i).symm
-    have hb (k : Nat) (v : Fin (k + 1) → integralSimplex n) :
-        integralSimplexAffine w (integralSimplexBarycenter n k v) =
-          integralSimplexBarycenter (n + 1) k (integralSimplexAffine w ∘ v) :=
-      integralSimplexAffine_barycenter w v
-    have hvertex : integralSimplexAffine w ∘ integralSimplexVertices n = w := by
-      funext j
-      exact integralSimplexAffine_vertex w j
-    dsimp only [R]
-    rw [← hw, integralTupleRealization_affine,
-      integralOrderedSubdivision_map (integralSimplexBarycenter n)
-        (integralSimplexBarycenter (n + 1)) (integralSimplexAffine w) hb,
-      integralOrderedMap_single, hvertex]
-  have hunit (n : Nat) (s : C(integralSimplex (n + 1), X)) :
-      (integralChains X).d (n + 1) n
-          (F (n + 1) (integralSingularGenerator s (ULift.up 1))) =
-        F n ((integralChains X).d (n + 1) n
-          (integralSingularGenerator s (ULift.up 1))) := by
-    let ev : (integralCoefficient.{u} ⟶ (integralChains X).X n) →+
-        (integralChains X).X n :=
-      { toFun := fun f => f (ULift.up 1)
-        map_zero' := rfl
-        map_add' := fun _ _ => rfl }
-    have hd := congrArg ev (integralSingularGenerator_boundary s)
-    rw [map_sum] at hd
-    change (integralChains X).d (n + 1) n
-      (integralSingularGenerator s (ULift.up 1)) = _ at hd
-    rw [hF, one_smul, hd, map_sum]
-    dsimp only [R]
-    rw [integralTupleRealization_boundary, integralOrderedSubdivision_boundary,
-      integralOrderedBoundary_single, map_sum, map_sum]
-    apply Finset.sum_congr rfl
-    intro i _
-    simp only [map_zsmul]
-    have hFi : F n (ev (integralSingularGenerator (s.comp (integralSimplexFace n i)))) =
-        R n (s.comp (integralSimplexFace n i)) := by
-      change F n (integralSingularGenerator (s.comp (integralSimplexFace n i)) (ULift.up 1)) = _
-      exact (hF n _ (ULift.up 1)).trans (one_zsmul _)
-    exact congrArg (fun c : (integralChains X).X n => ((-1 : Int) ^ i.val) • c)
-      ((hface n s i).symm.trans hFi.symm)
-  refine { f := F, comm' := ?_ }
-  intro i j hij
-  change j + 1 = i at hij
-  subst i
-  apply SSet.chainComplex_hom_ext
-  intro x
-  obtain ⟨s, rfl⟩ :=
-    ((TopCat.of X).toSSetObjEquiv (Opposite.op ⦋j + 1⦌)).symm.surjective x
-  change (CategoryStruct.comp (integralSingularGenerator s ) ( ((CategoryStruct.comp (F (j + 1) ) ( (integralChains X).d (j + 1) j))))) =
-    (CategoryStruct.comp (integralSingularGenerator s ) ( ((CategoryStruct.comp ((integralChains X).d (j + 1) j ) ( F j)))))
-  apply ModuleCat.hom_ext
-  apply LinearMap.ext
-  intro a
-  have ha : a = a.down • (ULift.up 1 : ULift.{u} Int) := by
-    apply ULift.ext
-    simp
-  change (integralChains X).d (j + 1) j (F (j + 1) (integralSingularGenerator s a)) =
-    F j ((integralChains X).d (j + 1) j (integralSingularGenerator s a))
-  rw [ha]
-  simp only [map_zsmul]
-  exact congrArg (fun c : (integralChains X).X j => a.down • c) (hunit j s)
-
-def integralSubdivisionPrism (X : Type u) [TopologicalSpace X] :
-    Homotopy (𝟙 (integralChains X)) (integralBarycentricSubdivision X) := by
-  classical
-  let R (n : Nat) (s : C(integralSimplex n, X)) :=
-    integralTupleRealization n (n + 1) s
-      (integralOrderedPrism (integralSimplexBarycenter n) (n + 1)
-        (Finsupp.single (integralSimplexVertices n) 1))
-  let T (n : Nat) : (integralChains X).X n ⟶ (integralChains X).X (n + 1) :=
-    letI : MulAction Int ((integralChains X).X (n + 1)) :=
-      ((integralChains X).X (n + 1)).isModule.toDistribMulAction.toMulAction
-    ModuleCat.ofHom
-      ((Finsupp.lsum (N := (integralChains X).X (n + 1)) Int
-        (fun s : C(integralSimplex n, X) =>
-          (ULift.moduleEquiv : ULift.{u} Int ≃ₗ[Int] Int).toLinearMap.smulRight
-            (M := (integralChains X).X (n + 1)) (R n s))).comp
-        (integralChainCoordinates X n).toLinearMap)
-  let P (i j : Nat) : (integralChains X).X i ⟶ (integralChains X).X j :=
-    if h : i + 1 = j then (CategoryStruct.comp (T i ) ( eqToHom (congrArg (fun k => (integralChains X).X k) h)))
-    else 0
-  have hT (n : Nat) (s : C(integralSimplex n, X)) (a : ULift.{u} Int) :
-      T n (integralSingularGenerator s a) = a.down • R n s := by
-    let : MulAction Int ((integralChains X).X (n + 1)) :=
-      ((integralChains X).X (n + 1)).isModule.toDistribMulAction.toMulAction
-    change (Finsupp.lsum (N := (integralChains X).X (n + 1)) Int
-      (fun t : C(integralSimplex n, X) =>
-        (ULift.moduleEquiv : ULift.{u} Int ≃ₗ[Int] Int).toLinearMap.smulRight
-          (M := (integralChains X).X (n + 1)) (R n t)))
-      (integralChainCoordinates X n (integralSingularGenerator s a)) = _
-    rw [integralChainCoordinates_generator, Finsupp.lsum_single,
-      LinearMap.smulRight_apply]
-    exact int_smul_eq_zsmul ((integralChains X).X (n + 1)).isModule a.down _
-  have hS (n : Nat) (s : C(integralSimplex n, X)) :
-      (integralBarycentricSubdivision X).f n (integralSingularGenerator s (ULift.up 1)) =
-        integralTupleRealization n n s
-          (integralOrderedSubdivision (integralSimplexBarycenter n) (n + 1)
-            (Finsupp.single (integralSimplexVertices n) 1)) := by
-    let Q (t : C(integralSimplex n, X)) :=
-      integralTupleRealization n n t
-        (integralOrderedSubdivision (integralSimplexBarycenter n) (n + 1)
-          (Finsupp.single (integralSimplexVertices n) 1))
-    let : MulAction Int ((integralChains X).X n) :=
-      ((integralChains X).X n).isModule.toDistribMulAction.toMulAction
-    change (Finsupp.lsum (N := (integralChains X).X n) Int
-      (fun t : C(integralSimplex n, X) =>
-        (ULift.moduleEquiv : ULift.{u} Int ≃ₗ[Int] Int).toLinearMap.smulRight
-          (M := (integralChains X).X n) (Q t)))
-      (integralChainCoordinates X n (integralSingularGenerator s (ULift.up 1))) = Q s
-    rw [integralChainCoordinates_generator, Finsupp.lsum_single,
-      LinearMap.smulRight_apply]
-    exact (int_smul_eq_zsmul ((integralChains X).X n).isModule 1 _).trans (one_zsmul _)
-  have hface (n : Nat) (s : C(integralSimplex (n + 1), X)) (i : Fin (n + 2)) :
-      R n (s.comp (integralSimplexFace n i)) =
-        integralTupleRealization (n + 1) (n + 1) s
-          (integralOrderedPrism (integralSimplexBarycenter (n + 1)) (n + 1)
-            (Finsupp.single (integralSimplexVertices (n + 1) ∘ i.succAbove) 1)) := by
-    let w := integralSimplexVertices (n + 1) ∘ i.succAbove
-    have hw : integralSimplexAffine w = integralSimplexFace n i := by
-      simpa only [w, integralSimplexAffine_vertices, ContinuousMap.id_comp] using
-        (integralSimplexAffine_face (integralSimplexVertices (n + 1)) i).symm
-    have hb (k : Nat) (v : Fin (k + 1) → integralSimplex n) :
-        integralSimplexAffine w (integralSimplexBarycenter n k v) =
-          integralSimplexBarycenter (n + 1) k (integralSimplexAffine w ∘ v) :=
-      integralSimplexAffine_barycenter w v
-    have hvertex : integralSimplexAffine w ∘ integralSimplexVertices n = w := by
-      funext j
-      exact integralSimplexAffine_vertex w j
-    dsimp only [R]
-    rw [← hw, integralTupleRealization_affine,
-      integralOrderedPrism_map (integralSimplexBarycenter n)
-        (integralSimplexBarycenter (n + 1)) (integralSimplexAffine w) hb,
-      integralOrderedMap_single, hvertex]
-  have hunit (n : Nat) (s : C(integralSimplex n, X)) :
-      integralSingularGenerator s (ULift.up 1) =
-        (dNext n P + prevD n P + (integralBarycentricSubdivision X).f n)
-          (integralSingularGenerator s (ULift.up 1)) := by
-    cases n with
-    | zero =>
-        have hzero : T 0 (integralSingularGenerator s (ULift.up 1)) = 0 := by
-          rw [hT]
-          dsimp only [R]
-          rw [integralOrderedPrism_one _ (integralSimplexBarycenter_one 0),
-            LinearMap.zero_apply, map_zero]
-          exact one_zsmul _
-        rw [dNext_eq_zero P 0 (by simp),
-          prevD_eq P (show (ComplexShape.down Nat).Rel 1 0 from rfl)]
-        simp only [P, dif_pos rfl, eqToHom_refl, Category.comp_id]
-        change integralSingularGenerator s (ULift.up 1) =
-          0 + (integralChains X).d 1 0 (T 0 (integralSingularGenerator s (ULift.up 1))) +
-            (integralBarycentricSubdivision X).f 0 (integralSingularGenerator s (ULift.up 1))
-        rw [hzero, map_zero, zero_add, zero_add, hS]
-        rw [integralOrderedSubdivision_one _ (integralSimplexBarycenter_one 0)]
-        simp only [LinearMap.id_apply, integralTupleRealization_single,
-          one_smul, integralSimplexAffine_vertices, ContinuousMap.comp_id]
-    | succ n =>
-        let ev : (integralCoefficient.{u} ⟶ (integralChains X).X n) →+
-            (integralChains X).X n :=
-          { toFun := fun f => f (ULift.up 1)
-            map_zero' := rfl
-            map_add' := fun _ _ => rfl }
-        have hd := congrArg ev (integralSingularGenerator_boundary s)
-        rw [map_sum] at hd
-        change (integralChains X).d (n + 1) n
-          (integralSingularGenerator s (ULift.up 1)) = _ at hd
-        have htd : T n ((integralChains X).d (n + 1) n
-            (integralSingularGenerator s (ULift.up 1))) =
-          integralTupleRealization (n + 1) (n + 1) s
-            (integralOrderedPrism (integralSimplexBarycenter (n + 1)) (n + 1)
-              (integralOrderedBoundary (integralSimplex (n + 1)) (n + 1)
-                (Finsupp.single (integralSimplexVertices (n + 1)) 1))) := by
-          rw [hd, map_sum, integralOrderedBoundary_single, map_sum, map_sum]
-          apply Finset.sum_congr rfl
-          intro i _
-          simp only [map_zsmul]
-          have hTi : T n (ev (integralSingularGenerator (s.comp (integralSimplexFace n i)))) =
-              R n (s.comp (integralSimplexFace n i)) := by
-            change T n
-              (integralSingularGenerator (s.comp (integralSimplexFace n i)) (ULift.up 1)) = _
-            exact (hT n _ (ULift.up 1)).trans (one_zsmul _)
-          exact congrArg (fun c : (integralChains X).X (n + 1) =>
-            ((-1 : Int) ^ i.val) • c) (hTi.trans (hface n s i))
-        have hpr := congrArg (integralTupleRealization (n + 1) (n + 1) s)
-          (integralOrderedPrism_boundary (integralSimplexBarycenter (n + 1))
-            (n + 1) (Finsupp.single (integralSimplexVertices (n + 1)) 1))
-        rw [map_add, map_sub, integralTupleRealization_single, one_smul,
-          integralSimplexAffine_vertices, ContinuousMap.comp_id] at hpr
-        rw [dNext_eq P (show (ComplexShape.down Nat).Rel (n + 1) n from rfl),
-          prevD_eq P (show (ComplexShape.down Nat).Rel (n + 2) (n + 1) from rfl)]
-        simp only [P, dif_pos rfl, eqToHom_refl, Category.comp_id]
-        change integralSingularGenerator s (ULift.up 1) =
-          T n ((integralChains X).d (n + 1) n (integralSingularGenerator s (ULift.up 1))) +
-            (integralChains X).d (n + 2) (n + 1)
-              (T (n + 1) (integralSingularGenerator s (ULift.up 1))) +
-            (integralBarycentricSubdivision X).f (n + 1)
-              (integralSingularGenerator s (ULift.up 1))
-        rw [htd, hT, one_smul, hS]
-        dsimp only [R]
-        rw [integralTupleRealization_boundary]
-        calc
-          _ = _ := sub_eq_iff_eq_add.mp hpr.symm
-          _ = _ := by abel
-  refine { hom := P, zero := ?_, comm := ?_ }
-  · intro i j hij
-    exact dif_neg hij
-  · intro n
-    apply SSet.chainComplex_hom_ext
-    intro x
-    obtain ⟨s, rfl⟩ :=
-      ((TopCat.of X).toSSetObjEquiv (Opposite.op ⦋n⦌)).symm.surjective x
-    change (CategoryStruct.comp (integralSingularGenerator s ) ( 𝟙 ((integralChains X).X n))) =
-      (CategoryStruct.comp (integralSingularGenerator s ) (
-        (dNext n P + prevD n P + (integralBarycentricSubdivision X).f n)))
-    apply ModuleCat.hom_ext
-    apply LinearMap.ext
-    intro a
-    have ha : a = a.down • (ULift.up 1 : ULift.{u} Int) := by
-      apply ULift.ext
-      simp
-    change integralSingularGenerator s a =
-      (dNext n P + prevD n P + (integralBarycentricSubdivision X).f n)
-        (integralSingularGenerator s a)
-    rw [ha]
-    simp only [map_zsmul]
-    exact congrArg (fun c : (integralChains X).X n => a.down • c) (hunit n s)
-
-def integralSubdivisionIterate (X : Type u) [TopologicalSpace X] (k : Nat) :
-    integralChains X ⟶ integralChains X :=
-  let S : CategoryTheory.End (integralChains X) :=
-    CategoryTheory.End.of (integralBarycentricSubdivision X)
-  CategoryTheory.End.asHom (S ^ k)
-
-def integralIteratedSubdivisionPrism (X : Type u) [TopologicalSpace X]
-    (k : Nat) : Homotopy (𝟙 (integralChains X)) (integralSubdivisionIterate X k) := by
-  classical
-  let S : CategoryTheory.End (integralChains X) :=
-    CategoryTheory.End.of (integralBarycentricSubdivision X)
-  let T := integralSubdivisionPrism X
-  let P (k i j : Nat) :=
-    ∑ r ∈ Finset.range k, (CategoryStruct.comp ((CategoryTheory.End.asHom (S ^ r)).f i ) ( T.hom i j))
-  have hstep (r i : Nat) :
-      (CategoryTheory.End.asHom (S ^ r)).f i =
-        dNext i (fun a b => (CategoryStruct.comp ((CategoryTheory.End.asHom (S ^ r)).f a ) ( T.hom a b))) +
-        prevD i (fun a b => (CategoryStruct.comp ((CategoryTheory.End.asHom (S ^ r)).f a ) ( T.hom a b))) +
-        (CategoryTheory.End.asHom (S ^ (r + 1))).f i := by
-    have h := (T.compLeft (CategoryTheory.End.asHom (S ^ r))).comm i
-    dsimp only [Homotopy.compLeft] at h
-    simpa only [Category.comp_id, pow_succ',
-      CategoryTheory.End.mul_def, S, CategoryTheory.End.of, CategoryTheory.End.asHom] using h
-  have hc (r i : Nat) : 𝟙 ((integralChains X).X i) =
-      dNext i (P r) + prevD i (P r) + (CategoryTheory.End.asHom (S ^ r)).f i := by
-    induction r with
-    | zero =>
-        have hP : P 0 = 0 := by
-          funext a b
-          exact Finset.sum_range_zero _
-        rw [hP, map_zero, map_zero, zero_add, zero_add]
-        rfl
-    | succ r ih =>
-        have hP : P (r + 1) = P r +
-            (fun a b => (CategoryStruct.comp ((CategoryTheory.End.asHom (S ^ r)).f a ) ( T.hom a b))) := by
-          funext a b
-          exact Finset.sum_range_succ _ r
-        rw [hP, map_add, map_add]
-        calc
-          _ = _ := ih
-          _ = _ := by rw [hstep r i]; abel
-  refine { hom := P k, zero := ?_, comm := hc k }
-  intro i j hij
-  dsimp only [P]
-  apply Finset.sum_eq_zero
-  intro r _
-  rw [T.zero i j hij, CategoryTheory.Limits.comp_zero]
-
-variable {X Y : Type u} [TopologicalSpace X] [TopologicalSpace Y] {I : Type v}
-
-theorem integralSubdivision_small (U : I → Set X) (n : Nat)
-    (c : (integralChains X).X n) (hc : c ∈ integralSmallChains U n) :
-    (integralBarycentricSubdivision X).f n c ∈ integralSmallChains U n := by
-  have hle : integralSmallChains U n ≤
-      (integralSmallChains U n).comap ((integralBarycentricSubdivision X).f n).hom := by
-    apply Submodule.span_le.mpr
-    rintro _ ⟨s, rfl⟩
-    change (integralBarycentricSubdivision X).f n
-      (integralSingularGenerator s.val (ULift.up 1)) ∈ integralSmallChains U n
-    have hS : (integralBarycentricSubdivision X).f n
-        (integralSingularGenerator s.val (ULift.up 1)) =
-      integralTupleRealization n n s.val
-        (integralOrderedSubdivision (integralSimplexBarycenter n) (n + 1)
-          (Finsupp.single (integralSimplexVertices n) 1)) := by
-      let Q (t : C(integralSimplex n, X)) :=
-        integralTupleRealization n n t
-          (integralOrderedSubdivision (integralSimplexBarycenter n) (n + 1)
-            (Finsupp.single (integralSimplexVertices n) 1))
-      let : MulAction Int ((integralChains X).X n) :=
-        ((integralChains X).X n).isModule.toDistribMulAction.toMulAction
-      change (Finsupp.lsum (N := (integralChains X).X n) Int
-        (fun t : C(integralSimplex n, X) =>
-          (ULift.moduleEquiv : ULift.{u} Int ≃ₗ[Int] Int).toLinearMap.smulRight
-            (M := (integralChains X).X n) (Q t)))
-        (integralChainCoordinates X n (integralSingularGenerator s.val (ULift.up 1))) = Q s.val
-      rw [integralChainCoordinates_generator, Finsupp.lsum_single,
-        LinearMap.smulRight_apply]
-      exact (int_smul_eq_zsmul ((integralChains X).X n).isModule 1 _).trans (one_zsmul _)
-    rw [hS]
-    exact integralTupleRealization_small U n n s.val s.property _
-  exact hle hc
-
-theorem integralIteratedSubdivisionPrism_small (U : I → Set X) (k i j : Nat)
-    (c : (integralChains X).X i) (hc : c ∈ integralSmallChains U i) :
-    (integralIteratedSubdivisionPrism X k).hom i j c ∈ integralSmallChains U j := by
-  let S : CategoryTheory.End (integralChains X) :=
-    CategoryTheory.End.of (integralBarycentricSubdivision X)
-  have hpow (r n : Nat) (c : (integralChains X).X n)
-      (hc : c ∈ integralSmallChains U n) :
-      (CategoryTheory.End.asHom (S ^ r)).f n c ∈ integralSmallChains U n := by
-    induction r with
-    | zero => simpa using hc
-    | succ r ih =>
-        rw [pow_succ', CategoryTheory.End.mul_def]
-        exact integralSubdivision_small U n _ ih
-  have hT (a b : Nat) (c : (integralChains X).X a)
-      (hc : c ∈ integralSmallChains U a) :
-      (integralSubdivisionPrism X).hom a b c ∈ integralSmallChains U b := by
-    by_cases hab : a + 1 = b
-    · subst b
-      have hle : integralSmallChains U a ≤ (integralSmallChains U (a + 1)).comap
-          ((integralSubdivisionPrism X).hom a (a + 1)).hom := by
-        apply Submodule.span_le.mpr
-        rintro _ ⟨s, rfl⟩
-        change (integralSubdivisionPrism X).hom a (a + 1)
-          (integralSingularGenerator s.val (ULift.up 1)) ∈ integralSmallChains U (a + 1)
-        have hgen : (integralSubdivisionPrism X).hom a (a + 1)
-            (integralSingularGenerator s.val (ULift.up 1)) =
-          integralTupleRealization a (a + 1) s.val
-            (integralOrderedPrism (integralSimplexBarycenter a) (a + 1)
-              (Finsupp.single (integralSimplexVertices a) 1)) := by
-          let Q (t : C(integralSimplex a, X)) :=
-            integralTupleRealization a (a + 1) t
-              (integralOrderedPrism (integralSimplexBarycenter a) (a + 1)
-                (Finsupp.single (integralSimplexVertices a) 1))
-          let : MulAction Int ((integralChains X).X (a + 1)) :=
-            ((integralChains X).X (a + 1)).isModule.toDistribMulAction.toMulAction
-          simp only [integralSubdivisionPrism, dif_pos rfl, eqToHom_refl]
-          change (Finsupp.lsum (N := (integralChains X).X (a + 1)) Int
-            (fun t : C(integralSimplex a, X) =>
-              (ULift.moduleEquiv : ULift.{u} Int ≃ₗ[Int] Int).toLinearMap.smulRight
-                (M := (integralChains X).X (a + 1)) (Q t)))
-            (integralChainCoordinates X a (integralSingularGenerator s.val (ULift.up 1))) = Q s.val
-          rw [integralChainCoordinates_generator, Finsupp.lsum_single,
-            LinearMap.smulRight_apply]
-          exact (int_smul_eq_zsmul ((integralChains X).X (a + 1)).isModule 1 _).trans (one_zsmul _)
-        rw [hgen]
-        exact integralTupleRealization_small U a (a + 1) s.val s.property _
-      exact hle hc
-    · rw [(integralSubdivisionPrism X).zero a b hab]
-      exact (integralSmallChains U b).zero_mem
-  change ((∑ r ∈ Finset.range k,
-    (CategoryStruct.comp ((CategoryTheory.End.asHom (S ^ r)).f i ) ( (integralSubdivisionPrism X).hom i j))).hom) c ∈ _
-  rw [ModuleCat.hom_sum, LinearMap.sum_apply]
-  apply Submodule.sum_mem
-  intro r _
-  exact hT i j _ (hpow r i c hc)
-
-theorem integral_subdivision_eventually_small (U : I → Set X)
-    (hU : ∀ i, IsOpen (U i)) (hcover : (⋃ i, U i) = Set.univ)
-    (n : Nat) (c : (integralChains X).X n) :
-    ∃ k : Nat, (integralSubdivisionIterate X k).f n c ∈ integralSmallChains U n := by
-  let S : CategoryTheory.End (integralChains X) :=
-    CategoryTheory.End.of (integralBarycentricSubdivision X)
-  have hS (m : Nat) (s : C(integralSimplex m, X)) :
-      (integralBarycentricSubdivision X).f m (integralSingularGenerator s (ULift.up 1)) =
-        integralTupleRealization m m s
-          (integralOrderedSubdivision (integralSimplexBarycenter m) (m + 1)
-            (Finsupp.single (integralSimplexVertices m) 1)) := by
-    let Q (t : C(integralSimplex m, X)) :=
-      integralTupleRealization m m t
-        (integralOrderedSubdivision (integralSimplexBarycenter m) (m + 1)
-          (Finsupp.single (integralSimplexVertices m) 1))
-    let : MulAction Int ((integralChains X).X m) :=
-      ((integralChains X).X m).isModule.toDistribMulAction.toMulAction
-    change (Finsupp.lsum (N := (integralChains X).X m) Int
-      (fun t : C(integralSimplex m, X) =>
-        (ULift.moduleEquiv : ULift.{u} Int ≃ₗ[Int] Int).toLinearMap.smulRight
-          (M := (integralChains X).X m) (Q t)))
-      (integralChainCoordinates X m (integralSingularGenerator s (ULift.up 1))) = Q s
-    rw [integralChainCoordinates_generator, Finsupp.lsum_single,
-      LinearMap.smulRight_apply]
-    exact (int_smul_eq_zsmul ((integralChains X).X m).isModule 1 _).trans (one_zsmul _)
-  -- This identifies the actual chain-map iterate with the geometric ordered iterate.
-  have hreal (d m : Nat) (s : C(integralSimplex d, X))
-      (b : integralOrderedChains (integralSimplex d) (m + 1)) :
-      (integralBarycentricSubdivision X).f m (integralTupleRealization d m s b) =
-        integralTupleRealization d m s
-          (integralOrderedSubdivision (integralSimplexBarycenter d) (m + 1) b) := by
-    have he : ((integralBarycentricSubdivision X).f m).hom.comp
-          (integralTupleRealization d m s) =
-        (integralTupleRealization d m s).comp
-          (integralOrderedSubdivision (integralSimplexBarycenter d) (m + 1)) := by
-      apply Finsupp.lhom_ext'
-      intro w
-      apply LinearMap.ext_ring
-      change (integralBarycentricSubdivision X).f m
-          (integralTupleRealization d m s (Finsupp.single w 1)) =
-        integralTupleRealization d m s
-          (integralOrderedSubdivision (integralSimplexBarycenter d) (m + 1)
-            (Finsupp.single w 1))
-      have hb (k : Nat) (v : Fin (k + 1) → integralSimplex m) :
-          integralSimplexAffine w (integralSimplexBarycenter m k v) =
-            integralSimplexBarycenter d k (integralSimplexAffine w ∘ v) :=
-        integralSimplexAffine_barycenter w v
-      have hvertex : integralSimplexAffine w ∘ integralSimplexVertices m = w := by
-        funext i
-        exact integralSimplexAffine_vertex w i
-      rw [integralTupleRealization_single, one_smul, hS,
-        integralTupleRealization_affine,
-        integralOrderedSubdivision_map (integralSimplexBarycenter m)
-          (integralSimplexBarycenter d) (integralSimplexAffine w) hb,
-        integralOrderedMap_single, hvertex]
-    exact LinearMap.congr_fun he b
-  have hiter (r d m : Nat) (s : C(integralSimplex d, X))
-      (b : integralOrderedChains (integralSimplex d) (m + 1)) :
-      (CategoryTheory.End.asHom (S ^ r)).f m (integralTupleRealization d m s b) =
-        integralTupleRealization d m s
-          ((integralOrderedSubdivision (integralSimplexBarycenter d) (m + 1) ^ r) b) := by
-    induction r with
-    | zero => rfl
-    | succ r ih =>
-        rw [pow_succ', CategoryTheory.End.mul_def]
-        change (integralBarycentricSubdivision X).f m
-            ((CategoryTheory.End.asHom (S ^ r)).f m (integralTupleRealization d m s b)) = _
-        rw [ih, hreal, pow_succ', Module.End.mul_apply]
-  have hpow (r m : Nat) (b : (integralChains X).X m)
-      (hb : b ∈ integralSmallChains U m) :
-      (CategoryTheory.End.asHom (S ^ r)).f m b ∈ integralSmallChains U m := by
-    induction r with
-    | zero => simpa using hb
-    | succ r ih =>
-        rw [pow_succ', CategoryTheory.End.mul_def]
-        exact integralSubdivision_small U m _ ih
-  have hgen (s : C(integralSimplex n, X)) :
-      ∃ r : Nat, (CategoryTheory.End.asHom (S ^ r)).f n
-        (integralSingularGenerator s (ULift.up 1)) ∈ integralSmallChains U n := by
-    cases n with
-    | zero =>
-        have hx : s (integralSimplexVertices 0 0) ∈ ⋃ i, U i := by
-          rw [hcover]
-          exact Set.mem_univ _
-        obtain ⟨i, hi⟩ := Set.mem_iUnion.mp hx
-        have hs : IntegralSmallSimplex U s := by
-          refine ⟨i, ?_⟩
-          rintro _ ⟨z, rfl⟩
-          simpa only [Subsingleton.elim z (integralSimplexVertices 0 0)] using hi
-        refine ⟨0, ?_⟩
-        change integralSingularGenerator s (ULift.up 1) ∈ integralSmallChains U 0
-        exact Submodule.subset_span ⟨⟨s, hs⟩, rfl⟩
-    | succ m =>
-        let V : I → Set (integralSimplex (m + 1)) := fun i => s ⁻¹' U i
-        have hV : ∀ i, IsOpen (V i) := fun i => (hU i).preimage s.continuous
-        have hVc : Set.univ ⊆ ⋃ i, V i := by
-          intro z _
-          have hz : s z ∈ ⋃ i, U i := by rw [hcover]; exact Set.mem_univ _
-          obtain ⟨i, hi⟩ := Set.mem_iUnion.mp hz
-          exact Set.mem_iUnion.mpr ⟨i, hi⟩
-        obtain ⟨δ, hδ, hball⟩ :=
-          lebesgue_number_lemma_of_metric (s := Set.univ) isCompact_univ hV hVc
-        let q : Real := ((m + 1 : Nat) : Real) / (((m + 1 : Nat) : Real) + 1)
-        have hq0 : 0 ≤ q := by dsimp only [q]; positivity
-        have hq1 : q < 1 := by
-          dsimp only [q]
-          rw [div_lt_one (by positivity)]
-          exact lt_add_one _
-        have hlim : ∀ᶠ r in Filter.atTop, q ^ r < δ :=
-          (tendsto_pow_atTop_nhds_zero_of_lt_one hq0 hq1).eventually (gt_mem_nhds hδ)
-        obtain ⟨r, hr⟩ := hlim.exists
-        let b := (integralOrderedSubdivision (integralSimplexBarycenter (m + 1))
-          (m + 2) ^ r) (Finsupp.single (integralSimplexVertices (m + 1)) 1)
-        have hvertices (i j : Fin (m + 2)) :
-            dist (integralSimplexVertices (m + 1) i)
-              (integralSimplexVertices (m + 1) j) ≤ 1 := by
-          exact (Metric.dist_le_diam_of_mem
-            (isCompact_stdSimplex Real (Fin (m + 2))).isBounded
-            (integralSimplexVertices (m + 1) i).property
-            (integralSimplexVertices (m + 1) j).property).trans diam_stdSimplex_le
-        have hsmall (w : Fin (m + 2) → integralSimplex (m + 1)) (hw : w ∈ b.support) :
-            IntegralSmallSimplex U (s.comp (integralSimplexAffine w)) := by
-          have hmesh : ∀ i j, dist (w i) (w j) ≤ q ^ r := by
-            simpa only [q, mul_one] using
-              integralSimplexSubdivision_iterate_mesh r (integralSimplexVertices (m + 1))
-                1 zero_le_one hvertices w hw
-          obtain ⟨i, hi⟩ := hball (w 0) (Set.mem_univ _)
-          refine ⟨i, ?_⟩
-          rintro _ ⟨z, rfl⟩
-          apply hi
-          change dist (integralSimplexAffine w z) (w 0) < δ
-          have hd := integralSimplexAffine_dist_le w (q ^ r) (pow_nonneg hq0 r)
-            hmesh z (integralSimplexVertices (m + 1) 0)
-          rw [integralSimplexAffine_vertex] at hd
-          exact hd.trans_lt hr
-        have hbase : integralTupleRealization (m + 1) (m + 1) s
-            (Finsupp.single (integralSimplexVertices (m + 1)) 1) =
-              integralSingularGenerator s (ULift.up 1) := by
-          rw [integralTupleRealization_single, one_smul,
-            integralSimplexAffine_vertices, ContinuousMap.comp_id]
-        refine ⟨r, ?_⟩
-        rw [← hbase, hiter]
-        change integralTupleRealization (m + 1) (m + 1) s b ∈ integralSmallChains U (m + 1)
-        rw [← Finsupp.sum_single b]
-        change integralTupleRealization (m + 1) (m + 1) s
-          (∑ w ∈ b.support, Finsupp.single w (b w)) ∈ integralSmallChains U (m + 1)
-        rw [map_sum]
-        apply Submodule.sum_mem
-        intro w hw
-        rw [integralTupleRealization_single]
-        apply (integralSmallChains U (m + 1)).toAddSubgroup.zsmul_mem
-        exact Submodule.subset_span ⟨⟨_, hsmall w hw⟩, rfl⟩
-  choose count hcount using hgen
-  let k := (integralChainCoordinates X n c).support.sup count
-  refine ⟨k, ?_⟩
-  change (CategoryTheory.End.asHom (S ^ k)).f n c ∈ integralSmallChains U n
-  rw [integral_chain_finite_representation n c, map_sum]
-  apply Submodule.sum_mem
-  intro s hs
-  let a := integralChainCoordinates X n c s
-  have ha : a = a.down • (ULift.up 1 : ULift.{u} Int) := by
-    apply ULift.ext
-    simp
-  change (CategoryTheory.End.asHom (S ^ k)).f n (integralSingularGenerator s a) ∈ _
-  rw [ha]
-  simp only [map_zsmul]
-  apply (integralSmallChains U n).toAddSubgroup.zsmul_mem
-  have hle : count s ≤ k := Finset.le_sup hs
-  have hk : k = (k - count s) + count s := (Nat.sub_add_cancel hle).symm
-  rw [hk, pow_add, CategoryTheory.End.mul_def]
-  exact hpow (k - count s) n _ (hcount s)
-
-end Poincare.Topology
-
-end FzIntegralSubdivision
-
-noncomputable section FzIntegralSmallHomology
-
-/-!
-# Small chains compute integral singular homology
-
-The proof works with elements of the actual cycle and homology modules.
-Subdivision provides small representatives, and the subdivision prism turns
-an ambient bounding chain into a small bounding chain. This includes degree zero.
--/
-
-
-open CategoryTheory Limits
-
-universe u v
-
-namespace Poincare.Topology
-
-private theorem integralHomologyπ_eq_zero_iff
-    (K : ChainComplex (ModuleCat.{u} Int) Nat) (n : Nat) (z : K.cycles n) :
-    K.homologyπ n z = 0 ↔
-      ∃ b : K.X (n + 1), K.d (n + 1) n b = K.iCycles n z := by
-  let T := ShortComplex.mk (K.toCycles (n + 1) n) (K.homologyπ n)
-    (K.toCycles_comp_homologyπ (n + 1) n)
-  have hT : T.Exact := T.exact_of_g_is_cokernel
-    (K.homologyIsCokernel (n + 1) n (by simp))
-  constructor
-  · intro hz
-    obtain ⟨b, hb⟩ := (ShortComplex.moduleCat_exact_iff T).mp hT z hz
-    refine ⟨b, ?_⟩
-    have he := congrArg (K.iCycles n) hb
-    simpa only [T, ← ConcreteCategory.comp_apply, HomologicalComplex.toCycles_i] using he
-  · rintro ⟨b, hb⟩
-    have hb' : K.toCycles (n + 1) n b = z := by
-      apply (ModuleCat.mono_iff_injective (K.iCycles n)).mp inferInstance
-      simpa only [← ConcreteCategory.comp_apply, HomologicalComplex.toCycles_i] using hb
-    rw [← hb']
-    exact congrArg (fun q => q b) (K.toCycles_comp_homologyπ (n + 1) n)
-
-private theorem integralSmall_boundary
-    {X : Type u} [TopologicalSpace X] {I : Type v}
-    (U : I → Set X) (hU : ∀ i, IsOpen (U i))
-    (hcover : (⋃ i, U i) = Set.univ) (n : Nat)
-    (c : (integralChains X).X n)
-    (hc : (integralChains X).d n (n - 1) c = 0)
-    (hsmall : c ∈ integralSmallChains U n)
-    (b : (integralChains X).X (n + 1))
-    (hb : (integralChains X).d (n + 1) n b = c) :
-    ∃ b' : (integralChains X).X (n + 1),
-      b' ∈ integralSmallChains U (n + 1) ∧
-      (integralChains X).d (n + 1) n b' = c := by
-  obtain ⟨k, hk⟩ := integral_subdivision_eventually_small U hU hcover (n + 1) b
-  let K := integralChains X
-  let S := integralSubdivisionIterate X k
-  let H := integralIteratedSubdivisionPrism X k
-  refine ⟨S.f (n + 1) b + H.hom n (n + 1) c,
-    (integralSmallChains U (n + 1)).add_mem hk
-      (integralIteratedSubdivisionPrism_small U k n (n + 1) c hsmall), ?_⟩
-  have hbS : K.d (n + 1) n (S.f (n + 1) b) = S.f n c := by
-    have he := congrArg (fun q => q b) (S.comm (n + 1) n)
-    change K.d (n + 1) n (S.f (n + 1) b) = S.f n (K.d (n + 1) n b) at he
-    rw [hb] at he
-    exact he
-  rw [map_add, hbS]
-  have he := congrArg (fun q => q c) (H.comm n)
-  rw [HomologicalComplex.id_f] at he
-  cases n with
-  | zero =>
-      rw [dNext_eq_zero H.hom 0 (by simp),
-        prevD_eq H.hom (show (ComplexShape.down Nat).Rel 1 0 from rfl)] at he
-      change c = 0 + K.d 1 0 (H.hom 0 1 c) + S.f 0 c at he
-      rw [zero_add] at he
-      exact (add_comm _ _).trans he.symm
-  | succ m =>
-      rw [dNext_eq H.hom (show (ComplexShape.down Nat).Rel (m + 1) m from rfl),
-        prevD_eq H.hom (show (ComplexShape.down Nat).Rel (m + 2) (m + 1) from rfl)] at he
-      change c = H.hom m (m + 1) (K.d (m + 1) m c) +
-        K.d (m + 2) (m + 1) (H.hom (m + 1) (m + 2) c) + S.f (m + 1) c at he
-      have hc' : K.d (m + 1) m c = 0 := by simpa using hc
-      rw [hc', map_zero, zero_add] at he
-      exact (add_comm _ _).trans he.symm
-
-variable {X : Type u} [TopologicalSpace X] {I : Type v}
-
-/-- The inclusion of small integral chains induces an isomorphism in every degree. -/
-theorem integralSmallChainInclusion_homology_isIso
-    (U : I → Set X) (hU : ∀ i, IsOpen (U i))
-    (hcover : (⋃ i, U i) = Set.univ) (n : Nat) :
-    IsIso (HomologicalComplex.homologyMap (integralSmallChainInclusion U) n) := by
-  let K := integralChains X
-  let L := integralSmallChainComplex U
-  let f := integralSmallChainInclusion U
-  have hi (z : L.cycles n) :
-      K.iCycles n (HomologicalComplex.cyclesMap f n z) =
-        f.f n (L.iCycles n z) := by
-    exact congrArg (fun q => q z) (HomologicalComplex.cyclesMap_i f n)
-  have hπ (z : L.cycles n) :
-      K.homologyπ n (HomologicalComplex.cyclesMap f n z) =
-        HomologicalComplex.homologyMap f n (L.homologyπ n z) := by
-    exact (congrArg (fun q => q z)
-      (HomologicalComplex.homologyπ_naturality (φ := f) (i := n))).symm
-  have hinj : Function.Injective (HomologicalComplex.homologyMap f n) := by
-    apply (injective_iff_map_eq_zero _).mpr
-    intro y hy
-    obtain ⟨z, hz⟩ := (ModuleCat.epi_iff_surjective (L.homologyπ n)).mp inferInstance y
-    have hz0 : K.homologyπ n (HomologicalComplex.cyclesMap f n z) = 0 := by
-      rw [hπ, hz, hy]
-    obtain ⟨b, hb⟩ := (integralHomologyπ_eq_zero_iff K n _).mp hz0
-    rw [hi] at hb
-    let c := L.iCycles n z
-    have hc : K.d n (n - 1) (f.f n c) = 0 := by
-      have he := congrArg (fun q => q c) (f.comm n (n - 1))
-      change K.d n (n - 1) (f.f n c) = f.f (n - 1) (L.d n (n - 1) c) at he
-      have hcz : L.d n (n - 1) c = 0 :=
-        congrArg (fun q => q z) (L.iCycles_d n (n - 1))
-      rw [hcz, map_zero] at he
-      exact he
-    obtain ⟨b', hb'small, hb'⟩ := integralSmall_boundary U hU hcover n
-      (f.f n c) hc c.property b hb
-    have hzsmall : L.homologyπ n z = 0 := by
-      apply (integralHomologyπ_eq_zero_iff L n z).mpr
-      refine ⟨⟨b', hb'small⟩, ?_⟩
-      apply Subtype.ext
-      exact hb'
-    exact hz.symm.trans hzsmall
-  have hsurj : Function.Surjective (HomologicalComplex.homologyMap f n) := by
-    intro y
-    obtain ⟨z, hz⟩ := (ModuleCat.epi_iff_surjective (K.homologyπ n)).mp inferInstance y
-    obtain ⟨k, hk⟩ := integral_subdivision_eventually_small U hU hcover n (K.iCycles n z)
-    let S := integralSubdivisionIterate X k
-    let z' := HomologicalComplex.cyclesMap S n z
-    have hi' : K.iCycles n z' = S.f n (K.iCycles n z) :=
-      congrArg (fun q => q z) (HomologicalComplex.cyclesMap_i S n)
-    let c : L.X n := ⟨K.iCycles n z', by rw [hi']; exact hk⟩
-    have hc : (L.sc n).g c = 0 := by
-      apply Subtype.ext
-      exact congrArg (fun q => q z') (K.iCycles_d n ((ComplexShape.down Nat).next n))
-    let w : L.cycles n := (L.sc n).cyclesMk c hc
-    have hw : L.iCycles n w = c := (L.sc n).i_cyclesMk c hc
-    have hwmap : HomologicalComplex.cyclesMap f n w = z' := by
-      apply (ModuleCat.mono_iff_injective (K.iCycles n)).mp inferInstance
-      rw [hi, hw]
-      rfl
-    refine ⟨L.homologyπ n w, ?_⟩
-    rw [← hπ, hwmap]
-    have hS : HomologicalComplex.homologyMap S n = 𝟙 _ := by
-      simpa only [HomologicalComplex.homologyMap_id] using
-        (integralIteratedSubdivisionPrism X k).homologyMap_eq n |>.symm
-    have he := congrArg (fun q => q z)
-      (HomologicalComplex.homologyπ_naturality (φ := S) (i := n))
-    rw [hS] at he
-    exact he.symm.trans hz
-  let : Mono (HomologicalComplex.homologyMap f n) :=
-    (ModuleCat.mono_iff_injective _).mpr hinj
-  let : Epi (HomologicalComplex.homologyMap f n) :=
-    (ModuleCat.epi_iff_surjective _).mpr hsurj
-  exact isIso_of_mono_of_epi _
-
-/-- Small chains and all singular chains have the same integral homology. -/
-theorem integralSmallChainInclusion_quasiIso
-    (U : I → Set X) (hU : ∀ i, IsOpen (U i))
-    (hcover : (⋃ i, U i) = Set.univ) :
-    QuasiIso (integralSmallChainInclusion U) := by
-  rw [quasiIso_iff]
-  intro n
-  rw [quasiIsoAt_iff_isIso_homologyMap]
-  exact integralSmallChainInclusion_homology_isIso U hU hcover n
-
-end Poincare.Topology
-
-end FzIntegralSmallHomology
-
-noncomputable section FzIntegralSmallRelativeChains
-
-/-!
-# Small relative integral chains
-
-The small chains of a pair are the cokernel of the restricted-cover subspace
-inclusion. The canonical map to relative singular chains is a quasi-isomorphism.
--/
-
-
-open CategoryTheory Limits
-
-universe u v
-
-namespace Poincare.Topology
-
-variable {X : Type u} [TopologicalSpace X] {I : Type v}
-
-private theorem integralSubspaceChains_small (U : I → Set X) (A : Set X)
-    (n : Nat) (c : (integralChains A).X n)
-    (hc : c ∈ integralSmallChains (fun i => (Subtype.val : A → X) ⁻¹' U i) n) :
-    (integralSubspaceChains A).f n c ∈ integralSmallChains U n := by
-  let V : I → Set A := fun i => (Subtype.val : A → X) ⁻¹' U i
-  have hle : integralSmallChains V n ≤
-      (integralSmallChains U n).comap ((integralSubspaceChains A).f n).hom := by
-    apply Submodule.span_le.mpr
-    rintro _ ⟨s, rfl⟩
-    let v : C(A, X) := ⟨Subtype.val, continuous_subtype_val⟩
-    have he := congrArg (fun q => q (ULift.up 1)) (integralSingularGenerator_map s.val v)
-    change (integralSubspaceChains A).f n (integralSingularGenerator s.val (ULift.up 1)) =
-      integralSingularGenerator (v.comp s.val) (ULift.up 1) at he
-    change (integralSubspaceChains A).f n (integralSingularGenerator s.val (ULift.up 1))
-      ∈ integralSmallChains U n
-    rw [he]
-    apply Submodule.subset_span
-    refine ⟨⟨v.comp s.val, ?_⟩, rfl⟩
-    obtain ⟨i, hi⟩ := s.property
-    refine ⟨i, ?_⟩
-    rintro _ ⟨z, rfl⟩
-    exact hi ⟨z, rfl⟩
-  exact hle hc
-
-/-- The subspace-chain inclusion restricted to small chains. -/
-def integralSmallSubspaceChains (U : I → Set X) (A : Set X) :
-    integralSmallChainComplex (fun i => (Subtype.val : A → X) ⁻¹' U i) ⟶
-      integralSmallChainComplex U where
-  f n := by
-    let V : I → Set A := fun i => (Subtype.val : A → X) ⁻¹' U i
-    letI : Module Int (integralSmallChains V n) := (integralSmallChains V n).module
-    letI : Module Int (integralSmallChains U n) := (integralSmallChains U n).module
-    exact ModuleCat.ofHom (LinearMap.codRestrict (integralSmallChains U n)
-      (((integralSubspaceChains A).f n).hom.domRestrict (integralSmallChains V n))
-      (fun c => integralSubspaceChains_small U A n c.val c.property))
-  comm' i j _ := by
-    apply ModuleCat.hom_ext
-    apply LinearMap.ext
-    intro c
-    apply Subtype.ext
-    exact congrArg (fun q => q c.val) ((integralSubspaceChains A).comm i j)
-
-theorem integralSmallSubspaceChains_inclusion (U : I → Set X) (A : Set X) :
-    (CategoryStruct.comp (integralSmallSubspaceChains U A ) ( integralSmallChainInclusion U)) =
-      (CategoryStruct.comp (integralSmallChainInclusion (fun i => (Subtype.val : A → X) ⁻¹' U i) ) (
-        integralSubspaceChains A)) := by
-  apply HomologicalComplex.Hom.ext
-  funext n
-  apply ModuleCat.hom_ext
-  apply LinearMap.ext
-  intro c
-  rfl
-
-theorem integralSmallSubspaceChains_mono (U : I → Set X) (A : Set X) :
-    Mono (integralSmallSubspaceChains U A) := by
-  let : Mono (integralSubspaceChains A) := integralSubspaceChains_mono A
-  apply HomologicalComplex.mono_of_mono_f
-  intro n
-  apply (ModuleCat.mono_iff_injective _).mpr
-  intro a b h
-  apply Subtype.ext
-  apply (ModuleCat.mono_iff_injective ((integralSubspaceChains A).f n)).mp inferInstance
-  exact congrArg Subtype.val h
-
-/-- The actual cokernel complex of small chains of the subspace. -/
-abbrev integralSmallRelativeChains (U : I → Set X) (A : Set X) :
-    ChainComplex (ModuleCat.{u} Int) Nat :=
-  cokernel (integralSmallSubspaceChains U A)
-
-abbrev integralSmallRelativeProjection (U : I → Set X) (A : Set X) :
-    integralSmallChainComplex U ⟶ integralSmallRelativeChains U A :=
-  cokernel.π (integralSmallSubspaceChains U A)
-
-/-- The canonical relative comparison induced by the two small-chain inclusions. -/
-def integralSmallRelativeComparison (U : I → Set X) (A : Set X) :
-    integralSmallRelativeChains U A ⟶ integralRelativeChains A :=
-  cokernel.map (integralSmallSubspaceChains U A) (integralSubspaceChains A)
-    (integralSmallChainInclusion (fun i => (Subtype.val : A → X) ⁻¹' U i))
-    (integralSmallChainInclusion U) (integralSmallSubspaceChains_inclusion U A)
-
-theorem integralSmallRelativeComparison_projection (U : I → Set X) (A : Set X) :
-    (CategoryStruct.comp (integralSmallRelativeProjection U A ) ( integralSmallRelativeComparison U A)) =
-      (CategoryStruct.comp (integralSmallChainInclusion U ) ( integralRelativeProjection A)) :=
-  cokernel.π_desc _ _ _
-
-/-- Small relative chains compute relative integral homology for every open cover. -/
-theorem integralSmallRelativeComparison_quasiIso
-    (U : I → Set X) (hU : ∀ i, IsOpen (U i))
-    (hcover : (⋃ i, U i) = Set.univ) (A : Set X) :
-    QuasiIso (integralSmallRelativeComparison U A) := by
-  let V : I → Set A := fun i => (Subtype.val : A → X) ⁻¹' U i
-  have hV : ∀ i, IsOpen (V i) := fun i => (hU i).preimage continuous_subtype_val
-  have hcoverV : (⋃ i, V i) = Set.univ := by
-    apply Set.eq_univ_iff_forall.mpr
-    intro a
-    have ha : a.val ∈ ⋃ i, U i := by rw [hcover]; exact Set.mem_univ _
-    obtain ⟨i, hi⟩ := Set.mem_iUnion.mp ha
-    exact Set.mem_iUnion.mpr ⟨i, hi⟩
-  let S := ShortComplex.cokernelSequence (integralSmallSubspaceChains U A)
-  have hS : S.ShortExact :=
-    { exact := ShortComplex.cokernelSequence_exact _
-      mono_f := integralSmallSubspaceChains_mono U A }
-  let φ : S ⟶ integralPairSequence A :=
-    { τ₁ := integralSmallChainInclusion V
-      τ₂ := integralSmallChainInclusion U
-      τ₃ := integralSmallRelativeComparison U A
-      comm₁₂ := integralSmallSubspaceChains_inclusion U A
-      comm₂₃ := (integralSmallRelativeComparison_projection U A).symm }
-  exact HomologicalComplex.HomologySequence.quasiIso_τ₃ φ hS
-    (integralPairSequence_shortExact A)
-    (integralSmallChainInclusion_quasiIso V hV hcoverV)
-    (integralSmallChainInclusion_quasiIso U hU hcover)
-
-theorem integralSmallRelativeComparison_homology_isIso
-    (U : I → Set X) (hU : ∀ i, IsOpen (U i))
-    (hcover : (⋃ i, U i) = Set.univ) (A : Set X) (n : Nat) :
-    IsIso (HomologicalComplex.homologyMap (integralSmallRelativeComparison U A) n) := by
-  let := integralSmallRelativeComparison_quasiIso U hU hcover A
-  infer_instance
-
-end Poincare.Topology
-
-end FzIntegralSmallRelativeChains
-
-noncomputable section FzIntegralExcision
-
-/-!
-# Integral singular excision for an open cover
-
-The map of pairs `(B, A intersect B) -> (X, A)` induces an isomorphism when
-the two open subspaces cover `X`. The proof identifies its small-chain factor
-as a degreewise cokernel isomorphism using singular-simplex support.
--/
-
-
-open CategoryTheory Limits
-
-universe u
-
-namespace Poincare.Topology
-
-private theorem integralCokernelMap_isIso
-    {K₁ K₂ L₁ L₂ : ChainComplex (ModuleCat.{u} Int) Nat}
-    (f : K₁ ⟶ K₂) (g : L₁ ⟶ L₂) (p : K₁ ⟶ L₁) (q : K₂ ⟶ L₂)
-    (w : (CategoryStruct.comp (f ) ( q)) = (CategoryStruct.comp (p ) ( g)))
-    (hspan : ∀ (n : Nat) (d : L₂.X n),
-      ∃ (b : K₂.X n) (c : L₁.X n), q.f n b + g.f n c = d)
-    (hinter : ∀ (n : Nat) (b : K₂.X n),
-      q.f n b ∈ LinearMap.range (g.f n).hom → b ∈ LinearMap.range (f.f n).hom) :
-    IsIso (cokernel.map f g p q w) := by
-  let r := cokernel.map f g p q w
-  let πf := cokernel.π f
-  let πg := cokernel.π g
-  have hπ (n : Nat) : (CategoryStruct.comp (πf.f n ) ( r.f n)) = (CategoryStruct.comp (q.f n ) ( πg.f n)) :=
-    congrArg (fun k => k.f n) (cokernel.π_desc f ((CategoryStruct.comp (q ) ( cokernel.π g))) _)
-  have hker {C D : ChainComplex (ModuleCat.{u} Int) Nat} (k : C ⟶ D)
-      (n : Nat) (d : D.X n) :
-      (cokernel.π k).f n d = 0 ↔ d ∈ LinearMap.range (k.f n).hom := by
-    constructor
-    · intro hd
-      exact (ShortComplex.moduleCat_exact_iff _).mp
-        ((ShortComplex.cokernelSequence_exact k).map
-          (HomologicalComplex.eval (ModuleCat.{u} Int) (ComplexShape.down Nat) n)) d hd
-    · rintro ⟨c, rfl⟩
-      exact congrArg (fun h => h.f n c) (cokernel.condition k)
-  have hdeg (n : Nat) : IsIso (r.f n) := by
-    have hinj : Function.Injective (r.f n) := by
-      apply (injective_iff_map_eq_zero _).mpr
-      intro y hy
-      obtain ⟨b, hb⟩ := (ModuleCat.epi_iff_surjective (πf.f n)).mp inferInstance y
-      have hqb : πg.f n (q.f n b) = 0 := by
-        have he := congrArg (fun k => k b) (hπ n)
-        change r.f n (πf.f n b) = πg.f n (q.f n b) at he
-        exact he.symm.trans (by rw [hb]; exact hy)
-      exact hb.symm.trans ((hker f n b).mpr (hinter n b ((hker g n _).mp hqb)))
-    have hsurj : Function.Surjective (r.f n) := by
-      intro y
-      obtain ⟨d, hd⟩ := (ModuleCat.epi_iff_surjective (πg.f n)).mp inferInstance y
-      obtain ⟨b, c, hbc⟩ := hspan n d
-      refine ⟨πf.f n b, ?_⟩
-      calc
-        r.f n (πf.f n b) = πg.f n (q.f n b) :=
-          congrArg (fun k => k b) (hπ n)
-        _ = πg.f n (q.f n b + g.f n c) := by
-          rw [map_add, (hker g n _).mpr ⟨c, rfl⟩, add_zero]
-        _ = y := by rw [hbc, hd]
-    let : Mono (r.f n) := (ModuleCat.mono_iff_injective _).mpr hinj
-    let : Epi (r.f n) := (ModuleCat.epi_iff_surjective _).mpr hsurj
-    exact isIso_of_mono_of_epi _
-  let := hdeg
-  exact HomologicalComplex.Hom.isIso_of_components _
-
-variable {X : Type u} [TopologicalSpace X]
-
-/-- The canonical excision map for a two-member open cover is an integral
-homology isomorphism, including degree zero. -/
-theorem integral_open_cover_excision
-    (A B : Set X) (hA : IsOpen A) (hB : IsOpen B)
-    (hcover : A ∪ B = Set.univ) (n : Nat) :
-    IsIso (HomologicalComplex.homologyMap
-      (integralRelativeMap (⟨Subtype.val, continuous_subtype_val⟩ : C(B, X))
-        (A := (Subtype.val : B → X) ⁻¹' A) (B := A) (fun _ hb => hb)) n) := by
-  let U : Bool → Set X := fun b => if b then A else B
-  let UA : Bool → Set A := fun b => (Subtype.val : A → X) ⁻¹' U b
-  let UB : Bool → Set B := fun b => (Subtype.val : B → X) ⁻¹' U b
-  let AB : Set B := (Subtype.val : B → X) ⁻¹' A
-  have hUA : UA true = Set.univ := by
-    ext a
-    exact ⟨fun _ => Set.mem_univ _, fun _ => a.property⟩
-  have hUB : UB false = Set.univ := by
-    ext b
-    exact ⟨fun _ => Set.mem_univ _, fun _ => b.property⟩
-  let jA := integralSmallChainInclusion UA
-  let jB := integralSmallChainInclusion UB
-  let j := integralSmallChainInclusion U
-  let : IsIso jA := integralSmallChainInclusion_isIso_of_univ UA true hUA
-  let : IsIso jB := integralSmallChainInclusion_isIso_of_univ UB false hUB
-  let f := integralSubspaceChains AB
-  let g := integralSmallSubspaceChains U A
-  let q := (CategoryStruct.comp (inv jB ) ( integralSmallSubspaceChains U B))
-  let a : C(AB, A) := ⟨fun x => ⟨x.val.val, x.property⟩,
-    (continuous_subtype_val.comp continuous_subtype_val).subtype_mk _⟩
-  let t := integralChainsFunctor.map (TopCat.ofHom a)
-  let p := (CategoryStruct.comp (t ) ( inv jA))
-  have hg : (CategoryStruct.comp (g ) ( j)) = (CategoryStruct.comp (jA ) ( integralSubspaceChains A)) :=
-    integralSmallSubspaceChains_inclusion U A
-  have hq : (CategoryStruct.comp (q ) ( j)) = integralSubspaceChains B := by
-    dsimp only [q]
-    rw [Category.assoc, integralSmallSubspaceChains_inclusion U B,
-      ← Category.assoc, IsIso.inv_hom_id, Category.id_comp]
-  have ht : (CategoryStruct.comp (f ) ( integralSubspaceChains B)) = (CategoryStruct.comp (t ) ( integralSubspaceChains A)) := by
-    change (CategoryStruct.comp (integralChainsFunctor.map _ ) ( integralChainsFunctor.map _)) =
-      (CategoryStruct.comp (integralChainsFunctor.map _ ) ( integralChainsFunctor.map _))
-    rw [← Functor.map_comp, ← Functor.map_comp]
-    rfl
-  have w : (CategoryStruct.comp (f ) ( q)) = (CategoryStruct.comp (p ) ( g)) := by
-    let : Mono j := integralSmallChainInclusion_mono U
-    apply (cancel_mono j).mp
-    rw [Category.assoc, hq, Category.assoc, hg]
-    dsimp only [p]
-    rw [Category.assoc, ← Category.assoc (inv jA), IsIso.inv_hom_id,
-      Category.id_comp, ht]
-  let r := cokernel.map f g p q w
-  have hqval (m : Nat) (b : (integralChains B).X m) :
-      j.f m (q.f m b) = (integralSubspaceChains B).f m b :=
-    congrArg (fun k => k.f m b) hq
-  have hgval (m : Nat) (a' : (integralSmallChainComplex UA).X m) :
-      j.f m (g.f m a') = (integralSubspaceChains A).f m (jA.f m a') :=
-    congrArg (fun k => k.f m a') hg
-  have hspan (m : Nat) (d : (integralSmallChainComplex U).X m) :
-      ∃ (b : (integralChains B).X m) (c : (integralSmallChainComplex UA).X m),
-        q.f m b + g.f m c = d := by
-    have hd : d.val ∈ LinearMap.range ((integralSubspaceChains A).f m).hom ⊔
-        LinearMap.range ((integralSubspaceChains B).f m).hom := by
-      rw [← integralSmallChains_two_eq_sup A B m]
-      exact d.property
-    obtain ⟨x, ⟨a', rfl⟩, y, ⟨b, rfl⟩, hab⟩ := Submodule.mem_sup.mp hd
-    refine ⟨b, (inv jA).f m a', ?_⟩
-    apply Subtype.ext
-    change j.f m (q.f m b) + j.f m (g.f m ((inv jA).f m a')) = d.val
-    rw [hqval, hgval]
-    have hja : jA.f m ((inv jA).f m a') = a' :=
-      congrArg (fun k => k.f m a') (IsIso.inv_hom_id jA)
-    rw [hja]
-    exact (add_comm _ _).trans hab
-  have hinter (m : Nat) (b : (integralChains B).X m)
-      (hb : q.f m b ∈ LinearMap.range (g.f m).hom) :
-      b ∈ LinearMap.range (f.f m).hom := by
-    apply (integralSubspaceChains_range_preimage A B m b).mp
-    obtain ⟨a', ha'⟩ := hb
-    refine ⟨jA.f m a', ?_⟩
-    have he := congrArg (j.f m) ha'
-    rw [hgval, hqval] at he
-    exact he
-  let : IsIso r := integralCokernelMap_isIso f g p q w hspan hinter
-  have hU : ∀ b, IsOpen (U b) := by
-    intro b
-    cases b
-    · exact hB
-    · exact hA
-  have hcoverU : (⋃ b, U b) = Set.univ := by
-    apply Set.eq_univ_iff_forall.mpr
-    intro x
-    have hx : x ∈ A ∪ B := by rw [hcover]; exact Set.mem_univ _
-    rcases hx with hx | hx
-    · exact Set.mem_iUnion.mpr ⟨true, hx⟩
-    · exact Set.mem_iUnion.mpr ⟨false, hx⟩
-  let c := integralSmallRelativeComparison U A
-  have hr : (CategoryStruct.comp (integralRelativeProjection AB ) ( r)) = (CategoryStruct.comp (q ) ( integralSmallRelativeProjection U A)) :=
-    cokernel.π_desc _ _ _
-  have hfactor : (CategoryStruct.comp (r ) ( c)) = integralRelativeMap
-      (⟨Subtype.val, continuous_subtype_val⟩ : C(B, X))
-      (A := AB) (B := A) (fun _ hb => hb) := by
-    apply (cancel_epi (integralRelativeProjection AB)).mp
-    rw [← Category.assoc, hr, Category.assoc,
-      integralSmallRelativeComparison_projection, ← Category.assoc, hq]
-    exact (integralRelativeMap_projection
-      (⟨Subtype.val, continuous_subtype_val⟩ : C(B, X))
-      (A := AB) (B := A) (fun _ hb => hb)).symm
-  let : IsIso (HomologicalComplex.homologyMap c n) :=
-    integralSmallRelativeComparison_homology_isIso U hU hcoverU A n
-  rw [← hfactor, HomologicalComplex.homologyMap_comp]
-  infer_instance
-
-end Poincare.Topology
-
-end FzIntegralExcision
-
-noncomputable section FzIntegralCoverHomology
-
-/-!
-# Integral homology of a cover by two contractible subspaces
-
-Excision and the homology sequence give the positive-degree suspension
-isomorphism. In degree one the result is the actual kernel of the inclusion
-on degree-zero homology, so disconnected overlaps remain visible.
--/
-
-
-open CategoryTheory Limits
-
-universe u
-
-namespace Poincare.Topology
-
-variable {X : Type u} [TopologicalSpace X]
-
-theorem integralSubspaceChains_homology_mono_of_contractible
-    (A : Set X) [ContractibleSpace A] (n : Nat) :
-    Mono (HomologicalComplex.homologyMap (integralSubspaceChains A) n) := by
-  obtain ⟨a, ⟨H⟩⟩ := id_nullhomotopic A
-  let i : TopCat.of A ⟶ TopCat.of X :=
+def integralRelativeBoundary (A : Set X) (n : Nat) :
+    integralRelativeHomology A (n + 1) ⟶ integralHomology A n :=
+  (integralPairSequence_shortExact A).δ (n + 1) n rfl
+
+theorem integral_relative_homotopy {f g : C(X, Y)}
+    (H : ContinuousMap.Homotopy f g) {A : Set X} {B : Set Y}
+    (hf : Set.MapsTo f A B) (hg : Set.MapsTo g A B)
+    (hH : ∀ t : unitInterval, Set.MapsTo (fun x => H (t, x)) A B) :
+    Nonempty (Homotopy (integralRelativeMap f hf) (integralRelativeMap g hg)) := by
+  let ia : TopCat.of A ⟶ TopCat.of X :=
     TopCat.ofHom ⟨Subtype.val, continuous_subtype_val⟩
-  let q : TopCat.of X ⟶ TopCat.of A := TopCat.ofHom (ContinuousMap.const X a)
-  let HT : TopCat.Homotopy (𝟙 (TopCat.of A)) ((CategoryStruct.comp (i ) ( q))) := H
-  have he := HT.congr_homologyMap_singularChainComplexFunctor integralCoefficient n
-  change HomologicalComplex.homologyMap (integralChainsFunctor.map (𝟙 _)) n =
-    HomologicalComplex.homologyMap (integralChainsFunctor.map ((CategoryStruct.comp (i ) ( q)))) n at he
-  rw [CategoryTheory.Functor.map_id, HomologicalComplex.homologyMap_id,
-    CategoryTheory.Functor.map_comp, HomologicalComplex.homologyMap_comp] at he
-  exact mono_of_mono_fac he.symm
-
-/-- Collapsing a contractible subspace preserves all positive integral homology. -/
-theorem integralToRelativeHomology_isIso_of_contractible
-    (A : Set X) [ContractibleSpace A] (n : Nat) :
-    IsIso (integralToRelativeHomology A (n + 1)) := by
-  let S := integralPairSequence_shortExact A
-  have hA := integral_contractible_homology_isZero A (n + 1) (by omega)
-  let : Mono (integralToRelativeHomology A (n + 1)) :=
-    (S.homology_exact₂ (n + 1)).mono_g (hA.eq_of_src _ _)
-  let : Mono (HomologicalComplex.homologyMap (integralSubspaceChains A) n) :=
-    integralSubspaceChains_homology_mono_of_contractible A n
-  have hδ : S.δ (n + 1) n rfl = 0 := by
-    apply (cancel_mono (HomologicalComplex.homologyMap (integralSubspaceChains A) n)).mp
-    exact (S.δ_comp (n + 1) n rfl).trans zero_comp.symm
-  let : Epi (integralToRelativeHomology A (n + 1)) :=
-    (S.homology_exact₃ (n + 1) n rfl).epi_f hδ
-  exact isIso_of_mono_of_epi _
-
-/-- The degree shift associated to an open cover by two contractible subspaces. -/
-def integralContractibleCoverHomologyIso
-    (A B : Set X) [ContractibleSpace A] [ContractibleSpace B]
-    (hA : IsOpen A) (hB : IsOpen B) (hcover : A ∪ B = Set.univ) (n : Nat) :
-    integralHomology X (n + 2) ≅
-      integralHomology ((Subtype.val : B → X) ⁻¹' A) (n + 1) := by
-  let AB : Set B := (Subtype.val : B → X) ⁻¹' A
-  let e := integralRelativeMap (⟨Subtype.val, continuous_subtype_val⟩ : C(B, X))
-    (A := AB) (B := A) (fun _ hb => hb)
-  let : IsIso (integralToRelativeHomology A (n + 2)) :=
-    integralToRelativeHomology_isIso_of_contractible A (n + 1)
-  let : IsIso (HomologicalComplex.homologyMap e (n + 2)) :=
-    integral_open_cover_excision A B hA hB hcover (n + 2)
-  exact asIso (integralToRelativeHomology A (n + 2)) ≪≫
-    (asIso (HomologicalComplex.homologyMap e (n + 2))).symm ≪≫
-    (integralPairSequence_shortExact AB).δIso (n + 2) (n + 1) rfl
-      (integral_contractible_homology_isZero B (n + 2) (by omega))
-      (integral_contractible_homology_isZero B (n + 1) (by omega))
-
-/-- The degree-one group of a contractible cover is the kernel of the
-overlap inclusion on degree-zero integral homology. -/
-def integralContractibleCoverHomologyOneIso
-    (A B : Set X) [ContractibleSpace A] [ContractibleSpace B]
-    (hA : IsOpen A) (hB : IsOpen B) (hcover : A ∪ B = Set.univ) :
-    integralHomology X 1 ≅ kernel (HomologicalComplex.homologyMap
-      (integralSubspaceChains ((Subtype.val : B → X) ⁻¹' A)) 0) := by
-  let AB : Set B := (Subtype.val : B → X) ⁻¹' A
-  let e := integralRelativeMap (⟨Subtype.val, continuous_subtype_val⟩ : C(B, X))
-    (A := AB) (B := A) (fun _ hb => hb)
-  let : IsIso (integralToRelativeHomology A 1) :=
-    integralToRelativeHomology_isIso_of_contractible A 0
-  let : IsIso (HomologicalComplex.homologyMap e 1) :=
-    integral_open_cover_excision A B hA hB hcover 1
-  let S := integralPairSequence_shortExact AB
-  let : Mono (S.δ 1 0 rfl) :=
-    S.mono_δ 1 0 rfl (integral_contractible_homology_isZero B 1 (by omega))
-  exact asIso (integralToRelativeHomology A 1) ≪≫
-    (asIso (HomologicalComplex.homologyMap e 1)).symm ≪≫
-    (S.homology_exact₁ 1 0 rfl).fIsKernel.conePointUniqueUpToIso (limit.isLimit _)
-
-end Poincare.Topology
-
-end FzIntegralCoverHomology
-
-noncomputable section FzIntegralHomologyEquiv
-
-/-!
-# Integral homology of homotopy equivalent spaces
-
-The isomorphism consists of the actual maps on homology induced by the
-two continuous maps of the equivalence.
--/
-
-
-open CategoryTheory
-open scoped ContinuousMap
-
-universe u
-
-namespace Poincare.Topology
-
-def integralHomologyIsoOfHomotopyEquiv
-    {X Y : Type u} [TopologicalSpace X] [TopologicalSpace Y]
-    (h : X ≃ₕ Y) (n : Nat) : integralHomology X n ≅ integralHomology Y n where
-  hom := HomologicalComplex.homologyMap
-    (integralChainsFunctor.map (TopCat.ofHom h.toFun)) n
-  inv := HomologicalComplex.homologyMap
-    (integralChainsFunctor.map (TopCat.ofHom h.invFun)) n
-  hom_inv_id := by
-    rw [← HomologicalComplex.homologyMap_comp, ← CategoryTheory.Functor.map_comp]
-    let H : TopCat.Homotopy ((CategoryStruct.comp (TopCat.ofHom h.toFun ) ( TopCat.ofHom h.invFun)))
-        (𝟙 (TopCat.of X)) := Classical.choice h.left_inv
-    simpa only [CategoryTheory.Functor.map_id, HomologicalComplex.homologyMap_id] using
-      H.congr_homologyMap_singularChainComplexFunctor integralCoefficient n
-  inv_hom_id := by
-    rw [← HomologicalComplex.homologyMap_comp, ← CategoryTheory.Functor.map_comp]
-    let H : TopCat.Homotopy ((CategoryStruct.comp (TopCat.ofHom h.invFun ) ( TopCat.ofHom h.toFun)))
-        (𝟙 (TopCat.of Y)) := Classical.choice h.right_inv
-    simpa only [CategoryTheory.Functor.map_id, HomologicalComplex.homologyMap_id] using
-      H.congr_homologyMap_singularChainComplexFunctor integralCoefficient n
-
-end Poincare.Topology
-
-end FzIntegralHomologyEquiv
-
-noncomputable section FzSphereOpenCover
-
-/-!
-# Contractible open covers of spheres
-
-The two complements of antipodal points are Euclidean charts. Their
-intersection retracts radially onto the sphere of one lower dimension.
--/
-
-
-open Set Metric
-open scoped Topology ContinuousMap unitInterval
-
-universe u
-
-namespace Poincare.Topology
-
-/-- Radial normalization gives an equivalence with punctured space. -/
-def puncturedSpaceSphereHomotopyEquiv
-    (E : Type u) [NormedAddCommGroup E] [NormedSpace Real E] :
-    {x : E | x ≠ 0} ≃ₕ sphere (0 : E) 1 := by
-  let P := {x : E | x ≠ 0}
-  have hn (x : P) : ‖x.val‖ ≠ 0 := norm_ne_zero_iff.mpr x.property
-  have hq (x : P) : ‖x.val‖⁻¹ • x.val ∈ sphere (0 : E) 1 := by
-    simp [norm_smul, hn x]
-  let q : C(P, sphere (0 : E) 1) :=
-    ⟨fun x => ⟨‖x.val‖⁻¹ • x.val, hq x⟩,
-      ((continuous_subtype_val.norm.inv₀ hn).smul continuous_subtype_val).subtype_mk hq⟩
-  let j : C(sphere (0 : E) 1, P) :=
-    ⟨fun x => ⟨x.val, ne_zero_of_mem_sphere one_ne_zero x⟩,
-      continuous_subtype_val.subtype_mk _⟩
-  let c (z : unitInterval × P) : Real :=
-    (1 - (z.1 : Real)) * ‖z.2.val‖⁻¹ + (z.1 : Real)
-  have hcpos (z : unitInterval × P) : 0 < c z := by
-    have hnorm : 0 < ‖z.2.val‖⁻¹ := inv_pos.mpr (norm_pos_iff.mpr z.2.property)
-    by_cases ht : (z.1 : Real) = 1
-    · simp [c, ht]
-    · have hdiff : 0 < 1 - (z.1 : Real) :=
-        sub_pos.mpr (lt_of_le_of_ne z.1.property.2 ht)
-      exact add_pos_of_pos_of_nonneg (mul_pos hdiff hnorm) z.1.property.1
-  have hc : Continuous c :=
-    ((continuous_const.sub (continuous_subtype_val.comp continuous_fst)).mul
-      ((continuous_subtype_val.comp continuous_snd).norm.inv₀ (fun z => hn z.2))).add
-      (continuous_subtype_val.comp continuous_fst)
-  let H : ContinuousMap.Homotopy (j.comp q) (ContinuousMap.id P) :=
-    { toFun := fun z => ⟨c z • z.2.val, smul_ne_zero (hcpos z).ne' z.2.property⟩
-      continuous_toFun := (hc.smul (continuous_subtype_val.comp continuous_snd)).subtype_mk _
-      map_zero_left x := by
-        apply Subtype.ext
-        change c (0, x) • x.val = ‖x.val‖⁻¹ • x.val
-        simp [c]
-      map_one_left x := by
-        apply Subtype.ext
-        change c (1, x) • x.val = x.val
-        simp [c] }
-  refine ⟨q, j, ⟨H⟩, ?_⟩
-  have hqj : q.comp j = ContinuousMap.id (sphere (0 : E) 1) := by
+  let ib : TopCat.of B ⟶ TopCat.of Y :=
+    TopCat.ofHom ⟨Subtype.val, continuous_subtype_val⟩
+  let fa : C(A, B) := ⟨fun a => ⟨f a, hf a.property⟩,
+    (f.continuous.comp continuous_subtype_val).subtype_mk _⟩
+  let ga : C(A, B) := ⟨fun a => ⟨g a, hg a.property⟩,
+    (g.continuous.comp continuous_subtype_val).subtype_mk _⟩
+  let HA : ContinuousMap.Homotopy fa ga :=
+    { toFun := fun q => ⟨H (q.1, q.2), hH q.1 q.2.property⟩
+      continuous_toFun :=
+        (H.continuous.comp
+          (continuous_fst.prodMk (continuous_subtype_val.comp continuous_snd))).subtype_mk _
+      map_zero_left a := Subtype.ext (H.map_zero_left a)
+      map_one_left a := Subtype.ext (H.map_one_left a) }
+  let HT : TopCat.Homotopy (TopCat.ofHom f) (TopCat.ofHom g) := H
+  let HAT : TopCat.Homotopy (TopCat.ofHom fa) (TopCat.ofHom ga) := HA
+  have htop : (CategoryStruct.comp (ia ▷ TopCat.I ) ( HT.h)) = (CategoryStruct.comp (HAT.h ) ( ib)) := by
+    ext q
+    rfl
+  have hs : (CategoryStruct.comp (TopCat.toSSet.map ia ▷ Δ[1] ) ( HT.toSSet.h)) =
+      (CategoryStruct.comp (HAT.toSSet.h ) ( TopCat.toSSet.map ib)) := by
+    dsimp [TopCat.Homotopy.toSSet]
+    rw [← whisker_exchange_assoc, Functor.LaxMonoidal.μ_natural_left_assoc,
+      ← TopCat.toSSet.map_comp, htop, TopCat.toSSet.map_comp]
+    simp only [Category.assoc]
+  let S := HT.toSSet.toSimplicialObjectHomotopy
+  let SA := HAT.toSSet.toSimplicialObjectHomotopy
+  have hsimplex (n : Nat) (k : Fin (n + 1)) :
+      (CategoryStruct.comp ((TopCat.toSSet.map ia).app (Opposite.op ⦋n⦌) ) ( S.h k)) =
+        (CategoryStruct.comp (SA.h k ) ( (TopCat.toSSet.map ib).app (Opposite.op ⦋n + 1⦌))) := by
     ext x
-    change ‖x.val‖⁻¹ • x.val = x.val
-    simp [mem_sphere_zero_iff_norm.mp x.property]
-  rw [hqj]
+    change ((CategoryStruct.comp ((SSet.yonedaEquiv.symm ((TopCat.toSSet.map ia).app _ x) ▷ Δ[1]) ) (
+        HT.toSSet.h))).app _ _ =
+      ((CategoryStruct.comp ((SSet.yonedaEquiv.symm x ▷ Δ[1]) ) ( (CategoryStruct.comp (HAT.toSSet.h ) (
+        TopCat.toSSet.map ib))))).app _ _
+    rw [← SSet.yonedaEquiv_symm_comp, comp_whiskerRight, Category.assoc, hs]
+  let F : Type u ⥤ ModuleCat.{u} Int := sigmaConst.obj integralCoefficient
+  let P : Homotopy (integralChainsFunctor.map (TopCat.ofHom f))
+      (integralChainsFunctor.map (TopCat.ofHom g)) :=
+    HT.singularChainComplexFunctorObjMap integralCoefficient
+  let PA : Homotopy (integralChainsFunctor.map (TopCat.ofHom fa))
+      (integralChainsFunctor.map (TopCat.ofHom ga)) :=
+    HAT.singularChainComplexFunctorObjMap integralCoefficient
+  have hprism (i j : Nat) :
+      (CategoryStruct.comp ((integralSubspaceChains A).f i ) ( P.hom i j)) =
+        (CategoryStruct.comp (PA.hom i j ) ( (integralSubspaceChains B).f j)) := by
+    by_cases hij : i + 1 = j
+    · subst j
+      change (CategoryStruct.comp (F.map ((TopCat.toSSet.map ia).app (Opposite.op ⦋i⦌)) ) (
+          CategoryTheory.SimplicialObject.Homotopy.ToChainHomotopy.hom
+            (S.whiskerRight F) i (i + 1))) =
+        (CategoryStruct.comp (CategoryTheory.SimplicialObject.Homotopy.ToChainHomotopy.hom
+            (SA.whiskerRight F) i (i + 1) ) (
+          F.map ((TopCat.toSSet.map ib).app (Opposite.op ⦋i + 1⦌))))
+      rw [CategoryTheory.SimplicialObject.Homotopy.ToChainHomotopy.hom_eq,
+        CategoryTheory.SimplicialObject.Homotopy.ToChainHomotopy.hom_eq]
+      change (CategoryStruct.comp (F.map ((TopCat.toSSet.map ia).app (Opposite.op ⦋i⦌)) ) (
+          (-∑ k : Fin (i + 1), ((-1 : Int) ^ k.val) • F.map (S.h k)))) =
+        (CategoryStruct.comp ((-∑ k : Fin (i + 1), ((-1 : Int) ^ k.val) • F.map (SA.h k)) ) (
+          F.map ((TopCat.toSSet.map ib).app (Opposite.op ⦋i + 1⦌))))
+      simp only [Preadditive.comp_neg, Preadditive.neg_comp,
+        Preadditive.comp_sum, Preadditive.sum_comp,
+        Preadditive.comp_zsmul, Preadditive.zsmul_comp]
+      congr 1
+      apply Finset.sum_congr rfl
+      intro k _
+      congr 1
+      rw [← F.map_comp, ← F.map_comp, hsimplex]
+    · rw [P.zero i j hij, PA.zero i j hij, comp_zero, zero_comp]
+  let pA := integralRelativeProjection A
+  let pB := integralRelativeProjection B
+  have hzero (i j : Nat) :
+      (CategoryStruct.comp ((integralSubspaceChains A).f i ) ( ((CategoryStruct.comp (P.hom i j ) ( pB.f j))))) = 0 := by
+    rw [← Category.assoc, hprism, Category.assoc]
+    have hb : (CategoryStruct.comp ((integralSubspaceChains B).f j ) ( pB.f j)) = 0 :=
+      congrArg (fun q => q.f j) (cokernel.condition (integralSubspaceChains B))
+    rw [hb, comp_zero]
+  let D (i j : Nat) :=
+    CokernelCofork.IsColimit.desc'
+      (isColimitOfHasCokernelOfPreservesColimit
+        (HomologicalComplex.eval (ModuleCat.{u} Int) (ComplexShape.down Nat) i)
+        (integralSubspaceChains A))
+      ((CategoryStruct.comp (P.hom i j ) ( pB.f j))) (hzero i j)
+  let T (i j : Nat) : (integralRelativeChains A).X i ⟶
+      (integralRelativeChains B).X j := (D i j).val
+  have hT (i j : Nat) : (CategoryStruct.comp (pA.f i ) ( T i j)) = (CategoryStruct.comp (P.hom i j ) ( pB.f j)) := (D i j).property
+  have hf' (i : Nat) : (CategoryStruct.comp (pA.f i ) ( (integralRelativeMap f hf).f i)) =
+      (CategoryStruct.comp ((integralChainsFunctor.map (TopCat.ofHom f)).f i ) ( pB.f i)) :=
+    congrArg (fun q => q.f i) (integralRelativeMap_projection f hf)
+  have hg' (i : Nat) : (CategoryStruct.comp (pA.f i ) ( (integralRelativeMap g hg).f i)) =
+      (CategoryStruct.comp ((integralChainsFunctor.map (TopCat.ofHom g)).f i ) ( pB.f i)) :=
+    congrArg (fun q => q.f i) (integralRelativeMap_projection g hg)
+  refine ⟨{ hom := T, zero := ?_, comm := ?_ }⟩
+  · intro i j hij
+    apply (cancel_epi (pA.f i)).mp
+    rw [hT, P.zero i j hij, zero_comp, comp_zero]
+  · intro i
+    apply (cancel_epi (pA.f i)).mp
+    rw [Preadditive.comp_add, Preadditive.comp_add, hf', hg',
+      ← dNext_comp_left pA T i, ← prevD_comp_left pA T i]
+    simp_rw [hT]
+    rw [dNext_comp_right P.hom pB i, prevD_comp_right P.hom pB i, P.comm i]
+    simp only [Preadditive.add_comp]
 
-/-- A punctured sphere chart sends the antipodal point to zero. -/
-theorem exists_sphere_puncture_homeomorph
-    {E : Type u} [NormedAddCommGroup E] [InnerProductSpace Real E]
-    [FiniteDimensional Real E] (n : Nat) [Fact (Module.finrank Real E = n + 1)]
-    (v : sphere (0 : E) 1) :
-    ∃ h : ({v}ᶜ : Set (sphere (0 : E) 1)) ≃ₜ EuclideanSpace Real (Fin n),
-      h ⟨-v, by simpa using (ne_neg_of_mem_unit_sphere Real v).symm⟩ = 0 := by
-  let e := stereographic' n v
-  let h : ({v}ᶜ : Set (sphere (0 : E) 1)) ≃ₜ EuclideanSpace Real (Fin n) :=
-    (Homeomorph.setCongr (stereographic'_source v).symm).trans
-      (e.toHomeomorphSourceTarget.trans
-        ((Homeomorph.setCongr (stereographic'_target v)).trans (Homeomorph.Set.univ _)))
-  refine ⟨h, ?_⟩
-  change stereographic' n v (-v) = 0
-  simp [stereographic']
-
-/-- The two punctured charts cover a sphere and intersect in a smaller sphere up to homotopy. -/
-theorem exists_sphere_contractible_open_cover (n : Nat) :
-    ∃ A B : Set (sphere (0 : EuclideanSpace Real (Fin (n + 2))) 1),
-      IsOpen A ∧ IsOpen B ∧ A ∪ B = Set.univ ∧
-      ContractibleSpace A ∧ ContractibleSpace B ∧
-      Nonempty (↥(A ∩ B) ≃ₕ sphere (0 : EuclideanSpace Real (Fin (n + 1))) 1) := by
-  let E := EuclideanSpace Real (Fin (n + 2))
-  let S := sphere (0 : E) 1
-  let : Fact (Module.finrank Real E = (n + 1) + 1) := ⟨by simp [E]⟩
-  have hSne : S.Nonempty := NormedSpace.sphere_nonempty.mpr zero_le_one
-  obtain ⟨v, hv⟩ := hSne
-  let p : S := ⟨v, hv⟩
-  have hne : p ≠ -p := ne_neg_of_mem_unit_sphere Real p
-  let A : Set S := {p}ᶜ
-  let B : Set S := {-p}ᶜ
-  obtain ⟨hA, hz⟩ := exists_sphere_puncture_homeomorph (n + 1) p
-  obtain ⟨hB, _⟩ := exists_sphere_puncture_homeomorph (n + 1) (-p)
-  have hcover : A ∪ B = Set.univ := by
-    apply Set.eq_univ_iff_forall.mpr
-    intro x
-    by_cases hx : x = p
-    · right
-      simpa only [B, Set.mem_compl_iff, Set.mem_singleton_iff, hx] using hne
-    · exact Or.inl hx
-  let H : ↥(A ∩ B) ≃ₜ {x : A | x.val ≠ -p} :=
-    { toFun := fun x => ⟨⟨x.val, x.property.1⟩, x.property.2⟩
-      invFun := fun x => ⟨x.val.val, x.val.property, x.property⟩
-      left_inv := fun _ => rfl
-      right_inv := fun _ => rfl
-      continuous_toFun := by fun_prop
-      continuous_invFun := by fun_prop }
-  have hzero (x : A) : x.val ≠ -p ↔ hA x ≠ 0 := by
-    rw [← hz, hA.injective.ne_iff]
-    constructor
-    · intro hx h
-      exact hx (congrArg Subtype.val h)
-    · intro hx h
-      exact hx (Subtype.ext h)
-  let G := hA.subtype (p := fun x : A => x.val ≠ -p)
-    (q := fun x : EuclideanSpace Real (Fin (n + 1)) => x ≠ 0) hzero
-  refine ⟨A, B, isOpen_compl_singleton, isOpen_compl_singleton, hcover,
-    hA.contractibleSpace, hB.contractibleSpace, ?_⟩
-  exact ⟨((H.trans G).toHomotopyEquiv).trans
-    (puncturedSpaceSphereHomotopyEquiv (EuclideanSpace Real (Fin (n + 1))))⟩
-
-end Poincare.Topology
-
-end FzSphereOpenCover
-
-noncomputable section FzIntegralSphereHomology
-
-/-!
-# Integral sphere homology by contractible open covers
-
-The cover and intersection equivalence are constructed from stereographic
-charts, and the homology isomorphism comes from canonical excision.
--/
-
-
-open CategoryTheory Metric
-open scoped ContinuousMap Topology
-
-universe u
-
-namespace Poincare.Topology
-
-def intersectionPreimageHomeomorph
-    {X : Type u} [TopologicalSpace X] (A B : Set X) :
-    ↥(A ∩ B) ≃ₜ ((Subtype.val : B → X) ⁻¹' A) where
-  toFun x := ⟨⟨x.val, x.property.2⟩, x.property.1⟩
-  invFun x := ⟨x.val.val, x.property, x.val.property⟩
-  left_inv _ := rfl
-  right_inv _ := rfl
-  continuous_toFun := by fun_prop
-  continuous_invFun := by fun_prop
-
-/-- The actual top-degree recurrence for spheres of dimension at least two. -/
-def integralSphereHomologySuccIso (n : Nat) :
-    integralHomology (sphere (0 : EuclideanSpace Real (Fin (n + 3))) 1) (n + 2) ≅
-      integralHomology (sphere (0 : EuclideanSpace Real (Fin (n + 2))) 1) (n + 1) := by
-  apply Classical.choice
-  obtain ⟨A, B, hA, hB, hcover, hAc, hBc, ⟨hAB⟩⟩ :=
-    exists_sphere_contractible_open_cover (n + 1)
-  let : ContractibleSpace A := hAc
-  let : ContractibleSpace B := hBc
-  exact ⟨integralContractibleCoverHomologyIso A B hA hB hcover n ≪≫
-    integralHomologyIsoOfHomotopyEquiv
-      (((intersectionPreimageHomeomorph A B).symm.toHomotopyEquiv).trans hAB) (n + 1)⟩
-
-end Poincare.Topology
-
-end FzIntegralSphereHomology
-
-noncomputable section FzIntegralSphereBase
-
-/-!
-# The first integral sphere homology groups
-
-The contractible two-chart cover of the circle reduces its degree-one group
-to the reduced degree-zero group of the zero-sphere. The higher displayed
-groups then follow by the closed sphere recurrence.
--/
-
-
-open CategoryTheory Limits Metric
-open scoped ContinuousMap Topology
-
-universe u
-
-namespace Poincare.Topology
-
-def integralSphereH1Iso :
-    integralHomology (sphere (0 : EuclideanSpace Real (Fin 2)) 1) 1 ≅
-      integralCoefficient := by
-  apply Classical.choice
-  obtain ⟨A, B, hA, hB, hcover, hAc, hBc, ⟨hAB⟩⟩ :=
-    exists_sphere_contractible_open_cover 0
-  let : ContractibleSpace A := hAc
-  let : ContractibleSpace B := hBc
-  let AB : Set B := (Subtype.val : B → sphere (0 : EuclideanSpace Real (Fin 2)) 1) ⁻¹' A
-  let eCover := integralContractibleCoverHomologyOneIso A B hA hB hcover
-  let eInter : AB ≃ₕ sphere (0 : EuclideanSpace Real (Fin 1)) 1 :=
-    ((intersectionPreimageHomeomorph A B).symm.toHomotopyEquiv).trans hAB
-  let eH0 := integralHomologyIsoOfHomotopyEquiv eInter 0
-  let iAB : C(AB, B) :=
-    ⟨Subtype.val, continuous_subtype_val⟩
-  let eKernelB := integralHomologyZeroMapKernelIso iAB
-  let eKernelS :
-      kernel (integralHomologyZeroAugmentation AB) ≅
-        kernel (integralHomologyZeroAugmentation
-          (sphere (0 : EuclideanSpace Real (Fin 1)) 1)) := by
-    apply kernel.mapIso (integralHomologyZeroAugmentation AB)
-      (integralHomologyZeroAugmentation
-      (sphere (0 : EuclideanSpace Real (Fin 1)) 1)) eH0 (Iso.refl _)
-    change (CategoryStruct.comp (integralHomologyZeroAugmentation AB ) ( 𝟙 _)) = _
-    rw [Category.comp_id]
-    exact (integralHomologyZeroAugmentation_natural eInter.toFun).symm
-  exact ⟨eCover ≪≫ eKernelB ≪≫ eKernelS ≪≫
-    integralZeroSphereAugmentationKernelIso⟩
-
-end Poincare.Topology
-
-end FzIntegralSphereBase
-
-noncomputable section CoeffBridge
-
-open CategoryTheory Limits AlgebraicTopology
-namespace IntegralComparison
-abbrev U := forget₂ (ModuleCat.{0} ℤ) AddCommGrpCat.{0}
-abbrev R := ModuleCat.of ℤ (ULift.{0} ℤ)
-abbrev coeff : U.obj R ≅ AddCommGrpCat.of ℤ := (AddEquiv.ulift : ULift.{0} ℤ ≃+ ℤ).toAddCommGrpIso
-
-def freeIso : sigmaConst.{0}.obj (U.obj R) ≅ sigmaConst.obj R ⋙ U := by
-  refine NatIso.ofComponents (fun I => (PreservesCoproduct.iso U (fun _ : I => R)).symm) ?_
-  intro I J f
-  apply Sigma.hom_ext
-  intro i
-  change (CategoryStruct.comp (Sigma.ι _ i) (CategoryStruct.comp (Sigma.map' f (fun _ => 𝟙 _))
-    (sigmaComparison U (fun _ : J => R)))) = CategoryStruct.comp (Sigma.ι _ i)
-    (CategoryStruct.comp (sigmaComparison U (fun _ : I => R)) (U.map (Sigma.map' f (fun _ => 𝟙 _))))
-  rw [Sigma.ι_comp_map'_assoc, Category.id_comp, ι_comp_sigmaComparison, ι_comp_sigmaComparison_assoc,
-    ← U.map_comp, Sigma.ι_comp_map', Category.id_comp]
-
-def chainIso (X : TopCat.{0}) :
-    ((singularChainComplexFunctor AddCommGrpCat).obj (U.obj R)).obj X ≅
-    (U.mapHomologicalComplex (ComplexShape.down ℕ)).obj
-      (((singularChainComplexFunctor (ModuleCat ℤ)).obj R).obj X) := by
-  let S := TopCat.toSSet.obj X
-  let A := S ⋙ sigmaConst.obj R
-  let e := (alternatingFaceMapComplex AddCommGrpCat).mapIso (Functor.isoWhiskerLeft S freeIso)
-  have q := Functor.congr_obj (map_alternatingFaceMapComplex U) A
-  exact e ≪≫ (eqToIso q).symm
-
-def homologyIso (X : TopCat.{0}) (n : ℕ) :
-    ((singularHomologyFunctor AddCommGrpCat n).obj (AddCommGrpCat.of ℤ)).obj X ≅
-    U.obj (((singularHomologyFunctor (ModuleCat ℤ) n).obj R).obj X) := by
-  let C := ((singularChainComplexFunctor (ModuleCat ℤ)).obj R).obj X
-  let e := ((singularHomologyFunctor AddCommGrpCat n).mapIso coeff.symm).app X
-  let q := (HomologicalComplex.homologyFunctor AddCommGrpCat _ n).mapIso (chainIso X)
-  exact e ≪≫ q ≪≫ (C.sc n).mapHomologyIso U
-
-end IntegralComparison
-
-end CoeffBridge
-
-open AlgebraicTopology CategoryTheory Limits
-open Poincare.Topology IntegralComparison
-noncomputable section
-namespace SphereTop
-def sphereIso (k : ℕ) :
-    integralHomology (Metric.sphere (0 : EuclideanSpace ℝ (Fin (k+2))) 1) (k+1) ≅ integralCoefficient := by
-  induction k with
-  | zero => exact integralSphereH1Iso
-  | succ k ih => exact integralSphereHomologySuccIso k ≪≫ ih
-end SphereTop
-end
-
-
-theorem sphere_top_nonzero : ∀ (n : ℕ), 1 ≤ n →
-    ¬ IsZero (((singularHomologyFunctor AddCommGrpCat n).obj (AddCommGrpCat.of ℤ)).obj
-      (TopCat.of (Metric.sphere (0 : EuclideanSpace ℝ (Fin (n + 1))) 1))) := by
-  intro n hn h
-  obtain ⟨k,rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : n ≠ 0)
-  let X := TopCat.of (Metric.sphere (0 : EuclideanSpace ℝ (Fin (k+2))) 1)
-  let e := IntegralComparison.homologyIso X (k+1) ≪≫ IntegralComparison.U.mapIso (SphereTop.sphereIso k) ≪≫ IntegralComparison.coeff
-  have hz : IsZero (AddCommGrpCat.of ℤ) := h.of_iso e.symm
-  have eq : (0 : ℤ) = 1 := (AddCommGrpCat.isZero_iff_subsingleton.mp hz).elim _ _
-  omega
-
-end O2SphereTopHomology
-
-namespace O2NoncompactTopHomology
-
-
-/-!
-Top homology of noncompact connected manifolds, using singular subdivision, excision and compact support detection.
-Adapted from the PoincareLib contributors, LehengChen/PoincareConjecture at
-60de1a94ca7038d04ed123b490a3229f8aa5fa75, via frenzymath/Poincare-Conjecture at
-432c38f2aa5a30efb13871292d17b4a3309a496a and its byte-identical PoincareLib
-delivery in frenzymath/PoincareConjecture at 62db01af9388dc1d9b56b66d6674f4c09b2318a2.
-Licensed under Apache-2.0. Copyright (c) 2026 The PoincareLib contributors.
-The original module names are preserved in section headings. This adaptation makes
-category composition explicit, combines the modules, transports the module-valued
-homology to abelian groups, and proves pointwise vanishing by chart-supported homotopies. The proof generalizes the sphere calculation and compact support arguments to all dimensions at least two.
--/
-
-noncomputable section FzIntegralRelativeChains
-
-/-!
-# Actual integral relative singular chains
-
-Relative chains are the cokernel of the actual subspace-chain inclusion.
-The coefficient object and all topological spaces retain the same universe.
-Homotopies of pairs descend the natural singular prism through these cokernels.
--/
-
-
-section
-open CategoryTheory Limits MonoidalCategory
-open scoped Simplicial BigOperators unitInterval
-
-universe u
-
-namespace Poincare.Topology
-
-abbrev integralCoefficient : ModuleCat.{u} Int :=
-  ModuleCat.of Int (ULift.{u} Int)
-
-abbrev integralChainsFunctor :
-    TopCat.{u} ⥤ ChainComplex (ModuleCat.{u} Int) Nat :=
-  (AlgebraicTopology.singularChainComplexFunctor (ModuleCat.{u} Int)).obj
-    integralCoefficient
-
-abbrev integralChains (X : Type u) [TopologicalSpace X] :
-    ChainComplex (ModuleCat.{u} Int) Nat :=
-  integralChainsFunctor.obj (TopCat.of X)
-
-abbrev integralHomology (X : Type u) [TopologicalSpace X] (n : Nat) :
-    ModuleCat.{u} Int :=
-  (integralChains X).homology n
-
-variable {X Y : Type u} [TopologicalSpace X] [TopologicalSpace Y]
-
-def integralSubspaceChains (A : Set X) : integralChains A ⟶ integralChains X :=
-  integralChainsFunctor.map (TopCat.ofHom ⟨Subtype.val, continuous_subtype_val⟩)
-
-theorem integralSubspaceChains_mono (A : Set X) : Mono (integralSubspaceChains A) := by
-  let i : TopCat.of A ⟶ TopCat.of X :=
-    TopCat.ofHom ⟨Subtype.val, continuous_subtype_val⟩
-  let : Mono i := (TopCat.mono_iff_injective i).mpr Subtype.val_injective
-  change Mono (integralChainsFunctor.map i)
-  infer_instance
-
-abbrev integralRelativeChains (A : Set X) : ChainComplex (ModuleCat.{u} Int) Nat :=
-  cokernel (integralSubspaceChains A)
-
-abbrev integralRelativeHomology (A : Set X) (n : Nat) : ModuleCat.{u} Int :=
-  (integralRelativeChains A).homology n
-
-abbrev integralRelativeProjection (A : Set X) :
-    integralChains X ⟶ integralRelativeChains A :=
-  cokernel.π (integralSubspaceChains A)
-
-abbrev integralToRelativeHomology (A : Set X) (n : Nat) :
-    integralHomology X n ⟶ integralRelativeHomology A n :=
-  HomologicalComplex.homologyMap (integralRelativeProjection A) n
-
-def integralRelativeMap (f : C(X, Y)) {A : Set X} {B : Set Y}
-    (hf : Set.MapsTo f A B) : integralRelativeChains A ⟶ integralRelativeChains B :=
-  cokernel.map (integralSubspaceChains A) (integralSubspaceChains B)
-    (integralChainsFunctor.map (TopCat.ofHom
-      ⟨fun a : A => ⟨f a, hf a.property⟩,
-        (f.continuous.comp continuous_subtype_val).subtype_mk _⟩))
-    (integralChainsFunctor.map (TopCat.ofHom f)) (by
-      simp only [integralSubspaceChains, ← Functor.map_comp]
-      rfl)
-
-theorem integralRelativeMap_projection (f : C(X, Y)) {A : Set X} {B : Set Y}
-    (hf : Set.MapsTo f A B) :
-    (CategoryStruct.comp (integralRelativeProjection A ) ( integralRelativeMap f hf)) =
-      (CategoryStruct.comp (integralChainsFunctor.map (TopCat.ofHom f) ) ( integralRelativeProjection B)) :=
-  cokernel.π_desc _ _ _
-
-abbrev integralPairSequence (A : Set X) :
-    ShortComplex (ChainComplex (ModuleCat.{u} Int) Nat) :=
-  ShortComplex.cokernelSequence (integralSubspaceChains A)
-
-theorem integralPairSequence_shortExact (A : Set X) :
-    (integralPairSequence A).ShortExact where
-  exact := ShortComplex.cokernelSequence_exact (integralSubspaceChains A)
-  mono_f := integralSubspaceChains_mono A
+def integralHomeomorphHomologyIso (e : X ≃ₜ Y) (n : Nat) :
+    integralHomology X n ≅ integralHomology Y n :=
+  (HomologicalComplex.homologyFunctor (ModuleCat.{u} Int) (ComplexShape.down Nat) n).mapIso
+    (integralChainsFunctor.mapIso (TopCat.isoOfHomeo e))
 
 theorem integral_contractible_homology_isZero
     (X : Type u) [TopologicalSpace X] [ContractibleSpace X]
@@ -3527,6 +421,69 @@ theorem integral_chain_finite_representation (n : Nat)
       apply Finset.sum_congr rfl
       intro s _
       exact (integralChainCoordinates_generator s _).symm
+
+theorem integral_pair_degree_split (A : Set X) (n : Nat) :
+    ∃ r : (integralChains X).X n ⟶ (integralChains A).X n,
+    ∃ s : (integralRelativeChains A).X n ⟶ (integralChains X).X n,
+      (CategoryStruct.comp ((integralSubspaceChains A).f n ) ( r)) = 𝟙 _ ∧
+      (CategoryStruct.comp (s ) ( (integralRelativeProjection A).f n)) = 𝟙 _ ∧
+      (CategoryStruct.comp (r ) ( (integralSubspaceChains A).f n)) +
+        (CategoryStruct.comp ((integralRelativeProjection A).f n ) ( s)) = 𝟙 _ := by
+  let v : C(A, X) := ⟨Subtype.val, continuous_subtype_val⟩
+  let f : C(integralSimplex n, A) → C(integralSimplex n, X) := fun s => v.comp s
+  let i := (integralSubspaceChains A).f n
+  let p := (integralRelativeProjection A).f n
+  let EA := integralChainCoordinates A n
+  let EX := integralChainCoordinates X n
+  have hf : Function.Injective f := by
+    intro s t h
+    ext z
+    exact congrArg (fun k : C(integralSimplex n, X) => k z) h
+  let r : (integralChains X).X n ⟶ (integralChains A).X n :=
+    ModuleCat.ofHom (EA.symm.toLinearMap.comp
+      ((Finsupp.lcomapDomain (R := Int) (M := ULift.{u} Int) f hf).comp EX.toLinearMap))
+  have hgen (s : C(integralSimplex n, A)) :
+      (CategoryStruct.comp (integralSingularGenerator s ) ( i)) = integralSingularGenerator (f s) :=
+    integralSingularGenerator_map s v
+  have hrgen (s : C(integralSimplex n, A)) (a : ULift.{u} Int) :
+      r (integralSingularGenerator (f s) a) = integralSingularGenerator s a := by
+    change EA.symm (Finsupp.comapDomain f
+      (EX (integralSingularGenerator (f s) a)) hf.injOn) = integralSingularGenerator s a
+    apply EA.injective
+    rw [EA.apply_symm_apply, integralChainCoordinates_generator,
+      integralChainCoordinates_generator, Finsupp.comapDomain_single]
+  have hir : (CategoryStruct.comp (i ) ( r)) = 𝟙 _ := by
+    apply SSet.chainComplex_hom_ext
+    intro x
+    obtain ⟨s, rfl⟩ := ((TopCat.of A).toSSetObjEquiv (Opposite.op ⦋n⦌)).symm.surjective x
+    change (CategoryStruct.comp (integralSingularGenerator s ) ( ((CategoryStruct.comp (i ) ( r))))) = (CategoryStruct.comp (integralSingularGenerator s ) ( 𝟙 _))
+    rw [← Category.assoc, hgen, Category.comp_id]
+    ext a
+    exact hrgen s a
+  let t : (integralChains X).X n ⟶ (integralChains X).X n := 𝟙 _ - (CategoryStruct.comp (r ) ( i))
+  have hit : (CategoryStruct.comp (i ) ( t)) = 0 := by
+    dsimp only [t]
+    rw [Preadditive.comp_sub, Category.comp_id, ← Category.assoc, hir,
+      Category.id_comp, sub_self]
+  let d := CokernelCofork.IsColimit.desc'
+    (isColimitOfHasCokernelOfPreservesColimit
+      (HomologicalComplex.eval (ModuleCat.{u} Int) (ComplexShape.down Nat) n)
+      (integralSubspaceChains A)) t hit
+  let s : (integralRelativeChains A).X n ⟶ (integralChains X).X n := d.val
+  have hps : (CategoryStruct.comp (p ) ( s)) = t := d.property
+  have hip : (CategoryStruct.comp (i ) ( p)) = 0 :=
+    congrArg (fun q => q.f n) (cokernel.condition (integralSubspaceChains A))
+  have hsp : (CategoryStruct.comp (s ) ( p)) = 𝟙 _ := by
+    apply (cancel_epi p).mp
+    rw [← Category.assoc, hps]
+    dsimp only [t]
+    rw [Preadditive.sub_comp, Category.id_comp, Category.assoc, hip, comp_zero,
+      sub_zero, Category.comp_id]
+  refine ⟨r, s, hir, hsp, ?_⟩
+  change (CategoryStruct.comp (r ) ( i)) + (CategoryStruct.comp (p ) ( s)) = 𝟙 _
+  rw [hps]
+  change (CategoryStruct.comp (r ) ( i)) + (𝟙 _ - (CategoryStruct.comp (r ) ( i))) = 𝟙 _
+  rw [← add_sub_assoc, add_sub_cancel_left]
 
 end Poincare.Topology
 end 
@@ -3985,6 +942,31 @@ theorem integralOrderedMap_cone {V : Type u} {W : Type v} (k : Nat)
     exact Fin.cases rfl (fun _ => rfl) i
   exact LinearMap.congr_fun h c
 
+theorem integralOrderedMap_comp {V : Type u} {W : Type v} {Z : Type w}
+    (k : Nat) (f : V → W) (g : W → Z) (c : integralOrderedChains V k) :
+    integralOrderedMap k g (integralOrderedMap k f c) =
+      integralOrderedMap k (g ∘ f) c := by
+  have h : (integralOrderedMap k g).comp (integralOrderedMap k f) =
+      integralOrderedMap k (g ∘ f) := by
+    apply Finsupp.lhom_ext
+    intro v a
+    change integralOrderedMap k g (integralOrderedMap k f (Finsupp.single v a)) =
+      integralOrderedMap k (g ∘ f) (Finsupp.single v a)
+    rw [integralOrderedMap_single, integralOrderedMap_single, integralOrderedMap_single]
+    rfl
+  exact LinearMap.congr_fun h c
+
+theorem integralOrderedMap_id {V : Type u} (k : Nat)
+    (c : integralOrderedChains V k) :
+    integralOrderedMap k (id : V → V) c = c := by
+  have h : integralOrderedMap k (id : V → V) = LinearMap.id := by
+    apply Finsupp.lhom_ext
+    intro v a
+    change integralOrderedMap k id (Finsupp.single v a) = Finsupp.single v a
+    rw [integralOrderedMap_single]
+    rfl
+  exact LinearMap.congr_fun h c
+
 end Poincare.Topology
 end 
 
@@ -4251,6 +1233,59 @@ theorem integralOrderedSubdivision_support (A : Set V)
       obtain ⟨t, ht, rfl⟩ := Finset.mem_image.mp (Finsupp.mapDomain_support hwcone)
       have htA : Set.range t ⊆ A :=
         ih _ (hfaces v (hc v hvc)) t ht
+      rintro _ ⟨j, rfl⟩
+      refine Fin.cases ?_ (fun i => ?_) j
+      · exact hA k v (hc v hvc)
+      · exact htA ⟨i, rfl⟩
+
+theorem integralOrderedPrism_support (A : Set V)
+    (hA : ∀ (n : Nat) (v : Fin (n + 1) → V), Set.range v ⊆ A → b n v ∈ A)
+    (k : Nat) (c : integralOrderedChains V k)
+    (hc : ∀ v ∈ c.support, Set.range v ⊆ A) :
+    ∀ v ∈ (integralOrderedPrism b k c).support, Set.range v ⊆ A := by
+  classical
+  induction k with
+  | zero =>
+      intro v hv
+      simp only [integralOrderedPrism_zero, LinearMap.zero_apply, Finsupp.support_zero,
+        Finset.notMem_empty] at hv
+  | succ k ih =>
+      have hfaces (v : Fin (k + 1) → V) (hv : Set.range v ⊆ A) :
+          ∀ w ∈ (integralOrderedBoundary V k (Finsupp.single v 1)).support,
+            Set.range w ⊆ A := by
+        intro w hw
+        rw [integralOrderedBoundary_single] at hw
+        obtain ⟨i, _, hwi⟩ := Finset.mem_biUnion.mp (Finsupp.support_finsetSum hw)
+        have heq : w = v ∘ i.succAbove :=
+          ((Finsupp.mem_support_single _ _ _).mp (Finsupp.support_smul hwi)).1
+        subst w
+        rintro _ ⟨j, rfl⟩
+        exact hv ⟨i.succAbove j, rfl⟩
+      intro w hw
+      change w ∈ (c.sum (fun v a => a • integralOrderedCone (k + 1) (b k v)
+        (Finsupp.single v 1 - integralOrderedSubdivision b (k + 1) (Finsupp.single v 1) -
+          integralOrderedPrism b k
+            (integralOrderedBoundary V k (Finsupp.single v 1))))).support at hw
+      obtain ⟨v, hvc, hw⟩ := Finset.mem_biUnion.mp (Finsupp.support_sum hw)
+      have hwcone := Finsupp.support_smul hw
+      change w ∈ (Finsupp.mapDomain
+        (fun t : Fin (k + 1) → V =>
+          Fin.cons (α := fun _ : Fin (k + 2) => V) (b k v) t)
+        (Finsupp.single v 1 - integralOrderedSubdivision b (k + 1) (Finsupp.single v 1) -
+          integralOrderedPrism b k
+            (integralOrderedBoundary V k (Finsupp.single v 1)))).support at hwcone
+      obtain ⟨t, ht, rfl⟩ := Finset.mem_image.mp (Finsupp.mapDomain_support hwcone)
+      have hunit : ∀ z ∈ (Finsupp.single v (1 : Int)).support, Set.range z ⊆ A := by
+        intro z hz
+        have hzv : z = v := ((Finsupp.mem_support_single _ _ _).mp hz).1
+        subst z
+        exact hc v hvc
+      have htA : Set.range t ⊆ A := by
+        rcases Finset.mem_union.mp (Finsupp.support_sub ht) with hs | ht
+        · rcases Finset.mem_union.mp (Finsupp.support_sub hs) with hv | hs
+          · exact hunit t hv
+          · exact integralOrderedSubdivision_support b A hA (k + 1) _ hunit t hs
+        · exact ih _ (hfaces v (hc v hvc)) t ht
       rintro _ ⟨j, rfl⟩
       refine Fin.cases ?_ (fun i => ?_) j
       · exact hA k v (hc v hvc)
@@ -4673,6 +1708,27 @@ theorem integralTupleRealization_affine {d e : Nat} (n : Nat)
     rfl
   exact LinearMap.congr_fun h c
 
+theorem integralTupleRealization_natural (d n : Nat)
+    (s : C(integralSimplex d, X)) (f : C(X, Y))
+    (c : integralOrderedChains (integralSimplex d) (n + 1)) :
+    (integralChainsFunctor.map (TopCat.ofHom f)).f n
+      (integralTupleRealization d n s c) =
+        integralTupleRealization d n (f.comp s) c := by
+  have h : ((integralChainsFunctor.map (TopCat.ofHom f)).f n).hom.comp
+        (integralTupleRealization d n s) =
+      integralTupleRealization d n (f.comp s) := by
+    apply Finsupp.lhom_ext'
+    intro v
+    apply LinearMap.ext_ring
+    change (integralChainsFunctor.map (TopCat.ofHom f)).f n
+        (integralTupleRealization d n s (Finsupp.single v 1)) =
+      integralTupleRealization d n (f.comp s) (Finsupp.single v 1)
+    simp only [integralTupleRealization_single, one_smul]
+    exact congrArg
+      (fun g : integralCoefficient.{u} ⟶ (integralChains Y).X n => g (ULift.up 1))
+      (integralSingularGenerator_map (s.comp (integralSimplexAffine v)) f)
+  exact LinearMap.congr_fun h c
+
 theorem integralTupleRealization_small (U : I → Set X) (d n : Nat)
     (s : C(integralSimplex d, X)) (hs : IntegralSmallSimplex U s)
     (c : integralOrderedChains (integralSimplex d) (n + 1)) :
@@ -5031,6 +2087,67 @@ def integralIteratedSubdivisionPrism (X : Type u) [TopologicalSpace X]
   rw [T.zero i j hij, CategoryTheory.Limits.comp_zero]
 
 variable {X Y : Type u} [TopologicalSpace X] [TopologicalSpace Y] {I : Type v}
+
+theorem integralSubdivisionIterate_zero :
+    integralSubdivisionIterate X 0 = 𝟙 (integralChains X) := rfl
+
+theorem integralIteratedSubdivisionPrism_zero (i j : Nat) :
+    (integralIteratedSubdivisionPrism X 0).hom i j = 0 := by
+  simp only [integralIteratedSubdivisionPrism, Finset.sum_range_zero]
+
+theorem integralSubdivision_natural (f : C(X, Y)) :
+    (CategoryStruct.comp (integralBarycentricSubdivision X ) ( integralChainsFunctor.map (TopCat.ofHom f))) =
+      (CategoryStruct.comp (integralChainsFunctor.map (TopCat.ofHom f) ) ( integralBarycentricSubdivision Y)) := by
+  have hS (Z : Type u) [TopologicalSpace Z] (n : Nat) (s : C(integralSimplex n, Z)) :
+      (integralBarycentricSubdivision Z).f n (integralSingularGenerator s (ULift.up 1)) =
+        integralTupleRealization n n s
+          (integralOrderedSubdivision (integralSimplexBarycenter n) (n + 1)
+            (Finsupp.single (integralSimplexVertices n) 1)) := by
+    let Q (t : C(integralSimplex n, Z)) :=
+      integralTupleRealization n n t
+        (integralOrderedSubdivision (integralSimplexBarycenter n) (n + 1)
+          (Finsupp.single (integralSimplexVertices n) 1))
+    let : MulAction Int ((integralChains Z).X n) :=
+      ((integralChains Z).X n).isModule.toDistribMulAction.toMulAction
+    change (Finsupp.lsum (N := (integralChains Z).X n) Int
+      (fun t : C(integralSimplex n, Z) =>
+        (ULift.moduleEquiv : ULift.{u} Int ≃ₗ[Int] Int).toLinearMap.smulRight
+          (M := (integralChains Z).X n) (Q t)))
+      (integralChainCoordinates Z n (integralSingularGenerator s (ULift.up 1))) = Q s
+    rw [integralChainCoordinates_generator, Finsupp.lsum_single,
+      LinearMap.smulRight_apply]
+    exact (int_smul_eq_zsmul ((integralChains Z).X n).isModule 1 _).trans (one_zsmul _)
+  apply HomologicalComplex.hom_ext
+  intro n
+  apply SSet.chainComplex_hom_ext
+  intro x
+  obtain ⟨s, rfl⟩ :=
+    ((TopCat.of X).toSSetObjEquiv (Opposite.op ⦋n⦌)).symm.surjective x
+  change (CategoryStruct.comp (integralSingularGenerator s ) (
+      ((CategoryStruct.comp ((integralBarycentricSubdivision X).f n ) (
+        (integralChainsFunctor.map (TopCat.ofHom f)).f n))))) =
+    (CategoryStruct.comp (integralSingularGenerator s ) (
+      ((CategoryStruct.comp ((integralChainsFunctor.map (TopCat.ofHom f)).f n ) (
+        (integralBarycentricSubdivision Y).f n)))))
+  apply ModuleCat.hom_ext
+  apply LinearMap.ext
+  intro a
+  have ha : a = a.down • (ULift.up 1 : ULift.{u} Int) := by
+    apply ULift.ext
+    simp
+  have hg : (integralChainsFunctor.map (TopCat.ofHom f)).f n
+      (integralSingularGenerator s (ULift.up 1)) =
+        integralSingularGenerator (f.comp s) (ULift.up 1) :=
+    congrArg (fun q : integralCoefficient.{u} ⟶ (integralChains Y).X n => q (ULift.up 1))
+      (integralSingularGenerator_map s f)
+  change (integralChainsFunctor.map (TopCat.ofHom f)).f n
+      ((integralBarycentricSubdivision X).f n (integralSingularGenerator s a)) =
+    (integralBarycentricSubdivision Y).f n
+      ((integralChainsFunctor.map (TopCat.ofHom f)).f n (integralSingularGenerator s a))
+  rw [ha]
+  simp only [map_zsmul]
+  apply congrArg (fun c : (integralChains Y).X n => a.down • c)
+  rw [hS, integralTupleRealization_natural, hg, hS]
 
 theorem integralSubdivision_small (U : I → Set X) (n : Nat)
     (c : (integralChains X).X n) (hc : c ∈ integralSmallChains U n) :
@@ -6571,6 +3688,14 @@ def integralSupportIntersectionHomologyIso
     (homologyFunctor (ModuleCat.{u} Int) (ComplexShape.down Nat) n).mapIso
       (integralRelativeSetIso (Set.compl_inter K L).symm)
 
+theorem integralSupportComparison_homology_isIso
+    (K L : Set X) (hK : IsClosed K) (hL : IsClosed L) (n : Nat) :
+    IsIso (homologyMap (integralSupportComparison K L) n) := by
+  let : IsIso (homologyMap (integralSumComparison Kᶜ Lᶜ) n) :=
+    integralSumComparison_homology_isIso Kᶜ Lᶜ hK.isOpen_compl hL.isOpen_compl n
+  rw [integralSupportComparison, homologyMap_comp]
+  infer_instance
+
 theorem integralHomologyBiprod_ext
     (C D : ChainComplex (ModuleCat.{u} Int) Nat) (n : Nat)
     {a b : (C ⊞ D).homology n}
@@ -6608,6 +3733,55 @@ theorem integralSupportUnionMap_homology_snd (K L : Set X) (n : Nat) :
       integralSupportHomologyRestriction (Set.subset_union_right : L ⊆ K ∪ L) n := by
   rw [← homologyMap_comp, integralSupportUnionMap, biprod.lift_snd]
   rfl
+
+/-- Compatible homology classes on two closed supports have an actual class
+on the union, with the prescribed canonical restrictions. -/
+theorem exists_integralSupportHomology_union
+    (K L : Set X) (hK : IsClosed K) (hL : IsClosed L) (n : Nat)
+    (a : integralSupportHomology K n) (b : integralSupportHomology L n)
+    (hab : integralSupportHomologyRestriction (Set.inter_subset_left : K ∩ L ⊆ K) n a =
+      integralSupportHomologyRestriction (Set.inter_subset_right : K ∩ L ⊆ L) n b) :
+    ∃ c : integralSupportHomology (K ∪ L) n,
+      integralSupportHomologyRestriction (Set.subset_union_left : K ⊆ K ∪ L) n c = a ∧
+      integralSupportHomologyRestriction (Set.subset_union_right : L ⊆ K ∪ L) n c = b := by
+  let C := integralSupportChains K
+  let D := integralSupportChains L
+  let v : (C ⊞ D).homology n :=
+    homologyMap (biprod.inl : C ⟶ C ⊞ D) n a +
+      homologyMap (biprod.inr : D ⟶ C ⊞ D) n b
+  have hfst : homologyMap (biprod.fst : C ⊞ D ⟶ C) n v = a := by
+    simp [v, ← ConcreteCategory.comp_apply, ← homologyMap_comp]
+  have hsnd : homologyMap (biprod.snd : C ⊞ D ⟶ D) n v = b := by
+    simp [v, ← ConcreteCategory.comp_apply, ← homologyMap_comp]
+  have hv : homologyMap (integralSumDifference Kᶜ Lᶜ) n v = 0 := by
+    let := integralSupportComparison_homology_isIso K L hK hL n
+    apply (ModuleCat.mono_iff_injective (homologyMap (integralSupportComparison K L) n)).mp
+      inferInstance
+    rw [map_zero, ← ConcreteCategory.comp_apply, ← homologyMap_comp,
+      integralSupportComparison_difference]
+    simp only [v, map_add, ← ConcreteCategory.comp_apply, ← homologyMap_comp,
+      integralSupportDifference, biprod.inl_desc, biprod.inr_desc, homologyMap_neg]
+    change (integralSupportHomologyRestriction (Set.inter_subset_left : K ∩ L ⊆ K) n).hom a +
+      (-integralSupportHomologyRestriction (Set.inter_subset_right : K ∩ L ⊆ L) n).hom b = 0
+    simpa only [ModuleCat.hom_neg, LinearMap.neg_apply, sub_eq_add_neg] using
+      sub_eq_zero.mpr hab
+  obtain ⟨c, hc⟩ := (ShortComplex.moduleCat_exact_iff _).mp
+    ((integralSupportIntermediateSequence_shortExact K L).homology_exact₂ n) v hv
+  change integralSupportHomology (K ∪ L) n at c
+  change homologyMap (integralSupportUnionMap K L) n c = v at hc
+  refine ⟨c, ?_, ?_⟩
+  · have he := congrArg (homologyMap (biprod.fst : C ⊞ D ⟶ C) n) hc
+    change homologyMap (biprod.fst : C ⊞ D ⟶ C) n
+        (homologyMap (integralSupportUnionMap K L) n c) =
+      homologyMap (biprod.fst : C ⊞ D ⟶ C) n v at he
+    rw [← ConcreteCategory.comp_apply, integralSupportUnionMap_homology_fst, hfst] at he
+    exact he
+  · have he := congrArg (homologyMap (biprod.snd : C ⊞ D ⟶ D) n) hc
+    change homologyMap (biprod.snd : C ⊞ D ⟶ D) n
+        (homologyMap (integralSupportUnionMap K L) n c) =
+      homologyMap (biprod.snd : C ⊞ D ⟶ D) n v at he
+    rw [← ConcreteCategory.comp_apply, integralSupportUnionMap_homology_snd, hsnd] at he
+    exact he
 
 theorem integralSupportUnionMap_homology_mono
     (K L : Set X) (hK : IsClosed K) (hL : IsClosed L) (n : Nat)
@@ -7059,6 +4233,93 @@ theorem integralSupportHomologyRestriction_apply_comp
       integralSupportHomologyRestriction (hKL.trans hLD) n a :=
   congrArg (fun f => f a) (integralSupportHomologyRestriction_comp hKL hLD n)
 
+theorem exists_integralSupportHomology_finite_gluing [T2Space X]
+    (d : Nat) (hD : ∀ L : Set X, IsCompact L → IntegralSupportDetected L d)
+    (omega : ∀ x : X, integralSupportHomology ({x} : Set X) d)
+    {ι : Type v} (s : Finset ι) (F : ι → Set X)
+    (hF : ∀ i ∈ s, IsCompact (F i))
+    (hclasses : ∀ i ∈ s, ∃ a : integralSupportHomology (F i) d,
+      ∀ x : X, ∀ hx : x ∈ F i,
+        integralSupportHomologyRestriction (singleton_subset_iff.mpr hx) d a = omega x) :
+    ∃ a : integralSupportHomology (⋃ i ∈ s, F i) d,
+      ∀ x : X, ∀ hx : x ∈ ⋃ i ∈ s, F i,
+        integralSupportHomologyRestriction (singleton_subset_iff.mpr hx) d a = omega x := by
+  classical
+  induction s using Finset.induction_on with
+  | empty =>
+      refine ⟨0, ?_⟩
+      intro x hx
+      simp at hx
+  | @insert i s hi ih =>
+      have hrest : ∀ j ∈ s, IsCompact (F j) := fun j hj => hF j (Finset.mem_insert_of_mem hj)
+      obtain ⟨b, hb⟩ := hclasses i (Finset.mem_insert_self i s)
+      obtain ⟨c, hc⟩ := ih hrest (fun j hj => hclasses j (Finset.mem_insert_of_mem hj))
+      let L := ⋃ j ∈ s, F j
+      have hL : IsCompact L := s.isCompact_biUnion hrest
+      have hcompat : integralSupportHomologyRestriction (inter_subset_left : F i ∩ L ⊆ F i) d b =
+          integralSupportHomologyRestriction (inter_subset_right : F i ∩ L ⊆ L) d c := by
+        apply sub_eq_zero.mp
+        apply hD (F i ∩ L) ((hF i (Finset.mem_insert_self i s)).inter_right hL.isClosed)
+        intro x hx
+        rw [map_sub, integralSupportHomologyRestriction_apply_comp,
+          integralSupportHomologyRestriction_apply_comp, hb x hx.1, hc x hx.2, sub_self]
+      obtain ⟨a, hab, hac⟩ := exists_integralSupportHomology_union (F i) L
+        (hF i (Finset.mem_insert_self i s)).isClosed hL.isClosed d b c hcompat
+      rw [Finset.set_biUnion_insert]
+      refine ⟨a, ?_⟩
+      intro x hx
+      rcases hx with hx | hx
+      · have he := integralSupportHomologyRestriction_apply_comp
+          (singleton_subset_iff.mpr hx) (subset_union_left : F i ⊆ F i ∪ L) d a
+        rw [hab] at he
+        exact he.symm.trans (hb x hx)
+      · have he := integralSupportHomologyRestriction_apply_comp
+          (singleton_subset_iff.mpr hx) (subset_union_right : L ⊆ F i ∪ L) d a
+        rw [hac] at he
+        exact he.symm.trans (hc x hx)
+
+/-- A locally represented family of point classes has a unique class on
+each compact support. The local family is an explicit input here. -/
+theorem exists_unique_integralSupportHomology_compact_gluing [T2Space X] [RegularSpace X]
+    (d : Nat) (hD : ∀ L : Set X, IsCompact L → IntegralSupportDetected L d)
+    (omega : ∀ x : X, integralSupportHomology ({x} : Set X) d)
+    (K : Set X) (hK : IsCompact K)
+    (hlocal : ∀ x : X, x ∈ K → ∃ U : Set X, IsOpen U ∧ x ∈ U ∧
+      ∃ b : integralSupportHomology U d,
+        ∀ y : X, ∀ hy : y ∈ U,
+          integralSupportHomologyRestriction (singleton_subset_iff.mpr hy) d b = omega y) :
+    ∃! a : integralSupportHomology K d,
+      ∀ x : X, ∀ hx : x ∈ K,
+        integralSupportHomologyRestriction (singleton_subset_iff.mpr hx) d a = omega x := by
+  classical
+  choose U hU hxU b hb using fun x : K => hlocal x x.property
+  obtain ⟨s, F, hF, hFK⟩ := exists_finite_compact_support_refinement K hK U hU hxU
+  have hclasses : ∀ x ∈ s, ∃ a : integralSupportHomology (F x) d,
+      ∀ y : X, ∀ hy : y ∈ F x,
+        integralSupportHomologyRestriction (singleton_subset_iff.mpr hy) d a = omega y := by
+    intro x hx
+    have hsub : F x ⊆ U x := fun y hy => ((hF x).2 hy).2
+    refine ⟨integralSupportHomologyRestriction hsub d (b x), ?_⟩
+    intro y hy
+    rw [integralSupportHomologyRestriction_apply_comp]
+    exact hb x y (hsub hy)
+  have hex : ∃ a : integralSupportHomology K d,
+      ∀ x : X, ∀ hx : x ∈ K,
+        integralSupportHomologyRestriction (singleton_subset_iff.mpr hx) d a = omega x := by
+    let P (L : Set X) : Prop := ∃ a : integralSupportHomology L d,
+      ∀ x : X, ∀ hx : x ∈ L,
+        integralSupportHomologyRestriction (singleton_subset_iff.mpr hx) d a = omega x
+    have h : P (⋃ x ∈ s, F x) := exists_integralSupportHomology_finite_gluing d hD omega s F
+      (fun x _ => (hF x).1) hclasses
+    exact hFK ▸ h
+  obtain ⟨a, ha⟩ := hex
+  refine ⟨a, ha, ?_⟩
+  intro b hb
+  apply sub_eq_zero.mp
+  apply hD K hK
+  intro x hx
+  rw [map_sub, hb x hx, ha x hx, sub_self]
+
 end Poincare.Topology
 end 
 
@@ -7214,7 +4475,104 @@ namespace Poincare.Topology
 section
 variable {E : Type u} [NormedAddCommGroup E]
 
+theorem closedBallComplement_subset_puncture (c : E) (r : Real) (hr : 0 ≤ r) :
+    (closedBall c r)ᶜ ⊆ ({c}ᶜ : Set E) := by
+  apply Set.compl_subset_compl.mpr
+  exact singleton_subset_iff.mpr (mem_closedBall_self hr)
+
+def closedBallComplementInclusion (c : E) (r : Real) (hr : 0 ≤ r) :
+    C(((closedBall c r)ᶜ : Set E), ({c}ᶜ : Set E)) :=
+  ⟨fun x => ⟨x.val, closedBallComplement_subset_puncture c r hr x.property⟩,
+    continuous_subtype_val.subtype_mk _⟩
+
 variable [NormedSpace Real E]
+
+def closedBallComplementPunctureHomotopyEquiv (c : E) (r : Real) (hr : 0 ≤ r) :
+    ((closedBall c r)ᶜ : Set E) ≃ₕ ({c}ᶜ : Set E) := by
+  let P : Set E := {c}ᶜ
+  let O : Set E := (closedBall c r)ᶜ
+  let R : Real := r + 1
+  have hR : r < R := by dsimp [R]; linarith
+  have hRpos : 0 < R := hr.trans_lt hR
+  have hn (x : P) : ‖x.val - c‖ ≠ 0 :=
+    norm_ne_zero_iff.mpr (sub_ne_zero.mpr x.property)
+  let v : C(P, E) :=
+    ⟨fun x => ‖x.val - c‖⁻¹ • (x.val - c),
+      (((continuous_subtype_val.sub continuous_const).norm.inv₀ hn).smul
+        (continuous_subtype_val.sub continuous_const))⟩
+  have hv (x : P) : ‖v x‖ = 1 := by
+    change ‖‖x.val - c‖⁻¹ • (x.val - c)‖ = 1
+    rw [norm_smul, Real.norm_of_nonneg (inv_nonneg.mpr (norm_nonneg _)),
+      inv_mul_cancel₀ (hn x)]
+  have hvrecover (x : P) : ‖x.val - c‖ • v x = x.val - c := by
+    change ‖x.val - c‖ • (‖x.val - c‖⁻¹ • (x.val - c)) = x.val - c
+    rw [smul_smul, mul_inv_cancel₀ (hn x), one_smul]
+  have hj (x : P) : c + R • v x ∈ O := by
+    change ¬dist (c + R • v x) c ≤ r
+    rw [dist_eq_norm, add_sub_cancel_left, norm_smul,
+      Real.norm_of_nonneg hRpos.le, hv, mul_one]
+    exact not_le_of_gt hR
+  let j : C(P, O) :=
+    ⟨fun x => ⟨c + R • v x, hj x⟩,
+      (continuous_const.add (continuous_const.smul v.continuous)).subtype_mk hj⟩
+  let i : C(O, P) := closedBallComplementInclusion c r hr
+  let radius (z : unitInterval × P) : Real :=
+    AffineMap.lineMap R ‖z.2.val - c‖ (z.1 : Real)
+  have hrad : Continuous radius := by
+    dsimp [radius]
+    simp only [AffineMap.lineMap_apply_ring]
+    fun_prop
+  have hradpos (z : unitInterval × P) : 0 < radius z :=
+    (convex_Ioi (0 : Real)).lineMap_mem hRpos
+      (norm_pos_iff.mpr (sub_ne_zero.mpr z.2.property)) z.1.property
+  let K : C(unitInterval × P, E) :=
+    ⟨fun z => c + radius z • v z.2,
+      continuous_const.add (hrad.smul (v.continuous.comp continuous_snd))⟩
+  have hKnorm (z : unitInterval × P) : ‖K z - c‖ = radius z := by
+    change ‖c + radius z • v z.2 - c‖ = radius z
+    rw [add_sub_cancel_left, norm_smul, Real.norm_of_nonneg (hradpos z).le,
+      hv, mul_one]
+  have hKpoint (z : unitInterval × P) : K z ∈ P := by
+    intro h
+    have he : K z = c := h
+    have hnorm := hKnorm z
+    rw [he, sub_self, norm_zero] at hnorm
+    exact (ne_of_gt (hradpos z)) hnorm.symm
+  have hKout (t : unitInterval) (x : O) : K (t, i x) ∈ O := by
+    have hx : r < ‖(i x).val - c‖ := by
+      change r < ‖x.val - c‖
+      have hx' : ¬dist x.val c ≤ r := x.property
+      simpa only [not_le, dist_eq_norm] using hx'
+    have hradius : r < radius (t, i x) :=
+      (convex_Ioi r).lineMap_mem hR hx t.property
+    change ¬dist (K (t, i x)) c ≤ r
+    rw [dist_eq_norm, hKnorm]
+    exact not_le_of_gt hradius
+  have hK0 (x : P) : K (0, x) = (j x).val := by
+    change c + AffineMap.lineMap R ‖x.val - c‖ 0 • v x = c + R • v x
+    rw [AffineMap.lineMap_apply_zero]
+  have hK1 (x : P) : K (1, x) = x.val := by
+    change c + AffineMap.lineMap R ‖x.val - c‖ 1 • v x = x.val
+    rw [AffineMap.lineMap_apply_one, hvrecover]
+    abel
+  let HO : (j.comp i).Homotopy (ContinuousMap.id O) :=
+    { toFun := fun z => ⟨K (z.1, i z.2), hKout z.1 z.2⟩
+      continuous_toFun :=
+        (K.continuous.comp (continuous_fst.prodMk
+          (i.continuous.comp continuous_snd))).subtype_mk _
+      map_zero_left x := Subtype.ext (hK0 (i x))
+      map_one_left x := Subtype.ext (hK1 (i x)) }
+  let HP : (i.comp j).Homotopy (ContinuousMap.id P) :=
+    { toFun := fun z => ⟨K z, hKpoint z⟩
+      continuous_toFun := K.continuous.subtype_mk hKpoint
+      map_zero_left x := Subtype.ext (hK0 x)
+      map_one_left x := Subtype.ext (hK1 x) }
+  exact ⟨i, j, ⟨HO⟩, ⟨HP⟩⟩
+
+theorem closedBallComplementPunctureHomotopyEquiv_toFun
+    (c : E) (r : Real) (hr : 0 ≤ r) :
+    (closedBallComplementPunctureHomotopyEquiv c r hr).toFun =
+      closedBallComplementInclusion c r hr := rfl
 
 def punctureTranslationHomeomorph (c : E) :
     ({c}ᶜ : Set E) ≃ₜ ({0}ᶜ : Set E) := by
@@ -7231,6 +4589,12 @@ def punctureTranslationHomeomorph (c : E) :
     right_inv := fun x => Subtype.ext (by dsimp; abel)
     continuous_toFun := (continuous_subtype_val.sub continuous_const).subtype_mk hf
     continuous_invFun := (continuous_const.add continuous_subtype_val).subtype_mk hg }
+
+def closedBallComplementSphereHomotopyEquiv (c : E) (r : Real) (hr : 0 ≤ r) :
+    ((closedBall c r)ᶜ : Set E) ≃ₕ sphere (0 : E) 1 :=
+  (closedBallComplementPunctureHomotopyEquiv c r hr).trans
+    ((punctureTranslationHomeomorph c).toHomotopyEquiv.trans
+      (puncturedSpaceSphereHomotopyEquiv E))
 
 end
 
@@ -7348,6 +4712,14 @@ def compactConvexComplementPunctureHomotopyEquiv
       map_zero_left y := Subtype.ext (hH0 y)
       map_one_left y := Subtype.ext (hH1 y) }
   exact ⟨i, j, ⟨HO⟩, ⟨HP⟩⟩
+
+theorem compactConvexComplementPunctureHomotopyEquiv_toFun
+    (K : Set E) (hK : IsCompact K) (hconv : Convex Real K)
+    (x : E) (hx : x ∈ K) :
+    (compactConvexComplementPunctureHomotopyEquiv K hK hconv x hx).toFun =
+      compactConvexComplementInclusion K x hx := by
+  unfold compactConvexComplementPunctureHomotopyEquiv
+  rfl
 
 end Poincare.Topology
 end 
@@ -7874,6 +5246,40 @@ theorem exists_open_integralRelativeHomology_restriction_eq_zero [T2Space X]
   rw [hz] at he
   exact he.trans hboundary
 
+/-- A locally trivial support class vanishes on a compact relative
+neighborhood, which can be chosen inside any prescribed open neighborhood. -/
+theorem exists_compact_integralRelativeHomology_restriction_eq_zero
+    [T2Space X] [RegularSpace X]
+    (K : Set X) (hK : IsCompact K) (n : Nat) (a : integralRelativeHomology Kᶜ n)
+    (x : X) (hx : x ∈ K)
+    (ha : homologyMap (integralRelativeRestriction
+      (Set.compl_subset_compl.mpr (Set.singleton_subset_iff.mpr hx))) n a = 0)
+    (W : Set X) (hW : IsOpen W) (hxW : x ∈ W) :
+    ∃ V L : Set X, IsOpen V ∧ x ∈ V ∧ IsCompact L ∧ K ∩ V ⊆ L ∧
+      ∃ hL : L ⊆ K ∩ W,
+        homologyMap (integralRelativeRestriction
+          (Set.compl_subset_compl.mpr (hL.trans Set.inter_subset_left))) n a = 0 := by
+  obtain ⟨U, hU, hxU, haU⟩ :=
+    exists_open_integralRelativeHomology_restriction_eq_zero K n a x hx ha
+  obtain ⟨F, hxF, hF, hFUW⟩ := exists_mem_nhds_isClosed_subset
+    ((hU.inter hW).mem_nhds ⟨hxU, hxW⟩)
+  let L := K ∩ F
+  have hLKU : L ⊆ K ∩ U := fun _ hy => ⟨hy.1, (hFUW hy.2).1⟩
+  have hLKW : L ⊆ K ∩ W := fun _ hy => ⟨hy.1, (hFUW hy.2).2⟩
+  refine ⟨interior F, L, isOpen_interior, mem_interior_iff_mem_nhds.mpr hxF,
+    hK.inter_right hF, (fun _ hy => ⟨hy.1, interior_subset hy.2⟩), hLKW, ?_⟩
+  have hc : (CategoryStruct.comp (integralRelativeRestriction
+      (Set.compl_subset_compl.mpr (Set.inter_subset_left : K ∩ U ⊆ K)) ) (
+        integralRelativeRestriction (Set.compl_subset_compl.mpr hLKU))) =
+      integralRelativeRestriction
+        (Set.compl_subset_compl.mpr (hLKW.trans Set.inter_subset_left)) := by
+    rw [integralRelativeRestriction_comp]
+  rw [← hc, homologyMap_comp]
+  change homologyMap (integralRelativeRestriction (Set.compl_subset_compl.mpr hLKU)) n
+    (homologyMap (integralRelativeRestriction
+      (Set.compl_subset_compl.mpr (Set.inter_subset_left : K ∩ U ⊆ K))) n a) = 0
+  rw [haU, map_zero]
+
 end Poincare.Topology
 end 
 
@@ -8293,53 +5699,22 @@ theorem integralRelativeProjection_empty_isIso :
   rw [integralSubspaceChains_empty]
   infer_instance
 
+def integralHomologySupportUnivIso (X : Type u) [TopologicalSpace X] (n : Nat) :
+    integralHomology X n ≅ integralSupportHomology (univ : Set X) n := by
+  let := integralRelativeProjection_empty_isIso (X := X)
+  have : IsIso (integralToRelativeHomology (∅ : Set X) n) := by
+    change IsIso ((homologyFunctor (ModuleCat.{u} Int) (ComplexShape.down Nat) n).map
+      (integralRelativeProjection (∅ : Set X)))
+    infer_instance
+  change integralHomology X n ≅ integralRelativeHomology (univ : Set X)ᶜ n
+  rw [Set.compl_univ]
+  exact asIso (integralToRelativeHomology (∅ : Set X) n)
+
 end Poincare.Topology
 end 
 
 end FzIntegralSupportUniv
 
-noncomputable section CoeffBridge
-
-open CategoryTheory Limits AlgebraicTopology
-section
-namespace IntegralComparison
-abbrev U := forget₂ (ModuleCat.{0} ℤ) AddCommGrpCat.{0}
-abbrev R := ModuleCat.of ℤ (ULift.{0} ℤ)
-abbrev coeff : U.obj R ≅ AddCommGrpCat.of ℤ := (AddEquiv.ulift : ULift.{0} ℤ ≃+ ℤ).toAddCommGrpIso
-
-def freeIso : sigmaConst.{0}.obj (U.obj R) ≅ sigmaConst.obj R ⋙ U := by
-  refine NatIso.ofComponents (fun I => (PreservesCoproduct.iso U (fun _ : I => R)).symm) ?_
-  intro I J f
-  apply Sigma.hom_ext
-  intro i
-  change (CategoryStruct.comp (Sigma.ι _ i) (CategoryStruct.comp (Sigma.map' f (fun _ => 𝟙 _))
-    (sigmaComparison U (fun _ : J => R)))) = CategoryStruct.comp (Sigma.ι _ i)
-    (CategoryStruct.comp (sigmaComparison U (fun _ : I => R)) (U.map (Sigma.map' f (fun _ => 𝟙 _))))
-  rw [Sigma.ι_comp_map'_assoc, Category.id_comp, ι_comp_sigmaComparison, ι_comp_sigmaComparison_assoc,
-    ← U.map_comp, Sigma.ι_comp_map', Category.id_comp]
-
-def chainIso (X : TopCat.{0}) :
-    ((singularChainComplexFunctor AddCommGrpCat).obj (U.obj R)).obj X ≅
-    (U.mapHomologicalComplex (ComplexShape.down ℕ)).obj
-      (((singularChainComplexFunctor (ModuleCat ℤ)).obj R).obj X) := by
-  let S := TopCat.toSSet.obj X
-  let A := S ⋙ sigmaConst.obj R
-  let e := (alternatingFaceMapComplex AddCommGrpCat).mapIso (Functor.isoWhiskerLeft S freeIso)
-  have q := Functor.congr_obj (map_alternatingFaceMapComplex U) A
-  exact e ≪≫ (eqToIso q).symm
-
-def homologyIso (X : TopCat.{0}) (n : ℕ) :
-    ((singularHomologyFunctor AddCommGrpCat n).obj (AddCommGrpCat.of ℤ)).obj X ≅
-    U.obj (((singularHomologyFunctor (ModuleCat ℤ) n).obj R).obj X) := by
-  let C := ((singularChainComplexFunctor (ModuleCat ℤ)).obj R).obj X
-  let e := ((singularHomologyFunctor AddCommGrpCat n).mapIso coeff.symm).app X
-  let q := (HomologicalComplex.homologyFunctor AddCommGrpCat _ n).mapIso (chainIso X)
-  exact e ≪≫ q ≪≫ (C.sc n).mapHomologyIso U
-
-end IntegralComparison
-end 
-
-end CoeffBridge
 
 noncomputable section GnMoveEuclid
 
@@ -8625,256 +6000,335 @@ end VanishTop
 end
 
 
-theorem top_vanish : ∀ (n : ℕ), 2 ≤ n →
-    ∀ (M : Type) [TopologicalSpace M] [T2Space M] [ChartedSpace (EuclideanSpace ℝ (Fin n)) M]
-      [ConnectedSpace M], ¬ CompactSpace M →
-      IsZero (((singularHomologyFunctor AddCommGrpCat n).obj (AddCommGrpCat.of ℤ)).obj
-        (TopCat.of M)) := by
-  intro n hn
-  obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
-  intro M _ _ _ _ hM
-  apply AddCommGrpCat.isZero_iff_subsingleton.mpr
-  let e := IntegralComparison.homologyIso (TopCat.of M) (k + 2)
-  have inj := (AddCommGrpCat.mono_iff_injective e.hom).mp inferInstance
-  refine ⟨fun a b => inj ?_⟩
-  exact (VanishTop.no_top (k := k) M hM (e.hom a)).trans (VanishTop.no_top (k := k) M hM (e.hom b)).symm
-
-end O2NoncompactTopHomology
-
-namespace O2SphereSimplyConnected
-
+noncomputable section FzIntegralHomologyZero
 
 /-!
-The unit sphere in EuclideanSpace R (Fin (m + 3)) is simply connected. Approximate a based loop
-by a Bernstein polynomial in ambient space, radially project it and the straight-line homotopy;
-the projected loop omits a point (a nonzero coordinate polynomial has finitely many zeros), and
-stereographic projection contracts the loop in the punctured sphere.
+# The augmentation of integral homology in degree zero
+
+Point classes generate degree-zero singular homology. The augmentation sends
+each point class to one and is natural for every continuous map.
 -/
 
--- Credit: adapted from the merged proof proofs/PoincareConjecture.poincare_conjecture.variants.
--- dimension_two.R1.H3.lean by @dk8827 (PR #1958), generalized from Fin 3 to Fin (m + 3).
 
-open Metric Filter Set Polynomial
-open scoped unitInterval BigOperators
+open CategoryTheory Limits
+open scoped Simplicial
 
-namespace P5SphereLoops
+universe u
 
-private abbrev E (m : ℕ) := EuclideanSpace ℝ (Fin (m + 2 + 1))
-private abbrev S (m : ℕ) := sphere (0 : E m) 1
+namespace Poincare.Topology
 
-private def i0 (m : ℕ) : Fin (m + 2 + 1) := ⟨0, by omega⟩
-private def i1 (m : ℕ) : Fin (m + 2 + 1) := ⟨1, by omega⟩
-private def i2 (m : ℕ) : Fin (m + 2 + 1) := ⟨2, by omega⟩
+variable {X Y : Type u} [TopologicalSpace X] [TopologicalSpace Y]
 
-private noncomputable def radial {m : ℕ} (y : E m) : E m := ‖y‖⁻¹ • y
+def integralHomologyZeroAugmentation (X : Type u) [TopologicalSpace X] :
+    integralHomology X 0 ⟶ integralCoefficient :=
+  (TopCat.of X).singularHomology₀ε integralCoefficient
 
-private theorem radial_mem {m : ℕ} (y : E m) (hy : y ≠ 0) : radial y ∈ sphere (0 : E m) 1 := by
-  have hn : 0 < ‖y‖ := norm_pos_iff.2 hy
-  change dist (radial y) 0 = 1
-  rw [dist_zero_right, radial, norm_smul, Real.norm_eq_abs, abs_of_nonneg (by positivity),
-    inv_mul_cancel₀ hn.ne']
+def integralPointClass (x : X) : integralCoefficient ⟶ integralHomology X 0 :=
+  (CategoryStruct.comp ((integralChains X).liftCycles
+    (integralSingularGenerator (ContinuousMap.const (integralSimplex 0) x))
+    0 (by simp) (by simp) ) ( (integralChains X).homologyπ 0))
 
-private theorem radial_fixed {m : ℕ} (x : S m) : radial (x : E m) = x := by
-  rw [radial, norm_eq_of_mem_sphere x, inv_one, one_smul]
+theorem integralPointClass_augmentation (x : X) :
+    (CategoryStruct.comp (integralPointClass x ) ( integralHomologyZeroAugmentation X)) = 𝟙 _ := by
+  exact (TopCat.toSSet.obj (TopCat.of X)).liftCycles_ιChainComplex_homologyπ_homology₀ε
+    integralCoefficient _
 
-private theorem radial_continuous {m : ℕ} : ContinuousOn (radial (m := m)) ({0}ᶜ : Set (E m)) := by
-  exact (continuous_norm.continuousOn.inv₀
-    (fun _ hy => norm_ne_zero_iff.2 (by simpa using hy))).smul continuous_id.continuousOn
+theorem integralHomologyZero_hom_ext {M : ModuleCat.{u} Int}
+    (f g : integralHomology X 0 ⟶ M)
+    (h : ∀ x : X, (CategoryStruct.comp (integralPointClass x ) ( f)) = (CategoryStruct.comp (integralPointClass x ) ( g))) : f = g := by
+  let K := integralChains X
+  let e := K.iCyclesIso 0 0 (by simp) (by simp)
+  apply (cancel_epi (K.homologyπ 0)).mp
+  apply (cancel_epi e.inv).mp
+  apply SSet.chainComplex_hom_ext
+  intro z
+  obtain ⟨s, rfl⟩ := ((TopCat.of X).toSSetObjEquiv (Opposite.op ⦋0⦌)).symm.surjective z
+  have hs : s = ContinuousMap.const (integralSimplex 0) (s default) := by
+    ext t
+    exact congrArg s (Subsingleton.elim t default)
+  have hl : (CategoryStruct.comp (integralSingularGenerator s ) ( e.inv)) =
+      K.liftCycles (integralSingularGenerator s) 0 (by simp) (by simp) := by
+    apply (cancel_mono (K.iCycles 0)).mp
+    rw [Category.assoc, HomologicalComplex.iCyclesIso_inv_hom_id,
+      Category.comp_id, HomologicalComplex.liftCycles_i]
+  change (CategoryStruct.comp (integralSingularGenerator s ) ( (CategoryStruct.comp (e.inv ) ( (CategoryStruct.comp (K.homologyπ 0 ) ( f)))))) =
+    (CategoryStruct.comp (integralSingularGenerator s ) ( (CategoryStruct.comp (e.inv ) ( (CategoryStruct.comp (K.homologyπ 0 ) ( g))))))
+  rw [← Category.assoc (integralSingularGenerator s), hl,
+    ← Category.assoc (integralSingularGenerator s), hl, hs]
+  exact h (s default)
 
-private theorem bernstein_coord {m : ℕ} (n : ℕ) (f : C(I, E m)) :
-    ∃ P : ℝ[X], ∀ t : I, P.eval (t : ℝ) = bernsteinApproximation n f t (i0 m) := by
-  let l : E m →L[ℝ] ℝ := EuclideanSpace.proj (i0 m)
-  refine ⟨∑ k : Fin (n + 1), C (l (f (bernstein.z k))) *
-    bernsteinPolynomial ℝ n k, fun t => ?_⟩
-  change _ = l (bernsteinApproximation n f t)
-  rw [bernsteinApproximation.apply, map_sum, Polynomial.eval_finsetSum]
-  apply Finset.sum_congr rfl
-  intro k _
-  simp [bernstein, Polynomial.toContinuousMapOn, Polynomial.toContinuousMap, mul_comm]
+theorem integralPointClass_map (f : C(X, Y)) (x : X) :
+    (CategoryStruct.comp (integralPointClass x ) ( HomologicalComplex.homologyMap
+        (integralChainsFunctor.map (TopCat.ofHom f)) 0)) = integralPointClass (f x) := by
+  let F := integralChainsFunctor.map (TopCat.ofHom f)
+  let sx := integralSingularGenerator (ContinuousMap.const (integralSimplex 0) x)
+  let sy := integralSingularGenerator (ContinuousMap.const (integralSimplex 0) (f x))
+  have hs : (CategoryStruct.comp (sx ) ( F.f 0)) = sy := by
+    exact integralSingularGenerator_map (ContinuousMap.const (integralSimplex 0) x) f
+  have hl : (integralChains Y).liftCycles ((CategoryStruct.comp (sx ) ( F.f 0))) 0 (by simp)
+      (by rw [Category.assoc, F.comm, ← Category.assoc]; simp) =
+        (integralChains Y).liftCycles sy 0 (by simp) (by simp) := by
+    apply (cancel_mono ((integralChains Y).iCycles 0)).mp
+    rw [HomologicalComplex.liftCycles_i, HomologicalComplex.liftCycles_i, hs]
+  change (CategoryStruct.comp (((CategoryStruct.comp ((integralChains X).liftCycles sx 0 (by simp) (by simp) ) (
+      (integralChains X).homologyπ 0))) ) ( HomologicalComplex.homologyMap F 0)) =
+    (CategoryStruct.comp ((integralChains Y).liftCycles sy 0 (by simp) (by simp) ) (
+      (integralChains Y).homologyπ 0))
+  rw [Category.assoc, HomologicalComplex.homologyπ_naturality,
+    ← Category.assoc, HomologicalComplex.liftCycles_comp_cyclesMap, hl]
 
-private theorem radial_ratio {m : ℕ} (u : E m) (hu : u ≠ 0) :
-    radial u (i2 m) / radial u (i1 m) = u (i2 m) / u (i1 m) := by
-  change ((‖u‖ : ℝ)⁻¹ * u (i2 m)) / ((‖u‖ : ℝ)⁻¹ * u (i1 m)) = _
-  exact mul_div_mul_left _ _ (inv_ne_zero (norm_ne_zero_iff.2 hu))
+theorem integralHomologyZeroAugmentation_natural (f : C(X, Y)) :
+    (CategoryStruct.comp (HomologicalComplex.homologyMap (integralChainsFunctor.map (TopCat.ofHom f)) 0 ) (
+      integralHomologyZeroAugmentation Y)) = integralHomologyZeroAugmentation X := by
+  apply integralHomologyZero_hom_ext
+  intro x
+  rw [← Category.assoc, integralPointClass_map,
+    integralPointClass_augmentation, integralPointClass_augmentation]
 
-private theorem omits_point {m : ℕ} (g : C(I, E m)) (hn : ∀ t, g t ≠ 0)
-    (P : ℝ[X]) (hP : ∀ t : I, P.eval (t : ℝ) = g t (i0 m)) :
-    ∃ y : S m, ∀ t : I, radial (g t) ≠ (y : E m) := by
+theorem integralHomologyZeroAugmentation_isIso (X : Type u) [TopologicalSpace X]
+    [PathConnectedSpace X] : IsIso (integralHomologyZeroAugmentation X) := by
+  change IsIso ((TopCat.of X).singularHomology₀ε integralCoefficient)
+  infer_instance
+
+/-- For a path-connected target the kernel on `H_0` is the augmentation kernel. -/
+def integralHomologyZeroMapKernelIso (f : C(X, Y)) [PathConnectedSpace Y] :
+    kernel (HomologicalComplex.homologyMap (integralChainsFunctor.map (TopCat.ofHom f)) 0) ≅
+      kernel (integralHomologyZeroAugmentation X) := by
+  let := integralHomologyZeroAugmentation_isIso Y
+  exact (kernelCompMono _ (integralHomologyZeroAugmentation Y)).symm ≪≫
+    kernelIsoOfEq (integralHomologyZeroAugmentation_natural f)
+
+end Poincare.Topology
+
+end FzIntegralHomologyZero
+
+noncomputable section FzIntegralZeroSphere
+
+/-!
+# The integral reduced homology of the zero-sphere
+
+The two point classes give two free integral coordinates. Augmentation is
+their sum, whose kernel is the integral module generated by their difference.
+-/
+
+
+open CategoryTheory Limits
+
+universe u
+
+namespace Poincare.Topology
+
+private def integralPairSum :
+    ModuleCat.of Int (Bool → ULift.{u} Int) ⟶ integralCoefficient :=
+  ModuleCat.ofHom
+    ((LinearMap.proj false : (Bool → ULift.{u} Int) →ₗ[Int] ULift.{u} Int) +
+      LinearMap.proj true)
+
+private def integralPairSumKernelIso : kernel integralPairSum.{u} ≅ integralCoefficient := by
+  let e : LinearMap.ker integralPairSum.{u}.hom ≃ₗ[Int] ULift.{u} Int :=
+    { toFun := fun z => z.val false
+      invFun := fun a => ⟨fun b => if b then -a else a, by
+        change a + -a = 0
+        exact add_neg_cancel a⟩
+      left_inv := by
+        intro z
+        apply Subtype.ext
+        funext b
+        cases b
+        · rfl
+        · have hz : z.val false + z.val true = 0 := z.property
+          have ht : z.val true = -z.val false := by
+            simpa using congrArg (fun a => a - z.val false) hz
+          exact ht.symm
+      right_inv := fun _ => rfl
+      map_add' := fun _ _ => rfl
+      map_smul' := fun _ _ => rfl }
+  exact ModuleCat.kernelIsoKer integralPairSum ≪≫ e.toModuleIso
+
+/-- A space with exactly two path components has augmentation kernel `Z`. -/
+def integralTwoComponentsAugmentationKernelIso
+    (X : Type u) [TopologicalSpace X] (e : ZerothHomotopy X ≃ Bool) :
+    kernel (integralHomologyZeroAugmentation X) ≅ integralCoefficient := by
   classical
-  have h01 : i0 m ≠ i1 m := by simp [i0, i1]
-  have h02 : i0 m ≠ i2 m := by simp [i0, i2, Fin.ext_iff]
-  have h12 : i1 m ≠ i2 m := by simp [i1, i2, Fin.ext_iff]
-  by_cases h : P = 0
-  · let w : E m := WithLp.toLp 2 (fun i => if i = i0 m then 1 else 0)
-    have hw0 : w (i0 m) = 1 := by simp [w]
-    have hw : w ≠ 0 := by
-      intro he
-      have h0 := congrArg (fun x : E m => x (i0 m)) he
-      simp only [hw0] at h0
-      norm_num at h0
-    refine ⟨⟨radial w, radial_mem w hw⟩, fun t he => ?_⟩
-    have h0 : g t (i0 m) = 0 := by simp [← hP t, h]
-    have he0 := congrArg (fun x : E m => x (i0 m)) he
-    change ‖g t‖⁻¹ * g t (i0 m) = ‖w‖⁻¹ * w (i0 m) at he0
-    have hp : 0 < (‖w‖ : ℝ)⁻¹ := inv_pos.2 (norm_pos_iff.2 hw)
-    rw [h0, mul_zero, hw0, mul_one] at he0
-    exact hp.ne' he0.symm
-  · have ht : Set.Finite {t : I | P.eval (t : ℝ) = 0} :=
-      (Polynomial.finite_setOfPred_isRoot h).preimage Subtype.val_injective.injOn
-    let ratio (t : I) := g t (i2 m) / g t (i1 m)
-    obtain ⟨r, hr⟩ := (ht.image ratio).exists_notMem
-    let w : E m := WithLp.toLp 2 (fun i => if i = i1 m then 1 else if i = i2 m then r else 0)
-    have hw0 : w (i0 m) = 0 := by simp [w, h01, h02]
-    have hw1 : w (i1 m) = 1 := by simp [w]
-    have hw2 : w (i2 m) = r := by simp [w, h12.symm]
-    have hw : w ≠ 0 := by
-      intro he
-      have h1 := congrArg (fun x : E m => x (i1 m)) he
-      simp only [hw1] at h1
-      norm_num at h1
-    refine ⟨⟨radial w, radial_mem w hw⟩, fun t he => ?_⟩
-    have he0 := congrArg (fun x : E m => x (i0 m)) he
-    change ‖g t‖⁻¹ * g t (i0 m) = ‖w‖⁻¹ * w (i0 m) at he0
-    have ht0 : P.eval (t : ℝ) = 0 := by
-      rw [hP]
-      rw [hw0, mul_zero] at he0
-      exact (mul_eq_zero.1 he0).resolve_left (inv_ne_zero (norm_ne_zero_iff.2 (hn t)))
-    have heR := congrArg (fun x : E m => x (i2 m) / x (i1 m)) he
-    simp only at heR
-    rw [radial_ratio _ (hn t), radial_ratio w hw, hw1, hw2] at heR
-    change ratio t = r / 1 at heR
-    exact hr ⟨t, ht0, by simpa using heR⟩
+  let Q : ZerothHomotopy X → ModuleCat.{u} Int := fun _ => integralCoefficient
+  let eS : (∐ Q) ≅ ModuleCat.of Int (ZerothHomotopy X →₀ ULift.{u} Int) :=
+    colimit.isoColimitCocone
+      ⟨_, ModuleCat.finsuppCoconeIsColimit Int (ULift.{u} Int) (ZerothHomotopy X)⟩
+  let eF : ModuleCat.of Int (ZerothHomotopy X →₀ ULift.{u} Int) ≅
+      ModuleCat.of Int (Bool → ULift.{u} Int) :=
+    ((Finsupp.domLCongr (R := Int) (M := ULift.{u} Int) e).trans
+      (Finsupp.linearEquivFunOnFinite Int (ULift.{u} Int) Bool)).toModuleIso
+  let eH := (TopCat.of X).singularHomology₀Iso integralCoefficient
+  let E := eH ≪≫ eS ≪≫ eF
+  have hsum : (CategoryStruct.comp (eS.hom ) ( (CategoryStruct.comp (eF.hom ) ( integralPairSum)))) = Limits.Sigma.desc (fun _ => 𝟙 integralCoefficient) := by
+    apply Sigma.hom_ext
+    intro i
+    have hi : (CategoryStruct.comp (Sigma.ι Q i ) ( eS.hom)) =
+        ModuleCat.ofHom (Finsupp.lsingle i (R := Int) (M := ULift.{u} Int)) :=
+      colimit.isoColimitCocone_ι_hom _ _
+    rw [← Category.assoc, hi, Sigma.ι_desc]
+    apply ModuleCat.hom_ext
+    apply LinearMap.ext
+    intro a
+    change ((Finsupp.linearEquivFunOnFinite Int (ULift.{u} Int) Bool)
+        ((Finsupp.domLCongr (R := Int) (M := ULift.{u} Int) e) (Finsupp.single i a))) false +
+      ((Finsupp.linearEquivFunOnFinite Int (ULift.{u} Int) Bool)
+        ((Finsupp.domLCongr (R := Int) (M := ULift.{u} Int) e) (Finsupp.single i a))) true = a
+    rw [Finsupp.domLCongr_single, Finsupp.linearEquivFunOnFinite_single]
+    cases e i <;> simp
+  have hE : (CategoryStruct.comp (integralHomologyZeroAugmentation X ) ( (Iso.refl integralCoefficient).hom)) =
+      (CategoryStruct.comp (E.hom ) ( integralPairSum)) := by
+    rw [Iso.refl_hom, Category.comp_id]
+    change integralHomologyZeroAugmentation X = (CategoryStruct.comp (((CategoryStruct.comp (eH.hom ) ( (CategoryStruct.comp (eS.hom ) ( eF.hom))))) ) ( integralPairSum))
+    rw [Category.assoc, Category.assoc, hsum]
+    exact ((TopCat.of X).singularHomology₀Iso_sigma_desc_id integralCoefficient).symm
+  exact kernel.mapIso _ _ E (Iso.refl _) hE ≪≫ integralPairSumKernelIso
 
-private theorem homotopic_omitting {m : ℕ} {x : S m} (p : Path x x) :
-    ∃ q : Path x x, p.Homotopic q ∧ ∃ y : S m, ∀ t : I, q t ≠ y := by
-  let f : C(I, E m) := ⟨fun t => (p t : E m), continuous_subtype_val.comp p.continuous⟩
-  have hnear : ∀ᶠ n in atTop, dist (bernsteinApproximation n f) f < 1 :=
-    (Metric.tendsto_nhds.1 (bernsteinApproximation_uniform f)) 1 zero_lt_one
-  obtain ⟨m', hm⟩ := eventually_atTop.1 hnear
-  let n := m' + 1
-  let g := bernsteinApproximation n f
-  have hclose (t : I) : dist (g t) (f t) < 1 :=
-    (ContinuousMap.dist_apply_le_dist t).trans_lt (hm n (Nat.le_succ m'))
-  have g_zero : g 0 = (x : E m) := by simp [g, f, p.source]
-  have g_one : g 1 = (x : E m) := by
-    rw [show g 1 = f 1 from bernsteinApproximation.apply_one (by simp [n]) f]
-    exact congrArg Subtype.val p.target
-  let B (u : I × I) : E m := f u.2 + (u.1 : ℝ) • (g u.2 - f u.2)
-  have B_cont : Continuous B := by unfold B; fun_prop
-  have B_ne (u : I × I) : B u ≠ 0 := by
-    intro h
-    have hneg : (u.1 : ℝ) • (g u.2 - f u.2) = -(f u.2) :=
-      eq_neg_of_add_eq_zero_right h
-    have hnorm : ‖(u.1 : ℝ) • (g u.2 - f u.2)‖ = 1 := by
-      rw [hneg, norm_neg]
-      exact norm_eq_of_mem_sphere (p u.2)
-    rw [norm_smul, Real.norm_eq_abs, abs_of_nonneg u.1.2.1, ← dist_eq_norm] at hnorm
-    nlinarith [u.1.2.2, dist_nonneg (x := g u.2) (y := f u.2), hclose u.2]
-  have g_ne (t : I) : g t ≠ 0 := by
-    simpa [B] using B_ne (1, t)
-  have g_radial_cont : Continuous (fun t => radial (g t)) :=
-    radial_continuous.comp_continuous g.continuous (fun t => by simpa using g_ne t)
-  let q : Path x x :=
-    { toFun := fun t => ⟨radial (g t), radial_mem _ (g_ne t)⟩
-      continuous_toFun := g_radial_cont.subtype_mk _
-      source' := Subtype.ext (by simpa [g_zero] using radial_fixed x)
-      target' := Subtype.ext (by simpa [g_one] using radial_fixed x) }
-  have B_radial_cont : Continuous (fun u => radial (B u)) :=
-    radial_continuous.comp_continuous B_cont (fun u => by simpa using B_ne u)
-  refine ⟨q, ⟨{
-    toFun := fun u => ⟨radial (B u), radial_mem _ (B_ne u)⟩
-    continuous_toFun := B_radial_cont.subtype_mk _
-    map_zero_left := fun t => Subtype.ext (by simpa [B, f] using radial_fixed (p t))
-    map_one_left := fun t => Subtype.ext (by simp [B, q])
-    prop' := ?_ }⟩, ?_⟩
-  · intro t u hu
-    have h := (show u = 0 ∨ u = 1 by simpa using hu)
-    rcases h with rfl | rfl
-    · apply Subtype.ext
-      simp [B, f, g_zero, p.source, radial_fixed x]
-    · apply Subtype.ext
-      simp [B, f, g_one, p.target, radial_fixed x]
-  · obtain ⟨P, hP⟩ := bernstein_coord n f
-    obtain ⟨y, hy⟩ := omits_point g g_ne P hP
-    exact ⟨y, fun t he => hy t (congrArg Subtype.val he)⟩
+private def integralZerothHomotopyEquivOfTotallyDisconnected
+    (X : Type u) [TopologicalSpace X] [TotallyDisconnectedSpace X] :
+    ZerothHomotopy X ≃ X where
+  toFun := ZerothHomotopy.lift id (by
+    intro x y p
+    have h := TotallyDisconnectedSpace.eq_of_continuous p p.continuous 0 1
+    simpa using h)
+  invFun := ZerothHomotopy.mk
+  left_inv := by
+    intro q
+    obtain ⟨x, rfl⟩ := ZerothHomotopy.mk_surjective q
+    rfl
+  right_inv := fun _ => rfl
 
-private theorem punctured_simplyConnected {m : ℕ} (y : S m) :
-    SimplyConnectedSpace ↥(({y} : Set (S m))ᶜ) := by
-  let e := stereographic (norm_eq_of_mem_sphere y)
-  have hs : e.source = ({y} : Set (S m))ᶜ :=
-    stereographic_source (norm_eq_of_mem_sphere y)
-  have ht : e.target = Set.univ := stereographic_target (norm_eq_of_mem_sphere y)
-  let h := (Homeomorph.setCongr hs.symm).trans
-    (e.toHomeomorphSourceTarget.trans
-      ((Homeomorph.setCongr ht).trans (Homeomorph.Set.univ _)))
-  have : SimplyConnectedSpace ↥((ℝ ∙ (y : E m))ᗮ) :=
-    SimplyConnectedSpace.ofContractible _
-  exact h.toHomotopyEquiv.simplyConnectedSpace
+private def integralRealUnitSphereEquivBool : Metric.sphere (0 : Real) 1 ≃ Bool where
+  toFun x := if x.val = 1 then true else false
+  invFun b := ⟨if b then 1 else -1, by cases b <;> simp⟩
+  left_inv x := by
+    have hxnorm : |x.val| = 1 := by
+      have hx : dist x.val (0 : Real) = 1 := x.property
+      rw [Real.dist_eq, sub_zero] at hx
+      exact hx
+    have hx : x.val = 1 ∨ x.val = -1 := abs_eq_abs.mp (by simpa using hxnorm)
+    apply Subtype.ext
+    rcases hx with hx | hx <;> norm_num [hx]
+  right_inv b := by cases b <;> norm_num
 
-theorem sphere_simplyConnected (m : ℕ) : SimplyConnectedSpace (S m) := by
-  rw [simply_connected_iff_loops_nullhomotopic]
-  refine ⟨isPathConnected_iff_pathConnectedSpace.1
-    (isPathConnected_sphere (by
-      rw [← Module.finrank_eq_rank, finrank_euclideanSpace_fin]
-      norm_cast; omega) (0 : E m) zero_le_one), ?_⟩
-  intro x p
-  obtain ⟨q, hpq, y, hy⟩ := homotopic_omitting p
-  have := punctured_simplyConnected y
-  let x' : ↥(({y} : Set (S m))ᶜ) := ⟨x, by simpa [q.source] using hy 0⟩
-  have hmem (t : I) : q t ∈ ({y} : Set (S m))ᶜ := by simpa using hy t
-  let q' : Path x' x' :=
-    { toFun := fun t => ⟨q t, hmem t⟩
-      continuous_toFun := q.continuous.subtype_mk hmem
-      source' := Subtype.ext q.source
-      target' := Subtype.ext q.target }
-  obtain ⟨H⟩ := SimplyConnectedSpace.paths_homotopic q' (Path.refl x')
-  let incl : C(↥(({y} : Set (S m))ᶜ), S m) := ⟨Subtype.val, continuous_subtype_val⟩
-  have hq : q'.map incl.continuous = q := by ext t; rfl
-  have hr : (Path.refl x').map incl.continuous = Path.refl x := by ext t; rfl
-  refine hpq.trans ⟨?_⟩
-  simpa only [hq, hr] using H.map incl
+private def integralZeroSphereEquivBool :
+    Metric.sphere (0 : EuclideanSpace Real (Fin 1)) 1 ≃ Bool := by
+  let e := (OrthonormalBasis.singleton (Fin 1) Real).repr.symm
+  let eS : Metric.sphere (0 : EuclideanSpace Real (Fin 1)) 1 ≃ Metric.sphere (0 : Real) 1 :=
+    e.toEquiv.subtypeEquiv (fun x => by
+      simp only [Metric.mem_sphere, dist_zero_right]
+      change (‖x‖ = 1) ↔ ‖e x‖ = 1
+      rw [e.norm_map]
+      rfl)
+  exact eS.trans integralRealUnitSphereEquivBool
 
-end P5SphereLoops
+/-- The zero-sphere supplies the explicit integral base of sphere homology. -/
+def integralZeroSphereAugmentationKernelIso :
+    kernel (integralHomologyZeroAugmentation
+      (Metric.sphere (0 : EuclideanSpace Real (Fin 1)) 1)) ≅ integralCoefficient := by
+  let S := Metric.sphere (0 : EuclideanSpace Real (Fin 1)) 1
+  let : Finite S := Finite.of_equiv Bool integralZeroSphereEquivBool.symm
+  exact integralTwoComponentsAugmentationKernelIso S
+    ((integralZerothHomotopyEquivOfTotallyDisconnected S).trans integralZeroSphereEquivBool)
+
+end Poincare.Topology
+
+end FzIntegralZeroSphere
+
+noncomputable section FzIntegralSphereBase
+
+/-!
+# The first integral sphere homology groups
+
+The contractible two-chart cover of the circle reduces its degree-one group
+to the reduced degree-zero group of the zero-sphere. The higher displayed
+groups then follow by the closed sphere recurrence.
+-/
 
 
-theorem sphere_sc : ∀ (n : ℕ), 2 ≤ n →
-    SimplyConnectedSpace (Metric.sphere (0 : EuclideanSpace ℝ (Fin (n + 1))) 1) := by
-  intro n hn
-  obtain ⟨m, rfl⟩ : ∃ m, n = m + 2 := ⟨n - 2, by omega⟩
-  exact P5SphereLoops.sphere_simplyConnected m
+open CategoryTheory Limits Metric
+open scoped ContinuousMap Topology
 
-end O2SphereSimplyConnected
+universe u
 
-namespace O2HomotopySphereCompact
+namespace Poincare.Topology
 
-open AlgebraicTopology CategoryTheory Limits
+def integralSphereH1Iso :
+    integralHomology (sphere (0 : EuclideanSpace Real (Fin 2)) 1) 1 ≅
+      integralCoefficient := by
+  apply Classical.choice
+  obtain ⟨A, B, hA, hB, hcover, hAc, hBc, ⟨hAB⟩⟩ :=
+    exists_sphere_contractible_open_cover 0
+  let : ContractibleSpace A := hAc
+  let : ContractibleSpace B := hBc
+  let AB : Set B := (Subtype.val : B → sphere (0 : EuclideanSpace Real (Fin 2)) 1) ⁻¹' A
+  let eCover := integralContractibleCoverHomologyOneIso A B hA hB hcover
+  let eInter : AB ≃ₕ sphere (0 : EuclideanSpace Real (Fin 1)) 1 :=
+    ((intersectionPreimageHomeomorph A B).symm.toHomotopyEquiv).trans hAB
+  let eH0 := integralHomologyIsoOfHomotopyEquiv eInter 0
+  let iAB : C(AB, B) :=
+    ⟨Subtype.val, continuous_subtype_val⟩
+  let eKernelB := integralHomologyZeroMapKernelIso iAB
+  let eKernelS :
+      kernel (integralHomologyZeroAugmentation AB) ≅
+        kernel (integralHomologyZeroAugmentation
+          (sphere (0 : EuclideanSpace Real (Fin 1)) 1)) := by
+    apply kernel.mapIso (integralHomologyZeroAugmentation AB)
+      (integralHomologyZeroAugmentation
+      (sphere (0 : EuclideanSpace Real (Fin 1)) 1)) eH0 (Iso.refl _)
+    change (CategoryStruct.comp (integralHomologyZeroAugmentation AB ) ( 𝟙 _)) = _
+    rw [Category.comp_id]
+    exact (integralHomologyZeroAugmentation_natural eInter.toFun).symm
+  exact ⟨eCover ≪≫ eKernelB ≪≫ eKernelS ≪≫
+    integralZeroSphereAugmentationKernelIso⟩
+
+def integralSphereH2Iso :
+    integralHomology (sphere (0 : EuclideanSpace Real (Fin 3)) 1) 2 ≅
+      integralCoefficient :=
+  integralSphereHomologySuccIso 0 ≪≫ integralSphereH1Iso
+
+def integralSphereH3Iso :
+    integralHomology (sphere (0 : EuclideanSpace Real (Fin 4)) 1) 3 ≅
+      integralCoefficient :=
+  integralSphereHomologySuccIso 1 ≪≫ integralSphereH2Iso
+
+end Poincare.Topology
+
+end FzIntegralSphereBase
+
+open CategoryTheory Poincare.Topology
+noncomputable section
+namespace SphereTop
+def sphereIso (k : ℕ) :
+    integralHomology (Metric.sphere (0 : EuclideanSpace ℝ (Fin (k+2))) 1) (k+1) ≅ integralCoefficient := by
+  induction k with
+  | zero => exact integralSphereH1Iso
+  | succ k ih => exact integralSphereHomologySuccIso k ≪≫ ih
+end SphereTop
+end
+
 open scoped ContinuousMap
 
-theorem homotopy_homology_iso (n : ℕ) {X Y : Type} [TopologicalSpace X] [TopologicalSpace Y]
-    (e : X ≃ₕ Y) :
-    Nonempty ((((singularHomologyFunctor AddCommGrpCat n).obj (AddCommGrpCat.of ℤ)).obj (TopCat.of X)) ≅
-      (((singularHomologyFunctor AddCommGrpCat n).obj (AddCommGrpCat.of ℤ)).obj (TopCat.of Y))) := by
-  let F := (singularHomologyFunctor AddCommGrpCat n).obj (AddCommGrpCat.of ℤ)
-  let f : TopCat.of X ⟶ TopCat.of Y := TopCat.ofHom e.toFun
-  let g : TopCat.of Y ⟶ TopCat.of X := TopCat.ofHom e.invFun
-  refine ⟨⟨F.map f, F.map g, ?_, ?_⟩⟩
-  · rw [← F.map_comp, ← F.map_id]
-    obtain ⟨h⟩ := e.left_inv
-    have hh : TopCat.Homotopy (f ≫ g) (𝟙 (TopCat.of X)) := h
-    exact hh.congr_homologyMap_singularChainComplexFunctor (AddCommGrpCat.of ℤ) n
-  · rw [← F.map_comp, ← F.map_id]
-    obtain ⟨h⟩ := e.right_inv
-    have hh : TopCat.Homotopy (g ≫ f) (𝟙 (TopCat.of Y)) := h
-    exact hh.congr_homologyMap_singularChainComplexFunctor (AddCommGrpCat.of ℤ) n
-
-end O2HomotopySphereCompact
-
 theorem OMA.solution : OMA.R_PoincareConjecture_poincare_conjecture_variants_dimension_ge_five_R2.H1 := by
-  intro n hn M _ _ _ e
-  have : SimplyConnectedSpace (Metric.sphere (0 : EuclideanSpace ℝ (Fin (n + 1))) 1) :=
-    O2SphereSimplyConnected.sphere_sc n (by omega)
-  have : SimplyConnectedSpace M := e.simplyConnectedSpace
-  by_contra h
-  have hZero := O2NoncompactTopHomology.top_vanish n (by omega) M h
-  obtain ⟨iso⟩ := O2HomotopySphereCompact.homotopy_homology_iso n e
-  exact O2SphereTopHomology.sphere_top_nonzero n (by omega) (hZero.of_iso iso.symm)
+  intro n hn
+  obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
+  intro M _ _ _ e
+  let S := ↥(Metric.sphere (0 : EuclideanSpace ℝ (Fin (k + 2 + 1))) 1)
+  have : PathConnectedSpace S :=
+    isPathConnected_iff_pathConnectedSpace.mp (isPathConnected_sphere
+      (Module.one_lt_rank_of_one_lt_finrank (by simp <;> omega)) _ zero_le_one)
+  have : PathConnectedSpace M := by
+    obtain ⟨h⟩ := e.left_inv
+    refine ⟨Nonempty.map e.symm (inferInstance : Nonempty S), fun x y => ?_⟩
+    have hx : Joined (e.symm (e x)) x := ⟨h.evalAt x⟩
+    have hy : Joined (e.symm (e y)) y := ⟨h.evalAt y⟩
+    exact hx.symm.trans (((PathConnectedSpace.joined (X := S) (e x) (e y)).map e.symm.continuous).trans hy)
+  by_contra hM
+  let i := integralHomologyIsoOfHomotopyEquiv e (k + 2) ≪≫ SphereTop.sphereIso (k + 1)
+  let z : integralCoefficient := ULift.up (1 : ℤ)
+  have hz := VanishTop.no_top (k := k) M hM (i.inv z)
+  have heq := congrArg (fun a => i.hom a) hz
+  have hid : i.hom (i.inv z) = z := ConcreteCategory.congr_hom i.inv_hom_id z
+  change i.hom (i.inv z) = i.hom 0 at heq
+  rw [hid, map_zero] at heq
+  exact (one_ne_zero : (1 : ℤ) ≠ 0) (congrArg ULift.down heq)

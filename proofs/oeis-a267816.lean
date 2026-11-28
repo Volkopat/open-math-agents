@@ -1,167 +1,61 @@
 import OMAStatements.S_oeis_a267816
-import Mathlib
 
-open OMA.S_oeis_a267816
+namespace OMA.A267816Proof
+open OMA.S_oeis_a267816 PowerSeries
 
-private def live (t : ℕ) (i : ℤ) : Prop :=
-    (t = 0 ∧ (i = 0)) ∨
-    (1 ≤ t ∧ t % 2 = 0 ∧ ((-(t : ℤ) ≤ i ∧ i ≤ t ∧ ¬(i = -1)) ∨ ((i < -(t : ℤ) ∨ (t : ℤ) < i)))) ∨
-    (1 ≤ t ∧ t % 2 = 1 ∧ ((-(t : ℤ) ≤ i ∧ i ≤ t ∧ ¬(i = -1)) ∨ ((i < -(t : ℤ) ∨ (t : ℤ) < i))))
+def P (t : ℕ) (x : ℤ) : Bool :=
+  if t = 0 then (if x = 0 then true else false) else (if x = -1 then false else true)
 
-private lemma table (l c r : Bool) :
-    eca 221 l c r = true ↔ r = false ∨ c = true := by
-  cases l <;> cases c <;> cases r <;> decide
-
-set_option maxHeartbeats 4000000 in
-private lemma state_iff (t : ℕ) (i : ℤ) : state t i = true ↔ live t i := by
-  induction t generalizing i with
-  | zero => simp [state, live]
+theorem S (t : ℕ) : ∀ x, state t x = P t x := by
+  induction t with
+  | zero => intro x; simp [state, P]
   | succ t ih =>
-    rw [state, table]
-    simp only [Bool.eq_false_iff, ne_eq, ih]
-    rcases Nat.lt_or_ge t 1 with h | h
-    · simp only [live]
-      interval_cases t <;> omega
-    · simp only [live, eq_false (show ¬ t = 0 by omega), eq_false (show ¬ t + 1 = 0 by omega), eq_true (show 1 ≤ t by omega), eq_true (show 1 ≤ t + 1 by omega), false_and, false_or, or_false, true_and]
-      omega
+    intro x
+    simp only [state, eca, ih, P]
+    push_cast
+    split_ifs <;> first | rfl | (exfalso; omega)
 
-private lemma wsum (n : ℕ) (f : ℕ → ℤ) (c : ℤ) (w : ℕ → ℤ) (E : Finset ℕ)
-    (hE : E ⊆ Finset.range n) (h : ∀ k < n, k ∉ E → f k = c * w k) :
-    ∑ k ∈ Finset.range n, f k = c * ∑ k ∈ Finset.range n, w k + ∑ k ∈ E, (f k - c * w k) := by
-  rw [Finset.sum_subset hE (fun k hk hkE => by rw [h k (Finset.mem_range.mp hk) hkE]; ring),
-    Finset.sum_sub_distrib, Finset.mul_sum]
-  ring
+theorem T (N : ℕ) : ∑ k ∈ Finset.range (N + 1), (2 : ℚ) ^ (N - k) = 2 ^ (N + 1) - 1 := by
+  have := Finset.sum_range_reflect (fun k => (2 : ℚ) ^ k) (N + 1)
+  simp only [Nat.add_sub_cancel] at this
+  rw [this, geom_sum_eq (by norm_num)]
+  norm_num
 
-private lemma geo (t : ℕ) : ((2 : ℤ) - 1) * ∑ k ∈ Finset.range (2 * t + 1), (2 : ℤ) ^ (2 * t - k) =
-    (2 : ℤ) ^ (2 * t + 1) - 1 := by
-  have := Finset.sum_range_reflect (fun j => (2 : ℤ) ^ j) (2 * t + 1)
-  simp only [show 2 * t + 1 - 1 = 2 * t by omega] at this
-  rw [this, mul_comm, geom_sum_mul]
+theorem V (n : ℕ) : (a n : ℚ) = ∑ k ∈ Finset.range (2 * n + 1), if P n ((k : ℤ) - n) then (2 : ℚ) ^ (2 * n - k) else 0 := by
+  simp only [a, S]
+  push_cast
+  rfl
 
-private lemma aval (t : ℕ) : (a t : ℤ) =
-    ∑ k ∈ Finset.range (2 * t + 1), (if state t ((k : ℤ) - t) then (2 : ℤ) ^ (2 * t - k) else 0) := by
-  unfold a; push_cast; rfl
+theorem F (n : ℕ) (hn : 1 ≤ n) : (a n : ℚ) = 2 ^ (2 * n + 1) - 1 - 2 ^ (n + 1) := by
+  rw [V, Finset.sum_congr rfl (g := fun k => (2 : ℚ) ^ (2 * n - k) - (if k = n - 1 then 2 ^ (2 * n - k) else 0)), Finset.sum_sub_distrib, Finset.sum_ite_eq', if_pos (by simp <;> omega), T]
+  try simp only [show 2 * n - (n - 1) = n + 1 by omega]
+  intro k _
+  simp only [P]
+  split_ifs <;> first | (exfalso; omega) | contradiction | simp
 
-private lemma row0 (t : ℕ) (ht : 1 ≤ t) (hp : t % 2 = 0) :
-    ((1 : ℤ) * (2 : ℤ) ^ 0) * (a t : ℤ) = ((2 : ℤ) ^ (2 * t + 1 + 0) - (2 : ℤ) ^ 0) - (1 : ℤ) * (2 : ℤ) ^ (t + 1) := by
-  have key := wsum (2 * t + 1)
-    (fun k => if state t ((k : ℤ) - t) then (2 : ℤ) ^ (2 * t - k) else 0) (1 : ℤ)
-    (fun k => (2 : ℤ) ^ (2 * t - k)) ({t - 1} : Finset ℕ)
-    (by intro k hk; simp at hk ⊢; omega)
-    (by
-      intro k hk hkE
-      have hs : state t ((k : ℤ) - t) = true := by
-        rw [state_iff]; simp only [live]; simp at hkE; push_cast; omega
-      simp [hs])
+theorem R (n : ℕ) (hn : 3 < n) : (a n : ℤ) = 7 * a (n - 1) - 14 * a (n - 2) + 8 * a (n - 3) := by
+  obtain ⟨p, rfl⟩ : ∃ p, n = p + 4 := ⟨n - 4, by omega⟩
+  have h : (a (p + 4) : ℚ) = 7 * a (p + 3) - 14 * a (p + 2) + 8 * a (p + 1) := by
+    rw [F _ (by omega), F _ (by omega), F _ (by omega), F _ (by omega)]
+    ring
+  rw [show p + 4 - 1 = p + 3 by omega, show p + 4 - 2 = p + 2 by omega, show p + 4 - 3 = p + 1 by omega]
+  exact_mod_cast h
 
-  rw [Finset.sum_singleton] at key
-  have h0 : state t (((t - 1 : ℕ) : ℤ) - t) = false := by
-    rw [Bool.eq_false_iff]; intro hh; rw [state_iff] at hh; simp only [live] at hh; push_cast at hh; omega
-  simp only [h0, if_true, if_false, Bool.false_eq_true, ↓reduceIte] at key
-  have q0 : (2 : ℤ) ^ 0 * (2 : ℤ) ^ (2 * t - (t - 1)) = (2 : ℤ) ^ (t + 1) := by
-    rw [← pow_add]; congr 1; omega
-  have g := geo t
-  rw [aval]
-  linear_combination (1 : ℤ) * (2 : ℤ) ^ 0 * key + (1 : ℤ) * (2 : ℤ) ^ 0 * g + (-1 : ℤ) * q0
+theorem G : (mk (fun n => (a n : ℤ))) * ((1 - X) * (1 - 2 * X) * (1 - 4 * X)) = 1 - 4 * X + 16 * X ^ 2 - 16 * X ^ 3 := by
+  have k : (mk (fun n => (a n : ℤ))) * ((1 - X) * (1 - 2 * X) * (1 - 4 * X)) = 1 - 4 * X + 16 * X ^ 2 - 16 * X ^ 3 := by
+    rw [show (mk (fun n => (a n : ℤ))) * ((1 - X) * (1 - 2 * X) * (1 - 4 * X)) = C (1 : ℤ) * (mk (fun n => (a n : ℤ))) + C (-7 : ℤ) * ((mk (fun n => (a n : ℤ))) * X ^ 1) + C (14 : ℤ) * ((mk (fun n => (a n : ℤ))) * X ^ 2) + C (-8 : ℤ) * ((mk (fun n => (a n : ℤ))) * X ^ 3) by simp only [map_neg, map_ofNat, map_one]; ring,
+      show (1 - 4 * X + 16 * X ^ 2 - 16 * X ^ 3 : ℤ⟦X⟧) = C (1 : ℤ) + C (-4 : ℤ) * X ^ 1 + C (16 : ℤ) * X ^ 2 + C (-16 : ℤ) * X ^ 3 by simp only [map_neg, map_ofNat, map_one]; ring]
+    ext n
+    simp only [map_add, coeff_C_mul, coeff_mul_X_pow', coeff_mk, coeff_C]
+    rcases Nat.lt_or_ge n 4 with hn | hn
+    · interval_cases n <;> decide
+    · obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
+      simp only [show 1 ≤ m + 4 by omega, show 2 ≤ m + 4 by omega, show 3 ≤ m + 4 by omega, show m + 4 ≠ 0 by omega, show m + 3 ≠ 0 by omega, show m + 2 ≠ 0 by omega, show m + 1 ≠ 0 by omega, show m + 4 - 1 = m + 3 by omega, show m + 4 - 2 = m + 2 by omega, show m + 4 - 3 = m + 1 by omega, ↓reduceIte]
+      have h := (R (m + 4) (by omega))
+      simp only [show m + 4 - 1 = m + 3 by omega, show m + 4 - 2 = m + 2 by omega, show m + 4 - 3 = m + 1 by omega] at h
+      linear_combination h
+  exact k
 
-private lemma row1 (t : ℕ) (ht : 1 ≤ t) (hp : t % 2 = 1) :
-    ((1 : ℤ) * (2 : ℤ) ^ 0) * (a t : ℤ) = ((2 : ℤ) ^ (2 * t + 1 + 0) - (2 : ℤ) ^ 0) - (1 : ℤ) * (2 : ℤ) ^ (t + 1) := by
-  have key := wsum (2 * t + 1)
-    (fun k => if state t ((k : ℤ) - t) then (2 : ℤ) ^ (2 * t - k) else 0) (1 : ℤ)
-    (fun k => (2 : ℤ) ^ (2 * t - k)) ({t - 1} : Finset ℕ)
-    (by intro k hk; simp at hk ⊢; omega)
-    (by
-      intro k hk hkE
-      have hs : state t ((k : ℤ) - t) = true := by
-        rw [state_iff]; simp only [live]; simp at hkE; push_cast; omega
-      simp [hs])
+end OMA.A267816Proof
 
-  rw [Finset.sum_singleton] at key
-  have h0 : state t (((t - 1 : ℕ) : ℤ) - t) = false := by
-    rw [Bool.eq_false_iff]; intro hh; rw [state_iff] at hh; simp only [live] at hh; push_cast at hh; omega
-  simp only [h0, if_true, if_false, Bool.false_eq_true, ↓reduceIte] at key
-  have q0 : (2 : ℤ) ^ 0 * (2 : ℤ) ^ (2 * t - (t - 1)) = (2 : ℤ) ^ (t + 1) := by
-    rw [← pow_add]; congr 1; omega
-  have g := geo t
-  rw [aval]
-  linear_combination (1 : ℤ) * (2 : ℤ) ^ 0 * key + (1 : ℤ) * (2 : ℤ) ^ 0 * g + (-1 : ℤ) * q0
-
-private lemma ev (m : ℕ) : (-1 : ℤ) ^ (2 * m) = 1 := by rw [pow_mul]; norm_num
-private lemma od (m : ℕ) : (-1 : ℤ) ^ (2 * m + 1) = -1 := by rw [pow_succ, pow_mul]; norm_num
-
-private lemma cc (t : ℕ) (ht : 1 ≤ t) :
-    2 * ((1 : ℤ) * (2 : ℤ) ^ 0) * (a t : ℤ) = (1 + (-1) ^ t) * (((2 : ℤ) ^ (2 * t + 1 + 0) - (2 : ℤ) ^ 0) - (1 : ℤ) * (2 : ℤ) ^ (t + 1)) + (1 - (-1) ^ t) * (((2 : ℤ) ^ (2 * t + 1 + 0) - (2 : ℤ) ^ 0) - (1 : ℤ) * (2 : ℤ) ^ (t + 1)) := by
-  rcases Nat.even_or_odd' t with ⟨m, rfl | rfl⟩
-  · have h := row0 (2 * m) ht (by omega); rw [ev]; linear_combination 2 * h
-  · have h := row1 (2 * m + 1) ht (by omega); rw [od]; linear_combination 2 * h
-
-private lemma v0 : a 0 = 1 := by decide
-
-private lemma v1 : a 1 = 3 := by
-  have h := cc 1 (by norm_num)
-  norm_num at h
-  omega
-
-private lemma v2 : a 2 = 23 := by
-  have h := cc 2 (by norm_num)
-  norm_num at h
-  omega
-
-private lemma v3 : a 3 = 111 := by
-  have h := cc 3 (by norm_num)
-  norm_num at h
-  omega
-
-private lemma v4 : a 4 = 479 := by
-  have h := cc 4 (by norm_num)
-  norm_num at h
-  omega
-
-private lemma v5 : a 5 = 1983 := by
-  have h := cc 5 (by norm_num)
-  norm_num at h
-  omega
-
-private lemma v6 : a 6 = 8063 := by
-  have h := cc 6 (by norm_num)
-  norm_num at h
-  omega
-
-private lemma v7 : a 7 = 32511 := by
-  have h := cc 7 (by norm_num)
-  norm_num at h
-  omega
-
-private lemma recur (n : ℕ) (hn : 3 < n) : (a n : ℤ) = (7 : ℤ) * a (n - 1) + (-14 : ℤ) * a (n - 2) + (8 : ℤ) * a (n - 3) := by
-  by_cases h : 3 < n
-  · obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
-    simp only [show m + 4 - 1 = m + 3 by omega, show m + 4 - 2 = m + 2 by omega, show m + 4 - 3 = m + 1 by omega]
-    have h0 := cc (m + 4) (by omega)
-    have h1 := cc (m + 3) (by omega)
-    have h2 := cc (m + 2) (by omega)
-    have h3 := cc (m + 1) (by omega)
-    simp only [pow_add] at h0 h1 h2 h3
-    have : (2 * ((1 : ℤ) * (2 : ℤ) ^ 0)) * (a (m + 4) - ((7 : ℤ) * a (m + 3) + (-14 : ℤ) * a (m + 2) + (8 : ℤ) * a (m + 1))) = 0 := by
-      linear_combination h0 - (7) * h1 - (-14) * h2 - (8) * h3
-    have := (mul_eq_zero.mp this).resolve_left (by norm_num)
-    linarith
-  · interval_cases n <;> simp [v0, v1, v2, v3, v4, v5, v6, v7]
-
-open PowerSeries in
-private lemma gf : mk (fun n => (a n : ℤ)) * ((1 - X) * (1 - 2 * X) * (1 - 4 * X)) = (1 - 4 * X + 16 * X ^ 2 - 16 * X ^ 3 : PowerSeries ℤ) := by
-  set F : PowerSeries ℤ := mk (fun n => (a n : ℤ)) with hF
-  have product : F * ((1 - X) * (1 - 2 * X) * (1 - 4 * X)) = F + (-7 : ℤ) • (F * X ^ 1) + (14 : ℤ) • (F * X ^ 2) + (-8 : ℤ) • (F * X ^ 3) := by
-    simp only [zsmul_eq_mul]; push_cast; ring
-  have rhs : (1 - 4 * X + 16 * X ^ 2 - 16 * X ^ 3 : PowerSeries ℤ) = (1 : ℤ) • X ^ 0 + (-4 : ℤ) • X ^ 1 + (16 : ℤ) • X ^ 2 + (-16 : ℤ) • X ^ 3 := by
-    simp only [zsmul_eq_mul]; push_cast; ring
-  rw [product, rhs]
-  ext n
-  simp only [map_add, map_sub, map_zsmul, coeff_mul_X_pow', hF, coeff_mk, coeff_X_pow, smul_eq_mul]
-  by_cases h : 3 < n
-  · have hr := recur n (by omega)
-    simp only [show 1 ≤ n by omega, show 2 ≤ n by omega, show 3 ≤ n by omega, show n ≠ 0 by omega, show n ≠ 1 by omega, show n ≠ 2 by omega, show n ≠ 3 by omega, if_true, if_false]
-    linarith
-  · interval_cases n <;> simp [v0, v1, v2, v3, v4, v5, v6, v7]
-
-theorem OMA.solution : type_of% @OMA.S_oeis_a267816.main := by
-  exact ⟨fun n hn => by have := recur n hn; linarith, gf⟩
+theorem OMA.solution : type_of% @OMA.S_oeis_a267816.main := ⟨OMA.A267816Proof.R, OMA.A267816Proof.G⟩

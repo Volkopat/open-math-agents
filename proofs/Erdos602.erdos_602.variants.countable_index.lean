@@ -16,13 +16,7 @@ theorem OMA.solution : type_of% @Erdos602.erdos_602.variants.countable_index := 
       exact Finite.biUnion (finite_toSet _) fun j hj =>
         hfin i j (mem_range.mp hj).ne'
     exact ((hA i).2.sdiff overlap).mono fun _ hx => ⟨hx.1, fun h => hx.2 ⟨hx.1, h⟩⟩
-  have hpick : ∀ i, ∃ a b : α, a ∈ A i \ ⋃ j ∈ range i, A j ∧
-      b ∈ A i \ ⋃ j ∈ range i, A j ∧ a ≠ b := by
-    intro i
-    obtain ⟨a, ha⟩ := (hinf i).nonempty
-    obtain ⟨b, hb, hba⟩ := ((hinf i).sdiff (finite_singleton a)).nonempty
-    exact ⟨a, b, ha, hb, fun h => hba (h ▸ rfl)⟩
-  choose a b ha hb hab using hpick
+  choose a ha b hb hab using fun i => (hinf i).nontrivial
   have key : ∀ i j, a i ≠ b j := by
     intro i j h
     rcases lt_trichotomy i j with hij | rfl | hij

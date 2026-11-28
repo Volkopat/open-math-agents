@@ -21,11 +21,12 @@ theorem top_bit (x L : ℕ) (h1 : 2 ^ L ≤ x) (h2 : x < 2 ^ (L + 1)) : x.testBi
 
 end A265716Proof
 
+open OMA.S_oeis_a265716 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a265716.main := by
   intro n
   rcases Nat.eq_zero_or_pos n with rfl | hn
-  · simp [OMA.S_oeis_a265716.a, OMA.S_oeis_a265716.impl, OMA.S_oeis_a265716.A003817]
-  unfold OMA.S_oeis_a265716.a OMA.S_oeis_a265716.impl OMA.S_oeis_a265716.A003817
+  · simp [a, impl, A003817]
+  unfold a impl A003817
   rw [if_neg hn.ne']
   have hs : size (2 * n) = size n + 1 := by
     rw [show 2 * n = n <<< 1 by rw [shiftLeft_eq]; ring]

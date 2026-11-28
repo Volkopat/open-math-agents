@@ -1,68 +1,28 @@
 import OMAStatements.S_oeis_a050168
-import Mathlib
-
-lemma OMA.ch (b c : ℕ) : ((b + c).choose b : ℚ) = (b + c).factorial / (b.factorial * c.factorial) :=
-  Nat.cast_add_choose ℚ
-
-lemma OMA.ch' (b c : ℕ) : ((b + c).choose c : ℚ) = (b + c).factorial / (b.factorial * c.factorial) := by
-  rw [← Nat.choose_symm_add]; exact OMA.ch b c
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a050168.main := by
   intro n hn
-  rcases Nat.lt_or_ge n 4 with h | h
-  · obtain rfl : n = 3 := by omega
-    decide
-  simp only [OMA.S_oeis_a050168.a]
-  obtain ⟨j, rfl | rfl⟩ := Nat.even_or_odd' n
-  · obtain ⟨i, rfl⟩ : ∃ i, j = i + 2 := ⟨j - 2, by omega⟩
-    rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_neg (by omega)]
-    rw [show 2 * (i + 2) - 1 - 1 = (i + 1) + (i + 1) by omega,
-      show 2 * (i + 2) - 2 - 1 = (i + 1) + i by omega,
-      show 2 * (i + 2) - 3 - 1 = i + i by omega,
-      show 2 * (i + 2) - 1 = (i + 2) + (i + 1) by omega,
-      show 2 * (i + 2) - 2 = (i + 1) + (i + 1) by omega,
-      show 2 * (i + 2) - 3 = i + (i + 1) by omega,
-      show 2 * (i + 2) = (i + 2) + (i + 2) by ring]
-    rw [show (i + 2 + (i + 2)) / 2 = i + 2 by omega, show (i + 2 + (i + 1)) / 2 = i + 1 by omega,
-      show (i + 1 + (i + 1)) / 2 = i + 1 by omega, show (i + (i + 1)) / 2 = i by omega]
-    rw [show i + 2 + (i + 1) = (i + 1) + (i + 2) by ring, show i + 1 + i = i + (i + 1) by ring]
-    qify
-    simp only [OMA.ch, OMA.ch']
-    simp only [show i + 2 + (i + 2) = (i + i) + 3 + 1 by ring,
-      show i + 1 + (i + 2) = (i + i) + 2 + 1 by ring,
-      show i + 1 + (i + 1) = (i + i) + 1 + 1 by ring, show i + (i + 1) = (i + i) + 1 by ring,
-      show i + 2 = i + 1 + 1 by ring, show (i + i) + 3 = (i + i) + 2 + 1 by ring,
-      show (i + i) + 2 = (i + i) + 1 + 1 by ring, Nat.factorial_succ]
-    have : ((i + i).factorial : ℚ) ≠ 0 := by positivity
-    have : (i.factorial : ℚ) ≠ 0 := by positivity
+  obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le' hn
+  have u (i : ℕ) : ((2*i+1) * (2*i).choose i : ℤ) = (2*i+1).choose i * (i+1) := by
+    rw [← Nat.choose_symm_half]
+    exact_mod_cast Nat.add_one_mul_choose_eq (2*i) i
+  have q (i : ℕ) : ((2*i+2).choose (i+1) : ℤ) = 2 * (2*i+1).choose i := by
+    rw [Nat.choose_succ_succ', Nat.choose_symm_half]
     push_cast
-    field_simp
     ring
-  · obtain ⟨i, rfl⟩ : ∃ i, j = i + 2 := ⟨j - 2, by omega⟩
-    rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_neg (by omega)]
-    rw [show 2 * (i + 2) + 1 - 1 - 1 = (i + 1) + (i + 2) by omega,
-      show 2 * (i + 2) + 1 - 2 - 1 = (i + 1) + (i + 1) by omega,
-      show 2 * (i + 2) + 1 - 3 - 1 = i + (i + 1) by omega,
-      show 2 * (i + 2) + 1 - 1 = (i + 2) + (i + 2) by omega,
-      show 2 * (i + 2) + 1 - 2 = (i + 1) + (i + 2) by omega,
-      show 2 * (i + 2) + 1 - 3 = (i + 1) + (i + 1) by omega,
-      show 2 * (i + 2) + 1 = (i + 2) + (i + 3) by ring]
-    rw [show (i + 2 + (i + 3)) / 2 = i + 2 by omega, show (i + 2 + (i + 2)) / 2 = i + 2 by omega,
-      show (i + 1 + (i + 2)) / 2 = i + 1 by omega,
-      show (i + 1 + (i + 1)) / 2 = i + 1 by omega]
-    rw [show i + 1 + (i + 2) = (i + 2) + (i + 1) by ring, show i + (i + 1) = (i + 1) + i by ring]
-    qify
-    simp only [OMA.ch, OMA.ch']
-    simp only [show i + 2 + (i + 3) = (i + i) + 4 + 1 by ring,
-      show i + 2 + (i + 2) = (i + i) + 3 + 1 by ring,
-      show i + 2 + (i + 1) = (i + i) + 2 + 1 by ring,
-      show i + 1 + (i + 1) = (i + i) + 1 + 1 by ring, show i + 1 + i = (i + i) + 1 by ring,
-      show i + 3 = i + 2 + 1 by ring, show i + 2 = i + 1 + 1 by ring,
-      show (i + i) + 4 = (i + i) + 3 + 1 by ring,
-      show (i + i) + 3 = (i + i) + 2 + 1 by ring,
-      show (i + i) + 2 = (i + i) + 1 + 1 by ring, Nat.factorial_succ]
-    have : ((i + i).factorial : ℚ) ≠ 0 := by positivity
-    have : (i.factorial : ℚ) ≠ 0 := by positivity
-    push_cast
-    field_simp
-    ring
+  rcases k with _ | k
+  · simp [OMA.S_oeis_a050168.a, Nat.choose]
+  have u1 := u (k/2+1)
+  have q0 := q (k/2)
+  have q1 := q (k/2+1)
+  have w0 := (k/2).choose_symm_half
+  have w1 := (k/2+1).choose_symm_half
+  obtain ⟨i, rfl | rfl⟩ := Nat.even_or_odd' k
+  · have u0 := u i
+    simp [OMA.S_oeis_a050168.a, mul_add, add_assoc, show ∀ c, (2*i+c)/2 = i + c/2 by omega] at *
+    rw [w0, w1]
+    linear_combination -4*u0 +(10*i+11)*q0 -8*u1 +(2*i+5)*q1
+  · have u2 := u (i+2)
+    simp [OMA.S_oeis_a050168.a, mul_add, add_assoc, show ∀ c, (2*i+c)/2 = i + c/2 by omega] at *
+    rw [w0, w1]
+    linear_combination (4*i+4)*q0 -10*u1 +(8*i+18)*q1 -2*u2

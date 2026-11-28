@@ -51,13 +51,11 @@ private theorem sumPairs (f : ℕ → ℚ) (m : ℕ) :
 
 private theorem scaled_cos_even (k : ℕ) :
     scaled (rescale (2 : ℚ) (cos ℚ)) (2 * k) = (-4) ^ k := by
-  have h : (2 * k) % 2 = 0 := by omega
-  have hdiv : 2 * k / 2 = k := by omega
-  have hn : (((2 * k).factorial : ℕ) : ℚ) ≠ 0 := by positivity
-  rw [scaled, coeff_rescale, PowerSeries.cos, coeff_mk]
-  simp only [Nat.even_iff, h, hdiv, ↓reduceIte, Algebra.algebraMap_self, RingHom.id_apply]
-  rw [pow_mul, show (-4 : ℚ) = 2 ^ 2 * (-1) by norm_num, mul_pow]
+  simp [scaled, coeff_rescale, PowerSeries.cos, Nat.even_iff,
+    show 2 * k / 2 = k by omega, pow_mul]
   field_simp
+  rw [← mul_pow]
+  norm_num
 
 private theorem scaled_cos_odd (k : ℕ) :
     scaled (rescale (2 : ℚ) (cos ℚ)) (2 * k + 1) = 0 := by
@@ -65,25 +63,19 @@ private theorem scaled_cos_odd (k : ℕ) :
   simp [scaled, coeff_rescale, PowerSeries.cos, Nat.even_iff, h]
 
 private theorem scaled_sin_odd (k : ℕ) : scaled (sin ℚ) (2 * k + 1) = (-1) ^ k := by
-  have h : (2 * k + 1) % 2 = 1 := by omega
-  have hdiv : (2 * k + 1) / 2 = k := by omega
-  have hn : (((2 * k + 1).factorial : ℕ) : ℚ) ≠ 0 := by positivity
-  rw [scaled, PowerSeries.sin, coeff_mk]
-  simp only [Nat.even_iff, h, hdiv, Nat.one_ne_zero, ↓reduceIte,
-    Algebra.algebraMap_self, RingHom.id_apply]
+  simp [scaled, PowerSeries.sin, Nat.even_iff, show (2 * k + 1) % 2 = 1 by omega,
+    show (2 * k + 1) / 2 = k by omega]
   field_simp
 
 private theorem recurrence (n : ℕ) :
     a n + ∑ j ∈ range n, ((2 * n + 1).choose (2 * (j + 1)) : ℚ) *
       (-4) ^ (j + 1) * a (n - 1 - j) = (-1) ^ n := by
   let C := rescale (2 : ℚ) (cos ℚ)
-  have hC : constantCoeff C = 1 := by
-    simpa only [scaled, Nat.mul_zero, Nat.factorial_zero, Nat.cast_one, one_mul,
-      pow_zero, coeff_zero_eq_constantCoeff_apply, C] using scaled_cos_even 0
-  have h0 : constantCoeff C ≠ 0 := by rw [hC]; norm_num
+  have h0 : constantCoeff C ≠ 0 := by
+    simp [C, ← coeff_zero_eq_constantCoeff_apply, coeff_rescale, PowerSeries.cos]
   have hmul : C * egf = sin ℚ := by
     change C * (sin ℚ * C⁻¹) = sin ℚ
-    rw [← mul_assoc, mul_comm C (sin ℚ), mul_assoc, PowerSeries.mul_inv_cancel C h0, mul_one]
+    rw [mul_left_comm, PowerSeries.mul_inv_cancel C h0, mul_one]
   have h := scaled_mul C egf (2 * n + 1)
   rw [hmul, scaled_sin_odd, show 2 * n + 1 + 1 = 2 * (n + 1) by ring,
     sumPairs, sum_range_succ'] at h
@@ -152,9 +144,7 @@ set_option maxHeartbeats 400000 in
 set_option maxRecDepth 4096 in
 theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a000464.main) := by
   intro h
-  have htotient : Nat.totient 81 = 54 := by
-    rw [show (81 : ℕ) = 3^4 by norm_num, Nat.totient_prime_pow Nat.prime_three (by norm_num)]
-    norm_num
+  have htotient : Nat.totient 81 = 54 := by decide +kernel
   obtain ⟨z, hz⟩ := h 81 (by norm_num) 1 (by norm_num)
   rw [htotient] at hz
   change a 55 - a 1 = (81 : ℚ) * z at hz

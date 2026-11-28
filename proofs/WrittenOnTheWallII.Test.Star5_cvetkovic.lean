@@ -31,8 +31,6 @@ theorem OMA.solution : type_of% @WrittenOnTheWallII.Test.Star5_cvetkovic := by
   unfold cvetkovic
   rw [hpoly, hfactor, roots_mul (mul_ne_zero (pow_ne_zero _ X_ne_zero) hne),
     roots_pow, roots_X, roots_mul hne, roots_X_sub_C, roots_X_sub_C]
-  have hr : 0 < Real.sqrt 5 := Real.sqrt_pos.mpr (by norm_num)
-  have hs (a : ℝ) : ({a} : Multiset ℝ) = a ::ₘ 0 := rfl
-  simp only [hs, Multiset.countP_add, Multiset.countP_nsmul, Multiset.countP_cons,
-    Multiset.countP_zero]
-  simp [hr, hr.le, hr.ne, hr.ne', not_le.mpr hr, not_lt.mpr hr.le]
+  have hr : 0 < Real.sqrt 5 := by positivity
+  simp [Multiset.countP_eq_card_filter, Multiset.filter_nsmul, Multiset.filter_singleton, hr,
+    hr.le, hr.ne, hr.ne', hr.not_ge, hr.asymm]

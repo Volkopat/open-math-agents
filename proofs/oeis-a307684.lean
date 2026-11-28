@@ -1,5 +1,7 @@
 import OMAStatements.S_oeis_a307684
 
+-- Original proof: @AlfredMelson. Quasipolynomial simplification: @rgoldman73-dev.
+
 section
 open OMA.S_oeis_a307684
 
@@ -19,14 +21,15 @@ private def prismPairs (v b j : ℚ) : ℚ :=
     j*(j-1)*(j-2)*(j-3)/24*(f 3-3*f 2+3*f 1-f 0) +
     j*(j-1)*(j-2)*(j-3)*(j-4)/120*(f 4-4*f 3+6*f 2-4*f 1+f 0)
 
+-- Weighted orbit count: all ordered triples, transposition-fixed triples, and
+-- equal triples give the three summands of this quasipolynomial.
 private def prismPoly (s : ℕ) (t : ℚ) : ℚ :=
-  match s with
-  | 0 => (1/30:ℚ)*t^1 + (-3/4:ℚ)*t^2 + (7/6:ℚ)*t^3 + (27/4:ℚ)*t^4 + (54/5:ℚ)*t^5
-  | 1 => (1/5:ℚ)*t^1 + (5/4:ℚ)*t^2 + (6/1:ℚ)*t^3 + (63/4:ℚ)*t^4 + (54/5:ℚ)*t^5
-  | 2 => (7/10:ℚ)*t^1 + (25/4:ℚ)*t^2 + (39/2:ℚ)*t^3 + (99/4:ℚ)*t^4 + (54/5:ℚ)*t^5
-  | 3 => (1/1:ℚ) + (241/30:ℚ)*t^1 + (103/4:ℚ)*t^2 + (125/3:ℚ)*t^3 + (135/4:ℚ)*t^4 + (54/5:ℚ)*t^5
-  | 4 => (2/1:ℚ) + (157/10:ℚ)*t^1 + (185/4:ℚ)*t^2 + (129/2:ℚ)*t^3 + (171/4:ℚ)*t^4 + (54/5:ℚ)*t^5
-  | _ => (7/1:ℚ) + (196/5:ℚ)*t^1 + (349/4:ℚ)*t^2 + (96/1:ℚ)*t^3 + (207/4:ℚ)*t^4 + (54/5:ℚ)*t^5
+  let n := 6*t + s
+  let m := 3*t + (s/2 : ℕ)
+  n*(n^2-1)*(n^2-4)/720 +
+    (if s%2=0 then m^2*(m^2-1) else m*(m+1)*(m^2+m+1))/12 +
+    if s%3=0 then n^3/81 else 0
+
 end
 
 section
@@ -177,3 +180,4 @@ end
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a307684.main :=
   prism_conclusion (prism_formula prism_inner (prism_prefix prism_inner))
+

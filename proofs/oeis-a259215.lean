@@ -1,5 +1,7 @@
 import OMAStatements.S_oeis_a259215
 
+-- Original proof by @ceejcake.
+
 open OMA.S_oeis_a259215 PowerSeries
 
 private abbrev Row := Fin 2 → Fin 2
@@ -48,38 +50,10 @@ private theorem row_cases (p : Row) :
     p = ![0, 0] ∨ p = ![0, 1] ∨ p = ![1, 0] ∨ p = ![1, 1] := by
   revert p; decide
 
-private theorem tr0000 : Tr ![0, 0] ![0, 0] = True :=
-  eq_true (by decide)
-private theorem tr0001 : Tr ![0, 0] ![0, 1] = False :=
-  eq_false (by decide)
-private theorem tr0010 : Tr ![0, 0] ![1, 0] = False :=
-  eq_false (by decide)
-private theorem tr0011 : Tr ![0, 0] ![1, 1] = True :=
-  eq_true (by decide)
-private theorem tr0100 : Tr ![0, 1] ![0, 0] = False :=
-  eq_false (by decide)
-private theorem tr0101 : Tr ![0, 1] ![0, 1] = True :=
-  eq_true (by decide)
-private theorem tr0110 : Tr ![0, 1] ![1, 0] = True :=
-  eq_true (by decide)
-private theorem tr0111 : Tr ![0, 1] ![1, 1] = False :=
-  eq_false (by decide)
-private theorem tr1000 : Tr ![1, 0] ![0, 0] = False :=
-  eq_false (by decide)
-private theorem tr1001 : Tr ![1, 0] ![0, 1] = True :=
-  eq_true (by decide)
-private theorem tr1010 : Tr ![1, 0] ![1, 0] = True :=
-  eq_true (by decide)
-private theorem tr1011 : Tr ![1, 0] ![1, 1] = False :=
-  eq_false (by decide)
-private theorem tr1100 : Tr ![1, 1] ![0, 0] = True :=
-  eq_true (by decide)
-private theorem tr1101 : Tr ![1, 1] ![0, 1] = False :=
-  eq_false (by decide)
-private theorem tr1110 : Tr ![1, 1] ![1, 0] = False :=
-  eq_false (by decide)
-private theorem tr1111 : Tr ![1, 1] ![1, 1] = False :=
-  eq_false (by decide)
+/-- Adjacent rows agree in whether their bits match, and cannot both be 11. -/
+private theorem tr_iff : ∀ p c : Row, Tr p c ↔
+    (p 0 = p 1 ↔ c 0 = c 1) ∧ (p 0 = 0 ∨ p 1 = 0 ∨ c 0 = 0 ∨ c 1 = 0) := by
+  decide
 
 private theorem v00 (m : ℕ) : val m ![0, 0] = (cnt m).1 := by rw [val, if_pos rfl]
 private theorem v11 (m : ℕ) : val m ![1, 1] = (cnt m).2.1 := by
@@ -92,9 +66,8 @@ private theorem v10 (m : ℕ) : val m ![1, 0] = (cnt m).2.2 := by
 private theorem step (m : ℕ) (p : Row) :
     ∑ c : Row, (if Tr p c then val m c else 0) = val (m + 1) p := by
   rw [sum_row]
-  rcases row_cases p with h | h | h | h <;> subst h <;>
-    simp only [tr0000, tr0001, tr0010, tr0011, tr0100, tr0101, tr0110, tr0111, tr1000, tr1001, tr1010, tr1011, tr1100, tr1101, tr1110, tr1111,
-      v00, v01, v10, v11, if_true, if_false, cnt] <;> ring
+  rcases row_cases p with rfl | rfl | rfl | rfl <;>
+    simp [tr_iff, v00, v01, v10, v11, cnt] <;> omega
 
 private theorem D_succ (n : ℕ) (p : Row) :
     D (n + 1) p = ∑ c : Row, (if Tr p c then D n c else 0) := by
@@ -227,4 +200,3 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a259215.main := by
   refine ⟨gf, fun n hn => ?_⟩
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
   rw [T_eq, (closed m).1]
-

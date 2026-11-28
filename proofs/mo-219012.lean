@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_219012
 import Mathlib
 
+-- Retains @caa1982’s numerical-radius proof (PR #25965).
+-- Standard quotient continuity and sum/division identities simplify normalization.
+
 open OMA.S_mo_219012
 
 lemma mo219012_le_one {n : ℕ} (w : Fin n → ℝ) (hw : ∑ k, w k ^ 2 = 1) (i : Fin n) :
@@ -50,11 +53,8 @@ theorem OMA.solution : type_of% @OMA.S_mo_219012.main := by
       let f : ℝ → ℝ := fun t =>
         (∑ i, ∑ j, (w i + t) * A i j * (w j + t)) / (∑ k, (w k + t) ^ 2)
       have hcont : ContinuousAt f 0 := by
-        apply ContinuousAt.div
-        · exact (by fun_prop : Continuous fun t : ℝ =>
-            ∑ i, ∑ j, (w i + t) * A i j * (w j + t)).continuousAt
-        · exact (by fun_prop : Continuous fun t : ℝ => ∑ k, (w k + t) ^ 2).continuousAt
-        · simp [hw]
+        dsimp [f]
+        fun_prop (disch := simp [hw])
       have hf0 : f 0 = ∑ i, ∑ j, w i * A i j * w j := by simp [f, hw]
       have hmem : ∀ t ∈ Set.Ioi (0 : ℝ), f t ≤ sSup S2 := by
         intro t ht
@@ -68,17 +68,10 @@ theorem OMA.solution : type_of% @OMA.S_mo_219012.main := by
         have hsq : 0 < Real.sqrt D := Real.sqrt_pos.2 hDpos
         apply le_csSup hbd2
         refine ⟨fun k => (w k + t) / Real.sqrt D, ?_, fun k => div_pos (hpos k) hsq, ?_⟩
-        · have : ∀ k, ((w k + t) / Real.sqrt D) ^ 2 = (w k + t) ^ 2 / D := by
-            intro k; rw [div_pow, sq (Real.sqrt D), hs]
-          simp only [this, ← Finset.sum_div]
-          exact div_self hDpos.ne'
-        · simp only [f]
-          rw [← hD, Finset.sum_div]
-          apply Finset.sum_congr rfl; intro i _
-          rw [Finset.sum_div]
-          apply Finset.sum_congr rfl; intro j _
-          field_simp
-          first | rw [Real.sq_sqrt hDpos.le] | rw [hs] | ring_nf
+        · simpa only [div_pow, Real.sq_sqrt hDpos.le, ← Finset.sum_div] using
+            div_self hDpos.ne'
+        · simp only [f, div_mul_eq_mul_div, ← mul_div_assoc, div_div, hs, ← Finset.sum_div]
+          rw [hD]
       have hlim : Filter.Tendsto f (nhdsWithin 0 (Set.Ioi 0)) (nhds (f 0)) :=
         hcont.tendsto.mono_left nhdsWithin_le_nhds
       have := le_of_tendsto hlim (eventually_nhdsWithin_of_forall hmem)
@@ -86,7 +79,7 @@ theorem OMA.solution : type_of% @OMA.S_mo_219012.main := by
     have hne2 : S2.Nonempty := by
       refine ⟨_, fun _ => 1 / Real.sqrt n, ?_, fun _ => by positivity, rfl⟩
       have hn' : (0 : ℝ) < n := by exact_mod_cast hn
-      simp [div_pow, Real.sq_sqrt hn'.le, hn'.ne']
+      simp [Real.sq_sqrt hn'.le, hn'.ne']
     have hne1 : S1.Nonempty := by
       obtain ⟨r, u, hu, hpos, rfl⟩ := hne2
       exact ⟨_, fun i => (u i : ℂ), by simpa [Complex.norm_real, sq_abs] using hu, rfl⟩

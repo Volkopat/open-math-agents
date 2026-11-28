@@ -1,262 +1,152 @@
 import OMAStatements.S_oeis_a346074
-import Mathlib
 
-/-!
-# OEIS A346074: recurrence for `a(n) = 1 + ∑_{k ≤ n-5} a(k) a(n-5-k)`
+/-! The root equation and the generating-function relation give polynomial
+certificates for the Euler derivatives. Taking coefficients yields the recurrence. -/
 
-`a(0) = … = a(4) = 1`, `a(n+5) = 1 + ∑_{k ≤ n} a(k) a(n-k)`.
+open PowerSeries
+open scoped PowerSeries
 
-Let `A = ∑ a(n) xⁿ`. The defining rule, read coefficient by coefficient, is the quadratic equation
+namespace SqrtRecurrence_oeis_a346074
 
-  `U A² - V A + N = 0`,  `U = -x**6 + x**5`,  `V = 1 - x`,  `N = 1`.
+private noncomputable abbrev XX : PowerSeries ℚ := X
 
-Differentiating it and eliminating `A²` and `A³` with the equation itself gives a first order
-linear differential equation `p A' + q A = r` with polynomial coefficients, and comparing the
-coefficients of `xⁿ` beyond the degree of `r` gives the conjectured recurrence.
--/
+private noncomputable def euler (f : PowerSeries ℚ) : PowerSeries ℚ :=
+  XX * derivative ℚ f
 
-open PowerSeries OMA.S_oeis_a346074
+private theorem derivativeMul (f g : PowerSeries ℚ) :
+    derivative ℚ (f*g) = f*derivative ℚ g + g*derivative ℚ f := by
+  simpa only [smul_eq_mul] using (PowerSeries.derivative ℚ).leibniz f g
 
-namespace OMA.A346074
+private theorem eulerMul (f g : PowerSeries ℚ) :
+    euler (f*g) = f*euler g + g*euler f := by
+  rw [euler, derivativeMul]
+  simp only [euler]
+  ring
 
-/-- The generating function `A = ∑ a(n) xⁿ`. -/
-noncomputable def A : ℤ⟦X⟧ := PowerSeries.mk a
+private theorem eulerAdd (f g : PowerSeries ℚ) :
+    euler (f+g) = euler f + euler g := by
+  simp [euler, mul_add]
 
-/-- Its derivative `A'`. -/
-noncomputable def B : ℤ⟦X⟧ := PowerSeries.derivative ℤ A
+private theorem squareEuler {S P : PowerSeries ℚ} (h : S^2 = P) :
+    2*P*euler S = euler P*S := by
+  have hd := congrArg euler h
+  rw [pow_two, eulerMul S S] at hd
+  linear_combination S*hd - 2*euler S*h
 
-/-! ### Coefficient bookkeeping -/
+private theorem coeffEuler (f : PowerSeries ℚ) (j : ℕ) :
+    coeff j (euler f) = (j : ℚ) * coeff j f := by
+  cases j with
+  | zero => simp [euler]
+  | succ j =>
+    rw [euler, coeff_succ_X_mul, coeff_derivative]
+    simp [mul_comm]
 
-lemma coeff_intCast (c : ℤ) (n : ℕ) :
-    coeff n ((c : ℤ) : ℤ⟦X⟧) = if n = 0 then c else 0 := by
-  rw [← eq_intCast (C : ℤ →+* ℤ⟦X⟧) c, coeff_C]
+private noncomputable def term (a : ℚ) (j : ℕ) : PowerSeries ℚ := C a * XX^j
 
-lemma coeff_intCast_mul (c : ℤ) (φ : ℤ⟦X⟧) (n : ℕ) :
-    coeff n (((c : ℤ) : ℤ⟦X⟧) * φ) = c * coeff n φ := by
-  rw [← eq_intCast (C : ℤ →+* ℤ⟦X⟧) c, coeff_C_mul]
+private theorem coeffTerm (a : ℚ) (j k : ℕ) :
+    coeff k (term a j) = if k = j then a else 0 :=
+  coeff_C_mul_X_pow a j k
 
-/-- The coefficient of `xⁿ` in `c xⁱ φ`. -/
-lemma coeff_term' (c : ℤ) (i n : ℕ) (φ : ℤ⟦X⟧) :
-    coeff n (((c : ℤ) : ℤ⟦X⟧) * X ^ i * φ) = if i ≤ n then c * coeff (n - i) φ else 0 := by
-  rw [mul_assoc, coeff_intCast_mul, coeff_X_pow_mul']
-  split_ifs <;> simp
+private theorem coeffTermMul (a : ℚ) (j k : ℕ) (f : PowerSeries ℚ) :
+    coeff k (term a j * f) = a * (if j ≤ k then coeff (k-j) f else 0) := by
+  rw [term, mul_assoc, coeff_C_mul, coeff_X_pow_mul']
 
-lemma coeff_term (c : ℤ) (i n : ℕ) (φ : ℤ⟦X⟧) (h : i ≤ n) :
-    coeff n (((c : ℤ) : ℤ⟦X⟧) * X ^ i * φ) = c * coeff (n - i) φ := by
-  rw [coeff_term', if_pos h]
+private theorem derivativeNumeral (n : ℕ) [n.AtLeastTwo] :
+    derivative ℚ (ofNat(n) : PowerSeries ℚ) = 0 :=
+  (derivative ℚ).map_natCast n
 
-lemma coeff_A (n : ℕ) : coeff n A = a n := coeff_mk n a
+set_option maxHeartbeats 2200000 in
+set_option maxRecDepth 10000 in
+theorem checked : ∀ G : ℚ⟦X⟧, (1-X)*G = 1+X^5*(1-X)*G^2 →
+    ∀ n : ℕ, 6 ≤ n → ((n : ℚ)+5)*coeff n G + 2*(-(n : ℚ)-4)*coeff (n-1) G +
+      ((n : ℚ)+3)*coeff (n-2) G + 2*(-2*(n : ℚ)+5)*coeff (n-5) G +
+      4*((n : ℚ)-3)*coeff (n-6) G = 0 := by
 
-lemma coeff_B (n : ℕ) : coeff n B = a (n + 1) * ((n : ℤ) + 1) := by
-  unfold B
-  rw [coeff_derivative, coeff_A]
+  intro G hInput0 n hn
+  have hF : (-1 + G - XX*G - XX^5*G^2 + XX^6*G^2) = 0 := by
+    linear_combination hInput0
+  have hEuler1 : euler (-1 + G - XX*G - XX^5*G^2 + XX^6*G^2) = (-XX*G - 5*XX^5*G^2 + 6*XX^6*G^2) + (1 - XX - 2*XX^5*G + 2*XX^6*G)*euler G := by
+    simp only [euler, derivativeMul, derivative_pow, derivative_X, map_add, map_sub,
+      map_neg, derivativeNumeral, Derivation.map_one_eq_zero, map_zero]
+    norm_num <;> ring
+  have hDifferential := congrArg euler hF
+  rw [hEuler1, show euler 0 = 0 by simp [euler]] at hDifferential
+  have hOrder0 : (1 : PowerSeries ℚ)*G = G := one_mul G
+  have hNonzero2 : ((-XX^10 + XX^11) : PowerSeries ℚ) ≠ 0 := by
+    intro heq
+    have hh := congrArg (coeff 10) heq
+    rw [show ((-XX^10 + XX^11) : PowerSeries ℚ) = term (-1) 10 + term (1) 11 by
+      simp only [term, map_ofNat, map_neg, map_one, map_zero]
+      <;> ring] at hh
+    simp only [map_add, map_zero, coeffTerm] at hh
+    norm_num at hh
+  have hOrder1 : (1 - 2*XX + XX^2 - 4*XX^5 + 4*XX^6)*(euler (G)) = (5 - 5*G - 4*XX + 10*XX*G - 5*XX^2*G + 10*XX^5*G - 12*XX^6*G) := by
+    apply mul_left_cancel₀ hNonzero2
+    linear_combination (XX^10 - 2*XX^11 + XX^12)*((-1 + 2*XX^5*G)*hDifferential + (-4*XX^5)*euler G*hF) + (-5*XX^10 + 9*XX^11 - 4*XX^12 - 10*XX^15*G + 22*XX^16*G - 12*XX^17*G)*hF
+  have hNonzero3 : ((1 - 2*XX + XX^2 - 4*XX^5 + 4*XX^6) : PowerSeries ℚ) ≠ 0 := by
+    intro heq
+    have hh := congrArg (coeff 0) heq
+    rw [show ((1 - 2*XX + XX^2 - 4*XX^5 + 4*XX^6) : PowerSeries ℚ) = term (1) 0 + term (-2) 1 + term (1) 2 + term (-4) 5 + term (4) 6 by
+      simp only [term, map_ofNat, map_neg, map_one, map_zero]
+      <;> ring] at hh
+    simp only [map_add, map_zero, coeffTerm] at hh
+    norm_num at hh
+  have hFinal : term (5) 0 * (G) + term (-10) 1 * (G) + term (5) 2 * (G) + term (-10) 5 * (G) + term (12) 6 * (G) + term (1) 0 * (euler (G)) + term (-2) 1 * (euler (G)) + term (1) 2 * (euler (G)) + term (-4) 5 * (euler (G)) + term (4) 6 * (euler (G)) = term (5) 0 + term (-4) 1 := by
+    apply mul_left_cancel₀ hNonzero3
+    simp only [term, map_ofNat, map_neg, map_one, map_zero]
+    linear_combination (5 - 20*XX + 30*XX^2 - 20*XX^3 + 5*XX^4 - 30*XX^5 + 92*XX^6 - 94*XX^7 + 32*XX^8 + 40*XX^10 - 88*XX^11 + 48*XX^12)*hOrder0 + (1 - 2*XX + XX^2 - 4*XX^5 + 4*XX^6)*hOrder1
+  have hCoefficients := congrArg (coeff n) hFinal
+  have hlo0 : 0 ≤ n := by omega
+  have hlo1 : 1 ≤ n := by omega
+  have hlo2 : 2 ≤ n := by omega
+  have hlo5 : 5 ≤ n := by omega
+  have hlo6 : 6 ≤ n := by omega
+  have hne0 : n ≠ 0 := by omega
+  have hne1 : n ≠ 1 := by omega
+  simp only [map_add, map_zero, coeffTermMul, coeffTerm, coeffEuler, if_true, if_false, Nat.sub_zero, hlo0, hlo1, hlo2, hlo5, hlo6, hne0, hne1, Nat.cast_sub hlo1, Nat.cast_sub hlo2, Nat.cast_sub hlo5, Nat.cast_sub hlo6, Nat.cast_ofNat] at hCoefficients
+  linear_combination ((1 : ℚ))*hCoefficients
 
-/-- The coefficient of `xⁿ` in `c xⁱ A'`, also valid at the edge `i = n + 1`. -/
-lemma coeff_term_B (c : ℤ) (i n : ℕ) (h : i ≤ n + 1) :
-    coeff n (((c : ℤ) : ℤ⟦X⟧) * X ^ i * B) = c * (a (n + 1 - i) * ((n : ℤ) + 1 - i)) := by
-  rcases Nat.lt_or_ge n i with hlt | hle
-  · have hi : i = n + 1 := by omega
-    rw [mul_assoc, coeff_intCast_mul, coeff_X_pow_mul', if_neg (by omega), hi]
+end SqrtRecurrence_oeis_a346074
+
+namespace GapFiveConvolutionGF
+
+
+
+private noncomputable def G : ℚ⟦X⟧ := mk fun n => (OMA.S_oeis_a346074.a n : ℚ)
+
+private noncomputable def U : ℚ⟦X⟧ := mk fun _ => 1
+
+private theorem geomEquation : (1-X)*U = 1 := by
+  apply PowerSeries.ext
+  intro n
+  rw [sub_mul, one_mul, map_sub]
+  cases n with
+  | zero => simp [U]
+  | succ n => simp [U, coeff_succ_X_mul]
+
+private theorem convolutionEquation : G = U + X^5*G^2 := by
+  apply PowerSeries.ext
+  intro n
+  rw [map_add, coeff_X_pow_mul']
+  by_cases hn : n < 5
+  · rw [if_neg (by omega : ¬ 5 ≤ n)]
+    interval_cases n <;> norm_num [G,U,OMA.S_oeis_a346074.a]
+  · obtain ⟨m,rfl⟩ : ∃ m, n = m+5 := ⟨n-5, by omega⟩
+    rw [if_pos (by omega : 5 ≤ m+5), Nat.add_sub_cancel, pow_two, coeff_mul,
+      Finset.Nat.sum_antidiagonal_eq_sum_range_succ_mk]
+    simp only [G, U, coeff_mk, Nat.succ_eq_add_one]
+    rw [OMA.S_oeis_a346074.a, ← Fin.sum_univ_eq_sum_range]
     push_cast
-    ring
-  · rw [coeff_term _ _ _ _ hle, coeff_B, show n - i + 1 = n + 1 - i by omega]
-    push_cast [Nat.cast_sub hle]
-    ring
+    rfl
 
-/-- The coefficients of `A²` are the convolution sums. -/
-lemma coeff_sq (m : ℕ) : coeff m (A * A) = ∑ k : Fin (m + 1), a k * a (m - k) := by
-  rw [PowerSeries.coeff_mul,
-    Finset.Nat.sum_antidiagonal_eq_sum_range_succ (fun i j => coeff i A * coeff j A),
-    Fin.sum_univ_eq_sum_range (fun k => a k * a (m - k)) (m + 1)]
-  simp only [coeff_A]
-
-/-! ### The quadratic equation -/
-
-/-- `S1 = ∑ a(n+1) xⁿ`. -/
-noncomputable def S1 : ℤ⟦X⟧ := PowerSeries.mk fun n => a (n + 1)
-
-/-- `S2 = ∑ a(n+2) xⁿ`. -/
-noncomputable def S2 : ℤ⟦X⟧ := PowerSeries.mk fun n => a (n + 2)
-
-/-- `S3 = ∑ a(n+3) xⁿ`. -/
-noncomputable def S3 : ℤ⟦X⟧ := PowerSeries.mk fun n => a (n + 3)
-
-/-- `S4 = ∑ a(n+4) xⁿ`. -/
-noncomputable def S4 : ℤ⟦X⟧ := PowerSeries.mk fun n => a (n + 4)
-
-/-- `S5 = ∑ a(n+5) xⁿ`. -/
-noncomputable def S5 : ℤ⟦X⟧ := PowerSeries.mk fun n => a (n + 5)
-
-lemma a_0 : a 0 = 1 := by rw [a]
-
-lemma a_1 : a 1 = 1 := by rw [a]
-
-lemma a_2 : a 2 = 1 := by rw [a]
-
-lemma a_3 : a 3 = 1 := by rw [a]
-
-lemma a_4 : a 4 = 1 := by rw [a]
-
-lemma hS1 : X * S1 = A - ((1 : ℤ) : ℤ⟦X⟧) := by
-  ext n
-  rcases n with _ | n
-  · rw [coeff_zero_X_mul, map_sub, coeff_intCast, if_pos rfl]
-    simp [A, a_0]
-  · rw [coeff_succ_X_mul, map_sub, coeff_intCast, if_neg (Nat.succ_ne_zero n), sub_zero]
-    simp [A, S1]
-
-lemma hS2 : X * S2 = S1 - ((1 : ℤ) : ℤ⟦X⟧) := by
-  ext n
-  rcases n with _ | n
-  · rw [coeff_zero_X_mul, map_sub, coeff_intCast, if_pos rfl]
-    simp [S1, a_1]
-  · rw [coeff_succ_X_mul, map_sub, coeff_intCast, if_neg (Nat.succ_ne_zero n), sub_zero]
-    simp [S1, S2]
-
-lemma hS3 : X * S3 = S2 - ((1 : ℤ) : ℤ⟦X⟧) := by
-  ext n
-  rcases n with _ | n
-  · rw [coeff_zero_X_mul, map_sub, coeff_intCast, if_pos rfl]
-    simp [S2, a_2]
-  · rw [coeff_succ_X_mul, map_sub, coeff_intCast, if_neg (Nat.succ_ne_zero n), sub_zero]
-    simp [S2, S3]
-
-lemma hS4 : X * S4 = S3 - ((1 : ℤ) : ℤ⟦X⟧) := by
-  ext n
-  rcases n with _ | n
-  · rw [coeff_zero_X_mul, map_sub, coeff_intCast, if_pos rfl]
-    simp [S3, a_3]
-  · rw [coeff_succ_X_mul, map_sub, coeff_intCast, if_neg (Nat.succ_ne_zero n), sub_zero]
-    simp [S3, S4]
-
-lemma hS5 : X * S5 = S4 - ((1 : ℤ) : ℤ⟦X⟧) := by
-  ext n
-  rcases n with _ | n
-  · rw [coeff_zero_X_mul, map_sub, coeff_intCast, if_pos rfl]
-    simp [S4, a_4]
-  · rw [coeff_succ_X_mul, map_sub, coeff_intCast, if_neg (Nat.succ_ne_zero n), sub_zero]
-    simp [S4, S5]
-
-/-- `H = ∑ xⁿ = 1/(1 - x)`. -/
-noncomputable def H : ℤ⟦X⟧ := PowerSeries.mk fun _ => (1 : ℤ)
-
-lemma hH : (1 - X) * H = 1 := by
-  rw [sub_mul, one_mul]
-  ext n
-  rcases n with _ | n
-  · simp [H]
-  · simp [H, coeff_succ_X_mul]
-
-/-- The defining rule as an identity of power series. -/
-lemma hrec : S5 = H + A * A := by
-  ext n
-  simp only [map_add, S5, H, coeff_mk, coeff_sq]
-  rw [a]
-
-/-- `U A² - V A + N = 0`. -/
-lemma hE0 :
-    (((1 : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * X)))) + (((-1) : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * (X * X)))))) * (A * A) - (((1 : ℤ) : ℤ⟦X⟧) + (((-1) : ℤ) : ℤ⟦X⟧) * (X)) * A + (((1 : ℤ) : ℤ⟦X⟧)) = 0 := by
-  linear_combination (norm := (push_cast; ring))
-    (1 - X) * (hS1 + X * hS2 + X ^ 2 * hS3 + X ^ 3 * hS4 + X ^ 4 * hS5) - (X ^ 5 * (1 - X)) * hrec - X ^ 5 * hH
-
-/-! ### The differential equation
-
-Differentiating `U A² - V A + N = 0` and eliminating `A²`, `A³` with the equation itself gives a
-first order linear differential equation; after cancelling the common polynomial factor it reads
-
-  `p A' + q A = r`,
-  `p = 4*x**7 - 4*x**6 + x**3 - 2*x**2 + x`,
-  `q = 12*x**6 - 10*x**5 + 5*x**2 - 10*x + 5`,
-  `r = 5 - 4*x`.
-
-Comparing the coefficients of `xⁿ` for `n ≥ 6` gives `(n + 5) a(n-0), (-2*(n + 4)) a(n-1), (n + 3) a(n-2), (0) a(n-3), (0) a(n-4), (-2*(2*n - 5)) a(n-5), (4*(n - 3)) a(n-6) = 0`.
--/
-
-/-- The derivative of the quadratic equation. -/
-lemma hE1 :
-    (((5 : ℤ) : ℤ⟦X⟧) * (X * (X * (X * X))) + (((-6) : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * X))))) * (A * A) + 2 * (((1 : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * X)))) + (((-1) : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * (X * X)))))) * A * B
-      - ((((-1) : ℤ) : ℤ⟦X⟧)) * A - (((1 : ℤ) : ℤ⟦X⟧) + (((-1) : ℤ) : ℤ⟦X⟧) * (X)) * B
-      + (((0 : ℤ) : ℤ⟦X⟧)) = 0 := by
-  have h := congrArg (PowerSeries.derivative ℤ) hE0
-  simp only [map_add, map_sub, map_zero, Derivation.leibniz, Derivation.map_intCast,
-    PowerSeries.derivative_X, smul_eq_mul] at h
-  unfold B
-  linear_combination (norm := (push_cast; ring)) h
-
-/-- `p A' + q A = r`. -/
-lemma hODE :
-    (((1 : ℤ) : ℤ⟦X⟧) * X ^ 1 + (((-2) : ℤ) : ℤ⟦X⟧) * X ^ 2 + ((1 : ℤ) : ℤ⟦X⟧) * X ^ 3 + (((-4) : ℤ) : ℤ⟦X⟧) * X ^ 6 + ((4 : ℤ) : ℤ⟦X⟧) * X ^ 7) * B
-      + (((5 : ℤ) : ℤ⟦X⟧) + (((-10) : ℤ) : ℤ⟦X⟧) * X ^ 1 + ((5 : ℤ) : ℤ⟦X⟧) * X ^ 2 + (((-10) : ℤ) : ℤ⟦X⟧) * X ^ 5 + ((12 : ℤ) : ℤ⟦X⟧) * X ^ 6) * A
-      - (((5 : ℤ) : ℤ⟦X⟧) + (((-4) : ℤ) : ℤ⟦X⟧) * X ^ 1) = 0 := by
-  have h0 : (((1 : ℤ) : ℤ⟦X⟧) * X ^ 4 * (1 : ℤ⟦X⟧) + (((-1) : ℤ) : ℤ⟦X⟧) * X ^ 5 * (1 : ℤ⟦X⟧)) * ((((1 : ℤ) : ℤ⟦X⟧) * X ^ 1 + (((-2) : ℤ) : ℤ⟦X⟧) * X ^ 2 + ((1 : ℤ) : ℤ⟦X⟧) * X ^ 3 + (((-4) : ℤ) : ℤ⟦X⟧) * X ^ 6 + ((4 : ℤ) : ℤ⟦X⟧) * X ^ 7) * B
-      + (((5 : ℤ) : ℤ⟦X⟧) + (((-10) : ℤ) : ℤ⟦X⟧) * X ^ 1 + ((5 : ℤ) : ℤ⟦X⟧) * X ^ 2 + (((-10) : ℤ) : ℤ⟦X⟧) * X ^ 5 + ((12 : ℤ) : ℤ⟦X⟧) * X ^ 6) * A
-      - (((5 : ℤ) : ℤ⟦X⟧) + (((-4) : ℤ) : ℤ⟦X⟧) * X ^ 1)) = 0 := by
-    linear_combination (norm := (push_cast; ring))
-      ((((1 : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * X)))) + (((-1) : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * (X * X)))))) * (2 * (((1 : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * X)))) + (((-1) : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * (X * X)))))) * A - (((1 : ℤ) : ℤ⟦X⟧) + (((-1) : ℤ) : ℤ⟦X⟧) * (X)))) * hE1
-      + (-4 * (((1 : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * X)))) + (((-1) : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * (X * X)))))) ^ 2 * B - 2 * (((1 : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * X)))) + (((-1) : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * (X * X)))))) * (((5 : ℤ) : ℤ⟦X⟧) * (X * (X * (X * X))) + (((-6) : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * X))))) * A
-          - (((5 : ℤ) : ℤ⟦X⟧) * (X * (X * (X * X))) + (((-6) : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * X))))) * (((1 : ℤ) : ℤ⟦X⟧) + (((-1) : ℤ) : ℤ⟦X⟧) * (X)) + 2 * (((1 : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * X)))) + (((-1) : ℤ) : ℤ⟦X⟧) * (X * (X * (X * (X * (X * X)))))) * ((((-1) : ℤ) : ℤ⟦X⟧))) * hE0
-  rcases mul_eq_zero.mp h0 with hg | h
-  · exfalso
-    have h' := congrArg (coeff 4) hg
-    simp only [map_add, map_zero, coeff_term', coeff_one] at h'
-    norm_num at h'
-  · exact h
-
-/-- The recurrence, read off at the coefficient of `x^(m + 6)`. -/
-lemma rec_shift (m : ℕ) :
-    ((1 : ℤ) * ((m : ℤ) + 6) + (5 : ℤ)) * a (m + 6) +
-      ((-2 : ℤ) * ((m : ℤ) + 5) + (-10 : ℤ)) * a (m + 5) +
-      ((1 : ℤ) * ((m : ℤ) + 4) + (5 : ℤ)) * a (m + 4) +
-      ((-4 : ℤ) * ((m : ℤ) + 1) + (-10 : ℤ)) * a (m + 1) +
-      ((4 : ℤ) * ((m : ℤ) + 0) + (12 : ℤ)) * a (m + 0) = 0 := by
-  have hT : ((1 : ℤ) : ℤ⟦X⟧) * X ^ 1 * B +
-      (((-2) : ℤ) : ℤ⟦X⟧) * X ^ 2 * B +
-      ((1 : ℤ) : ℤ⟦X⟧) * X ^ 3 * B +
-      (((-4) : ℤ) : ℤ⟦X⟧) * X ^ 6 * B +
-      ((4 : ℤ) : ℤ⟦X⟧) * X ^ 7 * B +
-      ((5 : ℤ) : ℤ⟦X⟧) * X ^ 0 * A +
-      (((-10) : ℤ) : ℤ⟦X⟧) * X ^ 1 * A +
-      ((5 : ℤ) : ℤ⟦X⟧) * X ^ 2 * A +
-      (((-10) : ℤ) : ℤ⟦X⟧) * X ^ 5 * A +
-      ((12 : ℤ) : ℤ⟦X⟧) * X ^ 6 * A +
-      (((-5) : ℤ) : ℤ⟦X⟧) * X ^ 0 * (1 : ℤ⟦X⟧) +
-      ((4 : ℤ) : ℤ⟦X⟧) * X ^ 1 * (1 : ℤ⟦X⟧) = 0 := by
-    linear_combination (norm := (push_cast; ring)) hODE
-  have h := congrArg (coeff (m + 6)) hT
-  have t0 : coeff (m + 6) (((1 : ℤ) : ℤ⟦X⟧) * X ^ 1 * B) = (1 : ℤ) * (a (m + 6) * ((m : ℤ) + 6)) := by
-    rw [coeff_term_B _ _ _ (by omega), show m + 6 + 1 - 1 = m + 6 by omega]; push_cast; ring
-  have t1 : coeff (m + 6) ((((-2) : ℤ) : ℤ⟦X⟧) * X ^ 2 * B) = (-2 : ℤ) * (a (m + 5) * ((m : ℤ) + 5)) := by
-    rw [coeff_term_B _ _ _ (by omega), show m + 6 + 1 - 2 = m + 5 by omega]; push_cast; ring
-  have t2 : coeff (m + 6) (((1 : ℤ) : ℤ⟦X⟧) * X ^ 3 * B) = (1 : ℤ) * (a (m + 4) * ((m : ℤ) + 4)) := by
-    rw [coeff_term_B _ _ _ (by omega), show m + 6 + 1 - 3 = m + 4 by omega]; push_cast; ring
-  have t3 : coeff (m + 6) ((((-4) : ℤ) : ℤ⟦X⟧) * X ^ 6 * B) = (-4 : ℤ) * (a (m + 1) * ((m : ℤ) + 1)) := by
-    rw [coeff_term_B _ _ _ (by omega), show m + 6 + 1 - 6 = m + 1 by omega]; push_cast; ring
-  have t4 : coeff (m + 6) (((4 : ℤ) : ℤ⟦X⟧) * X ^ 7 * B) = (4 : ℤ) * (a (m + 0) * ((m : ℤ) + 0)) := by
-    rw [coeff_term_B _ _ _ (by omega), show m + 6 + 1 - 7 = m + 0 by omega]; push_cast; ring
-  have t5 : coeff (m + 6) (((5 : ℤ) : ℤ⟦X⟧) * X ^ 0 * A) = (5 : ℤ) * a (m + 6) := by
-    rw [coeff_term _ _ _ _ (by omega), show m + 6 - 0 = m + 6 by omega, coeff_A]
-  have t6 : coeff (m + 6) ((((-10) : ℤ) : ℤ⟦X⟧) * X ^ 1 * A) = (-10 : ℤ) * a (m + 5) := by
-    rw [coeff_term _ _ _ _ (by omega), show m + 6 - 1 = m + 5 by omega, coeff_A]
-  have t7 : coeff (m + 6) (((5 : ℤ) : ℤ⟦X⟧) * X ^ 2 * A) = (5 : ℤ) * a (m + 4) := by
-    rw [coeff_term _ _ _ _ (by omega), show m + 6 - 2 = m + 4 by omega, coeff_A]
-  have t8 : coeff (m + 6) ((((-10) : ℤ) : ℤ⟦X⟧) * X ^ 5 * A) = (-10 : ℤ) * a (m + 1) := by
-    rw [coeff_term _ _ _ _ (by omega), show m + 6 - 5 = m + 1 by omega, coeff_A]
-  have t9 : coeff (m + 6) (((12 : ℤ) : ℤ⟦X⟧) * X ^ 6 * A) = (12 : ℤ) * a (m + 0) := by
-    rw [coeff_term _ _ _ _ (by omega), show m + 6 - 6 = m + 0 by omega, coeff_A]
-  have t10 : coeff (m + 6) ((((-5) : ℤ) : ℤ⟦X⟧) * X ^ 0 * (1 : ℤ⟦X⟧)) = 0 := by
-    rw [coeff_term _ _ _ _ (by omega), coeff_one, if_neg (by omega), mul_zero]
-  have t11 : coeff (m + 6) (((4 : ℤ) : ℤ⟦X⟧) * X ^ 1 * (1 : ℤ⟦X⟧)) = 0 := by
-    rw [coeff_term _ _ _ _ (by omega), coeff_one, if_neg (by omega), mul_zero]
-  simp only [map_add, map_zero, t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11] at h
-  linear_combination h
-
-end OMA.A346074
-
-open OMA.A346074 in
-theorem OMA.solution : type_of% @OMA.S_oeis_a346074.main := by
+private theorem checked : type_of% @OMA.S_oeis_a346074.main := by
+  have hgf : (1-X)*G = 1+X^5*(1-X)*G^2 := by
+    linear_combination (1-X)*convolutionEquation + geomEquation
   intro n hn
-  obtain ⟨m, rfl⟩ : ∃ m, n = m + 6 := ⟨n - 6, by omega⟩
-  have h := rec_shift m
-  simp only [show m + 6 - 1 = m + 5 by omega, show m + 6 - 2 = m + 4 by omega, show m + 6 - 5 = m + 1 by omega, show m + 6 - 6 = m + 0 by omega]
-  push_cast
-  linear_combination h
+  have h := SqrtRecurrence_oeis_a346074.checked G hgf n hn
+  simp only [G, coeff_mk] at h
+  exact_mod_cast h
+
+end GapFiveConvolutionGF
+
+theorem OMA.solution : type_of% @OMA.S_oeis_a346074.main := GapFiveConvolutionGF.checked

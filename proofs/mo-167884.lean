@@ -1,21 +1,20 @@
 import OMAStatements.S_mo_167884
 
+/-! Credit: @connoranderson, following fedja's perturbation suggestion. -/
+
 namespace OMA.S_mo_167884
 open Matrix Finset
 open scoped Matrix.Norms.Operator NNReal
 
 private lemma row_le {n : ℕ} (A : Mat n) (i : Fin n) : (∑ j, |A i j|) ≤ ‖A‖ := by
-  rw [Matrix.linfty_opNorm_def]
-  have hh := NNReal.coe_le_coe.mpr (Finset.le_sup (f := fun t => ∑ j, ‖A t j‖₊) (mem_univ i))
-  simpa [Real.norm_eq_abs] using hh
+  convert norm_le_pi_norm (fun j => WithLp.toLp 1 (A j)) i using 1 <;>
+    first | rfl | simp [PiLp.norm_eq_of_L1, Real.norm_eq_abs]
 
 private lemma norm_le_rows {n : ℕ} (A : Mat n) (c : ℝ) (hc : 0≤c)
     (h : ∀ i, (∑ j, |A i j|) ≤ c) : ‖A‖ ≤ c := by
-  lift c to ℝ≥0 using hc
-  rw [Matrix.linfty_opNorm_def,NNReal.coe_le_coe]
-  apply Finset.sup_le
-  intro i _
-  exact_mod_cast (show ((∑ j, ‖A i j‖₊ : ℝ≥0):ℝ) ≤ c by simpa [Real.norm_eq_abs] using h i)
+  change ‖fun i => WithLp.toLp 1 (A i)‖ ≤ c
+  rw [pi_norm_le_iff_of_nonneg hc]
+  simpa [PiLp.norm_eq_of_L1, Real.norm_eq_abs] using h
 
 private lemma counter (M : ℝ) : ∃ (A : Mat 3) (b : Fin 3 → ℝ), Admissible A b ∧
       (∃ i, b i=1) ∧ ‖A‖=2 ∧ M < ‖A⁻¹‖ := by
@@ -69,12 +68,7 @@ private lemma norm_one_sub {n : ℕ} (A : Mat n) (b : Fin n → ℝ) (h : Admiss
   apply norm_le_rows _ _ zero_le_one
   intro j
   have he : (∑ l, |P j l|)=off A j := by
-    unfold off
-    apply Finset.sum_congr rfl
-    intro l _
-    by_cases hj : j=l
-    · subst l; simp [P,hd]
-    · simp [P,hj]
+    simp +contextual [P, off, Matrix.one_apply, ite_sub, apply_ite, hd]
   rw [he]
   rcases ho j with h0|h1 <;> linarith
 
@@ -96,12 +90,7 @@ private lemma eventually_contracts {n : ℕ} (A : Mat n) (b : Fin n → ℝ) (h 
     by_cases he : u=v
     · subst v; simp [P,hd]
     · simpa [P,Matrix.one_apply,he] using (hn u v he).2
-  have hpow (j : ℕ) (u v : Fin n) : 0 ≤ (P^j) u v := by
-    induction j generalizing u v with
-    | zero => by_cases he : u=v <;> simp [he]
-    | succ j ih =>
-      rw [pow_succ,Matrix.mul_apply]
-      exact sum_nonneg fun l _ => mul_nonneg (ih u l) (hP l v)
+  have hpow := Matrix.pow_apply_nonneg hP
   obtain ⟨k,hk⟩ := exists_nat_gt ((n:ℝ)*(2*‖A⁻¹‖))
   let S : Mat n := ∑ j ∈ range k, P^j
   have hbound : ‖S‖ ≤ 2*‖A⁻¹‖ := calc

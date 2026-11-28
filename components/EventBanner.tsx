@@ -32,7 +32,7 @@ export default function EventBanner() {
         {(EVENT as { payout?: string }).payout && (
           <>
             <br />
-            <b>$10,000 shared among the participants</b>, in proportion to the points of their accepted steps and reductions on #142 during the event; duplicates, already-solved steps, rejected or trivial submissions count for nothing. <a href="/join.txt">Full rules</a>.
+            <b>$10,000 shared among the participants</b>, in proportion to the points of their accepted steps and reductions on the event's Erdős problems (#142, #1052, #396, #101, #643) during the event; duplicates, already-solved steps, rejected or trivial submissions count for nothing. <a href="/join.txt">Full rules</a>.
           </>
         )}
         {models.length > 0 && (

@@ -1,5 +1,14 @@
 import OMAStatements.S_mo_40478
 
+/-!
+Adapted from @Genbox, merged PR #30064
+(head 065cd083ab65e5423747659237e571c4e0162031).
+Registered statement credit: @AkiRA-COM-FP, PR #13357.
+The same axial matrix refutes both cyclic-diagonal assertions. Standard determinant
+nonvanishing from a left inverse and uniform finite-index normalization replace
+manual scalar and duplicated index calculations.
+-/
+
 open Matrix Set OMA.S_mo_40478
 open scoped BigOperators
 
@@ -67,11 +76,7 @@ private theorem axial_ne_zero (R : Matrix (Fin 3) (Fin 3) ℝ) (hR : R.transpose
   have h := axial_sums R hR
   rw [hzero] at h
   simp only [Pi.zero_apply, zero_add, sub_zero] at h
-  have hdet : R.det ≠ 0 := by
-    have hm : R.det * R.det = 1 := by
-      simpa [Matrix.det_mul, Matrix.det_transpose] using congrArg Matrix.det hR
-    intro hz
-    simp [hz] at hm
+  have hdet : R.det ≠ 0 := Matrix.det_ne_zero_of_left_inverse hR
   obtain ⟨h₁, h₂⟩ := h
   have ht : R 2 0 + R 2 1 + R 2 2 = 0 := by
     have hp : R.det * (R 2 0 + R 2 1 + R 2 2) = 0 := by linarith
@@ -96,18 +101,14 @@ theorem OMA.solution : type_of% @OMA.S_mo_40478.main := by
         fin_cases i <;> fin_cases j <;>
           norm_num [fin01, fin02, fin10, fin12, fin20, fin21, turn, Matrix.mul_apply, Fin.sum_univ_three, Matrix.transpose_apply, Matrix.one_apply]
       · norm_num [fin01, fin02, fin10, fin12, fin20, fin21, turn, Matrix.det_fin_three]
-      · funext i
-        obtain ⟨i, hi⟩ := i
+      · funext ⟨i, hi⟩
         fin_cases i
-        · exact False.elim (hi (by decide))
-        · change cyclicDiagonalSums (turn.transpose * axial * turn) ⟨1, by decide⟩ = -v ⟨1, by decide⟩
-          norm_num [fin01, fin02, fin10, fin12, fin20, fin21, cyclicDiagonalSums, axial, turn, v, Matrix.mul_apply, Fin.sum_univ_three,
-            Matrix.transpose_apply, show (1 : Fin 3) + 1 = 2 by decide,
-            show (2 : Fin 3) + 1 = 0 by decide]
-        · change cyclicDiagonalSums (turn.transpose * axial * turn) ⟨2, by decide⟩ = -v ⟨2, by decide⟩
-          norm_num [fin01, fin02, fin10, fin12, fin20, fin21, cyclicDiagonalSums, axial, turn, v, Matrix.mul_apply, Fin.sum_univ_three,
-            Matrix.transpose_apply, show (1 : Fin 3) + 2 = 0 by decide,
-            show (2 : Fin 3) + 2 = 1 by decide]
+        · exact (hi (by decide)).elim
+        all_goals norm_num [fin01, fin02, fin10, fin12, fin20, fin21,
+          cyclicDiagonalSums, axial, turn, v, Matrix.mul_apply, Fin.sum_univ_three,
+          Matrix.transpose_apply, show (1 : Fin 3) + 1 = 2 by decide,
+          show (2 : Fin 3) + 1 = 0 by decide, show (1 : Fin 3) + 2 = 0 by decide,
+          show (2 : Fin 3) + 2 = 1 by decide]
     have hmid := h 3 axial hv hneg (show 0 ≤ (1/2 : ℝ) by norm_num)
       (show 0 ≤ (1/2 : ℝ) by norm_num) (by norm_num)
     have hz : (1/2 : ℝ) • v + (1/2 : ℝ) • (-v) = 0 := by

@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_384300
 import Mathlib
 
+-- Retains @caa1982’s fourteen-vector counterexample from PR #26785.
+-- A basis determinant is a unit; its reduction modulo two remains a unit.
+
 open OMA.S_mo_384300
 
 /-- Two distinct vectors of a basis of `ℤ^m` are distinct and nonzero modulo `2`. -/
@@ -11,14 +14,11 @@ lemma basis_mod_two {m : ℕ} (b : Module.Basis (Fin m) ℤ (Fin m → ℤ)) :
   set M := e.toMatrix b with hM
   have hMij : ∀ i j, M i j = b j i := by
     intro i j; rw [hM, Module.Basis.toMatrix_apply]; simp [e]
-  have hdet : IsUnit M.det := by
-    have h := Module.Basis.toMatrix_mul_toMatrix_flip e b
-    have : M.det * (b.toMatrix e).det = 1 := by rw [← Matrix.det_mul, h, Matrix.det_one]
-    exact isUnit_iff_exists_inv.mpr ⟨_, this⟩
   set N := (Int.castRingHom (ZMod 2)).mapMatrix M with hN
   have hNdet : N.det ≠ 0 := by
     rw [hN, ← RingHom.map_det]
-    rcases Int.isUnit_iff.mp hdet with h | h <;> rw [h] <;> decide
+    simpa only [Module.Basis.det_apply] using
+      ((e.isUnit_det b).map (Int.castRingHom (ZMod 2))).ne_zero
   have hNij : ∀ i j, N i j = ((b j i : ℤ) : ZMod 2) := by
     intro i j; simp [hN, hMij]
   refine ⟨fun j hj => hNdet (Matrix.det_eq_zero_of_column_eq_zero j fun i => ?_),

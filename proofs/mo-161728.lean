@@ -1,6 +1,10 @@
 import OMAStatements.S_mo_161728
 import Mathlib
 
+-- Retains @AkiRA-COM-FP's stochastic-matrix estimate from PR #15115,
+-- head 27a71bad362f5cfe30b8ef37e7c736fae4d386b9. The existing entry bound
+-- now gives the norm bound directly, followed by the scalar squeeze theorem.
+
 open Finset Filter
 open scoped Topology BigOperators Matrix.Norms.Elementwise
 
@@ -90,18 +94,9 @@ theorem OMA.solution : type_of% @OMA.S_mo_161728.main := by
   have hRate' (n : ℕ) (i j : Fin d) : |seq n i j-M i j| ≤ α^n := by
     have h := (Matrix.norm_le_iff (pow_nonneg hα.le n)).mp (hRate n) i j
     simpa [Real.norm_eq_abs] using h
-  have ht : Tendsto (fun n => seq n^n - M^n) atTop (𝓝 0) := by
-    apply tendsto_pi_nhds.mpr
-    intro i
-    apply tendsto_pi_nhds.mpr
-    intro j
-    apply Metric.tendsto_nhds.mpr
-    intro ε hε
-    filter_upwards [(Metric.tendsto_nhds.mp hBound) ε hε] with n hn
-    rw [Real.dist_eq,sub_zero] at hn
-    change dist ((seq n^n-M^n) i j) 0 < ε
-    rw [Real.dist_eq,sub_zero]
-    exact (bound_pow_difference (hSeq n) hM (pow_nonneg hα.le n) (hRate' n) n i j).trans_lt
-      ((le_abs_self _).trans_lt hn)
-  simpa only [norm_zero,Function.comp_def] using
-    (continuous_norm.continuousAt (x := (0 : RealMatrix d))).tendsto.comp ht
+  apply squeeze_zero (fun _ => norm_nonneg _) _ hBound
+  intro n
+  apply (Matrix.norm_le_iff (by positivity)).mpr
+  intro i j
+  simpa only [Real.norm_eq_abs] using
+    bound_pow_difference (hSeq n) hM (pow_nonneg hα.le n) (hRate' n) n i j

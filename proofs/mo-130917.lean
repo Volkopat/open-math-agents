@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_130917
 import Mathlib
 
+-- Retains @Genbox’s real-power estimate from PR #27229.
+-- The endpoint absolute-value bound follows @etaubman’s earlier companion (#21152).
+
 open Set
 
 private noncomputable def nearbyConstant (q : ℝ) : ℝ :=
@@ -109,30 +112,18 @@ theorem OMA.solution : type_of% @OMA.S_mo_130917.main := by
   have hf (t : ℝ) (ht : t ∈ uIcc y x) : ‖deriv F t‖ ≤ C := by
     rw [(hF t).deriv,Real.norm_eq_abs]
     refine (slope_bound hp t).trans ?_
-    have ht' : min x y ≤ t ∧ t ≤ max x y := by simpa [uIcc,min_comm,max_comm] using ht
     have htmax : |t| ≤ max |x| |y| := by
-      apply abs_le.mpr
-      constructor
-      · have hx : -max |x| |y| ≤ x := by
-          have h1 := neg_abs_le x
-          have h2 := le_max_left |x| |y|
-          linarith
-        have hy : -max |x| |y| ≤ y := by
-          have h1 := neg_abs_le y
-          have h2 := le_max_right |x| |y|
-          linarith
-        exact (le_min hx hy).trans ht'.1
-      · exact ht'.2.trans (max_le ((le_abs_self x).trans (le_max_left _ _))
-          ((le_abs_self y).trans (le_max_right _ _)))
-    have hA : |t| ≤ |x|+|y| := htmax.trans (max_le (by linarith [abs_nonneg y]) (by linarith [abs_nonneg x]))
-    have hB : |t|^(p-1) ≤ |x|^(p-1)+|y|^(p-1) := by
-      have h := Real.rpow_le_rpow (abs_nonneg t) htmax (by linarith : 0 ≤ p-1)
-      rcases le_total |x| |y| with hxy | hyx
-      · rw [max_eq_right hxy] at h
-        exact h.trans (le_add_of_nonneg_left (by positivity))
-      · rw [max_eq_left hyx] at h
-        exact h.trans (le_add_of_nonneg_right (by positivity))
-    exact mul_le_mul_of_nonneg_left (by linarith) (scale_nonneg hp)
+      rcases Set.mem_uIcc.mp ht with h | h
+      · simpa [max_comm] using abs_le_max_abs_abs h.1 h.2
+      · exact abs_le_max_abs_abs h.1 h.2
+    have hpow := Real.rpow_le_rpow (abs_nonneg t) htmax (by linarith : 0 ≤ p-1)
+    apply mul_le_mul_of_nonneg_left _ (scale_nonneg hp)
+    rcases le_total |x| |y| with hxy | hyx
+    · rw [max_eq_right hxy] at htmax hpow
+      linarith [abs_nonneg x, Real.rpow_nonneg (abs_nonneg x) (p-1)]
+    · rw [max_eq_left hyx] at htmax hpow
+      linarith [abs_nonneg y, Real.rpow_nonneg (abs_nonneg y) (p-1)]
+
   have h := (convex_Icc (min y x) (max y x)).norm_image_sub_le_of_norm_deriv_le
     (fun t _ => (hF t).differentiableAt) hf (left_mem_uIcc : y ∈ uIcc y x) (right_mem_uIcc : x ∈ uIcc y x)
   have he : F x-F y = (|x+1|^p-|y+1|^p)-p*(x-y) := by dsimp [F]; ring

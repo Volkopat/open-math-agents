@@ -1,5 +1,8 @@
 import OMAStatements.S_mo_460893
 import Mathlib
+
+/-! Credit: @caa1982 for the original cyclotomic counterexample. -/
+
 open OMA.S_mo_460893
 
 open IntermediateField Complex
@@ -40,12 +43,7 @@ lemma inf_Rq_bot (z : ℂ) (h2 : Module.finrank ℚ (ℚ⟮z⟯) = 2) (hz : z.im
   have hfd : FiniteDimensional ℚ (ℚ⟮z⟯) := Module.finite_of_finrank_eq_succ h2
   have hdvd := IntermediateField.finrank_dvd_of_le_right (inf_le_right : Rq ⊓ ℚ⟮z⟯ ≤ ℚ⟮z⟯)
   rw [h2] at hdvd
-  have hpos : 0 < Module.finrank ℚ (Rq ⊓ ℚ⟮z⟯ : IntermediateField ℚ ℂ) := Module.finrank_pos
-  have hcases : Module.finrank ℚ (Rq ⊓ ℚ⟮z⟯ : IntermediateField ℚ ℂ) = 1 ∨
-      Module.finrank ℚ (Rq ⊓ ℚ⟮z⟯ : IntermediateField ℚ ℂ) = 2 := by
-    have := Nat.le_of_dvd (by norm_num) hdvd
-    interval_cases (Module.finrank ℚ (Rq ⊓ ℚ⟮z⟯ : IntermediateField ℚ ℂ)) <;> simp_all
-  rcases hcases with h1 | h1
+  rcases (Nat.dvd_prime Nat.prime_two).mp hdvd with h1 | h1
   · exact IntermediateField.finrank_eq_one_iff.mp h1
   · exfalso
     have heq := IntermediateField.eq_of_le_of_finrank_eq inf_le_right (h1.trans h2.symm)
