@@ -23575,6 +23575,48 @@
     "https://www.openproblemgarden.org/op/subdivision_of_a_transitive_tournament_in_digraphs_with_large_outdegree"
    ],
    "reason": "The disproof instantiates V = Empty. The minimum-outdegree hypothesis holds vacuously for every threshold f, and no branch vertex exists, so the formal statement fails. This is a degenerate-parameter loophole: Mader's conjecture concerns nonempty digraphs and remains open; the statement is missing a Nonempty V hypothesis."
+  },
+  "mo-433993": {
+   "date": "2026-11-28",
+   "pr": 33194,
+   "evidence": [
+    "https://mathoverflow.net/questions/433993"
+   ],
+   "reason": "The MO question is open-ended ('what is a good upper bound for ||A-C|| in terms of d,k,n?') and has no accepted answer. The statement proves two self-chosen bounds (a Jung-type sphere bound k(d-k)/d and a variance bound (C(d,k)/n-1)k(d-k)/(d(d-1))). That does not settle the question, so this is a self-chosen bound for an open-ended question."
+  },
+  "oeis-a172507": {
+   "date": "2026-11-28",
+   "pr": 33198,
+   "evidence": [
+    "https://oeis.org/A172507",
+    "https://oeis.org/A078267"
+   ],
+   "reason": "The comment's printed denominator list (10, 25, 1000, 5000, ...) is garbled. The statement replaces it with the true denominators of (n).(n), which equal den(n + n/10^len) = den(n/10^len) = A078267(n) by definition. The disproof is that one-line definitional identity. Under the literal printed list the 'not equal' conjecture is trivially true instead, so the result depends on an interpretive choice about an inconsistent source and is trivial either way."
+  },
+  "oeis-a138175": {
+   "date": "2026-11-28",
+   "pr": 33188,
+   "evidence": [
+    "https://oeis.org/A138175"
+   ],
+   "reason": "The disproof exploits a printed sign typo. The data satisfy Mathar's recurrence exactly when the a(n-2) coefficient is 9*(-351n^3+2196n^2-4325n+2680) (I checked n=3..14, all zero). The printed -2196n^2 makes it fail, and the statement file itself says the entry probably has sign typos. Refuting the misprint does not settle Mathar's actual (correct) recurrence."
+  },
+  "oeis-a087553": {
+   "date": "2026-11-28",
+   "pr": 33138,
+   "evidence": [
+    "https://oeis.org/A087553"
+   ],
+   "reason": "The proof's infinite family is 121*100^m = (11*10^m)^2, i.e. the term 121 with zeros appended. The entry calls 10^(2k) and 9*10^(2k) 'trivial terms like' these, and the data list 12100, 1210000, ... The intended 'nontrivial' clearly excludes terms obtained from smaller terms by appending 00. The statement defines trivial as only 10^(2k) and 9*10^(2k), and the proof exploits that literal-wording loophole, so the actual conjecture is not settled."
+  },
+  "oeis-a073923": {
+   "date": "2026-11-28",
+   "pr": 33110,
+   "evidence": [
+    "https://oeis.org/A073923",
+    "https://oeis.org/A059661"
+   ],
+   "reason": "The disproof exploits a range slip at the first index: it fails only at n=2, where a(2)=2 but A059661(2)-A059661(1)=3-2=1, because the partial sums of A073923 start at 1 while A059661 starts at 2. By the statement's own check the identity holds for 3<=n<=12, so Mathar's evident intended claim (the identity for n>=3) remains unaddressed."
   }
  },
  "known": {
@@ -44311,6 +44353,180 @@
     "https://oeis.org/A273722"
    ],
    "reason": "isitsolved journal paper iis:2611.00226 (Batch 3: 77 OEIS recurrence conjectures decided exactly) lists A273722, Mathar's recurrence, as 'true, all n>=4'. Its timestamps are 2026-11-28 04:01 / 13:59, before the site proof commit at 2026-11-28 14:01 UTC (15:01+01:00). The site statement uses the entry's g.f. as definition (unique series T with T^2 = 1-4x+2x^2+x^4, T(0)=1), which is faithful; the recurrence follows from the ODE of the algebraic g.f."
+  },
+  "oeis-a136576": {
+   "date": "2026-11-28",
+   "pr": 33211,
+   "evidence": [
+    "https://arxiv.org/abs/2608.08703",
+    "https://oeis.org/A136577"
+   ],
+   "reason": "Liu, Wang and Zhang, arXiv:2608.08703 (Aug 2026), Section 9.2, Theorem 9.4 ('Conjectured in OEIS A136576; A136577') proves that the Hankel transform of A136576(n+1) is A136577, with the same 4-periodic closed form. The paper is linked from both OEIS entries. Statement is faithful (B=1-2A encoding, shifted Hankel matrix)."
+  },
+  "oeis-a335901": {
+   "date": "2026-11-28",
+   "pr": 33207,
+   "evidence": [
+    "https://github.com/the-omega-institute/trureturing/blob/main/Problems/oeis-a335901-self-referential-doubling-first-occurrence.md",
+    "https://github.com/the-omega-institute/trureturing/blob/main/D5/S1/Recurrence/Invariants/SelfReferentialDoublingFirstOccurrence.lean"
+   ],
+   "reason": "trureturing proved this exact conjecture (theorem alkan_a335901: hit and minimality of A117261(r) for every r) on 2026-09-13, before the site proof (2026-11-28). Site statement is faithful (least k>=1 with a(k)=2^n is A117261(n))."
+  },
+  "mo-251867": {
+   "date": "2026-11-28",
+   "pr": 33203,
+   "evidence": [
+    "https://mathoverflow.net/questions/251867"
+   ],
+   "reason": "The disproof (K_1[K_2] = K_2[K_1,K_1] = K_2, with K_1 and K_2 not isomorphic) is the same kind of counterexample as the only MO answer (2016), which already shows the answer is no: A = K_p gives K_{a_1+...+a_p}, so K_2[K_2,K_2] = K_2[K_3,K_1], and it also gives a pair with non-isomorphic A and B. The statement matches the question."
+  },
+  "oeis-a126156": {
+   "date": "2026-11-28",
+   "pr": 33197,
+   "evidence": [
+    "https://github.com/the-omega-institute/trureturing/blob/main/Problems/bala126156.md",
+    "https://github.com/the-omega-institute/trureturing/blob/main/D5/S1/Recurrence/Periodic/SquareRootSecantTotientPeriodRefutation.lean"
+   ],
+   "reason": "The site proof is a disproof of Bala's totient-period conjecture at k=4: the residues mod 4 cycle 1,1,3,3, so period 2 = phi(4) fails, and I confirmed this numerically. trureturing refuted the same conjecture with the same k=4 obstruction (a(n+2)-a(n) = 2 mod 4) in a kernel-checked module dated 2026-10-31, before the site proof (2026-11-28)."
+  },
+  "oeis-a335925": {
+   "date": "2026-11-28",
+   "pr": 33187,
+   "evidence": [
+    "https://github.com/the-omega-institute/trureturing/blob/main/Problems/oeis-a335925-self-referential-quotient-first-occurrence.md",
+    "https://github.com/the-omega-institute/trureturing/blob/main/D5/S1/Recurrence/Invariants/SelfReferentialQuotientFirstOccurrence.lean"
+   ],
+   "reason": "trureturing proved this conjecture (theorem alkan_a335925: hit and minimality at A000522(m-1) for every m>=1) on 2026-09-13, before the site proof (2026-11-28). The site statement is faithful."
+  },
+  "oeis-a100873": {
+   "date": "2026-11-28",
+   "pr": 33181,
+   "evidence": [
+    "https://oeis.org/A100873"
+   ],
+   "reason": "The entry itself contains 'Proof 1: p^(p+2) == p == -2 (mod p+2). - Thomas Ordowski, Dec 19 2013', which is exactly the Fermat argument of the site proof (ZMod.pow_card). Trivial and already settled in the source."
+  },
+  "oeis-a156894": {
+   "date": "2026-11-28",
+   "pr": 15207,
+   "evidence": [
+    "https://oeis.org/A156894"
+   ],
+   "reason": "For the third (order-2) recurrence the entry records that 'the Maple command sumrecursion ... verifies this recurrence' (Peter Bala, Oct 2015). That is a Zeilberger certificate. The order-4 and order-3 recurrences are polynomial combinations of shifts of the order-2 one, which is how the site proof gets them. Faithful statement, but essentially settled in the source."
+  },
+  "oeis-a386650": {
+   "date": "2026-11-28",
+   "pr": 33172,
+   "evidence": [
+    "https://oeis.org/A214595",
+    "https://oeis.org/A214590"
+   ],
+   "reason": "The parent table A214595 has M. F. Hasler's formula (Aug 21 2025) T(n,k) = Sum_{s=0..k} Prod_{L=2..n} NC(sL,L,k). For k=3 the terms s=0 and s=3 give 1 each, s=1 gives Prod quadrinomial(L) = A386650(n), and s=2 gives the same by the x->3-x symmetry, so A214590 = 2*A386650 + 2 follows at once. The site proof is exactly this decomposition."
+  },
+  "oeis-a113610": {
+   "date": "2026-11-28",
+   "pr": 33165,
+   "evidence": [
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/Enumerative/A113610Refutation.lean",
+    "https://oeis.org/A113610"
+   ],
+   "reason": "thatnealpatel/proofs (A113610Refutation.lean, present in the 2026-11-28 tree listing taken before the site proof) refutes the literal conjecture at the same n=12 (27 > 6 < 27, primes 37, 41). It also refutes the index-shifted reading at n=21. The site disproof uses the literal wording, which has an index slip (a local minimum at a(n+1) refers to the gap prime(n+1), prime(n+2)), but the conjecture is false under both readings."
+  },
+  "oeis-a273407": {
+   "date": "2026-11-28",
+   "pr": 33173,
+   "evidence": [
+    "https://oeis.org/A273407",
+    "https://oeis.org/A273405"
+   ],
+   "reason": "A273407 is the first-difference sequence of A273405 (Rule 673 ON-cell counts). The site proved A273405's closed form ((-1)^n+8n+8n^2-7)/2 at 2026-11-28 10:17 +0100, before this proof (15:54 +0100). Differencing it gives 8n+8-(-1)^n and the other Barker formulas at once. The proof file also says it follows the earlier site proof technique of A273848."
+  },
+  "mo-315628": {
+   "date": "2026-11-28",
+   "pr": 15928,
+   "evidence": [
+    "https://mathoverflow.net/questions/315628"
+   ],
+   "reason": "The MO question has no answer, but fedja's comment (thanked by the asker as a 'nice example') already gives a positively correlated exchangeable counterexample with sum <= m < n. The site disproof's n=3, m=2 mixture is a variant of it. Statement faithful."
+  },
+  "oeis-a350689": {
+   "date": "2026-11-28",
+   "pr": 33144,
+   "evidence": [
+    "https://github.com/the-omega-institute/trureturing-experiments/blob/main/docs/reports/oeis-a350050-a350689-low-rank-exterior-power-traces/README.md",
+    "https://oeis.org/A350689"
+   ],
+   "reason": "trureturing-experiments (commit 259e33c, 2026-10-17) published the proof for Spezia's A350689 conjecture: M[i,j]=floor((j-i+1)/2) = (j-i)/2 + 1/4 - (-1)^(i+j)/4 has rank <= 3, and charpoly(UV^T) = x^(n-3) charpoly(V^T U) gives the closed form. It also published a sympy checker. This predates the site proof (2026-11-28), which uses the same rank-3 factorization. I also checked n=2..10 with sympy."
+  },
+  "oeis-a396102": {
+   "date": "2026-11-28",
+   "pr": 33140,
+   "evidence": [
+    "https://github.com/the-omega-institute/trureturing/blob/main/Problems/oeis-a396102-triple-iterate-shift-mod-three.md",
+    "https://data.palomar-registry.org/api/v1/results?q=A396102"
+   ],
+   "reason": "Proved earlier by trureturing (theorem hanna_conjecture, 2026-09-09: modulo 3, A equals X/(1-X)) and by D. D. Goyal's Palomar entry PALOMAR-2026-10-27-000006, which covers A396102 and its family. Both predate the site proof (2026-11-28). The statement is faithful."
+  },
+  "oeis-a110320": {
+   "date": "2026-11-28",
+   "pr": 33150,
+   "evidence": [
+    "https://oeis.org/A110320",
+    "https://oeis.org/A051292"
+   ],
+   "reason": "McGarvey's identity is immediate generating-function algebra. From the recorded g.f.s, B = C - x^2*C + 1, so it is equivalent to Irwin's unconditional formula in the same entry, a(n) = (A051286(n+2)-A051286(n+1)-A051286(n))/2 (2016). The site proof is exactly this two-line linear combination. Trivial and effectively settled in the entry."
+  },
+  "oeis-a103152": {
+   "date": "2026-11-28",
+   "pr": 33141,
+   "evidence": [
+    "https://oeis.org/A103152"
+   ],
+   "reason": "The entry already records the counterexample 'a(23)=725 is also not divisible by 3' (D. S. McNeil, 2010), and R. Israel's 2020 comment lists a(23) as the only exception up to n=1450. The site disproof certifies the same n=23 counterexample by a finite prime-bit computation."
+  },
+  "oeis-a372213": {
+   "date": "2026-11-28",
+   "pr": 33125,
+   "evidence": [
+    "https://data.palomar-registry.org/api/v1/results?q=A372213",
+    "https://github.com/VictorLiwentao/fc-palomar-proofs"
+   ],
+   "reason": "The proof file says it is adapted from Wentao Li's work (Apache license attribution). Li's Palomar entry PALOMAR-2026-11-16-000017 proves Bala's p^(3k) towers for A372213 ((a,b)=(3,4), p>=11), before the site proof. The statement is faithful to Bala's conjecture."
+  },
+  "oeis-a372212": {
+   "date": "2026-11-28",
+   "pr": 33130,
+   "evidence": [
+    "https://data.palomar-registry.org/api/v1/results?q=A372212",
+    "https://github.com/VictorLiwentao/fc-palomar-proofs"
+   ],
+   "reason": "The proof file says it is adapted from Wentao Li's work. Li's Palomar entry PALOMAR-2026-11-16-000017 proves Bala's p^(3k) supercongruences for A372212 ((a,b)=(2,5), p>=11), before the site proof. The statement is faithful."
+  },
+  "oeis-a079063": {
+   "date": "2026-11-28",
+   "pr": 33120,
+   "evidence": [
+    "https://github.com/the-omega-institute/trureturing/blob/main/Problems/oeis-a079063-sqrt-prime-gap-lower-bound-refutation.md",
+    "https://github.com/the-omega-institute/trureturing/blob/main/D5/S3/PrimeGaps/CloitreSquareRootPrimeGapRefutation.lean"
+   ],
+   "reason": "The proof file states it is adapted from trureturing's CloitreSquareRootPrimeGapRefutation.lean (dated 2026-09-13), which refutes the weakest form 'exists c>0 with a(n) > c*sqrt(n) eventually'. The site version fixes c=2/5 and uses 0-based primes, which does not affect the asymptotic claim."
+  },
+  "erdos-776": {
+   "date": "2026-11-28",
+   "pr": 33102,
+   "evidence": [
+    "https://www.erdosproblems.com/776"
+   ],
+   "reason": "The erdosproblems page records that He and Tang [HeTa26b] proved 2r+2 <= n_0(r) <= 2r + 2 log_2 r + O(log log r) for r>=4, hence n_0(r) ~ 2r, and the statement formalizes exactly this recorded answer. n_0 as the sSup of the n with no admissible family matches the page's definition, and 'exactly n-3 sizes' is justified in the file."
+  },
+  "wp-second-neighborhood-problem": {
+   "date": "2026-11-28",
+   "pr": 33106,
+   "evidence": [
+    "https://en.wikipedia.org/wiki/Second_neighborhood_problem",
+    "https://www.openproblemgarden.org/op/seymours_second_neighbourhood_conjecture"
+   ],
+   "reason": "The proof file says its combinatorial core is taken unchanged from the site's earlier merged proof of opg-seymours-second-neighbourhood-conjecture (PR 6468, merged 2026-11-27); only the final bridge is new. That earlier statement is the same conjecture (finite nonempty oriented graph, out-degree <= second out-degree). So this is a duplicate of an earlier site solve. Given how famous the conjecture is, PR 6468 itself deserves separate scrutiny."
   }
  },
  "reviewed": "2026-11-28"
