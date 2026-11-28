@@ -2,6 +2,15 @@ import OMAStatements.S_mo_151738
 import Mathlib
 
 /-!
+Retains @rexmhall09’s full counterexample from PR #30518, pinned at
+d67e3d233a3f6133426fbe34c715a856062daa06. The matrices and all finite
+identities are unchanged; IsUnit.of_mul_eq_one replaces the determinant
+argument for the invertibility of the eigenvector matrix.
+Statement: @koolkao (#17065), crediting user44128’s MO151738 question
+(CC BY-SA 3.0), the cited answer, and abx’s comment.
+-/
+
+/-!
 # MathOverflow 151738: a diagonalisable block upper triangular matrix need not be block diagonal
 
 Counterexample with two blocks of size one: `M = !![1, 1; 0, -1]`.
@@ -50,8 +59,7 @@ end OMA.S_mo_151738
 open OMA.S_mo_151738 in
 theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_151738.main) := by
   intro h
-  have hP : IsUnit Px := (Matrix.isUnit_iff_isUnit_det Px).mpr
-    (isUnit_iff_exists_inv.mpr ⟨Qx.det, by rw [← Matrix.det_mul, PQ, Matrix.det_one]⟩)
+  have hP : IsUnit Px := IsUnit.of_mul_eq_one Qx PQ
   have key := h 2 (fun _ => 1) Mx
     (fun x y hxy => by simp [Mx, hxy])
     (fun i => ⟨2, by norm_num, by
