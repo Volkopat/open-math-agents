@@ -19,15 +19,7 @@ private theorem shifted_roots_card (p : ℕ) [Fact p.Prime] [NeZero (11 : ZMod p
       a+1 ∈ primitiveRoots 11 (ZMod p) := by
     rw [mem_primitiveRoots (by decide : 0 < 11), ← Polynomial.isRoot_cyclotomic_iff]
     simp [Polynomial.IsRoot.def, Polynomial.cyclotomic_prime, shifted_eval, Polynomial.eval_finsetSum]
-  refine Finset.card_bij' (fun a _ => a+1) (fun b _ => b-1) ?_ ?_ ?_ ?_
-  · intro a ha
-    exact (h a).mp (Finset.mem_filter.mp ha).2
-  · intro b hb
-    exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, (h (b-1)).mpr (by simpa using hb)⟩
-  · intro a _
-    simp
-  · intro b _
-    simp
+  exact Finset.card_equiv (Equiv.addRight 1) (fun a => by simpa using h a)
 
 private theorem eleven_case : 11 % 11 = 1 ↔
     (Finset.univ.filter (fun a : ZMod 11 => (∑ j ∈ Finset.range 11, (a+1)^j) = 0)).card = 10 := by

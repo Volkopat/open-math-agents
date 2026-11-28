@@ -85,136 +85,12 @@ lemma gram_identity (o e f x y : ℝ²) (s : ℝ) :
   ring
 
 
-abbrev Triple := ℝ×ℝ×ℝ
-
-def dataTriple (s : ℝ) (o e f x : ℝ²) : Triple := (s*dsq o x,s*dsq e x,s*dsq f x)
-
-def locus (a b c : ℝ) (p : Triple) := gram a b c p.1 p.2.1 p.2.2 p.1 p.2.1 p.2.2 0
-
-def sep4 (a b c : ℝ) (p q : Triple) :=
-  let u := (p.1-p.2.1)-(q.1-q.2.1)
-  let v := (p.1-p.2.2)-(q.1-q.2.2)
-  2*b*u*u-2*(a+b-c)*u*v+2*a*v*v
-
-def edge4 (a b c : ℝ) (p q : Triple) (x y t : ℝ) :=
-  let d := 2*area a b c
-  let l := sep4 a b c p q
-  (l-d)*(l-d*x)*(l-d*y)*(l-d*t)
-
-lemma geom_locus (s : ℝ) (o e f x : ℝ²) :
-    locus (s*dsq o e) (s*dsq o f) (s*dsq e f) (dataTriple s o e f x)=0 := by
-  have h := gram_identity o e f x x s
-  simpa [locus,dataTriple,dsq] using h
-
-lemma geom_sep4 (s : ℝ) (o e f x y : ℝ²) :
-    sep4 (s*dsq o e) (s*dsq o f) (s*dsq e f) (dataTriple s o e f x) (dataTriple s o e f y)=
-    2*area (s*dsq o e) (s*dsq o f) (s*dsq e f)*(s*dsq x y) := by
-  unfold sep4 dataTriple dsq area
-  ring
-
-lemma geom_edge4 (s : ℝ) (o e f u v : ℝ²) (x y t : ℝ)
-    (h : s*dsq u v=1 ∨ s*dsq u v=x ∨ s*dsq u v=y ∨ s*dsq u v=t) :
-    edge4 (s*dsq o e) (s*dsq o f) (s*dsq e f) (dataTriple s o e f u) (dataTriple s o e f v) x y t=0 := by
-  unfold edge4
-  rw [geom_sep4]
-  rcases h with h|h|h|h <;> rw [h] <;> ring
-
-lemma geom_injective (s : ℝ) (hs : s≠0) (o e f : ℝ²) (hoe : o≠e)
-    (hn : ¬Collinear ℝ ({o,e,f}:Set ℝ²)) : Function.Injective (dataTriple s o e f) := by
-  intro x y he
-  have hh := geom_sep4 s o e f x y
-  rw [he] at hh
-  simp [sep4] at hh
-  have h0 := area_ne o e f s hs hoe hn
-  have hz := (hh.resolve_left h0).resolve_left hs
-  rw [dsq_eq] at hz
-  exact dist_eq_zero.mp (sq_eq_zero_iff.mp hz)
-
-def palette4 (x y t : ℝ) : Fin 4→ℝ := ![1,x,y,t]
-
-def profile4 (x y t : ℝ) (k : Fin 64) : Triple :=
-  (palette4 x y t ⟨k.val/16,by omega⟩,palette4 x y t ⟨k.val/4%4,by omega⟩,palette4 x y t ⟨k.val%4,by omega⟩)
-
-lemma profile4_surjective (x y t : ℝ) (a b c : Fin 4) :
-    ∃ k : Fin 64, profile4 x y t k=(palette4 x y t a,palette4 x y t b,palette4 x y t c) := by
-  let k : Fin 64 := ⟨16*a.val+4*b.val+c.val,by omega⟩
-  have ha : k.val/16=a.val := by dsimp [k]; omega
-  have hb : k.val/4%4=b.val := by dsimp [k]; omega
-  have hc : k.val%4=c.val := by dsimp [k]; omega
-  exact ⟨k, by simp [profile4,ha,hb,hc]⟩
-
-def cell (a b c : ℝ) (p q r : Triple) (x y t : ℝ) :=
-  locus a b c p=0 ∧ edge4 a b c p q x y t=0 ∧ edge4 a b c p r x y t=0
-
-
 open EuclideanGeometry
 def colorCode (c : Fin 10→Fin 3) : ℕ := (c 0).val*19683+(c 1).val*6561+(c 2).val*2187+(c 3).val*729+(c 4).val*243+(c 5).val*81+(c 6).val*27+(c 7).val*9+(c 8).val*3+(c 9).val*1
 def slot : Fin 5→Fin 5→Fin 10 := ![![0,0,1,2,3],![0,0,4,5,6],![1,4,0,7,8],![2,5,7,0,9],![3,6,8,9,0]]
-def permColors (c : Fin 10→Fin 3) (p : Fin 5→Fin 5) (s : Fin 3→Fin 3) : Fin 10→Fin 3 := ![s (c (slot (p 0) (p 1))),s (c (slot (p 0) (p 2))),s (c (slot (p 0) (p 3))),s (c (slot (p 0) (p 4))),s (c (slot (p 1) (p 2))),s (c (slot (p 1) (p 3))),s (c (slot (p 1) (p 4))),s (c (slot (p 2) (p 3))),s (c (slot (p 2) (p 4))),s (c (slot (p 3) (p 4)))]
-def minimalColor (c : Fin 10→Fin 3) := ∀ (p : Fin 5→Fin 5) (s : Fin 3→Fin 3), Function.Injective p → Function.Injective s → colorCode c≤colorCode (permColors c p s)
-def baseCodes : List ℕ := [0,1,4,5,13,14,31,32,36,37,38,40,41,44,45,46,49,50,53,120,121,122,123,124,125,132,133,151,156,157,364,365,368,377,400,401,761,764,765,766,767,770,773,774,775,776,779,782,792,793,794,796,797,800,822,823,824,825,826,827,834,835,836,849,851,852,853,854,855,857,858,860,861,862,863,879,880,881,882,883,885,886,887,888,889,890,912,913,939,941,942,943,969,970,1062,1064,1070,1071,1072,1073,1075,1076,1079,1100,1106,1124,1125,1126,1127,1129,1130,1152,1153,1155,1157,1158,1159,1185,1212,1213,1395,1396,3048,3050,3072,3074,3075,3194,3195,3197,3203,3206,3231,3233,3234,3236,3237,3399,3437,3440,3801,3961]
-
-lemma slot_symm (i j : Fin 5) : slot i j=slot j i := by decide +revert
-
-lemma perm_slot (c : Fin 10→Fin 3) (p : Fin 5→Fin 5) (s : Fin 3→Fin 3) (i j : Fin 5) (h : i≠j) :
-    permColors c p s (slot i j)=s (c (slot (p i) (p j))) := by
-  fin_cases i <;> fin_cases j <;> first | exact False.elim (h rfl) | rfl | exact congrArg (fun k => s (c k)) (slot_symm _ _)
-
-lemma lookup_sym (k : Fin 5→Fin 5→Fin 3) (hs : ∀ i j,k i j=k j i) (i j : Fin 5) (h : i≠j) :
-    (![k 0 1,k 0 2,k 0 3,k 0 4,k 1 2,k 1 3,k 1 4,k 2 3,k 2 4,k 3 4] : Fin 10→Fin 3) (slot i j)=k i j := by
-  fin_cases i <;> fin_cases j <;> first | exact False.elim (h rfl) | rfl | exact hs _ _
-
-def realizes (B : Finset ℝ²) (D : Finset ℝ) (c : Fin 10→Fin 3) :=
-  ∃ (v : Fin 5≃B) (r : Fin 3≃D), ∀ i j : Fin 5, i≠j →
-    (r (c (slot i j))).1=dist (v i).1 (v j).1
-
-lemma minimal_realization (B : Finset ℝ²) (D : Finset ℝ) (hB : B.card=5) (hD : D.card=3)
-    (hBD : ∀ x∈B, ∀ y∈B, x≠y → dist x y∈D) : ∃ c, realizes B D c ∧ minimalColor c := by
-  classical
-  let V := (B.equivFinOfCardEq hB).symm
-  let R := (D.equivFinOfCardEq hD).symm
-  let k (i j : Fin 5) := if h : i≠j then R.symm ⟨dist (V i).1 (V j).1,hBD _ (V i).2 _ (V j).2
-    (fun he => h (V.injective (Subtype.ext he)))⟩ else 0
-  have sym (i j : Fin 5) : k i j=k j i := by
-    by_cases he : i=j
-    · subst j; rfl
-    · have hf : j≠i := Ne.symm he
-      simp only [k,dif_pos he,dif_pos hf]
-      apply congrArg R.symm
-      apply Subtype.ext
-      exact dist_comm ..
-  let c₀ : Fin 10→Fin 3 := ![k 0 1,k 0 2,k 0 3,k 0 4,k 1 2,k 1 3,k 1 4,k 2 3,k 2 4,k 3 4]
-  have hlookup (i j : Fin 5) (hij : i≠j) : c₀ (slot i j)=k i j := by
-    apply lookup_sym k sym i j hij
-  let L := Finset.univ.filter (realizes B D)
-  have h₀ : realizes B D c₀ := by
-    refine ⟨V,R,?_⟩
-    intro i j hij
-    rw [hlookup _ _ hij]
-    simp [k,hij]
-  have hl : L.Nonempty := ⟨c₀,Finset.mem_filter.mpr ⟨Finset.mem_univ _,h₀⟩⟩
-  obtain ⟨c,hc,hm⟩ := Finset.exists_min_image L colorCode hl
-  have hreal := (Finset.mem_filter.mp hc).2
-  refine ⟨c,hreal,?_⟩
-  rintro p s hp hs
-  let P : Fin 5≃Fin 5 := Equiv.ofBijective p ⟨hp,Finite.injective_iff_surjective.mp hp⟩
-  let S : Fin 3≃Fin 3 := Equiv.ofBijective s ⟨hs,Finite.injective_iff_surjective.mp hs⟩
-  apply hm
-  apply Finset.mem_filter.mpr
-  obtain ⟨v,r,hr⟩ := hreal
-  refine ⟨Finset.mem_univ _,P.trans v,S.symm.trans r,?_⟩
-  intro i j hij
-  rw [perm_slot _ _ _ _ _ hij]
-  change (r (S.symm (S (c (slot (p i) (p j)))))).1=dist (v (p i)).1 (v (p j)).1
-  rw [S.symm_apply_apply]
-  exact hr _ _ (fun he => hij (hp he))
-
 def palette3 (x y : ℝ) : Fin 3→ℝ := ![1,x,y]
 
 def baseD (c : Fin 10→Fin 3) (x y : ℝ) (i j : Fin 5) := palette3 x y (c (slot i j))
-
-def baseT (c : Fin 10→Fin 3) (x y : ℝ) (i : Fin 5) : Triple :=
-  (baseD c x y 0 i,baseD c x y 1 i,baseD c x y 2 i)
 
 def threeGram (d : Fin 5→Fin 5→ℝ) (i j : Fin 5) :=
   gram (d 0 1) (d 0 2) (d 1 2) (d 0 i) (d 1 i) (d 2 i) (d 0 j) (d 1 j) (d 2 j) (if i=j then 0 else d i j)
@@ -224,12 +100,6 @@ def admissible (c : Fin 10→Fin 3) (x y : ℝ) :=
   (x≠0 ∧ y≠0 ∧ x-1≠0 ∧ y-1≠0 ∧ x-y≠0) ∧
     (∀ i j k : Fin 5, i<j → j<k → area (d i j) (d i k) (d j k)≠0) ∧
     threeGram d 3 3=0 ∧ threeGram d 3 4=0 ∧ threeGram d 4 4=0
-
-def hasExtension (c : Fin 10→Fin 3) (x y t : ℝ) :=
-  let d := baseD c x y
-  ∃ g : Fin 5→Fin 64, Function.Injective g ∧
-    (∀ i, cell (d 0 1) (d 0 2) (d 1 2) (profile4 x y t (g i)) (baseT c x y 3) (baseT c x y 4) x y t) ∧
-    (∀ i j, i≠j → edge4 (d 0 1) (d 0 2) (d 1 2) (profile4 x y t (g i)) (profile4 x y t (g j)) x y t=0)
 
 lemma build_admissible (c : Fin 10→Fin 3) (x y s : ℝ) (p : Fin 5→ℝ²) (hp : Function.Injective p) (hs : s≠0)
     (hcol : ∀ i j k : Fin 5, i≠j → j≠k → i≠k → ¬Collinear ℝ ({p i,p j,p k}:Set ℝ²))
@@ -252,50 +122,6 @@ lemma build_admissible (c : Fin 10→Fin 3) (x y s : ℝ) (p : Fin 5→ℝ²) (h
     have hzero : dsq (p 4) (p 4)=0 := by simp [dsq]
     rw [hzero,mul_zero] at hv
     exact hv
-
-lemma palette4_or (x y t : ℝ) (k : Fin 4) :
-    palette4 x y t k=1 ∨ palette4 x y t k=x ∨ palette4 x y t k=y ∨ palette4 x y t k=t := by
-  fin_cases k <;> simp [palette4]
-
-lemma build_extension (c : Fin 10→Fin 3) (x y t s : ℝ) (p q : Fin 5→ℝ²) (hq : Function.Injective q)
-    (hs : s≠0) (hoe : p 0≠p 1) (hn : ¬Collinear ℝ ({p 0,p 1,p 2}:Set ℝ²))
-    (hb : ∀ i j, i≠j → baseD c x y i j=s*dsq (p i) (p j))
-    (hd : ∀ i j, ∃ k, s*dsq (p i) (q j)=palette4 x y t k)
-    (he : ∀ i j, i≠j → ∃ k, s*dsq (q i) (q j)=palette4 x y t k) : hasExtension c x y t := by
-  classical
-  have hp (j : Fin 5) : ∃ k, profile4 x y t k=dataTriple s (p 0) (p 1) (p 2) (q j) := by
-    obtain ⟨a,ha⟩ := hd 0 j
-    obtain ⟨b,hb⟩ := hd 1 j
-    obtain ⟨k,hk⟩ := hd 2 j
-    rw [dataTriple,ha,hb,hk]
-    exact profile4_surjective x y t a b k
-  let g (i : Fin 5) := (hp i).choose
-  have gg (i : Fin 5) : profile4 x y t (g i)=dataTriple s (p 0) (p 1) (p 2) (q i) := (hp i).choose_spec
-  have h03 : baseT c x y 3=dataTriple s (p 0) (p 1) (p 2) (p 3) := by
-    simp only [baseT,dataTriple,hb 0 3 (by decide),hb 1 3 (by decide),hb 2 3 (by decide)]
-  have h04 : baseT c x y 4=dataTriple s (p 0) (p 1) (p 2) (p 4) := by
-    simp only [baseT,dataTriple,hb 0 4 (by decide),hb 1 4 (by decide),hb 2 4 (by decide)]
-  have hrev (u v : ℝ²) : dsq u v=dsq v u := by rw [dsq_eq,dsq_eq,dist_comm]
-  have hpoint (i j : Fin 5) : s*dsq (q i) (p j)=1 ∨ s*dsq (q i) (p j)=x ∨
-      s*dsq (q i) (p j)=y ∨ s*dsq (q i) (p j)=t := by
-    obtain ⟨k,hk⟩ := hd j i
-    rw [hrev,hk]
-    exact palette4_or x y t k
-  refine ⟨g,?_,?_,?_⟩
-  · intro i j hij
-    apply hq
-    apply geom_injective s hs (p 0) (p 1) (p 2) hoe hn
-    rw [←gg,←gg,hij]
-  · intro i
-    rw [gg,h03,h04,hb 0 1 (by decide),hb 0 2 (by decide),hb 1 2 (by decide)]
-    exact ⟨geom_locus ..,geom_edge4 _ _ _ _ _ _ _ _ _ (hpoint i 3),geom_edge4 _ _ _ _ _ _ _ _ _ (hpoint i 4)⟩
-  · intro i j hij
-    rw [gg,gg,hb 0 1 (by decide),hb 0 2 (by decide),hb 1 2 (by decide)]
-    apply geom_edge4
-    obtain ⟨k,hk⟩ := he i j hij
-    rw [hk]
-    exact palette4_or x y t k
-
 
 def edges5 : Fin 10→Fin 5×Fin 5 := ![(0,1),(0,2),(0,3),(0,4),(1,2),(1,3),(1,4),(2,3),(2,4),(3,4)]
 
@@ -329,22 +155,6 @@ lemma match_edges {B : Finset ℝ²} {T : Finset ℝ} (p : Fin 5≃B) (r : Fin 3
   · exact (h 8).symm.trans (dist_comm ..)
   · exact (h 9).symm.trans (dist_comm ..)
   · exact False.elim (hij rfl)
-
-lemma unmatch_edges {B : Finset ℝ²} {T : Finset ℝ} (p : Fin 5≃B) (r : Fin 3≃T) (c : Fin 10→Fin 3)
-    (h : ∀ i j : Fin 5, i≠j → (r (c (slot i j))).1=dist (p i).1 (p j).1) :
-    ∀ k, dist (p (edges5 k).1).1 (p (edges5 k).2).1=(r (c k)).1 := by
-  intro k
-  fin_cases k
-  · exact (h 0 1 (by decide)).symm
-  · exact (h 0 2 (by decide)).symm
-  · exact (h 0 3 (by decide)).symm
-  · exact (h 0 4 (by decide)).symm
-  · exact (h 1 2 (by decide)).symm
-  · exact (h 1 3 (by decide)).symm
-  · exact (h 1 4 (by decide)).symm
-  · exact (h 2 3 (by decide)).symm
-  · exact (h 2 4 (by decide)).symm
-  · exact (h 3 4 (by decide)).symm
 
 lemma scaled_sq_inj {s a b : ℝ} (hs : s≠0) (ha : 0<a) (hb : 0<b) (h : s*a^2=s*b^2) : a=b := by
   have he := mul_left_cancel₀ hs h
@@ -385,66 +195,6 @@ lemma given_colors (B : Finset ℝ²) (hn : NonTrilinear (B:Set ℝ²))
   refine ⟨s,x,y,hs,build_admissible c x y s _ pi hs.ne' ?_ hc xy,rmap,hc⟩
   intro i j k hij hjk hik
   exact hn (p i).2 (p j).2 (p k).2 (fun e => hij (pi e)) (fun e => hjk (pi e)) (fun e => hik (pi e))
-
-lemma given_extension (A B : Finset ℝ²) (M : ℝ) (hM : M∈distanceSet A) (hBA : B⊆A)
-    (hA : A.card=10) (hB : B.card=5) (hD : distinctDistances A=4) (hthree : distinctDistances B=3)
-    (hn : NonTrilinear (A:Set ℝ²)) (hdiam : ∀ a∈B, ∀ b∈B, dist a b<M)
-    (p : Fin 5≃B) (r : Fin 3≃distanceSet B) (c : Fin 10→Fin 3)
-    (hc : ∀ k, dist (p (edges5 k).1).1 (p (edges5 k).2).1=(r (c k)).1) :
-    ∃ x y t : ℝ, admissible c x y ∧ hasExtension c x y t ∧ t-1≠0 ∧ t-x≠0 ∧ t-y≠0 ∧ t≠0 := by
-  classical
-  have hnB : NonTrilinear (B:Set ℝ²) := by
-    intro a ha b hb d hd ab bd ad
-    exact hn (hBA ha) (hBA hb) (hBA hd) ab bd ad
-  obtain ⟨s,x,y,hs,had,rmap,hb⟩ := given_colors B hnB p r c hc
-  let t := s*M^2
-  have rpos (i : Fin 3) := distanceSet_pos (r i).2
-  have eqD : distanceSet B=(distanceSet A).erase M := by
-    apply Finset.eq_of_subset_of_card_le
-    · intro d hd
-      refine Finset.mem_erase.mpr ⟨?_,OMA.R_Erdos1082_erdos_1082_parts_i_R1.distanceSet_mono hBA hd⟩
-      obtain ⟨⟨u,v⟩,h,rfl⟩ := Finset.mem_image.mp hd
-      obtain ⟨hu,hv,_⟩ := Finset.mem_offDiag.mp h
-      exact (hdiam u hu v hv).ne
-    · rw [Finset.card_erase_of_mem hM]
-      change distinctDistances A-1≤distinctDistances B
-      omega
-  have mt (i : Fin 3) : t≠palette3 x y i := by
-    rw [rmap]
-    have hh : (r i).1∈(distanceSet A).erase M := (Finset.ext_iff.mp eqD _).mp (r i).2
-    exact fun e => (Finset.mem_erase.mp hh).1 (scaled_sq_inj hs.ne' (distanceSet_pos hM) (rpos i) e).symm
-  have palette (u v : ℝ²) (hu : u∈A) (hv : v∈A) (hne : u≠v) : ∃ k, s*dsq u v=palette4 x y t k := by
-    rw [dsq_eq]
-    by_cases h : dist u v=M
-    · exact ⟨3,by rw [h]; rfl⟩
-    have hd : dist u v∈distanceSet B := by
-      rw [eqD]
-      exact Finset.mem_erase.mpr ⟨h,OMA.R_Erdos1082_erdos_1082_parts_i_R1.dist_mem hu hv hne⟩
-    obtain ⟨k,hk⟩ := r.surjective (⟨dist u v,hd⟩:distanceSet B)
-    have ek := congrArg Subtype.val hk
-    change (r k).1=dist u v at ek
-    rw [←ek,←rmap]
-    fin_cases k
-    · exact ⟨0,rfl⟩
-    · exact ⟨1,rfl⟩
-    · exact ⟨2,rfl⟩
-  let T := A\B
-  have ht : T.card=5 := by dsimp [T]; rw [Finset.card_sdiff_of_subset hBA,hA,hB]
-  let q := (T.equivFinOfCardEq ht).symm
-  have qi : Function.Injective (fun i : Fin 5 => (q i).1) := fun _ _ e => q.injective (Subtype.ext e)
-  have pi : Function.Injective (fun i : Fin 5 => (p i).1) := fun _ _ e => p.injective (Subtype.ext e)
-  have hn3 : ¬Collinear ℝ ({(p 0).1,(p 1).1,(p 2).1}:Set ℝ²) := hnB (p 0).2 (p 1).2 (p 2).2
-    (fun e => (by decide : (0:Fin 5)≠1) (pi e)) (fun e => (by decide : (1:Fin 5)≠2) (pi e)) (fun e => (by decide : (0:Fin 5)≠2) (pi e))
-  refine ⟨x,y,t,had,?_,sub_ne_zero.mpr (mt 0),sub_ne_zero.mpr (mt 1),sub_ne_zero.mpr (mt 2),
-    (mul_pos hs (sq_pos_of_pos (distanceSet_pos hM))).ne'⟩
-  apply build_extension c x y t s (fun i => (p i).1) (fun i => (q i).1) qi hs.ne'
-    (fun e => (by decide : (0:Fin 5)≠1) (pi e)) hn3 hb
-  · intro i j
-    obtain ⟨hq,hqb⟩ := Finset.mem_sdiff.mp (q j).2
-    exact palette _ _ (hBA (p i).2) hq (fun e => hqb (e ▸ (p i).2))
-  · intro i j hij
-    exact palette _ _ (Finset.mem_sdiff.mp (q i).2).1 (Finset.mem_sdiff.mp (q j).2).1 (fun e => hij (qi e))
-
 
 lemma injective_colorCode : Function.Injective colorCode := by
   intro c d h
@@ -4428,18 +4178,6 @@ private lemma base_0011012220 (x y : ℝ) (g0 : 2*x^2 - 4*x*y - 4*x + 2*y^2 - 2*
 
 
 
-private lemma base_0011101100 (x y : ℝ) (g0 : 2*x^3 - 4*x^2 - 4*x + (2:ℝ)=0) (g1 : 3*x^3 - 11*x^2 + 9*x - (2:ℝ)=0) (g2 : 2*x^3 - 4*x^2 - 4*x + (2:ℝ)=0) (_n0 : x≠0) (_n1 : y≠0) (_n2 : x - (1:ℝ)≠0) (_n3 : y - (1:ℝ)≠0) (_n4 : x - y≠0) (_n5 : -x^2 + 4*x≠0) (_n6 : -x^2 + 4*x≠0) (_n7 : 4*x - (1:ℝ)≠0) (_n8 : 4*x - (1:ℝ)≠0) (_n9 : -x^2 + 4*x≠0) (_n10 : 4*x - (1:ℝ)≠0) (_n11 : 4*x - (1:ℝ)≠0) (_n12 : 4*x - (1:ℝ)≠0) (_n13 : -x^2 + 4*x≠0) (_n14 : -x^2 + 4*x≠0) : (x^2 - 3*x + (1:ℝ)=0) := by
-  have h1 : x^3 - 2*x^2 - 2*x + (1:ℝ)=0 := by linear_combination (1/2)*g0
-  have h2 : x^3 - 11*x^2/3 + 3*x - 2/(3:ℝ)=0 := by linear_combination (1/3)*g1
-  have h3 : x^3 - 2*x^2 - 2*x + (1:ℝ)=0 := by linear_combination (1/2)*g2
-  have h4 : x^2 - 3*x + (1:ℝ)=0 := by linear_combination (-3/5)*h2 + (3/5)*h3
-  have h5 : x^2 - 3*x + (1:ℝ)=0 := by linear_combination (1)*h4
-  have h6 : x^2 - 3*x + (1:ℝ)=0 := by linear_combination (1)*h5
-  have h7 : x^2 - 3*x + (1:ℝ)=0 := by linear_combination (1)*h6
-  exact h5
-
-
-
 private lemma base_0011101202 (x y : ℝ) (g0 : 4*x^3 - 2*x^2*y - 6*x^2 + 2*y^2 - 4*y + (2:ℝ)=0) (g1 : 3*x^3 - x^2*y - 7*x^2 + x*y + 3*x + 2*y - (2:ℝ)=0) (g2 : 2*x^3 - 4*x^2 - 4*x + (2:ℝ)=0) (_n0 : x≠0) (_n1 : y≠0) (_n2 : x - (1:ℝ)≠0) (_n3 : y - (1:ℝ)≠0) (_n4 : x - y≠0) (_n5 : -x^2 + 4*x≠0) (_n6 : -x^2 + 4*x≠0) (_n7 : 4*x - (1:ℝ)≠0) (_n8 : -x^2 + 2*x*y + 2*x - y^2 + 2*y - (1:ℝ)≠0) (_n9 : -x^2 + 4*x≠0) (_n10 : 4*x*y - y^2≠0) (_n11 : -x^2 + 2*x*y + 2*x - y^2 + 2*y - (1:ℝ)≠0) (_n12 : 4*x - (1:ℝ)≠0) (_n13 : -x^2 + 2*x*y + 2*x - y^2 + 2*y - (1:ℝ)≠0) (_n14 : 4*y - (1:ℝ)≠0) : False := by
   have h1 : x^3 - x^2*y/2 - 3*x^2/2 + y^2/2 - y + 1/(2:ℝ)=0 := by linear_combination (1/4)*g0
   have h2 : x^3 - x^2*y/3 - 7*x^2/3 + x*y/3 + x + 2*y/3 - 2/(3:ℝ)=0 := by linear_combination (1/3)*g1
@@ -4640,61 +4378,6 @@ private lemma shape_0011012220 (x y : ℝ) (ha : admissible ![0,0,1,1,0,1,2,2,2,
     apply hn
     convert h using 1 ; unfold area ; ring
   · have hn : area y y 1≠0 := ha.2.1 2 3 4 (by decide) (by decide)
-    intro h
-    apply hn
-    convert h using 1 ; unfold area ; ring
-
-
-private lemma shape_0011101100 (x y : ℝ) (ha : admissible ![0,0,1,1,1,0,1,1,0,0] x y) : (x^2 - 3*x + 1=0) := by
-  apply base_0011101100 x y
-  · have hg : gram 1 1 x x 1 x x 1 x 0=0 := ha.2.2.1
-    convert hg using 1 ; unfold gram area ; ring
-  · have hg : gram 1 1 x x 1 x x x 1 1=0 := ha.2.2.2.1
-    convert hg using 1 ; unfold gram area ; ring
-  · have hg : gram 1 1 x x x 1 x x 1 0=0 := ha.2.2.2.2
-    convert hg using 1 ; unfold gram area ; ring
-  · exact ha.1.1
-  · exact ha.1.2.1
-  · exact ha.1.2.2.1
-  · exact ha.1.2.2.2.1
-  · exact ha.1.2.2.2.2
-  · have hn : area 1 1 x≠0 := ha.2.1 0 1 2 (by decide) (by decide)
-    intro h
-    apply hn
-    convert h using 1 ; unfold area ; ring
-  · have hn : area 1 x 1≠0 := ha.2.1 0 1 3 (by decide) (by decide)
-    intro h
-    apply hn
-    convert h using 1 ; unfold area ; ring
-  · have hn : area 1 x x≠0 := ha.2.1 0 1 4 (by decide) (by decide)
-    intro h
-    apply hn
-    convert h using 1 ; unfold area ; ring
-  · have hn : area 1 x x≠0 := ha.2.1 0 2 3 (by decide) (by decide)
-    intro h
-    apply hn
-    convert h using 1 ; unfold area ; ring
-  · have hn : area 1 x 1≠0 := ha.2.1 0 2 4 (by decide) (by decide)
-    intro h
-    apply hn
-    convert h using 1 ; unfold area ; ring
-  · have hn : area x x 1≠0 := ha.2.1 0 3 4 (by decide) (by decide)
-    intro h
-    apply hn
-    convert h using 1 ; unfold area ; ring
-  · have hn : area x 1 x≠0 := ha.2.1 1 2 3 (by decide) (by decide)
-    intro h
-    apply hn
-    convert h using 1 ; unfold area ; ring
-  · have hn : area x x 1≠0 := ha.2.1 1 2 4 (by decide) (by decide)
-    intro h
-    apply hn
-    convert h using 1 ; unfold area ; ring
-  · have hn : area 1 x 1≠0 := ha.2.1 1 3 4 (by decide) (by decide)
-    intro h
-    apply hn
-    convert h using 1 ; unfold area ; ring
-  · have hn : area x 1 1≠0 := ha.2.1 2 3 4 (by decide) (by decide)
     intro h
     apply hn
     convert h using 1 ; unfold area ; ring

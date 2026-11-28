@@ -2,6 +2,7 @@ import FormalConjectures.ErdosProblems.«1046»
 import Mathlib.Analysis.Complex.AbsMax
 import Mathlib.RingTheory.MvPolynomial.Symmetric.FundamentalTheorem
 import Mathlib.RingTheory.Polynomial.Vieta
+import Mathlib.Tactic.LinearCombination
 
 /-! Polynomial power sums of scaled root differences give the diameter bound by
 the maximum modulus principle. The long-chord argument is adapted from
@@ -11,13 +12,14 @@ open Polynomial Finset Metric
 
 namespace OMA
 
-private lemma enumRoots (s : Multiset ℂ) {n : ℕ} (h : s.card = n) :
-    ∃ a : Fin n → ℂ, (Finset.univ.val.map a) = s := by
+private lemma enumRoots (p : ℂ[X]) {n : ℕ} (h : p.natDegree = n) :
+    ∃ a : Fin n → ℂ, Finset.univ.val.map a = p.roots := by
   classical
-  have hc : Fintype.card s = n := by simpa using h
-  let e : Fin n ≃ s := (Fintype.equivFinOfCardEq hc).symm
+  have hc : Fintype.card p.roots = n := by
+    simpa using (splits_iff_card_roots.mp (IsAlgClosed.splits p)).trans h
+  let e : Fin n ≃ p.roots := (Fintype.equivFinOfCardEq hc).symm
   refine ⟨fun i => (e i : ℂ), ?_⟩
-  change Finset.univ.val.map ((fun x : s => (x : ℂ)) ∘ e) = s
+  change Finset.univ.val.map ((fun x : p.roots => (x : ℂ)) ∘ e) = p.roots
   rw [← Multiset.map_map, Multiset.map_univ_val_equiv, Multiset.map_univ_coe]
 
 private lemma symmetricEval (n k : ℕ) :
@@ -51,8 +53,7 @@ private lemma powerSumPoly (H : (ℂ[X])[X]) (hH : H.Monic) (k : ℕ) :
   let G := H.map (evalRingHom v)
   have hG : G.Monic := hH.map _
   have hdeg : G.natDegree = n := hH.natDegree_map _
-  have hcard : G.roots.card = n := (splits_iff_card_roots.mp (IsAlgClosed.splits G)).trans hdeg
-  obtain ⟨a, ha⟩ := enumRoots G.roots hcard
+  obtain ⟨a, ha⟩ := enumRoots G hdeg
   have hcoeff (i : Fin n) :
       (coeffs i).eval v = MvPolynomial.aeval a (MvPolynomial.esymm (Fin n) ℂ (i+1)) := by
     rw [MvPolynomial.aeval_esymm_eq_multiset_esymm, ha]
@@ -83,12 +84,8 @@ private lemma pairSumPoly {n : ℕ} (P Q : (ℂ[X])[X]) (hP : P.Monic) (hQ : Q.M
   have hq' (k : ℕ) : (q k).eval v = ∑ j, y j ^ k := by
     rw [hq, ← hy, sum_eq_multiset_sum, Multiset.map_map]
     rfl
-  change (evalRingHom v) (∑ k ∈ range (m+1),
-    p k * q (m-k) * C ((-1)^(m-k) * (m.choose k : ℂ))) = _
-  rw [map_sum]
-  change (∑ k ∈ range (m+1),
-    (p k * q (m-k) * C ((-1)^(m-k) * (m.choose k : ℂ))).eval v) = _
-  simp only [eval_mul, eval_C, hp', hq']
+  rw [← coe_evalRingHom, map_sum]
+  simp only [coe_evalRingHom, eval_mul, eval_C, hp', hq']
   calc
     _ = ∑ k ∈ range (m+1), ∑ i, ∑ j, x i ^ k * (- y j) ^ (m-k) * (m.choose k : ℂ) := by
       refine sum_congr rfl fun k _ => ?_
@@ -147,24 +144,15 @@ private lemma normalized_nonnegative {n j : ℕ} {x y : ℂ}
     (hn : 0 < n) (hx : x^n = 1) (hy : y^n = (-1)^n) :
     0 ≤ ((x-y)^(2*n*j)).re := by
   have hu : (-y)^n = 1 := by rw [neg_pow, hy, ← mul_pow]; norm_num
-  have hnorm (z : ℂ) (hz : z^n = 1) : ‖z‖ = 1 := by
-    have h := congrArg norm hz
-    rw [norm_pow, norm_one] at h
-    exact (pow_left_inj₀ (norm_nonneg z) zero_le_one hn.ne').mp (by simpa using h)
+  have hconj (z : ℂ) (hz : z^n = 1) : z * starRingEnd ℂ z = 1 := by
+    have hnz := congrArg norm hz
+    rw [norm_pow, norm_one] at hnz
+    have hz' := (pow_left_inj₀ (norm_nonneg z) zero_le_one hn.ne').mp (by simpa using hnz)
+    simp [Complex.mul_conj, Complex.normSq_eq_norm_sq, hz']
   let u : ℂ := -y
-  have hxc : x * starRingEnd ℂ x = 1 := by
-    rw [Complex.mul_conj, Complex.normSq_eq_norm_sq, hnorm x hx]
-    simp
-  have huc : u * starRingEnd ℂ u = 1 := by
-    rw [Complex.mul_conj, Complex.normSq_eq_norm_sq, hnorm u hu]
-    simp
   have hsq : (x + u)^2 = (x*u) * (Complex.normSq (x+u) : ℂ) := by
     rw [← Complex.mul_conj, map_add]
-    calc
-      _ = (x+u) * (u*(x * starRingEnd ℂ x) + x*(u * starRingEnd ℂ u)) := by
-        rw [hxc, huc]
-        ring
-      _ = _ := by ring
+    linear_combination -(x+u)*u*hconj x hx - (x+u)*x*hconj u hu
   have hp : ((x+u)^2)^n = ((Complex.normSq (x+u) : ℂ)^n) := by
     rw [hsq, mul_pow, mul_pow, hx, show u^n = 1 from hu, one_mul, one_mul]
   rw [sub_eq_add_neg, show -y = u by rfl, pow_mul _ (2*n) j, pow_mul _ 2 n, hp,
@@ -195,29 +183,22 @@ private lemma longChord {n : ℕ} (hn : 0 < n) (w : Fin n → ℂ) {f : ℂ[X]}
   have en (v : ℂ) : ∃ x y : Fin n → ℂ,
       Finset.univ.val.map x = (P.map (evalRingHom v)).roots ∧
       Finset.univ.val.map y = (Q.map (evalRingHom v)).roots := by
-    obtain ⟨x, hx⟩ := enumRoots (P.map (evalRingHom v)).roots
-      ((splits_iff_card_roots.mp (IsAlgClosed.splits _)).trans
-        ((hP.1.natDegree_map _).trans hP.2))
-    obtain ⟨y, hy⟩ := enumRoots (Q.map (evalRingHom v)).roots
-      ((splits_iff_card_roots.mp (IsAlgClosed.splits _)).trans
-        ((hQ.1.natDegree_map _).trans hQ.2))
+    obtain ⟨x, hx⟩ := enumRoots (P.map (evalRingHom v)) ((hP.1.natDegree_map _).trans hP.2)
+    obtain ⟨y, hy⟩ := enumRoots (Q.map (evalRingHom v)) ((hQ.1.natDegree_map _).trans hQ.2)
     exact ⟨x, y, hx, hy⟩
   have onCircle (v : ℂ) (hv : ‖v‖ = 1) : ‖b.eval v‖ ≤ (n : ℝ)^2 * D^m := by
     obtain ⟨x, y, hx, hy⟩ := en v
     have vne : v ≠ 0 := by intro hv0; simp [hv0] at hv
-    have hx' (i : Fin n) : ‖f.eval (x i / v)‖ = 1 := by
-      have hxi : x i ∈ (P.map (evalRingHom v)).roots := by
-        rw [← hx]; exact Multiset.mem_map.2 ⟨i, by simp, rfl⟩
-      have hroot := congrArg norm (root_scaledFamily hn w vne hxi)
-      simpa [hf, norm_mul, hv] using hroot
-    have hy' (i : Fin n) : ‖f.eval (y i / v)‖ = 1 := by
-      have hyi : y i ∈ (Q.map (evalRingHom v)).roots := by
-        rw [← hy]; exact Multiset.mem_map.2 ⟨i, by simp, rfl⟩
-      have hroot := congrArg norm (root_scaledFamily hn w vne hyi)
-      simpa [hf, norm_mul, hv] using hroot
+    have enval {a : ℂ} (ha : ‖a‖ = 1) {z : Fin n → ℂ}
+        (hz : Finset.univ.val.map z = ((scaledFamily w a).map (evalRingHom v)).roots)
+        (i : Fin n) : ‖f.eval (z i / v)‖ = 1 := by
+      have hu : z i ∈ ((scaledFamily w a).map (evalRingHom v)).roots := by
+        rw [← hz]
+        exact Multiset.mem_map.2 ⟨i, by simp, rfl⟩
+      simpa [hf, norm_mul, hv, ha] using congrArg norm (root_scaledFamily hn w vne hu)
     have hdist (i j : Fin n) : ‖x i - y j‖ ≤ D := by
       simpa [dist_eq_norm, ← sub_div, norm_div, hv] using
-        h _ _ (hx' i) (hy' j)
+        h _ _ (enval (a := 1) (by simp) hx i) (enval (a := (-1)^n) (by simp) hy j)
     rw [hb v x y hx hy]
     calc
       _ ≤ ∑ i : Fin n, ∑ j : Fin n, D^m := by
@@ -234,33 +215,22 @@ private lemma longChord {n : ℕ} (hn : 0 < n) (w : Fin n → ℂ) {f : ℂ[X]}
       exact onCircle v (by simpa [mem_sphere, dist_zero_right] using hvs)
     · exact subset_closure (by simp : (0 : ℂ) ∈ ball 0 1)
   obtain ⟨x, y, hx, hy⟩ := en 0
-  have hx0 : Finset.univ.val.map x = (X^n - C (1 : ℂ)).roots :=
-    hx.trans (congrArg Polynomial.roots (scaledFamily_zero w 1))
-  have hy0 : Finset.univ.val.map y = (X^n - C ((-1 : ℂ)^n)).roots :=
-    hy.trans (congrArg Polynomial.roots (scaledFamily_zero w ((-1)^n)))
-  have hx' (i : Fin n) : x i ^ n = 1 := by
-    have hxi : x i ∈ (X^n - C (1 : ℂ)).roots := by
-      rw [← hx0]; exact Multiset.mem_map.2 ⟨i, by simp, rfl⟩
-    simpa [IsRoot.def, sub_eq_zero] using
-      (mem_roots (X_pow_sub_C_ne_zero hn (1 : ℂ))).mp hxi
-  have hy' (i : Fin n) : y i ^ n = (-1)^n := by
-    have hyi : y i ∈ (X^n - C ((-1 : ℂ)^n)).roots := by
-      rw [← hy0]; exact Multiset.mem_map.2 ⟨i, by simp, rfl⟩
-    simpa [IsRoot.def, sub_eq_zero] using
-      (mem_roots (X_pow_sub_C_ne_zero hn ((-1 : ℂ)^n))).mp hyi
-  have hxone : (1 : ℂ) ∈ Finset.univ.val.map x := by
-    rw [hx0, mem_roots (X_pow_sub_C_ne_zero hn (1 : ℂ))]
-    simp [IsRoot.def]
-  have hyone : (-1 : ℂ) ∈ Finset.univ.val.map y := by
-    rw [hy0, mem_roots (X_pow_sub_C_ne_zero hn ((-1 : ℂ)^n))]
-    simp [IsRoot.def]
-  obtain ⟨ix, _, hix⟩ := Multiset.mem_map.1 hxone
-  obtain ⟨iy, _, hiy⟩ := Multiset.mem_map.1 hyone
+  have hor {a : ℂ} {z : Fin n → ℂ}
+      (hz : Finset.univ.val.map z = ((scaledFamily w a).map (evalRingHom 0)).roots) (u : ℂ) :
+      u^n = a ↔ ∃ i, z i = u := by
+    rw [scaledFamily_zero] at hz
+    have hu : u ∈ (X^n - C a).roots ↔ u^n = a := by
+      rw [mem_roots (X_pow_sub_C_ne_zero hn a)]
+      simp [IsRoot.def, sub_eq_zero]
+    rw [← hu, ← hz, Multiset.mem_map]
+    simp
+  obtain ⟨ix, hix⟩ := (hor hx 1).1 (by simp)
+  obtain ⟨iy, hiy⟩ := (hor hy (-1)).1 rfl
   have hlow : (2 : ℝ)^m ≤ (b.eval 0).re := by
     rw [hb 0 x y hx hy]
     simp only [Complex.re_sum]
     have hnon i j : 0 ≤ ((x i - y j)^m).re :=
-      normalized_nonnegative hn (hx' i) (hy' j)
+      normalized_nonnegative hn ((hor hx _).2 ⟨i, rfl⟩) ((hor hy _).2 ⟨j, rfl⟩)
     calc
       (2 : ℝ)^m = ((x ix - y iy)^m).re := by
         rw [hix, hiy]
@@ -291,14 +261,10 @@ theorem OMA.solution : type_of% @Erdos1046.erdos_1046.variants.diameter := by
     let D := (ediam (Erdos1046.closedLemniscate f)).toReal
     have hfinite : ediam (Erdos1046.closedLemniscate f) ≠ ⊤ :=
       ne_top_of_lt (hdiam.trans_le le_top)
-    have hD : ENNReal.ofReal D = ediam (Erdos1046.closedLemniscate f) :=
-      ENNReal.ofReal_toReal hfinite
     have hDlt : D < 2 := by
-      have htwo : ENNReal.ofReal (2 : ℝ) = 2 := by norm_num
-      exact (ENNReal.ofReal_lt_ofReal_iff (by norm_num : (0 : ℝ) < 2)).mp
-        (by rw [hD, htwo]; exact hdiam)
+      simpa [D] using (ENNReal.toReal_lt_toReal hfinite (by norm_num : (2 : ENNReal) ≠ ⊤)).2 hdiam
     have hsplit := IsAlgClosed.splits f
-    obtain ⟨w, hw⟩ := OMA.enumRoots f.roots (splits_iff_card_roots.mp hsplit)
+    obtain ⟨w, hw⟩ := OMA.enumRoots f rfl
     have hf (z : ℂ) : f.eval z = ∏ i, (z - w i) := by
       rw [hsplit.eval_eq_prod_roots_of_monic hmonic, ← hw,
         Finset.prod_eq_multiset_prod, Multiset.map_map]
@@ -307,8 +273,4 @@ theorem OMA.solution : type_of% @Erdos1046.erdos_1046.variants.diameter := by
       OMA.longChord (Nat.pos_of_ne_zero hdeg) w hf ENNReal.toReal_nonneg hDlt
     have he : edist z z' ≤ ediam (Erdos1046.closedLemniscate f) :=
       edist_le_ediam_of_mem hz.le hz'.le
-    have hstrict : ENNReal.ofReal D < edist z z' := by
-      rw [edist_dist]
-      exact (ENNReal.ofReal_lt_ofReal_iff (lt_of_le_of_lt ENNReal.toReal_nonneg hzz')).mpr hzz'
-    rw [hD] at hstrict
-    exact (not_lt_of_ge he) hstrict
+    exact hzz'.not_ge (by simpa [D, edist_dist] using ENNReal.toReal_mono hfinite he)

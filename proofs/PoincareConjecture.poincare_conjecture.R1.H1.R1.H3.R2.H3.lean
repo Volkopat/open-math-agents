@@ -1,8 +1,5 @@
 import OMAReductions.R_PoincareConjecture_poincare_conjecture_R1_H1_R1_H3_R2
-import Mathlib.AlgebraicTopology.SingularHomology.HomotopyInvariance
-import Mathlib.Topology.Homotopy.Contractible
-import Mathlib.AlgebraicTopology.SingularHomology.HomologyZero
-import Mathlib.Algebra.Category.Grp.Abelian
+import Mathlib
 
 /-!
 The kernel transport follows the route in PoincareLib's

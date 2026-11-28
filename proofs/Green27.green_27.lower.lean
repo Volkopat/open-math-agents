@@ -54,13 +54,6 @@ def HasNoUniqueSum (A : Finset G) : Prop :=
   ∀ t : Multiset G, IsPairFrom A t →
     ∃ t' : Multiset G, IsPairFrom A t' ∧ t' ≠ t ∧ t'.sum = t.sum
 
-/-- The empty set vacuously has no unique sum; this is why the definition of `m p`
-carries the side condition `2 ≤ |A|`. -/
-theorem hasNoUniqueSum_empty : HasNoUniqueSum (∅ : Finset G) := by
-  rintro t ⟨hcard, hmem⟩
-  obtain ⟨x, y, rfl⟩ := Multiset.card_eq_two.mp hcard
-  exact absurd (hmem x (by simp)) (by simp)
-
 /-- Every set having no unique sum (of size at least two) contains an inclusion-minimal
 subset with the same properties.  This is the reduction made at the start of the proof
 of Theorem 1.2. -/
@@ -768,40 +761,6 @@ theorem isub_apply {α : Type*} [DecidableEq α] (a b k : α) :
     isub a b k = (if k = a then (1 : ℤ) else 0) - if k = b then (1 : ℤ) else 0 := by
   rw [isub, Pi.sub_apply, Pi.single_apply, Pi.single_apply]
 
-/-- The difference of two indicator vectors, pulled back along an injective map, is
-near-unimodular. -/
-theorem nearUni_isub {α : Type*} [DecidableEq α] {κ : Type*} {a b : α} {f : κ → α}
-    (hf : Function.Injective f) :
-    NearUni (fun c => isub a b (f c)) := by
-  have hone : ∀ c, isub a b (f c) = 1 → f c = a := by
-    intro c h
-    rw [isub_apply] at h
-    rcases eq_or_ne (f c) a with h1 | h1
-    · exact h1
-    · rw [if_neg h1] at h
-      rcases eq_or_ne (f c) b with h2 | h2
-      · rw [if_pos h2] at h; norm_num at h
-      · rw [if_neg h2] at h; norm_num at h
-  have hmone : ∀ c, isub a b (f c) = -1 → f c = b := by
-    intro c h
-    rw [isub_apply] at h
-    rcases eq_or_ne (f c) b with h2 | h2
-    · exact h2
-    · rw [if_neg h2, sub_zero] at h
-      rcases eq_or_ne (f c) a with h1 | h1
-      · rw [if_pos h1] at h; norm_num at h
-      · rw [if_neg h1] at h; norm_num at h
-  refine ⟨fun c => ?_, fun c c' hc hc' => ?_, fun c c' hc hc' => ?_⟩
-  · show isub a b (f c) = 1 ∨ isub a b (f c) = 0 ∨ isub a b (f c) = -1
-    rw [isub_apply]
-    rcases eq_or_ne (f c) a with h1 | h1 <;> rcases eq_or_ne (f c) b with h2 | h2
-    · rw [if_pos h1, if_pos h2]; norm_num
-    · rw [if_pos h1, if_neg h2]; norm_num
-    · rw [if_neg h1, if_pos h2]; norm_num
-    · rw [if_neg h1, if_neg h2]; norm_num
-  · exact hf ((hone c hc).trans (hone c' hc').symm)
-  · exact hf ((hmone c hc).trans (hmone c' hc').symm)
-
 theorem sum_isub_eq_zero {α : Type*} [DecidableEq α] (T : Finset α) {a b : α}
     (ha : a ∈ T) (hb : b ∈ T) : ∑ k ∈ T, isub a b k = 0 := by
   simp [isub, Finset.sum_sub_distrib, ha, hb]
@@ -899,91 +858,6 @@ theorem exists_coordinate_minor {F κ : Type*} [Field F] [Fintype κ] [Decidable
     exact hc
   have hu : IsUnit B := Matrix.linearIndependent_cols_iff_isUnit.mp hcols
   exact (B.isUnit_iff_isUnit_det.mp hu).ne_zero
-
-/-- **Near-unimodularity bound.**  A square integer matrix whose rows all have entries in
-`{-1, 0, 1}` with at most one `+1` and at most one `-1` has determinant `0` or `±1`. -/
-theorem det_natAbs_le_one : ∀ {N : ℕ} (A : Matrix (Fin N) (Fin N) ℤ),
-    (∀ r, NearUni (A r)) → A.det.natAbs ≤ 1 := by
-  intro N
-  induction N with
-  | zero =>
-    intro A _
-    rw [Matrix.det_fin_zero]
-    exact le_refl 1
-  | succ N ih =>
-    intro A hA
-    by_cases hall : ∀ r, (∃ c, A r c = 1) ∧ ∃ c, A r c = -1
-    · -- every row has both a `+1` and a `-1`: all row sums vanish, so `det = 0`
-      have hdet : A.det = 0 := by
-        rw [← Matrix.exists_mulVec_eq_zero_iff]
-        refine ⟨fun _ => 1, fun h => one_ne_zero (congrFun h 0), ?_⟩
-        funext r
-        obtain ⟨⟨cp, hcp⟩, cm, hcm⟩ := hall r
-        have hcpm : cp ≠ cm := by
-          intro h
-          rw [h, hcm] at hcp
-          norm_num at hcp
-        have hzero : ∀ c ∈ (Finset.univ : Finset (Fin (N + 1))),
-            c ∉ ({cp, cm} : Finset (Fin (N + 1))) → A r c * 1 = 0 := by
-          intro c _ hc
-          have hccp : c ≠ cp := fun h => hc (by simp [h])
-          have hccm : c ≠ cm := fun h => hc (by simp [h])
-          rcases (hA r).1 c with h1 | h1 | h1
-          · exact absurd ((hA r).2.1 c cp h1 hcp) hccp
-          · rw [h1, zero_mul]
-          · exact absurd ((hA r).2.2 c cm h1 hcm) hccm
-        show ∑ c, A r c * 1 = 0
-        rw [← Finset.sum_subset (Finset.subset_univ ({cp, cm} : Finset (Fin (N + 1)))) hzero,
-          Finset.sum_pair hcpm, hcp, hcm]
-        norm_num
-      rw [hdet]
-      norm_num
-    · -- some row misses `+1` or misses `-1`: it has at most one nonzero entry
-      rcases not_forall.mp hall with ⟨r₀, hr₀⟩
-      have hone : ∀ c c', A r₀ c ≠ 0 → A r₀ c' ≠ 0 → c = c' := by
-        intro c c' hc hc'
-        rcases (hA r₀).1 c with h1 | h1 | h1
-        · rcases (hA r₀).1 c' with h2 | h2 | h2
-          · exact (hA r₀).2.1 c c' h1 h2
-          · exact absurd h2 hc'
-          · exact absurd ⟨⟨c, h1⟩, ⟨c', h2⟩⟩ hr₀
-        · exact absurd h1 hc
-        · rcases (hA r₀).1 c' with h2 | h2 | h2
-          · exact absurd ⟨⟨c', h2⟩, ⟨c, h1⟩⟩ hr₀
-          · exact absurd h2 hc'
-          · exact (hA r₀).2.2 c c' h1 h2
-      by_cases hex : ∃ c₀, A r₀ c₀ ≠ 0
-      · -- expand along the almost-zero row `r₀`
-        obtain ⟨c₀, hc₀⟩ := hex
-        rw [Matrix.det_succ_row A r₀,
-          Finset.sum_eq_single_of_mem c₀ (Finset.mem_univ c₀) ?_]
-        · rw [Int.natAbs_mul, Int.natAbs_mul]
-          have h1 : ((-1 : ℤ) ^ ((r₀ : ℕ) + (c₀ : ℕ))).natAbs = 1 := by
-            rw [Int.natAbs_pow]
-            norm_num
-          have h2 : (A r₀ c₀).natAbs = 1 := by
-            rcases (hA r₀).1 c₀ with h | h | h
-            · rw [h]; rfl
-            · exact absurd h hc₀
-            · rw [h]; rfl
-          have h3 : ((A.submatrix r₀.succAbove c₀.succAbove).det).natAbs ≤ 1 := by
-            apply ih
-            intro r'
-            exact (hA (r₀.succAbove r')).comp Fin.succAbove_right_injective
-          rw [h1, h2, one_mul, one_mul]
-          exact h3
-        · intro c _ hcne
-          have hc : A r₀ c = 0 := by
-            by_contra h
-            exact hcne (hone c c₀ h hc₀)
-          rw [hc, mul_zero, zero_mul]
-      · -- the row is zero
-        have hz : ∀ c, A r₀ c = 0 := by
-          intro c
-          by_contra h
-          exact hex ⟨c, h⟩
-        rw [Matrix.det_eq_zero_of_row_eq_zero r₀ hz]
-        norm_num
 
 end NearUnimodular
 
@@ -1784,23 +1658,6 @@ theorem exists_le_expect {θ : ℝ} (hθ0 : 0 < θ) (hθ1 : θ < 1) (F : (ι →
     exact Finset.sum_lt_sum_of_nonempty Finset.univ_nonempty fun ω _ =>
       mul_lt_mul_of_pos_left (h ω) (wt_pos hθ0 hθ1 ω)
   exact lt_irrefl _ h1
-
-/-- Markov's inequality for the product Bernoulli measure. -/
-theorem markov {θ : ℝ} (hθ0 : 0 ≤ θ) (hθ1 : θ ≤ 1) (F : (ι → Bool) → ℝ)
-    (hF : ∀ ω, 0 ≤ F ω) {a : ℝ} (ha : 0 < a) :
-    expect θ (fun ω => if a ≤ F ω then (1 : ℝ) else 0) ≤ expect θ F / a := by
-  have h1 : ∀ ω : ι → Bool, (if a ≤ F ω then (1 : ℝ) else 0) ≤ a⁻¹ * F ω := by
-    intro ω
-    by_cases h : a ≤ F ω
-    · rw [if_pos h, ← inv_mul_cancel₀ (ne_of_gt ha)]
-      exact mul_le_mul_of_nonneg_left h (by positivity)
-    · rw [if_neg h]
-      have := hF ω
-      positivity
-  calc expect θ (fun ω => if a ≤ F ω then (1 : ℝ) else 0)
-      ≤ expect θ (fun ω => a⁻¹ * F ω) := expect_mono hθ0 hθ1 h1
-    _ = a⁻¹ * expect θ F := expect_const_mul _ _ _
-    _ = expect θ F / a := by rw [inv_mul_eq_div]
 
 /-- Expectation of a product of per-coordinate functions factorizes. -/
 theorem expect_prod_comp (θ : ℝ) (g : ι → Bool → ℝ) :
@@ -2737,40 +2594,6 @@ theorem miss_bound (θ : ℝ) (hθ0 : 0 < θ) (hθ1 : θ ≤ 1)
     _ ≤ 8 / μ₀ + Real.exp (-(θ * μ₀ / 2)) := add_le_add hcheb hcond
 
 end MissBound
-
-/-- **Lemma 3.1 (Common-cut lemma), single family.**  A family of `≥ α·m`
-configurations with pairwise distinct distinguished elements and pairwise distinct
-multisets can be hit by a set of size `O_α(√m)`. -/
-theorem common_cut_single (α : ℝ) (hα : 0 < α) :
-    ∃ (D : ℝ) (m₀ : ℕ), 0 < D ∧
-      ∀ (V : Type) (_ : Fintype V) (_ : DecidableEq V) (F : Finset (Configuration V)),
-        m₀ ≤ Fintype.card V →
-        α * Fintype.card V ≤ F.card →
-        Set.InjOn Configuration.j (F : Set (Configuration V)) →
-        Set.InjOn Configuration.τ (F : Set (Configuration V)) →
-        ∃ T : Finset V, (T.card : ℝ) ≤ D * Real.sqrt (Fintype.card V) ∧
-          ∃ c ∈ F, Hits T c := by
-  -- The conclusion only asks for a set hitting a *single* configuration of the family,
-  -- so a three-element witness `{c.j, a, b}` (where `c.τ = s(a, b)`) suffices.
-  refine ⟨3, 1, by norm_num, ?_⟩
-  intro V _ _ F hm hcard _ _
-  have hm1 : (1 : ℝ) ≤ (Fintype.card V : ℝ) := by exact_mod_cast hm
-  have h0 : (0 : ℝ) < (F.card : ℝ) :=
-    lt_of_lt_of_le (mul_pos hα (by linarith)) hcard
-  obtain ⟨c, hc⟩ : F.Nonempty := Finset.card_pos.mp (by exact_mod_cast h0)
-  set a := c.τ.out.1 with ha
-  set b := c.τ.out.2 with hb
-  refine ⟨{c.j, a, b}, ?_, c, hc, Finset.mem_insert_self _ _, a, by simp, Sym2.out_fst_mem c.τ⟩
-  have hT3 : ({c.j, a, b} : Finset V).card ≤ 3 := by
-    refine le_trans (Finset.card_insert_le _ _) ?_
-    have h2 : ({a, b} : Finset V).card ≤ 2 :=
-      le_trans (Finset.card_insert_le _ _) (by simp)
-    omega
-  have hsq : (1 : ℝ) ≤ Real.sqrt (Fintype.card V) := by
-    rw [show (1 : ℝ) = Real.sqrt 1 by simp]
-    exact Real.sqrt_le_sqrt hm1
-  calc (({c.j, a, b} : Finset V).card : ℝ) ≤ 3 := by exact_mod_cast hT3
-    _ ≤ 3 * Real.sqrt (Fintype.card V) := by linarith
 
 /-- **Lemma 3.1, 'moreover' part.**  Given at most `m` such families on the same
 ground set, a single set of size `O_α(√m)` hits all but at most `m/8` of them. -/
@@ -3791,45 +3614,6 @@ namespace NUS
 
 open MinimalNUS
 
-/-- The uncompressed initial state: the zero subgroup is primitive, and its quotient
-has the images of the standard coordinate vectors as a basis.  This is also the
-terminal construction whenever the requested corank estimate already allows `K = n`. -/
-theorem compression_bot_case (C p n : ℕ) (S : MinimalNUS p n) (P : S.Pairing)
-    (_hC : 0 < C)
-    (hbound : (n : ℝ) ≤ C * (Real.sqrt n + n / Real.log p)) :
-    ∃ (K : ℕ) (Q : Submodule ℤ (Fin n → ℤ)),
-      Q ≤ S.colLat P ∧
-      (∀ (v : Fin n → ℤ) (c : ℤ), c ≠ 0 → c • v ∈ Q → v ∈ Q) ∧
-      Module.finrank ℤ Q = n - K ∧
-      ((K : ℝ) ≤ C * (Real.sqrt n + n / Real.log p)) ∧
-      ∃ b : Module.Basis (Fin K) ℤ ((Fin n → ℤ) ⧸ Q),
-        ∀ i : Fin n,
-          ∑ k, |b.repr (Submodule.Quotient.mk (Pi.single i 1)) k| ≤ (n : ℤ) ^ C := by
-  classical
-  refine ⟨n, ⊥, bot_le, ?_, by simp, hbound, ?_⟩
-  · intro v c hc hcv
-    simpa only [Submodule.mem_bot] using (smul_eq_zero.mp hcv).resolve_left hc
-  · let e : (Fin n → ℤ) ≃ₗ[ℤ] ((Fin n → ℤ) ⧸ (⊥ : Submodule ℤ (Fin n → ℤ))) :=
-      LinearEquiv.ofBijective (⊥ : Submodule ℤ (Fin n → ℤ)).mkQ
-        ⟨by rw [← LinearMap.ker_eq_bot, Submodule.ker_mkQ],
-          Submodule.mkQ_surjective _⟩
-    let b := (Pi.basisFun ℤ (Fin n)).map e
-    refine ⟨b, ?_⟩
-    intro i
-    have he : e.symm (Submodule.Quotient.mk (Pi.single i 1)) = Pi.single i 1 := by
-      rw [e.symm_apply_eq]
-      rfl
-    have hsum : ∑ k, |b.repr (Submodule.Quotient.mk (Pi.single i 1)) k| = 1 := by
-      simp only [b, Module.Basis.map_repr, LinearEquiv.trans_apply, Pi.basisFun_repr, he]
-      rw [Finset.sum_eq_single i]
-      · simp
-      · intro j _ hji
-        simp [hji]
-      · simp
-    rw [hsum]
-    have hn : (1 : ℤ) ≤ n := by exact_mod_cast S.two_le.trans' (by omega)
-    exact one_le_pow₀ hn
-
 /-- Two light blocks have a collision row which leaves their rectangle.  This is the
 precise contrapositive of the clean-rectangle lemma used at the start of every round. -/
 theorem exists_departing_pair {p n : ℕ} [Fact p.Prime] (S : MinimalNUS p n)
@@ -4185,46 +3969,6 @@ theorem proper_after_promote_unit {V : Type*} [Fintype V] [DecidableEq V]
           (Pi.single b (1 : ℤ) : V → ℤ) v.1 by exact count_pair_apply a b v.1]
       simp [Pi.single_apply, hvj, hvb, Subtype.ext_iff]
 
-/-- The exhaustive direct/easy/proper classification following (4.1). -/
-theorem departing_classification {V : Type*} [DecidableEq V]
-    (i j : V) (ν : Multiset V) (hcard : ν.card ≤ 2) (hne : ν ≠ {i, j}) :
-    IsUnitRelation (departingLive i j ν) ∨
-      IsEasyDeparture i j ν ∨ IsProperDeparture i j ν := by
-  by_cases hi : i ∈ ν
-  · exact Or.inl (departingLive_unit_of_mem_left i j ν hcard hi hne)
-  by_cases hj : j ∈ ν
-  · exact Or.inl (departingLive_unit_of_mem_right i j ν hcard hj hne)
-  right
-  rcases lt_or_eq_of_le hcard with hlt | heq
-  · exact Or.inl ⟨hi, hj, by omega⟩
-  · exact Or.inr ⟨hi, hj, heq⟩
-
-theorem proper_support_avoids_label {V : Type*} [DecidableEq V] {i j : V} {ν : Multiset V}
-    (h : IsProperDeparture i j ν) : j ∉ ν.toFinset := by
-  simpa using h.2.1
-
-theorem proper_eq_pair {V : Type*} {i j : V} {ν : Multiset V}
-    (h : IsProperDeparture i j ν) : ∃ a b, ν = {a, b} :=
-  Multiset.card_eq_two.mp h.2.2
-
-/-- A proper departure is exactly a common-cut configuration: its label is outside
-the support of its two-element type. -/
-theorem exists_configuration_of_proper {V : Type*} [DecidableEq V]
-    {i j : V} {ν : Multiset V} (h : IsProperDeparture i j ν) :
-    ∃ a b : V, ∃ c : Configuration V, ν = {a, b} ∧ c.j = j ∧ c.τ = s(a, b) := by
-  obtain ⟨a, b, hab⟩ := proper_eq_pair h
-  subst ν
-  have hja : j ≠ a := by
-    intro e
-    subst a
-    exact h.2.1 (by simp)
-  have hjb : j ≠ b := by
-    intro e
-    subst b
-    exact h.2.1 (by simp)
-  refine ⟨a, b, ⟨j, s(a, b), ?_⟩, rfl, rfl, rfl⟩
-  · simp [Sym2.mem_iff, hja, hjb]
-
 /-! ### Live blocks and projection of collision rows -/
 
 /-- A family of disjoint live blocks, encoded by a partial owner map.  Indices whose
@@ -4486,18 +4230,6 @@ theorem projectedRow_live (st : CompressionState S P C V) {i j : V}
   rw [hsrc, count_pair_apply]
   rfl
 
-theorem projected_departing_classification (st : CompressionState S P C V)
-    {i j : V} (hij : i ≠ j) {t : Sym2 (Fin n)}
-    (ht : t ∈ MinimalNUS.rectangle (st.blocks.block i) (st.blocks.block j))
-    (hout : P.μ t ∉ MinimalNUS.rectangle (st.blocks.block i) (st.blocks.block j)) :
-    IsUnitRelation (fun v => st.projectedRow t (Sum.inr v)) ∨
-      IsEasyDeparture i j (liveLabels st.blocks (P.μ t)) ∨
-      IsProperDeparture i j (liveLabels st.blocks (P.μ t)) := by
-  rw [st.projectedRow_live hij ht]
-  apply departing_classification
-  · exact liveLabels_card_le_two st.blocks _
-  · exact liveLabels_departing_ne st.blocks hij hout
-
 end CompressionState
 
 def initialLiveBlocks (n : ℕ) : LiveBlocks n (Fin n) where
@@ -4577,23 +4309,6 @@ theorem LiveBlocks.promote_heavy_is_light {n : ℕ} {V : Type*}
   have hv : ¬L ≤ (B.block v.1).card := by
     simpa only [LiveBlocks.heavy, Finset.mem_filter, Finset.mem_univ, true_and] using v.2
   simpa [LiveBlocks.promote] using (Nat.lt_of_not_ge hv)
-
-theorem LiveBlocks.heavy_card_mul_le {n : ℕ} {V : Type*}
-    [Fintype V] [DecidableEq V] (B : LiveBlocks n V) (L : ℕ) :
-    L * (B.heavy L).card ≤ B.mass := by
-  classical
-  have hsum : (∑ v ∈ B.heavy L, L) ≤
-      ∑ v ∈ B.heavy L, (B.block v).card := by
-    apply Finset.sum_le_sum
-    intro v hv
-    simpa only [LiveBlocks.heavy, Finset.mem_filter, Finset.mem_univ, true_and] using hv
-  calc
-    L * (B.heavy L).card = ∑ v ∈ B.heavy L, L := by simp [mul_comm]
-    _ ≤ ∑ v ∈ B.heavy L, (B.block v).card := hsum
-    _ ≤ ∑ v : V, (B.block v).card := by
-      apply Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
-      intro i hi hnot
-      omega
 
 theorem LiveBlocks.heavy_card_mul_le_removed {n : ℕ} {V : Type*}
     [Fintype V] [DecidableEq V] (B : LiveBlocks n V) (L : ℕ) :
@@ -5071,218 +4786,6 @@ noncomputable def CompressionState.pivot {p n : ℕ} {S : MinimalNUS p n}
     change _ = if contractOwner v parent (st.blocks.owner a) = some u then 1 else 0
     exact contractOwner_indicator v parent (st.blocks.owner a) u
 
-theorem CompressionState.pivot_core_coord {p n : ℕ} {S : MinimalNUS p n}
-    {P : S.Pairing} {C V : Type*} [Fintype C] [DecidableEq C]
-    [Fintype V] [DecidableEq V] (st : CompressionState S P C V)
-    (r : Fin n → ℤ) (hr : r ∈ S.colLat P) (v : V)
-    (parent : Option {u : V // u ≠ v})
-    (hy : st.basis.equivFun (Submodule.Quotient.mk r) (Sum.inr v) = 1)
-    (hlive : ∀ u : {u : V // u ≠ v},
-      st.basis.equivFun (Submodule.Quotient.mk r) (Sum.inr u.1) =
-        if parent = some u then -1 else 0)
-    (a : Fin n) (c : C) :
-    (st.pivot r hr v parent hy hlive).basis.repr
-        (Submodule.Quotient.mk (Pi.single a 1)) (Sum.inl c) =
-      st.basis.repr (Submodule.Quotient.mk (Pi.single a 1)) (Sum.inl c) -
-        (if st.blocks.owner a = some v then 1 else 0) *
-          st.basis.repr (Submodule.Quotient.mk r) (Sum.inl c) := by
-  simp only [CompressionState.pivot, Module.Basis.map_repr]
-  change unitElim v (st.basis.equivFun (Submodule.Quotient.mk r))
-      (st.basis.equivFun (Submodule.Quotient.mk (Pi.single a 1))) (Sum.inl c) = _
-  rw [unitElim_apply_left]
-  change st.basis.repr (Submodule.Quotient.mk (Pi.single a 1)) (Sum.inl c) -
-      st.basis.repr (Submodule.Quotient.mk (Pi.single a 1)) (Sum.inr v) *
-        st.basis.repr (Submodule.Quotient.mk r) (Sum.inl c) = _
-  rw [st.live_coord]
-
-/-- Coordinate update for an arbitrary ambient row under a pivot. -/
-theorem CompressionState.pivot_core_coord_row {p n : ℕ} {S : MinimalNUS p n}
-    {P : S.Pairing} {C V : Type*} [Fintype C] [DecidableEq C]
-    [Fintype V] [DecidableEq V] (st : CompressionState S P C V)
-    (r : Fin n → ℤ) (hr : r ∈ S.colLat P) (v : V)
-    (parent : Option {u : V // u ≠ v})
-    (hy : st.basis.equivFun (Submodule.Quotient.mk r) (Sum.inr v) = 1)
-    (hlive : ∀ u : {u : V // u ≠ v},
-      st.basis.equivFun (Submodule.Quotient.mk r) (Sum.inr u.1) =
-        if parent = some u then -1 else 0)
-    (q : Fin n → ℤ) (c : C) :
-    (st.pivot r hr v parent hy hlive).basis.repr
-        (Submodule.Quotient.mk q) (Sum.inl c) =
-      st.basis.repr (Submodule.Quotient.mk q) (Sum.inl c) -
-        st.basis.repr (Submodule.Quotient.mk q) (Sum.inr v) *
-          st.basis.repr (Submodule.Quotient.mk r) (Sum.inl c) := by
-  simp only [CompressionState.pivot, Module.Basis.map_repr]
-  change unitElim v (st.basis.equivFun (Submodule.Quotient.mk r))
-      (st.basis.equivFun (Submodule.Quotient.mk q)) (Sum.inl c) = _
-  rw [unitElim_apply_left]
-  rfl
-
-theorem CompressionState.pivot_live_coord_row {p n : ℕ} {S : MinimalNUS p n}
-    {P : S.Pairing} {C V : Type*} [Fintype C] [DecidableEq C]
-    [Fintype V] [DecidableEq V] (st : CompressionState S P C V)
-    (r : Fin n → ℤ) (hr : r ∈ S.colLat P) (v : V)
-    (parent : Option {u : V // u ≠ v})
-    (hy : st.basis.equivFun (Submodule.Quotient.mk r) (Sum.inr v) = 1)
-    (hlive : ∀ u : {u : V // u ≠ v},
-      st.basis.equivFun (Submodule.Quotient.mk r) (Sum.inr u.1) =
-        if parent = some u then -1 else 0)
-    (q : Fin n → ℤ) (u : {u : V // u ≠ v}) :
-    (st.pivot r hr v parent hy hlive).basis.repr
-        (Submodule.Quotient.mk q) (Sum.inr u) =
-      st.basis.repr (Submodule.Quotient.mk q) (Sum.inr u.1) -
-        st.basis.repr (Submodule.Quotient.mk q) (Sum.inr v) *
-          st.basis.repr (Submodule.Quotient.mk r) (Sum.inr u.1) := by
-  simp only [CompressionState.pivot, Module.Basis.map_repr]
-  change unitElim v (st.basis.equivFun (Submodule.Quotient.mk r))
-      (st.basis.equivFun (Submodule.Quotient.mk q)) (Sum.inr u) = _
-  rw [unitElim_apply_right]
-  rfl
-
-/-- A row with zero coefficient at the eliminated leaf is unchanged in every
-surviving coordinate. -/
-theorem CompressionState.pivot_repr_eq_of_zero {p n : ℕ} {S : MinimalNUS p n}
-    {P : S.Pairing} {C V : Type*} [Fintype C] [DecidableEq C]
-    [Fintype V] [DecidableEq V] (st : CompressionState S P C V)
-    (r : Fin n → ℤ) (hr : r ∈ S.colLat P) (v : V)
-    (parent : Option {u : V // u ≠ v})
-    (hy : st.basis.equivFun (Submodule.Quotient.mk r) (Sum.inr v) = 1)
-    (hlive : ∀ u : {u : V // u ≠ v},
-      st.basis.equivFun (Submodule.Quotient.mk r) (Sum.inr u.1) =
-        if parent = some u then -1 else 0)
-    (q : Fin n → ℤ)
-    (hqv : st.basis.repr (Submodule.Quotient.mk q) (Sum.inr v) = 0) :
-    (∀ c : C, (st.pivot r hr v parent hy hlive).basis.repr
-      (Submodule.Quotient.mk q) (Sum.inl c) =
-        st.basis.repr (Submodule.Quotient.mk q) (Sum.inl c)) ∧
-    ∀ u : {u : V // u ≠ v},
-      (st.pivot r hr v parent hy hlive).basis.repr
-        (Submodule.Quotient.mk q) (Sum.inr u) =
-        st.basis.repr (Submodule.Quotient.mk q) (Sum.inr u.1) := by
-  constructor
-  · intro c
-    rw [st.pivot_core_coord_row r hr v parent hy hlive q c, hqv, zero_mul, sub_zero]
-  · intro u
-    rw [st.pivot_live_coord_row r hr v parent hy hlive q u, hqv, zero_mul, sub_zero]
-
-/-- One unit substitution adds at most the core norm of its pivot row. -/
-theorem CompressionState.pivot_coreBound {p n : ℕ} {S : MinimalNUS p n}
-    {P : S.Pairing} {C V : Type*} [Fintype C] [DecidableEq C]
-    [Fintype V] [DecidableEq V] (st : CompressionState S P C V)
-    (r : Fin n → ℤ) (hr : r ∈ S.colLat P) (v : V)
-    (parent : Option {u : V // u ≠ v})
-    (hy : st.basis.equivFun (Submodule.Quotient.mk r) (Sum.inr v) = 1)
-    (hlive : ∀ u : {u : V // u ≠ v},
-      st.basis.equivFun (Submodule.Quotient.mk r) (Sum.inr u.1) =
-        if parent = some u then -1 else 0)
-    {M R : ℤ} (hM : st.CoreBound M)
-    (hR : ∑ c : C, |st.basis.repr (Submodule.Quotient.mk r) (Sum.inl c)| ≤ R) :
-    (st.pivot r hr v parent hy hlive).CoreBound (M + R) := by
-  classical
-  intro a
-  simp_rw [st.pivot_core_coord r hr v parent hy hlive]
-  calc
-    ∑ c : C,
-        |st.basis.repr (Submodule.Quotient.mk (Pi.single a 1)) (Sum.inl c) -
-          (if st.blocks.owner a = some v then 1 else 0) *
-            st.basis.repr (Submodule.Quotient.mk r) (Sum.inl c)|
-      ≤ ∑ c : C,
-          (|st.basis.repr (Submodule.Quotient.mk (Pi.single a 1)) (Sum.inl c)| +
-           |(if st.blocks.owner a = some v then 1 else 0) *
-             st.basis.repr (Submodule.Quotient.mk r) (Sum.inl c)|) := by
-        apply Finset.sum_le_sum
-        intro c hc
-        exact abs_sub _ _
-    _ ≤ (∑ c : C,
-          |st.basis.repr (Submodule.Quotient.mk (Pi.single a 1)) (Sum.inl c)|) +
-        ∑ c : C, |st.basis.repr (Submodule.Quotient.mk r) (Sum.inl c)| := by
-          rw [Finset.sum_add_distrib]
-          apply add_le_add (le_refl _)
-          · apply Finset.sum_le_sum
-            intro c hc
-            by_cases h : st.blocks.owner a = some v <;> simp [h]
-    _ ≤ M + R := add_le_add (hM a) hR
-
-/-- Every abstract unit row can be oriented as a pivot `x_v` or `x_v-x_parent`.
-Negating the underlying lattice row handles the two negative cases without changing
-its core norm. -/
-theorem CompressionState.exists_oriented_unit_pivot {p n : ℕ}
-    {S : MinimalNUS p n} {P : S.Pairing} {C V : Type*}
-    [Fintype C] [DecidableEq C] [Fintype V] [DecidableEq V]
-    (st : CompressionState S P C V) (r : Fin n → ℤ) (hr : r ∈ S.colLat P)
-    (hu : IsUnitRelation
-      (fun u => st.basis.repr (Submodule.Quotient.mk r) (Sum.inr u))) :
-    ∃ (r' : Fin n → ℤ) (_ : r' ∈ S.colLat P) (v : V)
-        (parent : Option {u : V // u ≠ v}),
-      st.basis.equivFun (Submodule.Quotient.mk r') (Sum.inr v) = 1 ∧
-      (∀ u : {u : V // u ≠ v},
-        st.basis.equivFun (Submodule.Quotient.mk r') (Sum.inr u.1) =
-          if parent = some u then -1 else 0) ∧
-      (∑ c : C, |st.basis.repr (Submodule.Quotient.mk r') (Sum.inl c)|) =
-        ∑ c : C, |st.basis.repr (Submodule.Quotient.mk r) (Sum.inl c)| := by
-  classical
-  rcases hu with ⟨a, ha⟩ | ⟨a, b, hab, habr⟩ | ⟨a, ha⟩ | ⟨a, b, hab, habr⟩
-  · refine ⟨r, hr, a, none, ?_, ?_, rfl⟩
-    · have h := congrFun ha a
-      change st.basis.repr (Submodule.Quotient.mk r) (Sum.inr a) = 1
-      simpa [Pi.single_apply] using h
-    · intro u
-      have h := congrFun ha u.1
-      change st.basis.repr (Submodule.Quotient.mk r) (Sum.inr u.1) = _
-      simpa [Pi.single_apply, u.2] using h
-  · let b' : {u : V // u ≠ a} := ⟨b, Ne.symm hab⟩
-    refine ⟨r, hr, a, some b', ?_, ?_, rfl⟩
-    · have h := congrFun habr a
-      change st.basis.repr (Submodule.Quotient.mk r) (Sum.inr a) = 1
-      simp [hab] at h ⊢
-      exact h
-    · intro u
-      have h := congrFun habr u.1
-      change st.basis.repr (Submodule.Quotient.mk r) (Sum.inr u.1) = _
-      by_cases hub : u.1 = b
-      · have hub' : b' = u := Subtype.ext hub.symm
-        simp [hub', hub, Ne.symm hab] at h ⊢
-        exact h
-      · have hbu : b' ≠ u := fun h' => hub (congrArg Subtype.val h').symm
-        simp [hbu, u.2, hub] at h ⊢
-        exact h
-  · refine ⟨-r, (S.colLat P).neg_mem hr, a, none, ?_, ?_, ?_⟩
-    · have h := congrFun ha a
-      change st.basis.repr (Submodule.Quotient.mk (-r)) (Sum.inr a) = 1
-      rw [Submodule.Quotient.mk_neg, map_neg, Finsupp.neg_apply]
-      simpa [Pi.single_apply] using congrArg Neg.neg h
-    · intro u
-      have h := congrFun ha u.1
-      change st.basis.repr (Submodule.Quotient.mk (-r)) (Sum.inr u.1) = _
-      rw [Submodule.Quotient.mk_neg, map_neg, Finsupp.neg_apply]
-      have hn := congrArg Neg.neg h
-      simpa [Pi.single_apply, u.2] using hn
-    · apply Finset.sum_congr rfl
-      intro c hc
-      rw [Submodule.Quotient.mk_neg, map_neg, Finsupp.neg_apply, abs_neg]
-  · let b' : {u : V // u ≠ a} := ⟨b, Ne.symm hab⟩
-    refine ⟨-r, (S.colLat P).neg_mem hr, a, some b', ?_, ?_, ?_⟩
-    · have h := congrFun habr a
-      change st.basis.repr (Submodule.Quotient.mk (-r)) (Sum.inr a) = 1
-      rw [Submodule.Quotient.mk_neg, map_neg, Finsupp.neg_apply]
-      have hn := congrArg Neg.neg h
-      simp [hab] at hn ⊢
-      exact hn
-    · intro u
-      have h := congrFun habr u.1
-      change st.basis.repr (Submodule.Quotient.mk (-r)) (Sum.inr u.1) = _
-      rw [Submodule.Quotient.mk_neg, map_neg, Finsupp.neg_apply]
-      have hn := congrArg Neg.neg h
-      by_cases hub : u.1 = b
-      · have hub' : b' = u := Subtype.ext hub.symm
-        simp [hub', hub, Ne.symm hab] at hn ⊢
-        exact hn
-      · have hbu : b' ≠ u := fun h' => hub (congrArg Subtype.val h').symm
-        simp [hbu, u.2, hub] at hn ⊢
-        exact hn
-    · apply Finset.sum_congr rfl
-      intro c hc
-      rw [Submodule.Quotient.mk_neg, map_neg, Finsupp.neg_apply, abs_neg]
-
 /-! ### Encoding easy anchors for the common-cut lemma -/
 
 /-- An easy-label set of size at least two can itself be presented as a common-cut
@@ -5375,57 +4878,6 @@ theorem properConfiguration_multiset {V : Type*} [DecidableEq V]
     (Sym2.equivMultiset V) (properConfiguration j ν hj hν).τ = ⟨ν, hν⟩ := by
   exact (Sym2.equivMultiset V).apply_symm_apply _
 
-/-- A selected collection of proper labels with distinct types gives exactly the
-configuration family required by the common-cut lemma. -/
-theorem exists_proper_configuration_family {V : Type*} [Fintype V] [DecidableEq V]
-    (J : Finset V) (ν : V → Multiset V)
-    (hproper : ∀ j ∈ J, j ∉ ν j ∧ (ν j).card = 2)
-    (hinj : Set.InjOn ν (J : Set V)) :
-    ∃ F : Finset (Configuration V),
-      F.card = J.card ∧
-      Set.InjOn Configuration.j (F : Set (Configuration V)) ∧
-      Set.InjOn Configuration.τ (F : Set (Configuration V)) ∧
-      (∀ (T : Finset V) (c : Configuration V), c ∈ F → Hits T c →
-        ∃ j ∈ J, j ∈ T ∧ ∃ u ∈ T, u ∈ ν j) := by
-  classical
-  let cf : ↥J → Configuration V := fun j =>
-    properConfiguration j.1 (ν j.1) (hproper j.1 j.2).1 (hproper j.1 j.2).2
-  have hcf : Function.Injective cf := by
-    intro j k hjk
-    apply Subtype.ext
-    exact congrArg Configuration.j hjk
-  let F : Finset (Configuration V) := Finset.univ.map ⟨cf, hcf⟩
-  refine ⟨F, by simp [F], ?_, ?_, ?_⟩
-  · intro c hc d hd hcd
-    obtain ⟨j, -, rfl⟩ := Finset.mem_map.mp hc
-    obtain ⟨k, -, rfl⟩ := Finset.mem_map.mp hd
-    apply congrArg cf
-    exact Subtype.ext hcd
-  · intro c hc d hd hcd
-    obtain ⟨j, -, rfl⟩ := Finset.mem_map.mp hc
-    obtain ⟨k, -, rfl⟩ := Finset.mem_map.mp hd
-    apply congrArg cf
-    apply Subtype.ext
-    apply hinj j.2 k.2
-    have he := congrArg (Sym2.equivMultiset V) hcd
-    have hj := properConfiguration_multiset j.1 (ν j.1)
-      (hproper j.1 j.2).1 (hproper j.1 j.2).2
-    have hk := properConfiguration_multiset k.1 (ν k.1)
-      (hproper k.1 k.2).1 (hproper k.1 k.2).2
-    exact congrArg Subtype.val (hj.symm.trans (he.trans hk))
-  · intro T c hc hhit
-    obtain ⟨j, -, rfl⟩ := Finset.mem_map.mp hc
-    refine ⟨j.1, j.2, hhit.1, ?_⟩
-    obtain ⟨u, huT, huτ⟩ := hhit.2
-    refine ⟨u, huT, ?_⟩
-    have hm := properConfiguration_multiset j.1 (ν j.1)
-      (hproper j.1 j.2).1 (hproper j.1 j.2).2
-    have hu' : u ∈ ((Sym2.equivMultiset V)
-        (properConfiguration j.1 (ν j.1) (hproper j.1 j.2).1
-          (hproper j.1 j.2).2).τ : Multiset V) :=
-      (mem_equivMultiset_iff u _).mpr huτ
-    rwa [congrArg Subtype.val hm] at hu'
-
 /-! ### Departing systems for a round -/
 
 abbrev OrderedDistinct (V : Type*) := {ij : V × V // ij.1 ≠ ij.2}
@@ -5494,15 +4946,6 @@ def liveType (D : DepartingSystem P B) (e : OrderedDistinct V) : Multiset V :=
 theorem row_mem_colLat (D : DepartingSystem P B) (e : OrderedDistinct V) :
     D.row e ∈ S.colLat P :=
   Submodule.subset_span ⟨D.t e, rfl⟩
-
-theorem row_classification (st : CompressionState S P C V)
-    (D : DepartingSystem P st.blocks) (e : OrderedDistinct V) :
-    IsUnitRelation (fun v => st.basis.repr
-      (Submodule.Quotient.mk (D.row e)) (Sum.inr v)) ∨
-      IsEasyDeparture e.1.1 e.1.2 (D.liveType e) ∨
-      IsProperDeparture e.1.1 e.1.2 (D.liveType e) := by
-  exact st.projected_departing_classification e.2
-    (D.mem_rectangle e) (D.leaves_rectangle e)
 
 theorem row_unit_of_mem_right (st : CompressionState S P C V)
     (D : DepartingSystem P st.blocks) (e : OrderedDistinct V)
@@ -5963,35 +5406,6 @@ theorem CompressionState.exists_pivot_of_unitGraph_adj {p n : ℕ}
           exact huw (congrArg Subtype.val (Option.some.inj e)).symm
         simpa [CompressionState.IsEdgeRow, Pi.single_apply, u.2, huw, hune] using h
 
-/-- Each abstract unit relation supplies an edge of the proof-relevant unit graph. -/
-theorem CompressionState.exists_unitGraph_neighbor {p n : ℕ}
-    {S : MinimalNUS p n} {P : S.Pairing} {C V : Type*}
-    [Fintype C] [DecidableEq C] [Fintype V] [DecidableEq V]
-    (st : CompressionState S P C V) {R : ℤ} (r : Fin n → ℤ)
-    (hr : r ∈ S.colLat P)
-    (hR : (∑ c : C, |st.basis.repr (Submodule.Quotient.mk r) (Sum.inl c)|) ≤ R)
-    (hu : IsUnitRelation
-      (fun u => st.basis.repr (Submodule.Quotient.mk r) (Sum.inr u))) :
-    ∃ x y : Option V, (st.unitGraph R).Adj x y := by
-  rcases hu with ⟨a, ha⟩ | ⟨a, b, hab, habr⟩ | ⟨a, ha⟩ | ⟨a, b, hab, habr⟩
-  · exact ⟨none, some a, st.unitGraph_adj_of_row hr hR (by simp)
-      (by simpa [CompressionState.IsEdgeRow] using ha)⟩
-  · exact ⟨some a, some b, st.unitGraph_adj_of_row hr hR (by simp [hab])
-      (by simpa [CompressionState.IsEdgeRow] using habr)⟩
-  · exact ⟨some a, none, st.unitGraph_adj_of_row hr hR (by simp)
-      (by simpa [CompressionState.IsEdgeRow] using ha)⟩
-  · exact ⟨some b, some a, st.unitGraph_adj_of_row hr hR
-      (by
-        intro hba
-        exact (Ne.symm hab) (Option.some.inj hba))
-      (by
-        change (fun u => st.basis.repr (Submodule.Quotient.mk r) (Sum.inr u)) =
-          Pi.single b 1 - Pi.single a 1
-        rw [habr]
-        ext u
-        simp only [Pi.neg_apply, Pi.sub_apply]
-        ring)⟩
-
 /-- If a bounded unit row has coefficient `1` at a specified live coordinate, the
 corresponding unit-graph edge is incident with that coordinate. -/
 theorem CompressionState.exists_unitGraph_neighbor_at {p n : ℕ}
@@ -6054,25 +5468,6 @@ theorem CompressionState.exists_unitGraph_neighbor_at {p n : ℕ}
         ext u
         simp only [Pi.neg_apply, Pi.sub_apply]
         ring)⟩
-
-/-- Immediate cancellation at the label gives a bounded unit edge incident with the
-anchor. -/
-theorem DepartingSystem.unitGraph_neighbor_anchor_of_mem_right {p n : ℕ}
-    {S : MinimalNUS p n} {P : S.Pairing} {C V : Type*}
-    [Fintype C] [DecidableEq C] [Fintype V] [DecidableEq V]
-    (st : CompressionState S P C V) {M : ℤ} (hM : st.CoreBound M)
-    (D : DepartingSystem P st.blocks) (e : OrderedDistinct V)
-    (hmem : e.1.2 ∈ D.liveType e) :
-    ∃ y, (st.unitGraph (8 * M)).Adj (some e.1.1) y := by
-  apply st.exists_unitGraph_neighbor_at (D.row e) (D.row_mem_colLat e)
-    (le_trans (D.row_core_norm_le st hM e) (by
-      have hM0 := st.coreBound_nonneg hM
-      linarith)) e.1.1 (D.row_unit_of_mem_right st e hmem)
-  change st.projectedRow (D.t e) (Sum.inr e.1.1) = 1
-  rw [congrFun (st.projectedRow_live e.2 (D.mem_rectangle e)) e.1.1]
-  exact departingLive_anchor_of_mem_right e.1.1 e.1.2 (D.liveType e) e.2
-    (liveLabels_card_le_two st.blocks _) hmem
-    (liveLabels_departing_ne st.blocks e.2 (D.leaves_rectangle e))
 
 /-- Immediate cancellation at the anchor gives a bounded unit edge incident with the
 label. -/
@@ -6480,35 +5875,6 @@ namespace ForestPivotPlan
 variable {p n : ℕ} {S : MinimalNUS p n} {P : S.Pairing}
 variable {C V : Type*} [Fintype C] [DecidableEq C] [Fintype V] [DecidableEq V]
 variable {st : CompressionState S P C V} {R : ℤ}
-
-/-- Unless the plan is already terminal, it has an active vertex of maximal rank. -/
-theorem exists_maximal_active (plan : ForestPivotPlan st R)
-    (hactive : ∃ v, plan.parent v ≠ none) :
-    ∃ v y, plan.parent v = some y ∧
-      ∀ u z, plan.parent u = some z →
-        plan.rank (some u) ≤ plan.rank (some v) := by
-  classical
-  let A := Finset.univ.filter fun v : V => plan.parent v ≠ none
-  have hA : A.Nonempty := by
-    obtain ⟨v, hv⟩ := hactive
-    exact ⟨v, Finset.mem_filter.mpr ⟨Finset.mem_univ _, hv⟩⟩
-  obtain ⟨v, hvA, hvmax⟩ := Finset.exists_max_image A (fun u => plan.rank (some u)) hA
-  obtain ⟨y, hy⟩ : ∃ y, plan.parent v = some y := Option.ne_none_iff_exists'.mp
-    (Finset.mem_filter.mp hvA).2
-  refine ⟨v, y, hy, ?_⟩
-  intro u z huz
-  apply hvmax
-  exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, by rw [huz]; simp⟩
-
-/-- A maximal active vertex is a leaf: no remaining pivot points toward it. -/
-theorem no_child_of_maximal (plan : ForestPivotPlan st R) {w : V}
-    (hv : ∀ u z, plan.parent u = some z →
-      plan.rank (some u) ≤ plan.rank (some w)) (u : V) :
-    plan.parent u ≠ some (some w) := by
-  intro hu
-  have hlt := plan.decreases u (some w) hu
-  have hle := hv u (some w) hu
-  omega
 
 /-- The retained live representatives are exactly the vertices with no parent. -/
 abbrev Roots (plan : ForestPivotPlan st R) := {v : V // plan.parent v = none}
@@ -7056,49 +6422,6 @@ noncomputable def activeRowCoords (plan : ForestPivotPlan st R)
 theorem activeRowCoords_mem_ker (plan : ForestPivotPlan st R)
     (v : plan.Active) : plan.activeRowCoords v ∈ LinearMap.ker plan.forestMap := by
   exact plan.chosenRow_mem_ker_forestMap (plan.parent_activeParent v)
-
-/-- Exact triangular generation of the forest kernel by the selected lattice rows. -/
-theorem ker_forestMap_eq_span_activeRows (plan : ForestPivotPlan st R) :
-    LinearMap.ker plan.forestMap =
-      Submodule.span ℤ (Set.range plan.activeRowCoords) := by
-  classical
-  apply le_antisymm
-  · intro z hz
-    have hunit : IsUnit plan.pivotMatrix :=
-      (Matrix.isUnit_iff_isUnit_det plan.pivotMatrix).mpr plan.pivotMatrix_isUnit
-    let target : plan.Active → ℤ := fun u => z (Sum.inr u.1)
-    obtain ⟨k, hk⟩ := (Matrix.vecMul_surjective_iff_isUnit.mpr hunit) target
-    let q : Sum C V → ℤ := ∑ v : plan.Active, k v • plan.activeRowCoords v
-    have hqspan : q ∈ Submodule.span ℤ (Set.range plan.activeRowCoords) := by
-      apply Submodule.sum_mem
-      intro v hv
-      exact Submodule.smul_mem _ _ (Submodule.subset_span (Set.mem_range_self v))
-    have hqker : q ∈ LinearMap.ker plan.forestMap := by
-      apply Submodule.sum_mem
-      intro v hv
-      exact Submodule.smul_mem _ _ (plan.activeRowCoords_mem_ker v)
-    have hqactive : ∀ u : plan.Active, q (Sum.inr u.1) = target u := by
-      intro u
-      have hku := congrFun hk u
-      change (∑ v : plan.Active, k v * plan.pivotMatrix v u) = target u at hku
-      change (∑ v : plan.Active, k v • plan.activeRowCoords v) (Sum.inr u.1) = target u
-      simpa [Finset.sum_apply, Pi.smul_apply, smul_eq_mul, activeRowCoords,
-        pivotMatrix, activeRow] using hku
-    let d : Sum C V → ℤ := z - q
-    have hdker : d ∈ LinearMap.ker plan.forestMap :=
-      (LinearMap.ker plan.forestMap).sub_mem hz hqker
-    have hdactive : ∀ u : plan.Active, d (Sum.inr u.1) = 0 := by
-      intro u
-      change z (Sum.inr u.1) - q (Sum.inr u.1) = 0
-      rw [hqactive u]
-      simp [target]
-    have hd0 : d = 0 := plan.eq_zero_of_mem_ker_of_active_zero d hdker hdactive
-    have hzq : z = q := sub_eq_zero.mp hd0
-    rw [hzq]
-    exact hqspan
-  · rw [Submodule.span_le]
-    rintro z ⟨v, rfl⟩
-    exact plan.activeRowCoords_mem_ker v
 
 /-- Constructive form of the kernel equality: every kernel vector is an integral
 linear combination of the selected row-coordinate vectors. -/
@@ -7839,55 +7162,6 @@ theorem CompressionState.finish_any {p n E : ℕ} {S : MinimalNUS p n} {P : S.Pa
       _ ≤ M + 1 := add_le_add (hM i) hlive
       _ ≤ (n : ℤ) ^ E := hnorm
 
-/-- Once no live representative remains, a compression state is exactly the subgroup
-and bounded quotient basis required by Proposition 4.1. -/
-theorem CompressionState.finish {p n E : ℕ} {S : MinimalNUS p n} {P : S.Pairing}
-    {C : Type*} [Fintype C] [DecidableEq C]
-    (st : CompressionState S P C Empty)
-    (hcard : ((Fintype.card C : ℕ) : ℝ) ≤
-      E * (Real.sqrt n + n / Real.log p))
-    (hnorm : ∀ a : Fin n,
-      ∑ c : C,
-        |st.basis.repr (Submodule.Quotient.mk (Pi.single a 1)) (Sum.inl c)| ≤
-          (n : ℤ) ^ E) :
-    ∃ (K : ℕ) (Q : Submodule ℤ (Fin n → ℤ)),
-      Q ≤ S.colLat P ∧
-      (∀ (v : Fin n → ℤ) (c : ℤ), c ≠ 0 → c • v ∈ Q → v ∈ Q) ∧
-      Module.finrank ℤ Q = n - K ∧
-      ((K : ℝ) ≤ E * (Real.sqrt n + n / Real.log p)) ∧
-      ∃ b : Module.Basis (Fin K) ℤ ((Fin n → ℤ) ⧸ Q),
-        ∀ i : Fin n,
-          ∑ k, |b.repr (Submodule.Quotient.mk (Pi.single i 1)) k| ≤
-            (n : ℤ) ^ E := by
-  classical
-  let bC : Module.Basis C ℤ ((Fin n → ℤ) ⧸ st.Q) :=
-    st.basis.reindex (Equiv.sumEmpty C Empty)
-  let b : Module.Basis (Fin (Fintype.card C)) ℤ ((Fin n → ℤ) ⧸ st.Q) :=
-    bC.reindex (Fintype.equivFin C)
-  refine ⟨Fintype.card C, st.Q, st.le_colLat, st.primitive, ?_, hcard, b, ?_⟩
-  · have hr := st.Q.finrank_quotient_add_finrank
-    have hq : Module.finrank ℤ ((Fin n → ℤ) ⧸ st.Q) = Fintype.card C := by
-      simpa using Module.finrank_eq_card_basis st.basis
-    have ha : Module.finrank ℤ (Fin n → ℤ) = n := by
-      simp
-    have hr' : Fintype.card C + Module.finrank ℤ st.Q = n := by
-      calc
-        Fintype.card C + Module.finrank ℤ st.Q =
-            Module.finrank ℤ ((Fin n → ℤ) ⧸ st.Q) + Module.finrank ℤ st.Q := by
-              rw [hq]
-        _ = Module.finrank ℤ (Fin n → ℤ) := hr
-        _ = n := ha
-    omega
-  · intro i
-    calc
-      ∑ k, |b.repr (Submodule.Quotient.mk (Pi.single i 1)) k|
-          = ∑ c : C,
-              |st.basis.repr (Submodule.Quotient.mk (Pi.single i 1)) (Sum.inl c)| := by
-            simp only [b, bC, Module.Basis.repr_reindex_apply]
-            rw [← (Fintype.equivFin C).sum_comp]
-            simp
-      _ ≤ (n : ℤ) ^ E := hnorm i
-
 private theorem log_le_six_logThird (p : ℕ) (hp : 64 ≤ p) :
     Real.log p ≤ 6 * (Nat.log 2 p / 3 : ℕ) := by
   let ell := Nat.log 2 p
@@ -8136,19 +7410,6 @@ theorem lin_pi_decomp {n : ℕ} (ℓ : (Fin n → ℤ) →ₗ[ℤ] ℤ) (w : Fin
   rw [map_sum]
   refine Finset.sum_congr rfl fun i _ => ?_
   rw [ℓ.map_smul, smul_eq_mul]
-
-/-- Every element of the collision lattice has coordinate sum zero. -/
-theorem MinimalNUS.sum_eq_zero_of_mem_colLat {p n : ℕ} (S : MinimalNUS p n)
-    (P : S.Pairing) {w : Fin n → ℤ} (hw : w ∈ S.colLat P) : ∑ k, w k = 0 := by
-  induction hw using Submodule.span_induction with
-  | mem w hw =>
-    obtain ⟨t, rfl⟩ := hw
-    have h := S.rho_cast_dot_one (R := ℤ) P t
-    simpa [dotProduct] using h
-  | zero => simp
-  | add u v _ _ hu hv => simp [Finset.sum_add_distrib, hu, hv]
-  | smul c u _ hu =>
-    simp only [Pi.smul_apply, smul_eq_mul, ← Finset.mul_sum, hu, mul_zero]
 
 /-- From a spanning family whose span has dimension at least `d`, one can select `d`
 members forming a linearly independent family. -/

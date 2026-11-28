@@ -1,91 +1,78 @@
 import OMAStatements.S_oeis_a108629
 
--- Problem: A108629: Expansion of g.f.: (1+x - sqrt(1-2*x-3*x^2-4*x^3))/(2+2*x+2*x^2).
--- Upstream: formal-conjectures statements/oeis-a108629.lean:0 (declaration OMA.S_oeis_a108629.main)
--- Credit: @Raimo33 (the owner of the agent is credited as the solver)
--- Proof: R = rootSeries satisfies R^2 = 1 + t, so 2 (1 + t) R' = t' R. Substituting
--- R = 1 + X - 2 (1 + X + X^2) A gives a first-order linear ODE for A, whose coefficient
--- of X^(n-1) is the recurrence.
+/-!
+The taloscoreagent proof of R. J. Mathar's order-five recurrence for OEIS A108629,
+first posted with statement PR #141. Raimo33 supplied a separate proof in #5993.
+The square root in the defining generating function gives a quadratic
+equation. Differentiate it and eliminate the quadratic term to obtain a
+linear differential equation, then compare the coefficients of degree n - 1.
+Mathar's general recurrence theorem for radical generating functions also
+applies to this family (arXiv:2109.02112, Theorem 5).
+-/
 
-namespace OMA.P_a108629
-open OMA.S_oeis_a108629 PowerSeries
+namespace OMA108
 
-lemma hasSubst_t : HasSubst radicandTail :=
-  HasSubst.of_constantCoeff_zero' (by simp [radicandTail])
+open PowerSeries OMA.S_oeis_a108629
 
-lemma root_sq : rootSeries ^ 2 = 1 + radicandTail := by
-  have hB : (PowerSeries.binomialSeries ℚ (1 / 2 : ℚ)) ^ 2 = (1 + X : PowerSeries ℚ) := by
-    rw [sq, ← PowerSeries.binomialSeries_add]
-    norm_num
-    simpa using binomialSeries_nat (A := ℚ) (R := ℚ) 1
-  unfold rootSeries
-  rw [← subst_pow hasSubst_t, hB, ← coe_substAlgHom hasSubst_t, map_add, map_one,
-    coe_substAlgHom, subst_X hasSubst_t]
+/-- Squaring the binomial series selects the prescribed radicand. -/
+theorem square_root_identity : rootSeries ^ 2 = 1 + radicandTail := by
+  have hs : HasSubst radicandTail := HasSubst.of_constantCoeff_zero' (by simp [radicandTail])
+  have h : (PowerSeries.binomialSeries ℚ (1 / 2 : ℚ)) ^ 2 = 1 + (X : PowerSeries ℚ) := by
+    rw [pow_two, ← binomialSeries_add]
+    have h1 : (1 / 2 : ℚ) + 1 / 2 = ((1 : ℕ) : ℚ) := by norm_num
+    rw [h1, binomialSeries_nat, pow_one]
+  calc
+    rootSeries ^ 2 = subst radicandTail ((PowerSeries.binomialSeries ℚ (1 / 2 : ℚ)) ^ 2) :=
+      (subst_pow hs _ 2).symm
+    _ = 1 + radicandTail := by
+      rw [h, ← coe_substAlgHom hs, map_add, map_one, substAlgHom_X hs]
 
-lemma d_t : d⁄dX ℚ radicandTail = -2 - 6 * X - 12 * X ^ 2 := by
-  have : radicandTail = C (-2 : ℚ) * X + C (-3 : ℚ) * X ^ 2 + C (-4 : ℚ) * X ^ 3 := by
-    simp only [radicandTail, map_neg, map_ofNat]; ring
-  rw [this]
-  simp only [map_add, Derivation.leibniz, Derivation.leibniz_pow, derivative_C, derivative_X,
-    smul_eq_mul]
-  simp only [map_neg, map_ofNat]
-  ring
+/-- Clearing the denominator and squaring gives the defining quadratic. -/
+theorem defining_equation :
+    (1 + X + X ^ 2) * series ^ 2 - (1 + X) * series + X = 0 := by
+  let B : PowerSeries ℚ := 1 + X + X ^ 2
+  have hb : constantCoeff (2 * B) ≠ 0 := by
+    simp [B, map_ofNat]
+  have hF : (2 * B) * series = 1 + X - rootSeries := by
+    unfold series
+    change (2 * B) * ((1 + X - rootSeries) * (2 * B)⁻¹) = _
+    rw [mul_left_comm, PowerSeries.mul_inv_cancel _ hb, mul_one]
+  have hS : rootSeries = 1 + X - 2 * B * series := by linear_combination hF
+  have hs := square_root_identity
+  rw [hS] at hs
+  have hz : (4 * B) * (B * series ^ 2 - (1 + X) * series + X) = 0 := by
+    dsimp [B, radicandTail] at hs ⊢
+    linear_combination hs
+  have unit : IsUnit (4 * B) := isUnit_iff_constantCoeff.mpr (by norm_num [B, map_ofNat])
+  exact (mul_eq_zero.mp hz).resolve_left unit.ne_zero
 
-lemma two_D_A : 2 * (1 + X + X ^ 2) * series = 1 + X - rootSeries := by
-  unfold series
-  have h : constantCoeff (2 * (1 + X + X ^ 2) : PowerSeries ℚ) ≠ 0 := by
-    rw [map_mul, map_ofNat]; simp
-  rw [mul_comm, mul_assoc, mul_comm _ (2 * (1 + X + X ^ 2)), PowerSeries.mul_inv_cancel _ h,
-    mul_one]
+/-- Eliminate the quadratic term from the equation and its derivative. -/
+theorem quadratic_ode (F : PowerSeries ℚ)
+    (h : (1 + X + X ^ 2) * F ^ 2 - (1 + X) * F + X = 0) :
+    (1 - X - 4 * X ^ 2 - 9 * X ^ 3 - 7 * X ^ 4 - 4 * X ^ 5) * derivative ℚ F =
+      (-2 - 4 * X - 3 * X ^ 2 + X ^ 3 + 2 * X ^ 4) * F +
+        (1 + X + 3 * X ^ 2 + X ^ 3) := by
+  have hd := congrArg (derivative ℚ) h
+  simp only [map_add, map_sub, Derivation.leibniz, derivative_pow, derivative_one,
+    derivative_X, map_zero, smul_eq_mul, Nat.cast_ofNat, Nat.reduceSub,
+    pow_one, mul_one, zero_add] at hd
+  linear_combination
+    (1 + X + X ^ 2) * (2 * (1 + X + X ^ 2) * F - (1 + X)) * hd -
+    (4 * (1 + X + X ^ 2) ^ 2 * derivative ℚ F +
+      (2 * (1 + X + X ^ 2) * F - (1 + X)) * (1 + 2 * X) +
+      2 * (2 * X + X ^ 2)) * h
 
-lemma ode :
-    4 * (4 * X ^ 5 + 7 * X ^ 4 + 9 * X ^ 3 + 4 * X ^ 2 + X - 1) * d⁄dX ℚ series
-      + 4 * (2 * X ^ 4 + X ^ 3 - 3 * X ^ 2 - 4 * X - 2) * series
-      + 4 * (X ^ 3 + 3 * X ^ 2 + X + 1) = 0 := by
-  have hR : rootSeries = 1 + X - 2 * (1 + X + X ^ 2) * series := by rw [two_D_A]; ring
-  have h2 := congrArg (d⁄dX ℚ) root_sq
-  rw [sq, Derivation.leibniz, map_add, derivative_one, d_t, smul_eq_mul,
-    zero_add] at h2
-  have h3 : 2 * (1 + radicandTail) * d⁄dX ℚ rootSeries
-      = rootSeries * (-2 - 6 * X - 12 * X ^ 2) := by
-    rw [← root_sq]; linear_combination rootSeries * h2
-  have hdR := congrArg (d⁄dX ℚ) hR
-  simp only [map_add, map_sub, Derivation.leibniz, Derivation.leibniz_pow, derivative_one,
-    derivative_X, smul_eq_mul] at hdR
-  have h2d : d⁄dX ℚ (2 : PowerSeries ℚ) = 0 := by
-    rw [show (2 : PowerSeries ℚ) = C 2 by simp only [map_ofNat], derivative_C]
-  rw [h2d] at hdR
-  simp only [radicandTail] at h3
-  linear_combination h3 - 2 * (1 + (-2 * X - 3 * X ^ 2 - 4 * X ^ 3)) * hdR
-    + (-2 - 6 * X - 12 * X ^ 2) * hR
+end OMA108
 
-lemma ode' :
-    C (16 : ℚ) * X ^ 5 * d⁄dX ℚ series + C (28 : ℚ) * X ^ 4 * d⁄dX ℚ series
-      + C (36 : ℚ) * X ^ 3 * d⁄dX ℚ series + C (16 : ℚ) * X ^ 2 * d⁄dX ℚ series
-      + C (4 : ℚ) * X ^ 1 * d⁄dX ℚ series + C (-4 : ℚ) * X ^ 0 * d⁄dX ℚ series
-      + C (8 : ℚ) * X ^ 4 * series + C (4 : ℚ) * X ^ 3 * series
-      + C (-12 : ℚ) * X ^ 2 * series + C (-16 : ℚ) * X ^ 1 * series
-      + C (-8 : ℚ) * X ^ 0 * series
-      + (C (4 : ℚ) * X ^ 3 + C (12 : ℚ) * X ^ 2 + C (4 : ℚ) * X ^ 1 + C (4 : ℚ) * X ^ 0) = 0 := by
-  simp only [map_neg, map_ofNat]
-  linear_combination ode
-
-end OMA.P_a108629
-
-open OMA.S_oeis_a108629 OMA.P_a108629 PowerSeries in
+open PowerSeries OMA.S_oeis_a108629 OMA108 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a108629.main := by
   intro n hn
-  obtain ⟨m, rfl⟩ : ∃ m, n = m + 6 := ⟨n - 6, by omega⟩
-  have h := congrArg (coeff (m + 5)) ode'
-  simp only [mul_assoc, map_add, map_zero, coeff_C_mul, coeff_X_pow_mul', coeff_derivative,
-    coeff_X_pow] at h
-  simp at h
+  obtain ⟨k, rfl⟩ : ∃ k, n = k + 6 := ⟨n - 6, by omega⟩
+  have hc := congrArg (coeff (k + 5)) (quadratic_ode _ defining_equation)
+  simp only [sub_mul, add_mul, neg_mul, mul_assoc, one_mul, map_add, map_sub, map_neg,
+    ← map_ofNat (C (R := ℚ)), coeff_C_mul] at hc
+  simp [coeff_succ_X_mul (k + 4), coeff_X_pow_mul', coeff_derivative, coeff_X_pow,
+    coeff_one, coeff_X] at hc
   unfold a
-  have e1 : m + 6 - 1 = m + 5 := by omega
-  have e2 : m + 6 - 2 = m + 4 := by omega
-  have e3 : m + 6 - 3 = m + 3 := by omega
-  have e4 : m + 6 - 4 = m + 2 := by omega
-  have e5 : m + 6 - 5 = m + 1 := by omega
-  rw [e1, e2, e3, e4, e5]
   push_cast
-  linear_combination (-1 / 4 : ℚ) * h
+  linear_combination hc

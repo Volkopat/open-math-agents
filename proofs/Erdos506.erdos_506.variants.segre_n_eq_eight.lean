@@ -44,13 +44,9 @@ def point (i : Fin 8) : EuclideanSpace ℝ (Fin 2) := !₂[(x i : ℝ), (y i : �
 theorem point_injective : Function.Injective point := by
   have hc : ∀ i j : Fin 8, x i = x j → y i = y j → i = j := by decide
   intro i j h
-  apply hc i j
-  · have he := congrArg (fun p : EuclideanSpace ℝ (Fin 2) => p 0) h
-    change (x i : ℝ) = (x j : ℝ) at he
-    exact_mod_cast he
-  · have he := congrArg (fun p : EuclideanSpace ℝ (Fin 2) => p 1) h
-    change (y i : ℝ) = (y j : ℝ) at he
-    exact_mod_cast he
+  exact hc i j
+    (Int.cast_injective (congrArg (fun p : EuclideanSpace ℝ (Fin 2) => p 0) h))
+    (Int.cast_injective (congrArg (fun p : EuclideanSpace ℝ (Fin 2) => p 1) h))
 
 def pts : Finset (EuclideanSpace ℝ (Fin 2)) :=
   Finset.univ.map ⟨point, point_injective⟩
@@ -69,9 +65,7 @@ theorem circleEquation (s : Sphere (EuclideanSpace ℝ (Fin 2))) (i : Fin 8) (hi
     sq_abs, sq_abs] at h
   change s.radius ^ 2 = ((x i : ℝ) - s.center 0) ^ 2 + ((y i : ℝ) - s.center 1) ^ 2 at h
   push_cast [q]
-  linarith [show ((x i : ℝ) - s.center 0)^2 + ((y i : ℝ) - s.center 1)^2 =
-    (x i : ℝ)^2 + (y i : ℝ)^2 - (x i : ℝ)*(2*s.center 0) -
-      (y i : ℝ)*(2*s.center 1) + (s.center 0)^2 + (s.center 1)^2 by ring]
+  linear_combination -h
 
 theorem pts_not_cospherical : ¬ Cospherical (pts : Set (EuclideanSpace ℝ (Fin 2))) := by
   rw [cospherical_iff_exists_sphere]
@@ -95,11 +89,10 @@ theorem pts_not_collinear : ¬ Collinear ℝ (pts : Set (EuclideanSpace ℝ (Fin
   change (x 1 : ℝ) = a * v 0 + (x 0 : ℝ) at ha0
   change (y 1 : ℝ) = a * v 1 + (y 0 : ℝ) at ha1
   change (x 2 : ℝ) = b * v 0 + (x 0 : ℝ) at hb0
-  norm_num [show x 0 = -1 by decide, show y 0 = -1 by decide,
-    show x 1 = -1 by decide, show y 1 = 1 by decide, show x 2 = 1 by decide] at ha0 ha1 hb0
+  norm_num [x, y] at ha0 ha1
   have hane : a ≠ 0 := by intro h; norm_num [h] at ha1
   have hv0 := ha0.resolve_left hane
-  norm_num [hv0] at hb0
+  norm_num [show x 2 = 1 by decide, show x 0 = -1 by decide, hv0] at hb0
 
 noncomputable def candidate (m : Fin 18) : Sphere (EuclideanSpace ℝ (Fin 2)) :=
   let u : ℝ := (cu m : ℝ) / (den m : ℝ)
@@ -146,7 +139,7 @@ theorem circleInTable (s : Sphere (EuclideanSpace ℝ (Fin 2))) (i j k : Fin 8)
   have hv' : (cv m : ℝ) / den m = V := cancel hV (by exact_mod_cast hv)
   have hw' : (cw m : ℝ) / den m = W := cancel hW (by exact_mod_cast hw)
   refine ⟨m, Sphere.ext ?_ ?_⟩
-  · change !₂[(cu m : ℝ) / den m / 2, (cv m : ℝ) / den m / 2] = s.center
+  · dsimp [candidate]
     rw [hu', hv']
     ext a
     fin_cases a
@@ -156,8 +149,7 @@ theorem circleInTable (s : Sphere (EuclideanSpace ℝ (Fin 2))) (i j k : Fin 8)
     · change V / 2 = s.center 1
       dsimp [V]
       ring
-  · change Real.sqrt ((cw m : ℝ) / den m + ((cu m : ℝ) / den m / 2)^2 +
-      ((cv m : ℝ) / den m / 2)^2) = s.radius
+  · dsimp [candidate]
     rw [hw', hu', hv']
     have heq : W + (U/2)^2 + (V/2)^2 = s.radius ^ 2 := by dsimp [U, V, W]; ring
     rw [heq, Real.sqrt_sq (mem_sphere.mp hi ▸ dist_nonneg)]

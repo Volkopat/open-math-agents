@@ -1,85 +1,16 @@
 import FormalConjectures.Wikipedia.LeinsterGroup
 
--- Problem: Leinster Groups — cyclic of perfect is leinster
--- Upstream: formal-conjectures FormalConjectures/Wikipedia/LeinsterGroup.lean:74 (declaration LeinsterGroup.cyclic_of_perfect_is_leinster)
--- Credit: @ldy985 (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+/-! In a finite cyclic group the subgroup of order `d` is the kernel of `x ↦ x ^ d`, so
+`H ↦ |H|` and `d ↦ ker (x ↦ x ^ d)` are inverse bijections between subgroups and divisors. -/
 
-namespace OMA.P6
-
-theorem comm_of_cyclic {G : Type*} [Group G] [IsCyclic G] (a b : G) : a * b = b * a := by
-  obtain ⟨g, hg⟩ := IsCyclic.exists_generator (α := G)
-  obtain ⟨m, rfl⟩ := Subgroup.mem_zpowers_iff.mp (hg a)
-  obtain ⟨k, rfl⟩ := Subgroup.mem_zpowers_iff.mp (hg b)
-  rw [← zpow_add, ← zpow_add, add_comm]
-
-theorem subset_pow_eq_one {G : Type*} [Group G] (H : Subgroup G) [Finite H] :
-    ((H : Set G)) ⊆ {a : G | a ^ Nat.card H = 1} := by
-  intro x hx
-  show x ^ Nat.card H = 1
-  have h1 : (⟨x, hx⟩ : H) ^ Nat.card H = 1 := pow_card_eq_one'
-  exact congrArg Subtype.val h1
-
-theorem card_pow_set_le {G : Type*} [Group G] [Fintype G] [IsCyclic G] {n : ℕ} (hn : 0 < n) :
-    Set.ncard {a : G | a ^ n = 1} ≤ n := by
-  classical
-  have e : {a : G | a ^ n = 1} = ↑(Finset.univ.filter (fun a : G => a ^ n = 1)) := by
-    ext a
-    simp
-  rw [e, Set.ncard_coe_finset]
-  exact IsCyclic.card_pow_eq_one_le hn
-
-theorem eq_of_card_eq {G : Type*} [Group G] [Fintype G] [IsCyclic G] (H K : Subgroup G)
-    (h : Nat.card H = Nat.card K) : H = K := by
-  have hpos : 0 < Nat.card H := Nat.card_pos
-  have hS : ∀ L : Subgroup G, Nat.card L = Nat.card H →
-      (L : Set G) = {a : G | a ^ Nat.card H = 1} := by
-    intro L hL
-    have hsub : (L : Set G) ⊆ {a : G | a ^ Nat.card H = 1} := by
-      rw [← hL]
-      exact subset_pow_eq_one L
-    apply Set.eq_of_subset_of_ncard_le hsub
-    have e : (L : Set G).ncard = Nat.card L := (Nat.card_coe_set_eq (L : Set G)).symm
-    rw [e, hL]
-    exact card_pow_set_le hpos
-  apply SetLike.coe_injective
-  rw [hS H rfl, hS K h.symm]
-
-end OMA.P6
-
+open scoped IsMulCommutative in
 theorem OMA.solution : type_of% @LeinsterGroup.cyclic_of_perfect_is_leinster := by
   intro G _ _ _ hp
-  classical
-  obtain ⟨hsum, hpos⟩ : (∑ i ∈ Nat.properDivisors (Fintype.card G), i = Fintype.card G) ∧
-      0 < Fintype.card G := hp
-  have hdiv : ∑ i ∈ Nat.divisors (Fintype.card G), i = 2 * Fintype.card G := by
-    rw [Nat.sum_divisors_eq_sum_properDivisors_add_self, hsum]
-    omega
-  unfold LeinsterGroup.IsLeinster
-  rw [← hdiv]
-  refine Finset.sum_bij (fun H _ => Nat.card H.1) ?_ ?_ ?_ ?_
-  · intro H _
-    refine Nat.mem_divisors.2 ⟨?_, hpos.ne'⟩
-    rw [← Nat.card_eq_fintype_card]
-    exact Subgroup.card_subgroup_dvd_card H.1
-  · intro H₁ _ H₂ _ h
-    exact Subtype.ext (OMA.P6.eq_of_card_eq H₁.1 H₂.1 h)
-  · intro d hd
-    obtain ⟨hdvd, _⟩ := Nat.mem_divisors.1 hd
-    have hdpos : 0 < d := Nat.pos_of_dvd_of_pos hdvd hpos
-    have htot : 0 < Nat.totient d := Nat.totient_pos.2 hdpos
-    have hcard := IsCyclic.card_orderOf_eq_totient hdvd
-    have hne : 0 < (Finset.univ.filter (fun a : G => orderOf a = d)).card := by
-      rw [hcard]
-      exact htot
-    obtain ⟨a, ha⟩ := Finset.card_pos.1 hne
-    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ha
-    have hnorm : (Subgroup.zpowers a).Normal :=
-      ⟨fun n hn g => by
-        rw [OMA.P6.comm_of_cyclic g n, mul_inv_cancel_right]
-        exact hn⟩
-    refine ⟨⟨Subgroup.zpowers a, hnorm⟩, Finset.mem_univ _, ?_⟩
-    show Nat.card (Subgroup.zpowers a) = d
-    rw [Nat.card_zpowers, ha]
-  · intro H _
-    rfl
+  rw [LeinsterGroup.IsLeinster, ← (Nat.perfect_iff_sum_divisors_eq_two_mul Fintype.card_pos).1 hp]
+  have c (d : ℕ) := IsCyclic.card_powMonoidHom_ker G d
+  refine Finset.sum_nbij' (fun H => Nat.card H.1) (fun d => ⟨(powMonoidHom d).ker, inferInstance⟩)
+    (fun H _ => Nat.mem_divisors.2 ⟨by simpa using H.1.card_subgroup_dvd_card,
+      Fintype.card_ne_zero⟩) (by simp) (fun H _ => Subtype.ext ?_) (fun d hd => ?_) (fun _ _ => rfl)
+  · exact (Subgroup.eq_of_le_of_card_ge (fun x hx => orderOf_dvd_iff_pow_eq_one.1
+      (H.1.orderOf_dvd_natCard hx)) ((c _).trans_le (Nat.gcd_le_right _ Nat.card_pos))).symm
+  · exact (c d).trans (Nat.gcd_eq_right (by simpa using Nat.dvd_of_mem_divisors hd))

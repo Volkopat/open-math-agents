@@ -55,11 +55,6 @@ noncomputable section
 def Representable (B : Set ℕ) (n : ℕ) : Prop :=
   ∃ s : Finset ℕ, (∀ b ∈ s, b ∈ B) ∧ ∑ b ∈ s, b = n
 
-lemma representable_mono {B C : Set ℕ} (hBC : B ⊆ C) {n : ℕ}
-    (hn : Representable B n) : Representable C n := by
-  obtain ⟨s, hsB, rfl⟩ := hn
-  exact ⟨s, fun b hb => hBC (hsB b hb), rfl⟩
-
 lemma representable_add_of_disjoint {B C : Set ℕ} (hBC : Disjoint B C)
     {m n : ℕ} (hm : Representable B m) (hn : Representable C n) :
     Representable (B ∪ C) (m + n) := by
@@ -374,15 +369,6 @@ lemma balancedPart_card_ge (s : Finset ℕ) (c K : ℕ) (hc : c < 4)
       Finset.card_le_card hsub
     _ = (balancedPart s c).card := by simp [balancedPart]
 
-lemma mem_some_balancedPart (s : Finset ℕ) {n : ℕ} (hn : n ∈ s) :
-    ∃ c < 4, n ∈ balancedPart s c := by
-  let i : Fin s.card := (s.orderIsoOfFin rfl).symm ⟨n, hn⟩
-  refine ⟨i.val % 4, Nat.mod_lt _ (by decide), ?_⟩
-  rw [balancedPart, Finset.mem_map]
-  refine ⟨i, ?_, ?_⟩
-  · simp [i]
-  · exact congrArg Subtype.val ((s.orderIsoOfFin rfl).apply_symm_apply ⟨n, hn⟩)
-
 lemma balancedPart_pairwise_disjoint (s : Finset ℕ) {c d : ℕ} (hcd : c ≠ d) :
     Disjoint (balancedPart s c) (balancedPart s d) := by
   rw [Finset.disjoint_left]
@@ -436,16 +422,6 @@ lemma dyadicIncrement_eq_shellCard (A : Set ℕ) (x : ℕ) :
     refine ⟨⟨⟨by omega, hn2x⟩, hA⟩, ?_⟩
     rintro ⟨⟨_, hnx⟩, _⟩
     omega
-
-lemma dyadic_tendsto_powerShells (A : Set ℕ)
-    (hdyadic : Filter.Tendsto (dyadicIncrement A) Filter.atTop Filter.atTop) :
-    ∀ᶠ j : ℕ in Filter.atTop, 16 ≤ (powerShell A j).card := by
-  have hx : ∀ᶠ x : ℕ in Filter.atTop, 16 ≤ shellCount A x := by
-    filter_upwards [Filter.tendsto_atTop.1 hdyadic 16] with x hx
-    simpa only [dyadicIncrement_eq_shellCard] using hx
-  have hj := (tendsto_pow_atTop_atTop_of_one_lt (r := (2 : ℕ)) (by decide)).eventually hx
-  filter_upwards [hj] with j hj
-  simpa [powerShell, shellCount, pow_succ, mul_comm] using hj
 
 /-- Four points of one power-of-two shell already have total sum larger than
 any point of the following shell. -/
@@ -512,24 +488,6 @@ lemma colorClass_pairwise_disjoint (A : Set ℕ) {c d : ℕ} (hcd : c ≠ d) :
   exact Finset.disjoint_left.mp (balancedPart_pairwise_disjoint (powerShell A j) hcd)
     hj hk
 
-lemma mem_some_colorClass (A : Set ℕ) {n : ℕ} (hnA : n ∈ A) (hn : 1 < n) :
-    ∃ c < 4, n ∈ colorClass A c := by
-  let k := Nat.clog 2 n
-  have hkpos : 0 < k := Nat.clog_pos (by decide) hn
-  let j := k - 1
-  have hjk : j + 1 = k := Nat.sub_add_cancel hkpos
-  have hjlt : j < k := by omega
-  have hlower : 2 ^ j < n := by
-    exact (Nat.lt_clog_iff_pow_lt (by decide)).mp (by simpa [k] using hjlt)
-  have hupper : n ≤ 2 ^ (j + 1) := by
-    rw [hjk]
-    exact Nat.le_pow_clog (by decide) n
-  have hnshell : n ∈ powerShell A j := by
-    simp only [powerShell, Finset.mem_filter, Finset.mem_Ioc]
-    exact ⟨⟨hlower, hupper⟩, hnA⟩
-  obtain ⟨c, hc, hnc⟩ := mem_some_balancedPart (s := powerShell A j) hnshell
-  exact ⟨c, hc, j, hnc⟩
-
 def prefixFinset (B : Set ℕ) (n : ℕ) : Finset ℕ := by
   classical
   exact (Finset.Iio n).filter (fun m => m ∈ B)
@@ -581,35 +539,6 @@ theorem colorClass_eventual_growth (A : Set ℕ) (c : ℕ) (hc : c < 4)
   have hcard : 16 ≤ (powerShell A j).card := hJ j (by omega)
   apply colorClass_growth_of_shell_card A j c n hc hcard
   rwa [hjk]
-
-/-- The dyadic hypothesis produces four disjoint growth classes which cover
-all members of `A` above one. -/
-theorem dyadic_produces_four_growth_classes (A : Set ℕ)
-    (hdyadic : Filter.Tendsto (dyadicIncrement A) Filter.atTop Filter.atTop) :
-    ∃ B : Fin 4 → Set ℕ,
-      (∀ i, B i ⊆ A) ∧
-      Pairwise (fun i j => Disjoint (B i) (B j)) ∧
-      (∀ n ∈ A, 1 < n → ∃ i, n ∈ B i) ∧
-      (∀ i, ∃ N₀ : ℕ, ∀ n : ℕ, N₀ ≤ n → n ∈ B i →
-        n ≤ prefixSum (B i) n) := by
-  classical
-  let B : Fin 4 → Set ℕ := fun i => colorClass A i.val
-  have hshell := dyadic_tendsto_powerShells A hdyadic
-  refine ⟨B, ?_, ?_, ?_, ?_⟩
-  · intro i n hn
-    obtain ⟨j, hnj⟩ := hn
-    have hnshell := balancedPart_subset (powerShell A j) i.val hnj
-    exact (Finset.mem_filter.mp hnshell).2
-  · intro i j hij
-    apply colorClass_pairwise_disjoint A
-    intro hval
-    apply hij
-    exact Fin.ext hval
-  · intro n hnA hn
-    obtain ⟨c, hc, hnc⟩ := mem_some_colorClass A hnA hn
-    exact ⟨⟨c, hc⟩, hnc⟩
-  · intro i
-    exact colorClass_eventual_growth A i.val i.isLt hshell
 
 end
 
@@ -856,45 +785,6 @@ lemma smallerCoins_colorClass_eq_prefixFinset (A : Set ℕ) (c b : ℕ) :
   · rintro ⟨hxb, hxC⟩
     exact ⟨⟨(colorClass_elements_gt_one A c hxC).le, hxb⟩, hxC⟩
 
-/-- The dyadic hypothesis yields four pairwise-disjoint classes covering
-`A \ {0,1}`, and each class has syndetic distinct subset sums. -/
-theorem dyadic_produces_four_syndetic_classes (A : Set ℕ)
-    (hdyadic : Filter.Tendsto (dyadicIncrement A) Filter.atTop Filter.atTop) :
-    ∃ B : Fin 4 → Set ℕ,
-      (∀ i, B i ⊆ A) ∧
-      Pairwise (fun i j => Disjoint (B i) (B j)) ∧
-      (∀ n ∈ A, 1 < n → ∃ i, n ∈ B i) ∧
-      (∀ i, ∃ K : ℕ, ∀ n : ℕ, ∃ t : Finset ℕ,
-        (∀ b ∈ t, b ∈ B i) ∧
-        (∑ b ∈ t, b) ≤ n ∧ n ≤ (∑ b ∈ t, b) + K) := by
-  classical
-  let B : Fin 4 → Set ℕ := fun i => colorClass A i.val
-  have hshell := dyadic_tendsto_powerShells A hdyadic
-  refine ⟨B, ?_, ?_, ?_, ?_⟩
-  · intro i n hn
-    obtain ⟨j, hnj⟩ := hn
-    have hns := balancedPart_subset (powerShell A j) i.val hnj
-    exact (Finset.mem_filter.mp hns).2
-  · intro i j hij
-    apply colorClass_pairwise_disjoint A
-    intro hv
-    apply hij
-    exact Fin.ext hv
-  · intro n hnA hn
-    obtain ⟨c, hc, hnc⟩ := mem_some_colorClass A hnA hn
-    exact ⟨⟨c, hc⟩, hnc⟩
-  · intro i
-    obtain ⟨N₀, hgrowth⟩ := colorClass_eventual_growth A i.val i.isLt hshell
-    refine ⟨N₀, ?_⟩
-    apply infinite_prefix_growth_gives_syndetic_subsetSums
-    · exact colorClass_infinite A i.val i.isLt hshell
-    · intro b hbB hb1
-      by_cases hbN : N₀ ≤ b
-      · rw [smallerCoins_colorClass_eq_prefixFinset]
-        exact (hgrowth b hbN hbB).trans (Nat.le_add_right _ _)
-      · have : b ≤ N₀ := Nat.le_of_lt (Nat.lt_of_not_ge hbN)
-        exact this.trans (Nat.le_add_left N₀ _)
-
 end
 
 end LocalCassels.FourSyndeticClasses
@@ -912,16 +802,6 @@ noncomputable section
 /-- The set obtained by taking prescribed reserves from every power shell. -/
 def reserveSet (R : ℕ → Finset ℕ) : Set ℕ :=
   {n | ∃ j, n ∈ R j}
-
-lemma reserveSet_elements_gt_one {A : Set ℕ} {R : ℕ → Finset ℕ}
-    (hsub : ∀ j, R j ⊆ powerShell A j) {n : ℕ}
-    (hn : n ∈ reserveSet R) : 1 < n := by
-  classical
-  obtain ⟨j, hnj⟩ := hn
-  have hns := hsub j hnj
-  have hlo := (Finset.mem_Ioc.mp (Finset.mem_filter.mp hns).1).1
-  have hp : 1 ≤ 2 ^ j := Nat.one_le_two_pow
-  omega
 
 lemma reserveSet_subset {A : Set ℕ} {R : ℕ → Finset ℕ}
     (hsub : ∀ j, R j ⊆ powerShell A j) : reserveSet R ⊆ A := by
@@ -1093,20 +973,6 @@ lemma nearestIntegerDistance_nonneg (x : ℝ) :
   · exact Int.fract_nonneg x
   · exact sub_nonneg.mpr (Int.fract_lt_one x).le
 
-lemma nearestIntegerDistance_le_half (x : ℝ) :
-    nearestIntegerDistance x ≤ 1 / 2 := by
-  by_cases h : Int.fract x ≤ (1 : ℝ) / 2
-  · exact (min_le_left _ _).trans h
-  · exact (min_le_right _ _).trans (by linarith)
-
-lemma nearestIntegerDistance_intCast (z : ℤ) :
-    nearestIntegerDistance (z : ℝ) = 0 := by
-  simp [nearestIntegerDistance, Int.fract]
-
-lemma nearestIntegerDistance_natCast (n : ℕ) :
-    nearestIntegerDistance (n : ℝ) = 0 := by
-  simp [nearestIntegerDistance, Int.fract]
-
 lemma phasePartialSum_monotone (A : Set ℕ) (θ : ℝ) :
     Monotone (phasePartialSum A θ) := by
   intro M N hMN
@@ -1123,36 +989,6 @@ lemma phasePartialSum_tendsto_iff_unbounded (A : Set ℕ) (θ : ℝ) :
     Tendsto (phasePartialSum A θ) atTop atTop ↔
       ∀ B : ℝ, ∃ N : ℕ, B ≤ phasePartialSum A θ N :=
   (phasePartialSum_monotone A θ).tendsto_atTop_atTop_iff
-
-/-- A set contained in one proper divisibility class cannot satisfy the phase
-hypothesis: the rational phase `1/q` annihilates every term. -/
-theorem rational_phase_obstruction (A : Set ℕ) (q : ℕ) (hq : 2 ≤ q)
-    (hdiv : ∀ n ∈ A, q ∣ n) :
-    ¬ (∀ θ : ℝ, θ ∈ Set.Ioo 0 1 →
-      Tendsto (phasePartialSum A θ) atTop atTop) := by
-  intro hphase
-  let θ : ℝ := 1 / (q : ℝ)
-  have hqpos : (0 : ℝ) < (q : ℝ) := by positivity
-  have hθpos : (0 : ℝ) < θ := by
-    dsimp [θ]
-    positivity
-  have hθlt : θ < (1 : ℝ) := by
-    dsimp [θ]
-    rw [div_lt_one hqpos]
-    exact_mod_cast (show 1 < q from lt_of_lt_of_le Nat.one_lt_two hq)
-  have htend : Tendsto (phasePartialSum A θ) atTop atTop :=
-    hphase θ ⟨hθpos, hθlt⟩
-  have hzero : phasePartialSum A θ = fun _ => 0 := by
-    funext N
-    classical
-    simp only [phasePartialSum]
-    apply Finset.sum_eq_zero
-    intro n hn
-    have hnA : n ∈ A := (Finset.mem_filter.mp hn).2
-    obtain ⟨k, rfl⟩ := hdiv n hnA
-    simp [θ, nearestIntegerDistance, Int.fract, hqpos.ne']
-  rw [hzero] at htend
-  exact not_tendsto_const_atTop (0 : ℝ) atTop htend
 
 /-- Even finitely many exceptions do not remove the rational obstruction. -/
 theorem eventual_rational_phase_obstruction (A : Set ℕ) (q : ℕ) (hq : 2 ≤ q)
@@ -1211,28 +1047,6 @@ theorem phase_implies_tail_nonmultiple (A : Set ℕ)
     by_contra hndiv
     exact hnone ⟨n, hn, hnA, hndiv⟩
   exact (eventual_rational_phase_obstruction A q hq ⟨N, hdiv⟩) hphase
-
-/-- Quantitative finite form of tail aperiodicity. -/
-theorem phase_implies_many_nonmultiples (A : Set ℕ)
-    (hphase : ∀ θ : ℝ, θ ∈ Set.Ioo 0 1 →
-      Tendsto (phasePartialSum A θ) atTop atTop)
-    (q : ℕ) (hq : 2 ≤ q) (K : ℕ) :
-    ∃ s : Finset ℕ, s.card = K ∧ (↑s : Set ℕ) ⊆ A ∧
-      ∀ n ∈ s, ¬ q ∣ n := by
-  let E : Set ℕ := {n | n ∈ A ∧ ¬ q ∣ n}
-  have hE : E.Infinite := by
-    intro hfinite
-    obtain ⟨M, hM⟩ := hfinite.exists_le
-    obtain ⟨n, hnM, hnA, hnq⟩ :=
-      phase_implies_tail_nonmultiple A hphase q hq (M + 1)
-    have hnle : n ≤ M := hM n ⟨hnA, hnq⟩
-    omega
-  obtain ⟨s, hsE, hscard⟩ := hE.exists_subset_card_eq K
-  refine ⟨s, hscard, ?_, ?_⟩
-  · intro n hn
-    exact (hsE hn).1
-  · intro n hn
-    exact (hsE hn).2
 
 end LocalCassels
 end
@@ -1845,50 +1659,6 @@ open LocalCassels.ReserveGrowth
 
 noncomputable section
 
-/-- For any prescribed countable list of phases, the canonical hypotheses
-produce a growing syndetic dyadic reserve while all listed phase series remain
-divergent on the shell complements. -/
-theorem exists_syndetic_reserve_protecting_countable_phases
-    (A : Set ℕ)
-    (hdyadic : Tendsto (LocalCassels.dyadicIncrement A) atTop atTop)
-    (hphase : ∀ θ : ℝ, θ ∈ Set.Ioo 0 1 →
-      Tendsto (phasePartialSum A θ) atTop atTop)
-    (θ : ℕ → ℝ) (hθ : ∀ i, θ i ∈ Set.Ioo 0 1) :
-    ∃ R : ℕ → Finset ℕ,
-      (∀ j, R j ⊆ powerShell A j) ∧
-      Tendsto (fun j => (R j).card) atTop atTop ∧
-      (∀ i : ℕ, ∃ J : ℕ, Tendsto
-        (fun N => ∑ j ∈ Finset.range N,
-          ((∑ n ∈ powerShell A (J + j),
-              nearestIntegerDistance (θ i * (n : ℝ))) -
-            ∑ n ∈ R (J + j),
-              nearestIntegerDistance (θ i * (n : ℝ)))) atTop atTop) ∧
-      (∃ K : ℕ, ∀ n : ℕ, ∃ t : Finset ℕ,
-        (∀ b ∈ t, b ∈ reserveSet R) ∧
-        (∑ b ∈ t, b) ≤ n ∧ n ≤ (∑ b ∈ t, b) + K) := by
-  have hpow : Tendsto (fun j : ℕ => 2 ^ j) atTop atTop :=
-    tendsto_pow_atTop_atTop_of_one_lt (r := (2 : ℕ)) (by decide)
-  have hcard : Tendsto (fun j => (powerShell A j).card) atTop atTop := by
-    have hd := hdyadic.comp hpow
-    change Tendsto (fun j => LocalCassels.dyadicIncrement A (2 ^ j)) atTop atTop at hd
-    have heq : (fun j => (powerShell A j).card) =
-        (fun j => LocalCassels.dyadicIncrement A (2 ^ j)) := by
-      funext j
-      rw [show LocalCassels.dyadicIncrement A (2 ^ j) =
-        LocalCassels.GrowthPartition.dyadicIncrement A (2 ^ j) by rfl]
-      rw [LocalCassels.GrowthPartition.dyadicIncrement_eq_shellCard]
-      simp [powerShell, LocalCassels.GrowthPartition.shellCount, pow_succ, mul_comm]
-    rw [heq]
-    exact hd
-  apply exists_eventual_syndetic_reserve_preserving_countable_divergence
-    A (fun i n => nearestIntegerDistance (θ i * (n : ℝ)))
-  · intro i j n hn
-    exact nearestIntegerDistance_nonneg _
-  · exact hcard
-  · intro i
-    exact phase_divergence_implies_powerShell_divergence A (θ i)
-      (hphase (θ i) (hθ i))
-
 end
 
 end LocalCassels.CountablePhaseSyndeticReserve
@@ -2007,31 +1777,6 @@ theorem complement_phase_diverges_of_shell_remainder
   refine ⟨2 ^ (J + N), hN.trans ?_⟩
   exact shifted_shell_sum_le_phasePartialSum (A \ reserveSet R) θ J N
 
-/-- Fully canonical specialization: for any prescribed countable phase list,
-one can reserve a syndetic growth class and the actual set-theoretic complement
-still satisfies canonical phase divergence at every listed phase. -/
-theorem exists_syndetic_reserve_with_phase_divergent_complement
-    (A : Set ℕ)
-    (hdyadic : Tendsto (LocalCassels.dyadicIncrement A) atTop atTop)
-    (hphase : ∀ θ : ℝ, θ ∈ Set.Ioo 0 1 →
-      Tendsto (phasePartialSum A θ) atTop atTop)
-    (θ : ℕ → ℝ) (hθ : ∀ i, θ i ∈ Set.Ioo 0 1) :
-    ∃ R : ℕ → Finset ℕ,
-      (∀ j, R j ⊆ powerShell A j) ∧
-      Tendsto (fun j => (R j).card) atTop atTop ∧
-      (∀ i : ℕ, Tendsto
-        (phasePartialSum (A \ reserveSet R) (θ i)) atTop atTop) ∧
-      (∃ K : ℕ, ∀ n : ℕ, ∃ t : Finset ℕ,
-        (∀ b ∈ t, b ∈ reserveSet R) ∧
-        (∑ b ∈ t, b) ≤ n ∧ n ≤ (∑ b ∈ t, b) + K) := by
-  obtain ⟨R, hRsub, hRcard, hRphase, hRsynd⟩ :=
-    exists_syndetic_reserve_protecting_countable_phases
-      A hdyadic hphase θ hθ
-  refine ⟨R, hRsub, hRcard, ?_, hRsynd⟩
-  intro i
-  obtain ⟨J, hJ⟩ := hRphase i
-  exact complement_phase_diverges_of_shell_remainder A R hRsub (θ i) J hJ
-
 end
 
 end LocalCassels.ReserveComplementPhase
@@ -2149,95 +1894,6 @@ def boundedPhases (C : Set ℕ) (k : ℕ) : Set ℝ :=
   {θ | θ ∈ Set.Icc (0 : ℝ) 1 ∧
     ∀ N, phasePartialSum C θ N ≤ (k : ℝ)}
 
-lemma boundedPhases_separated
-    {C : Set ℕ} (hdyadic : Tendsto (dyadicIncrement C) atTop atTop)
-    (k : ℕ) :
-    ∃ ε : ℝ, 0 < ε ∧
-      ∀ θ ∈ boundedPhases C k, ∀ φ ∈ boundedPhases C k,
-        θ ≠ φ → ε ≤ |θ - φ| := by
-  let M : ℕ := 16 * k + 1
-  obtain ⟨X, hX⟩ := (eventually_atTop.1
-    (dyadic_tendsto_eventually_many C hdyadic M))
-  let ε : ℝ := min (1 / 8) (1 / (8 * ((X : ℝ) + 1)))
-  have hε : 0 < ε := by
-    dsimp [ε]
-    positivity
-  refine ⟨ε, hε, ?_⟩
-  intro θ hθ φ hφ hne
-  by_contra hnot
-  have hdist : |θ - φ| < ε := lt_of_not_ge hnot
-  let δ : ℝ := |θ - φ|
-  have hδ : 0 < δ := abs_pos.mpr (sub_ne_zero.mpr hne)
-  have hδ8 : δ < 1 / 8 := hdist.trans_le (min_le_left _ _)
-  have hδX : δ < 1 / (8 * ((X : ℝ) + 1)) :=
-    hdist.trans_le (min_le_right _ _)
-  let x : ℕ := ⌈1 / (8 * δ)⌉₊
-  have hr0 : 0 ≤ 1 / (8 * δ) := by positivity
-  have hxceil_lo : 1 / (8 * δ) ≤ (x : ℝ) := Nat.le_ceil _
-  have hxceil_hi : (x : ℝ) < 1 / (8 * δ) + 1 := Nat.ceil_lt_add_one hr0
-  have hxX : X ≤ x := by
-    have hprod : δ * (8 * ((X : ℝ) + 1)) < 1 :=
-      (lt_div_iff₀ (by positivity)).mp hδX
-    have hlarge : (X : ℝ) + 1 < 1 / (8 * δ) := by
-      rw [lt_div_iff₀ (by positivity)]
-      nlinarith [hprod]
-    have : (X : ℝ) ≤ (x : ℝ) := by linarith [hlarge, hxceil_lo]
-    exact_mod_cast this
-  have hxlo : 1 / 8 ≤ (x : ℝ) * δ := by
-    calc
-      1 / 8 = (1 / (8 * δ)) * δ := by field_simp
-      _ ≤ (x : ℝ) * δ := mul_le_mul_of_nonneg_right hxceil_lo hδ.le
-  have hxhi : (x : ℝ) * δ ≤ 1 / 4 := by
-    have hlt : (x : ℝ) * δ < 1 / 8 + δ := by
-      calc
-        (x : ℝ) * δ < (1 / (8 * δ) + 1) * δ :=
-          mul_lt_mul_of_pos_right hxceil_hi hδ
-        _ = 1 / 8 + δ := by field_simp
-    linarith
-  have hlower := shell_phase_lower C x δ hδ hxlo hxhi
-  have hcard : M ≤ shellCount C x := hX x hxX
-  have hlower' : (2 * k : ℝ) < phasePartialSum C δ (2 * x) := by
-    calc
-      (2 * k : ℝ) < (M : ℝ) / 8 := by
-        dsimp [M]
-        push_cast
-        linarith
-      _ ≤ (shellCount C x : ℝ) / 8 := by
-        apply div_le_div_of_nonneg_right
-        · exact_mod_cast hcard
-        · norm_num
-      _ ≤ phasePartialSum C δ (2 * x) := hlower
-  have htri : phasePartialSum C δ (2 * x) ≤
-      phasePartialSum C θ (2 * x) + phasePartialSum C φ (2 * x) := by
-    classical
-    simp only [phasePartialSum]
-    rw [← Finset.sum_add_distrib]
-    apply Finset.sum_le_sum
-    intro n hn
-    have hpoint : nearestIntegerDistance (δ * (n : ℝ)) ≤
-        nearestIntegerDistance (θ * (n : ℝ)) +
-          nearestIntegerDistance (φ * (n : ℝ)) := by
-      rcases le_total φ θ with hφθ | hθφ
-      · have hδeq : δ * (n : ℝ) = θ * (n : ℝ) - φ * (n : ℝ) := by
-          dsimp [δ]
-          rw [abs_of_nonneg (sub_nonneg.mpr hφθ)]
-          ring
-        rw [hδeq]
-        exact nd_sub_le _ _
-      · have hδeq : δ * (n : ℝ) = -(θ * (n : ℝ) - φ * (n : ℝ)) := by
-          dsimp [δ]
-          rw [abs_of_nonpos (sub_nonpos.mpr hθφ)]
-          ring
-        rw [hδeq, nd_neg]
-        exact nd_sub_le _ _
-    exact hpoint
-  have hupp : phasePartialSum C θ (2 * x) +
-      phasePartialSum C φ (2 * x) ≤ 2 * k := by
-    have hθb := hθ.2 (2 * x)
-    have hφb := hφ.2 (2 * x)
-    linarith
-  linarith
-
 lemma finite_of_totallyBounded_separated
     {s : Set ℝ} (htb : TotallyBounded s) {ε : ℝ} (hε : 0 < ε)
     (hsep : ∀ x ∈ s, ∀ y ∈ s, x ≠ y → ε ≤ |x - y|) :
@@ -2280,23 +1936,6 @@ lemma finite_of_totallyBounded_separated
       exact hfinj hxy
   letI : Finite s := Set.finite_univ_iff.mp this
   exact Set.toFinite s
-
-/-- Under dyadic shell multiplicity, the set of phases in `[0,1]` at which the
-nearest-integer partial sums remain bounded is countable. -/
-theorem countable_bounded_phase_set
-    {C : Set ℕ} (hdyadic : Tendsto (dyadicIncrement C) atTop atTop) :
-    {θ : ℝ | θ ∈ Set.Icc (0 : ℝ) 1 ∧
-      ∃ B : ℝ, ∀ N, phasePartialSum C θ N ≤ B}.Countable := by
-  have hfinite : ∀ k : ℕ, (boundedPhases C k).Finite := by
-    intro k
-    obtain ⟨ε, hε, hsep⟩ := boundedPhases_separated hdyadic k
-    apply finite_of_totallyBounded_separated
-      ((totallyBounded_Icc (0 : ℝ) 1).subset (fun θ hθ => hθ.1)) hε hsep
-  refine (Set.countable_iUnion fun k => (hfinite k).countable).mono ?_
-  rintro θ ⟨hθI, B, hB⟩
-  obtain ⟨k, hk⟩ := exists_nat_ge B
-  refine Set.mem_iUnion.mpr ⟨k, ?_⟩
-  exact ⟨hθI, fun N => (hB N).trans (by exact_mod_cast hk)⟩
 
 end
 
@@ -3106,167 +2745,6 @@ lemma integral_mFourier_subgroup_eq_zero (H : AddSubgroup (UnitAddTorus d))
       _ = 0 := by rw [heq, sub_self]
   exact (mul_eq_zero.mp hmul).resolve_left (sub_ne_zero.mpr ha)
 
-lemma integral_mFourier_univ_eq_zero (k : d → ℤ) (hk : k ≠ 0) :
-    ∫ x : UnitAddTorus d, UnitAddTorus.mFourier k x = 0 := by
-  have ho := (orthonormal_iff_ite.mp UnitAddTorus.orthonormal_mFourier)
-    (0 : d → ℤ) k
-  rw [if_neg hk.symm] at ho
-  simpa only [ContinuousMap.inner_toLp, UnitAddTorus.mFourier_zero,
-    ContinuousMap.one_apply, RCLike.star_def, map_one, one_mul, mul_one,
-    UnitAddTorus.coeFn_mFourierLp] using ho
-
-/-- Integer Fourier characters separate proper closed subgroups of a finite
-unit additive torus. -/
-theorem eq_top_of_no_nonzero_annihilator (H : AddSubgroup (UnitAddTorus d))
-    (hHclosed : IsClosed (H : Set (UnitAddTorus d)))
-    (hann : ∀ k : d → ℤ,
-      (∀ h ∈ H, UnitAddTorus.mFourier k h = 1) → k = 0) :
-    H = ⊤ := by
-  classical
-  by_contra hHtop
-  letI : IsClosed (H : Set (UnitAddTorus d)) := hHclosed
-  letI : CompactSpace H := isCompact_iff_compactSpace.mp hHclosed.isCompact
-  let μ : Measure H := Measure.addHaar
-  letI : μ.IsAddLeftInvariant := inferInstance
-  letI : IsFiniteMeasure μ := inferInstance
-  letI : NeZero μ := inferInstance
-  let M : ℝ := μ.real Set.univ
-  have hM : 0 < M := measureReal_univ_pos
-  have hIntH (k : d → ℤ) :
-      (∫ h : H, UnitAddTorus.mFourier k h.1 ∂μ) =
-        if k = 0 then (M : ℂ) else 0 := by
-    by_cases hk : k = 0
-    · subst k
-      simp only [UnitAddTorus.mFourier_zero, ContinuousMap.one_apply, if_pos]
-      rw [integral_const]
-      simp [M]
-    · rw [if_neg hk]
-      apply integral_mFourier_subgroup_eq_zero H μ k
-      by_contra hnone
-      have hall : ∀ h ∈ H, UnitAddTorus.mFourier k h = 1 := by
-        intro h hh
-        have : ¬ UnitAddTorus.mFourier k h ≠ 1 := by
-          intro hne
-          exact hnone ⟨⟨h, hh⟩, hne⟩
-        exact not_ne_iff.mp this
-      exact hk (hann k hall)
-  have hIntT (k : d → ℤ) :
-      (∫ x : UnitAddTorus d, UnitAddTorus.mFourier k x) =
-        if k = 0 then 1 else 0 := by
-    by_cases hk : k = 0
-    · subst k
-      simp [UnitAddTorus.mFourier_zero]
-    · rw [if_neg hk]
-      exact integral_mFourier_univ_eq_zero k hk
-  have hIntegrableH (f : C(UnitAddTorus d, ℂ)) :
-      Integrable (fun h : H => f h.1) μ := by
-    refine Integrable.of_bound
-      (f.continuous.comp continuous_subtype_val).aestronglyMeasurable ‖f‖ ?_
-    filter_upwards [] with h
-    exact f.norm_coe_le_norm h.1
-  have hIntegrableT (f : C(UnitAddTorus d, ℂ)) :
-      Integrable f := by
-    refine Integrable.of_bound f.continuous.aestronglyMeasurable ‖f‖ ?_
-    filter_upwards [] with x
-    exact f.norm_coe_le_norm x
-  let P : C(UnitAddTorus d, ℂ) → Prop := fun f =>
-    (∫ h : H, f h.1 ∂μ) = (M : ℂ) * ∫ x : UnitAddTorus d, f x
-  have hspan : ∀ f ∈ span ℂ (Set.range UnitAddTorus.mFourier), P f := by
-    intro f hf
-    induction hf using Submodule.span_induction with
-    | mem f hf =>
-        obtain ⟨k, rfl⟩ := hf
-        dsimp [P]
-        rw [hIntH, hIntT]
-        split_ifs <;> simp
-    | zero => simp [P]
-    | add f g hf hg hPf hPg =>
-        dsimp [P] at hPf hPg ⊢
-        rw [integral_add (hIntegrableH f) (hIntegrableH g),
-          integral_add (hIntegrableT f) (hIntegrableT g), hPf, hPg]
-        ring
-    | smul c f hf hPf =>
-        dsimp [P] at hPf ⊢
-        rw [integral_const_mul, integral_const_mul, hPf]
-        ring
-  have hHne : (H : Set (UnitAddTorus d)) ≠ Set.univ := by
-    intro hset
-    apply hHtop
-    exact SetLike.coe_injective hset
-  have hcomp : ((H : Set (UnitAddTorus d))ᶜ).Nonempty :=
-    Set.nonempty_compl.mpr hHne
-  let gr : C(UnitAddTorus d, ℝ) :=
-    ⟨fun x => Metric.infDist x (H : Set (UnitAddTorus d)),
-      Metric.continuous_infDist_pt _⟩
-  have hgrInt : Integrable gr := by
-    refine Integrable.of_bound gr.continuous.aestronglyMeasurable ‖gr‖ ?_
-    filter_upwards [] with x
-    exact gr.norm_coe_le_norm x
-  have hsupp : Function.support gr = (H : Set (UnitAddTorus d))ᶜ := by
-    ext x
-    rw [Function.mem_support, Set.mem_compl_iff]
-    change Metric.infDist x (H : Set (UnitAddTorus d)) ≠ 0 ↔ x ∉ H
-    exact not_congr (hHclosed.mem_iff_infDist_zero ⟨0, H.zero_mem⟩).symm
-  let c : ℝ := ∫ x : UnitAddTorus d, gr x
-  have hc : 0 < c := by
-    dsimp [c, gr]
-    rw [integral_pos_iff_support_of_nonneg (fun x => Metric.infDist_nonneg)
-      hgrInt]
-    have hsupp' : Function.support (fun x : UnitAddTorus d =>
-        Metric.infDist x (H : Set (UnitAddTorus d))) =
-        (H : Set (UnitAddTorus d))ᶜ := by
-      ext x
-      rw [Function.mem_support, Set.mem_compl_iff]
-      exact not_congr (hHclosed.mem_iff_infDist_zero ⟨0, H.zero_mem⟩).symm
-    rw [hsupp']
-    exact (hHclosed.isOpen_compl.measure_pos volume hcomp)
-  let fc : C(UnitAddTorus d, ℂ) :=
-    ⟨fun x => (gr x : ℂ), Complex.continuous_ofReal.comp gr.continuous⟩
-  have hfcInt : Integrable fc := hIntegrableT fc
-  have hfcIntegral : (∫ x : UnitAddTorus d, fc x) = (c : ℂ) := by
-    have hmap := Complex.ofRealCLM.integral_comp_comm hgrInt
-    exact hmap
-  have hfcl : fc ∈ closure
-      ((span ℂ (Set.range UnitAddTorus.mFourier) :
-        Submodule ℂ C(UnitAddTorus d, ℂ)) : Set C(UnitAddTorus d, ℂ)) := by
-    change fc ∈ (span ℂ (Set.range UnitAddTorus.mFourier)).topologicalClosure
-    rw [UnitAddTorus.span_mFourier_closure_eq_top]
-    exact Submodule.mem_top
-  rw [Metric.mem_closure_iff] at hfcl
-  obtain ⟨p, hpSpan, hdist⟩ := hfcl (c / 4) (by positivity)
-  have hpEq := hspan p hpSpan
-  have hpoint : ∀ x, ‖p x - fc x‖ < c / 4 := by
-    intro x
-    exact (ContinuousMap.norm_coe_le_norm (p - fc) x).trans_lt
-      (by simpa [dist_eq_norm, norm_sub_rev] using hdist)
-  have hfcH : ∀ h : H, fc h.1 = 0 := by
-    intro h
-    change (Metric.infDist h.1 (H : Set (UnitAddTorus d)) : ℂ) = 0
-    rw [Metric.infDist_zero_of_mem h.2]
-    norm_num
-  have hboundH : ‖∫ h : H, p h.1 ∂μ‖ ≤ (c / 4) * M := by
-    apply (norm_integral_le_of_norm_le_const (μ := μ))
-    filter_upwards [] with h
-    have := (hpoint h.1).le
-    simpa [hfcH h] using this
-  have hboundT : ‖(∫ x : UnitAddTorus d, p x) - (c : ℂ)‖ ≤ c / 4 := by
-    rw [← hfcIntegral, ← integral_sub (hIntegrableT p) hfcInt]
-    have hb := norm_integral_le_of_norm_le_const
-      (μ := (volume : Measure (UnitAddTorus d)))
-      (Filter.Eventually.of_forall fun x => (hpoint x).le)
-    simpa using hb
-  have hnormP : ‖∫ x : UnitAddTorus d, p x‖ ≤ c / 4 := by
-    rw [hpEq, norm_mul, Complex.norm_real, Real.norm_eq_abs, abs_of_pos hM] at hboundH
-    have hm : M * ‖∫ x : UnitAddTorus d, p x‖ ≤ M * (c / 4) := by
-      simpa [mul_comm] using hboundH
-    exact (mul_le_mul_iff_right₀ hM).mp hm
-  have hc_le : c ≤ c / 2 := by
-    have htri := norm_le_norm_add_norm_sub
-      (∫ x : UnitAddTorus d, p x) (c : ℂ)
-    rw [Complex.norm_real, Real.norm_eq_abs, abs_of_pos hc] at htri
-    linarith [hboundT, hnormP]
-  linarith
-
 /-- A point outside a closed torus subgroup is separated from it by an integer
 Fourier character. -/
 theorem exists_character_separating_point (H : AddSubgroup (UnitAddTorus d))
@@ -3434,17 +2912,6 @@ open scoped BigOperators
 /-- A representative of a real number modulo one in `[-1/2,1/2]`. -/
 noncomputable def centeredFraction (x : ℝ) : ℝ :=
   if Int.fract x ≤ 1 / 2 then Int.fract x else Int.fract x - 1
-
-lemma centeredFraction_nonneg_iff (x : ℝ) :
-    0 ≤ centeredFraction x ↔ Int.fract x ≤ 1 / 2 := by
-  rw [centeredFraction]
-  split_ifs with h
-  · exact ⟨fun _ => h, fun _ => Int.fract_nonneg x⟩
-  · constructor
-    · intro hx
-      have hlt := Int.fract_lt_one x
-      linarith
-    · exact fun hx => (h hx).elim
 
 lemma abs_centeredFraction (x : ℝ) :
     |centeredFraction x| = nearestIntegerDistance x := by
@@ -5179,76 +4646,6 @@ def correlation (Φ : ∀ j : ℕ, ZMod (M j) → ℂ) (j n : ℕ) : ℂ :=
   (energy (Φ j))⁻¹ • ∑ k : ZMod (M j),
     starRingEnd ℂ (Φ j k) * Φ j (k + (n : ZMod (M j)))
 
-/-- Compactness upgrades exact finite cyclic spectral measures to a genuine
-circle spectral measure. Positivity detected by all sufficiently long cyclic
-models is inherited by the limiting Fourier coefficients. -/
-theorem exists_limit_spectral_probability
-    (Φ : ∀ j : ℕ, ZMod (M j) → ℂ)
-    (D : Set ℕ) (δ : ℝ) (hδ : 0 < δ)
-    (hE : ∀ j : ℕ, 0 < energy (Φ j))
-    (hatom : ∀ j : ℕ,
-      δ ≤ ‖∑ k : ZMod (M j), Φ j k‖ ^ 2 / denom (Φ j))
-    (hcorr_nonneg : ∀ j n : ℕ, 0 ≤ (correlation Φ j n).re)
-    (hdetect : ∀ j n : ℕ, n < j + 1 → 0 < (correlation Φ j n).re → n ∈ D) :
-    ∃ μ : ProbabilityMeasure Circle,
-      δ ≤ (μ : Measure Circle).real {(1 : Circle)} ∧
-      ∀ n : ℕ, 0 < (∫ z : Circle, (z : ℂ) ^ n ∂(μ : Measure Circle)).re → n ∈ D := by
-  choose ν hνcoeff hνatom using fun j =>
-    exists_cyclic_spectral_probability (Φ j) (hE j)
-  obtain ⟨p, hp⟩ := Ultrafilter.exists_le (atTop : Filter ℕ)
-  let μ : ProbabilityMeasure Circle := Ultrafilter.extend ν p
-  have hlim : Tendsto ν (p : Filter ℕ) (𝓝 μ) := by
-    exact ultrafilter_extend_eq_iff.mp rfl
-  have hatomENN : ∀ j : ℕ,
-      ENNReal.ofReal δ ≤ (ν j : Measure Circle) {(1 : Circle)} := by
-    intro j
-    rw [← ofReal_measureReal]
-    apply ENNReal.ofReal_le_ofReal
-    rw [hνatom j]
-    exact hatom j
-  have hport := ProbabilityMeasure.limsup_measure_closed_le_of_tendsto
-    hlim (isClosed_singleton : IsClosed ({(1 : Circle)} : Set Circle))
-  have hbounded : IsBoundedUnder (· ≤ ·) (p : Filter ℕ)
-      (fun j => (ν j : Measure Circle) {(1 : Circle)}) := by
-    apply isBoundedUnder_of_eventually_le (a := 1)
-    exact Filter.Eventually.of_forall fun j => by
-      calc
-        (ν j : Measure Circle) {(1 : Circle)} ≤
-            (ν j : Measure Circle) Set.univ := measure_mono (by simp)
-        _ = 1 := measure_univ
-  have hlower : ENNReal.ofReal δ ≤
-      (p : Filter ℕ).limsup (fun j => (ν j : Measure Circle) {(1 : Circle)}) := by
-    apply Filter.le_limsup_of_frequently_le (hu_le := hbounded)
-    exact (Filter.Eventually.of_forall hatomENN).frequently
-  have hμatomENN : ENNReal.ofReal δ ≤ (μ : Measure Circle) {(1 : Circle)} :=
-    hlower.trans hport
-  have hμatom : δ ≤ (μ : Measure Circle).real {(1 : Circle)} := by
-    rw [measureReal_def]
-    exact (ENNReal.ofReal_le_iff_le_toReal (measure_ne_top _ _)).mp hμatomENN
-  refine ⟨μ, hμatom, ?_⟩
-  intro n hnpos
-  let f : ContinuousMap Circle ℂ := ⟨fun z => (z : ℂ) ^ n, by fun_prop⟩
-  let fb : BoundedContinuousFunction Circle ℂ := BoundedContinuousFunction.mkOfCompact f
-  have hint : Tendsto
-      (fun j => ∫ z : Circle, (z : ℂ) ^ n ∂(ν j : Measure Circle))
-      (p : Filter ℕ)
-      (𝓝 (∫ z : Circle, (z : ℂ) ^ n ∂(μ : Measure Circle))) := by
-    have hall := (ProbabilityMeasure.tendsto_iff_forall_integral_rclike_tendsto ℂ).mp hlim
-    simpa [fb, f] using hall fb
-  have hcorr_lim : Tendsto (fun j => correlation Φ j n) (p : Filter ℕ)
-      (𝓝 (∫ z : Circle, (z : ℂ) ^ n ∂(μ : Measure Circle))) := by
-    apply hint.congr'
-    exact Filter.Eventually.of_forall (fun j => hνcoeff j n)
-  have hrelim := (Complex.continuous_re.tendsto _).comp hcorr_lim
-  have hpos_event : ∀ᶠ j : ℕ in (p : Filter ℕ), 0 < (correlation Φ j n).re :=
-    (tendsto_order.1 hrelim).1 0 hnpos
-  have hlong : ∀ᶠ j : ℕ in (p : Filter ℕ), n < j + 1 := by
-    apply hp
-    exact eventually_atTop.2 ⟨n, by omega⟩
-  have hboth := hpos_event.and hlong
-  obtain ⟨j, hjpos, hjlong⟩ := hboth.exists
-  exact hdetect j n hjlong hjpos
-
 /-- Shifted finite-embedding variant: if every positive short cyclic correlation
 translates by `q j` into `S`, then the positivity set of one limiting spectral
 measure is finitely embeddable in `S`. -/
@@ -5350,93 +4747,6 @@ local instance : MeasurableSpace Circle := borel Circle
 local instance : BorelSpace Circle := ⟨rfl⟩
 local instance (j : ℕ) : NeZero (M j) := ⟨by simp [M]⟩
 
-/-- Indicators of increasingly long finite cyclic models yield a limiting
-spectral measure. Any short difference forced by two occupied cyclic sites is
-then present in the limiting positivity set. -/
-theorem exists_spectral_probability_of_cyclic_indicators
-    (P : ∀ j : ℕ, Finset (ZMod (M j)))
-    (D : Set ℕ) (δ : ℝ) (hδ : 0 < δ)
-    (hP : ∀ j : ℕ, (P j).Nonempty)
-    (hdensity : ∀ j : ℕ, δ ≤ (P j).card / (M j : ℝ))
-    (hpair : ∀ j n : ℕ, n < j + 1 →
-      ∀ k : ZMod (M j), k ∈ P j → k + (n : ZMod (M j)) ∈ P j → n ∈ D) :
-    ∃ μ : ProbabilityMeasure Circle,
-      δ ≤ (μ : Measure Circle).real {(1 : Circle)} ∧
-      ∀ n : ℕ, 0 < (∫ z : Circle, (z : ℂ) ^ n ∂(μ : Measure Circle)).re → n ∈ D := by
-  let Φ : ∀ j : ℕ, ZMod (M j) → ℂ := fun j k => if k ∈ P j then 1 else 0
-  have henergy (j : ℕ) : energy (Φ j) = (P j).card := by
-    unfold energy
-    calc
-      (∑ k : ZMod (M j), ‖Φ j k‖ ^ 2) =
-          ∑ k : ZMod (M j), if k ∈ P j then (1 : ℝ) else 0 := by
-        apply Finset.sum_congr rfl
-        intro k hk
-        by_cases h : k ∈ P j <;> simp [Φ, h]
-      _ = ∑ k ∈ P j, (1 : ℝ) := by
-        rw [show (∑ k : ZMod (M j), if k ∈ P j then (1 : ℝ) else 0) =
-          ∑ k ∈ Finset.univ, if k ∈ P j then (1 : ℝ) else 0 by rfl]
-        rw [Finset.sum_ite_mem]
-        simp
-      _ = (P j).card := by rw [Finset.sum_const, nsmul_eq_mul, mul_one]
-  have hsum (j : ℕ) : ∑ k : ZMod (M j), Φ j k = ((P j).card : ℂ) := by
-    calc
-      (∑ k : ZMod (M j), Φ j k) =
-          ∑ k : ZMod (M j), if k ∈ P j then (1 : ℂ) else 0 := by rfl
-      _ = ∑ k ∈ P j, (1 : ℂ) := by
-        rw [show (∑ k : ZMod (M j), if k ∈ P j then (1 : ℂ) else 0) =
-          ∑ k ∈ Finset.univ, if k ∈ P j then (1 : ℂ) else 0 by rfl]
-        rw [Finset.sum_ite_mem]
-        simp
-      _ = ((P j).card : ℂ) := by rw [Finset.sum_const, nsmul_eq_mul, mul_one]
-  have hE : ∀ j : ℕ, 0 < energy (Φ j) := by
-    intro j
-    rw [henergy]
-    exact_mod_cast (P j).card_pos.mpr (hP j)
-  have hatom : ∀ j : ℕ,
-      δ ≤ ‖∑ k : ZMod (M j), Φ j k‖ ^ 2 / denom (Φ j) := by
-    intro j
-    rw [hsum]
-    unfold denom
-    rw [henergy]
-    rw [Complex.norm_natCast]
-    have hcard : (0 : ℝ) < (P j).card := by
-      exact_mod_cast (P j).card_pos.mpr (hP j)
-    calc
-      δ ≤ (P j).card / (M j : ℝ) := hdensity j
-      _ = ((P j).card : ℝ) ^ 2 /
-          ((M j : ℝ) * (P j).card) := by field_simp
-  have hcorr : ∀ j n : ℕ, 0 ≤ (correlation Φ j n).re := by
-    intro j n
-    unfold correlation
-    rw [henergy]
-    simp [Φ, Complex.real_smul]
-    apply mul_nonneg (inv_nonneg.mpr (by positivity))
-    apply Finset.sum_nonneg
-    intro i hi
-    split_ifs <;> norm_num
-  have hdetect : ∀ j n : ℕ, n < j + 1 →
-      0 < (correlation Φ j n).re → n ∈ D := by
-    intro j n hn hpos
-    have hne : (∑ k : ZMod (M j),
-        starRingEnd ℂ (Φ j k) * Φ j (k + (n : ZMod (M j)))) ≠ 0 := by
-      intro hz
-      have : correlation Φ j n = 0 := by
-        unfold correlation
-        rw [hz, smul_zero]
-      rw [this] at hpos
-      simp at hpos
-    obtain ⟨k, hk, hkne⟩ := Finset.exists_ne_zero_of_sum_ne_zero
-      (s := Finset.univ) hne
-    simp only [Finset.mem_univ] at hk
-    have hkP : k ∈ P j := by
-      by_contra h
-      simp [Φ, h] at hkne
-    have hknP : k + (n : ZMod (M j)) ∈ P j := by
-      by_contra h
-      simp [Φ, h] at hkne
-    exact hpair j n hn k hkP hknP
-  exact exists_limit_spectral_probability Φ D δ hδ hE hatom hcorr hdetect
-
 /-- Shifted finite-embedding form for cyclic indicators. -/
 theorem exists_spectral_probability_of_cyclic_indicators_finitely_embedded
     (P : ∀ j : ℕ, Finset (ZMod (M j)))
@@ -5534,70 +4844,6 @@ local instance : BorelSpace Circle := ⟨rfl⟩
 local instance (j : ℕ) : NeZero (M j) := ⟨by simp [M]⟩
 
 private def embedBlock (j x : ℕ) : ZMod (M j) := (j + 1 + x : ℕ)
-
-/-- Dense finite blocks whose ordinary positive differences lie in `D` produce
-a spectral probability measure whose positive Fourier coefficients lie in `D`. -/
-theorem exists_spectral_probability_of_dense_blocks
-    (B : ℕ → Finset ℕ) (D : Set ℕ) (δ : ℝ) (hδ : 0 < δ)
-    (hBbound : ∀ j x : ℕ, x ∈ B j → x < j + 1)
-    (hBnonempty : ∀ j : ℕ, (B j).Nonempty)
-    (hdensity : ∀ j : ℕ, δ ≤ (B j).card / (M j : ℝ))
-    (hdiff : ∀ j x y n : ℕ,
-      x ∈ B j → y ∈ B j → y = x + n → n ∈ D) :
-    ∃ μ : ProbabilityMeasure Circle,
-      δ ≤ (μ : Measure Circle).real {(1 : Circle)} ∧
-      ∀ n : ℕ, 0 < (∫ z : Circle, (z : ℂ) ^ n ∂(μ : Measure Circle)).re → n ∈ D := by
-  let P : ∀ j : ℕ, Finset (ZMod (M j)) := fun j =>
-    (B j).image (embedBlock j)
-  have hinj (j : ℕ) : Set.InjOn (embedBlock j) (B j : Set ℕ) := by
-    intro x hx y hy hxy
-    have hxlt : j + 1 + x < M j := by
-      have := hBbound j x hx
-      simp only [M]
-      omega
-    have hylt : j + 1 + y < M j := by
-      have := hBbound j y hy
-      simp only [M]
-      omega
-    have hv := congrArg ZMod.val hxy
-    change ((j + 1 + x : ℕ) : ZMod (M j)).val =
-      ((j + 1 + y : ℕ) : ZMod (M j)).val at hv
-    rw [ZMod.val_natCast_of_lt hxlt, ZMod.val_natCast_of_lt hylt] at hv
-    omega
-  have hcard (j : ℕ) : (P j).card = (B j).card := by
-    apply Finset.card_image_iff.mpr
-    exact hinj j
-  have hP : ∀ j : ℕ, (P j).Nonempty := by
-    intro j
-    obtain ⟨x, hx⟩ := hBnonempty j
-    exact ⟨embedBlock j x, Finset.mem_image.mpr ⟨x, hx, rfl⟩⟩
-  have hPdensity : ∀ j : ℕ, δ ≤ (P j).card / (M j : ℝ) := by
-    intro j
-    rw [hcard]
-    exact hdensity j
-  have hpair : ∀ j n : ℕ, n < j + 1 →
-      ∀ k : ZMod (M j), k ∈ P j → k + (n : ZMod (M j)) ∈ P j → n ∈ D := by
-    intro j n hn k hk hkn
-    rw [Finset.mem_image] at hk hkn
-    obtain ⟨x, hxB, rfl⟩ := hk
-    obtain ⟨y, hyB, hEq⟩ := hkn
-    have hxlt := hBbound j x hxB
-    have hylt := hBbound j y hyB
-    have hleftlt : j + 1 + x + n < M j := by
-      simp only [M]
-      omega
-    have hyembedlt : j + 1 + y < M j := by
-      simp only [M]
-      omega
-    have hcast : ((j + 1 + x + n : ℕ) : ZMod (M j)) =
-        ((j + 1 + y : ℕ) : ZMod (M j)) := by
-      simpa [embedBlock, Nat.cast_add] using hEq.symm
-    have hv := congrArg ZMod.val hcast
-    rw [ZMod.val_natCast_of_lt hleftlt,
-      ZMod.val_natCast_of_lt hyembedlt] at hv
-    apply hdiff j x y n hxB hyB
-    omega
-  exact exists_spectral_probability_of_cyclic_indicators P D δ hδ hP hPdensity hpair
 
 /-- Shifted finite-embedding version for ordinary finite blocks. -/
 theorem exists_spectral_probability_of_dense_blocks_finitely_embedded
@@ -6479,29 +5725,6 @@ theorem small_error_set_is_thick
     exact div_lt_div_of_pos_left (sq_pos_of_pos hη) (by positivity)
       (by nlinarith [hQreal])
   exact (not_lt_of_ge havgLower) (hNavg.trans hsep)
-
-/-- A Bohr-structured lower bound survives a squared-Cesàro-null error on a
-thick set. This is the elementary final step in Følner's almost-Bohr theorem. -/
-theorem bohr_lower_bound_survives_cesaro_error
-    {d : ℕ} (a : UnitAddTorus (Fin d)) (U : Set (UnitAddTorus (Fin d)))
-    (h r φ : ℕ → ℝ) (η : ℝ) (hη : 0 < η)
-    (hh : ∀ n : ℕ, n • a ∈ U → η ≤ h n)
-    (hdecomp : ∀ n : ℕ, φ n = h n + r n)
-    (hr : Tendsto
-      (fun N : ℕ => (N : ℝ)⁻¹ * ∑ n ∈ Finset.range N, (r n) ^ 2)
-      atTop (𝓝 0))
-    (S : Set ℕ) (hpositive : ∀ n : ℕ, 0 < φ n → n ∈ S) :
-    ∃ J : Set ℕ, IsThick J ∧
-      ∀ n : ℕ, n • a ∈ U → n ∈ J → n ∈ S := by
-  let J : Set ℕ := {n | |r n| < η}
-  refine ⟨J, small_error_set_is_thick r hr η hη, ?_⟩
-  intro n hnU hnJ
-  apply hpositive n
-  have hhn := hh n hnU
-  have hrn : |r n| < η := hnJ
-  rw [hdecomp]
-  have hrbelow : -η < r n := neg_lt_of_abs_lt hrn
-  linarith
 
 end
 

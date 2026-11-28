@@ -3,7 +3,7 @@ import FormalConjectures.Wikipedia.DedekindNumber
 -- Problem: Dedekind Numbers — M eq kisielewiczFormula
 -- Upstream: formal-conjectures FormalConjectures/Wikipedia/DedekindNumber.lean:259 (declaration DedekindNumber.M_eq_kisielewiczFormula)
 -- Credit: @Genbox (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Original proof: @Genbox, PR #1028. Binary encoding and products use standard Mathlib APIs.
 
 namespace W4Ded
 
@@ -29,35 +29,15 @@ lemma c_lt {n : ℕ} (s : Finset (Fin n)) : c s < 2 ^ n := by
   have := x.isLt
   omega
 
-lemma c_inj {n : ℕ} : Function.Injective (c (n := n)) := by
-  intro s t h
-  ext x
-  have h1 := tb_c s x
-  have h2 := tb_c t x
-  rw [h] at h1
-  rw [h1] at h2
-  constructor
-  · intro hx
-    obtain ⟨y, hy, hyx⟩ := h2.1 ⟨x, hx, rfl⟩
-    rwa [Fin.ext hyx] at hy
-  · intro hx
-    obtain ⟨y, hy, hyx⟩ := h2.2 ⟨x, hx, rfl⟩
-    rwa [Fin.ext hyx] at hy
+lemma c_inj {n : ℕ} : Function.Injective (c (n := n)) :=
+  (geomSum_injective (by decide : 2 ≤ 2)).comp (map_injective Fin.valEmbedding)
 
 lemma c_surj {n i : ℕ} (hi : i < 2 ^ n) : ∃ s : Finset (Fin n), c s = i := by
-  refine ⟨univ.filter (fun x : Fin n => i.testBit x = true), ?_⟩
-  apply Nat.eq_of_testBit_eq
-  intro m
-  by_cases hm : m < n
-  · rw [Bool.eq_iff_iff, tb_c]
-    simp only [mem_filter, mem_univ, true_and]
-    constructor
-    · rintro ⟨x, hx, rfl⟩; exact hx
-    · intro h; exact ⟨⟨m, hm⟩, h, rfl⟩
-  · push Not at hm
-    have hp : 2 ^ n ≤ 2 ^ m := Nat.pow_le_pow_right (by norm_num) hm
-    rw [Nat.testBit_lt_two_pow (lt_of_lt_of_le hi hp),
-      Nat.testBit_lt_two_pow (lt_of_lt_of_le (c_lt _) hp)]
+  have h : Function.Bijective (fun s : Finset (Fin n) => (⟨c s, c_lt s⟩ : Fin (2 ^ n))) :=
+    (Fintype.bijective_iff_injective_and_card _).2
+      ⟨fun _ _ h => c_inj (congrArg Fin.val h), by simp⟩
+  obtain ⟨s, hs⟩ := h.2 ⟨i, hi⟩
+  exact ⟨s, congrArg Fin.val hs⟩
 
 lemma c_sub {n : ℕ} (s t : Finset (Fin n)) :
     (∀ m, (c s).testBit m = true → (c t).testBit m = true) ↔ s ⊆ t := by
@@ -117,12 +97,7 @@ lemma card_eq (n : ℕ) :
   · intro A hA
     exact mem_filter.2 ⟨mem_range.2 (φ_lt A), (good_iff A).2 (mem_filter.1 hA).2⟩
   · intro A _ B _ h
-    apply Finset.image_injective c_inj
-    ext m
-    have h1 := tb_φ A m
-    have h2 := tb_φ B m
-    rw [h] at h1
-    rw [mem_image, mem_image, ← h1, h2]
+    exact Finset.image_injective c_inj (geomSum_injective (by decide : 2 ≤ 2) h)
   · intro k hk
     obtain ⟨hk1, hk2⟩ := mem_filter.1 hk
     rw [mem_range] at hk1

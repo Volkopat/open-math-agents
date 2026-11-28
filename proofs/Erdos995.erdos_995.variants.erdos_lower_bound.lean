@@ -8,9 +8,12 @@ The core of this file (namespace OMA995, renamed from Erdos995 to avoid clashing
 upstream statement file) is adapted from the Lean 4 formalization in
 https://github.com/hongjin-he/erdos-lean (directory ErdosLean/Erdos995, commit efede969),
 released under the Apache License 2.0. Changes: the modules are concatenated in dependency order, comments are removed, the namespace
-is renamed, and Mathlib API drift is repaired. The final section bridges the source statement
+is renamed, and Mathlib API drift is repaired. The unused upper-bound and critical-exponent
+development has been removed; the lower-bound construction is retained. The final section bridges the source statement
 to the one in FormalConjectures.ErdosProblems.995 and derives the target statement.
 -/
+
+-- Registered lower-bound proof by @caa1982 (PR #4603), with prior shortening by @ppleskov (PR #12438).
 
 -- Statement
 section
@@ -37,35 +40,12 @@ noncomputable def lacSum (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → �
     (x : AddCircle (1 : ℝ)) (N : ℕ) : ℂ :=
   ∑ k ∈ range N, f (n k • x)
 
-def ErdosUpperBound : Prop :=
-  ∀ (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ), IsLacunary n → ∀ ε : ℝ, 0 < ε →
-    ∀ᵐ x ∂(haarAddCircle (T := 1)),
-      (fun N : ℕ => lacSum f n x N) =o[atTop]
-        (fun N : ℕ => (N : ℝ) * Real.log N ^ ((1 : ℝ) / 2 + ε))
-
 def HoLowerBound : Prop :=
   ∃ (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ),
     IsDyadicLacunary n ∧ (∀ᵐ x ∂(haarAddCircle (T := 1)), (f x).im = 0) ∧
     ∫ x, f x ∂(haarAddCircle (T := 1)) = 0 ∧
     ∀ᵐ x ∂(haarAddCircle (T := 1)), ∀ ε : ℝ, 0 < ε → ∀ C : ℝ, ∃ᶠ N : ℕ in atTop,
       C * ((N : ℝ) * Real.log N ^ ((1 : ℝ) / 2 - ε)) ≤ (lacSum f n x N).re
-
-def LogLogQuestion : Prop :=
-  ∀ (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ), IsLacunary n →
-    ∀ᵐ x ∂(haarAddCircle (T := 1)),
-      (fun N : ℕ => lacSum f n x N) =o[atTop]
-        (fun N : ℕ => (N : ℝ) * Real.sqrt (Real.log (Real.log N)))
-
-def GrowthBoundHolds (θ : ℝ) : Prop :=
-  ∀ (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ), IsLacunary n →
-    ∀ᵐ x ∂(haarAddCircle (T := 1)),
-      (fun N : ℕ => lacSum f n x N) =O[atTop] (fun N : ℕ => (N : ℝ) * Real.log N ^ θ)
-
-def Erdos995CriticalExponent : Prop :=
-  (∀ θ : ℝ, 1 / 2 < θ → GrowthBoundHolds θ) ∧ (∀ θ : ℝ, θ < 1 / 2 → ¬ GrowthBoundHolds θ)
-
-def Erdos995Answer : Prop :=
-  ErdosUpperBound ∧ HoLowerBound ∧ Erdos995CriticalExponent ∧ ¬ LogLogQuestion
 
 end OMA995
 end
@@ -77,23 +57,6 @@ open MeasureTheory AddCircle Filter Topology Asymptotics Finset Real
 namespace OMA996
 
 def IsLacunary (n : ℕ → ℕ) : Prop := ∃ c > (1 : ℝ), ∀ᶠ k in atTop, c * n k < n (k + 1)
-
-noncomputable def fourierPartial {T : ℝ} [hT : Fact (0 < T)] (f : Lp ℂ 2 (@haarAddCircle T hT))
-    (k : ℕ) : AddCircle T → ℂ :=
-  fun x => ∑ i ∈ Icc (-k : ℤ) k, fourierCoeff f i • fourier i x
-
-def FourierTailBound (C : ℝ) (f : Lp ℂ 2 (haarAddCircle (T := 1))) : Prop :=
-  (fun k : ℕ => (eLpNorm (⇑f - fourierPartial f k) 2 (haarAddCircle (T := 1))).toReal) =O[atTop]
-    (fun k : ℕ => 1 / (log (log (log k))) ^ C)
-
-def LacunaryAveragesConverge (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ) : Prop :=
-  ∀ᵐ x ∂(haarAddCircle (T := 1)),
-    Tendsto (fun N : ℕ => (∑ k ∈ range N, f (n k • x)) / N) atTop
-      (𝓝 (∫ t, f t ∂haarAddCircle))
-
-def Erdos996Statement : Prop :=
-  ∃ C : ℝ, 0 < C ∧ ∀ (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ),
-    IsLacunary n → FourierTailBound C f → LacunaryAveragesConverge f n
 
 def IsDyadicLacunary (n : ℕ → ℕ) : Prop := 1 ≤ n 0 ∧ ∀ k, 2 * n k ≤ n (k + 1)
 
@@ -160,8 +123,6 @@ def shift (A : ℕ) : ℕ → ℕ
   | 0 => 0
   | k + 1 => shift A k + blockLen A k * spacing A k + depth A k
 
-def logQ (A k : ℕ) : ℕ := shift A (k + 1) + 2
-
 def stage (A s : ℕ) : ℕ := Nat.findGreatest (fun k => firstTrial A k ≤ s) s
 
 def trialLen (s : ℕ) : ℕ := 20 * 21 ^ s
@@ -212,13 +173,6 @@ open MeasureTheory AddCircle Filter Topology Asymptotics Finset Real
 open scoped ENNReal
 
 namespace OMA995
-
-namespace Upper
-
-noncomputable def sumNorm (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ) (M : ℕ) (x : (AddCircle (1 : ℝ))) : ℝ :=
-  ∑ k ∈ range M, ‖f (n k • x)‖
-
-end Upper
 
 namespace Con
 
@@ -284,228 +238,6 @@ def stageGood (k : ℕ) : Set (AddCircle (1 : ℝ)) :=
 
 end Con
 
-end OMA995
-end
-
--- UpperL2
-section
-open MeasureTheory AddCircle Filter Topology Asymptotics Finset Real
-open scoped ENNReal
-
-namespace OMA995
-namespace Upper
-
-lemma norm_lacSum_le_sumNorm (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ) (x : (AddCircle (1 : ℝ))) {N M : ℕ} (h : N ≤ M) :
-    ‖lacSum f n x N‖ ≤ sumNorm f n M x := by
-  unfold lacSum sumNorm
-  exact (norm_sum_le _ _).trans
-    (Finset.sum_le_sum_of_subset_of_nonneg (Finset.range_subset_range.2 h)
-      (fun _ _ _ => norm_nonneg _))
-
-lemma measurePreserving_nsmul' (n : ℕ) (hn : n ≠ 0) :
-    MeasurePreserving (fun x : (AddCircle (1 : ℝ)) => n • x) (haarAddCircle (T := 1)) (haarAddCircle (T := 1)) := by
-  have hmp : MeasurePreserving (fun x : (AddCircle (1 : ℝ)) => (n : ℤ) • x) (haarAddCircle (T := 1)) (haarAddCircle (T := 1)) :=
-    Measure.measurePreserving_zsmul (haarAddCircle (T := 1)) (by exact_mod_cast hn)
-  have e : (fun x : (AddCircle (1 : ℝ)) => n • x) = fun x => (n : ℤ) • x := by
-    funext x; exact (natCast_zsmul x n).symm
-  rw [e]; exact hmp
-
-lemma aestronglyMeasurable_comp_nsmul (f : Lp ℂ 2 (haarAddCircle (T := 1))) (m : ℕ) :
-    AEStronglyMeasurable (fun x : (AddCircle (1 : ℝ)) => f (m • x)) (haarAddCircle (T := 1)) := by
-  rcases Nat.eq_zero_or_pos m with rfl | hm
-  · simp only [zero_smul]; exact aestronglyMeasurable_const
-  · exact (Lp.aestronglyMeasurable f).comp_measurePreserving
-      (measurePreserving_nsmul' m hm.ne')
-
-lemma lintegral_comp_nsmul_le (f : Lp ℂ 2 (haarAddCircle (T := 1))) (m : ℕ) :
-    ∫⁻ x, ‖f (m • x)‖ₑ ^ 2 ∂(haarAddCircle (T := 1)) ≤ ∫⁻ x, ‖f x‖ₑ ^ 2 ∂(haarAddCircle (T := 1)) + ‖f 0‖ₑ ^ 2 := by
-  rcases Nat.eq_zero_or_pos m with rfl | hm
-  · simp only [zero_smul, lintegral_const, measure_univ, mul_one]
-    exact le_add_self
-  · have hmp := measurePreserving_nsmul' m hm.ne'
-    have hg : AEMeasurable (fun x : (AddCircle (1 : ℝ)) => ‖f x‖ₑ ^ 2) (Measure.map (fun x : (AddCircle (1 : ℝ)) => m • x) (haarAddCircle (T := 1))) := by
-      rw [hmp.map_eq]; exact (Lp.aestronglyMeasurable f).enorm.pow_const 2
-    rw [← lintegral_map' hg hmp.measurable.aemeasurable, hmp.map_eq]
-    exact le_self_add
-
-lemma aemeasurable_sumNorm (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ) (M : ℕ) :
-    AEMeasurable (sumNorm f n M) (haarAddCircle (T := 1)) := by
-  unfold sumNorm
-  exact Finset.aemeasurable_fun_sum _ fun k _ =>
-    (aestronglyMeasurable_comp_nsmul f (n k)).norm.aemeasurable
-
-lemma lintegral_enorm_sq_ne_top (f : Lp ℂ 2 (haarAddCircle (T := 1))) : ∫⁻ x, ‖f x‖ₑ ^ 2 ∂(haarAddCircle (T := 1)) ≠ ∞ := by
-  have h2 := lintegral_rpow_enorm_lt_top_of_eLpNorm_lt_top (p := 2) (by norm_num) (by norm_num)
-    (Lp.memLp f).eLpNorm_lt_top
-  have e : ((2 : ℝ≥0∞).toReal) = ((2 : ℕ) : ℝ) := by norm_num
-  simp only [e, ENNReal.rpow_natCast] at h2
-  simpa using h2.ne
-
-lemma lintegral_sumNorm_sq_le (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ) (M : ℕ) :
-    ∫⁻ x, ENNReal.ofReal (sumNorm f n M x) ^ 2 ∂(haarAddCircle (T := 1)) ≤
-      (M : ℝ≥0∞) ^ 2 * (∫⁻ x, ‖f x‖ₑ ^ 2 ∂(haarAddCircle (T := 1)) + ‖f 0‖ₑ ^ 2) := by
-  set C := ∫⁻ x, ‖f x‖ₑ ^ 2 ∂(haarAddCircle (T := 1)) + ‖f 0‖ₑ ^ 2
-  have hpt : ∀ x, ENNReal.ofReal (sumNorm f n M x) ^ 2 ≤
-      (M : ℝ≥0∞) * ∑ k ∈ range M, ‖f (n k • x)‖ₑ ^ 2 := by
-    intro x
-    have hreal : (sumNorm f n M x) ^ 2 ≤ (M : ℝ) * ∑ k ∈ range M, ‖f (n k • x)‖ ^ 2 := by
-      unfold sumNorm
-      simpa using sq_sum_le_card_mul_sum_sq (s := range M) (f := fun k => ‖f (n k • x)‖)
-    calc ENNReal.ofReal (sumNorm f n M x) ^ 2
-        = ENNReal.ofReal ((sumNorm f n M x) ^ 2) := by
-          have h0 : (0 : ℝ) ≤ sumNorm f n M x := Finset.sum_nonneg fun _ _ => norm_nonneg _
-          rw [ENNReal.ofReal_pow h0]
-      _ ≤ ENNReal.ofReal ((M : ℝ) * ∑ k ∈ range M, ‖f (n k • x)‖ ^ 2) :=
-          ENNReal.ofReal_le_ofReal hreal
-      _ = (M : ℝ≥0∞) * ∑ k ∈ range M, ‖f (n k • x)‖ₑ ^ 2 := by
-          rw [ENNReal.ofReal_mul (by positivity), ENNReal.ofReal_natCast,
-            ENNReal.ofReal_sum_of_nonneg (fun _ _ => by positivity)]
-          congr 1
-          refine Finset.sum_congr rfl fun k _ => ?_
-          rw [ENNReal.ofReal_pow (norm_nonneg _), ofReal_norm]
-  calc ∫⁻ x, ENNReal.ofReal (sumNorm f n M x) ^ 2 ∂(haarAddCircle (T := 1))
-      ≤ ∫⁻ x, (M : ℝ≥0∞) * ∑ k ∈ range M, ‖f (n k • x)‖ₑ ^ 2 ∂(haarAddCircle (T := 1)) := lintegral_mono hpt
-    _ = (M : ℝ≥0∞) * ∑ k ∈ range M, ∫⁻ x, ‖f (n k • x)‖ₑ ^ 2 ∂(haarAddCircle (T := 1)) := by
-        rw [lintegral_const_mul' _ _ (ENNReal.natCast_ne_top M), lintegral_finsetSum']
-        intro k _
-        exact (aestronglyMeasurable_comp_nsmul f (n k)).enorm.pow_const 2
-    _ ≤ (M : ℝ≥0∞) * ∑ k ∈ range M, C := by
-        gcongr with k hk
-        exact lintegral_comp_nsmul_le f (n k)
-    _ = (M : ℝ≥0∞) ^ 2 * C := by
-        rw [Finset.sum_const, card_range, nsmul_eq_mul, ← mul_assoc, sq]
-
-end Upper
-end OMA995
-end
-
--- UpperBorelCantelli
-section
-open MeasureTheory AddCircle Filter Topology Asymptotics Finset Real
-open scoped ENNReal
-
-namespace OMA995
-namespace Upper
-
-lemma ae_eventually_sumNorm_le (f : Lp ℂ 2 (haarAddCircle (T := 1))) (n : ℕ → ℕ) {ε δ : ℝ} (hε : 0 < ε) (hδ : 0 < δ) :
-    ∀ᵐ x ∂(haarAddCircle (T := 1)), ∀ᶠ j : ℕ in atTop,
-      sumNorm f n (2 ^ (j + 1)) x ≤ δ * ((2 : ℝ) ^ j * (j : ℝ) ^ ((1 : ℝ) / 2 + ε)) := by
-  set p : ℝ := 1 + 2 * ε with hp
-  set C : ℝ≥0∞ := ∫⁻ x, ‖f x‖ₑ ^ 2 ∂(haarAddCircle (T := 1)) + ‖f 0‖ₑ ^ 2 with hCdef
-  have hC : C ≠ ∞ := ENNReal.add_ne_top.2 ⟨lintegral_enorm_sq_ne_top f, by simp⟩
-  set t : ℕ → ℝ := fun J => δ * ((2 : ℝ) ^ J * (J : ℝ) ^ ((1 : ℝ) / 2 + ε)) with htdef
-  set s : ℕ → Set (AddCircle (1 : ℝ)) := fun j => {x | t (j + 1) < sumNorm f n (2 ^ (j + 1 + 1)) x} with hsdef
-  have key : ∀ j : ℕ, (haarAddCircle (T := 1)) (s j) ≤
-      ENNReal.ofReal (4 * C.toReal / δ ^ 2 * ((((j + 1 : ℕ) : ℝ)) ^ p)⁻¹) := by
-    intro j
-    have hJ : (0 : ℝ) < ((j + 1 : ℕ) : ℝ) := by positivity
-    have ht : 0 < t (j + 1) := by simp only [htdef]; positivity
-    have hsub : s j ⊆ {x | ENNReal.ofReal (t (j + 1)) ^ 2 ≤
-        ENNReal.ofReal (sumNorm f n (2 ^ (j + 1 + 1)) x) ^ 2} := by
-      intro x hx
-      simp only [hsdef, Set.mem_ofPred_eq] at hx ⊢
-      exact pow_le_pow_left₀ (by positivity) (ENNReal.ofReal_le_ofReal hx.le) 2
-    have hne : ENNReal.ofReal (t (j + 1)) ^ 2 ≠ 0 := by
-      apply pow_ne_zero; simpa using ht
-    calc (haarAddCircle (T := 1)) (s j) ≤ (haarAddCircle (T := 1)) {x | ENNReal.ofReal (t (j + 1)) ^ 2 ≤
-          ENNReal.ofReal (sumNorm f n (2 ^ (j + 1 + 1)) x) ^ 2} := measure_mono hsub
-      _ ≤ (∫⁻ x, ENNReal.ofReal (sumNorm f n (2 ^ (j + 1 + 1)) x) ^ 2 ∂(haarAddCircle (T := 1))) /
-            ENNReal.ofReal (t (j + 1)) ^ 2 :=
-          meas_ge_le_lintegral_div
-            ((aemeasurable_sumNorm f n _).ennreal_ofReal.pow_const 2) hne
-            (by simp)
-      _ ≤ ((2 ^ (j + 1 + 1) : ℕ) : ℝ≥0∞) ^ 2 * C / ENNReal.ofReal (t (j + 1)) ^ 2 := by
-          gcongr; exact lintegral_sumNorm_sq_le f n _
-      _ = ENNReal.ofReal ((((2 ^ (j + 1 + 1) : ℕ) : ℝ)) ^ 2 * C.toReal / (t (j + 1)) ^ 2) := by
-          rw [ENNReal.ofReal_div_of_pos (by positivity : (0 : ℝ) < t (j + 1) ^ 2),
-            ENNReal.ofReal_pow ht.le,
-            ENNReal.ofReal_mul (p := (((2 ^ (j + 1 + 1) : ℕ) : ℝ)) ^ 2) (by positivity),
-            ENNReal.ofReal_pow (by positivity),
-            ENNReal.ofReal_natCast, ENNReal.ofReal_toReal hC]
-      _ = _ := by
-          congr 1
-          have hrp : (((j + 1 : ℕ) : ℝ)) ^ p = ((((j + 1 : ℕ) : ℝ)) ^ ((1 : ℝ) / 2 + ε)) ^ 2 := by
-            rw [← Real.rpow_natCast, ← Real.rpow_mul hJ.le]
-            congr 1; rw [hp]; push_cast; ring
-          have hpos : 0 < (((j + 1 : ℕ) : ℝ)) ^ ((1 : ℝ) / 2 + ε) := Real.rpow_pos_of_pos hJ _
-          rw [hrp]
-          simp only [htdef]
-          have h2 : (0 : ℝ) < 2 ^ (j + 1) := by positivity
-          field_simp
-          push_cast
-          ring
-  have hs : Summable (fun j : ℕ => 4 * C.toReal / δ ^ 2 * ((((j + 1 : ℕ) : ℝ)) ^ p)⁻¹) :=
-    ((summable_nat_add_iff 1).2 (Real.summable_nat_rpow_inv.2 (by rw [hp]; linarith))).mul_left _
-  have hsum : ∑' j, (haarAddCircle (T := 1)) (s j) ≠ ∞ := by
-    refine ne_top_of_le_ne_top ?_ (ENNReal.tsum_le_tsum key)
-    rw [← ENNReal.ofReal_tsum_of_nonneg (fun j => by positivity) hs]
-    exact ENNReal.ofReal_ne_top
-  filter_upwards [ae_eventually_notMem hsum] with x hx
-  rw [eventually_atTop] at hx ⊢
-  obtain ⟨N, hN⟩ := hx
-  refine ⟨N + 1, fun j hj => ?_⟩
-  obtain ⟨i, rfl⟩ : ∃ i, j = i + 1 := ⟨j - 1, by omega⟩
-  have := hN i (by omega)
-  simp only [hsdef, htdef, Set.mem_ofPred_eq, not_lt] at this
-  exact this
-
-end Upper
-end OMA995
-end
-
--- UpperDyadic
-section
-open MeasureTheory AddCircle Filter Topology Asymptotics Finset Real
-open scoped ENNReal
-
-namespace OMA995
-namespace Upper
-
-lemma isLittleO_of_dyadic (S : ℕ → ℂ) (G : ℕ → ℝ)
-    (hSG : ∀ N : ℕ, ‖S N‖ ≤ G (2 ^ (Nat.log 2 N + 1))) {ε : ℝ} (hε : 0 < ε)
-    (h : ∀ m : ℕ, ∀ᶠ j : ℕ in atTop,
-      G (2 ^ (j + 1)) ≤ (1 / ((m : ℝ) + 1)) * ((2 : ℝ) ^ j * (j : ℝ) ^ ((1 : ℝ) / 2 + ε))) :
-    S =o[atTop] (fun N : ℕ => (N : ℝ) * Real.log N ^ ((1 : ℝ) / 2 + ε)) := by
-  set a : ℝ := (1 : ℝ) / 2 + ε with ha
-  have ha0 : 0 < a := by rw [ha]; positivity
-  rw [Asymptotics.isLittleO_iff]
-  intro c hc
-  obtain ⟨m, hm⟩ := exists_nat_gt ((2 : ℝ) ^ a / c)
-  obtain ⟨J, hJ⟩ := Filter.eventually_atTop.1 (h m)
-  rw [Filter.eventually_atTop]
-  refine ⟨2 ^ J + 1, fun N hN => ?_⟩
-  have hN1 : 1 ≤ N := le_trans (Nat.le_add_left 1 _) hN
-  have hN0 : N ≠ 0 := Nat.one_le_iff_ne_zero.mp hN1
-  have hJN : 2 ^ J ≤ N := le_trans (Nat.le_succ _) hN
-  set j := Nat.log 2 N with hj
-  have hjJ : J ≤ j := Nat.le_log_of_pow_le (by norm_num) hJN
-  have hG := hJ j hjJ
-  have h2j : (2 : ℝ) ^ j ≤ N := by exact_mod_cast Nat.pow_log_le_self 2 hN0
-  have hlogN : 0 ≤ Real.log N := Real.log_nonneg (by exact_mod_cast hN1)
-  have hjlog : (j : ℝ) ≤ 2 * Real.log N := by
-    have h1 : (j : ℝ) * Real.log 2 ≤ Real.log N := by
-      rw [← Real.log_pow]
-      exact Real.log_le_log (by positivity) h2j
-    have h2 := Real.log_two_gt_d9
-    nlinarith [(Nat.cast_nonneg j : (0 : ℝ) ≤ j)]
-  have hjrpow : (j : ℝ) ^ a ≤ (2 : ℝ) ^ a * Real.log N ^ a := by
-    rw [← Real.mul_rpow (by norm_num) hlogN]
-    exact Real.rpow_le_rpow (Nat.cast_nonneg _) hjlog ha0.le
-  have hm1 : (2 : ℝ) ^ a / ((m : ℝ) + 1) ≤ c := by
-    rw [div_le_iff₀ (by positivity)]
-    rw [div_lt_iff₀ hc] at hm
-    nlinarith
-  have hnorm : ‖(N : ℝ) * Real.log N ^ a‖ = N * Real.log N ^ a :=
-    Real.norm_of_nonneg (by positivity)
-  rw [hnorm]
-  calc ‖S N‖ ≤ G (2 ^ (j + 1)) := hSG N
-    _ ≤ 1 / ((m : ℝ) + 1) * ((2 : ℝ) ^ j * (j : ℝ) ^ a) := hG
-    _ ≤ 1 / ((m : ℝ) + 1) * ((N : ℝ) * ((2 : ℝ) ^ a * Real.log N ^ a)) := by
-        gcongr
-    _ = (2 : ℝ) ^ a / ((m : ℝ) + 1) * (N * Real.log N ^ a) := by ring
-    _ ≤ c * (N * Real.log N ^ a) := by gcongr
-
-end Upper
 end OMA995
 end
 
@@ -919,13 +651,6 @@ lemma integral_indicator_spikeSet (d : ℕ) :
 lemma integrable_indicator_spikeSet (d : ℕ) :
     Integrable (fun x => (spikeSet d).indicator (1 : (AddCircle (1 : ℝ)) → ℝ) x) (haarAddCircle (T := 1)) :=
   (integrable_const (1 : ℝ)).indicator (measurableSet_spikeSet d)
-
-lemma integral_spike_nsmul (d n : ℕ) (hn : n ≠ 0) : ∫ x, spike d (n • x) ∂(haarAddCircle (T := 1)) = 0 := by
-  rw [integral_nsmul_comp n hn _ (measurable_spike d)]
-  simp only [spike_eq]
-  rw [integral_div, integral_sub (integrable_indicator_spikeSet d) (integrable_const _),
-    integral_indicator_spikeSet, integral_const]
-  simp
 
 lemma integral_spike_nsmul_sq (d n : ℕ) (hd : 1 ≤ d) (hn : n ≠ 0) :
     ∫ x, spike d (n • x) ^ 2 ∂(haarAddCircle (T := 1)) = 1 := by
@@ -1921,25 +1646,11 @@ lemma stage_eq (A s k : ℕ) (h1 : firstTrial A k ≤ s) (h2 : s < firstTrial A 
   · exact h
   · have := hm (show k + 1 ≤ stage A s from h); omega
 
-lemma stage_mono (A : ℕ) : Monotone (stage A) := by
-  intro s t hst
-  by_contra h
-  rw [not_le] at h
-  obtain ⟨a1, _⟩ := stage_spec A s
-  obtain ⟨_, b2⟩ := stage_spec A t
-  have := (firstTrial_strictMono A).monotone (show stage A t + 1 ≤ stage A s from h)
-  omega
-
 lemma trialLen_le (A s : ℕ) : 8 * trialLen s ≤ blockLen A (stage A s) := by
   unfold trialLen blockLen
   have h1 : s + 1 ≤ firstTrial A (stage A s + 1) := Nat.succ_le_of_lt (stage_spec A s).2
   have h2 : 21 ^ (s + 1) ≤ 21 ^ firstTrial A (stage A s + 1) := Nat.pow_le_pow_right (by norm_num) h1
   rw [pow_succ] at h2
-  omega
-
-lemma shift_mono (A : ℕ) : Monotone (shift A) := by
-  refine monotone_nat_of_le_succ (fun k => ?_)
-  show shift A k ≤ shift A k + blockLen A k * spacing A k + depth A k
   omega
 
 lemma trialStart_mono (A : ℕ) : Monotone (trialStart A) := by
@@ -1952,142 +1663,6 @@ lemma blk_floor (A k : ℕ) (x : (AddCircle (1 : ℝ))) : -(floorC A k) ≤ blk 
     (lam_pos A k) (by norm_num) (one_le_blockLen A k) (depth_spec A k).1 x
   unfold blk floorC
   exact this
-
-lemma lt_two_pow_aux (n : ℕ) : n < 2 ^ n := by
-  induction n with
-  | zero => simp
-  | succ n ih => rw [pow_succ]; omega
-
-lemma firstTrial_le_pow (A k : ℕ) : firstTrial A k ≤ 2 ^ (A * k + k + 24) := by
-  induction k with
-  | zero => simp [firstTrial]
-  | succ k ih =>
-    show firstTrial A k + nTrials A k ≤ _
-    unfold nTrials aExp
-    have h1 : 2 ^ (A * k + k + 24) ≤ 2 ^ (A * (k + 1) + k + 24) :=
-      Nat.pow_le_pow_right (by norm_num) (by nlinarith)
-    have h2 : 2 ^ (A * (k + 1) + (k + 1) + 24) = 2 * 2 ^ (A * (k + 1) + k + 24) := by ring
-    omega
-
-lemma aExp_le_firstTrial (A k : ℕ) : aExp A k ≤ firstTrial A (k + 1) := by
-  show aExp A k ≤ firstTrial A k + nTrials A k
-  unfold nTrials
-  have h1 := lt_two_pow_aux (aExp A k)
-  have h2 : 2 ^ aExp A k ≤ 2 ^ (aExp A k + k + 24) := Nat.pow_le_pow_right (by norm_num) (by omega)
-  omega
-
-lemma depth_le (A k : ℕ) : depth A k ≤ 6 * firstTrial A (k + 1) + 23 := by
-  obtain ⟨S, hS⟩ : ∃ S, firstTrial A (k + 1) = S := ⟨_, rfl⟩
-  have hL : blockLen A k = 8 * 21 ^ S := by rw [← hS]; rfl
-  have ha := aExp_le_firstTrial A k
-  rw [hS] at ha ⊢
-  apply Nat.clog_le_of_le_pow
-  rw [hL]
-  have h21 : 21 ^ S ≤ 2 ^ (5 * S) := by rw [pow_mul]; exact Nat.pow_le_pow_left (by norm_num) S
-  have h2a : 2 ^ aExp A k ≤ 2 ^ S := Nat.pow_le_pow_right (by norm_num) ha
-  have e : 2 ^ (6 * S + 23) = 2 ^ 23 * (2 ^ (5 * S) * 2 ^ S) := by ring
-  rw [e]
-  have h3 : 21 ^ S * 2 ^ aExp A k ≤ 2 ^ (5 * S) * 2 ^ S := Nat.mul_le_mul h21 h2a
-  have e2 : 640000 * (8 * 21 ^ S) * 2 ^ aExp A k = 5120000 * (21 ^ S * 2 ^ aExp A k) := by ring
-  rw [e2]
-  exact Nat.mul_le_mul (by norm_num) h3
-
-lemma shift_le (A k : ℕ) : shift A k ≤ 2 ^ (6 * firstTrial A k + 10) := by
-  induction k with
-  | zero => simp [shift]
-  | succ k ih =>
-    show shift A k + blockLen A k * spacing A k + depth A k ≤ 2 ^ (6 * firstTrial A (k + 1) + 10)
-    have hmono : firstTrial A k + 1 ≤ firstTrial A (k + 1) :=
-      Nat.succ_le_of_lt (firstTrial_strictMono A (Nat.lt_succ_self k))
-    have hd := depth_le A k
-    obtain ⟨S, hS⟩ : ∃ S, firstTrial A (k + 1) = S := ⟨_, rfl⟩
-    have hL : blockLen A k = 8 * 21 ^ S := by rw [← hS]; rfl
-    rw [hS] at hd hmono ⊢
-    have hL' : blockLen A k ≤ 2 ^ (5 * S + 3) := by
-      rw [hL]
-      have h21 : 21 ^ S ≤ 2 ^ (5 * S) := by rw [pow_mul]; exact Nat.pow_le_pow_left (by norm_num) S
-      have : 2 ^ (5 * S + 3) = 8 * 2 ^ (5 * S) := by ring
-      omega
-    have hsp : spacing A k = depth A k + 2 := rfl
-    have hlin : 12 * S + 48 ≤ 2 ^ (S + 6) := by
-      have := lt_two_pow_aux S
-      have : 2 ^ (S + 6) = 64 * 2 ^ S := by ring
-      omega
-    have hb1 := one_le_blockLen A k
-    have h1 : blockLen A k * spacing A k + depth A k ≤ blockLen A k * (2 * depth A k + 2) := by
-      rw [hsp]; nlinarith
-    have h2 : blockLen A k * (2 * depth A k + 2) ≤ 2 ^ (5 * S + 3) * 2 ^ (S + 6) :=
-      Nat.mul_le_mul hL' (by omega)
-    have h3 : 2 ^ (6 * firstTrial A k + 10) ≤ 2 ^ (6 * S + 4) :=
-      Nat.pow_le_pow_right (by norm_num) (by omega)
-    have e1 : 2 ^ (6 * S + 10) = 64 * 2 ^ (6 * S + 4) := by ring
-    have e2 : 2 ^ (5 * S + 3) * 2 ^ (S + 6) = 32 * 2 ^ (6 * S + 4) := by ring
-    omega
-
-lemma twoLogQ_le (A k : ℕ) : 2 * logQ A k ≤ 2 ^ (2 ^ ((A + 1) * (k + 1) + 30)) := by
-  have h1 := shift_le A (k + 1)
-  have h2 := firstTrial_le_pow A (k + 1)
-  have hq : logQ A k = shift A (k + 1) + 2 := rfl
-  have hM : A * (k + 1) + (k + 1) + 24 = (A + 1) * (k + 1) + 24 := by ring
-  rw [hM] at h2
-  have hpM : 2 ^ ((A + 1) * (k + 1) + 30) = 64 * 2 ^ ((A + 1) * (k + 1) + 24) := by ring
-  have hpos : 0 < 2 ^ ((A + 1) * (k + 1) + 24) := by positivity
-  have h3 : 6 * firstTrial A (k + 1) + 12 ≤ 2 ^ ((A + 1) * (k + 1) + 30) := by omega
-  have h4 : 2 ^ (6 * firstTrial A (k + 1) + 12) ≤ 2 ^ (2 ^ ((A + 1) * (k + 1) + 30)) :=
-    Nat.pow_le_pow_right (by norm_num) h3
-  have h5 : 2 ^ (6 * firstTrial A (k + 1) + 12) = 4 * 2 ^ (6 * firstTrial A (k + 1) + 10) := by
-    ring
-  have h6 : 4 ≤ 2 ^ (6 * firstTrial A (k + 1) + 10) := by
-    calc 4 = 2 ^ 2 := by norm_num
-      _ ≤ _ := Nat.pow_le_pow_right (by norm_num) (by omega)
-  omega
-
-lemma scale_bound (A : ℕ) (hA : 1 ≤ A) (k : ℕ) :
-    Real.log (Real.log (Real.log ((2 : ℝ) ^ (2 * logQ A k)))) ≤ ((A : ℝ) + 1) * (k + 1) + 30 := by
-  have hn := twoLogQ_le A k
-  have hq2 : 2 ≤ logQ A k := by show 2 ≤ shift A (k + 1) + 2; omega
-  obtain ⟨T, hT⟩ : ∃ T, (A + 1) * (k + 1) + 30 = T := ⟨_, rfl⟩
-  rw [hT] at hn
-  obtain ⟨E, hE0⟩ : ∃ E, 2 * logQ A k = E := ⟨_, rfl⟩
-  rw [hE0] at hn
-  have hE4 : 4 ≤ E := by omega
-  rw [hE0]
-  have hlt := Real.log_two_lt_d9
-  have hgt := Real.log_two_gt_d9
-  have hx1 : Real.log ((2 : ℝ) ^ E) = (E : ℝ) * Real.log 2 := Real.log_pow _ _
-  have hE : (E : ℝ) ≤ (2 : ℝ) ^ (2 ^ T) := by
-    have := (Nat.cast_le (α := ℝ)).2 hn
-    rw [Nat.cast_pow, Nat.cast_ofNat] at this
-    exact this
-  have hEge : (4 : ℝ) ≤ (E : ℝ) := by exact_mod_cast hE4
-  have hx1pos : 1 < Real.log ((2 : ℝ) ^ E) := by
-    rw [hx1]
-    have := mul_le_mul_of_nonneg_right hEge (by linarith : (0 : ℝ) ≤ Real.log 2)
-    linarith
-  have hx1le : Real.log ((2 : ℝ) ^ E) ≤ (2 : ℝ) ^ (2 ^ T) := by
-    rw [hx1]
-    have : (E : ℝ) * Real.log 2 ≤ (E : ℝ) * 1 :=
-      mul_le_mul_of_nonneg_left (by linarith) (by linarith)
-    linarith
-  have hx2pos : 0 < Real.log (Real.log ((2 : ℝ) ^ E)) := Real.log_pos hx1pos
-  have hx2le : Real.log (Real.log ((2 : ℝ) ^ E)) ≤ (2 : ℝ) ^ T := by
-    have h1 : Real.log (Real.log ((2 : ℝ) ^ E)) ≤ Real.log ((2 : ℝ) ^ (2 ^ T)) :=
-      Real.log_le_log (by linarith) hx1le
-    have h2 : Real.log ((2 : ℝ) ^ (2 ^ T)) = ((2 ^ T : ℕ) : ℝ) * Real.log 2 := Real.log_pow _ _
-    have h3 : ((2 ^ T : ℕ) : ℝ) = (2 : ℝ) ^ T := by push_cast; rfl
-    have h4 : (0 : ℝ) ≤ (2 : ℝ) ^ T := by positivity
-    have h5 : (2 : ℝ) ^ T * Real.log 2 ≤ (2 : ℝ) ^ T * 1 :=
-      mul_le_mul_of_nonneg_left (by linarith) h4
-    rw [h2, h3] at h1
-    linarith
-  have h1 : Real.log (Real.log (Real.log ((2 : ℝ) ^ E))) ≤ Real.log ((2 : ℝ) ^ T) :=
-    Real.log_le_log hx2pos hx2le
-  have h2 : Real.log ((2 : ℝ) ^ T) = (T : ℝ) * Real.log 2 := Real.log_pow _ _
-  have h3 : (T : ℝ) = ((A : ℝ) + 1) * (k + 1) + 30 := by rw [← hT]; push_cast; ring
-  have h4 : (T : ℝ) * Real.log 2 ≤ (T : ℝ) * 1 :=
-    mul_le_mul_of_nonneg_left (by linarith) (by positivity)
-  rw [h2] at h1
-  linarith
 
 end Asm
 end OMA996
@@ -3031,64 +2606,6 @@ lemma sqrt_log_le {y : ℝ} (hy : 1 ≤ y) : Real.sqrt (Real.log y) ≤ 2 * y ^ 
   rw [Real.sqrt_le_left (by positivity)]
   · nlinarith
 
-lemma criticalExponent_of (hU : ErdosUpperBound) (hL : HoLowerBound) : Erdos995CriticalExponent := by
-  refine ⟨fun θ hθ f n hn => ?_, fun θ hθ hG => ?_⟩
-  · have h := hU f n hn (θ - 1 / 2) (by linarith)
-    have e : (1 : ℝ) / 2 + (θ - 1 / 2) = θ := by ring
-    rw [e] at h
-    filter_upwards [h] with x hx using hx.isBigO
-  · obtain ⟨f, n, hn, -, -, hlow⟩ := hL
-    have hup := hG f n hn.isLacunary
-    obtain ⟨x, hx1, hx2⟩ := (hup.and hlow).exists
-    obtain ⟨K, hK, hB⟩ := hx1.exists_pos
-    have hb := hB.bound
-    set ε : ℝ := (1 / 2 - θ) / 2 with hε
-    have hεpos : 0 < ε := by rw [hε]; linarith
-    have hfr := hx2 ε hεpos (K + 1)
-    obtain ⟨N, hN1, hN2, hN3⟩ :=
-      (hfr.and_eventually (hb.and (eventually_ge_atTop 3))).exists
-    have hlog := one_le_log_nat hN3
-    have hNpos : (0 : ℝ) < N := by have : (3 : ℝ) ≤ N := by exact_mod_cast hN3
-                                   linarith
-    have hr1 : 0 < Real.log N ^ ((1 : ℝ) / 2 - ε) := Real.rpow_pos_of_pos (by linarith) _
-    have hr2 : 0 ≤ Real.log N ^ θ := Real.rpow_nonneg (by linarith) _
-    have hmono : Real.log N ^ θ ≤ Real.log N ^ ((1 : ℝ) / 2 - ε) :=
-      Real.rpow_le_rpow_of_exponent_le hlog (by rw [hε]; linarith)
-    have hnorm : ‖(N : ℝ) * Real.log N ^ θ‖ = (N : ℝ) * Real.log N ^ θ := by
-      rw [Real.norm_eq_abs, abs_of_nonneg (by positivity)]
-    rw [hnorm] at hN2
-    have hre : (lacSum f n x N).re ≤ ‖lacSum f n x N‖ := Complex.re_le_norm _
-    have h4 : K * ((N : ℝ) * Real.log N ^ θ) ≤ K * ((N : ℝ) * Real.log N ^ ((1 : ℝ) / 2 - ε)) := by
-      apply mul_le_mul_of_nonneg_left _ hK.le
-      exact mul_le_mul_of_nonneg_left hmono hNpos.le
-    have h5 : 0 < (N : ℝ) * Real.log N ^ ((1 : ℝ) / 2 - ε) := mul_pos hNpos hr1
-    nlinarith
-
-lemma not_logLogQuestion_of (hL : HoLowerBound) : ¬ LogLogQuestion := by
-  intro hQ
-  obtain ⟨f, n, hn, -, -, hlow⟩ := hL
-  have hup := hQ f n hn.isLacunary
-  obtain ⟨x, hx1, hx2⟩ := (hup.and hlow).exists
-  have hb := hx1.bound (show (0 : ℝ) < 1 by norm_num)
-  have hfr := hx2 (1 / 4) (by norm_num) 3
-  obtain ⟨N, hN1, hN2, hN3⟩ := (hfr.and_eventually (hb.and (eventually_ge_atTop 3))).exists
-  have hlog := one_le_log_nat hN3
-  have hNpos : (0 : ℝ) < N := by have : (3 : ℝ) ≤ N := by exact_mod_cast hN3
-                                 linarith
-  have hsq := sqrt_log_le hlog
-  have hnorm : ‖(N : ℝ) * Real.sqrt (Real.log (Real.log N))‖
-      = (N : ℝ) * Real.sqrt (Real.log (Real.log N)) := by
-    rw [Real.norm_eq_abs, abs_of_nonneg (by positivity)]
-  rw [hnorm] at hN2
-  have hre : (lacSum f n x N).re ≤ ‖lacSum f n x N‖ := Complex.re_le_norm _
-  have e : (1 : ℝ) / 2 - 1 / 4 = 1 / 4 := by norm_num
-  rw [e] at hN1
-  have hr1 : 0 < Real.log N ^ ((1 : ℝ) / 4) := Real.rpow_pos_of_pos (by linarith) _
-  have h4 : (N : ℝ) * Real.sqrt (Real.log (Real.log N)) ≤ N * (2 * Real.log N ^ ((1 : ℝ) / 4)) :=
-    mul_le_mul_of_nonneg_left hsq hNpos.le
-  have h5 : 0 < (N : ℝ) * Real.log N ^ ((1 : ℝ) / 4) := mul_pos hNpos hr1
-  nlinarith
-
 end OMA995
 end
 
@@ -3098,16 +2615,6 @@ open MeasureTheory AddCircle Filter Topology Asymptotics Finset Real
 open scoped ENNReal
 
 namespace OMA995
-
-theorem erdosUpperBound : ErdosUpperBound := by
-  intro f n _ ε hε
-  have h : ∀ᵐ x ∂(haarAddCircle (T := 1)), ∀ m : ℕ, ∀ᶠ j : ℕ in atTop, Upper.sumNorm f n (2 ^ (j + 1)) x ≤
-      (1 / ((m : ℝ) + 1)) * ((2 : ℝ) ^ j * (j : ℝ) ^ ((1 : ℝ) / 2 + ε)) :=
-    ae_all_iff.2 fun m => Upper.ae_eventually_sumNorm_le f n hε (by positivity)
-  filter_upwards [h] with x hx
-  exact Upper.isLittleO_of_dyadic (fun N => lacSum f n x N) (fun M => Upper.sumNorm f n M x)
-    (fun N => Upper.norm_lacSum_le_sumNorm f n x (Nat.lt_pow_succ_log_self (by norm_num) N).le)
-    hε hx
 
 theorem hoLowerBound : HoLowerBound := by
   have hmem := Con.memLp_gFun
@@ -3145,12 +2652,6 @@ theorem hoLowerBound : HoLowerBound := by
         hN21.trans (Nat.pow_le_pow_right (by norm_num) (by omega))
       rw [hstage] at hsig
       exact (hgr N hNle).trans hsig
-
-theorem erdos_995 : Erdos995Answer :=
-  ⟨erdosUpperBound, hoLowerBound, criticalExponent_of erdosUpperBound hoLowerBound,
-    not_logLogQuestion_of hoLowerBound⟩
-
-theorem erdos_995_logLog : ¬ LogLogQuestion := erdos_995.2.2.2
 
 end OMA995
 end

@@ -1,129 +1,83 @@
 import FormalConjectures.Wikipedia.PetersenColoringConjecture
 
-/-! The five labels are the elements of Fin 5. At a Petersen vertex the
-three incident labels are exactly the complement of its two-element set.
-The missing pair at each vertex of a normally colored cubic graph recovers
-a Petersen coloring. Credit: @Deldor14. -/
 open SimpleGraph Finset PetersenColoringConjecture
 
-namespace OMA.Petersen
-private def labelPair (x y : PetersenVertex) : Fin 5 :=
-  ((List.finRange 5).find? (fun i => decide (i ∉ x.val ∧ i ∉ y.val))).getD 0
+private def lbl : Sym2 PetersenVertex → Fin 5 :=
+  Sym2.lift ⟨fun x y => ((List.finRange 5).find? (fun i => decide (i ∉ x.1 ∧ i ∉ y.1))).getD 0,
+    fun _ _ => by simp only [and_comm]⟩
 
-private def label : Sym2 PetersenVertex → Fin 5 :=
-  Sym2.lift ⟨labelPair, fun x y => by simp only [labelPair, and_comm]⟩
+private def edg (x : PetersenVertex) (i : Fin 5) : Sym2 PetersenVertex :=
+  let s := (insert i x.1)ᶜ; s(x, if h : s.card = 2 then ⟨s, h⟩ else x)
 
-private def edgeAt (x : PetersenVertex) (i : Fin 5) : Sym2 PetersenVertex :=
-  let s := (insert i x.val)ᶜ
-  let y : PetersenVertex := if h : s.card = 2 then ⟨s,h⟩ else x
-  s(x,y)
-
-private lemma labels : ∀ x : PetersenVertex,
-    (petersenGraph.incidenceFinset x).image label = x.valᶜ := by decide +kernel
-
-private lemma decode : ∀ x : PetersenVertex,
-    ∀ e ∈ petersenGraph.incidenceFinset x, edgeAt x (label e) = e := by decide +kernel
-
-private lemma encode : ∀ x : PetersenVertex, ∀ i ∈ x.valᶜ, label (edgeAt x i) = i := by
+private lemma hdec : ∀ x : PetersenVertex, ∀ e ∈ petersenGraph.incidenceFinset x, edg x (lbl e) = e := by
   decide +kernel
 
-private lemma images : ∀ x : PetersenVertex,
-    x.valᶜ.image (edgeAt x) = petersenGraph.incidenceFinset x := by decide +kernel
+private lemma henc : ∀ x : PetersenVertex, ∀ i ∈ x.1ᶜ, lbl (edg x i) = i := by decide +kernel
 
-private lemma sizes : ∀ x y : PetersenVertex, ∀ e ∈ petersenGraph.incidenceFinset x,
-    e ∈ petersenGraph.incidenceFinset y →
-    (x.valᶜ ∪ y.valᶜ).card = 3 ∨ (x.valᶜ ∪ y.valᶜ).card = 5 := by decide +kernel
+private lemma hlbl : ∀ x : PetersenVertex, (petersenGraph.incidenceFinset x).image lbl = x.1ᶜ := by
+  decide +kernel
 
-private lemma agree : ∀ x y : PetersenVertex, ∀ i ∈ x.valᶜ, i ∈ y.valᶜ →
-    ((x.valᶜ ∪ y.valᶜ).card = 3 ∨ (x.valᶜ ∪ y.valᶜ).card = 5) →
-    edgeAt x i = edgeAt y i := by decide +kernel
+private lemma himg : ∀ x : PetersenVertex, x.1ᶜ.image (edg x) = petersenGraph.incidenceFinset x := by
+  decide +kernel
 
-variable {V : Type*} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
+private lemma hsz : ∀ x y : PetersenVertex, ∀ e ∈ petersenGraph.incidenceFinset x,
+    e ∈ petersenGraph.incidenceFinset y → (x.1ᶜ ∪ y.1ᶜ).card = 3 ∨ (x.1ᶜ ∪ y.1ᶜ).card = 5 := by
+  decide +kernel
 
-private lemma incident (u : V) (e : Sym2 V) :
-    e ∈ G.incidenceFinset u ↔ e ∈ G.edgeFinset ∧ u ∈ e := by
-  rw [incidenceFinset_eq_filter]; exact mem_filter
+private lemma hagr : ∀ x y : PetersenVertex, ∀ i ∈ x.1ᶜ, i ∈ y.1ᶜ →
+    ((x.1ᶜ ∪ y.1ᶜ).card = 3 ∨ (x.1ᶜ ∪ y.1ᶜ).card = 5) → edg x i = edg y i := by
+  decide +kernel
 
-private lemma both (u v : V) :
-    (G.edgeFinset.filter fun f => ∃ w, w ∈ s(u,v) ∧ w ∈ f) =
+theorem OMA.solution :
+    type_of% @PetersenColoringConjecture.petersen_coloring_conjecture.variants.normal_five_edge_coloring := by
+  intro V _ _ G _ hcub
+  classical
+  have hinc (u : V) (e : Sym2 V) : e ∈ G.incidenceFinset u ↔ e ∈ G.edgeFinset ∧ u ∈ e := by
+    rw [incidenceFinset_eq_filter]; exact mem_filter
+  have hboth (u v : V) : (G.edgeFinset.filter fun f => ∃ w, w ∈ s(u, v) ∧ w ∈ f) =
       G.incidenceFinset u ∪ G.incidenceFinset v := by
-  classical
-  ext f
-  simp only [mem_filter, Sym2.mem_iff, mem_union, incident]
-  grind
-
-private def Proper (c : Sym2 V → Fin 5) :=
-  ∀ e ∈ G.edgeFinset, ∀ f ∈ G.edgeFinset, e ≠ f →
-    (∃ v, v ∈ e ∧ v ∈ f) → c e ≠ c f
-
-private lemma in_palette {c : Sym2 V → Fin 5} (hc : Proper G c) (v : V) :
-    Set.InjOn c (G.incidenceFinset v : Set (Sym2 V)) := by
-  intro e he f hf h
-  obtain ⟨he',hev⟩ := (incident G v e).mp he
-  obtain ⟨hf',hfv⟩ := (incident G v f).mp hf
-  by_contra hne
-  exact hc e he' f hf' hne ⟨v,hev,hfv⟩ h
-
-end OMA.Petersen
-open OMA.Petersen in
-theorem OMA.solution : type_of% @PetersenColoringConjecture.petersen_coloring_conjecture.variants.normal_five_edge_coloring := by
-  intro V _ _ G _ hcubic
-  classical
+    ext f; simp only [mem_filter, Sym2.mem_iff, mem_union, hinc]; grind
   constructor
-  · rintro ⟨φ,hφ⟩
+  · rintro ⟨φ, hφ⟩
     choose w hw using hφ
-    let c := label ∘ φ
-    have hlocal (v : V) : (G.incidenceFinset v).image c = (w v).valᶜ := by
-      rw [show c = label ∘ φ from rfl, ← image_image, (hw v).1, labels]
-    have mapped (v : V) (e : Sym2 V) (he : e ∈ G.incidenceFinset v) :
-        φ e ∈ petersenGraph.incidenceFinset (w v) := (hw v).1 ▸ mem_image_of_mem φ he
-    refine ⟨c, ?_, ?_⟩
-    · rintro e he f hf hne ⟨v,hve,hvf⟩ hef
-      have he' := (incident G v e).mpr ⟨he,hve⟩
-      have hf' := (incident G v f).mpr ⟨hf,hvf⟩
-      have hl : label (φ e) = label (φ f) := hef
-      exact hne ((hw v).2 he' hf' ((decode _ _ (mapped v e he')).symm.trans
-        ((congrArg (edgeAt (w v)) hl).trans (decode _ _ (mapped v f hf')))))
-    · intro e
-      induction e using Sym2.inductionOn with
+    have hloc (v : V) : (G.incidenceFinset v).image (lbl ∘ φ) = (w v).1ᶜ := by
+      rw [← image_image, (hw v).1, hlbl]
+    have hmap (v : V) (e : Sym2 V) (he : e ∈ G.incidenceFinset v) :=
+      (hw v).1 ▸ mem_image_of_mem φ he
+    refine ⟨lbl ∘ φ, ?_, ?_⟩
+    · rintro e he f hf hne ⟨v, hve, hvf⟩ hef
+      have he' := (hinc v e).2 ⟨he, hve⟩; have hf' := (hinc v f).2 ⟨hf, hvf⟩
+      exact hne ((hw v).2 he' hf' ((hdec _ _ (hmap v e he')).symm.trans
+        ((congrArg (edg (w v)) hef).trans (hdec _ _ (hmap v f hf')))))
+    · intro e; induction e using Sym2.inductionOn with
       | _ u v =>
-        intro he
-        rw [both, image_union, hlocal, hlocal]
-        exact sizes _ _ _ (mapped u _ ((incident G ..).mpr ⟨he,Sym2.mem_mk_left ..⟩))
-          (mapped v _ ((incident G ..).mpr ⟨he,Sym2.mem_mk_right ..⟩))
-  · rintro ⟨c, hproper, hnormal⟩
+        intro he; rw [hboth, image_union, hloc, hloc]
+        exact hsz _ _ _ (hmap u _ ((hinc ..).2 ⟨he, Sym2.mem_mk_left ..⟩))
+          (hmap v _ ((hinc ..).2 ⟨he, Sym2.mem_mk_right ..⟩))
+  · rintro ⟨c, hprop, hnorm⟩
+    have hinj (v : V) : Set.InjOn c (G.incidenceFinset v : Set (Sym2 V)) :=
+      fun e he f hf h => by_contra fun hne =>
+        hprop e ((hinc v e).1 he).1 f ((hinc v f).1 hf).1 hne
+          ⟨v, ((hinc v e).1 he).2, ((hinc v f).1 hf).2⟩ h
     let A (v : V) := (G.incidenceFinset v).image c
     have hcard (v : V) : (A v).card = 3 := by
-      unfold A
-      rw [card_image_of_injOn (in_palette G hproper v), card_incidenceFinset_eq_degree, hcubic]
-    let w (v : V) : PetersenVertex := ⟨(A v)ᶜ, by simp [card_compl,hcard]⟩
-    have hw (v : V) : (w v).valᶜ = A v := compl_compl _
-    let φ (e : Sym2 V) := edgeAt (w e.out.1) (c e)
-    have hφ (v : V) (e : Sym2 V) (he : e ∈ G.incidenceFinset v) :
-        φ e = edgeAt (w v) (c e) := by
-      let u := e.out.1
-      have hu : u ∈ e := Sym2.out_fst_mem e
-      obtain ⟨heG,hv⟩ := (incident G v e).mp he
-      have hu' := (incident G u e).mpr ⟨heG,hu⟩
-      change edgeAt (w u) (c e) = _
+      rw [card_image_of_injOn (hinj v), card_incidenceFinset_eq_degree, hcub]
+    let w (v : V) : PetersenVertex := ⟨(A v)ᶜ, by simp [card_compl, hcard]⟩
+    have hw (v : V) : (w v).1ᶜ = A v := compl_compl _
+    let φ (e : Sym2 V) := edg (w e.out.1) (c e)
+    have hφ (v : V) (e : Sym2 V) (he : e ∈ G.incidenceFinset v) : φ e = edg (w v) (c e) := by
+      let u := e.out.1; have hu : u ∈ e := Sym2.out_fst_mem e
+      obtain ⟨heG, hv⟩ := (hinc v e).1 he
       by_cases huv : u = v
-      · rw [huv]
-      have heq := (Sym2.mem_and_mem_iff huv).mp ⟨hu,hv⟩
-      apply agree
-      · rw [hw]; exact mem_image_of_mem c hu'
-      · rw [hw]; exact mem_image_of_mem c he
-      · rw [hw,hw]
-        have H := hnormal e heG
-        rw [heq, both, image_union] at H
-        exact H
-    refine ⟨φ, fun v => ⟨w v, ?_, ?_⟩⟩
-    · calc
-        _ = (G.incidenceFinset v).image (edgeAt (w v) ∘ c) := image_congr (hφ v)
-        _ = (A v).image (edgeAt (w v)) := (image_image ..).symm
-        _ = _ := hw v ▸ images (w v)
-    · intro e he f hf h
-      apply in_palette G hproper v he hf
-      rw [hφ v e he, hφ v f hf] at h
-      have he' : c e ∈ (w v).valᶜ := hw v ▸ mem_image_of_mem c he
-      have hf' : c f ∈ (w v).valᶜ := hw v ▸ mem_image_of_mem c hf
-      exact (encode _ _ he').symm.trans ((congrArg label h).trans (encode _ _ hf'))
+      · simp [φ, u, huv]
+      refine hagr _ _ _ (hw u ▸ mem_image_of_mem c ((hinc u e).2 ⟨heG, hu⟩))
+        (hw v ▸ mem_image_of_mem c he) ?_
+      rw [hw, hw]; have H := hnorm e heG
+      rwa [(Sym2.mem_and_mem_iff huv).1 ⟨hu, hv⟩, hboth, image_union] at H
+    refine ⟨φ, fun v => ⟨w v, ?_, fun e he f hf h => hinj v he hf ?_⟩⟩
+    · calc _ = (G.incidenceFinset v).image (edg (w v) ∘ c) := image_congr (hφ v)
+        _ = (A v).image (edg (w v)) := (image_image ..).symm
+        _ = _ := hw v ▸ himg (w v)
+    · rw [hφ v e he, hφ v f hf] at h
+      exact (henc _ _ (hw v ▸ mem_image_of_mem c he)).symm.trans
+        ((congrArg lbl h).trans (henc _ _ (hw v ▸ mem_image_of_mem c hf)))

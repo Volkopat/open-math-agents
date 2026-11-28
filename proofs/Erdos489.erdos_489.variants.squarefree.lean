@@ -707,12 +707,6 @@ theorem affineCandidates_coprimePart_avoid_all
     exact List.mem_filter.mpr ⟨ha, decide_eq_true hcop⟩
   · exact not_dvd_of_modEq_one_of_not_coprime Q a n hn.1 hcop
 
-/-- Every element of the filtered list is coprime to `Q`. -/
-theorem coprimePart_all_coprime (l : List ℕ) (Q : ℕ) :
-    ∀ a ∈ coprimePart l Q, Nat.Coprime Q a := by
-  intro a ha
-  exact of_decide_eq_true (List.mem_filter.mp ha).2
-
 /-- Consequently `Q` is coprime to the product of the filtered list. -/
 theorem coprime_coprimePart_prod (l : List ℕ) (Q : ℕ) :
     Nat.Coprime Q (coprimePart l Q).prod := by
@@ -919,15 +913,6 @@ open Filter
 open scoped Topology BigOperators
 
 namespace SquarefreeGapProof
-
-lemma list_range_prod_eq_finset_prod (f : ℕ → ℝ) (R : ℕ) :
-    ((List.range R).map f).prod = ∏ n ∈ Finset.range R, f n := by
-  induction R with
-  | zero => simp
-  | succ R ih =>
-    rw [List.range_succ, List.map_append, List.prod_append,
-      Finset.prod_range_succ, ih]
-    simp
 
 lemma sieveDensity_map_range (a : ℕ → ℕ) (R : ℕ) :
     sieveDensity ((List.range R).map a) =
@@ -1221,27 +1206,6 @@ theorem noncoprimeOrderedPairs_card_le_primeFiber_sum
       intro p hp
       exact Nat.pow_le_pow_left (hcap p hp) 2
 
-/-- Direct interval form of the rough-pair union bound. -/
-theorem noncoprimeOrderedPairs_card_le_interval_prime_sum
-    (S : Finset ℕ) (L G Y : ℕ)
-    (hinterval : ∀ n ∈ S, L ≤ n ∧ n ≤ L + G)
-    (hrough : ∀ n ∈ S, ∀ p, Nat.Prime p → p ∣ n → Y < p) :
-    (noncoprimeOrderedPairs S).card ≤
-      ∑ p ∈ (G + 1).primesBelow \ (Y + 1).primesBelow, (G / p + 1) ^ 2 := by
-  apply noncoprimeOrderedPairs_card_le_primeFiber_sum S Y G
-    (fun p => G / p + 1) hrough
-  · intro x hx y hy
-    have hxI := hinterval x hx
-    have hyI := hinterval y hy
-    rcases le_total x y with hxy | hyx
-    · rw [Nat.dist_eq_sub_of_le hxy]
-      omega
-    · rw [Nat.dist_comm, Nat.dist_eq_sub_of_le hyx]
-      omega
-  · intro p hp
-    have hpprime := (Nat.mem_primesBelow.mp (Finset.mem_sdiff.mp hp).1).2
-    exact multiplesIn_interval_card_le S L G p hpprime.pos hinterval
-
 /-- A positive integral ray contains at most one primitive lattice point. -/
 theorem nat_pair_eq_of_proportional_of_coprime
     (x₁ y₁ x₂ y₂ : ℕ)
@@ -1330,21 +1294,6 @@ theorem interval_label_card_le_reciprocal_mass
     _ = (G : ℝ) * (∑ r ∈ T, (a r : ℝ)⁻¹) + (T.card : ℝ) := by
       rw [Finset.sum_add_distrib]
       simp [Finset.mul_sum, Finset.sum_const, nsmul_eq_mul]
-
-/-- Rearranged form: if label reciprocal mass is at most `ε`, then the number
-of distinct labels is at least `#S-Gε`. -/
-theorem image_label_card_lower_of_reciprocal_mass
-    (S : Finset ℕ) (L G : ℕ) (a label : ℕ → ℕ)
-    (ha : ∀ r, 0 < a r)
-    (hinterval : ∀ n ∈ S, L ≤ n ∧ n ≤ L + G)
-    (hdiv : ∀ n ∈ S, a (label n) ∣ n)
-    (ε : ℝ) (hmass : (∑ r ∈ S.image label, (a r : ℝ)⁻¹) ≤ ε) :
-    (S.card : ℝ) - (G : ℝ) * ε ≤ ((S.image label).card : ℝ) := by
-  have h := interval_label_card_le_reciprocal_mass
-    S L G a label ha hinterval hdiv
-  have hG : (0 : ℝ) ≤ G := by positivity
-  have hm := mul_le_mul_of_nonneg_left hmass hG
-  linarith
 
 end SquarefreeGapProof
 
@@ -1450,60 +1399,6 @@ section
 namespace SquarefreeGapProof
 
 open scoped BigOperators
-
-/-- A dense set of divisor-labelled interval points with small reciprocal mass
-has a linearly large transversal carrying high distinct ranks. -/
-theorem exists_high_rank_divisor_representatives
-    (S : Finset ℕ) (L G C : ℕ) (a label : ℕ → ℕ)
-    (hC : 0 < C) (ha : ∀ r, 0 < a r)
-    (hinterval : ∀ n ∈ S, L ≤ n ∧ n ≤ L + G)
-    (hdiv : ∀ n ∈ S, a (label n) ∣ n)
-    (hdense : 4 * (G : ℝ) / (C : ℝ) ≤ (S.card : ℝ))
-    (hmass : (∑ r ∈ S.image label, (a r : ℝ)⁻¹) ≤
-      1 / (C : ℝ)) :
-    ∃ T : Finset ℕ,
-      T ⊆ S ∧ Set.InjOn label (T : Set ℕ) ∧
-      G / C ≤ T.card ∧ ∀ n ∈ T, G / C ≤ label n := by
-  have hbasic := interval_label_card_le_reciprocal_mass
-    S L G a label ha hinterval hdiv
-  have hG0 : (0 : ℝ) ≤ G := by positivity
-  have hmassmul := mul_le_mul_of_nonneg_left hmass hG0
-  have hCpos : (0 : ℝ) < C := by exact_mod_cast hC
-  have himageR : 3 * (G : ℝ) / (C : ℝ) ≤
-      ((S.image label).card : ℝ) := by
-    have hrewrite : (G : ℝ) * (1 / (C : ℝ)) = (G : ℝ) / C := by
-      simp [div_eq_mul_inv]
-    rw [hrewrite] at hmassmul
-    ring_nf at hdense hmassmul ⊢
-    linarith
-  let t := G / C
-  have htcast : (t : ℝ) ≤ (G : ℝ) / (C : ℝ) := by
-    dsimp [t]
-    exact Nat.cast_div_le
-  have htwiceR : ((2 * t : ℕ) : ℝ) ≤ ((S.image label).card : ℝ) := by
-    norm_num only [Nat.cast_mul, Nat.cast_ofNat]
-    calc
-      2 * (t : ℝ) ≤ 2 * ((G : ℝ) / (C : ℝ)) := by linarith
-      _ ≤ 3 * (G : ℝ) / (C : ℝ) := by
-        have hratio : 0 ≤ (G : ℝ) / (C : ℝ) := by positivity
-        ring_nf
-        ring_nf at hratio
-        linarith
-      _ ≤ ((S.image label).card : ℝ) := himageR
-  have htwice : 2 * t ≤ (S.image label).card := by exact_mod_cast htwiceR
-  obtain ⟨U, hUS, hinjU, hUcard⟩ :=
-    Finset.exists_subset_injOn_card_eq_image S label
-  let T := U.filter fun n => t ≤ label n
-  have hlarge : t ≤ T.card := by
-    apply card_rank_ge_of_twice_le_card U label hinjU t
-    rwa [hUcard]
-  refine ⟨T, ?_, ?_, hlarge, ?_⟩
-  · exact (Finset.filter_subset _ _).trans hUS
-  · exact hinjU.mono (by
-      intro n hn
-      exact (Finset.mem_filter.mp hn).1)
-  · intro n hn
-    exact (Finset.mem_filter.mp hn).2
 
 /-- Endpoint-robust variant: losing two candidate points still leaves the same
 `G/C` high-rank transversal once `G≥2C`. -/
@@ -1641,90 +1536,6 @@ theorem finset_sum_one_div_sq_le
       positivity
     _ ≤ 1 / (Y : ℝ) := by
       exact sum_range_one_div_add_sq_le Y G hY
-
-/-- The prime-fiber capacity sum in F-023 is `O(G^2/Y+G)` with explicit
-constants. -/
-theorem interval_prime_fiber_square_sum_cast_le
-    (Y G : ℕ) (hY : 0 < Y) :
-    (∑ p ∈ (G + 1).primesBelow \ (Y + 1).primesBelow,
-        (((G / p + 1) ^ 2 : ℕ) : ℝ)) ≤
-      2 * (G : ℝ) ^ 2 / (Y : ℝ) + 2 * ((G + 1 : ℕ) : ℝ) := by
-  let P := (G + 1).primesBelow \ (Y + 1).primesBelow
-  have hpLower : ∀ p ∈ P, Y < p := by
-    intro p hp
-    have hpG := Finset.mem_sdiff.mp hp
-    have hpprime := (Nat.mem_primesBelow.mp hpG.1).2
-    by_contra hnot
-    have hpY : p < Y + 1 := by omega
-    exact hpG.2 (Nat.mem_primesBelow.mpr ⟨hpY, hpprime⟩)
-  have hpUpper : ∀ p ∈ P, p ≤ G := by
-    intro p hp
-    have := (Nat.mem_primesBelow.mp (Finset.mem_sdiff.mp hp).1).1
-    omega
-  have hrecip : (∑ p ∈ P, (1 : ℝ) / (p : ℝ) ^ 2) ≤ 1 / (Y : ℝ) :=
-    finset_sum_one_div_sq_le P Y G hY hpLower hpUpper
-  have hterm : ∀ p ∈ P,
-      (((G / p + 1) ^ 2 : ℕ) : ℝ) ≤
-        2 * (G : ℝ) ^ 2 * ((1 : ℝ) / (p : ℝ) ^ 2) + 2 := by
-    intro p hp
-    have hpprime := (Nat.mem_primesBelow.mp (Finset.mem_sdiff.mp hp).1).2
-    have hpR : (0 : ℝ) < p := by exact_mod_cast hpprime.pos
-    have hq : ((G / p : ℕ) : ℝ) ≤ (G : ℝ) / (p : ℝ) := Nat.cast_div_le
-    have hq0 : (0 : ℝ) ≤ (G / p : ℕ) := by positivity
-    have hratio0 : (0 : ℝ) ≤ (G : ℝ) / (p : ℝ) := by positivity
-    have hsq : (((G / p : ℕ) : ℝ)) ^ 2 ≤ ((G : ℝ) / (p : ℝ)) ^ 2 :=
-      (sq_le_sq₀ hq0 hratio0).2 hq
-    norm_num only [Nat.cast_pow, Nat.cast_add, Nat.cast_one]
-    have hbasic : ((((G / p : ℕ) : ℝ)) + 1) ^ 2 ≤
-        2 * (((G / p : ℕ) : ℝ)) ^ 2 + 2 := by
-      nlinarith [sq_nonneg ((((G / p : ℕ) : ℝ)) - 1)]
-    calc
-      ((((G / p : ℕ) : ℝ)) + 1) ^ 2 ≤
-          2 * (((G / p : ℕ) : ℝ)) ^ 2 + 2 := hbasic
-      _ ≤ 2 * ((G : ℝ) / (p : ℝ)) ^ 2 + 2 := by nlinarith
-      _ = 2 * (G : ℝ) ^ 2 * ((1 : ℝ) / (p : ℝ) ^ 2) + 2 := by
-        field_simp
-  have hPsubset : P ⊆ Finset.range (G + 1) := by
-    intro p hp
-    exact Finset.mem_range.mpr
-      (Nat.mem_primesBelow.mp (Finset.mem_sdiff.mp hp).1).1
-  have hcardNat : P.card ≤ G + 1 := by
-    simpa using Finset.card_le_card hPsubset
-  have hcard : (P.card : ℝ) ≤ ((G + 1 : ℕ) : ℝ) := by
-    exact_mod_cast hcardNat
-  calc
-    (∑ p ∈ (G + 1).primesBelow \ (Y + 1).primesBelow,
-        (((G / p + 1) ^ 2 : ℕ) : ℝ)) =
-        ∑ p ∈ P, (((G / p + 1) ^ 2 : ℕ) : ℝ) := rfl
-    _ ≤ ∑ p ∈ P,
-        (2 * (G : ℝ) ^ 2 * ((1 : ℝ) / (p : ℝ) ^ 2) + 2) := by
-      apply Finset.sum_le_sum
-      exact hterm
-    _ = 2 * (G : ℝ) ^ 2 *
-          (∑ p ∈ P, ((1 : ℝ) / (p : ℝ) ^ 2)) + 2 * (P.card : ℝ) := by
-      rw [Finset.sum_add_distrib]
-      simp [Finset.mul_sum, Finset.sum_const, nsmul_eq_mul]
-      ring
-    _ ≤ 2 * (G : ℝ) ^ 2 * (1 / (Y : ℝ)) + 2 * ((G + 1 : ℕ) : ℝ) := by
-      have hG0 : 0 ≤ 2 * (G : ℝ) ^ 2 := by positivity
-      nlinarith [mul_le_mul_of_nonneg_left hrecip hG0]
-    _ = 2 * (G : ℝ) ^ 2 / (Y : ℝ) + 2 * ((G + 1 : ℕ) : ℝ) := by ring
-
-/-- Explicit real bound for the number of ordered noncoprime pairs among rough
-points in an interval. -/
-theorem noncoprimeOrderedPairs_cast_le_rough_interval
-    (S : Finset ℕ) (L G Y : ℕ) (hY : 0 < Y)
-    (hinterval : ∀ n ∈ S, L ≤ n ∧ n ≤ L + G)
-    (hrough : ∀ n ∈ S, ∀ p, Nat.Prime p → p ∣ n → Y < p) :
-    ((noncoprimeOrderedPairs S).card : ℝ) ≤
-      2 * (G : ℝ) ^ 2 / (Y : ℝ) + 2 * ((G + 1 : ℕ) : ℝ) := by
-  have hnat := noncoprimeOrderedPairs_card_le_interval_prime_sum
-    S L G Y hinterval hrough
-  have hcast : ((noncoprimeOrderedPairs S).card : ℝ) ≤
-      (∑ p ∈ (G + 1).primesBelow \ (Y + 1).primesBelow,
-        (((G / p + 1) ^ 2 : ℕ) : ℝ)) := by
-    exact_mod_cast hnat
-  exact hcast.trans (interval_prime_fiber_square_sum_cast_le Y G hY)
 
 end SquarefreeGapProof
 
@@ -2297,44 +2108,6 @@ theorem exists_affine_gap_high_rank_witnesses
     exact hSrankR n (hTS hn)
   · intro n hn
     exact hSdiv n (hTS hn)
-
-/-- Adding the rough-prime numerical hypotheses turns the witnesses above into
-a full quadratic coprime-pair payment for the gap. -/
-theorem exists_affine_gap_coprime_pair_payment
-    (p : ℕ → Prop) [DecidablePred p] (hp : Set.Infinite {n | p n})
-    (hp2 : ∀ n, p n → 2 ≤ n)
-    (R Q L G C Y : ℕ) (ρ : ℝ)
-    (hQ : 1 < Q) (hY : 0 < Y) (hC : 0 < C)
-    (hρ0 : 0 ≤ ρ)
-    (hρ : ρ ≤ sieveDensity ((List.range R).map (Nat.nth p)))
-    (hdensity : (4 : ℝ) / (C : ℝ) ≤ ρ / (2 * (Q : ℝ)))
-    (hperiod : 5 * (Q *
-      (coprimePart ((List.range R).map (Nat.nth p)) Q).prod) ≤ G)
-    (hcovered : ∀ n, L < n → n < L + G → ∃ a, p a ∧ a ∣ n)
-    (htail : ∀ T : Finset ℕ, (∀ r ∈ T, R ≤ r) →
-      (∑ r ∈ T, ((Nat.nth p r : ℝ)⁻¹)) ≤ 1 / (C : ℝ))
-    (hsmall : ∀ q, Nat.Prime q → q ≤ Y → q ∣ Q)
-    (hG : 256 * C ^ 2 ≤ G) (hCY : 64 * C ^ 2 ≤ Q ^ 2 * Y) :
-    ∃ T : Finset ℕ,
-      (∀ n ∈ T, L < n ∧ n < L + G) ∧
-      Set.InjOn (divisorWitnessRank p) (T : Set ℕ) ∧
-      (∀ n ∈ T, G / C ≤ divisorWitnessRank p n) ∧
-      (∀ n ∈ T, R ≤ divisorWitnessRank p n) ∧
-      (∀ n ∈ T, Nat.nth p (divisorWitnessRank p n) ∣ n) ∧
-      G ^ 2 ≤ 16 * C ^ 2 * (coprimeOrderedPairs T).card := by
-  have hGC : 2 * C ≤ G := by
-    have : 2 * C ≤ 256 * C ^ 2 := by nlinarith
-    exact this.trans hG
-  obtain ⟨T, hint, hcong, hinj, hcard, hhigh, hR, hdiv⟩ :=
-    exists_affine_gap_high_rank_witnesses p hp hp2 R Q L G C ρ
-      hQ hC hGC hρ0 hρ hdensity hperiod hcovered htail
-  have hinterval : ∀ n ∈ T, L ≤ n ∧ n ≤ L + G := by
-    intro n hn
-    have := hint n hn
-    omega
-  have hpay := progression_many_coprime_pairs T L G Q Y C
-    (by omega) hY hC hinterval hcong hsmall hcard hG hCY
-  exact ⟨T, hint, hinj, hhigh, hR, hdiv, hpay⟩
 
 /-- Strengthened packaging retaining the linear cardinality bound together
 with the quadratic coprime-pair payment. -/
@@ -3345,24 +3118,6 @@ section
 
 namespace SquarefreeGapProof
 
-/-- Choosing one point in each open gap of a strictly increasing sequence gives
-an injective map of gap indices. -/
-theorem injective_of_mem_successive_intervals
-    (b u : ℕ → ℕ) (hb : StrictMono b)
-    (hu : ∀ i, b i < u i ∧ u i < b (i + 1)) :
-    Function.Injective u := by
-  intro i j hij
-  by_contra hne
-  rcases lt_or_gt_of_ne hne with hijlt | hjilt
-  · have hstep : b (i + 1) ≤ b j := hb.monotone (by omega)
-    have := hu i
-    have := hu j
-    omega
-  · have hstep : b (j + 1) ≤ b i := hb.monotone (by omega)
-    have := hu i
-    have := hu j
-    omega
-
 /-- Exact divisibility upgrades the preceding point injection to injection of
 fixed-modulus quotient pairs. -/
 theorem quotient_pair_injOn_of_successive_intervals
@@ -3682,19 +3437,6 @@ theorem divisorSifted_consecutive_gap_covered
       (Nat.count (divisorSifted p) n) = n := Nat.nth_count hnB
   rw [hnth] at hmono
   exact (not_lt_of_ge hmono) hright
-
-/-- The sifted enumeration is strictly increasing and all of its consecutive
-open gaps are covered by forbidden divisors. -/
-theorem divisorSifted_enumeration_structure
-    (p : ℕ → Prop)
-    (hB : Set.Infinite {n | divisorSifted p n}) :
-    StrictMono (Nat.nth (divisorSifted p)) ∧
-      ∀ i n,
-        Nat.nth (divisorSifted p) i < n →
-        n < Nat.nth (divisorSifted p) (i + 1) →
-        ∃ a, p a ∧ a ∣ n := by
-  exact ⟨Nat.nth_strictMono hB,
-    divisorSifted_consecutive_gap_covered p hB⟩
 
 end SquarefreeGapProof
 
@@ -5210,87 +4952,6 @@ theorem summable_inv_nth_of_count_isLittleO_sqrt (p : ℕ → Prop) [DecidablePr
     norm_num at hsquare ⊢
     nlinarith
   exact_mod_cast hcast
-
-/-- For a predicate false at zero, strict counting through `x+1` is the
-inclusive `[1,x]` filtered cardinality used in Erdős 489. -/
-lemma count_succ_eq_card_filter_Icc (p : ℕ → Prop) [DecidablePred p]
-    (hp0 : ¬p 0) (x : ℕ) :
-    Nat.count p (x + 1) = ((Finset.Icc 1 x).filter p).card := by
-  rw [Nat.count_eq_card_filter_range]
-  congr 1
-  ext n
-  simp only [Finset.mem_filter, Finset.mem_range, Finset.mem_Icc]
-  constructor
-  · rintro ⟨hnx, hpn⟩
-    refine ⟨⟨?_, by omega⟩, hpn⟩
-    by_contra hn1
-    have : n = 0 := by omega
-    exact hp0 (this ▸ hpn)
-  · rintro ⟨⟨_, hnx⟩, hpn⟩
-    exact ⟨by omega, hpn⟩
-
-/-- The exact inclusive counting hypothesis in Erdős 489 implies summability
-of the reciprocal series of the forbidden set (when zero is absent). -/
-theorem summable_inv_nth_of_Icc_count_isLittleO_sqrt (p : ℕ → Prop)
-    [DecidablePred p] (hp0 : ¬p 0) (hp : Set.Infinite {n | p n})
-    (hcount : (fun x : ℕ => ((((Finset.Icc 1 x).filter p).card : ℝ)))
-      =o[atTop] (fun x : ℕ => Real.sqrt (x : ℝ))) :
-    Summable (fun n : ℕ => ((Nat.nth p n : ℝ)⁻¹)) := by
-  apply summable_inv_of_eventually_sq_le
-  have ht : Tendsto (Nat.nth p) atTop atTop :=
-    (Nat.nth_injective hp).nat_tendsto_atTop
-  have hb := hcount.bound (by norm_num : (0 : ℝ) < 1 / 2)
-  have hbc := ht.eventually hb
-  filter_upwards [hbc] with n hn
-  have hcard : ((Finset.Icc 1 (Nat.nth p n)).filter p).card = n + 1 := by
-    rw [← count_succ_eq_card_filter_Icc p hp0]
-    exact Nat.count_nth_succ_of_infinite hp n
-  rw [hcard] at hn
-  have hnreal : ((n + 1 : ℕ) : ℝ) ≤
-      (1 / 2 : ℝ) * Real.sqrt (Nat.nth p n : ℝ) := by
-    simpa only [Real.norm_natCast, Real.norm_eq_abs,
-      abs_of_nonneg (show (0 : ℝ) ≤ ((n + 1 : ℕ) : ℝ) by positivity),
-      abs_of_nonneg (Real.sqrt_nonneg _)] using hn
-  have hsqrt : (((n + 1 : ℕ) : ℝ)) ≤ Real.sqrt (Nat.nth p n : ℝ) := by
-    have : (0 : ℝ) ≤ Real.sqrt (Nat.nth p n : ℝ) := Real.sqrt_nonneg _
-    linarith
-  have hsquare : ((((n + 1) ^ 2 : ℕ) : ℝ)) ≤ (Nat.nth p n : ℝ) := by
-    calc
-      ((((n + 1) ^ 2 : ℕ) : ℝ)) = (((n + 1 : ℕ) : ℝ)) ^ 2 := by norm_num
-      _ ≤ (Real.sqrt (Nat.nth p n : ℝ)) ^ 2 :=
-        (sq_le_sq₀ (by positivity) (Real.sqrt_nonneg _)).2 hsqrt
-      _ = (Nat.nth p n : ℝ) := Real.sq_sqrt (Nat.cast_nonneg _)
-  exact_mod_cast hsquare
-
-/-- Quantitative form: the square of the enumeration index divided by the
-corresponding forbidden integer tends to zero. -/
-theorem tendsto_sq_index_div_nth_zero_of_Icc_count_isLittleO_sqrt
-    (p : ℕ → Prop) [DecidablePred p] (hp0 : ¬p 0)
-    (hp : Set.Infinite {n | p n})
-    (hcount : (fun x : ℕ => ((((Finset.Icc 1 x).filter p).card : ℝ)))
-      =o[atTop] (fun x : ℕ => Real.sqrt (x : ℝ))) :
-    Tendsto (fun n : ℕ => (((n + 1 : ℕ) : ℝ) ^ 2) / (Nat.nth p n : ℝ))
-      atTop (𝓝 0) := by
-  have ht : Tendsto (Nat.nth p) atTop atTop :=
-    (Nat.nth_injective hp).nat_tendsto_atTop
-  have ho := hcount.comp_tendsto ht
-  have traw := ho.tendsto_div_nhds_zero
-  have hratio : Tendsto
-      (fun n : ℕ => ((n + 1 : ℕ) : ℝ) / Real.sqrt (Nat.nth p n : ℝ))
-      atTop (𝓝 0) := by
-    apply traw.congr'
-    filter_upwards with n
-    simp only [Function.comp_apply]
-    rw [show ((Finset.Icc 1 (Nat.nth p n)).filter p).card = n + 1 by
-      rw [← count_succ_eq_card_filter_Icc p hp0]
-      exact Nat.count_nth_succ_of_infinite hp n]
-  have hsquared := hratio.pow 2
-  convert hsquared using 1
-  · funext n
-    have hpos : 0 < (Nat.nth p n : ℝ) := by
-      exact_mod_cast (Nat.pos_of_ne_zero (fun hz => hp0 (hz ▸ Nat.nth_mem_of_infinite hp n)))
-    rw [div_pow, Real.sq_sqrt hpos.le]
-  · norm_num
 
 end SquarefreeGapProof
 

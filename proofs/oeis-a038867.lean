@@ -1,16 +1,14 @@
 import OMAStatements.S_oeis_a038867
 
 /-! Every term is 2 modulo 3, while squares are 0 or 1 modulo 3.
-Original checked proof by @sntntHb. Shorter proof by @caa1982. -/
+The original project proof was merged in PR 7403 and first shortened in PR 7840. -/
 
-open OMA.S_oeis_a038867 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a038867.main := by
-  intro n ⟨k, hk⟩
-  unfold a at hk
-  rw [show (n + 5) ^ 3 = n ^ 3 + (3 * (5 * n ^ 2 + 25 * n) + 125) by ring,
-    Nat.add_sub_cancel_left] at hk
-  have h := congrArg (fun t : ℕ => (t : ZMod 3)) hk
-  push_cast at h
-  rw [show (3 : ZMod 3) = 0 by decide, zero_mul, zero_add,
-    show (125 : ZMod 3) = 2 by decide] at h
-  exact (by decide : ∀ x : ZMod 3, 2 ≠ x * x) _ h
+  intro n ⟨m, hm⟩
+  change (n + 5) ^ 3 - n ^ 3 = m * m at hm
+  have e : (n + 5) ^ 3 = 3 * (5 * n ^ 2 + 25 * n + 41) + 2 + n ^ 3 := by grind
+  rw [e, Nat.add_sub_cancel] at hm
+  have h := congrArg (· % 3) hm
+  rw [Nat.mul_mod m m] at h
+  have : m % 3 = 0 ∨ m % 3 = 1 ∨ m % 3 = 2 := by omega
+  rcases this with r | r | r <;> rw [r] at h <;> omega

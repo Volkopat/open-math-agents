@@ -4,139 +4,80 @@ import FormalConjectures.WrittenOnTheWallII.GraphConjecture23
 
 open SimpleGraph
 
-namespace OMA.Wall
-
-abbrev V := Fin 19
-
-def edges : List (V × V) :=
+private def E : List (Fin 19 × Fin 19) :=
   [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),(8,9),(9,10),
    (0,11),(1,11),(3,12),(4,12),(6,13),(7,13),(9,14),(10,14),
    (0,15),(0,16),(10,17),(10,18)]
 
-def graph : SimpleGraph V where
-  Adj x y := (x,y) ∈ edges ∨ (y,x) ∈ edges
+private def G : SimpleGraph (Fin 19) where
+  Adj x y := (x, y) ∈ E ∨ (y, x) ∈ E
   symm := ⟨fun _ _ => Or.symm⟩
   loopless := ⟨by decide⟩
 
-instance : DecidableRel graph.Adj := fun _ _ => inferInstanceAs (Decidable (_ ∨ _))
+private instance : DecidableRel G.Adj := fun _ _ => inferInstanceAs (Decidable (_ ∨ _))
 
-lemma connected : graph.Connected := by
-  rw [connected_iff_exists_forall_reachable]
-  refine ⟨0, fun v => ?_⟩
-  induction v using WellFounded.induction (measure (fun v : V => v.val)).wf with
-  | h v ih =>
-    by_cases hv : v = 0
-    · subst v
-      exact Reachable.refl _
-    have lower : ∀ v : V, v ≠ 0 → ∃ u : V, u.val < v.val ∧ graph.Adj u v := by decide
-    obtain ⟨u, hu, ha⟩ := lower v hv
-    exact (ih u hu).trans ha.reachable
+private def layer : Fin 19 → ℕ := ![0,1,2,3,4,5,6,7,8,9,10,0,3,6,9,0,0,10,10]
 
-def layer : V → ℕ := ![0,1,2,3,4,5,6,7,8,9,10,0,3,6,9,0,0,10,10]
-
-lemma walk_bound {u v : V} (p : graph.Walk u v) : layer v ≤ layer u + p.length := by
-  induction p with
-  | nil => simp
-  | @cons a b c hab p ih =>
-    have step : ∀ x y : V, graph.Adj x y → layer y ≤ layer x + 1 := by decide
-    have := step a b hab
-    rw [Walk.length_cons]
-    omega
-
-lemma dist_bound : 10 ≤ graph.dist 0 10 := by
-  obtain ⟨p, hp⟩ := connected.exists_walk_length_eq_dist 0 10
-  have h := walk_bound p
-  rw [hp] at h
-  simpa [layer] using h
-
-lemma max_set : {v : V | graph.degree v = graph.maxDegree} = ({0,10} : Set V) := by
-  ext v
-  change graph.degree v = graph.maxDegree ↔ v = 0 ∨ v = 10
-  exact (by decide : ∀ x : V, graph.degree x = graph.maxDegree ↔ x = 0 ∨ x = 10) v
-
-lemma average_bound : 10 ≤ distAvgSet graph ({0,10} : Set V) := by
-  classical
-  let pairs : Finset (V × V) := {((0 : V),10), (10,0)}
-  have hn : ((0 : V), (10 : V)) ≠ (10,0) := by decide
-  unfold distAvgSet
-  extract_lets q
-  have he : q = pairs := by
-    ext ⟨x,y⟩
-    simp [q, pairs, Finset.mem_product, Prod.mk.injEq]
-    grind
-  rw [he]
-  simp [pairs, hn, graph.dist_comm (u := 10) (v := 0)]
-  <;> exact dist_bound
-
-
-def independent : Finset V := {2,5,8,11,12,13,14,15,16,17,18}
-
-lemma indep_bound : 11 ≤ graph.indepNum := by
-  have hi : graph.IsIndepSet independent := by
-    intro x hx y hy hxy
-    exact (by decide : ∀ x ∈ independent, ∀ y ∈ independent, x ≠ y → ¬ graph.Adj x y)
-      x hx y hy hxy
-  exact hi.card_le_indepNum
-
-def leftVertex : Fin 4 → V := ![0,3,6,9]
-def rightVertex : Fin 4 → V := ![1,4,7,10]
-def thirdVertex : Fin 4 → V := ![11,12,13,14]
-def triangle (i : Fin 4) : Finset V := {leftVertex i, rightVertex i, thirdVertex i}
-
-lemma omitted (s : Finset V) (hb : (graph.induce s).IsBipartite) (i : Fin 4) :
-    ∃ v ∈ triangle i, v ∉ s := by
-  obtain ⟨c, hc⟩ := (induce_isBipartite_iff_exists_coloring graph s).mp hb
-  by_contra! h
-  have ha := h (leftVertex i) (by simp [triangle])
-  have hb' := h (rightVertex i) (by simp [triangle])
-  have hd := h (thirdVertex i) (by simp [triangle])
-  have he : ∀ j, graph.Adj (leftVertex j) (rightVertex j) ∧
-      graph.Adj (leftVertex j) (thirdVertex j) ∧ graph.Adj (rightVertex j) (thirdVertex j) := by decide
-  have h₁ := hc _ ha _ hb' (he i).1
-  have h₂ := hc _ ha _ hd (he i).2.1
-  have h₃ := hc _ hb' _ hd (he i).2.2
-  exact (by decide : ∀ a b d : Fin 2, a ≠ b → a ≠ d → b ≠ d → False) _ _ _ h₁ h₂ h₃
-
-lemma card_bound (s : Finset V) (hb : (graph.induce s).IsBipartite) : s.card ≤ 15 := by
-  choose f hf hn using omitted s hb
-  have disj : ∀ i j : Fin 4, ∀ v : V, v ∈ triangle i → v ∈ triangle j → i = j := by decide
-  have inj : Function.Injective f := by
-    intro i j h
-    exact disj i j (f j) (h ▸ hf i) (hf j)
-  let e : Fin 4 ↪ ↥(sᶜ : Finset V) :=
-    ⟨fun i => ⟨f i, Finset.mem_compl.mpr (hn i)⟩, fun i j h => inj (congrArg Subtype.val h)⟩
-  have h := Fintype.card_le_of_embedding e
-  simp at h
-  have hs := s.card_le_univ
-  simp at hs
-  omega
-
-lemma bip_bound : b graph ≤ 15 := by
-  unfold b
-  have h : graph.largestInducedBipartiteSubgraphSize ≤ 15 := by
-    unfold largestInducedBipartiteSubgraphSize
-    apply csSup_le
-    · refine ⟨0, ∅, ?_, rfl⟩
-      rw [induce_isBipartite_iff_exists_coloring]
-      exact ⟨fun _ => 0, by simp⟩
-    · rintro n ⟨s, hs, rfl⟩
-      exact card_bound s hs
-  exact_mod_cast h
-
-end OMA.Wall
-
-open OMA.Wall
+private def T : Fin 4 → Fin 3 → Fin 19 := ![![0,1,11],![3,4,12],![6,7,13],![9,10,14]]
 
 theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture23.conjecture23 := by
   intro h
-  have claim := h V graph connected
+  have hconn : G.Connected := (connected_iff_exists_forall_reachable G).2 ⟨0, fun v => by
+    induction v using WellFounded.induction (measure Fin.val).wf with
+    | h v ih =>
+      by_cases hv : v = 0
+      · subst v; exact .refl _
+      · obtain ⟨u, hu, ha⟩ := (by decide : ∀ v : Fin 19, v ≠ 0 → ∃ u : Fin 19, u.1 < v.1 ∧ G.Adj u v) v hv
+        exact (ih u hu).trans ha.reachable⟩
+  have claim := h (Fin 19) G hconn
   dsimp only at claim
-  rw [max_set] at claim
-  have hi : (11 : ℝ) ≤ graph.indepNum := by exact_mod_cast indep_bound
-  have hf : (16 : ℤ) ≤ ⌊(graph.indepNum : ℝ) + distAvgSet graph ({0,10} : Set V) / 2⌋ := by
-    apply Int.le_floor.mpr
-    push_cast
-    linarith [average_bound]
-  have hf' : (16 : ℝ) ≤ (⌊(graph.indepNum : ℝ) + distAvgSet graph ({0,10} : Set V) / 2⌋ : ℤ) := by
-    exact_mod_cast hf
-  linarith [bip_bound]
+  have hmax : {v : Fin 19 | G.degree v = G.maxDegree} = ({0, 10} : Set (Fin 19)) := by
+    ext v; exact (by decide : ∀ x : Fin 19, G.degree x = G.maxDegree ↔ x = 0 ∨ x = 10) v
+  rw [hmax] at claim
+  have hdist : 10 ≤ G.dist 0 10 := by
+    obtain ⟨p, hp⟩ := hconn.exists_walk_length_eq_dist 0 10
+    have hw : ∀ {u v} (q : G.Walk u v), layer v ≤ layer u + q.length := by
+      intro u v q; induction q with
+      | nil => simp
+      | @cons a b c hab _ ih =>
+        have := (by decide : ∀ x y : Fin 19, G.Adj x y → layer y ≤ layer x + 1) a b hab
+        rw [Walk.length_cons]; omega
+    simpa [layer, hp] using hw p
+  have havg : 10 ≤ distAvgSet G ({0, 10} : Set (Fin 19)) := by
+    classical
+    unfold distAvgSet; extract_lets q
+    have he : q = {((0 : Fin 19), 10), (10, 0)} := by
+      ext ⟨x, y⟩; simp [q, Finset.mem_product, Prod.mk.injEq]; grind
+    rw [he]
+    simp [show ((0 : Fin 19), (10 : Fin 19)) ≠ (10, 0) by decide, G.dist_comm (u := 10) (v := 0)]
+    exact hdist
+  have hi : (11 : ℝ) ≤ G.indepNum := by
+    let I : Finset (Fin 19) := {2,5,8,11,12,13,14,15,16,17,18}
+    have hI : G.IsIndepSet I := fun x hx y hy hxy =>
+      (by decide : ∀ x ∈ I, ∀ y ∈ I, x ≠ y → ¬ G.Adj x y) x hx y hy hxy
+    exact_mod_cast hI.card_le_indepNum
+  have hbip : b G ≤ 15 := by
+    unfold b
+    exact_mod_cast (by
+      unfold largestInducedBipartiteSubgraphSize
+      refine csSup_le ⟨0, ∅, (induce_isBipartite_iff_exists_coloring G _).2 ⟨fun _ => 0, by simp⟩, rfl⟩ ?_
+      rintro _ ⟨s, hb, rfl⟩
+      obtain ⟨c, hc⟩ := (induce_isBipartite_iff_exists_coloring G s).1 hb
+      have edge : ∀ i j k, j ≠ k → G.Adj (T i j) (T i k) := by decide
+      have miss (i : Fin 4) : ∃ j, T i j ∉ s := by
+        by_contra! hm
+        have inj : Function.Injective (fun j => c (T i j)) := by
+          intro j k h
+          by_contra h'
+          exact hc _ (hm _) _ (hm _) (edge i j k h') h
+        have := Fintype.card_le_of_injective _ inj
+        simp at this
+      choose f hf using miss
+      have sep : ∀ i j k l, T i j = T k l → i = k := by decide
+      have hcard := Fintype.card_le_of_embedding
+        (⟨fun i => ⟨T i (f i), Finset.mem_compl.2 (hf i)⟩,
+          fun i j h => sep i (f i) j (f j) (Subtype.mk.inj h)⟩ : Fin 4 ↪ ↥(sᶜ : Finset (Fin 19)))
+      have hs := s.card_le_univ; simp at hcard hs; omega : G.largestInducedBipartiteSubgraphSize ≤ 15)
+  have hf : (16 : ℝ) ≤ (⌊(G.indepNum : ℝ) + distAvgSet G ({0, 10} : Set (Fin 19)) / 2⌋ : ℤ) := by
+    exact_mod_cast Int.le_floor.2 (by push_cast; linarith)
+  linarith

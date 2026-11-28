@@ -29,239 +29,121 @@ open scoped Classical
 
 namespace Green14
 
-/-- For positive progression lengths, some finite interval forces either a
-color-0 progression of length `k` or a color-1 progression of length `r`.
-
-This is deliberately only an existence theorem; its bound is the enormous
-Hales--Jewett bound and is not intended for computation. -/
-theorem mixedMonoAPGuaranteeSet_nonempty (k r : ℕ) (hk : 1 ≤ k) (hr : 1 ≤ r) :
+/-- Project a Hales-Jewett line to the sums of its coordinates. Each moving
+coordinate contributes one to the common positive difference. -/
+theorem mixedMonoAPGuaranteeSet_nonempty (k r : ℕ) (_hk : 1 ≤ k) (_hr : 1 ≤ r) :
     (mixedMonoAPGuaranteeSet k r).Nonempty := by
   classical
   let m := max k r
-  obtain ⟨ι, instι, hι⟩ :=
+  obtain ⟨ι,instι,hι⟩ :=
     Combinatorics.Line.exists_mono_in_high_dimension (Fin m) (Fin 2)
-  letI : Fintype ι := instι
-  let N := Fintype.card ι * (m - 1) + 1
-
-  have word_sum_le (v : ι → Fin m) :
-      ∑ i, (v i : ℕ) ≤ Fintype.card ι * (m - 1) := by
-    calc
-      ∑ i, (v i : ℕ) ≤ ∑ _i : ι, (m - 1) := by
-        apply Finset.sum_le_sum
-        intro i hi
-        exact Nat.le_pred_of_lt (v i).isLt
-      _ = Fintype.card ι * (m - 1) := by simp
-
-  refine ⟨N, ?_⟩
-  intro coloring
-
+  let _ : Fintype ι := instι
+  let N := Fintype.card ι*(m-1)+1
   let wordPoint (v : ι → Fin m) : Icc 1 N :=
-    ⟨1 + ∑ i, (v i : ℕ), by
+    ⟨1+∑ i, (v i : ℕ), by
+      have bound : ∑ i, (v i : ℕ) ≤ ∑ _i : ι, (m-1) :=
+        Finset.sum_le_sum fun i _ => Nat.le_pred_of_lt (v i).isLt
+      rw [show (∑ _i : ι, (m-1)) = Fintype.card ι*(m-1) by simp] at bound
+      dsimp [N]
+      constructor <;> omega⟩
+  refine ⟨N,?_⟩
+  intro coloring
+  obtain ⟨line,color,mono⟩ := hι (fun v => coloring (wordPoint v))
+  let d : ℕ := ∑ i, if line.idxFun i=none then 1 else 0
+  let b : ℕ := ∑ i, ((line.idxFun i).map Fin.val).getD 0
+  have pos : 0<d := by
+    obtain ⟨i,hi⟩ := line.proper
+    exact Finset.sum_pos' (fun _ _ => Nat.zero_le _) ⟨i,Finset.mem_univ _,by simp [hi]⟩
+  have linear (x : Fin m) : ∑ i, (line x i : ℕ) = b+(x:ℕ)*d := by
+    dsimp only [b,d]
+    rw [Finset.mul_sum,← Finset.sum_add_distrib]
+    apply Finset.sum_congr rfl
+    intro i _
+    cases h : line.idxFun i <;> simp [Combinatorics.Line.coe_apply,h]
+  have build (q : ℕ) (hq : q ≤ m) : ∃ s : Finset (Icc 1 N),
+      ({(z : ℕ) | z ∈ s}).IsAPOfLength q ∧ ∀ z ∈ s, coloring z=color := by
+    let point (i : Fin q) := wordPoint (line (Fin.castLE hq i))
+    let value (i : Fin q) := 1+b+i.val*d
+    have val (i : Fin q) : (point i : ℕ)=value i := by
+      change 1+(∑ j, (line (Fin.castLE hq i) j : ℕ))=1+b+i.val*d
+      rw [linear]
+      simp [Nat.add_assoc]
+    have inj : Function.Injective value := by
+      intro i j hij
+      exact Fin.ext (Nat.eq_of_mul_eq_mul_right pos (by simpa [value] using hij))
+    let s := Finset.univ.image point
+    have es : ({(z : ℕ) | z ∈ s} : Set ℕ)=Set.range value := by
+      ext z
       constructor
-      · omega
-      · dsimp only [N]
-        have h := word_sum_le v
-        omega⟩
-
-  obtain ⟨line, color, hmono⟩ := hι (fun v ↦ coloring (wordPoint v))
-
-  set active : Finset ι := {i | line.idxFun i = none} with hactive
-  let a : ℕ := active.card
-  let b : ℕ :=
-    ∑ i ∈ activeᶜ, ((line.idxFun i).map fun x : Fin m ↦ (x : ℕ)).getD 0
-
-  have ha : 0 < a := by
-    apply Finset.card_pos.mpr
-    refine ⟨line.proper.choose, ?_⟩
-    rw [hactive, Finset.mem_filter]
-    exact ⟨Finset.mem_univ _, line.proper.choose_spec⟩
-
-  have line_sum (x : Fin m) :
-      ∑ i, ((line x i : Fin m) : ℕ) = a * (x : ℕ) + b := by
-    rw [← Finset.sum_add_sum_compl active]
-    congr 1
-    · calc
-        ∑ i ∈ active, ((line x i : Fin m) : ℕ) =
-            ∑ _i ∈ active, (x : ℕ) := by
-          apply Finset.sum_congr rfl
-          intro i hi
-          have hnone : line.idxFun i = none := by
-            rw [hactive, Finset.mem_filter] at hi
-            exact hi.2
-          simp [Combinatorics.Line.coe_apply, hnone]
-        _ = active.card * (x : ℕ) := by simp
-        _ = a * (x : ℕ) := rfl
-    · calc
-        ∑ i ∈ activeᶜ, ((line x i : Fin m) : ℕ) =
-            ∑ i ∈ activeᶜ,
-              ((line.idxFun i).map fun y : Fin m ↦ (y : ℕ)).getD 0 := by
-          apply Finset.sum_congr rfl
-          intro i hi
-          cases hopt : line.idxFun i with
-          | none =>
-              have himem : i ∈ active := by
-                rw [hactive, Finset.mem_filter]
-                exact ⟨Finset.mem_univ _, hopt⟩
-              exact ((Finset.mem_compl.mp hi) himem).elim
-          | some y =>
-              simp [Combinatorics.Line.coe_apply, hopt]
-        _ = b := rfl
-
-  have build_progression (q : ℕ) (hq : 1 ≤ q) (hqm : q ≤ m) :
-      ∃ s : Finset (Icc 1 N),
-        ({(z : ℕ) | z ∈ s}).IsAPOfLength q ∧
-          ∀ z ∈ s, coloring z = color := by
-    let liftFin : Fin q → Fin m := fun x ↦ Fin.castLE hqm x
-    let value : Fin q → ℕ := fun x ↦ a * (x : ℕ) + b + 1
-    have hvalue_inj : Function.Injective value := by
-      intro x y hxy
-      apply Fin.ext
-      dsimp only [value] at hxy
-      have hmul : a * (x : ℕ) = a * (y : ℕ) := by omega
-      exact Nat.eq_of_mul_eq_mul_left ha hmul
-
-    let point : Fin q → Icc 1 N := fun x ↦
-      ⟨value x, by
-        constructor
-        · dsimp only [value]
-          omega
-        · have hp := (wordPoint (line (liftFin x))).property.2
-          dsimp only [wordPoint] at hp
-          rw [line_sum] at hp
-          simpa [liftFin, value, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hp⟩
-
-    have hpoint_inj : Function.Injective point := by
-      intro x y hxy
-      apply hvalue_inj
-      exact Subtype.ext_iff.mp hxy
-
-    let emb : Fin q ↪ Icc 1 N := ⟨point, hpoint_inj⟩
-    let s : Finset (Icc 1 N) := Finset.univ.map emb
-    let T : Set ℕ := Set.range value
-
-    have hT : T.IsAPOfLengthWith q (b + 1) a := by
-      constructor
-      · rw [_root_.ENat.card_coe_set_eq]
-        change T.encard = (q : ℕ∞)
-        have hTrange : T = value '' Set.univ := by
-          ext z
-          simp [T]
-        rw [hTrange, hvalue_inj.encard_image]
+      · rintro ⟨y,hy,rfl⟩
+        obtain ⟨i,_,rfl⟩ := Finset.mem_image.mp hy
+        exact ⟨i,(val i).symm⟩
+      · rintro ⟨i,rfl⟩
+        exact ⟨point i,Finset.mem_image.mpr ⟨i,Finset.mem_univ _,rfl⟩,val i⟩
+    refine ⟨s,?_,?_⟩
+    · rw [es]
+      refine ⟨1+b,d,?_,?_⟩
+      · rw [ENat.card_coe_set_eq,←Set.image_univ,inj.encard_image]
         simp
       · ext z
         constructor
-        · rintro ⟨x, rfl⟩
-          refine ⟨x, ?_, ?_⟩
-          · exact_mod_cast x.isLt
-          · simp [value, Nat.mul_comm, Nat.add_comm, Nat.add_left_comm]
-        · rintro ⟨n, hn, rfl⟩
-          have hnq : n < q := by exact_mod_cast hn
-          refine ⟨⟨n, hnq⟩, ?_⟩
-          change a * n + b + 1 = b + 1 + n * a
-          rw [Nat.mul_comm n a]
-          omega
-
-    have hsT : ({(z : ℕ) | z ∈ s} : Set ℕ) = T := by
-      ext z
-      simp [s, emb, point, T, value]
-
-    refine ⟨s, ?_, ?_⟩
-    · rw [hsT]
-      exact ⟨b + 1, a, hT⟩
+        · rintro ⟨i,rfl⟩
+          exact ⟨i.val,by exact_mod_cast i.isLt,by simp [value]⟩
+        · rintro ⟨i,hi,rfl⟩
+          exact ⟨⟨i,by exact_mod_cast hi⟩,by simp [value]⟩
     · intro z hz
-      rcases Finset.mem_map.mp hz with ⟨x, -, rfl⟩
-      change coloring (point x) = color
-      have hpoint_word : point x = wordPoint (line (liftFin x)) := by
-        apply Subtype.ext
-        dsimp only [point, value, wordPoint]
-        rw [line_sum]
-        simp [liftFin, Nat.add_comm]
-      rw [hpoint_word]
-      exact hmono (liftFin x)
-
+      obtain ⟨i,_,rfl⟩ := Finset.mem_image.mp hz
+      exact mono (Fin.castLE hq i)
   fin_cases color
-  · exact Or.inl (build_progression k hk (le_max_left k r))
-  · exact Or.inr (build_progression r hr (le_max_right k r))
+  · exact Or.inl (build k (le_max_left k r))
+  · exact Or.inr (build r (le_max_right k r))
 
 end Green14
 
-open Set
-open scoped Classical
-
-namespace Green14
-
-/-- If an interval forces a mixed monochromatic progression, every larger
-interval forces one as well. -/
-theorem mixedMonoAPGuaranteeSet_upward (k r : ℕ) {M N : ℕ} (hMN : M ≤ N)
-    (hM : M ∈ mixedMonoAPGuaranteeSet k r) :
-    N ∈ mixedMonoAPGuaranteeSet k r := by
-  intro coloring
-  let emb : Icc 1 M ↪ Icc 1 N :=
-    ⟨fun x ↦ ⟨x, x.2.1, x.2.2.trans hMN⟩, by
-      intro x y h
-      apply Subtype.ext
-      exact congrArg (fun z : Icc 1 N ↦ (z : Nat)) h⟩
-  let restricted : Icc 1 M → Fin 2 := fun x ↦ coloring (emb x)
-  rcases hM restricted with hzero | hone
-  · left
-    rcases hzero with ⟨s, hsAP, hsColor⟩
-    let t : Finset (Icc 1 N) := s.map emb
-    have hsets : ({(x : Nat) | x ∈ t} : Set Nat) = {(x : Nat) | x ∈ s} := by
-      ext z
-      constructor
-      · rintro ⟨x,hx,rfl⟩
-        obtain ⟨y,hy,rfl⟩ := Finset.mem_map.mp hx
-        exact ⟨y,hy,rfl⟩
-      · rintro ⟨y,hy,rfl⟩
-        exact ⟨emb y,Finset.mem_map.mpr ⟨y,hy,rfl⟩,rfl⟩
-    refine ⟨t, ?_, ?_⟩
-    · rw [hsets]
-      exact hsAP
-    · intro x hx
-      rcases Finset.mem_map.mp hx with ⟨y, hy, rfl⟩
-      simpa [restricted] using hsColor y hy
-  · right
-    rcases hone with ⟨s, hsAP, hsColor⟩
-    let t : Finset (Icc 1 N) := s.map emb
-    have hsets : ({(x : Nat) | x ∈ t} : Set Nat) = {(x : Nat) | x ∈ s} := by
-      ext z
-      constructor
-      · rintro ⟨x,hx,rfl⟩
-        obtain ⟨y,hy,rfl⟩ := Finset.mem_map.mp hx
-        exact ⟨y,hy,rfl⟩
-      · rintro ⟨y,hy,rfl⟩
-        exact ⟨emb y,Finset.mem_map.mpr ⟨y,hy,rfl⟩,rfl⟩
-    refine ⟨t, ?_, ?_⟩
-    · rw [hsets]
-      exact hsAP
-    · intro x hx
-      rcases Finset.mem_map.mp hx with ⟨y, hy, rfl⟩
-      simpa [restricted] using hsColor y hy
-
-/-- One bad coloring of `{1, ..., N}` proves the numerical lower bound
-`W(k,r) ≥ N+1`. -/
-theorem W_ge_succ_of_not_mem (k r N : ℕ) (hk : 1 ≤ k) (hr : 1 ≤ r)
-    (hbad : N ∉ mixedMonoAPGuaranteeSet k r) :
-    N + 1 ≤ W k r := by
-  rw [W]
-  apply le_csInf (mixedMonoAPGuaranteeSet_nonempty k r hk hr)
-  intro b hb
-  by_contra hle
-  have hbN : b ≤ N := Nat.lt_succ_iff.mp (Nat.lt_of_not_ge hle)
-  exact hbad (mixedMonoAPGuaranteeSet_upward k r hbN hb)
-
-end Green14
-
+/- Intersect shifted color masks to check all starts with a common difference.
+Every shorter interval inherits the same certificate. -/
 open Set
 open scoped Classical
 
 namespace Green14.FunctionCertificateBridge
 
-def hasAP (N k : Nat) (coloring : Nat → Bool) (color : Bool) : Bool :=
-  (List.range N).any fun a =>
-    (List.range ((N - 1 - a) / (k - 1))).any fun d0 =>
-      let d := d0 + 1
-      (List.range k).all fun i => coloring (a + i * d) == color
+/-- Bit i of starts m d j records that i through i+j*d all belong to m. -/
+private def starts (m d : Nat) : Nat → Nat
+  | 0 => m
+  | j+1 => starts m d j &&& (m >>> ((j+1)*d))
+
+private theorem start_bit {m d a j : Nat}
+    (h : ∀ i ≤ j, m.testBit (a + i*d) = true) :
+    (starts m d j).testBit a = true := by
+  induction j with
+  | zero => simpa [starts] using h 0 le_rfl
+  | succ j ih =>
+    simp only [starts, Nat.testBit_and, Nat.testBit_shiftRight, Bool.and_eq_true]
+    exact ⟨ih fun i hi => h i (Nat.le_succ_of_le hi), by simpa [Nat.add_comm] using h (j+1) le_rfl⟩
+
+private def clear (N k m : Nat) : Bool :=
+  (List.range ((N-1)/(k-1))).all fun d => starts m (d+1) (k-1) == 0
+
+private lemma clear_prefix {M N k mask : Nat} (bound : M ≤ N) (h : clear N k mask=true) :
+    clear M k mask=true := by
+  apply List.all_eq_true.mpr
+  intro d hd
+  apply List.all_eq_true.mp h d
+  apply List.mem_range.mpr
+  exact (List.mem_range.mp hd).trans_le (Nat.div_le_div_right (Nat.sub_le_sub_right bound 1))
+
+private lemma mismatch {N k m : Nat} (hk : 2 ≤ k) (hc : clear N k m = true)
+    {a d : Nat} (hd : 0 < d) (he : a + (k-1)*d < N) :
+    ∃ i < k, m.testBit (a+i*d) = false := by
+  by_contra! h
+  have hmul : d*(k-1) ≤ N-1 := by rw [Nat.mul_comm]; omega
+  have hle := (Nat.le_div_iff_mul_le (show 0 < k-1 by omega)).mpr hmul
+  have hz := List.all_eq_true.mp hc (d-1) (List.mem_range.mpr (by omega))
+  simp only [beq_iff_eq, Nat.sub_add_cancel (show 1 ≤ d by omega)] at hz
+  have H := start_bit (a := a) (j := k-1) (m := m) (d := d) (by
+    intro i hi
+    simpa using h i (by omega))
+  simp [hz] at H
 
 def boolColor : Bool → Fin 2
   | false => 0
@@ -274,54 +156,14 @@ lemma boolColor_injective : Function.Injective boolColor := by
 def certificateColoring (N : Nat) (coloring : Nat → Bool) : Icc 1 N → Fin 2 :=
   fun x => boolColor (coloring (x.1 - 1))
 
-lemma exists_mismatch_of_hasAP_eq_false
-    {N k : Nat} {coloring : Nat → Bool} {color : Bool}
-    (hk : 2 ≤ k) (hcheck : hasAP N k coloring color = false)
-    {a d : Nat} (ha : a < N) (hdpos : 0 < d)
-    (hend : a + (k - 1) * d < N) :
-    ∃ i : Nat, i < k ∧ coloring (a + i * d) ≠ color := by
-  by_contra hnone
-  push_neg at hnone
-  have hall : (List.range k).all fun i => coloring (a + i * d) == color := by
-    rw [List.all_eq_true]
-    intro i hi
-    have hik : i < k := by simpa using hi
-    simp [hnone i hik]
-  let q : Nat := (N - 1 - a) / (k - 1)
-  have hkden : 0 < k - 1 := by omega
-  have hmul : d * (k - 1) ≤ N - 1 - a := by
-    have hmul' : (k - 1) * d ≤ N - 1 - a := by omega
-    simpa [Nat.mul_comm] using hmul'
-  have hdle : d ≤ q := by
-    dsimp [q]
-    exact (Nat.le_div_iff_mul_le hkden).2 hmul
-  have hd0lt : d - 1 < q := by omega
-  have hdback : d - 1 + 1 = d := by omega
-  have hinner :
-      (List.range q).any fun d0 =>
-        let d' := d0 + 1
-        (List.range k).all fun i => coloring (a + i * d') == color := by
-    apply List.any_of_mem (by simpa using hd0lt)
-    simpa [hdback] using hall
-  have houter :
-      (List.range N).any fun a' =>
-        (List.range ((N - 1 - a') / (k - 1))).any fun d0 =>
-          let d' := d0 + 1
-          (List.range k).all fun i => coloring (a' + i * d') == color := by
-    apply List.any_of_mem (by simpa using ha)
-    simpa [q] using hinner
-  have : hasAP N k coloring color = true := by
-    simpa [hasAP] using houter
-  rw [hcheck] at this
-  contradiction
-
 private lemma mem_coe_finset_set_iff {N : Nat} {s : Finset (Icc 1 N)} {z : Nat} :
     z ∈ ({(x : Nat) | x ∈ s} : Set Nat) ↔ ∃ x ∈ s, (x : Nat) = z := by
   simp
 
-lemma no_monoAP_of_hasAP_eq_false
-    {N k : Nat} {coloring : Nat → Bool} {color : Bool}
-    (hk : 2 ≤ k) (hcheck : hasAP N k coloring color = false) :
+private lemma excludes_progression
+    {N k mask : Nat} {coloring : Nat → Bool} {color : Bool}
+    (hk : 2 ≤ k) (hcheck : clear N k mask = true)
+    (hmask : ∀ i < N, coloring i = color → mask.testBit i = true) :
     ¬ ∃ s : Finset (Icc 1 N),
         ({(x : Nat) | x ∈ s}).IsAPOfLength k ∧
           ∀ x ∈ s, certificateColoring N coloring x = boolColor color := by
@@ -333,13 +175,12 @@ lemma no_monoAP_of_hasAP_eq_false
     rw [hT.2]
     refine ⟨i, ?_, ?_⟩
     · exact_mod_cast hi
-    · simp [nsmul_eq_mul]
+    · simp
   have start_mem : start ∈ T := by simpa using term_mem 0 (by omega)
   have last_mem : start + (k - 1) * step ∈ T := term_mem (k - 1) (by omega)
   rcases (mem_coe_finset_set_iff.mp start_mem) with ⟨x0, hx0s, hx0⟩
   rcases (mem_coe_finset_set_iff.mp last_mem) with ⟨xlast, hxlasts, hxlast⟩
   have hstart_lo : 1 ≤ start := by simpa [hx0] using x0.2.1
-  have hstart_hi : start ≤ N := by simpa [hx0] using x0.2.2
   have hlast_hi : start + (k - 1) * step ≤ N := by simpa [hxlast] using xlast.2.2
   have hstep_pos : 0 < step := by
     by_contra hnot
@@ -360,10 +201,9 @@ lemma no_monoAP_of_hasAP_eq_false
       simp
     have : k = 1 := by exact_mod_cast hcard
     omega
-  have ha0_ltN : start - 1 < N := by omega
   have hend0 : start - 1 + (k - 1) * step < N := by omega
   obtain ⟨i, hi, hmismatch⟩ :=
-    exists_mismatch_of_hasAP_eq_false hk hcheck ha0_ltN hstep_pos hend0
+    mismatch hk hcheck hstep_pos hend0
   have hiterm : start + i * step ∈ T := term_mem i hi
   rcases (mem_coe_finset_set_iff.mp hiterm) with ⟨x, hxs, hx⟩
   have hxindex : x.1 - 1 = start - 1 + i * step := by
@@ -373,37 +213,35 @@ lemma no_monoAP_of_hasAP_eq_false
   have hbool : coloring (start - 1 + i * step) = color := by
     apply boolColor_injective
     simpa [certificateColoring, hxindex] using hcolor
-  exact hmismatch hbool
-
-lemma not_mem_mixed_of_checks
-    {N r : Nat} {coloring : Nat → Bool}
-    (hr : 2 ≤ r)
-    (hchecks : hasAP N 3 coloring false = false ∧ hasAP N r coloring true = false) :
-    N ∉ Green14.mixedMonoAPGuaranteeSet 3 r := by
-  intro hguarantee
-  rcases hguarantee (certificateColoring N coloring) with hzero | hone
-  · exact no_monoAP_of_hasAP_eq_false (k := 3) (by omega) hchecks.1 hzero
-  · exact no_monoAP_of_hasAP_eq_false (k := r) hr hchecks.2 hone
-
-theorem W_ge_succ_of_checks
-    {N r : Nat} {coloring : Nat → Bool}
-    (hr : 2 ≤ r)
-    (hchecks : hasAP N 3 coloring false = false ∧ hasAP N r coloring true = false) :
-    N + 1 ≤ Green14.W 3 r := by
-  apply Green14.W_ge_succ_of_not_mem 3 r N (by omega) (by omega)
-  exact not_mem_mixed_of_checks hr hchecks
+  have hbound := Nat.mul_le_mul_right step (show i ≤ k-1 by omega)
+  have ht := hmask _ (by omega) hbool
+  simp_all
 
 end Green14.FunctionCertificateBridge
 
 namespace OMA.GreenCertificate
-private def coloring (i : Nat) : Bool := !(0x40050a00020400302080688000100005800402028800010000080040344000080160c002510000200003000802814000100 : Nat).testBit i
 
-open Green14.FunctionCertificateBridge
-set_option maxRecDepth 100000 in
-private theorem checked : hasAP 415 3 coloring false = false ∧ hasAP 415 21 coloring true = false := by
-  decide +kernel
+private def red : Nat := 0x40050a00020400302080688000100005800402028800010000080040344000080160c002510000200003000802814000100
+private def blue : Nat := (2^415-1) ^^^ red
+private def coloring (i : Nat) : Bool := !(red.testBit i)
 
 end OMA.GreenCertificate
 
-theorem OMA.solution : type_of% @Green14.W_3_21_lower :=
-  Green14.FunctionCertificateBridge.W_ge_succ_of_checks (N := 415) (r := 21) (by decide) OMA.GreenCertificate.checked
+open Green14.FunctionCertificateBridge OMA.GreenCertificate in
+theorem OMA.solution : type_of% @Green14.W_3_21_lower := by
+  apply le_csInf (Green14.mixedMonoAPGuaranteeSet_nonempty 3 21 (by decide) (by decide))
+  intro M hM
+  by_contra! h
+  have bound : M ≤ 415 := by omega
+  rcases hM (certificateColoring M coloring) with hr | hb
+  · apply excludes_progression (k:=3) (color:=false) (mask:=red) (by decide)
+      (clear_prefix bound (by decide +kernel)) ?_ hr
+    intro i _ hi
+    simpa [coloring] using hi
+  · apply excludes_progression (k:=21) (color:=true) (mask:=blue) (by decide)
+      (clear_prefix bound (by decide +kernel)) ?_ hb
+    intro i hi hc
+    have hmax : i < 415 := hi.trans_le bound
+    change (((2^415-1:Nat) ^^^ red).testBit i)=true
+    rw [Nat.testBit_xor,Nat.testBit_two_pow_sub_one,decide_eq_true hmax]
+    simpa [coloring] using hc

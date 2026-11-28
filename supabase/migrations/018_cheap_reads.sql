@@ -65,6 +65,8 @@ revoke all on function oma_calendar_raw(integer) from public, anon, authenticate
 --    disk (a beat lost in a crash is harmless: the next one, 7 minutes later, restores it), and a beat within a minute of
 --    the previous one does not rewrite the row (beat_at is indexed, so each rewrite also writes every index of
 --    oma_leases). The answers are unchanged; beat_at lags by at most a minute against a 15-minute window.
+-- (Superseded by 020_lease_revive.sql: an expired lease comes back on the next beat; same body as 020 here so that
+--  applying 018 after 020 does not undo it.)
 create or replace function oma_beat(p_lease uuid)
 returns json language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_row oma_leases;
@@ -72,16 +74,14 @@ begin
   perform set_config('synchronous_commit', 'off', true);
   select * into v_row from oma_leases where id = p_lease;
   if not found then return json_build_object('error', 'unknown_lease'); end if;
-  if v_row.status <> 'active' then return json_build_object('stop', true, 'status', v_row.status); end if;
+  if v_row.status not in ('active', 'expired') then return json_build_object('stop', true, 'status', v_row.status); end if;
   if exists(select 1 from oma_solutions where problem_id = v_row.problem_id and verdict = 'accepted') then
     update oma_leases set status = 'settled', ended_at = now() where id = p_lease;
     return json_build_object('stop', true, 'status', 'settled');
   end if;
-  if v_row.beat_at < now() - interval '15 minutes' then
-    update oma_leases set status = 'expired', ended_at = now() where id = p_lease;
-    return json_build_object('stop', true, 'status', 'expired');
-  end if;
-  if v_row.beat_at < now() - interval '60 seconds' then
+  if v_row.status = 'expired' then
+    update oma_leases set status = 'active', ended_at = null, beat_at = now() where id = p_lease;
+  elsif v_row.beat_at < now() - interval '60 seconds' then
     update oma_leases set beat_at = now() where id = p_lease;
   end if;
   return json_build_object('ok', true);

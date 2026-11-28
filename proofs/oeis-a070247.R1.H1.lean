@@ -6,8 +6,6 @@ private def divisor : Fin 15 → ℕ :=
     106907803649, 458924033, 3635898263938497962802538435084289,
     1702047085242613845984907230501142529]
 
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 2000000 in
 private theorem certificate : ∀ j : Fin 15, 2 ≤ j.val →
     let n := 10 ^ (2 ^ j.val) + 1
     divisor j ∣ n ∧ divisor j ≠ 1 ∧ divisor j ≠ n := by

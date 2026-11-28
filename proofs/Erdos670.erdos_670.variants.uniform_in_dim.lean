@@ -213,13 +213,6 @@ lemma G_strictMonoOn : StrictMonoOn G (Icc 0 π) := by
 /-- The auxiliary function `φ(θ) = sin θ - θ cos θ`. -/
 def phi (θ : ℝ) : ℝ := sin θ - θ * cos θ
 
-lemma phi_pos {θ : ℝ} (hθ₀ : 0 < θ) (hθπ : θ < π) : 0 < phi θ := by
-  refine' sub_pos_of_lt _;
-  by_cases h₂ : θ < Real.pi / 2;
-  · have := Real.lt_tan hθ₀ h₂;
-    rwa [ Real.tan_eq_sin_div_cos, lt_div_iff₀ ( Real.cos_pos_of_mem_Ioo ⟨ by linarith, h₂ ⟩ ) ] at this;
-  · exact lt_of_le_of_lt ( mul_nonpos_of_nonneg_of_nonpos hθ₀.le ( Real.cos_nonpos_of_pi_div_two_le_of_le ( by linarith ) ( by linarith ) ) ) ( Real.sin_pos_of_pos_of_lt_pi hθ₀ hθπ )
-
 lemma phi_lt_pi {θ : ℝ} (hθ₀ : 0 < θ) (hθπ : θ < π) : phi θ < π := by
   unfold phi;
   by_cases h₂ : θ ≤ Real.pi / 2;
@@ -270,11 +263,6 @@ lemma hasDerivAt_G' {θ : ℝ} (hθ₀ : 0 < θ) (hθπ : θ < π) :
 lemma deriv_G_eq {θ : ℝ} (hθ₀ : 0 < θ) (hθπ : θ < π) :
     deriv G θ = G' θ := by
   exact (hasDerivAt_G hθ₀ hθπ.le).deriv
-
-lemma derivG_eventuallyEq {θ : ℝ} (hθ : θ ∈ Ioo 0 π) :
-    deriv G =ᶠ[nhds θ] G' := by
-      filter_upwards [ Ioo_mem_nhds hθ.1 hθ.2 ] with x hx;
-      convert! HasDerivAt.deriv ( hasDerivAt_G hx.1 hx.2.le ) using 1
 
 lemma iteratedDeriv_two_G_neg {θ : ℝ} (hθ : θ ∈ interior (Icc 0 π)) :
     deriv^[2] G θ < 0 := by
@@ -981,58 +969,6 @@ lemma sepAngle_pos {m : ℕ} [NeZero m] {r : ZMod m} (hr : r ≠ 0) : 0 < sepAng
       unfold sepAngle
       ring
 
-lemma sepAngle_eq_zero_iff {m : ℕ} [NeZero m] {r : ZMod m} : sepAngle r = 0 ↔ r = 0 := by
-  constructor
-  · intro h
-    by_contra hr
-    exact (ne_of_gt (sepAngle_pos hr)) h
-  · rintro rfl
-    unfold sepAngle
-    simp
-
-lemma natAbs_eq_of_sepAngle_eq {m : ℕ} [NeZero m] {r s : ZMod m}
-    (h : sepAngle r = sepAngle s) :
-    r.valMinAbs.natAbs = s.valMinAbs.natAbs := by
-  have hm0 : (m : ℝ) ≠ 0 := by exact_mod_cast (Nat.pos_of_ne_zero <| NeZero.ne m).ne'
-  have hpi0 : (π : ℝ) ≠ 0 := Real.pi_ne_zero
-  unfold sepAngle at h
-  field_simp [hm0, hpi0] at h
-  exact_mod_cast h
-
-/-- The abstract profile distance attached to a difference in `ZMod m`. -/
-def cyclicProfileDist {m : ℕ} [NeZero m] (a b : ZMod m) : ℝ :=
-  G (sepAngle (a - b))
-
-lemma cyclicProfileDist_pos
-    {m : ℕ} [NeZero m] {a b : ZMod m} (hab : a ≠ b) :
-    0 < cyclicProfileDist a b := by
-  unfold cyclicProfileDist
-  exact G_pos (sepAngle_pos (sub_ne_zero_of_ne hab)) (sepAngle_le_pi _)
-
-/-- On a Singer difference set, equal profile values force the corresponding unordered pairs
-to agree. This is the formal version of the paper's cyclic-separation indexing lemma combined
-with strict monotonicity of `G`. -/
-lemma eq_or_eq_swap_of_cyclicProfileDist_eq
-    {m n : ℕ} [NeZero m] (D : SingerDiffSet m n)
-    {a b c d : ZMod m}
-    (ha : a ∈ D.carrier) (hb : b ∈ D.carrier)
-    (hc : c ∈ D.carrier) (hd : d ∈ D.carrier)
-    (hab : a ≠ b)
-    (hEq : cyclicProfileDist a b = cyclicProfileDist c d) :
-    (a = c ∧ b = d) ∨ (a = d ∧ b = c) := by
-  have hmem₁ : sepAngle (a - b) ∈ Set.Icc 0 π := sepAngle_mem_Icc (a - b)
-  have hmem₂ : sepAngle (c - d) ∈ Set.Icc 0 π := sepAngle_mem_Icc (c - d)
-  have hsepEq : sepAngle (a - b) = sepAngle (c - d) := by
-    by_contra hneq
-    rcases lt_or_gt_of_ne hneq with hlt | hgt
-    · have hltG : G (sepAngle (a - b)) < G (sepAngle (c - d)) := G_strictMonoOn hmem₁ hmem₂ hlt
-      exact (ne_of_lt hltG) (by simpa [cyclicProfileDist] using hEq)
-    · have hltG : G (sepAngle (c - d)) < G (sepAngle (a - b)) := G_strictMonoOn hmem₂ hmem₁ hgt
-      exact (ne_of_lt hltG) (by simpa [cyclicProfileDist] using hEq.symm)
-  have hnatEq : (a - b).valMinAbs.natAbs = (c - d).valMinAbs.natAbs :=
-    natAbs_eq_of_sepAngle_eq hsepEq
-  exact eq_or_eq_swap_of_natAbs_sub_eq (D := D) ha hb hc hd hab hnatEq
-
 end
 
 end DiameterConstruction
@@ -1245,16 +1181,6 @@ def polygonPointReindex {N : Nat} :
     EuclideanSpace Real (Fin N × Fin 2) ≃ₗᵢ[Real] EuclideanSpace Real (Fin (N * 2)) :=
   LinearIsometryEquiv.piLpCongrLeft 2 Real Real finProdFinEquiv
 
-/-- The same weighted polygon realization, now viewed in `R^(2N)`. -/
-def polygonPointFin {N : Nat} (W : Fin N → NNReal) (tau : Real) :
-    EuclideanSpace Real (Fin (N * 2)) :=
-  polygonPointReindex (polygonPoint W tau)
-
-/-- The cyclic realization, now viewed in `R^(2N)`. -/
-def cyclicPolygonPointFin {N m : Nat} [NeZero m] (W : Fin N → NNReal) (t : ZMod m) :
-    EuclideanSpace Real (Fin (N * 2)) :=
-  polygonPointReindex (cyclicPolygonPoint (m := m) W t)
-
 @[simp] lemma polygonPoint_apply_zero {N : Nat} (W : Fin N → NNReal) (tau : Real) (r : Fin N) :
     polygonPoint W tau (r, 0) =
       polygonAmplitude W r * Real.cos ((polygonFrequency r : Real) * tau) := by
@@ -1398,22 +1324,6 @@ theorem cyclicPolygonPoint_dist_sq_eq_profile {N m : Nat} [NeZero m] (W : Fin N 
     dist (cyclicPolygonPoint (m := m) W t) (cyclicPolygonPoint (m := m) W u) ^ 2 =
       polygonSqProfile W (sepAngle (t - u)) := by
   rw [cyclicPolygonPoint_dist_sq (m := m) W t u, polygonSqProfile_eq_sepAngle (m := m) W t u]
-
-/-- Reindexing the coordinates into `Fin (N * 2)` preserves the same squared-distance formula. -/
-theorem polygonPointFin_dist_sq {N : Nat} (W : Fin N → NNReal) (tau sigma : Real) :
-    dist (polygonPointFin W tau) (polygonPointFin W sigma) ^ 2 =
-      polygonSqProfile W (tau - sigma) := by
-  rw [polygonPointFin, ← polygonPoint_dist_sq W tau sigma]
-  exact congrArg (fun x : Real => x ^ 2) (polygonPointReindex.dist_map _ _)
-
-/-- The cyclic `R^(2N)` realization satisfies the same formula. -/
-theorem cyclicPolygonPointFin_dist_sq {N m : Nat} [NeZero m] (W : Fin N → NNReal)
-    (t u : ZMod m) :
-    dist (cyclicPolygonPointFin (m := m) W t) (cyclicPolygonPointFin (m := m) W u) ^ 2 =
-      polygonSqProfile W
-        ((2 * Real.pi * (t.val : Real) / m) - (2 * Real.pi * (u.val : Real) / m)) := by
-  rw [cyclicPolygonPointFin, ← cyclicPolygonPoint_dist_sq (m := m) W t u]
-  exact congrArg (fun x : Real => x ^ 2) (polygonPointReindex.dist_map _ _)
 
 end
 
@@ -1614,9 +1524,6 @@ lemma cos_nat_mul_sepAngle_eq_cos_residueNatAbs_mul_sepAngle {m : Nat} [NeZero m
     _ = Real.cos ((residueNatAbs (m := m) j : Real) * sepAngle x) := by
           exact cos_mul_raw_eq_cos_mul_sepAngle (m := m) (residueNatAbs (m := m) j) x
 
-lemma polygonFrequency_pos {N : Nat} (r : Fin N) : 0 < polygonFrequency r := by
-  simp [polygonFrequency]
-
 lemma polygonFrequency_injective {N : Nat} :
     Function.Injective (@polygonFrequency N) := by
   intro r s h
@@ -1765,24 +1672,6 @@ theorem cyclicResiduePoint_dist_eq_G {m : Nat} [NeZero m] (t u : ZMod m) :
     _ = G (sepAngle (t - u)) := by
           rfl
 
-/-- Inside a Singer difference set, equal distances in the concrete realization
-already force the underlying unordered pairs to agree. -/
-theorem eq_or_eq_swap_of_cyclicResiduePoint_dist_eq
-    {m n : Nat} [NeZero m] (D : SingerDiffSet m n)
-    {a b c d : ZMod m}
-    (ha : a ∈ D.carrier) (hb : b ∈ D.carrier)
-    (hc : c ∈ D.carrier) (hd : d ∈ D.carrier)
-    (hab : a ≠ b)
-    (hEq :
-      dist (cyclicPolygonPoint (m := m) (residueClassWeight (m := m)) a)
-          (cyclicPolygonPoint (m := m) (residueClassWeight (m := m)) b) =
-      dist (cyclicPolygonPoint (m := m) (residueClassWeight (m := m)) c)
-          (cyclicPolygonPoint (m := m) (residueClassWeight (m := m)) d)) :
-    (a = c ∧ b = d) ∨ (a = d ∧ b = c) := by
-  have hprofile : cyclicProfileDist a b = cyclicProfileDist c d := by
-    simpa [cyclicProfileDist, cyclicResiduePoint_dist_eq_G (m := m)] using hEq
-  exact eq_or_eq_swap_of_cyclicProfileDist_eq (D := D) ha hb hc hd hab hprofile
-
 end
 
 end DiameterConstruction
@@ -1842,10 +1731,6 @@ lemma sepAngle_natCast {m : Nat} [NeZero m] {s : Nat} (hs : s <= m / 2) :
   unfold sepAngle
   rw [ZMod.valMinAbs_natCast_of_le_half hs]
   simp
-
-lemma gridDist_eq_sepAngle_natCast {m : Nat} [NeZero m] {s : Nat} (hs : s <= m / 2) :
-    gridDist (m := m) s = G (sepAngle ((s : Nat) : ZMod m)) := by
-  rw [gridDist, sepAngle_natCast (m := m) hs]
 
 lemma gridAngle_mem_Icc {m : Nat} [NeZero m] {s : Nat} (hs : s <= m / 2) :
     2 * Real.pi * s / m ∈ Set.Icc (0 : Real) Real.pi := by
@@ -2165,81 +2050,6 @@ lemma scaledResiduePoint_exists_top_distance
     _ = scaleFactor (m := m) * gridDist (m := m) (m / 2) := by
           rw [hs]
 
-/-- The scaled Singer configuration as a subset of the concrete Euclidean space
-`R^(2 * floor(m / 2))`, presented in the paired-coordinate form. -/
-def scaledSingerPointSet {m n : Nat} [NeZero m] (D : SingerDiffSet m n) :
-    Set (EuclideanSpace Real (Prod (Fin (m / 2)) (Fin 2))) :=
-  scaledResiduePoint (m := m) '' (D.carrier : Set (ZMod m))
-
-lemma scaledSingerPointSet_bounded
-    {m n : Nat} [NeZero m] (D : SingerDiffSet m n) :
-    Bornology.IsBounded (scaledSingerPointSet (m := m) D) := by
-  apply Set.Finite.isBounded
-  simpa [scaledSingerPointSet] using
-    (Finset.finite_toSet D.carrier).image (scaledResiduePoint (m := m))
-
-lemma scaledResiduePoint_diam_eq_top
-    {m n : Nat} [NeZero m] (hN : 2 <= m / 2) (D : SingerDiffSet m n) :
-    Metric.diam (scaledSingerPointSet (m := m) D) =
-      scaleFactor (m := m) * gridDist (m := m) (m / 2) := by
-  refine le_antisymm ?_ ?_
-  · refine Metric.diam_le_of_forall_dist_le
-      (mul_nonneg (scaleFactor_nonneg (m := m) hN) (gridDist_nonneg (m := m) (m / 2))) ?_
-    intro x hx y hy
-    rcases hx with ⟨a, ha, rfl⟩
-    rcases hy with ⟨b, hb, rfl⟩
-    exact scaledResiduePoint_dist_le_top (m := m) hN a b
-  · obtain ⟨a, ha, b, hb, hdist⟩ := scaledResiduePoint_exists_top_distance (m := m) hN D
-    have hmema : scaledResiduePoint (m := m) a ∈ scaledSingerPointSet (m := m) D := ⟨a, ha, rfl⟩
-    have hmemb : scaledResiduePoint (m := m) b ∈ scaledSingerPointSet (m := m) D := ⟨b, hb, rfl⟩
-    calc
-      scaleFactor (m := m) * gridDist (m := m) (m / 2) =
-          dist (scaledResiduePoint (m := m) a) (scaledResiduePoint (m := m) b) := by
-            exact hdist.symm
-      _ <= Metric.diam (scaledSingerPointSet (m := m) D) := by
-            exact Metric.dist_le_diam_of_mem (scaledSingerPointSet_bounded (m := m) D) hmema hmemb
-
-/-- Exact finite counterexample theorem for every prime power `q`.
-
-This is the full finite construction from the paper: a Singer difference set,
-the concrete Euclidean realization, the scaling argument giving pairwise
-distance separation at least `1`, and an explicit uniform upper bound on the
-diameter. -/
-theorem primePower_counterexample
-    {q : Nat} (hq : IsPrimePow q) :
-    let m := q ^ 2 + q + 1
-    letI : NeZero m := ⟨by
-      have hq2 : 2 <= q := hq.two_le
-      omega⟩
-    ∃ D : SingerDiffSet m (q + 1),
-      let p := scaledResiduePoint (m := m)
-      Function.Injective p ∧
-      (∀ {a b c d : ZMod m},
-        a ∈ D.carrier → b ∈ D.carrier → c ∈ D.carrier → d ∈ D.carrier →
-        a ≠ b → c ≠ d →
-        ¬ ((a = c ∧ b = d) ∨ (a = d ∧ b = c)) →
-          1 <= |dist (p a) (p b) - dist (p c) (p d)|) ∧
-      (∀ a ∈ D.carrier, ∀ b ∈ D.carrier,
-        dist (p a) (p b) <= scaleFactor (m := m) * gridDist (m := m) (m / 2)) := by
-  classical
-  dsimp
-  have hq2 : 2 <= q := hq.two_le
-  have hqq : 4 <= q * q := by
-    simpa using Nat.mul_le_mul hq2 hq2
-  have hm4 : 4 <= q ^ 2 + q + 1 := by
-    rw [pow_two]
-    omega
-  have hN : 2 <= (q ^ 2 + q + 1) / 2 := by
-    exact (Nat.le_div_iff_mul_le Nat.two_pos).2 (by simpa using hm4)
-  obtain ⟨D⟩ := singer_exists hq
-  refine ⟨D, scaledResiduePoint_injective (m := q ^ 2 + q + 1) hN, ?_, ?_⟩
-  · intro a b c d ha hb hc hd hab hcd hpair
-    exact
-      scaledResiduePoint_dist_gap_ge_one
-        (m := q ^ 2 + q + 1) hN D ha hb hc hd hab hcd hpair
-  · intro a ha b hb
-    exact scaledResiduePoint_dist_le_top (m := q ^ 2 + q + 1) hN a b
-
 /-- The scaled realization reindexed as a point in `R^(2 * floor(m / 2))`. -/
 def scaledResiduePointFin {m : Nat} [NeZero m] (t : ZMod m) :
     EuclideanSpace Real (Fin ((m / 2) * 2)) :=
@@ -2358,42 +2168,6 @@ theorem primePower_counterexample_fin
   · intro a ha b hb
     exact scaledResiduePointFin_dist_le_top (m := q ^ 2 + q + 1) hN a b
 
-/-- The reindexed finite counterexample comes with an exact diameter formula:
-the top cyclic separation is attained, so the diameter is exactly the scaled top grid distance. -/
-theorem primePower_counterexample_fin_with_diam
-    {q : Nat} (hq : IsPrimePow q) :
-    let m := q ^ 2 + q + 1
-    letI : NeZero m := ⟨by
-      have hq2 : 2 <= q := hq.two_le
-      omega⟩
-    ∃ D : SingerDiffSet m (q + 1),
-      let p := scaledResiduePointFin (m := m)
-      Function.Injective p ∧
-      (∀ {a b c d : ZMod m},
-        a ∈ D.carrier → b ∈ D.carrier → c ∈ D.carrier → d ∈ D.carrier →
-        a ≠ b → c ≠ d →
-        ¬ ((a = c ∧ b = d) ∨ (a = d ∧ b = c)) →
-          1 <= |dist (p a) (p b) - dist (p c) (p d)|) ∧
-      Metric.diam (scaledSingerPointSetFin (m := m) D) =
-        scaleFactor (m := m) * gridDist (m := m) (m / 2) := by
-  classical
-  dsimp
-  have hq2 : 2 <= q := hq.two_le
-  have hqq : 4 <= q * q := by
-    simpa using Nat.mul_le_mul hq2 hq2
-  have hm4 : 4 <= q ^ 2 + q + 1 := by
-    rw [pow_two]
-    omega
-  have hN : 2 <= (q ^ 2 + q + 1) / 2 := by
-    exact (Nat.le_div_iff_mul_le Nat.two_pos).2 (by simpa using hm4)
-  obtain ⟨D⟩ := singer_exists hq
-  refine ⟨D, scaledResiduePointFin_injective (m := q ^ 2 + q + 1) hN, ?_,
-    scaledResiduePointFin_diam_eq_top (m := q ^ 2 + q + 1) hN D⟩
-  intro a b c d ha hb hc hd hab hcd hpair
-  exact
-    scaledResiduePointFin_dist_gap_ge_one
-      (m := q ^ 2 + q + 1) hN D ha hb hc hd hab hcd hpair
-
 lemma primePower_reindexed_dim (q : Nat) :
     ((q ^ 2 + q + 1) / 2) * 2 = q ^ 2 + q := by
   have hfactor : q ^ 2 + q = q * (q + 1) := by
@@ -2424,36 +2198,6 @@ lemma primePower_ambientDim_eq_n (q : Nat) :
           rw [Nat.succ_mul, pow_two]
         _ = (q + 1) ^ 2 - (q + 1) := by
           rw [pow_two, Nat.mul_succ, Nat.add_sub_cancel]
-
-/-- Exact finite counterexample theorem in the paper's ambient dimension `R^(n^2 - n)`. -/
-theorem primePower_counterexample_exactDimension
-    {q : Nat} (hq : IsPrimePow q) :
-    ∃ D : SingerDiffSet (q ^ 2 + q + 1) (q + 1),
-      ∃ p : ZMod (q ^ 2 + q + 1) →
-          EuclideanSpace Real (Fin ((q + 1) ^ 2 - (q + 1))),
-        Function.Injective p ∧
-        (∀ {a b c d : ZMod (q ^ 2 + q + 1)},
-          a ∈ D.carrier → b ∈ D.carrier → c ∈ D.carrier → d ∈ D.carrier →
-          a ≠ b → c ≠ d →
-          ¬ ((a = c ∧ b = d) ∨ (a = d ∧ b = c)) →
-            1 <= |dist (p a) (p b) - dist (p c) (p d)|) ∧
-        (∀ a ∈ D.carrier, ∀ b ∈ D.carrier,
-          dist (p a) (p b) <=
-            scaleFactor (m := q ^ 2 + q + 1) * gridDist (m := q ^ 2 + q + 1) ((q ^ 2 + q + 1) / 2)) := by
-  classical
-  have hdim : ((q ^ 2 + q + 1) / 2) * 2 = (q + 1) ^ 2 - (q + 1) :=
-    primePower_ambientDim_eq_n q
-  let e :
-      EuclideanSpace Real (Fin (((q ^ 2 + q + 1) / 2) * 2)) ≃ₗᵢ[Real]
-        EuclideanSpace Real (Fin ((q + 1) ^ 2 - (q + 1))) :=
-    LinearIsometryEquiv.piLpCongrLeft 2 Real Real (finCongr hdim)
-  obtain ⟨D, hinj, hsep, hdiam⟩ := primePower_counterexample_fin (q := q) hq
-  refine ⟨D, fun t => e (scaledResiduePointFin (m := q ^ 2 + q + 1) t), ?_, ?_, ?_⟩
-  · exact e.injective.comp hinj
-  · intro a b c d ha hb hc hd hab hcd hpair
-    simpa [e.dist_map] using hsep ha hb hc hd hab hcd hpair
-  · intro a ha b hb
-    simpa [e.dist_map] using hdiam a ha b hb
 
 /-- Exact finite counterexample theorem in the paper's ambient dimension `R^(n^2 - n)`,
 with the exact diameter formula included. -/
@@ -2535,9 +2279,6 @@ noncomputable section
 
 /- ### The asymptotic constant -/
 
-lemma cStar_pos : 0 < cStar := by
-  exact sub_pos_of_lt ( by rw [ div_lt_iff₀ ] <;> nlinarith [ Real.pi_gt_three ] )
-
 lemma cStar_lt_one : cStar < 1 := by
   exact sub_lt_self _ <| by positivity;
 
@@ -2546,9 +2287,6 @@ lemma cStar_lt_one : cStar < 1 := by
 The ratio `G(π) / (2π · G'(π⁻))` equals `c*`. Since the diameter of the scaled
 point set is `dₙ / (dₙ - dₙ₋₁)` and this ratio converges to `G(π) / (2π · G'(π⁻))`,
 the asymptotic diameter is `c* · m ∼ c* · n²`. -/
-
-lemma G_pi : G π = sqrt ((π ^ 2 - 1) / 4) := by
-  exact congrArg Real.sqrt ( H_pi )
 
 lemma H'_pi : H' π = π / 4 := by
   exact sub_eq_self.mpr ( by norm_num )
@@ -2978,70 +2716,6 @@ theorem infinitely_many_quantitative_counterexamples :
       field_simp [hq1sq]
       ring
     _ <= (cStar + primePowerDiameterError q) * (q + 1) ^ 2 := le_rfl
-
-/-- A compact qualitative summary of the counterexample:
-there is a constant `c < 1` for which the profile function is strictly increasing and
-strictly concave on `[0, pi]`, and the limiting diameter ratio equals `c`. -/
-theorem erdos_counterexample_qualitative :
-    ∃ c : ℝ, c < 1 ∧ c = cStar ∧
-      StrictMonoOn G (Icc 0 π) ∧
-      StrictConcaveOn ℝ (Icc 0 π) G ∧
-      4 * H π / π ^ 2 = c := by
-  exact ⟨cStar, cStar_lt_one, rfl, G_strictMonoOn, G_strictConcaveOn,
-    diameter_ratio_eq_cStar⟩
-
-/-- The concrete Euclidean realization attached to a Singer difference set:
-the Fourier weights produce a map on `ZMod m` whose distances are exactly
-`G (sepAngle (t - u))`, and on the Singer set those distances distinguish
-unordered pairs. -/
-theorem singer_realization_scaffold
-    {m n : Nat} [NeZero m] (D : SingerDiffSet m n) :
-    ∃ p : ZMod m → EuclideanSpace Real (Fin (m / 2) × Fin 2),
-      (∀ t u, dist (p t) (p u) = G (sepAngle (t - u))) ∧
-      (∀ {a b c d : ZMod m},
-        a ∈ D.carrier → b ∈ D.carrier → c ∈ D.carrier → d ∈ D.carrier → a ≠ b →
-        dist (p a) (p b) = dist (p c) (p d) →
-          (a = c ∧ b = d) ∨ (a = d ∧ b = c)) := by
-  refine ⟨cyclicPolygonPoint (m := m) (residueClassWeight (m := m)), ?_, ?_⟩
-  · intro t u
-    exact cyclicResiduePoint_dist_eq_G (m := m) t u
-  · intro a b c d ha hb hc hd hab hEq
-    exact eq_or_eq_swap_of_cyclicResiduePoint_dist_eq (D := D) ha hb hc hd hab hEq
-
-/-- Release-facing alias for `singer_realization_scaffold`. -/
-theorem singer_realization_exists
-    {m n : Nat} [NeZero m] (D : SingerDiffSet m n) :
-    ∃ p : ZMod m → EuclideanSpace Real (Fin (m / 2) × Fin 2),
-      (∀ t u, dist (p t) (p u) = G (sepAngle (t - u))) ∧
-      (∀ {a b c d : ZMod m},
-        a ∈ D.carrier → b ∈ D.carrier → c ∈ D.carrier → d ∈ D.carrier → a ≠ b →
-        dist (p a) (p b) = dist (p c) (p d) →
-          (a = c ∧ b = d) ∨ (a = d ∧ b = c)) := by
-  simpa using singer_realization_scaffold (D := D)
-
-/-- There are infinitely many exact finite counterexamples, indexed already by prime values of
-`q`. The associated point configuration has `q + 1` points and lives in the paper's ambient
-dimension `((q + 1)^2 - (q + 1)) = q^2 + q`. -/
-theorem infinitely_many_exact_counterexamples :
-    ∀ N : Nat, ∃ q, N <= q ∧ q.Prime ∧
-      ∃ D : SingerDiffSet (q ^ 2 + q + 1) (q + 1),
-        ∃ p : ZMod (q ^ 2 + q + 1) →
-            EuclideanSpace Real (Fin ((q + 1) ^ 2 - (q + 1))),
-          Function.Injective p ∧
-          (∀ {a b c d : ZMod (q ^ 2 + q + 1)},
-            a ∈ D.carrier → b ∈ D.carrier → c ∈ D.carrier → d ∈ D.carrier →
-            a ≠ b → c ≠ d →
-            ¬ ((a = c ∧ b = d) ∨ (a = d ∧ b = c)) →
-              1 <= |dist (p a) (p b) - dist (p c) (p d)|) ∧
-          (∀ a ∈ D.carrier, ∀ b ∈ D.carrier,
-            dist (p a) (p b) <=
-              scaleFactor (m := q ^ 2 + q + 1) *
-                gridDist (m := q ^ 2 + q + 1) ((q ^ 2 + q + 1) / 2)) := by
-  intro N
-  obtain ⟨q, hqN, hqPrime⟩ := Nat.exists_infinite_primes N
-  have hqPow : IsPrimePow q := hqPrime.isPrimePow
-  obtain ⟨D, p, hinj, hsep, hdiam⟩ := primePower_counterexample_exactDimension (q := q) hqPow
-  exact ⟨q, hqN, hqPrime, D, p, hinj, hsep, hdiam⟩
 
 end
 

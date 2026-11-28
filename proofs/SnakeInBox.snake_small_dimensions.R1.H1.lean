@@ -281,92 +281,34 @@ private def rootState : State := (0,0,0)
 private def group (i : ℕ) := (((fringe 8 rootState).drop (4*i)).take 4)
 private def passed (i : ℕ) := (group i).all fun t => !(dfs 19 t)
 
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group0 : passed 0 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group1 : passed 1 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group2 : passed 2 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group3 : passed 3 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group4 : passed 4 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group5 : passed 5 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group6 : passed 6 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group7 : passed 7 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group8 : passed 8 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group9 : passed 9 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group10 : passed 10 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group11 : passed 11 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group12 : passed 12 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group13 : passed 13 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group14 : passed 14 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group15 : passed 15 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group16 : passed 16 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group17 : passed 17 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group18 : passed 18 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group19 : passed 19 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group20 : passed 20 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group21 : passed 21 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group22 : passed 22 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group23 : passed 23 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group24 : passed 24 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group25 : passed 25 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group26 : passed 26 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group27 : passed 27 = true := by decide +kernel
-set_option maxHeartbeats 100000000 in
-set_option maxRecDepth 10000 in
 private theorem group28 : passed 28 = true := by decide +kernel
 private theorem checked : dfs 27 (0,0,0) = false := by
   have cover : fringe 8 rootState = (List.range 29).flatMap group := by decide +kernel

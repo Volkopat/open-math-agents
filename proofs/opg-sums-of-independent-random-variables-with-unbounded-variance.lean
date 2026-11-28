@@ -117,26 +117,6 @@ theorem twoPointMeasure_isProbability {x y : ℝ}
     twoPointWeights_add hxy.ne]
   norm_num
 
-theorem twoPointMeasure_mean {x y : ℝ}
-    (hx : x ≤ 1) (hy : 1 ≤ y) (hxy : x < y) :
-    (∫ z : ℝ, z ∂(twoPointMeasure x y)) = 1 := by
-  have hw := twoPointWeights_nonneg hxy hx hy
-  have hIx : Integrable (fun z : ℝ ↦ z)
-      (ENNReal.ofReal (twoPointLowerWeight x y) • Measure.dirac x) :=
-    (integrable_dirac' stronglyMeasurable_id (by simp)).smul_measure (by simp)
-  have hIy : Integrable (fun z : ℝ ↦ z)
-      (ENNReal.ofReal (twoPointUpperWeight x y) • Measure.dirac y) :=
-    (integrable_dirac' stronglyMeasurable_id (by simp)).smul_measure (by simp)
-  rw [twoPointMeasure, integral_add_measure hIx hIy,
-    integral_smul_measure, integral_smul_measure, integral_dirac, integral_dirac,
-    ENNReal.toReal_ofReal hw.1, ENNReal.toReal_ofReal hw.2]
-  simp only [smul_eq_mul]
-  unfold twoPointLowerWeight twoPointUpperWeight
-  calc
-    ((y - 1) / (y - x)) * x + ((1 - x) / (y - x)) * y =
-        (y - x) * (y - x)⁻¹ := by field_simp [sub_ne_zero.mpr hxy.ne']; ring
-    _ = 1 := mul_inv_cancel₀ (sub_ne_zero.mpr hxy.ne')
-
 /-- Pointwise algebra behind the two-point mixture formula. -/
 theorem twoPointMeasure_scaled_apply {x y : ℝ}
     (hx : x ≤ 1) (hy : 1 ≤ y) (hxy : x < y)
@@ -223,15 +203,6 @@ theorem expandedTwoPointMixture_eq
         μ.restrict (Iio 1) + μ {1} • Measure.dirac 1 + μ.restrict (Ioi 1) := by abel
     _ = μ := restrict_below_add_atom_add_above μ
 
-/-- The two-point mixture formula at the canonical lower moment. -/
-theorem twoPointMixture_formula42
-    {μ : Measure ℝ} [IsProbabilityMeasure μ]
-    (hμ : Integrable (fun x : ℝ ↦ x) μ)
-    (hmean : (∫ x : ℝ, x ∂μ) = 1)
-    (hM : 0 < belowMoment μ) :
-    expandedTwoPointMixture μ (belowMoment μ) = μ :=
-  expandedTwoPointMixture_eq hμ hmean hM
-
 /-- The lower moment is nonnegative. -/
 theorem belowMoment_nonneg {μ : Measure ℝ} :
     0 ≤ belowMoment μ := by
@@ -296,19 +267,6 @@ theorem eq_dirac_one_of_belowMoment_eq_zero
         exact False.elim hxE
     rw [measure_congr hBae, measure_empty]
     simp [Measure.dirac_apply' _ hB, Set.indicator_of_notMem h1]
-
-/-- Full mixture dichotomy: either the law is the degenerate law at one, or
-its positive lower moment gives the two-point mixture formula. -/
-theorem twoPointMixture_dichotomy
-    {μ : Measure ℝ} [IsProbabilityMeasure μ]
-    (hμ : Integrable (fun x : ℝ ↦ x) μ)
-    (hmean : (∫ x : ℝ, x ∂μ) = 1) :
-    μ = Measure.dirac 1 ∨
-      (0 < belowMoment μ ∧
-        expandedTwoPointMixture μ (belowMoment μ) = μ) := by
-  rcases (belowMoment_nonneg (μ := μ)).eq_or_lt with hzero | hpos
-  · exact Or.inl (eq_dirac_one_of_belowMoment_eq_zero hμ hmean hzero.symm)
-  · exact Or.inr ⟨hpos, twoPointMixture_formula42 hμ hmean hpos⟩
 
 end
 
@@ -384,20 +342,6 @@ instance : IsMarkovKernel twoPointKernel where
   isProbabilityMeasure p :=
     twoPointMeasure_isProbability p.2.1 p.2.2.1 p.2.2.2
 
-theorem twoPointKernel_mean (p : TwoPointParams) :
-    (∫ z : ℝ, z ∂(twoPointKernel p)) = 1 := by
-  rw [twoPointKernel_apply]
-  exact twoPointMeasure_mean p.2.1 p.2.2.1 p.2.2.2
-
-theorem twoPointKernel_nonnegative_support (p : TwoPointParams)
-    (hx : 0 ≤ p.1.1) :
-    twoPointKernel p (Iio 0) = 0 := by
-  rw [twoPointKernel_apply, twoPointMeasure]
-  simp only [Measure.add_apply, Measure.smul_apply,
-    Measure.dirac_apply' _ measurableSet_Iio]
-  have hy : 0 ≤ p.1.2 := le_trans (by norm_num) p.2.2.1
-  simp [not_lt_of_ge hx, not_lt_of_ge hy]
-
 /-- The genuine measure obtained by sampling latent two-point parameters and
 then sampling from their two-point law. -/
 noncomputable def kernelTwoPointMixture (ν : Measure TwoPointParams) : Measure ℝ :=
@@ -415,18 +359,6 @@ theorem kernelTwoPointMixture_apply (ν : Measure TwoPointParams)
       ∫⁻ p, twoPointMeasure p.1.1 p.1.2 B ∂ν := by
   rw [kernelTwoPointMixture, Measure.bind_apply hB twoPointKernel.aemeasurable]
   rfl
-
-/-- Averaging a pointwise probability bound over latent parameters. -/
-theorem kernelTwoPointMixture_apply_le
-    (ν : Measure TwoPointParams) [IsProbabilityMeasure ν]
-    {B : Set ℝ} (hB : MeasurableSet B) {c : ENNReal}
-    (hc : ∀ p : TwoPointParams, twoPointMeasure p.1.1 p.1.2 B ≤ c) :
-    kernelTwoPointMixture ν B ≤ c := by
-  rw [kernelTwoPointMixture_apply ν hB]
-  calc
-    (∫⁻ p, twoPointMeasure p.1.1 p.1.2 B ∂ν) ≤ ∫⁻ _p, c ∂ν :=
-      lintegral_mono fun p ↦ hc p
-    _ = c := by simp
 
 /-- The strict below-above region used for the nondegenerate latent pair. -/
 def strictPairSet : Set (ℝ × ℝ) :=
@@ -524,12 +456,6 @@ subtype on which `twoPointKernel` is Markov. -/
 noncomputable def latentParamsMeasure (μ : Measure ℝ) (M : ℝ) :
     Measure TwoPointParams :=
   (latentPairMeasure μ M).map pairToParams
-
-theorem latentParamsMeasure_apply (μ : Measure ℝ) (M : ℝ)
-    {A : Set TwoPointParams} (hA : MeasurableSet A) :
-    latentParamsMeasure μ M A =
-      latentPairMeasure μ M (pairToParams ⁻¹' A) := by
-  rw [latentParamsMeasure, Measure.map_apply measurable_pairToParams hA]
 
 /-- The resulting genuine kernel mixture of the nondegenerate latent
 component. -/
@@ -1001,49 +927,12 @@ instance : IsMarkovKernel augmentedTwoPointKernel where
         rw [augmentedTwoPointKernel_pair]
         exact twoPointMeasure_isProbability p.2.1 p.2.2.1 p.2.2.2
 
-/-- Every conditional law selected by an augmented parameter has mean one. -/
-theorem augmentedTwoPointKernel_mean (p : AugmentedTwoPointParams) :
-    (∫ x : ℝ, x ∂(augmentedTwoPointKernel p)) = 1 := by
-  cases p with
-  | inl u =>
-      cases u
-      simp
-  | inr p =>
-      rw [augmentedTwoPointKernel_pair]
-      exact twoPointMeasure_mean p.2.1 p.2.2.1 p.2.2.2
-
-/-- Every conditional law is concentrated on either one point or the two
-points encoded by its latent parameter. -/
-theorem augmentedTwoPointKernel_support
-    (p : AugmentedTwoPointParams) :
-    augmentedTwoPointKernel p
-        (match p with
-          | Sum.inl _ => ({1} : Set ℝ)ᶜ
-          | Sum.inr q => ({q.1.1, q.1.2} : Set ℝ)ᶜ) = 0 := by
-  cases p with
-  | inl u =>
-      cases u
-      simp
-  | inr p =>
-      rw [augmentedTwoPointKernel_pair, twoPointMeasure]
-      simp only [Measure.add_apply, Measure.smul_apply,
-        Measure.dirac_apply' _
-          (measurableSet_insert.mpr (measurableSet_singleton _)).compl]
-      simp
-
 /-- The complete latent law: its left branch carries the atom at one, and its
 right branch carries the nondegenerate parameter measure. -/
 noncomputable def augmentedLatentMeasure (μ : Measure ℝ) (M : ℝ) :
     Measure AugmentedTwoPointParams :=
   μ {1} • Measure.dirac (Sum.inl ()) +
     (latentParamsMeasure μ M).map Sum.inr
-
-theorem augmentedLatentMeasure_apply_atom
-    (μ : Measure ℝ) (M : ℝ) :
-    augmentedLatentMeasure μ M (Set.range Sum.inl) = μ {1} := by
-  rw [augmentedLatentMeasure, Measure.add_apply,
-    Measure.smul_apply, Measure.map_apply measurable_inr measurableSet_range_inl]
-  simp
 
 /-- Binding the augmented latent law against its conditional kernel gives
 exactly the full one-coordinate mixture. -/
@@ -1092,18 +981,6 @@ theorem augmentedLatentMeasure_isProbability
   rw [hpoint, lintegral_one] at hfull
   exact hfull
 
-/-- The bind/Tonelli identity for the complete one-coordinate latent
-decomposition. -/
-theorem lintegral_augmentedTwoPointKernel_comp
-    (μ : Measure ℝ) (M : ℝ) (f : ℝ → ENNReal)
-    (hf : Measurable f) :
-    (∫⁻ x, f x ∂fullKernelMixture μ M) =
-      ∫⁻ p, ∫⁻ x, f x ∂augmentedTwoPointKernel p
-        ∂augmentedLatentMeasure μ M := by
-  rw [← augmentedTwoPointKernel_comp_latent μ M]
-  exact Measure.lintegral_bind
-    augmentedTwoPointKernel.aemeasurable hf.aemeasurable
-
 end
 
 end Feige
@@ -1151,22 +1028,6 @@ instance {n : ℕ} (p : Fin n → AugmentedTwoPointParams) :
     IsProbabilityMeasure (augmentedConditionalProduct p) := by
   unfold augmentedConditionalProduct
   infer_instance
-
-/-- Each coordinate of every conditional product is a mean-one law. -/
-theorem augmentedConditionalProduct_coordinate_mean {n : ℕ}
-    (p : Fin n → AugmentedTwoPointParams) (i : Fin n) :
-    (∫ x : ℝ, x ∂augmentedTwoPointKernel (p i)) = 1 :=
-  augmentedTwoPointKernel_mean (p i)
-
-/-- Each coordinate of every conditional product is supported on at most two
-points (one point on the atom branch). -/
-theorem augmentedConditionalProduct_coordinate_support {n : ℕ}
-    (p : Fin n → AugmentedTwoPointParams) (i : Fin n) :
-    augmentedTwoPointKernel (p i)
-        (match p i with
-          | Sum.inl _ => ({1} : Set ℝ)ᶜ
-          | Sum.inr q => ({q.1.1, q.1.2} : Set ℝ)ᶜ) = 0 :=
-  augmentedTwoPointKernel_support (p i)
 
 /-- Binary Fubini exchange: independently binding two latent laws against
 their coordinate kernels is the same as binding their product against the
@@ -1585,41 +1446,6 @@ namespace Feige
 
 section Parameters
 
-/-- Probability of the high value in a mean-one two-point law. -/
-noncomputable def highProbability (γ β : ℝ) : ℝ :=
-  γ / (γ + β)
-
-/-- The low value in the mean-one two-point parametrization. -/
-def lowValue (γ : ℝ) : ℝ := 1 - γ
-
-/-- The high value in the mean-one two-point parametrization. -/
-def highValue (β : ℝ) : ℝ := 1 + β
-
-theorem highProbability_nonneg {γ β : ℝ} (hγ : 0 ≤ γ) (hβ : 0 < β) :
-    0 ≤ highProbability γ β := by
-  exact div_nonneg hγ (add_pos_of_nonneg_of_pos hγ hβ).le
-
-theorem highProbability_le_one {γ β : ℝ} (hγ : 0 ≤ γ) (hβ : 0 < β) :
-    highProbability γ β ≤ 1 := by
-  rw [highProbability, div_le_one (add_pos_of_nonneg_of_pos hγ hβ)]
-  linarith
-
-/-- The complementary probability in symmetric form. -/
-theorem one_sub_highProbability {γ β : ℝ} (h : γ + β ≠ 0) :
-    1 - highProbability γ β = β / (γ + β) := by
-  rw [highProbability]
-  field_simp
-  ring
-
-/-- The parametrized two-point law has mean exactly one. -/
-theorem twoPoint_mean_one {γ β : ℝ} (h : γ + β ≠ 0) :
-    highProbability γ β * highValue β +
-        (1 - highProbability γ β) * lowValue γ = 1 := by
-  rw [one_sub_highProbability h]
-  simp only [highProbability, highValue, lowValue]
-  field_simp
-  ring
-
 end Parameters
 
 end Feige
@@ -1657,18 +1483,6 @@ namespace Feige
 
 noncomputable section
 
-/-- The lower displacement encoded by an augmented parameter. -/
-def augmentedGamma (p : AugmentedTwoPointParams) : ℝ :=
-  match p with
-  | Sum.inl _ => 0
-  | Sum.inr q => 1 - q.1.1
-
-/-- The upper displacement encoded by an augmented parameter. -/
-def augmentedBeta (p : AugmentedTwoPointParams) : ℝ :=
-  match p with
-  | Sum.inl _ => 1
-  | Sum.inr q => q.1.2 - 1
-
 /-- The nonnegativity condition on an augmented two-point parameter. -/
 def AugmentedParamNonnegative (p : AugmentedTwoPointParams) : Prop :=
   match p with
@@ -1681,72 +1495,6 @@ genuine upper support points are strictly above one. -/
 def AugmentedParamsNonnegative {n : ℕ}
     (p : Fin n → AugmentedTwoPointParams) : Prop :=
   ∀ i, AugmentedParamNonnegative (p i)
-
-theorem augmentedGamma_nonneg {n : ℕ}
-    {p : Fin n → AugmentedTwoPointParams} :
-    ∀ i, 0 ≤ augmentedGamma (p i) := by
-  intro i
-  cases hpi : p i with
-  | inl u => simp [augmentedGamma]
-  | inr q =>
-      change 0 ≤ 1 - q.1.1
-      exact sub_nonneg.mpr q.2.1
-
-theorem augmentedGamma_le_one {n : ℕ}
-    {p : Fin n → AugmentedTwoPointParams}
-    (hp : AugmentedParamsNonnegative p) :
-    ∀ i, augmentedGamma (p i) ≤ 1 := by
-  intro i
-  specialize hp i
-  cases hpi : p i with
-  | inl u => simp [augmentedGamma]
-  | inr q =>
-      simp only [hpi] at hp
-      change 1 - q.1.1 ≤ 1
-      linarith [hp.1]
-
-theorem augmentedBeta_pos {n : ℕ}
-    {p : Fin n → AugmentedTwoPointParams}
-    (hp : AugmentedParamsNonnegative p) :
-    ∀ i, 0 < augmentedBeta (p i) := by
-  intro i
-  specialize hp i
-  cases hpi : p i with
-  | inl u => simp [augmentedBeta]
-  | inr q =>
-      simp only [hpi] at hp
-      change 0 < q.1.2 - 1
-      linarith [hp.2]
-
-/-- Both branches of the augmented kernel are exactly the canonical
-mean-one two-point measure for their `γ,β` parameters. -/
-theorem augmentedTwoPointKernel_eq_twoPointMeasure
-    (p : AugmentedTwoPointParams) :
-    augmentedTwoPointKernel p =
-      twoPointMeasure (lowValue (augmentedGamma p))
-        (highValue (augmentedBeta p)) := by
-  cases p with
-  | inl u =>
-      cases u
-      rw [augmentedTwoPointKernel_atom]
-      simp [augmentedGamma, augmentedBeta, lowValue, highValue,
-        twoPointMeasure, twoPointLowerWeight, twoPointUpperWeight]
-  | inr q =>
-      rw [augmentedTwoPointKernel_pair]
-      congr 1
-      · simp [augmentedGamma, lowValue]
-      · simp [augmentedBeta, highValue]
-
-theorem augmentedConditionalProduct_eq_twoPointProduct {n : ℕ}
-    (p : Fin n → AugmentedTwoPointParams) :
-    augmentedConditionalProduct p =
-      Measure.pi (fun i ↦
-        twoPointMeasure (lowValue (augmentedGamma (p i)))
-          (highValue (augmentedBeta (p i)))) := by
-  unfold augmentedConditionalProduct
-  congr 1
-  funext i
-  exact augmentedTwoPointKernel_eq_twoPointMeasure (p i)
 
 end
 
@@ -2331,13 +2079,6 @@ theorem min_le_rpow {D x : ℝ} (hD : 0 < D) (hx : 1 ≤ x) :
   rw [hexpmin, h1] at hmono
   exact hmono
 
-/-- **Prop. 5.2 (integer form, M-Calc-A).** For `δ > 0` and integers `m ≥ 1`,
-`min (δ/(1+δ)) (exp (-1)) ≤ (1 - 1/(m + δ))^m`. -/
-theorem min_le_pow {δ : ℝ} (hδ : 0 < δ) {m : ℕ} (hm : 1 ≤ m) :
-    min (δ / (1 + δ)) (exp (-1)) ≤ (1 - 1 / (m + δ)) ^ m := by
-  have := min_le_rpow (x := (m : ℝ)) hδ (by exact_mod_cast hm)
-  rwa [rpow_natCast] at this
-
 end Samuels
 
 end
@@ -2577,12 +2318,6 @@ lemma Z_pos {s : Finset ι} (hp0 : ∀ i ∈ s, 0 ≤ p i) (hp1 : ∀ i ∈ s, p
     have h3 : 0 < 1 - p i := sub_pos.mpr (hp1 i (mem_insert_self i s))
     have h4 := hp0 i (mem_insert_self i s)
     nlinarith
-
-lemma Z_le_one {s : Finset ι} (hp0 : ∀ i ∈ s, 0 ≤ p i) (hp1 : ∀ i ∈ s, p i ≤ 1) (c : ℝ) :
-    Z p w s c ≤ 1 := by
-  have := Ex_mono (F := fun S => if T w S < c then (1 : ℝ) else 0) (G := fun _ => 1) hp0 hp1
-    (fun S _ => by split_ifs <;> norm_num)
-  rwa [Ex_const] at this
 
 lemma Z_mono {s : Finset ι} (hp0 : ∀ i ∈ s, 0 ≤ p i) (hp1 : ∀ i ∈ s, p i ≤ 1) {c' c : ℝ}
     (hc : c' ≤ c) : Z p w s c' ≤ Z p w s c := by

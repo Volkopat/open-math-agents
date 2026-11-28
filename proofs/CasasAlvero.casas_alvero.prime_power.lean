@@ -6,10 +6,8 @@ and van de Woestijne, 2006) via reduction modulo a prime `p` using a valuation s
 dominating `ℤ_{(p)}`.
 -/
 
--- Problem: Casas-Alvero Conjecture — prime power
--- Upstream: formal-conjectures FormalConjectures/Paper/CasasAlvero.lean:135 (declaration CasasAlvero.casas_alvero.prime_power)
--- Credit: @nitdaman (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Original Lean proof by @nitdaman (PR #1106); valuation maximum and
+-- polynomial coefficient helpers now use Mathlib directly.
 
 open Polynomial CasasAlvero
 
@@ -69,45 +67,16 @@ an element `m` such that `x / m ∈ V` for all `x` in the set. -/
 private lemma exists_max_in_valuationSubring {L : Type*} [Field L] (V : ValuationSubring L)
     (s : Finset L) (hs : s.Nonempty) (hs0 : ∀ x ∈ s, x ≠ 0) :
     ∃ m ∈ s, ∀ x ∈ s, x / m ∈ V := by
-  classical
-  induction s using Finset.induction_on with
-  | empty => exact absurd hs Finset.not_nonempty_empty
-  | insert a t ha ih =>
-    by_cases ht : t.Nonempty
-    · obtain ⟨m, hm_t, hm_max⟩ := ih ht (fun x hx => hs0 x (Finset.mem_insert_of_mem hx))
-      have ha0 : a ≠ 0 := hs0 a (Finset.mem_insert_self a t)
-      have hm0 : m ≠ 0 := hs0 m (Finset.mem_insert_of_mem hm_t)
-      rcases V.2 (a / m) with h | h
-      · refine ⟨m, Finset.mem_insert_of_mem hm_t, fun x hx => ?_⟩
-        rcases Finset.mem_insert.mp hx with rfl | hx_t
-        · exact h
-        · exact hm_max x hx_t
-      · have hma : m / a ∈ V := by
-          simpa [inv_div] using h
-        refine ⟨a, Finset.mem_insert_self a t, fun x hx => ?_⟩
-        rcases Finset.mem_insert.mp hx with rfl | hx_t
-        · rw [div_self ha0]; exact V.one_mem
-        · have : x / a = (x / m) * (m / a) := by field_simp [hm0, ha0]
-          rw [this]
-          exact V.toSubring.mul_mem (hm_max x hx_t) hma
-    · rw [Finset.not_nonempty_iff_eq_empty] at ht
-      subst ht
-      refine ⟨a, Finset.mem_singleton_self a, fun x hx => ?_⟩
-      rw [Finset.mem_singleton.mp hx, div_self (hs0 a (Finset.mem_singleton_self a))]
-      exact V.one_mem
+  obtain ⟨m, hm, hmax⟩ := s.exists_max_image V.valuation hs
+  refine ⟨m, hm, fun x hx => ?_⟩
+  obtain ⟨a, ha⟩ := (V.valuation_le_iff x m).mp (hmax x hx)
+  rw [← ha, mul_div_cancel_right₀ _ (hs0 m hm)]
+  exact a.2
 
 /-- Coefficient formula for `f.comp (C c * X)`. -/
 private lemma coeff_comp_C_mul_X {R : Type*} [CommSemiring R] (f : R[X]) (c : R) (i : ℕ) :
     (f.comp (C c * X)).coeff i = c ^ i * f.coeff i := by
-  induction f using Polynomial.induction_on' with
-  | add p q hp hq =>
-    simp [add_comp, coeff_add, hp, hq, mul_add]
-  | monomial n a =>
-    rw [monomial_comp, mul_pow, ← C_pow, ← mul_assoc, ← C_mul, C_mul_X_pow_eq_monomial,
-      coeff_monomial, coeff_monomial]
-    split_ifs with h
-    · subst h; ring
-    · simp
+  rw [Polynomial.comp_C_mul_X_coeff, mul_comm]
 
 /-- Behavior of Hasse derivatives under affine change of variables, evaluated at a point. -/
 private lemma eval_hasseDeriv_comp_linear {R : Type*} [CommRing R]

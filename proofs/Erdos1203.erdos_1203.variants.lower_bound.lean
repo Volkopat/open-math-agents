@@ -60,45 +60,20 @@ lemma factorial_omega_le (m : ℕ) (hm : 1 ≤ m) : (ω m).factorial ≤ m := by
 /-- If `log (r !) ≤ 2 * L` with `L ≥ 1`, then `r * log L ≤ 6 * L`. -/
 lemma key_bound (r : ℕ) (L : ℝ) (hL : 1 ≤ L)
     (hfac : Real.log (r.factorial : ℝ) ≤ 2 * L) : (r : ℝ) * Real.log L ≤ 6 * L := by
-  have hL0 : 0 < L := by linarith
-  have hl : 0 ≤ Real.log L := Real.log_nonneg hL
+  have hL0 : 0 < L := lt_of_lt_of_le zero_lt_one hL
   rcases Nat.eq_zero_or_pos r with rfl | hr
   · simp only [Nat.cast_zero, zero_mul]
     positivity
-  have hx : (1 : ℝ) ≤ r := by exact_mod_cast hr
-  have hx0 : (0 : ℝ) < r := by linarith
-  -- `r * log r ≤ r + log (r !)`, from `r ^ r / r ! ≤ exp r`
-  have h1 : (r : ℝ) * Real.log r ≤ r + Real.log (r.factorial : ℝ) := by
-    have h := Real.pow_div_factorial_le_exp (r : ℝ) hx0.le r
-    have hf : (0 : ℝ) < r.factorial := by exact_mod_cast Nat.factorial_pos r
-    rw [div_le_iff₀ hf] at h
-    have h2 := Real.log_le_log (by positivity) h
-    rw [Real.log_pow, Real.log_mul (Real.exp_pos _).ne' hf.ne', Real.log_exp] at h2
-    exact h2
-  have h3 : (r : ℝ) * (Real.log r - 1) ≤ 2 * L := by linarith
-  rcases le_or_gt (Real.log L / 2) (Real.log r - 1) with hc | hc
-  · have h4 : (r : ℝ) * (Real.log L / 2) ≤ r * (Real.log r - 1) :=
-      mul_le_mul_of_nonneg_left hc hx0.le
-    linarith
-  · have hs : 0 < √L := Real.sqrt_pos.mpr hL0
-    have hsq : √L * √L = L := Real.mul_self_sqrt hL0.le
-    have h5 : Real.log L ≤ 2 * √L := by
-      have h := Real.log_le_sub_one_of_pos hs
-      rw [Real.log_sqrt hL0.le] at h
-      linarith
-    have h6 : (r : ℝ) < 3 * √L := by
-      have h7 : Real.log r < 1 + Real.log L / 2 := by linarith
-      have h8 : (r : ℝ) < Real.exp (1 + Real.log L / 2) := by
-        have h := Real.exp_lt_exp.mpr h7
-        rwa [Real.exp_log hx0] at h
-      rw [Real.exp_add, Real.exp_half, Real.exp_log hL0] at h8
-      have h9 : Real.exp 1 * √L ≤ 3 * √L :=
-        mul_le_mul_of_nonneg_right Real.exp_one_lt_three.le hs.le
-      linarith
-    calc (r : ℝ) * Real.log L ≤ (3 * √L) * (2 * √L) :=
-          mul_le_mul h6.le h5 hl (by positivity)
-      _ = 6 * (√L * √L) := by ring
-      _ = 6 * L := by rw [hsq]
+  have hr0 : (0 : ℝ) < r := by exact_mod_cast hr
+  have hf : (0 : ℝ) < r.factorial := by exact_mod_cast Nat.factorial_pos r
+  have h := Real.pow_div_factorial_le_exp (r : ℝ) hr0.le r
+  rw [div_le_iff₀ hf] at h
+  have h1 := Real.log_le_log (by positivity) h
+  rw [Real.log_pow, Real.log_mul (Real.exp_pos _).ne' hf.ne', Real.log_exp] at h1
+  have h2 := mul_le_mul_of_nonneg_left (Real.log_le_sub_one_of_pos (div_pos hL0 hr0)) hr0.le
+  have hrdiv : (r : ℝ) * (L / r) = L := by field_simp
+  rw [Real.log_div hL0.ne' hr0.ne', mul_sub, mul_sub, hrdiv, mul_one] at h2
+  linarith
 
 /-- The family whose supremum is `F n` is bounded above. -/
 lemma bddAbove_range (n : ℕ) :

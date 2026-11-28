@@ -71,7 +71,9 @@ const ALL: Problem[] = cards.rows.map(([id, title, si, ki, fields, , difficulty,
   const key = fields.join("|");
   let f = FIELD_LISTS.get(key);
   if (!f) { f = fields; FIELD_LISTS.set(key, f); }
-  return { id, title, source: cards.sources[si], kind: cards.kinds[ki], fields: f, tags: NO_TAGS, difficulty, fame, prize, forumPosts, erdos, decl, shard };
+  // "$10000" → "$10,000" (prizeOf strips the commas again to read the amount)
+  const pz = prize ? prize.replace(/\d{4,}/g, (d: string) => Number(d).toLocaleString("en-US")) : prize;
+  return { id, title, source: cards.sources[si], kind: cards.kinds[ki], fields: f, tags: NO_TAGS, difficulty, fame, prize: pz, forumPosts, erdos, decl, shard };
 });
 export const MO_BUCKETS = cards.meta.moBuckets;
 // The parsed rows are not needed any more: let them be garbage-collected (only ALL is used from here on).
@@ -101,6 +103,20 @@ export const META = {
 };
 /** Every open problem, stated in Lean or not. */
 export const OPEN_TOTAL = META.counts.open + META.counts.unformalized;
+
+export type Tally = { left: Record<Kind, number>; solved: Record<Kind, number>; total: number };
+/**
+ * The catalogue's count of each kind split in two: what is still left, and what was proved here (left + solved = the
+ * count of that kind, always). The kinds are fixed when the catalogue is built; the solved list is live. A problem
+ * proved here therefore leaves its column ("open", "known"...) the moment it enters "solved". The home page, /board and
+ * /programs all count this way, from the same solved list (getStats().solved), so their numbers agree.
+ */
+export function tally(ps: Problem[], solved: Set<string>): Tally {
+  const zero = () => ({ open: 0, known: 0, warmup: 0, unformalized: 0 }) as Record<Kind, number>;
+  const t: Tally = { left: zero(), solved: zero(), total: ps.length };
+  for (const p of ps) (solved.has(p.id) ? t.solved : t.left)[p.kind]++;
+  return t;
+}
 const BY_ID = new Map(PROBLEMS.map((p) => [p.id, p]));
 
 export const KIND_LABEL: Record<Kind, string> = {
@@ -123,6 +139,45 @@ export const isProvable = (p: Problem) => p.kind !== "unformalized";
 
 export function getProblem(id: string) {
   return BY_ID.get(id);
+}
+
+/** A problem taken out of the catalogue because it was settled (listed on /status), or null. Its old links still work:
+ * they lead to /status instead of a 404. */
+export function settledEntry(id: string): Override | null {
+  const o = OV.get(id);
+  return o && o.status === "solved" && !o.silent ? o : null;
+}
+
+let LOWER: Map<string, string> | null = null;
+/**
+ * The catalogue id that a URL with a slightly wrong id most likely means, or null (then the page is a 404): the same
+ * id in another case (erdos142.erdos_142), an Erdős problem by number written like the ids of the unformalized ones
+ * (erdos-142, erdos_142 → Erdos142.erdos_142), or a module holding a single statement (Erdos142 → Erdos142.erdos_142).
+ * Only asked for ids that are not in the catalogue; the lower-case index is built on first use.
+ */
+export function resolveId(raw: string): string | null {
+  if (BY_ID.has(raw)) return raw;
+  if (!LOWER) {
+    LOWER = new Map();
+    for (const p of PROBLEMS) LOWER.set(p.id.toLowerCase(), p.id);
+  }
+  const low = raw.toLowerCase();
+  const same = LOWER.get(low);
+  if (same) return same;
+  const erdos = /^erdos[-_]?(\d{1,4})$/.exec(low);
+  if (erdos) {
+    const n = Number(erdos[1]);
+    return LOWER.get(`erdos${n}.erdos_${n}`) ?? LOWER.get(`erdos-${n}`) ?? null;
+  }
+  const prefix = `${low}.`;
+  const under: string[] = [];
+  for (const [k, id] of LOWER) {
+    if (k.startsWith(prefix) && !k.slice(prefix.length).includes(".")) {
+      under.push(id);
+      if (under.length > 1) return null;
+    }
+  }
+  return under[0] ?? null;
 }
 
 /** The problem with its statement, Lean source and references (one D1 read). */
@@ -255,37 +310,15 @@ export async function search(query: Query) {
   return { total, items: list.slice(offset, offset + limit) };
 }
 
-const TEX: Record<string, string> = {
-  mathbb: "", mathbf: "", mathrm: "", mathcal: "", operatorname: "", text: "", textrm: "", mathfrak: "",
-  le: "≤", leq: "≤", ge: "≥", geq: "≥", ne: "≠", neq: "≠", in: "∈", notin: "∉", subset: "⊂", subseteq: "⊆",
-  cup: "∪", cap: "∩", infty: "∞", to: "→", rightarrow: "→", mapsto: "↦", times: "×", cdot: "·", cdots: "…", ldots: "…", dots: "…",
-  sum: "∑", prod: "∏", int: "∫", sqrt: "√", log: "log", exp: "exp", lim: "lim", liminf: "liminf", limsup: "limsup", sim: "∼",
-  approx: "≈", ll: "≪", gg: "≫", forall: "∀", exists: "∃", neg: "¬", land: "∧", lor: "∨", mid: "|", lvert: "|", rvert: "|", vert: "|",
-  alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε", varepsilon: "ε", zeta: "ζ", eta: "η", theta: "θ", lambda: "λ",
-  mu: "μ", nu: "ν", pi: "π", rho: "ρ", sigma: "σ", tau: "τ", phi: "φ", varphi: "φ", chi: "χ", psi: "ψ", omega: "ω",
-  Gamma: "Γ", Delta: "Δ", Lambda: "Λ", Sigma: "Σ", Phi: "Φ", Omega: "Ω", left: "", right: "", lfloor: "⌊", rfloor: "⌋",
-  lceil: "⌈", rceil: "⌉", binom: "binom", frac: "", pmod: "mod", bmod: "mod", equiv: "≡", setminus: "∖", emptyset: "∅",
-};
-const BB: Record<string, string> = { N: "ℕ", Z: "ℤ", Q: "ℚ", R: "ℝ", C: "ℂ", P: "ℙ", F: "𝔽" };
-
-/** Rough TeX → Unicode for one-line excerpts (the problem page renders real KaTeX). */
-export function texPlain(s: string) {
-  return s
-    .replace(/\\mathbb\s*\{?([A-Z])\}?/g, (_, c) => BB[c] ?? c)
-    .replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, "($1)/($2)")
-    .replace(/\\([A-Za-z]+)/g, (m, w) => (w in TEX ? TEX[w] : w))
-    .replace(/\\[,;!: ]/g, " ")
-    .replace(/[{}$*`]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+export { texPlain } from "@/lib/texplain";
+import { texPlain } from "@/lib/texplain";
 
 /** Compact card shape sent to the browser. The excerpt comes from D1 (see withExcerpts). */
 export function toCard(p: Problem, excerpt = "") {
   return {
     claimed: Boolean(p.claim),
     id: p.id,
-    title: p.title,
+    title: texPlain(p.title),
     source: p.source,
     kind: p.kind,
     fields: p.fields,

@@ -1,0 +1,80 @@
+import OMAStatements.S_oeis_a053828
+
+-- Problem: A053828: Sum of digits of (n written in base 7).
+-- Upstream: formal-conjectures statements/oeis-a053828.lean:0 (declaration OMA.S_oeis_a053828.main)
+-- Credit: @agchua (the owner of the agent is credited as the solver)
+-- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Idea: a(n) = n % 7 + a(n / 7), hence by induction on m: a(7^m + j) = 1 + a(j) for j < 7^m
+-- (adding 7^m to a number below 7^m puts one new digit 1 in front). Take K = n.
+
+namespace H07A053828
+
+open OMA.S_oeis_a053828
+
+theorem a_zero : a 0 = 0 := by
+  simp [a]
+
+theorem a_step (n : ℕ) : a n = n % 7 + a (n / 7) := by
+  rcases Nat.eq_zero_or_pos n with h | h
+  · subst h
+    simp
+  · unfold a
+    rw [Nat.digits_def' (by norm_num : 1 < 7) h, List.sum_cons]
+
+theorem a_one : a 1 = 1 := by
+  have h := a_step 1
+  have e1 : (1 : ℕ) / 7 = 0 := by norm_num
+  have e2 : (1 : ℕ) % 7 = 1 := by norm_num
+  rw [e1, e2, a_zero] at h
+  omega
+
+theorem a_shift (m : ℕ) : ∀ j : ℕ, j < 7 ^ m → a (7 ^ m + j) = 1 + a j := by
+  induction m with
+  | zero =>
+    intro j hj
+    have hj0 : j = 0 := by
+      rw [pow_zero] at hj
+      omega
+    subst hj0
+    have e : 7 ^ 0 + 0 = 1 := by norm_num
+    rw [e]
+    have h1 := a_one
+    have h0 := a_zero
+    omega
+  | succ m ih =>
+    intro j hj
+    have hN := a_step (7 ^ (m + 1) + j)
+    have e1 : (7 ^ (m + 1) + j) % 7 = j % 7 := by
+      rw [pow_succ]
+      omega
+    have e2 : (7 ^ (m + 1) + j) / 7 = 7 ^ m + j / 7 := by
+      rw [pow_succ]
+      omega
+    have hj' : j / 7 < 7 ^ m := by
+      rw [pow_succ] at hj
+      omega
+    have hI := ih (j / 7) hj'
+    have hj2 := a_step j
+    rw [e1, e2, hI] at hN
+    omega
+
+theorem lt_pow7 (n : ℕ) : n < 7 ^ n := by
+  induction n with
+  | zero => norm_num
+  | succ k ih =>
+    rw [pow_succ]
+    omega
+
+end H07A053828
+
+open OMA.S_oeis_a053828 H07A053828 in
+theorem OMA.solution : type_of% @OMA.S_oeis_a053828.main := by
+  intro n _
+  refine ⟨n, fun k hk => ?_⟩
+  have hlt : n < 7 ^ k :=
+    calc n < 7 ^ n := lt_pow7 n
+      _ ≤ 7 ^ k := Nat.pow_le_pow_right (by norm_num) hk
+  constructor
+  · omega
+  · unfold rowEntry A173527
+    exact a_shift k (n - 1) (by omega)

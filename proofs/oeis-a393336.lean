@@ -1,7 +1,8 @@
 import OMAStatements.S_oeis_a393336
 
 -- Problem: A393336, the sequence attains every integer.
--- Credit: @bnb9001
+-- Credit: original proof by @bnb9001 (#5604).
+-- Use the standard list-membership simplifier for both binary-digit bounds.
 
 namespace OMA_A393336_Proof
 
@@ -51,17 +52,13 @@ lemma digits_ofDigits_eq (L : List ℕ) (h1 : ∀ l ∈ L, l < 2) (h2 : ∀ h : 
 
 lemma P_digits (k : ℕ) : ∀ l ∈ P k, l < 2 := by
   intro l hl
-  simp only [P, List.mem_flatten, List.mem_replicate] at hl
-  obtain ⟨s, ⟨-, rfl⟩, hs⟩ := hl
-  simp at hs
+  simp [P, List.mem_flatten] at hl
   omega
 
 lemma Q_digits (k : ℕ) : ∀ l ∈ Q k, l < 2 := by
   intro l hl
-  simp only [Q, List.mem_append, List.mem_flatten, List.mem_replicate] at hl
-  rcases hl with ⟨s, ⟨-, rfl⟩, hs⟩ | hl
-  · simp at hs; omega
-  · simp at hl; omega
+  simp [Q, List.mem_flatten] at hl
+  omega
 
 lemma P_last (k : ℕ) : ∀ h : P (k + 1) ≠ [], (P (k + 1)).getLast h ≠ 0 := by
   intro h

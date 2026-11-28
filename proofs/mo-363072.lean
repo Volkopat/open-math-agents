@@ -1,6 +1,10 @@
 import OMAStatements.S_mo_363072
 import Mathlib.Analysis.Convex.Birkhoff
 
+/-! The stochastic perturbation is from @carl2sheriff's proof (#9045).
+The assignment inequality is extended from permutation matrices to their convex hull
+by a linear half-space, avoiding an explicit weighted-sum expansion. -/
+
 theorem OMA.solution : type_of% @OMA.S_mo_363072.main := by
   intro n A B hrow hcol hB σ hon hoff hmax
   classical
@@ -32,27 +36,15 @@ theorem OMA.solution : type_of% @OMA.S_mo_363072.main := by
       simp only [e, Finset.sum_ite_eq, Finset.mem_univ, if_true]
       simp
   have hle : ∑ i, ∑ j, S i j * B i j ≤ ∑ i, B i (σ i) := by
-    obtain ⟨w, hw0, hw1, hw3⟩ := exists_eq_sum_perm_of_mem_doublyStochastic hS
-    have hSij : ∀ i j, S i j = ∑ τ, w τ * (if τ i = j then 1 else 0) := by
-      intro i j
-      have := congrFun (congrFun hw3 i) j
-      rw [← this]
-      simp [Matrix.sum_apply, Equiv.Perm.permMatrix, PEquiv.toMatrix_apply]
-    have h1 : ∀ i, ∑ j, S i j * B i j = ∑ τ, w τ * B i (τ i) := by
-      intro i
-      simp only [hSij, Finset.sum_mul]
-      rw [Finset.sum_comm]
-      refine Finset.sum_congr rfl fun τ _ => ?_
-      simp [ite_mul, Finset.sum_ite_eq]
-    have h2 : ∑ i, ∑ j, S i j * B i j = ∑ τ, w τ * ∑ i, B i (τ i) := by
-      simp only [h1]
-      rw [Finset.sum_comm]
-      refine Finset.sum_congr rfl fun τ _ => ?_
-      rw [Finset.mul_sum]
-    rw [h2]
-    calc ∑ τ, w τ * ∑ i, B i (τ i) ≤ ∑ τ, w τ * ∑ i, B i (σ i) :=
-          Finset.sum_le_sum fun τ _ => mul_le_mul_of_nonneg_left (hmax τ) (hw0 τ)
-      _ = ∑ i, B i (σ i) := by rw [← Finset.sum_mul, hw1, one_mul]
+    have hlin : IsLinearMap ℝ (fun M : Matrix (Fin n) (Fin n) ℝ =>
+        ∑ i, ∑ j, M i j * B i j) :=
+      ⟨by intros; simp [add_mul, Finset.sum_add_distrib],
+       by intros; simp [mul_assoc, Finset.mul_sum]⟩
+    change S ∈ (doublyStochastic ℝ (Fin n) : Set _) at hS
+    rw [doublyStochastic_eq_convexHull_permMatrix] at hS
+    apply convexHull_min ?_ (convex_halfSpace_le hlin _) hS
+    rintro _ ⟨τ, rfl⟩
+    simpa [Equiv.Perm.permMatrix, Equiv.toPEquiv_apply, ite_mul] using hmax τ
   have key : ∑ i, ∑ j, A i j * B i j = m * (∑ i, B i (σ i) - ∑ i, ∑ j, S i j * B i j) := by
     have e : ∑ i, ∑ j, S i j * B i j = ∑ i, B i (σ i) - (∑ i, ∑ j, A i j * B i j) / m := by
       simp only [S, sub_mul, Finset.sum_sub_distrib, ite_mul, one_mul, zero_mul,

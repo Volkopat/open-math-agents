@@ -489,10 +489,6 @@ theorem scaled_trace_bound {B C n r J D T : ℝ}
       positivity
     _ = C * Real.sqrt B := by field_simp
 
-/-- The floor in the official H2 statement respects the continuous oversampling bound. -/
-theorem floor_size {ε : ℝ} (hε : 0 ≤ ε) (n : ℕ) :
-    ((⌊(1+ε)*(n:ℝ)⌋₊:ℕ):ℝ) ≤ (1+ε)*(n:ℝ) := Nat.floor_le (by positivity)
-
 /-- The dyadic aspect ratio gives an admissible positive oversampling ratio. -/
 theorem epsilon_choice (q : ℕ) : 0 < (1:ℝ)/(4*2^q)^2 := by positivity
 
@@ -507,49 +503,6 @@ open scoped BigOperators InnerProductSpace
 namespace Erdos1133.RankBound
 
 variable {κ ι V : Type*} [NormedAddCommGroup V] [InnerProductSpace ℝ V]
-
-/-- Bessel's inequality summed over all sample coordinates. -/
-theorem coordinate_bessel [Fintype ι] (s : Finset κ) (z : κ → V)
-    (hz : Orthonormal ℝ z) (w : ι → V) :
-    (∑ k ∈ s, ∑ i, ⟪z k, w i⟫_ℝ ^ 2) ≤ ∑ i, ‖w i‖ ^ 2 := by
-  classical
-  rw [Finset.sum_comm]
-  apply Finset.sum_le_sum
-  intro i _
-  simpa only [Real.norm_eq_abs, sq_abs] using
-    (hz.sum_inner_products_le (s := s) (w i))
-
-/-- Transpose a real-coordinate sampling estimate using only finite Cauchy–Schwarz. -/
-theorem scalar_frame_of_synthesis {R : Type*} [Field R] [LinearOrder R] [IsStrictOrderedRing R]
-    (s : Finset κ) (t : Finset ι) (v : κ → ι → R) (L : R) (hL : 0 ≤ L)
-    (hSynth : ∀ a : κ → R, (∑ i ∈ t, (∑ k ∈ s, a k * v k i) ^ 2) ≤
-      L * ∑ k ∈ s, a k ^ 2) (h : ι → R) :
-    (∑ k ∈ s, (∑ i ∈ t, h i * v k i) ^ 2) ≤ L * ∑ i ∈ t, h i ^ 2 := by
-  let a (k : κ) := ∑ i ∈ t, h i * v k i
-  let u (i : ι) := ∑ k ∈ s, a k * v k i
-  let Q := ∑ k ∈ s, a k ^ 2
-  have hQ : 0 ≤ Q := Finset.sum_nonneg fun k _ => sq_nonneg (a k)
-  have hEq : (∑ i ∈ t, h i * u i) = Q := by
-    calc
-      _ = ∑ k ∈ s, ∑ i ∈ t, h i * (a k * v k i) := by
-        simp only [u, Finset.mul_sum]
-        rw [Finset.sum_comm]
-      _ = ∑ k ∈ s, a k * ∑ i ∈ t, h i * v k i := by
-        simp only [Finset.mul_sum, mul_left_comm]
-      _ = Q := by simp only [Q, a, sq]
-  have base := Finset.sum_mul_sq_le_sq_mul_sq t h u
-  rw [hEq] at base
-  have bound := base.trans (mul_le_mul_of_nonneg_left (hSynth a)
-    (Finset.sum_nonneg fun i _ => sq_nonneg (h i)))
-  change Q ≤ L * ∑ i ∈ t, h i ^ 2
-  rcases eq_or_lt_of_le hQ with hzero | hpos
-  · rw [← hzero]
-    exact mul_nonneg hL (Finset.sum_nonneg fun i _ => sq_nonneg _)
-  · apply le_of_mul_le_mul_right _ hpos
-    calc
-      Q * Q = Q ^ 2 := (sq Q).symm
-      _ ≤ (∑ i ∈ t, h i ^ 2) * (L * Q) := bound
-      _ = (L * ∑ i ∈ t, h i ^ 2) * Q := by ac_rfl
 
 /-- A bound on finite linear combinations also bounds the transposed sampling map. -/
 theorem frame_of_synthesis (s : Finset κ) (v : κ → V) (L : ℝ)
@@ -598,25 +551,6 @@ theorem projection_energy (s : Finset κ) (v : κ → V) (W : Submodule ℝ V)
           have hn : ‖(e j : V)‖ = 1 := e.norm_eq_one j
           simpa only [hn, one_pow, mul_one] using hFrame (e j : V)
     _ = L * Module.finrank ℝ W := by simp [nsmul_eq_mul, mul_comm]
-
-/-- In coordinates indexed by r basis elements, a per-coordinate frame bound gives
-an absolute diagonal trace bound with squared factor L*r. -/
-theorem coordinate_rank_trace_sq {R : Type*} [Field R] [LinearOrder R] [IsStrictOrderedRing R]
-    (s : Finset κ) (t : Finset ι) (b v : κ → ι → R) (L : R)
-    (hCol : ∀ i ∈ t, (∑ k ∈ s, v k i ^ 2) ≤ L) :
-    (∑ k ∈ s, |∑ i ∈ t, b k i * v k i|) ^ 2 ≤
-      (∑ k ∈ s, ∑ i ∈ t, b k i ^ 2) * (L * t.card) := by
-  have hEnergy : (∑ k ∈ s, ∑ i ∈ t, v k i ^ 2) ≤ L * t.card := by
-    rw [Finset.sum_comm]
-    exact (Finset.sum_le_sum hCol).trans_eq (by simp [nsmul_eq_mul, mul_comm])
-  have hk (k : κ) : |∑ i ∈ t, b k i * v k i| ^ 2 ≤
-      (∑ i ∈ t, b k i ^ 2) * ∑ i ∈ t, v k i ^ 2 := by
-    simpa only [sq_abs] using Finset.sum_mul_sq_le_sq_mul_sq t (b k) (v k)
-  exact (Finset.sum_sq_le_sum_mul_sum_of_sq_le_mul s
-    (fun k _ => Finset.sum_nonneg fun i _ => sq_nonneg (b k i))
-    (fun k _ => Finset.sum_nonneg fun i _ => sq_nonneg (v k i))
-    (fun k _ => hk k)).trans (mul_le_mul_of_nonneg_left hEnergy
-      (Finset.sum_nonneg fun k _ => Finset.sum_nonneg fun i _ => sq_nonneg (b k i)))
 
 /-- Absolute high-frequency diagonal trace bound when all coefficient vectors lie in W. -/
 theorem high_trace_sq (s : Finset κ) (v : κ → V) (W : Submodule ℝ V)
@@ -1415,59 +1349,6 @@ theorem lipschitz (n : ℕ) (a b : ℕ → ℝ) (c : ℝ) {M : ℝ}
   dsimp [t] at hi
   rw [abs_div, abs_of_pos (show (0:ℝ)<2 by norm_num)] at hi
   linarith
-
-private theorem sequence_expansion (S : Polynomial.Sequence ℝ) (n : ℕ)
-    (P : Polynomial ℝ) (hd : P.natDegree < n) :
-    ∃ c : ℕ → ℝ, ∑ k ∈ range n, C (c k) * S k = P := by
-  have hm : P ∈ Submodule.span ℝ (S '' (range n : Set ℕ)) := by
-    rw [Finset.coe_range, S.span_degreeLT (fun k _ =>
-      isUnit_iff_ne_zero.mpr (leadingCoeff_ne_zero.mpr (S.ne_zero k)))]
-    apply Polynomial.mem_degreeLT.mpr
-    exact degree_le_natDegree.trans_lt (by exact_mod_cast hd)
-  obtain ⟨c, hc⟩ := (Submodule.mem_span_image_finset_iff_exists_fun' ℝ).mp hm
-  exact ⟨c, by simpa only [Polynomial.smul_eq_C_mul] using hc⟩
-
-/-- The `A(cos x) + sin x B(cos x)` form in the proposed reduction. -/
-theorem polynomial_lipschitz (d : ℕ) (A B : Polynomial ℝ) (hA : A.natDegree ≤ d)
-    (hB : B.natDegree < d) :
-    let q := fun s : ℝ => A.eval (Real.cos s) + Real.sin s * B.eval (Real.cos s)
-    ∀ M : ℝ, (∀ s, |q s| ≤ M) →
-      ∀ s u : ℝ, |q s - q u| ≤ d*M*|s-u| := by
-  dsimp only
-  intro M hbd s u
-  have hM0 : 0 ≤ M := (abs_nonneg _).trans (hbd 0)
-  rcases hM0.eq_or_lt with heq | hM
-  · subst M
-    have hz (y : ℝ) : A.eval (Real.cos y) + Real.sin y * B.eval (Real.cos y) = 0 :=
-      abs_nonpos_iff.mp (hbd y)
-    simp [hz]
-  let U : Polynomial.Sequence ℝ :=
-    ⟨fun k => Chebyshev.U ℝ (k:ℤ), fun k => Chebyshev.degree_U_natCast ℝ k⟩
-  obtain ⟨a, ha⟩ := sequence_expansion (Chebyshev.chebyshevTsequence ℝ) (d+1) A (by omega)
-  obtain ⟨b, hb⟩ := sequence_expansion U d B hB
-  change ∑ k ∈ range (d+1), C (a k) * Chebyshev.T ℝ (k:ℤ) = A at ha
-  change ∑ k ∈ range d, C (b k) * Chebyshev.U ℝ (k:ℤ) = B at hb
-  have hrep (y : ℝ) : trig d (fun k => a (k+1)) b (a 0) y =
-      A.eval (Real.cos y) + Real.sin y * B.eval (Real.cos y) := by
-    have h₁ := congrArg (fun P : Polynomial ℝ => P.eval (Real.cos y)) ha
-    have h₂ := congrArg (fun P : Polynomial ℝ => P.eval (Real.cos y)) hb
-    simp only [eval_finsetSum, eval_mul, eval_C, Chebyshev.T_real_cos,
-      Int.cast_natCast] at h₁ h₂
-    rw [sum_range_succ'] at h₁
-    simp only [Nat.cast_add, Nat.cast_one, Nat.cast_zero, zero_mul, Real.cos_zero,
-      mul_one] at h₁
-    have hsin : ∑ k ∈ range d, b k * Real.sin (((k:ℝ)+1)*y) =
-        B.eval (Real.cos y) * Real.sin y := by
-      rw [← h₂, sum_mul]
-      apply sum_congr rfl
-      intro k hk
-      rw [mul_assoc, Chebyshev.U_real_cos]
-      simp
-    dsimp only [trig]
-    rw [sum_add_distrib, hsin]
-    linarith
-  simpa only [hrep] using
-    lipschitz d (fun k => a (k+1)) b (a 0) hM (fun y => by simpa only [hrep] using hbd y) s u
 
 end Erdos1133.BernsteinEndpoint
 

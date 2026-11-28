@@ -72,18 +72,10 @@ def Q : ℕ → ℤ
   | _ => -111
 
 theorem B_step (m : ℕ) : B (m + 4) = B m + P (m % 4) * 10 ^ m := by
-  have hC : ∀ d ∈ Finset.range m,
-      (if (d = m + 4 ∨ (2 * (m + 4) - d) % 4 ≠ 3) then (10 : ℤ) ^ d else 0) =
+  have hC : ∀ n ≥ m, n % 4 = m % 4 → ∀ d ∈ Finset.range m,
+      (if (d = n ∨ (2 * n - d) % 4 ≠ 3) then (10 : ℤ) ^ d else 0) =
       (if (2 * m - d) % 4 ≠ 3 then (10 : ℤ) ^ d else 0) := by
-    intro d hd
-    rw [Finset.mem_range] at hd
-    by_cases hc : (2 * m - d) % 4 ≠ 3
-    · rw [if_pos (by omega), if_pos hc]
-    · rw [if_neg (by omega), if_neg hc]
-  have hC' : ∀ d ∈ Finset.range m,
-      (if (d = m ∨ (2 * m - d) % 4 ≠ 3) then (10 : ℤ) ^ d else 0) =
-      (if (2 * m - d) % 4 ≠ 3 then (10 : ℤ) ^ d else 0) := by
-    intro d hd
+    intro n h1 h2 d hd
     rw [Finset.mem_range] at hd
     by_cases hc : (2 * m - d) % 4 ≠ 3
     · rw [if_pos (by omega), if_pos hc]
@@ -91,7 +83,7 @@ theorem B_step (m : ℕ) : B (m + 4) = B m + P (m % 4) * 10 ^ m := by
   unfold B
   rw [show m + 4 + 1 = m + 1 + 1 + 1 + 1 + 1 by ring]
   simp only [Finset.sum_range_succ]
-  rw [Finset.sum_congr rfl hC, Finset.sum_congr rfl hC']
+  rw [Finset.sum_congr rfl (hC _ (by omega) (by omega)), Finset.sum_congr rfl (hC m le_rfl rfl)]
   simp only [true_or, if_true]
   have h4 : m % 4 < 4 := Nat.mod_lt _ (by norm_num)
   rcases (by omega : m % 4 = 0 ∨ m % 4 = 1 ∨ m % 4 = 2 ∨ m % 4 = 3) with h | h | h | h
@@ -196,13 +188,6 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a265427.main := by
       intro n hn
       have h := a_closed n
       interval_cases n <;> norm_num [P, Q] at h ⊢ <;> exact_mod_cast (by omega)
-    have v0 := v 0 (by norm_num)
-    have v1 := v 1 (by norm_num)
-    have v2 := v 2 (by norm_num)
-    have v3 := v 3 (by norm_num)
-    have v4 := v 4 (by norm_num)
-    have v5 := v 5 (by norm_num)
-    simp only [List.getD_cons_zero, List.getD_cons_succ] at v0 v1 v2 v3 v4 v5
     rw [show ((1 - X) * (1 + X) * (1 - 10 * X) * (1 + 10 * X) * (1 + 100 * X ^ 2) : PowerSeries ℚ)
         = 1 - X ^ 2 - C 10000 * X ^ 4 + C 10000 * X ^ 6 by simp only [map_ofNat]; ring,
       show (1 + 11 * X + 100 * X ^ 2 + 1100 * X ^ 3 + 1000 * X ^ 4 - 1000 * X ^ 5 : PowerSeries ℚ)
@@ -213,18 +198,13 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a265427.main := by
     ext n
     simp only [map_sub, map_add, coeff_C_mul, coeff_mul_X_pow', coeff_one, coeff_mk]
     rcases n with _ | _ | _ | _ | _ | _ | n
-    · simp [v0]
-    · simp [v1]
-    · simp [v0, v2]; norm_num
-    · simp [v1, v3]; norm_num
-    · simp [v0, v2, v4]; norm_num
-    · simp [v1, v3, v5]; norm_num
-    · have := recur n
-      simp only [show n + 1 + 1 + 1 + 1 + 1 + 1 = n + 6 by ring]
-      simp
-      rw [this]
-      push_cast
-      ring
+    iterate 6 simp [v] <;> norm_num
+    have := recur n
+    simp only [show n + 1 + 1 + 1 + 1 + 1 + 1 = n + 6 by ring]
+    simp
+    rw [this]
+    push_cast
+    ring
   · intro n
     obtain ⟨k, r, hr, rfl⟩ : ∃ k r, r < 4 ∧ n = 4 * k + r := ⟨n / 4, n % 4, Nat.mod_lt _ (by norm_num), by omega⟩
     have hA := a_closed (4 * k + r)

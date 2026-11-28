@@ -1,33 +1,14 @@
 import FormalConjectures.Wikipedia.RefactorableNumber
 
--- Problem: Zelinsky's Conjecture (2002, Conjecture 32)
--- Upstream: formal-conjectures FormalConjectures/Wikipedia/RefactorableNumber.lean:76 (declaration RefactorableNumber.zelinsky_refactorable_progression_conjecture)
--- Credit: @sho-404 (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
-
--- Proof idea: pick a prime p > n0 with p = 1 mod m and take n = n0 * p^(p-1).
--- Then d(n) = d(n0) * p, which divides n0 * p^(p-1), and n = n0 mod m.
+-- Credit: @mjsechrest2
 theorem OMA.solution : type_of% @RefactorableNumber.zelinsky_refactorable_progression_conjecture := by
-  intro m n₀ hm hn₀
-  obtain ⟨hpos, hdvd⟩ := hn₀
-  obtain ⟨p, hp, hlt, hmod⟩ := Nat.exists_prime_gt_modEq_one n₀ (Nat.one_le_iff_ne_zero.mp hm)
-  have hp2 : 2 ≤ p := hp.two_le
-  have hcop : Nat.Coprime n₀ (p ^ (p - 1)) := by
-    apply Nat.Coprime.pow_right
-    exact (Nat.coprime_comm.mp ((Nat.Prime.coprime_iff_not_dvd hp).mpr
-      (fun h => absurd (Nat.le_of_dvd hpos h) (not_le.mpr hlt))))
-  have hcard : (p ^ (p - 1)).divisors.card = p := by
-    rw [Nat.divisors_prime_pow hp, Finset.card_map, Finset.card_range]
-    omega
-  have hpow : 2 ≤ p ^ (p - 1) := by
-    calc 2 ≤ p := hp2
-      _ = p ^ 1 := (pow_one p).symm
-      _ ≤ p ^ (p - 1) := Nat.pow_le_pow_right (by omega) (by omega)
-  refine ⟨n₀ * p ^ (p - 1), ?_, ⟨?_, ?_⟩, ?_⟩
-  · nlinarith
-  · exact Nat.mul_pos hpos (by omega)
-  · rw [hcop.card_divisors_mul, hcard]
-    exact Nat.mul_dvd_mul hdvd (dvd_pow_self p (by omega))
-  · have h1 : p ^ (p - 1) ≡ 1 [MOD m] := by
-      simpa using hmod.pow (p - 1)
-    simpa using Nat.ModEq.mul_left n₀ h1
+  rintro m n hm ⟨h0, hd⟩
+  obtain ⟨p, hp, hg, hq⟩ := Nat.exists_prime_gt_modEq_one n (Nat.one_le_iff_ne_zero.mp hm)
+  have h1 : p - 1 ≠ 0 := by have := hp.two_le; omega
+  have hp0 : 0 < p ^ (p - 1) := pow_pos hp.pos _
+  have hd2 : p ∣ p ^ (p - 1) := dvd_pow_self p h1
+  refine ⟨n * p ^ (p - 1), by nlinarith [hp.two_le, Nat.le_of_dvd hp0 hd2], ⟨mul_pos h0 hp0, ?_⟩, ?_⟩
+  · rw [((hp.coprime_iff_not_dvd.mpr fun h => hg.not_ge (Nat.le_of_dvd h0 h)).symm.pow_right _).card_divisors_mul,
+      Nat.divisors_prime_pow hp, Finset.card_map, Finset.card_range, Nat.sub_add_cancel hp.pos]
+    exact Nat.mul_dvd_mul hd hd2
+  · simpa using (hq.pow (p - 1)).mul_left n

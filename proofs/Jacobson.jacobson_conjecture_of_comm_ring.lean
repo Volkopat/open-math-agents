@@ -9,10 +9,7 @@ the powers `I ^ n` intersect to zero. Apply it with `I` the Jacobson radical its
 
 theorem OMA.solution : type_of% @Jacobson.jacobson_conjecture_of_comm_ring := by
   intro R _ _
-  show ⨅ n : ℕ, Ring.jacobson R ^ n = 0
-  have hle : Ring.jacobson R ≤ Ideal.jacobson (⊥ : Ideal R) := by
-    rw [Ideal.jacobson_bot]
-  have h := Ideal.iInf_pow_smul_eq_bot_of_le_jacobson (M := R) (Ring.jacobson R) hle
-  simp only [smul_eq_mul, Ideal.mul_top] at h
-  rw [Submodule.zero_eq_bot]
-  exact h
+  change _ = (⊥ : Ideal R)
+  simpa only [smul_eq_mul, Ideal.mul_top] using
+    Ideal.iInf_pow_smul_eq_bot_of_le_jacobson (M := R) (Ring.jacobson R)
+      (by rw [Ideal.jacobson_bot])

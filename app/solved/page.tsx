@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import MathTitle from "@/components/MathTitle";
 import { getSolved, getSteps, deskOnline } from "@/lib/db";
 import { getProblem, getFullMany } from "@/lib/catalog";
+import { parseStep } from "@/lib/steps";
 import { ago } from "@/lib/time";
 import { pendingFor, pendingIds, PENDING_AT } from "@/lib/pending";
 import { REPO_URL } from "@/lib/site";
@@ -16,22 +17,30 @@ export const metadata = {
 
 // The long lists (formalizations, warm-ups, reduction steps: thousands of rows, most of a 4 MB page) show their latest
 // rows here; /solved/<kind> (app/solved/[kind]) is this page with that list in full.
-const CAPPED = new Set<Outcome>(["known", "warmup", "step"]);
-const CAP = 25;
+// Every list is capped (the open-problem lists at 50 rows, the others at 25): the full page was 1.6 MB and took
+// seconds to open from the home page.
+const CAPPED = new Set<Outcome>(["open", "pending", "misstated", "known", "warmup", "step"]);
+const capOf = (o: Outcome) => (o === "open" ? 50 : o === "pending" ? 30 : 15);
 
 export default async function SolvedPage({ params }: { params?: Promise<{ kind?: string }> }) {
   const full = (await params)?.kind;
   if (full !== undefined && !CAPPED.has(full as Outcome)) notFound();
   const capped = (o: Outcome) => CAPPED.has(o) && full !== o;
-  const shown = <T,>(o: Outcome, rows: T[]) => (capped(o) ? rows.slice(0, CAP) : rows);
-  const all = (o: Outcome, n: number) => capped(o) && n > CAP ? <p><Link href={`/solved/${o}#${o}`}>Show all {n} →</Link></p> : null;
+  const shown = <T,>(o: Outcome, rows: T[]) => (capped(o) ? rows.slice(0, capOf(o)) : rows);
+  const all = (o: Outcome, n: number) => capped(o) && n > capOf(o) ? <p><Link href={`/solved/${o}#${o}`} className="btn-support">Show all {n} →</Link></p> : null;
   const [solved, steps] = await Promise.all([getSolved(), getSteps()]);
   const stepById = new Map(steps.map((s) => [s.id, s]));
-  const state = new Map((await getFullMany(solved.map((s) => s.problem_id)).catch(() => [])).map((f) => [f.id, f.erdosState]));
+  // Only variant ids need their upstream state (for the "variant of" note): fetching the full records of all ~11,000
+  // solved problems from D1 made this page take seconds. Capped in time too: without the state the note is just vaguer.
+  const variantIds = solved.map((s) => s.problem_id).filter((id) => /\.variants?\./.test(id));
+  const timeout = new Promise<[]>((r) => setTimeout(() => r([]), 800));
+  const state = new Map((await Promise.race([getFullMany(variantIds).catch(() => []), timeout])).map((f) => [f.id, f.erdosState]));
   const note = (id: string) => { const p = getProblem(id); return p ? variantNote(p.id, p.title, state.get(id)) : null; };
-  const title = (id: string) => getProblem(id)?.title ?? (stepById.get(id) ? `Step H${stepById.get(id)!.k} of ${getProblem(stepById.get(id)!.parent)?.title ?? stepById.get(id)!.parent}` : id);
-  const main = solved.filter((s) => !stepById.has(s.problem_id));
-  const stepSolutions = solved.filter((s) => stepById.has(s.problem_id));
+  // A step the database has not registered (its reduction's credit was lost) is still a step: its id says so.
+  const stepOf = (id: string) => stepById.get(id) ?? (getProblem(id) ? undefined : parseStep(id) ?? undefined);
+  const title = (id: string) => getProblem(id)?.title ?? (stepOf(id) ? `Step H${stepOf(id)!.k} of ${getProblem(stepOf(id)!.parent)?.title ?? stepOf(id)!.parent}` : id);
+  const main = solved.filter((s) => !stepOf(s.problem_id));
+  const stepSolutions = solved.filter((s) => stepOf(s.problem_id));
   const by = (o: Outcome) => main.filter((s) => outcomeOf(getProblem(s.problem_id)?.kind, s.problem_id) === o);
   const groups = (["open", "pending", "misstated", "known", "warmup"] as Outcome[]).map((o) => ({ o, rows: by(o) }));
   const openCount = groups[0].rows.length;
@@ -101,7 +110,7 @@ export default async function SolvedPage({ params }: { params?: Promise<{ kind?:
             reviewed and merged, the problem moves to the list above, credited to the author of the merged proof.{PENDING_AT ? ` List as of ${PENDING_AT.replace("T", " ")} UTC.` : ""}
           </p>
           <ul>
-            {awaiting.map((id) => {
+            {awaiting.slice(0, 30).map((id) => {
               const prs = pendingFor(id);
               return (
                 <li key={id}>
@@ -114,6 +123,7 @@ export default async function SolvedPage({ params }: { params?: Promise<{ kind?:
               );
             })}
           </ul>
+          {awaiting.length > 30 && <p style={{ color: "var(--muted)" }}>and {awaiting.length - 30} more (see <a href="/api/solved">/api/solved</a>).</p>}
         </section>
       )}
     </main>

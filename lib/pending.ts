@@ -4,7 +4,7 @@
  */
 import raw from "@/content/pending.json";
 
-export type Pending = { pr: number; user: string; at: string };
+export type Pending = { pr: number; user: string; at: string; kind?: "statement" | "reduction" | "proof" };
 const DATA = raw as { generated: string | null; items: Record<string, Pending[]> };
 
 export const PENDING_AT = DATA.generated;

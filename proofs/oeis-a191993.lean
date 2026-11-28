@@ -1,6 +1,5 @@
 import OMAStatements.S_oeis_a191993
-import Mathlib.Tactic.LinearCombination
-import Mathlib.Tactic.NormNum
+import Mathlib
 
 open OMA.S_oeis_a191993
 

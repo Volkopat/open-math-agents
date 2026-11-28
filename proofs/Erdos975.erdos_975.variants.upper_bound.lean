@@ -508,49 +508,6 @@ theorem card_le_of_modEq {S : Finset ℕ} {n L : ℕ} (hL : 0 < L) (hS : ∀ k �
           omega
     _ = n / L + 1 := card_range _
 
-/-- The number of `k ≤ n` with `p^j ∣ f(k)`. -/
-theorem card_pow_dvd_le {f u v : ℤ[X]} {D : ℤ} (hB : f * u + derivative f * v = C D)
-    {p : ℕ} (hp : p.Prime) {δ j : ℕ} (hδ : ¬ (p : ℤ) ^ (δ + 1) ∣ D) (hj : δ + 1 ≤ j)
-    (n : ℕ) (R : Finset ℕ)
-    (hR : ∀ k ∈ Icc 1 n, (p : ℤ) ^ j ∣ f.eval ((k : ℕ) : ℤ) → k % p ^ (δ + 1) ∈ R) :
-    #{k ∈ Icc 1 n | (p : ℤ) ^ j ∣ f.eval ((k : ℕ) : ℤ)} ≤ #R * (n / p ^ (j - δ) + 1) := by
-  classical
-  set S := {k ∈ Icc 1 n | (p : ℤ) ^ j ∣ f.eval ((k : ℕ) : ℤ)} with hSdef
-  have hpos : 0 < p ^ (j - δ) := pow_pos hp.pos _
-  calc #S ≤ (n / p ^ (j - δ) + 1) * #(S.image (· % p ^ (δ + 1))) := by
-        refine card_le_mul_card_image S _ fun a _ ↦ card_le_of_modEq hpos ?_ ?_
-        · intro k hk
-          exact (Finset.mem_Icc.mp (Finset.mem_filter.mp (Finset.mem_filter.mp hk).1).1).2
-        · intro k hk k' hk'
-          obtain ⟨hk1, hka⟩ := Finset.mem_filter.mp hk
-          obtain ⟨hk1', hka'⟩ := Finset.mem_filter.mp hk'
-          have hm : k ≡ k' [MOD p ^ (δ + 1)] := hka.trans hka'.symm
-          rw [Nat.modEq_iff_dvd] at hm ⊢
-          push_cast at hm ⊢
-          exact cluster hB hp hδ hj (Finset.mem_filter.mp hk1).2 (Finset.mem_filter.mp hk1').2 hm
-    _ ≤ (n / p ^ (j - δ) + 1) * #R := by
-        refine Nat.mul_le_mul_left _ (card_le_card fun a ha ↦ ?_)
-        obtain ⟨k, hk, rfl⟩ := Finset.mem_image.mp ha
-        obtain ⟨hk1, hk2⟩ := Finset.mem_filter.mp hk
-        exact hR k hk1 hk2
-    _ = #R * (n / p ^ (j - δ) + 1) := mul_comm _ _
-
-/-- The sum over `k ≤ n` of the `p`-adic valuations of `f(k)`, as a sum over prime powers. -/
-theorem sum_factorization_eq (f : ℤ[X]) (n p b : ℕ) (hp : p.Prime)
-    (hf0 : ∀ k ∈ Icc 1 n, f.eval ((k : ℕ) : ℤ) ≠ 0) (hb : ∀ k ∈ Icc 1 n, (f.eval ((k : ℕ) : ℤ)).natAbs < p ^ b) :
-    ∑ k ∈ Icc 1 n, (f.eval ((k : ℕ) : ℤ)).natAbs.factorization p =
-      ∑ j ∈ Ico 1 b, #{k ∈ Icc 1 n | (p : ℤ) ^ j ∣ f.eval ((k : ℕ) : ℤ)} := by
-  classical
-  rw [Finset.sum_congr rfl fun k hk ↦ Nat.factorization_eq_card_pow_dvd_of_lt hp
-    (Int.natAbs_pos.mpr (hf0 k hk)) (hb k hk)]
-  simp_rw [Finset.card_filter]
-  rw [Finset.sum_comm]
-  refine Finset.sum_congr rfl fun j _ ↦ Finset.sum_congr rfl fun k _ ↦ ?_
-  congr 1
-  simp only [eq_iff_iff]
-  rw [← Int.natCast_dvd_natCast, Int.natCast_natAbs, dvd_abs]
-  push_cast; rfl
-
 end LaneC976
 
 end
@@ -561,20 +518,6 @@ noncomputable section
 open Polynomial Finset Real Filter
 
 namespace LaneC976
-
-theorem eval_ne_zero {f : ℤ[X]} (hf : Irreducible f) (hd : 2 ≤ f.natDegree) (k : ℤ) :
-    f.eval k ≠ 0 := by
-  intro h
-  have hdvd : X - C k ∣ f := dvd_iff_isRoot.mpr h
-  obtain ⟨g, hg⟩ := hdvd
-  rcases hf.isUnit_or_isUnit hg with hu | hu
-  · have := natDegree_eq_zero_of_isUnit hu
-    rw [natDegree_X_sub_C] at this; exact one_ne_zero this
-  · have h0 : g ≠ 0 := by rintro rfl; simp at hg; exact hf.ne_zero hg
-    have := natDegree_eq_zero_of_isUnit hu
-    have h2 := congrArg natDegree hg
-    rw [natDegree_mul (X_sub_C_ne_zero k) h0, natDegree_X_sub_C, this] at h2
-    omega
 
 /-- `|f(k)| ≤ S k^d` for `k ≥ 1`. -/
 theorem natAbs_eval_le (f : ℤ[X]) : ∃ S : ℕ, 1 ≤ S ∧ ∀ k : ℕ, 1 ≤ k →
@@ -594,80 +537,6 @@ theorem natAbs_eval_le (f : ℤ[X]) : ∃ S : ℕ, 1 ≤ S ∧ ∀ k : ℕ, 1 �
         rw [Finset.sum_mul]
     _ ≤ _ := Nat.mul_le_mul_right _ (by omega)
 
-/-- `d log k - C ≤ log |f(k)|` for all `k ≥ 1`. -/
-theorem log_abs_eval_ge {f : ℤ[X]} (hf : Irreducible f) (hd : 2 ≤ f.natDegree) :
-    ∃ C : ℝ, ∀ k : ℕ, 1 ≤ k → f.natDegree * Real.log k - C ≤ Real.log |((f.eval ((k : ℕ) : ℤ) : ℤ) : ℝ)| := by
-  set fR := f.map (Int.castRingHom ℝ)
-  have hlead : fR.leadingCoeff = f.leadingCoeff := by
-    rw [leadingCoeff_map_of_injective (RingHom.injective_int _)]; rfl
-  have hdeg : fR.natDegree = f.natDegree := natDegree_map_eq_of_injective (RingHom.injective_int _) _
-  have ha : (f.leadingCoeff : ℝ) ≠ 0 := by
-    exact_mod_cast leadingCoeff_ne_zero.mpr hf.ne_zero
-  have hequiv := Polynomial.isEquivalent_atTop_lead fR
-  rw [hlead, hdeg] at hequiv
-  have hz : ∀ᶠ x : ℝ in atTop, (f.leadingCoeff : ℝ) * x ^ f.natDegree ≠ 0 := by
-    filter_upwards [eventually_gt_atTop 0] with x hx
-    exact mul_ne_zero ha (pow_ne_zero _ hx.ne')
-  have htend := (Asymptotics.isEquivalent_iff_tendsto_one hz).mp hequiv
-  have hev : ∀ᶠ x : ℝ in atTop, 1 / 2 ≤ fR.eval x / (f.leadingCoeff * x ^ f.natDegree) := by
-    have := htend.eventually (Ici_mem_nhds (show (1 / 2 : ℝ) < 1 by norm_num))
-    filter_upwards [this] with x hx
-    simpa using hx
-  obtain ⟨x0, hx0⟩ := eventually_atTop.mp (hev.and (eventually_ge_atTop 1))
-  set k0 := ⌈x0⌉₊
-  have hla : 1 ≤ |(f.leadingCoeff : ℝ)| := by
-    have : (1 : ℝ) ≤ |f.leadingCoeff| := by exact_mod_cast Int.one_le_abs (leadingCoeff_ne_zero.mpr hf.ne_zero)
-    simpa using this
-  refine ⟨f.natDegree * Real.log (k0 + 1) + Real.log 2, fun k hk ↦ ?_⟩
-  have hfk : (1 : ℝ) ≤ |((f.eval ((k : ℕ) : ℤ) : ℤ) : ℝ)| := by
-    exact_mod_cast Int.one_le_abs (eval_ne_zero hf hd (k : ℤ))
-  have hlogf : 0 ≤ Real.log |((f.eval ((k : ℕ) : ℤ) : ℤ) : ℝ)| := Real.log_nonneg hfk
-  have hk1 : (1 : ℝ) ≤ k := by exact_mod_cast hk
-  by_cases hkk : (k : ℝ) < x0
-  · have : Real.log k ≤ Real.log (k0 + 1) := by
-      apply Real.log_le_log (by linarith)
-      have := Nat.le_ceil x0; linarith
-    have hd0 : (0 : ℝ) ≤ f.natDegree := by positivity
-    nlinarith [Real.log_nonneg (show (1 : ℝ) ≤ 2 by norm_num), mul_le_mul_of_nonneg_left this hd0]
-  · push_neg at hkk
-    obtain ⟨h1, -⟩ := hx0 k hkk
-    have hpos : 0 < (k : ℝ) ^ f.natDegree := by positivity
-    have heval : fR.eval (k : ℝ) = ((f.eval ((k : ℕ) : ℤ) : ℤ) : ℝ) := by
-      simp [fR, eval_map]
-    rw [heval] at h1
-    have h2 : |(f.leadingCoeff : ℝ)| * (k : ℝ) ^ f.natDegree / 2 ≤ |((f.eval ((k : ℕ) : ℤ) : ℤ) : ℝ)| := by
-      set F := ((f.eval ((k : ℕ) : ℤ) : ℤ) : ℝ)
-      set A := (f.leadingCoeff : ℝ) * (k : ℝ) ^ f.natDegree
-      have hA : A ≠ 0 := mul_ne_zero ha hpos.ne'
-      have e1 : |F| = |F / A| * |A| := by
-        rw [abs_div, div_mul_cancel₀ _ (abs_ne_zero.mpr hA)]
-      have e2 : 1 / 2 ≤ |F / A| := le_trans h1 (le_abs_self _)
-      have e3 : |A| = |(f.leadingCoeff : ℝ)| * (k : ℝ) ^ f.natDegree := by
-        rw [abs_mul, abs_of_pos hpos]
-      rw [e1, ← e3]
-      nlinarith [abs_nonneg A]
-    have h4 : (k : ℝ) ^ f.natDegree / 2 ≤ |((f.eval ((k : ℕ) : ℤ) : ℤ) : ℝ)| := by
-      refine le_trans ?_ h2
-      apply div_le_div_of_nonneg_right _ (by norm_num)
-      nlinarith
-    have h5 := Real.log_le_log (by positivity) h4
-    rw [Real.log_div (by positivity) (by norm_num), Real.log_pow] at h5
-    have : 0 ≤ f.natDegree * Real.log (k0 + 1) := by
-      have : (0 : ℝ) ≤ Real.log (k0 + 1) := Real.log_nonneg (by have := Nat.cast_nonneg (α := ℝ) k0; linarith)
-      positivity
-    linarith
-
-theorem log_factorial_ge (n : ℕ) : n * Real.log n - n ≤ Real.log (n.factorial) := by
-  rcases Nat.eq_zero_or_pos n with rfl | hn
-  · simp
-  have h := Real.pow_div_factorial_le_exp (x := (n : ℝ)) (by positivity) n
-  have hf : (0 : ℝ) < n.factorial := by exact_mod_cast Nat.factorial_pos n
-  have hnp : (0 : ℝ) < n := by exact_mod_cast hn
-  rw [div_le_iff₀ hf] at h
-  have := Real.log_le_log (by positivity) h
-  rw [Real.log_pow, Real.log_mul (Real.exp_pos _).ne' hf.ne', Real.log_exp] at this
-  linarith
-
 end LaneC976
 
 end
@@ -678,102 +547,6 @@ noncomputable section
 open Polynomial Finset
 
 namespace LaneC976
-
-theorem sum_log_eq (f : ℤ[X]) (n P : ℕ) (hf0 : ∀ k ∈ Icc 1 n, f.eval ((k : ℕ) : ℤ) ≠ 0)
-    (hP : ∀ p, p.Prime → p ∣ (∏ k ∈ Icc 1 n, f.eval ((k : ℕ) : ℤ)).natAbs → p ≤ P) :
-    ∑ k ∈ Icc 1 n, Real.log |((f.eval ((k : ℕ) : ℤ) : ℤ) : ℝ)| =
-      ∑ p ∈ Nat.primesLE P,
-        ((∑ k ∈ Icc 1 n, (f.eval ((k : ℕ) : ℤ)).natAbs.factorization p : ℕ) : ℝ) * Real.log p := by
-  classical
-  set N := (∏ k ∈ Icc 1 n, f.eval ((k : ℕ) : ℤ)).natAbs with hN
-  have hN' : N = ∏ k ∈ Icc 1 n, (f.eval ((k : ℕ) : ℤ)).natAbs := by rw [hN]; exact map_prod Int.natAbsHom _ _
-  have hne : ∀ k ∈ Icc 1 n, (f.eval ((k : ℕ) : ℤ)).natAbs ≠ 0 := fun k hk ↦ Int.natAbs_ne_zero.mpr (hf0 k hk)
-  have h1 : ∑ k ∈ Icc 1 n, Real.log |((f.eval ((k : ℕ) : ℤ) : ℤ) : ℝ)| = Real.log N := by
-    rw [hN', Nat.cast_prod, Real.log_prod]
-    · refine Finset.sum_congr rfl fun k _ ↦ ?_
-      rw [Nat.cast_natAbs, Int.cast_abs]
-    · intro k hk; exact_mod_cast hne k hk
-  rw [h1, Real.log_nat_eq_sum_factorization, Finsupp.sum]
-  have hfac : ∀ p, N.factorization p = ∑ k ∈ Icc 1 n, (f.eval ((k : ℕ) : ℤ)).natAbs.factorization p := by
-    intro p
-    rw [hN', Nat.factorization_prod hne, Finsupp.finsetSum_apply]
-  rw [Finset.sum_subset (s₁ := N.factorization.support) (s₂ := Nat.primesLE P)]
-  · refine Finset.sum_congr rfl fun p _ ↦ ?_
-    rw [hfac]
-  · intro p hp
-    rw [Nat.support_factorization] at hp
-    have hp' := Nat.prime_of_mem_primeFactors hp
-    rw [Nat.mem_primesLE]
-    exact ⟨hP p hp' (Nat.dvd_of_mem_primeFactors hp), hp'⟩
-  · intro p _ hp
-    rw [Finsupp.notMem_support_iff.mp hp]; simp
-
-/-- Bound for the total `p`-adic valuation. -/
-theorem ep_le {f u v : ℤ[X]} {D : ℤ} (hB : f * u + derivative f * v = C D)
-    {p : ℕ} (hp : p.Prime) (δ : ℕ) (hδ : ¬ (p : ℤ) ^ (δ + 1) ∣ D) (n H : ℕ)
-    (hf0 : ∀ k ∈ Icc 1 n, f.eval ((k : ℕ) : ℤ) ≠ 0)
-    (hH : ∀ k ∈ Icc 1 n, (f.eval ((k : ℕ) : ℤ)).natAbs ≤ H) (R : Finset ℕ)
-    (hR : ∀ k ∈ Icc 1 n, ∀ j, δ + 1 ≤ j → (p : ℤ) ^ j ∣ f.eval ((k : ℕ) : ℤ) → k % p ^ (δ + 1) ∈ R) :
-    ((∑ k ∈ Icc 1 n, (f.eval ((k : ℕ) : ℤ)).natAbs.factorization p : ℕ) : ℝ) ≤
-      δ * n + #R * (n / (p - 1) + Nat.log p H) := by
-  classical
-  set b := Nat.log p H + 1
-  have hb : ∀ k ∈ Icc 1 n, (f.eval ((k : ℕ) : ℤ)).natAbs < p ^ b :=
-    fun k hk ↦ (hH k hk).trans_lt (Nat.lt_pow_succ_log_self hp.one_lt H)
-  rw [sum_factorization_eq f n p b hp hf0 hb]
-  have hp1 : (1 : ℝ) < p := by exact_mod_cast hp.one_lt
-  have hp0 : (0 : ℝ) < p := by linarith
-  set g : ℕ → ℝ := fun j ↦ if j ≤ δ then (n : ℝ) else #R * (n * (p : ℝ) ^ δ * (1 / p) ^ j + 1)
-  have hj : ∀ j ∈ Ico 1 b, (#{k ∈ Icc 1 n | (p : ℤ) ^ j ∣ f.eval ((k : ℕ) : ℤ)} : ℝ) ≤ g j := by
-    intro j _
-    simp only [g]
-    split_ifs with hjd
-    · have : #{k ∈ Icc 1 n | (p : ℤ) ^ j ∣ f.eval ((k : ℕ) : ℤ)} ≤ n := by
-        calc _ ≤ #(Icc 1 n) := card_filter_le _ _
-          _ = n := by simp
-      exact_mod_cast this
-    · push_neg at hjd
-      have h1 := card_pow_dvd_le hB hp hδ hjd n R (fun k hk h ↦ hR k hk j hjd h)
-      have h2 : ((n / p ^ (j - δ) : ℕ) : ℝ) ≤ n * (p : ℝ) ^ δ * (1 / p) ^ j := by
-        refine (Nat.cast_div_le).trans (le_of_eq ?_)
-        have hpow : (p : ℝ) ^ (j - δ) * (p : ℝ) ^ δ = (p : ℝ) ^ j := pow_sub_mul_pow _ hjd.le
-        have hpj : (0 : ℝ) < (p : ℝ) ^ (j - δ) := by positivity
-        rw [one_div, inv_pow, Nat.cast_pow, div_eq_iff hpj.ne']
-        rw [mul_assoc, mul_assoc, ← hpow]
-        field_simp
-      calc (#{k ∈ Icc 1 n | (p : ℤ) ^ j ∣ f.eval ((k : ℕ) : ℤ)} : ℝ) ≤
-            (#R * (n / p ^ (j - δ) + 1) : ℕ) := by exact_mod_cast h1
-        _ ≤ #R * (n * (p : ℝ) ^ δ * (1 / p) ^ j + 1) := by
-            push_cast
-            exact mul_le_mul_of_nonneg_left (by linarith) (Nat.cast_nonneg _)
-  push_cast
-  refine (Finset.sum_le_sum hj).trans ?_
-  simp only [g]
-  rw [Finset.sum_ite]
-  have hA : #{j ∈ Ico 1 b | j ≤ δ} ≤ δ := by
-    calc #{j ∈ Ico 1 b | j ≤ δ} ≤ #(Icc 1 δ) := card_le_card fun j hj ↦ by
-          simp only [Finset.mem_filter, Finset.mem_Ico, Finset.mem_Icc] at hj ⊢; omega
-      _ = δ := by simp
-  have hB' : ({j ∈ Ico 1 b | ¬ j ≤ δ} : Finset ℕ) = Ico (δ + 1) b := by
-    ext j; simp only [Finset.mem_filter, Finset.mem_Ico]; omega
-  rw [hB', Finset.sum_const, nsmul_eq_mul, ← Finset.mul_sum, Finset.sum_add_distrib,
-    ← Finset.mul_sum, Finset.sum_const, nsmul_eq_mul, mul_one]
-  have hgeom : ∑ j ∈ Ico (δ + 1) b, (1 / (p : ℝ)) ^ j ≤ (1 / p) ^ (δ + 1) / (1 - 1 / p) :=
-    geom_sum_Ico_le_of_lt_one (by positivity) (by rw [div_lt_one hp0]; exact hp1)
-  have hval : (n : ℝ) * p ^ δ * ((1 / p) ^ (δ + 1) / (1 - 1 / p)) = n / (p - 1) := by
-    have hp1' : (p : ℝ) - 1 ≠ 0 := by linarith
-    have e : (1 - 1 / (p : ℝ)) = (p - 1) / p := by field_simp
-    rw [e, one_div_pow, pow_succ]
-    field_simp
-  have hcard : (#(Ico (δ + 1) b) : ℝ) ≤ Nat.log p H := by
-    have : #(Ico (δ + 1) b) ≤ Nat.log p H := by simp [b]
-    exact_mod_cast this
-  have h1 : (#{j ∈ Ico 1 b | j ≤ δ} : ℝ) * n ≤ δ * n :=
-    mul_le_mul_of_nonneg_right (by exact_mod_cast hA) (Nat.cast_nonneg _)
-  have h2 : (n : ℝ) * p ^ δ * ∑ j ∈ Ico (δ + 1) b, (1 / (p : ℝ)) ^ j ≤ n / (p - 1) := by
-    rw [← hval]; exact mul_le_mul_of_nonneg_left hgeom (by positivity)
-  have h3 : (0 : ℝ) ≤ #R := Nat.cast_nonneg _
-  nlinarith
 
 end LaneC976
 

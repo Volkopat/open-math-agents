@@ -11,29 +11,16 @@ lemma OMA.rev3 (p : ℕ) : rev p % 3 = p % 3 := by
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a088883.main := by
   intro p hp hN
-  set L := (Nat.digits 10 p).length
-  set N := p * 10 ^ L + rev p + 2 with hNdef
-  have hr := OMA.rev3 p
-  have h10 : 10 ^ L % 3 = 1 := by
-    rw [Nat.pow_mod]; norm_num
-  have hN3 : N % 3 = (2 * p + 2) % 3 := by
-    rw [hNdef, Nat.add_mod, Nat.add_mod (p * 10 ^ L), Nat.mul_mod, h10, hr]; omega
-  have hNbig : 3 < N := by
-    have : 1 ≤ 10 ^ L := Nat.one_le_pow _ _ (by norm_num)
-    have := hp.two_le
-    rw [hNdef]; nlinarith
-  have h3 : p % 3 = 1 := by
-    rcases (by omega : p % 3 = 0 ∨ p % 3 = 1 ∨ p % 3 = 2) with h | h | h
-    · have : p = 3 := ((Nat.Prime.eq_one_or_self_of_dvd hp 3 (by omega)).resolve_left (by norm_num)).symm
-      subst this
-      exfalso; revert hN; decide
-    · exact h
-    · exfalso
-      have : 3 ∣ N := by omega
-      have := (Nat.Prime.eq_one_or_self_of_dvd hN 3 this)
-      omega
-  have h2 : p % 2 = 1 := by
-    rcases hp.eq_two_or_odd with h | h
-    · subst h; exfalso; revert hN; decide
-    · exact h
+  rcases hp.eq_two_or_odd with rfl | h
+  · revert hN; decide
+  obtain rfl | h' := eq_or_ne p 3
+  · revert hN; decide
+  have := OMA.rev3 p
+  have := hp.two_le
+  have := Nat.le_mul_of_pos_right p (by positivity : 0 < 10 ^ (Nat.digits 10 p).length)
+  have : p * 10 ^ (Nat.digits 10 p).length % 3 = p % 3 := by simp [Nat.mul_mod, Nat.pow_mod]
+  generalize p * 10 ^ _ = t at *
+  have : ¬ 3 ∣ p := fun d => by have := hp.eq_one_or_self_of_dvd 3 d; omega
+  have : ¬ 3 ∣ t + rev p + 2 := fun d => by have := hN.eq_one_or_self_of_dvd 3 d; omega
+  have : p % 3 = 1 := by omega
   omega
