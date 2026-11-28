@@ -1,5 +1,10 @@
 import OMAStatements.S_mse_948616
 import Mathlib
+/-!
+Retains @caa1982’s proof #22633, using direct coprimality transport and
+prime squarefreeness in two helper steps. The complete alternative proof by
+@ivillar in #10579 was also reviewed. Statement: @caa1982, #9638.
+-/
 open OMA.S_mse_948616
 
 theorem OMA.mse948616.prime_step (q k : ℕ) (hq : q.Prime) (hk : q - 1 ∣ k) (a : ℤ) :
@@ -50,8 +55,7 @@ theorem OMA.mse948616.part2 (d : ℕ) (hs : ¬ Squarefree (d + 1)) (n : ℕ) (hd
   have h4 : ((p * p : ℕ) : ℤ) ∣ (p : ℤ) := by
     have := dvd_sub h3 (h2.trans h1)
     rwa [sub_sub_cancel] at this
-  have h5 := Nat.le_of_dvd hp.pos (Int.natCast_dvd_natCast.mp h4)
-  nlinarith
+  exact hp.not_isUnit (hp.squarefree p (Int.natCast_dvd_natCast.mp h4))
 
 theorem OMA.mse948616.part1 (d : ℕ) (hs : Squarefree (d + 1)) :
     {p : ℕ | p.Prime ∧ Valid d (p * (d + 1))}.Infinite := by
@@ -61,19 +65,15 @@ theorem OMA.mse948616.part1 (d : ℕ) (hs : Squarefree (d + 1)) :
   have hp1 := hp.one_le
   have hdvd : (d + 1).factorial ∣ p - 1 :=
     (Nat.modEq_iff_dvd' hp1).mp hpm.symm
-  have hcop : ¬ p ∣ d + 1 := by
-    intro h
-    have h1 : p ∣ (d + 1).factorial := Nat.dvd_factorial hp.pos (Nat.le_of_dvd (by omega) h)
-    have h2 : p ∣ p - 1 := h1.trans hdvd
-    have h3 : p ∣ p - (p - 1) := Nat.dvd_sub (dvd_refl p) h2
-    rw [show p - (p - 1) = 1 by omega] at h3
-    exact hp.one_lt.ne' (Nat.dvd_one.mp h3)
+  have hcop :=
+    ((Nat.coprime_self_sub_right hp1).mpr p.coprime_one_right).of_dvd_right
+      ((Nat.dvd_factorial (Nat.succ_pos d) le_rfl).trans hdvd)
   refine ⟨hp, ?_, ?_⟩
   · nlinarith
   · intro a
     have hsq : Squarefree (p * (d + 1)) := by
       rw [Nat.squarefree_mul_iff]
-      exact ⟨(Nat.Prime.coprime_iff_not_dvd hp).mpr hcop,
+      exact ⟨hcop,
         hp.squarefree, hs⟩
     have hexp : p * (d + 1) - d = (d + 1) * (p - 1) + 1 := by
       rcases p with _ | p
