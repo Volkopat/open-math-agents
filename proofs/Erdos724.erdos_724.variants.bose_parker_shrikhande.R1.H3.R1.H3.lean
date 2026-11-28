@@ -6,126 +6,44 @@ import OMAReductions.R_Erdos724_erdos_724_variants_bose_parker_shrikhande_R1_H3_
 Direct product. For odd `b` the squares `(i, j) ↦ i + j` and `(i, j) ↦ i - j` over `Fin b` are
 orthogonal, because `(i + j, i - j)` determines `2 i` and doubling is injective modulo an odd
 number. Given orthogonal `L`, `M` of order `a`, identify `Fin (a * b)` with `Fin a × Fin b` and
-take `(L x₁ y₁, x₂ + y₂)` and `(M x₁ y₁, x₂ - y₂)`. They differ already in the first coordinate,
-at a cell where `L` and `M` differ.
+take `(L x₁ y₁, x₂ + y₂)` and `(M x₁ y₁, x₂ - y₂)` (`OMA.P` builds such a product square once,
+for any quasigroup operation on `Fin b`). They differ already in the first coordinate, at a cell
+where `L` and `M` differ.
 -/
 
-namespace OMA
+open Function
 
-theorem dbl (n : ℕ) (hodd : Odd n) (x y : Fin n) (h : x + x = y + y) : x = y := by
-  have hv := congrArg Fin.val h
-  rw [Fin.val_add, Fin.val_add] at hv
-  have hc : Nat.gcd n 2 = 1 := Nat.coprime_two_right.mpr hodd
-  have h2 : 2 * x.val ≡ 2 * y.val [MOD n] := by
-    unfold Nat.ModEq
-    rw [two_mul, two_mul]
-    exact hv
-  have h3 := Nat.ModEq.cancel_left_of_coprime hc h2
-  unfold Nat.ModEq at h3
-  rw [Nat.mod_eq_of_lt x.isLt, Nat.mod_eq_of_lt y.isLt] at h3
-  exact Fin.ext h3
-
-end OMA
+/-- The direct product of a Latin square `L` of order `a` with a quasigroup operation `f` on
+`Fin b`, as a Latin square of order `a * b`. -/
+def OMA.P {a b : ℕ} (L : LatinSquare a) (f : Fin b → Fin b → Fin b) (h : ∀ x, Injective (f x))
+    (h' : ∀ y, Injective (f · y)) : LatinSquare (a * b) :=
+  ⟨fun x y => finProdFinEquiv (L.mat (finProdFinEquiv.symm x).1 (finProdFinEquiv.symm y).1,
+      f (finProdFinEquiv.symm x).2 (finProdFinEquiv.symm y).2),
+    fun _ _ _ e => have := Prod.ext_iff.1 (finProdFinEquiv.injective e)
+      finProdFinEquiv.symm.injective (Prod.ext (L.row_injective _ this.1) (h _ this.2)),
+    fun _ _ _ e => have := Prod.ext_iff.1 (finProdFinEquiv.injective e)
+      finProdFinEquiv.symm.injective (Prod.ext (L.col_injective _ this.1) (h' _ this.2))⟩
 
 theorem OMA.solution :
     OMA.R_Erdos724_erdos_724_variants_bose_parker_shrikhande_R1_H3_R1.H3 := by
-  unfold OMA.R_Erdos724_erdos_724_variants_bose_parker_shrikhande_R1_H3_R1.H3
-  intro a b hodd hb hex
-  obtain ⟨L, M, hne, horth⟩ := hex
+  rintro a b hb hb3 ⟨L, M, hne, ho⟩
   have : NeZero b := ⟨by omega⟩
-  have hmat : L.mat ≠ M.mat := by
-    intro h
-    apply hne
-    cases L
-    cases M
-    simp only [LatinSquare.mk.injEq]
-    exact h
-  obtain ⟨i, hi⟩ := Function.ne_iff.mp hmat
-  obtain ⟨j, hj⟩ := Function.ne_iff.mp hi
-  obtain ⟨e, -⟩ : ∃ e : Fin a × Fin b ≃ Fin (a * b), True := ⟨finProdFinEquiv, trivial⟩
-  refine ⟨⟨fun x y => e (L.mat (e.symm x).1 (e.symm y).1, (e.symm x).2 + (e.symm y).2), ?_, ?_⟩,
-    ⟨fun x y => e (M.mat (e.symm x).1 (e.symm y).1, (e.symm x).2 - (e.symm y).2), ?_, ?_⟩,
-    ?_, ?_⟩
-  · intro x y y' h
-    have h0 : e (L.mat (e.symm x).1 (e.symm y).1, (e.symm x).2 + (e.symm y).2) =
-        e (L.mat (e.symm x).1 (e.symm y').1, (e.symm x).2 + (e.symm y').2) := h
-    have h' := e.injective h0
-    have h1 : L.mat (e.symm x).1 (e.symm y).1 = L.mat (e.symm x).1 (e.symm y').1 :=
-      congrArg Prod.fst h'
-    have h2 : (e.symm x).2 + (e.symm y).2 = (e.symm x).2 + (e.symm y').2 :=
-      congrArg Prod.snd h'
-    exact e.symm.injective (Prod.ext (L.row_injective _ h1) (add_left_cancel h2))
-  · intro y x x' h
-    have h0 : e (L.mat (e.symm x).1 (e.symm y).1, (e.symm x).2 + (e.symm y).2) =
-        e (L.mat (e.symm x').1 (e.symm y).1, (e.symm x').2 + (e.symm y).2) := h
-    have h' := e.injective h0
-    have h1 : L.mat (e.symm x).1 (e.symm y).1 = L.mat (e.symm x').1 (e.symm y).1 :=
-      congrArg Prod.fst h'
-    have h2 : (e.symm x).2 + (e.symm y).2 = (e.symm x').2 + (e.symm y).2 :=
-      congrArg Prod.snd h'
-    exact e.symm.injective (Prod.ext (L.col_injective _ h1) (add_right_cancel h2))
-  · intro x y y' h
-    have h0 : e (M.mat (e.symm x).1 (e.symm y).1, (e.symm x).2 - (e.symm y).2) =
-        e (M.mat (e.symm x).1 (e.symm y').1, (e.symm x).2 - (e.symm y').2) := h
-    have h' := e.injective h0
-    have h1 : M.mat (e.symm x).1 (e.symm y).1 = M.mat (e.symm x).1 (e.symm y').1 :=
-      congrArg Prod.fst h'
-    have h2 : (e.symm x).2 - (e.symm y).2 = (e.symm x).2 - (e.symm y').2 :=
-      congrArg Prod.snd h'
-    exact e.symm.injective (Prod.ext (M.row_injective _ h1) (sub_right_injective h2))
-  · intro y x x' h
-    have h0 : e (M.mat (e.symm x).1 (e.symm y).1, (e.symm x).2 - (e.symm y).2) =
-        e (M.mat (e.symm x').1 (e.symm y).1, (e.symm x').2 - (e.symm y).2) := h
-    have h' := e.injective h0
-    have h1 : M.mat (e.symm x).1 (e.symm y).1 = M.mat (e.symm x').1 (e.symm y).1 :=
-      congrArg Prod.fst h'
-    have h2 : (e.symm x).2 - (e.symm y).2 = (e.symm x').2 - (e.symm y).2 :=
-      congrArg Prod.snd h'
-    exact e.symm.injective (Prod.ext (M.col_injective _ h1) (sub_left_injective h2))
-  · intro h
-    have h0 : e (L.mat (e.symm (e (i, 0))).1 (e.symm (e (j, 0))).1,
-          (e.symm (e (i, 0))).2 + (e.symm (e (j, 0))).2) =
-        e (M.mat (e.symm (e (i, 0))).1 (e.symm (e (j, 0))).1,
-          (e.symm (e (i, 0))).2 - (e.symm (e (j, 0))).2) :=
-      congrArg (fun S : LatinSquare (a * b) => S.mat (e (i, 0)) (e (j, 0))) h
-    have h1 := congrArg Prod.fst (e.injective h0)
-    simp only [Equiv.symm_apply_apply] at h1
-    exact hj h1
-  · unfold Erdos724.IsOrthogonal at horth ⊢
-    intro p q h
-    obtain ⟨x, y⟩ := p
-    obtain ⟨x', y'⟩ := q
-    have hL : e (L.mat (e.symm x).1 (e.symm y).1, (e.symm x).2 + (e.symm y).2) =
-        e (L.mat (e.symm x').1 (e.symm y').1, (e.symm x').2 + (e.symm y').2) :=
-      congrArg Prod.fst h
-    have hM : e (M.mat (e.symm x).1 (e.symm y).1, (e.symm x).2 - (e.symm y).2) =
-        e (M.mat (e.symm x').1 (e.symm y').1, (e.symm x').2 - (e.symm y').2) :=
-      congrArg Prod.snd h
-    have hL' := e.injective hL
-    have hM' := e.injective hM
-    have l1 : L.mat (e.symm x).1 (e.symm y).1 = L.mat (e.symm x').1 (e.symm y').1 :=
-      congrArg Prod.fst hL'
-    have l2 : (e.symm x).2 + (e.symm y).2 = (e.symm x').2 + (e.symm y').2 :=
-      congrArg Prod.snd hL'
-    have m1 : M.mat (e.symm x).1 (e.symm y).1 = M.mat (e.symm x').1 (e.symm y').1 :=
-      congrArg Prod.fst hM'
-    have m2 : (e.symm x).2 - (e.symm y).2 = (e.symm x').2 - (e.symm y').2 :=
-      congrArg Prod.snd hM'
-    have hp : ((e.symm x).1, (e.symm y).1) = ((e.symm x').1, (e.symm y').1) :=
-      @horth ((e.symm x).1, (e.symm y).1) ((e.symm x').1, (e.symm y').1) (Prod.ext l1 m1)
-    have hx1 : (e.symm x).1 = (e.symm x').1 := (Prod.mk.inj hp).1
-    have hy1 : (e.symm y).1 = (e.symm y').1 := (Prod.mk.inj hp).2
-    have h3 : (e.symm x).2 + (e.symm x).2 = (e.symm x').2 + (e.symm x').2 := by
-      calc (e.symm x).2 + (e.symm x).2
-          = ((e.symm x).2 + (e.symm y).2) + ((e.symm x).2 - (e.symm y).2) :=
-            (add_add_sub_cancel _ _ _).symm
-        _ = ((e.symm x').2 + (e.symm y').2) + ((e.symm x').2 - (e.symm y').2) := by
-            rw [l2, m2]
-        _ = (e.symm x').2 + (e.symm x').2 := add_add_sub_cancel _ _ _
-    have hx2 : (e.symm x).2 = (e.symm x').2 := OMA.dbl b hodd _ _ h3
-    have hy2 : (e.symm y).2 = (e.symm y').2 := by
-      rw [hx2] at l2
-      exact add_left_cancel l2
-    have hx : x = x' := e.symm.injective (Prod.ext hx1 hx2)
-    have hy : y = y' := e.symm.injective (Prod.ext hy1 hy2)
-    rw [hx, hy]
+  obtain ⟨i, hi⟩ := ne_iff.1 fun h : L.mat = M.mat => hne (by cases L; cases M; cases h; rfl)
+  obtain ⟨j, hj⟩ := ne_iff.1 hi
+  refine ⟨OMA.P L (· + ·) (fun _ => add_right_injective _) (fun _ => add_left_injective _),
+    OMA.P M (· - ·) (fun _ => sub_right_injective) (fun _ => sub_left_injective), fun h => hj ?_, ?_⟩
+  · simpa only [OMA.P, Equiv.symm_apply_apply] using congrArg (fun S : LatinSquare _ =>
+      (finProdFinEquiv.symm (S.mat (finProdFinEquiv (i, 0)) (finProdFinEquiv (j, 0)))).1) h
+  · rintro ⟨x, y⟩ ⟨x', y'⟩ h
+    simp only [OMA.P, Prod.mk.injEq, EmbeddingLike.apply_eq_iff_eq] at h
+    obtain ⟨⟨l1, l2⟩, m1, m2⟩ := h
+    obtain ⟨u, v⟩ := Prod.mk.inj (ho (Prod.ext l1 m1))
+    have w : (finProdFinEquiv.symm x).2 = (finProdFinEquiv.symm x').2 := by
+      have := congrArg Fin.val (((add_add_sub_cancel _ _ _).symm.trans
+        (congrArg₂ (· + ·) l2 m2)).trans (add_add_sub_cancel _ _ _))
+      simp only [Fin.val_add, ← two_mul] at this
+      exact Fin.ext (by simpa [Nat.ModEq, Nat.mod_eq_of_lt] using
+        Nat.ModEq.cancel_left_of_coprime (Nat.coprime_two_right.2 hb) this)
+    rw [w] at l2
+    rw [finProdFinEquiv.symm.injective (Prod.ext u w),
+      finProdFinEquiv.symm.injective (Prod.ext v (add_left_cancel l2))]
