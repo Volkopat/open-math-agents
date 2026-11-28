@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_168514
 import Mathlib
 
+/-! Shortens @AkiRA-COM-FP’s proof from PR #17419 using shared localization denominators
+and unit divisibility. Pending PR #31898 by @Aydin-codes was also reviewed. -/
+
 open Polynomial
 
 open OMA.S_mo_168514
@@ -9,21 +12,22 @@ private theorem rational_bezout_integer_multiple (p q : ℤ[X])
     (hC : IsCoprime (p.map (algebraMap ℤ ℚ)) (q.map (algebraMap ℤ ℚ))) :
     ∃ (u v : ℤ[X]) (c : ℤ), c ≠ 0 ∧ u*p+v*q = C c := by
   obtain ⟨a,b,hab⟩ := hC
-  let S := nonZeroDivisors ℤ
-  let aZ := IsLocalization.integerNormalization S a
-  let bZ := IsLocalization.integerNormalization S b
-  obtain ⟨r,hr,hrMap⟩ := IsLocalization.integerNormalization_spec S a
-  obtain ⟨s,hs,hsMap⟩ := IsLocalization.integerNormalization_spec S b
-  have hr0 : r ≠ 0 := mem_nonZeroDivisors_iff_ne_zero.mp hr
-  have hs0 : s ≠ 0 := mem_nonZeroDivisors_iff_ne_zero.mp hs
-  refine ⟨C s*aZ,C r*bZ,r*s,mul_ne_zero hr0 hs0,?_⟩
+  let := Polynomial.algebra (R := ℤ) (A := ℚ)
+  let := Polynomial.isLocalization (nonZeroDivisors ℤ) ℚ
+  obtain ⟨⟨_, c, hc, rfl⟩, h⟩ :=
+    IsLocalization.exist_integer_multiples_of_finite
+      ((nonZeroDivisors ℤ).map C) ![a, b]
+  obtain ⟨u, hu⟩ := h 0
+  obtain ⟨v, hv⟩ := h 1
+  refine ⟨u, v, c, mem_nonZeroDivisors_iff_ne_zero.mp hc, ?_⟩
   apply Polynomial.map_injective (algebraMap ℤ ℚ) (FaithfulSMul.algebraMap_injective ℤ ℚ)
-  simp only [Polynomial.map_add,Polynomial.map_mul,Polynomial.map_C,aZ,bZ,hrMap,hsMap]
-  simp only [Algebra.smul_def,Polynomial.algebraMap_apply,map_mul]
+  simp only [Algebra.smul_def, Polynomial.algebraMap_def, Polynomial.coe_mapRingHom, map_C,
+    Matrix.cons_val_zero, Matrix.cons_val_one] at hu hv
+  simp only [Polynomial.map_add, Polynomial.map_mul, Polynomial.map_C, hu, hv]
   calc
-    _ = C (algebraMap ℤ ℚ r) * C (algebraMap ℤ ℚ s) *
+    _ = C (algebraMap ℤ ℚ c) *
         (a * p.map (algebraMap ℤ ℚ) + b * q.map (algebraMap ℤ ℚ)) := by ring
-    _ = _ := by rw [hab,mul_one]
+    _ = _ := by rw [hab, mul_one]
 
 private theorem integer_coprime_over_rationals {p q : ℤ[X]} (hp : p ≠ 0) (h : IsRelPrime p q) :
     IsCoprime (p.map (algebraMap ℤ ℚ)) (q.map (algebraMap ℤ ℚ)) := by
@@ -39,18 +43,11 @@ private theorem integer_coprime_over_rationals {p q : ℤ[X]} (hp : p ≠ 0) (h 
   let D : ℤ[X] := IsLocalization.integerNormalization S d
   obtain ⟨c,hc,hNorm⟩ := IsLocalization.integerNormalization_spec S d
   have hc0 : c ≠ 0 := mem_nonZeroDivisors_iff_ne_zero.mp hc
-  let cQ := algebraMap ℤ ℚ c
-  have hcQ : cQ ≠ 0 := by
-    intro hz
-    exact hc0 ((FaithfulSMul.algebraMap_injective ℤ ℚ) (by simpa [cQ] using hz))
   have hD : D.map (algebraMap ℤ ℚ) ∣ d := by
-    refine ⟨C cQ⁻¹,?_⟩
-    have hScale : D.map (algebraMap ℤ ℚ) = C cQ*d := by
-      change (IsLocalization.integerNormalization S d).map (algebraMap ℤ ℚ) = _
-      rw [hNorm,Algebra.smul_def,Polynomial.algebraMap_apply]
-    calc
-      d = (C cQ*C cQ⁻¹)*d := by rw [←map_mul,mul_inv_cancel₀ hcQ,map_one,one_mul]
-      _ = _ := by rw [hScale]; ring
+    change (IsLocalization.integerNormalization S d).map (algebraMap ℤ ℚ) ∣ d
+    rw [hNorm, Algebra.smul_def, Polynomial.algebraMap_apply]
+    exact (isUnit_C.mpr (isUnit_iff_ne_zero.mpr (by change (c : ℚ) ≠ 0; exact_mod_cast hc0))).mul_left_dvd.mpr
+      (dvd_refl d)
   have hPrim : D.primPart.map (algebraMap ℤ ℚ) ∣ d :=
     (map_dvd (Polynomial.mapRingHom (algebraMap ℤ ℚ)) D.primPart_dvd).trans hD
   have hp' : D.primPart ∣ p :=
