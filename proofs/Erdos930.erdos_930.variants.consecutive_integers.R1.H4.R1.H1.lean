@@ -66,97 +66,33 @@ theorem mem_wheelPart {P : ℕ → Bool} {n b : ℕ} (hn : 0<n) (hb : n≤b) (h 
   refine mem_image.mpr ⟨n-1,mem_filter.mpr ⟨mem_range.mpr (by omega),?_⟩,by omega⟩
   simpa [show n-1+1=n by omega] using h
 
-end Coeff930
+theorem bound (P : ℕ → Bool) (m d c e : ℕ) (hm : 0 < m) (hper : ∀ n, P (n+m)=P n)
+    (hblock : d*tally P m ≤ c*m) (hscan : scan P d c e m 0 0) (n : ℕ) :
+    d*(wheelPart P n).card ≤ c*n+e :=
+  wheelPart_card P n ▸ wheelBound P m d c e hm hper hblock hscan n
 
-namespace Coeff930
 def prLeast2 (n : ℕ) : Bool := decide (n%2 = 0)
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-theorem prLeast2Bound (n : ℕ) : 2*(wheelPart prLeast2 n).card ≤ 1*n+0 := by
-  rw [wheelPart_card]
-  apply wheelBound prLeast2 2 2 1 0 (by decide)
-  · intro n
-    simp [prLeast2, Nat.add_mod]
-  · decide +kernel
-  · decide +kernel
-
 def prLeast3 (n : ℕ) : Bool := decide (n%2 ≠ 0 ∧ n%3 = 0)
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-theorem prLeast3Bound (n : ℕ) : 6*(wheelPart prLeast3 n).card ≤ 1*n+3 := by
-  rw [wheelPart_card]
-  apply wheelBound prLeast3 6 6 1 3 (by decide)
-  · intro n
-    simp [prLeast3, Nat.add_mod]
-  · decide +kernel
-  · decide +kernel
-
 def prLeast5 (n : ℕ) : Bool := decide (n%2 ≠ 0 ∧ n%3 ≠ 0 ∧ n%5 = 0)
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-theorem prLeast5Bound (n : ℕ) : 30*(wheelPart prLeast5 n).card ≤ 2*n+20 := by
-  rw [wheelPart_card]
-  apply wheelBound prLeast5 30 30 2 20 (by decide)
-  · intro n
-    simp [prLeast5, Nat.add_mod]
-  · decide +kernel
-  · decide +kernel
-
 def prLeast7 (n : ℕ) : Bool := decide (n%2 ≠ 0 ∧ n%3 ≠ 0 ∧ n%5 ≠ 0 ∧ n%7 = 0)
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-theorem prLeast7Bound (n : ℕ) : 210*(wheelPart prLeast7 n).card ≤ 8*n+196 := by
-  rw [wheelPart_card]
-  apply wheelBound prLeast7 210 210 8 196 (by decide)
-  · intro n
-    simp [prLeast7, Nat.add_mod]
-  · decide +kernel
-  · decide +kernel
-
 def prFree210 (n : ℕ) : Bool := decide (n%2 ≠ 0 ∧ n%3 ≠ 0 ∧ n%5 ≠ 0 ∧ n%7 ≠ 0)
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-theorem prFree210Bound (n : ℕ) : 210*(wheelPart prFree210 n).card ≤ 48*n+318 := by
-  rw [wheelPart_card]
-  apply wheelBound prFree210 210 210 48 318 (by decide)
-  · intro n
-    simp [prFree210, Nat.add_mod]
-  · decide +kernel
-  · decide +kernel
-
 def prLeast11 (n : ℕ) : Bool := decide (n%2 ≠ 0 ∧ n%3 ≠ 0 ∧ n%5 ≠ 0 ∧ n%7 ≠ 0 ∧ n%11 = 0)
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-theorem prLeast11Bound (n : ℕ) : 2310*(wheelPart prLeast11 n).card ≤ 48*n+3498 := by
-  rw [wheelPart_card]
-  apply wheelBound prLeast11 2310 2310 48 3498 (by decide)
-  · intro n
-    simp [prLeast11, Nat.add_mod]
-  · decide +kernel
-  · decide +kernel
-
 def prFree2310 (n : ℕ) : Bool := decide (n%2 ≠ 0 ∧ n%3 ≠ 0 ∧ n%5 ≠ 0 ∧ n%7 ≠ 0 ∧ n%11 ≠ 0)
 
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-theorem prFree2310Bound (n : ℕ) : 2310*(wheelPart prFree2310 n).card ≤ 480*n+5820 := by
-  rw [wheelPart_card]
-  apply wheelBound prFree2310 2310 2310 480 5820 (by decide)
-  · intro n
-    simp [prFree2310, Nat.add_mod]
-  · decide +kernel
-  · decide +kernel
-
-end Coeff930
-
-namespace Coeff930
-open Finset
+def b2 := bound prLeast2 2 2 1 0 (by decide) (by simp [prLeast2, Nat.add_mod])
+  (by decide +kernel) (by decide +kernel)
+def b3 := bound prLeast3 6 6 1 3 (by decide) (by simp [prLeast3, Nat.add_mod])
+  (by decide +kernel) (by decide +kernel)
+def b5 := bound prLeast5 30 30 2 20 (by decide) (by simp [prLeast5, Nat.add_mod])
+  (by decide +kernel) (by decide +kernel)
+def b7 := bound prLeast7 210 210 8 196 (by decide) (by simp [prLeast7, Nat.add_mod])
+  (by decide +kernel) (by decide +kernel)
+def f210 := bound prFree210 210 210 48 318 (by decide) (by simp [prFree210, Nat.add_mod])
+  (by decide +kernel) (by decide +kernel)
+def b11 := bound prLeast11 2310 2310 48 3498 (by decide) (by simp [prLeast11, Nat.add_mod])
+  (by decide +kernel) (by decide +kernel)
+def f2310 := bound prFree2310 2310 2310 480 5820 (by decide)
+  (by simp [prFree2310, Nat.add_mod]) (by decide +kernel) (by decide +kernel)
 
 theorem maxFactor {V : Finset ℕ} (h1 : 1 ∈ V) {s : ℕ} (hs : 0<s) :
     ∃ u v : ℕ, 0<u ∧ 0<v ∧ v ∈ V ∧ s=u*v ∧
@@ -164,213 +100,96 @@ theorem maxFactor {V : Finset ℕ} (h1 : 1 ∈ V) {s : ℕ} (hs : 0<s) :
   classical
   let D := V.filter (· ∣ s)
   have hD : D.Nonempty := ⟨1,mem_filter.mpr ⟨h1,one_dvd _⟩⟩
-  let v := D.max' hD
   have hv := mem_filter.mp (D.max'_mem hD)
   obtain ⟨u,hu⟩ := hv.2
-  have hval : s=u*v := hu.trans (Nat.mul_comm _ _)
-  have hpos : 0 < u*v := hval ▸ hs
-  have uv := Nat.pos_of_mul_pos_right hpos
-  have vv := Nat.pos_of_mul_pos_left hpos
-  refine ⟨u,v,uv,vv,hv.1,hval,?_⟩
-  intro p hp hd hmem
-  have hdv : p*v ∣ s := hval ▸ mul_dvd_mul hd (dvd_refl v)
-  have hl := D.le_max' (p*v) (mem_filter.mpr ⟨hmem,hdv⟩)
-  change p*v ≤ v at hl
-  have := Nat.mul_lt_mul_of_pos_right hp vv
+  have hval : s=u*D.max' hD := hu.trans (Nat.mul_comm _ _)
+  have hpos : 0 < u*D.max' hD := hval ▸ hs
+  refine ⟨u,_,Nat.pos_of_mul_pos_right hpos,Nat.pos_of_mul_pos_left hpos,hv.1,hval,
+    fun p hp hd hmem => ?_⟩
+  have hl := D.le_max' (p*_) (mem_filter.mpr ⟨hmem,hval ▸ mul_dvd_mul hd (dvd_refl _)⟩)
+  have := Nat.mul_lt_mul_of_pos_right hp (Nat.pos_of_mul_pos_left hpos)
   omega
 
-end Coeff930
+/-- If the prime `p` divides `u`, maximality of `v` forces `v ≥ c`, so `u ≤ x / c`. -/
+theorem br {V : Finset ℕ} {P : ℕ → Bool} {u v x : ℕ} (c p : ℕ) (hc : 0 < c) (hp : 1 < p)
+    (hcl : ∀ v ∈ V, v < c → p*v ∈ V) (hu : 0<u) (hup : u*v ≤ x)
+    (hmax : ∀ p : ℕ, 1<p → p ∣ u → p*v ∉ V) (hV : v ∈ V) (hd : u%p=0) (hP : P u) :
+    u ∈ wheelPart P (x/c) := by
+  have hh : c ≤ v := by
+    by_contra! hlt
+    exact hmax p hp (Nat.dvd_of_mod_eq_zero hd) (hcl v hV hlt)
+  exact mem_wheelPart hu ((Nat.le_div_iff_mul_le hc).mpr ((Nat.mul_le_mul_left u hh).trans hup)) hP
 
-namespace Coeff930
-open Finset
 private def VA : Finset ℕ := ([1,2,3,4,5,6,7,8,9,10,12,14,15,16,18,20,21,24,25,27,28,30,32,35,36] : List ℕ).toFinset
 
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-private lemma closeA2 : ∀ v ∈ VA, v < 20 → 2*v ∈ VA := by
-  decide +kernel
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-private lemma closeA3 : ∀ v ∈ VA, v < 14 → 3*v ∈ VA := by
-  decide +kernel
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-private lemma closeA5 : ∀ v ∈ VA, v < 8 → 5*v ∈ VA := by
-  decide +kernel
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-private lemma closeA7 : ∀ v ∈ VA, v < 6 → 7*v ∈ VA := by
-  decide +kernel
-
-private def UA (x : ℕ) := wheelPart prLeast2 (x/20) ∪ wheelPart prLeast3 (x/14) ∪ wheelPart prLeast5 (x/8) ∪ wheelPart prLeast7 (x/6) ∪ wheelPart prFree210 (x/1)
+private def UA (x : ℕ) := wheelPart prLeast2 (x/20) ∪ wheelPart prLeast3 (x/14) ∪ wheelPart prLeast5 (x/8) ∪ wheelPart prLeast7 (x/6) ∪ wheelPart prFree210 x
 
 theorem coverA (x s : ℕ) (hs : 0 < s) (hx : s ≤ x) : ∃ u ∈ UA x, ∃ v ∈ VA, s=u*v := by
   obtain ⟨u,v,hu,hv,hV,he,hmax⟩ := maxFactor (V := VA) (by decide) hs
   refine ⟨u, ?_, v,hV,he⟩
   have hup : u*v ≤ x := he ▸ hx
+  simp only [UA,Finset.mem_union]
   by_cases h2 : u%2=0
-  · have hd := Nat.dvd_of_mod_eq_zero h2
-    have hh : 20 ≤ v := by
-      by_contra! hlt
-      exact hmax 2 (by decide) hd (closeA2 v hV hlt)
-    have hle : u ≤ x/20 := (Nat.le_div_iff_mul_le (by decide)).mpr ((Nat.mul_le_mul_left u hh).trans hup)
-    have hmem : u ∈ wheelPart prLeast2 (x/20) := mem_wheelPart hu hle (by simp [prLeast2,h2])
-    simp only [UA,Finset.mem_union]
+  · have := br 20 2 (by decide) (by decide) (by decide +kernel) hu hup hmax hV h2 (P := prLeast2) (by simp [prLeast2,h2])
     tauto
   by_cases h3 : u%3=0
-  · have hd := Nat.dvd_of_mod_eq_zero h3
-    have hh : 14 ≤ v := by
-      by_contra! hlt
-      exact hmax 3 (by decide) hd (closeA3 v hV hlt)
-    have hle : u ≤ x/14 := (Nat.le_div_iff_mul_le (by decide)).mpr ((Nat.mul_le_mul_left u hh).trans hup)
-    have hmem : u ∈ wheelPart prLeast3 (x/14) := mem_wheelPart hu hle (by simp [prLeast3,h2,h3])
-    simp only [UA,Finset.mem_union]
+  · have := br 14 3 (by decide) (by decide) (by decide +kernel) hu hup hmax hV h3 (P := prLeast3) (by simp [prLeast3,h2,h3])
     tauto
   by_cases h5 : u%5=0
-  · have hd := Nat.dvd_of_mod_eq_zero h5
-    have hh : 8 ≤ v := by
-      by_contra! hlt
-      exact hmax 5 (by decide) hd (closeA5 v hV hlt)
-    have hle : u ≤ x/8 := (Nat.le_div_iff_mul_le (by decide)).mpr ((Nat.mul_le_mul_left u hh).trans hup)
-    have hmem : u ∈ wheelPart prLeast5 (x/8) := mem_wheelPart hu hle (by simp [prLeast5,h2,h3,h5])
-    simp only [UA,Finset.mem_union]
+  · have := br 8 5 (by decide) (by decide) (by decide +kernel) hu hup hmax hV h5 (P := prLeast5) (by simp [prLeast5,h2,h3,h5])
     tauto
   by_cases h7 : u%7=0
-  · have hd := Nat.dvd_of_mod_eq_zero h7
-    have hh : 6 ≤ v := by
-      by_contra! hlt
-      exact hmax 7 (by decide) hd (closeA7 v hV hlt)
-    have hle : u ≤ x/6 := (Nat.le_div_iff_mul_le (by decide)).mpr ((Nat.mul_le_mul_left u hh).trans hup)
-    have hmem : u ∈ wheelPart prLeast7 (x/6) := mem_wheelPart hu hle (by simp [prLeast7,h2,h3,h5,h7])
-    simp only [UA,Finset.mem_union]
+  · have := br 6 7 (by decide) (by decide) (by decide +kernel) hu hup hmax hV h7 (P := prLeast7) (by simp [prLeast7,h2,h3,h5,h7])
     tauto
-  have hle : u ≤ x/1 := by simpa using (Nat.le_mul_of_pos_right u hv).trans hup
-  have hmem : u ∈ wheelPart prFree210 (x/1) := mem_wheelPart hu hle (by simp [prFree210,h2,h3,h5,h7])
-  simp only [UA,Finset.mem_union]
+  have := mem_wheelPart (P := prFree210) hu (by simpa using (Nat.le_mul_of_pos_right u hv).trans hup) (by simp [prFree210,h2,h3,h5,h7])
   tauto
 
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
 theorem sizeA (x : ℕ) : 1260 * (UA x).card ≤ 353*x+5040 := by
-  have h0 := prLeast2Bound (x/20)
-  have h1 := prLeast3Bound (x/14)
-  have h2 := prLeast5Bound (x/8)
-  have h3 := prLeast7Bound (x/6)
-  have h4 := prFree210Bound (x/1)
-  have total : (UA x).card ≤ (wheelPart prLeast2 (x/20)).card + (wheelPart prLeast3 (x/14)).card + (wheelPart prLeast5 (x/8)).card + (wheelPart prLeast7 (x/6)).card + (wheelPart prFree210 (x/1)).card := by
-    dsimp only [UA]
-    refine (Finset.card_union_le _ _).trans (Nat.add_le_add_right ?_ _)
-    refine (Finset.card_union_le _ _).trans (Nat.add_le_add_right ?_ _)
-    refine (Finset.card_union_le _ _).trans (Nat.add_le_add_right ?_ _)
-    exact Finset.card_union_le _ _
+  have := b2 (x/20)
+  have := b3 (x/14)
+  have := b5 (x/8)
+  have := b7 (x/6)
+  have := f210 x
+  have : (UA x).card ≤ (wheelPart prLeast2 (x/20)).card + (wheelPart prLeast3 (x/14)).card + (wheelPart prLeast5 (x/8)).card + (wheelPart prLeast7 (x/6)).card + (wheelPart prFree210 x).card :=
+    (card_union_le _ _).trans (Nat.add_le_add_right ((card_union_le _ _).trans (Nat.add_le_add_right ((card_union_le _ _).trans (Nat.add_le_add_right (card_union_le _ _) _)) _)) _)
   omega
 
-end Coeff930
-
-namespace Coeff930
-open Finset
 private def VB : Finset ℕ := ([1,2,3,4,5,6,7,8,9,10,11,12,14,15,16,18,20,21,22,24,25,27,28,30,32,33,35,36,40,42,44,45,48,49,50,54,55,56,60,63,64,66,70,72,75,77,80,81,84,88,90,96,98,99,100] : List ℕ).toFinset
 
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-private lemma closeB2 : ∀ v ∈ VB, v < 54 → 2*v ∈ VB := by
-  decide +kernel
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-private lemma closeB3 : ∀ v ∈ VB, v < 35 → 3*v ∈ VB := by
-  decide +kernel
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-private lemma closeB5 : ∀ v ∈ VB, v < 21 → 5*v ∈ VB := by
-  decide +kernel
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-private lemma closeB7 : ∀ v ∈ VB, v < 15 → 7*v ∈ VB := by
-  decide +kernel
-
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
-private lemma closeB11 : ∀ v ∈ VB, v < 10 → 11*v ∈ VB := by
-  decide +kernel
-
-private def UB (x : ℕ) := wheelPart prLeast2 (x/54) ∪ wheelPart prLeast3 (x/35) ∪ wheelPart prLeast5 (x/21) ∪ wheelPart prLeast7 (x/15) ∪ wheelPart prLeast11 (x/10) ∪ wheelPart prFree2310 (x/1)
+private def UB (x : ℕ) := wheelPart prLeast2 (x/54) ∪ wheelPart prLeast3 (x/35) ∪ wheelPart prLeast5 (x/21) ∪ wheelPart prLeast7 (x/15) ∪ wheelPart prLeast11 (x/10) ∪ wheelPart prFree2310 x
 
 theorem coverB (x s : ℕ) (hs : 0 < s) (hx : s ≤ x) : ∃ u ∈ UB x, ∃ v ∈ VB, s=u*v := by
   obtain ⟨u,v,hu,hv,hV,he,hmax⟩ := maxFactor (V := VB) (by decide) hs
   refine ⟨u, ?_, v,hV,he⟩
   have hup : u*v ≤ x := he ▸ hx
+  simp only [UB,Finset.mem_union]
   by_cases h2 : u%2=0
-  · have hd := Nat.dvd_of_mod_eq_zero h2
-    have hh : 54 ≤ v := by
-      by_contra! hlt
-      exact hmax 2 (by decide) hd (closeB2 v hV hlt)
-    have hle : u ≤ x/54 := (Nat.le_div_iff_mul_le (by decide)).mpr ((Nat.mul_le_mul_left u hh).trans hup)
-    have hmem : u ∈ wheelPart prLeast2 (x/54) := mem_wheelPart hu hle (by simp [prLeast2,h2])
-    simp only [UB,Finset.mem_union]
+  · have := br 54 2 (by decide) (by decide) (by decide +kernel) hu hup hmax hV h2 (P := prLeast2) (by simp [prLeast2,h2])
     tauto
   by_cases h3 : u%3=0
-  · have hd := Nat.dvd_of_mod_eq_zero h3
-    have hh : 35 ≤ v := by
-      by_contra! hlt
-      exact hmax 3 (by decide) hd (closeB3 v hV hlt)
-    have hle : u ≤ x/35 := (Nat.le_div_iff_mul_le (by decide)).mpr ((Nat.mul_le_mul_left u hh).trans hup)
-    have hmem : u ∈ wheelPart prLeast3 (x/35) := mem_wheelPart hu hle (by simp [prLeast3,h2,h3])
-    simp only [UB,Finset.mem_union]
+  · have := br 35 3 (by decide) (by decide) (by decide +kernel) hu hup hmax hV h3 (P := prLeast3) (by simp [prLeast3,h2,h3])
     tauto
   by_cases h5 : u%5=0
-  · have hd := Nat.dvd_of_mod_eq_zero h5
-    have hh : 21 ≤ v := by
-      by_contra! hlt
-      exact hmax 5 (by decide) hd (closeB5 v hV hlt)
-    have hle : u ≤ x/21 := (Nat.le_div_iff_mul_le (by decide)).mpr ((Nat.mul_le_mul_left u hh).trans hup)
-    have hmem : u ∈ wheelPart prLeast5 (x/21) := mem_wheelPart hu hle (by simp [prLeast5,h2,h3,h5])
-    simp only [UB,Finset.mem_union]
+  · have := br 21 5 (by decide) (by decide) (by decide +kernel) hu hup hmax hV h5 (P := prLeast5) (by simp [prLeast5,h2,h3,h5])
     tauto
   by_cases h7 : u%7=0
-  · have hd := Nat.dvd_of_mod_eq_zero h7
-    have hh : 15 ≤ v := by
-      by_contra! hlt
-      exact hmax 7 (by decide) hd (closeB7 v hV hlt)
-    have hle : u ≤ x/15 := (Nat.le_div_iff_mul_le (by decide)).mpr ((Nat.mul_le_mul_left u hh).trans hup)
-    have hmem : u ∈ wheelPart prLeast7 (x/15) := mem_wheelPart hu hle (by simp [prLeast7,h2,h3,h5,h7])
-    simp only [UB,Finset.mem_union]
+  · have := br 15 7 (by decide) (by decide) (by decide +kernel) hu hup hmax hV h7 (P := prLeast7) (by simp [prLeast7,h2,h3,h5,h7])
     tauto
   by_cases h11 : u%11=0
-  · have hd := Nat.dvd_of_mod_eq_zero h11
-    have hh : 10 ≤ v := by
-      by_contra! hlt
-      exact hmax 11 (by decide) hd (closeB11 v hV hlt)
-    have hle : u ≤ x/10 := (Nat.le_div_iff_mul_le (by decide)).mpr ((Nat.mul_le_mul_left u hh).trans hup)
-    have hmem : u ∈ wheelPart prLeast11 (x/10) := mem_wheelPart hu hle (by simp [prLeast11,h2,h3,h5,h7,h11])
-    simp only [UB,Finset.mem_union]
+  · have := br 10 11 (by decide) (by decide) (by decide +kernel) hu hup hmax hV h11 (P := prLeast11) (by simp [prLeast11,h2,h3,h5,h7,h11])
     tauto
-  have hle : u ≤ x/1 := by simpa using (Nat.le_mul_of_pos_right u hv).trans hup
-  have hmem : u ∈ wheelPart prFree2310 (x/1) := mem_wheelPart hu hle (by simp [prFree2310,h2,h3,h5,h7,h11])
-  simp only [UB,Finset.mem_union]
+  have := mem_wheelPart (P := prFree2310) hu (by simpa using (Nat.le_mul_of_pos_right u hv).trans hup) (by simp [prFree2310,h2,h3,h5,h7,h11])
   tauto
 
-set_option maxRecDepth 18000 in
-set_option maxHeartbeats 4000000 in
 theorem sizeB (x : ℕ) : 41580 * (UB x).card ≤ 9547*x+291060 := by
-  have h0 := prLeast2Bound (x/54)
-  have h1 := prLeast3Bound (x/35)
-  have h2 := prLeast5Bound (x/21)
-  have h3 := prLeast7Bound (x/15)
-  have h4 := prLeast11Bound (x/10)
-  have h5 := prFree2310Bound (x/1)
-  have total : (UB x).card ≤ (wheelPart prLeast2 (x/54)).card + (wheelPart prLeast3 (x/35)).card + (wheelPart prLeast5 (x/21)).card + (wheelPart prLeast7 (x/15)).card + (wheelPart prLeast11 (x/10)).card + (wheelPart prFree2310 (x/1)).card := by
-    dsimp only [UB]
-    refine (Finset.card_union_le _ _).trans (Nat.add_le_add_right ?_ _)
-    refine (Finset.card_union_le _ _).trans (Nat.add_le_add_right ?_ _)
-    refine (Finset.card_union_le _ _).trans (Nat.add_le_add_right ?_ _)
-    refine (Finset.card_union_le _ _).trans (Nat.add_le_add_right ?_ _)
-    exact Finset.card_union_le _ _
+  have := b2 (x/54)
+  have := b3 (x/35)
+  have := b5 (x/21)
+  have := b7 (x/15)
+  have := b11 (x/10)
+  have := f2310 x
+  have : (UB x).card ≤ (wheelPart prLeast2 (x/54)).card + (wheelPart prLeast3 (x/35)).card + (wheelPart prLeast5 (x/21)).card + (wheelPart prLeast7 (x/15)).card + (wheelPart prLeast11 (x/10)).card + (wheelPart prFree2310 x).card :=
+    (card_union_le _ _).trans (Nat.add_le_add_right ((card_union_le _ _).trans (Nat.add_le_add_right ((card_union_le _ _).trans (Nat.add_le_add_right ((card_union_le _ _).trans (Nat.add_le_add_right (card_union_le _ _) _)) _)) _)) _)
   omega
 
 end Coeff930
@@ -382,11 +201,10 @@ theorem OMA.solution : OMA.R_Erdos930_erdos_930_variants_consecutive_integers_R1
   constructor
   · refine ⟨UA x,VA,coverA x,?_⟩
     have hc : VA.card.choose 2 = 300 := by decide +kernel
-    rw [hc]
     have := sizeA x
     omega
   · refine ⟨UB x,VB,coverB x,?_⟩
     have hc : VB.card.choose 2 = 1485 := by decide +kernel
-    rw [hc]
     have := sizeB x
     omega
+
