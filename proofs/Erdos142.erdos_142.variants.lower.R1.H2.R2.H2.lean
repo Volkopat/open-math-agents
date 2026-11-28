@@ -1,67 +1,49 @@
 import OMAReductions.R_Erdos142_erdos_142_variants_lower_R1_H2_R2
 
-/-! Each target x+N has exactly |S| covering shifts: they form the reflected
-copy x+N−S inside [0,2N). Count the tuples missing a point by taking a union
-of Cartesian powers of these complements. -/
+/-! Shorter proof of step H2 of Erdos142.erdos_142.variants.lower.R1.H2.R2:
+for each x in [1, N], the shifts in [0, 2N) missing x + N are [0, 2N) \ (x + N - S),
+of size 2N - |S|. A union bound over q-tuples of shifts yields a covering tuple. -/
+-- Original lineage: #5279, #32350, #36899; shorter tuple counting by @0xa2d in #38387.
+-- Combines that argument with the direct logarithmic estimate from #37537.
 
-open Finset
 
-private theorem union_threshold (N q s : ℕ) (hN : 0 < N) (hs : s ≤ N)
-    (h : 2*(N:ℝ)*Real.log N < q*s) : N*(2*N-s)^q < (2*N)^q := by
-  let D : ℝ := 2*N
-  have hD : 0 < D := by dsimp [D]; positivity
-  have hx : ((2*N-s : ℕ) : ℝ) / D ≤ Real.exp (-(s:ℝ)/D) := by
-    rw [Nat.cast_sub (by omega), Nat.cast_mul, Nat.cast_ofNat]
-    change (D-s)/D ≤ _
-    rw [sub_div, div_self hD.ne']
-    rw [neg_div]
-    linarith [Real.add_one_le_exp (-((s:ℝ)/D))]
-  have hq : Real.log N + q*(-(s:ℝ)/D) < 0 := by
-    have ht : Real.log N < q*(s:ℝ)/D := (lt_div_iff₀ hD).mpr (by dsimp [D]; linarith)
-    rw [neg_div, mul_neg, ← sub_eq_add_neg, ← mul_div_assoc]
-    exact sub_neg.mpr ht
-  have hratio : (N:ℝ)*(((2*N-s:ℕ):ℝ)/D)^q < 1 := calc
-    _ ≤ (N:ℝ)*Real.exp (-(s:ℝ)/D)^q := by gcongr
-    _ = Real.exp (Real.log N + q*(-(s:ℝ)/D)) := by
-      rw [Real.exp_add, Real.exp_log (by exact_mod_cast hN), Real.exp_nat_mul]
-    _ < 1 := Real.exp_lt_one_iff.mpr hq
-  rw [div_pow, ← mul_div_assoc, div_lt_one (pow_pos hD q)] at hratio
-  dsimp [D] at hratio
-  exact_mod_cast hratio
-
+open Finset Real in
 theorem OMA.solution : OMA.R_Erdos142_erdos_142_variants_lower_R1_H2_R2.H2 := by
   intro N q S hN _ hS h
-  let shifts := range (2*N)
-  let good (x : ℕ) := S.image (fun b => x+N-b)
-  let bad (x : ℕ) := Fintype.piFinset (fun _ : Fin q => shifts \ good x)
-  let allShifts := Fintype.piFinset (fun _ : Fin q => shifts)
-  have hcard (x) (hx : x ∈ Icc 1 N) : (bad x).card = (2*N-S.card)^q := by
-    have hsub : good x ⊆ shifts := by
-      rintro _ hu
-      obtain ⟨b, hb, rfl⟩ := mem_image.mp hu
-      have := mem_Icc.mp (hS hb)
-      have := mem_Icc.mp hx
-      exact mem_range.mpr (by omega)
-    have hgood : (good x).card = S.card := by
-      apply card_image_of_injOn
-      intro b hb c hc he
-      have := mem_Icc.mp (hS hb)
-      have := mem_Icc.mp (hS hc)
-      dsimp at he
-      omega
-    simp [bad, card_sdiff_of_subset hsub, hgood, shifts]
-  have hfewer : ((Icc 1 N).biUnion bad).card < allShifts.card := calc
-    _ ≤ ∑ x ∈ Icc 1 N, (bad x).card := card_biUnion_le
-    _ = N*(2*N-S.card)^q := by rw [sum_const_nat hcard]; simp
-    _ < (2*N)^q := union_threshold N q _ hN (by simpa using card_le_card hS) h
-    _ = _ := by simp [allShifts, shifts]
-  obtain ⟨f, hf, hnot⟩ := exists_mem_notMem_of_card_lt_card hfewer
+  have hs : S.card ≤ N := by simpa using card_le_card hS
+  have hlt : N * (2 * N - S.card) ^ q < (2 * N) ^ q := by
+    have hNr : (0 : ℝ) < N := by exact_mod_cast hN
+    have hsr : (S.card : ℝ) ≤ N := by exact_mod_cast hs
+    have hm : (0 : ℝ) < 2 * N := by positivity
+    have hd : (0 : ℝ) < 2 * N - S.card := by linarith
+    rw [← Nat.cast_lt (α := ℝ)]
+    push_cast [Nat.cast_sub (by omega : S.card ≤ 2*N)]
+    apply (log_lt_log_iff (by positivity) (by positivity)).mp
+    rw [log_mul hNr.ne' (pow_pos hd q).ne', log_pow, log_pow]
+    apply (mul_lt_mul_iff_right₀ hm).mp
+    have hb := log_le_sub_one_of_pos (div_pos hd hm)
+    rw [log_div hd.ne' hm.ne', le_sub_iff_add_le, le_div_iff₀ hm] at hb
+    nlinarith [mul_le_mul_of_nonneg_left hb (Nat.cast_nonneg q)]
+  let A x := range (2 * N) \ S.image (x + N - ·)
+  let P (B : Finset ℕ) := Fintype.piFinset fun _ : Fin q => B
+  have hU : ((Icc 1 N).biUnion (P ∘ A)).card < (P (range (2 * N))).card := calc
+    _ ≤ (Icc 1 N).card * (2 * N - S.card) ^ q :=
+      card_biUnion_le_card_mul _ _ _ fun x hx => by
+        have := mem_Icc.mp hx
+        have hsub : S.image (x + N - ·) ⊆ range (2 * N) :=
+          image_subset_iff.mpr fun b hb => by
+            have := mem_Icc.mp (hS hb)
+            exact mem_range.mpr (by omega)
+        have hcard : (S.image (x + N - ·)).card = S.card :=
+          card_image_of_injOn fun b hb b' hb' e => by
+            have := mem_Icc.mp (hS hb); have := mem_Icc.mp (hS hb'); omega
+        simp [P, A, card_sdiff_of_subset hsub, hcard]
+    _ < _ := by simpa [P] using hlt
+  obtain ⟨f, hf, hfu⟩ := exists_mem_notMem_of_card_lt_card hU
   refine ⟨f, fun x hx => ?_⟩
-  have hmiss : f ∉ bad x := fun hfx => hnot (mem_biUnion.mpr ⟨x, hx, hfx⟩)
-  obtain ⟨i, hi⟩ := not_forall.mp (mt Fintype.mem_piFinset.mpr hmiss)
-  have hit : f i ∈ good x := by
-    by_contra hbad
-    exact hi (mem_sdiff.mpr ⟨Fintype.mem_piFinset.mp hf i, hbad⟩)
-  obtain ⟨b, hb, he⟩ := mem_image.mp hit
+  simp only [P, mem_biUnion, Function.comp_apply, Fintype.mem_piFinset,
+    not_exists, not_and, not_forall] at hf hfu
+  obtain ⟨t, ht⟩ := hfu x hx
+  obtain ⟨b, hb, e⟩ := mem_image.mp (by simpa [A, hf t] using ht)
   have := mem_Icc.mp (hS hb)
-  exact ⟨i, b, hb, by omega⟩
+  exact ⟨t, b, hb, by omega⟩
