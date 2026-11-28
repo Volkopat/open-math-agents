@@ -23633,6 +23633,31 @@
     "https://www.openproblemgarden.org/op/the_bermond_thomassen_conjecture"
    ],
    "reason": "The 'disproof' takes the empty digraph on Empty: the out-degree hypothesis holds vacuously, but k=1 disjoint cycles cannot exist. This exploits a degenerate empty object the source never intends (a digraph with minimum out-degree >= 2k-1 is nonempty), so it says nothing about the open conjecture. The statement needed Nonempty V."
+  },
+  "mo-408662": {
+   "date": "2026-11-28",
+   "pr": 33046,
+   "evidence": [
+    "https://mathoverflow.net/questions/408662"
+   ],
+   "reason": "The source is an open-ended question (how do the singular values of a cyclic Hankel matrix change when the sampling rate doubles, and are there bounds?). The statement substitutes its own answer made of classical facts: singular values of a circulant-type Hankel matrix are |DFT| values, the Danielson-Lanczos even/odd split with triangle bounds, and polynomial interpolation to show no bound in general. It is a self-chosen formalization of an unformalized question, not a resolution."
+  },
+  "mo-316142": {
+   "date": "2026-11-28",
+   "pr": 33025,
+   "evidence": [
+    "https://mathoverflow.net/questions/316142",
+    "https://mathoverflow.net/questions/316143"
+   ],
+   "reason": "The disproof takes n = 2, F = Z/5, A = {0,1,2}: S(A) = {0,1,2,4} has 4 elements against the bound 5. The bound already fails at n = 2 over Q (A = {1,2,3} gives {4,5,7,8}), so the n = 2 case of Sun's formula is a slip. In the companion question 316143, posted an hour later, Sun states the general version only for n >= 3. The disproof exploits that edge case; the substantive conjecture (n >= 3) is untouched."
+  },
+  "oeis-a326397": {
+   "date": "2026-11-28",
+   "pr": 14994,
+   "evidence": [
+    "https://oeis.org/A326397"
+   ],
+   "reason": "The entry prints two incompatible formulas for T(n,n-3): a cubic 'conjectured' and a quartic 'for n>4'. The first is evidently a mislabelled T(n,n-2) formula. The statement keeps both in one conjunction, and the disproof only shows they disagree at n = 5 (h.2.1 5 vs h.2.2 5). It exploits a printed index slip and settles nothing about the seating counts or the row-mean conjecture."
   }
  },
  "known": {
@@ -44844,6 +44869,116 @@
     "https://mathoverflow.net/questions/404448"
    ],
    "reason": "The question's comments already settle it. One applies the Kuratowski-Ryll-Nardzewski measurable selection theorem to the closed multimap M -> {(U,D,V): M=UDV*}; another takes continuous local SVDs on a locally finite cover and picks the first chart. The site proof is a measurable selection (least Cantor code in each compact fiber), i.e. the suggested argument. The statement is faithful: Borel-measurable F giving unitary, nonnegative real rectangular diagonal and unitary factors, all dimensions including 0."
+  },
+  "oeis-a301310": {
+   "date": "2026-11-28",
+   "pr": 33101,
+   "evidence": [
+    "https://oeis.org/A301310",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S3/ArithSums/HannaA301310Divisibility.lean"
+   ],
+   "reason": "Hanna's conjecture (a(m) divisible by 10 for m>0) was proved sorry-free in trureturing (HannaA301310Divisibility.lean, theorem result, file first committed 2026-11-05; admission note 'open-problem-resolution (#21832; Proved)'). The site proof was merged 2026-11-28. Statement faithful (HasSum of the coefficient series equals 10k)."
+  },
+  "oeis-a027182": {
+   "date": "2026-11-28",
+   "pr": 33086,
+   "evidence": [
+    "https://oeis.org/A027182",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S1/Recurrence/MatharA027182SelfConvolution.lean"
+   ],
+   "reason": "Mathar's recurrence for the self-convolution of A027170 rows is proved sorry-free in trureturing (MatharA027182SelfConvolution.lean, theorem result; same t, T and the identical recurrence for n>=6; first committed 2026-10-31). The site proof came 2026-11-28."
+  },
+  "oeis-a027179": {
+   "date": "2026-11-28",
+   "pr": 33077,
+   "evidence": [
+    "https://oeis.org/A027179",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S1/Recurrence/MatharA027182HalfRow.lean"
+   ],
+   "reason": "The half-row-sum recurrence is proved sorry-free in trureturing (MatharA027182HalfRow.lean, theorem half_row_recurrence, b n = sum_{k<=n/2} T(n,k), docstring names OEIS A027179; identical seven-term recurrence for n>=6; first committed 2026-11-19). Site proof 2026-11-28. Not found by A-number list because the file is named after A027182."
+  },
+  "oeis-a001722": {
+   "date": "2026-11-28",
+   "pr": 33058,
+   "evidence": [
+    "https://oeis.org/A001722",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S3/Combinatorics/BinomialBases/MatharA001722.lean"
+   ],
+   "reason": "Mathar's recurrence for the Crstici signed Stirling sum is proved sorry-free in trureturing (MatharA001722.lean, theorem result covers the same recurrence for n>=3 and D-finiteness; first committed 2026-11-08). Site proof 2026-11-27."
+  },
+  "mo-302956": {
+   "date": "2026-11-28",
+   "pr": 33084,
+   "evidence": [
+    "https://mathoverflow.net/questions/302956"
+   ],
+   "reason": "The 'if' direction is refuted by the counterexample n=3, x=(9,2,2), y=(6,6,1), given by Darij Grinberg in a comment under the question (2018); the site statement itself cites that comment. The Lean file only checks this known counterexample."
+  },
+  "oeis-a400825": {
+   "date": "2026-11-28",
+   "pr": 33080,
+   "evidence": [
+    "https://oeis.org/A400825",
+    "https://mathrelated.co.uk/index.php/2026/10/05/type-1-plus-4-proving-prime/",
+    "https://math.stackexchange.com/questions/5151272"
+   ],
+   "reason": "Statement faithful (only the sufficiency direction). The conjecture's author, Gary Wright, says in the blog post linked from the entry (Oct 2026) that this direction is proved by adapting N. Skirrow's Sept 2026 proof (replace k+2 by k+3). His MSE question 5151272 sketches the same Pocklington bound p > 2^(k+j-1), N < 2^(2k+j). The site proof is that standard order-of-2 argument."
+  },
+  "oeis-a104896": {
+   "date": "2026-11-28",
+   "pr": 15017,
+   "evidence": [
+    "https://oeis.org/A104896",
+    "https://oeis.org/A029858",
+    "https://oeis.org/A052379"
+   ],
+   "reason": "Wajnberg's conjecture that 7+7^2+...+7^n numbers below 10^n avoid the digits 0,1,2 is the standard count of n-digit words over a 7-letter alphabet. The same Wajnberg conjecture for another digit set is marked 'easily verified to be true' in sister A029858, and A052379 has the analogue. Folklore-trivial; the statement is faithful."
+  },
+  "mo-76624": {
+   "date": "2026-11-28",
+   "pr": 33057,
+   "evidence": [
+    "https://mathoverflow.net/questions/76624",
+    "https://mathoverflow.net/a/76647"
+   ],
+   "reason": "The implication is refuted in the source: Anthony Quas's comment gives the random-interval indicator counterexample, and Jeff Schenker's answer gives a tent-function counterexample (even under the edited modulus condition). The site disproof formalizes this known negative answer."
+  },
+  "mo-459055": {
+   "date": "2026-11-28",
+   "pr": 33048,
+   "evidence": [
+    "https://mathoverflow.net/questions/459055",
+    "https://mathoverflow.net/a/459089"
+   ],
+   "reason": "The law is given in the source. Answer 459089, with the comment's correction swapping d0 and L-d0, says d0 - H(new) is a difference of independent Bernoulli(mu) and Bernoulli(mu/(k-1)) sums. The Lean statement is exactly that law written as a generating polynomial. Routine."
+  },
+  "mo-195973": {
+   "date": "2026-11-28",
+   "pr": 33016,
+   "evidence": [
+    "https://mathoverflow.net/questions/195973",
+    "https://mathoverflow.net/a/195983"
+   ],
+   "reason": "The answer in the source (2015) shows c = 1 cannot be improved: for a fair coin flip, E|X-X'| = E|X-m| = 1/2 for every median m. The site disproof formalizes that answer."
+  },
+  "mo-380394": {
+   "date": "2026-11-28",
+   "pr": 16411,
+   "evidence": [
+    "https://mathoverflow.net/questions/380394",
+    "https://mathoverflow.net/a/392530"
+   ],
+   "reason": "The source's answer (Max Alekseyev, 2021) already gives the smallest counterexample n = 30 (nu_2(w_30) = 10, while 2s(31)-3 = 7). The site disproof reproves this known negative answer."
+  },
+  "oeis-a005243": {
+   "date": "2026-11-28",
+   "pr": 17492,
+   "evidence": [
+    "https://oeis.org/A005243",
+    "https://cs.uwaterloo.ca/journals/JIS/VOL29/Tang/tang14.html",
+    "https://arxiv.org/abs/2603.09939"
+   ],
+   "reason": "That Hofstadter's consecutive-sum sequence omits infinitely many positive integers was proved by Quanyu Tang (arXiv:2603.09939, Mar 2026; JIS 29 (2026) Art. 26.6.1). The site proof file itself cites this, giving a quantitative version (a missing integer in (K, 8(K+2)^4]). Statement faithful."
   }
  },
  "reviewed": "2026-11-28"
