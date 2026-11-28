@@ -23502,6 +23502,55 @@
     "https://oeis.org/A114213"
    ],
    "reason": "True but trivial: column 0 of the triangle is all ones by definition (T(n,0)=C(0,0)C(n,0) mod 2 = 1), so M e_0 = 1 and M^{-1}1 = e_0, i.e. the inverse row sums are 0^n; the diagonal is 1, so M is invertible. The statement follows directly from the definition."
+  },
+  "oeis-a126693": {
+   "date": "2026-11-28",
+   "pr": 33631,
+   "evidence": [
+    "https://oeis.org/A126693"
+   ],
+   "reason": "The 'conjecture' is the entry's remark that the last term is a(254)=9941 for primes p with 10000-p prime. This is a finite computation: the entry is keyword fini,full and Johnston's b-file lists all 254 terms. The proof is a decide-style finite check. Trivial: it restates data that is already complete, not an open problem."
+  },
+  "oeis-a216151": {
+   "date": "2026-11-28",
+   "pr": 23174,
+   "evidence": [
+    "https://oeis.org/A216151",
+    "https://oeis.org/A057194"
+   ],
+   "reason": "Perry's conjecture a(n) > A057194(n) for n>1, where both sequences obey the same monotone recurrence a(n+1)=prod*sum with a(2)=2 > b(2)=1. It follows from the definitions by a two-line induction (termwise b<=a, positivity, strict at n=2 propagates). Faithful, but trivial."
+  },
+  "oeis-a252505": {
+   "date": "2026-11-28",
+   "pr": 33590,
+   "evidence": [
+    "https://oeis.org/A252505"
+   ],
+   "reason": "The site statement a(n)=A000005(A058035(n)) is one of Karttunen's Sequence Machine formulas that the entry does NOT mark as conjectured (only the A018892*A378214 convolution is marked '[Conjectured]'; trureturing proves that other one). It follows at once from the entry's 'multiplicative with a(p^e)=min(e,3)+1'. Not an open problem; trivial."
+  },
+  "oeis-a277273": {
+   "date": "2026-11-28",
+   "pr": 22951,
+   "evidence": [
+    "https://oeis.org/A277273"
+   ],
+   "reason": "The formalized 'claim' is R. Israel's remark that if p, p+2, 3p+2, 3p+8 are prime then (p+2)(3p+2) is a term, plus membership of the eight listed numbers. The statement itself notes this is a remark, not a conjecture. It is two lines of algebra: d(k)=4, k-4=p(3p+8), and both sigmas equal 3(p+1)(p+3); the rest is a finite check. The Dickson-conditional infinitude is not formalized. Trivial, not an open problem."
+  },
+  "oeis-a087554": {
+   "date": "2026-11-28",
+   "pr": 30397,
+   "evidence": [
+    "https://oeis.org/A087554"
+   ],
+   "reason": "The statement bundles conjecture (1) a(n)<2n (primes = 1 mod n in [n^2+1, 2n^2], a substantive open Linnik-type claim) with conjecture (2), and the disproof refutes only (2), at the degenerate case n=2, r=3, where the open interval (6,8) has the single candidate S=7 and 15 is composite. (2) is false in every reading (for each fixed n, CRT gives intervals with no such S), but the counted 'solve' leaves the substantive conjecture (1) untouched. The formalizer also chose n>=2 to avoid the empty interval at n=1."
+  },
+  "wp-zarankiewicz-problem": {
+   "date": "2026-11-28",
+   "pr": 33536,
+   "evidence": [
+    "https://en.wikipedia.org/wiki/Zarankiewicz_problem"
+   ],
+   "reason": "The statement only formalizes the definition of z(m,n;s,t) as an attained maximum (the actual problem, a formula or asymptotics, is not formalized). The 'disproof' uses the degenerate parameters s=t=0: every graph contains K_{0,0}, so the K_{0,0}-free set is empty, sSup of the empty set is the junk value 0, and 'attained' fails. Definitional statement plus degenerate-parameter/junk-value loophole; nothing about the Zarankiewicz problem is settled."
   }
  },
  "known": {
@@ -43975,6 +44024,153 @@
     "https://github.com/the-omega-institute/trureturing/blob/main/D5/S3/Arith/Primes/MurthyA087372ExponentRefutation.lean"
    ],
    "reason": "trureturing MurthyA087372ExponentRefutation.lean (added 2026-11-15) refutes the boundedness via large prime gaps. Fidelity slip: the site's a(n)=sInf{k : 3^k+2n prime} allows k=0 (gives a(1)=0, but the data has a(1)=1, and a(3)=0 means 'none'), whereas the entry uses k>=1; the refutation holds either way."
+  },
+  "oeis-a321575": {
+   "date": "2026-11-28",
+   "pr": 33677,
+   "evidence": [
+    "https://oeis.org/A321575",
+    "https://github.com/thatnealpatel/proofs/blob/main/Proofs/NumberComplexity/A321575LeastComposite.lean"
+   ],
+   "reason": "Israel's conjecture that the only non-squarefree terms are 4, 9, 49 is stated faithfully (n from 0, ZMod subtraction). But thatnealpatel/proofs already has a complete Lean proof of exactly this (Proofs/NumberComplexity/A321575LeastComposite.lean, finite certificate with 20 witness composites), present in our tree snapshot taken 2026-11-28 13:47 UTC, before the site proof commit (15:11 UTC)."
+  },
+  "mo-485411": {
+   "date": "2026-11-28",
+   "pr": 33672,
+   "evidence": [
+    "https://mathoverflow.net/questions/485411",
+    "https://doi.org/10.1080/03610927808827707"
+   ],
+   "reason": "The MO question (0 answers) asks why the distance-difference criterion and the Gram-matrix Frobenius criterion of classical MDS have the same argmin. For centered data both losses are minimized exactly by the top-k eigenprojections of X^T X; this is the textbook pair of optimality theorems for classical scaling (Mardia 1978 Sec. 2; Mardia-Kent-Bibby, Multivariate Analysis, Thms 14.4.1-14.4.2, Eckart-Young). The extra parts (trace=rank for idempotents, an uncentered 2x2 counterexample) are routine. Faithful but standard."
+  },
+  "oeis-a126931": {
+   "date": "2026-11-28",
+   "pr": 33589,
+   "evidence": [
+    "https://oeis.org/A126931",
+    "https://isitsolved.com/journal"
+   ],
+   "reason": "Mathar's P-recurrence (n>=3) is derived from Deutsch's algebraic g.f., which the statement uses as the definition (it reproduces the data). The isitsolved paper iis:2611.00219 ('220 more open OEIS recurrence conjectures decided exactly from explicit generating functions', filed 2026-11-28 03:18) lists A126931 as 'true, all n>=3', before the site proof commit (2026-11-28 15:07 UTC). Routine holonomic derivation in any case."
+  },
+  "mo-271151": {
+   "date": "2026-11-28",
+   "pr": 33666,
+   "evidence": [
+    "https://mathoverflow.net/questions/271151",
+    "https://arxiv.org/abs/1812.08944"
+   ],
+   "reason": "The MO question (0 answers) asks how to compute the Frobenius projection onto symmetric matrices with X_ij <= X_ii. The formal answer encodes this as isotonic regression for the preorder generated by (i,j)->(j,i) and (i,j)->(i,i), and the stated solution is Brunk's classical max-min formula for least-squares isotonic regression (Brunk 1955; Robertson-Wright-Dykstra). The statement header itself says it applies this classical formula, so the answer is a direct instance of a known theorem."
+  },
+  "oeis-a187170": {
+   "date": "2026-11-28",
+   "pr": 33623,
+   "evidence": [
+    "https://oeis.org/A187170",
+    "https://oeis.org/A187162",
+    "https://oeis.org/A188784"
+   ],
+   "reason": "Barker's g.f. and order-4 recurrence (n>11) for row 9 of A187162. The parent table A187162 already states a(9,k)=387966k^3-2452704k^2+4766544k-2833872 for k>7 as a proven formula ('Empirical' removed by A. Zabolotskii, Feb 2022, resting on R. Israel's bounding-box argument in A188784: count = sum over shapes of prod(k-D_i)). Barker's recurrence and g.f. follow mechanically from that cubic plus the listed initial terms. The Lean statement's symmetry-weighted shape enumeration is the same argument."
+  },
+  "oeis-a398720": {
+   "date": "2026-11-28",
+   "pr": 29024,
+   "evidence": [
+    "https://oeis.org/A398720",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S1/Words/ParityCode/OddTopWeight.lean"
+   ],
+   "reason": "Conjecture T(n,n(n-1)/2)=n! for odd n. The OEIS entry itself already contains Andrew R. Epstein's proof (Oct 01 2026: complements are permutation matrices), which the statement header quotes. trureturing also has a sorry-free Lean proof (D5/S1/Words/ParityCode/OddTopWeight.lean, spcp_odd_top_weight, added 2026-09-10)."
+  },
+  "oeis-a092028": {
+   "date": "2026-11-28",
+   "pr": 30407,
+   "evidence": [
+    "https://oeis.org/A092028",
+    "https://github.com/the-omega-institute/trureturing/blob/dev/D5/S3/Arith/Congruence/FiroozbakhtLeastSelfDivisorPowerMinusOne.lean"
+   ],
+   "reason": "Firoozbakht's conjectures (a(n) prime and = minFac(n-1) for n>=3) are proved sorry-free in trureturing (D5/S3/Arith/Congruence/FiroozbakhtLeastSelfDivisorPowerMinusOne.lean, theorem firoozbakht_a092028, added 2026-09-13), before the site proof (2026-11-28). The argument is the standard least-prime-factor/order argument."
+  },
+  "oeis-a286348": {
+   "date": "2026-11-28",
+   "pr": 33502,
+   "evidence": [
+    "https://oeis.org/A286348"
+   ],
+   "reason": "Statement faithful ('even power of two' read as 2^k, k>=1, consistent with the entry's k=4 row containing x=2). The conjecture is the classical pair of facts: a^x+b^x prime forces x to be a power of 2 (x even case), and (b+1)^x-b^x prime forces x prime (x odd case), via the factor a^u+(-b)^u for an odd cofactor v. The proof uses exactly this textbook factorization (as for Fermat/Mersenne-type numbers)."
+  },
+  "oeis-a141135": {
+   "date": "2026-11-28",
+   "pr": 33584,
+   "evidence": [
+    "https://oeis.org/A141135",
+    "https://doi.org/10.37236/179"
+   ],
+   "reason": "The disproof shows minimum(24) <= 90 < 91 = Barker's g.f. prediction, using the six-cycle packing of Buchholz-de Launey (EJC 16 (2009) R90, Fig. 22), which the proof cites. The entry's own data, extended by Jinyuan Wang, already lists a(24)=90 (and a(27)=101, a(30)=112), contradicting Barker's g.f. at n=24, 27, 30. So the refutation is already in the entry's data; the Lean file certifies that configuration."
+  },
+  "mse-4265952": {
+   "date": "2026-11-28",
+   "pr": 33579,
+   "evidence": [
+    "https://math.stackexchange.com/questions/4265952"
+   ],
+   "reason": "The pentagon inequality conjecture (vertex centroid at the origin, all diagonals < p/3) is refuted by an explicit pentagon. A comment on the question by user vengy (2026-07-30) already posts an explicit counterexample, also with vertex centroid 0, before the site PR. The site's counterexample differs but the question was already settled publicly."
+  },
+  "oeis-a102879": {
+   "date": "2026-11-28",
+   "pr": 33572,
+   "evidence": [
+    "https://oeis.org/A102879"
+   ],
+   "reason": "Mathar's P-recurrence (n>=4) for the coefficients of (1-x^2)/sqrt(1-4x+2x^2-4x^3+x^4). The entry already records 'Conjecture verified using the differential equation ... satisfied by the g.f.' (Robert Israel, Aug 28 2018), and the statement header itself says 'Status: known result'."
+  },
+  "mo-335895": {
+   "date": "2026-11-28",
+   "pr": 33568,
+   "evidence": [
+    "https://mathoverflow.net/questions/335895"
+   ],
+   "reason": "The question asks whether every symmetric partition of an n x n grid admits an n-colouring constant on classes with distinct classes meeting in a row or column getting different colours. An MO answer from 2019 already gives the n=3 counterexample AAB/ACD/BDC (four pairwise-meeting classes). The site's counterexample is essentially the same."
+  },
+  "mo-193467": {
+   "date": "2026-11-28",
+   "pr": 33563,
+   "evidence": [
+    "https://mathoverflow.net/questions/193467"
+   ],
+   "reason": "Asks whether every triple satisfying the majorization bounds lambda(A)down.lambda(B)up < lambda(AB) < lambda(A)down.lambda(B)down is realizable. The formal answer: under literal additive majorization the sum equality forces a scalar factor; under the weak and log readings (the intended Gelfand-Naimark bounds) the 3x3 triple a=(9,1,1), b=(4,3,1), c=(12,6,3/2) is not realizable; plus an exact 2x2 criterion. That c fails is already forced by the classical Weyl/Horn product inequality lambda_{i+j-1}(AB) <= lambda_i(A)lambda_j(B) (c_2=6 > a_2 b_1=4). Insufficiency of the majorization bounds follows from that and from Klyachko's multiplicative Horn theory."
+  },
+  "mo-47858": {
+   "date": "2026-11-28",
+   "pr": 33560,
+   "evidence": [
+    "https://mathoverflow.net/questions/47858",
+    "https://doi.org/10.1103/PhysRevX.8.041043"
+   ],
+   "reason": "Asks whether one Laplacian eigenvalue can be changed by an arbitrary amount and still be realized. The comments already answer this: Tracy Hall's trace argument (integer diagonal, so an arbitrary change is impossible for graphs) and the distinction for weighted Laplacians. The weighted realization uses the Forrow-Woodhouse-Dunkel (PRX 2018) construction, as the statement credits. The even-integer refinement and the 3-vertex example are routine additions."
+  },
+  "mo-156321": {
+   "date": "2026-11-28",
+   "pr": 33521,
+   "evidence": [
+    "https://mathoverflow.net/questions/156321"
+   ],
+   "reason": "Is the convex hull of a compact set in a separable Hilbert space compact? No; this is textbook (only the closed convex hull is compact, Mazur). The MO comments already say 'Not necessarily' with a linked counterexample, and cite the closed-hull theorem. The site uses the standard {0} U {e_n/(n+1)} example."
+  },
+  "mo-229756": {
+   "date": "2026-11-28",
+   "pr": 33511,
+   "evidence": [
+    "https://mathoverflow.net/questions/229756"
+   ],
+   "reason": "A measurable subgroup of an LCA group with 0 < Haar measure < infinity is open and compact. The MO answer proves it for closed subgroups, and a comment notes the classical Steinhaus fact (H-H has interior) that gives openness for measurable H; compactness then follows by the standard disjoint-translates argument. Classical; the site proof is exactly Steinhaus plus covering."
+  },
+  "oeis-a222058": {
+   "date": "2026-11-28",
+   "pr": 33553,
+   "evidence": [
+    "https://oeis.org/A222058",
+    "https://arxiv.org/abs/0912.1834"
+   ],
+   "reason": "Yanev's 2026 conjecture a(n) = sum_k k^n (H_k - log 2)/2^(k+1). It is the x=1/2 specialization of Dil-Kurt eq. (33), sum n^m H_n x^n = (1/(1-x))[F_m^h(x/(1-x)) - F_m(x/(1-x)) ln(1-x)], combined with the geometric-polynomial series for sum n^m/2^n. The paper (INTEGERS 12 (2012) A38) is linked from the entry, and the statement header itself points to eqs (33) and (53). Statement faithful (Stirling form of F_n^h)."
   }
  },
  "reviewed": "2026-11-28"
