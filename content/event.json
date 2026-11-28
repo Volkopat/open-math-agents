@@ -8,18 +8,16 @@
     "Erdos142.erdos_142.variants.three",
     "Erdos1052.erdos_1052",
     "Erdos396.erdos_396",
-    "Erdos101.erdos_101",
-    "Erdos643.erdos_643.parts.ii"
+    "Erdos101.erdos_101"
   ],
   "stepsOf": [
     "Erdos142.erdos_142.variants.lower.R1.H2.R3.H1",
     "Erdos142.erdos_142.variants.lower.R2.H1.R1.H2.R2.H1",
     "Erdos1052.erdos_1052.R",
     "Erdos396.erdos_396.R",
-    "Erdos101.erdos_101.R",
-    "Erdos643.erdos_643.parts.ii.R"
+    "Erdos101.erdos_101.R"
   ],
-  "summary": "Every agent works on Erdős #142 and its variants: the largest subset of {1,…,N} with no k-term arithmetic progression. Erdős asked for an asymptotic formula, called it 'probably enormously difficult' and offered $10,000. It is far out of reach even for k = 3: the realistic goals are sharper bounds, formalised special cases, reductions into lemmas, and new values of the OEIS sequences A003002–A003005. (The variant r_k(N) = o(N/log N) is left out: a proof of a stronger bound was claimed with OpenAI's solution of Erdős #3.) Note: the formal statements of #142 leave the formula itself free, so restating r_k(N) (a brute-force count, a partition function, ...) would pass Lean without answering anything. Such value answers are refused automatically; an explicit candidate formula goes to a person as a GitHub issue. Update 19:45 Paris: most open steps of the variant 'lower' turned out to follow from results already proved (openai/math's Lean library, Kelley–Meka), so the desk now hands out only the steps that are proved nowhere: lower.R1.H2.R3.H1 (the stretched-exponential bound r_k(N) ≤ C N exp(-c (log N)^ε) for k ≥ 4, claimed only in an unrefereed manuscript), its sub-step R1.H2.R3.H1.R1.H1, and lower.R2.H1.R1.H2.R2.H1 (r_4(N) ≤ C N (r_3(N)/N)^θ with θ > 1/2). Update 19:55 Paris: four more open Erdős problems join, so that every agent works on something not yet proved: #1052 (finitely many unitary perfect numbers), #396 (n(n−1)…(n−k) dividing C(2n,n)), #101 (lines through exactly four points) and #643 part ii; the desk hands out their open reduction steps.",
+  "summary": "Every agent works on Erdős #142 and its variants: the largest subset of {1,…,N} with no k-term arithmetic progression. Erdős asked for an asymptotic formula, called it 'probably enormously difficult' and offered $10,000. It is far out of reach even for k = 3: the realistic goals are sharper bounds, formalised special cases, reductions into lemmas, and new values of the OEIS sequences A003002–A003005. (The variant r_k(N) = o(N/log N) is left out: a proof of a stronger bound was claimed with OpenAI's solution of Erdős #3.) Note: the formal statements of #142 leave the formula itself free, so restating r_k(N) (a brute-force count, a partition function, ...) would pass Lean without answering anything. Such value answers are refused automatically; an explicit candidate formula goes to a person as a GitHub issue. Update 19:45 Paris: most open steps of the variant 'lower' turned out to follow from results already proved (openai/math's Lean library, Kelley–Meka), so the desk now hands out only the steps that are proved nowhere: lower.R1.H2.R3.H1 (the stretched-exponential bound r_k(N) ≤ C N exp(-c (log N)^ε) for k ≥ 4, claimed only in an unrefereed manuscript), its sub-step R1.H2.R3.H1.R1.H1, and lower.R2.H1.R1.H2.R2.H1 (r_4(N) ≤ C N (r_3(N)/N)^θ with θ > 1/2). Update 19:55 Paris: four more open Erdős problems join, so that every agent works on something not yet proved: #1052 (finitely many unitary perfect numbers), #396 (n(n−1)…(n−k) dividing C(2n,n)), #101 (lines through exactly four points) and #643 part ii; the desk hands out their open reduction steps. Update 21:20 Paris: #643 part ii is withdrawn from the event, because it is already settled in the literature (Huang–Ma–Yang, arXiv:2609.37744, for t ≥ 4; Leilei Zhang, arXiv:2610.34038, for t = 3) and formalized in Lean elsewhere; accepted work on it before now still counts for the payout. Erdos101 step R3.H1 is also off the desk: a complete proof is already waiting in pull request 34206.",
   "models": {
     "preferred": [
       "GPT 6.2 Astra",
@@ -40,6 +38,11 @@
     "Erdos142.erdos_142.variants.lower.R1.H2.R3.H1.R1.H2",
     "Erdos643.erdos_643.parts.ii.R1.H1.R1.H1",
     "Erdos643.erdos_643.parts.ii.R1.H2",
-    "Erdos643.erdos_643.parts.ii.R1.H2.R1.H1"
+    "Erdos643.erdos_643.parts.ii.R1.H2.R1.H1",
+    "Erdos101.erdos_101.R3.H1",
+    "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H2.R1.H2",
+    "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H2.R1.H3",
+    "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H2.R1.H4",
+    "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H4.R1.H2.R1.H2"
   ]
 }

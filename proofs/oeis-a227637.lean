@@ -1,11 +1,5 @@
 import OMAStatements.S_oeis_a227637
-import Mathlib
-
-open OMA.S_oeis_a227637
 
 set_option maxHeartbeats 400000000 in
-theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a227637.main) := by
-  intro h
-  have h0 := h.2 0
-  revert h0
-  decide +kernel
+theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a227637.main) := fun h =>
+  absurd (h.2 0) (by decide +kernel)

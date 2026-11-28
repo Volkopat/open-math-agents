@@ -150,32 +150,6 @@ private def A (L M : ℕ) : ℕ := ∑ l ∈ rgfs L, (if mx l = M then 1 else 0)
 
 private def Cc (L M p : ℕ) : ℕ := ∑ l ∈ rgfs L, (if mx l = M then l.count p else 0)
 
-private lemma Cc_rec (L M p : ℕ) : Cc (L + 1) (M + 1) p = (M + 1) * Cc L (M + 1) p +
-    (if 1 ≤ p ∧ p ≤ M + 1 then A L (M + 1) else 0) + Cc L M p + (if p = M + 1 then A L M else 0) := by
-  unfold Cc A
-  rw [sum_succ]
-  have : ∀ l ∈ rgfs L, ∑ v ∈ Finset.Icc 1 (mx l + 1),
-      (if mx (l ++ [v]) = M + 1 then (l ++ [v]).count p else 0) =
-      (if mx l = M + 1 then (M + 1) * l.count p + (if 1 ≤ p ∧ p ≤ M + 1 then 1 else 0) else 0) +
-      (if mx l = M then l.count p + (if p = M + 1 then 1 else 0) else 0) := by
-    intro l _
-    rw [← innerS]
-    apply Finset.sum_congr rfl
-    intro v _
-    rw [mx_append, List.count_append, List.count_singleton]
-    simp only [beq_iff_eq]
-  rw [Finset.sum_congr rfl this]
-  have e : ∀ l ∈ rgfs L,
-      (if mx l = M + 1 then (M + 1) * l.count p + (if 1 ≤ p ∧ p ≤ M + 1 then 1 else 0) else 0) +
-      (if mx l = M then l.count p + (if p = M + 1 then 1 else 0) else 0) =
-      (M + 1) * (if mx l = M + 1 then l.count p else 0) +
-      (if 1 ≤ p ∧ p ≤ M + 1 then 1 else 0) * (if mx l = M + 1 then 1 else 0) +
-      (if mx l = M then l.count p else 0) + (if p = M + 1 then 1 else 0) * (if mx l = M then 1 else 0) := by
-    intro l _; split_ifs <;> ring
-  rw [Finset.sum_congr rfl e]
-  simp only [Finset.sum_add_distrib, ← Finset.mul_sum]
-  split_ifs <;> ring
-
 private lemma A_rec (L M : ℕ) : A (L + 1) (M + 1) = (M + 1) * A L (M + 1) + A L M := by
   unfold A
   rw [sum_succ, Finset.mul_sum, ← Finset.sum_add_distrib]
@@ -198,21 +172,8 @@ private lemma A_zero (L : ℕ) : A (L + 1) 0 = 0 := by
   simp only [Finset.mem_Icc] at hv
   rw [mx_append, if_neg (by omega)]
 
-private lemma Cc_zero (L p : ℕ) : Cc (L + 1) 0 p = 0 := by
-  unfold Cc
-  rw [sum_succ]
-  apply Finset.sum_eq_zero
-  intro l _
-  apply Finset.sum_eq_zero
-  intro v hv
-  simp only [Finset.mem_Icc] at hv
-  rw [mx_append, if_neg (by omega)]
-
 private lemma A_base (M : ℕ) : A 0 M = if M = 0 then 1 else 0 := by
   unfold A; rw [rgfs_zero, Finset.sum_singleton]; simp [mx, eq_comm]
-
-private lemma Cc_base (M p : ℕ) : Cc 0 M p = 0 := by
-  unfold Cc; rw [rgfs_zero, Finset.sum_singleton]; simp; exact ite_self _
 
 private lemma A_big (L : ℕ) : ∀ M, L < M → A L M = 0 := by
   induction L with
@@ -231,45 +192,6 @@ private lemma A_sub1 (L : ℕ) : 2 * A (L + 1) L = (L + 1) * L := by
   induction L with
   | zero => rw [A_zero]
   | succ L ih => rw [A_rec, A_diag]; ring_nf; ring_nf at ih; omega
-
-private lemma A_sub2 (L : ℕ) : 24 * A (L + 2) L = (L + 2) * (L + 1) * L * (3 * L + 1) := by
-  induction L with
-  | zero => rw [A_zero]
-  | succ L ih =>
-    rw [show L + 1 + 2 = (L + 2) + 1 by ring, A_rec]
-    have h1 := A_sub1 (L + 1)
-    rw [show L + 1 + 1 = L + 2 by ring] at h1
-    nlinarith [h1, ih]
-
-private lemma Cc_big (L : ℕ) : ∀ M p, L < M → Cc L M p = 0 := by
-  induction L with
-  | zero => intro M p _; exact Cc_base M p
-  | succ L ih =>
-    intro M p hM
-    obtain ⟨M', rfl⟩ : ∃ M', M = M' + 1 := ⟨M - 1, by omega⟩
-    rw [Cc_rec, ih _ _ (by omega), ih _ _ (by omega), A_big L _ (by omega), A_big L _ (by omega)]
-    simp
-
-private lemma Cc_small (L : ℕ) : ∀ M p, M < p → Cc L M p = 0 := by
-  induction L with
-  | zero => intro M p _; exact Cc_base M p
-  | succ L ih =>
-    intro M p hM
-    rcases M with _ | M'
-    · exact Cc_zero L p
-    · rw [Cc_rec, ih _ _ (by omega), ih _ _ (by omega), if_neg (by omega), if_neg (by omega)]; simp
-
-private lemma Cc_diag (L : ℕ) : ∀ p, 1 ≤ p → p ≤ L → Cc L L p = 1 := by
-  induction L with
-  | zero => intro p h1 h2; omega
-  | succ L ih =>
-    intro p h1 h2
-    rw [Cc_rec, Cc_big L _ _ (by omega), A_big L _ (by omega)]
-    rcases Nat.lt_or_ge p (L + 1) with h | h
-    · rw [ih p h1 (by omega)]; simp [show p ≠ L + 1 by omega]
-    · obtain rfl : p = L + 1 := by omega
-      rw [Cc_small L _ _ (by omega), if_pos rfl, A_diag]; simp
-
 
 private lemma le_mx (L : List ℕ) (x : ℕ) (h : x ∈ L) : x ≤ mx L := by
   induction L with

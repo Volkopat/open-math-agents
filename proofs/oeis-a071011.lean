@@ -1,45 +1,41 @@
 import OMAStatements.S_oeis_a071011
-import Mathlib
+
+/-! Formalization of the divisibility conjecture listed in OEIS A071011.
+The two-square characterization supplies a prime congruent to 3 modulo 4
+with odd exponent. Its divisor-sum factor groups into pairs, each divisible by 4. -/
+
+open scoped BigOperators
+
+private theorem four_dvd_pair_sum {p : ℕ} (hp : p % 4 = 3) (k : ℕ) :
+    4 ∣ ∑ i ∈ Finset.range (2 * k), p ^ i := by
+  induction k with
+  | zero => simp
+  | succ k ih =>
+    rw [show 2 * (k + 1) = (2 * k + 1) + 1 by omega, Finset.sum_range_succ,
+      Finset.sum_range_succ]
+    have hpair : p ^ (2 * k) + p ^ (2 * k + 1) = p ^ (2 * k) * (1 + p) := by
+      rw [pow_succ]
+      ring
+    rw [add_assoc, hpair]
+    exact dvd_add ih (dvd_mul_of_dvd_right (by omega : 4 ∣ 1 + p) _)
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a071011.main := by
   intro m hm
   have hm0 : m ≠ 0 := by
-    rintro rfl
-    exact hm ⟨0, 0, by simp⟩
+    intro h
+    exact hm ⟨0, 0, by subst m; norm_num⟩
   rw [Nat.eq_sq_add_sq_iff] at hm
-  push_neg at hm
-  obtain ⟨q, hqm, hq3, hodd⟩ := hm
-  have hq : q.Prime := Nat.prime_of_mem_primeFactors hqm
-  rw [Nat.not_even_iff_odd] at hodd
-  obtain ⟨j, hj⟩ := hodd
-  have hfac : padicValNat q m = m.factorization q := (Nat.factorization_def m hq).symm
-  have he : m.factorization q = 2 * j + 1 := by rw [← hfac]; exact hj
-  have hsplit : m = q ^ m.factorization q * (m / q ^ m.factorization q) :=
-    (Nat.ordProj_mul_ordCompl_eq_self m q).symm
-  have hcop : Nat.Coprime (q ^ m.factorization q) (m / q ^ m.factorization q) :=
-    (Nat.coprime_ordCompl hq hm0).pow_left _
-  have key : ∀ i : ℕ, 4 ∣ ∑ k ∈ Finset.range (2 * i + 2), q ^ k := by
-    intro i
-    induction i with
-    | zero =>
-      rw [show 2 * 0 + 2 = 0 + 1 + 1 by rfl, Finset.sum_range_succ, Finset.sum_range_succ,
-        Finset.sum_range_zero]
-      simp only [pow_zero, zero_add, pow_one]
-      omega
-    | succ i ih =>
-      rw [show 2 * (i + 1) + 2 = 2 * i + 2 + 1 + 1 by ring, Finset.sum_range_succ,
-        Finset.sum_range_succ, pow_succ q (2 * i + 2)]
-      have h4 : 4 ∣ q ^ (2 * i + 2) * (1 + q) := Dvd.dvd.mul_left (by omega) _
-      have h5 := Nat.dvd_add ih h4
-      have h6 : ∑ k ∈ Finset.range (2 * i + 2), q ^ k + q ^ (2 * i + 2) * (1 + q) =
-          ∑ k ∈ Finset.range (2 * i + 2), q ^ k + q ^ (2 * i + 2) + q ^ (2 * i + 2) * q := by
-        ring
-      rw [← h6]
-      exact h5
-  have h4 : 4 ∣ ArithmeticFunction.sigma 1 m := by
-    rw [hsplit, ArithmeticFunction.isMultiplicative_sigma.map_mul_of_coprime hcop,
-      ArithmeticFunction.sigma_one_apply_prime_pow hq]
-    apply Dvd.dvd.mul_right
-    rw [he, show 2 * j + 1 + 1 = 2 * j + 2 by ring]
-    exact key j
-  omega
+  push Not at hm
+  obtain ⟨p, hp, hpmod, hpodd⟩ := hm
+  have hExp : Odd (m.factorization p) := by
+    rw [Nat.factorization_def _ (Nat.prime_of_mem_primeFactors hp)]
+    exact Nat.not_even_iff_odd.mp hpodd
+  obtain ⟨k, hk⟩ := hExp
+  have hEven : m.factorization p + 1 = 2 * (k + 1) := by omega
+  apply Nat.mod_eq_zero_of_dvd
+  rw [ArithmeticFunction.sigma_eq_prod_primeFactors_sum_range_factorization_pow_mul hm0]
+  simp only [mul_one]
+  refine (four_dvd_pair_sum hpmod (k + 1)).trans ?_
+  rw [← hEven]
+  exact Finset.dvd_prod_of_mem _ hp
+

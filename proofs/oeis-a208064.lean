@@ -1,351 +1,280 @@
 import OMAStatements.S_oeis_a208064
-import Mathlib
 
-/-!
-# Proof of OMA.S_oeis_a208064.main
+-- Original proof by @marcusbuffett in #33226, statement by @clementtrecourt.
+-- Split the rows by index parity, then count the descending chains independently.
 
-Transfer matrix on pairs of consecutive lines of the array: the number of ways to complete
-an array below two given legal lines satisfies, entrywise, the linear recurrence of the
-denominator of the generating function; kernel-checked tables give the first values, and
-the stated identities follow by induction.
-The structure (chain decomposition, tables, entrywise differences) is adapted from
-roshanasingh4 merged proof of oeis-a207701 in lefttosolve2/open-math-agents.
--/
+namespace OMA.A208064
 
-namespace OMA.Arr_oeis_a208064
+abbrev Row := Fin 3 → Fin 2
+
+abbrev LegalRow := {r : Row // r ≠ (fun _ => 0) ∧ r ≠ (fun _ => 1)}
+
+def ChainCondition {m : ℕ} (rows : Fin m → LegalRow) : Prop :=
+  ∀ (i j : Fin m), i ≤ j → ∀ c : Fin 3, (rows j).val c ≤ (rows i).val c
+
+instance {m : ℕ} : DecidablePred (@ChainCondition m) := fun rows => by
+  unfold ChainCondition
+  infer_instance
+
+abbrev Chain (m : ℕ) := {rows : Fin m → LegalRow // ChainCondition rows}
+
+end OMA.A208064
+
+namespace OMA.A208064
 
 open OMA.S_oeis_a208064
-open PowerSeries
 
-private abbrev Row := Fin 3 → Fin 2
+private def Good {n : ℕ} (x : Fin n → Row) : Prop :=
+  (∀ i, x i ≠ (fun _ => 0) ∧ x i ≠ (fun _ => 1)) ∧
+  ∀ (i : ℕ) (hi : i + 2 < n) (c : Fin 3), x ⟨i + 2, hi⟩ c ≤ x ⟨i, by omega⟩ c
 
-private def legal (r : Row) : Prop := ∀ j : Fin 1,
-  (((r ⟨j, by omega⟩).val, (r ⟨j+1, by omega⟩).val, (r ⟨j+2, by omega⟩).val) ≠ (0, 0, 0) ∧
-   ((r ⟨j, by omega⟩).val, (r ⟨j+1, by omega⟩).val, (r ⟨j+2, by omega⟩).val) ≠ (1, 1, 1))
+private lemma row_iff : ∀ r : Row,
+    (((r 0 : ℕ), (r 1 : ℕ), (r 2 : ℕ)) ≠ (0, 0, 0) ∧
+      ((r 0 : ℕ), (r 1 : ℕ), (r 2 : ℕ)) ≠ (1, 1, 1)) ↔
+      r ≠ (fun _ => 0) ∧ r ≠ (fun _ => 1) := by decide
 
-private instance (r : Row) : Decidable (legal r) := by unfold legal; infer_instance
+private lemma col_iff : ∀ a b c : Fin 2,
+    (((a : ℕ), (b : ℕ), (c : ℕ)) ≠ (0, 0, 1) ∧
+      ((a : ℕ), (b : ℕ), (c : ℕ)) ≠ (0, 1, 1)) ↔ c ≤ a := by decide
 
-private def next (p q r : Row) : Prop := ∀ j,
-  ((p j).val, (q j).val, (r j).val) ≠ (0, 0, 1) ∧ ((p j).val, (q j).val, (r j).val) ≠ (0, 1, 1)
-
-private instance (p q r : Row) : Decidable (next p q r) := by unfold next; infer_instance
-
-private theorem within {n : ℕ} (x : Fin n → Row) :
-    (∀ i < n, ∀ j < 3 - 2,
-      (get x i j, get x i (j + 1), get x i (j + 2)) ≠ (0, 0, 0) ∧
-      (get x i j, get x i (j + 1), get x i (j + 2)) ≠ (1, 1, 1)) ↔ ∀ i, legal (x i) := by
+private lemma avoids_iff {n : ℕ} (x : Fin n → Row) : avoids x = true ↔ Good x := by
+  simp only [avoids, decide_eq_true_eq, Good]
   constructor
-  · intro h i j
-    simpa [OMA.S_oeis_a208064.get, i.isLt, show j.val < 3 by omega, show j.val+1 < 3 by omega,
-      show j.val+2 < 3 by omega] using h i i.isLt j (by omega)
-  · intro h i hi j hj
-    simpa [OMA.S_oeis_a208064.get, hi, show j < 3 by omega, show j+1 < 3 by omega, show j+2 < 3 by omega]
-      using h ⟨i,hi⟩ ⟨j,by omega⟩
+  · rintro ⟨hor, ver⟩
+    refine ⟨?_, ?_⟩
+    · intro i
+      refine (row_iff (x i)).mp ?_
+      simpa [S_oeis_a208064.get, i.isLt] using hor i i.isLt 0 (by decide)
+    · intro i hi j
+      have h0 : i < n := by omega
+      have h1 : i + 1 < n := by omega
+      exact (col_iff _ (x ⟨i + 1, h1⟩ j) _).mp (by
+        simpa [S_oeis_a208064.get, h0, h1, hi, j.isLt] using ver i (by omega) j j.isLt)
+  · rintro ⟨hor, ver⟩
+    refine ⟨?_, ?_⟩
+    · intro i hi j hj
+      have : j = 0 := by omega
+      subst j
+      simpa [S_oeis_a208064.get, hi] using (row_iff _).mpr (hor ⟨i, hi⟩)
+    · intro i hi j hj
+      have h0 : i < n := by omega
+      have h1 : i + 1 < n := by omega
+      have h2 : i + 2 < n := by omega
+      simpa [S_oeis_a208064.get, h0, h1, h2, hj] using
+        (col_iff _ (x ⟨i + 1, h1⟩ ⟨j, hj⟩) _).mpr (ver i h2 ⟨j, hj⟩)
 
-private theorem across {n : ℕ} (x : Fin (n+2) → Row) :
-    (∀ i < n+2-2, ∀ j < 3,
-      (get x i j, get x (i + 1) j, get x (i + 2) j) ≠ (0, 0, 1) ∧
-      (get x i j, get x (i + 1) j, get x (i + 2) j) ≠ (0, 1, 1)) ↔
-    ∀ i : Fin n, next (x i.castSucc.castSucc) (x i.castSucc.succ) (x i.succ.succ) := by
-  constructor
-  · intro h i j
-    show ((x ⟨i.val,by omega⟩ j).val, (x ⟨i.val+1,by omega⟩ j).val, (x ⟨i.val+2,by omega⟩ j).val) ≠ (0, 0, 1) ∧
-      ((x ⟨i.val,by omega⟩ j).val, (x ⟨i.val+1,by omega⟩ j).val, (x ⟨i.val+2,by omega⟩ j).val) ≠ (0, 1, 1)
-    simpa [OMA.S_oeis_a208064.get,j.isLt,show i.val < n+2 by omega,
-      show i.val+1 < n+2 by omega,show i.val+2 < n+2 by omega] using h i (by omega) j j.isLt
-  · intro h i hi j hj
-    have hh := h ⟨i,by omega⟩ ⟨j,hj⟩
-    simpa [OMA.S_oeis_a208064.get,hj,show i < n+2 by omega,
-      show i+1 < n+2 by omega,show i+2 < n+2 by omega] using hh
+private def rowsAt {n m : ℕ} (x : {x : Fin n → Row // Good x}) (e : ℕ)
+    (h : ∀ i : Fin m, 2 * (i : ℕ) + e < n) : Chain m :=
+  ⟨fun i => ⟨x.val ⟨2 * (i : ℕ) + e, h i⟩, x.property.1 _⟩, by
+    cases m with
+    | zero => intro i; exact Fin.elim0 i
+    | succ m =>
+      intro i j hij c
+      let f (k : Fin (m + 1)) := x.val ⟨2 * (k : ℕ) + e, h k⟩ c
+      apply ((Fin.antitone_iff_succ_le (f := f)).mpr ?_) hij
+      intro k
+      have hk := h k.succ
+      have hs : 2 * (k : ℕ) + e + 2 < n := by simp only [Fin.val_succ] at hk; omega
+      have he : (⟨2 * (k.succ : ℕ) + e, hk⟩ : Fin n) = ⟨2 * (k : ℕ) + e + 2, hs⟩ :=
+        Fin.ext (by simp only [Fin.val_succ]; omega)
+      simp only [f, he, Fin.val_castSucc]
+      exact x.property.2 _ hs c⟩
 
-private def good {n : ℕ} (p q : Row) (x : Fin n → Row) : Prop :=
-  (∀ i, legal (x i)) ∧ (∀ i : Fin n,
-    let y : Fin (n+2) → Row := Fin.cons p (Fin.cons q x)
-    next (y i.castSucc.castSucc) (y i.castSucc.succ) (x i))
+private def splitRows {n : ℕ} (x : {x : Fin n → Row // Good x}) :
+    Chain (n / 2 + n % 2) × Chain (n / 2) :=
+  (rowsAt x 0 (fun i => by have hi := i.isLt; omega),
+   rowsAt x 1 (fun i => by have hi := i.isLt; omega))
 
-private abbrev Arr (m : ℕ) := Fin m → Row
+private def mix {n : ℕ} (p : Chain (n / 2 + n % 2) × Chain (n / 2)) (i : Fin n) : LegalRow :=
+  if hi : (i : ℕ) % 2 = 0 then
+    p.1.val ⟨(i : ℕ) / 2, by have hb := i.isLt; omega⟩
+  else
+    p.2.val ⟨(i : ℕ) / 2, by have hb := i.isLt; omega⟩
 
-private def ok {m : ℕ} (x : Arr m) : Bool := avoids x
+private def mergeRows {n : ℕ} (p : Chain (n / 2 + n % 2) × Chain (n / 2)) :
+    {x : Fin n → Row // Good x} :=
+  ⟨fun i => (mix p i).val, ⟨fun i => (mix p i).property, by
+    intro i hi c
+    by_cases hp : i % 2 = 0
+    · simp only [mix, dif_pos hp, dif_pos (show (i + 2) % 2 = 0 by omega)]
+      exact p.1.property _ _ (by change i / 2 ≤ (i + 2) / 2; omega) c
+    · simp only [mix, dif_neg hp, dif_neg (show (i + 2) % 2 ≠ 0 by omega)]
+      exact p.2.property _ _ (by change i / 2 ≤ (i + 2) / 2; omega) c⟩⟩
 
-private theorem array_iff {n : ℕ} (x : Arr (n+2)) :
-    ok x = true ↔ legal (x 0) ∧ legal (x 1) ∧ good (x 0) (x 1) (fun i => x i.succ.succ) := by
-  have reconstruct : Fin.cons (x 0) (Fin.cons (x 1) (fun i : Fin n => x i.succ.succ)) = x := by
-    funext j
-    refine Fin.cases rfl (fun i => ?_) j
-    exact Fin.cases rfl (fun _ => rfl) i
-  simp only [ok,avoids,decide_eq_true_eq,within,across,good,reconstruct]
-  constructor
-  · intro ⟨a,b⟩
-    exact ⟨a 0,a 1,fun i => a _,b⟩
-  · intro ⟨a,b,c,h⟩
-    exact ⟨Fin.forall_fin_succ.mpr ⟨a,Fin.forall_fin_succ.mpr ⟨b,c⟩⟩,h⟩
-
-private theorem split_good {n : ℕ} (p q : Row) (x : Fin (n+1) → Row) :
-    good p q x ↔ (legal (x 0) ∧ next p q (x 0)) ∧ good q (x 0) (fun i => x i.succ) := by
-  simp only [good,Fin.forall_fin_succ]
-  have reconstruct : Fin.cons (x 0) (fun i => x i.succ) = x := Fin.cons_self_tail _
-  rw [reconstruct]
-  constructor
-  · intro ⟨⟨a,b⟩,c,h⟩
-    exact ⟨⟨a,c⟩,b,h⟩
-  · intro ⟨⟨a,c⟩,b,h⟩
-    exact ⟨⟨a,b⟩,c,h⟩
-
-private abbrev Chain (n : ℕ) (p q : Row) := {x : Fin n → Row // good p q x}
-
-private noncomputable instance (n : ℕ) (p q : Row) : Fintype (Chain n p q) := Fintype.ofFinite _
-
-private def splitChain (n : ℕ) (p q : Row) :
-    Chain (n+1) p q ≃ (Σ r : {r : Row // legal r ∧ next p q r}, Chain n q r.val) where
-  toFun x :=
-    let h := (split_good p q x.val).mp x.property
-    ⟨⟨x.val 0,h.1⟩,⟨fun i => x.val i.succ,h.2⟩⟩
-  invFun y := ⟨Fin.cons y.1.val y.2.val,(split_good _ _ _).mpr (by
-    simpa only [Fin.cons_zero,Fin.cons_succ] using And.intro y.1.property y.2.property)⟩
-  left_inv x := Subtype.ext (Fin.cons_self_tail _)
-  right_inv y := by rcases y with ⟨⟨r,hr⟩,⟨x,hx⟩⟩; rfl
-
-private abbrev Legal := {r : Row // legal r}
-
-private def splitArray (n : ℕ) :
-    {x : Arr (n+2) // ok x = true} ≃
-      (Σ p : Legal, Σ q : Legal, Chain n p.val q.val) where
-  toFun x :=
-    let h := (array_iff x.val).mp x.property
-    ⟨⟨x.val 0,h.1⟩,⟨x.val 1,h.2.1⟩,⟨fun i => x.val i.succ.succ,h.2.2⟩⟩
-  invFun y := ⟨Fin.cons y.1.val (Fin.cons y.2.1.val y.2.2.val),(array_iff _).mpr (by
-    exact ⟨y.1.property,y.2.1.property,y.2.2.property⟩)⟩
+private def parityEquiv (n : ℕ) :
+    {x : Fin n → Row // Good x} ≃ Chain (n / 2 + n % 2) × Chain (n / 2) where
+  toFun := splitRows
+  invFun := mergeRows
   left_inv x := by
     apply Subtype.ext
     funext i
-    refine Fin.cases rfl (fun j => ?_) i
-    exact Fin.cases rfl (fun _ => rfl) j
-  right_inv y := by rcases y with ⟨⟨p,hp⟩,⟨q,hq⟩,⟨x,hx⟩⟩; rfl
+    change (mix (splitRows x) i).val = x.val i
+    by_cases hi : (i : ℕ) % 2 = 0
+    · simp only [mix, dif_pos hi, splitRows, rowsAt]
+      exact congrArg x.val (Fin.ext (by dsimp; omega))
+    · simp only [mix, dif_neg hi, splitRows, rowsAt]
+      exact congrArg x.val (Fin.ext (by dsimp; omega))
+  right_inv p := by
+    apply Prod.ext <;> apply Subtype.ext <;> funext i <;> apply Subtype.ext
+    · change (mix p ⟨2 * (i : ℕ) + 0, _⟩).val = (p.1.val i).val
+      simp (disch := omega) only [mix, dif_pos]
+      exact congrArg (fun j => (p.1.val j).val) (Fin.ext (by dsimp; omega))
+    · change (mix p ⟨2 * (i : ℕ) + 1, _⟩).val = (p.2.val i).val
+      simp (disch := omega) only [mix, dif_neg]
+      exact congrArg (fun j => (p.2.val j).val) (Fin.ext (by dsimp; omega))
 
-private noncomputable def v (n : ℕ) (p q : Row) : ℤ := Fintype.card (Chain n p q)
-
-private def step (f : Row → Row → ℤ) (p q : Row) : ℤ :=
-  ∑ r : {r : Row // legal r ∧ next p q r}, f q r.val
-
-private theorem succ_v (n : ℕ) : v (n+1) = step (v n) := by
-  funext p q
-  simp [step,v,Fintype.card_congr (splitChain n p q),Fintype.card_sigma]
-
-private theorem zero_v : v 0 = fun _ _ => 1 := by
-  funext p q
-  have : Unique (Chain 0 p q) :=
-    { default := ⟨Fin.elim0,fun i => i.elim0,fun i => i.elim0⟩
-      uniq := fun _ => Subtype.ext (funext fun i => i.elim0) }
-  simp [v]
-
-private def total (f : Row → Row → ℤ) : ℤ := ∑ p : Legal, ∑ q : Legal, f p.val q.val
-
-private theorem card_ok (m : ℕ) : a m = Fintype.card {x : Arr m // ok x = true} := by
+theorem array_card (n : ℕ) :
+    a n = (Fintype.card (Chain (n / 2 + n % 2)) : ℤ) * Fintype.card (Chain (n / 2)) := by
+  let e := (Equiv.subtypeEquivRight (fun x : Fin n → Row =>
+    show x ∈ Finset.univ.filter (fun x => avoids x) ↔ Good x by
+      simp [avoids_iff])).trans (parityEquiv n)
+  have h := Fintype.card_congr e
+  rw [Fintype.card_coe, Fintype.card_prod] at h
   unfold a
-  rw [← Fintype.card_subtype]
-  rfl
+  exact_mod_cast h
 
-private theorem value (n : ℕ) : a (n+2) = total (v n) := by
-  have h := Fintype.card_congr (splitArray n)
-  simp only [Fintype.card_sigma] at h
-  rw [card_ok, h]
-  unfold total v
-  push_cast
-  rfl
+end OMA.A208064
 
-private def rowIndex (r : Row) : Fin 8 :=
-  ⟨4*(r 0).val + 2*(r 1).val + 1*(r 2).val, by omega⟩
+namespace OMA.A208064
 
-private def code (r : Row) : Fin 6 :=
-  ![0, 0, 1, 2, 3, 4, 5, 0] (rowIndex r)
+private abbrev RowLE (a b : LegalRow) := ∀ c : Fin 3, a.val c ≤ b.val c
 
-private noncomputable def table : Fin 5 → Fin 6 → Fin 6 → ℤ :=
-  ![![![1, 1, 1, 1, 1, 1],
-      ![1, 1, 1, 1, 1, 1],
-      ![1, 1, 1, 1, 1, 1],
-      ![1, 1, 1, 1, 1, 1],
-      ![1, 1, 1, 1, 1, 1],
-      ![1, 1, 1, 1, 1, 1]],
-    ![![1, 1, 1, 1, 1, 1],
-      ![1, 1, 1, 1, 1, 1],
-      ![3, 3, 3, 3, 3, 3],
-      ![1, 1, 1, 1, 1, 1],
-      ![3, 3, 3, 3, 3, 3],
-      ![3, 3, 3, 3, 3, 3]],
-    ![![1, 1, 3, 1, 3, 3],
-      ![1, 1, 3, 1, 3, 3],
-      ![3, 3, 9, 3, 9, 9],
-      ![1, 1, 3, 1, 3, 3],
-      ![3, 3, 9, 3, 9, 9],
-      ![3, 3, 9, 3, 9, 9]],
-    ![![1, 1, 3, 1, 3, 3],
-      ![1, 1, 3, 1, 3, 3],
-      ![5, 5, 15, 5, 15, 15],
-      ![1, 1, 3, 1, 3, 3],
-      ![5, 5, 15, 5, 15, 15],
-      ![5, 5, 15, 5, 15, 15]],
-    ![![1, 1, 5, 1, 5, 5],
-      ![1, 1, 5, 1, 5, 5],
-      ![5, 5, 25, 5, 25, 25],
-      ![1, 1, 5, 1, 5, 5],
-      ![5, 5, 25, 5, 25, 25],
-      ![5, 5, 25, 5, 25, 25]]]
+private abbrev StrictPair :=
+  {p : LegalRow × LegalRow // RowLE p.2 p.1 ∧ p.1 ≠ p.2}
 
-private noncomputable def initial (k : Fin 5) (p q : Row) : ℤ := table k (code p) (code q)
+set_option maxRecDepth 2048 in
+private theorem no_third_row :
+    ∀ (a b c : LegalRow), RowLE b a → RowLE c b → a ≠ b → b = c := by
+  have check : ∀ p : LegalRow × LegalRow × LegalRow,
+      ¬ (RowLE p.2.1 p.1 ∧ RowLE p.2.2 p.2.1 ∧ p.1 ≠ p.2.1 ∧ p.2.1 ≠ p.2.2) := by
+    decide
+  intro a b c hab hbc hne
+  by_contra h
+  exact check (a, b, c) ⟨hab, hbc, hne, h⟩
 
-private theorem table_step0 : ∀ p q : Legal,
-    initial 1 p.val q.val = step (initial 0) p.val q.val := by decide +kernel
+private theorem strict_pair_card : Fintype.card StrictPair = 6 := by decide
 
-private theorem table_step1 : ∀ p q : Legal,
-    initial 2 p.val q.val = step (initial 1) p.val q.val := by decide +kernel
+private def constantChain {m : ℕ} (a : LegalRow) : Chain m :=
+  ⟨fun _ => a, fun _ _ _ _ => le_rfl⟩
 
-private theorem table_step2 : ∀ p q : Legal,
-    initial 3 p.val q.val = step (initial 2) p.val q.val := by decide +kernel
-
-private theorem table_step3 : ∀ p q : Legal,
-    initial 4 p.val q.val = step (initial 3) p.val q.val := by decide +kernel
-
-private theorem table_step (k : Fin 4) : ∀ p q : Legal,
-    initial k.succ p.val q.val = step (initial k.castSucc) p.val q.val := by
-  fin_cases k
-  · exact table_step0
-  · exact table_step1
-  · exact table_step2
-  · exact table_step3
-
-private theorem initial_eq (k : Fin 5) : ∀ p q : Legal,
-    v k.val p.val q.val = initial k p.val q.val := by
-  induction k using Fin.induction with
+private def consChain {m : ℕ} (a : LegalRow) (x : Chain (m + 1))
+    (h : RowLE (x.val 0) a) : Chain (m + 2) := ⟨Fin.cons a x.val, by
+  intro i
+  induction i using Fin.cases with
   | zero =>
-    rw [Fin.val_zero,zero_v]
-    decide +kernel
-  | succ k ih =>
-    intro p q
-    rw [Fin.val_succ,succ_v,table_step]
-    apply Finset.sum_congr rfl
-    intro r _
-    exact ih q ⟨r.val,r.property.1⟩
+    intro j
+    induction j using Fin.cases with
+    | zero => exact fun _ _ => le_rfl
+    | succ j =>
+      intro _ c
+      simpa only [Fin.cons_succ, Fin.cons_zero] using (x.property 0 j (Fin.zero_le j) c).trans (h c)
+  | succ i =>
+    intro j
+    induction j using Fin.cases with
+    | zero =>
+      intro hij
+      simp only [Fin.le_def, Fin.val_succ, Fin.val_zero] at hij
+      omega
+    | succ j =>
+      intro hij c
+      simpa only [Fin.cons_succ] using x.property i j (Fin.succ_le_succ_iff.mp hij) c⟩
 
-private theorem differences (n : ℕ) : ∀ p q : Legal,
-    v (n+4) p.val q.val = 2*v (n+3) p.val q.val - 2*v (n+1) p.val q.val + 1*v (n+0) p.val q.val := by
-  induction n with
-  | zero =>
-    intro p q
-    have e0 : v 0 p.val q.val = initial 0 p.val q.val := initial_eq 0 p q
-    have e1 : v 1 p.val q.val = initial 1 p.val q.val := initial_eq 1 p q
-    have e2 : v 2 p.val q.val = initial 2 p.val q.val := initial_eq 2 p q
-    have e3 : v 3 p.val q.val = initial 3 p.val q.val := initial_eq 3 p q
-    have e4 : v 4 p.val q.val = initial 4 p.val q.val := initial_eq 4 p q
-    simp only [Nat.zero_add,e0,e1,e2,e3,e4]
-    clear e0 e1 e2 e3 e4
-    revert p q
-    decide +kernel
-  | succ n ih =>
-    intro p q
-    change v ((n+4)+1) p.val q.val = _
-    rw [succ_v (n+4)]
-    unfold step
-    rw [Finset.sum_congr rfl (fun r _ => ih q ⟨r.val,r.property.1⟩)]
-    simp only [Finset.sum_add_distrib,Finset.sum_sub_distrib,← Finset.mul_sum]
-    have sum_v (t : ℕ) :
-        (∑ r : {r : Row // legal r ∧ next p.val q.val r}, v t q.val r.val) =
-          v (t+1) p.val q.val := (congrFun (congrFun (succ_v t) p.val) q.val).symm
-    simp only [sum_v]
+private def tailChain {m : ℕ} (x : Chain (m + 2)) : Chain (m + 1) :=
+  ⟨fun i => x.val i.succ, fun i j h => x.property i.succ j.succ (Fin.succ_le_succ_iff.mpr h)⟩
 
-private theorem initial_total (k : Fin 5) :
-    total (v k.val) = total (initial k) := by
-  unfold total
-  apply Finset.sum_congr rfl
-  intro p _
-  apply Finset.sum_congr rfl
-  exact fun q _ => initial_eq k p q
+private theorem chain_ext {m : ℕ} {x y : Chain m} (h : ∀ i, x.val i = y.val i) : x = y :=
+  Subtype.ext (funext h)
 
-private theorem counts : ∀ k : Fin 5, total (initial k) =
-    ![36, 72, 144, 216, 324] k := by decide +kernel
+-- If the first two rows differ, all following rows equal the second.
+private def chainStep (m : ℕ) : Chain (m + 2) ≃ Chain (m + 1) ⊕ StrictPair where
+  toFun x := if h : x.val 0 = x.val (Fin.succ 0) then .inl (tailChain x)
+    else .inr ⟨(x.val 0, x.val (Fin.succ 0)), x.property 0 _ (Fin.zero_le _), h⟩
+  invFun
+    | .inl x => consChain (x.val 0) x fun _ => le_rfl
+    | .inr p => consChain p.val.1 (constantChain p.val.2) p.property.1
+  left_inv x := by
+    by_cases h : x.val 0 = x.val (Fin.succ 0)
+    · simp only [h, dite_true]
+      apply chain_ext
+      intro i
+      exact Fin.cases (by simpa [consChain, tailChain] using h.symm)
+        (fun j => by simp [consChain, tailChain]) i
+    · simp only [h, dite_false]
+      apply chain_ext
+      intro i
+      refine Fin.cases (by simp [consChain]) (fun j => ?_) i
+      simpa [consChain, constantChain] using no_third_row (x.val 0) (x.val (Fin.succ 0))
+        (x.val j.succ) (x.property 0 _ (Fin.zero_le _))
+          (x.property (Fin.succ 0) j.succ (Fin.succ_le_succ_iff.mpr (Fin.zero_le j))) h
+  right_inv x := by
+    cases x with
+    | inl x =>
+      simp only [consChain, Fin.cons_zero, Fin.cons_succ, dite_true, Sum.inl.injEq]
+      apply chain_ext
+      intro i
+      simp [tailChain]
+    | inr p =>
+      simp only [consChain, Fin.cons_zero, Fin.cons_succ, constantChain, p.property.2, dite_false]
 
-private theorem term1 : a 1 = 6 := by
-  rw [card_ok]
-  decide +kernel
+private theorem chain_card_succ (m : ℕ) : Fintype.card (Chain (m + 1)) = 6 * (m + 1) := by
+  induction m with
+  | zero => decide
+  | succ m ih =>
+    rw [Fintype.card_congr (chainStep m), Fintype.card_sum, ih, strict_pair_card]
+    omega
 
-private theorem term2 : a 2 = 36 :=
-  (value 0).trans ((initial_total 0).trans (counts 0))
+theorem chain_card (m : ℕ) : Fintype.card (Chain m) = if m = 0 then 1 else 6 * m := by
+  cases m with
+  | zero => decide
+  | succ m => simpa using chain_card_succ m
 
-private theorem term3 : a 3 = 72 :=
-  (value 1).trans ((initial_total 1).trans (counts 1))
+end OMA.A208064
 
-private theorem term4 : a 4 = 144 :=
-  (value 2).trans ((initial_total 2).trans (counts 2))
+namespace OMA.A208064
 
-private theorem term5 : a 5 = 216 :=
-  (value 3).trans ((initial_total 3).trans (counts 3))
+open PowerSeries OMA.S_oeis_a208064
 
-private theorem term6 : a 6 = 324 :=
-  (value 4).trans ((initial_total 4).trans (counts 4))
+theorem main_of_card (h : ∀ n : ℕ, a n =
+    (↑((if n / 2 + n % 2 = 0 then 1 else 6 * (n / 2 + n % 2)) *
+      (if n / 2 = 0 then 1 else 6 * (n / 2)) : ℕ) : ℤ)) :
+    type_of% @OMA.S_oeis_a208064.main := by
+  have form (n : ℕ) (hn : 2 ≤ n) : (a n : ℚ) = 9 * (n : ℚ) ^ 2 - 9 * (↑(n % 2) : ℚ) := by
+    rw [h, if_neg (by omega), if_neg (by omega)]
+    change (↑((6 * (n / 2 + n % 2)) * (6 * (n / 2)) : ℕ) : ℚ) = _
+    simp only [Nat.cast_mul, Nat.cast_add, Nat.cast_ofNat]
+    have e : (n : ℚ) = 2 * (↑(n / 2) : ℚ) + (↑(n % 2) : ℚ) := by
+      exact_mod_cast (show n = 2 * (n / 2) + n % 2 by omega)
+    rcases (show n % 2 = 0 ∨ n % 2 = 1 by omega) with hp | hp <;>
+      rw [hp] at e ⊢ <;> rw [e] <;> ring
+  refine ⟨?_, fun n hn he => ?_, fun n hn ho => ?_⟩
+  · let b : ℕ → ℚ := fun n => if n < 1 then 0 else (a n : ℚ)
+    let A := mk b
+    have e : A * ((1 - X) ^ 3 * (1 + X)) =
+        A - C 2 * (X ^ 1 * A) + C 2 * (X ^ 3 * A) - X ^ 4 * A := by
+      rw [map_ofNat C 2]
+      ring
+    have e' : (6 * X * (1 + 4 * X + 2 * X ^ 3 - X ^ 4) : ℚ⟦X⟧) =
+        C 6 * X ^ 1 + C 24 * X ^ 2 + C 12 * X ^ 4 - C 6 * X ^ 5 := by
+      simp only [map_ofNat]
+      ring
+    change A * _ = _
+    rw [e, e']
+    ext n
+    simp only [map_add, map_sub, coeff_C_mul, coeff_X_pow_mul', coeff_X_pow, A, coeff_mk]
+    by_cases hn : n < 6
+    · interval_cases n <;> norm_num [b, h]
+    · obtain ⟨k, rfl⟩ : ∃ k, n = k + 6 := ⟨n - 6, by omega⟩
+      simp (disch := omega) [Nat.add_sub_assoc, Nat.cast_add, b, form,
+        show (k + 6) % 2 = (k + 2) % 2 by omega,
+        show (k + 5) % 2 = (k + 3) % 2 by omega]
+      ring
+  · simp [form n hn, Nat.even_iff.mp he]
+  · simp [form n hn, Nat.odd_iff.mp ho]
 
-private theorem recurrence (n : ℕ) (hn : 6 ≤ n) :
-    (a n : ℚ) = 2 * a (n - 1) - 2 * a (n - 3) + a (n - 4) := by
-  obtain ⟨m,rfl⟩ : ∃ m, n = m+6 := ⟨n-6,by omega⟩
-  have h : total (v (m+4)) = 2*total (v (m+3)) - 2*total (v (m+1)) + 1*total (v (m+0)) := by
-    unfold total
-    conv_lhs =>
-      enter [2,p,2,q]
-      rw [differences m p q]
-    simp only [Finset.sum_add_distrib,Finset.sum_sub_distrib,Finset.mul_sum]
-  have h2 : a (m+6) = 2*a (m+5) - 2*a (m+3) + a (m+2) := by
-    simpa [value] using h
-  simp only [show m+6-1 = m+5 by omega, show m+6-2 = m+4 by omega, show m+6-3 = m+3 by omega, show m+6-4 = m+2 by omega]
-  exact_mod_cast h2
+end OMA.A208064
 
-private theorem generating :
-    PowerSeries.mk (fun n => if n < 1 then 0 else (a n : ℚ)) * ((1 - X) ^ 3 * (1 + X) : PowerSeries ℚ) = 6 * X * (1 + 4 * X + 2 * X ^ 3 - X ^ 4) := by
-  let S := mk (fun n => if n < 1 then 0 else (a n : ℚ))
-  change S * _ = _
-  have lhs : S*((1 - X) ^ 3 * (1 + X)) = S - (2:ℕ) • (S*X^1) + (2:ℕ) • (S*X^3) - (1:ℕ) • (S*X^4) := by simp only [nsmul_eq_mul]; ring
-  have rhs : (6 * X * (1 + 4 * X + 2 * X ^ 3 - X ^ 4) : PowerSeries ℚ) = (6:ℕ) • X^1 + (24:ℕ) • X^2 + (12:ℕ) • X^4 - (6:ℕ) • X^5 := by simp only [nsmul_eq_mul]; ring
-  rw [lhs,rhs]
-  ext n
-  simp only [map_add,map_sub,map_nsmul,coeff_mul_X_pow',coeff_X_pow,S,coeff_mk]
-  by_cases h : 6 ≤ n
-  · have recn := recurrence n (by omega)
-    simp only [nsmul_eq_mul, if_pos (show 1 ≤ n by omega),
-      if_pos (show 3 ≤ n by omega),
-      if_pos (show 4 ≤ n by omega),
-      if_neg (show ¬ n < 1 by omega),
-      if_neg (show ¬ n-1 < 1 by omega),
-      if_neg (show ¬ n-3 < 1 by omega),
-      if_neg (show ¬ n-4 < 1 by omega),
-      if_neg (show n ≠ 1 by omega),
-      if_neg (show n ≠ 2 by omega),
-      if_neg (show n ≠ 4 by omega),
-      if_neg (show n ≠ 5 by omega)]
-    norm_num
-    linarith
-  · interval_cases n <;> norm_num [term1,term2,term3,term4,term5,term6]
-
-private def g (n : ℕ) : ℚ := ((9 * (n : ℚ) ^ 2) + (9 * (n : ℚ) ^ 2 - 9)) / 2 + (-1 : ℚ) ^ n * (((9 * (n : ℚ) ^ 2) - (9 * (n : ℚ) ^ 2 - 9)) / 2)
-
-private theorem closed (n : ℕ) (hn : 2 ≤ n) : (a n : ℚ) = g n := by
-  induction n using Nat.strong_induction_on with
-  | h n ih =>
-    by_cases small : n < 6
-    · interval_cases n <;> norm_num [g,term1,term2,term3,term4,term5,term6]
-    rw [recurrence n (by omega),ih (n-1) (by omega) (by omega),
-      ih (n-3) (by omega) (by omega),
-      ih (n-4) (by omega) (by omega)]
-    obtain ⟨m,rfl⟩ : ∃ m, n=m+6 := ⟨n-6,by omega⟩
-    simp only [show m+6-1 = m+5 by omega,show m+6-2 = m+4 by omega,show m+6-3 = m+3 by omega,show m+6-4 = m+2 by omega]
-    unfold g
-    push_cast
-    ring
-
-private theorem claim1 :
-    ∀ n : ℕ, 2 ≤ n → Even n → (a n : ℚ) = 9 * (n : ℚ) ^ 2 := fun n hn he => by rw [closed n hn]; unfold g; rw [he.neg_one_pow]; ring
-
-private theorem claim2 :
-    ∀ n : ℕ, 2 ≤ n → Odd n → (a n : ℚ) = 9 * (n : ℚ) ^ 2 - 9 := fun n hn ho => by rw [closed n hn]; unfold g; rw [ho.neg_one_pow]; ring
-
-theorem result : type_of% @OMA.S_oeis_a208064.main := ⟨generating,claim1,claim2⟩
-
-end OMA.Arr_oeis_a208064
-
-theorem OMA.solution : type_of% @OMA.S_oeis_a208064.main := OMA.Arr_oeis_a208064.result
+open OMA.A208064 in
+theorem OMA.solution : type_of% @OMA.S_oeis_a208064.main := by
+  apply main_of_card
+  intro n
+  rw [array_card, chain_card, chain_card, Nat.cast_mul]

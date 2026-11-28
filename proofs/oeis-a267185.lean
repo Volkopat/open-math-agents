@@ -66,12 +66,6 @@ theorem recur (n : ℕ) (hn : 5 < n) : (a n : ℤ) = a (n - 1) + a (n - 2) - a (
 open PowerSeries in
 theorem gf : mk (fun n => (a n : ℤ)) * ((1 - X) ^ 2 * (1 + X)) =
       (X * (1 - X + 3 * X ^ 2 - X ^ 3 - X ^ 4) : PowerSeries ℤ) := by
-  have v0 : a 0 = 0 := by simp [a, T]
-  have v1 : a 1 = 1 := by simp [a, T]
-  have v2 : a 2 = 0 := by simp [a, T]
-  have v3 : a 3 = 4 := by simp [a, T]
-  have v4 : a 4 = 2 := by simp [a, T]
-  have v5 : a 5 = 5 := by simp [a, T]
   set F : PowerSeries ℤ := mk (fun n => (a n : ℤ)) with hF
   have product : F * ((1 - X) ^ 2 * (1 + X)) = F + (-1 : ℤ) • (F * X ^ 1) + (-1 : ℤ) • (F * X ^ 2) + (1 : ℤ) • (F * X ^ 3) := by
     simp only [zsmul_eq_mul]; push_cast; ring
@@ -86,7 +80,7 @@ theorem gf : mk (fun n => (a n : ℤ)) * ((1 - X) ^ 2 * (1 + X)) =
       show n ≠ 2 by omega, show n ≠ 3 by omega, show n ≠ 4 by omega, show n ≠ 5 by omega,
       if_true, if_false]
     linarith
-  · interval_cases n <;> simp [v0, v1, v2, v3, v4, v5]
+  · interval_cases n <;> simp [a, T] <;> decide +kernel
 
 end P267185
 

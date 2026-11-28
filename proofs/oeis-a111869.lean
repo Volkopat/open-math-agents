@@ -6,8 +6,6 @@ factor times a Catalan number. Below that index the top of the binomial
 coefficient is smaller than `p²`, so its `p`-adic valuation is at most one.
 -/
 
-namespace CentralBinomialMinimum
-
 private theorem odd_factor (j : ℕ) : 2 * j + 1 ∣ (j + 1).centralBinom := by
   obtain ⟨c, hc⟩ := Nat.succ_dvd_centralBinom j
   refine ⟨2 * c, Nat.eq_of_mul_eq_mul_left (Nat.succ_pos j) ?_⟩
@@ -32,7 +30,5 @@ theorem least_index (p : ℕ) (hp : p.Prime) (hp2 : p ≠ 2) :
     have hhi := Nat.factorization_choose_le_one (k := k) htop
     omega
 
-end CentralBinomialMinimum
 
-theorem OMA.solution : type_of% @OMA.S_oeis_a111869.main :=
-  CentralBinomialMinimum.least_index
+theorem OMA.solution : type_of% @OMA.S_oeis_a111869.main := least_index

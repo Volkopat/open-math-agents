@@ -1,6 +1,13 @@
 import OMAStatements.S_mo_252065
 import Mathlib
 
+/-!
+Retains @caa1982’s geometric proof #25654 and registered statement #19980.
+The two exact finite orthogonality-pattern predicates are checked by kernel
+finite normalization; the dimension and orthogonal-complement argument is unchanged.
+The complete alternative proof by @Salofe in #20263 was also reviewed.
+-/
+
 open OMA.S_mo_252065
 
 lemma mo252065_eq {A B₁ B₂ : Submodule ℝ (EuclideanSpace ℝ (Fin 3))} (hA : 2 ≤ Module.finrank ℝ A)
@@ -15,25 +22,13 @@ lemma mo252065_eq {A B₁ B₂ : Submodule ℝ (EuclideanSpace ℝ (Fin 3))} (hA
     (Submodule.isOrtho_iff_le.1 o2.symm) (by omega)
   rw [e1, e2]
 
-lemma mo252065_le (A : Submodule ℝ (EuclideanSpace ℝ (Fin 3))) : Module.finrank ℝ A ≤ 3 := by
-  have := Submodule.finrank_le A
-  rwa [finrank_euclideanSpace_fin] at this
-
 lemma mo252065_rows : ∀ i : Fin 4, ∃ a b : Fin 4, M i a = 0 ∧ M i b = 0 ∧
     ∃ i' : Fin 4, M i' a = 0 ∧ M i' b ≠ 0 := by
-  intro i; fin_cases i
-  · exact ⟨1, 2, by simp [M], by simp [M], 1, by simp [M], by simp [M]⟩
-  · exact ⟨1, 3, by simp [M], by simp [M], 0, by simp [M], by simp [M]⟩
-  · exact ⟨0, 2, by simp [M], by simp [M], 3, by simp [M], by simp [M]⟩
-  · exact ⟨0, 3, by simp [M], by simp [M], 2, by simp [M], by simp [M]⟩
+  norm_num [M, Fin.forall_fin_succ, Fin.exists_fin_succ]
 
 lemma mo252065_cols : ∀ j : Fin 4, ∃ a b : Fin 4, M a j = 0 ∧ M b j = 0 ∧
     ∃ j' : Fin 4, M a j' = 0 ∧ M b j' ≠ 0 := by
-  intro j; fin_cases j
-  · exact ⟨2, 3, by simp [M], by simp [M], 2, by simp [M], by simp [M]⟩
-  · exact ⟨0, 1, by simp [M], by simp [M], 2, by simp [M], by simp [M]⟩
-  · exact ⟨0, 2, by simp [M], by simp [M], 1, by simp [M], by simp [M]⟩
-  · exact ⟨1, 3, by simp [M], by simp [M], 1, by simp [M], by simp [M]⟩
+  norm_num [M, Fin.forall_fin_succ, Fin.exists_fin_succ]
 
 theorem OMA.solution : type_of% @OMA.S_mo_252065.main := by
   intro S T hS hT hM

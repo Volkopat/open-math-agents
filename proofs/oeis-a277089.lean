@@ -1,7 +1,5 @@
 import OMAStatements.S_oeis_a277089
 
-namespace PisotCeiling44
-
 open OMA.S_oeis_a277089
 
 private def iterate : ℕ → ℕ → ℕ → ℕ
@@ -37,6 +35,5 @@ theorem refute : ¬ (type_of% @OMA.S_oeis_a277089.main) := by
   rw [value_eq 44, value_eq 43, value_eq 42, value_eq 40, value_eq 38, value_eq 37] at hbad
   exact hbad h44
 
-end PisotCeiling44
 
-theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a277089.main) := PisotCeiling44.refute
+theorem OMA.disproof : ¬ (type_of% @OMA.S_oeis_a277089.main) := refute

@@ -1,6 +1,13 @@
 import OMAStatements.S_mo_280236
 
 /-!
+Retains @marcusbuffett’s complete proof #30854, head
+ a895e4683056e68ec824f4c1e4534860639a9289, and @AkiRA-COM-FP’s statement #26033.
+The density of rationals after removing a finite set replaces the local induction;
+the standard geometric-series summability supplies the same convergence bound.
+An order-based injectivity criterion replaces the final trichotomy helper.
+Source: Taras Banakh, https://mathoverflow.net/questions/280236 (CC BY-SA 3.0).
+
 Enumerate the target and construct a continuous scalar function taking distinct
 rational values on its points. In each rational level set, removing its unique
 enumerated point (if present) leaves a countable union of closed sets. For each
@@ -20,19 +27,9 @@ namespace RationalPreimage
 
 private lemma fresh_rat (s : Finset ℝ) {a b : ℝ} (h : a<b) :
     ∃ q : ℚ, a < q ∧ (q:ℝ)<b ∧ (q:ℝ) ∉ s := by
-  classical
-  induction s using Finset.induction_on generalizing a b with
-  | empty =>
-    obtain ⟨q,h₁,h₂⟩ := exists_rat_btwn h
-    exact ⟨q,h₁,h₂,by simp⟩
-  | insert x s hx ih =>
-    by_cases hxa : a<x
-    · obtain ⟨q,hl,hu,hn⟩ := ih (lt_min h hxa)
-      exact ⟨q,hl,hu.trans_le (min_le_left _ _),by
-        simp only [Finset.mem_insert,not_or]
-        exact ⟨(hu.trans_le (min_le_right _ _)).ne,hn⟩⟩
-    · obtain ⟨q,hl,hu,hn⟩ := ih h
-      exact ⟨q,hl,hu,by simp only [Finset.mem_insert,not_or]; exact ⟨by linarith,hn⟩⟩
+  obtain ⟨x,⟨⟨q,rfl⟩,hq⟩,hl,hu⟩ :=
+    (Rat.denseRange_cast.sdiff_finset s).exists_mem_open isOpen_Ioo (nonempty_Ioo.mpr h)
+  exact ⟨q,hl,hu,hq⟩
 
 variable {X : Type} [TopologicalSpace X] [T1Space X] [NormalSpace X]
 variable (e : ℕ → X) (einj : Function.Injective e) (F : Set X) (closedF : IsClosed F)
@@ -92,7 +89,7 @@ private lemma interpolate (base : ℝ) : ∃ f : C(X,ℝ),
   let delta (n : ℕ) (x : X) := f (n+1) x - f n x
   let g : C(X,ℝ) := ⟨fun x => base + ∑' n, delta n x, continuous_const.add
     (continuous_tsum (fun n => (f (n+1)).continuous.sub (f n).continuous)
-      (summable_geometric_of_lt_one (by norm_num : 0≤(1/2:ℝ)) (by norm_num))
+      hasSum_geometric_two.summable
       (fun n x => (S n).1 x))⟩
   have fixed (i : ℕ) : g (e i)=f (i+1) (e i) := by
     change base + ∑' n, delta n (e i) = _
@@ -115,10 +112,9 @@ private lemma interpolate (base : ℝ) : ∃ f : C(X,ℝ),
   · intro x hx
     have H : ∀ n, delta n x=0 := fun n => sub_eq_zero.2 ((S n).2.1 x hx)
     simp [g,H]
-  · suffices h : ∀ i j, i<j → g (e i) ≠ g (e j) by
-      intro i j he
-      exact lt_trichotomy i j |>.resolve_left (fun hl => h _ _ hl he) |>.resolve_right (fun hl => h _ _ hl he.symm)
+  · apply Function.Injective.of_lt_imp_ne
     intro i j hij
+    change g (e i) ≠ g (e j)
     rw [fixed,fixed,← stable i (j+1) (by omega)]
     exact (S j).2.2.2.2 i hij
 

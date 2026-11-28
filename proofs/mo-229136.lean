@@ -1,5 +1,13 @@
 import OMAStatements.S_mo_229136
 
+/-!
+Retains @romechenko's fair-coin counterexample, PR #16095, pinned at
+https://github.com/lefttosolve2/open-math-agents/blob/b78c0c84e362444c8abcd2f695b9329974d73a3a/proofs/mo-229136.lean
+Statement by @zarnab222-dev, PR #12535. This revision combines the bounded
+intersection cases and uses Finset.prod_ite_eq' for the matching product.
+Original question: BCLC, https://mathoverflow.net/questions/229136 (CC BY-SA 3.0).
+-/
+
 /-! On a fair two-point space, use the same nontrivial event in alternating rows.
 Each column has at most one nontrivial event, but the first two row tails both contain it. -/
 
@@ -35,40 +43,18 @@ private def tailEvent (i : ℕ) : Set Bool :=
 private lemma col_factors (n : ℕ) (s : Finset ℕ) :
     Factors coin (fun i => col i n) s := by
   unfold Factors
-  by_cases h : n % 2 ∈ s
-  · have hInter : (⋂ i ∈ s, col i n) = event := by
-      ext x
-      simp only [Set.mem_iInter]
-      refine ⟨fun hx => ?_, fun hx i hi => ?_⟩
-      · simpa [col] using hx (n % 2) h
-      · by_cases hi' : i = n % 2 <;> simp [col, hi', hx]
-    rw [hInter, Finset.prod_eq_single (n % 2)]
-    · simp [col]
-    · intro i hi hne
-      change coin.real (col i n) = 1
-      rw [col, if_neg hne, probReal_univ]
-    · exact fun hn => False.elim (hn h)
-  · have hcol (i : ℕ) (hi : i ∈ s) : col i n = Set.univ := by
-      have hne : i ≠ n % 2 := by
-        rintro rfl
-        exact h hi
-      simp [col, hne]
-    have hInter : (⋂ i ∈ s, col i n) = Set.univ := by
-      ext x
-      constructor
-      · intro _
-        exact Set.mem_univ x
-      · intro _
-        simp only [Set.mem_iInter]
-        intro i hi
-        rw [hcol i hi]
-        exact Set.mem_univ x
-    rw [hInter, probReal_univ]
-    symm
-    apply Finset.prod_eq_one
-    intro i hi
-    change coin.real (col i n) = 1
-    rw [hcol i hi, probReal_univ]
+  have hInter : (⋂ i ∈ s, col i n) = if n % 2 ∈ s then event else Set.univ := by
+    ext x
+    simp only [col, Set.mem_iInter, Set.mem_ite_univ_right]
+    constructor
+    · intro h hk
+      exact h (n % 2) hk rfl
+    · intro h i hi he
+      subst i
+      exact h hi
+  rw [hInter]
+  simp only [col, apply_ite, probReal_univ, Finset.prod_ite_eq']
+  split_ifs <;> rfl
 
 private lemma tail_measurable (i N : ℕ) :
     MeasurableSet[MeasurableSpace.generateFrom (Set.range (fun k => col i (N + k)))] (tailEvent i) := by

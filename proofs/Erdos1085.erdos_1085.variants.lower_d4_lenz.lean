@@ -1,5 +1,6 @@
 import FormalConjectures.ErdosProblems.«1085»
 import Mathlib.Combinatorics.SimpleGraph.Extremal.Turan
+import Mathlib.Algebra.Order.Floor.Semifield
 
 /-! Shorter proof of `Erdos1085.erdos_1085.variants.lower_d4_lenz`. -/
 
@@ -65,18 +66,16 @@ theorem OMA.solution : type_of% @Erdos1085.erdos_1085.variants.lower_d4_lenz := 
       (Sym2.map.injective hinj).injOn
     induction e using Sym2.inductionOn with
     | _ i j =>
-      have hij : (i : ℕ) % p ≠ (j : ℕ) % p := SimpleGraph.turanGraph_adj.mp
-        ((SimpleGraph.mem_edgeSet (G := SimpleGraph.turanGraph n p)).mp
-          ((SimpleGraph.mem_edgeFinset (G := SimpleGraph.turanGraph n p)).mp he))
+      rw [Finset.mem_coe, SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet,
+        SimpleGraph.turanGraph_adj] at he
       change s(ve i, ve j) ∈ _
-      refine Finset.mem_filter.mpr ⟨Finset.mk_mem_sym2_iff.mpr
-        ⟨Finset.mem_map.mpr ⟨i, Finset.mem_univ _, rfl⟩,
-         Finset.mem_map.mpr ⟨j, Finset.mem_univ _, rfl⟩⟩, ?_⟩
+      have hm (i : Fin n) : ve i ∈ S := by simp [S]
+      refine Finset.mem_filter.mpr ⟨Finset.mk_mem_sym2_iff.mpr ⟨hm i, hm j⟩, ?_⟩
       have hout : s((Quot.out s(ve i, ve j)).1, (Quot.out s(ve i, ve j)).2) = s(ve i, ve j) :=
         Quot.out_eq _
       rcases Sym2.eq_iff.mp hout with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩
-      · rw [h₁, h₂]; exact hdist i j hij
-      · rw [h₁, h₂, dist_comm]; exact hdist i j hij
+      · rw [h₁, h₂]; exact hdist i j he
+      · rw [h₁, h₂, dist_comm]; exact hdist i j he
   have hle : (SimpleGraph.turanGraph n p).edgeFinset.card ≤ Erdos1085.f d n := hedge.trans <| by
     unfold Erdos1085.f
     refine le_ciSup₂ (f := fun (T : Finset (ℝ^d)) (_ : T.card = n) => unitDistNum T)
@@ -87,15 +86,13 @@ theorem OMA.solution : type_of% @Erdos1085.erdos_1085.variants.lower_d4_lenz := 
   refine le_trans ?_ (by exact_mod_cast hle :
     ((SimpleGraph.turanGraph n p).edgeFinset.card : ℝ) ≤ Erdos1085.f d n)
   let r := n % p; let A := (n ^ 2 - r ^ 2) * (p - 1); let B := 2 * p
-  have hB : 0 < B := by omega
   have hsub : r ^ 2 ≤ n ^ 2 := Nat.pow_le_pow_left (Nat.mod_le _ _) _
-  have hflR : (A : ℝ) < ((A / B : ℕ) + (1 : ℝ)) * B := by
-    exact_mod_cast (Nat.div_lt_iff_lt_mul hB).mp (by omega : A / B < A / B + 1)
   have hdiv : (A : ℝ) / B - 1 ≤ (A / B : ℕ) := by
-    linarith [(div_lt_iff₀ (by exact_mod_cast hB : (0 : ℝ) < B)).mpr hflR]
-  have hcoef : ((p - 1 : ℕ) : ℝ) / (2 * (p : ℝ)) ≤ 1 :=
-    (div_le_iff₀ (by positivity)).mpr
-      (by linarith [show ((p - 1 : ℕ) : ℝ) ≤ p by exact_mod_cast Nat.sub_le p 1])
+    simpa [Nat.floor_div_eq_div] using (Nat.sub_one_lt_floor ((A : ℝ) / B)).le
+  have hcoef : ((p - 1 : ℕ) : ℝ) / (2 * (p : ℝ)) ≤ 1 := by
+    rw [div_le_iff₀ (by positivity)]
+    norm_cast
+    omega
   have herr : ((p - 1 : ℕ) : ℝ) / (2 * (p : ℝ)) * (r : ℝ) ^ 2 ≤ (p : ℝ) ^ 2 :=
     (mul_le_mul_of_nonneg_right hcoef (sq_nonneg _)).trans <| by
       simpa using (show (r : ℝ) ^ 2 ≤ p ^ 2 by

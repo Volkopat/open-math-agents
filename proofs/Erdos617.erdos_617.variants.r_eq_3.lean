@@ -1,4 +1,5 @@
 import FormalConjectures.ErdosProblems.«617»
+import Mathlib.Combinatorics.Enumerative.DoubleCounting
 
 /-! # Three colors on ten vertices
 The neighborhood argument follows Erdős and Gyárfás, Lemma 1 (1999).
@@ -94,20 +95,19 @@ private lemma ramseySix (G : SimpleGraph V) (X : Finset V) (six : 6 ≤ X.card)
     simpa [A,B,card_erase_of_mem hx] using card_filter_add_card_filter_not (s := X.erase x) (p := G.Adj x)
   by_cases big : 2 < A.card
   · obtain ⟨a,b,d,ha,hb,hd,ab,ad,bd⟩ := two_lt_card_iff.mp big
-    have extA (y) (hy : y ∈ A) : y ∈ X ∧ G.Adj x y :=
-      ⟨(mem_erase.mp (mem_filter.mp hy).1).2,(mem_filter.mp hy).2⟩
-    rcases edges a (extA a ha).1 b (extA b hb).1 d (extA d hd).1 ab ad bd with e|e|e
-    · exact mk x a b hx (extA a ha).1 (extA b hb).1 (extA a ha).2 (extA b hb).2 e
-    · exact mk x a d hx (extA a ha).1 (extA d hd).1 (extA a ha).2 (extA d hd).2 e
-    · exact mk x b d hx (extA b hb).1 (extA d hd).1 (extA b hb).2 (extA d hd).2 e
+    simp only [A, mem_filter, mem_erase] at ha hb hd
+    rcases edges a ha.1.2 b hb.1.2 d hd.1.2 ab ad bd with e|e|e
+    · exact mk x a b hx ha.1.2 hb.1.2 ha.2 hb.2 e
+    · exact mk x a d hx ha.1.2 hd.1.2 ha.2 hd.2 e
+    · exact mk x b d hx hb.1.2 hd.1.2 hb.2 hd.2 e
   · obtain ⟨a,b,d,ha,hb,hd,ab,ad,bd⟩ := two_lt_card_iff.mp (by omega : 2 < B.card)
-    have info (y) (hy : y ∈ B) : y ≠ x ∧ y ∈ X ∧ ¬ G.Adj x y :=
-      ⟨(mem_erase.mp (mem_filter.mp hy).1).1,(mem_erase.mp (mem_filter.mp hy).1).2,(mem_filter.mp hy).2⟩
-    have link (y z) (hy : y ∈ B) (hz : z ∈ B) (ne : y ≠ z) : G.Adj y z :=
-      ((edges x hx y (info y hy).2.1 z (info z hz).2.1 (info y hy).1.symm (info z hz).1.symm ne
-        ).resolve_left (info y hy).2.2).resolve_left (info z hz).2.2
-    exact mk a b d (info a ha).2.1 (info b hb).2.1 (info d hd).2.1
-      (link a b ha hb ab) (link a d ha hd ad) (link b d hb hd bd)
+    simp only [B, mem_filter, mem_erase] at ha hb hd
+    have link {y z : V} (hy : (y ≠ x ∧ y ∈ X) ∧ ¬ G.Adj x y)
+        (hz : (z ≠ x ∧ z ∈ X) ∧ ¬ G.Adj x z) (ne : y ≠ z) : G.Adj y z :=
+      ((edges x hx y hy.1.2 z hz.1.2 hy.1.1.symm hz.1.1.symm ne
+        ).resolve_left hy.2).resolve_left hz.2
+    exact mk a b d ha.1.2 hb.1.2 hd.1.2 (link ha hb ab) (link ha hd ad) (link hb hd bd)
+
 -- An external point cannot meet two vertices of a triangle, since the two
 -- triangles would share their common edge.
 omit [Fintype V] in
@@ -120,13 +120,11 @@ private lemma oneTouch {G : SimpleGraph V} (nd : ND G) {T : Finset V}
   obtain ⟨aT,va⟩ := mem_filter.mp ha
   obtain ⟨bT,vb⟩ := mem_filter.mp hb
   by_contra ne
-  have rem : ((T.erase a).erase b).card = 1 := by
-    rw [card_erase_of_mem (mem_erase.mpr ⟨Ne.symm ne,bT⟩),card_erase_of_mem aT,tri.1]
-  obtain ⟨z,hz⟩ := card_pos.mp (by omega : 0 < ((T.erase a).erase b).card)
-  obtain ⟨zb,zrest⟩ := mem_erase.mp hz
-  obtain ⟨za,zT⟩ := mem_erase.mp zrest
+  have small : ({a,b} : Finset V).card < T.card := by simp [ne,tri.1]
+  obtain ⟨z,zT,hz⟩ := exists_mem_notMem_of_card_lt_card small
+  have hz' : z ≠ a ∧ z ≠ b := by simpa using hz
   have eq := nd a b v z (tri.2 a aT b bT ne) va.symm vb.symm
-    (tri.2 a aT z zT za.symm) (tri.2 b bT z zT zb.symm)
+    (tri.2 a aT z zT hz'.1.symm) (tri.2 b bT z zT hz'.2.symm)
   exact outsideT (eq ▸ zT)
 
 omit [Fintype V] [DecidableEq V] in
@@ -155,10 +153,9 @@ private lemma splitOutside {c : Sym2 V → Fin 3} (h : ¬ Witness c) (k : Fin 3)
     obtain ⟨xx,xa⟩ := mem_sdiff.mp hx
     obtain ⟨yx,ya⟩ := mem_sdiff.mp hy
     let covered := (A.filter (G.Adj x)) ∪ (A.filter (G.Adj y))
-    have ux := oneTouch (diamond h k) tri xa
-    have uy := oneTouch (diamond h k) tri ya
-    change (A.filter (G.Adj x)).card ≤ 1 at ux
-    change (A.filter (G.Adj y)).card ≤ 1 at uy
+    have nd : ND G := diamond h k
+    have ux := oneTouch nd tri xa
+    have uy := oneTouch nd tri ya
     have le := card_union_le (A.filter (G.Adj x)) (A.filter (G.Adj y))
     have small : covered.card < A.card := by dsimp [covered]; rw [tri.1]; omega
     obtain ⟨z,za,zout⟩ := exists_mem_notMem_of_card_lt_card small
@@ -284,17 +281,10 @@ private theorem existsWitness (c : Sym2 V → Fin 3) (size : Fintype.card V = 10
       · exact (mem_filter.mp (inside vt)).2.1 rfl
     have bound := card_le_card sub
     simpa [card_sdiff_of_subset (subset_univ _),size,card_insert_of_notMem wt,t.1] using bound
-  have double : ∑ v, (can v).card = ∑ T ∈ Ts, (avoid T).card := by
-    calc
-      _ = ∑ v : V, ∑ T ∈ Ts, (if T ⊆ outside G v then 1 else 0 : ℕ) := by simp [can]
-      _ = ∑ T ∈ Ts, ∑ v : V, (if T ⊆ outside G v then 1 else 0 : ℕ) := sum_comm
-      _ = _ := by simp [avoid]
-  have low : 20 ≤ ∑ v, (can v).card := calc
-    20 = ∑ _v : V, 2 := by simp [size]
-    _ ≤ _ := sum_le_sum fun v _ => lower v
-  have high : ∑ T ∈ Ts, (avoid T).card ≤ Ts.card*6 := calc
-    _ ≤ ∑ _T ∈ Ts, 6 := sum_le_sum upper
-    _ = _ := by simp
+  have count := card_nsmul_le_card_nsmul (s := (univ : Finset V)) (t := Ts)
+    (r := fun v T => T ⊆ outside G v) (m := 2) (n := 6)
+    (fun v _ => lower v) upper
+  simp [size, nsmul_eq_mul] at count
   omega
 end OMA.TenVertices
 

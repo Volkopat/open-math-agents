@@ -708,6 +708,17 @@ end ProductEnumeration
 
 namespace ProductEnumeration
 
+private theorem allExtensions {k : ℕ} {w : List ℕ}
+    (checks : ∀ d : Fin 9, walk blocked terminal k ((d.val + 1) :: w) = true) :
+    ([1,2,3,4,5,6,7,8,9] : List ℕ).all (fun d => walk blocked terminal k (d::w)) = true := by
+  apply List.all_eq_true.mpr
+  intro d hd
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hd
+  have range : 0 < d ∧ d ≤ 9 := by
+    rcases hd with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide
+  have index : d - 1 + 1 = d := by omega
+  simpa only [index] using checks ⟨d - 1, by omega⟩
+
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem suffix1 : walk blocked terminal 7 [1] = true := by
@@ -715,48 +726,9 @@ private theorem suffix1 : walk blocked terminal 7 [1] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix112 : walk blocked terminal 5 [1,1,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix212 : walk blocked terminal 5 [2,1,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix312 : walk blocked terminal 5 [3,1,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix412 : walk blocked terminal 5 [4,1,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix512 : walk blocked terminal 5 [5,1,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix612 : walk blocked terminal 5 [6,1,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix712 : walk blocked terminal 5 [7,1,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix812 : walk blocked terminal 5 [8,1,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix912 : walk blocked terminal 5 [9,1,2] = true := by
-  decide +kernel
+private theorem extensions12 (d : Fin 9) :
+    walk blocked terminal 5 ((d.val + 1) :: [1,2]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -764,7 +736,8 @@ private theorem suffix12 : walk blocked terminal 6 [1,2] = true := by
   have hb : blocked [1,2] = false := by decide +kernel
   have ht : terminal [1,2] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix112, suffix212, suffix312, suffix412, suffix512, suffix612, suffix712, suffix812, suffix912, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions12
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -773,48 +746,9 @@ private theorem suffix22 : walk blocked terminal 6 [2,2] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix132 : walk blocked terminal 5 [1,3,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix232 : walk blocked terminal 5 [2,3,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix332 : walk blocked terminal 5 [3,3,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix432 : walk blocked terminal 5 [4,3,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix532 : walk blocked terminal 5 [5,3,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix632 : walk blocked terminal 5 [6,3,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix732 : walk blocked terminal 5 [7,3,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix832 : walk blocked terminal 5 [8,3,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix932 : walk blocked terminal 5 [9,3,2] = true := by
-  decide +kernel
+private theorem extensions32 (d : Fin 9) :
+    walk blocked terminal 5 ((d.val + 1) :: [3,2]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -822,7 +756,8 @@ private theorem suffix32 : walk blocked terminal 6 [3,2] = true := by
   have hb : blocked [3,2] = false := by decide +kernel
   have ht : terminal [3,2] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix132, suffix232, suffix332, suffix432, suffix532, suffix632, suffix732, suffix832, suffix932, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions32
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -841,48 +776,9 @@ private theorem suffix252 : walk blocked terminal 5 [2,5,2] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1352 : walk blocked terminal 4 [1,3,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2352 : walk blocked terminal 4 [2,3,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3352 : walk blocked terminal 4 [3,3,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4352 : walk blocked terminal 4 [4,3,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5352 : walk blocked terminal 4 [5,3,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6352 : walk blocked terminal 4 [6,3,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7352 : walk blocked terminal 4 [7,3,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8352 : walk blocked terminal 4 [8,3,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9352 : walk blocked terminal 4 [9,3,5,2] = true := by
-  decide +kernel
+private theorem extensions352 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [3,5,2]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -890,7 +786,8 @@ private theorem suffix352 : walk blocked terminal 5 [3,5,2] = true := by
   have hb : blocked [3,5,2] = false := by decide +kernel
   have ht : terminal [3,5,2] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1352, suffix2352, suffix3352, suffix4352, suffix5352, suffix6352, suffix7352, suffix8352, suffix9352, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions352
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -904,48 +801,9 @@ private theorem suffix552 : walk blocked terminal 5 [5,5,2] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1652 : walk blocked terminal 4 [1,6,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2652 : walk blocked terminal 4 [2,6,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3652 : walk blocked terminal 4 [3,6,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4652 : walk blocked terminal 4 [4,6,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5652 : walk blocked terminal 4 [5,6,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6652 : walk blocked terminal 4 [6,6,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7652 : walk blocked terminal 4 [7,6,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8652 : walk blocked terminal 4 [8,6,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9652 : walk blocked terminal 4 [9,6,5,2] = true := by
-  decide +kernel
+private theorem extensions652 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [6,5,2]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -953,7 +811,8 @@ private theorem suffix652 : walk blocked terminal 5 [6,5,2] = true := by
   have hb : blocked [6,5,2] = false := by decide +kernel
   have ht : terminal [6,5,2] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1652, suffix2652, suffix3652, suffix4652, suffix5652, suffix6652, suffix7652, suffix8652, suffix9652, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions652
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -967,48 +826,9 @@ private theorem suffix852 : walk blocked terminal 5 [8,5,2] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1952 : walk blocked terminal 4 [1,9,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2952 : walk blocked terminal 4 [2,9,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3952 : walk blocked terminal 4 [3,9,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4952 : walk blocked terminal 4 [4,9,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5952 : walk blocked terminal 4 [5,9,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6952 : walk blocked terminal 4 [6,9,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7952 : walk blocked terminal 4 [7,9,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8952 : walk blocked terminal 4 [8,9,5,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9952 : walk blocked terminal 4 [9,9,5,2] = true := by
-  decide +kernel
+private theorem extensions952 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [9,5,2]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1016,7 +836,8 @@ private theorem suffix952 : walk blocked terminal 5 [9,5,2] = true := by
   have hb : blocked [9,5,2] = false := by decide +kernel
   have ht : terminal [9,5,2] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1952, suffix2952, suffix3952, suffix4952, suffix5952, suffix6952, suffix7952, suffix8952, suffix9952, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions952
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1048,48 +869,9 @@ private theorem suffix462 : walk blocked terminal 5 [4,6,2] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1562 : walk blocked terminal 4 [1,5,6,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2562 : walk blocked terminal 4 [2,5,6,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3562 : walk blocked terminal 4 [3,5,6,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4562 : walk blocked terminal 4 [4,5,6,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5562 : walk blocked terminal 4 [5,5,6,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6562 : walk blocked terminal 4 [6,5,6,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7562 : walk blocked terminal 4 [7,5,6,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8562 : walk blocked terminal 4 [8,5,6,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9562 : walk blocked terminal 4 [9,5,6,2] = true := by
-  decide +kernel
+private theorem extensions562 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [5,6,2]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1097,7 +879,8 @@ private theorem suffix562 : walk blocked terminal 5 [5,6,2] = true := by
   have hb : blocked [5,6,2] = false := by decide +kernel
   have ht : terminal [5,6,2] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1562, suffix2562, suffix3562, suffix4562, suffix5562, suffix6562, suffix7562, suffix8562, suffix9562, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions562
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1134,48 +917,9 @@ private theorem suffix72 : walk blocked terminal 6 [7,2] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix182 : walk blocked terminal 5 [1,8,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix282 : walk blocked terminal 5 [2,8,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix382 : walk blocked terminal 5 [3,8,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix482 : walk blocked terminal 5 [4,8,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix582 : walk blocked terminal 5 [5,8,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix682 : walk blocked terminal 5 [6,8,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix782 : walk blocked terminal 5 [7,8,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix882 : walk blocked terminal 5 [8,8,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix982 : walk blocked terminal 5 [9,8,2] = true := by
-  decide +kernel
+private theorem extensions82 (d : Fin 9) :
+    walk blocked terminal 5 ((d.val + 1) :: [8,2]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1183,7 +927,8 @@ private theorem suffix82 : walk blocked terminal 6 [8,2] = true := by
   have hb : blocked [8,2] = false := by decide +kernel
   have ht : terminal [8,2] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix182, suffix282, suffix382, suffix482, suffix582, suffix682, suffix782, suffix882, suffix982, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions82
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1212,48 +957,9 @@ private theorem suffix592 : walk blocked terminal 5 [5,9,2] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1692 : walk blocked terminal 4 [1,6,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2692 : walk blocked terminal 4 [2,6,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3692 : walk blocked terminal 4 [3,6,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4692 : walk blocked terminal 4 [4,6,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5692 : walk blocked terminal 4 [5,6,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6692 : walk blocked terminal 4 [6,6,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7692 : walk blocked terminal 4 [7,6,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8692 : walk blocked terminal 4 [8,6,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9692 : walk blocked terminal 4 [9,6,9,2] = true := by
-  decide +kernel
+private theorem extensions692 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [6,9,2]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1261,7 +967,8 @@ private theorem suffix692 : walk blocked terminal 5 [6,9,2] = true := by
   have hb : blocked [6,9,2] = false := by decide +kernel
   have ht : terminal [6,9,2] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1692, suffix2692, suffix3692, suffix4692, suffix5692, suffix6692, suffix7692, suffix8692, suffix9692, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions692
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1275,48 +982,9 @@ private theorem suffix892 : walk blocked terminal 5 [8,9,2] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1992 : walk blocked terminal 4 [1,9,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2992 : walk blocked terminal 4 [2,9,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3992 : walk blocked terminal 4 [3,9,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4992 : walk blocked terminal 4 [4,9,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5992 : walk blocked terminal 4 [5,9,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6992 : walk blocked terminal 4 [6,9,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7992 : walk blocked terminal 4 [7,9,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8992 : walk blocked terminal 4 [8,9,9,2] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9992 : walk blocked terminal 4 [9,9,9,2] = true := by
-  decide +kernel
+private theorem extensions992 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [9,9,2]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1324,7 +992,8 @@ private theorem suffix992 : walk blocked terminal 5 [9,9,2] = true := by
   have hb : blocked [9,9,2] = false := by decide +kernel
   have ht : terminal [9,9,2] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1992, suffix2992, suffix3992, suffix4992, suffix5992, suffix6992, suffix7992, suffix8992, suffix9992, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions992
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1359,48 +1028,9 @@ private theorem suffix5 : walk blocked terminal 7 [5] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix116 : walk blocked terminal 5 [1,1,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix216 : walk blocked terminal 5 [2,1,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix316 : walk blocked terminal 5 [3,1,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix416 : walk blocked terminal 5 [4,1,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix516 : walk blocked terminal 5 [5,1,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix616 : walk blocked terminal 5 [6,1,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix716 : walk blocked terminal 5 [7,1,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix816 : walk blocked terminal 5 [8,1,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix916 : walk blocked terminal 5 [9,1,6] = true := by
-  decide +kernel
+private theorem extensions16 (d : Fin 9) :
+    walk blocked terminal 5 ((d.val + 1) :: [1,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1408,7 +1038,8 @@ private theorem suffix16 : walk blocked terminal 6 [1,6] = true := by
   have hb : blocked [1,6] = false := by decide +kernel
   have ht : terminal [1,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix116, suffix216, suffix316, suffix416, suffix516, suffix616, suffix716, suffix816, suffix916, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions16
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1432,48 +1063,9 @@ private theorem suffix426 : walk blocked terminal 5 [4,2,6] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1526 : walk blocked terminal 4 [1,5,2,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2526 : walk blocked terminal 4 [2,5,2,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3526 : walk blocked terminal 4 [3,5,2,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4526 : walk blocked terminal 4 [4,5,2,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5526 : walk blocked terminal 4 [5,5,2,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6526 : walk blocked terminal 4 [6,5,2,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7526 : walk blocked terminal 4 [7,5,2,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8526 : walk blocked terminal 4 [8,5,2,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9526 : walk blocked terminal 4 [9,5,2,6] = true := by
-  decide +kernel
+private theorem extensions526 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [5,2,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1481,7 +1073,8 @@ private theorem suffix526 : walk blocked terminal 5 [5,2,6] = true := by
   have hb : blocked [5,2,6] = false := by decide +kernel
   have ht : terminal [5,2,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1526, suffix2526, suffix3526, suffix4526, suffix5526, suffix6526, suffix7526, suffix8526, suffix9526, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions526
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1538,48 +1131,9 @@ private theorem suffix536 : walk blocked terminal 5 [5,3,6] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1636 : walk blocked terminal 4 [1,6,3,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2636 : walk blocked terminal 4 [2,6,3,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3636 : walk blocked terminal 4 [3,6,3,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4636 : walk blocked terminal 4 [4,6,3,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5636 : walk blocked terminal 4 [5,6,3,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6636 : walk blocked terminal 4 [6,6,3,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7636 : walk blocked terminal 4 [7,6,3,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8636 : walk blocked terminal 4 [8,6,3,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9636 : walk blocked terminal 4 [9,6,3,6] = true := by
-  decide +kernel
+private theorem extensions636 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [6,3,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1587,7 +1141,8 @@ private theorem suffix636 : walk blocked terminal 5 [6,3,6] = true := by
   have hb : blocked [6,3,6] = false := by decide +kernel
   have ht : terminal [6,3,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1636, suffix2636, suffix3636, suffix4636, suffix5636, suffix6636, suffix7636, suffix8636, suffix9636, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions636
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1629,48 +1184,9 @@ private theorem suffix256 : walk blocked terminal 5 [2,5,6] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1356 : walk blocked terminal 4 [1,3,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2356 : walk blocked terminal 4 [2,3,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3356 : walk blocked terminal 4 [3,3,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4356 : walk blocked terminal 4 [4,3,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5356 : walk blocked terminal 4 [5,3,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6356 : walk blocked terminal 4 [6,3,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7356 : walk blocked terminal 4 [7,3,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8356 : walk blocked terminal 4 [8,3,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9356 : walk blocked terminal 4 [9,3,5,6] = true := by
-  decide +kernel
+private theorem extensions356 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [3,5,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1678,7 +1194,8 @@ private theorem suffix356 : walk blocked terminal 5 [3,5,6] = true := by
   have hb : blocked [3,5,6] = false := by decide +kernel
   have ht : terminal [3,5,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1356, suffix2356, suffix3356, suffix4356, suffix5356, suffix6356, suffix7356, suffix8356, suffix9356, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions356
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1687,48 +1204,9 @@ private theorem suffix456 : walk blocked terminal 5 [4,5,6] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1556 : walk blocked terminal 4 [1,5,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2556 : walk blocked terminal 4 [2,5,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3556 : walk blocked terminal 4 [3,5,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4556 : walk blocked terminal 4 [4,5,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5556 : walk blocked terminal 4 [5,5,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6556 : walk blocked terminal 4 [6,5,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7556 : walk blocked terminal 4 [7,5,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8556 : walk blocked terminal 4 [8,5,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9556 : walk blocked terminal 4 [9,5,5,6] = true := by
-  decide +kernel
+private theorem extensions556 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [5,5,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1736,7 +1214,8 @@ private theorem suffix556 : walk blocked terminal 5 [5,5,6] = true := by
   have hb : blocked [5,5,6] = false := by decide +kernel
   have ht : terminal [5,5,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1556, suffix2556, suffix3556, suffix4556, suffix5556, suffix6556, suffix7556, suffix8556, suffix9556, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions556
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1765,48 +1244,9 @@ private theorem suffix5656 : walk blocked terminal 4 [5,6,5,6] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix16656 : walk blocked terminal 3 [1,6,6,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix26656 : walk blocked terminal 3 [2,6,6,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix36656 : walk blocked terminal 3 [3,6,6,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix46656 : walk blocked terminal 3 [4,6,6,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix56656 : walk blocked terminal 3 [5,6,6,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix66656 : walk blocked terminal 3 [6,6,6,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix76656 : walk blocked terminal 3 [7,6,6,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix86656 : walk blocked terminal 3 [8,6,6,5,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix96656 : walk blocked terminal 3 [9,6,6,5,6] = true := by
-  decide +kernel
+private theorem extensions6656 (d : Fin 9) :
+    walk blocked terminal 3 ((d.val + 1) :: [6,6,5,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1814,7 +1254,8 @@ private theorem suffix6656 : walk blocked terminal 4 [6,6,5,6] = true := by
   have hb : blocked [6,6,5,6] = false := by decide +kernel
   have ht : terminal [6,6,5,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix16656, suffix26656, suffix36656, suffix46656, suffix56656, suffix66656, suffix76656, suffix86656, suffix96656, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions6656
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1869,48 +1310,9 @@ private theorem suffix166 : walk blocked terminal 5 [1,6,6] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1266 : walk blocked terminal 4 [1,2,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2266 : walk blocked terminal 4 [2,2,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3266 : walk blocked terminal 4 [3,2,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4266 : walk blocked terminal 4 [4,2,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5266 : walk blocked terminal 4 [5,2,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6266 : walk blocked terminal 4 [6,2,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7266 : walk blocked terminal 4 [7,2,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8266 : walk blocked terminal 4 [8,2,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9266 : walk blocked terminal 4 [9,2,6,6] = true := by
-  decide +kernel
+private theorem extensions266 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [2,6,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1918,7 +1320,8 @@ private theorem suffix266 : walk blocked terminal 5 [2,6,6] = true := by
   have hb : blocked [2,6,6] = false := by decide +kernel
   have ht : terminal [2,6,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1266, suffix2266, suffix3266, suffix4266, suffix5266, suffix6266, suffix7266, suffix8266, suffix9266, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions266
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1932,48 +1335,9 @@ private theorem suffix466 : walk blocked terminal 5 [4,6,6] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1566 : walk blocked terminal 4 [1,5,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2566 : walk blocked terminal 4 [2,5,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3566 : walk blocked terminal 4 [3,5,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4566 : walk blocked terminal 4 [4,5,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5566 : walk blocked terminal 4 [5,5,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6566 : walk blocked terminal 4 [6,5,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7566 : walk blocked terminal 4 [7,5,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8566 : walk blocked terminal 4 [8,5,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9566 : walk blocked terminal 4 [9,5,6,6] = true := by
-  decide +kernel
+private theorem extensions566 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [5,6,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1981,52 +1345,14 @@ private theorem suffix566 : walk blocked terminal 5 [5,6,6] = true := by
   have hb : blocked [5,6,6] = false := by decide +kernel
   have ht : terminal [5,6,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1566, suffix2566, suffix3566, suffix4566, suffix5566, suffix6566, suffix7566, suffix8566, suffix9566, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions566
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1666 : walk blocked terminal 4 [1,6,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2666 : walk blocked terminal 4 [2,6,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3666 : walk blocked terminal 4 [3,6,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4666 : walk blocked terminal 4 [4,6,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5666 : walk blocked terminal 4 [5,6,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6666 : walk blocked terminal 4 [6,6,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7666 : walk blocked terminal 4 [7,6,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8666 : walk blocked terminal 4 [8,6,6,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9666 : walk blocked terminal 4 [9,6,6,6] = true := by
-  decide +kernel
+private theorem extensions666 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [6,6,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2034,7 +1360,8 @@ private theorem suffix666 : walk blocked terminal 5 [6,6,6] = true := by
   have hb : blocked [6,6,6] = false := by decide +kernel
   have ht : terminal [6,6,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1666, suffix2666, suffix3666, suffix4666, suffix5666, suffix6666, suffix7666, suffix8666, suffix9666, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions666
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2061,48 +1388,9 @@ private theorem suffix66 : walk blocked terminal 6 [6,6] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix176 : walk blocked terminal 5 [1,7,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix276 : walk blocked terminal 5 [2,7,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix376 : walk blocked terminal 5 [3,7,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix476 : walk blocked terminal 5 [4,7,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix576 : walk blocked terminal 5 [5,7,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix676 : walk blocked terminal 5 [6,7,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix776 : walk blocked terminal 5 [7,7,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix876 : walk blocked terminal 5 [8,7,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix976 : walk blocked terminal 5 [9,7,6] = true := by
-  decide +kernel
+private theorem extensions76 (d : Fin 9) :
+    walk blocked terminal 5 ((d.val + 1) :: [7,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2110,52 +1398,14 @@ private theorem suffix76 : walk blocked terminal 6 [7,6] = true := by
   have hb : blocked [7,6] = false := by decide +kernel
   have ht : terminal [7,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix176, suffix276, suffix376, suffix476, suffix576, suffix676, suffix776, suffix876, suffix976, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions76
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix186 : walk blocked terminal 5 [1,8,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix286 : walk blocked terminal 5 [2,8,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix386 : walk blocked terminal 5 [3,8,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix486 : walk blocked terminal 5 [4,8,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix586 : walk blocked terminal 5 [5,8,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix686 : walk blocked terminal 5 [6,8,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix786 : walk blocked terminal 5 [7,8,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix886 : walk blocked terminal 5 [8,8,6] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix986 : walk blocked terminal 5 [9,8,6] = true := by
-  decide +kernel
+private theorem extensions86 (d : Fin 9) :
+    walk blocked terminal 5 ((d.val + 1) :: [8,6]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2163,7 +1413,8 @@ private theorem suffix86 : walk blocked terminal 6 [8,6] = true := by
   have hb : blocked [8,6] = false := by decide +kernel
   have ht : terminal [8,6] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix186, suffix286, suffix386, suffix486, suffix586, suffix686, suffix786, suffix886, suffix986, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions86
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2190,48 +1441,9 @@ private theorem suffix18 : walk blocked terminal 6 [1,8] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix128 : walk blocked terminal 5 [1,2,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix228 : walk blocked terminal 5 [2,2,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix328 : walk blocked terminal 5 [3,2,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix428 : walk blocked terminal 5 [4,2,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix528 : walk blocked terminal 5 [5,2,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix628 : walk blocked terminal 5 [6,2,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix728 : walk blocked terminal 5 [7,2,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix828 : walk blocked terminal 5 [8,2,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix928 : walk blocked terminal 5 [9,2,8] = true := by
-  decide +kernel
+private theorem extensions28 (d : Fin 9) :
+    walk blocked terminal 5 ((d.val + 1) :: [2,8]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2239,7 +1451,8 @@ private theorem suffix28 : walk blocked terminal 6 [2,8] = true := by
   have hb : blocked [2,8] = false := by decide +kernel
   have ht : terminal [2,8] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix128, suffix228, suffix328, suffix428, suffix528, suffix628, suffix728, suffix828, suffix928, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions28
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2253,48 +1466,9 @@ private theorem suffix48 : walk blocked terminal 6 [4,8] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix158 : walk blocked terminal 5 [1,5,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix258 : walk blocked terminal 5 [2,5,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix358 : walk blocked terminal 5 [3,5,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix458 : walk blocked terminal 5 [4,5,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix558 : walk blocked terminal 5 [5,5,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix658 : walk blocked terminal 5 [6,5,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix758 : walk blocked terminal 5 [7,5,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix858 : walk blocked terminal 5 [8,5,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix958 : walk blocked terminal 5 [9,5,8] = true := by
-  decide +kernel
+private theorem extensions58 (d : Fin 9) :
+    walk blocked terminal 5 ((d.val + 1) :: [5,8]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2302,7 +1476,8 @@ private theorem suffix58 : walk blocked terminal 6 [5,8] = true := by
   have hb : blocked [5,8] = false := by decide +kernel
   have ht : terminal [5,8] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix158, suffix258, suffix358, suffix458, suffix558, suffix658, suffix758, suffix858, suffix958, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions58
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2331,48 +1506,9 @@ private theorem suffix568 : walk blocked terminal 5 [5,6,8] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1668 : walk blocked terminal 4 [1,6,6,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2668 : walk blocked terminal 4 [2,6,6,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3668 : walk blocked terminal 4 [3,6,6,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4668 : walk blocked terminal 4 [4,6,6,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5668 : walk blocked terminal 4 [5,6,6,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6668 : walk blocked terminal 4 [6,6,6,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7668 : walk blocked terminal 4 [7,6,6,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8668 : walk blocked terminal 4 [8,6,6,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9668 : walk blocked terminal 4 [9,6,6,8] = true := by
-  decide +kernel
+private theorem extensions668 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [6,6,8]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2380,7 +1516,8 @@ private theorem suffix668 : walk blocked terminal 5 [6,6,8] = true := by
   have hb : blocked [6,6,8] = false := by decide +kernel
   have ht : terminal [6,6,8] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1668, suffix2668, suffix3668, suffix4668, suffix5668, suffix6668, suffix7668, suffix8668, suffix9668, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions668
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2442,48 +1579,9 @@ private theorem suffix598 : walk blocked terminal 5 [5,9,8] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1698 : walk blocked terminal 4 [1,6,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2698 : walk blocked terminal 4 [2,6,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3698 : walk blocked terminal 4 [3,6,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4698 : walk blocked terminal 4 [4,6,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5698 : walk blocked terminal 4 [5,6,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6698 : walk blocked terminal 4 [6,6,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7698 : walk blocked terminal 4 [7,6,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8698 : walk blocked terminal 4 [8,6,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9698 : walk blocked terminal 4 [9,6,9,8] = true := by
-  decide +kernel
+private theorem extensions698 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [6,9,8]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2491,7 +1589,8 @@ private theorem suffix698 : walk blocked terminal 5 [6,9,8] = true := by
   have hb : blocked [6,9,8] = false := by decide +kernel
   have ht : terminal [6,9,8] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1698, suffix2698, suffix3698, suffix4698, suffix5698, suffix6698, suffix7698, suffix8698, suffix9698, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions698
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2505,48 +1604,9 @@ private theorem suffix898 : walk blocked terminal 5 [8,9,8] = true := by
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
-private theorem suffix1998 : walk blocked terminal 4 [1,9,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix2998 : walk blocked terminal 4 [2,9,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix3998 : walk blocked terminal 4 [3,9,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix4998 : walk blocked terminal 4 [4,9,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix5998 : walk blocked terminal 4 [5,9,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix6998 : walk blocked terminal 4 [6,9,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix7998 : walk blocked terminal 4 [7,9,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix8998 : walk blocked terminal 4 [8,9,9,8] = true := by
-  decide +kernel
-
-set_option maxRecDepth 100000 in
-set_option maxHeartbeats 0 in
-private theorem suffix9998 : walk blocked terminal 4 [9,9,9,8] = true := by
-  decide +kernel
+private theorem extensions998 (d : Fin 9) :
+    walk blocked terminal 4 ((d.val + 1) :: [9,9,8]) = true := by
+  fin_cases d <;> decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -2554,7 +1614,8 @@ private theorem suffix998 : walk blocked terminal 5 [9,9,8] = true := by
   have hb : blocked [9,9,8] = false := by decide +kernel
   have ht : terminal [9,9,8] = true := by decide +kernel
   rw [walk,hb]
-  simp only [Bool.false_eq_true, if_false, ht, List.all_cons, List.all_nil, suffix1998, suffix2998, suffix3998, suffix4998, suffix5998, suffix6998, suffix7998, suffix8998, suffix9998, Bool.and_self]
+  simp only [Bool.false_eq_true, if_false, ht, Bool.true_and]
+  exact allExtensions extensions998
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in

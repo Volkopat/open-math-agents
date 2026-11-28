@@ -1,5 +1,15 @@
 import OMAStatements.S_mo_221428
 
+/-!
+Retains @connoranderson’s complete proof #25207, signed head
+ 9f9e35f86cefa220dfb3a0c9a505331d244ed35e, also linked by statement #19497.
+Standard positive-product, measurable-intersection, order-cancellation and addition-injectivity APIs
+replace the corresponding manual helper arguments. The cyclic ballot bound and
+normalized-logarithm squeeze are unchanged.
+Source: Vladimir, https://mathoverflow.net/questions/221428 (CC BY-SA 3.0).
+Serguei Popov’s cyclic-rotation argument is credited below.
+-/
+
 namespace OMA.S_mo_221428
 
 open Finset
@@ -52,8 +62,7 @@ theorem cyclic_ballot (n : ℕ) (v : Fin (n + 1) → ℝ)
     simp [Fin.ofNat, Fin.add_def, Nat.add_comm r]
   change (∑ j ∈ range (r + k), x j) < (∑ j ∈ range r, x j) at hdrop
   rw [sum_range_add] at hdrop
-  have hneg : (∑ j ∈ range k, x (r + j)) < 0 := by linarith
-  simpa only [← hshift] using hneg
+  simpa only [← hshift, add_lt_iff_neg_left] using hdrop
 
 end OMA.S_mo_221428
 
@@ -66,9 +75,7 @@ theorem same_rate (p q : ℕ → ℝ) (γ : ℝ) (hp : rate p γ)
     (hb : ∀ n : ℕ, 0<n → q n ≤ p n ∧ p n ≤ n*q n) : rate q γ := by
   have hpos : ∀ᶠ n in atTop, 0<q n := by
     filter_upwards [hp.1,eventually_gt_atTop 0] with n hn hn'
-    have hh := (hb n hn').2
-    by_contra! hq
-    exact (not_lt_of_ge (mul_nonpos_of_nonneg_of_nonpos (Nat.cast_nonneg n) hq)) (hn.trans_le hh)
+    exact pos_of_mul_pos_right (hn.trans_le (hb n hn').2) (Nat.cast_nonneg n)
   refine ⟨hpos,?_⟩
   have hsmall : Tendsto (fun n : ℕ => Real.log (n:ℝ)/(n:ℝ)) atTop (𝓝 0) :=
     Real.isLittleO_log_id_atTop.tendsto_div_nhds_zero.comp tendsto_natCast_atTop_atTop
@@ -94,14 +101,8 @@ private def good (n : ℕ) (ν : ℝ) (v : Fin (n+1) → ℝ) : Prop :=
   ∀ k : Fin (n+1), (∑ j ∈ range (k.val+1), (v (Fin.ofNat (n+1) j)-ν)) < 0
 
 private theorem measurable_good (n : ℕ) (ν : ℝ) : MeasurableSet {v | good n ν v} := by
-  have he : {v | good n ν v} = ⋂ k : Fin (n+1),
-      {v : Fin (n+1) → ℝ | (∑ j ∈ range (k.val+1), (v (Fin.ofNat (n+1) j)-ν))<0} := by
-    ext v
-    simp [good]
-  rw [he]
-  apply MeasurableSet.iInter
-  intro k
-  exact measurableSet_lt (by fun_prop) measurable_const
+  unfold good
+  measurability
 
 private theorem ordinary_sum {Ω : Type*} (X : ℕ → Ω → ℝ) (ω : Ω) (ν : ℝ) (n k : ℕ)
     (hk : k ≤ n+1) :
@@ -127,11 +128,8 @@ theorem ballot_bounds {Ω : Type*} [MeasurableSpace Ω] (P : Measure Ω) [IsProb
   let A (r : Fin (n+1)) : Set Ω := {ω | good n ν (draw r ω)}
   have hA : ∀ r, P.real (A r) = (Measure.pi (fun _ : Fin (n+1) => law)).real {v | good n ν v} := by
     intro r
-    have hinj : Function.Injective (fun j : Fin (n+1) => (j+r).val) := by
-      intro j k h
-      exact add_right_cancel (Fin.ext h)
     have hvec : HasLaw (draw r) (Measure.pi (fun _ : Fin (n+1) => law)) P :=
-      (hi.precomp hinj).hasLaw_pi (fun j => hl (j+r).val)
+      (hi.precomp (Fin.val_injective.comp (add_left_injective r))).hasLaw_pi (fun j => hl (j+r).val)
     exact hvec.measureReal_eq (measurable_good n ν)
   have h0 : A 0 = staysBelow X ν (n+1) := by
     ext ω

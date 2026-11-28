@@ -1,5 +1,11 @@
 import OMAStatements.S_mo_441173
 import Mathlib
+/-!
+Shortening of @caa1982's proof #28292, retaining the halting-dependent pair swap.
+Standard many-one reducibility and computable-predicate conversion APIs replace
+manual Boolean representations. Source: Numa Grinberg, MathOverflow 441173.
+-/
+
 open OMA.S_mo_441173
 
 open Nat.Partrec
@@ -10,13 +16,8 @@ def KH (n : ℕ) : Prop := ((Denumerable.ofNat Code n).eval 0).Dom
 lemma KH_not : ¬ ComputablePred KH := by
   intro hK
   apply ComputablePred.halting_problem 0
-  obtain ⟨g, hg, hgK⟩ := ComputablePred.computable_iff.mp hK
-  apply ComputablePred.computable_iff.mpr
-  refine ⟨fun c => g (Encodable.encode c), hg.comp Computable.encode, ?_⟩
-  funext c
-  have := congrFun hgK (Encodable.encode c)
-  simp only [KH, Denumerable.ofNat_encode] at this
-  exact this
+  exact ComputablePred.computable_of_manyOneReducible
+    ⟨Encodable.encode, Computable.encode, fun c => by simp [KH]⟩ hK
 
 /-- Swap `2m` and `2m+1` exactly when `KH m` holds; an involution. -/
 noncomputable def sw (n : ℕ) : ℕ := by
@@ -70,7 +71,7 @@ theorem OMA.solution : type_of% @OMA.S_mo_441173.main := by
     have hd : Computable fun m : ℕ => decide (sw (2 * m) = 2 * m + 1) :=
       Primrec.eq.decide.to_comp.comp (hc.comp h2) h3
     have hp : ComputablePred fun m : ℕ => sw (2 * m) = 2 * m + 1 :=
-      ComputablePred.computable_iff.mpr ⟨_, hd, by funext m; simp⟩
+      hd.computablePred
     refine ComputablePred.of_eq hp (fun m => ?_)
     by_cases h : KH m
     · simp [h, sw_even_pos m h]

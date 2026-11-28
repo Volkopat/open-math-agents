@@ -29,8 +29,8 @@ theorem col_one (d : ℕ) : col 1 d = Nat.fib (d + 1) := by
   induction d with
   | zero => simp [col_zero]
   | succ d ih =>
-    rw [col_step 0, ih, show col 0 (d+1) = 1 by rw [col], Nat.fib_add_two (n := d)]
-    simp [add_comm]
+    rw [col_step 0, ih, Nat.fib_add_two (n := d)]
+    simp [col, add_comm]
 
 def segment : ℕ → ℕ → ℕ
   | 0, _ => 1
@@ -51,23 +51,14 @@ theorem segment_eq (k d : ℕ) : segment k 0 * col k d = segment k d := by
     induction d with
     | zero => rw [col_zero, mul_one]
     | succ d ihd =>
-      rw [col_step, Nat.mul_add]
-      calc
-        _ = Nat.fib (k + 2) * (segment (k + 1) 0 * col (k + 1) d) +
-              (Nat.fib (k + 1) * Nat.fib d) * (segment k 0 * col k (d + 1)) := by
-          congr 1
-          · ring
-          · rw [segment_right k 0]
-            simp only [Nat.zero_add]
-            ring
-        _ = Nat.fib (k + 2) * (Nat.fib (d + 1) * segment k (d + 1)) +
-              (Nat.fib (k + 1) * Nat.fib d) * segment k (d + 1) := by
-          rw [ihd, ih, segment]
-        _ = segment (k + 1) (d + 1) := by
-          rw [segment_right k (d + 1)]
-          have hf := Nat.fib_add d (k + 1)
-          rw [show d + 1 + k + 1 = d + (k + 1) + 1 by omega, hf]
-          ring
+      have hseg := segment_right k 0
+      simp only [Nat.zero_add] at hseg
+      change segment (k + 1) 0 * col (k + 1) d =
+        Nat.fib (d + 1) * segment k (d+1) at ihd
+      rw [col_step, segment_right k (d+1),
+        show d + 1 + k + 1 = d + (k + 1) + 1 by omega, Nat.fib_add d (k+1)]
+      linear_combination Nat.fib (k+2) * ihd + Nat.fib d * Nat.fib (k+1) * ih (d+1) +
+        Nat.fib d * col k (d+1) * hseg
 
 theorem a_eq_col (n : ℕ) (h : 6 ≤ n) : OMA.S_oeis_a001658.a n = col 6 (n-6) := by
   obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_le h
@@ -75,10 +66,8 @@ theorem a_eq_col (n : ℕ) (h : 6 ≤ n) : OMA.S_oeis_a001658.a n = col 6 (n-6) 
   have eqden : (∏ r ∈ Finset.Icc 1 6, Nat.fib r) = segment 6 0 := by decide
   have pos : 0 < segment 6 0 := by decide
   have eqnum : (∏ r ∈ Finset.range 6, Nat.fib (6+d-r)) = segment 6 d := by
-    simp only [Finset.prod_range_succ, Finset.prod_range_zero, one_mul, segment]
-    simp only [Nat.sub_zero, Nat.add_comm 6 d, mul_one]
-    simp only [show d+6-1 = d+5 by omega, show d+6-2 = d+4 by omega,
-      show d+6-3 = d+3 by omega, show d+6-4 = d+2 by omega, show d+6-5 = d+1 by omega]
+    simp (disch := omega) [Finset.prod_range_succ, segment, Nat.add_comm 6 d,
+      Nat.add_sub_assoc, Nat.add_assoc]
     ac_rfl
   rw [OMA.S_oeis_a001658.a, eqden, eqnum, ← segment_eq, Nat.mul_div_cancel_left _ pos]
 
@@ -191,6 +180,4 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a001658.main := by
     obtain ⟨d,rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : s ≠ 0)
     exact Fibnom.col_one d
   · intro n hn
-    change a n = Fibnom.col 6 (n-5-1)
-    rw [show n-5-1=n-6 by omega]
-    exact Fibnom.a_eq_col n hn
+    simpa [row, Nat.sub_sub] using Fibnom.a_eq_col n hn

@@ -1,1 +1,433 @@
-{}
+{
+ "Erdos142.erdos_142.variants.lower.R1.H2.R3.H1": {
+  "guide": "STATUS: likely true, but only claimed: it is exactly Thm 1.1 (k>=4 part) of the unrefereed OpenAI preprint (Sep 23 2026). NOT machine-checked: openai/math Lean proves only QuantitativeDensityBound r_k(N) <= C N exp(-c (log log N)^(1+eta)) (Model.lean, Conclusions.lean @3344da5), a double-log rate that does not imply this single-log bound. Refereed best: Green-Tao r_4 << N/(log N)^c; Leng-Sah-Sawhney r_k << N exp(-(log log N)^c), k>=5 (arXiv:2402.17995). ROUTE: the only one is formalizing the paper's iteration (sec. 8) with a polylog cost, i.e. redoing the OAI pipeline whose invariant needs log log N >= p^K (p = log(2/density)). Research-scale, not a 24h step. DEAD ENDS: citing the preprint (already on board), Mathlib (nothing for k>=4), the double-log OAI theorem, Kelley-Meka (k=3 only).",
+  "sources": [
+   "https://github.com/openai/math/blob/adc7f1241b42e322a6451854ab7e4b4c146bf78a/preprints/Quasipolynomial-Bounds-for-Arithmetic-Progressions-September-23-2026/build/sections/00-introduction.tex",
+   "https://github.com/openai/math/blob/3344da59991ed94f9ba711217b29c1d760badfa6/lean/OAI/Combinatorics/Progressions/Model.lean",
+   "https://github.com/openai/math/blob/3344da59991ed94f9ba711217b29c1d760badfa6/lean/OAI/Combinatorics/Progressions/Results/Conclusions.lean",
+   "https://arxiv.org/abs/2402.17995",
+   "https://doi.org/10.1112/S0025579317000316"
+  ]
+ },
+ "Erdos142.erdos_142.variants.lower.R1.H2.R3.H1.R1.H1": {
+  "guide": "STATUS: likely true (follows from preprint Thm 1.1) and of the same strength as its parent: it is the Z/p counting form of r_k(N) <= C N exp(-c (log N)^eps), k>=4. The count includes d=0 (at most |A| <= p), so >p forces a nonzero-step AP. Both directions are elementary and already checked on the board: (a) Turan extraction, if count <= p then some AP-free B in A has |A|^2 <= 3p|B| (Pixelstorm44); (b) lift B to representatives in [1,p]: an integer AP there has step d<p, so it stays nonzero mod p. With the interval bound this gives H1 with constants ~sqrt(3C), c/2, eps. Small p: take C large so the threshold exceeds p and A=univ (count p^2) is the only case. MISSING: only the single-log interval input (see parent). Mathlib: Turan in Combinatorics/SimpleGraph/Extremal/Turan.lean. DEAD END: the OAI double-log theorem.",
+  "sources": [
+   "https://github.com/openai/math/blob/adc7f1241b42e322a6451854ab7e4b4c146bf78a/preprints/Quasipolynomial-Bounds-for-Arithmetic-Progressions-September-23-2026/build/sections/00-introduction.tex",
+   "https://github.com/openai/math/blob/3344da59991ed94f9ba711217b29c1d760badfa6/lean/OAI/Combinatorics/Progressions/Model.lean",
+   "https://lefttosolve.com/api/desk/board?problem=Erdos142.erdos_142.variants.lower.R1.H2.R3.H1.R1.H1"
+  ]
+ },
+ "Erdos142.erdos_142.variants.lower.R2.H1.R1.H2.R2.H1": {
+  "guide": "STATUS: open, neither provable nor refutable with known bounds. It is STRONGER than anything claimed for k=4. Since r_3 <= r_4, theta lies in (1/2,1]. Combined with Bloom-Sisask r_3 <= N exp(-c(log N)^(1/9)) (arXiv:2309.02353) it would give r_4 <= C N exp(-c' (log N)^(1/9)), beyond Green-Tao's (log N)^-c. A proof would need r_4 from above against r_3 from below: Behrend (Mathlib Behrend.roth_lower_bound, N exp(-4 sqrt(log N)) <= rothNumberNat N) plus r_4 <= N exp(-c(log N)^a) with a>1/2 (or a=1/2 with a large c). Not refutable either: the best 4-AP-free sets (Rankin, O'Bryant arXiv:0811.3057) have the same exp(-C sqrt(log N)) shape as Behrend. ADVICE: do not spend event time here. The parent's summability already follows from the OAI double-log Lean theorem. DEAD ENDS: theta=1/2, finite N<=142 data, uniform thinning (fails, per the separated-block constructions on the board).",
+  "sources": [
+   "https://arxiv.org/abs/2309.02353",
+   "https://arxiv.org/abs/0811.3057",
+   "https://doi.org/10.1112/S0025579317000316",
+   "https://github.com/openai/math/blob/3344da59991ed94f9ba711217b29c1d760badfa6/lean/OAI/Combinatorics/Progressions/Model.lean"
+  ]
+ },
+ "Erdos396.erdos_396.R1.H2": {
+  "guide": "STATUS: open, conjecturally true. It is Erdos #396 for every k>=5; k<=16 is done by the witness n=20021368432952099 (proofs/Erdos396.erdos_396.R1.H2.R1.H1.lean). Heuristic: witness density ~c1^(k+1) with c1~0.114 (Ford-Konyagin density of n | C(2n,n), arXiv:1909.03903), so a witness should exist for every k, but nobody can prove one exists for long windows. Known: Pomerance [Po14, per erdosproblems] shows (n+1)...(n+k) | C(2n,n) for density-1 n (ascending, easy direction); for each k, infinitely many n have n-k | C(2n,n). Every prime p>2k dividing a term must be <= sqrt(2n) (no carry otherwise). Already reduced (R1.H2.R1); pending: R2 governor-run density (PR 39779), two-window certificate (PR 40935). ADVICE: work on the children, not here. DEAD END: small witnesses or nlinarith search.",
+  "sources": [
+   "https://www.erdosproblems.com/396",
+   "https://www.erdosproblems.com/forum/thread/396",
+   "https://arxiv.org/abs/1909.03903",
+   "https://oeis.org/A375077"
+  ]
+ },
+ "Erdos396.erdos_396.R1.H2.R1.H2": {
+  "guide": "STATUS: almost surely true (density of witnesses ~1e-17 to 2e-16), but no witness is known. A375077 stops at a(16)=2.0e16; a(17) is expected near 1e17-2e17 (ratio ~8.75). Needs one n with 18 descending factors. ROUTE: exhaustive sieve on disjoint, board-reserved ranges above 2.0e16. Step 1: find runs of 18 consecutive sqrt(2n)-smooth numbers (~3e-10 density). Step 2: Kummer test, sum_i v_p(n-i) <= carries of n+n in base p. Code: github.com/jdehorty/erdos396. Cost: ~1e15-1e16 candidates, about 10 GPU-years at 590M/s, so a hit in 24h is unlikely. Certify by copying the k=16 proof file, changing 17 to 18 and RAISING Ico 1 58 / log bound 58 if n>1.44e17. Lemmas: Nat.factorization_choose', Nat.Prime.pow_dvd_iff_le_factorization. DEAD ENDS: seed +/-100, pentagonal/x(x+1)/quartic/Pell families, n=-1 mod smooth M (my test: lower per-term rate), CRT on p<=31 (x1.05).",
+  "sources": [
+   "https://oeis.org/A375077",
+   "https://github.com/jdehorty/erdos396",
+   "https://www.erdosproblems.com/forum/thread/396",
+   "https://lefttosolve.com/api/desk/board?problem=Erdos396.erdos_396.R1.H2.R1.H2"
+  ]
+ },
+ "Erdos396.erdos_396.R1.H2.R1.H3": {
+  "guide": "STATUS: true iff (Erdos 396 holds for all k) OR (no witness exists for k=17); not vacuous, not easier. Check: W(k) := exists n, descFactorial n (k+1) | centralBinom n is antitone (Nat.descFactorial_succ: the k+1 product divides the k+2 one). So H3 fails only if W(17) holds and W fails at some later k. A proof must either solve #396 for all k>=18, or prove there is no k=17 witness, which would DISPROVE #396. No known argument turns a witness for k into one for k+1. The board already shows both extensions of the k=16 witness fail: n-17 has 39679 and 12013892699, n+1 has 51774937763 > sqrt(2n). Slide identities (RickyDash) give only per-candidate tests. ADVICE: treat as the full open problem. Better targets: H2 (the k=17 witness) or a density reduction (pending PR 39779). DEAD ENDS: induction from a fixed witness, CRT lifts of the seed (factors still unresolved).",
+  "sources": [
+   "https://www.erdosproblems.com/396",
+   "https://oeis.org/A375077",
+   "https://lefttosolve.com/api/desk/board?problem=Erdos396.erdos_396.R1.H2.R1.H3"
+  ]
+ },
+ "Erdos101.erdos_101.R3.H2": {
+  "guide": "STATUS: open. Given R3.H1, it is EQUIVALENT to Erdos #101 (@timlantin): R3.main turns H1+H2 into #101, and #101 implies H2 trivially. Do not expect a proof. Known (kernel-checked by @barislabs): lines meeting B, and lines on which two non-anchors share a chosen anchor endpoint, number O(n^{3/2}). What remains is four non-anchors with 16 distinct witness anchors. Anchor budget C=3 for every s suffices, by padding (@RickyDash). DEAD ENDS: there is no power saving O(n^{2-eps}), even for the residual (@barislabs, using the Solymosi-Stojakovic arXiv 1107.0327 construction); pure double counting fails (S(2,4,n) designs); triangle removal and Melchior give only partial cases. Useful work: a genuine reduction isolating the 16-endpoint case or algebraic sub-cases (cf. four_lines_near_cubic in reductions/Erdos101.erdos_101.R1.lean).",
+  "sources": [
+   "https://www.erdosproblems.com/101",
+   "https://arxiv.org/abs/1107.0327",
+   "https://arxiv.org/abs/1208.4714"
+  ]
+ },
+ "Erdos101.erdos_101.R2.H1": {
+  "guide": "STATUS: open, and EQUIVALENT to Erdos #101 (@goncalomsdias, kernel-checked 19:52 UTC). R2.H2 and R2.H1.R1.H2 are proved, so R2.H1 or R2.H1.R1.H1 implies #101, and #101 makes both vacuous for large n. Easy part: one ordered triple per 4-point line gives ExplicitDisjoint, the InjOn clause and rho=delta. Hard part: the weight/ratio clause. With u=1/h it holds iff u is affine on every chosen triple and u_z/(1-t) depends only on the start x (@jtamc8, @Heroic297). h=1 fails. @CataP97 kernel-checked a lift criterion for a fixed family (GainFactorization.lean), but a dense subfamily whose gain graphs have trivial cycle products must still be found. Finite data cannot refute it (N depends on delta). Elekes-Szabo Thm 4.3 needs a fixed-degree curve, which is absent here. This is research, not a lemma.",
+  "sources": [
+   "https://www.erdosproblems.com/101",
+   "https://doi.org/10.1007/s00454-023-00556-3"
+  ]
+ },
+ "Erdos101.erdos_101.R1.H1": {
+  "guide": "STATUS: open. A Green-type inverse theorem (Green's 100 problems, #69/#71). For large n its hypothesis gives >= tau^2 n^2/4 four-point lines, so #101 makes it vacuous; with R1.H2 (Elekes-Szabo, excluded) it implies #101. So it is as hard as #101. Same for R1.H1.R1.H1 (unmarked capture): pending reduction PR #39973, whose H1 (3-colouring, eta=tau/27) @NonEstSpes proved. Known: tau >= 1/3 is impossible (pencil bound: 3|A| <= |S|-1). DEAD ENDS: interpolation (degree grows with |T|); bounded tactic search. Mathlib lacks Szemeredi-Trotter, polynomial partitioning and Bezout. Useful work: reductions to algebraic special cases. The cubic case is done (four_lines_near_cubic, reductions/Erdos101.erdos_101.R1.lean); @ubuwaits' board notes treat y=x^3 and quartic graphs.",
+  "sources": [
+   "https://people.maths.ox.ac.uk/greenbj/papers/open-problems.pdf",
+   "https://doi.org/10.1007/s00454-023-00556-3",
+   "https://www.erdosproblems.com/101"
+  ]
+ },
+ "Erdos1052.erdos_1052": {
+  "guide": "Every open #1052 step asks for a bound on a=v2(n) (or a count) over unitary perfect n (sigma*(n)=prod(1+p^e)=2n) in some family. Each follows from the open conjecture, so none can be false unless there are infinitely many UPN, and none is a finite check. Lean tools: sum_udiv_eq_prod, finite_card_primeFactors (Subbarao-Warren Thm 4) and card_primeFactors_le in reductions/Erdos1052.erdos_1052.R1.lean; Graham's weight method (path_bound, tail_bound, master, S_sq) in proofs/Erdos1052.erdos_1052.R1.H1.lean; kernel_balance_one and facts in reductions/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.lean. Facts: 2^a+1 | n; each simple odd prime has exactly one source; for p simple, the odd primes of p+1 divide n. DEAD END: residue sieves on a, since a=2^k or a large prime passes them. What works: forced primes plus Graham weights < 2 to kill a whole class.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://doi.org/10.4153/CMB-1966-018-4",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf",
+   "https://oeis.org/A002827"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2": {
+  "guide": "STATUS: open. This is the whole difficulty of #1052: with R1.H1 (Graham) it gives the target, and it follows from the target. It is equivalent to a uniform bound on omega(n) in this branch (@MechaNuggan), via finite_card_primeFactors one way and card_primeFactors_le (omega <= a+2) the other, both in reductions/Erdos1052.erdos_1052.R1.lean. Members: 90 (a=1) and Wall's 2^18*3*5^4*7*11*13*19*37*79*109*157*313 (a=18), so A >= 18. Work on the descendant leaves (R1.H2.R1.H1, R1.H2.R1.H2) instead. Literature: Subbarao-Warren 1966 (fixed omega), Graham 1989 (squarefree odd part), Wall 1975 (the fifth UPN), Maciejewski arXiv 2605.20475 (bounded-box computations for a <= 10000 only, no uniform bound).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://doi.org/10.4153/CMB-1966-018-4",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf",
+   "https://arxiv.org/abs/2605.20475"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1": {
+  "guide": "STATUS: open. Non-admissible kernel S. It contains 90 and Wall's number, so A >= 18, and it is equivalent to finiteness of the family (@stubbi, Lean). The merged split is S={3} (R1.H1), S={z} with 5<=z<2100 (R1.H2), and |S|>=2 (R1.H3); pick a leaf. For |S|=k>=2, non-admissibility forces a small member: z < 526k(k+3) (@AlfredMelson, Lean), and |S|=2 gives min S <= 5251 (@CBaquero). For S={p,q} the product fails iff 4pq+31519 < 10501(p+q) (@ChristFollower873461). For fixed kernel and exponents the simple part is unique (max_dvd_denominator, reductions/Erdos1052.erdos_1052.R2.lean), but a is not bounded a priori. No uniform idea is known; see the generic Erdos1052 guide for the toolkit.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H2": {
+  "guide": "STATUS: open; no known UPN in it. S is admissible, 4|a, 3|n, and the residue clause holds. Merged R1.H2.R1.H2.R1 (two_adic_le_nine_of_no_five_chain) gives a <= 9 unless 5|n, 7|n and 5 has a parent. The no-19 core is PROVED (proofs/Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H2.R1.H1.lean and .H2.lean: masterU, node_joint, A=0). So this step closes once R1.H2.R1.H2.R1.H1 (the core with 19) closes: work there. Reusable tools: master16 (reductions/Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H1.R1.lean) and masterT. Also a=16 mod 32 implies 65537^16 | n (@jacklarmer). DEAD END: weights alone leave the window [1.99327,2); e.g. 3,5,79,631,7,13 has weight 1.99732. Add forced primes or the exact balance.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H1": {
+  "guide": "STATUS: open. Merged core_with_19 (reductions/Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H1.R1.lean): a <= 9, or 31|n, the primes of n below 152 are exactly 2,3,5,7,19,31, and one of 223/433/607 divides n. Also 16|a and a != 32 mod 64 (two_adic_core), and every prime below 2100 is simple (adm_ge_2100). The 433 case is PROVED (proofs/Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H1.R1.H2.lean, A=0). Open: the R1.H1 tree (31, 223, then 8191/7933/16381/19423) and R1.H3 (607). Working method: Graham weights with forced parents (masterT, master16) push the product below 2. Thick kernels: |S| <= 44 (<= 20 under the thickness bound) and some z <= 1.1e6 (@596050, @RhizomeSlopGenerator). DEAD END: the weights stall near 2 (gap about 3e-5 in the 19423 branch).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H1.R1.H1": {
+  "guide": "STATUS: open. Deep 223/31 chain with sub-branches 8191|n, 7933, 16381, 19423 and thin/thick kernels. Many reductions are PENDING, so check before duplicating: #38938 (@Mapika: |S| <= 20, a repeated r < 250100), #40260 (@mfmiami, a=64 mod 128), #39881 (@jaredsaintaubin), #40535 (@RubberDuckDebug316, a=64(2k+1) or 128(2k+1)), #39854 (@Pixelstorm44). Checked facts: |S| <= 44 and some z <= 1101000; 2101|S|+6299 <= 4p for p in S; a=16 mod 32 gives 65537^16 | n with v2(e_65537) = 4 or >= 7; 2048|a makes every prime of 2^a+1 >= 114689; in the 64 mod 128 branch 13 and 23*31 do not divide a, and 2^a+1 has <= 19 distinct primes = 2 mod 3. DEAD END (@Masselorc): the family a=3328(2t+1), S={6007,13313} meets both rational thresholds, so product inequalities alone cannot close it.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H1.R1.H3": {
+  "guide": "STATUS: open (607 | n, 607 is the parent of 19). Children: R1.H1 (223|n, 3967|n, 433,991,1213,1783 not dividing n) and R1.H2 (3967 does not divide n). Pending: reduction PR #39584 (@connoranderson) for R1.H1, and PR #40490 (@jaredsaintaubin): |S|=1 forces S={65537}, a=16 mod 32, 65537^16 | n. Checked (@IBaklanov): |S| <= 44 with some z < 1100108; |S|=2 with both members > 25000 bounds v2(a). Method: masterT weights (reductions/Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H1.R1.H3.R1.lean) and Fermat-factor forcing (F_k | 2^a+1 when a/2^k is odd; a seed prime = 2 mod 3 must lie in S). The real remaining case is a fixed small S (e.g. {65537}) with unbounded a, and it needs a new uniform idea.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1": {
+  "guide": "STATUS: open. 3 is the only repeated odd prime, with e=v3(n) in {5,7,11,13,19} or e>=41. Merged: 41<=e<=200 is impossible, plus many residue exclusions (three_exponent_cases_200 etc., reductions/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.lean). Kernel-checked facts for this branch: 5 | n always (@ryansolves); 5|n or 7|n when a,e >= 5 (@strantalis); a common prime of a and 2^a+1 must be 3 (@AlfredMelson); #{h|e : h>=2, e/h odd} <= a (@npnelson, Erdos1052Primitive.divisor_budget). Pending: PR #40468 (@jacklarmer). DEAD ENDS: residue sieves alone (a=2^k or a prime survives); 'prod(1+1/p)<2 bounds |S|' is false. BEST ROUTE: fixed-e leaves, killing a class with Graham weights after stripping the forced chains, as in the solved e=11, a=2 mod 4 class.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H1": {
+  "guide": "STATUS: open (3^5 or 3^7). For e=5, 1+3^5=4*61 forces 61 and 31; for e=7, 1+3^7=4*547 forces 547, 137 and 23. Both reduce to the same residual balance (@ChristFollower873461, strip_core_five). The merged R1 split (sieve to 257, F9..F19, a >= 262) leaves three classes per e: a odd, a even with 16 not dividing a, and 2^20|a. Pending: PR #40868 (@physbuzz): it suffices to bound the non-Mersenne simple primes = 3 mod 4 and max v2(q+1). Kernel-checked for e=5, a even: the class a=2 mod 4 is eliminated (@ChristFollower873461 reduction, 3-adic weight 28/27). @aroth01 (exact rationals, not Lean), e=5, a odd: only a=d^k, a=7*d^k and a two-prime exception survive. ROUTE: per class, strip the forced primes and run @npnelson-style tuned Graham weights (template: OMA.E1052.Eleven.stripped_obstruction).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H1.R1.H1.R1.H3": {
+  "guide": "STATUS: open; 2^20 | a. Finite sieves are provably useless here (@darylmartis: if 2^k | a and d < 2^k then a mod 2d != d), and no prime factor of F20 is known. Known: the levels v2(a)=21,22,23,25..32 are excluded for every e via known Fermat-factor certificates (@sprajs, kernel-checked), leaving v2(a)=20, 24 or >=33; F25 is excluded for c=3^7 (@mattalldianhr). Every odd prime q | 2^a+1 has q = 1 mod 2^21. BEST LEAD: for the core 5^4, HighFiveFour.high_core (PR #39212, CI passing) kills every a with 2^19 | a by one uniform weight argument with a huge root. Adapt it to 3^e: the root P | F_k is > 2^21, so it contributes almost nothing and the forced 3-chains must carry the balance. Contributions short of that: a reduction splitting v2(a)=20 / 24 / >=33 using the known certificates.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://en.wikipedia.org/wiki/Fermat_number"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H1.R1.H2.R1.H3": {
+  "guide": "STATUS: open; 2^20 | a. Finite sieves are provably useless here (@darylmartis: if 2^k | a and d < 2^k then a mod 2d != d), and no prime factor of F20 is known. Known: the levels v2(a)=21,22,23,25..32 are excluded for every e via known Fermat-factor certificates (@sprajs, kernel-checked), leaving v2(a)=20, 24 or >=33; F25 is excluded for c=3^7 (@mattalldianhr). Every odd prime q | 2^a+1 has q = 1 mod 2^21. BEST LEAD: for the core 5^4, HighFiveFour.high_core (PR #39212, CI passing) kills every a with 2^19 | a by one uniform weight argument with a huge root. Adapt it to 3^e: the root P | F_k is > 2^21, so it contributes almost nothing and the forced 3-chains must carry the balance. Contributions short of that: a reduction splitting v2(a)=20 / 24 / >=33 using the known certificates.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://en.wikipedia.org/wiki/Fermat_number"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.H1.R1.H4": {
+  "guide": "STATUS: open; 2^20 | a. Finite sieves are provably useless here (@darylmartis: if 2^k | a and d < 2^k then a mod 2d != d), and no prime factor of F20 is known. Known: the levels v2(a)=21,22,23,25..32 are excluded for every e via known Fermat-factor certificates (@sprajs, kernel-checked), leaving v2(a)=20, 24 or >=33; F25 is excluded for c=3^7 (@mattalldianhr). Every odd prime q | 2^a+1 has q = 1 mod 2^21. BEST LEAD: for the core 5^4, HighFiveFour.high_core (PR #39212, CI passing) kills every a with 2^19 | a by one uniform weight argument with a huge root. Adapt it to 3^e: the root P | F_k is > 2^21, so it contributes almost nothing and the forced 3-chains must carry the balance. Contributions short of that: a reduction splitting v2(a)=20 / 24 / >=33 using the known certificates.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://en.wikipedia.org/wiki/Fermat_number"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.H2.R1.H3": {
+  "guide": "STATUS: open; 2^20 | a. Finite sieves are provably useless here (@darylmartis: if 2^k | a and d < 2^k then a mod 2d != d), and no prime factor of F20 is known. Known: the levels v2(a)=21,22,23,25..32 are excluded for every e via known Fermat-factor certificates (@sprajs, kernel-checked), leaving v2(a)=20, 24 or >=33; F25 is excluded for c=3^7 (@mattalldianhr). Every odd prime q | 2^a+1 has q = 1 mod 2^21. BEST LEAD: for the core 5^4, HighFiveFour.high_core (PR #39212, CI passing) kills every a with 2^19 | a by one uniform weight argument with a huge root. Adapt it to 3^e: the root P | F_k is > 2^21, so it contributes almost nothing and the forced 3-chains must carry the balance. Contributions short of that: a reduction splitting v2(a)=20 / 24 / >=33 using the known certificates.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://en.wikipedia.org/wiki/Fermat_number"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.H3.R1.H3": {
+  "guide": "STATUS: open; 2^20 | a. Finite sieves are provably useless here (@darylmartis: if 2^k | a and d < 2^k then a mod 2d != d), and no prime factor of F20 is known. Known: the levels v2(a)=21,22,23,25..32 are excluded for every e via known Fermat-factor certificates (@sprajs, kernel-checked), leaving v2(a)=20, 24 or >=33; F25 is excluded for c=3^7 (@mattalldianhr). Every odd prime q | 2^a+1 has q = 1 mod 2^21. BEST LEAD: for the core 5^4, HighFiveFour.high_core (PR #39212, CI passing) kills every a with 2^19 | a by one uniform weight argument with a huge root. Adapt it to 3^e: the root P | F_k is > 2^21, so it contributes almost nothing and the forced 3-chains must carry the balance. Contributions short of that: a reduction splitting v2(a)=20 / 24 / >=33 using the known certificates.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://en.wikipedia.org/wiki/Fermat_number"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2": {
+  "guide": "STATUS: open. It closes when its three children close (e=11: .R1.H1, e=13: .R1.H2, e=19: .R1.H3), so work on those leaves. Status: for e=11 the class a=2 mod 4 is killed (@npnelson) and a=8 mod 16 and a odd remain; the e=13 leaves are untouched and the best bet; for e=19, 17 | n is now proved and that case remains. Forced primes: e=11 gives 67,661,17,331,83,7; e=13 gives 398581,17,19,617,103,13,7,5; e=19 gives 2851,101917,23,31,131,389,11,5,13,7. Sieve lemmas: new_e11/new_e13/new_e19 in reductions/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.lean.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.H1": {
+  "guide": "STATUS: open (3^11). 1+3^11=4*67*661 forces the simple primes 67,661,17,331,83,7, and also 5 (@studer, @huurou forcesFive). The merged R1 splits by a: odd (H1), 2 mod 4 (H2), 8 mod 16 (H3), 2^20|a (H4), with a >= 262 and a sieve up to 400. The merged R2 (@studer, PR #35627) adds forcing of 5, 80 more classes and a > 1000^6. NEWS: @npnelson kernel-checked that a=2 mod 4 is impossible (OMA.E1052.Eleven.stripped_obstruction). Strip the six forced primes to get (2^a+1)*8192*prod(p+1) = 2^(a+1)*6561*prod p; then 5 | 2^a+1, so 5 gets weight 6/5; tune the weights at 11,23,...,487; with the 3-adic leaf budget 8 the abundancy is < 2. Reuse this template on H3 (257, 43, 11 forced, budget 6) and on the odd class. Pending: @drdedge reduction R3, PR #40235.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.H1.R1.H2": {
+  "guide": "NEAR-SOLVED. @npnelson reports (board, 19:40 and 19:45 UTC) a kernel-checked proof that the whole class a = 2 mod 4 is impossible: Lean theorem OMA.E1052.Eleven.stripped_obstruction, standard axioms, so A=0 works. FIRST look for an open PR on this exact id and do not duplicate it. If there is none, rebuild the proof: strip the forced primes {7,17,67,83,331,661} (@studer #35627) to get (2^a+1)*8192*prod_Q(p+1) = 2^(a+1)*6561*prod_Q p. Then 5 | 2^a+1, so no p in Q has 5 | p+1, and 5 gets weight 6/5. Use non-default weights at 11,23,31,43,47,53,61,71,127,137,191,211,257,281,421,487. The Mersenne leaves give at most (3072/2921)(96/95)(2048/2047), the 3-adic leaf cost is at most 8, and a >= 12 gives a total < 2. Base lemmas: path_bound and master in proofs/Erdos1052.erdos_1052.R1.H1.lean.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.H1.R1.H3": {
+  "guide": "STATUS: open, but the most promising e=11 leaf. 257 | 2^a+1 forces 257, 43, 11 on top of the six forced primes. Stripping all nine gives the constant 2^18/(3^6*257) and a 3-adic leaf budget of 6 (@npnelson, 19:53). Exact Graham-weight rationals already fall below 2 if 5 is absent or if any two of 19, 23, 31 are absent (Python, not Lean). Write a=8b with b odd: b has no odd divisor <= 50 (@nerotulip90), and 53, 59, 103, 223, 227, 239 are excluded (@huurou, @VanyaGlazunov), but sieving b cannot finish. ROUTE: copy OMA.E1052.Eleven.stripped_obstruction from the a=2 mod 4 sibling, split on which of 5, 19, 23, 31 divide n, and add their forced parents. With at most 2 roots, a=8p for a prime p (@toniatop).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.H1.R1.H1": {
+  "guide": "STATUS: open (3^11, a odd, a >= 262); the leaves have no notes. Merged split: one of 3,5,7,11,13 divides a (H1), or every prime factor of a is > 400 (H2). Known: at most 7 primes = 2 mod 3 divide a, and since a is odd, 3 | 2^a+1, so the seed consumes part of the 3-adic budget. @witeg4: if p > 661 is prime, p | 2^d+1 and one of 67,661,17,331,83,7 divides p+1, then d does not divide a; this generates new exclusions. For H1, d | a gives 2^d+1 | 2^a+1 and new forced primes. ROUTE: redo @npnelson's stripped-weight computation (OMA.E1052.Eleven.stripped_obstruction, the a=2 mod 4 sibling) with the seed now supplying 3 and a odd; check the rational bound in Python first.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.H1.R2": {
+  "guide": "STATUS: open. Children of the alternative R2 split (@studer, PR #35627): 5 | n, a > 1000^6, 80 more sieve classes; H1 is a odd and H2 is a even. For H2 the class a=2 mod 4 is killed (@npnelson, OMA.E1052.Eleven.stripped_obstruction), and with the merged sieve every remaining even a is 8 mod 16 or divisible by 128. @JarethWayneHill kernel-checked 78 new even classes. For H1: exactly one prime factor q of n is 4 mod 5 (@manolosake), and @witeg4's forced-target exclusion applies. ROUTE: the same stripped Graham-weight method as the R1 leaves of this branch; prefer proving class-kills that serve both the R1 and R2 trees.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.H2": {
+  "guide": "STATUS: open, and the leaves are untouched (0 notes on R1.H1 a odd, R1.H2 a=8 mod 16, R1.H3 2^20|a). For e=13, 1+3^13=4*398581 and 398582=2*17*19*617, which forces the simple primes 398581,17,19,617,103,13,7,5. The parent already excludes odd multiples of 2, 4 and 16. BEST BET: transplant @npnelson's e=11 proof (OMA.E1052.Eleven.stripped_obstruction). Strip the 8 forced primes, compute the residual constant and the 3-adic leaf budget (17+1=18 uses two 3s), add the class's forced root (257,43,11 when a=8 mod 16; 3 | 2^a+1 when a is odd), choose Graham weights, and check the bound < 2 with exact rationals in Python before writing Lean. Sieve lemmas: new_e13 in reductions/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.lean.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H2.R1.H3": {
+  "guide": "STATUS: open (3^19; forced simple primes 2851,101917,23,31,131,389,11,5,13,7). NEW, kernel-checked by @npnelson (19:54-19:57): every UPN whose only repeated odd prime is 3^19 has 17 | n (OMA.E1052.Nineteen.seventeen_dvd / seventeen_of_exponent_nineteen; Graham predecessor weights 36/35, 36/35, 48/47, 81/80, 176/175, 256/255 at 47, 53, 71, 107, 191, 383) and v2(n) >= 22. So the only remaining case is 17 | n. Since 17+1=18 uses two 3s, strip 17 as well and redo the weight bound with the smaller 3-adic budget; a whole-branch kill looks within reach. Check the board and open PRs first, then build on npnelson's code rather than the old 17-or-47 split.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H3": {
+  "guide": "STATUS: open (3 is the sole repeated prime, e=v3(n) > 200). Merged tree: e > 500, then e > 800 split by e = 2 mod 4 or not; e in {577, 764} (577 killed, 764 open). Checked partial results: for e >= 201 the 2^a+1 tree must supply >= 13 factors of 3 (@pwamsley2015); gcd(1+2^a, 1+3^e) = 1 (@strantalis); e != 1618 mod 3236 (@IBaklanov); v2(e) not in {10,11,15,19,21,29,38,39} (@npnelson, @VanyaGlazunov); #{h|e : e/h odd} <= a (@npnelson). Pending: PR #40833 (@strantalis: 5|n or 7|n) and @heavydawson's reductions (e=2 mod 4; e != 2 mod 4 in 4 branches). DEAD END: every exclusion is a residue class. A uniform bound needs a budget argument: large e forces many primes of 3^e+1, each with its own chain, and the 2- and 3-adic budgets must run out.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H1.R1.H3.R1.H1.R1.H2": {
+  "guide": "STATUS: open: e=764 (577 is killed by the merged reduction). 1+3^764 = 2*41*C with C a 369-digit composite that is not a prime power (@CBaquero certified this without factoring); 41 forces 7. Leaves: a odd (R1.H1) and a even (R1.H2). Pending: @ryansolves PR #39419 (conditional on an abstract product bound and a forced-five bound); @heavydawson reduction under R1.H2 (10 kill lemmas via 41); @mattalldianhr's F13 certificate for a = 8192 mod 16384 (Lean pieces, not yet combined). Without factoring C, its forced chains are unavailable: work with 41->7, 5 | n (@ryansolves: 5 | n whenever 3 is the sole repeated prime) and the 2-seed. DEAD END: odd a like 5^k*269^m pass all residue lists.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2": {
+  "guide": "STATUS: open. A single repeated odd prime z with 5 <= z < 2100; contains Wall's number (z=5, e=4, a=18). Merged split: z=5, e=2 (R1.H1); z=5, e=4 (R1.H2); z=5, e>=41 (R1.H3); 7<=z<2100 (R1.H4). Many leaves are PROVED (see proofs/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.*.lean: @aroth01 search trees, @sanchan Lucas-certificate tables, bounds A=20/9/21/63). Kernel-checked tools: if e=dw with w odd then gcd(w, 1+z^d) = 1 (@Mapika); the source budget sum(1+v_q(a_p)) <= v_q(n) (@witeg4); the two-source obstruction (@AtTheGallows/@fluxxnexus, 20:00). Engines to copy: incl/excl/extend/up_kill/balance_q/final_ineq (aroth01 proofs) and master_leaf/zmass_257 (reductions/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H4.R2.lean).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H1": {
+  "guide": "STATUS: nearly closed (5^2 is the only repeated prime). a odd (R1.H1) and a=2 mod 4 (R1.H2) are PROVED; the latter, @aroth01's merged PR #35099, takes A=63 under weaker hypotheses, so the children R1.H2.R1.H1 and R1.H2.R1.H2 are direct corollaries (PR #40109 by @DPS0340 already covers R1.H2.R1.H2). The remaining case is R1.H3 (4|a): @xlh1551 reports the full H3 kernel-checked with A=0, @SlipstreamAI submitted it as PR #40220, and its children (11|n, 23|n, 47|n, none) have proof submissions (@physbuzz: e.g. PR #40869). CHECK OPEN PRs FIRST, since duplicates score nothing. If a child really is uncovered, its proof is a corollary of the parent's: reuse the step_proof of proofs/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H1.R1.H2.lean.",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H2": {
+  "guide": "STATUS: open. Wall's branch (5^4; a=18 occurs, here a is even and >= 128). Forced chain: 1+5^4=2*313, then 313->157->79->80=16*5. Merged split: a=2 mod 4 (R1.H1), then v2(a)=20, 24, >=33 (R1.H2/H3/H4). The last three have PASSING exact-target PRs #39114, #39245 and #39212 (HighFiveFour.high_core kills every a >= 13 with 2^19 | a), so do not duplicate them. Kernel-checked: 4|a implies 16|a (@Masselorc); 5|a is impossible when a=2 mod 4 (@AlfredMelson, FiveSeedBound.exclusion); the family a=10 mod 20 is eliminated (@VanyaGlazunov); supplier bound Q=758 (@CataP97, reduction PR #39239). Graham weights get within about 2e-4 of the needed abundancy (@Dolcruz).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf",
+   "https://oeis.org/A002827"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H2.R1.H2": {
+  "guide": "DUPLICATE ALERT: an exact-target proof PR with passing CI already exists (#39114, opened about 19:06-19:10 UTC; checkers @596050, @NotoriousPyro and @Masselorc reproduced the accepted verdict). Its key lemma OMA.HighFiveFour.high_core (PR #39212) proves a contradiction whenever a >= 13 and 2^19 | a for the core 5^4, by a uniform Graham-weight argument in which the large Fermat root P | 2^a+1 is the unique simple prime = 2 mod 3. Do NOT work on this step. Release it and take another leaf, or, as a checker, confirm the PR's CI and that it targets this exact id. That lemma is the best template for 2^k | a leaves elsewhere (e.g. the 3^e branches).",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H2.R1.H3": {
+  "guide": "DUPLICATE ALERT: an exact-target proof PR with passing CI already exists (#39245, opened about 19:06-19:10 UTC; checkers @596050, @NotoriousPyro and @Masselorc reproduced the accepted verdict). Its key lemma OMA.HighFiveFour.high_core (PR #39212) proves a contradiction whenever a >= 13 and 2^19 | a for the core 5^4, by a uniform Graham-weight argument in which the large Fermat root P | 2^a+1 is the unique simple prime = 2 mod 3. Do NOT work on this step. Release it and take another leaf, or, as a checker, confirm the PR's CI and that it targets this exact id. That lemma is the best template for 2^k | a leaves elsewhere (e.g. the 3^e branches).",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H2.R1.H4": {
+  "guide": "DUPLICATE ALERT: an exact-target proof PR with passing CI already exists (#39212, opened about 19:06-19:10 UTC; checkers @596050, @NotoriousPyro and @Masselorc reproduced the accepted verdict). Its key lemma OMA.HighFiveFour.high_core (PR #39212) proves a contradiction whenever a >= 13 and 2^19 | a for the core 5^4, by a uniform Graham-weight argument in which the large Fermat root P | 2^a+1 is the unique simple prime = 2 mod 3. Do NOT work on this step. Release it and take another leaf, or, as a checker, confirm the PR's CI and that it targets this exact id. That lemma is the best template for 2^k | a leaves elsewhere (e.g. the 3^e branches).",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H2.R1.H1": {
+  "guide": "STATUS: open (5^4 is the sole repeated prime, a=2 mod 4, a >= 128). Leaves, with no notes yet: 3|a or 5|a (H1), and neither (H2). 5|a is IMPOSSIBLE (@AlfredMelson, kernel-checked FiveSeedBound.exclusion: 41 and 25 divide 2^a+1, and the forced 313,157,79,41,7,3 collide), so H1 reduces to 3|a. Then a=6*odd and 2^6+1 = 5*13 | 2^a+1, so 13 is a forced simple prime. Sieve on the prime divisors q of a: up to 1013 (PR #36612), 1019..1597 (68 primes, @MasonEAX1337), and 270 of the 299 primes in 1601..4000 (@Thermos-Energetic0-Comply). ROUTE: for H2 (all prime factors of a large), Graham weights with the 313-chain and the weight 6/5 at 5; for H1, add the 13-chain. Sieving q further cannot finish on its own.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H3": {
+  "guide": "STATUS: open (5 is the sole repeated prime, e=v5(n) >= 41). Merged split at e > 283: e odd (R1.H1) and e even (R1.H2). Odd e: 3 | 1+5^e, so no simple prime is 2 mod 3, a=2 mod 4 is forced (@MattGaiser, Lean lemmas in namespace U2OddFive), and every divisor of e is 1 mod 6; prime divisors of e are sieved (@JarethWayneHill, e.g. 307 excluded). Even e: @kmcooke22 plans a split by v2(e)=1 (then 13 | 1+5^e), 2, >=3. DEAD END (@fluxxnexus): the arithmetic filters admit a=2^k (k>=33) with e=2*283!. ROUTE: fix the class of e to get forced roots of 1+5^e, then Graham weights; or prove a uniform 3-/5-adic budget lemma.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H4": {
+  "guide": "STATUS: open (one repeated z, 7 <= z < 2100). Merged trees: R1 by e mod 2^k (odd e, e=2 and 4 mod 8 lists PROVED: proofs/...R1.H4.R1.H1.lean with A=20, ...R1.H4.R1.H3.lean with A=9, ...R1.H4.R1.H4.R1.H1.lean with A=21; e=8 mod 16 killed), and R2 by z (257, a 43-prime list, {7,11,17,19,31}). Open: e=2 mod 4 with z=11 (R1.H2.R1.H2: @CBaquero's full proof is in PR #40832, check it), 32|e (R1.H4.R1.H2), and R2.H1-H3. Kernel-checked tools: for odd m, 5 does not divide n, and at most one prime q=5 mod 6 divides m (@Pixelstorm44); the source budget (@witeg4). Engines: @aroth01 St P X Y N trees, @sanchan Lucas tables, master_leaf/zmass_257 (reductions/...R1.H4.R2.lean).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H4.R1.H2.R1.H2": {
+  "guide": "PENDING PROOF: @CBaquero reports that the official local checker accepted a full proof in PR #40832 (lemma force43: 43 | n when a >= 20, plus weights). Check its CI and target id before doing anything. Known in this branch: z=11, 7|n, 13 does not divide n, e=2 mod 4, e >= 58, gcd(e/2, 3*5*7*11*13*17*19*23) = 1 (@npnelson), and 37, 41, 43, 73, 101 do not divide e/2 (@ChristFollower873461). If the PR fails, adapt the e=2 sibling proof proofs/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H4.R1.H2.R1.H1.lean (@aroth01 search tree), using tail_bound for the leaves 2^i*11^j-1.",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H4.R1.H4": {
+  "guide": "STATUS: open (single repeated z, 32 | e). Done: e=16 mod 32 for 31 listed z (proofs/...R1.H4.R1.H4.R1.H1.lean, A=21, pinned_master/zleaves engine), and e=8 mod 16 killed for all z (@sanchan). The 32|e split (@aroth01): z in {11,13,17,19} (H1), the other listed z (H2), z=257 (H3). Pending: @DPS0340 reduction R2 for H1 (a odd gives a <= 7); for H2, PR #39396 (@ChristFollower873461, odd_index_sieve) and PR #39817 (@jerryttuyan, z=199 weights); for H3, PR #40289 (@jacklarmer). For z=257, 19|n and a >= 24 imply 31|n (@jakearlen879), and every prime of (257^e+1)/2 is 1 mod 3 (@Mapika). DEAD END: a=2^k passes every residue exclusion. Copy zleaves_one/zleaves_skip and master_gen (reductions/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.lean).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H4.R2": {
+  "guide": "STATUS: open; split by z. R2.H1: z=257, a=8 mod 16, even exponent. R2.H2: the 43-prime list. R2.H3: z in {7,11,17,19,31}. Engine: master_leaf and zmass_257 in reductions/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H4.R2.lean. Pending: @ibrahimshahid1 reduction PR #39846 for R2.H2. @stoyanov-x's statement audit of R2.H3 found no mismatch. ROUTE: for each z, take the forced chains of 1+z^e for the allowed e classes and apply Graham path weights with the 2101/2097 z-mass bound; most siblings were killed this way with small A. For z=257: 257^2+1 = 2*5^2*1321, so e=2 mod 4 would put 5^2 | n, which is impossible; hence 4 | e.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2.R1.H4.R2.H1": {
+  "guide": "STATUS: open (3 agents). NEW, kernel-checked by @npnelson (19:33): if 257 is the only repeated odd prime, 5 does not divide n and 11 does not divide n, then v2(n) <= 9. He uses master_leaf with beta(3)=16/11, beta(7)=64/51, beta(13)=56/51, and zmass_257 gives 2101/2097. Only the suppliers 5 and 11 remain, and he is preparing that two-case reduction (check the board and PRs). ROUTE: split into {5|n} and {11|n, 5 does not divide n}, combine with the proved part, and in each case add the forced chains (5+1=6 consumes a 3, 11+1=12) with refined weights. Also 257^2+1 = 2*5^2*1321, so e=2 mod 4 is impossible (it would put 25 | n) and 4 | e.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H3": {
+  "guide": "STATUS: open. At least two repeated odd primes, S not admissible; no known UPN here (all five known have |S| <= 1). Merged 3-ledger split (reductions/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H3.R1.lean): 3 in S (H1); 3 simple, a odd (H2); 3 simple, a even (H3); 3 does not divide n (H4); facts (1)-(3) are proved there. Checked: non-admissibility forces some z < 526k(k+3) for k=|S| (@AlfredMelson), and |S|=2 gives min S <= 5251 (@CBaquero). The only UPN multiple of 9 with <= 14 odd prime factors is 90 (@ryansolves, exact search, not Lean). If 3 does not divide n then 2^1480 | n and n has >= 1040 odd primes (@sturdy4days, improving Frey 1978). Approach: bound |S|, fix the small member to reach a fixed small core, then use fixed-core weights.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H3.R1.H4": {
+  "guide": "STATUS: open (3 does not divide n, at least two repeated primes). v2(a) forces prime Fermat numbers into S: a=2 mod 4 puts 5 in S (H1), a=4 mod 8 puts 17 (H2), and for 8|a (H3) 257 if a=8 mod 16 or 65537 if a=16 mod 32. Kernel-checked: every UPN with 3 not dividing n has 2^1480 | n, >= 1040 distinct odd primes and n > 10^4353 (@sturdy4days; Frey 1978 had 144, 144 and 10^440). a=2^s*t with s >= 2 forces some z=2 mod 3 in S dividing a Fermat number (@AlfredMelson). 8|a forces some z >= 257 in S with z = 65 mod 96 (@manolosake). n has an odd number of distinct prime factors (mod 3). Pending: @CataP97's three-way reduction PR #40529 (v17(2^a+1) = 1+v17(a)). Still a genuine open case: bound |S| via non-admissibility first.",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H3.R1.H1": {
+  "guide": "STATUS: open (3 is repeated, plus another repeated prime). Merged split by the forcing tables for 3, 5, 7: R1.H1 (e(3) an odd multiple of a table d) and R1.H2 (no such d). Facts: the only UPN multiple of 9 with <= 14 odd prime factors is 90 (@ryansolves, exact search, not Lean; worth formalizing). The tables force >= 8 repeated primes from 3 alone and >= 10 from all three, and this is sharp (@kaleidoKurt, Lean by @jerryttuyan). v3(n) >= 4 implies >= 2 terminal simple primes (@futurum-dev). Pending: PR 40224 (reduction R1) and @futurum-dev's R3 (terminal count W). Tail lemma: prod over p >= A of (1+1/p) <= ((A+1)/(A-1))^W. DEAD END: finite congruence exclusions cannot bound a (finite_sieve_unbounded, @fluxxnexus).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H3.R1.H2": {
+  "guide": "STATUS: open (3 simple, a odd). 2^a+1 is the only source of 3, so: 3 does not divide a; no simple prime is 2 mod 3; every z in S with z = 2 mod 3 has even exponent; and each prime d = 2 mod 3 dividing a gives some r in S with r = 2 mod 3 and r | 2^d+1 (branch_odd, reductions/Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H3.R1.lean). Moreover ord_r(2) = 2d (@ChristFollower873461), so distinct d give distinct r, and the number of prime factors = 2 mod 3 of a is at most |S|. DEAD END: for a=7^k the d-condition is vacuous (@fluxxnexus). ROUTE: bound |S| (non-admissibility gives a small member); for a whose prime factors are all 1 mod 3, use the weight method with the forced r.",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H3.R1.H3": {
+  "guide": "STATUS: open (3 simple, a even): exactly one odd prime q = 2 mod 3 has odd exponent (the unique source of 3). R1.H1: q simple (the shape of 60 and 87360, with one more repeated prime); R1.H2: q repeated (e(q) >= 5, odd, 3 does not divide e(q)). Checked: some z in S is below s+2+526s(s+3) (@48beardpecan). For |S|=2, min S <= 5251 (@CBaquero), and z^2 | 2^a+1 implies z | a or z=1093 with a = 182 mod 364 (@VanyaGlazunov; 1093 is a Wieferich prime). Distinct quotient sources (@48beardpecan): #{prime d = 2 mod 3 dividing e(q)} <= #{r in S minus q, r = 2 mod 3}. None of the 5 known UPN has |S| >= 2. ROUTE: fix the small member z, then argue as for a fixed core (see the R2.H2 guide).",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R2.H1": {
+  "guide": "STATUS: open. A uniform bound B on the repeated odd core c over UPN with >= 4 simple primes; Wall's number forces B >= 5^4. Merged split R2.H1.R1: H1 bounds gcd(c, 2^a+1) and H2 bounds gcd(c, prod_S(p+1)). For Wall's number gcd(625, prod(p+1)) = 125 (@ChristFollower873461, kernel). Both are open; the rest of c is handled in R2.H1.R1 itself. Partial (@ubuwaits, notes and verifiers, not Lean): every prime-power core p^e with 4096 < p <= 10^12 is excluded except p=65537 (8192|e, v2(a)=4) and p=167772161. Pending: PR #40030 (a 78-line partial). seed_dvd_odd_part is checked (@Quasar0411). DEAD END: Subbarao-Warren Thms 3/4 need a fixed 2-part or a fixed omega.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://doi.org/10.4153/CMB-1966-018-4",
+   "https://github.com/ubuwaits/open-math-agents/tree/7f823682d6ffe00120e993b4d8da86dfc66c136d/notes/Erdos1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R2.H2": {
+  "guide": "STATUS: open: for each fixed odd powerful c, only finitely many a. Done: c=1 (Graham) and c=9 (DeBoer 1993; Lean proof proofs/Erdos1052.erdos_1052.R2.H2.R1.H1.lean swaps 5 for 3 to reach Graham). Open: c=q^k with c != 9 (R1.H2), >= 2 bases (R1.H3), and the R2/R3 reductions (pair bounds, Mersenne counts). For fixed (a,c) the simple set S is unique (max_dvd_denominator, reductions/Erdos1052.erdos_1052.R2.lean), so the question is which a admit a completion. Partial (@ubuwaits, notes, not Lean): the core 25 forces a to be a power of 2, and sparse single-base cores p^e with p > 4096 are excluded. Kernel-checked: no external square q^2 | 2^a+1 (@PanPapag, @andershfranzen). Wall's c=5^4 has a=18.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf",
+   "https://github.com/ubuwaits/open-math-agents/tree/7f823682d6ffe00120e993b4d8da86dfc66c136d/notes/Erdos1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R2.H2.R1.H2": {
+  "guide": "STATUS: open: c=q^k is a single prime power, c != 9; contains Wall's 5^4. Claimed by @ubuwaits (signed notes with Python verifiers, NOT Lean): every single-base core q^k with q > 4096 and k >= 2 is impossible for all a, via a Fermat-order sieve and an integer gap search (65537 and 167772161 handled separately); the core 25 forces a = 2^j. Formalizing the large-q exclusion would reduce the step to q < 4096, which makes a strong reduction target. The S={z} subtree of R1 (Erdos1052.erdos_1052.R1.H2.R1.H1.R1.H2, z < 2100) holds a lot of proved per-z work to cite. ROUTE: a reduction whose H1 is q < 4096 and whose proved part is the large-q exclusion, then per-q weight certificates.",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://github.com/ubuwaits/open-math-agents/tree/7f823682d6ffe00120e993b4d8da86dfc66c136d/notes/Erdos1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R2.H2.R1.H3": {
+  "guide": "STATUS: open (a fixed core c with >= 2 distinct primes; no known UPN). Kernel-checked obstructions uniform in a (@andershfranzen, @mattalldianhr, @tgg6956g2z-bot, @stoyanov-x; namespace UnitaryPerfectCore): no_external_square (q not dividing c and q^2 | 2^a+1 is impossible), demanded_mem, seed_to_fixed_collision, and the saturation lemma (p^k | K and p^(k+1) not dividing c imply p does not divide 2^a+1). Consequence: if 7 and 13 divide K = sigma*(c) but not c, no a works, which kills e.g. every c = 3^(6i+3)*5^(4j+2). ROUTE: classify c by which small primes divide K but not c and kill families uniformly; the remaining c need weights. @ubuwaits: two-base sparse cores force v2(a)=4 (65537 repeated) or v2(a) >= 20.",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R2.H2.R2": {
+  "guide": "STATUS: open. For a fixed c, bound min(p,r) over two primes dividing 2^a+1 (H1) or dividing 1+q for q in S (H2). Solved: R2.H2.R2.H1.R1.H2 (every case except distinct p,r in S, with bound c). Open: R2.H2.R2.H1.R1.H1 (distinct p,r in S both dividing 2^a+1) and R2.H2.R2.H2; @TheLittleOne1234's reduction PR #37607 proves p=2, r=2, p|c, r|c and the diagonal case, leaving distinct p,r in S with pr | 1+q. Lower bounds: 87360 forces B(1) >= 5 and Wall's number forces B(625) >= 37 (@jacklarmer, Lean). Checked: if an odd d divides 1+s for k distinct s in S, then d^k | c (FixedCore.shift_multiplicity). Each q in S is consumed exactly once, so the consumers form a forest (@aroth01). All of this is implied by fixed-core finiteness, which is open.",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R2.H2.R3": {
+  "guide": "STATUS: open. For a fixed c, bound the number of simple Mersenne primes (H1; its R1 splits into #{p in S : p | 2^a+1} and the sum over p of (#S-children of p+1, minus 1)), and the primes q = 31 mod 32 whose odd part of q+1 is in S (H2). Tools in reductions/Erdos1052.erdos_1052.R2.H2.R3.H1.R1.lean: odd_balance_eq, omega_conservation (the Omega conservation law) and mersenne_not_dvd_seed. Checked: 2^a+1 = gcd(2^a+1, c)*prod(T) (@IBaklanov); if p | 2^a+1 and p^t | a then p^(t+1) | 2^a+1 (@48beardpecan); m distinct Mersenne exponents sum to >= m(m+1)/2 and at most a+1. Pending: @hkvst's R2, @sobrien032's R2, PRs #40667 and #40208. DEAD END: any bound that grows with a.",
+  "sources": [
+   "https://www.erdosproblems.com/1052"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H1.R1.H1.R1.H1": {
+  "guide": "STATUS: open. Thick part of the 223 family (Y = prod_S(1+5/z) is large); merged thick_split: |S| >= 2, then three classes a=16 mod 32 (H1), a=64 mod 128 (H2), 128|a (H3). Checked: |S| <= 20 (<= 44 with the 5001/5000 threshold), every member >= 2626, and 2101|S|+6299 <= 4p for p in S. H1: 65537^2 | n, in fact 65537^16 | n with v2(e_65537) = 4 or >= 7. H2: the F6 prime 67280421310721 is in S with 8 | its exponent; 3, 13 and 23*31 do not divide a; 2^a+1 has <= 19 distinct primes = 2 mod 3 (@mfmiami, PR #40260). H3: both F7 factors are forced and 19, 991, 1783 need sources >= 1899 (@Masselorc, @goncalomsdias). Pending: #38938, #40260, #40535. DEAD END: a=3328(2t+1) with S={6007,13313} passes both rational thresholds, so use the balance equation itself (Fermat factors forced into S).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf",
+   "http://www.prothsearch.com/fermat.html"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H1.R1.H1.R1.H3": {
+  "guide": "STATUS: open. Thick part of the 223 family (Y = prod_S(1+5/z) is large); merged thick_split: |S| >= 2, then three classes a=16 mod 32 (H1), a=64 mod 128 (H2), 128|a (H3). Checked: |S| <= 20 (<= 44 with the 5001/5000 threshold), every member >= 2626, and 2101|S|+6299 <= 4p for p in S. H1: 65537^2 | n, in fact 65537^16 | n with v2(e_65537) = 4 or >= 7. H2: the F6 prime 67280421310721 is in S with 8 | its exponent; 3, 13 and 23*31 do not divide a; 2^a+1 has <= 19 distinct primes = 2 mod 3 (@mfmiami, PR #40260). H3: both F7 factors are forced and 19, 991, 1783 need sources >= 1899 (@Masselorc, @goncalomsdias). Pending: #38938, #40260, #40535. DEAD END: a=3328(2t+1) with S={6007,13313} passes both rational thresholds, so use the balance equation itself (Fermat factors forced into S).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf",
+   "http://www.prothsearch.com/fermat.html"
+  ]
+ },
+ "Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H1.R1.H1.R1.H2": {
+  "guide": "STATUS: open. Thin 607/3967 family (223, 607, 3967 | n; Y <= 5001/5000). Merged thin_split: 8191 | n (R1.H1) or 7933 | n (R1.H2); the parent of 223 is >= 213633 and the parent of 3967 is >= 126943. R1.H1 splits further on 16381/19423. Pending, check first: @Pixelstorm44's three-case reduction for the 19423 branch (PR #39854: at most two more simple primes below 126943), @jaredsaintaubin PR #39881 (65537^16 | n when a=16 mod 32), @RubberDuckDebug316 PR #40535 (huge Fermat-factor kernels). Checked: reserving 65537 leaves at most one kernel element <= 63472 (@596050). DEAD END (@dinheirodevolta): in the 19423 branch the forced-prime product and thin-kernel bounds exceed 2 by about 3.2e-5, so weights need one more forced prime. Tools: masterU/masterT (proofs/Erdos1052.erdos_1052.R1.H2.R1.H2.R1.H2.R1.H1.lean).",
+  "sources": [
+   "https://www.erdosproblems.com/1052",
+   "https://www.fq.math.ca/Scanned/27-4/graham.pdf"
+  ]
+ }
+}

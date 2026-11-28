@@ -1,189 +1,192 @@
 import OMAStatements.S_oeis_a176749
 
-/-! Proof. With `A = ∑ a(n) xⁿ`, the defining convolution gives a quadratic `P A² + Q A + R = 0`
-with polynomial `P, Q, R`. Writing `B = 2PA + Q`, `B² = Q² - 4PR =: Δ` and differentiating gives
-`2ΔB' = Δ'B`, a first-order linear ODE for `A`; after cancelling the factor `4*(x - 1)` its
-coefficient of `x^n` is the stated recurrence (the inhomogeneous part has degree `< 4`). -/
+/-! The quadratic convolution determines an algebraic power series.
+Differentiating a polynomial square identity gives a first-order linear
+differential equation and hence the asserted coefficient recurrence. -/
 
-namespace OMA.S_oeis_a176749
-open PowerSeries
+namespace QuadraticA176749
 
-lemma len (n : ℕ) : (aList n).length = n + 1 := by
+open OMA.S_oeis_a176749 PowerSeries Finset
+open scoped PowerSeries
+
+private theorem prefixLength : ∀ n : ℕ, (aList n).length = n + 1
+  | 0 => rfl
+  | 1 => rfl
+  | n + 2 => by rw [aList, List.length_append, prefixLength (n + 1)]; rfl
+
+private theorem prefixStep (n i : ℕ) (hi : i ≤ n) :
+    (aList (n+1)).getD i 0 = (aList n).getD i 0 := by
+  cases n with
+  | zero =>
+    have : i = 0 := by omega
+    subst i
+    rfl
+  | succ n =>
+    rw [show n.succ + 1 = n + 2 by omega, aList, List.getD_append]
+    rw [prefixLength]
+    omega
+
+private theorem prefixCoefficient (n i : ℕ) (hi : i ≤ n) :
+    (aList n).getD i 0 = a i := by
   induction n with
-  | zero => rfl
+  | zero =>
+    have : i = 0 := by omega
+    subst i
+    rfl
   | succ n ih =>
-    rcases n with _ | n
-    · rfl
-    · simp only [aList, List.length_append, List.length_singleton, ih]
+    by_cases hs : i ≤ n
+    · rw [prefixStep n i hs, ih hs]
+    · have : i = n+1 := by omega
+      subst i
+      rfl
 
-lemma pre (n : ℕ) : ∀ k ≤ n, (aList n).getD k 0 = a k := by
-  induction n with
-  | zero => intro k hk; interval_cases k; rfl
-  | succ n ih =>
-    intro k hk
-    rcases Nat.lt_or_ge k (n+1) with h | h
-    · rcases n with _ | n
-      · interval_cases k; rfl
-      · rw [← ih k (by omega)]
-        simp only [aList]
-        rw [List.getD_append _ _ _ _ (by rw [len]; omega)]
-    · have : k = n + 1 := by omega
-      subst this; rfl
+private theorem convRec (n : ℕ) : a (n + 2) =
+    (∑ p ∈ range (n+2), a p * a (n+1-p)) + ((0 : ℤ) * (n : ℤ) + (-1 : ℤ)) := by
+  conv_lhs => unfold a
+  rw [aList, List.getD_append_right]
+  · rw [prefixLength, show n + 2 - (n + 1 + 1) = 0 by omega]
+    change (∑ p ∈ range (n+2), (aList (n+1)).getD p 0 *
+      (aList (n+1)).getD (n+1-p) 0) - 1 = _
+    have hs : (∑ p ∈ range (n+2), (aList (n+1)).getD p 0 *
+        (aList (n+1)).getD (n+1-p) 0) = ∑ p ∈ range (n+2), a p * a (n+1-p) := by
+      apply sum_congr rfl
+      intro p hp
+      have hpn := mem_range.mp hp
+      rw [prefixCoefficient _ _ (by omega), prefixCoefficient _ _ (by omega)]
+    rw [hs] <;> ring
+  · rw [prefixLength]
 
-lemma step (n : ℕ) : a (n+2) = (∑ p ∈ Finset.range (n + 2), a p * a (n + 1 - p)) - 1 := by
-  unfold a
-  simp only [aList]
-  rw [List.getD_append_right _ _ _ _ (by rw [len])]
-  rw [len, Nat.sub_self]
-  simp only [List.getD_cons_zero]
-  congr 1
-  refine Finset.sum_congr rfl (fun p hp => ?_)
-  simp only [Finset.mem_range] at hp
-  rw [pre (n+1) p (by omega), pre (n+1) (n+1-p) (by omega)]; rfl
+private noncomputable abbrev Xz : PowerSeries ℤ := X
+private noncomputable def A : PowerSeries ℤ := PowerSeries.mk a
+private noncomputable def T : PowerSeries ℤ :=
+  PowerSeries.mk fun n => (0 : ℤ) * (n : ℤ) + (-1 : ℤ)
 
-noncomputable def A : ℚ⟦X⟧ := mk fun n => (a n : ℚ)
-noncomputable def U : ℚ⟦X⟧ := C (-1 : ℚ) * mk 1
-noncomputable def PP : ℚ⟦X⟧ := (-(X * (1 - X)))
-noncomputable def QQ : ℚ⟦X⟧ := (1 - X)
-noncomputable def RR : ℚ⟦X⟧ := ((1 - X) * (X - 1 - C (3 : ℚ) * X) - C (-1 : ℚ) * X ^ 2)
+private theorem A_quad : A = 1 + PowerSeries.C (2)*Xz + Xz*A^2 + Xz^2*T := by
+  ext n
+  rcases n with _ | _ | n
+  · simp [A, Xz, a, aList]
+  · have ht : coeff 1 (Xz^2*T) = 0 := by rw [coeff_X_pow_mul']; simp
+    have hs : coeff 0 (A^2) = 1 := by
+      rw [coeff_zero_eq_constantCoeff_apply]
+      simp [A, a, aList]
+    simp only [map_add, coeff_C_mul, coeff_X, coeff_succ_X_mul, coeff_one, hs, ht]
+    norm_num [A, a, aList]
+  · simp only [map_add, coeff_C_mul, coeff_X, coeff_one, coeff_succ_X_mul,
+      coeff_X_pow_mul', A, coeff_mk, Xz]
+    have h0 : n.succ.succ ≠ 0 := by omega
+    have h1 : n.succ.succ ≠ 1 := by omega
+    have h2 : 2 ≤ n.succ.succ := by omega
+    have hn : n.succ.succ - 2 = n := by omega
+    simp only [h0, h1, h2, hn, if_false, if_true, T, coeff_mk]
+    rw [pow_two, coeff_mul]
+    simp only [coeff_mk]
+    rw [Finset.Nat.sum_antidiagonal_eq_sum_range_succ (fun i j => a i * a j) (n+1)]
+    linear_combination convRec n
 
-lemma hE0 : A - 1 - (C (3 : ℚ) * X) + X - X * A ^ 2 = X ^ 2 * U := by
-  ext m
-  rcases m with _ | _ | m
-  · simp [A, a, aList]
-  · have k1 : coeff 1 A = (a 1 : ℚ) := by simp only [A, coeff_mk]
-    have k2 : coeff 1 (1:ℚ⟦X⟧) = 0 := by simp [coeff_one]
-    have k3 : coeff 1 ((C (3 : ℚ) * X)) = (3 : ℚ) := by simp [coeff_C_mul, coeff_X]
-    have k4 : coeff 1 (X:ℚ⟦X⟧) = 1 := by simp [coeff_X]
-    have k5 : coeff 1 (X * A ^ 2) = (a 0 : ℚ) ^ 2 := by
-      rw [show (1:ℕ) = 0 + 1 from rfl, coeff_succ_X_mul, coeff_zero_eq_constantCoeff, map_pow]
-      simp [A]
-    have k6 : coeff 1 (X ^ 2 * U) = 0 := by rw [coeff_X_pow_mul', if_neg (by omega)]
-    have v0 : a 0 = 1 := rfl
-    have v1 : a 1 = 3 := by simp [a, aList]
-    rw [show (0:ℕ) + 1 = 1 from rfl, map_sub, map_add, map_sub, map_sub, k1, k2, k3, k4, k5, k6, v0, v1]
-    push_cast; ring
-  · rw [show m + 1 + 1 = m + 2 by ring]
-    have l1 : coeff (m+2) A = (a (m+2) : ℚ) := by simp only [A, coeff_mk]
-    have l2 : coeff (m+2) (1:ℚ⟦X⟧) = 0 := by simp [coeff_one]
-    have l3 : coeff (m+2) ((C (3 : ℚ) * X)) = 0 := by simp [coeff_C_mul, coeff_X]
-    have l4 : coeff (m+2) (X:ℚ⟦X⟧) = 0 := by simp [coeff_X]
-    have l5 : coeff (m+2) (X * A ^ 2) = ∑ k ∈ Finset.range (m + 2), (a k : ℚ) * (a (m + 1 - k) : ℚ) := by
-      rw [coeff_succ_X_mul, pow_two, coeff_mul,
-        Finset.Nat.sum_antidiagonal_eq_sum_range_succ (fun i j => coeff i A * coeff j A)]
-      simp only [A, coeff_mk]
-    have l6 : coeff (m+2) (X ^ 2 * U) = (-1 : ℚ) := by
-      rw [coeff_X_pow_mul', if_pos (by omega), Nat.add_sub_cancel]; simp [U]
-    rw [map_sub, map_add, map_sub, map_sub, l1, l2, l3, l4, l5, l6, step m]
-    push_cast
+private theorem T_clear : (1-Xz)^2*T = PowerSeries.C (-1) + PowerSeries.C (1)*Xz := by
+  rw [show (1-Xz)^2*T = T - PowerSeries.C 2*(Xz*T) + Xz^2*T by
+    simp only [map_ofNat]; ring]
+  ext n
+  rcases n with _ | _ | n
+  · simp only [map_sub, map_add, coeff_C, coeff_C_mul, coeff_X, coeff_zero_X_mul,
+      coeff_X_pow_mul', T, coeff_mk]
+    norm_num
+  · simp only [map_sub, map_add, coeff_C, coeff_C_mul, coeff_X, coeff_succ_X_mul,
+      coeff_X_pow_mul', T, coeff_mk]
+    norm_num
+  · have h2 : 2 ≤ n.succ.succ := by omega
+    have h0 : n.succ.succ ≠ 0 := by omega
+    have h1 : n.succ.succ ≠ 1 := by omega
+    simp only [map_sub, map_add, coeff_C, coeff_C_mul, coeff_X, coeff_succ_X_mul,
+      coeff_X_pow_mul', T, coeff_mk, h2, h0, h1, if_true, if_false]
+    simp only [show n.succ.succ - 2 = n by omega, Nat.cast_succ]
     ring
 
-lemma hU : (1 - X : ℚ⟦X⟧) * U = (-1 : ℚ⟦X⟧) := by
-  unfold U
-  have h' : (1 - X : ℚ⟦X⟧) * mk 1 = 1 := by
-    rw [mul_comm]; exact mk_one_mul_one_sub_eq_one ℚ
-  try exact h'
-  rw [← mul_assoc, mul_right_comm (1 - X), h']
-  simp [one_mul, map_neg, map_one]
+private noncomputable def B : PowerSeries ℤ :=
+  (1-Xz) - PowerSeries.C 2 * Xz * (1-Xz) * A
 
-lemma dPP : d⁄dX ℚ PP = (2*X - 1) := by
-  unfold PP
-  simp only [map_add, map_sub, map_mul, map_neg, map_one, map_ofNat, derivative_X, derivative_C,
-    Derivation.leibniz, Derivation.leibniz_pow, Derivation.map_one_eq_zero, smul_eq_mul, nsmul_eq_mul]
+private noncomputable def G : PowerSeries ℤ := PowerSeries.C (1) + PowerSeries.C (-6) * Xz^1 + PowerSeries.C (1) * Xz^2 + PowerSeries.C (16) * Xz^3 + PowerSeries.C (-12) * Xz^4
+
+private theorem squareRelation : B^2 = G := by
+  have hquad : A - 1 - PowerSeries.C (2)*Xz - Xz*A^2 = Xz^2*T := by
+    linear_combination A_quad
+  have hclear : (1-Xz)^2*(A - 1 - PowerSeries.C (2)*Xz - Xz*A^2) =
+      Xz^2*(PowerSeries.C (-1) + PowerSeries.C (1)*Xz) := by
+    rw [hquad]
+    calc
+      _ = Xz^2*((1-Xz)^2*T) := by ring
+      _ = _ := by rw [T_clear]
+  simp only [B, G, map_zero, map_one, map_neg, map_ofNat] at hclear ⊢
+  linear_combination -4*Xz*hclear
+
+private theorem derivativeMul (f g : PowerSeries ℤ) :
+    d⁄dX ℤ (f*g) = f*d⁄dX ℤ g + g*d⁄dX ℤ f := by
+  simpa only [smul_eq_mul] using (PowerSeries.derivative ℤ).leibniz f g
+
+private theorem derivativeB : d⁄dX ℤ B =
+    -1 - 2*(1-2*Xz)*A - 2*Xz*(1-Xz)*d⁄dX ℤ A := by
+  simp only [B, map_sub, Derivation.map_one_eq_zero, derivative_X, derivativeMul,
+    derivative_C]
+  simp only [map_ofNat]
   ring
 
-lemma dQQ : d⁄dX ℚ QQ = (-1) := by
-  unfold QQ
-  simp only [map_add, map_sub, map_mul, map_neg, map_one, map_ofNat, derivative_X, derivative_C,
-    Derivation.leibniz, Derivation.leibniz_pow, Derivation.map_one_eq_zero, smul_eq_mul, nsmul_eq_mul]
+private theorem derivativeG : d⁄dX ℤ G = (-6 : PowerSeries ℤ) + (2 : PowerSeries ℤ) * Xz^1 + (48 : PowerSeries ℤ) * Xz^2 + (-48 : PowerSeries ℤ) * Xz^3 := by
+  simp only [G, map_add, derivative_X, derivativeMul, derivative_C, derivative_pow]
+  norm_num
   ring
 
-lemma dRR : d⁄dX ℚ RR = (6*X - 1) := by
-  unfold RR
-  simp only [map_add, map_sub, map_mul, map_neg, map_one, derivative_X, derivative_C,
-    Derivation.leibniz, Derivation.leibniz_pow, Derivation.map_one_eq_zero, smul_eq_mul, nsmul_eq_mul]
-  simp only [map_ofNat, map_natCast, map_neg, map_one, map_zero]
-  ring
+private noncomputable def term (c : ℤ) (j : ℕ) : PowerSeries ℤ := PowerSeries.C c*Xz^j
 
-lemma hE : PP * A ^ 2 + QQ * A + RR = 0 := by
-  have h0 := hE0
-  unfold PP QQ RR
-  simp only [map_ofNat, map_natCast, map_neg, map_one, map_zero] at h0 ⊢
-  linear_combination (1 - X) * h0 + X ^ 2 * hU
+private noncomputable def P : PowerSeries ℤ := term (1) 1 + term (-6) 2 + term (1) 3 + term (16) 4 + term (-12) 5
+private noncomputable def Q : PowerSeries ℤ := term (1) 0 + term (-4) 1 + term (5) 2 + term (-4) 3
+private noncomputable def R : PowerSeries ℤ := term (1) 0 + term (2) 1 + term (-10) 2 + term (6) 3
 
-lemma hE' : d⁄dX ℚ PP * A ^ 2 + PP * (2 * A * d⁄dX ℚ A) + d⁄dX ℚ QQ * A + QQ * d⁄dX ℚ A + d⁄dX ℚ RR = 0 := by
-  have h := congrArg (d⁄dX ℚ) hE
-  simp only [map_add, Derivation.leibniz, Derivation.leibniz_pow, Derivation.map_zero,
-    smul_eq_mul, nsmul_eq_mul, Nat.add_one_sub_one, pow_one] at h
-  linear_combination h
+private theorem differential : P*d⁄dX ℤ A + Q*A = R := by
+  have hder := congrArg (PowerSeries.derivative ℤ) squareRelation
+  rw [PowerSeries.derivative_pow] at hder
+  have h : 2*G*d⁄dX ℤ B = (d⁄dX ℤ G)*B := by
+    calc
+      _ = ((2 : ℕ) * B^(2-1) * d⁄dX ℤ B)*B := by rw [← squareRelation]; norm_num; ring
+      _ = _ := by rw [hder]
+  rw [derivativeB, derivativeG] at h
+  have hscale : ((4 : PowerSeries ℤ) * (1-Xz)) ≠ 0 := by
+    intro heq
+    have hc := congrArg (constantCoeff (R := ℤ)) heq
+    norm_num [Xz, map_ofNat] at hc
+  apply mul_left_cancel₀ hscale
+  simp only [P, Q, R, term, B, G, map_one, map_neg, map_ofNat] at h ⊢
+  linear_combination -h
 
-lemma hZ : (-12*X^5 + 16*X^4 + X^3 - 6*X^2 + X) * d⁄dX ℚ A + (-4*X^3 + 5*X^2 - 4*X + 1) * A + (-6*X^3 + 10*X^2 - 2*X - 1) = 0 := by
-  have hg : (4 * (X - 1) : ℚ⟦X⟧) * ((-12*X^5 + 16*X^4 + X^3 - 6*X^2 + X) * d⁄dX ℚ A + (-4*X^3 + 5*X^2 - 4*X + 1) * A + (-6*X^3 + 10*X^2 - 2*X - 1)) = 0 := by
-    have hE0' := hE
-    have hE1 := hE'
-    rw [dPP, dQQ, dRR] at hE1
-    unfold PP QQ at hE1
-    unfold PP QQ RR at hE0'
-    simp only [map_ofNat, map_natCast, map_neg, map_one, map_zero] at hE0' hE1
-    linear_combination ((-16*A*X^3 + 24*A*X^2 - 8*A*X - 16*(d⁄dX ℚ A)*X^4 + 32*(d⁄dX ℚ A)*X^3 - 16*(d⁄dX ℚ A)*X^2 + 4*X - 4)) * hE0' + ((8*A*X^4 - 16*A*X^3 + 8*A*X^2 - 4*X^3 + 8*X^2 - 4*X)) * hE1
-  have hgn : (4 * (X - 1) : ℚ⟦X⟧) ≠ 0 := by
-    intro h4
-    apply_fun (constantCoeff : ℚ⟦X⟧ → ℚ) at h4
-    norm_num [map_mul, map_sub, map_one, map_ofNat] at h4
-  exact (mul_eq_zero.mp hg).resolve_left hgn
+private theorem coeffTermMul (c : ℤ) (k n : ℕ) (F : PowerSeries ℤ) :
+    coeff n (term c k * F) = c * (if k ≤ n then coeff (n-k) F else 0) := by
+  rw [term, mul_assoc, coeff_C_mul, coeff_X_pow_mul']
 
-lemma cX (Y : ℚ⟦X⟧) (j e : ℕ) : coeff (e + j) (X ^ j * Y) = coeff e Y := by
-  rw [coeff_X_pow_mul', if_pos (by omega), Nat.add_sub_cancel]
+private theorem coeffTerm (c : ℤ) (k n : ℕ) :
+    coeff n (term c k) = if n = k then c else 0 :=
+  coeff_C_mul_X_pow c k n
 
-lemma cA (j e : ℕ) : coeff (e + j) (X ^ j * A) = (a e : ℚ) := by
-  rw [cX, A, coeff_mk]
+end QuadraticA176749
 
-lemma cdA (j e : ℕ) : coeff (e + j) (X ^ j * d⁄dX ℚ A) = ((e:ℚ) + 1) * (a (e+1) : ℚ) := by
-  rw [cX, coeff_derivative, A, coeff_mk]; ring
+open QuadraticA176749 PowerSeries
 
-lemma cdA0 (s e : ℕ) : coeff (e + s) (X ^ (s+1) * d⁄dX ℚ A) = (e:ℚ) * (a e : ℚ) := by
-  rcases e with _ | e
-  · rw [coeff_X_pow_mul', if_neg (by omega)]; simp
-  · rw [show e + 1 + s = e + (s + 1) by ring, cX, coeff_derivative, A, coeff_mk]; push_cast; ring
-
-lemma cR (j m : ℕ) (h : j < m) : coeff m (X ^ j : ℚ⟦X⟧) = 0 := by
-  rw [coeff_X_pow, if_neg (by omega)]
-
-theorem solution_main :
-    ∀ n : ℕ, 4 ≤ n →
-      ((n : ℤ) + 1) * a n
-      + 2 * (-3 * (n : ℤ) + 1) * a (n - 1)
-      + ((n : ℤ) + 3) * a (n - 2)
-      + 4 * (4 * (n : ℤ) - 13) * a (n - 3)
-      + 12 * (-(n : ℤ) + 4) * a (n - 4) = 0 := by
+theorem OMA.solution : type_of% @OMA.S_oeis_a176749.main := by
   intro n hn
-  obtain ⟨N, rfl⟩ : ∃ N, n = N + 4 := ⟨n - 4, by omega⟩
-  simp only [show N + 4 - 1 = N + 3 by omega, show N + 4 - 2 = N + 2 by omega, show N + 4 - 3 = N + 1 by omega, show N + 4 - 4 = N + 0 by omega]
-  set dA := d⁄dX ℚ A
-  have e : (-12*X^5 + 16*X^4 + X^3 - 6*X^2 + X) * dA + (-4*X^3 + 5*X^2 - 4*X + 1) * A + (-6*X^3 + 10*X^2 - 2*X - 1) = C (1 : ℚ) * (X ^ 1 * dA) + C (-6 : ℚ) * (X ^ 2 * dA) + C (1 : ℚ) * (X ^ 3 * dA) + C (16 : ℚ) * (X ^ 4 * dA) + C (-12 : ℚ) * (X ^ 5 * dA) + C (1 : ℚ) * (X ^ 0 * A) + C (-4 : ℚ) * (X ^ 1 * A) + C (5 : ℚ) * (X ^ 2 * A) + C (-4 : ℚ) * (X ^ 3 * A) + C (-1 : ℚ) * X ^ 0 + C (-2 : ℚ) * X ^ 1 + C (10 : ℚ) * X ^ 2 + C (-6 : ℚ) * X ^ 3 := by
-    simp only [map_ofNat, map_neg, map_one, map_zero, map_div₀]; ring
-  have h := congrArg (coeff (N+4)) hZ
-  rw [e] at h
-  simp only [map_add, map_zero, coeff_C_mul] at h
-  have p1 : coeff (N+4) (X ^ 1 * dA) = ((N+3:ℕ)+1:ℚ) * (a (N+3+1) : ℚ) := cdA 1 (N+3)
-  have p2 : coeff (N+4) (X ^ 2 * dA) = ((N+2:ℕ)+1:ℚ) * (a (N+2+1) : ℚ) := cdA 2 (N+2)
-  have p3 : coeff (N+4) (X ^ 3 * dA) = ((N+1:ℕ)+1:ℚ) * (a (N+1+1) : ℚ) := cdA 3 (N+1)
-  have p4 : coeff (N+4) (X ^ 4 * dA) = ((N+0:ℕ)+1:ℚ) * (a (N+0+1) : ℚ) := cdA 4 (N+0)
-  have p5 : coeff (N+4) (X ^ 5 * dA) = (N:ℚ) * (a N : ℚ) := cdA0 4 N
-  have q0 : coeff (N+4) (X ^ 0 * A) = (a (N+4) : ℚ) := cA 0 (N+4)
-  have q1 : coeff (N+4) (X ^ 1 * A) = (a (N+3) : ℚ) := cA 1 (N+3)
-  have q2 : coeff (N+4) (X ^ 2 * A) = (a (N+2) : ℚ) := cA 2 (N+2)
-  have q3 : coeff (N+4) (X ^ 3 * A) = (a (N+1) : ℚ) := cA 3 (N+1)
-  have r0 : coeff (N+4) (X ^ 0 : ℚ⟦X⟧) = 0 := cR 0 (N+4) (by omega)
-  have r1 : coeff (N+4) (X ^ 1 : ℚ⟦X⟧) = 0 := cR 1 (N+4) (by omega)
-  have r2 : coeff (N+4) (X ^ 2 : ℚ⟦X⟧) = 0 := cR 2 (N+4) (by omega)
-  have r3 : coeff (N+4) (X ^ 3 : ℚ⟦X⟧) = 0 := cR 3 (N+4) (by omega)
-  rw [p1, p2, p3, p4, p5, q0, q1, q2, q3, r0, r1, r2, r3] at h
-  qify
-  push_cast at h ⊢
-  linear_combination (1) * h
-
-end OMA.S_oeis_a176749
-
-theorem OMA.solution : type_of% @OMA.S_oeis_a176749.main := OMA.S_oeis_a176749.solution_main
-
+  by_cases hsmall : n < 5
+  · interval_cases n <;> decide +kernel
+  have h := congrArg (coeff n) differential
+  simp only [P, Q, R, add_mul, map_add, coeffTermMul, coeffTerm, coeff_derivative, A, coeff_mk] at h
+  have h1 : 1 ≤ n := by omega
+  have h2 : 2 ≤ n := by omega
+  have h3 : 3 ≤ n := by omega
+  have h4 : 4 ≤ n := by omega
+  have h5 : 5 ≤ n := by omega
+  have hn0 : n ≠ 0 := by omega
+  have hn1 : n ≠ 1 := by omega
+  have hn2 : n ≠ 2 := by omega
+  have hn3 : n ≠ 3 := by omega
+  have index (j : ℕ) (hj : j+1 ≤ n) : n-(j+1)+1 = n-j := by omega
+  simp only [Nat.zero_le, h1, h2, h3, h4, h5,
+    if_true, if_false, hn0, hn1, hn2, hn3,
+    index 0 h1, index 1 h2, index 2 h3, index 3 h4, index 4 h5, Nat.sub_zero,
+    Nat.cast_sub h1, Nat.cast_sub h2, Nat.cast_sub h3, Nat.cast_sub h4, Nat.cast_sub h5, Nat.cast_ofNat] at h
+  linear_combination h

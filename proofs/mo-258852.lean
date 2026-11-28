@@ -2,7 +2,10 @@ import OMAStatements.S_mo_258852
 import Mathlib.NumberTheory.LucasPrimality
 import Mathlib.Tactic
 
-/-! The exponents 214 and 642 have a common largest prime factor. The
+/-! Retains @marcusbuffett’s counterexample and Lucas certificates from #29875.
+Prime-divisor classification now shares the modular verification across each certificate’s cases.
+
+The exponents 214 and 642 have a common largest prime factor. The
 factor data used to locate the witness are from the Cunningham tables,
 Table 2LM (https://homes.cerias.purdue.edu/~ssw/cun/pmain1126.txt). The arithmetic and primality certificate below are checked in Lean. -/
 
@@ -38,38 +41,15 @@ private theorem prime_1653701519 : Nat.Prime 1653701519 := by
     reduce_mod_char
   · intro q hq hd
     rw [show (1653701519 : ℕ) - 1 = 2 ^ 1 * 7 ^ 1 * 19 ^ 1 * 23 ^ 1 * 137 ^ 1 * 1973 ^ 1 by decide] at hd
-    simp only [hq.dvd_mul, or_assoc] at hd
-    rcases hd with h | h | h | h | h | h
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_2 h
-      subst q
-      change (7 : ZMod 1653701519) ^ 826850759 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_7 h
-      subst q
-      change (7 : ZMod 1653701519) ^ 236243074 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_19 h
-      subst q
-      change (7 : ZMod 1653701519) ^ 87036922 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_23 h
-      subst q
-      change (7 : ZMod 1653701519) ^ 71900066 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_137 h
-      subst q
-      change (7 : ZMod 1653701519) ^ 12070814 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_1973 h
-      subst q
-      change (7 : ZMod 1653701519) ^ 838166 ≠ 1
-      reduce_mod_char
-      decide
+    simp only [pow_one,
+      hq.dvd_mul,
+      Nat.prime_dvd_prime_iff_eq hq prime_2,
+      Nat.prime_dvd_prime_iff_eq hq prime_7,
+      Nat.prime_dvd_prime_iff_eq hq prime_19,
+      Nat.prime_dvd_prime_iff_eq hq prime_23,
+      Nat.prime_dvd_prime_iff_eq hq prime_137,
+      Nat.prime_dvd_prime_iff_eq hq prime_1973, or_assoc] at hd
+    rcases hd with rfl | rfl | rfl | rfl | rfl | rfl <;> reduce_mod_char <;> decide
 
 private theorem prime_143675413657196977 : Nat.Prime 143675413657196977 := by
   apply lucas_primality 143675413657196977 5
@@ -77,33 +57,16 @@ private theorem prime_143675413657196977 : Nat.Prime 143675413657196977 := by
     reduce_mod_char
   · intro q hq hd
     rw [show (143675413657196977 : ℕ) - 1 = 2 ^ 4 * 3 ^ 2 * 547 ^ 1 * 1103 ^ 1 * 1653701519 ^ 1 by decide] at hd
-    simp only [hq.dvd_mul, or_assoc] at hd
-    rcases hd with h | h | h | h | h
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_2 h
-      subst q
-      change (5 : ZMod 143675413657196977) ^ 71837706828598488 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_3 h
-      subst q
-      change (5 : ZMod 143675413657196977) ^ 47891804552398992 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_547 h
-      subst q
-      change (5 : ZMod 143675413657196977) ^ 262660719665808 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_1103 h
-      subst q
-      change (5 : ZMod 143675413657196977) ^ 130258761248592 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_1653701519 h
-      subst q
-      change (5 : ZMod 143675413657196977) ^ 86881104 ≠ 1
-      reduce_mod_char
-      decide
+    simp only [pow_one,
+      hq.dvd_mul,
+      hq.prime.dvd_pow_iff_dvd (by decide : (2 : ℕ) ≠ 0),
+      hq.prime.dvd_pow_iff_dvd (by decide : (4 : ℕ) ≠ 0),
+      Nat.prime_dvd_prime_iff_eq hq prime_2,
+      Nat.prime_dvd_prime_iff_eq hq prime_3,
+      Nat.prime_dvd_prime_iff_eq hq prime_547,
+      Nat.prime_dvd_prime_iff_eq hq prime_1103,
+      Nat.prime_dvd_prime_iff_eq hq prime_1653701519, or_assoc] at hd
+    rcases hd with rfl | rfl | rfl | rfl | rfl <;> reduce_mod_char <;> decide
 
 private theorem prime_37866809061660057264219253397 : Nat.Prime 37866809061660057264219253397 := by
   apply lucas_primality 37866809061660057264219253397 3
@@ -111,38 +74,16 @@ private theorem prime_37866809061660057264219253397 : Nat.Prime 3786680906166005
     reduce_mod_char
   · intro q hq hd
     rw [show (37866809061660057264219253397 : ℕ) - 1 = 2 ^ 2 * 19 ^ 1 * 107 ^ 1 * 353 ^ 1 * 91813 ^ 1 * 143675413657196977 ^ 1 by decide] at hd
-    simp only [hq.dvd_mul, or_assoc] at hd
-    rcases hd with h | h | h | h | h | h
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_2 h
-      subst q
-      change (3 : ZMod 37866809061660057264219253397) ^ 18933404530830028632109626698 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_19 h
-      subst q
-      change (3 : ZMod 37866809061660057264219253397) ^ 1992989950613687224432592284 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_107 h
-      subst q
-      change (3 : ZMod 37866809061660057264219253397) ^ 353895411791215488450647228 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_353 h
-      subst q
-      change (3 : ZMod 37866809061660057264219253397) ^ 107271413772408094232915732 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_91813 h
-      subst q
-      change (3 : ZMod 37866809061660057264219253397) ^ 412434067742695013388292 ≠ 1
-      reduce_mod_char
-      decide
-    · have he := Nat.prime_eq_prime_of_dvd_pow hq prime_143675413657196977 h
-      subst q
-      change (3 : ZMod 37866809061660057264219253397) ^ 263558030548 ≠ 1
-      reduce_mod_char
-      decide
+    simp only [pow_one,
+      hq.dvd_mul,
+      hq.prime.dvd_pow_iff_dvd (by decide : (2 : ℕ) ≠ 0),
+      Nat.prime_dvd_prime_iff_eq hq prime_2,
+      Nat.prime_dvd_prime_iff_eq hq prime_19,
+      Nat.prime_dvd_prime_iff_eq hq prime_107,
+      Nat.prime_dvd_prime_iff_eq hq prime_353,
+      Nat.prime_dvd_prime_iff_eq hq prime_91813,
+      Nat.prime_dvd_prime_iff_eq hq prime_143675413657196977, or_assoc] at hd
+    rcases hd with rfl | rfl | rfl | rfl | rfl | rfl <;> reduce_mod_char <;> decide
 
 open OMA.S_mo_258852
 

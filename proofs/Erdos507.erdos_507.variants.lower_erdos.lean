@@ -85,26 +85,14 @@ theorem OMA.solution : type_of% @Erdos507.erdos_507.variants.lower_erdos := by
     rw [EuclideanSpace.closedBall_zero_eq 1 (by norm_num)]
     change (∑ l : Fin 2, (point i l) ^ 2) ≤ (1 : ℝ) ^ 2
     rw [Fin.sum_univ_two]
-    let u : ℝ := (i.val : ℝ) / scale
-    let v : ℝ := ((i.val ^ 2 % p : ℕ) : ℝ) / scale
-    change u ^ 2 + v ^ 2 ≤ (1 : ℝ) ^ 2
-    have hu0 : 0 ≤ u := div_nonneg (Nat.cast_nonneg _) hs.le
-    have hv0 : 0 ≤ v := div_nonneg (Nat.cast_nonneg _) hs.le
-    have hu : u ≤ 1 / 2 := by
-      apply (div_le_iff₀ hs).mpr
-      have hi : (i.val : ℝ) ≤ (p : ℝ) := by exact_mod_cast (i.isLt.trans hnp).le
+    change ((i.val : ℝ) / scale)^2 + (((i.val ^ 2 % p : ℕ) : ℝ) / scale)^2 ≤ _
+    have square (a : ℕ) (ha : a < p) : ((a : ℝ) / scale)^2 ≤ (1 / 2 : ℝ)^2 := by
+      apply pow_le_pow_left₀ (by positivity) _ 2
+      rw [div_le_iff₀ hs]
+      have : (a : ℝ) ≤ p := by exact_mod_cast ha.le
       dsimp [scale]
       linarith
-    have hv : v ≤ 1 / 2 := by
-      apply (div_le_iff₀ hs).mpr
-      have hi : ((i.val ^ 2 % p : ℕ) : ℝ) ≤ (p : ℝ) := by
-        exact_mod_cast (Nat.mod_lt (i.val ^ 2) hp.pos).le
-      dsimp [scale]
-      linarith
-    have hu_sq := pow_le_pow_left₀ hu0 hu 2
-    have hv_sq := pow_le_pow_left₀ hv0 hv 2
-    norm_num at hu_sq hv_sq ⊢
-    linarith
+    nlinarith [square _ (i.isLt.trans hnp), square _ (Nat.mod_lt (i.val ^ 2) hp.pos)]
   have htriangle (i j k : Fin n) (hij : i ≠ j) (hik : i ≠ k) (hjk : j ≠ k) :
       1 / (2 * scale ^ 2) ≤ |EuclideanGeometry.triangle_area (point i) (point j) (point k)| := by
     let D : ℤ := ((i.val : ℤ) - k.val) *
@@ -117,13 +105,8 @@ theorem OMA.solution : type_of% @Erdos507.erdos_507.variants.lower_erdos := by
     have harea : EuclideanGeometry.triangle_area (point i) (point j) (point k) =
         (D : ℝ) / (2 * scale ^ 2) := by
       rw [OMA.heilbronn_lower_area_coordinates]
-      change (((i.val : ℝ) / scale - (k.val : ℝ) / scale) *
-          (((j.val ^ 2 % p : ℕ) : ℝ) / scale - ((k.val ^ 2 % p : ℕ) : ℝ) / scale) -
-        ((j.val : ℝ) / scale - (k.val : ℝ) / scale) *
-          (((i.val ^ 2 % p : ℕ) : ℝ) / scale - ((k.val ^ 2 % p : ℕ) : ℝ) / scale)) /
-          2 = (D : ℝ) / (2 * scale ^ 2)
-      dsimp only [D]
-      simp only [Int.cast_sub, Int.cast_mul, Int.cast_natCast]
+      simp only [point, PiLp.toLp_apply, Matrix.cons_val_zero, Matrix.cons_val_one, D,
+        Int.cast_sub, Int.cast_mul, Int.cast_natCast]
       field_simp [hs.ne']
     have hD_abs : (1 : ℝ) ≤ |(D : ℝ)| := by exact_mod_cast Int.one_le_abs hD
     rw [harea, abs_div, abs_of_pos (by positivity : 0 < 2 * scale ^ 2)]
@@ -175,10 +158,7 @@ theorem OMA.solution : type_of% @Erdos507.erdos_507.variants.lower_erdos := by
     dsimp [scale]
     linarith
   have hsq : 2 * scale ^ 2 ≤ 32 * (n : ℝ) ^ 2 := by
-    calc
-      2 * scale ^ 2 ≤ 2 * (4 * (n : ℝ)) ^ 2 :=
-        mul_le_mul_of_nonneg_left (pow_le_pow_left₀ hs.le hscale 2) (by norm_num)
-      _ = 32 * (n : ℝ) ^ 2 := by ring
+    nlinarith [pow_le_pow_left₀ hs.le hscale 2]
   have hlower : 1 / (32 * (n : ℝ) ^ 2) ≤ Erdos507.α n :=
     (one_div_le_one_div_of_le (by positivity) hsq).trans (hS_area.trans halpha)
   have hα0 : 0 ≤ Erdos507.α n := (by positivity : 0 ≤ 1 / (32 * (n : ℝ) ^ 2)).trans hlower

@@ -1,240 +1,142 @@
 import OMAStatements.S_mo_20466
 
-open Set Filter
+/-!
+This shortening adapts @connoranderson's complete earlier proof:
+https://github.com/connoranderson/open-math-agents/blob/cb3343b5ef6dd0d10dbac173d82a9239eb3005e2/proofs/mo-20466.lean,
+linked from statement PR #27913. The current proof by @Solfanbtc (PR #31702)
+was also reviewed. The intersection of half-spaces, its boundary-height
+obstruction, and the interpolation section are retained from the earlier proof.
+The new proof uses convexity of an interval, the square/absolute-value API,
+and the infinitude of a nontrivial preconnected set in a T1 space.
 
-private noncomputable def mo20466_p (t : ℝ) : ℝ × ℝ := (t ^ 2, t ^ 3 - t)
+Original question: gondolier, https://mathoverflow.net/questions/20466,
+CC BY-SA 2.5.
+-/
 
-private noncomputable def mo20466_gamma (t : ℝ) : (ℝ × ℝ) × ℝ := (mo20466_p t, t)
+/-! Compact convex counterexample and line-valued positive result for gondolier’s
+MathOverflow question 20466. Credit: @connoranderson. -/
 
-private lemma mo20466_continuous_gamma : Continuous mo20466_gamma := by
-  refine Continuous.prodMk (Continuous.prodMk ?_ ?_) continuous_id
-  · exact continuous_id.pow 2
-  · exact (continuous_id.pow 3).sub continuous_id
+namespace OMA.S_mo_20466
+open Set
+abbrev Space := (ℝ × ℝ) × ℝ
 
-private lemma mo20466_fiber {t₀ : ℝ} (ht₀ : t₀ ∈ Ioo (-1 : ℝ) 1)
-    {w : (ℝ × ℝ) × ℝ}
-    (hw : w ∈ closure (convexHull ℝ (mo20466_gamma '' Icc (-1 : ℝ) 1)))
-    (hw1 : w.1 = mo20466_p t₀) : w.2 = t₀ := by
-  have ht₀_abs : |t₀| < 1 := abs_lt.mpr ht₀
-  have hc_pos : 0 < (1 - |t₀|) ^ 2 := sq_pos_of_pos (sub_pos.mpr ht₀_abs)
-  set c : ℝ := (1 - |t₀|) ^ 2
-  have h_eps : ∀ ε : ℝ, 0 < ε → |w.2 - t₀| ≤ ε := by
-    intro ε hε
-    set M : ℝ := (4 * ε * c)⁻¹
-    have hM_pos : 0 < M := inv_pos.mpr (by positivity)
-    let rhs : (ℝ × ℝ) × ℝ → ℝ := fun u =>
-      ε + M * ((t₀ ^ 4 + t₀ ^ 2) - ((3 * t₀ ^ 2 - 1) * u.1.1 - 2 * t₀ * u.1.2))
-    let Sε : Set ((ℝ × ℝ) × ℝ) := { u | |u.2 - t₀| ≤ rhs u }
-    have hSε_closed : IsClosed Sε := by
-      refine isClosed_le ?_ ?_
-      · exact (continuous_snd.sub continuous_const).abs
-      · exact continuous_const.add (continuous_const.mul
-          (continuous_const.sub ((continuous_const.mul (continuous_fst.comp continuous_fst)).sub
-            (continuous_const.mul (continuous_snd.comp continuous_fst)))))
-    have hSε_conv : Convex ℝ Sε := by
-      intro u hu v hv a b ha hb hab
-      dsimp only [Sε] at hu hv ⊢
-      rw [mem_ofPred_eq, abs_le] at hu hv ⊢
-      have h_eq : rhs (a • u + b • v) = a * rhs u + b * rhs v := by
-        simp only [rhs, Prod.smul_fst, Prod.smul_snd, Prod.fst_add, Prod.snd_add, smul_eq_mul]
-        calc ε + M * ((t₀ ^ 4 + t₀ ^ 2) -
-              ((3 * t₀ ^ 2 - 1) * (a * u.1.1 + b * v.1.1) - 2 * t₀ * (a * u.1.2 + b * v.1.2)))
-            = 1 * ε + M * (1 * (t₀ ^ 4 + t₀ ^ 2) -
-              ((3 * t₀ ^ 2 - 1) * (a * u.1.1 + b * v.1.1) - 2 * t₀ * (a * u.1.2 + b * v.1.2))) := by
-                ring
-          _ = (a + b) * ε + M * ((a + b) * (t₀ ^ 4 + t₀ ^ 2) -
-              ((3 * t₀ ^ 2 - 1) * (a * u.1.1 + b * v.1.1) - 2 * t₀ * (a * u.1.2 + b * v.1.2))) := by
-                rw [hab]
-          _ = a * (ε + M * ((t₀ ^ 4 + t₀ ^ 2) - ((3 * t₀ ^ 2 - 1) * u.1.1 - 2 * t₀ * u.1.2))) +
-              b * (ε + M * ((t₀ ^ 4 + t₀ ^ 2) - ((3 * t₀ ^ 2 - 1) * v.1.1 - 2 * t₀ * v.1.2))) := by
-                ring
-      have hz_eq : (a • u + b • v).2 - t₀ = a * (u.2 - t₀) + b * (v.2 - t₀) := by
-        simp only [Prod.snd_add, Prod.smul_snd, smul_eq_mul]
-        calc a * u.2 + b * v.2 - t₀ = a * u.2 + b * v.2 - 1 * t₀ := by ring
-          _ = a * u.2 + b * v.2 - (a + b) * t₀ := by rw [hab]
-          _ = a * (u.2 - t₀) + b * (v.2 - t₀) := by ring
-      constructor
-      · nlinarith [hu.1, hv.1]
-      · nlinarith [hu.2, hv.2]
-    have h_sub : mo20466_gamma '' Icc (-1 : ℝ) 1 ⊆ Sε := by
-      rintro u ⟨t, ht, rfl⟩
-      dsimp only [Sε]
-      rw [mem_ofPred_eq]
-      simp only [mo20466_gamma, mo20466_p, rhs]
-      have ht_abs : |t| ≤ 1 := abs_le.mpr ht
-      have h_tt₀ : -|t₀| ≤ t₀ * t := by
-        have h1 : |t₀ * t| ≤ |t₀| := by
-          rw [abs_mul]
-          nlinarith [abs_nonneg t₀, ht_abs]
-        exact neg_le_of_abs_le h1
-      have h_quad : c ≤ t₀ ^ 2 + 2 * t₀ * t + 1 := by
-        have hsq : |t₀| ^ 2 = t₀ ^ 2 := sq_abs t₀
-        nlinarith [sq_nonneg (1 - |t₀|)]
-      have h_id : (t₀ ^ 4 + t₀ ^ 2) - ((3 * t₀ ^ 2 - 1) * t ^ 2 - 2 * t₀ * (t ^ 3 - t)) =
-          (t₀ ^ 2 + 2 * t₀ * t + 1) * (t - t₀) ^ 2 := by ring
-      have h_lower : c * (t - t₀) ^ 2 ≤
-          (t₀ ^ 4 + t₀ ^ 2) - ((3 * t₀ ^ 2 - 1) * t ^ 2 - 2 * t₀ * (t ^ 3 - t)) := by
-        rw [h_id]
-        exact mul_le_mul_of_nonneg_right h_quad (sq_nonneg (t - t₀))
-      have hMc : M * c = (4 * ε)⁻¹ := by
-        simp only [M]
-        field_simp [hε.ne', hc_pos.ne']
-      have h_amgm : |t - t₀| ≤ ε + (4 * ε)⁻¹ * (t - t₀) ^ 2 := by
-        rw [abs_le]
-        have h_pos4 : 0 < 4 * ε := by linarith
-        constructor
-        · have : 0 ≤ (4 * ε)⁻¹ * (2 * ε + (t - t₀)) ^ 2 :=
-            mul_nonneg (inv_nonneg.mpr h_pos4.le) (sq_nonneg _)
-          have h_id1 : (4 * ε)⁻¹ * (2 * ε + (t - t₀)) ^ 2 =
-              ε + (4 * ε)⁻¹ * (t - t₀) ^ 2 + (t - t₀) := by
-            field_simp [hε.ne']
-            ring
-          linarith
-        · have : 0 ≤ (4 * ε)⁻¹ * (2 * ε - (t - t₀)) ^ 2 :=
-            mul_nonneg (inv_nonneg.mpr h_pos4.le) (sq_nonneg _)
-          have h_id2 : (4 * ε)⁻¹ * (2 * ε - (t - t₀)) ^ 2 =
-              ε + (4 * ε)⁻¹ * (t - t₀) ^ 2 - (t - t₀) := by
-            field_simp [hε.ne']
-            ring
-          linarith
-      have h_mul : M * (c * (t - t₀) ^ 2) ≤
-          M * ((t₀ ^ 4 + t₀ ^ 2) - ((3 * t₀ ^ 2 - 1) * t ^ 2 - 2 * t₀ * (t ^ 3 - t))) :=
-        mul_le_mul_of_nonneg_left h_lower hM_pos.le
-      calc |t - t₀| ≤ ε + (4 * ε)⁻¹ * (t - t₀) ^ 2 := h_amgm
-        _ = ε + M * (c * (t - t₀) ^ 2) := by rw [← hMc]; ring
-        _ ≤ ε + M * ((t₀ ^ 4 + t₀ ^ 2) - ((3 * t₀ ^ 2 - 1) * t ^ 2 - 2 * t₀ * (t ^ 3 - t))) := by
-            linarith
-    have hw_in : w ∈ Sε := closure_minimal (convexHull_min h_sub hSε_conv) hSε_closed hw
-    dsimp only [Sε] at hw_in
-    rw [mem_ofPred_eq] at hw_in
-    dsimp only [rhs] at hw_in
-    rw [hw1] at hw_in
-    simp only [mo20466_p] at hw_in
-    have h_zero : (t₀ ^ 4 + t₀ ^ 2) - ((3 * t₀ ^ 2 - 1) * t₀ ^ 2 - 2 * t₀ * (t₀ ^ 3 - t₀)) = 0 := by
-      ring
-    rw [h_zero, mul_zero, add_zero] at hw_in
-    exact hw_in
-  by_contra hne
-  have hpos : 0 < |w.2 - t₀| := abs_pos.mpr (sub_ne_zero.mpr hne)
-  have := h_eps (|w.2 - t₀| / 2) (half_pos hpos)
-  linarith
+private def K : Set Space :=
+  {p | p.1.2 ∈ Icc 0 1} ∩ {p | p.2 ∈ Icc 0 1} ∩
+    ⋂ a : Ici (0:ℝ), {p | 2*(a:ℝ)*p.1.1 ≤ p.1.2 + (a:ℝ)^2*p.2} ∩
+      {p | -(2*(a:ℝ)*p.1.1) ≤ p.1.2 + (a:ℝ)^2*(1-p.2)}
 
-private lemma mo20466_part1 :
-    ∃ K : Set ((ℝ × ℝ) × ℝ), K.Nonempty ∧ IsCompact K ∧ Convex ℝ K ∧
-      ¬ OMA.S_mo_20466.HasSection K Prod.fst := by
-  let K : Set ((ℝ × ℝ) × ℝ) := closure (convexHull ℝ (mo20466_gamma '' Icc (-1 : ℝ) 1))
-  refine ⟨K, ?_, ?_, (convex_convexHull ℝ _).closure, ?_⟩
-  · refine ⟨mo20466_gamma 0, subset_closure (subset_convexHull _ _ ⟨0, by norm_num, rfl⟩)⟩
-  · have h_comp : IsCompact (mo20466_gamma '' Icc (-1 : ℝ) 1) :=
-      (isCompact_Icc (a := (-1 : ℝ)) (b := 1)).image mo20466_continuous_gamma
-    exact isCompact_iff_totallyBounded_isComplete.mpr
-      ⟨h_comp.totallyBounded.convexHull.closure, isClosed_closure.isComplete⟩
-  · rintro ⟨g, hg_cont, hg_spec⟩
-    have hy1_mem : (1, 0) ∈ Prod.fst '' K :=
-      ⟨mo20466_gamma 1, subset_closure (subset_convexHull _ _ ⟨1, by norm_num, rfl⟩),
-        by simp [mo20466_gamma, mo20466_p]⟩
-    let y₁ : Prod.fst '' K := ⟨(1, 0), hy1_mem⟩
-    have ht_mem : ∀ n : ℕ, 1 - 1 / ((n : ℝ) + 2) ∈ Ioo (-1 : ℝ) 1 := by
-      intro n
-      have hn : (0 : ℝ) < (n : ℝ) + 2 := by positivity
-      have hle : 1 / ((n : ℝ) + 2) ≤ 1 / 2 := by
-        apply one_div_le_one_div_of_le (by norm_num)
-        linarith [Nat.cast_nonneg (α := ℝ) n]
-      constructor <;> linarith [one_div_pos.mpr hn]
-    have hs_mem : ∀ n : ℕ, -1 + 1 / ((n : ℝ) + 2) ∈ Ioo (-1 : ℝ) 1 := by
-      intro n
-      have hn : (0 : ℝ) < (n : ℝ) + 2 := by positivity
-      have hle : 1 / ((n : ℝ) + 2) ≤ 1 / 2 := by
-        apply one_div_le_one_div_of_le (by norm_num)
-        linarith [Nat.cast_nonneg (α := ℝ) n]
-      constructor <;> linarith [one_div_pos.mpr hn]
-    let xseq : ℕ → (Prod.fst '' K) := fun n =>
-      ⟨mo20466_p (1 - 1 / ((n : ℝ) + 2)),
-        ⟨mo20466_gamma (1 - 1 / ((n : ℝ) + 2)),
-          subset_closure (subset_convexHull _ _
-            ⟨1 - 1 / ((n : ℝ) + 2), Ioo_subset_Icc_self (ht_mem n), rfl⟩),
-          rfl⟩⟩
-    let sseq : ℕ → (Prod.fst '' K) := fun n =>
-      ⟨mo20466_p (-1 + 1 / ((n : ℝ) + 2)),
-        ⟨mo20466_gamma (-1 + 1 / ((n : ℝ) + 2)),
-          subset_closure (subset_convexHull _ _
-            ⟨-1 + 1 / ((n : ℝ) + 2), Ioo_subset_Icc_self (hs_mem n), rfl⟩),
-          rfl⟩⟩
-    have h_inv_tendsto : Tendsto (fun n : ℕ => 1 / ((n : ℝ) + 2)) atTop (nhds 0) := by
-      have h := (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)).comp (tendsto_add_atTop_nat 1)
-      convert h using 1
-      ext n
-      simp [Function.comp_apply]
-      ring
-    have ht_tendsto : Tendsto (fun n : ℕ => 1 - 1 / ((n : ℝ) + 2)) atTop (nhds 1) := by
-      simpa using tendsto_const_nhds.sub h_inv_tendsto
-    have hs_tendsto : Tendsto (fun n : ℕ => -1 + 1 / ((n : ℝ) + 2)) atTop (nhds (-1)) := by
-      simpa using tendsto_const_nhds.add h_inv_tendsto
-    have hp_cont : Continuous mo20466_p :=
-      Continuous.prodMk (continuous_id.pow 2) ((continuous_id.pow 3).sub continuous_id)
-    have hx_tendsto : Tendsto xseq atTop (nhds y₁) := by
-      rw [tendsto_subtype_rng]
-      have hp1 : mo20466_p 1 = (1, 0) := by norm_num [mo20466_p]
-      change Tendsto (fun n : ℕ => mo20466_p (1 - 1 / ((n : ℝ) + 2))) atTop (nhds (1, 0))
-      rw [← hp1]
-      exact hp_cont.continuousAt.tendsto.comp ht_tendsto
-    have hsx_tendsto : Tendsto sseq atTop (nhds y₁) := by
-      rw [tendsto_subtype_rng]
-      have hpm1 : mo20466_p (-1) = (1, 0) := by norm_num [mo20466_p]
-      change Tendsto (fun n : ℕ => mo20466_p (-1 + 1 / ((n : ℝ) + 2))) atTop (nhds (1, 0))
-      rw [← hpm1]
-      exact hp_cont.continuousAt.tendsto.comp hs_tendsto
-    have hgx_tendsto : Tendsto (fun n : ℕ => (g (xseq n)).2) atTop (nhds (g y₁).2) :=
-      (continuous_snd.comp hg_cont).continuousAt.tendsto.comp hx_tendsto
-    have hgs_tendsto : Tendsto (fun n : ℕ => (g (sseq n)).2) atTop (nhds (g y₁).2) :=
-      (continuous_snd.comp hg_cont).continuousAt.tendsto.comp hsx_tendsto
-    have hgx_eq : (fun n : ℕ => (g (xseq n)).2) = fun n : ℕ => 1 - 1 / ((n : ℝ) + 2) := by
-      ext n
-      exact mo20466_fiber (ht_mem n) (hg_spec (xseq n)).1 (hg_spec (xseq n)).2
-    have hgs_eq : (fun n : ℕ => (g (sseq n)).2) = fun n : ℕ => -1 + 1 / ((n : ℝ) + 2) := by
-      ext n
-      exact mo20466_fiber (hs_mem n) (hg_spec (sseq n)).1 (hg_spec (sseq n)).2
-    rw [hgx_eq] at hgx_tendsto
-    rw [hgs_eq] at hgs_tendsto
-    have h1 : (g y₁).2 = 1 := tendsto_nhds_unique hgx_tendsto ht_tendsto
-    have h2 : (g y₁).2 = -1 := tendsto_nhds_unique hgs_tendsto hs_tendsto
-    linarith
+private lemma mem_K (p : Space) : p ∈ K ↔ (p.1.2 ∈ Icc 0 1 ∧ p.2 ∈ Icc 0 1) ∧
+    ∀ a : Ici (0:ℝ), 2*(a:ℝ)*p.1.1 ≤ p.1.2 + (a:ℝ)^2*p.2 ∧
+      -(2*(a:ℝ)*p.1.1) ≤ p.1.2 + (a:ℝ)^2*(1-p.2) := by
+  simp only [K,mem_inter_iff,mem_iInter,mem_ofPred_eq]
 
-private lemma mo20466_part2 :
-    ∀ n : ℕ, ∀ S : Set (Fin n → ℝ), S.Nonempty → IsCompact S → Convex ℝ S →
-      ∀ f : (Fin n → ℝ) →L[ℝ] ℝ, OMA.S_mo_20466.HasSection S f := by
-  intro n S hS_ne hS_comp hS_conv f
-  have himg_ne : (f '' S).Nonempty := hS_ne.image f
-  have himg_comp : IsCompact (f '' S) := hS_comp.image f.continuous
-  obtain ⟨a, ha_mem, ha_le⟩ := himg_comp.exists_isLeast himg_ne
-  obtain ⟨b, hb_mem, hb_ge⟩ := himg_comp.exists_isGreatest himg_ne
-  have hab_le : a ≤ b := ha_le hb_mem
-  obtain ⟨xa, hxa_mem, hxa_eq⟩ := ha_mem
-  obtain ⟨xb, hxb_mem, hxb_eq⟩ := hb_mem
-  by_cases hab : a = b
-  · refine ⟨fun _ => xa, continuous_const, fun y => ⟨hxa_mem, ?_⟩⟩
-    have hya : a ≤ (y : ℝ) := ha_le y.2
-    have hyb : (y : ℝ) ≤ b := hb_ge y.2
-    linarith [hxa_eq]
-  · have hab_lt : a < b := lt_of_le_of_ne hab_le hab
-    have hba_pos : 0 < b - a := sub_pos.mpr hab_lt
-    let t : (f '' S) → ℝ := fun y => ((y : ℝ) - a) / (b - a)
-    let g : (f '' S) → (Fin n → ℝ) := fun y => (1 - t y) • xa + t y • xb
-    have ht_cont : Continuous t :=
-      (continuous_subtype_val.sub continuous_const).div_const (b - a)
-    have hg_cont : Continuous g :=
-      ((continuous_const.sub ht_cont).smul continuous_const).add
-        (ht_cont.smul continuous_const)
-    refine ⟨g, hg_cont, fun y => ?_⟩
-    have hya : a ≤ (y : ℝ) := ha_le y.2
-    have hyb : (y : ℝ) ≤ b := hb_ge y.2
-    have ht0 : 0 ≤ t y := div_nonneg (sub_nonneg.mpr hya) hba_pos.le
-    have ht1 : t y ≤ 1 := (div_le_one hba_pos).mpr (sub_le_sub_right hyb a)
-    refine ⟨?_, ?_⟩
-    · exact hS_conv hxa_mem hxb_mem (sub_nonneg.mpr ht1) ht0 (sub_add_cancel 1 (t y))
-    · simp only [g, map_add, map_smul, smul_eq_mul, hxa_eq, hxb_eq, t]
-      field_simp [hba_pos.ne']
-      ring
+private lemma compact_K : IsCompact K := by
+  have hc : IsClosed K := by
+    apply IsClosed.inter
+    · exact (isClosed_Icc.preimage (continuous_snd.comp continuous_fst)).inter (isClosed_Icc.preimage continuous_snd)
+    · apply isClosed_iInter
+      intro a
+      exact (isClosed_le (by fun_prop) (by fun_prop)).inter (isClosed_le (by fun_prop) (by fun_prop))
+  apply (isCompact_Icc (a:=(((-1,0),0):Space)) (b:=(((1,1),1):Space))).of_isClosed_subset hc
+  intro p hp
+  obtain ⟨⟨hy,ht⟩,hh⟩ := (mem_K _).mp hp
+  have h := hh ⟨1,by norm_num⟩
+  change 2*1*p.1.1 ≤ p.1.2+1^2*p.2 ∧ -(2*1*p.1.1) ≤ p.1.2+1^2*(1-p.2) at h
+  exact ⟨⟨⟨by linarith [h.2,hy.2,ht.1],hy.1⟩,ht.1⟩,
+    ⟨⟨by linarith [h.1,hy.2,ht.2],hy.2⟩,ht.2⟩⟩
 
-theorem OMA.solution : type_of% @OMA.S_mo_20466.main :=
-  ⟨mo20466_part1, mo20466_part2⟩
+private lemma convex_K : Convex ℝ K := by
+  intro p hp q hq α β hα hβ hab
+  obtain ⟨⟨py,pt⟩,P⟩ := (mem_K _).mp hp
+  obtain ⟨⟨qy,qt⟩,Q⟩ := (mem_K _).mp hq
+  apply (mem_K _).mpr
+  simp only [Prod.fst_add,Prod.snd_add,Prod.smul_fst,Prod.smul_snd,smul_eq_mul,mem_Icc]
+  have bound (x y : ℝ) (hx : x∈Icc 0 1) (hy : y∈Icc 0 1) : α*x+β*y ∈ Icc 0 1 :=
+    convex_Icc (0:ℝ) 1 hx hy hα hβ hab
+  refine ⟨⟨bound _ _ py qy,bound _ _ pt qt⟩, fun a => ⟨?_,?_⟩⟩
+  · nlinarith [mul_nonneg hα (sub_nonneg.mpr (P a).1), mul_nonneg hβ (sub_nonneg.mpr (Q a).1)]
+  · have hw := congrArg (fun x : ℝ => (a:ℝ)^2*x) hab
+    nlinarith [mul_nonneg hα (sub_nonneg.mpr (P a).2), mul_nonneg hβ (sub_nonneg.mpr (Q a).2)]
+
+private lemma curve_mem (x : ℝ) (hx : x ∈ Icc (-1) 1) :
+    ((x,x^2),if 0≤x then 1 else 0) ∈ K := by
+  have hy : x^2 ∈ Icc (0:ℝ) 1 := ⟨sq_nonneg _,(sq_le_one_iff_abs_le_one x).mpr (abs_le.mpr hx)⟩
+  apply (mem_K _).mpr
+  split_ifs with h
+  · refine ⟨⟨hy,by norm_num⟩, fun a => ⟨?_,?_⟩⟩
+    · dsimp; nlinarith [sq_nonneg ((a:ℝ)-x)]
+    · dsimp; nlinarith [mul_nonneg (show 0≤(a:ℝ) from a.property) h,sq_nonneg x]
+  · refine ⟨⟨hy,by norm_num⟩, fun a => ⟨?_,?_⟩⟩
+    · dsimp; nlinarith [mul_nonpos_of_nonneg_of_nonpos (show 0≤(a:ℝ) from a.property) (le_of_not_ge h),sq_nonneg x]
+    · dsimp; nlinarith [sq_nonneg ((a:ℝ)+x)]
+
+private lemma unique_height (x t : ℝ) (h : ((x,x^2),t) ∈ K) :
+    (0<x → t=1) ∧ (x<0 → t=0) := by
+  obtain ⟨⟨_,ht⟩,hh⟩ := (mem_K _).mp h
+  constructor
+  · intro hx
+    have H := (hh ⟨x,hx.le⟩).1
+    change 2*x*x ≤ x^2+x^2*t at H
+    have := sq_pos_of_pos hx
+    by_contra hn
+    nlinarith [mul_pos this (sub_pos.mpr (lt_of_le_of_ne ht.2 hn))]
+  · intro hx
+    have H := (hh ⟨-x,neg_nonneg.mpr hx.le⟩).2
+    change -(2*(-x)*x) ≤ x^2+(-x)^2*(1-t) at H
+    have := sq_pos_of_ne_zero hx.ne
+    by_contra hn
+    nlinarith [mul_pos this (lt_of_le_of_ne ht.1 (Ne.symm hn))]
+
+private lemma no_section : ¬ HasSection K Prod.fst := by
+  rintro ⟨g,hg,h⟩
+  let z (t : Icc (-1:ℝ) 1) : Prod.fst '' K :=
+    ⟨((t:ℝ),(t:ℝ)^2), ⟨_,curve_mem t t.property,rfl⟩⟩
+  let height (t : Icc (-1:ℝ) 1) : ℝ := (g (z t)).2
+  have hz : Continuous z := Continuous.subtype_mk (by fun_prop) _
+  have hc : Continuous height := continuous_snd.comp (hg.comp hz)
+  have hu (t : Icc (-1:ℝ) 1) : (0<(t:ℝ) → height t=1) ∧ ((t:ℝ)<0 → height t=0) := by
+    have hh := (h (z t)).1
+    have he := (h (z t)).2
+    change (g (z t)).1 = ((t:ℝ),(t:ℝ)^2) at he
+    apply unique_height
+    change ((⟨(t:ℝ),(t:ℝ)^2⟩),(g (z t)).2) ∈ K
+    rw [←he,Prod.eta]; exact hh
+  let lo : Icc (-1:ℝ) 1 := ⟨-1,by norm_num⟩
+  let hi : Icc (-1:ℝ) 1 := ⟨1,by norm_num⟩
+  have h₀ : (0:ℝ) ∈ range height := ⟨lo,(hu lo).2 (by norm_num [lo])⟩
+  have h₁ : (1:ℝ) ∈ range height := ⟨hi,(hu hi).1 (by norm_num [hi])⟩
+  let : PreconnectedSpace (Icc (-1:ℝ) 1) := Subtype.preconnectedSpace isPreconnected_Icc
+  have hf : (range height).Finite := by
+    apply (Set.toFinite {0,1,height ⟨0,by norm_num⟩}).subset
+    rintro _ ⟨t,rfl⟩
+    rcases lt_trichotomy (t:ℝ) 0 with hn | hz | hp
+    · simp [(hu t).2 hn]
+    · have : t = ⟨0,by norm_num⟩ := Subtype.ext hz
+      simp [this]
+    · simp [(hu t).1 hp]
+  exact hf.not_infinite ((isPreconnected_range hc).infinite_of_nontrivial
+    ⟨0,h₀,1,h₁,by norm_num⟩)
+
+private lemma line_section (n : ℕ) (S : Set (Fin n → ℝ)) (hS : S.Nonempty)
+    (hK : IsCompact S) (hC : Convex ℝ S) (f : (Fin n → ℝ) →L[ℝ] ℝ) : HasSection S f := by
+  obtain ⟨u,hu,hmin⟩ := hK.exists_isMinOn hS f.continuous.continuousOn
+  obtain ⟨w,hw,hmax⟩ := hK.exists_isMaxOn hS f.continuous.continuousOn
+  have bounds (x : f '' S) : f u ≤ (x:ℝ) ∧ (x:ℝ) ≤ f w := by
+    rcases x with ⟨_,y,hy,rfl⟩; exact ⟨hmin hy,hmax hy⟩
+  by_cases he : f u=f w
+  · exact ⟨fun _ => u,continuous_const, fun x => ⟨hu,by linarith [(bounds x).1,(bounds x).2]⟩⟩
+  have hd : 0 < f w - f u := sub_pos.mpr (lt_of_le_of_ne (hmin hw) he)
+  let t (x : f '' S) : ℝ := ((x:ℝ)-f u)/(f w-f u)
+  refine ⟨fun x => (1-t x) • u + t x • w,by dsimp [t]; fun_prop, fun x => ⟨?_,?_⟩⟩
+  · have h₀ : 0 ≤ t x := div_nonneg (sub_nonneg.mpr (bounds x).1) hd.le
+    have h₁ : t x ≤ 1 := (div_le_one hd).mpr (by linarith [(bounds x).2])
+    exact hC hu hw (sub_nonneg.mpr h₁) h₀ (by ring)
+  · simp only [map_add,map_smul,smul_eq_mul,t]
+    field_simp [hd.ne']; ring
+
+end OMA.S_mo_20466
+
+theorem OMA.solution : type_of% @OMA.S_mo_20466.main := by
+  refine ⟨⟨OMA.S_mo_20466.K,⟨_,OMA.S_mo_20466.curve_mem 0 (by norm_num)⟩,
+    OMA.S_mo_20466.compact_K,OMA.S_mo_20466.convex_K,OMA.S_mo_20466.no_section⟩,
+    OMA.S_mo_20466.line_section⟩

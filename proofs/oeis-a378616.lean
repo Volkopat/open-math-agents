@@ -1,5 +1,6 @@
 import OMAStatements.S_oeis_a378616
 import Mathlib
+open OMA.S_oeis_a378616
 
 namespace A378616
 
@@ -47,11 +48,11 @@ end A378616
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a378616.main := by
   intro n hn
-  have hp : (OMA.S_oeis_a378616.prime n).Prime := Nat.prime_nth_prime _
-  have k1 : OMA.S_oeis_a378616.a n = OMA.S_oeis_a378616.prime n - 1
-      ↔ ¬ IsPrimePow (OMA.S_oeis_a378616.prime n - 1) := A378616.key _ hp
+  have hp : (prime n).Prime := Nat.prime_nth_prime _
+  have k1 : a n = prime n - 1
+      ↔ ¬ IsPrimePow (prime n - 1) := A378616.key _ hp
   rw [k1, A378616.primePow_pred_iff hp]
-  unfold OMA.S_oeis_a378616.InA159611
+  unfold InA159611
   constructor
   · intro h hh
     exact h hh.2

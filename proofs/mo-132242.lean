@@ -1,5 +1,13 @@
 import OMAStatements.S_mo_132242
 
+/-!
+Retains @connoranderson's complete signed proof #27448, head
+8b52b00791a8059b39aba356aaf41d453071ce6f, linked by statement #23212.
+Uses an independent spanning row set directly and the standard nonsingular
+matrix kernel lemma. The cofactor, projector and degenerate-node constructions remain unchanged.
+Source: trion, MathOverflow 132242 (CC BY-SA 3.0).
+-/
+
 namespace OMA.S_mo_132242
 
 open Matrix
@@ -12,14 +20,7 @@ lemma cof_mulVec {d : ℕ} (A : Matrix (Fin d) (Fin (d+1)) ℝ) : A *ᵥ cof A =
   have he := Matrix.det_succ_row_zero B
   rw [hz] at he
   change ∑ j, A i j * cof A j = 0
-  calc
-    _ = ∑ j, (-1:ℝ)^j.val * B 0 j * (B.submatrix Fin.succ j.succAbove).det := by
-      apply Finset.sum_congr rfl
-      intro j _
-      change A i j*((-1:ℝ)^j.val*(A.submatrix id j.succAbove).det) =
-        (-1:ℝ)^j.val*A i j*(A.submatrix id j.succAbove).det
-      ring
-    _ = _ := he.symm
+  simpa [cof, B, Matrix.submatrix, mul_comm, mul_left_comm, mul_assoc] using he.symm
 
 lemma cof_spans {d : ℕ} (A : Matrix (Fin d) (Fin (d+1)) ℝ) (h : cof A ≠ 0) :
     ∀ v, A *ᵥ v = 0 ↔ ∃ c : ℝ, v=c • cof A := by
@@ -40,9 +41,8 @@ lemma cof_spans {d : ℕ} (A : Matrix (Fin d) (Fin (d+1)) ℝ) (h : cof A ≠ 0)
       change ∑ k, A i k*w k = 0 at he
       rw [Fin.sum_univ_succAbove _ j,hwj,mul_zero,zero_add] at he
       exact he
-    have hw' : w ∘ j.succAbove = 0 := by
-      by_contra H
-      exact hD (Matrix.exists_mulVec_eq_zero_iff.mp ⟨_,H,hker⟩)
+    have hw' : w ∘ j.succAbove = 0 :=
+      Matrix.eq_zero_of_mulVec_eq_zero hD hker
     refine ⟨c,sub_eq_zero.mp ?_⟩
     funext i
     have he : ∀ t, w t=0 := (Fin.forall_iff_succAbove j).mpr ⟨hwj,fun k => congrFun hw' k⟩
@@ -60,7 +60,8 @@ lemma kernel_formula {ι κ : Type*} [Fintype ι] [Fintype κ] [DecidableEq ι] 
     let B := A.submatrix (fun i : s => (i:ι)) id
     ∀ v : κ → ℝ, A *ᵥ v = 0 ↔ ∃ w : κ → ℝ, v = (1 - B.transpose * (B * B.transpose)⁻¹ * B) *ᵥ w := by
   classical
-  obtain ⟨I,hI,hmax⟩ := exists_maximal_linearIndepOn ℝ A.row
+  obtain ⟨I,_,_,hspan,hI⟩ := exists_linearIndepOn_extension
+    (linearIndepOn_empty ℝ A.row) (Set.empty_subset Set.univ)
   let s := I.toFinset
   let B := A.submatrix (fun i : s => (i:ι)) id
   have hBe : LinearIndependent ℝ B.row := by
@@ -84,12 +85,7 @@ lemma kernel_formula {ι κ : Type*} [Fintype ι] [Fintype κ] [DecidableEq ι] 
         rintro _ ⟨i,hi,rfl⟩
         exact congrFun h ⟨i,by simpa [s] using hi⟩
       funext i
-      by_cases hi : i∈I
-      · exact congrFun h ⟨i,by simpa [s] using hi⟩
-      · obtain ⟨t,ht,hw⟩ := hmax i hi
-        have he : (t • A.row i) ⬝ᵥ v = 0 := hsub hw
-        rw [smul_dotProduct,smul_eq_mul,mul_eq_zero] at he
-        exact he.resolve_left ht
+      exact hsub (hspan ⟨i, Set.mem_univ i, rfl⟩)
   refine ⟨s,?_⟩
   change ∀ v : κ→ℝ, A *ᵥ v=0 ↔ ∃ w, v=(1-B.transpose*(B*B.transpose)⁻¹*B) *ᵥ w
   intro v

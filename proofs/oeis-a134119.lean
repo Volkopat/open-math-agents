@@ -52,9 +52,9 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a134119.main := by
   · obtain ⟨m, rfl⟩ : ∃ m, n = m + 11 := ⟨n - 11, by omega⟩
     have h0 := a_add_ten m (m + 10) (by omega)
     have h1 := a_add_ten (m + 1) (m + 11) (by omega)
-    simp only [show 0 ≤ m + 11 by omega, show 1 ≤ m + 11 by omega, show 10 ≤ m + 11 by omega,
-      show 11 ≤ m + 11 by omega, ↓reduceIte,
+    simp only [show 10 ≤ m + 11 by omega,
+      ↓reduceIte,
       show m + 11 - 0 = m + 11 by omega, show m + 11 - 1 = m + 10 by omega,
       show m + 11 - 10 = m + 1 by omega, show m + 11 - 11 = m by omega,
-      show m + 11 ≠ 8 by omega, show m + 11 ≠ 4 by omega]
+      show m + 11 ≠ 4 by omega]
     omega
