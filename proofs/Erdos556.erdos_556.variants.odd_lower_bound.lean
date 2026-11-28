@@ -21,16 +21,9 @@ lemma oddCycleRamseySetNonempty (n : ℕ) :
   have test_pair (i : Fin 3) (a b : Fin N) (hab : a ≠ b) :
       test i {a, b} = true ↔ (c i).Adj a b := by
     simp only [test, decide_eq_true_eq]
-    constructor
-    · intro h
-      exact h a (by simp) b (by simp) hab
-    · intro h x hx y hy hxy
-      simp only [Finset.mem_insert, Finset.mem_singleton] at hx hy
-      rcases hx with rfl | rfl <;> rcases hy with rfl | rfl
-      · exact (hxy rfl).elim
-      · exact h
-      · exact h.symm
-      · exact (hxy rfl).elim
+    change (c i).IsClique (↑({a, b} : Finset (Fin N)) : Set (Fin N)) ↔ _
+    rw [Finset.coe_pair, isClique_pair]
+    simp [hab]
   have copy_of_clique (S : Finset (Fin N)) (hcard : S.card = n) (i : Fin 3)
       (h : ∀ a ∈ S, ∀ b ∈ S, a ≠ b → (c i).Adj a b) :
       (cycleGraph n).IsContained (c i) := by
@@ -46,11 +39,8 @@ lemma oddCycleRamseySetNonempty (n : ℕ) :
     exact (top_adj a b).mpr hab
   have pair_subset (S : Finset (Fin N)) {a b : Fin N} (ha : a ∈ S) (hb : b ∈ S) :
       {a, b} ⊆ S := by
-    intro x hx
-    simp only [Finset.mem_insert, Finset.mem_singleton] at hx
-    rcases hx with rfl | rfl
-    · exact ha
-    · exact hb
+    simpa [Finset.insert_subset_iff] using And.intro ha hb
+
   rcases Combinatorics.Diagonal.hasRamseyProperty_choose M n (test 0) Finset.univ
       (by simp [N]) with ⟨S, _, hS, hSmono⟩ | ⟨S, _, hS, hSmono⟩
   · rcases Combinatorics.Diagonal.hasRamseyProperty_choose n n (test 1) S
@@ -95,13 +85,7 @@ lemma oddCycleBadColoring (n N : ℕ) (hn : 3 ≤ n) (hodd : Odd n)
       if (e x).2.1 = (e y).2.1 then 2 else 1
     else 0
   have hsym (x y : Fin N) : color x y = color y x := by
-    unfold color
-    by_cases h₁ : (e x).1 = (e y).1
-    · rw [if_pos h₁, if_pos h₁.symm]
-      by_cases h₂ : (e x).2.1 = (e y).2.1
-      · rw [if_pos h₂, if_pos h₂.symm]
-      · rw [if_neg h₂, if_neg (Ne.symm h₂)]
-    · rw [if_neg h₁, if_neg (Ne.symm h₁)]
+    simp only [color, eq_comm]
   let c (i : Fin 3) : SimpleGraph (Fin N) :=
     { Adj := fun x y => x ≠ y ∧ color x y = i
       symm := ⟨fun x y h => ⟨h.1.symm, (hsym x y).symm.trans h.2⟩⟩

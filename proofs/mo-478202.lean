@@ -1,5 +1,7 @@
 import OMAStatements.S_mo_478202
 
+/-! Credit: @connoranderson; follows the trace-power argument of WhatsUp and Dave Benson. -/
+
 namespace OMA.S_mo_478202
 
 open Matrix Polynomial
@@ -70,23 +72,15 @@ private lemma newton_eq_eval {ι : Type*} [Fintype ι] (z : ι → ℂ) (k : ℕ
       simp only [psum,map_sum,map_pow,eval_X] at h
       rw [Finset.sum_filter] at h
       rw [newton,if_neg hk]
-      have H : ∀ a : ℕ×ℕ, (if h : a.1<k then
-            (-1 : ℂ)^a.1 * newton (fun j => ∑ i, z i^j) a.1 * (∑ i, z i^a.2) else 0) =
-          (if a.1<k then (-1:ℂ)^a.1 * eval z (esymm ι ℂ a.1) * (∑ i, z i^a.2) else 0) := by
-        intro a
-        by_cases ha : a.1<k
-        · simp [ha,ih _ ha]
-        · simp [ha]
-      simp_rw [H]
+      simp_rw [dite_eq_ite]
+      simp +contextual only [ih]
       field_simp
       linear_combination -h
 
 private lemma newton_top {ι : Type*} [Fintype ι] (z : ι → ℂ) :
     newton (fun j => ∑ i, z i^j) (Fintype.card ι) = ∏ i, z i := by
   classical
-  rw [newton_eq_eval,esymm]
-  rw [show Fintype.card ι=(Finset.univ : Finset ι).card from rfl,Finset.powersetCard_self]
-  simp
+  simp [newton_eq_eval, esymm, ← Finset.card_univ]
 
 end OMA.S_mo_478202
 namespace OMA.S_mo_478202

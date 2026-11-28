@@ -1,5 +1,7 @@
 import OMAStatements.S_oeis_a212039
 
+/-! The row-major coloring count is from @jleguina's proof in PR #30485. -/
+
 namespace OMA.S_oeis_a212039
 
 open PowerSeries Finset
@@ -320,12 +322,10 @@ lemma a_eq {n : ℕ} (hn : 2 ≤ n) :
 
 lemma a_one : a 1 = 0 := by
   unfold a
-  convert Set.ncard_empty (Cell 1 → ℕ)
-  ext x
+  refine (congrArg Set.ncard (Set.ext fun x => ?_)).trans (Set.ncard_empty _)
   simp only [Set.mem_setOf_eq, Set.mem_empty_iff_false, iff_false, not_and]
   rintro - - ⟨c, hc⟩
-  norm_num at hc
-  omega
+  norm_num at hc <;> omega
 
 /-! ## Counting pairs of cells -/
 
@@ -356,51 +356,33 @@ lemma card_Tri (k : ℕ) : (Tri k).card = tri k := by
       simp only [mem_image, mem_range, Prod.mk.injEq, mem_Tri] at h1 h2
       omega
 
-/-- The pairs of cells whose second cell is the first moved by (di, dj): a triangle with
-n - max di dj rows. -/
-lemma card_shift_pos (n di dj : ℕ) :
-    ((Tri n ×ˢ Tri n).filter (fun pq : (ℕ × ℕ) × (ℕ × ℕ) =>
-      pq.2.1 = pq.1.1 + di ∧ pq.2.2 = pq.1.2 + dj)).card = tri (n - max di dj) := by
-  rw [← card_Tri]
-  apply card_nbij' (fun pq => (pq.1.1 - (max di dj - di), pq.1.2))
-    (fun p => ((p.1 + (max di dj - di), p.2), (p.1 + max di dj, p.2 + dj)))
-  · rintro ⟨⟨i, j⟩, ⟨i', j'⟩⟩ h
-    simp only [mem_coe, mem_filter, mem_product, mem_Tri, and_true] at h ⊢
-    omega
-  · rintro ⟨i, j⟩ h
-    simp only [mem_coe, mem_filter, mem_product, mem_Tri, and_true] at h ⊢
-    omega
-  · rintro ⟨⟨i, j⟩, ⟨i', j'⟩⟩ h
-    simp only [mem_coe, mem_filter, mem_product, mem_Tri] at h
-    simp only [Prod.mk.injEq, and_true]
-    omega
-  · rintro ⟨i, j⟩ h
-    simp only [mem_coe, mem_filter, mem_product, mem_Tri] at h
-    simp only [Prod.mk.injEq, and_true]
-    omega
+private def shifted (di : ℕ) (dj : ℤ) (pq : (ℕ × ℕ) × (ℕ × ℕ)) : Prop :=
+  pq.2.1 = pq.1.1 + di ∧ (pq.2.2 : ℤ) = (pq.1.2 : ℤ) + dj
 
-/-- The pairs of cells whose second cell is the first moved by (di, -dj): a triangle with
-n - (di + dj) rows. -/
-lemma card_shift_neg (n di dj : ℕ) :
-    ((Tri n ×ˢ Tri n).filter (fun pq : (ℕ × ℕ) × (ℕ × ℕ) =>
-      pq.2.1 = pq.1.1 + di ∧ pq.2.2 + dj = pq.1.2)).card = tri (n - (di + dj)) := by
+private instance (di : ℕ) (dj : ℤ) : DecidablePred (shifted di dj) :=
+  fun pq => by unfold shifted; infer_instance
+
+/-- A displacement leaves a smaller triangle. The column margin accounts for
+negative displacement, and the row margin accounts for crossing the diagonal. -/
+private lemma card_shift (n di : ℕ) (dj : ℤ) :
+    ((Tri n ×ˢ Tri n).filter (shifted di dj)).card =
+      tri (n - (di + (-dj).toNat + (dj - (di : ℤ)).toNat)) := by
   rw [← card_Tri]
-  apply card_nbij' (fun pq => (pq.1.1 - dj, pq.1.2 - dj))
-    (fun p => ((p.1 + dj, p.2 + dj), (p.1 + dj + di, p.2)))
-  · rintro ⟨⟨i, j⟩, ⟨i', j'⟩⟩ h
-    simp only [mem_coe, mem_filter, mem_product, mem_Tri, and_true] at h ⊢
-    omega
-  · rintro ⟨i, j⟩ h
-    simp only [mem_coe, mem_filter, mem_product, mem_Tri, and_true] at h ⊢
-    omega
-  · rintro ⟨⟨i, j⟩, ⟨i', j'⟩⟩ h
-    simp only [mem_coe, mem_filter, mem_product, mem_Tri] at h
-    simp only [Prod.mk.injEq, and_true]
-    omega
-  · rintro ⟨i, j⟩ h
-    simp only [mem_coe, mem_filter, mem_product, mem_Tri] at h
-    simp only [Prod.mk.injEq, and_true]
-    omega
+  let lo := (-dj).toNat
+  let hi := (dj - (di : ℤ)).toNat
+  change _ = (Tri (n - (di + lo + hi))).card
+  apply card_nbij' (fun pq => (pq.1.1 - (lo + hi), pq.1.2 - lo))
+    (fun p => ((p.1 + lo + hi, p.2 + lo),
+      (p.1 + lo + hi + di, ((p.2 : ℤ) + lo + dj).toNat)))
+  all_goals
+    intro p hp
+    simp only [mem_coe, mem_filter, mem_product, mem_Tri, shifted, Prod.ext_iff] at hp ⊢
+    dsimp [lo, hi] at *
+  case hj =>
+    have h : 0 ≤ (p.2 : ℤ) + (-dj).toNat + dj := by omega
+    exact ⟨⟨⟨by omega, by omega⟩, Int.toNat_le.2 (by omega), by omega⟩,
+      trivial, Int.toNat_of_nonneg h⟩
+  all_goals omega
 
 /-- A relation between cells read in coordinates. -/
 lemma card_pairs_coord {n : ℕ} (R : ℕ × ℕ → ℕ × ℕ → Prop) [DecidableRel R] :
@@ -482,7 +464,7 @@ instance : DecidableRel RelN := fun p q => by unfold RelN; infer_instance
 /-- The pairs of neighbors, counted by the offset from the earlier cell to the later one. -/
 lemma card_adj (n : ℕ) :
     (univ.filter (fun p : Cell n × Cell n => rank p.1 < rank p.2 ∧ Nbr p.1 p.2)).card =
-      tri (n - 1) + (tri (n - 2) + (tri (n - 2) + (tri (n - 1) + (tri (n - 1) + tri (n - 2))))) := by
+      3 * tri (n - 1) + 3 * tri (n - 2) := by
   have e1 : univ.filter (fun p : Cell n × Cell n => rank p.1 < rank p.2 ∧ Nbr p.1 p.2) =
       univ.filter (fun p : Cell n × Cell n =>
         RelN (p.1.1.1.val, p.1.1.2.val) (p.2.1.1.val, p.2.1.2.val)) := by
@@ -491,32 +473,23 @@ lemma card_adj (n : ℕ) :
     simp only [Fin.lt_def, Fin.ext_iff, RelN, Nbr]
   rw [e1, card_pairs_coord RelN]
   have e2 : (Tri n ×ˢ Tri n).filter (fun pq => RelN pq.1 pq.2) =
-      (Tri n ×ˢ Tri n).filter (fun pq : (ℕ × ℕ) × (ℕ × ℕ) =>
-        (pq.2.1 = pq.1.1 + 0 ∧ pq.2.2 = pq.1.2 + 1) ∨
-          (pq.2.1 = pq.1.1 + 0 ∧ pq.2.2 = pq.1.2 + 2) ∨
-          (pq.2.1 = pq.1.1 + 1 ∧ pq.2.2 + 1 = pq.1.2) ∨
-          (pq.2.1 = pq.1.1 + 1 ∧ pq.2.2 = pq.1.2 + 0) ∨
-          (pq.2.1 = pq.1.1 + 1 ∧ pq.2.2 = pq.1.2 + 1) ∨
-          (pq.2.1 = pq.1.1 + 2 ∧ pq.2.2 = pq.1.2 + 0)) := by
-    refine filter_congr (fun pq h => ?_)
-    obtain ⟨⟨i, j⟩, ⟨i', j'⟩⟩ := pq
-    simp only [mem_product, mem_Tri] at h
-    simp only [RelN]
+      (Tri n ×ˢ Tri n).filter (fun pq => shifted 0 1 pq ∨ shifted 0 2 pq ∨
+        shifted 1 (-1) pq ∨ shifted 1 0 pq ∨ shifted 1 1 pq ∨ shifted 2 0 pq) := by
+    refine filter_congr (fun pq _ => ?_)
+    simp only [RelN, shifted]
     omega
-  rw [e2,
-    filter_or, card_union_of_disjoint (disjoint_filter.2 (fun _ _ h1 h2 => by omega)),
-    filter_or, card_union_of_disjoint (disjoint_filter.2 (fun _ _ h1 h2 => by omega)),
-    filter_or, card_union_of_disjoint (disjoint_filter.2 (fun _ _ h1 h2 => by omega)),
-    filter_or, card_union_of_disjoint (disjoint_filter.2 (fun _ _ h1 h2 => by omega)),
-    filter_or, card_union_of_disjoint (disjoint_filter.2 (fun _ _ h1 h2 => by omega)),
-    card_shift_pos, card_shift_pos, card_shift_neg, card_shift_pos, card_shift_pos, card_shift_pos]
-  all_goals rfl
+  rw [e2]
+  repeat rw [filter_or, card_union_of_disjoint (disjoint_filter.2 (fun _ _ h1 h2 => by
+    simp only [shifted] at h1 h2; omega))]
+  simp only [card_shift]
+  change tri (n - 1) + (tri (n - 2) + (tri (n - 2) +
+    (tri (n - 1) + (tri (n - 1) + tri (n - 2))))) = _
+  omega
 
 /-! ## The formula -/
 
 lemma a_poly (n : ℕ) (hn : 2 ≤ n) :
-    (a n : ℚ) = 1 + ((n : ℚ) * (n + 1) / 2) * ((n : ℚ) * (n + 1) / 2 - 1) / 2 -
-      (((n : ℚ) - 1) * ((n : ℚ) - 1 + 1) / 2 + (((n : ℚ) - 2) * ((n : ℚ) - 2 + 1) / 2 + (((n : ℚ) - 2) * ((n : ℚ) - 2 + 1) / 2 + (((n : ℚ) - 1) * ((n : ℚ) - 1 + 1) / 2 + (((n : ℚ) - 1) * ((n : ℚ) - 1 + 1) / 2 + ((n : ℚ) - 2) * ((n : ℚ) - 2 + 1) / 2))))) := by
+    (a n : ℚ) = (n : ℚ)^4 / 8 + (n : ℚ)^3 / 4 - 25 * (n : ℚ)^2 / 8 + 23 * n / 4 - 2 := by
   have e1 := a_eq hn
   have e2 := card_split n
   have e3 := card_before n
@@ -531,7 +504,7 @@ lemma a_poly (n : ℕ) (hn : 2 ≤ n) :
     have := congrArg (Nat.cast (R := ℚ)) e3
     push_cast [Nat.cast_sub h1] at this
     exact this
-  have q4 : (B : ℚ) = (tri (n - 1) : ℚ) + ((tri (n - 2) : ℚ) + ((tri (n - 2) : ℚ) + ((tri (n - 1) : ℚ) + ((tri (n - 1) : ℚ) + (tri (n - 2) : ℚ))))) := by exact_mod_cast e4
+  have q4 : (B : ℚ) = 3 * (tri (n - 1) : ℚ) + 3 * (tri (n - 2) : ℚ) := by exact_mod_cast e4
   simp only [tri_q] at q3 q4
   push_cast [Nat.cast_sub (show 1 ≤ n by omega), Nat.cast_sub (show 2 ≤ n by omega)] at q4
   linear_combination q1 + q2 + q3 / 2 - q4
@@ -590,53 +563,21 @@ theorem gf : PowerSeries.mk (fun n => if n = 0 then (0 : ℚ) else (a n : ℚ)) 
       X ^ 2 * (1 - X + 9 * X ^ 2 - 7 * X ^ 3 + X ^ 4) := by
   set A := PowerSeries.mk (fun n => if n = 0 then (0 : ℚ) else (a n : ℚ)) with hA
   have e1 : A * (1 - X) ^ 5 = A - A * X ^ 1 * C 5 + A * X ^ 2 * C 10 - A * X ^ 3 * C 10 + A * X ^ 4 * C 5 - A * X ^ 5 * C 1 := by
-    rw [show (C (1 : ℚ) : ℚ⟦X⟧) = 1 from map_one C,
-      show (C (5 : ℚ) : ℚ⟦X⟧) = 5 from map_ofNat C 5,
-      show (C (10 : ℚ) : ℚ⟦X⟧) = 10 from map_ofNat C 10]
+    simp only [map_one, map_ofNat]
     ring
   have e2 : (X ^ 2 * (1 - X + 9 * X ^ 2 - 7 * X ^ 3 + X ^ 4) : ℚ⟦X⟧) = X ^ 2 * C 1 - X ^ 3 * C 1 + X ^ 4 * C 9 - X ^ 5 * C 7 + X ^ 6 * C 1 := by
-    rw [show (C (1 : ℚ) : ℚ⟦X⟧) = 1 from map_one C,
-      show (C (7 : ℚ) : ℚ⟦X⟧) = 7 from map_ofNat C 7,
-      show (C (9 : ℚ) : ℚ⟦X⟧) = 9 from map_ofNat C 9]
+    simp only [map_one, map_ofNat]
     ring
   rw [e1, e2]
   ext n
   simp only [map_sub, map_add, coeff_mul_C, coeff_mul_X_pow', coeff_X_pow, hA, coeff_mk]
-  rcases n with _ | _ | _ | _ | _ | _ | _ | n
-  · simp
-  · simp [a_one] <;> norm_num
-  · simp [a_one, a_two] <;> norm_num
-  · simp [a_one, a_two, a_three] <;> norm_num
-  · simp [a_one, a_two, a_three, a_four] <;> norm_num
-  · simp [a_one, a_two, a_three, a_four, a_five] <;> norm_num
-  · simp [a_one, a_two, a_three, a_four, a_five, a_six] <;> norm_num
-  · have h := a_rec n
+  by_cases hn : n < 7
+  · interval_cases n <;> norm_num [a_one, a_two, a_three, a_four, a_five, a_six]
+  · obtain ⟨n, rfl⟩ : ∃ j, n = j + 7 := ⟨n - 7, by omega⟩
+    have h := a_rec n
     have hq : (a (n + 7) : ℚ) + 10 * (a (n + 5) : ℚ) + 5 * (a (n + 3) : ℚ) =
         5 * (a (n + 6) : ℚ) + 10 * (a (n + 4) : ℚ) + (a (n + 2) : ℚ) := by exact_mod_cast h
-    simp only [show ¬ (n + 7 = 0) by omega,
-      if_false,
-      if_true,
-      show 1 ≤ n + 7 by omega,
-      show n + 7 - 1 = n + 6 by omega,
-      show ¬ (n + 6 = 0) by omega,
-      show 2 ≤ n + 7 by omega,
-      show n + 7 - 2 = n + 5 by omega,
-      show ¬ (n + 5 = 0) by omega,
-      show 3 ≤ n + 7 by omega,
-      show n + 7 - 3 = n + 4 by omega,
-      show ¬ (n + 4 = 0) by omega,
-      show 4 ≤ n + 7 by omega,
-      show n + 7 - 4 = n + 3 by omega,
-      show ¬ (n + 3 = 0) by omega,
-      show 5 ≤ n + 7 by omega,
-      show n + 7 - 5 = n + 2 by omega,
-      show ¬ (n + 2 = 0) by omega,
-      show ¬ (n + 7 = 1) by omega,
-      show ¬ (n + 7 = 2) by omega,
-      show ¬ (n + 7 = 3) by omega,
-      show ¬ (n + 7 = 4) by omega,
-      show ¬ (n + 7 = 5) by omega,
-      show ¬ (n + 7 = 6) by omega]
+    simp (disch := omega) [Nat.add_sub_assoc]
     linear_combination hq
 
 /-- Both of Barker's conjectures. -/

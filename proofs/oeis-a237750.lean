@@ -2,10 +2,9 @@ import OMAStatements.S_oeis_a237750
 
 -- Problem: A237750: Number of partitions of n having depth 2; see Comments.
 -- Upstream: formal-conjectures statements/oeis-a237750.lean:0 (declaration OMA.S_oeis_a237750.main)
--- Credit: @agchua (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
--- Proof idea. Lower bound: a repeated part y of f(t) is m1*x1 = m2*x2 for distinct parts
--- x1 < x2 of t with multiplicities m1, m2, so m1 >= 2: x1 is a repeated part of t and y >= 2*x1.
+-- The original proof is by @agchua, PR #30662.
+-- Proof idea. A repeated part of f(t) comes from two distinct parts of t. Their
+-- multiplicities cannot both be one, so one of those parts has at least doubled.
 -- By induction every repeated part of c(j,P) is at least 2^j. If P has depth d >= 1, c(d-1,P)
 -- has a repeated part y >= 2^(d-1), so n = sum of c(d-1,P) >= 2y >= 2^d. Witness: with
 -- U(0) = {} and U(k+1) = {2} + 2*U(k) (that is {2, 4, ..., 2^k}), the partition {1, 1} + U(k) of
@@ -14,39 +13,23 @@ import OMAStatements.S_oeis_a237750
 
 open OMA.S_oeis_a237750 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a237750.main := by
-  -- the multiplicity of y in f t
-  have Fcount : ∀ (t : Multiset ℕ) (y : ℕ),
-      (f t).count y = (t.toFinset.filter (fun x => y = t.count x * x)).card := by
-    intro t y
-    unfold f
-    exact Multiset.count_map _ _ _
-  -- a repeated part of f t comes from a repeated part of t
+  -- If both preimages of a repeated part were singletons, they would coincide.
   have Fstep : ∀ (t : Multiset ℕ) (y : ℕ), 2 ≤ (f t).count y →
       ∃ x, 2 ≤ t.count x ∧ t.count x * x = y := by
     intro t y hy
-    rw [Fcount t y] at hy
-    obtain ⟨a, ha, b, hb, hab⟩ := Finset.one_lt_card.mp
-      (show 1 < (t.toFinset.filter (fun x => y = t.count x * x)).card by omega)
+    have hcount : (f t).count y = (t.toFinset.filter (fun x => y = t.count x * x)).card :=
+      Multiset.count_map _ _ _
+    rw [hcount] at hy
+    obtain ⟨a, ha, b, hb, hab⟩ := Finset.one_lt_card.mp hy
     rw [Finset.mem_filter, Multiset.mem_toFinset] at ha hb
-    obtain ⟨ha1, ha2⟩ := ha
-    obtain ⟨hb1, hb2⟩ := hb
-    have hca : 0 < t.count a := Multiset.count_pos.mpr ha1
-    have hcb : 0 < t.count b := Multiset.count_pos.mpr hb1
-    rcases Nat.lt_or_gt_of_ne hab with hlt | hlt
-    · refine ⟨a, ?_, ha2.symm⟩
-      by_contra hc
-      have h1 : t.count a ≤ t.count b := by omega
-      have h2 : t.count a * a ≤ t.count b * a := Nat.mul_le_mul_right a h1
-      have h3 : t.count b * (a + 1) ≤ t.count b * b := Nat.mul_le_mul_left (t.count b) hlt
-      rw [Nat.mul_add, Nat.mul_one] at h3
-      omega
-    · refine ⟨b, ?_, hb2.symm⟩
-      by_contra hc
-      have h1 : t.count b ≤ t.count a := by omega
-      have h2 : t.count b * b ≤ t.count a * b := Nat.mul_le_mul_right b h1
-      have h3 : t.count a * (b + 1) ≤ t.count a * a := Nat.mul_le_mul_left (t.count a) hlt
-      rw [Nat.mul_add, Nat.mul_one] at h3
-      omega
+    by_cases hc : 2 ≤ t.count a
+    · exact ⟨a, hc, ha.2.symm⟩
+    · refine ⟨b, ?_, hb.2.symm⟩
+      by_contra hb'
+      have ha0 := Multiset.count_pos.mpr ha.1
+      have hb0 := Multiset.count_pos.mpr hb.1
+      obtain ⟨hca, hcb⟩ : t.count a = 1 ∧ t.count b = 1 := by omega
+      exact hab (by simpa only [hca, hcb, one_mul] using ha.2.symm.trans hb.2)
   -- every repeated part of c(j,s) is at least 2^j
   have Key : ∀ (s : Multiset ℕ), (∀ x ∈ s, 0 < x) →
       ∀ j y, 2 ≤ (f^[j] s).count y → 2 ^ j ≤ y := by
@@ -54,13 +37,8 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a237750.main := by
     induction j with
     | zero =>
       intro y hy
-      have hpos : 0 < s.count y := by
-        have e0 : f^[0] s = s := rfl
-        rw [e0] at hy
-        omega
-      have hy0 := hs y (Multiset.count_pos.mp hpos)
       rw [pow_zero]
-      omega
+      exact Nat.succ_le_of_lt (hs y (Multiset.count_pos.mp (lt_of_lt_of_le (by decide : 0 < 2) hy)))
     | succ j ih =>
       intro y hy
       rw [Function.iterate_succ_apply'] at hy
@@ -141,11 +119,7 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a237750.main := by
       · exact (Multiset.nodup_map_iff_of_injective hinj2).mpr ih
   have hmap : ∀ s : Multiset ℕ, (s.map (fun x => 2 * x)).sum = 2 * s.sum := by
     intro s
-    induction s using Multiset.induction_on with
-    | empty => simp
-    | cons a s ih =>
-      rw [Multiset.map_cons, Multiset.sum_cons, Multiset.sum_cons, ih]
-      ring
+    simpa using Multiset.sum_map_mul_left (s := s) (f := id) (a := 2)
   have Usum : ∀ k, (U k).sum + 2 = 2 ^ (k + 1) := by
     intro k
     induction k with
@@ -227,27 +201,21 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a237750.main := by
     induction k with
     | zero =>
       intro c hc
-      apply Dstep
-      · intro h
-        rw [Multiset.map_cons] at h
-        exact (Multiset.nodup_cons.mp h).1 (by simp)
-      · rw [F3 c _ hc, F2 (U 0) (Unodup 0) (Uge 0), hU0]
-        unfold HasDepth
-        refine ⟨?_, fun j hj => absurd hj (Nat.not_lt_zero j)⟩
-        simp
+      apply Dstep _ _ (by simp [Multiset.nodup_cons])
+      rw [F3 c _ hc, F2 (U 0) (Unodup 0) (Uge 0), hU0]
+      unfold HasDepth
+      refine ⟨?_, fun j hj => absurd hj (Nat.not_lt_zero j)⟩
+      simp
     | succ k ih =>
       intro c hc
-      apply Dstep
-      · intro h
-        rw [Multiset.map_cons] at h
-        exact (Multiset.nodup_cons.mp h).1 (by simp)
-      · rw [F3 c _ hc, F2 (U (k + 1)) (Unodup (k + 1)) (Uge (k + 1))]
-        have e : (2 ::ₘ U (k + 1)).map (fun x => c * x) =
-            (1 ::ₘ 1 ::ₘ U k).map (fun x => c * 2 * x) := by
-          rw [hUs k, Multiset.map_cons, Multiset.map_cons, Multiset.map_cons, Multiset.map_cons,
-            mm c 2 (U k), mul_one]
-        rw [e]
-        exact ih (c * 2) (by omega)
+      apply Dstep _ _ (by simp [Multiset.nodup_cons])
+      rw [F3 c _ hc, F2 (U (k + 1)) (Unodup (k + 1)) (Uge (k + 1))]
+      have e : (2 ::ₘ U (k + 1)).map (fun x => c * x) =
+          (1 ::ₘ 1 ::ₘ U k).map (fun x => c * 2 * x) := by
+        rw [hUs k, Multiset.map_cons, Multiset.map_cons, Multiset.map_cons, Multiset.map_cons,
+          mm c 2 (U k), mul_one]
+      rw [e]
+      exact ih (c * 2) (by omega)
   have Exist : ∀ d : ℕ, ∃ P : Nat.Partition (2 ^ d), HasDepth P.parts d := by
     intro d
     cases d with

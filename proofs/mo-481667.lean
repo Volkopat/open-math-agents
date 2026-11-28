@@ -3,7 +3,9 @@ import Mathlib
 
 -- Problem: mo-481667, is the fundamental solution Y of Y' = A(t) Y, Y(0) = I, with symmetric
 -- bounded A(t), always positive semidefinite in the sense u^T Y_t u >= 0?
--- Credit: @ivillar (the owner of the agent is credited as the solver)
+-- Retains @ivillar's proof (PR #28842); direct derivative congruence replaces
+-- repeated derivative-value formulas. The registered statement and an inspected
+-- alternate pending proof (PR #29447) are credited to @koolkao.
 --
 -- No. Take d = 2, s = pi t, D = diag(pi, -pi) and the rotating symmetric family
 -- A(t) = R(s) D R(-s) = pi [[cos 2s, sin 2s], [sin 2s, -cos 2s]], where R is the rotation.
@@ -39,47 +41,39 @@ theorem hz (t : ℝ) : HasDerivAt (fun s : ℝ => sin (π * s)) (cos (π * t) * 
 
 theorem d00 (t : ℝ) : HasDerivAt (fun s => Y s 0 0) ((A t * Y t) 0 0) t := by
   have h := (((hs t).const_add 1).mul (hc t)).add ((hs t).mul (hz t))
-  have e : (A t * Y t) 0 0 = π * cos (π * t) + (1 + π * t) * (-sin (π * t) * π) +
-      (π * sin (π * t) + π * t * (cos (π * t) * π)) := by
-    simp only [A, Y, Matrix.mul_apply, Fin.sum_univ_two, Matrix.of_apply, Matrix.cons_val_zero,
-      Matrix.cons_val_one, Matrix.cons_val', Matrix.cons_val_fin_one]
-    linear_combination (π * ((1 + π * t) * cos (π * t) - π * t * sin (π * t))) *
-      sin_sq_add_cos_sq (π * t)
-  rw [e]
-  exact h
+  refine h.congr_deriv ?_
+  symm
+  simp only [A, Y, Matrix.mul_apply, Fin.sum_univ_two, Matrix.of_apply, Matrix.cons_val_zero,
+    Matrix.cons_val_one, Matrix.cons_val', Matrix.cons_val_fin_one]
+  linear_combination (π * ((1 + π * t) * cos (π * t) - π * t * sin (π * t))) *
+    sin_sq_add_cos_sq (π * t)
 
 theorem d01 (t : ℝ) : HasDerivAt (fun s => Y s 0 1) ((A t * Y t) 0 1) t := by
   have h := ((hs t).mul (hc t)).sub ((((hs t).const_sub 1)).mul (hz t))
-  have e : (A t * Y t) 0 1 = π * cos (π * t) + π * t * (-sin (π * t) * π) -
-      (-π * sin (π * t) + (1 - π * t) * (cos (π * t) * π)) := by
-    simp only [A, Y, Matrix.mul_apply, Fin.sum_univ_two, Matrix.of_apply, Matrix.cons_val_zero,
-      Matrix.cons_val_one, Matrix.cons_val', Matrix.cons_val_fin_one]
-    linear_combination (π * (π * t * cos (π * t) + (1 - π * t) * sin (π * t))) *
-      sin_sq_add_cos_sq (π * t)
-  rw [e]
-  exact h
+  refine h.congr_deriv ?_
+  symm
+  simp only [A, Y, Matrix.mul_apply, Fin.sum_univ_two, Matrix.of_apply, Matrix.cons_val_zero,
+    Matrix.cons_val_one, Matrix.cons_val', Matrix.cons_val_fin_one]
+  linear_combination (π * (π * t * cos (π * t) + (1 - π * t) * sin (π * t))) *
+    sin_sq_add_cos_sq (π * t)
 
 theorem d10 (t : ℝ) : HasDerivAt (fun s => Y s 1 0) ((A t * Y t) 1 0) t := by
   have h := (((hs t).const_add 1).mul (hz t)).sub ((hs t).mul (hc t))
-  have e : (A t * Y t) 1 0 = π * sin (π * t) + (1 + π * t) * (cos (π * t) * π) -
-      (π * cos (π * t) + π * t * (-sin (π * t) * π)) := by
-    simp only [A, Y, Matrix.mul_apply, Fin.sum_univ_two, Matrix.of_apply, Matrix.cons_val_zero,
-      Matrix.cons_val_one, Matrix.cons_val', Matrix.cons_val_fin_one]
-    linear_combination (π * ((1 + π * t) * sin (π * t) + π * t * cos (π * t))) *
-      sin_sq_add_cos_sq (π * t)
-  rw [e]
-  exact h
+  refine h.congr_deriv ?_
+  symm
+  simp only [A, Y, Matrix.mul_apply, Fin.sum_univ_two, Matrix.of_apply, Matrix.cons_val_zero,
+    Matrix.cons_val_one, Matrix.cons_val', Matrix.cons_val_fin_one]
+  linear_combination (π * ((1 + π * t) * sin (π * t) + π * t * cos (π * t))) *
+    sin_sq_add_cos_sq (π * t)
 
 theorem d11 (t : ℝ) : HasDerivAt (fun s => Y s 1 1) ((A t * Y t) 1 1) t := by
   have h := ((hs t).mul (hz t)).add ((((hs t).const_sub 1)).mul (hc t))
-  have e : (A t * Y t) 1 1 = π * sin (π * t) + π * t * (cos (π * t) * π) +
-      (-π * cos (π * t) + (1 - π * t) * (-sin (π * t) * π)) := by
-    simp only [A, Y, Matrix.mul_apply, Fin.sum_univ_two, Matrix.of_apply, Matrix.cons_val_zero,
-      Matrix.cons_val_one, Matrix.cons_val', Matrix.cons_val_fin_one]
-    linear_combination (π * (π * t * sin (π * t) - (1 - π * t) * cos (π * t))) *
-      sin_sq_add_cos_sq (π * t)
-  rw [e]
-  exact h
+  refine h.congr_deriv ?_
+  symm
+  simp only [A, Y, Matrix.mul_apply, Fin.sum_univ_two, Matrix.of_apply, Matrix.cons_val_zero,
+    Matrix.cons_val_one, Matrix.cons_val', Matrix.cons_val_fin_one]
+  linear_combination (π * (π * t * sin (π * t) - (1 - π * t) * cos (π * t))) *
+    sin_sq_add_cos_sq (π * t)
 
 theorem bound (t : ℝ) (i j : Fin 2) : |A t i j| ≤ 2 * π := by
   have h1 := sin_sq_add_cos_sq (π * t)

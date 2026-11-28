@@ -1,5 +1,12 @@
 import OMAStatements.S_mo_61882
 
+/-!
+Adapted from @romechenko’s merged PR #17061, head
+b68b8bedc62ce94f0d7a8cb0e1258a5d74cb231d. The original mathematical credits
+are retained below. Standard exponential strip injectivity replaces the explicit
+integer-period argument, and the derivative composition is normalized directly.
+-/
+
 open Filter Metric Set
 open scoped Topology
 
@@ -10,13 +17,8 @@ private noncomputable def F (z : ℂ) : ℂ := Complex.exp z⁻¹
 private noncomputable def dF (z : ℂ) : ℂ := -(Complex.exp z⁻¹) / z ^ 2
 
 private theorem hasDeriv_F {z : ℂ} (hz : z ≠ 0) : HasDerivAt F (dF z) z := by
-  have hi : HasDerivAt (fun w : ℂ => w⁻¹) (-1 / z ^ 2) z :=
-    (hasDerivAt_id z).inv hz
-  have h := hi.cexp
-  have hval : Complex.exp z⁻¹ * (-1 / z ^ 2) = dF z := by
-    simp [dF, ← mul_div_assoc]
-  rw [hval] at h
-  exact h
+  convert! ((hasDerivAt_id z).inv hz).cexp using 1
+  simp [dF, ← mul_div_assoc]
 
 private def disk : Set ℂ := ball 0 1 \ {0}
 
@@ -86,25 +88,17 @@ private theorem cover : (⋃ j : Fin 4, U j) = disk := by
     simpa only [Equiv.symm_apply_apply] using
       (show z ∈ cell (c, e) (a, b) from ⟨hz, hc, he⟩)
 
+-- The standard exponential strip theorem replaces the explicit integer-period case split.
 private theorem F_inj {c : Fin 2 × Fin 2} {a : ℤ × ℤ} : InjOn F (cell c a) := by
   intro x hx y hy heq
-  obtain ⟨k, hk⟩ := Complex.exp_eq_exp_iff_exists_int.mp heq
-  have hi := congrArg Complex.im hk
-  simp only [Complex.add_im, Complex.mul_im, Complex.mul_re, Complex.intCast_re,
-    Complex.intCast_im, Complex.re_ofNat, Complex.im_ofNat, Complex.ofReal_re,
-    Complex.ofReal_im, Complex.I_re, Complex.I_im, mul_zero, zero_mul, add_zero,
-    mul_one, sub_zero] at hi
-  have hxl := abs_lt.mp hx.2.2
-  have hyl := abs_lt.mp hy.2.2
-  have hpi := Real.pi_gt_three
-  have hzero : k = 0 := by
-    by_contra hk0
-    rcases lt_or_gt_of_ne hk0 with hneg | hpos
-    · have hn : (k : ℝ) ≤ -1 := by exact_mod_cast (show k ≤ -1 by omega)
-      nlinarith [mul_nonneg (sub_nonneg.mpr hn) (show 0 ≤ 2 * Real.pi by positivity)]
-    · have hp : (1 : ℝ) ≤ k := by exact_mod_cast (show 1 ≤ k by omega)
-      nlinarith [mul_nonneg (sub_nonneg.mpr hp) (show 0 ≤ 2 * Real.pi by positivity)]
-  simpa [hzero] using hk
+  change Complex.exp x⁻¹ = Complex.exp y⁻¹ at heq
+  have hb : -Real.pi < (x⁻¹-y⁻¹).im ∧ (x⁻¹-y⁻¹).im ≤ Real.pi := by
+    simp only [Complex.sub_im]
+    constructor <;> linarith [abs_lt.mp hx.2.2, abs_lt.mp hy.2.2, Real.pi_gt_three]
+  have he := Complex.exp_inj_of_neg_pi_lt_of_le_pi (y := 0) hb.1 hb.2
+    (by simpa using Real.pi_pos) (by simpa using Real.pi_pos.le)
+    (by simpa using Complex.exp_eq_exp_iff_exp_sub_eq_one.mp heq)
+  exact inv_injective (sub_eq_zero.mp he)
 
 private noncomputable def radius (c : Fin 2 × Fin 2) (m : ℕ) : ℝ :=
   Real.exp (2 * (((Encodable.decode (α := ℤ × ℤ) m).getD (0, 0)).1 : ℝ) + c.1.val + 1)

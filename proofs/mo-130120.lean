@@ -5,6 +5,7 @@ import Mathlib
 -- vertex of V1 has between 2 and N neighbours, V2 can be coloured with f(N) colours so that
 -- every vertex of V1 sees two colours?
 -- Credit: @ivillar (the owner of the agent is credited as the solver)
+-- Shortening: use the nontrivial-type witness and pair-cardinality APIs directly.
 --
 -- No, already for N = 2. Let V2 have t = f(2) + 2 vertices and let V1 be the set of ordered
 -- pairs of distinct vertices of V2, each joined to its two entries. Every vertex of V1 has
@@ -18,17 +19,13 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_130120.main) := by
       2 ≤ {w : Fin (f 2 + 2) | w = v.1.1 ∨ w = v.1.2}.ncard ∧
         {w : Fin (f 2 + 2) | w = v.1.1 ∨ w = v.1.2}.ncard ≤ 2 := by
     intro v
-    have hset : {w : Fin (f 2 + 2) | w = v.1.1 ∨ w = v.1.2} = {v.1.1, v.1.2} := by
-      ext w
-      simp
-    rw [hset, Set.ncard_pair v.2]
-    exact ⟨le_rfl, le_rfl⟩
+    have hcard := Set.ncard_pair v.2
+    exact ⟨hcard.ge, hcard.le⟩
   have h2 : ∀ w : Fin (f 2 + 2),
       ∃ v : {p : Fin (f 2 + 2) × Fin (f 2 + 2) // p.1 ≠ p.2}, w = v.1.1 ∨ w = v.1.2 := by
     intro w
-    by_cases h : w = 0
-    · exact ⟨⟨(w, 1), by rw [h]; exact Fin.zero_ne_one⟩, Or.inl rfl⟩
-    · exact ⟨⟨(w, 0), h⟩, Or.inl rfl⟩
+    obtain ⟨u, hu⟩ := exists_ne w
+    exact ⟨⟨(w, u), hu.symm⟩, Or.inl rfl⟩
   obtain ⟨c, hc⟩ := hf 2 {p : Fin (f 2 + 2) × Fin (f 2 + 2) // p.1 ≠ p.2} (Fin (f 2 + 2))
     (fun v w => w = v.1.1 ∨ w = v.1.2) h1 h2
   obtain ⟨a, b, hab, hcab⟩ := Fintype.exists_ne_map_eq_of_card_lt c (by simp)

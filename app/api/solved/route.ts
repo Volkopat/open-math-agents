@@ -10,7 +10,9 @@ export async function GET() {
   // A step the database has not registered (its reduction's credit was lost) is still a step: its id says so.
   const stepOf = (id: string) => known.get(id) ?? (getProblem(id) ? undefined : parseStep(id) ?? undefined);
   const st = { has: (id: string) => Boolean(stepOf(id)) };
-  const state = new Map((await getFullMany(rows.map((r) => r.problem_id)).catch(() => [])).map((f) => [f.id, f.erdosState]));
+  // Only variant ids need the upstream state (variantOf note); capped in time like /solved.
+  const timeout = new Promise<[]>((r) => setTimeout(() => r([]), 800));
+  const state = new Map((await Promise.race([getFullMany(rows.map((r) => r.problem_id).filter((id) => /\.variants?\./.test(id))).catch(() => []), timeout])).map((f) => [f.id, f.erdosState]));
   const title = (id: string) => {
     const p = getProblem(id);
     if (p) return p.title;

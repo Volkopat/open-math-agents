@@ -1,5 +1,7 @@
 import OMAStatements.S_oeis_a081673
 
+/-! We use @eliayousf's central-trinomial certificate from PR #29614. -/
+
 namespace OMA.S_oeis_a081673
 
 open Finset
@@ -72,31 +74,20 @@ private theorem tri_recurrence (n : ℕ) :
     ((n : ℤ) + 2) * tri (n + 2) -
       (2 * ((n : ℤ) + 2) - 1) * tri (n + 1) -
       3 * ((n : ℤ) + 1) * tri n = 0 := by
-  let m := n + 3
   let boundary (j : ℕ) : ℤ := (j : ℤ) ^ 2 * term (n + 2) j
-  have hzero : boundary 0 = 0 := by simp [boundary]
-  have hlast : boundary m = 0 := by
-    have hm : n + 2 < 2 * m := by dsimp [m]; omega
-    simp [boundary, term_zero hm]
-  have htel := (sum_range_succ' boundary m).symm.trans (sum_range_succ boundary m)
-  rw [hzero, hlast, add_zero, add_zero] at htel
-  have hs :
-      ((n : ℤ) + 2) * (((n : ℤ) + 2) * tri (n + 2) -
-        (2 * ((n : ℤ) + 2) - 1) * tri (n + 1) - 3 * ((n : ℤ) + 1) * tri n) = 0 := by
-    calc
-      _ = ∑ j ∈ range m, ((n : ℤ) + 2) * (((n : ℤ) + 2) * term (n + 2) j -
-          (2 * ((n : ℤ) + 2) - 1) * term (n + 1) j - 3 * ((n : ℤ) + 1) * term n j) := by
-        rw [tri_eq_sum (n := n + 2) (m := m) (by dsimp [m]; omega),
-          tri_eq_sum (n := n + 1) (m := m) (by dsimp [m]; omega),
-          tri_eq_sum (n := n) (m := m) (by dsimp [m]; omega)]
-        simp only [mul_sub, mul_sum, sum_sub_distrib]
-      _ = 4 * ((∑ j ∈ range m, boundary j) - ∑ j ∈ range m, boundary (j + 1)) := by
-        rw [← sum_sub_distrib, mul_sum]
-        apply sum_congr rfl
-        intro j _
+  apply mul_left_cancel₀ (show (n : ℤ) + 2 ≠ 0 by omega)
+  rw [mul_zero]
+  calc
+    _ = ∑ j ∈ range (n + 3), ((n : ℤ) + 2) * (((n : ℤ) + 2) * term (n + 2) j -
+        (2 * ((n : ℤ) + 2) - 1) * term (n + 1) j - 3 * ((n : ℤ) + 1) * term n j) := by
+      simp (disch := omega) only [tri_eq_sum (m := n + 3), mul_sub, mul_sum, sum_sub_distrib]
+    _ = 4 * (∑ j ∈ range (n + 3), (boundary j - boundary (j + 1))) := by
+      rw [mul_sum]
+      exact sum_congr rfl fun j _ => by
         simpa only [boundary, Nat.cast_add, Nat.cast_one] using term_certificate n j
-      _ = 0 := by rw [htel, sub_self, mul_zero]
-  exact (mul_eq_zero.mp hs).resolve_left (by positivity)
+    _ = 0 := by
+      rw [sum_range_sub']
+      simp [boundary, term_zero (by omega : n + 2 < 2 * (n + 3))]
 
 end OMA.S_oeis_a081673
 

@@ -1,5 +1,7 @@
 import OMAStatements.S_mo_469329
-import Mathlib
+-- Retains @caa1982's logarithmic lower-bound proof from PR #28814.
+-- Standard reciprocal and logarithm bounds finish the existing estimates.
+
 open OMA.S_mo_469329
 
 lemma seq_pos (T : ℕ) (hT : 1 ≤ T) : ∀ r, 0 < seq T r
@@ -58,15 +60,8 @@ theorem OMA.solution : type_of% @OMA.S_mo_469329.main := by
   have hB' : 1 / seq T T ≤ S := by linarith
   have hSpos : 0 < S := lt_of_lt_of_le (by positivity) hB'
   -- seq T T ≥ 1 / S
-  have hge : 1 / S ≤ seq T T := by
-    rw [div_le_iff₀ hSpos]
-    rw [div_le_iff₀ hpT] at hB'
-    linarith
   have hlog1 : Real.log (1 / S) ≤ Real.log (seq T T) :=
-    Real.log_le_log (by positivity) hge
+    Real.log_le_log (by positivity) ((one_div_le hpT hSpos).mp hB')
   rw [one_div, Real.log_inv] at hlog1
   rw [h0, one_div, Real.log_inv] at hA
-  have hlS : Real.log S ≤ S := by
-    have := Real.log_le_sub_one_of_pos hSpos
-    linarith
-  linarith
+  linarith [Real.log_le_self hSpos.le]

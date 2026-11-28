@@ -1,8 +1,8 @@
 import OMAStatements.S_oeis_a048330
 
+-- Original proof by @jleguina.
+
 namespace OMA.S_oeis_a048330
-
-
 
 /-- The conjecture (the recurrence). -/
 def Conjecture : Prop := ∀ n : ℕ, 8 ≤ n → (a n : ℤ) = 6 * a (n - 4) - 5 * a (n - 8)
@@ -98,12 +98,8 @@ theorem f_lt_succ (j : ℕ) : f j < f (j + 1) := by
 
 theorem f_strictMono : StrictMono f := strictMono_nat_of_lt_succ f_lt_succ
 
-theorem Rep_infinite : (Set.ofPred Rep).Infinite := by
-  apply Set.infinite_of_not_bddAbove
-  rintro ⟨N, hN⟩
-  have h1 : N + 1 ≤ f (N + 1) := f_strictMono.le_apply
-  have := hN (show f (N + 1) ∈ Set.ofPred Rep from f_rep (N + 1))
-  omega
+theorem Rep_infinite : (Set.ofPred Rep).Infinite :=
+  (Set.infinite_range_of_injective f_strictMono.injective).mono (Set.range_subset_iff.2 f_rep)
 
 theorem f_eq_nth (n : ℕ) : f n = Nat.nth Rep n := by
   have hall : ∀ n, n ∈ {n : ℕ | ∀ hf : (Set.ofPred Rep).Finite, n < hf.toFinset.card} :=
@@ -117,6 +113,14 @@ theorem f_eq_nth (n : ℕ) : f n = Nat.nth Rep n := by
   · intro x _ y _ hxy
     exact f_strictMono hxy
 
+/-- Append one more copy of the same base-five digit. -/
+theorem f_step (j : ℕ) (hj : 0 < j) : f (j + 4) = 5 * f j + ((j - 1) % 4 + 1) := by
+  unfold f
+  rw [if_neg (by omega), if_neg (by omega),
+    show (j + 4 - 1) % 4 = (j - 1) % 4 by omega,
+    show (j + 4 - 1) / 4 + 1 = (j - 1) / 4 + 1 + 1 by omega, R_succ]
+  ring
+
 theorem conjecture_true : Conjecture := by
   intro n hn
   rw [a, a, a, ← f_eq_nth, ← f_eq_nth, ← f_eq_nth]
@@ -125,28 +129,17 @@ theorem conjecture_true : Conjecture := by
   by_cases hj : j = 0
   · subst hj
     simp [f, R, Finset.sum_range_succ]
-  · unfold f
-    rw [if_neg (by omega), if_neg (by omega), if_neg hj]
-    have e1 : (j + 8 - 1) % 4 = (j - 1) % 4 := by omega
-    have e2 : (j + 4 - 1) % 4 = (j - 1) % 4 := by omega
-    have e3 : (j + 8 - 1) / 4 = (j - 1) / 4 + 2 := by omega
-    have e4 : (j + 4 - 1) / 4 = (j - 1) / 4 + 1 := by omega
-    rw [e1, e2, e3, e4, show (j - 1) / 4 + 2 + 1 = ((j - 1) / 4 + 1) + 1 + 1 by ring,
-      R_succ (((j - 1) / 4 + 1) + 1), R_succ ((j - 1) / 4 + 1)]
-    push_cast
-    ring
+  · have h1 := f_step j (by omega)
+    have h2 := f_step (j + 4) (by omega)
+    rw [show j + 4 + 4 = j + 8 by omega, show (j + 4 - 1) % 4 = (j - 1) % 4 by omega] at h2
+    apply eq_sub_iff_add_eq.mpr
+    exact_mod_cast (show f (j + 8) + 5 * f j = 6 * f (j + 4) by omega)
 
 /-- Control: the first terms listed in the entry. -/
 theorem first_terms : a 0 = 0 ∧ a 1 = 1 ∧ a 4 = 4 ∧ a 5 = 6 ∧ a 8 = 24 ∧ a 9 = 31 ∧
     a 12 = 124 ∧ a 13 = 156 ∧ a 20 = 3124 := by
   simp only [a, ← f_eq_nth]
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;> decide
-
-/-- The terms `a(0..7)`, used for the low coefficients of the g.f. -/
-theorem low_terms : a 0 = 0 ∧ a 1 = 1 ∧ a 2 = 2 ∧ a 3 = 3 ∧ a 4 = 4 ∧ a 5 = 6 ∧ a 6 = 12 ∧
-    a 7 = 18 := by
-  simp only [a, ← f_eq_nth]
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;> decide
 
 open PowerSeries in
 /-- Mathar's g.f. as an identity of formal power series: from `x^8` on the coefficients of the
@@ -167,13 +160,10 @@ theorem gf_identity :
   ext n
   simp only [map_sub, map_add, coeff_C_mul, coeff_mul_X_pow', coeff_mk, coeff_C]
   rcases Nat.lt_or_ge n 8 with hn | hn
-  · obtain ⟨h0, h1, h2, h3, h4, h5, h6, h7⟩ := low_terms
-    interval_cases n <;> simp [h0, h1, h2, h3, h4, h5, h6, h7] <;> norm_num
+  · interval_cases n <;> norm_num [a, ← f_eq_nth, f, R, Finset.sum_range_succ]
   · have hr : (a n : ℚ) = 6 * a (n - 4) - 5 * a (n - 8) := by
       exact_mod_cast conjecture_true n hn
-    simp only [show 1 ≤ n by omega, show 2 ≤ n by omega, show 3 ≤ n by omega,
-      show 4 ≤ n by omega, show 8 ≤ n by omega, show n - 1 ≠ 0 by omega, show n - 2 ≠ 0 by omega,
-      show n - 3 ≠ 0 by omega, show n - 4 ≠ 0 by omega, if_true, if_false]
+    simp (disch := omega) [hn, if_neg, if_pos]
     linarith
 
 end OMA.S_oeis_a048330

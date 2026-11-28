@@ -102,15 +102,11 @@ private lemma reciprocal (s : ℕ) :
   have a : constantCoeff A ≠ 0 := by simp [A, Bino]
   have b : constantCoeff B ≠ 0 := by simp [B, Ran, Bino]
   have ai := PowerSeries.inv_mul_cancel A a
-  have bi := PowerSeries.inv_mul_cancel B b
   have ab : A * B = Bino s 1 := bino_ran s 1
   have h : B = C (s+1 : ℚ)*A - C (s : ℚ)*(A*B) := by rw [ab]; rfl
   change A⁻¹ = C (s+1 : ℚ) * B⁻¹ - C (s : ℚ)
-  calc
-    A⁻¹ = (A⁻¹ * B⁻¹) * B := by rw [mul_assoc, bi, mul_one]
-    _ = (A⁻¹ * B⁻¹) * (C (s+1 : ℚ)*A - C (s : ℚ)*(A*B)) := congrArg _ h
-    _ = C (s+1 : ℚ)*B⁻¹*(A⁻¹*A) - C (s : ℚ)*(A⁻¹*A)*(B⁻¹*B) := by ring
-    _ = _ := by rw [ai, bi]; ring
+  rw [eq_sub_iff_add_eq, PowerSeries.eq_mul_inv_iff_mul_eq b]
+  linear_combination A⁻¹ * h + (C (s+1 : ℚ) - C (s : ℚ) * B) * ai
 end Cigler
 
 open PowerSeries OMA.S_mo_286541
@@ -136,17 +132,7 @@ private lemma finite_prefix {N : ℕ} (i : Fin N) (f : ℕ → ℚ) :
     (∑ l : Fin N, if l.val ≤ i.val then f l.val else 0) =
       ∑ l ∈ Finset.range (i.val+1), f l := by
   rw [Finset.sum_fin_eq_sum_range]
-  calc
-    _ = ∑ l ∈ Finset.range N, if l ≤ i.val then f l else 0 :=
-      Finset.sum_congr rfl fun l hl => by simp [Finset.mem_range.mp hl]
-    _ = ∑ l ∈ Finset.range (i.val+1), if l ≤ i.val then f l else 0 := by
-      apply Eq.symm
-      apply Finset.sum_subset (Finset.range_mono (by omega))
-      intro l _ hl
-      simp only [Finset.mem_range] at hl
-      simp [show ¬ l ≤ i.val by omega]
-    _ = _ := Finset.sum_congr rfl fun l hl => by
-      simp [Nat.le_of_lt_succ (Finset.mem_range.mp hl)]
+  apply Finset.sum_congr_of_eq_on_inter <;> grind
 
 private lemma toe_hankel {a g : ℕ → ℚ} (g0 : g 0 = 1)
     (conv : ∀ m : ℕ, 0 < m → (∑ l ∈ Finset.range (m+1), g l * a (m-l)) = 0)

@@ -4,11 +4,12 @@ import Mathlib
 -- Problem: mo-450195, for a fixed nonnegative integer matrix M, is there (R, eps) such that
 -- every nonnegative integer vector b with an eps-approximate real solution of M x = b has an
 -- exact real solution?
--- Credit: @ivillar (the owner of the agent is credited as the solver)
+-- Credit: @ivillar, original proof #25781 and statement #20101.
+-- Denominator-clearing simplification by @rodolfoquint using Mathlib localization APIs.
 --
 -- Yes (with R = 0). Over the rationals, compose the quotient map by the column space W of M
--- with coordinates on the quotient: this is a linear map P with kernel W. Clearing denominators
--- in the matrix of P gives integer vectors z_k with z_k . M = 0 such that a rational vector v
+-- with coordinates on the quotient: this is a linear map P with kernel W. The finite-family localization theorem clears denominators
+-- in the matrix of P and gives integer vectors z_k with z_k . M = 0 such that a rational vector v
 -- lies in W as soon as z_k . v = 0 for all k. If |M x' - b| < eps = 1 / (Z + 1), where Z is the
 -- sum of all |z_{k,i}|, then the integer z_k . b = z_k . (b - M x') has absolute value < 1, so
 -- it is 0. Hence b = M y for a rational y.
@@ -35,28 +36,15 @@ theorem alg (m n : ℕ) (Mq : Matrix (Fin m) (Fin n) ℚ) :
     rw [LinearMap.pi_apply_eq_sum_univ P v, Finset.sum_apply]
     refine Finset.sum_congr rfl (fun i _ => ?_)
     rw [Pi.smul_apply, smul_eq_mul, hc]
-  obtain ⟨N, hN⟩ : ∃ N : ℕ, N = ∏ k, ∏ i, (c k i).den := ⟨_, rfl⟩
-  have hN0 : (N : ℚ) ≠ 0 := by
-    rw [hN]
-    exact Nat.cast_ne_zero.mpr (Finset.prod_ne_zero_iff.mpr (fun k _ =>
-      Finset.prod_ne_zero_iff.mpr (fun i _ => (c k i).den_ne_zero)))
-  have hz : ∀ k i, ∃ t : ℤ, (t : ℚ) = c k i * N := by
+  obtain ⟨N, hN⟩ := IsLocalization.exist_integer_multiples_of_finite (nonZeroDivisors ℤ)
+    (fun i : Fin (Module.finrank ℚ ((Fin m → ℚ) ⧸ W)) × Fin m => c i.1 i.2)
+  have hN0 : (N.val : ℚ) ≠ 0 := by
+    exact_mod_cast nonZeroDivisors.ne_zero N.property
+  have hz : ∀ k i, ∃ t : ℤ, (t : ℚ) = c k i * N.val := by
     intro k i
-    have hdvd : (c k i).den ∣ N := by
-      rw [hN]
-      exact dvd_trans (Finset.dvd_prod_of_mem (fun i => (c k i).den) (Finset.mem_univ i))
-        (Finset.dvd_prod_of_mem (fun k => ∏ i, (c k i).den) (Finset.mem_univ k))
-    obtain ⟨t, ht⟩ := hdvd
-    have hd : ((c k i).den : ℚ) ≠ 0 := Nat.cast_ne_zero.mpr (c k i).den_ne_zero
-    have hnum : ((c k i).num : ℚ) = c k i * ((c k i).den : ℚ) :=
-      (div_eq_iff hd).mp (Rat.num_div_den (c k i))
-    refine ⟨(c k i).num * (t : ℤ), ?_⟩
-    rw [ht]
-    push_cast
-    rw [hnum]
-    ring
+    simpa [IsLocalization.IsInteger, Algebra.smul_def, mul_comm] using hN (k, i)
   choose z hz using hz
-  have hsum : ∀ k (x : Fin m → ℚ), ∑ i, (z k i : ℚ) * x i = (N : ℚ) * P x k := by
+  have hsum : ∀ k (x : Fin m → ℚ), ∑ i, (z k i : ℚ) * x i = (N.val : ℚ) * P x k := by
     intro k x
     rw [hPc, Finset.mul_sum]
     refine Finset.sum_congr rfl (fun i _ => ?_)

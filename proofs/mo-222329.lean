@@ -1,5 +1,7 @@
 import OMAStatements.S_mo_222329
 
+-- Retains @Genbox’s proof #29879; finite eventual conjunction uses the standard filter API.
+
 open Filter Matrix OMA.S_mo_222329
 open scoped Topology BigOperators ComplexOrder
 
@@ -11,14 +13,7 @@ private theorem finite_right_translate {G : Type} [Group G] [DecidableEq G]
   have each (e : G) : ∀ᶠ n in atTop,
       ((folnerSymmetricDifference (F n) e).card : ℝ) / (F n).card < δ :=
     (hF.2 e).eventually (gt_mem_nhds hδ)
-  have all (S : Finset G) : ∀ᶠ n in atTop, ∀ e ∈ S,
-      ((folnerSymmetricDifference (F n) e).card : ℝ) / (F n).card < δ := by
-    induction S using Finset.induction_on with
-    | empty => exact Filter.Eventually.of_forall (by simp)
-    | insert e S _ ih =>
-      filter_upwards [each e, ih] with n h₁ h₂
-      exact fun x hx => (Finset.mem_insert.mp hx).elim (fun h => h ▸ h₁) (h₂ x)
-  obtain ⟨n, hn⟩ := (all E).exists
+  obtain ⟨n, hn⟩ := ((Filter.eventually_all_finset E).mpr (fun e _ => each e)).exists
   let bad (e : G) := (F n).filter fun a => e * a ∉ F n
   have hbad (e : G) : (bad e).card ≤ (folnerSymmetricDifference (F n) e).card := by
     apply Finset.card_le_card_of_injOn (fun a => e * a)

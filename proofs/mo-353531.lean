@@ -1,5 +1,7 @@
 import OMAStatements.S_mo_353531
-import Mathlib
+
+-- Retains @caa1982's sine-sequence counterexample from PR #26558.
+-- Commute imaginary part with the complex integral directly.
 
 open OMA.S_mo_353531
 
@@ -8,21 +10,12 @@ lemma lt_sin (lam : ℝ) (hl : 0 < lam) (n : ℝ) :
   set a : ℂ := ⟨-lam, n⟩ with ha
   have hre : a.re < 0 := by simp [ha]; linarith
   have hint := integrableOn_exp_mul_complex_Ioi hre 0
-  have key := integral_exp_mul_complex_Ioi hre 0
+  have h := congrArg Complex.im (integral_exp_mul_complex_Ioi hre 0)
   have him : (∫ x : ℝ in Set.Ioi 0, Complex.exp (a * x)).im =
       ∫ x : ℝ in Set.Ioi 0, (Complex.exp (a * x)).im := (integral_im hint).symm
-  have hpt : ∀ x : ℝ, (Complex.exp (a * x)).im = Real.exp (-(lam * x)) * Real.sin (n * x) := by
-    intro x
-    rw [Complex.exp_im]
-    simp [ha, Complex.mul_re, Complex.mul_im]
-  simp_rw [hpt] at him
-  unfold laplace
-  rw [← him, key]
-  have hne : a ≠ 0 := by intro h; rw [h] at hre; simp at hre
-  simp only [Complex.ofReal_zero, mul_zero, Complex.exp_zero]
-  rw [Complex.div_im]
-  simp [ha, Complex.normSq_apply]
-  ring_nf
+  rw [him] at h
+  simpa [laplace, Complex.exp_im, ha, Complex.mul_re, Complex.mul_im,
+    Complex.div_im, Complex.normSq_apply, pow_two, neg_div] using h
 
 theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_353531.main) := by
   intro h

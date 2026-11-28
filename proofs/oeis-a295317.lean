@@ -39,6 +39,7 @@ theorem closed (x : ℕ) : (OMA.S_oeis_a295317.a x : ℚ) = ((x : ℕ) : ℚ) * 
 
 end PA295317
 
+open OMA.S_oeis_a295317 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a295317.main := by
   intro n hn
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 13 := ⟨n - 13, by omega⟩
@@ -46,9 +47,9 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a295317.main := by
     show m + 13 - 5 = m + 8 by omega, show m + 13 - 8 = m + 5 by omega,
     show m + 13 - 9 = m + 4 by omega, show m + 13 - 12 = m + 1 by omega,
     show m + 13 - 13 = m by omega]
-  have key : ((OMA.S_oeis_a295317.a (m + 13) : ℤ) : ℚ) = (((OMA.S_oeis_a295317.a (m + 12) : ℤ) + 3 * OMA.S_oeis_a295317.a (m + 9) -
-      3 * OMA.S_oeis_a295317.a (m + 8) - 3 * OMA.S_oeis_a295317.a (m + 5) + 3 * OMA.S_oeis_a295317.a (m + 4) + OMA.S_oeis_a295317.a (m + 1) -
-      OMA.S_oeis_a295317.a m : ℤ) : ℚ) := by
+  have key : ((a (m + 13) : ℤ) : ℚ) = (((a (m + 12) : ℤ) + 3 * a (m + 9) -
+      3 * a (m + 8) - 3 * a (m + 5) + 3 * a (m + 4) + a (m + 1) -
+      a m : ℤ) : ℚ) := by
     push_cast
     rw [PA295317.closed, PA295317.closed, PA295317.closed, PA295317.closed, PA295317.closed, PA295317.closed, PA295317.closed,
       PA295317.closed]

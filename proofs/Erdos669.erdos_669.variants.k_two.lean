@@ -12,8 +12,10 @@ theorem OMA.solution : type_of% @Erdos669.erdos_669.variants.k_two := by
   have hsub (S : Finset ℝ²) : linesWithAtLeastPointsFor 2 (S : Set ℝ²) ⊆
       ps '' (S.powersetCard 2 : Set (Finset ℝ²)) := by
     rintro _ ⟨⟨p, hp, q, hq, hpq, rfl⟩, _⟩
-    exact ⟨{p, q}, Finset.mem_powersetCard.2 ⟨by intro x hx; simp at hx; rcases hx with rfl | rfl <;> assumption,
-      Finset.card_pair_eq_two_iff.2 hpq⟩, by simp [ps]⟩
+    refine ⟨{p, q}, Finset.mem_powersetCard.mpr ⟨?_, Finset.card_pair_eq_two_iff.mpr hpq⟩,
+      by simp [ps]⟩
+    rw [Finset.insert_subset_iff, Finset.singleton_subset_iff]
+    exact ⟨hp, hq⟩
   have hup : maxLinesAtLeast 2 n ≤ n.choose 2 := by
     refine csSup_le' ?_
     rintro _ ⟨S, rfl, rfl⟩
@@ -33,19 +35,16 @@ theorem OMA.solution : type_of% @Erdos669.erdos_669.variants.k_two := by
     obtain ⟨p, q, _, rfl⟩ := Finset.card_eq_two.mp hc
     have hp : p ∈ S := hUS (by simp); have hq : q ∈ S := hUS (by simp)
     obtain ⟨x, rfl⟩ := hSr hp; obtain ⟨y, rfl⟩ := hSr hq
-    ext z; simp only [ps, Finset.coe_insert, Finset.coe_singleton, Set.mem_inter_iff, Set.mem_insert_iff,
-      Set.mem_singleton_iff]
-    refine ⟨fun ⟨hz, hzS⟩ => ?_, fun hz => ?_⟩
-    · obtain ⟨w, rfl⟩ := hSr hzS
-      obtain ⟨t, ht⟩ := mem_affineSpan_pair_iff_exists_lineMap_eq.mp hz
-      have h0 := congrArg (· 0) ht; have h1 := congrArg (· 1) ht
-      simp [AffineMap.lineMap_apply_module, pt, PiLp.add_apply, PiLp.smul_apply] at h0 h1
-      have : (w - x) * (w - y) = 0 := by
-        rw [show (w - x) * (w - y) = w ^ 2 - (x + y) * w + x * y by ring, ← h1, ← h0]; ring
-      rcases mul_eq_zero.mp this with h | h <;> [left; right] <;> congr 1 <;> linarith
-    · rcases hz with rfl | rfl
-      · exact ⟨left_mem_affineSpan_pair _ _ _, hp⟩
-      · exact ⟨right_mem_affineSpan_pair _ _ _, hq⟩
+    refine Set.Subset.antisymm ?_ fun _ hz => ⟨subset_affineSpan ℝ _ hz, hUS hz⟩
+    rintro z ⟨hz, hzS⟩
+    obtain ⟨w, rfl⟩ := hSr hzS
+    have hz' : pt w ∈ line[ℝ, pt x, pt y] := by simpa [ps] using hz
+    obtain ⟨t, ht⟩ := mem_affineSpan_pair_iff_exists_lineMap_eq.mp hz'
+    have h0 := congrArg (· 0) ht
+    have h1 := congrArg (· 1) ht
+    simp [AffineMap.lineMap_apply_module, pt, PiLp.add_apply, PiLp.smul_apply] at h0 h1
+    have h : (w - x) * (w - y) = 0 := by linear_combination (x + y) * h0 - h1
+    rcases mul_eq_zero.mp h with hw | hw <;> simp [sub_eq_zero.mp hw]
   have hlo : n.choose 2 ≤ maxLinesExactly 2 n := by
     refine le_csSup (lineCountsExactly_bddAbove 2 n) ⟨S, hSn, ?_⟩
     have hinj : Set.InjOn ps (S.powersetCard 2 : Set (Finset ℝ²)) := fun U hU V hV h =>
@@ -60,4 +59,5 @@ theorem OMA.solution : type_of% @Erdos669.erdos_669.variants.k_two := by
           exact ⟨p, hUS (by simp), q, hUS (by simp), hpq, by simp [ps]⟩)
     rw [heq, hinj.ncard_image, Set.ncard_coe_finset, Finset.card_powersetCard, hSn]
   have hmid := erdos_669.variants.exactly_le_atLeast 2 n
-  exact ⟨le_antisymm (hmid.trans hup) hlo, le_antisymm hup (hlo.trans hmid)⟩
+  omega
+

@@ -1,4 +1,5 @@
 import OMAStatements.S_oeis_a292273
+open OMA.S_oeis_a292273
 
 -- Problem: oeis-a292273
 -- Credit: @anmolspace
@@ -18,12 +19,12 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a292273.main := by
       intro hsq
       have h2 := hsq 2 ⟨q, by ring⟩
       exact absurd (Nat.isUnit_iff.mp h2) (by norm_num)
-    simp [OMA.S_oeis_a292273.a, hmu]
+    simp [a, hmu]
   · have hodd : Odd (4 * q + 1) := ⟨2 * q, by ring⟩
-    simp [OMA.S_oeis_a292273.a, hodd, Complex.mul_re]
+    simp [a, hodd, Complex.mul_re]
   · have hev : ¬ Odd (4 * q + 2) := by
       rintro ⟨k, hk⟩
       omega
-    simp [OMA.S_oeis_a292273.a, hev, Complex.mul_re, pow_two]
+    simp [a, hev, Complex.mul_re, pow_two]
   · have hodd : Odd (4 * q + 3) := ⟨2 * q + 1, by ring⟩
-    simp [OMA.S_oeis_a292273.a, hodd, Complex.mul_re, pow_succ, pow_two]
+    simp [a, hodd, Complex.mul_re, pow_succ, pow_two]

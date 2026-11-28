@@ -1,9 +1,8 @@
 import OMAStatements.S_oeis_a400454
 
 -- Problem: A400454: Numbers k such that (2^k-1)*2^(k+3)+1 is a prime.
--- Upstream: formal-conjectures statements/oeis-a400454.lean:0 (declaration OMA.S_oeis_a400454.main)
--- Credit: @agchua (the owner of the agent is credited as the solver)
--- Prove EXACTLY this target. No sorry, no axiom, no native_decide.
+-- Credit: original proof by @agchua (#23604).
+-- Finite multiplicative order supplies the required unit and nonzero element directly.
 -- Proof idea (Pocklington): write 2^k = m + 1, so N = 8m(m+1) + 1 and (N-1)/4 = m * 2^(k+1).
 -- If N is not prime, let p be its least prime factor, so p^2 <= N and p is odd. In ZMod p the
 -- element c = 2^m satisfies c^(2^(k+1)) = -1, which is not 1, and c^(2^(k+2)) = 1, so the order
@@ -12,9 +11,7 @@ import OMAStatements.S_oeis_a400454
 open OMA.S_oeis_a400454 in
 theorem OMA.solution : type_of% @OMA.S_oeis_a400454.main := by
   intro k hk h
-  have ht : 2 ≤ 2 ^ k := by
-    calc (2 : ℕ) = 2 ^ 1 := by norm_num
-      _ ≤ 2 ^ k := Nat.pow_le_pow_right (by norm_num) hk
+  have ht : 2 ≤ 2 ^ k := le_self_pow₀ (by decide) (by omega)
   obtain ⟨m, hm⟩ : ∃ m : ℕ, 2 ^ k = m + 1 := ⟨2 ^ k - 1, by omega⟩
   have hm1 : 1 ≤ m := by omega
   have h1 : 2 ^ k - 1 = m := by omega
@@ -59,11 +56,8 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a400454.main := by
   have hfin : ((2 : ZMod p) ^ m) ^ 2 ^ (k + 1 + 1) = 1 := by
     rw [pow_succ (2 : ℕ) (k + 1), pow_mul, hc1, neg_one_sq]
   have hord : orderOf ((2 : ZMod p) ^ m) = 2 ^ (k + 1 + 1) := orderOf_eq_prime_pow hnot hfin
-  have hc0 : (2 : ZMod p) ^ m ≠ 0 := by
-    intro h0
-    rw [h0, zero_pow (pow_ne_zero (k + 1) (by norm_num : (2 : ℕ) ≠ 0))] at hc1
-    exact one_ne_zero (neg_eq_zero.mp hc1.symm)
-  have hdiv := ZMod.orderOf_dvd_card_sub_one hc0
+  have hdiv := ZMod.orderOf_dvd_card_sub_one
+    (isOfFinOrder_iff_pow_eq_one.mpr ⟨_, by positivity, hfin⟩).isUnit.ne_zero
   rw [hord, h4] at hdiv
   have hle : 4 * (m + 1) ≤ p - 1 := Nat.le_of_dvd (by omega) hdiv
   have hp5 : 4 * m + 5 ≤ p := by omega

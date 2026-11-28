@@ -1,5 +1,12 @@
 import OMAStatements.S_mo_476014
 
+/-!
+Retains @Solfanbtc's counterexample from PR #26602 and uses the square-root
+inequality method in @etaubman's earlier companion to statement PR #21258,
+commit ebbf5ffd2085a61270d18e1a587164ed121ba7f8. The same positive functions,
+half-convexity, sandwich bounds and nonconvexity witness are preserved.
+-/
+
 theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_476014.main) := by
   intro h
   let f : ℝ → ℝ := fun x => 1 + x + Real.sqrt x
@@ -12,69 +19,18 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_476014.main) := by
     · intro x hx y hy u hu0 hu1
       dsimp [f]
       rw [← Real.sqrt_eq_rpow u, ← Real.sqrt_eq_rpow (1 - u)]
-      have hsu : u ≤ Real.sqrt u := by
-        have hsq : Real.sqrt u ^ 2 = u := Real.sq_sqrt (le_of_lt hu0)
-        have hnn : 0 ≤ Real.sqrt u := Real.sqrt_nonneg u
-        nlinarith
-      have hs1u : 1 - u ≤ Real.sqrt (1 - u) := by
-        have hsq : Real.sqrt (1 - u) ^ 2 = 1 - u := Real.sq_sqrt (by linarith)
-        have hnn : 0 ≤ Real.sqrt (1 - u) := Real.sqrt_nonneg (1 - u)
-        nlinarith
+      have hsu : u ≤ Real.sqrt u := Real.le_sqrt_self_iff.mpr hu1.le
+      have hs1u : 1 - u ≤ Real.sqrt (1 - u) :=
+        Real.le_sqrt_self_iff.mpr (by linarith)
       have hsqrt_add :
           Real.sqrt (u * x + (1 - u) * y) ≤
             Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y := by
-        have hxy : 0 ≤ u * x + (1 - u) * y := by nlinarith
-        have hlhs : Real.sqrt (u * x + (1 - u) * y) ^ 2 = u * x + (1 - u) * y :=
-          Real.sq_sqrt hxy
-        have h1 : Real.sqrt u ^ 2 = u := Real.sq_sqrt (le_of_lt hu0)
-        have h2 : Real.sqrt x ^ 2 = x := Real.sq_sqrt (le_of_lt hx)
-        have h3 : Real.sqrt (1 - u) ^ 2 = 1 - u := Real.sq_sqrt (by linarith)
-        have h4 : Real.sqrt y ^ 2 = y := Real.sq_sqrt (le_of_lt hy)
-        have hn1 : 0 ≤ Real.sqrt u := Real.sqrt_nonneg _
-        have hn2 : 0 ≤ Real.sqrt x := Real.sqrt_nonneg _
-        have hn3 : 0 ≤ Real.sqrt (1 - u) := Real.sqrt_nonneg _
-        have hn4 : 0 ≤ Real.sqrt y := Real.sqrt_nonneg _
-        have hB : 0 ≤ Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y :=
-          add_nonneg (mul_nonneg hn1 hn2) (mul_nonneg hn3 hn4)
-        have hprod : 0 ≤ (Real.sqrt u * Real.sqrt x) * (Real.sqrt (1 - u) * Real.sqrt y) :=
-          mul_nonneg (mul_nonneg hn1 hn2) (mul_nonneg hn3 hn4)
-        have hrhs :
-            (Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y) ^ 2 =
-              u * x + (1 - u) * y +
-                2 * ((Real.sqrt u * Real.sqrt x) * (Real.sqrt (1 - u) * Real.sqrt y)) := by
-          calc
-            (Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y) ^ 2
-                = Real.sqrt u ^ 2 * Real.sqrt x ^ 2 + Real.sqrt (1 - u) ^ 2 * Real.sqrt y ^ 2 +
-                    2 * ((Real.sqrt u * Real.sqrt x) * (Real.sqrt (1 - u) * Real.sqrt y)) := by
-                  ring
-            _ = u * x + (1 - u) * y +
-                  2 * ((Real.sqrt u * Real.sqrt x) * (Real.sqrt (1 - u) * Real.sqrt y)) := by
-                  rw [h1, h2, h3, h4]
-        by_contra hlt
-        push_neg at hlt
-        have hpos1 :
-            0 < Real.sqrt (u * x + (1 - u) * y) +
-                  (Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y) := by
-          linarith
-        have hpos2 :
-            0 < Real.sqrt (u * x + (1 - u) * y) -
-                  (Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y) := by
-          linarith
-        have hmul :
-            0 < (Real.sqrt (u * x + (1 - u) * y) +
-                  (Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y)) *
-                (Real.sqrt (u * x + (1 - u) * y) -
-                  (Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y)) :=
-          mul_pos hpos1 hpos2
-        have hdiff :
-            (Real.sqrt (u * x + (1 - u) * y) +
-              (Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y)) *
-            (Real.sqrt (u * x + (1 - u) * y) -
-              (Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y)) =
-            Real.sqrt (u * x + (1 - u) * y) ^ 2 -
-              (Real.sqrt u * Real.sqrt x + Real.sqrt (1 - u) * Real.sqrt y) ^ 2 := by
-          ring
-        linarith
+        rw [← Real.sqrt_mul hu0.le, ← Real.sqrt_mul (sub_nonneg.mpr hu1.le)]
+        apply Real.sqrt_le_iff.mpr
+        refine ⟨by positivity, ?_⟩
+        nlinarith [Real.sq_sqrt (mul_nonneg hu0.le hx.le),
+          Real.sq_sqrt (mul_nonneg (sub_nonneg.mpr hu1.le) hy.le),
+          mul_nonneg (Real.sqrt_nonneg (u * x)) (Real.sqrt_nonneg ((1 - u) * y))]
       nlinarith
     · intro x hx
       dsimp [g]
@@ -98,15 +54,8 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_476014.main) := by
   change 1 + ((1 / 2 : ℝ) * 1 + (1 / 2 : ℝ) * 9) +
       Real.sqrt ((1 / 2 : ℝ) * 1 + (1 / 2 : ℝ) * 9) ≤
     (1 / 2 : ℝ) * (1 + 1 + Real.sqrt 1) + (1 / 2 : ℝ) * (1 + 9 + Real.sqrt 9) at hineq
-  have hmid : (1 / 2 : ℝ) * 1 + (1 / 2 : ℝ) * 9 = 5 := by norm_num
-  rw [hmid] at hineq
-  have hs1 : Real.sqrt 1 = 1 := Real.sqrt_one
-  have hs9 : Real.sqrt 9 = 3 := by
-    have hsq : Real.sqrt 9 ^ 2 = 9 := Real.sq_sqrt (by norm_num)
-    have hnn : 0 ≤ Real.sqrt 9 := Real.sqrt_nonneg 9
-    nlinarith
-  have hs5 : 2 < Real.sqrt 5 := by
-    have hsq : Real.sqrt 5 ^ 2 = 5 := Real.sq_sqrt (by norm_num)
-    have hnn : 0 ≤ Real.sqrt 5 := Real.sqrt_nonneg 5
-    nlinarith
+  have h9 : Real.sqrt 9 = 3 :=
+    (Real.sqrt_eq_iff_mul_self_eq (by norm_num) (by norm_num)).mpr (by norm_num)
+  norm_num [h9] at hineq
+  have hs5 : 2 < Real.sqrt 5 := Real.lt_sqrt_of_sq_lt (by norm_num)
   linarith

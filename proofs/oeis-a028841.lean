@@ -1,5 +1,7 @@
 import OMAStatements.S_oeis_a028841
 
+-- Original proof by @jleguina.
+
 namespace OMA.S_oeis_a028841
 
 
@@ -16,21 +18,6 @@ theorem idr_of_lt (n : ℕ) (h : n < 10) : idr n = n := by
 theorem idr_of_ge (n : ℕ) (h : 10 ≤ n) : idr n = idr (ds n) := by
   rw [idr, dif_neg (by omega)]
 
-theorem idr_lt (n : ℕ) : idr n < 10 := by
-  induction n using Nat.strong_induction_on with
-  | _ n ih =>
-    by_cases h : n < 10
-    · rw [idr_of_lt n h]; exact h
-    · rw [idr_of_ge n (by omega)]; exact ih _ (ds_lt n (by omega))
-
-theorem idr_mod (n : ℕ) : idr n % 9 = n % 9 := by
-  induction n using Nat.strong_induction_on with
-  | _ n ih =>
-    by_cases h : n < 10
-    · rw [idr_of_lt n h]
-    · rw [idr_of_ge n (by omega), ih _ (ds_lt n (by omega))]
-      exact (Nat.modEq_nine_digits_sum n).symm
-
 theorem ds_pos (n : ℕ) (h : 0 < n) : 0 < ds n := by
   induction n using Nat.strong_induction_on with
   | _ n ih =>
@@ -43,14 +30,16 @@ theorem ds_pos (n : ℕ) (h : 0 < n) : 0 < ds n := by
       unfold ds at this
       omega
 
-theorem idr_pos (n : ℕ) (h : 0 < n) : 0 < idr n := by
+/-- Iterating the digit sum preserves the residue modulo nine and positivity. -/
+theorem idr_properties (n : ℕ) :
+    idr n < 10 ∧ idr n % 9 = n % 9 ∧ (0 < n → 0 < idr n) := by
   induction n using Nat.strong_induction_on with
   | _ n ih =>
-    by_cases h10 : n < 10
-    · rw [idr_of_lt n h10]; exact h
-    · rw [idr_of_ge n (by omega)]
-      exact ih _ (ds_lt n (by omega)) (ds_pos n h)
-
+    by_cases h : n < 10
+    · simp [idr_of_lt n h, h]
+    · obtain ⟨hlt, hmod, hpos⟩ := ih (ds n) (ds_lt n (by omega))
+      rw [idr_of_ge n (by omega)]
+      exact ⟨hlt, hmod.trans (Nat.modEq_nine_digits_sum n).symm, fun hn => hpos (ds_pos n hn)⟩
 
 /-- The residue form. -/
 def R (n : ℕ) : Prop := n % 9 = 1 ∨ n % 9 = 2 ∨ n % 9 = 3 ∨ n % 9 = 5 ∨ n % 9 = 8
@@ -72,10 +61,8 @@ theorem fib_digit (d : ℕ) (hd : 1 ≤ d) (hd9 : d ≤ 9) :
 theorem P_iff (n : ℕ) : P n ↔ R n := by
   unfold P R
   by_cases hn : 0 < n
-  · have h1 := idr_pos n hn
-    have h2 := idr_lt n
-    have h3 := idr_mod n
-    rw [fib_digit _ h1 (by omega)]
+  · obtain ⟨hlt, hmod, hpos⟩ := idr_properties n
+    rw [fib_digit _ (hpos hn) (by omega)]
     constructor
     · rintro ⟨-, h⟩
       omega
@@ -105,11 +92,7 @@ theorem count_add_period {Q : ℕ → Prop} [DecidablePred Q] {T : ℕ}
   | zero => simp
   | succ m ih =>
     rw [show m + 1 + T = (m + T) + 1 by omega, Nat.count_succ, ih, Nat.count_succ]
-    by_cases h : Q m
-    · rw [if_pos ((hper m).mpr h), if_pos h]
-      omega
-    · rw [if_neg (fun h' => h ((hper m).mp h')), if_neg h]
-      omega
+    simp [hper, Nat.add_right_comm]
 
 theorem count_9 : Nat.count R 9 = 5 := by decide +kernel
 
@@ -175,10 +158,7 @@ theorem gf_identity :
     interval_cases n <;> simp [h1, h2, h3, h4, h5, h6] <;> norm_num
   · have hr : (a n : ℚ) = a (n - 1) + a (n - 5) - a (n - 6) := by
       exact_mod_cast conjecture_true n hn
-    simp only [show n ≠ 0 by omega, show 1 ≤ n by omega, show 2 ≤ n by omega, show 3 ≤ n by omega,
-      show 4 ≤ n by omega, show 5 ≤ n by omega, show 6 ≤ n by omega, show n - 1 ≠ 0 by omega,
-      show n - 2 ≠ 0 by omega, show n - 3 ≠ 0 by omega, show n - 4 ≠ 0 by omega,
-      show n - 5 ≠ 0 by omega, show n - 6 ≠ 0 by omega, if_true, if_false]
+    simp (disch := omega) [if_pos, if_neg]
     linarith
 
 end OMA.S_oeis_a028841

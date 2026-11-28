@@ -109,41 +109,6 @@ private lemma hypergraphEquiv_univ_iff {n : ℕ} {H₁ H₂ : Finset (Finset (Fi
   rcases h with ⟨σ, rfl⟩
   exact (permActHypergraph_univ σ H₁).symm
 
-private lemma hypergraphEquiv_equivalence (n : ℕ) : Equivalence (hypergraphEquiv n) := by
-  refine ⟨fun H => ⟨1, ?_⟩, fun ⟨σ, h⟩ => ⟨σ.symm, ?_⟩, fun ⟨σ₁, h₁⟩ ⟨σ₂, h₂⟩ => ⟨σ₂ * σ₁, ?_⟩⟩
-  · have hmap1 : ∀ a : Finset (Fin n), a.map (1 : Equiv.Perm (Fin n)).toEmbedding = a := by
-      intro a; ext i; simp only [Finset.mem_map, Equiv.coe_toEmbedding, Equiv.Perm.coe_one, id_eq]
-      exact ⟨fun ⟨j, hj, hji⟩ => hji ▸ hj, fun hi => ⟨i, hi, rfl⟩⟩
-    ext s; simp [permActHypergraph, hmap1]
-  · subst h
-    ext s
-    simp only [permActHypergraph, Finset.mem_image]
-    constructor
-    · rintro ⟨t, ⟨u, hu, rfl⟩, rfl⟩
-      have : (u.map σ.toEmbedding).map σ.symm.toEmbedding = u := by
-        simpa using map_perm_symm_cancel σ.symm u
-      rwa [this]
-    · intro hs
-      exact ⟨s.map σ.toEmbedding, ⟨s, hs, rfl⟩, by simpa using map_perm_symm_cancel σ.symm s⟩
-  · subst h₁; subst h₂
-    ext s
-    simp only [permActHypergraph, Finset.mem_image]
-    constructor
-    · rintro ⟨u, hu, rfl⟩
-      refine ⟨u.map σ₁.toEmbedding, ⟨u, hu, rfl⟩, ?_⟩
-      ext i
-      simp only [Finset.mem_map, Equiv.coe_toEmbedding, Equiv.Perm.coe_mul, Function.comp_apply]
-      constructor
-      · rintro ⟨j, ⟨k, hk, rfl⟩, rfl⟩; exact ⟨k, hk, rfl⟩
-      · rintro ⟨k, hk, rfl⟩; exact ⟨σ₁ k, ⟨k, hk, rfl⟩, rfl⟩
-    · rintro ⟨t, ⟨u, hu, rfl⟩, rfl⟩
-      refine ⟨u, hu, ?_⟩
-      ext i
-      simp only [Finset.mem_map, Equiv.coe_toEmbedding, Equiv.Perm.coe_mul, Function.comp_apply]
-      constructor
-      · rintro ⟨k, hk, rfl⟩; exact ⟨σ₁ k, ⟨k, hk, rfl⟩, rfl⟩
-      · rintro ⟨j, ⟨k, hk, rfl⟩, rfl⟩; exact ⟨k, hk, rfl⟩
-
 private lemma boolFnEquiv_iff_fnToHyp {n : ℕ} (f g : (Fin n → Bool) → Bool) :
     boolFnEquiv n f g ↔ hypergraphEquiv n (fnToHyp f) (fnToHyp g) := by
   constructor

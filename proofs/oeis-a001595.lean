@@ -1,7 +1,11 @@
 import OMAStatements.S_oeis_a001595
 import Mathlib
 
-open PowerSeries OMA.S_oeis_a001595 in
+open OMA.S_oeis_a001595 PowerSeries in
 theorem OMA.solution : type_of% @OMA.S_oeis_a001595.main := by
-  refine ⟨?_, ?_⟩ <;>
-  (ring_nf; ext n; rcases n with _ | _ | _ | _ | n <;> simp [coeff_mul_X_pow', coeff_X_pow_mul', coeff_succ_X_mul, coeff_C_mul, coeff_X_pow, coeff_X, ← map_ofNat C, -eq_intCast, coeff_mul_C, coeff_succ_mul_X, a] <;> ring)
+  have h : mk a * (1 - 2 * (X : ℤ⟦X⟧) + X ^ 3) = 1 - X + X ^ 2 := by
+    ext n
+    rcases n with _ | _ | _ | n <;>
+    simp [mul_add, mul_sub, ← mul_assoc, pow_succ, two_mul, a, coeff_X, coeff_one]
+    ring
+  exact ⟨h, by linear_combination h⟩

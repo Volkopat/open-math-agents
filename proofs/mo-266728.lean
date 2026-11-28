@@ -1,107 +1,81 @@
 import OMAStatements.S_mo_266728
-import Mathlib
 
-namespace OMA.SimplexColumns
+-- Retains @connoranderson's original simplex characterization (statement PR #24207).
+-- @Genbox registered the alternative main proof in PR #28389.
+-- Standard inverse-sign and determinant APIs replace two algebraic arguments.
 
-open Matrix
+namespace OMA.S_mo_266728
+open Matrix Finset Set
 
-private theorem hull {n : ℕ} (A : Matrix (Fin n) (Fin n) ℝ) :
-    convexHull ℝ (Set.range A.col) = A.mulVec '' stdSimplex ℝ (Fin n) := by
-  classical
-  rw [← convexHull_rangle_single_eq_stdSimplex ℝ (Fin n)]
-  change _ = A.mulVecLin '' _
-  rw [LinearMap.image_convexHull, ← Set.range_comp]
-  congr 1
-  ext j
-  simp [Function.comp_def]
+private lemma column_hull {n : ℕ} (A : Matrix (Fin n) (Fin n) ℝ) :
+    convexHull ℝ (Set.range A.col) = (A.mulVec) '' stdSimplex ℝ (Fin n) := by
+  rw [←convexHull_rangle_single_eq_stdSimplex]
+  change _ = (A.mulVecLin : (Fin n → ℝ) →ₗ[ℝ] (Fin n → ℝ)) '' _
+  rw [LinearMap.image_convexHull,←Set.range_comp]
+  congr 2
+  funext j
+  exact (Matrix.mulVec_single_one A j).symm
 
-private theorem columns_iff {n : ℕ} (A : Matrix (Fin n) (Fin n) ℝ) :
-    ((fun _ : Fin n => (1 : ℝ)) ᵥ* A) = (fun _ => 1) ↔
-      ∀ j, ∑ i, A i j = 1 := by
-  rw [funext_iff]
-  simp [Matrix.vecMul, dotProduct]
+private lemma total {n : ℕ} (A : Matrix (Fin n) (Fin n) ℝ) (x : Fin n → ℝ)
+    (h : ∀ j, ∑ i, A i j=1) : ∑ i, (A *ᵥ x) i = ∑ i, x i := by
+  simp only [mulVec,dotProduct]
+  rw [sum_comm]
+  simp_rw [←Finset.sum_mul,h,one_mul]
 
-private theorem sum_image {n : ℕ} (A : Matrix (Fin n) (Fin n) ℝ)
-    (h : ∀ j, ∑ i, A i j = 1) (x : Fin n → ℝ) :
-    (∑ i, (A *ᵥ x) i) = ∑ i, x i := by
-  simp only [Matrix.mulVec, dotProduct]
-  rw [Finset.sum_comm]
-  apply Finset.sum_congr rfl
-  intro i _
-  rw [← Finset.sum_mul, h i, one_mul]
+private lemma adj_sign {n : ℕ} (A : Matrix (Fin n) (Fin n) ℝ) (i j : Fin n) :
+    0 ≤ A⁻¹ i j ↔ 0 ≤ A.det*A.adjugate i j := by
+  simp only [Matrix.inv_def, Matrix.smul_apply, Ring.inverse_eq_inv, smul_eq_mul,
+    mul_nonneg_iff, inv_nonneg, inv_nonpos]
 
-private theorem scaled_inverse {n : ℕ} (A : Matrix (Fin n) (Fin n) ℝ)
-    (hd : A.det ≠ 0) (i j : Fin n) :
-    A.det^2 * A⁻¹ i j = A.det * A.adjugate i j := by
-  rw [Matrix.inv_def, Matrix.smul_apply, smul_eq_mul, Ring.inverse_eq_inv]
-  field_simp [hd]
-
-theorem characterization : type_of% @OMA.S_mo_266728.main := by
-  intro n A
-  classical
+private lemma hull_test {n : ℕ} (A : Matrix (Fin n) (Fin n) ℝ) :
+    convexHull ℝ (Set.range A.col) ∩ {v : Fin n → ℝ | ∀ i, 0≤v i} = stdSimplex ℝ (Fin n) ↔
+    (∀ j, ∑ i, A i j=1) ∧ A.det≠0 ∧ ∀ i j, 0≤A.det*A.adjugate i j := by
+  rw [column_hull]
   constructor
-  · rintro ⟨diagonal, equality⟩
-    have witness (j : Fin n) :
-        ∃ w ∈ stdSimplex ℝ (Fin n), A *ᵥ w = Pi.single j 1 := by
-      have basis : Pi.single j (1 : ℝ) ∈ stdSimplex ℝ (Fin n) := by
-        refine ⟨?_, by simp⟩
-        intro i
-        by_cases h : i = j <;> simp [h]
-      rw [← equality, hull A] at basis
-      exact basis.1
-    choose w hw he using witness
-    let B : Matrix (Fin n) (Fin n) ℝ := fun i j => w j i
-    have ab : A * B = 1 := by
-      apply Matrix.ext
-      intro i j
-      change (A *ᵥ w j) i = (1 : Matrix (Fin n) (Fin n) ℝ) i j
-      have entry : (A *ᵥ w j) i = (Pi.single j (1 : ℝ) : Fin n → ℝ) i :=
-        congrFun (he j) i
-      simpa [Matrix.one_apply, Pi.single_apply, eq_comm] using entry
-    have ba : B * A = 1 := mul_eq_one_comm.mp ab
-    have hinv : A⁻¹ = B := Matrix.inv_eq_right_inv ab
-    have hd : A.det ≠ 0 := by
-      intro h
-      have hdet := congrArg Matrix.det ab
-      rw [Matrix.det_mul, h, zero_mul, Matrix.det_one] at hdet
-      exact zero_ne_one hdet
-    let u : Fin n → ℝ := fun _ => 1
-    have ub : u ᵥ* B = u := (columns_iff B).mpr fun j => (hw j).2
-    have ua : u ᵥ* A = u := by
-      calc
-        _ = (u ᵥ* B) ᵥ* A := by rw [ub]
-        _ = u := by rw [Matrix.vecMul_vecMul, ba, Matrix.vecMul_one]
-    refine ⟨diagonal, (columns_iff A).mp ua, hd, ?_⟩
-    intro i j
-    rw [← scaled_inverse A hd, hinv]
-    exact mul_nonneg (sq_nonneg _) ((hw j).1 i)
-  · rintro ⟨diagonal, columns, hd, hadj⟩
-    let B := A⁻¹
-    have ab : A * B = 1 := Matrix.mul_nonsing_inv A (isUnit_iff_ne_zero.mpr hd)
-    have nonneg (i j : Fin n) : 0 ≤ B i j := by
-      apply (mul_le_mul_iff_right₀ (sq_pos_of_ne_zero hd)).mp
-      rw [mul_zero]
-      exact (scaled_inverse A hd i j).symm ▸ hadj i j
-    let u : Fin n → ℝ := fun _ => 1
-    have ua : u ᵥ* A = u := (columns_iff A).mpr columns
-    have ub : u ᵥ* B = u := by
-      calc
-        _ = (u ᵥ* A) ᵥ* B := by rw [ua]
-        _ = u := by rw [Matrix.vecMul_vecMul, ab, Matrix.vecMul_one]
-    refine ⟨diagonal, ?_⟩
-    rw [hull A]
-    ext x
+  · intro h
+    have vertices (j : Fin n) : ∃ w ∈ stdSimplex ℝ (Fin n), A *ᵥ w=Pi.single j 1 := by
+      have hj := single_mem_stdSimplex ℝ j
+      rw [←h] at hj
+      exact hj.1
+    choose w hw hAw using vertices
+    let B : Matrix (Fin n) (Fin n) ℝ := Matrix.of (fun i j => w j i)
+    have hAB : A*B=1 := by
+      ext i j
+      simpa only [Matrix.mul_apply,B,Matrix.of_apply,Matrix.mulVec, dotProduct,Pi.single_apply,
+        Matrix.one_apply,eq_comm] using congrFun (hAw j) i
+    have hdet : A.det ≠ 0 := Matrix.det_ne_zero_of_right_inverse hAB
+    have hB : A⁻¹=B := Matrix.inv_eq_right_inv hAB
+    have hBA : B*A=1 := hB ▸ Matrix.nonsing_inv_mul A (isUnit_iff_ne_zero.mpr hdet)
+    refine ⟨?_,hdet,fun i j => (adj_sign A i j).mp (hB ▸ (hw j).1 i)⟩
+    intro j
+    have he : B *ᵥ A.col j = Pi.single j 1 := by
+      funext i
+      have hh := congrFun₂ hBA i j
+      simpa only [Matrix.mul_apply,Matrix.one_apply,Pi.single_apply,Matrix.mulVec,dotProduct,Matrix.col_apply,eq_comm] using hh
+    have ht := total B (A.col j) (fun k => (hw k).2)
+    rw [he] at ht
+    simpa [Matrix.col_apply] using ht.symm
+  · rintro ⟨ha,hd,hco⟩
+    have hi := isUnit_iff_ne_zero.mpr hd
+    ext v
     constructor
-    · rintro ⟨⟨w, hw, rfl⟩, hx⟩
-      exact ⟨hx, (sum_image A columns w).trans hw.2⟩
-    · intro hx
-      refine ⟨⟨B *ᵥ x, ⟨?_, (sum_image B ((columns_iff B).mp ub) x).trans hx.2⟩, ?_⟩, hx.1⟩
+    · rintro ⟨⟨w,hw,rfl⟩,hn⟩
+      exact ⟨hn,(total A w ha).trans hw.2⟩
+    · intro hv
+      refine ⟨⟨A⁻¹ *ᵥ v,⟨?_,?_⟩,?_⟩,hv.1⟩
       · intro i
-        change 0 ≤ ∑ j : Fin n, B i j * x j
-        exact Finset.sum_nonneg fun j _ => mul_nonneg (nonneg i j) (hx.1 j)
-      · rw [Matrix.mulVec_mulVec, ab, Matrix.one_mulVec]
+        change 0 ≤ ∑ j,A⁻¹ i j*v j
+        exact Finset.sum_nonneg fun j _ => mul_nonneg ((adj_sign A i j).mpr (hco i j)) (hv.1 j)
+      · have he := total A (A⁻¹ *ᵥ v) ha
+        rw [Matrix.mulVec_mulVec,Matrix.mul_nonsing_inv _ hi,Matrix.one_mulVec] at he
+        exact he.symm.trans hv.2
+      · rw [Matrix.mulVec_mulVec,Matrix.mul_nonsing_inv _ hi,Matrix.one_mulVec]
 
-end OMA.SimplexColumns
+end OMA.S_mo_266728
 
-theorem OMA.solution : type_of% @OMA.S_mo_266728.main :=
-  OMA.SimplexColumns.characterization
+open OMA.S_mo_266728
+
+theorem OMA.solution : type_of% @OMA.S_mo_266728.main := by
+  intro n A
+  exact and_congr_right fun _ => hull_test A
+

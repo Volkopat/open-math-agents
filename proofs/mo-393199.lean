@@ -1,5 +1,7 @@
 import OMAStatements.S_mo_393199
 
+/-! Credit: @Genbox for the original perturbation counterexample. -/
+
 open OMA.S_mo_393199 Matrix Polynomial
 
 private abbrev M₂ := Matrix (Fin 2) (Fin 2) ℝ
@@ -13,13 +15,10 @@ private theorem perturbation_eval (e t : ℝ) (ht : t ≠ 0) :
       t ^ 2 * ((t + e + 2 + t⁻¹ * e) * (t + e - 3) + 6) := by
   let I : M₂ := 1
   let D : M₂ := t • I
-  have hscalar : Matrix.scalar (Fin 2 ⊕ Fin 2) t =
-      t • (1 : Matrix (Fin 2 ⊕ Fin 2) (Fin 2 ⊕ Fin 2) ℝ) := by
-    ext i j
-    by_cases hij : i = j <;> simp [Matrix.scalar_apply, hij]
   have hblocks : Matrix.scalar (Fin 2 ⊕ Fin 2) t - block A 0 C₀ e =
       fromBlocks ((t + e) • I - A) (-I) (e • C₀) D := by
-    rw [hscalar, ← Matrix.fromBlocks_one, Matrix.fromBlocks_smul]
+    rw [Matrix.scalar_apply, ← Matrix.smul_one_eq_diagonal,
+      ← Matrix.fromBlocks_one, Matrix.fromBlocks_smul]
     ext i j
     rcases i with i | i <;> rcases j with j | j
     all_goals simp [block, I, D, smul_eq_mul]
@@ -43,11 +42,9 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_393199.main) := by
     norm_num [A]
     ring
   have hsimple : A.charpoly.rootMultiplicity 1 = 1 := by
-    rw [hApoly, Polynomial.rootMultiplicity_mul
-      (mul_ne_zero Polynomial.X_ne_zero (Polynomial.X_sub_C_ne_zero 1)),
-      Polynomial.rootMultiplicity_X_sub_C_self]
-    rw [Polynomial.rootMultiplicity_eq_zero]
-    simp [Polynomial.IsRoot]
+    rw [hApoly, ← pow_one (X - Polynomial.C (1 : ℝ)),
+      Polynomial.rootMultiplicity_mul_X_sub_C_pow Polynomial.X_ne_zero,
+      Polynomial.rootMultiplicity_eq_zero (by simp [Polynomial.IsRoot])]
   have hAstable (z : ℂ) (hz : Polynomial.aeval z A.charpoly = 0) (hz1 : z ≠ 1) :
       ‖z‖ < 1 := by
     rw [hApoly] at hz
@@ -90,5 +87,5 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_393199.main) := by
     rw [show (t : ℂ) = algebraMap ℝ ℂ t from rfl,
       Polynomial.aeval_algebraMap_apply_eq_algebraMap_eval, hp, map_zero]
   have hnorm := hstable (t : ℂ) hroot
-  rw [Complex.norm_real, Real.norm_eq_abs, abs_of_nonneg (by linarith)] at hnorm
+  rw [Complex.norm_of_nonneg (by linarith : 0 ≤ t)] at hnorm
   linarith

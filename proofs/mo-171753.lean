@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_171753
 import Mathlib
 
+-- Retains @AkiRA-COM-FP’s separating-clause construction from PR #17304.
+-- Finite nonempty union closure follows from Mathlib’s supremum-closure theorem.
+
 open Finset
 
 open OMA.S_mo_171753
@@ -8,20 +11,8 @@ open OMA.S_mo_171753
 private theorem union_over_nonempty {n : ℕ} {F : Set (Finset (Fin n))}
     (hUnion : ∀ s ∈ F, ∀ t ∈ F, s ∪ t ∈ F) :
     ∀ A : Finset (Finset (Fin n)), A.Nonempty → (∀ t ∈ A, t ∈ F) → A.sup id ∈ F := by
-  classical
-  intro A
-  induction A using Finset.induction_on with
-  | empty =>
-    simp
-  | @insert s A hs ih =>
-    intro _ hF
-    have hS : s ∈ F := hF s (mem_insert_self _ _)
-    rw [sup_insert]
-    change s ∪ A.sup id ∈ F
-    by_cases h : A.Nonempty
-    · exact hUnion s hS _ (ih h (fun t ht => hF t (mem_insert_of_mem ht)))
-    · rw [not_nonempty_iff_eq_empty.mp h]
-      simpa using hS
+  intro A hA hF
+  simpa only [Finset.sup'_eq_sup] using Finset.sup'_mem F hUnion A hA id hF
 
 private theorem clause_separates_missing {n : ℕ} {F : Set (Finset (Fin n))}
     (hUnion : ∀ s ∈ F, ∀ t ∈ F, s ∪ t ∈ F) {s : Finset (Fin n)} (hs : s ∉ F) :

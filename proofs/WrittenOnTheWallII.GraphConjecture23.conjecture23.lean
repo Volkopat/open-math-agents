@@ -18,7 +18,7 @@ private instance : DecidableRel G.Adj := fun _ _ => inferInstanceAs (Decidable (
 
 private def layer : Fin 19 → ℕ := ![0,1,2,3,4,5,6,7,8,9,10,0,3,6,9,0,0,10,10]
 
-private def T : Fin 4 → Fin 19 × Fin 19 × Fin 19 := ![(0,1,11),(3,4,12),(6,7,13),(9,10,14)]
+private def T : Fin 4 → Fin 3 → Fin 19 := ![![0,1,11],![3,4,12],![6,7,13],![9,10,14]]
 
 theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture23.conjecture23 := by
   intro h
@@ -63,20 +63,20 @@ theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture23.conjecture
       refine csSup_le ⟨0, ∅, (induce_isBipartite_iff_exists_coloring G _).2 ⟨fun _ => 0, by simp⟩, rfl⟩ ?_
       rintro _ ⟨s, hb, rfl⟩
       obtain ⟨c, hc⟩ := (induce_isBipartite_iff_exists_coloring G s).1 hb
-      have hom (i : Fin 4) : ∃ v ∈ ({(T i).1, (T i).2.1, (T i).2.2} : Finset (Fin 19)), v ∉ s := by
+      have edge : ∀ i j k, j ≠ k → G.Adj (T i j) (T i k) := by decide
+      have miss (i : Fin 4) : ∃ j, T i j ∉ s := by
         by_contra! hm
-        have he : ∀ j, G.Adj (T j).1 (T j).2.1 ∧ G.Adj (T j).1 (T j).2.2 ∧ G.Adj (T j).2.1 (T j).2.2 := by decide
-        exact (by decide : ∀ a b d : Fin 2, a ≠ b → a ≠ d → b ≠ d → False) _ _ _
-          (hc _ (hm _ (by simp)) _ (hm _ (by simp)) (he i).1)
-          (hc _ (hm _ (by simp)) _ (hm _ (by simp)) (he i).2.1)
-          (hc _ (hm _ (by simp)) _ (hm _ (by simp)) (he i).2.2)
-      choose f hf hn using hom
-      have disj : ∀ i j : Fin 4, ∀ v : Fin 19,
-          v ∈ ({(T i).1, (T i).2.1, (T i).2.2} : Finset (Fin 19)) →
-          v ∈ ({(T j).1, (T j).2.1, (T j).2.2} : Finset (Fin 19)) → i = j := by decide
+        have inj : Function.Injective (fun j => c (T i j)) := by
+          intro j k h
+          by_contra h'
+          exact hc _ (hm _) _ (hm _) (edge i j k h') h
+        have := Fintype.card_le_of_injective _ inj
+        simp at this
+      choose f hf using miss
+      have sep : ∀ i j k l, T i j = T k l → i = k := by decide
       have hcard := Fintype.card_le_of_embedding
-        (⟨fun i => ⟨f i, Finset.mem_compl.2 (hn i)⟩,
-          fun i j hij => disj i j (f j) (Subtype.mk.inj hij ▸ hf i) (hf j)⟩ : Fin 4 ↪ ↥(sᶜ : Finset (Fin 19)))
+        (⟨fun i => ⟨T i (f i), Finset.mem_compl.2 (hf i)⟩,
+          fun i j h => sep i (f i) j (f j) (Subtype.mk.inj h)⟩ : Fin 4 ↪ ↥(sᶜ : Finset (Fin 19)))
       have hs := s.card_le_univ; simp at hcard hs; omega : G.largestInducedBipartiteSubgraphSize ≤ 15)
   have hf : (16 : ℝ) ≤ (⌊(G.indepNum : ℝ) + distAvgSet G ({0, 10} : Set (Fin 19)) / 2⌋ : ℤ) := by
     exact_mod_cast Int.le_floor.2 (by push_cast; linarith)

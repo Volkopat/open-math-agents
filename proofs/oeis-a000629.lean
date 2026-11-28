@@ -49,42 +49,14 @@ theorem OMA.solution : type_of% @OMA.S_oeis_a000629.main := by
         ∑ k ∈ Finset.range (j + 1), Nat.stirlingSecond j k * k.factorial := by
     intro j hj
     symm
-    apply Finset.sum_subset
-    · intro x hx
-      simp only [Finset.mem_range] at hx hj ⊢
-      omega
-    · intro x _ hx
-      simp only [Finset.mem_range] at hx
-      rw [Nat.stirlingSecond_eq_zero_of_lt (by omega), zero_mul]
-  calc ∑ k ∈ Finset.range (n + 1), Nat.stirlingSecond (n + 1) (k + 1) * k.factorial
-      = ∑ k ∈ Finset.range (n + 1), ∑ j ∈ Finset.range (n + 1),
-          n.choose j * (Nat.stirlingSecond j k * k.factorial) := by
-        apply Finset.sum_congr rfl
-        intro k _
-        rw [a000629_key n k, Finset.sum_mul]
-        apply Finset.sum_congr rfl
-        intro j _
-        ring
-    _ = ∑ j ∈ Finset.range (n + 1), n.choose j *
-          ∑ k ∈ Finset.range (n + 1), Nat.stirlingSecond j k * k.factorial := by
-        rw [Finset.sum_comm]
-        apply Finset.sum_congr rfl
-        intro j _
-        rw [Finset.mul_sum]
-    _ = ∑ j ∈ Finset.range (n + 1), n.choose j *
-          ∑ k ∈ Finset.range (j + 1), Nat.stirlingSecond j k * k.factorial := by
-        apply Finset.sum_congr rfl
-        intro j hj
-        rw [hF j hj]
-    _ = ∑ k ∈ Finset.range (n + 1), n.choose (n + 1 - 1 - k) *
-          ∑ j ∈ Finset.range (n + 1 - 1 - k + 1),
-            Nat.stirlingSecond (n + 1 - 1 - k) j * j.factorial :=
-        (Finset.sum_range_reflect (fun j => n.choose j *
-          ∑ k ∈ Finset.range (j + 1), Nat.stirlingSecond j k * k.factorial) (n + 1)).symm
-    _ = ∑ k ∈ Finset.range (n + 1), n.choose k *
-          ∑ j ∈ Finset.range (n - k + 1), Nat.stirlingSecond (n - k) j * j.factorial := by
-        apply Finset.sum_congr rfl
-        intro k hk
-        have hk' : k ≤ n := Nat.lt_succ_iff.mp (Finset.mem_range.mp hk)
-        have e : n + 1 - 1 - k = n - k := by omega
-        rw [e, Nat.choose_symm hk']
+    apply Finset.sum_subset (Finset.range_mono (by simpa using Finset.mem_range.mp hj))
+    intro k _ hk
+    rw [Nat.stirlingSecond_eq_zero_of_lt (by simp only [Finset.mem_range] at hk; omega), zero_mul]
+  simp_rw [a000629_key n, Finset.sum_mul, mul_assoc]
+  rw [Finset.sum_comm]
+  simp_rw [← Finset.mul_sum]
+  refine (Finset.sum_congr rfl fun j hj => by rw [hF j hj]).trans ?_
+  rw [← Finset.sum_range_reflect _ (n + 1)]
+  refine Finset.sum_congr rfl fun k hk => ?_
+  simp only [Nat.add_sub_cancel]
+  rw [Nat.choose_symm (Nat.lt_succ_iff.mp (Finset.mem_range.mp hk))]

@@ -3964,1239 +3964,191 @@ theorem blockSum_add (f : ℕ → ℕ) (start l r : ℕ) :
 def weightedPrime (p : ℕ) : ℕ :=
   if wheelPrime p then ((2 : ℕ) ^ 60 + p * (p - 1) - 1) / (p * (p - 1)) else 0
 
-private theorem joinBlocks (f : ℕ → ℕ) (start mid l r length first second total : ℕ)
-    (hlen : l + r = length) (hmid : start + l = mid) (hfirst : blockSum f start l = first)
-    (hsecond : blockSum f mid r = second) (htotal : first + second = total) :
-    blockSum f start length = total := by
-  rw [← hlen, blockSum_add, hmid, hfirst, hsecond, htotal]
+private theorem blockSum_mul (f : ℕ → ℕ) (start width count : ℕ) :
+    blockSum f start (width * count) =
+      ∑ k ∈ range count, blockSum f (start + width * k) width := by
+  induction count with
+  | zero => simp [blockSum]
+  | succ count ih =>
+    rw [Nat.mul_succ, blockSum_add, ih, sum_range_succ]
 
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_0_1 : blockSum weightedPrime 1501 250 = 14442207657714 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_1_2 : blockSum weightedPrime 1751 250 = 10162244122709 := by decide +kernel
-
-private theorem block_0_2 : blockSum weightedPrime 1501 500 = 24604451780423 :=
-  joinBlocks weightedPrime 1501 1751 250 250 500 14442207657714 10162244122709 24604451780423
-    (by decide +kernel) (by decide +kernel) block_0_1 block_1_2 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_2_3 : blockSum weightedPrime 2001 250 = 7985437117468 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_3_4 : blockSum weightedPrime 2251 250 = 6820104160167 := by decide +kernel
-
-private theorem block_2_4 : blockSum weightedPrime 2001 500 = 14805541277635 :=
-  joinBlocks weightedPrime 2001 2251 250 250 500 7985437117468 6820104160167 14805541277635
-    (by decide +kernel) (by decide +kernel) block_2_3 block_3_4 (by decide +kernel)
-
-private theorem block_0_4 : blockSum weightedPrime 1501 1000 = 39409993058058 :=
-  joinBlocks weightedPrime 1501 2001 500 500 1000 24604451780423 14805541277635 39409993058058
-    (by decide +kernel) (by decide +kernel) block_0_2 block_2_4 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_4_5 : blockSum weightedPrime 2501 250 = 5638739132379 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_5_6 : blockSum weightedPrime 2751 250 = 4065848442773 := by decide +kernel
-
-private theorem block_4_6 : blockSum weightedPrime 2501 500 = 9704587575152 :=
-  joinBlocks weightedPrime 2501 2751 250 250 500 5638739132379 4065848442773 9704587575152
-    (by decide +kernel) (by decide +kernel) block_4_5 block_5_6 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_6_7 : blockSum weightedPrime 3001 250 = 3208335847439 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_7_8 : blockSum weightedPrime 3251 250 = 3259372429121 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_8_9 : blockSum weightedPrime 3501 250 = 2907672435815 := by decide +kernel
-
-private theorem block_7_9 : blockSum weightedPrime 3251 500 = 6167044864936 :=
-  joinBlocks weightedPrime 3251 3501 250 250 500 3259372429121 2907672435815 6167044864936
-    (by decide +kernel) (by decide +kernel) block_7_8 block_8_9 (by decide +kernel)
-
-private theorem block_6_9 : blockSum weightedPrime 3001 750 = 9375380712375 :=
-  joinBlocks weightedPrime 3001 3251 250 500 750 3208335847439 6167044864936 9375380712375
-    (by decide +kernel) (by decide +kernel) block_6_7 block_7_9 (by decide +kernel)
-
-private theorem block_4_9 : blockSum weightedPrime 2501 1250 = 19079968287527 :=
-  joinBlocks weightedPrime 2501 3001 500 750 1250 9704587575152 9375380712375 19079968287527
-    (by decide +kernel) (by decide +kernel) block_4_6 block_6_9 (by decide +kernel)
-
-private theorem block_0_9 : blockSum weightedPrime 1501 2250 = 58489961345585 :=
-  joinBlocks weightedPrime 1501 2501 1000 1250 2250 39409993058058 19079968287527 58489961345585
-    (by decide +kernel) (by decide +kernel) block_0_4 block_4_9 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_9_10 : blockSum weightedPrime 3751 250 = 2160595061329 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_10_11 : blockSum weightedPrime 4001 250 = 2179006021005 := by decide +kernel
-
-private theorem block_9_11 : blockSum weightedPrime 3751 500 = 4339601082334 :=
-  joinBlocks weightedPrime 3751 4001 250 250 500 2160595061329 2179006021005 4339601082334
-    (by decide +kernel) (by decide +kernel) block_9_10 block_10_11 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_11_12 : blockSum weightedPrime 4251 250 = 1691583961015 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_12_13 : blockSum weightedPrime 4501 250 = 1567664406584 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_13_14 : blockSum weightedPrime 4751 250 = 1451945497666 := by decide +kernel
-
-private theorem block_12_14 : blockSum weightedPrime 4501 500 = 3019609904250 :=
-  joinBlocks weightedPrime 4501 4751 250 250 500 1567664406584 1451945497666 3019609904250
-    (by decide +kernel) (by decide +kernel) block_12_13 block_13_14 (by decide +kernel)
-
-private theorem block_11_14 : blockSum weightedPrime 4251 750 = 4711193865265 :=
-  joinBlocks weightedPrime 4251 4501 250 500 750 1691583961015 3019609904250 4711193865265
-    (by decide +kernel) (by decide +kernel) block_11_12 block_12_14 (by decide +kernel)
-
-private theorem block_9_14 : blockSum weightedPrime 3751 1250 = 9050794947599 :=
-  joinBlocks weightedPrime 3751 4251 500 750 1250 4339601082334 4711193865265 9050794947599
-    (by decide +kernel) (by decide +kernel) block_9_11 block_11_14 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_14_15 : blockSum weightedPrime 5001 250 = 1232825878783 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_15_16 : blockSum weightedPrime 5251 250 = 1115408875341 := by decide +kernel
-
-private theorem block_14_16 : blockSum weightedPrime 5001 500 = 2348234754124 :=
-  joinBlocks weightedPrime 5001 5251 250 250 500 1232825878783 1115408875341 2348234754124
-    (by decide +kernel) (by decide +kernel) block_14_15 block_15_16 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_16_17 : blockSum weightedPrime 5501 250 = 1166311865741 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_17_18 : blockSum weightedPrime 5751 250 = 871404709664 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_18_19 : blockSum weightedPrime 6001 250 = 892186605334 := by decide +kernel
-
-private theorem block_17_19 : blockSum weightedPrime 5751 500 = 1763591314998 :=
-  joinBlocks weightedPrime 5751 6001 250 250 500 871404709664 892186605334 1763591314998
-    (by decide +kernel) (by decide +kernel) block_17_18 block_18_19 (by decide +kernel)
-
-private theorem block_16_19 : blockSum weightedPrime 5501 750 = 2929903180739 :=
-  joinBlocks weightedPrime 5501 5751 250 500 750 1166311865741 1763591314998 2929903180739
-    (by decide +kernel) (by decide +kernel) block_16_17 block_17_19 (by decide +kernel)
-
-private theorem block_14_19 : blockSum weightedPrime 5001 1250 = 5278137934863 :=
-  joinBlocks weightedPrime 5001 5501 500 750 1250 2348234754124 2929903180739 5278137934863
-    (by decide +kernel) (by decide +kernel) block_14_16 block_16_19 (by decide +kernel)
-
-private theorem block_9_19 : blockSum weightedPrime 3751 2500 = 14328932882462 :=
-  joinBlocks weightedPrime 3751 5001 1250 1250 2500 9050794947599 5278137934863 14328932882462
-    (by decide +kernel) (by decide +kernel) block_9_14 block_14_19 (by decide +kernel)
-
-private theorem block_0_19 : blockSum weightedPrime 1501 4750 = 72818894228047 :=
-  joinBlocks weightedPrime 1501 3751 2250 2500 4750 58489961345585 14328932882462 72818894228047
-    (by decide +kernel) (by decide +kernel) block_0_9 block_9_19 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_19_20 : blockSum weightedPrime 6251 250 = 855308126132 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_20_21 : blockSum weightedPrime 6501 250 = 708323920442 := by decide +kernel
-
-private theorem block_19_21 : blockSum weightedPrime 6251 500 = 1563632046574 :=
-  joinBlocks weightedPrime 6251 6501 250 250 500 855308126132 708323920442 1563632046574
-    (by decide +kernel) (by decide +kernel) block_19_20 block_20_21 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_21_22 : blockSum weightedPrime 6751 250 = 755274791488 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_22_23 : blockSum weightedPrime 7001 250 = 612009136415 := by decide +kernel
-
-private theorem block_21_23 : blockSum weightedPrime 6751 500 = 1367283927903 :=
-  joinBlocks weightedPrime 6751 7001 250 250 500 755274791488 612009136415 1367283927903
-    (by decide +kernel) (by decide +kernel) block_21_22 block_22_23 (by decide +kernel)
-
-private theorem block_19_23 : blockSum weightedPrime 6251 1000 = 2930915974477 :=
-  joinBlocks weightedPrime 6251 6751 500 500 1000 1563632046574 1367283927903 2930915974477
-    (by decide +kernel) (by decide +kernel) block_19_21 block_21_23 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_23_24 : blockSum weightedPrime 7251 250 = 485846811130 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_24_25 : blockSum weightedPrime 7501 250 = 636073361554 := by decide +kernel
-
-private theorem block_23_25 : blockSum weightedPrime 7251 500 = 1121920172684 :=
-  joinBlocks weightedPrime 7251 7501 250 250 500 485846811130 636073361554 1121920172684
-    (by decide +kernel) (by decide +kernel) block_23_24 block_24_25 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_25_26 : blockSum weightedPrime 7751 250 = 465413232178 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_26_27 : blockSum weightedPrime 8001 250 = 488460766156 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_27_28 : blockSum weightedPrime 8251 250 = 395843522558 := by decide +kernel
-
-private theorem block_26_28 : blockSum weightedPrime 8001 500 = 884304288714 :=
-  joinBlocks weightedPrime 8001 8251 250 250 500 488460766156 395843522558 884304288714
-    (by decide +kernel) (by decide +kernel) block_26_27 block_27_28 (by decide +kernel)
-
-private theorem block_25_28 : blockSum weightedPrime 7751 750 = 1349717520892 :=
-  joinBlocks weightedPrime 7751 8001 250 500 750 465413232178 884304288714 1349717520892
-    (by decide +kernel) (by decide +kernel) block_25_26 block_26_28 (by decide +kernel)
-
-private theorem block_23_28 : blockSum weightedPrime 7251 1250 = 2471637693576 :=
-  joinBlocks weightedPrime 7251 7751 500 750 1250 1121920172684 1349717520892 2471637693576
-    (by decide +kernel) (by decide +kernel) block_23_25 block_25_28 (by decide +kernel)
-
-private theorem block_19_28 : blockSum weightedPrime 6251 2250 = 5402553668053 :=
-  joinBlocks weightedPrime 6251 7251 1000 1250 2250 2930915974477 2471637693576 5402553668053
-    (by decide +kernel) (by decide +kernel) block_19_23 block_23_28 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_28_29 : blockSum weightedPrime 8501 250 = 495264324781 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_29_30 : blockSum weightedPrime 8751 250 = 381074959032 := by decide +kernel
-
-private theorem block_28_30 : blockSum weightedPrime 8501 500 = 876339283813 :=
-  joinBlocks weightedPrime 8501 8751 250 250 500 495264324781 381074959032 876339283813
-    (by decide +kernel) (by decide +kernel) block_28_29 block_29_30 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_30_31 : blockSum weightedPrime 9001 250 = 401842143185 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_31_32 : blockSum weightedPrime 9251 250 = 405775903033 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_32_33 : blockSum weightedPrime 9501 250 = 322747807052 := by decide +kernel
-
-private theorem block_31_33 : blockSum weightedPrime 9251 500 = 728523710085 :=
-  joinBlocks weightedPrime 9251 9501 250 250 500 405775903033 322747807052 728523710085
-    (by decide +kernel) (by decide +kernel) block_31_32 block_32_33 (by decide +kernel)
-
-private theorem block_30_33 : blockSum weightedPrime 9001 750 = 1130365853270 :=
-  joinBlocks weightedPrime 9001 9251 250 500 750 401842143185 728523710085 1130365853270
-    (by decide +kernel) (by decide +kernel) block_30_31 block_31_33 (by decide +kernel)
-
-private theorem block_28_33 : blockSum weightedPrime 8501 1250 = 2006705137083 :=
-  joinBlocks weightedPrime 8501 9001 500 750 1250 876339283813 1130365853270 2006705137083
-    (by decide +kernel) (by decide +kernel) block_28_30 block_30_33 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_33_34 : blockSum weightedPrime 9751 250 = 308169561217 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_34_35 : blockSum weightedPrime 10001 250 = 303675402426 := by decide +kernel
-
-private theorem block_33_35 : blockSum weightedPrime 9751 500 = 611844963643 :=
-  joinBlocks weightedPrime 9751 10001 250 250 500 308169561217 303675402426 611844963643
-    (by decide +kernel) (by decide +kernel) block_33_34 block_34_35 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_35_36 : blockSum weightedPrime 10251 250 = 300408152937 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_36_37 : blockSum weightedPrime 10501 250 = 265179700657 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_37_38 : blockSum weightedPrime 10751 250 = 243476565192 := by decide +kernel
-
-private theorem block_36_38 : blockSum weightedPrime 10501 500 = 508656265849 :=
-  joinBlocks weightedPrime 10501 10751 250 250 500 265179700657 243476565192 508656265849
-    (by decide +kernel) (by decide +kernel) block_36_37 block_37_38 (by decide +kernel)
-
-private theorem block_35_38 : blockSum weightedPrime 10251 750 = 809064418786 :=
-  joinBlocks weightedPrime 10251 10501 250 500 750 300408152937 508656265849 809064418786
-    (by decide +kernel) (by decide +kernel) block_35_36 block_36_38 (by decide +kernel)
-
-private theorem block_33_38 : blockSum weightedPrime 9751 1250 = 1420909382429 :=
-  joinBlocks weightedPrime 9751 10251 500 750 1250 611844963643 809064418786 1420909382429
-    (by decide +kernel) (by decide +kernel) block_33_35 block_35_38 (by decide +kernel)
-
-private theorem block_28_38 : blockSum weightedPrime 8501 2500 = 3427614519512 :=
-  joinBlocks weightedPrime 8501 9751 1250 1250 2500 2006705137083 1420909382429 3427614519512
-    (by decide +kernel) (by decide +kernel) block_28_33 block_33_38 (by decide +kernel)
-
-private theorem block_19_38 : blockSum weightedPrime 6251 4750 = 8830168187565 :=
-  joinBlocks weightedPrime 6251 8501 2250 2500 4750 5402553668053 3427614519512 8830168187565
-    (by decide +kernel) (by decide +kernel) block_19_28 block_28_38 (by decide +kernel)
-
-private theorem block_0_38 : blockSum weightedPrime 1501 9500 = 81649062415612 :=
-  joinBlocks weightedPrime 1501 6251 4750 4750 9500 72818894228047 8830168187565 81649062415612
-    (by decide +kernel) (by decide +kernel) block_0_19 block_19_38 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_38_39 : blockSum weightedPrime 11001 250 = 223681717823 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_39_40 : blockSum weightedPrime 11251 250 = 249562281487 := by decide +kernel
-
-private theorem block_38_40 : blockSum weightedPrime 11001 500 = 473243999310 :=
-  joinBlocks weightedPrime 11001 11251 250 250 500 223681717823 249562281487 473243999310
-    (by decide +kernel) (by decide +kernel) block_38_39 block_39_40 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_40_41 : blockSum weightedPrime 11501 250 = 187520807127 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_41_42 : blockSum weightedPrime 11751 250 = 236958030304 := by decide +kernel
-
-private theorem block_40_42 : blockSum weightedPrime 11501 500 = 424478837431 :=
-  joinBlocks weightedPrime 11501 11751 250 250 500 187520807127 236958030304 424478837431
-    (by decide +kernel) (by decide +kernel) block_40_41 block_41_42 (by decide +kernel)
-
-private theorem block_38_42 : blockSum weightedPrime 11001 1000 = 897722836741 :=
-  joinBlocks weightedPrime 11001 11501 500 500 1000 473243999310 424478837431 897722836741
-    (by decide +kernel) (by decide +kernel) block_38_40 block_40_42 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_42_43 : blockSum weightedPrime 12001 250 = 196162417028 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_43_44 : blockSum weightedPrime 12251 250 = 218346615809 := by decide +kernel
-
-private theorem block_42_44 : blockSum weightedPrime 12001 500 = 414509032837 :=
-  joinBlocks weightedPrime 12001 12251 250 250 500 196162417028 218346615809 414509032837
-    (by decide +kernel) (by decide +kernel) block_42_43 block_43_44 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_44_45 : blockSum weightedPrime 12501 250 = 210045757931 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_45_46 : blockSum weightedPrime 12751 250 = 180723242991 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_46_47 : blockSum weightedPrime 13001 250 = 187541282597 := by decide +kernel
-
-private theorem block_45_47 : blockSum weightedPrime 12751 500 = 368264525588 :=
-  joinBlocks weightedPrime 12751 13001 250 250 500 180723242991 187541282597 368264525588
-    (by decide +kernel) (by decide +kernel) block_45_46 block_46_47 (by decide +kernel)
-
-private theorem block_44_47 : blockSum weightedPrime 12501 750 = 578310283519 :=
-  joinBlocks weightedPrime 12501 12751 250 500 750 210045757931 368264525588 578310283519
-    (by decide +kernel) (by decide +kernel) block_44_45 block_45_47 (by decide +kernel)
-
-private theorem block_42_47 : blockSum weightedPrime 12001 1250 = 992819316356 :=
-  joinBlocks weightedPrime 12001 12501 500 750 1250 414509032837 578310283519 992819316356
-    (by decide +kernel) (by decide +kernel) block_42_44 block_44_47 (by decide +kernel)
-
-private theorem block_38_47 : blockSum weightedPrime 11001 2250 = 1890542153097 :=
-  joinBlocks weightedPrime 11001 12001 1000 1250 2250 897722836741 992819316356 1890542153097
-    (by decide +kernel) (by decide +kernel) block_38_42 block_42_47 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_47_48 : blockSum weightedPrime 13251 250 = 160923638090 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_48_49 : blockSum weightedPrime 13501 250 = 154953543685 := by decide +kernel
-
-private theorem block_47_49 : blockSum weightedPrime 13251 500 = 315877181775 :=
-  joinBlocks weightedPrime 13251 13501 250 250 500 160923638090 154953543685 315877181775
-    (by decide +kernel) (by decide +kernel) block_47_48 block_48_49 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_49_50 : blockSum weightedPrime 13751 250 = 161903730319 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_50_51 : blockSum weightedPrime 14001 250 = 127197862546 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_51_52 : blockSum weightedPrime 14251 250 = 133777743573 := by decide +kernel
-
-private theorem block_50_52 : blockSum weightedPrime 14001 500 = 260975606119 :=
-  joinBlocks weightedPrime 14001 14251 250 250 500 127197862546 133777743573 260975606119
-    (by decide +kernel) (by decide +kernel) block_50_51 block_51_52 (by decide +kernel)
-
-private theorem block_49_52 : blockSum weightedPrime 13751 750 = 422879336438 :=
-  joinBlocks weightedPrime 13751 14001 250 500 750 161903730319 260975606119 422879336438
-    (by decide +kernel) (by decide +kernel) block_49_50 block_50_52 (by decide +kernel)
-
-private theorem block_47_52 : blockSum weightedPrime 13251 1250 = 738756518213 :=
-  joinBlocks weightedPrime 13251 13751 500 750 1250 315877181775 422879336438 738756518213
-    (by decide +kernel) (by decide +kernel) block_47_49 block_49_52 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_52_53 : blockSum weightedPrime 14501 250 = 156270837485 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_53_54 : blockSum weightedPrime 14751 250 = 140944268185 := by decide +kernel
-
-private theorem block_52_54 : blockSum weightedPrime 14501 500 = 297215105670 :=
-  joinBlocks weightedPrime 14501 14751 250 250 500 156270837485 140944268185 297215105670
-    (by decide +kernel) (by decide +kernel) block_52_53 block_53_54 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_54_55 : blockSum weightedPrime 15001 250 = 125949597040 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_55_56 : blockSum weightedPrime 15251 250 = 151374311094 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_56_57 : blockSum weightedPrime 15501 250 = 127302215967 := by decide +kernel
-
-private theorem block_55_57 : blockSum weightedPrime 15251 500 = 278676527061 :=
-  joinBlocks weightedPrime 15251 15501 250 250 500 151374311094 127302215967 278676527061
-    (by decide +kernel) (by decide +kernel) block_55_56 block_56_57 (by decide +kernel)
-
-private theorem block_54_57 : blockSum weightedPrime 15001 750 = 404626124101 :=
-  joinBlocks weightedPrime 15001 15251 250 500 750 125949597040 278676527061 404626124101
-    (by decide +kernel) (by decide +kernel) block_54_55 block_55_57 (by decide +kernel)
-
-private theorem block_52_57 : blockSum weightedPrime 14501 1250 = 701841229771 :=
-  joinBlocks weightedPrime 14501 15001 500 750 1250 297215105670 404626124101 701841229771
-    (by decide +kernel) (by decide +kernel) block_52_54 block_54_57 (by decide +kernel)
-
-private theorem block_47_57 : blockSum weightedPrime 13251 2500 = 1440597747984 :=
-  joinBlocks weightedPrime 13251 14501 1250 1250 2500 738756518213 701841229771 1440597747984
-    (by decide +kernel) (by decide +kernel) block_47_52 block_52_57 (by decide +kernel)
-
-private theorem block_38_57 : blockSum weightedPrime 11001 4750 = 3331139901081 :=
-  joinBlocks weightedPrime 11001 13251 2250 2500 4750 1890542153097 1440597747984 3331139901081
-    (by decide +kernel) (by decide +kernel) block_38_47 block_47_57 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_57_58 : blockSum weightedPrime 15751 250 = 114476167463 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_58_59 : blockSum weightedPrime 16001 250 = 115311399551 := by decide +kernel
-
-private theorem block_57_59 : blockSum weightedPrime 15751 500 = 229787567014 :=
-  joinBlocks weightedPrime 15751 16001 250 250 500 114476167463 115311399551 229787567014
-    (by decide +kernel) (by decide +kernel) block_57_58 block_58_59 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_59_60 : blockSum weightedPrime 16251 250 = 103044204074 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_60_61 : blockSum weightedPrime 16501 250 = 100004836052 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_61_62 : blockSum weightedPrime 16751 250 = 97018623928 := by decide +kernel
-
-private theorem block_60_62 : blockSum weightedPrime 16501 500 = 197023459980 :=
-  joinBlocks weightedPrime 16501 16751 250 250 500 100004836052 97018623928 197023459980
-    (by decide +kernel) (by decide +kernel) block_60_61 block_61_62 (by decide +kernel)
-
-private theorem block_59_62 : blockSum weightedPrime 16251 750 = 300067664054 :=
-  joinBlocks weightedPrime 16251 16501 250 500 750 103044204074 197023459980 300067664054
-    (by decide +kernel) (by decide +kernel) block_59_60 block_60_62 (by decide +kernel)
-
-private theorem block_57_62 : blockSum weightedPrime 15751 1250 = 529855231068 :=
-  joinBlocks weightedPrime 15751 16251 500 750 1250 229787567014 300067664054 529855231068
-    (by decide +kernel) (by decide +kernel) block_57_59 block_59_62 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_62_63 : blockSum weightedPrime 17001 250 = 98354738342 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_63_64 : blockSum weightedPrime 17251 250 = 110552840057 := by decide +kernel
-
-private theorem block_62_64 : blockSum weightedPrime 17001 500 = 208907578399 :=
-  joinBlocks weightedPrime 17001 17251 250 250 500 98354738342 110552840057 208907578399
-    (by decide +kernel) (by decide +kernel) block_62_63 block_63_64 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_64_65 : blockSum weightedPrime 17501 250 = 88997227332 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_65_66 : blockSum weightedPrime 17751 250 = 93654569276 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_66_67 : blockSum weightedPrime 18001 250 = 91215888535 := by decide +kernel
-
-private theorem block_65_67 : blockSum weightedPrime 17751 500 = 184870457811 :=
-  joinBlocks weightedPrime 17751 18001 250 250 500 93654569276 91215888535 184870457811
-    (by decide +kernel) (by decide +kernel) block_65_66 block_66_67 (by decide +kernel)
-
-private theorem block_64_67 : blockSum weightedPrime 17501 750 = 273867685143 :=
-  joinBlocks weightedPrime 17501 17751 250 500 750 88997227332 184870457811 273867685143
-    (by decide +kernel) (by decide +kernel) block_64_65 block_65_67 (by decide +kernel)
-
-private theorem block_62_67 : blockSum weightedPrime 17001 1250 = 482775263542 :=
-  joinBlocks weightedPrime 17001 17501 500 750 1250 208907578399 273867685143 482775263542
-    (by decide +kernel) (by decide +kernel) block_62_64 block_64_67 (by decide +kernel)
-
-private theorem block_57_67 : blockSum weightedPrime 15751 2500 = 1012630494610 :=
-  joinBlocks weightedPrime 15751 17001 1250 1250 2500 529855231068 482775263542 1012630494610
-    (by decide +kernel) (by decide +kernel) block_57_62 block_62_67 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_67_68 : blockSum weightedPrime 18251 250 = 95703861242 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_68_69 : blockSum weightedPrime 18501 250 = 73119188822 := by decide +kernel
-
-private theorem block_67_69 : blockSum weightedPrime 18251 500 = 168823050064 :=
-  joinBlocks weightedPrime 18251 18501 250 250 500 95703861242 73119188822 168823050064
-    (by decide +kernel) (by decide +kernel) block_67_68 block_68_69 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_69_70 : blockSum weightedPrime 18751 250 = 58275103482 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_70_71 : blockSum weightedPrime 19001 250 = 78790914774 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_71_72 : blockSum weightedPrime 19251 250 = 88904846381 := by decide +kernel
-
-private theorem block_70_72 : blockSum weightedPrime 19001 500 = 167695761155 :=
-  joinBlocks weightedPrime 19001 19251 250 250 500 78790914774 88904846381 167695761155
-    (by decide +kernel) (by decide +kernel) block_70_71 block_71_72 (by decide +kernel)
-
-private theorem block_69_72 : blockSum weightedPrime 18751 750 = 225970864637 :=
-  joinBlocks weightedPrime 18751 19001 250 500 750 58275103482 167695761155 225970864637
-    (by decide +kernel) (by decide +kernel) block_69_70 block_70_72 (by decide +kernel)
-
-private theorem block_67_72 : blockSum weightedPrime 18251 1250 = 394793914701 :=
-  joinBlocks weightedPrime 18251 18751 500 750 1250 168823050064 225970864637 394793914701
-    (by decide +kernel) (by decide +kernel) block_67_69 block_69_72 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_72_73 : blockSum weightedPrime 19501 250 = 65911717804 := by decide +kernel
+private def sums : List ℕ := [
+  14442207657714, 10162244122709, 7985437117468, 6820104160167, 5638739132379, 4065848442773, 3208335847439,
+  3259372429121, 2907672435815, 2160595061329, 2179006021005, 1691583961015, 1567664406584, 1451945497666,
+  1232825878783, 1115408875341, 1166311865741, 871404709664, 892186605334, 855308126132, 708323920442,
+  755274791488, 612009136415, 485846811130, 636073361554, 465413232178, 488460766156, 395843522558,
+  495264324781, 381074959032, 401842143185, 405775903033, 322747807052, 308169561217, 303675402426,
+  300408152937, 265179700657, 243476565192, 223681717823, 249562281487, 187520807127, 236958030304,
+  196162417028, 218346615809, 210045757931, 180723242991, 187541282597, 160923638090, 154953543685,
+  161903730319, 127197862546, 133777743573, 156270837485, 140944268185, 125949597040, 151374311094,
+  127302215967, 114476167463, 115311399551, 103044204074, 100004836052, 97018623928, 98354738342,
+  110552840057, 88997227332, 93654569276, 91215888535, 95703861242, 73119188822, 58275103482,
+  78790914774, 88904846381, 65911717804, 81708664258, 76868949846, 66664140123, 65016824584,
+  60856579264, 72393752269, 60497308334, 66641756404, 60295518343, 63693332130, 55323960042,
+  60771635588, 48501285952, 60487458104, 44376722322, 57856706087, 54640742481, 59473770334,
+  38756161457, 38031080483, 44699906287, 43798640847, 42973643398, 43866554275, 43030136205,
+  40531453893, 43105123254, 42214526082, 39886104102, 32936881756, 33856691830, 34717200040,
+  41580477253, 32093085715, 32924755730, 42230796597, 31847581357, 35337783236, 32073968043,
+  27603479089, 27142635638, 31761195116, 28746690590, 27046222535, 30252090492, 33296708543,
+  24625157137, 28824617934, 20431865149, 29063630062, 31908523631, 27095212814, 27718720215,
+  25221223136, 24830702320, 27548138315, 25142719677, 18807314226, 27338869348, 25005381984,
+  19915588309, 20571414626, 22129683113, 18199624231, 23286524086, 19447245917, 20913723674,
+  22342996984, 22898755906, 18410164476, 18984695689, 22017271496, 17666044702, 15848846859,
+  16455722857, 20840701934, 16776977397, 20319896745, 15617635348, 16890156683, 18131550273
+]
 
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_73_74 : blockSum weightedPrime 19751 250 = 81708664258 := by decide +kernel
-
-private theorem block_72_74 : blockSum weightedPrime 19501 500 = 147620382062 :=
-  joinBlocks weightedPrime 19501 19751 250 250 500 65911717804 81708664258 147620382062
-    (by decide +kernel) (by decide +kernel) block_72_73 block_73_74 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_74_75 : blockSum weightedPrime 20001 250 = 76868949846 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_75_76 : blockSum weightedPrime 20251 250 = 66664140123 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_76_77 : blockSum weightedPrime 20501 250 = 65016824584 := by decide +kernel
-
-private theorem block_75_77 : blockSum weightedPrime 20251 500 = 131680964707 :=
-  joinBlocks weightedPrime 20251 20501 250 250 500 66664140123 65016824584 131680964707
-    (by decide +kernel) (by decide +kernel) block_75_76 block_76_77 (by decide +kernel)
-
-private theorem block_74_77 : blockSum weightedPrime 20001 750 = 208549914553 :=
-  joinBlocks weightedPrime 20001 20251 250 500 750 76868949846 131680964707 208549914553
-    (by decide +kernel) (by decide +kernel) block_74_75 block_75_77 (by decide +kernel)
-
-private theorem block_72_77 : blockSum weightedPrime 19501 1250 = 356170296615 :=
-  joinBlocks weightedPrime 19501 20001 500 750 1250 147620382062 208549914553 356170296615
-    (by decide +kernel) (by decide +kernel) block_72_74 block_74_77 (by decide +kernel)
-
-private theorem block_67_77 : blockSum weightedPrime 18251 2500 = 750964211316 :=
-  joinBlocks weightedPrime 18251 19501 1250 1250 2500 394793914701 356170296615 750964211316
-    (by decide +kernel) (by decide +kernel) block_67_72 block_72_77 (by decide +kernel)
-
-private theorem block_57_77 : blockSum weightedPrime 15751 5000 = 1763594705926 :=
-  joinBlocks weightedPrime 15751 18251 2500 2500 5000 1012630494610 750964211316 1763594705926
-    (by decide +kernel) (by decide +kernel) block_57_67 block_67_77 (by decide +kernel)
-
-private theorem block_38_77 : blockSum weightedPrime 11001 9750 = 5094734607007 :=
-  joinBlocks weightedPrime 11001 15751 4750 5000 9750 3331139901081 1763594705926 5094734607007
-    (by decide +kernel) (by decide +kernel) block_38_57 block_57_77 (by decide +kernel)
-
-private theorem block_0_77 : blockSum weightedPrime 1501 19250 = 86743797022619 :=
-  joinBlocks weightedPrime 1501 11001 9500 9750 19250 81649062415612 5094734607007 86743797022619
-    (by decide +kernel) (by decide +kernel) block_0_38 block_38_77 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_77_78 : blockSum weightedPrime 20751 250 = 60856579264 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_78_79 : blockSum weightedPrime 21001 250 = 72393752269 := by decide +kernel
-
-private theorem block_77_79 : blockSum weightedPrime 20751 500 = 133250331533 :=
-  joinBlocks weightedPrime 20751 21001 250 250 500 60856579264 72393752269 133250331533
-    (by decide +kernel) (by decide +kernel) block_77_78 block_78_79 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_79_80 : blockSum weightedPrime 21251 250 = 60497308334 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_80_81 : blockSum weightedPrime 21501 250 = 66641756404 := by decide +kernel
-
-private theorem block_79_81 : blockSum weightedPrime 21251 500 = 127139064738 :=
-  joinBlocks weightedPrime 21251 21501 250 250 500 60497308334 66641756404 127139064738
-    (by decide +kernel) (by decide +kernel) block_79_80 block_80_81 (by decide +kernel)
-
-private theorem block_77_81 : blockSum weightedPrime 20751 1000 = 260389396271 :=
-  joinBlocks weightedPrime 20751 21251 500 500 1000 133250331533 127139064738 260389396271
-    (by decide +kernel) (by decide +kernel) block_77_79 block_79_81 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_81_82 : blockSum weightedPrime 21751 250 = 60295518343 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_82_83 : blockSum weightedPrime 22001 250 = 63693332130 := by decide +kernel
-
-private theorem block_81_83 : blockSum weightedPrime 21751 500 = 123988850473 :=
-  joinBlocks weightedPrime 21751 22001 250 250 500 60295518343 63693332130 123988850473
-    (by decide +kernel) (by decide +kernel) block_81_82 block_82_83 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_83_84 : blockSum weightedPrime 22251 250 = 55323960042 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_84_85 : blockSum weightedPrime 22501 250 = 60771635588 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_85_86 : blockSum weightedPrime 22751 250 = 48501285952 := by decide +kernel
-
-private theorem block_84_86 : blockSum weightedPrime 22501 500 = 109272921540 :=
-  joinBlocks weightedPrime 22501 22751 250 250 500 60771635588 48501285952 109272921540
-    (by decide +kernel) (by decide +kernel) block_84_85 block_85_86 (by decide +kernel)
-
-private theorem block_83_86 : blockSum weightedPrime 22251 750 = 164596881582 :=
-  joinBlocks weightedPrime 22251 22501 250 500 750 55323960042 109272921540 164596881582
-    (by decide +kernel) (by decide +kernel) block_83_84 block_84_86 (by decide +kernel)
-
-private theorem block_81_86 : blockSum weightedPrime 21751 1250 = 288585732055 :=
-  joinBlocks weightedPrime 21751 22251 500 750 1250 123988850473 164596881582 288585732055
-    (by decide +kernel) (by decide +kernel) block_81_83 block_83_86 (by decide +kernel)
-
-private theorem block_77_86 : blockSum weightedPrime 20751 2250 = 548975128326 :=
-  joinBlocks weightedPrime 20751 21751 1000 1250 2250 260389396271 288585732055 548975128326
-    (by decide +kernel) (by decide +kernel) block_77_81 block_81_86 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_86_87 : blockSum weightedPrime 23001 250 = 60487458104 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_87_88 : blockSum weightedPrime 23251 250 = 44376722322 := by decide +kernel
-
-private theorem block_86_88 : blockSum weightedPrime 23001 500 = 104864180426 :=
-  joinBlocks weightedPrime 23001 23251 250 250 500 60487458104 44376722322 104864180426
-    (by decide +kernel) (by decide +kernel) block_86_87 block_87_88 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_88_89 : blockSum weightedPrime 23501 250 = 57856706087 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_89_90 : blockSum weightedPrime 23751 250 = 54640742481 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_90_91 : blockSum weightedPrime 24001 250 = 59473770334 := by decide +kernel
-
-private theorem block_89_91 : blockSum weightedPrime 23751 500 = 114114512815 :=
-  joinBlocks weightedPrime 23751 24001 250 250 500 54640742481 59473770334 114114512815
-    (by decide +kernel) (by decide +kernel) block_89_90 block_90_91 (by decide +kernel)
-
-private theorem block_88_91 : blockSum weightedPrime 23501 750 = 171971218902 :=
-  joinBlocks weightedPrime 23501 23751 250 500 750 57856706087 114114512815 171971218902
-    (by decide +kernel) (by decide +kernel) block_88_89 block_89_91 (by decide +kernel)
-
-private theorem block_86_91 : blockSum weightedPrime 23001 1250 = 276835399328 :=
-  joinBlocks weightedPrime 23001 23501 500 750 1250 104864180426 171971218902 276835399328
-    (by decide +kernel) (by decide +kernel) block_86_88 block_88_91 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_91_92 : blockSum weightedPrime 24251 250 = 38756161457 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_92_93 : blockSum weightedPrime 24501 250 = 38031080483 := by decide +kernel
-
-private theorem block_91_93 : blockSum weightedPrime 24251 500 = 76787241940 :=
-  joinBlocks weightedPrime 24251 24501 250 250 500 38756161457 38031080483 76787241940
-    (by decide +kernel) (by decide +kernel) block_91_92 block_92_93 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_93_94 : blockSum weightedPrime 24751 250 = 44699906287 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_94_95 : blockSum weightedPrime 25001 250 = 43798640847 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_95_96 : blockSum weightedPrime 25251 250 = 42973643398 := by decide +kernel
-
-private theorem block_94_96 : blockSum weightedPrime 25001 500 = 86772284245 :=
-  joinBlocks weightedPrime 25001 25251 250 250 500 43798640847 42973643398 86772284245
-    (by decide +kernel) (by decide +kernel) block_94_95 block_95_96 (by decide +kernel)
-
-private theorem block_93_96 : blockSum weightedPrime 24751 750 = 131472190532 :=
-  joinBlocks weightedPrime 24751 25001 250 500 750 44699906287 86772284245 131472190532
-    (by decide +kernel) (by decide +kernel) block_93_94 block_94_96 (by decide +kernel)
-
-private theorem block_91_96 : blockSum weightedPrime 24251 1250 = 208259432472 :=
-  joinBlocks weightedPrime 24251 24751 500 750 1250 76787241940 131472190532 208259432472
-    (by decide +kernel) (by decide +kernel) block_91_93 block_93_96 (by decide +kernel)
-
-private theorem block_86_96 : blockSum weightedPrime 23001 2500 = 485094831800 :=
-  joinBlocks weightedPrime 23001 24251 1250 1250 2500 276835399328 208259432472 485094831800
-    (by decide +kernel) (by decide +kernel) block_86_91 block_91_96 (by decide +kernel)
-
-private theorem block_77_96 : blockSum weightedPrime 20751 4750 = 1034069960126 :=
-  joinBlocks weightedPrime 20751 23001 2250 2500 4750 548975128326 485094831800 1034069960126
-    (by decide +kernel) (by decide +kernel) block_77_86 block_86_96 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_96_97 : blockSum weightedPrime 25501 250 = 43866554275 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_97_98 : blockSum weightedPrime 25751 250 = 43030136205 := by decide +kernel
-
-private theorem block_96_98 : blockSum weightedPrime 25501 500 = 86896690480 :=
-  joinBlocks weightedPrime 25501 25751 250 250 500 43866554275 43030136205 86896690480
-    (by decide +kernel) (by decide +kernel) block_96_97 block_97_98 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_98_99 : blockSum weightedPrime 26001 250 = 40531453893 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_99_100 : blockSum weightedPrime 26251 250 = 43105123254 := by decide +kernel
-
-private theorem block_98_100 : blockSum weightedPrime 26001 500 = 83636577147 :=
-  joinBlocks weightedPrime 26001 26251 250 250 500 40531453893 43105123254 83636577147
-    (by decide +kernel) (by decide +kernel) block_98_99 block_99_100 (by decide +kernel)
-
-private theorem block_96_100 : blockSum weightedPrime 25501 1000 = 170533267627 :=
-  joinBlocks weightedPrime 25501 26001 500 500 1000 86896690480 83636577147 170533267627
-    (by decide +kernel) (by decide +kernel) block_96_98 block_98_100 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_100_101 : blockSum weightedPrime 26501 250 = 42214526082 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_101_102 : blockSum weightedPrime 26751 250 = 39886104102 := by decide +kernel
-
-private theorem block_100_102 : blockSum weightedPrime 26501 500 = 82100630184 :=
-  joinBlocks weightedPrime 26501 26751 250 250 500 42214526082 39886104102 82100630184
-    (by decide +kernel) (by decide +kernel) block_100_101 block_101_102 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_102_103 : blockSum weightedPrime 27001 250 = 32936881756 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_103_104 : blockSum weightedPrime 27251 250 = 33856691830 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_104_105 : blockSum weightedPrime 27501 250 = 34717200040 := by decide +kernel
-
-private theorem block_103_105 : blockSum weightedPrime 27251 500 = 68573891870 :=
-  joinBlocks weightedPrime 27251 27501 250 250 500 33856691830 34717200040 68573891870
-    (by decide +kernel) (by decide +kernel) block_103_104 block_104_105 (by decide +kernel)
-
-private theorem block_102_105 : blockSum weightedPrime 27001 750 = 101510773626 :=
-  joinBlocks weightedPrime 27001 27251 250 500 750 32936881756 68573891870 101510773626
-    (by decide +kernel) (by decide +kernel) block_102_103 block_103_105 (by decide +kernel)
-
-private theorem block_100_105 : blockSum weightedPrime 26501 1250 = 183611403810 :=
-  joinBlocks weightedPrime 26501 27001 500 750 1250 82100630184 101510773626 183611403810
-    (by decide +kernel) (by decide +kernel) block_100_102 block_102_105 (by decide +kernel)
+private def chunkAgrees (i : ℕ) : Prop :=
+  blockSum weightedPrime (1501 + 250 * i) 250 = sums.getD i 0
 
-private theorem block_96_105 : blockSum weightedPrime 25501 2250 = 354144671437 :=
-  joinBlocks weightedPrime 25501 26501 1000 1250 2250 170533267627 183611403810 354144671437
-    (by decide +kernel) (by decide +kernel) block_96_100 block_100_105 (by decide +kernel)
+private instance (i : ℕ) : Decidable (chunkAgrees i) := by
+  unfold chunkAgrees
+  infer_instance
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_105_106 : blockSum weightedPrime 27751 250 = 41580477253 := by decide +kernel
+private def block0 : ∀ i : Fin 7, chunkAgrees (0 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_106_107 : blockSum weightedPrime 28001 250 = 32093085715 := by decide +kernel
+private def block1 : ∀ i : Fin 7, chunkAgrees (7 + i.val) := by
+  decide +kernel
 
-private theorem block_105_107 : blockSum weightedPrime 27751 500 = 73673562968 :=
-  joinBlocks weightedPrime 27751 28001 250 250 500 41580477253 32093085715 73673562968
-    (by decide +kernel) (by decide +kernel) block_105_106 block_106_107 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_107_108 : blockSum weightedPrime 28251 250 = 32924755730 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_108_109 : blockSum weightedPrime 28501 250 = 42230796597 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_109_110 : blockSum weightedPrime 28751 250 = 31847581357 := by decide +kernel
-
-private theorem block_108_110 : blockSum weightedPrime 28501 500 = 74078377954 :=
-  joinBlocks weightedPrime 28501 28751 250 250 500 42230796597 31847581357 74078377954
-    (by decide +kernel) (by decide +kernel) block_108_109 block_109_110 (by decide +kernel)
-
-private theorem block_107_110 : blockSum weightedPrime 28251 750 = 107003133684 :=
-  joinBlocks weightedPrime 28251 28501 250 500 750 32924755730 74078377954 107003133684
-    (by decide +kernel) (by decide +kernel) block_107_108 block_108_110 (by decide +kernel)
-
-private theorem block_105_110 : blockSum weightedPrime 27751 1250 = 180676696652 :=
-  joinBlocks weightedPrime 27751 28251 500 750 1250 73673562968 107003133684 180676696652
-    (by decide +kernel) (by decide +kernel) block_105_107 block_107_110 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_110_111 : blockSum weightedPrime 29001 250 = 35337783236 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_111_112 : blockSum weightedPrime 29251 250 = 32073968043 := by decide +kernel
-
-private theorem block_110_112 : blockSum weightedPrime 29001 500 = 67411751279 :=
-  joinBlocks weightedPrime 29001 29251 250 250 500 35337783236 32073968043 67411751279
-    (by decide +kernel) (by decide +kernel) block_110_111 block_111_112 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_112_113 : blockSum weightedPrime 29501 250 = 27603479089 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_113_114 : blockSum weightedPrime 29751 250 = 27142635638 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_114_115 : blockSum weightedPrime 30001 250 = 31761195116 := by decide +kernel
-
-private theorem block_113_115 : blockSum weightedPrime 29751 500 = 58903830754 :=
-  joinBlocks weightedPrime 29751 30001 250 250 500 27142635638 31761195116 58903830754
-    (by decide +kernel) (by decide +kernel) block_113_114 block_114_115 (by decide +kernel)
-
-private theorem block_112_115 : blockSum weightedPrime 29501 750 = 86507309843 :=
-  joinBlocks weightedPrime 29501 29751 250 500 750 27603479089 58903830754 86507309843
-    (by decide +kernel) (by decide +kernel) block_112_113 block_113_115 (by decide +kernel)
-
-private theorem block_110_115 : blockSum weightedPrime 29001 1250 = 153919061122 :=
-  joinBlocks weightedPrime 29001 29501 500 750 1250 67411751279 86507309843 153919061122
-    (by decide +kernel) (by decide +kernel) block_110_112 block_112_115 (by decide +kernel)
-
-private theorem block_105_115 : blockSum weightedPrime 27751 2500 = 334595757774 :=
-  joinBlocks weightedPrime 27751 29001 1250 1250 2500 180676696652 153919061122 334595757774
-    (by decide +kernel) (by decide +kernel) block_105_110 block_110_115 (by decide +kernel)
-
-private theorem block_96_115 : blockSum weightedPrime 25501 4750 = 688740429211 :=
-  joinBlocks weightedPrime 25501 27751 2250 2500 4750 354144671437 334595757774 688740429211
-    (by decide +kernel) (by decide +kernel) block_96_105 block_105_115 (by decide +kernel)
-
-private theorem block_77_115 : blockSum weightedPrime 20751 9500 = 1722810389337 :=
-  joinBlocks weightedPrime 20751 25501 4750 4750 9500 1034069960126 688740429211 1722810389337
-    (by decide +kernel) (by decide +kernel) block_77_96 block_96_115 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_115_116 : blockSum weightedPrime 30251 250 = 28746690590 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_116_117 : blockSum weightedPrime 30501 250 = 27046222535 := by decide +kernel
-
-private theorem block_115_117 : blockSum weightedPrime 30251 500 = 55792913125 :=
-  joinBlocks weightedPrime 30251 30501 250 250 500 28746690590 27046222535 55792913125
-    (by decide +kernel) (by decide +kernel) block_115_116 block_116_117 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_117_118 : blockSum weightedPrime 30751 250 = 30252090492 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_118_119 : blockSum weightedPrime 31001 250 = 33296708543 := by decide +kernel
-
-private theorem block_117_119 : blockSum weightedPrime 30751 500 = 63548799035 :=
-  joinBlocks weightedPrime 30751 31001 250 250 500 30252090492 33296708543 63548799035
-    (by decide +kernel) (by decide +kernel) block_117_118 block_118_119 (by decide +kernel)
-
-private theorem block_115_119 : blockSum weightedPrime 30251 1000 = 119341712160 :=
-  joinBlocks weightedPrime 30251 30751 500 500 1000 55792913125 63548799035 119341712160
-    (by decide +kernel) (by decide +kernel) block_115_117 block_117_119 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_119_120 : blockSum weightedPrime 31251 250 = 24625157137 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_120_121 : blockSum weightedPrime 31501 250 = 28824617934 := by decide +kernel
-
-private theorem block_119_121 : blockSum weightedPrime 31251 500 = 53449775071 :=
-  joinBlocks weightedPrime 31251 31501 250 250 500 24625157137 28824617934 53449775071
-    (by decide +kernel) (by decide +kernel) block_119_120 block_120_121 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_121_122 : blockSum weightedPrime 31751 250 = 20431865149 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_122_123 : blockSum weightedPrime 32001 250 = 29063630062 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_123_124 : blockSum weightedPrime 32251 250 = 31908523631 := by decide +kernel
-
-private theorem block_122_124 : blockSum weightedPrime 32001 500 = 60972153693 :=
-  joinBlocks weightedPrime 32001 32251 250 250 500 29063630062 31908523631 60972153693
-    (by decide +kernel) (by decide +kernel) block_122_123 block_123_124 (by decide +kernel)
-
-private theorem block_121_124 : blockSum weightedPrime 31751 750 = 81404018842 :=
-  joinBlocks weightedPrime 31751 32001 250 500 750 20431865149 60972153693 81404018842
-    (by decide +kernel) (by decide +kernel) block_121_122 block_122_124 (by decide +kernel)
-
-private theorem block_119_124 : blockSum weightedPrime 31251 1250 = 134853793913 :=
-  joinBlocks weightedPrime 31251 31751 500 750 1250 53449775071 81404018842 134853793913
-    (by decide +kernel) (by decide +kernel) block_119_121 block_121_124 (by decide +kernel)
-
-private theorem block_115_124 : blockSum weightedPrime 30251 2250 = 254195506073 :=
-  joinBlocks weightedPrime 30251 31251 1000 1250 2250 119341712160 134853793913 254195506073
-    (by decide +kernel) (by decide +kernel) block_115_119 block_119_124 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_124_125 : blockSum weightedPrime 32501 250 = 27095212814 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_125_126 : blockSum weightedPrime 32751 250 = 27718720215 := by decide +kernel
-
-private theorem block_124_126 : blockSum weightedPrime 32501 500 = 54813933029 :=
-  joinBlocks weightedPrime 32501 32751 250 250 500 27095212814 27718720215 54813933029
-    (by decide +kernel) (by decide +kernel) block_124_125 block_125_126 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_126_127 : blockSum weightedPrime 33001 250 = 25221223136 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_127_128 : blockSum weightedPrime 33251 250 = 24830702320 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_128_129 : blockSum weightedPrime 33501 250 = 27548138315 := by decide +kernel
-
-private theorem block_127_129 : blockSum weightedPrime 33251 500 = 52378840635 :=
-  joinBlocks weightedPrime 33251 33501 250 250 500 24830702320 27548138315 52378840635
-    (by decide +kernel) (by decide +kernel) block_127_128 block_128_129 (by decide +kernel)
-
-private theorem block_126_129 : blockSum weightedPrime 33001 750 = 77600063771 :=
-  joinBlocks weightedPrime 33001 33251 250 500 750 25221223136 52378840635 77600063771
-    (by decide +kernel) (by decide +kernel) block_126_127 block_127_129 (by decide +kernel)
-
-private theorem block_124_129 : blockSum weightedPrime 32501 1250 = 132413996800 :=
-  joinBlocks weightedPrime 32501 33001 500 750 1250 54813933029 77600063771 132413996800
-    (by decide +kernel) (by decide +kernel) block_124_126 block_126_129 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_129_130 : blockSum weightedPrime 33751 250 = 25142719677 := by decide +kernel
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_130_131 : blockSum weightedPrime 34001 250 = 18807314226 := by decide +kernel
-
-private theorem block_129_131 : blockSum weightedPrime 33751 500 = 43950033903 :=
-  joinBlocks weightedPrime 33751 34001 250 250 500 25142719677 18807314226 43950033903
-    (by decide +kernel) (by decide +kernel) block_129_130 block_130_131 (by decide +kernel)
-
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_131_132 : blockSum weightedPrime 34251 250 = 27338869348 := by decide +kernel
+private def block2 : ∀ i : Fin 7, chunkAgrees (14 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_132_133 : blockSum weightedPrime 34501 250 = 25005381984 := by decide +kernel
+private def block3 : ∀ i : Fin 7, chunkAgrees (21 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_133_134 : blockSum weightedPrime 34751 250 = 19915588309 := by decide +kernel
+private def block4 : ∀ i : Fin 7, chunkAgrees (28 + i.val) := by
+  decide +kernel
 
-private theorem block_132_134 : blockSum weightedPrime 34501 500 = 44920970293 :=
-  joinBlocks weightedPrime 34501 34751 250 250 500 25005381984 19915588309 44920970293
-    (by decide +kernel) (by decide +kernel) block_132_133 block_133_134 (by decide +kernel)
-
-private theorem block_131_134 : blockSum weightedPrime 34251 750 = 72259839641 :=
-  joinBlocks weightedPrime 34251 34501 250 500 750 27338869348 44920970293 72259839641
-    (by decide +kernel) (by decide +kernel) block_131_132 block_132_134 (by decide +kernel)
-
-private theorem block_129_134 : blockSum weightedPrime 33751 1250 = 116209873544 :=
-  joinBlocks weightedPrime 33751 34251 500 750 1250 43950033903 72259839641 116209873544
-    (by decide +kernel) (by decide +kernel) block_129_131 block_131_134 (by decide +kernel)
-
-private theorem block_124_134 : blockSum weightedPrime 32501 2500 = 248623870344 :=
-  joinBlocks weightedPrime 32501 33751 1250 1250 2500 132413996800 116209873544 248623870344
-    (by decide +kernel) (by decide +kernel) block_124_129 block_129_134 (by decide +kernel)
-
-private theorem block_115_134 : blockSum weightedPrime 30251 4750 = 502819376417 :=
-  joinBlocks weightedPrime 30251 32501 2250 2500 4750 254195506073 248623870344 502819376417
-    (by decide +kernel) (by decide +kernel) block_115_124 block_124_134 (by decide +kernel)
-
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_134_135 : blockSum weightedPrime 35001 250 = 20571414626 := by decide +kernel
-
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_135_136 : blockSum weightedPrime 35251 250 = 22129683113 := by decide +kernel
+private def block5 : ∀ i : Fin 7, chunkAgrees (35 + i.val) := by
+  decide +kernel
 
-private theorem block_134_136 : blockSum weightedPrime 35001 500 = 42701097739 :=
-  joinBlocks weightedPrime 35001 35251 250 250 500 20571414626 22129683113 42701097739
-    (by decide +kernel) (by decide +kernel) block_134_135 block_135_136 (by decide +kernel)
-
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_136_137 : blockSum weightedPrime 35501 250 = 18199624231 := by decide +kernel
+private def block6 : ∀ i : Fin 7, chunkAgrees (42 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_137_138 : blockSum weightedPrime 35751 250 = 23286524086 := by decide +kernel
+private def block7 : ∀ i : Fin 7, chunkAgrees (49 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_138_139 : blockSum weightedPrime 36001 250 = 19447245917 := by decide +kernel
-
-private theorem block_137_139 : blockSum weightedPrime 35751 500 = 42733770003 :=
-  joinBlocks weightedPrime 35751 36001 250 250 500 23286524086 19447245917 42733770003
-    (by decide +kernel) (by decide +kernel) block_137_138 block_138_139 (by decide +kernel)
-
-private theorem block_136_139 : blockSum weightedPrime 35501 750 = 60933394234 :=
-  joinBlocks weightedPrime 35501 35751 250 500 750 18199624231 42733770003 60933394234
-    (by decide +kernel) (by decide +kernel) block_136_137 block_137_139 (by decide +kernel)
-
-private theorem block_134_139 : blockSum weightedPrime 35001 1250 = 103634491973 :=
-  joinBlocks weightedPrime 35001 35501 500 750 1250 42701097739 60933394234 103634491973
-    (by decide +kernel) (by decide +kernel) block_134_136 block_136_139 (by decide +kernel)
+private def block8 : ∀ i : Fin 7, chunkAgrees (56 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_139_140 : blockSum weightedPrime 36251 250 = 20913723674 := by decide +kernel
+private def block9 : ∀ i : Fin 7, chunkAgrees (63 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_140_141 : blockSum weightedPrime 36501 250 = 22342996984 := by decide +kernel
+private def block10 : ∀ i : Fin 7, chunkAgrees (70 + i.val) := by
+  decide +kernel
 
-private theorem block_139_141 : blockSum weightedPrime 36251 500 = 43256720658 :=
-  joinBlocks weightedPrime 36251 36501 250 250 500 20913723674 22342996984 43256720658
-    (by decide +kernel) (by decide +kernel) block_139_140 block_140_141 (by decide +kernel)
-
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_141_142 : blockSum weightedPrime 36751 250 = 22898755906 := by decide +kernel
+private def block11 : ∀ i : Fin 7, chunkAgrees (77 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_142_143 : blockSum weightedPrime 37001 250 = 18410164476 := by decide +kernel
+private def block12 : ∀ i : Fin 7, chunkAgrees (84 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_143_144 : blockSum weightedPrime 37251 250 = 18984695689 := by decide +kernel
-
-private theorem block_142_144 : blockSum weightedPrime 37001 500 = 37394860165 :=
-  joinBlocks weightedPrime 37001 37251 250 250 500 18410164476 18984695689 37394860165
-    (by decide +kernel) (by decide +kernel) block_142_143 block_143_144 (by decide +kernel)
-
-private theorem block_141_144 : blockSum weightedPrime 36751 750 = 60293616071 :=
-  joinBlocks weightedPrime 36751 37001 250 500 750 22898755906 37394860165 60293616071
-    (by decide +kernel) (by decide +kernel) block_141_142 block_142_144 (by decide +kernel)
-
-private theorem block_139_144 : blockSum weightedPrime 36251 1250 = 103550336729 :=
-  joinBlocks weightedPrime 36251 36751 500 750 1250 43256720658 60293616071 103550336729
-    (by decide +kernel) (by decide +kernel) block_139_141 block_141_144 (by decide +kernel)
+private def block13 : ∀ i : Fin 7, chunkAgrees (91 + i.val) := by
+  decide +kernel
 
-private theorem block_134_144 : blockSum weightedPrime 35001 2500 = 207184828702 :=
-  joinBlocks weightedPrime 35001 36251 1250 1250 2500 103634491973 103550336729 207184828702
-    (by decide +kernel) (by decide +kernel) block_134_139 block_139_144 (by decide +kernel)
-
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_144_145 : blockSum weightedPrime 37501 250 = 22017271496 := by decide +kernel
+private def block14 : ∀ i : Fin 7, chunkAgrees (98 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_145_146 : blockSum weightedPrime 37751 250 = 17666044702 := by decide +kernel
-
-private theorem block_144_146 : blockSum weightedPrime 37501 500 = 39683316198 :=
-  joinBlocks weightedPrime 37501 37751 250 250 500 22017271496 17666044702 39683316198
-    (by decide +kernel) (by decide +kernel) block_144_145 block_145_146 (by decide +kernel)
+private def block15 : ∀ i : Fin 7, chunkAgrees (105 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_146_147 : blockSum weightedPrime 38001 250 = 15848846859 := by decide +kernel
+private def block16 : ∀ i : Fin 7, chunkAgrees (112 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_147_148 : blockSum weightedPrime 38251 250 = 16455722857 := by decide +kernel
+private def block17 : ∀ i : Fin 7, chunkAgrees (119 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_148_149 : blockSum weightedPrime 38501 250 = 20840701934 := by decide +kernel
-
-private theorem block_147_149 : blockSum weightedPrime 38251 500 = 37296424791 :=
-  joinBlocks weightedPrime 38251 38501 250 250 500 16455722857 20840701934 37296424791
-    (by decide +kernel) (by decide +kernel) block_147_148 block_148_149 (by decide +kernel)
-
-private theorem block_146_149 : blockSum weightedPrime 38001 750 = 53145271650 :=
-  joinBlocks weightedPrime 38001 38251 250 500 750 15848846859 37296424791 53145271650
-    (by decide +kernel) (by decide +kernel) block_146_147 block_147_149 (by decide +kernel)
+private def block18 : ∀ i : Fin 7, chunkAgrees (126 + i.val) := by
+  decide +kernel
 
-private theorem block_144_149 : blockSum weightedPrime 37501 1250 = 92828587848 :=
-  joinBlocks weightedPrime 37501 38001 500 750 1250 39683316198 53145271650 92828587848
-    (by decide +kernel) (by decide +kernel) block_144_146 block_146_149 (by decide +kernel)
-
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_149_150 : blockSum weightedPrime 38751 250 = 16776977397 := by decide +kernel
+private def block19 : ∀ i : Fin 7, chunkAgrees (133 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_150_151 : blockSum weightedPrime 39001 250 = 20319896745 := by decide +kernel
-
-private theorem block_149_151 : blockSum weightedPrime 38751 500 = 37096874142 :=
-  joinBlocks weightedPrime 38751 39001 250 250 500 16776977397 20319896745 37096874142
-    (by decide +kernel) (by decide +kernel) block_149_150 block_150_151 (by decide +kernel)
+private def block20 : ∀ i : Fin 7, chunkAgrees (140 + i.val) := by
+  decide +kernel
 
 set_option maxRecDepth 25000 in
 set_option maxHeartbeats 0 in
-private theorem block_151_152 : blockSum weightedPrime 39251 250 = 15617635348 := by decide +kernel
+private def block21 : ∀ i : Fin 7, chunkAgrees (147 + i.val) := by
+  decide +kernel
 
-set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_152_153 : blockSum weightedPrime 39501 250 = 16890156683 := by decide +kernel
+private theorem allChunks (i : Fin 154) : chunkAgrees i.val := by
+  have verified (b : Fin 22) (r : Fin 7) : chunkAgrees (7 * b.val + r.val) := by
+    fin_cases b
+    · exact block0 r
+    · exact block1 r
+    · exact block2 r
+    · exact block3 r
+    · exact block4 r
+    · exact block5 r
+    · exact block6 r
+    · exact block7 r
+    · exact block8 r
+    · exact block9 r
+    · exact block10 r
+    · exact block11 r
+    · exact block12 r
+    · exact block13 r
+    · exact block14 r
+    · exact block15 r
+    · exact block16 r
+    · exact block17 r
+    · exact block18 r
+    · exact block19 r
+    · exact block20 r
+    · exact block21 r
+  have hi := i.isLt
+  have hx : 7 * (i.val / 7) + i.val % 7 = i.val := by omega
+  simpa only [hx] using verified ⟨i.val / 7, by omega⟩ ⟨i.val % 7, by omega⟩
 
 set_option maxRecDepth 25000 in
-set_option maxHeartbeats 0 in
-private theorem block_153_154 : blockSum weightedPrime 39751 250 = 18131550273 := by decide +kernel
-
-private theorem block_152_154 : blockSum weightedPrime 39501 500 = 35021706956 :=
-  joinBlocks weightedPrime 39501 39751 250 250 500 16890156683 18131550273 35021706956
-    (by decide +kernel) (by decide +kernel) block_152_153 block_153_154 (by decide +kernel)
-
-private theorem block_151_154 : blockSum weightedPrime 39251 750 = 50639342304 :=
-  joinBlocks weightedPrime 39251 39501 250 500 750 15617635348 35021706956 50639342304
-    (by decide +kernel) (by decide +kernel) block_151_152 block_152_154 (by decide +kernel)
-
-private theorem block_149_154 : blockSum weightedPrime 38751 1250 = 87736216446 :=
-  joinBlocks weightedPrime 38751 39251 500 750 1250 37096874142 50639342304 87736216446
-    (by decide +kernel) (by decide +kernel) block_149_151 block_151_154 (by decide +kernel)
-
-private theorem block_144_154 : blockSum weightedPrime 37501 2500 = 180564804294 :=
-  joinBlocks weightedPrime 37501 38751 1250 1250 2500 92828587848 87736216446 180564804294
-    (by decide +kernel) (by decide +kernel) block_144_149 block_149_154 (by decide +kernel)
-
-private theorem block_134_154 : blockSum weightedPrime 35001 5000 = 387749632996 :=
-  joinBlocks weightedPrime 35001 37501 2500 2500 5000 207184828702 180564804294 387749632996
-    (by decide +kernel) (by decide +kernel) block_134_144 block_144_154 (by decide +kernel)
-
-private theorem block_115_154 : blockSum weightedPrime 30251 9750 = 890569009413 :=
-  joinBlocks weightedPrime 30251 35001 4750 5000 9750 502819376417 387749632996 890569009413
-    (by decide +kernel) (by decide +kernel) block_115_134 block_134_154 (by decide +kernel)
-
-private theorem block_77_154 : blockSum weightedPrime 20751 19250 = 2613379398750 :=
-  joinBlocks weightedPrime 20751 30251 9500 9750 19250 1722810389337 890569009413 2613379398750
-    (by decide +kernel) (by decide +kernel) block_77_115 block_115_154 (by decide +kernel)
-
-theorem full_block : blockSum weightedPrime 1501 38500 = 89357176421369 :=
-  joinBlocks weightedPrime 1501 20751 19250 19250 38500 86743797022619 2613379398750 89357176421369
-    (by decide +kernel) (by decide +kernel) block_0_77 block_77_154 (by decide +kernel)
+theorem full_block : blockSum weightedPrime 1501 38500 = 89357176421369 := by
+  rw [show (38500 : ℕ) = 250 * 154 from rfl, blockSum_mul, ← Fin.sum_univ_eq_sum_range]
+  calc
+    _ = ∑ i : Fin 154, sums.getD i.val 0 := sum_congr rfl fun i _ => allChunks i
+    _ = _ := by decide +kernel
 
 end A082957Effective
 

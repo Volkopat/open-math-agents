@@ -269,6 +269,18 @@ private theorem below_succ {n : ℕ} {f : ℕ → Bool} (h : below n f = true) (
 
 private theorem below_zero (f : ℕ → Bool) : below 0 f = true := rfl
 
+-- Concatenate two verified consecutive ranges of the same predicate.
+private theorem below_extend (n m : ℕ) (f : ℕ → Bool)
+    (hFirst : below n f = true) (hRest : below m (fun t => f (n + t)) = true) :
+    below (n + m) f = true := by
+  induction m with
+  | zero => exact hFirst
+  | succ m ih =>
+    have parts : f (n + m) = true ∧ below m (fun t => f (n + t)) = true := by
+      simpa only [below, Bool.and_eq_true] using hRest
+    exact below_succ (ih parts.2) parts.1
+
+
 def segment (lo hi : ℕ) (f : ℕ → Bool) : Bool :=
   let n := hi+1-lo
   below (n/128+1) fun b => below (min 128 (n-128*b)) fun j => f (lo+128*b+j)
@@ -328,187 +340,218 @@ private theorem row_of_widths (i : ℕ) (h : below 6 (squareWidth i) = true) :
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_0 : below 1 (squareBlock 0 0) = true :=
-  @below_succ 0 (squareBlock 0 0) (below_zero (squareBlock 0 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_1 : below 1 (squareBlock 0 1) = true :=
-  @below_succ 0 (squareBlock 0 1) (below_zero (squareBlock 0 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_2 : below 8 (squareBlock 0 2) = true :=
-  @below_succ 7 (squareBlock 0 2) (@below_succ 6 (squareBlock 0 2) (@below_succ 5 (squareBlock 0 2) (@below_succ 4 (squareBlock 0 2) (@below_succ 3 (squareBlock 0 2) (@below_succ 2 (squareBlock 0 2) (@below_succ 1 (squareBlock 0 2) (@below_succ 0 (squareBlock 0 2) (below_zero (squareBlock 0 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_3_8 : below 8 (squareBlock 0 3) = true :=
-  @below_succ 7 (squareBlock 0 3) (@below_succ 6 (squareBlock 0 3) (@below_succ 5 (squareBlock 0 3) (@below_succ 4 (squareBlock 0 3) (@below_succ 3 (squareBlock 0 3) (@below_succ 2 (squareBlock 0 3) (@below_succ 1 (squareBlock 0 3) (@below_succ 0 (squareBlock 0 3) (below_zero (squareBlock 0 3)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_3_16 : below 16 (squareBlock 0 3) = true :=
-  @below_succ 15 (squareBlock 0 3) (@below_succ 14 (squareBlock 0 3) (@below_succ 13 (squareBlock 0 3) (@below_succ 12 (squareBlock 0 3) (@below_succ 11 (squareBlock 0 3) (@below_succ 10 (squareBlock 0 3) (@below_succ 9 (squareBlock 0 3) (@below_succ 8 (squareBlock 0 3) (square_0_3_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (squareBlock 0 3)
+    (square_0_3_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_3_24 : below 24 (squareBlock 0 3) = true :=
-  @below_succ 23 (squareBlock 0 3) (@below_succ 22 (squareBlock 0 3) (@below_succ 21 (squareBlock 0 3) (@below_succ 20 (squareBlock 0 3) (@below_succ 19 (squareBlock 0 3) (@below_succ 18 (squareBlock 0 3) (@below_succ 17 (squareBlock 0 3) (@below_succ 16 (squareBlock 0 3) (square_0_3_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (squareBlock 0 3)
+    (square_0_3_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_3_32 : below 32 (squareBlock 0 3) = true :=
-  @below_succ 31 (squareBlock 0 3) (@below_succ 30 (squareBlock 0 3) (@below_succ 29 (squareBlock 0 3) (@below_succ 28 (squareBlock 0 3) (@below_succ 27 (squareBlock 0 3) (@below_succ 26 (squareBlock 0 3) (@below_succ 25 (squareBlock 0 3) (@below_succ 24 (squareBlock 0 3) (square_0_3_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (squareBlock 0 3)
+    (square_0_3_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_3_40 : below 40 (squareBlock 0 3) = true :=
-  @below_succ 39 (squareBlock 0 3) (@below_succ 38 (squareBlock 0 3) (@below_succ 37 (squareBlock 0 3) (@below_succ 36 (squareBlock 0 3) (@below_succ 35 (squareBlock 0 3) (@below_succ 34 (squareBlock 0 3) (@below_succ 33 (squareBlock 0 3) (@below_succ 32 (squareBlock 0 3) (square_0_3_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (squareBlock 0 3)
+    (square_0_3_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_3_48 : below 48 (squareBlock 0 3) = true :=
-  @below_succ 47 (squareBlock 0 3) (@below_succ 46 (squareBlock 0 3) (@below_succ 45 (squareBlock 0 3) (@below_succ 44 (squareBlock 0 3) (@below_succ 43 (squareBlock 0 3) (@below_succ 42 (squareBlock 0 3) (@below_succ 41 (squareBlock 0 3) (@below_succ 40 (squareBlock 0 3) (square_0_3_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (squareBlock 0 3)
+    (square_0_3_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_3_56 : below 56 (squareBlock 0 3) = true :=
-  @below_succ 55 (squareBlock 0 3) (@below_succ 54 (squareBlock 0 3) (@below_succ 53 (squareBlock 0 3) (@below_succ 52 (squareBlock 0 3) (@below_succ 51 (squareBlock 0 3) (@below_succ 50 (squareBlock 0 3) (@below_succ 49 (squareBlock 0 3) (@below_succ 48 (squareBlock 0 3) (square_0_3_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (squareBlock 0 3)
+    (square_0_3_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_3_64 : below 64 (squareBlock 0 3) = true :=
-  @below_succ 63 (squareBlock 0 3) (@below_succ 62 (squareBlock 0 3) (@below_succ 61 (squareBlock 0 3) (@below_succ 60 (squareBlock 0 3) (@below_succ 59 (squareBlock 0 3) (@below_succ 58 (squareBlock 0 3) (@below_succ 57 (squareBlock 0 3) (@below_succ 56 (squareBlock 0 3) (square_0_3_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (squareBlock 0 3)
+    (square_0_3_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_3 : below 71 (squareBlock 0 3) = true :=
-  @below_succ 70 (squareBlock 0 3) (@below_succ 69 (squareBlock 0 3) (@below_succ 68 (squareBlock 0 3) (@below_succ 67 (squareBlock 0 3) (@below_succ 66 (squareBlock 0 3) (@below_succ 65 (squareBlock 0 3) (@below_succ 64 (squareBlock 0 3) (square_0_3_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 7 (squareBlock 0 3)
+    (square_0_3_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_8 : below 8 (squareBlock 0 4) = true :=
-  @below_succ 7 (squareBlock 0 4) (@below_succ 6 (squareBlock 0 4) (@below_succ 5 (squareBlock 0 4) (@below_succ 4 (squareBlock 0 4) (@below_succ 3 (squareBlock 0 4) (@below_succ 2 (squareBlock 0 4) (@below_succ 1 (squareBlock 0 4) (@below_succ 0 (squareBlock 0 4) (below_zero (squareBlock 0 4)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_16 : below 16 (squareBlock 0 4) = true :=
-  @below_succ 15 (squareBlock 0 4) (@below_succ 14 (squareBlock 0 4) (@below_succ 13 (squareBlock 0 4) (@below_succ 12 (squareBlock 0 4) (@below_succ 11 (squareBlock 0 4) (@below_succ 10 (squareBlock 0 4) (@below_succ 9 (squareBlock 0 4) (@below_succ 8 (squareBlock 0 4) (square_0_4_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (squareBlock 0 4)
+    (square_0_4_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_24 : below 24 (squareBlock 0 4) = true :=
-  @below_succ 23 (squareBlock 0 4) (@below_succ 22 (squareBlock 0 4) (@below_succ 21 (squareBlock 0 4) (@below_succ 20 (squareBlock 0 4) (@below_succ 19 (squareBlock 0 4) (@below_succ 18 (squareBlock 0 4) (@below_succ 17 (squareBlock 0 4) (@below_succ 16 (squareBlock 0 4) (square_0_4_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (squareBlock 0 4)
+    (square_0_4_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_32 : below 32 (squareBlock 0 4) = true :=
-  @below_succ 31 (squareBlock 0 4) (@below_succ 30 (squareBlock 0 4) (@below_succ 29 (squareBlock 0 4) (@below_succ 28 (squareBlock 0 4) (@below_succ 27 (squareBlock 0 4) (@below_succ 26 (squareBlock 0 4) (@below_succ 25 (squareBlock 0 4) (@below_succ 24 (squareBlock 0 4) (square_0_4_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (squareBlock 0 4)
+    (square_0_4_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_40 : below 40 (squareBlock 0 4) = true :=
-  @below_succ 39 (squareBlock 0 4) (@below_succ 38 (squareBlock 0 4) (@below_succ 37 (squareBlock 0 4) (@below_succ 36 (squareBlock 0 4) (@below_succ 35 (squareBlock 0 4) (@below_succ 34 (squareBlock 0 4) (@below_succ 33 (squareBlock 0 4) (@below_succ 32 (squareBlock 0 4) (square_0_4_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (squareBlock 0 4)
+    (square_0_4_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_48 : below 48 (squareBlock 0 4) = true :=
-  @below_succ 47 (squareBlock 0 4) (@below_succ 46 (squareBlock 0 4) (@below_succ 45 (squareBlock 0 4) (@below_succ 44 (squareBlock 0 4) (@below_succ 43 (squareBlock 0 4) (@below_succ 42 (squareBlock 0 4) (@below_succ 41 (squareBlock 0 4) (@below_succ 40 (squareBlock 0 4) (square_0_4_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (squareBlock 0 4)
+    (square_0_4_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_56 : below 56 (squareBlock 0 4) = true :=
-  @below_succ 55 (squareBlock 0 4) (@below_succ 54 (squareBlock 0 4) (@below_succ 53 (squareBlock 0 4) (@below_succ 52 (squareBlock 0 4) (@below_succ 51 (squareBlock 0 4) (@below_succ 50 (squareBlock 0 4) (@below_succ 49 (squareBlock 0 4) (@below_succ 48 (squareBlock 0 4) (square_0_4_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (squareBlock 0 4)
+    (square_0_4_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_64 : below 64 (squareBlock 0 4) = true :=
-  @below_succ 63 (squareBlock 0 4) (@below_succ 62 (squareBlock 0 4) (@below_succ 61 (squareBlock 0 4) (@below_succ 60 (squareBlock 0 4) (@below_succ 59 (squareBlock 0 4) (@below_succ 58 (squareBlock 0 4) (@below_succ 57 (squareBlock 0 4) (@below_succ 56 (squareBlock 0 4) (square_0_4_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (squareBlock 0 4)
+    (square_0_4_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_72 : below 72 (squareBlock 0 4) = true :=
-  @below_succ 71 (squareBlock 0 4) (@below_succ 70 (squareBlock 0 4) (@below_succ 69 (squareBlock 0 4) (@below_succ 68 (squareBlock 0 4) (@below_succ 67 (squareBlock 0 4) (@below_succ 66 (squareBlock 0 4) (@below_succ 65 (squareBlock 0 4) (@below_succ 64 (squareBlock 0 4) (square_0_4_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (squareBlock 0 4)
+    (square_0_4_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_80 : below 80 (squareBlock 0 4) = true :=
-  @below_succ 79 (squareBlock 0 4) (@below_succ 78 (squareBlock 0 4) (@below_succ 77 (squareBlock 0 4) (@below_succ 76 (squareBlock 0 4) (@below_succ 75 (squareBlock 0 4) (@below_succ 74 (squareBlock 0 4) (@below_succ 73 (squareBlock 0 4) (@below_succ 72 (squareBlock 0 4) (square_0_4_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (squareBlock 0 4)
+    (square_0_4_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_88 : below 88 (squareBlock 0 4) = true :=
-  @below_succ 87 (squareBlock 0 4) (@below_succ 86 (squareBlock 0 4) (@below_succ 85 (squareBlock 0 4) (@below_succ 84 (squareBlock 0 4) (@below_succ 83 (squareBlock 0 4) (@below_succ 82 (squareBlock 0 4) (@below_succ 81 (squareBlock 0 4) (@below_succ 80 (squareBlock 0 4) (square_0_4_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (squareBlock 0 4)
+    (square_0_4_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_96 : below 96 (squareBlock 0 4) = true :=
-  @below_succ 95 (squareBlock 0 4) (@below_succ 94 (squareBlock 0 4) (@below_succ 93 (squareBlock 0 4) (@below_succ 92 (squareBlock 0 4) (@below_succ 91 (squareBlock 0 4) (@below_succ 90 (squareBlock 0 4) (@below_succ 89 (squareBlock 0 4) (@below_succ 88 (squareBlock 0 4) (square_0_4_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (squareBlock 0 4)
+    (square_0_4_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_104 : below 104 (squareBlock 0 4) = true :=
-  @below_succ 103 (squareBlock 0 4) (@below_succ 102 (squareBlock 0 4) (@below_succ 101 (squareBlock 0 4) (@below_succ 100 (squareBlock 0 4) (@below_succ 99 (squareBlock 0 4) (@below_succ 98 (squareBlock 0 4) (@below_succ 97 (squareBlock 0 4) (@below_succ 96 (squareBlock 0 4) (square_0_4_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (squareBlock 0 4)
+    (square_0_4_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_112 : below 112 (squareBlock 0 4) = true :=
-  @below_succ 111 (squareBlock 0 4) (@below_succ 110 (squareBlock 0 4) (@below_succ 109 (squareBlock 0 4) (@below_succ 108 (squareBlock 0 4) (@below_succ 107 (squareBlock 0 4) (@below_succ 106 (squareBlock 0 4) (@below_succ 105 (squareBlock 0 4) (@below_succ 104 (squareBlock 0 4) (square_0_4_104) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 8 (squareBlock 0 4)
+    (square_0_4_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_120 : below 120 (squareBlock 0 4) = true :=
-  @below_succ 119 (squareBlock 0 4) (@below_succ 118 (squareBlock 0 4) (@below_succ 117 (squareBlock 0 4) (@below_succ 116 (squareBlock 0 4) (@below_succ 115 (squareBlock 0 4) (@below_succ 114 (squareBlock 0 4) (@below_succ 113 (squareBlock 0 4) (@below_succ 112 (squareBlock 0 4) (square_0_4_112) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 112 8 (squareBlock 0 4)
+    (square_0_4_112) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_128 : below 128 (squareBlock 0 4) = true :=
-  @below_succ 127 (squareBlock 0 4) (@below_succ 126 (squareBlock 0 4) (@below_succ 125 (squareBlock 0 4) (@below_succ 124 (squareBlock 0 4) (@below_succ 123 (squareBlock 0 4) (@below_succ 122 (squareBlock 0 4) (@below_succ 121 (squareBlock 0 4) (@below_succ 120 (squareBlock 0 4) (square_0_4_120) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 120 8 (squareBlock 0 4)
+    (square_0_4_120) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_136 : below 136 (squareBlock 0 4) = true :=
-  @below_succ 135 (squareBlock 0 4) (@below_succ 134 (squareBlock 0 4) (@below_succ 133 (squareBlock 0 4) (@below_succ 132 (squareBlock 0 4) (@below_succ 131 (squareBlock 0 4) (@below_succ 130 (squareBlock 0 4) (@below_succ 129 (squareBlock 0 4) (@below_succ 128 (squareBlock 0 4) (square_0_4_128) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 128 8 (squareBlock 0 4)
+    (square_0_4_128) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_144 : below 144 (squareBlock 0 4) = true :=
-  @below_succ 143 (squareBlock 0 4) (@below_succ 142 (squareBlock 0 4) (@below_succ 141 (squareBlock 0 4) (@below_succ 140 (squareBlock 0 4) (@below_succ 139 (squareBlock 0 4) (@below_succ 138 (squareBlock 0 4) (@below_succ 137 (squareBlock 0 4) (@below_succ 136 (squareBlock 0 4) (square_0_4_136) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 136 8 (squareBlock 0 4)
+    (square_0_4_136) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_152 : below 152 (squareBlock 0 4) = true :=
-  @below_succ 151 (squareBlock 0 4) (@below_succ 150 (squareBlock 0 4) (@below_succ 149 (squareBlock 0 4) (@below_succ 148 (squareBlock 0 4) (@below_succ 147 (squareBlock 0 4) (@below_succ 146 (squareBlock 0 4) (@below_succ 145 (squareBlock 0 4) (@below_succ 144 (squareBlock 0 4) (square_0_4_144) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 144 8 (squareBlock 0 4)
+    (square_0_4_144) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_160 : below 160 (squareBlock 0 4) = true :=
-  @below_succ 159 (squareBlock 0 4) (@below_succ 158 (squareBlock 0 4) (@below_succ 157 (squareBlock 0 4) (@below_succ 156 (squareBlock 0 4) (@below_succ 155 (squareBlock 0 4) (@below_succ 154 (squareBlock 0 4) (@below_succ 153 (squareBlock 0 4) (@below_succ 152 (squareBlock 0 4) (square_0_4_152) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 152 8 (squareBlock 0 4)
+    (square_0_4_152) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4_168 : below 168 (squareBlock 0 4) = true :=
-  @below_succ 167 (squareBlock 0 4) (@below_succ 166 (squareBlock 0 4) (@below_succ 165 (squareBlock 0 4) (@below_succ 164 (squareBlock 0 4) (@below_succ 163 (squareBlock 0 4) (@below_succ 162 (squareBlock 0 4) (@below_succ 161 (squareBlock 0 4) (@below_succ 160 (squareBlock 0 4) (square_0_4_160) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 160 8 (squareBlock 0 4)
+    (square_0_4_160) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_4 : below 176 (squareBlock 0 4) = true :=
-  @below_succ 175 (squareBlock 0 4) (@below_succ 174 (squareBlock 0 4) (@below_succ 173 (squareBlock 0 4) (@below_succ 172 (squareBlock 0 4) (@below_succ 171 (squareBlock 0 4) (@below_succ 170 (squareBlock 0 4) (@below_succ 169 (squareBlock 0 4) (@below_succ 168 (squareBlock 0 4) (square_0_4_168) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 168 8 (squareBlock 0 4)
+    (square_0_4_168) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_5_8 : below 8 (squareBlock 0 5) = true :=
-  @below_succ 7 (squareBlock 0 5) (@below_succ 6 (squareBlock 0 5) (@below_succ 5 (squareBlock 0 5) (@below_succ 4 (squareBlock 0 5) (@below_succ 3 (squareBlock 0 5) (@below_succ 2 (squareBlock 0 5) (@below_succ 1 (squareBlock 0 5) (@below_succ 0 (squareBlock 0 5) (below_zero (squareBlock 0 5)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_5_16 : below 16 (squareBlock 0 5) = true :=
-  @below_succ 15 (squareBlock 0 5) (@below_succ 14 (squareBlock 0 5) (@below_succ 13 (squareBlock 0 5) (@below_succ 12 (squareBlock 0 5) (@below_succ 11 (squareBlock 0 5) (@below_succ 10 (squareBlock 0 5) (@below_succ 9 (squareBlock 0 5) (@below_succ 8 (squareBlock 0 5) (square_0_5_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (squareBlock 0 5)
+    (square_0_5_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_0_5 : below 22 (squareBlock 0 5) = true :=
-  @below_succ 21 (squareBlock 0 5) (@below_succ 20 (squareBlock 0 5) (@below_succ 19 (squareBlock 0 5) (@below_succ 18 (squareBlock 0 5) (@below_succ 17 (squareBlock 0 5) (@below_succ 16 (squareBlock 0 5) (square_0_5_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (squareBlock 0 5)
+    (square_0_5_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -518,127 +561,146 @@ private theorem widths_0 : below 6 (squareWidth 0) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_0 : below 1 (squareBlock 1 0) = true :=
-  @below_succ 0 (squareBlock 1 0) (below_zero (squareBlock 1 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_1 : below 1 (squareBlock 1 1) = true :=
-  @below_succ 0 (squareBlock 1 1) (below_zero (squareBlock 1 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_2 : below 8 (squareBlock 1 2) = true :=
-  @below_succ 7 (squareBlock 1 2) (@below_succ 6 (squareBlock 1 2) (@below_succ 5 (squareBlock 1 2) (@below_succ 4 (squareBlock 1 2) (@below_succ 3 (squareBlock 1 2) (@below_succ 2 (squareBlock 1 2) (@below_succ 1 (squareBlock 1 2) (@below_succ 0 (squareBlock 1 2) (below_zero (squareBlock 1 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_3_8 : below 8 (squareBlock 1 3) = true :=
-  @below_succ 7 (squareBlock 1 3) (@below_succ 6 (squareBlock 1 3) (@below_succ 5 (squareBlock 1 3) (@below_succ 4 (squareBlock 1 3) (@below_succ 3 (squareBlock 1 3) (@below_succ 2 (squareBlock 1 3) (@below_succ 1 (squareBlock 1 3) (@below_succ 0 (squareBlock 1 3) (below_zero (squareBlock 1 3)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_3_16 : below 16 (squareBlock 1 3) = true :=
-  @below_succ 15 (squareBlock 1 3) (@below_succ 14 (squareBlock 1 3) (@below_succ 13 (squareBlock 1 3) (@below_succ 12 (squareBlock 1 3) (@below_succ 11 (squareBlock 1 3) (@below_succ 10 (squareBlock 1 3) (@below_succ 9 (squareBlock 1 3) (@below_succ 8 (squareBlock 1 3) (square_1_3_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (squareBlock 1 3)
+    (square_1_3_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_3_24 : below 24 (squareBlock 1 3) = true :=
-  @below_succ 23 (squareBlock 1 3) (@below_succ 22 (squareBlock 1 3) (@below_succ 21 (squareBlock 1 3) (@below_succ 20 (squareBlock 1 3) (@below_succ 19 (squareBlock 1 3) (@below_succ 18 (squareBlock 1 3) (@below_succ 17 (squareBlock 1 3) (@below_succ 16 (squareBlock 1 3) (square_1_3_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (squareBlock 1 3)
+    (square_1_3_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_3_32 : below 32 (squareBlock 1 3) = true :=
-  @below_succ 31 (squareBlock 1 3) (@below_succ 30 (squareBlock 1 3) (@below_succ 29 (squareBlock 1 3) (@below_succ 28 (squareBlock 1 3) (@below_succ 27 (squareBlock 1 3) (@below_succ 26 (squareBlock 1 3) (@below_succ 25 (squareBlock 1 3) (@below_succ 24 (squareBlock 1 3) (square_1_3_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (squareBlock 1 3)
+    (square_1_3_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_3_40 : below 40 (squareBlock 1 3) = true :=
-  @below_succ 39 (squareBlock 1 3) (@below_succ 38 (squareBlock 1 3) (@below_succ 37 (squareBlock 1 3) (@below_succ 36 (squareBlock 1 3) (@below_succ 35 (squareBlock 1 3) (@below_succ 34 (squareBlock 1 3) (@below_succ 33 (squareBlock 1 3) (@below_succ 32 (squareBlock 1 3) (square_1_3_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (squareBlock 1 3)
+    (square_1_3_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_3_48 : below 48 (squareBlock 1 3) = true :=
-  @below_succ 47 (squareBlock 1 3) (@below_succ 46 (squareBlock 1 3) (@below_succ 45 (squareBlock 1 3) (@below_succ 44 (squareBlock 1 3) (@below_succ 43 (squareBlock 1 3) (@below_succ 42 (squareBlock 1 3) (@below_succ 41 (squareBlock 1 3) (@below_succ 40 (squareBlock 1 3) (square_1_3_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (squareBlock 1 3)
+    (square_1_3_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_3 : below 51 (squareBlock 1 3) = true :=
-  @below_succ 50 (squareBlock 1 3) (@below_succ 49 (squareBlock 1 3) (@below_succ 48 (squareBlock 1 3) (square_1_3_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 3 (squareBlock 1 3)
+    (square_1_3_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_8 : below 8 (squareBlock 1 4) = true :=
-  @below_succ 7 (squareBlock 1 4) (@below_succ 6 (squareBlock 1 4) (@below_succ 5 (squareBlock 1 4) (@below_succ 4 (squareBlock 1 4) (@below_succ 3 (squareBlock 1 4) (@below_succ 2 (squareBlock 1 4) (@below_succ 1 (squareBlock 1 4) (@below_succ 0 (squareBlock 1 4) (below_zero (squareBlock 1 4)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_16 : below 16 (squareBlock 1 4) = true :=
-  @below_succ 15 (squareBlock 1 4) (@below_succ 14 (squareBlock 1 4) (@below_succ 13 (squareBlock 1 4) (@below_succ 12 (squareBlock 1 4) (@below_succ 11 (squareBlock 1 4) (@below_succ 10 (squareBlock 1 4) (@below_succ 9 (squareBlock 1 4) (@below_succ 8 (squareBlock 1 4) (square_1_4_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (squareBlock 1 4)
+    (square_1_4_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_24 : below 24 (squareBlock 1 4) = true :=
-  @below_succ 23 (squareBlock 1 4) (@below_succ 22 (squareBlock 1 4) (@below_succ 21 (squareBlock 1 4) (@below_succ 20 (squareBlock 1 4) (@below_succ 19 (squareBlock 1 4) (@below_succ 18 (squareBlock 1 4) (@below_succ 17 (squareBlock 1 4) (@below_succ 16 (squareBlock 1 4) (square_1_4_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (squareBlock 1 4)
+    (square_1_4_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_32 : below 32 (squareBlock 1 4) = true :=
-  @below_succ 31 (squareBlock 1 4) (@below_succ 30 (squareBlock 1 4) (@below_succ 29 (squareBlock 1 4) (@below_succ 28 (squareBlock 1 4) (@below_succ 27 (squareBlock 1 4) (@below_succ 26 (squareBlock 1 4) (@below_succ 25 (squareBlock 1 4) (@below_succ 24 (squareBlock 1 4) (square_1_4_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (squareBlock 1 4)
+    (square_1_4_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_40 : below 40 (squareBlock 1 4) = true :=
-  @below_succ 39 (squareBlock 1 4) (@below_succ 38 (squareBlock 1 4) (@below_succ 37 (squareBlock 1 4) (@below_succ 36 (squareBlock 1 4) (@below_succ 35 (squareBlock 1 4) (@below_succ 34 (squareBlock 1 4) (@below_succ 33 (squareBlock 1 4) (@below_succ 32 (squareBlock 1 4) (square_1_4_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (squareBlock 1 4)
+    (square_1_4_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_48 : below 48 (squareBlock 1 4) = true :=
-  @below_succ 47 (squareBlock 1 4) (@below_succ 46 (squareBlock 1 4) (@below_succ 45 (squareBlock 1 4) (@below_succ 44 (squareBlock 1 4) (@below_succ 43 (squareBlock 1 4) (@below_succ 42 (squareBlock 1 4) (@below_succ 41 (squareBlock 1 4) (@below_succ 40 (squareBlock 1 4) (square_1_4_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (squareBlock 1 4)
+    (square_1_4_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_56 : below 56 (squareBlock 1 4) = true :=
-  @below_succ 55 (squareBlock 1 4) (@below_succ 54 (squareBlock 1 4) (@below_succ 53 (squareBlock 1 4) (@below_succ 52 (squareBlock 1 4) (@below_succ 51 (squareBlock 1 4) (@below_succ 50 (squareBlock 1 4) (@below_succ 49 (squareBlock 1 4) (@below_succ 48 (squareBlock 1 4) (square_1_4_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (squareBlock 1 4)
+    (square_1_4_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_64 : below 64 (squareBlock 1 4) = true :=
-  @below_succ 63 (squareBlock 1 4) (@below_succ 62 (squareBlock 1 4) (@below_succ 61 (squareBlock 1 4) (@below_succ 60 (squareBlock 1 4) (@below_succ 59 (squareBlock 1 4) (@below_succ 58 (squareBlock 1 4) (@below_succ 57 (squareBlock 1 4) (@below_succ 56 (squareBlock 1 4) (square_1_4_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (squareBlock 1 4)
+    (square_1_4_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_72 : below 72 (squareBlock 1 4) = true :=
-  @below_succ 71 (squareBlock 1 4) (@below_succ 70 (squareBlock 1 4) (@below_succ 69 (squareBlock 1 4) (@below_succ 68 (squareBlock 1 4) (@below_succ 67 (squareBlock 1 4) (@below_succ 66 (squareBlock 1 4) (@below_succ 65 (squareBlock 1 4) (@below_succ 64 (squareBlock 1 4) (square_1_4_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (squareBlock 1 4)
+    (square_1_4_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_80 : below 80 (squareBlock 1 4) = true :=
-  @below_succ 79 (squareBlock 1 4) (@below_succ 78 (squareBlock 1 4) (@below_succ 77 (squareBlock 1 4) (@below_succ 76 (squareBlock 1 4) (@below_succ 75 (squareBlock 1 4) (@below_succ 74 (squareBlock 1 4) (@below_succ 73 (squareBlock 1 4) (@below_succ 72 (squareBlock 1 4) (square_1_4_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (squareBlock 1 4)
+    (square_1_4_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_88 : below 88 (squareBlock 1 4) = true :=
-  @below_succ 87 (squareBlock 1 4) (@below_succ 86 (squareBlock 1 4) (@below_succ 85 (squareBlock 1 4) (@below_succ 84 (squareBlock 1 4) (@below_succ 83 (squareBlock 1 4) (@below_succ 82 (squareBlock 1 4) (@below_succ 81 (squareBlock 1 4) (@below_succ 80 (squareBlock 1 4) (square_1_4_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (squareBlock 1 4)
+    (square_1_4_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_96 : below 96 (squareBlock 1 4) = true :=
-  @below_succ 95 (squareBlock 1 4) (@below_succ 94 (squareBlock 1 4) (@below_succ 93 (squareBlock 1 4) (@below_succ 92 (squareBlock 1 4) (@below_succ 91 (squareBlock 1 4) (@below_succ 90 (squareBlock 1 4) (@below_succ 89 (squareBlock 1 4) (@below_succ 88 (squareBlock 1 4) (square_1_4_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (squareBlock 1 4)
+    (square_1_4_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4_104 : below 104 (squareBlock 1 4) = true :=
-  @below_succ 103 (squareBlock 1 4) (@below_succ 102 (squareBlock 1 4) (@below_succ 101 (squareBlock 1 4) (@below_succ 100 (squareBlock 1 4) (@below_succ 99 (squareBlock 1 4) (@below_succ 98 (squareBlock 1 4) (@below_succ 97 (squareBlock 1 4) (@below_succ 96 (squareBlock 1 4) (square_1_4_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (squareBlock 1 4)
+    (square_1_4_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_4 : below 106 (squareBlock 1 4) = true :=
-  @below_succ 105 (squareBlock 1 4) (@below_succ 104 (squareBlock 1 4) (square_1_4_104) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 2 (squareBlock 1 4)
+    (square_1_4_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_1_5 : below 1 (squareBlock 1 5) = true :=
-  @below_succ 0 (squareBlock 1 5) (below_zero (squareBlock 1 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -648,82 +710,92 @@ private theorem widths_1 : below 6 (squareWidth 1) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_0 : below 1 (squareBlock 2 0) = true :=
-  @below_succ 0 (squareBlock 2 0) (below_zero (squareBlock 2 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_1 : below 1 (squareBlock 2 1) = true :=
-  @below_succ 0 (squareBlock 2 1) (below_zero (squareBlock 2 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_2 : below 8 (squareBlock 2 2) = true :=
-  @below_succ 7 (squareBlock 2 2) (@below_succ 6 (squareBlock 2 2) (@below_succ 5 (squareBlock 2 2) (@below_succ 4 (squareBlock 2 2) (@below_succ 3 (squareBlock 2 2) (@below_succ 2 (squareBlock 2 2) (@below_succ 1 (squareBlock 2 2) (@below_succ 0 (squareBlock 2 2) (below_zero (squareBlock 2 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_3_8 : below 8 (squareBlock 2 3) = true :=
-  @below_succ 7 (squareBlock 2 3) (@below_succ 6 (squareBlock 2 3) (@below_succ 5 (squareBlock 2 3) (@below_succ 4 (squareBlock 2 3) (@below_succ 3 (squareBlock 2 3) (@below_succ 2 (squareBlock 2 3) (@below_succ 1 (squareBlock 2 3) (@below_succ 0 (squareBlock 2 3) (below_zero (squareBlock 2 3)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_3_16 : below 16 (squareBlock 2 3) = true :=
-  @below_succ 15 (squareBlock 2 3) (@below_succ 14 (squareBlock 2 3) (@below_succ 13 (squareBlock 2 3) (@below_succ 12 (squareBlock 2 3) (@below_succ 11 (squareBlock 2 3) (@below_succ 10 (squareBlock 2 3) (@below_succ 9 (squareBlock 2 3) (@below_succ 8 (squareBlock 2 3) (square_2_3_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (squareBlock 2 3)
+    (square_2_3_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_3_24 : below 24 (squareBlock 2 3) = true :=
-  @below_succ 23 (squareBlock 2 3) (@below_succ 22 (squareBlock 2 3) (@below_succ 21 (squareBlock 2 3) (@below_succ 20 (squareBlock 2 3) (@below_succ 19 (squareBlock 2 3) (@below_succ 18 (squareBlock 2 3) (@below_succ 17 (squareBlock 2 3) (@below_succ 16 (squareBlock 2 3) (square_2_3_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (squareBlock 2 3)
+    (square_2_3_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_3_32 : below 32 (squareBlock 2 3) = true :=
-  @below_succ 31 (squareBlock 2 3) (@below_succ 30 (squareBlock 2 3) (@below_succ 29 (squareBlock 2 3) (@below_succ 28 (squareBlock 2 3) (@below_succ 27 (squareBlock 2 3) (@below_succ 26 (squareBlock 2 3) (@below_succ 25 (squareBlock 2 3) (@below_succ 24 (squareBlock 2 3) (square_2_3_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (squareBlock 2 3)
+    (square_2_3_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_3 : below 35 (squareBlock 2 3) = true :=
-  @below_succ 34 (squareBlock 2 3) (@below_succ 33 (squareBlock 2 3) (@below_succ 32 (squareBlock 2 3) (square_2_3_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 3 (squareBlock 2 3)
+    (square_2_3_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_4_8 : below 8 (squareBlock 2 4) = true :=
-  @below_succ 7 (squareBlock 2 4) (@below_succ 6 (squareBlock 2 4) (@below_succ 5 (squareBlock 2 4) (@below_succ 4 (squareBlock 2 4) (@below_succ 3 (squareBlock 2 4) (@below_succ 2 (squareBlock 2 4) (@below_succ 1 (squareBlock 2 4) (@below_succ 0 (squareBlock 2 4) (below_zero (squareBlock 2 4)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_4_16 : below 16 (squareBlock 2 4) = true :=
-  @below_succ 15 (squareBlock 2 4) (@below_succ 14 (squareBlock 2 4) (@below_succ 13 (squareBlock 2 4) (@below_succ 12 (squareBlock 2 4) (@below_succ 11 (squareBlock 2 4) (@below_succ 10 (squareBlock 2 4) (@below_succ 9 (squareBlock 2 4) (@below_succ 8 (squareBlock 2 4) (square_2_4_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (squareBlock 2 4)
+    (square_2_4_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_4_24 : below 24 (squareBlock 2 4) = true :=
-  @below_succ 23 (squareBlock 2 4) (@below_succ 22 (squareBlock 2 4) (@below_succ 21 (squareBlock 2 4) (@below_succ 20 (squareBlock 2 4) (@below_succ 19 (squareBlock 2 4) (@below_succ 18 (squareBlock 2 4) (@below_succ 17 (squareBlock 2 4) (@below_succ 16 (squareBlock 2 4) (square_2_4_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (squareBlock 2 4)
+    (square_2_4_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_4_32 : below 32 (squareBlock 2 4) = true :=
-  @below_succ 31 (squareBlock 2 4) (@below_succ 30 (squareBlock 2 4) (@below_succ 29 (squareBlock 2 4) (@below_succ 28 (squareBlock 2 4) (@below_succ 27 (squareBlock 2 4) (@below_succ 26 (squareBlock 2 4) (@below_succ 25 (squareBlock 2 4) (@below_succ 24 (squareBlock 2 4) (square_2_4_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (squareBlock 2 4)
+    (square_2_4_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_4_40 : below 40 (squareBlock 2 4) = true :=
-  @below_succ 39 (squareBlock 2 4) (@below_succ 38 (squareBlock 2 4) (@below_succ 37 (squareBlock 2 4) (@below_succ 36 (squareBlock 2 4) (@below_succ 35 (squareBlock 2 4) (@below_succ 34 (squareBlock 2 4) (@below_succ 33 (squareBlock 2 4) (@below_succ 32 (squareBlock 2 4) (square_2_4_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (squareBlock 2 4)
+    (square_2_4_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_4_48 : below 48 (squareBlock 2 4) = true :=
-  @below_succ 47 (squareBlock 2 4) (@below_succ 46 (squareBlock 2 4) (@below_succ 45 (squareBlock 2 4) (@below_succ 44 (squareBlock 2 4) (@below_succ 43 (squareBlock 2 4) (@below_succ 42 (squareBlock 2 4) (@below_succ 41 (squareBlock 2 4) (@below_succ 40 (squareBlock 2 4) (square_2_4_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (squareBlock 2 4)
+    (square_2_4_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_4 : below 55 (squareBlock 2 4) = true :=
-  @below_succ 54 (squareBlock 2 4) (@below_succ 53 (squareBlock 2 4) (@below_succ 52 (squareBlock 2 4) (@below_succ 51 (squareBlock 2 4) (@below_succ 50 (squareBlock 2 4) (@below_succ 49 (squareBlock 2 4) (@below_succ 48 (squareBlock 2 4) (square_2_4_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 7 (squareBlock 2 4)
+    (square_2_4_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_2_5 : below 1 (squareBlock 2 5) = true :=
-  @below_succ 0 (squareBlock 2 5) (below_zero (squareBlock 2 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -733,52 +805,56 @@ private theorem widths_2 : below 6 (squareWidth 2) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_3_0 : below 1 (squareBlock 3 0) = true :=
-  @below_succ 0 (squareBlock 3 0) (below_zero (squareBlock 3 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_3_1 : below 1 (squareBlock 3 1) = true :=
-  @below_succ 0 (squareBlock 3 1) (below_zero (squareBlock 3 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_3_2 : below 8 (squareBlock 3 2) = true :=
-  @below_succ 7 (squareBlock 3 2) (@below_succ 6 (squareBlock 3 2) (@below_succ 5 (squareBlock 3 2) (@below_succ 4 (squareBlock 3 2) (@below_succ 3 (squareBlock 3 2) (@below_succ 2 (squareBlock 3 2) (@below_succ 1 (squareBlock 3 2) (@below_succ 0 (squareBlock 3 2) (below_zero (squareBlock 3 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_3_3_8 : below 8 (squareBlock 3 3) = true :=
-  @below_succ 7 (squareBlock 3 3) (@below_succ 6 (squareBlock 3 3) (@below_succ 5 (squareBlock 3 3) (@below_succ 4 (squareBlock 3 3) (@below_succ 3 (squareBlock 3 3) (@below_succ 2 (squareBlock 3 3) (@below_succ 1 (squareBlock 3 3) (@below_succ 0 (squareBlock 3 3) (below_zero (squareBlock 3 3)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_3_3_16 : below 16 (squareBlock 3 3) = true :=
-  @below_succ 15 (squareBlock 3 3) (@below_succ 14 (squareBlock 3 3) (@below_succ 13 (squareBlock 3 3) (@below_succ 12 (squareBlock 3 3) (@below_succ 11 (squareBlock 3 3) (@below_succ 10 (squareBlock 3 3) (@below_succ 9 (squareBlock 3 3) (@below_succ 8 (squareBlock 3 3) (square_3_3_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (squareBlock 3 3)
+    (square_3_3_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_3_3 : below 23 (squareBlock 3 3) = true :=
-  @below_succ 22 (squareBlock 3 3) (@below_succ 21 (squareBlock 3 3) (@below_succ 20 (squareBlock 3 3) (@below_succ 19 (squareBlock 3 3) (@below_succ 18 (squareBlock 3 3) (@below_succ 17 (squareBlock 3 3) (@below_succ 16 (squareBlock 3 3) (square_3_3_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 7 (squareBlock 3 3)
+    (square_3_3_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_3_4_8 : below 8 (squareBlock 3 4) = true :=
-  @below_succ 7 (squareBlock 3 4) (@below_succ 6 (squareBlock 3 4) (@below_succ 5 (squareBlock 3 4) (@below_succ 4 (squareBlock 3 4) (@below_succ 3 (squareBlock 3 4) (@below_succ 2 (squareBlock 3 4) (@below_succ 1 (squareBlock 3 4) (@below_succ 0 (squareBlock 3 4) (below_zero (squareBlock 3 4)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_3_4_16 : below 16 (squareBlock 3 4) = true :=
-  @below_succ 15 (squareBlock 3 4) (@below_succ 14 (squareBlock 3 4) (@below_succ 13 (squareBlock 3 4) (@below_succ 12 (squareBlock 3 4) (@below_succ 11 (squareBlock 3 4) (@below_succ 10 (squareBlock 3 4) (@below_succ 9 (squareBlock 3 4) (@below_succ 8 (squareBlock 3 4) (square_3_4_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (squareBlock 3 4)
+    (square_3_4_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_3_4 : below 18 (squareBlock 3 4) = true :=
-  @below_succ 17 (squareBlock 3 4) (@below_succ 16 (squareBlock 3 4) (square_3_4_16) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 2 (squareBlock 3 4)
+    (square_3_4_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_3_5 : below 1 (squareBlock 3 5) = true :=
-  @below_succ 0 (squareBlock 3 5) (below_zero (squareBlock 3 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -788,37 +864,38 @@ private theorem widths_3 : below 6 (squareWidth 3) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_4_0 : below 1 (squareBlock 4 0) = true :=
-  @below_succ 0 (squareBlock 4 0) (below_zero (squareBlock 4 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_4_1 : below 1 (squareBlock 4 1) = true :=
-  @below_succ 0 (squareBlock 4 1) (below_zero (squareBlock 4 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_4_2 : below 7 (squareBlock 4 2) = true :=
-  @below_succ 6 (squareBlock 4 2) (@below_succ 5 (squareBlock 4 2) (@below_succ 4 (squareBlock 4 2) (@below_succ 3 (squareBlock 4 2) (@below_succ 2 (squareBlock 4 2) (@below_succ 1 (squareBlock 4 2) (@below_succ 0 (squareBlock 4 2) (below_zero (squareBlock 4 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_4_3_8 : below 8 (squareBlock 4 3) = true :=
-  @below_succ 7 (squareBlock 4 3) (@below_succ 6 (squareBlock 4 3) (@below_succ 5 (squareBlock 4 3) (@below_succ 4 (squareBlock 4 3) (@below_succ 3 (squareBlock 4 3) (@below_succ 2 (squareBlock 4 3) (@below_succ 1 (squareBlock 4 3) (@below_succ 0 (squareBlock 4 3) (below_zero (squareBlock 4 3)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_4_3 : below 15 (squareBlock 4 3) = true :=
-  @below_succ 14 (squareBlock 4 3) (@below_succ 13 (squareBlock 4 3) (@below_succ 12 (squareBlock 4 3) (@below_succ 11 (squareBlock 4 3) (@below_succ 10 (squareBlock 4 3) (@below_succ 9 (squareBlock 4 3) (@below_succ 8 (squareBlock 4 3) (square_4_3_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 7 (squareBlock 4 3)
+    (square_4_3_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_4_4 : below 1 (squareBlock 4 4) = true :=
-  @below_succ 0 (squareBlock 4 4) (below_zero (squareBlock 4 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_4_5 : below 1 (squareBlock 4 5) = true :=
-  @below_succ 0 (squareBlock 4 5) (below_zero (squareBlock 4 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -828,32 +905,32 @@ private theorem widths_4 : below 6 (squareWidth 4) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_5_0 : below 1 (squareBlock 5 0) = true :=
-  @below_succ 0 (squareBlock 5 0) (below_zero (squareBlock 5 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_5_1 : below 1 (squareBlock 5 1) = true :=
-  @below_succ 0 (squareBlock 5 1) (below_zero (squareBlock 5 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_5_2 : below 5 (squareBlock 5 2) = true :=
-  @below_succ 4 (squareBlock 5 2) (@below_succ 3 (squareBlock 5 2) (@below_succ 2 (squareBlock 5 2) (@below_succ 1 (squareBlock 5 2) (@below_succ 0 (squareBlock 5 2) (below_zero (squareBlock 5 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_5_3 : below 8 (squareBlock 5 3) = true :=
-  @below_succ 7 (squareBlock 5 3) (@below_succ 6 (squareBlock 5 3) (@below_succ 5 (squareBlock 5 3) (@below_succ 4 (squareBlock 5 3) (@below_succ 3 (squareBlock 5 3) (@below_succ 2 (squareBlock 5 3) (@below_succ 1 (squareBlock 5 3) (@below_succ 0 (squareBlock 5 3) (below_zero (squareBlock 5 3)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_5_4 : below 1 (squareBlock 5 4) = true :=
-  @below_succ 0 (squareBlock 5 4) (below_zero (squareBlock 5 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_5_5 : below 1 (squareBlock 5 5) = true :=
-  @below_succ 0 (squareBlock 5 5) (below_zero (squareBlock 5 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -863,32 +940,32 @@ private theorem widths_5 : below 6 (squareWidth 5) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_6_0 : below 1 (squareBlock 6 0) = true :=
-  @below_succ 0 (squareBlock 6 0) (below_zero (squareBlock 6 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_6_1 : below 1 (squareBlock 6 1) = true :=
-  @below_succ 0 (squareBlock 6 1) (below_zero (squareBlock 6 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_6_2 : below 3 (squareBlock 6 2) = true :=
-  @below_succ 2 (squareBlock 6 2) (@below_succ 1 (squareBlock 6 2) (@below_succ 0 (squareBlock 6 2) (below_zero (squareBlock 6 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_6_3 : below 4 (squareBlock 6 3) = true :=
-  @below_succ 3 (squareBlock 6 3) (@below_succ 2 (squareBlock 6 3) (@below_succ 1 (squareBlock 6 3) (@below_succ 0 (squareBlock 6 3) (below_zero (squareBlock 6 3)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_6_4 : below 1 (squareBlock 6 4) = true :=
-  @below_succ 0 (squareBlock 6 4) (below_zero (squareBlock 6 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_6_5 : below 1 (squareBlock 6 5) = true :=
-  @below_succ 0 (squareBlock 6 5) (below_zero (squareBlock 6 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -898,32 +975,32 @@ private theorem widths_6 : below 6 (squareWidth 6) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_7_0 : below 1 (squareBlock 7 0) = true :=
-  @below_succ 0 (squareBlock 7 0) (below_zero (squareBlock 7 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_7_1 : below 1 (squareBlock 7 1) = true :=
-  @below_succ 0 (squareBlock 7 1) (below_zero (squareBlock 7 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_7_2 : below 2 (squareBlock 7 2) = true :=
-  @below_succ 1 (squareBlock 7 2) (@below_succ 0 (squareBlock 7 2) (below_zero (squareBlock 7 2)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_7_3 : below 1 (squareBlock 7 3) = true :=
-  @below_succ 0 (squareBlock 7 3) (below_zero (squareBlock 7 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_7_4 : below 1 (squareBlock 7 4) = true :=
-  @below_succ 0 (squareBlock 7 4) (below_zero (squareBlock 7 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_7_5 : below 1 (squareBlock 7 5) = true :=
-  @below_succ 0 (squareBlock 7 5) (below_zero (squareBlock 7 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -933,32 +1010,32 @@ private theorem widths_7 : below 6 (squareWidth 7) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_8_0 : below 1 (squareBlock 8 0) = true :=
-  @below_succ 0 (squareBlock 8 0) (below_zero (squareBlock 8 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_8_1 : below 1 (squareBlock 8 1) = true :=
-  @below_succ 0 (squareBlock 8 1) (below_zero (squareBlock 8 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_8_2 : below 2 (squareBlock 8 2) = true :=
-  @below_succ 1 (squareBlock 8 2) (@below_succ 0 (squareBlock 8 2) (below_zero (squareBlock 8 2)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_8_3 : below 1 (squareBlock 8 3) = true :=
-  @below_succ 0 (squareBlock 8 3) (below_zero (squareBlock 8 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_8_4 : below 1 (squareBlock 8 4) = true :=
-  @below_succ 0 (squareBlock 8 4) (below_zero (squareBlock 8 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_8_5 : below 1 (squareBlock 8 5) = true :=
-  @below_succ 0 (squareBlock 8 5) (below_zero (squareBlock 8 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -968,32 +1045,32 @@ private theorem widths_8 : below 6 (squareWidth 8) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_9_0 : below 1 (squareBlock 9 0) = true :=
-  @below_succ 0 (squareBlock 9 0) (below_zero (squareBlock 9 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_9_1 : below 1 (squareBlock 9 1) = true :=
-  @below_succ 0 (squareBlock 9 1) (below_zero (squareBlock 9 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_9_2 : below 3 (squareBlock 9 2) = true :=
-  @below_succ 2 (squareBlock 9 2) (@below_succ 1 (squareBlock 9 2) (@below_succ 0 (squareBlock 9 2) (below_zero (squareBlock 9 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_9_3 : below 4 (squareBlock 9 3) = true :=
-  @below_succ 3 (squareBlock 9 3) (@below_succ 2 (squareBlock 9 3) (@below_succ 1 (squareBlock 9 3) (@below_succ 0 (squareBlock 9 3) (below_zero (squareBlock 9 3)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_9_4 : below 1 (squareBlock 9 4) = true :=
-  @below_succ 0 (squareBlock 9 4) (below_zero (squareBlock 9 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_9_5 : below 1 (squareBlock 9 5) = true :=
-  @below_succ 0 (squareBlock 9 5) (below_zero (squareBlock 9 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1003,32 +1080,32 @@ private theorem widths_9 : below 6 (squareWidth 9) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_10_0 : below 1 (squareBlock 10 0) = true :=
-  @below_succ 0 (squareBlock 10 0) (below_zero (squareBlock 10 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_10_1 : below 1 (squareBlock 10 1) = true :=
-  @below_succ 0 (squareBlock 10 1) (below_zero (squareBlock 10 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_10_2 : below 2 (squareBlock 10 2) = true :=
-  @below_succ 1 (squareBlock 10 2) (@below_succ 0 (squareBlock 10 2) (below_zero (squareBlock 10 2)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_10_3 : below 1 (squareBlock 10 3) = true :=
-  @below_succ 0 (squareBlock 10 3) (below_zero (squareBlock 10 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_10_4 : below 1 (squareBlock 10 4) = true :=
-  @below_succ 0 (squareBlock 10 4) (below_zero (squareBlock 10 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_10_5 : below 1 (squareBlock 10 5) = true :=
-  @below_succ 0 (squareBlock 10 5) (below_zero (squareBlock 10 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1038,32 +1115,32 @@ private theorem widths_10 : below 6 (squareWidth 10) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_11_0 : below 1 (squareBlock 11 0) = true :=
-  @below_succ 0 (squareBlock 11 0) (below_zero (squareBlock 11 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_11_1 : below 1 (squareBlock 11 1) = true :=
-  @below_succ 0 (squareBlock 11 1) (below_zero (squareBlock 11 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_11_2 : below 2 (squareBlock 11 2) = true :=
-  @below_succ 1 (squareBlock 11 2) (@below_succ 0 (squareBlock 11 2) (below_zero (squareBlock 11 2)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_11_3 : below 1 (squareBlock 11 3) = true :=
-  @below_succ 0 (squareBlock 11 3) (below_zero (squareBlock 11 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_11_4 : below 1 (squareBlock 11 4) = true :=
-  @below_succ 0 (squareBlock 11 4) (below_zero (squareBlock 11 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_11_5 : below 1 (squareBlock 11 5) = true :=
-  @below_succ 0 (squareBlock 11 5) (below_zero (squareBlock 11 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1073,32 +1150,32 @@ private theorem widths_11 : below 6 (squareWidth 11) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_12_0 : below 1 (squareBlock 12 0) = true :=
-  @below_succ 0 (squareBlock 12 0) (below_zero (squareBlock 12 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_12_1 : below 1 (squareBlock 12 1) = true :=
-  @below_succ 0 (squareBlock 12 1) (below_zero (squareBlock 12 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_12_2 : below 1 (squareBlock 12 2) = true :=
-  @below_succ 0 (squareBlock 12 2) (below_zero (squareBlock 12 2)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_12_3 : below 1 (squareBlock 12 3) = true :=
-  @below_succ 0 (squareBlock 12 3) (below_zero (squareBlock 12 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_12_4 : below 1 (squareBlock 12 4) = true :=
-  @below_succ 0 (squareBlock 12 4) (below_zero (squareBlock 12 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_12_5 : below 1 (squareBlock 12 5) = true :=
-  @below_succ 0 (squareBlock 12 5) (below_zero (squareBlock 12 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1108,32 +1185,32 @@ private theorem widths_12 : below 6 (squareWidth 12) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_13_0 : below 1 (squareBlock 13 0) = true :=
-  @below_succ 0 (squareBlock 13 0) (below_zero (squareBlock 13 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_13_1 : below 1 (squareBlock 13 1) = true :=
-  @below_succ 0 (squareBlock 13 1) (below_zero (squareBlock 13 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_13_2 : below 1 (squareBlock 13 2) = true :=
-  @below_succ 0 (squareBlock 13 2) (below_zero (squareBlock 13 2)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_13_3 : below 1 (squareBlock 13 3) = true :=
-  @below_succ 0 (squareBlock 13 3) (below_zero (squareBlock 13 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_13_4 : below 1 (squareBlock 13 4) = true :=
-  @below_succ 0 (squareBlock 13 4) (below_zero (squareBlock 13 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_13_5 : below 1 (squareBlock 13 5) = true :=
-  @below_succ 0 (squareBlock 13 5) (below_zero (squareBlock 13 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1143,32 +1220,32 @@ private theorem widths_13 : below 6 (squareWidth 13) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_14_0 : below 1 (squareBlock 14 0) = true :=
-  @below_succ 0 (squareBlock 14 0) (below_zero (squareBlock 14 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_14_1 : below 1 (squareBlock 14 1) = true :=
-  @below_succ 0 (squareBlock 14 1) (below_zero (squareBlock 14 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_14_2 : below 1 (squareBlock 14 2) = true :=
-  @below_succ 0 (squareBlock 14 2) (below_zero (squareBlock 14 2)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_14_3 : below 1 (squareBlock 14 3) = true :=
-  @below_succ 0 (squareBlock 14 3) (below_zero (squareBlock 14 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_14_4 : below 1 (squareBlock 14 4) = true :=
-  @below_succ 0 (squareBlock 14 4) (below_zero (squareBlock 14 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_14_5 : below 1 (squareBlock 14 5) = true :=
-  @below_succ 0 (squareBlock 14 5) (below_zero (squareBlock 14 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1178,32 +1255,32 @@ private theorem widths_14 : below 6 (squareWidth 14) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_15_0 : below 1 (squareBlock 15 0) = true :=
-  @below_succ 0 (squareBlock 15 0) (below_zero (squareBlock 15 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_15_1 : below 1 (squareBlock 15 1) = true :=
-  @below_succ 0 (squareBlock 15 1) (below_zero (squareBlock 15 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_15_2 : below 1 (squareBlock 15 2) = true :=
-  @below_succ 0 (squareBlock 15 2) (below_zero (squareBlock 15 2)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_15_3 : below 1 (squareBlock 15 3) = true :=
-  @below_succ 0 (squareBlock 15 3) (below_zero (squareBlock 15 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_15_4 : below 1 (squareBlock 15 4) = true :=
-  @below_succ 0 (squareBlock 15 4) (below_zero (squareBlock 15 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_15_5 : below 1 (squareBlock 15 5) = true :=
-  @below_succ 0 (squareBlock 15 5) (below_zero (squareBlock 15 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1213,32 +1290,32 @@ private theorem widths_15 : below 6 (squareWidth 15) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_16_0 : below 1 (squareBlock 16 0) = true :=
-  @below_succ 0 (squareBlock 16 0) (below_zero (squareBlock 16 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_16_1 : below 1 (squareBlock 16 1) = true :=
-  @below_succ 0 (squareBlock 16 1) (below_zero (squareBlock 16 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_16_2 : below 1 (squareBlock 16 2) = true :=
-  @below_succ 0 (squareBlock 16 2) (below_zero (squareBlock 16 2)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_16_3 : below 1 (squareBlock 16 3) = true :=
-  @below_succ 0 (squareBlock 16 3) (below_zero (squareBlock 16 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_16_4 : below 1 (squareBlock 16 4) = true :=
-  @below_succ 0 (squareBlock 16 4) (below_zero (squareBlock 16 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_16_5 : below 1 (squareBlock 16 5) = true :=
-  @below_succ 0 (squareBlock 16 5) (below_zero (squareBlock 16 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1248,32 +1325,32 @@ private theorem widths_16 : below 6 (squareWidth 16) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_17_0 : below 1 (squareBlock 17 0) = true :=
-  @below_succ 0 (squareBlock 17 0) (below_zero (squareBlock 17 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_17_1 : below 1 (squareBlock 17 1) = true :=
-  @below_succ 0 (squareBlock 17 1) (below_zero (squareBlock 17 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_17_2 : below 1 (squareBlock 17 2) = true :=
-  @below_succ 0 (squareBlock 17 2) (below_zero (squareBlock 17 2)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_17_3 : below 1 (squareBlock 17 3) = true :=
-  @below_succ 0 (squareBlock 17 3) (below_zero (squareBlock 17 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_17_4 : below 1 (squareBlock 17 4) = true :=
-  @below_succ 0 (squareBlock 17 4) (below_zero (squareBlock 17 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_17_5 : below 1 (squareBlock 17 5) = true :=
-  @below_succ 0 (squareBlock 17 5) (below_zero (squareBlock 17 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1283,32 +1360,32 @@ private theorem widths_17 : below 6 (squareWidth 17) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_18_0 : below 1 (squareBlock 18 0) = true :=
-  @below_succ 0 (squareBlock 18 0) (below_zero (squareBlock 18 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_18_1 : below 1 (squareBlock 18 1) = true :=
-  @below_succ 0 (squareBlock 18 1) (below_zero (squareBlock 18 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_18_2 : below 1 (squareBlock 18 2) = true :=
-  @below_succ 0 (squareBlock 18 2) (below_zero (squareBlock 18 2)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_18_3 : below 1 (squareBlock 18 3) = true :=
-  @below_succ 0 (squareBlock 18 3) (below_zero (squareBlock 18 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_18_4 : below 1 (squareBlock 18 4) = true :=
-  @below_succ 0 (squareBlock 18 4) (below_zero (squareBlock 18 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_18_5 : below 1 (squareBlock 18 5) = true :=
-  @below_succ 0 (squareBlock 18 5) (below_zero (squareBlock 18 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1318,32 +1395,32 @@ private theorem widths_18 : below 6 (squareWidth 18) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_19_0 : below 1 (squareBlock 19 0) = true :=
-  @below_succ 0 (squareBlock 19 0) (below_zero (squareBlock 19 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_19_1 : below 1 (squareBlock 19 1) = true :=
-  @below_succ 0 (squareBlock 19 1) (below_zero (squareBlock 19 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_19_2 : below 1 (squareBlock 19 2) = true :=
-  @below_succ 0 (squareBlock 19 2) (below_zero (squareBlock 19 2)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_19_3 : below 1 (squareBlock 19 3) = true :=
-  @below_succ 0 (squareBlock 19 3) (below_zero (squareBlock 19 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_19_4 : below 1 (squareBlock 19 4) = true :=
-  @below_succ 0 (squareBlock 19 4) (below_zero (squareBlock 19 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_19_5 : below 1 (squareBlock 19 5) = true :=
-  @below_succ 0 (squareBlock 19 5) (below_zero (squareBlock 19 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1353,32 +1430,32 @@ private theorem widths_19 : below 6 (squareWidth 19) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_20_0 : below 1 (squareBlock 20 0) = true :=
-  @below_succ 0 (squareBlock 20 0) (below_zero (squareBlock 20 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_20_1 : below 1 (squareBlock 20 1) = true :=
-  @below_succ 0 (squareBlock 20 1) (below_zero (squareBlock 20 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_20_2 : below 1 (squareBlock 20 2) = true :=
-  @below_succ 0 (squareBlock 20 2) (below_zero (squareBlock 20 2)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_20_3 : below 1 (squareBlock 20 3) = true :=
-  @below_succ 0 (squareBlock 20 3) (below_zero (squareBlock 20 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_20_4 : below 1 (squareBlock 20 4) = true :=
-  @below_succ 0 (squareBlock 20 4) (below_zero (squareBlock 20 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_20_5 : below 1 (squareBlock 20 5) = true :=
-  @below_succ 0 (squareBlock 20 5) (below_zero (squareBlock 20 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1388,32 +1465,32 @@ private theorem widths_20 : below 6 (squareWidth 20) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_21_0 : below 1 (squareBlock 21 0) = true :=
-  @below_succ 0 (squareBlock 21 0) (below_zero (squareBlock 21 0)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_21_1 : below 1 (squareBlock 21 1) = true :=
-  @below_succ 0 (squareBlock 21 1) (below_zero (squareBlock 21 1)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_21_2 : below 1 (squareBlock 21 2) = true :=
-  @below_succ 0 (squareBlock 21 2) (below_zero (squareBlock 21 2)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_21_3 : below 1 (squareBlock 21 3) = true :=
-  @below_succ 0 (squareBlock 21 3) (below_zero (squareBlock 21 3)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_21_4 : below 1 (squareBlock 21 4) = true :=
-  @below_succ 0 (squareBlock 21 4) (below_zero (squareBlock 21 4)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem square_21_5 : below 1 (squareBlock 21 5) = true :=
-  @below_succ 0 (squareBlock 21 5) (below_zero (squareBlock 21 5)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1524,57 +1601,64 @@ private theorem grid_of_powers (start stride blocks : ℕ)
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_blocks_0_8 : below 8 (perBlock 0 4 0) = true :=
-  @below_succ 7 (perBlock 0 4 0) (@below_succ 6 (perBlock 0 4 0) (@below_succ 5 (perBlock 0 4 0) (@below_succ 4 (perBlock 0 4 0) (@below_succ 3 (perBlock 0 4 0) (@below_succ 2 (perBlock 0 4 0) (@below_succ 1 (perBlock 0 4 0) (@below_succ 0 (perBlock 0 4 0) (below_zero (perBlock 0 4 0)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_blocks_0 : below 16 (perBlock 0 4 0) = true :=
-  @below_succ 15 (perBlock 0 4 0) (@below_succ 14 (perBlock 0 4 0) (@below_succ 13 (perBlock 0 4 0) (@below_succ 12 (perBlock 0 4 0) (@below_succ 11 (perBlock 0 4 0) (@below_succ 10 (perBlock 0 4 0) (@below_succ 9 (perBlock 0 4 0) (@below_succ 8 (perBlock 0 4 0) (small_blocks_0_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 0 4 0)
+    (small_blocks_0_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_1_0_8 : below 8 (perExponent 0 4 1 0) = true :=
-  @below_succ 7 (perExponent 0 4 1 0) (@below_succ 6 (perExponent 0 4 1 0) (@below_succ 5 (perExponent 0 4 1 0) (@below_succ 4 (perExponent 0 4 1 0) (@below_succ 3 (perExponent 0 4 1 0) (@below_succ 2 (perExponent 0 4 1 0) (@below_succ 1 (perExponent 0 4 1 0) (@below_succ 0 (perExponent 0 4 1 0) (below_zero (perExponent 0 4 1 0)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_1_0_16 : below 16 (perExponent 0 4 1 0) = true :=
-  @below_succ 15 (perExponent 0 4 1 0) (@below_succ 14 (perExponent 0 4 1 0) (@below_succ 13 (perExponent 0 4 1 0) (@below_succ 12 (perExponent 0 4 1 0) (@below_succ 11 (perExponent 0 4 1 0) (@below_succ 10 (perExponent 0 4 1 0) (@below_succ 9 (perExponent 0 4 1 0) (@below_succ 8 (perExponent 0 4 1 0) (small_exps_1_0_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 1 0)
+    (small_exps_1_0_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_1_0 : below 22 (perExponent 0 4 1 0) = true :=
-  @below_succ 21 (perExponent 0 4 1 0) (@below_succ 20 (perExponent 0 4 1 0) (@below_succ 19 (perExponent 0 4 1 0) (@below_succ 18 (perExponent 0 4 1 0) (@below_succ 17 (perExponent 0 4 1 0) (@below_succ 16 (perExponent 0 4 1 0) (small_exps_1_0_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 1 0)
+    (small_exps_1_0_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_1_1_8 : below 8 (perExponent 0 4 1 1) = true :=
-  @below_succ 7 (perExponent 0 4 1 1) (@below_succ 6 (perExponent 0 4 1 1) (@below_succ 5 (perExponent 0 4 1 1) (@below_succ 4 (perExponent 0 4 1 1) (@below_succ 3 (perExponent 0 4 1 1) (@below_succ 2 (perExponent 0 4 1 1) (@below_succ 1 (perExponent 0 4 1 1) (@below_succ 0 (perExponent 0 4 1 1) (below_zero (perExponent 0 4 1 1)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_1_1_16 : below 16 (perExponent 0 4 1 1) = true :=
-  @below_succ 15 (perExponent 0 4 1 1) (@below_succ 14 (perExponent 0 4 1 1) (@below_succ 13 (perExponent 0 4 1 1) (@below_succ 12 (perExponent 0 4 1 1) (@below_succ 11 (perExponent 0 4 1 1) (@below_succ 10 (perExponent 0 4 1 1) (@below_succ 9 (perExponent 0 4 1 1) (@below_succ 8 (perExponent 0 4 1 1) (small_exps_1_1_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 1 1)
+    (small_exps_1_1_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_1_1 : below 22 (perExponent 0 4 1 1) = true :=
-  @below_succ 21 (perExponent 0 4 1 1) (@below_succ 20 (perExponent 0 4 1 1) (@below_succ 19 (perExponent 0 4 1 1) (@below_succ 18 (perExponent 0 4 1 1) (@below_succ 17 (perExponent 0 4 1 1) (@below_succ 16 (perExponent 0 4 1 1) (small_exps_1_1_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 1 1)
+    (small_exps_1_1_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_1_2_8 : below 8 (perExponent 0 4 1 2) = true :=
-  @below_succ 7 (perExponent 0 4 1 2) (@below_succ 6 (perExponent 0 4 1 2) (@below_succ 5 (perExponent 0 4 1 2) (@below_succ 4 (perExponent 0 4 1 2) (@below_succ 3 (perExponent 0 4 1 2) (@below_succ 2 (perExponent 0 4 1 2) (@below_succ 1 (perExponent 0 4 1 2) (@below_succ 0 (perExponent 0 4 1 2) (below_zero (perExponent 0 4 1 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_1_2_16 : below 16 (perExponent 0 4 1 2) = true :=
-  @below_succ 15 (perExponent 0 4 1 2) (@below_succ 14 (perExponent 0 4 1 2) (@below_succ 13 (perExponent 0 4 1 2) (@below_succ 12 (perExponent 0 4 1 2) (@below_succ 11 (perExponent 0 4 1 2) (@below_succ 10 (perExponent 0 4 1 2) (@below_succ 9 (perExponent 0 4 1 2) (@below_succ 8 (perExponent 0 4 1 2) (small_exps_1_2_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 1 2)
+    (small_exps_1_2_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_1_2 : below 22 (perExponent 0 4 1 2) = true :=
-  @below_succ 21 (perExponent 0 4 1 2) (@below_succ 20 (perExponent 0 4 1 2) (@below_succ 19 (perExponent 0 4 1 2) (@below_succ 18 (perExponent 0 4 1 2) (@below_succ 17 (perExponent 0 4 1 2) (@below_succ 16 (perExponent 0 4 1 2) (small_exps_1_2_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 1 2)
+    (small_exps_1_2_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1584,52 +1668,59 @@ private theorem small_blocks_1_8 : below 8 (perBlock 0 4 1) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_blocks_1 : below 16 (perBlock 0 4 1) = true :=
-  @below_succ 15 (perBlock 0 4 1) (@below_succ 14 (perBlock 0 4 1) (@below_succ 13 (perBlock 0 4 1) (@below_succ 12 (perBlock 0 4 1) (@below_succ 11 (perBlock 0 4 1) (@below_succ 10 (perBlock 0 4 1) (@below_succ 9 (perBlock 0 4 1) (@below_succ 8 (perBlock 0 4 1) (small_blocks_1_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 0 4 1)
+    (small_blocks_1_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_2_0_8 : below 8 (perExponent 0 4 2 0) = true :=
-  @below_succ 7 (perExponent 0 4 2 0) (@below_succ 6 (perExponent 0 4 2 0) (@below_succ 5 (perExponent 0 4 2 0) (@below_succ 4 (perExponent 0 4 2 0) (@below_succ 3 (perExponent 0 4 2 0) (@below_succ 2 (perExponent 0 4 2 0) (@below_succ 1 (perExponent 0 4 2 0) (@below_succ 0 (perExponent 0 4 2 0) (below_zero (perExponent 0 4 2 0)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_2_0_16 : below 16 (perExponent 0 4 2 0) = true :=
-  @below_succ 15 (perExponent 0 4 2 0) (@below_succ 14 (perExponent 0 4 2 0) (@below_succ 13 (perExponent 0 4 2 0) (@below_succ 12 (perExponent 0 4 2 0) (@below_succ 11 (perExponent 0 4 2 0) (@below_succ 10 (perExponent 0 4 2 0) (@below_succ 9 (perExponent 0 4 2 0) (@below_succ 8 (perExponent 0 4 2 0) (small_exps_2_0_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 2 0)
+    (small_exps_2_0_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_2_0 : below 22 (perExponent 0 4 2 0) = true :=
-  @below_succ 21 (perExponent 0 4 2 0) (@below_succ 20 (perExponent 0 4 2 0) (@below_succ 19 (perExponent 0 4 2 0) (@below_succ 18 (perExponent 0 4 2 0) (@below_succ 17 (perExponent 0 4 2 0) (@below_succ 16 (perExponent 0 4 2 0) (small_exps_2_0_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 2 0)
+    (small_exps_2_0_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_2_1_8 : below 8 (perExponent 0 4 2 1) = true :=
-  @below_succ 7 (perExponent 0 4 2 1) (@below_succ 6 (perExponent 0 4 2 1) (@below_succ 5 (perExponent 0 4 2 1) (@below_succ 4 (perExponent 0 4 2 1) (@below_succ 3 (perExponent 0 4 2 1) (@below_succ 2 (perExponent 0 4 2 1) (@below_succ 1 (perExponent 0 4 2 1) (@below_succ 0 (perExponent 0 4 2 1) (below_zero (perExponent 0 4 2 1)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_2_1_16 : below 16 (perExponent 0 4 2 1) = true :=
-  @below_succ 15 (perExponent 0 4 2 1) (@below_succ 14 (perExponent 0 4 2 1) (@below_succ 13 (perExponent 0 4 2 1) (@below_succ 12 (perExponent 0 4 2 1) (@below_succ 11 (perExponent 0 4 2 1) (@below_succ 10 (perExponent 0 4 2 1) (@below_succ 9 (perExponent 0 4 2 1) (@below_succ 8 (perExponent 0 4 2 1) (small_exps_2_1_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 2 1)
+    (small_exps_2_1_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_2_1 : below 22 (perExponent 0 4 2 1) = true :=
-  @below_succ 21 (perExponent 0 4 2 1) (@below_succ 20 (perExponent 0 4 2 1) (@below_succ 19 (perExponent 0 4 2 1) (@below_succ 18 (perExponent 0 4 2 1) (@below_succ 17 (perExponent 0 4 2 1) (@below_succ 16 (perExponent 0 4 2 1) (small_exps_2_1_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 2 1)
+    (small_exps_2_1_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_2_2_8 : below 8 (perExponent 0 4 2 2) = true :=
-  @below_succ 7 (perExponent 0 4 2 2) (@below_succ 6 (perExponent 0 4 2 2) (@below_succ 5 (perExponent 0 4 2 2) (@below_succ 4 (perExponent 0 4 2 2) (@below_succ 3 (perExponent 0 4 2 2) (@below_succ 2 (perExponent 0 4 2 2) (@below_succ 1 (perExponent 0 4 2 2) (@below_succ 0 (perExponent 0 4 2 2) (below_zero (perExponent 0 4 2 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_2_2_16 : below 16 (perExponent 0 4 2 2) = true :=
-  @below_succ 15 (perExponent 0 4 2 2) (@below_succ 14 (perExponent 0 4 2 2) (@below_succ 13 (perExponent 0 4 2 2) (@below_succ 12 (perExponent 0 4 2 2) (@below_succ 11 (perExponent 0 4 2 2) (@below_succ 10 (perExponent 0 4 2 2) (@below_succ 9 (perExponent 0 4 2 2) (@below_succ 8 (perExponent 0 4 2 2) (small_exps_2_2_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 2 2)
+    (small_exps_2_2_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_2_2 : below 22 (perExponent 0 4 2 2) = true :=
-  @below_succ 21 (perExponent 0 4 2 2) (@below_succ 20 (perExponent 0 4 2 2) (@below_succ 19 (perExponent 0 4 2 2) (@below_succ 18 (perExponent 0 4 2 2) (@below_succ 17 (perExponent 0 4 2 2) (@below_succ 16 (perExponent 0 4 2 2) (small_exps_2_2_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 2 2)
+    (small_exps_2_2_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1639,52 +1730,59 @@ private theorem small_blocks_2_8 : below 8 (perBlock 0 4 2) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_blocks_2 : below 16 (perBlock 0 4 2) = true :=
-  @below_succ 15 (perBlock 0 4 2) (@below_succ 14 (perBlock 0 4 2) (@below_succ 13 (perBlock 0 4 2) (@below_succ 12 (perBlock 0 4 2) (@below_succ 11 (perBlock 0 4 2) (@below_succ 10 (perBlock 0 4 2) (@below_succ 9 (perBlock 0 4 2) (@below_succ 8 (perBlock 0 4 2) (small_blocks_2_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 0 4 2)
+    (small_blocks_2_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_3_0_8 : below 8 (perExponent 0 4 3 0) = true :=
-  @below_succ 7 (perExponent 0 4 3 0) (@below_succ 6 (perExponent 0 4 3 0) (@below_succ 5 (perExponent 0 4 3 0) (@below_succ 4 (perExponent 0 4 3 0) (@below_succ 3 (perExponent 0 4 3 0) (@below_succ 2 (perExponent 0 4 3 0) (@below_succ 1 (perExponent 0 4 3 0) (@below_succ 0 (perExponent 0 4 3 0) (below_zero (perExponent 0 4 3 0)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_3_0_16 : below 16 (perExponent 0 4 3 0) = true :=
-  @below_succ 15 (perExponent 0 4 3 0) (@below_succ 14 (perExponent 0 4 3 0) (@below_succ 13 (perExponent 0 4 3 0) (@below_succ 12 (perExponent 0 4 3 0) (@below_succ 11 (perExponent 0 4 3 0) (@below_succ 10 (perExponent 0 4 3 0) (@below_succ 9 (perExponent 0 4 3 0) (@below_succ 8 (perExponent 0 4 3 0) (small_exps_3_0_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 3 0)
+    (small_exps_3_0_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_3_0 : below 22 (perExponent 0 4 3 0) = true :=
-  @below_succ 21 (perExponent 0 4 3 0) (@below_succ 20 (perExponent 0 4 3 0) (@below_succ 19 (perExponent 0 4 3 0) (@below_succ 18 (perExponent 0 4 3 0) (@below_succ 17 (perExponent 0 4 3 0) (@below_succ 16 (perExponent 0 4 3 0) (small_exps_3_0_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 3 0)
+    (small_exps_3_0_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_3_1_8 : below 8 (perExponent 0 4 3 1) = true :=
-  @below_succ 7 (perExponent 0 4 3 1) (@below_succ 6 (perExponent 0 4 3 1) (@below_succ 5 (perExponent 0 4 3 1) (@below_succ 4 (perExponent 0 4 3 1) (@below_succ 3 (perExponent 0 4 3 1) (@below_succ 2 (perExponent 0 4 3 1) (@below_succ 1 (perExponent 0 4 3 1) (@below_succ 0 (perExponent 0 4 3 1) (below_zero (perExponent 0 4 3 1)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_3_1_16 : below 16 (perExponent 0 4 3 1) = true :=
-  @below_succ 15 (perExponent 0 4 3 1) (@below_succ 14 (perExponent 0 4 3 1) (@below_succ 13 (perExponent 0 4 3 1) (@below_succ 12 (perExponent 0 4 3 1) (@below_succ 11 (perExponent 0 4 3 1) (@below_succ 10 (perExponent 0 4 3 1) (@below_succ 9 (perExponent 0 4 3 1) (@below_succ 8 (perExponent 0 4 3 1) (small_exps_3_1_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 3 1)
+    (small_exps_3_1_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_3_1 : below 22 (perExponent 0 4 3 1) = true :=
-  @below_succ 21 (perExponent 0 4 3 1) (@below_succ 20 (perExponent 0 4 3 1) (@below_succ 19 (perExponent 0 4 3 1) (@below_succ 18 (perExponent 0 4 3 1) (@below_succ 17 (perExponent 0 4 3 1) (@below_succ 16 (perExponent 0 4 3 1) (small_exps_3_1_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 3 1)
+    (small_exps_3_1_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_3_2_8 : below 8 (perExponent 0 4 3 2) = true :=
-  @below_succ 7 (perExponent 0 4 3 2) (@below_succ 6 (perExponent 0 4 3 2) (@below_succ 5 (perExponent 0 4 3 2) (@below_succ 4 (perExponent 0 4 3 2) (@below_succ 3 (perExponent 0 4 3 2) (@below_succ 2 (perExponent 0 4 3 2) (@below_succ 1 (perExponent 0 4 3 2) (@below_succ 0 (perExponent 0 4 3 2) (below_zero (perExponent 0 4 3 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_3_2_16 : below 16 (perExponent 0 4 3 2) = true :=
-  @below_succ 15 (perExponent 0 4 3 2) (@below_succ 14 (perExponent 0 4 3 2) (@below_succ 13 (perExponent 0 4 3 2) (@below_succ 12 (perExponent 0 4 3 2) (@below_succ 11 (perExponent 0 4 3 2) (@below_succ 10 (perExponent 0 4 3 2) (@below_succ 9 (perExponent 0 4 3 2) (@below_succ 8 (perExponent 0 4 3 2) (small_exps_3_2_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 3 2)
+    (small_exps_3_2_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_3_2 : below 22 (perExponent 0 4 3 2) = true :=
-  @below_succ 21 (perExponent 0 4 3 2) (@below_succ 20 (perExponent 0 4 3 2) (@below_succ 19 (perExponent 0 4 3 2) (@below_succ 18 (perExponent 0 4 3 2) (@below_succ 17 (perExponent 0 4 3 2) (@below_succ 16 (perExponent 0 4 3 2) (small_exps_3_2_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 3 2)
+    (small_exps_3_2_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1694,52 +1792,59 @@ private theorem small_blocks_3_8 : below 8 (perBlock 0 4 3) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_blocks_3 : below 16 (perBlock 0 4 3) = true :=
-  @below_succ 15 (perBlock 0 4 3) (@below_succ 14 (perBlock 0 4 3) (@below_succ 13 (perBlock 0 4 3) (@below_succ 12 (perBlock 0 4 3) (@below_succ 11 (perBlock 0 4 3) (@below_succ 10 (perBlock 0 4 3) (@below_succ 9 (perBlock 0 4 3) (@below_succ 8 (perBlock 0 4 3) (small_blocks_3_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 0 4 3)
+    (small_blocks_3_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_4_0_8 : below 8 (perExponent 0 4 4 0) = true :=
-  @below_succ 7 (perExponent 0 4 4 0) (@below_succ 6 (perExponent 0 4 4 0) (@below_succ 5 (perExponent 0 4 4 0) (@below_succ 4 (perExponent 0 4 4 0) (@below_succ 3 (perExponent 0 4 4 0) (@below_succ 2 (perExponent 0 4 4 0) (@below_succ 1 (perExponent 0 4 4 0) (@below_succ 0 (perExponent 0 4 4 0) (below_zero (perExponent 0 4 4 0)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_4_0_16 : below 16 (perExponent 0 4 4 0) = true :=
-  @below_succ 15 (perExponent 0 4 4 0) (@below_succ 14 (perExponent 0 4 4 0) (@below_succ 13 (perExponent 0 4 4 0) (@below_succ 12 (perExponent 0 4 4 0) (@below_succ 11 (perExponent 0 4 4 0) (@below_succ 10 (perExponent 0 4 4 0) (@below_succ 9 (perExponent 0 4 4 0) (@below_succ 8 (perExponent 0 4 4 0) (small_exps_4_0_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 4 0)
+    (small_exps_4_0_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_4_0 : below 22 (perExponent 0 4 4 0) = true :=
-  @below_succ 21 (perExponent 0 4 4 0) (@below_succ 20 (perExponent 0 4 4 0) (@below_succ 19 (perExponent 0 4 4 0) (@below_succ 18 (perExponent 0 4 4 0) (@below_succ 17 (perExponent 0 4 4 0) (@below_succ 16 (perExponent 0 4 4 0) (small_exps_4_0_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 4 0)
+    (small_exps_4_0_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_4_1_8 : below 8 (perExponent 0 4 4 1) = true :=
-  @below_succ 7 (perExponent 0 4 4 1) (@below_succ 6 (perExponent 0 4 4 1) (@below_succ 5 (perExponent 0 4 4 1) (@below_succ 4 (perExponent 0 4 4 1) (@below_succ 3 (perExponent 0 4 4 1) (@below_succ 2 (perExponent 0 4 4 1) (@below_succ 1 (perExponent 0 4 4 1) (@below_succ 0 (perExponent 0 4 4 1) (below_zero (perExponent 0 4 4 1)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_4_1_16 : below 16 (perExponent 0 4 4 1) = true :=
-  @below_succ 15 (perExponent 0 4 4 1) (@below_succ 14 (perExponent 0 4 4 1) (@below_succ 13 (perExponent 0 4 4 1) (@below_succ 12 (perExponent 0 4 4 1) (@below_succ 11 (perExponent 0 4 4 1) (@below_succ 10 (perExponent 0 4 4 1) (@below_succ 9 (perExponent 0 4 4 1) (@below_succ 8 (perExponent 0 4 4 1) (small_exps_4_1_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 4 1)
+    (small_exps_4_1_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_4_1 : below 22 (perExponent 0 4 4 1) = true :=
-  @below_succ 21 (perExponent 0 4 4 1) (@below_succ 20 (perExponent 0 4 4 1) (@below_succ 19 (perExponent 0 4 4 1) (@below_succ 18 (perExponent 0 4 4 1) (@below_succ 17 (perExponent 0 4 4 1) (@below_succ 16 (perExponent 0 4 4 1) (small_exps_4_1_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 4 1)
+    (small_exps_4_1_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_4_2_8 : below 8 (perExponent 0 4 4 2) = true :=
-  @below_succ 7 (perExponent 0 4 4 2) (@below_succ 6 (perExponent 0 4 4 2) (@below_succ 5 (perExponent 0 4 4 2) (@below_succ 4 (perExponent 0 4 4 2) (@below_succ 3 (perExponent 0 4 4 2) (@below_succ 2 (perExponent 0 4 4 2) (@below_succ 1 (perExponent 0 4 4 2) (@below_succ 0 (perExponent 0 4 4 2) (below_zero (perExponent 0 4 4 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_4_2_16 : below 16 (perExponent 0 4 4 2) = true :=
-  @below_succ 15 (perExponent 0 4 4 2) (@below_succ 14 (perExponent 0 4 4 2) (@below_succ 13 (perExponent 0 4 4 2) (@below_succ 12 (perExponent 0 4 4 2) (@below_succ 11 (perExponent 0 4 4 2) (@below_succ 10 (perExponent 0 4 4 2) (@below_succ 9 (perExponent 0 4 4 2) (@below_succ 8 (perExponent 0 4 4 2) (small_exps_4_2_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 4 2)
+    (small_exps_4_2_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_4_2 : below 22 (perExponent 0 4 4 2) = true :=
-  @below_succ 21 (perExponent 0 4 4 2) (@below_succ 20 (perExponent 0 4 4 2) (@below_succ 19 (perExponent 0 4 4 2) (@below_succ 18 (perExponent 0 4 4 2) (@below_succ 17 (perExponent 0 4 4 2) (@below_succ 16 (perExponent 0 4 4 2) (small_exps_4_2_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 4 2)
+    (small_exps_4_2_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1749,52 +1854,59 @@ private theorem small_blocks_4_8 : below 8 (perBlock 0 4 4) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_blocks_4 : below 16 (perBlock 0 4 4) = true :=
-  @below_succ 15 (perBlock 0 4 4) (@below_succ 14 (perBlock 0 4 4) (@below_succ 13 (perBlock 0 4 4) (@below_succ 12 (perBlock 0 4 4) (@below_succ 11 (perBlock 0 4 4) (@below_succ 10 (perBlock 0 4 4) (@below_succ 9 (perBlock 0 4 4) (@below_succ 8 (perBlock 0 4 4) (small_blocks_4_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 0 4 4)
+    (small_blocks_4_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_5_0_8 : below 8 (perExponent 0 4 5 0) = true :=
-  @below_succ 7 (perExponent 0 4 5 0) (@below_succ 6 (perExponent 0 4 5 0) (@below_succ 5 (perExponent 0 4 5 0) (@below_succ 4 (perExponent 0 4 5 0) (@below_succ 3 (perExponent 0 4 5 0) (@below_succ 2 (perExponent 0 4 5 0) (@below_succ 1 (perExponent 0 4 5 0) (@below_succ 0 (perExponent 0 4 5 0) (below_zero (perExponent 0 4 5 0)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_5_0_16 : below 16 (perExponent 0 4 5 0) = true :=
-  @below_succ 15 (perExponent 0 4 5 0) (@below_succ 14 (perExponent 0 4 5 0) (@below_succ 13 (perExponent 0 4 5 0) (@below_succ 12 (perExponent 0 4 5 0) (@below_succ 11 (perExponent 0 4 5 0) (@below_succ 10 (perExponent 0 4 5 0) (@below_succ 9 (perExponent 0 4 5 0) (@below_succ 8 (perExponent 0 4 5 0) (small_exps_5_0_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 5 0)
+    (small_exps_5_0_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_5_0 : below 22 (perExponent 0 4 5 0) = true :=
-  @below_succ 21 (perExponent 0 4 5 0) (@below_succ 20 (perExponent 0 4 5 0) (@below_succ 19 (perExponent 0 4 5 0) (@below_succ 18 (perExponent 0 4 5 0) (@below_succ 17 (perExponent 0 4 5 0) (@below_succ 16 (perExponent 0 4 5 0) (small_exps_5_0_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 5 0)
+    (small_exps_5_0_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_5_1_8 : below 8 (perExponent 0 4 5 1) = true :=
-  @below_succ 7 (perExponent 0 4 5 1) (@below_succ 6 (perExponent 0 4 5 1) (@below_succ 5 (perExponent 0 4 5 1) (@below_succ 4 (perExponent 0 4 5 1) (@below_succ 3 (perExponent 0 4 5 1) (@below_succ 2 (perExponent 0 4 5 1) (@below_succ 1 (perExponent 0 4 5 1) (@below_succ 0 (perExponent 0 4 5 1) (below_zero (perExponent 0 4 5 1)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_5_1_16 : below 16 (perExponent 0 4 5 1) = true :=
-  @below_succ 15 (perExponent 0 4 5 1) (@below_succ 14 (perExponent 0 4 5 1) (@below_succ 13 (perExponent 0 4 5 1) (@below_succ 12 (perExponent 0 4 5 1) (@below_succ 11 (perExponent 0 4 5 1) (@below_succ 10 (perExponent 0 4 5 1) (@below_succ 9 (perExponent 0 4 5 1) (@below_succ 8 (perExponent 0 4 5 1) (small_exps_5_1_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 5 1)
+    (small_exps_5_1_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_5_1 : below 22 (perExponent 0 4 5 1) = true :=
-  @below_succ 21 (perExponent 0 4 5 1) (@below_succ 20 (perExponent 0 4 5 1) (@below_succ 19 (perExponent 0 4 5 1) (@below_succ 18 (perExponent 0 4 5 1) (@below_succ 17 (perExponent 0 4 5 1) (@below_succ 16 (perExponent 0 4 5 1) (small_exps_5_1_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 5 1)
+    (small_exps_5_1_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_5_2_8 : below 8 (perExponent 0 4 5 2) = true :=
-  @below_succ 7 (perExponent 0 4 5 2) (@below_succ 6 (perExponent 0 4 5 2) (@below_succ 5 (perExponent 0 4 5 2) (@below_succ 4 (perExponent 0 4 5 2) (@below_succ 3 (perExponent 0 4 5 2) (@below_succ 2 (perExponent 0 4 5 2) (@below_succ 1 (perExponent 0 4 5 2) (@below_succ 0 (perExponent 0 4 5 2) (below_zero (perExponent 0 4 5 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_5_2_16 : below 16 (perExponent 0 4 5 2) = true :=
-  @below_succ 15 (perExponent 0 4 5 2) (@below_succ 14 (perExponent 0 4 5 2) (@below_succ 13 (perExponent 0 4 5 2) (@below_succ 12 (perExponent 0 4 5 2) (@below_succ 11 (perExponent 0 4 5 2) (@below_succ 10 (perExponent 0 4 5 2) (@below_succ 9 (perExponent 0 4 5 2) (@below_succ 8 (perExponent 0 4 5 2) (small_exps_5_2_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 5 2)
+    (small_exps_5_2_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_5_2 : below 22 (perExponent 0 4 5 2) = true :=
-  @below_succ 21 (perExponent 0 4 5 2) (@below_succ 20 (perExponent 0 4 5 2) (@below_succ 19 (perExponent 0 4 5 2) (@below_succ 18 (perExponent 0 4 5 2) (@below_succ 17 (perExponent 0 4 5 2) (@below_succ 16 (perExponent 0 4 5 2) (small_exps_5_2_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 5 2)
+    (small_exps_5_2_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1804,52 +1916,59 @@ private theorem small_blocks_5_8 : below 8 (perBlock 0 4 5) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_blocks_5 : below 16 (perBlock 0 4 5) = true :=
-  @below_succ 15 (perBlock 0 4 5) (@below_succ 14 (perBlock 0 4 5) (@below_succ 13 (perBlock 0 4 5) (@below_succ 12 (perBlock 0 4 5) (@below_succ 11 (perBlock 0 4 5) (@below_succ 10 (perBlock 0 4 5) (@below_succ 9 (perBlock 0 4 5) (@below_succ 8 (perBlock 0 4 5) (small_blocks_5_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 0 4 5)
+    (small_blocks_5_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_6_0_8 : below 8 (perExponent 0 4 6 0) = true :=
-  @below_succ 7 (perExponent 0 4 6 0) (@below_succ 6 (perExponent 0 4 6 0) (@below_succ 5 (perExponent 0 4 6 0) (@below_succ 4 (perExponent 0 4 6 0) (@below_succ 3 (perExponent 0 4 6 0) (@below_succ 2 (perExponent 0 4 6 0) (@below_succ 1 (perExponent 0 4 6 0) (@below_succ 0 (perExponent 0 4 6 0) (below_zero (perExponent 0 4 6 0)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_6_0_16 : below 16 (perExponent 0 4 6 0) = true :=
-  @below_succ 15 (perExponent 0 4 6 0) (@below_succ 14 (perExponent 0 4 6 0) (@below_succ 13 (perExponent 0 4 6 0) (@below_succ 12 (perExponent 0 4 6 0) (@below_succ 11 (perExponent 0 4 6 0) (@below_succ 10 (perExponent 0 4 6 0) (@below_succ 9 (perExponent 0 4 6 0) (@below_succ 8 (perExponent 0 4 6 0) (small_exps_6_0_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 6 0)
+    (small_exps_6_0_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_6_0 : below 22 (perExponent 0 4 6 0) = true :=
-  @below_succ 21 (perExponent 0 4 6 0) (@below_succ 20 (perExponent 0 4 6 0) (@below_succ 19 (perExponent 0 4 6 0) (@below_succ 18 (perExponent 0 4 6 0) (@below_succ 17 (perExponent 0 4 6 0) (@below_succ 16 (perExponent 0 4 6 0) (small_exps_6_0_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 6 0)
+    (small_exps_6_0_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_6_1_8 : below 8 (perExponent 0 4 6 1) = true :=
-  @below_succ 7 (perExponent 0 4 6 1) (@below_succ 6 (perExponent 0 4 6 1) (@below_succ 5 (perExponent 0 4 6 1) (@below_succ 4 (perExponent 0 4 6 1) (@below_succ 3 (perExponent 0 4 6 1) (@below_succ 2 (perExponent 0 4 6 1) (@below_succ 1 (perExponent 0 4 6 1) (@below_succ 0 (perExponent 0 4 6 1) (below_zero (perExponent 0 4 6 1)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_6_1_16 : below 16 (perExponent 0 4 6 1) = true :=
-  @below_succ 15 (perExponent 0 4 6 1) (@below_succ 14 (perExponent 0 4 6 1) (@below_succ 13 (perExponent 0 4 6 1) (@below_succ 12 (perExponent 0 4 6 1) (@below_succ 11 (perExponent 0 4 6 1) (@below_succ 10 (perExponent 0 4 6 1) (@below_succ 9 (perExponent 0 4 6 1) (@below_succ 8 (perExponent 0 4 6 1) (small_exps_6_1_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 6 1)
+    (small_exps_6_1_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_6_1 : below 22 (perExponent 0 4 6 1) = true :=
-  @below_succ 21 (perExponent 0 4 6 1) (@below_succ 20 (perExponent 0 4 6 1) (@below_succ 19 (perExponent 0 4 6 1) (@below_succ 18 (perExponent 0 4 6 1) (@below_succ 17 (perExponent 0 4 6 1) (@below_succ 16 (perExponent 0 4 6 1) (small_exps_6_1_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 6 1)
+    (small_exps_6_1_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_6_2_8 : below 8 (perExponent 0 4 6 2) = true :=
-  @below_succ 7 (perExponent 0 4 6 2) (@below_succ 6 (perExponent 0 4 6 2) (@below_succ 5 (perExponent 0 4 6 2) (@below_succ 4 (perExponent 0 4 6 2) (@below_succ 3 (perExponent 0 4 6 2) (@below_succ 2 (perExponent 0 4 6 2) (@below_succ 1 (perExponent 0 4 6 2) (@below_succ 0 (perExponent 0 4 6 2) (below_zero (perExponent 0 4 6 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_6_2_16 : below 16 (perExponent 0 4 6 2) = true :=
-  @below_succ 15 (perExponent 0 4 6 2) (@below_succ 14 (perExponent 0 4 6 2) (@below_succ 13 (perExponent 0 4 6 2) (@below_succ 12 (perExponent 0 4 6 2) (@below_succ 11 (perExponent 0 4 6 2) (@below_succ 10 (perExponent 0 4 6 2) (@below_succ 9 (perExponent 0 4 6 2) (@below_succ 8 (perExponent 0 4 6 2) (small_exps_6_2_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 6 2)
+    (small_exps_6_2_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_6_2 : below 22 (perExponent 0 4 6 2) = true :=
-  @below_succ 21 (perExponent 0 4 6 2) (@below_succ 20 (perExponent 0 4 6 2) (@below_succ 19 (perExponent 0 4 6 2) (@below_succ 18 (perExponent 0 4 6 2) (@below_succ 17 (perExponent 0 4 6 2) (@below_succ 16 (perExponent 0 4 6 2) (small_exps_6_2_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 6 2)
+    (small_exps_6_2_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1859,52 +1978,59 @@ private theorem small_blocks_6_8 : below 8 (perBlock 0 4 6) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_blocks_6 : below 16 (perBlock 0 4 6) = true :=
-  @below_succ 15 (perBlock 0 4 6) (@below_succ 14 (perBlock 0 4 6) (@below_succ 13 (perBlock 0 4 6) (@below_succ 12 (perBlock 0 4 6) (@below_succ 11 (perBlock 0 4 6) (@below_succ 10 (perBlock 0 4 6) (@below_succ 9 (perBlock 0 4 6) (@below_succ 8 (perBlock 0 4 6) (small_blocks_6_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 0 4 6)
+    (small_blocks_6_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_7_0_8 : below 8 (perExponent 0 4 7 0) = true :=
-  @below_succ 7 (perExponent 0 4 7 0) (@below_succ 6 (perExponent 0 4 7 0) (@below_succ 5 (perExponent 0 4 7 0) (@below_succ 4 (perExponent 0 4 7 0) (@below_succ 3 (perExponent 0 4 7 0) (@below_succ 2 (perExponent 0 4 7 0) (@below_succ 1 (perExponent 0 4 7 0) (@below_succ 0 (perExponent 0 4 7 0) (below_zero (perExponent 0 4 7 0)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_7_0_16 : below 16 (perExponent 0 4 7 0) = true :=
-  @below_succ 15 (perExponent 0 4 7 0) (@below_succ 14 (perExponent 0 4 7 0) (@below_succ 13 (perExponent 0 4 7 0) (@below_succ 12 (perExponent 0 4 7 0) (@below_succ 11 (perExponent 0 4 7 0) (@below_succ 10 (perExponent 0 4 7 0) (@below_succ 9 (perExponent 0 4 7 0) (@below_succ 8 (perExponent 0 4 7 0) (small_exps_7_0_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 7 0)
+    (small_exps_7_0_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_7_0 : below 22 (perExponent 0 4 7 0) = true :=
-  @below_succ 21 (perExponent 0 4 7 0) (@below_succ 20 (perExponent 0 4 7 0) (@below_succ 19 (perExponent 0 4 7 0) (@below_succ 18 (perExponent 0 4 7 0) (@below_succ 17 (perExponent 0 4 7 0) (@below_succ 16 (perExponent 0 4 7 0) (small_exps_7_0_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 7 0)
+    (small_exps_7_0_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_7_1_8 : below 8 (perExponent 0 4 7 1) = true :=
-  @below_succ 7 (perExponent 0 4 7 1) (@below_succ 6 (perExponent 0 4 7 1) (@below_succ 5 (perExponent 0 4 7 1) (@below_succ 4 (perExponent 0 4 7 1) (@below_succ 3 (perExponent 0 4 7 1) (@below_succ 2 (perExponent 0 4 7 1) (@below_succ 1 (perExponent 0 4 7 1) (@below_succ 0 (perExponent 0 4 7 1) (below_zero (perExponent 0 4 7 1)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_7_1_16 : below 16 (perExponent 0 4 7 1) = true :=
-  @below_succ 15 (perExponent 0 4 7 1) (@below_succ 14 (perExponent 0 4 7 1) (@below_succ 13 (perExponent 0 4 7 1) (@below_succ 12 (perExponent 0 4 7 1) (@below_succ 11 (perExponent 0 4 7 1) (@below_succ 10 (perExponent 0 4 7 1) (@below_succ 9 (perExponent 0 4 7 1) (@below_succ 8 (perExponent 0 4 7 1) (small_exps_7_1_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 7 1)
+    (small_exps_7_1_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_7_1 : below 22 (perExponent 0 4 7 1) = true :=
-  @below_succ 21 (perExponent 0 4 7 1) (@below_succ 20 (perExponent 0 4 7 1) (@below_succ 19 (perExponent 0 4 7 1) (@below_succ 18 (perExponent 0 4 7 1) (@below_succ 17 (perExponent 0 4 7 1) (@below_succ 16 (perExponent 0 4 7 1) (small_exps_7_1_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 7 1)
+    (small_exps_7_1_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_7_2_8 : below 8 (perExponent 0 4 7 2) = true :=
-  @below_succ 7 (perExponent 0 4 7 2) (@below_succ 6 (perExponent 0 4 7 2) (@below_succ 5 (perExponent 0 4 7 2) (@below_succ 4 (perExponent 0 4 7 2) (@below_succ 3 (perExponent 0 4 7 2) (@below_succ 2 (perExponent 0 4 7 2) (@below_succ 1 (perExponent 0 4 7 2) (@below_succ 0 (perExponent 0 4 7 2) (below_zero (perExponent 0 4 7 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_7_2_16 : below 16 (perExponent 0 4 7 2) = true :=
-  @below_succ 15 (perExponent 0 4 7 2) (@below_succ 14 (perExponent 0 4 7 2) (@below_succ 13 (perExponent 0 4 7 2) (@below_succ 12 (perExponent 0 4 7 2) (@below_succ 11 (perExponent 0 4 7 2) (@below_succ 10 (perExponent 0 4 7 2) (@below_succ 9 (perExponent 0 4 7 2) (@below_succ 8 (perExponent 0 4 7 2) (small_exps_7_2_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 7 2)
+    (small_exps_7_2_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_7_2 : below 22 (perExponent 0 4 7 2) = true :=
-  @below_succ 21 (perExponent 0 4 7 2) (@below_succ 20 (perExponent 0 4 7 2) (@below_succ 19 (perExponent 0 4 7 2) (@below_succ 18 (perExponent 0 4 7 2) (@below_succ 17 (perExponent 0 4 7 2) (@below_succ 16 (perExponent 0 4 7 2) (small_exps_7_2_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 7 2)
+    (small_exps_7_2_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1914,52 +2040,59 @@ private theorem small_blocks_7_8 : below 8 (perBlock 0 4 7) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_blocks_7 : below 16 (perBlock 0 4 7) = true :=
-  @below_succ 15 (perBlock 0 4 7) (@below_succ 14 (perBlock 0 4 7) (@below_succ 13 (perBlock 0 4 7) (@below_succ 12 (perBlock 0 4 7) (@below_succ 11 (perBlock 0 4 7) (@below_succ 10 (perBlock 0 4 7) (@below_succ 9 (perBlock 0 4 7) (@below_succ 8 (perBlock 0 4 7) (small_blocks_7_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 0 4 7)
+    (small_blocks_7_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_8_0_8 : below 8 (perExponent 0 4 8 0) = true :=
-  @below_succ 7 (perExponent 0 4 8 0) (@below_succ 6 (perExponent 0 4 8 0) (@below_succ 5 (perExponent 0 4 8 0) (@below_succ 4 (perExponent 0 4 8 0) (@below_succ 3 (perExponent 0 4 8 0) (@below_succ 2 (perExponent 0 4 8 0) (@below_succ 1 (perExponent 0 4 8 0) (@below_succ 0 (perExponent 0 4 8 0) (below_zero (perExponent 0 4 8 0)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_8_0_16 : below 16 (perExponent 0 4 8 0) = true :=
-  @below_succ 15 (perExponent 0 4 8 0) (@below_succ 14 (perExponent 0 4 8 0) (@below_succ 13 (perExponent 0 4 8 0) (@below_succ 12 (perExponent 0 4 8 0) (@below_succ 11 (perExponent 0 4 8 0) (@below_succ 10 (perExponent 0 4 8 0) (@below_succ 9 (perExponent 0 4 8 0) (@below_succ 8 (perExponent 0 4 8 0) (small_exps_8_0_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 8 0)
+    (small_exps_8_0_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_8_0 : below 22 (perExponent 0 4 8 0) = true :=
-  @below_succ 21 (perExponent 0 4 8 0) (@below_succ 20 (perExponent 0 4 8 0) (@below_succ 19 (perExponent 0 4 8 0) (@below_succ 18 (perExponent 0 4 8 0) (@below_succ 17 (perExponent 0 4 8 0) (@below_succ 16 (perExponent 0 4 8 0) (small_exps_8_0_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 8 0)
+    (small_exps_8_0_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_8_1_8 : below 8 (perExponent 0 4 8 1) = true :=
-  @below_succ 7 (perExponent 0 4 8 1) (@below_succ 6 (perExponent 0 4 8 1) (@below_succ 5 (perExponent 0 4 8 1) (@below_succ 4 (perExponent 0 4 8 1) (@below_succ 3 (perExponent 0 4 8 1) (@below_succ 2 (perExponent 0 4 8 1) (@below_succ 1 (perExponent 0 4 8 1) (@below_succ 0 (perExponent 0 4 8 1) (below_zero (perExponent 0 4 8 1)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_8_1_16 : below 16 (perExponent 0 4 8 1) = true :=
-  @below_succ 15 (perExponent 0 4 8 1) (@below_succ 14 (perExponent 0 4 8 1) (@below_succ 13 (perExponent 0 4 8 1) (@below_succ 12 (perExponent 0 4 8 1) (@below_succ 11 (perExponent 0 4 8 1) (@below_succ 10 (perExponent 0 4 8 1) (@below_succ 9 (perExponent 0 4 8 1) (@below_succ 8 (perExponent 0 4 8 1) (small_exps_8_1_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 8 1)
+    (small_exps_8_1_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_8_1 : below 22 (perExponent 0 4 8 1) = true :=
-  @below_succ 21 (perExponent 0 4 8 1) (@below_succ 20 (perExponent 0 4 8 1) (@below_succ 19 (perExponent 0 4 8 1) (@below_succ 18 (perExponent 0 4 8 1) (@below_succ 17 (perExponent 0 4 8 1) (@below_succ 16 (perExponent 0 4 8 1) (small_exps_8_1_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 8 1)
+    (small_exps_8_1_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_8_2_8 : below 8 (perExponent 0 4 8 2) = true :=
-  @below_succ 7 (perExponent 0 4 8 2) (@below_succ 6 (perExponent 0 4 8 2) (@below_succ 5 (perExponent 0 4 8 2) (@below_succ 4 (perExponent 0 4 8 2) (@below_succ 3 (perExponent 0 4 8 2) (@below_succ 2 (perExponent 0 4 8 2) (@below_succ 1 (perExponent 0 4 8 2) (@below_succ 0 (perExponent 0 4 8 2) (below_zero (perExponent 0 4 8 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_8_2_16 : below 16 (perExponent 0 4 8 2) = true :=
-  @below_succ 15 (perExponent 0 4 8 2) (@below_succ 14 (perExponent 0 4 8 2) (@below_succ 13 (perExponent 0 4 8 2) (@below_succ 12 (perExponent 0 4 8 2) (@below_succ 11 (perExponent 0 4 8 2) (@below_succ 10 (perExponent 0 4 8 2) (@below_succ 9 (perExponent 0 4 8 2) (@below_succ 8 (perExponent 0 4 8 2) (small_exps_8_2_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perExponent 0 4 8 2)
+    (small_exps_8_2_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_exps_8_2 : below 22 (perExponent 0 4 8 2) = true :=
-  @below_succ 21 (perExponent 0 4 8 2) (@below_succ 20 (perExponent 0 4 8 2) (@below_succ 19 (perExponent 0 4 8 2) (@below_succ 18 (perExponent 0 4 8 2) (@below_succ 17 (perExponent 0 4 8 2) (@below_succ 16 (perExponent 0 4 8 2) (small_exps_8_2_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 6 (perExponent 0 4 8 2)
+    (small_exps_8_2_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1969,7 +2102,8 @@ private theorem small_blocks_8_8 : below 8 (perBlock 0 4 8) = true :=
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem small_blocks_8 : below 16 (perBlock 0 4 8) = true :=
-  @below_succ 15 (perBlock 0 4 8) (@below_succ 14 (perBlock 0 4 8) (@below_succ 13 (perBlock 0 4 8) (@below_succ 12 (perBlock 0 4 8) (@below_succ 11 (perBlock 0 4 8) (@below_succ 10 (perBlock 0 4 8) (@below_succ 9 (perBlock 0 4 8) (@below_succ 8 (perBlock 0 4 8) (small_blocks_8_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 0 4 8)
+    (small_blocks_8_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
@@ -1985,677 +2119,803 @@ private theorem small_grid : grid 0 4 16 = true := grid_of_powers 0 4 16 small_a
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_8 : below 8 (perBlock 64 8 0) = true :=
-  @below_succ 7 (perBlock 64 8 0) (@below_succ 6 (perBlock 64 8 0) (@below_succ 5 (perBlock 64 8 0) (@below_succ 4 (perBlock 64 8 0) (@below_succ 3 (perBlock 64 8 0) (@below_succ 2 (perBlock 64 8 0) (@below_succ 1 (perBlock 64 8 0) (@below_succ 0 (perBlock 64 8 0) (below_zero (perBlock 64 8 0)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_16 : below 16 (perBlock 64 8 0) = true :=
-  @below_succ 15 (perBlock 64 8 0) (@below_succ 14 (perBlock 64 8 0) (@below_succ 13 (perBlock 64 8 0) (@below_succ 12 (perBlock 64 8 0) (@below_succ 11 (perBlock 64 8 0) (@below_succ 10 (perBlock 64 8 0) (@below_succ 9 (perBlock 64 8 0) (@below_succ 8 (perBlock 64 8 0) (large_blocks_0_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 64 8 0)
+    (large_blocks_0_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_24 : below 24 (perBlock 64 8 0) = true :=
-  @below_succ 23 (perBlock 64 8 0) (@below_succ 22 (perBlock 64 8 0) (@below_succ 21 (perBlock 64 8 0) (@below_succ 20 (perBlock 64 8 0) (@below_succ 19 (perBlock 64 8 0) (@below_succ 18 (perBlock 64 8 0) (@below_succ 17 (perBlock 64 8 0) (@below_succ 16 (perBlock 64 8 0) (large_blocks_0_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (perBlock 64 8 0)
+    (large_blocks_0_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_32 : below 32 (perBlock 64 8 0) = true :=
-  @below_succ 31 (perBlock 64 8 0) (@below_succ 30 (perBlock 64 8 0) (@below_succ 29 (perBlock 64 8 0) (@below_succ 28 (perBlock 64 8 0) (@below_succ 27 (perBlock 64 8 0) (@below_succ 26 (perBlock 64 8 0) (@below_succ 25 (perBlock 64 8 0) (@below_succ 24 (perBlock 64 8 0) (large_blocks_0_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (perBlock 64 8 0)
+    (large_blocks_0_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_40 : below 40 (perBlock 64 8 0) = true :=
-  @below_succ 39 (perBlock 64 8 0) (@below_succ 38 (perBlock 64 8 0) (@below_succ 37 (perBlock 64 8 0) (@below_succ 36 (perBlock 64 8 0) (@below_succ 35 (perBlock 64 8 0) (@below_succ 34 (perBlock 64 8 0) (@below_succ 33 (perBlock 64 8 0) (@below_succ 32 (perBlock 64 8 0) (large_blocks_0_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (perBlock 64 8 0)
+    (large_blocks_0_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_48 : below 48 (perBlock 64 8 0) = true :=
-  @below_succ 47 (perBlock 64 8 0) (@below_succ 46 (perBlock 64 8 0) (@below_succ 45 (perBlock 64 8 0) (@below_succ 44 (perBlock 64 8 0) (@below_succ 43 (perBlock 64 8 0) (@below_succ 42 (perBlock 64 8 0) (@below_succ 41 (perBlock 64 8 0) (@below_succ 40 (perBlock 64 8 0) (large_blocks_0_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (perBlock 64 8 0)
+    (large_blocks_0_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_56 : below 56 (perBlock 64 8 0) = true :=
-  @below_succ 55 (perBlock 64 8 0) (@below_succ 54 (perBlock 64 8 0) (@below_succ 53 (perBlock 64 8 0) (@below_succ 52 (perBlock 64 8 0) (@below_succ 51 (perBlock 64 8 0) (@below_succ 50 (perBlock 64 8 0) (@below_succ 49 (perBlock 64 8 0) (@below_succ 48 (perBlock 64 8 0) (large_blocks_0_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (perBlock 64 8 0)
+    (large_blocks_0_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_64 : below 64 (perBlock 64 8 0) = true :=
-  @below_succ 63 (perBlock 64 8 0) (@below_succ 62 (perBlock 64 8 0) (@below_succ 61 (perBlock 64 8 0) (@below_succ 60 (perBlock 64 8 0) (@below_succ 59 (perBlock 64 8 0) (@below_succ 58 (perBlock 64 8 0) (@below_succ 57 (perBlock 64 8 0) (@below_succ 56 (perBlock 64 8 0) (large_blocks_0_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (perBlock 64 8 0)
+    (large_blocks_0_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_72 : below 72 (perBlock 64 8 0) = true :=
-  @below_succ 71 (perBlock 64 8 0) (@below_succ 70 (perBlock 64 8 0) (@below_succ 69 (perBlock 64 8 0) (@below_succ 68 (perBlock 64 8 0) (@below_succ 67 (perBlock 64 8 0) (@below_succ 66 (perBlock 64 8 0) (@below_succ 65 (perBlock 64 8 0) (@below_succ 64 (perBlock 64 8 0) (large_blocks_0_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (perBlock 64 8 0)
+    (large_blocks_0_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_80 : below 80 (perBlock 64 8 0) = true :=
-  @below_succ 79 (perBlock 64 8 0) (@below_succ 78 (perBlock 64 8 0) (@below_succ 77 (perBlock 64 8 0) (@below_succ 76 (perBlock 64 8 0) (@below_succ 75 (perBlock 64 8 0) (@below_succ 74 (perBlock 64 8 0) (@below_succ 73 (perBlock 64 8 0) (@below_succ 72 (perBlock 64 8 0) (large_blocks_0_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (perBlock 64 8 0)
+    (large_blocks_0_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_88 : below 88 (perBlock 64 8 0) = true :=
-  @below_succ 87 (perBlock 64 8 0) (@below_succ 86 (perBlock 64 8 0) (@below_succ 85 (perBlock 64 8 0) (@below_succ 84 (perBlock 64 8 0) (@below_succ 83 (perBlock 64 8 0) (@below_succ 82 (perBlock 64 8 0) (@below_succ 81 (perBlock 64 8 0) (@below_succ 80 (perBlock 64 8 0) (large_blocks_0_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (perBlock 64 8 0)
+    (large_blocks_0_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_96 : below 96 (perBlock 64 8 0) = true :=
-  @below_succ 95 (perBlock 64 8 0) (@below_succ 94 (perBlock 64 8 0) (@below_succ 93 (perBlock 64 8 0) (@below_succ 92 (perBlock 64 8 0) (@below_succ 91 (perBlock 64 8 0) (@below_succ 90 (perBlock 64 8 0) (@below_succ 89 (perBlock 64 8 0) (@below_succ 88 (perBlock 64 8 0) (large_blocks_0_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (perBlock 64 8 0)
+    (large_blocks_0_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_104 : below 104 (perBlock 64 8 0) = true :=
-  @below_succ 103 (perBlock 64 8 0) (@below_succ 102 (perBlock 64 8 0) (@below_succ 101 (perBlock 64 8 0) (@below_succ 100 (perBlock 64 8 0) (@below_succ 99 (perBlock 64 8 0) (@below_succ 98 (perBlock 64 8 0) (@below_succ 97 (perBlock 64 8 0) (@below_succ 96 (perBlock 64 8 0) (large_blocks_0_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (perBlock 64 8 0)
+    (large_blocks_0_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0_112 : below 112 (perBlock 64 8 0) = true :=
-  @below_succ 111 (perBlock 64 8 0) (@below_succ 110 (perBlock 64 8 0) (@below_succ 109 (perBlock 64 8 0) (@below_succ 108 (perBlock 64 8 0) (@below_succ 107 (perBlock 64 8 0) (@below_succ 106 (perBlock 64 8 0) (@below_succ 105 (perBlock 64 8 0) (@below_succ 104 (perBlock 64 8 0) (large_blocks_0_104) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 8 (perBlock 64 8 0)
+    (large_blocks_0_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_0 : below 117 (perBlock 64 8 0) = true :=
-  @below_succ 116 (perBlock 64 8 0) (@below_succ 115 (perBlock 64 8 0) (@below_succ 114 (perBlock 64 8 0) (@below_succ 113 (perBlock 64 8 0) (@below_succ 112 (perBlock 64 8 0) (large_blocks_0_112) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 112 5 (perBlock 64 8 0)
+    (large_blocks_0_112) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_8 : below 8 (perBlock 64 8 1) = true :=
-  @below_succ 7 (perBlock 64 8 1) (@below_succ 6 (perBlock 64 8 1) (@below_succ 5 (perBlock 64 8 1) (@below_succ 4 (perBlock 64 8 1) (@below_succ 3 (perBlock 64 8 1) (@below_succ 2 (perBlock 64 8 1) (@below_succ 1 (perBlock 64 8 1) (@below_succ 0 (perBlock 64 8 1) (below_zero (perBlock 64 8 1)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_16 : below 16 (perBlock 64 8 1) = true :=
-  @below_succ 15 (perBlock 64 8 1) (@below_succ 14 (perBlock 64 8 1) (@below_succ 13 (perBlock 64 8 1) (@below_succ 12 (perBlock 64 8 1) (@below_succ 11 (perBlock 64 8 1) (@below_succ 10 (perBlock 64 8 1) (@below_succ 9 (perBlock 64 8 1) (@below_succ 8 (perBlock 64 8 1) (large_blocks_1_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 64 8 1)
+    (large_blocks_1_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_24 : below 24 (perBlock 64 8 1) = true :=
-  @below_succ 23 (perBlock 64 8 1) (@below_succ 22 (perBlock 64 8 1) (@below_succ 21 (perBlock 64 8 1) (@below_succ 20 (perBlock 64 8 1) (@below_succ 19 (perBlock 64 8 1) (@below_succ 18 (perBlock 64 8 1) (@below_succ 17 (perBlock 64 8 1) (@below_succ 16 (perBlock 64 8 1) (large_blocks_1_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (perBlock 64 8 1)
+    (large_blocks_1_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_32 : below 32 (perBlock 64 8 1) = true :=
-  @below_succ 31 (perBlock 64 8 1) (@below_succ 30 (perBlock 64 8 1) (@below_succ 29 (perBlock 64 8 1) (@below_succ 28 (perBlock 64 8 1) (@below_succ 27 (perBlock 64 8 1) (@below_succ 26 (perBlock 64 8 1) (@below_succ 25 (perBlock 64 8 1) (@below_succ 24 (perBlock 64 8 1) (large_blocks_1_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (perBlock 64 8 1)
+    (large_blocks_1_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_40 : below 40 (perBlock 64 8 1) = true :=
-  @below_succ 39 (perBlock 64 8 1) (@below_succ 38 (perBlock 64 8 1) (@below_succ 37 (perBlock 64 8 1) (@below_succ 36 (perBlock 64 8 1) (@below_succ 35 (perBlock 64 8 1) (@below_succ 34 (perBlock 64 8 1) (@below_succ 33 (perBlock 64 8 1) (@below_succ 32 (perBlock 64 8 1) (large_blocks_1_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (perBlock 64 8 1)
+    (large_blocks_1_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_48 : below 48 (perBlock 64 8 1) = true :=
-  @below_succ 47 (perBlock 64 8 1) (@below_succ 46 (perBlock 64 8 1) (@below_succ 45 (perBlock 64 8 1) (@below_succ 44 (perBlock 64 8 1) (@below_succ 43 (perBlock 64 8 1) (@below_succ 42 (perBlock 64 8 1) (@below_succ 41 (perBlock 64 8 1) (@below_succ 40 (perBlock 64 8 1) (large_blocks_1_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (perBlock 64 8 1)
+    (large_blocks_1_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_56 : below 56 (perBlock 64 8 1) = true :=
-  @below_succ 55 (perBlock 64 8 1) (@below_succ 54 (perBlock 64 8 1) (@below_succ 53 (perBlock 64 8 1) (@below_succ 52 (perBlock 64 8 1) (@below_succ 51 (perBlock 64 8 1) (@below_succ 50 (perBlock 64 8 1) (@below_succ 49 (perBlock 64 8 1) (@below_succ 48 (perBlock 64 8 1) (large_blocks_1_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (perBlock 64 8 1)
+    (large_blocks_1_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_64 : below 64 (perBlock 64 8 1) = true :=
-  @below_succ 63 (perBlock 64 8 1) (@below_succ 62 (perBlock 64 8 1) (@below_succ 61 (perBlock 64 8 1) (@below_succ 60 (perBlock 64 8 1) (@below_succ 59 (perBlock 64 8 1) (@below_succ 58 (perBlock 64 8 1) (@below_succ 57 (perBlock 64 8 1) (@below_succ 56 (perBlock 64 8 1) (large_blocks_1_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (perBlock 64 8 1)
+    (large_blocks_1_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_72 : below 72 (perBlock 64 8 1) = true :=
-  @below_succ 71 (perBlock 64 8 1) (@below_succ 70 (perBlock 64 8 1) (@below_succ 69 (perBlock 64 8 1) (@below_succ 68 (perBlock 64 8 1) (@below_succ 67 (perBlock 64 8 1) (@below_succ 66 (perBlock 64 8 1) (@below_succ 65 (perBlock 64 8 1) (@below_succ 64 (perBlock 64 8 1) (large_blocks_1_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (perBlock 64 8 1)
+    (large_blocks_1_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_80 : below 80 (perBlock 64 8 1) = true :=
-  @below_succ 79 (perBlock 64 8 1) (@below_succ 78 (perBlock 64 8 1) (@below_succ 77 (perBlock 64 8 1) (@below_succ 76 (perBlock 64 8 1) (@below_succ 75 (perBlock 64 8 1) (@below_succ 74 (perBlock 64 8 1) (@below_succ 73 (perBlock 64 8 1) (@below_succ 72 (perBlock 64 8 1) (large_blocks_1_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (perBlock 64 8 1)
+    (large_blocks_1_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_88 : below 88 (perBlock 64 8 1) = true :=
-  @below_succ 87 (perBlock 64 8 1) (@below_succ 86 (perBlock 64 8 1) (@below_succ 85 (perBlock 64 8 1) (@below_succ 84 (perBlock 64 8 1) (@below_succ 83 (perBlock 64 8 1) (@below_succ 82 (perBlock 64 8 1) (@below_succ 81 (perBlock 64 8 1) (@below_succ 80 (perBlock 64 8 1) (large_blocks_1_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (perBlock 64 8 1)
+    (large_blocks_1_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_96 : below 96 (perBlock 64 8 1) = true :=
-  @below_succ 95 (perBlock 64 8 1) (@below_succ 94 (perBlock 64 8 1) (@below_succ 93 (perBlock 64 8 1) (@below_succ 92 (perBlock 64 8 1) (@below_succ 91 (perBlock 64 8 1) (@below_succ 90 (perBlock 64 8 1) (@below_succ 89 (perBlock 64 8 1) (@below_succ 88 (perBlock 64 8 1) (large_blocks_1_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (perBlock 64 8 1)
+    (large_blocks_1_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_104 : below 104 (perBlock 64 8 1) = true :=
-  @below_succ 103 (perBlock 64 8 1) (@below_succ 102 (perBlock 64 8 1) (@below_succ 101 (perBlock 64 8 1) (@below_succ 100 (perBlock 64 8 1) (@below_succ 99 (perBlock 64 8 1) (@below_succ 98 (perBlock 64 8 1) (@below_succ 97 (perBlock 64 8 1) (@below_succ 96 (perBlock 64 8 1) (large_blocks_1_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (perBlock 64 8 1)
+    (large_blocks_1_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1_112 : below 112 (perBlock 64 8 1) = true :=
-  @below_succ 111 (perBlock 64 8 1) (@below_succ 110 (perBlock 64 8 1) (@below_succ 109 (perBlock 64 8 1) (@below_succ 108 (perBlock 64 8 1) (@below_succ 107 (perBlock 64 8 1) (@below_succ 106 (perBlock 64 8 1) (@below_succ 105 (perBlock 64 8 1) (@below_succ 104 (perBlock 64 8 1) (large_blocks_1_104) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 8 (perBlock 64 8 1)
+    (large_blocks_1_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_1 : below 117 (perBlock 64 8 1) = true :=
-  @below_succ 116 (perBlock 64 8 1) (@below_succ 115 (perBlock 64 8 1) (@below_succ 114 (perBlock 64 8 1) (@below_succ 113 (perBlock 64 8 1) (@below_succ 112 (perBlock 64 8 1) (large_blocks_1_112) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 112 5 (perBlock 64 8 1)
+    (large_blocks_1_112) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_8 : below 8 (perBlock 64 8 2) = true :=
-  @below_succ 7 (perBlock 64 8 2) (@below_succ 6 (perBlock 64 8 2) (@below_succ 5 (perBlock 64 8 2) (@below_succ 4 (perBlock 64 8 2) (@below_succ 3 (perBlock 64 8 2) (@below_succ 2 (perBlock 64 8 2) (@below_succ 1 (perBlock 64 8 2) (@below_succ 0 (perBlock 64 8 2) (below_zero (perBlock 64 8 2)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_16 : below 16 (perBlock 64 8 2) = true :=
-  @below_succ 15 (perBlock 64 8 2) (@below_succ 14 (perBlock 64 8 2) (@below_succ 13 (perBlock 64 8 2) (@below_succ 12 (perBlock 64 8 2) (@below_succ 11 (perBlock 64 8 2) (@below_succ 10 (perBlock 64 8 2) (@below_succ 9 (perBlock 64 8 2) (@below_succ 8 (perBlock 64 8 2) (large_blocks_2_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 64 8 2)
+    (large_blocks_2_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_24 : below 24 (perBlock 64 8 2) = true :=
-  @below_succ 23 (perBlock 64 8 2) (@below_succ 22 (perBlock 64 8 2) (@below_succ 21 (perBlock 64 8 2) (@below_succ 20 (perBlock 64 8 2) (@below_succ 19 (perBlock 64 8 2) (@below_succ 18 (perBlock 64 8 2) (@below_succ 17 (perBlock 64 8 2) (@below_succ 16 (perBlock 64 8 2) (large_blocks_2_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (perBlock 64 8 2)
+    (large_blocks_2_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_32 : below 32 (perBlock 64 8 2) = true :=
-  @below_succ 31 (perBlock 64 8 2) (@below_succ 30 (perBlock 64 8 2) (@below_succ 29 (perBlock 64 8 2) (@below_succ 28 (perBlock 64 8 2) (@below_succ 27 (perBlock 64 8 2) (@below_succ 26 (perBlock 64 8 2) (@below_succ 25 (perBlock 64 8 2) (@below_succ 24 (perBlock 64 8 2) (large_blocks_2_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (perBlock 64 8 2)
+    (large_blocks_2_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_40 : below 40 (perBlock 64 8 2) = true :=
-  @below_succ 39 (perBlock 64 8 2) (@below_succ 38 (perBlock 64 8 2) (@below_succ 37 (perBlock 64 8 2) (@below_succ 36 (perBlock 64 8 2) (@below_succ 35 (perBlock 64 8 2) (@below_succ 34 (perBlock 64 8 2) (@below_succ 33 (perBlock 64 8 2) (@below_succ 32 (perBlock 64 8 2) (large_blocks_2_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (perBlock 64 8 2)
+    (large_blocks_2_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_48 : below 48 (perBlock 64 8 2) = true :=
-  @below_succ 47 (perBlock 64 8 2) (@below_succ 46 (perBlock 64 8 2) (@below_succ 45 (perBlock 64 8 2) (@below_succ 44 (perBlock 64 8 2) (@below_succ 43 (perBlock 64 8 2) (@below_succ 42 (perBlock 64 8 2) (@below_succ 41 (perBlock 64 8 2) (@below_succ 40 (perBlock 64 8 2) (large_blocks_2_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (perBlock 64 8 2)
+    (large_blocks_2_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_56 : below 56 (perBlock 64 8 2) = true :=
-  @below_succ 55 (perBlock 64 8 2) (@below_succ 54 (perBlock 64 8 2) (@below_succ 53 (perBlock 64 8 2) (@below_succ 52 (perBlock 64 8 2) (@below_succ 51 (perBlock 64 8 2) (@below_succ 50 (perBlock 64 8 2) (@below_succ 49 (perBlock 64 8 2) (@below_succ 48 (perBlock 64 8 2) (large_blocks_2_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (perBlock 64 8 2)
+    (large_blocks_2_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_64 : below 64 (perBlock 64 8 2) = true :=
-  @below_succ 63 (perBlock 64 8 2) (@below_succ 62 (perBlock 64 8 2) (@below_succ 61 (perBlock 64 8 2) (@below_succ 60 (perBlock 64 8 2) (@below_succ 59 (perBlock 64 8 2) (@below_succ 58 (perBlock 64 8 2) (@below_succ 57 (perBlock 64 8 2) (@below_succ 56 (perBlock 64 8 2) (large_blocks_2_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (perBlock 64 8 2)
+    (large_blocks_2_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_72 : below 72 (perBlock 64 8 2) = true :=
-  @below_succ 71 (perBlock 64 8 2) (@below_succ 70 (perBlock 64 8 2) (@below_succ 69 (perBlock 64 8 2) (@below_succ 68 (perBlock 64 8 2) (@below_succ 67 (perBlock 64 8 2) (@below_succ 66 (perBlock 64 8 2) (@below_succ 65 (perBlock 64 8 2) (@below_succ 64 (perBlock 64 8 2) (large_blocks_2_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (perBlock 64 8 2)
+    (large_blocks_2_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_80 : below 80 (perBlock 64 8 2) = true :=
-  @below_succ 79 (perBlock 64 8 2) (@below_succ 78 (perBlock 64 8 2) (@below_succ 77 (perBlock 64 8 2) (@below_succ 76 (perBlock 64 8 2) (@below_succ 75 (perBlock 64 8 2) (@below_succ 74 (perBlock 64 8 2) (@below_succ 73 (perBlock 64 8 2) (@below_succ 72 (perBlock 64 8 2) (large_blocks_2_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (perBlock 64 8 2)
+    (large_blocks_2_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_88 : below 88 (perBlock 64 8 2) = true :=
-  @below_succ 87 (perBlock 64 8 2) (@below_succ 86 (perBlock 64 8 2) (@below_succ 85 (perBlock 64 8 2) (@below_succ 84 (perBlock 64 8 2) (@below_succ 83 (perBlock 64 8 2) (@below_succ 82 (perBlock 64 8 2) (@below_succ 81 (perBlock 64 8 2) (@below_succ 80 (perBlock 64 8 2) (large_blocks_2_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (perBlock 64 8 2)
+    (large_blocks_2_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_96 : below 96 (perBlock 64 8 2) = true :=
-  @below_succ 95 (perBlock 64 8 2) (@below_succ 94 (perBlock 64 8 2) (@below_succ 93 (perBlock 64 8 2) (@below_succ 92 (perBlock 64 8 2) (@below_succ 91 (perBlock 64 8 2) (@below_succ 90 (perBlock 64 8 2) (@below_succ 89 (perBlock 64 8 2) (@below_succ 88 (perBlock 64 8 2) (large_blocks_2_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (perBlock 64 8 2)
+    (large_blocks_2_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_104 : below 104 (perBlock 64 8 2) = true :=
-  @below_succ 103 (perBlock 64 8 2) (@below_succ 102 (perBlock 64 8 2) (@below_succ 101 (perBlock 64 8 2) (@below_succ 100 (perBlock 64 8 2) (@below_succ 99 (perBlock 64 8 2) (@below_succ 98 (perBlock 64 8 2) (@below_succ 97 (perBlock 64 8 2) (@below_succ 96 (perBlock 64 8 2) (large_blocks_2_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (perBlock 64 8 2)
+    (large_blocks_2_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2_112 : below 112 (perBlock 64 8 2) = true :=
-  @below_succ 111 (perBlock 64 8 2) (@below_succ 110 (perBlock 64 8 2) (@below_succ 109 (perBlock 64 8 2) (@below_succ 108 (perBlock 64 8 2) (@below_succ 107 (perBlock 64 8 2) (@below_succ 106 (perBlock 64 8 2) (@below_succ 105 (perBlock 64 8 2) (@below_succ 104 (perBlock 64 8 2) (large_blocks_2_104) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 8 (perBlock 64 8 2)
+    (large_blocks_2_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_2 : below 117 (perBlock 64 8 2) = true :=
-  @below_succ 116 (perBlock 64 8 2) (@below_succ 115 (perBlock 64 8 2) (@below_succ 114 (perBlock 64 8 2) (@below_succ 113 (perBlock 64 8 2) (@below_succ 112 (perBlock 64 8 2) (large_blocks_2_112) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 112 5 (perBlock 64 8 2)
+    (large_blocks_2_112) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_8 : below 8 (perBlock 64 8 3) = true :=
-  @below_succ 7 (perBlock 64 8 3) (@below_succ 6 (perBlock 64 8 3) (@below_succ 5 (perBlock 64 8 3) (@below_succ 4 (perBlock 64 8 3) (@below_succ 3 (perBlock 64 8 3) (@below_succ 2 (perBlock 64 8 3) (@below_succ 1 (perBlock 64 8 3) (@below_succ 0 (perBlock 64 8 3) (below_zero (perBlock 64 8 3)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_16 : below 16 (perBlock 64 8 3) = true :=
-  @below_succ 15 (perBlock 64 8 3) (@below_succ 14 (perBlock 64 8 3) (@below_succ 13 (perBlock 64 8 3) (@below_succ 12 (perBlock 64 8 3) (@below_succ 11 (perBlock 64 8 3) (@below_succ 10 (perBlock 64 8 3) (@below_succ 9 (perBlock 64 8 3) (@below_succ 8 (perBlock 64 8 3) (large_blocks_3_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 64 8 3)
+    (large_blocks_3_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_24 : below 24 (perBlock 64 8 3) = true :=
-  @below_succ 23 (perBlock 64 8 3) (@below_succ 22 (perBlock 64 8 3) (@below_succ 21 (perBlock 64 8 3) (@below_succ 20 (perBlock 64 8 3) (@below_succ 19 (perBlock 64 8 3) (@below_succ 18 (perBlock 64 8 3) (@below_succ 17 (perBlock 64 8 3) (@below_succ 16 (perBlock 64 8 3) (large_blocks_3_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (perBlock 64 8 3)
+    (large_blocks_3_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_32 : below 32 (perBlock 64 8 3) = true :=
-  @below_succ 31 (perBlock 64 8 3) (@below_succ 30 (perBlock 64 8 3) (@below_succ 29 (perBlock 64 8 3) (@below_succ 28 (perBlock 64 8 3) (@below_succ 27 (perBlock 64 8 3) (@below_succ 26 (perBlock 64 8 3) (@below_succ 25 (perBlock 64 8 3) (@below_succ 24 (perBlock 64 8 3) (large_blocks_3_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (perBlock 64 8 3)
+    (large_blocks_3_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_40 : below 40 (perBlock 64 8 3) = true :=
-  @below_succ 39 (perBlock 64 8 3) (@below_succ 38 (perBlock 64 8 3) (@below_succ 37 (perBlock 64 8 3) (@below_succ 36 (perBlock 64 8 3) (@below_succ 35 (perBlock 64 8 3) (@below_succ 34 (perBlock 64 8 3) (@below_succ 33 (perBlock 64 8 3) (@below_succ 32 (perBlock 64 8 3) (large_blocks_3_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (perBlock 64 8 3)
+    (large_blocks_3_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_48 : below 48 (perBlock 64 8 3) = true :=
-  @below_succ 47 (perBlock 64 8 3) (@below_succ 46 (perBlock 64 8 3) (@below_succ 45 (perBlock 64 8 3) (@below_succ 44 (perBlock 64 8 3) (@below_succ 43 (perBlock 64 8 3) (@below_succ 42 (perBlock 64 8 3) (@below_succ 41 (perBlock 64 8 3) (@below_succ 40 (perBlock 64 8 3) (large_blocks_3_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (perBlock 64 8 3)
+    (large_blocks_3_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_56 : below 56 (perBlock 64 8 3) = true :=
-  @below_succ 55 (perBlock 64 8 3) (@below_succ 54 (perBlock 64 8 3) (@below_succ 53 (perBlock 64 8 3) (@below_succ 52 (perBlock 64 8 3) (@below_succ 51 (perBlock 64 8 3) (@below_succ 50 (perBlock 64 8 3) (@below_succ 49 (perBlock 64 8 3) (@below_succ 48 (perBlock 64 8 3) (large_blocks_3_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (perBlock 64 8 3)
+    (large_blocks_3_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_64 : below 64 (perBlock 64 8 3) = true :=
-  @below_succ 63 (perBlock 64 8 3) (@below_succ 62 (perBlock 64 8 3) (@below_succ 61 (perBlock 64 8 3) (@below_succ 60 (perBlock 64 8 3) (@below_succ 59 (perBlock 64 8 3) (@below_succ 58 (perBlock 64 8 3) (@below_succ 57 (perBlock 64 8 3) (@below_succ 56 (perBlock 64 8 3) (large_blocks_3_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (perBlock 64 8 3)
+    (large_blocks_3_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_72 : below 72 (perBlock 64 8 3) = true :=
-  @below_succ 71 (perBlock 64 8 3) (@below_succ 70 (perBlock 64 8 3) (@below_succ 69 (perBlock 64 8 3) (@below_succ 68 (perBlock 64 8 3) (@below_succ 67 (perBlock 64 8 3) (@below_succ 66 (perBlock 64 8 3) (@below_succ 65 (perBlock 64 8 3) (@below_succ 64 (perBlock 64 8 3) (large_blocks_3_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (perBlock 64 8 3)
+    (large_blocks_3_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_80 : below 80 (perBlock 64 8 3) = true :=
-  @below_succ 79 (perBlock 64 8 3) (@below_succ 78 (perBlock 64 8 3) (@below_succ 77 (perBlock 64 8 3) (@below_succ 76 (perBlock 64 8 3) (@below_succ 75 (perBlock 64 8 3) (@below_succ 74 (perBlock 64 8 3) (@below_succ 73 (perBlock 64 8 3) (@below_succ 72 (perBlock 64 8 3) (large_blocks_3_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (perBlock 64 8 3)
+    (large_blocks_3_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_88 : below 88 (perBlock 64 8 3) = true :=
-  @below_succ 87 (perBlock 64 8 3) (@below_succ 86 (perBlock 64 8 3) (@below_succ 85 (perBlock 64 8 3) (@below_succ 84 (perBlock 64 8 3) (@below_succ 83 (perBlock 64 8 3) (@below_succ 82 (perBlock 64 8 3) (@below_succ 81 (perBlock 64 8 3) (@below_succ 80 (perBlock 64 8 3) (large_blocks_3_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (perBlock 64 8 3)
+    (large_blocks_3_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_96 : below 96 (perBlock 64 8 3) = true :=
-  @below_succ 95 (perBlock 64 8 3) (@below_succ 94 (perBlock 64 8 3) (@below_succ 93 (perBlock 64 8 3) (@below_succ 92 (perBlock 64 8 3) (@below_succ 91 (perBlock 64 8 3) (@below_succ 90 (perBlock 64 8 3) (@below_succ 89 (perBlock 64 8 3) (@below_succ 88 (perBlock 64 8 3) (large_blocks_3_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (perBlock 64 8 3)
+    (large_blocks_3_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_104 : below 104 (perBlock 64 8 3) = true :=
-  @below_succ 103 (perBlock 64 8 3) (@below_succ 102 (perBlock 64 8 3) (@below_succ 101 (perBlock 64 8 3) (@below_succ 100 (perBlock 64 8 3) (@below_succ 99 (perBlock 64 8 3) (@below_succ 98 (perBlock 64 8 3) (@below_succ 97 (perBlock 64 8 3) (@below_succ 96 (perBlock 64 8 3) (large_blocks_3_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (perBlock 64 8 3)
+    (large_blocks_3_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3_112 : below 112 (perBlock 64 8 3) = true :=
-  @below_succ 111 (perBlock 64 8 3) (@below_succ 110 (perBlock 64 8 3) (@below_succ 109 (perBlock 64 8 3) (@below_succ 108 (perBlock 64 8 3) (@below_succ 107 (perBlock 64 8 3) (@below_succ 106 (perBlock 64 8 3) (@below_succ 105 (perBlock 64 8 3) (@below_succ 104 (perBlock 64 8 3) (large_blocks_3_104) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 8 (perBlock 64 8 3)
+    (large_blocks_3_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_3 : below 117 (perBlock 64 8 3) = true :=
-  @below_succ 116 (perBlock 64 8 3) (@below_succ 115 (perBlock 64 8 3) (@below_succ 114 (perBlock 64 8 3) (@below_succ 113 (perBlock 64 8 3) (@below_succ 112 (perBlock 64 8 3) (large_blocks_3_112) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 112 5 (perBlock 64 8 3)
+    (large_blocks_3_112) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_8 : below 8 (perBlock 64 8 4) = true :=
-  @below_succ 7 (perBlock 64 8 4) (@below_succ 6 (perBlock 64 8 4) (@below_succ 5 (perBlock 64 8 4) (@below_succ 4 (perBlock 64 8 4) (@below_succ 3 (perBlock 64 8 4) (@below_succ 2 (perBlock 64 8 4) (@below_succ 1 (perBlock 64 8 4) (@below_succ 0 (perBlock 64 8 4) (below_zero (perBlock 64 8 4)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_16 : below 16 (perBlock 64 8 4) = true :=
-  @below_succ 15 (perBlock 64 8 4) (@below_succ 14 (perBlock 64 8 4) (@below_succ 13 (perBlock 64 8 4) (@below_succ 12 (perBlock 64 8 4) (@below_succ 11 (perBlock 64 8 4) (@below_succ 10 (perBlock 64 8 4) (@below_succ 9 (perBlock 64 8 4) (@below_succ 8 (perBlock 64 8 4) (large_blocks_4_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 64 8 4)
+    (large_blocks_4_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_24 : below 24 (perBlock 64 8 4) = true :=
-  @below_succ 23 (perBlock 64 8 4) (@below_succ 22 (perBlock 64 8 4) (@below_succ 21 (perBlock 64 8 4) (@below_succ 20 (perBlock 64 8 4) (@below_succ 19 (perBlock 64 8 4) (@below_succ 18 (perBlock 64 8 4) (@below_succ 17 (perBlock 64 8 4) (@below_succ 16 (perBlock 64 8 4) (large_blocks_4_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (perBlock 64 8 4)
+    (large_blocks_4_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_32 : below 32 (perBlock 64 8 4) = true :=
-  @below_succ 31 (perBlock 64 8 4) (@below_succ 30 (perBlock 64 8 4) (@below_succ 29 (perBlock 64 8 4) (@below_succ 28 (perBlock 64 8 4) (@below_succ 27 (perBlock 64 8 4) (@below_succ 26 (perBlock 64 8 4) (@below_succ 25 (perBlock 64 8 4) (@below_succ 24 (perBlock 64 8 4) (large_blocks_4_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (perBlock 64 8 4)
+    (large_blocks_4_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_40 : below 40 (perBlock 64 8 4) = true :=
-  @below_succ 39 (perBlock 64 8 4) (@below_succ 38 (perBlock 64 8 4) (@below_succ 37 (perBlock 64 8 4) (@below_succ 36 (perBlock 64 8 4) (@below_succ 35 (perBlock 64 8 4) (@below_succ 34 (perBlock 64 8 4) (@below_succ 33 (perBlock 64 8 4) (@below_succ 32 (perBlock 64 8 4) (large_blocks_4_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (perBlock 64 8 4)
+    (large_blocks_4_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_48 : below 48 (perBlock 64 8 4) = true :=
-  @below_succ 47 (perBlock 64 8 4) (@below_succ 46 (perBlock 64 8 4) (@below_succ 45 (perBlock 64 8 4) (@below_succ 44 (perBlock 64 8 4) (@below_succ 43 (perBlock 64 8 4) (@below_succ 42 (perBlock 64 8 4) (@below_succ 41 (perBlock 64 8 4) (@below_succ 40 (perBlock 64 8 4) (large_blocks_4_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (perBlock 64 8 4)
+    (large_blocks_4_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_56 : below 56 (perBlock 64 8 4) = true :=
-  @below_succ 55 (perBlock 64 8 4) (@below_succ 54 (perBlock 64 8 4) (@below_succ 53 (perBlock 64 8 4) (@below_succ 52 (perBlock 64 8 4) (@below_succ 51 (perBlock 64 8 4) (@below_succ 50 (perBlock 64 8 4) (@below_succ 49 (perBlock 64 8 4) (@below_succ 48 (perBlock 64 8 4) (large_blocks_4_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (perBlock 64 8 4)
+    (large_blocks_4_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_64 : below 64 (perBlock 64 8 4) = true :=
-  @below_succ 63 (perBlock 64 8 4) (@below_succ 62 (perBlock 64 8 4) (@below_succ 61 (perBlock 64 8 4) (@below_succ 60 (perBlock 64 8 4) (@below_succ 59 (perBlock 64 8 4) (@below_succ 58 (perBlock 64 8 4) (@below_succ 57 (perBlock 64 8 4) (@below_succ 56 (perBlock 64 8 4) (large_blocks_4_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (perBlock 64 8 4)
+    (large_blocks_4_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_72 : below 72 (perBlock 64 8 4) = true :=
-  @below_succ 71 (perBlock 64 8 4) (@below_succ 70 (perBlock 64 8 4) (@below_succ 69 (perBlock 64 8 4) (@below_succ 68 (perBlock 64 8 4) (@below_succ 67 (perBlock 64 8 4) (@below_succ 66 (perBlock 64 8 4) (@below_succ 65 (perBlock 64 8 4) (@below_succ 64 (perBlock 64 8 4) (large_blocks_4_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (perBlock 64 8 4)
+    (large_blocks_4_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_80 : below 80 (perBlock 64 8 4) = true :=
-  @below_succ 79 (perBlock 64 8 4) (@below_succ 78 (perBlock 64 8 4) (@below_succ 77 (perBlock 64 8 4) (@below_succ 76 (perBlock 64 8 4) (@below_succ 75 (perBlock 64 8 4) (@below_succ 74 (perBlock 64 8 4) (@below_succ 73 (perBlock 64 8 4) (@below_succ 72 (perBlock 64 8 4) (large_blocks_4_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (perBlock 64 8 4)
+    (large_blocks_4_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_88 : below 88 (perBlock 64 8 4) = true :=
-  @below_succ 87 (perBlock 64 8 4) (@below_succ 86 (perBlock 64 8 4) (@below_succ 85 (perBlock 64 8 4) (@below_succ 84 (perBlock 64 8 4) (@below_succ 83 (perBlock 64 8 4) (@below_succ 82 (perBlock 64 8 4) (@below_succ 81 (perBlock 64 8 4) (@below_succ 80 (perBlock 64 8 4) (large_blocks_4_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (perBlock 64 8 4)
+    (large_blocks_4_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_96 : below 96 (perBlock 64 8 4) = true :=
-  @below_succ 95 (perBlock 64 8 4) (@below_succ 94 (perBlock 64 8 4) (@below_succ 93 (perBlock 64 8 4) (@below_succ 92 (perBlock 64 8 4) (@below_succ 91 (perBlock 64 8 4) (@below_succ 90 (perBlock 64 8 4) (@below_succ 89 (perBlock 64 8 4) (@below_succ 88 (perBlock 64 8 4) (large_blocks_4_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (perBlock 64 8 4)
+    (large_blocks_4_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_104 : below 104 (perBlock 64 8 4) = true :=
-  @below_succ 103 (perBlock 64 8 4) (@below_succ 102 (perBlock 64 8 4) (@below_succ 101 (perBlock 64 8 4) (@below_succ 100 (perBlock 64 8 4) (@below_succ 99 (perBlock 64 8 4) (@below_succ 98 (perBlock 64 8 4) (@below_succ 97 (perBlock 64 8 4) (@below_succ 96 (perBlock 64 8 4) (large_blocks_4_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (perBlock 64 8 4)
+    (large_blocks_4_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4_112 : below 112 (perBlock 64 8 4) = true :=
-  @below_succ 111 (perBlock 64 8 4) (@below_succ 110 (perBlock 64 8 4) (@below_succ 109 (perBlock 64 8 4) (@below_succ 108 (perBlock 64 8 4) (@below_succ 107 (perBlock 64 8 4) (@below_succ 106 (perBlock 64 8 4) (@below_succ 105 (perBlock 64 8 4) (@below_succ 104 (perBlock 64 8 4) (large_blocks_4_104) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 8 (perBlock 64 8 4)
+    (large_blocks_4_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_4 : below 117 (perBlock 64 8 4) = true :=
-  @below_succ 116 (perBlock 64 8 4) (@below_succ 115 (perBlock 64 8 4) (@below_succ 114 (perBlock 64 8 4) (@below_succ 113 (perBlock 64 8 4) (@below_succ 112 (perBlock 64 8 4) (large_blocks_4_112) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 112 5 (perBlock 64 8 4)
+    (large_blocks_4_112) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_8 : below 8 (perBlock 64 8 5) = true :=
-  @below_succ 7 (perBlock 64 8 5) (@below_succ 6 (perBlock 64 8 5) (@below_succ 5 (perBlock 64 8 5) (@below_succ 4 (perBlock 64 8 5) (@below_succ 3 (perBlock 64 8 5) (@below_succ 2 (perBlock 64 8 5) (@below_succ 1 (perBlock 64 8 5) (@below_succ 0 (perBlock 64 8 5) (below_zero (perBlock 64 8 5)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_16 : below 16 (perBlock 64 8 5) = true :=
-  @below_succ 15 (perBlock 64 8 5) (@below_succ 14 (perBlock 64 8 5) (@below_succ 13 (perBlock 64 8 5) (@below_succ 12 (perBlock 64 8 5) (@below_succ 11 (perBlock 64 8 5) (@below_succ 10 (perBlock 64 8 5) (@below_succ 9 (perBlock 64 8 5) (@below_succ 8 (perBlock 64 8 5) (large_blocks_5_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 64 8 5)
+    (large_blocks_5_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_24 : below 24 (perBlock 64 8 5) = true :=
-  @below_succ 23 (perBlock 64 8 5) (@below_succ 22 (perBlock 64 8 5) (@below_succ 21 (perBlock 64 8 5) (@below_succ 20 (perBlock 64 8 5) (@below_succ 19 (perBlock 64 8 5) (@below_succ 18 (perBlock 64 8 5) (@below_succ 17 (perBlock 64 8 5) (@below_succ 16 (perBlock 64 8 5) (large_blocks_5_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (perBlock 64 8 5)
+    (large_blocks_5_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_32 : below 32 (perBlock 64 8 5) = true :=
-  @below_succ 31 (perBlock 64 8 5) (@below_succ 30 (perBlock 64 8 5) (@below_succ 29 (perBlock 64 8 5) (@below_succ 28 (perBlock 64 8 5) (@below_succ 27 (perBlock 64 8 5) (@below_succ 26 (perBlock 64 8 5) (@below_succ 25 (perBlock 64 8 5) (@below_succ 24 (perBlock 64 8 5) (large_blocks_5_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (perBlock 64 8 5)
+    (large_blocks_5_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_40 : below 40 (perBlock 64 8 5) = true :=
-  @below_succ 39 (perBlock 64 8 5) (@below_succ 38 (perBlock 64 8 5) (@below_succ 37 (perBlock 64 8 5) (@below_succ 36 (perBlock 64 8 5) (@below_succ 35 (perBlock 64 8 5) (@below_succ 34 (perBlock 64 8 5) (@below_succ 33 (perBlock 64 8 5) (@below_succ 32 (perBlock 64 8 5) (large_blocks_5_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (perBlock 64 8 5)
+    (large_blocks_5_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_48 : below 48 (perBlock 64 8 5) = true :=
-  @below_succ 47 (perBlock 64 8 5) (@below_succ 46 (perBlock 64 8 5) (@below_succ 45 (perBlock 64 8 5) (@below_succ 44 (perBlock 64 8 5) (@below_succ 43 (perBlock 64 8 5) (@below_succ 42 (perBlock 64 8 5) (@below_succ 41 (perBlock 64 8 5) (@below_succ 40 (perBlock 64 8 5) (large_blocks_5_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (perBlock 64 8 5)
+    (large_blocks_5_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_56 : below 56 (perBlock 64 8 5) = true :=
-  @below_succ 55 (perBlock 64 8 5) (@below_succ 54 (perBlock 64 8 5) (@below_succ 53 (perBlock 64 8 5) (@below_succ 52 (perBlock 64 8 5) (@below_succ 51 (perBlock 64 8 5) (@below_succ 50 (perBlock 64 8 5) (@below_succ 49 (perBlock 64 8 5) (@below_succ 48 (perBlock 64 8 5) (large_blocks_5_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (perBlock 64 8 5)
+    (large_blocks_5_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_64 : below 64 (perBlock 64 8 5) = true :=
-  @below_succ 63 (perBlock 64 8 5) (@below_succ 62 (perBlock 64 8 5) (@below_succ 61 (perBlock 64 8 5) (@below_succ 60 (perBlock 64 8 5) (@below_succ 59 (perBlock 64 8 5) (@below_succ 58 (perBlock 64 8 5) (@below_succ 57 (perBlock 64 8 5) (@below_succ 56 (perBlock 64 8 5) (large_blocks_5_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (perBlock 64 8 5)
+    (large_blocks_5_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_72 : below 72 (perBlock 64 8 5) = true :=
-  @below_succ 71 (perBlock 64 8 5) (@below_succ 70 (perBlock 64 8 5) (@below_succ 69 (perBlock 64 8 5) (@below_succ 68 (perBlock 64 8 5) (@below_succ 67 (perBlock 64 8 5) (@below_succ 66 (perBlock 64 8 5) (@below_succ 65 (perBlock 64 8 5) (@below_succ 64 (perBlock 64 8 5) (large_blocks_5_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (perBlock 64 8 5)
+    (large_blocks_5_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_80 : below 80 (perBlock 64 8 5) = true :=
-  @below_succ 79 (perBlock 64 8 5) (@below_succ 78 (perBlock 64 8 5) (@below_succ 77 (perBlock 64 8 5) (@below_succ 76 (perBlock 64 8 5) (@below_succ 75 (perBlock 64 8 5) (@below_succ 74 (perBlock 64 8 5) (@below_succ 73 (perBlock 64 8 5) (@below_succ 72 (perBlock 64 8 5) (large_blocks_5_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (perBlock 64 8 5)
+    (large_blocks_5_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_88 : below 88 (perBlock 64 8 5) = true :=
-  @below_succ 87 (perBlock 64 8 5) (@below_succ 86 (perBlock 64 8 5) (@below_succ 85 (perBlock 64 8 5) (@below_succ 84 (perBlock 64 8 5) (@below_succ 83 (perBlock 64 8 5) (@below_succ 82 (perBlock 64 8 5) (@below_succ 81 (perBlock 64 8 5) (@below_succ 80 (perBlock 64 8 5) (large_blocks_5_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (perBlock 64 8 5)
+    (large_blocks_5_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_96 : below 96 (perBlock 64 8 5) = true :=
-  @below_succ 95 (perBlock 64 8 5) (@below_succ 94 (perBlock 64 8 5) (@below_succ 93 (perBlock 64 8 5) (@below_succ 92 (perBlock 64 8 5) (@below_succ 91 (perBlock 64 8 5) (@below_succ 90 (perBlock 64 8 5) (@below_succ 89 (perBlock 64 8 5) (@below_succ 88 (perBlock 64 8 5) (large_blocks_5_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (perBlock 64 8 5)
+    (large_blocks_5_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_104 : below 104 (perBlock 64 8 5) = true :=
-  @below_succ 103 (perBlock 64 8 5) (@below_succ 102 (perBlock 64 8 5) (@below_succ 101 (perBlock 64 8 5) (@below_succ 100 (perBlock 64 8 5) (@below_succ 99 (perBlock 64 8 5) (@below_succ 98 (perBlock 64 8 5) (@below_succ 97 (perBlock 64 8 5) (@below_succ 96 (perBlock 64 8 5) (large_blocks_5_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (perBlock 64 8 5)
+    (large_blocks_5_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5_112 : below 112 (perBlock 64 8 5) = true :=
-  @below_succ 111 (perBlock 64 8 5) (@below_succ 110 (perBlock 64 8 5) (@below_succ 109 (perBlock 64 8 5) (@below_succ 108 (perBlock 64 8 5) (@below_succ 107 (perBlock 64 8 5) (@below_succ 106 (perBlock 64 8 5) (@below_succ 105 (perBlock 64 8 5) (@below_succ 104 (perBlock 64 8 5) (large_blocks_5_104) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 8 (perBlock 64 8 5)
+    (large_blocks_5_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_5 : below 117 (perBlock 64 8 5) = true :=
-  @below_succ 116 (perBlock 64 8 5) (@below_succ 115 (perBlock 64 8 5) (@below_succ 114 (perBlock 64 8 5) (@below_succ 113 (perBlock 64 8 5) (@below_succ 112 (perBlock 64 8 5) (large_blocks_5_112) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 112 5 (perBlock 64 8 5)
+    (large_blocks_5_112) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_8 : below 8 (perBlock 64 8 6) = true :=
-  @below_succ 7 (perBlock 64 8 6) (@below_succ 6 (perBlock 64 8 6) (@below_succ 5 (perBlock 64 8 6) (@below_succ 4 (perBlock 64 8 6) (@below_succ 3 (perBlock 64 8 6) (@below_succ 2 (perBlock 64 8 6) (@below_succ 1 (perBlock 64 8 6) (@below_succ 0 (perBlock 64 8 6) (below_zero (perBlock 64 8 6)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_16 : below 16 (perBlock 64 8 6) = true :=
-  @below_succ 15 (perBlock 64 8 6) (@below_succ 14 (perBlock 64 8 6) (@below_succ 13 (perBlock 64 8 6) (@below_succ 12 (perBlock 64 8 6) (@below_succ 11 (perBlock 64 8 6) (@below_succ 10 (perBlock 64 8 6) (@below_succ 9 (perBlock 64 8 6) (@below_succ 8 (perBlock 64 8 6) (large_blocks_6_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 64 8 6)
+    (large_blocks_6_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_24 : below 24 (perBlock 64 8 6) = true :=
-  @below_succ 23 (perBlock 64 8 6) (@below_succ 22 (perBlock 64 8 6) (@below_succ 21 (perBlock 64 8 6) (@below_succ 20 (perBlock 64 8 6) (@below_succ 19 (perBlock 64 8 6) (@below_succ 18 (perBlock 64 8 6) (@below_succ 17 (perBlock 64 8 6) (@below_succ 16 (perBlock 64 8 6) (large_blocks_6_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (perBlock 64 8 6)
+    (large_blocks_6_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_32 : below 32 (perBlock 64 8 6) = true :=
-  @below_succ 31 (perBlock 64 8 6) (@below_succ 30 (perBlock 64 8 6) (@below_succ 29 (perBlock 64 8 6) (@below_succ 28 (perBlock 64 8 6) (@below_succ 27 (perBlock 64 8 6) (@below_succ 26 (perBlock 64 8 6) (@below_succ 25 (perBlock 64 8 6) (@below_succ 24 (perBlock 64 8 6) (large_blocks_6_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (perBlock 64 8 6)
+    (large_blocks_6_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_40 : below 40 (perBlock 64 8 6) = true :=
-  @below_succ 39 (perBlock 64 8 6) (@below_succ 38 (perBlock 64 8 6) (@below_succ 37 (perBlock 64 8 6) (@below_succ 36 (perBlock 64 8 6) (@below_succ 35 (perBlock 64 8 6) (@below_succ 34 (perBlock 64 8 6) (@below_succ 33 (perBlock 64 8 6) (@below_succ 32 (perBlock 64 8 6) (large_blocks_6_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (perBlock 64 8 6)
+    (large_blocks_6_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_48 : below 48 (perBlock 64 8 6) = true :=
-  @below_succ 47 (perBlock 64 8 6) (@below_succ 46 (perBlock 64 8 6) (@below_succ 45 (perBlock 64 8 6) (@below_succ 44 (perBlock 64 8 6) (@below_succ 43 (perBlock 64 8 6) (@below_succ 42 (perBlock 64 8 6) (@below_succ 41 (perBlock 64 8 6) (@below_succ 40 (perBlock 64 8 6) (large_blocks_6_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (perBlock 64 8 6)
+    (large_blocks_6_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_56 : below 56 (perBlock 64 8 6) = true :=
-  @below_succ 55 (perBlock 64 8 6) (@below_succ 54 (perBlock 64 8 6) (@below_succ 53 (perBlock 64 8 6) (@below_succ 52 (perBlock 64 8 6) (@below_succ 51 (perBlock 64 8 6) (@below_succ 50 (perBlock 64 8 6) (@below_succ 49 (perBlock 64 8 6) (@below_succ 48 (perBlock 64 8 6) (large_blocks_6_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (perBlock 64 8 6)
+    (large_blocks_6_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_64 : below 64 (perBlock 64 8 6) = true :=
-  @below_succ 63 (perBlock 64 8 6) (@below_succ 62 (perBlock 64 8 6) (@below_succ 61 (perBlock 64 8 6) (@below_succ 60 (perBlock 64 8 6) (@below_succ 59 (perBlock 64 8 6) (@below_succ 58 (perBlock 64 8 6) (@below_succ 57 (perBlock 64 8 6) (@below_succ 56 (perBlock 64 8 6) (large_blocks_6_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (perBlock 64 8 6)
+    (large_blocks_6_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_72 : below 72 (perBlock 64 8 6) = true :=
-  @below_succ 71 (perBlock 64 8 6) (@below_succ 70 (perBlock 64 8 6) (@below_succ 69 (perBlock 64 8 6) (@below_succ 68 (perBlock 64 8 6) (@below_succ 67 (perBlock 64 8 6) (@below_succ 66 (perBlock 64 8 6) (@below_succ 65 (perBlock 64 8 6) (@below_succ 64 (perBlock 64 8 6) (large_blocks_6_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (perBlock 64 8 6)
+    (large_blocks_6_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_80 : below 80 (perBlock 64 8 6) = true :=
-  @below_succ 79 (perBlock 64 8 6) (@below_succ 78 (perBlock 64 8 6) (@below_succ 77 (perBlock 64 8 6) (@below_succ 76 (perBlock 64 8 6) (@below_succ 75 (perBlock 64 8 6) (@below_succ 74 (perBlock 64 8 6) (@below_succ 73 (perBlock 64 8 6) (@below_succ 72 (perBlock 64 8 6) (large_blocks_6_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (perBlock 64 8 6)
+    (large_blocks_6_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_88 : below 88 (perBlock 64 8 6) = true :=
-  @below_succ 87 (perBlock 64 8 6) (@below_succ 86 (perBlock 64 8 6) (@below_succ 85 (perBlock 64 8 6) (@below_succ 84 (perBlock 64 8 6) (@below_succ 83 (perBlock 64 8 6) (@below_succ 82 (perBlock 64 8 6) (@below_succ 81 (perBlock 64 8 6) (@below_succ 80 (perBlock 64 8 6) (large_blocks_6_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (perBlock 64 8 6)
+    (large_blocks_6_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_96 : below 96 (perBlock 64 8 6) = true :=
-  @below_succ 95 (perBlock 64 8 6) (@below_succ 94 (perBlock 64 8 6) (@below_succ 93 (perBlock 64 8 6) (@below_succ 92 (perBlock 64 8 6) (@below_succ 91 (perBlock 64 8 6) (@below_succ 90 (perBlock 64 8 6) (@below_succ 89 (perBlock 64 8 6) (@below_succ 88 (perBlock 64 8 6) (large_blocks_6_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (perBlock 64 8 6)
+    (large_blocks_6_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_104 : below 104 (perBlock 64 8 6) = true :=
-  @below_succ 103 (perBlock 64 8 6) (@below_succ 102 (perBlock 64 8 6) (@below_succ 101 (perBlock 64 8 6) (@below_succ 100 (perBlock 64 8 6) (@below_succ 99 (perBlock 64 8 6) (@below_succ 98 (perBlock 64 8 6) (@below_succ 97 (perBlock 64 8 6) (@below_succ 96 (perBlock 64 8 6) (large_blocks_6_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (perBlock 64 8 6)
+    (large_blocks_6_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6_112 : below 112 (perBlock 64 8 6) = true :=
-  @below_succ 111 (perBlock 64 8 6) (@below_succ 110 (perBlock 64 8 6) (@below_succ 109 (perBlock 64 8 6) (@below_succ 108 (perBlock 64 8 6) (@below_succ 107 (perBlock 64 8 6) (@below_succ 106 (perBlock 64 8 6) (@below_succ 105 (perBlock 64 8 6) (@below_succ 104 (perBlock 64 8 6) (large_blocks_6_104) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 8 (perBlock 64 8 6)
+    (large_blocks_6_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_6 : below 117 (perBlock 64 8 6) = true :=
-  @below_succ 116 (perBlock 64 8 6) (@below_succ 115 (perBlock 64 8 6) (@below_succ 114 (perBlock 64 8 6) (@below_succ 113 (perBlock 64 8 6) (@below_succ 112 (perBlock 64 8 6) (large_blocks_6_112) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 112 5 (perBlock 64 8 6)
+    (large_blocks_6_112) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_8 : below 8 (perBlock 64 8 7) = true :=
-  @below_succ 7 (perBlock 64 8 7) (@below_succ 6 (perBlock 64 8 7) (@below_succ 5 (perBlock 64 8 7) (@below_succ 4 (perBlock 64 8 7) (@below_succ 3 (perBlock 64 8 7) (@below_succ 2 (perBlock 64 8 7) (@below_succ 1 (perBlock 64 8 7) (@below_succ 0 (perBlock 64 8 7) (below_zero (perBlock 64 8 7)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_16 : below 16 (perBlock 64 8 7) = true :=
-  @below_succ 15 (perBlock 64 8 7) (@below_succ 14 (perBlock 64 8 7) (@below_succ 13 (perBlock 64 8 7) (@below_succ 12 (perBlock 64 8 7) (@below_succ 11 (perBlock 64 8 7) (@below_succ 10 (perBlock 64 8 7) (@below_succ 9 (perBlock 64 8 7) (@below_succ 8 (perBlock 64 8 7) (large_blocks_7_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 64 8 7)
+    (large_blocks_7_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_24 : below 24 (perBlock 64 8 7) = true :=
-  @below_succ 23 (perBlock 64 8 7) (@below_succ 22 (perBlock 64 8 7) (@below_succ 21 (perBlock 64 8 7) (@below_succ 20 (perBlock 64 8 7) (@below_succ 19 (perBlock 64 8 7) (@below_succ 18 (perBlock 64 8 7) (@below_succ 17 (perBlock 64 8 7) (@below_succ 16 (perBlock 64 8 7) (large_blocks_7_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (perBlock 64 8 7)
+    (large_blocks_7_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_32 : below 32 (perBlock 64 8 7) = true :=
-  @below_succ 31 (perBlock 64 8 7) (@below_succ 30 (perBlock 64 8 7) (@below_succ 29 (perBlock 64 8 7) (@below_succ 28 (perBlock 64 8 7) (@below_succ 27 (perBlock 64 8 7) (@below_succ 26 (perBlock 64 8 7) (@below_succ 25 (perBlock 64 8 7) (@below_succ 24 (perBlock 64 8 7) (large_blocks_7_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (perBlock 64 8 7)
+    (large_blocks_7_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_40 : below 40 (perBlock 64 8 7) = true :=
-  @below_succ 39 (perBlock 64 8 7) (@below_succ 38 (perBlock 64 8 7) (@below_succ 37 (perBlock 64 8 7) (@below_succ 36 (perBlock 64 8 7) (@below_succ 35 (perBlock 64 8 7) (@below_succ 34 (perBlock 64 8 7) (@below_succ 33 (perBlock 64 8 7) (@below_succ 32 (perBlock 64 8 7) (large_blocks_7_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (perBlock 64 8 7)
+    (large_blocks_7_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_48 : below 48 (perBlock 64 8 7) = true :=
-  @below_succ 47 (perBlock 64 8 7) (@below_succ 46 (perBlock 64 8 7) (@below_succ 45 (perBlock 64 8 7) (@below_succ 44 (perBlock 64 8 7) (@below_succ 43 (perBlock 64 8 7) (@below_succ 42 (perBlock 64 8 7) (@below_succ 41 (perBlock 64 8 7) (@below_succ 40 (perBlock 64 8 7) (large_blocks_7_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (perBlock 64 8 7)
+    (large_blocks_7_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_56 : below 56 (perBlock 64 8 7) = true :=
-  @below_succ 55 (perBlock 64 8 7) (@below_succ 54 (perBlock 64 8 7) (@below_succ 53 (perBlock 64 8 7) (@below_succ 52 (perBlock 64 8 7) (@below_succ 51 (perBlock 64 8 7) (@below_succ 50 (perBlock 64 8 7) (@below_succ 49 (perBlock 64 8 7) (@below_succ 48 (perBlock 64 8 7) (large_blocks_7_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (perBlock 64 8 7)
+    (large_blocks_7_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_64 : below 64 (perBlock 64 8 7) = true :=
-  @below_succ 63 (perBlock 64 8 7) (@below_succ 62 (perBlock 64 8 7) (@below_succ 61 (perBlock 64 8 7) (@below_succ 60 (perBlock 64 8 7) (@below_succ 59 (perBlock 64 8 7) (@below_succ 58 (perBlock 64 8 7) (@below_succ 57 (perBlock 64 8 7) (@below_succ 56 (perBlock 64 8 7) (large_blocks_7_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (perBlock 64 8 7)
+    (large_blocks_7_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_72 : below 72 (perBlock 64 8 7) = true :=
-  @below_succ 71 (perBlock 64 8 7) (@below_succ 70 (perBlock 64 8 7) (@below_succ 69 (perBlock 64 8 7) (@below_succ 68 (perBlock 64 8 7) (@below_succ 67 (perBlock 64 8 7) (@below_succ 66 (perBlock 64 8 7) (@below_succ 65 (perBlock 64 8 7) (@below_succ 64 (perBlock 64 8 7) (large_blocks_7_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (perBlock 64 8 7)
+    (large_blocks_7_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_80 : below 80 (perBlock 64 8 7) = true :=
-  @below_succ 79 (perBlock 64 8 7) (@below_succ 78 (perBlock 64 8 7) (@below_succ 77 (perBlock 64 8 7) (@below_succ 76 (perBlock 64 8 7) (@below_succ 75 (perBlock 64 8 7) (@below_succ 74 (perBlock 64 8 7) (@below_succ 73 (perBlock 64 8 7) (@below_succ 72 (perBlock 64 8 7) (large_blocks_7_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (perBlock 64 8 7)
+    (large_blocks_7_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_88 : below 88 (perBlock 64 8 7) = true :=
-  @below_succ 87 (perBlock 64 8 7) (@below_succ 86 (perBlock 64 8 7) (@below_succ 85 (perBlock 64 8 7) (@below_succ 84 (perBlock 64 8 7) (@below_succ 83 (perBlock 64 8 7) (@below_succ 82 (perBlock 64 8 7) (@below_succ 81 (perBlock 64 8 7) (@below_succ 80 (perBlock 64 8 7) (large_blocks_7_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (perBlock 64 8 7)
+    (large_blocks_7_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_96 : below 96 (perBlock 64 8 7) = true :=
-  @below_succ 95 (perBlock 64 8 7) (@below_succ 94 (perBlock 64 8 7) (@below_succ 93 (perBlock 64 8 7) (@below_succ 92 (perBlock 64 8 7) (@below_succ 91 (perBlock 64 8 7) (@below_succ 90 (perBlock 64 8 7) (@below_succ 89 (perBlock 64 8 7) (@below_succ 88 (perBlock 64 8 7) (large_blocks_7_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (perBlock 64 8 7)
+    (large_blocks_7_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_104 : below 104 (perBlock 64 8 7) = true :=
-  @below_succ 103 (perBlock 64 8 7) (@below_succ 102 (perBlock 64 8 7) (@below_succ 101 (perBlock 64 8 7) (@below_succ 100 (perBlock 64 8 7) (@below_succ 99 (perBlock 64 8 7) (@below_succ 98 (perBlock 64 8 7) (@below_succ 97 (perBlock 64 8 7) (@below_succ 96 (perBlock 64 8 7) (large_blocks_7_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (perBlock 64 8 7)
+    (large_blocks_7_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7_112 : below 112 (perBlock 64 8 7) = true :=
-  @below_succ 111 (perBlock 64 8 7) (@below_succ 110 (perBlock 64 8 7) (@below_succ 109 (perBlock 64 8 7) (@below_succ 108 (perBlock 64 8 7) (@below_succ 107 (perBlock 64 8 7) (@below_succ 106 (perBlock 64 8 7) (@below_succ 105 (perBlock 64 8 7) (@below_succ 104 (perBlock 64 8 7) (large_blocks_7_104) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 8 (perBlock 64 8 7)
+    (large_blocks_7_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_7 : below 117 (perBlock 64 8 7) = true :=
-  @below_succ 116 (perBlock 64 8 7) (@below_succ 115 (perBlock 64 8 7) (@below_succ 114 (perBlock 64 8 7) (@below_succ 113 (perBlock 64 8 7) (@below_succ 112 (perBlock 64 8 7) (large_blocks_7_112) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 112 5 (perBlock 64 8 7)
+    (large_blocks_7_112) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_8 : below 8 (perBlock 64 8 8) = true :=
-  @below_succ 7 (perBlock 64 8 8) (@below_succ 6 (perBlock 64 8 8) (@below_succ 5 (perBlock 64 8 8) (@below_succ 4 (perBlock 64 8 8) (@below_succ 3 (perBlock 64 8 8) (@below_succ 2 (perBlock 64 8 8) (@below_succ 1 (perBlock 64 8 8) (@below_succ 0 (perBlock 64 8 8) (below_zero (perBlock 64 8 8)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  by decide +kernel
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_16 : below 16 (perBlock 64 8 8) = true :=
-  @below_succ 15 (perBlock 64 8 8) (@below_succ 14 (perBlock 64 8 8) (@below_succ 13 (perBlock 64 8 8) (@below_succ 12 (perBlock 64 8 8) (@below_succ 11 (perBlock 64 8 8) (@below_succ 10 (perBlock 64 8 8) (@below_succ 9 (perBlock 64 8 8) (@below_succ 8 (perBlock 64 8 8) (large_blocks_8_8) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 8 8 (perBlock 64 8 8)
+    (large_blocks_8_8) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_24 : below 24 (perBlock 64 8 8) = true :=
-  @below_succ 23 (perBlock 64 8 8) (@below_succ 22 (perBlock 64 8 8) (@below_succ 21 (perBlock 64 8 8) (@below_succ 20 (perBlock 64 8 8) (@below_succ 19 (perBlock 64 8 8) (@below_succ 18 (perBlock 64 8 8) (@below_succ 17 (perBlock 64 8 8) (@below_succ 16 (perBlock 64 8 8) (large_blocks_8_16) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 16 8 (perBlock 64 8 8)
+    (large_blocks_8_16) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_32 : below 32 (perBlock 64 8 8) = true :=
-  @below_succ 31 (perBlock 64 8 8) (@below_succ 30 (perBlock 64 8 8) (@below_succ 29 (perBlock 64 8 8) (@below_succ 28 (perBlock 64 8 8) (@below_succ 27 (perBlock 64 8 8) (@below_succ 26 (perBlock 64 8 8) (@below_succ 25 (perBlock 64 8 8) (@below_succ 24 (perBlock 64 8 8) (large_blocks_8_24) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 24 8 (perBlock 64 8 8)
+    (large_blocks_8_24) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_40 : below 40 (perBlock 64 8 8) = true :=
-  @below_succ 39 (perBlock 64 8 8) (@below_succ 38 (perBlock 64 8 8) (@below_succ 37 (perBlock 64 8 8) (@below_succ 36 (perBlock 64 8 8) (@below_succ 35 (perBlock 64 8 8) (@below_succ 34 (perBlock 64 8 8) (@below_succ 33 (perBlock 64 8 8) (@below_succ 32 (perBlock 64 8 8) (large_blocks_8_32) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 32 8 (perBlock 64 8 8)
+    (large_blocks_8_32) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_48 : below 48 (perBlock 64 8 8) = true :=
-  @below_succ 47 (perBlock 64 8 8) (@below_succ 46 (perBlock 64 8 8) (@below_succ 45 (perBlock 64 8 8) (@below_succ 44 (perBlock 64 8 8) (@below_succ 43 (perBlock 64 8 8) (@below_succ 42 (perBlock 64 8 8) (@below_succ 41 (perBlock 64 8 8) (@below_succ 40 (perBlock 64 8 8) (large_blocks_8_40) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 40 8 (perBlock 64 8 8)
+    (large_blocks_8_40) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_56 : below 56 (perBlock 64 8 8) = true :=
-  @below_succ 55 (perBlock 64 8 8) (@below_succ 54 (perBlock 64 8 8) (@below_succ 53 (perBlock 64 8 8) (@below_succ 52 (perBlock 64 8 8) (@below_succ 51 (perBlock 64 8 8) (@below_succ 50 (perBlock 64 8 8) (@below_succ 49 (perBlock 64 8 8) (@below_succ 48 (perBlock 64 8 8) (large_blocks_8_48) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 48 8 (perBlock 64 8 8)
+    (large_blocks_8_48) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_64 : below 64 (perBlock 64 8 8) = true :=
-  @below_succ 63 (perBlock 64 8 8) (@below_succ 62 (perBlock 64 8 8) (@below_succ 61 (perBlock 64 8 8) (@below_succ 60 (perBlock 64 8 8) (@below_succ 59 (perBlock 64 8 8) (@below_succ 58 (perBlock 64 8 8) (@below_succ 57 (perBlock 64 8 8) (@below_succ 56 (perBlock 64 8 8) (large_blocks_8_56) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 56 8 (perBlock 64 8 8)
+    (large_blocks_8_56) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_72 : below 72 (perBlock 64 8 8) = true :=
-  @below_succ 71 (perBlock 64 8 8) (@below_succ 70 (perBlock 64 8 8) (@below_succ 69 (perBlock 64 8 8) (@below_succ 68 (perBlock 64 8 8) (@below_succ 67 (perBlock 64 8 8) (@below_succ 66 (perBlock 64 8 8) (@below_succ 65 (perBlock 64 8 8) (@below_succ 64 (perBlock 64 8 8) (large_blocks_8_64) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 64 8 (perBlock 64 8 8)
+    (large_blocks_8_64) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_80 : below 80 (perBlock 64 8 8) = true :=
-  @below_succ 79 (perBlock 64 8 8) (@below_succ 78 (perBlock 64 8 8) (@below_succ 77 (perBlock 64 8 8) (@below_succ 76 (perBlock 64 8 8) (@below_succ 75 (perBlock 64 8 8) (@below_succ 74 (perBlock 64 8 8) (@below_succ 73 (perBlock 64 8 8) (@below_succ 72 (perBlock 64 8 8) (large_blocks_8_72) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 72 8 (perBlock 64 8 8)
+    (large_blocks_8_72) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_88 : below 88 (perBlock 64 8 8) = true :=
-  @below_succ 87 (perBlock 64 8 8) (@below_succ 86 (perBlock 64 8 8) (@below_succ 85 (perBlock 64 8 8) (@below_succ 84 (perBlock 64 8 8) (@below_succ 83 (perBlock 64 8 8) (@below_succ 82 (perBlock 64 8 8) (@below_succ 81 (perBlock 64 8 8) (@below_succ 80 (perBlock 64 8 8) (large_blocks_8_80) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 80 8 (perBlock 64 8 8)
+    (large_blocks_8_80) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_96 : below 96 (perBlock 64 8 8) = true :=
-  @below_succ 95 (perBlock 64 8 8) (@below_succ 94 (perBlock 64 8 8) (@below_succ 93 (perBlock 64 8 8) (@below_succ 92 (perBlock 64 8 8) (@below_succ 91 (perBlock 64 8 8) (@below_succ 90 (perBlock 64 8 8) (@below_succ 89 (perBlock 64 8 8) (@below_succ 88 (perBlock 64 8 8) (large_blocks_8_88) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 88 8 (perBlock 64 8 8)
+    (large_blocks_8_88) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_104 : below 104 (perBlock 64 8 8) = true :=
-  @below_succ 103 (perBlock 64 8 8) (@below_succ 102 (perBlock 64 8 8) (@below_succ 101 (perBlock 64 8 8) (@below_succ 100 (perBlock 64 8 8) (@below_succ 99 (perBlock 64 8 8) (@below_succ 98 (perBlock 64 8 8) (@below_succ 97 (perBlock 64 8 8) (@below_succ 96 (perBlock 64 8 8) (large_blocks_8_96) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 96 8 (perBlock 64 8 8)
+    (large_blocks_8_96) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8_112 : below 112 (perBlock 64 8 8) = true :=
-  @below_succ 111 (perBlock 64 8 8) (@below_succ 110 (perBlock 64 8 8) (@below_succ 109 (perBlock 64 8 8) (@below_succ 108 (perBlock 64 8 8) (@below_succ 107 (perBlock 64 8 8) (@below_succ 106 (perBlock 64 8 8) (@below_succ 105 (perBlock 64 8 8) (@below_succ 104 (perBlock 64 8 8) (large_blocks_8_104) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 104 8 (perBlock 64 8 8)
+    (large_blocks_8_104) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in
 private theorem large_blocks_8 : below 117 (perBlock 64 8 8) = true :=
-  @below_succ 116 (perBlock 64 8 8) (@below_succ 115 (perBlock 64 8 8) (@below_succ 114 (perBlock 64 8 8) (@below_succ 113 (perBlock 64 8 8) (@below_succ 112 (perBlock 64 8 8) (large_blocks_8_112) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)) (by decide +kernel)
+  below_extend 112 5 (perBlock 64 8 8)
+    (large_blocks_8_112) (by decide +kernel)
 
 set_option maxRecDepth 100000 in
 set_option maxHeartbeats 0 in

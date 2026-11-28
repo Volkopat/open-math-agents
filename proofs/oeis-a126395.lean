@@ -1,189 +1,148 @@
 import OMAStatements.S_oeis_a126395
-import Mathlib
 
-namespace A126395Aux
+namespace OMA.DigitWalks
+open OMA.S_oeis_a126395 Finset PowerSeries
 
-open OMA.S_oeis_a126395 in
-def V (n : ℕ) (x : Fin n → Fin 8) : Prop :=
-  ∀ i j : Fin n, (j : ℕ) = (i : ℕ) + 1 → close (x i) (x j)
+private abbrev Digit := Fin 8
+private abbrev Word (n : ℕ) := Fin n → Digit
 
-open OMA.S_oeis_a126395 in
-lemma V_cons (n : ℕ) (d e : Fin 8) (y : Fin n → Fin 8) :
-    V (n + 1 + 1) (Fin.cons (α := fun _ => Fin 8) d (Fin.cons (α := fun _ => Fin 8) e y)) ↔
-      close d e ∧ V (n + 1) (Fin.cons (α := fun _ => Fin 8) e y) := by
+private def advance : (Digit → ℤ) →ₗ[ℤ] (Digit → ℤ) where
+  toFun f d := ∑ e : Digit, (if close d e then 1 else 0) * f e
+  map_add' f g := by
+    ext d
+    simp only [Pi.add_apply, mul_add, sum_add_distrib]
+  map_smul' z f := by
+    ext d
+    simp only [RingHom.id_apply, Pi.smul_apply, smul_eq_mul, mul_sum]
+    exact sum_congr rfl fun i _ => by ring
+
+private def counts : ℕ → Digit → ℤ
+  | 0 => fun _ => 1
+  | n+1 => advance (counts n)
+
+private theorem counts_succ (n : ℕ) : counts (n+1) = advance (counts n) := rfl
+
+private theorem sumHead {n : ℕ} (f : Word (n+1) → ℤ) :
+    ∑ x, f x = ∑ d : Digit, ∑ y : Word n, f (Fin.cons d y) := by
+  rw [← (Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n+1) => Digit)) f)]
+  exact Fintype.sum_prod_type _
+
+private def admissible (x : Word n) : Prop := (List.ofFn x).IsChain close
+
+private instance (x : Word n) : Decidable (admissible x) := by
+  unfold admissible
+  infer_instance
+
+private theorem admissible_cons (d e : Digit) (x : Word n) :
+    admissible (Fin.cons d (Fin.cons e x)) ↔ close d e ∧ admissible (Fin.cons e x) := by
+  simp only [admissible, List.ofFn_succ, Fin.cons_zero, Fin.cons_succ, List.isChain_cons_cons]
+
+private theorem adjacent_iff (x : Word n) :
+    (∀ i j : Fin n, j.val = i.val + 1 → close (x i) (x j)) ↔ admissible x := by
+  simp only [admissible, List.isChain_iff_getElem, List.length_ofFn, List.getElem_ofFn]
   constructor
-  · intro h
-    refine ⟨?_, ?_⟩
-    · have h01 := h 0 1 rfl
-      simpa using h01
-    · intro i j hij
-      have h2 := h i.succ j.succ (by rw [Fin.val_succ, Fin.val_succ, hij])
-      simpa using h2
-  · rintro ⟨hde, hv⟩ i j hij
-    induction i using Fin.cases with
-    | zero =>
-      induction j using Fin.cases with
-      | zero => simp at hij
-      | succ j' =>
-        have h0 : ((0 : Fin (n + 1 + 1)) : ℕ) = 0 := rfl
-        rw [Fin.val_succ, h0] at hij
-        have hv0 : (j' : ℕ) = 0 := by omega
-        have hj : j' = 0 := Fin.ext hv0
-        subst hj
-        simpa using hde
-    | succ i' =>
-      induction j using Fin.cases with
-      | zero => simp at hij
-      | succ j' =>
-        have h2 := hv i' j' (by rw [Fin.val_succ, Fin.val_succ] at hij; omega)
-        simpa using h2
+  · intro h i hi
+    exact h ⟨i, by omega⟩ ⟨i+1, hi⟩ rfl
+  · intro h i j hij
+    have hi : i.val+1 < n := hij ▸ j.isLt
+    have hj : (⟨i.val+1, hi⟩ : Fin n) = j := Fin.ext hij.symm
+    simpa only [hj] using h i.val hi
 
-lemma V_one (x : Fin 1 → Fin 8) : V 1 x := by
-  intro i j hij
-  have hi := i.isLt
-  have hj := j.isLt
-  omega
+private def countFrom (d : Digit) (n : ℕ) : ℤ :=
+  ∑ x : Word n, if admissible (Fin.cons d x) then 1 else 0
 
-lemma V_zero (x : Fin 0 → Fin 8) : V 0 x := fun i => i.elim0
+private theorem countFrom_eq (n : ℕ) (d : Digit) : countFrom d n = counts n d := by
+  induction n generalizing d with
+  | zero => simp [countFrom, counts, admissible]
+  | succ n ih =>
+    unfold countFrom
+    rw [sumHead]
+    change _ = ∑ e : Digit, (if close d e then 1 else 0) * counts n e
+    apply sum_congr rfl
+    intro e _
+    simp only [admissible_cons]
+    by_cases h : close d e
+    · simp [h, ← ih e, countFrom]
+    · simp [h]
 
-noncomputable def N (n : ℕ) (d : Fin 8) : ℕ :=
-  ∑ y : Fin n → Fin 8,
-    @ite ℕ (V (n + 1) (Fin.cons (α := fun _ => Fin 8) d y)) (Classical.propDecidable _) 1 0
+private theorem a_succ (n : ℕ) : (a (n+1) : ℤ) = ∑ d, counts n d := by
+  simp only [a, Finset.card_filter, Nat.cast_sum, Nat.cast_ite, Nat.cast_one, Nat.cast_zero]
+  rw [sumHead]
+  apply sum_congr rfl
+  intro d _
+  rw [← countFrom_eq]
+  apply sum_congr rfl
+  intro x _
+  exact if_congr (adjacent_iff _) rfl rfl
 
-noncomputable def S (n : ℕ) : ℕ :=
-  ∑ x : Fin n → Fin 8, @ite ℕ (V n x) (Classical.propDecidable _) 1 0
+private theorem a_zero : a 0 = 1 := by decide +kernel
 
-lemma sum_cons_split (n : ℕ) (g : (Fin (n + 1) → Fin 8) → ℕ) :
-    ∑ x, g x = ∑ d : Fin 8, ∑ y : Fin n → Fin 8, g (Fin.cons (α := fun _ => Fin 8) d y) := by
-  calc ∑ x, g x
-      = ∑ p : Fin 8 × (Fin n → Fin 8), g (Fin.consEquiv (fun _ : Fin (n + 1) => Fin 8) p) :=
-        (Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n + 1) => Fin 8)) g).symm
-    _ = ∑ d : Fin 8, ∑ y : Fin n → Fin 8, g (Fin.cons (α := fun _ => Fin 8) d y) :=
-        Fintype.sum_prod_type _
+-- A linear transition preserves any recurrence satisfied by the initial vectors.
+private def relationAt (n : ℕ) : Digit → ℤ :=
+  counts (n+3) + (-5 : ℤ) • counts (n+2) + counts (n+1) + (6 : ℤ) • counts (n)
 
-lemma N_zero (d : Fin 8) : N 0 d = 1 := by
-  unfold N
-  rw [Fintype.sum_unique]
-  exact if_pos (V_one _)
-
-lemma S_zero : S 0 = 1 := by
-  unfold S
-  rw [Fintype.sum_unique]
-  exact if_pos (V_zero _)
-
-lemma S_succ (n : ℕ) : S (n + 1) = ∑ d : Fin 8, N n d := by
-  unfold S N
-  rw [sum_cons_split]
-
-open OMA.S_oeis_a126395 in
-open Classical in
-lemma N_succ (n : ℕ) (d : Fin 8) :
-    N (n + 1) d = ∑ e : Fin 8, if close d e then N n e else 0 := by
-  unfold N
-  rw [sum_cons_split]
-  refine Finset.sum_congr rfl (fun e _ => ?_)
-  by_cases hde : close d e
-  · rw [if_pos hde]
-    refine Finset.sum_congr rfl (fun y _ => ?_)
-    exact if_congr ((V_cons n d e y).trans (and_iff_right hde)) rfl rfl
-  · rw [if_neg hde]
-    refine Finset.sum_eq_zero (fun y _ => ?_)
-    exact if_neg (fun h => hde ((V_cons n d e y).mp h).1)
-
-open OMA.S_oeis_a126395 in
-open Classical in
-lemma a_eq_S (n : ℕ) : a n = S n := by
-  unfold a S
-  rw [Finset.card_filter]
-  exact Finset.sum_congr rfl (fun x _ => if_congr Iff.rfl rfl rfl)
-
-open OMA.S_oeis_a126395 in
-def cnt : ℕ → Fin 8 → ℕ
-  | 0, _ => 1
-  | h + 1, d => ∑ e : Fin 8, if close d e then cnt h e else 0
-
-open OMA.S_oeis_a126395 in
-lemma cnt_succ (h : ℕ) (d : Fin 8) :
-    cnt (h + 1) d = ∑ e : Fin 8, if close d e then cnt h e else 0 := rfl
-
-lemma N_eq (n : ℕ) : ∀ d : Fin 8, N n d = cnt n d := by
+set_option maxRecDepth 20000 in
+set_option maxHeartbeats 3000000 in
+private theorem vectorRec (n : ℕ) : relationAt n = 0 := by
   induction n with
   | zero =>
-    intro d
-    exact N_zero d
+    ext d
+    fin_cases d <;> decide +kernel
   | succ n ih =>
-    intro d
-    rw [N_succ, cnt_succ]
-    exact Finset.sum_congr rfl (fun e _ => if_congr Iff.rfl (ih e) rfl)
+    have h := congrArg (fun v => advance v) ih
+    simpa only [relationAt, map_add, map_smul, map_zero, ← counts_succ] using h
 
-lemma vec_rec (h : ℕ) : ∀ d : Fin 8, cnt (h + 3) d + cnt (h + 1) d + 6 * cnt (h) d = 5 * cnt (h + 2) d := by
-  induction h with
-  | zero => decide +kernel
-  | succ h ih =>
-    intro d
-    show cnt (h + 3 + 1) d + cnt (h + 1 + 1) d + 6 * cnt (h + 1) d = 5 * cnt (h + 2 + 1) d
-    rw [cnt_succ (h + 3) d, cnt_succ (h + 1) d, cnt_succ (h) d, cnt_succ (h + 2) d]
-    simp only [Finset.mul_sum, ← Finset.sum_add_distrib]
-    refine Finset.sum_congr rfl (fun e _ => ?_)
-    have he := ih e
-    split_ifs
-    · exact he
-    · rfl
+private theorem shifted (m : ℕ) :
+    (1) * (a (m+4) : ℤ) + (-5) * (a (m+3) : ℤ) + (1) * (a (m+2) : ℤ) + (6) * (a (m+1) : ℤ) = 0 := by
+  have h := congrArg (fun v : Digit → ℤ => ∑ d, v d) (vectorRec m)
+  simp only [relationAt, Pi.add_apply, Pi.smul_apply, Pi.zero_apply, smul_eq_mul,
+    Finset.sum_add_distrib, ← Finset.mul_sum, ← a_succ, Finset.sum_const_zero] at h
+  linear_combination h
+
+private theorem a_rat (n : ℕ) :
+    (a (n+1) : ℚ) = ((∑ d, counts n d : ℤ) : ℚ) := by
+  exact_mod_cast a_succ n
+
+private noncomputable def term (c : ℚ) (j : ℕ) : ℚ⟦X⟧ := C c * X ^ j
+
+private theorem coeff_mulTerm (s : ℚ⟦X⟧) (c : ℚ) (n j : ℕ) :
+    coeff n (s * term c j) = if j ≤ n then c * coeff (n-j) s else 0 := by
+  rw [term, ← mul_assoc, coeff_mul_X_pow', coeff_mul_C]
+  split_ifs <;> ring
+
+private theorem coeff_term (c : ℚ) (n j : ℕ) :
+    coeff n (term c j) = if n = j then c else 0 := coeff_C_mul_X_pow c j n
+
+set_option maxRecDepth 20000 in
+set_option maxHeartbeats 3000000 in
+private theorem generating : mk (fun n => (a n : ℚ)) * (1 - 5 * X + X ^ 2 + 6 * X ^ 3) = 1 + 3 * X - 5 * X ^ 2 - 6 * X ^ 3 := by
+  have hD : ((1 - 5 * X + X ^ 2 + 6 * X ^ 3) : ℚ⟦X⟧) = term (1) 0 + term (-5) 1 + term (1) 2 + term (6) 3 := by
+    simp only [term,map_neg,map_ofNat,map_one]
+    ring
+  have hN : (1 + 3 * X - 5 * X ^ 2 - 6 * X ^ 3 : ℚ⟦X⟧) = term (1) 0 + term (3) 1 + term (-5) 2 + term (-6) 3 := by
+    simp only [term,map_neg,map_ofNat,map_one]
+    ring
+  rw [hD,hN]
+  ext n
+  simp only [mul_add,map_add,coeff_mulTerm,coeff_term,coeff_mk]
+  by_cases hn : n ≤ 3
+  · interval_cases n <;> simp only [a_zero,a_rat] <;> decide +kernel
+  · obtain ⟨m,rfl⟩ : ∃ m, n = m+4 := ⟨n-4, by omega⟩
+    have h : (1) * (a (m+4) : ℚ) + (-5) * (a (m+3) : ℚ) + (1) * (a (m+2) : ℚ) + (6) * (a (m+1) : ℚ) = 0 := by exact_mod_cast shifted m
+    simp only [Nat.sub_zero, Nat.zero_le, if_true, if_false,
+      show 1 ≤ m+4 by omega, show 2 ≤ m+4 by omega, show 3 ≤ m+4 by omega,
+      show m+4 ≠ 0 by omega, show m+4 ≠ 1 by omega, show m+4 ≠ 2 by omega,
+      show m+4 ≠ 3 by omega, show m+4-1=m+3 by omega, show m+4-2=m+2 by omega,
+      show m+4-3=m+1 by omega]
+    linear_combination h
+
+end OMA.DigitWalks
 
 open OMA.S_oeis_a126395 in
-lemma a_succ (h : ℕ) : a (h + 1) = ∑ d : Fin 8, cnt h d := by
-  rw [a_eq_S, S_succ]
-  exact Finset.sum_congr rfl (fun d _ => N_eq h d)
-
-open OMA.S_oeis_a126395 in
-lemma a_zero : a 0 = 1 := by
-  rw [a_eq_S, S_zero]
-
-open OMA.S_oeis_a126395 in
-lemma a_vals : a 1 = 8 ∧ a 2 = 34 ∧ a 3 = 150 :=
-  ⟨(a_succ 0).trans (by decide +kernel), (a_succ 1).trans (by decide +kernel), (a_succ 2).trans (by decide +kernel)⟩
-
-open OMA.S_oeis_a126395 in
-lemma a_rec (h : ℕ) : a (h + 4) + a (h + 2) + 6 * a (h + 1) = 5 * a (h + 3) := by
-  have e3 : a (h + 4) = ∑ d : Fin 8, cnt (h + 3) d := a_succ (h + 3)
-  have e1 : a (h + 2) = ∑ d : Fin 8, cnt (h + 1) d := a_succ (h + 1)
-  have e0 : a (h + 1) = ∑ d : Fin 8, cnt (h) d := a_succ (h)
-  have e2 : a (h + 3) = ∑ d : Fin 8, cnt (h + 2) d := a_succ (h + 2)
-  rw [e3, e1, e0, e2]
-  simp only [Finset.mul_sum, ← Finset.sum_add_distrib]
-  exact Finset.sum_congr rfl (fun d _ => vec_rec h d)
-
-end A126395Aux
-
-open OMA.S_oeis_a126395 PowerSeries in
 theorem OMA.solution : type_of% @OMA.S_oeis_a126395.main := by
-  obtain ⟨v1, v2, v3⟩ := A126395Aux.a_vals
-  refine ⟨?_, ?_⟩
-  · have hD : (1 - 5 * X + X ^ 2 + 6 * X ^ 3 : PowerSeries ℚ)
-        = C (1) * X ^ 0 + C (-5) * X ^ 1 + C (1) * X ^ 2 + C (6) * X ^ 3 := by
-      simp only [map_neg, map_ofNat, map_one]; ring
-    have hN : (1 + 3 * X - 5 * X ^ 2 - 6 * X ^ 3 : PowerSeries ℚ)
-        = C (1) * X ^ 0 + C (3) * X ^ 1 + C (-5) * X ^ 2 + C (-6) * X ^ 3 := by
-      simp only [map_neg, map_ofNat, map_one]; ring
-    rw [hD, hN]
-    ext n
-    simp only [mul_add, map_add, ← mul_assoc, PowerSeries.coeff_mul_X_pow', PowerSeries.coeff_mul_C,
-      PowerSeries.coeff_mk, PowerSeries.coeff_C]
-    rcases n with _ | _ | _ | _ | n
-    · norm_num [A126395Aux.a_zero, v1, v2, v3]
-    · norm_num [A126395Aux.a_zero, v1, v2, v3]
-    · norm_num [A126395Aux.a_zero, v1, v2, v3]
-    · norm_num [A126395Aux.a_zero, v1, v2, v3]
-    · have h := A126395Aux.a_rec n
-      have hq : (a (n + 4) : ℚ) + (a (n + 2) : ℚ) + 6 * (a (n + 1) : ℚ) = 5 * (a (n + 3) : ℚ) := by
-        exact_mod_cast h
-      simp
-      linarith
-  · skip
-    intro n hn
-    obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
-    have h := A126395Aux.a_rec m
-    have hz : (a (m + 4) : ℤ) + (a (m + 2) : ℤ) + 6 * (a (m + 1) : ℤ) = 5 * (a (m + 3) : ℤ) := by
-      exact_mod_cast h
-    simp only [show m + 4 - 1 = m + 3 by omega, show m + 4 - 2 = m + 2 by omega, show m + 4 - 3 = m + 1 by omega]
-    linarith
+  refine ⟨OMA.DigitWalks.generating, ?_⟩
+  intro n hn
+  obtain ⟨m, rfl⟩ : ∃ m, n = m+4 := ⟨n-4, by omega⟩
+  have h := OMA.DigitWalks.shifted m
+  simp only [show m+4-1=m+3 by omega, show m+4-2=m+2 by omega, show m+4-3=m+1 by omega]
+  linear_combination h

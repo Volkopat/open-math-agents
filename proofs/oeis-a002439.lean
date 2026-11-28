@@ -36,16 +36,13 @@ theorem nat_pow_period (q : ℕ) (hq : 0 < q) (b m t : ℕ) (hm : q ≤ m)
       ihv (by omega) m t (hvb.trans hm) ((dvd_mul_left _ _).trans ht)⟩
 
 /-- The eventual period is valid for every residue, with no unit assumption. -/
-theorem zmod_pow_period {q : ℕ} (hq : 0 < q) (b : ZMod q) {m t : ℕ} (hm : q ≤ m)
-    (ht : q.totient ∣ t) : b^(m+t) = b^m := by
-  let : NeZero q := ⟨hq.ne'⟩
-  have h := (ZMod.natCast_eq_natCast_iff _ _ q).mpr (nat_pow_period q hq b.val m t hm ht)
-  simpa only [Nat.cast_pow, ZMod.natCast_zmod_val] using h
-
 theorem int_pow_period {q : ℕ} (hq : 0 < q) (b : ℤ) {m t : ℕ} (hm : q ≤ m)
     (ht : q.totient ∣ t) : b^(m+t) ≡ b^m [ZMOD q] := by
+  let : NeZero q := ⟨hq.ne'⟩
   apply (ZMod.intCast_eq_intCast_iff _ _ q).mp
-  simpa only [Int.cast_pow] using zmod_pow_period hq (b : ZMod q) hm ht
+  have h := (ZMod.natCast_eq_natCast_iff _ _ q).mpr
+    (nat_pow_period q hq (b : ZMod q).val m t hm ht)
+  simpa only [Nat.cast_pow, ZMod.natCast_zmod_val, Int.cast_pow] using h
 
 theorem totient_two_mul_dvd (k : ℕ) : (2*k).totient ∣ 2*k.totient := by
   rcases Nat.even_or_odd k with h | h
@@ -57,28 +54,14 @@ theorem int_pow_period_doubled {k : ℕ} (hk : 0 < k) (b : ℤ) {m : ℕ} (hm : 
     b^(m+2*k.totient) ≡ b^m [ZMOD (2*k)] :=
   int_pow_period (q := 2*k) (by positivity) b hm (totient_two_mul_dvd k)
 
-/-- Cancelling a factor of two in both values and the modulus. -/
-theorem halve_modEq {k : ℕ} {u v : ℤ}
-    (h : 2*u ≡ 2*v [ZMOD (2*k)]) : u ≡ v [ZMOD k] := by
-  obtain ⟨z, hz⟩ := Int.modEq_iff_dvd.mp h
-  apply Int.modEq_iff_dvd.mpr
-  refine ⟨z, ?_⟩
-  nlinarith
-
 /-- The sign converting hyperbolic coefficients to trigonometric ones preserves the period. -/
 theorem signed_period {k n : ℕ} (hk : 0 < k) {u v : ℤ} (h : u ≡ v [ZMOD k]) :
     (-1 : ℤ)^(n+k.totient)*u ≡ (-1 : ℤ)^n*v [ZMOD k] := by
-  by_cases hbig : 2 < k
-  · have hsgn : (-1 : ℤ)^k.totient = 1 := (Nat.totient_even hbig).neg_one_pow
-    rw [pow_add, hsgn, mul_one]
-    exact h.mul_left _
-  · have hcases : k = 1 ∨ k = 2 := by omega
-    have hneg : (-1 : ℤ) ≡ 1 [ZMOD k] := by
-      rcases hcases with rfl | rfl <;> decide
-    have ha := (hneg.pow (n+k.totient)).mul h
-    have hb := (hneg.pow n).mul (Int.ModEq.refl v)
-    simp only [one_pow, one_mul] at ha hb
-    exact ha.trans hb.symm
+  have hpow : (-1 : ℤ)^k.totient ≡ 1 [ZMOD k] := by
+    by_cases hbig : 2 < k
+    · rw [(Nat.totient_even hbig).neg_one_pow]
+    · rcases (show k = 1 ∨ k = 2 by omega) with rfl | rfl <;> decide
+  simpa [pow_add, mul_assoc] using (hpow.mul h).mul_left ((-1 : ℤ)^n)
 
 end GlaisherArithmetic
 
@@ -168,24 +151,16 @@ private theorem intMom_of_product {D f : PS}
   induction n using Nat.strong_induction_on with
   | h n ih =>
     choose x hx using hD
-    have hi : ∀ i ∈ range n, ∃ z : ℤ, mom f i = z := by
-      intro i hi
-      exact ih i (mem_range.mp hi)
-    choose y hy using hi
+    choose y hy using fun i : Fin n => ih i i.isLt
     obtain ⟨z, hz⟩ := hf n
-    refine ⟨z - ∑ i : Fin n, (n.choose i : ℤ) * y i (mem_range.mpr i.isLt) *
-      x (n-i), ?_⟩
+    refine ⟨z - ∑ i : Fin n, (n.choose i : ℤ) * y i * x (n-i), ?_⟩
     rw [mom_mul, sum_range_succ] at hz
     have hterm : (n.choose n : ℚ) * mom f n * mom D (n - n) = mom f n := by
       simp [mom, coeff_zero_eq_constantCoeff_apply, h0]
-    rw [hterm] at hz
-    have hpart : mom f n = (z : ℚ) -
-        ∑ i ∈ range n, (n.choose i : ℚ) * mom f i * mom D (n-i) := by linarith
-    rw [hpart]
-    simp only [Int.cast_sub, Int.cast_sum, Int.cast_mul, Int.cast_natCast]
-    congr 1
-    rw [← Fin.sum_univ_eq_sum_range]
-    exact sum_congr rfl fun i _ => by rw [hy i (mem_range.mpr i.isLt), hx]
+    rw [hterm, ← Fin.sum_univ_eq_sum_range] at hz
+    simp_rw [hy, hx] at hz
+    push_cast
+    linarith
 
 private noncomputable def U : PS := E 2 - 1
 private noncomputable def D : PS := 1 + U + U ^ 2
@@ -229,6 +204,10 @@ private theorem twist_mul_even (f g : PS) (h : ∀ j, ¬ Even j → coeff j g = 
     ring
   · simp [h j hpar]
 
+private theorem negOneSquare (n : ℕ) : (-1 : ℚ)^n * (-1 : ℚ)^n = 1 := by
+  rw [← mul_pow]
+  norm_num
+
 private theorem twist_sin :
     twist (rescale (2 : ℚ) (sin ℚ)) = C (1/2 : ℚ) * (E 2 - E (-2)) := by
   ext n
@@ -237,9 +216,7 @@ private theorem twist_sin :
   by_cases h : Even n
   · simp [h, h.neg_pow]
   · rw [if_neg h, (Nat.not_even_iff_odd.mp h).neg_pow]
-    have hh : (-1 : ℚ) ^ (n / 2) * (-1 : ℚ) ^ (n / 2) = 1 := by
-      rw [← mul_pow]; norm_num
-    linear_combination ((2 : ℚ)^n / n.factorial) * hh
+    linear_combination ((2 : ℚ)^n / n.factorial) * negOneSquare (n/2)
 
 private theorem twist_cos :
     twist (C (2 : ℚ) * rescale (3 : ℚ) (cos ℚ)) = E 3 + E (-3) := by
@@ -248,12 +225,15 @@ private theorem twist_cos :
     Algebra.algebraMap_self, RingHom.id_apply, Int.cast_ofNat, Int.cast_neg]
   by_cases h : Even n
   · rw [if_pos h, h.neg_pow]
-    have hh : (-1 : ℚ) ^ (n / 2) * (-1 : ℚ) ^ (n / 2) = 1 := by
-      rw [← mul_pow]; norm_num
-    linear_combination (2 * (3 : ℚ)^n / n.factorial) * hh
+    linear_combination (2 * (3 : ℚ)^n / n.factorial) * negOneSquare (n/2)
   · simp [h, (Nat.not_even_iff_odd.mp h).neg_pow]
 
 private noncomputable def F : PS := twist OMA.S_oeis_a002439.egf
+
+private theorem D_factor : D * (E 2 + 1) = E 6 + 1 := by
+  have he : E 2 ^ 3 = E 6 := by rw [E_pow]; norm_num
+  rw [← he, D, U]
+  ring
 
 private theorem F_eq : F * D = E 1 * halfU := by
   let g : PS := C (2 : ℚ) * rescale (3 : ℚ) (cos ℚ)
@@ -273,23 +253,18 @@ private theorem F_eq : F * D = E 1 * halfU := by
   have ht := congrArg (fun p : PS => p * E 3) htw
   rw [mul_assoc, add_mul, mul_assoc, sub_mul, E_add, E_add, E_add, E_add] at ht
   norm_num at ht
-  have hfact : E 6 + 1 = (E 2 + 1) * D := by
-    have he : E 2 ^ 3 = E 6 := by rw [E_pow]; norm_num
-    rw [← he, D, U]
-    ring
   have hfac2 : E 5 - E 1 = E 1 * U * (E 2 + 1) := by
     have he : E 1 * E 2 ^ 2 = E 5 := by rw [E_pow, E_add]; norm_num
     rw [← he, U]
     ring
-  rw [E_zero, hfact, hfac2] at ht
+  rw [E_zero, ← D_factor, hfac2] at ht
   have hne : E 2 + 1 ≠ 0 := by
     intro h
     have := congrArg constantCoeff h
     simp [constant_E] at this
   apply mul_right_cancel₀ hne
-  rwa [show (E 1 * halfU) * (E 2 + 1) =
-    C (1/2 : ℚ) * (E 1 * U * (E 2 + 1)) by rw [halfU]; ring,
-    show F * D * (E 2 + 1) = F * ((E 2 + 1) * D) by ring]
+  rw [halfU]
+  linear_combination ht
 
 private theorem intMom_F : IntMom F := by
   apply intMom_of_product (D := D)
@@ -302,10 +277,9 @@ private theorem intMom_F : IntMom F := by
 private theorem a_sign (n : ℕ) :
     OMA.S_oeis_a002439.a n = (-1 : ℚ)^n * mom F (2*n+1) := by
   have he : (2*n+1)/2 = n := by omega
-  have hs : (-1 : ℚ)^n * (-1 : ℚ)^n = 1 := by rw [← mul_pow]; norm_num
   simp only [OMA.S_oeis_a002439.a, mom, F, coeff_twist, he]
   linear_combination -((2*n+1).factorial : ℚ) *
-    coeff (2*n+1) OMA.S_oeis_a002439.egf * hs
+    coeff (2*n+1) OMA.S_oeis_a002439.egf * negOneSquare n
 
 
 private def multiple (q : ℕ) (f : PS) : Prop :=
@@ -321,8 +295,7 @@ private theorem multiple_of_mom (q : ℕ) (f : PS)
     field_simp
   refine ⟨g, fun n => ⟨z n, hg n⟩, ?_⟩
   ext n
-  have hf : (n.factorial : ℚ) ≠ 0 := by exact_mod_cast n.factorial_ne_zero
-  apply mul_left_cancel₀ hf
+  apply mul_left_cancel₀ (by positivity : (n.factorial : ℚ) ≠ 0)
   change mom f n = mom (C (q : ℚ) * g) n
   rw [mom_C, hg, hz]
 
@@ -381,11 +354,6 @@ private theorem expPoly_D : D ∈ expPoly :=
 private theorem expPoly_C (z : ℤ) : C (z : ℚ) ∈ expPoly := by
   rw [map_intCast]
   exact expPoly.intCast_mem z
-
-private theorem D_factor : D * (E 2 + 1) = E 6 + 1 := by
-  have he : E 2 ^ 3 = E 6 := by rw [E_pow]; norm_num
-  rw [← he, D, U]
-  ring
 
 private theorem inverse_approx_odd {q : ℕ} (hq : Odd q) :
     ∃ P ∈ expPoly, multiple q (D*P-1) := by

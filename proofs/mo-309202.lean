@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_309202
 import Mathlib
 
+-- Retains @AkiRA-COM-FP’s counterexample from #15789.
+-- Open singletons give the discrete topology and continuity through the library API.
+
 open Set
 
 open OMA.S_mo_309202
@@ -36,15 +39,7 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_309202.main) := by
     rw [← he]
     exact isOpen_Iio.preimage (hTest d ⟨1,hb⟩).continuous
   let number (x : P) : ℝ := x.down
-  have hNumber : Continuous number := by
-    apply continuous_def.mpr
-    intro s _
-    apply isOpen_iff_mem_nhds.mpr
-    intro x hx
-    exact Filter.mem_of_superset ((hSingleton x).mem_nhds (mem_singleton x))
-      (fun y hy => by
-        have he : y = x := mem_singleton_iff.mp hy
-        rwa [he])
+  let : DiscreteTopology P := discreteTopology_iff_isOpen_singleton.mpr hSingleton
   have hCompact : IsCompact (Set.pi univ fun f : bounded =>
       Icc (-(Classical.choose f.property)) (Classical.choose f.property)) :=
     by
@@ -59,7 +54,7 @@ theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_309202.main) := by
     rw [image_univ]
     exact hCompact.totallyBounded.subset hSub
   intro h
-  have hu : UniformContinuous number := h P (fun f _ hb => hTest f hb) number hNumber
+  have hu : UniformContinuous number := h P (fun f _ hb => hTest f hb) number continuous_of_discreteTopology
   have hImage : TotallyBounded (range number) := by
     rw [← image_univ]
     exact hAll.image hu

@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_275030
 import Mathlib
 
+-- Retains @AkiRA-COM-FP’s order-embedding constructions from PR #15775.
+-- Function.cantor_injective supplies the same powerset obstruction directly.
+
 open Function Set
 
 open OMA.S_mo_275030
@@ -114,16 +117,7 @@ private theorem no_discrete_injection (d : ℕ) (f : DiscreteSets → Fin d → 
     intro A B h
     have he : f ⟨A⟩ = f ⟨B⟩ := by simpa [g] using h
     exact congrArg DiscreteSets.carrier (hf he)
-  let inv := Function.invFun g
-  have hsurj : Surjective inv := (Function.leftInverse_invFun hg).surjective
-  let diagonal : Set FiniteTuple := {x | x ∉ inv x}
-  obtain ⟨x,hx⟩ := hsurj diagonal
-  have hdiag : x ∈ diagonal ↔ x ∉ diagonal := by
-    change x ∉ inv x ↔ x ∉ diagonal
-    rw [hx]
-  by_cases hx' : x ∈ diagonal
-  · exact hdiag.mp hx' hx'
-  · exact hx' (hdiag.mpr hx')
+  exact cantor_injective g hg
 
 private theorem countable_mono_real (P : Type) [PartialOrder P] [Countable P] :
     ∃ f : P → ℝ, Injective f ∧ Monotone f := by

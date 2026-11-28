@@ -1,141 +1,93 @@
 import OMAStatements.S_mo_262336
+import Mathlib
 
-/-!
-Proof of the expansion of the permanent of M + a J (MathOverflow 262336).
+-- Retains @connoranderson’s earlier complement-equivalence proof from statement #24931.
+-- The weighted-fiber sum uses the same standard API as @Salofe’s merged proof #29264.
 
-Expanding each factor M i (s i) + a over the subsets S of rows gives
-perm (M + a J) = Sum_S a^(n - |S|) Sum_s Prod_(i in S) M i (s i). The inner sum depends on s only
-through its restriction to S, an embedding of S; every embedding is the restriction of some
-permutation (extendSubtype), left multiplication shows that all fibres have the same size, and
-counting permutations (n! = (n - |S|)! * descFactorial) gives the fibre size (n - |S|)!.
-For the second part, the zero matrix and the matrix with a single entry 1 both have permanent 0,
-while after the shift their permanents are 2a^2 and 2a^2 + a.
--/
+namespace OMA.S_mo_262336
+open Finset
 
-namespace OMA.Helpers
+private def restrict {n : ℕ} (S : Finset (Fin n)) (σ : Equiv.Perm (Fin n)) : S ↪ Fin n :=
+  (Function.Embedding.subtype (· ∈ S)).trans σ.toEmbedding
 
-open OMA.S_mo_262336
-
-/-- The rows in `t` of a permutation, as an embedding of `t`. -/
-def mo262336Res {n : ℕ} (t : Finset (Fin n)) (σ : Equiv.Perm (Fin n)) : t ↪ Fin n :=
-  ⟨fun i => σ i.1, fun _ _ h => Subtype.ext (σ.injective h)⟩
-
-theorem mo262336_res_apply {n : ℕ} (t : Finset (Fin n)) (σ : Equiv.Perm (Fin n)) (i : t) :
-    mo262336Res t σ i = σ i.1 := rfl
-
-theorem mo262336_res_surj {n : ℕ} (t : Finset (Fin n)) (e : t ↪ Fin n) :
-    ∃ π : Equiv.Perm (Fin n), mo262336Res t π = e := by
+private lemma extensions {n : ℕ} (S : Finset (Fin n)) (e : S ↪ Fin n) :
+    Fintype.card {σ : Equiv.Perm (Fin n) // restrict S σ = e} = (n-S.card).factorial := by
   classical
-  refine ⟨Equiv.extendSubtype (p := fun x => x ∈ t) (q := fun y => y ∈ Set.range e)
-    e.toEquivRange, ?_⟩
-  ext i
-  rw [mo262336_res_apply, Equiv.extendSubtype_apply_of_mem _ _ i.2,
-    Function.Embedding.toEquivRange_apply]
+  let T : Set (Fin n) := Set.range e
+  let f : (S : Set (Fin n)) ≃ T := e.toEquivRange
+  let b := Equiv.subtypeEquivRight (p := fun σ : Equiv.Perm (Fin n) => restrict S σ = e)
+    (q := fun σ : Equiv.Perm (Fin n) => ∀ x : (S : Set (Fin n)), σ x = f x) (fun σ => by
+      constructor
+      · intro h x
+        exact congrArg (fun g : S ↪ Fin n => g x) h
+      · intro h
+        exact Function.Embedding.ext h)
+  rw [Fintype.card_congr (b.trans (Equiv.Set.compl f))]
+  let fc : ((S : Set (Fin n))ᶜ : Set (Fin n)) ≃ (Tᶜ : Set (Fin n)) := f.toCompl
+  calc
+    _ = (Fintype.card ((S : Set (Fin n))ᶜ : Set (Fin n))).factorial := Fintype.card_equiv fc
+    _ = _ := by
+      rw [Fintype.card_compl_set]
+      simp
 
-theorem mo262336_fibre_card {n : ℕ} (t : Finset (Fin n)) [DecidableEq (t ↪ Fin n)]
-    (e : t ↪ Fin n) :
-    Fintype.card {σ // mo262336Res t σ = e} =
-      Fintype.card {σ // mo262336Res t σ = mo262336Res t 1} := by
-  obtain ⟨π, hπ⟩ := mo262336_res_surj t e
-  have fwd : ∀ σ : Equiv.Perm (Fin n), mo262336Res t σ = e →
-      mo262336Res t (π⁻¹ * σ) = mo262336Res t 1 := by
-    intro σ h
-    ext i
-    have hi : σ i.1 = π i.1 := by
-      rw [← mo262336_res_apply, ← mo262336_res_apply t π, h, hπ]
-    rw [mo262336_res_apply, mo262336_res_apply, Equiv.Perm.mul_apply, hi]
-    simp
-  have bwd : ∀ τ : Equiv.Perm (Fin n), mo262336Res t τ = mo262336Res t 1 →
-      mo262336Res t (π * τ) = e := by
-    intro τ h
-    ext i
-    have hi : τ i.1 = i.1 := by
-      rw [← mo262336_res_apply, h, mo262336_res_apply]
-      rfl
-    rw [← hπ, mo262336_res_apply, mo262336_res_apply, Equiv.Perm.mul_apply, hi]
-  exact Fintype.card_congr
-    { toFun := fun σ => ⟨π⁻¹ * σ.1, fwd σ.1 σ.2⟩
-      invFun := fun τ => ⟨π * τ.1, bwd τ.1 τ.2⟩
-      left_inv := fun σ => by
-        apply Subtype.ext
-        simp
-      right_inv := fun τ => by
-        apply Subtype.ext
-        simp }
-
-theorem mo262336_fibre_card' {n : ℕ} (t : Finset (Fin n)) [DecidableEq (t ↪ Fin n)]
-    (e : t ↪ Fin n) :
-    Fintype.card {σ // mo262336Res t σ = e} = (n - t.card).factorial := by
-  rw [mo262336_fibre_card]
-  set c := Fintype.card {σ // mo262336Res t σ = mo262336Res t 1}
-  have hsum := Fintype.sum_fiberwise' (mo262336Res t) (fun _ => (1 : ℕ))
-  simp only [Finset.sum_const, Finset.card_univ, smul_eq_mul, mul_one] at hsum
-  have hc : ∀ e' : t ↪ Fin n, Fintype.card {σ // mo262336Res t σ = e'} = c :=
-    fun e' => mo262336_fibre_card t e'
-  simp only [hc, Finset.sum_const, Finset.card_univ, smul_eq_mul, Fintype.card_perm,
-    Fintype.card_fin] at hsum
-  rw [Fintype.card_embedding_eq, Fintype.card_fin, Fintype.card_coe] at hsum
-  have hk : t.card ≤ n := by
-    simpa using Finset.card_le_univ t
-  have hfac := Nat.factorial_mul_descFactorial hk
-  have hpos : n.descFactorial t.card ≠ 0 := by
-    rw [Ne, Nat.descFactorial_eq_zero_iff_lt]
-    omega
-  apply Nat.eq_of_mul_eq_mul_left (Nat.pos_of_ne_zero hpos)
-  rw [hsum, mul_comm, hfac]
-
-theorem mo262336_inner {R : Type} [CommRing R] {n : ℕ} (M : Matrix (Fin n) (Fin n) R)
-    (t : Finset (Fin n)) :
-    ∑ σ : Equiv.Perm (Fin n), ∏ i ∈ t, M i (σ i) =
-      ((n - t.card).factorial : R) * minors M t := by
+private lemma rows {R : Type} [CommRing R] {n : ℕ} (M : Matrix (Fin n) (Fin n) R)
+    (S : Finset (Fin n)) :
+    (∑ σ : Equiv.Perm (Fin n), ∏ i ∈ S, M i (σ i)) = ((n-S.card).factorial:R) * minors M S := by
   classical
-  unfold minors
-  have h1 : ∀ σ : Equiv.Perm (Fin n), ∏ i ∈ t, M i (σ i) =
-      (fun e : t ↪ Fin n => ∏ i : t, M i (e i)) (mo262336Res t σ) := by
-    intro σ
-    simp only [mo262336_res_apply]
-    exact (Finset.prod_coe_sort t (fun i => M i (σ i))).symm
-  simp only [h1]
-  rw [← Fintype.sum_fiberwise' (mo262336Res t) (fun e : t ↪ Fin n => ∏ i : t, M i (e i))]
-  simp only [Finset.sum_const, Finset.card_univ, mo262336_fibre_card', nsmul_eq_mul,
-    Finset.mul_sum]
+  let weight (e : S ↪ Fin n) := ∏ i : S, M i (e i)
+  have he (σ : Equiv.Perm (Fin n)) : (∏ i ∈ S, M i (σ i)) = weight (restrict S σ) :=
+    (Finset.prod_coe_sort S (fun i => M i (σ i))).symm
+  simp_rw [he]
+  rw [← Fintype.sum_fiberwise' (restrict S) weight]
+  simp only [Finset.sum_const, Finset.card_univ, extensions, nsmul_eq_mul,
+    Finset.mul_sum, weight, minors]
 
-theorem mo262336_part1 (R : Type) [CommRing R] (n : ℕ) (M : Matrix (Fin n) (Fin n) R) (a : ℤ) :
-    perm (fun i j => M i j + (a : R)) = ∑ S : Finset (Fin n),
-      ((n - S.card).factorial : R) * (a : R) ^ (n - S.card) * minors M S := by
+lemma translated {R : Type} [CommRing R] {n : ℕ} (M : Matrix (Fin n) (Fin n) R) (a : R) :
+    perm (fun i j => M i j+a) = ∑ S : Finset (Fin n),
+      ((n-S.card).factorial : R) * a^(n-S.card) * minors M S := by
   classical
   unfold perm
-  have h1 : ∀ σ : Equiv.Perm (Fin n), ∏ i, (M i (σ i) + (a : R)) =
-      ∑ S : Finset (Fin n), (∏ i ∈ S, M i (σ i)) * (a : R) ^ (n - S.card) := by
-    intro σ
-    rw [Finset.prod_add, Finset.powerset_univ]
-    refine Finset.sum_congr rfl (fun S _ => ?_)
-    rw [Finset.prod_const, ← Finset.compl_eq_univ_sdiff, Finset.card_compl, Fintype.card_fin]
-  simp only [h1]
+  simp_rw [Finset.prod_add (fun _ => _) (fun _ => a), Finset.powerset_univ, Finset.prod_const,
+    Finset.card_sdiff_of_subset (Finset.subset_univ _), Finset.card_univ, Fintype.card_fin]
   rw [Finset.sum_comm]
-  refine Finset.sum_congr rfl (fun S _ => ?_)
-  rw [← Finset.sum_mul, mo262336_inner]
+  apply Finset.sum_congr rfl
+  intro S _
+  rw [← Finset.sum_mul, rows]
   ring
 
-theorem mo262336_sum_perm2 (f : Equiv.Perm (Fin 2) → ℤ) :
-    ∑ σ, f σ = f 1 + f (Equiv.swap 0 1) := by
-  rw [show (Finset.univ : Finset (Equiv.Perm (Fin 2))) = {1, Equiv.swap 0 1} by decide]
-  rw [Finset.sum_pair (by decide)]
+end OMA.S_mo_262336
 
-theorem mo262336_part2 (a : ℤ) (ha : a ≠ 0) : ∃ M N : Matrix (Fin 2) (Fin 2) ℤ,
-    perm M = perm N ∧ perm (fun i j => M i j + a) ≠ perm (fun i j => N i j + a) := by
-  refine ⟨fun _ _ => 0, fun i j => if i = 0 ∧ j = 0 then 1 else 0, ?_, ?_⟩
-  · unfold perm
-    rw [mo262336_sum_perm2, mo262336_sum_perm2]
-    simp [Fin.prod_univ_two]
-  · unfold perm
-    rw [mo262336_sum_perm2, mo262336_sum_perm2]
-    simp [Fin.prod_univ_two]
-    intro h
-    apply ha
-    linarith
+namespace OMA.S_mo_262336
 
-end OMA.Helpers
+private lemma two (M : Matrix (Fin 2) (Fin 2) ℤ) :
+    perm M = M 0 0*M 1 1 + M 0 1*M 1 0 := by
+  classical
+  have hn : (1 : Equiv.Perm (Fin 2)) ≠ Equiv.swap 0 1 := by
+    intro he
+    have := congrArg (fun σ : Equiv.Perm (Fin 2) => σ 0) he
+    simp at this
+  have hall : ({1, Equiv.swap (0:Fin 2) 1} : Finset (Equiv.Perm (Fin 2))) = Finset.univ := by
+    apply Finset.eq_of_subset_of_card_le (Finset.subset_univ _)
+    simp [Fintype.card_perm, hn]
+  unfold perm
+  rw [← hall]
+  simp [hn, Fin.prod_univ_two]
 
-theorem OMA.solution : type_of% @OMA.S_mo_262336.main :=
-  ⟨fun R _ n M a => OMA.Helpers.mo262336_part1 R n M a, OMA.Helpers.mo262336_part2⟩
+lemma witness (a : ℤ) (ha : a ≠ 0) : ∃ M N : Matrix (Fin 2) (Fin 2) ℤ,
+    perm M = perm N ∧ perm (fun i j => M i j+a) ≠ perm (fun i j => N i j+a) := by
+  refine ⟨0, !![1,0;0,0], ?_, ?_⟩
+  · rw [two,two]; simp
+  · let A : Matrix (Fin 2) (Fin 2) ℤ := fun i j => (0 : Matrix (Fin 2) (Fin 2) ℤ) i j+a
+    let B : Matrix (Fin 2) (Fin 2) ℤ := fun i j => (!![1,0;0,0] : Matrix (Fin 2) (Fin 2) ℤ) i j+a
+    change perm A ≠ perm B
+    rw [two A,two B]
+    simp [A,B]
+    intro h; apply ha; nlinarith
+
+end OMA.S_mo_262336
+
+
+theorem OMA.solution : type_of% @OMA.S_mo_262336.main := by
+  refine ⟨?_, OMA.S_mo_262336.witness⟩
+  intro R _ n M a
+  exact OMA.S_mo_262336.translated M (a:R)

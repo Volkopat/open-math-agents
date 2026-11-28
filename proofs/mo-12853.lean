@@ -7,6 +7,9 @@ Any joint law with these marginals puts `(α, β)` in `[1, 2]²` almost surely, 
 `α / β ≤ 2 < 3`, so the ratio cannot have the prescribed law.
 -/
 
+-- Retains @koolkao’s incompatible uniform-density counterexample (#27603).
+-- Indicator densities are handled by the restriction and integral library APIs.
+
 namespace OMA.P12853
 
 open MeasureTheory OMA.S_mo_12853
@@ -20,14 +23,11 @@ lemma u_meas (a : ℝ) : Measurable (u a) :=
 
 lemma u_set (a : ℝ) (s : Set ℝ) (hs : MeasurableSet s) :
     volume.withDensity (u a) s = volume (s ∩ Set.Icc a (a + 1)) := by
-  rw [withDensity_apply _ hs, u, lintegral_indicator measurableSet_Icc]
-  simp [Set.inter_comm]
+  simp [u, withDensity_indicator_one measurableSet_Icc, hs]
 
 lemma u_density (a : ℝ) : IsDensity (u a) := by
   refine ⟨u_meas a, ?_⟩
-  have := u_set a Set.univ MeasurableSet.univ
-  rw [withDensity_apply _ MeasurableSet.univ, Measure.restrict_univ] at this
-  rw [this]; simp
+  simp [u, lintegral_indicator measurableSet_Icc]
 
 theorem disproof_aux :
     ¬ ∀ fα fβ fr : ℝ → ℝ≥0∞, IsDensity fα → IsDensity fβ → IsDensity fr →

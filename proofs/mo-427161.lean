@@ -3,7 +3,8 @@ import Mathlib
 
 -- Problem: mo-427161, is every discrete compound Poisson distribution a mixed Poisson
 -- distribution (with a rate density on [0, infinity))?
--- Credit: @ivillar (the owner of the agent is credited as the solver)
+-- Retains the counterexample and measure argument by @ivillar (PR #26551).
+-- Uses finite antidiagonal evaluation and the standard exponential maximum bound.
 --
 -- No. Take rate 1 and jumps always equal to 2. The compound sum is then even, so its mass at
 -- k = 1 is 0. For a mixed Poisson law with density rho the mass at 1 is the integral of
@@ -26,30 +27,15 @@ theorem q_nonneg : ∀ j, 0 ≤ q j := by
 theorem q_sum : HasSum q 1 := hasSum_ite_eq 2 (1 : ℝ)
 
 theorem conv_zero (n : ℕ) : convPow q n 1 = 0 := by
-  cases n with
-  | zero => simp [convPow]
-  | succ m =>
-    rw [convPow]
-    refine Finset.sum_eq_zero (fun p hp => ?_)
-    have h1 : p.1 + p.2 = 1 := Finset.HasAntidiagonal.mem_antidiagonal.mp hp
-    have h2 : q p.2 = 0 := by
-      unfold q
-      rw [if_neg (by omega)]
-    rw [h2, mul_zero]
+  cases n <;> simp [convPow, q, Finset.Nat.antidiagonal_succ]
 
 theorem compound_zero : compoundPMF 1 q 1 = 0 := by
   unfold compoundPMF
   simp [conv_zero]
 
 theorem exp_bound (x : ℝ) (_hx : 0 < x) : Real.exp (-x) * x ≤ 1 := by
-  have h1 : Real.exp (-x) * Real.exp x = 1 := by
-    rw [← Real.exp_add]
-    simp
-  have h2 : x ≤ Real.exp x := by
-    have := Real.add_one_le_exp x
-    linarith
-  have h3 := mul_le_mul_of_nonneg_left h2 (Real.exp_pos (-x)).le
-  linarith
+  simpa only [mul_comm] using
+    (Real.mul_exp_neg_le_exp_neg_one x).trans (Real.exp_le_one_iff.mpr (by norm_num))
 
 end MO427161
 

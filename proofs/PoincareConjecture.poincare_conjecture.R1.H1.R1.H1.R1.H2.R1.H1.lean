@@ -1,6 +1,7 @@
 import OMAReductions.R_PoincareConjecture_poincare_conjecture_R1_H1_R1_H1_R1_H2_R1
 import Mathlib.Topology.Homotopy.Contractible
 
+open TopCat
 /-! The positive-degree singular homology of a contractible space is zero.
 The pair long exact sequence gives the collapse isomorphism, using the
 constant retraction to split the map on the subspace homology. -/
@@ -11,38 +12,38 @@ open scoped ContinuousMap
 private theorem homotopy_homology_iso (n : ℕ) {X Y : Type} [TopologicalSpace X]
     [TopologicalSpace Y] (e : X ≃ₕ Y) :
     Nonempty ((((singularHomologyFunctor AddCommGrpCat n).obj (AddCommGrpCat.of ℤ)).obj
-      (TopCat.of X)) ≅ (((singularHomologyFunctor AddCommGrpCat n).obj
-      (AddCommGrpCat.of ℤ)).obj (TopCat.of Y))) := by
+      (of X)) ≅ (((singularHomologyFunctor AddCommGrpCat n).obj
+      (AddCommGrpCat.of ℤ)).obj (of Y))) := by
   let F := (singularHomologyFunctor AddCommGrpCat n).obj (AddCommGrpCat.of ℤ)
-  let f : TopCat.of X ⟶ TopCat.of Y := TopCat.ofHom e.toFun
-  let g : TopCat.of Y ⟶ TopCat.of X := TopCat.ofHom e.invFun
+  let f : of X ⟶ of Y := ofHom e.toFun
+  let g : of Y ⟶ of X := ofHom e.invFun
   refine ⟨⟨F.map f, F.map g, ?_, ?_⟩⟩
   · rw [← F.map_comp, ← F.map_id]
     obtain ⟨h⟩ := e.left_inv
-    have hh : TopCat.Homotopy (f ≫ g) (𝟙 (TopCat.of X)) := h
+    have hh : Homotopy (f ≫ g) (𝟙 (of X)) := h
     exact hh.congr_homologyMap_singularChainComplexFunctor (AddCommGrpCat.of ℤ) n
   · rw [← F.map_comp, ← F.map_id]
     obtain ⟨h⟩ := e.right_inv
-    have hh : TopCat.Homotopy (g ≫ f) (𝟙 (TopCat.of Y)) := h
+    have hh : Homotopy (g ≫ f) (𝟙 (of Y)) := h
     exact hh.congr_homologyMap_singularChainComplexFunctor (AddCommGrpCat.of ℤ) n
 
 
 private theorem subspaceChains_mono {X : Type} [TopologicalSpace X] (A : Set X) :
     Mono (((AlgebraicTopology.singularChainComplexFunctor AddCommGrpCat).obj
-      (AddCommGrpCat.of ℤ)).map (TopCat.ofHom ⟨Subtype.val, continuous_subtype_val⟩ :
-        TopCat.of A ⟶ TopCat.of X)) := by
+      (AddCommGrpCat.of ℤ)).map (ofHom ⟨Subtype.val, continuous_subtype_val⟩ :
+        of A ⟶ of X)) := by
   let C := (AlgebraicTopology.singularChainComplexFunctor AddCommGrpCat).obj (AddCommGrpCat.of ℤ)
-  let i : TopCat.of A ⟶ TopCat.of X :=
-    TopCat.ofHom ⟨Subtype.val, continuous_subtype_val⟩
-  let : Mono i := (TopCat.mono_iff_injective i).mpr Subtype.val_injective
+  let i : of A ⟶ of X :=
+    ofHom ⟨Subtype.val, continuous_subtype_val⟩
+  let : Mono i := (mono_iff_injective i).mpr Subtype.val_injective
   change Mono (C.map i)
   infer_instance
 
 private theorem pairSequenceShortExact {X : Type} [TopologicalSpace X] (A : Set X) :
     (ShortComplex.cokernelSequence
       (((singularChainComplexFunctor AddCommGrpCat).obj (AddCommGrpCat.of ℤ)).map
-        (TopCat.ofHom ⟨Subtype.val, continuous_subtype_val⟩ :
-          TopCat.of A ⟶ TopCat.of X))).ShortExact where
+        (ofHom ⟨Subtype.val, continuous_subtype_val⟩ :
+          of A ⟶ of X))).ShortExact where
   exact := ShortComplex.cokernelSequence_exact _
   mono_f := subspaceChains_mono A
 
@@ -50,8 +51,8 @@ theorem OMA.solution :
     OMA.R_PoincareConjecture_poincare_conjecture_R1_H1_R1_H1_R1_H2_R1.H1 := by
   intro X _ A _ n hn
   let C := (singularChainComplexFunctor AddCommGrpCat).obj (AddCommGrpCat.of ℤ)
-  let j : TopCat.of A ⟶ TopCat.of X :=
-    TopCat.ofHom ⟨Subtype.val, continuous_subtype_val⟩
+  let j : of A ⟶ of X :=
+    ofHom ⟨Subtype.val, continuous_subtype_val⟩
   let S := ShortComplex.cokernelSequence (C.map j)
   have hS : S.ShortExact := pairSequenceShortExact A
   have hrel : (ComplexShape.down ℕ).Rel n (n - 1) := by
@@ -62,10 +63,10 @@ theorem OMA.solution :
   obtain ⟨eH⟩ := homotopy_homology_iso n e
   have hzero : IsZero (S.X₁.homology n) :=
     (isZero_singularHomologyFunctor_of_totallyDisconnectedSpace
-      AddCommGrpCat n (AddCommGrpCat.of ℤ) (TopCat.of Unit) (by omega)).of_iso eH
+      AddCommGrpCat n (AddCommGrpCat.of ℤ) (of Unit) (by omega)).of_iso eH
   let F := (singularHomologyFunctor AddCommGrpCat (n - 1)).obj (AddCommGrpCat.of ℤ)
-  let r : TopCat.of X ⟶ TopCat.of A := TopCat.ofHom (ContinuousMap.const X a)
-  let hr : TopCat.Homotopy (j ≫ r) (𝟙 (TopCat.of A)) := Classical.choice ha.symm
+  let r : of X ⟶ of A := ofHom (ContinuousMap.const X a)
+  let hr : Homotopy (j ≫ r) (𝟙 (of A)) := Classical.choice ha.symm
   have hsplit : (F.map j ≫ F.map r) = 𝟙 _ := by
     rw [← F.map_comp, ← F.map_id]
     exact hr.congr_homologyMap_singularChainComplexFunctor (AddCommGrpCat.of ℤ) (n - 1)
@@ -73,7 +74,7 @@ theorem OMA.solution :
     change Mono (F.map j)
     constructor
     intro T g h eq
-    have eq' := congrArg (fun k : T ⟶ F.obj (TopCat.of X) => k ≫ F.map r) eq
+    have eq' := congrArg (fun k : T ⟶ F.obj (of X) => k ≫ F.map r) eq
     simpa only [Category.assoc, hsplit, Category.comp_id] using eq'
   have hδ : hS.δ n (n - 1) hrel = 0 := by
     letI := hmono

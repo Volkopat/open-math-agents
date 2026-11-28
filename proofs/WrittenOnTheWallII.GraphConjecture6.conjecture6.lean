@@ -95,14 +95,7 @@ lemma ls_ge_of_cds [Nontrivial α] (G : SimpleGraph α) [DecidableRel G.Adj] (D 
       intro a ha b hb
       rw [mem_neighborFinset] at ha hb
       rw [hnbr w hw a (hTH ha), hnbr w hw b (hTH hb)]
-    have hpos : 0 < T.degree w := by
-      obtain ⟨x, hx⟩ := exists_ne w
-      obtain ⟨p⟩ := hT.connected.preconnected w x
-      cases p with
-      | nil => exact absurd rfl hx
-      | cons h _ =>
-        rw [← card_neighborFinset_eq_degree]
-        exact Finset.card_pos.mpr ⟨_, (mem_neighborFinset _ _ _).mpr h⟩
+    have hpos := hT.connected.preconnected.degree_pos_of_nontrivial w
     omega
   have hmem : (Fintype.card α : ℝ) - D.card ≤
       ((S.verts.toFinset.filter (fun v => S.degree v = 1)).card : ℝ) := by
@@ -132,6 +125,21 @@ lemma exists_cross (G : SimpleGraph α) (hG : G.Connected) (S : Finset α) (s w 
   obtain ⟨p⟩ := hG.preconnected s w
   obtain ⟨d, _, h1, h2⟩ := p.exists_boundary_dart (S : Set α) hs hw
   exact ⟨d.fst, h1, d.snd, h2, d.adj⟩
+
+lemma exists_grow (G : SimpleGraph α) (hG : G.Connected) {T : Finset α}
+    (hne : T.Nonempty) (hnd : ¬ ∀ w ∉ T, ∃ d ∈ T, G.Adj w d) :
+    ∃ u v d, d ∈ T ∧ u ∉ T ∧ v ∉ T ∧ (∀ y ∈ T, ¬ G.Adj v y) ∧ G.Adj u d ∧ G.Adj u v := by
+  classical
+  push_neg at hnd
+  obtain ⟨w, hw, hn⟩ := hnd
+  obtain ⟨a, ha⟩ := hne
+  let S := univ.filter (fun x => x ∈ T ∨ ∃ d ∈ T, G.Adj x d)
+  obtain ⟨u, hu, v, hv, h⟩ := exists_cross G hG S a w (by simp [S, ha])
+    (by simpa [S, hw, not_exists, not_and] using hn)
+  simp only [S, mem_filter, mem_univ, true_and, not_or, not_exists, not_and] at hu hv
+  have hnu : u ∉ T := fun mem => hv.2 u mem h.symm
+  obtain ⟨d, hd, hadj⟩ := hu.resolve_left hnu
+  exact ⟨u, v, d, hd, hnu, hv.1, hv.2, hadj, h⟩
 
 lemma rtg_mono (G : SimpleGraph α) {D D' : Finset α} (h : D ⊆ D') {x y : α}
     (hxy : Relation.ReflTransGen (RD G D) x y) : Relation.ReflTransGen (RD G D') x y :=
@@ -180,19 +188,7 @@ lemma greedy_indep (G : SimpleGraph α) (hG : G.Connected) : ∀ t : ℕ, ∀ T 
       intro w hw
       obtain ⟨m, hm, h⟩ := hdom w (fun h => hw (hMT h))
       exact ⟨m, hMT hm, h⟩
-    push_neg at hdom
-    obtain ⟨w0, hw0M, hw0⟩ := hdom
-    let S : Finset α := univ.filter (fun x => x ∈ M ∨ ∃ m ∈ M, G.Adj x m)
-    obtain ⟨m0, hm0⟩ := hMne
-    have hm0S : m0 ∈ S := by simp [S, hm0]
-    have hw0S : w0 ∉ S := by
-      simp only [S, mem_filter, mem_univ, true_and, not_or, not_exists, not_and]
-      exact ⟨hw0M, fun m hm h => hw0 m hm h⟩
-    obtain ⟨u, huS, v, hvS, huv⟩ := exists_cross G hG S m0 w0 hm0S hw0S
-    simp only [S, mem_filter, mem_univ, true_and, not_or, not_exists, not_and] at huS hvS
-    obtain ⟨hvM, hvadj⟩ := hvS
-    have huM : u ∉ M := fun h => hvadj u h huv.symm
-    obtain ⟨m, hm, hum⟩ : ∃ m ∈ M, G.Adj u m := huS.resolve_left huM
+    obtain ⟨u, v, m, hm, _, hvM, hvadj, hum, huv⟩ := exists_grow G hG hMne hdom
     have hvT : v ∉ T := by
       intro h
       rcases hcov v h with h' | ⟨m', hm', h'⟩
@@ -253,27 +249,15 @@ lemma greedy_match (G : SimpleGraph α) (hG : G.Connected) : ∀ t : ℕ, ∀ (T
     classical
     by_cases hdom : ∀ w ∉ T, ∃ d ∈ T, G.Adj w d
     · exact ⟨T, P, ⟨hTne, hconn, hdom⟩, hP, hPe⟩
-    push_neg at hdom
-    obtain ⟨w0, hw0T, hw0⟩ := hdom
-    let S : Finset α := univ.filter (fun x => x ∈ T ∨ ∃ d ∈ T, G.Adj x d)
-    obtain ⟨t0, ht0⟩ := hTne
-    have ht0S : t0 ∈ S := by simp [S, ht0]
-    have hw0S : w0 ∉ S := by
-      simp only [S, mem_filter, mem_univ, true_and, not_or, not_exists, not_and]
-      exact ⟨hw0T, fun m hm h => hw0 m hm h⟩
-    obtain ⟨u, huS, v, hvS, huv⟩ := exists_cross G hG S t0 w0 ht0S hw0S
-    simp only [S, mem_filter, mem_univ, true_and, not_or, not_exists, not_and] at huS hvS
-    obtain ⟨hvT, hvadj⟩ := hvS
-    have huT : u ∉ T := fun h => hvadj u h huv.symm
-    obtain ⟨d, hd, hud⟩ : ∃ d ∈ T, G.Adj u d := huS.resolve_left huT
+    obtain ⟨u, v, d, hd, huT, hvT, _, hud, huv⟩ := exists_grow G hG hTne hdom
     let T' := insert v (insert u T)
     let P' := P ⊔ G.subgraphOfAdj huv
     have hne : u ≠ v := G.ne_of_adj huv
+    have hcard : T.card + 2 = T'.card := by
+      rw [card_insert_of_notMem, card_insert_of_notMem huT]
+      rw [mem_insert]; push_neg; exact ⟨hne.symm, hvT⟩
     apply ih T' P'
-    · have : T.card + 2 = T'.card := by
-        rw [card_insert_of_notMem, card_insert_of_notMem huT]
-        rw [mem_insert]; push_neg; exact ⟨hne.symm, hvT⟩
-      omega
+    · omega
     · exact ⟨v, mem_insert_self _ _⟩
     · apply hP.sup (Subgraph.IsMatching.subgraphOfAdj huv)
       rw [support_subgraphOfAdj, hP.support_eq_verts, hPv]
@@ -296,9 +280,6 @@ lemma greedy_match (G : SimpleGraph α) (hG : G.Connected) : ∀ t : ℕ, ∀ (T
       have : P'.edgeSet = insert s(u, v) P.edgeSet := by
         simp only [P', Subgraph.edgeSet_sup, edgeSet_subgraphOfAdj, Set.union_singleton]
       rw [this, Set.ncard_insert_of_notMem hnot (Set.toFinite _)]
-      have : T.card + 2 = T'.card := by
-        rw [card_insert_of_notMem, card_insert_of_notMem huT]
-        rw [mem_insert]; push_neg; exact ⟨hne.symm, hvT⟩
       omega
     · have h1 := conn_insert G (hconn) hd hud
       exact conn_insert G h1 (mem_insert_self u T) huv.symm
@@ -307,11 +288,8 @@ lemma exists_cds_match [Nontrivial α] (G : SimpleGraph α) (hG : G.Connected) :
     ∃ (D : Finset α) (Q : G.Subgraph), IsCDS G D ∧ Q.IsMatching ∧
       2 * Q.edgeSet.ncard = D.card := by
   classical
-  obtain ⟨x, y, hxy⟩ := exists_pair_ne α
-  obtain ⟨u, hu, v, hv, huv⟩ := exists_cross G hG {x} x y (mem_singleton_self x)
-    (by rw [mem_singleton]; exact hxy.symm)
-  rw [mem_singleton] at hu
-  subst hu
+  obtain ⟨u⟩ : Nonempty α := inferInstance
+  obtain ⟨v, huv⟩ := hG.preconnected.exists_adj_of_nontrivial u
   have hne : u ≠ v := G.ne_of_adj huv
   apply greedy_match G hG (Fintype.card α) {u, v} (G.subgraphOfAdj huv)
   · omega

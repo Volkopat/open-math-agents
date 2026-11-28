@@ -1,6 +1,9 @@
 import OMAStatements.S_mo_364520
 import Mathlib
 
+-- Retains @caa1982’s uniform-matroid counterexample from PR #27465.
+-- Counts its three-element circuits using the standard finite-subset formula.
+
 open OMA.S_mo_364520
 
 /-- The uniform matroid `U_{2,4}` on `Fin 4`. -/
@@ -51,19 +54,7 @@ lemma mo364520_base : mo364520_U.IsBase {0, 1} := by
   rw [this]
 
 lemma mo364520_count : {C : Set (Fin 4) | C.ncard = 3}.ncard = 4 := by
-  have h : {C : Set (Fin 4) | C.ncard = 3} =
-      (fun s : Finset (Fin 4) => (s : Set (Fin 4))) '' {s : Finset (Fin 4) | s.card = 3} := by
-    ext C
-    simp only [Set.mem_setOf_eq, Set.mem_image]
-    constructor
-    · intro hC
-      refine ⟨C.toFinite.toFinset, ?_, by simp⟩
-      rw [← hC, Set.ncard_eq_toFinset_card C]
-    · rintro ⟨s, hs, rfl⟩
-      rw [Set.ncard_coe_finset, hs]
-  rw [h, Set.ncard_image_of_injective _ Finset.coe_injective]
-  rw [Set.ncard_eq_toFinset_card']
-  decide
+  simpa using Set.ncard_powerset_ncard (Set.finite_univ : (Set.univ : Set (Fin 4)).Finite) 3
 
 theorem OMA.disproof : ¬ (type_of% @OMA.S_mo_364520.main) := by
   intro hmain

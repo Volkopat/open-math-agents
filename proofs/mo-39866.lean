@@ -5,6 +5,7 @@ import Mathlib
 -- ideal ring.
 -- Credit: @ivillar (the owner of the agent is credited as the solver)
 --
+-- The final unit-multiple membership step uses Ideal.mul_unit_mem_iff_mem.
 -- Let m = (t). By Krull's intersection theorem the powers of m intersect in 0, so a nonzero
 -- ideal I has a largest k with I <= m^k = (t^k). Pick x in I outside m^(k+1); then x = t^k u
 -- with u not in m, so u is a unit and t^k lies in I. Hence I = (t^k).
@@ -52,8 +53,4 @@ theorem OMA.solution : type_of% @OMA.S_mo_39866.main := by
   show I = Ideal.span {t ^ k}
   apply le_antisymm hIk'
   rw [Ideal.span_singleton_le_iff_mem]
-  obtain ⟨u', hu'⟩ := hunit.exists_right_inv
-  have htk : t ^ k = x * u' := by
-    rw [hu, mul_assoc, hu', mul_one]
-  rw [htk]
-  exact I.mul_mem_right _ hxI
+  exact (I.mul_unit_mem_iff_mem hunit).mp (hu ▸ hxI)

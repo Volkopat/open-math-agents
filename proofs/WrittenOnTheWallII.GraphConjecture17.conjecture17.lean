@@ -45,10 +45,12 @@ theorem OMA.solution : type_of% @WrittenOnTheWallII.GraphConjecture17.conjecture
   have hle : s.card + t.card ≤ G.largestInducedBipartiteSubgraphSize :=
     le_csSup ⟨Fintype.card V, fun _ ⟨z, _, hz⟩ => hz ▸ z.card_le_univ⟩
       ⟨s ∪ t, hb, Finset.card_union_of_disjoint hd⟩
-  have hcard : t.card = k := by simp [t]
-  rw [hs.card_eq, hcard] at hle
-  have hk' : (G.diam : ℝ) ≤ 3 * k := by exact_mod_cast (show G.diam ≤ 3 * k by dsimp [k]; omega)
-  have hceil : (⌈(G.diam : ℝ) / 3⌉ : ℝ) ≤ k := by
-    exact_mod_cast Int.ceil_le.2 (by push_cast; linarith)
-  have h' : (G.indepNum : ℝ) + k ≤ G.b := by unfold SimpleGraph.b; exact_mod_cast hle
-  linarith
+  simp [t, hs.card_eq] at hle
+  have hceil : ⌈(G.diam : ℝ) / 3⌉ ≤ (k : ℤ) := by
+    apply Int.ceil_le.2
+    rw [div_le_iff₀ (by norm_num)]
+    norm_cast
+    omega
+  unfold SimpleGraph.b
+  norm_cast
+  omega

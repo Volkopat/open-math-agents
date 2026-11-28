@@ -63,3 +63,15 @@ jobs:
           for p in / /api/stats "/api/problems?q=collatz&limit=1" /sponsors; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "$base$p"); echo "$p $code"; [ "$code" = 200 ] || exit 1
           done
+      # Warm-up (28 Nov: /solved rendered in 1.4-1.6 s cold, much worse under load): the page cache key includes the
+      # build, so every deploy leaves each colo cold. A couple of plain GETs per main page warm at least this runner's
+      # colo and the Worker isolate's caches before visitors arrive. Never fails the deploy.
+      - name: Warm up the main pages
+        if: success()
+        continue-on-error: true
+        run: |
+          for round in 1 2; do
+            for p in / /solved /live /prizes /labs /contributors; do
+              curl -s -o /dev/null -m 30 -w "round $round $p %{http_code} %{time_total}s\n" "https://lefttosolve.com$p" || true
+            done
+          done

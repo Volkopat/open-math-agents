@@ -2,6 +2,10 @@ import OMAStatements.S_mo_401217
 import Mathlib
 
 /-!
+Retains @koolkao's counterexample from PR #25390, head
+8a3cce2ec1be0ea9013701aacd4656d14c14fadc. The final contradiction uses the
+zeroth-coordinate limit and the explicit Euclidean norm of the all-ones vector.
+
 MathOverflow 401217, second conjecture: a counterexample with `n = 4`. For
 `A = [[0,2,-1,-1],[-2,0,-4,6],[1,4,0,-5],[1,-6,5,0]]` and `p = A v` one has `4 p_0 = p_1 + 2 p_2`
 and `p_0 + p_1 + p_2 + p_3 = 0`, so coordinate `0` is a maximiser only when `p = 0`. From
@@ -92,19 +96,9 @@ theorem not_tendsto :
     ¬ Tendsto (fun k => (norm2 (Y k))⁻¹ • Y k) atTop
         (𝓝 ((norm2 (fun _ : Fin 4 => (1 : ℝ)))⁻¹ • fun _ : Fin 4 => (1 : ℝ))) := by
   intro h
-  have hc := ((continuous_apply (0 : Fin 4)).tendsto _).comp h
-  have hz : (fun k => ((norm2 (Y k))⁻¹ • Y k) (0 : Fin 4)) = fun _ => (0 : ℝ) := by
-    funext k; simp [(invariant k).1]
-  have hc' : Tendsto (fun _ : ℕ => (0 : ℝ)) atTop
-      (𝓝 (((norm2 (fun _ : Fin 4 => (1 : ℝ)))⁻¹ • fun _ : Fin 4 => (1 : ℝ)) 0)) := by
-    rw [← hz]; exact hc
-  have h0 := tendsto_nhds_unique tendsto_const_nhds hc'
-  have hpos : 0 < norm2 (fun _ : Fin 4 => (1 : ℝ)) := by
-    unfold norm2; apply Real.sqrt_pos.mpr; simp
-  have h0' : (norm2 (fun _ : Fin 4 => (1 : ℝ)))⁻¹ = 0 := by
-    have := h0.symm
-    simpa using this
-  exact (inv_pos.mpr hpos).ne' h0'
+  have hz : ∀ k, Y k 0 = 0 := fun k => (invariant k).1
+  have hc := tendsto_pi_nhds.mp h 0
+  norm_num [Pi.smul_apply, smul_eq_mul, norm2, hz] at hc
 
 end
 

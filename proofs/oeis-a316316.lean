@@ -1,35 +1,40 @@
 import OMAStatements.S_oeis_a316316
 import Mathlib
 
-namespace OMA.Helpers
+/-
+A316316: term(n + 12) = term(n) + 40 for n > 0, where the terms are read off a window of six
+consecutive values updated by x6 = x5 - x4 + 2 x3 - x2 + x1 - x0.
+
+The update commutes with adding a constant to all six entries, because the coefficients
+1 - 1 + 2 - 1 + 1 - 1 sum to 1. So it is enough to check that the window after twelve steps is the
+initial window plus 40 in every entry (a finite computation), and then induct.
+-/
+
+namespace OMA.P316316
 
 open OMA.S_oeis_a316316
 
-/-- Shift every entry of a window by `40`. -/
-def add40 (w : Window) : Window := ⟨w.a + 40, w.b + 40, w.c + 40, w.d + 40, w.e + 40, w.f + 40⟩
-
-theorem step_add40 (w : Window) : step (add40 w) = add40 (step w) := by
-  cases w
-  simp only [step, add40, Window.mk.injEq]
-  refine ⟨trivial, trivial, trivial, trivial, trivial, ?_⟩
-  ring
-
-theorem window_twelve : window 12 = add40 (window 0) := by decide
-
-theorem window_add_twelve (k : ℕ) : window (k + 12) = add40 (window k) := by
+lemma key : ∀ k : ℕ,
+    (window (k + 12)).a = (window k).a + 40 ∧ (window (k + 12)).b = (window k).b + 40 ∧
+    (window (k + 12)).c = (window k).c + 40 ∧ (window (k + 12)).d = (window k).d + 40 ∧
+    (window (k + 12)).e = (window k).e + 40 ∧ (window (k + 12)).f = (window k).f + 40 := by
+  intro k
   induction k with
-  | zero => exact window_twelve
+  | zero => decide
   | succ k ih =>
-    rw [show k + 1 + 12 = (k + 12) + 1 by omega]
-    show step (window (k + 12)) = add40 (step (window k))
-    rw [ih, step_add40]
+    obtain ⟨h1, h2, h3, h4, h5, h6⟩ := ih
+    have e1 : window (k + 1 + 12) = step (window (k + 12)) := rfl
+    have e2 : window (k + 1) = step (window k) := rfl
+    rw [e1, e2]
+    simp only [step]
+    refine ⟨h2, h3, h4, h5, h6, ?_⟩
+    linarith
 
-end OMA.Helpers
-
-theorem OMA.solution : type_of% @OMA.S_oeis_a316316.main := by
+lemma main' : ∀ n : ℕ, 0 < n → term (n + 12) = term n + 40 := by
   intro n hn
   obtain ⟨k, rfl⟩ : ∃ k, n = k + 1 := ⟨n - 1, by omega⟩
-  rw [show k + 1 + 12 = (k + 12) + 1 by omega]
-  show (OMA.S_oeis_a316316.window (k + 12)).a = (OMA.S_oeis_a316316.window k).a + 40
-  rw [OMA.Helpers.window_add_twelve]
-  rfl
+  exact (key k).1
+
+end OMA.P316316
+
+theorem OMA.solution : type_of% @OMA.S_oeis_a316316.main := OMA.P316316.main'

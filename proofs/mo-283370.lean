@@ -1,5 +1,8 @@
 import OMAStatements.S_mo_283370
 
+-- Retains @romechenko’s clipped-disk counterexample (PR #16864).
+-- The open-map interior formula replaces the two explicit neighborhood arguments.
+
 open OMA.S_mo_283370 MeasureTheory Set Metric
 
 namespace OMA.MO283370Proof
@@ -42,17 +45,18 @@ private lemma body_convex : Convex ℝ body := by
   · intro c x
     simp [coordinate, inner_smul_right]
 
+private lemma interior_halfspace (r : ℝ) :
+    interior {x : E | coordinate x ≤ r} = {x : E | coordinate x < r} := by
+  have hs : Function.Surjective (innerSL ℝ (axis 0 1)) := fun r =>
+    ⟨axis 0 r, by simpa [coordinate] using coordinate_axis 0 r⟩
+  have h := (innerSL ℝ (axis 0 1)).interior_preimage hs (Iic r)
+  rw [interior_Iic] at h
+  simpa [coordinate, Set.preimage] using h
+
 private lemma body_origin_interior : (0 : E) ∈ interior body := by
-  have ho : IsOpen (ball (0 : E) 1 ∩ {x | coordinate x < 1 / 4}) :=
-    isOpen_ball.inter (isOpen_lt coordinate_continuous continuous_const)
-  have hsub : ball (0 : E) 1 ∩ {x | coordinate x < 1 / 4} ⊆ body :=
-    fun x hx => ⟨ball_subset_closedBall hx.1,
-      show coordinate x ≤ 1 / 4 from le_of_lt (show coordinate x < 1 / 4 from hx.2)⟩
-  apply interior_maximal hsub ho
-  constructor
-  · simp
-  · change coordinate (0 : E) < 1 / 4
-    norm_num [coordinate]
+  rw [body, interior_inter, interior_closedBall _ (by norm_num : (1 : ℝ) ≠ 0),
+    interior_halfspace]
+  norm_num [coordinate]
 
 private lemma vertical_mem (r : ℝ) (hr : |r| ≤ 1) : axis 1 r ∈ body := by
   constructor
@@ -69,19 +73,9 @@ private lemma body_diam : 2 ≤ diam body := by
   norm_num [Real.dist_eq] at h
   exact h
 
-private lemma flat_point_not_interior :
-    axis 0 (1 / 4) ∉ interior body := by
-  intro h
-  obtain ⟨ε, hε, hball⟩ := Metric.isOpen_iff.mp isOpen_interior _ h
-  let q := axis 0 (1 / 4) + axis 0 (ε / 2)
-  have hdist : dist q (axis 0 (1 / 4)) = ε / 2 := by
-    change dist (axis 0 (1 / 4) + axis 0 (ε / 2)) (axis 0 (1 / 4)) = _
-    rw [dist_eq_norm, add_sub_cancel_left, axis_norm, abs_of_pos (by positivity)]
-  have hq : q ∈ body := interior_subset (hball (by rw [mem_ball, hdist]; linarith))
-  have hle : coordinate q ≤ 1 / 4 := hq.2
-  dsimp only [q] at hle
-  rw [coordinate_add, coordinate_axis, coordinate_axis, if_pos rfl, if_pos rfl] at hle
-  linarith
+private lemma flat_point_not_interior : axis 0 (1 / 4) ∉ interior body := by
+  rw [body, interior_inter, interior_halfspace]
+  simp [coordinate_axis]
 
 private lemma body_not_ball (z : E) (r : ℝ) : body ≠ closedBall z r := by
   intro he

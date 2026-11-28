@@ -1,4 +1,7 @@
 import OMAStatements.S_oeis_a289260
+import Mathlib.Tactic.IntervalCases
+
+-- Original proof by @eliayousf.
 
 namespace OMA.S_oeis_a289260
 
@@ -40,15 +43,11 @@ private theorem denominator_identity : numerator * denominator = (1 - X) * kerne
   simp only [numerator, add_mul, one_mul, map_add, map_sub, coeff_shift_one,
     coeff_X_pow_mul', denominator, coeff_mk, coeff_one, coeff_X, coeff_X_pow]
   by_cases hn : n < 6
-  · have hsmall : n = 0 ∨ n = 1 ∨ n = 2 ∨ n = 3 ∨ n = 4 ∨ n = 5 := by omega
-    rcases hsmall with rfl | rfl | rfl | rfl | rfl | rfl <;> norm_num [signedFloor]
+  · interval_cases n <;> norm_num [signedFloor]
   · obtain ⟨k, rfl⟩ : ∃ k : ℕ, n = k + 6 := ⟨n - 6, by omega⟩
-    simp only [if_pos (show 1 ≤ k + 6 by omega), if_pos (show 5 ≤ k + 6 by omega),
-      if_pos (show 6 ≤ k + 6 by omega), if_neg (show k + 6 ≠ 0 by omega),
-      if_neg (show k + 6 ≠ 1 by omega), if_neg (show k + 6 ≠ 2 by omega),
-      if_neg (show k + 6 ≠ 3 by omega), if_neg (show k + 6 ≠ 4 by omega),
+    simp (disch := omega) only [if_pos, if_neg, Nat.add_sub_cancel,
       show k + 6 - 1 = k + 5 by omega, show k + 6 - 5 = k + 1 by omega,
-      show k + 6 - 6 = k by omega, zero_sub, neg_zero, zero_add]
+      zero_sub, neg_zero, zero_add]
     exact floor_cancel k
 
 private theorem kernel_identity : kernel * differences = numerator := by
@@ -69,24 +68,21 @@ private theorem numerator_nonneg (n : ℕ) : 0 ≤ coeff n numerator := by
 
 private theorem differences_pos (n : ℕ) : 0 < coeff n differences := by
   induction n using Nat.strong_induction_on with
-  | h n ih =>
+  | _ n ih =>
     have hr := congrArg (coeff n) kernel_identity
     simp only [kernel, sub_mul, one_mul, map_sub, coeff_shift_one, coeff_X_pow_mul'] at hr
-    by_cases hn : n = 0
-    · subst n
-      have hzero : coeff 0 differences = 1 := by
-        simpa [numerator, coeff_one, coeff_X, coeff_X_pow] using hr
-      rw [hzero]
-      decide
-    · have hprev := ih (n - 1) (by omega)
-      have hnum := numerator_nonneg n
-      rw [if_pos (show 1 ≤ n by omega)] at hr
-      by_cases h3 : 3 ≤ n
-      · rw [if_pos h3] at hr
-        have hthird := ih (n - 3) (by omega)
+    cases n with
+    | zero =>
+      have hzero : coeff 0 differences = 1 := by simpa [numerator] using hr
+      omega
+    | succ n =>
+      have hprev := ih n n.lt_succ_self
+      have hnum := numerator_nonneg (n + 1)
+      rw [if_pos (show 1 ≤ n + 1 by omega), Nat.add_sub_cancel] at hr
+      split_ifs at hr with h3
+      · have hthird := ih (n + 1 - 3) (by omega)
         omega
-      · rw [if_neg h3] at hr
-        omega
+      · omega
 
 end OMA.S_oeis_a289260
 

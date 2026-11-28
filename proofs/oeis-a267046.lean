@@ -90,18 +90,14 @@ private lemma closed (n : ℕ) (hn : 2 < n) : 2 * (a n : ℤ) = 3 + 7 * (-1) ^ n
 private lemma recur (n : ℕ) (hn : 6 < n) :
     (a n : ℤ) = (2 : ℤ) * a (n - 2) + (-1 : ℤ) * a (n - 4) := by
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 7 := ⟨n - 7, by omega⟩
-  simp only [show m + 7 - 1 = m + 6 by omega, show m + 7 - 2 = m + 5 by omega, show m + 7 - 3 = m + 4 by omega, show m + 7 - 4 = m + 3 by omega]
+  simp only [show m + 7 - 2 = m + 5 by omega, show m + 7 - 4 = m + 3 by omega]
   have h0 := closed (m + 7) (by omega)
-  have h1 := closed (m + 6) (by omega)
   have h2 := closed (m + 5) (by omega)
-  have h3 := closed (m + 4) (by omega)
   have h4 := closed (m + 3) (by omega)
-  simp only [pow_add] at h0 h1 h2 h3 h4
-  push_cast at h0 h1 h2 h3 h4
-  have : (2 : ℤ) * (a (m + 7) - ((2 : ℤ) * a (m + 5) + (-1 : ℤ) * a (m + 3))) = 0 := by
-    linear_combination h0 - (2) * h2 - (-1) * h4
-  have := (mul_eq_zero.mp this).resolve_left (by norm_num)
-  linarith
+  simp only [pow_add] at h0 h2 h4
+  push_cast at h0 h2 h4
+  apply mul_left_cancel₀ (a := (2 : ℤ)) (by decide)
+  linear_combination h0 - (2) * h2 - (-1) * h4
 
 open PowerSeries in
 private lemma gf : mk (fun n => (a n : ℤ)) * ((1 - X) ^ 2 * (1 + X) ^ 2) = (1 + 2 * X + 2 * X ^ 4 + 2 * X ^ 5 - 3 * X ^ 6 : PowerSeries ℤ) := by
@@ -122,8 +118,7 @@ private lemma gf : mk (fun n => (a n : ℤ)) * ((1 - X) ^ 2 * (1 + X) ^ 2) = (1 
   simp only [map_add, map_sub, map_zsmul, coeff_mul_X_pow', hF, coeff_mk, coeff_X_pow, smul_eq_mul]
   by_cases h : 6 < n
   · have hr := recur n (by omega)
-    simp only [show 2 ≤ n by omega, show 4 ≤ n by omega, show n ≠ 0 by omega, show n ≠ 1 by omega, show n ≠ 4 by omega, show n ≠ 5 by omega, show n ≠ 6 by omega, if_true, if_false]
-    linarith
+    split_ifs <;> first | omega | linarith
   · interval_cases n <;> simp [v0, v1, v2, v3, v4, v5, v6]
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a267046.main := by
