@@ -1,682 +1,718 @@
 import OMAStatements.S_oeis_a202050
 
-namespace OMA.P_oeis_a202050
+namespace OMA.S_oeis_a202050_Proof
 
 open OMA.S_oeis_a202050
 
 private instance (b0 b1 b2 : Fin 2) : Decidable (avoids3 b0 b1 b2) := by
-  unfold avoids3; infer_instance
+  unfold avoids3
+  infer_instance
 
-private def rowCode (i : Fin 16) : ℕ :=
-  match i.1 with
-  | 0 => 0
-  | 1 => 1
-  | 2 => 2
-  | 3 => 5
-  | 4 => 10
-  | 5 => 21
-  | 6 => 42
-  | 7 => 85
-  | 8 => 170
-  | 9 => 213
-  | 10 => 234
-  | 11 => 245
-  | 12 => 250
-  | 13 => 253
-  | 14 => 254
-  | 15 => 255
-  | _ => 0
+private lemma avoids3_flip (b0 b1 b2 : Fin 2) :
+    avoids3 (1 - b0) (1 - b1) (1 - b2) ↔ avoids3 b0 b1 b2 := by
+  fin_cases b0 <;> fin_cases b1 <;> fin_cases b2 <;> decide
 
-private def bitsOf (m : ℕ) (c : Fin 8) : Fin 2 :=
-  ⟨(m / 2 ^ c.1) % 2, Nat.mod_lt _ (by omega)⟩
-
-private def rowBit (i : Fin 16) (c : Fin 8) : Fin 2 :=
-  bitsOf (rowCode i) c
-
-private def encodeRow (r : Fin 8 → Fin 2) : ℕ :=
-  (r 0).1 + 2 * (r 1).1 + 4 * (r 2).1 + 8 * (r 3).1 + 16 * (r 4).1 + 32 * (r 5).1 + 64 * (r 6).1 + 128 * (r 7).1
-
-private def codeToIdx (m : ℕ) : Fin 16 :=
-  match m with
-  | 0 => 0
-  | 1 => 1
-  | 2 => 2
-  | 5 => 3
-  | 10 => 4
-  | 21 => 5
-  | 42 => 6
-  | 85 => 7
-  | 170 => 8
-  | 213 => 9
-  | 234 => 10
-  | 245 => 11
-  | 250 => 12
-  | 253 => 13
-  | 254 => 14
-  | 255 => 15
-  | _ => 0
-
-private def rowValid (r : Fin 8 → Fin 2) : Prop :=
+private def isValidRow (r : Fin 8 → Fin 2) : Prop :=
   ∀ c : Fin 6, avoids3 (r ⟨c.1, by omega⟩) (r ⟨c.1 + 1, by omega⟩) (r ⟨c.1 + 2, by omega⟩)
 
-private instance (r : Fin 8 → Fin 2) : Decidable (rowValid r) := by
-  unfold rowValid avoids3; infer_instance
+private instance (r : Fin 8 → Fin 2) : Decidable (isValidRow r) := by
+  unfold isValidRow
+  infer_instance
 
-private lemma rowBit_valid (i : Fin 16) : rowValid (rowBit i) := by
-  revert i; decide
+private def invPi (c : Fin 8) : ℕ :=
+  match c.1 with
+  | 0 => 0
+  | 1 => 7
+  | 2 => 1
+  | 3 => 6
+  | 4 => 2
+  | 5 => 5
+  | 6 => 3
+  | _ => 4
 
-private lemma codeToIdx_encodeRow (i : Fin 16) : codeToIdx (encodeRow (rowBit i)) = i := by
-  revert i; decide
+private def piFin (t : Fin 8) : Fin 8 :=
+  match t.1 with
+  | 0 => 0
+  | 1 => 2
+  | 2 => 4
+  | 3 => 6
+  | 4 => 7
+  | 5 => 5
+  | 6 => 3
+  | _ => 1
 
-private lemma encodeRow_lt (r : Fin 8 → Fin 2) : encodeRow r < 256 := by
-  unfold encodeRow
-  have : ∀ c : Fin 8, (r c).1 < 2 := fun c => (r c).2
-  have h0 := this 0 ; have h1 := this 1 ; have h2 := this 2 ; have h3 := this 3 ; have h4 := this 4 ; have h5 := this 5 ; have h6 := this 6 ; have h7 := this 7
+private lemma invPi_piFin (t : Fin 8) : invPi (piFin t) = t.1 := by
+  fin_cases t <;> rfl
+
+private lemma piFin_surj (c : Fin 8) : ∃ t : Fin 8, piFin t = c := by
+  fin_cases c
+  · exact ⟨0, rfl⟩
+  · exact ⟨7, rfl⟩
+  · exact ⟨1, rfl⟩
+  · exact ⟨6, rfl⟩
+  · exact ⟨2, rfl⟩
+  · exact ⟨5, rfl⟩
+  · exact ⟨3, rfl⟩
+  · exact ⟨4, rfl⟩
+
+private def rowVec (i : Fin 16) (c : Fin 8) : Fin 2 :=
+  if 8 ≤ (invPi c + 16 - i.1) % 16 then 1 else 0
+
+private lemma rowVec_valid (i : Fin 16) : isValidRow (rowVec i) := by
+  revert i
+  decide
+
+private lemma rowVec_injective : Function.Injective rowVec := by
+  intro i j h
+  have h' : ∀ c : Fin 8, rowVec i c = rowVec j c := fun c => congrFun h c
+  revert i j h'
+  decide
+
+private def mkRow (b0 b1 b2 b3 b4 b5 b6 b7 : Fin 2) (c : Fin 8) : Fin 2 :=
+  match c.1 with
+  | 0 => b0
+  | 1 => b1
+  | 2 => b2
+  | 3 => b3
+  | 4 => b4
+  | 5 => b5
+  | 6 => b6
+  | _ => b7
+
+private lemma mkRow_surj :
+    ∀ b0 b1 b2 b3 b4 b5 b6 b7 : Fin 2,
+      avoids3 b0 b1 b2 → avoids3 b1 b2 b3 → avoids3 b2 b3 b4 →
+      avoids3 b3 b4 b5 → avoids3 b4 b5 b6 → avoids3 b5 b6 b7 →
+      ∃ i : Fin 16, ∀ c : Fin 8, rowVec i c = mkRow b0 b1 b2 b3 b4 b5 b6 b7 c := by
+  decide
+
+private lemma rowVec_surjective (r : Fin 8 → Fin 2) (hr : isValidRow r) :
+    ∃ i : Fin 16, rowVec i = r := by
+  have h := mkRow_surj (r 0) (r 1) (r 2) (r 3) (r 4) (r 5) (r 6) (r 7)
+    (hr 0) (hr 1) (hr 2) (hr 3) (hr 4) (hr 5)
+  rcases h with ⟨i, hi⟩
+  refine ⟨i, funext fun c => ?_⟩
+  rw [hi c]
+  fin_cases c <;> rfl
+
+private noncomputable def validRowEquiv : Fin 16 ≃ {r : Fin 8 → Fin 2 // isValidRow r} :=
+  Equiv.ofBijective (fun i => ⟨rowVec i, rowVec_valid i⟩)
+    ⟨fun i j h => rowVec_injective (congrArg Subtype.val h),
+     fun ⟨r, hr⟩ => by
+       rcases rowVec_surjective r hr with ⟨i, hi⟩
+       exact ⟨i, Subtype.ext hi⟩⟩
+
+private def cycDist (i j : Fin 16) : ℕ :=
+  min ((j.1 + 16 - i.1) % 16) ((i.1 + 16 - j.1) % 16)
+
+private def cycDistFin (i j : Fin 16) : Fin 9 :=
+  ⟨cycDist i j, by unfold cycDist; omega⟩
+
+private def shift (s i : Fin 16) : Fin 16 :=
+  ⟨(i.1 + s.1) % 16, Nat.mod_lt _ (by omega)⟩
+
+private def shift1 (i : Fin 16) : Fin 16 :=
+  ⟨(i.1 + 1) % 16, Nat.mod_lt _ (by omega)⟩
+
+private lemma cycDist_shift (s i j : Fin 16) :
+    cycDist (shift s i) (shift s j) = cycDist i j := by
+  unfold cycDist shift
+  simp only
   omega
 
-private lemma bitsOf_encodeRow (r : Fin 8 → Fin 2) : bitsOf (encodeRow r) = r := by
-  funext c
-  apply Fin.ext
-  unfold bitsOf encodeRow
-  have : ∀ j : Fin 8, (r j).1 < 2 := fun j => (r j).2
-  have h0 := this 0 ; have h1 := this 1 ; have h2 := this 2 ; have h3 := this 3 ; have h4 := this 4 ; have h5 := this 5 ; have h6 := this 6 ; have h7 := this 7
-  fin_cases c <;> dsimp <;> omega
+private lemma shift_zero (i : Fin 16) : shift 0 i = i := by
+  ext
+  simp only [shift, Fin.val_zero, add_zero]
+  exact Nat.mod_eq_of_lt i.2
 
-private lemma rowBit_codeToIdx (r : Fin 8 → Fin 2) (hr : rowValid r) :
-    rowBit (codeToIdx (encodeRow r)) = r := by
-  have hall : ∀ (a : Fin 16) (b : Fin 16),
-      rowValid (bitsOf (a.1 + 16 * b.1)) →
-      rowBit (codeToIdx (a.1 + 16 * b.1)) = bitsOf (a.1 + 16 * b.1) := by
-    decide
-  have hlt := encodeRow_lt r
-  let a : Fin 16 := ⟨encodeRow r % 16, Nat.mod_lt _ (by omega)⟩
-  let b : Fin 16 := ⟨encodeRow r / 16, by omega⟩
-  have hab : a.1 + 16 * b.1 = encodeRow r := by dsimp [a, b]; omega
-  have h1 := hall a b (by rw [hab, bitsOf_encodeRow]; exact hr)
-  rw [hab, bitsOf_encodeRow] at h1
-  exact h1
+private def compat (i j k : Fin 16) : Prop :=
+  ∀ c : Fin 8, avoids3 (rowVec i c) (rowVec j c) (rowVec k c)
 
-private def rowEquiv : {r : Fin 8 → Fin 2 // rowValid r} ≃ Fin 16 where
-  toFun r := codeToIdx (encodeRow r.1)
-  invFun i := ⟨rowBit i, rowBit_valid i⟩
-  left_inv r := Subtype.ext (rowBit_codeToIdx r.1 r.2)
-  right_inv i := codeToIdx_encodeRow i
+private instance (i j k : Fin 16) : Decidable (compat i j k) := by
+  unfold compat
+  infer_instance
 
-private def colOk (i j k : Fin 16) : Bool :=
-  ((rowCode i ^^^ rowCode j ^^^ 255) &&& (rowCode j ^^^ rowCode k)) == 0
+private lemma rowVec_shift1_succ (i : Fin 16) (t : Fin 8) (ht : t.1 < 7) :
+    rowVec (shift1 i) (piFin ⟨t.1 + 1, by omega⟩) = rowVec i (piFin t) := by
+  unfold rowVec shift1
+  rw [invPi_piFin, invPi_piFin]
+  simp only
+  have hmod : (t.1 + 1 + 16 - (i.1 + 1) % 16) % 16 = (t.1 + 16 - i.1) % 16 := by omega
+  rw [hmod]
 
-private lemma colOk_iff (i j k : Fin 16) :
-    colOk i j k = true ↔ ∀ c : Fin 8, avoids3 (rowBit i c) (rowBit j c) (rowBit k c) := by
-  revert j k; fin_cases i <;> decide
+private lemma rowVec_shift1_zero (i : Fin 16) :
+    rowVec (shift1 i) (piFin 0) = 1 - rowVec i (piFin 7) := by
+  unfold rowVec shift1
+  rw [invPi_piFin, invPi_piFin]
+  simp only [Fin.val_zero]
+  have h7 : (7 : Fin 8).1 = 7 := rfl
+  rw [h7]
+  by_cases h : 8 ≤ (7 + 16 - i.1) % 16
+  · have h' : ¬ (8 ≤ (0 + 16 - (i.1 + 1) % 16) % 16) := by omega
+    simp [h, h']
+  · have h' : 8 ≤ (0 + 16 - (i.1 + 1) % 16) % 16 := by omega
+    simp [h, h']
 
-private def dp : ℕ → Fin 16 → Fin 16 → ℕ
-  | 0, _, _ => 1
-  | n + 1, j, k => ∑ i : Fin 16, if colOk i j k = true then dp n i j else 0
+private lemma compat_shift1 (i j k : Fin 16) :
+    compat (shift1 i) (shift1 j) (shift1 k) ↔ compat i j k := by
+  constructor
+  · intro h c
+    rcases piFin_surj c with ⟨t, rfl⟩
+    by_cases ht : t.1 < 7
+    · have h1 := h (piFin ⟨t.1 + 1, by omega⟩)
+      rwa [rowVec_shift1_succ i t ht, rowVec_shift1_succ j t ht, rowVec_shift1_succ k t ht] at h1
+    · have ht7 : t = 7 := by ext; omega
+      subst ht7
+      have h0 := h (piFin 0)
+      rw [rowVec_shift1_zero i, rowVec_shift1_zero j, rowVec_shift1_zero k, avoids3_flip] at h0
+      exact h0
+  · intro h c
+    rcases piFin_surj c with ⟨t, rfl⟩
+    by_cases ht : t.1 = 0
+    · have ht0 : t = 0 := by ext; omega
+      subst ht0
+      rw [rowVec_shift1_zero i, rowVec_shift1_zero j, rowVec_shift1_zero k, avoids3_flip]
+      exact h (piFin 7)
+    · have ht' : t.1 - 1 < 7 := by omega
+      have hteq : (⟨(t.1 - 1) + 1, by omega⟩ : Fin 8) = t := by ext; simp only; omega
+      have h1 := h (piFin ⟨t.1 - 1, by omega⟩)
+      rw [← hteq, rowVec_shift1_succ i ⟨t.1 - 1, by omega⟩ ht',
+        rowVec_shift1_succ j ⟨t.1 - 1, by omega⟩ ht',
+        rowVec_shift1_succ k ⟨t.1 - 1, by omega⟩ ht']
+      exact h1
 
-private lemma dp_succ_eq (n : ℕ) (j k : Fin 16) :
-    dp (n + 1) j k = ∑ i : Fin 16, if colOk i j k = true then dp n i j else 0 := rfl
-
-private def tbl_0 (j k : Fin 16) : ℕ :=
-  match j.1 with
-  | 0 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 1 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 2 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 3 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 4 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 5 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 6 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 7 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 8 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 9 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 10 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 11 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 12 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 13 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 14 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | 15 => #[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].getD k.1 0
-  | _ => 0
-
-private def tbl_1 (j k : Fin 16) : ℕ :=
-  match j.1 with
-  | 0 => #[16, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1].getD k.1 0
-  | 1 => #[8, 16, 7, 8, 6, 7, 5, 6, 4, 5, 3, 4, 2, 3, 1, 2].getD k.1 0
-  | 2 => #[8, 7, 16, 6, 8, 5, 7, 4, 6, 3, 5, 2, 4, 1, 3, 2].getD k.1 0
-  | 3 => #[7, 8, 6, 16, 5, 8, 4, 7, 3, 6, 2, 5, 1, 4, 2, 3].getD k.1 0
-  | 4 => #[7, 6, 8, 5, 16, 4, 8, 3, 7, 2, 6, 1, 5, 2, 4, 3].getD k.1 0
-  | 5 => #[6, 7, 5, 8, 4, 16, 3, 8, 2, 7, 1, 6, 2, 5, 3, 4].getD k.1 0
-  | 6 => #[6, 5, 7, 4, 8, 3, 16, 2, 8, 1, 7, 2, 6, 3, 5, 4].getD k.1 0
-  | 7 => #[5, 6, 4, 7, 3, 8, 2, 16, 1, 8, 2, 7, 3, 6, 4, 5].getD k.1 0
-  | 8 => #[5, 4, 6, 3, 7, 2, 8, 1, 16, 2, 8, 3, 7, 4, 6, 5].getD k.1 0
-  | 9 => #[4, 5, 3, 6, 2, 7, 1, 8, 2, 16, 3, 8, 4, 7, 5, 6].getD k.1 0
-  | 10 => #[4, 3, 5, 2, 6, 1, 7, 2, 8, 3, 16, 4, 8, 5, 7, 6].getD k.1 0
-  | 11 => #[3, 4, 2, 5, 1, 6, 2, 7, 3, 8, 4, 16, 5, 8, 6, 7].getD k.1 0
-  | 12 => #[3, 2, 4, 1, 5, 2, 6, 3, 7, 4, 8, 5, 16, 6, 8, 7].getD k.1 0
-  | 13 => #[2, 3, 1, 4, 2, 5, 3, 6, 4, 7, 5, 8, 6, 16, 7, 8].getD k.1 0
-  | 14 => #[2, 1, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8, 7, 16, 8].getD k.1 0
-  | 15 => #[1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 16].getD k.1 0
-  | _ => 0
-
-private def tbl_2 (j k : Fin 16) : ℕ :=
-  match j.1 with
-  | 0 => #[87, 36, 36, 28, 28, 21, 21, 15, 15, 10, 10, 6, 6, 3, 3, 1].getD k.1 0
-  | 1 => #[36, 87, 28, 36, 21, 28, 15, 21, 10, 15, 6, 10, 3, 6, 1, 3].getD k.1 0
-  | 2 => #[36, 28, 87, 21, 36, 15, 28, 10, 21, 6, 15, 3, 10, 1, 6, 3].getD k.1 0
-  | 3 => #[28, 36, 21, 87, 15, 36, 10, 28, 6, 21, 3, 15, 1, 10, 3, 6].getD k.1 0
-  | 4 => #[28, 21, 36, 15, 87, 10, 36, 6, 28, 3, 21, 1, 15, 3, 10, 6].getD k.1 0
-  | 5 => #[21, 28, 15, 36, 10, 87, 6, 36, 3, 28, 1, 21, 3, 15, 6, 10].getD k.1 0
-  | 6 => #[21, 15, 28, 10, 36, 6, 87, 3, 36, 1, 28, 3, 21, 6, 15, 10].getD k.1 0
-  | 7 => #[15, 21, 10, 28, 6, 36, 3, 87, 1, 36, 3, 28, 6, 21, 10, 15].getD k.1 0
-  | 8 => #[15, 10, 21, 6, 28, 3, 36, 1, 87, 3, 36, 6, 28, 10, 21, 15].getD k.1 0
-  | 9 => #[10, 15, 6, 21, 3, 28, 1, 36, 3, 87, 6, 36, 10, 28, 15, 21].getD k.1 0
-  | 10 => #[10, 6, 15, 3, 21, 1, 28, 3, 36, 6, 87, 10, 36, 15, 28, 21].getD k.1 0
-  | 11 => #[6, 10, 3, 15, 1, 21, 3, 28, 6, 36, 10, 87, 15, 36, 21, 28].getD k.1 0
-  | 12 => #[6, 3, 10, 1, 15, 3, 21, 6, 28, 10, 36, 15, 87, 21, 36, 28].getD k.1 0
-  | 13 => #[3, 6, 1, 10, 3, 15, 6, 21, 10, 28, 15, 36, 21, 87, 28, 36].getD k.1 0
-  | 14 => #[3, 1, 6, 3, 10, 6, 15, 10, 21, 15, 28, 21, 36, 28, 87, 36].getD k.1 0
-  | 15 => #[1, 3, 3, 6, 6, 10, 10, 15, 15, 21, 21, 28, 28, 36, 36, 87].getD k.1 0
-  | _ => 0
-
-private def tbl_3 (j k : Fin 16) : ℕ :=
-  match j.1 with
-  | 0 => #[326, 120, 120, 84, 84, 56, 56, 35, 35, 20, 20, 10, 10, 4, 4, 1].getD k.1 0
-  | 1 => #[120, 326, 84, 120, 56, 84, 35, 56, 20, 35, 10, 20, 4, 10, 1, 4].getD k.1 0
-  | 2 => #[120, 84, 326, 56, 120, 35, 84, 20, 56, 10, 35, 4, 20, 1, 10, 4].getD k.1 0
-  | 3 => #[84, 120, 56, 326, 35, 120, 20, 84, 10, 56, 4, 35, 1, 20, 4, 10].getD k.1 0
-  | 4 => #[84, 56, 120, 35, 326, 20, 120, 10, 84, 4, 56, 1, 35, 4, 20, 10].getD k.1 0
-  | 5 => #[56, 84, 35, 120, 20, 326, 10, 120, 4, 84, 1, 56, 4, 35, 10, 20].getD k.1 0
-  | 6 => #[56, 35, 84, 20, 120, 10, 326, 4, 120, 1, 84, 4, 56, 10, 35, 20].getD k.1 0
-  | 7 => #[35, 56, 20, 84, 10, 120, 4, 326, 1, 120, 4, 84, 10, 56, 20, 35].getD k.1 0
-  | 8 => #[35, 20, 56, 10, 84, 4, 120, 1, 326, 4, 120, 10, 84, 20, 56, 35].getD k.1 0
-  | 9 => #[20, 35, 10, 56, 4, 84, 1, 120, 4, 326, 10, 120, 20, 84, 35, 56].getD k.1 0
-  | 10 => #[20, 10, 35, 4, 56, 1, 84, 4, 120, 10, 326, 20, 120, 35, 84, 56].getD k.1 0
-  | 11 => #[10, 20, 4, 35, 1, 56, 4, 84, 10, 120, 20, 326, 35, 120, 56, 84].getD k.1 0
-  | 12 => #[10, 4, 20, 1, 35, 4, 56, 10, 84, 20, 120, 35, 326, 56, 120, 84].getD k.1 0
-  | 13 => #[4, 10, 1, 20, 4, 35, 10, 56, 20, 84, 35, 120, 56, 326, 84, 120].getD k.1 0
-  | 14 => #[4, 1, 10, 4, 20, 10, 35, 20, 56, 35, 84, 56, 120, 84, 326, 120].getD k.1 0
-  | 15 => #[1, 4, 4, 10, 10, 20, 20, 35, 35, 56, 56, 84, 84, 120, 120, 326].getD k.1 0
-  | _ => 0
-
-private def tbl_4 (j k : Fin 16) : ℕ :=
-  match j.1 with
-  | 0 => #[985, 330, 330, 210, 210, 126, 126, 70, 70, 35, 35, 15, 15, 5, 5, 1].getD k.1 0
-  | 1 => #[330, 985, 210, 330, 126, 210, 70, 126, 35, 70, 15, 35, 5, 15, 1, 5].getD k.1 0
-  | 2 => #[330, 210, 985, 126, 330, 70, 210, 35, 126, 15, 70, 5, 35, 1, 15, 5].getD k.1 0
-  | 3 => #[210, 330, 126, 985, 70, 330, 35, 210, 15, 126, 5, 70, 1, 35, 5, 15].getD k.1 0
-  | 4 => #[210, 126, 330, 70, 985, 35, 330, 15, 210, 5, 126, 1, 70, 5, 35, 15].getD k.1 0
-  | 5 => #[126, 210, 70, 330, 35, 985, 15, 330, 5, 210, 1, 126, 5, 70, 15, 35].getD k.1 0
-  | 6 => #[126, 70, 210, 35, 330, 15, 985, 5, 330, 1, 210, 5, 126, 15, 70, 35].getD k.1 0
-  | 7 => #[70, 126, 35, 210, 15, 330, 5, 985, 1, 330, 5, 210, 15, 126, 35, 70].getD k.1 0
-  | 8 => #[70, 35, 126, 15, 210, 5, 330, 1, 985, 5, 330, 15, 210, 35, 126, 70].getD k.1 0
-  | 9 => #[35, 70, 15, 126, 5, 210, 1, 330, 5, 985, 15, 330, 35, 210, 70, 126].getD k.1 0
-  | 10 => #[35, 15, 70, 5, 126, 1, 210, 5, 330, 15, 985, 35, 330, 70, 210, 126].getD k.1 0
-  | 11 => #[15, 35, 5, 70, 1, 126, 5, 210, 15, 330, 35, 985, 70, 330, 126, 210].getD k.1 0
-  | 12 => #[15, 5, 35, 1, 70, 5, 126, 15, 210, 35, 330, 70, 985, 126, 330, 210].getD k.1 0
-  | 13 => #[5, 15, 1, 35, 5, 70, 15, 126, 35, 210, 70, 330, 126, 985, 210, 330].getD k.1 0
-  | 14 => #[5, 1, 15, 5, 35, 15, 70, 35, 126, 70, 210, 126, 330, 210, 985, 330].getD k.1 0
-  | 15 => #[1, 5, 5, 15, 15, 35, 35, 70, 70, 126, 126, 210, 210, 330, 330, 985].getD k.1 0
-  | _ => 0
-
-private def tbl_5 (j k : Fin 16) : ℕ :=
-  match j.1 with
-  | 0 => #[2568, 792, 792, 462, 462, 252, 252, 126, 126, 56, 56, 21, 21, 6, 6, 1].getD k.1 0
-  | 1 => #[792, 2568, 462, 792, 252, 462, 126, 252, 56, 126, 21, 56, 6, 21, 1, 6].getD k.1 0
-  | 2 => #[792, 462, 2568, 252, 792, 126, 462, 56, 252, 21, 126, 6, 56, 1, 21, 6].getD k.1 0
-  | 3 => #[462, 792, 252, 2568, 126, 792, 56, 462, 21, 252, 6, 126, 1, 56, 6, 21].getD k.1 0
-  | 4 => #[462, 252, 792, 126, 2568, 56, 792, 21, 462, 6, 252, 1, 126, 6, 56, 21].getD k.1 0
-  | 5 => #[252, 462, 126, 792, 56, 2568, 21, 792, 6, 462, 1, 252, 6, 126, 21, 56].getD k.1 0
-  | 6 => #[252, 126, 462, 56, 792, 21, 2568, 6, 792, 1, 462, 6, 252, 21, 126, 56].getD k.1 0
-  | 7 => #[126, 252, 56, 462, 21, 792, 6, 2568, 1, 792, 6, 462, 21, 252, 56, 126].getD k.1 0
-  | 8 => #[126, 56, 252, 21, 462, 6, 792, 1, 2568, 6, 792, 21, 462, 56, 252, 126].getD k.1 0
-  | 9 => #[56, 126, 21, 252, 6, 462, 1, 792, 6, 2568, 21, 792, 56, 462, 126, 252].getD k.1 0
-  | 10 => #[56, 21, 126, 6, 252, 1, 462, 6, 792, 21, 2568, 56, 792, 126, 462, 252].getD k.1 0
-  | 11 => #[21, 56, 6, 126, 1, 252, 6, 462, 21, 792, 56, 2568, 126, 792, 252, 462].getD k.1 0
-  | 12 => #[21, 6, 56, 1, 126, 6, 252, 21, 462, 56, 792, 126, 2568, 252, 792, 462].getD k.1 0
-  | 13 => #[6, 21, 1, 56, 6, 126, 21, 252, 56, 462, 126, 792, 252, 2568, 462, 792].getD k.1 0
-  | 14 => #[6, 1, 21, 6, 56, 21, 126, 56, 252, 126, 462, 252, 792, 462, 2568, 792].getD k.1 0
-  | 15 => #[1, 6, 6, 21, 21, 56, 56, 126, 126, 252, 252, 462, 462, 792, 792, 2568].getD k.1 0
-  | _ => 0
-
-private def tbl_6 (j k : Fin 16) : ℕ :=
-  match j.1 with
-  | 0 => #[5999, 1716, 1716, 924, 924, 462, 462, 210, 210, 84, 84, 28, 28, 7, 7, 1].getD k.1 0
-  | 1 => #[1716, 5999, 924, 1716, 462, 924, 210, 462, 84, 210, 28, 84, 7, 28, 1, 7].getD k.1 0
-  | 2 => #[1716, 924, 5999, 462, 1716, 210, 924, 84, 462, 28, 210, 7, 84, 1, 28, 7].getD k.1 0
-  | 3 => #[924, 1716, 462, 5999, 210, 1716, 84, 924, 28, 462, 7, 210, 1, 84, 7, 28].getD k.1 0
-  | 4 => #[924, 462, 1716, 210, 5999, 84, 1716, 28, 924, 7, 462, 1, 210, 7, 84, 28].getD k.1 0
-  | 5 => #[462, 924, 210, 1716, 84, 5999, 28, 1716, 7, 924, 1, 462, 7, 210, 28, 84].getD k.1 0
-  | 6 => #[462, 210, 924, 84, 1716, 28, 5999, 7, 1716, 1, 924, 7, 462, 28, 210, 84].getD k.1 0
-  | 7 => #[210, 462, 84, 924, 28, 1716, 7, 5999, 1, 1716, 7, 924, 28, 462, 84, 210].getD k.1 0
-  | 8 => #[210, 84, 462, 28, 924, 7, 1716, 1, 5999, 7, 1716, 28, 924, 84, 462, 210].getD k.1 0
-  | 9 => #[84, 210, 28, 462, 7, 924, 1, 1716, 7, 5999, 28, 1716, 84, 924, 210, 462].getD k.1 0
-  | 10 => #[84, 28, 210, 7, 462, 1, 924, 7, 1716, 28, 5999, 84, 1716, 210, 924, 462].getD k.1 0
-  | 11 => #[28, 84, 7, 210, 1, 462, 7, 924, 28, 1716, 84, 5999, 210, 1716, 462, 924].getD k.1 0
-  | 12 => #[28, 7, 84, 1, 210, 7, 462, 28, 924, 84, 1716, 210, 5999, 462, 1716, 924].getD k.1 0
-  | 13 => #[7, 28, 1, 84, 7, 210, 28, 462, 84, 924, 210, 1716, 462, 5999, 924, 1716].getD k.1 0
-  | 14 => #[7, 1, 28, 7, 84, 28, 210, 84, 462, 210, 924, 462, 1716, 924, 5999, 1716].getD k.1 0
-  | 15 => #[1, 7, 7, 28, 28, 84, 84, 210, 210, 462, 462, 924, 924, 1716, 1716, 5999].getD k.1 0
-  | _ => 0
-
-private def tbl_7 (j k : Fin 16) : ℕ :=
-  match j.1 with
-  | 0 => #[12862, 3432, 3432, 1716, 1716, 792, 792, 330, 330, 120, 120, 36, 36, 8, 8, 1].getD k.1 0
-  | 1 => #[3432, 12862, 1716, 3432, 792, 1716, 330, 792, 120, 330, 36, 120, 8, 36, 1, 8].getD k.1 0
-  | 2 => #[3432, 1716, 12862, 792, 3432, 330, 1716, 120, 792, 36, 330, 8, 120, 1, 36, 8].getD k.1 0
-  | 3 => #[1716, 3432, 792, 12862, 330, 3432, 120, 1716, 36, 792, 8, 330, 1, 120, 8, 36].getD k.1 0
-  | 4 => #[1716, 792, 3432, 330, 12862, 120, 3432, 36, 1716, 8, 792, 1, 330, 8, 120, 36].getD k.1 0
-  | 5 => #[792, 1716, 330, 3432, 120, 12862, 36, 3432, 8, 1716, 1, 792, 8, 330, 36, 120].getD k.1 0
-  | 6 => #[792, 330, 1716, 120, 3432, 36, 12862, 8, 3432, 1, 1716, 8, 792, 36, 330, 120].getD k.1 0
-  | 7 => #[330, 792, 120, 1716, 36, 3432, 8, 12862, 1, 3432, 8, 1716, 36, 792, 120, 330].getD k.1 0
-  | 8 => #[330, 120, 792, 36, 1716, 8, 3432, 1, 12862, 8, 3432, 36, 1716, 120, 792, 330].getD k.1 0
-  | 9 => #[120, 330, 36, 792, 8, 1716, 1, 3432, 8, 12862, 36, 3432, 120, 1716, 330, 792].getD k.1 0
-  | 10 => #[120, 36, 330, 8, 792, 1, 1716, 8, 3432, 36, 12862, 120, 3432, 330, 1716, 792].getD k.1 0
-  | 11 => #[36, 120, 8, 330, 1, 792, 8, 1716, 36, 3432, 120, 12862, 330, 3432, 792, 1716].getD k.1 0
-  | 12 => #[36, 8, 120, 1, 330, 8, 792, 36, 1716, 120, 3432, 330, 12862, 792, 3432, 1716].getD k.1 0
-  | 13 => #[8, 36, 1, 120, 8, 330, 36, 792, 120, 1716, 330, 3432, 792, 12862, 1716, 3432].getD k.1 0
-  | 14 => #[8, 1, 36, 8, 120, 36, 330, 120, 792, 330, 1716, 792, 3432, 1716, 12862, 3432].getD k.1 0
-  | 15 => #[1, 8, 8, 36, 36, 120, 120, 330, 330, 792, 792, 1716, 1716, 3432, 3432, 12862].getD k.1 0
-  | _ => 0
-
-private def tbl_8 (j k : Fin 16) : ℕ :=
-  match j.1 with
-  | 0 => #[25731, 6435, 6435, 3003, 3003, 1287, 1287, 495, 495, 165, 165, 45, 45, 9, 9, 1].getD k.1 0
-  | 1 => #[6435, 25731, 3003, 6435, 1287, 3003, 495, 1287, 165, 495, 45, 165, 9, 45, 1, 9].getD k.1 0
-  | 2 => #[6435, 3003, 25731, 1287, 6435, 495, 3003, 165, 1287, 45, 495, 9, 165, 1, 45, 9].getD k.1 0
-  | 3 => #[3003, 6435, 1287, 25731, 495, 6435, 165, 3003, 45, 1287, 9, 495, 1, 165, 9, 45].getD k.1 0
-  | 4 => #[3003, 1287, 6435, 495, 25731, 165, 6435, 45, 3003, 9, 1287, 1, 495, 9, 165, 45].getD k.1 0
-  | 5 => #[1287, 3003, 495, 6435, 165, 25731, 45, 6435, 9, 3003, 1, 1287, 9, 495, 45, 165].getD k.1 0
-  | 6 => #[1287, 495, 3003, 165, 6435, 45, 25731, 9, 6435, 1, 3003, 9, 1287, 45, 495, 165].getD k.1 0
-  | 7 => #[495, 1287, 165, 3003, 45, 6435, 9, 25731, 1, 6435, 9, 3003, 45, 1287, 165, 495].getD k.1 0
-  | 8 => #[495, 165, 1287, 45, 3003, 9, 6435, 1, 25731, 9, 6435, 45, 3003, 165, 1287, 495].getD k.1 0
-  | 9 => #[165, 495, 45, 1287, 9, 3003, 1, 6435, 9, 25731, 45, 6435, 165, 3003, 495, 1287].getD k.1 0
-  | 10 => #[165, 45, 495, 9, 1287, 1, 3003, 9, 6435, 45, 25731, 165, 6435, 495, 3003, 1287].getD k.1 0
-  | 11 => #[45, 165, 9, 495, 1, 1287, 9, 3003, 45, 6435, 165, 25731, 495, 6435, 1287, 3003].getD k.1 0
-  | 12 => #[45, 9, 165, 1, 495, 9, 1287, 45, 3003, 165, 6435, 495, 25731, 1287, 6435, 3003].getD k.1 0
-  | 13 => #[9, 45, 1, 165, 9, 495, 45, 1287, 165, 3003, 495, 6435, 1287, 25731, 3003, 6435].getD k.1 0
-  | 14 => #[9, 1, 45, 9, 165, 45, 495, 165, 1287, 495, 3003, 1287, 6435, 3003, 25731, 6435].getD k.1 0
-  | 15 => #[1, 9, 9, 45, 45, 165, 165, 495, 495, 1287, 1287, 3003, 3003, 6435, 6435, 25731].getD k.1 0
-  | _ => 0
-
-private def tbl_9 (j k : Fin 16) : ℕ :=
-  match j.1 with
-  | 0 => #[48610, 11440, 11440, 5005, 5005, 2002, 2002, 715, 715, 220, 220, 55, 55, 10, 10, 1].getD k.1 0
-  | 1 => #[11440, 48610, 5005, 11440, 2002, 5005, 715, 2002, 220, 715, 55, 220, 10, 55, 1, 10].getD k.1 0
-  | 2 => #[11440, 5005, 48610, 2002, 11440, 715, 5005, 220, 2002, 55, 715, 10, 220, 1, 55, 10].getD k.1 0
-  | 3 => #[5005, 11440, 2002, 48610, 715, 11440, 220, 5005, 55, 2002, 10, 715, 1, 220, 10, 55].getD k.1 0
-  | 4 => #[5005, 2002, 11440, 715, 48610, 220, 11440, 55, 5005, 10, 2002, 1, 715, 10, 220, 55].getD k.1 0
-  | 5 => #[2002, 5005, 715, 11440, 220, 48610, 55, 11440, 10, 5005, 1, 2002, 10, 715, 55, 220].getD k.1 0
-  | 6 => #[2002, 715, 5005, 220, 11440, 55, 48610, 10, 11440, 1, 5005, 10, 2002, 55, 715, 220].getD k.1 0
-  | 7 => #[715, 2002, 220, 5005, 55, 11440, 10, 48610, 1, 11440, 10, 5005, 55, 2002, 220, 715].getD k.1 0
-  | 8 => #[715, 220, 2002, 55, 5005, 10, 11440, 1, 48610, 10, 11440, 55, 5005, 220, 2002, 715].getD k.1 0
-  | 9 => #[220, 715, 55, 2002, 10, 5005, 1, 11440, 10, 48610, 55, 11440, 220, 5005, 715, 2002].getD k.1 0
-  | 10 => #[220, 55, 715, 10, 2002, 1, 5005, 10, 11440, 55, 48610, 220, 11440, 715, 5005, 2002].getD k.1 0
-  | 11 => #[55, 220, 10, 715, 1, 2002, 10, 5005, 55, 11440, 220, 48610, 715, 11440, 2002, 5005].getD k.1 0
-  | 12 => #[55, 10, 220, 1, 715, 10, 2002, 55, 5005, 220, 11440, 715, 48610, 2002, 11440, 5005].getD k.1 0
-  | 13 => #[10, 55, 1, 220, 10, 715, 55, 2002, 220, 5005, 715, 11440, 2002, 48610, 5005, 11440].getD k.1 0
-  | 14 => #[10, 1, 55, 10, 220, 55, 715, 220, 2002, 715, 5005, 2002, 11440, 5005, 48610, 11440].getD k.1 0
-  | 15 => #[1, 10, 10, 55, 55, 220, 220, 715, 715, 2002, 2002, 5005, 5005, 11440, 11440, 48610].getD k.1 0
-  | _ => 0
-
-private lemma dp_eq_tbl_0 (j k : Fin 16) : dp 0 j k = tbl_0 j k := by
-  revert j k; decide
-
-private lemma dp_eq_tbl_1 (j k : Fin 16) : dp 1 j k = tbl_1 j k := by
-  rw [dp_succ_eq]
-  have h1 : (∑ i : Fin 16, if colOk i j k = true then dp 0 i j else 0) =
-      ∑ i : Fin 16, if colOk i j k = true then tbl_0 i j else 0 := by
-    apply Finset.sum_congr rfl; intro i _; rw [dp_eq_tbl_0]
-  rw [h1]
-  fin_cases j <;> fin_cases k <;> rfl
-
-private lemma dp_eq_tbl_2 (j k : Fin 16) : dp 2 j k = tbl_2 j k := by
-  rw [dp_succ_eq]
-  have h1 : (∑ i : Fin 16, if colOk i j k = true then dp 1 i j else 0) =
-      ∑ i : Fin 16, if colOk i j k = true then tbl_1 i j else 0 := by
-    apply Finset.sum_congr rfl; intro i _; rw [dp_eq_tbl_1]
-  rw [h1]
-  fin_cases j <;> fin_cases k <;> rfl
-
-private lemma dp_eq_tbl_3 (j k : Fin 16) : dp 3 j k = tbl_3 j k := by
-  rw [dp_succ_eq]
-  have h1 : (∑ i : Fin 16, if colOk i j k = true then dp 2 i j else 0) =
-      ∑ i : Fin 16, if colOk i j k = true then tbl_2 i j else 0 := by
-    apply Finset.sum_congr rfl; intro i _; rw [dp_eq_tbl_2]
-  rw [h1]
-  fin_cases j <;> fin_cases k <;> rfl
-
-private lemma dp_eq_tbl_4 (j k : Fin 16) : dp 4 j k = tbl_4 j k := by
-  rw [dp_succ_eq]
-  have h1 : (∑ i : Fin 16, if colOk i j k = true then dp 3 i j else 0) =
-      ∑ i : Fin 16, if colOk i j k = true then tbl_3 i j else 0 := by
-    apply Finset.sum_congr rfl; intro i _; rw [dp_eq_tbl_3]
-  rw [h1]
-  fin_cases j <;> fin_cases k <;> rfl
-
-private lemma dp_eq_tbl_5 (j k : Fin 16) : dp 5 j k = tbl_5 j k := by
-  rw [dp_succ_eq]
-  have h1 : (∑ i : Fin 16, if colOk i j k = true then dp 4 i j else 0) =
-      ∑ i : Fin 16, if colOk i j k = true then tbl_4 i j else 0 := by
-    apply Finset.sum_congr rfl; intro i _; rw [dp_eq_tbl_4]
-  rw [h1]
-  fin_cases j <;> fin_cases k <;> rfl
-
-private lemma dp_eq_tbl_6 (j k : Fin 16) : dp 6 j k = tbl_6 j k := by
-  rw [dp_succ_eq]
-  have h1 : (∑ i : Fin 16, if colOk i j k = true then dp 5 i j else 0) =
-      ∑ i : Fin 16, if colOk i j k = true then tbl_5 i j else 0 := by
-    apply Finset.sum_congr rfl; intro i _; rw [dp_eq_tbl_5]
-  rw [h1]
-  fin_cases j <;> fin_cases k <;> rfl
-
-private lemma dp_eq_tbl_7 (j k : Fin 16) : dp 7 j k = tbl_7 j k := by
-  rw [dp_succ_eq]
-  have h1 : (∑ i : Fin 16, if colOk i j k = true then dp 6 i j else 0) =
-      ∑ i : Fin 16, if colOk i j k = true then tbl_6 i j else 0 := by
-    apply Finset.sum_congr rfl; intro i _; rw [dp_eq_tbl_6]
-  rw [h1]
-  fin_cases j <;> fin_cases k <;> rfl
-
-private lemma dp_eq_tbl_8 (j k : Fin 16) : dp 8 j k = tbl_8 j k := by
-  rw [dp_succ_eq]
-  have h1 : (∑ i : Fin 16, if colOk i j k = true then dp 7 i j else 0) =
-      ∑ i : Fin 16, if colOk i j k = true then tbl_7 i j else 0 := by
-    apply Finset.sum_congr rfl; intro i _; rw [dp_eq_tbl_7]
-  rw [h1]
-  fin_cases j <;> fin_cases k <;> rfl
-
-private lemma dp_eq_tbl_9 (j k : Fin 16) : dp 9 j k = tbl_9 j k := by
-  rw [dp_succ_eq]
-  have h1 : (∑ i : Fin 16, if colOk i j k = true then dp 8 i j else 0) =
-      ∑ i : Fin 16, if colOk i j k = true then tbl_8 i j else 0 := by
-    apply Finset.sum_congr rfl; intro i _; rw [dp_eq_tbl_8]
-  rw [h1]
-  fin_cases j <;> fin_cases k <;> rfl
-
-private lemma dp_rec_base :
-    ∀ j k : Fin 16, dp 9 j k + 36 * dp 7 j k + 126 * dp 5 j k + 84 * dp 3 j k + 9 * dp 1 j k = 9 * dp 8 j k + 84 * dp 6 j k + 126 * dp 4 j k + 36 * dp 2 j k + dp 0 j k := by
-  intro j k
-  rw [dp_eq_tbl_0, dp_eq_tbl_1, dp_eq_tbl_2, dp_eq_tbl_3, dp_eq_tbl_4, dp_eq_tbl_5, dp_eq_tbl_6, dp_eq_tbl_7, dp_eq_tbl_8, dp_eq_tbl_9]
-  revert j k; decide
-
-private lemma sum_lin (f9 f8 f7 f6 f5 f4 f3 f2 f1 f0 : Fin 16 → ℕ) (g : Fin 16 → Bool)
-    (h : ∀ i : Fin 16, f9 i + 36 * f7 i + 126 * f5 i + 84 * f3 i + 9 * f1 i = 9 * f8 i + 84 * f6 i + 126 * f4 i + 36 * f2 i + f0 i) :
-    (∑ i : Fin 16, if g i = true then f9 i else 0) + 36 * (∑ i : Fin 16, if g i = true then f7 i else 0) + 126 * (∑ i : Fin 16, if g i = true then f5 i else 0) + 84 * (∑ i : Fin 16, if g i = true then f3 i else 0) + 9 * (∑ i : Fin 16, if g i = true then f1 i else 0) = 9 * (∑ i : Fin 16, if g i = true then f8 i else 0) + 84 * (∑ i : Fin 16, if g i = true then f6 i else 0) + 126 * (∑ i : Fin 16, if g i = true then f4 i else 0) + 36 * (∑ i : Fin 16, if g i = true then f2 i else 0) + (∑ i : Fin 16, if g i = true then f0 i else 0) := by
-  simp only [Finset.mul_sum, ← Finset.sum_add_distrib]
-  apply Finset.sum_congr rfl; intro i _
-  cases g i
-  · simp
-  · simp only [↓reduceIte]; exact h i
-
-private lemma dp_rec (m : ℕ) :
-    ∀ j k : Fin 16, dp (m + 9) j k + 36 * dp (m + 7) j k + 126 * dp (m + 5) j k + 84 * dp (m + 3) j k + 9 * dp (m + 1) j k = 9 * dp (m + 8) j k + 84 * dp (m + 6) j k + 126 * dp (m + 4) j k + 36 * dp (m + 2) j k + dp m j k := by
+private lemma compat_shift_nat (m : ℕ) (i j k : Fin 16) :
+    compat (shift ⟨m % 16, Nat.mod_lt _ (by omega)⟩ i)
+           (shift ⟨m % 16, Nat.mod_lt _ (by omega)⟩ j)
+           (shift ⟨m % 16, Nat.mod_lt _ (by omega)⟩ k) ↔ compat i j k := by
   induction m with
-  | zero => exact dp_rec_base
+  | zero =>
+    have h0 : (⟨0 % 16, Nat.mod_lt _ (by omega)⟩ : Fin 16) = 0 := rfl
+    rw [h0, shift_zero, shift_zero, shift_zero]
   | succ m ih =>
-    intro j k
-    rw [dp_succ_eq (m + 9), dp_succ_eq (m + 8), dp_succ_eq (m + 7), dp_succ_eq (m + 6), dp_succ_eq (m + 5), dp_succ_eq (m + 4), dp_succ_eq (m + 3), dp_succ_eq (m + 2), dp_succ_eq (m + 1), dp_succ_eq m]
-    exact sum_lin (fun i => dp (m + 9) i j) (fun i => dp (m + 8) i j) (fun i => dp (m + 7) i j) (fun i => dp (m + 6) i j) (fun i => dp (m + 5) i j) (fun i => dp (m + 4) i j) (fun i => dp (m + 3) i j) (fun i => dp (m + 2) i j) (fun i => dp (m + 1) i j) (fun i => dp m i j) (fun i => colOk i j k) (fun i => ih i j)
+    have hstep : ∀ x : Fin 16,
+        shift ⟨(m + 1) % 16, Nat.mod_lt _ (by omega)⟩ x =
+        shift1 (shift ⟨m % 16, Nat.mod_lt _ (by omega)⟩ x) := by
+      intro x; ext; simp only [shift, shift1]; omega
+    rw [hstep i, hstep j, hstep k, compat_shift1, ih]
 
-private abbrev ValidSeq (n : ℕ) (j k : Fin 16) :=
-  {s : Fin (n + 2) → Fin 16 //
-    (∀ r : Fin n, colOk (s ⟨r.1, by omega⟩) (s ⟨r.1 + 1, by omega⟩) (s ⟨r.1 + 2, by omega⟩) = true) ∧
-    s ⟨n, by omega⟩ = j ∧ s ⟨n + 1, by omega⟩ = k}
+private lemma compat_shift (s i j k : Fin 16) :
+    compat (shift s i) (shift s j) (shift s k) ↔ compat i j k := by
+  have hs : s = ⟨s.1 % 16, Nat.mod_lt _ (by omega)⟩ := by
+    ext; exact (Nat.mod_eq_of_lt s.2).symm
+  conv_lhs => rw [hs]
+  exact compat_shift_nat s.1 i j k
 
-private lemma card_ValidSeq (n : ℕ) :
-    ∀ j k : Fin 16, Fintype.card (ValidSeq n j k) = dp n j k := by
+private lemma compat_zero_iff_geodesic :
+    ∀ j k : Fin 16, compat 0 j k ↔ cycDist 0 k + cycDist k j = cycDist 0 j := by
+  decide
+
+private lemma compat_iff_geodesic (i j k : Fin 16) :
+    compat i j k ↔ cycDist i k + cycDist k j = cycDist i j := by
+  let s : Fin 16 := ⟨(16 - i.1) % 16, Nat.mod_lt _ (by omega)⟩
+  have hsi : shift s i = 0 := by ext; simp only [shift, s, Fin.val_zero]; omega
+  rw [← compat_shift s i j k, hsi, compat_zero_iff_geodesic,
+      ← cycDist_shift s i k, ← cycDist_shift s k j, ← cycDist_shift s i j, hsi]
+
+private def expectedTrans (D d : ℕ) : ℕ :=
+  if D = 8 then (if d = 0 ∨ d = 8 then 1 else 2)
+  else (if d ≤ D then 1 else 0)
+
+private lemma geodesic_count_zero :
+    ∀ j : Fin 16, ∀ d : Fin 9,
+      (Finset.univ.filter (fun k : Fin 16 =>
+        cycDist 0 k + cycDist k j = cycDist 0 j ∧ cycDistFin j k = d)).card =
+      expectedTrans (cycDist 0 j) d.1 := by
+  decide
+
+private lemma trans_count (i j : Fin 16) (d : Fin 9) :
+    (Finset.univ.filter (fun k : Fin 16 => compat i j k ∧ cycDistFin j k = d)).card =
+      expectedTrans (cycDist i j) d.1 := by
+  let s : Fin 16 := ⟨(16 - i.1) % 16, Nat.mod_lt _ (by omega)⟩
+  have hsi : shift s i = 0 := by ext; simp only [shift, s, Fin.val_zero]; omega
+  have hcard :
+      (Finset.univ.filter (fun k : Fin 16 => compat i j k ∧ cycDistFin j k = d)).card =
+      (Finset.univ.filter (fun k' : Fin 16 =>
+        cycDist 0 k' + cycDist k' (shift s j) = cycDist 0 (shift s j) ∧
+        cycDistFin (shift s j) k' = d)).card := by
+    refine Finset.card_bij (fun k _ => shift s k) ?_ ?_ ?_
+    · intro k hk
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hk ⊢
+      rw [compat_iff_geodesic] at hk
+      refine ⟨?_, ?_⟩
+      · rw [← hsi, cycDist_shift, cycDist_shift, cycDist_shift]
+        exact hk.1
+      · ext
+        simp only [cycDistFin]
+        rw [cycDist_shift]
+        exact congrArg Fin.val hk.2
+    · intro k1 _ k2 _ h
+      ext
+      have hv : (shift s k1).1 = (shift s k2).1 := congrArg Fin.val h
+      simp only [shift] at hv
+      omega
+    · intro k' hk'
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hk'
+      refine ⟨shift i k', ?_, ?_⟩
+      · simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+        have hback : shift s (shift i k') = k' := by
+          ext; simp only [shift, s]; omega
+        rw [compat_iff_geodesic]
+        refine ⟨?_, ?_⟩
+        · rw [← cycDist_shift s i (shift i k'), ← cycDist_shift s (shift i k') j,
+              ← cycDist_shift s i j, hsi, hback]
+          exact hk'.1
+        · ext
+          simp only [cycDistFin]
+          rw [← cycDist_shift s j (shift i k'), hback]
+          exact congrArg Fin.val hk'.2
+      · ext; simp only [shift, s]; omega
+  rw [hcard, geodesic_count_zero (shift s j) d, ← hsi, cycDist_shift]
+
+private lemma init_count_zero :
+    ∀ d : Fin 9,
+      (Finset.univ.filter (fun j : Fin 16 => cycDistFin 0 j = d)).card =
+      if d.1 = 0 ∨ d.1 = 8 then 1 else 2 := by
+  decide
+
+private lemma init_count (d : Fin 9) :
+    (Finset.univ.filter (fun p : Fin 16 × Fin 16 => cycDistFin p.1 p.2 = d)).card =
+      if d.1 = 0 ∨ d.1 = 8 then 16 else 32 := by
+  have hcard :
+      (Finset.univ.filter (fun p : Fin 16 × Fin 16 => cycDistFin p.1 p.2 = d)).card =
+      ((Finset.univ : Finset (Fin 16)) ×ˢ
+        (Finset.univ.filter (fun j : Fin 16 => cycDistFin 0 j = d))).card := by
+    refine Finset.card_bij
+      (fun p _ => (p.1, shift ⟨(16 - p.1.1) % 16, Nat.mod_lt _ (by omega)⟩ p.2)) ?_ ?_ ?_
+    · intro p hp
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_product] at hp ⊢
+      ext
+      simp only [cycDistFin]
+      have h0 : shift ⟨(16 - p.1.1) % 16, Nat.mod_lt _ (by omega)⟩ p.1 = 0 := by
+        ext; simp only [shift, Fin.val_zero]; omega
+      rw [← h0, cycDist_shift]
+      exact congrArg Fin.val hp
+    · intro p1 _ p2 _ h
+      rcases Prod.mk.inj h with ⟨h1, h2⟩
+      have h1v : p1.1.1 = p2.1.1 := congrArg Fin.val h1
+      have h2v : (shift ⟨(16 - p1.1.1) % 16, Nat.mod_lt _ (by omega)⟩ p1.2).1 =
+                 (shift ⟨(16 - p2.1.1) % 16, Nat.mod_lt _ (by omega)⟩ p2.2).1 :=
+        congrArg Fin.val h2
+      simp only [shift] at h2v
+      ext
+      · exact h1v
+      · omega
+    · intro q hq
+      simp only [Finset.mem_product, Finset.mem_univ, true_and, Finset.mem_filter] at hq
+      refine ⟨(q.1, shift q.1 q.2), ?_, ?_⟩
+      · simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+        ext
+        simp only [cycDistFin]
+        have h0 : shift q.1 0 = q.1 := by
+          ext; simp only [shift, Fin.val_zero, zero_add]; exact Nat.mod_eq_of_lt q.1.2
+        calc
+          cycDist q.1 (shift q.1 q.2) = cycDist (shift q.1 0) (shift q.1 q.2) := by rw [h0]
+          _ = cycDist 0 q.2 := cycDist_shift q.1 0 q.2
+          _ = d.1 := congrArg Fin.val hq
+      · ext
+        · rfl
+        · simp only [shift]; omega
+  rw [hcard, Finset.card_product, Finset.card_univ, Fintype.card_fin, init_count_zero d]
+  split_ifs <;> rfl
+
+private def ValidArrFrom (n : ℕ) (i j : Fin 16) :=
+  {A : Fin (n + 2) → Fin 8 → Fin 2 // isValid n A ∧ A 0 = rowVec i ∧ A 1 = rowVec j}
+
+private noncomputable instance (n : ℕ) (i j : Fin 16) : Fintype (ValidArrFrom n i j) := by
+  classical
+  unfold ValidArrFrom
+  infer_instance
+
+private noncomputable def extCount (n : ℕ) (i j : Fin 16) : ℕ :=
+  Fintype.card (ValidArrFrom n i j)
+
+private lemma validArrFrom_heq {n : ℕ} {i1 i2 j1 j2 : Fin 16}
+    {x : ValidArrFrom n i1 j1} {y : ValidArrFrom n i2 j2}
+    (hi : i1 = i2) (hj : j1 = j2) (hval : x.1 = y.1) : HEq x y := by
+  subst hi; subst hj
+  exact heq_of_eq (Subtype.ext hval)
+
+private def consRow {n : ℕ} (r : Fin 8 → Fin 2) (B : Fin (n + 2) → Fin 8 → Fin 2) :
+    Fin (n + 3) → Fin 8 → Fin 2
+  | ⟨0, _⟩ => r
+  | ⟨m + 1, hm⟩ => B ⟨m, by omega⟩
+
+private lemma card_valid_eq_sum (n : ℕ) :
+    Fintype.card {A : Fin (n + 2) → Fin 8 → Fin 2 // isValid n A} =
+      ∑ p : Fin 16 × Fin 16, extCount n p.1 p.2 := by
+  classical
+  unfold extCount
+  rw [← Fintype.card_sigma]
+  refine Fintype.card_congr ?_
+  refine
+    { toFun := fun ⟨A, hA⟩ =>
+        let i := validRowEquiv.symm ⟨A 0, hA.1 0⟩
+        let j := validRowEquiv.symm ⟨A 1, hA.1 1⟩
+        ⟨(i, j), ⟨A, hA,
+          (congrArg Subtype.val (validRowEquiv.apply_symm_apply ⟨A 0, hA.1 0⟩)).symm,
+          (congrArg Subtype.val (validRowEquiv.apply_symm_apply ⟨A 1, hA.1 1⟩)).symm⟩⟩
+      invFun := fun ⟨_, ⟨A, hA, _, _⟩⟩ => ⟨A, hA⟩
+      left_inv := fun ⟨A, hA⟩ => rfl
+      right_inv := fun ⟨⟨i, j⟩, ⟨A, hA, h0, h1⟩⟩ => by
+        dsimp only
+        have hi : validRowEquiv.symm ⟨A 0, hA.1 0⟩ = i := by
+          apply validRowEquiv.injective
+          rw [validRowEquiv.apply_symm_apply]
+          exact Subtype.ext h0
+        have hj : validRowEquiv.symm ⟨A 1, hA.1 1⟩ = j := by
+          apply validRowEquiv.injective
+          rw [validRowEquiv.apply_symm_apply]
+          exact Subtype.ext h1
+        exact Sigma.ext (Prod.ext hi hj) (validArrFrom_heq hi hj rfl) }
+
+private lemma extCount_zero (i j : Fin 16) : extCount 0 i j = 1 := by
+  unfold extCount
+  let A0 : Fin 2 → Fin 8 → Fin 2 := fun r => if r.1 = 0 then rowVec i else rowVec j
+  have hA0_valid : isValid 0 A0 := by
+    refine ⟨fun r => ?_, fun c r => r.elim0⟩
+    fin_cases r
+    · exact rowVec_valid i
+    · exact rowVec_valid j
+  refine Fintype.card_eq_one_iff.mpr ⟨⟨A0, hA0_valid, rfl, rfl⟩, fun ⟨A, _, h0, h1⟩ => ?_⟩
+  apply Subtype.ext
+  funext r
+  fin_cases r
+  · exact h0
+  · exact h1
+
+private lemma extCount_succ (n : ℕ) (i j : Fin 16) :
+    extCount (n + 1) i j = ∑ k ∈ Finset.univ.filter (compat i j), extCount n j k := by
+  classical
+  unfold extCount
+  have hsum :
+      ∑ k ∈ Finset.univ.filter (compat i j), Fintype.card (ValidArrFrom n j k) =
+      Fintype.card (Σ k : {k : Fin 16 // compat i j k}, ValidArrFrom n j k.1) := by
+    rw [Fintype.card_sigma]
+    exact Finset.sum_subtype (p := compat i j) (Finset.univ.filter (compat i j))
+      (fun _ => by simp) (fun k => Fintype.card (ValidArrFrom n j k))
+  rw [hsum]
+  refine Fintype.card_congr ?_
+  refine
+    { toFun := fun ⟨A, hA, h0, h1⟩ =>
+        let r2 : Fin (n + 3) := ⟨2, by omega⟩
+        let k := validRowEquiv.symm ⟨A r2, hA.1 r2⟩
+        have hk_eq : rowVec k = A r2 :=
+          congrArg Subtype.val (validRowEquiv.apply_symm_apply ⟨A r2, hA.1 r2⟩)
+        have hcomp : compat i j k := by
+          intro c
+          have hc := hA.2 c ⟨0, by omega⟩
+          have h0' : A ⟨0, by omega⟩ c = rowVec i c := congrFun h0 c
+          have h1' : A ⟨1, by omega⟩ c = rowVec j c := congrFun h1 c
+          have h2' : A r2 c = rowVec k c := (congrFun hk_eq c).symm
+          rw [h0', h1', h2'] at hc
+          exact hc
+        let B : Fin (n + 2) → Fin 8 → Fin 2 := fun r => A r.succ
+        have hB_valid : isValid n B := by
+          refine ⟨fun r => hA.1 r.succ, fun c r => ?_⟩
+          exact hA.2 c ⟨r.1 + 1, by omega⟩
+        have hB0 : B 0 = rowVec j := h1
+        have hB1 : B 1 = rowVec k := hk_eq.symm
+        ⟨⟨k, hcomp⟩, ⟨B, hB_valid, hB0, hB1⟩⟩
+      invFun := fun ⟨⟨k, hcomp⟩, ⟨B, hB, hB0, hB1⟩⟩ =>
+        let A : Fin (n + 3) → Fin 8 → Fin 2 := consRow (rowVec i) B
+        have hA_valid : isValid (n + 1) A := by
+          refine ⟨fun r => ?_, fun c r => ?_⟩
+          · rcases r with ⟨_ | m, hm⟩
+            · exact rowVec_valid i
+            · exact hB.1 ⟨m, by omega⟩
+          · rcases r with ⟨_ | m, hm⟩
+            · change avoids3 (rowVec i c) (B 0 c) (B 1 c)
+              rw [hB0, hB1]
+              exact hcomp c
+            · exact hB.2 c ⟨m, by omega⟩
+        ⟨A, hA_valid, rfl, hB0⟩
+      left_inv := fun ⟨A, hA, h0, h1⟩ => by
+        apply Subtype.ext
+        funext r
+        rcases r with ⟨_ | m, hm⟩
+        · exact h0.symm
+        · rfl
+      right_inv := fun ⟨⟨k, hcomp⟩, ⟨B, hB, hB0, hB1⟩⟩ => by
+        dsimp only
+        have hk : ∀ hp : isValidRow (consRow (rowVec i) B ⟨2, by omega⟩),
+            validRowEquiv.symm ⟨consRow (rowVec i) B ⟨2, by omega⟩, hp⟩ = k := by
+          intro hp
+          apply validRowEquiv.injective
+          rw [validRowEquiv.apply_symm_apply]
+          exact Subtype.ext hB1
+        refine Sigma.ext (Subtype.ext (hk _)) (validArrFrom_heq rfl (hk _) ?_)
+        funext r
+        rfl }
+
+private def F (d : Fin 9) (n : ℕ) : ℚ :=
+  let x : ℚ := n
+  match d.1 with
+  | 0 => 1
+  | 1 => x + 1
+  | 2 => (x + 1) * (x + 2) / 2
+  | 3 => (x + 1) * (x + 2) * (x + 3) / 6
+  | 4 => (x + 1) * (x + 2) * (x + 3) * (x + 4) / 24
+  | 5 => (x + 1) * (x + 2) * (x + 3) * (x + 4) * (x + 5) / 120
+  | 6 => (x + 1) * (x + 2) * (x + 3) * (x + 4) * (x + 5) * (x + 6) / 720
+  | 7 => (x + 1) * (x + 2) * (x + 3) * (x + 4) * (x + 5) * (x + 6) * (x + 7) / 5040
+  | _ =>
+    1 + x + 2 * (
+      x * (x + 1) / 2
+      + x * (x + 1) * (x + 2) / 6
+      + x * (x + 1) * (x + 2) * (x + 3) / 24
+      + x * (x + 1) * (x + 2) * (x + 3) * (x + 4) / 120
+      + x * (x + 1) * (x + 2) * (x + 3) * (x + 4) * (x + 5) / 720
+      + x * (x + 1) * (x + 2) * (x + 3) * (x + 4) * (x + 5) * (x + 6) / 5040
+      + x * (x + 1) * (x + 2) * (x + 3) * (x + 4) * (x + 5) * (x + 6) * (x + 7) / 40320)
+
+private lemma F_zero (d : Fin 9) : F d 0 = 1 := by
+  fin_cases d <;> norm_num [F]
+
+private lemma F_step (D : Fin 9) (n : ℕ) :
+    ∑ d : Fin 9, (expectedTrans D.1 d.1 : ℚ) * F d n = F D (n + 1) := by
+  fin_cases D <;>
+    simp [Fin.sum_univ_succ, expectedTrans, F] <;>
+    ring
+
+private lemma extCount_eq_F (n : ℕ) :
+    ∀ i j : Fin 16, (extCount n i j : ℚ) = F (cycDistFin i j) n := by
   induction n with
   | zero =>
-    intro j k
-    simp only [dp]
-    refine Fintype.card_eq_one_iff.mpr ⟨⟨fun r => if r.1 = 0 then j else k, fun r => r.elim0, rfl, rfl⟩, ?_⟩
-    rintro ⟨s, _, hj, hk⟩
-    apply Subtype.ext; funext r; fin_cases r
-    · exact hj
-    · exact hk
+    intro i j
+    rw [extCount_zero, F_zero]
+    norm_num
   | succ n ih =>
-    intro j k
-    rw [dp_succ_eq]
-    let φ : (Σ i : Fin 16, {t : ValidSeq n i j // colOk i j k = true}) → ValidSeq (n + 1) j k :=
-      fun ⟨i, ⟨⟨t, ht, hti, htj⟩, hok⟩⟩ =>
-        let s : Fin (n + 3) → Fin 16 := Fin.snoc t k
-        ⟨s, by
-          intro r
-          by_cases hr : r.1 < n
-          · have h := ht ⟨r.1, hr⟩
-            have e0 : s ⟨r.1, by omega⟩ = t ⟨r.1, by omega⟩ := by
-              have : (⟨r.1, by omega⟩ : Fin (n + 3)) = (⟨r.1, by omega⟩ : Fin (n + 2)).castSucc := rfl
-              rw [this]; simp only [s, Fin.snoc_castSucc]
-            have e1 : s ⟨r.1 + 1, by omega⟩ = t ⟨r.1 + 1, by omega⟩ := by
-              have : (⟨r.1 + 1, by omega⟩ : Fin (n + 3)) = (⟨r.1 + 1, by omega⟩ : Fin (n + 2)).castSucc := rfl
-              rw [this]; simp only [s, Fin.snoc_castSucc]
-            have e2 : s ⟨r.1 + 2, by omega⟩ = t ⟨r.1 + 2, by omega⟩ := by
-              have : (⟨r.1 + 2, by omega⟩ : Fin (n + 3)) = (⟨r.1 + 2, by omega⟩ : Fin (n + 2)).castSucc := rfl
-              rw [this]; simp only [s, Fin.snoc_castSucc]
-            rw [e0, e1, e2]; exact h
-          · have hreq : r.1 = n := by omega
-            have e0 : s ⟨r.1, by omega⟩ = i := by
-              have : (⟨r.1, by omega⟩ : Fin (n + 3)) = (⟨n, by omega⟩ : Fin (n + 2)).castSucc := by ext; simp [hreq]
-              rw [this]; simp only [s, Fin.snoc_castSucc, hti]
-            have e1 : s ⟨r.1 + 1, by omega⟩ = j := by
-              have : (⟨r.1 + 1, by omega⟩ : Fin (n + 3)) = (⟨n + 1, by omega⟩ : Fin (n + 2)).castSucc := by ext; simp [hreq]
-              rw [this]; simp only [s, Fin.snoc_castSucc, htj]
-            have e2 : s ⟨r.1 + 2, by omega⟩ = k := by
-              have : (⟨r.1 + 2, by omega⟩ : Fin (n + 3)) = Fin.last (n + 2) := by ext; simp [Fin.last, hreq]
-              rw [this]; simp only [s, Fin.snoc_last]
-            rw [e0, e1, e2]; exact hok,
-          by
-            have : (⟨n + 1, by omega⟩ : Fin (n + 3)) = (⟨n + 1, by omega⟩ : Fin (n + 2)).castSucc := rfl
-            rw [this]; simp only [s, Fin.snoc_castSucc, htj],
-          by
-            have : (⟨n + 2, by omega⟩ : Fin (n + 3)) = Fin.last (n + 2) := rfl
-            rw [this]; simp only [s, Fin.snoc_last]⟩
-    have hbij : Function.Bijective φ := by
-      constructor
-      · rintro ⟨i1, ⟨⟨t1, ht1, hi1, hj1⟩, hok1⟩⟩ ⟨i2, ⟨⟨t2, ht2, hi2, hj2⟩, hok2⟩⟩ heq
-        have hfun : (Fin.snoc t1 k : Fin (n + 3) → Fin 16) = Fin.snoc t2 k := congrArg Subtype.val heq
-        have ht_eq : t1 = t2 := by
-          funext r
-          have h := congrFun hfun r.castSucc
-          simpa using h
-        subst ht_eq
-        have hi_eq : i1 = i2 := hi1.symm.trans hi2
-        subst hi_eq
-        rfl
-      · rintro ⟨s, hs, hj, hk⟩
-        let i := s ⟨n, by omega⟩
-        let t : ValidSeq n i j := ⟨fun r => s r.castSucc, fun r => hs ⟨r.1, by omega⟩, rfl, hj⟩
-        have hok : colOk i j k = true := by
-          have h := hs (Fin.last n)
-          have e0 : s ⟨(Fin.last n).1, by omega⟩ = i := rfl
-          have e1 : s ⟨(Fin.last n).1 + 1, by omega⟩ = j := by simpa [Fin.last] using hj
-          have e2 : s ⟨(Fin.last n).1 + 2, by omega⟩ = k := by simpa [Fin.last] using hk
-          rw [e0, e1, e2] at h; exact h
-        refine ⟨⟨i, ⟨t, hok⟩⟩, ?_⟩
-        apply Subtype.ext; funext r; refine Fin.lastCases ?_ ?_ r
-        · dsimp [φ, t]; rw [Fin.snoc_last]; exact hk.symm
-        · intro r'; dsimp [φ, t]; rw [Fin.snoc_castSucc]
-    rw [Fintype.card_congr (Equiv.ofBijective φ hbij).symm, Fintype.card_sigma]
-    apply Finset.sum_congr rfl; intro i _
-    by_cases hok : colOk i j k = true
-    · rw [if_pos hok, ← ih i j]
-      refine Fintype.card_congr ⟨fun ⟨t, _⟩ => t, fun t => ⟨t, hok⟩, fun ⟨_, _⟩ => rfl, fun _ => rfl⟩
-    · rw [if_neg hok, Fintype.card_eq_zero_iff]
-      exact ⟨fun ⟨_, h⟩ => hok h⟩
+    intro i j
+    rw [extCount_succ]
+    push_cast
+    simp_rw [ih]
+    have hgroup :
+        ∑ k ∈ Finset.univ.filter (compat i j), F (cycDistFin j k) n =
+        ∑ d : Fin 9,
+          ((Finset.univ.filter (fun k : Fin 16 => compat i j k ∧ cycDistFin j k = d)).card : ℚ) *
+          F d n := by
+      have h1 := Finset.sum_fiberwise_of_maps_to
+        (s := Finset.univ.filter (compat i j))
+        (t := (Finset.univ : Finset (Fin 9)))
+        (g := fun k => cycDistFin j k)
+        (f := fun k => F (cycDistFin j k) n)
+        (fun _ _ => Finset.mem_univ _)
+      rw [← h1]
+      refine Finset.sum_congr rfl fun d _ => ?_
+      have hfilt :
+          (Finset.univ.filter (compat i j)).filter (fun k => cycDistFin j k = d) =
+          Finset.univ.filter (fun k : Fin 16 => compat i j k ∧ cycDistFin j k = d) := by
+        ext k; simp
+      rw [hfilt]
+      calc
+        ∑ k ∈ Finset.univ.filter (fun k : Fin 16 => compat i j k ∧ cycDistFin j k = d),
+            F (cycDistFin j k) n
+          = ∑ _k ∈ Finset.univ.filter (fun k : Fin 16 => compat i j k ∧ cycDistFin j k = d),
+              F d n := by
+            refine Finset.sum_congr rfl fun k hk => ?_
+            simp only [Finset.mem_filter] at hk
+            rw [hk.2.2]
+        _ = _ := by rw [Finset.sum_const, nsmul_eq_mul]
+    rw [hgroup]
+    simp_rw [trans_count]
+    exact F_step (cycDistFin i j) n
 
-private lemma a_eq_sum_dp (n : ℕ) (hn : 1 ≤ n) :
-    a n = ∑ j : Fin 16, ∑ k : Fin 16, dp n j k := by
-  unfold a; rw [if_neg (by omega)]
-  let φ : (Σ j : Fin 16, Σ k : Fin 16, ValidSeq n j k) → {A : Fin (n + 2) → Fin 8 → Fin 2 // isValid n A} :=
-    fun ⟨_, _, ⟨s, hs, _, _⟩⟩ =>
-      ⟨fun r => rowBit (s r), fun r => rowBit_valid (s r), fun c r => (colOk_iff _ _ _).mp (hs r) c⟩
-  have hbij : Function.Bijective φ := by
-    constructor
-    · rintro ⟨j1, k1, ⟨s1, hs1, hj1, hk1⟩⟩ ⟨j2, k2, ⟨s2, hs2, hj2, hk2⟩⟩ heq
-      have hfun : (fun r => rowBit (s1 r)) = fun r => rowBit (s2 r) := congrArg Subtype.val heq
-      have hs_eq : s1 = s2 := by
-        funext r
-        have h := congrFun hfun r
-        have := congrArg (fun x => codeToIdx (encodeRow x)) h
-        simpa [codeToIdx_encodeRow] using this
-      subst hs_eq
-      have hj_eq : j1 = j2 := hj1.symm.trans hj2
-      have hk_eq : k1 = k2 := hk1.symm.trans hk2
-      subst hj_eq; subst hk_eq; rfl
-    · rintro ⟨A, hA1, hA2⟩
-      let s : Fin (n + 2) → Fin 16 := fun r => rowEquiv ⟨A r, hA1 r⟩
-      have hs : ∀ r : Fin n, colOk (s ⟨r.1, by omega⟩) (s ⟨r.1 + 1, by omega⟩) (s ⟨r.1 + 2, by omega⟩) = true := by
-        intro r; rw [colOk_iff]
-        intro c
-        have h0 : rowBit (s ⟨r.1, by omega⟩) = A ⟨r.1, by omega⟩ := congrArg Subtype.val (rowEquiv.left_inv ⟨A ⟨r.1, by omega⟩, hA1 _⟩)
-        have h1 : rowBit (s ⟨r.1 + 1, by omega⟩) = A ⟨r.1 + 1, by omega⟩ := congrArg Subtype.val (rowEquiv.left_inv ⟨A ⟨r.1 + 1, by omega⟩, hA1 _⟩)
-        have h2 : rowBit (s ⟨r.1 + 2, by omega⟩) = A ⟨r.1 + 2, by omega⟩ := congrArg Subtype.val (rowEquiv.left_inv ⟨A ⟨r.1 + 2, by omega⟩, hA1 _⟩)
-        rw [h0, h1, h2]; exact hA2 c r
-      refine ⟨⟨s ⟨n, by omega⟩, s ⟨n + 1, by omega⟩, ⟨s, hs, rfl, rfl⟩⟩, ?_⟩
-      apply Subtype.ext; funext r
-      exact congrArg Subtype.val (rowEquiv.left_inv ⟨A r, hA1 r⟩)
-  rw [Fintype.card_congr (Equiv.ofBijective φ hbij).symm, Fintype.card_sigma]
-  apply Finset.sum_congr rfl; intro j _
-  rw [Fintype.card_sigma]
-  apply Finset.sum_congr rfl; intro k _
-  exact card_ValidSeq n j k
+private def polyVal (x : ℚ) : ℚ :=
+  (322560 + 643536 * x + 509004 * x ^ 2 + 214676 * x ^ 3 + 54649 * x ^ 4
+    + 8624 * x ^ 5 + 826 * x ^ 6 + 44 * x ^ 7 + x ^ 8) / 1260
 
-private lemma a_rec_d (m : ℕ) (hm : 1 ≤ m) :
-    a (m + 9) + 36 * a (m + 7) + 126 * a (m + 5) + 84 * a (m + 3) + 9 * a (m + 1) = 9 * a (m + 8) + 84 * a (m + 6) + 126 * a (m + 4) + 36 * a (m + 2) + a m := by
-  rw [a_eq_sum_dp (m + 9) (by omega), a_eq_sum_dp (m + 8) (by omega), a_eq_sum_dp (m + 7) (by omega), a_eq_sum_dp (m + 6) (by omega), a_eq_sum_dp (m + 5) (by omega), a_eq_sum_dp (m + 4) (by omega), a_eq_sum_dp (m + 3) (by omega), a_eq_sum_dp (m + 2) (by omega), a_eq_sum_dp (m + 1) (by omega), a_eq_sum_dp m hm]
-  simp only [Finset.mul_sum, ← Finset.sum_add_distrib]
-  apply Finset.sum_congr rfl; intro j _
-  apply Finset.sum_congr rfl; intro k _
-  exact dp_rec m j k
+private lemma card_valid_eq_poly (n : ℕ) :
+    (Fintype.card {A : Fin (n + 2) → Fin 8 → Fin 2 // isValid n A} : ℚ) = polyVal (n : ℚ) := by
+  rw [card_valid_eq_sum]
+  push_cast
+  simp_rw [extCount_eq_F]
+  have hgroup :
+      ∑ p : Fin 16 × Fin 16, F (cycDistFin p.1 p.2) n =
+      ∑ d : Fin 9,
+        ((Finset.univ.filter (fun p : Fin 16 × Fin 16 => cycDistFin p.1 p.2 = d)).card : ℚ) *
+        F d n := by
+    have h1 := Finset.sum_fiberwise_of_maps_to
+      (s := (Finset.univ : Finset (Fin 16 × Fin 16)))
+      (t := (Finset.univ : Finset (Fin 9)))
+      (g := fun p : Fin 16 × Fin 16 => cycDistFin p.1 p.2)
+      (f := fun p : Fin 16 × Fin 16 => F (cycDistFin p.1 p.2) n)
+      (fun _ _ => Finset.mem_univ _)
+    rw [← h1]
+    refine Finset.sum_congr rfl fun d _ => ?_
+    calc
+      ∑ p ∈ Finset.univ.filter (fun p : Fin 16 × Fin 16 => cycDistFin p.1 p.2 = d),
+          F (cycDistFin p.1 p.2) n
+        = ∑ _p ∈ Finset.univ.filter (fun p : Fin 16 × Fin 16 => cycDistFin p.1 p.2 = d),
+            F d n := by
+          refine Finset.sum_congr rfl fun p hp => ?_
+          simp only [Finset.mem_filter] at hp
+          rw [hp.2]
+      _ = _ := by rw [Finset.sum_const, nsmul_eq_mul]
+  rw [hgroup]
+  simp_rw [init_count]
+  simp [Fin.sum_univ_succ, F, polyVal]
+  ring
 
-private lemma a_zero : a 0 = 0 := by unfold a; simp
-private lemma a_val_1 : a 1 = 1392 := by
-  rw [a_eq_sum_dp 1 (by omega)]
-  have h : (∑ j : Fin 16, ∑ k : Fin 16, dp 1 j k) = ∑ j : Fin 16, ∑ k : Fin 16, tbl_1 j k := by
-    apply Finset.sum_congr rfl; intro j _
-    apply Finset.sum_congr rfl; intro k _
-    exact dp_eq_tbl_1 j k
-  rw [h]; decide
-private lemma a_val_2 : a 2 = 5216 := by
-  rw [a_eq_sum_dp 2 (by omega)]
-  have h : (∑ j : Fin 16, ∑ k : Fin 16, dp 2 j k) = ∑ j : Fin 16, ∑ k : Fin 16, tbl_2 j k := by
-    apply Finset.sum_congr rfl; intro j _
-    apply Finset.sum_congr rfl; intro k _
-    exact dp_eq_tbl_2 j k
-  rw [h]; decide
-private lemma a_val_3 : a 3 = 15760 := by
-  rw [a_eq_sum_dp 3 (by omega)]
-  have h : (∑ j : Fin 16, ∑ k : Fin 16, dp 3 j k) = ∑ j : Fin 16, ∑ k : Fin 16, tbl_3 j k := by
-    apply Finset.sum_congr rfl; intro j _
-    apply Finset.sum_congr rfl; intro k _
-    exact dp_eq_tbl_3 j k
-  rw [h]; decide
-private lemma a_val_4 : a 4 = 41088 := by
-  rw [a_eq_sum_dp 4 (by omega)]
-  have h : (∑ j : Fin 16, ∑ k : Fin 16, dp 4 j k) = ∑ j : Fin 16, ∑ k : Fin 16, tbl_4 j k := by
-    apply Finset.sum_congr rfl; intro j _
-    apply Finset.sum_congr rfl; intro k _
-    exact dp_eq_tbl_4 j k
-  rw [h]; decide
-private lemma a_val_5 : a 5 = 95984 := by
-  rw [a_eq_sum_dp 5 (by omega)]
-  have h : (∑ j : Fin 16, ∑ k : Fin 16, dp 5 j k) = ∑ j : Fin 16, ∑ k : Fin 16, tbl_5 j k := by
-    apply Finset.sum_congr rfl; intro j _
-    apply Finset.sum_congr rfl; intro k _
-    exact dp_eq_tbl_5 j k
-  rw [h]; decide
-private lemma a_val_6 : a 6 = 205792 := by
-  rw [a_eq_sum_dp 6 (by omega)]
-  have h : (∑ j : Fin 16, ∑ k : Fin 16, dp 6 j k) = ∑ j : Fin 16, ∑ k : Fin 16, tbl_6 j k := by
-    apply Finset.sum_congr rfl; intro j _
-    apply Finset.sum_congr rfl; intro k _
-    exact dp_eq_tbl_6 j k
-  rw [h]; decide
-private lemma a_val_7 : a 7 = 411696 := by
-  rw [a_eq_sum_dp 7 (by omega)]
-  have h : (∑ j : Fin 16, ∑ k : Fin 16, dp 7 j k) = ∑ j : Fin 16, ∑ k : Fin 16, tbl_7 j k := by
-    apply Finset.sum_congr rfl; intro j _
-    apply Finset.sum_congr rfl; intro k _
-    exact dp_eq_tbl_7 j k
-  rw [h]; decide
-private lemma a_val_8 : a 8 = 777760 := by
-  rw [a_eq_sum_dp 8 (by omega)]
-  have h : (∑ j : Fin 16, ∑ k : Fin 16, dp 8 j k) = ∑ j : Fin 16, ∑ k : Fin 16, tbl_8 j k := by
-    apply Finset.sum_congr rfl; intro j _
-    apply Finset.sum_congr rfl; intro k _
-    exact dp_eq_tbl_8 j k
-  rw [h]; decide
-private lemma a_val_9 : a 9 = 1400080 := by
-  rw [a_eq_sum_dp 9 (by omega)]
-  have h : (∑ j : Fin 16, ∑ k : Fin 16, dp 9 j k) = ∑ j : Fin 16, ∑ k : Fin 16, tbl_9 j k := by
-    apply Finset.sum_congr rfl; intro j _
-    apply Finset.sum_congr rfl; intro k _
-    exact dp_eq_tbl_9 j k
-  rw [h]; decide
+private lemma a_eq_poly {n : ℕ} (hn : 0 < n) : (a n : ℚ) = polyVal (n : ℚ) := by
+  have hne : n ≠ 0 := by omega
+  simp only [a, hne, ↓reduceIte]
+  exact card_valid_eq_poly n
 
-private lemma coeff_X_pow_mul_eq (f : PowerSeries ℚ) (j n : ℕ) :
-    PowerSeries.coeff n (PowerSeries.X ^ j * f) = if j ≤ n then PowerSeries.coeff (n - j) f else 0 := by
-  induction j generalizing n with
-  | zero => simp
-  | succ j ih =>
-    rw [pow_succ', mul_assoc]
+private lemma a_vals :
+    (a 0 : ℚ) = 0 ∧ (a 1 : ℚ) = 1392 ∧ (a 2 : ℚ) = 5216 ∧ (a 3 : ℚ) = 15760 ∧
+    (a 4 : ℚ) = 41088 ∧ (a 5 : ℚ) = 95984 ∧ (a 6 : ℚ) = 205792 ∧ (a 7 : ℚ) = 411696 ∧
+    (a 8 : ℚ) = 777760 ∧ (a 9 : ℚ) = 1400080 := by
+  refine ⟨by simp [a], ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
+    (rw [a_eq_poly (by omega)]; unfold polyVal; norm_num)
+
+private lemma recurrence_part :
+    ∀ n : ℕ, 9 < n →
+      (a n : ℤ) =
+        9 * (a (n - 1) : ℤ) - 36 * (a (n - 2) : ℤ) + 84 * (a (n - 3) : ℤ)
+        - 126 * (a (n - 4) : ℤ) + 126 * (a (n - 5) : ℤ) - 84 * (a (n - 6) : ℤ)
+        + 36 * (a (n - 7) : ℤ) - 9 * (a (n - 8) : ℤ) + (a (n - 9) : ℤ) := by
+  intro n hn
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 10 := ⟨n - 10, by omega⟩
+  have hq :
+      (a (m + 10) : ℚ) =
+        9 * (a (m + 9) : ℚ) - 36 * (a (m + 8) : ℚ) + 84 * (a (m + 7) : ℚ)
+        - 126 * (a (m + 6) : ℚ) + 126 * (a (m + 5) : ℚ) - 84 * (a (m + 4) : ℚ)
+        + 36 * (a (m + 3) : ℚ) - 9 * (a (m + 2) : ℚ) + (a (m + 1) : ℚ) := by
+    rw [a_eq_poly (by omega), a_eq_poly (by omega), a_eq_poly (by omega),
+        a_eq_poly (by omega), a_eq_poly (by omega), a_eq_poly (by omega),
+        a_eq_poly (by omega), a_eq_poly (by omega), a_eq_poly (by omega),
+        a_eq_poly (by omega)]
+    unfold polyVal
+    push_cast
+    ring
+  have h1 : m + 10 - 1 = m + 9 := by omega
+  have h2 : m + 10 - 2 = m + 8 := by omega
+  have h3 : m + 10 - 3 = m + 7 := by omega
+  have h4 : m + 10 - 4 = m + 6 := by omega
+  have h5 : m + 10 - 5 = m + 5 := by omega
+  have h6 : m + 10 - 6 = m + 4 := by omega
+  have h7 : m + 10 - 7 = m + 3 := by omega
+  have h8 : m + 10 - 8 = m + 2 := by omega
+  have h9 : m + 10 - 9 = m + 1 := by omega
+  rw [h1, h2, h3, h4, h5, h6, h7, h8, h9]
+  exact_mod_cast hq
+
+private lemma coeff_mul_X_pow_rat (f : PowerSeries ℚ) (k n : ℕ) :
+    PowerSeries.coeff n (f * PowerSeries.X ^ k) =
+      if k ≤ n then PowerSeries.coeff (n - k) f else 0 := by
+  induction k generalizing n with
+  | zero =>
+    simp
+  | succ k ih =>
+    rw [pow_succ, ← mul_assoc]
     cases n with
-    | zero => simp
+    | zero =>
+      simp
     | succ m =>
-      rw [PowerSeries.coeff_succ_X_mul, ih m]
-      split_ifs with h1 h2
-      · simp [Nat.succ_sub_succ]
-      · omega
-      · omega
-      · rfl
+      rw [PowerSeries.coeff_succ_mul_X, ih m]
+      have hiff : k ≤ m ↔ k + 1 ≤ m + 1 := by omega
+      have hsub : m - k = m + 1 - (k + 1) := by omega
+      simp only [hiff, hsub]
 
-private lemma coeff_mul_X_pow_eq (f : PowerSeries ℚ) (j n : ℕ) :
-    PowerSeries.coeff n (f * PowerSeries.X ^ j) = if j ≤ n then PowerSeries.coeff (n - j) f else 0 := by
-  rw [mul_comm]; exact coeff_X_pow_mul_eq f j n
+private lemma coeff_X_pow_rat (k n : ℕ) :
+    PowerSeries.coeff n ((PowerSeries.X : PowerSeries ℚ) ^ k) = if n = k then 1 else 0 := by
+  rw [PowerSeries.coeff_X_pow]
 
-theorem solution : type_of% @OMA.S_oeis_a202050.main := by
-  have hrec_d : ∀ n : ℕ, 9 < n →
-      (a n : ℤ) = 9 * (a (n - 1) : ℤ) - 36 * (a (n - 2) : ℤ) + 84 * (a (n - 3) : ℤ) - 126 * (a (n - 4) : ℤ) + 126 * (a (n - 5) : ℤ) - 84 * (a (n - 6) : ℤ) + 36 * (a (n - 7) : ℤ) - 9 * (a (n - 8) : ℤ) + (a (n - 9) : ℤ) := by
-    intro n hn
-    have h := a_rec_d (n - 9) (by omega)
-    simp only [show n - 9 + 9 = n by omega, show n - 9 + 8 = n - 1 by omega, show n - 9 + 7 = n - 2 by omega, show n - 9 + 6 = n - 3 by omega, show n - 9 + 5 = n - 4 by omega, show n - 9 + 4 = n - 5 by omega, show n - 9 + 3 = n - 6 by omega, show n - 9 + 2 = n - 7 by omega, show n - 9 + 1 = n - 8 by omega] at h
-    omega
-  refine ⟨?_, hrec_d⟩
+private lemma gf_coeff_lt10 (f : ℕ → ℚ)
+    (h0 : f 0 = 0) (h1 : f 1 = 1392) (h2 : f 2 = 5216) (h3 : f 3 = 15760)
+    (h4 : f 4 = 41088) (h5 : f 5 = 95984) (h6 : f 6 = 205792) (h7 : f 7 = 411696)
+    (h8 : f 8 = 777760) (h9 : f 9 = 1400080) {n : ℕ} (hn : n < 10) :
+    f n - 9 * (if 1 ≤ n then f (n - 1) else 0)
+        + 36 * (if 2 ≤ n then f (n - 2) else 0)
+        - 84 * (if 3 ≤ n then f (n - 3) else 0)
+        + 126 * (if 4 ≤ n then f (n - 4) else 0)
+        - 126 * (if 5 ≤ n then f (n - 5) else 0)
+        + 84 * (if 6 ≤ n then f (n - 6) else 0)
+        - 36 * (if 7 ≤ n then f (n - 7) else 0)
+        + 9 * (if 8 ≤ n then f (n - 8) else 0)
+        - (if 9 ≤ n then f (n - 9) else 0) =
+      1392 * (if n = 1 then 1 else 0)
+        - 7312 * (if n = 2 then 1 else 0)
+        + 18928 * (if n = 3 then 1 else 0)
+        - 29904 * (if n = 4 then 1 else 0)
+        + 30800 * (if n = 5 then 1 else 0)
+        - 20912 * (if n = 6 then 1 else 0)
+        + 9072 * (if n = 7 then 1 else 0)
+        - 2288 * (if n = 8 then 1 else 0)
+        + 256 * (if n = 9 then 1 else 0) := by
+  interval_cases n <;> norm_num [h0, h1, h2, h3, h4, h5, h6, h7, h8, h9]
+
+private lemma gf_part :
+    (PowerSeries.mk fun n => (a n : ℚ)) * (1 - PowerSeries.X) ^ 9 =
+      16 * PowerSeries.X *
+        (87 - 457 * PowerSeries.X + 1183 * PowerSeries.X ^ 2 - 1869 * PowerSeries.X ^ 3
+          + 1925 * PowerSeries.X ^ 4 - 1307 * PowerSeries.X ^ 5 + 567 * PowerSeries.X ^ 6
+          - 143 * PowerSeries.X ^ 7 + 16 * PowerSeries.X ^ 8) := by
+  set A : PowerSeries ℚ := PowerSeries.mk fun n => (a n : ℚ)
+  have hlhs :
+      A * (1 - PowerSeries.X) ^ 9 =
+        A - PowerSeries.C (9 : ℚ) * (A * PowerSeries.X ^ 1)
+          + PowerSeries.C (36 : ℚ) * (A * PowerSeries.X ^ 2)
+          - PowerSeries.C (84 : ℚ) * (A * PowerSeries.X ^ 3)
+          + PowerSeries.C (126 : ℚ) * (A * PowerSeries.X ^ 4)
+          - PowerSeries.C (126 : ℚ) * (A * PowerSeries.X ^ 5)
+          + PowerSeries.C (84 : ℚ) * (A * PowerSeries.X ^ 6)
+          - PowerSeries.C (36 : ℚ) * (A * PowerSeries.X ^ 7)
+          + PowerSeries.C (9 : ℚ) * (A * PowerSeries.X ^ 8)
+          - A * PowerSeries.X ^ 9 := by
+    simp only [map_ofNat]
+    ring
+  have hrhs :
+      (16 : PowerSeries ℚ) * PowerSeries.X *
+        (87 - 457 * PowerSeries.X + 1183 * PowerSeries.X ^ 2 - 1869 * PowerSeries.X ^ 3
+          + 1925 * PowerSeries.X ^ 4 - 1307 * PowerSeries.X ^ 5 + 567 * PowerSeries.X ^ 6
+          - 143 * PowerSeries.X ^ 7 + 16 * PowerSeries.X ^ 8) =
+        PowerSeries.C (1392 : ℚ) * PowerSeries.X ^ 1
+          - PowerSeries.C (7312 : ℚ) * PowerSeries.X ^ 2
+          + PowerSeries.C (18928 : ℚ) * PowerSeries.X ^ 3
+          - PowerSeries.C (29904 : ℚ) * PowerSeries.X ^ 4
+          + PowerSeries.C (30800 : ℚ) * PowerSeries.X ^ 5
+          - PowerSeries.C (20912 : ℚ) * PowerSeries.X ^ 6
+          + PowerSeries.C (9072 : ℚ) * PowerSeries.X ^ 7
+          - PowerSeries.C (2288 : ℚ) * PowerSeries.X ^ 8
+          + PowerSeries.C (256 : ℚ) * PowerSeries.X ^ 9 := by
+    simp only [map_ofNat]
+    ring
+  rw [hlhs, hrhs]
   ext n
-  have hexp : (1 - (PowerSeries.X : PowerSeries ℚ)) ^ 9 = 1 - PowerSeries.C 9 * PowerSeries.X ^ 1 + PowerSeries.C 36 * PowerSeries.X ^ 2 - PowerSeries.C 84 * PowerSeries.X ^ 3 + PowerSeries.C 126 * PowerSeries.X ^ 4 - PowerSeries.C 126 * PowerSeries.X ^ 5 + PowerSeries.C 84 * PowerSeries.X ^ 6 - PowerSeries.C 36 * PowerSeries.X ^ 7 + PowerSeries.C 9 * PowerSeries.X ^ 8 - PowerSeries.X ^ 9 := by
-    simp only [map_ofNat]; ring
-  rw [hexp]
-  have hR : 16 * (PowerSeries.X : PowerSeries ℚ) * (87 - 457 * PowerSeries.X + 1183 * PowerSeries.X ^ 2 - 1869 * PowerSeries.X ^ 3 + 1925 * PowerSeries.X ^ 4 - 1307 * PowerSeries.X ^ 5 + 567 * PowerSeries.X ^ 6 - 143 * PowerSeries.X ^ 7 + 16 * PowerSeries.X ^ 8) = PowerSeries.C 1392 * PowerSeries.X ^ 1 - PowerSeries.C 7312 * PowerSeries.X ^ 2 + PowerSeries.C 18928 * PowerSeries.X ^ 3 - PowerSeries.C 29904 * PowerSeries.X ^ 4 + PowerSeries.C 30800 * PowerSeries.X ^ 5 - PowerSeries.C 20912 * PowerSeries.X ^ 6 + PowerSeries.C 9072 * PowerSeries.X ^ 7 - PowerSeries.C 2288 * PowerSeries.X ^ 8 + PowerSeries.C 256 * PowerSeries.X ^ 9 := by
-    simp only [map_ofNat]; ring
-  rw [hR]
-  have hc : ∀ (c : ℚ) (j : ℕ), PowerSeries.coeff n (PowerSeries.mk (fun m => (a m : ℚ)) * (PowerSeries.C c * PowerSeries.X ^ j)) =
-      c * if j ≤ n then (a (n - j) : ℚ) else 0 := by
-    intro c j
-    rw [mul_comm (PowerSeries.C c), ← mul_assoc, mul_comm _ (PowerSeries.C c),
-        PowerSeries.coeff_C_mul, coeff_mul_X_pow_eq, PowerSeries.coeff_mk]
-  have hX : ∀ (j : ℕ), PowerSeries.coeff n (PowerSeries.mk (fun m => (a m : ℚ)) * PowerSeries.X ^ j) =
-      if j ≤ n then (a (n - j) : ℚ) else 0 := by
-    intro j; rw [coeff_mul_X_pow_eq, PowerSeries.coeff_mk]
-  simp only [mul_add, mul_sub, mul_one, map_add, map_sub, PowerSeries.coeff_mk, hc, hX,
-    PowerSeries.coeff_C_mul, PowerSeries.coeff_X_pow]
-  rcases n with _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | m
-  · simp [a_zero]
-  · simp [a_zero, a_val_1]; try norm_num
-  · simp [a_zero, a_val_1, a_val_2]; try norm_num
-  · simp [a_zero, a_val_1, a_val_2, a_val_3]; try norm_num
-  · simp [a_zero, a_val_1, a_val_2, a_val_3, a_val_4]; try norm_num
-  · simp [a_zero, a_val_1, a_val_2, a_val_3, a_val_4, a_val_5]; try norm_num
-  · simp [a_zero, a_val_1, a_val_2, a_val_3, a_val_4, a_val_5, a_val_6]; try norm_num
-  · simp [a_zero, a_val_1, a_val_2, a_val_3, a_val_4, a_val_5, a_val_6, a_val_7]; try norm_num
-  · simp [a_zero, a_val_1, a_val_2, a_val_3, a_val_4, a_val_5, a_val_6, a_val_7, a_val_8]; try norm_num
-  · simp [a_zero, a_val_1, a_val_2, a_val_3, a_val_4, a_val_5, a_val_6, a_val_7, a_val_8, a_val_9]; try norm_num
-  · have hgt : 9 < m + 10 := by omega
-    have hr := hrec_d (m + 10) hgt
-    have hrq : (a (m + 10) : ℚ) = 9 * (a (m + 9) : ℚ) - 36 * (a (m + 8) : ℚ) + 84 * (a (m + 7) : ℚ) - 126 * (a (m + 6) : ℚ) + 126 * (a (m + 5) : ℚ) - 84 * (a (m + 4) : ℚ) + 36 * (a (m + 3) : ℚ) - 9 * (a (m + 2) : ℚ) + (a (m + 1) : ℚ) := by
-      exact_mod_cast hr
-    simp only [show 1 ≤ m + 10 by omega, show 2 ≤ m + 10 by omega, show 3 ≤ m + 10 by omega, show 4 ≤ m + 10 by omega, show 5 ≤ m + 10 by omega, show 6 ≤ m + 10 by omega, show 7 ≤ m + 10 by omega, show 8 ≤ m + 10 by omega, show 9 ≤ m + 10 by omega, ↓reduceIte,
-      show m + 10 - 1 = m + 9 by omega, show m + 10 - 2 = m + 8 by omega, show m + 10 - 3 = m + 7 by omega, show m + 10 - 4 = m + 6 by omega, show m + 10 - 5 = m + 5 by omega, show m + 10 - 6 = m + 4 by omega, show m + 10 - 7 = m + 3 by omega, show m + 10 - 8 = m + 2 by omega, show m + 10 - 9 = m + 1 by omega,
-      show ¬(m + 10 = 1) by omega, show ¬(m + 10 = 2) by omega, show ¬(m + 10 = 3) by omega, show ¬(m + 10 = 4) by omega, show ¬(m + 10 = 5) by omega, show ¬(m + 10 = 6) by omega, show ¬(m + 10 = 7) by omega, show ¬(m + 10 = 8) by omega, show ¬(m + 10 = 9) by omega]
-    linarith
+  simp only [map_sub, map_add, PowerSeries.coeff_C_mul, coeff_mul_X_pow_rat,
+    coeff_X_pow_rat, PowerSeries.coeff_mk, A]
+  by_cases hn : n < 10
+  · obtain ⟨h0, h1, h2, h3, h4, h5, h6, h7, h8, h9⟩ := a_vals
+    exact gf_coeff_lt10 (fun k => (a k : ℚ)) h0 h1 h2 h3 h4 h5 h6 h7 h8 h9 hn
+  · obtain ⟨m, rfl⟩ : ∃ m, n = m + 10 := ⟨n - 10, by omega⟩
+    simp only [
+      show 1 ≤ m + 10 by omega, show 2 ≤ m + 10 by omega, show 3 ≤ m + 10 by omega,
+      show 4 ≤ m + 10 by omega, show 5 ≤ m + 10 by omega, show 6 ≤ m + 10 by omega,
+      show 7 ≤ m + 10 by omega, show 8 ≤ m + 10 by omega, show 9 ≤ m + 10 by omega,
+      show m + 10 ≠ 1 by omega, show m + 10 ≠ 2 by omega, show m + 10 ≠ 3 by omega,
+      show m + 10 ≠ 4 by omega, show m + 10 ≠ 5 by omega, show m + 10 ≠ 6 by omega,
+      show m + 10 ≠ 7 by omega, show m + 10 ≠ 8 by omega, show m + 10 ≠ 9 by omega,
+      show m + 10 - 1 = m + 9 by omega, show m + 10 - 2 = m + 8 by omega,
+      show m + 10 - 3 = m + 7 by omega, show m + 10 - 4 = m + 6 by omega,
+      show m + 10 - 5 = m + 5 by omega, show m + 10 - 6 = m + 4 by omega,
+      show m + 10 - 7 = m + 3 by omega, show m + 10 - 8 = m + 2 by omega,
+      show m + 10 - 9 = m + 1 by omega,
+      ↓reduceIte]
+    rw [a_eq_poly (by omega), a_eq_poly (by omega), a_eq_poly (by omega),
+        a_eq_poly (by omega), a_eq_poly (by omega), a_eq_poly (by omega),
+        a_eq_poly (by omega), a_eq_poly (by omega), a_eq_poly (by omega),
+        a_eq_poly (by omega)]
+    unfold polyVal
+    push_cast
+    ring
 
-end OMA.P_oeis_a202050
+end OMA.S_oeis_a202050_Proof
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a202050.main :=
-  OMA.P_oeis_a202050.solution
+  ⟨OMA.S_oeis_a202050_Proof.gf_part, OMA.S_oeis_a202050_Proof.recurrence_part⟩
