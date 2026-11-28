@@ -1,6 +1,8 @@
 import OMAStatements.S_oeis_a302298
 import Mathlib
 
+-- Original proof by @Genbox in PR #32636.
+
 namespace OMA.S_oeis_a302298
 open Finset
 
@@ -88,8 +90,7 @@ lemma P2 (n : ℕ) : ∀ j, j ≤ n →
 
 lemma Qsum (M : ℤ) (N : ℕ) :
     30 * ∑ u ∈ range N, ((u : ℤ) ^ 2 * (M - (u : ℤ) ^ 2))
-      = 5 * M * (((N : ℤ) - 1) * N * (2 * N - 1))
-        - ((N : ℤ) - 1) * N * (2 * N - 1) * (3 * (N : ℤ) ^ 2 - 3 * N - 1) := by
+      = ((N : ℤ) - 1) * N * (2 * N - 1) * (5 * M - (3 * (N : ℤ) ^ 2 - 3 * N - 1)) := by
   induction N with
   | zero => simp
   | succ N ih =>
@@ -127,19 +128,13 @@ lemma Hclosed (n : ℕ) :
   linarith
 
 lemma htot (n : ℕ) : ∑ i ∈ range (2 * n + 1), w n i = 2 * (n : ℤ) ^ 2 + 2 * n + 1 := by
-  have h := P2 n n le_rfl
-  rw [show n + 1 + n = 2 * n + 1 by ring] at h
-  rw [h]; ring
+  simpa [show n + 1 + n = 2 * n + 1 by omega] using P2 n n le_rfl
 
 lemma conv (n : ℕ) (g : ℤ → ℤ) :
     ∑ a ∈ Icc (-(n : ℤ)) n, g a = ∑ i ∈ range (2 * n + 1), g ((i : ℤ) - n) := by
   symm
-  apply sum_nbij' (fun i : ℕ => (i : ℤ) - n) (fun a : ℤ => (a + n).toNat)
-  · intro i hi; simp only [mem_range, mem_Icc] at *; omega
-  · intro a ha; simp only [mem_range, mem_Icc] at *; omega
-  · intro i hi; simp only [mem_range] at hi; omega
-  · intro a ha; simp only [mem_Icc] at ha; omega
-  · intro i hi; rfl
+  apply sum_nbij' (fun i : ℕ => (i : ℤ) - n) (fun a : ℤ => (a + n).toNat) <;>
+    intro i hi <;> simp only [mem_range, mem_Icc] at * <;> omega
 
 lemma fibcard (n : ℕ) (a : ℤ) (ha : a ∈ Icc (-(n : ℤ)) n) :
     (((diamond n).filter (fun p => p.1 = a)).card : ℤ) = 2 * n + 1 - 2 * |a| := by
@@ -151,16 +146,12 @@ lemma fibcard (n : ℕ) (a : ℤ) (ha : a ∈ Icc (-(n : ℤ)) n) :
     simp only [diamond, mem_filter, mem_product, mem_Icc, mem_image,
       Prod.mk.injEq]
     constructor
-    · rintro ⟨⟨⟨⟨h1, h2⟩, h3, h4⟩, h5⟩, h6⟩
-      refine ⟨y, ⟨?_, ?_⟩, h6.symm, rfl⟩
-      · rcases abs_cases a with ⟨hx, _⟩ | ⟨hx, _⟩ <;> rcases abs_cases y with ⟨hy, _⟩ | ⟨hy, _⟩ <;>
-          subst h6 <;> omega
-      · rcases abs_cases a with ⟨hx, _⟩ | ⟨hx, _⟩ <;> rcases abs_cases y with ⟨hy, _⟩ | ⟨hy, _⟩ <;>
-          subst h6 <;> omega
-    · rintro ⟨c, ⟨h1, h2⟩, h3, rfl⟩
-      subst h3
-      rcases abs_cases a with ⟨hx, _⟩ | ⟨hx, _⟩ <;> rcases abs_cases c with ⟨hc', _⟩ | ⟨hc', _⟩ <;>
-        refine ⟨⟨⟨⟨?_, ?_⟩, ?_, ?_⟩, ?_⟩, rfl⟩ <;> omega
+    · rintro ⟨⟨_, hxy⟩, rfl⟩
+      exact ⟨y, abs_le.mp (show |y| ≤ (n : ℤ) - |x| by omega), rfl, rfl⟩
+    · rintro ⟨c, hc, rfl, rfl⟩
+      have hy := abs_le.mpr hc
+      have hnonneg := abs_nonneg a
+      exact ⟨⟨⟨mem_Icc.mp ha, abs_le.mp (show |c| ≤ (n : ℤ) by omega)⟩, by omega⟩, rfl⟩
   rw [h, card_image_of_injective _ (fun x y hxy => (Prod.mk.inj hxy).2), Int.card_Icc]
   have : (0 : ℤ) ≤ (n : ℤ) - |a| := by linarith
   rw [Int.toNat_of_nonneg (by linarith)]
@@ -225,12 +216,7 @@ theorem main_proof : ∀ n : ℕ,
   intro n
   unfold a
   rw [swapsum, Tx, cut, htot]
-  have hH := Hclosed n
-  generalize (∑ k ∈ range (2 * n + 1), ((∑ i ∈ range (k + 1), w n i) *
-        (2 * (n : ℤ) ^ 2 + 2 * n + 1 - ∑ i ∈ range (k + 1), w n i))) = H at hH ⊢
-  have h2 : 2 * ((n : ℤ) * (6 + 25 * n + 40 * n ^ 2 + 35 * n ^ 3 + 14 * n ^ 4)) = 15 * (2 * H) := by
-    linarith
-  rw [h2]
+  have := Hclosed n
   omega
 
 end OMA.S_oeis_a302298
