@@ -2,11 +2,9 @@ import OMAStatements.S_oeis_a380066
 import Mathlib.Data.ZMod.Basic
 import Mathlib.Tactic
 
-namespace OMA.P_oeis_a380066
-
 open OMA.S_oeis_a380066
 
-theorem solution : type_of% @OMA.S_oeis_a380066.main := by
+theorem OMA.solution : type_of% @OMA.S_oeis_a380066.main := by
   intro A hA0 hEq
   -- Step 1: Prove by strong induction that coeff r (A + 1) is even for all r ≥ 0!
   have heven : ∀ r : ℕ, 2 ∣ PowerSeries.coeff r (A + 1) := by
@@ -78,6 +76,3 @@ theorem solution : type_of% @OMA.S_oeis_a380066.main := by
   rw [map_add, PowerSeries.coeff_one, if_neg (by omega), add_zero] at h
   exact h
 
-end OMA.P_oeis_a380066
-
-theorem OMA.solution : type_of% @OMA.S_oeis_a380066.main := OMA.P_oeis_a380066.solution
