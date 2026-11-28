@@ -1,85 +1,47 @@
 import OMAStatements.S_oeis_a002814
 import Mathlib
 
-namespace PolynomialReturnTimes
+open OMA.S_oeis_a002814 Function
 
-open OMA.S_oeis_a002814
+private def v (n : ℕ) := a (n+1) - 2
 
-private def u (n : ℕ) : ℤ := a (n + 1)
-private def v (n : ℕ) : ℤ := u n - 2
+/-- A divisor of the shifted term is exactly a modulus for which the starting
+point returns after n iterations. Return times are multiples of the minimal period. -/
+private theorem return_time (d n : ℕ) :
+    (d : ℤ) ∣ v n ↔
+      IsPeriodicPt (fun x : ZMod d => x^3 + 3*x^2 - 3) n 2 := by
+  let F (x : ZMod d) := x^3 + 3*x^2 - 3
+  have orbit (i : ℕ) : (a (i+1) : ZMod d) = F^[i] 2 := by
+    induction i with
+    | zero => simp [a]
+    | succ i ih =>
+      rw [iterate_succ_apply', ← ih]
+      change (↑((a (i+1)^3 + 3*a (i+1)^2 - 3) : ℤ) : ZMod d) = _
+      push_cast
+      rfl
+  change (d : ℤ) ∣ (a (n+1) - 2) ↔ F^[n] 2 = 2
+  rw [← orbit, eq_comm, ← Int.cast_ofNat (R := ZMod d),
+    ZMod.intCast_eq_intCast_iff_dvd_sub]
 
-private theorem step (n : ℕ) : u (n + 1) = u n ^ 3 + 3 * u n ^ 2 - 3 := rfl
+private theorem common_dvd (d n m : ℕ) :
+    (d : ℤ) ∣ v n ∧ (d : ℤ) ∣ v m ↔ (d : ℤ) ∣ v (n.gcd m) := by
+  simp [return_time, isPeriodicPt_iff_minimalPeriod_dvd, Nat.dvd_gcd_iff]
 
 private theorem nonneg (n : ℕ) : 0 ≤ v n := by
-  suffices h : 2 ≤ u n by unfold v; omega
+  apply sub_nonneg.mpr
   induction n with
   | zero => decide
   | succ n ih =>
-    rw [step]
-    have h₂ := pow_le_pow_left₀ (by decide : (0 : ℤ) ≤ 2) ih 2
-    have h₃ := pow_le_pow_left₀ (by decide : (0 : ℤ) ≤ 2) ih 3
-    norm_num at h₂ h₃
-    linarith
-
-private theorem same_after_shift (d : ℤ) (m : ℕ) (hm : d ∣ v m) (n : ℕ) :
-    u n ≡ u (m + n) [ZMOD d] := by
-  induction n with
-  | zero =>
-    rw [Nat.add_zero]
-    exact Int.modEq_iff_dvd.mpr hm
-  | succ n ih =>
-    change u (n + 1) ≡ u ((m + n) + 1) [ZMOD d]
-    rw [step n, step (m + n)]
-    exact ((ih.pow 3).add ((Int.ModEq.refl (3 : ℤ)).mul (ih.pow 2))).sub
-      (Int.ModEq.refl 3)
-
-private theorem periodic (d : ℤ) (m : ℕ) (hm : d ∣ v m) (n : ℕ) :
-    d ∣ v (m + n) ↔ d ∣ v n := by
-  change (d ∣ u (m + n) - 2) ↔ d ∣ u n - 2
-  rw [← Int.modEq_iff_dvd, ← Int.modEq_iff_dvd]
-  have h := same_after_shift d m hm n
-  exact ⟨fun h' => h'.trans h.symm, fun h' => h'.trans h⟩
-
-private theorem reduce (d : ℤ) (m : ℕ) (hm : d ∣ v m) (q r : ℕ) :
-    d ∣ v (m * q + r) ↔ d ∣ v r := by
-  induction q with
-  | zero => simp
-  | succ q ih =>
-    rw [Nat.mul_succ, show m * q + m + r = m + (m * q + r) by omega,
-      periodic d m hm, ih]
-
-private theorem common_dvd (d : ℤ) (m n : ℕ) :
-    d ∣ v m ∧ d ∣ v n ↔ d ∣ v (Nat.gcd m n) := by
-  induction m using Nat.strong_induction_on generalizing n with
-  | h m ih =>
-    by_cases hm : m = 0
-    · subst m
-      have hv : v 0 = 0 := by decide
-      simp [hv]
-    rw [Nat.gcd_rec]
-    rw [← ih (n % m) (Nat.mod_lt n (Nat.pos_of_ne_zero hm)) m]
-    have hmod (h : d ∣ v m) : d ∣ v n ↔ d ∣ v (n % m) := by
-      have hn : m * (n / m) + n % m = n := by
-        simpa only [Nat.add_comm] using Nat.mod_add_div n m
-      simpa only [hn] using reduce d m h (n / m) (n % m)
-    exact ⟨fun ⟨h, h'⟩ => ⟨(hmod h).mp h', h⟩,
-      fun ⟨h', h⟩ => ⟨h, (hmod h).mpr h'⟩⟩
-
-private theorem gcd_eq (m n : ℕ) : (Int.gcd (v m) (v n) : ℤ) = v (Nat.gcd m n) := by
-  let g := Int.gcd (v m) (v n)
-  let c := v (Nat.gcd m n)
-  have hc : 0 ≤ c := nonneg _
-  have hcabs : (c.natAbs : ℤ) = c := Int.natAbs_of_nonneg hc
-  have hg : (g : ℤ) ∣ c := (common_dvd (g : ℤ) m n).mp
-    ⟨Int.gcd_dvd_left _ _, Int.gcd_dvd_right _ _⟩
-  have hret : c ∣ v m ∧ c ∣ v n := (common_dvd c m n).mpr (dvd_refl _)
-  rw [← hcabs] at hg hret
-  have hgn : g ∣ c.natAbs := Int.natCast_dvd_natCast.mp hg
-  have hcn : c.natAbs ∣ g := Int.dvd_gcd hret.1 hret.2
-  exact (congrArg (fun x : ℕ => (x : ℤ)) (Nat.dvd_antisymm hgn hcn)).trans hcabs
-
-end PolynomialReturnTimes
+    change 2 ≤ a (n+1)^3 + 3*a (n+1)^2 - 3
+    have h : (0 : ℤ) ≤ 2 := by decide
+    nlinarith only [pow_le_pow_left₀ h ih 2, pow_le_pow_left₀ h ih 3]
 
 theorem OMA.solution : type_of% @OMA.S_oeis_a002814.main := by
   intro n m _ _
-  exact PolynomialReturnTimes.gcd_eq n m
+  change (Int.gcd (v n) (v m) : ℤ) = v (n.gcd m)
+  let c := v (n.gcd m)
+  have hc : (c.natAbs : ℤ) = c := Int.natAbs_of_nonneg (nonneg (n.gcd m))
+  have h := (common_dvd c.natAbs n m).mpr (by rw [hc])
+  exact Int.dvd_antisymm (Int.natCast_nonneg _) (nonneg _)
+    ((common_dvd _ n m).mp ⟨Int.gcd_dvd_left .., Int.gcd_dvd_right ..⟩)
+    (by simpa only [hc] using Int.dvd_coe_gcd h.1 h.2)
