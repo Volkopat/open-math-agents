@@ -1,17 +1,14 @@
 import OMAReductions.R_Erdos142_erdos_142_variants_lower_R1_H2_R3
 
-/-! Taking logarithms reduces the goal to the fact that log x grows more
-slowly than x^ε. Once x ≥ C, a single extra log x absorbs the constant. -/
+-- Step Erdos142.erdos_142.variants.lower.R1.H2.R3.H2: hypothesis H2 of reduction Erdos142.erdos_142.variants.lower.R1.H2.R3
+-- Credit: @Raimo33
 
-open Filter Real in
+open Real Filter in
 theorem OMA.solution : OMA.R_Erdos142_erdos_142_variants_lower_R1_H2_R3.H2 := by
-  intro A C c ε _ hC hc hε
-  refine (tendsto_log_atTop.comp tendsto_natCast_atTop_atTop).eventually
-    (p := fun x => C * exp (-c*x^ε) ≤ 1/x^A) ?_
-  filter_upwards [((isLittleO_log_rpow_atTop hε).const_mul_left (A+1)).bound hc,
-    eventually_ge_atTop C] with x h hx
-  have pos := hC.trans_le hx
-  replace h := (le_abs_self _).trans h
-  rw [norm_of_nonneg (by positivity)] at h
-  rw [← exp_log hC, ← exp_add, rpow_def_of_pos pos A, one_div, ← exp_neg, exp_le_exp]
-  linarith [log_le_log hC hx]
+  intro A C c ε _ _ hc hε
+  have hl := tendsto_log_atTop.comp tendsto_natCast_atTop_atTop
+  filter_upwards [((tendsto_exp_mul_div_rpow_atTop (A / ε) c hc).comp
+    ((tendsto_rpow_atTop hε).comp hl)).eventually_ge_atTop C, hl.eventually_gt_atTop 0] with N h hL
+  dsimp at h hL
+  rw [← rpow_mul hL.le, mul_div_cancel₀ A hε.ne'] at h
+  rwa [neg_mul, exp_neg, mul_inv_le_iff₀ (exp_pos _), div_mul_eq_mul_div, one_mul]
